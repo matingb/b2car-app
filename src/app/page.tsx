@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { routes } from "@/routing/routes";
+import { ROUTES } from "@/routing/routes";
 
 export default function HomePage() {
-  redirect(routes.clientes);
+  redirect(ROUTES.clientes);
 }
 
 

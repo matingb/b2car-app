@@ -1,110 +1,124 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import Link from "next/link";
-import { supabase } from "@/supabase/client";
-import { routes } from "@/routing/routes";
-
-function SidebarItem({ href, label }: { href: string; label: string }) {
-  const pathname = usePathname();
-  const isActive = pathname === href;
-  return (
-    <Link
-      href={href}
-      className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-colors ${
-        isActive
-          ? "bg-[#007995] text-white"
-          : "text-black hover:bg-gray-100"
-      }`}
-    >
-      <span className="text-base font-medium">{label}</span>
-    </Link>
-  );
-}
+import { ROUTES } from "@/routing/routes";
+import SidebarItem from "@/app/(user)/components/SidebarItem";
+import Header from "@/app/(user)/components/Header";
+import { SessionProvider } from "@/app/(user)/providers/SessionProvider";
+import {
+  ACCENT_PRIMARY,
+  BACKGROUND_PRIMARY,
+  BACKGROUND_SECONDARY,
+  TEXT_PRIMARY,
+  TEXT_SECONDARY,
+  TEXT_CONTRAST,
+} from "@/theme/theme";
 
 export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
-  const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      const session = data.session;
-      if (!session) {
-        router.replace(routes.login);
-      } else {
-        setChecking(false);
-      }
-    });
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) router.replace(routes.login);
-    });
-
-    return () => {
-      mounted = false;
-      sub.subscription.unsubscribe();
-    };
-  }, []);
-
-  if (checking) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">Cargando…</div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#f5f7f9] text-black">
-      <header className="bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 shadow-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#007995] text-white">🔧</div>
-            <div>
-              <div className="text-lg font-semibold">TallerPro</div>
-              <div className="text-xs text-gray-500">Sistema de Gestión</div>
+    <SessionProvider>
+      <div style={styles.appRoot}>
+        <Header />
+        <div style={styles.pageContent}>
+          <aside style={styles.sidebar}>
+            <div style={styles.card}>
+              <div style={styles.sidebarHeaderRow}>
+                <div style={styles.brandBadge}>
+                  🔧
+                </div>
+                <div>
+                  <div style={styles.title}>TallerPro</div>
+                  <div style={styles.subtitle}>Sistema de Gestión</div>
+                </div>
+              </div>
+              <nav style={styles.navList}>
+                <SidebarItem href={ROUTES.clientes} label="Clientes" />
+                <SidebarItem href={ROUTES.vehiculos} label="Vehículos" />
+              </nav>
             </div>
-          </div>
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              router.replace(routes.login);
-            }}
-            className="rounded-md bg-[#007995] px-3 py-2 text-sm font-medium text-white hover:brightness-95"
-          >
-            Cerrar sesión
-          </button>
+          </aside>
+          <main style={styles.main}>
+            <div style={styles.cardMain}>{children}</div>
+          </main>
         </div>
-      </header>
-      <div className="mx-auto flex max-w-6xl gap-8 p-6">
-        <aside className="w-64">
-          <div className="rounded-2xl bg-white p-5 shadow-sm">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#007995] text-white">
-                🔧
-              </div>
-              <div>
-                <div className="text-xl font-semibold">TallerPro</div>
-                <div className="text-sm text-gray-500">Sistema de Gestión</div>
-              </div>
-            </div>
-            <nav className="space-y-2">
-              <SidebarItem href={routes.clientes} label="Clientes" />
-              <SidebarItem href={routes.vehiculos} label="Vehículos" />
-            </nav>
-          </div>
-        </aside>
-        <main className="flex-1">
-          <div className="rounded-2xl bg-white p-6 shadow-sm">{children}</div>
-        </main>
       </div>
-    </div>
+    </SessionProvider>
   );
 }
+
+const styles = {
+  appRoot: {
+    backgroundColor: BACKGROUND_PRIMARY,
+    color: TEXT_PRIMARY,
+    minHeight: "100vh",
+  },
+  loading: {
+    display: "flex",
+    minHeight: "100vh",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pageContent: {
+    marginLeft: "auto",
+    marginRight: "auto",
+    display: "flex",
+    maxWidth: "72rem",
+    columnGap: "2rem",
+    padding: "1.5rem",
+  },
+  sidebar: {
+    width: "16rem",
+  },
+  card: {
+    backgroundColor: BACKGROUND_SECONDARY,
+    borderRadius: "1rem",
+    padding: "1.25rem",
+    boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+  },
+  cardMain: {
+    backgroundColor: BACKGROUND_SECONDARY,
+    borderRadius: "1rem",
+    padding: "1.5rem",
+    boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+  },
+  brandBadge: {
+    backgroundColor: ACCENT_PRIMARY,
+    color: TEXT_CONTRAST,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    height: "3rem",
+    width: "3rem",
+    borderRadius: "0.75rem",
+  },
+  sidebarHeaderRow: {
+    marginBottom: "1.5rem",
+    display: "flex",
+    alignItems: "center",
+    columnGap: "0.75rem",
+  },
+  title: {
+    color: TEXT_PRIMARY,
+    fontSize: "1.25rem",
+    lineHeight: "1.75rem",
+    fontWeight: 600,
+  },
+  subtitle: {
+    color: TEXT_SECONDARY,
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+  },
+  navList: {
+    display: "flex",
+    flexDirection: "column",
+    rowGap: "0.5rem",
+  },
+  main: {
+    flex: 1,
+  },
+} as const;
 
 

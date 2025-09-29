@@ -1,10 +1,10 @@
-export const routes = {
+export const ROUTES = {
 	root: "/",
 	login: "/login",
 	clientes: "/clientes",
 	vehiculos: "/vehiculos",
 } as const;
 
-export type AppRouteKey = keyof typeof routes;
+export type AppRouteKey = keyof typeof ROUTES;
 
 

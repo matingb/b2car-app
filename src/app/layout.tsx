@@ -1,4 +1,5 @@
 import "../globals.css";
+import { SessionProvider } from "@/app/(user)/providers/SessionProvider";
 
 
 export default function RootLayout({
@@ -9,7 +10,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
+        <SessionProvider>
+          {children}
+        </SessionProvider>
       </body>
     </html>
   );
