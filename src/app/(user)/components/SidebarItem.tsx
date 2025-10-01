@@ -10,11 +10,13 @@ export default function SidebarItem({
   label,
   icon,
   collapsed = false,
+  onClick = () => {},
 }: {
   href: string;
   label: string;
   icon?: ReactNode;
   collapsed?: boolean;
+  onClick?: () => void;
 }) {
   const pathname = usePathname();
   const isActive = pathname === href;
@@ -42,7 +44,7 @@ export default function SidebarItem({
         alignItems: "center",
         justifyContent: "center",
         height: "1.5rem",
-        width: "3 rem",
+        width: "3rem",
       } as React.CSSProperties,
       itemLabel: {
         fontSize: "1rem",
@@ -62,6 +64,7 @@ export default function SidebarItem({
       style={{ ...s.item, ...(isActive ? s.itemActive : null) }}
       aria-label={label}
       title={label}
+      onClick={onClick}
     >
       {icon ? <span style={s.iconWrap}>{icon}</span> : null}
       <span style={s.itemLabel}>{label}</span>

@@ -14,7 +14,8 @@ import {
   TEXT_CONTRAST,
 } from "@/theme/theme";
 import Divider from "@mui/material/Divider";
-import { Users, Car, LogOut } from "lucide-react"; // o tus propios íconos
+import { Users, Car, LogOut, PanelLeft, AlignJustify } from "lucide-react"; // o tus propios íconos
+import { supabase } from "@/supabase/client";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -54,11 +55,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   title={collapsed ? "Expandir" : "Colapsar"}
                   aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
                 >
-                  🔧
+                  <PanelLeft size={18} />
                 </div>
+                {!collapsed && (
+                  <Divider orientation="vertical" flexItem style={{ margin: "0.5rem 0.5rem" }} />
+                )}
                 <div style={s.brandTextWrap}>
                   <div style={s.title}>TallerPro</div>
-                  
                 </div>
               </div>
 
@@ -75,12 +78,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   icon={<Car size={18} />}
                   collapsed={collapsed}
                 />
-                <Divider  style={{ width: collapsed ? "2rem" : "100%", margin: collapsed ? "0.5rem 0" : "0.5rem 0" }}/>
+                <Divider style={{ width: collapsed ? "2rem" : "100%", margin: collapsed ? "0.5rem 0" : "0.5rem 0" }} />
                 <SidebarItem
                   href={""}
                   label="Cerrar sesión"
                   icon={<LogOut size={18} />}
                   collapsed={collapsed}
+                  onClick={() => { supabase.auth.signOut() }}
                 />
               </nav>
             </div>
@@ -125,29 +129,28 @@ const styles = {
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
   },
   brandBadge: {
-    backgroundColor: ACCENT_PRIMARY,
-    color: TEXT_CONTRAST,
+    //backgroundColor: ACCENT_PRIMARY,
+    color: ACCENT_PRIMARY,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     height: "3rem",
     width: "100%",
-    //minWidth: "2.05rem",
-    maxWidth: "3rem",
-    borderRadius: "0.75rem",
+    maxWidth: "2rem",
     userSelect: "none",
   },
   sidebarHeaderRow: {
     marginBottom: "1.5rem",
     display: "flex",
     alignItems: "center",
-    columnGap: "0.75rem",
+    justifyItems: "left"
   },
   title: {
     color: TEXT_PRIMARY,
     fontSize: "1.25rem",
     lineHeight: "1.75rem",
     fontWeight: 600,
+    marginLeft: "0.5rem",
   },
   subtitle: {
     color: TEXT_SECONDARY,
