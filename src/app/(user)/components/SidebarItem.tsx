@@ -3,39 +3,68 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ACCENT_PRIMARY, TEXT_CONTRAST, TEXT_PRIMARY } from "@/theme/theme";
+import { ReactNode, useMemo } from "react";
 
 export default function SidebarItem({
   href,
   label,
+  icon,
+  collapsed = false,
 }: {
   href: string;
   label: string;
+  icon?: ReactNode;
+  collapsed?: boolean;
 }) {
   const pathname = usePathname();
   const isActive = pathname === href;
+
+  const s = useMemo(() => {
+    return {
+      item: {
+        display: "flex",
+        alignItems: "center",
+        columnGap: collapsed ? "0" : "0.75rem",
+        borderRadius: "0.75rem",
+        padding: "0.75rem 0.75rem",
+        color: TEXT_PRIMARY,
+        justifyContent: collapsed ? "center" : "flex-start",
+        width: "100%",
+        textDecoration: "none",
+        transition: "background-color 150ms ease, color 150ms ease, padding 150ms ease",
+      } as React.CSSProperties,
+      itemActive: {
+        backgroundColor: ACCENT_PRIMARY,
+        color: TEXT_CONTRAST,
+      } as React.CSSProperties,
+      iconWrap: {
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "1.5rem",
+        width: "3 rem",
+      } as React.CSSProperties,
+      itemLabel: {
+        fontSize: "1rem",
+        lineHeight: "1.5rem",
+        fontWeight: 500,
+        display: collapsed ? "none" : "inline",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+      } as React.CSSProperties,
+    };
+  }, [collapsed]);
+
   return (
-    <Link href={href} style={{ ...styles.item, ...isActive && styles.itemActive }}>
-      <span style={styles.itemLabel}>{label}</span>
+    <Link
+      href={href}
+      style={{ ...s.item, ...(isActive ? s.itemActive : null) }}
+      aria-label={label}
+      title={label}
+    >
+      {icon ? <span style={s.iconWrap}>{icon}</span> : null}
+      <span style={s.itemLabel}>{label}</span>
     </Link>
   );
-}
-
-const styles = {
-  item: {
-    display: "flex",
-    alignItems: "center",
-    columnGap: "0.75rem",
-    borderRadius: "0.75rem",
-    padding: "0.75rem 1rem",
-    color: TEXT_PRIMARY,
-  },
-  itemActive: {
-    backgroundColor: ACCENT_PRIMARY,
-    color: TEXT_CONTRAST,
-  },
-  itemLabel: {
-    fontSize: "1rem",
-    lineHeight: "1.5rem",
-    fontWeight: 500,
-  },
 }
