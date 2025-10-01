@@ -16,6 +16,8 @@ import {
 import Divider from "@mui/material/Divider";
 import { Users, Car, LogOut, PanelLeft, AlignJustify } from "lucide-react"; // o tus propios íconos
 import { supabase } from "@/supabase/client";
+import { ClientesProvider } from "@/app/(user)/clientes/clientesContext";
+
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -91,7 +93,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </aside>
 
           <main style={s.main}>
-            <div style={s.cardMain}>{children}</div>
+            <ClientesProvider>
+              <div style={s.cardMain}>{children}</div>
+            </ClientesProvider>
           </main>
         </div>
       </div>
