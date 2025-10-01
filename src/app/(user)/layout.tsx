@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { ROUTES } from "@/routing/routes";
 import SidebarItem from "@/app/(user)/components/SidebarItem";
 import Header from "@/app/(user)/components/Header";
@@ -12,36 +13,81 @@ import {
   TEXT_SECONDARY,
   TEXT_CONTRAST,
 } from "@/theme/theme";
+import Divider from "@mui/material/Divider";
+import { Users, Car, LogOut } from "lucide-react"; // o tus propios íconos
 
-export default function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  const s = useMemo(() => {
+    const width = collapsed ? "4.5rem" : "14rem";
+    return {
+      ...styles,
+      sidebar: { ...styles.sidebar, width, transition: "width 180ms ease" },
+      navList: {
+        ...styles.navList,
+        rowGap: collapsed ? "0.5rem" : "0.5rem",
+        alignItems: collapsed ? "center" : "stretch",
+      },
+      brandBadge: {
+        ...styles.brandBadge,
+        cursor: "pointer",
+      },
+      brandTextWrap: {
+        display: collapsed ? "none" : "block",
+      },
+    } as typeof styles & {
+      brandTextWrap: React.CSSProperties;
+    };
+  }, [collapsed]);
+
   return (
     <SessionProvider>
-      <div style={styles.appRoot}>
-        <Header />
-        <div style={styles.pageContent}>
-          <aside style={styles.sidebar}>
-            <div style={styles.card}>
-              <div style={styles.sidebarHeaderRow}>
-                <div style={styles.brandBadge}>
+      <div style={s.appRoot}>
+        <div style={s.pageContent}>
+          <aside style={s.sidebar} aria-label="Sidebar">
+            <div style={s.card}>
+              <div style={s.sidebarHeaderRow}>
+                <div
+                  style={s.brandBadge}
+                  onClick={() => setCollapsed(v => !v)}
+                  title={collapsed ? "Expandir" : "Colapsar"}
+                  aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+                >
                   🔧
                 </div>
-                <div>
-                  <div style={styles.title}>TallerPro</div>
-                  <div style={styles.subtitle}>Sistema de Gestión</div>
+                <div style={s.brandTextWrap}>
+                  <div style={s.title}>TallerPro</div>
+                  
                 </div>
               </div>
-              <nav style={styles.navList}>
-                <SidebarItem href={ROUTES.clientes} label="Clientes" />
-                <SidebarItem href={ROUTES.vehiculos} label="Vehículos" />
+
+              <nav style={s.navList}>
+                <SidebarItem
+                  href={ROUTES.clientes}
+                  label="Clientes"
+                  icon={<Users size={18} />}
+                  collapsed={collapsed}
+                />
+                <SidebarItem
+                  href={ROUTES.vehiculos}
+                  label="Vehículos"
+                  icon={<Car size={18} />}
+                  collapsed={collapsed}
+                />
+                <Divider  style={{ width: collapsed ? "2rem" : "100%", margin: collapsed ? "0.5rem 0" : "0.5rem 0" }}/>
+                <SidebarItem
+                  href={""}
+                  label="Cerrar sesión"
+                  icon={<LogOut size={18} />}
+                  collapsed={collapsed}
+                />
               </nav>
             </div>
           </aside>
-          <main style={styles.main}>
-            <div style={styles.cardMain}>{children}</div>
+
+          <main style={s.main}>
+            <div style={s.cardMain}>{children}</div>
           </main>
         </div>
       </div>
@@ -55,12 +101,6 @@ const styles = {
     color: TEXT_PRIMARY,
     minHeight: "100vh",
   },
-  loading: {
-    display: "flex",
-    minHeight: "100vh",
-    alignItems: "center",
-    justifyContent: "center",
-  },
   pageContent: {
     marginLeft: "auto",
     marginRight: "auto",
@@ -70,7 +110,7 @@ const styles = {
     padding: "1.5rem",
   },
   sidebar: {
-    width: "16rem",
+    width: "14rem",
   },
   card: {
     backgroundColor: BACKGROUND_SECONDARY,
@@ -91,8 +131,11 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     height: "3rem",
-    width: "3rem",
+    width: "100%",
+    //minWidth: "2.05rem",
+    maxWidth: "3rem",
     borderRadius: "0.75rem",
+    userSelect: "none",
   },
   sidebarHeaderRow: {
     marginBottom: "1.5rem",
@@ -120,5 +163,3 @@ const styles = {
     flex: 1,
   },
 } as const;
-
-
