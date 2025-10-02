@@ -15,8 +15,7 @@ import {
 } from "@/theme/theme";
 import Divider from "@mui/material/Divider";
 import { Users, Car, LogOut, PanelLeft, AlignJustify } from "lucide-react"; // o tus propios íconos
-import { supabase } from "@/supabase/client";
-import { ClientesProvider } from "@/app/(user)/providers/CllientesProvider";
+import { logOut } from "@/app/login/actions";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -88,7 +87,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   label="Cerrar sesión"
                   icon={<LogOut size={18} />}
                   collapsed={collapsed}
-                  onClick={() => { supabase.auth.signOut() }}
+                  onClick={() => { logOut(); }}
                 />
               </nav>
             </div>

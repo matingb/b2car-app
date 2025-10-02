@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/routing/routes";
-import { useSession } from "@/app/(user)/providers/SessionProvider";
+import { login } from "./actions";
+//import { useSession } from "@/app/(user)/providers/SessionProvider";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -11,18 +12,18 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
-  const { signIn } = useSession();
+  //const { signIn } = useSession();
 
   async function handlePasswordSignIn(e: React.FormEvent) {
     e.preventDefault();
     setIsSubmitting(true);
     setMessage(null);
     try {
-      await signIn(email, password);
-      router.push(ROUTES.root);
+      await login(email, password);
     } finally {
       setIsSubmitting(false);
     }
+  
   }
 
   return (

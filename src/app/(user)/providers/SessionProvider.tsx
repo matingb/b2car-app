@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/supabase/client";
+import { createClient } from "@/supabase/client";
 import { ROUTES } from "@/routing/routes";
 
 type SessionProviderValue = {
@@ -20,6 +20,7 @@ export function useSession() {
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const supabase = createClient();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
