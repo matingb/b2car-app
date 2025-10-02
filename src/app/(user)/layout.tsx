@@ -16,8 +16,7 @@ import {
 import Divider from "@mui/material/Divider";
 import { Users, Car, LogOut, PanelLeft, AlignJustify } from "lucide-react"; // o tus propios íconos
 import { supabase } from "@/supabase/client";
-import { ClientesProvider } from "@/app/(user)/clientes/clientesContext";
-
+import { ClientesProvider } from "@/app/(user)/providers/CllientesProvider";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -26,7 +25,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const width = collapsed ? "4.5rem" : "14rem";
     return {
       ...styles,
-      sidebar: { ...styles.sidebar, width, transition: "width 180ms ease" },
+      sidebar: { ...styles.sidebar, width, transition: "width 300ms ease-out" },
       navList: {
         ...styles.navList,
         rowGap: collapsed ? "0.5rem" : "0.5rem",
@@ -38,6 +37,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       },
       brandTextWrap: {
         display: collapsed ? "none" : "block",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
       },
     } as typeof styles & {
       brandTextWrap: React.CSSProperties;
@@ -60,7 +62,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <PanelLeft size={18} />
                 </div>
                 {!collapsed && (
-                  <Divider orientation="vertical" flexItem style={{ margin: "0.5rem 0.5rem" }} />
+                  <Divider orientation="vertical" flexItem style={{ margin: "0.5rem 0.5rem", overflow: "hidden", textOverflow: "ellipsis"}} />
                 )}
                 <div style={s.brandTextWrap}>
                   <div style={s.title}>TallerPro</div>
@@ -93,9 +95,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </aside>
 
           <main style={s.main}>
-            <ClientesProvider>
-              <div style={s.cardMain}>{children}</div>
-            </ClientesProvider>
+            <div style={s.cardMain}>{children}</div>
           </main>
         </div>
       </div>
@@ -146,6 +146,7 @@ const styles = {
   sidebarHeaderRow: {
     marginBottom: "1.5rem",
     display: "flex",
+    wrap: "wrap",
     alignItems: "center",
     justifyItems: "left"
   },

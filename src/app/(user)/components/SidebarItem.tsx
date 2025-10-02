@@ -28,7 +28,7 @@ export default function SidebarItem({
         alignItems: "center",
         columnGap: collapsed ? "0" : "0.75rem",
         borderRadius: "0.75rem",
-        padding: "0.75rem 0.75rem",
+        padding: "0.5rem 0.5rem",
         color: TEXT_PRIMARY,
         justifyContent: collapsed ? "center" : "flex-start",
         width: "100%",
