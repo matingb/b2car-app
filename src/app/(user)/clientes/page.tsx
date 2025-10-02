@@ -7,8 +7,8 @@ import PersonasList from "../components/PersonasList";
 import { ACCENT_PRIMARY } from "@/theme/theme";
 import { useEffect, useState, useMemo } from "react";
 
-
 export default function ClientesPage() {
+  const { clientes, loading, refetch } = useClientes();
   return (
       <ClientesProvider>
         <ClientesPanel />

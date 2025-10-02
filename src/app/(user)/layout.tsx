@@ -18,7 +18,6 @@ import { Users, Car, LogOut, PanelLeft, AlignJustify } from "lucide-react"; // o
 import { supabase } from "@/supabase/client";
 import { ClientesProvider } from "@/app/(user)/providers/CllientesProvider";
 
-
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
 
