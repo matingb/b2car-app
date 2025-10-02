@@ -30,7 +30,7 @@ export default function SidebarItem({
         borderRadius: "0.75rem",
         padding: "0.5rem 0.5rem",
         color: TEXT_PRIMARY,
-        justifyContent: collapsed ? "center" : "flex-start",
+        justifyContent: collapsed ? "flex-start" : "flex-start",
         width: "100%",
         textDecoration: "none",
         transition: "background-color 150ms ease, color 150ms ease, padding 150ms ease",
@@ -53,7 +53,7 @@ export default function SidebarItem({
         display: collapsed ? "none" : "inline",
         whiteSpace: "nowrap",
         overflow: "hidden",
-        textOverflow: "ellipsis",
+        
       } as React.CSSProperties,
     };
   }, [collapsed]);

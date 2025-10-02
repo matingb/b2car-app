@@ -59,7 +59,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   title={collapsed ? "Expandir" : "Colapsar"}
                   aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
                 >
-                  <PanelLeft size={18} />
+                  <PanelLeft style={{width: '3rem'}} size={18} />
                 </div>
                 {!collapsed && (
                   <Divider orientation="vertical" flexItem style={{ margin: "0.5rem 0.5rem", overflow: "hidden", textOverflow: "ellipsis"}} />
