@@ -2,10 +2,10 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { Cliente } from "@/model/types"; 
+import { Persona } from "@/model/types"; 
 
 type ClientesContextType = {
-  clientes: Cliente[];
+  clientes: Persona[];
   loading: boolean;
   refetch: () => void;
 };
@@ -13,7 +13,7 @@ type ClientesContextType = {
 const ClientesContext = createContext<ClientesContextType | undefined>(undefined);
 
 export function ClientesProvider({ children }: { children: React.ReactNode }) {
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clientes, setClientes] = useState<Persona[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchClientes = async () => {
