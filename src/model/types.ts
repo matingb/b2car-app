@@ -1,4 +1,4 @@
-// types.ts
+// Estos tipos representan las tablas de la base de datos
 
 export interface Persona {
   persona_id: number;
@@ -24,7 +24,7 @@ export interface Representante {
   telefono: string;
 }
 
-export type TipoCliente = "persona" | "empresa"; // enum de ejemplo
+export type TipoCliente = "persona" | "empresa"; 
 
 export interface Cliente {
   cliente_id: number;
@@ -52,5 +52,5 @@ export interface Arreglo {
   precio_final: number;
   precio_sin_iva: number;
   esta_pago: boolean;
-  extra_data: string; // si en la DB es JSON, acá podés usar unknown
+  extra_data: string; 
 }

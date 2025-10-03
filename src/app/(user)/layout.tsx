@@ -2,9 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { ROUTES } from "@/routing/routes";
-import SidebarItem from "@/app/(user)/components/SidebarItem";
-import Header from "@/app/(user)/components/Header";
-import { SessionProvider } from "@/app/(user)/providers/SessionProvider";
+import SidebarItem from "@/app/components/SidebarItem";
+import { SessionProvider } from "@/app/providers/SessionProvider";
 import {
   ACCENT_PRIMARY,
   BACKGROUND_PRIMARY,
@@ -112,7 +111,7 @@ const styles = {
     marginLeft: "auto",
     marginRight: "auto",
     display: "flex",
-    maxWidth: "72rem",
+    maxWidth: "90rem",
     columnGap: "2rem",
     padding: "1.5rem",
   },

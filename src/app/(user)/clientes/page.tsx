@@ -2,12 +2,11 @@
 
 import React from "react";
 import { redirect } from 'next/navigation'
-import { ClientesProvider } from "../providers/CllientesProvider";
-import { useClientes } from "../providers/CllientesProvider";
-import PersonasList from "../components/PersonasList";
+import { ClientesProvider } from "../../providers/CllientesProvider";
+import { useClientes } from "../../providers/CllientesProvider";
+import PersonasList from "../../components/PersonasList";
 import { ACCENT_PRIMARY } from "@/theme/theme";
 import { useEffect, useState, useMemo } from "react";
-import { createClient } from '@/supabase/client'
 
 export default function ClientesPage() {
   return (
