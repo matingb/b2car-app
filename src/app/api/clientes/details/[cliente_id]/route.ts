@@ -13,5 +13,15 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/api/clientes/de
     })
     const {data} = await res.json()
 
+    if (Array.isArray(data)) {
+        const item = data[0] ?? {}
+        const { personas = {}, ...rest } = item
+        data[0] = { ...rest, ...personas }
+    } else {
+        const { personas = {}, ...rest } = data ?? {}
+        Object.keys(data).forEach(k => delete (data as any)[k])
+        Object.assign(data, { ...rest, ...personas })
+    }
+
     return Response.json({ cliente: data[0] })
 }

@@ -7,10 +7,11 @@ import { useClientes } from "@/app/providers/ClientesProvider";
 import PersonasList from "@/app/components/PersonasList";
 import { ACCENT_PRIMARY } from "@/theme/theme";
 import { useEffect, useState, useMemo } from "react";
+import ScreenHeader from "@/app/components/ScreenHeader";
 
 export default function ClientesPage() {
   return (
-      <ClientesPanel />
+    <ClientesPanel />
   );
 }
 
@@ -41,21 +42,21 @@ function ClientesPanel() {
   }, [search]);
 
   return (
-      <div>
-        <h1 style={styles.title}>Clientes</h1>
-        <div style={styles.searchContainer}>
-          <input
-            type="text"
-            placeholder="Buscar clientes..."
-            style={styles.searchInput}
-          />
-        </div>
-        {loading ? (
-          <p>Cargando clientes...</p>
-        ) : (
-          <PersonasList personas={clientesFiltrados} />
-        )}        
+    <div>
+      <ScreenHeader title="Clientes" />
+      <div style={styles.searchContainer}>
+        <input
+          type="text"
+          placeholder="Buscar clientes..."
+          style={styles.searchInput}
+        />
       </div>
+      {loading ? (
+        <p>Cargando clientes...</p>
+      ) : (
+        <PersonasList personas={clientesFiltrados} />
+      )}
+    </div>
   );
 }
 
