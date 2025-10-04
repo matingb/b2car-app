@@ -11,7 +11,7 @@ import {
   Divider,
   Box,
 } from "@mui/material";
-import { Mail, Phone, User } from "lucide-react";
+import { Mail, Phone, TextSearch, Car, Trash2 } from "lucide-react";
 import { Persona } from "@/model/types";
 import { ACCENT_PRIMARY } from "@/theme/theme";
 import { redirect } from "next/navigation";
@@ -27,7 +27,7 @@ export default function PersonasList({ personas }: { personas: Persona[] }) {
               onClick={() => redirect(`/clientes/${p.persona_id}`)}
             >
               <div style={styles.avatar}>
-                {p.nombre?.[0] ?? "?"}
+                {((p.nombre?.[0] ?? "") + (p.apellido?.[0] ?? "")) || "?"}
               </div>
 
               <div>
@@ -53,9 +53,19 @@ export default function PersonasList({ personas }: { personas: Persona[] }) {
               </div>
             </div>
 
-            <button aria-label="ver" style={styles.actionButton}>
-              <User size={18} />
-            </button>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button aria-label="detalle" style={styles.actionButton}>
+                <TextSearch size={styles.iconSize} />
+              </button>
+
+              <button aria-label="auto" style={styles.actionButton}>
+                <Car size={styles.iconSize} />
+              </button>
+
+              <button aria-label="borrar" style={{ ...styles.actionButton, color: "#8B0000" }}>
+                <Trash2 size={styles.iconSize} />
+              </button>
+            </div>
           </div>
 
           {personas[personas.length - 1]?.persona_id !== p.persona_id && <Divider />}
@@ -66,6 +76,7 @@ export default function PersonasList({ personas }: { personas: Persona[] }) {
 }
 
 const styles = {
+  iconSize: 20,
   list: {
     width: "100%",
   },

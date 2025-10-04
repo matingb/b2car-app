@@ -101,3 +101,29 @@ export function useClientes() {
   if (!ctx) throw new Error("useClientes debe usarse dentro de ClientesProvider");
   return ctx;
 }
+
+export function useClienteById(cliente_id: number | null | undefined) {
+  const { clientes, loading, refetch } = useClientes();
+  const [cliente, setCliente] = useState<Persona | null>(null);
+  const [loadingCliente, setLoadingCliente] = useState(false);
+
+  useEffect(() => {
+    if (cliente_id == null) {
+      setCliente(null);
+      return;
+    }
+    
+    setLoadingCliente(true);
+    (async () => {
+      const res = await fetch(`/api/clientes/details/${cliente_id}`);
+      const { cliente } = await res.json();
+      setCliente(cliente);
+      setLoadingCliente(false);
+    })();
+  }, [clientes, loading, cliente_id]);
+
+  return { cliente, loading: loadingCliente, refetch }; 
+}
+
+
+      

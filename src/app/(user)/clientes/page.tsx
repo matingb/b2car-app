@@ -2,17 +2,15 @@
 
 import React from "react";
 import { redirect } from 'next/navigation'
-import { ClientesProvider } from "../../providers/CllientesProvider";
-import { useClientes } from "../../providers/CllientesProvider";
-import PersonasList from "../../components/PersonasList";
+import { ClientesProvider } from "@/app/providers/ClientesProvider";
+import { useClientes } from "@/app/providers/ClientesProvider";
+import PersonasList from "@/app/components/PersonasList";
 import { ACCENT_PRIMARY } from "@/theme/theme";
 import { useEffect, useState, useMemo } from "react";
 
 export default function ClientesPage() {
   return (
-      <ClientesProvider>
-        <ClientesPanel />
-      </ClientesProvider>
+      <ClientesPanel />
   );
 }
 
