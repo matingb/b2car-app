@@ -14,6 +14,7 @@ import {
 import { Mail, Phone, User } from "lucide-react";
 import { Persona } from "@/model/types";
 import { ACCENT_PRIMARY } from "@/theme/theme";
+import { redirect } from "next/navigation";
 
 export default function PersonasList({ personas }: { personas: Persona[] }) {
   return (
@@ -21,7 +22,10 @@ export default function PersonasList({ personas }: { personas: Persona[] }) {
       {personas.map((p) => (
         <div key={p.persona_id}>
           <div style={styles.itemContainer}>
-            <div style={styles.leftGroup}>
+            <div 
+              style={styles.leftGroup}
+              onClick={() => redirect(`/clientes/${p.persona_id}`)}
+            >
               <div style={styles.avatar}>
                 {p.nombre?.[0] ?? "?"}
               </div>
@@ -77,6 +81,8 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 12,
+    width: "100%",
+    cursor: "pointer",
   },
   avatar: {
     width: 40,

@@ -19,7 +19,7 @@ export default function SidebarItem({
   onClick?: () => void;
 }) {
   const pathname = usePathname();
-  const isActive = pathname === href;
+  const isActive = pathname.includes(href) && href !== ''; 
 
   const s = useMemo(() => {
     return {
