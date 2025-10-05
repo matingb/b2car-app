@@ -9,5 +9,6 @@ export const TEXT_CONTRAST = "#ffffff";
 
 // Accent colors used in current UI
 export const ACCENT_PRIMARY = "#007995";
+export const ACCENT_NEGATIVE = "#8B0000";
 
 

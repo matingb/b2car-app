@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { Mail, Phone, TextSearch, Car, Trash2 } from "lucide-react";
 import { Persona } from "@/model/types";
-import { ACCENT_PRIMARY } from "@/theme/theme";
+import { ACCENT_PRIMARY, ACCENT_NEGATIVE } from "@/theme/theme";
 import { redirect } from "next/navigation";
 
 export default function PersonasList({ personas }: { personas: Persona[] }) {
@@ -62,7 +62,7 @@ export default function PersonasList({ personas }: { personas: Persona[] }) {
                 <Car size={styles.iconSize} />
               </button>
 
-              <button aria-label="borrar" style={{ ...styles.actionButton, color: "#8B0000" }}>
+              <button aria-label="borrar" style={{ ...styles.actionButton, color: ACCENT_NEGATIVE }}>
                 <Trash2 size={styles.iconSize} />
               </button>
             </div>

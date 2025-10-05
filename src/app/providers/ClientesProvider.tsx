@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { Persona } from "@/model/types";
+import { Arreglo, Persona } from "@/model/types";
 
 const ONE_HOUR = 60 * 60 * 1000;
 
@@ -106,23 +106,50 @@ export function useClienteById(cliente_id: number | null | undefined) {
   const { clientes, loading, refetch } = useClientes();
   const [cliente, setCliente] = useState<Persona | null>(null);
   const [loadingCliente, setLoadingCliente] = useState(false);
+  const [arreglos, setArreglos] = useState<Arreglo[]>([]);
+  const [patenteVehiculo, setPatenteVehiculo] = useState<Record<string, string>>({});
+  const [vehiculos, setVehiculos] = useState<any[]>([]);
 
   useEffect(() => {
     if (cliente_id == null) {
       setCliente(null);
+      setPatenteVehiculo({});
       return;
     }
-    
+
     setLoadingCliente(true);
     (async () => {
       const res = await fetch(`/api/clientes/details/${cliente_id}`);
-      const { cliente } = await res.json();
-      setCliente(cliente);
+      const { cliente, arreglos } = await res.json();
+
+      // según tu código original, clienteResp.personas es donde está el objeto Persona
+      const persona: Persona | null = cliente?.personas ?? cliente ?? null;
+      setCliente(persona);
+      setArreglos(arreglos ?? []);
+
+      // construir diccionario patenteVehiculo a partir de persona.vehiculos
+      const map: Record<string, string> = {};
+      try {
+        const vehiculos = (cliente as any)?.vehiculos ?? [];
+        setVehiculos(vehiculos);
+
+        for (const v of vehiculos) {
+          // intentar detectar el id y la patente con nombres comunes
+          const id = String(v?.vehiculo_id ?? "");
+          const patente = v?.patente  ?? "";
+          if (id) map[id] = patente;
+        }
+      } catch (e) {
+        console.error("Error construyendo patenteVehiculo", e);
+      }
+      setPatenteVehiculo(map);
+
+
       setLoadingCliente(false);
     })();
   }, [clientes, loading, cliente_id]);
 
-  return { cliente, loading: loadingCliente, refetch }; 
+  return { cliente, arreglos, loading: loadingCliente, refetch, patenteVehiculo, vehiculos };
 }
 
 

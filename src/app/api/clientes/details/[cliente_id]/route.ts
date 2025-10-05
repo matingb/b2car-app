@@ -11,10 +11,11 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/api/clientes/de
         },
         body: JSON.stringify({ cliente_id }),
     })
-    const {data} = await res.json()
-
-    if (Array.isArray(data)) {
-        const item = data[0] ?? {}
+    const {cliente, arreglos} = await res.json()
+    console.log(cliente, arreglos)
+    /*
+    if (Array.isArray(cliente)) {
+        const item = cliente[0] ?? {}
         const { personas = {}, ...rest } = item
         data[0] = { ...rest, ...personas }
     } else {
@@ -22,6 +23,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/api/clientes/de
         Object.keys(data).forEach(k => delete (data as any)[k])
         Object.assign(data, { ...rest, ...personas })
     }
+    */
 
-    return Response.json({ cliente: data[0] })
+    return Response.json({ cliente: cliente[0], arreglos })
 }

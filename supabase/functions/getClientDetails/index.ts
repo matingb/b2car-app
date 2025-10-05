@@ -16,14 +16,35 @@ serve(async (req) => {
 
         const { data, error } = await supabase
             .from('clientes').
-            select('*, personas(*)')
+            select('*, personas(*), vehiculos(*)')
             .eq('cliente_id', body.cliente_id);
+
+        const vehicleIds = (data ?? [])
+            .flatMap((cliente: any) => (cliente.vehiculos ?? []).map((v: any) => v.vehiculo_id))
+            .filter(Boolean);
+        const uniqueIds = [...new Set(vehicleIds)];
+
+        let arreglos: any[] = [];
+        if (uniqueIds.length > 0) {
+            const { data: arreglosData, error: arreglosError } = await supabase
+                .from('arreglos')
+                .select('*')
+                .in('vehiculo_id', uniqueIds)
+                .order('fecha', { ascending: false })
+                .limit(15);
+
+            if (arreglosError) {
+                throw arreglosError;
+            }
+            arreglos = arreglosData ?? [];
+        }
 
         if (error) {
             throw error;
         }
         return new Response(JSON.stringify({
             cliente: data,
+            arreglos,
             isError: false
         }), {
             headers: {
