@@ -10,12 +10,12 @@ import IconLabel from "@/app/components/IconLabel";
 import ScreenHeader from "@/app/components/ScreenHeader";
 import { Arreglo, Vehiculo } from "@/model/types";
 import "@radix-ui/themes/styles.css";
-import { Container, Flex, Skeleton, Theme, Text } from "@radix-ui/themes";
+import { Skeleton, Theme } from "@radix-ui/themes";
 
 
 export default function ClientesPage() {
   const params = useParams<{ cliente_id: string }>();
-  const { cliente, arreglos, loading, refetch, patenteVehiculo, vehiculos } = useClienteById(Number(params.cliente_id));
+  const { cliente, arreglos, loading, patenteVehiculo, vehiculos } = useClienteById(Number(params.cliente_id));
 
   if (loading) return loadingScreen();
 
