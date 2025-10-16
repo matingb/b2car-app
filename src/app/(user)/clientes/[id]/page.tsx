@@ -3,19 +3,19 @@
 import React from "react";
 import { useParams } from "next/navigation";
 import { useClienteById } from "@/app/providers/ClientesProvider";
-import { ACCENT_PRIMARY, ACCENT_NEGATIVE } from "@/theme/theme";
+import { ACCENT_PRIMARY } from "@/theme/theme";
 import { Divider } from "@mui/material";
-import { Mail, Phone, PencilLine, Trash } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 import IconLabel from "@/app/components/IconLabel";
 import ScreenHeader from "@/app/components/ScreenHeader";
-import { Arreglo, Vehiculo } from "@/model/types";
+import { Vehiculo } from "@/model/types";
 import "@radix-ui/themes/styles.css";
 import { Skeleton, Theme } from "@radix-ui/themes";
 
 
-export default function ClientesPage() {
-  const params = useParams<{ cliente_id: string }>();
-  const { cliente, arreglos, loading, patenteVehiculo, vehiculos } = useClienteById(Number(params.cliente_id));
+export default function ClientesDetailsPage() {
+  const params = useParams<{ id: string }>();
+  const { cliente, loading, vehiculos } = useClienteById(params.id);
 
   if (loading) return loadingScreen();
 
@@ -28,9 +28,9 @@ export default function ClientesPage() {
 
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 8, }}>
         <div style={styles.avatar}>
-          {((cliente?.nombre?.[0] ?? "") + (cliente?.apellido?.[0] ?? "")) || "?"}
+            {((cliente?.nombre?.[0] ?? "")) || "?"}
         </div>
-        <h1 style={{ margin: 0 }}>{`${cliente?.nombre} ${cliente?.apellido}`}</h1>
+        <h1 style={{ margin: 0 }}>{`${cliente?.nombre}`}</h1>
       </div>
       <div style={{ display: "flex", gap: 16 }}>
         <div style={styles.contentPanel}>
@@ -54,9 +54,9 @@ export default function ClientesPage() {
           <Divider />
           <div style={{ display: "flex", flexDirection: "column"}}>
             {vehiculos && vehiculos.length > 0 ? (
-              vehiculos.map((v: Vehiculo) => (
+              vehiculos.map((vehiculo: Vehiculo) => (
                 <span
-                  key={v.vehiculo_id ?? v.patente ?? Math.random()}
+                  key={vehiculo.id ?? vehiculo.patente ?? Math.random()}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -64,8 +64,8 @@ export default function ClientesPage() {
                     padding: "4px 8px",
                   }}
                 >
-                  <strong>{v.patente ?? "-"}</strong>-
-                  <span >{v.marca ?? "-"} {v.modelo ?? "-"}</span>
+                  <strong>{vehiculo.patente ?? "-"}</strong>-
+                  <span >{vehiculo.marca ?? "-"} {vehiculo.modelo ?? "-"}</span>
                 </span>
               ))
             ) : (
@@ -74,68 +74,6 @@ export default function ClientesPage() {
           </div>
         </div>
       </div>
-      <div style={styles.fullPanel}>
-        <h2>Ultimos arreglos</h2>
-        <Divider />
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ textAlign: "left" }}>
-                <th style={styles.rowCell}>Fecha</th>
-                <th style={styles.rowCell}>Vehículo</th>
-                <th style={styles.rowCell}>Observaciones</th>
-                <th style={styles.rowCell}>Total</th>
-                <th style={styles.rowCell}>Estado</th>
-                <th style={styles.rowCell}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {arreglos && arreglos.length > 0 ? (
-                arreglos.map((a: Arreglo) => (
-                  <tr key={a.arreglo_id ?? Math.random()} style={{ borderBottom: "1px solid #eee", padding: "8px 12px" }}>
-                    <td style={styles.rowCell}>
-                      {a.fecha ? new Date(a.fecha).toLocaleDateString() : "-"}
-                    </td>
-                    <td style={styles.rowCell}>
-                      {patenteVehiculo[a.vehiculo_id] ?? "-"}
-                    </td>
-                    <td style={styles.rowCell}>{a.observaciones ?? "-"}</td>
-                    <td style={styles.rowCell}>
-                      {typeof a.precio_final === "number"
-                        ? `$${new Intl.NumberFormat("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(a.precio_final)}`
-                        : a.precio_final ?? "-"}
-                    </td>
-                    <td style={styles.rowCell}>{a.esta_pago == true ? "Pagado" : "No Pagado"}</td>
-                    <td style={{ ...styles.rowCell, gap: 8, display: "flex", alignItems: "center" }}>
-                      <button
-                        //onClick={}
-                        style={{
-                          cursor: "pointer",
-                        }}>
-                        <PencilLine size={18} style={{ color: ACCENT_PRIMARY }} />
-                      </button>
-                      <button
-                        //onClick={}
-                        style={{
-                          cursor: "pointer",
-                        }}>
-                        <Trash size={18} style={{ color: ACCENT_NEGATIVE }} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} style={{ padding: 12, textAlign: "center" }}>
-                    No hay arreglos registrados
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
     </div>
   );
 }

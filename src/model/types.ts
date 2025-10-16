@@ -1,24 +1,6 @@
-// Estos tipos representan las tablas de la base de datos
-
-export interface Persona {
-  persona_id: number;
-  nombre: string;
-  apellido: string;
-  telefono: string;
-  email: string;
-}
-
-export interface Empresa {
-  empresa_id: number;
-  cuit: string;
-  direccion: string;
-  nombre: string;
-  email: string;
-}
-
 export interface Representante {
-  representante_id: number;
-  empresa_id: number; // FK -> Empresa
+  id: number;
+  empresaId: number;
   nombre: string;
   apellido: string;
   telefono: string;
@@ -27,27 +9,31 @@ export interface Representante {
 export type TipoCliente = "persona" | "empresa"; 
 
 export interface Cliente {
-  cliente_id: number;
+  id: number;
+  nombre: string;
+  telefono: string;
+  email: string;
+  direccion: string;
   tipo_cliente: TipoCliente;
   puntaje: number;
-  fecha_creacion: string; // timestamp → ISO string
+  fecha_creacion: string;
 }
 
 export interface Vehiculo {
-  vehiculo_id: number;
-  cliente_id: number; // FK -> Cliente
+  id: number;
+  cliente_id: number;
   patente: string;
   marca: string;
   modelo: string;
-  año_patente: number;
+  fecha_patente: string;
 }
 
 export interface Arreglo {
-  arreglo_id: number;
-  vehiculo_id: number; // FK -> Vehiculo
+  id: number;
+  vehiculo_id: number;
   tipo: string;
   kilometraje_leido: number;
-  fecha: string; // timestamp → ISO string
+  fecha: string;
   observaciones: string;
   precio_final: number;
   precio_sin_iva: number;

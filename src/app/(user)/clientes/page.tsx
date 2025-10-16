@@ -1,22 +1,14 @@
 "use client";
 
 import React from "react";
-import { redirect } from 'next/navigation'
-import { ClientesProvider } from "@/app/providers/ClientesProvider";
 import { useClientes } from "@/app/providers/ClientesProvider";
-import PersonasList from "@/app/components/PersonasList";
+import ClienteList from "@/app/components/ClienteList";
 import { ACCENT_PRIMARY } from "@/theme/theme";
 import { useEffect, useState, useMemo } from "react";
 import ScreenHeader from "@/app/components/ScreenHeader";
 
 export default function ClientesPage() {
-  return (
-    <ClientesPanel />
-  );
-}
-
-function ClientesPanel() {
-  const { clientes, loading, refetch } = useClientes();
+  const { clientes, loading } = useClientes();
 
   const [search, setSearch] = useState("");
   const clientesFiltrados = useMemo(() => {
@@ -54,7 +46,7 @@ function ClientesPanel() {
       {loading ? (
         <p>Cargando clientes...</p>
       ) : (
-        <PersonasList personas={clientesFiltrados} />
+        <ClienteList clientes={clientesFiltrados} />
       )}
     </div>
   );

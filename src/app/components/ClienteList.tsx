@@ -1,52 +1,45 @@
 "use client";
 
 import React from "react";
-import {
-  Avatar,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
-  IconButton,
-  Divider,
-  Box,
-} from "@mui/material";
+import { Divider } from "@mui/material";
 import { Mail, Phone, TextSearch, Car, Trash2 } from "lucide-react";
-import { Persona } from "@/model/types";
 import { ACCENT_PRIMARY, ACCENT_NEGATIVE } from "@/theme/theme";
 import { redirect } from "next/navigation";
+import { Cliente } from "@/model/types";
 
-export default function PersonasList({ personas }: { personas: Persona[] }) {
+export default function ClienteList({ clientes: clientes }: { clientes: Cliente[] }) {
   return (
     <div style={styles.list}>
-      {personas.map((p) => (
-        <div key={p.persona_id}>
+      {clientes.map((cliente, index) => (
+        <div key={cliente.id}>
           <div style={styles.itemContainer}>
-            <div 
+            <div
               style={styles.leftGroup}
-              onClick={() => redirect(`/clientes/${p.persona_id}`)}
+              onClick={() => redirect(`/clientes/${cliente.id}`)}
             >
               <div style={styles.avatar}>
-                {((p.nombre?.[0] ?? "") + (p.apellido?.[0] ?? "")) || "?"}
+                {(cliente.nombre?.[0] ?? "") || "?"}
               </div>
 
               <div>
-                <div style={styles.name}>
-                  {`${p.nombre} ${p.apellido}`}
-                </div>
+                <div style={styles.name}>{`${cliente.nombre}`}</div>
 
                 <div style={styles.contact}>
-                  {p.email && (
+                  {cliente.email && (
                     <div style={styles.contactRow}>
                       <Mail size={14} />
-                      <span>{p.email}</span>
+                      <span>{cliente.email}</span>
                     </div>
                   )}
 
-                  {p.telefono && (
-                    <div style={p.email ? styles.contactRowWithTop : styles.contactRow} >
+                  {cliente.telefono && (
+                    <div
+                      style={
+                        cliente.email ? styles.contactRowWithTop : styles.contactRow
+                      }
+                    >
                       <Phone size={14} />
-                      <span>{p.telefono}</span>
+                      <span>{cliente.telefono}</span>
                     </div>
                   )}
                 </div>
@@ -54,6 +47,11 @@ export default function PersonasList({ personas }: { personas: Persona[] }) {
             </div>
 
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+
+              <div style={styles.tipoCliente}>
+                <span style={styles.tipoClienteText}>{cliente.tipo_cliente === "persona" ? "Particular" : "Empresa"}</span>
+              </div>
+
               <button aria-label="detalle" style={styles.actionButton}>
                 <TextSearch size={styles.iconSize} />
               </button>
@@ -62,13 +60,18 @@ export default function PersonasList({ personas }: { personas: Persona[] }) {
                 <Car size={styles.iconSize} />
               </button>
 
-              <button aria-label="borrar" style={{ ...styles.actionButton, color: ACCENT_NEGATIVE }}>
+              <button
+                aria-label="borrar"
+                style={{ ...styles.actionButton, color: ACCENT_NEGATIVE }}
+              >
                 <Trash2 size={styles.iconSize} />
               </button>
             </div>
           </div>
 
-          {personas[personas.length - 1]?.persona_id !== p.persona_id && <Divider />}
+          {index !== clientes.length - 1 && (
+            <Divider />
+          )}
         </div>
       ))}
     </div>
@@ -128,7 +131,7 @@ const styles = {
     alignItems: "center",
     flexDirection: "row",
     gap: 6,
-    marginLeft: 6
+    marginLeft: 6,
   },
   actionButton: {
     border: "none",
@@ -139,5 +142,16 @@ const styles = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
+  },
+  tipoCliente: {
+    background: "#007995",
+    padding: "4px",
+    alignItems: "center",
+    borderRadius: 8,
+  },
+  tipoClienteText: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "white",
   },
 } as const;

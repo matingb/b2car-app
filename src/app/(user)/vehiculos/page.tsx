@@ -23,7 +23,7 @@ export default function VehiculosPage() {
       <h1 style={styles.title}>Vehículos</h1>
       <p style={styles.subtitle}>Listado y gestión de vehículos.</p>
       {vehiculos.map((vehiculo) => (
-        <div key={vehiculo.vehiculo_id}>
+        <div key={vehiculo.id}>
           <h2>{vehiculo.patente}</h2>
           <p>{vehiculo.marca}</p>
           <p>{vehiculo.modelo}</p>
