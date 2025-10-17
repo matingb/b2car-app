@@ -1,25 +1,25 @@
 "use client";
 
 import React from "react";
-import { Divider } from "@mui/material";
 import { Mail, Phone, TextSearch, Car, Trash2 } from "lucide-react";
-import { ACCENT_PRIMARY, ACCENT_NEGATIVE } from "@/theme/theme";
+import { ACCENT_NEGATIVE } from "@/theme/theme";
 import { redirect } from "next/navigation";
 import { Cliente } from "@/model/types";
+import Avatar from "./Avatar";
+import Card from "./Card";
+
 
 export default function ClienteList({ clientes: clientes }: { clientes: Cliente[] }) {
+
   return (
     <div style={styles.list}>
-      {clientes.map((cliente, index) => (
-        <div key={cliente.id}>
-          <div style={styles.itemContainer}>
+      {clientes.map((cliente) => (
+          <Card key={cliente.id}>
             <div
               style={styles.leftGroup}
               onClick={() => redirect(`/clientes/${cliente.id}`)}
             >
-              <div style={styles.avatar}>
-                {(cliente.nombre?.[0] ?? "") || "?"}
-              </div>
+              <Avatar nombre={cliente.nombre} />
 
               <div>
                 <div style={styles.name}>{`${cliente.nombre}`}</div>
@@ -49,7 +49,7 @@ export default function ClienteList({ clientes: clientes }: { clientes: Cliente[
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
 
               <div style={styles.tipoCliente}>
-                <span style={styles.tipoClienteText}>{cliente.tipo_cliente === "persona" ? "Particular" : "Empresa"}</span>
+                <span style={styles.tipoClienteText}>{cliente.tipo_cliente === "particular" ? "Particular" : "Empresa"}</span>
               </div>
 
               <button aria-label="detalle" style={styles.actionButton}>
@@ -67,12 +67,7 @@ export default function ClienteList({ clientes: clientes }: { clientes: Cliente[
                 <Trash2 size={styles.iconSize} />
               </button>
             </div>
-          </div>
-
-          {index !== clientes.length - 1 && (
-            <Divider />
-          )}
-        </div>
+          </Card>
       ))}
     </div>
   );
@@ -81,15 +76,10 @@ export default function ClienteList({ clientes: clientes }: { clientes: Cliente[
 const styles = {
   iconSize: 20,
   list: {
-    width: "100%",
-  },
-  itemContainer: {
     display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "12px 16px",
-    borderRadius: 8,
-    background: "white",
+    flexDirection: "column",
+    width: "100%",
+    gap: 12,
   },
   leftGroup: {
     display: "flex",
@@ -97,18 +87,6 @@ const styles = {
     gap: 12,
     width: "100%",
     cursor: "pointer",
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: "50%",
-    background: ACCENT_PRIMARY,
-    color: "white",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: 600,
-    fontSize: 16,
   },
   name: {
     fontWeight: 600,

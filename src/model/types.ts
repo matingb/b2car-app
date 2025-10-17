@@ -6,22 +6,20 @@ export interface Representante {
   telefono: string;
 }
 
-export type TipoCliente = "persona" | "empresa"; 
+export type TipoCliente = "particular" | "empresa"; 
 
 export interface Cliente {
-  id: number;
-  nombre: string;
-  telefono: string;
-  email: string;
-  direccion: string;
-  tipo_cliente: TipoCliente;
-  puntaje: number;
-  fecha_creacion: string;
+  id: number
+  nombre: string
+  tipo_cliente: TipoCliente
+  telefono: string
+  email: string
+  direccion: string
 }
 
 export interface Vehiculo {
   id: number;
-  cliente_id: number;
+  nombre_cliente: string;
   patente: string;
   marca: string;
   modelo: string;
