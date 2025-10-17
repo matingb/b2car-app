@@ -1,4 +1,4 @@
-import { Cliente } from "@/model/types"
+import { Cliente, TipoCliente } from "@/model/types"
 import { createClient } from "@/supabase/server"
 
 export async function GET() {
@@ -6,14 +6,14 @@ export async function GET() {
     const { data, error } = await
         supabase
             .from('clientes')
-            .select('*, particular:particulares(*), empresas(*)')
+            .select('*, particular:particulares(*), empresa:empresas(*)')
 
     if (error) {
         return Response.json({ data: [], error: error.message }, { status: 500 })
     }
 
 const clientes: Cliente[] = data.map(cliente => {
-    if (cliente.tipo_cliente === "particular") {
+    if (cliente.tipo_cliente === TipoCliente.PARTICULAR) {
         return {
             id: cliente.id,
             nombre: cliente.particular.nombre,
@@ -25,11 +25,11 @@ const clientes: Cliente[] = data.map(cliente => {
     } else {
         return {
             id: cliente.id,
-            nombre: cliente.empresas.nombre,
+            nombre: cliente.empresa.nombre,
             tipo_cliente: cliente.tipo_cliente,
-            telefono: cliente.empresas.telefono,
-            email: cliente.empresas.email,
-            direccion: cliente.empresas.direccion
+            telefono: cliente.empresa.telefono,
+            email: cliente.empresa.email,
+            direccion: cliente.empresa.direccion
         }
     }
 })

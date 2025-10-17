@@ -4,7 +4,7 @@ import React from "react";
 import { Mail, Phone, TextSearch, Car, Trash2 } from "lucide-react";
 import { ACCENT_NEGATIVE } from "@/theme/theme";
 import { redirect } from "next/navigation";
-import { Cliente } from "@/model/types";
+import { Cliente, TipoCliente } from "@/model/types";
 import Avatar from "./Avatar";
 import Card from "./Card";
 
@@ -49,7 +49,7 @@ export default function ClienteList({ clientes: clientes }: { clientes: Cliente[
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
 
               <div style={styles.tipoCliente}>
-                <span style={styles.tipoClienteText}>{cliente.tipo_cliente === "particular" ? "Particular" : "Empresa"}</span>
+                <span style={styles.tipoClienteText}>{cliente.tipo_cliente === TipoCliente.PARTICULAR ? "Particular" : "Empresa"}</span>
               </div>
 
               <button aria-label="detalle" style={styles.actionButton}>

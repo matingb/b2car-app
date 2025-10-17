@@ -6,7 +6,10 @@ export interface Representante {
   telefono: string;
 }
 
-export type TipoCliente = "particular" | "empresa"; 
+export enum TipoCliente {
+  PARTICULAR = "particular",
+  EMPRESA = "empresa",
+}
 
 export interface Cliente {
   id: number
