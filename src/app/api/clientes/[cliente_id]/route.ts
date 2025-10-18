@@ -1,13 +1,6 @@
+import { Particular } from '@/model/types'
 import { createClient } from '@/supabase/server'
 import type { NextRequest } from 'next/server'
-
-interface Particular {
-    id: number
-    nombre: string
-    telefono: string
-    email: string
-    direccion: string
-}
 
 export async function GET(
     _req: NextRequest,
@@ -23,7 +16,14 @@ export async function GET(
             .eq('id', cliente_id)
             .single()
 
-    const particular: Particular = data?.particular;       
+    const particular: Particular = {
+        id: data.id,
+        nombre: data.particular.nombre,
+        telefono: data.particular.telefono,
+        email: data.particular.email,
+        direccion: data.particular.direccion,
+        vehiculos: data.vehiculos
+    };       
 
     if (error) {
         console.error("Error cargando cliente", error);

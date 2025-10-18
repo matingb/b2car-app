@@ -1,3 +1,12 @@
+export interface Particular {
+  id: number
+  nombre: string
+  telefono: string
+  email: string
+  direccion: string
+  vehiculos: Vehiculo[]
+}
+
 export interface Representante {
   id: number;
   empresaId: number;
@@ -31,8 +40,9 @@ export interface Vehiculo {
 
 export interface Arreglo {
   id: number;
-  vehiculo_id: number;
+  vehiculo: Vehiculo;
   tipo: string;
+  descripcion: string;
   kilometraje_leido: number;
   fecha: string;
   observaciones: string;

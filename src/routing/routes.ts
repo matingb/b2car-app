@@ -3,6 +3,7 @@ export const ROUTES = {
 	login: "/login",
 	clientes: "/clientes",
 	vehiculos: "/vehiculos",
+	arreglos: "/arreglos",
 } as const;
 
 export type AppRouteKey = keyof typeof ROUTES;

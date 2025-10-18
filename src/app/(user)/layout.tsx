@@ -10,10 +10,9 @@ import {
   BACKGROUND_SECONDARY,
   TEXT_PRIMARY,
   TEXT_SECONDARY,
-  TEXT_CONTRAST,
 } from "@/theme/theme";
 import Divider from "@mui/material/Divider";
-import { Users, Car, LogOut, PanelLeft, AlignJustify } from "lucide-react"; // o tus propios íconos
+import { Users, Car, LogOut, PanelLeft, Wrench } from "lucide-react";
 import { logOut } from "@/app/login/actions";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -53,14 +52,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <div style={s.sidebarHeaderRow}>
                 <div
                   style={s.brandBadge}
-                  onClick={() => setCollapsed(v => !v)}
+                  onClick={() => setCollapsed((v) => !v)}
                   title={collapsed ? "Expandir" : "Colapsar"}
-                  aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+                  aria-label={
+                    collapsed ? "Expandir sidebar" : "Colapsar sidebar"
+                  }
                 >
-                  <PanelLeft style={{width: '3rem'}} size={18} />
+                  <PanelLeft style={{ width: "3rem" }} size={18} />
                 </div>
                 {!collapsed && (
-                  <Divider orientation="vertical" flexItem style={{ margin: "0.5rem 0.5rem", overflow: "hidden", textOverflow: "ellipsis"}} />
+                  <Divider
+                    orientation="vertical"
+                    flexItem
+                    style={{
+                      margin: "0.5rem 0.5rem",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  />
                 )}
                 <div style={s.brandTextWrap}>
                   <div style={s.title}>TallerPro</div>
@@ -80,13 +89,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   icon={<Car size={18} />}
                   collapsed={collapsed}
                 />
-                <Divider style={{ width: collapsed ? "2rem" : "100%", margin: collapsed ? "0.5rem 0" : "0.5rem 0" }} />
+                <SidebarItem
+                  href={ROUTES.arreglos}
+                  label="Arreglos"
+                  icon={<Wrench size={18} />}
+                  collapsed={collapsed}
+                />
+                <Divider
+                  style={{
+                    width: collapsed ? "2rem" : "100%",
+                    margin: collapsed ? "0.5rem 0" : "0.5rem 0",
+                  }}
+                />
                 <SidebarItem
                   href={""}
                   label="Cerrar sesión"
                   icon={<LogOut size={18} />}
                   collapsed={collapsed}
-                  onClick={() => { logOut(); }}
+                  onClick={() => {
+                    logOut();
+                  }}
                 />
               </nav>
             </div>
@@ -146,7 +168,7 @@ const styles = {
     display: "flex",
     wrap: "wrap",
     alignItems: "center",
-    justifyItems: "left"
+    justifyItems: "left",
   },
   title: {
     color: TEXT_PRIMARY,
