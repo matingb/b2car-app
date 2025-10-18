@@ -7,18 +7,27 @@ import { redirect } from "next/navigation";
 import { Cliente, TipoCliente } from "@/model/types";
 import Avatar from "./Avatar";
 import Card from "./Card";
+import { ROUTES } from "@/routing/routes";
 
-
-export default function ClienteList({ clientes: clientes }: { clientes: Cliente[] }) {
+export default function ClienteList({
+  clientes: clientes,
+}: {
+  clientes: Cliente[];
+}) {
+  const handleDelete = (event: React.MouseEvent<HTMLButtonElement>, id: number) => {
+    event.stopPropagation();
+    console.log("delete", id);
+  };
 
   return (
     <div style={styles.list}>
       {clientes.map((cliente) => (
-          <Card key={cliente.id}>
-            <div
-              style={styles.leftGroup}
-              onClick={() => redirect(`/clientes/${cliente.id}`)}
-            >
+        <Card
+          key={cliente.id}
+          onClick={() => redirect(ROUTES.clientes + "/" + cliente.id)}
+        >
+          <div style={styles.container}>
+            <div style={styles.leftGroup}>
               <Avatar nombre={cliente.nombre} />
 
               <div>
@@ -35,7 +44,9 @@ export default function ClienteList({ clientes: clientes }: { clientes: Cliente[
                   {cliente.telefono && (
                     <div
                       style={
-                        cliente.email ? styles.contactRowWithTop : styles.contactRow
+                        cliente.email
+                          ? styles.contactRowWithTop
+                          : styles.contactRow
                       }
                     >
                       <Phone size={14} />
@@ -47,9 +58,12 @@ export default function ClienteList({ clientes: clientes }: { clientes: Cliente[
             </div>
 
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-
               <div style={styles.tipoCliente}>
-                <span style={styles.tipoClienteText}>{cliente.tipo_cliente === TipoCliente.PARTICULAR ? "Particular" : "Empresa"}</span>
+                <span style={styles.tipoClienteText}>
+                  {cliente.tipo_cliente === TipoCliente.PARTICULAR
+                    ? "Particular"
+                    : "Empresa"}
+                </span>
               </div>
 
               <button aria-label="detalle" style={styles.actionButton}>
@@ -63,11 +77,13 @@ export default function ClienteList({ clientes: clientes }: { clientes: Cliente[
               <button
                 aria-label="borrar"
                 style={{ ...styles.actionButton, color: ACCENT_NEGATIVE }}
+                onClick={(event: React.MouseEvent<HTMLButtonElement>) => handleDelete(event, cliente.id)}
               >
                 <Trash2 size={styles.iconSize} />
               </button>
             </div>
-          </Card>
+          </div>
+        </Card>
       ))}
     </div>
   );
@@ -80,6 +96,12 @@ const styles = {
     flexDirection: "column",
     width: "100%",
     gap: 12,
+  },
+  container: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   leftGroup: {
     display: "flex",

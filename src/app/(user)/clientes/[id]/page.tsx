@@ -12,6 +12,7 @@ import { Vehiculo } from "@/model/types";
 import "@radix-ui/themes/styles.css";
 import { Skeleton, Theme } from "@radix-ui/themes";
 import Avatar from "@/app/components/Avatar";
+import Card from "@/app/components/Card";
 
 export default function ClientesDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -35,7 +36,7 @@ export default function ClientesDetailsPage() {
         <h1 style={{ margin: 0 }}>{`${cliente?.nombre}`}</h1>
       </div>
       <div style={{ display: "flex", gap: 16 }}>
-        <div style={styles.contentPanel}>
+        <Card style={styles.contentPanel}>
           <h2>Datos de contacto</h2>
           <Divider />
 
@@ -57,8 +58,8 @@ export default function ClientesDetailsPage() {
               label={cliente?.telefono ?? "-"}
             />
           </div>
-        </div>
-        <div style={styles.contentPanel}>
+        </Card>
+        <Card style={styles.contentPanel}>
           <h2>Vehiculos asociados</h2>
           <Divider />
           <div style={{ display: "flex", flexDirection: "column" }}>
@@ -83,7 +84,7 @@ export default function ClientesDetailsPage() {
               <span>No hay vehículos asociados</span>
             )}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

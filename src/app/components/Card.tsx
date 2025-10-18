@@ -1,10 +1,12 @@
 interface CardProps {
   children: React.ReactNode;
+  onClick?: () => void;
+  style?: React.CSSProperties;
 }
 
-export default function Card({ children }: CardProps) {
+export default function Card({ children, onClick, style }: CardProps) {
   return (
-    <div style={styles.container}>
+    <div style={{ ...styles.container, ...style }} onClick={onClick}>
       {children}
     </div>
   );
@@ -12,9 +14,6 @@ export default function Card({ children }: CardProps) {
 
 const styles = {
   container: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
     padding: "12px 16px",
     border: "1px solid #dedede",
     borderRadius: 8,
