@@ -3,7 +3,7 @@
 import React from "react";
 import { useParams } from "next/navigation";
 import { useClienteById } from "@/app/providers/ClientesProvider";
-import { ACCENT_PRIMARY } from "@/theme/theme";
+import { COLOR } from "@/theme/theme";
 import { Divider } from "@mui/material";
 import { Mail, Phone } from "lucide-react";
 import IconLabel from "@/app/components/IconLabel";
@@ -50,11 +50,11 @@ export default function ClientesDetailsPage() {
             }}
           >
             <IconLabel
-              icon={<Mail size={18} style={{ color: ACCENT_PRIMARY }} />}
+              icon={<Mail size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
               label={cliente?.email ?? "-"}
             />
             <IconLabel
-              icon={<Phone size={18} style={{ color: ACCENT_PRIMARY }} />}
+              icon={<Phone size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
               label={cliente?.telefono ?? "-"}
             />
           </div>

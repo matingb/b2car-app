@@ -1,5 +1,6 @@
 "use client";
 
+import { COLOR } from "@/theme/theme";
 import React from "react";
 
 interface SearchBarProps {
@@ -22,7 +23,7 @@ export default function SearchBar({
   className,
 }: SearchBarProps) {
   return (
-    <div style={styles.container} className={className}>
+    <div style={{ ...styles.container, ...(style ?? {}) }} className={className}>
       <input
         type="text"
         value={value}
@@ -30,7 +31,7 @@ export default function SearchBar({
         placeholder={placeholder}
         aria-label={ariaLabel}
         autoFocus={autoFocus}
-        style={{ ...styles.input, ...(style ?? {}) }}
+        style={styles.input}
       />
     </div>
   );
@@ -38,15 +39,16 @@ export default function SearchBar({
 
 const styles = {
   container: {
-    marginBottom: "1rem",
+    height: "100%",
     display: "flex",
     justifyContent: "flex-start",
     alignItems: "center",
   },
   input: {
+    height: "100%",
     width: "100%",
     padding: "0.5rem 0.75rem",
-    border: "1px solid #d1d5db",
+    border: "1px solid " + COLOR.INPUT.PRIMARY.BORDER,
     borderRadius: "0.375rem",
     fontSize: "1rem",
     lineHeight: "1.5",

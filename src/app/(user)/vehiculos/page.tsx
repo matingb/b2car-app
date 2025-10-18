@@ -3,6 +3,7 @@ import Card from "@/app/components/Card";
 import ScreenHeader from "@/app/components/ScreenHeader";
 import SearchBar from "@/app/components/SearchBar";
 import { Vehiculo } from "@/model/types";
+import { COLOR } from "@/theme/theme";
 import { useEffect, useMemo, useState } from "react";
 
 export default function VehiculosPage() {
@@ -71,7 +72,7 @@ const styles = {
   },
   subtitle: {
     marginTop: "0.5rem",
-    color: "#6b7280",
+    color: COLOR.TEXT.SECONDARY,
   },
   vehiclesList: {
     display: "flex",
@@ -86,6 +87,6 @@ const styles = {
   vehicleSubInfo: {
     display: "flex",
     gap: 8,
-    color: "#7F7F7F",
+    color: COLOR.TEXT.SECONDARY,
   },
 } as const;

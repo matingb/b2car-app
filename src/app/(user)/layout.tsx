@@ -4,16 +4,10 @@ import { useState, useMemo } from "react";
 import { ROUTES } from "@/routing/routes";
 import SidebarItem from "@/app/components/SidebarItem";
 import { SessionProvider } from "@/app/providers/SessionProvider";
-import {
-  ACCENT_PRIMARY,
-  BACKGROUND_PRIMARY,
-  BACKGROUND_SECONDARY,
-  TEXT_PRIMARY,
-  TEXT_SECONDARY,
-} from "@/theme/theme";
 import Divider from "@mui/material/Divider";
 import { Users, Car, LogOut, PanelLeft, Wrench } from "lucide-react";
 import { logOut } from "@/app/login/actions";
+import { COLOR } from "@/theme/theme";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -125,8 +119,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
 const styles = {
   appRoot: {
-    backgroundColor: BACKGROUND_PRIMARY,
-    color: TEXT_PRIMARY,
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
+    color: COLOR.TEXT.PRIMARY,
     minHeight: "100vh",
   },
   pageContent: {
@@ -141,20 +135,20 @@ const styles = {
     width: "14rem",
   },
   card: {
-    backgroundColor: BACKGROUND_SECONDARY,
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
     borderRadius: "1rem",
     padding: "1.25rem",
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
   },
   cardMain: {
-    backgroundColor: BACKGROUND_SECONDARY,
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
     borderRadius: "1rem",
     padding: "1.5rem",
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
   },
   brandBadge: {
     //backgroundColor: ACCENT_PRIMARY,
-    color: ACCENT_PRIMARY,
+    color: COLOR.ACCENT.PRIMARY,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -171,14 +165,14 @@ const styles = {
     justifyItems: "left",
   },
   title: {
-    color: TEXT_PRIMARY,
+    color: COLOR.TEXT.PRIMARY,
     fontSize: "1.25rem",
     lineHeight: "1.75rem",
     fontWeight: 600,
     marginLeft: "0.5rem",
   },
   subtitle: {
-    color: TEXT_SECONDARY,
+    color: COLOR.TEXT.SECONDARY,
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
   },

@@ -1,4 +1,4 @@
-import { ACCENT_PRIMARY } from "@/theme/theme";
+import { COLOR } from "@/theme/theme";
 
 interface AvatarProps {
   size?: number;
@@ -18,8 +18,8 @@ const styles = {
     width: 40,
     height: 40,
     borderRadius: "50%",
-    background: ACCENT_PRIMARY,
-    color: "white",
+    background: COLOR.ACCENT.PRIMARY,
+    color: COLOR.TEXT.CONTRAST,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

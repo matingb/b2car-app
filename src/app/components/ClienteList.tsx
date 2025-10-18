@@ -2,12 +2,12 @@
 
 import React from "react";
 import { Mail, Phone, TextSearch, Car, Trash2 } from "lucide-react";
-import { ACCENT_NEGATIVE } from "@/theme/theme";
 import { redirect } from "next/navigation";
 import { Cliente, TipoCliente } from "@/model/types";
 import Avatar from "./Avatar";
 import Card from "./Card";
 import { ROUTES } from "@/routing/routes";
+import { COLOR } from "@/theme/theme";
 
 export default function ClienteList({
   clientes: clientes,
@@ -76,7 +76,7 @@ export default function ClienteList({
 
               <button
                 aria-label="borrar"
-                style={{ ...styles.actionButton, color: ACCENT_NEGATIVE }}
+                style={{ ...styles.actionButton, color: COLOR.ICON.DANGER }}
                 onClick={(event: React.MouseEvent<HTMLButtonElement>) => handleDelete(event, cliente.id)}
               >
                 <Trash2 size={styles.iconSize} />
@@ -144,7 +144,7 @@ const styles = {
     justifyContent: "center",
   },
   tipoCliente: {
-    background: "#007995",
+    background: COLOR.ACCENT.PRIMARY,
     padding: "4px",
     alignItems: "center",
     borderRadius: 8,
@@ -152,6 +152,6 @@ const styles = {
   tipoClienteText: {
     fontSize: 12,
     fontWeight: 600,
-    color: "white",
+    color: COLOR.TEXT.CONTRAST,
   },
 } as const;

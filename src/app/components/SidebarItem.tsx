@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ACCENT_PRIMARY, TEXT_CONTRAST, TEXT_PRIMARY } from "@/theme/theme";
+import { COLOR } from "@/theme/theme";
 import { ReactNode, useMemo } from "react";
 
 export default function SidebarItem({
@@ -29,15 +29,15 @@ export default function SidebarItem({
         columnGap: collapsed ? "0" : "0.75rem",
         borderRadius: "0.75rem",
         padding: "0.5rem 0.5rem",
-        color: TEXT_PRIMARY,
+        color: COLOR.TEXT.PRIMARY,
         justifyContent: collapsed ? "flex-start" : "flex-start",
         width: "100%",
         textDecoration: "none",
         transition: "background-color 150ms ease, color 150ms ease, padding 150ms ease",
       } as React.CSSProperties,
       itemActive: {
-        backgroundColor: ACCENT_PRIMARY,
-        color: TEXT_CONTRAST,
+        backgroundColor: COLOR.ACCENT.PRIMARY,
+        color: COLOR.TEXT.CONTRAST,
       } as React.CSSProperties,
       iconWrap: {
         display: "inline-flex",

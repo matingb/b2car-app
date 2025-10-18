@@ -1,3 +1,5 @@
+import { COLOR } from "@/theme/theme";
+
 interface CardProps {
   children: React.ReactNode;
   onClick?: () => void;
@@ -15,9 +17,9 @@ export default function Card({ children, onClick, style }: CardProps) {
 const styles = {
   container: {
     padding: "12px 16px",
-    border: "1px solid #dedede",
+    border: "1px solid " + COLOR.BORDER.SUBTLE,
     borderRadius: 8,
-    background: "#f9f9f9",
+    background: COLOR.BACKGROUND.SUBTLE,
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
   },
 };

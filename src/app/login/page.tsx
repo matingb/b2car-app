@@ -1,18 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ROUTES } from "@/routing/routes";
 import { login } from "./actions";
-//import { useSession } from "@/app/(user)/providers/SessionProvider";
+import { COLOR } from "@/theme/theme";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const router = useRouter();
-  //const { signIn } = useSession();
 
   async function handlePasswordSignIn(e: React.FormEvent) {
     e.preventDefault();
@@ -100,8 +96,8 @@ const styles = {
   },
   button: {
     borderRadius: "0.375rem",
-    background: "#000",
-    color: "#fff",
+    background: COLOR.BUTTON.PRIMARY.BACKGROUND,
+    color: COLOR.BUTTON.PRIMARY.TEXT,
     padding: "0.5rem 1rem",
     cursor: "pointer",
   },
