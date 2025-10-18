@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { ROUTES } from "@/routing/routes";
 import SidebarItem from "@/app/components/SidebarItem";
 import { SessionProvider } from "@/app/providers/SessionProvider";
+import ToastProvider from "@/app/providers/ToastProvider";
 import Divider from "@mui/material/Divider";
 import { Users, Car, LogOut, PanelLeft, Wrench } from "lucide-react";
 import { logOut } from "@/app/login/actions";
@@ -40,6 +41,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <div style={s.appRoot}>
+        <ToastProvider />
         <div style={s.pageContent}>
           <aside style={s.sidebar} aria-label="Sidebar">
             <div style={s.card}>

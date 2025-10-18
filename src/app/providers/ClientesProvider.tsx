@@ -1,17 +1,36 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { Cliente, Vehiculo } from "@/model/types";
+import { Cliente, TipoCliente, Vehiculo } from "@/model/types";
 
 type ClientesContextType = {
   clientes: Cliente[];
   loading: boolean;
   refetch: () => Promise<void>;
+  createParticular: (input: CreateParticularRequest) => Promise<Cliente>;
+  createEmpresa: (input: CreateEmpresaRequest) => Promise<Cliente>;
 };
 
 const ClientesContext = createContext<ClientesContextType | undefined>(
   undefined
 );
+
+export type CreateParticularRequest = {
+  nombre: string;
+  apellido?: string;
+  telefono: string;
+  email: string;
+  direccion: string;
+  tipo_cliente: TipoCliente;
+};
+
+export type CreateEmpresaRequest = {
+  nombre: string;
+  telefono: string;
+  email: string;
+  direccion: string;
+  tipo_cliente: TipoCliente;
+};
 
 export function ClientesProvider({ children }: { children: React.ReactNode }) {
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -28,6 +47,38 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error("Error cargando clientes", err);
     }
+  };
+
+  const createParticular = async (input: CreateParticularRequest): Promise<Cliente> => {
+    const payload = { ...input, tipo_cliente: TipoCliente.PARTICULAR };
+    const res = await fetch("/api/clientes/particulares", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: "Error" }));
+      throw new Error(error || "No se pudo crear el cliente");
+    }
+    const { data } = await res.json();
+    setClientes((prev) => [...prev, data]);
+    return data as Cliente;
+  };
+
+  const createEmpresa = async (input: CreateEmpresaRequest): Promise<Cliente> => {
+    const payload = { ...input, tipo_cliente: TipoCliente.EMPRESA };
+    const res = await fetch("/api/clientes/empresas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({ error: "Error" }));
+      throw new Error(error || "No se pudo crear el cliente");
+    }
+    const { data } = await res.json();
+    setClientes((prev) => [...prev, data]);
+    return data as Cliente;
   };
 
   useEffect(() => {
@@ -50,7 +101,7 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     // opcional: placeholder idéntico server/cliente
     return (
       <ClientesContext.Provider
-        value={{ clientes, loading, refetch: fetchClientes }}
+        value={{ clientes, loading, refetch: fetchClientes, createParticular, createEmpresa }}
       >
         <div aria-hidden="true" />
       </ClientesContext.Provider>
@@ -59,7 +110,7 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ClientesContext.Provider
-      value={{ clientes, loading, refetch: fetchClientes }}
+      value={{ clientes, loading, refetch: fetchClientes, createParticular, createEmpresa }}
     >
       {children}
     </ClientesContext.Provider>

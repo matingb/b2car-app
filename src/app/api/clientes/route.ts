@@ -14,22 +14,23 @@ export async function GET() {
 
 const clientes: Cliente[] = data.map(cliente => {
     if (cliente.tipo_cliente === TipoCliente.PARTICULAR) {
+        const nombre = `${cliente.particular?.nombre || ""} ${cliente.particular?.apellido || ""}`.trim();
         return {
             id: cliente.id,
-            nombre: cliente.particular.nombre,
+            nombre: nombre,
             tipo_cliente: cliente.tipo_cliente,
-            telefono: cliente.particular.telefono,
-            email: cliente.particular.email,
-            direccion: cliente.particular.direccion
+            telefono: cliente.particular?.telefono,
+            email: cliente.particular?.email,
+            direccion: cliente.particular?.direccion
         }
     } else {
         return {
             id: cliente.id,
-            nombre: cliente.empresa.nombre,
+            nombre: cliente.empresa?.nombre,
             tipo_cliente: cliente.tipo_cliente,
-            telefono: cliente.empresa.telefono,
-            email: cliente.empresa.email,
-            direccion: cliente.empresa.direccion
+            telefono: cliente.empresa?.telefono,
+            email: cliente.empresa?.email,
+            direccion: cliente.empresa?.direccion
         }
     }
 })
