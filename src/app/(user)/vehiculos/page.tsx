@@ -1,10 +1,23 @@
 "use client";
 import Card from "@/app/components/Card";
+import ScreenHeader from "@/app/components/ScreenHeader";
+import SearchBar from "@/app/components/SearchBar";
 import { Vehiculo } from "@/model/types";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function VehiculosPage() {
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
+  const [search, setSearch] = useState("");
+  const vehiculosFiltrados = useMemo(() => {
+    if (!vehiculos) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return vehiculos;
+    return vehiculos.filter((v: Vehiculo) =>
+      Object.values(v ?? {}).some((v) =>
+        String(v ?? "").toLowerCase().includes(q)
+      )
+    );
+  }, [vehiculos, search]);
 
   useEffect(() => {
     const fetchVehiculos = async () => {
@@ -20,10 +33,15 @@ export default function VehiculosPage() {
 
   return (
     <div>
-      <h1 style={styles.title}>Vehículos</h1>
-      <p style={styles.subtitle}>Listado y gestión de vehículos.</p>
+      <ScreenHeader title="Vehículos" />
+      <SearchBar
+        value={search}
+        onChange={setSearch}
+        placeholder="Buscar vehículos..."
+        style={{ width: "100%" }}
+      />
       <div style={styles.vehiclesList}>
-        {vehiculos.map((vehiculo) => (
+        {vehiculosFiltrados.map((vehiculo: Vehiculo) => (
           <Card key={vehiculo.id}>
             <div>
               <div style={styles.vehicleInfo}>

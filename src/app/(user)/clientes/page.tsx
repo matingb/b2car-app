@@ -3,9 +3,9 @@
 import React from "react";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import ClienteList from "@/app/components/ClienteList";
-import { ACCENT_PRIMARY } from "@/theme/theme";
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import ScreenHeader from "@/app/components/ScreenHeader";
+import SearchBar from "@/app/components/SearchBar";
 
 export default function ClientesPage() {
   const { clientes, loading } = useClientes();
@@ -15,34 +15,23 @@ export default function ClientesPage() {
     if (!clientes) return [];
     const q = search.trim().toLowerCase();
     if (!q) return clientes;
-    return clientes.filter((c: any) =>
+    return clientes.filter((c) =>
       Object.values(c ?? {}).some((v) =>
         String(v ?? "").toLowerCase().includes(q)
       )
     );
   }, [clientes, search]);
 
-  useEffect(() => {
-    const selector = 'input[placeholder="Buscar clientes..."]';
-    const input = document.querySelector(selector) as HTMLInputElement | null;
-    if (!input) return;
-    const onInput = (e: Event) => setSearch((e.target as HTMLInputElement).value);
-    input.addEventListener("input", onInput);
-    // keep the DOM input value in sync if search changes programmatically
-    input.value = search;
-    return () => input.removeEventListener("input", onInput);
-  }, [search]);
 
   return (
     <div>
       <ScreenHeader title="Clientes" />
-      <div style={styles.searchContainer}>
-        <input
-          type="text"
-          placeholder="Buscar clientes..."
-          style={styles.searchInput}
-        />
-      </div>
+      <SearchBar
+        value={search}
+        onChange={setSearch}
+        placeholder="Buscar clientes..."
+        style={{ width: "100%", maxWidth: "420px" }}
+      />
       {loading ? (
         <p>Cargando clientes...</p>
       ) : (
@@ -52,44 +41,4 @@ export default function ClientesPage() {
   );
 }
 
-const styles = {
-  title: {
-    fontSize: "24px",
-    lineHeight: "32px",
-    fontWeight: 600,
-    marginBottom: "1rem",
-  },
-  subtitle: {
-    marginTop: "0.5rem",
-    color: "#6b7280",
-  },
-  refreshButton: {
-    marginBottom: "1rem",
-    padding: "0.5rem 1rem",
-    backgroundColor: ACCENT_PRIMARY,
-    color: "white",
-    border: "none",
-    borderRadius: "0.375rem",
-    cursor: "pointer",
-  },
-  searchContainer: {
-    marginBottom: "1rem",
-    display: "flex",
-    justifyContent: "flex-start",
-    alignItems: "center",
-  },
-  searchInput: {
-    width: "100%",
-    maxWidth: "420px",
-    padding: "0.5rem 0.75rem",
-    border: "1px solid #d1d5db",
-    borderRadius: "0.375rem",
-    fontSize: "1rem",
-    lineHeight: "1.5",
-    outline: "none",
-    transition: "box-shadow 150ms ease, border-color 150ms ease",
-    boxSizing: "border-box",
-  },
-} as const;
-
-
+ 
