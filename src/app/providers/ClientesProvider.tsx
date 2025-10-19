@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Cliente, TipoCliente, Vehiculo } from "@/model/types";
+import { API_ROUTES, ROUTES } from "@/routing/routes";
 
 type ClientesContextType = {
   clientes: Cliente[];
@@ -140,7 +141,17 @@ export function useClienteById(id: string) {
 
     setLoadingCliente(true);
     (async () => {
-      const res = await fetch(`/api/clientes/${id}`);
+
+      // seleccionar endpoint según el tipo de cliente guardado en localStorage
+      const rawTipo = localStorage.getItem("tipo_cliente") ?? "";
+      const tipoLower = String(rawTipo).toLowerCase();
+      let url = API_ROUTES.clientes + `/${id}`;
+
+      if (tipoLower.includes(TipoCliente.EMPRESA) || rawTipo === String(TipoCliente.EMPRESA)) {
+        url = API_ROUTES.empresas + `/${id}`;
+      }
+
+      const res = await fetch(url);
       const { data } = await res.json();
 
       setCliente(data);

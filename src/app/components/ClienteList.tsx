@@ -19,12 +19,22 @@ export default function ClienteList({
     console.log("delete", id);
   };
 
+  const handleOnClick = (id: number) => {
+    const cliente = clientes.find((c) => c.id === id);
+    if (cliente) {
+      const tipo = cliente.tipo_cliente === TipoCliente.PARTICULAR ? "PARTICULAR" : "EMPRESA";
+      localStorage.setItem("tipo_cliente", tipo);
+    }
+    redirect(ROUTES.clientes + "/" + id);
+  }
+
+
   return (
     <div style={styles.list}>
       {clientes.map((cliente) => (
         <Card
           key={cliente.id}
-          onClick={() => redirect(ROUTES.clientes + "/" + cliente.id)}
+          onClick={() => handleOnClick(cliente.id)}
         >
           <div style={styles.container}>
             <div style={styles.leftGroup}>

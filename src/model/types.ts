@@ -20,6 +20,7 @@ export enum TipoCliente {
   EMPRESA = "empresa",
 }
 
+
 export interface Cliente {
   id: number
   nombre: string
