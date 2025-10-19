@@ -123,7 +123,6 @@ const styles = {
   appRoot: {
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     color: COLOR.TEXT.PRIMARY,
-    minHeight: "100vh",
   },
   pageContent: {
     marginLeft: "auto",
@@ -185,6 +184,6 @@ const styles = {
   },
   main: {
     flex: 1,
-    minHeight: "100vh",
+    height: "100%",
   },
 } as const;

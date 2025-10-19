@@ -78,6 +78,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 8,
+    marginTop: 16,
   },
   vehicleInfo: {
     alignItems: "center",

@@ -29,7 +29,7 @@ export default function ClientesDetailsPage() {
           display: "flex",
           alignItems: "center",
           gap: 16,
-          marginBottom: 8,
+          marginBottom: 16,
         }}
       >
         <Avatar nombre={cliente?.nombre ?? ""} size={60} />

@@ -69,5 +69,6 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: "1rem",
+    marginTop: 16,
   },
 } as const;

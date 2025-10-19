@@ -15,10 +15,10 @@ export async function GET(
             .select('*, particular:particulares(*), vehiculos(*)')
             .eq('id', cliente_id)
             .single()
-
+    const nombre = `${data.particular?.nombre || ""} ${data.particular?.apellido || ""}`.trim();
     const particular: Particular = {
         id: data.id,
-        nombre: data.particular.nombre,
+        nombre: nombre,
         telefono: data.particular.telefono,
         email: data.particular.email,
         direccion: data.particular.direccion,
