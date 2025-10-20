@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { ROUTES } from "@/routing/routes";
 import SidebarItem from "@/app/components/ui/SidebarItem";
 import { SessionProvider } from "@/app/providers/SessionProvider";
+import { ModalMessageProvider } from "@/app/providers/ModalMessageProvider";
 import ToastProvider from "@/app/providers/ToastProvider";
 import Divider from "@mui/material/Divider";
 import { Users, Car, LogOut, PanelLeft, Wrench } from "lucide-react";
@@ -42,6 +43,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <div style={s.appRoot}>
         <ToastProvider />
+
         <div style={s.pageContent}>
           <aside style={s.sidebar} aria-label="Sidebar">
             <div style={s.card}>
@@ -109,11 +111,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </nav>
             </div>
           </aside>
-
-          <main style={s.main}>
-            <div style={s.cardMain}>{children}</div>
-          </main>
+          <ModalMessageProvider>
+            <main style={s.main}>
+              <div style={s.cardMain}>{children}</div>
+            </main>
+          </ModalMessageProvider>
         </div>
+
       </div>
     </SessionProvider>
   );

@@ -47,16 +47,14 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
           <h1 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
             <Building2 size={22} color={COLOR.ACCENT.PRIMARY} />
             {empresa?.nombre ?? "-"}
-            {clienteId && (
-              <span style={{ marginLeft: 8 }}>
-                <Button text="Crear vehículo" onClick={() => setOpenVehiculo(true)} />
-              </span>
-            )}
           </h1>
           <div style={{ color: "#666", fontSize: 13, display: "flex", gap: 8 }}>
             <MapPin size={16} /> {empresa?.direccion ?? "-"}
           </div>
         </div>
+        {clienteId && (
+              <Button text="Crear vehículo" onClick={() => setOpenVehiculo(true)} />
+            )}
       </div>
 
       <div style={{ display: "flex", gap: 16 }}>

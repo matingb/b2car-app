@@ -37,7 +37,6 @@ export default function Button({
 const styles = {
   button: {
     background: COLOR.ACCENT.PRIMARY,
-    marginLeft: 10,
     color: COLOR.TEXT.CONTRAST,
     fontSize: "16px",
     borderRadius: 8,

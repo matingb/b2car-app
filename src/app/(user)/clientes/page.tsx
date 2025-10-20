@@ -60,6 +60,7 @@ const styles = {
     marginBottom: 16,
     display: "flex",
     justifyContent: "start",
+    gap: 16,
   },
   searchBar: {
     width: "100%",

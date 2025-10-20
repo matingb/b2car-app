@@ -4,19 +4,33 @@ import React from "react";
 import { Mail, Phone, TextSearch, Car, Trash2 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Cliente, TipoCliente } from "@/model/types";
-import Avatar from "../ui/Avatar";
-import Card from "../ui/Card";
+import Avatar from "@/app/components/ui/Avatar";
+import Card from "@/app/components/ui/Card";
 import { ROUTES } from "@/routing/routes";
 import { COLOR } from "@/theme/theme";
+import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 
 export default function ClienteList({
   clientes: clientes,
 }: {
   clientes: Cliente[];
 }) {
-  const handleDelete = (event: React.MouseEvent<HTMLButtonElement>, id: number) => {
+  const modal = useModalMessage();
+
+  const handleDelete = async (event: React.MouseEvent<HTMLButtonElement>, id: number) => {
     event.stopPropagation();
-    console.log("delete", id);
+    const cliente = clientes.find((c) => c.id === id);
+    const nombre = cliente?.nombre || "este cliente";
+    const ok = await modal.confirm({
+      title: "Eliminar cliente",
+      message: `¿Confirmás eliminar ${nombre}? Esta acción no se puede deshacer.`,
+      acceptLabel: "Eliminar",
+      cancelLabel: "Cancelar",
+    });
+    if (ok) {
+      // Mock: acá iría el llamado al endpoint de borrado
+      console.log("delete", id);
+    }
   };
 
   const handleOnClick = (id: number) => {
@@ -160,7 +174,7 @@ const styles = {
     borderRadius: 8,
   },
   tipoClienteText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 600,
     color: COLOR.TEXT.CONTRAST,
   },
