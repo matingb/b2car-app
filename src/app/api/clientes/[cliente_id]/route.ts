@@ -15,6 +15,12 @@ export async function GET(
             .select('*, particular:particulares(*), vehiculos(*)')
             .eq('id', cliente_id)
             .single()
+    if (error) {
+        console.error("Error cargando cliente", error);
+        const status = (error as any)?.code === 'PGRST116' ? 404 : 500
+        return Response.json({ data: null, arreglos: [] }, { status })
+    }
+
     const nombre = `${data.particular?.nombre || ""} ${data.particular?.apellido || ""}`.trim();
     const particular: Particular = {
         id: data.id,
@@ -23,12 +29,31 @@ export async function GET(
         email: data.particular.email,
         direccion: data.particular.direccion,
         vehiculos: data.vehiculos
-    };       
-
-    if (error) {
-        console.error("Error cargando cliente", error);
-        return Response.json({ data: null, arreglos: [] }, { status: 500 })
-    }
+    };
 
     return Response.json({ data: particular })
+}
+
+export async function DELETE(
+    _req: NextRequest,
+    { params }: { params: Promise<{ cliente_id: string }> }
+) {
+    const supabase = await createClient()
+    const { cliente_id } = await params
+
+    const { data, error } = await supabase
+        .from('clientes')
+        .delete()
+        .eq('id', cliente_id)
+        .select('id')
+
+    if (error) {
+        return Response.json({ error: error.message }, { status: 500 })
+    }
+
+    if (!data || data.length === 0) {
+        return Response.json({ error: 'Cliente no encontrado' }, { status: 404 })
+    }
+
+    return Response.json({ error: null }, { status: 200 })
 }

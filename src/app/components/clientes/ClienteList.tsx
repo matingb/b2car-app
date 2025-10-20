@@ -2,13 +2,14 @@
 
 import React from "react";
 import { Mail, Phone, TextSearch, Car, Trash2 } from "lucide-react";
-import { redirect } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import { Cliente, TipoCliente } from "@/model/types";
 import Avatar from "@/app/components/ui/Avatar";
 import Card from "@/app/components/ui/Card";
 import { ROUTES } from "@/routing/routes";
 import { COLOR } from "@/theme/theme";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
+import { useAppToast } from "@/app/hooks/useAppToast";
 
 export default function ClienteList({
   clientes: clientes,
@@ -16,6 +17,13 @@ export default function ClienteList({
   clientes: Cliente[];
 }) {
   const modal = useModalMessage();
+  const router = useRouter();
+  const toast = useAppToast();
+  const [clientesState, setClientes] = React.useState<Cliente[]>(clientes);
+
+  React.useEffect(() => {
+    setClientes(clientes);
+  }, [clientes]);
 
   const handleDelete = async (event: React.MouseEvent<HTMLButtonElement>, id: number) => {
     event.stopPropagation();
@@ -25,11 +33,29 @@ export default function ClienteList({
       title: "Eliminar cliente",
       message: `¿Confirmás eliminar ${nombre}? Esta acción no se puede deshacer.`,
       acceptLabel: "Eliminar",
-      cancelLabel: "Cancelar",
+      cancelLabel: "Cancelar"
     });
-    if (ok) {
-      // Mock: acá iría el llamado al endpoint de borrado
-      console.log("delete", id);
+    if (!ok) return;
+
+    try {
+      const res = await fetch(`/api/clientes/${id}`, { method: "DELETE" });
+      // 404 lo tratamos como éxito silencioso (ya no existe)
+      if (res.ok || res.status === 404) {
+        toast.success("Cliente eliminado", typeof nombre === 'string' ? nombre : undefined);
+        // Refrescamos para que la lista se actualice desde el servidor
+        // Reemplaza el router.refresh(); por esto:
+        const body = await res.json().catch(() => null);
+        const deletedId = body?.id ?? id;
+        // Si usas estado local (ver nota abajo) actualiza la lista en cliente
+        setClientes((prev) => prev.filter((c) => c.id !== deletedId));
+        return;
+      }
+
+      const body = await res.json().catch(() => null);
+      const msg = body?.error || `Error ${res.status}`;
+      toast.error("No se pudo eliminar el cliente", msg);
+    } catch (err: any) {
+      toast.error("No se pudo eliminar el cliente", err?.message || "Error de red");
     }
   };
 
@@ -45,7 +71,7 @@ export default function ClienteList({
 
   return (
     <div style={styles.list}>
-      {clientes.map((cliente) => (
+      {clientesState.map((cliente) => (
         <Card
           key={cliente.id}
           onClick={() => handleOnClick(cliente.id)}

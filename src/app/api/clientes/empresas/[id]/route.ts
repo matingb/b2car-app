@@ -16,7 +16,6 @@ export async function GET(
 		.eq('id', id)
 		.single()
 
-    console.log('Empresa cargada', data)
 	if (error) {
 		console.error('Error cargando empresa', error)
 		const status = error.code === 'PGRST116' ? 404 : 500 // Not found vs server error
