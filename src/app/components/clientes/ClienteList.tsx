@@ -4,8 +4,8 @@ import React from "react";
 import { Mail, Phone, TextSearch, Car, Trash2 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Cliente, TipoCliente } from "@/model/types";
-import Avatar from "./Avatar";
-import Card from "./Card";
+import Avatar from "../ui/Avatar";
+import Card from "../ui/Card";
 import { ROUTES } from "@/routing/routes";
 import { COLOR } from "@/theme/theme";
 

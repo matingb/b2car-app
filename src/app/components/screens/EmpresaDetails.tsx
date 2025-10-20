@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import Avatar from "@/app/components/Avatar";
-import Card from "@/app/components/Card";
-import IconLabel from "@/app/components/IconLabel";
+import Avatar from "@/app/components/ui/Avatar";
+import Card from "@/app/components/ui/Card";
+import IconLabel from "@/app/components/ui/IconLabel";
 import { Divider } from "@mui/material";
 import { Mail, Phone, Building2, MapPin } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import { Vehiculo } from "@/model/types";
-import Button from "./Button";
-import CreateVehiculoModal from "./CreateVehiculoModal";
+import Button from "../ui/Button";
+import CreateVehiculoModal from "../vehiculos/CreateVehiculoModal";
 
 // Diseño adaptado para empresas
 // Muestra nombre de la empresa y datos de contacto; lista de vehículos igual que particulares

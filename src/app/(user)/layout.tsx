@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { ROUTES } from "@/routing/routes";
-import SidebarItem from "@/app/components/SidebarItem";
+import SidebarItem from "@/app/components/ui/SidebarItem";
 import { SessionProvider } from "@/app/providers/SessionProvider";
 import ToastProvider from "@/app/providers/ToastProvider";
 import Divider from "@mui/material/Divider";

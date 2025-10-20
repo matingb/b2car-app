@@ -1,9 +1,9 @@
 "use client";
-import Card from "@/app/components/Card";
-import ScreenHeader from "@/app/components/ScreenHeader";
+import Card from "@/app/components/ui/Card";
+import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { Arreglo } from "@/model/types";
 import { useEffect, useMemo, useState } from "react";
-import SearchBar from "@/app/components/SearchBar";
+import SearchBar from "@/app/components/ui/SearchBar";
 
 export default function ArreglosPage() {
   const [arreglos, setArreglos] = useState<Arreglo[]>([]);

@@ -6,15 +6,15 @@ import { useClienteById } from "@/app/providers/ClientesProvider";
 import { COLOR } from "@/theme/theme";
 import { Divider } from "@mui/material";
 import { Mail, Phone } from "lucide-react";
-import IconLabel from "@/app/components/IconLabel";
-import ScreenHeader from "@/app/components/ScreenHeader";
+import IconLabel from "@/app/components/ui/IconLabel";
+import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { Vehiculo } from "@/model/types";
 import "@radix-ui/themes/styles.css";
 import { Skeleton, Theme } from "@radix-ui/themes";
-import Avatar from "@/app/components/Avatar";
-import Card from "@/app/components/Card";
-import ParticularDetails from "@/app/components/ParticularDetails";
-import EmpresaDetails from "@/app/components/EmpresaDetails";
+import Avatar from "@/app/components/ui/Avatar";
+import Card from "@/app/components/ui/Card";
+import ParticularDetails from "@/app/components/screens/ParticularDetails";
+import EmpresaDetails from "@/app/components/screens/EmpresaDetails";
 import { TipoCliente } from "@/model/types";
 
 export default function ClientesDetailsPage() {

@@ -2,8 +2,8 @@
 
 import React, { useMemo, useState } from "react";
 import { COLOR } from "@/theme/theme";
-import Card from "./Card";
-import Button from "./Button";
+import Card from "../ui/Card";
+import Button from "../ui/Button";
 import { TipoCliente } from "@/model/types";
 
 type Props = {
