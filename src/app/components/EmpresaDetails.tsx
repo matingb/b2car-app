@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, useState } from "react";
 import Avatar from "@/app/components/Avatar";
 import Card from "@/app/components/Card";
 import IconLabel from "@/app/components/IconLabel";
@@ -8,12 +8,15 @@ import { Divider } from "@mui/material";
 import { Mail, Phone, Building2, MapPin } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import { Vehiculo } from "@/model/types";
+import Button from "./Button";
+import CreateVehiculoModal from "./CreateVehiculoModal";
 
 // Diseño adaptado para empresas
 // Muestra nombre de la empresa y datos de contacto; lista de vehículos igual que particulares
 
 type Props = {
   empresa: {
+    id?: number;
     nombre?: string;
     email?: string;
     telefono?: string;
@@ -23,6 +26,12 @@ type Props = {
 };
 
 export default function EmpresaDetails({ empresa, vehiculos }: Props) {
+  const [openVehiculo, setOpenVehiculo] = useState(false);
+  const clienteId = useMemo(() => empresa?.id ?? undefined, [empresa]);
+  const [vehiculosLocal, setVehiculosLocal] = useState<Vehiculo[]>(vehiculos ?? []);
+  React.useEffect(() => {
+    setVehiculosLocal(vehiculos ?? []);
+  }, [vehiculos]);
   return (
     <div>
       <div
@@ -38,6 +47,11 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
           <h1 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
             <Building2 size={22} color={COLOR.ACCENT.PRIMARY} />
             {empresa?.nombre ?? "-"}
+            {clienteId && (
+              <span style={{ marginLeft: 8 }}>
+                <Button text="Crear vehículo" onClick={() => setOpenVehiculo(true)} />
+              </span>
+            )}
           </h1>
           <div style={{ color: "#666", fontSize: 13, display: "flex", gap: 8 }}>
             <MapPin size={16} /> {empresa?.direccion ?? "-"}
@@ -74,8 +88,8 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
           <h2>Vehículos asociados</h2>
           <Divider />
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {vehiculos && vehiculos.length > 0 ? (
-              vehiculos.map((vehiculo: Vehiculo) => (
+            {vehiculosLocal && vehiculosLocal.length > 0 ? (
+              vehiculosLocal.map((vehiculo: Vehiculo) => (
                 <span
                   key={vehiculo.id ?? vehiculo.patente ?? Math.random()}
                   style={{
@@ -96,6 +110,20 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
           </div>
         </Card>
       </div>
+
+      <CreateVehiculoModal
+        open={openVehiculo}
+        onClose={(nuevo) => {
+          setOpenVehiculo(false);
+          if (nuevo) {
+            setVehiculosLocal((prev) => [
+              { id: Math.random(), nombre_cliente: empresa?.nombre || '', patente: nuevo.patente, marca: nuevo.marca || '', modelo: nuevo.modelo || '', fecha_patente: nuevo.fecha_patente || '' },
+              ...prev,
+            ]);
+          }
+        }}
+        clienteId={clienteId ?? ''}
+      />
     </div>
   );
 }

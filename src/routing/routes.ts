@@ -8,8 +8,8 @@ export const ROUTES = {
 
 export const API_ROUTES = {
 	clientes: "/api/clientes",
-	empresas: "/api/clientes/empresas",
-	particulares: "/api/clientes/particulares",
+		empresas: "/api/clientes/empresas",
+		particulares: "/api/clientes/particulares",
 	vehiculos: "/api/vehiculos",
 	arreglos: "/api/arreglos",
 } as const;
