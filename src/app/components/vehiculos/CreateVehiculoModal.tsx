@@ -76,7 +76,7 @@ export default function CreateVehiculoModal({ open, onClose, clienteId }: Props)
       <div style={styles.modal}>
         <Card>
           <div style={styles.headerRow}>
-            <h3 style={styles.title}>Crear vehículo</h3>
+            <h2 style={styles.title}>Crear vehículo</h2>
           </div>
           <form onSubmit={handleSubmit}>
             <div style={{ padding: "4px 0 12px" }}>
