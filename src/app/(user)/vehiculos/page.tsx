@@ -6,8 +6,10 @@ import SearchBar from "@/app/components/ui/SearchBar";
 import { Vehiculo } from "@/model/types";
 import { COLOR } from "@/theme/theme";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function VehiculosPage() {
+  const router = useRouter();
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -57,7 +59,11 @@ export default function VehiculosPage() {
       ) : (
         <div style={styles.vehiclesList}>
           {vehiculosFiltrados.map((vehiculo: Vehiculo) => (
-            <Card key={vehiculo.id}>
+            <Card
+              key={vehiculo.id}
+              onClick={() => router.push(`/vehiculos/${vehiculo.id}`)}
+              style={{ cursor: "pointer" }}
+            >
               <div>
                 <div style={styles.vehicleInfo}>
                   <h2>{vehiculo.patente}</h2>
