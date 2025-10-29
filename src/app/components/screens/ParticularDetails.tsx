@@ -10,6 +10,8 @@ import { COLOR } from "@/theme/theme";
 import { Vehiculo } from "@/model/types";
 import Button from "../ui/Button";
 import CreateVehiculoModal from "../vehiculos/CreateVehiculoModal";
+import { useRouter } from "next/navigation";
+import { ROUTES } from "@/routing/routes";
 
 type Props = {
     cliente: { id?: number; nombre?: string; email?: string; telefono?: string } | null;
@@ -20,6 +22,7 @@ export default function ParticularDetails({ cliente, vehiculos }: Props) {
     const [openVehiculo, setOpenVehiculo] = useState(false);
     const clienteId = useMemo(() => cliente?.id ?? undefined, [cliente]);
     const [vehiculosLocal, setVehiculosLocal] = useState<Vehiculo[]>(vehiculos ?? []);
+    const router = useRouter();
 
     // Si cambian los props, sincronizamos el local una vez.
     React.useEffect(() => {
@@ -82,7 +85,9 @@ export default function ParticularDetails({ cliente, vehiculos }: Props) {
                                         alignItems: "center",
                                         gap: 6,
                                         padding: "4px 8px",
+                                        cursor: "pointer"
                                     }}
+                                    onClick={() => {router.push(ROUTES.vehiculos + "/" + vehiculo.id)}} // Aquí podrías agregar navegación al detalle del vehículo si es necesario
                                 >
                                     <strong>{vehiculo.patente ?? "-"}</strong>-<span>
                                         {vehiculo.marca ?? "-"} {vehiculo.modelo ?? "-"}

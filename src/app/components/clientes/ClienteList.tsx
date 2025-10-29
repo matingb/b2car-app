@@ -65,7 +65,7 @@ export default function ClienteList({
       const tipo = cliente.tipo_cliente === TipoCliente.PARTICULAR ? "PARTICULAR" : "EMPRESA";
       localStorage.setItem("tipo_cliente", tipo);
     }
-    redirect(ROUTES.clientes + "/" + id);
+    router.push(ROUTES.clientes + "/" + id);
   }
 
 

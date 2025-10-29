@@ -4,6 +4,8 @@ import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { Arreglo } from "@/model/types";
 import { useEffect, useMemo, useState } from "react";
 import SearchBar from "@/app/components/ui/SearchBar";
+import ArregloList from "@/app/components/arreglos/ArregloList";
+import ListSkeleton from "@/app/components/ui/ListSkeleton";
 
 export default function ArreglosPage() {
   const [arreglos, setArreglos] = useState<Arreglo[]>([]);
@@ -20,14 +22,24 @@ export default function ArreglosPage() {
     );
   }, [arreglos, search]);
 
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     const fetchArreglos = async () => {
-      const res = await fetch("/api/arreglos");
-      const { data, error } = await res.json();
-      if (error) {
-        console.error(error);
+      setLoading(true);
+      try {
+        const res = await fetch("/api/arreglos");
+        const { data, error } = await res.json();
+        if (error) {
+          console.error(error);
+        }
+        setArreglos(data ?? []);
+      } catch (err) {
+        console.error('Error cargando arreglos', err);
+        setArreglos([]);
+      } finally {
+        setLoading(false);
       }
-      setArreglos(data ?? []);
     };
     fetchArreglos();
   }, []);
@@ -40,17 +52,13 @@ export default function ArreglosPage() {
         value={search}
         onChange={setSearch}
         placeholder="Buscar arreglos..."
-        style={{ width: "100%" }}
+        style={styles.searchBar}
       />
-      <div style={styles.arreglosList}>
-        {arreglosFiltrados.map(arreglo => (
-          <Card key={arreglo.id}>
-            <div>
-              <h2>{arreglo.vehiculo.patente}</h2>
-            </div>
-          </Card>
-        ))}
-      </div>
+      {loading ? (
+        <ListSkeleton rows={6} />
+      ) : (
+        <ArregloList arreglos={arreglosFiltrados} onItemClick={(a) => console.log('clicked', a.id)} />
+      )}
     </div>
   );
 }
@@ -71,4 +79,7 @@ const styles = {
     gap: "1rem",
     marginTop: 16,
   },
+  searchBar: {
+    marginBottom: "1rem",
+  }
 } as const;
