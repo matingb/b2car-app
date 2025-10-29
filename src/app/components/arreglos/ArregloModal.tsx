@@ -140,7 +140,15 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial }: Pro
                                 </div>
                                 <div style={styles.field}>
                                     <label style={styles.label}>Tipo </label>
-                                    <input style={styles.input} value={tipo} onChange={(e) => setTipo(e.target.value)} placeholder="Mecánica, Chapa y pintura..." />
+                                    {/* input con sugerencias: datalist permite desplegable + escritura libre */}
+                                    <input list="tipo-list" style={styles.input} value={tipo} onChange={(e) => setTipo(e.target.value)} placeholder="Mecánica, Chapa y pintura..." />
+                                    <datalist id="tipo-list">
+                                        <option value="Mecánica" />
+                                        <option value="Chapa y pintura" />
+                                        <option value="Electricidad" />
+                                        <option value="Mantenimiento" />
+                                        <option value="Revisión" />
+                                    </datalist>
                                 </div>
                             </div>
 
