@@ -19,57 +19,97 @@ export default function LoginPage() {
     } finally {
       setIsSubmitting(false);
     }
-  
   }
 
   return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>Login</h1>
-      <form onSubmit={handlePasswordSignIn} style={styles.form}>
-        <label style={styles.labelBlock}>
-          <span style={styles.labelText}>Email</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={styles.input}
-            required
-          />
-        </label>
-        <label style={styles.labelBlock}>
-          <span style={styles.labelText}>Password</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={styles.input}
-            required
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          style={{ ...styles.button, ...(isSubmitting ? styles.buttonDisabled : undefined) }}
-        >
-          {isSubmitting ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
-      {message && <p style={styles.message}>{message}</p>}
+    <div style={styles.splitContainer}>
+      <div style={styles.leftPane}>
+        {/* Imagen ilustrativa - reemplazá el path por el tuyo */}
+        <div style={styles.hero} />
+      </div>
+
+      <div style={styles.rightPane}>
+        <div style={styles.rightInner}>
+          <h1 style={styles.brand}>Taller Pro</h1>
+          <form onSubmit={handlePasswordSignIn} style={styles.form}>
+            <label style={styles.labelBlock}>
+              <span style={styles.labelText}>Email</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={styles.input}
+                required
+              />
+            </label>
+
+            <label style={styles.labelBlock}>
+              <span style={styles.labelText}>Password</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={styles.input}
+                required
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              style={{ ...styles.button, ...(isSubmitting ? styles.buttonDisabled : undefined) }}
+            >
+              {isSubmitting ? "Signing in..." : "Sign in"}
+            </button>
+          </form>
+
+          {message && <p style={styles.message}>{message}</p>}
+        </div>
+      </div>
     </div>
   );
 }
+
 const styles = {
-  container: {
-    marginLeft: "auto",
-    marginRight: "auto",
-    maxWidth: "28rem",
-    padding: "1.5rem",
+  splitContainer: {
+    display: 'flex',
+    minHeight: '100vh',
+    width: '100%',
   },
-  title: {
-    fontSize: "24px",
-    lineHeight: "32px",
-    fontWeight: 700,
-    marginBottom: "1rem",
+  leftPane: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: COLOR.ACCENT.PRIMARY,
+  },
+  hero: {
+    // Replace this backgroundImage path with your illustration
+    width: '80%',
+    height: '80%',
+    backgroundImage: "url('/path/to/illustration.png')",
+    backgroundSize: 'contain',
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'center',
+    borderRadius: 12,
+  },
+  rightPane: {
+    width: "50%",
+    maxWidth: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '2rem',
+    background: COLOR.BACKGROUND.SECONDARY,
+  },
+  rightInner: {
+    width: '100%',
+    maxWidth: 420,
+  },
+  brand: {
+    fontSize: 32,
+    fontWeight: 800,
+    marginBottom: '1rem',
   },
   form: {
     display: "flex",
