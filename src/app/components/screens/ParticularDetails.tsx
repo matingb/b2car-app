@@ -1,105 +1,102 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import Avatar from "@/app/components/ui/Avatar";
-import Card from "@/app/components/ui/Card";
-import IconLabel from "@/app/components/ui/IconLabel";
-import { Divider } from "@mui/material";
-import { Mail, Phone, PlusIcon } from "lucide-react";
-import { COLOR } from "@/theme/theme";
-import { Vehiculo } from "@/model/types";
-import Button from "../ui/Button";
+import { TipoCliente, Vehiculo } from "@/model/types";
 import CreateVehiculoModal from "../vehiculos/CreateVehiculoModal";
-import { useRouter } from "next/navigation";
-import { ROUTES } from "@/routing/routes";
+import ClienteHeader from "../clientes/ClienteHeader";
+import ContactInfoCard from "../clientes/ContactInfoCard";
+import VehiculosAsociadosCard from "../clientes/VehiculosAsociadosCard";
+import ClienteFormModal from "../clientes/ClienteFormModal";
+import { useAppToast } from "@/app/hooks/useAppToast";
 
 type Props = {
-    cliente: { id?: number; nombre?: string; email?: string; telefono?: string } | null;
+    cliente: { id?: number; nombre?: string; apellido?: string; email?: string; telefono?: string; direccion?: string } | null;
     vehiculos: Vehiculo[];
 };
 
 export default function ParticularDetails({ cliente, vehiculos }: Props) {
     const [openVehiculo, setOpenVehiculo] = useState(false);
+    const [openEditCliente, setOpenEditCliente] = useState(false);
     const clienteId = useMemo(() => cliente?.id ?? undefined, [cliente]);
     const [vehiculosLocal, setVehiculosLocal] = useState<Vehiculo[]>(vehiculos ?? []);
-    const router = useRouter();
+    const toast = useAppToast();
 
     // Si cambian los props, sincronizamos el local una vez.
     React.useEffect(() => {
         setVehiculosLocal(vehiculos ?? []);
     }, [vehiculos]);
+
+    const handleEditCliente = async (values: {
+        nombre: string;
+        apellido?: string;
+        telefono: string;
+        email: string;
+        direccion: string;
+    }) => {
+        if (!clienteId) return;
+
+        try {
+            const response = await fetch(`/api/clientes/particulares/${clienteId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(values),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Error al actualizar cliente');
+            }
+
+            toast.success('Cliente actualizado correctamente');
+            setOpenEditCliente(false);
+            // Forzar recarga de la página para actualizar los datos
+            window.location.reload();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Error desconocido';
+            toast.error(message);
+            throw error;
+        }
+    };
+    
+    const nombreCompleto = cliente?.apellido 
+        ? `${cliente.nombre} ${cliente.apellido}`.trim()
+        : cliente?.nombre ?? "-";
+
     return (
         <div>
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 16,
-                    marginBottom: 16,
-                }}
-            >
-                <Avatar nombre={cliente?.nombre ?? ""} size={60} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <h1 style={{ margin: 0 }}>{cliente?.nombre ?? "-"}</h1>
-                    {clienteId && (
-                        <Button icon={<PlusIcon size={20} />} text="Crear vehículo" onClick={() => setOpenVehiculo(true)} />
-                    )}
-                </div>
-            </div>
+            <ClienteHeader
+                nombre={nombreCompleto}
+                showCreateButton={!!clienteId}
+                onCreateClick={() => setOpenVehiculo(true)}
+            />
 
             <div style={{ display: "flex", gap: 16 }}>
-                <Card style={styles.contentPanel}>
-                    <h2>Datos de contacto</h2>
-                    <Divider />
+                <ContactInfoCard
+                    email={cliente?.email}
+                    telefono={cliente?.telefono}
+                    onEdit={() => setOpenEditCliente(true)}
+                />
 
-                    <div
-                        style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 8,
-                            alignContent: "center",
-                            padding: "4px 8px",
-                        }}
-                    >
-                        <IconLabel
-                            icon={<Mail size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
-                            label={cliente?.email ?? "-"}
-                        />
-                        <IconLabel
-                            icon={<Phone size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
-                            label={cliente?.telefono ?? "-"}
-                        />
-                    </div>
-                </Card>
-
-                <Card style={styles.contentPanel}>
-                    <h2>Vehículos asociados</h2>
-                    <Divider />
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                        {vehiculosLocal && vehiculosLocal.length > 0 ? (
-                            vehiculosLocal.map((vehiculo: Vehiculo) => (
-                                <span
-                                    key={vehiculo.id ?? vehiculo.patente ?? Math.random()}
-                                    style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: 6,
-                                        padding: "4px 8px",
-                                        cursor: "pointer"
-                                    }}
-                                    onClick={() => {router.push(ROUTES.vehiculos + "/" + vehiculo.id)}} // Aquí podrías agregar navegación al detalle del vehículo si es necesario
-                                >
-                                    <strong>{vehiculo.patente ?? "-"}</strong>-<span>
-                                        {vehiculo.marca ?? "-"} {vehiculo.modelo ?? "-"}
-                                    </span>
-                                </span>
-                            ))
-                        ) : (
-                            <span>No hay vehículos asociados</span>
-                        )}
-                    </div>
-                </Card>
+                <VehiculosAsociadosCard 
+                    vehiculos={vehiculosLocal}
+                    onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
+                />
             </div>
+
+            <ClienteFormModal
+                open={openEditCliente}
+                onClose={() => setOpenEditCliente(false)}
+                onSubmit={handleEditCliente}
+                mode="edit"
+                initialValues={{
+                    nombre: cliente?.nombre ?? "",
+                    apellido: cliente?.apellido ?? "",
+                    telefono: cliente?.telefono ?? "",
+                    email: cliente?.email ?? "",
+                    direccion: cliente?.direccion ?? "",
+                    tipo_cliente: TipoCliente.PARTICULAR,
+                }}
+            />
 
             <CreateVehiculoModal
                 open={openVehiculo}
@@ -128,12 +125,3 @@ export default function ParticularDetails({ cliente, vehiculos }: Props) {
         </div>
     );
 }
-
-const styles = {
-    contentPanel: {
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-        width: "50%",
-    },
-} as const;

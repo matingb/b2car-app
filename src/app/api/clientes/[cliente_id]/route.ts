@@ -21,14 +21,14 @@ export async function GET(
         return Response.json({ data: null, arreglos: [] }, { status })
     }
 
-    const nombre = `${data.particular?.nombre || ""} ${data.particular?.apellido || ""}`.trim();
     const particular: Particular = {
         id: data.id,
-        nombre: nombre,
-        telefono: data.particular.telefono,
-        email: data.particular.email,
-        direccion: data.particular.direccion,
-        vehiculos: data.vehiculos
+        nombre: data.particular?.nombre || "",
+        apellido: data.particular?.apellido || "",
+        telefono: data.particular?.telefono || "",
+        email: data.particular?.email || "",
+        direccion: data.particular?.direccion || "",
+        vehiculos: data.vehiculos || []
     };
 
     return Response.json({ data: particular })

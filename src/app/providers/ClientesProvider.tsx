@@ -1,8 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Cliente, TipoCliente, Vehiculo } from "@/model/types";
-import { API_ROUTES, ROUTES } from "@/routing/routes";
+import { API_ROUTES } from "@/routing/routes";
 
 type ClientesContextType = {
   clientes: Cliente[];
@@ -133,15 +133,14 @@ export function useClienteById(id: string) {
   >({});
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
 
-  useEffect(() => {
+  const fetchClienteData = useCallback(async () => {
     if (id == null) {
       setCliente(null);
       return;
     }
 
     setLoadingCliente(true);
-    (async () => {
-
+    try {
       // seleccionar endpoint según el tipo de cliente guardado en localStorage
       const rawTipo = localStorage.getItem("tipo_cliente") ?? "";
       const tipoLower = String(rawTipo).toLowerCase();
@@ -149,6 +148,8 @@ export function useClienteById(id: string) {
 
       if (tipoLower.includes(TipoCliente.EMPRESA) || rawTipo === String(TipoCliente.EMPRESA)) {
         url = API_ROUTES.empresas + `/${id}`;
+      } else if (tipoLower.includes(TipoCliente.PARTICULAR) || rawTipo === String(TipoCliente.PARTICULAR)) {
+        url = `/api/clientes/particulares/${id}`;
       }
 
       const res = await fetch(url);
@@ -170,15 +171,22 @@ export function useClienteById(id: string) {
         console.error("Error construyendo patenteVehiculo", e);
       }
       setPatenteVehiculo(map);
-
+    } catch (e) {
+      console.error("Error cargando cliente", e);
+    } finally {
       setLoadingCliente(false);
-    })();
+    }
   }, [id]);
+
+  useEffect(() => {
+    fetchClienteData();
+  }, [fetchClienteData, id]);
 
   return {
     cliente,
     loading: loadingCliente,
     patenteVehiculo,
     vehiculos,
+    refresh: fetchClienteData,
   };
 }

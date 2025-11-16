@@ -17,17 +17,46 @@ type Props = {
     direccion: string;
     tipo_cliente: TipoCliente;
   }) => Promise<void> | void;
+  mode?: 'create' | 'edit';
+  initialValues?: {
+    nombre?: string;
+    apellido?: string;
+    telefono?: string;
+    email?: string;
+    direccion?: string;
+    tipo_cliente?: TipoCliente;
+  };
 };
 
-export default function ClienteFormModal({ open, onClose, onSubmit }: Props) {
-  const [nombre, setNombre] = useState("");
-  const [telefono, setTelefono] = useState("");
-  const [email, setEmail] = useState("");
-  const [direccion, setDireccion] = useState("");
-  const [tipo, setTipo] = useState<TipoCliente>(TipoCliente.PARTICULAR);
-  const [apellido, setApellido] = useState("");
+export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'create', initialValues }: Props) {
+  const [nombre, setNombre] = useState(initialValues?.nombre ?? "");
+  const [telefono, setTelefono] = useState(initialValues?.telefono ?? "");
+  const [email, setEmail] = useState(initialValues?.email ?? "");
+  const [direccion, setDireccion] = useState(initialValues?.direccion ?? "");
+  const [tipo, setTipo] = useState<TipoCliente>(initialValues?.tipo_cliente ?? TipoCliente.PARTICULAR);
+  const [apellido, setApellido] = useState(initialValues?.apellido ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sincronizar con initialValues cuando cambian
+  React.useEffect(() => {
+    if (open && initialValues) {
+      setNombre(initialValues.nombre ?? "");
+      setTelefono(initialValues.telefono ?? "");
+      setEmail(initialValues.email ?? "");
+      setDireccion(initialValues.direccion ?? "");
+      setTipo(initialValues.tipo_cliente ?? TipoCliente.PARTICULAR);
+      setApellido(initialValues.apellido ?? "");
+    } else if (open && !initialValues) {
+      // Reset en modo create
+      setNombre("");
+      setTelefono("");
+      setEmail("");
+      setDireccion("");
+      setTipo(TipoCliente.PARTICULAR);
+      setApellido("");
+    }
+  }, [open, initialValues]);
 
   const isValid = useMemo(() => nombre.trim().length > 0, [nombre]);
 
@@ -61,7 +90,7 @@ export default function ClienteFormModal({ open, onClose, onSubmit }: Props) {
       <div style={styles.modal}>
         <Card>
           <div style={styles.headerRow}>
-            <h2 style={styles.title}>Nuevo cliente</h2>
+            <h2 style={styles.title}>{mode === 'edit' ? 'Editar cliente' : 'Nuevo cliente'}</h2>
           </div>
           <form onSubmit={handleSubmit}>
             <div style={{ padding: "4px 0 12px" }}>
@@ -86,17 +115,19 @@ export default function ClienteFormModal({ open, onClose, onSubmit }: Props) {
                     />
                   </div>
                 )}
-                <div style={{ ...styles.field, maxWidth: 140 }}>
-                  <label style={styles.label}>Tipo <span style={{color: "#d00"}}>*</span></label>
-                  <select
-                    style={{ ...styles.input, paddingRight: 8 }}
-                    value={tipo}
-                    onChange={(e) => setTipo(e.target.value as TipoCliente)}
-                  >
-                    <option value={TipoCliente.PARTICULAR}>Particular</option>
-                    <option value={TipoCliente.EMPRESA}>Empresa</option>
-                  </select>
-                </div>
+                {mode === 'create' && (
+                  <div style={{ ...styles.field, maxWidth: 140 }}>
+                    <label style={styles.label}>Tipo <span style={{color: "#d00"}}>*</span></label>
+                    <select
+                      style={{ ...styles.input, paddingRight: 8 }}
+                      value={tipo}
+                      onChange={(e) => setTipo(e.target.value as TipoCliente)}
+                    >
+                      <option value={TipoCliente.PARTICULAR}>Particular</option>
+                      <option value={TipoCliente.EMPRESA}>Empresa</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div style={styles.row}>

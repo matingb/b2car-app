@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import Avatar from "@/app/components/ui/Avatar";
-import Card from "@/app/components/ui/Card";
-import IconLabel from "@/app/components/ui/IconLabel";
-import { Divider } from "@mui/material";
-import { Mail, Phone, Building2, MapPin } from "lucide-react";
+import { Building2, MapPin } from "lucide-react";
 import { COLOR } from "@/theme/theme";
-import { Vehiculo } from "@/model/types";
-import Button from "../ui/Button";
+import { TipoCliente, Vehiculo } from "@/model/types";
 import CreateVehiculoModal from "../vehiculos/CreateVehiculoModal";
+import ClienteHeader from "../clientes/ClienteHeader";
+import ContactInfoCard from "../clientes/ContactInfoCard";
+import VehiculosAsociadosCard from "../clientes/VehiculosAsociadosCard";
+import ClienteFormModal from "../clientes/ClienteFormModal";
+import { useAppToast } from "@/app/hooks/useAppToast";
 
 // Diseño adaptado para empresas
 // Muestra nombre de la empresa y datos de contacto; lista de vehículos igual que particulares
@@ -27,87 +27,88 @@ type Props = {
 
 export default function EmpresaDetails({ empresa, vehiculos }: Props) {
   const [openVehiculo, setOpenVehiculo] = useState(false);
+  const [openEditEmpresa, setOpenEditEmpresa] = useState(false);
   const clienteId = useMemo(() => empresa?.id ?? undefined, [empresa]);
   const [vehiculosLocal, setVehiculosLocal] = useState<Vehiculo[]>(vehiculos ?? []);
+  const toast = useAppToast();
+  
   React.useEffect(() => {
     setVehiculosLocal(vehiculos ?? []);
   }, [vehiculos]);
+
+  const handleEditEmpresa = async (values: {
+    nombre: string;
+    telefono: string;
+    email: string;
+    direccion: string;
+  }) => {
+    if (!clienteId) return;
+
+    try {
+      const response = await fetch(`/api/clientes/empresas/${clienteId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al actualizar empresa');
+      }
+
+      toast.success('Empresa actualizada correctamente');
+      setOpenEditEmpresa(false);
+      // Forzar recarga de la página para actualizar los datos
+      window.location.reload();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
+      toast.error(message);
+      throw error;
+    }
+  };
+
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
-        <Avatar nombre={empresa?.nombre ?? ""} size={60} />
-        <div>
-          <h1 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-            <Building2 size={22} color={COLOR.ACCENT.PRIMARY} />
-            {empresa?.nombre ?? "-"}
-          </h1>
-          <div style={{ color: "#666", fontSize: 13, display: "flex", gap: 8 }}>
-            <MapPin size={16} /> {empresa?.direccion ?? "-"}
-          </div>
-        </div>
-        {clienteId && (
-              <Button text="Crear vehículo" onClick={() => setOpenVehiculo(true)} />
-            )}
-      </div>
+      <ClienteHeader
+        nombre={empresa?.nombre ?? "-"}
+        icon={<Building2 size={22} color={COLOR.ACCENT.PRIMARY} />}
+        subtitle={
+          empresa?.direccion ? (
+            <>
+              <MapPin size={16} /> {empresa.direccion}
+            </>
+          ) : undefined
+        }
+        showCreateButton={!!clienteId}
+        onCreateClick={() => setOpenVehiculo(true)}
+      />
 
       <div style={{ display: "flex", gap: 16 }}>
-        <Card style={styles.contentPanel}>
-          <h2>Datos de contacto</h2>
-          <Divider />
+        <ContactInfoCard
+          email={empresa?.email}
+          telefono={empresa?.telefono}
+          onEdit={() => setOpenEditEmpresa(true)}
+        />
 
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-              alignContent: "center",
-              padding: "4px 8px",
-            }}
-          >
-            <IconLabel
-              icon={<Mail size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
-              label={empresa?.email ?? "-"}
-            />
-            <IconLabel
-              icon={<Phone size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
-              label={empresa?.telefono ?? "-"}
-            />
-          </div>
-        </Card>
-
-        <Card style={styles.contentPanel}>
-          <h2>Vehículos asociados</h2>
-          <Divider />
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {vehiculosLocal && vehiculosLocal.length > 0 ? (
-              vehiculosLocal.map((vehiculo: Vehiculo) => (
-                <span
-                  key={vehiculo.id ?? vehiculo.patente ?? Math.random()}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "4px 8px",
-                  }}
-                >
-                  <strong>{vehiculo.patente ?? "-"}</strong>-<span>
-                    {vehiculo.marca ?? "-"} {vehiculo.modelo ?? "-"}
-                  </span>
-                </span>
-              ))
-            ) : (
-              <span>No hay vehículos asociados</span>
-            )}
-          </div>
-        </Card>
+        <VehiculosAsociadosCard 
+          vehiculos={vehiculosLocal}
+          onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
+        />
       </div>
+
+      <ClienteFormModal
+        open={openEditEmpresa}
+        onClose={() => setOpenEditEmpresa(false)}
+        onSubmit={handleEditEmpresa}
+        mode="edit"
+        initialValues={{
+          nombre: empresa?.nombre ?? "",
+          telefono: empresa?.telefono ?? "",
+          email: empresa?.email ?? "",
+          direccion: empresa?.direccion ?? "",
+          tipo_cliente: TipoCliente.EMPRESA,
+        }}
+      />
 
       <CreateVehiculoModal
         open={openVehiculo}
@@ -125,12 +126,3 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
     </div>
   );
 }
-
-const styles = {
-  contentPanel: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
-    width: "50%",
-  },
-} as const;

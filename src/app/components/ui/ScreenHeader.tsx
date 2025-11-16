@@ -45,7 +45,6 @@ const styles = {
     alignItems: "center",
     justifyContent: "start",
     gap: 8,
-    paddingBottom: 8,
   },
   titleWrapper: {
     display: "flex",

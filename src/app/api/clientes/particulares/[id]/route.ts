@@ -1,8 +1,8 @@
 import { createClient } from '@/supabase/server'
 import type { NextRequest } from 'next/server'
 
-// GET /api/clientes/empresas/[id]
-// Devuelve los datos de una empresa junto con sus vehículos
+// GET /api/clientes/particulares/[id]
+// Devuelve los datos de un particular junto con sus vehículos
 export async function GET(
 	_req: NextRequest,
 	{ params }: { params: Promise<{ id: string }> }
@@ -12,31 +12,31 @@ export async function GET(
 
 	const { data, error } = await supabase
 		.from('clientes')
-		.select('*, empresa:empresas(*), vehiculos(*)')
+		.select('*, particular:particulares(*), vehiculos(*)')
 		.eq('id', id)
 		.single()
 
 	if (error) {
-		console.error('Error cargando empresa', error)
-		const status = error.code === 'PGRST116' ? 404 : 500 // Not found vs server error
+		console.error('Error cargando particular', error)
+		const status = error.code === 'PGRST116' ? 404 : 500
 		return Response.json({ data: null, error: error.message }, { status })
 	}
 
-	const empresa = {
+	const particular = {
 		id: data.id as number,
-		nombre: data.empresa?.nombre ?? '',
-		telefono: data.empresa?.telefono ?? '',
-        cuit: data.empresa?.cuit ?? '',
-		email: data.empresa?.email ?? '',
-		direccion: data.empresa?.direccion ?? '',
+		nombre: data.particular?.nombre ?? '',
+		apellido: data.particular?.apellido ?? '',
+		telefono: data.particular?.telefono ?? '',
+		email: data.particular?.email ?? '',
+		direccion: data.particular?.direccion ?? '',
 		vehiculos: data.vehiculos ?? [],
 	}
 
-	return Response.json({ data: empresa })
+	return Response.json({ data: particular })
 }
 
-// PUT /api/clientes/empresas/[id]
-// Actualiza los datos de una empresa
+// PUT /api/clientes/particulares/[id]
+// Actualiza los datos de un particular
 export async function PUT(
 	req: NextRequest,
 	{ params }: { params: Promise<{ id: string }> }
@@ -47,8 +47,9 @@ export async function PUT(
 
 	if (!body) return Response.json({ error: "JSON inválido" }, { status: 400 })
 
-	const { nombre, telefono, email, direccion } = body as {
+	const { nombre, apellido, telefono, email, direccion } = body as {
 		nombre: string;
+		apellido?: string;
 		telefono?: string;
 		email?: string;
 		direccion?: string;
@@ -57,16 +58,17 @@ export async function PUT(
 	if (!nombre) return Response.json({ error: "Falta nombre" }, { status: 400 })
 
 	const { data, error } = await supabase
-		.from('empresas')
-		.update({ nombre, telefono, email, direccion })
+		.from('particulares')
+		.update({ nombre, apellido, telefono, email, direccion })
 		.eq('id', id)
 		.select()
 		.single()
 
 	if (error) {
-		console.error('Error actualizando empresa', error)
+		console.error('Error actualizando particular', error)
 		return Response.json({ error: error.message }, { status: 500 })
 	}
 
 	return Response.json({ data })
 }
+

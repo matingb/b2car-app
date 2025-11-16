@@ -3,19 +3,12 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useClienteById } from "@/app/providers/ClientesProvider";
-import { COLOR } from "@/theme/theme";
-import { Divider } from "@mui/material";
-import { Mail, Phone } from "lucide-react";
-import IconLabel from "@/app/components/ui/IconLabel";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
-import { Vehiculo } from "@/model/types";
+import { TipoCliente } from "@/model/types";
 import "@radix-ui/themes/styles.css";
 import { Skeleton, Theme } from "@radix-ui/themes";
-import Avatar from "@/app/components/ui/Avatar";
-import Card from "@/app/components/ui/Card";
 import ParticularDetails from "@/app/components/screens/ParticularDetails";
 import EmpresaDetails from "@/app/components/screens/EmpresaDetails";
-import { TipoCliente } from "@/model/types";
 
 export default function ClientesDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -23,7 +16,10 @@ export default function ClientesDetailsPage() {
   const [tipo, setTipo] = useState<string | null>(null);
 
   useEffect(() => {
-    const tipoCliente = typeof window !== 'undefined' ? localStorage.getItem('tipo_cliente') : null;
+    const tipoCliente =
+      typeof window !== "undefined"
+        ? localStorage.getItem("tipo_cliente")
+        : null;
     setTipo(tipoCliente?.toLowerCase() ?? null);
   }, []);
 
@@ -31,11 +27,19 @@ export default function ClientesDetailsPage() {
 
   return (
     <div>
-      <ScreenHeader title="Clientes" breadcrumbs={["Detalle"]} />
-      {tipo === TipoCliente.EMPRESA || tipo === 'empresa' ? (
-        <EmpresaDetails empresa={cliente} vehiculos={vehiculos || []} />
+      <div style={{ marginBottom: 8 }}>
+        <ScreenHeader title="Clientes" breadcrumbs={["Detalle"]} />
+      </div>
+      {tipo === TipoCliente.EMPRESA || tipo === "empresa" ? (
+        <EmpresaDetails 
+          empresa={cliente} 
+          vehiculos={vehiculos || []} 
+        />
       ) : (
-        <ParticularDetails cliente={cliente} vehiculos={vehiculos || []} />
+        <ParticularDetails 
+          cliente={cliente} 
+          vehiculos={vehiculos || []} 
+        />
       )}
     </div>
   );
@@ -45,7 +49,9 @@ function loadingScreen() {
   return (
     <div style={{ maxHeight: "100%", minHeight: "0vh" }}>
       <Theme style={{ height: "100%", minHeight: "0vh" }}>
-        <ScreenHeader title="Clientes" breadcrumbs={["Detalle"]} />
+        <div style={{ marginBottom: 8 }}>
+          <ScreenHeader title="Clientes" breadcrumbs={["Detalle"]} />
+        </div>
 
         <div
           style={{
@@ -111,22 +117,3 @@ function loadingScreen() {
     </div>
   );
 }
-
-const styles = {
-  contentPanel: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
-    width: "50%",
-  },
-  fullPanel: {
-    display: "flex",
-    flexDirection: "column",
-    width: "100%",
-    marginTop: 16,
-    gap: 4,
-  },
-  rowCell: {
-    padding: "8px 12px",
-  },
-} as const;
