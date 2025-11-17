@@ -49,8 +49,6 @@ export default function ParticularDetails({ cliente, vehiculos }: Props) {
 
             toast.success('Cliente actualizado correctamente');
             setOpenEditCliente(false);
-            // Forzar recarga de la página para actualizar los datos
-            window.location.reload();
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error desconocido';
             toast.error(message);

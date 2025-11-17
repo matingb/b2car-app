@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 // POST /api/arreglos/[id] -> actualizar arreglo (edición parcial)
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient();
   const { id } = await params;
@@ -24,9 +24,9 @@ export async function POST(
     'extra_data',
   ] as const;
 
-  const payload: Record<string, any> = {};
+  const payload: Record<string, unknown> = {};
   for (const k of allowed) {
-    if (k in body) payload[k] = (body as any)[k];
+    if (k in body) payload[k] = (body as Record<string, unknown>)[k];
   }
 
   if (Object.keys(payload).length === 0) {
