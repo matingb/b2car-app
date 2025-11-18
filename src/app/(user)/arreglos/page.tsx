@@ -3,11 +3,13 @@ import Card from "@/app/components/ui/Card";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { Arreglo } from "@/model/types";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import SearchBar from "@/app/components/ui/SearchBar";
 import ArregloList from "@/app/components/arreglos/ArregloList";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 
 export default function ArreglosPage() {
+  const router = useRouter();
   const [arreglos, setArreglos] = useState<Arreglo[]>([]);
 
   const [search, setSearch] = useState("");
@@ -57,7 +59,7 @@ export default function ArreglosPage() {
       {loading ? (
         <ListSkeleton rows={6} />
       ) : (
-        <ArregloList arreglos={arreglosFiltrados} onItemClick={(a) => console.log('clicked', a.id)} />
+        <ArregloList arreglos={arreglosFiltrados} onItemClick={(a) => router.push(`/arreglos/${a.id}`)} />
       )}
     </div>
   );

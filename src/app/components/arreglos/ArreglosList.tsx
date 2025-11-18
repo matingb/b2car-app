@@ -8,9 +8,10 @@ import ArregloItem from "./ArregloItem";
 
 type Props = {
   arreglos: Arreglo[];
-  onCreateArreglo: () => void;
-  onTogglePago: (arreglo: Arreglo) => void;
-  onEditArreglo: (arreglo: Arreglo) => void;
+  onCreateArreglo?: () => void;
+  onTogglePago?: (arreglo: Arreglo) => void;
+  onEditArreglo?: (arreglo: Arreglo) => void;
+  onItemClick?: (arreglo: Arreglo) => void;
 };
 
 export default function ArreglosList({
@@ -18,6 +19,7 @@ export default function ArreglosList({
   onCreateArreglo,
   onTogglePago,
   onEditArreglo,
+  onItemClick,
 }: Props) {
   return (
     <>
@@ -29,11 +31,13 @@ export default function ArreglosList({
         }}
       >
         <div style={{ fontWeight: 700, fontSize: 22 }}>Ultimos Arreglos</div>
-        <Button
-          icon={<Plus size={18} />}
-          text="Crear arreglo"
-          onClick={onCreateArreglo}
-        />
+        {onCreateArreglo ? (
+          <Button
+            icon={<Plus size={18} />}
+            text="Crear arreglo"
+            onClick={onCreateArreglo}
+          />
+        ) : null}
       </div>
 
       {arreglos.length === 0 ? (
@@ -46,8 +50,9 @@ export default function ArreglosList({
             <ArregloItem
               key={arreglo.id}
               arreglo={arreglo}
-              onTogglePago={onTogglePago}
-              onEdit={onEditArreglo}
+              onTogglePago={onTogglePago ?? (() => {})}
+              onEdit={onEditArreglo ?? (() => {})}
+              onClick={onItemClick}
             />
           ))}
         </div>

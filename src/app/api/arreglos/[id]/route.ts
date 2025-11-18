@@ -1,5 +1,59 @@
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
+import { C } from "vitest/dist/chunks/reporters.d.BFLkQcL6.js";
+
+// GET /api/arreglos/[id] -> obtener un arreglo con su vehículo y cliente
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient();
+  const { id } = await params;
+
+  // Obtener arreglo junto con vehiculo
+  const { data: aData, error: aError } = await supabase
+    .from("arreglos")
+    .select("*, vehiculo:vehiculos(*)")
+    .eq("id", id)
+    .single();
+
+  if (aError) {
+    const status = aError.code === "PGRST116" ? 404 : 500;
+    return Response.json({ data: null, error: aError.message }, { status });
+  }
+
+  const arreglo = {
+    id: aData.id,
+    tipo: aData.tipo,
+    descripcion: aData.descripcion,
+    kilometraje_leido: aData.kilometraje_leido,
+    fecha: aData.fecha,
+    observaciones: aData.observaciones,
+    precio_final: aData.precio_final,
+    precio_sin_iva: aData.precio_sin_iva,
+    esta_pago: aData.esta_pago,
+    extra_data: aData.extra_data,
+  } as const;
+
+  const vehiculo = aData.vehiculo ?? null;
+
+  // Intentar obtener cliente si el vehículo tiene cliente_id
+  let cliente = null;
+  try {
+    if (vehiculo && (vehiculo as any).cliente_id) {
+      const { data: cData, error: cError } = await supabase
+        .from("clientes")
+        .select("*")
+        .eq("id", (vehiculo as any).cliente_id)
+        .single();
+      if (!cError) cliente = cData;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  return Response.json({ data: arreglo, vehiculo, cliente, error: null });
+}
 
 // POST /api/arreglos/[id] -> actualizar arreglo (edición parcial)
 export async function POST(

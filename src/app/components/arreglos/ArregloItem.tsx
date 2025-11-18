@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import Card from "@/app/components/ui/Card";
 import IconLabel from "@/app/components/ui/IconLabel";
 import { Arreglo } from "@/model/types";
@@ -19,12 +20,21 @@ type Props = {
   arreglo: Arreglo;
   onTogglePago: (arreglo: Arreglo) => void;
   onEdit: (arreglo: Arreglo) => void;
+  onClick?: (arreglo: Arreglo) => void;
 };
 
-export default function ArregloItem({ arreglo, onTogglePago, onEdit }: Props) {
+export default function ArregloItem({ arreglo, onTogglePago, onEdit, onClick }: Props) {
+  const router = useRouter();
   return (
-    <Card>
-      <div style={styles.arregloRow}>
+    <div
+      onClick={() => {
+        if (onClick) return onClick(arreglo);
+        router.push(`/arreglos/${arreglo.id}`);
+      }}
+      style={{ cursor: "pointer" }}
+    >
+      <Card>
+        <div style={styles.arregloRow}>
         <div style={styles.arregloHeader}>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             {arreglo.esta_pago ? (
@@ -66,7 +76,10 @@ export default function ArregloItem({ arreglo, onTogglePago, onEdit }: Props) {
           <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
             <button
               aria-label="toggle pago"
-              onClick={() => onTogglePago(arreglo)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePago(arreglo);
+              }}
               style={styles.iconBtn}
             >
               {arreglo.esta_pago ? (
@@ -77,7 +90,10 @@ export default function ArregloItem({ arreglo, onTogglePago, onEdit }: Props) {
             </button>
             <button
               aria-label="editar"
-              onClick={() => onEdit(arreglo)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(arreglo);
+              }}
               style={styles.iconBtn}
             >
               <Pencil size={18} />
@@ -102,6 +118,7 @@ export default function ArregloItem({ arreglo, onTogglePago, onEdit }: Props) {
         )}
       </div>
     </Card>
+    </div>
   );
 }
 

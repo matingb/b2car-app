@@ -8,7 +8,7 @@ import { COLOR } from "@/theme/theme";
 import { Calendar, Gauge, Pencil } from "lucide-react";
 
 type Props = {
-  vehiculo: Vehiculo;
+  vehiculo: Vehiculo | null;
   maxKilometraje?: number;
   onEdit: () => void;
 };
@@ -61,7 +61,7 @@ export default function VehiculoInfoCard({ vehiculo, maxKilometraje, onEdit }: P
               color: COLOR.ACCENT.PRIMARY,
             }}
           >
-            {vehiculo.patente}
+            {vehiculo?.patente}
           </div>
         </div>
         <div>
@@ -75,7 +75,7 @@ export default function VehiculoInfoCard({ vehiculo, maxKilometraje, onEdit }: P
             Marca
           </div>
           <div style={{ fontSize: 18, fontWeight: 500 }}>
-            {vehiculo.marca}
+            {vehiculo?.marca}
           </div>
         </div>
         <div>
@@ -89,7 +89,7 @@ export default function VehiculoInfoCard({ vehiculo, maxKilometraje, onEdit }: P
             Modelo
           </div>
           <div style={{ fontSize: 18, fontWeight: 500 }}>
-            {vehiculo.modelo}
+            {vehiculo?.modelo}
           </div>
         </div>
         <div>
@@ -104,7 +104,7 @@ export default function VehiculoInfoCard({ vehiculo, maxKilometraje, onEdit }: P
           </div>
           <IconLabel
             icon={<Calendar size={18} color={COLOR.ACCENT.PRIMARY} />}
-            label={vehiculo.fecha_patente}
+            label={vehiculo?.fecha_patente}
           />
         </div>
         {typeof maxKilometraje === "number" && (
