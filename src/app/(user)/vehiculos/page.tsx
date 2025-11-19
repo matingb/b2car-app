@@ -1,10 +1,9 @@
 "use client";
-import Card from "@/app/components/ui/Card";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
+import VehiculoCard from "@/app/components/vehiculos/VehiculoCard";
 import { Vehiculo } from "@/model/types";
-import { COLOR } from "@/theme/theme";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -13,6 +12,7 @@ export default function VehiculosPage() {
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  
   const vehiculosFiltrados = useMemo(() => {
     if (!vehiculos) return [];
     const q = search.trim().toLowerCase();
@@ -59,25 +59,11 @@ export default function VehiculosPage() {
       ) : (
         <div style={styles.vehiclesList}>
           {vehiculosFiltrados.map((vehiculo: Vehiculo) => (
-            <Card
+            <VehiculoCard
               key={vehiculo.id}
+              vehiculo={vehiculo}
               onClick={() => router.push(`/vehiculos/${vehiculo.id}`)}
-              style={{ cursor: "pointer" }}
-            >
-              <div>
-                <div style={styles.vehicleInfo}>
-                  <h2>{vehiculo.patente}</h2>
-                  <span>-</span>
-                  <p>
-                    {vehiculo.marca} {vehiculo.modelo}
-                  </p>
-                </div>
-                <div style={styles.vehicleSubInfo}>
-                  <p>Año {vehiculo.fecha_patente}</p>
-                  <p>{vehiculo.nombre_cliente}</p>
-                </div>
-              </div>
-            </Card>
+            />
           ))}
         </div>
       )}
@@ -86,29 +72,10 @@ export default function VehiculosPage() {
 }
 
 const styles = {
-  title: {
-    fontSize: "24px",
-    lineHeight: "32px",
-    fontWeight: 600,
-  },
-  subtitle: {
-    marginTop: "0.5rem",
-    color: COLOR.TEXT.SECONDARY,
-  },
   vehiclesList: {
     display: "flex",
     flexDirection: "column",
     gap: 12,
     marginTop: 16,
-  },
-  vehicleInfo: {
-    alignItems: "center",
-    display: "flex",
-    gap: 4,
-  },
-  vehicleSubInfo: {
-    display: "flex",
-    gap: 8,
-    color: COLOR.TEXT.SECONDARY,
   },
 } as const;
