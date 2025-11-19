@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Card from "@/app/components/ui/Card";
 import IconLabel from "@/app/components/ui/IconLabel";
 import { Vehiculo } from "@/model/types";
@@ -13,26 +12,13 @@ interface VehiculoCardProps {
 }
 
 export default function VehiculoCard({ vehiculo, onClick }: VehiculoCardProps) {
-  const [isHovered, setIsHovered] = useState(false);
-
   return (
     <Card
       onClick={onClick}
-      style={{
-        cursor: "pointer",
-        border: `2px solid ${isHovered ? COLOR.ACCENT.PRIMARY : COLOR.BORDER.SUBTLE}`,
-        transition: "all 0.2s ease-in-out",
-        transform: isHovered ? "translateY(-2px)" : "none",
-        boxShadow: isHovered
-          ? "0 4px 12px rgba(0, 128, 162, 0.15)"
-          : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-      }}
+      enableHover={true}
+      style={{ cursor: "pointer" }}
     >
-      <div
-        style={styles.cardContent}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
+      <div style={styles.cardContent}>
         <div style={styles.patenteSection}>
           <div style={styles.patenteLabel}>PATENTE</div>
           <div style={styles.patenteValue}>{vehiculo.patente}</div>

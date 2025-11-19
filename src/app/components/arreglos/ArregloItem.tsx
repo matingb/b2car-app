@@ -25,15 +25,16 @@ type Props = {
 
 export default function ArregloItem({ arreglo, onTogglePago, onEdit, onClick }: Props) {
   const router = useRouter();
+
   return (
-    <div
+    <Card
       onClick={() => {
         if (onClick) return onClick(arreglo);
         router.push(`/arreglos/${arreglo.id}`);
       }}
+      enableHover={true}
       style={{ cursor: "pointer" }}
     >
-      <Card>
         <div style={styles.arregloRow}>
         <div style={styles.arregloHeader}>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -118,7 +119,6 @@ export default function ArregloItem({ arreglo, onTogglePago, onEdit, onClick }: 
         )}
       </div>
     </Card>
-    </div>
   );
 }
 

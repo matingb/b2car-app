@@ -1,12 +1,13 @@
 "use client";
-import Card from "@/app/components/ui/Card";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { Arreglo } from "@/model/types";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import SearchBar from "@/app/components/ui/SearchBar";
-import ArregloList from "@/app/components/arreglos/ArregloList";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
+import ArreglosList from "@/app/components/arreglos/ArreglosList";
+import { Plus } from "lucide-react";
+import Button from "@/app/components/ui/Button";
 
 export default function ArreglosPage() {
   const router = useRouter();
@@ -19,7 +20,9 @@ export default function ArreglosPage() {
     if (!q) return arreglos;
     return arreglos.filter((a: Arreglo) =>
       Object.values(a ?? {}).some((v) =>
-        String(v ?? "").toLowerCase().includes(q)
+        String(v ?? "")
+          .toLowerCase()
+          .includes(q)
       )
     );
   }, [arreglos, search]);
@@ -37,7 +40,7 @@ export default function ArreglosPage() {
         }
         setArreglos(data ?? []);
       } catch (err) {
-        console.error('Error cargando arreglos', err);
+        console.error("Error cargando arreglos", err);
         setArreglos([]);
       } finally {
         setLoading(false);
@@ -46,42 +49,38 @@ export default function ArreglosPage() {
     fetchArreglos();
   }, []);
 
-
   return (
     <div>
       <ScreenHeader title="Arreglos" />
-      <SearchBar
-        value={search}
-        onChange={setSearch}
-        placeholder="Buscar arreglos..."
-        style={styles.searchBar}
-      />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          padding: "16px 0",
+        }}
+      >
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar arreglos..."
+        />
+        <Button
+          style={{ width: "180px" }}
+          icon={<Plus size={18} />}
+          text="Crear arreglo"
+          onClick={() => router.push("/arreglos/new")}
+        />
+      </div>
       {loading ? (
         <ListSkeleton rows={6} />
       ) : (
-        <ArregloList arreglos={arreglosFiltrados} onItemClick={(a) => router.push(`/arreglos/${a.id}`)} />
+        <ArreglosList
+          arreglos={arreglosFiltrados}
+          onItemClick={(a: Arreglo) => router.push(`/arreglos/${a.id}`)}
+        />
       )}
     </div>
   );
 }
-
-const styles = {
-  searchContainer: {
-    marginBottom: "1rem",
-  },
-  searchInput: {
-    width: "100%",
-    padding: "0.5rem",
-    borderRadius: "0.25rem",
-    border: "1px solid #ccc",
-  },
-  arreglosList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "1rem",
-    marginTop: 16,
-  },
-  searchBar: {
-    marginBottom: "1rem",
-  }
-} as const;

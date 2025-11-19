@@ -1,14 +1,40 @@
+"use client";
+
+import { useState } from "react";
 import { COLOR } from "@/theme/theme";
 
 interface CardProps {
   children: React.ReactNode;
   onClick?: () => void;
   style?: React.CSSProperties;
+  enableHover?: boolean;
 }
 
-export default function Card({ children, onClick, style }: CardProps) {
+export default function Card({ children, onClick, style, enableHover = false }: CardProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  const hoverStyles = enableHover && isHovered ? {
+    border: `2px solid ${COLOR.ACCENT.PRIMARY}`,
+    transform: "translateY(-2px)",
+    boxShadow: "0 4px 12px rgba(0, 128, 162, 0.15)",
+  } : enableHover ? {
+    border: `2px solid ${COLOR.BORDER.SUBTLE}`,
+  } : {};
+
+  const containerStyles = {
+    ...styles.container,
+    ...(enableHover && { transition: "all 0.2s ease-in-out" }),
+    ...hoverStyles,
+    ...style,
+  };
+
   return (
-    <div style={{ ...styles.container, ...style }} onClick={onClick}>
+    <div
+      style={containerStyles}
+      onClick={onClick}
+      onMouseEnter={() => enableHover && setIsHovered(true)}
+      onMouseLeave={() => enableHover && setIsHovered(false)}
+    >
       {children}
     </div>
   );
