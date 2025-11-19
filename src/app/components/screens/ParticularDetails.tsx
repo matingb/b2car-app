@@ -68,7 +68,7 @@ export default function ParticularDetails({ cliente, vehiculos }: Props) {
                 onCreateClick={() => setOpenVehiculo(true)}
             />
 
-            <div style={{ display: "flex", gap: 16 }}>
+            <div style={{ display: "flex", gap: 16, flexDirection: "column" }}>
                 <ContactInfoCard
                     email={cliente?.email}
                     telefono={cliente?.telefono}

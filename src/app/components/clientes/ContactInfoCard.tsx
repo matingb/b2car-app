@@ -57,7 +57,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 4,
-    width: "50%",
+    width: "100%",
   },
   header: {
     display: "flex",
