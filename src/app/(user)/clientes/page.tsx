@@ -96,5 +96,6 @@ const styles = {
   searchBar: {
     width: "100%",
     maxWidth: "420px",
+    marginTop: 8
   },
 };

@@ -11,90 +11,81 @@ import { Phone, Mail, MapPin } from "lucide-react";
 type Props = {
   cliente: Cliente;
   onClick?: () => void;
+  style?: React.CSSProperties;
 };
 
-export default function PropietarioCard({ cliente, onClick }: Props) {
-  const [isHovered, setIsHovered] = React.useState(false);
+export default function PropietarioCard({ cliente, onClick, style }: Props) {
 
   return (
-    <div
-      style={{
-        flex: 1,
-        minWidth: 150,
-        width: 'fit-content',
-        cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform 0.2s',
-        transform: isHovered && onClick ? 'translateY(-2px)' : 'translateY(0)',
-      }}
-      onClick={onClick}
-      onMouseEnter={() => onClick && setIsHovered(true)}
-      onMouseLeave={() => onClick && setIsHovered(false)}
-    >
-      <Card 
-        style={{ 
-          height: '100%',
-          transition: 'box-shadow 0.2s',
-          boxShadow: isHovered && onClick ? '0 4px 12px rgba(0,0,0,0.15)' : undefined,
-        }}
-      >
-      <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>
+    <div>
+      <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>
         Propietario
       </h3>
       <div
+      style={{
+        ...style,
+        minWidth: 300,
+        cursor: onClick ? 'pointer' : 'default',
+      }}
+      onClick={onClick}
+    >
+      <Card
         style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-          padding: 16,
-          backgroundColor: "#f8f9fa",
-          borderRadius: 8,
+          height: '100%',
         }}
+        enableHover={true}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Avatar nombre={cliente.nombre} size={64} />
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 600 }}>
-              {cliente.nombre}
-            </div>
-            <div
-              style={{
-                fontSize: 14,
-                color: COLOR.ICON.MUTED,
-                backgroundColor: "#e9ecef",
-                padding: "2px 8px",
-                borderRadius: 4,
-                display: "inline-block",
-              }}
-            >
-              {cliente.tipo_cliente === "particular"
-                ? "Particular"
-                : "Empresa"}
+        
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            padding: 0,
+            backgroundColor: "#f8f9fa",
+            borderRadius: 8,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Avatar nombre={cliente.nombre} size={64} />
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 600 }}>
+                {cliente.nombre}
+              </div>
+              <div
+                style={{
+                  fontSize: 14,
+                  color: COLOR.ICON.MUTED,
+                  backgroundColor: "#e9ecef",
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  display: "inline-block",
+                }}
+              >
+                {cliente.tipo_cliente === "particular"
+                  ? "Particular"
+                  : "Empresa"}
+              </div>
             </div>
           </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <IconLabel
+                icon={<Phone size={16} color={COLOR.ACCENT.PRIMARY} />}
+                label={cliente.telefono || "-"}
+              />
+            <IconLabel
+                icon={<Mail size={16} color={COLOR.ACCENT.PRIMARY} />}
+                label={cliente.email || "-"}
+              />
+            <IconLabel
+                icon={<MapPin size={16} color={COLOR.ACCENT.PRIMARY} />}
+                label={cliente.direccion || "-"}
+              />
+          </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {cliente.telefono && (
-            <IconLabel
-              icon={<Phone size={16} color={COLOR.ACCENT.PRIMARY} />}
-              label={cliente.telefono}
-            />
-          )}
-          {cliente.email && (
-            <IconLabel
-              icon={<Mail size={16} color={COLOR.ACCENT.PRIMARY} />}
-              label={cliente.email}
-            />
-          )}
-          {cliente.direccion && (
-            <IconLabel
-              icon={<MapPin size={16} color={COLOR.ACCENT.PRIMARY} />}
-              label={cliente.direccion}
-            />
-          )}
-        </div>
-      </div>
-    </Card>
+      </Card>
     </div>
+  </div>
   );
 }
 

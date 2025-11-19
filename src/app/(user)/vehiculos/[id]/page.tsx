@@ -156,13 +156,15 @@ export default function VehiculoDetailsPage() {
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: 16,
+          justifyContent: "start",
+          gap: 8,
           marginTop: 16,
         }}
       >
         {/* Bloques superiores: Información del Vehículo y Propietario */}
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 16 }}>
           <VehiculoInfoCard
+            style={{ width: '70%' }}
             vehiculo={vehiculo}
             maxKilometraje={maxKilometraje}
             onEdit={() => setOpenEditVehiculo(true)}
@@ -170,11 +172,16 @@ export default function VehiculoDetailsPage() {
 
           {cliente && (
             <PropietarioCard 
+              style={{ width: '30%' }}
               cliente={cliente} 
               onClick={handleNavigateToCliente}
             />
           )}
         </div>
+
+        <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 0 }}>
+          Ultimos arreglos
+        </h3>
 
         <ArreglosList
           arreglos={arreglos}

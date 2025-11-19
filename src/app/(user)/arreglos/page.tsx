@@ -70,7 +70,7 @@ export default function ArreglosPage() {
           placeholder="Buscar arreglos..."
         />
         <Button
-          style={{ width: "180px" }}
+          style={{ minWidth: "180px" }}
           icon={<Plus size={18} />}
           text="Crear arreglo"
           onClick={() => setIsModalOpen(true)}

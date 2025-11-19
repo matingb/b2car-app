@@ -75,6 +75,7 @@ export default function ClienteList({
         <Card
           key={cliente.id}
           onClick={() => handleOnClick(cliente.id)}
+          enableHover={true}
         >
           <div style={styles.container}>
             <div style={styles.leftGroup}>

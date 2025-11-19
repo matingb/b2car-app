@@ -11,16 +11,17 @@ type Props = {
   vehiculo: Vehiculo | null;
   maxKilometraje?: number;
   onEdit: () => void;
+  style?: React.CSSProperties;
 };
 
-export default function VehiculoInfoCard({ vehiculo, maxKilometraje, onEdit }: Props) {
+export default function VehiculoInfoCard({ vehiculo, maxKilometraje, onEdit, style }: Props) {
   return (
-    <Card style={{ flex: 1, minWidth: 300 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+    <div style={{minWidth: 300, ...style }}>
+      <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", marginBottom: 0 }}>
+      <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>
           Información del Vehículo
         </h3>
-        <button
+      <button
           onClick={onEdit}
           style={{
             background: "transparent",
@@ -37,6 +38,7 @@ export default function VehiculoInfoCard({ vehiculo, maxKilometraje, onEdit }: P
           <Pencil size={18} color={COLOR.ACCENT.PRIMARY} />
         </button>
       </div>
+    <Card style={{ minHeight: '192px',  }}>
       <div
         style={{
           display: "grid",
@@ -126,6 +128,7 @@ export default function VehiculoInfoCard({ vehiculo, maxKilometraje, onEdit }: P
         )}
       </div>
     </Card>
+    </div>
   );
 }
 

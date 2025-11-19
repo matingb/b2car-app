@@ -122,44 +122,53 @@ export default function ArregloDetailsPage() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 16 }}>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 320, gap: 16 }}>
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 320, gap: 8 }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Resumen</h3>
+              <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4 }}>
+                {arreglo.esta_pago ? (
+                    <>
+                      Pagado
+                    </>
+                  ) : (
+                    <>
+                      Pendiente
+                    </>
+                  )}
+                <button onClick={togglePago} style={styles.iconBtn} aria-label="toggle pago">
+                  {arreglo.esta_pago ? (
+                    <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} />
+                  ) : (
+                    <XCircle size={18} color={COLOR.ICON.DANGER} />
+                  )}
+                </button>
+                
+                <button onClick={handleOpenEdit} style={styles.iconBtn} aria-label="editar">
+                  <Pencil size={18} color={COLOR.ACCENT.PRIMARY} />
+                </button>
+              </div>
+            </div>
             <Card>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                      <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Resumen</h3>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={togglePago} style={styles.iconBtn} aria-label="toggle pago">
-                          {arreglo.esta_pago ? (
-                            <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} />
-                          ) : (
-                            <XCircle size={18} color={COLOR.ICON.DANGER} />
-                          )}
-                        </button>
-                        <button onClick={handleOpenEdit} style={styles.iconBtn} aria-label="editar">
-                          <Pencil size={18} color={COLOR.ACCENT.PRIMARY} />
-                        </button>
-                      </div>
-                    </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 14, color: COLOR.ICON.MUTED, marginBottom: 4 }}>Fecha</div>
+                    <IconLabel
+                      icon={<Calendar size={18} color={COLOR.ACCENT.PRIMARY} />}
+                      label={arreglo.fecha ? new Date(arreglo.fecha).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""}
+                    />
+                  </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-                      <div>
-                        <div style={{ fontSize: 14, color: COLOR.ICON.MUTED, marginBottom: 4 }}>Fecha</div>
-                        <IconLabel
-                          icon={<Calendar size={18} color={COLOR.ACCENT.PRIMARY} />}
-                          label={arreglo.fecha ? new Date(arreglo.fecha).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""}
-                        />
-                      </div>
+                  <div>
+                    <div style={{ fontSize: 14, color: COLOR.ICON.MUTED, marginBottom: 4 }}>Tipo</div>
+                    <IconLabel icon={<Wrench size={18} color={COLOR.ACCENT.PRIMARY} />} label={arreglo.tipo || "-"} />
+                  </div>
 
-                      <div>
-                        <div style={{ fontSize: 14, color: COLOR.ICON.MUTED, marginBottom: 4 }}>Tipo</div>
-                        <IconLabel icon={<Wrench size={18} color={COLOR.ACCENT.PRIMARY} />} label={arreglo.tipo || "-"} />
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: 14, color: COLOR.ICON.MUTED, marginBottom: 4 }}>Precio</div>
-                        <IconLabel icon={<Coins size={18} color={COLOR.ACCENT.PRIMARY} />} label={`$${arreglo.precio_final}`} />
-                      </div>
-                    </div>
+                  <div>
+                    <div style={{ fontSize: 14, color: COLOR.ICON.MUTED, marginBottom: 4 }}>Precio</div>
+                    <IconLabel icon={<Coins size={18} color={COLOR.ACCENT.PRIMARY} />} label={`$${arreglo.precio_final}`} />
+                  </div>
+                </div>
 
                 {arreglo.descripcion && (
                   <div style={{ marginTop: 8 }}>
@@ -176,7 +185,7 @@ export default function ArregloDetailsPage() {
                 )}
               </div>
             </Card>
-            <VehiculoInfoCard vehiculo={vehiculo} onEdit={() => {}} maxKilometraje={arreglo.kilometraje_leido} />
+            <VehiculoInfoCard vehiculo={vehiculo} onEdit={() => { }} maxKilometraje={arreglo.kilometraje_leido} />
           </div>
         </div>
       </div>

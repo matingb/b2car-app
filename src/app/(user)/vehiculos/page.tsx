@@ -52,7 +52,7 @@ export default function VehiculosPage() {
         value={search}
         onChange={setSearch}
         placeholder="Buscar vehículos..."
-        style={{ width: "100%" , marginBottom: 16,}}
+        style={{ width: "100%" , marginBottom: 16, marginTop: 8}}
       />
       {loading ? (
         <ListSkeleton />

@@ -66,9 +66,13 @@ export default function ArregloItem({
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={styles.mainTitle}>{arreglo.descripcion}</span>
                 {arreglo.esta_pago ? (
-                  <XCircle size={18} color={COLOR.ICON.DANGER} />
+                  <>
+                  <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} /> Pagado
+                  </>
                 ) : (
-                  <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} />
+                  <>
+                  <XCircle size={18} color={COLOR.ICON.DANGER} /> Pendiente
+                  </>
                 )}
               </div>
               <p style={styles.subtitle}>
