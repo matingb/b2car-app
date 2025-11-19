@@ -33,7 +33,8 @@ export default function SidebarItem({
         justifyContent: collapsed ? "flex-start" : "flex-start",
         width: "100%",
         textDecoration: "none",
-        transition: "background-color 150ms ease, color 150ms ease, padding 150ms ease",
+        //transition: "background-color 150ms ease, color 150ms ease, padding 150ms ease",
+        transition: "all 0.2s ease-in-out"
       } as React.CSSProperties,
       itemActive: {
         backgroundColor: COLOR.ACCENT.PRIMARY,
@@ -61,6 +62,7 @@ export default function SidebarItem({
   return (
     <Link
       href={href}
+      className={`sidebar-item ${isActive ? "active" : ""}`}
       style={{ ...s.item, ...(isActive ? s.itemActive : null) }}
       aria-label={label}
       title={label}

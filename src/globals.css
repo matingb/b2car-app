@@ -29,3 +29,21 @@ h2{
 .radix-themes {
   min-height: 0 !important;
 }
+
+.sidebar-item {
+  transition: background-color 160ms ease, color 160ms ease;
+  border: 1px solid transparent;
+  border-color: #007a9500;
+  border-radius: 0.75rem;
+}
+
+.sidebar-item:hover {
+  transition: all 0.2s ease-in-out;
+  border: 1px solid transparent;
+  border-color: #007a958d;
+}
+
+.sidebar-item.active {
+  color: var(--foreground);
+  background-color: rgba(0, 0, 0, 0.08);
+}

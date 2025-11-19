@@ -15,7 +15,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
 
   const s = useMemo(() => {
-    const width = collapsed ? "4.5rem" : "14rem";
+    const width = collapsed ? "75px" : "14rem";
     return {
       ...styles,
       sidebar: { ...styles.sidebar, width, transition: "width 300ms ease-out" },
@@ -159,7 +159,7 @@ const styles = {
     justifyContent: "center",
     height: "3rem",
     width: "100%",
-    maxWidth: "2rem",
+    maxWidth: "3rem",
     userSelect: "none",
   },
   sidebarHeaderRow: {
