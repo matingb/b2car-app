@@ -9,11 +9,11 @@ import { COLOR } from "@/theme/theme";
 import {
   Calendar,
   Wrench,
-  Coins,
+  Gauge,
+  User,
   FileText,
   CheckCircle2,
   XCircle,
-  Pencil,
 } from "lucide-react";
 
 type Props = {
@@ -23,8 +23,31 @@ type Props = {
   onClick?: (arreglo: Arreglo) => void;
 };
 
-export default function ArregloItem({ arreglo, onTogglePago, onEdit, onClick }: Props) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export default function ArregloItem({
+  arreglo,
+  onTogglePago,
+  onEdit,
+  onClick,
+}: Props) {
   const router = useRouter();
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+    return new Date(dateString).toLocaleDateString("es-ES", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency: "ARS",
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
 
   return (
     <Card
@@ -35,87 +58,87 @@ export default function ArregloItem({ arreglo, onTogglePago, onEdit, onClick }: 
       enableHover={true}
       style={{ cursor: "pointer" }}
     >
-        <div style={styles.arregloRow}>
-        <div style={styles.arregloHeader}>
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            {arreglo.esta_pago ? (
-              <IconLabel
-                icon={<CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} />}
-                label="Pagado"
-              />
-            ) : (
-              <IconLabel
-                icon={<XCircle size={18} color={COLOR.ICON.DANGER} />}
-                label="Pendiente"
-              />
-            )}
+      <div style={styles.container}>
+        {/* Header superior con badges y precio */}
+        <div style={styles.topHeader}>
+          <div style={styles.leftBadges}>
+            <div style={styles.titleSection}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={styles.mainTitle}>{arreglo.descripcion}</span>
+                {arreglo.esta_pago ? (
+                  <XCircle size={18} color={COLOR.ICON.DANGER} />
+                ) : (
+                  <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} />
+                )}
+              </div>
+              <p style={styles.subtitle}>
+                {arreglo.vehiculo.patente} - {arreglo.vehiculo.marca}{" "}
+                {arreglo.vehiculo.modelo}
+              </p>
+            </div>
           </div>
-          {arreglo.tipo && arreglo.tipo.trim() !== "" && (
+
+          <div style={styles.priceSection}>
+            <span style={styles.priceLabel}>Precio Final</span>
+            <span style={styles.priceValue}>
+              {formatPrice(arreglo.precio_final)}
+            </span>
+          </div>
+        </div>
+
+        {/* Divisor */}
+        <div style={styles.divider} />
+
+        {/* Grid de información */}
+        <div style={styles.infoGrid}>
+          <div style={styles.infoColumn}>
+            <span style={styles.infoLabel}>Tipo</span>
             <IconLabel
               icon={<Wrench size={18} color={COLOR.ACCENT.PRIMARY} />}
-              label={arreglo.tipo}
+              label={arreglo.tipo || "N/A"}
             />
-          )}
-        </div>
-        <div style={styles.arregloMeta}>
-          <IconLabel
-            icon={<Calendar size={18} color={COLOR.ACCENT.PRIMARY} />}
-            label={
-              arreglo.fecha
-                ? new Date(arreglo.fecha).toLocaleString("es-ES", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })
-                : ""
-            }
-          />
-          <IconLabel
-            icon={<Coins size={18} color={COLOR.ACCENT.PRIMARY} />}
-            label={`$${arreglo.precio_final}`}
-          />
-          <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
-            <button
-              aria-label="toggle pago"
-              onClick={(e) => {
-                e.stopPropagation();
-                onTogglePago(arreglo);
-              }}
-              style={styles.iconBtn}
-            >
-              {arreglo.esta_pago ? (
-                <XCircle size={18} color={COLOR.ICON.DANGER} />
-              ) : (
-                <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} />
-              )}
-            </button>
-            <button
-              aria-label="editar"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(arreglo);
-              }}
-              style={styles.iconBtn}
-            >
-              <Pencil size={18} />
-            </button>
+          </div>
+
+          <div style={styles.infoColumn}>
+            <span style={styles.infoLabel}>Fecha</span>
+            <IconLabel
+              icon={<Calendar size={18} color={COLOR.ACCENT.PRIMARY} />}
+              label={formatDate(arreglo.fecha)}
+            />
+          </div>
+
+          <div style={styles.infoColumn}>
+            <span style={styles.infoLabel}>Kilometraje</span>
+            <IconLabel
+              icon={<Gauge size={18} color={COLOR.ACCENT.PRIMARY} />}
+              label={
+                arreglo.kilometraje_leido
+                  ? `${arreglo.kilometraje_leido.toLocaleString()} km`
+                  : "N/A"
+              }
+            />
+          </div>
+
+          <div style={styles.infoColumn}>
+            <span style={styles.infoLabel}>Cliente</span>
+            <IconLabel
+              icon={<User size={18} color={COLOR.ACCENT.PRIMARY} />}
+              label={arreglo.vehiculo.nombre_cliente}
+            />
           </div>
         </div>
+
+        {/* Observaciones */}
         {arreglo.observaciones && (
-          <div style={styles.infoLine}>
-            <IconLabel
-              icon={<FileText size={18} color={COLOR.ACCENT.PRIMARY} />}
-              label={arreglo.observaciones}
-            />
-          </div>
-        )}
-        {arreglo.descripcion && (
-          <div style={styles.infoLine}>
-            <IconLabel
-              icon={<FileText size={18} color={COLOR.ACCENT.PRIMARY} />}
-              label={arreglo.descripcion}
-            />
-          </div>
+          <>
+            <div style={styles.divider} />
+            <div style={styles.observaciones}>
+              <IconLabel
+                icon={<FileText size={18} color={COLOR.ACCENT.PRIMARY} />}
+                label={`Observaciones: ${arreglo.observaciones}`}
+              />
+            </div>
+          </>
         )}
       </div>
     </Card>
@@ -123,37 +146,110 @@ export default function ArregloItem({ arreglo, onTogglePago, onEdit, onClick }: 
 }
 
 const styles = {
-  arregloRow: {
+  container: {
+    position: "relative",
     display: "flex",
     flexDirection: "column",
-    gap: 2,
-    padding: "0px 0",
+    gap: 8,
   },
-  arregloMeta: {
+  topHeader: {
     display: "flex",
-    gap: 16,
-    color: "rgba(0,0,0,0.8)",
-    fontSize: 16,
-    flexWrap: "wrap",
-  },
-  arregloHeader: {
-    display: "flex",
+    justifyContent: "space-between",
     alignItems: "center",
-    justifyContent: "start",
-    fontSize: 16,
-    marginBottom: 4,
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  leftBadges: {
+    display: "flex",
+    gap: 12,
+    alignItems: "center",
+  },
+  statusBadge: {
+    padding: "6px 12px",
+    borderRadius: 6,
+    fontSize: 14,
+    fontWeight: 500,
+  },
+  statusPaid: {
+    backgroundColor: COLOR.ACCENT.PRIMARY,
+    color: COLOR.TEXT.CONTRAST,
+  },
+  statusPending: {
+    backgroundColor: COLOR.ACCENT.PRIMARY,
+    color: COLOR.TEXT.CONTRAST,
+  },
+  priceSection: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    gap: 2,
+  },
+  priceLabel: {
+    fontSize: 12,
+    color: COLOR.TEXT.SECONDARY,
+    fontWeight: 400,
+  },
+  priceValue: {
+    fontSize: 24,
+    fontWeight: 700,
+    color: COLOR.ACCENT.PRIMARY,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLOR.BORDER.SUBTLE,
+    margin: "2px 0",
+  },
+  titleSection: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+  },
+  mainTitle: {
+    fontSize: 20,
+    fontWeight: 600,
+    color: COLOR.TEXT.PRIMARY,
+    margin: 0,
+    lineHeight: 1.3,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: COLOR.TEXT.SECONDARY,
+    margin: 0,
+  },
+  infoGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
     gap: 16,
   },
-  infoLine: {
-    fontSize: 16,
-    color: "rgba(0,0,0,0.8)",
+  infoColumn: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
   },
-  iconBtn: {
+  infoLabel: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: COLOR.TEXT.SECONDARY,
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+  },
+  observaciones: {
+    fontSize: 14,
+    color: COLOR.TEXT.PRIMARY,
+  },
+  editButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
     border: "none",
     background: "transparent",
     cursor: "pointer",
-    padding: 4,
+    padding: 8,
     borderRadius: 6,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "background 0.2s",
+    color: COLOR.TEXT.SECONDARY,
   },
 } as const;
-
