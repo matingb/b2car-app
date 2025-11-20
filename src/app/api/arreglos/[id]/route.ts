@@ -1,6 +1,7 @@
+import { ArregloDto, ClienteDto, VehiculoDto } from "@/model/dtos";
+import { Arreglo } from "@/model/types";
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
-import { C } from "vitest/dist/chunks/reporters.d.BFLkQcL6.js";
 
 // GET /api/arreglos/[id] -> obtener un arreglo con su vehículo y cliente
 export async function GET(
@@ -10,7 +11,6 @@ export async function GET(
   const supabase = await createClient();
   const { id } = await params;
 
-  // Obtener arreglo junto con vehiculo
   const { data: aData, error: aError } = await supabase
     .from("arreglos")
     .select("*, vehiculo:vehiculos(*)")
@@ -35,16 +35,16 @@ export async function GET(
     extra_data: aData.extra_data,
   } as const;
 
-  const vehiculo = aData.vehiculo ?? null;
+  const vehiculo: VehiculoDto | null = aData.vehiculo ?? null;
 
-  // Intentar obtener cliente si el vehículo tiene cliente_id
-  let cliente = null;
+  // TODO ver si se puede obtener cliente desde la misma query
+  let cliente: ClienteDto | null = null;
   try {
-    if (vehiculo && (vehiculo as any).cliente_id) {
+    if (vehiculo && vehiculo.cliente_id) {
       const { data: cData, error: cError } = await supabase
         .from("clientes")
         .select("*")
-        .eq("id", (vehiculo as any).cliente_id)
+        .eq("id", vehiculo.cliente_id)
         .single();
       if (!cError) cliente = cData;
     }
@@ -63,29 +63,8 @@ export async function POST(
   const supabase = await createClient();
   const { id } = await params;
 
-  const body = await req.json().catch(() => null);
-  if (!body) return Response.json({ error: "JSON inválido" }, { status: 400 });
-
-  // Solo aceptar campos conocidos (precio_sin_iva se calcula en base a precio_final)
-  const allowed = [
-    'tipo',
-    'descripcion',
-    'kilometraje_leido',
-    'fecha',
-    'observaciones',
-    'precio_final',
-    'esta_pago',
-    'extra_data',
-  ] as const;
-
-  const payload: Record<string, unknown> = {};
-  for (const k of allowed) {
-    if (k in body) payload[k] = (body as Record<string, unknown>)[k];
-  }
-
-  if (Object.keys(payload).length === 0) {
-    return Response.json({ error: 'Nada para actualizar' }, { status: 400 });
-  }
+  const payload: Partial<ArregloDto> | null = await req.json().catch(() => null);
+  if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 });
 
   // Si cambia precio_final, recalcular precio_sin_iva
   if ('precio_final' in payload) {

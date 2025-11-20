@@ -1,19 +1,19 @@
 import { TipoCliente } from "@/model/types";
 import { createClient } from "@/supabase/server";
 
+export type CreateEmpresaRequest = {
+  nombre: string;
+  telefono: string;
+  email: string;
+  direccion: string;
+};
+
 export async function POST(req: Request) {
   const supabase = await createClient();
-  const body = await req.json().catch(() => null);
-  if (!body) return Response.json({ error: "JSON inválido" }, { status: 400 });
+  const payload: CreateEmpresaRequest | null = await req.json().catch(() => null);
+  if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 });
 
-  const { nombre, telefono, email, direccion } = body as {
-    nombre: string;
-    telefono: string;
-    email: string;
-    direccion: string;
-  };
-
-  if (!nombre) return Response.json({ error: "Falta nombre" }, { status: 400 });
+  if (!payload.nombre) return Response.json({ error: "Falta nombre" }, { status: 400 });
 
   const { data: clienteInsert, error: errorCliente } = await supabase
     .from("clientes")
@@ -26,23 +26,25 @@ export async function POST(req: Request) {
 
   const clienteId = clienteInsert.id;
 
-  const { error: detalleError } = await supabase
+  const { data: empresaInsert, error: detalleError } = await supabase
     .from("empresas")
-    .insert([{ id: clienteId, nombre, telefono, email, direccion }]);
+    .insert([{ ...payload, id: clienteId, }])
+    .select()
+    .single();
 
-  if (detalleError) {
+  if (detalleError || !empresaInsert) {
     await supabase.from("clientes").delete().eq("id", clienteId);
-    return Response.json({ error: detalleError.message }, { status: 500 });
+    return Response.json({ error: detalleError?.message || "No se pudo crear la empresa" }, { status: 500 });
   }
 
   return Response.json({
     data: {
       id: clienteId,
-      nombre,
+      nombre: empresaInsert.nombre,
       tipo_cliente: TipoCliente.EMPRESA,
-      telefono,
-      email,
-      direccion,
+      telefono: empresaInsert.telefono,
+      email: empresaInsert.email,
+      direccion: empresaInsert.direccion,
     },
   }, { status: 201 });
 }

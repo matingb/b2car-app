@@ -1,3 +1,4 @@
+import { ParticularDto } from '@/model/dtos'
 import { createClient } from '@/supabase/server'
 import type { NextRequest } from 'next/server'
 
@@ -43,23 +44,15 @@ export async function PUT(
 ) {
 	const supabase = await createClient()
 	const { id } = await params
-	const body = await req.json().catch(() => null)
+	const payload: Partial<ParticularDto> | null = await req.json().catch(() => null)
 
-	if (!body) return Response.json({ error: "JSON inválido" }, { status: 400 })
+	if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 })
 
-	const { nombre, apellido, telefono, email, direccion } = body as {
-		nombre: string;
-		apellido?: string;
-		telefono?: string;
-		email?: string;
-		direccion?: string;
-	}
-
-	if (!nombre) return Response.json({ error: "Falta nombre" }, { status: 400 })
+	if (!payload.nombre) return Response.json({ error: "Falta nombre" }, { status: 400 })
 
 	const { data, error } = await supabase
 		.from('particulares')
-		.update({ nombre, apellido, telefono, email, direccion })
+		.update(payload)
 		.eq('id', id)
 		.select()
 		.single()

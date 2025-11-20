@@ -3,6 +3,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Cliente, TipoCliente, Vehiculo } from "@/model/types";
 import { API_ROUTES } from "@/routing/routes";
+import { CreateParticularRequest } from "../api/clientes/particulares/route";
+import { CreateEmpresaRequest } from "../api/clientes/empresas/route";
 
 type ClientesContextType = {
   clientes: Cliente[];
@@ -15,23 +17,6 @@ type ClientesContextType = {
 const ClientesContext = createContext<ClientesContextType | undefined>(
   undefined
 );
-
-export type CreateParticularRequest = {
-  nombre: string;
-  apellido?: string;
-  telefono: string;
-  email: string;
-  direccion: string;
-  tipo_cliente: TipoCliente;
-};
-
-export type CreateEmpresaRequest = {
-  nombre: string;
-  telefono: string;
-  email: string;
-  direccion: string;
-  tipo_cliente: TipoCliente;
-};
 
 export function ClientesProvider({ children }: { children: React.ReactNode }) {
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -51,11 +36,10 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
   };
 
   const createParticular = async (input: CreateParticularRequest): Promise<Cliente> => {
-    const payload = { ...input, tipo_cliente: TipoCliente.PARTICULAR };
     const res = await fetch("/api/clientes/particulares", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(input),
     });
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({ error: "Error" }));
@@ -67,11 +51,10 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
   };
 
   const createEmpresa = async (input: CreateEmpresaRequest): Promise<Cliente> => {
-    const payload = { ...input, tipo_cliente: TipoCliente.EMPRESA };
     const res = await fetch("/api/clientes/empresas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(input),
     });
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({ error: "Error" }));

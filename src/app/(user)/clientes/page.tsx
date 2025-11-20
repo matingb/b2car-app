@@ -63,7 +63,6 @@ export default function ClientesPage() {
                 telefono: values.telefono,
                 email: values.email,
                 direccion: values.direccion,
-                tipo_cliente: values.tipo_cliente,
               });
             } else {
               await createEmpresa({
@@ -71,7 +70,6 @@ export default function ClientesPage() {
                 telefono: values.telefono,
                 email: values.email,
                 direccion: values.direccion,
-                tipo_cliente: values.tipo_cliente,
               });
             }
             toast.success("Cliente creado", values.nombre);
