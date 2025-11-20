@@ -6,6 +6,9 @@ import VehiculoCard from "@/app/components/vehiculos/VehiculoCard";
 import { Vehiculo } from "@/model/types";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Button from "@/app/components/ui/Button";
+import { PlusIcon } from "lucide-react";
+
 
 export default function VehiculosPage() {
   const router = useRouter();
@@ -48,12 +51,15 @@ export default function VehiculosPage() {
     
     <div>
       <ScreenHeader title="Vehículos" />
-      <SearchBar
+      <div style={styles.searchBarContainer}>
+        <SearchBar
         value={search}
         onChange={setSearch}
         placeholder="Buscar vehículos..."
-        style={{ width: "100%" , marginBottom: 16, marginTop: 8}}
+        style={styles.searchBar}
       />
+        <Button icon={<PlusIcon size={20}/>} text="Crear vehiculo" onClick={() => {}} style={styles.newButton} />
+      </div>
       {loading ? (
         <ListSkeleton />
       ) : (
@@ -78,4 +84,18 @@ const styles = {
     gap: 12,
     marginTop: 16,
   },
+  searchBarContainer: {
+    marginBottom: 16,
+    display: "flex",
+    justifyContent: "start",
+    marginTop: 8,
+    gap: 16,
+  },
+  searchBar: {
+    width: "100%",
+  },
+  newButton: {
+    height: 40,
+    minWidth: 180,
+  }
 } as const;

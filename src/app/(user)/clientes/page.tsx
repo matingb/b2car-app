@@ -43,7 +43,7 @@ export default function ClientesPage() {
           placeholder="Buscar clientes..."
           style={styles.searchBar}
         />
-        <Button icon={<PlusIcon size={20}/>} text="Nuevo cliente" onClick={() => setOpen(true)}/>
+        <Button icon={<PlusIcon size={20}/>} text="Crear cliente" onClick={() => setOpen(true)} style={styles.newButton} />
       </div>
 
       {loading ? (
@@ -91,11 +91,14 @@ const styles = {
     marginBottom: 16,
     display: "flex",
     justifyContent: "start",
+    marginTop: 8,
     gap: 16,
   },
   searchBar: {
     width: "100%",
-    maxWidth: "420px",
-    marginTop: 8
   },
+  newButton: {
+    height: 40,
+    minWidth: 180,
+  }
 };
