@@ -8,12 +8,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/app/components/ui/Button";
 import { PlusIcon } from "lucide-react";
+import CreateVehiculoModal from "@/app/components/vehiculos/CreateVehiculoModal";
 
 
 export default function VehiculosPage() {
   const router = useRouter();
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   
   const vehiculosFiltrados = useMemo(() => {
@@ -47,6 +49,22 @@ export default function VehiculosPage() {
     fetchVehiculos();
   }, []);
 
+  // expose fetch so modal can trigger a reload after creating
+  const fetchAndSetVehiculos = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/vehiculos");
+      const { data, error } = await res.json();
+      if (error) console.error(error);
+      setVehiculos(data ?? []);
+    } catch (e) {
+      console.error("Error cargando vehículos", e);
+      setVehiculos([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     
     <div>
@@ -58,7 +76,7 @@ export default function VehiculosPage() {
         placeholder="Buscar vehículos..."
         style={styles.searchBar}
       />
-        <Button icon={<PlusIcon size={20}/>} text="Crear vehiculo" onClick={() => {}} style={styles.newButton} />
+        <Button icon={<PlusIcon size={20}/>} text="Crear vehiculo" onClick={() => setIsModalOpen(true)} style={styles.newButton} />
       </div>
       {loading ? (
         <ListSkeleton />
@@ -73,6 +91,13 @@ export default function VehiculosPage() {
           ))}
         </div>
       )}
+      <CreateVehiculoModal
+        open={isModalOpen}
+        onClose={(created) => {
+          setIsModalOpen(false);
+          if (created) fetchAndSetVehiculos();
+        }}
+      />
     </div>
   );
 }

@@ -2,10 +2,51 @@
 
 
 :root {
-  --background: #f5f7f9;
-  --foreground: #ffffff;
-  --primary: #000000;
-  
+  /* Base palette (from src/theme/theme.ts) */
+  --color-white: #ffffff;
+  --color-black: #111111;
+
+  --color-gray-100: #f9f9f9;
+  --color-gray-200: #f5f7f9;
+  --color-gray-300: #dedede;
+  --color-gray-400: #d1d5db;
+  --color-gray-500: #cccccc;
+  --color-gray-600: #6b7280;
+  --color-gray-650: #7F7F7F;
+
+  --color-accent-primary: #0080a2; /* ACCENT_PRIMARY */
+  --color-accent-secondary: #007995; /* ACCENT_SECONDARY */
+
+  --color-red-danger: #8B0000;
+
+  /* Semantic tokens matching COLOR constant structure */
+  --color-background-primary: var(--color-gray-200);
+  --color-background-secondary: var(--color-white);
+  --color-background-subtle: var(--color-gray-100);
+
+  --color-text-primary: var(--color-black);
+  --color-text-secondary: var(--color-gray-600);
+  --color-text-tertiary: var(--color-gray-650);
+  --color-text-contrast: var(--color-white);
+
+  --color-border-default: var(--color-gray-400);
+  --color-border-subtle: var(--color-gray-300);
+  --color-border-weak: var(--color-gray-500);
+
+  --color-icon-muted: var(--color-gray-600);
+  --color-icon-danger: var(--color-red-danger);
+
+  --color-button-primary-background: var(--color-accent-primary);
+  --color-button-primary-text: var(--color-text-contrast);
+
+  --color-input-background: var(--color-white);
+  --color-input-text: var(--color-black);
+  --color-input-border: var(--color-border-default);
+
+  /* Keep older shorthand variables for compatibility */
+  --background: var(--color-background-primary);
+  --foreground: var(--color-background-secondary);
+  --primary: var(--color-text-primary);
 }
 
 body {
@@ -39,8 +80,12 @@ h2{
 
 .sidebar-item:hover {
   transition: all 0.2s ease-in-out;
+  
+  /*
   border: 1px solid transparent;
-  border-color: #007a958d;
+  border-color: #007a9534;
+  */
+  background-color: rgba(0, 0, 0, 0.04);
 }
 
 .sidebar-item.active {

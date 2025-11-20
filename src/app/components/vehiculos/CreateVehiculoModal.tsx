@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import Card from "../ui/Card";
 import Button from "../ui/Button";
 import { COLOR } from "@/theme/theme";
+import Autocomplete, { AutocompleteOption } from "../ui/Autocomplete";
 
 type CreatedVehiculo = {
   patente: string;
@@ -15,7 +16,7 @@ type CreatedVehiculo = {
 type Props = {
   open: boolean;
   onClose: (vehiculo?: CreatedVehiculo) => void;
-  clienteId: number | string;
+  clienteId?: number | string; // optional: when missing, show selector to pick a cliente
 };
 
 export default function CreateVehiculoModal({ open, onClose, clienteId }: Props) {
@@ -25,8 +26,43 @@ export default function CreateVehiculoModal({ open, onClose, clienteId }: Props)
   const [fechaPatente, setFechaPatente] = useState(""); // YYYY
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [clientesOptions, setClientesOptions] = useState<AutocompleteOption[]>([]);
+  const [selectedClienteId, setSelectedClienteId] = useState<string>(
+    clienteId ? String(clienteId) : ""
+  );
 
-  const isValid = useMemo(() => patente.trim().length > 0, [patente]);
+  const isValid = useMemo(
+    () => patente.trim().length > 0 && (clienteId ? true : selectedClienteId.trim().length > 0),
+    [patente, clienteId, selectedClienteId]
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    if (clienteId) {
+      setSelectedClienteId(String(clienteId));
+      return;
+    }
+
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/clientes");
+        const json = await res.json().catch(() => ({ data: [] }));
+        const opts: AutocompleteOption[] = (json.data || []).map((c: any) => ({
+          value: String(c.id),
+          label: String(c.nombre || ""),
+          secondaryLabel: String(c.email || ""),
+        }));
+        if (mounted) setClientesOptions(opts);
+      } catch (e) {
+        // ignore fetch errors for selector
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [open, clienteId]);
 
   if (!open) return null;
 
@@ -36,12 +72,12 @@ export default function CreateVehiculoModal({ open, onClose, clienteId }: Props)
     setSubmitting(true);
     setError(null);
     try {
-        console.log(clienteId)
+      const clienteToSend = clienteId ? clienteId : selectedClienteId;
       const res = await fetch("/api/vehiculos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cliente_id: clienteId,
+          cliente_id: clienteToSend,
           patente: patente.trim().toUpperCase(),
           marca: marca.trim() || undefined,
           modelo: modelo.trim() || undefined,
@@ -79,6 +115,19 @@ export default function CreateVehiculoModal({ open, onClose, clienteId }: Props)
             <h2 style={styles.title}>Crear vehículo</h2>
           </div>
           <form onSubmit={handleSubmit}>
+            {/* Selector de cliente si no se conoce de antemano */}
+            {!clienteId && (
+              <div style={{ marginBottom: 12 }}>
+                <label style={styles.label}>Cliente <span style={{ color: "#d00" }}>*</span></label>
+                <Autocomplete
+                  options={clientesOptions}
+                  value={selectedClienteId}
+                  onChange={(v) => setSelectedClienteId(v)}
+                  placeholder="Buscar cliente..."
+                />
+              </div>
+            )}
+
             <div style={{ padding: "4px 0 12px" }}>
               <div style={styles.row}>
                 <div style={styles.field}>
