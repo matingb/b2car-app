@@ -141,14 +141,10 @@ export default function VehiculoDetailsPage() {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <ArrowLeft
-          size={20}
-          color={COLOR.ICON.MUTED}
-          onClick={() => router.back()}
-          style={{ cursor: "pointer" }}
-        />
         <ScreenHeader
           title={`${vehiculo.patente} - ${vehiculo.marca} ${vehiculo.modelo}`}
+          breadcrumbs={["Detalle"]}
+          hasBackButton
         />
       </div>
 

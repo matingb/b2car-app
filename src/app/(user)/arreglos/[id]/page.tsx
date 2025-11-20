@@ -93,7 +93,7 @@ export default function ArregloDetailsPage() {
   if (error) {
     return (
       <div>
-        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} />
+        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton/>
         <div style={{ marginTop: 16, color: COLOR.ICON.DANGER }}>{error}</div>
       </div>
     );
@@ -102,7 +102,7 @@ export default function ArregloDetailsPage() {
   if (!arreglo) {
     return (
       <div>
-        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} />
+        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton/>
         <div style={{ marginTop: 16 }}>Arreglo no encontrado.</div>
       </div>
     );
@@ -111,13 +111,7 @@ export default function ArregloDetailsPage() {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <ArrowLeft
-          size={20}
-          color={COLOR.ICON.MUTED}
-          onClick={() => router.back()}
-          style={{ cursor: "pointer" }}
-        />
-        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} />
+        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton/>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 16 }}>
@@ -216,7 +210,7 @@ function loadingScreen() {
   return (
     <div style={{ maxHeight: "100%", minHeight: "0vh" }}>
       <Theme style={{ height: "100%", minHeight: "0vh" }}>
-        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} />
+        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton/>
 
         <div style={{ flex: 1, marginTop: 16, gap: 16, display: "flex", flexDirection: "row", alignItems: "center" }}>
           <Skeleton width="64px" height="64px" />

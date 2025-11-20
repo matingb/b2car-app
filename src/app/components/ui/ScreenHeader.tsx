@@ -1,20 +1,33 @@
 import React from "react";
-import { ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { COLOR } from "@/theme/theme";
+import { useRouter } from "next/navigation";
+
 
 interface ScreenHeaderProps {
   title: string;
   breadcrumbs?: string[];
   className?: string;
+  hasBackButton?: boolean;
 }
 
 export default function ScreenHeader({
   title,
   breadcrumbs = [],
   className,
+  hasBackButton = false
 }: ScreenHeaderProps) {
+  const router = useRouter();
   return (
     <header className={className} style={styles.header}>
+      {hasBackButton && (
+        <ArrowLeft
+          size={20}
+          color={COLOR.ICON.MUTED}
+          onClick={() => router.back()}
+          style={{ cursor: "pointer" }}
+        />
+      )}
       <div style={styles.titleWrapper}>
         <h1>{title}</h1>
       </div>

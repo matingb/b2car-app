@@ -28,7 +28,7 @@ export default function ClientesDetailsPage() {
   return (
     <div>
       <div style={{ marginBottom: 8 }}>
-        <ScreenHeader title="Clientes" breadcrumbs={["Detalle"]} />
+        <ScreenHeader title="Clientes" breadcrumbs={["Detalle"]} hasBackButton/>
       </div>
       {tipo === TipoCliente.EMPRESA || tipo === "empresa" ? (
         <EmpresaDetails 
@@ -50,7 +50,7 @@ function loadingScreen() {
     <div style={{ maxHeight: "100%", minHeight: "0vh" }}>
       <Theme style={{ height: "100%", minHeight: "0vh" }}>
         <div style={{ marginBottom: 8 }}>
-          <ScreenHeader title="Clientes" breadcrumbs={["Detalle"]} />
+          <ScreenHeader title="Clientes" breadcrumbs={["Detalle"]} hasBackButton/>
         </div>
 
         <div
