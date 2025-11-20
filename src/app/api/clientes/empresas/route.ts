@@ -3,6 +3,7 @@ import { createClient } from "@/supabase/server";
 
 export type CreateEmpresaRequest = {
   nombre: string;
+  cuit: string;
   telefono: string;
   email: string;
   direccion: string;
@@ -14,6 +15,7 @@ export async function POST(req: Request) {
   if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 });
 
   if (!payload.nombre) return Response.json({ error: "Falta nombre" }, { status: 400 });
+  if (!payload.cuit) return Response.json({ error: "Falta CUIT" }, { status: 400 });
 
   const { data: clienteInsert, error: errorCliente } = await supabase
     .from("clientes")
@@ -41,6 +43,7 @@ export async function POST(req: Request) {
     data: {
       id: clienteId,
       nombre: empresaInsert.nombre,
+      cuit: empresaInsert.cuit,
       tipo_cliente: TipoCliente.EMPRESA,
       telefono: empresaInsert.telefono,
       email: empresaInsert.email,

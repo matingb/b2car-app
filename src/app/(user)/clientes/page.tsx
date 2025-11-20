@@ -51,6 +51,7 @@ export default function ClientesPage() {
       ) : (
         <ClienteList clientes={clientesFiltrados} />
       )}
+
       <ClienteFormModal
         open={open}
         onClose={() => setOpen(false)}
@@ -67,6 +68,7 @@ export default function ClientesPage() {
             } else {
               await createEmpresa({
                 nombre: values.nombre,
+                cuit: values.cuit!,
                 telefono: values.telefono,
                 email: values.email,
                 direccion: values.direccion,

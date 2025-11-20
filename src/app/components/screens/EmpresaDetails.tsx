@@ -18,6 +18,7 @@ type Props = {
   empresa: {
     id?: number;
     nombre?: string;
+    cuit?: string;
     email?: string;
     telefono?: string;
     direccion?: string;
@@ -38,9 +39,11 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
 
   const handleEditEmpresa = async (values: {
     nombre: string;
+    cuit?: string;
     telefono: string;
     email: string;
     direccion: string;
+    tipo_cliente: TipoCliente;
   }) => {
     if (!clienteId) return;
 
@@ -103,6 +106,7 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
         mode="edit"
         initialValues={{
           nombre: empresa?.nombre ?? "",
+          cuit: empresa?.cuit ?? "",
           telefono: empresa?.telefono ?? "",
           email: empresa?.email ?? "",
           direccion: empresa?.direccion ?? "",

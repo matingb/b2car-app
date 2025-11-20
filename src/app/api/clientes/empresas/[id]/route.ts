@@ -47,18 +47,20 @@ export async function PUT(
 
 	if (!body) return Response.json({ error: "JSON inválido" }, { status: 400 })
 
-	const { nombre, telefono, email, direccion } = body as {
+	const { nombre, cuit, telefono, email, direccion } = body as {
 		nombre: string;
+		cuit: string;
 		telefono?: string;
 		email?: string;
 		direccion?: string;
 	}
 
 	if (!nombre) return Response.json({ error: "Falta nombre" }, { status: 400 })
+	if (!cuit) return Response.json({ error: "Falta CUIT" }, { status: 400 })
 
 	const { data, error } = await supabase
 		.from('empresas')
-		.update({ nombre, telefono, email, direccion })
+		.update({ nombre, cuit, telefono, email, direccion })
 		.eq('id', id)
 		.select()
 		.single()

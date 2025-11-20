@@ -32,6 +32,7 @@ export default function ParticularDetails({ cliente, vehiculos }: Props) {
         telefono: string;
         email: string;
         direccion: string;
+        tipo_cliente: TipoCliente;
     }) => {
         if (!clienteId) return;
 

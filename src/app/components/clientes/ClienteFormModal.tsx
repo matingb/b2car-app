@@ -12,6 +12,7 @@ type Props = {
   onSubmit: (values: {
     nombre: string;
     apellido?: string;
+    cuit?: string;
     telefono: string;
     email: string;
     direccion: string;
@@ -21,6 +22,7 @@ type Props = {
   initialValues?: {
     nombre?: string;
     apellido?: string;
+    cuit?: string;
     telefono?: string;
     email?: string;
     direccion?: string;
@@ -30,11 +32,12 @@ type Props = {
 
 export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'create', initialValues }: Props) {
   const [nombre, setNombre] = useState(initialValues?.nombre ?? "");
+  const [apellido, setApellido] = useState(initialValues?.apellido ?? "");
+  const [cuit, setCuit] = useState(initialValues?.cuit ?? "");
   const [telefono, setTelefono] = useState(initialValues?.telefono ?? "");
   const [email, setEmail] = useState(initialValues?.email ?? "");
   const [direccion, setDireccion] = useState(initialValues?.direccion ?? "");
   const [tipo, setTipo] = useState<TipoCliente>(initialValues?.tipo_cliente ?? TipoCliente.PARTICULAR);
-  const [apellido, setApellido] = useState(initialValues?.apellido ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,23 +45,30 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
   React.useEffect(() => {
     if (open && initialValues) {
       setNombre(initialValues.nombre ?? "");
+      setApellido(initialValues.apellido ?? "");
+      setCuit(initialValues.cuit ?? "");
       setTelefono(initialValues.telefono ?? "");
       setEmail(initialValues.email ?? "");
       setDireccion(initialValues.direccion ?? "");
       setTipo(initialValues.tipo_cliente ?? TipoCliente.PARTICULAR);
-      setApellido(initialValues.apellido ?? "");
     } else if (open && !initialValues) {
       // Reset en modo create
       setNombre("");
+      setApellido("");
+      setCuit("");
       setTelefono("");
       setEmail("");
       setDireccion("");
       setTipo(TipoCliente.PARTICULAR);
-      setApellido("");
     }
   }, [open, initialValues]);
 
-  const isValid = useMemo(() => nombre.trim().length > 0, [nombre]);
+  const isValid = useMemo(() => {
+    if (nombre.trim().length === 0) return false;
+    // CUIT obligatorio para empresas
+    if (tipo === TipoCliente.EMPRESA && cuit.trim().length === 0) return false;
+    return true;
+  }, [nombre, tipo, cuit]);
 
   if (!open) return null;
 
@@ -71,6 +81,7 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
       await onSubmit({
         nombre: nombre.trim(),
         apellido: tipo === TipoCliente.PARTICULAR ? apellido.trim() || undefined : undefined,
+        cuit: tipo === TipoCliente.EMPRESA ? cuit.trim() : undefined,
         telefono: telefono.trim(),
         email: email.trim(),
         direccion: direccion.trim(),
@@ -99,7 +110,7 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
                   <label style={styles.label}>Nombre <span style={{color: "#d00"}}>*</span></label>
                   <input
                     style={styles.input}
-                    placeholder="Nombre del cliente"
+                    placeholder={tipo === TipoCliente.EMPRESA ? "Nombre de la empresa" : "Nombre del cliente"}
                     value={nombre}
                     onChange={(e) => setNombre(e.target.value)}
                   />
@@ -115,19 +126,28 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
                     />
                   </div>
                 )}
-                {mode === 'create' && (
-                  <div style={{ ...styles.field, maxWidth: 140 }}>
-                    <label style={styles.label}>Tipo <span style={{color: "#d00"}}>*</span></label>
-                    <select
-                      style={{ ...styles.input, paddingRight: 8 }}
-                      value={tipo}
-                      onChange={(e) => setTipo(e.target.value as TipoCliente)}
-                    >
-                      <option value={TipoCliente.PARTICULAR}>Particular</option>
-                      <option value={TipoCliente.EMPRESA}>Empresa</option>
-                    </select>
+                {tipo === TipoCliente.EMPRESA && (
+                  <div style={styles.field}>
+                    <label style={styles.label}>CUIT <span style={{color: "#d00"}}>*</span></label>
+                    <input
+                      style={styles.input}
+                      placeholder="XX-XXXXXXXX-X"
+                      value={cuit}
+                      onChange={(e) => setCuit(e.target.value)}
+                    />
                   </div>
                 )}
+                <div style={{ ...styles.field, maxWidth: 160 }}>
+                  <label style={styles.label}>Tipo <span style={{color: "#d00"}}>*</span></label>
+                  <select
+                    style={{ ...styles.input, paddingRight: 8 }}
+                    value={tipo}
+                    onChange={(e) => setTipo(e.target.value as TipoCliente)}
+                  >
+                    <option value={TipoCliente.PARTICULAR}>Particular</option>
+                    <option value={TipoCliente.EMPRESA}>Empresa</option>
+                  </select>
+                </div>
               </div>
 
               <div style={styles.row}>
@@ -242,5 +262,4 @@ const styles = {
     marginTop: 6,
   },
 } as const;
-
 
