@@ -10,7 +10,7 @@ export interface Particular {
 
 export interface Representante {
   id: number;
-  empresaId: number;
+  empresa_id: number;
   nombre: string;
   apellido: string;
   telefono: string;

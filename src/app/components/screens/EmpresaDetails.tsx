@@ -8,6 +8,8 @@ import CreateVehiculoModal from "../vehiculos/CreateVehiculoModal";
 import ClienteHeader from "../clientes/ClienteHeader";
 import ContactInfoCard from "../clientes/ContactInfoCard";
 import VehiculosAsociadosCard from "../clientes/VehiculosAsociadosCard";
+import RepresentantesCard from "../clientes/RepresentantesCard";
+import CreateRepresentanteModal from "../clientes/CreateRepresentanteModal";
 import ClienteFormModal from "../clientes/ClienteFormModal";
 import { useAppToast } from "@/app/hooks/useAppToast";
 
@@ -24,6 +26,7 @@ type Props = {
     direccion?: string;
   } | null;
   vehiculos: Vehiculo[];
+  // Podría llegar a usarse representantes en futuro fetch externo; por ahora se cargan vía efecto
 };
 
 export default function EmpresaDetails({ empresa, vehiculos }: Props) {
@@ -31,11 +34,28 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
   const [openEditEmpresa, setOpenEditEmpresa] = useState(false);
   const clienteId = useMemo(() => empresa?.id ?? undefined, [empresa]);
   const [vehiculosLocal, setVehiculosLocal] = useState<Vehiculo[]>(vehiculos ?? []);
+  const [representantes, setRepresentantes] = useState<any[]>([]);
+  const [openRepresentante, setOpenRepresentante] = useState(false);
   const toast = useAppToast();
-  
+
   React.useEffect(() => {
     setVehiculosLocal(vehiculos ?? []);
   }, [vehiculos]);
+
+  // Cargar representantes de la empresa
+  React.useEffect(() => {
+    const loadRepresentantes = async () => {
+      if (!clienteId) return;
+      try {
+        const res = await fetch(`/api/clientes/empresas/${clienteId}/representantes`);
+        const json = await res.json().catch(() => ({ data: [] }));
+        setRepresentantes(json.data || []);
+      } catch (e) {
+        // silencioso
+      }
+    };
+    loadRepresentantes();
+  }, [clienteId]);
 
   const handleEditEmpresa = async (values: {
     nombre: string;
@@ -87,15 +107,26 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
       />
 
       <div style={{ display: "flex", gap: 16 }}>
-        <ContactInfoCard
-          email={empresa?.email}
-          telefono={empresa?.telefono}
-          onEdit={() => setOpenEditEmpresa(true)}
-        />
+        <div style={{ width: '50%' }}>
+          <ContactInfoCard
+            style={{ minHeight: '100%' }}
+            email={empresa?.email}
+            telefono={empresa?.telefono}
+            onEdit={() => setOpenEditEmpresa(true)}
+          />
+        </div>
+        <div style={{ width: '50%' }}>
+          <VehiculosAsociadosCard
+            vehiculos={vehiculosLocal}
+            onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
+          />
+        </div>
 
-        <VehiculosAsociadosCard 
-          vehiculos={vehiculosLocal}
-          onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
+      </div>
+      <div style={{ width: '100%', marginTop: 16 }}>
+        <RepresentantesCard
+          representantes={representantes as any}
+          onAddRepresentante={clienteId ? () => setOpenRepresentante(true) : undefined}
         />
       </div>
 
@@ -126,6 +157,20 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
           }
         }}
         clienteId={clienteId ?? ''}
+      />
+      <CreateRepresentanteModal
+        open={openRepresentante}
+        empresaId={clienteId ?? ''}
+        onClose={(created) => {
+          setOpenRepresentante(false);
+          if (created) {
+            setRepresentantes(prev => [
+              { id: Math.random(), empresaId: clienteId, nombre: created.nombre, apellido: created.apellido, telefono: created.telefono },
+              ...prev,
+            ]);
+            toast.success('Representante creado');
+          }
+        }}
       />
     </div>
   );

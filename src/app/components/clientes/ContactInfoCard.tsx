@@ -11,11 +11,12 @@ type Props = {
   email?: string;
   telefono?: string;
   onEdit?: () => void;
+  style?: React.CSSProperties;
 };
 
-export default function ContactInfoCard({ email, telefono, onEdit }: Props) {
+export default function ContactInfoCard({ email, telefono, onEdit, style }: Props) {
   return (
-    <Card style={styles.contentPanel}>
+    <Card style={{ ...styles.contentPanel, ...style }}>
       <div style={styles.header}>
         <h2>Datos de contacto</h2>
         {onEdit && (
