@@ -12,6 +12,7 @@ import ArregloModal from "@/app/components/arreglos/ArregloModal";
 import EditVehiculoModal from "@/app/components/vehiculos/EditVehiculoModal";
 import VehiculoInfoCard from "@/app/components/vehiculos/VehiculoInfoCard";
 import PropietarioCard from "@/app/components/vehiculos/PropietarioCard";
+import ReassignPropietarioModal from "@/app/components/vehiculos/ReassignPropietarioModal";
 import ArreglosList from "@/app/components/arreglos/ArreglosList";
 import { ROUTES } from "@/routing/routes";
 
@@ -32,6 +33,7 @@ export default function VehiculoDetailsPage() {
   const [openModal, setOpenModal] = useState(false);
   const [editArreglo, setEditArreglo] = useState<Arreglo | null>(null);
   const [openEditVehiculo, setOpenEditVehiculo] = useState(false);
+  const [openReassignOwner, setOpenReassignOwner] = useState(false);
 
   // Kilometraje más alto a partir de los arreglos
   const maxKilometraje = useMemo(() => {
@@ -171,6 +173,7 @@ export default function VehiculoDetailsPage() {
               style={{ width: '30%' }}
               cliente={cliente} 
               onClick={handleNavigateToCliente}
+              onReassign={() => setOpenReassignOwner(true)}
             />
           )}
         </div>
@@ -213,6 +216,17 @@ export default function VehiculoDetailsPage() {
           open={openEditVehiculo}
           onClose={handleCloseEditVehiculo}
           vehiculo={vehiculo}
+        />
+      )}
+      {vehiculo && (
+        <ReassignPropietarioModal
+          open={openReassignOwner}
+          vehiculoId={vehiculo.id}
+          currentClienteId={cliente?.id}
+          onClose={async (updated) => {
+            setOpenReassignOwner(false);
+            if (updated) await reload();
+          }}
         />
       )}
     </div>

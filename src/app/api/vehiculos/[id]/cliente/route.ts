@@ -66,3 +66,65 @@ export async function GET(
   return Response.json({ data: cliente, error: null });
 }
 
+// PUT /api/vehiculos/[id]/cliente
+// Actualiza el cliente (propietario) asociado a un vehículo
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient();
+  const { id } = await params;
+
+  let body: { cliente_id?: number | string };
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "JSON inválido" }, { status: 400 });
+  }
+
+  const nuevoClienteId = body.cliente_id;
+  if (!nuevoClienteId) {
+    return Response.json({ error: "Falta cliente_id" }, { status: 400 });
+  }
+
+  /*
+
+  TODO : ... Revisar si realmente es hace falta tanto checkeo ...
+
+  // Verificar vehículo existente
+  const { data: vehiculoData, error: vehiculoError } = await supabase
+    .from("vehiculos")
+    .select("cliente_id")
+    .eq("id", id)
+    .single();
+
+  if (vehiculoError || !vehiculoData) {
+    return Response.json({ error: "Vehículo no encontrado" }, { status: 404 });
+  }
+
+
+  // Verificar cliente destino
+  const { data: clienteCheck, error: clienteCheckError } = await supabase
+    .from("clientes")
+    .select("id")
+    .eq("id", nuevoClienteId)
+    .single();
+  if (clienteCheckError || !clienteCheck) {
+    return Response.json({ error: "Cliente destino no encontrado" }, { status: 404 });
+  }
+
+  */
+
+  // Actualizar relación
+  const { error: updateError } = await supabase
+    .from("vehiculos")
+    .update({ cliente_id: nuevoClienteId })
+    .eq("id", id);
+
+  if (updateError) {
+    return Response.json({ error: updateError.message }, { status: 500 });
+  }
+
+  return Response.json({ error: null }, { status: 200 });
+}
+

@@ -10,17 +10,42 @@ import { Phone, Mail, MapPin } from "lucide-react";
 
 type Props = {
   cliente: Cliente;
-  onClick?: () => void;
+  onClick?: () => void; // navegar a detalle
+  onReassign?: () => void; // abrir modal de reasignación
   style?: React.CSSProperties;
 };
 
-export default function PropietarioCard({ cliente, onClick, style }: Props) {
+export default function PropietarioCard({ cliente, onClick, onReassign, style }: Props) {
 
   return (
     <div>
-      <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>
-        Propietario
-      </h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Propietario</h3>
+        {onReassign && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onReassign(); }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 4,
+              borderRadius: 6,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            aria-label="Reasignar propietario"
+            title="Reasignar propietario"
+          >
+            {/* Simple lápiz reutilizando estilo de edición */}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={COLOR.ACCENT.PRIMARY} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+          </button>
+        )}
+      </div>
       <div
       style={{
         ...style,
