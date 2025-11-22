@@ -8,6 +8,7 @@ import { Plus, Car } from "lucide-react";
 import { Vehiculo } from "@/model/types";
 import { ROUTES } from "@/routing/routes";
 import { COLOR } from "@/theme/theme";
+import { formatPatente } from "@/utils/vehiculos";
 
 type Props = {
   vehiculos: Vehiculo[];
@@ -45,7 +46,7 @@ export default function VehiculosAsociadosCard({ vehiculos, onAddVehiculo }: Pro
               aria-label={`Ver vehículo ${vehiculo.patente ?? "-"}`}
             >
               <Car size={28} color={COLOR.ACCENT.PRIMARY} />
-              <div style={{ fontWeight: 700, marginTop: 8 }}>{vehiculo.patente.substring(0, 2) + " " + vehiculo.patente.substring(2, 5) + " " + vehiculo.patente.substring(5, 7)}</div>
+              <div style={{ fontWeight: 700, marginTop: 8 }}>{formatPatente(vehiculo.patente)}</div>
               <div style={{ color: "rgba(0,0,0,0.7)", fontSize: 13 }}>{vehiculo.marca ?? "-"} {vehiculo.modelo ?? "-"}</div>
             </Card>
           ))
