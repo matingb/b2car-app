@@ -43,11 +43,13 @@ export default function VehiculoDetailsPage() {
 
       const { data, arreglos, error } = await vehiculoClient.getById(params.id);
       if (error) throw new Error(error);
-      
+
       setVehiculo(data);
       setArreglos(arreglos || []);
 
-      const clienteResponse = await vehiculoClient.getClienteForVehiculo(params.id);
+      const clienteResponse = await vehiculoClient.getClienteForVehiculo(
+        params.id
+      );
       if (clienteResponse.data) {
         setCliente(clienteResponse.data);
       }
@@ -140,13 +142,12 @@ export default function VehiculoDetailsPage() {
           />
 
           {cliente && (
-            <div style={{ width: "30%" }}>
-              <PropietarioCard
-                cliente={cliente}
-                onClick={handleNavigateToCliente}
-                onReassign={() => setOpenReassignOwner(true)}
-              />
-            </div>
+            <PropietarioCard
+              style={{ width: "30%" }}
+              cliente={cliente}
+              onClick={handleNavigateToCliente}
+              onReassign={() => setOpenReassignOwner(true)}
+            />
           )}
         </div>
 
@@ -167,9 +168,7 @@ export default function VehiculoDetailsPage() {
           />
         </div>
 
-        <ArreglosList
-          arreglos={arreglos}
-        />
+        <ArreglosList arreglos={arreglos} />
       </div>
       {vehiculo && (
         <ArregloModal

@@ -7,7 +7,6 @@ import "@radix-ui/themes/styles.css";
 import ParticularDetails from "@/app/components/screens/ParticularDetails";
 import EmpresaDetails from "@/app/components/screens/EmpresaDetails";
 import { useClientes } from "@/app/providers/ClientesProvider";
-import LoadingScreen from "@/app/components/ui/LoadingScreen";
 
 export default function ClientesDetailsPage() {
   const { loading } = useClientes();
@@ -19,10 +18,6 @@ export default function ClientesDetailsPage() {
   );
 
   return (
-    <>
-    <div style={{ opacity: loading ? 1 : 0 }}> 
-      <LoadingScreen />
-    </div>
     <div style={{ opacity: loading ? 0 : 1 }}>
       <ScreenHeader title="Clientes" breadcrumbs={["Detalle"]} hasBackButton />
       {tipo === TipoCliente.EMPRESA ? (
@@ -31,6 +26,5 @@ export default function ClientesDetailsPage() {
         <ParticularDetails />
       )}
     </div>
-    </>
   );
 }

@@ -15,8 +15,6 @@ export default function VehiculoCard({ vehiculo, onClick }: VehiculoCardProps) {
   return (
     <Card
       onClick={onClick}
-      enableHover={true}
-      style={{ cursor: "pointer" }}
     >
       <div style={styles.cardContent}>
         <div style={styles.patenteSection}>
@@ -60,7 +58,7 @@ const styles = {
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    minWidth: 100,
+    width: "120px",
     padding: "8px 12px",
   },
   patenteLabel: {

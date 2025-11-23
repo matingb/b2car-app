@@ -16,37 +16,39 @@ type Props = {
   style?: React.CSSProperties;
 };
 
-export default function PropietarioCard({ cliente, onClick, onReassign, style }: Props) {
-
+export default function PropietarioCard({
+  cliente,
+  onClick,
+  onReassign,
+  style,
+}: Props) {
   return (
-    <div style={{ width: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Propietario</h3>
+    <div style={{ width: "100%", display: "flex", flexDirection: "column", ...style }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 8,
+        }}
+      >
+        <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+          Propietario
+        </h3>
         {onReassign && (
           <IconButton
             icon={<Pencil />}
             size={18}
-            onClick={(e) => { e.stopPropagation(); onReassign(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onReassign();
+            }}
             title="Reasignar propietario"
             ariaLabel="Reasignar propietario"
           />
         )}
       </div>
-      <div
-      style={{
-        ...style,
-        minWidth: 300,
-        cursor: onClick ? 'pointer' : 'default',
-      }}
-      onClick={onClick}
-    >
-      <Card
-        style={{
-          height: '100%',
-        }}
-        enableHover={true}
-      >
-        
+      <Card onClick={onClick} style={{ flex: 1 }}>
         <div
           style={{
             display: "flex",
@@ -81,22 +83,20 @@ export default function PropietarioCard({ cliente, onClick, onReassign, style }:
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <IconLabel
-                icon={<Phone size={16} color={COLOR.ACCENT.PRIMARY} />}
-                label={cliente.telefono || "-"}
-              />
+              icon={<Phone size={16} color={COLOR.ACCENT.PRIMARY} />}
+              label={cliente.telefono || "-"}
+            />
             <IconLabel
-                icon={<Mail size={16} color={COLOR.ACCENT.PRIMARY} />}
-                label={cliente.email || "-"}
-              />
+              icon={<Mail size={16} color={COLOR.ACCENT.PRIMARY} />}
+              label={cliente.email || "-"}
+            />
             <IconLabel
-                icon={<MapPin size={16} color={COLOR.ACCENT.PRIMARY} />}
-                label={cliente.direccion || "-"}
-              />
+              icon={<MapPin size={16} color={COLOR.ACCENT.PRIMARY} />}
+              label={cliente.direccion || "-"}
+            />
           </div>
         </div>
       </Card>
     </div>
-  </div>
   );
 }
-
