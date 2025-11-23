@@ -1,30 +1,41 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { TipoCliente, Vehiculo } from "@/model/types";
+import React, { useEffect, useMemo, useState } from "react";
+import { Particular, TipoCliente, Vehiculo } from "@/model/types";
 import CreateVehiculoModal from "../vehiculos/CreateVehiculoModal";
 import ClienteHeader from "../clientes/ClienteHeader";
 import ContactInfoCard from "../clientes/ContactInfoCard";
 import VehiculosAsociadosCard from "../clientes/VehiculosAsociadosCard";
 import ClienteFormModal from "../clientes/ClienteFormModal";
 import { useAppToast } from "@/app/hooks/useAppToast";
+import type { UpdateParticularRequest } from "@/app/api/clientes/particulares/[id]/route";
+import { particularClient } from "@/clients/clientes/particularClient";
+import { useParams } from "next/navigation";
+import { useClientes } from "@/app/providers/ClientesProvider";
 
-type Props = {
-    cliente: { id?: number; nombre?: string; apellido?: string; email?: string; telefono?: string; direccion?: string } | null;
-    vehiculos: Vehiculo[];
-};
 
-export default function ParticularDetails({ cliente, vehiculos }: Props) {
+export default function ParticularDetails() {
     const [openVehiculo, setOpenVehiculo] = useState(false);
     const [openEditCliente, setOpenEditCliente] = useState(false);
-    const clienteId = useMemo(() => cliente?.id ?? undefined, [cliente]);
-    const [vehiculosLocal, setVehiculosLocal] = useState<Vehiculo[]>(vehiculos ?? []);
+    const params = useParams();
+    const clienteId = useMemo(() => params.id as string, [params]);
+    const [particular, setParticular] = useState<Particular | null>(null)
+    const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
     const toast = useAppToast();
+    const { getParticularById } = useClientes();
 
-    // Si cambian los props, sincronizamos el local una vez.
-    React.useEffect(() => {
-        setVehiculosLocal(vehiculos ?? []);
-    }, [vehiculos]);
+    useEffect(() => {
+        async function load() {
+          const particular = await getParticularById(clienteId);
+          if (particular) {
+            setParticular(particular);
+            setVehiculos(particular.vehiculos);
+          }
+        }
+        if (clienteId) {
+          load();
+        }
+      }, [clienteId, getParticularById]);
 
     const handleEditCliente = async (values: {
         nombre: string;
@@ -37,16 +48,20 @@ export default function ParticularDetails({ cliente, vehiculos }: Props) {
         if (!clienteId) return;
 
         try {
-            const response = await fetch(`/api/clientes/particulares/${clienteId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(values),
-            });
+            const payload: UpdateParticularRequest = {
+                nombre: values.nombre,
+                apellido: values.apellido,
+                telefono: values.telefono,
+                email: values.email,
+                direccion: values.direccion,
+            };
+            
+            const { data, error } = await particularClient.update(clienteId, payload);
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Error al actualizar cliente');
+            if (error || !data) {
+                throw new Error(error || 'Error al actualizar particular');
             }
+            setParticular(data);
 
             toast.success('Cliente actualizado correctamente');
             setOpenEditCliente(false);
@@ -57,9 +72,9 @@ export default function ParticularDetails({ cliente, vehiculos }: Props) {
         }
     };
     
-    const nombreCompleto = cliente?.apellido 
-        ? `${cliente.nombre} ${cliente.apellido}`.trim()
-        : cliente?.nombre ?? "-";
+    const nombreCompleto = particular?.apellido 
+        ? `${particular.nombre} ${particular.apellido}`.trim()
+        : particular?.nombre ?? "-";
 
     return (
         <div>
@@ -71,13 +86,13 @@ export default function ParticularDetails({ cliente, vehiculos }: Props) {
 
             <div style={{ display: "flex", gap: 16, flexDirection: "column" }}>
                 <ContactInfoCard
-                    email={cliente?.email}
-                    telefono={cliente?.telefono}
+                    email={particular?.email}
+                    telefono={particular?.telefono}
                     onEdit={() => setOpenEditCliente(true)}
                 />
 
                 <VehiculosAsociadosCard 
-                    vehiculos={vehiculosLocal}
+                    vehiculos={vehiculos}
                     onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
                 />
             </div>
@@ -88,11 +103,11 @@ export default function ParticularDetails({ cliente, vehiculos }: Props) {
                 onSubmit={handleEditCliente}
                 mode="edit"
                 initialValues={{
-                    nombre: cliente?.nombre ?? "",
-                    apellido: cliente?.apellido ?? "",
-                    telefono: cliente?.telefono ?? "",
-                    email: cliente?.email ?? "",
-                    direccion: cliente?.direccion ?? "",
+                    nombre: particular?.nombre ?? "",
+                    apellido: particular?.apellido ?? "",
+                    telefono: particular?.telefono ?? "",
+                    email: particular?.email ?? "",
+                    direccion: particular?.direccion ?? "",
                     tipo_cliente: TipoCliente.PARTICULAR,
                 }}
             />
@@ -102,13 +117,13 @@ export default function ParticularDetails({ cliente, vehiculos }: Props) {
                 onClose={(nuevo) => {
                     setOpenVehiculo(false);
                     if (nuevo) {
-                        setVehiculosLocal((prev) => [
+                        setVehiculos((prev) => [
                             // preprendemos para que se vea primero el recién creado
                             ...prev,
                             {
                                 
                                 id: Math.random(),
-                                nombre_cliente: cliente?.nombre || '',
+                                nombre_cliente: particular?.nombre || '',
                                 patente: nuevo.patente,
                                 marca: nuevo.marca || '',
                                 modelo: nuevo.modelo || '',

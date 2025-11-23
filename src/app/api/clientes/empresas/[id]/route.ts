@@ -1,5 +1,34 @@
 import { createClient } from '@/supabase/server'
 import type { NextRequest } from 'next/server'
+import { Vehiculo } from '@/model/types'
+
+export type Empresa = {
+  id: number;
+  nombre: string;
+  cuit: string;
+  telefono: string;
+  email: string;
+  direccion: string;
+  vehiculos?: Vehiculo[];
+};
+
+export type UpdateEmpresaRequest = {
+  nombre: string;
+  cuit: string;
+  telefono: string;
+  email: string;
+  direccion: string;
+};
+
+export type UpdateEmpresaResponse = {
+  data: Empresa | null;
+  error?: string | null;
+};
+
+export type GetEmpresaByIdResponse = {
+  data: Empresa | null;
+  error?: string | null;
+};
 
 // GET /api/clientes/empresas/[id]
 // Devuelve los datos de una empresa junto con sus vehículos
@@ -43,24 +72,15 @@ export async function PUT(
 ) {
 	const supabase = await createClient()
 	const { id } = await params
-	const body = await req.json().catch(() => null)
+	const payload: UpdateEmpresaRequest | null = await req.json().catch(() => null)
 
-	if (!body) return Response.json({ error: "JSON inválido" }, { status: 400 })
-
-	const { nombre, cuit, telefono, email, direccion } = body as {
-		nombre: string;
-		cuit: string;
-		telefono?: string;
-		email?: string;
-		direccion?: string;
-	}
-
-	if (!nombre) return Response.json({ error: "Falta nombre" }, { status: 400 })
-	if (!cuit) return Response.json({ error: "Falta CUIT" }, { status: 400 })
+	if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 })
+	if (!payload.nombre) return Response.json({ error: "Falta nombre" }, { status: 400 })
+	if (!payload.cuit) return Response.json({ error: "Falta CUIT" }, { status: 400 })
 
 	const { data, error } = await supabase
 		.from('empresas')
-		.update({ nombre, cuit, telefono, email, direccion })
+		.update(payload)
 		.eq('id', id)
 		.select()
 		.single()

@@ -1,6 +1,24 @@
-import { ParticularDto } from '@/model/dtos'
 import { createClient } from '@/supabase/server'
 import type { NextRequest } from 'next/server'
+import { Particular } from '@/model/types'
+
+export type UpdateParticularRequest = {
+  nombre: string;
+  apellido?: string;
+  telefono: string;
+  email: string;
+  direccion: string;
+};
+
+export type UpdateParticularResponse = {
+  data: Particular | null;
+  error?: string | null;
+};
+
+export type GetParticularByIdResponse = {
+  data: Particular | null;
+  error?: string | null;
+};
 
 // GET /api/clientes/particulares/[id]
 // Devuelve los datos de un particular junto con sus vehículos
@@ -44,10 +62,9 @@ export async function PUT(
 ) {
 	const supabase = await createClient()
 	const { id } = await params
-	const payload: Partial<ParticularDto> | null = await req.json().catch(() => null)
+	const payload: UpdateParticularRequest | null = await req.json().catch(() => null)
 
 	if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 })
-
 	if (!payload.nombre) return Response.json({ error: "Falta nombre" }, { status: 400 })
 
 	const { data, error } = await supabase
@@ -62,8 +79,5 @@ export async function PUT(
 		return Response.json({ error: error.message }, { status: 500 })
 	}
 
-	
-
 	return Response.json({ data })
 }
-

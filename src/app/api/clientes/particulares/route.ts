@@ -1,4 +1,4 @@
-import { TipoCliente } from "@/model/types";
+import { TipoCliente, Cliente } from "@/model/types";
 import { createClient } from "@/supabase/server";
 
 export type CreateParticularRequest = {
@@ -7,6 +7,11 @@ export type CreateParticularRequest = {
   telefono: string;
   email: string;
   direccion: string;
+};
+
+export type CreateParticularResponse = {
+  data: Cliente | null;
+  error?: string | null;
 };
 
 export async function POST(req: Request) {

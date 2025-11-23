@@ -15,12 +15,7 @@ import ReassignPropietarioModal from "@/app/components/vehiculos/ReassignPropiet
 import ArreglosList from "@/app/components/arreglos/ArreglosList";
 import { ROUTES } from "@/routing/routes";
 import Button from "@/app/components/ui/Button";
-
-type VehiculoResponse = {
-  data: Vehiculo | null;
-  arreglos?: Arreglo[];
-  error?: string | null;
-};
+import { vehiculoClient } from "@/clients/vehiculoClient";
 
 export default function VehiculoDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -46,16 +41,15 @@ export default function VehiculoDetailsPage() {
       setLoading(true);
       setError(null);
 
-      const res = await fetch(`/api/vehiculos/${params.id}`);
-      const body: VehiculoResponse = await res.json();
-      if (!res.ok) throw new Error(body?.error || `Error ${res.status}`);
-      setVehiculo(body.data);
-      setArreglos(body.arreglos || []);
+      const { data, arreglos, error } = await vehiculoClient.getById(params.id);
+      if (error) throw new Error(error);
+      
+      setVehiculo(data);
+      setArreglos(arreglos || []);
 
-      const clienteRes = await fetch(`/api/vehiculos/${params.id}/cliente`);
-      if (clienteRes.ok) {
-        const clienteBody = await clienteRes.json();
-        setCliente(clienteBody.data);
+      const clienteResponse = await vehiculoClient.getClienteForVehiculo(params.id);
+      if (clienteResponse.data) {
+        setCliente(clienteResponse.data);
       }
     } catch (err: unknown) {
       const message =
@@ -77,10 +71,7 @@ export default function VehiculoDetailsPage() {
     setEditArreglo(null);
     setOpenModal(true);
   };
-  const handleOpenEdit = (a: Arreglo) => {
-    setEditArreglo(a);
-    setOpenModal(true);
-  };
+
   const handleCloseModal = async (updated?: boolean) => {
     setOpenModal(false);
     setEditArreglo(null);
@@ -90,26 +81,6 @@ export default function VehiculoDetailsPage() {
   const handleCloseEditVehiculo = async (updated?: boolean) => {
     setOpenEditVehiculo(false);
     if (updated) await reload();
-  };
-
-  const togglePago = async (a: Arreglo) => {
-    try {
-      const res = await fetch(`/api/arreglos/${a.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ esta_pago: !a.esta_pago }),
-      });
-      const json = await res.json().catch(() => ({ error: "Error" }));
-      if (!res.ok || json?.error)
-        throw new Error(json?.error || "No se pudo actualizar el estado");
-      // Optimistic update
-      setArreglos((prev) =>
-        prev.map((x) => (x.id === a.id ? { ...x, esta_pago: !a.esta_pago } : x))
-      );
-    } catch (err) {
-      // opcional: set error toast si existiera
-      console.error(err);
-    }
   };
 
   const handleNavigateToCliente = () => {
@@ -198,9 +169,6 @@ export default function VehiculoDetailsPage() {
 
         <ArreglosList
           arreglos={arreglos}
-          onCreateArreglo={handleOpenCreate}
-          onTogglePago={togglePago}
-          onEditArreglo={handleOpenEdit}
         />
       </div>
       {vehiculo && (

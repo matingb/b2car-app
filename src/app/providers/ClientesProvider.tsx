@@ -1,15 +1,19 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { Cliente, TipoCliente, Vehiculo } from "@/model/types";
-import { API_ROUTES } from "@/routing/routes";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
+import { Cliente, Particular } from "@/model/types";
+import { clientesClient } from "@/clients/clientes/clientesClient";
 import { CreateParticularRequest } from "../api/clientes/particulares/route";
 import { CreateEmpresaRequest } from "../api/clientes/empresas/route";
+import { Empresa, empresaClient } from "@/clients/clientes/empresaClient";
+import { particularClient } from "@/clients/clientes/particularClient";
 
 type ClientesContextType = {
   clientes: Cliente[];
   loading: boolean;
   refetch: () => Promise<void>;
+  getParticularById: (id: string) => Promise<Particular | null>;
+  getEmpresaById: (id: string) => Promise<Empresa | null>;
   createParticular: (input: CreateParticularRequest) => Promise<Cliente>;
   createEmpresa: (input: CreateEmpresaRequest) => Promise<Cliente>;
 };
@@ -22,53 +26,41 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [mounted, setMounted] = useState(false);
-
-  const fetchClientes = async () => {
+  const fetchClientes = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/clientes");
-      const { data } = await res.json();
-      setClientes(data);
+      const { data, error } = await clientesClient.getAll();
+      if (error) {
+        console.error("Error cargando clientes", error);
+      }
+      setClientes(data ?? []);
     } catch (err) {
       console.error("Error cargando clientes", err);
     }
-  };
+  }, []);
 
-  const createParticular = async (input: CreateParticularRequest): Promise<Cliente> => {
-    const res = await fetch("/api/clientes/particulares", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) {
-      const { error } = await res.json().catch(() => ({ error: "Error" }));
+  const createParticular = useCallback(async (input: CreateParticularRequest): Promise<Cliente> => {
+    const { data, error } = await particularClient.create(input);
+    if (error || !data) {
       throw new Error(error || "No se pudo crear el cliente");
     }
-    const { data } = await res.json();
     setClientes((prev) => [...prev, data]);
-    return data as Cliente;
-  };
+    return data;
+  }, []);
 
-  const createEmpresa = async (input: CreateEmpresaRequest): Promise<Cliente> => {
-    const res = await fetch("/api/clientes/empresas", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) {
-      const { error } = await res.json().catch(() => ({ error: "Error" }));
+  const createEmpresa = useCallback(async (input: CreateEmpresaRequest): Promise<Cliente> => {
+    const { data, error } = await empresaClient.create(input);
+    if (error || !data) {
       throw new Error(error || "No se pudo crear el cliente");
     }
-    const { data } = await res.json();
     setClientes((prev) => [...prev, data]);
-    return data as Cliente;
-  };
+    return data;
+  }, []);
 
   useEffect(() => {
-    setMounted(true);
     (async () => {
       try {
+        setLoading(true);
         await fetchClientes();
       } catch (e) {
         console.error(
@@ -79,23 +71,49 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [fetchClientes]);
 
-  if (!mounted) {
-    // opcional: placeholder idéntico server/cliente
-    return (
-      <ClientesContext.Provider
-        value={{ clientes, loading, refetch: fetchClientes, createParticular, createEmpresa }}
-      >
-        <div aria-hidden="true" />
-      </ClientesContext.Provider>
-    );
-  }
+  const getParticularById = useCallback(async (id: string): Promise<Particular | null> => {
+    setLoading(true);
+    try {
+      const { data, error } = await particularClient.getById(id);
+      if (error) {
+        console.error("Error cargando particular", error);
+      }
+      return data ?? null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);  
+
+  const getEmpresaById = useCallback(async (id: string): Promise<Empresa | null> => {
+    setLoading(true);
+    try {
+      const { data, error } = await empresaClient.getById(id);
+      if (error) {
+        console.error("Error cargando empresa", error);
+      }
+      return data ?? null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);  
+
+  const contextValue = useMemo(
+    () => ({
+      clientes,
+      loading,
+      refetch: fetchClientes,
+      createParticular,
+      createEmpresa,
+      getParticularById,
+      getEmpresaById,
+    }),
+    [clientes, loading, fetchClientes, createParticular, createEmpresa, getParticularById, getEmpresaById]
+  );
 
   return (
-    <ClientesContext.Provider
-      value={{ clientes, loading, refetch: fetchClientes, createParticular, createEmpresa }}
-    >
+    <ClientesContext.Provider value={contextValue}>
       {children}
     </ClientesContext.Provider>
   );
@@ -106,70 +124,4 @@ export function useClientes() {
   if (!ctx)
     throw new Error("useClientes debe usarse dentro de ClientesProvider");
   return ctx;
-}
-
-export function useClienteById(id: string) {
-  const [cliente, setCliente] = useState<Cliente | null>(null);
-  const [loadingCliente, setLoadingCliente] = useState(false);
-  const [patenteVehiculo, setPatenteVehiculo] = useState<
-    Record<string, string>
-  >({});
-  const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
-
-  const fetchClienteData = useCallback(async () => {
-    if (id == null) {
-      setCliente(null);
-      return;
-    }
-
-    setLoadingCliente(true);
-    try {
-      // seleccionar endpoint según el tipo de cliente guardado en localStorage
-      const rawTipo = localStorage.getItem("tipo_cliente") ?? "";
-      const tipoLower = String(rawTipo).toLowerCase();
-      let url = API_ROUTES.clientes + `/${id}`;
-
-      if (tipoLower.includes(TipoCliente.EMPRESA) || rawTipo === String(TipoCliente.EMPRESA)) {
-        url = API_ROUTES.empresas + `/${id}`;
-      } else if (tipoLower.includes(TipoCliente.PARTICULAR) || rawTipo === String(TipoCliente.PARTICULAR)) {
-        url = `/api/clientes/particulares/${id}`;
-      }
-
-      const res = await fetch(url);
-      const { data } = await res.json();
-
-      setCliente(data);
-
-      const map: Record<string, string> = {};
-      try {
-        const vehiculos = data?.vehiculos ?? [];
-        setVehiculos(vehiculos);
-
-        for (const v of vehiculos) {
-          const id = String(v?.vehiculo_id ?? "");
-          const patente = v?.patente ?? "";
-          if (id) map[id] = patente;
-        }
-      } catch (e) {
-        console.error("Error construyendo patenteVehiculo", e);
-      }
-      setPatenteVehiculo(map);
-    } catch (e) {
-      console.error("Error cargando cliente", e);
-    } finally {
-      setLoadingCliente(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    fetchClienteData();
-  }, [fetchClienteData, id]);
-
-  return {
-    cliente,
-    loading: loadingCliente,
-    patenteVehiculo,
-    vehiculos,
-    refresh: fetchClienteData,
-  };
 }

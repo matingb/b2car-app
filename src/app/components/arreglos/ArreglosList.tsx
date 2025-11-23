@@ -6,16 +6,11 @@ import ArregloItem from "./ArregloItem";
 
 type Props = {
   arreglos: Arreglo[];
-  onCreateArreglo?: () => void;
-  onTogglePago?: (arreglo: Arreglo) => void;
-  onEditArreglo?: (arreglo: Arreglo) => void;
   onItemClick?: (arreglo: Arreglo) => void;
 };
 
 export default function ArreglosList({
   arreglos,
-  onTogglePago,
-  onEditArreglo,
   onItemClick,
 }: Props) {
   return (

@@ -23,3 +23,4 @@ export function formatPatente(patente: string): string {
   return cleanPatente;
 }
 
+

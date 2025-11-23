@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Building2, MapPin } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import { TipoCliente, Vehiculo } from "@/model/types";
@@ -12,36 +12,38 @@ import RepresentantesCard from "../clientes/RepresentantesCard";
 import CreateRepresentanteModal from "../clientes/CreateRepresentanteModal";
 import ClienteFormModal from "../clientes/ClienteFormModal";
 import { useAppToast } from "@/app/hooks/useAppToast";
+import type { UpdateEmpresaRequest } from "@/app/api/clientes/empresas/[id]/route";
+import { useParams } from "next/navigation";
+import { Empresa, empresaClient } from "@/clients/clientes/empresaClient";
+import { useClientes } from "@/app/providers/ClientesProvider";
 
-// Diseño adaptado para empresas
-// Muestra nombre de la empresa y datos de contacto; lista de vehículos igual que particulares
 
-type Props = {
-  empresa: {
-    id?: number;
-    nombre?: string;
-    cuit?: string;
-    email?: string;
-    telefono?: string;
-    direccion?: string;
-  } | null;
-  vehiculos: Vehiculo[];
-};
-
-export default function EmpresaDetails({ empresa, vehiculos }: Props) {
+export default function EmpresaDetails() {
+  const params = useParams();
+  const clienteId = useMemo(() => params.id as string, [params]);
+  const [empresa, setEmpresa] = useState<Empresa | null>(null);
+  const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [openVehiculo, setOpenVehiculo] = useState(false);
   const [openEditEmpresa, setOpenEditEmpresa] = useState(false);
-  const clienteId = useMemo(() => empresa?.id ?? undefined, [empresa]);
-  const [vehiculosLocal, setVehiculosLocal] = useState<Vehiculo[]>(vehiculos ?? []);
   const [representantes, setRepresentantes] = useState<any[]>([]);
   const [openRepresentante, setOpenRepresentante] = useState(false);
   const toast = useAppToast();
+  const { getEmpresaById } = useClientes();
 
-  React.useEffect(() => {
-    setVehiculosLocal(vehiculos ?? []);
-  }, [vehiculos]);
+  useEffect(() => {
+    async function load() {
+      const empresa = await getEmpresaById(clienteId);
+      if (empresa) {
+        setEmpresa(empresa);
+        setVehiculos(empresa.vehiculos || []);
+      }
+    }
+    if (clienteId) {
+      load();
+    }
+  }, [clienteId, getEmpresaById]);
 
-  // Cargar representantes de la empresa
+
   React.useEffect(() => {
     const loadRepresentantes = async () => {
       if (!clienteId) return;
@@ -67,27 +69,28 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
     if (!clienteId) return;
 
     try {
-      const response = await fetch(`/api/clientes/empresas/${clienteId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Error al actualizar empresa');
+      const payload: UpdateEmpresaRequest = {
+        nombre: values.nombre,
+        cuit: values.cuit || '',
+        telefono: values.telefono,
+        email: values.email,
+        direccion: values.direccion,
+      };
+      
+      const { data, error } = await empresaClient.update(clienteId, payload);
+      if (error || !data) {
+        throw new Error(error || 'Error al actualizar empresa');
       }
-
+      setEmpresa(data);
       toast.success('Empresa actualizada correctamente');
       setOpenEditEmpresa(false);
-      // Forzar recarga de la página para actualizar los datos
-      window.location.reload();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error desconocido';
       toast.error(message);
       throw error;
     }
   };
+
 
   return (
     <div>
@@ -108,21 +111,21 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
       <div style={{ display: "flex", gap: 16 }}>
         <div style={{ width: '50%' }}>
           <ContactInfoCard
-            email={empresa?.email}
+            email={empresa?.email ?? ''}
             telefono={empresa?.telefono}
             onEdit={() => setOpenEditEmpresa(true)}
           />
         </div>
         <div style={{ width: '50%' }}>
           <VehiculosAsociadosCard
-            vehiculos={vehiculosLocal}
+            vehiculos={vehiculos}
             onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
           />
         </div>
       </div>
       <div style={{ width: '100%', marginTop: 16 }}>
         <RepresentantesCard
-          representantes={representantes as any}
+          representantes={representantes}
           onAddRepresentante={clienteId ? () => setOpenRepresentante(true) : undefined}
         />
       </div>
@@ -147,7 +150,7 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
         onClose={(nuevo) => {
           setOpenVehiculo(false);
           if (nuevo) {
-            setVehiculosLocal((prev) => [
+            setVehiculos((prev) => [
               { id: Math.random(), nombre_cliente: empresa?.nombre || '', patente: nuevo.patente, marca: nuevo.marca || '', modelo: nuevo.modelo || '', fecha_patente: nuevo.fecha_patente || '' },
               ...prev,
             ]);

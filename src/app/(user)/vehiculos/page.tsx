@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import Button from "@/app/components/ui/Button";
 import { PlusIcon } from "lucide-react";
 import CreateVehiculoModal from "@/app/components/vehiculos/CreateVehiculoModal";
+import { vehiculoClient } from "@/clients/vehiculoClient";
 
 
 export default function VehiculosPage() {
@@ -33,8 +34,7 @@ export default function VehiculosPage() {
     const fetchVehiculos = async () => {
       try {
         setLoading(true);
-        const res = await fetch("/api/vehiculos");
-        const { data, error } = await res.json();
+        const { data, error } = await vehiculoClient.getAll();
         if (error) {
           console.error(error);
         }
@@ -53,8 +53,7 @@ export default function VehiculosPage() {
   const fetchAndSetVehiculos = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/vehiculos");
-      const { data, error } = await res.json();
+      const { data, error } = await vehiculoClient.getAll();
       if (error) console.error(error);
       setVehiculos(data ?? []);
     } catch (e) {
