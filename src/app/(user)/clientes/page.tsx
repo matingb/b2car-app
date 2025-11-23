@@ -18,32 +18,59 @@ export default function ClientesPage() {
   const toast = useAppToast();
 
   const [search, setSearch] = useState("");
+  const [selectedTipos, setSelectedTipos] = useState<TipoCliente[]>([]);
   const clientesFiltrados = useMemo(() => {
     if (!clientes) return [];
     const q = search.trim().toLowerCase();
-    if (!q) return clientes;
-    return clientes.filter((c) =>
-      Object.values(c ?? {}).some((v) =>
+    return clientes
+      .filter((c) => selectedTipos.length === 0 || selectedTipos.includes(c.tipo_cliente))
+      .filter((c) =>
+        !q
+          ? true
+          : Object.values(c ?? {}).some((v) =>
         String(v ?? "")
           .toLowerCase()
           .includes(q)
       )
-    );
-  }, [clientes, search]);
+      );
+  }, [clientes, search, selectedTipos]);
 
   const [open, setOpen] = useState(false);
+
+  const toggleTipo = (tipo: TipoCliente) => {
+    setSelectedTipos((prev) =>
+      prev.includes(tipo) ? prev.filter((t) => t !== tipo) : [...prev, tipo]
+    );
+  };
 
   return (
     <div>
       <ScreenHeader title="Clientes" />
       <div style={styles.searchBarContainer}>
-        <SearchBar
-          value={search}
-          onChange={setSearch}
-          placeholder="Buscar clientes..."
-          style={styles.searchBar}
-        />
-        <Button icon={<PlusIcon size={20}/>} text="Crear cliente" onClick={() => setOpen(true)} style={styles.newButton} />
+        <div style={styles.searchRow}>
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar clientes..."
+            style={styles.searchBar}
+          />
+          <Button icon={<PlusIcon size={20}/>} text="Crear cliente" onClick={() => setOpen(true)} style={styles.newButton} />
+        </div>
+        <div className="chips-container" aria-label="Filtrar por tipo de cliente">
+          {[TipoCliente.PARTICULAR, TipoCliente.EMPRESA].map((tipo) => {
+            const isSelected = selectedTipos.includes(tipo);
+            return (
+              <button
+                key={tipo}
+                type="button"
+                onClick={() => toggleTipo(tipo)}
+                className={`chip-filter ${isSelected ? "chip-filter--selected" : ""}`}
+              >
+                {tipo === TipoCliente.PARTICULAR ? "Particulares" : "Empresas"}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {loading ? (
@@ -88,14 +115,20 @@ export default function ClientesPage() {
 
 const styles = {
   searchBarContainer: {
-    marginBottom: 16,
     display: "flex",
-    justifyContent: "start",
+    flexDirection: "column" as const,
+    gap: 10,
+    marginBottom: 16,
     marginTop: 8,
-    gap: 16,
+  },
+  searchRow: {
+    display: "flex",
+    gap: 12,
+    alignItems: "center",
   },
   searchBar: {
     width: "100%",
+    flexGrow: 1,
   },
   newButton: {
     height: 40,

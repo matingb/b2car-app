@@ -92,3 +92,40 @@ h2{
   color: var(--foreground);
   background-color: rgba(0, 0, 0, 0.08);
 }
+
+.chips-container {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.chip-filter {
+  height: 40px;
+  padding: 0.5rem 0.9rem;
+  border-radius: 24px;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-background-subtle);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-weight: 500;
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+}
+
+.chip-filter:hover {
+  border-color: var(--color-accent-secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 128, 162, 0.15);
+}
+
+.chip-filter--selected {
+  background: var(--color-button-primary-background);
+  border-color: var(--color-accent-secondary);
+  color: var(--color-button-primary-text);
+  box-shadow: none;
+}
+
+.chip-filter--selected:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 128, 162, 0.15);
+}
