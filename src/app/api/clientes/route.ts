@@ -30,7 +30,8 @@ const clientes: Cliente[] = data.map(cliente => {
             tipo_cliente: cliente.tipo_cliente,
             telefono: cliente.empresa?.telefono,
             email: cliente.empresa?.email,
-            direccion: cliente.empresa?.direccion
+            direccion: cliente.empresa?.direccion,
+            cuit: cliente.empresa?.cuit
         }
     }
 })

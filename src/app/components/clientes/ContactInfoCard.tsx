@@ -4,17 +4,18 @@ import React from "react";
 import Card from "@/app/components/ui/Card";
 import IconLabel from "@/app/components/ui/IconLabel";
 import { Divider } from "@mui/material";
-import { Mail, Phone, Pencil } from "lucide-react";
+import { Mail, Phone, Pencil, FileText } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 
 type Props = {
   email?: string;
   telefono?: string;
+  cuit?: string;
   onEdit?: () => void;
   style?: React.CSSProperties;
 };
 
-export default function ContactInfoCard({ email, telefono, onEdit, style }: Props) {
+export default function ContactInfoCard({ email, telefono, cuit, onEdit, style }: Props) {
   return (
     <Card style={{ ...styles.contentPanel, ...style }}>
       <div style={styles.header}>
@@ -48,6 +49,12 @@ export default function ContactInfoCard({ email, telefono, onEdit, style }: Prop
           icon={<Phone size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
           label={telefono ?? "-"}
         />
+        {cuit && (
+          <IconLabel
+            icon={<FileText size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
+            label={`CUIT: ${cuit}`}
+          />
+        )}
       </div>
     </Card>
   );
@@ -59,6 +66,7 @@ const styles = {
     flexDirection: "column",
     gap: 4,
     width: "100%",
+    height: "100%",
   },
   header: {
     display: "flex",

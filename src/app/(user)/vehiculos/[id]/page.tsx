@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { Vehiculo, Arreglo, Cliente } from "@/model/types";
 import { COLOR } from "@/theme/theme";
-import { ArrowLeft } from "lucide-react";
 import { Skeleton, Theme } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
@@ -15,6 +14,7 @@ import PropietarioCard from "@/app/components/vehiculos/PropietarioCard";
 import ReassignPropietarioModal from "@/app/components/vehiculos/ReassignPropietarioModal";
 import ArreglosList from "@/app/components/arreglos/ArreglosList";
 import { ROUTES } from "@/routing/routes";
+import Button from "@/app/components/ui/Button";
 
 type VehiculoResponse = {
   data: Vehiculo | null;
@@ -45,13 +45,13 @@ export default function VehiculoDetailsPage() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const res = await fetch(`/api/vehiculos/${params.id}`);
       const body: VehiculoResponse = await res.json();
       if (!res.ok) throw new Error(body?.error || `Error ${res.status}`);
       setVehiculo(body.data);
       setArreglos(body.arreglos || []);
-      
+
       const clienteRes = await fetch(`/api/vehiculos/${params.id}/cliente`);
       if (clienteRes.ok) {
         const clienteBody = await clienteRes.json();
@@ -86,7 +86,7 @@ export default function VehiculoDetailsPage() {
     setEditArreglo(null);
     if (updated) await reload();
   };
-  
+
   const handleCloseEditVehiculo = async (updated?: boolean) => {
     setOpenEditVehiculo(false);
     if (updated) await reload();
@@ -155,32 +155,46 @@ export default function VehiculoDetailsPage() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "start",
-          gap: 8,
+          gap: 16,
           marginTop: 16,
         }}
       >
         {/* Bloques superiores: Información del Vehículo y Propietario */}
         <div style={{ display: "flex", gap: 16 }}>
           <VehiculoInfoCard
-            style={{ width: '70%' }}
+            style={{ width: "70%" }}
             vehiculo={vehiculo}
             maxKilometraje={maxKilometraje}
             onEdit={() => setOpenEditVehiculo(true)}
           />
 
           {cliente && (
-            <PropietarioCard 
-              style={{ width: '30%' }}
-              cliente={cliente} 
-              onClick={handleNavigateToCliente}
-              onReassign={() => setOpenReassignOwner(true)}
-            />
+            <div style={{ width: "30%" }}>
+              <PropietarioCard
+                cliente={cliente}
+                onClick={handleNavigateToCliente}
+                onReassign={() => setOpenReassignOwner(true)}
+              />
+            </div>
           )}
         </div>
 
-        <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 0 }}>
-          Ultimos arreglos
-        </h3>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 0 }}>
+            Ultimos arreglos
+          </h3>
+          <Button
+            text="Nuevo arreglo"
+            onClick={handleOpenCreate}
+            style={{ padding: "8px 16px" }}
+          />
+        </div>
 
         <ArreglosList
           arreglos={arreglos}

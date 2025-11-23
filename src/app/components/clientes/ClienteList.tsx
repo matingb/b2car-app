@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Mail, Phone, TextSearch, Car, Trash2 } from "lucide-react";
-import { redirect, useRouter } from "next/navigation";
+import { Mail, Phone, TextSearch, Car, Trash2, FileText } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Cliente, TipoCliente } from "@/model/types";
 import Avatar from "@/app/components/ui/Avatar";
 import Card from "@/app/components/ui/Card";
@@ -102,6 +102,19 @@ export default function ClienteList({
                     >
                       <Phone size={14} />
                       <span>{cliente.telefono}</span>
+                    </div>
+                  )}
+
+                  {cliente.tipo_cliente === TipoCliente.EMPRESA && cliente.cuit && (
+                    <div
+                      style={
+                        cliente.email || cliente.telefono
+                          ? styles.contactRowWithTop
+                          : styles.contactRow
+                      }
+                    >
+                      <FileText size={14} />
+                      <span>CUIT: {cliente.cuit}</span>
                     </div>
                   )}
                 </div>

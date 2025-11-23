@@ -29,6 +29,7 @@ export interface Cliente {
   telefono: string
   email: string
   direccion: string
+  cuit?: string
 }
 
 export interface Vehiculo {

@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Card from "@/app/components/ui/Card";
 import IconLabel from "@/app/components/ui/IconLabel";
+import ArregloModal from "@/app/components/arreglos/ArregloModal";
 import { Arreglo } from "@/model/types";
 import { COLOR } from "@/theme/theme";
 import {
@@ -14,23 +15,50 @@ import {
   FileText,
   CheckCircle2,
   XCircle,
+  Pencil,
 } from "lucide-react";
 
 type Props = {
   arreglo: Arreglo;
-  onTogglePago: (arreglo: Arreglo) => void;
-  onEdit: (arreglo: Arreglo) => void;
   onClick?: (arreglo: Arreglo) => void;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function ArregloItem({
-  arreglo,
-  onTogglePago,
-  onEdit,
+  arreglo: initialArreglo,
   onClick,
 }: Props) {
   const router = useRouter();
+  const [openEditModal, setOpenEditModal] = useState(false);
+  const [arreglo, setArreglo] = useState<Arreglo>(initialArreglo);
+
+  useEffect(() => {
+    setArreglo(initialArreglo);
+  }, [initialArreglo]);
+
+  const reloadArreglo = async () => {
+    try {
+      const res = await fetch(`/api/arreglos/${arreglo.id}`);
+      if (res.ok) {
+        const response = await res.json();
+        if (response.data && response.vehiculo) {
+          const updatedArreglo: Arreglo = {
+            ...response.data,
+            vehiculo: {
+              id: response.vehiculo.id,
+              nombre_cliente: arreglo.vehiculo.nombre_cliente,
+              patente: response.vehiculo.patente,
+              marca: response.vehiculo.marca,
+              modelo: response.vehiculo.modelo,
+              fecha_patente: response.vehiculo.fecha_patente,
+            },
+          };
+          setArreglo(updatedArreglo);
+        }
+      }
+    } catch (err) {
+      console.error("Error recargando arreglo:", err);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "";
@@ -50,14 +78,15 @@ export default function ArregloItem({
   };
 
   return (
-    <Card
-      onClick={() => {
-        if (onClick) return onClick(arreglo);
-        router.push(`/arreglos/${arreglo.id}`);
-      }}
-      enableHover={true}
-      style={{ cursor: "pointer" }}
-    >
+    <>
+      <Card
+        onClick={() => {
+          if (onClick) return onClick(arreglo);
+          router.push(`/arreglos/${arreglo.id}`);
+        }}
+        enableHover={true}
+        style={{ cursor: "pointer" }}
+      >
       <div style={styles.container}>
         {/* Header superior con badges y precio */}
         <div style={styles.topHeader}>
@@ -67,11 +96,12 @@ export default function ArregloItem({
                 <span style={styles.mainTitle}>{arreglo.descripcion}</span>
                 {arreglo.esta_pago ? (
                   <>
-                  <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} /> Pagado
+                    <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} />{" "}
+                    Pagado
                   </>
                 ) : (
                   <>
-                  <XCircle size={18} color={COLOR.ICON.DANGER} /> Pendiente
+                    <XCircle size={18} color={COLOR.ICON.DANGER} /> Pendiente
                   </>
                 )}
               </div>
@@ -82,11 +112,29 @@ export default function ArregloItem({
             </div>
           </div>
 
-          <div style={styles.priceSection}>
-            <span style={styles.priceLabel}>Precio Final</span>
-            <span style={styles.priceValue}>
-              {formatPrice(arreglo.precio_final)}
-            </span>
+          <div style={styles.rightSection}>
+            <div style={styles.priceSection}>
+              <span style={styles.priceLabel}>Precio Final</span>
+              <span style={styles.priceValue}>
+                {formatPrice(arreglo.precio_final)}
+              </span>
+            </div>
+            <button
+              style={styles.editButton}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenEditModal(true);
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = COLOR.ACCENT.PRIMARY;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = COLOR.TEXT.SECONDARY;
+              }}
+              title="Editar arreglo"
+            >
+              <Pencil size={18} />
+            </button>
           </div>
         </div>
 
@@ -145,13 +193,35 @@ export default function ArregloItem({
           </>
         )}
       </div>
-    </Card>
+      </Card>
+      
+      <ArregloModal
+        open={openEditModal}
+        onClose={async (updated) => {
+          setOpenEditModal(false);
+          if (updated) {
+            await reloadArreglo();
+          }
+        }}
+        vehiculoId={arreglo.vehiculo.id}
+        initial={{
+          id: arreglo.id,
+          tipo: arreglo.tipo,
+          fecha: arreglo.fecha,
+          kilometraje_leido: arreglo.kilometraje_leido,
+          precio_final: arreglo.precio_final,
+          observaciones: arreglo.observaciones,
+          descripcion: arreglo.descripcion,
+          esta_pago: arreglo.esta_pago,
+          extra_data: arreglo.extra_data,
+        }}
+      />
+    </>
   );
 }
 
 const styles = {
   container: {
-    position: "relative",
     display: "flex",
     flexDirection: "column",
     gap: 8,
@@ -181,6 +251,11 @@ const styles = {
   statusPending: {
     backgroundColor: COLOR.ACCENT.PRIMARY,
     color: COLOR.TEXT.CONTRAST,
+  },
+  rightSection: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
   },
   priceSection: {
     display: "flex",
@@ -242,18 +317,11 @@ const styles = {
     color: COLOR.TEXT.PRIMARY,
   },
   editButton: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    border: "none",
     background: "transparent",
     cursor: "pointer",
-    padding: 8,
-    borderRadius: 6,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    transition: "background 0.2s",
     color: COLOR.TEXT.SECONDARY,
   },
 } as const;

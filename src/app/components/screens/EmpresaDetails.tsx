@@ -26,7 +26,6 @@ type Props = {
     direccion?: string;
   } | null;
   vehiculos: Vehiculo[];
-  // Podría llegar a usarse representantes en futuro fetch externo; por ahora se cargan vía efecto
 };
 
 export default function EmpresaDetails({ empresa, vehiculos }: Props) {
@@ -109,7 +108,6 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
       <div style={{ display: "flex", gap: 16 }}>
         <div style={{ width: '50%' }}>
           <ContactInfoCard
-            style={{ minHeight: '100%' }}
             email={empresa?.email}
             telefono={empresa?.telefono}
             onEdit={() => setOpenEditEmpresa(true)}
@@ -121,7 +119,6 @@ export default function EmpresaDetails({ empresa, vehiculos }: Props) {
             onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
           />
         </div>
-
       </div>
       <div style={{ width: '100%', marginTop: 16 }}>
         <RepresentantesCard

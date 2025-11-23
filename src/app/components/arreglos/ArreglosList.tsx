@@ -30,8 +30,6 @@ export default function ArreglosList({
             <ArregloItem
               key={arreglo.id}
               arreglo={arreglo}
-              onTogglePago={onTogglePago ?? (() => {})}
-              onEdit={onEditArreglo ?? (() => {})}
               onClick={onItemClick}
             />
           ))}
