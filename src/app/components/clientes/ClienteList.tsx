@@ -9,7 +9,7 @@ import Card from "@/app/components/ui/Card";
 import { ROUTES } from "@/routing/routes";
 import { COLOR } from "@/theme/theme";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
-import { useAppToast } from "@/app/hooks/useAppToast";
+import { useToast } from "@/app/providers/ToastProvider";
 
 export default function ClienteList({
   clientes: clientes,
@@ -18,7 +18,7 @@ export default function ClienteList({
 }) {
   const modal = useModalMessage();
   const router = useRouter();
-  const toast = useAppToast();
+  const toast = useToast();
   const [clientesState, setClientes] = React.useState<Cliente[]>(clientes);
 
   React.useEffect(() => {
@@ -75,7 +75,6 @@ export default function ClienteList({
         <Card
           key={cliente.id}
           onClick={() => handleOnClick(cliente.id)}
-          enableHover={true}
         >
           <div style={styles.container}>
             <div style={styles.leftGroup}>

@@ -1,7 +1,13 @@
 "use client";
 
 import * as Toast from "@radix-ui/react-toast";
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { COLOR } from "@/theme/theme";
 
 export type AppToast = {
@@ -11,38 +17,60 @@ export type AppToast = {
   durationMs?: number;
 };
 
-type Listener = (t: AppToast) => void;
-const listeners = new Set<Listener>();
+type ToastContextValue = {
+  success: (title: string, description?: string) => void;
+  error: (title: string, description?: string) => void;
+  info: (title: string, description?: string) => void;
+};
 
-export function emitToast(toast: AppToast) {
-  listeners.forEach((l) => l(toast));
+const ToastContext = React.createContext<ToastContextValue | null>(null);
+
+export function useToast() {
+  const ctx = useContext(ToastContext);
+  if (!ctx) {
+    throw new Error("useToast debe usarse dentro de ToastProvider");
+  }
+  return ctx;
 }
 
-export default function ToastProvider() {
+export default function ToastProvider({ children }: { children: React.ReactNode }) {
   const [openIds, setOpenIds] = useState<number[]>([]);
   const [items, setItems] = useState<(AppToast & { id: number })[]>([]);
-  const [counter, setCounter] = useState(0);
+  const idRef = useRef(0);
 
-  useEffect(() => {
-    const listener: Listener = (t) => {
-      setCounter((c) => c + 1);
-      const id = counter + 1;
-      const it = { ...t, id };
-      setItems((prev) => [...prev, it]);
-      setOpenIds((prev) => [...prev, id]);
-      const duration = t.durationMs ?? 3500;
-      window.setTimeout(() => close(id), duration);
-    };
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-    };
-  }, [counter]);
-
-  const close = (id: number) => {
+  const close = useCallback((id: number) => {
     setOpenIds((prev) => prev.filter((x) => x !== id));
-    window.setTimeout(() => setItems((prev) => prev.filter((i) => i.id !== id)), 200);
-  };
+    window.setTimeout(
+      () => setItems((prev) => prev.filter((i) => i.id !== id)),
+      200
+    );
+  }, []);
+
+  const pushToast = useCallback(
+    (toast: AppToast) => {
+      idRef.current += 1;
+      const id = idRef.current;
+      const duration = toast.durationMs ?? 3500;
+      const nextItem = { ...toast, id };
+
+      setItems((prev) => [...prev, nextItem]);
+      setOpenIds((prev) => [...prev, id]);
+      window.setTimeout(() => close(id), duration);
+    },
+    [close]
+  );
+
+  const value = useMemo(
+    () => ({
+      success: (title: string, description?: string) =>
+        pushToast({ kind: "success", title, description }),
+      error: (title: string, description?: string) =>
+        pushToast({ kind: "error", title, description, durationMs: 5000 }),
+      info: (title: string, description?: string) =>
+        pushToast({ kind: "info", title, description }),
+    }),
+    [pushToast]
+  );
 
   const styleByKind: Record<string, React.CSSProperties> = useMemo(
     () => ({
@@ -54,18 +82,31 @@ export default function ToastProvider() {
   );
 
   return (
-    <Toast.Provider swipeDirection="right">
-      <div style={styles.viewportWrap}>
-        <Toast.Viewport style={styles.viewport} />
-      </div>
+    <ToastContext.Provider value={value}>
+      <Toast.Provider swipeDirection="right">
+        <div style={styles.viewportWrap}>
+          <Toast.Viewport style={styles.viewport} />
+        </div>
 
-      {items.map((t) => (
-        <Toast.Root key={t.id} open={openIds.includes(t.id)} onOpenChange={(o) => !o && close(t.id)} style={{ ...styles.toast, ...styleByKind[t.kind] }}>
-          <Toast.Title style={styles.title}>{t.title}</Toast.Title>
-          {t.description ? <Toast.Description style={styles.description}>{t.description}</Toast.Description> : null}
-        </Toast.Root>
-      ))}
-    </Toast.Provider>
+        {items.map((t) => (
+          <Toast.Root
+            key={t.id}
+            open={openIds.includes(t.id)}
+            onOpenChange={(o) => !o && close(t.id)}
+            style={{ ...styles.toast, ...styleByKind[t.kind] }}
+          >
+            <Toast.Title style={styles.title}>{t.title}</Toast.Title>
+            {t.description ? (
+              <Toast.Description style={styles.description}>
+                {t.description}
+              </Toast.Description>
+            ) : null}
+          </Toast.Root>
+        ))}
+
+        {children}
+      </Toast.Provider>
+    </ToastContext.Provider>
   );
 }
 

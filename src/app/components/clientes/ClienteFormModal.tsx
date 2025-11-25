@@ -184,7 +184,7 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
               </div>
             </div>
 
-            {error && <div style={styles.error}>{error}</div>}
+            {/*error && <div style={styles.error}>{error}</div>*/}
 
             <div style={styles.footer}>
               <button type="button" style={styles.cancel} onClick={onClose} disabled={submitting}>

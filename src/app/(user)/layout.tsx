@@ -41,84 +41,86 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionProvider>
-      <div style={s.appRoot}>
-        <ToastProvider />
+      <ModalMessageProvider>
+        <ToastProvider>
+          <div style={s.appRoot}>
+            <div style={s.pageContent}>
+              <aside style={s.sidebar} aria-label="Sidebar">
+                <div style={s.card}>
+                  <div style={s.sidebarHeaderRow}>
+                    <div
+                      style={s.brandBadge}
+                      onClick={() => setCollapsed((v) => !v)}
+                      title={collapsed ? "Expandir" : "Colapsar"}
+                      aria-label={
+                        collapsed ? "Expandir sidebar" : "Colapsar sidebar"
+                      }
+                    >
+                      <PanelLeft style={{ width: "3rem" }} size={18} />
+                    </div>
+                    {!collapsed && (
+                      <Divider
+                        orientation="vertical"
+                        flexItem
+                        style={{
+                          margin: "0.5rem 0.5rem",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      />
+                    )}
+                    <div style={s.brandTextWrap}>
+                      <div style={s.title}>TallerPro</div>
+                    </div>
+                  </div>
 
-        <div style={s.pageContent}>
-          <aside style={s.sidebar} aria-label="Sidebar">
-            <div style={s.card}>
-              <div style={s.sidebarHeaderRow}>
-                <div
-                  style={s.brandBadge}
-                  onClick={() => setCollapsed((v) => !v)}
-                  title={collapsed ? "Expandir" : "Colapsar"}
-                  aria-label={
-                    collapsed ? "Expandir sidebar" : "Colapsar sidebar"
-                  }
-                >
-                  <PanelLeft style={{ width: "3rem" }} size={18} />
+                  <nav style={s.navList}>
+                    <SidebarItem
+                      href={ROUTES.clientes}
+                      label="Clientes"
+                      icon={<Users size={18} />}
+                      collapsed={collapsed}
+                    />
+                    <SidebarItem
+                      href={ROUTES.vehiculos}
+                      label="Vehículos"
+                      icon={<Car size={18} />}
+                      collapsed={collapsed}
+                    />
+                    <SidebarItem
+                      href={ROUTES.arreglos}
+                      label="Arreglos"
+                      icon={<Wrench size={18} />}
+                      collapsed={collapsed}
+                    />
+                    <Divider
+                      style={{
+                        width: collapsed ? "2rem" : "100%",
+                        margin: collapsed ? "0.5rem 0" : "0.5rem 0",
+                      }}
+                    />
+                    <SidebarItem
+                      href={""}
+                      label="Cerrar sesión"
+                      icon={<LogOut size={18} />}
+                      collapsed={collapsed}
+                      onClick={() => {
+                        logOut();
+                      }}
+                    />
+                  </nav>
                 </div>
-                {!collapsed && (
-                  <Divider
-                    orientation="vertical"
-                    flexItem
-                    style={{
-                      margin: "0.5rem 0.5rem",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  />
-                )}
-                <div style={s.brandTextWrap}>
-                  <div style={s.title}>TallerPro</div>
-                </div>
-              </div>
+              </aside>
 
-              <nav style={s.navList}>
-                <SidebarItem
-                  href={ROUTES.clientes}
-                  label="Clientes"
-                  icon={<Users size={18} />}
-                  collapsed={collapsed}
-                />
-                <SidebarItem
-                  href={ROUTES.vehiculos}
-                  label="Vehículos"
-                  icon={<Car size={18} />}
-                  collapsed={collapsed}
-                />
-                <SidebarItem
-                  href={ROUTES.arreglos}
-                  label="Arreglos"
-                  icon={<Wrench size={18} />}
-                  collapsed={collapsed}
-                />
-                <Divider
-                  style={{
-                    width: collapsed ? "2rem" : "100%",
-                    margin: collapsed ? "0.5rem 0" : "0.5rem 0",
-                  }}
-                />
-                <SidebarItem
-                  href={""}
-                  label="Cerrar sesión"
-                  icon={<LogOut size={18} />}
-                  collapsed={collapsed}
-                  onClick={() => {
-                    logOut();
-                  }}
-                />
-              </nav>
+              <main style={s.main}>
+                <div style={s.cardMain}>{children}</div>
+              </main>
+
             </div>
-          </aside>
-          <ModalMessageProvider>
-            <main style={s.main}>
-              <div style={s.cardMain}>{children}</div>
-            </main>
-          </ModalMessageProvider>
-        </div>
 
-      </div>
+          </div>
+        </ToastProvider>
+      </ModalMessageProvider>
     </SessionProvider>
   );
 }

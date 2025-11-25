@@ -11,7 +11,7 @@ import VehiculosAsociadosCard from "../clientes/VehiculosAsociadosCard";
 import RepresentantesCard from "../clientes/RepresentantesCard";
 import CreateRepresentanteModal from "../clientes/CreateRepresentanteModal";
 import ClienteFormModal from "../clientes/ClienteFormModal";
-import { useAppToast } from "@/app/hooks/useAppToast";
+import { useToast } from "@/app/providers/ToastProvider";
 import type { UpdateEmpresaRequest } from "@/app/api/clientes/empresas/[id]/route";
 import { useParams } from "next/navigation";
 import { Empresa, empresaClient } from "@/clients/clientes/empresaClient";
@@ -27,7 +27,7 @@ export default function EmpresaDetails() {
   const [openEditEmpresa, setOpenEditEmpresa] = useState(false);
   const [representantes, setRepresentantes] = useState<any[]>([]);
   const [openRepresentante, setOpenRepresentante] = useState(false);
-  const toast = useAppToast();
+  const toast = useToast();
   const { getEmpresaById } = useClientes();
 
   useEffect(() => {

@@ -84,7 +84,6 @@ export default function ArregloItem({
           if (onClick) return onClick(arreglo);
           router.push(`/arreglos/${arreglo.id}`);
         }}
-        enableHover={true}
         style={{ cursor: "pointer" }}
       >
       <div style={styles.container}>

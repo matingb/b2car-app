@@ -42,7 +42,6 @@ export default function VehiculosAsociadosCard({ vehiculos, onAddVehiculo }: Pro
               onClick={() => {
                 router.push(ROUTES.vehiculos + "/" + vehiculo.id);
               }}
-              enableHover={true}
               aria-label={`Ver vehículo ${vehiculo.patente ?? "-"}`}
             >
               <Car size={28} color={COLOR.ACCENT.PRIMARY} />

@@ -7,7 +7,7 @@ import ClienteHeader from "../clientes/ClienteHeader";
 import ContactInfoCard from "../clientes/ContactInfoCard";
 import VehiculosAsociadosCard from "../clientes/VehiculosAsociadosCard";
 import ClienteFormModal from "../clientes/ClienteFormModal";
-import { useAppToast } from "@/app/hooks/useAppToast";
+import { useToast } from "@/app/providers/ToastProvider";
 import type { UpdateParticularRequest } from "@/app/api/clientes/particulares/[id]/route";
 import { particularClient } from "@/clients/clientes/particularClient";
 import { useParams } from "next/navigation";
@@ -21,7 +21,7 @@ export default function ParticularDetails() {
     const clienteId = useMemo(() => params.id as string, [params]);
     const [particular, setParticular] = useState<Particular | null>(null)
     const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
-    const toast = useAppToast();
+    const toast = useToast();
     const { getParticularById } = useClientes();
 
     useEffect(() => {

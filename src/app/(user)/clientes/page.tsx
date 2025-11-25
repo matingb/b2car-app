@@ -9,13 +9,13 @@ import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
 import { PlusIcon } from "lucide-react";
 import Button from "@/app/components/ui/Button";
-import { useAppToast } from "@/app/hooks/useAppToast";
+import { useToast } from "@/app/providers/ToastProvider";
 import { TipoCliente } from "@/model/types";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 
 export default function ClientesPage() {
   const { clientes, loading, createParticular, createEmpresa } = useClientes();
-  const toast = useAppToast();
+  const toast = useToast();
 
   const [search, setSearch] = useState("");
   const [selectedTipos, setSelectedTipos] = useState<TipoCliente[]>([]);

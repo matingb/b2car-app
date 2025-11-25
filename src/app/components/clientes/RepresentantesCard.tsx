@@ -34,7 +34,6 @@ export default function RepresentantesCard({ representantes, onAddRepresentante 
             <Card
               key={r.id}
               style={styles.itemSquare}
-              enableHover={true}
               aria-label={`Representante ${r.nombre} ${r.apellido}`}
             >
               <User size={28} color={COLOR.ACCENT.PRIMARY} />
