@@ -9,9 +9,8 @@ import VehiculosAsociadosCard from "../clientes/VehiculosAsociadosCard";
 import ClienteFormModal from "../clientes/ClienteFormModal";
 import { useToast } from "@/app/providers/ToastProvider";
 import type { UpdateParticularRequest } from "@/app/api/clientes/particulares/[id]/route";
-import { particularClient } from "@/clients/clientes/particularClient";
-import { useParams } from "next/navigation";
 import { useClientes } from "@/app/providers/ClientesProvider";
+import { useParams } from "next/navigation";
 
 
 export default function ParticularDetails() {
@@ -22,7 +21,7 @@ export default function ParticularDetails() {
     const [particular, setParticular] = useState<Particular | null>(null)
     const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
     const toast = useToast();
-    const { getParticularById } = useClientes();
+    const { getParticularById, updateParticular } = useClientes();
 
     useEffect(() => {
         async function load() {
@@ -55,12 +54,7 @@ export default function ParticularDetails() {
                 email: values.email,
                 direccion: values.direccion,
             };
-            
-            const { data, error } = await particularClient.update(clienteId, payload);
-
-            if (error || !data) {
-                throw new Error(error || 'Error al actualizar particular');
-            }
+            const data = await updateParticular(clienteId, payload);
             setParticular(data);
 
             toast.success('Cliente actualizado correctamente');

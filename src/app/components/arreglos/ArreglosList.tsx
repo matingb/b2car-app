@@ -7,11 +7,13 @@ import ArregloItem from "./ArregloItem";
 type Props = {
   arreglos: Arreglo[];
   onItemClick?: (arreglo: Arreglo) => void;
+  onUpdated?: () => Promise<void> | void;
 };
 
 export default function ArreglosList({
   arreglos,
   onItemClick,
+  onUpdated,
 }: Props) {
   return (
     <>
@@ -26,6 +28,7 @@ export default function ArreglosList({
               key={arreglo.id}
               arreglo={arreglo}
               onClick={onItemClick}
+              onUpdated={onUpdated}
             />
           ))}
         </div>

@@ -16,34 +16,47 @@ export type GetClienteForVehiculoResponse = {
   error?: string | null;
 };
 
-/**
- * Cliente para operaciones de vehículos
- */
+export type CreateVehiculoRequest = {
+  cliente_id: string | number;
+  patente: string;
+  marca: string;
+  modelo: string;
+  fecha_patente: string;
+};
+
+export type UpdateVehiculoRequest = Partial<
+  Pick<CreateVehiculoRequest, "patente" | "marca" | "modelo" | "fecha_patente">
+>;
+
+export type CreateVehiculoResponse = {
+  error?: string | null;
+};
+
+export type UpdateVehiculoResponse = {
+  data: Vehiculo | null;
+  error?: string | null;
+};
+
 export const vehiculoClient = {
-  /**
-   * Obtiene un vehículo por su ID junto con sus arreglos
-   * @param id - ID del vehículo
-   * @returns Objeto con data (vehículo y arreglos) o error
-   */
   async getById(id: string | number): Promise<GetVehiculoByIdResponse> {
     try {
       const res = await fetch(`/api/vehiculos/${id}`);
       const body: GetVehiculoByIdResponse = await res.json();
-      
+
       if (!res.ok) {
         return {
           data: null,
           error: body?.error || `Error ${res.status}`,
         };
       }
-      
+
       return {
         data: body.data,
         arreglos: body.arreglos || [],
         error: null,
       };
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "No se pudo cargar el vehículo";
+      const message = err instanceof Error ? err.message : "No se pudo cargar el vehiculo";
       return {
         data: null,
         error: message,
@@ -51,28 +64,24 @@ export const vehiculoClient = {
     }
   },
 
-  /**
-   * Obtiene todos los vehículos
-   * @returns Objeto con data (array de vehículos) o error
-   */
   async getAll(): Promise<GetVehiculosResponse> {
     try {
       const res = await fetch("/api/vehiculos");
       const body: GetVehiculosResponse = await res.json();
-      
+
       if (!res.ok) {
         return {
           data: null,
           error: body?.error || `Error ${res.status}`,
         };
       }
-      
+
       return {
         data: body.data || [],
         error: body.error || null,
       };
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Error cargando vehículos";
+      const message = err instanceof Error ? err.message : "Error cargando vehiculos";
       return {
         data: null,
         error: message,
@@ -80,24 +89,19 @@ export const vehiculoClient = {
     }
   },
 
-  /**
-   * Obtiene el cliente propietario de un vehículo
-   * @param vehiculoId - ID del vehículo
-   * @returns Objeto con data (cliente) o error
-   */
   async getClienteForVehiculo(vehiculoId: string | number): Promise<GetClienteForVehiculoResponse> {
     try {
       const res = await fetch(`/api/vehiculos/${vehiculoId}/cliente`);
-      
+
       if (!res.ok) {
         return {
           data: null,
           error: `Error ${res.status}`,
         };
       }
-      
+
       const body: GetClienteForVehiculoResponse = await res.json();
-      
+
       return {
         data: body.data || null,
         error: body.error || null,
@@ -110,5 +114,58 @@ export const vehiculoClient = {
       };
     }
   },
-};
 
+  async create(input: CreateVehiculoRequest): Promise<CreateVehiculoResponse> {
+    try {
+      const res = await fetch("/api/vehiculos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || (body as any)?.error) {
+        return { error: (body as any)?.error || `Error ${res.status}` };
+      }
+      return { error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "No se pudo crear el vehiculo";
+      return { error: message };
+    }
+  },
+
+  async update(id: string | number, input: UpdateVehiculoRequest): Promise<UpdateVehiculoResponse> {
+    try {
+      const res = await fetch(`/api/vehiculos/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const body = await res.json().catch(() => ({} as any));
+      if (!res.ok || (body as any)?.error) {
+        return { data: null, error: (body as any)?.error || `Error ${res.status}` };
+      }
+      return { data: (body as any).data || null, error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "No se pudo actualizar el vehiculo";
+      return { data: null, error: message };
+    }
+  },
+
+  async reassignOwner(id: string | number, clienteId: string | number): Promise<{ error?: string | null }> {
+    try {
+      const res = await fetch(`/api/vehiculos/${id}/cliente`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cliente_id: clienteId }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || (body as any)?.error) {
+        return { error: (body as any)?.error || `Error ${res.status}` };
+      }
+      return { error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "No se pudo reasignar el propietario";
+      return { error: message };
+    }
+  },
+};

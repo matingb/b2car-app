@@ -7,6 +7,10 @@ import { CreateParticularRequest } from "../api/clientes/particulares/route";
 import { CreateEmpresaRequest } from "../api/clientes/empresas/route";
 import { Empresa, empresaClient } from "@/clients/clientes/empresaClient";
 import { particularClient } from "@/clients/clientes/particularClient";
+import { representantesClient, CreateRepresentanteInput } from "@/clients/representantesClient";
+import { Representante } from "@/model/types";
+import type { UpdateParticularRequest } from "../api/clientes/particulares/[id]/route";
+import type { UpdateEmpresaRequest } from "../api/clientes/empresas/[id]/route";
 
 type ClientesContextType = {
   clientes: Cliente[];
@@ -16,6 +20,11 @@ type ClientesContextType = {
   getEmpresaById: (id: string) => Promise<Empresa | null>;
   createParticular: (input: CreateParticularRequest) => Promise<Cliente>;
   createEmpresa: (input: CreateEmpresaRequest) => Promise<Cliente>;
+  deleteCliente: (id: number) => Promise<void>;
+  listRepresentantes: (empresaId: string | number) => Promise<Representante[]>;
+  createRepresentante: (empresaId: string | number, input: CreateRepresentanteInput) => Promise<Representante>;
+  updateParticular: (id: string | number, input: UpdateParticularRequest) => Promise<Particular>;
+  updateEmpresa: (id: string | number, input: UpdateEmpresaRequest) => Promise<Empresa>;
 };
 
 const ClientesContext = createContext<ClientesContextType | undefined>(
@@ -99,6 +108,51 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);  
 
+  const deleteCliente = useCallback(async (id: number) => {
+    setLoading(true);
+    try {
+      const { error } = await clientesClient.delete(id);
+      if (error) {
+        throw new Error(error);
+      }
+      setClientes((prev) => prev.filter((c) => c.id !== id));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const listRepresentantes = useCallback(async (empresaId: string | number) => {
+    const { data, error } = await representantesClient.getByEmpresaId(empresaId);
+    if (error) {
+      throw new Error(error);
+    }
+    return data || [];
+  }, []);
+
+  const createRepresentante = useCallback(async (empresaId: string | number, input: CreateRepresentanteInput) => {
+    const { data, error } = await representantesClient.create(empresaId, input);
+    if (error || !data) {
+      throw new Error(error || "No se pudo crear el representante");
+    }
+    return data;
+  }, []);
+
+  const updateParticular = useCallback(async (id: string | number, input: UpdateParticularRequest) => {
+    const { data, error } = await particularClient.update(id, input);
+    if (error || !data) {
+      throw new Error(error || "No se pudo actualizar el particular");
+    }
+    return data;
+  }, []);
+
+  const updateEmpresa = useCallback(async (id: string | number, input: UpdateEmpresaRequest) => {
+    const { data, error } = await empresaClient.update(id, input);
+    if (error || !data) {
+      throw new Error(error || "No se pudo actualizar la empresa");
+    }
+    return data;
+  }, []);
+
   const contextValue = useMemo(
     () => ({
       clientes,
@@ -108,8 +162,13 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
       createEmpresa,
       getParticularById,
       getEmpresaById,
+      deleteCliente,
+      listRepresentantes,
+      createRepresentante,
+      updateParticular,
+      updateEmpresa,
     }),
-    [clientes, loading, fetchClientes, createParticular, createEmpresa, getParticularById, getEmpresaById]
+    [clientes, loading, fetchClientes, createParticular, createEmpresa, getParticularById, getEmpresaById, deleteCliente, listRepresentantes, createRepresentante, updateParticular, updateEmpresa]
   );
 
   return (

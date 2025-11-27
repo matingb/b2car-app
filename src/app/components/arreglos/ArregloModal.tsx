@@ -3,15 +3,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
-import Autocomplete, {
-  AutocompleteOption,
-} from "@/app/components/ui/Autocomplete";
+import Autocomplete, { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import { Vehiculo } from "@/model/types";
 import { COLOR } from "@/theme/theme";
+import { useVehiculos } from "@/app/providers/VehiculosProvider";
+import { useArreglos } from "@/app/providers/ArreglosProvider";
+import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient";
 
 export type ArregloForm = {
   tipo: string;
-  fecha: string; // YYYY-MM-DD
+  fecha: string;
   kilometraje_leido: number | string;
   precio_final: number | string;
   observaciones?: string;
@@ -27,79 +28,52 @@ type Props = {
   initial?: Partial<ArregloForm> & { id?: number };
 };
 
-export default function ArregloModal({
-  open,
-  onClose,
-  vehiculoId,
-  initial,
-}: Props) {
+export default function ArregloModal({ open, onClose, vehiculoId, initial }: Props) {
+  const { vehiculos, fetchAll: fetchVehiculos } = useVehiculos();
+  const { create, update } = useArreglos();
   const isEdit = !!initial?.id;
   const [tipo, setTipo] = useState(initial?.tipo ?? "");
   const [fecha, setFecha] = useState(initial?.fecha ?? "");
-  const [km, setKm] = useState<string>(
-    initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : ""
-  );
-  const [precio, setPrecio] = useState<string>(
-    initial?.precio_final != null ? String(initial.precio_final) : ""
-  );
-  const [observaciones, setObservaciones] = useState(
-    initial?.observaciones ?? ""
-  );
+  const [km, setKm] = useState<string>(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
+  const [precio, setPrecio] = useState<string>(initial?.precio_final != null ? String(initial.precio_final) : "");
+  const [observaciones, setObservaciones] = useState(initial?.observaciones ?? "");
   const [descripcion, setDescripcion] = useState(initial?.descripcion ?? "");
   const [estaPago, setEstaPago] = useState<boolean>(!!initial?.esta_pago);
   const [extraData, setExtraData] = useState(initial?.extra_data ?? "");
-  const [selectedVehiculoId, setSelectedVehiculoId] = useState<string>(
-    vehiculoId ? String(vehiculoId) : ""
-  );
-  const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
-  const [loadingVehiculos, setLoadingVehiculos] = useState(false);
-
+  const [selectedVehiculoId, setSelectedVehiculoId] = useState<string>(vehiculoId ? String(vehiculoId) : "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Cargar vehículos si no se proporciona vehiculoId
   useEffect(() => {
     if (!vehiculoId && open) {
-      setLoadingVehiculos(true);
-      fetch("/api/vehiculos")
-        .then((res) => res.json())
-        .then(({ data }) => {
-          setVehiculos(data ?? []);
-        })
-        .catch((err) => console.error("Error cargando vehículos", err))
-        .finally(() => setLoadingVehiculos(false));
+      fetchVehiculos();
     }
-  }, [open, vehiculoId]);
+  }, [open, vehiculoId, fetchVehiculos]);
 
-  const vehiculoOptions: AutocompleteOption[] = useMemo(() => {
-    return vehiculos.map((v) => ({
-      value: String(v.id),
-      label: `${v.patente} - ${v.marca} ${v.modelo}`,
-      secondaryLabel: v.nombre_cliente,
-    }));
-  }, [vehiculos]);
+  const vehiculoOptions: AutocompleteOption[] = useMemo(
+    () =>
+      vehiculos.map((v: Vehiculo) => ({
+        value: String(v.id),
+        label: `${v.patente} - ${v.marca} ${v.modelo}`,
+        secondaryLabel: v.nombre_cliente,
+      })),
+    [vehiculos]
+  );
 
   const opcionesDefault: AutocompleteOption[] = [
-    { value: "Mecánica", label: "Mecánica" },
+    { value: "Mecanica", label: "Mecanica" },
     { value: "Chapa y pintura", label: "Chapa y pintura" },
     { value: "Electricidad", label: "Electricidad" },
     { value: "Mantenimiento", label: "Mantenimiento" },
-    { value: "Revisión", label: "Revisión" },
+    { value: "Revision", label: "Revision" },
   ];
 
   useEffect(() => {
     if (!open) return;
-    // Sync when opening for edit
     setTipo(initial?.tipo ?? "");
     setFecha(initial?.fecha ?? "");
-    setKm(
-      initial?.kilometraje_leido != null
-        ? String(initial.kilometraje_leido)
-        : ""
-    );
-    setPrecio(
-      initial?.precio_final != null ? String(initial.precio_final) : ""
-    );
+    setKm(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
+    setPrecio(initial?.precio_final != null ? String(initial.precio_final) : "");
     setObservaciones(initial?.observaciones ?? "");
     setDescripcion(initial?.descripcion ?? "");
     setEstaPago(!!initial?.esta_pago);
@@ -118,27 +92,6 @@ export default function ArregloModal({
     );
   }, [tipo, fecha, km, precio, vehiculoId, selectedVehiculoId]);
 
-  // Calcular precio sin IVA para mostrar (solo informativo en el cliente)
-  // const clientIvaRate = (() => {
-  //   const rate = process.env.NEXT_PUBLIC_IVA_RATE; // 0.21
-  //   const percent = process.env.NEXT_PUBLIC_IVA_PERCENT; // 21
-  //   if (
-  //     rate &&
-  //     !Number.isNaN(Number(rate)) &&
-  //     Number(rate) >= 0 &&
-  //     Number(rate) < 1
-  //   )
-  //     return Number(rate);
-  //   if (percent && !Number.isNaN(Number(percent)) && Number(percent) >= 0)
-  //     return Number(percent) / 100;
-  //   return 0.21;
-  // })();
-  // const precioSinIvaPreview = useMemo(() => {
-  //   const pf = Number(precio);
-  //   if (!pf || Number.isNaN(pf)) return "";
-  //   return (pf / (1 + clientIvaRate)).toFixed(2);
-  // }, [precio, clientIvaRate]);
-
   if (!open) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -147,9 +100,9 @@ export default function ArregloModal({
     setSubmitting(true);
     setError(null);
     try {
-      const payload: Partial<ArregloForm> = {
+      const payload: Partial<UpdateArregloInput> = {
         tipo: tipo.trim(),
-        fecha: fecha,
+        fecha,
         kilometraje_leido: Number(km),
         precio_final: Number(precio),
         observaciones: observaciones?.trim() || undefined,
@@ -158,28 +111,14 @@ export default function ArregloModal({
         extra_data: extraData?.trim() || undefined,
       };
 
-      let res: Response;
       if (isEdit && initial?.id) {
-        res = await fetch(`/api/arreglos/${initial.id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        await update(initial.id, payload);
       } else {
         const finalVehiculoId = vehiculoId || selectedVehiculoId;
-        res = await fetch("/api/arreglos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ vehiculo_id: finalVehiculoId, ...payload }),
-        });
+        await create({ vehiculo_id: finalVehiculoId!, ...payload } as CreateArregloInput);
       }
 
-      const json = await res.json().catch(() => ({ error: "Error" }));
-      if (!res.ok || json?.error)
-        throw new Error(json?.error || "No se pudo guardar el arreglo");
-
       onClose(true);
-      // reset on create
       if (!isEdit) {
         setTipo("");
         setFecha("");
@@ -191,7 +130,7 @@ export default function ArregloModal({
         setExtraData("");
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Ocurrió un error");
+      setError(err instanceof Error ? err.message : "Ocurrio un error");
     } finally {
       setSubmitting(false);
     }
@@ -202,25 +141,21 @@ export default function ArregloModal({
       <div style={styles.modal}>
         <Card>
           <div style={styles.headerRow}>
-            <h2 style={styles.title}>
-              {isEdit ? "Editar arreglo" : "Crear arreglo"}
-            </h2>
+            <h2 style={styles.title}>{isEdit ? "Editar arreglo" : "Crear arreglo"}</h2>
           </div>
           <form onSubmit={handleSubmit}>
             <div style={{ padding: "4px 0 12px" }}>
-              {/* Selector de vehículo solo si no se proporciona vehiculoId */}
               {!vehiculoId && (
                 <div style={styles.row}>
                   <div style={styles.field}>
                     <label style={styles.label}>
-                      Vehículo <span style={{ color: "#d00" }}>*</span>
+                      Vehiculo <span style={{ color: "#d00" }}>*</span>
                     </label>
                     <Autocomplete
                       options={vehiculoOptions}
                       value={selectedVehiculoId}
                       onChange={setSelectedVehiculoId}
-                      placeholder={loadingVehiculos ? "Cargando vehículos..." : "Buscar vehículo..."}
-                      disabled={loadingVehiculos}
+                      placeholder="Buscar vehiculo..."
                     />
                   </div>
                 </div>
@@ -228,24 +163,13 @@ export default function ArregloModal({
               <div style={styles.row}>
                 <div style={styles.field}>
                   <label style={styles.label}>
-                    Descripción <span style={{ color: "#d00" }}>*</span>
+                    Descripcion <span style={{ color: "#d00" }}>*</span>
                   </label>
-                  <input
-                    style={styles.input}
-                    value={descripcion}
-                    onChange={(e) => setDescripcion(e.target.value)}
-                    placeholder="Descripción"
-                  />
+                  <input style={styles.input} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Descripcion" />
                 </div>
                 <div style={styles.field}>
                   <label style={styles.label}>Tipo </label>
-                  <Autocomplete
-                    options={opcionesDefault}
-                    value={tipo}
-                    onChange={setTipo}
-                    placeholder="Mecánica, Chapa y pintura..."
-                    allowCustomValue={true}
-                  />
+                  <Autocomplete options={opcionesDefault} value={tipo} onChange={setTipo} placeholder="Mecanica, Chapa y pintura..." allowCustomValue />
                 </div>
               </div>
 
@@ -254,23 +178,12 @@ export default function ArregloModal({
                   <label style={styles.label}>
                     Fecha <span style={{ color: "#d00" }}>*</span>
                   </label>
-                  <input
-                    type="date"
-                    style={styles.input}
-                    value={fecha}
-                    onChange={(e) => setFecha(e.target.value)}
-                  />
+                  <input type="date" style={styles.input} value={fecha} onChange={(e) => setFecha(e.target.value)} />
                 </div>
                 <div style={styles.field}>
-                  <label style={styles.label}>¿Está pago?</label>
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={estaPago}
-                      onChange={(e) => setEstaPago(e.target.checked)}
-                    />
+                  <label style={styles.label}>¿Esta pago?</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input type="checkbox" checked={estaPago} onChange={(e) => setEstaPago(e.target.checked)} />
                     <span>Pagado</span>
                   </div>
                 </div>
@@ -295,9 +208,7 @@ export default function ArregloModal({
                     inputMode="numeric"
                     pattern="[0-9]*"
                     value={precio}
-                    onChange={(e) =>
-                      setPrecio(e.target.value.replace(/\D/g, ""))
-                    }
+                    onChange={(e) => setPrecio(e.target.value.replace(/\D/g, ""))}
                     placeholder="50000"
                   />
                 </div>
@@ -306,12 +217,7 @@ export default function ArregloModal({
               <div style={styles.row}>
                 <div style={styles.field}>
                   <label style={styles.label}>Observaciones</label>
-                  <input
-                    style={styles.input}
-                    value={observaciones}
-                    onChange={(e) => setObservaciones(e.target.value)}
-                    placeholder="Observaciones"
-                  />
+                  <input style={styles.input} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Observaciones" />
                 </div>
               </div>
             </div>
@@ -319,12 +225,7 @@ export default function ArregloModal({
             {error && <div style={styles.error}>{error}</div>}
 
             <div style={styles.footer}>
-              <button
-                type="button"
-                style={styles.cancel}
-                onClick={() => onClose()}
-                disabled={submitting}
-              >
+              <button type="button" style={styles.cancel} onClick={() => onClose()} disabled={submitting}>
                 Cancelar
               </button>
               <Button

@@ -14,7 +14,7 @@ import ClienteFormModal from "../clientes/ClienteFormModal";
 import { useToast } from "@/app/providers/ToastProvider";
 import type { UpdateEmpresaRequest } from "@/app/api/clientes/empresas/[id]/route";
 import { useParams } from "next/navigation";
-import { Empresa, empresaClient } from "@/clients/clientes/empresaClient";
+import { Empresa } from "@/clients/clientes/empresaClient";
 import { useClientes } from "@/app/providers/ClientesProvider";
 
 
@@ -28,7 +28,7 @@ export default function EmpresaDetails() {
   const [representantes, setRepresentantes] = useState<any[]>([]);
   const [openRepresentante, setOpenRepresentante] = useState(false);
   const toast = useToast();
-  const { getEmpresaById } = useClientes();
+  const { getEmpresaById, listRepresentantes, createRepresentante, updateEmpresa } = useClientes();
 
   useEffect(() => {
     async function load() {
@@ -48,15 +48,14 @@ export default function EmpresaDetails() {
     const loadRepresentantes = async () => {
       if (!clienteId) return;
       try {
-        const res = await fetch(`/api/clientes/empresas/${clienteId}/representantes`);
-        const json = await res.json().catch(() => ({ data: [] }));
-        setRepresentantes(json.data || []);
+        const reps = await listRepresentantes(clienteId);
+        setRepresentantes(reps);
       } catch (e) {
         // silencioso
       }
     };
     loadRepresentantes();
-  }, [clienteId]);
+  }, [clienteId, listRepresentantes]);
 
   const handleEditEmpresa = async (values: {
     nombre: string;
@@ -77,10 +76,7 @@ export default function EmpresaDetails() {
         direccion: values.direccion,
       };
       
-      const { data, error } = await empresaClient.update(clienteId, payload);
-      if (error || !data) {
-        throw new Error(error || 'Error al actualizar empresa');
-      }
+      const data = await updateEmpresa(clienteId, payload);
       setEmpresa(data);
       toast.success('Empresa actualizada correctamente');
       setOpenEditEmpresa(false);
@@ -161,14 +157,17 @@ export default function EmpresaDetails() {
       <CreateRepresentanteModal
         open={openRepresentante}
         empresaId={clienteId ?? ''}
-        onClose={(created) => {
+        onClose={async (created) => {
           setOpenRepresentante(false);
           if (created) {
-            setRepresentantes(prev => [
-              { id: Math.random(), empresaId: clienteId, nombre: created.nombre, apellido: created.apellido, telefono: created.telefono },
-              ...prev,
-            ]);
-            toast.success('Representante creado');
+            try {
+              const nuevo = await createRepresentante(clienteId, created);
+              setRepresentantes(prev => [nuevo, ...prev]);
+              toast.success('Representante creado');
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : "No se pudo crear el representante";
+              toast.error(msg);
+            }
           }
         }}
       />

@@ -12,18 +12,15 @@ import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 
 export default function ClienteList({
-  clientes: clientes,
+  clientes,
+  onDelete,
 }: {
   clientes: Cliente[];
+  onDelete?: (id: number) => Promise<void>;
 }) {
   const modal = useModalMessage();
   const router = useRouter();
   const toast = useToast();
-  const [clientesState, setClientes] = React.useState<Cliente[]>(clientes);
-
-  React.useEffect(() => {
-    setClientes(clientes);
-  }, [clientes]);
 
   const handleDelete = async (event: React.MouseEvent<HTMLButtonElement>, id: number) => {
     event.stopPropagation();
@@ -37,23 +34,10 @@ export default function ClienteList({
     });
     if (!ok) return;
 
+    if (!onDelete) return;
     try {
-      const res = await fetch(`/api/clientes/${id}`, { method: "DELETE" });
-      // 404 lo tratamos como éxito silencioso (ya no existe)
-      if (res.ok || res.status === 404) {
-        toast.success("Cliente eliminado", typeof nombre === 'string' ? nombre : undefined);
-        // Refrescamos para que la lista se actualice desde el servidor
-        // Reemplaza el router.refresh(); por esto:
-        const body = await res.json().catch(() => null);
-        const deletedId = body?.id ?? id;
-        // Si usas estado local (ver nota abajo) actualiza la lista en cliente
-        setClientes((prev) => prev.filter((c) => c.id !== deletedId));
-        return;
-      }
-
-      const body = await res.json().catch(() => null);
-      const msg = body?.error || `Error ${res.status}`;
-      toast.error("No se pudo eliminar el cliente", msg);
+      await onDelete(id);
+      toast.success("Cliente eliminado", typeof nombre === "string" ? nombre : undefined);
     } catch (err: any) {
       toast.error("No se pudo eliminar el cliente", err?.message || "Error de red");
     }
@@ -71,7 +55,7 @@ export default function ClienteList({
 
   return (
     <div style={styles.list}>
-      {clientesState.map((cliente) => (
+      {clientes.map((cliente) => (
         <Card
           key={cliente.id}
           onClick={() => handleOnClick(cliente.id)}

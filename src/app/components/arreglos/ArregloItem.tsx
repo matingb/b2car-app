@@ -21,11 +21,13 @@ import {
 type Props = {
   arreglo: Arreglo;
   onClick?: (arreglo: Arreglo) => void;
+  onUpdated?: () => Promise<void> | void;
 };
 
 export default function ArregloItem({
   arreglo: initialArreglo,
   onClick,
+  onUpdated,
 }: Props) {
   const router = useRouter();
   const [openEditModal, setOpenEditModal] = useState(false);
@@ -34,31 +36,6 @@ export default function ArregloItem({
   useEffect(() => {
     setArreglo(initialArreglo);
   }, [initialArreglo]);
-
-  const reloadArreglo = async () => {
-    try {
-      const res = await fetch(`/api/arreglos/${arreglo.id}`);
-      if (res.ok) {
-        const response = await res.json();
-        if (response.data && response.vehiculo) {
-          const updatedArreglo: Arreglo = {
-            ...response.data,
-            vehiculo: {
-              id: response.vehiculo.id,
-              nombre_cliente: arreglo.vehiculo.nombre_cliente,
-              patente: response.vehiculo.patente,
-              marca: response.vehiculo.marca,
-              modelo: response.vehiculo.modelo,
-              fecha_patente: response.vehiculo.fecha_patente,
-            },
-          };
-          setArreglo(updatedArreglo);
-        }
-      }
-    } catch (err) {
-      console.error("Error recargando arreglo:", err);
-    }
-  };
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "";
@@ -199,7 +176,7 @@ export default function ArregloItem({
         onClose={async (updated) => {
           setOpenEditModal(false);
           if (updated) {
-            await reloadArreglo();
+            await onUpdated?.();
           }
         }}
         vehiculoId={arreglo.vehiculo.id}

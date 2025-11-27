@@ -14,7 +14,7 @@ import { TipoCliente } from "@/model/types";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 
 export default function ClientesPage() {
-  const { clientes, loading, createParticular, createEmpresa } = useClientes();
+  const { clientes, loading, createParticular, createEmpresa, deleteCliente } = useClientes();
   const toast = useToast();
 
   const [search, setSearch] = useState("");
@@ -76,7 +76,12 @@ export default function ClientesPage() {
       {loading ? (
         <ListSkeleton />
       ) : (
-        <ClienteList clientes={clientesFiltrados} />
+        <ClienteList
+          clientes={clientesFiltrados}
+          onDelete={async (id) => {
+            await deleteCliente(id);
+          }}
+        />
       )}
 
       <ClienteFormModal
