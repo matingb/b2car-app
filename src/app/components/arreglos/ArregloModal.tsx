@@ -9,7 +9,7 @@ import { COLOR } from "@/theme/theme";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient";
-import { isValidDate } from "@/utils/fechas";
+import { isValidDate, toDateInputFormat } from "@/utils/fechas";
 
 export type ArregloForm = {
   tipo: string;
@@ -36,7 +36,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, vehiculo, init
   const { create, update } = useArreglos();
   const isEdit = !!initial?.id;
   const [tipo, setTipo] = useState(initial?.tipo ?? "");
-  const [fecha, setFecha] = useState(initial?.fecha ?? "");
+  const [fecha, setFecha] = useState(toDateInputFormat(initial?.fecha));
   const [km, setKm] = useState<string>(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
   const [precio, setPrecio] = useState<string>(initial?.precio_final != null ? String(initial.precio_final) : "");
   const [observaciones, setObservaciones] = useState(initial?.observaciones ?? "");
@@ -74,7 +74,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, vehiculo, init
   useEffect(() => {
     if (!open) return;
     setTipo(initial?.tipo ?? "");
-    setFecha(initial?.fecha ?? "");
+    setFecha(toDateInputFormat(initial?.fecha));
     setKm(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
     setPrecio(initial?.precio_final != null ? String(initial.precio_final) : "");
     setObservaciones(initial?.observaciones ?? "");
