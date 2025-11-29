@@ -39,7 +39,6 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
   const [direccion, setDireccion] = useState(initialValues?.direccion ?? "");
   const [tipo, setTipo] = useState<TipoCliente>(initialValues?.tipo_cliente ?? TipoCliente.PARTICULAR);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Sincronizar con initialValues cuando cambian
   React.useEffect(() => {
@@ -77,7 +76,6 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
     if (!isValid) return;
     try {
       setSubmitting(true);
-      setError(null);
       await onSubmit({
         nombre: nombre.trim(),
         apellido: tipo === TipoCliente.PARTICULAR ? apellido.trim() || undefined : undefined,
@@ -90,7 +88,7 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Ocurrió un error";
-      setError(message);
+      console.error(message);
     } finally {
       setSubmitting(false);
     }

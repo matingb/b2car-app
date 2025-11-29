@@ -72,10 +72,7 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
         setLoading(true);
         await fetchClientes();
       } catch (e) {
-        console.error(
-          "No se pudo cargar clientes desde localStorage, intentando fetch",
-          e
-        );
+        console.error("Error cargando clientes", e);
       } finally {
         setLoading(false);
       }
@@ -142,6 +139,8 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     if (error || !data) {
       throw new Error(error || "No se pudo actualizar el particular");
     }
+    const nombre = `${data?.nombre || ""} ${data?.apellido || ""}`.trim();
+    setClientes((prev) => prev.map((c) => c.id === data.id ? { ...c, nombre } : c));
     return data;
   }, []);
 
@@ -150,6 +149,7 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     if (error || !data) {
       throw new Error(error || "No se pudo actualizar la empresa");
     }
+    setClientes((prev) => prev.map((c) => c.id === data.id ? { ...c, ...data } : c));
     return data;
   }, []);
 

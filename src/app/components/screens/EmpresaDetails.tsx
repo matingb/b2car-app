@@ -110,6 +110,8 @@ export default function EmpresaDetails() {
             email={empresa?.email ?? ''}
             telefono={empresa?.telefono}
             onEdit={() => setOpenEditEmpresa(true)}
+            cuit={empresa?.cuit ?? ''}
+            direccion={empresa?.direccion ?? ''}
           />
         </div>
         <div style={{ width: '50%' }}>

@@ -70,7 +70,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       />
                     )}
                     <div style={s.brandTextWrap}>
-                      <div style={s.title}>TallerPro</div>
+                      <div style={s.title}>CarMax</div>
                     </div>
                   </div>
 

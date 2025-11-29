@@ -4,7 +4,7 @@ import React from "react";
 import Card from "@/app/components/ui/Card";
 import IconLabel from "@/app/components/ui/IconLabel";
 import { Divider } from "@mui/material";
-import { Mail, Phone, Pencil, FileText } from "lucide-react";
+import { Mail, Phone, Pencil, FileText, MapPin } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 
 type Props = {
@@ -13,9 +13,10 @@ type Props = {
   cuit?: string;
   onEdit?: () => void;
   style?: React.CSSProperties;
+  direccion?: string;
 };
 
-export default function ContactInfoCard({ email, telefono, cuit, onEdit, style }: Props) {
+export default function ContactInfoCard({ email, telefono, cuit, onEdit, style, direccion }: Props) {
   return (
     <Card style={{ ...styles.contentPanel, ...style }}>
       <div style={styles.header}>
@@ -53,6 +54,12 @@ export default function ContactInfoCard({ email, telefono, cuit, onEdit, style }
           <IconLabel
             icon={<FileText size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
             label={`CUIT: ${cuit}`}
+          />
+        )}
+        {direccion && (
+          <IconLabel
+            icon={<MapPin size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
+            label={direccion}
           />
         )}
       </div>

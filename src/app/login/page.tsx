@@ -30,7 +30,7 @@ export default function LoginPage() {
 
       <div style={styles.rightPane}>
         <div style={styles.rightInner}>
-          <h1 style={styles.brand}>Taller Pro</h1>
+          <h1 style={styles.brand}>CarMax</h1>
           <form onSubmit={handlePasswordSignIn} style={styles.form}>
             <label style={styles.labelBlock}>
               <span style={styles.labelText}>Email</span>
