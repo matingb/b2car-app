@@ -1,30 +1,26 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { Arreglo } from "@/model/types";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { Arreglo, Vehiculo } from "@/model/types";
 import {
   arreglosClient,
   CreateArregloInput,
   UpdateArregloInput,
-  GetArregloByIdResponse,
 } from "@/clients/arreglosClient";
 
 type ArreglosContextType = {
   arreglos: Arreglo[];
-  arregloDetalle: GetArregloByIdResponse | null;
   loading: boolean;
   fetchAll: () => Promise<void>;
-  fetchById: (id: string | number) => Promise<GetArregloByIdResponse | null>;
-  create: (input: CreateArregloInput) => Promise<void>;
-  update: (id: string | number, input: UpdateArregloInput) => Promise<void>;
-  togglePago: (id: string | number, esta_pago: boolean) => Promise<void>;
+  fetchById: (id: string | number) => Promise<Arreglo | null>;
+  create: (input: CreateArregloInput) => Promise<Arreglo | null>;
+  update: (id: string | number, input: UpdateArregloInput, vehiculo?: Vehiculo) => Promise<Arreglo | null>;
 };
 
 const ArreglosContext = createContext<ArreglosContextType | null>(null);
 
 export function ArreglosProvider({ children }: { children: React.ReactNode }) {
   const [arreglos, setArreglos] = useState<Arreglo[]>([]);
-  const [arregloDetalle, setArregloDetalle] = useState<GetArregloByIdResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
   const fetchAll = useCallback(async () => {
@@ -43,8 +39,10 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await arreglosClient.getById(id);
       if (response.error) throw new Error(response.error);
-      setArregloDetalle(response);
-      return response;
+      const arreglo = response.data?.arreglo;
+      if (!arreglo) return null;
+      arreglo.vehiculo = response.data?.vehiculo as Vehiculo;
+      return arreglo;
     } finally {
       setLoading(false);
     }
@@ -53,42 +51,46 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
   const create = useCallback(async (input: CreateArregloInput) => {
     setLoading(true);
     try {
-      const { error } = await arreglosClient.create(input);
-      if (error) throw new Error(error);
-      await fetchAll();
+      const response = await arreglosClient.create(input);
+      if (response?.error) throw new Error(response.error);
+      const arreglo = response?.data;
+      if (arreglo) {
+        setArreglos((prev) => [...prev, arreglo]);
+      }
+      return arreglo ?? null;
     } finally {
       setLoading(false);
     }
-  }, [fetchAll]);
+  }, []);
 
-  const update = useCallback(async (id: string | number, input: UpdateArregloInput) => {
+  const update = useCallback(async (id: string | number, input: UpdateArregloInput, vehiculo?: Vehiculo) => {
     setLoading(true);
     try {
-      const { error } = await arreglosClient.update(id, input);
+      const { data, error } = await arreglosClient.update(id, input);
       if (error) throw new Error(error);
-      await fetchById(id);
-      await fetchAll();
+      if (data && vehiculo) {
+        data.vehiculo = vehiculo;
+      }
+      return data ?? null;
     } finally {
       setLoading(false);
     }
-  }, [fetchAll, fetchById]);
+  }, []);
 
-  const togglePago = useCallback(async (id: string | number, esta_pago: boolean) => {
-    await update(id, { esta_pago });
-  }, [update]);
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
 
   const value = useMemo(
     () => ({
       arreglos,
-      arregloDetalle,
       loading,
       fetchAll,
       fetchById,
       create,
       update,
-      togglePago,
     }),
-    [arreglos, arregloDetalle, loading, fetchAll, fetchById, create, update, togglePago]
+    [arreglos, loading, fetchAll, fetchById, create, update]
   );
 
   return <ArreglosContext.Provider value={value}>{children}</ArreglosContext.Provider>;

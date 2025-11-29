@@ -175,6 +175,7 @@ export default function VehiculoDetailsPage() {
           open={openModal}
           onClose={handleCloseModal}
           vehiculoId={vehiculo.id}
+          vehiculo={vehiculo}
           initial={
             editArreglo
               ? {

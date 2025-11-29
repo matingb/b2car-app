@@ -1,7 +1,27 @@
-import { ArregloDto, ClienteDto, VehiculoDto } from "@/model/dtos";
-import { Arreglo } from "@/model/types";
+import { ArregloDto, VehiculoDto } from "@/model/dtos";
+import { Arreglo, Vehiculo } from "@/model/types";
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
+
+export type GetArregloByIdResponse = {
+  data: { arreglo: Arreglo | null; vehiculo: Vehiculo | null; } | null;
+  error?: string | null;
+};
+
+export type UpdateArregloRequest = {
+  tipo?: string;
+  descripcion?: string;
+  kilometraje_leido?: number;
+  fecha?: string;
+  observaciones?: string;
+  precio_final?: number;
+  esta_pago?: boolean;
+};
+
+export type UpdateArregloResponse = {
+  data: Arreglo | null;
+  error?: string | null;
+};
 
 // GET /api/arreglos/[id] -> obtener un arreglo con su vehículo y cliente
 export async function GET(
@@ -37,22 +57,8 @@ export async function GET(
 
   const vehiculo: VehiculoDto | null = aData.vehiculo ?? null;
 
-  // TODO ver si se puede obtener cliente desde la misma query
-  let cliente: ClienteDto | null = null;
-  try {
-    if (vehiculo && vehiculo.cliente_id) {
-      const { data: cData, error: cError } = await supabase
-        .from("clientes")
-        .select("*")
-        .eq("id", vehiculo.cliente_id)
-        .single();
-      if (!cError) cliente = cData;
-    }
-  } catch (e) {
-    // ignore
-  }
 
-  return Response.json({ data: arreglo, vehiculo, cliente, error: null });
+  return Response.json({ data: { arreglo, vehiculo }, error: null });
 }
 
 // POST /api/arreglos/[id] -> actualizar arreglo (edición parcial)
@@ -94,4 +100,25 @@ export async function POST(
   }
 
   return Response.json({ error: null }, { status: 200 });
+}
+
+// PUT /api/arreglos/[id] -> actualizar arreglo (edición parcial)
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient();
+  const { id } = await params;
+
+  const payload: UpdateArregloRequest | null = await req.json().catch(() => null);
+  if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 });
+
+  const { data, error } = await supabase
+    .from('arreglos')
+    .update(payload)
+    .eq('id', id)
+    .select()
+    .single();
+
+  return Response.json({ data, error }, { status: error ? 500 : 200 });
 }

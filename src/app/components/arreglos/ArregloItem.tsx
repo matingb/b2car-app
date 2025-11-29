@@ -173,13 +173,10 @@ export default function ArregloItem({
       
       <ArregloModal
         open={openEditModal}
-        onClose={async (updated) => {
-          setOpenEditModal(false);
-          if (updated) {
-            await onUpdated?.();
-          }
-        }}
+        onClose={() => setOpenEditModal(false)}
+        onSubmitSuccess={() => onUpdated?.()}
         vehiculoId={arreglo.vehiculo.id}
+        vehiculo={arreglo.vehiculo}
         initial={{
           id: arreglo.id,
           tipo: arreglo.tipo,

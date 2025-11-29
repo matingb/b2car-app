@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
 import Autocomplete, { AutocompleteOption } from "@/app/components/ui/Autocomplete";
-import { Vehiculo } from "@/model/types";
+import { Arreglo, Vehiculo } from "@/model/types";
 import { COLOR } from "@/theme/theme";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
@@ -25,10 +25,12 @@ type Props = {
   open: boolean;
   onClose: (updated?: boolean) => void;
   vehiculoId?: number | string;
+  vehiculo?: Vehiculo;
   initial?: Partial<ArregloForm> & { id?: number };
+  onSubmitSuccess?: (Arreglo: Arreglo) => void;
 };
 
-export default function ArregloModal({ open, onClose, vehiculoId, initial }: Props) {
+export default function ArregloModal({ open, onClose, vehiculoId, vehiculo, initial, onSubmitSuccess }: Props) {
   const { vehiculos, fetchAll: fetchVehiculos } = useVehiculos();
   const { create, update } = useArreglos();
   const isEdit = !!initial?.id;
@@ -85,12 +87,10 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial }: Pro
     const hasVehiculo = vehiculoId || selectedVehiculoId.trim().length > 0;
     return (
       hasVehiculo &&
-      tipo.trim().length > 0 &&
-      fecha.trim().length > 0 &&
-      km.trim().length > 0 &&
-      precio.trim().length > 0
+      fecha.trim().length > 0
+      && descripcion.trim().length > 0
     );
-  }, [tipo, fecha, km, precio, vehiculoId, selectedVehiculoId]);
+  }, [fecha, descripcion, vehiculoId, selectedVehiculoId]);
 
   if (!open) return null;
 
@@ -111,14 +111,20 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial }: Pro
         extra_data: extraData?.trim() || undefined,
       };
 
+      let response: Arreglo | null = null;
       if (isEdit && initial?.id) {
-        await update(initial.id, payload);
+        response = await update(initial.id, payload, vehiculo);
+        if (!response) return;
       } else {
         const finalVehiculoId = vehiculoId || selectedVehiculoId;
-        await create({ vehiculo_id: finalVehiculoId!, ...payload } as CreateArregloInput);
+        response = await create({ vehiculo_id: finalVehiculoId!, ...payload } as CreateArregloInput);
       }
 
-      onClose(true);
+      if (response) {
+        onSubmitSuccess?.(response);
+      }
+
+      onClose();
       if (!isEdit) {
         setTipo("");
         setFecha("");
@@ -168,7 +174,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial }: Pro
                   <input style={styles.input} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Descripcion" />
                 </div>
                 <div style={styles.field}>
-                  <label style={styles.label}>Tipo </label>
+                  <label style={styles.label}>Tipo</label>
                   <Autocomplete options={opcionesDefault} value={tipo} onChange={setTipo} placeholder="Mecanica, Chapa y pintura..." allowCustomValue />
                 </div>
               </div>

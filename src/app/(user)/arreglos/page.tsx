@@ -1,15 +1,15 @@
 "use client";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { Arreglo } from "@/model/types";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import SearchBar from "@/app/components/ui/SearchBar";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
-import ArreglosList from "@/app/components/arreglos/ArreglosList";
-import ArregloModal from "@/app/components/arreglos/ArregloModal";
 import { Plus } from "lucide-react";
 import Button from "@/app/components/ui/Button";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
+import ArregloItem from "@/app/components/arreglos/ArregloItem";
+import ArregloModal from "@/app/components/arreglos/ArregloModal";
 
 export default function ArreglosPage() {
   return <ArreglosPageContent />;
@@ -18,30 +18,20 @@ export default function ArreglosPage() {
 function ArreglosPageContent() {
   const router = useRouter();
   const { arreglos, loading, fetchAll } = useArreglos();
-  const [localArreglos, setLocalArreglos] = useState<Arreglo[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
   const [search, setSearch] = useState("");
   const arreglosFiltrados = useMemo(() => {
-    if (!localArreglos) return [];
+    if (!arreglos) return [];
     const q = search.trim().toLowerCase();
-    if (!q) return localArreglos;
-    return localArreglos.filter((a: Arreglo) =>
+    if (!q) return arreglos;
+    return arreglos.filter((a: Arreglo) =>
       Object.values(a ?? {}).some((v) =>
         String(v ?? "")
           .toLowerCase()
           .includes(q)
       )
     );
-  }, [localArreglos, search]);
-
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
-
-  useEffect(() => {
-    setLocalArreglos(arreglos || []);
-  }, [arreglos]);
+  }, [arreglos, search]);
 
   return (
     <div>
@@ -70,21 +60,22 @@ function ArreglosPageContent() {
       {loading ? (
         <ListSkeleton rows={6} />
       ) : (
-        <ArreglosList
-          arreglos={arreglosFiltrados}
-          onItemClick={(a: Arreglo) => router.push(`/arreglos/${a.id}`)}
-          onUpdated={fetchAll}
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {arreglosFiltrados.map((arreglo) => (
+            <ArregloItem
+              key={arreglo.id}
+              arreglo={arreglo}
+              onClick={(a: Arreglo) => router.push(`/arreglos/${a.id}`)}
+              onUpdated={() => fetchAll()}
+            />
+          ))}
+        </div>
       )}
 
       <ArregloModal
         open={isModalOpen}
-        onClose={(updated) => {
-          setIsModalOpen(false);
-          if (updated) {
-            fetchAll();
-          }
-        }}
+        onClose={() => setIsModalOpen(false)}
+        onSubmitSuccess={() => fetchAll()}
       />
     </div>
   );

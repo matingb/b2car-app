@@ -3,54 +3,34 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
-import { Arreglo, Vehiculo, Cliente } from "@/model/types";
+import { Arreglo } from "@/model/types";
 import { COLOR } from "@/theme/theme";
-import { ArrowLeft, Calendar, Wrench, Gauge, Coins, Pencil, CheckCircle2, XCircle } from "lucide-react";
+import { Calendar, Wrench, Coins, Pencil, CheckCircle2, XCircle } from "lucide-react";
 import { Skeleton, Theme } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
 import VehiculoInfoCard from "@/app/components/vehiculos/VehiculoInfoCard";
-import PropietarioCard from "@/app/components/vehiculos/PropietarioCard";
 import IconLabel from "@/app/components/ui/IconLabel";
 import Card from "@/app/components/ui/Card";
-
-type ArregloResponse = {
-  data: Arreglo | null;
-  vehiculo?: Vehiculo | null;
-  cliente?: Cliente | null;
-  error?: string | null;
-};
+import { useArreglos } from "@/app/providers/ArreglosProvider";
+import { ROUTES } from "@/routing/routes";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [arreglo, setArreglo] = useState<Arreglo | null>(null);
-  const [vehiculo, setVehiculo] = useState<Vehiculo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [openModal, setOpenModal] = useState(false);
+  const { fetchById, update, loading } = useArreglos();
 
   const reload = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-
-      const res = await fetch(`/api/arreglos/${params.id}`);
-      const body: ArregloResponse = await res.json();
-      if (!res.ok) throw new Error(body?.error || `Error ${res.status}`);
-
-      // reconstruir objeto arreglo incluyendo vehiculo como espera el tipo
-      const arregloData = body.data ? { ...body.data, vehiculo: (body.vehiculo as Vehiculo) || null } : null;
-      console.log('Arreglo data loaded:', arregloData);
-      setArreglo(arregloData as Arreglo | null);
-      setVehiculo((body.vehiculo as Vehiculo) || null);
+      const arreglo = await fetchById(params.id);
+      if (!arreglo) return;
+      setArreglo(arreglo);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "No se pudo cargar el arreglo";
-      setError(message);
-    } finally {
-      setLoading(false);
+      console.error(err);
     }
-  }, [params.id]);
+  }, [params.id, fetchById]);
 
   useEffect(() => {
     async function load() {
@@ -62,42 +42,29 @@ export default function ArregloDetailsPage() {
   const handleOpenEdit = () => {
     setOpenModal(true);
   };
-  const handleCloseModal = async (updated?: boolean) => {
+  
+  const handleCloseModal = async () => {
     setOpenModal(false);
-    if (updated) await reload();
+  };
+
+  const handleNavigateToVehiculo = () => {
+    if (arreglo?.vehiculo) {
+      router.push(`${ROUTES.vehiculos}/${arreglo.vehiculo.id}`);
+    }
   };
 
   const togglePago = async () => {
     if (!arreglo) return;
     try {
-      const res = await fetch(`/api/arreglos/${arreglo.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ esta_pago: !arreglo.esta_pago }),
-      });
-      const json = await res.json().catch(() => ({ error: "Error" }));
-      if (!res.ok || json?.error) throw new Error(json?.error || "No se pudo actualizar el estado");
-      // optimistic update
-      setArreglo((prev) => (prev ? { ...prev, esta_pago: !prev.esta_pago } : prev));
-    } catch (err) {
+      const response = await update(arreglo.id, { esta_pago: !arreglo.esta_pago }, arreglo.vehiculo);
+      if (!response) return;
+      setArreglo(response);
+    } catch (err: unknown) {
       console.error(err);
     }
   };
 
-  const handleNavigateToVehiculo = () => {
-    if (vehiculo) router.push(`/vehiculos/${vehiculo.id}`);
-  };
-
   if (loading) return loadingScreen();
-
-  if (error) {
-    return (
-      <div>
-        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton/>
-        <div style={{ marginTop: 16, color: COLOR.ICON.DANGER }}>{error}</div>
-      </div>
-    );
-  }
 
   if (!arreglo) {
     return (
@@ -179,16 +146,20 @@ export default function ArregloDetailsPage() {
                 )}
               </div>
             </Card>
-            <VehiculoInfoCard vehiculo={vehiculo} onEdit={() => { }} maxKilometraje={arreglo.kilometraje_leido} />
+            {arreglo.vehiculo && (
+              <VehiculoInfoCard vehiculo={arreglo.vehiculo} onEdit={() => { }} maxKilometraje={arreglo.kilometraje_leido} onClick={handleNavigateToVehiculo}/>
+            )}
           </div>
         </div>
       </div>
 
-      {arreglo && (
+      {arreglo && arreglo.vehiculo && (
         <ArregloModal
           open={openModal}
           onClose={handleCloseModal}
-          vehiculoId={vehiculo?.id ?? arreglo.vehiculo?.id}
+          onSubmitSuccess={(updatedArreglo) => setArreglo(updatedArreglo)}
+          vehiculoId={arreglo.vehiculo.id}
+          vehiculo={arreglo.vehiculo}
           initial={{
             id: arreglo.id,
             tipo: arreglo.tipo,

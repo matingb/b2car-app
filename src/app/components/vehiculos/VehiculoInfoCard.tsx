@@ -12,6 +12,7 @@ type Props = {
   vehiculo: Vehiculo | null;
   maxKilometraje?: number;
   onEdit: () => void;
+  onClick?: () => void;
   style?: React.CSSProperties;
 };
 
@@ -19,6 +20,7 @@ export default function VehiculoInfoCard({
   vehiculo,
   maxKilometraje,
   onEdit,
+  onClick,
   style,
 }: Props) {
   return (
@@ -42,7 +44,7 @@ export default function VehiculoInfoCard({
           ariaLabel="Editar vehículo"
         />
       </div>
-      <Card style={{ minHeight: "192px" }}>
+      <Card style={{ minHeight: "192px" }} onClick={onClick}>
         <div
           style={{
             display: "grid",
