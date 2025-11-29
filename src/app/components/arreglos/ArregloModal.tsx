@@ -9,6 +9,7 @@ import { COLOR } from "@/theme/theme";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient";
+import { isValidDate } from "@/utils/fechas";
 
 export type ArregloForm = {
   tipo: string;
@@ -87,7 +88,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, vehiculo, init
     const hasVehiculo = vehiculoId || selectedVehiculoId.trim().length > 0;
     return (
       hasVehiculo &&
-      fecha.trim().length > 0
+      isValidDate(fecha)
       && descripcion.trim().length > 0
     );
   }, [fecha, descripcion, vehiculoId, selectedVehiculoId]);

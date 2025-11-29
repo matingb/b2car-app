@@ -20,11 +20,18 @@ export default function Button({
   
   const [hover, setHover] = useState(false);
 
+  const isDisabled = rest.disabled;
+
   return (
     <button
-      style={{ ...styles.button, ...(hover && styles.buttonHover), ...style }}
+      style={{ 
+        ...styles.button, 
+        ...(hover && !isDisabled && styles.buttonHover),
+        ...(isDisabled && styles.buttonDisabled),
+        ...style 
+      }}
       {...rest}
-      onMouseEnter={() => setHover(true)}
+      onMouseEnter={() => !isDisabled && setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={onClick}
     >
@@ -49,5 +56,9 @@ const styles = {
   },
   buttonHover: {
     background: `${COLOR.ACCENT.PRIMARY}90`,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+    cursor: "default",
   },
 } as const;
