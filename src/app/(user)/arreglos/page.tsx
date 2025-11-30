@@ -37,13 +37,7 @@ function ArreglosPageContent() {
     <div>
       <ScreenHeader title="Arreglos" />
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          padding: "16px 0",
-        }}
+        style={styles.searchBarContainer}
       >
         <SearchBar
           value={search}
@@ -80,3 +74,13 @@ function ArreglosPageContent() {
     </div>
   );
 }
+
+const styles = {
+  searchBarContainer: {
+    marginBottom: 16,
+    display: "flex",
+    justifyContent: "start",
+    marginTop: 8,
+    gap: 16,
+  },
+} as const;
