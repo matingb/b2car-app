@@ -19,6 +19,7 @@ type VehiculosContextType = {
   fetchCliente: (vehiculoId: string | number) => Promise<Cliente | null>;
   create: (input: CreateVehiculoRequest) => Promise<number | null>;
   update: (id: string | number, input: UpdateVehiculoRequest) => Promise<void>;
+  remove: (id: string | number) => Promise<void>;
   reassignOwner: (id: string | number, clienteId: string | number) => Promise<void>;
 };
 
@@ -89,6 +90,17 @@ export function VehiculosProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchAll, fetchById]);
 
+  const remove = useCallback(async (id: string | number) => {
+    setLoading(true);
+    try {
+      const { error } = await vehiculoClient.delete(id);
+      if (error) throw new Error(error);
+      await fetchAll();
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchAll]);
+
   const reassignOwner = useCallback(async (id: string | number, clienteId: string | number) => {
     setLoading(true);
     try {
@@ -117,6 +129,7 @@ export function VehiculosProvider({ children }: { children: React.ReactNode }) {
       fetchCliente,
       create,
       update,
+      remove,
       reassignOwner,
     }),
     [vehiculos, vehiculoDetalle, arreglos, cliente, loading, fetchAll, fetchById, fetchCliente, create, update, reassignOwner]

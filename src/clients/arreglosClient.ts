@@ -85,6 +85,22 @@ export const arreglosClient = {
     }
   },
 
+  async delete(id: string | number): Promise<Promise<{ error?: string | null }>> {
+    try {
+      const res = await fetch(`/api/arreglos/${id}`, {
+        method: "DELETE",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body?.error) {
+        throw new Error(body?.error || `Error ${res.status}`);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "No se pudo eliminar el arreglo";
+      throw new Error(message);
+    }
+    return {error: null}
+  },
+
   async togglePago(id: string | number, esta_pago: boolean): Promise<{ error?: string | null }> {
     return this.update(id, { esta_pago });
   },

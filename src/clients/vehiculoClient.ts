@@ -152,6 +152,22 @@ export const vehiculoClient = {
     }
   },
 
+  async delete(id: string | number): Promise<{ error?: string | null }> {
+    try {
+      const res = await fetch(`/api/vehiculos/${id}`, {
+        method: "DELETE",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || (body as any)?.error) {
+        return { error: (body as any)?.error || `Error ${res.status}` };
+      }
+      return { error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "No se pudo eliminar el vehiculo";
+      return { error: message };
+    }
+  },
+
   async reassignOwner(id: string | number, clienteId: string | number): Promise<{ error?: string | null }> {
     try {
       const res = await fetch(`/api/vehiculos/${id}/cliente`, {

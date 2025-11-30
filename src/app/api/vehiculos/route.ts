@@ -49,9 +49,11 @@ export async function POST(req: Request) {
     fecha_patente: fecha_patente ?? null,
   } as const;
 
-  const { error: insertError } = await supabase
+  const { data: inserted, error: insertError } = await supabase
     .from('vehiculos')
-    .insert([insertPayload]);
+    .insert([insertPayload])
+    .select('id')
+    .single();
 
   if (insertError) {
     const code = (insertError as any)?.code || '';
@@ -59,15 +61,24 @@ export async function POST(req: Request) {
     return Response.json({ error: insertError?.message || 'No se pudo crear el vehículo' }, { status });
   }
 
-  const insertedVehiculo = await supabase
-    .from('vehiculos')
-    .select('id')
-    .eq('patente', patente)
-    .single();
-
-  if (insertedVehiculo.error || !insertedVehiculo.data) {
-    return Response.json({ error: 'No se pudo obtener el vehículo creado' }, { status: 500 });
-  }
-  return Response.json({ data: insertedVehiculo.data, ror: null }, { status: 201 });
+  return Response.json({ data: inserted, error: null }, { status: 201 });
 }
 
+export async function DELETE(req: Request) {
+  const supabase = await createClient();
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  if (!id) return Response.json({ error: 'Falta id' }, { status: 400 });
+
+  const {error}  = await supabase
+    .from('vehiculos')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    return Response.json({ error: error?.message || 'No se pudo eliminar el vehículo' }, { status: 500 });
+  }
+
+  return Response.json({ error: null }, { status: 200 });
+}

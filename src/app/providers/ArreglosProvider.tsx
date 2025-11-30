@@ -11,10 +11,11 @@ import {
 type ArreglosContextType = {
   arreglos: Arreglo[];
   loading: boolean;
-  fetchAll: () => Promise<void>;
+  fetchAll: () => Promise<Arreglo[] | null>;
   fetchById: (id: string | number) => Promise<Arreglo | null>;
   create: (input: CreateArregloInput) => Promise<Arreglo | null>;
   update: (id: string | number, input: UpdateArregloInput, vehiculo?: Vehiculo) => Promise<Arreglo | null>;
+  remove: (id: string | number) => Promise<void>;
 };
 
 const ArreglosContext = createContext<ArreglosContextType | null>(null);
@@ -29,6 +30,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await arreglosClient.getAll();
       if (error) throw new Error(error);
       setArreglos(data ?? []);
+      return data ?? null;
     } finally {
       setLoading(false);
     }
@@ -77,6 +79,18 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const remove = useCallback(async (id: string | number) => {
+    setLoading(true);
+    try {
+      const { error } = await arreglosClient.delete(id);
+      if (error) throw new Error(error);
+      setArreglos((prev) => prev.filter((a) => a.id !== id));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
@@ -89,6 +103,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       fetchById,
       create,
       update,
+      remove,
     }),
     [arreglos, loading, fetchAll, fetchById, create, update]
   );

@@ -118,7 +118,7 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
         throw new Error(response.error);
       }
       setClientes((prev) => prev.filter((c) => c.id !== id));
-      return response;
+      //return response;
     } finally {
       setLoading(false);
     }
