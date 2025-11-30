@@ -42,19 +42,5 @@ export const clientesClient = {
       };
     }
   },
-
-  async delete(id: number | string): Promise<DeleteClienteResponse> {
-    try {
-      const res = await fetch(`/api/clientes/${id}`, { method: "DELETE" });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok && res.status !== 404) {
-        return { id: Number(id), error: (body as any)?.error || `Error ${res.status}` };
-      }
-      return { id: (body as any)?.id ?? Number(id), error: null };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "No se pudo eliminar el cliente";
-      return { id: Number(id), error: message };
-    }
-  },
 };
 

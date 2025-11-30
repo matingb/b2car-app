@@ -1,8 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
-import { Cliente, Particular } from "@/model/types";
-import { clientesClient } from "@/clients/clientes/clientesClient";
+import { Cliente, Particular, TipoCliente } from "@/model/types";
+import { clientesClient, DeleteClienteResponse } from "@/clients/clientes/clientesClient";
 import { CreateParticularRequest } from "../api/clientes/particulares/route";
 import { CreateEmpresaRequest } from "../api/clientes/empresas/route";
 import { Empresa, empresaClient } from "@/clients/clientes/empresaClient";
@@ -105,14 +105,20 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);  
 
-  const deleteCliente = useCallback(async (id: number) => {
+  const deleteCliente = useCallback(async (id: number, tipo: TipoCliente) => {
     setLoading(true);
     try {
-      const { error } = await clientesClient.delete(id);
-      if (error) {
-        throw new Error(error);
+      let response: DeleteClienteResponse | null = null;
+      if (tipo === TipoCliente.PARTICULAR) {
+        response = await particularClient.delete(id);
+      } else {
+        response = await empresaClient.delete(id);
+      }
+      if(response?.error) {
+        throw new Error(response.error);
       }
       setClientes((prev) => prev.filter((c) => c.id !== id));
+      return response;
     } finally {
       setLoading(false);
     }

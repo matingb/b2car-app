@@ -1,6 +1,7 @@
 import { Cliente, TipoCliente } from "@/model/types";
 import type { CreateParticularRequest, CreateParticularResponse } from "@/app/api/clientes/particulares/route";
 import type { UpdateParticularRequest, UpdateParticularResponse, GetParticularByIdResponse } from "@/app/api/clientes/particulares/[id]/route";
+import { DeleteClienteResponse } from "./clientesClient";
 
 /**
  * Cliente para operaciones de particulares
@@ -115,5 +116,20 @@ export const particularClient = {
       };
     }
   },
+
+  async delete(id: string | number): Promise<DeleteClienteResponse> {
+    try {
+      const res = await fetch(`/api/clientes/particulares/${id}`, { method: "DELETE" });
+      const body = await res.json();
+      if (!res.ok) {
+        return { error: body?.error || `Error ${res.status}` };
+      }
+      return { id: Number(id), error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "No se pudo eliminar el particular";
+      return { id: Number(id), error: message };
+    }
+  },
+
 };
 

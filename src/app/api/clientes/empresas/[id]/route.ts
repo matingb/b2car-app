@@ -1,6 +1,7 @@
 import { createClient } from '@/supabase/server'
 import type { NextRequest } from 'next/server'
 import { Vehiculo } from '@/model/types'
+import { empresaService } from '../empresaService'
 
 export type Empresa = {
   id: number;
@@ -91,4 +92,19 @@ export async function PUT(
 	}
 
 	return Response.json({ data })
+}
+
+// DELETE /api/clientes/empresas/[id]
+// Elimina una empresa y su cliente asociado en una transacción atómica
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+	const supabase = await createClient()
+	const { id } = await params
+
+	const { error } = await empresaService.delete(supabase, id)
+
+	if (error) {
+		return Response.json({ error: error.message }, { status: 500 })
+	}
+
+	return Response.json({ data: null })
 }

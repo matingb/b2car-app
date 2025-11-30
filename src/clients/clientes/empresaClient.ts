@@ -1,6 +1,7 @@
 import { Cliente, TipoCliente } from "@/model/types";
 import type { CreateEmpresaRequest, CreateEmpresaResponse } from "@/app/api/clientes/empresas/route";
 import type { Empresa as EmpresaType, GetEmpresaByIdResponse, UpdateEmpresaRequest, UpdateEmpresaResponse } from "@/app/api/clientes/empresas/[id]/route";
+import { DeleteClienteResponse } from "./clientesClient";
 
 // Re-exportar el tipo Empresa para mantener compatibilidad con otros módulos
 export type { EmpresaType as Empresa };
@@ -118,6 +119,20 @@ export const empresaClient = {
         data: null,
         error: message,
       };
+    }
+  },
+
+  async delete(id: string | number): Promise<DeleteClienteResponse> {
+    try {
+      const res = await fetch(`/api/clientes/empresas/${id}`, { method: "DELETE" });
+      const body = await res.json();
+      if (!res.ok) {
+        return { error: body?.error || `Error ${res.status}` };
+      }
+      return { id: Number(id), error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "No se pudo eliminar la empresa";
+      return { error: message };
     }
   },
 };

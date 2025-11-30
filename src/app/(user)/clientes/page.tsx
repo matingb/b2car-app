@@ -3,7 +3,7 @@
 import React from "react";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import ClienteFormModal from "@/app/components/clientes/ClienteFormModal";
-import ClienteList from "@/app/components/clientes/ClienteList";
+import ClienteItem from "@/app/components/clientes/ClienteItem";
 import { useState, useMemo } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
@@ -14,7 +14,7 @@ import { TipoCliente } from "@/model/types";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 
 export default function ClientesPage() {
-  const { clientes, loading, createParticular, createEmpresa, deleteCliente } = useClientes();
+  const { clientes, loading, createParticular, createEmpresa } = useClientes();
   const toast = useToast();
 
   const [search, setSearch] = useState("");
@@ -76,12 +76,11 @@ export default function ClientesPage() {
       {loading ? (
         <ListSkeleton />
       ) : (
-        <ClienteList
-          clientes={clientesFiltrados}
-          onDelete={async (id) => {
-            await deleteCliente(id);
-          }}
-        />
+        <div style={styles.list}>
+          {clientesFiltrados.map((cliente) => (
+            <ClienteItem key={cliente.id} cliente={cliente} />
+          ))}
+        </div>
       )}
 
       <ClienteFormModal
@@ -138,5 +137,11 @@ const styles = {
   newButton: {
     height: 40,
     minWidth: 180,
+  },
+  list: {
+    display: "flex",
+    flexDirection: "column" as const,
+    width: "100%",
+    gap: 12,
   }
 };

@@ -56,13 +56,16 @@ export default function IconButton({
       title={title}
     >
       {React.isValidElement(icon)
-        ? React.cloneElement(icon as React.ReactElement<any>, {
-            size,
-            color: "currentColor",
-          })
+        ? React.cloneElement(
+            icon as React.ReactElement<
+              React.SVGProps<SVGSVGElement> & { size: number }
+            >,
+            {
+              size,
+              color: "currentColor",
+            }
+          )
         : icon}
     </button>
   );
 }
-
-

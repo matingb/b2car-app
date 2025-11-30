@@ -1,6 +1,7 @@
 import { createClient } from '@/supabase/server'
 import type { NextRequest } from 'next/server'
 import { Particular } from '@/model/types'
+import { particularService } from '../particularService'
 
 export type UpdateParticularRequest = {
   nombre: string;
@@ -80,4 +81,19 @@ export async function PUT(
 	}
 
 	return Response.json({ data })
+}
+
+// DELETE /api/clientes/particulares/[id]
+// Elimina un particular y su cliente asociado en una transacción atómica
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+	const supabase = await createClient()
+	const { id } = await params
+
+	const { error } = await particularService.delete(supabase, id)
+
+	if (error) {
+		return Response.json({ error: error.message }, { status: 500 })
+	}
+
+	return Response.json({ data: null })
 }
