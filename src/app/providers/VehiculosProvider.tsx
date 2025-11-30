@@ -14,10 +14,10 @@ type VehiculosContextType = {
   arreglos: Arreglo[];
   cliente: Cliente | null;
   loading: boolean;
-  fetchAll: () => Promise<void>;
+  fetchAll: () => Promise<Vehiculo[] | null>;
   fetchById: (id: string | number) => Promise<Vehiculo | null>;
   fetchCliente: (vehiculoId: string | number) => Promise<Cliente | null>;
-  create: (input: CreateVehiculoRequest) => Promise<void>;
+  create: (input: CreateVehiculoRequest) => Promise<number | null>;
   update: (id: string | number, input: UpdateVehiculoRequest) => Promise<void>;
   reassignOwner: (id: string | number, clienteId: string | number) => Promise<void>;
 };
@@ -37,6 +37,7 @@ export function VehiculosProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await vehiculoClient.getAll();
       if (error) throw new Error(error);
       setVehiculos(data ?? []);
+      return data ?? null;
     } finally {
       setLoading(false);
     }
@@ -67,9 +68,10 @@ export function VehiculosProvider({ children }: { children: React.ReactNode }) {
   const create = useCallback(async (input: CreateVehiculoRequest) => {
     setLoading(true);
     try {
-      const { error } = await vehiculoClient.create(input);
+      const { created_id, error } = await vehiculoClient.create(input);
       if (error) throw new Error(error);
       await fetchAll();
+      return created_id ?? null;
     } finally {
       setLoading(false);
     }

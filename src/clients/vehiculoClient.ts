@@ -29,11 +29,12 @@ export type UpdateVehiculoRequest = Partial<
 >;
 
 export type CreateVehiculoResponse = {
+  created_id?: number | null;
   error?: string | null;
 };
 
 export type UpdateVehiculoResponse = {
-  data: Vehiculo | null;
+  data?: Vehiculo | null;
   error?: string | null;
 };
 
@@ -126,7 +127,7 @@ export const vehiculoClient = {
       if (!res.ok || (body as any)?.error) {
         return { error: (body as any)?.error || `Error ${res.status}` };
       }
-      return { error: null };
+      return { created_id: (body as any).data.id || null, error: null };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "No se pudo crear el vehiculo";
       return { error: message };

@@ -59,6 +59,15 @@ export async function POST(req: Request) {
     return Response.json({ error: insertError?.message || 'No se pudo crear el vehículo' }, { status });
   }
 
-  return Response.json({ error: null }, { status: 201 });
+  const insertedVehiculo = await supabase
+    .from('vehiculos')
+    .select('id')
+    .eq('patente', patente)
+    .single();
+
+  if (insertedVehiculo.error || !insertedVehiculo.data) {
+    return Response.json({ error: 'No se pudo obtener el vehículo creado' }, { status: 500 });
+  }
+  return Response.json({ data: insertedVehiculo.data, ror: null }, { status: 201 });
 }
 

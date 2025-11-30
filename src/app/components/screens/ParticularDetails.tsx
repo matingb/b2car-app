@@ -82,6 +82,7 @@ export default function ParticularDetails() {
                 <ContactInfoCard
                     email={particular?.email}
                     telefono={particular?.telefono}
+                    direccion={particular?.direccion}
                     onEdit={() => setOpenEditCliente(true)}
                 />
 
@@ -109,14 +110,14 @@ export default function ParticularDetails() {
             <CreateVehiculoModal
                 open={openVehiculo}
                 onClose={(nuevo) => {
+                    
                     setOpenVehiculo(false);
                     if (nuevo) {
                         setVehiculos((prev) => [
-                            // preprendemos para que se vea primero el recién creado
                             ...prev,
                             {
                                 
-                                id: Math.random(),
+                                id: nuevo.id,
                                 nombre_cliente: particular?.nombre || '',
                                 patente: nuevo.patente,
                                 marca: nuevo.marca || '',
@@ -127,6 +128,7 @@ export default function ParticularDetails() {
 
                         ]);
                     }
+                        
                 }}
                 clienteId={clienteId ?? ''}
             />

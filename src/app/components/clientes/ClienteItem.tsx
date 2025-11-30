@@ -63,8 +63,8 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
             <div style={styles.name}>{`${cliente.nombre}`}</div>
 
             <div style={styles.direccionRow}>
-              <MapPin size={14} color={COLOR.ICON.MUTED} />
-              <span style={styles.direccionText}>{cliente.direccion}</span>
+              <MapPin size={16} color={COLOR.ICON.MUTED} />
+              <span style={styles.direccionText}>{cliente.direccion !== "" ? cliente.direccion : "-"}</span>
             </div>
             <div style={styles.contact}>
               {cliente.email && (

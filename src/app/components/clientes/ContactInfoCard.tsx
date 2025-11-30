@@ -59,7 +59,7 @@ export default function ContactInfoCard({ email, telefono, cuit, onEdit, style, 
         {direccion && (
           <IconLabel
             icon={<MapPin size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
-            label={direccion}
+            label={direccion} 
           />
         )}
       </div>

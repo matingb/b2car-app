@@ -5,8 +5,10 @@ import Card from "../ui/Card";
 import Button from "../ui/Button";
 import { COLOR } from "@/theme/theme";
 import Autocomplete, { AutocompleteOption } from "../ui/Autocomplete";
+import { useVehiculos } from "@/app/providers/VehiculosProvider";
 
 type CreatedVehiculo = {
+  id: number;
   patente: string;
   marca?: string;
   modelo?: string;
@@ -30,6 +32,7 @@ export default function CreateVehiculoModal({ open, onClose, clienteId }: Props)
   const [selectedClienteId, setSelectedClienteId] = useState<string>(
     clienteId ? String(clienteId) : ""
   );
+  const { create, fetchAll } = useVehiculos();
 
   const isValid = useMemo(
     () => patente.trim().length > 0 && (clienteId ? true : selectedClienteId.trim().length > 0),
@@ -73,6 +76,7 @@ export default function CreateVehiculoModal({ open, onClose, clienteId }: Props)
     setError(null);
     try {
       const clienteToSend = clienteId ? clienteId : selectedClienteId;
+      /*
       const res = await fetch("/api/vehiculos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,11 +88,24 @@ export default function CreateVehiculoModal({ open, onClose, clienteId }: Props)
           fecha_patente: fechaPatente || undefined,
         }),
       });
+      */
+      const vehiculo_id = await create({
+        cliente_id: clienteToSend,
+        patente: patente.trim().toUpperCase(),
+        marca: marca.trim() || "",
+        modelo: modelo.trim() || "",
+        fecha_patente: fechaPatente || "",
+      });
+
+      console.log("vehiculo_id created:", vehiculo_id);
+      /*
       const json = await res.json().catch(() => ({ error: "Error" }));
       if (!res.ok || json?.error) {
         throw new Error(json?.error || "No se pudo crear el vehículo");
       }
+        */
       onClose({
+        id: vehiculo_id ?? 0,
         patente: patente.trim().toUpperCase(),
         marca: marca.trim() || undefined,
         modelo: modelo.trim() || undefined,
