@@ -121,7 +121,6 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
 const styles = {
   iconSize: 20,
   container: {
-    padding: "16px 0px",
     display: "flex",
     flexDirection: "row",
     justifyContent: "space-between",
