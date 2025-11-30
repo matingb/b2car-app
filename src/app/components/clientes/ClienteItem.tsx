@@ -134,6 +134,7 @@ const styles = {
     cursor: "pointer",
   },
   name: {
+    fontSize: 18,
     fontWeight: 600,
   },
   contact: {
