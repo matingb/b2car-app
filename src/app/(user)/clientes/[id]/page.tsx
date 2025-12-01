@@ -14,10 +14,10 @@ export default function ClientesDetailsPage() {
   const [tipo, setTipo] = useState<TipoCliente>(TipoCliente.PARTICULAR);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
     const raw = localStorage.getItem("tipo_cliente");
     if (raw) {
-      const normalizado = raw.toUpperCase() as TipoCliente;
+      const normalizado = raw.toLowerCase() as TipoCliente;
+      console.log(normalizado)
       if (Object.values(TipoCliente).includes(normalizado)) {
         setTipo(normalizado);
       }

@@ -75,7 +75,7 @@ export default function EmpresaDetails() {
         email: values.email,
         direccion: values.direccion,
       };
-      
+
       const data = await updateEmpresa(clienteId, payload);
       setEmpresa(data);
       toast.success('Empresa actualizada correctamente');
@@ -149,7 +149,14 @@ export default function EmpresaDetails() {
           setOpenVehiculo(false);
           if (nuevo) {
             setVehiculos((prev) => [
-              { id: Math.random(), nombre_cliente: empresa?.nombre || '', patente: nuevo.patente, marca: nuevo.marca || '', modelo: nuevo.modelo || '', fecha_patente: nuevo.fecha_patente || '' },
+              {
+                id: nuevo.id,
+                nombre_cliente: empresa?.nombre || '',
+                patente: nuevo.patente,
+                marca: nuevo.marca || '',
+                modelo: nuevo.modelo || '',
+                fecha_patente: nuevo.fecha_patente || ''
+              },
               ...prev,
             ]);
           }

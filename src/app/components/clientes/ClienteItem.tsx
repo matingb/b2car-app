@@ -52,7 +52,7 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
     localStorage.setItem("tipo_cliente", tipo);
     router.push(ROUTES.clientes + "/" + cliente.id);
   };
-
+  
   return (
     <Card onClick={handleOnClick}>
       <div style={styles.container}>

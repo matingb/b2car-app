@@ -76,19 +76,6 @@ export default function CreateVehiculoModal({ open, onClose, clienteId }: Props)
     setError(null);
     try {
       const clienteToSend = clienteId ? clienteId : selectedClienteId;
-      /*
-      const res = await fetch("/api/vehiculos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cliente_id: clienteToSend,
-          patente: patente.trim().toUpperCase(),
-          marca: marca.trim() || undefined,
-          modelo: modelo.trim() || undefined,
-          fecha_patente: fechaPatente || undefined,
-        }),
-      });
-      */
       const vehiculo_id = await create({
         cliente_id: clienteToSend,
         patente: patente.trim().toUpperCase(),
@@ -97,13 +84,6 @@ export default function CreateVehiculoModal({ open, onClose, clienteId }: Props)
         fecha_patente: fechaPatente || "",
       });
 
-      console.log("vehiculo_id created:", vehiculo_id);
-      /*
-      const json = await res.json().catch(() => ({ error: "Error" }));
-      if (!res.ok || json?.error) {
-        throw new Error(json?.error || "No se pudo crear el vehículo");
-      }
-        */
       onClose({
         id: vehiculo_id ?? 0,
         patente: patente.trim().toUpperCase(),
