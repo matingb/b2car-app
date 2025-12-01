@@ -39,11 +39,22 @@ export default function ArregloItem({
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "";
-    return new Date(dateString).toLocaleDateString("es-ES", {
+    // Normaliza a ISO (reemplaza espacio por 'T') y formatea en UTC para evitar corrimientos por zona horaria
+    const normalized = dateString.replace(" ", "T");
+    const d = new Date(normalized);
+    if (Number.isNaN(d.getTime())) {
+      // Fallback simple para cadenas tipo YYYY-MM-DD ...
+      const base = dateString.slice(0, 10);
+      const [y, m, da] = base.split("-");
+      if (y && m && da) return `${da}/${m}/${y}`;
+      return base;
+    }
+    return new Intl.DateTimeFormat("es-ES", {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
-    });
+      timeZone: "UTC",
+    }).format(d);
   };
 
   const formatPrice = (price: number) => {

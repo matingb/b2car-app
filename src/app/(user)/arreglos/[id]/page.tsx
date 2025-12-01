@@ -14,6 +14,7 @@ import IconLabel from "@/app/components/ui/IconLabel";
 import Card from "@/app/components/ui/Card";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { ROUTES } from "@/routing/routes";
+import IconButton from "@/app/components/ui/IconButton";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -42,7 +43,7 @@ export default function ArregloDetailsPage() {
   const handleOpenEdit = () => {
     setOpenModal(true);
   };
-  
+
   const handleCloseModal = async () => {
     setOpenModal(false);
   };
@@ -69,7 +70,7 @@ export default function ArregloDetailsPage() {
   if (!arreglo) {
     return (
       <div>
-        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton/>
+        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton />
         <div style={{ marginTop: 16 }}>Arreglo no encontrado.</div>
       </div>
     );
@@ -78,7 +79,7 @@ export default function ArregloDetailsPage() {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton/>
+        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton />
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 16 }}>
@@ -88,14 +89,14 @@ export default function ArregloDetailsPage() {
               <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Resumen</h3>
               <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4 }}>
                 {arreglo.esta_pago ? (
-                    <>
-                      Pagado
-                    </>
-                  ) : (
-                    <>
-                      Pendiente
-                    </>
-                  )}
+                  <>
+                    Pagado
+                  </>
+                ) : (
+                  <>
+                    Pendiente
+                  </>
+                )}
                 <button onClick={togglePago} style={styles.iconBtn} aria-label="toggle pago">
                   {arreglo.esta_pago ? (
                     <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} />
@@ -103,10 +104,14 @@ export default function ArregloDetailsPage() {
                     <XCircle size={18} color={COLOR.ICON.DANGER} />
                   )}
                 </button>
-                
-                <button onClick={handleOpenEdit} style={styles.iconBtn} aria-label="editar">
-                  <Pencil size={18} color={COLOR.ACCENT.PRIMARY} />
-                </button>
+
+                <IconButton
+                  icon={<Pencil />}
+                  size={18}
+                  onClick={handleOpenEdit}
+                  title="Editar vehículo"
+                  ariaLabel="Editar vehículo"
+                />
               </div>
             </div>
             <Card>
@@ -147,7 +152,7 @@ export default function ArregloDetailsPage() {
               </div>
             </Card>
             {arreglo.vehiculo && (
-              <VehiculoInfoCard vehiculo={arreglo.vehiculo} onEdit={() => { }} maxKilometraje={arreglo.kilometraje_leido} onClick={handleNavigateToVehiculo}/>
+              <VehiculoInfoCard vehiculo={arreglo.vehiculo} onEdit={() => { }} maxKilometraje={arreglo.kilometraje_leido} onClick={handleNavigateToVehiculo} />
             )}
           </div>
         </div>
@@ -181,7 +186,7 @@ function loadingScreen() {
   return (
     <div style={{ maxHeight: "100%", minHeight: "0vh" }}>
       <Theme style={{ height: "100%", minHeight: "0vh" }}>
-        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton/>
+        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton />
 
         <div style={{ flex: 1, marginTop: 16, gap: 16, display: "flex", flexDirection: "row", alignItems: "center" }}>
           <Skeleton width="64px" height="64px" />
