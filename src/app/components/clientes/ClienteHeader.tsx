@@ -23,6 +23,7 @@ export default function ClienteHeader({
         alignItems: "center",
         gap: 16,
         marginBottom: 16,
+        marginTop: 10,
       }}
     >
       <Avatar nombre={nombre} size={60} />

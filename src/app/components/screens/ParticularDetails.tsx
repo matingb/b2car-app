@@ -78,7 +78,7 @@ export default function ParticularDetails() {
                 onCreateClick={() => setOpenVehiculo(true)}
             />
 
-            <div style={{ display: "flex", gap: 16, flexDirection: "column" }}>
+            <div style={{ display: "flex", gap: 16, flexDirection: "column"}}>
                 <ContactInfoCard
                     email={particular?.email}
                     telefono={particular?.telefono}
