@@ -214,7 +214,9 @@ export default function Autocomplete({
               ))}
             </div>
           ) : (
-            <div style={styles.noResults}>No se encontraron resultados</div>
+            <div style={styles.spinnerContainer} aria-label="Cargando opciones">
+              <div style={styles.spinner} />
+            </div>
           )}
         </div>
       )}
@@ -315,11 +317,26 @@ const styles = {
     fontSize: 12,
     color: COLOR.TEXT.SECONDARY,
   },
-  noResults: {
+  spinnerContainer: {
     padding: "12px",
-    textAlign: "center",
-    color: COLOR.TEXT.SECONDARY,
-    fontSize: 14,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  spinner: {
+    width: 18,
+    height: 18,
+    borderRadius: "50%",
+    border: `2px solid ${COLOR.BORDER.SUBTLE}`,
+    borderTopColor: COLOR.ACCENT.PRIMARY,
+    animation: "autocomplete-spin 0.8s linear infinite",
   },
 } as const;
+
+// Inline keyframes injection for the spinner animation
+const styleEl = typeof document !== "undefined" ? document.createElement("style") : null;
+if (styleEl) {
+  styleEl.textContent = `@keyframes autocomplete-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+  document.head.appendChild(styleEl);
+}
 
