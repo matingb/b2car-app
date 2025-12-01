@@ -33,7 +33,7 @@ export async function GET(
   };
 
   // 2) Arreglos del vehículo
-const { data: aData, error: aError } = await supabase
+  const { data: aData, error: aError } = await supabase
     .from("arreglos")
     .select("*, vehiculo:vehiculos(*)")
     .eq("vehiculo_id", id)
@@ -125,4 +125,22 @@ export async function PUT(
   }
 
   return Response.json({ data: data[0], error: null });
+}
+
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = await createClient();
+
+  const { id } = await params;
+  if (!id) return Response.json({ error: 'Falta id' }, { status: 400 });
+
+  const { error } = await supabase
+    .from('vehiculos')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    return Response.json({ error: error?.message || 'No se pudo eliminar el vehículo' }, { status: 500 });
+  }
+
+  return Response.json({ error: null }, { status: 200 });
 }

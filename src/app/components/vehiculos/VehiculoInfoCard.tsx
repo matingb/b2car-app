@@ -6,108 +6,78 @@ import IconLabel from "@/app/components/ui/IconLabel";
 import IconButton from "@/app/components/ui/IconButton";
 import { Vehiculo } from "@/model/types";
 import { COLOR } from "@/theme/theme";
-import { Calendar, Gauge, Pencil } from "lucide-react";
+import { Calendar, Gauge, Pencil, Trash } from "lucide-react";
 
 type Props = {
   vehiculo: Vehiculo | null;
   maxKilometraje?: number;
+  onDelete?: () => void;
   onEdit: () => void;
   onClick?: () => void;
+  showDelete?: boolean | false;
   style?: React.CSSProperties;
 };
 
 export default function VehiculoInfoCard({
   vehiculo,
   maxKilometraje,
+  onDelete,
   onEdit,
   onClick,
+  showDelete = false,
   style,
 }: Props) {
   return (
-    <div style={{ minWidth: 300, ...style }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "start",
-          justifyContent: "space-between",
-          marginBottom: 8,
-        }}
-      >
-        <h3 style={{ fontSize: 20, fontWeight: 600 }}>
-          Información del Vehículo
-        </h3>
-        <IconButton
-          icon={<Pencil />}
-          size={18}
-          onClick={onEdit}
-          title="Editar vehículo"
-          ariaLabel="Editar vehículo"
-        />
+    <div style={{ ...styles.container, ...style }}>
+      <div style={styles.headerRow}>
+        <h3 style={styles.title}>Información del Vehículo</h3>
+        <div style={styles.actions}>
+          {showDelete && vehiculo && (
+            <IconButton
+              icon={<Trash />}
+              size={18}
+              onClick={onDelete}
+              title="Editar vehículo"
+              ariaLabel="Editar vehículo"
+            />
+          )}
+          <IconButton
+            icon={<Pencil />}
+            size={18}
+            onClick={onEdit}
+            title="Editar vehículo"
+            ariaLabel="Editar vehículo"
+          />
+        </div>
       </div>
-      <Card style={{ minHeight: "192px" }} onClick={onClick}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: 16,
-          }}
-        >
+      <Card style={styles.card} onClick={onClick}>
+        <div style={styles.grid}>
           <div>
-            <div
-              style={{
-                fontSize: 14,
-                color: COLOR.ICON.MUTED,
-                marginBottom: 4,
-              }}
-            >
+            <div style={styles.label}>
               Patente
             </div>
-            <div
-              style={{
-                fontSize: 18,
-                fontWeight: 600,
-                color: COLOR.ACCENT.PRIMARY,
-              }}
-            >
+            <div style={styles.patente}>
               {vehiculo?.patente}
             </div>
           </div>
           <div>
-            <div
-              style={{
-                fontSize: 14,
-                color: COLOR.ICON.MUTED,
-                marginBottom: 4,
-              }}
-            >
+            <div style={styles.label}>
               Marca
             </div>
-            <div style={{ fontSize: 18, fontWeight: 500 }}>
+            <div style={styles.value}>
               {vehiculo?.marca}
             </div>
           </div>
           <div>
-            <div
-              style={{
-                fontSize: 14,
-                color: COLOR.ICON.MUTED,
-                marginBottom: 4,
-              }}
-            >
+            <div style={styles.label}>
               Modelo
             </div>
-            <div style={{ fontSize: 18, fontWeight: 500 }}>
+            <div style={styles.value}>
               {vehiculo?.modelo}
             </div>
           </div>
           <div>
-            <div
-              style={{
-                fontSize: 14,
-                color: COLOR.ICON.MUTED,
-                marginBottom: 4,
-              }}
-            >
+            <div style={styles.label}>
               Año
             </div>
             <IconLabel
@@ -117,13 +87,7 @@ export default function VehiculoInfoCard({
           </div>
           {typeof maxKilometraje === "number" && (
             <div>
-              <div
-                style={{
-                  fontSize: 14,
-                  color: COLOR.ICON.MUTED,
-                  marginBottom: 4,
-                }}
-              >
+              <div style={styles.label}>
                 Kilometraje
               </div>
               <IconLabel
@@ -137,3 +101,46 @@ export default function VehiculoInfoCard({
     </div>
   );
 }
+
+const styles = {
+  container: {
+    minWidth: 300,
+  },
+  headerRow: {
+    display: "flex",
+    alignItems: "start",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  actions: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 600,
+  },
+  card: {
+    minHeight: "192px",
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+    gap: 16,
+  },
+  label: {
+    fontSize: 14,
+    color: COLOR.ICON.MUTED,
+    marginBottom: 4,
+  },
+  patente: {
+    fontSize: 18,
+    fontWeight: 600,
+    color: COLOR.ACCENT.PRIMARY,
+  },
+  value: {
+    fontSize: 18,
+    fontWeight: 500,
+  },
+} as const;

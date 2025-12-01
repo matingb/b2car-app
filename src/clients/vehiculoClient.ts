@@ -157,7 +157,7 @@ export const vehiculoClient = {
       const res = await fetch(`/api/vehiculos/${id}`, {
         method: "DELETE",
       });
-      const body = await res.json().catch(() => ({}));
+      const body = await res.json().catch(() => ({}));  
       if (!res.ok || (body as any)?.error) {
         return { error: (body as any)?.error || `Error ${res.status}` };
       }

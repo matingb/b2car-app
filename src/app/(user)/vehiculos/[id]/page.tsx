@@ -16,6 +16,7 @@ import ArreglosList from "@/app/components/arreglos/ArreglosList";
 import { ROUTES } from "@/routing/routes";
 import Button from "@/app/components/ui/Button";
 import { vehiculoClient } from "@/clients/vehiculoClient";
+import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 
 export default function VehiculoDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -29,6 +30,7 @@ export default function VehiculoDetailsPage() {
   const [editArreglo, setEditArreglo] = useState<Arreglo | null>(null);
   const [openEditVehiculo, setOpenEditVehiculo] = useState(false);
   const [openReassignOwner, setOpenReassignOwner] = useState(false);
+  const { confirm, alert } = useModalMessage();
 
   // Kilometraje más alto a partir de los arreglos
   const maxKilometraje = useMemo(() => {
@@ -85,6 +87,29 @@ export default function VehiculoDetailsPage() {
     if (updated) await reload();
   };
 
+  const handleDeleteVehiculo = async () => {
+    const confirmed = await confirm({
+      title: "Confirmar eliminación",
+      message: `¿Estás seguro de que deseas eliminar el vehículo ${vehiculo?.patente}? Esta acción no se puede deshacer.`,
+    });
+    if (!confirmed) return;
+    try {
+      setLoading(true); 
+      const err = await vehiculoClient.delete(vehiculo!.id);
+      if (err.error) throw new Error(err.error);
+      router.push(ROUTES.vehiculos);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Ocurrió un error";
+      alert({
+        title: "Error",
+        message: `No se pudo eliminar el vehículo. ${msg}`,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   const handleNavigateToCliente = () => {
     if (cliente) {
       // Guardar tipo de cliente en localStorage para que la página de detalle sepa qué endpoint usar
@@ -138,7 +163,9 @@ export default function VehiculoDetailsPage() {
             style={{ width: "70%" }}
             vehiculo={vehiculo}
             maxKilometraje={maxKilometraje}
+            onDelete={() => handleDeleteVehiculo()}
             onEdit={() => setOpenEditVehiculo(true)}
+            showDelete={true}
           />
 
           {cliente && (
