@@ -7,4 +7,3 @@ BEGIN
   DELETE FROM clientes WHERE id = empresa_id;
 END;
 $$ LANGUAGE plpgsql;
-

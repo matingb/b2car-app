@@ -31,16 +31,14 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
     if (!ok) return;
 
     try {
-      await deleteCliente(cliente.id);
+      await deleteCliente(cliente.id, cliente.tipo_cliente);
       toast.success(
         "Cliente eliminado",
         typeof nombre === "string" ? nombre : undefined
       );
-    } catch (err: any) {
-      toast.error(
-        "No se pudo eliminar el cliente",
-        err?.message || "Error de red"
-      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Error de red";
+      toast.error("No se pudo eliminar el cliente", message);
     }
   };
 

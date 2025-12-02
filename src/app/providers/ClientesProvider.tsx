@@ -20,7 +20,7 @@ type ClientesContextType = {
   getEmpresaById: (id: string) => Promise<Empresa | null>;
   createParticular: (input: CreateParticularRequest) => Promise<Cliente>;
   createEmpresa: (input: CreateEmpresaRequest) => Promise<Cliente>;
-  deleteCliente: (id: number) => Promise<void>;
+  deleteCliente: (id: number, tipo: TipoCliente) => Promise<void>;
   listRepresentantes: (empresaId: string | number) => Promise<Representante[]>;
   createRepresentante: (empresaId: string | number, input: CreateRepresentanteInput) => Promise<Representante>;
   updateParticular: (id: string | number, input: UpdateParticularRequest) => Promise<Particular>;
@@ -140,7 +140,7 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     return data;
   }, []);
 
-  const updateParticular = useCallback(async (id: string | number, input: UpdateParticularRequest) => {
+  const updateParticular = useCallback(async (id: string | number, input: UpdateParticularRequest): Promise<Particular> => {
     const { data, error } = await particularClient.update(id, input);
     if (error || !data) {
       throw new Error(error || "No se pudo actualizar el particular");
@@ -150,7 +150,7 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     return data;
   }, []);
 
-  const updateEmpresa = useCallback(async (id: string | number, input: UpdateEmpresaRequest) => {
+  const updateEmpresa = useCallback(async (id: string | number, input: UpdateEmpresaRequest): Promise<Empresa> => {
     const { data, error } = await empresaClient.update(id, input);
     if (error || !data) {
       throw new Error(error || "No se pudo actualizar la empresa");
