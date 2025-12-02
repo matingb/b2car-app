@@ -9,6 +9,7 @@ import { Vehiculo } from "@/model/types";
 import { ROUTES } from "@/routing/routes";
 import { COLOR } from "@/theme/theme";
 import { formatPatente } from "@/utils/vehiculos";
+import IconButton from "@/app/components/ui/IconButton";
 
 type Props = {
   vehiculos: Vehiculo[];
@@ -19,41 +20,40 @@ export default function VehiculosAsociadosCard({ vehiculos, onAddVehiculo }: Pro
   const router = useRouter();
 
   return (
-    <Card style={styles.contentPanel} >
+    <div>
       <div style={styles.header}>
-        <h2>Vehículos asociados</h2>
-        {onAddVehiculo && (
-          <button
-            onClick={onAddVehiculo}
-            style={styles.iconButton}
-            title="Agregar vehículo"
-          >
-            <Plus size={18} color={COLOR.ACCENT.PRIMARY} />
-          </button>
-        )}
+        <h3>Vehículos asociados</h3>
+        <IconButton
+          icon={<Plus />}
+          size={18}
+          onClick={onAddVehiculo}
+          title="Editar cliente"
+          ariaLabel="Editar cliente"
+        />
       </div>
-      <Divider />
-      <div style={styles.grid}>
-        {vehiculos && vehiculos.length > 0 ? (
-          vehiculos.map((vehiculo: Vehiculo) => (
-            <Card
-              key={vehiculo.id ?? vehiculo.patente ?? Math.random()}
-              style={styles.itemSquare}
-              onClick={() => {
-                router.push(ROUTES.vehiculos + "/" + vehiculo.id);
-              }}
-              aria-label={`Ver vehículo ${vehiculo.patente ?? "-"}`}
-            >
-              <Car size={28} color={COLOR.ACCENT.PRIMARY} />
-              <div style={{ fontWeight: 700, marginTop: 8 }}>{formatPatente(vehiculo.patente)}</div>
-              <div style={{ color: "rgba(0,0,0,0.7)", fontSize: 13 }}>{vehiculo.marca ?? "-"} {vehiculo.modelo ?? "-"}</div>
-            </Card>
-          ))
-        ) : (
-          <span>No hay vehículos asociados</span>
-        )}
-      </div>
-    </Card>
+      <Card style={styles.contentPanel} >
+        <div style={styles.grid}>
+          {vehiculos && vehiculos.length > 0 ? (
+            vehiculos.map((vehiculo: Vehiculo) => (
+              <Card
+                key={vehiculo.id ?? vehiculo.patente ?? Math.random()}
+                style={styles.itemSquare}
+                onClick={() => {
+                  router.push(ROUTES.vehiculos + "/" + vehiculo.id);
+                }}
+                aria-label={`Ver vehículo ${vehiculo.patente ?? "-"}`}
+              >
+                <Car size={28} color={COLOR.ACCENT.PRIMARY} />
+                <div style={{ fontWeight: 700, marginTop: 8 }}>{formatPatente(vehiculo.patente)}</div>
+                <div style={{ color: "rgba(0,0,0,0.7)", fontSize: 13 }}>{vehiculo.marca ?? "-"} {vehiculo.modelo ?? "-"}</div>
+              </Card>
+            ))
+          ) : (
+            <span>No hay vehículos asociados</span>
+          )}
+        </div>
+      </Card>
+    </div>
   );
 }
 
@@ -69,6 +69,9 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    fontSize: 20,
+    marginBottom: 8,
+    fontWeight: 600,
   },
   iconButton: {
     background: "transparent",

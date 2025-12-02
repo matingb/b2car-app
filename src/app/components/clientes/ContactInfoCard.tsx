@@ -6,6 +6,7 @@ import IconLabel from "@/app/components/ui/IconLabel";
 import { Divider } from "@mui/material";
 import { Mail, Phone, Pencil, FileText, MapPin } from "lucide-react";
 import { COLOR } from "@/theme/theme";
+import IconButton from "@/app/components/ui/IconButton";
 
 type Props = {
   email?: string;
@@ -18,52 +19,56 @@ type Props = {
 
 export default function ContactInfoCard({ email, telefono, cuit, onEdit, style, direccion }: Props) {
   return (
-    <Card style={{ ...styles.contentPanel, ...style }}>
+    <div>
       <div style={styles.header}>
-        <h2>Datos de contacto</h2>
+        <h3>Datos de contacto</h3>
         {onEdit && (
-          <button
+          <IconButton
+            icon={<Pencil/>}
+            size={18}
             onClick={onEdit}
-            style={styles.iconButton}
             title="Editar cliente"
-          >
-            <Pencil size={18} color={COLOR.ACCENT.PRIMARY} />
-          </button>
+            ariaLabel="Editar cliente"
+          />
         )}
       </div>
-      <Divider />
+     
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          alignContent: "center",
-          padding: "4px 8px",
-        }}
-      >
-        <IconLabel
-          icon={<Mail size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
-          label={email ?? "-"}
-        />
-        <IconLabel
-          icon={<Phone size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
-          label={telefono ?? "-"}
-        />
-        {cuit && (
+      <Card style={{ ...styles.contentPanel, ...style }}>
+
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            alignContent: "center",
+            padding: "4px 8px",
+          }}
+        >
           <IconLabel
-            icon={<FileText size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
-            label={`CUIT: ${cuit}`}
+            icon={<Mail size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
+            label={email ?? "-"}
           />
-        )}
-        {direccion && (
           <IconLabel
-            icon={<MapPin size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
-            label={direccion} 
+            icon={<Phone size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
+            label={telefono ?? "-"}
           />
-        )}
-      </div>
-    </Card>
+          {cuit && (
+            <IconLabel
+              icon={<FileText size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
+              label={`CUIT: ${cuit}`}
+            />
+          )}
+          {direccion && (
+            <IconLabel
+              icon={<MapPin size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
+              label={direccion}
+            />
+          )}
+        </div>
+      </Card>
+    </div>
   );
 }
 
@@ -79,6 +84,9 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    fontSize: 20,
+    marginBottom: 8,
+    fontWeight: 600,
   },
   iconButton: {
     background: "transparent",
