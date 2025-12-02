@@ -22,8 +22,8 @@ export default function ClienteHeader({
         display: "flex",
         alignItems: "center",
         gap: 16,
-        marginBottom: 16,
-        marginTop: 10,
+        marginBottom: 14,
+        marginTop: 12,
       }}
     >
       <Avatar nombre={nombre} size={60} />
@@ -33,7 +33,7 @@ export default function ClienteHeader({
           {nombre}
         </h1>
         {subtitle && (
-          <div style={{ color: "#666", fontSize: 13, display: "flex", gap: 8 }}>
+          <div style={{ color: "#666", fontSize: 14, display: "flex", gap: 8 }}>
             {subtitle}
           </div>
         )}

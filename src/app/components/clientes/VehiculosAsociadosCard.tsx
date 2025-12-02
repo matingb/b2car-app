@@ -18,6 +18,7 @@ type Props = {
 
 export default function VehiculosAsociadosCard({ vehiculos, onAddVehiculo }: Props) {
   const router = useRouter();
+  const hasVehiculos = Array.isArray(vehiculos) && vehiculos.length > 0;
 
   return (
     <div>
@@ -31,10 +32,10 @@ export default function VehiculosAsociadosCard({ vehiculos, onAddVehiculo }: Pro
           ariaLabel="Editar cliente"
         />
       </div>
-      <Card style={styles.contentPanel} >
-        <div style={styles.grid}>
-          {vehiculos && vehiculos.length > 0 ? (
-            vehiculos.map((vehiculo: Vehiculo) => (
+      <Card style={hasVehiculos ? styles.contentPanel : styles.contentPanelEmpty} >
+        {hasVehiculos ? (
+          <div style={styles.grid}>
+            {vehiculos.map((vehiculo: Vehiculo) => (
               <Card
                 key={vehiculo.id ?? vehiculo.patente ?? Math.random()}
                 style={styles.itemSquare}
@@ -47,11 +48,13 @@ export default function VehiculosAsociadosCard({ vehiculos, onAddVehiculo }: Pro
                 <div style={{ fontWeight: 700, marginTop: 8 }}>{formatPatente(vehiculo.patente)}</div>
                 <div style={{ color: "rgba(0,0,0,0.7)", fontSize: 13 }}>{vehiculo.marca ?? "-"} {vehiculo.modelo ?? "-"}</div>
               </Card>
-            ))
-          ) : (
-            <span>No hay vehículos asociados</span>
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div style={styles.emptyContainer}>
+            <div style={styles.emptyText}>No hay vehículos asociados</div>
+          </div>
+        )}
       </Card>
     </div>
   );
@@ -62,6 +65,13 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 4,
+    width: "100%",
+    height: "100%",
+  },
+  contentPanelEmpty: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     width: "100%",
     height: "100%",
   },
@@ -89,6 +99,21 @@ const styles = {
     gap: 8,
     flexWrap: "wrap",
     marginTop: 8,
+  },
+  emptyContainer: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    height: "100%",
+    padding: 12,
+    boxSizing: "border-box",
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: COLOR.TEXT.SECONDARY,
+    textAlign: "center",
   },
   itemSquare: {
     width: 120,
