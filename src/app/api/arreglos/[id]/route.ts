@@ -122,3 +122,23 @@ export async function PUT(
 
   return Response.json({ data, error }, { status: error ? 500 : 200 });
 }
+
+// DELETE /api/arreglos/[id] -> eliminar arreglo
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient();
+  const { id } = await params;
+
+  if (!id)
+    return Response.json({ error: "ID de arreglo no proporcionado" }, { status: 400 });
+
+
+  const { error } = await supabase
+    .from('arreglos')
+    .delete()
+    .eq('id', id);
+
+  return Response.json({ error }, { status: error ? 500 : 200 });
+}

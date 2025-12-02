@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { Arreglo } from "@/model/types";
 import { COLOR } from "@/theme/theme";
-import { Calendar, Wrench, Coins, Pencil, CheckCircle2, XCircle } from "lucide-react";
+import { Calendar, Wrench, Coins, Pencil, CheckCircle2, XCircle, Trash } from "lucide-react";
 import { Skeleton, Theme } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
@@ -15,13 +15,17 @@ import Card from "@/app/components/ui/Card";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { ROUTES } from "@/routing/routes";
 import IconButton from "@/app/components/ui/IconButton";
+import { useModalMessage } from "@/app/providers/ModalMessageProvider";
+import { useToast } from "@/app/providers/ToastProvider";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [arreglo, setArreglo] = useState<Arreglo | null>(null);
   const [openModal, setOpenModal] = useState(false);
-  const { fetchById, update, loading } = useArreglos();
+  const { fetchById, update, remove, loading } = useArreglos();
+  const { confirm, alert } = useModalMessage();
+  const { success, error } = useToast();
 
   const reload = useCallback(async () => {
     try {
@@ -54,14 +58,38 @@ export default function ArregloDetailsPage() {
     }
   };
 
+  const handleDeleteArreglo = async () => {
+    const confirmed = await confirm({
+      message: "¿Estás seguro de que deseas eliminar este arreglo?",
+      title: "Eliminar arreglo",
+      acceptLabel: "Eliminar",
+      cancelLabel: "Cancelar",
+    });
+    if (!confirmed) return;
+    if (!arreglo) return;
+    try {
+      await remove(arreglo.id);
+      router.push(ROUTES.arreglos);
+      success("Éxito", "El arreglo ha sido eliminado.");
+    } catch (err: unknown) {
+      error(
+        "Error",
+        "No se pudo eliminar el arreglo",
+      );
+    }
+  }
+
+
   const togglePago = async () => {
     if (!arreglo) return;
     try {
       const response = await update(arreglo.id, { esta_pago: !arreglo.esta_pago }, arreglo.vehiculo);
       if (!response) return;
       setArreglo(response);
+      success("Éxito", "El estado de pago ha sido actualizado.");
     } catch (err: unknown) {
       console.error(err);
+      error("Error", "No se pudo actualizar el estado de pago.");
     }
   };
 
@@ -104,6 +132,14 @@ export default function ArregloDetailsPage() {
                     <XCircle size={18} color={COLOR.ICON.DANGER} />
                   )}
                 </button>
+
+                <IconButton
+                  icon={<Trash />}
+                  size={18}
+                  onClick={handleDeleteArreglo}
+                  title="Editar vehículo"
+                  ariaLabel="Editar vehículo"
+                />
 
                 <IconButton
                   icon={<Pencil />}
@@ -164,7 +200,6 @@ export default function ArregloDetailsPage() {
           onClose={handleCloseModal}
           onSubmitSuccess={(updatedArreglo) => setArreglo(updatedArreglo)}
           vehiculoId={arreglo.vehiculo.id}
-          vehiculo={arreglo.vehiculo}
           initial={{
             id: arreglo.id,
             tipo: arreglo.tipo,
