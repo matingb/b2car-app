@@ -60,7 +60,6 @@ function ArreglosPageContent() {
               key={arreglo.id}
               arreglo={arreglo}
               onClick={(a: Arreglo) => router.push(`/arreglos/${a.id}`)}
-              onUpdated={() => fetchAll()}
             />
           ))}
         </div>
