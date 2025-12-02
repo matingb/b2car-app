@@ -24,16 +24,16 @@ export type ArregloForm = {
 
 type Props = {
   open: boolean;
-  onClose: (updated?: boolean) => void;
   vehiculoId?: number | string;
-  vehiculo?: Vehiculo;
   initial?: Partial<ArregloForm> & { id?: number };
+  onClose: (updated?: boolean) => void;
   onSubmitSuccess?: (Arreglo: Arreglo) => void;
 };
 
-export default function ArregloModal({ open, onClose, vehiculoId, vehiculo, initial, onSubmitSuccess }: Props) {
+export default function ArregloModal({ open, onClose, vehiculoId, initial, onSubmitSuccess }: Props) {
   const { vehiculos, fetchAll: fetchVehiculos } = useVehiculos();
   const { create, update } = useArreglos();
+
   const isEdit = !!initial?.id;
   const [tipo, setTipo] = useState(initial?.tipo ?? "");
   const [fecha, setFecha] = useState(toDateInputFormat(initial?.fecha));
@@ -96,10 +96,12 @@ export default function ArregloModal({ open, onClose, vehiculoId, vehiculo, init
   if (!open) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
+
     e.preventDefault();
     if (!isValid) return;
     setSubmitting(true);
     setError(null);
+
     try {
       const payload: Partial<UpdateArregloInput> = {
         tipo: tipo.trim(),
@@ -113,8 +115,9 @@ export default function ArregloModal({ open, onClose, vehiculoId, vehiculo, init
       };
 
       let response: Arreglo | null = null;
+      
       if (isEdit && initial?.id) {
-        response = await update(initial.id, payload, vehiculo);
+        response = await update(initial.id, payload);
         if (!response) return;
       } else {
         const finalVehiculoId = vehiculoId || selectedVehiculoId;

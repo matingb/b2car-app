@@ -187,7 +187,6 @@ export default function ArregloItem({
         onClose={() => setOpenEditModal(false)}
         onSubmitSuccess={() => onUpdated?.()}
         vehiculoId={arreglo.vehiculo.id}
-        vehiculo={arreglo.vehiculo}
         initial={{
           id: arreglo.id,
           tipo: arreglo.tipo,

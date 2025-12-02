@@ -200,24 +200,29 @@ export default function VehiculoDetailsPage() {
       {vehiculo && (
         <ArregloModal
           open={openModal}
-          onClose={handleCloseModal}
           vehiculoId={vehiculo.id}
-          vehiculo={vehiculo}
           initial={
             editArreglo
-              ? {
-                  id: editArreglo.id,
-                  tipo: editArreglo.tipo,
-                  fecha: editArreglo.fecha,
-                  kilometraje_leido: editArreglo.kilometraje_leido,
+            ? {
+              id: editArreglo.id,
+              tipo: editArreglo.tipo,
+              fecha: editArreglo.fecha,
+              kilometraje_leido: editArreglo.kilometraje_leido,
                   precio_final: editArreglo.precio_final,
                   observaciones: editArreglo.observaciones,
                   descripcion: editArreglo.descripcion,
                   esta_pago: editArreglo.esta_pago,
                   extra_data: editArreglo.extra_data,
                 }
-              : undefined
-          }
+                : undefined
+              }
+              onClose={handleCloseModal}
+              onSubmitSuccess={async (nuevo) => {
+                nuevo.vehiculo = vehiculo;
+                setArreglos( (prev) => [nuevo, ...prev]
+                )
+                handleCloseModal(false);
+              }}
         />
       )}
       {vehiculo && (
