@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { login } from "./actions";
 import { COLOR } from "@/theme/theme";
+import { AlignJustify } from "lucide-react";
+import { radii } from "@radix-ui/themes/props";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -30,7 +32,7 @@ export default function LoginPage() {
 
       <div style={styles.rightPane}>
         <div style={styles.rightInner}>
-          <h1 style={styles.brand}>CarMax</h1>
+          <h1 style={styles.brand}>B2Car</h1>
           <form onSubmit={handlePasswordSignIn} style={styles.form}>
             <label style={styles.labelBlock}>
               <span style={styles.labelText}>Email</span>
@@ -44,7 +46,7 @@ export default function LoginPage() {
             </label>
 
             <label style={styles.labelBlock}>
-              <span style={styles.labelText}>Password</span>
+              <span style={styles.labelText}>Contraseña</span>
               <input
                 type="password"
                 value={password}
@@ -59,7 +61,7 @@ export default function LoginPage() {
               disabled={isSubmitting}
               style={{ ...styles.button, ...(isSubmitting ? styles.buttonDisabled : undefined) }}
             >
-              {isSubmitting ? "Signing in..." : "Sign in"}
+              {isSubmitting ? "Iniciando sesión..." : "Iniciar sesión"}
             </button>
           </form>
 
@@ -94,7 +96,7 @@ const styles = {
     borderRadius: 12,
   },
   rightPane: {
-    width: "50%",
+    width: "45%",
     maxWidth: '100%',
     display: 'flex',
     alignItems: 'center',
@@ -107,7 +109,7 @@ const styles = {
     maxWidth: 420,
   },
   brand: {
-    fontSize: 32,
+    fontSize: 48,
     fontWeight: 800,
     marginBottom: '1rem',
   },
