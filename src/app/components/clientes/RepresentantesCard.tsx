@@ -6,6 +6,7 @@ import { Divider } from "@mui/material";
 import { Plus, User } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import { Representante } from "@/model/types";
+import IconButton from "../ui/IconButton";
 
 type Props = {
   representantes: Representante[];
@@ -14,20 +15,18 @@ type Props = {
 
 export default function RepresentantesCard({ representantes, onAddRepresentante }: Props) {
   return (
-    <Card style={styles.contentPanel}>
+    <div>
       <div style={styles.header}>
-        <h2>Representantes</h2>
-        {onAddRepresentante && (
-          <button
+        <h3>Representantes</h3>
+        <IconButton
+            icon={<Plus/>}
+            size={18}
             onClick={onAddRepresentante}
-            style={styles.iconButton}
-            title="Agregar representante"
-          >
-            <Plus size={18} color={COLOR.ACCENT.PRIMARY} />
-          </button>
-        )}
+            title="Editar cliente"
+            ariaLabel="Editar cliente"
+          />
       </div>
-      <Divider />
+    <Card style={styles.contentPanel}>
       <div style={styles.grid}>
         {representantes && representantes.length > 0 ? (
           representantes.map((r) => (
@@ -50,6 +49,7 @@ export default function RepresentantesCard({ representantes, onAddRepresentante 
         )}
       </div>
     </Card>
+    </div>
   );
 }
 
@@ -61,9 +61,12 @@ const styles = {
     width: '100%',
   },
   header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    fontSize: 20,
+    marginBottom: 8,
+    fontWeight: 600,
   },
   iconButton: {
     background: 'transparent',
