@@ -8,9 +8,6 @@ export async function GET() {
         return Response.json({ data: [], error: error.message }, { status: 500 })
     }
 
-    console.log("data vehiculos", data);
-
-
     const vehiculos: Vehiculo[] = data.map(v => ({
       id: v.id,
       nombre_cliente: v.nombre_cliente,
