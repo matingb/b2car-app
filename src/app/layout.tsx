@@ -13,7 +13,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        <link rel="manifest" href="manifest.json"></link>
+        <link rel="manifest" href="/manifest.json"></link>
       </head>
       <body className={openSans.className}>
         <ServiceWorkerRegister />
