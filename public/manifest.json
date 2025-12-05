@@ -1,18 +1,24 @@
 {
-    "name": "Taller Pro",
-    "short_name": "TP",
-    "description": "Taller Pro System",
-    "start_url": "/",
-    "display": "standalone",
-    "background_color": "#e0d56a",
-    "theme_color": "#ffffff",
-    "icons": [
-        {
-            "src": "/favicon.ico",
-            "sizes": "256x256",
-            "type": "image/png"
-        }
-    ]
-  }
-  
-
+  "name": "Taller Pro",
+  "short_name": "TP",
+  "description": "Taller Pro System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7f9",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "256x256",
+      "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screen1.png",
+      "sizes": "349x629",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
+}
