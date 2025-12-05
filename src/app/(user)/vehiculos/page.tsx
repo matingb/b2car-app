@@ -121,7 +121,7 @@ const styles = {
     width: "100%",
   },
   newButton: {
-    height: 40,
-    minWidth: 180,
+    height: '40px',
+    width: '48px',
   }
 } as const;

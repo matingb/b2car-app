@@ -1,7 +1,13 @@
+"use client";
+
 import React from "react";
-import { ArrowLeft, ChevronRight } from "lucide-react";
-import { COLOR } from "@/theme/theme";
+import { ArrowLeft, ChevronRight, Menu } from "lucide-react";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { useRouter } from "next/navigation";
+import Button from "./Button";
+import { css } from "@emotion/react";
+import { useSheet } from "@/app/providers/SheetProvider";
+import MenuSheet from "./MenuSheet";
 
 
 interface ScreenHeaderProps {
@@ -18,8 +24,17 @@ export default function ScreenHeader({
   hasBackButton = false
 }: ScreenHeaderProps) {
   const router = useRouter();
+  const { openSheet } = useSheet();
+
+  const handleOpenMenu = () => {
+    openSheet({
+      content: <MenuSheet />,
+      side: "left",
+    });
+  };
   return (
     <header className={className} style={styles.header}>
+      <div style={styles.titleWrapper}>
       {hasBackButton && (
         <ArrowLeft
           size={20}
@@ -48,15 +63,24 @@ export default function ScreenHeader({
           </ol>
         </nav>
       )}
+      </div>
+      <Button icon={<Menu size={20} />} text="" onClick={handleOpenMenu} css={styles.menuBtn} />
     </header>
   );
 }
 
 const styles = {
+  menuBtn: css({
+    display: "none",
+    height: '40px',
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "flex",
+    },
+  }),
   header: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "start",
+    justifyContent: "space-between",
     gap: 8,
   },
   titleWrapper: {

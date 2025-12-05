@@ -12,6 +12,8 @@ import Button from "@/app/components/ui/Button";
 import { useToast } from "@/app/providers/ToastProvider";
 import { TipoCliente } from "@/model/types";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
+import { BREAKPOINTS } from "@/theme/theme";
+import { css } from "@emotion/react";
 
 export default function ClientesPage() {
   const { clientes, loading, createParticular, createEmpresa } = useClientes();
@@ -28,10 +30,10 @@ export default function ClientesPage() {
         !q
           ? true
           : Object.values(c ?? {}).some((v) =>
-        String(v ?? "")
-          .toLowerCase()
-          .includes(q)
-      )
+            String(v ?? "")
+              .toLowerCase()
+              .includes(q)
+          )
       );
   }, [clientes, search, selectedTipos]);
 
@@ -54,7 +56,7 @@ export default function ClientesPage() {
             placeholder="Buscar clientes..."
             style={styles.searchBar}
           />
-          <Button icon={<PlusIcon size={20}/>} text="Crear cliente" onClick={() => setOpen(true)} style={styles.newButton} />
+          <Button icon={<PlusIcon size={20} />} text="Crear cliente" onClick={() => setOpen(true)} style={styles.newButton} />
         </div>
         <div className="chips-container" aria-label="Filtrar por tipo de cliente">
           {[TipoCliente.PARTICULAR, TipoCliente.EMPRESA].map((tipo) => {
@@ -65,6 +67,7 @@ export default function ClientesPage() {
                 type="button"
                 onClick={() => toggleTipo(tipo)}
                 className={`chip-filter ${isSelected ? "chip-filter--selected" : ""}`}
+                css={styles.chip}
               >
                 {tipo === TipoCliente.PARTICULAR ? "Particulares" : "Empresas"}
               </button>
@@ -131,17 +134,23 @@ const styles = {
     alignItems: "center",
   },
   searchBar: {
-    width: "100%",
-    flexGrow: 1,
+    flexGrow: 0,
   },
   newButton: {
-    height: 40,
-    minWidth: 180,
+    height: '40px',
+    width: '48px',
+    //minWidth: 180,
   },
   list: {
     display: "flex",
     flexDirection: "column" as const,
     width: "100%",
     gap: 12,
-  }
+  },
+  chip: css({
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      fontSize: '14px',
+      padding : '6px 12px',
+    },
+  })
 };

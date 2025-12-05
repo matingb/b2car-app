@@ -11,6 +11,7 @@ const GRAY_650 = "#7F7F7F";
 
 const ACCENT_PRIMARY = "#0080a2";
 const ACCENT_SECONDARY = "#007995";
+const ACCENT_HOVER = "#006f87";
 
 const RED_DANGER = "#8B0000";
 
@@ -65,5 +66,12 @@ export const COLOR = {
     },
     ACCENT: {
         PRIMARY: ACCENT_SECONDARY,
+        HOVER: ACCENT_HOVER,
     },
 } as const;
+
+export const BREAKPOINTS = {
+  sm: 480,
+  md: 768,
+  lg: 1024,
+} as const

@@ -1,0 +1,84 @@
+"use client";
+
+import React from "react";
+import Divider from "@mui/material/Divider";
+import { Users, Car, Wrench, LogOut } from "lucide-react";
+import SidebarItem from "./SidebarItem";
+import { ROUTES } from "@/routing/routes";
+import { logOut } from "@/app/login/actions";
+import { useSheet } from "@/app/providers/SheetProvider";
+import { css } from "@emotion/react";
+import { COLOR } from "@/theme/theme";
+
+export default function MenuSheet() {
+  const { closeSheet } = useSheet();
+
+  const handleNavClick = () => closeSheet();
+  const handleLogout = () => {
+    closeSheet();
+    logOut();
+  };
+
+  return (
+    <div css={styles.container}>
+      <div css={styles.brand}>
+        <span style={{ fontWeight: 700, fontSize: 24}}>CarMax</span>
+      </div>
+
+      <Divider />
+
+      <nav css={styles.nav}>
+        <SidebarItem
+          href={ROUTES.clientes}
+          label="Clientes"
+          icon={<Users size={18} />}
+          onClick={handleNavClick}
+        />
+        <SidebarItem
+          href={ROUTES.vehiculos}
+          label="Vehiculos"
+          icon={<Car size={18} />}
+          onClick={handleNavClick}
+        />
+        <SidebarItem
+          href={ROUTES.arreglos}
+          label="Arreglos"
+          icon={<Wrench size={18} />}
+          onClick={handleNavClick}
+        />
+
+        <Divider />
+
+        <SidebarItem
+          href={""}
+          label="Cerrar sesión"
+          icon={<LogOut size={18} />}
+          onClick={handleLogout}
+        />
+      </nav>
+    </div>
+  );
+}
+
+const styles = {
+  container: css({
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 8,
+  }),
+  brand: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+    paddingInline: "0.25rem",
+  }),
+  nav: css({
+    display: "flex",
+    width: "90%",
+    flexDirection: "column",
+    rowGap: 8,
+  }),
+} as const;

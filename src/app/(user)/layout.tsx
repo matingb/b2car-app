@@ -6,10 +6,13 @@ import SidebarItem from "@/app/components/ui/SidebarItem";
 import { SessionProvider } from "@/app/providers/SessionProvider";
 import { ModalMessageProvider } from "@/app/providers/ModalMessageProvider";
 import ToastProvider from "@/app/providers/ToastProvider";
+import { SheetProvider } from "@/app/providers/SheetProvider";
 import Divider from "@mui/material/Divider";
 import { Users, Car, LogOut, PanelLeft, Wrench } from "lucide-react";
 import { logOut } from "@/app/login/actions";
 import { COLOR } from "@/theme/theme";
+import { css } from '@emotion/react'
+import { BREAKPOINTS } from '@/theme/theme'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -43,9 +46,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <ModalMessageProvider>
         <ToastProvider>
+          <SheetProvider>
           <div style={s.appRoot}>
-            <div style={s.pageContent}>
-              <aside style={s.sidebar} aria-label="Sidebar">
+            <div css={s.pageContent}>
+              <aside css={s.sidebarResponsive} style={s.sidebar} aria-label="Sidebar">
                 <div style={s.card}>
                   <div style={s.sidebarHeaderRow}>
                     <div
@@ -74,7 +78,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     </div>
                   </div>
 
-                  <nav style={s.navList}>
+                  <nav css={s.navList}>
                     <SidebarItem
                       href={ROUTES.clientes}
                       label="Clientes"
@@ -113,12 +117,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </aside>
 
               <main style={s.main}>
-                <div style={s.cardMain}>{children}</div>
+                <div css={s.cardMain}>{children}</div>
               </main>
 
             </div>
 
           </div>
+          </SheetProvider>
         </ToastProvider>
       </ModalMessageProvider>
     </SessionProvider>
@@ -129,30 +134,44 @@ const styles = {
   appRoot: {
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     color: COLOR.TEXT.PRIMARY,
+    minHeight: "100vh",
   },
-  pageContent: {
+  pageContent: css({
     marginLeft: "auto",
     marginRight: "auto",
     display: "flex",
     maxWidth: "90rem",
     columnGap: "2rem",
     padding: "1.5rem",
-  },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      padding: "0.75rem",
+    },
+  }),
   sidebar: {
     width: "14rem",
   },
+  sidebarResponsive: css({
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: 'none',
+    },
+  }),
   card: {
     backgroundColor: COLOR.BACKGROUND.SECONDARY,
     borderRadius: "1rem",
     padding: "1.25rem",
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
   },
-  cardMain: {
+  cardMain: css({
     backgroundColor: COLOR.BACKGROUND.SECONDARY,
     borderRadius: "1rem",
     padding: "1.5rem",
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-  },
+    maxHeight: "100vh",
+    overflowY: "auto",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      padding: "1rem",
+    },
+  }),
   brandBadge: {
     //backgroundColor: ACCENT_PRIMARY,
     color: COLOR.ACCENT.PRIMARY,

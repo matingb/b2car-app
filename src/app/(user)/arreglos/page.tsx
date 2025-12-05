@@ -45,7 +45,7 @@ function ArreglosPageContent() {
           placeholder="Buscar arreglos..."
         />
         <Button
-          style={{ minWidth: "180px" }}
+          style={styles.newButton}
           icon={<Plus size={18} />}
           text="Crear arreglo"
           onClick={() => setIsModalOpen(true)}
@@ -82,4 +82,8 @@ const styles = {
     marginTop: 8,
     gap: 16,
   },
+  newButton: {
+    height: '40px',
+    width: '48px',
+  }
 } as const;
