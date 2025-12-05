@@ -1,6 +1,7 @@
 "use client";
 import "../globals.css";
 import { Open_Sans } from "next/font/google";
+import { ServiceWorkerRegister } from "./providers/ServiceWorkerRegister";
 
 const openSans = Open_Sans({ subsets: ["latin"] });
 
@@ -15,6 +16,7 @@ export default function RootLayout({
         <link rel="manifest" href="manifest.json"></link>
       </head>
       <body className={openSans.className}>
+        <ServiceWorkerRegister />
         {children}
       </body>
     </html>
