@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { Arreglo } from "@/model/types"
 import { createClient } from "@/supabase/server"
 
@@ -17,6 +18,8 @@ export async function GET() {
     if (error) {
         return Response.json({ data: [], error: error.message }, { status: 500 })
     }
+
+    logger.debug("GET /api/arreglos - data:", data, "error:", error);
 
     const arreglos: Arreglo[] = data.map(arreglo => ({
         id: arreglo.id,

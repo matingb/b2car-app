@@ -1,9 +1,13 @@
 import { Vehiculo } from "@/model/types"
 import { createClient } from "@/supabase/server"
+import { logger } from "@/lib/logger"
 
 export async function GET() {
     const supabase = await createClient()
     const { data, error } = await supabase.from('vista_vehiculos_con_clientes').select('*');
+    
+    logger.debug("GET /api/vehiculos - data:", data, "error:", error);
+
     if (error) {
         return Response.json({ data: [], error: error.message }, { status: 500 })
     }

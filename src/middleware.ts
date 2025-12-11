@@ -1,7 +1,13 @@
 import { type NextRequest } from 'next/server'
 import { updateSession } from './supabase/middleware'
+import { logger } from '@/lib/logger';
 
 export async function middleware(request: NextRequest) {
+  logger.info('Request: ', {
+    method: request.method,
+    url: request.nextUrl.href,
+    body: await request.text(),
+  });
   return await updateSession(request)
 }
 

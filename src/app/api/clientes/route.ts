@@ -1,5 +1,6 @@
 import { Cliente, TipoCliente } from "@/model/types"
 import { createClient } from "@/supabase/server"
+import {logger} from "@/lib/logger"
 
 export async function GET() {
     const supabase = await createClient()
@@ -7,6 +8,8 @@ export async function GET() {
         supabase
             .from('clientes')
             .select('*, particular:particulares(*), empresa:empresas(*)')
+
+    logger.debug("Clientes obtenidos:", JSON.stringify(data, null, 2));
 
     if (error) {
         return Response.json({ data: [], error: error.message }, { status: 500 })
