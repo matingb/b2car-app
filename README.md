@@ -35,7 +35,15 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
+## Log Level
 
+Se utiliza una variable de entorno LOG_LEVEL que podra tener alguna de los siguientes valores
+
+`'debug' | 'info' | 'warn' | 'error' | 'none'`
+
+Y tendra como valor por defecto none, donde no se logeara nada
+Para utlizar los logeos se deberan usar las funciones homonimas a cada nivel de log pertenecientes al modulo logger
+Ej: logger.debug("Soy un mensaje de debug, nivel alto de logeo")
 
 ## Database Migration
 
