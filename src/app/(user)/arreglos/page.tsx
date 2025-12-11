@@ -24,13 +24,15 @@ function ArreglosPageContent() {
     if (!arreglos) return [];
     const q = search.trim().toLowerCase();
     if (!q) return arreglos;
-    return arreglos.filter((a: Arreglo) =>
-      Object.values(a ?? {}).some((v) =>
-        String(v ?? "")
-          .toLowerCase()
-          .includes(q)
-      )
-    );
+    return arreglos.filter((a: Arreglo) => {
+      // Busca en las propiedades planas y en la patente del vehículo asociado
+      const inFlat = Object.values(a ?? {}).some((v) =>
+        String(v ?? "").toLowerCase().includes(q)
+      );
+      const patente = String(a?.vehiculo?.patente ?? "").toLowerCase();
+      const inPatente = patente.includes(q);
+      return inFlat || inPatente;
+    });
   }, [arreglos, search]);
 
   return (

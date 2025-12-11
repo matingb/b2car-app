@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   XCircle,
   Pencil,
+  Car,
 } from "lucide-react";
 
 type Props = {
@@ -93,15 +94,12 @@ export default function ArregloItem({
                 )}
               </div>
             </div>
-            <p style={styles.subtitle}>
-              {arreglo.vehiculo.patente} - {arreglo.vehiculo.marca}{" "}
-              {arreglo.vehiculo.modelo}
-            </p>
+            
           </div>
 
           <div style={styles.rightSection}>
             <div style={styles.priceSection}>
-              <span style={styles.priceLabel}>Precio Final</span>
+              
               <span style={styles.priceValue}>
                 {formatPrice(arreglo.precio_final)}
               </span>
@@ -159,10 +157,10 @@ export default function ArregloItem({
           </div>
 
           <div style={styles.infoColumn}>
-            <span style={styles.infoLabel}>Cliente</span>
+            <span style={styles.infoLabel}>Vehiculo</span>
             <IconLabel
-              icon={<User size={18} color={COLOR.ACCENT.PRIMARY} />}
-              label={arreglo.vehiculo.nombre_cliente}
+              icon={<Car size={18} color={COLOR.ACCENT.PRIMARY} />}
+              label={arreglo.vehiculo.patente || "-"}
             />
           </div>
         </div>
@@ -213,7 +211,7 @@ const styles = {
     display: "grid",
     gridTemplateColumns: "1fr auto",
     gap: 16,
-    alignItems: "start",
+    alignItems: "center",
   },
   leftSection: {
     minWidth: 0,
@@ -224,6 +222,7 @@ const styles = {
     alignItems: "center",
     gap: 8,
     marginBottom: 4,
+    maxWidth: "80%",
   },
   mainTitle: {
     fontSize: 20,
@@ -234,7 +233,7 @@ const styles = {
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
-    maxWidth: "100%",
+    
   },
   statusBadgeInline: {
     display: "flex",

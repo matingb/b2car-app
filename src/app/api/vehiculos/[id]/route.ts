@@ -69,9 +69,6 @@ export async function PUT(
   const supabase = await createClient();
   const { id } = await params;
 
-  console.log("=== UPDATE VEHICULO ===");
-  console.log("ID:", id);
-
   let body: { patente?: string; marca?: string; modelo?: string; fecha_patente?: string };
   try {
     body = await req.json();
@@ -79,15 +76,11 @@ export async function PUT(
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  console.log("Body recibido:", JSON.stringify(body, null, 2));
-
   const updateData: Record<string, string | number | undefined> = {};
   if (body.patente !== undefined) updateData.patente = body.patente;
   if (body.marca !== undefined) updateData.marca = body.marca;
   if (body.modelo !== undefined) updateData.modelo = body.modelo;
   if (body.fecha_patente !== undefined) updateData.fecha_patente = body.fecha_patente;
-
-  console.log("Datos a actualizar:", JSON.stringify(updateData, null, 2));
 
   if (Object.keys(updateData).length === 0) {
     return Response.json({ error: "No fields to update" }, { status: 400 });
@@ -99,9 +92,6 @@ export async function PUT(
     .select("*")
     .eq("id", id)
     .single();
-
-  console.log("Vehículo existente:", checkData);
-  console.log("Error al buscar:", checkError);
 
   if (checkError || !checkData) {
     return Response.json({ error: "Vehículo no encontrado" }, { status: 404 });

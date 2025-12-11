@@ -35,7 +35,6 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
 
   const fetchAll = useCallback(async () => {
-    console.log("fetchAll");
     setLoading(true);
     try {
       const { data, error } = await arreglosClient.getAll();

@@ -17,7 +17,6 @@ export default function ClientesDetailsPage() {
     const raw = localStorage.getItem("tipo_cliente");
     if (raw) {
       const normalizado = raw.toLowerCase() as TipoCliente;
-      console.log(normalizado)
       if (Object.values(TipoCliente).includes(normalizado)) {
         setTipo(normalizado);
       }

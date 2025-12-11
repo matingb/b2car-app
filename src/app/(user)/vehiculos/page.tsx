@@ -64,8 +64,6 @@ export default function VehiculosPage() {
     }
   };
 
-  console.log("vehiculosFiltrados", vehiculosFiltrados);
-
   return (
     
     <div>
