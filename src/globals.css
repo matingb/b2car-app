@@ -82,6 +82,7 @@
 
 body {
   color: var(--primary);
+  background-color: var(--color-background-primary);
 }
 
 h1{

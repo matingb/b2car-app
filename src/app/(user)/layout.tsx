@@ -134,7 +134,6 @@ const styles = {
   appRoot: {
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     color: COLOR.TEXT.PRIMARY,
-    minHeight: "100vh",
   },
   pageContent: css({
     marginLeft: "auto",
@@ -166,7 +165,6 @@ const styles = {
     borderRadius: "1rem",
     padding: "1.5rem",
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-    maxHeight: "100vh",
     overflowY: "auto",
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       padding: "1rem",
