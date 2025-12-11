@@ -7,7 +7,7 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/app/components/ui/sheet";
 
 type SheetContextValue = {
   openSheet: (options: {
