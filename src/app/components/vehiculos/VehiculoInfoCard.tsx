@@ -15,6 +15,7 @@ type Props = {
   onEdit: () => void;
   onClick?: () => void;
   showDelete?: boolean | false;
+  showEdit?: boolean | false;
   style?: React.CSSProperties;
 };
 
@@ -25,6 +26,7 @@ export default function VehiculoInfoCard({
   onEdit,
   onClick,
   showDelete = false,
+  showEdit = false,
   style,
 }: Props) {
   return (
@@ -41,45 +43,33 @@ export default function VehiculoInfoCard({
               ariaLabel="Editar vehículo"
             />
           )}
-          <IconButton
-            icon={<Pencil />}
-            size={18}
-            onClick={onEdit}
-            title="Editar vehículo"
-            ariaLabel="Editar vehículo"
-          />
+          {showEdit && (
+            <IconButton
+              icon={<Pencil />}
+              size={18}
+              onClick={onEdit}
+              title="Editar vehículo"
+              ariaLabel="Editar vehículo"
+            />
+          )}
         </div>
       </div>
       <Card style={styles.card} onClick={onClick}>
         <div style={styles.grid}>
           <div>
-            <div style={styles.label}>
-              Patente
-            </div>
-            <div style={styles.patente}>
-              {vehiculo?.patente}
-            </div>
+            <div style={styles.label}>Patente</div>
+            <div style={styles.patente}>{vehiculo?.patente}</div>
           </div>
           <div>
-            <div style={styles.label}>
-              Marca
-            </div>
-            <div style={styles.value}>
-              {vehiculo?.marca}
-            </div>
+            <div style={styles.label}>Marca</div>
+            <div style={styles.value}>{vehiculo?.marca}</div>
           </div>
           <div>
-            <div style={styles.label}>
-              Modelo
-            </div>
-            <div style={styles.value}>
-              {vehiculo?.modelo}
-            </div>
+            <div style={styles.label}>Modelo</div>
+            <div style={styles.value}>{vehiculo?.modelo}</div>
           </div>
           <div>
-            <div style={styles.label}>
-              Año
-            </div>
+            <div style={styles.label}>Año</div>
             <IconLabel
               icon={<Calendar size={18} color={COLOR.ACCENT.PRIMARY} />}
               label={vehiculo?.fecha_patente}
@@ -87,9 +77,7 @@ export default function VehiculoInfoCard({
           </div>
           {typeof maxKilometraje === "number" && (
             <div>
-              <div style={styles.label}>
-                Kilometraje
-              </div>
+              <div style={styles.label}>Kilometraje</div>
               <IconLabel
                 icon={<Gauge size={18} color={COLOR.ACCENT.PRIMARY} />}
                 label={`${maxKilometraje.toLocaleString()} km`}

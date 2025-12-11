@@ -77,10 +77,10 @@ export default function ArregloItem({
       <div style={styles.container}>
         {/* Header superior con badges y precio */}
         <div style={styles.topHeader}>
-          <div style={styles.leftBadges}>
-            <div style={styles.titleSection}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={styles.mainTitle}>{arreglo.descripcion}</span>
+          <div style={styles.leftSection}>
+            <div style={styles.titleRow}>
+              <h3 style={styles.mainTitle}>{arreglo.descripcion}</h3>
+              <div style={styles.statusBadgeInline}>
                 {arreglo.esta_pago ? (
                   <>
                     <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} />{" "}
@@ -92,11 +92,11 @@ export default function ArregloItem({
                   </>
                 )}
               </div>
-              <p style={styles.subtitle}>
-                {arreglo.vehiculo.patente} - {arreglo.vehiculo.marca}{" "}
-                {arreglo.vehiculo.modelo}
-              </p>
             </div>
+            <p style={styles.subtitle}>
+              {arreglo.vehiculo.patente} - {arreglo.vehiculo.marca}{" "}
+              {arreglo.vehiculo.modelo}
+            </p>
           </div>
 
           <div style={styles.rightSection}>
@@ -210,35 +210,45 @@ const styles = {
     gap: 8,
   },
   topHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 12,
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: 16,
+    alignItems: "start",
   },
-  leftBadges: {
-    display: "flex",
-    gap: 12,
-    alignItems: "center",
+  leftSection: {
+    minWidth: 0,
+    overflow: "hidden",
   },
-  statusBadge: {
-    padding: "6px 12px",
-    borderRadius: 6,
+  titleRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  mainTitle: {
+    fontSize: 20,
+    fontWeight: 600,
+    color: COLOR.TEXT.PRIMARY,
+    margin: 0,
+    lineHeight: 1.3,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    maxWidth: "100%",
+  },
+  statusBadgeInline: {
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+    flexShrink: 0,
+    whiteSpace: "nowrap",
     fontSize: 14,
-    fontWeight: 500,
-  },
-  statusPaid: {
-    backgroundColor: COLOR.ACCENT.PRIMARY,
-    color: COLOR.TEXT.CONTRAST,
-  },
-  statusPending: {
-    backgroundColor: COLOR.ACCENT.PRIMARY,
-    color: COLOR.TEXT.CONTRAST,
   },
   rightSection: {
     display: "flex",
     alignItems: "center",
     gap: 12,
+    flexShrink: 0,
   },
   priceSection: {
     display: "flex",
@@ -260,18 +270,6 @@ const styles = {
     height: 1,
     backgroundColor: COLOR.BORDER.SUBTLE,
     margin: "2px 0",
-  },
-  titleSection: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
-  },
-  mainTitle: {
-    fontSize: 20,
-    fontWeight: 600,
-    color: COLOR.TEXT.PRIMARY,
-    margin: 0,
-    lineHeight: 1.3,
   },
   subtitle: {
     fontSize: 14,

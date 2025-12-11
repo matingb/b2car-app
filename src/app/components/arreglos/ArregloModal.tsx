@@ -27,7 +27,7 @@ type Props = {
   vehiculoId?: number | string;
   initial?: Partial<ArregloForm> & { id?: number };
   onClose: (updated?: boolean) => void;
-  onSubmitSuccess?: (Arreglo: Arreglo) => void;
+  onSubmitSuccess?: (arreglo: Arreglo) => void;
 };
 
 export default function ArregloModal({ open, onClose, vehiculoId, initial, onSubmitSuccess }: Props) {
@@ -172,18 +172,9 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
               )}
               <div style={styles.row}>
                 <div style={styles.field}>
-                  <label style={styles.label}>
-                    Descripcion <span style={{ color: "#d00" }}>*</span>
-                  </label>
-                  <input style={styles.input} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Descripcion" />
-                </div>
-                <div style={styles.field}>
                   <label style={styles.label}>Tipo</label>
                   <Autocomplete options={opcionesDefault} value={tipo} onChange={setTipo} placeholder="Mecanica, Chapa y pintura..." allowCustomValue />
                 </div>
-              </div>
-
-              <div style={styles.row}>
                 <div style={styles.field}>
                   <label style={styles.label}>
                     Fecha <span style={{ color: "#d00" }}>*</span>
@@ -196,6 +187,15 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
                     <input type="checkbox" checked={estaPago} onChange={(e) => setEstaPago(e.target.checked)} />
                     <span>Pagado</span>
                   </div>
+                </div>
+              </div>
+
+              <div style={styles.row}>
+                <div style={styles.field}>
+                  <label style={styles.label}>
+                    Descripcion <span style={{ color: "#d00" }}>*</span>
+                  </label>
+                  <textarea style={styles.input} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Descripcion" rows={3} />
                 </div>
               </div>
 
@@ -227,7 +227,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
               <div style={styles.row}>
                 <div style={styles.field}>
                   <label style={styles.label}>Observaciones</label>
-                  <input style={styles.input} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Observaciones" />
+                  <textarea style={styles.input} value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Observaciones" rows={3} />
                 </div>
               </div>
             </div>

@@ -85,8 +85,7 @@ export async function POST(req: Request) {
         extra_data: extra_data ?? null,
     } as const;
 
-    const { data: insertData, error: insertError } = await supabase.from('arreglos').insert([insertPayload]).select().single();
-
+    const { data: insertData, error: insertError } = await supabase.from('arreglos').insert([insertPayload]).select('*, vehiculo:vehiculos(*)').single();
     if (insertError) {
         return Response.json({ error: insertError.message }, { status: 500 });
     }
@@ -96,7 +95,7 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
     const supabase = await createClient();
-    
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (!id) return Response.json({ error: 'Falta id' }, { status: 400 });

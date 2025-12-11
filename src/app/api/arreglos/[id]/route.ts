@@ -1,10 +1,10 @@
-import { ArregloDto, VehiculoDto } from "@/model/dtos";
-import { Arreglo, Vehiculo } from "@/model/types";
+import { ArregloDto } from "@/model/dtos";
+import { Arreglo } from "@/model/types";
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 
 export type GetArregloByIdResponse = {
-  data: { arreglo: Arreglo | null; vehiculo: Vehiculo | null; } | null;
+  data: Arreglo | null;
   error?: string | null;
 };
 
@@ -31,7 +31,7 @@ export async function GET(
   const supabase = await createClient();
   const { id } = await params;
 
-  const { data: aData, error: aError } = await supabase
+  const { data: data, error: aError } = await supabase
     .from("arreglos")
     .select("*, vehiculo:vehiculos(*)")
     .eq("id", id)
@@ -42,23 +42,7 @@ export async function GET(
     return Response.json({ data: null, error: aError.message }, { status });
   }
 
-  const arreglo = {
-    id: aData.id,
-    tipo: aData.tipo,
-    descripcion: aData.descripcion,
-    kilometraje_leido: aData.kilometraje_leido,
-    fecha: aData.fecha,
-    observaciones: aData.observaciones,
-    precio_final: aData.precio_final,
-    precio_sin_iva: aData.precio_sin_iva,
-    esta_pago: aData.esta_pago,
-    extra_data: aData.extra_data,
-  } as const;
-
-  const vehiculo: VehiculoDto | null = aData.vehiculo ?? null;
-
-
-  return Response.json({ data: { arreglo, vehiculo }, error: null });
+  return Response.json({ data: data, error: null });
 }
 
 // POST /api/arreglos/[id] -> actualizar arreglo (edición parcial)
@@ -90,16 +74,18 @@ export async function POST(
     payload.precio_sin_iva = computedSinIva;
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('arreglos')
     .update(payload)
-    .eq('id', id);
+    .eq('id', id)
+    .select('*, vehiculo:vehiculos(*)')
+    .single();
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ error: null }, { status: 200 });
+  return Response.json({ data: data, error: null }, { status: 200 });
 }
 
 // PUT /api/arreglos/[id] -> actualizar arreglo (edición parcial)
@@ -117,10 +103,14 @@ export async function PUT(
     .from('arreglos')
     .update(payload)
     .eq('id', id)
-    .select()
+    .select('*, vehiculo:vehiculos(*)')
     .single();
 
-  return Response.json({ data, error }, { status: error ? 500 : 200 });
+  if (error) {
+    return Response.json({ data: null, error: error.message }, { status: 500 });
+  }
+
+  return Response.json({ data: data, error: null }, { status: 200 });
 }
 
 // DELETE /api/arreglos/[id] -> eliminar arreglo

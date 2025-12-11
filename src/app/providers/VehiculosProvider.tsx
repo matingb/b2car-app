@@ -132,7 +132,7 @@ export function VehiculosProvider({ children }: { children: React.ReactNode }) {
       remove,
       reassignOwner,
     }),
-    [vehiculos, vehiculoDetalle, arreglos, cliente, loading, fetchAll, fetchById, fetchCliente, create, update, reassignOwner]
+    [vehiculos, vehiculoDetalle, arreglos, cliente, loading, fetchAll, fetchById, fetchCliente, create, update, remove, reassignOwner]
   );
 
   return <VehiculosContext.Provider value={value}>{children}</VehiculosContext.Provider>;

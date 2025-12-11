@@ -1,7 +1,14 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Arreglo, Vehiculo } from "@/model/types";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { Arreglo } from "@/model/types";
 import {
   arreglosClient,
   CreateArregloInput,
@@ -14,7 +21,10 @@ type ArreglosContextType = {
   fetchAll: () => Promise<Arreglo[] | null>;
   fetchById: (id: string | number) => Promise<Arreglo | null>;
   create: (input: CreateArregloInput) => Promise<Arreglo | null>;
-  update: (id: string | number, input: UpdateArregloInput, vehiculo?: Vehiculo) => Promise<Arreglo | null>;
+  update: (
+    id: string | number,
+    input: UpdateArregloInput,
+  ) => Promise<Arreglo | null>;
   remove: (id: string | number) => Promise<void>;
 };
 
@@ -25,6 +35,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
 
   const fetchAll = useCallback(async () => {
+    console.log("fetchAll");
     setLoading(true);
     try {
       const { data, error } = await arreglosClient.getAll();
@@ -41,10 +52,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await arreglosClient.getById(id);
       if (response.error) throw new Error(response.error);
-      const arreglo = response.data?.arreglo;
-      if (!arreglo) return null;
-      arreglo.vehiculo = response.data?.vehiculo as Vehiculo;
-      return arreglo;
+      return response.data ?? null;
     } finally {
       setLoading(false);
     }
@@ -65,19 +73,25 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const update = useCallback(async (id: string | number, input: UpdateArregloInput, vehiculo?: Vehiculo) => {
-    setLoading(true);
-    try {
-      const { data, error } = await arreglosClient.update(id, input);
-      if (error) throw new Error(error);
-      if (data && vehiculo) {
-        data.vehiculo = vehiculo;
+  const update = useCallback(
+    async (
+      id: string | number,
+      input: UpdateArregloInput
+    ) => {
+      setLoading(true);
+      try {
+        const { data, error } = await arreglosClient.update(id, input);
+        if (error) throw new Error(error);
+        if (data) {
+          setArreglos((prev) => prev.map((a) => (a.id === id ? data : a)));
+        }
+        return data ?? null;
+      } finally {
+        setLoading(false);
       }
-      return data ?? null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   const remove = useCallback(async (id: string | number) => {
     setLoading(true);
@@ -89,7 +103,6 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
   }, []);
-
 
   useEffect(() => {
     fetchAll();
@@ -105,14 +118,19 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       update,
       remove,
     }),
-    [arreglos, loading, fetchAll, fetchById, create, update]
+    [arreglos, loading, fetchAll, fetchById, create, update, remove]
   );
 
-  return <ArreglosContext.Provider value={value}>{children}</ArreglosContext.Provider>;
+  return (
+    <ArreglosContext.Provider value={value}>
+      {children}
+    </ArreglosContext.Provider>
+  );
 }
 
 export function useArreglos() {
   const ctx = useContext(ArreglosContext);
-  if (!ctx) throw new Error("useArreglos debe usarse dentro de ArreglosProvider");
+  if (!ctx)
+    throw new Error("useArreglos debe usarse dentro de ArreglosProvider");
   return ctx;
 }

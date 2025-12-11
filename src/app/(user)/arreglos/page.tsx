@@ -17,7 +17,7 @@ export default function ArreglosPage() {
 
 function ArreglosPageContent() {
   const router = useRouter();
-  const { arreglos, loading, fetchAll } = useArreglos();
+  const { arreglos, loading } = useArreglos();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   const arreglosFiltrados = useMemo(() => {
@@ -68,7 +68,6 @@ function ArreglosPageContent() {
       <ArregloModal
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSubmitSuccess={() => fetchAll()}
       />
     </div>
   );

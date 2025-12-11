@@ -166,6 +166,7 @@ export default function VehiculoDetailsPage() {
             onDelete={() => handleDeleteVehiculo()}
             onEdit={() => setOpenEditVehiculo(true)}
             showDelete={true}
+            showEdit={true}
           />
 
           {cliente && (
