@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import SearchBar from "@/app/components/ui/SearchBar";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
-import { Plus } from "lucide-react";
+import { Plus, PlusIcon } from "lucide-react";
 import Button from "@/app/components/ui/Button";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import ArregloItem from "@/app/components/arreglos/ArregloItem";
@@ -45,10 +45,11 @@ function ArreglosPageContent() {
           value={search}
           onChange={setSearch}
           placeholder="Buscar arreglos..."
+          style={styles.searchBar}
         />
         <Button
           style={styles.newButton}
-          icon={<Plus size={18} />}
+          icon={<PlusIcon size={20} />}
           text="Crear arreglo"
           onClick={() => setIsModalOpen(true)}
         />
@@ -83,8 +84,12 @@ const styles = {
     marginTop: 8,
     gap: 16,
   },
+  searchBar: {
+    width: "100%",
+    flex: 1,
+  },
   newButton: {
     height: '40px',
-    width: '48px',
+    width: '44px',
   }
 } as const;

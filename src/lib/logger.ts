@@ -1,4 +1,3 @@
-// src/lib/logger.ts
 type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'none';
 
 const LEVEL_ORDER: Record<LogLevel, number> = {
@@ -25,7 +24,6 @@ function shouldLog(level: LogLevel) {
   return LEVEL_ORDER[level] <= LEVEL_ORDER[CURRENT_LEVEL];
 }
 
-// Helpers concretos
 export const logger = {
   debug: (...args: any[]) => {
     if (shouldLog('debug')) console.debug('[DEBUG]', ...args);

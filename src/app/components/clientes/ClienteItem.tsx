@@ -62,13 +62,13 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
   };
 
   return (
-    <Card onClick={handleOnClick}>
+    <Card style={{padding: '10px 12px'}} onClick={handleOnClick}>
       <div css={styles.container}>
         <div css={styles.leftGroup}>
           <Avatar nombre={cliente.nombre} />
 
           <div css={styles.details}>
-            <div style={styles.name}>{`${cliente.nombre}`}</div>
+            <div css={styles.name}>{`${cliente.nombre}`}</div>
 
             <div css={styles.infoBlock}>
               <div style={styles.direccionRow}>
@@ -132,8 +132,7 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
           </div>
 
           <div css={styles.actionButtons}>
-            <IconButton icon={<Eye />} onClick={handleOnClick} size={20} />
-            <IconButton icon={<Trash2 />} onClick={handleDelete} size={20} />
+            <IconButton icon={<Trash2 />} onClick={handleDelete} size={20} hoverColor={COLOR.ICON.DANGER} />
           </div>
         </div>
       </div>
@@ -152,7 +151,7 @@ const styles = {
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       alignItems: "center",
       gap: 8,
-      paddingRight: 12,
+      padding: "0px 0px",
     },
   }),
   leftGroup: css({
@@ -169,10 +168,13 @@ const styles = {
     display: "flex",
     flexDirection: "column",
   }),
-  name: {
+  name: css({
     fontSize: 18,
     fontWeight: 600,
-  },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      fontSize: 16,
+    },
+  }),
   infoBlock: css({
     display: "flex",
     flexDirection: "column",

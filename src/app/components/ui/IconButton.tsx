@@ -9,6 +9,7 @@ type Props = {
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   title?: string;
   ariaLabel?: string;
+  hoverColor?: string;
 };
 
 export default function IconButton({
@@ -17,6 +18,7 @@ export default function IconButton({
   onClick,
   title,
   ariaLabel,
+  hoverColor,
 }: Props) {
   const hasInteraction = !!onClick;
 
@@ -41,7 +43,7 @@ export default function IconButton({
       onMouseEnter={
         hasInteraction
           ? (e) => {
-              e.currentTarget.style.color = COLOR.ACCENT.PRIMARY;
+              e.currentTarget.style.color = hoverColor || COLOR.ACCENT.PRIMARY;
             }
           : undefined
       }

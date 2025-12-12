@@ -6,7 +6,7 @@ import IconLabel from "@/app/components/ui/IconLabel";
 import IconButton from "@/app/components/ui/IconButton";
 import Avatar from "@/app/components/ui/Avatar";
 import { Cliente } from "@/model/types";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { Phone, Mail, MapPin, Pencil } from "lucide-react";
 
 type Props = {
@@ -32,7 +32,7 @@ export default function PropietarioCard({
           marginBottom: 8,
         }}
       >
-        <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+        <h3 css={styles.title}>
           Propietario
         </h3>
         {onReassign && (
@@ -99,4 +99,15 @@ export default function PropietarioCard({
       </Card>
     </div>
   );
+}
+
+const styles = {
+  title: {
+    fontSize: 20,
+    fontWeight: 600,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      fontSize: 18,
+    },
+  },
+
 }

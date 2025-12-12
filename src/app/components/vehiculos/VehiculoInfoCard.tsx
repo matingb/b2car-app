@@ -5,8 +5,9 @@ import Card from "@/app/components/ui/Card";
 import IconLabel from "@/app/components/ui/IconLabel";
 import IconButton from "@/app/components/ui/IconButton";
 import { Vehiculo } from "@/model/types";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { Calendar, Gauge, Pencil, Trash } from "lucide-react";
+import { css } from "@emotion/react";
 
 type Props = {
   vehiculo: Vehiculo | null;
@@ -32,7 +33,7 @@ export default function VehiculoInfoCard({
   return (
     <div style={{ ...styles.container, ...style }}>
       <div style={styles.headerRow}>
-        <h3 style={styles.title}>Información del Vehículo</h3>
+        <h3 css={styles.title}>Información del Vehículo</h3>
         <div style={styles.actions}>
           {showDelete && vehiculo && (
             <IconButton
@@ -55,7 +56,7 @@ export default function VehiculoInfoCard({
         </div>
       </div>
       <Card style={styles.card} onClick={onClick}>
-        <div style={styles.grid}>
+        <div css={styles.grid}>
           <div>
             <div style={styles.label}>Patente</div>
             <div style={styles.patente}>{vehiculo?.patente}</div>
@@ -108,15 +109,21 @@ const styles = {
   title: {
     fontSize: 20,
     fontWeight: 600,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      fontSize: 18,
+    },
   },
   card: {
     minHeight: "192px",
   },
-  grid: {
+  grid: css({
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
     gap: 16,
-  },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    },
+  }),
   label: {
     fontSize: 14,
     color: COLOR.ICON.MUTED,

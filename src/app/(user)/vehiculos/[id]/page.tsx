@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { Vehiculo, Arreglo, Cliente } from "@/model/types";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { Skeleton, Theme } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
@@ -17,6 +17,8 @@ import { ROUTES } from "@/routing/routes";
 import Button from "@/app/components/ui/Button";
 import { vehiculoClient } from "@/clients/vehiculoClient";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
+import { css } from "@emotion/react";
+import { Plus } from "lucide-react";
 
 export default function VehiculoDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -133,34 +135,33 @@ export default function VehiculoDetailsPage() {
     return (
       <div>
         <ScreenHeader title="Vehículos" breadcrumbs={["Detalle"]} />
-        <div style={{ marginTop: 16 }}>Vehículo no encontrado.</div>
+        <div style={styles.notFoundText}>Vehículo no encontrado.</div>
       </div>
     );
   }
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      <div css={styles.headerRow}>
         <ScreenHeader
           title={`${vehiculo.patente} - ${vehiculo.marca} ${vehiculo.modelo}`}
           breadcrumbs={["Detalle"]}
           hasBackButton
         />
       </div>
+      <div css={styles.headerRowMobile}>
+        <ScreenHeader
+          title={`${vehiculo.patente}`}
+          breadcrumbs={["Detalle"]}
+          hasBackButton
+        />
+      </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "start",
-          gap: 16,
-          marginTop: 16,
-        }}
-      >
+      <div style={styles.mainContainer}>
         {/* Bloques superiores: Información del Vehículo y Propietario */}
-        <div style={{ display: "flex", gap: 16 }}>
+        <div style={styles.topBlocks}>
           <VehiculoInfoCard
-            style={{ width: "70%" }}
+            css={styles.vehiculoInfoCard}
             vehiculo={vehiculo}
             maxKilometraje={maxKilometraje}
             onDelete={() => handleDeleteVehiculo()}
@@ -171,7 +172,7 @@ export default function VehiculoDetailsPage() {
 
           {cliente && (
             <PropietarioCard
-              style={{ width: "30%" }}
+              css={styles.propietarioCard}
               cliente={cliente}
               onClick={handleNavigateToCliente}
               onReassign={() => setOpenReassignOwner(true)}
@@ -179,20 +180,14 @@ export default function VehiculoDetailsPage() {
           )}
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 0 }}>
+        <div style={styles.arreglosHeader}>
+          <h3 css={styles.arreglosTitle}>
             Ultimos arreglos
           </h3>
           <Button
             text="Nuevo arreglo"
+            icon={<Plus size={20}/>}
             onClick={handleOpenCreate}
-            style={{ padding: "8px 16px" }}
           />
         </div>
 
@@ -250,66 +245,27 @@ export default function VehiculoDetailsPage() {
 
 function loadingScreen() {
   return (
-    <div style={{ maxHeight: "100%", minHeight: "0vh" }}>
-      <Theme style={{ height: "100%", minHeight: "0vh" }}>
+    <div style={styles.loadingRoot}>
+      <Theme style={styles.loadingTheme}>
         <ScreenHeader title="Vehículos" breadcrumbs={["Detalle"]} />
 
-        <div
-          style={{
-            flex: 1,
-            marginTop: 16,
-            gap: 16,
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-          }}
-        >
+        <div style={styles.loadingHeaderRow}>
           <Skeleton width="64px" height="64px" />
           <Skeleton width="256px" height="16px" />
         </div>
-        <div style={{ display: "flex", gap: 16, marginTop: 16 }}>
-          <div
-            style={{
-              flex: 1,
-              marginTop: 16,
-              gap: 16,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "start",
-              width: "50%",
-            }}
-          >
+        <div style={styles.loadingTopRow}>
+          <div style={styles.loadingColumnHalf}>
             <Skeleton width="80%" height="16px" />
             <Skeleton width="95%" height="16px" />
             <Skeleton width="95%" height="16px" />
           </div>
-          <div
-            style={{
-              flex: 1,
-              marginTop: 16,
-              gap: 16,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "start",
-              width: "50%",
-            }}
-          >
+          <div style={styles.loadingColumnHalf}>
             <Skeleton width="80%" height="16px" />
             <Skeleton width="95%" height="16px" />
             <Skeleton width="90%" height="16px" />
           </div>
         </div>
-        <div
-          style={{
-            flex: 1,
-            marginTop: 32,
-            gap: 24,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            width: "100%",
-          }}
-        >
+        <div style={styles.loadingList}>
           <Skeleton width="100%" height="16px" />
           <Skeleton width="90%" height="16px" />
           <Skeleton width="90%" height="16px" />
@@ -318,3 +274,98 @@ function loadingScreen() {
     </div>
   );
 }
+
+const styles = {
+  headerRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 16,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "none",
+    },
+  },
+  headerRowMobile: css({
+    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "none",
+    },
+  }), 
+  mainContainer: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "start",
+    gap: 16,
+    marginTop: 16,
+  },
+  topBlocks: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+  },
+  vehiculoInfoCard: css({
+    width: "70%",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      width: "100%",
+    },
+  }),
+  propietarioCard: css({
+    width: "30%",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      width: "100%",
+    },
+  }),
+  arreglosHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  arreglosTitle: css({
+    fontSize: 20,
+    fontWeight: 600,
+    marginBottom: 0,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      fontSize: 18,
+    },
+  }),
+  notFoundText: {
+    marginTop: 16,
+  },
+  loadingRoot: {
+    maxHeight: "100%",
+    minHeight: "0vh",
+  },
+  loadingTheme: {
+    height: "100%",
+    minHeight: "0vh",
+  },
+  loadingHeaderRow: {
+    flex: 1,
+    marginTop: 16,
+    gap: 16,
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  loadingTopRow: {
+    display: "flex",
+    gap: 16,
+    marginTop: 16,
+  },
+  loadingColumnHalf: {
+    flex: 1,
+    marginTop: 16,
+    gap: 16,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "start",
+    width: "50%",
+  },
+  loadingList: {
+    flex: 1,
+    marginTop: 32,
+    gap: 24,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    width: "100%",
+  },
+} as const;

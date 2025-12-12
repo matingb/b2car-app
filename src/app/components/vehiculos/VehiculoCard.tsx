@@ -3,7 +3,8 @@
 import Card from "@/app/components/ui/Card";
 import IconLabel from "@/app/components/ui/IconLabel";
 import { Vehiculo } from "@/model/types";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { css } from "@emotion/react";
 import { User, Eye } from "lucide-react";
 
 interface VehiculoCardProps {
@@ -15,11 +16,12 @@ export default function VehiculoCard({ vehiculo, onClick }: VehiculoCardProps) {
   return (
     <Card
       onClick={onClick}
+      style={{ padding: "10px 12px" }}
     >
-      <div style={styles.cardContent}>
-        <div style={styles.patenteSection}>
-          <div style={styles.patenteLabel}>PATENTE</div>
-          <div style={styles.patenteValue}>{vehiculo.patente}</div>
+      <div css={styles.cardContent}>
+        <div css={styles.patenteSection}>
+          <div css={styles.patenteLabel}>PATENTE</div>
+          <div style={styles.patenteValue}><h3>{vehiculo.patente}</h3></div>
         </div>
 
         <div style={styles.divider} />
@@ -29,13 +31,12 @@ export default function VehiculoCard({ vehiculo, onClick }: VehiculoCardProps) {
             <h2 style={styles.vehicleTitle}>
               {vehiculo.marca} {vehiculo.modelo}
               {vehiculo.fecha_patente && (
-                <span style={styles.yearBadge}>({vehiculo.fecha_patente})</span>
+                <span css={styles.yearBadge}>({vehiculo.fecha_patente})</span>
               )}
             </h2>
-            <Eye size={20} color={COLOR.TEXT.SECONDARY} style={{ flexShrink: 0 }} />
           </div>
 
-          <div style={styles.detailsRow}>
+          <div css={styles.detailsRow}>
             <IconLabel
               icon={<User size={18} color={COLOR.ACCENT.PRIMARY} />}
               label={vehiculo.nombre_cliente}
@@ -48,26 +49,38 @@ export default function VehiculoCard({ vehiculo, onClick }: VehiculoCardProps) {
 }
 
 const styles = {
-  cardContent: {
+  cardContent: css({
     display: "flex",
     alignItems: "stretch",
     gap: 16,
-  },
-  patenteSection: {
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      gap: 16,
+      alignItems: "center",
+      justifyContent: "start",
+    },
+  }),
+  patenteSection: css({
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
     width: "120px",
     padding: "8px 12px",
-  },
-  patenteLabel: {
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      padding: "0",
+      width: "120px",
+    },
+  }),
+  patenteLabel: css({
     fontSize: 10,
     fontWeight: 600,
     color: COLOR.TEXT.SECONDARY,
     letterSpacing: "0.5px",
     marginBottom: 4,
-  },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "none",
+    },
+  }),
   patenteValue: {
     fontSize: 22,
     fontWeight: 700,
@@ -99,17 +112,23 @@ const styles = {
     margin: 0,
     lineHeight: 1.3,
   },
-  yearBadge: {
+  yearBadge: css({
     fontSize: 16,
     fontWeight: 400,
     color: COLOR.TEXT.SECONDARY,
     marginLeft: 6,
-  },
-  detailsRow: {
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "none",
+    },
+  }),
+  detailsRow: css({
     display: "flex",
     flexWrap: "wrap",
     gap: 16,
     alignItems: "center",
-  },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "none",
+    },
+  }),
 } as const;
 
