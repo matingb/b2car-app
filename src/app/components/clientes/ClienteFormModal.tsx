@@ -64,10 +64,11 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
 
   const isValid = useMemo(() => {
     if (nombre.trim().length === 0) return false;
+    if (apellido.trim().length === 0 && tipo === TipoCliente.PARTICULAR) return false;
     // CUIT obligatorio para empresas
     if (tipo === TipoCliente.EMPRESA && cuit.trim().length === 0) return false;
     return true;
-  }, [nombre, tipo, cuit]);
+  }, [nombre, tipo, cuit, apellido]);
 
   if (!open) return null;
 
@@ -115,7 +116,7 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
                 </div>
                 {tipo === TipoCliente.PARTICULAR && (
                   <div style={styles.field}>
-                    <label style={styles.label}>Apellido</label>
+                    <label style={styles.label}>Apellido <span style={{color: "#d00"}}>*</span></label>
                     <input
                       style={styles.input}
                       placeholder="Apellido"
