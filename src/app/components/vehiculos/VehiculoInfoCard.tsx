@@ -55,7 +55,7 @@ export default function VehiculoInfoCard({
           )}
         </div>
       </div>
-      <Card style={styles.card} onClick={onClick}>
+      <Card onClick={onClick}>
         <div css={styles.grid}>
           <div>
             <div style={styles.label}>Patente</div>
@@ -112,9 +112,6 @@ const styles = {
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       fontSize: 18,
     },
-  },
-  card: {
-    minHeight: "192px",
   },
   grid: css({
     display: "grid",
