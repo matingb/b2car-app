@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Building2, MapPin } from "lucide-react";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { TipoCliente, Vehiculo } from "@/model/types";
 import CreateVehiculoModal from "../vehiculos/CreateVehiculoModal";
 import ClienteHeader from "../clientes/ClienteHeader";
@@ -16,6 +16,7 @@ import type { UpdateEmpresaRequest } from "@/app/api/clientes/empresas/[id]/rout
 import { useParams } from "next/navigation";
 import { Empresa } from "@/clients/clientes/empresaClient";
 import { useClientes } from "@/app/providers/ClientesProvider";
+import { css } from "@emotion/react";
 
 
 export default function EmpresaDetails() {
@@ -104,8 +105,8 @@ export default function EmpresaDetails() {
         onCreateClick={() => setOpenVehiculo(true)}
       />
 
-      <div style={{ display: "flex", gap: 16 }}>
-        <div style={{ width: '50%' }}>
+      <div css={styles.columnsRow}>
+        <div css={styles.half}>
           <ContactInfoCard
             email={empresa?.email ?? ''}
             telefono={empresa?.telefono}
@@ -114,14 +115,14 @@ export default function EmpresaDetails() {
             direccion={empresa?.direccion ?? ''}
           />
         </div>
-        <div style={{ width: '50%' }}>
+        <div css={styles.half}>
           <VehiculosAsociadosCard
             vehiculos={vehiculos}
             onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
           />
         </div>
       </div>
-      <div style={{ width: '100%', marginTop: 16 }}>
+      <div style={styles.fullWidthMarginTop}>
         <RepresentantesCard
           representantes={representantes}
           onAddRepresentante={clienteId ? () => setOpenRepresentante(true) : undefined}
@@ -183,3 +184,23 @@ export default function EmpresaDetails() {
     </div>
   );
 }
+
+const styles = {
+  columnsRow: css({
+    display: "flex",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      flexWrap: "wrap",
+    },
+    gap: 16,
+  }),
+  half: css({
+    width: "50%",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      width: "100%",
+    },
+  }),
+  fullWidthMarginTop: {
+    width: "100%",
+    marginTop: 16,
+  },
+} as const;
