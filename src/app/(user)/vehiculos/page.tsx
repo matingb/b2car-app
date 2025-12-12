@@ -10,12 +10,12 @@ import Button from "@/app/components/ui/Button";
 import { PlusIcon } from "lucide-react";
 import CreateVehiculoModal from "@/app/components/vehiculos/CreateVehiculoModal";
 import { vehiculoClient } from "@/clients/vehiculoClient";
+import { useVehiculos } from "@/app/providers/VehiculosProvider";
 
 
 export default function VehiculosPage() {
   const router = useRouter();
-  const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {vehiculos, loading} = useVehiculos();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   
@@ -31,36 +31,15 @@ export default function VehiculosPage() {
   }, [vehiculos, search]);
 
   useEffect(() => {
-    const fetchVehiculos = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await vehiculoClient.getAll();
-        if (error) {
-          console.error(error);
-        }
-        setVehiculos(data ?? []);
-      } catch (e) {
-        console.error("Error cargando vehículos", e);
-        setVehiculos([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchVehiculos();
   }, []);
 
   // expose fetch so modal can trigger a reload after creating
   const fetchAndSetVehiculos = async () => {
     try {
-      setLoading(true);
       const { data, error } = await vehiculoClient.getAll();
       if (error) console.error(error);
-      setVehiculos(data ?? []);
     } catch (e) {
       console.error("Error cargando vehículos", e);
-      setVehiculos([]);
-    } finally {
-      setLoading(false);
     }
   };
 
