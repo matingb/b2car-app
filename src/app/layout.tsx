@@ -12,6 +12,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content"></meta>
       <head>
         <link rel="manifest" href="/manifest.json"></link>
       </head>

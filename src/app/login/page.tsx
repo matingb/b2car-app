@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { login } from "./actions";
-import { COLOR } from "@/theme/theme";
-import { AlignJustify } from "lucide-react";
-import { radii } from "@radix-ui/themes/props";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { css } from "@emotion/react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -25,14 +24,19 @@ export default function LoginPage() {
 
   return (
     <div style={styles.splitContainer}>
-      <div style={styles.leftPane}>
+      <div css={styles.leftPane}>
         {/* Imagen ilustrativa - reemplazá el path por el tuyo */}
         <div style={styles.hero} />
+        
       </div>
 
-      <div style={styles.rightPane}>
+      <div css={styles.rightPane}>
         <div style={styles.rightInner}>
-          <h1 style={styles.brand}>B2Car</h1>
+          <img
+            src="/logos/logoGrande.svg"
+            alt="B2Car"
+            style={styles.brandLogo}
+          />
           <form onSubmit={handlePasswordSignIn} style={styles.form}>
             <label style={styles.labelBlock}>
               <span style={styles.labelText}>Email</span>
@@ -64,7 +68,7 @@ export default function LoginPage() {
               {isSubmitting ? "Iniciando sesión..." : "Iniciar sesión"}
             </button>
           </form>
-
+          <div style={styles.versionLabel}>v1.1.0</div>
           {message && <p style={styles.message}>{message}</p>}
         </div>
       </div>
@@ -75,15 +79,28 @@ export default function LoginPage() {
 const styles = {
   splitContainer: {
     display: 'flex',
-    minHeight: '100vh',
+    minHeight: '100dvh',
     width: '100%',
   },
-  leftPane: {
+  leftPane: css({
     flex: 1,
+    position: 'relative',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     background: COLOR.ACCENT.PRIMARY,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: 'none',
+    },
+  }),
+  versionLabel: {
+    position: 'absolute',
+    right: 16,
+    bottom: 12,
+    fontSize: 12,
+    lineHeight: '16px',
+    color: COLOR.TEXT.TERTIARY,
+    userSelect: 'none',
   },
   hero: {
     // Replace this backgroundImage path with your illustration
@@ -95,7 +112,7 @@ const styles = {
     backgroundPosition: 'center',
     borderRadius: 12,
   },
-  rightPane: {
+  rightPane: css({
     width: "45%",
     maxWidth: '100%',
     display: 'flex',
@@ -103,20 +120,34 @@ const styles = {
     justifyContent: 'center',
     padding: '2rem',
     background: COLOR.BACKGROUND.SECONDARY,
-  },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      width: '100%',
+    },
+  }),
   rightInner: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 420
   },
   brand: {
     fontSize: 48,
     fontWeight: 800,
     marginBottom: '1rem',
   },
+  brandLogo: {
+    display: "block",
+    width: "100%",
+    maxWidth: 260,
+    height: "auto",
+    marginBottom: "48px",
+  },
   form: {
     display: "flex",
     flexDirection: "column",
     rowGap: "1rem",
+    width: "90%",
   },
   labelBlock: {
     display: "block",
