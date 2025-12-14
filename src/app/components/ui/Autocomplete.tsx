@@ -36,9 +36,10 @@ export default function Autocomplete({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Filtrar opciones basadas en el término de búsqueda
-  const filteredOptions = options.filter((option) =>
-    option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    option.secondaryLabel?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredOptions = options.filter(
+    (option) =>
+      option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      option.secondaryLabel?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Encontrar la opción seleccionada
@@ -47,7 +48,10 @@ export default function Autocomplete({
   // Cerrar dropdown cuando se hace clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
         if (!allowCustomValue) {
           setSearchTerm("");
@@ -124,7 +128,7 @@ export default function Autocomplete({
     setSearchTerm(newValue);
     setIsOpen(true);
     setHighlightedIndex(-1);
-    
+
     // Si se permite valor personalizado, actualizar en tiempo real
     if (allowCustomValue) {
       onChange(newValue);
@@ -133,7 +137,7 @@ export default function Autocomplete({
 
   const handleInputClick = () => {
     if (!disabled) {
-      setIsOpen(true);
+      setIsOpen(!isOpen);
     }
   };
 
@@ -154,7 +158,13 @@ export default function Autocomplete({
             ...styles.input,
             ...(disabled && styles.inputDisabled),
           }}
-          value={isOpen ? searchTerm : (allowCustomValue ? value : (selectedOption?.label || ""))}
+          value={
+            isOpen
+              ? searchTerm
+              : allowCustomValue
+              ? value
+              : selectedOption?.label || ""
+          }
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onClick={handleInputClick}
@@ -174,16 +184,15 @@ export default function Autocomplete({
               <X size={16} color={COLOR.TEXT.SECONDARY} />
             </button>
           )}
-          <div style={styles.chevron}>
-            <ChevronDown
-              size={18}
-              color={disabled ? COLOR.TEXT.TERTIARY : COLOR.TEXT.SECONDARY}
-              style={{
-                transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-                transition: "transform 0.2s",
-              }}
-            />
-          </div>
+          <ChevronDown
+            size={18}
+            color={disabled ? COLOR.TEXT.TERTIARY : COLOR.TEXT.SECONDARY}
+            style={{
+              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+              transition: "transform 0.2s",
+            }}
+            onClick={() => setIsOpen(!isOpen)}
+          />
         </div>
       </div>
 
@@ -256,6 +265,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 4,
+    cursor: "pointer",
   },
   clearButton: {
     border: "none",
@@ -267,12 +277,6 @@ const styles = {
     justifyContent: "center",
     borderRadius: 4,
     transition: "background 0.2s",
-  },
-  chevron: {
-    display: "flex",
-    alignItems: "center",
-    pointerEvents: "none",
-    paddingRight: 4,
   },
   dropdown: {
     position: "absolute",
@@ -334,9 +338,9 @@ const styles = {
 } as const;
 
 // Inline keyframes injection for the spinner animation
-const styleEl = typeof document !== "undefined" ? document.createElement("style") : null;
+const styleEl =
+  typeof document !== "undefined" ? document.createElement("style") : null;
 if (styleEl) {
   styleEl.textContent = `@keyframes autocomplete-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
   document.head.appendChild(styleEl);
 }
-
