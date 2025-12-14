@@ -3,7 +3,6 @@
 import React from "react";
 import Card from "@/app/components/ui/Card";
 import IconLabel from "@/app/components/ui/IconLabel";
-import { Divider } from "@mui/material";
 import { Mail, Phone, Pencil, FileText, MapPin } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import IconButton from "@/app/components/ui/IconButton";

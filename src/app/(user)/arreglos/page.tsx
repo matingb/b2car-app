@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import SearchBar from "@/app/components/ui/SearchBar";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
-import { Plus, PlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import Button from "@/app/components/ui/Button";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import ArregloItem from "@/app/components/arreglos/ArregloItem";

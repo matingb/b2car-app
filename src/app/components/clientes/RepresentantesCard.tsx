@@ -2,7 +2,6 @@
 
 import React from "react";
 import Card from "@/app/components/ui/Card";
-import { Divider } from "@mui/material";
 import { Plus, User } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import { Representante } from "@/model/types";

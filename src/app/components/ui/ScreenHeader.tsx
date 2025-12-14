@@ -6,8 +6,6 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { useRouter } from "next/navigation";
 import Button from "./Button";
 import { css } from "@emotion/react";
-import { useSheet } from "@/app/providers/SheetProvider";
-import MenuSheet from "./MenuSheet";
 
 
 interface ScreenHeaderProps {
@@ -24,14 +22,7 @@ export default function ScreenHeader({
   hasBackButton = false
 }: ScreenHeaderProps) {
   const router = useRouter();
-  const { openSheet } = useSheet();
 
-  const handleOpenMenu = () => {
-    openSheet({
-      content: <MenuSheet />,
-      side: "left",
-    });
-  };
   return (
     <header className={className} style={styles.header}>
       <div style={styles.titleWrapper}>
@@ -64,7 +55,7 @@ export default function ScreenHeader({
         </nav>
       )}
       </div>
-      <Button icon={<Menu size={20} />} text="" onClick={handleOpenMenu} css={styles.menuBtn} />
+      <Button icon={<Menu size={20} />} text="" css={styles.menuBtn} />
     </header>
   );
 }

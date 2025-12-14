@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { login } from "./actions";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
@@ -25,17 +26,17 @@ export default function LoginPage() {
   return (
     <div style={styles.splitContainer}>
       <div css={styles.leftPane}>
-        {/* Imagen ilustrativa - reemplazá el path por el tuyo */}
-        <div style={styles.hero} />
-        
       </div>
 
       <div css={styles.rightPane}>
         <div style={styles.rightInner}>
-          <img
+          <Image
             src="/logos/logoGrande.svg"
             alt="B2Car"
+            width={725}
+            height={591}
             style={styles.brandLogo}
+            priority
           />
           <form onSubmit={handlePasswordSignIn} style={styles.form}>
             <label style={styles.labelBlock}>
@@ -102,16 +103,6 @@ const styles = {
     color: COLOR.TEXT.TERTIARY,
     userSelect: 'none',
   },
-  hero: {
-    // Replace this backgroundImage path with your illustration
-    width: '80%',
-    height: '80%',
-    backgroundImage: "url('/path/to/illustration.png')",
-    backgroundSize: 'contain',
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'center',
-    borderRadius: 12,
-  },
   rightPane: css({
     width: "45%",
     maxWidth: '100%',
@@ -139,7 +130,7 @@ const styles = {
   brandLogo: {
     display: "block",
     width: "100%",
-    maxWidth: 260,
+    maxWidth: 225,
     height: "auto",
     marginBottom: "48px",
   },
