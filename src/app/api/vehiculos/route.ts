@@ -1,26 +1,27 @@
-import { Vehiculo } from "@/model/types"
 import { createClient } from "@/supabase/server"
 import { logger } from "@/lib/logger"
+import { vehiculoService } from "./vehiculoService"
+
+type CreateVehiculoRequest = {
+  cliente_id: string;
+  patente: string;
+  marca?: string;
+  modelo?: string;
+  fecha_patente?: string;
+  nro_interno?: string;
+};
 
 export async function GET() {
-    const supabase = await createClient()
-    const { data, error } = await supabase.from('vista_vehiculos_con_clientes').select('*');
-    
-    logger.debug("GET /api/vehiculos - data:", data, "error:", error);
+  const supabase = await createClient()
+  const { data, error } = await vehiculoService.list(supabase)
 
-    if (error) {
-        return Response.json({ data: [], error: error.message }, { status: 500 })
-    }
+  logger.debug("GET /api/vehiculos - data:", data, "error:", error)
 
-    const vehiculos: Vehiculo[] = data.map(v => ({
-      id: v.id,
-      nombre_cliente: v.nombre_cliente,
-      patente: v.patente,
-      marca: v.marca,
-      modelo: v.modelo,
-      fecha_patente: v.fecha_patente
-    }));
-    return Response.json({ data: vehiculos, error: null })
+  if (error) {
+    return Response.json({ data: [], error: error.message }, { status: 500 })
+  }
+
+  return Response.json({ data, error: null })
 }
 
 export async function POST(req: Request) {
@@ -29,41 +30,26 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   if (!body) return Response.json({ error: "JSON inválido" }, { status: 400 });
 
-  const { cliente_id, patente, marca, modelo, fecha_patente } = body as {
-    cliente_id: number | string;
-    patente: string;
-    marca?: string;
-    modelo?: string;
-    fecha_patente?: string; // YYYY
-  };
+  const { cliente_id, patente, marca, modelo, fecha_patente, nro_interno } = body as CreateVehiculoRequest;
 
   if (!cliente_id) return Response.json({ error: "Falta cliente_id" }, { status: 400 });
   if (!patente) return Response.json({ error: "Falta patente" }, { status: 400 });
-  if (!fecha_patente) return Response.json({ error: "Falta año patente" }, { status: 400 });
-  if (!marca) return Response.json({ error: "Falta marca" }, { status: 400 });
-  if (!modelo) return Response.json({ error: "Falta modelo" }, { status: 400 });
   
 
-  const insertPayload = {
-    cliente_id: cliente_id,
+  const { data: inserted, error: insertError } = await vehiculoService.create(supabase, {
+    cliente_id,
     patente,
-    marca: marca ?? null,
-    modelo: modelo ?? null,
-    fecha_patente: fecha_patente ?? null,
-  } as const;
-
-  const { data: inserted, error: insertError } = await supabase
-    .from('vehiculos')
-    .insert([insertPayload])
-    .select('id')
-    .single();
+    marca: marca ?? "",
+    modelo: modelo ?? "",
+    fecha_patente: fecha_patente ?? "",
+    nro_interno: nro_interno ?? "",
+  })
 
   if (insertError) {
-    const code = (insertError as any)?.code || '';
+    const code = (insertError as { code?: string } | null)?.code || "";
     const status = code === '23505' ? 409 : 500; // 23505: unique_violation
     return Response.json({ error: insertError?.message || 'No se pudo crear el vehículo' }, { status });
   }
 
   return Response.json({ data: inserted, error: null }, { status: 201 });
 }
-

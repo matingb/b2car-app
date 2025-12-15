@@ -1,4 +1,3 @@
-import { Vehiculo, Arreglo } from "@/model/types";
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 
@@ -11,8 +10,7 @@ export async function GET(
   const supabase = await createClient();
   const { id } = await params;
 
-  // 1) Vehículo (desde la vista para obtener nombre_cliente)
-  const { data: vData, error: vError } = await supabase
+  const { data: vehiculo, error: vError } = await supabase
     .from("vista_vehiculos_con_clientes")
     .select("*")
     .eq("id", id)
@@ -23,17 +21,7 @@ export async function GET(
     return Response.json({ data: null, error: vError.message }, { status });
   }
 
-  const vehiculo: Vehiculo = {
-    id: vData.id,
-    nombre_cliente: vData.nombre_cliente,
-    patente: vData.patente,
-    marca: vData.marca,
-    modelo: vData.modelo,
-    fecha_patente: vData.fecha_patente,
-  };
-
-  // 2) Arreglos del vehículo
-  const { data: aData, error: aError } = await supabase
+  const { data: arreglos, error: aError } = await supabase
     .from("arreglos")
     .select("*, vehiculo:vehiculos(*)")
     .eq("vehiculo_id", id)
@@ -43,21 +31,7 @@ export async function GET(
     return Response.json({ data: vehiculo, arreglos: [], error: aError.message }, { status: 500 });
   }
 
-  const arreglos: Arreglo[] = (aData || []).map((a) => ({
-    id: a.id,
-    vehiculo: a.vehiculo,
-    tipo: a.tipo,
-    descripcion: a.descripcion,
-    kilometraje_leido: a.kilometraje_leido,
-    fecha: a.fecha,
-    observaciones: a.observaciones,
-    precio_final: a.precio_final,
-    precio_sin_iva: a.precio_sin_iva,
-    esta_pago: a.esta_pago,
-    extra_data: a.extra_data,
-  }));
-
-  return Response.json({ data: vehiculo, arreglos, error: null });
+  return Response.json({ data: vehiculo, arreglos: arreglos, error: null });
 }
 
 // PUT /api/vehiculos/[id]
@@ -69,24 +43,24 @@ export async function PUT(
   const supabase = await createClient();
   const { id } = await params;
 
-  let body: { patente?: string; marca?: string; modelo?: string; fecha_patente?: string };
+  let body: { patente?: string; marca?: string; modelo?: string; fecha_patente?: string; nro_interno?: string | null };
   try {
     body = await req.json();
   } catch {
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const updateData: Record<string, string | number | undefined> = {};
+  const updateData: Record<string, string | number | null | undefined> = {};
   if (body.patente !== undefined) updateData.patente = body.patente;
   if (body.marca !== undefined) updateData.marca = body.marca;
   if (body.modelo !== undefined) updateData.modelo = body.modelo;
   if (body.fecha_patente !== undefined) updateData.fecha_patente = body.fecha_patente;
+  if (body.nro_interno !== undefined) updateData.nro_interno = body.nro_interno ? body.nro_interno : null;
 
   if (Object.keys(updateData).length === 0) {
-    return Response.json({ error: "No fields to update" }, { status: 400 });
+    return Response.json({ error: "No hay campos para actualizar" }, { status: 400 });
   }
 
-  // Verificar que el vehículo existe
   const { data: checkData, error: checkError } = await supabase
     .from("vehiculos")
     .select("*")
@@ -97,7 +71,6 @@ export async function PUT(
     return Response.json({ error: "Vehículo no encontrado" }, { status: 404 });
   }
 
-  // Actualizar el vehículo
   const { data, error } = await supabase
     .from("vehiculos")
     .update(updateData)
