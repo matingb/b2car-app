@@ -20,6 +20,7 @@ export default function EditVehiculoModal({ open, onClose, vehiculo }: Props) {
         marca: values.marca, // viaja como ""
         modelo: values.modelo, // viaja como ""
         fecha_patente: values.fecha_patente, // viaja como ""
+        nro_interno: values.nro_interno,
       }),
     });
     const json = await res.json().catch(() => ({ error: "Error" }));
@@ -41,6 +42,7 @@ export default function EditVehiculoModal({ open, onClose, vehiculo }: Props) {
         marca: vehiculo.marca ?? "",
         modelo: vehiculo.modelo ?? "",
         fecha_patente: vehiculo.fecha_patente ?? "",
+        nro_interno: vehiculo.nro_interno ?? "",
       }}
       showClienteInput={false}
     />

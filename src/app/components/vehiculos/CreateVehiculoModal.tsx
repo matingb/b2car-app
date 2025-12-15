@@ -10,6 +10,7 @@ type CreatedVehiculo = {
   marca?: string;
   modelo?: string;
   fecha_patente?: string;
+  nro_interno?: string;
 };
 
 type Props = {
@@ -31,6 +32,7 @@ export default function CreateVehiculoModal({ open, onClose, clienteId }: Props)
       marca: values.marca,
       modelo: values.modelo,
       fecha_patente: values.fecha_patente,
+      nro_interno: values.nro_interno || null,
     });
 
     return {
@@ -39,6 +41,7 @@ export default function CreateVehiculoModal({ open, onClose, clienteId }: Props)
       marca: values.marca || undefined,
       modelo: values.modelo || undefined,
       fecha_patente: values.fecha_patente || undefined,
+      nro_interno: values.nro_interno || undefined,
     };
   };
 
@@ -49,7 +52,7 @@ export default function CreateVehiculoModal({ open, onClose, clienteId }: Props)
       submitText="Guardar"
       onClose={onClose}
       onSubmit={handleSubmit}
-      initialValues={{ patente: "", marca: "", modelo: "", fecha_patente: "" }}
+      initialValues={{ patente: "", marca: "", modelo: "", fecha_patente: "", nro_interno: "" }}
       showClienteInput={!clienteId}
       clienteId={clienteId}
     />

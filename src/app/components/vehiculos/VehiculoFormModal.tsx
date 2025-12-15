@@ -17,6 +17,7 @@ export type VehiculoFormValues = {
   marca: string;
   modelo: string;
   fecha_patente: string; // YYYY
+  nro_interno: string;
 };
 
 type Props<TResult> = {
@@ -25,7 +26,7 @@ type Props<TResult> = {
   submitText: string;
   onClose: (result?: TResult) => void;
   onSubmit: (values: VehiculoFormValues) => Promise<TResult>;
-  initialValues: Pick<VehiculoFormValues, "patente" | "marca" | "modelo" | "fecha_patente">;
+  initialValues: Pick<VehiculoFormValues, "patente" | "marca" | "modelo" | "fecha_patente" | "nro_interno">;
   showClienteInput?: boolean;
   clienteId?: string | number;
 };
@@ -44,6 +45,7 @@ export default function VehiculoFormModal<TResult = void>({
   const [marca, setMarca] = useState(initialValues.marca ?? "");
   const [modelo, setModelo] = useState(initialValues.modelo ?? "");
   const [fechaPatente, setFechaPatente] = useState(initialValues.fecha_patente ?? "");
+  const [nroInterno, setNroInterno] = useState(initialValues.nro_interno ?? "");
   const [selectedClienteId, setSelectedClienteId] = useState<string>(clienteId ? String(clienteId) : "");
   const [clientesOptions, setClientesOptions] = useState<AutocompleteOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -55,6 +57,7 @@ export default function VehiculoFormModal<TResult = void>({
     setMarca(initialValues.marca ?? "");
     setModelo(initialValues.modelo ?? "");
     setFechaPatente(initialValues.fecha_patente ?? "");
+    setNroInterno(initialValues.nro_interno ?? "");
     setSelectedClienteId(clienteId ? String(clienteId) : "");
     setError(null);
     setSubmitting(false);
@@ -65,6 +68,7 @@ export default function VehiculoFormModal<TResult = void>({
     initialValues.marca,
     initialValues.modelo,
     initialValues.fecha_patente,
+    initialValues.nro_interno,
   ]);
 
   useEffect(() => {
@@ -112,6 +116,7 @@ export default function VehiculoFormModal<TResult = void>({
         marca: marca.trim() || "",
         modelo: modelo.trim() || "",
         fecha_patente: fechaPatente || "",
+        nro_interno: nroInterno.trim() || "",
       });
       onClose(result);
     } catch (err) {
@@ -160,27 +165,6 @@ export default function VehiculoFormModal<TResult = void>({
             />
           </div>
           <div style={styles.field}>
-            <label style={styles.label}>Marca</label>
-            <input
-              style={styles.input}
-              placeholder="Toyota"
-              value={marca}
-              onChange={(e) => setMarca(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div style={styles.row}>
-          <div style={styles.field}>
-            <label style={styles.label}>Modelo</label>
-            <input
-              style={styles.input}
-              placeholder="Corolla"
-              value={modelo}
-              onChange={(e) => setModelo(e.target.value)}
-            />
-          </div>
-          <div style={styles.field}>
             <label style={styles.label}>Año patente</label>
             <input
               type="text"
@@ -194,6 +178,36 @@ export default function VehiculoFormModal<TResult = void>({
                 const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 4);
                 setFechaPatente(onlyDigits);
               }}
+            />
+          </div>
+        </div>
+
+        <div style={styles.row}>
+          <div style={styles.field}>
+            <label style={styles.label}>Marca</label>
+            <input
+              style={styles.input}
+              placeholder="Toyota"
+              value={marca}
+              onChange={(e) => setMarca(e.target.value)}
+            />
+          </div>
+          <div style={styles.field}>
+            <label style={styles.label}>Modelo</label>
+            <input
+              style={styles.input}
+              placeholder="Corolla"
+              value={modelo}
+              onChange={(e) => setModelo(e.target.value)}
+            />
+          </div>
+          <div style={styles.field}>
+            <label style={styles.label}>Nro interno</label>
+            <input
+              style={styles.input}
+              placeholder="123"
+              value={nroInterno}
+              onChange={(e) => setNroInterno(e.target.value)}
             />
           </div>
         </div>

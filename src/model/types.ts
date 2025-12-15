@@ -39,6 +39,7 @@ export interface Vehiculo {
   marca: string;
   modelo: string;
   fecha_patente: string;
+  nro_interno?: string | null;
 }
 
 export interface Arreglo {

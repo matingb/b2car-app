@@ -13,4 +13,3 @@ export const empresaService = {
     return { error: null }
   }
 }
-
