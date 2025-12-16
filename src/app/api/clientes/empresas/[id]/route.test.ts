@@ -55,4 +55,3 @@ describe('DELETE /api/clientes/empresas/[id]', () => {
     expect(body).toEqual({ error: errorMessage })
   })
 })
-

@@ -7,7 +7,8 @@
 ALTER TABLE vehiculos
 ADD COLUMN IF NOT EXISTS nro_interno text NULL;
 
-CREATE OR REPLACE VIEW vista_vehiculos_con_clientes AS
+CREATE OR REPLACE VIEW vista_vehiculos_con_clientes 
+with (security_invoker = on) AS
 SELECT
   v.id,
   COALESCE(

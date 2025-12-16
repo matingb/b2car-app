@@ -60,5 +60,3 @@ describe('clientesClient', () => {
         });
     });
 });
-
-

@@ -22,4 +22,3 @@ describe('isValidDate', () => {
         expect(isValidDate('abc')).toBe(false);
     });
 });
-
