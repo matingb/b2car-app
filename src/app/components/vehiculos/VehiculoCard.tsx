@@ -5,7 +5,7 @@ import IconLabel from "@/app/components/ui/IconLabel";
 import { Vehiculo } from "@/model/types";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
-import { User, Eye } from "lucide-react";
+import { User } from "lucide-react";
 
 interface VehiculoCardProps {
   vehiculo: Vehiculo;

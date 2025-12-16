@@ -4,12 +4,11 @@ import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
 import VehiculoCard from "@/app/components/vehiculos/VehiculoCard";
 import { Vehiculo } from "@/model/types";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/app/components/ui/Button";
 import { PlusIcon } from "lucide-react";
 import CreateVehiculoModal from "@/app/components/vehiculos/CreateVehiculoModal";
-import { vehiculoClient } from "@/clients/vehiculoClient";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 
 
