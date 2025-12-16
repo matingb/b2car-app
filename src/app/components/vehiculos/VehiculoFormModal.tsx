@@ -161,7 +161,12 @@ export default function VehiculoFormModal<TResult = void>({
               style={styles.input}
               placeholder="AAA000 ~ AA000AA"
               value={patente}
-              onChange={(e) => setPatente(e.target.value)}
+              onChange={(e) => {
+                const noSpaces = e.target.value.replace(/\s/g, "");
+                setPatente(noSpaces.toUpperCase());
+              }}
+              inputMode="text"
+              maxLength={7}
             />
           </div>
           <div style={styles.field}>
