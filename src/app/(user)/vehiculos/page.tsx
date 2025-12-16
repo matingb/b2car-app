@@ -30,19 +30,6 @@ export default function VehiculosPage() {
     );
   }, [vehiculos, search]);
 
-  useEffect(() => {
-  }, []);
-
-  // expose fetch so modal can trigger a reload after creating
-  const fetchAndSetVehiculos = async () => {
-    try {
-      const { data, error } = await vehiculoClient.getAll();
-      if (error) console.error(error);
-    } catch (e) {
-      console.error("Error cargando vehículos", e);
-    }
-  };
-
   return (
     
     <div>
@@ -71,9 +58,8 @@ export default function VehiculosPage() {
       )}
       <CreateVehiculoModal
         open={isModalOpen}
-        onClose={(created) => {
+        onClose={() => {
           setIsModalOpen(false);
-          if (created) fetchAndSetVehiculos();
         }}
       />
     </div>
