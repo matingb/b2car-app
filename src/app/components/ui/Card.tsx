@@ -3,13 +3,11 @@
 import { useState } from "react";
 import { COLOR } from "@/theme/theme";
 
-interface CardProps {
+type CardProps = React.HTMLAttributes<HTMLDivElement> & {
   children: React.ReactNode;
-  onClick?: () => void;
-  style?: React.CSSProperties;
-}
+};
 
-export default function Card({ children, onClick, style }: CardProps) {
+export default function Card({ children, onClick, style, ...rest }: CardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const isClickable = onClick !== undefined;
 
@@ -29,6 +27,7 @@ export default function Card({ children, onClick, style }: CardProps) {
 
   return (
     <div
+      {...rest}
       style={containerStyles}
       onClick={onClick}
       onMouseEnter={() => isClickable && setIsHovered(true)}

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { empresaClient } from './empresaClient';
-import { createMockEmpresa, createMockCliente } from '@/testing/factories';
+import { createEmpresa, createCliente } from '@/testing/factories';
 import { TipoCliente } from '@/model/types';
 
 const mockApi = vi.fn();
@@ -10,7 +10,7 @@ describe('empresaClient', () => {
 
     describe('getById', () => {
         it('debería retornar una empresa cuando la respuesta es exitosa', async () => {
-            const empresa = createMockEmpresa({ id: 1 });
+            const empresa = createEmpresa({ id: 1 });
 
             mockApi.mockResolvedValueOnce({
                 ok: true,
@@ -75,7 +75,7 @@ describe('empresaClient', () => {
                 email: 'info@techsolutions.com',
                 direccion: 'Torre Empresarial 100',
             };
-            const clienteEsperado = createMockCliente({
+            const clienteEsperado = createCliente({
                 id: 2,
                 nombre: 'Tech Solutions S.A.',
                 tipo_cliente: TipoCliente.EMPRESA,

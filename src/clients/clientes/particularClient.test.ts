@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { particularClient } from './particularClient';
-import { createMockParticular, createMockCliente } from '@/testing/factories';
+import { createParticular, createCliente } from '@/testing/factories';
 import { TipoCliente } from '@/model/types';
 
 const mockApi = vi.fn();
@@ -10,7 +10,7 @@ describe('particularClient', () => {
 
     describe('getById', () => {
         it('debería retornar un particular cuando la respuesta es exitosa', async () => {
-            const particular = createMockParticular({ id: 1 });
+            const particular = createParticular({ id: 1 });
 
             mockApi.mockResolvedValueOnce({
                 ok: true,
@@ -75,7 +75,7 @@ describe('particularClient', () => {
                 email: 'maria@example.com',
                 direccion: 'Calle Nueva 789',
             };
-            const clienteEsperado = createMockCliente({
+            const clienteEsperado = createCliente({
                 id: 2,
                 nombre: 'María García',
                 tipo_cliente: TipoCliente.PARTICULAR,

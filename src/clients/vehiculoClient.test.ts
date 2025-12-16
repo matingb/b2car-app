@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { vehiculoClient } from './vehiculoClient';
-import { createMockVehiculo, createMockCliente, createMockArreglo } from '@/testing/factories';
+import { createVehiculo, createCliente, createArreglo } from '@/testing/factories';
 
 const mockApi = vi.fn();
 global.fetch = mockApi;
@@ -9,8 +9,8 @@ describe('vehiculoClient', () => {
 
     describe('getById', () => {
         it('debería retornar un vehículo con sus arreglos cuando la respuesta es exitosa', async () => {
-            const vehiculo = createMockVehiculo({ id: 1 });
-            const arreglos = [createMockArreglo({ vehiculo: vehiculo })];
+            const vehiculo = createVehiculo({ id: 1 });
+            const arreglos = [createArreglo({ vehiculo: vehiculo })];
 
             mockApi.mockResolvedValueOnce({
                 ok: true,
@@ -31,7 +31,7 @@ describe('vehiculoClient', () => {
         });
 
         it('debería retornar un vehículo sin arreglos cuando no hay arreglos', async () => {
-            const vehiculo = createMockVehiculo();
+            const vehiculo = createVehiculo();
 
             mockApi.mockResolvedValueOnce({
                 ok: true,
@@ -64,8 +64,8 @@ describe('vehiculoClient', () => {
     describe('getAll', () => {
         it('debería retornar una lista de vehículos cuando la respuesta es exitosa', async () => {
             const vehiculos = [
-                createMockVehiculo({ id: 1, patente: 'ABC123' }),
-                createMockVehiculo({ id: 2, patente: 'XYZ789' }),
+                createVehiculo({ id: 1, patente: 'ABC123' }),
+                createVehiculo({ id: 2, patente: 'XYZ789' }),
             ];
 
             mockApi.mockResolvedValueOnce({
@@ -116,7 +116,7 @@ describe('vehiculoClient', () => {
 
     describe('getClienteForVehiculo', () => {
         it('debería retornar el cliente propietario cuando la respuesta es exitosa', async () => {
-            const cliente = createMockCliente({ id: 1 });
+            const cliente = createCliente({ id: 1 });
             const vehiculoId = 1;
 
             mockApi.mockResolvedValueOnce({

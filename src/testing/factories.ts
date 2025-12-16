@@ -6,7 +6,7 @@ import { Empresa } from '@/clients/clientes/empresaClient';
  * @param overrides - Propiedades a sobrescribir en el objeto por defecto
  * @returns Objeto Vehiculo con valores por defecto y overrides aplicados
  */
-export const createMockVehiculo = (overrides: Partial<Vehiculo> = {}): Vehiculo => {
+export const createVehiculo = (overrides: Partial<Vehiculo> = {}): Vehiculo => {
   return {
     id: 1,
     nombre_cliente: 'Juan Pérez',
@@ -14,6 +14,7 @@ export const createMockVehiculo = (overrides: Partial<Vehiculo> = {}): Vehiculo 
     marca: 'Toyota',
     modelo: 'Corolla',
     fecha_patente: '2020-01-01',
+    nro_interno: null,
     ...overrides,
   };
 };
@@ -23,7 +24,7 @@ export const createMockVehiculo = (overrides: Partial<Vehiculo> = {}): Vehiculo 
  * @param overrides - Propiedades a sobrescribir en el objeto por defecto
  * @returns Objeto Cliente con valores por defecto y overrides aplicados
  */
-export const createMockCliente = (overrides: Partial<Cliente> = {}): Cliente => {
+export const createCliente = (overrides: Partial<Cliente> = {}): Cliente => {
   return {
     id: 1,
     nombre: 'Juan Pérez',
@@ -40,8 +41,8 @@ export const createMockCliente = (overrides: Partial<Cliente> = {}): Cliente => 
  * @param overrides - Propiedades a sobrescribir en el objeto por defecto
  * @returns Objeto Arreglo con valores por defecto y overrides aplicados
  */
-export const createMockArreglo = (overrides: Partial<Arreglo> = {}): Arreglo => {
-  const defaultVehiculo = createMockVehiculo();
+export const createArreglo = (overrides: Partial<Arreglo> = {}): Arreglo => {
+  const defaultVehiculo = createVehiculo();
   
   return {
     id: 1,
@@ -64,7 +65,7 @@ export const createMockArreglo = (overrides: Partial<Arreglo> = {}): Arreglo => 
  * @param overrides - Propiedades a sobrescribir en el objeto por defecto
  * @returns Objeto Particular con valores por defecto y overrides aplicados
  */
-export const createMockParticular = (overrides: Partial<Particular> = {}): Particular => {
+export const createParticular = (overrides: Partial<Particular> = {}): Particular => {
   return {
     id: 1,
     nombre: 'Juan',
@@ -82,7 +83,7 @@ export const createMockParticular = (overrides: Partial<Particular> = {}): Parti
  * @param overrides - Propiedades a sobrescribir en el objeto por defecto
  * @returns Objeto Empresa con valores por defecto y overrides aplicados
  */
-export const createMockEmpresa = (overrides: Partial<Empresa> = {}): Empresa => {
+export const createEmpresa = (overrides: Partial<Empresa> = {}): Empresa => {
   return {
     id: 1,
     nombre: 'Empresa XYZ S.A.',

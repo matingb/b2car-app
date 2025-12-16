@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { clientesClient } from './clientesClient';
-import { createMockCliente } from '@/testing/factories';
+import { createCliente } from '@/testing/factories';
 
 const mockApi = vi.fn();
 global.fetch = mockApi;
@@ -10,8 +10,8 @@ describe('clientesClient', () => {
     describe('getAll', () => {
         it('debería retornar una lista de clientes cuando la respuesta es exitosa', async () => {
             const clientes = [
-                createMockCliente({ id: 1, nombre: 'Juan Pérez' }),
-                createMockCliente({ id: 2, nombre: 'Empresa XYZ' }),
+                createCliente({ id: 1, nombre: 'Juan Pérez' }),
+                createCliente({ id: 2, nombre: 'Empresa XYZ' }),
             ];
 
             mockApi.mockResolvedValueOnce({

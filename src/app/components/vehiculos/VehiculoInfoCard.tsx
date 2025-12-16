@@ -6,7 +6,7 @@ import IconLabel from "@/app/components/ui/IconLabel";
 import IconButton from "@/app/components/ui/IconButton";
 import { Vehiculo } from "@/model/types";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
-import { Calendar, Gauge, Pencil, Trash } from "lucide-react";
+import { Calendar, Gauge, Hash, Pencil, Trash } from "lucide-react";
 import { css } from "@emotion/react";
 
 type Props = {
@@ -30,6 +30,8 @@ export default function VehiculoInfoCard({
   showEdit = false,
   style,
 }: Props) {
+  const nroInterno = (vehiculo?.nro_interno ?? "").trim();
+
   return (
     <div style={{ ...styles.container, ...style }}>
       <div style={styles.headerRow}>
@@ -61,6 +63,15 @@ export default function VehiculoInfoCard({
             <div style={styles.label}>Patente</div>
             <div style={styles.patente}>{vehiculo?.patente}</div>
           </div>
+          {nroInterno && (
+            <div>
+              <div style={styles.label}>N° interno</div>
+              <IconLabel
+                icon={<Hash size={18} color={COLOR.ACCENT.PRIMARY} />}
+                label={nroInterno}
+              />
+            </div>
+          )}
           <div>
             <div style={styles.label}>Marca</div>
             <div style={styles.value}>{vehiculo?.marca}</div>

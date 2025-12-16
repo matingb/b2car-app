@@ -14,28 +14,32 @@ interface VehiculoCardProps {
 
 export default function VehiculoCard({ vehiculo, onClick }: VehiculoCardProps) {
   const title = `${vehiculo.marca} ${vehiculo.modelo}`;
+  const nroInterno = (vehiculo.nro_interno ?? "").trim();
 
   return (
     <Card
       onClick={onClick}
       style={{ padding: "10px 12px" }}
+      data-testid="vehiculo-card"
     >
       <div css={styles.cardContent}>
         <div css={styles.patenteSection}>
           <div css={styles.patenteLabel}>PATENTE</div>
-          <div style={styles.patenteValue}><h3>{vehiculo.patente}</h3></div>
+          <div style={styles.patenteValue}>
+            <h3>{vehiculo.patente}</h3>
+          </div>
         </div>
 
         <div style={styles.divider} />
 
         <div style={styles.infoSection}>
           <div style={styles.headerRow}>
-            <h2 style={styles.vehicleTitle}>
-              {title.trim() != "" ? title : "-"}
+            <div style={styles.vehicleTitle}>
+              <h2 style={styles.vehicleTitleText}>{title.trim()}</h2>
               {vehiculo.fecha_patente && (
-                <span css={styles.yearBadge}>({vehiculo.fecha_patente})</span>
+                <span css={styles.yearBadge}>{vehiculo.fecha_patente}</span>
               )}
-            </h2>
+            </div>
           </div>
 
           <div css={styles.detailsRow}>
@@ -43,6 +47,14 @@ export default function VehiculoCard({ vehiculo, onClick }: VehiculoCardProps) {
               icon={<User size={18} color={COLOR.ACCENT.PRIMARY} />}
               label={vehiculo.nombre_cliente}
             />
+            {nroInterno && (
+              <span
+                css={styles.internalChip}
+                title={`N° interno: ${nroInterno}`}
+              >
+                INT {nroInterno}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -108,6 +120,11 @@ const styles = {
     gap: 12,
   },
   vehicleTitle: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+  },
+  vehicleTitleText: {
     fontSize: 18,
     fontWeight: 600,
     color: COLOR.TEXT.PRIMARY,
@@ -118,10 +135,28 @@ const styles = {
     fontSize: 16,
     fontWeight: 400,
     color: COLOR.TEXT.SECONDARY,
-    marginLeft: 6,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       display: "none",
     },
+  }),
+  detailsDivider: css({
+    width: 1,
+    height: 18,
+    backgroundColor: COLOR.BORDER.SUBTLE,
+    alignSelf: "center",
+  }),
+  internalChip: css({
+    flexShrink: 0,
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: "0.4px",
+    color: COLOR.ACCENT.PRIMARY,
+    background: COLOR.BACKGROUND.SECONDARY,
+    border: `1px solid ${COLOR.ACCENT.PRIMARY}`,
+    borderRadius: 999,
+    padding: "4px 10px",
+    lineHeight: 1.2,
+    whiteSpace: "nowrap",
   }),
   detailsRow: css({
     display: "flex",
@@ -133,4 +168,3 @@ const styles = {
     },
   }),
 } as const;
-

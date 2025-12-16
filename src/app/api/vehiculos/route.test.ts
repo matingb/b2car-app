@@ -35,10 +35,10 @@ describe("POST /api/vehiculos", () => {
     expect(vehiculoService.create).toHaveBeenCalledWith(mockSupabase, {
       cliente_id: 1,
       patente: "AA123BB",
-      marca: undefined,
-      modelo: undefined,
-      fecha_patente: undefined,
-      nro_interno: undefined,
+      marca: "",
+      modelo: "",
+      fecha_patente: "",
+      nro_interno: "",
     });
 
     expect(response.status).toBe(201);
