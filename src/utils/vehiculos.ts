@@ -23,4 +23,14 @@ export function formatPatente(patente: string): string {
   return cleanPatente;
 }
 
+export function formatPatenteConMarcaYModelo(
+  v: { patente: string; marca: string; modelo: string }
+): string {
+  const patente = (v.patente ?? "").trim();
+  const marca = (v.marca ?? "").trim();
+  const modelo = (v.modelo ?? "").trim();
+  const marcaModelo = [marca, modelo].filter(Boolean).join(" ");
+  return [patente, marcaModelo].filter(Boolean).join(" - ");
+}
+
 

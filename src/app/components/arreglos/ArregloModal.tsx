@@ -9,6 +9,7 @@ import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient";
 import { isValidDate, toDateInputFormat } from "@/utils/fechas";
+import { formatPatenteConMarcaYModelo } from "@/utils/vehiculos";
 
 export type ArregloForm = {
   tipo: string;
@@ -54,11 +55,13 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
 
   const vehiculoOptions: AutocompleteOption[] = useMemo(
     () =>
-      vehiculos.map((v: Vehiculo) => ({
-        value: String(v.id),
-        label: `${v.patente} - ${v.marca} ${v.modelo}`,
-        secondaryLabel: v.nombre_cliente,
-      })),
+      vehiculos.map((v: Vehiculo) => {
+        return {
+          value: String(v.id),
+          label: formatPatenteConMarcaYModelo(v),
+          secondaryLabel: v.nombre_cliente,
+        };
+      }),
     [vehiculos]
   );
 

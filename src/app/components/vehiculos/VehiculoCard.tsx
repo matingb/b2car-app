@@ -6,8 +6,6 @@ import { Vehiculo } from "@/model/types";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import { User } from "lucide-react";
-import {logger} from "@/lib/logger";
-import { useEffect } from "react";
 
 interface VehiculoCardProps {
   vehiculo: Vehiculo;
@@ -16,9 +14,7 @@ interface VehiculoCardProps {
 
 export default function VehiculoCard({ vehiculo, onClick }: VehiculoCardProps) {
   const title = `${vehiculo.marca} ${vehiculo.modelo}`;
-  useEffect(() => {
-    logger.debug("Rendering VehiculoCard for:", vehiculo);
-  }, [vehiculo]);
+
   return (
     <Card
       onClick={onClick}
