@@ -174,6 +174,7 @@ const styles = {
     justifyItems: "left",
     gap: "1rem",
     padding: "0.5rem",
+    paddingLeft: "0",
   },
   title: {
     color: COLOR.TEXT.PRIMARY,
