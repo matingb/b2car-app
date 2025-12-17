@@ -1,3 +1,4 @@
+import { CreateVehiculoResponse } from "@/app/api/vehiculos/route";
 import { Vehiculo, Cliente, Arreglo } from "@/model/types";
 
 export type GetVehiculoByIdResponse = {
@@ -28,11 +29,6 @@ export type CreateVehiculoRequest = {
 export type UpdateVehiculoRequest = Partial<
   Pick<CreateVehiculoRequest, "patente" | "marca" | "modelo" | "fecha_patente" | "nro_interno">
 >;
-
-export type CreateVehiculoResponse = {
-  created_id?: number | null;
-  error?: string | null;
-};
 
 export type UpdateVehiculoResponse = {
   data?: Vehiculo | null;
@@ -128,7 +124,7 @@ export const vehiculoClient = {
       if (!res.ok || body?.error) {
         return { error: body?.error || `Error ${res.status}` };
       }
-      return { created_id: body.created_id || null, error: null };
+      return { data: body.data || null, error: null };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "No se pudo crear el vehiculo";
       return { error: message };

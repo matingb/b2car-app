@@ -1,7 +1,6 @@
 import { createClient } from "@/supabase/server"
 import { logger } from "@/lib/logger"
 import { vehiculoService } from "./vehiculoService"
-import { CreateVehiculoResponse } from "@/clients/vehiculoClient";
 
 type CreateVehiculoRequest = {
   cliente_id: string;
@@ -10,6 +9,11 @@ type CreateVehiculoRequest = {
   modelo?: string;
   fecha_patente?: string;
   nro_interno?: string;
+};
+
+export type CreateVehiculoResponse = {
+  data?: { id: number } | null;
+  error?: string | null;
 };
 
 export async function GET() {
@@ -53,7 +57,7 @@ export async function POST(req: Request) {
   }
 
   const response : CreateVehiculoResponse = {
-    created_id: inserted?.id || null,
+    data: inserted,
     error: null,
   };
 
