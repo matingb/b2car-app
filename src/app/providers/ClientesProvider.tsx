@@ -23,6 +23,7 @@ type ClientesContextType = {
   deleteCliente: (id: number, tipo: TipoCliente) => Promise<void>;
   listRepresentantes: (empresaId: string | number) => Promise<Representante[]>;
   createRepresentante: (empresaId: string | number, input: CreateRepresentanteInput) => Promise<Representante>;
+  deleteRepresentante: (empresaId: string | number, representanteId: string | number) => Promise<void>;
   updateParticular: (id: string | number, input: UpdateParticularRequest) => Promise<Particular>;
   updateEmpresa: (id: string | number, input: UpdateEmpresaRequest) => Promise<Empresa>;
 };
@@ -141,6 +142,13 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     return data;
   }, []);
 
+  const deleteRepresentante = useCallback(async (empresaId: string | number, representanteId: string | number) => {
+    const { error } = await representantesClient.delete(empresaId, representanteId);
+    if (error) {
+      throw new Error(error);
+    }
+  }, []);
+
   const updateParticular = useCallback(async (id: string | number, input: UpdateParticularRequest): Promise<Particular> => {
     const { data, error } = await particularClient.update(id, input);
     if (error || !data) {
@@ -172,10 +180,11 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
       deleteCliente,
       listRepresentantes,
       createRepresentante,
+      deleteRepresentante,
       updateParticular,
       updateEmpresa,
     }),
-    [clientes, loading, fetchClientes, createParticular, createEmpresa, getParticularById, getEmpresaById, deleteCliente, listRepresentantes, createRepresentante, updateParticular, updateEmpresa]
+    [clientes, loading, fetchClientes, createParticular, createEmpresa, getParticularById, getEmpresaById, deleteCliente, listRepresentantes, createRepresentante, deleteRepresentante, updateParticular, updateEmpresa]
   );
 
   return (

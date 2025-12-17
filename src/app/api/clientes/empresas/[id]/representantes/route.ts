@@ -83,3 +83,32 @@ export async function POST(
 
   return Response.json({ data, error: null }, { status: 201 });
 }
+
+export type DeleteRepresentanteResponse = {
+  error?: string | null;
+};
+
+// DELETE /api/clientes/empresas/[id]/representantes?representanteId=123
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient();
+  const { id: empresaId } = await params;
+
+  const { searchParams } = new URL(req.url);
+  const representanteId = searchParams.get("representanteId") || searchParams.get("id");
+  if (!representanteId) return Response.json({ error: "Falta representanteId" }, { status: 400 });
+
+  const { error } = await supabase
+    .from("representantes")
+    .delete()
+    .eq("id", representanteId)
+    .eq("empresa_id", empresaId);
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  return Response.json({ error: null }, { status: 200 });
+}

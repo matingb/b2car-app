@@ -18,6 +18,7 @@ import { Empresa } from "@/clients/clientes/empresaClient";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import { css } from "@emotion/react";
 import { logger } from "@/lib/logger";
+import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 
 
 export default function EmpresaDetails() {
@@ -30,7 +31,8 @@ export default function EmpresaDetails() {
   const [representantes, setRepresentantes] = useState<Representante[]>([]);
   const [openRepresentante, setOpenRepresentante] = useState(false);
   const toast = useToast();
-  const { getEmpresaById, listRepresentantes, createRepresentante, updateEmpresa } = useClientes();
+  const { getEmpresaById, listRepresentantes, createRepresentante, deleteRepresentante, updateEmpresa } = useClientes();
+  const { confirm } = useModalMessage();
 
   useEffect(() => {
     async function load() {
@@ -127,6 +129,27 @@ export default function EmpresaDetails() {
         <RepresentantesCard
           representantes={representantes}
           onAddRepresentante={clienteId ? () => setOpenRepresentante(true) : undefined}
+          onDeleteRepresentante={
+            clienteId
+              ? async (representanteId) => {
+                  const ok = await confirm({
+                    title: "Eliminar representante",
+                    message: "¿Estás seguro de que deseas eliminar este representante?",
+                    acceptLabel: "Eliminar",
+                    cancelLabel: "Cancelar",
+                  });
+                  if (!ok) return;
+                  try {
+                    await deleteRepresentante(clienteId, representanteId);
+                    setRepresentantes((prev) => prev.filter((r) => r.id !== representanteId));
+                    toast.success("Representante eliminado");
+                  } catch (err) {
+                    const msg = err instanceof Error ? err.message : "No se pudo eliminar el representante";
+                    toast.error(msg);
+                  }
+                }
+              : undefined
+          }
         />
       </div>
 

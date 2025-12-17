@@ -43,4 +43,23 @@ export const representantesClient = {
       return { data: null, error: message };
     }
   },
+
+  async delete(empresaId: string | number, representanteId: string | number): Promise<{ error?: string | null }> {
+    try {
+      const res = await fetch(
+        `/api/clientes/empresas/${empresaId}/representantes?representanteId=${encodeURIComponent(
+          String(representanteId)
+        )}`,
+        { method: "DELETE" }
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body?.error) {
+        return { error: body?.error || `Error ${res.status}` };
+      }
+      return { error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "No se pudo eliminar el representante";
+      return { error: message };
+    }
+  },
 };

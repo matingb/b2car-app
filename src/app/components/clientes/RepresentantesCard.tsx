@@ -2,7 +2,7 @@
 
 import React from "react";
 import Card from "@/app/components/ui/Card";
-import { Plus, User } from "lucide-react";
+import { Plus, User, X } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import { Representante } from "@/model/types";
 import IconButton from "../ui/IconButton";
@@ -10,9 +10,10 @@ import IconButton from "../ui/IconButton";
 type Props = {
   representantes: Representante[];
   onAddRepresentante?: () => void;
+  onDeleteRepresentante?: (representanteId: number) => void;
 };
 
-export default function RepresentantesCard({ representantes, onAddRepresentante }: Props) {
+export default function RepresentantesCard({ representantes, onAddRepresentante, onDeleteRepresentante }: Props) {
   return (
     <div>
       <div style={styles.header}>
@@ -34,6 +35,18 @@ export default function RepresentantesCard({ representantes, onAddRepresentante 
               style={styles.itemSquare}
               aria-label={`Representante ${r.nombre} ${r.apellido}`}
             >
+              {onDeleteRepresentante ? (
+                <div style={styles.deleteButton}>
+                  <IconButton
+                    icon={<X />}
+                    size={16}
+                    onClick={() => onDeleteRepresentante(r.id)}
+                    title="Eliminar representante"
+                    ariaLabel="Eliminar representante"
+                    hoverColor={COLOR.ICON.DANGER}
+                  />
+                </div>
+              ) : null}
               <User size={28} color={COLOR.ACCENT.PRIMARY} />
               <div style={{ fontWeight: 700, marginTop: 0, textAlign: 'center' }}>
                 {(r.nombre + ' ' + (r.apellido || '')).trim()}
@@ -87,6 +100,7 @@ const styles = {
   itemSquare: {
     width: 120,
     height: 120,
+    position: "relative",
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -98,5 +112,10 @@ const styles = {
     padding: 8,
     boxSizing: 'border-box',
     textAlign: 'center',
+  },
+  deleteButton: {
+    position: "absolute",
+    top: 0,
+    right: 0,
   },
 } as const;
