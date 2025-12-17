@@ -6,7 +6,6 @@ import {
   Phone,
   Trash2,
   FileText,
-  Eye,
   MapPin,
   Building2,
   User as UserIcon,

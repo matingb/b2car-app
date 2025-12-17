@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
-import { text } from "stream/consumers";
 import { css } from "@emotion/react";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {

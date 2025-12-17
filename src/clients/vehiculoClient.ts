@@ -124,11 +124,11 @@ export const vehiculoClient = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok || (body as any)?.error) {
-        return { error: (body as any)?.error || `Error ${res.status}` };
+      const body: CreateVehiculoResponse = await res.json();
+      if (!res.ok || body?.error) {
+        return { error: body?.error || `Error ${res.status}` };
       }
-      return { created_id: (body as any).data.id || null, error: null };
+      return { created_id: body.created_id || null, error: null };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "No se pudo crear el vehiculo";
       return { error: message };
@@ -142,11 +142,11 @@ export const vehiculoClient = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
-      const body = await res.json().catch(() => ({} as any));
-      if (!res.ok || (body as any)?.error) {
-        return { data: null, error: (body as any)?.error || `Error ${res.status}` };
+      const body: UpdateVehiculoResponse= await res.json();
+      if (!res.ok || body?.error) {
+        return { data: null, error: body?.error || `Error ${res.status}` };
       }
-      return { data: (body as any).data || null, error: null };
+      return { data: body.data || null, error: null };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "No se pudo actualizar el vehiculo";
       return { data: null, error: message };
@@ -158,9 +158,9 @@ export const vehiculoClient = {
       const res = await fetch(`/api/vehiculos/${id}`, {
         method: "DELETE",
       });
-      const body = await res.json().catch(() => ({}));  
-      if (!res.ok || (body as any)?.error) {
-        return { error: (body as any)?.error || `Error ${res.status}` };
+      const body = await res.json();  
+      if (!res.ok || body?.error) {
+        return { error: body?.error || `Error ${res.status}` };
       }
       return { error: null };
     } catch (err: unknown) {
@@ -176,9 +176,9 @@ export const vehiculoClient = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cliente_id: clienteId }),
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok || (body as any)?.error) {
-        return { error: (body as any)?.error || `Error ${res.status}` };
+      const body = await res.json();
+      if (!res.ok || body?.error) {
+        return { error: body?.error || `Error ${res.status}` };
       }
       return { error: null };
     } catch (err: unknown) {

@@ -7,11 +7,10 @@ import { COLOR } from "@/theme/theme";
 
 interface Props {
   open: boolean;
-  empresaId: number | string;
   onClose: (created?: { nombre: string; apellido?: string; telefono?: string }) => void;
 }
 
-export default function CreateRepresentanteModal({ open, empresaId, onClose }: Props) {
+export default function CreateRepresentanteModal({ open, onClose }: Props) {
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -34,25 +33,11 @@ export default function CreateRepresentanteModal({ open, empresaId, onClose }: P
     if (!isValid) return;
     setSubmitting(true);
     setError(null);
-    try {
-      const res = await fetch(`/api/clientes/empresas/${empresaId}/representantes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: nombre.trim(), apellido: apellido.trim() || undefined, telefono: telefono.trim() || undefined })
-      });
-      const json = await res.json().catch(() => ({ error: 'Error' }));
-      if (!res.ok || json?.error) {
-        throw new Error(json?.error || 'No se pudo crear el representante');
-      }
-      onClose({ nombre: nombre.trim(), apellido: apellido.trim() || undefined, telefono: telefono.trim() || undefined });
-      setNombre("");
-      setApellido("");
-      setTelefono("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ocurrió un error');
-    } finally {
-      setSubmitting(false);
-    }
+    onClose({ nombre: nombre.trim(), apellido: apellido.trim() || undefined, telefono: telefono.trim() || undefined });
+    setNombre("");
+    setApellido("");
+    setTelefono("");
+    setSubmitting(false);
   };
 
   return (

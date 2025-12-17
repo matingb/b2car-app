@@ -1,6 +1,7 @@
 import { createClient } from "@/supabase/server"
 import { logger } from "@/lib/logger"
 import { vehiculoService } from "./vehiculoService"
+import { CreateVehiculoResponse } from "@/clients/vehiculoClient";
 
 type CreateVehiculoRequest = {
   cliente_id: string;
@@ -51,5 +52,10 @@ export async function POST(req: Request) {
     return Response.json({ error: insertError?.message || 'No se pudo crear el vehículo' }, { status });
   }
 
-  return Response.json({ data: inserted, error: null }, { status: 201 });
+  const response : CreateVehiculoResponse = {
+    created_id: inserted?.id || null,
+    error: null,
+  };
+
+  return Response.json(response, { status: 201 });
 }

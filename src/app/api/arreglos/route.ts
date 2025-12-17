@@ -1,14 +1,10 @@
 import { logger } from "@/lib/logger";
 import { Arreglo } from "@/model/types"
 import { createClient } from "@/supabase/server"
+import { IVA_RATE } from "@/utils/ivaRate";
 
 export type GetArreglosResponse = {
     data: Arreglo[] | null;
-    error?: string | null;
-};
-
-export type CreateArregloResponse = {
-    data: Arreglo | null;
     error?: string | null;
 };
 
@@ -37,6 +33,23 @@ export async function GET() {
     return Response.json({ data: arreglos })
 }
 
+export type CreateArregloRequest = {
+    vehiculo_id: string;
+    tipo: string;
+    descripcion: string;
+    kilometraje_leido: number;
+    fecha: Date;
+    observaciones: string;
+    precio_final: number;
+    esta_pago: boolean;
+    extra_data: string;
+};
+
+export type CreateArregloResponse = {
+    data: Arreglo | null;
+    error?: string | null;
+};
+
 // POST /api/arreglos -> crear arreglo
 export async function POST(req: Request) {
     const supabase = await createClient();
@@ -53,26 +66,14 @@ export async function POST(req: Request) {
         precio_final,
         esta_pago,
         extra_data,
-    } = body as Record<string, any>;
+    } = body as CreateArregloRequest
 
     if (!vehiculo_id) return Response.json({ error: "Falta vehiculo_id" }, { status: 400 });
     if (kilometraje_leido == null) return Response.json({ error: "Falta kilometraje_leido" }, { status: 400 });
     if (!fecha) return Response.json({ error: "Falta fecha" }, { status: 400 });
     if (precio_final == null) return Response.json({ error: "Falta precio_final" }, { status: 400 });
 
-    // Calcular precio_sin_iva a partir de precio_final y la tasa de IVA de env
-    const getIvaRate = () => {
-        const rateEnv = process.env.IVA_RATE; // e.g., 0.21
-        const percentEnv = process.env.IVA_PERCENT; // e.g., 21
-        let rate = 0.21;
-        if (rateEnv && !Number.isNaN(Number(rateEnv)) && Number(rateEnv) >= 0 && Number(rateEnv) < 1) {
-            rate = Number(rateEnv);
-        } else if (percentEnv && !Number.isNaN(Number(percentEnv)) && Number(percentEnv) >= 0) {
-            rate = Number(percentEnv) / 100;
-        }
-        return rate;
-    };
-    const ivaRate = getIvaRate();
+    const ivaRate = IVA_RATE
     const computedSinIva = Number((Number(precio_final) / (1 + ivaRate)).toFixed(2));
 
     const insertPayload = {

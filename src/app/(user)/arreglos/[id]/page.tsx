@@ -26,6 +26,7 @@ import { ROUTES } from "@/routing/routes";
 import IconButton from "@/app/components/ui/IconButton";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
+import { logger } from "@/lib/logger";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -81,6 +82,7 @@ export default function ArregloDetailsPage() {
       router.push(ROUTES.arreglos);
       success("Éxito", "El arreglo ha sido eliminado.");
     } catch (err: unknown) {
+      logger.error("Error deleting arreglo:", err);
       error("Error", "No se pudo eliminar el arreglo");
     }
   };

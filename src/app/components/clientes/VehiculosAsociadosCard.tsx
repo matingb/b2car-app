@@ -31,11 +31,9 @@ export default function VehiculosAsociadosCard({ vehiculos, onAddVehiculo }: Pro
       return () => mql.removeEventListener("change", onChange);
     }
 
-    // Safari fallback
-    // eslint-disable-next-line deprecation/deprecation
-    mql.addListener(onChange);
-    // eslint-disable-next-line deprecation/deprecation
-    return () => mql.removeListener(onChange);
+    mql.addEventListener("change", onChange);
+
+    return () => mql.removeEventListener("change", onChange);
   }, []);
 
   return (

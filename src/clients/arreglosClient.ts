@@ -1,7 +1,5 @@
 import { GetArregloByIdResponse, UpdateArregloResponse } from "@/app/api/arreglos/[id]/route";
 import { CreateArregloResponse, GetArreglosResponse } from "@/app/api/arreglos/route";
-import { Cliente, Vehiculo } from "@/model/types";
-
 
 export type CreateArregloInput = {
   vehiculo_id: string | number;

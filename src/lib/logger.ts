@@ -25,16 +25,16 @@ function shouldLog(level: LogLevel) {
 }
 
 export const logger = {
-  debug: (...args: any[]) => {
+  debug: (...args: unknown[]) => {
     if (shouldLog('debug')) console.debug('[DEBUG]', ...args);
   },
-  info: (...args: any[]) => {
+  info: (...args: unknown[]) => {
     if (shouldLog('info')) console.info('[INFO]', ...args);
   },
-  warn: (...args: any[]) => {
+  warn: (...args: unknown[]) => {
     if (shouldLog('warn')) console.warn('[WARN]', ...args);
   },
-  error: (...args: any[]) => {
+  error: (...args: unknown[]) => {
     if (shouldLog('error')) console.error('[ERROR]', ...args);
   },
 };

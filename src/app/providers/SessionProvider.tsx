@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/supabase/client";
 import { ROUTES } from "@/routing/routes";
@@ -43,16 +43,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     return () => {
       sub.subscription.unsubscribe();
     };
-  }, [router]);
+  }, [supabase.auth,router ]);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     await supabase.auth.signInWithPassword({ email, password });
-  };
+  }, [supabase.auth]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     router.replace(ROUTES.login);
-  };
+  }, [supabase.auth, router]);
 
   const value: SessionProviderValue = useMemo(
     () => ({

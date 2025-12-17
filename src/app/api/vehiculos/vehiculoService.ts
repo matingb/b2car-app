@@ -4,22 +4,12 @@ import { CreateVehiculoRequest } from "@/clients/vehiculoClient";
 
 type SupabaseError = { message: string; code?: string };
 
-type VistaVehiculosConClientesRow = {
-  id: number;
-  nombre_cliente: string;
-  patente: string;
-  marca: string | null;
-  modelo: string | null;
-  fecha_patente: string | null;
-  nro_interno: string | null;
-};
-
 export const vehiculoService = {
   async list(supabase: SupabaseClient): Promise<{ data: Vehiculo[]; error: Error | null }> {
     const { data, error } = await supabase.from("vista_vehiculos_con_clientes").select("*");
     if (error) return { data: [], error: new Error(error.message) };
 
-    const vehiculos: Vehiculo[] = (data ?? []) as unknown as Vehiculo[];
+    const vehiculos: Vehiculo[] = (data ?? []) as Vehiculo[];
 
     return { data: vehiculos, error: null };
   },

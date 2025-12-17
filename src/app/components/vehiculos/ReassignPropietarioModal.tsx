@@ -36,13 +36,14 @@ export default function ReassignPropietarioModal({ open, vehiculoId, currentClie
       try {
         const res = await fetch("/api/clientes");
         const json = await res.json().catch(() => ({ data: [] }));
-        const opts: AutocompleteOption[] = (json.data || []).map((c: any) => ({
+        const opts: AutocompleteOption[] = (json.data || []).map((c: Record<string, unknown>) => ({
           value: String(c.id),
           label: String(c.nombre || ""),
           secondaryLabel: String(c.email || ""),
         }));
         if (active) setClientesOptions(opts);
       } catch (e) {
+        console.error(e);
         if (active) setError("No se pudieron cargar los clientes");
       } finally {
         if (active) setLoading(false);

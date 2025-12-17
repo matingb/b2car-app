@@ -20,7 +20,7 @@ export async function GET(
     return Response.json({ data: [], error: error.message }, { status: 500 });
   }
 
-  const reps: Representante[] = (data || []).map((r: any) => ({
+  const reps: Representante[] = (data || []).map((r: Representante) => ({
     id: r.id,
     empresa_id: r.empresa_id ?? r.empresa_id,
     nombre: r.nombre,
@@ -30,6 +30,18 @@ export async function GET(
 
   return Response.json({ data: reps, error: null });
 }
+
+export type CreateRepresentanteRequest = {
+    nombre: string;
+    apellido: string | null;
+    telefono: string | null;
+    empresa_id: string;
+};
+
+export type CreateRepresentanteResponse = {
+    data: Representante | null;
+    error?: string | null;
+};
 
 // POST /api/clientes/empresas/[id]/representantes
 export async function POST(
@@ -50,7 +62,7 @@ export async function POST(
   if (!nombre) return Response.json({ error: "Falta nombre" }, { status: 400 });
 
   // Insert tratando ambos nombres de columnas
-  const insertPayload: any = {
+  const insertPayload: CreateRepresentanteRequest = {
     nombre: nombre.trim(),
     apellido: apellido?.trim() || null,
     telefono: telefono?.trim() || null,
@@ -58,13 +70,16 @@ export async function POST(
   };
 
   // Si el esquema usa empresa_id en lugar de empresa_id
-  const { error: insertError } = await supabase
+  const { data, error: insertError } = await supabase
     .from("representantes")
-    .insert([insertPayload]);
+    .insert([insertPayload])
+    .eq("empresa_id", id)
+    .select("id, nombre, apellido, telefono")
+    .single();
 
   if (insertError) {
     return Response.json({ error: insertError.message }, { status: 500 });
   }
 
-  return Response.json({ error: null }, { status: 201 });
+  return Response.json({ data, error: null }, { status: 201 });
 }

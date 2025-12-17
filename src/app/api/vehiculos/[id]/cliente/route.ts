@@ -1,5 +1,6 @@
 import { Cliente, TipoCliente } from "@/model/types";
 import { createClient } from "@/supabase/server";
+import { PostgrestError } from "@supabase/supabase-js";
 import type { NextRequest } from "next/server";
 
 // GET /api/vehiculos/[id]/cliente
@@ -19,7 +20,7 @@ export async function GET(
     .single();
 
   if (vError) {
-    const status = (vError as any)?.code === "PGRST116" ? 404 : 500;
+    const status = (vError as PostgrestError)?.code === "PGRST116" ? 404 : 500;
     return Response.json(
       { data: null, error: vError.message },
       { status }
@@ -41,7 +42,7 @@ export async function GET(
     .single();
 
   if (cError) {
-    const status = (cError as any)?.code === "PGRST116" ? 404 : 500;
+    const status = (cError as PostgrestError)?.code === "PGRST116" ? 404 : 500;
     return Response.json(
       { data: null, error: cError.message },
       { status }

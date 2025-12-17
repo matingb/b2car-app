@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Building2, MapPin } from "lucide-react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
-import { TipoCliente, Vehiculo } from "@/model/types";
+import { Representante, TipoCliente, Vehiculo } from "@/model/types";
 import CreateVehiculoModal from "../vehiculos/CreateVehiculoModal";
 import ClienteHeader from "../clientes/ClienteHeader";
 import ContactInfoCard from "../clientes/ContactInfoCard";
@@ -17,6 +17,7 @@ import { useParams } from "next/navigation";
 import { Empresa } from "@/clients/clientes/empresaClient";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import { css } from "@emotion/react";
+import { logger } from "@/lib/logger";
 
 
 export default function EmpresaDetails() {
@@ -26,7 +27,7 @@ export default function EmpresaDetails() {
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [openVehiculo, setOpenVehiculo] = useState(false);
   const [openEditEmpresa, setOpenEditEmpresa] = useState(false);
-  const [representantes, setRepresentantes] = useState<any[]>([]);
+  const [representantes, setRepresentantes] = useState<Representante[]>([]);
   const [openRepresentante, setOpenRepresentante] = useState(false);
   const toast = useToast();
   const { getEmpresaById, listRepresentantes, createRepresentante, updateEmpresa } = useClientes();
@@ -52,7 +53,7 @@ export default function EmpresaDetails() {
         const reps = await listRepresentantes(clienteId);
         setRepresentantes(reps);
       } catch (e) {
-        // silencioso
+        logger.error("No se pudieron cargar los representantes", e);
       }
     };
     loadRepresentantes();
@@ -166,7 +167,6 @@ export default function EmpresaDetails() {
       />
       <CreateRepresentanteModal
         open={openRepresentante}
-        empresaId={clienteId ?? ''}
         onClose={async (created) => {
           setOpenRepresentante(false);
           if (created) {
@@ -175,6 +175,7 @@ export default function EmpresaDetails() {
               setRepresentantes(prev => [nuevo, ...prev]);
               toast.success('Representante creado');
             } catch (err) {
+              console.log(err)
               const msg = err instanceof Error ? err.message : "No se pudo crear el representante";
               toast.error(msg);
             }

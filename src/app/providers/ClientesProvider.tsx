@@ -134,6 +134,7 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
 
   const createRepresentante = useCallback(async (empresaId: string | number, input: CreateRepresentanteInput) => {
     const { data, error } = await representantesClient.create(empresaId, input);
+    console.log({data, error});
     if (error || !data) {
       throw new Error(error || "No se pudo crear el representante");
     }

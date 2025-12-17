@@ -11,11 +11,9 @@ import {
   Calendar,
   Wrench,
   Gauge,
-  User,
   FileText,
   CheckCircle2,
   XCircle,
-  Pencil,
   Car,
 } from "lucide-react";
 import { css } from "@emotion/react";
