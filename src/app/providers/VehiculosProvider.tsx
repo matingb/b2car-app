@@ -69,10 +69,10 @@ export function VehiculosProvider({ children }: { children: React.ReactNode }) {
   const create = useCallback(async (input: CreateVehiculoRequest) => {
     setLoading(true);
     try {
-      const { created_id, error } = await vehiculoClient.create(input);
+      const { data, error } = await vehiculoClient.create(input);
       if (error) throw new Error(error);
       await fetchAll();
-      return created_id ?? null;
+      return data?.id ?? null;
     } finally {
       setLoading(false);
     }
