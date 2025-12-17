@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { COLOR } from "@/theme/theme";
 import Modal from "../ui/Modal";
 import { TipoCliente } from "@/model/types";
+import Dropdown from "../ui/Dropdown";
+import { COLOR } from "@/theme/theme";
 
 type Props = {
   open: boolean;
@@ -38,6 +39,14 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
   const [direccion, setDireccion] = useState(initialValues?.direccion ?? "");
   const [tipo, setTipo] = useState<TipoCliente>(initialValues?.tipo_cliente ?? TipoCliente.PARTICULAR);
   const [submitting, setSubmitting] = useState(false);
+
+  const tipoClienteOptions = useMemo(
+    () => [
+      { value: TipoCliente.PARTICULAR, label: "Particular" },
+      { value: TipoCliente.EMPRESA, label: "Empresa" },
+    ],
+    []
+  );
 
   // Sincronizar con initialValues cuando cambian
   React.useEffect(() => {
@@ -142,10 +151,13 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
             <label style={styles.label}>
               Tipo <span style={{ color: "#d00" }}>*</span>
             </label>
-            <select style={{ ...styles.input, paddingRight: 8 }} value={tipo} onChange={(e) => setTipo(e.target.value as TipoCliente)}>
-              <option value={TipoCliente.PARTICULAR}>Particular</option>
-              <option value={TipoCliente.EMPRESA}>Empresa</option>
-            </select>
+            <Dropdown
+              style={styles.dropdown}
+              value={tipo}
+              options={tipoClienteOptions}
+              onChange={(value) => setTipo(value as TipoCliente)}
+              disabled={mode === "edit"}
+            />
           </div>
         </div>
 
@@ -171,7 +183,7 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
   );
 }
 
-const styles = {
+export const styles = {
   row: {
     display: "flex",
     gap: 16,
@@ -193,10 +205,12 @@ const styles = {
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
   },
+  dropdown: {
+    paddingRight: 8,
+  },
   error: {
     color: "#b00020",
     fontSize: 13,
     marginTop: 6,
   },
-} as const;
-
+} as const; 
