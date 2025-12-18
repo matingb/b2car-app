@@ -33,15 +33,16 @@ export default function VehiculoCard({ vehiculo, onClick }: VehiculoCardProps) {
         <div style={styles.divider} />
 
         <div style={styles.infoSection}>
-          <div style={styles.headerRow}>
-            <div style={styles.vehicleTitle}>
-              <h2 style={styles.vehicleTitleText}>{title.trim()}</h2>
-              {vehiculo.fecha_patente && (
-                <span css={styles.yearBadge}>{vehiculo.fecha_patente}</span>
-              )}
+          {title.trim() != "" && (
+            <div style={styles.headerRow}>
+              <div style={styles.vehicleTitle}>
+                <h2 style={styles.vehicleTitleText}>{title.trim()}</h2>
+                {vehiculo.fecha_patente && (
+                  <span css={styles.yearBadge}>{vehiculo.fecha_patente}</span>
+                )}
+              </div>
             </div>
-          </div>
-
+          )}
           <div css={styles.detailsRow}>
             <IconLabel
               icon={<User size={18} color={COLOR.ACCENT.PRIMARY} />}
