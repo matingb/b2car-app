@@ -111,6 +111,7 @@ const styles = {
     flex: 1,
     display: "flex",
     flexDirection: "column",
+    justifyContent: "center",
     gap: 12,
     minWidth: 0,
   },
