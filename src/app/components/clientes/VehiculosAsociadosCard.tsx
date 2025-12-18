@@ -37,7 +37,7 @@ export default function VehiculosAsociadosCard({ vehiculos, onAddVehiculo }: Pro
   }, []);
 
   return (
-    <div>
+    <div style={styles.main}>
       <div style={styles.header}>
         <h3>Vehículos asociados</h3>
         <IconButton
@@ -70,13 +70,13 @@ export default function VehiculosAsociadosCard({ vehiculos, onAddVehiculo }: Pro
                     </div>
                   </div>
                 ) : (
-                  <>
+                  <div style={styles.itemSquare}>
                     <Car size={28} color={COLOR.ACCENT.PRIMARY} />
                     <div style={styles.squarePatente}>{formatPatente(vehiculo.patente)}</div>
                     <div style={styles.squareSubtitle}>
                       {vehiculo.marca ?? "-"} {vehiculo.modelo ?? "-"}
                     </div>
-                  </>
+                  </div>
                 )}
               </Card>
             ))}
@@ -92,6 +92,12 @@ export default function VehiculosAsociadosCard({ vehiculos, onAddVehiculo }: Pro
 }
 
 const styles = {
+    main: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
+    height: "100%",
+  },
   contentPanel: {
     display: "flex",
     flexDirection: "column",
@@ -162,7 +168,7 @@ const styles = {
     borderRadius: 8,
     background: "rgba(0,0,0,0.02)",
     cursor: "pointer",
-    padding: 8,
+    padding: 0,
     boxSizing: "border-box",
   },
   itemRow: {

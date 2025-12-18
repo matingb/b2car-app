@@ -218,6 +218,9 @@ const styles = {
     gap: 16,
   }),
   half: css({
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
     width: "50%",
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       width: "100%",

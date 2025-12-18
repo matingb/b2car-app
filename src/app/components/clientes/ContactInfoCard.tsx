@@ -18,7 +18,7 @@ type Props = {
 
 export default function ContactInfoCard({ email, telefono, cuit, onEdit, style, direccion }: Props) {
   return (
-    <div>
+    <div style={styles.main}>
       <div style={styles.header}>
         <h3>Datos de contacto</h3>
         {onEdit && (
@@ -42,7 +42,6 @@ export default function ContactInfoCard({ email, telefono, cuit, onEdit, style, 
             flexDirection: "column",
             gap: 8,
             alignContent: "center",
-            padding: "4px 8px",
           }}
         >
           <IconLabel
@@ -72,6 +71,12 @@ export default function ContactInfoCard({ email, telefono, cuit, onEdit, style, 
 }
 
 const styles = {
+  main: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
+    height: "100%",
+  },
   contentPanel: {
     display: "flex",
     flexDirection: "column",
