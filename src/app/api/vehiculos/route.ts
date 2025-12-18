@@ -53,7 +53,15 @@ export async function POST(req: Request) {
   if (insertError) {
     const code = (insertError as { code?: string } | null)?.code || "";
     const status = code === '23505' ? 409 : 500; // 23505: unique_violation
-    return Response.json({ error: insertError?.message || 'No se pudo crear el vehículo' }, { status });
+    let message  = "Error al crear vehículo";
+    if (status === 409) {
+      logger.error(`❌ Conflicto al crear vehículo: patente ya existe (${patente})`);
+      message = `Ya existe un vehículo con la patente '${patente}'`;
+    } else {
+      logger.error(`❌ Error al crear vehículo: ${insertError.message}`);
+    }
+
+    return Response.json({ error: message || 'No se pudo crear el vehículo' }, { status });
   }
 
   const response : CreateVehiculoResponse = {

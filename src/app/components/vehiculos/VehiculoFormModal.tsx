@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Autocomplete, { AutocompleteOption } from "../ui/Autocomplete";
 import Modal from "../ui/Modal";
 import { COLOR } from "@/theme/theme";
+import { useToast } from "@/app/providers/ToastProvider";
 
 type ClienteApiItem = {
   id: string | number;
@@ -50,6 +51,7 @@ export default function VehiculoFormModal<TResult = void>({
   const [clientesOptions, setClientesOptions] = useState<AutocompleteOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { error: toastError } = useToast();
 
   useEffect(() => {
     if (!open) return;
@@ -121,7 +123,7 @@ export default function VehiculoFormModal<TResult = void>({
       onClose(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Ocurrió un error";
-      setError(msg);
+      toastError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -217,8 +219,6 @@ export default function VehiculoFormModal<TResult = void>({
           </div>
         </div>
       </div>
-
-      {error && <div style={styles.error}>{error}</div>}
     </Modal>
   );
 }
