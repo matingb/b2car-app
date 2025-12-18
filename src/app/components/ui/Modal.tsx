@@ -4,6 +4,8 @@ import React, { useId } from "react";
 import Card from "./Card";
 import Button from "./Button";
 import { COLOR } from "@/theme/theme";
+import { text } from "stream/consumers";
+import { css } from "@emotion/react";
 
 type Props = {
   open: boolean;
@@ -66,6 +68,7 @@ export default function Modal({
                 text={submitting ? "Guardando..." : submitText}
                 disabled={isSubmitDisabled}
                 data-testid="modal-submit"
+                hideText={false}
               />
             </div>
           </form>

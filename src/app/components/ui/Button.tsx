@@ -7,14 +7,15 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   children?: React.ReactNode;
   style?: React.CSSProperties;
   text: string;
-  size?: "small" | "medium" | "large";
   onClick?: () => void;
+  hideText?: boolean;
 };
 
 export default function Button({
   icon = null,
   style,
   text,
+  hideText = true,
   onClick,
   ...rest
 }: ButtonProps) {
@@ -38,7 +39,7 @@ export default function Button({
       css={styles.button}
     >
       {icon && icon}
-      <p css={styles.text}>{text}</p>
+      <p css={hideText ? styles.text : undefined}>{text}</p>
     </button>
   );
 }

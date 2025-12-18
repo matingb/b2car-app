@@ -4,7 +4,8 @@ import React, { useMemo, useState } from "react";
 import Modal from "../ui/Modal";
 import { TipoCliente } from "@/model/types";
 import Dropdown from "../ui/Dropdown";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { css } from '@emotion/react'
 
 type Props = {
   open: boolean;
@@ -114,7 +115,7 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
       disabledSubmit={!isValid}
     >
       <div style={{ padding: "4px 0 12px" }}>
-        <div style={styles.row}>
+        <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>
               Nombre <span style={{ color: "#d00" }}>*</span>
@@ -161,7 +162,7 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
           </div>
         </div>
 
-        <div style={styles.row}>
+        <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>Teléfono</label>
             <input style={styles.input} placeholder="+54 11 1234–5678" value={telefono} onChange={(e) => setTelefono(e.target.value)} />
@@ -172,7 +173,7 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
           </div>
         </div>
 
-        <div style={styles.row}>
+        <div css={styles.row}>
           <div style={{ ...styles.field, flex: 1 }}>
             <label style={styles.label}>Dirección</label>
             <input style={styles.input} placeholder="Dirección completa" value={direccion} onChange={(e) => setDireccion(e.target.value)} />
@@ -184,11 +185,17 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
 }
 
 export const styles = {
-  row: {
+  row: css({
     display: "flex",
     gap: 16,
     marginTop: 10,
-  },
+    width: "auto",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      width: "100%",
+      flexDirection: "column",
+      gap: 8,
+    },
+  }),
   field: {
     flex: 1,
   },
