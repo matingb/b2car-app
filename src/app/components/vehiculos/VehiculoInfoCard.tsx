@@ -104,7 +104,7 @@ export default function VehiculoInfoCard({
 
 const styles = {
   container: {
-    minWidth: 300,
+    minWidth: 0,
   },
   headerRow: {
     display: "flex",
@@ -129,7 +129,8 @@ const styles = {
     gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
     gap: 16,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+      gridTemplateColumns: "repeat(1, minmax(0, 1fr))",
+      gap: 0,
     },
   }),
   label: {

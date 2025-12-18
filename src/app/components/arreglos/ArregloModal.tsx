@@ -4,12 +4,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import Autocomplete, { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import Modal from "@/app/components/ui/Modal";
 import { Arreglo, Vehiculo } from "@/model/types";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient";
 import { isValidDate, toDateInputFormat } from "@/utils/fechas";
 import { formatPatenteConMarcaYModelo } from "@/utils/vehiculos";
+import { css } from "@emotion/react";
 
 export type ArregloForm = {
   tipo: string;
@@ -160,7 +161,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     >
       <div style={{ padding: "4px 0 12px" }}>
         {!vehiculoId && (
-          <div style={styles.row}>
+          <div css={styles.row}>
             <div style={styles.field}>
               <label style={styles.label}>
                 Vehiculo <span style={{ color: "#d00" }}>*</span>
@@ -174,7 +175,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
             </div>
           </div>
         )}
-        <div style={styles.row}>
+        <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>Tipo</label>
             <Autocomplete
@@ -200,7 +201,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           </div>
         </div>
 
-        <div style={styles.row}>
+        <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>
               Descripcion <span style={{ color: "#d00" }}>*</span>
@@ -215,7 +216,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           </div>
         </div>
 
-        <div style={styles.row}>
+        <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>Kilometraje </label>
             <input
@@ -240,7 +241,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           </div>
         </div>
 
-        <div style={styles.row}>
+        <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>Observaciones</label>
             <textarea
@@ -260,7 +261,17 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
 }
 
 const styles = {
-  row: { display: "flex", gap: 16, marginTop: 10 },
+  row: css({
+    display: "flex",
+    gap: 16,
+    marginTop: 10,
+    width: "auto",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      width: "100%",
+      flexDirection: "column",
+      gap: 8,
+    },
+  }),
   field: { flex: 1 },
   label: {
     display: "block",

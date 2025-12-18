@@ -119,11 +119,12 @@ export default function ArregloDetailsPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16}}>
         <ScreenHeader
           title="Arreglos"
           breadcrumbs={["Detalle"]}
           hasBackButton
+          style={{ width: "100%" }}
         />
       </div>
 
@@ -346,7 +347,7 @@ const styles = {
     display: "flex",
     flexDirection: "column" as const,
     flex: 1,
-    minWidth: 320,
+    
     gap: 8,
   },
   infoGrid: {

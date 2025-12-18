@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useId } from "react";
+import React, { useEffect, useRef, useId } from "react";
 import Card from "./Card";
 import Button from "./Button";
 import { COLOR } from "@/theme/theme";
-import { text } from "stream/consumers";
-import { css } from "@emotion/react";
+
 
 type Props = {
   open: boolean;
@@ -29,6 +28,55 @@ export default function Modal({
   disabledSubmit = false,
 }: Props) {
   const titleId = useId();
+  const restoreScrollRef = useRef<null | (() => void)>(null);
+
+  useEffect(() => {
+    if (!open) {
+      restoreScrollRef.current?.();
+      restoreScrollRef.current = null;
+      return;
+    }
+
+    // Bloquea scroll del contenido de fondo (generado por IA parece funcionar bien)
+    // Segun el agente esta solucion es Safari/iOS Safe
+    const body = document.body;
+    const html = document.documentElement;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+
+    const prevBody = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
+    };
+    const prevHtmlOverflow = html.style.overflow;
+
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+    html.style.overflow = "hidden";
+
+    restoreScrollRef.current = () => {
+      body.style.position = prevBody.position;
+      body.style.top = prevBody.top;
+      body.style.left = prevBody.left;
+      body.style.right = prevBody.right;
+      body.style.width = prevBody.width;
+      body.style.overflow = prevBody.overflow;
+      html.style.overflow = prevHtmlOverflow;
+      window.scrollTo(0, scrollY);
+    };
+
+    return () => {
+      restoreScrollRef.current?.();
+      restoreScrollRef.current = null;
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -87,9 +135,14 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     zIndex: 50,
+    overflowY: "auto" as const,
+    overscrollBehavior: "contain" as const,
   },
   modal: {
     width: "min(640px, 92vw)",
+    maxHeight: "calc(100dvh - 24px)",
+    overflowY: "auto" as const,
+    WebkitOverflowScrolling: "touch" as const,
   },
   headerRow: {
     display: "flex",

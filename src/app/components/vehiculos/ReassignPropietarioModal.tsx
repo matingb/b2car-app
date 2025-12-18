@@ -116,7 +116,12 @@ export default function ReassignPropietarioModal({ open, vehiculoId, currentClie
             {error && <div style={styles.error}>{error}</div>}
             <div style={styles.footer}>
               <button type="button" style={styles.cancel} onClick={() => onClose()} disabled={submitting}>Cancelar</button>
-              <Button text={submitting ? "Guardando..." : "Guardar"} disabled={!isValid || submitting} style={{ opacity: isValid ? 1 : 0.6 }} />
+              <Button 
+                text={submitting ? "Guardando..." : "Guardar"} 
+                disabled={!isValid || submitting} 
+                style={{ opacity: isValid ? 1 : 0.6 }} 
+                hideText={false}
+              />
             </div>
           </form>
         </Card>

@@ -15,13 +15,15 @@ interface ScreenHeaderProps {
   breadcrumbs?: string[];
   className?: string;
   hasBackButton?: boolean;
+  style?: React.CSSProperties;
 }
 
 export default function ScreenHeader({
   title,
   breadcrumbs = [],
   className,
-  hasBackButton = false
+  hasBackButton = false,
+  style,
 }: ScreenHeaderProps) {
   const router = useRouter();
   const { openSheet } = useSheet();
@@ -34,7 +36,7 @@ export default function ScreenHeader({
   };
 
   return (
-    <header className={className} style={styles.header}>
+    <header className={className} style={{ ...styles.header, ...style }}>
       <div style={styles.titleWrapper}>
       {hasBackButton && (
         <ArrowLeft
