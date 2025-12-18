@@ -5,6 +5,9 @@ import { useState } from "react";
 import { login } from "./actions";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
+import pkg from "../../../package.json";
+
+export const APP_VERSION = pkg.version;
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -69,7 +72,7 @@ export default function LoginPage() {
               {isSubmitting ? "Iniciando sesión..." : "Iniciar sesión"}
             </button>
           </form>
-          <div style={styles.versionLabel}>v1.1.0</div>
+          <div style={styles.versionLabel}>v{APP_VERSION}</div>
           {message && <p style={styles.message}>{message}</p>}
         </div>
       </div>
