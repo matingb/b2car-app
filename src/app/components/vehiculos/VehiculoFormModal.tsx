@@ -50,7 +50,6 @@ export default function VehiculoFormModal<TResult = void>({
   const [selectedClienteId, setSelectedClienteId] = useState<string>(clienteId ? String(clienteId) : "");
   const [clientesOptions, setClientesOptions] = useState<AutocompleteOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { error: toastError } = useToast();
 
   useEffect(() => {
@@ -61,7 +60,6 @@ export default function VehiculoFormModal<TResult = void>({
     setFechaPatente(initialValues.fecha_patente ?? "");
     setNroInterno(initialValues.nro_interno ?? "");
     setSelectedClienteId(clienteId ? String(clienteId) : "");
-    setError(null);
     setSubmitting(false);
   }, [
     open,
@@ -110,7 +108,6 @@ export default function VehiculoFormModal<TResult = void>({
     e.preventDefault();
     if (!isValid) return;
     setSubmitting(true);
-    setError(null);
     try {
       const result = await onSubmit({
         cliente_id: showClienteInput ? selectedClienteId : clienteId,

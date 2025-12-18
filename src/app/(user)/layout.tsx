@@ -6,13 +6,13 @@ import SidebarItem from "@/app/components/ui/SidebarItem";
 import { SessionProvider } from "@/app/providers/SessionProvider";
 import { ModalMessageProvider } from "@/app/providers/ModalMessageProvider";
 import ToastProvider from "@/app/providers/ToastProvider";
+import { SheetProvider } from "@/app/providers/SheetProvider";
 import Divider from "@/app/components/ui/Divider";
 import { Users, Car, LogOut, PanelLeft, Wrench } from "lucide-react";
 import { logOut } from "@/app/login/actions";
 import { COLOR } from "@/theme/theme";
-import { css } from "@emotion/react";
-import { BREAKPOINTS } from "@/theme/theme";
-import IconButton from "../components/ui/IconButton";
+import { css } from '@emotion/react'
+import { BREAKPOINTS } from '@/theme/theme'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -46,24 +46,32 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <ModalMessageProvider>
         <ToastProvider>
+          <SheetProvider>
           <div style={s.appRoot}>
             <div css={s.pageContent}>
-              <aside
-                css={s.sidebarResponsive}
-                style={s.sidebar}
-                aria-label="Sidebar"
-              >
+              <aside css={s.sidebarResponsive} style={s.sidebar} aria-label="Sidebar">
                 <div style={s.card}>
                   <div style={s.sidebarHeaderRow}>
-                    <IconButton
-                      icon={<PanelLeft size={18} />}
+                    <div
+                      style={s.brandBadge}
                       onClick={() => setCollapsed((v) => !v)}
                       title={collapsed ? "Expandir" : "Colapsar"}
                       aria-label={
                         collapsed ? "Expandir sidebar" : "Colapsar sidebar"
                       }
-                    />
-                    {!collapsed && <Divider orientation="vertical" />}
+                    >
+                      <PanelLeft style={{ width: "3rem" }} size={18} />
+                    </div>
+                    {!collapsed && (
+                      <Divider
+                        orientation="vertical"
+                        style={{
+                          margin: "0.5rem 0.5rem",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      />
+                    )}
                     <div style={s.brandTextWrap}>
                       <div style={s.title}>CarMax</div>
                     </div>
@@ -88,9 +96,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       icon={<Wrench size={18} />}
                       collapsed={collapsed}
                     />
-                    <div style={{ margin: "0.5rem 0" }}>
-                      <Divider />
-                    </div>
+                    <Divider
+                      style={{
+                        width: collapsed ? "2rem" : "100%",
+                        margin: collapsed ? "0.5rem 0" : "0.5rem 0",
+                      }}
+                    />
                     <SidebarItem
                       href={""}
                       label="Cerrar sesión"
@@ -107,8 +118,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <main style={s.main}>
                 <div css={s.cardMain}>{children}</div>
               </main>
+
             </div>
+
           </div>
+          </SheetProvider>
         </ToastProvider>
       </ModalMessageProvider>
     </SessionProvider>
@@ -136,7 +150,7 @@ const styles = {
   },
   sidebarResponsive: css({
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "none",
+      display: 'none',
     },
   }),
   card: {
@@ -172,15 +186,13 @@ const styles = {
     wrap: "wrap",
     alignItems: "center",
     justifyItems: "left",
-    gap: "1rem",
-    padding: "0.5rem",
-    paddingLeft: "0",
   },
   title: {
     color: COLOR.TEXT.PRIMARY,
     fontSize: "1.25rem",
     lineHeight: "1.75rem",
     fontWeight: 600,
+    marginLeft: "0.5rem",
   },
   subtitle: {
     color: COLOR.TEXT.SECONDARY,

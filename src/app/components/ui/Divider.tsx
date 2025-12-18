@@ -1,8 +1,9 @@
 interface DividerProps {
   orientation?: "horizontal" | "vertical";
+  style?: React.CSSProperties;
 }
 
-export default function Divider({ orientation = "horizontal" }: DividerProps) {
+export default function Divider({ orientation = "horizontal", style: userStyle }: DividerProps) {
   const style: React.CSSProperties =
     orientation === "vertical"
       ? {
@@ -16,6 +17,6 @@ export default function Divider({ orientation = "horizontal" }: DividerProps) {
           backgroundColor: "#00000025",
         };
 
-  return <div style={style} />;
+  return <div style={{ ...style, ...userStyle }} />;
 }
 
