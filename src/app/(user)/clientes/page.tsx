@@ -45,6 +45,17 @@ export default function ClientesPage() {
     );
   };
 
+  const testFactura = async () => {
+    const response = await fetch('/api/facturas', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      
+    });    const data = await response.json();
+    console.log('Factura creada:', data);
+  }
+
   return (
     <div>
       <ScreenHeader title="Clientes" />
@@ -56,7 +67,7 @@ export default function ClientesPage() {
             placeholder="Buscar clientes..."
             style={styles.searchBar}
           />
-          <Button icon={<PlusIcon size={20} />} text="Crear cliente" onClick={() => setOpen(true)} style={styles.newButton} />
+          <Button icon={<PlusIcon size={20} />} text="Crear cliente" onClick={() => testFactura()} style={styles.newButton} />
         </div>
         <div className="chips-container" aria-label="Filtrar por tipo de cliente">
           {[TipoCliente.PARTICULAR, TipoCliente.EMPRESA].map((tipo) => {
