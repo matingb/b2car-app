@@ -88,6 +88,7 @@ async function facturaBExample() {
     return resBill;
 }
 
+// ESTO SE ESTA LLAMANDO DESDE EL BOTON DE AGREGAR CLIENTE
 export async function POST(req: Request) {
     try {
         const resBill = await facturaBExample();
