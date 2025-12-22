@@ -130,6 +130,24 @@ h2{
   flex-wrap: wrap;
 }
 
+.chips-container.chips-container--with-clear {
+  flex-wrap: nowrap;
+}
+
+.chips-container.chips-container--with-clear .chips-container__items {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.chips-container.chips-container--with-clear .chips-container__clear {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .chip-filter {
   padding: 8px 16px;
   border-radius: 24px;

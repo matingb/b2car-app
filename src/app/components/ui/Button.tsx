@@ -9,6 +9,7 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   text: string;
   onClick?: () => void;
   hideText?: boolean;
+  outline?: boolean;
 };
 
 export default function Button({
@@ -16,6 +17,7 @@ export default function Button({
   style,
   text,
   hideText = true,
+  outline = false,
   onClick,
   ...rest
 }: ButtonProps) {
@@ -23,20 +25,22 @@ export default function Button({
   const [hover, setHover] = useState(false);
 
   const isDisabled = rest.disabled;
+  const hoverStyles = outline ? styles.buttonOutlineHover : styles.buttonHover;
+  const disabledStyles = outline ? styles.buttonOutlineDisabled : styles.buttonDisabled;
 
   return (
     <button
       style={{
         //...styles.button,
-        ...(hover && !isDisabled && styles.buttonHover),
-        ...(isDisabled && styles.buttonDisabled),
+        ...(hover && !isDisabled && hoverStyles),
+        ...(isDisabled && disabledStyles),
         ...style
       }}
       {...rest}
       onMouseEnter={() => !isDisabled && setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={onClick}
-      css={styles.button}
+      css={[styles.button, outline && styles.buttonOutline]}
     >
       {icon && icon}
       <p css={hideText ? styles.text : undefined}>{text}</p>
@@ -59,6 +63,7 @@ const styles = {
     width: "fit-content",
     minWidth: 160,
     transition: "background 0.2s",
+    border: "none",
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       minWidth: 0,
     },
@@ -66,7 +71,21 @@ const styles = {
   buttonHover: {
     background: `${COLOR.ACCENT.HOVER}`,
   },
+  buttonOutline: css({
+    background: `${COLOR.BACKGROUND.SUBTLE}`,
+    color: COLOR.TEXT.PRIMARY,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+  }),
+  buttonOutlineHover: {
+    background: `${COLOR.BACKGROUND.PRIMARY}`,
+    color: COLOR.TEXT.PRIMARY,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+  },
   buttonDisabled: {
+    opacity: 0.6,
+    cursor: "default",
+  },
+  buttonOutlineDisabled: {
     opacity: 0.6,
     cursor: "default",
   },

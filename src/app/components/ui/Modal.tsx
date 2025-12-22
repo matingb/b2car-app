@@ -141,7 +141,6 @@ const styles = {
   modal: {
     width: "min(640px, 92vw)",
     maxHeight: "calc(100dvh - 24px)",
-    overflowY: "auto" as const,
     WebkitOverflowScrolling: "touch" as const,
   },
   headerRow: {
