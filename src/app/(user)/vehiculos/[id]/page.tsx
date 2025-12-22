@@ -18,7 +18,9 @@ import Button from "@/app/components/ui/Button";
 import { vehiculoClient } from "@/clients/vehiculoClient";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { css } from "@emotion/react";
-import { Plus } from "lucide-react";
+import { Plus, PlusIcon } from "lucide-react";
+import SearchBar from "@/app/components/ui/SearchBar";
+import { wrap } from "module";
 
 export default function VehiculoDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -33,12 +35,28 @@ export default function VehiculoDetailsPage() {
   const [openEditVehiculo, setOpenEditVehiculo] = useState(false);
   const [openReassignOwner, setOpenReassignOwner] = useState(false);
   const { confirm, alert } = useModalMessage();
+  const [search, setSearch] = useState("");
 
   // Kilometraje más alto a partir de los arreglos
   const maxKilometraje = useMemo(() => {
     if (!arreglos || arreglos.length === 0) return undefined;
     return Math.max(...arreglos.map((a) => Number(a.kilometraje_leido) || 0));
   }, [arreglos]);
+
+  const arreglosFiltrados = useMemo(() => {
+    if (!arreglos) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return arreglos;
+    return arreglos.filter((a: Arreglo) => {
+      // Busca en las propiedades planas y en la patente del vehículo asociado
+      const inFlat = Object.values(a ?? {}).some((v) =>
+        String(v ?? "").toLowerCase().includes(q)
+      );
+      const patente = String(a?.vehiculo?.patente ?? "").toLowerCase();
+      const inPatente = patente.includes(q);
+      return inFlat || inPatente;
+    });
+  }, [arreglos, search]);
 
   const reload = useCallback(async () => {
     try {
@@ -96,7 +114,7 @@ export default function VehiculoDetailsPage() {
     });
     if (!confirmed) return;
     try {
-      setLoading(true); 
+      setLoading(true);
       const err = await vehiculoClient.delete(vehiculo!.id);
       if (err.error) throw new Error(err.error);
       router.push(ROUTES.vehiculos);
@@ -184,14 +202,20 @@ export default function VehiculoDetailsPage() {
           <h3 css={styles.arreglosTitle}>
             Ultimos arreglos
           </h3>
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar arreglos..."
+            style={styles.searchBar}
+          />
           <Button
             text="Nuevo arreglo"
-            icon={<Plus size={20}/>}
+            icon={<Plus size={20} />}
             onClick={handleOpenCreate}
           />
         </div>
 
-        <ArreglosList arreglos={arreglos} />
+        <ArreglosList arreglos={arreglosFiltrados} />
       </div>
       {vehiculo && (
         <ArregloModal
@@ -199,26 +223,26 @@ export default function VehiculoDetailsPage() {
           vehiculoId={vehiculo.id}
           initial={
             editArreglo
-            ? {
-              id: editArreglo.id,
-              tipo: editArreglo.tipo,
-              fecha: editArreglo.fecha,
-              kilometraje_leido: editArreglo.kilometraje_leido,
-                  precio_final: editArreglo.precio_final,
-                  observaciones: editArreglo.observaciones,
-                  descripcion: editArreglo.descripcion,
-                  esta_pago: editArreglo.esta_pago,
-                  extra_data: editArreglo.extra_data,
-                }
-                : undefined
+              ? {
+                id: editArreglo.id,
+                tipo: editArreglo.tipo,
+                fecha: editArreglo.fecha,
+                kilometraje_leido: editArreglo.kilometraje_leido,
+                precio_final: editArreglo.precio_final,
+                observaciones: editArreglo.observaciones,
+                descripcion: editArreglo.descripcion,
+                esta_pago: editArreglo.esta_pago,
+                extra_data: editArreglo.extra_data,
               }
-              onClose={handleCloseModal}
-              onSubmitSuccess={async (nuevo) => {
-                nuevo.vehiculo = vehiculo;
-                setArreglos( (prev) => [nuevo, ...prev]
-                )
-                handleCloseModal(false);
-              }}
+              : undefined
+          }
+          onClose={handleCloseModal}
+          onSubmitSuccess={async (nuevo) => {
+            nuevo.vehiculo = vehiculo;
+            setArreglos((prev) => [nuevo, ...prev]
+            )
+            handleCloseModal(false);
+          }}
         />
       )}
       {vehiculo && (
@@ -276,6 +300,18 @@ function loadingScreen() {
 }
 
 const styles = {
+  searchBarContainer: {
+    marginBottom: 16,
+    display: "flex",
+    justifyContent: "start",
+    marginTop: 8,
+    gap: 16,
+  },
+  searchBar: {
+    width: "100%",
+    flex: 1,
+    marginRight: 8,
+  },
   headerRow: {
     display: "flex",
     alignItems: "center",
@@ -288,7 +324,7 @@ const styles = {
     [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
       display: "none",
     },
-  }), 
+  }),
   mainContainer: {
     display: "flex",
     flexDirection: "column",
@@ -317,11 +353,14 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
+    flexWrap  : "wrap",
+    gap: 8
   },
   arreglosTitle: css({
     fontSize: 20,
     fontWeight: 600,
     marginBottom: 0,
+    width: '100%',
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       fontSize: 18,
     },
