@@ -77,7 +77,7 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
       title="Filtrar arreglos"
       onClose={onClose}
       onSubmit={handleSubmit}
-      submitText="Aplicar"
+      submitText="Aplicar filtros"
     >
       <div style={{ padding: "4px 0 12px" }}>
         <div css={styles.row}>
