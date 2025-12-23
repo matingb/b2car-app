@@ -12,15 +12,14 @@ import EditVehiculoModal from "@/app/components/vehiculos/EditVehiculoModal";
 import VehiculoInfoCard from "@/app/components/vehiculos/VehiculoInfoCard";
 import PropietarioCard from "@/app/components/vehiculos/PropietarioCard";
 import ReassignPropietarioModal from "@/app/components/vehiculos/ReassignPropietarioModal";
-import ArreglosList from "@/app/components/arreglos/ArreglosList";
 import { ROUTES } from "@/routing/routes";
-import Button from "@/app/components/ui/Button";
 import { vehiculoClient } from "@/clients/vehiculoClient";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { css } from "@emotion/react";
-import { Plus, PlusIcon } from "lucide-react";
-import SearchBar from "@/app/components/ui/SearchBar";
-import { wrap } from "module";
+import ArregloFiltersModal from "@/app/components/arreglos/ArregloFiltersModal";
+import ArreglosToolbar from "@/app/components/arreglos/ArreglosToolbar";
+import ArreglosResults from "@/app/components/arreglos/ArreglosResults";
+import { useArreglosFilters } from "@/app/hooks/arreglos/useArreglosFilters";
 
 export default function VehiculoDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -35,7 +34,8 @@ export default function VehiculoDetailsPage() {
   const [openEditVehiculo, setOpenEditVehiculo] = useState(false);
   const [openReassignOwner, setOpenReassignOwner] = useState(false);
   const { confirm, alert } = useModalMessage();
-  const [search, setSearch] = useState("");
+  const [isArreglosFilterModalOpen, setIsArreglosFilterModalOpen] = useState(false);
+  const arreglosFilters = useArreglosFilters(arreglos);
 
   // Kilometraje más alto a partir de los arreglos
   const maxKilometraje = useMemo(() => {
@@ -43,20 +43,7 @@ export default function VehiculoDetailsPage() {
     return Math.max(...arreglos.map((a) => Number(a.kilometraje_leido) || 0));
   }, [arreglos]);
 
-  const arreglosFiltrados = useMemo(() => {
-    if (!arreglos) return [];
-    const q = search.trim().toLowerCase();
-    if (!q) return arreglos;
-    return arreglos.filter((a: Arreglo) => {
-      // Busca en las propiedades planas y en la patente del vehículo asociado
-      const inFlat = Object.values(a ?? {}).some((v) =>
-        String(v ?? "").toLowerCase().includes(q)
-      );
-      const patente = String(a?.vehiculo?.patente ?? "").toLowerCase();
-      const inPatente = patente.includes(q);
-      return inFlat || inPatente;
-    });
-  }, [arreglos, search]);
+  // El filtrado (search + patente/tipo/fecha) se maneja con useArreglosFilters
 
   const reload = useCallback(async () => {
     try {
@@ -199,24 +186,30 @@ export default function VehiculoDetailsPage() {
         </div>
 
         <div style={styles.arreglosHeader}>
-          <h3 css={styles.arreglosTitle}>
-            Ultimos arreglos
-          </h3>
-          <SearchBar
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar arreglos..."
-            style={styles.searchBar}
-          />
-          <Button
-            text="Nuevo arreglo"
-            icon={<Plus size={20} />}
-            onClick={handleOpenCreate}
-          />
+          <h3 css={styles.arreglosTitle}>Ultimos arreglos</h3>
         </div>
+        <ArreglosToolbar
+          search={arreglosFilters.search}
+          onSearchChange={arreglosFilters.setSearch}
+          onOpenFilters={() => setIsArreglosFilterModalOpen(true)}
+          onOpenCreate={handleOpenCreate}
+          chips={arreglosFilters.chips}
+          onChipClick={arreglosFilters.removeFilter}
+          onClearFilters={arreglosFilters.clearFilters}
+        />
 
-        <ArreglosList arreglos={arreglosFiltrados} />
+        <ArreglosResults
+          loading={false}
+          items={arreglosFilters.arreglosFiltrados}
+          onSelect={(a) => router.push(`/arreglos/${a.id}`)}
+        />
       </div>
+      <ArregloFiltersModal
+        open={isArreglosFilterModalOpen}
+        onClose={() => setIsArreglosFilterModalOpen(false)}
+        onApply={arreglosFilters.applyFilters}
+        initial={arreglosFilters.filters}
+      />
       {vehiculo && (
         <ArregloModal
           open={openModal}
