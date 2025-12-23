@@ -18,6 +18,7 @@ type Props = {
   chips: Chip[];
   onChipClick: (kind: ChipKind) => void;
   onClearFilters: () => void;
+  style?: React.CSSProperties;
 };
 
 export default function ArreglosToolbar({
@@ -28,9 +29,10 @@ export default function ArreglosToolbar({
   chips,
   onChipClick,
   onClearFilters,
+  style,
 }: Props) {
   return (
-    <div style={styles.searchBarContainer}>
+    <div style={{ ...styles.searchBarContainer, ...style }}>
       <div style={styles.searchRow}>
         <SearchBar
           value={search}
@@ -87,8 +89,6 @@ const styles = {
     display: "flex",
     flexDirection: "column" as const,
     gap: 10,
-    marginBottom: 16,
-    marginTop: 8,
   },
   searchRow: {
     display: "flex",

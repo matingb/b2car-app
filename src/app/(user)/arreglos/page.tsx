@@ -31,6 +31,7 @@ function ArreglosPageContent() {
         chips={state.chips}
         onChipClick={state.removeFilter}
         onClearFilters={state.clearFilters}
+        style={styles.searchBarContainer}
       />
       <ArreglosResults
         loading={loading}
@@ -51,3 +52,11 @@ function ArreglosPageContent() {
     </div>
   );
 }
+
+
+const styles = {
+  searchBarContainer: {
+    marginBottom: 16,
+    marginTop: 8,
+  },
+} as const;
