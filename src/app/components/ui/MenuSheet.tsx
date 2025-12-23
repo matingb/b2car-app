@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import Divider from "@/app/components/ui/Divider";
 import { Users, Car, Wrench, LogOut } from "lucide-react";
 import SidebarItem from "./SidebarItem";
@@ -8,15 +9,16 @@ import { ROUTES } from "@/routing/routes";
 import { logOut } from "@/app/login/actions";
 import { useSheet } from "@/app/providers/SheetProvider";
 import { css } from "@emotion/react";
-import { COLOR } from "@/theme/theme";
 
 export default function MenuSheet() {
   const { closeSheet } = useSheet();
+  const router = useRouter();
 
   const handleNavClick = () => closeSheet();
-  const handleLogout = () => {
+  const handleLogout = async () => {
     closeSheet();
-    logOut();
+    await logOut();
+    router.push("/login");
   };
 
   return (

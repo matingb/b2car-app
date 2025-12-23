@@ -1,37 +1,46 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
-
 import { createClient } from '@/supabase/server'
-import { logger } from '@/lib/logger'
+
+import { AuthActionError, type LoginResult, type LogoutResult } from './authTypes'
+
+function isInvalidCredentialsError(message?: string) {
+  const m = (message ?? '').toLowerCase()
+  return m.includes('invalid login credentials') || m.includes('credentials')
+}
 
 export async function login(email: string, password: string) {
   const supabase = await createClient()
 
-  const data = { email, password }
+  const request = { email, password }
 
-  const { data: data2, error } = await supabase.auth.signInWithPassword(data)
-
-  const jwt = data2.session?.access_token;
-  if (jwt) {
-    logger.debug('==================================================');
-    logger.debug('✅ JWT (Access Token) generado con éxito:');
-    logger.debug(jwt);
-    logger.debug('==================================================');
-    logger.debug("👉 PEGA ESTE TOKEN EN https://jwt.io/ PARA VER LOS CLAIMS 'tenant_id'.");
-  } else {
-    logger.warn('Advertencia: No se encontró el JWT después del inicio de sesión.');
-  }
+  const { data: session, error } = await supabase.auth.signInWithPassword(request)
 
   if (error) {
-    if (error.message.includes('credentials')) {
-      throw new Error("Las credenciales proporcionadas no son válidas.")
+    if (isInvalidCredentialsError(error.message)) {
+      return {
+        ok: false,
+        error: AuthActionError.INVALID_CREDENTIALS,
+      } satisfies LoginResult
     }
+    return {
+      ok: false,
+      error: AuthActionError.UNKNOWN,
+      message: error.message,
+    } satisfies LoginResult
   }
 
   revalidatePath('/', 'layout')
-  redirect('/')
+  if (!session) {
+    return {
+      ok: false,
+      error: AuthActionError.UNKNOWN,
+      message: 'No se pudo iniciar sesión (no se recibió sesión).',
+    } satisfies LoginResult
+  }
+
+  return { ok: true } satisfies LoginResult
 }
 
 export async function logOut() {
@@ -40,30 +49,13 @@ export async function logOut() {
   const { error } = await supabase.auth.signOut()
 
   if (error) {
-    redirect('/error')
+    return {
+      ok: false,
+      error: AuthActionError.UNKNOWN,
+      message: error.message,
+    } satisfies LogoutResult
   }
 
   revalidatePath('/', 'layout')
-  redirect('/login')
-}
-
-export async function signup(formData: FormData) {
-  const supabase = await createClient()
-
-  // type-casting here for convenience
-  // in practice, you should validate your inputs
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  }
-
-  const { error } = await supabase.auth.signUp(data)
-
-
-  if (error) {
-    throw new Error("Error during sign up: " + error.message)
-  }
-
-  revalidatePath('/', 'layout')
-  redirect('/')
+  return { ok: true } satisfies LogoutResult
 }

@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { ROUTES } from "@/routing/routes";
 import SidebarItem from "@/app/components/ui/SidebarItem";
 import { SessionProvider } from "@/app/providers/SessionProvider";
 import { ModalMessageProvider } from "@/app/providers/ModalMessageProvider";
-import ToastProvider from "@/app/providers/ToastProvider";
 import { SheetProvider } from "@/app/providers/SheetProvider";
 import Divider from "@/app/components/ui/Divider";
 import { Users, Car, LogOut, PanelLeft, Wrench } from "lucide-react";
@@ -16,6 +16,7 @@ import { BREAKPOINTS } from '@/theme/theme'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const router = useRouter();
 
   const s = useMemo(() => {
     const width = collapsed ? "75px" : "14rem";
@@ -106,8 +107,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       label="Cerrar sesión"
                       icon={<LogOut size={18} />}
                       collapsed={collapsed}
-                      onClick={() => {
-                        logOut();
+                      onClick={async () => {
+                        await logOut();
+                        router.push("/login");
                       }}
                     />
                   </nav>

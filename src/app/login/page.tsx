@@ -3,11 +3,11 @@
 import Image from "next/image";
 import { useState } from "react";
 import { login } from "./actions";
+import { AuthActionError } from "./authTypes";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import pkg from "../../../package.json";
-import { useToast } from "../providers/ToastProvider";
-import { isRedirectError } from "next/dist/client/components/redirect-error";
+import { useRouter } from "next/navigation";
 
 export const APP_VERSION = pkg.version;
 
@@ -16,23 +16,29 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const { error } = useToast();
+  const [invalidCredentials, setInvalidCredentials] = useState("");
+  const router = useRouter();
 
   async function handlePasswordSignIn(e: React.FormEvent) {
     e.preventDefault();
     setIsSubmitting(true);
     setMessage(null);
+    setInvalidCredentials("");
     try {
-      await login(email, password);
-    }
-    catch (err: Error | unknown) {
-      if (!isRedirectError(err)) { //Esto es asi por que el redirect lanza una excepcion
-        const msg =
-          err instanceof Error ? err.message : "Error desconocido durante el inicio de sesión.";
-        error(msg);
+      const result = await login(email, password);
+
+      if (!result.ok) {
+        if (result.error === AuthActionError.INVALID_CREDENTIALS) {
+          setInvalidCredentials("Usuario o contraseña incorrectos");
+          return;
+        }
+
+        setMessage(result.message ?? "Error desconocido durante el inicio de sesión.");
+        return;
       }
-    }
-     finally {
+
+      router.push("/");
+    } finally {
       setIsSubmitting(false);
     }
   }
@@ -74,6 +80,11 @@ export default function LoginPage() {
                 required
               />
             </label>
+            {invalidCredentials !== "" && (
+              <div style={styles.fieldError} role="alert" data-testid="invalid-credentials-error">
+                Usuario o contraseña incorrectos
+              </div>
+            )}
 
             <button
               type="submit"
@@ -186,6 +197,12 @@ const styles = {
     marginTop: "1rem",
     fontSize: "0.875rem",
     lineHeight: "1.25rem",
+  },
+  fieldError: {
+    marginTop: "-0.5rem",
+    fontSize: "0.875rem",
+    lineHeight: "1.25rem",
+    color: "#b91c1c",
   },
 } as const;
 
