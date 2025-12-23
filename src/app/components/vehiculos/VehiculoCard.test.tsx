@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import VehiculoCard from "./VehiculoCard";
-import { createVehiculo } from "@/testing/factories";
+import { createVehiculo } from "@/tests/factories";
 
 describe("VehiculoCard", () => {
   it("Cuando se hace click en el card, se debe ejecutar onClick", async () => {

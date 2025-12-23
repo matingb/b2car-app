@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatPatente, formatPatenteConMarcaYModelo } from './vehiculos';
-import { createVehiculo } from '@/testing/factories';
+import { createVehiculo } from '@/tests/factories';
 
 describe('formatPatente', () => {
     it('dada una patente de 7 caracteres, deberia formatearla correctamente', () => {

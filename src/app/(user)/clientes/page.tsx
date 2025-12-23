@@ -58,7 +58,7 @@ export default function ClientesPage() {
           />
           <Button icon={<PlusIcon size={20} />} text="Crear cliente" onClick={() => setOpen(true)} style={styles.newButton} />
         </div>
-        <div className="chips-container" aria-label="Filtrar por tipo de cliente">
+        <div css={styles.chipsContainer} aria-label="Filtrar por tipo de cliente">
           {[TipoCliente.PARTICULAR, TipoCliente.EMPRESA].map((tipo) => {
             const isSelected = selectedTipos.includes(tipo);
             return (
@@ -66,8 +66,11 @@ export default function ClientesPage() {
                 key={tipo}
                 type="button"
                 onClick={() => toggleTipo(tipo)}
-                className={`chip-filter ${isSelected ? "chip-filter--selected" : ""}`}
-                css={styles.chip}
+                css={[
+                  styles.chipBase,
+                  isSelected && styles.chipSelected,
+                  styles.chipResponsive,
+                ]}
               >
                 {tipo === TipoCliente.PARTICULAR ? "Particulares" : "Empresas"}
               </button>
@@ -147,10 +150,38 @@ const styles = {
     width: "100%",
     gap: 12,
   },
-  chip: css({
+  chipsContainer: css({
+    display: "flex",
+    gap: "10px",
+    alignItems: "center",
+    flexWrap: "wrap",
+  }),
+  chipBase: css({
+    padding: "8px 16px",
+    borderRadius: "24px",
+    border: "1px solid var(--color-border-subtle)",
+    background: "var(--color-background-subtle)",
+    color: "var(--color-text-primary)",
+    cursor: "pointer",
+    fontWeight: 500,
+    transition:
+      "transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, background-color 150ms ease, color 150ms ease",
+    "&:hover": {
+      borderColor: "var(--color-accent-secondary)",
+      transform: "translateY(-2px)",
+      boxShadow: "0 4px 12px rgba(0, 128, 162, 0.15)",
+    },
+  }),
+  chipSelected: css({
+    background: "var(--color-button-primary-background)",
+    borderColor: "var(--color-accent-secondary)",
+    color: "var(--color-button-primary-text)",
+    boxShadow: "none",
+  }),
+  chipResponsive: css({
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       fontSize: '14px',
       padding : '6px 12px',
     },
-  })
+  }),
 };

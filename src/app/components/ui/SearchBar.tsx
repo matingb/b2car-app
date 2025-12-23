@@ -11,6 +11,7 @@ interface SearchBarProps {
   ariaLabel?: string;
   style?: React.CSSProperties;
   className?: string;
+  inputTestId?: string;
 }
 
 export default function SearchBar({
@@ -21,6 +22,7 @@ export default function SearchBar({
   ariaLabel = "barra de búsqueda",
   style,
   className,
+  inputTestId,
 }: SearchBarProps) {
   return (
     <div style={{ ...styles.container, ...(style ?? {}) }} className={className}>
@@ -30,6 +32,7 @@ export default function SearchBar({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={ariaLabel}
+        data-testid={inputTestId}
         autoFocus={autoFocus}
         style={styles.input}
       />
