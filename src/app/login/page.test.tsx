@@ -61,7 +61,7 @@ describe("LoginPage", () => {
     await runPendingPromises();
     expect(pushMock).not.toHaveBeenCalled();
     expect(screen.getByTestId("invalid-credentials-error")).toHaveTextContent(
-      "Usuario o contraseña incorrectos"
+      "Email o contraseña incorrectos"
     );
   });
 });

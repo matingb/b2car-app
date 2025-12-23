@@ -16,20 +16,20 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [invalidCredentials, setInvalidCredentials] = useState("");
+  const [loginError, setLoginError] = useState("");
   const router = useRouter();
 
   async function handlePasswordSignIn(e: React.FormEvent) {
     e.preventDefault();
     setIsSubmitting(true);
     setMessage(null);
-    setInvalidCredentials("");
+    setLoginError("");
     try {
       const result = await login(email, password);
 
       if (!result.ok) {
         if (result.error === AuthActionError.INVALID_CREDENTIALS) {
-          setInvalidCredentials("Usuario o contraseña incorrectos");
+          setLoginError("Email o contraseña incorrectos");
           return;
         }
 
@@ -80,9 +80,9 @@ export default function LoginPage() {
                 required
               />
             </label>
-            {invalidCredentials !== "" && (
+            {loginError && (
               <div style={styles.fieldError} role="alert" data-testid="invalid-credentials-error">
-                Usuario o contraseña incorrectos
+                {loginError}
               </div>
             )}
 
