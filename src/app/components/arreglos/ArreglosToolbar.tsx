@@ -3,7 +3,7 @@
 import SearchBar from "@/app/components/ui/SearchBar";
 import Button from "@/app/components/ui/Button";
 import { Filter, PlusIcon } from "lucide-react";
-import FilterChip from "@/app/components/arreglos/FilterChip";
+import FilterChip from "@/app/components/ui/FilterChip";
 import type { ChipKind } from "@/app/hooks/arreglos/useArreglosFilters";
 import { COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
