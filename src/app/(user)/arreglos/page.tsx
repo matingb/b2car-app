@@ -36,7 +36,7 @@ function ArreglosPageContent() {
         loading={loading}
         items={state.arreglosFiltrados}
         onSelect={(a) => router.push(`/arreglos/${a.id}`)}
-      />
+            />
 
       <ArregloModal
         open={isCreateModalOpen}
