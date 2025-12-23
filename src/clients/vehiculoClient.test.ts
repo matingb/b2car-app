@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { vehiculoClient } from './vehiculoClient';
-import { createVehiculo, createCliente, createArreglo } from '@/testing/factories';
+import { createVehiculo, createCliente, createArreglo } from '@/tests/factories';
 
 const mockApi = vi.fn();
 global.fetch = mockApi;

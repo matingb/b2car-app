@@ -20,13 +20,6 @@ type Props = {
   onApply: (filters: ArregloFilters) => void;
 };
 
-const emptyFilters: ArregloFilters = {
-  fechaDesde: "",
-  fechaHasta: "",
-  patente: "",
-  tipo: "",
-};
-
 export default function ArregloFiltersModal({ open, initial, onClose, onApply }: Props) {
   const [fechaDesde, setFechaDesde] = useState(initial?.fechaDesde ?? "");
   const [fechaHasta, setFechaHasta] = useState(initial?.fechaHasta ?? "");
@@ -54,15 +47,6 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
     onClose();
   };
 
-  const handleClear = () => {
-    setFechaDesde("");
-    setFechaHasta("");
-    setPatente("");
-    setTipo("");
-    onApply(emptyFilters);
-    onClose();
-  };
-
   const opcionesDefault: AutocompleteOption[] = [
     { value: "Mecanica", label: "Mecanica" },
     { value: "Chapa y pintura", label: "Chapa y pintura" },
@@ -83,11 +67,23 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
         <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>Fecha desde</label>
-            <input type="date" style={styles.input} value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} />
+            <input
+              data-testid="arreglos-filter-fecha-desde"
+              type="date"
+              style={styles.input}
+              value={fechaDesde}
+              onChange={(e) => setFechaDesde(e.target.value)}
+            />
           </div>
           <div style={styles.field}>
             <label style={styles.label}>Fecha hasta</label>
-            <input type="date" style={styles.input} value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} />
+            <input
+              data-testid="arreglos-filter-fecha-hasta"
+              type="date"
+              style={styles.input}
+              value={fechaHasta}
+              onChange={(e) => setFechaHasta(e.target.value)}
+            />
           </div>
         </div>
 
@@ -95,6 +91,7 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
           <div style={styles.field}>
             <label style={styles.label}>Patente</label>
             <input
+              data-testid="arreglos-filter-patente"
               style={styles.input}
               value={patente}
               onChange={(e) => setPatente(e.target.value)}
