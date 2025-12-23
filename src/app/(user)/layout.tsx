@@ -45,7 +45,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <ModalMessageProvider>
-        <ToastProvider>
           <SheetProvider>
           <div style={s.appRoot}>
             <div css={s.pageContent}>
@@ -123,7 +122,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           </div>
           </SheetProvider>
-        </ToastProvider>
       </ModalMessageProvider>
     </SessionProvider>
   );

@@ -2,6 +2,7 @@
 import "../globals.css";
 import { Open_Sans } from "next/font/google";
 import { ServiceWorkerRegister } from "./providers/ServiceWorkerRegister";
+import ToastProvider from "./providers/ToastProvider";
 
 const openSans = Open_Sans({ subsets: ["latin"] });
 
@@ -17,8 +18,10 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json"></link>
       </head>
       <body className={openSans.className}>
-        <ServiceWorkerRegister />
-        {children}
+        <ToastProvider>
+          <ServiceWorkerRegister />
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

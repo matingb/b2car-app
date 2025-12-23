@@ -7,42 +7,44 @@ import { createClient } from '@/supabase/server'
 import { logger } from '@/lib/logger'
 
 export async function login(email: string, password: string) {
-    const supabase = await createClient()
+  const supabase = await createClient()
 
-    const data = { email, password }
+  const data = { email, password }
 
-    const { data: data2, error } = await supabase.auth.signInWithPassword(data)
+  const { data: data2, error } = await supabase.auth.signInWithPassword(data)
 
-    const jwt = data2.session?.access_token;
-    if (jwt) {
-      logger.debug('==================================================');
-      logger.debug('✅ JWT (Access Token) generado con éxito:');
-      logger.debug(jwt);
-      logger.debug('==================================================');
-      logger.debug("👉 PEGA ESTE TOKEN EN https://jwt.io/ PARA VER LOS CLAIMS 'tenant_id'.");
-    } else {
-      logger.warn('Advertencia: No se encontró el JWT después del inicio de sesión.');
+  const jwt = data2.session?.access_token;
+  if (jwt) {
+    logger.debug('==================================================');
+    logger.debug('✅ JWT (Access Token) generado con éxito:');
+    logger.debug(jwt);
+    logger.debug('==================================================');
+    logger.debug("👉 PEGA ESTE TOKEN EN https://jwt.io/ PARA VER LOS CLAIMS 'tenant_id'.");
+  } else {
+    logger.warn('Advertencia: No se encontró el JWT después del inicio de sesión.');
+  }
+
+  if (error) {
+    if (error.message.includes('credentials')) {
+      throw new Error("Las credenciales proporcionadas no son válidas.")
     }
-    
-    if (error) {
-        redirect('/error')
-    }
+  }
 
-    revalidatePath('/', 'layout')
-    redirect('/')
+  revalidatePath('/', 'layout')
+  redirect('/')
 }
 
 export async function logOut() {
-    const supabase = await createClient()
+  const supabase = await createClient()
 
-    const { error } = await supabase.auth.signOut()
+  const { error } = await supabase.auth.signOut()
 
-    if (error) {
-        redirect('/error')
-    }
+  if (error) {
+    redirect('/error')
+  }
 
-    revalidatePath('/', 'layout')
-    redirect('/login')
+  revalidatePath('/', 'layout')
+  redirect('/login')
 }
 
 export async function signup(formData: FormData) {
@@ -59,7 +61,7 @@ export async function signup(formData: FormData) {
 
 
   if (error) {
-    redirect('/error')
+    throw new Error("Error during sign up: " + error.message)
   }
 
   revalidatePath('/', 'layout')

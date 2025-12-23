@@ -6,6 +6,8 @@ import { login } from "./actions";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import pkg from "../../../package.json";
+import { useToast } from "../providers/ToastProvider";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 export const APP_VERSION = pkg.version;
 
@@ -14,6 +16,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const { error } = useToast();
 
   async function handlePasswordSignIn(e: React.FormEvent) {
     e.preventDefault();
@@ -21,7 +24,13 @@ export default function LoginPage() {
     setMessage(null);
     try {
       await login(email, password);
-    } finally {
+    }
+    catch (err: Error | any) {
+      if (!isRedirectError(err)) { //Esto es asi por que el redirect lanza una excepcion (PORONGA COMO LO MANEJA NEXT)
+        error(err.message || "Error desconocido durante el inicio de sesión.");
+      }
+    }
+     finally {
       setIsSubmitting(false);
     }
   }
