@@ -233,7 +233,7 @@ export default function ArregloDetailsPage() {
                 {arreglo.descripcion && (
                   <div style={{ marginTop: 8 }}>
                     <div style={{ fontWeight: 700 }}>Descripción</div>
-                    <div style={{ color: "rgba(0,0,0,0.8)" }}>
+                    <div style={{ color: "rgba(0,0,0,0.8)", whiteSpace: "pre-wrap" }}>
                       {arreglo.descripcion}
                     </div>
                   </div>
