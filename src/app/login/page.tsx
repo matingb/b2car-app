@@ -25,9 +25,11 @@ export default function LoginPage() {
     try {
       await login(email, password);
     }
-    catch (err: Error | any) {
-      if (!isRedirectError(err)) { //Esto es asi por que el redirect lanza una excepcion (PORONGA COMO LO MANEJA NEXT)
-        error(err.message || "Error desconocido durante el inicio de sesión.");
+    catch (err: Error | unknown) {
+      if (!isRedirectError(err)) { //Esto es asi por que el redirect lanza una excepcion
+        const msg =
+          err instanceof Error ? err.message : "Error desconocido durante el inicio de sesión.";
+        error(msg);
       }
     }
      finally {
