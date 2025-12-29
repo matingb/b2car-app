@@ -30,6 +30,54 @@ const BORDER_WEAK = GRAY_500;
 
 const ICON_MUTED = GRAY_600;
 
+function clamp01(value: number) {
+    if (value < 0) return 0;
+    if (value > 1) return 1;
+    return value;
+}
+
+function hexToRgb(hex: string) {
+    const normalized = hex.replace("#", "").trim();
+    const full = normalized.length === 3
+        ? normalized
+                .split("")
+                .map((c) => `${c}${c}`)
+                .join("")
+        : normalized;
+
+    const parsed = Number.parseInt(full, 16);
+    const r = (parsed >> 16) & 255;
+    const g = (parsed >> 8) & 255;
+    const b = parsed & 255;
+    return { r, g, b };
+}
+
+function rgbToHex({ r, g, b }: { r: number; g: number; b: number }) {
+    const toHex = (n: number) => n.toString(16).padStart(2, "0");
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function mixHexColors(colorA: string, colorB: string, colorBWeight: number) {
+    const t = clamp01(colorBWeight);
+    const a = hexToRgb(colorA);
+    const b = hexToRgb(colorB);
+
+    const r = Math.round(a.r + (b.r - a.r) * t);
+    const g = Math.round(a.g + (b.g - a.g) * t);
+    const bb = Math.round(a.b + (b.b - a.b) * t);
+
+    return rgbToHex({ r, g, b: bb });
+}
+
+const GRAPHICS_GRAY_TARGET = GRAY_300;
+const GRAPHICS_PRIMARY = ACCENT_SECONDARY;
+const GRAPHICS_SECONDARY = mixHexColors(GRAPHICS_PRIMARY, GRAPHICS_GRAY_TARGET, 1 / 6);
+const GRAPHICS_TERTIARY = mixHexColors(GRAPHICS_PRIMARY, GRAPHICS_GRAY_TARGET, 2 / 6);
+const GRAPHICS_QUATERNARY = mixHexColors(GRAPHICS_PRIMARY, GRAPHICS_GRAY_TARGET, 3 / 6);
+const GRAPHICS_QUINARY = mixHexColors(GRAPHICS_PRIMARY, GRAPHICS_GRAY_TARGET, 4 / 6);
+const GRAPHICS_SENARY = mixHexColors(GRAPHICS_PRIMARY, GRAPHICS_GRAY_TARGET, 5 / 6);
+const GRAPHICS_SEPTENARY = GRAPHICS_GRAY_TARGET;
+
 export const COLOR = {
     BACKGROUND: {
         PRIMARY: BACKGROUND_PRIMARY,
@@ -67,6 +115,15 @@ export const COLOR = {
     ACCENT: {
         PRIMARY: ACCENT_SECONDARY,
         HOVER: ACCENT_HOVER,
+    },
+    GRAPHICS: {
+        PRIMARY: GRAPHICS_PRIMARY,
+        SECONDARY: GRAPHICS_SECONDARY,
+        TERTIARY: GRAPHICS_TERTIARY,
+        QUATERNARY: GRAPHICS_QUATERNARY,
+        QUINARY: GRAPHICS_QUINARY,
+        SENARY: GRAPHICS_SENARY,
+        SEPTENARY: GRAPHICS_SEPTENARY,
     },
 } as const;
 

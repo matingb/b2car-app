@@ -8,7 +8,7 @@ import { SessionProvider } from "@/app/providers/SessionProvider";
 import { ModalMessageProvider } from "@/app/providers/ModalMessageProvider";
 import { SheetProvider } from "@/app/providers/SheetProvider";
 import Divider from "@/app/components/ui/Divider";
-import { Users, Car, LogOut, PanelLeft, Wrench } from "lucide-react";
+import { Users, Car, LogOut, PanelLeft, Wrench, ChartNoAxesCombined } from "lucide-react";
 import { logOut } from "@/app/login/actions";
 import { COLOR } from "@/theme/theme";
 import { css } from '@emotion/react'
@@ -78,6 +78,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </div>
 
                   <nav css={s.navList}>
+                    <SidebarItem
+                      href={ROUTES.dashboard}
+                      label="Inicio"
+                      icon={<ChartNoAxesCombined  size={18} />}
+                      collapsed={collapsed}
+                    />
                     <SidebarItem
                       href={ROUTES.clientes}
                       label="Clientes"
