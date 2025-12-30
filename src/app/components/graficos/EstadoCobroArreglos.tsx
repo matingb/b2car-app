@@ -67,7 +67,7 @@ export default function EstadoCobroArreglos({
         <div style={{ width: "100%" }}>
             <ChartContainer
                 config={chartConfig}
-                className={className ?? "w-full max-h-[240px]"}
+                className={className ?? "w-full "}
             >
                 <PieChart>
                     <ChartTooltip
@@ -89,7 +89,7 @@ export default function EstadoCobroArreglos({
                         innerRadius="68%"
                         outerRadius="88%"
                         isAnimationActive={true}
-                        animationDuration={1200}
+                        animationDuration={1000}
                         animationEasing="ease-out"
                         stroke="transparent"
                         label

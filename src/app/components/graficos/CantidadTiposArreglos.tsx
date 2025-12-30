@@ -66,7 +66,7 @@ export default function CantidadTiposArreglos({
     return (
         <ChartContainer
             config={tipoSeries.config}
-            className={className ?? "w-full max-h-[240px]"}
+            className={className ?? "w-full"}
         >
             <PieChart>
                 <ChartTooltip
@@ -82,7 +82,7 @@ export default function CantidadTiposArreglos({
                     cx="50%"
                     cy="50%"
                     isAnimationActive={true}
-                    animationDuration={1200}
+                    animationDuration={1000}
                     outerRadius="85%"
                     labelLine = {false}
                     label

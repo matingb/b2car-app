@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Card from "../ui/Card";
+import { ExternalLink } from "lucide-react";
 
 type Props = {
     titleText?: string;
@@ -113,7 +114,7 @@ export default function CardDato({ titleText, value, onClick, icon, style }: Pro
             return;
         }
 
-        const durationMs = 1700; // Tiene que durar 500ms mas que el de los graficos
+        const durationMs = 1500; // Tiene que durar 500ms mas que el de los graficos
         const start = performance.now();
         let rafId = 0;
 
@@ -149,6 +150,9 @@ export default function CardDato({ titleText, value, onClick, icon, style }: Pro
                 <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     {icon}
                     <h3 css={styles.title}>{titleText}</h3>
+                    {
+                        onClick ? <ExternalLink size={16} color={COLOR.TEXT.TERTIARY} /> : null
+                    }
                 </div>
                 <span style={{ fontSize: 32, fontWeight: 700, ...styles.singleLine }}>
                     {displayValue}

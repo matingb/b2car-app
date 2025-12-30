@@ -8,6 +8,7 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import CantidadTiposArreglos from "@/app/components/graficos/CantidadTiposArreglos";
 import EstadoCobroArreglos from "@/app/components/graficos/EstadoCobroArreglos";
 import CardDato from "@/app/components/graficos/CardDato";
+import GraficoArea from "@/app/components/graficos/GraficoArea";
 import { Car, CircleDollarSign, Users, Wrench } from "lucide-react";
 import { ROUTES } from "@/routing/routes";
 import { useRouter } from "next/navigation";
@@ -20,7 +21,7 @@ export default function DashboardPage() {
         <div>
             <ScreenHeader title="Inicio" />
 
-            <h2>¡Bienvenido a su negocio!</h2>
+            
 
             <div style={styles.mainPanel}>
                 <CardDato
@@ -47,6 +48,30 @@ export default function DashboardPage() {
                     icon={<CircleDollarSign  size={24} color={COLOR.ACCENT.PRIMARY} />}
                     style={{width: "100%"}}
                 />
+            </div>
+
+            <div style={styles.mainPanel}>
+                <div style={{ width: "100%" }}>
+                    <h3 css={styles.title}>Clientes | Nuevos este mes</h3>
+                    <Card>
+                        {loading ? (
+                            <span style={{ color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
+                                Cargando...
+                            </span>
+                        ) : null}
+
+                        {error ? (
+                            <div style={{ color: COLOR.ICON.DANGER, fontSize: 13 }}>
+                                {error}
+                            </div>
+                        ) : null}
+
+                        <GraficoArea
+                            x={stats?.clientes?.nuevosEsteMes?.dias}
+                            values={stats?.clientes?.nuevosEsteMes?.valor}
+                        />
+                    </Card>
+                </div>
             </div>
 
             <div style={styles.mainPanel}>
