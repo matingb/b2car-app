@@ -57,7 +57,7 @@ export default function EstadoCobroArreglos({
             },
             pendientes: {
                 label: "Por cobrar",
-                color: COLOR.GRAPHICS.QUATERNARY,
+                color: COLOR.GRAPHICS.QUINARY,
             },
         }),
         []
@@ -88,7 +88,12 @@ export default function EstadoCobroArreglos({
                         cy="50%"
                         innerRadius="68%"
                         outerRadius="88%"
+                        isAnimationActive={true}
+                        animationDuration={1200}
+                        animationEasing="ease-out"
                         stroke="transparent"
+                        label
+                        labelLine={false}
                     >
                         {chartData.map((entry) => (
                             <Cell

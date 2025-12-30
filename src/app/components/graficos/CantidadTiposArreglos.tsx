@@ -81,6 +81,8 @@ export default function CantidadTiposArreglos({
                     nameKey="name"
                     cx="50%"
                     cy="50%"
+                    isAnimationActive={true}
+                    animationDuration={1200}
                     outerRadius="85%"
                     labelLine = {false}
                     label

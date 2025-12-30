@@ -7,8 +7,13 @@ import { useDashboard } from "@/app/providers/DashboardProvider";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import CantidadTiposArreglos from "@/app/components/graficos/CantidadTiposArreglos";
 import EstadoCobroArreglos from "@/app/components/graficos/EstadoCobroArreglos";
+import CardDato from "@/app/components/graficos/CardDato";
+import { Car, CircleDollarSign, Users, Wrench } from "lucide-react";
+import { ROUTES } from "@/routing/routes";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
+    const router  = useRouter();
     const { stats, loading, error } = useDashboard();
 
     return (
@@ -16,6 +21,33 @@ export default function DashboardPage() {
             <ScreenHeader title="Inicio" />
 
             <h2>¡Bienvenido a su negocio!</h2>
+
+            <div style={styles.mainPanel}>
+                <CardDato
+                    titleText="Clientes"
+                    value={stats?.totals?.clientes ?? "-"}
+                    icon={<Users size={24} color={COLOR.ACCENT.PRIMARY} />}
+                    onClick={() =>  router.push(ROUTES.clientes)}
+                />
+                <CardDato
+                    titleText="Vehiculos"
+                    value={stats?.totals?.vehiculos ?? "-"}
+                    icon={<Car size={24} color={COLOR.ACCENT.PRIMARY} />}
+                    onClick={() =>  router.push(ROUTES.vehiculos)}
+                />
+                <CardDato
+                    titleText="Arreglos"
+                    value={stats?.totals?.arreglos ?? "-"}
+                    icon={<Wrench size={24} color={COLOR.ACCENT.PRIMARY} />}
+                    onClick={() =>  router.push(ROUTES.arreglos)}
+                />
+                <CardDato
+                    titleText="Ingresos Mensuales"
+                    value={stats?.totals?.montoIngresos ?? "-"}
+                    icon={<CircleDollarSign  size={24} color={COLOR.ACCENT.PRIMARY} />}
+                    style={{width: "100%"}}
+                />
+            </div>
 
             <div style={styles.mainPanel}>
                 <div style={{ width: "50%" }}>
@@ -95,11 +127,12 @@ const styles = {
         display: "flex",
         flexDirection: "row",
         gap: 16,
+        marginTop: 16,
     },
     title: {
         fontSize: 20,
         fontWeight: 600,
-        marginBottom: 12,
+        marginBottom: 8,
         [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
           fontSize: 18,
         },

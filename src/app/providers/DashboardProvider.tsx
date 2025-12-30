@@ -14,6 +14,7 @@ export type DashboardStats = {
 		clientes?: number;
 		vehiculos?: number;
 		arreglos?: number;
+        montoIngresos?: number;
 	};
 	arreglos?: {
         tipos?: {
@@ -42,9 +43,10 @@ export type DashboardStats = {
 
 const mockData = {
     totals: {
-        clientes: 120,
-        vehiculos: 200,
-        arreglos: 450,
+        clientes: 1450,
+        vehiculos: 2193,
+        arreglos: 31487,
+        montoIngresos: 7500548.28,
     },
     arreglos: {
         tipos: {
