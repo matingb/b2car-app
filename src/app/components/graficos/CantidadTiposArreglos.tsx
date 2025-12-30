@@ -63,30 +63,6 @@ export default function CantidadTiposArreglos({
         };
     }, [tipos, cantidad]);
 
-    const renderLabel = (props: any) => {
-        const { cx, cy, midAngle, outerRadius, index, value } = props;
-        const item = tipoSeries.data[index];
-        if (!item) return null;
-
-        const RADIAN = Math.PI / 180;
-        const radius = outerRadius + 12;
-        const x = cx + radius * Math.cos(-midAngle * RADIAN);
-        const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-        return (
-            <text
-                x={x}
-                y={y}
-                fill={COLOR.TEXT.SECONDARY}
-                textAnchor={x > cx ? "start" : "end"}
-                dominantBaseline="central"
-                style={{ fontSize: 12 }}
-            >
-                {item.name}: {Number(value ?? 0).toLocaleString()}
-            </text>
-        );
-    };
-
     return (
         <ChartContainer
             config={tipoSeries.config}
@@ -107,7 +83,7 @@ export default function CantidadTiposArreglos({
                     cy="50%"
                     outerRadius="85%"
                     labelLine = {false}
-                    label={renderLabel}
+                    label
                 >
                     {tipoSeries.data.map((entry) => (
                         <Cell

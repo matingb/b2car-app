@@ -10,7 +10,7 @@ import {
     ChartTooltipContent,
     type ChartConfig,
 } from "@/app/components/shadcn/ui/chart";
-import { PolarAngleAxis, RadialBar, RadialBarChart } from "recharts";
+import { Cell, Pie, PieChart } from "recharts";
 
 type Props = {
     total?: number | null;
@@ -25,7 +25,7 @@ export default function EstadoCobroArreglos({
     pendientes,
     className,
 }: Props) {
-    const { chartData, domainMax } = useMemo(() => {
+    const { chartData, totalLabel } = useMemo(() => {
         const cobradosValue = Number(cobrados ?? 0);
         const pendientesValue = Number(pendientes ?? 0);
         const totalValue = Number(total ?? cobradosValue + pendientesValue);
@@ -38,14 +38,14 @@ export default function EstadoCobroArreglos({
 
         return {
             chartData: [
+                { key: "cobrados", name: "Cobrados", value: safeCobrados },
                 {
-                    name: "arreglos",
-                    total: safeTotal,
-                    cobrados: safeCobrados,
-                    pendientes: safePendientes,
+                    key: "pendientes",
+                    name: "Por cobrar",
+                    value: safePendientes,
                 },
             ],
-            domainMax: Math.max(safeTotal, safeCobrados + safePendientes, 1),
+            totalLabel: safeTotal,
         };
     }, [total, cobrados, pendientes]);
 
@@ -63,77 +63,72 @@ export default function EstadoCobroArreglos({
         []
     );
 
-    const totalLabel = (chartData[0]?.total ?? 0) as number;
-
     return (
-        <ChartContainer
-            config={chartConfig}
-            className={className ?? "w-full max-h-[240px]"}
-        >
-            <RadialBarChart
-                data={chartData}
-                startAngle={90}
-                endAngle={-270}
-                innerRadius="70%"
-                outerRadius="90%"
+        <div style={{ width: "100%" }}>
+            <ChartContainer
+                config={chartConfig}
+                className={className ?? "w-full max-h-[240px]"}
             >
-                <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent indicator="dot" />}
-                />
+                <PieChart>
+                    <ChartTooltip
+                        cursor={false}
+                        content={
+                            <ChartTooltipContent
+                                indicator="dot"
+                                nameKey="key"
+                            />
+                        }
+                    />
 
-                <PolarAngleAxis
-                    type="number"
-                    domain={[0, domainMax]}
-                    dataKey="total"
-                    tick={false}
-                    axisLine={false}
-                />
-
-                <RadialBar
-                    key="pendientes"
-                    dataKey="pendientes"
-                    stackId="a"
-                    fill="var(--color-pendientes)"
-                    cornerRadius={5}
-                >
-                </RadialBar>
-                <RadialBar
-                    key="cobrados"
-                    dataKey="cobrados"
-                    stackId="a"
-                    fill="var(--color-cobrados)"
-                    cornerRadius={5}
-                >
-                </RadialBar>
-
-                <text
-                    x="50%"
-                    y="50%"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    style={{ fill: COLOR.TEXT.PRIMARY }}
-                >
-                    <tspan
-                        x="50%"
-                        dy="-0.2em"
-                        style={{ fontSize: 28, fontWeight: 700 }}
+                    <Pie
+                        data={chartData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius="68%"
+                        outerRadius="88%"
+                        stroke="transparent"
                     >
-                        {totalLabel.toLocaleString()}
-                    </tspan>
-                    <tspan
-                        x="50%"
-                        dy="2em"
-                        style={{ fontSize: 12, fill: COLOR.TEXT.SECONDARY }}
-                    >
-                        Total
-                    </tspan>
-                </text>
+                        {chartData.map((entry) => (
+                            <Cell
+                                key={entry.key}
+                                fill={`var(--color-${entry.key})`}
+                            />
+                        ))}
+                    </Pie>
 
+                    <text
+                        x="50%"
+                        y="45%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        style={{ fill: COLOR.TEXT.PRIMARY }}
+                    >
+                        <tspan
+                            x="50%"
+                            dy="-0.2em"
+                            style={{ fontSize: 28, fontWeight: 700 }}
+                        >
+                            {totalLabel.toLocaleString()}
+                        </tspan>
+                        <tspan
+                            x="50%"
+                            dy="10%"
+                            style={{
+                                fontSize: 12,
+                                fill: COLOR.TEXT.SECONDARY,
+                            }}
+                        >
+                            Total
+                        </tspan>
+                    </text>
                 <ChartLegend
-                    content={<ChartLegendContent />}
+                    content={<ChartLegendContent nameKey="key" />}
                 />
-            </RadialBarChart>
-        </ChartContainer>
+                </PieChart>
+            </ChartContainer>
+
+        </div>
     );
 }
