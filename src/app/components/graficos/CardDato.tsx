@@ -150,11 +150,9 @@ export default function CardDato({ titleText, value, onClick, icon, style }: Pro
                 <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     {icon}
                     <h3 css={styles.title}>{titleText}</h3>
-                    {
-                        onClick ? <ExternalLink size={16} color={COLOR.TEXT.TERTIARY} /> : null
-                    }
+                    
                 </div>
-                <span style={{ fontSize: 32, fontWeight: 700, ...styles.singleLine }}>
+                <span style={{ fontSize: 28, fontWeight: 700, ...styles.singleLine }}>
                     {displayValue}
                 </span>
             </Card>
@@ -164,10 +162,10 @@ export default function CardDato({ titleText, value, onClick, icon, style }: Pro
 
 const styles = {
     mainPanel: {
-        minWidth: 220,
+        minWidth: '18%',
     },
     title: {
-        fontSize: 24,
+        fontSize: 20,
         fontWeight: 600,
         [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
             fontSize: 18,
