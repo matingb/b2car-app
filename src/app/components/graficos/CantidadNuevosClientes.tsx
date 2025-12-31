@@ -80,8 +80,8 @@ export default function CantidadNuevosClientes({ x, values, className }: Props) 
                         <stop
                             offset="5%"
                             stopColor="var(--color-value)"
-                            stopOpacity={0.8}
-                        />
+                            stopOpacity={1}
+                        />Z
                         <stop
                             offset="95%"
                             stopColor="var(--color-value)"
@@ -93,7 +93,7 @@ export default function CantidadNuevosClientes({ x, values, className }: Props) 
                     dataKey="value"
                     type="monotone"
                     stroke="var(--color-value)"
-                    fill="var(--color-value)"
+                    fill="url(#value)"
                     fillOpacity={0.18}
                     strokeWidth={2}
                     dot={false}

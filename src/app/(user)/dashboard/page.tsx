@@ -8,7 +8,7 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import CantidadTiposArreglos from "@/app/components/graficos/CantidadTiposArreglos";
 import EstadoCobroArreglos from "@/app/components/graficos/EstadoCobroArreglos";
 import CardDato from "@/app/components/graficos/CardDato";
-import GraficoArea from "@/app/components/graficos/GraficoArea";
+import GraficoArea from "@/app/components/graficos/CantidadNuevosClientes";
 import { Car, CircleDollarSign, Users, Wrench } from "lucide-react";
 import { ROUTES } from "@/routing/routes";
 import { useRouter } from "next/navigation";
