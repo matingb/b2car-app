@@ -7,7 +7,7 @@ import { Plus, Car } from "lucide-react";
 import { Vehiculo } from "@/model/types";
 import { ROUTES } from "@/routing/routes";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
-import { formatPatente } from "@/utils/vehiculos";
+import { formatPatente } from "@/lib/vehiculos";
 import IconButton from "@/app/components/ui/IconButton";
 
 type Props = {

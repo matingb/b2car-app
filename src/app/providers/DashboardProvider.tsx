@@ -16,6 +16,13 @@ export type DashboardStats = {
 		arreglos?: number;
         montoIngresos?: number;
 	};
+    recentActivities?: Array<{
+        id: string;
+        titulo: string;
+        vehiculo: string;
+        fechaActividad: string; // ISO
+        monto: number;
+    }>;
 	arreglos?: {
         tipos?: {
             tipos: string[];
@@ -49,6 +56,43 @@ const mockData = {
         arreglos: 31487,
         montoIngresos: 7500548.28,
     },
+    recentActivities: [
+        {
+            id: "1",
+            titulo: "Revisión de diferencial completada",
+            vehiculo: "AE532GF",
+            fechaActividad: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+            monto: 75000,
+        },
+        {
+            id: "2",
+            titulo: "Cambio de aceite programado",
+            vehiculo: "TTT111",
+            fechaActividad: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+            monto: 45000,
+        },
+        {
+            id: "3",
+            titulo: "Reparación eléctrica finalizada",
+            vehiculo: "XYZ999",
+            fechaActividad: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+            monto: 120500,
+        },
+        {
+            id: "4",
+            titulo: "Reparación de frenos urgente",
+            vehiculo: "ABC123",
+            fechaActividad: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+            monto: 250000,
+        },
+        {
+            id: "5",
+            titulo: "Alineación y balanceo completado",
+            vehiculo: "DEF456",
+            fechaActividad: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+            monto: 60000,
+        },
+    ],
     arreglos: {
         tipos: {
             tipos: ['Mantenimiento', 'Reparacion', 'Inspeccion', 'Electricidad', 'Otros'],

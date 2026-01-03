@@ -1,7 +1,7 @@
 import { logger } from "@/lib/logger";
 import { Arreglo } from "@/model/types"
 import { createClient } from "@/supabase/server"
-import { IVA_RATE } from "@/utils/ivaRate";
+import { IVA_RATE } from "@/lib/ivaRate";
 
 export type GetArreglosResponse = {
     data: Arreglo[] | null;

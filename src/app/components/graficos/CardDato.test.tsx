@@ -21,22 +21,26 @@ describe("CardDato", () => {
 
   it("Debe usar formato es-ES para enteros", async () => {
     render(<CardDato titleText="Clientes" value={1234} />);
-    expect(await screen.findByText("1.234")).toBeInTheDocument();
+    const value = await screen.findByTestId("card-dato-value");
+    expect(value).toHaveTextContent("1.234");
   });
 
   it("Debe usar formato es-ES, con dos decimales para decimales", async () => {
     render(<CardDato titleText="Ingresos" value={1234.5} />);
-    expect(await screen.findByText("1.234,50")).toBeInTheDocument();
+    const value = await screen.findByTestId("card-dato-value");
+    expect(value).toHaveTextContent("1.234,50");
   });
 
   it("Debe agregar prefijo al valor formateado", async () => {
     render(<CardDato titleText="Ingresos" value={1234.5} prefix="$ " />);
-    expect(await screen.findByText("$ 1.234,50")).toBeInTheDocument();
+    const value = await screen.findByTestId("card-dato-value");
+    expect(value).toHaveTextContent("$ 1.234,50");
   });
 
-  it('Cuando no hay value, debe mostrar vacio', () => {
+  it('Cuando no hay value, debe mostrar vacio', async () => {
     render(<CardDato titleText="Clientes" />);
-    expect(screen.getByText("")).toBeInTheDocument();
+    const value = await screen.findByTestId("card-dato-value");
+    expect(value).toHaveTextContent("");
   });
 });
 

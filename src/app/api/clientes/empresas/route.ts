@@ -2,7 +2,7 @@ import { TipoCliente, Cliente } from "@/model/types";
 import { createClient } from "@/supabase/server";
 import { empresaService } from "./empresaService";
 import { logger } from "@/lib/logger";
-import { decodeJwtPayload } from "@/utils/jwt";
+import { decodeJwtPayload } from "@/lib/jwt";
 
 export type CreateEmpresaRequest = {
   nombre: string;

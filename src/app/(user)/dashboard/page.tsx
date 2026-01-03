@@ -9,6 +9,7 @@ import CantidadTiposArreglos from "@/app/components/graficos/CantidadTiposArregl
 import EstadoCobroArreglos from "@/app/components/graficos/EstadoCobroArreglos";
 import CardDato from "@/app/components/graficos/CardDato";
 import GraficoArea from "@/app/components/graficos/CantidadNuevosClientes";
+import RecentActivityCard from "@/app/components/dashboard/RecentActivityCard";
 import { Car, CircleDollarSign, Users, Wrench } from "lucide-react";
 import { ROUTES } from "@/routing/routes";
 import { useRouter } from "next/navigation";
@@ -136,6 +137,17 @@ export default function DashboardPage() {
                 </div>
             </div>
 
+            <div style={styles.activityPanel}>
+                <div style={{ width: "100%" }}>
+                    <h3 css={styles.title}>Actividad Reciente</h3>
+                    <div style={styles.activityList}>
+                        {(stats?.recentActivities ?? []).map((activity) => (
+                            <RecentActivityCard key={activity.id} activity={activity} />
+                        ))}
+                    </div>
+                </div>
+            </div>
+
 
 
 
@@ -149,6 +161,17 @@ const styles = {
         flexDirection: "row",
         gap: 16,
         marginTop: 16,
+    },
+    activityPanel: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        marginTop: 16,
+    },
+    activityList: {
+        display: "flex",
+        flexDirection: "column" as const,
+        gap: 12,
     },
     title: {
         fontSize: 20,

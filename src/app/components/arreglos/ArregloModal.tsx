@@ -8,8 +8,8 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient";
-import { isValidDate, toDateInputFormat } from "@/utils/fechas";
-import { formatPatenteConMarcaYModelo } from "@/utils/vehiculos";
+import { isValidDate, toDateInputFormat } from "@/lib/fechas";
+import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { css } from "@emotion/react";
 
 export type ArregloForm = {

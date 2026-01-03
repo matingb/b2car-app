@@ -10,6 +10,7 @@ import {
     type ChartConfig,
 } from "@/app/components/shadcn/ui/chart";
 import { Cell, Pie, PieChart } from "recharts";
+import { formatNumberAr } from "@/lib/format";
 
 type Props = {
     items?: Array<{
@@ -22,20 +23,6 @@ type Props = {
 export default function CantidadTiposArreglos({
     items,
 }: Props) {
-    function formatNumberAr(value: number, decimals: number) {
-        const safeDecimals = Math.min(Math.max(decimals, 0), 6);
-        const fixed = value.toFixed(safeDecimals);
-        const [intPart, fracPart] = fixed.split(".");
-
-        const withThousands = (intPart ?? "0").replace(
-            /\B(?=(\d{3})+(?!\d))/g,
-            "."
-        );
-
-        if (!safeDecimals) return withThousands;
-        return `${withThousands},${fracPart ?? ""}`;
-    }
-
     function TiposTooltip({
         active,
         payload,
@@ -66,13 +53,14 @@ export default function CantidadTiposArreglos({
                 <div className="text-muted-foreground">
                     Cantidad:{" "}
                     <span className="text-foreground font-medium">
-                        {formatNumberAr(cantidad, 0)}
+                        {formatNumberAr(cantidad, { maxDecimals: 0, minDecimals: 0 })}
                     </span>
                 </div>
                 <div className="text-muted-foreground">
                     Ingresos:{" "}
                     <span className="text-foreground font-medium">
-                        ${formatNumberAr(ingresos, 2)}
+                        $
+                        {formatNumberAr(ingresos, { maxDecimals: 2, minDecimals: 2 })}
                     </span>
                 </div>
             </div>

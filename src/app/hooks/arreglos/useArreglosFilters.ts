@@ -3,6 +3,7 @@
 import type { Arreglo } from "@/model/types";
 import { useMemo, useState } from "react";
 import type { ArregloFilters } from "@/app/components/arreglos/ArregloFiltersModal";
+import { formatDateLabel } from "@/lib/fechas";
 
 export type ChipKind = "fechaRange" | "fechaDesde" | "fechaHasta" | "patente" | "tipo";
 export type Chip = { key: string; text: string; kind: ChipKind };
@@ -78,24 +79,6 @@ export function filterArreglos(
       matchesTipoFilter(a, tipoFilter) &&
       matchesDateRange(a, dateRange)
   );
-}
-
-function formatDateLabel(dateString: string) {
-  if (!dateString) return "";
-  const normalized = dateString.replace(" ", "T");
-  const d = new Date(normalized);
-  if (Number.isNaN(d.getTime())) {
-    const base = dateString.slice(0, 10);
-    const [y, m, da] = base.split("-");
-    if (y && m && da) return `${da}/${m}/${y}`;
-    return base;
-  }
-  return new Intl.DateTimeFormat("es-ES", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    timeZone: "UTC",
-  }).format(d);
 }
 
 export function useArreglosFilters(arreglos?: Arreglo[]) {

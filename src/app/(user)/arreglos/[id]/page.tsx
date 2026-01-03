@@ -27,6 +27,7 @@ import IconButton from "@/app/components/ui/IconButton";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { logger } from "@/lib/logger";
+import { APP_LOCALE, formatArs } from "@/lib/format";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -185,7 +186,7 @@ export default function ArregloDetailsPage() {
                       icon={<Calendar size={18} color={COLOR.ACCENT.PRIMARY} />}
                       label={
                         arreglo.fecha
-                          ? new Date(arreglo.fecha).toLocaleString("es-ES", {
+                          ? new Date(arreglo.fecha).toLocaleString(APP_LOCALE, {
                               day: "2-digit",
                               month: "2-digit",
                               year: "numeric",
@@ -211,7 +212,7 @@ export default function ArregloDetailsPage() {
                     </div>
                     <IconLabel
                       icon={<Coins size={18} color={COLOR.ACCENT.PRIMARY} />}
-                      label={`$${arreglo.precio_final}`}
+                      label={formatArs(arreglo.precio_final, { maxDecimals: 0, minDecimals: 0 })}
                     />
                   </div>
 

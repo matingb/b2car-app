@@ -102,7 +102,10 @@ export default function CardDato({
                     <h3 css={styles.title}>{titleText}</h3>
                     
                 </div>
-                <span style={{ fontSize: 28, fontWeight: 700, ...styles.singleLine }}>
+                <span
+                    data-testid="card-dato-value"
+                    style={{ fontSize: 28, fontWeight: 700, ...styles.singleLine }}
+                >
                     {displayValue}
                 </span>
             </Card>
@@ -112,7 +115,7 @@ export default function CardDato({
 
 const styles = {
     mainPanel: {
-        minWidth: '18%',
+        width: '100%',
     },
     title: {
         fontSize: 20,

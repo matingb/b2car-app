@@ -17,6 +17,8 @@ import {
   Car,
 } from "lucide-react";
 import { css } from "@emotion/react";
+import { formatArs } from "@/lib/format";
+import { formatDateLabel } from "@/lib/fechas";
 
 type Props = {
   arreglo: Arreglo;
@@ -36,32 +38,6 @@ export default function ArregloItem({
   useEffect(() => {
     setArreglo(initialArreglo);
   }, [initialArreglo]);
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "";
-    const normalized = dateString.replace(" ", "T");
-    const d = new Date(normalized);
-    if (Number.isNaN(d.getTime())) {
-      const base = dateString.slice(0, 10);
-      const [y, m, da] = base.split("-");
-      if (y && m && da) return `${da}/${m}/${y}`;
-      return base;
-    }
-    return new Intl.DateTimeFormat("es-ES", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      timeZone: "UTC",
-    }).format(d);
-  };
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("es-AR", {
-      style: "currency",
-      currency: "ARS",
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
 
   return (
     <div>
@@ -97,7 +73,7 @@ export default function ArregloItem({
             <div style={styles.rightSection}>
               <div style={styles.priceSection}>
                 <span css={styles.priceValue}>
-                  {formatPrice(arreglo.precio_final)}
+                  {formatArs(arreglo.precio_final, { maxDecimals: 0, minDecimals: 0 })}
                 </span>
               </div>
             </div>
@@ -120,7 +96,7 @@ export default function ArregloItem({
               <span style={styles.infoLabel}>Fecha</span>
               <IconLabel
                 icon={<Calendar size={18} color={COLOR.ACCENT.PRIMARY} />}
-                label={formatDate(arreglo.fecha)}
+                label={formatDateLabel(arreglo.fecha)}
               />
             </div>
 
