@@ -20,6 +20,7 @@ export type DashboardStats = {
         tipos?: {
             tipos: string[];
             cantidad: number[];
+            ingresos: number[];
         };
         total?: number;
 		cobrados?: number;
@@ -52,6 +53,7 @@ const mockData = {
         tipos: {
             tipos: ['Mantenimiento', 'Reparacion', 'Inspeccion', 'Electricidad', 'Otros'],
             cantidad: [12000, 8000, 5000, 3000, 1487],
+            ingresos: [3250000, 2250000, 980000, 670000, 350548.28],
         },
         total: 31487,
         cobrados: 27884,

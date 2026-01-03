@@ -91,8 +91,23 @@ export default function DashboardPage() {
                         ) : null}
 
                         <CantidadTiposArreglos
-                            tipos={stats?.arreglos?.tipos?.tipos}
-                            cantidad={stats?.arreglos?.tipos?.cantidad}
+                            items={(() => {
+                                const tipos = stats?.arreglos?.tipos?.tipos ?? [];
+                                const cantidad = stats?.arreglos?.tipos?.cantidad ?? [];
+                                const ingresos = stats?.arreglos?.tipos?.ingresos ?? [];
+
+                                const len = Math.min(
+                                    tipos.length,
+                                    cantidad.length,
+                                    ingresos.length
+                                );
+
+                                return Array.from({ length: len }).map((_, idx) => ({
+                                    tipo: tipos[idx] ?? `Tipo ${idx + 1}`,
+                                    cantidad: cantidad[idx] ?? 0,
+                                    ingresos: ingresos[idx] ?? 0,
+                                }));
+                            })()}
                         />
                     </Card>
                 </div>

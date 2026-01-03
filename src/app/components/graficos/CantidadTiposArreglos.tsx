@@ -7,37 +7,95 @@ import {
     ChartLegend,
     ChartLegendContent,
     ChartTooltip,
-    ChartTooltipContent,
     type ChartConfig,
 } from "@/app/components/shadcn/ui/chart";
 import { Cell, Pie, PieChart } from "recharts";
 
 type Props = {
-    tipos?: string[];
-    cantidad?: Array<number | string | null | undefined>;
-    className?: string;
+    items?: Array<{
+        tipo: string;
+        cantidad: number;
+        ingresos: number;
+    }>;
 };
 
 export default function CantidadTiposArreglos({
-    tipos,
-    cantidad,
-    className,
+    items,
 }: Props) {
+    function formatNumberAr(value: number, decimals: number) {
+        const safeDecimals = Math.min(Math.max(decimals, 0), 6);
+        const fixed = value.toFixed(safeDecimals);
+        const [intPart, fracPart] = fixed.split(".");
+
+        const withThousands = (intPart ?? "0").replace(
+            /\B(?=(\d{3})+(?!\d))/g,
+            "."
+        );
+
+        if (!safeDecimals) return withThousands;
+        return `${withThousands},${fracPart ?? ""}`;
+    }
+
+    function TiposTooltip({
+        active,
+        payload,
+    }: {
+        active?: boolean;
+        payload?: Array<{
+            payload?: {
+                tipo?: unknown;
+                cantidad?: unknown;
+                ingresos?: unknown;
+            } & Record<string, unknown>;
+        }>;
+    }) {
+        if (!active || !payload?.length) return null;
+
+        const p = payload[0]?.payload;
+        const tipo = String(p?.tipo ?? "");
+        const cantidad = Number(p?.cantidad ?? 0);
+        const ingresos = Number(p?.ingresos ?? 0);
+
+        if (!tipo) return null;
+
+        return (
+            <div className="border-border/50 bg-background min-w-[12rem] rounded-lg border px-3 py-2 text-xs shadow-xl">
+                <div className="text-foreground mb-1 text-sm font-semibold">
+                    {tipo}
+                </div>
+                <div className="text-muted-foreground">
+                    Cantidad:{" "}
+                    <span className="text-foreground font-medium">
+                        {formatNumberAr(cantidad, 0)}
+                    </span>
+                </div>
+                <div className="text-muted-foreground">
+                    Ingresos:{" "}
+                    <span className="text-foreground font-medium">
+                        ${formatNumberAr(ingresos, 2)}
+                    </span>
+                </div>
+            </div>
+        );
+    }
+
     const tipoSeries = useMemo(() => {
-        const labels = tipos ?? [];
-        const values = cantidad ?? [];
+        const safeItems = (items ?? []).filter(
+            (i) => i && typeof i.tipo === "string"
+        );
+        const safeTipos = safeItems.map((i) => i.tipo);
 
-        const len = Math.min(labels.length, values.length);
-        const safeLabels = labels.slice(0, len);
-        const safeValues = values.slice(0, len).map((n) => Number(n) || 0);
+        const keys = safeTipos.map((_, idx) => `tipo_${idx}`);
 
-        const keys = safeLabels.map((_, idx) => `tipo_${idx}`);
-
-        const data = keys.map((key, idx) => ({
-            key,
-            name: safeLabels[idx] ?? key,
-            value: safeValues[idx] ?? 0,
-        }));
+        const data = keys.map((key, idx) => {
+            const item = safeItems[idx];
+            return {
+                key,
+                tipo: item?.tipo ?? key,
+                cantidad: Number(item?.cantidad ?? 0),
+                ingresos: Number(item?.ingresos ?? 0),
+            };
+        });
 
         const colors = [
             COLOR.GRAPHICS.PRIMARY,
@@ -50,9 +108,8 @@ export default function CantidadTiposArreglos({
 
         const config: ChartConfig = {};
         keys.forEach((key, idx) => {
-            const chartVar = (idx % 5) + 1;
             config[key] = {
-                label: safeLabels[idx] ?? key,
+                label: safeTipos[idx] ?? key,
                 color: colors[idx % colors.length],
             };
         });
@@ -61,24 +118,24 @@ export default function CantidadTiposArreglos({
             config,
             data,
         };
-    }, [tipos, cantidad]);
+    }, [items]);
 
     return (
         <ChartContainer
             config={tipoSeries.config}
-            className={className ?? "w-full "}
+            className="w-full "
         >
             <PieChart>
                 <ChartTooltip
                     cursor={false}
                     content={
-                        <ChartTooltipContent indicator="dot" nameKey="key" />
+                        <TiposTooltip />
                     }
                 />
                 <Pie
                     data={tipoSeries.data}
-                    dataKey="value"
-                    nameKey="name"
+                    dataKey="cantidad"
+                    nameKey="tipo"
                     cx="50%"
                     cy="50%"
                     isAnimationActive={true}
