@@ -19,32 +19,33 @@ export default function DashboardPage() {
 
     return (
         <div>
-            <ScreenHeader title="Inicio" />
+            <ScreenHeader title="Dashboard" />
 
 
 
             <div style={styles.mainPanel}>
                 <CardDato
                     titleText="Clientes"
-                    value={stats?.totals?.clientes ?? "-"}
+                    value={stats?.totals?.clientes}
                     icon={<Users size={22} color={COLOR.ACCENT.PRIMARY} />}
                     onClick={() => router.push(ROUTES.clientes)}
                 />
                 <CardDato
                     titleText="Vehiculos"
-                    value={stats?.totals?.vehiculos ?? "-"}
+                    value={stats?.totals?.vehiculos}
                     icon={<Car size={22} color={COLOR.ACCENT.PRIMARY} />}
                     onClick={() => router.push(ROUTES.vehiculos)}
                 />
                 <CardDato
                     titleText="Arreglos"
-                    value={stats?.totals?.arreglos ?? "-"}
+                    value={stats?.totals?.arreglos}
                     icon={<Wrench size={22} color={COLOR.ACCENT.PRIMARY} />}
                     onClick={() => router.push(ROUTES.arreglos)}
                 />
                 <CardDato
                     titleText="Ingresos Mensuales"
-                    value={stats?.totals?.montoIngresos ?? "-"}
+                    value={stats?.totals?.montoIngresos}
+                    prefix="$"
                     icon={<CircleDollarSign size={22} color={COLOR.ACCENT.PRIMARY} />}
                     style={{ width: "100%" }}
                 />

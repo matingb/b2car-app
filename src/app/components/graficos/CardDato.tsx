@@ -3,69 +3,22 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Card from "../ui/Card";
-import { ExternalLink } from "lucide-react";
 
 type Props = {
     titleText?: string;
-    value?: string | number;
+    value?: number;
+    prefix?: string;
     icon?: React.ReactNode;
     onClick?: () => void;
     style?: React.CSSProperties;
 };
 
-function parseNumericValue(value: string | number | undefined):
-    | { value: number; decimals: number }
-    | null {
+function getNumericMeta(value: number | undefined): { value: number; decimals: number } | null {
     if (value === undefined || value === null) return null;
-    if (typeof value === "number") {
-        if (!Number.isFinite(value)) return null;
-        const decimals = value % 1 === 0 ? 0 : 2;
-        return { value, decimals };
-    }
-
-    const raw = value.trim();
-    if (!raw) return null;
-
-    // Keep digits, separators and sign only.
-    const cleaned = raw.replace(/[^0-9.,-]/g, "");
-    if (!cleaned || cleaned === "-" || cleaned === "." || cleaned === ",") {
-        return null;
-    }
-
-    const lastDot = cleaned.lastIndexOf(".");
-    const lastComma = cleaned.lastIndexOf(",");
-
-    // Decide decimal separator by last occurrence.
-    let normalized = cleaned;
-    let decimals = 0;
-
-    if (lastDot !== -1 || lastComma !== -1) {
-        const decimalSeparator = lastComma > lastDot ? "," : ".";
-        const split = cleaned.split(decimalSeparator);
-
-        if (split.length > 1) {
-            const fractional = split[split.length - 1] ?? "";
-            decimals = Math.min(Math.max(fractional.length, 0), 6);
-        }
-
-        // Remove thousands separators: remove the other symbol.
-        const thousandSeparator = decimalSeparator === "," ? "." : ",";
-        normalized = cleaned.replaceAll(thousandSeparator, "");
-        // Normalize decimal separator to dot.
-        normalized = normalized.replace(decimalSeparator, ".");
-        // If multiple decimals accidentally, keep first.
-        const first = normalized.indexOf(".");
-        if (first !== -1) {
-            normalized =
-                normalized.slice(0, first + 1) +
-                normalized.slice(first + 1).replace(/\./g, "");
-        }
-    }
-
-    const n = Number(normalized);
-    if (!Number.isFinite(n)) return null;
-
-    return { value: n, decimals };
+    if (!Number.isFinite(value)) return null;
+    if (value < 0) return null;
+    const decimals = Number.isInteger(value) ? 0 : 2;
+    return { value, decimals };
 }
 
 function easeOutCubic(t: number) {
@@ -74,11 +27,8 @@ function easeOutCubic(t: number) {
 
 function formatNumberEs(value: number, decimals: number) {
     const safeDecimals = Math.min(Math.max(decimals, 0), 6);
-    const sign = value < 0 ? "-" : "";
-    const abs = Math.abs(value);
-
-    // toFixed uses dot as decimal separator; we post-process.
-    const fixed = abs.toFixed(safeDecimals);
+    // toFixed usa "." como separador decimal; luego convertimos a formato es-ES.
+    const fixed = value.toFixed(safeDecimals);
     const [intPart, fracPart] = fixed.split(".");
 
     const withThousands = (intPart ?? "0").replace(
@@ -86,17 +36,21 @@ function formatNumberEs(value: number, decimals: number) {
         "."
     );
 
-    if (!safeDecimals) {
-        return `${sign}${withThousands}`;
-    }
-
-    return `${sign}${withThousands},${fracPart ?? ""}`;
+    if (!safeDecimals) return withThousands;
+    return `${withThousands},${fracPart ?? ""}`;
 }
 
-export default function CardDato({ titleText, value, onClick, icon, style }: Props) {
-    const parsed = useMemo(() => parseNumericValue(value), [value]);
+export default function CardDato({
+    titleText,
+    value,
+    prefix,
+    onClick,
+    icon,
+    style,
+}: Props) {
+    const parsed = useMemo(() => getNumericMeta(value), [value]);
     const [animatedValue, setAnimatedValue] = useState<number | null>(null);
-    const lastTargetRef = useRef<number>(0);
+    const rafIdRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (!parsed) {
@@ -104,19 +58,11 @@ export default function CardDato({ titleText, value, onClick, icon, style }: Pro
             return;
         }
 
-        const from = lastTargetRef.current;
+        const from = 0;
         const to = parsed.value;
-        lastTargetRef.current = to;
-
-        // Avoid animating tiny/no-op changes.
-        if (from === to) {
-            setAnimatedValue(to);
-            return;
-        }
-
         const durationMs = 1500; // Tiene que durar 500ms mas que el de los graficos
         const start = performance.now();
-        let rafId = 0;
+        setAnimatedValue(from);
 
         const tick = (now: number) => {
             const elapsed = now - start;
@@ -125,27 +71,31 @@ export default function CardDato({ titleText, value, onClick, icon, style }: Pro
             const current = from + (to - from) * eased;
             setAnimatedValue(current);
             if (t < 1) {
-                rafId = requestAnimationFrame(tick);
+                rafIdRef.current = requestAnimationFrame(tick);
             }
         };
 
-        rafId = requestAnimationFrame(tick);
+        if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = requestAnimationFrame(tick);
         return () => {
-            if (rafId) cancelAnimationFrame(rafId);
+            if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+            rafIdRef.current = null;
         };
     }, [parsed]);
 
     const displayValue = useMemo(() => {
-        if (!parsed) return value ?? "";
+        if (!parsed) return "";
 
         const n = animatedValue ?? parsed.value;
-        return formatNumberEs(n, parsed.decimals);
-    }, [value, parsed, animatedValue]);
+        const formatted = formatNumberEs(n, parsed.decimals);
+        return prefix ? `${prefix}${formatted}` : formatted;
+    }, [parsed, animatedValue, prefix]);
 
     return (
         <div style={{ ...styles.mainPanel, ...style }}>
             <Card
                 onClick={onClick}
+                style={{ minHeight: '110px' }}
             >
                 <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     {icon}

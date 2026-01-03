@@ -80,7 +80,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <nav css={s.navList}>
                     <SidebarItem
                       href={ROUTES.dashboard}
-                      label="Inicio"
+                      label="Dashboard"
                       icon={<ChartNoAxesCombined  size={18} />}
                       collapsed={collapsed}
                     />
