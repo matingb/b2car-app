@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/routing/routes";
 import SidebarItem from "@/app/components/ui/SidebarItem";
@@ -16,7 +16,18 @@ import { BREAKPOINTS } from '@/theme/theme'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [tenantName, setTenantName] = useState("B2Car");
   const router = useRouter();
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("tenant_name");
+      const next = stored?.trim();
+      if (next) setTenantName(next);
+    } catch {
+      // ignore (e.g. blocked storage)
+    }
+  }, []);
 
   const s = useMemo(() => {
     const width = collapsed ? "75px" : "14rem";
@@ -73,7 +84,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       />
                     )}
                     <div style={s.brandTextWrap}>
-                      <div style={s.title}>{localStorage.getItem('tenant_name') || 'B2Car'}</div>
+                      <div style={s.title}>{tenantName}</div>
                     </div>
                   </div>
 
