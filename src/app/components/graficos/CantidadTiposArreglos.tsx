@@ -140,7 +140,7 @@ export default function CantidadTiposArreglos({
                     ))}
                 </Pie>
 
-                <ChartLegend content={<ChartLegendContent nameKey="key" />} />
+                <ChartLegend content={<ChartLegendContent nameKey="key"/>} />
             </PieChart>
         </ChartContainer>
     );

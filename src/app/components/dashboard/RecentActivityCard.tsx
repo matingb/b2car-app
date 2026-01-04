@@ -2,11 +2,12 @@
 
 import React, { useMemo } from "react";
 import Card from "@/app/components/ui/Card";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { useRouter } from "next/navigation";
 import { Clock } from "lucide-react";
 import { formatTimeAgo } from "@/lib/fechas";
 import { formatArs } from "@/lib/format";
+import { css } from "@emotion/react";
 
 export type RecentActivity = {
   id: string;
@@ -35,7 +36,7 @@ export default function RecentActivityCard({ activity }: { activity: RecentActiv
             <Clock size={18} color={COLOR.ACCENT.PRIMARY} />
           </div>
 
-          <div style={styles.text}>
+          <div css={styles.text}>
             <div style={styles.title}>{activity.titulo}</div>
             <div style={styles.subtitle}>
               Vehículo: {activity.vehiculo} {" • "} {timeAgo}
@@ -77,17 +78,21 @@ const styles = {
     justifyContent: "center",
     flexShrink: 0,
   },
-  text: {
+  text: css({
     minWidth: 0,
+    maxWidth: '800px',
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      maxWidth: '550px',
+    },
     flex: 1,
-  },
+  }),
   title: {
     fontSize: 18,
     fontWeight: 600,
     color: COLOR.TEXT.PRIMARY,
     overflow: "hidden",
     textOverflow: "ellipsis",
-    whiteSpace: "nowrap" as const,
+    
   },
   subtitle: {
     marginTop: 4,
@@ -105,8 +110,8 @@ const styles = {
   },
   amount: {
     fontSize: 22,
-    fontWeight: 600,
-    color: COLOR.TEXT.PRIMARY,
+    fontWeight: 700,
+    color: COLOR.ACCENT.PRIMARY,
   },
 } as const;
 
