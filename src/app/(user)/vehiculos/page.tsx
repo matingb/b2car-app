@@ -7,7 +7,7 @@ import { Vehiculo } from "@/model/types";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/app/components/ui/Button";
-import { Filter, PlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import CreateVehiculoModal from "@/app/components/vehiculos/CreateVehiculoModal";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 

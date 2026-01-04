@@ -49,68 +49,6 @@ export type DashboardStats = {
 	[key: string]: unknown;
 };
 
-const mockData = {
-    totals: {
-        clientes: 1450,
-        vehiculos: 2193,
-        arreglos: 31487,
-        montoIngresos: 7500548.28,
-    },
-    recentActivities: [
-        {
-            id: "1",
-            titulo: "Revisión de diferencial completada",
-            vehiculo: "AE532GF",
-            fechaActividad: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-            monto: 75000,
-        },
-        {
-            id: "2",
-            titulo: "Cambio de aceite programado",
-            vehiculo: "TTT111",
-            fechaActividad: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-            monto: 45000,
-        },
-        {
-            id: "3",
-            titulo: "Reparación eléctrica finalizada",
-            vehiculo: "XYZ999",
-            fechaActividad: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-            monto: 120500,
-        },
-        {
-            id: "4",
-            titulo: "Reparación de frenos urgente",
-            vehiculo: "ABC123",
-            fechaActividad: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-            monto: 250000,
-        },
-        {
-            id: "5",
-            titulo: "Alineación y balanceo completado",
-            vehiculo: "DEF456",
-            fechaActividad: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-            monto: 60000,
-        },
-    ],
-    arreglos: {
-        tipos: {
-            tipos: ['Mantenimiento', 'Reparacion', 'Inspeccion', 'Electricidad', 'Otros'],
-            cantidad: [12000, 8000, 5000, 3000, 1487],
-            ingresos: [3250000, 2250000, 980000, 670000, 350548.28],
-        },
-        total: 31487,
-        cobrados: 27884,
-        pendientes: 3603,
-    },
-    clientes: {
-        nuevosEsteMes: {
-            dias: ['01/05', '02/05', '03/05', '04/05', '05/05', '06/05', '07/05', '08/05', '09/05', '10/05', '11/05', '12/05', '13/05', '14/05', '15/05', '16/05', '17/05', '18/05', '19/05', '20/05', '21/05', '22/05', '23/05', '24/05', '25/05', '26/05', '27/05', '28/05', '29/05', '30/05', '31/05'],
-            valor: [10, 20, 17, 25, 7, 6, 8, 5, 9, 12, 15, 11, 14, 0, 10, 12, 4, 13, 7, 5, 10, 4, 1, 4, 0, 7, 9, 12, 4, 7, 0],
-        },
-    },
-}
-
 type DashboardStatsApiResponse = {
 	data: DashboardStats | null;
 	error?: string | null;
@@ -159,8 +97,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 	}, []);
 
 	useEffect(() => {
-		//fetchStats();
-        setStats(mockData);
+		fetchStats();
 	}, [fetchStats]);
 
 	const value = useMemo<DashboardContextType>(

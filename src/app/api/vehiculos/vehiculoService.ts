@@ -26,6 +26,12 @@ export const vehiculoService = {
 
     return { data: inserted ?? null, error: null };
   },
+
+  async countAll(supabase: SupabaseClient): Promise<number> {
+    const { data, error } = await supabase.rpc("dashboard_count_vehiculos");
+    if (error) throw new Error(error.message);
+    return (data ?? 0) as number;
+  },
 };
 
 
