@@ -57,19 +57,52 @@ AS $$
 $$;
 
 -- Tipos de arreglos con cantidad e ingresos (all-time)
-CREATE OR REPLACE FUNCTION public.dashboard_tipos_con_ingresos()
+-- Devuelve el TOP N por cantidad y agrega una fila "Otros" con la suma del resto.
+CREATE OR REPLACE FUNCTION public.dashboard_tipos_con_ingresos(p_top integer DEFAULT 4)
 RETURNS TABLE(tipo text, cantidad integer, ingresos numeric)
 LANGUAGE sql
 SECURITY INVOKER
 SET search_path = public
 AS $$
-  SELECT
-    COALESCE(NULLIF(TRIM(a.tipo), ''), 'Sin tipo')::text AS tipo,
-    COUNT(*)::int AS cantidad,
-    COALESCE(SUM(a.precio_final), 0)::numeric AS ingresos
-  FROM public.arreglos a
-  GROUP BY 1
-  ORDER BY cantidad DESC, tipo ASC;
+  WITH agg AS (
+    SELECT
+      COALESCE(NULLIF(TRIM(a.tipo), ''), 'Sin tipo')::text AS tipo,
+      COUNT(*)::int AS cantidad,
+      COALESCE(SUM(a.precio_final), 0)::numeric AS ingresos
+    FROM public.arreglos a
+    GROUP BY 1
+  ),
+  ranked AS (
+    SELECT
+      a.tipo,
+      a.cantidad,
+      a.ingresos,
+      ROW_NUMBER() OVER (ORDER BY a.cantidad DESC, a.tipo ASC) AS rn
+    FROM agg a
+  ),
+  top_rows AS (
+    SELECT tipo, cantidad, ingresos
+    FROM ranked
+    WHERE rn <= GREATEST(COALESCE(p_top, 0), 0)
+  ),
+  otros AS (
+    SELECT
+      'Otros'::text AS tipo,
+      COALESCE(SUM(cantidad), 0)::int AS cantidad,
+      COALESCE(SUM(ingresos), 0)::numeric AS ingresos
+    FROM ranked
+    WHERE rn > GREATEST(COALESCE(p_top, 0), 0)
+  )
+  SELECT s.tipo, s.cantidad, s.ingresos
+  FROM (
+    SELECT tipo, cantidad, ingresos, 0 AS sort_group
+    FROM top_rows
+    UNION ALL
+    SELECT tipo, cantidad, ingresos, 1 AS sort_group
+    FROM otros
+    WHERE cantidad > 0
+  ) s
+  ORDER BY s.sort_group ASC, s.cantidad DESC, s.tipo ASC;
 $$;
 
 -- Clientes nuevos por día en un rango [from, to) con días faltantes en 0.
