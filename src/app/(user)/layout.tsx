@@ -73,7 +73,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       />
                     )}
                     <div style={s.brandTextWrap}>
-                      <div style={s.title}>CarMax</div>
+                      <div style={s.title}>{localStorage.getItem('tenant_name') || 'B2Car'}</div>
                     </div>
                   </div>
 

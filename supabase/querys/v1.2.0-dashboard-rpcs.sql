@@ -138,4 +138,52 @@ AS $$
   ORDER BY days.day ASC;
 $$;
 
+-- Modifica custom_claims para agregar tenant_name en claims
+CREATE OR REPLACE FUNCTION public.custom_claims(event jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  claims      jsonb;
+  tenant_uuid uuid;
+  tenant_name text;
+  user_id     uuid;
+  user_role   text;
+BEGIN
+  claims := event->'claims';
 
+  IF claims IS NULL OR jsonb_typeof(claims) IS NULL THEN
+    RETURN event;
+  END IF;
+
+  user_id := (claims->>'sub')::uuid;
+
+  SELECT tm.tenant_id, tm.rol
+    INTO tenant_uuid, user_role
+  FROM public.tenant_members tm
+  WHERE tm.cliente_id = user_id
+  LIMIT 1;
+
+  SELECT t.nombre
+    INTO tenant_name
+  FROM public.tenants t
+  WHERE t.id = tenant_uuid;
+
+
+  IF tenant_uuid IS NULL THEN
+    RETURN event;
+  END IF;
+
+  claims := claims
+    || jsonb_build_object('tenant_id', tenant_uuid)
+    || jsonb_build_object('user_role', user_role)
+    || jsonb_build_object('tenant_name', tenant_name);
+
+  -- 4. Actualizar claims dentro de event
+  event := jsonb_set(event, '{claims}', claims);
+
+  RETURN event;
+END;
+$$;

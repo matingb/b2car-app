@@ -26,6 +26,7 @@ export default function LoginPage() {
     setLoginError("");
     try {
       const result = await login(email, password);
+      localStorage.setItem('tenant_name', result.tenant_name || 'B2Car');
 
       if (!result.ok) {
         if (result.error === AuthActionError.INVALID_CREDENTIALS) {

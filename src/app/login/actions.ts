@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/supabase/server'
 
 import { AuthActionError, type LoginResult, type LogoutResult } from './authTypes'
+import { decodeJwtPayload } from '@/lib/jwt'
+import { logger } from '@/lib/logger'
 
 function isInvalidCredentialsError(message?: string) {
   const m = (message ?? '').toLowerCase()
@@ -31,6 +33,13 @@ export async function login(email: string, password: string) {
     } satisfies LoginResult
   }
 
+  //const { data } = await supabase.auth.getSession();
+  const jwt = decodeJwtPayload(session.session.access_token || "");
+  logger.debug('User logged in', { email, jwt });
+
+  const tenant_name: string = jwt?.tenant_name as string;
+
+
   revalidatePath('/', 'layout')
   if (!session) {
     return {
@@ -40,7 +49,7 @@ export async function login(email: string, password: string) {
     } satisfies LoginResult
   }
 
-  return { ok: true } satisfies LoginResult
+  return { ok: true, tenant_name} satisfies LoginResult
 }
 
 export async function logOut() {

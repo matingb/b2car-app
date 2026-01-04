@@ -4,7 +4,7 @@ export enum AuthActionError {
 }
 
 export type LoginResult =
-  | { ok: true }
+  | { ok: true, tenant_name: string }
   | { ok: false; error: AuthActionError; message?: string }
 
 export type LogoutResult =
