@@ -5,6 +5,9 @@ import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
 import { COLOR } from "@/theme/theme";
 import Autocomplete, { AutocompleteOption } from "@/app/components/ui/Autocomplete";
+import { useToast } from "@/app/providers/ToastProvider";
+import { useClientes } from "@/app/providers/ClientesProvider";
+import { useVehiculos } from "@/app/providers/VehiculosProvider";
 
 interface Props {
   open: boolean;
@@ -19,6 +22,8 @@ export default function ReassignPropietarioModal({ open, vehiculoId, currentClie
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedNewClienteId, setSelectedNewClienteId] = useState<string>("");
+  const { clientes } = useClientes();
+  const { reassignOwner } = useVehiculos();
 
   // Current owner option (read only)
   const currentOption = useMemo(() => {
@@ -34,9 +39,7 @@ export default function ReassignPropietarioModal({ open, vehiculoId, currentClie
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/clientes");
-        const json = await res.json().catch(() => ({ data: [] }));
-        const opts: AutocompleteOption[] = (json.data || []).map((c: Record<string, unknown>) => ({
+        const opts = clientes.map((c) => ({
           value: String(c.id),
           label: String(c.nombre || ""),
           secondaryLabel: String(c.email || ""),
@@ -66,15 +69,7 @@ export default function ReassignPropietarioModal({ open, vehiculoId, currentClie
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/vehiculos/${vehiculoId}/cliente`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cliente_id: selectedNewClienteId }),
-      });
-      const json = await res.json().catch(() => ({ error: "Error" }));
-      if (!res.ok || json?.error) {
-        throw new Error(json?.error || "No se pudo reasignar el propietario");
-      }
+      await reassignOwner(vehiculoId, selectedNewClienteId)
       onClose(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ocurrió un error");
@@ -97,7 +92,7 @@ export default function ReassignPropietarioModal({ open, vehiculoId, currentClie
                 <Autocomplete
                   options={currentOption ? [currentOption] : []}
                   value={currentOption?.value || ""}
-                  onChange={() => {}}
+                  onChange={() => { }}
                   placeholder={loading ? "Cargando..." : "Sin propietario"}
                   disabled
                 />
@@ -116,10 +111,10 @@ export default function ReassignPropietarioModal({ open, vehiculoId, currentClie
             {error && <div style={styles.error}>{error}</div>}
             <div style={styles.footer}>
               <button type="button" style={styles.cancel} onClick={() => onClose()} disabled={submitting}>Cancelar</button>
-              <Button 
-                text={submitting ? "Guardando..." : "Guardar"} 
-                disabled={!isValid || submitting} 
-                style={{ opacity: isValid ? 1 : 0.6 }} 
+              <Button
+                text={submitting ? "Guardando..." : "Guardar"}
+                disabled={!isValid || submitting}
+                style={{ opacity: isValid ? 1 : 0.6 }}
                 hideText={false}
               />
             </div>

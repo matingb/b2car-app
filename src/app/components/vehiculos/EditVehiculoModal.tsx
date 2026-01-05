@@ -3,6 +3,8 @@
 import React from "react";
 import { Vehiculo } from "@/model/types";
 import VehiculoFormModal, { VehiculoFormValues } from "./VehiculoFormModal";
+import { useVehiculos } from "@/app/providers/VehiculosProvider";
+import { useToast } from "@/app/providers/ToastProvider";
 
 type Props = {
   open: boolean;
@@ -12,21 +14,22 @@ type Props = {
 };
 
 export default function EditVehiculoModal({ open, onClose, vehiculo, tipoCliente }: Props) {
+  const { update } = useVehiculos();
+  const { error, success } = useToast();
+
   const handleSubmit = async (values: VehiculoFormValues): Promise<boolean> => {
-    const res = await fetch(`/api/vehiculos/${vehiculo.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      await update(vehiculo.id, {
         patente: values.patente,
-        marca: values.marca, // viaja como ""
-        modelo: values.modelo, // viaja como ""
-        fecha_patente: values.fecha_patente, // viaja como ""
+        marca: values.marca,
+        modelo: values.modelo,
+        fecha_patente: values.fecha_patente,
         nro_interno: values.nro_interno,
-      }),
-    });
-    const json = await res.json().catch(() => ({ error: "Error" }));
-    if (!res.ok || json?.error) {
-      throw new Error(json?.error || "No se pudo actualizar el vehículo");
+      });
+      success("Vehículo actualizado correctamente");
+    }
+    catch {
+      error("No se pudo actualizar el vehículo");
     }
     return true;
   };

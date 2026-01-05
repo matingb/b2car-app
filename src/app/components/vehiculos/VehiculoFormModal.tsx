@@ -60,11 +60,8 @@ export default function VehiculoFormModal<TResult = void>({
 
   const selectedCliente = useMemo(() => {
     if (!selectedClienteId) return undefined;
-    console.log(tipoCliente)
-    tipoCliente = clientes.find((c) => String(c.id) === selectedClienteId)?.tipo_cliente || "empresa";
-    console.log(tipoCliente)
     return clientes.find((c) => String(c.id) === selectedClienteId);
-  }, [tipoCliente, clientes, selectedClienteId]);
+  }, [clientes, selectedClienteId]);
 
   useEffect(() => {
     if (!open) return;
@@ -90,24 +87,8 @@ export default function VehiculoFormModal<TResult = void>({
     if (!showClienteInput) return;
 
     let mounted = true;
-    /*
-    (async () => {
-      try {
-        const res = await fetch("/api/clientes");
-        const json: { data?: ClienteApiItem[] } = await res.json().catch(() => ({ data: [] }));
-        const opts: AutocompleteOption[] = (json.data || []).map((c) => ({
-          value: String(c.id),
-          label: String(c.nombre || ""),
-          secondaryLabel: String(c.email || ""),
-        }));
-        if (mounted) setClientesOptions(opts);
-      } catch {
-        // ignore fetch errors for selector
-      }
-    })();
-    */
 
-    const opts2 = clientes.map((c) => ({
+    const opts = clientes.map((c) => ({
       value: String(c.id),
       label: String(
         tipoCliente === "empresa"
@@ -116,7 +97,7 @@ export default function VehiculoFormModal<TResult = void>({
       ),
       secondaryLabel: String(c.email || ""),  
     }));
-    setClientesOptions(opts2);  
+    setClientesOptions(opts);  
 
     return () => {
       mounted = false;
