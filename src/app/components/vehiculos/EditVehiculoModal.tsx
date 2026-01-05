@@ -8,9 +8,10 @@ type Props = {
   open: boolean;
   onClose: (updated?: boolean) => void;
   vehiculo: Vehiculo;
+  tipoCliente?: "particular" | "empresa";
 };
 
-export default function EditVehiculoModal({ open, onClose, vehiculo }: Props) {
+export default function EditVehiculoModal({ open, onClose, vehiculo, tipoCliente }: Props) {
   const handleSubmit = async (values: VehiculoFormValues): Promise<boolean> => {
     const res = await fetch(`/api/vehiculos/${vehiculo.id}`, {
       method: "PUT",
@@ -45,6 +46,7 @@ export default function EditVehiculoModal({ open, onClose, vehiculo }: Props) {
         nro_interno: vehiculo.nro_interno ?? "",
       }}
       showClienteInput={false}
+      tipoCliente={tipoCliente}
     />
   );
 }

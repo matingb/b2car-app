@@ -243,6 +243,7 @@ export default function VehiculoDetailsPage() {
           open={openEditVehiculo}
           onClose={handleCloseEditVehiculo}
           vehiculo={vehiculo}
+          tipoCliente={cliente?.tipo_cliente}
         />
       )}
       {vehiculo && (

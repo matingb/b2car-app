@@ -5,6 +5,9 @@ import Autocomplete, { AutocompleteOption } from "../ui/Autocomplete";
 import Modal from "../ui/Modal";
 import { COLOR } from "@/theme/theme";
 import { useToast } from "@/app/providers/ToastProvider";
+import { useClientes } from "@/app/providers/ClientesProvider";
+import { Cliente } from "@/model/types";
+import { C } from "vitest/dist/chunks/reporters.d.BFLkQcL6.js";
 
 type ClienteApiItem = {
   id: string | number;
@@ -30,6 +33,7 @@ type Props<TResult> = {
   initialValues: Pick<VehiculoFormValues, "patente" | "marca" | "modelo" | "fecha_patente" | "nro_interno">;
   showClienteInput?: boolean;
   clienteId?: string | number;
+  tipoCliente?: "particular" | "empresa";
 };
 
 export default function VehiculoFormModal<TResult = void>({
@@ -41,6 +45,7 @@ export default function VehiculoFormModal<TResult = void>({
   initialValues,
   showClienteInput = false,
   clienteId,
+  tipoCliente
 }: Props<TResult>) {
   const [patente, setPatente] = useState(initialValues.patente ?? "");
   const [marca, setMarca] = useState(initialValues.marca ?? "");
@@ -51,6 +56,15 @@ export default function VehiculoFormModal<TResult = void>({
   const [clientesOptions, setClientesOptions] = useState<AutocompleteOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const { error: toastError } = useToast();
+  const {clientes} = useClientes();
+
+  const selectedCliente = useMemo(() => {
+    if (!selectedClienteId) return undefined;
+    console.log(tipoCliente)
+    tipoCliente = clientes.find((c) => String(c.id) === selectedClienteId)?.tipo_cliente || "empresa";
+    console.log(tipoCliente)
+    return clientes.find((c) => String(c.id) === selectedClienteId);
+  }, [tipoCliente, clientes, selectedClienteId]);
 
   useEffect(() => {
     if (!open) return;
@@ -76,6 +90,7 @@ export default function VehiculoFormModal<TResult = void>({
     if (!showClienteInput) return;
 
     let mounted = true;
+    /*
     (async () => {
       try {
         const res = await fetch("/api/clientes");
@@ -90,11 +105,23 @@ export default function VehiculoFormModal<TResult = void>({
         // ignore fetch errors for selector
       }
     })();
+    */
+
+    const opts2 = clientes.map((c) => ({
+      value: String(c.id),
+      label: String(
+        tipoCliente === "empresa"
+          ? c.nombre
+          : `${c.nombre} ${"apellido" in c && c.apellido ? c.apellido : ""}`.trim()
+      ),
+      secondaryLabel: String(c.email || ""),  
+    }));
+    setClientesOptions(opts2);  
 
     return () => {
       mounted = false;
     };
-  }, [open, showClienteInput]);
+  }, [open, showClienteInput, clientes, tipoCliente]);
 
   const isValid = useMemo(() => {
     const okPatente = patente.trim().length > 0;
@@ -144,7 +171,9 @@ export default function VehiculoFormModal<TResult = void>({
           <Autocomplete
             options={clientesOptions}
             value={selectedClienteId}
-            onChange={(v) => setSelectedClienteId(v)}
+            onChange={(v) => {
+              setSelectedClienteId(v);
+            }}
             placeholder="Buscar cliente..."
           />
         </div>
@@ -205,15 +234,17 @@ export default function VehiculoFormModal<TResult = void>({
               onChange={(e) => setModelo(e.target.value)}
             />
           </div>
-          <div style={styles.field}>
-            <label style={styles.label}>Nro interno</label>
-            <input
-              style={styles.input}
-              placeholder="123"
-              value={nroInterno}
-              onChange={(e) => setNroInterno(e.target.value)}
-            />
-          </div>
+          {( selectedCliente?.tipo_cliente === "empresa" || tipoCliente === "empresa") && (
+              <div style={styles.field}>
+                <label style={styles.label}>Nro interno</label>
+                <input
+                  style={styles.input}
+                  placeholder="123"
+                  value={nroInterno}
+                  onChange={(e) => setNroInterno(e.target.value)}
+                />
+              </div>
+            )}
         </div>
       </div>
     </Modal>

@@ -187,6 +187,7 @@ export default function EmpresaDetails() {
           }
         }}
         clienteId={clienteId ?? ''}
+        tipoCliente="empresa"
       />
       <CreateRepresentanteModal
         open={openRepresentante}

@@ -131,6 +131,7 @@ export default function ParticularDetails() {
                         
                 }}
                 clienteId={clienteId ?? ''}
+                tipoCliente="particular"
             />
         </div>
     );

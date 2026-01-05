@@ -17,9 +17,10 @@ type Props = {
   open: boolean;
   onClose: (vehiculo?: CreatedVehiculo) => void;
   clienteId?: number | string; // optional: when missing, show selector to pick a cliente
+  tipoCliente?: "particular" | "empresa";
 };
 
-export default function CreateVehiculoModal({ open, onClose, clienteId }: Props) {
+export default function CreateVehiculoModal({ open, onClose, clienteId, tipoCliente }: Props) {
   const { create } = useVehiculos();
 
   const handleSubmit = async (values: VehiculoFormValues): Promise<CreatedVehiculo> => {
@@ -55,6 +56,7 @@ export default function CreateVehiculoModal({ open, onClose, clienteId }: Props)
       initialValues={{ patente: "", marca: "", modelo: "", fecha_patente: "", nro_interno: "" }}
       showClienteInput={!clienteId}
       clienteId={clienteId}
+      tipoCliente={tipoCliente}
     />
   );
 }
