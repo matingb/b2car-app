@@ -5,7 +5,6 @@ import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
 import { COLOR } from "@/theme/theme";
 import Autocomplete, { AutocompleteOption } from "@/app/components/ui/Autocomplete";
-import { useToast } from "@/app/providers/ToastProvider";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 
@@ -53,7 +52,7 @@ export default function ReassignPropietarioModal({ open, vehiculoId, currentClie
       }
     })();
     return () => { active = false; };
-  }, [open]);
+  }, [open, clientes]);
 
   const isValid = useMemo(() => {
     if (!selectedNewClienteId) return false;

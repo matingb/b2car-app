@@ -6,14 +6,6 @@ import Modal from "../ui/Modal";
 import { COLOR } from "@/theme/theme";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useClientes } from "@/app/providers/ClientesProvider";
-import { Cliente } from "@/model/types";
-import { C } from "vitest/dist/chunks/reporters.d.BFLkQcL6.js";
-
-type ClienteApiItem = {
-  id: string | number;
-  nombre?: string | null;
-  email?: string | null;
-};
 
 export type VehiculoFormValues = {
   cliente_id?: string | number;
@@ -85,9 +77,6 @@ export default function VehiculoFormModal<TResult = void>({
   useEffect(() => {
     if (!open) return;
     if (!showClienteInput) return;
-
-    let mounted = true;
-
     const opts = clientes.map((c) => ({
       value: String(c.id),
       label: String(
@@ -99,9 +88,6 @@ export default function VehiculoFormModal<TResult = void>({
     }));
     setClientesOptions(opts);  
 
-    return () => {
-      mounted = false;
-    };
   }, [open, showClienteInput, clientes, tipoCliente]);
 
   const isValid = useMemo(() => {
