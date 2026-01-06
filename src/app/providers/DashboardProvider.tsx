@@ -70,11 +70,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 	const [error, setError] = useState<string | null>(null);
 
 	const fetchStats = useCallback(async () => {
+		const startTime = performance.now();
 		setLoading(true);
 		setError(null);
 		try {
-			// API route aún no implementado: este provider asume que existirá en /api/dashboard/stats
-			const res = await fetch("/api/dashboard/stats", { cache: "no-store" });
+
+			const res = await fetch("/api/dashboard/stats");
 			const body: Partial<DashboardStatsApiResponse> = await res
 				.json()
 				.catch(() => ({}));
@@ -92,6 +93,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 			setStats(null);
 			return null;
 		} finally {
+			const elapsedMs = performance.now() - startTime;
+			console.log(`dashboard fetchStats: ${elapsedMs.toFixed(1)}ms`);
 			setLoading(false);
 		}
 	}, []);
