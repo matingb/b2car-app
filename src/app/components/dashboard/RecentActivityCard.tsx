@@ -13,7 +13,7 @@ export type RecentActivity = {
   id: string;
   titulo: string;
   vehiculo: string;
-  fechaActividad: string;
+  fechaUltimaActualizacion: string;
   monto: number;
 };
 
@@ -21,8 +21,8 @@ export default function RecentActivityCard({ activity }: { activity: RecentActiv
   const router = useRouter();
 
   const timeAgo = useMemo(
-    () => formatTimeAgo(activity.fechaActividad),
-    [activity.fechaActividad]
+    () => formatTimeAgo(activity.fechaUltimaActualizacion),
+    [activity.fechaUltimaActualizacion]
   );
 
   return (

@@ -10,7 +10,7 @@ export type RecentActivity = {
   id: string;
   titulo: string;
   vehiculo: string;
-  fechaActividad: string;
+  fechaUltimaActualizacion: string;
   monto: number;
 };
 
@@ -64,8 +64,8 @@ export const arregloService = {
   async listRecentActivities(supabase: SupabaseClient, limit: number): Promise<RecentActivity[]> {
     const { data, error } = await supabase
       .from("arreglos")
-      .select("id, descripcion, fecha, precio_final, vehiculo:vehiculos(patente)")
-      .order("fecha", { ascending: false })
+      .select("id, descripcion, updated_at, precio_final, vehiculo:vehiculos(patente)")
+      .order("updated_at", { ascending: false })
       .limit(limit);
 
     if (error) throw new Error(error.message);
@@ -73,7 +73,7 @@ export const arregloService = {
     const rows = (data ?? []) as Array<{
       id?: unknown;
       descripcion?: unknown;
-      fecha?: unknown;
+      updated_at?: unknown;
       precio_final?: unknown;
       vehiculo?: { patente?: unknown } | null;
     }>;
@@ -83,7 +83,7 @@ export const arregloService = {
         id: String(r.id ?? ""),
         titulo: String(r.descripcion ?? "").trim() || "Actividad",
         vehiculo: String(r.vehiculo?.patente ?? "").trim() || "-",
-        fechaActividad: String(r.fecha ?? ""),
+        fechaUltimaActualizacion: String(r.updated_at ?? ""),
         monto: Number(r.precio_final ?? 0) || 0,
       }))
       .filter((a) => a.id);

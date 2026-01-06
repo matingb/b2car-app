@@ -14,7 +14,7 @@ export type DashboardStats = {
     id: string;
     titulo: string;
     vehiculo: string;
-    fechaActividad: string; // ISO
+    fechaUltimaActualizacion: string; // ISO
     monto: number;
   }>;
   arreglos?: {

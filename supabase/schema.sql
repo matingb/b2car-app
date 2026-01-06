@@ -163,6 +163,19 @@ BEGIN
 END;
 $$;
 
+--
+-- Name: set_updated_at(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE OR REPLACE FUNCTION "public"."set_updated_at"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+   NEW.updated_at = NOW();
+   RETURN NEW;
+END;
+$$;
+
 
 ALTER FUNCTION "public"."update_updated_at_column"() OWNER TO "postgres";
 
@@ -186,6 +199,7 @@ CREATE TABLE IF NOT EXISTS "public"."arreglos" (
     "esta_pago" boolean DEFAULT false,
     "extra_data" "jsonb",
     "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "descripcion" "text",
     "tenant_id" "uuid" DEFAULT (("auth"."jwt"() ->> 'tenant_id'::"text"))::"uuid" NOT NULL
 );
@@ -412,6 +426,8 @@ ALTER TABLE ONLY "public"."vehiculos"
 
 CREATE INDEX "idx_arreglos_fecha" ON "public"."arreglos" USING "btree" ("fecha");
 
+CREATE INDEX "idx_arreglos_updated_at" ON "public"."arreglos" USING "btree" ("updated_at");
+
 
 --
 -- Name: idx_arreglos_tenant_id; Type: INDEX; Schema: public; Owner: postgres
@@ -481,6 +497,8 @@ CREATE INDEX "idx_vehiculos_tenant_id" ON "public"."vehiculos" USING "btree" ("t
 --
 
 CREATE OR REPLACE TRIGGER "update_tenant_updated_at" BEFORE UPDATE ON "public"."tenants" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+CREATE OR REPLACE TRIGGER "set_arreglos_updated_at" BEFORE UPDATE ON "public"."arreglos" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
 
 
 --
