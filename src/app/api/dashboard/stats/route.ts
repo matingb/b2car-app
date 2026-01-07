@@ -1,10 +1,7 @@
 import { createClient } from "@/supabase/server";
 import { logger } from "@/lib/logger";
-import { getStats, type DashboardStats } from "./dashboardStatsService"
-/*
-import { unstable_cache } from "next/cache";
-import { decodeJwtPayload } from "@/lib/jwt";
-*/
+import { statsService, type DashboardStats } from "./dashboardStatsService"
+import { getTenantIdFromAccessToken } from "@/supabase/tenant";
 
 type DashboardStatsResponse = {
   data: DashboardStats | null;
@@ -23,25 +20,21 @@ export async function GET() {
   }
 
   try {
-    /*
-    Esto es un ejemplo de como usar caching con revalidacion y tags utilizando unstable_cache de Next.js
-    const tenantId = decodeJwtPayload(auth.session.access_token)?.tenant_id as string;
-    const monthKey = new Date().toISOString().slice(0, 7);
+    const tenantId = getTenantIdFromAccessToken(auth.session.access_token);
+    if (!tenantId) {
+      return Response.json(
+        { data: null, error: "Unauthorized" } satisfies DashboardStatsResponse,
+        { status: 401 }
+      );
+    }
 
-    const getCachedStats = unstable_cache(
-      async () => getStats(supabase),
-      ["dashboard-stats", tenantId, monthKey],
-      { revalidate: 60, tags: ["dashboard-stats"] }
-    );
-    */
-
-    const stats = await getStats(supabase);
+    const stats = await statsService.getStats(supabase, tenantId);
     return Response.json(
       { data: stats, error: null } satisfies DashboardStatsResponse,
       {
         status: 200,
         headers: {
-          "Cache-Control": "private, max-age=60",
+          "Cache-Control": "private, max-age=0, must-revalidate",
           Vary: "Cookie",
         },
       }

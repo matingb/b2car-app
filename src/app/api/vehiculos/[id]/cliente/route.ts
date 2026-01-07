@@ -1,7 +1,7 @@
-import { Cliente, TipoCliente } from "@/model/types";
 import { createClient } from "@/supabase/server";
-import { PostgrestError } from "@supabase/supabase-js";
 import type { NextRequest } from "next/server";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { VehiculoClienteServiceError, vehiculoService } from "../../vehiculoService";
 
 // GET /api/vehiculos/[id]/cliente
 // Devuelve los datos del cliente propietario del vehículo
@@ -12,59 +12,22 @@ export async function GET(
   const supabase = await createClient();
   const { id } = await params;
 
-  // 1) Obtener cliente_id del vehículo
-  const { data: vData, error: vError } = await supabase
-    .from("vehiculos")
-    .select("cliente_id")
-    .eq("id", id)
-    .single();
-
-  if (vError) {
-    const status = (vError as PostgrestError)?.code === "PGRST116" ? 404 : 500;
-    return Response.json(
-      { data: null, error: vError.message },
-      { status }
-    );
+  const { data, error } = await vehiculoService.getClienteByVehiculoId(supabase, id);
+  if (error) {
+    const status =
+      error === VehiculoClienteServiceError.NotFound || error === VehiculoClienteServiceError.NoClienteAsignado
+        ? 404
+        : 500;
+    const message =
+      error === VehiculoClienteServiceError.NotFound
+        ? "Vehículo no encontrado"
+        : error === VehiculoClienteServiceError.NoClienteAsignado
+          ? "Vehículo sin cliente asignado"
+          : "Error cargando cliente del vehículo";
+    return Response.json({ data: null, error: message }, { status });
   }
 
-  if (!vData?.cliente_id) {
-    return Response.json(
-      { data: null, error: "Vehículo sin cliente asignado" },
-      { status: 404 }
-    );
-  }
-
-  // 2) Obtener datos completos del cliente
-  const { data: cData, error: cError } = await supabase
-    .from("clientes")
-    .select("*, particular:particulares(*), empresa:empresas(*)")
-    .eq("id", vData.cliente_id)
-    .single();
-
-  if (cError) {
-    const status = (cError as PostgrestError)?.code === "PGRST116" ? 404 : 500;
-    return Response.json(
-      { data: null, error: cError.message },
-      { status }
-    );
-  }
-
-  // 3) Construir objeto Cliente
-  const particular = cData.particular;
-  const empresa = cData.empresa;
-
-  const cliente: Cliente = {
-    id: cData.id,
-    nombre: particular
-      ? `${particular.nombre} ${particular.apellido}`.trim()
-      : empresa?.nombre || "",
-    tipo_cliente: cData.tipo_cliente as TipoCliente,
-    telefono: particular?.telefono || empresa?.telefono || "",
-    email: particular?.email || empresa?.email || "",
-    direccion: particular?.direccion || empresa?.direccion || "",
-  };
-
-  return Response.json({ data: cliente, error: null });
+  return Response.json({ data: data, error: null });
 }
 
 // PUT /api/vehiculos/[id]/cliente
@@ -116,16 +79,10 @@ export async function PUT(
 
   */
 
-  // Actualizar relación
-  const { error: updateError } = await supabase
-    .from("vehiculos")
-    .update({ cliente_id: nuevoClienteId })
-    .eq("id", id);
+  const { error: updateError } = await vehiculoService.updateCliente(supabase, id, nuevoClienteId);
+  if (updateError) return Response.json({ error: updateError.message }, { status: 500 });
 
-  if (updateError) {
-    return Response.json({ error: updateError.message }, { status: 500 });
-  }
-
+  await statsService.onDataChanged(supabase);
   return Response.json({ error: null }, { status: 200 });
 }
 

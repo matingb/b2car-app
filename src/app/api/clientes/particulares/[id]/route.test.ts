@@ -3,6 +3,7 @@ import { DELETE } from './route'
 import { particularService } from '../particularService'
 import { createClient } from '@/supabase/server'
 import type { NextRequest } from 'next/server'
+import { statsService } from '@/app/api/dashboard/stats/dashboardStatsService'
 
 vi.mock('@/supabase/server', () => ({
   createClient: vi.fn()
@@ -12,6 +13,12 @@ vi.mock('../particularService', () => ({
   particularService: {
     delete: vi.fn()
   }
+}))
+
+vi.mock('@/app/api/dashboard/stats/dashboardStatsService', () => ({
+  statsService: {
+    onDataChanged: vi.fn(),
+  },
 }))
 
 describe('DELETE /api/clientes/particulares/[id]', () => {
@@ -35,6 +42,8 @@ describe('DELETE /api/clientes/particulares/[id]', () => {
     expect(particularService.delete).toHaveBeenCalledWith(mockSupabase, testId)
     expect(response.status).toBe(200)
     expect(body).toEqual({ data: null })
+    expect(statsService.onDataChanged).toHaveBeenCalledTimes(1)
+    expect(statsService.onDataChanged).toHaveBeenCalledWith(mockSupabase)
   })
 
   it('dado que se borra un particular, cuando hay error, debería devolver un status 500 y un body con el error', async () => {

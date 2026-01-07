@@ -1,4 +1,19 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
+import type { Arreglo } from "@/model/types";
+import type { CreateArregloInsertPayload, UpdateArregloRequest } from "./arregloRequests";
+
+export enum ArregloServiceError {
+  NotFound = "NotFound",
+  Unknown = "Unknown",
+}
+
+type ServiceResult<T> = { data: T | null; error: ArregloServiceError | null };
+
+function toServiceError(err: PostgrestError): ArregloServiceError {
+  const code = (err as { code?: string }).code;
+  if (code === "PGRST116") return ArregloServiceError.NotFound;
+  return ArregloServiceError.Unknown;
+}
 
 export type TiposConIngresos = {
   tipos: string[];
@@ -15,6 +30,63 @@ export type RecentActivity = {
 };
 
 export const arregloService = {
+  async listAll(supabase: SupabaseClient): Promise<ServiceResult<Arreglo[]>> {
+    const { data, error } = await supabase.from("arreglos").select("*, vehiculo:vehiculos(*)");
+    if (error) return { data: null, error: toServiceError(error) };
+    return { data: (data ?? []) as unknown as Arreglo[], error: null };
+  },
+
+  async getByIdWithVehiculo(supabase: SupabaseClient, id: string): Promise<ServiceResult<Arreglo>> {
+    const { data, error } = await supabase
+      .from("arreglos")
+      .select("*, vehiculo:vehiculos(*)")
+      .eq("id", id)
+      .single();
+    if (error) return { data: null, error: toServiceError(error) };
+    return { data: (data ?? null) as unknown as Arreglo | null, error: null };
+  },
+
+  async create(
+    supabase: SupabaseClient,
+    payload: CreateArregloInsertPayload
+  ): Promise<ServiceResult<Arreglo>> {
+    const { data, error } = await supabase
+      .from("arreglos")
+      .insert([payload])
+      .select("*, vehiculo:vehiculos(*)")
+      .single();
+    if (error) return { data: null, error: toServiceError(error) };
+    return { data: (data ?? null) as unknown as Arreglo | null, error: null };
+  },
+
+  async updateById(
+    supabase: SupabaseClient,
+    id: string,
+    payload: UpdateArregloRequest
+  ): Promise<ServiceResult<Arreglo>> {
+
+    const { data, error } = await supabase
+      .from("arreglos")
+      .update(payload)
+      .eq("id", id)
+      .select("*, vehiculo:vehiculos(*)")
+      .single();
+
+    if (error) return { data: null, error: toServiceError(error) };
+    return { data: (data ?? null) as unknown as Arreglo | null, error: null };
+  },
+
+  async deleteById(
+    supabase: SupabaseClient,
+    id: string
+  ): Promise<{ error: ArregloServiceError | null }> {
+
+    const { error } = await supabase.from("arreglos").delete().eq("id", id);
+
+    if (error) return { error: toServiceError(error) };
+    return { error: null };
+  },
+
   async countAll(supabase: SupabaseClient): Promise<number> {
     const { data, error } = await supabase.rpc("dashboard_count_arreglos");
     if (error) throw new Error(error.message);

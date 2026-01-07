@@ -1,5 +1,10 @@
 import { Vehiculo, Cliente, Arreglo, TipoCliente, Particular } from '@/model/types';
 import { Empresa } from '@/clients/clientes/empresaClient';
+import type { CreateArregloRequest } from '@/app/api/arreglos/arregloRequests';
+import type { CreateVehiculoRequest } from '@/app/api/vehiculos/route';
+import type { CreateEmpresaRequest } from '@/app/api/clientes/empresas/route';
+import type { CreateParticularRequest } from '@/app/api/clientes/particulares/route';
+import type { CreateRepresentanteRequest } from '@/app/api/clientes/empresas/[id]/representantes/route';
 
 /**
  * Factory para crear objetos Vehiculo de prueba
@@ -56,6 +61,87 @@ export const createArreglo = (overrides: Partial<Arreglo> = {}): Arreglo => {
     precio_sin_iva: 12396,
     esta_pago: true,
     extra_data: '',
+    ...overrides,
+  };
+};
+
+/**
+ * Factory para crear requests de creación de Arreglo (API)
+ */
+export const createCreateArregloRequest = (
+  overrides: Partial<CreateArregloRequest> = {}
+): CreateArregloRequest => {
+  return {
+    vehiculo_id: "v1",
+    tipo: "Service",
+    descripcion: "Cambio aceite",
+    kilometraje_leido: 123,
+    fecha: new Date().toISOString(),
+    observaciones: "",
+    precio_final: 1000,
+    esta_pago: false,
+    extra_data: "",
+    ...overrides,
+  };
+};
+
+/**
+ * Factory para crear requests de creación de Vehículo (API)
+ */
+export const createCreateVehiculoRequest = (
+  overrides: Partial<CreateVehiculoRequest> = {}
+): CreateVehiculoRequest => {
+  return {
+    cliente_id: "c1",
+    patente: "AA123BB",
+    ...overrides,
+  };
+};
+
+/**
+ * Factory para crear requests de creación de Empresa (API)
+ */
+export const createCreateEmpresaRequest = (
+  overrides: Partial<CreateEmpresaRequest> = {}
+): CreateEmpresaRequest => {
+  return {
+    nombre: "ACME",
+    cuit: "20-123",
+    telefono: "",
+    email: "",
+    direccion: "",
+    ...overrides,
+  };
+};
+
+/**
+ * Factory para crear requests de creación de Particular (API)
+ */
+export const createCreateParticularRequest = (
+  overrides: Partial<CreateParticularRequest> = {}
+): CreateParticularRequest => {
+  return {
+    nombre: "Juan",
+    apellido: "Perez",
+    telefono: "",
+    email: "",
+    direccion: "",
+    ...overrides,
+  };
+};
+
+export type CreateRepresentanteBodyRequest = Omit<CreateRepresentanteRequest, "empresa_id">;
+
+/**
+ * Factory para crear body de creación de Representante (API)
+ */
+export const createCreateRepresentanteBodyRequest = (
+  overrides: Partial<CreateRepresentanteBodyRequest> = {}
+): CreateRepresentanteBodyRequest => {
+  return {
+    nombre: "Ana",
+    apellido: "Gomez",
+    telefono: "1",
     ...overrides,
   };
 };

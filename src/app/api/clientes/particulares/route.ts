@@ -1,5 +1,7 @@
-import { TipoCliente, Cliente } from "@/model/types";
+import { Cliente } from "@/model/types";
 import { createClient } from "@/supabase/server";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { particularService } from "./particularService";
 
 export type CreateParticularRequest = {
   nombre: string;
@@ -21,41 +23,13 @@ export async function POST(req: Request) {
 
   if (!payload.nombre) return Response.json({ error: "Falta nombre" }, { status: 400 });
 
-  const { data: clienteInsert, error: errorCliente } = await supabase
-    .from("clientes")
-    .insert([{ tipo_cliente: TipoCliente.PARTICULAR }])
-    .select("id, tipo_cliente")
-    .single();
-
-  if (errorCliente || !clienteInsert) {
-    console.error('Error creando cliente', errorCliente);
-    return Response.json({ error: errorCliente?.message || "No se pudo crear el particular" }, { status: 500 });
+  const { data, error } = await particularService.createClienteParticular(supabase, payload);
+  if (error || !data) {
+    return Response.json({ error: error?.message || "No se pudo crear el particular" }, { status: 500 });
   }
 
-  const clienteId = clienteInsert.id;
-
-  const { data, error: detalleError } = await supabase
-    .from("particulares")
-    .insert([{ ...payload, id: clienteId }])
-    .select()
-    .single();
-
-  if (detalleError || !data) {
-    console.error('Error creando particular', detalleError);
-    return Response.json({ error: detalleError?.message || "No se pudo crear el particular" }, { status: 500 });
-  }
-
-  return Response.json({
-    data: {
-      id: clienteId,
-      nombre: data.nombre,
-      tipo_cliente: TipoCliente.PARTICULAR,
-      apellido: data.apellido,
-      telefono: data.telefono,
-      email: data.email,
-      direccion: data.direccion,
-    },
-  }, { status: 201 });
+  await statsService.onDataChanged(supabase);
+  return Response.json({ data }, { status: 201 });
 }
 
 

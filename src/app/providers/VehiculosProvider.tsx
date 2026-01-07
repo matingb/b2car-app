@@ -15,12 +15,12 @@ type VehiculosContextType = {
   cliente: Cliente | null;
   loading: boolean;
   fetchAll: () => Promise<Vehiculo[] | null>;
-  fetchById: (id: string | number) => Promise<Vehiculo | null>;
-  fetchCliente: (vehiculoId: string | number) => Promise<Cliente | null>;
-  create: (input: CreateVehiculoRequest) => Promise<number | null>;
-  update: (id: string | number, input: UpdateVehiculoRequest) => Promise<void>;
-  remove: (id: string | number) => Promise<void>;
-  reassignOwner: (id: string | number, clienteId: string | number) => Promise<void>;
+  fetchById: (id: string) => Promise<Vehiculo | null>;
+  fetchCliente: (vehiculoId: string) => Promise<Cliente | null>;
+  create: (input: CreateVehiculoRequest) => Promise<string | null>;
+  update: (id: string, input: UpdateVehiculoRequest) => Promise<void>;
+  remove: (id: string) => Promise<void>;
+  reassignOwner: (id: string, clienteId: string) => Promise<void>;
 };
 
 const VehiculosContext = createContext<VehiculosContextType | null>(null);
@@ -44,7 +44,7 @@ export function VehiculosProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const fetchById = useCallback(async (id: string | number) => {
+  const fetchById = useCallback(async (id: string) => {
     setLoading(true);
     try {
       const { data, arreglos, error } = await vehiculoClient.getById(id);
@@ -57,7 +57,7 @@ export function VehiculosProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const fetchCliente = useCallback(async (vehiculoId: string | number) => {
+  const fetchCliente = useCallback(async (vehiculoId: string) => {
     const { data, error } = await vehiculoClient.getClienteForVehiculo(vehiculoId);
     if (error) {
       console.error("No se pudo obtener cliente del vehiculo", error);
@@ -78,7 +78,7 @@ export function VehiculosProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchAll]);
 
-  const update = useCallback(async (id: string | number, input: UpdateVehiculoRequest) => {
+  const update = useCallback(async (id: string, input: UpdateVehiculoRequest) => {
     setLoading(true);
     try {
       const { error } = await vehiculoClient.update(id, input);
@@ -90,7 +90,7 @@ export function VehiculosProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchAll, fetchById]);
 
-  const remove = useCallback(async (id: string | number) => {
+  const remove = useCallback(async (id: string) => {
     setLoading(true);
     try {
       const { error } = await vehiculoClient.delete(id);
@@ -101,7 +101,7 @@ export function VehiculosProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchAll]);
 
-  const reassignOwner = useCallback(async (id: string | number, clienteId: string | number) => {
+  const reassignOwner = useCallback(async (id: string, clienteId: string) => {
     setLoading(true);
     try {
       const { error } = await vehiculoClient.reassignOwner(id, clienteId);

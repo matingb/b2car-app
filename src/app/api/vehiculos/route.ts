@@ -1,8 +1,9 @@
 import { createClient } from "@/supabase/server"
 import { logger } from "@/lib/logger"
 import { vehiculoService } from "./vehiculoService"
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
-type CreateVehiculoRequest = {
+export type CreateVehiculoRequest = {
   cliente_id: string;
   patente: string;
   marca?: string;
@@ -12,7 +13,7 @@ type CreateVehiculoRequest = {
 };
 
 export type CreateVehiculoResponse = {
-  data?: { id: number } | null;
+  data?: { id: string } | null;
   error?: string | null;
 };
 
@@ -69,5 +70,6 @@ export async function POST(req: Request) {
     error: null,
   };
 
+  await statsService.onDataChanged(supabase);
   return Response.json(response, { status: 201 });
 }

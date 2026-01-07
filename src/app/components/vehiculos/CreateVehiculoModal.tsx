@@ -5,7 +5,7 @@ import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import VehiculoFormModal, { VehiculoFormValues } from "./VehiculoFormModal";
 
 type CreatedVehiculo = {
-  id: number;
+  id: string;
   patente: string;
   marca?: string;
   modelo?: string;
@@ -37,7 +37,7 @@ export default function CreateVehiculoModal({ open, onClose, clienteId, tipoClie
     });
 
     return {
-      id: vehiculo_id ?? 0,
+      id: vehiculo_id ?? "",
       patente: values.patente,
       marca: values.marca || undefined,
       modelo: values.modelo || undefined,

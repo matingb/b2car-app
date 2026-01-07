@@ -2,6 +2,22 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { arregloService } from "@/app/api/arreglos/arregloService";
 import { clienteService } from "@/app/api/clientes/clienteService";
 import { vehiculoService } from "@/app/api/vehiculos/vehiculoService";
+import { revalidateTag, unstable_cache } from "next/cache";
+import { getTenantIdFromSupabase } from "@/supabase/tenant";
+
+const DASHBOARD_STATS_TAG_PREFIX = "dashboard-stats";
+
+function dashboardStatsTag(tenantId: string) {
+  return `${DASHBOARD_STATS_TAG_PREFIX}:${tenantId}`;
+}
+
+function invalidateDashboardStats(tenantId: string | null) {
+  try {
+    revalidateTag(tenantId ? dashboardStatsTag(tenantId) : DASHBOARD_STATS_TAG_PREFIX);
+  } catch {
+    // ignore
+  }
+}
 
 export type DashboardStats = {
   totals?: {
@@ -45,7 +61,7 @@ function startOfNextUtcMonth(d: Date) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1, 0, 0, 0));
 }
 
-export async function getStats(supabase: SupabaseClient): Promise<DashboardStats> {
+async function getStats(supabase: SupabaseClient): Promise<DashboardStats> {
   const now = new Date();
   const fromMonth = startOfUtcMonth(now).toISOString();
   const toMonth = startOfNextUtcMonth(now).toISOString();
@@ -93,5 +109,22 @@ export async function getStats(supabase: SupabaseClient): Promise<DashboardStats
     lastUpdatedAt: new Date().toISOString(),
   };
 }
+
+export const statsService = {
+  async getStats(supabase: SupabaseClient, tenantId: string): Promise<DashboardStats> {
+    const getCached = unstable_cache(
+      async () => getStats(supabase),
+      [DASHBOARD_STATS_TAG_PREFIX, tenantId],
+      { revalidate: 60, tags: [dashboardStatsTag(tenantId)] }
+    );
+
+    return await getCached();
+  },
+
+  async onDataChanged(supabase: SupabaseClient) {
+    const tenantId = await getTenantIdFromSupabase(supabase);
+    invalidateDashboardStats(tenantId);
+  },
+} as const;
 
 

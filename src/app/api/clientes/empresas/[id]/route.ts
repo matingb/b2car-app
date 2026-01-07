@@ -2,9 +2,10 @@ import { createClient } from '@/supabase/server'
 import type { NextRequest } from 'next/server'
 import { Vehiculo } from '@/model/types'
 import { empresaService } from '../empresaService'
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
 export type Empresa = {
-  id: number;
+  id: string;
   nombre: string;
   cuit: string;
   telefono: string;
@@ -40,29 +41,15 @@ export async function GET(
 	const supabase = await createClient()
 	const { id } = await params
 
-	const { data, error } = await supabase
-		.from('clientes')
-		.select('*, empresa:empresas(*), vehiculos(*)')
-		.eq('id', id)
-		.single()
+	const { data, error, code } = await empresaService.getByIdWithVehiculos(supabase, id)
 
 	if (error) {
 		console.error('Error cargando empresa', error)
-		const status = error.code === 'PGRST116' ? 404 : 500 // Not found vs server error
+		const status = code === 'PGRST116' ? 404 : 500 // Not found vs server error
 		return Response.json({ data: null, error: error.message }, { status })
 	}
 
-	const empresa = {
-		id: data.id as number,
-		nombre: data.empresa?.nombre ?? '',
-		telefono: data.empresa?.telefono ?? '',
-        cuit: data.empresa?.cuit ?? '',
-		email: data.empresa?.email ?? '',
-		direccion: data.empresa?.direccion ?? '',
-		vehiculos: data.vehiculos ?? [],
-	}
-
-	return Response.json({ data: empresa })
+	return Response.json({ data })
 }
 
 // PUT /api/clientes/empresas/[id]
@@ -79,18 +66,14 @@ export async function PUT(
 	if (!payload.nombre) return Response.json({ error: "Falta nombre" }, { status: 400 })
 	if (!payload.cuit) return Response.json({ error: "Falta CUIT" }, { status: 400 })
 
-	const { data, error } = await supabase
-		.from('empresas')
-		.update(payload)
-		.eq('id', id)
-		.select()
-		.single()
+	const { data, error } = await empresaService.updateById(supabase, id, payload as unknown as Record<string, unknown>)
 
 	if (error) {
 		console.error('Error actualizando empresa', error)
 		return Response.json({ error: error.message }, { status: 500 })
 	}
 
+	await statsService.onDataChanged(supabase)
 	return Response.json({ data })
 }
 
@@ -106,5 +89,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 		return Response.json({ error: error.message }, { status: 500 })
 	}
 
+	await statsService.onDataChanged(supabase)
 	return Response.json({ data: null })
 }

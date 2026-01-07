@@ -2,6 +2,7 @@ import { createClient } from '@/supabase/server'
 import type { NextRequest } from 'next/server'
 import { Particular } from '@/model/types'
 import { particularService } from '../particularService'
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
 export type UpdateParticularRequest = {
   nombre: string;
@@ -30,29 +31,15 @@ export async function GET(
 	const supabase = await createClient()
 	const { id } = await params
 
-	const { data, error } = await supabase
-		.from('clientes')
-		.select('*, particular:particulares(*), vehiculos(*)')
-		.eq('id', id)
-		.single()
+	const { data, error, code } = await particularService.getByIdWithVehiculos(supabase, id)
 
 	if (error) {
 		console.error('Error cargando particular', error)
-		const status = error.code === 'PGRST116' ? 404 : 500
+		const status = code === 'PGRST116' ? 404 : 500
 		return Response.json({ data: null, error: error.message }, { status })
 	}
 
-	const particular = {
-		id: data.id as number,
-		nombre: data.particular?.nombre ?? '',
-		apellido: data.particular?.apellido ?? '',
-		telefono: data.particular?.telefono ?? '',
-		email: data.particular?.email ?? '',
-		direccion: data.particular?.direccion ?? '',
-		vehiculos: data.vehiculos ?? [],
-	}
-
-	return Response.json({ data: particular })
+	return Response.json({ data })
 }
 
 // PUT /api/clientes/particulares/[id]
@@ -68,18 +55,14 @@ export async function PUT(
 	if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 })
 	if (!payload.nombre) return Response.json({ error: "Falta nombre" }, { status: 400 })
 
-	const { data, error } = await supabase
-		.from('particulares')
-		.update(payload)
-		.eq('id', id)
-		.select()
-		.single()
+	const { data, error } = await particularService.updateById(supabase, id, payload as unknown as Record<string, unknown>)
 
 	if (error) {
 		console.error('Error actualizando particular', error)
 		return Response.json({ error: error.message }, { status: 500 })
 	}
 
+	await statsService.onDataChanged(supabase)
 	return Response.json({ data })
 }
 
@@ -95,5 +78,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 		return Response.json({ error: error.message }, { status: 500 })
 	}
 
+	await statsService.onDataChanged(supabase)
 	return Response.json({ data: null })
 }

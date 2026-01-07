@@ -3,6 +3,7 @@ import { DELETE } from './route'
 import { empresaService } from '../empresaService'
 import { createClient } from '@/supabase/server'
 import type { NextRequest } from 'next/server'
+import { statsService } from '@/app/api/dashboard/stats/dashboardStatsService'
 
 vi.mock('@/supabase/server', () => ({
   createClient: vi.fn()
@@ -12,6 +13,12 @@ vi.mock('../empresaService', () => ({
   empresaService: {
     delete: vi.fn()
   }
+}))
+
+vi.mock('@/app/api/dashboard/stats/dashboardStatsService', () => ({
+  statsService: {
+    onDataChanged: vi.fn(),
+  },
 }))
 
 describe('DELETE /api/clientes/empresas/[id]', () => {
@@ -35,6 +42,7 @@ describe('DELETE /api/clientes/empresas/[id]', () => {
     expect(empresaService.delete).toHaveBeenCalledWith(mockSupabase, testId)
     expect(response.status).toBe(200)
     expect(body).toEqual({ data: null })
+    expect(statsService.onDataChanged).toHaveBeenCalledTimes(1)
   })
 
   it('debería retornar error 500 si falla la transacción de eliminación', async () => {

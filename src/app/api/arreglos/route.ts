@@ -2,6 +2,9 @@ import { logger } from "@/lib/logger";
 import { Arreglo } from "@/model/types"
 import { createClient } from "@/supabase/server"
 import { IVA_RATE } from "@/lib/ivaRate";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { ArregloServiceError, arregloService } from "@/app/api/arreglos/arregloService";
+import type { CreateArregloInsertPayload, CreateArregloRequest } from "./arregloRequests";
 
 export type GetArreglosResponse = {
     data: Arreglo[] | null;
@@ -10,14 +13,16 @@ export type GetArreglosResponse = {
 
 export async function GET() {
     const supabase = await createClient()
-    const { data, error } = await supabase.from('arreglos').select('*, vehiculo:vehiculos(*)')
+    const { data, error } = await arregloService.listAll(supabase)
     if (error) {
-        return Response.json({ data: [], error: error.message }, { status: 500 })
+        const status = error === ArregloServiceError.NotFound ? 404 : 500;
+        const message = status === 404 ? "Arreglos no encontrados" : "Error cargando arreglos";
+        return Response.json({ data: [], error: message }, { status })
     }
 
     logger.debug("GET /api/arreglos - data:", data, "error:", error);
 
-    const arreglos: Arreglo[] = data.map(arreglo => ({
+    const arreglos: Arreglo[] = (data ?? []).map(arreglo => ({
         id: arreglo.id,
         vehiculo: arreglo.vehiculo,
         tipo: arreglo.tipo,
@@ -32,18 +37,6 @@ export async function GET() {
     }));
     return Response.json({ data: arreglos })
 }
-
-export type CreateArregloRequest = {
-    vehiculo_id: string;
-    tipo: string;
-    descripcion: string;
-    kilometraje_leido: number;
-    fecha: Date;
-    observaciones: string;
-    precio_final: number;
-    esta_pago: boolean;
-    extra_data: string;
-};
 
 export type CreateArregloResponse = {
     data: Arreglo | null;
@@ -74,7 +67,7 @@ export async function POST(req: Request) {
     const ivaRate = IVA_RATE
     const computedSinIva = Number((Number(precio_final) / (1 + ivaRate)).toFixed(2));
 
-    const insertPayload = {
+    const insertPayload: CreateArregloInsertPayload = {
         vehiculo_id,
         tipo,
         descripcion: descripcion ?? null,
@@ -85,12 +78,15 @@ export async function POST(req: Request) {
         precio_sin_iva: computedSinIva,
         esta_pago: typeof esta_pago === 'boolean' ? esta_pago : false,
         extra_data: extra_data ?? null,
-    } as const;
+    };
 
-    const { data: insertData, error: insertError } = await supabase.from('arreglos').insert([insertPayload]).select('*, vehiculo:vehiculos(*)').single();
+    const { data: insertData, error: insertError } = await arregloService.create(supabase, insertPayload);
     if (insertError) {
-        return Response.json({ error: insertError.message }, { status: 500 });
+        const status = insertError === ArregloServiceError.NotFound ? 404 : 500;
+        const message = status === 404 ? "Arreglo no encontrado" : "Error creando arreglo";
+        return Response.json({ error: message }, { status });
     }
 
+    await statsService.onDataChanged(supabase);
     return Response.json({ data: insertData, error: null }, { status: 201 });
 }

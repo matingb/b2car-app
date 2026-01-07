@@ -20,7 +20,7 @@ type ClientesContextType = {
   getEmpresaById: (id: string) => Promise<Empresa | null>;
   createParticular: (input: CreateParticularRequest) => Promise<Cliente>;
   createEmpresa: (input: CreateEmpresaRequest) => Promise<Cliente>;
-  deleteCliente: (id: number, tipo: TipoCliente) => Promise<void>;
+  deleteCliente: (id: string, tipo: TipoCliente) => Promise<void>;
   listRepresentantes: (empresaId: string | number) => Promise<Representante[]>;
   createRepresentante: (empresaId: string | number, input: CreateRepresentanteInput) => Promise<Representante>;
   deleteRepresentante: (empresaId: string | number, representanteId: string | number) => Promise<void>;
@@ -106,7 +106,7 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);  
 
-  const deleteCliente = useCallback(async (id: number, tipo: TipoCliente) => {
+  const deleteCliente = useCallback(async (id: string, tipo: TipoCliente) => {
     setLoading(true);
     try {
       let response: DeleteClienteResponse | null = null;

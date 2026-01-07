@@ -1,21 +1,13 @@
-import { ArregloDto } from "@/model/dtos";
 import { Arreglo } from "@/model/types";
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { ArregloServiceError, arregloService } from "@/app/api/arreglos/arregloService";
+import type { UpdateArregloRequest } from "../arregloRequests";
 
 export type GetArregloByIdResponse = {
   data: Arreglo | null;
   error?: string | null;
-};
-
-export type UpdateArregloRequest = {
-  tipo?: string;
-  descripcion?: string;
-  kilometraje_leido?: number;
-  fecha?: string;
-  observaciones?: string;
-  precio_final?: number;
-  esta_pago?: boolean;
 };
 
 export type UpdateArregloResponse = {
@@ -31,15 +23,12 @@ export async function GET(
   const supabase = await createClient();
   const { id } = await params;
 
-  const { data: data, error: aError } = await supabase
-    .from("arreglos")
-    .select("*, vehiculo:vehiculos(*)")
-    .eq("id", id)
-    .single();
+  const { data: data, error } = await arregloService.getByIdWithVehiculo(supabase, id);
 
-  if (aError) {
-    const status = aError.code === "PGRST116" ? 404 : 500;
-    return Response.json({ data: null, error: aError.message }, { status });
+  if (error) {
+    const status = error === ArregloServiceError.NotFound ? 404 : 500;
+    const message = status === 404 ? "Arreglo no encontrado" : "Error cargando arreglo";
+    return Response.json({ data: null, error: message }, { status });
   }
 
   return Response.json({ data: data, error: null });
@@ -56,17 +45,19 @@ export async function PUT(
   const payload: UpdateArregloRequest | null = await req.json().catch(() => null);
   if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 });
 
-  const { data, error } = await supabase
-    .from('arreglos')
-    .update(payload)
-    .eq('id', id)
-    .select('*, vehiculo:vehiculos(*)')
-    .single();
+  const { data, error } = await arregloService.updateById(
+    supabase,
+    id,
+    payload
+  );
 
   if (error) {
-    return Response.json({ data: null, error: error.message }, { status: 500 });
+    const status = error === ArregloServiceError.NotFound ? 404 : 500;
+    const message = status === 404 ? "Arreglo no encontrado" : "Error actualizando arreglo";
+    return Response.json({ data: null, error: message }, { status });
   }
 
+  await statsService.onDataChanged(supabase);
   return Response.json({ data: data, error: null }, { status: 200 });
 }
 
@@ -81,11 +72,14 @@ export async function DELETE(
   if (!id)
     return Response.json({ error: "ID de arreglo no proporcionado" }, { status: 400 });
 
+  const { error } = await arregloService.deleteById(supabase, id);
 
-  const { error } = await supabase
-    .from('arreglos')
-    .delete()
-    .eq('id', id);
+  if (error) {
+    const status = error === ArregloServiceError.NotFound ? 404 : 500;
+    const message = status === 404 ? "Arreglo no encontrado" : "Error eliminando arreglo";
+    return Response.json({ error: message }, { status });
+  }
 
-  return Response.json({ error }, { status: error ? 500 : 200 });
+  await statsService.onDataChanged(supabase);
+  return Response.json({ error: null }, { status: 200 });
 }

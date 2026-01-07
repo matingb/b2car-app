@@ -1,6 +1,8 @@
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 import { Representante } from "@/model/types";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { representantesService } from "@/app/api/clientes/empresas/representantesService";
 
 // GET /api/clientes/empresas/[id]/representantes
 export async function GET(
@@ -10,25 +12,13 @@ export async function GET(
   const supabase = await createClient();
   const { id } = await params;
 
-  // Intentamos soportar columna empresa_id o empresa_id según esquema
-  const { data, error } = await supabase
-    .from("representantes")
-    .select("id, empresa_id, empresa_id, nombre, apellido, telefono")
-    .or(`empresa_id.eq.${id},empresa_id.eq.${id}`);
+  const { data, error } = await representantesService.listByEmpresaId(supabase, id);
 
   if (error) {
     return Response.json({ data: [], error: error.message }, { status: 500 });
   }
 
-  const reps: Representante[] = (data || []).map((r: Representante) => ({
-    id: r.id,
-    empresa_id: r.empresa_id ?? r.empresa_id,
-    nombre: r.nombre,
-    apellido: r.apellido,
-    telefono: r.telefono,
-  }));
-
-  return Response.json({ data: reps, error: null });
+  return Response.json({ data: data as Representante[], error: null });
 }
 
 export type CreateRepresentanteRequest = {
@@ -69,18 +59,13 @@ export async function POST(
     empresa_id: id,
   };
 
-  // Si el esquema usa empresa_id en lugar de empresa_id
-  const { data, error: insertError } = await supabase
-    .from("representantes")
-    .insert([insertPayload])
-    .eq("empresa_id", id)
-    .select("id, nombre, apellido, telefono")
-    .single();
+  const { data, error: insertError } = await representantesService.create(supabase, id, insertPayload);
 
   if (insertError) {
-    return Response.json({ error: insertError.message }, { status: 500 });
+    return Response.json({ error: insertError.message }, { status: 500 });  
   }
 
+  await statsService.onDataChanged(supabase);
   return Response.json({ data, error: null }, { status: 201 });
 }
 
@@ -100,15 +85,12 @@ export async function DELETE(
   const representanteId = searchParams.get("representanteId") || searchParams.get("id");
   if (!representanteId) return Response.json({ error: "Falta representanteId" }, { status: 400 });
 
-  const { error } = await supabase
-    .from("representantes")
-    .delete()
-    .eq("id", representanteId)
-    .eq("empresa_id", empresaId);
+  const { error } = await representantesService.delete(supabase, empresaId, representanteId);
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
+  await statsService.onDataChanged(supabase);
   return Response.json({ error: null }, { status: 200 });
 }

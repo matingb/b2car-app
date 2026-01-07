@@ -1,8 +1,9 @@
-import { TipoCliente, Cliente } from "@/model/types";
+import { Cliente } from "@/model/types";
 import { createClient } from "@/supabase/server";
 import { empresaService } from "./empresaService";
 import { logger } from "@/lib/logger";
 import { decodeJwtPayload } from "@/lib/jwt";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
 export type CreateEmpresaRequest = {
   nombre: string;
@@ -46,37 +47,11 @@ export async function POST(req: Request) {
     return Response.json({ error: "Empresa con cuit " + payload.cuit + " ya existe" }, { status: 409 });
   }
 
-  const { data: clienteInsert, error: errorCliente } = await supabase
-    .from("clientes")
-    .insert([{ tipo_cliente: TipoCliente.EMPRESA }])
-    .select("id, tipo_cliente")
-    .single();
-
-  if (errorCliente || !clienteInsert)
-    return Response.json({ error: errorCliente?.message || "No se pudo crear" }, { status: 500 });
-
-  const clienteId = clienteInsert.id;
-
-  const { data: empresaInsert, error: detalleError } = await supabase
-    .from("empresas")
-    .insert([{ ...payload, id: clienteId, }])
-    .select()
-    .single();
-
-  if (detalleError || !empresaInsert) {
-    await supabase.from("clientes").delete().eq("id", clienteId);
-    return Response.json({ error: detalleError?.message || "No se pudo crear la empresa" }, { status: 500 });
+  const { data: created, error: createError } = await empresaService.createClienteEmpresa(supabase, payload);
+  if (createError || !created) {
+    return Response.json({ error: createError?.message || "No se pudo crear la empresa" }, { status: 500 });
   }
 
-  return Response.json({
-    data: {
-      id: clienteId,
-      nombre: empresaInsert.nombre,
-      cuit: empresaInsert.cuit,
-      tipo_cliente: TipoCliente.EMPRESA,
-      telefono: empresaInsert.telefono,
-      email: empresaInsert.email,
-      direccion: empresaInsert.direccion,
-    },
-  }, { status: 201 });
+  await statsService.onDataChanged(supabase);
+  return Response.json({ data: created }, { status: 201 });
 }

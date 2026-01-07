@@ -1,5 +1,7 @@
+export type UUID = string;
+
 export interface Particular {
-  id: number
+  id: UUID
   nombre: string
   apellido?: string
   telefono: string
@@ -9,8 +11,8 @@ export interface Particular {
 }
 
 export interface Representante {
-  id: number;
-  empresa_id: number;
+  id: UUID;
+  empresa_id: UUID;
   nombre: string;
   apellido: string;
   telefono: string;
@@ -23,7 +25,7 @@ export enum TipoCliente {
 
 
 export interface Cliente {
-  id: number
+  id: UUID
   nombre: string
   tipo_cliente: TipoCliente
   telefono: string
@@ -33,7 +35,7 @@ export interface Cliente {
 }
 
 export interface Vehiculo {
-  id: number;
+  id: UUID;
   nombre_cliente: string;
   patente: string;
   marca: string;
@@ -43,7 +45,7 @@ export interface Vehiculo {
 }
 
 export interface Arreglo {
-  id: number;
+  id: UUID;
   vehiculo: Vehiculo;
   tipo: string;
   descripcion: string;
