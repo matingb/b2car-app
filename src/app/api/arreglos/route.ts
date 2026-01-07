@@ -69,9 +69,7 @@ export async function POST(req: Request) {
     } = body as CreateArregloRequest
 
     if (!vehiculo_id) return Response.json({ error: "Falta vehiculo_id" }, { status: 400 });
-    if (kilometraje_leido == null) return Response.json({ error: "Falta kilometraje_leido" }, { status: 400 });
     if (!fecha) return Response.json({ error: "Falta fecha" }, { status: 400 });
-    if (precio_final == null) return Response.json({ error: "Falta precio_final" }, { status: 400 });
 
     const ivaRate = IVA_RATE
     const computedSinIva = Number((Number(precio_final) / (1 + ivaRate)).toFixed(2));
