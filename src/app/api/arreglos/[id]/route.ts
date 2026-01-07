@@ -45,49 +45,6 @@ export async function GET(
   return Response.json({ data: data, error: null });
 }
 
-// POST /api/arreglos/[id] -> actualizar arreglo (edición parcial)
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const supabase = await createClient();
-  const { id } = await params;
-
-  const payload: Partial<ArregloDto> | null = await req.json().catch(() => null);
-  if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 });
-
-  // Si cambia precio_final, recalcular precio_sin_iva
-  if ('precio_final' in payload) {
-    const getIvaRate = () => {
-      const rateEnv = process.env.IVA_RATE; // e.g., 0.21
-      const percentEnv = process.env.IVA_PERCENT; // e.g., 21
-      let DEF_RATE = 0.21;
-      if (rateEnv && !Number.isNaN(Number(rateEnv)) && Number(rateEnv) >= 0 && Number(rateEnv) < 1) {
-        DEF_RATE = Number(rateEnv);
-      } else if (percentEnv && !Number.isNaN(Number(percentEnv)) && Number(percentEnv) >= 0) {
-        DEF_RATE = Number(percentEnv) / 100;
-      }
-      return DEF_RATE;
-    };
-    const ivaRate = getIvaRate();
-    const computedSinIva = Number((Number(payload.precio_final) / (1 + ivaRate)).toFixed(2));
-    payload.precio_sin_iva = computedSinIva;
-  }
-
-  const { data, error } = await supabase
-    .from('arreglos')
-    .update(payload)
-    .eq('id', id)
-    .select('*, vehiculo:vehiculos(*)')
-    .single();
-
-  if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
-
-  return Response.json({ data: data, error: null }, { status: 200 });
-}
-
 // PUT /api/arreglos/[id] -> actualizar arreglo (edición parcial)
 export async function PUT(
   req: NextRequest,

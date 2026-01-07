@@ -96,21 +96,3 @@ export async function POST(req: Request) {
 
     return Response.json({ data: insertData, error: null }, { status: 201 });
 }
-
-export async function DELETE(req: Request) {
-    const supabase = await createClient();
-
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
-    if (!id) return Response.json({ error: 'Falta id' }, { status: 400 });
-
-    const { error } = await supabase
-        .from('arreglos')
-        .delete()
-        .eq('id', id);
-
-    if (error) {
-        return Response.json({ error: error.message }, { status: 500 });
-    }
-    return Response.json({ error: null }, { status: 200 });
-}
