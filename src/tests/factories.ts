@@ -13,7 +13,7 @@ import type { CreateRepresentanteRequest } from '@/app/api/clientes/empresas/[id
  */
 export const createVehiculo = (overrides: Partial<Vehiculo> = {}): Vehiculo => {
   return {
-    id: 1,
+    id: '1',
     nombre_cliente: 'Juan Pérez',
     patente: 'ABC123',
     marca: 'Toyota',
@@ -31,7 +31,7 @@ export const createVehiculo = (overrides: Partial<Vehiculo> = {}): Vehiculo => {
  */
 export const createCliente = (overrides: Partial<Cliente> = {}): Cliente => {
   return {
-    id: 1,
+    id: '1',
     nombre: 'Juan Pérez',
     tipo_cliente: TipoCliente.PARTICULAR,
     telefono: '1234567890',
@@ -50,7 +50,7 @@ export const createArreglo = (overrides: Partial<Arreglo> = {}): Arreglo => {
   const defaultVehiculo = createVehiculo();
   
   return {
-    id: 1,
+    id: '1',
     vehiculo: defaultVehiculo,
     tipo: 'Mantenimiento',
     descripcion: 'Cambio de aceite',
@@ -153,7 +153,7 @@ export const createCreateRepresentanteBodyRequest = (
  */
 export const createParticular = (overrides: Partial<Particular> = {}): Particular => {
   return {
-    id: 1,
+    id: '1',
     nombre: 'Juan',
     apellido: 'Pérez',
     telefono: '1234567890',
@@ -171,7 +171,7 @@ export const createParticular = (overrides: Partial<Particular> = {}): Particula
  */
 export const createEmpresa = (overrides: Partial<Empresa> = {}): Empresa => {
   return {
-    id: 1,
+    id: '1',
     nombre: 'Empresa XYZ S.A.',
     cuit: '20-12345678-9',
     telefono: '1234567890',

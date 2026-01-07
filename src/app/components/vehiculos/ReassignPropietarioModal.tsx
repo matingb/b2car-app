@@ -10,7 +10,7 @@ import { useVehiculos } from "@/app/providers/VehiculosProvider";
 
 interface Props {
   open: boolean;
-  vehiculoId: number | string;
+  vehiculoId: string;
   currentClienteId?: number | string | null;
   onClose: (updated?: boolean) => void;
 }

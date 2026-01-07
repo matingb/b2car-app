@@ -26,7 +26,7 @@ export type ArregloForm = {
 type Props = {
   open: boolean;
   vehiculoId?: number | string;
-  initial?: Partial<ArregloForm> & { id?: number };
+  initial?: Partial<ArregloForm> & { id?: string };
   onClose: (updated?: boolean) => void;
   onSubmitSuccess?: (arreglo: Arreglo) => void;
 };

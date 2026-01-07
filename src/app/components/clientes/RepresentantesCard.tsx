@@ -10,7 +10,7 @@ import IconButton from "../ui/IconButton";
 type Props = {
   representantes: Representante[];
   onAddRepresentante?: () => void;
-  onDeleteRepresentante?: (representanteId: number) => void;
+  onDeleteRepresentante?: (representanteId: string) => void;
 };
 
 export default function RepresentantesCard({ representantes, onAddRepresentante, onDeleteRepresentante }: Props) {

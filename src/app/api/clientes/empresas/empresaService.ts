@@ -88,9 +88,9 @@ export const empresaService = {
       nombre: inserted.nombre ?? payload.nombre,
       cuit: inserted.cuit ?? payload.cuit,
       tipo_cliente: TipoCliente.EMPRESA,
-      telefono: inserted.telefono,
-      email: inserted.email,
-      direccion: inserted.direccion,
+      telefono: inserted.telefono ?? "",
+      email: inserted.email ?? "",
+      direccion: inserted.direccion ?? "",
     };
 
     return { data: c, error: null };
