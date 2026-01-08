@@ -115,7 +115,7 @@ export const statsService = {
     const getCached = unstable_cache(
       async () => getStats(supabase),
       [DASHBOARD_STATS_TAG_PREFIX, tenantId],
-      { revalidate: 60, tags: [dashboardStatsTag(tenantId)] }
+      { revalidate: 3600, tags: [dashboardStatsTag(tenantId)] }
     );
 
     return await getCached();
