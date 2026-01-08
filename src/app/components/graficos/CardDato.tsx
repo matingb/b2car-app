@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Card from "../ui/Card";
+import { css } from "@emotion/react";
 
 type Props = {
     titleText?: string;
@@ -92,7 +93,7 @@ export default function CardDato({
     }, [parsed, animatedValue, prefix]);
 
     return (
-        <div style={{ ...styles.mainPanel, ...style }}>
+        <div css={{ ...styles.mainPanel, ...style }}>
             <Card
                 onClick={onClick}
                 style={{ minHeight: '110px' }}
@@ -114,9 +115,12 @@ export default function CardDato({
 }
 
 const styles = {
-    mainPanel: {
-        width: '100%',
-    },
+    mainPanel: css({
+        width: "100%",
+        [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+            width: "100%",
+        },
+    }),
     title: {
         fontSize: 20,
         fontWeight: 600,

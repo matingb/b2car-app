@@ -13,6 +13,7 @@ import RecentActivityCard from "@/app/components/dashboard/RecentActivityCard";
 import { Car, CircleDollarSign, Users, Wrench } from "lucide-react";
 import { ROUTES } from "@/routing/routes";
 import { useRouter } from "next/navigation";
+import { css } from "@emotion/react";
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -24,7 +25,7 @@ export default function DashboardPage() {
 
 
 
-            <div style={styles.mainPanel}>
+            <div css={styles.mainPanel}>
                 <CardDato
                     titleText="Clientes"
                     value={stats?.totals?.clientes}
@@ -48,11 +49,10 @@ export default function DashboardPage() {
                     value={stats?.totals?.montoIngresos}
                     prefix="$"
                     icon={<CircleDollarSign size={22} color={COLOR.ACCENT.PRIMARY} />}
-                    style={{ width: "100%" }}
                 />
             </div>
 
-            <div style={styles.mainPanel}>
+            <div css={styles.mainPanel}>
                 <div style={{ width: "100%" }}>
                     <h3 css={styles.title}>Clientes | Nuevos este mes</h3>
                     <Card>
@@ -76,8 +76,8 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            <div style={styles.mainPanel}>
-                <div style={{ width: "50%" }}>
+            <div css={styles.mainPanel}>
+                <div css={styles.grafico}>
                     <h3 css={styles.title}>Arreglos | Tipos</h3>
                     <Card>
                         {loading ? (
@@ -113,7 +113,7 @@ export default function DashboardPage() {
                     </Card>
                 </div>
 
-                <div style={{ width: "50%" }}>
+                <div css={styles.grafico}>
                     <h3 css={styles.title}>Arreglos | Estado de pago</h3>
                     <Card>
                         {loading ? (
@@ -156,12 +156,27 @@ export default function DashboardPage() {
 }
 
 const styles = {
-    mainPanel: {
+    mainPanel: css({
         display: "flex",
         flexDirection: "row",
         gap: 16,
         marginTop: 16,
-    },
+        [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+            flexDirection: 'column',
+        },
+    }),
+    cardDatos: css({
+        width: "100%",
+        [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+            width: "50%",
+        },
+    }),
+    grafico: css({
+        width: "50%",
+        [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+            width: "100%",
+        },
+    }),
     activityPanel: {
         display: "flex",
         flexDirection: "column",

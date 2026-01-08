@@ -34,7 +34,7 @@ export async function GET() {
       {
         status: 200,
         headers: {
-          "Cache-Control": "private, max-age=0, must-revalidate",
+          "Cache-Control": "private, max-age=30",
           Vary: "Cookie",
         },
       }

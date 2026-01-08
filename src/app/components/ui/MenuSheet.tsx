@@ -3,7 +3,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import Divider from "@/app/components/ui/Divider";
-import { Users, Car, Wrench, LogOut } from "lucide-react";
+import { Users, Car, Wrench, LogOut, ChartNoAxesCombined } from "lucide-react";
 import SidebarItem from "./SidebarItem";
 import { ROUTES } from "@/routing/routes";
 import { logOut } from "@/app/login/actions";
@@ -24,10 +24,16 @@ export default function MenuSheet() {
   return (
     <div css={styles.container}>
       <div css={styles.brand}>
-        <span style={{ fontWeight: 700, fontSize: 24}}>CarMax</span>
+        <span style={{ fontWeight: 700, fontSize: 24 }}>CarMax</span>
       </div>
 
       <nav css={styles.nav}>
+        <SidebarItem
+          href={ROUTES.dashboard}
+          label="Dashboard"
+          icon={<ChartNoAxesCombined size={18} />}
+          onClick={handleNavClick}
+        />
         <SidebarItem
           href={ROUTES.clientes}
           label="Clientes"
@@ -47,7 +53,7 @@ export default function MenuSheet() {
           onClick={handleNavClick}
         />
 
-        <Divider 
+        <Divider
           style={{ margin: "8px 0" }}
         />
 

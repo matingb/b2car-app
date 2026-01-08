@@ -37,14 +37,14 @@ export default function RecentActivityCard({ activity }: { activity: RecentActiv
           </div>
 
           <div css={styles.text}>
-            <div style={styles.title}>{activity.titulo}</div>
-            <div style={styles.subtitle}>
+            <div css={styles.title}>{activity.titulo}</div>
+            <div css={styles.subtitle}>
               Vehículo: {activity.vehiculo} {" • "} {timeAgo}
             </div>
           </div>
         </div>
 
-        <div style={styles.right}>
+        <div css={styles.right}>
           <div style={styles.amount}>
             {formatArs(activity.monto, { maxDecimals: 2, minDecimals: 0 })}
           </div>
@@ -86,28 +86,38 @@ const styles = {
     },
     flex: 1,
   }),
-  title: {
+  title: css({
     fontSize: 18,
     fontWeight: 600,
     color: COLOR.TEXT.PRIMARY,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap" as const,
-  },
-  subtitle: {
+    maxWidth: "200px",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      fontSize: 14,
+    },
+  }),
+  subtitle: css({
     marginTop: 4,
     fontSize: 14,
     color: COLOR.TEXT.SECONDARY,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap" as const,
-  },
-  right: {
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      fontSize: 12,
+    },
+  }),
+  right: css({
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-end",
     flexShrink: 0,
-  },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: 'none',
+    },
+  }),
   amount: {
     fontSize: 22,
     fontWeight: 700,
