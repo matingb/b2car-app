@@ -1,5 +1,6 @@
 "use client";
 
+import { logger } from "@/lib/logger";
 import React, {
 	createContext,
 	useCallback,
@@ -94,7 +95,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 			return null;
 		} finally {
 			const elapsedMs = performance.now() - startTime;
-			console.log(`dashboard fetchStats: ${elapsedMs.toFixed(1)}ms`);
+			logger.debug(`Fetched dashboard stats in ${elapsedMs.toFixed(1)}ms`);
 			setLoading(false);
 		}
 	}, []);
