@@ -45,7 +45,7 @@ export default function CantidadNuevosClientes({ x, values, className }: Props) 
     return (
         <ChartContainer
             config={config}
-            className={className ?? "w-full h-[240px]"}
+            className={className ?? "w-full h-[200px]"}
         >
             <AreaChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid vertical={false} />

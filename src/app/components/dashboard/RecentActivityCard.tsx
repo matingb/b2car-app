@@ -45,7 +45,7 @@ export default function RecentActivityCard({ activity }: { activity: RecentActiv
         </div>
 
         <div css={styles.right}>
-          <div style={styles.amount}>
+          <div css={styles.amount}>
             {formatArs(activity.monto, { maxDecimals: 2, minDecimals: 0 })}
           </div>
         </div>
@@ -115,13 +115,16 @@ const styles = {
     justifyContent: "flex-end",
     flexShrink: 0,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      display: 'none',
+      display: 'flex',
     },
   }),
   amount: {
     fontSize: 22,
     fontWeight: 700,
     color: COLOR.ACCENT.PRIMARY,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      fontSize: 20,
+    },
   },
 } as const;
 

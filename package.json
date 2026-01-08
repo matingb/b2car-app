@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
-    "test:watch": "vitest --watch"
+    "test:watch": "vitest --watch",
+    "push": "next build && git push"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
