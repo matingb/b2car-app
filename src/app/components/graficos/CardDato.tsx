@@ -96,12 +96,11 @@ export default function CardDato({
         <div css={{ ...styles.mainPanel, ...style }}>
             <Card
                 onClick={onClick}
-                style={{ minHeight: '110px' }}
             >
-                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div css={styles.titleContainer}>
                     {icon}
                     <h3 css={styles.title}>{titleText}</h3>
-                    
+
                 </div>
                 <span
                     data-testid="card-dato-value"
@@ -133,5 +132,15 @@ const styles = {
         overflow: "hidden",
         textOverflow: "ellipsis",
         color: COLOR.ACCENT.PRIMARY,
-    }
+    },
+    titleContainer: css({
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 8,
+        [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+            marginBottom: 0,
+        },
+    })
 } as const;

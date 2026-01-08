@@ -55,7 +55,7 @@ export default function DashboardPage() {
             <div css={styles.mainPanel}>
                 <div style={{ width: "100%" }}>
                     <h3 css={styles.title}>Clientes | Nuevos este mes</h3>
-                    <Card>
+                    <Card style={{padding: '16px 4px'}}>
                         {loading ? (
                             <span style={{ color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
                                 Cargando...
