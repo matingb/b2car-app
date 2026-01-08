@@ -93,9 +93,10 @@ const styles = {
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap" as const,
-    maxWidth: "200px",
+    maxWidth: "750px",
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       fontSize: 14,
+      maxWidth: "220px",
     },
   }),
   subtitle: css({
@@ -115,7 +116,7 @@ const styles = {
     justifyContent: "flex-end",
     flexShrink: 0,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      display: 'flex',
+      display: 'none',
     },
   }),
   amount: {
