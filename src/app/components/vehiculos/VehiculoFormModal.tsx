@@ -201,7 +201,7 @@ export default function VehiculoFormModal<TResult = void>({
               onChange={(e) => setModelo(e.target.value)}
             />
           </div>
-          {( selectedCliente?.tipo_cliente === "empresa" || tipoCliente === "empresa") && (
+          {(( selectedCliente?.tipo_cliente === "empresa" || tipoCliente === "empresa") || initialValues.nro_interno!="") && (
               <div style={styles.field}>
                 <label style={styles.label}>Nro interno</label>
                 <input
@@ -210,7 +210,7 @@ export default function VehiculoFormModal<TResult = void>({
                   value={nroInterno}
                   onChange={(e) => setNroInterno(e.target.value)}
                 />
-              </div>
+              </div>  
             )}
         </div>
       </div>

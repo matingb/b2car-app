@@ -5,6 +5,7 @@ import { Vehiculo } from "@/model/types";
 import VehiculoFormModal, { VehiculoFormValues } from "./VehiculoFormModal";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
+import { logger } from "@/lib/logger";
 
 type Props = {
   open: boolean;
@@ -16,6 +17,8 @@ type Props = {
 export default function EditVehiculoModal({ open, onClose, vehiculo, tipoCliente }: Props) {
   const { update } = useVehiculos();
   const { error, success } = useToast();
+
+  logger.debug("EditVehiculoModal render", { open, vehiculo });
 
   const handleSubmit = async (values: VehiculoFormValues): Promise<boolean> => {
     try {
