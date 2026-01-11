@@ -93,12 +93,13 @@ export default function CardDato({
     }, [parsed, animatedValue, prefix]);
 
     return (
-        <div css={{ ...styles.mainPanel, ...style }}>
+        <div css={styles.mainPanel} style={style}>
             <Card
                 onClick={onClick}
+                style={styles.card}
             >
                 <div css={styles.titleContainer}>
-                    {icon}
+                    {icon ? <span css={styles.iconWrap}>{icon}</span> : null}
                     <h3 css={styles.title}>{titleText}</h3>
 
                 </div>
@@ -116,8 +117,30 @@ export default function CardDato({
 const styles = {
     mainPanel: css({
         width: "100%",
+        height: "100%",
         [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
             width: "100%",
+        },
+    }),
+    card: {
+        height: "100%",
+        display: "flex",
+        flexDirection: "column" as const,
+        justifyContent: "space-between",
+    },
+    iconWrap: css({
+        flex: "0 0 22px",
+        width: 22,
+        height: 22,
+        minWidth: 22,
+        minHeight: 22,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        "& svg": {
+            width: 22,
+            height: 22,
+            flexShrink: 0,
         },
     }),
     title: {

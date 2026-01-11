@@ -23,9 +23,7 @@ export default function DashboardPage() {
         <div>
             <ScreenHeader title="Dashboard" />
 
-
-
-            <div css={styles.mainPanel}>
+            <div css={styles.cardDatosContainer}>
                 <CardDato
                     titleText="Clientes"
                     value={stats?.totals?.clientes}
@@ -156,24 +154,30 @@ export default function DashboardPage() {
 }
 
 const styles = {
+    cardDatosContainer: css({
+        display: "grid",
+        gap: 16,
+        marginTop: 16,
+        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+        [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        },
+        [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+            gridTemplateColumns: "repeat(1, minmax(0, 1fr))",
+        },
+    }),
     mainPanel: css({
         display: "flex",
         flexDirection: "row",
         gap: 16,
         marginTop: 16,
-        [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+        [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
             flexDirection: 'column',
-        },
-    }),
-    cardDatos: css({
-        width: "100%",
-        [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-            width: "50%",
         },
     }),
     grafico: css({
         width: "50%",
-        [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+        [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
             width: "100%",
         },
     }),

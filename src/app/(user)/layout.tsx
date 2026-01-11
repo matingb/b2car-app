@@ -158,7 +158,7 @@ const styles = {
     maxWidth: "90rem",
     columnGap: "2rem",
     padding: "1.5rem",
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       padding: "0.75rem",
     },
   }),
@@ -166,7 +166,7 @@ const styles = {
     width: "14rem",
   },
   sidebarResponsive: css({
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       display: 'none',
     },
   }),
@@ -182,7 +182,7 @@ const styles = {
     padding: "1.5rem",
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     overflowY: "auto",
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       padding: "1rem",
     },
   }),

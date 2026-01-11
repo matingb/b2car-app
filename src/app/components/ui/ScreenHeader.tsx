@@ -76,7 +76,7 @@ const styles = {
   menuBtn: css({
     display: "none",
     height: '40px',
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       display: "flex",
     },
   }),
