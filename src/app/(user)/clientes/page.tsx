@@ -142,7 +142,6 @@ const styles = {
   newButton: {
     height: '40px',
     width: '48px',
-    //minWidth: 180,
   },
   list: {
     display: "flex",
@@ -179,7 +178,7 @@ const styles = {
     boxShadow: "none",
   }),
   chipResponsive: css({
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       fontSize: '14px',
       padding : '6px 12px',
     },

@@ -61,7 +61,7 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
   };
 
   return (
-    <Card style={{padding: '10px 12px'}} onClick={handleOnClick}>
+    <Card style={{ padding: "10px 12px" }} onClick={handleOnClick}>
       <div css={styles.container}>
         <div css={styles.leftGroup}>
           <Avatar nombre={cliente.nombre} />
@@ -76,39 +76,28 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
                   {cliente.direccion !== "" ? cliente.direccion : "-"}
                 </span>
               </div>
-              <div style={styles.contact}>
+              <div css={styles.contact}>
                 {cliente.email && (
-                  <div style={styles.contactRow}>
+                  <div css={styles.contactRow}>
                     <Mail size={14} />
                     <span>{cliente.email}</span>
                   </div>
                 )}
 
                 {cliente.telefono && (
-                  <div
-                    style={
-                      cliente.email
-                        ? styles.contactRowWithTop
-                        : styles.contactRow
-                    }
-                  >
+                  <div css={styles.contactRow}>
                     <Phone size={14} />
                     <span>{cliente.telefono}</span>
                   </div>
                 )}
 
-                {cliente.tipo_cliente === TipoCliente.EMPRESA && cliente.cuit && (
-                  <div
-                    style={
-                      cliente.email || cliente.telefono
-                        ? styles.contactRowWithTop
-                        : styles.contactRow
-                    }
-                  >
-                    <FileText size={14} />
-                    <span>CUIT: {cliente.cuit}</span>
-                  </div>
-                )}
+                {cliente.tipo_cliente === TipoCliente.EMPRESA &&
+                  cliente.cuit && (
+                    <div css={styles.contactRow}>
+                      <FileText size={14} />
+                      <span>CUIT: {cliente.cuit}</span>
+                    </div>
+                  )}
               </div>
             </div>
           </div>
@@ -131,7 +120,12 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
           </div>
 
           <div css={styles.actionButtons}>
-            <IconButton icon={<Trash2 />} onClick={handleDelete} size={20} hoverColor={COLOR.ICON.DANGER} />
+            <IconButton
+              icon={<Trash2 />}
+              onClick={handleDelete}
+              size={20}
+              hoverColor={COLOR.ICON.DANGER}
+            />
           </div>
         </div>
       </div>
@@ -181,31 +175,29 @@ const styles = {
       display: "none",
     },
   }),
-  contact: {
+  contact: css({
     display: "flex",
     flexDirection: "row",
+    gap: 10,
     marginTop: 4,
     color: "rgba(0,0,0,0.7)",
     fontSize: 14,
-  },
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      flexDirection: "column",
+      gap: 4,
+    },
+  }),
   contactRow: {
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
   },
   direccionRow: {
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-  },
-  contactRowWithTop: {
-    display: "flex",
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 6,
-    marginLeft: 6,
   },
   actionButton: {
     border: "none",
@@ -250,7 +242,7 @@ const styles = {
     fontSize: 14,
     fontWeight: 600,
     color: COLOR.TEXT.CONTRAST,
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
       display: "none",
     },
   }),
