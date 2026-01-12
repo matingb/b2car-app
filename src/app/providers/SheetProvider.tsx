@@ -57,7 +57,7 @@ export function SheetProvider({ children }: { children: React.ReactNode }) {
           <SheetHeader>
             <SheetTitle>{title ? title : ""}</SheetTitle>
             <SheetDescription>
-              {description ? description : "Panel lateral"}
+              {description ? description : ""}
             </SheetDescription>
           </SheetHeader>
           {content}
