@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Divider from "@/app/components/ui/Divider";
 import { Users, Car, Wrench, LogOut, ChartNoAxesCombined } from "lucide-react";
@@ -11,6 +11,7 @@ import { useSheet } from "@/app/providers/SheetProvider";
 import { css } from "@emotion/react";
 
 export default function MenuSheet() {
+  const [tenantName, setTenantName] = useState("B2Car");
   const { closeSheet } = useSheet();
   const router = useRouter();
 
@@ -21,10 +22,20 @@ export default function MenuSheet() {
     router.push("/login");
   };
 
+  useEffect(() => {
+      try {
+        const stored = localStorage.getItem("tenant_name");
+        const next = stored?.trim();
+        if (next) setTenantName(next);
+      } catch {
+        // ignore (e.g. blocked storage)
+      }
+    }, []);
+
   return (
     <div css={styles.container}>
       <div css={styles.brand}>
-        <span style={{ fontWeight: 700, fontSize: 24 }}>CarMax</span>
+        <span style={{ fontWeight: 700, fontSize: 24 }}>{tenantName}</span>
       </div>
 
       <nav css={styles.nav}>
