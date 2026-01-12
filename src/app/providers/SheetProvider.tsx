@@ -34,9 +34,7 @@ export function SheetProvider({ children }: { children: React.ReactNode }) {
   const [content, setContent] = useState<React.ReactNode>(null);
   const [title, setTitle] = useState<string | undefined>();
   const [description, setDescription] = useState<string | undefined>();
-  const [side, setSide] = useState<"top" | "right" | "bottom" | "left">(
-    "left"
-  );
+  const [side, setSide] = useState<"top" | "right" | "bottom" | "left">("left");
 
   const value = useMemo<SheetContextValue>(
     () => ({
@@ -57,9 +55,10 @@ export function SheetProvider({ children }: { children: React.ReactNode }) {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side={side}>
           <SheetHeader>
-            {(!title) && (<SheetTitle>{''}</SheetTitle> )}
-            {(title) && (<SheetTitle>{title}</SheetTitle> )}
-            {(description) && (<SheetDescription>{description}</SheetDescription>)}
+            <SheetTitle>{title ? title : ""}</SheetTitle>
+            <SheetDescription>
+              {description ? description : "Panel lateral"}
+            </SheetDescription>
           </SheetHeader>
           {content}
         </SheetContent>
