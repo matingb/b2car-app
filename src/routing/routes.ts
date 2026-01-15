@@ -5,6 +5,7 @@ export const ROUTES = {
 	vehiculos: "/vehiculos",
 	arreglos: "/arreglos",
 	dashboard: "/dashboard",
+	turnos: "/turnos",
 } as const;
 
 export const API_ROUTES = {
