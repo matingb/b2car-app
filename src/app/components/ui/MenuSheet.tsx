@@ -5,10 +5,12 @@ import Divider from "@/app/components/ui/Divider";
 import SidebarItem from "./SidebarItem";
 import { css } from "@emotion/react";
 import { SidebarMenuKey, useSidebarMenu } from "@/app/hooks/useSidebarMenu";
+import { useSheet } from "@/app/providers/SheetProvider";
 
 export default function MenuSheet() {
 
   const { tenantName, items } = useSidebarMenu();
+  const { closeSheet } = useSheet();
 
   return (
     <div css={styles.container}>
@@ -28,7 +30,10 @@ export default function MenuSheet() {
                 icon={item.icon}
                 disabled={item.disabled}
                 isLoading={item.isLoading}
-                onClick={item.onClick}
+                onClick={() => {
+                  item.onClick?.();
+                  closeSheet();
+                }}
               />
             </div>
           );

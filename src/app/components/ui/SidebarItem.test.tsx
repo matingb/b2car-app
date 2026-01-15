@@ -7,24 +7,6 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
 }));
 
-vi.mock("next/link", () => {
-  return {
-    default: ({
-      href,
-      children,
-      ...props
-    }: {
-      href: string;
-      children: React.ReactNode;
-      [key: string]: unknown;
-    }) => (
-      <a href={href} {...props}>
-        {children}
-      </a>
-    ),
-  };
-});
-
 describe("SidebarItem", () => {
   it("Si el item está deshabilitado, no se ejecuta onClick", async () => {
     const onClick = vi.fn();
