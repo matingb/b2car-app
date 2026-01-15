@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ROUTES } from "@/routing/routes";
 import {
   Car,
+  CalendarDays,
   ChartNoAxesCombined,
   LogOut,
   Users,
@@ -14,6 +15,7 @@ import { useRouter } from "next/navigation";
 
 export enum SidebarMenuKey {
   Dashboard = "dashboard",
+  Turnos = "turnos",
   Clientes = "clientes",
   Vehiculos = "vehiculos",
   Arreglos = "arreglos",
@@ -67,6 +69,13 @@ export function useSidebarMenu() {
         label: "Dashboard",
         icon: <ChartNoAxesCombined size={18} />,
         onClick: () => router.push(ROUTES.dashboard),
+      },
+      {
+        key: SidebarMenuKey.Turnos,
+        href: ROUTES.turnos,
+        label: "Turnos",
+        icon: <CalendarDays size={18} />,
+        onClick: () => router.push(ROUTES.turnos),
       },
       {
         key: SidebarMenuKey.Clientes,

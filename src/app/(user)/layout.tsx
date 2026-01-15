@@ -154,6 +154,8 @@ const styles = {
     padding: "1.5rem",
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     overflowY: "auto",
+    overflowX: "hidden",
+    minWidth: 0,
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       padding: "1rem",
     },
@@ -196,5 +198,6 @@ const styles = {
   main: {
     flex: 1,
     height: "100%",
+    minWidth: 0,
   },
 } as const;
