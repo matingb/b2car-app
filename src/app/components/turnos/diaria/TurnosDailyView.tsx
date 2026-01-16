@@ -65,19 +65,22 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
 
   if (turnosDelDia.length === 0) {
     return (
-      <Card>
-        <div style={styles.emptyState}>
-          <CalendarDays size={40} color={COLOR.TEXT.SECONDARY} />
-          <div style={{ marginTop: 10, color: COLOR.TEXT.SECONDARY }}>
-            No hay turnos programados para este día
+      <div data-testid="turnos-view-diaria">
+        <Card>
+          <div style={styles.emptyState}>
+            <CalendarDays size={40} color={COLOR.TEXT.SECONDARY} />
+            <div style={{ marginTop: 10, color: COLOR.TEXT.SECONDARY }}>
+              No hay turnos programados para este día
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
+    <div data-testid="turnos-view-diaria">
+      <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
       <Card>
         <div style={{ padding: 12 }}>
           <div style={styles.timelineRoot}>
@@ -188,6 +191,7 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
           </div>
         </div>
       </Card>
+      </div>
     </div>
   );
 }

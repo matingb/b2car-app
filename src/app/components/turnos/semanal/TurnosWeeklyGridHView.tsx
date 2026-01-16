@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo } from "react";
 import Card from "@/app/components/ui/Card";
 import Pill from "@/app/components/turnos/Pill";
 import { useTurnos } from "@/app/providers/TurnosProvider";
@@ -69,8 +69,9 @@ export default function TurnosWeeklyGridHView({
     nowMinutes <= (HORA_INICIO + HORA_COLUMNAS) * 60;
 
   return (
-    <Card>
-      <div style={{ padding: 0 }}>
+    <div data-testid="turnos-view-semanal">
+      <Card>
+        <div style={{ padding: 0 }}>
         <div style={styles.scrollX}>
           <div style={styles.weekGridRoot}>
             <div style={styles.weekGridHeaderRow}>
@@ -198,7 +199,8 @@ export default function TurnosWeeklyGridHView({
           </div>
         </div>
       </div>
-    </Card>
+      </Card>
+    </div>
   );
 }
 

@@ -18,7 +18,7 @@ export default function TurnosMonthlyView({ fechaActual, onSelectTurno }: Props)
   const days = useMemo(() => getMonthGrid(fechaActual), [fechaActual]);
 
   return (
-    <Card>
+    <Card data-testid="turnos-view-mensual">
       <div style={{ padding: 12 }}>
         <div style={styles.monthGrid}>
           {DIAS_SEMANA.map((d) => (

@@ -18,10 +18,14 @@ type Props = {
   onNewTurno: () => void;
 };
 
-const VISTAS_TURNOS: ReadonlyArray<{ key: VistaTurnos; label: string }> = [
-  { key: VistaTurnos.Mensual, label: "Mensual" },
-  { key: VistaTurnos.Semanal, label: "Semanal" },
-  { key: VistaTurnos.Diaria, label: "Diaria" },
+const VISTAS_TURNOS: ReadonlyArray<{
+  key: VistaTurnos;
+  label: string;
+  testId: string;
+}> = [
+  { key: VistaTurnos.Mensual, label: "Mensual", testId: "turnos-chip-mensual" },
+  { key: VistaTurnos.Semanal, label: "Semanal", testId: "turnos-chip-semanal" },
+  { key: VistaTurnos.Diaria, label: "Diaria", testId: "turnos-chip-diaria" },
 ];
 
 export default function TurnosToolbar({
@@ -63,10 +67,11 @@ export default function TurnosToolbar({
 
       <div css={styles.toolbarRight}>
         <div css={styles.tabs}>
-          {VISTAS_TURNOS.map(({ key, label }) => (
+          {VISTAS_TURNOS.map(({ key, label, testId }) => (
             <FilterChip
               key={key}
               text={label}
+              data-testid={testId}
               selected={vista === key}
               onClick={() => onChangeVista(key)}
             />

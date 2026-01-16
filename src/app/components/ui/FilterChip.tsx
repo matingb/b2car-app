@@ -3,18 +3,17 @@
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 
-type Props = {
+type Props = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
   text: string;
-  onClick: () => void;
   selected?: boolean;
 };
 
-export default function FilterChip({ text, onClick, selected = true }: Props) {
+export default function FilterChip({ text, selected = true, ...rest }: Props) {
   return (
     <button
       type="button"
       css={[styles.chipBase, selected && styles.chipSelected, styles.chipResponsive]}
-      onClick={onClick}
+      {...rest}
     >
       {text}
     </button>
