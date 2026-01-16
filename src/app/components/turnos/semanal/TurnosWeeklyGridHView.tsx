@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import Card from "@/app/components/ui/Card";
 import Pill from "@/app/components/turnos/Pill";
 import { useTurnos } from "@/app/providers/TurnosProvider";
@@ -17,8 +17,8 @@ import { COLOR } from "@/theme/theme";
 
 const HORA_INICIO = 8;
 const HORA_COLUMNAS = 12; // 08:00 -> 19:00
-const HORA_COL_WIDTH = 128;
-const ALTO_FILA_DIA = 170;
+const HORA_COL_WIDTH = 100;
+const ALTO_FILA_DIA = 150;
 
 function organizarTurnosEnColumnas(turnos: Turno[]) {
   const turnosOrdenados = [...turnos].sort(
@@ -100,7 +100,9 @@ export default function TurnosWeeklyGridHView({
                         {DIAS_SEMANA[idx]}
                       </div>
                       <div style={{ fontSize: 22, fontWeight: 800 }}>
+                        <h1>
                         {dia.getDate()}
+                        </h1>
                       </div>
                       <div style={styles.mutedSmall}>
                         {turnosDia.length} turnos
@@ -222,7 +224,7 @@ const styles = {
     zIndex: 2,
   },
   weekGridDayHeaderCell: {
-    width: 150,
+    width: 125,
     flexShrink: 0,
     padding: "10px 12px",
     borderRight: `1px solid ${COLOR.BORDER.SUBTLE}`,
@@ -239,7 +241,7 @@ const styles = {
     borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
   } as const,
   weekGridDayCell: {
-    width: 150,
+    width: 125,
     flexShrink: 0,
     padding: "12px",
     background: COLOR.BACKGROUND.SUBTLE,
@@ -272,7 +274,7 @@ const styles = {
     gap: 8,
   },
   turnoHora: {
-    fontWeight: 900,
+    fontWeight: 700,
     fontSize: 13,
   },
   turnoVehiculo: {

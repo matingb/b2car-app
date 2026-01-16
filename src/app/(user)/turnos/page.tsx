@@ -55,14 +55,14 @@ export default function TurnosPage() {
         <div style={{ marginTop: 12, color: COLOR.ICON.DANGER }}>{error}</div>
       ) : (
         <div style={{ marginTop: 12, minWidth: 0, maxWidth: "100%" }}>
-          {vista === "semanal" ? (
-            <TurnosWeeklyGridHView
+          {vista === "mensual" ? (
+            <TurnosMonthlyView
               fechaActual={fechaActual}
               onSelectTurno={openDetails}
             />
           ) : null}
-          {vista === "mensual" ? (
-            <TurnosMonthlyView
+          {vista === "semanal" ? (
+            <TurnosWeeklyGridHView
               fechaActual={fechaActual}
               onSelectTurno={openDetails}
             />

@@ -37,7 +37,7 @@ export default function TurnosToolbar({
             title="Anterior"
             ariaLabel="Anterior"
           />
-          <div style={{ fontSize: 16, fontWeight: 800 }}>{periodoLabel}</div>
+          <div><h2>{periodoLabel}</h2></div>
           <IconButton
             icon={<ChevronRight />}
             onClick={onNext}
@@ -58,8 +58,8 @@ export default function TurnosToolbar({
       <div css={styles.toolbarRight}>
         <div css={styles.tabs}>
           {([
-            ["semanal", "Semanal"],
             ["mensual", "Mensual"],
+            ["semanal", "Semanal"],
             ["diaria", "Diaria"],
           ] as Array<[VistaTurnos, string]>).map(([key, label]) => (
             <FilterChip
