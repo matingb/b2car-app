@@ -11,6 +11,7 @@ import TurnosWeeklyGridHView from "@/app/components/turnos/semanal/TurnosWeeklyG
 import TurnosMonthlyView from "@/app/components/turnos/mensual/TurnosMonthlyView";
 import TurnosDailyView from "@/app/components/turnos/diaria/TurnosDailyView";
 import { useTurnosCalendar } from "@/app/hooks/useTurnosCalendar";
+import { VistaTurnos } from "@/app/hooks/useTurnosCalendar";
 
 export default function TurnosPage() {
   const { loading, error } = useTurnos();
@@ -20,10 +21,10 @@ export default function TurnosPage() {
     setVista,
     fechaActual,
     periodoLabel,
-    goPrev,
-    goNext,
-    goToday,
-  } = useTurnosCalendar(new Date(2025, 0, 15));
+    goPrevPeriod,
+    goNextPeriod,
+    goToToday,
+  } = useTurnosCalendar();
 
   const [turnoSeleccionado, setTurnoSeleccionado] = useState<Turno | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -41,9 +42,9 @@ export default function TurnosPage() {
         vista={vista}
         onChangeVista={setVista}
         periodoLabel={periodoLabel}
-        onPrev={goPrev}
-        onNext={goNext}
-        onToday={goToday}
+        onPrev={goPrevPeriod}
+        onNext={goNextPeriod}
+        onToday={goToToday}
         onNewTurno={() => {}}
       />
 
@@ -55,19 +56,19 @@ export default function TurnosPage() {
         <div style={{ marginTop: 12, color: COLOR.ICON.DANGER }}>{error}</div>
       ) : (
         <div style={{ marginTop: 12, minWidth: 0, maxWidth: "100%" }}>
-          {vista === "mensual" ? (
+          {vista === VistaTurnos.Mensual ? (
             <TurnosMonthlyView
               fechaActual={fechaActual}
               onSelectTurno={openDetails}
             />
           ) : null}
-          {vista === "semanal" ? (
+          {vista === VistaTurnos.Semanal ? (
             <TurnosWeeklyGridHView
               fechaActual={fechaActual}
               onSelectTurno={openDetails}
             />
           ) : null}
-          {vista === "diaria" ? (
+          {vista === VistaTurnos.Diaria ? (
             <TurnosDailyView fechaActual={fechaActual} onSelectTurno={openDetails} />
           ) : null}
         </div>

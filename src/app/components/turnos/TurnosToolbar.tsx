@@ -6,7 +6,7 @@ import IconButton from "@/app/components/ui/IconButton";
 import FilterChip from "@/app/components/ui/FilterChip";
 import { css } from "@emotion/react";
 import { ChevronLeft, ChevronRight, PlusIcon } from "lucide-react";
-import type { VistaTurnos } from "@/app/hooks/useTurnosCalendar";
+import { VistaTurnos } from "@/app/hooks/useTurnosCalendar";
 
 type Props = {
   vista: VistaTurnos;
@@ -17,6 +17,12 @@ type Props = {
   onToday: () => void;
   onNewTurno: () => void;
 };
+
+const VISTAS_TURNOS: ReadonlyArray<{ key: VistaTurnos; label: string }> = [
+  { key: VistaTurnos.Mensual, label: "Mensual" },
+  { key: VistaTurnos.Semanal, label: "Semanal" },
+  { key: VistaTurnos.Diaria, label: "Diaria" },
+];
 
 export default function TurnosToolbar({
   vista,
@@ -57,11 +63,7 @@ export default function TurnosToolbar({
 
       <div css={styles.toolbarRight}>
         <div css={styles.tabs}>
-          {([
-            ["mensual", "Mensual"],
-            ["semanal", "Semanal"],
-            ["diaria", "Diaria"],
-          ] as Array<[VistaTurnos, string]>).map(([key, label]) => (
+          {VISTAS_TURNOS.map(({ key, label }) => (
             <FilterChip
               key={key}
               text={label}
