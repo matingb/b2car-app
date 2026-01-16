@@ -84,7 +84,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                           {isLogout ? (
                             <Divider
                               style={{
-                                width: collapsed ? "2rem" : "100%",
+                                width: collapsed ? "100%" : "100%",
                                 margin: collapsed ? "0.5rem 0" : "0.5rem 0",
                               }}
                             />

@@ -33,7 +33,7 @@ export default function SidebarItem({
         alignItems: "center",
         columnGap: collapsed ? "0" : "0.75rem",
         borderRadius: "0.75rem",
-        padding: "0.5rem 0.5rem",
+        padding: "0.5rem 0rem",
         color: COLOR.TEXT.PRIMARY,
         justifyContent: collapsed ? "flex-start" : "flex-start",
         width: "100%",
