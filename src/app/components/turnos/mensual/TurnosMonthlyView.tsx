@@ -38,7 +38,7 @@ export default function TurnosMonthlyView({ fechaActual, onSelectTurno }: Props)
 
             return (
               <div key={toISODateLocal(dia)} style={styles.monthCell}>
-                <div style={styles.monthDayNumber}>{dia.getDate()}</div>
+                <div style={styles.monthDayNumber}><h2>{dia.getDate()}</h2></div>
 
                 <div style={styles.monthTurnosList}>
                   {visible.map((t) => (
