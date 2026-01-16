@@ -1,36 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import React from "react";
 import Divider from "@/app/components/ui/Divider";
-import { Users, Car, Wrench, LogOut, ChartNoAxesCombined } from "lucide-react";
 import SidebarItem from "./SidebarItem";
-import { ROUTES } from "@/routing/routes";
-import { logOut } from "@/app/login/actions";
-import { useSheet } from "@/app/providers/SheetProvider";
 import { css } from "@emotion/react";
+import { SidebarMenuKey, useSidebarMenu } from "@/app/hooks/useSidebarMenu";
+import { useSheet } from "@/app/providers/SheetProvider";
 
 export default function MenuSheet() {
-  const [tenantName, setTenantName] = useState("B2Car");
+
+  const { tenantName, items } = useSidebarMenu();
   const { closeSheet } = useSheet();
-  const router = useRouter();
-
-  const handleNavClick = () => closeSheet();
-  const handleLogout = async () => {
-    closeSheet();
-    await logOut();
-    router.push("/login");
-  };
-
-  useEffect(() => {
-      try {
-        const stored = localStorage.getItem("tenant_name");
-        const next = stored?.trim();
-        if (next) setTenantName(next);
-      } catch {
-        // ignore (e.g. blocked storage)
-      }
-    }, []);
 
   return (
     <div css={styles.container}>
@@ -39,41 +19,25 @@ export default function MenuSheet() {
       </div>
 
       <nav css={styles.nav}>
-        <SidebarItem
-          href={ROUTES.dashboard}
-          label="Dashboard"
-          icon={<ChartNoAxesCombined size={18} />}
-          onClick={handleNavClick}
-        />
-        <SidebarItem
-          href={ROUTES.clientes}
-          label="Clientes"
-          icon={<Users size={18} />}
-          onClick={handleNavClick}
-        />
-        <SidebarItem
-          href={ROUTES.vehiculos}
-          label="Vehiculos"
-          icon={<Car size={18} />}
-          onClick={handleNavClick}
-        />
-        <SidebarItem
-          href={ROUTES.arreglos}
-          label="Arreglos"
-          icon={<Wrench size={18} />}
-          onClick={handleNavClick}
-        />
-
-        <Divider
-          style={{ margin: "8px 0" }}
-        />
-
-        <SidebarItem
-          href={""}
-          label="Cerrar sesión"
-          icon={<LogOut size={18} />}
-          onClick={handleLogout}
-        />
+        {items.map((item) => {
+          const isLogout = item.key === SidebarMenuKey.Logout;
+          return (
+            <div key={item.key}>
+              {isLogout ? <Divider style={{ margin: "8px 0" }} /> : null}
+              <SidebarItem
+                href={item.href}
+                label={item.label}
+                icon={item.icon}
+                disabled={item.disabled}
+                isLoading={item.isLoading}
+                onClick={() => {
+                  item.onClick?.();
+                  closeSheet();
+                }}
+              />
+            </div>
+          );
+        })}
       </nav>
     </div>
   );

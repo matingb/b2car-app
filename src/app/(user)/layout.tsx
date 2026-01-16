@@ -1,33 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ROUTES } from "@/routing/routes";
+import { useMemo, useState } from "react";
 import SidebarItem from "@/app/components/ui/SidebarItem";
 import { SessionProvider } from "@/app/providers/SessionProvider";
 import { ModalMessageProvider } from "@/app/providers/ModalMessageProvider";
 import { SheetProvider } from "@/app/providers/SheetProvider";
 import Divider from "@/app/components/ui/Divider";
-import { Users, Car, LogOut, PanelLeft, Wrench, ChartNoAxesCombined } from "lucide-react";
-import { logOut } from "@/app/login/actions";
+import { PanelLeft } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import { css } from '@emotion/react'
 import { BREAKPOINTS } from '@/theme/theme'
+import { SidebarMenuKey, useSidebarMenu } from "@/app/hooks/useSidebarMenu";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [tenantName, setTenantName] = useState("B2Car");
-  const router = useRouter();
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("tenant_name");
-      const next = stored?.trim();
-      if (next) setTenantName(next);
-    } catch {
-      // ignore (e.g. blocked storage)
-    }
-  }, []);
+  const { tenantName, items } = useSidebarMenu();
 
   const s = useMemo(() => {
     const width = collapsed ? "75px" : "14rem";
@@ -89,46 +77,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </div>
 
                   <nav css={s.navList}>
-                    <SidebarItem
-                      href={ROUTES.dashboard}
-                      label="Dashboard"
-                      icon={<ChartNoAxesCombined  size={18} />}
-                      collapsed={collapsed}
-                    />
-                    <SidebarItem
-                      href={ROUTES.clientes}
-                      label="Clientes"
-                      icon={<Users size={18} />}
-                      collapsed={collapsed}
-                    />
-                    <SidebarItem
-                      href={ROUTES.vehiculos}
-                      label="Vehículos"
-                      icon={<Car size={18} />}
-                      collapsed={collapsed}
-                    />
-                    <SidebarItem
-                      href={ROUTES.arreglos}
-                      label="Arreglos"
-                      icon={<Wrench size={18} />}
-                      collapsed={collapsed}
-                    />
-                    <Divider
-                      style={{
-                        width: collapsed ? "2rem" : "100%",
-                        margin: collapsed ? "0.5rem 0" : "0.5rem 0",
-                      }}
-                    />
-                    <SidebarItem
-                      href={""}
-                      label="Cerrar sesión"
-                      icon={<LogOut size={18} />}
-                      collapsed={collapsed}
-                      onClick={async () => {
-                        await logOut();
-                        router.push("/login");
-                      }}
-                    />
+                    {items.map((item) => {
+                      const isLogout = item.key === SidebarMenuKey.Logout;
+                      return (
+                        <div key={item.key}>
+                          {isLogout ? (
+                            <Divider
+                              style={{
+                                width: collapsed ? "2rem" : "100%",
+                                margin: collapsed ? "0.5rem 0" : "0.5rem 0",
+                              }}
+                            />
+                          ) : null}
+                          <SidebarItem
+                            href={item.href}
+                            label={item.label}
+                            icon={item.icon}
+                            disabled={item.disabled}
+                            isLoading={item.isLoading}
+                            collapsed={collapsed}
+                            onClick={item.onClick}
+                          />
+                        </div>
+                      );
+                    })}
                   </nav>
                 </div>
               </aside>
