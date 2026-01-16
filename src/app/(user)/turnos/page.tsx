@@ -13,6 +13,29 @@ import TurnosDailyView from "@/app/components/turnos/diaria/TurnosDailyView";
 import { useTurnosCalendar } from "@/app/hooks/useTurnosCalendar";
 import { VistaTurnos } from "@/app/hooks/useTurnosCalendar";
 
+function TurnosVista({
+  vista,
+  fechaActual,
+  onSelectTurno,
+}: {
+  vista: VistaTurnos;
+  fechaActual: Date;
+  onSelectTurno: (t: Turno) => void;
+}) {
+  switch (vista) {
+    case VistaTurnos.Mensual:
+      return <TurnosMonthlyView fechaActual={fechaActual} onSelectTurno={onSelectTurno} />;
+    case VistaTurnos.Semanal:
+      return (
+        <TurnosWeeklyGridHView fechaActual={fechaActual} onSelectTurno={onSelectTurno} />
+      );
+    case VistaTurnos.Diaria:
+      return <TurnosDailyView fechaActual={fechaActual} onSelectTurno={onSelectTurno} />;
+    default:
+      return null;
+  }
+}
+
 export default function TurnosPage() {
   const { loading, error } = useTurnos();
 
@@ -56,21 +79,11 @@ export default function TurnosPage() {
         <div style={{ marginTop: 12, color: COLOR.ICON.DANGER }}>{error}</div>
       ) : (
         <div style={{ marginTop: 12, minWidth: 0, maxWidth: "100%" }}>
-          {vista === VistaTurnos.Mensual ? (
-            <TurnosMonthlyView
-              fechaActual={fechaActual}
-              onSelectTurno={openDetails}
-            />
-          ) : null}
-          {vista === VistaTurnos.Semanal ? (
-            <TurnosWeeklyGridHView
-              fechaActual={fechaActual}
-              onSelectTurno={openDetails}
-            />
-          ) : null}
-          {vista === VistaTurnos.Diaria ? (
-            <TurnosDailyView fechaActual={fechaActual} onSelectTurno={openDetails} />
-          ) : null}
+          <TurnosVista
+            vista={vista}
+            fechaActual={fechaActual}
+            onSelectTurno={openDetails}
+          />
         </div>
       )}
 
