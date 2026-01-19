@@ -1,3 +1,5 @@
+import { TurnoEstado } from "./dtos";
+
 export type UUID = string;
 
 export interface Particular {
@@ -22,7 +24,6 @@ export enum TipoCliente {
   PARTICULAR = "particular",
   EMPRESA = "empresa",
 }
-
 
 export interface Cliente {
   id: UUID
@@ -57,3 +58,19 @@ export interface Arreglo {
   esta_pago: boolean;
   extra_data: string; 
 }
+
+export interface Turno {
+	id: number;
+	fecha: string; // YYYY-MM-DD
+	hora: string; // HH:mm
+	duracion: number; // minutos
+	vehiculo: Vehiculo;
+	cliente: Cliente;
+	tipo: string;
+	estado: TurnoEstado;
+	telefono?: string;
+	email?: string;
+	descripcion?: string;
+	mecanico?: string;
+	observaciones?: string;
+};

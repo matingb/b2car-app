@@ -38,4 +38,19 @@ export interface ParticularDto {
     telefono: string;
     email: string;
     direccion: string;
-}
+    }
+
+export interface TurnoDto {
+    id: number;
+    fecha: string;
+    hora: string;
+    duracion: number;
+    vehiculo_id: string;
+    cliente_id: string;
+    tipo: string;
+    estado: TurnoEstado;
+    descripcion: string | null;
+    observaciones: string | null;
+};
+
+export type TurnoEstado = "Confirmado" | "Pendiente" | "Cancelado";
