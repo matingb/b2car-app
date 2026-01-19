@@ -8,7 +8,7 @@ import Pill from "@/app/components/turnos/Pill";
 import { APP_LOCALE } from "@/lib/format";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
-import { CalendarDays, Clock, User, Wrench, X } from "lucide-react";
+import { CalendarDays, Car, Clock, User, X } from "lucide-react";
 import type { Turno } from "@/app/providers/TurnosProvider";
 import { horaAMinutos } from "@/app/components/turnos/utils/calendar";
 
@@ -66,34 +66,34 @@ export default function TurnoDetailsModal({
 
           <div css={styles.grid}>
             <Card>
-              <div style={styles.infoRow}>
-                <div style={styles.iconWrap}>
-                  <CalendarDays size={18} color={COLOR.ACCENT.PRIMARY} />
+              <div style={{ display: "grid", gap: 10 }}>
+                <div style={styles.infoRow}>
+                  <div style={styles.iconWrap}>
+                    <CalendarDays size={18} color={COLOR.ACCENT.PRIMARY} />
+                  </div>
+                  <div>
+                    <div style={styles.infoLabel}>Fecha y hora</div>
+                    <div style={styles.infoValue}>{fechaLabel}</div>
+                    <div style={styles.infoSubValue}>{turno.hora} hs</div>
+                  </div>
                 </div>
-                <div>
-                  <div style={styles.infoLabel}>Fecha y hora</div>
-                  <div style={styles.infoValue}>{fechaLabel}</div>
-                  <div style={styles.infoSubValue}>{turno.hora} hs</div>
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div style={styles.infoRow}>
-                <div style={styles.iconWrap}>
-                  <Clock size={18} color={COLOR.ACCENT.PRIMARY} />
-                </div>
-                <div>
-                  <div style={styles.infoLabel}>Duración</div>
-                  <div style={styles.infoValue}>{turno.duracion} minutos</div>
-                  <div style={styles.infoSubValue}>
-                    Fin estimado: {finHora}:{finMinStr}
+                <div style={styles.infoRow}>
+                  <div style={styles.iconWrap}>
+                    <Clock size={18} color={COLOR.ACCENT.PRIMARY} />
+                  </div>
+                  <div>
+                    <div style={styles.infoLabel}>Duración</div>
+                    <div style={styles.infoValue}>{turno.duracion} minutos</div>
+                    <div style={styles.infoSubValue}>
+                      Fin estimado: {finHora}:{finMinStr}
+                    </div>
                   </div>
                 </div>
               </div>
             </Card>
 
             <Card>
+              <div style={{ display: "grid", gap: 10 }}>
               <div style={styles.infoRow}>
                 <div style={styles.iconWrap}>
                   <User size={18} color={COLOR.ACCENT.PRIMARY} />
@@ -109,28 +109,20 @@ export default function TurnoDetailsModal({
                   ) : null}
                 </div>
               </div>
-            </Card>
-
-            <Card>
               <div style={styles.infoRow}>
                 <div style={styles.iconWrap}>
-                  <Wrench size={18} color={COLOR.ACCENT.PRIMARY} />
+                  <Car size={18} color={COLOR.ACCENT.PRIMARY} />
                 </div>
                 <div>
-                  <div style={styles.infoLabel}>Mecánico asignado</div>
-                  <div style={styles.infoValue}>{turno.mecanico || "-"}</div>
+                  <div style={styles.infoLabel}>Vehiculo</div>
+                  <div style={styles.infoValue}>{turno.vehiculo}</div>
                 </div>
+              </div>
               </div>
             </Card>
           </div>
 
           <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-            <Card>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Vehículo</div>
-              <div style={{ color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
-                {turno.vehiculo}
-              </div>
-            </Card>
 
             {turno.descripcion ? (
               <Card>
@@ -245,7 +237,7 @@ const styles = {
   },
   infoValue: {
     fontSize: 16,
-    fontWeight: 900,
+    fontWeight: 700,
     marginTop: 2,
   },
   infoSubValue: {

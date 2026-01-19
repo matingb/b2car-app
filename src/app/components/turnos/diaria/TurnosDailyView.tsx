@@ -166,7 +166,7 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
       <Card>
         <div style={{ padding: 12 }}>
           <div style={styles.dayListHeaderRow}>
-            <div style={{ fontSize: 16, fontWeight: 800 }}>Lista de turnos</div>
+            <div style={{ fontSize: 24, fontWeight: 600 }}>Lista de turnos</div>
             <Pill text={`${turnosDelDia.length} turnos`} />
           </div>
           <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
@@ -262,7 +262,7 @@ const styles = {
     minWidth: 0,
   } as const,
   tlHora: {
-    fontWeight: 900,
+    fontWeight: 700,
     fontSize: 12,
   } as const,
   tlVehiculo: {
@@ -314,17 +314,20 @@ const styles = {
     textAlign: "left" as const,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     background: COLOR.BACKGROUND.SECONDARY,
-    padding: 12,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingLeft: 16,
+    paddingRight: 16,
     borderRadius: 10,
     cursor: "pointer",
   } as const,
   dayListTime: {
     width: 68,
-    fontWeight: 900,
-    fontSize: 16,
+    fontWeight: 700,
+    fontSize: 22,
   } as const,
   dayListVehiculo: {
-    fontWeight: 800,
+    fontWeight: 700,
     whiteSpace: "nowrap" as const,
     overflow: "hidden",
     textOverflow: "ellipsis",
