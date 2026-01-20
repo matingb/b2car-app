@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import Card from "@/app/components/ui/Card";
 import { useTurnos } from "@/app/providers/TurnosProvider";
-import type { Turno } from "@/app/providers/TurnosProvider";
+import { Turno } from "@/model/types";
 import { DIAS_SEMANA } from "@/app/components/turnos/constants";
 import { getMonthGrid, toISODateLocal } from "@/app/components/turnos/utils/calendar";
 import { COLOR } from "@/theme/theme";
@@ -47,11 +47,11 @@ export default function TurnosMonthlyView({ fechaActual, onSelectTurno }: Props)
                       type="button"
                       onClick={() => onSelectTurno(t)}
                       style={styles.monthTurnoItem}
-                      title={`${t.hora} - ${t.vehiculo}`}
+                      title={`${t.hora} - ${t.vehiculo.modelo}`}
                     >
                       <span style={{ fontWeight: 800 }}>{t.hora}</span>{" "}
                       <span style={styles.monthTurnoVehicle}>
-                        {t.vehiculo.split("-")[0]?.trim() || t.vehiculo}
+                        {t.vehiculo.patente} - {t.vehiculo.marca}
                       </span>
                     </button>
                   ))}

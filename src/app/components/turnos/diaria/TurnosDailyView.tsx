@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import Card from "@/app/components/ui/Card";
 import Pill from "@/app/components/turnos/Pill";
 import { useTurnos } from "@/app/providers/TurnosProvider";
-import type { Turno } from "@/app/providers/TurnosProvider";
+import { Turno } from "@/model/types";
 import { COLOR } from "@/theme/theme";
 import { CalendarDays } from "lucide-react";
 import { horaAMinutos, isSameLocalDay } from "@/app/components/turnos/utils/calendar";
@@ -138,12 +138,12 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
                       aria-label={`Turno ${turno.hora} ${turno.vehiculo}`}
                     >
                       <div style={styles.tlHora}>{turno.hora}</div>
-                      <div style={styles.tlVehiculo} title={turno.vehiculo}>
-                        {turno.vehiculo}
+                      <div style={styles.tlVehiculo} title={turno.vehiculo.modelo}>
+                        {turno.vehiculo.modelo}
                       </div>
                       {showTitular ? (
-                        <div style={styles.tlTitular} title={turno.titular}>
-                          {turno.titular}
+                        <div style={styles.tlTitular} title={turno.cliente.nombre}>
+                          {turno.cliente.nombre}
                         </div>
                       ) : null}
                       {showBottom ? (
@@ -179,11 +179,11 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
               >
                 <div style={styles.dayListTime}>{t.hora}</div>
                 <div style={{ display: "grid", gap: 2, flex: 1, minWidth: 0 }}>
-                  <div style={styles.dayListVehiculo} title={t.vehiculo}>
-                    {t.vehiculo}
+                  <div style={styles.dayListVehiculo} title={t.vehiculo.modelo}>
+                    {t.vehiculo.modelo}
                   </div>
                   <div style={styles.dayListSub}>
-                    {t.titular} • {t.duracion} min
+                    {t.cliente.nombre} • {t.duracion} min
                   </div>
                 </div>
               </button>

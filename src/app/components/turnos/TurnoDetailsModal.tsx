@@ -9,7 +9,7 @@ import { APP_LOCALE } from "@/lib/format";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import { CalendarDays, Car, Clock, User, X } from "lucide-react";
-import type { Turno } from "@/app/providers/TurnosProvider";
+import { Turno } from "@/model/types";
 import { horaAMinutos } from "@/app/components/turnos/utils/calendar";
 
 type Props = {
@@ -100,12 +100,12 @@ export default function TurnoDetailsModal({
                 </div>
                 <div>
                   <div style={styles.infoLabel}>Titular</div>
-                  <div style={styles.infoValue}>{turno.titular}</div>
-                  {turno.telefono ? (
-                    <div style={styles.infoSubValue}>{turno.telefono}</div>
+                  <div style={styles.infoValue}>{turno.cliente.nombre}</div>
+                  {turno.cliente.telefono ? (
+                    <div style={styles.infoSubValue}>{turno.cliente.telefono}</div>
                   ) : null}
-                  {turno.email ? (
-                    <div style={styles.infoSubValue}>{turno.email}</div>
+                  {turno.cliente.email ? (
+                    <div style={styles.infoSubValue}>{turno.cliente.email}</div>
                   ) : null}
                 </div>
               </div>
@@ -115,7 +115,7 @@ export default function TurnoDetailsModal({
                 </div>
                 <div>
                   <div style={styles.infoLabel}>Vehiculo</div>
-                  <div style={styles.infoValue}>{turno.vehiculo}</div>
+                  <div style={styles.infoValue}>{turno.vehiculo.modelo}</div>
                 </div>
               </div>
               </div>

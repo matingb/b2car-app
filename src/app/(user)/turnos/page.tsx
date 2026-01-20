@@ -3,10 +3,11 @@
 import React, { useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { useTurnos } from "@/app/providers/TurnosProvider";
-import type { Turno } from "@/app/providers/TurnosProvider";
+import { Turno } from "@/model/types";
 import { COLOR } from "@/theme/theme";
 import TurnosToolbar from "@/app/components/turnos/TurnosToolbar";
 import TurnoDetailsModal from "@/app/components/turnos/TurnoDetailsModal";
+import TurnoCreateModal from "@/app/components/turnos/TurnoCreateModal";
 import TurnosWeeklyGridHView from "@/app/components/turnos/semanal/TurnosWeeklyGridHView";
 import TurnosMonthlyView from "@/app/components/turnos/mensual/TurnosMonthlyView";
 import TurnosDailyView from "@/app/components/turnos/diaria/TurnosDailyView";
@@ -51,6 +52,7 @@ export default function TurnosPage() {
 
   const [turnoSeleccionado, setTurnoSeleccionado] = useState<Turno | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalCreateOpen, setModalCreateOpen] = useState(false);
 
   const openDetails = (t: Turno) => {
     setTurnoSeleccionado(t);
@@ -68,7 +70,7 @@ export default function TurnosPage() {
         onPrev={goPrevPeriod}
         onNext={goNextPeriod}
         onToday={goToToday}
-        onNewTurno={() => {}}
+        onNewTurno={() => setModalCreateOpen(true)}
       />
 
       {loading ? (
@@ -88,6 +90,12 @@ export default function TurnosPage() {
       )}
 
       <TurnoDetailsModal open={modalOpen} turno={turnoSeleccionado} onClose={() => setModalOpen(false)} />
+
+      <TurnoCreateModal
+        open={modalCreateOpen}
+        defaultFecha={fechaActual}
+        onClose={() => setModalCreateOpen(false)}
+      />
     </div>
   );
 }

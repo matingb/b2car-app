@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import Card from "@/app/components/ui/Card";
 import Pill from "@/app/components/turnos/Pill";
 import { useTurnos } from "@/app/providers/TurnosProvider";
-import type { Turno } from "@/app/providers/TurnosProvider";
+import { Turno } from "@/model/types";
 import { DIAS_SEMANA } from "@/app/components/turnos/constants";
 import {
   horaAMinutos,
@@ -169,14 +169,14 @@ export default function TurnosWeeklyGridHView({
                                     >
                                       <div style={styles.turnoBlockTopRow}>
                                         <span style={styles.turnoHora}>
-                                          {turno.hora}
+                                          {turno.hora} - {turno.vehiculo.patente} 
                                         </span>
                                       </div>
                                       <div style={styles.turnoVehiculo}>
-                                        {turno.vehiculo}
+                                        {turno.vehiculo.marca} {turno.vehiculo.modelo}
                                       </div>
                                       <div style={styles.turnoTitular}>
-                                        {turno.titular}
+                                        {turno.cliente.nombre}
                                       </div>
                                       <div style={styles.turnoBottomRow}>
                                         <Pill text={turno.tipo} />
@@ -281,7 +281,7 @@ const styles = {
   },
   turnoVehiculo: {
     marginTop: 6,
-    fontWeight: 700,
+    fontWeight: 400,
     fontSize: 13,
     display: "-webkit-box",
     WebkitLineClamp: 2,
