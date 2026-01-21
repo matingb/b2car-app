@@ -74,3 +74,8 @@ export interface Turno {
 	mecanico?: string;
 	observaciones?: string;
 };
+
+export interface SupabaseError {
+  message: string;
+  code?: string;
+}

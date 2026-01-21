@@ -1,8 +1,7 @@
 import { Cliente, Turno, Vehiculo } from "@/model/types";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { TurnoEstado, TurnoDto as TurnoRow } from "@/model/dtos";
-
-type SupabaseError = { message: string; code?: string };
+import type { SupabaseError } from "@/model/types";
 
 function mapRowToTurno(row: TurnoRow, cliente: Cliente, vehiculo: Vehiculo): Turno {
 	return {
@@ -49,6 +48,11 @@ export type CreateTurnoInput = {
 	estado: TurnoEstado;
 	descripcion?: string | null;
 	observaciones?: string | null;
+};
+
+export type CreateTurnoResponse = {
+	data: Turno | null;
+	error: SupabaseError | null;
 };
 
 export const turnosService = {

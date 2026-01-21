@@ -139,7 +139,7 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
                     >
                       <div style={styles.tlHora}>{turno.hora}</div>
                       <div style={styles.tlVehiculo} title={turno.vehiculo.modelo}>
-                        {turno.vehiculo.modelo}
+                        {turno.vehiculo.marca} {turno.vehiculo.modelo}
                       </div>
                       {showTitular ? (
                         <div style={styles.tlTitular} title={turno.cliente.nombre}>
@@ -180,7 +180,7 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
                 <div style={styles.dayListTime}>{t.hora}</div>
                 <div style={{ display: "grid", gap: 2, flex: 1, minWidth: 0 }}>
                   <div style={styles.dayListVehiculo} title={t.vehiculo.modelo}>
-                    {t.vehiculo.modelo}
+                    {t.vehiculo.marca} {t.vehiculo.modelo}
                   </div>
                   <div style={styles.dayListSub}>
                     {t.cliente.nombre} • {t.duracion} min

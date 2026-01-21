@@ -11,6 +11,8 @@ import React, {
 
 import { TurnoEstado } from "@/model/dtos";
 import { Cliente, TipoCliente, Turno, Vehiculo } from "@/model/types";
+import { turnosClient } from "@/clients/turnosClient";
+import { CreateTurnoInput } from "@/app/api/turnos/turnosService";
 
 
 type TurnosContextType = {
@@ -19,6 +21,7 @@ type TurnosContextType = {
   error: string | null;
   refresh: () => Promise<Turno[]>;
   getTurnosByDate: (date: Date) => Turno[];
+  create: (input: CreateTurnoInput) => Promise<Turno | null>;
 };
 
 const TurnosContext = createContext<TurnosContextType | null>(null);
@@ -425,15 +428,32 @@ export function TurnosProvider({ children }: { children: React.ReactNode }) {
     [turnos]
   );
 
+  const create = useCallback(async (input: CreateTurnoInput) => {
+      setLoading(true);
+      try{
+        const response = await turnosClient.create(input);
+        if (response?.error) throw new Error(response.error.message);
+        const turno = response?.data;
+      if (turno) {
+        setTurnos((prev) => [...prev, turno]);
+      }
+      return turno ?? null;
+      }
+      finally {
+        setLoading(false);
+      }
+    }, []);
+
   const value = useMemo<TurnosContextType>(
     () => ({
       turnos,
       loading,
       error,
       refresh,
-      getTurnosByDate
+      getTurnosByDate,
+      create
     }),
-    [turnos, loading, error, refresh, getTurnosByDate]
+    [turnos, loading, error, refresh, getTurnosByDate, create]
   );
 
   return (

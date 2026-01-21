@@ -73,7 +73,9 @@ export async function POST(req: Request) {
 	const supabase = await createClient();
 
 	const body = await req.json().catch(() => null) as CreateTurnoInput;
-	if (!body) return Response.json({ error: "JSON inválido" }, { status: 400 });
+	if (!body) {
+		return Response.json({ data: null, error: { message: "JSON invalido", code: "validation" } }, { status: 400 });
+	}
 
 	const fecha = body.fecha;
 	const hora = body.hora;
@@ -83,22 +85,26 @@ export async function POST(req: Request) {
 	const tipo = body.tipo;
 	const estado = body.estado;
 
-	if (!isIsoDate(fecha)) return Response.json({ error: "Falta/invalid fecha (YYYY-MM-DD)" }, { status: 400 });
-	if (!isHourMinute(hora)) return Response.json({ error: "Falta/invalid hora (HH:mm)" }, { status: 400 });
+	if (!isIsoDate(fecha)) {
+		return Response.json({ data: null, error: { message: "Falta/invalid fecha (YYYY-MM-DD)", code: "validation" } }, { status: 400 });
+	}
+	if (!isHourMinute(hora)) {
+		return Response.json({ data: null, error: { message: "Falta/invalid hora (HH:mm)", code: "validation" } }, { status: 400 });
+	}
 
 	const duracionInt = toInt(duracion);
 	if (!duracionInt || duracionInt <= 0) {
-		return Response.json({ error: "Falta/invalid duracion (minutos > 0)" }, { status: 400 });
+		return Response.json({ data: null, error: { message: "Falta/invalid duracion (minutos > 0)", code: "validation" } }, { status: 400 });
 	}
 
 	if (typeof vehiculo_id !== "string" || !vehiculo_id.trim()) {
-		return Response.json({ error: "Falta vehiculo id" }, { status: 400 });
+		return Response.json({ data: null, error: { message: "Falta vehiculo id", code: "validation" } }, { status: 400 });
 	}
 	if (typeof cliente_id !== "string" || !cliente_id.trim()) {
-		return Response.json({ error: "Falta cliente id" }, { status: 400 });
+		return Response.json({ data: null, error: { message: "Falta cliente id", code: "validation" } }, { status: 400 });
 	}
 	if (typeof tipo !== "string" || !tipo.trim()) {
-		return Response.json({ error: "Falta tipo" }, { status: 400 });
+		return Response.json({ data: null, error: { message: "Falta tipo", code: "validation" } }, { status: 400 });
 	}
 
 	const estadoFinal: TurnoEstado = isTurnoEstado(estado) ? estado : "Pendiente";
@@ -122,7 +128,7 @@ export async function POST(req: Request) {
 		const status = code === "23505" ? 409 : 500;
 		const message = status === 409 ? "Ya existe un turno para ese horario" : "Error al crear turno";
 		logger.error("POST /api/turnos - error:", insertError);
-		return Response.json({ error: message }, { status });
+		return Response.json({ data: null, error: { message, code: insertError.code } }, { status });
 	}
 
 	await statsService.onDataChanged(supabase);

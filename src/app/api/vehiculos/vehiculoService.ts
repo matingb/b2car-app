@@ -3,8 +3,8 @@ import type { Vehiculo } from "@/model/types";
 import { CreateVehiculoRequest } from "@/clients/vehiculoClient";
 import type { Cliente } from "@/model/types";
 import type { TipoCliente } from "@/model/types";
+import type { SupabaseError } from "@/model/types";
 
-type SupabaseError = { message: string; code?: string };
 type ClienteJoinRow = {
   id: string;
   tipo_cliente: TipoCliente;
