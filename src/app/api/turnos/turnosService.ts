@@ -1,24 +1,7 @@
-import { Cliente, Turno, Vehiculo } from "@/model/types";
+import { Turno } from "@/model/types";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { TurnoEstado, TurnoDto as TurnoRow } from "@/model/dtos";
 import type { SupabaseError } from "@/model/types";
-
-function mapRowToTurno(row: TurnoRow, cliente: Cliente, vehiculo: Vehiculo): Turno {
-	return {
-		id: row.id,
-		fecha: row.fecha,
-		hora: row.hora,
-		duracion: row.duracion,
-		vehiculo: vehiculo,
-		cliente: cliente,
-		tipo: row.tipo,
-		estado: row.estado,
-		telefono: cliente.telefono ?? undefined,
-		email: cliente.email ?? undefined,
-		descripcion: row.descripcion ?? undefined,
-		observaciones: row.observaciones ?? undefined,
-	};
-}
 
 export enum TurnosServiceError {
 	NotFound = "NotFound",

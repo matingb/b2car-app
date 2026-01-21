@@ -1,7 +1,7 @@
 "use client";
 
 import { COLOR } from "@/theme/theme";
-import { TurnoEstado } from "@/app/providers/TurnosProvider";
+import { TurnoEstado } from "@/model/dtos";
 
 export function estadoAccentColor(estado: TurnoEstado) {
   if (estado === "Cancelado") return COLOR.ICON.DANGER;
