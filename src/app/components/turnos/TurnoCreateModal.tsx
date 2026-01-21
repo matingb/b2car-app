@@ -16,10 +16,10 @@ export type CreatedTurno = {
 	id: number;
 	fecha: string;
 	hora: string;
-	duracion: number;
+	duracion: number | null;
 	cliente_id: string;
 	vehiculo_id: string;
-	tipo: string;
+	tipo: string | null;
 };
 
 type Props = {
@@ -56,7 +56,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 	const [vehiculoId, setVehiculoId] = useState("");
 	const [fecha, setFecha] = useState<string>(toISODateLocal(defaultFecha ?? new Date()));
 	const [hora, setHora] = useState<string>(defaultHora ?? "09:00");
-	const [duracion, setDuracion] = useState<number>(60);
+	const [duracion, setDuracion] = useState<number | null>(null);
 	const [tipo, setTipo] = useState<string>("Mecánica");
 	const [descripcion, setDescripcion] = useState<string>("");
 	const [observaciones, setObservaciones] = useState<string>("");
@@ -144,13 +144,18 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 		[]
 	);
 
+	const duracionOptions: AutocompleteOption[] = useMemo(
+		() => DURACIONES_MIN.map((m) => ({ value: String(m), label: `${m} min` })),
+		[]
+	);
+
 	useEffect(() => {
 		if (!open) return;
 		setClienteId(defaultClienteId ?? "");
 		setVehiculoId("");
 		setFecha(toISODateLocal(defaultFecha ?? new Date()));
 		setHora(defaultHora ?? "09:00");
-		setDuracion(60);
+		setDuracion(null);
 		setTipo("Mecánica");
 		setDescripcion("");
 		setObservaciones("");
@@ -195,9 +200,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 		const okVehiculo = isCreatingVehiculo ? vehiculoInlineIsValid : vehiculoId.trim().length > 0;
 		const okFecha = /^\d{4}-\d{2}-\d{2}$/.test(fecha);
 		const okHora = /^\d{2}:\d{2}$/.test(hora);
-		const okDuracion = Number.isFinite(duracion) && duracion > 0;
-		const okTipo = tipo.trim().length > 0;
-		return okCliente && okVehiculo && okFecha && okHora && okDuracion && okTipo;
+		return okCliente && okVehiculo && okFecha && okHora
 	}, [clienteId, vehiculoId, fecha, hora, duracion, tipo, isCreatingCliente, isCreatingVehiculo, clienteInlineIsValid, vehiculoInlineIsValid]);
 
 	if (!open) return null;
@@ -518,23 +521,25 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 				<div style={styles.row}>
 					<div style={styles.field}>
 						<label style={styles.label}>
-							Duración <span style={{ color: "#d00" }}>*</span>
+							Duración
 						</label>
-						<select
-							style={styles.input}
-							value={String(duracion)}
-							onChange={(e) => setDuracion(Number(e.target.value))}
-						>
-							{DURACIONES_MIN.map((m) => (
-								<option key={m} value={m}>
-									{m} min
-								</option>
-							))}
-						</select>
+						<Autocomplete
+							options={duracionOptions}
+							value={duracion !== null ? String(duracion) : ""} // esto es asi por que sting(null) da  -> "null"
+							onChange={(v) => {
+								if (!v) {
+									setDuracion(null);
+									return;
+								}
+								const parsed = Number(v);
+								setDuracion(Number.isFinite(parsed) ? parsed : null);
+							}}
+							placeholder="Seleccionar duración..."
+						/>
 					</div>
 					<div style={styles.field}>
 						<label style={styles.label}>
-							Tipo <span style={{ color: "#d00" }}>*</span>
+							Tipo
 						</label>
 						<Autocomplete
 							options={tipoOptions}

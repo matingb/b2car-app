@@ -19,6 +19,7 @@ export default function TurnosMonthlyCell({
   turnosDia,
 }: Props) {
   const [hovered, setHovered] = useState(false);
+  const [hoveredTurnoId, setHoveredTurnoId] = useState<number | null>(null);
 
   const visible = turnosDia.slice(0, 3);
   const remaining = Math.max(0, turnosDia.length - visible.length);
@@ -76,8 +77,17 @@ export default function TurnosMonthlyCell({
               e.stopPropagation();
               onSelectTurno(t);
             }}
-            style={styles.monthTurnoItem}
+            style={{
+              ...styles.monthTurnoItem,
+              ...(hoveredTurnoId === t.id ? styles.monthTurnoItemHover : undefined),
+            }}
             title={`${t.hora} - ${t.vehiculo.modelo}`}
+            onMouseEnter={() => {
+              setHoveredTurnoId(t.id);
+            }}
+            onMouseLeave={() => {
+              setHoveredTurnoId(null);
+            }}
           >
             <span style={{ fontWeight: 800 }}>{t.hora}</span>{" "}
             <span style={styles.monthTurnoVehicle}>
@@ -113,7 +123,7 @@ const styles = {
     cursor: "pointer",
   } as const,
   monthCellHover: {
-    borderColor: COLOR.BORDER.DEFAULT,
+    borderColor: COLOR.ACCENT.PRIMARY,
     boxShadow: "0 6px 14px rgba(17, 17, 17, 0.10)",
     transform: "translateY(-1px)",
   } as const,
@@ -135,13 +145,21 @@ const styles = {
   monthTurnoItem: {
     width: "100%",
     textAlign: "left" as const,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderWidth: 1,
+    borderStyle: "solid" as const,
+    borderColor: COLOR.BORDER.SUBTLE,
     background: COLOR.BACKGROUND.SECONDARY,
     padding: "6px 8px",
     borderRadius: 8,
     cursor: "pointer",
     fontSize: 12,
     overflow: "hidden",
+  } as const,
+  monthTurnoItemHover: {
+    borderColor: COLOR.ACCENT.PRIMARY,
+    boxShadow: "0 0px 0px rgba(17, 17, 17, 0.10)",
+    transform: "translateY(-1px)",
+    transition: "box-shadow 120ms ease, border-color 120ms ease, transform 120ms ease",
   } as const,
   monthTurnoVehicle: {
     color: COLOR.TEXT.SECONDARY,

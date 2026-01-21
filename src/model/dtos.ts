@@ -44,10 +44,10 @@ export interface TurnoDto {
     id: number;
     fecha: string;
     hora: string;
-    duracion: number;
+    duracion: number | null;
     vehiculo_id: string;
     cliente_id: string;
-    tipo: string;
+    tipo: string | null;
     estado: TurnoEstado;
     descripcion: string | null;
     observaciones: string | null;

@@ -63,10 +63,10 @@ export interface Turno {
 	id: number;
 	fecha: string; // YYYY-MM-DD
 	hora: string; // HH:mm
-	duracion: number; // minutos
+	duracion: number | null; // minutos
 	vehiculo: Vehiculo;
 	cliente: Cliente;
-	tipo: string;
+	tipo: string | null;
 	estado: TurnoEstado;
 	telefono?: string;
 	email?: string;

@@ -73,9 +73,9 @@ function createTurnoMock(input: {
   id: number;
   fecha: string;
   hora: string;
-  duracion: number;
+  duracion?: number;
   estado: TurnoEstado;
-  tipo: string;
+  tipo?: string;
   cliente: { nombre: string; telefono?: string; email?: string };
   vehiculo: { marca: string; modelo: string; patente: string; nro_interno?: string | null };
   descripcion?: string;
@@ -103,10 +103,10 @@ function createTurnoMock(input: {
     id: input.id,
     fecha: input.fecha,
     hora: input.hora,
-    duracion: input.duracion,
+    duracion: input.duracion || null, 
     vehiculo,
     cliente,
-    tipo: input.tipo,
+    tipo: input.tipo || null,
     estado: input.estado,
     telefono: input.cliente.telefono,
     email: input.cliente.email,
@@ -121,7 +121,6 @@ const TURNOS_MOCK: Turno[] = [
     id: 1,
     fecha: "2025-01-15",
     hora: "09:00",
-    duracion: 120,
     vehiculo: { marca: "Toyota", modelo: "Corolla", patente: "ABC123" },
     cliente: { nombre: "Juan Pérez", telefono: "+54 9 11 2345-6789", email: "juan.perez@email.com" },
     tipo: "Mecánica",

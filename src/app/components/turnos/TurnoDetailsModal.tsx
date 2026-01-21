@@ -37,7 +37,7 @@ export default function TurnoDetailsModal({
     year: "numeric",
   }).format(new Date(`${turno.fecha}T00:00:00`));
 
-  const finMin = horaAMinutos(turno.hora) + turno.duracion;
+  const finMin = horaAMinutos(turno.hora) + (turno.duracion || 0);
   const finHora = String(Math.floor(finMin / 60)).padStart(2, "0");
   const finMinStr = String(finMin % 60).padStart(2, "0");
 
@@ -61,7 +61,7 @@ export default function TurnoDetailsModal({
           </div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Pill text={turno.tipo} />
+            <Pill text={turno.tipo || "Sin tipo"} />
           </div>
 
           <div css={styles.grid}>
@@ -77,47 +77,56 @@ export default function TurnoDetailsModal({
                     <div style={styles.infoSubValue}>{turno.hora} hs</div>
                   </div>
                 </div>
-                <div style={styles.infoRow}>
-                  <div style={styles.iconWrap}>
-                    <Clock size={18} color={COLOR.ACCENT.PRIMARY} />
-                  </div>
-                  <div>
-                    <div style={styles.infoLabel}>Duración</div>
-                    <div style={styles.infoValue}>{turno.duracion} minutos</div>
-                    <div style={styles.infoSubValue}>
-                      Fin estimado: {finHora}:{finMinStr}
+                {(
+                  <div style={styles.infoRow}>
+                    <div style={styles.iconWrap}>
+                      <Clock size={18} color={COLOR.ACCENT.PRIMARY} />
+                    </div>
+                    <div>
+                      <div style={styles.infoLabel}>Duración</div>
+                      {(turno.duracion !== null && turno.duracion > 0) && (<>
+                        <div style={styles.infoValue}>{turno.duracion} minutos</div>
+                        <div style={styles.infoSubValue}>
+                          Fin estimado: {finHora}:{finMinStr}
+                        </div>
+                        </>)
+                      }
+                      {(turno.duracion == null) && (
+                        <div style={styles.infoValue}>Sin definir</div>
+                      )}
                     </div>
                   </div>
-                </div>
+                )}
+
               </div>
             </Card>
 
             <Card>
               <div style={{ display: "grid", gap: 10 }}>
-              <div style={styles.infoRow}>
-                <div style={styles.iconWrap}>
-                  <User size={18} color={COLOR.ACCENT.PRIMARY} />
+                <div style={styles.infoRow}>
+                  <div style={styles.iconWrap}>
+                    <User size={18} color={COLOR.ACCENT.PRIMARY} />
+                  </div>
+                  <div>
+                    <div style={styles.infoLabel}>Titular</div>
+                    <div style={styles.infoValue}>{turno.cliente.nombre}</div>
+                    {turno.cliente.telefono ? (
+                      <div style={styles.infoSubValue}>{turno.cliente.telefono}</div>
+                    ) : null}
+                    {turno.cliente.email ? (
+                      <div style={styles.infoSubValue}>{turno.cliente.email}</div>
+                    ) : null}
+                  </div>
                 </div>
-                <div>
-                  <div style={styles.infoLabel}>Titular</div>
-                  <div style={styles.infoValue}>{turno.cliente.nombre}</div>
-                  {turno.cliente.telefono ? (
-                    <div style={styles.infoSubValue}>{turno.cliente.telefono}</div>
-                  ) : null}
-                  {turno.cliente.email ? (
-                    <div style={styles.infoSubValue}>{turno.cliente.email}</div>
-                  ) : null}
+                <div style={styles.infoRow}>
+                  <div style={styles.iconWrap}>
+                    <Car size={18} color={COLOR.ACCENT.PRIMARY} />
+                  </div>
+                  <div>
+                    <div style={styles.infoLabel}>Vehiculo</div>
+                    <div style={styles.infoValue}>{turno.vehiculo.marca} {turno.vehiculo.modelo}</div>
+                  </div>
                 </div>
-              </div>
-              <div style={styles.infoRow}>
-                <div style={styles.iconWrap}>
-                  <Car size={18} color={COLOR.ACCENT.PRIMARY} />
-                </div>
-                <div>
-                  <div style={styles.infoLabel}>Vehiculo</div>
-                  <div style={styles.infoValue}>{turno.vehiculo.modelo}</div>
-                </div>
-              </div>
               </div>
             </Card>
           </div>
