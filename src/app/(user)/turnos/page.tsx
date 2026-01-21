@@ -18,14 +18,22 @@ function TurnosVista({
   vista,
   fechaActual,
   onSelectTurno,
+  onSelectDia,
 }: {
   vista: VistaTurnos;
   fechaActual: Date;
   onSelectTurno: (t: Turno) => void;
+  onSelectDia?: (d: Date) => void;
 }) {
   switch (vista) {
     case VistaTurnos.Mensual:
-      return <TurnosMonthlyView fechaActual={fechaActual} onSelectTurno={onSelectTurno} />;
+      return (
+        <TurnosMonthlyView
+          fechaActual={fechaActual}
+          onSelectTurno={onSelectTurno}
+          onSelectDia={onSelectDia}
+        />
+      );
     case VistaTurnos.Semanal:
       return (
         <TurnosWeeklyGridHView fechaActual={fechaActual} onSelectTurno={onSelectTurno} />
@@ -53,10 +61,16 @@ export default function TurnosPage() {
   const [turnoSeleccionado, setTurnoSeleccionado] = useState<Turno | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalCreateOpen, setModalCreateOpen] = useState(false);
+  const [defaultFechaCreate, setDefaultFechaCreate] = useState<Date | undefined>(undefined);
 
   const openDetails = (t: Turno) => {
     setTurnoSeleccionado(t);
     setModalOpen(true);
+  };
+
+  const openCreateForDate = (d: Date) => {
+    setDefaultFechaCreate(d);
+    setModalCreateOpen(true);
   };
 
   return (
@@ -70,7 +84,7 @@ export default function TurnosPage() {
         onPrev={goPrevPeriod}
         onNext={goNextPeriod}
         onToday={goToToday}
-        onNewTurno={() => setModalCreateOpen(true)}
+        onNewTurno={() => openCreateForDate(fechaActual)}
       />
 
       {loading ? (
@@ -85,6 +99,7 @@ export default function TurnosPage() {
             vista={vista}
             fechaActual={fechaActual}
             onSelectTurno={openDetails}
+            onSelectDia={openCreateForDate}
           />
         </div>
       )}
@@ -93,8 +108,11 @@ export default function TurnosPage() {
 
       <TurnoCreateModal
         open={modalCreateOpen}
-        defaultFecha={fechaActual}
-        onClose={() => setModalCreateOpen(false)}
+        defaultFecha={defaultFechaCreate ?? fechaActual}
+        onClose={() => {
+          setModalCreateOpen(false);
+          setDefaultFechaCreate(undefined);
+        }}
       />
     </div>
   );
