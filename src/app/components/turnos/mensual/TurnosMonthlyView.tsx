@@ -16,6 +16,7 @@ type Props = {
 export default function TurnosMonthlyView({ fechaActual, onSelectTurno }: Props) {
   const { getTurnosByDate } = useTurnos();
   const days = useMemo(() => getMonthGrid(fechaActual), [fechaActual]);
+  const todayISO = useMemo(() => toISODateLocal(new Date()), []);
 
   return (
     <Card data-testid="turnos-view-mensual">
@@ -35,9 +36,17 @@ export default function TurnosMonthlyView({ fechaActual, onSelectTurno }: Props)
             const turnosDia = getTurnosByDate(dia);
             const visible = turnosDia.slice(0, 3);
             const remaining = Math.max(0, turnosDia.length - visible.length);
+            const isToday = toISODateLocal(dia) === todayISO;
 
             return (
-              <div key={toISODateLocal(dia)} style={styles.monthCell}>
+              <div
+                key={toISODateLocal(dia)}
+                style={{
+                  ...styles.monthCell,
+                  ...(isToday ? styles.monthCellToday : undefined),
+                }}
+                data-testid={isToday ? "month-cell-today" : "month-cell"}
+              >
                 <div style={styles.monthDayNumber}><h2>{dia.getDate()}</h2></div>
 
                 <div style={styles.monthTurnosList}>
@@ -98,6 +107,9 @@ const styles = {
     padding: 10,
     display: "flex",
     flexDirection: "column" as const,
+  } as const,
+  monthCellToday: {
+    border: `2px solid ${COLOR.ACCENT.PRIMARY}`,
   } as const,
   monthDayNumber: {
     fontWeight: 900,

@@ -30,6 +30,11 @@ vi.mock("@/app/components/turnos/TurnoDetailsModal", () => ({
   default: () => null,
 }));
 
+vi.mock("@/app/components/turnos/TurnoCreateModal", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
 vi.mock("@/app/components/ui/ScreenHeader", () => ({
   __esModule: true,
   default: () => null,
