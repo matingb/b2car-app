@@ -400,15 +400,18 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 					<label style={styles.label}>
 						Vehículo <span style={{ color: "#d00" }}>*</span>
 					</label>
-					<Autocomplete
-						options={vehiculoOptions}
-						value={vehiculoId}
-						onChange={setVehiculoId}
-						placeholder={!selectedCliente && !isCreatingCliente ? "Seleccione o cree un cliente primero" : "Buscar o crear vehículo..."}
-						disabled={!selectedCliente && !isCreatingCliente}
-					/>
+					{(!isCreatingCliente) && (
+						<Autocomplete
+							options={vehiculoOptions}
+							value={vehiculoId}
+							onChange={setVehiculoId}
+							placeholder={!selectedCliente && !isCreatingCliente ? "Seleccione o cree un cliente primero" : "Buscar o crear vehículo..."}
+							disabled={!selectedCliente && !isCreatingCliente}
+						/>
+					)}
 
-					{isCreatingVehiculo && (
+
+					{(isCreatingVehiculo || isCreatingCliente) && (
 						<div style={styles.inlineForm}>
 							{!selectedCliente && !isCreatingCliente ? (
 								<div style={styles.inlineError}>Primero seleccioná o creá un cliente.</div>

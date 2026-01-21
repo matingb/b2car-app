@@ -91,7 +91,7 @@ export default function Modal({
       data-testid="modal-overlay"
     >
       <div style={styles.modal}>
-        <Card>
+        <Card style={{ maxHeight: "850px", overflowY: "auto" }}>
           <div style={styles.headerRow}>
             <h2 id={titleId} style={styles.title} data-testid="modal-title">
               {title}
