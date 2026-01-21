@@ -17,13 +17,13 @@ function detectarSuperposiciones(turnos: Turno[]) {
 
   turnosOrdenados.forEach((turno) => {
     const inicio = horaAMinutos(turno.hora);
-    const fin = inicio + turno.duracion;
+    const fin = inicio + (turno.duracion || 60);
 
     let agregado = false;
     for (const grupo of grupos) {
       const superpone = grupo.some((t) => {
         const tInicio = horaAMinutos(t.hora);
-        const tFin = tInicio + t.duracion;
+        const tFin = tInicio + (t.duracion || 60);
         return inicio < tFin && fin > tInicio;
       });
       if (superpone) {
@@ -114,14 +114,14 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
                   const inicioMin = horaAMinutos(turno.hora);
                   const topOffset =
                     (Math.floor(inicioMin / 60) - 6) * 60 + (inicioMin % 60);
-                  const height = Math.max(60, turno.duracion);
-                  const width = `${100 / columns}%`;
-                  const left = `${(idx * 100) / columns}%`;
+                  const height = Math.max(60, (turno.duracion || 0));
+                  const width = `${100 / columns - 1}%`;
+                  const left = `${(idx * 100) / columns+0.5}%`;
 
                   // “tamaños para no cortar datos”: si la caja es baja,
                   // truncamos y omitimos líneas menos importantes.
                   const showTitular = height >= 88;
-                  const showBottom = height >= 72;
+                  const showBottom = height >= 120;
 
                   return (
                     <div
@@ -148,10 +148,12 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
                       ) : null}
                       {showBottom ? (
                         <div style={styles.timelineTurnoBottom}>
-                          <Pill text={turno.tipo} />
-                          <span style={styles.tlDuracion}>
-                            {turno.duracion}min
-                          </span>
+                          <Pill text={turno.tipo || "Sin tipo"} />
+                          {turno.duracion != null ? (
+                            <span style={styles.tlDuracion}>
+                              {turno.duracion}min
+                            </span>
+                          ) : null}
                         </div>
                       ) : null}
                     </div>
@@ -183,7 +185,8 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
                     {t.vehiculo.marca} {t.vehiculo.modelo}
                   </div>
                   <div style={styles.dayListSub}>
-                    {t.cliente.nombre} • {t.duracion} min
+                    {t.cliente.nombre}
+                    {t.duracion != null ? <> • {t.duracion} min</> : null}
                   </div>
                 </div>
               </button>
