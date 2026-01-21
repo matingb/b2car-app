@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import Card from "@/app/components/ui/Card";
 import Pill from "@/app/components/turnos/Pill";
 import { useTurnos } from "@/app/providers/TurnosProvider";
@@ -33,7 +33,7 @@ function organizarTurnosEnColumnas(turnos: Turno[]) {
     let assigned = false;
     for (let i = 0; i < columnas.length; i++) {
       const lastInCol = columnas[i][columnas[i].length - 1];
-      const lastFin = horaAMinutos(lastInCol.hora) + lastInCol.duracion;
+      const lastFin = horaAMinutos(lastInCol.hora) + (lastInCol.duracion || 0);
       if (inicio >= lastFin) {
         columnas[i].push(turno);
         assigned = true;
@@ -58,6 +58,7 @@ export default function TurnosWeeklyGridHView({
   onSelectDia,
 }: Props) {
   const { getTurnosByDate } = useTurnos();
+  const [hoveredTurnoId, setHoveredTurnoId] = useState<number | null>(null);
   const dias = useMemo(() => getWeekDays(fechaActual), [fechaActual]);
   const horas = useMemo(
     () => Array.from({ length: HORA_COLUMNAS }, (_, i) => i + HORA_INICIO),
@@ -95,10 +96,11 @@ export default function TurnosWeeklyGridHView({
                 const turnosDia = getTurnosByDate(dia);
                 const columnas = organizarTurnosEnColumnas(turnosDia);
                 const colCount = Math.max(1, columnas.length);
-                const altoPorCol = ALTO_FILA_DIA / colCount;
+                let altoPorCol = ALTO_FILA_DIA / colCount;
+                if (colCount > 3) altoPorCol = altoPorCol * 1.30; // Capaz habria que repensar como se dibujan los bloques de cada turno
 
                 return (
-                  <div key={toISODateLocal(dia)} style={styles.weekGridDayRow}>
+                  <div key={toISODateLocal(dia)} style={{...styles.weekGridDayRow, height: altoPorCol * colCount}}>
                     <div style={styles.weekGridDayCell}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>
                         {DIAS_SEMANA[idx]}
@@ -146,7 +148,7 @@ export default function TurnosWeeklyGridHView({
                                     (inicioH - HORA_INICIO) * HORA_COL_WIDTH +
                                     (inicioM / 60) * HORA_COL_WIDTH;
                                   const widthPx =
-                                    (turno.duracion / 60) * HORA_COL_WIDTH;
+                                    ((turno.duracion || 0) / 60) * HORA_COL_WIDTH;
 
                                   if (leftPx + widthPx <= 0) return null;
 
@@ -159,14 +161,17 @@ export default function TurnosWeeklyGridHView({
                                       onClick={() => onSelectTurno(turno)}
                                       style={{
                                         ...styles.turnoBlockBase,
-                                        borderLeft: `4px solid ${estadoAccentColor(
-                                          turno.estado
-                                        )}`,
+                                        ...(hoveredTurnoId === turno.id
+                                          ? styles.turnoBlockHover
+                                          : undefined),
+                                        borderLeftColor: estadoAccentColor(turno.estado),
                                         left: leftPx,
                                         width: Math.max(8, widthPx - 6),
                                         top,
                                         height,
                                       }}
+                                      onMouseEnter={() => setHoveredTurnoId(turno.id)}
+                                      onMouseLeave={() => setHoveredTurnoId(null)}
                                       role="button"
                                       aria-label={`Turno ${turno.hora} ${turno.vehiculo}`}
                                     >
@@ -182,7 +187,7 @@ export default function TurnosWeeklyGridHView({
                                         {turno.cliente.nombre}
                                       </div>
                                       <div style={styles.turnoBottomRow}>
-                                        <Pill text={turno.tipo} />
+                                        <Pill text={turno.tipo || "Sin tipo"} />
                                         <span style={styles.turnoDuracion}>
                                           {turno.duracion}min
                                         </span>
@@ -260,17 +265,35 @@ const styles = {
   absoluteFill: {
     position: "absolute" as const,
     inset: 0,
+    pointerEvents: "none" as const,
   } as const,
   turnoBlockBase: {
     position: "absolute" as const,
     padding: 10,
     borderRadius: 10,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderWidth: 1,
+    borderStyle: "solid" as const,
+    borderTopColor: COLOR.BORDER.SUBTLE,
+    borderRightColor: COLOR.BORDER.SUBTLE,
+    borderBottomColor: COLOR.BORDER.SUBTLE,
+    borderLeftWidth: 4,
+    borderLeftStyle: "solid" as const,
+    borderLeftColor: "transparent",
     background: COLOR.BACKGROUND.SUBTLE,
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     cursor: "pointer",
     overflow: "hidden",
     transition: "transform 120ms ease, box-shadow 120ms ease",
+    pointerEvents: "auto" as const,
+  } as const,
+  turnoBlockHover: {
+    borderTopColor: COLOR.ACCENT.PRIMARY,
+    borderRightColor: COLOR.ACCENT.PRIMARY,
+    borderBottomColor: COLOR.ACCENT.PRIMARY,
+    borderLeftColor: COLOR.ACCENT.PRIMARY,
+    boxShadow: "0 4px 16px rgba(17, 17, 17, 0.10)",
+    transform: "translateY(-1px)",
+    transition: "box-shadow 120ms ease, border-color 120ms ease, transform 120ms ease",
   } as const,
   turnoBlockTopRow: {
     display: "flex",

@@ -132,7 +132,7 @@ const TURNOS_MOCK: Turno[] = [
   createTurnoMock({
     id: 2,
     fecha: "2025-01-15",
-    hora: "11:30",
+    hora: "09:30",
     duracion: 90,
     vehiculo: { marca: "Honda", modelo: "Civic", patente: "XYZ789" },
     cliente: { nombre: "María García", telefono: "+54 9 11 3456-7890", email: "maria.garcia@email.com" },
@@ -158,7 +158,7 @@ const TURNOS_MOCK: Turno[] = [
   createTurnoMock({
     id: 10,
     fecha: "2025-01-15",
-    hora: "14:00",
+    hora: "09:00",
     duracion: 90,
     vehiculo: { marca: "BMW", modelo: "X5", patente: "BMW999" },
     cliente: { nombre: "Isabel Morales", telefono: "+54 9 11 5678-9012", email: "isabel.morales@email.com" },
@@ -199,7 +199,7 @@ const TURNOS_MOCK: Turno[] = [
     fecha: "2025-01-15",
     hora: "16:00",
     duracion: 120,
-    vehiculo: { marca: "Range Rover", modelo: "-", patente: "RNG456" },
+    vehiculo: { marca: "Range Rover", modelo: "Z1", patente: "RNG456" },
     cliente: { nombre: "Martín Castro", telefono: "+54 9 11 8901-2345", email: "martin.castro@email.com" },
     tipo: "Carrocería",
     estado: "Confirmado",

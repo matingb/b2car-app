@@ -54,7 +54,7 @@ export default function TurnosWeeklySlotCell({ dia, hour, width, onSelectDia }: 
 const styles = {
   base: {
     borderRight: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    transition: "background 120ms ease",
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
   } as const,
   clickable: {
     cursor: "pointer",

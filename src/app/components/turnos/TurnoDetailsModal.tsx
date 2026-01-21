@@ -124,7 +124,7 @@ export default function TurnoDetailsModal({
                   </div>
                   <div>
                     <div style={styles.infoLabel}>Vehiculo</div>
-                    <div style={styles.infoValue}>{turno.vehiculo.marca} {turno.vehiculo.modelo}</div>
+                    <div style={styles.infoValue}>{turno.vehiculo.marca} {turno.vehiculo.modelo} - {turno.vehiculo.patente} </div>
                   </div>
                 </div>
               </div>
