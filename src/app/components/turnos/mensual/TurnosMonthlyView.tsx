@@ -12,7 +12,7 @@ import TurnosMonthlyCell from "@/app/components/turnos/mensual/TurnosMonthlyCell
 type Props = {
   fechaActual: Date;
   onSelectTurno: (t: Turno) => void;
-  onSelectDia?: (d: Date) => void;
+  onSelectDia?: (d: Date, hora?: string) => void;
 };
 
 export default function TurnosMonthlyView({ fechaActual, onSelectTurno, onSelectDia }: Props) {

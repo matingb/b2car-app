@@ -14,6 +14,7 @@ import {
 } from "@/app/components/turnos/utils/calendar";
 import { estadoAccentColor } from "@/app/components/turnos/utils/estado";
 import { COLOR } from "@/theme/theme";
+import TurnosWeeklySlotCell from "@/app/components/turnos/semanal/TurnosWeeklySlotCell";
 
 const HORA_INICIO = 8;
 const HORA_COLUMNAS = 12; // 08:00 -> 19:00
@@ -48,11 +49,13 @@ function organizarTurnosEnColumnas(turnos: Turno[]) {
 type Props = {
   fechaActual: Date;
   onSelectTurno: (t: Turno) => void;
+  onSelectDia?: (d: Date, hora?: string) => void;
 };
 
 export default function TurnosWeeklyGridHView({
   fechaActual,
   onSelectTurno,
+  onSelectDia,
 }: Props) {
   const { getTurnosByDate } = useTurnos();
   const dias = useMemo(() => getWeekDays(fechaActual), [fechaActual]);
@@ -122,12 +125,12 @@ export default function TurnosWeeklyGridHView({
                       ) : null}
 
                       {horas.map((h) => (
-                        <div
+                        <TurnosWeeklySlotCell
                           key={`${toISODateLocal(dia)}-${h}`}
-                          style={{
-                            width: HORA_COL_WIDTH,
-                            borderRight: `1px solid ${COLOR.BORDER.SUBTLE}`,
-                          }}
+                          dia={dia}
+                          hour={h}
+                          width={HORA_COL_WIDTH}
+                          onSelectDia={onSelectDia}
                         />
                       ))}
 

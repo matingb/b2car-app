@@ -7,7 +7,7 @@ type Props = {
   dia: Date;
   fechaActual: Date;
   onSelectTurno: (t: Turno) => void;
-  onSelectDia?: (d: Date) => void;
+  onSelectDia?: (d: Date, hora?: string) => void;
   turnosDia: Turno[];
 };
 
@@ -100,7 +100,9 @@ const styles = {
   monthCell: {
     minHeight: 140,
     borderRadius: 10,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: COLOR.BORDER.SUBTLE,
     background: COLOR.BACKGROUND.SUBTLE,
     padding: 10,
     display: "flex",
@@ -116,7 +118,9 @@ const styles = {
     transform: "translateY(-1px)",
   } as const,
   monthCellToday: {
-    border: `2px solid ${COLOR.ACCENT.PRIMARY}`,
+    borderWidth: 2,
+    borderStyle: "solid",
+    borderColor: COLOR.ACCENT.PRIMARY,
   } as const,
   monthDayNumber: {
     fontWeight: 900,

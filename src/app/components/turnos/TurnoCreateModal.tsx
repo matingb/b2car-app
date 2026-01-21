@@ -26,6 +26,7 @@ type Props = {
 	open: boolean;
 	onClose: (turno?: CreatedTurno) => void;
 	defaultFecha?: Date;
+	defaultHora?: string;
 	defaultClienteId?: string;
 };
 
@@ -46,7 +47,7 @@ function norm(s: string) {
 	return s.trim().toLowerCase();
 }
 
-export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultClienteId }: Props) {
+export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultHora, defaultClienteId }: Props) {
 	const { clientes, createParticular, createEmpresa } = useClientes();
 	const { vehiculos, create: createVehiculo } = useVehiculos();
 	const toast = useToast();
@@ -54,7 +55,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultC
 	const [clienteId, setClienteId] = useState(defaultClienteId ?? "");
 	const [vehiculoId, setVehiculoId] = useState("");
 	const [fecha, setFecha] = useState<string>(toISODateLocal(defaultFecha ?? new Date()));
-	const [hora, setHora] = useState<string>("09:00");
+	const [hora, setHora] = useState<string>(defaultHora ?? "09:00");
 	const [duracion, setDuracion] = useState<number>(60);
 	const [tipo, setTipo] = useState<string>("Mecánica");
 	const [descripcion, setDescripcion] = useState<string>("");
@@ -148,7 +149,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultC
 		setClienteId(defaultClienteId ?? "");
 		setVehiculoId("");
 		setFecha(toISODateLocal(defaultFecha ?? new Date()));
-		setHora("09:00");
+		setHora(defaultHora ?? "09:00");
 		setDuracion(60);
 		setTipo("Mecánica");
 		setDescripcion("");
@@ -168,7 +169,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultC
 		setVehiculoMarca("");
 		setVehiculoModelo("");
 		setVehiculoNroInterno("");
-	}, [open, defaultClienteId, defaultFecha]);
+	}, [open, defaultClienteId, defaultFecha, defaultHora]);
 
 	const clienteInlineIsValid = useMemo(() => {
 		if (clienteNombre.trim().length === 0) return false;

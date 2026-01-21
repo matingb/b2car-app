@@ -23,7 +23,7 @@ function TurnosVista({
   vista: VistaTurnos;
   fechaActual: Date;
   onSelectTurno: (t: Turno) => void;
-  onSelectDia?: (d: Date) => void;
+  onSelectDia?: (d: Date, hora?: string) => void;
 }) {
   switch (vista) {
     case VistaTurnos.Mensual:
@@ -36,7 +36,11 @@ function TurnosVista({
       );
     case VistaTurnos.Semanal:
       return (
-        <TurnosWeeklyGridHView fechaActual={fechaActual} onSelectTurno={onSelectTurno} />
+        <TurnosWeeklyGridHView
+          fechaActual={fechaActual}
+          onSelectTurno={onSelectTurno}
+          onSelectDia={onSelectDia}
+        />
       );
     case VistaTurnos.Diaria:
       return <TurnosDailyView fechaActual={fechaActual} onSelectTurno={onSelectTurno} />;
@@ -62,14 +66,16 @@ export default function TurnosPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalCreateOpen, setModalCreateOpen] = useState(false);
   const [defaultFechaCreate, setDefaultFechaCreate] = useState<Date | undefined>(undefined);
+  const [defaultHoraCreate, setDefaultHoraCreate] = useState<string | undefined>(undefined);
 
   const openDetails = (t: Turno) => {
     setTurnoSeleccionado(t);
     setModalOpen(true);
   };
 
-  const openCreateForDate = (d: Date) => {
+  const openCreateForDate = (d: Date, hora?: string) => {
     setDefaultFechaCreate(d);
+    setDefaultHoraCreate(hora);
     setModalCreateOpen(true);
   };
 
@@ -109,9 +115,11 @@ export default function TurnosPage() {
       <TurnoCreateModal
         open={modalCreateOpen}
         defaultFecha={defaultFechaCreate ?? fechaActual}
+        defaultHora={defaultHoraCreate}
         onClose={() => {
           setModalCreateOpen(false);
           setDefaultFechaCreate(undefined);
+          setDefaultHoraCreate(undefined);
         }}
       />
     </div>
