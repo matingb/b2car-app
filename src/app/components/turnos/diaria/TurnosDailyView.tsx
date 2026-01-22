@@ -56,12 +56,17 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
   );
 
   const horas = useMemo(() => Array.from({ length: 16 }, (_, i) => i + 6), []);
+  const horaInicioItinerario = horas[0] ?? 6;
 
   const now = new Date();
   const isToday = isSameLocalDay(fechaActual, now);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const nowTop = nowMinutes - 6 * 60; // px desde 06:00 (1min = 1px)
-  const showNowLine = isToday && nowMinutes >= 6 * 60 && nowMinutes <= 21 * 60;
+  const nowHourOffset = now.getHours() - horaInicioItinerario;
+  const nowTop = nowMinutes - horaInicioItinerario * 60 + nowHourOffset; // 1min = 1px + 1px por hora (bordes)
+  const showNowLine =
+    isToday &&
+    nowMinutes >= horaInicioItinerario * 60 &&
+    nowMinutes <= (horaInicioItinerario + 15) * 60;
 
   if (turnosDelDia.length === 0) {
     return (
@@ -112,11 +117,11 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
                 const columns = Math.max(1, grupo.length);
                 return grupo.map((turno, idx) => {
                   const inicioMin = horaAMinutos(turno.hora);
-                  const topOffset =
-                    (Math.floor(inicioMin / 60) - 6) * 60 + (inicioMin % 60);
+                  const hourOffset = Math.floor(inicioMin / 60) - horaInicioItinerario;
+                  const topOffset = hourOffset * 60 + (inicioMin % 60) + hourOffset;
                   const height = Math.max(60, (turno.duracion || 0));
                   const width = `${100 / columns - 1}%`;
-                  const left = `${(idx * 100) / columns+0.5}%`;
+                  const left = `${(idx * 100) / columns + 0.5}%`;
 
                   // “tamaños para no cortar datos”: si la caja es baja,
                   // truncamos y omitimos líneas menos importantes.
