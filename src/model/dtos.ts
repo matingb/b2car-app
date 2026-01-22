@@ -53,4 +53,4 @@ export interface TurnoDto {
     observaciones: string | null;
 };
 
-export type TurnoEstado = "Confirmado" | "Pendiente" | "Cancelado";
+export type TurnoEstado = "confirmado" | "pendiente" | "cancelado";

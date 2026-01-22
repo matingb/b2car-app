@@ -124,7 +124,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Toyota", modelo: "Corolla", patente: "ABC123" },
     cliente: { nombre: "Juan Pérez", telefono: "+54 9 11 2345-6789", email: "juan.perez@email.com" },
     tipo: "Mecánica",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Revisión general de motor y cambio de aceite. Cliente reporta ruido extraño al acelerar.",
     mecanico: "Roberto González",
     observaciones: "Verificar estado de correa de distribución",
@@ -137,7 +137,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Honda", modelo: "Civic", patente: "XYZ789" },
     cliente: { nombre: "María García", telefono: "+54 9 11 3456-7890", email: "maria.garcia@email.com" },
     tipo: "Eléctrica",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Problema con sistema eléctrico, luces intermitentes no funcionan correctamente.",
     mecanico: "Carlos Díaz",
     observaciones: "Revisar fusibles y relés",
@@ -150,7 +150,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Tesla", modelo: "Model 3", patente: "TES123" },
     cliente: { nombre: "Pedro González", telefono: "+54 9 11 4567-8901", email: "pedro.gonzalez@email.com" },
     tipo: "Eléctrica",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Actualización de software y diagnóstico de batería.",
     mecanico: "Laura Fernández",
     observaciones: "Cliente VIP - prioridad alta",
@@ -163,7 +163,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "BMW", modelo: "X5", patente: "BMW999" },
     cliente: { nombre: "Isabel Morales", telefono: "+54 9 11 5678-9012", email: "isabel.morales@email.com" },
     tipo: "Mecánica",
-    estado: "Pendiente",
+    estado: "pendiente",
     descripcion: "Cambio de pastillas de freno y revisión de discos.",
     mecanico: "Roberto González",
     observaciones: "Confirmar disponibilidad de repuestos",
@@ -176,7 +176,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Audi", modelo: "A4", patente: "AUD456" },
     cliente: { nombre: "Fernando Ruiz", telefono: "+54 9 11 6789-0123", email: "fernando.ruiz@email.com" },
     tipo: "Eléctrica",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Revisión de sistema de iluminación LED.",
     mecanico: "Carlos Díaz",
     observaciones: "",
@@ -189,7 +189,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Porsche", modelo: "911", patente: "POR911" },
     cliente: { nombre: "Andrea Silva", telefono: "+54 9 11 7890-1234", email: "andrea.silva@email.com" },
     tipo: "Pintura",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Reparación de rayones en puerta trasera y pulido completo.",
     mecanico: "Martín López",
     observaciones: "Usar pintura original de fábrica",
@@ -202,7 +202,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Range Rover", modelo: "Z1", patente: "RNG456" },
     cliente: { nombre: "Martín Castro", telefono: "+54 9 11 8901-2345", email: "martin.castro@email.com" },
     tipo: "Carrocería",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Reparación de abolladuras en capot y paragolpes delantero.",
     mecanico: "Martín López",
     observaciones: "Trabajo de panel beating requerido",
@@ -215,7 +215,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Lexus", modelo: "IS", patente: "LEX789" },
     cliente: { nombre: "Valentina López", telefono: "+54 9 11 9012-3456", email: "valentina.lopez@email.com" },
     tipo: "Mecánica",
-    estado: "Pendiente",
+    estado: "pendiente",
     descripcion: "Service de 60.000 km - Cambio de filtros y fluidos.",
     mecanico: "Roberto González",
     observaciones: "Contactar para confirmar asistencia",
@@ -228,7 +228,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Ford", modelo: "Focus", patente: "DEF456" },
     cliente: { nombre: "Carlos López", telefono: "+54 9 11 2345-6780", email: "carlos.lopez@email.com" },
     tipo: "Pintura",
-    estado: "Pendiente",
+    estado: "pendiente",
     descripcion: "Pintura completa de vehículo - Cambio de color.",
     mecanico: "Martín López",
     observaciones: "Requiere aprobación de presupuesto",
@@ -241,7 +241,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Chevrolet", modelo: "Cruze", patente: "GHI321" },
     cliente: { nombre: "Ana Martínez", telefono: "+54 9 11 3456-7891", email: "ana.martinez@email.com" },
     tipo: "Neumáticos",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Cambio de 4 neumáticos y alineación completa.",
     mecanico: "Diego Ramírez",
     observaciones: "Cliente solicita neumáticos premium",
@@ -254,7 +254,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Mercedes", modelo: "C200", patente: "MER777" },
     cliente: { nombre: "Gabriela Torres", telefono: "+54 9 11 4567-8902", email: "gabriela.torres@email.com" },
     tipo: "Carrocería",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Reparación de parachoques trasero post colisión menor.",
     mecanico: "Martín López",
     observaciones: "Trabajo cubierto por seguro",
@@ -267,7 +267,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Volvo", modelo: "XC90", patente: "VOL123" },
     cliente: { nombre: "Ricardo Mendez", telefono: "+54 9 11 5678-9013", email: "ricardo.mendez@email.com" },
     tipo: "Mecánica",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Cambio de batería y revisión de alternador.",
     mecanico: "Roberto González",
     observaciones: "",
@@ -280,7 +280,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Jaguar", modelo: "F-Type", patente: "JAG456" },
     cliente: { nombre: "Lucía Romero", telefono: "+54 9 11 6789-0124", email: "lucia.romero@email.com" },
     tipo: "Eléctrica",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Diagnóstico completo de sistema eléctrico y multimedia.",
     mecanico: "Carlos Díaz",
     observaciones: "Requiere equipo de diagnóstico especializado",
@@ -293,7 +293,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Mazda", modelo: "3", patente: "JKL654" },
     cliente: { nombre: "Roberto Silva", telefono: "+54 9 11 7890-1235", email: "roberto.silva@email.com" },
     tipo: "Carrocería",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Reparación de daños en lateral izquierdo y pintura.",
     mecanico: "Martín López",
     observaciones: "Esperar aprobación de perito",
@@ -306,7 +306,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Nissan", modelo: "Sentra", patente: "MNO987" },
     cliente: { nombre: "Laura Fernández", telefono: "+54 9 11 8901-2346", email: "laura.fernandez@email.com" },
     tipo: "Mecánica",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Cambio de embrague completo.",
     mecanico: "Roberto González",
     observaciones: "Trabajo de alta complejidad - 2 mecánicos asignados",
@@ -319,7 +319,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Subaru", modelo: "Outback", patente: "SUB789" },
     cliente: { nombre: "Gonzalo Díaz", telefono: "+54 9 11 9012-3457", email: "gonzalo.diaz@email.com" },
     tipo: "Neumáticos",
-    estado: "Pendiente",
+    estado: "pendiente",
     descripcion: "Rotación de neumáticos y balanceo.",
     mecanico: "Diego Ramírez",
     observaciones: "Llamar para confirmar",
@@ -332,7 +332,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Kia", modelo: "Sportage", patente: "KIA321" },
     cliente: { nombre: "Camila Vega", telefono: "+54 9 11 2345-6781", email: "camila.vega@email.com" },
     tipo: "Eléctrica",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Reemplazo de batería de arranque.",
     mecanico: "Carlos Díaz",
     observaciones: "",
@@ -345,7 +345,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Volkswagen", modelo: "Golf", patente: "PQR654" },
     cliente: { nombre: "Diego Ramírez", telefono: "+54 9 11 3456-7892", email: "diego.ramirez@email.com" },
     tipo: "Eléctrica",
-    estado: "Cancelado",
+    estado: "cancelado",
     descripcion: "Cliente canceló por razones personales.",
     mecanico: "-",
     observaciones: "Reprogramar para próxima semana",
@@ -358,7 +358,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Hyundai", modelo: "Elantra", patente: "STU321" },
     cliente: { nombre: "Sofía Castro", telefono: "+54 9 11 4567-8903", email: "sofia.castro@email.com" },
     tipo: "Mecánica",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Cambio de filtro de aire y bujías.",
     mecanico: "Roberto González",
     observaciones: "Mantenimiento preventivo",
@@ -371,7 +371,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Peugeot", modelo: "308", patente: "PEU456" },
     cliente: { nombre: "Nicolás Herrera", telefono: "+54 9 11 5678-9014", email: "nicolas.herrera@email.com" },
     tipo: "Pintura",
-    estado: "Confirmado",
+    estado: "confirmado",
     descripcion: "Pintura de paragolpes delantero y pulido de ópticas.",
     mecanico: "Martín López",
     observaciones: "",
@@ -384,7 +384,7 @@ const TURNOS_MOCK: Turno[] = [
     vehiculo: { marca: "Renault", modelo: "Megane", patente: "REN789" },
     cliente: { nombre: "Florencia Sosa", telefono: "+54 9 11 6789-0125", email: "florencia.sosa@email.com" },
     tipo: "Carrocería",
-    estado: "Pendiente",
+    estado: "pendiente",
     descripcion: "Reparación de puerta trasera y zócalo lateral.",
     mecanico: "Martín López",
     observaciones: "Pendiente de presupuesto",
@@ -401,9 +401,13 @@ export function TurnosProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       // mock local (cuando venga backend, reemplazar por fetch / client)
-      const next = TURNOS_MOCK;
-      setTurnos(next);
-      return next;
+      const data = await turnosClient.getAll();
+      const turnosData = data.data || [];
+      if (data.error) {
+        throw new Error(data.error.message);
+      }
+      setTurnos(turnosData);
+      return turnosData;
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Error cargando turnos";
@@ -434,7 +438,7 @@ export function TurnosProvider({ children }: { children: React.ReactNode }) {
         if (response?.error) throw new Error(response.error.message);
         const turno = response?.data;
       if (turno) {
-        setTurnos((prev) => [...prev, turno]);
+        //setTurnos((prev) => [...prev, turno]);
       }
       return turno ?? null;
       }

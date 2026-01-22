@@ -90,30 +90,22 @@ export async function POST(req: Request) {
 		return Response.json({ data: null, error: { message: "Falta/invalid hora (HH:mm)", code: "validation" } }, { status: 400 });
 	}
 
-	const duracionInt = toInt(duracion);
-	if (!duracionInt || duracionInt <= 0) {
-		return Response.json({ data: null, error: { message: "Falta/invalid duracion (minutos > 0)", code: "validation" } }, { status: 400 });
-	}
-
 	if (typeof vehiculo_id !== "string" || !vehiculo_id.trim()) {
 		return Response.json({ data: null, error: { message: "Falta vehiculo id", code: "validation" } }, { status: 400 });
 	}
 	if (typeof cliente_id !== "string" || !cliente_id.trim()) {
 		return Response.json({ data: null, error: { message: "Falta cliente id", code: "validation" } }, { status: 400 });
 	}
-	if (typeof tipo !== "string" || !tipo.trim()) {
-		return Response.json({ data: null, error: { message: "Falta tipo", code: "validation" } }, { status: 400 });
-	}
 
-	const estadoFinal: TurnoEstado = isTurnoEstado(estado) ? estado : "Pendiente";
+	const estadoFinal: TurnoEstado = isTurnoEstado(estado) ? estado : "pendiente";
 
 	const input: CreateTurnoInput = {
 		fecha: fecha,
 		hora: hora,
-		duracion: duracionInt,
+		duracion,
 		vehiculo_id: vehiculo_id.trim(),
 		cliente_id: cliente_id.trim(),
-		tipo: tipo.trim(),
+		tipo: tipo?.trim() ?? null,
 		estado: estadoFinal,
 		descripcion: body.descripcion?.trim() ?? null,
 		observaciones: body.observaciones?.trim() ?? null,

@@ -15,6 +15,7 @@ import {
 import { estadoAccentColor } from "@/app/components/turnos/utils/estado";
 import { COLOR } from "@/theme/theme";
 import TurnosWeeklySlotCell from "@/app/components/turnos/semanal/TurnosWeeklySlotCell";
+import { logger } from "@/lib/logger";
 
 const HORA_INICIO = 8;
 const HORA_COLUMNAS = 12; // 08:00 -> 19:00
@@ -33,7 +34,7 @@ function organizarTurnosEnColumnas(turnos: Turno[]) {
     let assigned = false;
     for (let i = 0; i < columnas.length; i++) {
       const lastInCol = columnas[i][columnas[i].length - 1];
-      const lastFin = horaAMinutos(lastInCol.hora) + (lastInCol.duracion || 0);
+      const lastFin = horaAMinutos(lastInCol.hora) + (lastInCol.duracion || 15);
       if (inicio >= lastFin) {
         columnas[i].push(turno);
         assigned = true;
@@ -71,6 +72,8 @@ export default function TurnosWeeklyGridHView({
   const showNowLine =
     nowMinutes >= HORA_INICIO * 60 &&
     nowMinutes <= (HORA_INICIO + HORA_COLUMNAS) * 60;
+  
+  
 
   return (
     <div data-testid="turnos-view-semanal">
@@ -94,6 +97,7 @@ export default function TurnosWeeklyGridHView({
             <div>
               {dias.map((dia, idx) => {
                 const turnosDia = getTurnosByDate(dia);
+                logger.debug("TurnosWeeklyGridHView", turnosDia);
                 const columnas = organizarTurnosEnColumnas(turnosDia);
                 const colCount = Math.max(1, columnas.length);
                 let altoPorCol = ALTO_FILA_DIA / colCount;
@@ -148,7 +152,7 @@ export default function TurnosWeeklyGridHView({
                                     (inicioH - HORA_INICIO) * HORA_COL_WIDTH +
                                     (inicioM / 60) * HORA_COL_WIDTH;
                                   const widthPx =
-                                    ((turno.duracion || 0) / 60) * HORA_COL_WIDTH;
+                                    ((turno.duracion || 15) / 60) * HORA_COL_WIDTH;
 
                                   if (leftPx + widthPx <= 0) return null;
 
@@ -166,7 +170,7 @@ export default function TurnosWeeklyGridHView({
                                           : undefined),
                                         borderLeftColor: estadoAccentColor(turno.estado),
                                         left: leftPx,
-                                        width: Math.max(8, widthPx - 6),
+                                        width: Math.max(100, widthPx - 6),
                                         top,
                                         height,
                                       }}
@@ -177,7 +181,7 @@ export default function TurnosWeeklyGridHView({
                                     >
                                       <div style={styles.turnoBlockTopRow}>
                                         <span style={styles.turnoHora}>
-                                          {turno.hora} - {turno.vehiculo.patente} 
+                                          {turno.vehiculo.patente} - {turno.hora}
                                         </span>
                                       </div>
                                       <div style={styles.turnoVehiculo}>

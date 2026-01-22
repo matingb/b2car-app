@@ -11,6 +11,7 @@ import { useTurnos } from "@/app/providers/TurnosProvider";
 import { CreateTurnoInput } from "@/app/api/turnos/turnosService";
 import Dropdown from "@/app/components/ui/Dropdown";
 import { TipoCliente } from "@/model/types";
+import { logger } from "@/lib/logger";
 
 export type CreatedTurno = {
 	id: number;
@@ -267,16 +268,8 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 			} as CreateTurnoInput);
 			if (!response) throw new Error("No se recibió respuesta del servidor");
 
-			toast.success("Turno creado", `${fecha} ${hora} (${duracion} min)`);
-			onClose({
-				id: response.id,
-				fecha: response.fecha,
-				hora: response.hora,
-				duracion: response.duracion,
-				cliente_id: response.cliente.id,
-				vehiculo_id: response.vehiculo.id,
-				tipo: response.tipo,
-			});
+			toast.success("Turno creado", `${fecha} ${hora}`);
+			onClose();
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : "Ocurrió un error";
 			toast.error(msg);

@@ -12,7 +12,7 @@ CREATE TABLE turnos (
     duracion INTEGER,
     vehiculo_id UUID NOT NULL REFERENCES vehiculos(id),
     cliente_id UUID NOT NULL REFERENCES clientes(id),
-    tenant_id UUID NOT NULL REFERENCES tenants(id),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) DEFAULT ((auth.jwt() ->> 'tenant_id'::text))::uuid,
     tipo TEXT,
     estado turno_estado NOT NULL DEFAULT 'pendiente',
     descripcion TEXT,
