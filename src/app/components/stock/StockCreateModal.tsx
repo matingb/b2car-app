@@ -7,6 +7,7 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import { useInventario } from "@/app/providers/InventarioProvider";
+import { useToast } from "@/app/providers/ToastProvider";
 
 const CREATE_PRODUCTO_VALUE = "__create_producto__";
 
@@ -26,9 +27,11 @@ export default function StockCreateModal({
   onCreated,
 }: Props) {
   const { productos, createProducto, upsertStock, loading } = useInventario();
+  const toast = useToast();
 
   const [productoId, setProductoId] = useState("");
   const isCreatingProducto = productoId === CREATE_PRODUCTO_VALUE;
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Producto (solo si isCreatingProducto = true)
   const [nombre, setNombre] = useState("");
@@ -57,6 +60,7 @@ export default function StockCreateModal({
     setStockActual("");
     setStockMinimo("");
     setStockMaximo("");
+    setSubmitError(null);
   }, [open]);
 
   const canSubmit = useMemo(() => {
@@ -90,43 +94,58 @@ export default function StockCreateModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
 
     const stockActualN = parseOptionalNumber(stockActual);
     const stockMinimoN = parseOptionalNumber(stockMinimo);
     const stockMaximoN = parseOptionalNumber(stockMaximo);
 
-    if (isCreatingProducto) {
-      const createdProducto = await createProducto({
-        nombre: nombre.trim(),
-        codigo: codigo.trim(),
-        proveedor: proveedor.trim(),
-        ubicacion: ubicacion.trim(),
-        categorias,
-        precioCompra,
-        precioVenta,
-      });
-      if (!createdProducto) return;
+    try {
+      if (isCreatingProducto) {
+        const createdProducto = await createProducto({
+          nombre: nombre.trim(),
+          codigo: codigo.trim(),
+          proveedor: proveedor.trim(),
+          ubicacion: ubicacion.trim(),
+          categorias,
+          precioCompra,
+          precioVenta,
+        });
+        if (!createdProducto) {
+          setSubmitError("No se pudo crear el producto");
+          return;
+        }
+        const createdStock = await upsertStock({
+          productoId: createdProducto.productoId,
+          tallerId,
+          stockActual: stockActualN,
+          stockMinimo: stockMinimoN,
+          stockMaximo: stockMaximoN,
+        });
+        if (createdStock) {
+          onCreated?.(createdStock.id);
+          toast.success("Stock creado satisfactoriamente");
+        }
+        onClose();
+        return;
+      }
+
       const createdStock = await upsertStock({
-        productoId: createdProducto.productoId,
+        productoId,
         tallerId,
         stockActual: stockActualN,
         stockMinimo: stockMinimoN,
         stockMaximo: stockMaximoN,
       });
-      if (createdStock) onCreated?.(createdStock.id);
+      if (createdStock) {
+        onCreated?.(createdStock.id);
+        toast.success("Stock creado satisfactoriamente");
+      }
       onClose();
-      return;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "No se pudo crear el stock";
+      setSubmitError(message);
     }
-
-    const createdStock = await upsertStock({
-      productoId,
-      tallerId,
-      stockActual: stockActualN,
-      stockMinimo: stockMinimoN,
-      stockMaximo: stockMaximoN,
-    });
-    if (createdStock) onCreated?.(createdStock.id);
-    onClose();
   };
 
   return (
@@ -148,8 +167,10 @@ export default function StockCreateModal({
               value={productoId}
               onChange={(v) => {
                 setProductoId(v);
+                setSubmitError(null);
               }}
               placeholder="Buscar o crear producto..."
+              dataTestId="stock-create-modal-producto-autocomplete"
             />
           </div>
         </div>
@@ -280,11 +301,25 @@ export default function StockCreateModal({
           </div>
         </div>
       </div>
+      {submitError ? (
+        <div style={styles.errorBox} role="alert" data-testid="stock-create-modal-error">
+          {submitError}
+        </div>
+      ) : null}
     </Modal>
   );
 }
 
 const styles = {
+  errorBox: {
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: `1px solid ${COLOR.ICON.DANGER}`,
+    background: "rgba(139, 0, 0, 0.08)",
+    color: COLOR.ICON.DANGER,
+    fontSize: 13,
+    lineHeight: 1.35,
+  },
   row: css({
     display: "flex",
     gap: 16,

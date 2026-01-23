@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 vi.mock("@/app/providers/TurnosProvider", () => ({
   useTurnos: () => ({
     filterTurnosByDate: () => [],
+    getWithFilters: async () => [],
   }),
 }));
 

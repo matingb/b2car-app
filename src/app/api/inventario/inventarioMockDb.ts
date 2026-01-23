@@ -31,6 +31,11 @@ export type MockStockRow = StockRow;
 
 const TENANT_ID = "TENANT-MOCK";
 const TALLERES_MOCK = ["TAL-001", "TAL-002", "TAL-003"] as const;
+const TALLERES_NOMBRES_MOCK: Record<string, string> = {
+  "TAL-001": "Taller Centro",
+  "TAL-002": "Taller Norte",
+  "TAL-003": "Taller Sur",
+};
 
 function nowIso() {
   return new Date().toISOString();
@@ -165,6 +170,10 @@ export function resetInventarioMockDb() {
 export const inventarioMockDb = {
   tenantId: TENANT_ID,
 
+  getTallerNombre(tallerId: string): string | null {
+    return TALLERES_NOMBRES_MOCK[tallerId] ?? null;
+  },
+
   // Productos
   listProductos(): ProductoRow[] {
     return [...productos].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
@@ -224,6 +233,10 @@ export const inventarioMockDb = {
 
   listStocksForProducto(productoId: string): StockRow[] {
     return stocks.filter((s) => s.productoId === productoId);
+  },
+
+  getStockByTallerProducto(tallerId: string, productoId: string): StockRow | null {
+    return stocks.find((s) => s.tallerId === tallerId && s.productoId === productoId) ?? null;
   },
 
   getStockById(id: string): StockRow | null {

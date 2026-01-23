@@ -182,3 +182,79 @@ export const createEmpresa = (overrides: Partial<Empresa> = {}): Empresa => {
   };
 };
 
+// ----------------------------
+// Inventario (API helpers)
+// ----------------------------
+
+export type InventarioProductoRow = {
+  id: string;
+  tenantId: string;
+  codigo: string;
+  nombre: string;
+  marca: string | null;
+  modelo: string | null;
+  descripcion: string | null;
+  precio_unitario: number;
+  costo_unitario: number;
+  proveedor: string | null;
+  categorias: string[] | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InventarioStockRow = {
+  id: string;
+  tenantId: string;
+  tallerId: string;
+  productoId: string;
+  cantidad: number;
+  stock_minimo: number;
+  stock_maximo: number;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * Factory para crear filas de Producto (inventario)
+ */
+export const createInventarioProductoRow = (
+  overrides: Partial<InventarioProductoRow> = {}
+): InventarioProductoRow => {
+  return {
+    id: "PROD-001",
+    tenantId: "TENANT-MOCK",
+    codigo: "COD-001",
+    nombre: "Producto 1",
+    marca: null,
+    modelo: null,
+    descripcion: null,
+    precio_unitario: 100,
+    costo_unitario: 50,
+    proveedor: "Proveedor 1",
+    categorias: ["Cat"],
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  };
+};
+
+/**
+ * Factory para crear filas de Stock (inventario)
+ */
+export const createInventarioStockRow = (
+  overrides: Partial<InventarioStockRow> = {}
+): InventarioStockRow => {
+  return {
+    id: "STK-001",
+    tenantId: "TENANT-MOCK",
+    tallerId: "TAL-001",
+    productoId: "PROD-001",
+    cantidad: 10,
+    stock_minimo: 2,
+    stock_maximo: 20,
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  };
+};
+

@@ -254,7 +254,9 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
           stock_minimo: input.stockMinimo,
           stock_maximo: input.stockMaximo,
         });
-        if (!res.data) return null;
+        if (!res.data) {
+          throw new Error(res.error || "No se pudo guardar el stock");
+        }
         const updatedAt = isoToShortEsDate(res.data.updated_at);
         const id = res.data.id;
         const next: StockRegistro = {

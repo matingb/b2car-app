@@ -61,8 +61,18 @@ export async function POST(req: Request) {
   };
 
   try {
-    const { row, created } = inventarioMockDb.upsertStock(input);
-    return Response.json({ data: mapStockRow(row), error: null } satisfies UpsertStockResponse, { status: created ? 201 : 200 });
+    const existing = inventarioMockDb.getStockByTallerProducto(input.tallerId, input.productoId);
+    if (existing) {
+      const producto = inventarioMockDb.getProductoById(input.productoId);
+      const tallerNombre = inventarioMockDb.getTallerNombre(input.tallerId);
+      const productoNombre = producto?.nombre ?? input.productoId;
+      const tallerLabel = tallerNombre ?? input.tallerId;
+      const message = `El producto "${productoNombre}" ya tiene stock definido para "${tallerLabel}"`;
+      return Response.json({ data: null, error: message } satisfies UpsertStockResponse, { status: 409 });
+    }
+
+    const { row } = inventarioMockDb.upsertStock(input);
+    return Response.json({ data: mapStockRow(row), error: null } satisfies UpsertStockResponse, { status: 201 });
   } catch (error: unknown) {
     logger.error("POST /api/stocks mock error:", error);
     return Response.json({ data: null, error: "Error guardando stock" } satisfies UpsertStockResponse, { status: 500 });

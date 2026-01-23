@@ -18,6 +18,7 @@ interface AutocompleteProps {
   disabled?: boolean;
   style?: React.CSSProperties;
   allowCustomValue?: boolean;
+  dataTestId?: string;
 }
 
 export default function Autocomplete({
@@ -28,6 +29,7 @@ export default function Autocomplete({
   disabled = false,
   style,
   allowCustomValue = false,
+  dataTestId,
 }: AutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -154,6 +156,7 @@ export default function Autocomplete({
         <input
           ref={inputRef}
           type="text"
+          data-testid={dataTestId}
           style={{
             ...styles.input,
             ...(disabled && styles.inputDisabled),
