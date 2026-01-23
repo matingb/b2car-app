@@ -54,3 +54,37 @@ export interface TurnoDto {
 };
 
 export type TurnoEstado = "confirmado" | "pendiente" | "cancelado";
+
+export type ProductoDTO = {
+    id: string;
+    codigo: string;
+    nombre: string;
+    marca: string | null;
+    modelo: string | null;
+    descripcion: string | null;
+    precio_unitario: number;
+    costo_unitario: number;
+    proveedor: string | null;
+    categorias: string[];
+    created_at: string;
+    updated_at: string;
+};
+
+export type StockDTO = {
+    id: string;
+    tallerId: string;
+    productoId: string;
+    cantidad: number;
+    stock_minimo: number;
+    stock_maximo: number;
+    created_at: string;
+    updated_at: string;
+};
+
+export type StockItemDTO = StockDTO & {
+    producto: ProductoDTO | null;
+};
+
+export type ProductoDetailDTO = ProductoDTO & {
+    stocks: StockDTO[];
+};

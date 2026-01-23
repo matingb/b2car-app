@@ -10,10 +10,11 @@ import StockToolbar from "@/app/components/stock/StockToolbar";
 import StockFiltersModal from "@/app/components/stock/StockFiltersModal";
 import StockCreateModal from "@/app/components/stock/StockCreateModal";
 import StockStats from "@/app/components/stock/StockStats";
-import StockResults from "@/app/components/stock/StockResults";
 import Card from "@/app/components/ui/Card";
 import Dropdown from "@/app/components/ui/Dropdown";
 import { COLOR } from "@/theme/theme";
+import StockItemCard from "@/app/components/stock/StockItemCard";
+import { LoaderCircle } from "lucide-react";
 
 export default function StockPage() {
   return <StockPageContent />;
@@ -75,7 +76,7 @@ function StockPageContent() {
           </div>
         </div>
 
-        {(!loading && state.itemsFiltrados.length === 0) ? (
+        {!loading && state.itemsFiltrados.length === 0 ? (
           <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
             <div style={styles.empty}>
               <div style={styles.emptyTitle}>No se encontraron items</div>
@@ -83,11 +84,23 @@ function StockPageContent() {
             </div>
           </Card>
         ) : (
-          <StockResults
-            loading={loading}
-            items={state.itemsFiltrados}
-            onSelect={(i) => router.push(`/stock/${i.id}`)}
-          />
+          <>
+            {loading ? (
+              <div style={styles.loading} data-testid="stock-loading">
+                <LoaderCircle className="animate-spin" size={28} color={COLOR.ACCENT.PRIMARY} />
+              </div>
+            ) : (
+              <div style={styles.list} data-testid="stock-results">
+                {state.itemsFiltrados.map((item) => (
+                  <StockItemCard
+                    key={item.id}
+                    item={item}
+                    onClick={(i) => router.push(`/stock/${i.id}`)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -138,5 +151,18 @@ const styles = {
   },
   emptyTitle: { fontWeight: 700 },
   emptySub: { color: COLOR.TEXT.SECONDARY, fontSize: 13 },
+  loading: {
+    marginTop: 16,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 120,
+  },
+  list: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 12,
+    marginTop: 12,
+  },
 } as const;
 

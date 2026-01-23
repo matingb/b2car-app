@@ -13,6 +13,7 @@ import { COLOR } from "@/theme/theme";
 import ProductoItemCard from "@/app/components/productos/ProductoItemCard";
 import Button from "@/app/components/ui/Button";
 import { PlusIcon } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 
 export default function ProductosPage() {
   return <ProductosPageContent />;
@@ -72,6 +73,10 @@ function ProductosPageContent() {
               <div style={styles.emptySub}>Probá ajustando búsqueda o filtros.</div>
             </div>
           </Card>
+        ) : loading ? (
+          <div style={styles.loading} data-testid="productos-loading">
+            <LoaderCircle className="animate-spin" size={28} color={COLOR.ACCENT.PRIMARY} />
+          </div>
         ) : (
           <div style={styles.list}>
             {state.productosFiltrados.map((p) => (
@@ -124,6 +129,13 @@ const styles = {
     flexDirection: "column" as const,
     gap: 12,
     marginTop: 12,
+  },
+  loading: {
+    marginTop: 16,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 120,
   },
   empty: {
     padding: "16px 12px",
