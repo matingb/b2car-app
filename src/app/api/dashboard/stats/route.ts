@@ -1,7 +1,6 @@
 import { createClient } from "@/supabase/server";
 import { logger } from "@/lib/logger";
 import { statsService, type DashboardStats } from "./dashboardStatsService"
-import { getTenantIdFromAccessToken } from "@/supabase/tenant";
 
 type DashboardStatsResponse = {
   data: DashboardStats | null;
@@ -20,15 +19,7 @@ export async function GET() {
   }
 
   try {
-    const tenantId = getTenantIdFromAccessToken(auth.session.access_token);
-    if (!tenantId) {
-      return Response.json(
-        { data: null, error: "Unauthorized" } satisfies DashboardStatsResponse,
-        { status: 401 }
-      );
-    }
-
-    const stats = await statsService.getStats(supabase, tenantId);
+    const stats = await statsService.getStats(supabase);
     return Response.json(
       { data: stats, error: null } satisfies DashboardStatsResponse,
       {

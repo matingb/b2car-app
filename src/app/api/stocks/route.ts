@@ -1,10 +1,11 @@
 import { logger } from "@/lib/logger";
-import { inventarioMockDb } from "@/app/api/inventario/inventarioMockDb";
-import type { MockProductoRow, MockStockRow } from "@/app/api/inventario/inventarioMockDb";
 import type { ProductoDTO, StockDTO, StockItemDTO } from "@/model/dtos";
 import type { GetStocksResponse, UpsertStockRequest, UpsertStockResponse } from "./contracts";
+import { createClient } from "@/supabase/server";
+import { stocksService, type StockItemRow, type StockRow } from "./stocksService";
+import { productosService, ProductosServiceError, type ProductoRow } from "../productos/productosService";
 
-function mapStockRow(row: MockStockRow): StockDTO {
+function mapStockRow(row: StockRow): StockDTO {
   return {
     id: row.id,
     tallerId: row.tallerId,
@@ -17,7 +18,9 @@ function mapStockRow(row: MockStockRow): StockDTO {
   };
 }
 
-function mapProducto(row: MockProductoRow | null): ProductoDTO | null {
+type ProductoJoinRow = ProductoRow & { provedor?: string | null };
+
+function mapProducto(row: ProductoJoinRow | null): ProductoDTO | null {
   if (!row) return null;
   return {
     id: row.id,
@@ -28,7 +31,7 @@ function mapProducto(row: MockProductoRow | null): ProductoDTO | null {
     descripcion: row.descripcion ?? null,
     precio_unitario: Number(row.precio_unitario) || 0,
     costo_unitario: Number(row.costo_unitario) || 0,
-    proveedor: row.proveedor ?? null,
+    proveedor: row.proveedor ?? row.provedor ?? null,
     categorias: Array.isArray(row.categorias) ? row.categorias : [],
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -37,15 +40,32 @@ function mapProducto(row: MockProductoRow | null): ProductoDTO | null {
 
 export async function GET(req: Request) {
   void req;
-  const rows = inventarioMockDb.listStocks();
-  const items: StockItemDTO[] = rows.map((s) => ({
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getSession();
+  if (!auth.session) {
+    return Response.json({ data: null, error: "Unauthorized" } satisfies GetStocksResponse, { status: 401 });
+  }
+
+  const { data: rows, error } = await stocksService.listAll(supabase);
+  if (error) {
+    return Response.json({ data: [], error: "Error listando stocks" } satisfies GetStocksResponse, { status: 500 });
+  }
+
+  const items: StockItemDTO[] = rows.map((s: StockItemRow) => ({
     ...mapStockRow(s),
-    producto: mapProducto(inventarioMockDb.getProductoById(s.productoId)),
+    producto: mapProducto(s.productos ?? null),
   }));
+
   return Response.json({ data: items, error: null } satisfies GetStocksResponse, { status: 200 });
 }
 
 export async function POST(req: Request) {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getSession();
+  if (!auth.session) {
+    return Response.json({ data: null, error: "Unauthorized" } satisfies UpsertStockResponse, { status: 401 });
+  }
+
   const body: UpsertStockRequest | null = await req.json().catch(() => null);
   if (!body) return Response.json({ data: null, error: "JSON inválido" } satisfies UpsertStockResponse, { status: 400 });
 
@@ -61,20 +81,31 @@ export async function POST(req: Request) {
   };
 
   try {
-    const existing = inventarioMockDb.getStockByTallerProducto(input.tallerId, input.productoId);
+    const { data: existing, error: findError } = await stocksService.getByTallerProducto(
+      supabase,
+      input.tallerId,
+      input.productoId
+    );
+    if (findError) {
+      return Response.json({ data: null, error: "Error validando stock existente" } satisfies UpsertStockResponse, { status: 500 });
+    }
     if (existing) {
-      const producto = inventarioMockDb.getProductoById(input.productoId);
-      const tallerNombre = inventarioMockDb.getTallerNombre(input.tallerId);
-      const productoNombre = producto?.nombre ?? input.productoId;
-      const tallerLabel = tallerNombre ?? input.tallerId;
-      const message = `El producto "${productoNombre}" ya tiene stock definido para "${tallerLabel}"`;
+      const productoRes = await productosService.getById(supabase, input.productoId);
+      const productoNombre =
+        productoRes.error === ProductosServiceError.NotFound || !productoRes.data
+          ? input.productoId
+          : productoRes.data.nombre;
+      const message = `El producto "${productoNombre}" ya tiene stock definido para el taller "${input.tallerId}"`;
       return Response.json({ data: null, error: message } satisfies UpsertStockResponse, { status: 409 });
     }
 
-    const { row } = inventarioMockDb.upsertStock(input);
-    return Response.json({ data: mapStockRow(row), error: null } satisfies UpsertStockResponse, { status: 201 });
+    const { data: created, error } = await stocksService.create(supabase, input);
+    if (error || !created) {
+      return Response.json({ data: null, error: "Error guardando stock" } satisfies UpsertStockResponse, { status: 500 });
+    }
+    return Response.json({ data: mapStockRow(created), error: null } satisfies UpsertStockResponse, { status: 201 });
   } catch (error: unknown) {
-    logger.error("POST /api/stocks mock error:", error);
+    logger.error("POST /api/stocks error:", error);
     return Response.json({ data: null, error: "Error guardando stock" } satisfies UpsertStockResponse, { status: 500 });
   }
 }

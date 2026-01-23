@@ -1,16 +1,55 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET, POST } from "./route";
-import { resetInventarioMockDb } from "@/app/api/inventario/inventarioMockDb";
+
+vi.mock("@/supabase/server", () => ({
+  createClient: vi.fn(),
+}));
+
+vi.mock("./productosService", async () => {
+  const actual = await vi.importActual<typeof import("./productosService")>("./productosService");
+  return {
+    ...actual,
+    productosService: {
+      ...actual.productosService,
+      list: vi.fn(),
+      create: vi.fn(),
+    },
+  };
+});
+
+import { createClient } from "@/supabase/server";
+import { productosService } from "./productosService";
 
 describe("/api/productos", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resetInventarioMockDb();
+    vi.mocked(createClient).mockResolvedValue({
+      auth: { getSession: async () => ({ data: { session: { access_token: "t" } } }) },
+    } as any);
   });
 
   it("GET devuelve lista mapeada", async () => {
-    const req = new Request("http://localhost/api/productos");
-    const res = await GET(req);
+    vi.mocked(productosService.list).mockResolvedValue({
+      data: [
+        {
+          id: "PROD-1",
+          tenantId: "TEN-1",
+          codigo: "C1",
+          nombre: "Producto 1",
+          marca: null,
+          modelo: null,
+          descripcion: null,
+          precio_unitario: 10,
+          costo_unitario: 7,
+          proveedor: "Prov",
+          categorias: ["A"],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ],
+      error: null,
+    });
+    const res = await GET();
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -28,7 +67,25 @@ describe("/api/productos", () => {
     expect(res.status).toBe(400);
   });
 
-  it("POST exitoso devuelve 201 y registra stats", async () => {
+  it("POST exitoso devuelve 201", async () => {
+    vi.mocked(productosService.create).mockResolvedValue({
+      data: {
+        id: "PROD-1",
+        tenantId: "TEN-1",
+        codigo: "C1",
+        nombre: "Producto 1",
+        marca: null,
+        modelo: null,
+        descripcion: null,
+        precio_unitario: 10,
+        costo_unitario: 7,
+        proveedor: "Prov",
+        categorias: ["A"],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      error: null,
+    });
     const req = new Request("http://localhost/api/productos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -32,16 +32,16 @@ export type ProductoRow = {
   updated_at: string;
 };
 
+export type CreateProductoInput = Omit<ProductoRow, "id" | "tenantId" | "created_at" | "updated_at">;
+
 export const productosService = {
   async list(
     supabase: SupabaseClient,
-    tenantId: string,
     filters: ListProductosFilters = {}
   ): Promise<{ data: ProductoRow[]; error: ProductosServiceError | null }> {
     let query = supabase
       .from("productos")
       .select("*")
-      .eq("tenantId", tenantId)
       .order("updated_at", { ascending: false });
 
     const search = (filters.search ?? "").trim();
@@ -72,13 +72,11 @@ export const productosService = {
 
   async getById(
     supabase: SupabaseClient,
-    tenantId: string,
     id: string
   ): Promise<{ data: ProductoRow | null; error: ProductosServiceError | null }> {
     const { data, error } = await supabase
       .from("productos")
       .select("*")
-      .eq("tenantId", tenantId)
       .eq("id", id)
       .maybeSingle();
 
@@ -89,15 +87,11 @@ export const productosService = {
 
   async create(
     supabase: SupabaseClient,
-    tenantId: string,
-    payload: Omit<
-      ProductoRow,
-      "id" | "created_at" | "updated_at"
-    >
+    payload: CreateProductoInput
   ): Promise<{ data: ProductoRow | null; error: PostgrestError | null }> {
     const { data, error } = await supabase
       .from("productos")
-      .insert([{ ...payload, tenantId }])
+      .insert([payload])
       .select("*")
       .single();
 
@@ -106,7 +100,6 @@ export const productosService = {
 
   async updateById(
     supabase: SupabaseClient,
-    tenantId: string,
     id: string,
     patch: Partial<
       Pick<
@@ -126,7 +119,6 @@ export const productosService = {
     const { data, error } = await supabase
       .from("productos")
       .update(patch)
-      .eq("tenantId", tenantId)
       .eq("id", id)
       .select("*")
       .maybeSingle();
@@ -138,13 +130,12 @@ export const productosService = {
 
   async deleteById(
     supabase: SupabaseClient,
-    tenantId: string,
     id: string
   ): Promise<{ error: ProductosServiceError | PostgrestError | null }> {
     // Best effort: delete dependent stocks first (if FK cascade exists, this is redundant).
-    await supabase.from("stocks").delete().eq("tenantId", tenantId).eq("productoId", id);
+    await supabase.from("stocks").delete().eq("productoId", id);
 
-    const { error } = await supabase.from("productos").delete().eq("tenantId", tenantId).eq("id", id);
+    const { error } = await supabase.from("productos").delete().eq("id", id);
     if (error) return { error };
     return { error: null };
   },

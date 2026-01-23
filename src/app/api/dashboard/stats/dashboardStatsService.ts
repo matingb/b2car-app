@@ -3,17 +3,12 @@ import { arregloService } from "@/app/api/arreglos/arregloService";
 import { clienteService } from "@/app/api/clientes/clienteService";
 import { vehiculoService } from "@/app/api/vehiculos/vehiculoService";
 import { revalidateTag, unstable_cache } from "next/cache";
-import { getTenantIdFromSupabase } from "@/supabase/tenant";
 
 const DASHBOARD_STATS_TAG_PREFIX = "dashboard-stats";
 
-function dashboardStatsTag(tenantId: string) {
-  return `${DASHBOARD_STATS_TAG_PREFIX}:${tenantId}`;
-}
-
-function invalidateDashboardStats(tenantId: string | null) {
+function invalidateDashboardStats() {
   try {
-    revalidateTag(tenantId ? dashboardStatsTag(tenantId) : DASHBOARD_STATS_TAG_PREFIX);
+    revalidateTag(DASHBOARD_STATS_TAG_PREFIX);
   } catch {
     // ignore
   }
@@ -111,19 +106,19 @@ async function getStats(supabase: SupabaseClient): Promise<DashboardStats> {
 }
 
 export const statsService = {
-  async getStats(supabase: SupabaseClient, tenantId: string): Promise<DashboardStats> {
+  async getStats(supabase: SupabaseClient): Promise<DashboardStats> {
     const getCached = unstable_cache(
       async () => getStats(supabase),
-      [DASHBOARD_STATS_TAG_PREFIX, tenantId],
-      { revalidate: 3600, tags: [dashboardStatsTag(tenantId)] }
+      [DASHBOARD_STATS_TAG_PREFIX],
+      { revalidate: 3600, tags: [DASHBOARD_STATS_TAG_PREFIX] }
     );
 
     return await getCached();
   },
 
   async onDataChanged(supabase: SupabaseClient) {
-    const tenantId = await getTenantIdFromSupabase(supabase);
-    invalidateDashboardStats(tenantId);
+    void supabase;
+    invalidateDashboardStats();
   },
 } as const;
 

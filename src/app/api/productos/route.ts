@@ -1,8 +1,8 @@
 import { logger } from "@/lib/logger";
-import { inventarioMockDb } from "@/app/api/inventario/inventarioMockDb";
 import type { ProductoDTO } from "@/model/dtos";
 import type { CreateProductoRequest, CreateProductoResponse, GetProductosResponse } from "./contracts";
-import { ProductoRow } from "./productosService";
+import { createClient } from "@/supabase/server";
+import { productosService, type ProductoRow } from "./productosService";
 
 function mapProducto(row: ProductoRow): ProductoDTO {
   return {
@@ -22,11 +22,27 @@ function mapProducto(row: ProductoRow): ProductoDTO {
 }
 
 export async function GET() {
-  const data = inventarioMockDb.listProductos();
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getSession();
+  if (!auth.session) {
+    return Response.json({ data: null, error: "Unauthorized" } satisfies GetProductosResponse, { status: 401 });
+  }
+
+  const { data, error } = await productosService.list(supabase);
+  if (error) {
+    return Response.json({ data: [], error: "Error listando productos" } satisfies GetProductosResponse, { status: 500 });
+  }
+
   return Response.json({ data: data.map(mapProducto), error: null } satisfies GetProductosResponse, { status: 200 });
 }
 
 export async function POST(req: Request) {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getSession();
+  if (!auth.session) {
+    return Response.json({ data: null, error: "Unauthorized" } satisfies CreateProductoResponse, { status: 401 });
+  }
+
   const body: CreateProductoRequest | null = await req.json().catch(() => null);
   if (!body) return Response.json({ data: null, error: "JSON inválido" } satisfies CreateProductoResponse, { status: 400 });
 
@@ -48,10 +64,13 @@ export async function POST(req: Request) {
   };
 
   try {
-    const created = inventarioMockDb.createProducto(insertPayload);
+    const { data: created, error } = await productosService.create(supabase, insertPayload);
+    if (error || !created) {
+      return Response.json({ data: null, error: "Error creando producto" } satisfies CreateProductoResponse, { status: 500 });
+    }
     return Response.json({ data: mapProducto(created), error: null } satisfies CreateProductoResponse, { status: 201 });
   } catch (error: unknown) {
-    logger.error("POST /api/productos mock error:", error);
+    logger.error("POST /api/productos error:", error);
     return Response.json({ data: null, error: "Error creando producto" } satisfies CreateProductoResponse, { status: 500 });
   }
 }

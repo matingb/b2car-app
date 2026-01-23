@@ -1,9 +1,11 @@
 import type { NextRequest } from "next/server";
-import { inventarioMockDb } from "@/app/api/inventario/inventarioMockDb";
 import type { StockDTO } from "@/model/dtos";
 import type { GetStockByIdResponse, UpdateStockRequest, UpdateStockResponse } from "../contracts";
+import { createClient } from "@/supabase/server";
+import { stocksService, StocksServiceError, type StockItemRow, type StockRow } from "../stocksService";
+import type { ProductoRow } from "../../productos/productosService";
 
-function mapStockRow(row: any): StockDTO {
+function mapStockRow(row: StockRow): StockDTO {
   return {
     id: row.id,
     tallerId: row.tallerId,
@@ -16,7 +18,9 @@ function mapStockRow(row: any): StockDTO {
   };
 }
 
-function mapProducto(row: any) {
+type ProductoJoinRow = ProductoRow & { provedor?: string | null };
+
+function mapProducto(row: ProductoJoinRow | null) {
   if (!row) return null;
   return {
     id: row.id,
@@ -27,7 +31,7 @@ function mapProducto(row: any) {
     descripcion: row.descripcion ?? null,
     precio_unitario: Number(row.precio_unitario) || 0,
     costo_unitario: Number(row.costo_unitario) || 0,
-    proveedor: row.provedor ?? row.proveedor ?? null,
+    proveedor: row.proveedor ?? row.provedor ?? null,
     categorias: Array.isArray(row.categorias) ? row.categorias : [],
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -35,39 +39,62 @@ function mapProducto(row: any) {
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getSession();
+  if (!auth.session) {
+    return Response.json({ data: null, error: "Unauthorized" } satisfies GetStockByIdResponse, { status: 401 });
+  }
+
   const { id } = await params;
   if (!id) return Response.json({ data: null, error: "Falta id" } satisfies GetStockByIdResponse, { status: 400 });
 
-  const data = inventarioMockDb.getStockById(id);
-  if (!data) return Response.json({ data: null, error: "Stock no encontrado" } satisfies GetStockByIdResponse, { status: 404 });
+  const { data, error } = await stocksService.getById(supabase, id);
+  if (error === StocksServiceError.NotFound || !data) {
+    return Response.json({ data: null, error: "Stock no encontrado" } satisfies GetStockByIdResponse, { status: 404 });
+  }
 
   return Response.json(
-    { data: { ...mapStockRow(data), producto: mapProducto(inventarioMockDb.getProductoById(data.productoId)) }, error: null } satisfies GetStockByIdResponse,
+    { data: { ...mapStockRow(data as StockItemRow), producto: mapProducto((data as StockItemRow).productos) }, error: null } satisfies GetStockByIdResponse,
     { status: 200 }
   );
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getSession();
+  if (!auth.session) {
+    return Response.json({ data: null, error: "Unauthorized" } satisfies UpdateStockResponse, { status: 401 });
+  }
+
   const { id } = await params;
   const body: UpdateStockRequest | null = await req.json().catch(() => null);
   if (!body) return Response.json({ data: null, error: "JSON inválido" } satisfies UpdateStockResponse, { status: 400 });
 
-  const patch: any = {};
+  const patch: Partial<Pick<StockRow, "cantidad" | "stock_minimo" | "stock_maximo">> = {};
   if (body.cantidad !== undefined) patch.cantidad = body.cantidad;
   if (body.stock_minimo !== undefined) patch.stock_minimo = body.stock_minimo;
   if (body.stock_maximo !== undefined) patch.stock_maximo = body.stock_maximo;
 
-  const updated = inventarioMockDb.updateStockById(id, patch);
-  if (!updated) return Response.json({ data: null, error: "Stock no encontrado" } satisfies UpdateStockResponse, { status: 404 });
+  const { data: updated, error } = await stocksService.updateById(supabase, id, patch);
+  if (error === StocksServiceError.NotFound || !updated) {
+    return Response.json({ data: null, error: "Stock no encontrado" } satisfies UpdateStockResponse, { status: 404 });
+  }
   return Response.json({ data: mapStockRow(updated), error: null } satisfies UpdateStockResponse, { status: 200 });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getSession();
+  if (!auth.session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
   if (!id) return Response.json({ error: "Falta id" }, { status: 400 });
 
-  const ok = inventarioMockDb.deleteStockById(id);
-  if (!ok) return Response.json({ error: "Stock no encontrado" }, { status: 404 });
+  const { error } = await stocksService.deleteById(supabase, id);
+  if (error === StocksServiceError.NotFound) return Response.json({ error: "Stock no encontrado" }, { status: 404 });
+  if (error) return Response.json({ error: "Error eliminando stock" }, { status: 500 });
   return Response.json({ error: null }, { status: 200 });
 }
 
