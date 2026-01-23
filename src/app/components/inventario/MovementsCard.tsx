@@ -3,35 +3,57 @@
 import React from "react";
 import Card from "@/app/components/ui/Card";
 import { COLOR } from "@/theme/theme";
-import type { StockMovement } from "@/model/stock";
 import { TrendingDown, TrendingUp } from "lucide-react";
+import type { StockMovementType } from "@/model/stock";
 
-type Props = {
-  movimientos: StockMovement[];
+export type InventarioMovementRow = {
+  fecha: string;
+  tipo: StockMovementType;
+  cantidad: number;
+  motivo: string;
+  tallerNombre?: string;
 };
 
-export default function StockMovementsCard({ movimientos }: Props) {
+type Props = {
+  title?: string;
+  movimientos: InventarioMovementRow[];
+  emptyText?: string;
+};
+
+export default function MovementsCard({
+  title = "Historial de movimientos",
+  movimientos,
+  emptyText = "Sin movimientos registrados.",
+}: Props) {
   return (
     <div>
-      <h3 style={styles.title}>Historial de movimientos</h3>
+      <h3 style={styles.title}>{title}</h3>
       <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
         <div style={styles.list}>
           {movimientos.length === 0 ? (
-            <div style={styles.empty}>Sin movimientos registrados.</div>
+            <div style={styles.empty}>{emptyText}</div>
           ) : (
             movimientos.map((mov, idx) => {
               const isEntrada = mov.tipo === "entrada";
               const color = isEntrada ? "#15803d" : COLOR.ICON.DANGER;
               const bg = isEntrada ? "rgba(21,128,61,0.10)" : "rgba(139,0,0,0.10)";
               return (
-                <div key={`${mov.fecha}-${idx}`} style={styles.row}>
+                <div key={`${mov.fecha}-${idx}-${mov.motivo}`} style={styles.row}>
                   <div style={styles.left}>
                     <div style={{ ...styles.iconWrap, background: bg, color }}>
                       {isEntrada ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
                     </div>
-                    <div>
+                    <div style={{ minWidth: 0 }}>
                       <div style={styles.motivo}>{mov.motivo}</div>
-                      <div style={styles.fecha}>{mov.fecha}</div>
+                      <div style={styles.meta}>
+                        <span>{mov.fecha}</span>
+                        {mov.tallerNombre ? (
+                          <>
+                            <span style={styles.dot}>·</span>
+                            <span>{mov.tallerNombre}</span>
+                          </>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                   <div style={{ ...styles.qty, color }}>
@@ -71,7 +93,8 @@ const styles = {
     flexShrink: 0,
   },
   motivo: { fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const },
-  fecha: { color: COLOR.TEXT.SECONDARY, fontSize: 13 },
+  meta: { color: COLOR.TEXT.SECONDARY, fontSize: 13, display: "flex", alignItems: "center", gap: 6 },
+  dot: { opacity: 0.9 },
   qty: { fontWeight: 800, fontSize: 14, flexShrink: 0 },
 } as const;
 

@@ -5,6 +5,7 @@ import SidebarItem from "@/app/components/ui/SidebarItem";
 import { SessionProvider } from "@/app/providers/SessionProvider";
 import { ModalMessageProvider } from "@/app/providers/ModalMessageProvider";
 import { SheetProvider } from "@/app/providers/SheetProvider";
+import { TenantProvider } from "@/app/providers/TenantProvider";
 import Divider from "@/app/components/ui/Divider";
 import { PanelLeft } from "lucide-react";
 import { COLOR } from "@/theme/theme";
@@ -44,8 +45,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionProvider>
-      <ModalMessageProvider>
-          <SheetProvider>
+      <TenantProvider>
+        <ModalMessageProvider>
+            <SheetProvider>
           <div style={s.appRoot}>
             <div css={s.pageContent}>
               <aside css={s.sidebarResponsive} style={s.sidebar} aria-label="Sidebar">
@@ -113,7 +115,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           </div>
           </SheetProvider>
-      </ModalMessageProvider>
+        </ModalMessageProvider>
+      </TenantProvider>
     </SessionProvider>
   );
 }

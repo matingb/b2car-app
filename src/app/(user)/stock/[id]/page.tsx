@@ -3,69 +3,112 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
-import { useStock } from "@/app/providers/StockProvider";
 import type { StockItem } from "@/model/stock";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import IconButton from "@/app/components/ui/IconButton";
 import { Pencil, Save, Trash, X } from "lucide-react";
 import StockLevelsCard from "@/app/components/stock/StockLevelsCard";
-import StockInfoCard from "@/app/components/stock/StockInfoCard";
-import StockPricesCard from "@/app/components/stock/StockPricesCard";
-import StockMovementsCard from "@/app/components/stock/StockMovementsCard";
+import MovementsCard from "@/app/components/inventario/MovementsCard";
+import ProductoInfoCard from "@/app/components/productos/ProductoInfoCard";
+import ProductoPricesCard from "@/app/components/productos/ProductoPricesCard";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { ROUTES } from "@/routing/routes";
+import { useInventario } from "@/app/providers/InventarioProvider";
+import { useTenant } from "@/app/providers/TenantProvider";
 
 export default function StockDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { fetchById, update, remove, loading } = useStock();
+  const { talleres } = useTenant();
+  const { productos, stockRegistros, updateStock, removeStock, updateProducto, categoriasDisponibles, loading } = useInventario();
   const { confirm } = useModalMessage();
   const { success } = useToast();
 
-  const [item, setItem] = useState<StockItem | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<StockItem | null>(null);
 
-  const reload = useCallback(async () => {
-    const found = await fetchById(params.id);
-    setItem(found);
-    setDraft(found ? { ...found } : null);
-    setIsEditing(false);
-  }, [fetchById, params.id]);
+  const stock = useMemo(
+    () => stockRegistros.find((s) => s.id === params.id) ?? null,
+    [stockRegistros, params.id]
+  );
+  const producto = useMemo(() => {
+    if (!stock) return null;
+    return productos.find((p) => p.productoId === stock.productoId) ?? null;
+  }, [productos, stock]);
+
+  const item = useMemo<StockItem | null>(() => {
+    if (!stock || !producto) return null;
+    return {
+      id: stock.id,
+      productoId: stock.productoId,
+      tallerId: stock.tallerId,
+      nombre: producto.nombre,
+      codigo: producto.codigo,
+      categorias: producto.categorias,
+      stockActual: stock.stockActual,
+      stockMinimo: stock.stockMinimo,
+      stockMaximo: stock.stockMaximo,
+      precioCompra: producto.precioCompra,
+      precioVenta: producto.precioVenta,
+      proveedor: producto.proveedor,
+      ubicacion: producto.ubicacion,
+      ultimaActualizacion: stock.ultimaActualizacion,
+      historialMovimientos: stock.historialMovimientos,
+    };
+  }, [producto, stock]);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    if (!item) {
+      setDraft(null);
+      setIsEditing(false);
+      return;
+    }
+    setDraft({ ...item });
+    setIsEditing(false);
+  }, [item]);
 
   const title = useMemo(() => item?.nombre ?? "Detalle", [item?.nombre]);
+  const tallerNombre = useMemo(() => {
+    if (!item?.tallerId) return "";
+    return talleres.find((t) => t.id === item.tallerId)?.nombre ?? item.tallerId;
+  }, [item?.tallerId, talleres]);
 
   const handleDelete = useCallback(async () => {
     if (!item) return;
     const ok = await confirm({
-      title: "Eliminar item",
-      message: `¿Estás seguro de que deseas eliminar "${item.nombre}"?`,
+      title: "Eliminar stock",
+      message: `¿Eliminar el stock de "${item.nombre}" en ${tallerNombre}?`,
       acceptLabel: "Eliminar",
       cancelLabel: "Cancelar",
     });
     if (!ok) return;
-    await remove(item.id);
-    success("Éxito", "El item fue eliminado.");
+    await removeStock(item.id);
+    success("Éxito", "El stock fue eliminado.");
     router.push(ROUTES.stock);
-  }, [confirm, item, remove, router, success]);
+  }, [confirm, item, removeStock, router, success, tallerNombre]);
 
   const handleSave = useCallback(async () => {
     if (!draft) return;
-    const { id, ...rest } = draft;
-    const updated = await update(id, rest);
-    if (updated) {
-      setItem(updated);
-      setDraft({ ...updated });
-      setIsEditing(false);
-      success("Éxito", "Cambios guardados.");
-    }
-  }, [draft, success, update]);
+    // Persistir cambios de producto (global) + stock (por taller)
+    await updateProducto(draft.productoId, {
+      nombre: draft.nombre,
+      codigo: draft.codigo,
+      proveedor: draft.proveedor,
+      ubicacion: draft.ubicacion,
+      precioCompra: draft.precioCompra,
+      precioVenta: draft.precioVenta,
+      categorias: draft.categorias,
+    });
+    await updateStock(draft.id, {
+      stockActual: draft.stockActual,
+      stockMinimo: draft.stockMinimo,
+      stockMaximo: draft.stockMaximo,
+    });
+    setIsEditing(false);
+    success("Éxito", "Cambios guardados.");
+  }, [draft, success, updateProducto, updateStock]);
 
   if (loading && !item) {
     return (
@@ -133,7 +176,9 @@ export default function StockDetailsPage() {
         ) : (
           <h2 style={styles.title}>{title}</h2>
         )}
-        <div style={styles.code}>{item.codigo}</div>
+        <div style={styles.code}>
+          {item.codigo} · {tallerNombre}
+        </div>
       </div>
 
       <div css={styles.grid}>
@@ -145,22 +190,31 @@ export default function StockDetailsPage() {
             onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
           />
           <div style={{ marginTop: 12 }}>
-            <StockMovementsCard movimientos={item.historialMovimientos} />
+            <MovementsCard movimientos={item.historialMovimientos} />
           </div>
         </div>
 
         <div style={styles.rightCol}>
-          <StockInfoCard
-            item={item}
+          <ProductoInfoCard
+            codigo={item.codigo}
+            proveedor={item.proveedor}
+            ubicacion={item.ubicacion}
+            categorias={item.categorias}
+            categoriasDisponibles={categoriasDisponibles}
+            ultimaActualizacion={item.ultimaActualizacion}
             isEditing={isEditing}
-            draft={draft}
-            onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
+            draft={{ codigo: draft.codigo, proveedor: draft.proveedor, ubicacion: draft.ubicacion, categorias: draft.categorias }}
+            onChange={(patch) =>
+              setDraft((p) => (p ? { ...p, ...patch } : p))
+            }
           />
           <div style={{ marginTop: 12 }}>
-            <StockPricesCard
-              item={item}
+            <ProductoPricesCard
+              precioCompra={item.precioCompra}
+              precioVenta={item.precioVenta}
+              stockTotal={item.stockActual}
               isEditing={isEditing}
-              draft={draft}
+              draft={{ precioCompra: draft.precioCompra, precioVenta: draft.precioVenta }}
               onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
             />
           </div>

@@ -7,6 +7,7 @@ export const ROUTES = {
 	dashboard: "/dashboard",
 	turnos: "/turnos",
 	stock: "/stock",
+	productos: "/productos",
 } as const;
 
 export const API_ROUTES = {

@@ -30,7 +30,7 @@ export default function StockLevelsCard({ item, isEditing, draft, onChange }: Pr
         </div>
 
         <div style={{ marginTop: 8 }}>
-          <StockProgressBar item={base} height={12} />
+          <StockProgressBar levels={base} height={12} />
         </div>
 
         <div style={{ marginTop: 10 }}>

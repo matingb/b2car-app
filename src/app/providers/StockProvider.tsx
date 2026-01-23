@@ -8,7 +8,25 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import type { StockItem } from "@/model/stock";
+import type { StockMovement } from "@/model/stock";
+
+// Legacy provider: mantenido temporalmente para compatibilidad.
+// El modelo vigente para multi-taller se maneja en InventarioProvider.
+type StockItemLegacy = {
+  id: string;
+  nombre: string;
+  codigo: string;
+  categorias: string[];
+  stockActual: number;
+  stockMinimo: number;
+  stockMaximo: number;
+  precioCompra: number;
+  precioVenta: number;
+  proveedor: string;
+  ubicacion: string;
+  ultimaActualizacion: string;
+  historialMovimientos: StockMovement[];
+};
 
 export const STOCK_CATEGORIAS_DISPONIBLES = [
   "Aceites y Lubricantes",
@@ -24,24 +42,24 @@ export const STOCK_CATEGORIAS_DISPONIBLES = [
 ] as const;
 
 export type CreateStockItemInput = Omit<
-  StockItem,
+  StockItemLegacy,
   "id" | "ultimaActualizacion" | "historialMovimientos"
 > & {
   id?: string;
   ultimaActualizacion?: string;
-  historialMovimientos?: StockItem["historialMovimientos"];
+  historialMovimientos?: StockItemLegacy["historialMovimientos"];
 };
 
-export type UpdateStockItemInput = Partial<Omit<StockItem, "id">>;
+export type UpdateStockItemInput = Partial<Omit<StockItemLegacy, "id">>;
 
 type StockContextType = {
-  items: StockItem[];
+  items: StockItemLegacy[];
   loading: boolean;
   categoriasDisponibles: readonly string[];
-  fetchAll: () => Promise<StockItem[] | null>;
-  fetchById: (id: string) => Promise<StockItem | null>;
-  create: (input: CreateStockItemInput) => Promise<StockItem | null>;
-  update: (id: string, input: UpdateStockItemInput) => Promise<StockItem | null>;
+  fetchAll: () => Promise<StockItemLegacy[] | null>;
+  fetchById: (id: string) => Promise<StockItemLegacy | null>;
+  create: (input: CreateStockItemInput) => Promise<StockItemLegacy | null>;
+  update: (id: string, input: UpdateStockItemInput) => Promise<StockItemLegacy | null>;
   remove: (id: string) => Promise<void>;
 };
 
@@ -54,7 +72,7 @@ function formatShortEsDate(d: Date) {
   return `${day}/${month}/${year}`;
 }
 
-function buildNextStockId(prev: StockItem[]) {
+function buildNextStockId(prev: StockItemLegacy[]) {
   const max = prev
     .map((i) => Number(i.id.replace("STK-", "")))
     .filter((n) => Number.isFinite(n))
@@ -63,7 +81,7 @@ function buildNextStockId(prev: StockItem[]) {
   return `STK-${String(next).padStart(3, "0")}`;
 }
 
-const stockItemsMock: StockItem[] = [
+const stockItemsMock: StockItemLegacy[] = [
   {
     id: "STK-001",
     nombre: "Aceite Motor 10W40 Sintético",
@@ -281,7 +299,7 @@ const stockItemsMock: StockItem[] = [
 ];
 
 export function StockProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<StockItem[]>([]);
+  const [items, setItems] = useState<StockItemLegacy[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchAll = useCallback(async () => {
@@ -313,7 +331,7 @@ export function StockProvider({ children }: { children: React.ReactNode }) {
     try {
       const now = new Date();
       const id = input.id?.trim() || buildNextStockId(items.length ? items : stockItemsMock);
-      const nuevo: StockItem = {
+      const nuevo: StockItemLegacy = {
         id,
         nombre: input.nombre,
         codigo: input.codigo,
@@ -349,7 +367,7 @@ export function StockProvider({ children }: { children: React.ReactNode }) {
   const update = useCallback(async (id: string, input: UpdateStockItemInput) => {
     setLoading(true);
     try {
-      let updatedItem: StockItem | null = null;
+      let updatedItem: StockItemLegacy | null = null;
       setItems((prev) => {
         const now = formatShortEsDate(new Date());
         return prev.map((i) => {

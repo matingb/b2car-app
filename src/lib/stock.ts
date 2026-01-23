@@ -1,17 +1,21 @@
-import type { StockItem } from "@/model/stock";
-
 export type StockStatus = "bajo" | "normal" | "alto" | "critico";
 
-export function getStockStatus(item: StockItem): StockStatus {
-  if (item.stockActual === 0) return "critico";
-  if (item.stockActual < item.stockMinimo) return "bajo";
-  if (item.stockActual > item.stockMaximo) return "alto";
+export type StockLevels = {
+  stockActual: number;
+  stockMinimo: number;
+  stockMaximo: number;
+};
+
+export function getStockStatus(levels: StockLevels): StockStatus {
+  if (levels.stockActual === 0) return "critico";
+  if (levels.stockActual < levels.stockMinimo) return "bajo";
+  if (levels.stockActual > levels.stockMaximo) return "alto";
   return "normal";
 }
 
-export function getStockPercentage(item: StockItem): number {
-  if (!item.stockMaximo || item.stockMaximo <= 0) return 0;
-  return Math.min((item.stockActual / item.stockMaximo) * 100, 100);
+export function getStockPercentage(levels: StockLevels): number {
+  if (!levels.stockMaximo || levels.stockMaximo <= 0) return 0;
+  return Math.min((levels.stockActual / levels.stockMaximo) * 100, 100);
 }
 
 export function getStockStatusLabel(status: StockStatus): string {

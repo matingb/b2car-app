@@ -1,19 +1,18 @@
 "use client";
 
 import React from "react";
-import type { StockItem } from "@/model/stock";
 import { COLOR } from "@/theme/theme";
-import { getStockPercentage, getStockStatus } from "@/lib/stock";
+import { getStockPercentage, getStockStatus, type StockLevels } from "@/lib/stock";
 
 type Props = {
-  item: StockItem;
+  levels: StockLevels;
   height?: number;
   showMinLine?: boolean;
 };
 
-export default function StockProgressBar({ item, height = 8, showMinLine = true }: Props) {
-  const percentage = getStockPercentage(item);
-  const status = getStockStatus(item);
+export default function StockProgressBar({ levels, height = 8, showMinLine = true }: Props) {
+  const percentage = getStockPercentage(levels);
+  const status = getStockStatus(levels);
 
   const fill =
     status === "critico"
@@ -24,7 +23,10 @@ export default function StockProgressBar({ item, height = 8, showMinLine = true 
           ? COLOR.ACCENT.PRIMARY
           : "#15803d";
 
-  const minPct = item.stockMaximo > 0 ? Math.min((item.stockMinimo / item.stockMaximo) * 100, 100) : 0;
+  const minPct =
+    levels.stockMaximo > 0
+      ? Math.min((levels.stockMinimo / levels.stockMaximo) * 100, 100)
+      : 0;
 
   return (
     <div style={{ position: "relative", width: "100%" }}>
@@ -48,7 +50,7 @@ export default function StockProgressBar({ item, height = 8, showMinLine = true 
         />
       </div>
 
-      {showMinLine && item.stockMaximo > 0 && (
+      {showMinLine && levels.stockMaximo > 0 && (
         <div
           title="Mínimo"
           style={{

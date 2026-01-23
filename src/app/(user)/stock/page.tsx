@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { useRouter } from "next/navigation";
-import { useStock } from "@/app/providers/StockProvider";
+import { useTenant } from "@/app/providers/TenantProvider";
+import { useInventario } from "@/app/providers/InventarioProvider";
 import { useStockFilters, useStockStats } from "@/app/hooks/stock/useStockFilters";
 import StockToolbar from "@/app/components/stock/StockToolbar";
 import StockFiltersModal from "@/app/components/stock/StockFiltersModal";
@@ -11,6 +12,7 @@ import StockCreateModal from "@/app/components/stock/StockCreateModal";
 import StockStats from "@/app/components/stock/StockStats";
 import StockResults from "@/app/components/stock/StockResults";
 import Card from "@/app/components/ui/Card";
+import Dropdown from "@/app/components/ui/Dropdown";
 import { COLOR } from "@/theme/theme";
 
 export default function StockPage() {
@@ -19,7 +21,9 @@ export default function StockPage() {
 
 function StockPageContent() {
   const router = useRouter();
-  const { items, loading, categoriasDisponibles } = useStock();
+  const { talleres, tallerSeleccionadoId, setTallerSeleccionadoId } = useTenant();
+  const { getStockItemsForTaller, loading, categoriasDisponibles } = useInventario();
+  const items = getStockItemsForTaller(tallerSeleccionadoId);
   const state = useStockFilters(items);
   const stats = useStockStats(items);
 
@@ -29,6 +33,19 @@ function StockPageContent() {
   return (
     <div>
       <ScreenHeader title="Stock" />
+
+      <div style={{ marginTop: 12 }}>
+        <div style={styles.topRow}>
+          <div style={styles.tallerLabel}>Taller</div>
+          <div style={{ width: 280 }}>
+            <Dropdown
+              value={tallerSeleccionadoId}
+              options={talleres.map((t) => ({ value: t.id, label: t.nombre }))}
+              onChange={setTallerSeleccionadoId}
+            />
+          </div>
+        </div>
+      </div>
 
       <div style={{ marginTop: 12 }}>
         <StockStats
@@ -85,6 +102,7 @@ function StockPageContent() {
       <StockCreateModal
         open={isCreateOpen}
         categoriasDisponibles={categoriasDisponibles}
+        tallerId={tallerSeleccionadoId}
         onClose={() => setIsCreateOpen(false)}
         onCreated={(id) => router.push(`/stock/${id}`)}
       />
@@ -93,6 +111,16 @@ function StockPageContent() {
 }
 
 const styles = {
+  topRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+  tallerLabel: {
+    fontSize: 13,
+    color: COLOR.TEXT.SECONDARY,
+    fontWeight: 600,
+  },
   resultsHeader: {
     display: "flex",
     alignItems: "baseline",

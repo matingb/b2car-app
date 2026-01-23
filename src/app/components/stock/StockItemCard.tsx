@@ -59,7 +59,7 @@ export default function StockItemCard({ item, onClick }: Props) {
             <span style={{ fontWeight: 700 }}>{item.stockActual}</span>
             <span style={{ color: COLOR.TEXT.SECONDARY }}> / {item.stockMaximo}</span>
           </div>
-          <StockProgressBar item={item} height={8} />
+          <StockProgressBar levels={item} height={8} />
         </div>
 
         <div style={styles.statusCol}>

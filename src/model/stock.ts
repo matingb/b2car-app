@@ -9,6 +9,8 @@ export type StockMovement = {
 
 export type StockItem = {
   id: string;
+  productoId: string;
+  tallerId: string;
   nombre: string;
   codigo: string;
   categorias: string[];
