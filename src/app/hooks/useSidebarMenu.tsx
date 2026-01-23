@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
   LogOut,
+  Boxes,
   Users,
   Wrench,
 } from "lucide-react";
@@ -19,6 +20,7 @@ export enum SidebarMenuKey {
   Clientes = "clientes",
   Vehiculos = "vehiculos",
   Arreglos = "arreglos",
+  Stock = "stock",
   Logout = "logout",
 }
 
@@ -97,6 +99,13 @@ export function useSidebarMenu() {
         label: "Arreglos",
         icon: <Wrench size={18} />,
         onClick: () => router.push(ROUTES.arreglos),
+      },
+      {
+        key: SidebarMenuKey.Stock,
+        href: ROUTES.stock,
+        label: "Stock",
+        icon: <Boxes size={18} />,
+        onClick: () => router.push(ROUTES.stock),
       },
       {
         key: SidebarMenuKey.Logout,

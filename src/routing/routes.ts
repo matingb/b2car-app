@@ -6,6 +6,7 @@ export const ROUTES = {
 	arreglos: "/arreglos",
 	dashboard: "/dashboard",
 	turnos: "/turnos",
+	stock: "/stock",
 } as const;
 
 export const API_ROUTES = {
