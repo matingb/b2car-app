@@ -12,7 +12,7 @@ import React, {
 import { TurnoEstado } from "@/model/dtos";
 import { Cliente, TipoCliente, Turno, Vehiculo } from "@/model/types";
 import { turnosClient } from "@/clients/turnosClient";
-import { CreateTurnoInput } from "@/app/api/turnos/turnosService";
+import { CreateTurnoInput, ListTurnosFilters } from "@/app/api/turnos/turnosService";
 
 
 type TurnosContextType = {
@@ -20,7 +20,8 @@ type TurnosContextType = {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<Turno[]>;
-  getTurnosByDate: (date: Date) => Turno[];
+  filterTurnosByDate: (date: Date) => Turno[];
+  getWithFilters: (filters: ListTurnosFilters) => Promise<Turno[]>;
   create: (input: CreateTurnoInput) => Promise<Turno | null>;
 };
 
@@ -103,7 +104,7 @@ function createTurnoMock(input: {
     id: input.id,
     fecha: input.fecha,
     hora: input.hora,
-    duracion: input.duracion || null, 
+    duracion: input.duracion || null,
     vehiculo,
     cliente,
     tipo: input.tipo || null,
@@ -419,11 +420,37 @@ export function TurnosProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const getWithFilters = useCallback(async (filters: ListTurnosFilters) => {
+    setError(null);
+    try {
+      const data = await turnosClient.getWithFilters(filters);
+      const turnosData = data.data || [];
+      if (data.error) {
+        throw new Error(data.error.message);
+      }
+      return turnosData;
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Error cargando turnos"; 
+      setError(message);
+      return [];
+    }
+  }, []);
 
-  const getTurnosByDate = useCallback(
+  const create = useCallback(async (input: CreateTurnoInput) => {
+    setLoading(true);
+    try {
+      const response = await turnosClient.create(input);
+      if (response?.error) throw new Error(response.error.message);
+      const turno = response?.data;
+      return turno ?? null;
+    }
+    finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const filterTurnosByDate = useCallback(
     (date: Date) => {
       const iso = toISODateLocal(date);
       return turnos.filter((t) => t.fecha === iso);
@@ -431,33 +458,23 @@ export function TurnosProvider({ children }: { children: React.ReactNode }) {
     [turnos]
   );
 
-  const create = useCallback(async (input: CreateTurnoInput) => {
-      setLoading(true);
-      try{
-        const response = await turnosClient.create(input);
-        if (response?.error) throw new Error(response.error.message);
-        const turno = response?.data;
-      if (turno) {
-        //setTurnos((prev) => [...prev, turno]);
-      }
-      return turno ?? null;
-      }
-      finally {
-        setLoading(false);
-      }
-    }, []);
-
   const value = useMemo<TurnosContextType>(
     () => ({
       turnos,
       loading,
       error,
       refresh,
-      getTurnosByDate,
+      getWithFilters,
+      filterTurnosByDate,
       create
     }),
-    [turnos, loading, error, refresh, getTurnosByDate, create]
+    [turnos, loading, error, refresh, getWithFilters, filterTurnosByDate, create]
   );
+
+  useEffect(() => {
+    
+  }, []);
+
 
   return (
     <TurnosContext.Provider value={value}>{children}</TurnosContext.Provider>

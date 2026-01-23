@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Card from "@/app/components/ui/Card";
 import { useTurnos } from "@/app/providers/TurnosProvider";
 import { Turno } from "@/model/types";
@@ -16,8 +16,19 @@ type Props = {
 };
 
 export default function TurnosMonthlyView({ fechaActual, onSelectTurno, onSelectDia }: Props) {
-  const { getTurnosByDate } = useTurnos();
   const days = useMemo(() => getMonthGrid(fechaActual), [fechaActual]);
+  const monthStart = toISODateLocal(days[0] || new Date());
+  const monthEnd = toISODateLocal(days[days.length - 1] || new Date());
+
+  const [turnos, setTurnos] = useState<Turno[]>([]);
+  const { getWithFilters } = useTurnos();
+  useEffect(() => {
+    const fetchTurnos = async () => {
+      const res = await getWithFilters({ from: monthStart, to: monthEnd });
+      setTurnos(res);
+    };
+    fetchTurnos();
+  }, [monthStart, monthEnd, getWithFilters]);
 
   return (
     <Card data-testid="turnos-view-mensual">
@@ -34,7 +45,7 @@ export default function TurnosMonthlyView({ fechaActual, onSelectTurno, onSelect
               return <div key={`empty-${idx}`} style={styles.monthEmptyCell} />;
             }
 
-            const turnosDia = getTurnosByDate(dia);
+            const turnosDia = turnos.filter(t => toISODateLocal(new Date(t.fecha)) === toISODateLocal(dia));
             const iso = toISODateLocal(dia);
 
             return (

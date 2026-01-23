@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Card from "@/app/components/ui/Card";
 import Pill from "@/app/components/turnos/Pill";
 import { useTurnos } from "@/app/providers/TurnosProvider";
@@ -58,13 +58,16 @@ export default function TurnosWeeklyGridHView({
   onSelectTurno,
   onSelectDia,
 }: Props) {
-  const { getTurnosByDate } = useTurnos();
+  const { getWithFilters } = useTurnos();
   const [hoveredTurnoId, setHoveredTurnoId] = useState<number | null>(null);
+  const [turnos, setTurnos] = useState<Turno[]>([]);
   const dias = useMemo(() => getWeekDays(fechaActual), [fechaActual]);
   const horas = useMemo(
     () => Array.from({ length: HORA_COLUMNAS }, (_, i) => i + HORA_INICIO),
     []
   );
+  const weekStart = toISODateLocal(dias[0]);
+  const weekEnd = toISODateLocal(dias[6]);
 
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -73,7 +76,15 @@ export default function TurnosWeeklyGridHView({
     nowMinutes >= HORA_INICIO * 60 &&
     nowMinutes <= (HORA_INICIO + HORA_COLUMNAS) * 60;
   
-  
+  useEffect(() => {
+    const fetchTurnos = async () => {
+      const res = await getWithFilters({ from: toISODateLocal(dias[0]), to: toISODateLocal(dias[6]) });
+      setTurnos(res);
+    };
+    fetchTurnos();
+  }, [weekStart, weekEnd, getWithFilters]);
+
+
 
   return (
     <div data-testid="turnos-view-semanal">
@@ -96,7 +107,7 @@ export default function TurnosWeeklyGridHView({
 
             <div>
               {dias.map((dia, idx) => {
-                const turnosDia = getTurnosByDate(dia);
+                const turnosDia = turnos.filter((t) => t.fecha === toISODateLocal(dia));
                 logger.debug("TurnosWeeklyGridHView", turnosDia);
                 const columnas = organizarTurnosEnColumnas(turnosDia);
                 const colCount = Math.max(1, columnas.length);

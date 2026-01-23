@@ -34,6 +34,23 @@ export type CreateTurnoInput = {
 	observaciones?: string | null;
 };
 
+export type UpdateTurnoInput = {
+	id: string;
+	fecha?: string; // YYYY-MM-DD
+	hora?: string; // HH:mm
+	duracion?: number | null;
+	vehiculo_id?: string;
+	cliente_id?: string;
+	tipo?: string | null;
+	estado?: TurnoEstado;
+	descripcion?: string | null;
+	observaciones?: string | null;
+};
+
+export type DeleteTurnoInput = {
+	id: string;
+};
+
 export type CreateTurnoResponse = {
 	data: Turno | null;
 	error: SupabaseError | null;
@@ -42,25 +59,6 @@ export type CreateTurnoResponse = {
 export type GetTurnosResponse = {
     data: Turno[] | null;
     error?: SupabaseError | null;
-};
-
-type ClienteJoinRow = {
-	id?: string;
-	tipo_cliente?: TipoCliente;
-	particular?: {
-		nombre?: string;
-		apellido?: string;
-		telefono?: string;
-		email?: string;
-		direccion?: string;
-	} | null;
-	empresa?: {
-		nombre?: string;
-		telefono?: string;
-		email?: string;
-		direccion?: string;
-		cuit?: string;
-	} | null;
 };
 
 type TurnoListRow = TurnoRow & {
@@ -85,6 +83,39 @@ type TurnoListRow = TurnoRow & {
 	empresa_direccion?: string | null;
 	empresa_cuit?: string | null;
 };
+
+function toHHMM(value: unknown): string | null {
+	if (value == null) return null;
+
+	if (typeof value === "string") {
+		if (value.includes(":")) {
+			const [h, m] = value.split(":");
+			const hours = Number.parseInt(h ?? "", 10);
+			const minutes = Number.parseInt(m ?? "", 10);
+			if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+				return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+			}
+			return null;
+		}
+
+		const n = Number(value);
+		if (!Number.isFinite(n)) return null;
+		const minutesTotal = Math.trunc(n);
+		const hours = Math.floor(minutesTotal / 60);
+		const minutes = minutesTotal % 60;
+		return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+	}
+
+	if (typeof value === "number") {
+		if (!Number.isFinite(value)) return null;
+		const minutesTotal = Math.trunc(value);
+		const hours = Math.floor(minutesTotal / 60);
+		const minutes = minutesTotal % 60;
+		return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+	}
+
+	return null;
+}
 
 export const turnosService = {
 	async list(
@@ -147,7 +178,7 @@ export const turnosService = {
 			return {
 				id: row.id,
 				fecha: row.fecha,
-				hora: row.hora,
+				hora: toHHMM(row.hora) || "09:00",
 				duracion: row.duracion,
 				vehiculo,
 				cliente,
@@ -190,5 +221,38 @@ export const turnosService = {
 
 		return { data: inserted , error: null };
 	},
+	async update(
+		supabase: SupabaseClient,
+		input: UpdateTurnoInput
+	): Promise<{ data: Turno | null; error: SupabaseError | null }> {
+
+		const { data: updated, error } = await supabase
+			.from("turnos")
+			.update(input)
+			.eq("id", input.id)
+			.select("*")
+			.single();
+
+		if (error) {
+			return { data: null, error: { message: error.message, code: (error as { code?: string }).code } };
+		}
+
+		return { data: updated , error: null };
+	},
+	async delete(
+		supabase: SupabaseClient,
+		input: DeleteTurnoInput
+	): Promise<{ error: SupabaseError | null }> {
+
+		const { error } = await supabase
+			.from("turnos")
+			.delete()
+			.eq("id", input.id);
+
+		if (error) {
+			return { error: { message: error.message, code: (error as { code?: string }).code } };
+		}
+		return { error: null };
+	}
 } as const;
 

@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import Card from "@/app/components/ui/Card";
 import Pill from "@/app/components/turnos/Pill";
 import { useTurnos } from "@/app/providers/TurnosProvider";
 import { Turno } from "@/model/types";
 import { COLOR } from "@/theme/theme";
 import { CalendarDays } from "lucide-react";
-import { horaAMinutos, isSameLocalDay } from "@/app/components/turnos/utils/calendar";
+import { horaAMinutos, isSameLocalDay, toISODateLocal } from "@/app/components/turnos/utils/calendar";
 
 function detectarSuperposiciones(turnos: Turno[]) {
   const turnosOrdenados = [...turnos].sort(
@@ -44,12 +44,17 @@ type Props = {
 };
 
 export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
-  const { getTurnosByDate } = useTurnos();
-  const turnosDelDia = useMemo(
-    () => getTurnosByDate(fechaActual),
-    [fechaActual, getTurnosByDate]
-  );
+  const { getWithFilters} = useTurnos();
+  const [turnosDelDia, setTurnos] = React.useState<Turno[]>([]);
 
+  useEffect(() => {
+    const fetchTurnos = async () => {
+      const res = await getWithFilters({ fecha: toISODateLocal(fechaActual) });
+      setTurnos(res);
+    };
+    fetchTurnos();
+  }, [fechaActual, getWithFilters]);
+  
   const { turnosOrdenados, grupos } = useMemo(
     () => detectarSuperposiciones(turnosDelDia),
     [turnosDelDia]
@@ -86,119 +91,119 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
   return (
     <div data-testid="turnos-view-diaria">
       <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
-      <Card>
-        <div style={{ padding: 12 }}>
-          <div style={styles.timelineRoot}>
-            {showNowLine ? (
-              <div
-                style={{
-                  ...styles.nowLineHorizontal,
-                  top: nowTop,
-                }}
-                aria-hidden="true"
-              />
-            ) : null}
+        <Card>
+          <div style={{ padding: 12 }}>
+            <div style={styles.timelineRoot}>
+              {showNowLine ? (
+                <div
+                  style={{
+                    ...styles.nowLineHorizontal,
+                    top: nowTop,
+                  }}
+                  aria-hidden="true"
+                />
+              ) : null}
 
-            <div style={styles.timelineGrid}>
-              {horas.map((h) => (
-                <div key={h} style={styles.timelineRow}>
-                  <div style={styles.timelineHourLabel}>
-                    {String(h).padStart(2, "0")}:00
+              <div style={styles.timelineGrid}>
+                {horas.map((h) => (
+                  <div key={h} style={styles.timelineRow}>
+                    <div style={styles.timelineHourLabel}>
+                      {String(h).padStart(2, "0")}:00
+                    </div>
+                    <div style={styles.timelineHourCell}>
+                      <div style={styles.timelineHalfLine} />
+                    </div>
                   </div>
-                  <div style={styles.timelineHourCell}>
-                    <div style={styles.timelineHalfLine} />
+                ))}
+              </div>
+
+              <div style={styles.timelineOverlay} aria-label="Turnos en timeline">
+                {grupos.map((grupo) => {
+                  const columns = Math.max(1, grupo.length);
+                  return grupo.map((turno, idx) => {
+                    const inicioMin = horaAMinutos(turno.hora);
+                    const hourOffset = Math.floor(inicioMin / 60) - horaInicioItinerario;
+                    const topOffset = hourOffset * 60 + (inicioMin % 60) + hourOffset;
+                    const height = Math.max(60, (turno.duracion || 0));
+                    const width = `${100 / columns - 1}%`;
+                    const left = `${(idx * 100) / columns + 0.5}%`;
+
+                    // “tamaños para no cortar datos”: si la caja es baja,
+                    // truncamos y omitimos líneas menos importantes.
+                    const showTitular = height >= 88;
+                    const showBottom = height >= 120;
+
+                    return (
+                      <div
+                        key={turno.id}
+                        onClick={() => onSelectTurno(turno)}
+                        style={{
+                          ...styles.timelineTurno,
+                          top: topOffset,
+                          height,
+                          width,
+                          left,
+                        }}
+                        role="button"
+                        aria-label={`Turno ${turno.hora} ${turno.vehiculo}`}
+                      >
+                        <div style={styles.tlHora}>{turno.hora}</div>
+                        <div style={styles.tlVehiculo} title={turno.vehiculo.modelo}>
+                          {turno.vehiculo.marca} {turno.vehiculo.modelo}
+                        </div>
+                        {showTitular ? (
+                          <div style={styles.tlTitular} title={turno.cliente.nombre}>
+                            {turno.cliente.nombre}
+                          </div>
+                        ) : null}
+                        {showBottom ? (
+                          <div style={styles.timelineTurnoBottom}>
+                            <Pill text={turno.tipo || "Sin tipo"} />
+                            {turno.duracion != null ? (
+                              <span style={styles.tlDuracion}>
+                                {turno.duracion}min
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  });
+                })}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div style={{ padding: 12 }}>
+            <div style={styles.dayListHeaderRow}>
+              <div style={{ fontSize: 24, fontWeight: 600 }}>Lista de turnos</div>
+              <Pill text={`${turnosDelDia.length} turnos`} />
+            </div>
+            <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+              {turnosOrdenados.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => onSelectTurno(t)}
+                  style={styles.dayListItem}
+                >
+                  <div style={styles.dayListTime}>{t.hora}</div>
+                  <div style={{ display: "grid", gap: 2, flex: 1, minWidth: 0 }}>
+                    <div style={styles.dayListVehiculo} title={t.vehiculo.modelo}>
+                      {t.vehiculo.marca} {t.vehiculo.modelo}
+                    </div>
+                    <div style={styles.dayListSub}>
+                      {t.cliente.nombre}
+                      {t.duracion != null ? <> • {t.duracion} min</> : null}
+                    </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
-
-            <div style={styles.timelineOverlay} aria-label="Turnos en timeline">
-              {grupos.map((grupo) => {
-                const columns = Math.max(1, grupo.length);
-                return grupo.map((turno, idx) => {
-                  const inicioMin = horaAMinutos(turno.hora);
-                  const hourOffset = Math.floor(inicioMin / 60) - horaInicioItinerario;
-                  const topOffset = hourOffset * 60 + (inicioMin % 60) + hourOffset;
-                  const height = Math.max(60, (turno.duracion || 0));
-                  const width = `${100 / columns - 1}%`;
-                  const left = `${(idx * 100) / columns + 0.5}%`;
-
-                  // “tamaños para no cortar datos”: si la caja es baja,
-                  // truncamos y omitimos líneas menos importantes.
-                  const showTitular = height >= 88;
-                  const showBottom = height >= 120;
-
-                  return (
-                    <div
-                      key={turno.id}
-                      onClick={() => onSelectTurno(turno)}
-                      style={{
-                        ...styles.timelineTurno,
-                        top: topOffset,
-                        height,
-                        width,
-                        left,
-                      }}
-                      role="button"
-                      aria-label={`Turno ${turno.hora} ${turno.vehiculo}`}
-                    >
-                      <div style={styles.tlHora}>{turno.hora}</div>
-                      <div style={styles.tlVehiculo} title={turno.vehiculo.modelo}>
-                        {turno.vehiculo.marca} {turno.vehiculo.modelo}
-                      </div>
-                      {showTitular ? (
-                        <div style={styles.tlTitular} title={turno.cliente.nombre}>
-                          {turno.cliente.nombre}
-                        </div>
-                      ) : null}
-                      {showBottom ? (
-                        <div style={styles.timelineTurnoBottom}>
-                          <Pill text={turno.tipo || "Sin tipo"} />
-                          {turno.duracion != null ? (
-                            <span style={styles.tlDuracion}>
-                              {turno.duracion}min
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                });
-              })}
-            </div>
           </div>
-        </div>
-      </Card>
-
-      <Card>
-        <div style={{ padding: 12 }}>
-          <div style={styles.dayListHeaderRow}>
-            <div style={{ fontSize: 24, fontWeight: 600 }}>Lista de turnos</div>
-            <Pill text={`${turnosDelDia.length} turnos`} />
-          </div>
-          <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-            {turnosOrdenados.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => onSelectTurno(t)}
-                style={styles.dayListItem}
-              >
-                <div style={styles.dayListTime}>{t.hora}</div>
-                <div style={{ display: "grid", gap: 2, flex: 1, minWidth: 0 }}>
-                  <div style={styles.dayListVehiculo} title={t.vehiculo.modelo}>
-                    {t.vehiculo.marca} {t.vehiculo.modelo}
-                  </div>
-                  <div style={styles.dayListSub}>
-                    {t.cliente.nombre}
-                    {t.duracion != null ? <> • {t.duracion} min</> : null}
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </Card>
+        </Card>
       </div>
     </div>
   );

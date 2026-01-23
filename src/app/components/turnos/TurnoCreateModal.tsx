@@ -11,7 +11,6 @@ import { useTurnos } from "@/app/providers/TurnosProvider";
 import { CreateTurnoInput } from "@/app/api/turnos/turnosService";
 import Dropdown from "@/app/components/ui/Dropdown";
 import { TipoCliente } from "@/model/types";
-import { logger } from "@/lib/logger";
 
 export type CreatedTurno = {
 	id: number;
@@ -202,7 +201,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 		const okFecha = /^\d{4}-\d{2}-\d{2}$/.test(fecha);
 		const okHora = /^\d{2}:\d{2}$/.test(hora);
 		return okCliente && okVehiculo && okFecha && okHora
-	}, [clienteId, vehiculoId, fecha, hora, duracion, tipo, isCreatingCliente, isCreatingVehiculo, clienteInlineIsValid, vehiculoInlineIsValid]);
+	}, [clienteId, vehiculoId, fecha, hora, isCreatingCliente, isCreatingVehiculo, clienteInlineIsValid, vehiculoInlineIsValid]);
 
 	if (!open) return null;
 
