@@ -14,7 +14,9 @@ import Card from "@/app/components/ui/Card";
 import Dropdown from "@/app/components/ui/Dropdown";
 import { COLOR } from "@/theme/theme";
 import StockItemCard from "@/app/components/stock/StockItemCard";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, PlusIcon } from "lucide-react";
+import Button from "@/app/components/ui/Button";
+import TallerCreateModal from "@/app/components/inventario/TallerCreateModal";
 
 export default function StockPage() {
   return <StockPageContent />;
@@ -30,6 +32,7 @@ function StockPageContent() {
 
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isTallerCreateOpen, setIsTallerCreateOpen] = useState(false);
 
   return (
     <div>
@@ -38,13 +41,20 @@ function StockPageContent() {
       <div style={{ marginTop: 12 }}>
         <div style={styles.topRow}>
           <div style={styles.tallerLabel}>Taller</div>
-          <div style={{ width: 280 }}>
+          <div style={{ width: 280, height: 40 }}>
             <Dropdown
               value={tallerSeleccionadoId}
               options={talleres.map((t) => ({ value: t.id, label: t.nombre }))}
               onChange={setTallerSeleccionadoId}
+              style={{height: 40, padding: '0 12px'}}
             />
           </div>
+            <Button
+              icon={<PlusIcon size={20} />}
+              text="Nuevo taller"
+              onClick={() => setIsTallerCreateOpen(true)}
+              style={{ height: 40 }}
+            />
         </div>
       </div>
 
@@ -70,7 +80,7 @@ function StockPageContent() {
 
       <div style={{ marginTop: 12 }}>
         <div style={styles.resultsHeader}>
-          <div style={styles.resultsTitle}>Inventario</div>
+          <div style={styles.resultsTitle}><h2>Inventario</h2></div>
           <div style={styles.resultsCount}>
             {state.itemsFiltrados.length} de {items.length} items
           </div>
@@ -118,6 +128,11 @@ function StockPageContent() {
         tallerId={tallerSeleccionadoId}
         onClose={() => setIsCreateOpen(false)}
         onCreated={(id) => router.push(`/stock/${id}`)}
+      />
+
+      <TallerCreateModal
+        open={isTallerCreateOpen}
+        onClose={() => setIsTallerCreateOpen(false)}
       />
     </div>
   );

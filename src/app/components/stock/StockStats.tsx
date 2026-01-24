@@ -57,7 +57,7 @@ function StatCard({
           {icon}
         </div>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: color ?? COLOR.TEXT.PRIMARY }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: color ?? COLOR.TEXT.PRIMARY }}>
             {value}
           </div>
           <div style={{ fontSize: 13, color: COLOR.TEXT.SECONDARY }}>{title}</div>

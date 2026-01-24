@@ -43,7 +43,7 @@ function ProductosPageContent() {
           icon={<PlusIcon size={20} />}
           text="Nuevo producto"
           onClick={() => setIsCreateOpen(true)}
-          style={{ height: 40, width: 44 }}
+          style={{ height: 40 }}
         />
       </div>
 
@@ -60,7 +60,7 @@ function ProductosPageContent() {
 
       <div style={{ marginTop: 12 }}>
         <div style={styles.resultsHeader}>
-          <div style={styles.resultsTitle}>Listado</div>
+          <div style={styles.resultsTitle}><h2>Listado</h2></div>
           <div style={styles.resultsCount}>
             {state.productosFiltrados.length} de {productos.length} productos
           </div>
