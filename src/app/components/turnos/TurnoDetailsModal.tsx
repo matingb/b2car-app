@@ -165,14 +165,7 @@ export default function TurnoDetailsModal({
               style={{ minWidth: 0 }}
             />
             <Button
-              text="Imprimir"
-              outline
-              hideText={false}
-              onClick={() => onPrint?.(turno)}
-              style={{ minWidth: 0 }}
-            />
-            <Button
-              text="Cancelar"
+              text="Eliminar"
               hideText={false}
               onClick={() => onCancel?.(turno)}
               style={{ minWidth: 0, background: COLOR.ICON.DANGER }}

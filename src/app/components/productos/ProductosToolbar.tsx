@@ -3,7 +3,7 @@
 import SearchBar from "@/app/components/ui/SearchBar";
 import Button from "@/app/components/ui/Button";
 import FilterChip from "@/app/components/ui/FilterChip";
-import { Filter } from "lucide-react";
+import { Filter, PlusIcon } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import type { ProductosChip, ProductosChipKind } from "@/app/hooks/productos/useProductosFilters";
@@ -14,6 +14,7 @@ type Props = {
   onOpenFilters: () => void;
   chips: ProductosChip[];
   onChipClick: (kind: ProductosChipKind) => void;
+  onNewProductClick?: () => void;
   onClearFilters: () => void;
   style?: React.CSSProperties;
 };
@@ -25,13 +26,20 @@ export default function ProductosToolbar({
   chips,
   onChipClick,
   onClearFilters,
-  style,
+  onNewProductClick,
+  style
 }: Props) {
   return (
     <div style={{ ...styles.container, ...(style ?? {}) }}>
       <div style={styles.row}>
         <SearchBar value={search} onChange={onSearchChange} placeholder="Buscar productos..." style={styles.search} />
         <Button icon={<Filter size={20} />} text="Filtrar" onClick={onOpenFilters} style={styles.filterButton} outline />
+        <Button
+          icon={<PlusIcon size={20} />}
+          text="Nuevo producto"
+          onClick={onNewProductClick}
+          style={{ height: 40 }}
+        />
       </div>
 
       {chips.length > 0 && (

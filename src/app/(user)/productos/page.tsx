@@ -39,12 +39,6 @@ function ProductosPageContent() {
     <div>
       <div style={styles.headerTop}>
         <ScreenHeader title="Productos" />
-        <Button
-          icon={<PlusIcon size={20} />}
-          text="Nuevo producto"
-          onClick={() => setIsCreateOpen(true)}
-          style={{ height: 40 }}
-        />
       </div>
 
       <div style={{ marginTop: 12 }}>
@@ -55,6 +49,7 @@ function ProductosPageContent() {
           chips={state.chips}
           onChipClick={state.removeFilter}
           onClearFilters={state.clearFilters}
+          onNewProductClick={() => setIsCreateOpen(true)}
         />
       </div>
 
