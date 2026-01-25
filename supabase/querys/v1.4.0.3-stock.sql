@@ -32,3 +32,24 @@ before update on public.stocks
 for each row
 execute function public.update_updated_at_column();
 
+alter table public.stocks enable row level security;
+drop policy if exists tenant_access on public.stocks;
+create policy tenant_access
+on public.stocks
+to authenticated
+using (tenant_id = public.current_tenant_id())
+with check (tenant_id = public.current_tenant_id());
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'stocks_taller_producto_unique_constraint'
+      and conrelid = 'public.stocks'::regclass
+  ) then
+    alter table public.stocks
+      add constraint stocks_taller_producto_unique_constraint
+      unique using index stocks_taller_producto_unique;
+  end if;
+end $$;

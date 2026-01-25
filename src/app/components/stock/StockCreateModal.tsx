@@ -8,6 +8,7 @@ import { css } from "@emotion/react";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import { useToast } from "@/app/providers/ToastProvider";
+import { useProductos } from "@/app/providers/ProductosProvider";
 
 const CREATE_PRODUCTO_VALUE = "__create_producto__";
 
@@ -26,7 +27,8 @@ export default function StockCreateModal({
   onClose,
   onCreated,
 }: Props) {
-  const { productos, createProducto, upsertStock, loading } = useInventario();
+  const { productos, createProducto, isLoading } = useProductos();
+  const { upsertStock } = useInventario();
   const toast = useToast();
 
   const [productoId, setProductoId] = useState("");
@@ -38,8 +40,8 @@ export default function StockCreateModal({
   const [codigo, setCodigo] = useState("");
   const [proveedor, setProveedor] = useState("");
   const [ubicacion, setUbicacion] = useState("");
-  const [precioCompra, setPrecioCompra] = useState<number>(0);
-  const [precioVenta, setPrecioVenta] = useState<number>(0);
+  const [precioUnitario, setPrecioUnitario] = useState<number>(0);
+  const [costoUnitario, setCostoUnitario] = useState<number>(0);
   const [categorias, setCategorias] = useState<string[]>([]);
 
   // Stock (opcional)
@@ -54,8 +56,8 @@ export default function StockCreateModal({
     setCodigo("");
     setProveedor("");
     setUbicacion("");
-    setPrecioCompra(0);
-    setPrecioVenta(0);
+    setPrecioUnitario(0);
+    setCostoUnitario(0);
     setCategorias([]);
     setStockActual("");
     setStockMinimo("");
@@ -72,7 +74,7 @@ export default function StockCreateModal({
     return [
       { value: CREATE_PRODUCTO_VALUE, label: "+ Crear producto", secondaryLabel: "Cargar datos del producto nuevo" },
       ...productos.map((p) => ({
-        value: p.productoId,
+        value: p.id,
         label: p.nombre,
         secondaryLabel: p.codigo,
       })),
@@ -108,15 +110,15 @@ export default function StockCreateModal({
           proveedor: proveedor.trim(),
           ubicacion: ubicacion.trim(),
           categorias,
-          precioCompra,
-          precioVenta,
+          precioUnitario: precioUnitario,
+          costoUnitario: costoUnitario,
         });
         if (!createdProducto) {
           setSubmitError("No se pudo crear el producto");
           return;
         }
         const createdStock = await upsertStock({
-          productoId: createdProducto.productoId,
+          productoId: createdProducto.id,
           tallerId,
           stockActual: stockActualN,
           stockMinimo: stockMinimoN,
@@ -155,7 +157,7 @@ export default function StockCreateModal({
       onClose={onClose}
       onSubmit={handleSubmit}
       submitText="Crear"
-      submitting={loading}
+      submitting={isLoading}
       disabledSubmit={!canSubmit}
     >
       <div style={{ padding: "4px 0 12px" }}>
@@ -229,8 +231,8 @@ export default function StockCreateModal({
                 <input
                   type="number"
                   style={styles.input}
-                  value={precioCompra}
-                  onChange={(e) => setPrecioCompra(Number(e.target.value) || 0)}
+                  value={precioUnitario}
+                  onChange={(e) => setPrecioUnitario(Number(e.target.value) || 0)}
                   placeholder="0"
                 />
               </div>
@@ -239,8 +241,8 @@ export default function StockCreateModal({
                 <input
                   type="number"
                   style={styles.input}
-                  value={precioVenta}
-                  onChange={(e) => setPrecioVenta(Number(e.target.value) || 0)}
+                  value={costoUnitario}
+                  onChange={(e) => setCostoUnitario(Number(e.target.value) || 0)}
                   placeholder="0"
                 />
               </div>

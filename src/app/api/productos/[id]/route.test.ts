@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { GET, PUT, DELETE } from "./route";
 
 vi.mock("@/supabase/server", () => ({
@@ -31,13 +33,13 @@ describe("/api/productos/[id]", () => {
           eq: async () => ({ data: [] }),
         }),
       }),
-    } as any);
+    } as unknown as SupabaseClient);
   });
 
   it("GET not found devuelve 404", async () => {
     vi.mocked(productosService.getById).mockResolvedValue({ data: null, error: ProductosServiceError.NotFound });
-    const req = new Request("http://localhost/api/productos/p1");
-    const res = await GET(req as any, { params: Promise.resolve({ id: "p1" }) });
+    const req = new NextRequest("http://localhost/api/productos/p1");
+    const res = await GET(req, { params: Promise.resolve({ id: "p1" }) });
     expect(res.status).toBe(404);
   });
 
@@ -61,12 +63,12 @@ describe("/api/productos/[id]", () => {
       error: null,
     });
 
-    const req = new Request("http://localhost/api/productos/p1", {
+    const req = new NextRequest("http://localhost/api/productos/p1", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nombre: "Nuevo" }),
     });
-    const res = await PUT(req as any, { params: Promise.resolve({ id: "PROD-1" }) });
+    const res = await PUT(req, { params: Promise.resolve({ id: "PROD-1" }) });
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -74,10 +76,30 @@ describe("/api/productos/[id]", () => {
     expect(body.data?.nombre).toBe("Nuevo");
   });
 
+  it("PUT rechaza nombre vacío con 400", async () => {
+    const req = new NextRequest("http://localhost/api/productos/p1", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre: "   " }),
+    });
+    const res = await PUT(req, { params: Promise.resolve({ id: "PROD-1" }) });
+    expect(res.status).toBe(400);
+  });
+
+  it("PUT rechaza precio negativo con 400", async () => {
+    const req = new NextRequest("http://localhost/api/productos/p1", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ precio_unitario: -10 }),
+    });
+    const res = await PUT(req, { params: Promise.resolve({ id: "PROD-1" }) });
+    expect(res.status).toBe(400);
+  });
+
   it("DELETE elimina y devuelve 200", async () => {
     vi.mocked(productosService.deleteById).mockResolvedValue({ error: null });
-    const req = new Request("http://localhost/api/productos/p1", { method: "DELETE" });
-    const res = await DELETE(req as any, { params: Promise.resolve({ id: "PROD-1" }) });
+    const req = new NextRequest("http://localhost/api/productos/p1", { method: "DELETE" });
+    const res = await DELETE(req, { params: Promise.resolve({ id: "PROD-1" }) });
     expect(res.status).toBe(200);
   });
 });

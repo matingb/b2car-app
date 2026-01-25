@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { useRouter } from "next/navigation";
-import { useInventario } from "@/app/providers/InventarioProvider";
 import { useProductosFilters } from "@/app/hooks/productos/useProductosFilters";
 import ProductosToolbar from "@/app/components/productos/ProductosToolbar";
 import ProductosFiltersModal from "@/app/components/productos/ProductosFiltersModal";
@@ -11,9 +10,8 @@ import ProductoCreateModal from "@/app/components/productos/ProductoCreateModal"
 import Card from "@/app/components/ui/Card";
 import { COLOR } from "@/theme/theme";
 import ProductoItemCard from "@/app/components/productos/ProductoItemCard";
-import Button from "@/app/components/ui/Button";
-import { PlusIcon } from "lucide-react";
 import { LoaderCircle } from "lucide-react";
+import { useProductos } from "@/app/providers/ProductosProvider";
 
 export default function ProductosPage() {
   return <ProductosPageContent />;
@@ -21,19 +19,10 @@ export default function ProductosPage() {
 
 function ProductosPageContent() {
   const router = useRouter();
-  const { productos, stockRegistros, categoriasDisponibles, loading } = useInventario();
+  const { productos, categoriasDisponibles, isLoading } = useProductos();
   const state = useProductosFilters(productos);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-
-  const stockPorProducto = useMemo(() => {
-    const map = new Map<string, typeof stockRegistros>();
-    for (const s of stockRegistros) {
-      const prev = map.get(s.productoId) ?? [];
-      map.set(s.productoId, [...prev, s]);
-    }
-    return map;
-  }, [stockRegistros]);
 
   return (
     <div>
@@ -61,14 +50,14 @@ function ProductosPageContent() {
           </div>
         </div>
 
-        {!loading && state.productosFiltrados.length === 0 ? (
+        {!isLoading && state.productosFiltrados.length === 0 ? (
           <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
             <div style={styles.empty}>
               <div style={styles.emptyTitle}>No se encontraron productos</div>
               <div style={styles.emptySub}>Probá ajustando búsqueda o filtros.</div>
             </div>
           </Card>
-        ) : loading ? (
+        ) : isLoading ? (
           <div style={styles.loading} data-testid="productos-loading">
             <LoaderCircle className="animate-spin" size={28} color={COLOR.ACCENT.PRIMARY} />
           </div>
@@ -76,10 +65,9 @@ function ProductosPageContent() {
           <div style={styles.list}>
             {state.productosFiltrados.map((p) => (
               <ProductoItemCard
-                key={p.productoId}
+                key={p.id}
                 producto={p}
-                stock={stockPorProducto.get(p.productoId) ?? []}
-                onClick={() => router.push(`/productos/${p.productoId}`)}
+                onClick={() => router.push(`/productos/${p.id}`)}
               />
             ))}
           </div>
@@ -98,7 +86,6 @@ function ProductosPageContent() {
         open={isCreateOpen}
         categoriasDisponibles={categoriasDisponibles}
         onClose={() => setIsCreateOpen(false)}
-        onCreated={(id) => router.push(`/productos/${id}`)}
       />
     </div>
   );

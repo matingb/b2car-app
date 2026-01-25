@@ -26,3 +26,10 @@ before update on public.productos
 for each row
 execute function public.update_updated_at_column();
 
+alter table public.productos enable row level security;
+drop policy if exists tenant_access on public.productos;
+create policy tenant_access
+on public.productos
+to authenticated
+using (tenant_id = public.current_tenant_id())
+with check (tenant_id = public.current_tenant_id());

@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Autocomplete, { AutocompleteOption } from "../ui/Autocomplete";
 import Modal from "../ui/Modal";
-import { COLOR } from "@/theme/theme";
+import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useClientes } from "@/app/providers/ClientesProvider";
 
@@ -133,7 +133,7 @@ export default function VehiculoFormModal<TResult = void>({
       {showClienteInput && (
         <div style={{ marginBottom: 12 }}>
           <label style={styles.label}>
-            Cliente <span style={{ color: "#d00" }}>*</span>
+            Cliente <span aria-hidden="true" style={styles.required}>*</span>
           </label>
           <Autocomplete
             options={clientesOptions}
@@ -150,7 +150,7 @@ export default function VehiculoFormModal<TResult = void>({
         <div style={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>
-              Patente <span style={{ color: "#d00" }}>*</span>
+              Patente <span aria-hidden="true" style={styles.required}>*</span>
             </label>
             <input
               style={styles.input}
@@ -232,6 +232,11 @@ const styles = {
     fontSize: 13,
     marginBottom: 6,
     color: COLOR.TEXT.SECONDARY,
+  },
+  required: {
+    color: REQUIRED_ICON_COLOR,
+    fontWeight: 700,
+    marginLeft: 2,
   },
   input: {
     width: "100%",

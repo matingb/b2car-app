@@ -1,7 +1,7 @@
 import React from "react";
-import { InventarioProvider } from "@/app/providers/InventarioProvider";
+import { ProductosProvider } from "@/app/providers/ProductosProvider";
 
 export default function ProductosLayout({ children }: { children: React.ReactNode }) {
-  return <InventarioProvider>{children}</InventarioProvider>;
+  return <ProductosProvider>{children}</ProductosProvider>;
 }
 

@@ -17,47 +17,32 @@ import { useToast } from "@/app/providers/ToastProvider";
 import { ROUTES } from "@/routing/routes";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import { useTenant } from "@/app/providers/TenantProvider";
+import { useProductos } from "@/app/providers/ProductosProvider";
 
 export default function StockDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { talleres } = useTenant();
-  const { productos, stockRegistros, updateStock, removeStock, updateProducto, categoriasDisponibles, loading } = useInventario();
+  const { talleres, tallerSeleccionadoId } = useTenant();
+  const { getStockById, updateStock, removeStock, isLoading } = useInventario(tallerSeleccionadoId);
+  const { updateProducto, categoriasDisponibles } = useProductos();
   const { confirm } = useModalMessage();
   const { success } = useToast();
 
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<StockItem | null>(null);
+  const [item, setItem] = useState<StockItem | null>(null);
 
-  const stock = useMemo(
-    () => stockRegistros.find((s) => s.id === params.id) ?? null,
-    [stockRegistros, params.id]
-  );
-  const producto = useMemo(() => {
-    if (!stock) return null;
-    return productos.find((p) => p.productoId === stock.productoId) ?? null;
-  }, [productos, stock]);
-
-  const item = useMemo<StockItem | null>(() => {
-    if (!stock || !producto) return null;
-    return {
-      id: stock.id,
-      productoId: stock.productoId,
-      tallerId: stock.tallerId,
-      nombre: producto.nombre,
-      codigo: producto.codigo,
-      categorias: producto.categorias,
-      stockActual: stock.stockActual,
-      stockMinimo: stock.stockMinimo,
-      stockMaximo: stock.stockMaximo,
-      precioCompra: producto.precioCompra,
-      precioVenta: producto.precioVenta,
-      proveedor: producto.proveedor,
-      ubicacion: producto.ubicacion,
-      ultimaActualizacion: stock.ultimaActualizacion,
-      historialMovimientos: stock.historialMovimientos,
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const data = await getStockById(params.id);
+      if (!cancelled) setItem(data);
+    }
+    void load();
+    return () => {
+      cancelled = true;
     };
-  }, [producto, stock]);
+  }, [getStockById, params.id]);
 
   useEffect(() => {
     if (!item) {
@@ -97,8 +82,9 @@ export default function StockDetailsPage() {
       codigo: draft.codigo,
       proveedor: draft.proveedor,
       ubicacion: draft.ubicacion,
-      precioCompra: draft.precioCompra,
-      precioVenta: draft.precioVenta,
+      // precioUnitario == precio de venta, costoUnitario == precio de compra
+      costoUnitario: draft.precioCompra,
+      precioUnitario: draft.precioVenta,
       categorias: draft.categorias,
     });
     await updateStock(draft.id, {
@@ -110,7 +96,7 @@ export default function StockDetailsPage() {
     success("Éxito", "Cambios guardados.");
   }, [draft, success, updateProducto, updateStock]);
 
-  if (loading && !item) {
+  if (isLoading && !item) {
     return (
       <div>
         <ScreenHeader title="Stock" breadcrumbs={["Detalle"]} hasBackButton />
@@ -210,11 +196,11 @@ export default function StockDetailsPage() {
           />
           <div style={{ marginTop: 12 }}>
             <ProductoPricesCard
-              precioCompra={item.precioCompra}
-              precioVenta={item.precioVenta}
+              costoUnitario={item.precioCompra}
+              precioUnitario={item.precioVenta}
               stockTotal={item.stockActual}
               isEditing={isEditing}
-              draft={{ precioCompra: draft.precioCompra, precioVenta: draft.precioVenta }}
+              draft={{ costoUnitario: draft.precioCompra, precioUnitario: draft.precioVenta }}
               onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
             />
           </div>

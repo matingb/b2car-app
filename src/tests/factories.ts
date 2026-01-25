@@ -214,6 +214,10 @@ export type InventarioStockRow = {
   updated_at: string;
 };
 
+export type InventarioStockItemRow = InventarioStockRow & {
+  productos: InventarioProductoRow;
+};
+
 /**
  * Factory para crear filas de Producto (inventario)
  */
@@ -255,6 +259,18 @@ export const createInventarioStockRow = (
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides,
+  };
+};
+
+export const createInventarioStockItemRow = (
+  overrides: Partial<InventarioStockItemRow> = {}
+): InventarioStockItemRow => {
+  const { productos, ...stockOverrides } = overrides;
+  const productoId = stockOverrides.productoId ?? "PROD-001";
+
+  return {
+    ...createInventarioStockRow({ ...stockOverrides, productoId }),
+    productos: productos ?? createInventarioProductoRow({ id: productoId }),
   };
 };
 

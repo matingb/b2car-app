@@ -9,9 +9,8 @@ import React, {
   useState,
 } from "react";
 import type { StockItem, StockMovement } from "@/model/stock";
-import { useTenant } from "@/app/providers/TenantProvider";
-import { productosClient, mapProductoDetailToInventario, mapProductoToInventario } from "@/clients/productosClient";
-import { stocksClient, mapStockItemToInventario } from "@/clients/stocksClient";
+import type { StockItemDTO } from "@/model/dtos";
+import { stocksClient } from "@/clients/stocksClient";
 
 export const INVENTARIO_CATEGORIAS_DISPONIBLES = [
   "Aceites y Lubricantes",
@@ -27,19 +26,19 @@ export const INVENTARIO_CATEGORIAS_DISPONIBLES = [
 ] as const;
 
 export type Producto = {
-  productoId: string;
+  id: string;
   nombre: string;
   codigo: string;
   categorias: string[];
-  precioCompra: number;
-  precioVenta: number;
+  precioUnitario: number;
+  costoUnitario: number;
   proveedor: string;
   ubicacion: string;
+  talleresConStock: number;
 };
 
-export type StockRegistro = {
+export type Stock = {
   id: string;
-  productoId: string;
   tallerId: string;
   stockActual: number;
   stockMinimo: number;
@@ -48,9 +47,9 @@ export type StockRegistro = {
   historialMovimientos: StockMovement[];
 };
 
-export type CreateProductoInput = Omit<Producto, "productoId"> & { productoId?: string };
+export type CreateProductoInput = Omit<Producto, "id"> & { id?: string };
 
-export type UpdateProductoInput = Partial<Omit<Producto, "productoId">>;
+export type UpdateProductoInput = Partial<Omit<Producto, "id">>;
 
 export type UpsertStockInput = {
   productoId: string;
@@ -61,22 +60,13 @@ export type UpsertStockInput = {
 };
 
 type InventarioContextType = {
-  loading: boolean;
-  categoriasDisponibles: readonly string[];
+  isLoading: boolean;
+  inventario: StockItem[];
+  loadInventarioByTaller: (tallerId: string) => Promise<void>;
+  getStockById: (id: string) => Promise<StockItem | null>;
 
-  productos: Producto[];
-  stockRegistros: StockRegistro[];
-
-  getStockItemsForTaller: (tallerId: string) => StockItem[];
-  getProductoById: (productoId: string) => Producto | null;
-  getStockForProducto: (productoId: string) => StockRegistro[];
-
-  createProducto: (input: CreateProductoInput) => Promise<Producto | null>;
-  updateProducto: (productoId: string, input: UpdateProductoInput) => Promise<Producto | null>;
-  removeProducto: (productoId: string) => Promise<void>;
-
-  upsertStock: (input: UpsertStockInput) => Promise<StockRegistro | null>;
-  updateStock: (id: string, patch: Partial<Omit<StockRegistro, "id" | "productoId" | "tallerId">>) => Promise<StockRegistro | null>;
+  upsertStock: (input: UpsertStockInput) => Promise<Stock | null>;
+  updateStock: (id: string, patch: Partial<Omit<Stock, "id" | "productoId" | "tallerId">>) => Promise<Stock | null>;
   removeStock: (id: string) => Promise<void>;
 };
 
@@ -97,155 +87,75 @@ function isoToShortEsDate(iso: string | null | undefined): string {
 }
 
 export function InventarioProvider({ children }: { children: React.ReactNode }) {
-  const { talleres } = useTenant();
-  const [loading, setLoading] = useState(false);
-  const [productos, setProductos] = useState<Producto[]>([]);
-  const [stockRegistros, setStockRegistros] = useState<StockRegistro[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [inventario, setInventario] = useState<StockItem[]>([]);
+  const [tallerIdActual, setTallerIdActual] = useState<string>("");
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const productosRes = await productosClient.getAll();
-        if (cancelled) return;
-        if (productosRes.error || !productosRes.data) {
-          setProductos([]);
-        } else {
-          setProductos(productosRes.data.map(mapProductoToInventario));
-        }
-
-        const stocksRes = await stocksClient.getAll();
-        if (cancelled) return;
-        if (stocksRes.error || !stocksRes.data) {
-          setStockRegistros([]);
-        } else {
-          const allStocks: StockRegistro[] = stocksRes.data.map((dto) => {
-            const mapped = mapStockItemToInventario(dto);
-            return {
-              ...mapped,
-              ultimaActualizacion: isoToShortEsDate(mapped.ultimaActualizacion),
-              historialMovimientos: [],
-            };
-          });
-          setStockRegistros(allStocks);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
+  const mapStockItemDtoToUi = useCallback((dto: StockItemDTO): StockItem | null => {
+    const p = dto.producto;
+    if (!p) return null;
+    return {
+      id: dto.id,
+      productoId: dto.productoId,
+      tallerId: dto.tallerId,
+      nombre: p.nombre ?? dto.productoId,
+      codigo: p.codigo ?? "",
+      categorias: p.categorias ?? [],
+      stockActual: Number(dto.cantidad) || 0,
+      stockMinimo: Number(dto.stock_minimo) || 0,
+      stockMaximo: Number(dto.stock_maximo) || 0,
+      precioCompra: Number(p.costo_unitario) || 0,
+      precioVenta: Number(p.precio_unitario) || 0,
+      proveedor: p.proveedor ?? "",
+      ubicacion: "",
+      ultimaActualizacion: isoToShortEsDate(dto.updated_at),
+      historialMovimientos: [],
     };
-  }, [talleres]);
-
-  const getProductoById = useCallback(
-    (productoId: string) => {
-      return productos.find((p) => p.productoId === productoId) ?? null;
-    },
-    [productos]
-  );
-
-  const getStockForProducto = useCallback(
-    (productoId: string) => {
-      return stockRegistros.filter((s) => s.productoId === productoId);
-    },
-    [stockRegistros]
-  );
-
-  const getStockItemsForTaller = useCallback(
-    (tallerId: string): StockItem[] => {
-      const regs = stockRegistros.filter((s) => s.tallerId === tallerId);
-      return regs
-        .map((s) => {
-          const p = productos.find((x) => x.productoId === s.productoId);
-          if (!p) return null;
-          return {
-            id: s.id,
-            productoId: s.productoId,
-            tallerId: s.tallerId,
-            nombre: p.nombre,
-            codigo: p.codigo,
-            categorias: p.categorias,
-            stockActual: s.stockActual,
-            stockMinimo: s.stockMinimo,
-            stockMaximo: s.stockMaximo,
-            precioCompra: p.precioCompra,
-            precioVenta: p.precioVenta,
-            proveedor: p.proveedor,
-            ubicacion: p.ubicacion,
-            ultimaActualizacion: s.ultimaActualizacion,
-            historialMovimientos: s.historialMovimientos,
-          };
-        })
-        .filter(Boolean) as StockItem[];
-    },
-    [productos, stockRegistros]
-  );
-
-  const createProducto = useCallback(
-    async (input: CreateProductoInput) => {
-      setLoading(true);
-      try {
-        const res = await productosClient.create({
-          codigo: input.codigo.trim(),
-          nombre: input.nombre.trim(),
-          precio_unitario: input.precioVenta ?? 0,
-          costo_unitario: input.precioCompra ?? 0,
-          proveedor: input.proveedor ?? "",
-          categorias: input.categorias ?? [],
-        });
-        if (!res.data) return null;
-        const nuevo = mapProductoToInventario(res.data);
-        setProductos((prev) => [...prev, nuevo]);
-        return nuevo;
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  const updateProducto = useCallback(
-    async (productoId: string, input: UpdateProductoInput) => {
-      setLoading(true);
-      try {
-        const res = await productosClient.update(productoId, {
-          codigo: input.codigo,
-          nombre: input.nombre,
-          proveedor: input.proveedor ?? null,
-          categorias: input.categorias,
-          precio_unitario: input.precioVenta,
-          costo_unitario: input.precioCompra,
-        });
-        if (!res.data) return null;
-        const updatedProducto = mapProductoDetailToInventario(res.data);
-        setProductos((prev) =>
-          prev.map((p) => (p.productoId === productoId ? { ...p, ...updatedProducto } : p))
-        );
-        return updatedProducto;
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  const removeProducto = useCallback(async (productoId: string) => {
-    setLoading(true);
-    try {
-      await productosClient.delete(productoId);
-      setProductos((prev) => prev.filter((p) => p.productoId !== productoId));
-      setStockRegistros((prev) => prev.filter((s) => s.productoId !== productoId));
-    } finally {
-      setLoading(false);
-    }
   }, []);
 
+  const loadInventarioByTaller = useCallback(
+    async () => {
+      const id = String(tallerIdActual).trim();
+      if (!id) return;
+
+      setIsLoading(true);
+      try {
+        setTallerIdActual(id);
+        const stocksRes = await stocksClient.getByTaller({ tallerId: id });
+        if (stocksRes.error || !stocksRes.data) {
+          setInventario([]);
+          return;
+        }
+        const items = stocksRes.data
+          .map(mapStockItemDtoToUi)
+          .filter(Boolean) as StockItem[];
+        setInventario(items);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [mapStockItemDtoToUi, tallerIdActual]
+  );
+
+  const getStockById = useCallback(
+    async (id: string) => {
+      const stockId = String(id ?? "").trim();
+      if (!stockId) return null;
+      setIsLoading(true);
+      try {
+        const res = await stocksClient.getById(stockId);
+        if (!res.data) return null;
+        return mapStockItemDtoToUi(res.data as unknown as StockItemDTO);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [mapStockItemDtoToUi]
+  );
+
   const upsertStock = useCallback(
-    async (input: UpsertStockInput) => {
-      setLoading(true);
+    async (input: UpsertStockInput): Promise<StockItem | null> => {
+      setIsLoading(true);
       try {
         const res = await stocksClient.upsert({
           tallerId: input.tallerId,
@@ -257,96 +167,63 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
         if (!res.data) {
           throw new Error(res.error || "No se pudo guardar el stock");
         }
-        const updatedAt = isoToShortEsDate(res.data.updated_at);
-        const id = res.data.id;
-        const next: StockRegistro = {
-          id,
-          productoId: res.data.productoId,
-          tallerId: res.data.tallerId,
-          stockActual: res.data.cantidad,
-          stockMinimo: res.data.stock_minimo,
-          stockMaximo: res.data.stock_maximo,
-          ultimaActualizacion: updatedAt,
-          historialMovimientos: [],
-        };
-        setStockRegistros((prev) => {
-          const exists = prev.some((s) => s.id === id);
-          return exists ? prev.map((s) => (s.id === id ? next : s)) : [...prev, next];
-        });
-        return next;
+        await loadInventarioByTaller();
+        return mapStockItemDtoToUi(res.data as StockItemDTO);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     },
-    []
+    [loadInventarioByTaller, mapStockItemDtoToUi]
   );
 
-  const updateStock = useCallback(async (id: string, patch: Partial<Omit<StockRegistro, "id" | "productoId" | "tallerId">>) => {
-    setLoading(true);
-    try {
-      const res = await stocksClient.update(id, {
-        cantidad: patch.stockActual,
-        stock_minimo: patch.stockMinimo,
-        stock_maximo: patch.stockMaximo,
-      });
-      if (!res.data) return null;
-      const nextUpdatedAt = isoToShortEsDate(res.data.updated_at);
-      let updated: StockRegistro | null = null;
-      setStockRegistros((prev) =>
-        prev.map((s) => {
-          if (s.id !== id) return s;
-          updated = {
-            ...s,
-            stockActual: res.data!.cantidad,
-            stockMinimo: res.data!.stock_minimo,
-            stockMaximo: res.data!.stock_maximo,
-            ultimaActualizacion: nextUpdatedAt,
-          };
-          return updated;
-        })
-      );
-      return updated;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const updateStock = useCallback(
+    async (id: string, patch: Partial<Omit<Stock, "id" | "productoId" | "tallerId">>): Promise<StockItem | null> => {
+      setIsLoading(true);
+      try {
+        const res = await stocksClient.update(id, {
+          cantidad: patch.stockActual,
+          stock_minimo: patch.stockMinimo,
+          stock_maximo: patch.stockMaximo,
+        });
 
-  const removeStock = useCallback(async (id: string) => {
-    setLoading(true);
+        if (!res.data) {
+          throw new Error(res.error || "No se pudo actualizar el stock");
+        }
+
+        await loadInventarioByTaller();
+        return mapStockItemDtoToUi(res.data as StockItemDTO);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [loadInventarioByTaller, mapStockItemDtoToUi]
+  );
+
+  const removeStock = useCallback(async (id: string): Promise<void> => {
+    setIsLoading(true);
     try {
       await stocksClient.delete(id);
-      setStockRegistros((prev) => prev.filter((s) => s.id !== id));
+      await loadInventarioByTaller();
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  }, []);
+  }, [loadInventarioByTaller]);
 
   const value = useMemo<InventarioContextType>(
     () => ({
-      loading,
-      categoriasDisponibles: INVENTARIO_CATEGORIAS_DISPONIBLES as readonly string[],
-      productos,
-      stockRegistros,
-      getStockItemsForTaller,
-      getProductoById,
-      getStockForProducto,
-      createProducto,
-      updateProducto,
-      removeProducto,
+      isLoading,
+      inventario,
+      loadInventarioByTaller,
+      getStockById,
       upsertStock,
       updateStock,
       removeStock,
     }),
     [
-      loading,
-      productos,
-      stockRegistros,
-      getStockItemsForTaller,
-      getProductoById,
-      getStockForProducto,
-      createProducto,
-      updateProducto,
-      removeProducto,
+      isLoading,
+      inventario,
+      loadInventarioByTaller,
+      getStockById,
       upsertStock,
       updateStock,
       removeStock,
@@ -356,9 +233,18 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
   return <InventarioContext.Provider value={value}>{children}</InventarioContext.Provider>;
 }
 
-export function useInventario() {
+export function useInventario(tallerId?: string) {
   const ctx = useContext(InventarioContext);
   if (!ctx) throw new Error("useInventario debe usarse dentro de InventarioProvider");
-  return ctx;
+
+  useEffect(() => {
+    if (!tallerId) return;
+    void ctx.loadInventarioByTaller(tallerId);
+  }, [ctx, tallerId]);
+
+  return {
+    ...ctx,
+    tallerId: tallerId || null,
+  } as const;
 }
 

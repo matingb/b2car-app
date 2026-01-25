@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
-import { COLOR } from "@/theme/theme";
+import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import Autocomplete, { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
@@ -97,7 +97,9 @@ export default function ReassignPropietarioModal({ open, vehiculoId, currentClie
                 />
               </div>
               <div>
-                <label style={styles.label}>Nuevo propietario <span style={{ color: "#d00" }}>*</span></label>
+                <label style={styles.label}>
+                  Nuevo propietario <span aria-hidden="true" style={styles.required}>*</span>
+                </label>
                 <Autocomplete
                   options={clientesOptions}
                   value={selectedNewClienteId}
@@ -149,6 +151,11 @@ const styles = {
     fontSize: 13,
     marginBottom: 6,
     color: COLOR.TEXT.SECONDARY,
+  },
+  required: {
+    color: REQUIRED_ICON_COLOR,
+    fontWeight: 700,
+    marginLeft: 2,
   },
   footer: {
     display: "flex",

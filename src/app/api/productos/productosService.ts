@@ -32,42 +32,22 @@ export type ProductoRow = {
   updated_at: string;
 };
 
+export type ProductoWithStocksCountRow = ProductoRow & {
+  talleresConStock: number;
+};
+
 export type CreateProductoInput = Omit<ProductoRow, "id" | "tenantId" | "created_at" | "updated_at">;
 
 export const productosService = {
-  async list(
-    supabase: SupabaseClient,
-    filters: ListProductosFilters = {}
-  ): Promise<{ data: ProductoRow[]; error: ProductosServiceError | null }> {
-    let query = supabase
-      .from("productos")
-      .select("*")
-      .order("updated_at", { ascending: false });
-
-    const search = (filters.search ?? "").trim();
-    if (search) {
-      const q = search.replace(/%/g, "\\%");
-      query = query.or(
-        [
-          `codigo.ilike.%${q}%`,
-          `nombre.ilike.%${q}%`,
-          `marca.ilike.%${q}%`,
-          `modelo.ilike.%${q}%`,
-          `descripcion.ilike.%${q}%`,
-          `proveedor.ilike.%${q}%`,
-        ].join(",")
-      );
-    }
-
-    const cats = (filters.categorias ?? []).filter(Boolean);
-    if (cats.length > 0) {
-      // Overlaps: match any category
-      query = query.overlaps("categorias", cats);
-    }
-
+  async list(supabase: SupabaseClient): Promise<{ data: ProductoWithStocksCountRow[]; error: ProductosServiceError | null }> {
+    const query = supabase.from("productos").select("*, stocks(count)").order("updated_at", { ascending: false });
     const { data, error } = await query;
     if (error) return { data: [], error: toServiceError(error) };
-    return { data: (data ?? []) as ProductoRow[], error: null };
+    const mapped: ProductoWithStocksCountRow[] = data.map((row) => ({
+      ...row,
+      talleresConStock: Number(row.stocks?.[0]?.count) || 0,
+    }));
+    return { data: mapped, error: null };
   },
 
   async getById(
@@ -101,20 +81,7 @@ export const productosService = {
   async updateById(
     supabase: SupabaseClient,
     id: string,
-    patch: Partial<
-      Pick<
-        ProductoRow,
-        | "codigo"
-        | "nombre"
-        | "marca"
-        | "modelo"
-        | "descripcion"
-        | "precio_unitario"
-        | "costo_unitario"
-        | "proveedor"
-        | "categorias"
-      >
-    >
+    patch: Partial<ProductoRow>
   ): Promise<{ data: ProductoRow | null; error: ProductosServiceError | PostgrestError | null }> {
     const { data, error } = await supabase
       .from("productos")
@@ -132,7 +99,6 @@ export const productosService = {
     supabase: SupabaseClient,
     id: string
   ): Promise<{ error: ProductosServiceError | PostgrestError | null }> {
-    // Best effort: delete dependent stocks first (if FK cascade exists, this is redundant).
     await supabase.from("stocks").delete().eq("productoId", id);
 
     const { error } = await supabase.from("productos").delete().eq("id", id);

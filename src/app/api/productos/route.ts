@@ -2,9 +2,9 @@ import { logger } from "@/lib/logger";
 import type { ProductoDTO } from "@/model/dtos";
 import type { CreateProductoRequest, CreateProductoResponse, GetProductosResponse } from "./contracts";
 import { createClient } from "@/supabase/server";
-import { productosService, type ProductoRow } from "./productosService";
+import { productosService, type ProductoRow, type ProductoWithStocksCountRow } from "./productosService";
 
-function mapProducto(row: ProductoRow): ProductoDTO {
+function mapProductoBase(row: ProductoRow): Omit<ProductoDTO, "talleresConStock"> {
   return {
     id: row.id,
     codigo: row.codigo,
@@ -21,6 +21,13 @@ function mapProducto(row: ProductoRow): ProductoDTO {
   };
 }
 
+function mapProducto(row: ProductoWithStocksCountRow): ProductoDTO {
+  return {
+    ...mapProductoBase(row),
+    talleresConStock: row.talleresConStock ?? 0,
+  };
+}
+
 export async function GET() {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getSession();
@@ -33,7 +40,7 @@ export async function GET() {
     return Response.json({ data: [], error: "Error listando productos" } satisfies GetProductosResponse, { status: 500 });
   }
 
-  return Response.json({ data: data.map(mapProducto), error: null } satisfies GetProductosResponse, { status: 200 });
+  return Response.json({ data: (data ?? []).map(mapProducto), error: null } satisfies GetProductosResponse, { status: 200 });
 }
 
 export async function POST(req: Request) {
@@ -50,6 +57,10 @@ export async function POST(req: Request) {
   if (!body.nombre?.trim()) return Response.json({ data: null, error: "Falta nombre" } satisfies CreateProductoResponse, { status: 400 });
   if (typeof body.precio_unitario !== "number") return Response.json({ data: null, error: "Falta precio_unitario" } satisfies CreateProductoResponse, { status: 400 });
   if (typeof body.costo_unitario !== "number") return Response.json({ data: null, error: "Falta costo_unitario" } satisfies CreateProductoResponse, { status: 400 });
+  if (body.precio_unitario < 0)
+    return Response.json({ data: null, error: "precio_unitario debe ser >= 0" } satisfies CreateProductoResponse, { status: 400 });
+  if (body.costo_unitario < 0)
+    return Response.json({ data: null, error: "costo_unitario debe ser >= 0" } satisfies CreateProductoResponse, { status: 400 });
 
   const insertPayload = {
     codigo: body.codigo.trim(),
@@ -60,7 +71,7 @@ export async function POST(req: Request) {
     precio_unitario: body.precio_unitario,
     costo_unitario: body.costo_unitario,
     proveedor: body.proveedor?.trim() ?? null,
-    categorias: Array.isArray(body.categorias) ? body.categorias.filter(Boolean) : [],
+    categorias: Array.isArray(body.categorias) ? body.categorias : [],
   };
 
   try {
@@ -68,7 +79,10 @@ export async function POST(req: Request) {
     if (error || !created) {
       return Response.json({ data: null, error: "Error creando producto" } satisfies CreateProductoResponse, { status: 500 });
     }
-    return Response.json({ data: mapProducto(created), error: null } satisfies CreateProductoResponse, { status: 201 });
+    return Response.json(
+      { data: { ...mapProductoBase(created), talleresConStock: 0 }, error: null } satisfies CreateProductoResponse,
+      { status: 201 }
+    );
   } catch (error: unknown) {
     logger.error("POST /api/productos error:", error);
     return Response.json({ data: null, error: "Error creando producto" } satisfies CreateProductoResponse, { status: 500 });

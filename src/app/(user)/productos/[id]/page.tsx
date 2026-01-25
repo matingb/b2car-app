@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
-import { useInventario, type Producto } from "@/app/providers/InventarioProvider";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
@@ -15,22 +14,32 @@ import ProductoTallerStockCard from "@/app/components/productos/ProductoTallerSt
 import MovementsCard, { type InventarioMovementRow } from "@/app/components/inventario/MovementsCard";
 import ProductoInfoCard from "@/app/components/productos/ProductoInfoCard";
 import ProductoPricesCard from "@/app/components/productos/ProductoPricesCard";
+import { Producto, StockRegistro, useProductos } from "@/app/providers/ProductosProvider";
 
 export default function ProductoDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { talleres } = useTenant();
-  const { productos, stockRegistros, updateProducto, removeProducto, categoriasDisponibles, loading } = useInventario();
+  const { getProductoById, updateProducto, removeProducto, categoriasDisponibles, isLoading } = useProductos();
   const { confirm } = useModalMessage();
   const { success } = useToast();
 
-  const producto = useMemo(() => {
-    return productos.find((p) => p.productoId === params.id) ?? null;
-  }, [productos, params.id]);
+  const [producto, setProducto] = useState<Producto | null>(null);
+  const [stockDelProducto, setStockDelProducto] = useState<StockRegistro[]>([]);
 
-  const stockDelProducto = useMemo(() => {
-    return stockRegistros.filter((s) => s.productoId === params.id);
-  }, [stockRegistros, params.id]);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const res = await getProductoById(params.id);
+      if (cancelled) return;
+      setProducto(res?.producto ?? null);
+      setStockDelProducto(res?.stocks ?? []);
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [getProductoById, params.id]);
 
   const movimientos = useMemo<InventarioMovementRow[]>(() => {
     const nombrePorTaller = new Map(talleres.map((t) => [t.id, t.nombre] as const));
@@ -46,7 +55,6 @@ export default function ProductoDetailsPage() {
         });
       }
     }
-    // Orden simple por fecha DD/MM/YYYY desc (suficiente para mock)
     const toKey = (f: string) => {
       const [dd, mm, yyyy] = String(f ?? "").split("/");
       return `${yyyy ?? ""}${mm ?? ""}${dd ?? ""}`;
@@ -91,27 +99,28 @@ export default function ProductoDetailsPage() {
       cancelLabel: "Cancelar",
     });
     if (!ok) return;
-    await removeProducto(producto.productoId);
-    success("Éxito", "El producto fue eliminado.");
+    await removeProducto(producto.id);
+    success("Producto eliminado satisfactoriamente");
     router.push("/productos");
   }, [confirm, producto, removeProducto, router, success]);
 
   const handleSave = useCallback(async () => {
     if (!draft) return;
-    await updateProducto(draft.productoId, {
+    await updateProducto(draft.id, {
       nombre: draft.nombre,
       codigo: draft.codigo,
       proveedor: draft.proveedor,
       ubicacion: draft.ubicacion,
-      precioCompra: draft.precioCompra,
-      precioVenta: draft.precioVenta,
+      costoUnitario: draft.costoUnitario,
+      precioUnitario: draft.precioUnitario,
       categorias: draft.categorias,
     });
+
+    success("Producto actualizado satisfactoriamente");
     setIsEditing(false);
-    success("Éxito", "Cambios guardados.");
   }, [draft, success, updateProducto]);
 
-  if (loading && !producto) {
+  if (isLoading && !producto) {
     return (
       <div>
         <ScreenHeader title="Productos" breadcrumbs={["Detalle"]} hasBackButton />
@@ -167,7 +176,7 @@ export default function ProductoDetailsPage() {
           <input
             style={styles.titleInput}
             value={draft.nombre}
-            onChange={(e) => setDraft((p) => (p ? { ...p, nombre: e.target.value } : p))}
+            onChange={(e) => setDraft((p: Producto | null) => (p ? { ...p, nombre: e.target.value } : p))}
           />
         ) : (
           <h2 style={styles.title}>{producto.nombre}</h2>
@@ -210,17 +219,17 @@ export default function ProductoDetailsPage() {
             ultimaActualizacion={ultimaActualizacion}
             isEditing={isEditing}
             draft={{ codigo: draft.codigo, proveedor: draft.proveedor, ubicacion: draft.ubicacion, categorias: draft.categorias }}
-            onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
+            onChange={(patch) => setDraft((p: Producto | null) => (p ? { ...p, ...patch } : p))}
           />
 
           <div style={{ marginTop: 12 }}>
             <ProductoPricesCard
-              precioCompra={producto.precioCompra}
-              precioVenta={producto.precioVenta}
+              costoUnitario={producto.costoUnitario}
+              precioUnitario={producto.precioUnitario}
               stockTotal={stockTotal}
               isEditing={isEditing}
-              draft={{ precioCompra: draft.precioCompra, precioVenta: draft.precioVenta }}
-              onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
+              draft={{ costoUnitario: draft.costoUnitario, precioUnitario: draft.precioUnitario }}
+              onChange={(patch) => setDraft((p: Producto | null) => (p ? { ...p, ...patch } : p))}
             />
           </div>
         </div>

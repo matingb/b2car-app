@@ -1,4 +1,5 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
+import { ProductoRow } from "../productos/productosService";
 
 export enum StocksServiceError {
   NotFound = "NotFound",
@@ -24,13 +25,7 @@ export type StockRow = {
 };
 
 export type StockItemRow = StockRow & {
-  productos?: any;
-};
-
-export type ListStocksFilters = {
-  tallerId: string;
-  search?: string;
-  categorias?: string[];
+  productos: ProductoRow;
 };
 
 export const stocksService = {
@@ -50,40 +45,19 @@ export const stocksService = {
 
   async listForTaller(
     supabase: SupabaseClient,
-    filters: ListStocksFilters
+    tallerId: string 
   ): Promise<{ data: StockItemRow[]; error: StocksServiceError | null }> {
-    let query = supabase
+    const query = supabase
       .from("stocks")
       .select(
-        `id,tenantId,tallerId,productoId,cantidad,stock_minimo,stock_maximo,created_at,updated_at,productos(*)`
+        `*,productos(*)`
       )
-      .eq("tallerId", filters.tallerId)
+      .eq("tallerId", tallerId)
       .order("updated_at", { ascending: false });
-
-    const search = (filters.search ?? "").trim();
-    if (search) {
-      const q = search.replace(/%/g, "\\%");
-      // Filter on related producto fields
-      query = query.or(
-        [
-          `productos.codigo.ilike.%${q}%`,
-          `productos.nombre.ilike.%${q}%`,
-          `productos.marca.ilike.%${q}%`,
-          `productos.modelo.ilike.%${q}%`,
-          `productos.descripcion.ilike.%${q}%`,
-          `productos.proveedor.ilike.%${q}%`,
-        ].join(",")
-      );
-    }
-
-    const cats = (filters.categorias ?? []).filter(Boolean);
-    if (cats.length > 0) {
-      query = query.overlaps("productos.categorias", cats);
-    }
 
     const { data, error } = await query;
     if (error) return { data: [], error: toServiceError(error) };
-    return { data: (data ?? []) as StockItemRow[], error: null };
+    return { data: (data ?? []) as unknown as StockItemRow[], error: null };
   },
 
   async getById(
@@ -93,7 +67,7 @@ export const stocksService = {
     const { data, error } = await supabase
       .from("stocks")
       .select(
-        `id,tenantId,tallerId,productoId,cantidad,stock_minimo,stock_maximo,created_at,updated_at,productos(*)`
+        `*,productos(*)`
       )
       .eq("id", id)
       .maybeSingle();

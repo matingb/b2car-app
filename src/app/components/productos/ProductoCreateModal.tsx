@@ -3,24 +3,24 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
 import FilterChip from "@/app/components/ui/FilterChip";
-import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
-import { useInventario } from "@/app/providers/InventarioProvider";
+import { useProductos } from "@/app/providers/ProductosProvider";
+import { useToast } from "@/app/providers/ToastProvider";
 
 type Props = {
   open: boolean;
   categoriasDisponibles: readonly string[];
   onClose: () => void;
-  onCreated?: (productoId: string) => void;
 };
 
 export default function ProductoCreateModal({
   open,
   categoriasDisponibles,
   onClose,
-  onCreated,
 }: Props) {
-  const { createProducto, loading } = useInventario();
+  const { createProducto, isLoading } = useProductos();
+  const { success } = useToast();
 
   const [nombre, setNombre] = useState("");
   const [codigo, setCodigo] = useState("");
@@ -42,8 +42,8 @@ export default function ProductoCreateModal({
   }, [open]);
 
   const canSubmit = useMemo(() => {
-    return Boolean(nombre.trim() && codigo.trim());
-  }, [nombre, codigo]);
+    return Boolean(nombre.trim() && codigo.trim() && precioCompra >= 0 && precioVenta >= 0);
+  }, [nombre, codigo, precioCompra, precioVenta]);
 
   if (!open) return null;
 
@@ -59,10 +59,11 @@ export default function ProductoCreateModal({
       proveedor: proveedor.trim(),
       ubicacion: ubicacion.trim(),
       categorias,
-      precioCompra,
-      precioVenta,
+      precioUnitario: precioVenta,
+      costoUnitario: precioCompra,
     });
-    if (created) onCreated?.(created.productoId);
+
+    if (created) success("Producto creado satisfactoriamente");
     onClose();
   };
 
@@ -73,13 +74,15 @@ export default function ProductoCreateModal({
       onClose={onClose}
       onSubmit={handleSubmit}
       submitText="Crear"
-      submitting={loading}
+      submitting={isLoading}
       disabledSubmit={!canSubmit}
     >
       <div style={{ padding: "4px 0 12px" }}>
         <div css={styles.row}>
           <div style={styles.fieldWide}>
-            <label style={styles.label}>Nombre</label>
+            <label style={styles.label}>
+              Nombre <span aria-hidden="true" style={styles.required}>*</span>
+            </label>
             <input
               style={styles.input}
               value={nombre}
@@ -91,7 +94,9 @@ export default function ProductoCreateModal({
 
         <div css={styles.row}>
           <div style={styles.field}>
-            <label style={styles.label}>Código</label>
+            <label style={styles.label}>
+              Código <span aria-hidden="true" style={styles.required}>*</span>
+            </label>
             <input
               style={styles.input}
               value={codigo}
@@ -128,9 +133,13 @@ export default function ProductoCreateModal({
             <label style={styles.label}>Precio compra</label>
             <input
               type="number"
+              min={0}
               style={styles.input}
               value={precioCompra}
-              onChange={(e) => setPrecioCompra(Number(e.target.value) || 0)}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                setPrecioCompra(Number.isFinite(n) ? Math.max(0, n) : 0);
+              }}
               placeholder="0"
             />
           </div>
@@ -138,9 +147,10 @@ export default function ProductoCreateModal({
             <label style={styles.label}>Precio venta</label>
             <input
               type="number"
+              min={0}
               style={styles.input}
               value={precioVenta}
-              onChange={(e) => setPrecioVenta(Number(e.target.value) || 0)}
+              onChange={(e) => setPrecioVenta(Number(e.target.value))}
               placeholder="0"
             />
           </div>
@@ -185,6 +195,11 @@ const styles = {
     fontSize: 13,
     marginBottom: 6,
     color: COLOR.TEXT.SECONDARY,
+  },
+  required: {
+    color: REQUIRED_ICON_COLOR,
+    fontWeight: 700,
+    marginLeft: 2,
   },
   input: {
     width: "100%",

@@ -5,6 +5,7 @@ import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { useRouter } from "next/navigation";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { useInventario } from "@/app/providers/InventarioProvider";
+import { INVENTARIO_CATEGORIAS_DISPONIBLES } from "@/app/providers/InventarioProvider";
 import { useStockFilters, useStockStats } from "@/app/hooks/stock/useStockFilters";
 import StockToolbar from "@/app/components/stock/StockToolbar";
 import StockFiltersModal from "@/app/components/stock/StockFiltersModal";
@@ -14,8 +15,7 @@ import Card from "@/app/components/ui/Card";
 import Dropdown from "@/app/components/ui/Dropdown";
 import { COLOR } from "@/theme/theme";
 import StockItemCard from "@/app/components/stock/StockItemCard";
-import { LoaderCircle, PlusIcon } from "lucide-react";
-import Button from "@/app/components/ui/Button";
+import { LoaderCircle } from "lucide-react";
 import TallerCreateModal from "@/app/components/inventario/TallerCreateModal";
 
 export default function StockPage() {
@@ -25,10 +25,10 @@ export default function StockPage() {
 function StockPageContent() {
   const router = useRouter();
   const { talleres, tallerSeleccionadoId, setTallerSeleccionadoId } = useTenant();
-  const { getStockItemsForTaller, loading, categoriasDisponibles } = useInventario();
-  const items = getStockItemsForTaller(tallerSeleccionadoId);
-  const state = useStockFilters(items);
-  const stats = useStockStats(items);
+  const { inventario, isLoading } = useInventario(tallerSeleccionadoId);
+  const categoriasDisponibles = INVENTARIO_CATEGORIAS_DISPONIBLES;
+  const state = useStockFilters(inventario);
+  const stats = useStockStats(inventario);
 
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -82,11 +82,11 @@ function StockPageContent() {
         <div style={styles.resultsHeader}>
           <div style={styles.resultsTitle}><h2>Inventario</h2></div>
           <div style={styles.resultsCount}>
-            {state.itemsFiltrados.length} de {items.length} items
+            {state.itemsFiltrados.length} de {inventario.length} items
           </div>
         </div>
 
-        {!loading && state.itemsFiltrados.length === 0 ? (
+        {!isLoading && state.itemsFiltrados.length === 0 ? (
           <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
             <div style={styles.empty}>
               <div style={styles.emptyTitle}>No se encontraron items</div>
@@ -95,7 +95,7 @@ function StockPageContent() {
           </Card>
         ) : (
           <>
-            {loading ? (
+            {isLoading ? (
               <div style={styles.loading} data-testid="stock-loading">
                 <LoaderCircle className="animate-spin" size={28} color={COLOR.ACCENT.PRIMARY} />
               </div>

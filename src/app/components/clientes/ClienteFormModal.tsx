@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 import Modal from "../ui/Modal";
 import { TipoCliente } from "@/model/types";
 import Dropdown from "../ui/Dropdown";
-import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { css } from '@emotion/react'
 
 type Props = {
@@ -118,7 +118,7 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
         <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>
-              Nombre <span style={{ color: "#d00" }}>*</span>
+              Nombre <span aria-hidden="true" style={styles.required}>*</span>
             </label>
             <input
               style={styles.input}
@@ -130,7 +130,7 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
           {tipo === TipoCliente.PARTICULAR && (
             <div style={styles.field}>
               <label style={styles.label}>
-                Apellido <span style={{ color: "#d00" }}>*</span>
+                Apellido <span aria-hidden="true" style={styles.required}>*</span>
               </label>
               <input
                 style={styles.input}
@@ -143,14 +143,14 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
           {tipo === TipoCliente.EMPRESA && (
             <div style={styles.field}>
               <label style={styles.label}>
-                CUIT <span style={{ color: "#d00" }}>*</span>
+                CUIT <span aria-hidden="true" style={styles.required}>*</span>
               </label>
               <input style={styles.input} placeholder="XX-XXXXXXXX-X" value={cuit} onChange={(e) => setCuit(e.target.value)} />
             </div>
           )}
           <div style={{ ...styles.field, maxWidth: 160 }}>
             <label style={styles.label}>
-              Tipo <span style={{ color: "#d00" }}>*</span>
+              Tipo <span aria-hidden="true" style={styles.required}>*</span>
             </label>
             <Dropdown
               style={styles.dropdown}
@@ -204,6 +204,11 @@ export const styles = {
     fontSize: 13,
     marginBottom: 6,
     color: COLOR.TEXT.SECONDARY,
+  },
+  required: {
+    color: REQUIRED_ICON_COLOR,
+    fontWeight: 700,
+    marginLeft: 2,
   },
   input: {
     width: "100%",

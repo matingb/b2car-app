@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
-import { COLOR } from "@/theme/theme";
+import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 
 interface Props {
   open: boolean;
@@ -50,7 +50,9 @@ export default function CreateRepresentanteModal({ open, onClose }: Props) {
           <form onSubmit={handleSubmit}>
             <div style={{ padding: '4px 0 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={styles.field}> 
-                <label style={styles.label}>Nombre <span style={{ color: '#d00' }}>*</span></label>
+                <label style={styles.label}>
+                  Nombre <span aria-hidden="true" style={styles.required}>*</span>
+                </label>
                 <input style={styles.input} value={nombre} placeholder="Nombre" onChange={e => setNombre(e.target.value)} />
               </div>
               <div style={styles.field}> 
@@ -89,6 +91,7 @@ const styles = {
   title: { margin: 0 },
   field: { display: 'flex', flexDirection: 'column', gap: 6 },
   label: { fontSize: 13, color: COLOR.TEXT.SECONDARY },
+  required: { color: REQUIRED_ICON_COLOR, fontWeight: 700, marginLeft: 2 },
   input: { width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${COLOR.BORDER.SUBTLE}`, background: COLOR.INPUT.PRIMARY.BACKGROUND },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 },
   cancel: { background: 'transparent', border: `1px solid ${COLOR.BORDER.SUBTLE}`, color: COLOR.TEXT.PRIMARY, padding: '0.5rem 1rem', borderRadius: 8, cursor: 'pointer' },

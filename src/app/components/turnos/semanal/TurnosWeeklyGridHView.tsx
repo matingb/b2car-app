@@ -82,7 +82,7 @@ export default function TurnosWeeklyGridHView({
       setTurnos(res);
     };
     fetchTurnos();
-  }, [weekStart, weekEnd, getWithFilters]);
+  }, [weekStart, weekEnd, getWithFilters, dias]);
 
 
 

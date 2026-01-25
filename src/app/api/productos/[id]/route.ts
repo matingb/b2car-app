@@ -70,6 +70,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body: UpdateProductoRequest | null = await req.json().catch(() => null);
   if (!body) return Response.json({ data: null, error: "JSON inválido" } satisfies UpdateProductoResponse, { status: 400 });
 
+  if (body.codigo !== undefined && !String(body.codigo ?? "").trim()) {
+    return Response.json({ data: null, error: "Falta codigo" } satisfies UpdateProductoResponse, { status: 400 });
+  }
+  if (body.nombre !== undefined && !String(body.nombre ?? "").trim()) {
+    return Response.json({ data: null, error: "Falta nombre" } satisfies UpdateProductoResponse, { status: 400 });
+  }
+  if (body.precio_unitario !== undefined && (typeof body.precio_unitario !== "number" || body.precio_unitario < 0)) {
+    return Response.json({ data: null, error: "precio_unitario debe ser >= 0" } satisfies UpdateProductoResponse, { status: 400 });
+  }
+  if (body.costo_unitario !== undefined && (typeof body.costo_unitario !== "number" || body.costo_unitario < 0)) {
+    return Response.json({ data: null, error: "costo_unitario debe ser >= 0" } satisfies UpdateProductoResponse, { status: 400 });
+  }
+
   const patch: Partial<Omit<ProductoRow, "id" | "tenantId" | "created_at" | "updated_at">> = {};
   if (body.codigo !== undefined) patch.codigo = String(body.codigo ?? "").trim();
   if (body.nombre !== undefined) patch.nombre = String(body.nombre ?? "").trim();

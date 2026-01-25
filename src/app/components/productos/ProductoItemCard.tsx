@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React from "react";
 import Card from "@/app/components/ui/Card";
 import { COLOR } from "@/theme/theme";
-import type { Producto, StockRegistro } from "@/app/providers/InventarioProvider";
+import type { Producto } from "@/app/providers/ProductosProvider";
 
 type Props = {
   producto: Producto;
-  stock: StockRegistro[];
   onClick: () => void;
 };
 
@@ -29,11 +28,11 @@ function CategoryTag({ text }: { text: string }) {
   );
 }
 
-export default function ProductoItemCard({ producto, stock, onClick }: Props) {
-  const talleresConStock = useMemo(() => stock.length, [stock.length]);
+export default function ProductoItemCard({ producto, onClick }: Props) {
+  const talleresConStock = producto.talleresConStock ?? 0;
 
   return (
-    <Card onClick={onClick} style={{ background: COLOR.BACKGROUND.SECONDARY }} data-testid={`producto-item-${producto.productoId}`}>
+    <Card onClick={onClick} style={{ background: COLOR.BACKGROUND.SECONDARY }} data-testid={`producto-item-${producto.id}`}>
       <div style={styles.topRow}>
         <div style={{ minWidth: 0 }}>
           <div style={styles.title}>{producto.nombre}</div>

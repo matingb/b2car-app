@@ -12,6 +12,7 @@ vi.mock("./stocksService", async () => {
     stocksService: {
       ...actual.stocksService,
       listAll: vi.fn(),
+      listForTaller: vi.fn(),
       getByTallerProducto: vi.fn(),
       create: vi.fn(),
     },
@@ -35,6 +36,11 @@ import { GET, POST } from "./route";
 import { createClient } from "@/supabase/server";
 import { stocksService } from "./stocksService";
 import { productosService } from "../productos/productosService";
+import {
+  createInventarioProductoRow,
+  createInventarioStockItemRow,
+  createInventarioStockRow,
+} from "@/tests/factories";
 
 async function postStock(input: unknown) {
   const req = new Request("http://localhost/api/stocks", {
@@ -57,34 +63,7 @@ describe("/api/stocks", () => {
 
   it("GET devuelve lista (sin query params)", async () => {
     vi.mocked(stocksService.listAll).mockResolvedValue({
-      data: [
-        {
-          id: "STK-001",
-          tenantId: "TEN-1",
-          tallerId: "TAL-001",
-          productoId: "PROD-001",
-          cantidad: 10,
-          stock_minimo: 2,
-          stock_maximo: 20,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          productos: {
-            id: "PROD-001",
-            tenantId: "TEN-1",
-            codigo: "C-1",
-            nombre: "Producto 1",
-            marca: null,
-            modelo: null,
-            descripcion: null,
-            precio_unitario: 100,
-            costo_unitario: 50,
-            proveedor: "Proveedor 1",
-            categorias: ["Cat"],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        },
-      ],
+      data: [createInventarioStockItemRow()],
       error: null,
     });
 
@@ -96,6 +75,20 @@ describe("/api/stocks", () => {
     expect(body.data).toHaveLength(1);
   });
 
+  it("GET si se invoca con tallerId como filtro, usa listForTaller en vez de listAll", async () => {
+    const tallerId = "TAL-001";
+    
+    vi.mocked(stocksService.listForTaller).mockResolvedValue({
+      data: [createInventarioStockItemRow({ tallerId })],
+      error: null,
+    });
+
+    await GET(new Request(`http://localhost/api/stocks?tallerId=${tallerId}`));
+
+    expect(stocksService.listForTaller).toHaveBeenCalledWith(expect.anything(), tallerId);
+    expect(stocksService.listAll).toHaveBeenCalledTimes(0);
+  });
+
   it("POST sin productoId devuelve 400", async () => {
     const { res } = await postStock({ tallerId: "T1" });
     expect(res.status).toBe(400);
@@ -104,17 +97,13 @@ describe("/api/stocks", () => {
   it("POST upsert creado devuelve 201", async () => {
     vi.mocked(stocksService.getByTallerProducto).mockResolvedValue({ data: null, error: null });
     vi.mocked(stocksService.create).mockResolvedValue({
-      data: {
+      data: createInventarioStockRow({
         id: "STK-999",
-        tenantId: "TEN-1",
-        tallerId: "TAL-001",
         productoId: "PROD-999",
         cantidad: 10,
         stock_minimo: 0,
         stock_maximo: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
+      }),
       error: null,
     });
 
@@ -126,35 +115,17 @@ describe("/api/stocks", () => {
 
   it("POST cuando ya existe stock para producto+taller devuelve 409 con mensaje del backend", async () => {
     vi.mocked(stocksService.getByTallerProducto).mockResolvedValue({
-      data: {
-        id: "STK-001",
-        tenantId: "TEN-1",
-        tallerId: "TAL-001",
-        productoId: "PROD-001",
-        cantidad: 10,
-        stock_minimo: 2,
-        stock_maximo: 20,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
+      data: createInventarioStockRow({ tallerId: "TAL-001", productoId: "PROD-001" }),
       error: null,
     });
+
     vi.mocked(productosService.getById).mockResolvedValue({
-      data: {
+      data: createInventarioProductoRow({
         id: "PROD-001",
-        tenantId: "TEN-1",
-        codigo: "C-1",
         nombre: "Neumático 205/55 R16",
-        marca: null,
-        modelo: null,
-        descripcion: null,
-        precio_unitario: 100,
-        costo_unitario: 50,
         proveedor: null,
         categorias: [],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
+      }),
       error: null,
     });
 

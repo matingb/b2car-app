@@ -15,3 +15,11 @@ create trigger talleres_set_updated_at
 before update on public.talleres
 for each row
 execute function public.update_updated_at_column();
+
+alter table public.talleres enable row level security;
+drop policy if exists tenant_access on public.talleres;
+create policy tenant_access
+on public.talleres
+to authenticated
+using (tenant_id = public.current_tenant_id())
+with check (tenant_id = public.current_tenant_id());

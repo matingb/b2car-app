@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Producto } from "@/app/providers/InventarioProvider";
+import type { Producto } from "@/app/providers/ProductosProvider";
 
 export type ProductosFilters = {
   categorias: string[];

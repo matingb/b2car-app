@@ -39,14 +39,18 @@ function mapProducto(row: ProductoJoinRow | null): ProductoDTO | null {
 }
 
 export async function GET(req: Request) {
-  void req;
+  const url = new URL(req.url);
+  const tallerId = url.searchParams.get("tallerId")?.trim() ?? "";
+
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getSession();
   if (!auth.session) {
     return Response.json({ data: null, error: "Unauthorized" } satisfies GetStocksResponse, { status: 401 });
   }
 
-  const { data: rows, error } = await stocksService.listAll(supabase);
+  const { data: rows, error } = tallerId
+    ? await stocksService.listForTaller(supabase, tallerId)
+    : await stocksService.listAll(supabase);
   if (error) {
     return Response.json({ data: [], error: "Error listando stocks" } satisfies GetStocksResponse, { status: 500 });
   }

@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Autocomplete, { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import Modal from "@/app/components/ui/Modal";
 import { Arreglo, Vehiculo } from "@/model/types";
-import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient";
@@ -164,7 +164,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           <div css={styles.row}>
             <div style={styles.field}>
               <label style={styles.label}>
-                Vehiculo <span style={{ color: "#d00" }}>*</span>
+                Vehiculo <span aria-hidden="true" style={styles.required}>*</span>
               </label>
               <Autocomplete
                 options={vehiculoOptions}
@@ -188,7 +188,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           </div>
           <div style={styles.field}>
             <label style={styles.label}>
-              Fecha <span style={{ color: "#d00" }}>*</span>
+              Fecha <span aria-hidden="true" style={styles.required}>*</span>
             </label>
             <input type="date" style={styles.input} value={fecha} onChange={(e) => setFecha(e.target.value)} />
           </div>
@@ -204,7 +204,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>
-              Descripcion <span style={{ color: "#d00" }}>*</span>
+              Descripcion <span aria-hidden="true" style={styles.required}>*</span>
             </label>
             <textarea
               style={styles.input}
@@ -278,6 +278,11 @@ const styles = {
     fontSize: 13,
     marginBottom: 6,
     color: COLOR.TEXT.SECONDARY,
+  },
+  required: {
+    color: REQUIRED_ICON_COLOR,
+    fontWeight: 700,
+    marginLeft: 2,
   },
   input: {
     width: "100%",

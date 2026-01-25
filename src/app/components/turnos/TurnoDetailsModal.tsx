@@ -17,7 +17,6 @@ type Props = {
   turno: Turno | null;
   onClose: () => void;
   onEdit?: (turno: Turno) => void;
-  onPrint?: (turno: Turno) => void;
   onCancel?: (turno: Turno) => void;
 };
 
@@ -26,7 +25,6 @@ export default function TurnoDetailsModal({
   turno,
   onClose,
   onEdit,
-  onPrint,
   onCancel,
 }: Props) {
   if (!open || !turno) return null;

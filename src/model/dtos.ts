@@ -66,6 +66,7 @@ export type ProductoDTO = {
     costo_unitario: number;
     proveedor: string | null;
     categorias: string[];
+    talleresConStock?: number;
     created_at: string;
     updated_at: string;
 };

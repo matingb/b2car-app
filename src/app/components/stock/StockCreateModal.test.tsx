@@ -5,13 +5,18 @@ import StockCreateModal from "./StockCreateModal";
 
 const mockUpsertStock = vi.fn();
 const mockCreateProducto = vi.fn();
-
 vi.mock("@/app/providers/InventarioProvider", () => ({
   useInventario: () => ({
-    productos: [{ productoId: "PROD-001", nombre: "Producto 1", codigo: "P1" }],
-    createProducto: mockCreateProducto,
     upsertStock: mockUpsertStock,
-    loading: false,
+    isLoading: false,
+  }),
+}));
+
+vi.mock("@/app/providers/ProductosProvider", () => ({
+  useProductos: () => ({
+    productos: [{ id: "PROD-001", nombre: "Producto 1", codigo: "P1" }],
+    createProducto: mockCreateProducto,
+    isLoading: false,
   }),
 }));
 

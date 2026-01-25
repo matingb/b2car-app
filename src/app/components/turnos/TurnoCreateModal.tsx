@@ -6,7 +6,7 @@ import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autoc
 import { useClientes } from "@/app/providers/ClientesProvider";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import { COLOR } from "@/theme/theme";
+import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { useTurnos } from "@/app/providers/TurnosProvider";
 import { CreateTurnoInput } from "@/app/api/turnos/turnosService";
 import Dropdown from "@/app/components/ui/Dropdown";
@@ -291,7 +291,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 			<div style={{ display: "grid", gap: 12 }}>
 				<div>
 					<label style={styles.label}>
-						Cliente <span style={{ color: "#d00" }}>*</span>
+						Cliente <span aria-hidden="true" style={styles.required}>*</span>
 					</label>
 					<Autocomplete
 						options={clienteOptions}
@@ -307,7 +307,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 							<div style={styles.row}>
 								<div style={styles.field}>
 									<label style={styles.label}>
-										Nombre <span style={{ color: "#d00" }}>*</span>
+										Nombre <span aria-hidden="true" style={styles.required}>*</span>
 									</label>
 									<input
 										style={styles.input}
@@ -320,7 +320,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 								{clienteTipo === TipoCliente.PARTICULAR && (
 									<div style={styles.field}>
 										<label style={styles.label}>
-											Apellido <span style={{ color: "#d00" }}>*</span>
+											Apellido <span aria-hidden="true" style={styles.required}>*</span>
 										</label>
 										<input
 											style={styles.input}
@@ -334,7 +334,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 								{clienteTipo === TipoCliente.EMPRESA && (
 									<div style={styles.field}>
 										<label style={styles.label}>
-											CUIT <span style={{ color: "#d00" }}>*</span>
+											CUIT <span aria-hidden="true" style={styles.required}>*</span>
 										</label>
 										<input
 											style={styles.input}
@@ -347,7 +347,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 
 								<div style={{ ...styles.field, maxWidth: 160 }}>
 									<label style={styles.label}>
-										Tipo <span style={{ color: "#d00" }}>*</span>
+										Tipo <span aria-hidden="true" style={styles.required}>*</span>
 									</label>
 									<Dropdown
 										value={clienteTipo}
@@ -393,7 +393,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 
 				<div>
 					<label style={styles.label}>
-						Vehículo <span style={{ color: "#d00" }}>*</span>
+						Vehículo <span aria-hidden="true" style={styles.required}>*</span>
 					</label>
 					{(!isCreatingCliente) && (
 						<Autocomplete
@@ -415,7 +415,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 									<div style={styles.row}>
 										<div style={styles.field}>
 											<label style={styles.label}>
-												Patente <span style={{ color: "#d00" }}>*</span>
+												Patente <span aria-hidden="true" style={styles.required}>*</span>
 											</label>
 											<input
 												style={styles.input}
@@ -487,7 +487,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 				<div style={styles.row}>
 					<div style={styles.field}>
 						<label style={styles.label}>
-							Fecha <span style={{ color: "#d00" }}>*</span>
+							Fecha <span aria-hidden="true" style={styles.required}>*</span>
 						</label>
 						<input
 							type="date"
@@ -498,7 +498,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 					</div>
 					<div style={styles.field}>
 						<label style={styles.label}>
-							Hora <span style={{ color: "#d00" }}>*</span>
+							Hora <span aria-hidden="true" style={styles.required}>*</span>
 						</label>
 						<input
 							type="time"
@@ -594,6 +594,11 @@ const styles = {
 		fontSize: 13,
 		marginBottom: 6,
 		color: COLOR.TEXT.SECONDARY,
+	},
+	required: {
+		color: REQUIRED_ICON_COLOR,
+		fontWeight: 700,
+		marginLeft: 2,
 	},
 	input: {
 		width: "100%",

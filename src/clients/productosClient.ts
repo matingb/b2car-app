@@ -10,6 +10,7 @@ import type {
   UpdateProductoRequest,
   UpdateProductoResponse,
 } from "@/app/api/productos/contracts";
+import { Producto } from "@/app/providers/InventarioProvider";
 
 export const productosClient = {
   async getAll(): Promise<GetProductosResponse> {
@@ -91,18 +92,17 @@ export const productosClient = {
   },
 };
 
-export function mapProductoToInventario(dto: ProductoDTO) {
+export function mapProductoToInventario(dto: ProductoDTO): Producto {
   return {
-    productoId: dto.id,
+    id: dto.id,
     nombre: dto.nombre,
     codigo: dto.codigo,
     categorias: dto.categorias ?? [],
-    // Frontend mapping
-    precioVenta: dto.precio_unitario ?? 0,
-    precioCompra: dto.costo_unitario ?? 0,
+    precioUnitario: dto.precio_unitario ?? 0,
+    costoUnitario: dto.costo_unitario ?? 0,
     proveedor: dto.proveedor ?? "",
-    // A falta de columna ubicación en el schema: usamos vacío (UI muestra "-")
     ubicacion: "",
+    talleresConStock: dto.talleresConStock ?? 0,
   };
 }
 

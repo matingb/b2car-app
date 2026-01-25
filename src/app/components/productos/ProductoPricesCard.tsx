@@ -6,13 +6,13 @@ import { COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
 
 export type ProductoPricesDraft = {
-  precioCompra: number;
-  precioVenta: number;
+  costoUnitario: number;
+  precioUnitario: number;
 };
 
 type Props = {
-  precioCompra: number;
-  precioVenta: number;
+  costoUnitario: number;
+  precioUnitario: number;
   stockTotal: number;
   isEditing: boolean;
   draft: ProductoPricesDraft;
@@ -20,15 +20,15 @@ type Props = {
 };
 
 export default function ProductoPricesCard({
-  precioCompra,
-  precioVenta,
+  costoUnitario,
+  precioUnitario,
   stockTotal,
   isEditing,
   draft,
   onChange,
 }: Props) {
-  const baseCompra = isEditing ? draft.precioCompra : precioCompra;
-  const baseVenta = isEditing ? draft.precioVenta : precioVenta;
+  const baseCompra = isEditing ? draft.costoUnitario : costoUnitario;
+  const baseVenta = isEditing ? draft.precioUnitario : precioUnitario;
 
   const margen = useMemo(() => {
     if (!baseCompra) return 0;
@@ -48,11 +48,11 @@ export default function ProductoPricesCard({
               <input
                 type="number"
                 style={styles.input}
-                value={draft.precioCompra}
-                onChange={(e) => onChange({ precioCompra: Number(e.target.value) || 0 })}
+                value={draft.costoUnitario}
+                onChange={(e) => onChange({ costoUnitario: Number(e.target.value) || 0 })}
               />
             ) : (
-              <div style={styles.value}>{formatArs(precioCompra, { maxDecimals: 0, minDecimals: 0 })}</div>
+              <div style={styles.value}>{formatArs(costoUnitario, { maxDecimals: 0, minDecimals: 0 })}</div>
             )}
           </div>
 
@@ -62,11 +62,11 @@ export default function ProductoPricesCard({
               <input
                 type="number"
                 style={styles.input}
-                value={draft.precioVenta}
-                onChange={(e) => onChange({ precioVenta: Number(e.target.value) || 0 })}
+                value={draft.precioUnitario}
+                onChange={(e) => onChange({ precioUnitario: Number(e.target.value) || 0 })}
               />
             ) : (
-              <div style={styles.value}>{formatArs(precioVenta, { maxDecimals: 0, minDecimals: 0 })}</div>
+              <div style={styles.value}>{formatArs(precioUnitario, { maxDecimals: 0, minDecimals: 0 })}</div>
             )}
           </div>
         </div>

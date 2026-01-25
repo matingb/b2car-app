@@ -1,7 +1,4 @@
 import type {
-  StockItemDTO,
-} from "@/model/dtos";
-import type {
   GetStockByIdResponse,
   GetStocksResponse,
   UpdateStockRequest,
@@ -26,9 +23,18 @@ export const stocksClient = {
   },
 
   async getByTaller(params: { tallerId: string }): Promise<GetStocksResponse> {
-    const res = await this.getAll();
-    if (!res.data) return res;
-    return { data: res.data.filter((s) => s.tallerId === params.tallerId), error: res.error ?? null };
+    try {
+      const tallerId = params.tallerId.trim();
+      const res = await fetch(`/api/stocks?tallerId=${encodeURIComponent(tallerId)}`);
+      const body: GetStocksResponse = await res.json();
+      if (!res.ok) {
+        return { data: null, error: body?.error || `Error ${res.status}` };
+      }
+      return { data: body.data || [], error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Error cargando stocks";
+      return { data: null, error: message };
+    }
   },
 
   async getById(id: string): Promise<GetStockByIdResponse> {
@@ -95,18 +101,4 @@ export const stocksClient = {
     }
   },
 };
-
-export function mapStockItemToInventario(dto: StockItemDTO) {
-  return {
-    id: dto.id,
-    productoId: dto.productoId,
-    tallerId: dto.tallerId,
-    stockActual: dto.cantidad ?? 0,
-    stockMinimo: dto.stock_minimo ?? 0,
-    stockMaximo: dto.stock_maximo ?? 0,
-    // El frontend usa DD/MM/YYYY; se convierte en el provider
-    ultimaActualizacion: dto.updated_at,
-    historialMovimientos: [] as any[],
-  };
-}
 
