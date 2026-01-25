@@ -49,12 +49,12 @@ function StockPageContent() {
               style={{height: 40, padding: '0 12px'}}
             />
           </div>
-            <Button
+            {/* <Button
               icon={<PlusIcon size={20} />}
               text="Nuevo taller"
               onClick={() => setIsTallerCreateOpen(true)}
               style={{ height: 40 }}
-            />
+            /> */}
         </div>
       </div>
 

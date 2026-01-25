@@ -40,7 +40,7 @@ export const stocksService = {
     const { data, error } = await supabase
       .from("stocks")
       .select(
-        `id,tenantId,tallerId,productoId,cantidad,stock_minimo,stock_maximo,created_at,updated_at,productos(*)`
+        `*,productos(*)`
       )
       .order("updated_at", { ascending: false });
 
