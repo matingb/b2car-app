@@ -8,8 +8,8 @@ import { productosService, ProductosServiceError, type ProductoRow } from "../pr
 function mapStockRow(row: StockRow): StockDTO {
   return {
     id: row.id,
-    tallerId: row.tallerId,
-    productoId: row.productoId,
+    tallerId: row.taller_id,
+    productoId: row.producto_id,
     cantidad: Number(row.cantidad) || 0,
     stock_minimo: Number(row.stock_minimo) || 0,
     stock_maximo: Number(row.stock_maximo) || 0,
@@ -77,8 +77,8 @@ export async function POST(req: Request) {
   if (!body.productoId?.trim()) return Response.json({ data: null, error: "Falta productoId" } satisfies UpsertStockResponse, { status: 400 });
 
   const input = {
-    tallerId: body.tallerId.trim(),
-    productoId: body.productoId.trim(),
+    taller_id: body.tallerId.trim(),
+    producto_id: body.productoId.trim(),
     cantidad: typeof body.cantidad === "number" ? body.cantidad : 0,
     stock_minimo: typeof body.stock_minimo === "number" ? body.stock_minimo : 0,
     stock_maximo: typeof body.stock_maximo === "number" ? body.stock_maximo : 0,
@@ -87,25 +87,26 @@ export async function POST(req: Request) {
   try {
     const { data: existing, error: findError } = await stocksService.getByTallerProducto(
       supabase,
-      input.tallerId,
-      input.productoId
+      input.taller_id,
+      input.producto_id
     );
     if (findError) {
       logger.error("Error checking existing stock:", findError);
       return Response.json({ data: null, error: "Error validando stock existente" } satisfies UpsertStockResponse, { status: 500 });
     }
     if (existing) {
-      const productoRes = await productosService.getById(supabase, input.productoId);
+      const productoRes = await productosService.getById(supabase, input.producto_id);
       const productoNombre =
         productoRes.error === ProductosServiceError.NotFound || !productoRes.data
-          ? input.productoId
+          ? input.producto_id
           : productoRes.data.nombre;
-      const message = `El producto "${productoNombre}" ya tiene stock definido para el taller "${input.tallerId}"`;
+      const message = `El producto "${productoNombre}" ya tiene stock definido para el taller "${input.taller_id}"`;
       return Response.json({ data: null, error: message } satisfies UpsertStockResponse, { status: 409 });
     }
 
     const { data: created, error } = await stocksService.create(supabase, input);
     if (error || !created) {
+      logger.error("Error creating stock:", error);
       return Response.json({ data: null, error: "Error guardando stock" } satisfies UpsertStockResponse, { status: 500 });
     }
     return Response.json({ data: mapStockRow(created), error: null } satisfies UpsertStockResponse, { status: 201 });

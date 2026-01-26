@@ -57,10 +57,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchAll();
+    setTallerSeleccionadoId(talleres[0]?.id ?? "");
   }, [fetchAll]);
 
   const value = useMemo(
     () => ({
+      loading,
       tenantName,
       talleres,
       tallerSeleccionadoId,

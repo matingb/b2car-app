@@ -14,9 +14,9 @@ function toServiceError(err: PostgrestError): StocksServiceError {
 
 export type StockRow = {
   id: string;
-  tenantId: string;
-  tallerId: string;
-  productoId: string;
+  tenant_id: string;
+  taller_id: string;
+  producto_id: string;
   cantidad: number;
   stock_minimo: number;
   stock_maximo: number;
@@ -79,14 +79,14 @@ export const stocksService = {
 
   async getByTallerProducto(
     supabase: SupabaseClient,
-    tallerId: string,
-    productoId: string
+    taller_id: string,
+    producto_id: string
   ): Promise<{ data: StockRow | null; error: PostgrestError | null }> {
     const { data, error } = await supabase
       .from("stocks")
       .select("*")
-      .eq("taller_id", tallerId)
-      .eq("producto_id", productoId)
+      .eq("taller_id", taller_id)
+      .eq("producto_id", producto_id)
       .maybeSingle();
 
     return { data: (data ?? null) as StockRow | null, error };
@@ -94,7 +94,7 @@ export const stocksService = {
 
   async create(
     supabase: SupabaseClient,
-    input: Omit<StockRow, "id" | "tenantId" | "created_at" | "updated_at">
+    input: Omit<StockRow, "id" | "tenant_id" | "created_at" | "updated_at">
   ): Promise<{ data: StockRow | null; error: PostgrestError | null }> {
     const { data, error } = await supabase
       .from("stocks")
@@ -112,8 +112,8 @@ export const stocksService = {
     const { data: existing, error: findError } = await supabase
       .from("stocks")
       .select("*")
-      .eq("taller_id", input.tallerId)
-      .eq("producto_id", input.productoId)
+      .eq("taller_id", input.taller_id)
+      .eq("producto_id", input.producto_id)
       .maybeSingle();
 
     if (findError) return { data: null, created: false, error: findError };
