@@ -15,9 +15,10 @@ import Card from "@/app/components/ui/Card";
 import Dropdown from "@/app/components/ui/Dropdown";
 import { COLOR } from "@/theme/theme";
 import StockItemCard from "@/app/components/stock/StockItemCard";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, PlusIcon } from "lucide-react";
 import TallerCreateModal from "@/app/components/inventario/TallerCreateModal";
 import { logger } from "@/lib/logger";
+import Button from "@/app/components/ui/Button";
 
 export default function StockPage() {
   return <StockPageContent />;
@@ -43,21 +44,30 @@ function StockPageContent() {
 
       <div style={{ marginTop: 12 }}>
         <div style={styles.topRow}>
-          <div style={styles.tallerLabel}>Taller</div>
-          <div style={{ width: 280, height: 40 }}>
-            <Dropdown
-              value={tallerSeleccionadoId}
-              options={talleres.map((t) => ({ value: t.id, label: t.nombre }))}
-              onChange={setTallerSeleccionadoId}
-              style={{height: 40, padding: '0 12px'}}
-            />
+          <div style={styles.leftTopRow}>
+            <div style={styles.tallerLabel}>Taller</div>
+            <div style={{ width: 280, height: 40 }}>
+              <Dropdown
+                value={tallerSeleccionadoId}
+                options={talleres.map((t) => ({ value: t.id, label: t.nombre }))}
+                onChange={setTallerSeleccionadoId}
+                style={{ height: 40, padding: '0 12px' }}
+              />
+            </div>
           </div>
-            {/* <Button
+
+          {/* <Button
               icon={<PlusIcon size={20} />}
               text="Nuevo taller"
               onClick={() => setIsTallerCreateOpen(true)}
               style={{ height: 40 }}
             /> */}
+          <Button
+            icon={< PlusIcon size={20} />}
+            text="Nueva operación"
+            onClick={() => { }}
+            style={{ height: 40 }}
+          />
         </div>
       </div>
 
@@ -90,10 +100,10 @@ function StockPageContent() {
         </div>
 
         {!isLoading && state.itemsFiltrados.length === 0 ? (
-            <div style={styles.empty}>
-              <div style={styles.emptyTitle}>No se encontraron items</div>
-              <div style={styles.emptySub}>Probá ajustando búsqueda o filtros.</div>
-            </div>
+          <div style={styles.empty}>
+            <div style={styles.emptyTitle}>No se encontraron items</div>
+            <div style={styles.emptySub}>Probá ajustando búsqueda o filtros.</div>
+          </div>
         ) : (
           <>
             {isLoading ? (
@@ -141,6 +151,12 @@ function StockPageContent() {
 
 const styles = {
   topRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  leftTopRow: {
     display: "flex",
     alignItems: "center",
     gap: 12,
