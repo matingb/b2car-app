@@ -26,8 +26,8 @@ function mapProducto(row: ProductoRow): Omit<ProductoDetailDTO, "stocks"> {
 function mapStock(row: StockRow): StockDTO {
   return {
     id: row.id,
-    tallerId: row.tallerId,
-    productoId: row.productoId,
+    tallerId: row.taller_id,
+    productoId: row.producto_id,
     cantidad: Number(row.cantidad) || 0,
     stock_minimo: Number(row.stock_minimo) || 0,
     stock_maximo: Number(row.stock_maximo) || 0,
@@ -51,7 +51,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return Response.json({ data: null, error: "Producto no encontrado" } satisfies GetProductoByIdResponse, { status: 404 });
   }
 
-  const { data: stocks } = await supabase.from("stocks").select("*").eq("productoId", id);
+  const { data: stocks } = await supabase.from("stocks").select("*").eq("producto_id", id);
 
   return Response.json(
     { data: { ...mapProducto(productoRes.data), stocks: (stocks ?? []).map((s) => mapStock(s as StockRow)) }, error: null } satisfies GetProductoByIdResponse,
@@ -83,7 +83,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return Response.json({ data: null, error: "costo_unitario debe ser >= 0" } satisfies UpdateProductoResponse, { status: 400 });
   }
 
-  const patch: Partial<Omit<ProductoRow, "id" | "tenantId" | "created_at" | "updated_at">> = {};
+  const patch: Partial<Omit<ProductoRow, "id" | "tenant_id" | "created_at" | "updated_at">> = {};
   if (body.codigo !== undefined) patch.codigo = String(body.codigo ?? "").trim();
   if (body.nombre !== undefined) patch.nombre = String(body.nombre ?? "").trim();
   if (body.marca !== undefined) patch.marca = body.marca ?? null;
@@ -99,7 +99,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (error === ProductosServiceError.NotFound || !updated) {
       return Response.json({ data: null, error: "Producto no encontrado" } satisfies UpdateProductoResponse, { status: 404 });
     }
-    const { data: stocks } = await supabase.from("stocks").select("*").eq("productoId", id);
+    const { data: stocks } = await supabase.from("stocks").select("*").eq("producto_id", id);
 
     return Response.json(
       { data: { ...mapProducto(updated), stocks: (stocks ?? []).map((s) => mapStock(s as StockRow)) }, error: null } satisfies UpdateProductoResponse,

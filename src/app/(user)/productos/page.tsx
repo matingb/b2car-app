@@ -8,10 +8,11 @@ import ProductosToolbar from "@/app/components/productos/ProductosToolbar";
 import ProductosFiltersModal from "@/app/components/productos/ProductosFiltersModal";
 import ProductoCreateModal from "@/app/components/productos/ProductoCreateModal";
 import Card from "@/app/components/ui/Card";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import ProductoItemCard from "@/app/components/productos/ProductoItemCard";
 import { LoaderCircle } from "lucide-react";
 import { useProductos } from "@/app/providers/ProductosProvider";
+import { css } from "@emotion/react";
 
 export default function ProductosPage() {
   return <ProductosPageContent />;
@@ -62,7 +63,7 @@ function ProductosPageContent() {
             <LoaderCircle className="animate-spin" size={28} color={COLOR.ACCENT.PRIMARY} />
           </div>
         ) : (
-          <div style={styles.list}>
+          <div css={styles.list}>
             {state.productosFiltrados.map((p) => (
               <ProductoItemCard
                 key={p.id}
@@ -106,12 +107,16 @@ const styles = {
   },
   resultsTitle: { fontSize: 18, fontWeight: 700 },
   resultsCount: { fontSize: 13, color: COLOR.TEXT.SECONDARY },
-  list: {
+  list: css({
     display: "flex",
     flexDirection: "column" as const,
     gap: 12,
     marginTop: 12,
-  },
+    [`@media (min-width: ${BREAKPOINTS.xl}px)`]: {
+      display: "grid",
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))", 
+    },
+  }),
   loading: {
     marginTop: 16,
     display: "flex",

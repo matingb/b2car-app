@@ -173,7 +173,7 @@ export default function ProductoInfoCard({
 }
 
 const styles = {
-  title: { fontSize: 18, fontWeight: 700, margin: "0 0 8px" },
+  title: { fontSize: 18, fontWeight: 600, margin: "0 0 8px" },
   label: { fontSize: 13, color: COLOR.TEXT.SECONDARY, marginBottom: 6 },
   value: { fontSize: 14, fontWeight: 600 },
   grid: {

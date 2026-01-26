@@ -15,6 +15,7 @@ import MovementsCard, { type InventarioMovementRow } from "@/app/components/inve
 import ProductoInfoCard from "@/app/components/productos/ProductoInfoCard";
 import ProductoPricesCard from "@/app/components/productos/ProductoPricesCard";
 import { Producto, StockRegistro, useProductos } from "@/app/providers/ProductosProvider";
+import { logger } from "@/lib/logger";
 
 export default function ProductoDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -34,6 +35,7 @@ export default function ProductoDetailsPage() {
       if (cancelled) return;
       setProducto(res?.producto ?? null);
       setStockDelProducto(res?.stocks ?? []);
+      logger.debug("Loaded producto details: ", res);
     }
     void load();
     return () => {
@@ -86,8 +88,10 @@ export default function ProductoDetailsPage() {
       setIsEditing(false);
       return;
     }
-    setDraft({ ...producto });
+    setDraft({ ...producto });  
     setIsEditing(false);
+    logger.debug("Producto details loaded, set draft: ", talleres);
+    logger.debug(stockDelProducto)
   }, [producto]);
 
   const handleDelete = useCallback(async () => {
@@ -256,13 +260,13 @@ const styles = {
   },
   title: {
     fontSize: 22,
-    fontWeight: 800,
+    fontWeight: 600,
     margin: 0,
   },
   titleInput: {
     width: "100%",
     fontSize: 22,
-    fontWeight: 800,
+    fontWeight: 600,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 8,
     padding: "10px 12px",
@@ -283,7 +287,7 @@ const styles = {
   }),
   leftCol: { display: "flex", flexDirection: "column" as const, gap: 12 },
   rightCol: { display: "flex", flexDirection: "column" as const, gap: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: 800, margin: "0 0 8px" },
+  sectionTitle: { fontSize: 18, fontWeight: 600, margin: "0 0 8px" },
   talleresGrid: css({
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",

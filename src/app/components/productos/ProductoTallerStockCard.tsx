@@ -59,8 +59,8 @@ const styles = {
     justifyContent: "space-between",
     gap: 8,
   },
-  taller: { fontWeight: 800, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const },
-  qty: { fontWeight: 900, fontSize: 14 },
+  taller: { fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const },
+  qty: { fontWeight: 600, fontSize: 14 },
   footer: {
     display: "flex",
     alignItems: "center",

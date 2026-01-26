@@ -80,7 +80,7 @@ export default function ProductoPricesCard({
           </div>
           <div>
             <div style={styles.label}>Valor en producto</div>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>
+            <div style={{ fontSize: 18, fontWeight: 600 }}>
               {formatArs(valorProducto, { maxDecimals: 0, minDecimals: 0 })}
             </div>
           </div>
@@ -91,9 +91,9 @@ export default function ProductoPricesCard({
 }
 
 const styles = {
-  title: { fontSize: 18, fontWeight: 700, margin: "0 0 8px" },
+  title: { fontSize: 18, fontWeight: 600, margin: "0 0 8px" },
   label: { fontSize: 13, color: COLOR.TEXT.SECONDARY, marginBottom: 6 },
-  value: { fontSize: 14, fontWeight: 700 },
+  value: { fontSize: 14, fontWeight: 600 },
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",

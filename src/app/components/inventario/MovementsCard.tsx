@@ -71,7 +71,7 @@ export default function MovementsCard({
 }
 
 const styles = {
-  title: { fontSize: 18, fontWeight: 700, margin: "0 0 8px" },
+  title: { fontSize: 18, fontWeight: 600, margin: "0 0 8px" },
   list: { display: "flex", flexDirection: "column" as const, gap: 10 },
   empty: { color: COLOR.TEXT.SECONDARY, fontSize: 14 },
   row: {
@@ -95,6 +95,6 @@ const styles = {
   motivo: { fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const },
   meta: { color: COLOR.TEXT.SECONDARY, fontSize: 13, display: "flex", alignItems: "center", gap: 6 },
   dot: { opacity: 0.9 },
-  qty: { fontWeight: 800, fontSize: 14, flexShrink: 0 },
+  qty: { fontWeight: 600, fontSize: 14, flexShrink: 0 },
 } as const;
 
