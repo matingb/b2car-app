@@ -14,6 +14,11 @@ export async function GET() {
         return new Response(JSON.stringify({ data: null, error }), { status: 500 });
     }
 
-    return new Response(JSON.stringify({ data, error: null }), { status: 200 });
+    return new Response(JSON.stringify({ data, error: null }), {
+        status: 200,
+        headers: {
+            "Cache-Control": "public, max-age=14400",
+        },
+    });
 
 }
