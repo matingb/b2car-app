@@ -90,12 +90,10 @@ function StockPageContent() {
         </div>
 
         {!isLoading && state.itemsFiltrados.length === 0 ? (
-          <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
             <div style={styles.empty}>
               <div style={styles.emptyTitle}>No se encontraron items</div>
               <div style={styles.emptySub}>Probá ajustando búsqueda o filtros.</div>
             </div>
-          </Card>
         ) : (
           <>
             {isLoading ? (

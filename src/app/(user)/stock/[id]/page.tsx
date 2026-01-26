@@ -31,6 +31,7 @@ export default function StockDetailsPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<StockItem | null>(null);
   const [item, setItem] = useState<StockItem | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,6 +77,7 @@ export default function StockDetailsPage() {
 
   const handleSave = useCallback(async () => {
     if (!draft) return;
+    setIsSaving(true);
     // Persistir cambios de producto (global) + stock (por taller)
     await updateProducto(draft.productoId, {
       nombre: draft.nombre,
@@ -83,8 +85,8 @@ export default function StockDetailsPage() {
       proveedor: draft.proveedor,
       ubicacion: draft.ubicacion,
       // precioUnitario == precio de venta, costoUnitario == precio de compra
-      costoUnitario: draft.precioCompra,
-      precioUnitario: draft.precioVenta,
+      costoUnitario: draft.costoUnitario,
+      precioUnitario: draft.precioUnitario,
       categorias: draft.categorias,
     });
     await updateStock(draft.id, {
@@ -94,6 +96,8 @@ export default function StockDetailsPage() {
     });
     setIsEditing(false);
     success("Éxito", "Cambios guardados.");
+    setItem({ ...draft });
+    setIsSaving(false);
   }, [draft, success, updateProducto, updateStock]);
 
   if (isLoading && !item) {
@@ -109,7 +113,16 @@ export default function StockDetailsPage() {
     return (
       <div>
         <ScreenHeader title="Stock" breadcrumbs={["Detalle"]} hasBackButton />
-        <div style={{ marginTop: 16 }}>Item no encontrado.</div>
+        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>Cargando...</div>
+      </div>
+    );
+  }
+
+  if (isSaving) {
+    return (
+      <div>
+        <ScreenHeader title="Stock" breadcrumbs={["Detalle"]} hasBackButton />
+        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>Guardando...</div>
       </div>
     );
   }
@@ -196,11 +209,11 @@ export default function StockDetailsPage() {
           />
           <div style={{ marginTop: 12 }}>
             <ProductoPricesCard
-              costoUnitario={item.precioCompra}
-              precioUnitario={item.precioVenta}
+              costoUnitario={item.costoUnitario}
+              precioUnitario={item.precioUnitario}
               stockTotal={item.stockActual}
               isEditing={isEditing}
-              draft={{ costoUnitario: draft.precioCompra, precioUnitario: draft.precioVenta }}
+              draft={{ costoUnitario: draft.costoUnitario, precioUnitario: draft.precioUnitario }}
               onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
             />
           </div>
@@ -228,13 +241,13 @@ const styles = {
   },
   title: {
     fontSize: 22,
-    fontWeight: 800,
+    fontWeight: 600,
     margin: 0,
   },
   titleInput: {
     width: "100%",
     fontSize: 22,
-    fontWeight: 800,
+    fontWeight: 600,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 8,
     padding: "10px 12px",

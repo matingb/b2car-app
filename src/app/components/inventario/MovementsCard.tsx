@@ -28,12 +28,12 @@ export default function MovementsCard({
   return (
     <div>
       <h3 style={styles.title}>{title}</h3>
-      <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
-        <div style={styles.list}>
-          {movimientos.length === 0 ? (
-            <div style={styles.empty}>{emptyText}</div>
-          ) : (
-            movimientos.map((mov, idx) => {
+      {movimientos.length === 0 ? (
+        <div style={styles.empty}>{emptyText}</div>
+      ) : (
+        <Card>
+          <div style={styles.list}>
+            {movimientos.map((mov, idx) => {
               const isEntrada = mov.tipo === "entrada";
               const color = isEntrada ? "#15803d" : COLOR.ICON.DANGER;
               const bg = isEntrada ? "rgba(21,128,61,0.10)" : "rgba(139,0,0,0.10)";
@@ -62,10 +62,10 @@ export default function MovementsCard({
                   </div>
                 </div>
               );
-            })
-          )}
-        </div>
-      </Card>
+            })}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

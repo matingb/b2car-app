@@ -17,8 +17,8 @@ export type StockItem = {
   stockActual: number;
   stockMinimo: number;
   stockMaximo: number;
-  precioCompra: number;
-  precioVenta: number;
+  costoUnitario: number;
+  precioUnitario: number;
   proveedor: string;
   ubicacion: string;
   ultimaActualizacion: string;

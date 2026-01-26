@@ -16,6 +16,7 @@ import ProductoInfoCard from "@/app/components/productos/ProductoInfoCard";
 import ProductoPricesCard from "@/app/components/productos/ProductoPricesCard";
 import { Producto, StockRegistro, useProductos } from "@/app/providers/ProductosProvider";
 import { logger } from "@/lib/logger";
+import { a } from "vitest/dist/chunks/suite.d.FvehnV49.js";
 
 export default function ProductoDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -81,6 +82,7 @@ export default function ProductoDetailsPage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<Producto | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!producto) {
@@ -88,7 +90,7 @@ export default function ProductoDetailsPage() {
       setIsEditing(false);
       return;
     }
-    setDraft({ ...producto });  
+    setDraft({ ...producto });
     setIsEditing(false);
     logger.debug("Producto details loaded, set draft: ", talleres);
     logger.debug(stockDelProducto)
@@ -110,6 +112,7 @@ export default function ProductoDetailsPage() {
 
   const handleSave = useCallback(async () => {
     if (!draft) return;
+    setIsSaving(true);
     await updateProducto(draft.id, {
       nombre: draft.nombre,
       codigo: draft.codigo,
@@ -121,7 +124,9 @@ export default function ProductoDetailsPage() {
     });
 
     success("Producto actualizado satisfactoriamente");
+    setProducto({ ...draft });
     setIsEditing(false);
+    setIsSaving(false);
   }, [draft, success, updateProducto]);
 
   if (isLoading && !producto) {
@@ -137,7 +142,16 @@ export default function ProductoDetailsPage() {
     return (
       <div>
         <ScreenHeader title="Productos" breadcrumbs={["Detalle"]} hasBackButton />
-        <div style={{ marginTop: 16 }}>Producto no encontrado.</div>
+        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>Cargando...</div>
+      </div>
+    );
+  }
+
+  if (isSaving) {
+    return (
+      <div>
+        <ScreenHeader title="Stock" breadcrumbs={["Detalle"]} hasBackButton />
+        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>Guardando...</div>
       </div>
     );
   }
@@ -255,6 +269,9 @@ const styles = {
     flexShrink: 0,
   },
   titleBlock: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: 12,
     marginTop: 12,
     marginBottom: 12,
   },

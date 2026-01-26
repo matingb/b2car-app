@@ -37,7 +37,6 @@ export default function ProductoItemCard({ producto, onClick }: Props) {
   return (
     <Card
       onClick={onClick}
-      style={{ background: COLOR.BACKGROUND.SECONDARY }}
       data-testid={`producto-item-${producto.id}`}
     >
       <div style={styles.container}>

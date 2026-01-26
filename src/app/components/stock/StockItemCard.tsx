@@ -37,12 +37,12 @@ export default function StockItemCard({ item, onClick }: Props) {
   return (
     <Card onClick={() => onClick(item)} style={styles.card} data-testid={`stock-item-${item.id}`}>
       <div style={styles.topRow}>
-        <div style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0, display: "flex", alignItems: "baseline", gap: 8 }}>
           <div style={styles.title}>{item.nombre}</div>
           <div style={styles.subtitle}>{item.codigo}</div>
         </div>
         <div style={styles.right}>
-          <div style={styles.price}>${item.precioVenta.toLocaleString()}</div>
+          <div style={styles.price}>${item.precioUnitario.toLocaleString()}</div>
         </div>
       </div>
 
@@ -72,7 +72,6 @@ export default function StockItemCard({ item, onClick }: Props) {
 
 const styles = {
   card: {
-    background: COLOR.BACKGROUND.SECONDARY,
   },
   topRow: {
     display: "flex",
@@ -81,8 +80,8 @@ const styles = {
     gap: 12,
   },
   title: {
-    fontSize: 16,
-    fontWeight: 700,
+    fontSize: 18,
+    fontWeight: 600,
     marginBottom: 2,
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -99,7 +98,7 @@ const styles = {
     flexShrink: 0,
   },
   price: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 700,
   },
   midRow: {

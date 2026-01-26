@@ -22,7 +22,7 @@ export default function StockLevelsCard({ item, isEditing, draft, onChange }: Pr
   return (
     <div>
       <h3 style={styles.title}>Estado del stock</h3>
-      <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
+      <Card>
         <div style={styles.top}>
           <div style={styles.muted}>Mín: {base.stockMinimo}</div>
           <div style={styles.center}>{base.stockActual} unidades</div>
@@ -77,7 +77,7 @@ export default function StockLevelsCard({ item, isEditing, draft, onChange }: Pr
 }
 
 const styles = {
-  title: { fontSize: 18, fontWeight: 700, margin: "0 0 8px" },
+  title: { fontSize: 18, fontWeight: 600, margin: "0 0 8px" },
   top: {
     display: "flex",
     justifyContent: "space-between",
@@ -85,7 +85,7 @@ const styles = {
     gap: 8,
   },
   muted: { fontSize: 13, color: COLOR.TEXT.SECONDARY },
-  center: { fontSize: 18, fontWeight: 800 },
+  center: { fontSize: 18, fontWeight: 600 },
   divider: { height: 1, background: COLOR.BORDER.SUBTLE, margin: "12px 0" },
   grid: {
     display: "grid",

@@ -17,11 +17,11 @@ export default function StockPricesCard({ item, isEditing, draft, onChange }: Pr
   const base = isEditing ? draft : item;
 
   const margen = useMemo(() => {
-    if (!base.precioCompra) return 0;
-    return ((base.precioVenta - base.precioCompra) / base.precioCompra) * 100;
-  }, [base.precioCompra, base.precioVenta]);
+    if (!base.costoUnitario) return 0;
+    return ((base.precioUnitario - base.costoUnitario) / base.costoUnitario) * 100;
+  }, [base.costoUnitario, base.precioUnitario]);
 
-  const valorStock = useMemo(() => base.stockActual * base.precioCompra, [base.stockActual, base.precioCompra]);
+  const valorStock = useMemo(() => base.stockActual * base.costoUnitario, [base.stockActual, base.costoUnitario]);
 
   return (
     <div>
@@ -34,11 +34,11 @@ export default function StockPricesCard({ item, isEditing, draft, onChange }: Pr
               <input
                 type="number"
                 style={styles.input}
-                value={draft.precioCompra}
-                onChange={(e) => onChange({ precioCompra: Number(e.target.value) || 0 })}
+                value={draft.costoUnitario}
+                onChange={(e) => onChange({ costoUnitario: Number(e.target.value) || 0 })}
               />
             ) : (
-              <div style={styles.value}>{formatArs(item.precioCompra, { maxDecimals: 0, minDecimals: 0 })}</div>
+              <div style={styles.value}>{formatArs(item.costoUnitario, { maxDecimals: 0, minDecimals: 0 })}</div>
             )}
           </div>
 
@@ -48,11 +48,11 @@ export default function StockPricesCard({ item, isEditing, draft, onChange }: Pr
               <input
                 type="number"
                 style={styles.input}
-                value={draft.precioVenta}
-                onChange={(e) => onChange({ precioVenta: Number(e.target.value) || 0 })}
+                value={draft.precioUnitario}
+                onChange={(e) => onChange({ precioUnitario: Number(e.target.value) || 0 })}
               />
             ) : (
-              <div style={styles.value}>{formatArs(item.precioVenta, { maxDecimals: 0, minDecimals: 0 })}</div>
+              <div style={styles.value}>{formatArs(item.precioUnitario, { maxDecimals: 0, minDecimals: 0 })}</div>
             )}
           </div>
         </div>

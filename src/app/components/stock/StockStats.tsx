@@ -38,7 +38,6 @@ function StatCard({
     <Card
       onClick={onClick}
       style={{
-        background: COLOR.BACKGROUND.SECONDARY,
         border: selected ? `2px solid ${COLOR.ACCENT.PRIMARY}` : undefined,
       }}
     >
@@ -51,13 +50,13 @@ function StatCard({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: COLOR.BACKGROUND.PRIMARY,
+            background: COLOR.BACKGROUND.SUBTLE,
           }}
         >
           {icon}
         </div>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: color ?? COLOR.TEXT.PRIMARY }}>
+          <div style={{ fontSize: 20, fontWeight: 600, color: color ?? COLOR.TEXT.PRIMARY }}>
             {value}
           </div>
           <div style={{ fontSize: 13, color: COLOR.TEXT.SECONDARY }}>{title}</div>
@@ -73,7 +72,7 @@ export default function StockStats({ stats, selectedEstado, onSelectEstado }: Pr
       <StatCard
         title="Total items"
         value={stats.total}
-        icon={<Package size={20} color={COLOR.ICON.MUTED} />}
+        icon={<Package size={24} color={COLOR.ICON.MUTED} />}
         selected={selectedEstado === ""}
         onClick={() => onSelectEstado("")}
       />
@@ -81,7 +80,7 @@ export default function StockStats({ stats, selectedEstado, onSelectEstado }: Pr
       <StatCard
         title="Sin stock"
         value={stats.criticos}
-        icon={<AlertCircle size={20} color={COLOR.ICON.DANGER} />}
+        icon={<AlertCircle size={24} color={COLOR.ICON.DANGER} />}
         color={COLOR.ICON.DANGER}
         selected={selectedEstado === "critico"}
         onClick={() => onSelectEstado(selectedEstado === "critico" ? "" : "critico")}
@@ -90,7 +89,7 @@ export default function StockStats({ stats, selectedEstado, onSelectEstado }: Pr
       <StatCard
         title="Stock bajo"
         value={stats.bajos}
-        icon={<AlertTriangle size={20} color={"#b45309"} />}
+        icon={<AlertTriangle size={24 } color={"#b45309"} />}
         color={"#b45309"}
         selected={selectedEstado === "bajo"}
         onClick={() => onSelectEstado(selectedEstado === "bajo" ? "" : "bajo")}
@@ -99,7 +98,7 @@ export default function StockStats({ stats, selectedEstado, onSelectEstado }: Pr
       <StatCard
         title="Exceso stock"
         value={stats.altos}
-        icon={<TrendingUp size={20} color={COLOR.ACCENT.PRIMARY} />}
+        icon={<TrendingUp size={24} color={COLOR.ACCENT.PRIMARY} />}
         color={COLOR.ACCENT.PRIMARY}
         selected={selectedEstado === "alto"}
         onClick={() => onSelectEstado(selectedEstado === "alto" ? "" : "alto")}
@@ -111,7 +110,7 @@ export default function StockStats({ stats, selectedEstado, onSelectEstado }: Pr
 const styles = {
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
     gap: 12,
     marginTop: 12,
   },

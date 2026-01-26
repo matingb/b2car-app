@@ -25,7 +25,7 @@ export default function ProductoTallerStockCard({
   );
 
   return (
-    <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
+    <Card>
       <div style={styles.header}>
         <div style={styles.taller}>{tallerNombre}</div>
         <div style={styles.qty}>{stockActual} uds</div>

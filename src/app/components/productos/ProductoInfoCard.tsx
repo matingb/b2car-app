@@ -67,7 +67,7 @@ export default function ProductoInfoCard({
   return (
     <div>
       <h3 style={styles.title}>Información general</h3>
-      <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
+      <Card >
         <div style={styles.grid}>
           <div>
             <div style={styles.label}>Código</div>

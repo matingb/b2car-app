@@ -160,7 +160,7 @@ export default function StockCreateModal({
       submitting={isLoading}
       disabledSubmit={!canSubmit}
     >
-      <div style={{ padding: "4px 0 12px" }}>
+      <div style={{ padding: "4px 0 12px", minHeight: '325px'}}>
         <div css={styles.row}>
           <div style={styles.fieldWide}>
             <label style={styles.label}>Producto</label>
