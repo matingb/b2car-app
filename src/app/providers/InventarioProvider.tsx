@@ -11,6 +11,7 @@ import React, {
 import type { StockItem, StockMovement } from "@/model/stock";
 import type { StockItemDTO } from "@/model/dtos";
 import { stocksClient } from "@/clients/stocksClient";
+import { logger } from "@/lib/logger";
 
 export const INVENTARIO_CATEGORIAS_DISPONIBLES = [
   "Aceites y Lubricantes",
@@ -89,7 +90,6 @@ function isoToShortEsDate(iso: string | null | undefined): string {
 export function InventarioProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [inventario, setInventario] = useState<StockItem[]>([]);
-  const [tallerIdActual, setTallerIdActual] = useState<string>("");
 
   const mapStockItemDtoToUi = useCallback((dto: StockItemDTO): StockItem | null => {
     const p = dto.producto;
@@ -114,27 +114,25 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const loadInventarioByTaller = useCallback(
-    async () => {
-      const id = String(tallerIdActual).trim();
+    async (tallerId: string) => {
+      const id = String(tallerId ?? "").trim();
       if (!id) return;
-
       setIsLoading(true);
       try {
-        setTallerIdActual(id);
         const stocksRes = await stocksClient.getByTaller({ tallerId: id });
+        logger.debug("Stocks response:", stocksRes);
         if (stocksRes.error || !stocksRes.data) {
           setInventario([]);
           return;
         }
         const items = stocksRes.data
-          .map(mapStockItemDtoToUi)
-          .filter(Boolean) as StockItem[];
+          .map(mapStockItemDtoToUi) as StockItem[];
         setInventario(items);
       } finally {
         setIsLoading(false);
       }
     },
-    [mapStockItemDtoToUi, tallerIdActual]
+    [mapStockItemDtoToUi]
   );
 
   const getStockById = useCallback(
@@ -167,7 +165,7 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
         if (!res.data) {
           throw new Error(res.error || "No se pudo guardar el stock");
         }
-        await loadInventarioByTaller();
+        await loadInventarioByTaller(input.tallerId);
         return mapStockItemDtoToUi(res.data as StockItemDTO);
       } finally {
         setIsLoading(false);
@@ -190,7 +188,7 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
           throw new Error(res.error || "No se pudo actualizar el stock");
         }
 
-        await loadInventarioByTaller();
+        await loadInventarioByTaller(res.data.tallerId);
         return mapStockItemDtoToUi(res.data as StockItemDTO);
       } finally {
         setIsLoading(false);
@@ -203,11 +201,14 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
     setIsLoading(true);
     try {
       await stocksClient.delete(id);
-      await loadInventarioByTaller();
+      const current = inventario.find((item) => item.id === id);
+      if (current?.tallerId) {
+        await loadInventarioByTaller(current.tallerId);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [loadInventarioByTaller]);
+  }, [inventario, loadInventarioByTaller]);
 
   const value = useMemo<InventarioContextType>(
     () => ({
@@ -240,7 +241,7 @@ export function useInventario(tallerId?: string) {
   useEffect(() => {
     if (!tallerId) return;
     void ctx.loadInventarioByTaller(tallerId);
-  }, [ctx, tallerId]);
+  }, [ctx.loadInventarioByTaller, tallerId]);
 
   return {
     ...ctx,

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { useRouter } from "next/navigation";
 import { useTenant } from "@/app/providers/TenantProvider";
@@ -26,7 +26,7 @@ export default function StockPage() {
 function StockPageContent() {
   const router = useRouter();
   const { talleres, tallerSeleccionadoId, setTallerSeleccionadoId } = useTenant();
-  const { inventario, isLoading } = useInventario(tallerSeleccionadoId);
+  const { inventario, isLoading, loadInventarioByTaller } = useInventario(tallerSeleccionadoId);
   const categoriasDisponibles = INVENTARIO_CATEGORIAS_DISPONIBLES;
   const state = useStockFilters(inventario);
   const stats = useStockStats(inventario);
@@ -35,7 +35,7 @@ function StockPageContent() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isTallerCreateOpen, setIsTallerCreateOpen] = useState(false);
 
-  logger.debug(talleres)
+  logger.debug(inventario, tallerSeleccionadoId)
 
   return (
     <div>

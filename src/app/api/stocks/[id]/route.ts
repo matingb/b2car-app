@@ -8,8 +8,8 @@ import type { ProductoRow } from "../../productos/productosService";
 function mapStockRow(row: StockRow): StockDTO {
   return {
     id: row.id,
-    tallerId: row.tallerId,
-    productoId: row.productoId,
+    tallerId: row.taller_id,
+    productoId: row.producto_id,
     cantidad: Number(row.cantidad) || 0,
     stock_minimo: Number(row.stock_minimo) || 0,
     stock_maximo: Number(row.stock_maximo) || 0,

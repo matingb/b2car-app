@@ -52,6 +52,7 @@ export async function GET(req: Request) {
     ? await stocksService.listForTaller(supabase, tallerId)
     : await stocksService.listAll(supabase);
   if (error) {
+    logger.error("Error listing stocks:", error);
     return Response.json({ data: [], error: "Error listando stocks" } satisfies GetStocksResponse, { status: 500 });
   }
 

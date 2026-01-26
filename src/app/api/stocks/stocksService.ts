@@ -1,5 +1,6 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { ProductoRow } from "../productos/productosService";
+import { logger } from "@/lib/logger";
 
 export enum StocksServiceError {
   NotFound = "NotFound",
@@ -52,10 +53,11 @@ export const stocksService = {
       .select(
         `*,productos(*)`
       )
-      .eq("tallerId", tallerId)
+      .eq("taller_id", tallerId)
       .order("updated_at", { ascending: false });
 
     const { data, error } = await query;
+    logger.debug("error" , error);
     if (error) return { data: [], error: toServiceError(error) };
     return { data: (data ?? []) as unknown as StockItemRow[], error: null };
   },
@@ -106,7 +108,7 @@ export const stocksService = {
 
   async upsert(
     supabase: SupabaseClient,
-    input: Omit<StockRow, "id" | "tenantId" | "created_at" | "updated_at">
+    input: Omit<StockRow, "id" | "tenant_id" | "created_at" | "updated_at">
   ): Promise<{ data: StockRow | null; created: boolean; error: PostgrestError | null }> {
     // Try to find existing by unique (tenantId,tallerId,productoId)
     const { data: existing, error: findError } = await supabase

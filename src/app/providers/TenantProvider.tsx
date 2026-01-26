@@ -26,11 +26,9 @@ const TALLERES_MOCK: Taller[] = [
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenantName, setTenantName] = useState("B2Car");
-  const [talleres, setTalleres] = useState<Taller[]>(TALLERES_MOCK);
+  const [talleres, setTalleres] = useState<Taller[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tallerSeleccionadoId, setTallerSeleccionadoId] = useState<string>(
-    TALLERES_MOCK[0]?.id ?? ""
-  );
+  const [tallerSeleccionadoId, setTallerSeleccionadoId] = useState<string>("");
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -47,6 +45,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       setTalleres(talleres as unknown as Taller[]);
+      setTallerSeleccionadoId(talleres[0]?.id ?? "");
       const stored = localStorage.getItem("tenant_name");
       const next = stored?.trim();
       if (next) setTenantName(next);
