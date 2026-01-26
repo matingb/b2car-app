@@ -85,3 +85,27 @@ export interface Taller {
   nombre: string;
   ubicacion: string;
 }
+
+export interface OperacionLinea {
+  id: UUID;
+  operacion_id: UUID;
+  producto_id: UUID;
+  cantidad: number;
+  monto_unitario: number;
+  delta_cantidad: number;
+  created_at: string;
+}
+
+export interface Operacion {
+  id: UUID;
+  tipo: string;
+  taller_id: UUID;
+  created_at: string;
+  lineas: OperacionLinea[];
+}
+
+export type OperacionesFilters = {
+  fecha?: string; // YYYY-MM-DD
+  from?: string; // YYYY-MM-DD
+  to?: string; // YYYY-MM-DD
+};

@@ -89,3 +89,26 @@ export type StockItemDTO = StockDTO & {
 export type ProductoDetailDTO = ProductoDTO & {
     stocks: StockDTO[];
 };
+
+export type OperacionDTO = {
+    id: string;
+    tenant_id: string;
+    tipo: string;
+    taller_id: string;
+    created_at: string;
+};
+
+export type OperacionLineaDTO = {
+    id: string;
+    operacion_id: string;
+    producto_id: string;
+    cantidad: number;
+    monto_unitario: number;
+    delta_cantidad: number;
+    created_at: string;
+};
+
+export type OperacionAsignacionArregloDTO = {
+    operacion_id: string;
+    arreglo_id: string;
+};
