@@ -79,3 +79,9 @@ export interface SupabaseError {
   message: string;
   code?: string;
 }
+
+export interface Taller {
+  id: string;
+  nombre: string;
+  ubicacion: string;
+}

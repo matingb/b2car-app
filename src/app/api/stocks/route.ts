@@ -91,6 +91,7 @@ export async function POST(req: Request) {
       input.productoId
     );
     if (findError) {
+      logger.error("Error checking existing stock:", findError);
       return Response.json({ data: null, error: "Error validando stock existente" } satisfies UpsertStockResponse, { status: 500 });
     }
     if (existing) {

@@ -85,8 +85,8 @@ export const stocksService = {
     const { data, error } = await supabase
       .from("stocks")
       .select("*")
-      .eq("tallerId", tallerId)
-      .eq("productoId", productoId)
+      .eq("taller_id", tallerId)
+      .eq("producto_id", productoId)
       .maybeSingle();
 
     return { data: (data ?? null) as StockRow | null, error };
@@ -112,8 +112,8 @@ export const stocksService = {
     const { data: existing, error: findError } = await supabase
       .from("stocks")
       .select("*")
-      .eq("tallerId", input.tallerId)
-      .eq("productoId", input.productoId)
+      .eq("taller_id", input.tallerId)
+      .eq("producto_id", input.productoId)
       .maybeSingle();
 
     if (findError) return { data: null, created: false, error: findError };

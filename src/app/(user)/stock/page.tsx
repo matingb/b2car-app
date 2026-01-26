@@ -17,6 +17,7 @@ import { COLOR } from "@/theme/theme";
 import StockItemCard from "@/app/components/stock/StockItemCard";
 import { LoaderCircle } from "lucide-react";
 import TallerCreateModal from "@/app/components/inventario/TallerCreateModal";
+import { logger } from "@/lib/logger";
 
 export default function StockPage() {
   return <StockPageContent />;
@@ -33,6 +34,8 @@ function StockPageContent() {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isTallerCreateOpen, setIsTallerCreateOpen] = useState(false);
+
+  logger.debug(talleres)
 
   return (
     <div>

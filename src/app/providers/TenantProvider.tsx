@@ -1,6 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { tenantClient } from "@/clients/tenantClient";
+import { error } from "console";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 export type Taller = {
   id: string;
@@ -24,26 +26,38 @@ const TALLERES_MOCK: Taller[] = [
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenantName, setTenantName] = useState("B2Car");
-  const [talleres] = useState<Taller[]>(TALLERES_MOCK);
+  const [talleres, setTalleres] = useState<Taller[]>(TALLERES_MOCK);
+  const [loading, setLoading] = useState(false);
   const [tallerSeleccionadoId, setTallerSeleccionadoId] = useState<string>(
     TALLERES_MOCK[0]?.id ?? ""
   );
 
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await tenantClient.getAll();
+      if (error) throw new Error(error);
+      setTalleres(data ?? []);
+      return data ?? null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     try {
+      setTalleres(talleres as unknown as Taller[]);
       const stored = localStorage.getItem("tenant_name");
       const next = stored?.trim();
       if (next) setTenantName(next);
     } catch {
       // ignore
     }
-  }, []);
+  }, [talleres]);
 
   useEffect(() => {
-    if (!tallerSeleccionadoId && talleres[0]?.id) {
-      setTallerSeleccionadoId(talleres[0].id);
-    }
-  }, [tallerSeleccionadoId, talleres]);
+    fetchAll();
+  }, [fetchAll]);
 
   const value = useMemo(
     () => ({
