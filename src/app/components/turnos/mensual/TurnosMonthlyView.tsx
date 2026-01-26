@@ -17,8 +17,8 @@ type Props = {
 
 export default function TurnosMonthlyView({ fechaActual, onSelectTurno, onSelectDia }: Props) {
   const days = useMemo(() => getMonthGrid(fechaActual), [fechaActual]);
-  const monthStart = toISODateLocal(days[0] || new Date());
-  const monthEnd = toISODateLocal(days[days.length - 1] || new Date());
+  const monthStart = toISODateLocal(new Date(fechaActual.getFullYear(), fechaActual.getMonth(), 1));
+  const monthEnd = toISODateLocal(new Date(fechaActual.getFullYear(), fechaActual.getMonth() + 1, 0));
 
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const { getWithFilters } = useTurnos();
@@ -45,7 +45,7 @@ export default function TurnosMonthlyView({ fechaActual, onSelectTurno, onSelect
               return <div key={`empty-${idx}`} style={styles.monthEmptyCell} />;
             }
 
-            const turnosDia = turnos.filter(t => toISODateLocal(new Date(t.fecha)) === toISODateLocal(dia));
+            const turnosDia = turnos.filter((t) => t.fecha === toISODateLocal(dia));
             const iso = toISODateLocal(dia);
 
             return (

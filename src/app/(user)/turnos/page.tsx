@@ -13,6 +13,8 @@ import TurnosMonthlyView from "@/app/components/turnos/mensual/TurnosMonthlyView
 import TurnosDailyView from "@/app/components/turnos/diaria/TurnosDailyView";
 import { useTurnosCalendar } from "@/app/hooks/useTurnosCalendar";
 import { VistaTurnos } from "@/app/hooks/useTurnosCalendar";
+import { useModalMessage } from "@/app/providers/ModalMessageProvider";
+import { useToast } from "@/app/providers/ToastProvider";
 
 function TurnosVista({
   vista,
@@ -50,7 +52,7 @@ function TurnosVista({
 }
 
 export default function TurnosPage() {
-  const { loading, error } = useTurnos();
+  const { loading, error, remove, update } = useTurnos();
 
   const {
     vista,
@@ -61,10 +63,13 @@ export default function TurnosPage() {
     goNextPeriod,
     goToToday,
   } = useTurnosCalendar();
+  const { confirm } = useModalMessage();
+  const { success } = useToast();
 
   const [turnoSeleccionado, setTurnoSeleccionado] = useState<Turno | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalCreateOpen, setModalCreateOpen] = useState(false);
+  const [turnoToEdit, setTurnoToEdit] = useState<Turno | null>(null);
   const [defaultFechaCreate, setDefaultFechaCreate] = useState<Date | undefined>(undefined);
   const [defaultHoraCreate, setDefaultHoraCreate] = useState<string | undefined>(undefined);
 
@@ -74,10 +79,18 @@ export default function TurnosPage() {
   };
 
   const openCreateForDate = (d: Date, hora?: string) => {
+    setTurnoToEdit(null);
     setDefaultFechaCreate(d);
     setDefaultHoraCreate(hora);
     setModalCreateOpen(true);
   };
+
+
+  const handleDeleteTurno = async (turno: Turno) => {
+    await remove(turno.id);
+    setModalOpen(false);
+    success("Turno eliminado correctamente.");
+  }
 
   return (
     <div style={{ minWidth: 0, maxWidth: "100%", overflowX: "hidden" }}>
@@ -110,14 +123,31 @@ export default function TurnosPage() {
         </div>
       )}
 
-      <TurnoDetailsModal open={modalOpen} turno={turnoSeleccionado} onClose={() => setModalOpen(false)} />
+      <TurnoDetailsModal
+        open={modalOpen}
+        turno={turnoSeleccionado}
+        onClose={() => setModalOpen(false)}
+        onEdit={async (turno) => {
+          setModalOpen(false);
+          const confirmed = await confirm({
+            message: "¿Estás seguro de que deseas eliminar este arreglo?",
+            title: "Eliminar arreglo",
+            acceptLabel: "Eliminar",
+            cancelLabel: "Cancelar",
+          });
+          if (confirmed) handleDeleteTurno(turno);
+        }}
+        onCancel={(turno) => handleDeleteTurno(turno)}
+      />
 
       <TurnoCreateModal
         open={modalCreateOpen}
         defaultFecha={defaultFechaCreate ?? fechaActual}
         defaultHora={defaultHoraCreate}
+        turnoToEdit={turnoToEdit}
         onClose={() => {
           setModalCreateOpen(false);
+          setTurnoToEdit(null);
           setDefaultFechaCreate(undefined);
           setDefaultHoraCreate(undefined);
         }}

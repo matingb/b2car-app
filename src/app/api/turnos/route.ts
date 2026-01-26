@@ -98,7 +98,7 @@ export async function POST(req: Request) {
 		return Response.json({ data: null, error: { message: "Falta cliente id", code: "validation" } }, { status: 400 });
 	}
 
-	const estadoFinal: TurnoEstado = isTurnoEstado(estado) ? estado : "pendiente";
+	const estadoFinal: TurnoEstado = isTurnoEstado(estado) ? estado : "confirmado";
 
 	const input: CreateTurnoInput = {
 		fecha: fecha,
@@ -126,59 +126,5 @@ export async function POST(req: Request) {
 	return Response.json({ data: inserted, error: null }, { status: 201 });
 }
 
-export async function PUT(req: Request) {
-	const supabase = await createClient();
-	const body = await req.json().catch(() => null) as CreateTurnoInput;
-	if (!body) {
-		return Response.json({ data: null, error: { message: "JSON invalido", code: "validation" } }, { status: 400 });
-	}
-	const url = new URL(req.url);
-	const id = url.searchParams.get("id");
-	if (id === null) {
-		return Response.json({ data: null, error: { message: "Falta/invalid turno id", code: "validation" } }, { status: 400 });
-	}
 
-	const input: UpdateTurnoInput = {
-		id,
-		fecha: body.fecha,
-		hora: body.hora,
-		duracion: toInt(body.duracion),
-		vehiculo_id: body.vehiculo_id,
-		cliente_id: body.cliente_id,
-		tipo: body.tipo,
-		estado: body.estado,
-		descripcion: body.descripcion,
-		observaciones: body.observaciones,
-	};
-
-	const { data: updated, error: updateError } = await turnosService.update(supabase, input);
-
-	if (updateError) {
-		const code = updateError.code || "";
-		const status = code === "23505" ? 409 : 500;
-		const message = status === 409 ? "Ya existe un turno para ese horario" : "Error al actualizar turno";
-		logger.error("PUT /api/turnos - error:", updateError);
-		return Response.json({ data: null, error: { message, code: updateError.code } }, { status });
-	}
-
-	await statsService.onDataChanged(supabase);
-	return Response.json({ data: updated, error: null }, { status: 200 });
-}
-
-export async function DELETE(req: Request) {
-	const supabase = await createClient();
-	const url = new URL(req.url);
-	const id = url.searchParams.get("id");
-	if (!id) {
-		return Response.json({ data: null, error: { message: "Falta turno id", code: "validation" } }, { status: 400 });
-	}
-
-	const { error: deleteError } = await turnosService.delete(supabase, { id });
-	if (deleteError) {
-		logger.error("DELETE /api/turnos - error:", deleteError);
-		return Response.json({ data: null, error: { message: "Error al eliminar turno", code: deleteError.code } }, { status: 500 });
-	}
-	await statsService.onDataChanged(supabase);
-	return Response.json({ data: null, error: null }, { status: 200 });
-}
 

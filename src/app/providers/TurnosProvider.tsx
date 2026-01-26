@@ -22,6 +22,8 @@ type TurnosContextType = {
   filterTurnosByDate: (date: Date) => Turno[];
   getWithFilters: (filters: ListTurnosFilters) => Promise<Turno[]>;
   create: (input: CreateTurnoInput) => Promise<Turno | null>;
+  update: (id: string, input: Partial<CreateTurnoInput>) => Promise<Turno | null>;
+  remove: (id: string) => Promise<boolean>;
 };
 
 const TurnosContext = createContext<TurnosContextType | null>(null);
@@ -91,6 +93,32 @@ export function TurnosProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const update = useCallback(async (id: string, input: Partial<CreateTurnoInput>) => {
+    setLoading(true);
+    try {
+      
+      const response = await turnosClient.update({ id, ...input });
+      if (response?.error) throw new Error(response.error.message);
+      const turno = response?.data;
+      return turno ?? null;
+    }
+    finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const remove = useCallback(async (id: string) => {
+    setLoading(true);
+    try {
+      const response = await turnosClient.delete(id);
+      if (response?.error) throw new Error(response.error.message);
+      return response?.data ?? false;
+    }
+    finally {
+      setLoading(false);
+    }
+  }, []);
+
   const filterTurnosByDate = useCallback(
     (date: Date) => {
       const iso = toISODateLocal(date);
@@ -107,9 +135,11 @@ export function TurnosProvider({ children }: { children: React.ReactNode }) {
       refresh,
       getWithFilters,
       filterTurnosByDate,
-      create
+      create,
+      update,
+      remove,
     }),
-    [turnos, loading, error, refresh, getWithFilters, filterTurnosByDate, create]
+    [turnos, loading, error, refresh, getWithFilters, filterTurnosByDate, create, update, remove]
   );
 
   useEffect(() => {

@@ -10,7 +10,7 @@ import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { useTurnos } from "@/app/providers/TurnosProvider";
 import { CreateTurnoInput } from "@/app/api/turnos/turnosService";
 import Dropdown from "@/app/components/ui/Dropdown";
-import { TipoCliente } from "@/model/types";
+import { TipoCliente, Turno } from "@/model/types";
 
 export type CreatedTurno = {
 	id: number;
@@ -28,6 +28,7 @@ type Props = {
 	defaultFecha?: Date;
 	defaultHora?: string;
 	defaultClienteId?: string;
+	turnoToEdit?: Turno | null;
 };
 
 const DURACIONES_MIN = [30, 45, 60, 90, 120, 150, 180] as const;
@@ -47,7 +48,14 @@ function norm(s: string) {
 	return s.trim().toLowerCase();
 }
 
-export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultHora, defaultClienteId }: Props) {
+export default function TurnoCreateModal({
+	open,
+	onClose,
+	defaultFecha,
+	defaultHora,
+	defaultClienteId,
+	turnoToEdit,
+}: Props) {
 	const { clientes, createParticular, createEmpresa } = useClientes();
 	const { vehiculos, create: createVehiculo } = useVehiculos();
 	const toast = useToast();
@@ -61,7 +69,8 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 	const [descripcion, setDescripcion] = useState<string>("");
 	const [observaciones, setObservaciones] = useState<string>("");
 	const [submitting, setSubmitting] = useState(false);
-	const { create } = useTurnos();
+	const { create, update } = useTurnos();
+	const isEditing = Boolean(turnoToEdit);
 
 	// Inline create Cliente
 	const [clienteTipo, setClienteTipo] = useState<TipoCliente>(TipoCliente.PARTICULAR);
@@ -151,17 +160,31 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 
 	useEffect(() => {
 		if (!open) return;
-		setClienteId(defaultClienteId ?? "");
-		setVehiculoId("");
-		setFecha(toISODateLocal(defaultFecha ?? new Date()));
-		setHora(defaultHora ?? "09:00");
-		setDuracion(null);
-		setTipo("Mecánica");
-		setDescripcion("");
-		setObservaciones("");
-		setSubmitting(false);
 
-		setClienteTipo(TipoCliente.PARTICULAR);
+		if (turnoToEdit) {
+			setClienteId(String(turnoToEdit.cliente.id));
+			setVehiculoId(String(turnoToEdit.vehiculo.id));
+			setFecha(turnoToEdit.fecha);
+			setHora(turnoToEdit.hora);
+			setDuracion(turnoToEdit.duracion ?? null);
+			setTipo(turnoToEdit.tipo ?? "Mecánica");
+			setDescripcion(turnoToEdit.descripcion ?? "");
+			setObservaciones(turnoToEdit.observaciones ?? "");
+			setSubmitting(false);
+			setClienteTipo(turnoToEdit.cliente.tipo_cliente ?? TipoCliente.PARTICULAR);
+		} else {
+			setClienteId(defaultClienteId ?? "");
+			setVehiculoId("");
+			setFecha(toISODateLocal(defaultFecha ?? new Date()));
+			setHora(defaultHora ?? "09:00");
+			setDuracion(null);
+			setTipo("Mecánica");
+			setDescripcion("");
+			setObservaciones("");
+			setSubmitting(false);
+			setClienteTipo(TipoCliente.PARTICULAR);
+		}
+
 		setClienteNombre("");
 		setClienteApellido("");
 		setClienteCuit("");
@@ -174,7 +197,7 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 		setVehiculoMarca("");
 		setVehiculoModelo("");
 		setVehiculoNroInterno("");
-	}, [open, defaultClienteId, defaultFecha, defaultHora]);
+	}, [open, defaultClienteId, defaultFecha, defaultHora, turnoToEdit]);
 
 	const clienteInlineIsValid = useMemo(() => {
 		if (clienteNombre.trim().length === 0) return false;
@@ -255,19 +278,25 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 				setVehiculoId(resolvedVehiculoId);
 			}
 
-			const response = await create({
+			const payload: CreateTurnoInput = {
 				fecha,
 				hora,
 				duracion,
 				cliente_id: resolvedClienteId,
 				vehiculo_id: resolvedVehiculoId,
 				tipo,
+				estado: turnoToEdit?.estado ?? "confirmado",
 				descripcion,
 				observaciones,
-			} as CreateTurnoInput);
+			};
+
+			const response = isEditing
+				? await update(turnoToEdit!.id, payload)
+				: await create(payload);
+
 			if (!response) throw new Error("No se recibió respuesta del servidor");
 
-			toast.success("Turno creado", `${fecha} ${hora}`);
+			toast.success(isEditing ? "Turno actualizado" : "Turno creado", `${fecha} ${hora}`);
 			onClose();
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : "Ocurrió un error";
@@ -281,10 +310,10 @@ export default function TurnoCreateModal({ open, onClose, defaultFecha, defaultH
 	return (
 		<Modal
 			open={open}
-			title="Crear turno"
+			title={isEditing ? "Editar turno" : "Crear turno"}
 			onClose={() => onClose()}
 			onSubmit={handleSubmit}
-			submitText="Guardar"
+			submitText={isEditing ? "Guardar cambios" : "Guardar"}
 			submitting={submitting}
 			disabledSubmit={!isValid}
 		>

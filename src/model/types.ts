@@ -60,7 +60,7 @@ export interface Arreglo {
 }
 
 export interface Turno {
-	id: number;
+	id: string;
 	fecha: string; // YYYY-MM-DD
 	hora: string; // HH:mm
 	duracion: number | null; // minutos
