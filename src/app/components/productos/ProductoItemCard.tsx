@@ -2,9 +2,10 @@
 
 import React from "react";
 import Card from "@/app/components/ui/Card";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import type { Producto } from "@/app/providers/ProductosProvider";
 import { Box, Tag } from "lucide-react";
+import { css } from "@emotion/react";
 
 type Props = {
   producto: Producto;
@@ -49,11 +50,11 @@ export default function ProductoItemCard({ producto, onClick }: Props) {
             <div style={styles.title}>{producto.nombre}</div>
             <div style={styles.subtitle}>{producto.codigo}</div>
 
-            
+
           </div>
         </div>
 
-        <div style={styles.right}>
+        <div css={styles.right}>
           <div style={styles.rightInfo}>
             <span style={styles.metaText}>{talleresConStock} talleres</span>
             <span style={styles.metaDot}>•</span>
@@ -150,14 +151,17 @@ const styles = {
     gap: 8,
     minWidth: 0,
   },
-  right: {
+  right: css({
     display: "flex",
     flexDirection: "column" as const,
     alignItems: "flex-end",
     justifyContent: "center",
     gap: 6,
     minWidth: 0,
-  },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: 'none',
+    },
+  }),
   rightInfo: {
     display: "flex",
     alignItems: "center",

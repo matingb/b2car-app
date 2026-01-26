@@ -3,10 +3,11 @@
 import React from "react";
 import type { StockItem } from "@/model/stock";
 import Card from "@/app/components/ui/Card";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { getStockStatus } from "@/lib/stock";
 import StockProgressBar from "./StockProgressBar";
 import StockStatusPill from "./StockStatusPill";
+import { css } from "@emotion/react";
 
 type Props = {
   item: StockItem;
@@ -47,14 +48,14 @@ export default function StockItemCard({ item, onClick }: Props) {
       </div>
 
       <div style={styles.midRow}>
-        <div style={styles.cats}>
+        <div css={styles.cats}>
           {item.categorias.slice(0, 2).map((c) => (
             <CategoryTag key={c} text={c} />
           ))}
           {item.categorias.length > 2 && <CategoryTag text={`+${item.categorias.length - 2}`} />}
         </div>
 
-        <div style={styles.stockCol}>
+        <div css={styles.stockCol}>
           <div style={styles.stockText}>
             <span style={{ fontWeight: 700 }}>{item.stockActual}</span>
             <span style={{ color: COLOR.TEXT.SECONDARY }}> / {item.stockMaximo}</span>
@@ -108,17 +109,23 @@ const styles = {
     alignItems: "center",
     marginTop: 10,
   },
-  cats: {
+  cats: css({
     display: "flex",
     flexWrap: "wrap" as const,
     gap: 8,
     minWidth: 0,
-  },
-  stockCol: {
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "none",
+    },
+  }),
+  stockCol: css({
     display: "flex",
     flexDirection: "column" as const,
     gap: 6,
-  },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "none",
+    },
+  }),
   stockText: {
     fontSize: 13,
   },

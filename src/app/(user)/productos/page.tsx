@@ -27,10 +27,8 @@ function ProductosPageContent() {
 
   return (
     <div>
-      <div style={styles.headerTop}>
-        <ScreenHeader title="Productos" />
-      </div>
-
+      <ScreenHeader title="Productos" />
+      
       <div style={{ marginTop: 12 }}>
         <ProductosToolbar
           search={state.search}
