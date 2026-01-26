@@ -189,17 +189,16 @@ export function ProductosProvider({ children }: { children: React.ReactNode }) {
     [isLoading, productos, loadProductos, getProductoById, createProducto, updateProducto, removeProducto]
   );
 
+  useEffect(() => {
+    void loadProductos();
+  }, [loadProductos]);
+
   return <ProductosContext.Provider value={value}>{children}</ProductosContext.Provider>;
 }
 
 export function useProductos() {
   const ctx = useContext(ProductosContext);
   if (!ctx) throw new Error("useProductos debe usarse dentro de ProductosProvider");
-
-  const { loadProductos } = ctx;
-  useEffect(() => {
-    void loadProductos();
-  }, [loadProductos]);
   return ctx;
 }
 
