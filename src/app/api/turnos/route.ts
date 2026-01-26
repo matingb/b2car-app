@@ -3,7 +3,6 @@ import { logger } from "@/lib/logger";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import {
 	turnosService,
-	UpdateTurnoInput,
 	CreateTurnoInput
 } from "./turnosService";
 import { TurnoEstado } from "@/model/dtos";
@@ -18,11 +17,6 @@ function isHourMinute(value: unknown): value is string {
 
 function isTurnoEstado(value: unknown): value is TurnoEstado {
 	return value === "Confirmado" || value === "Pendiente" || value === "Cancelado";
-}
-
-function toInt(value: unknown): number | null {
-	const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
-	return Number.isFinite(n) ? Math.trunc(n) : null;
 }
 
 export async function GET(req: Request) {

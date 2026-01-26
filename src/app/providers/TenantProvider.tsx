@@ -1,7 +1,6 @@
 "use client";
 
 import { tenantClient } from "@/clients/tenantClient";
-import { error } from "console";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 export type Taller = {
@@ -56,7 +55,6 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchAll();
-    setTallerSeleccionadoId(talleres[0]?.id ?? "");
   }, [fetchAll]);
 
   const value = useMemo(
@@ -67,7 +65,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       tallerSeleccionadoId,
       setTallerSeleccionadoId,
     }),
-    [tenantName, talleres, tallerSeleccionadoId]
+    [loading, tenantName, talleres, tallerSeleccionadoId, setTallerSeleccionadoId]
   );
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;

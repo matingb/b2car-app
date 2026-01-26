@@ -16,7 +16,6 @@ import ProductoInfoCard from "@/app/components/productos/ProductoInfoCard";
 import ProductoPricesCard from "@/app/components/productos/ProductoPricesCard";
 import { Producto, StockRegistro, useProductos } from "@/app/providers/ProductosProvider";
 import { logger } from "@/lib/logger";
-import { a } from "vitest/dist/chunks/suite.d.FvehnV49.js";
 
 export default function ProductoDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -92,8 +91,6 @@ export default function ProductoDetailsPage() {
     }
     setDraft({ ...producto });
     setIsEditing(false);
-    logger.debug("Producto details loaded, set draft: ", talleres);
-    logger.debug(stockDelProducto)
   }, [producto]);
 
   const handleDelete = useCallback(async () => {

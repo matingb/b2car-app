@@ -59,7 +59,7 @@ export default function TurnosWeeklyGridHView({
   onSelectDia,
 }: Props) {
   const { getWithFilters } = useTurnos();
-  const [hoveredTurnoId, setHoveredTurnoId] = useState<number | null>(null);
+  const [hoveredTurnoId, setHoveredTurnoId] = useState<string | null>(null);
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const dias = useMemo(() => getWeekDays(fechaActual), [fechaActual]);
   const horas = useMemo(

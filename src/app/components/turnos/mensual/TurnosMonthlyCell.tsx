@@ -19,7 +19,7 @@ export default function TurnosMonthlyCell({
   turnosDia,
 }: Props) {
   const [hovered, setHovered] = useState(false);
-  const [hoveredTurnoId, setHoveredTurnoId] = useState<number | null>(null);
+  const [hoveredTurnoId, setHoveredTurnoId] = useState<string | null>(null);
 
   const visible = turnosDia.slice(0, 3);
   const remaining = Math.max(0, turnosDia.length - visible.length);

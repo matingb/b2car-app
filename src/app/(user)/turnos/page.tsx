@@ -52,7 +52,7 @@ function TurnosVista({
 }
 
 export default function TurnosPage() {
-  const { loading, error, remove, update } = useTurnos();
+  const { loading, error, remove } = useTurnos();
 
   const {
     vista,

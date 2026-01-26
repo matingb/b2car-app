@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { useRouter } from "next/navigation";
 import { useTenant } from "@/app/providers/TenantProvider";
@@ -11,7 +11,6 @@ import StockToolbar from "@/app/components/stock/StockToolbar";
 import StockFiltersModal from "@/app/components/stock/StockFiltersModal";
 import StockCreateModal from "@/app/components/stock/StockCreateModal";
 import StockStats from "@/app/components/stock/StockStats";
-import Card from "@/app/components/ui/Card";
 import Dropdown from "@/app/components/ui/Dropdown";
 import { COLOR } from "@/theme/theme";
 import StockItemCard from "@/app/components/stock/StockItemCard";
@@ -27,7 +26,7 @@ export default function StockPage() {
 function StockPageContent() {
   const router = useRouter();
   const { talleres, tallerSeleccionadoId, setTallerSeleccionadoId } = useTenant();
-  const { inventario, isLoading, loadInventarioByTaller } = useInventario(tallerSeleccionadoId);
+  const { inventario, isLoading } = useInventario(tallerSeleccionadoId);
   const categoriasDisponibles = INVENTARIO_CATEGORIAS_DISPONIBLES;
   const state = useStockFilters(inventario);
   const stats = useStockStats(inventario);

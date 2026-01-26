@@ -4,7 +4,6 @@ import React, { useMemo } from "react";
 import Card from "@/app/components/ui/Card";
 import { COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
-import { logger } from "@/lib/logger";
 
 export type ProductoPricesDraft = {
   costoUnitario: number;

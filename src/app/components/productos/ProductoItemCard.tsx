@@ -4,7 +4,7 @@ import React from "react";
 import Card from "@/app/components/ui/Card";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import type { Producto } from "@/app/providers/ProductosProvider";
-import { Box, Tag } from "lucide-react";
+import { Box } from "lucide-react";
 import { css } from "@emotion/react";
 
 type Props = {
@@ -33,7 +33,6 @@ function CategoryTag({ text }: { text: string }) {
 export default function ProductoItemCard({ producto, onClick }: Props) {
   const talleresConStock = producto.talleresConStock ?? 0;
   const categorias = producto.categorias ?? [];
-  const categoriaPrincipal = categorias[0] ?? "Sin categoría";
 
   return (
     <Card

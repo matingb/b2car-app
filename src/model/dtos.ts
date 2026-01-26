@@ -41,7 +41,7 @@ export interface ParticularDto {
     }
 
 export interface TurnoDto {
-    id: number;
+    id: string;
     fecha: string;
     hora: string;
     duracion: number | null;

@@ -1,7 +1,4 @@
 
-
-// returs a list of talleres
-import { Taller } from "@/model/types";
 import { createClient } from "@/supabase/server"
 import { tenantService } from "../tenantService";
 
