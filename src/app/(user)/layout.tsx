@@ -81,13 +81,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <nav css={s.navList}>
                     {items.map((item) => {
                       const isLogout = item.key === SidebarMenuKey.Logout;
+                      const isClientes = item.key === SidebarMenuKey.Clientes;
+                      const isStock = item.key === SidebarMenuKey.Stock;
                       return (
                         <div key={item.key}>
-                          {isLogout ? (
+                          {isLogout || isClientes || isStock ? (
                             <Divider
                               style={{
                                 width: collapsed ? "100%" : "100%",
-                                margin: collapsed ? "0.5rem 0" : "0.5rem 0",
+                                marginBottom: collapsed ? "0.5rem" : "0.5rem",
                               }}
                             />
                           ) : null}
@@ -175,7 +177,7 @@ const styles = {
     userSelect: "none",
   },
   sidebarHeaderRow: {
-    marginBottom: "1.5rem",
+    marginBottom: "0.5rem",
     display: "flex",
     wrap: "wrap",
     alignItems: "center",
