@@ -1,4 +1,4 @@
-import { TipoCliente } from "./types";
+import { TipoCliente, TipoOperacion } from "./types";
 
 export interface VehiculoDto {
     id: string;
@@ -93,7 +93,7 @@ export type ProductoDetailDTO = ProductoDTO & {
 export type OperacionDTO = {
     id: string;
     tenant_id: string;
-    tipo: string;
+    tipo: TipoOperacion;
     taller_id: string;
     created_at: string;
 };

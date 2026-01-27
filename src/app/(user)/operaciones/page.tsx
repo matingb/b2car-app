@@ -118,8 +118,6 @@ export default function OperacionesPage() {
             });
     }, [operaciones, search, selectedTipos]);
 
-    logger.debug("OperacionesPage render", { operaciones, talleres });
-
     return (
         <div>
             <ScreenHeader title="Operaciones" />

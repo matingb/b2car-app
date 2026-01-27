@@ -108,7 +108,6 @@ export default function TurnosWeeklyGridHView({
             <div>
               {dias.map((dia, idx) => {
                 const turnosDia = turnos.filter((t) => t.fecha === toISODateLocal(dia));
-                logger.debug("TurnosWeeklyGridHView", turnosDia);
                 const columnas = organizarTurnosEnColumnas(turnosDia);
                 const colCount = Math.max(1, columnas.length);
                 let altoPorCol = ALTO_FILA_DIA / colCount;
