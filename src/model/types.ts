@@ -111,4 +111,5 @@ export type OperacionesFilters = {
   fecha?: string; // YYYY-MM-DD
   from?: string; // YYYY-MM-DD
   to?: string; // YYYY-MM-DD
+  tipo?: TipoOperacion[];
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
@@ -80,14 +80,9 @@ function getTotals(operacion: Operacion) {
 }
 
 export default function OperacionesPage() {
-    const { operaciones, loading, fetchAll } = useOperaciones();
+    const { operaciones, loading, selectedTipos, setSelectedTipos } = useOperaciones();
     const { talleres } = useTenant();
     const [search, setSearch] = useState("");
-    const [selectedTipos, setSelectedTipos] = useState<TipoOperacion[]>([]);
-
-    useEffect(() => {
-        fetchAll();
-    }, [talleres, fetchAll]);
 
     const toggleTipo = (tipo: TipoOperacion) => {
         setSelectedTipos((prev) =>
@@ -167,6 +162,7 @@ export default function OperacionesPage() {
                             <button
                                 key={tipo}
                                 type="button"
+                                data-testid={`operaciones-chip-${tipo}`}
                                 onClick={() => toggleTipo(tipo)}
                                 css={[styles.chipBase, isSelected && styles.chipSelected, styles.chipResponsive]}
                             >

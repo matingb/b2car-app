@@ -7,6 +7,23 @@ vi.mock("@/app/providers/TurnosProvider", () => ({
   useTurnos: () => ({
     loading: false,
     error: null,
+    remove: vi.fn(),
+  }),
+}));
+
+vi.mock("@/app/providers/ModalMessageProvider", () => ({
+  useModalMessage: () => ({
+    alert: vi.fn(),
+    confirm: vi.fn(),
+    isOpen: false,
+  }),
+}));
+
+vi.mock("@/app/providers/ToastProvider", () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
   }),
 }));
 

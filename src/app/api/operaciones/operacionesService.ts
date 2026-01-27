@@ -5,6 +5,7 @@ export type OperacionesFilters = {
 	fecha?: string; // YYYY-MM-DD
 	from?: string; // YYYY-MM-DD
 	to?: string; // YYYY-MM-DD
+	tipo?: string[];
 };
 
 export type CreateOperacionLineaInput = {
@@ -74,6 +75,7 @@ export const operacionesService = {
 		}
 		if (filters.from) query = query.gte("created_at", toDayStart(filters.from));
 		if (filters.to) query = query.lte("created_at", toDayEnd(filters.to));
+		if (filters.tipo && filters.tipo.length > 0) query = query.in("tipo", filters.tipo);
 
 		const { data, error } = await query;
 		if (error) return { data: [], error: toServiceError(error) };

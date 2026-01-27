@@ -17,6 +17,14 @@ vi.mock("@/app/providers/ProductosProvider", () => ({
   }),
 }));
 
+vi.mock("@/app/providers/ToastProvider", () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  }),
+}));
+
 describe("ProductoCreateModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -29,28 +29,18 @@ export type UpdateOperacionResponse = {
 };
 
 export const operacionesClient = {
-	async getAll(): Promise<GetOperacionesResponse> {
-		try {
-			const res = await fetch("/api/operaciones");
-			const body: GetOperacionesResponse = await res.json();
-			if (!res.ok) {
-				return { data: null, error: body?.error || `Error ${res.status}` };
-			}
-			return { data: body.data || [], error: null };
-		} catch (err: unknown) {
-			const message = err instanceof Error ? err.message : "Error cargando operaciones";
-			return { data: null, error: message };
-		}
-	},
-
-	async getWithFilters(filters: OperacionesFilters): Promise<GetOperacionesResponse> {
+	async getAll(filters?: OperacionesFilters): Promise<GetOperacionesResponse> {
 		try {
 			const queryParams = new URLSearchParams();
-			if (filters.fecha) queryParams.append("fecha", filters.fecha);
-			if (filters.from) queryParams.append("from", filters.from);
-			if (filters.to) queryParams.append("to", filters.to);
+			if (filters?.fecha) queryParams.append("fecha", filters.fecha);
+			if (filters?.from) queryParams.append("from", filters.from);
+			if (filters?.to) queryParams.append("to", filters.to);
+			if (Array.isArray(filters?.tipo) && filters.tipo.length > 0) {
+				filters.tipo.forEach((t) => queryParams.append("tipo", t));
+			}
 
-			const res = await fetch(`/api/operaciones?${queryParams.toString()}`);
+			const qs = queryParams.toString();
+			const res = await fetch(qs ? `/api/operaciones?${qs}` : "/api/operaciones");
 			const body: GetOperacionesResponse = await res.json();
 			if (!res.ok) {
 				return { data: null, error: body?.error || `Error ${res.status}` };

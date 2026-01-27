@@ -5,7 +5,6 @@ import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import {
 	operacionesService,
-	OperacionesServiceError,
 	type CreateOperacionInput,
 	type OperacionesFilters,
 } from "@/app/api/operaciones/operacionesService";
@@ -50,10 +49,12 @@ function mapOperacion(row: OperacionRow): Operacion {
 export async function GET(req: Request) {
 	const supabase = await createClient();
 	const { searchParams } = new URL(req.url);
+	const tipos = searchParams.getAll("tipo").filter(Boolean);
 	const filters: OperacionesFilters = {
 		fecha: searchParams.get("fecha") || undefined,
 		from: searchParams.get("from") || undefined,
 		to: searchParams.get("to") || undefined,
+		tipo: tipos.length > 0 ? tipos : undefined,
 	};
 
 	const { data, error } = await operacionesService.list(supabase, filters);
