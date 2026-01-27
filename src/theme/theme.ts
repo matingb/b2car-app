@@ -126,6 +126,13 @@ export const COLOR = {
         SENARY: GRAPHICS_SENARY,
         SEPTENARY: GRAPHICS_SEPTENARY,
     },
+    SEMANTIC: {
+        DANGER: RED_DANGER,
+        WARNING : "#FF8C00",
+        SUCCESS: "#228B22",
+        INFO : ACCENT_PRIMARY,
+        DISABLED : GRAY_650,
+    }
 } as const;
 
 export const BREAKPOINTS = {

@@ -8,6 +8,7 @@ export const ROUTES = {
 	turnos: "/turnos",
 	stock: "/stock",
 	productos: "/productos",
+	operaciones: "/operaciones",
 } as const;
 
 export const API_ROUTES = {

@@ -149,12 +149,12 @@ const styles = {
         [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
             fontSize: 18,
         },
+        color: COLOR.TEXT.PRIMARY,
     },
     singleLine: {
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
-        color: COLOR.ACCENT.PRIMARY,
     },
     titleContainer: css({
         display: 'flex',

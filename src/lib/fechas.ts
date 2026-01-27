@@ -55,6 +55,32 @@ export function formatDateLabel(dateString: string): string {
   }).format(d);
 }
 
+/**
+ * Formatea una fecha a DD/MM/YYYY HH:mm (usado en UI), intentando normalizar strings con espacio.
+ * Mantiene el comportamiento previo usado en TurnoItem.
+ */
+export function formatDateTimeLabel(dateString: string): string {
+  if (!dateString) return "";
+  const normalized = dateString.replace(" ", "T");
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) {
+    const base = dateString.slice(0, 10);
+    const [y, m, da] = base.split("-");
+    const time = dateString.slice(11, 16);
+    if (y && m && da) return `${da}/${m}/${y} ${time}`;
+    return base + " " + time;
+  }
+  return new Intl.DateTimeFormat(APP_LOCALE, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(d);
+}
+
+
 const rtf = new Intl.RelativeTimeFormat(APP_LOCALE, { numeric: "always" });
 
 function capitalizeFirst(s: string) {
