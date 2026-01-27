@@ -40,7 +40,7 @@ export type CreateProductoInput = Omit<ProductoRow, "id" | "tenantId" | "created
 
 export const productosService = {
   async list(supabase: SupabaseClient): Promise<{ data: ProductoWithStocksCountRow[]; error: ProductosServiceError | null }> {
-    const query = supabase.from("productos").select("*, stocks(count)").order("updated_at", { ascending: false });
+    const query = supabase.from("productos").select("*, stocks(count)").order("nombre", { ascending: true });
     const { data, error } = await query;
     if (error) return { data: [], error: toServiceError(error) };
     const mapped: ProductoWithStocksCountRow[] = data.map((row) => ({
