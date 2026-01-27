@@ -15,22 +15,18 @@ import { css } from "@emotion/react";
 import {
     ArrowLeftRight,
     Building2,
-    Car,
     CircleDollarSign,
     Coins,
     Package,
     Receipt,
-    ShoppingCart,
     SlidersHorizontal,
     Truck,
-    Users,
     Wrench,
 } from "lucide-react";
 import { TipoOperacion, TIPOS_OPERACIONES } from "@/model/types";
-import Color from "color";
 import { useTenant } from "@/app/providers/TenantProvider";
-import { logger } from "@/lib/logger";
 import CardDato from "@/app/components/graficos/CardDato";
+import Color from "color";
 
 
 const tipoConfig: Record<
@@ -41,31 +37,31 @@ const tipoConfig: Record<
         label: "Compra",
         icon: <Truck size={18} />,
         color: COLOR.SEMANTIC.DANGER,
-        bg: Color(COLOR.SEMANTIC.DANGER).alpha(0.12).string(),
+        bg: Color(COLOR.SEMANTIC.DANGER).alpha(0.12).toString(),
     },
     venta: {
         label: "Venta",
         icon: <Receipt size={18} />,
         color: COLOR.SEMANTIC.SUCCESS,
-        bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).string(),
+        bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
     },
     asignacion_arreglo: {
         label: "Asignación",
         icon: <Wrench size={18} />,
         color: COLOR.SEMANTIC.INFO,
-        bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).string(),
+        bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
     },
     ajuste: {
         label: "Ajuste",
         icon: <SlidersHorizontal size={18} />,
         color: COLOR.SEMANTIC.WARNING,
-        bg: Color(COLOR.SEMANTIC.WARNING).alpha(0.12).string(),
+        bg: Color(COLOR.SEMANTIC.WARNING).alpha(0.12).toString(),
     },
     transferencia: {
         label: "Transferencia",
         icon: <ArrowLeftRight size={18} />,
         color: COLOR.SEMANTIC.DISABLED,
-        bg: Color(COLOR.SEMANTIC.DISABLED).alpha(0.12).string(),
+        bg: Color(COLOR.SEMANTIC.DISABLED).alpha(0.12).toString(),
     },
 };
 
@@ -116,7 +112,7 @@ export default function OperacionesPage() {
                     .filter(Boolean)
                     .some((v) => String(v).toLowerCase().includes(q));
             });
-    }, [operaciones, search, selectedTipos]);
+    }, [operaciones, search, selectedTipos, talleres]);
 
     return (
         <div>
