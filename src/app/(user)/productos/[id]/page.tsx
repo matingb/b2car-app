@@ -11,17 +11,40 @@ import { Pencil, Save, Trash, X } from "lucide-react";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import ProductoTallerStockCard from "@/app/components/productos/ProductoTallerStockCard";
-import MovementsCard, { type InventarioMovementRow } from "@/app/components/inventario/MovementsCard";
+import MovementsCard, {
+  type InventarioMovementRow,
+} from "@/app/components/inventario/MovementsCard";
 import ProductoInfoCard from "@/app/components/productos/ProductoInfoCard";
 import ProductoPricesCard from "@/app/components/productos/ProductoPricesCard";
-import { Producto, StockRegistro, useProductos } from "@/app/providers/ProductosProvider";
+import {
+  Producto,
+  StockRegistro,
+  useProductos,
+} from "@/app/providers/ProductosProvider";
 import { logger } from "@/lib/logger";
+
+const Header = () => {
+  return (
+    <ScreenHeader
+      title="Productos"
+      breadcrumbs={["Detalle"]}
+      hasBackButton
+      style={{ width: "100%" }}
+    />
+  );
+};
 
 export default function ProductoDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { talleres } = useTenant();
-  const { getProductoById, updateProducto, removeProducto, categoriasDisponibles, isLoading } = useProductos();
+  const {
+    getProductoById,
+    updateProducto,
+    removeProducto,
+    categoriasDisponibles,
+    isLoading,
+  } = useProductos();
   const { confirm } = useModalMessage();
   const { success } = useToast();
 
@@ -44,7 +67,9 @@ export default function ProductoDetailsPage() {
   }, [getProductoById, params.id]);
 
   const movimientos = useMemo<InventarioMovementRow[]>(() => {
-    const nombrePorTaller = new Map(talleres.map((t) => [t.id, t.nombre] as const));
+    const nombrePorTaller = new Map(
+      talleres.map((t) => [t.id, t.nombre] as const),
+    );
     const rows: InventarioMovementRow[] = [];
     for (const reg of stockDelProducto) {
       for (const mov of reg.historialMovimientos ?? []) {
@@ -66,7 +91,10 @@ export default function ProductoDetailsPage() {
   }, [stockDelProducto, talleres]);
 
   const stockTotal = useMemo(() => {
-    return stockDelProducto.reduce((acc, s) => acc + (Number(s.stockActual) || 0), 0);
+    return stockDelProducto.reduce(
+      (acc, s) => acc + (Number(s.stockActual) || 0),
+      0,
+    );
   }, [stockDelProducto]);
 
   const ultimaActualizacion = useMemo(() => {
@@ -74,7 +102,9 @@ export default function ProductoDetailsPage() {
       const [dd, mm, yyyy] = String(f ?? "").split("/");
       return `${yyyy ?? ""}${mm ?? ""}${dd ?? ""}`;
     };
-    const fechas = stockDelProducto.map((s) => s.ultimaActualizacion).filter(Boolean);
+    const fechas = stockDelProducto
+      .map((s) => s.ultimaActualizacion)
+      .filter(Boolean);
     if (!fechas.length) return undefined;
     return fechas.sort((a, b) => toKey(b).localeCompare(toKey(a)))[0];
   }, [stockDelProducto]);
@@ -129,8 +159,14 @@ export default function ProductoDetailsPage() {
   if (isLoading && !producto) {
     return (
       <div>
-        <ScreenHeader title="Productos" breadcrumbs={["Detalle"]} hasBackButton />
-        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>Cargando...</div>
+        <ScreenHeader
+          title="Productos"
+          breadcrumbs={["Detalle"]}
+          hasBackButton
+        />
+        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>
+          Cargando...
+        </div>
       </div>
     );
   }
@@ -138,8 +174,10 @@ export default function ProductoDetailsPage() {
   if (!producto || !draft) {
     return (
       <div>
-        <ScreenHeader title="Productos" breadcrumbs={["Detalle"]} hasBackButton />
-        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>Cargando...</div>
+        <Header />
+        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>
+          Cargando...
+        </div>
       </div>
     );
   }
@@ -147,8 +185,10 @@ export default function ProductoDetailsPage() {
   if (isSaving) {
     return (
       <div>
-        <ScreenHeader title="Stock" breadcrumbs={["Detalle"]} hasBackButton />
-        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>Guardando...</div>
+        <Header />
+        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>
+          Guardando...
+        </div>
       </div>
     );
   }
@@ -156,7 +196,7 @@ export default function ProductoDetailsPage() {
   return (
     <div>
       <div css={styles.headerRow}>
-        <ScreenHeader title="Productos" breadcrumbs={["Detalle"]} hasBackButton style={{ width: "100%" }} />
+        <Header />
         <div style={styles.actions}>
           {isEditing ? (
             <>
@@ -169,7 +209,12 @@ export default function ProductoDetailsPage() {
                 title="Cancelar"
                 ariaLabel="Cancelar"
               />
-              <IconButton icon={<Save />} onClick={handleSave} title="Guardar" ariaLabel="Guardar" />
+              <IconButton
+                icon={<Save />}
+                onClick={handleSave}
+                title="Guardar"
+                ariaLabel="Guardar"
+              />
             </>
           ) : (
             <>
@@ -180,7 +225,12 @@ export default function ProductoDetailsPage() {
                 ariaLabel="Eliminar"
                 hoverColor={COLOR.ICON.DANGER}
               />
-              <IconButton icon={<Pencil />} onClick={() => setIsEditing(true)} title="Editar" ariaLabel="Editar" />
+              <IconButton
+                icon={<Pencil />}
+                onClick={() => setIsEditing(true)}
+                title="Editar"
+                ariaLabel="Editar"
+              />
             </>
           )}
         </div>
@@ -191,7 +241,11 @@ export default function ProductoDetailsPage() {
           <input
             style={styles.titleInput}
             value={draft.nombre}
-            onChange={(e) => setDraft((p: Producto | null) => (p ? { ...p, nombre: e.target.value } : p))}
+            onChange={(e) =>
+              setDraft((p: Producto | null) =>
+                p ? { ...p, nombre: e.target.value } : p,
+              )
+            }
           />
         ) : (
           <h2 style={styles.title}>{producto.nombre}</h2>
@@ -233,8 +287,15 @@ export default function ProductoDetailsPage() {
             categoriasDisponibles={categoriasDisponibles}
             ultimaActualizacion={ultimaActualizacion}
             isEditing={isEditing}
-            draft={{ codigo: draft.codigo, proveedor: draft.proveedor, ubicacion: draft.ubicacion, categorias: draft.categorias }}
-            onChange={(patch) => setDraft((p: Producto | null) => (p ? { ...p, ...patch } : p))}
+            draft={{
+              codigo: draft.codigo,
+              proveedor: draft.proveedor,
+              ubicacion: draft.ubicacion,
+              categorias: draft.categorias,
+            }}
+            onChange={(patch) =>
+              setDraft((p: Producto | null) => (p ? { ...p, ...patch } : p))
+            }
           />
 
           <div style={{ marginTop: 12 }}>
@@ -243,8 +304,13 @@ export default function ProductoDetailsPage() {
               precioUnitario={producto.precioUnitario}
               stockTotal={stockTotal}
               isEditing={isEditing}
-              draft={{ costoUnitario: draft.costoUnitario, precioUnitario: draft.precioUnitario }}
-              onChange={(patch) => setDraft((p: Producto | null) => (p ? { ...p, ...patch } : p))}
+              draft={{
+                costoUnitario: draft.costoUnitario,
+                precioUnitario: draft.precioUnitario,
+              }}
+              onChange={(patch) =>
+                setDraft((p: Producto | null) => (p ? { ...p, ...patch } : p))
+              }
             />
           </div>
         </div>
@@ -311,4 +377,3 @@ const styles = {
     },
   }),
 } as const;
-
