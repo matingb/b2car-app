@@ -47,7 +47,7 @@ export default function CardDato({
     prefix,
     onClick,
     icon,
-    style,
+    style = {color: COLOR.ACCENT.PRIMARY},
 }: Props) {
     const parsed = useMemo(() => getNumericMeta(value), [value]);
     const [animatedValue, setAnimatedValue] = useState<number | null>(null);
