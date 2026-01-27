@@ -116,7 +116,10 @@ export default function OperacionesPage() {
 
     return (
         <div>
-            <ScreenHeader title="Operaciones" />
+            <ScreenHeader
+                title="Operaciones"
+                subtitle="Gestiona compras y ventas de stock"
+            />
             <div css={styles.cardDatosContainer}>
                 <CardDato
                     titleText="Ventas"

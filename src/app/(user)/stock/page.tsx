@@ -39,7 +39,10 @@ function StockPageContent() {
 
   return (
     <div>
-      <ScreenHeader title="Stock" />
+      <ScreenHeader
+        title="Stock"
+        subtitle="Administra el inventario de repuestos y productos"
+      />
 
       <div style={{ marginTop: 12 }}>
         <div style={styles.topRow}>
@@ -54,19 +57,6 @@ function StockPageContent() {
               />
             </div>
           </div>
-
-          {/* <Button
-              icon={<PlusIcon size={20} />}
-              text="Nuevo taller"
-              onClick={() => setIsTallerCreateOpen(true)}
-              style={{ height: 40 }}
-            /> */}
-          <Button
-            icon={< PlusIcon size={20} />}
-            text="Nueva operación"
-            onClick={() => { }}
-            style={{ height: 40 }}
-          />
         </div>
       </div>
 

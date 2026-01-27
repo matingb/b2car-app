@@ -12,6 +12,7 @@ import MenuSheet from "./MenuSheet";
 
 interface ScreenHeaderProps {
   title: string;
+  subtitle?: string;
   breadcrumbs?: string[];
   className?: string;
   hasBackButton?: boolean;
@@ -20,6 +21,7 @@ interface ScreenHeaderProps {
 
 export default function ScreenHeader({
   title,
+  subtitle,
   breadcrumbs = [],
   className,
   hasBackButton = false,
@@ -38,34 +40,36 @@ export default function ScreenHeader({
   return (
     <header className={className} style={{ ...styles.header, ...style }}>
       <div style={styles.titleWrapper}>
-      {hasBackButton && (
-        <ArrowLeft
-          size={20}
-          color={COLOR.ICON.MUTED}
-          onClick={() => router.back()}
-          style={{ cursor: "pointer" }}
-        />
-      )}
-      <div style={styles.titleWrapper}>
-        <h1>{title}</h1>
-      </div>
+        {hasBackButton && (
+          <ArrowLeft
+            size={20}
+            color={COLOR.ICON.MUTED}
+            onClick={() => router.back()}
+            style={{ cursor: "pointer" }}
+          />
+        )}
 
-      {breadcrumbs.length > 0 && (
-        <nav aria-label="Breadcrumb" style={styles.nav}>
-          <ol style={styles.ol}>
-            {breadcrumbs.map((crumb, idx) => {
-              return (
-                <li key={idx} style={styles.li}>
-                  {idx !== 0 && <ChevronRight size={16} />}
-                  <span style={{ ...styles.span, color: COLOR.ICON.MUTED }}>
-                    {crumb}
-                  </span>
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
-      )}
+        <div style={styles.titleBlock}>
+          <h1 style={styles.title}>{title}</h1>
+          {subtitle ? <p style={styles.subtitle}>{subtitle}</p> : null}
+        </div>
+
+        {breadcrumbs.length > 0 && (
+          <nav aria-label="Breadcrumb" style={styles.nav}>
+            <ol style={styles.ol}>
+              {breadcrumbs.map((crumb, idx) => {
+                return (
+                  <li key={idx} style={styles.li}>
+                    {idx !== 0 && <ChevronRight size={16} />}
+                    <span style={{ ...styles.span, color: COLOR.ICON.MUTED }}>
+                      {crumb}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+        )}
       </div>
       <Button icon={<Menu size={20} />} text="" onClick={handleOpenMenu} css={styles.menuBtn} />
     </header>
@@ -90,6 +94,19 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 8,
+  },
+  titleBlock: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 4,
+  },
+  title: {
+    margin: 0,
+  },
+  subtitle: {
+    margin: 0,
+    fontSize: 14,
+    color: COLOR.TEXT.SECONDARY,
   },
   nav: {
     display: "flex",
