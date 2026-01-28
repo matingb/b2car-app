@@ -97,10 +97,8 @@ export default function OperacionesPage() {
 
     const operacionesFiltradas = useMemo(() => {
         const q = search.trim().toLowerCase();
-        const hasTipoFilter = selectedTipos.length > 0;
         return (operaciones ?? [])
             .filter((o) => {
-                if (hasTipoFilter && !selectedTipos.includes(o.tipo)) return false;
                 if (!q) return true;
                 const { totalLineas, totalMonto } = getTotals(o);
                 return [
@@ -113,7 +111,7 @@ export default function OperacionesPage() {
                     .filter(Boolean)
                     .some((v) => String(v).toLowerCase().includes(q));
             });
-    }, [operaciones, search, talleres, selectedTipos]);
+    }, [operaciones, search, talleres]);
 
     return (
         <div>

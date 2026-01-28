@@ -48,7 +48,10 @@ function mapOperacionFromApi(value: unknown): Operacion | null {
 }
 
 export const operacionesClient = {
-	async getAll(filters?: OperacionesFilters): Promise<GetOperacionesResponse> {
+	async getAll(
+		filters?: OperacionesFilters,
+		options?: { signal?: AbortSignal }
+	): Promise<GetOperacionesResponse> {
 		try {
 			const queryParams = new URLSearchParams();
 			if (filters?.fecha) queryParams.append("fecha", filters.fecha);
@@ -59,7 +62,9 @@ export const operacionesClient = {
 			}
 
 			const qs = queryParams.toString();
-			const res = await fetch(qs ? `/api/operaciones?${qs}` : "/api/operaciones");
+			const res = await fetch(qs ? `/api/operaciones?${qs}` : "/api/operaciones", {
+				signal: options?.signal,
+			});
 			const body: GetOperacionesResponse = await res.json();
 			if (!res.ok) {
 				return { data: null, error: body?.error || `Error ${res.status}` };
@@ -69,6 +74,9 @@ export const operacionesClient = {
 				: [];
 			return { data: mapped, error: null };
 		} catch (err: unknown) {
+			if (err instanceof DOMException && err.name === "AbortError") {
+				return { data: null, error: null };
+			}
 			const message = err instanceof Error ? err.message : "Error cargando operaciones";
 			return { data: null, error: message };
 		}

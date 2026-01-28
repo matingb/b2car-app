@@ -22,11 +22,20 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 	const [loading, setLoading] = useState(false);
 	const [selectedTipos, setSelectedTipos] = useState<TipoOperacion[]>([]);
 
-	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const throttleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const throttleLastRunRef = useRef<number>(0);
+	const fetchAllAbortRef = useRef<AbortController | null>(null);
+	const fetchAllRequestIdRef = useRef(0);
+	const isMountedRef = useRef(true);
 	const didMountTiposRef = useRef(false);
 
 	const fetchAll = useCallback(async (filters?: OperacionesFilters) => {
-		setLoading(true);
+		const requestId = ++fetchAllRequestIdRef.current;
+		fetchAllAbortRef.current?.abort();
+		const controller = new AbortController();
+		fetchAllAbortRef.current = controller;
+
+		if (isMountedRef.current) setLoading(true);
 		try {
 			const hasFilters = Boolean(
 				filters?.fecha ||
@@ -35,12 +44,19 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 					(Array.isArray(filters?.tipo) && filters.tipo.length > 0)
 			);
 
-			const response = await operacionesClient.getAll(hasFilters ? (filters ?? {}) : undefined);
+			const response = await operacionesClient.getAll(hasFilters ? (filters ?? {}) : undefined, {
+				signal: controller.signal,
+			});
+
+			if (!isMountedRef.current || requestId !== fetchAllRequestIdRef.current) return null;
+
 			if (response?.error) throw new Error(response.error);
 			setOperaciones(response?.data ?? []);
 			return response?.data ?? null;
 		} finally {
-			setLoading(false);
+			if (isMountedRef.current && requestId === fetchAllRequestIdRef.current) {
+				setLoading(false);
+			}
 		}
 	}, []);
 
@@ -53,18 +69,36 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 			didMountTiposRef.current = true;
 			return;
 		}
+		fetchAllRequestIdRef.current += 1;
+		fetchAllAbortRef.current?.abort();
+		if (isMountedRef.current) setLoading(true);
 
-		if (debounceRef.current) clearTimeout(debounceRef.current);
-		debounceRef.current = setTimeout(() => {
+		const throttleMs = 1500;
+		const now = Date.now();
+		const elapsed = now - throttleLastRunRef.current;
+
+		const run = () => {
+			throttleLastRunRef.current = Date.now();
 			const filters: OperacionesFilters | undefined =
 				selectedTipos.length > 0 ? { tipo: selectedTipos } : undefined;
 			void fetchAll(filters);
-		}, 3000);
+		};
+
+		if (elapsed >= throttleMs) {
+			if (throttleTimeoutRef.current) clearTimeout(throttleTimeoutRef.current);
+			run();
+			return;
+		}
+
+		if (throttleTimeoutRef.current) clearTimeout(throttleTimeoutRef.current);
+		throttleTimeoutRef.current = setTimeout(run, throttleMs - elapsed);
 	}, [selectedTipos, fetchAll]);
 
 	useEffect(() => {
 		return () => {
-			if (debounceRef.current) clearTimeout(debounceRef.current);
+			if (throttleTimeoutRef.current) clearTimeout(throttleTimeoutRef.current);
+			isMountedRef.current = false;
+			fetchAllAbortRef.current?.abort();
 		};
 	}, []);
 
