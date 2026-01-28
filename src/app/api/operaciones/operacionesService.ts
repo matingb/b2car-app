@@ -1,5 +1,6 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import type { OperacionDTO, OperacionLineaDTO } from "@/model/dtos";
+import { logger } from "@/lib/logger";
 
 export type OperacionesFilters = {
 	fecha?: string; // YYYY-MM-DD
@@ -102,60 +103,29 @@ export const operacionesService = {
 		input: CreateOperacionInput
 	): Promise<{ data: OperacionRow | null; error: OperacionesServiceError | null }>
 	{
-		const insertPayload = {
-			tipo: input.tipo,
-			taller_id: input.taller_id,
-			...(input.created_at ? { created_at: input.created_at } : {}),
-		};
+		const lineasPayload = Array.isArray(input.lineas)
+			? input.lineas.map((l) => ({
+					producto_id: l.producto_id,
+					cantidad: l.cantidad ?? 0,
+					monto_unitario: l.monto_unitario ?? 0,
+					delta_cantidad: l.delta_cantidad ?? 0,
+				}))
+			: [];
 
-		const { data: created, error: insertError } = await supabase
-			.from("operaciones")
-			.insert([insertPayload])
-			.select("*")
-			.single();
+		const { data: operacionId, error: rpcError } = await supabase.rpc("rpc_crear_operacion_con_stock", {
+			p_tipo: input.tipo,
+			p_taller_id: input.taller_id,
+			p_lineas: lineasPayload,
+			p_arreglo_id: input.arreglo_id ?? null,
+		});
 
-		if (insertError || !created) {
-			return { data: null, error: insertError ? toServiceError(insertError) : OperacionesServiceError.Unknown };
+		logger.error("RPC crear_operacion_con_stock - operacionId:", operacionId, "rpcError:", rpcError);
+
+		if (rpcError || !operacionId) {
+			return { data: null, error: rpcError ? toServiceError(rpcError) : OperacionesServiceError.Unknown };
 		}
 
-		let lineas: OperacionLineaDTO[] = [];
-		if (Array.isArray(input.lineas) && input.lineas.length > 0) {
-			const lineasPayload = input.lineas.map((l) => ({
-				operacion_id: created.id,
-				producto_id: l.producto_id,
-				cantidad: l.cantidad ?? 0,
-				monto_unitario: l.monto_unitario ?? 0,
-				delta_cantidad: l.delta_cantidad ?? 0,
-			}));
-
-			const { data: insertedLineas, error: lineasError } = await supabase
-				.from("operaciones_lineas")
-				.insert(lineasPayload)
-				.select("*");
-
-			if (lineasError) {
-				return { data: null, error: toServiceError(lineasError) };
-			}
-
-			lineas = (insertedLineas ?? []) as OperacionLineaDTO[];
-		}
-
-		if (input.arreglo_id) {
-			const { error: asignacionError } = await supabase
-				.from("operaciones_asignacion_arreglo")
-				.upsert({ operacion_id: created.id, arreglo_id: input.arreglo_id });
-			if (asignacionError) {
-				return { data: null, error: toServiceError(asignacionError) };
-			}
-		}
-
-		return {
-			data: {
-				...(created as OperacionDTO),
-				operaciones_lineas: lineas,
-			} as OperacionRow,
-			error: null,
-		};
+		return this.getById(supabase, operacionId as string);
 	},
 
 	async update(

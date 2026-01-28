@@ -138,6 +138,16 @@ BEGIN
     RAISE EXCEPTION 'lineas debe ser un array no vacío';
   END IF;
 
+  -- ESTO BLOQUEA LA FILA DE STOCK PARA QUE TRANSACCIONES ESPEREN A QUE TERMINE LA ANTERIOR
+  PERFORM 1
+  FROM public.stocks s
+  WHERE s.taller_id = p_taller_id
+    AND s.producto_id IN (
+      SELECT DISTINCT (line_elem ->> 'producto_id')::uuid
+      FROM jsonb_array_elements(p_lineas) AS line_elem
+    )
+  FOR UPDATE;
+
   --  ----- CREA OPERACION --------
   INSERT INTO public.operaciones (tenant_id, tipo, taller_id)
   VALUES (v_tenant_id, p_tipo, p_taller_id)
