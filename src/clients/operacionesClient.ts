@@ -1,4 +1,4 @@
-import type { Operacion, OperacionesFilters } from "@/model/types";
+import type { Operacion, OperacionesFilters, TipoOperacion } from "@/model/types";
 
 export type CreateOperacionLineaInput = {
 	producto_id: string;
@@ -8,7 +8,7 @@ export type CreateOperacionLineaInput = {
 };
 
 export type CreateOperacionInput = {
-	tipo: string;
+	tipo: TipoOperacion;
 	taller_id: string;
 	created_at?: string;
 	lineas?: CreateOperacionLineaInput[];
@@ -37,6 +37,16 @@ export type UpdateOperacionResponse = {
 	error?: string | null;
 };
 
+function mapOperacionFromApi(value: unknown): Operacion | null {
+	if (!value || typeof value !== "object") return null;
+	const o = value as Record<string, unknown>;
+	return {
+		...(o as unknown as Operacion),
+		tipo: (o.tipo as TipoOperacion) ?? "AJUSTE",
+		lineas: Array.isArray(o.lineas) ? (o.lineas as Operacion["lineas"]) : [],
+	};
+}
+
 export const operacionesClient = {
 	async getAll(filters?: OperacionesFilters): Promise<GetOperacionesResponse> {
 		try {
@@ -54,7 +64,10 @@ export const operacionesClient = {
 			if (!res.ok) {
 				return { data: null, error: body?.error || `Error ${res.status}` };
 			}
-			return { data: body.data || [], error: null };
+			const mapped = Array.isArray(body.data)
+				? body.data.map((o) => mapOperacionFromApi(o)).filter(Boolean) as Operacion[]
+				: [];
+			return { data: mapped, error: null };
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : "Error cargando operaciones";
 			return { data: null, error: message };
@@ -69,7 +82,7 @@ export const operacionesClient = {
 				return { data: null, error: body?.error || `Error ${res.status}` };
 			}
 			return {
-				data: body.data,
+				data: mapOperacionFromApi(body.data),
 				error: null,
 			};
 		} catch (err: unknown) {
@@ -89,7 +102,7 @@ export const operacionesClient = {
 			if (!res.ok || body?.error) {
 				return { data: null, error: body?.error || `Error ${res.status}` };
 			}
-			return { data: body.data || null, error: null };
+			return { data: mapOperacionFromApi(body.data), error: null };
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : "No se pudo crear la operación";
 			return { data: null, error: message };
@@ -107,7 +120,7 @@ export const operacionesClient = {
 			if (!res.ok || body?.error) {
 				return { data: null, error: body?.error || `Error ${res.status}` };
 			}
-			return { data: body.data || null, error: null };
+			return { data: mapOperacionFromApi(body.data), error: null };
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : "No se pudo actualizar la operación";
 			return { data: null, error: message };

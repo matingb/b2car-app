@@ -14,7 +14,10 @@ export type OperacionLineaDraft = {
   total: number;
 };
 
-export type OperacionLineaTipo = "compra" | "venta" | null;
+export type OperacionLineaTipo = "COMPRA" | "VENTA" | null;
+
+export const OPERACION_LINE_GRID_TEMPLATE =
+  "minmax(280px, 1fr) 88px 140px 140px 44px";
 
 type Props = {
   index: number;
@@ -83,7 +86,6 @@ export default function OperacionLineaEditor({
   return (
     <div css={styles.lineRow} data-testid={`operaciones-line-${index}`}>
       <div>
-        <label style={styles.label}>Producto</label>
         <Autocomplete
           options={productoOptions}
           value={linea.productoId}
@@ -92,11 +94,11 @@ export default function OperacionLineaEditor({
           disabled={disabled || loadingProductos}
           dataTestId={`operaciones-line-${index}-producto`}
           style={styles.autocompleteCompact}
+          inputStyle={styles.controlInput}
         />
       </div>
 
       <div>
-        <label style={styles.label}>Cantidad</label>
         <input
           type="number"
           min={0}
@@ -104,13 +106,13 @@ export default function OperacionLineaEditor({
           disabled={disabled}
           value={linea.cantidad}
           onChange={(e) => onCantidadChange(Number(e.target.value) || 0)}
-          style={{ ...styles.input, ...styles.qtyInput }}
+          style={{ ...styles.controlInput, ...styles.qtyInput }}
           data-testid={`operaciones-line-${index}-cantidad`}
+          aria-label="Cantidad"
         />
       </div>
 
       <div>
-        <label style={styles.label}>{tipo === "venta" ? "Precio" : "Costo"}</label>
         <input
           type="number"
           min={0}
@@ -118,13 +120,13 @@ export default function OperacionLineaEditor({
           disabled={disabled}
           value={linea.unitario}
           onChange={(e) => onUnitarioChange(Number(e.target.value) || 0)}
-          style={{ ...styles.input, ...styles.moneyInput }}
+          style={{ ...styles.controlInput, ...styles.moneyInput }}
           data-testid={`operaciones-line-${index}-unitario`}
+          aria-label="Unitario"
         />
       </div>
 
       <div>
-        <label style={styles.label}>Total</label>
         <input
           type="number"
           min={0}
@@ -132,8 +134,9 @@ export default function OperacionLineaEditor({
           disabled={disabled}
           value={linea.total}
           onChange={(e) => onTotalChange(Number(e.target.value) || 0)}
-          style={{ ...styles.input, ...styles.moneyInput }}
+          style={{ ...styles.controlInput, ...styles.moneyInput }}
           data-testid={`operaciones-line-${index}-total`}
+          aria-label="Total"
         />
       </div>
 
@@ -155,48 +158,41 @@ export default function OperacionLineaEditor({
 }
 
 const styles = {
-  label: {
-    display: "block",
-    fontSize: 13,
-    color: COLOR.TEXT.SECONDARY,
-    marginBottom: 6,
-  },
-  input: {
+  controlInput: {
     width: "100%",
-    padding: "8px 10px",
-    borderRadius: 10,
+    padding: "10px 12px",
+    height: 44,
+    borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.PRIMARY,
+    background: COLOR.INPUT.PRIMARY.BACKGROUND,
     color: COLOR.TEXT.PRIMARY,
     outline: "none",
-    fontSize: 13,
+    fontSize: 14,
   } as const,
   qtyInput: {
-    width: 60,
     textAlign: "center" as const,
     paddingLeft: 8,
     paddingRight: 8,
   } as const,
   moneyInput: {
-    width: 120,
-    maxWidth: 140,
     textAlign: "right" as const,
   } as const,
   autocompleteCompact: {
-    minWidth: 240,
+    minWidth: 0,
   } as const,
   lineRow: css({
     display: "grid",
-    gridTemplateColumns: "2fr 0.7fr 0.9fr 0.9fr auto",
+    gridTemplateColumns: OPERACION_LINE_GRID_TEMPLATE,
     gap: 10,
-    alignItems: "end",
+    alignItems: "center",
+    padding: "0 12px",
     [`@media (max-width: 720px)`]: {
       gridTemplateColumns: "1fr 1fr",
     },
   }),
   trashBtn: css({
-    height: 34,
-    width: 34,
+    height: 44,
+    width: 44,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",

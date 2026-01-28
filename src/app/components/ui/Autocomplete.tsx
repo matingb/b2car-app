@@ -17,6 +17,7 @@ interface AutocompleteProps {
   placeholder?: string;
   disabled?: boolean;
   style?: React.CSSProperties;
+  inputStyle?: React.CSSProperties;
   allowCustomValue?: boolean;
   dataTestId?: string;
 }
@@ -28,6 +29,7 @@ export default function Autocomplete({
   placeholder = "Buscar...",
   disabled = false,
   style,
+  inputStyle,
   allowCustomValue = false,
   dataTestId,
 }: AutocompleteProps) {
@@ -159,6 +161,7 @@ export default function Autocomplete({
           data-testid={dataTestId}
           style={{
             ...styles.input,
+            ...(inputStyle ?? {}),
             ...(disabled && styles.inputDisabled),
           }}
           value={

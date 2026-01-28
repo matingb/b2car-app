@@ -75,8 +75,8 @@ describe("OperacionesPage", () => {
     );
     await runPendingPromises();
 
-    const tipoSeleccionado: TipoOperacion = "compra";
-    fireEvent.click(screen.getByTestId("operaciones-chip-compra"));
+    const tipoSeleccionado: TipoOperacion = "COMPRA";
+    fireEvent.click(screen.getByTestId("operaciones-chip-COMPRA"));
     await runPendingPromises();
 
     act(() => {

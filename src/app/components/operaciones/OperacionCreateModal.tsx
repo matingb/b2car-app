@@ -8,17 +8,19 @@ import { useOperaciones } from "@/app/providers/OperacionesProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { productosClient } from "@/clients/productosClient";
 import { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
+import Dropdown from "@/app/components/ui/Dropdown";
 import type { ProductoDTO } from "@/model/dtos";
 import type { TipoOperacion } from "@/model/types";
 import {
   Plus,
-  Wrench,
-  ArrowLeftRight,
-  SlidersHorizontal,
   Truck,
   Receipt,
 } from "lucide-react";
-import OperacionLineaEditor, { type OperacionLineaDraft } from "./OperacionLineaEditor";
+import OperacionLineaEditor, {
+  OPERACION_LINE_GRID_TEMPLATE,
+  type OperacionLineaDraft,
+} from "./OperacionLineaEditor";
+import { formatArs } from "@/lib/format";
 
 type TallerLite = { id: string; nombre: string };
 
@@ -55,7 +57,7 @@ function createEmptyLinea(): LineaDraft {
 }
 
 function getDefaultUnitario(producto: ProductoLite, tipo: OperacionTipoUi) {
-  return tipo === "venta"
+  return tipo === "VENTA"
     ? Number(producto.precio_unitario) || 0
     : Number(producto.costo_unitario) || 0;
 }
@@ -66,26 +68,8 @@ const TIPOS_UI: Array<{
   disabled?: boolean;
   icon?: React.ReactNode;
 }> = [
-  { tipo: "compra", label: "Compra", icon: <Truck size={16} /> },
-  { tipo: "venta", label: "Venta", icon: <Receipt size={16} /> },
-  {
-    tipo: "asignacion_arreglo",
-    label: "Asignación",
-    disabled: true,
-    icon: <Wrench size={16} />,
-  },
-  {
-    tipo: "ajuste",
-    label: "Ajuste",
-    disabled: true,
-    icon: <SlidersHorizontal size={16} />,
-  },
-  {
-    tipo: "transferencia",
-    label: "Transferencia",
-    disabled: true,
-    icon: <ArrowLeftRight size={16} />,
-  },
+  { tipo: "COMPRA", label: "Compra", icon: <Truck size={16} /> },
+  { tipo: "VENTA", label: "Venta", icon: <Receipt size={16} /> },
 ];
 
 export default function OperacionCreateModal({
@@ -153,7 +137,7 @@ export default function OperacionCreateModal({
   useEffect(() => {
     if (!open) return;
     if (!tipo) return;
-    if (tipo !== "compra" && tipo !== "venta") return;
+    if (tipo !== "COMPRA" && tipo !== "VENTA") return;
 
     setLineas((prev) =>
       prev.map((linea) => {
@@ -184,7 +168,7 @@ export default function OperacionCreateModal({
 
   const canSubmit = useMemo(() => {
     if (!open) return false;
-    if (!tipo || (tipo !== "compra" && tipo !== "venta")) return false;
+    if (!tipo || (tipo !== "COMPRA" && tipo !== "VENTA")) return false;
     if (!tallerId) return false;
     if (lineas.length === 0) return false;
     return lineas.every(
@@ -214,7 +198,7 @@ export default function OperacionCreateModal({
         lineas: lineas.map((l) => {
           const cantidad = Number(l.cantidad) || 0;
           const unitario = Number(l.unitario) || 0;
-          const delta = tipo === "venta" ? -cantidad : cantidad;
+          const delta = tipo === "VENTA" ? -cantidad : cantidad;
           return {
             producto_id: l.productoId,
             cantidad,
@@ -248,69 +232,83 @@ export default function OperacionCreateModal({
       modalStyle={{ width: "min(860px, 96vw)" }}
     >
       <div style={{ padding: "8px 0 12px" }}>
-        {hasManyTalleres ? (
-          <div style={{ marginBottom: 12 }}>
-            <label style={styles.label}>Taller</label>
-            <select
-              value={tallerId}
-              onChange={(e) => setTallerId(e.target.value)}
-              style={styles.select}
-              data-testid="operaciones-create-taller"
-            >
-              <option value="" disabled>
-                Seleccionar taller…
-              </option>
-              {talleres.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nombre}
-                </option>
-              ))}
-            </select>
+        <div css={styles.headerRow}>
+          <div style={styles.headerLeft}>
+            {hasManyTalleres ? (
+              <>
+                <label style={styles.label}>Taller</label>
+                <Dropdown
+                  value={tallerId || ""}
+                  onChange={(v) => setTallerId(v)}
+                  options={[
+                    { value: "", label: "Seleccionar taller…" },
+                    ...talleres.map((t) => ({ value: t.id, label: t.nombre })),
+                  ]}
+                  data-testid="operaciones-create-taller"
+                  style={{ height: 44, padding: "10px 12px", fontSize: 14 }}
+                />
+              </>
+            ) : (
+              <div />
+            )}
           </div>
-        ) : null}
 
-        <div style={{ marginBottom: 12 }}>
-          <label style={styles.label}>Tipo de operación</label>
-          <div css={styles.tipoRow}>
-            {TIPOS_UI.map((t) => {
-              const isSelected = tipo === t.tipo;
-              const isDisabled = Boolean(t.disabled);
-              return (
-                <span key={t.tipo} css={styles.tooltipWrap}>
-                  <button
-                    type="button"
-                    onClick={() => !isDisabled && setTipo(t.tipo)}
-                    disabled={isDisabled}
-                    data-testid={`operaciones-create-tipo-${t.tipo}`}
-                    css={[
-                      styles.tipoBtn,
-                      isSelected && styles.tipoBtnSelected,
-                      isDisabled && styles.tipoBtnDisabled,
-                    ]}
-                  >
-                    {t.icon ? (
-                      <span style={{ display: "flex" }}>{t.icon}</span>
+          <div style={styles.headerRight}>
+            <label style={styles.label}>Tipo de operación</label>
+            <div css={styles.tipoRow}>
+              {TIPOS_UI.map((t) => {
+                const isSelected = tipo === t.tipo;
+                const isDisabled = Boolean(t.disabled);
+                return (
+                  <span key={t.tipo} css={styles.tooltipWrap}>
+                    <button
+                      type="button"
+                      onClick={() => !isDisabled && setTipo(t.tipo)}
+                      disabled={isDisabled}
+                      data-testid={`operaciones-create-tipo-${t.tipo}`}
+                      css={[
+                        styles.tipoBtn,
+                        isSelected && styles.tipoBtnSelected,
+                        isDisabled && styles.tipoBtnDisabled,
+                      ]}
+                    >
+                      {t.icon ? (
+                        <span style={{ display: "flex" }}>{t.icon}</span>
+                      ) : null}
+                      <span>{t.label}</span>
+                    </button>
+                    {isDisabled ? (
+                      <span css={styles.tooltip} className="operaciones-tooltip">
+                        En construcción
+                      </span>
                     ) : null}
-                    <span>{t.label}</span>
-                  </button>
-                  {isDisabled ? (
-                    <span css={styles.tooltip} className="operaciones-tooltip">
-                      En construcción
-                    </span>
-                  ) : null}
-                </span>
-              );
-            })}
+                  </span>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         <div style={{ marginTop: 16 }}>
-          <div style={styles.linesTitle}>Productos</div>
+          <div style={styles.sectionHeaderRow}>
+            <div style={styles.sectionTitleWrap}>
+              <div style={styles.linesTitle}>Detalle de Productos</div>
+            </div>
+          </div>
 
+          <div css={styles.columnsHeader} aria-hidden="true">
+            <div>PRODUCTO</div>
+            <div style={{ textAlign: "center" }}>CANT.</div>
+            <div style={{ textAlign: "right" }}>UNITARIO</div>
+            <div style={{ textAlign: "right" }}>TOTAL</div>
+            <div />
+          </div>
+
+          <div css={styles.linesList}>
           {lineas.map((l, idx) => {
-            const disabled = !tipo || (tipo !== "compra" && tipo !== "venta");
+            const disabled = !tipo || (tipo !== "COMPRA" && tipo !== "VENTA");
             const tipoLinea =
-              tipo === "compra" || tipo === "venta" ? tipo : null;
+              tipo === "COMPRA" || tipo === "VENTA" ? tipo : null;
             const getDefaultUnitarioForProductoId = (productoId: string) => {
               if (!tipoLinea) return null;
               const prod = productosById.get(productoId);
@@ -318,46 +316,43 @@ export default function OperacionCreateModal({
               return getDefaultUnitario(prod, tipoLinea);
             };
             return (
-              <div
+              <OperacionLineaEditor
                 key={l.id}
-                css={styles.lineCard}
-                data-testid={`operaciones-line-${idx}`}
-              >
-                <OperacionLineaEditor
-                  index={idx}
-                  tipo={tipoLinea}
-                  linea={l}
-                  disabled={disabled}
-                  loadingProductos={loadingProductos}
-                  productoOptions={productoOptions}
-                  getDefaultUnitarioForProductoId={getDefaultUnitarioForProductoId}
-                  onChange={(next) => setLineaAt(idx, next)}
-                  onRemove={() => removeLinea(idx)}
-                  canRemove={lineas.length > 1}
-                />
-              </div>
+                index={idx}
+                tipo={tipoLinea}
+                linea={l}
+                disabled={disabled}
+                loadingProductos={loadingProductos}
+                productoOptions={productoOptions}
+                getDefaultUnitarioForProductoId={getDefaultUnitarioForProductoId}
+                onChange={(next) => setLineaAt(idx, next)}
+                onRemove={() => removeLinea(idx)}
+                canRemove={lineas.length > 1}
+              />
             );
           })}
+          </div>
 
-          <div style={styles.addBottomRow}>
+          <div style={styles.addAndTotalRow}>
             <button
               type="button"
               onClick={addLinea}
-              disabled={
-                !tipo ||
-                tipo === "asignacion_arreglo" ||
-                tipo === "ajuste" ||
-                tipo === "transferencia"
-              }
+              disabled={!tipo || (tipo !== "COMPRA" && tipo !== "VENTA")}
               css={styles.addLineaBtn}
               data-testid="operaciones-add-line"
-              title={
-                !tipo ? "Seleccioná un tipo para agregar líneas" : undefined
-              }
-              aria-label="Agregar línea"
+              title={!tipo ? "Seleccioná un tipo para agregar líneas" : undefined}
+              aria-label="Agregar producto"
             >
               <Plus size={16} />
+              <span style={styles.addLineaText}>Agregar Producto</span>
             </button>
+
+            <div style={styles.totalInline}>
+              <div style={styles.totalInlineLabel}>TOTAL OPERACIÓN</div>
+              <div style={styles.totalInlineValue}>
+                {formatArs(lineas.reduce((acc, l) => acc + (Number(l.total) || 0), 0))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -366,21 +361,30 @@ export default function OperacionCreateModal({
 }
 
 const styles = {
+  headerRow: css({
+    display: "flex",
+    gap: 12,
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  }),
+  headerLeft: {
+    minWidth: 240,
+    maxWidth: 360,
+    flex: "0 0 auto",
+  } as const,
+  headerRight: {
+    flex: "1 1 auto",
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "flex-end",
+  } as const,
   label: {
     display: "block",
     fontSize: 13,
     color: COLOR.TEXT.SECONDARY,
     marginBottom: 6,
   },
-  select: {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.PRIMARY,
-    color: COLOR.TEXT.PRIMARY,
-    outline: "none",
-  } as const,
   tipoRow: css({
     display: "flex",
     alignItems: "stretch",
@@ -445,20 +449,50 @@ const styles = {
     cursor: "default",
   }),
   linesTitle: {
-    fontWeight: 700,
+    fontWeight: 600,
     fontSize: 14,
+  } as const,
+  sectionHeaderRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 10,
   } as const,
-  addBottomRow: {
+  sectionTitleWrap: {
     display: "flex",
-    justifyContent: "center",
-    marginTop: 6,
+    alignItems: "center",
+    gap: 10,
   } as const,
+  columnsHeader: css({
+    display: "grid",
+    gridTemplateColumns: OPERACION_LINE_GRID_TEMPLATE,
+    gap: 10,
+    alignItems: "center",
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SUBTLE,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    marginBottom: 10,
+    [`@media (max-width: 720px)`]: {
+      display: "none",
+    },
+  }),
+  linesList: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  }),
   addLineaBtn: css({
     display: "flex",
     alignItems: "center",
     gap: 6,
-    padding: "8px 10px",
+    height: 44,
+    padding: "0 12px",
     borderRadius: 10,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     background: COLOR.BACKGROUND.SUBTLE,
@@ -469,16 +503,32 @@ const styles = {
       cursor: "default",
     },
   }),
-  lineCard: css({
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 12,
-    padding: 12,
-    background: COLOR.BACKGROUND.PRIMARY,
-    marginBottom: 10,
-  }),
-  qtyRow: {
+  addLineaText: {
+    fontWeight: 600,
+    fontSize: 14,
+  } as const,
+  addAndTotalRow: {
     display: "flex",
-    gap: 6,
     alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 8,
+  } as const,
+  totalInline: {
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "flex-end",
+    gap: 2,
+  } as const,
+  totalInlineLabel: {
+    fontSize: 12,
+    fontWeight: 800,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase" as const,
+    color: COLOR.TEXT.SECONDARY,
+  } as const,
+  totalInlineValue: {
+    fontSize: 22,
+    fontWeight: 900,
+    color: COLOR.TEXT.PRIMARY,
   } as const,
 } as const;

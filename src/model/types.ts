@@ -96,8 +96,20 @@ export interface OperacionLinea {
   created_at: string;
 }
 
-export type TipoOperacion = "compra" | "venta" | "asignacion_arreglo" | "ajuste" | "transferencia";
-export const TIPOS_OPERACIONES: TipoOperacion[] = ["compra", "venta", "asignacion_arreglo", "ajuste", "transferencia"];
+export type TipoOperacion =
+  | "COMPRA"
+  | "VENTA"
+  | "ASIGNACION_ARREGLO"
+  | "AJUSTE"
+  | "TRANSFERENCIA";
+
+export const TIPOS_OPERACIONES: TipoOperacion[] = [
+  "COMPRA",
+  "VENTA",
+  "ASIGNACION_ARREGLO",
+  "AJUSTE",
+  "TRANSFERENCIA",
+];
 
 export interface Operacion {
   id: UUID;

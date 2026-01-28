@@ -30,7 +30,7 @@ function Wrapper(props: { initial: OperacionLineaDraft }) {
   return (
     <OperacionLineaEditor
       index={0}
-      tipo="venta"
+      tipo="VENTA"
       linea={linea}
       disabled={false}
       loadingProductos={false}

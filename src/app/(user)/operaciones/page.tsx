@@ -35,31 +35,31 @@ const tipoConfig: Record<
     TipoOperacion,
     { label: string; icon: React.ReactNode; color: string; bg: string }
 > = {
-    compra: {
+    COMPRA: {
         label: "Compra",
         icon: <Truck size={18} />,
         color: COLOR.SEMANTIC.DANGER,
         bg: Color(COLOR.SEMANTIC.DANGER).alpha(0.12).toString(),
     },
-    venta: {
+    VENTA: {
         label: "Venta",
         icon: <Receipt size={18} />,
         color: COLOR.SEMANTIC.SUCCESS,
         bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
     },
-    asignacion_arreglo: {
+    ASIGNACION_ARREGLO: {
         label: "Asignación",
         icon: <Wrench size={18} />,
         color: COLOR.SEMANTIC.INFO,
         bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
     },
-    ajuste: {
+    AJUSTE: {
         label: "Ajuste",
         icon: <SlidersHorizontal size={18} />,
         color: COLOR.SEMANTIC.WARNING,
         bg: Color(COLOR.SEMANTIC.WARNING).alpha(0.12).toString(),
     },
-    transferencia: {
+    TRANSFERENCIA: {
         label: "Transferencia",
         icon: <ArrowLeftRight size={18} />,
         color: COLOR.SEMANTIC.DISABLED,
@@ -95,8 +95,7 @@ export default function OperacionesPage() {
 
     const operacionesFiltradas = useMemo(() => {
         const q = search.trim().toLowerCase();
-        return (operaciones ?? [])
-            .filter((o) => selectedTipos.length === 0 || selectedTipos.includes(o.tipo as TipoOperacion))
+        return (operaciones ?? [])  
             .filter((o) => {
                 if (!q) return true;
                 const { totalLineas, totalMonto } = getTotals(o);
@@ -110,7 +109,7 @@ export default function OperacionesPage() {
                     .filter(Boolean)
                     .some((v) => String(v).toLowerCase().includes(q));
             });
-    }, [operaciones, search, selectedTipos, talleres]);
+    }, [operaciones, search, talleres]);
 
     return (
         <div>
@@ -207,8 +206,8 @@ export default function OperacionesPage() {
             ) : (
                 <div style={styles.list}>
                     {operacionesFiltradas.map((operacion) => {
-                        const tipo = (operacion.tipo as TipoOperacion) || "ajuste";
-                        const config = tipoConfig[tipo] ?? tipoConfig.ajuste;
+                        const tipo = (operacion.tipo as TipoOperacion) || "AJUSTE";
+                        const config = tipoConfig[tipo] ?? tipoConfig.AJUSTE;
                         const { totalLineas, totalMonto } = getTotals(operacion);
 
                         return (
