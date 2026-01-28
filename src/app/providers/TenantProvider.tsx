@@ -2,11 +2,7 @@
 
 import { tenantClient } from "@/clients/tenantClient";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-
-export type Taller = {
-  id: string;
-  nombre: string;
-};
+import { Taller } from "@/model/types";
 
 type TenantContextValue = {
   tenantName: string;
@@ -16,12 +12,6 @@ type TenantContextValue = {
 };
 
 const TenantContext = createContext<TenantContextValue | null>(null);
-
-const TALLERES_MOCK: Taller[] = [
-  { id: "TAL-001", nombre: "Taller Centro" },
-  { id: "TAL-002", nombre: "Taller Norte" },
-  { id: "TAL-003", nombre: "Taller Sur" },
-];
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenantName, setTenantName] = useState("B2Car");

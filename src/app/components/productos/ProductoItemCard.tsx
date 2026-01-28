@@ -4,7 +4,7 @@ import React from "react";
 import Card from "@/app/components/ui/Card";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import type { Producto } from "@/app/providers/ProductosProvider";
-import { Box } from "lucide-react";
+import { Package } from "lucide-react";
 import { css } from "@emotion/react";
 
 type Props = {
@@ -42,7 +42,7 @@ export default function ProductoItemCard({ producto, onClick }: Props) {
       <div style={styles.container}>
         <div style={styles.leftGroup}>
           <div style={styles.iconBadge}>
-            <Box size={18} color={COLOR.TEXT.CONTRAST} />
+            <Package size={18} color={COLOR.TEXT.CONTRAST} />
           </div>
 
           <div style={styles.details}>

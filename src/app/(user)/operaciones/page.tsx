@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import Card from "@/app/components/ui/Card";
 import IconLabel from "@/app/components/ui/IconLabel";
 import { useOperaciones } from "@/app/providers/OperacionesProvider";
+import { useProductos } from "@/app/providers/ProductosProvider";
 import type { Operacion } from "@/model/types";
 import { formatDateLabel, formatDateTimeLabel } from "@/lib/fechas";
 import { formatArs } from "@/lib/format";
@@ -18,7 +19,6 @@ import {
     CircleDollarSign,
     Coins,
     Package,
-    Plus,
     PlusIcon,
     Receipt,
     SlidersHorizontal,
@@ -85,9 +85,13 @@ function getTotals(operacion: Operacion) {
 
 export default function OperacionesPage() {
     const { operaciones, loading, selectedTipos, setSelectedTipos } = useOperaciones();
+    const { productos } = useProductos();
     const { talleres } = useTenant();
     const [search, setSearch] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
+    const [expandedOperacionId, setExpandedOperacionId] = useState<string | null>(null);
+
+    const productosById = useMemo(() => new Map(productos.map((p) => [p.id, p])), [productos]);
 
     const toggleTipo = (tipo: TipoOperacion) => {
         setSelectedTipos((prev) =>
@@ -208,7 +212,13 @@ export default function OperacionesPage() {
                         const { totalLineas, totalMonto } = getTotals(operacion);
 
                         return (
-                            <Card key={operacion.id} style={styles.card}>
+                            <Card
+                                key={operacion.id}
+                                style={styles.card}
+                                onClick={() => {
+                                    setExpandedOperacionId((prev) => (prev === operacion.id ? null : operacion.id));
+                                }}
+                            >
                                 <div style={styles.cardRow}>
                                     <div style={{ ...styles.iconWrap, background: config.bg, color: config.color }}>
                                         {config.icon}
@@ -236,6 +246,40 @@ export default function OperacionesPage() {
                                                 label={formatArs(totalMonto)}
                                                 style={styles.metaItem}
                                             />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    style={{
+                                        ...styles.expandedPanel,
+                                        ...(expandedOperacionId === operacion.id ? styles.expandedPanelOpen : styles.expandedPanelClosed),
+                                    }}
+                                >
+                                    <div style={styles.expandedContainer}>
+                                        <div style={styles.expandedTitle}>Productos</div>
+                                        <div style={styles.expandedList}>
+                                            {(operacion.lineas ?? []).map((linea) => {
+                                                const producto = productosById.get(linea.producto_id);
+                                                const total = (linea.cantidad || 0) * (linea.monto_unitario || 0);
+                                                return (
+                                                    <div key={linea.id} style={styles.expandedRow}>
+                                                        <div style={styles.expandedLeft}>
+                                                            <div style={styles.expandedProductName}>
+                                                                {producto?.nombre ?? shortId(linea.producto_id)}
+                                                            </div>
+                                                            <div style={styles.expandedProductMeta}>
+                                                                {producto?.codigo ? `Código: ${producto.codigo}` : `ID: ${shortId(linea.producto_id)}`}
+                                                            </div>
+                                                        </div>
+                                                        <div style={styles.expandedRight}>
+                                                            <div style={styles.expandedQty}>x{linea.cantidad}</div>
+                                                            <div style={styles.expandedUnit}>{formatArs(linea.monto_unitario)}</div>
+                                                            <div style={styles.expandedTotal}>{formatArs(total)}</div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </div>
@@ -370,7 +414,86 @@ const styles = {
         gap: 12,
     },
     card: {
-        cursor: "default",
+        cursor: "pointer",
+    },
+    expandedContainer: {
+        marginTop: 12,
+        borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
+        paddingTop: 12,
+        display: "flex",
+        flexDirection: "column" as const,
+        gap: 8,
+    },
+    expandedPanel: {
+        overflow: "hidden",
+        transition: "max-height 240ms ease, opacity 200ms ease, transform 200ms ease",
+        transformOrigin: "top",
+    },
+    expandedPanelOpen: {
+        maxHeight: 600,
+        opacity: 1,
+        transform: "translateY(0)",
+    },
+    expandedPanelClosed: {
+        maxHeight: 0,
+        opacity: 0,
+        transform: "translateY(-4px)",
+        pointerEvents: "none",
+    },
+    expandedTitle: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: COLOR.TEXT.SECONDARY,
+        textTransform: "uppercase" as const,
+        letterSpacing: "0.04em",
+    },
+    expandedList: {
+        display: "flex",
+        flexDirection: "column" as const,
+        gap: 8,
+    },
+    expandedRow: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 12,
+        padding: "8px 0",
+        borderBottom: `1px dashed ${COLOR.BORDER.SUBTLE}`,
+    },
+    expandedLeft: {
+        display: "flex",
+        flexDirection: "column" as const,
+        minWidth: 0,
+    },
+    expandedProductName: {
+        fontWeight: 600,
+        fontSize: 14,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap" as const,
+    },
+    expandedProductMeta: {
+        fontSize: 12,
+        color: COLOR.TEXT.SECONDARY,
+    },
+    expandedRight: {
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        flexShrink: 0,
+    },
+    expandedQty: {
+        fontSize: 12,
+        color: COLOR.TEXT.SECONDARY,
+        fontWeight: 600,
+    },
+    expandedUnit: {
+        fontSize: 12,
+        color: COLOR.TEXT.SECONDARY,
+    },
+    expandedTotal: {
+        fontSize: 13,
+        fontWeight: 700,
     },
     cardRow: {
         display: "flex",
