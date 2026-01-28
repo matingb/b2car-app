@@ -212,7 +212,7 @@ BEGIN
     ELSE
       INSERT INTO public.stocks (tenant_id, taller_id, producto_id, cantidad)
       VALUES (v_tenant_id, p_taller_id, v_producto_id, v_delta)
-      ON CONFLICT (tenant_id, taller_id, producto_id)
+      ON CONFLICT (taller_id, producto_id)
       DO UPDATE SET
         cantidad   = public.stocks.cantidad + EXCLUDED.cantidad,
         updated_at = now();

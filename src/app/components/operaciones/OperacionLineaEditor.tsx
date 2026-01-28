@@ -5,7 +5,7 @@ import { css } from "@emotion/react";
 import { Trash2 } from "lucide-react";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import { COLOR } from "@/theme/theme";
-
+import { TipoOperacion } from "@/model/types";
 export type OperacionLineaDraft = {
   id: string;
   productoId: string;
@@ -14,14 +14,13 @@ export type OperacionLineaDraft = {
   total: number;
 };
 
-export type OperacionLineaTipo = "COMPRA" | "VENTA" | null;
+
 
 export const OPERACION_LINE_GRID_TEMPLATE =
   "minmax(280px, 1fr) 88px 140px 140px 44px";
 
 type Props = {
   index: number;
-  tipo: OperacionLineaTipo;
   linea: OperacionLineaDraft;
   disabled: boolean;
   loadingProductos: boolean;
@@ -38,7 +37,6 @@ function round2(n: number) {
 
 export default function OperacionLineaEditor({
   index,
-  tipo,
   linea,
   disabled,
   loadingProductos,

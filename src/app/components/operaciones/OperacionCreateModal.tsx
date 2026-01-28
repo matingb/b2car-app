@@ -15,6 +15,7 @@ import {
   Plus,
   Truck,
   Receipt,
+  Wrench,
 } from "lucide-react";
 import OperacionLineaEditor, {
   OPERACION_LINE_GRID_TEMPLATE,
@@ -86,6 +87,15 @@ export default function OperacionCreateModal({
   const [loadingProductos, setLoadingProductos] = useState(false);
   const [lineas, setLineas] = useState<LineaDraft[]>([createEmptyLinea()]);
   const didInitRef = React.useRef(false);
+  const tipoConfigById = useMemo(
+    () => new Map(TIPOS_UI.map((t) => [t.tipo, t])),
+    [],
+  );
+
+  const isTipoEnabled = (value: OperacionTipoUi | null) => {
+    if (!value) return false;
+    return !tipoConfigById.get(value)?.disabled;
+  };
 
   const hasManyTalleres = talleres.length > 1;
 
@@ -133,11 +143,11 @@ export default function OperacionCreateModal({
     };
   }, [open]);
 
-  // Al cambiar tipo (compra/venta), recalcular unitario desde producto y total
+  // Al cambiar tipo (si está habilitado), recalcular unitario desde producto y total
   useEffect(() => {
     if (!open) return;
     if (!tipo) return;
-    if (tipo !== "COMPRA" && tipo !== "VENTA") return;
+    if (!isTipoEnabled(tipo)) return;
 
     setLineas((prev) =>
       prev.map((linea) => {
@@ -168,7 +178,7 @@ export default function OperacionCreateModal({
 
   const canSubmit = useMemo(() => {
     if (!open) return false;
-    if (!tipo || (tipo !== "COMPRA" && tipo !== "VENTA")) return false;
+    if (!tipo || !isTipoEnabled(tipo)) return false;
     if (!tallerId) return false;
     if (lineas.length === 0) return false;
     return lineas.every(
@@ -177,7 +187,7 @@ export default function OperacionCreateModal({
         Number(l.cantidad) > 0 &&
         Number.isFinite(l.unitario),
     );
-  }, [open, tipo, tallerId, lineas]);
+  }, [open, tipo, tallerId, lineas, tipoConfigById]);
 
   const setLineaAt = (idx: number, nextLinea: LineaDraft) => {
     setLineas((prev) => prev.map((l, i) => (i === idx ? nextLinea : l)));
@@ -306,9 +316,8 @@ export default function OperacionCreateModal({
 
           <div css={styles.linesList}>
           {lineas.map((l, idx) => {
-            const disabled = !tipo || (tipo !== "COMPRA" && tipo !== "VENTA");
-            const tipoLinea =
-              tipo === "COMPRA" || tipo === "VENTA" ? tipo : null;
+            const disabled = !tipo || !isTipoEnabled(tipo);
+            const tipoLinea = !tipo || !isTipoEnabled(tipo) ? null : tipo;
             const getDefaultUnitarioForProductoId = (productoId: string) => {
               if (!tipoLinea) return null;
               const prod = productosById.get(productoId);
@@ -319,7 +328,6 @@ export default function OperacionCreateModal({
               <OperacionLineaEditor
                 key={l.id}
                 index={idx}
-                tipo={tipoLinea}
                 linea={l}
                 disabled={disabled}
                 loadingProductos={loadingProductos}
@@ -337,7 +345,7 @@ export default function OperacionCreateModal({
             <button
               type="button"
               onClick={addLinea}
-              disabled={!tipo || (tipo !== "COMPRA" && tipo !== "VENTA")}
+              disabled={!tipo || !isTipoEnabled(tipo)}
               css={styles.addLineaBtn}
               data-testid="operaciones-add-line"
               title={!tipo ? "Seleccioná un tipo para agregar líneas" : undefined}
