@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
@@ -19,6 +19,7 @@ import {
     Coins,
     Package,
     Plus,
+    PlusIcon,
     Receipt,
     SlidersHorizontal,
     Truck,
@@ -29,6 +30,7 @@ import { useTenant } from "@/app/providers/TenantProvider";
 import CardDato from "@/app/components/graficos/CardDato";
 import Color from "color";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
+import Button from "@/app/components/ui/Button";
 
 
 const tipoConfig: Record<
@@ -95,8 +97,10 @@ export default function OperacionesPage() {
 
     const operacionesFiltradas = useMemo(() => {
         const q = search.trim().toLowerCase();
-        return (operaciones ?? [])  
+        const hasTipoFilter = selectedTipos.length > 0;
+        return (operaciones ?? [])
             .filter((o) => {
+                if (hasTipoFilter && !selectedTipos.includes(o.tipo)) return false;
                 if (!q) return true;
                 const { totalLineas, totalMonto } = getTotals(o);
                 return [
@@ -109,7 +113,7 @@ export default function OperacionesPage() {
                     .filter(Boolean)
                     .some((v) => String(v).toLowerCase().includes(q));
             });
-    }, [operaciones, search, talleres]);
+    }, [operaciones, search, talleres, selectedTipos]);
 
     return (
         <div>
@@ -123,28 +127,28 @@ export default function OperacionesPage() {
                     value={2856410}
                     prefix="$"
                     icon={<Receipt size={22} color={COLOR.SEMANTIC.SUCCESS} />}
-                    style={{color: COLOR.SEMANTIC.SUCCESS}}
+                    style={{ color: COLOR.SEMANTIC.SUCCESS }}
                 />
                 <CardDato
                     titleText="Compras"
                     value={748550}
                     prefix="$"
                     icon={<Truck size={22} color={COLOR.SEMANTIC.DANGER} />}
-                    style={{color: COLOR.SEMANTIC.DANGER}}
+                    style={{ color: COLOR.SEMANTIC.DANGER }}
                 />
                 <CardDato
                     titleText="Asignaciones"
                     value={326500}
                     prefix="$"
                     icon={<Wrench size={22} color={COLOR.SEMANTIC.INFO} />}
-                    style={{color: COLOR.SEMANTIC.INFO}}
+                    style={{ color: COLOR.SEMANTIC.INFO }}
                 />
                 <CardDato
                     titleText="Resultado Mensual"
                     value={1781360}
                     prefix="$"
                     icon={<CircleDollarSign size={22} color={COLOR.SEMANTIC.SUCCESS} />}
-                    style={{color: COLOR.SEMANTIC.SUCCESS}}
+                    style={{ color: COLOR.SEMANTIC.SUCCESS }}
                 />
             </div>
             <div style={styles.searchBarContainer}>
@@ -155,17 +159,12 @@ export default function OperacionesPage() {
                         placeholder="Buscar operaciones..."
                         style={styles.searchBar}
                     />
-                    <button
-                        type="button"
+                    <Button
+                        icon={<PlusIcon size={20} />}
+                        text="Nueva operación"
                         onClick={() => setCreateOpen(true)}
-                        css={styles.actionBtn}
-                        data-testid="operaciones-open-create"
-                        aria-label="Nueva operación"
-                        title="Nueva operación"
-                    >
-                        <Plus size={16} />
-                        <span css={styles.actionBtnText}>Nueva</span>
-                    </button>
+                        style={{ height: 40, width: '210px' }}
+                    />
                 </div>
                 <div css={styles.chipsContainer} aria-label="Filtrar por tipo de operación">
                     {TIPOS_OPERACIONES.map((tipo) => {

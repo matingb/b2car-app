@@ -68,8 +68,8 @@ const TIPOS_UI: Array<{
   disabled?: boolean;
   icon?: React.ReactNode;
 }> = [
-  { tipo: "COMPRA", label: "Compra", icon: <Truck size={16} /> },
   { tipo: "VENTA", label: "Venta", icon: <Receipt size={16} /> },
+  { tipo: "COMPRA", label: "Compra", icon: <Truck size={16} /> },
 ];
 
 export default function OperacionCreateModal({
@@ -80,7 +80,7 @@ export default function OperacionCreateModal({
   const { create, loading } = useOperaciones();
   const { success, error } = useToast();
 
-  const [tipo, setTipo] = useState<OperacionTipoUi | null>(null);
+  const [tipo, setTipo] = useState<OperacionTipoUi | null>("VENTA");
   const [tallerId, setTallerId] = useState<string>("");
   const [productos, setProductos] = useState<ProductoLite[]>([]);
   const [loadingProductos, setLoadingProductos] = useState(false);
@@ -97,7 +97,7 @@ export default function OperacionCreateModal({
     if (didInitRef.current) return;
     didInitRef.current = true;
 
-    setTipo(null);
+    setTipo("VENTA");
     setLineas([createEmptyLinea()]);
     setTallerId(talleres.length === 1 ? talleres[0].id : "");
   }, [open, talleres]);
@@ -267,9 +267,9 @@ export default function OperacionCreateModal({
                       disabled={isDisabled}
                       data-testid={`operaciones-create-tipo-${t.tipo}`}
                       css={[
-                        styles.tipoBtn,
-                        isSelected && styles.tipoBtnSelected,
-                        isDisabled && styles.tipoBtnDisabled,
+                        styles.tipoChip,
+                        isSelected && styles.tipoChipSelected,
+                        isDisabled && styles.tipoChipDisabled,
                       ]}
                     >
                       {t.icon ? (
@@ -390,7 +390,6 @@ const styles = {
     alignItems: "stretch",
     gap: 8,
     flexWrap: "nowrap",
-    overflowX: "auto",
     paddingBottom: 2,
   }),
   tooltipWrap: css({
@@ -425,26 +424,31 @@ const styles = {
       borderTopColor: "rgba(20, 20, 20, 0.95)",
     },
   }),
-  tipoBtn: css({
-    display: "flex",
+  tipoChip: css({
+    display: "inline-flex",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: 8,
-    padding: "8px 10px",
-    borderRadius: 10,
+    padding: "8px 12px",
+    borderRadius: 999,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.PRIMARY,
+    background: COLOR.BACKGROUND.SUBTLE,
     color: COLOR.TEXT.PRIMARY,
     cursor: "pointer",
     fontWeight: 600,
     fontSize: 13,
     whiteSpace: "nowrap",
+    transition: "all 120ms ease",
+    ":hover": {
+      borderColor: COLOR.ACCENT.PRIMARY,
+    },
   }),
-  tipoBtnSelected: css({
+  tipoChipSelected: css({
+    background: COLOR.ACCENT.PRIMARY,
+    color: COLOR.TEXT.CONTRAST,
     borderColor: COLOR.ACCENT.PRIMARY,
-    boxShadow: "0 0 0 2px rgba(0, 128, 162, 0.12)",
+    boxShadow: "0 0 0 2px rgba(0, 121, 149, 0.18)",
   }),
-  tipoBtnDisabled: css({
+  tipoChipDisabled: css({
     opacity: 0.6,
     cursor: "default",
   }),
@@ -478,6 +482,7 @@ const styles = {
     letterSpacing: "0.04em",
     textTransform: "uppercase",
     marginBottom: 10,
+    width: "100%",
     [`@media (max-width: 720px)`]: {
       display: "none",
     },
@@ -486,6 +491,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 10,
+    width: "100%",
   }),
   addLineaBtn: css({
     display: "flex",
@@ -521,14 +527,12 @@ const styles = {
   } as const,
   totalInlineLabel: {
     fontSize: 12,
-    fontWeight: 800,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase" as const,
+    fontWeight: 600,
     color: COLOR.TEXT.SECONDARY,
   } as const,
   totalInlineValue: {
     fontSize: 22,
-    fontWeight: 900,
+    fontWeight: 700,
     color: COLOR.TEXT.PRIMARY,
   } as const,
 } as const;

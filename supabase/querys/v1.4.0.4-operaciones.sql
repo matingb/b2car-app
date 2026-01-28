@@ -95,3 +95,120 @@ with check (
       and o.tenant_id = public.current_tenant_id()
   )
 );
+
+-- RPC: crea operación + líneas + aplica stock (atómico)
+-- lineas: JSONB array de objetos:
+--   [
+--     {"producto_id":"uuid", "cantidad": 3, "monto_unitario": 1200.50},
+--     ...
+--   ]
+-- Para AJUSTE podés mandar opcionalmente "delta_cantidad" (puede ser + o -).
+-- Para TRANSFERENCIA, por cómo está tu modelo hoy (sin taller_destino), exige "delta_cantidad".
+CREATE OR REPLACE FUNCTION public.rpc_crear_operacion_con_stock(
+  p_tipo       public.tipo_operacion,
+  p_taller_id  uuid,
+  p_lineas     jsonb,
+  p_arreglo_id uuid DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+DECLARE
+  v_tenant_id   uuid;
+  v_operacion_id uuid;
+
+  l jsonb;
+  v_producto_id uuid;
+  v_cantidad    int;
+  v_monto       numeric(12,2);
+  v_delta       int;
+
+  v_rowcount int;
+BEGIN
+  -- tenant desde JWT del caller
+  v_tenant_id := (auth.jwt() ->> 'tenant_id')::uuid;
+  IF v_tenant_id IS NULL THEN
+    RAISE EXCEPTION 'JWT sin tenant_id';
+  END IF;
+
+  IF p_lineas IS NULL
+     OR jsonb_typeof(p_lineas) <> 'array'
+     OR jsonb_array_length(p_lineas) = 0 THEN
+    RAISE EXCEPTION 'lineas debe ser un array no vacío';
+  END IF;
+
+  --  ----- CREA OPERACION --------
+  INSERT INTO public.operaciones (tenant_id, tipo, taller_id)
+  VALUES (v_tenant_id, p_tipo, p_taller_id)
+  RETURNING id INTO v_operacion_id;
+
+  -- vínculo con arreglo
+  IF p_tipo = 'ASIGNACION_ARREGLO' THEN
+    IF p_arreglo_id IS NULL THEN
+      RAISE EXCEPTION 'arreglo_id requerido para ASIGNACION_ARREGLO';
+    END IF;
+
+    INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, arreglo_id)
+    VALUES (v_operacion_id, p_arreglo_id);
+  END IF;
+
+  -- líneas + stock
+  FOR l IN SELECT * FROM jsonb_array_elements(p_lineas)
+  LOOP
+    v_producto_id := (l ->> 'producto_id')::uuid;
+    v_cantidad    := (l ->> 'cantidad')::int;
+    v_monto       := COALESCE((l ->> 'monto_unitario')::numeric, 0);
+
+    IF v_producto_id IS NULL OR v_cantidad IS NULL OR v_cantidad <= 0 THEN
+      RAISE EXCEPTION 'linea inválida (producto_id %, cantidad %)', v_producto_id, v_cantidad;
+    END IF;
+
+    v_delta :=
+      CASE p_tipo
+        WHEN 'COMPRA' THEN  v_cantidad
+        WHEN 'VENTA' THEN  -v_cantidad
+        WHEN 'ASIGNACION_ARREGLO' THEN -v_cantidad
+        WHEN 'AJUSTE' THEN
+          COALESCE((l ->> 'delta_cantidad')::int, v_cantidad) -- TODO ESTO NO SE CALCULA ASI
+        ELSE 0
+      END;
+
+    IF v_delta = 0 THEN
+      RAISE EXCEPTION 'delta inválido para producto %', v_producto_id;
+    END IF;
+
+    INSERT INTO public.operaciones_lineas (
+      operacion_id, producto_id, cantidad, monto_unitario, delta_cantidad
+    )
+    VALUES (
+      v_operacion_id, v_producto_id, v_cantidad, v_monto, v_delta
+    );
+
+    -- aplicar stock
+    IF v_delta < 0 THEN
+      UPDATE public.stocks s
+      SET cantidad = s.cantidad + v_delta,
+          updated_at = now()
+      WHERE s.taller_id  = p_taller_id
+        AND s.producto_id = v_producto_id
+        AND s.cantidad >= (-v_delta);
+
+      GET DIAGNOSTICS v_rowcount = ROW_COUNT;
+      IF v_rowcount = 0 THEN
+        RAISE EXCEPTION 'STOCK_INSUFICIENTE (producto %)', v_producto_id;
+      END IF;
+
+    ELSE
+      INSERT INTO public.stocks (tenant_id, taller_id, producto_id, cantidad)
+      VALUES (v_tenant_id, p_taller_id, v_producto_id, v_delta)
+      ON CONFLICT (tenant_id, taller_id, producto_id)
+      DO UPDATE SET
+        cantidad   = public.stocks.cantidad + EXCLUDED.cantidad,
+        updated_at = now();
+    END IF;
+  END LOOP;
+
+  RETURN v_operacion_id;
+END;
+$$;
