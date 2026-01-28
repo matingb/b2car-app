@@ -15,6 +15,7 @@ type Props = {
   submitText: string;
   submitting?: boolean;
   disabledSubmit?: boolean;
+  modalStyle?: React.CSSProperties;
 };
 
 export default function Modal({
@@ -26,6 +27,7 @@ export default function Modal({
   submitText,
   submitting = false,
   disabledSubmit = false,
+  modalStyle,
 }: Props) {
   const titleId = useId();
   const restoreScrollRef = useRef<null | (() => void)>(null);
@@ -90,7 +92,7 @@ export default function Modal({
       aria-labelledby={titleId}
       data-testid="modal-overlay"
     >
-      <div style={styles.modal}>
+      <div style={{ ...styles.modal, ...modalStyle }}>
         <Card style={{ maxHeight: "850px", overflowY: "visible" }}>
           <div style={styles.headerRow}>
             <h2 id={titleId} style={styles.title} data-testid="modal-title">

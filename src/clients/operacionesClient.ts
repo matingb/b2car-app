@@ -1,9 +1,18 @@
 import type { Operacion, OperacionesFilters } from "@/model/types";
 
+export type CreateOperacionLineaInput = {
+	producto_id: string;
+	cantidad: number;
+	monto_unitario: number;
+	delta_cantidad: number;
+};
+
 export type CreateOperacionInput = {
 	tipo: string;
 	taller_id: string;
 	created_at?: string;
+	lineas?: CreateOperacionLineaInput[];
+	arreglo_id?: string | null;
 };
 
 export type UpdateOperacionInput = Partial<CreateOperacionInput>;

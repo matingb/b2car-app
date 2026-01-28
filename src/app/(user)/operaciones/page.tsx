@@ -18,6 +18,7 @@ import {
     CircleDollarSign,
     Coins,
     Package,
+    Plus,
     Receipt,
     SlidersHorizontal,
     Truck,
@@ -27,6 +28,7 @@ import { TipoOperacion, TIPOS_OPERACIONES } from "@/model/types";
 import { useTenant } from "@/app/providers/TenantProvider";
 import CardDato from "@/app/components/graficos/CardDato";
 import Color from "color";
+import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 
 
 const tipoConfig: Record<
@@ -83,6 +85,7 @@ export default function OperacionesPage() {
     const { operaciones, loading, selectedTipos, setSelectedTipos } = useOperaciones();
     const { talleres } = useTenant();
     const [search, setSearch] = useState("");
+    const [createOpen, setCreateOpen] = useState(false);
 
     const toggleTipo = (tipo: TipoOperacion) => {
         setSelectedTipos((prev) =>
@@ -153,6 +156,17 @@ export default function OperacionesPage() {
                         placeholder="Buscar operaciones..."
                         style={styles.searchBar}
                     />
+                    <button
+                        type="button"
+                        onClick={() => setCreateOpen(true)}
+                        css={styles.actionBtn}
+                        data-testid="operaciones-open-create"
+                        aria-label="Nueva operación"
+                        title="Nueva operación"
+                    >
+                        <Plus size={16} />
+                        <span css={styles.actionBtnText}>Nueva</span>
+                    </button>
                 </div>
                 <div css={styles.chipsContainer} aria-label="Filtrar por tipo de operación">
                     {TIPOS_OPERACIONES.map((tipo) => {
@@ -234,6 +248,14 @@ export default function OperacionesPage() {
                     })}
                 </div>
             )}
+
+            {createOpen ? (
+                <OperacionCreateModal
+                    open={createOpen}
+                    talleres={talleres}
+                    onClose={() => setCreateOpen(false)}
+                />
+            ) : null}
         </div>
     );
 }
@@ -263,10 +285,34 @@ const styles = {
         display: "flex",
         gap: 12,
         alignItems: "center",
+        flexWrap: "nowrap" as const,
     },
     searchBar: {
         width: "100%",
     },
+    actionBtn: css({
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        height: 40,
+        padding: "0 12px",
+        borderRadius: 10,
+        border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+        background: COLOR.BACKGROUND.SUBTLE,
+        color: COLOR.TEXT.PRIMARY,
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+        "&:hover": {
+            borderColor: COLOR.ACCENT.PRIMARY,
+        },
+    }),
+    actionBtnText: css({
+        fontWeight: 600,
+        fontSize: 14,
+        [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+            display: "none",
+        },
+    }),
     chipsContainer: css({
         display: "flex",
         gap: "10px",
