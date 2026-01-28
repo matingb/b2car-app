@@ -239,9 +239,9 @@ export default function OperacionCreateModal({
       submitText="Crear"
       submitting={loading}
       disabledSubmit={!canSubmit}
-      modalStyle={{ width: "min(860px, 96vw)" }}
+      modalStyle={{ width: "min(860px, 96vw)", overflowY: "auto" }}
     >
-      <div style={{ padding: "8px 0 12px" }}>
+      <div style={{ padding: "8px 0 12px" , minHeight: "385px" }}>
         <div css={styles.headerRow}>
           <div style={styles.headerLeft}>
             {hasManyTalleres ? (
@@ -412,7 +412,7 @@ const styles = {
     left: "50%",
     transform: "translateX(-50%)",
     bottom: "calc(100% + 8px)",
-    background: "rgba(20, 20, 20, 0.95)",
+    backgroundColor: "rgba(20, 20, 20, 0.95)",
     color: "white",
     padding: "6px 8px",
     borderRadius: 8,
@@ -439,7 +439,7 @@ const styles = {
     padding: "8px 12px",
     borderRadius: 999,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.SUBTLE,
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
     color: COLOR.TEXT.PRIMARY,
     cursor: "pointer",
     fontWeight: 600,
@@ -451,7 +451,7 @@ const styles = {
     },
   }),
   tipoChipSelected: css({
-    background: COLOR.ACCENT.PRIMARY,
+    backgroundColor: COLOR.ACCENT.PRIMARY,
     color: COLOR.TEXT.CONTRAST,
     borderColor: COLOR.ACCENT.PRIMARY,
     boxShadow: "0 0 0 2px rgba(0, 121, 149, 0.18)",
@@ -483,7 +483,7 @@ const styles = {
     padding: "10px 12px",
     borderRadius: 12,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.SUBTLE,
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
     color: COLOR.TEXT.SECONDARY,
     fontSize: 12,
     fontWeight: 700,
@@ -509,7 +509,7 @@ const styles = {
     padding: "0 12px",
     borderRadius: 10,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.SUBTLE,
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
     color: COLOR.TEXT.PRIMARY,
     cursor: "pointer",
     "&:disabled": {
@@ -525,7 +525,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 8,
+    marginTop: 16,
   } as const,
   totalInline: {
     display: "flex",

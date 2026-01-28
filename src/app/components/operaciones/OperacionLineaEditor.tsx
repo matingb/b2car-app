@@ -162,7 +162,7 @@ const styles = {
     height: 44,
     borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    backgroundColor: COLOR.INPUT.PRIMARY.BACKGROUND,
     color: COLOR.TEXT.PRIMARY,
     outline: "none",
     fontSize: 14,
@@ -196,7 +196,7 @@ const styles = {
     justifyContent: "center",
     borderRadius: 10,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.SUBTLE,
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
     cursor: "pointer",
   }),
 } as const;

@@ -159,6 +159,7 @@ export default function StockCreateModal({
       submitText="Crear"
       submitting={isLoading}
       disabledSubmit={!canSubmit}
+      modalStyle={{ overflowY: "visible" }}
     >
       <div style={{ padding: "4px 0 12px"}}>
         <div css={styles.row}>

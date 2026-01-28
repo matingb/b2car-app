@@ -92,8 +92,7 @@ export default function Modal({
       aria-labelledby={titleId}
       data-testid="modal-overlay"
     >
-      <div style={{ ...styles.modal, ...modalStyle }}>
-        <Card style={{ maxHeight: "850px", overflowY: "visible" }}>
+      <Card style={{ ...styles.modal, ...modalStyle , maxHeight: "850px" }}>
           <div style={styles.headerRow}>
             <h2 id={titleId} style={styles.title} data-testid="modal-title">
               {title}
@@ -123,7 +122,6 @@ export default function Modal({
             </div>
           </form>
         </Card>
-      </div>
     </div>
   );
 }
