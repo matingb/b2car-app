@@ -4,8 +4,8 @@ import React from "react";
 import { css } from "@emotion/react";
 import { Trash2 } from "lucide-react";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
+import IconButton from "@/app/components/ui/IconButton";
 import { COLOR } from "@/theme/theme";
-import { TipoOperacion } from "@/model/types";
 export type OperacionLineaDraft = {
   id: string;
   productoId: string;
@@ -17,7 +17,7 @@ export type OperacionLineaDraft = {
 
 
 export const OPERACION_LINE_GRID_TEMPLATE =
-  "minmax(280px, 1fr) 88px 140px 140px 44px";
+  "minmax(290px, 1fr) 78px 140px 140px 44px";
 
 type Props = {
   index: number;
@@ -139,15 +139,15 @@ export default function OperacionLineaEditor({
       </div>
 
       {canRemove ? (
-        <button
-          type="button"
+        <IconButton
+          icon={<Trash2 />}
+          size={16}
           onClick={onRemove}
-          css={styles.trashBtn}
           title="Eliminar línea"
           data-testid={`operaciones-line-${index}-remove`}
-        >
-          <Trash2 size={16} />
-        </button>
+          style={styles.trashBtn}
+          ariaLabel="Eliminar línea"
+        />
       ) : (
         <div />
       )}
@@ -168,7 +168,7 @@ const styles = {
     fontSize: 14,
   } as const,
   qtyInput: {
-    textAlign: "center" as const,
+    textAlign: "right" as const,
     paddingLeft: 8,
     paddingRight: 8,
   } as const,
@@ -183,21 +183,20 @@ const styles = {
     gridTemplateColumns: OPERACION_LINE_GRID_TEMPLATE,
     gap: 10,
     alignItems: "center",
-    padding: "0 12px",
     [`@media (max-width: 720px)`]: {
       gridTemplateColumns: "1fr 1fr",
     },
   }),
-  trashBtn: css({
+  trashBtn: {
     height: 44,
     width: 44,
+    padding: 0,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 10,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    backgroundColor: COLOR.BACKGROUND.SUBTLE,
-    cursor: "pointer",
-  }),
+    background: COLOR.BACKGROUND.SUBTLE,
+  } as React.CSSProperties,
 } as const;
 

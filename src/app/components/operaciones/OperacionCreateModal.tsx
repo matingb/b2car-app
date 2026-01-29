@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
 import { css } from "@emotion/react";
 import { COLOR } from "@/theme/theme";
@@ -11,17 +11,13 @@ import { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import Dropdown from "@/app/components/ui/Dropdown";
 import type { ProductoDTO } from "@/model/dtos";
 import type { TipoOperacion } from "@/model/types";
-import {
-  Plus,
-  Truck,
-  Receipt,
-  Wrench,
-} from "lucide-react";
+import { Plus, Truck, Receipt } from "lucide-react";
 import OperacionLineaEditor, {
   OPERACION_LINE_GRID_TEMPLATE,
   type OperacionLineaDraft,
 } from "./OperacionLineaEditor";
 import { formatArs } from "@/lib/format";
+import Button from "../ui/Button";
 
 type TallerLite = { id: string; nombre: string };
 
@@ -92,10 +88,13 @@ export default function OperacionCreateModal({
     [],
   );
 
-  const isTipoEnabled = (value: OperacionTipoUi | null) => {
-    if (!value) return false;
-    return !tipoConfigById.get(value)?.disabled;
-  };
+  const isTipoEnabled = useCallback(
+    (value: OperacionTipoUi | null) => {
+      if (!value) return false;
+      return !tipoConfigById.get(value)?.disabled;
+    },
+    [tipoConfigById],
+  );
 
   const hasManyTalleres = talleres.length > 1;
 
@@ -159,7 +158,7 @@ export default function OperacionCreateModal({
         return { ...linea, unitario, total };
       }),
     );
-  }, [tipo, productos, open]);
+  }, [tipo, productos, open, isTipoEnabled]);
 
   const productosById = useMemo(
     () => new Map(productos.map((p) => [p.id, p])),
@@ -187,7 +186,7 @@ export default function OperacionCreateModal({
         Number(l.cantidad) > 0 &&
         Number.isFinite(l.unitario),
     );
-  }, [open, tipo, tallerId, lineas, tipoConfigById]);
+  }, [open, tipo, isTipoEnabled, tallerId, lineas]);
 
   const setLineaAt = (idx: number, nextLinea: LineaDraft) => {
     setLineas((prev) => prev.map((l, i) => (i === idx ? nextLinea : l)));
@@ -241,27 +240,23 @@ export default function OperacionCreateModal({
       disabledSubmit={!canSubmit}
       modalStyle={{ width: "min(860px, 96vw)", overflowY: "auto" }}
     >
-      <div style={{ padding: "8px 0 12px" , minHeight: "385px" }}>
+      <div style={{ padding: "8px 0 12px", minHeight: "385px" }}>
         <div css={styles.headerRow}>
-          <div style={styles.headerLeft}>
-            {hasManyTalleres ? (
-              <>
-                <label style={styles.label}>Taller</label>
-                <Dropdown
-                  value={tallerId || ""}
-                  onChange={(v) => setTallerId(v)}
-                  options={[
-                    { value: "", label: "Seleccionar taller…" },
-                    ...talleres.map((t) => ({ value: t.id, label: t.nombre })),
-                  ]}
-                  data-testid="operaciones-create-taller"
-                  style={{ height: 44, padding: "10px 12px", fontSize: 14 }}
-                />
-              </>
-            ) : (
-              <div />
-            )}
-          </div>
+          {hasManyTalleres ? (
+            <div style={styles.headerLeft}>
+              <label style={styles.label}>Taller</label>
+              <Dropdown
+                value={tallerId || ""}
+                onChange={(v) => setTallerId(v)}
+                options={[
+                  { value: "", label: "Seleccionar taller…" },
+                  ...talleres.map((t) => ({ value: t.id, label: t.nombre })),
+                ]}
+                data-testid="operaciones-create-taller"
+                style={{ height: 44, padding: "10px 12px", fontSize: 14 }}
+              />
+            </div>
+          ) : null}
 
           <div style={styles.headerRight}>
             <label style={styles.label}>Tipo de operación</label>
@@ -288,7 +283,10 @@ export default function OperacionCreateModal({
                       <span>{t.label}</span>
                     </button>
                     {isDisabled ? (
-                      <span css={styles.tooltip} className="operaciones-tooltip">
+                      <span
+                        css={styles.tooltip}
+                        className="operaciones-tooltip"
+                      >
                         En construcción
                       </span>
                     ) : null}
@@ -308,57 +306,57 @@ export default function OperacionCreateModal({
 
           <div css={styles.columnsHeader} aria-hidden="true">
             <div>PRODUCTO</div>
-            <div style={{ textAlign: "center" }}>CANT.</div>
+            <div style={{ textAlign: "right" }}>CANT.</div>
             <div style={{ textAlign: "right" }}>UNITARIO</div>
             <div style={{ textAlign: "right" }}>TOTAL</div>
             <div />
           </div>
 
           <div css={styles.linesList}>
-          {lineas.map((l, idx) => {
-            const disabled = !tipo || !isTipoEnabled(tipo);
-            const tipoLinea = !tipo || !isTipoEnabled(tipo) ? null : tipo;
-            const getDefaultUnitarioForProductoId = (productoId: string) => {
-              if (!tipoLinea) return null;
-              const prod = productosById.get(productoId);
-              if (!prod) return null;
-              return getDefaultUnitario(prod, tipoLinea);
-            };
-            return (
-              <OperacionLineaEditor
-                key={l.id}
-                index={idx}
-                linea={l}
-                disabled={disabled}
-                loadingProductos={loadingProductos}
-                productoOptions={productoOptions}
-                getDefaultUnitarioForProductoId={getDefaultUnitarioForProductoId}
-                onChange={(next) => setLineaAt(idx, next)}
-                onRemove={() => removeLinea(idx)}
-                canRemove={lineas.length > 1}
-              />
-            );
-          })}
+            {lineas.map((l, idx) => {
+              const disabled = !tipo || !isTipoEnabled(tipo);
+              const tipoLinea = !tipo || !isTipoEnabled(tipo) ? null : tipo;
+              const getDefaultUnitarioForProductoId = (productoId: string) => {
+                if (!tipoLinea) return null;
+                const prod = productosById.get(productoId);
+                if (!prod) return null;
+                return getDefaultUnitario(prod, tipoLinea);
+              };
+              return (
+                <OperacionLineaEditor
+                  key={l.id}
+                  index={idx}
+                  linea={l}
+                  disabled={disabled}
+                  loadingProductos={loadingProductos}
+                  productoOptions={productoOptions}
+                  getDefaultUnitarioForProductoId={
+                    getDefaultUnitarioForProductoId
+                  }
+                  onChange={(next) => setLineaAt(idx, next)}
+                  onRemove={() => removeLinea(idx)}
+                  canRemove={lineas.length > 1}
+                />
+              );
+            })}
           </div>
 
           <div style={styles.addAndTotalRow}>
-            <button
-              type="button"
+            <Button
               onClick={addLinea}
               disabled={!tipo || !isTipoEnabled(tipo)}
-              css={styles.addLineaBtn}
-              data-testid="operaciones-add-line"
-              title={!tipo ? "Seleccioná un tipo para agregar líneas" : undefined}
-              aria-label="Agregar producto"
-            >
-              <Plus size={16} />
-              <span style={styles.addLineaText}>Agregar Producto</span>
-            </button>
+              dataTestId="operaciones-add-line"
+              text="Agregar Producto"
+              icon={<Plus size={16} />}
+              outline
+            />
 
             <div style={styles.totalInline}>
               <div style={styles.totalInlineLabel}>TOTAL OPERACIÓN</div>
               <div style={styles.totalInlineValue}>
-                {formatArs(lineas.reduce((acc, l) => acc + (Number(l.total) || 0), 0))}
+                {formatArs(
+                  lineas.reduce((acc, l) => acc + (Number(l.total) || 0), 0),
+                )}
               </div>
             </div>
           </div>
@@ -371,9 +369,8 @@ export default function OperacionCreateModal({
 const styles = {
   headerRow: css({
     display: "flex",
+    flexDirection: "column",
     gap: 12,
-    alignItems: "flex-end",
-    justifyContent: "space-between",
     marginBottom: 12,
   }),
   headerLeft: {
@@ -384,8 +381,7 @@ const styles = {
   headerRight: {
     flex: "1 1 auto",
     display: "flex",
-    flexDirection: "column" as const,
-    alignItems: "flex-end",
+    flexDirection: "column",
   } as const,
   label: {
     display: "block",
@@ -501,22 +497,6 @@ const styles = {
     gap: 10,
     width: "100%",
   }),
-  addLineaBtn: css({
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    height: 44,
-    padding: "0 12px",
-    borderRadius: 10,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    backgroundColor: COLOR.BACKGROUND.SUBTLE,
-    color: COLOR.TEXT.PRIMARY,
-    cursor: "pointer",
-    "&:disabled": {
-      opacity: 0.6,
-      cursor: "default",
-    },
-  }),
   addLineaText: {
     fontWeight: 600,
     fontSize: 14,
@@ -540,7 +520,7 @@ const styles = {
   } as const,
   totalInlineValue: {
     fontSize: 22,
-    fontWeight: 700,
+    fontWeight: 600,
     color: COLOR.TEXT.PRIMARY,
   } as const,
 } as const;

@@ -10,6 +10,7 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   onClick?: () => void;
   hideText?: boolean;
   outline?: boolean;
+  dataTestId?: string;
 };
 
 export default function Button({
@@ -19,6 +20,7 @@ export default function Button({
   hideText = true,
   outline = false,
   onClick,
+  dataTestId,
   ...rest
 }: ButtonProps) {
 
@@ -41,6 +43,8 @@ export default function Button({
       onMouseLeave={() => setHover(false)}
       onClick={onClick}
       css={[styles.button, outline && styles.buttonOutline]}
+      data-testid={dataTestId}
+      aria-label={text}
     >
       {icon && icon}
       <p css={hideText ? styles.text : undefined}>{text}</p>
@@ -79,7 +83,7 @@ const styles = {
   buttonOutlineHover: {
     background: `${COLOR.BACKGROUND.PRIMARY}`,
     color: COLOR.TEXT.PRIMARY,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
   },
   buttonDisabled: {
     opacity: 0.6,

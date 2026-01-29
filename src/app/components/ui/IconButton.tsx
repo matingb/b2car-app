@@ -3,7 +3,10 @@
 import React, { ReactNode } from "react";
 import { COLOR } from "@/theme/theme";
 
-type Props = {
+type Props = Omit<
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  "children" | "onClick" | "title"
+> & {
   icon: ReactNode;
   size?: number;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
@@ -19,43 +22,49 @@ export default function IconButton({
   title,
   ariaLabel,
   hoverColor,
+  style,
+  disabled,
+  ...rest
 }: Props) {
   const hasInteraction = !!onClick;
+  const isDisabled = !!disabled || !hasInteraction;
 
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={!hasInteraction}
+      disabled={isDisabled}
       style={{
         background: "transparent",
         border: "none",
-        cursor: hasInteraction ? "pointer" : "default",
+        cursor: !isDisabled ? "pointer" : "default",
         padding: 8,
         borderRadius: 8,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        transition: hasInteraction ? "all 0.2s" : "none",
-        color: hasInteraction ? COLOR.ICON.MUTED : COLOR.ICON.MUTED,
-        opacity: hasInteraction ? 1 : 0.5,
+        transition: !isDisabled ? "all 0.2s" : "none",
+        color: COLOR.ICON.MUTED,
+        opacity: !isDisabled ? 1 : 0.5,
+        ...style,
       }}
       onMouseEnter={
-        hasInteraction
+        !isDisabled
           ? (e) => {
               e.currentTarget.style.color = hoverColor || COLOR.ACCENT.PRIMARY;
             }
           : undefined
       }
       onMouseLeave={
-        hasInteraction
+        !isDisabled
           ? (e) => {
               e.currentTarget.style.color = COLOR.ICON.MUTED;
             }
           : undefined
       }
-      aria-label={ariaLabel}
+      aria-label={ariaLabel ?? rest["aria-label"]}
       title={title}
+      {...rest}
     >
       {React.isValidElement(icon)
         ? React.cloneElement(

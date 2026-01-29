@@ -98,6 +98,17 @@ h2{
   font-weight: 500;
 }
 
+/* Hide numeric input spinner arrows (global) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield; /* Firefox */
+}
+
 .radix-themes {
   min-height: 0 !important;
 }
