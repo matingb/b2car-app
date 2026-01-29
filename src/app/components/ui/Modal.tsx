@@ -92,7 +92,7 @@ export default function Modal({
       aria-labelledby={titleId}
       data-testid="modal-overlay"
     >
-      <Card style={{ ...styles.modal, ...modalStyle , maxHeight: "850px" }}>
+      <Card style={{ ...styles.modal, ...modalStyle }}>
           <div style={styles.headerRow}>
             <h2 id={titleId} style={styles.title} data-testid="modal-title">
               {title}
@@ -140,7 +140,7 @@ const styles = {
   },
   modal: {
     width: "min(640px, 92vw)",
-    maxHeight: "calc(100dvh - 24px)",
+    maxHeight: "90dvh",
     WebkitOverflowScrolling: "touch" as const,
   },
   headerRow: {

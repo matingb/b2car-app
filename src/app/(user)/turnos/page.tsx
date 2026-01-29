@@ -136,7 +136,12 @@ export default function TurnosPage() {
         open={modalOpen}
         turno={turnoSeleccionado}
         onClose={() => setModalOpen(false)}
-        onEdit={async (turno) => {
+        onEdit={(turno) => {
+          setModalOpen(false);
+          setTurnoToEdit(turno);
+          setModalCreateOpen(true);
+        }}
+        onCancel={async (turno) => {
           setModalOpen(false);
           const confirmed = await confirm({
             message: "¿Estás seguro de que deseas eliminar este arreglo?",
@@ -146,7 +151,6 @@ export default function TurnosPage() {
           });
           if (confirmed) handleDeleteTurno(turno);
         }}
-        onCancel={(turno) => handleDeleteTurno(turno)}
       />
 
       <TurnoCreateModal

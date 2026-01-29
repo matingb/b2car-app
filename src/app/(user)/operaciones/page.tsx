@@ -126,28 +126,28 @@ export default function OperacionesPage() {
             <div css={styles.cardDatosContainer}>
                 <CardDato
                     titleText="Ventas"
-                    value={stats?.ventas ?? 0}
+                    value={stats?.ventas}
                     prefix="$"
                     icon={<Receipt size={22} color={COLOR.SEMANTIC.SUCCESS} />}
                     style={{ color: COLOR.SEMANTIC.SUCCESS }}
                 />
                 <CardDato
                     titleText="Compras"
-                    value={stats?.compras ?? 0}
+                    value={stats?.compras}
                     prefix="$"
                     icon={<Truck size={22} color={COLOR.SEMANTIC.DANGER} />}
                     style={{ color: COLOR.SEMANTIC.DANGER }}
                 />
                 <CardDato
                     titleText="Asignaciones"
-                    value={stats?.asignaciones ?? 0}
+                    value={stats?.asignaciones}
                     prefix="$"
                     icon={<Wrench size={22} color={COLOR.SEMANTIC.INFO} />}
                     style={{ color: COLOR.SEMANTIC.INFO }}
                 />
                 <CardDato
                     titleText="Resultado Mensual"
-                    value={stats?.neto ?? 0}
+                    value={stats?.neto}
                     prefix="$"
                     icon={<CircleDollarSign size={22} color={COLOR.SEMANTIC.SUCCESS} />}
                     style={{ color: COLOR.SEMANTIC.SUCCESS }}

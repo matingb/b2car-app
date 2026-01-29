@@ -42,15 +42,6 @@ export default function StockLevelsCard({ item, isEditing, draft, onChange }: Pr
             <div style={styles.divider} />
             <div style={styles.grid}>
               <div>
-                <div style={styles.label}>Stock actual</div>
-                <input
-                  type="number"
-                  style={styles.input}
-                  value={draft.stockActual}
-                  onChange={(e) => onChange({ stockActual: Number(e.target.value) || 0 })}
-                />
-              </div>
-              <div>
                 <div style={styles.label}>Stock mínimo</div>
                 <input
                   type="number"

@@ -58,7 +58,7 @@ export default function ModalMessage({
                 {cancelLabel}
               </button>
             )}
-            <Button text={acceptLabel} onClick={onAccept} />
+            <Button text={acceptLabel} onClick={onAccept} hideText={false} />
           </div>
         </Card>
       </div>
