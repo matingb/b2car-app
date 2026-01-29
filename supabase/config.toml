@@ -2,7 +2,7 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
-project_id = "car-max"
+project_id = "b2car-app"
 
 [api]
 enabled = true
@@ -20,9 +20,6 @@ max_rows = 1000
 [api.tls]
 # Enable HTTPS endpoints locally using a self-signed certificate.
 enabled = false
-# Paths to self-signed certificate pair.
-# cert_path = "../certs/my-cert.pem"
-# key_path = "../certs/my-key.pem"
 
 [db]
 # Port to use for the local database URL.
@@ -225,9 +222,9 @@ max_frequency = "5s"
 # uri = "pg-functions://postgres/auth/before-user-created-hook"
 
 # This hook runs before a token is issued and allows you to add additional claims based on the authentication method used.
-# [auth.hook.custom_access_token]
-# enabled = true
-# uri = "pg-functions://<database>/<schema>/<hook_name>"
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/custom_claims"
 
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
 [auth.sms.twilio]
@@ -303,15 +300,6 @@ enabled = false
 enabled = false
 # Obtain from https://clerk.com/setup/supabase
 # domain = "example.clerk.accounts.dev"
-
-# OAuth server configuration (commented out - not compatible with current Supabase CLI version)
-# [auth.oauth_server]
-# # Enable OAuth server functionality
-# enabled = false
-# # Path for OAuth consent flow UI
-# authorization_url_path = "/oauth/consent"
-# # Allow dynamic client registration
-# allow_dynamic_registration = false
 
 [edge_runtime]
 enabled = true
