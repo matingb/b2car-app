@@ -316,6 +316,7 @@ export default function TurnoCreateModal({
 			submitText={isEditing ? "Guardar cambios" : "Guardar"}
 			submitting={submitting}
 			disabledSubmit={!isValid}
+			modalStyle={{overflowY: "auto"}}
 		>
 			<div style={{ display: "grid", gap: 12 }}>
 				<div>
