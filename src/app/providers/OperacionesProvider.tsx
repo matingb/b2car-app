@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { operacionesClient, CreateOperacionInput, UpdateOperacionInput, OperacionesStats } from "@/clients/operacionesClient";
 import type { Operacion, OperacionesFilters, TipoOperacion } from "@/model/types";
+import { useDebouncedAbortableAsync } from "@/app/hooks/useDebouncedAbortableAsync";
 
 type OperacionesContextType = {
 	operaciones: Operacion[];
@@ -25,86 +26,42 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 	const [loading, setLoading] = useState(false);
 	const [selectedTipos, setSelectedTipos] = useState<TipoOperacion[]>([]);
 
-	const throttleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const throttleLastRunRef = useRef<number>(0);
-	const fetchAllAbortRef = useRef<AbortController | null>(null);
-	const fetchAllRequestIdRef = useRef(0);
-	const isMountedRef = useRef(true);
-	const didMountTiposRef = useRef(false);
+	const prevSelectedTiposRef = useRef<TipoOperacion[] | null>(null);
 
-	const fetchAll = useCallback(async (filters?: OperacionesFilters) => {
-		const requestId = ++fetchAllRequestIdRef.current;
-		fetchAllAbortRef.current?.abort();
-		const controller = new AbortController();
-		fetchAllAbortRef.current = controller;
+	const fetchAllCore = useCallback(async (signal: AbortSignal, filters?: OperacionesFilters) => {
+		const hasFilters = Boolean(
+			filters?.fecha ||
+				filters?.from ||
+				filters?.to ||
+				(Array.isArray(filters?.tipo) && filters.tipo.length > 0)
+		);
 
-		if (isMountedRef.current) setLoading(true);
-		try {
-			const hasFilters = Boolean(
-				filters?.fecha ||
-					filters?.from ||
-					filters?.to ||
-					(Array.isArray(filters?.tipo) && filters.tipo.length > 0)
-			);
-
-			const response = await operacionesClient.getAll(hasFilters ? (filters ?? {}) : undefined, {
-				signal: controller.signal,
-			});
-
-			if (!isMountedRef.current || requestId !== fetchAllRequestIdRef.current) return null;
-
-			if (response?.error) throw new Error(response.error);
-			setOperaciones(response?.data ?? []);
-			return response?.data ?? null;
-		} finally {
-			if (isMountedRef.current && requestId === fetchAllRequestIdRef.current) {
-				setLoading(false);
-			}
-		}
+		const response = await operacionesClient.getAll(hasFilters ? (filters ?? {}) : undefined, {
+			signal,
+		});
+		if (response?.error) throw new Error(response.error);
+		return response?.data ?? [];
 	}, []);
 
-	useEffect(() => {
-		void fetchAll();
-		void fetchStats();
-	}, [fetchAll]);
+	const fetchAll = useDebouncedAbortableAsync(fetchAllCore, {
+		debounceMs: 500,
+		onStart: () => setLoading(true),
+		onSuccess: (data) => setOperaciones(data),
+		onFinally: () => setLoading(false),
+	});
 
 	useEffect(() => {
-		if (!didMountTiposRef.current) {
-			didMountTiposRef.current = true;
+		if (prevSelectedTiposRef.current === null) {
+			prevSelectedTiposRef.current = selectedTipos;
 			return;
 		}
-		fetchAllRequestIdRef.current += 1;
-		fetchAllAbortRef.current?.abort();
-		if (isMountedRef.current) setLoading(true);
+		if (prevSelectedTiposRef.current === selectedTipos) return;
+		prevSelectedTiposRef.current = selectedTipos;
 
-		const throttleMs = 1500;
-		const now = Date.now();
-		const elapsed = now - throttleLastRunRef.current;
-
-		const run = () => {
-			throttleLastRunRef.current = Date.now();
-			const filters: OperacionesFilters | undefined =
-				selectedTipos.length > 0 ? { tipo: selectedTipos } : undefined;
-			void fetchAll(filters);
-		};
-
-		if (elapsed >= throttleMs) {
-			if (throttleTimeoutRef.current) clearTimeout(throttleTimeoutRef.current);
-			run();
-			return;
-		}
-
-		if (throttleTimeoutRef.current) clearTimeout(throttleTimeoutRef.current);
-		throttleTimeoutRef.current = setTimeout(run, throttleMs - elapsed);
+		const filters: OperacionesFilters | undefined =
+			selectedTipos.length > 0 ? { tipo: selectedTipos } : undefined;
+		fetchAll.run(filters);
 	}, [selectedTipos, fetchAll]);
-
-	useEffect(() => {
-		return () => {
-			if (throttleTimeoutRef.current) clearTimeout(throttleTimeoutRef.current);
-			isMountedRef.current = false;
-			fetchAllAbortRef.current?.abort();
-		};
-	}, []);
 
 	const fetchById = useCallback(async (id: string | number) => {
 		setLoading(true);
@@ -129,6 +86,11 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 			setLoading(false);
 		}
 	}, []);
+
+	useEffect(() => {
+		fetchAll.runNow();
+		void fetchStats();
+	}, [fetchAll, fetchStats]);
 
 	const create = useCallback(async (input: CreateOperacionInput) => {
 		setLoading(true);
