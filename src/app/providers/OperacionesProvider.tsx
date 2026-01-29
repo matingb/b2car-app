@@ -12,7 +12,6 @@ type OperacionesContextType = {
 	selectedTipos: TipoOperacion[];
 	setSelectedTipos: React.Dispatch<React.SetStateAction<TipoOperacion[]>>;
 	fetchById: (id: string | number) => Promise<Operacion | null>;
-	fetchStats: (filters?: OperacionesFilters) => Promise<OperacionesStats | null>;
 	create: (input: CreateOperacionInput) => Promise<Operacion | null>;
 	update: (id: string | number, input: UpdateOperacionInput) => Promise<Operacion | null>;
 	remove: (id: string | number) => Promise<void>;
@@ -28,7 +27,12 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 
 	const prevSelectedTiposRef = useRef<TipoOperacion[] | null>(null);
 
-	const fetchAllCore = useCallback(async (signal: AbortSignal, filters?: OperacionesFilters) => {
+	type FetchAllResult = {
+		operaciones: Operacion[];
+		stats?: OperacionesStats | null;
+	};
+
+	const refreshCore = useCallback(async (signal: AbortSignal, filters?: OperacionesFilters): Promise<FetchAllResult> => {
 		const hasFilters = Boolean(
 			filters?.fecha ||
 				filters?.from ||
@@ -36,17 +40,28 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 				(Array.isArray(filters?.tipo) && filters.tipo.length > 0)
 		);
 
-		const response = await operacionesClient.getAll(hasFilters ? (filters ?? {}) : undefined, {
-			signal,
-		});
-		if (response?.error) throw new Error(response.error);
-		return response?.data ?? [];
+		const normalizedFilters = hasFilters ? (filters ?? {}) : undefined;
+
+		const [listRes, statsRes] = await Promise.all([
+			operacionesClient.getAll(normalizedFilters, { signal }),
+			operacionesClient.getStats(filters, { signal }),
+		]);
+
+		if (listRes?.error) throw new Error(listRes.error);
+
+		return {
+			operaciones: listRes?.data ?? [],
+			stats: statsRes?.data ?? null,
+		};
 	}, []);
 
-	const fetchAll = useDebouncedAbortableAsync(fetchAllCore, {
+	const refreshDebounced = useDebouncedAbortableAsync(refreshCore, {
 		debounceMs: 500,
 		onStart: () => setLoading(true),
-		onSuccess: (data) => setOperaciones(data),
+		onSuccess: (data) => {
+			setOperaciones(data.operaciones);
+			if (data.stats !== undefined) setStats(data.stats);
+		},
 		onFinally: () => setLoading(false),
 	});
 
@@ -60,8 +75,8 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 
 		const filters: OperacionesFilters | undefined =
 			selectedTipos.length > 0 ? { tipo: selectedTipos } : undefined;
-		fetchAll.run(filters);
-	}, [selectedTipos, fetchAll]);
+		refreshDebounced.run(filters);
+	}, [selectedTipos, refreshDebounced]);
 
 	const fetchById = useCallback(async (id: string | number) => {
 		setLoading(true);
@@ -74,23 +89,29 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 		}
 	}, []);
 
-	const fetchStats = useCallback(async (filters?: OperacionesFilters) => {
-		setLoading(true);
-		try {
-			const response = await operacionesClient.getStats(filters);
-			if (response?.error) throw new Error(response.error);
-			const next = response?.data ?? null;
-			setStats(next);
-			return next;
-		} finally {
-			setLoading(false);
-		}
-	}, []);
+	const getCurrentFilters = useCallback((): OperacionesFilters | undefined => {
+		return selectedTipos.length > 0 ? { tipo: selectedTipos } : undefined;
+	}, [selectedTipos]);
+
+	const refresh = useCallback(
+		async (filters?: OperacionesFilters) => {
+			setLoading(true);
+			try {
+				const controller = new AbortController();
+				const data = await refreshCore(controller.signal, filters);
+				setOperaciones(data.operaciones);
+				if (data.stats !== undefined) setStats(data.stats);
+				return data;
+			} finally {
+				setLoading(false);
+			}
+		},
+		[refreshCore]
+	);
 
 	useEffect(() => {
-		fetchAll.runNow();
-		void fetchStats();
-	}, [fetchAll, fetchStats]);
+		refreshDebounced.runNow();
+	}, [refreshDebounced]);
 
 	const create = useCallback(async (input: CreateOperacionInput) => {
 		setLoading(true);
@@ -98,40 +119,40 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 			const response = await operacionesClient.create(input);
 			if (response?.error) throw new Error(response.error);
 			const operacion = response?.data ?? null;
-			if (operacion) {
-				setOperaciones((prev) => [...prev, operacion]);
-			}
+			try { await refresh(getCurrentFilters()); } catch { /* ignore */ }
 			return operacion;
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [getCurrentFilters, refresh]);
 
 	const update = useCallback(async (id: string | number, input: UpdateOperacionInput) => {
 		setLoading(true);
 		try {
 			const response = await operacionesClient.update(id, input);
 			if (response?.error) throw new Error(response.error);
-			if (response?.data) {
-				const updated = response.data;
-				setOperaciones((prev) => prev.map((o) => (o.id === id ? updated : o)));
-			}
-			return response?.data ?? null;
+			const updated = response?.data ?? null;
+
+			try { await refresh(getCurrentFilters()); } catch { /* ignore */ }
+
+			return updated;
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [getCurrentFilters, refresh]);
 
 	const remove = useCallback(async (id: string | number) => {
 		setLoading(true);
 		try {
 			const { error } = await operacionesClient.delete(id);
 			if (error) throw new Error(error);
-			setOperaciones((prev) => prev.filter((o) => o.id !== id));
+			try {
+				await refresh(getCurrentFilters());
+			} catch { /* ignore */ }
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [getCurrentFilters, refresh]);
 
 	const value = useMemo(
 		() => ({
@@ -141,12 +162,11 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 			selectedTipos,
 			setSelectedTipos,
 			fetchById,
-			fetchStats,
 			create,
 			update,
 			remove,
 		}),
-		[operaciones, stats, loading, selectedTipos, fetchById, fetchStats, create, update, remove]
+		[operaciones, stats, loading, selectedTipos, fetchById, create, update, remove]
 	);
 
 	return <OperacionesContext.Provider value={value}>{children}</OperacionesContext.Provider>;

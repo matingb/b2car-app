@@ -163,7 +163,10 @@ export const operacionesClient = {
 		return { error: null };
 	},
 
-	async getStats(filters?: OperacionesFilters): Promise<GetOperacionesStatsResponse> {
+	async getStats(
+		filters?: OperacionesFilters,
+		options?: { signal?: AbortSignal }
+	): Promise<GetOperacionesStatsResponse> {
 		try {
 			const queryParams = new URLSearchParams();
 			if (filters?.fecha) queryParams.append("fecha", filters.fecha);
@@ -171,13 +174,18 @@ export const operacionesClient = {
 			if (filters?.to) queryParams.append("to", filters.to);
 
 			const qs = queryParams.toString();
-			const res = await fetch(qs ? `/api/operaciones/stats?${qs}` : "/api/operaciones/stats");
+			const res = await fetch(qs ? `/api/operaciones/stats?${qs}` : "/api/operaciones/stats", {
+				signal: options?.signal,
+			});
 			const body: GetOperacionesStatsResponse = await res.json();
 			if (!res.ok) {
 				return { data: null, error: body?.error || `Error ${res.status}` };
 			}
 			return { data: body?.data ?? null, error: null };
 		} catch (err: unknown) {
+			if (err instanceof DOMException && err.name === "AbortError") {
+				return { data: null, error: null };
+			}
 			const message = err instanceof Error ? err.message : "Error cargando estadísticas";
 			return { data: null, error: message };
 		}

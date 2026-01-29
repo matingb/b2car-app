@@ -6,10 +6,9 @@ import { css } from "@emotion/react";
 import { COLOR } from "@/theme/theme";
 import { useOperaciones } from "@/app/providers/OperacionesProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import { productosClient } from "@/clients/productosClient";
+import { useProductos } from "@/app/providers/ProductosProvider";
 import { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import Dropdown from "@/app/components/ui/Dropdown";
-import type { ProductoDTO } from "@/model/dtos";
 import type { TipoOperacion } from "@/model/types";
 import { Plus, Truck, Receipt } from "lucide-react";
 import OperacionLineaEditor, {
@@ -76,11 +75,10 @@ export default function OperacionCreateModal({
 }: Props) {
   const { create, loading } = useOperaciones();
   const { success, error } = useToast();
+  const { productos: productosFromProvider, isLoading: isProductosLoading } = useProductos();
 
   const [tipo, setTipo] = useState<OperacionTipoUi | null>("VENTA");
   const [tallerId, setTallerId] = useState<string>("");
-  const [productos, setProductos] = useState<ProductoLite[]>([]);
-  const [loadingProductos, setLoadingProductos] = useState(false);
   const [lineas, setLineas] = useState<LineaDraft[]>([createEmptyLinea()]);
   const didInitRef = React.useRef(false);
   const tipoConfigById = useMemo(
@@ -117,30 +115,17 @@ export default function OperacionCreateModal({
     if (talleres.length === 1) setTallerId(talleres[0].id);
   }, [open, talleres, tallerId]);
 
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    setLoadingProductos(true);
-    void (async () => {
-      try {
-        const res = await productosClient.getAll();
-        const data = (res.data ?? []) as unknown as ProductoDTO[];
-        const mapped: ProductoLite[] = data.map((p) => ({
-          id: p.id,
-          nombre: p.nombre,
-          codigo: p.codigo,
-          precio_unitario: Number(p.precio_unitario) || 0,
-          costo_unitario: Number(p.costo_unitario) || 0,
-        }));
-        if (!cancelled) setProductos(mapped);
-      } finally {
-        if (!cancelled) setLoadingProductos(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open]);
+  const productos = useMemo<ProductoLite[]>(
+    () =>
+      productosFromProvider.map((p) => ({
+        id: p.id,
+        nombre: p.nombre,
+        codigo: p.codigo,
+        precio_unitario: Number(p.precioUnitario) || 0,
+        costo_unitario: Number(p.costoUnitario) || 0,
+      })),
+    [productosFromProvider]
+  );
 
   // Al cambiar tipo (si está habilitado), recalcular unitario desde producto y total
   useEffect(() => {
@@ -328,7 +313,7 @@ export default function OperacionCreateModal({
                   index={idx}
                   linea={l}
                   disabled={disabled}
-                  loadingProductos={loadingProductos}
+                  loadingProductos={isProductosLoading}
                   productoOptions={productoOptions}
                   getDefaultUnitarioForProductoId={
                     getDefaultUnitarioForProductoId
