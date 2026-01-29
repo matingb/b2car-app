@@ -9,6 +9,13 @@ export type OperacionesFilters = {
 	tipo?: string[];
 };
 
+export type OperacionesStats = {
+	ventas: number;
+	compras: number;
+	asignaciones: number;
+	neto: number;
+};
+
 export type CreateOperacionLineaInput = {
 	producto_id: string;
 	cantidad?: number;
@@ -46,6 +53,16 @@ export enum OperacionesServiceError {
 
 type OperacionRow = OperacionDTO & { operaciones_lineas?: OperacionLineaDTO[] | null };
 
+type OperacionLineaRow = {
+	cantidad?: number | null;
+	monto_unitario?: number | null;
+};
+
+type OperacionStatsRow = {
+	tipo?: string | null;
+	operaciones_lineas?: OperacionLineaRow[] | null;
+};
+
 function toServiceError(err: PostgrestError): OperacionesServiceError {
 	const code = (err as { code?: string }).code;
 	if (code === "PGRST116") return OperacionesServiceError.NotFound;
@@ -58,6 +75,15 @@ function toDayStart(date: string) {
 
 function toDayEnd(date: string) {
 	return `${date}T23:59:59.999Z`;
+}
+
+function sumOperacionLineas(lineas: OperacionLineaRow[] | null | undefined) {
+	if (!Array.isArray(lineas)) return 0;
+	return lineas.reduce((acc, l) => {
+		const cantidad = Number(l.cantidad) || 0;
+		const monto = Number(l.monto_unitario) || 0;
+		return acc + cantidad * monto;
+	}, 0);
 }
 
 export const operacionesService = {
@@ -189,5 +215,41 @@ export const operacionesService = {
 		if (error) return { error: toServiceError(error) };
 		if (!data || data.length === 0) return { error: OperacionesServiceError.NotFound };
 		return { error: null };
+	},
+
+	async stats(
+		supabase: SupabaseClient,
+		filters: OperacionesFilters = {}
+	): Promise<{ data: OperacionesStats; error: OperacionesServiceError | null }>
+	{
+		let query = supabase
+			.from("operaciones")
+			.select("tipo, operaciones_lineas(cantidad, monto_unitario)");
+
+		if (filters.fecha) {
+			query = query.gte("created_at", toDayStart(filters.fecha)).lte("created_at", toDayEnd(filters.fecha));
+		}
+		if (filters.from) query = query.gte("created_at", toDayStart(filters.from));
+		if (filters.to) query = query.lte("created_at", toDayEnd(filters.to));
+		if (filters.tipo && filters.tipo.length > 0) query = query.in("tipo", filters.tipo);
+
+		const { data, error } = await query;
+		if (error) return { data: { ventas: 0, compras: 0, asignaciones: 0, neto: 0 }, error: toServiceError(error) };
+
+		const totals = (data ?? []).reduce(
+			(acc, row) => {
+				const tipo = (row as OperacionStatsRow).tipo ?? "";
+				const monto = sumOperacionLineas((row as OperacionStatsRow).operaciones_lineas);
+				if (tipo === "VENTA") acc.ventas += monto;
+				else if (tipo === "COMPRA") acc.compras += monto;
+				else if (tipo === "ASIGNACION_ARREGLO") acc.asignaciones += monto;
+				return acc;
+			},
+			{ ventas: 0, compras: 0, asignaciones: 0 }
+		);
+
+		const neto = totals.ventas - totals.compras + totals.asignaciones;
+
+		return { data: { ...totals, neto }, error: null };
 	},
 };

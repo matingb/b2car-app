@@ -37,6 +37,18 @@ export type UpdateOperacionResponse = {
 	error?: string | null;
 };
 
+export type OperacionesStats = {
+	ventas: number;
+	compras: number;
+	asignaciones: number;
+	neto: number;
+};
+
+export type GetOperacionesStatsResponse = {
+	data: OperacionesStats | null;
+	error?: string | null;
+};
+
 function mapOperacionFromApi(value: unknown): Operacion | null {
 	if (!value || typeof value !== "object") return null;
 	const o = value as Record<string, unknown>;
@@ -149,5 +161,25 @@ export const operacionesClient = {
 			throw new Error(message);
 		}
 		return { error: null };
+	},
+
+	async getStats(filters?: OperacionesFilters): Promise<GetOperacionesStatsResponse> {
+		try {
+			const queryParams = new URLSearchParams();
+			if (filters?.fecha) queryParams.append("fecha", filters.fecha);
+			if (filters?.from) queryParams.append("from", filters.from);
+			if (filters?.to) queryParams.append("to", filters.to);
+
+			const qs = queryParams.toString();
+			const res = await fetch(qs ? `/api/operaciones/stats?${qs}` : "/api/operaciones/stats");
+			const body: GetOperacionesStatsResponse = await res.json();
+			if (!res.ok) {
+				return { data: null, error: body?.error || `Error ${res.status}` };
+			}
+			return { data: body?.data ?? null, error: null };
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : "Error cargando estadísticas";
+			return { data: null, error: message };
+		}
 	},
 };

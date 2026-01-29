@@ -1,15 +1,17 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { operacionesClient, CreateOperacionInput, UpdateOperacionInput } from "@/clients/operacionesClient";
+import { operacionesClient, CreateOperacionInput, UpdateOperacionInput, OperacionesStats } from "@/clients/operacionesClient";
 import type { Operacion, OperacionesFilters, TipoOperacion } from "@/model/types";
 
 type OperacionesContextType = {
 	operaciones: Operacion[];
+	stats: OperacionesStats | null;
 	loading: boolean;
 	selectedTipos: TipoOperacion[];
 	setSelectedTipos: React.Dispatch<React.SetStateAction<TipoOperacion[]>>;
 	fetchById: (id: string | number) => Promise<Operacion | null>;
+	fetchStats: (filters?: OperacionesFilters) => Promise<OperacionesStats | null>;
 	create: (input: CreateOperacionInput) => Promise<Operacion | null>;
 	update: (id: string | number, input: UpdateOperacionInput) => Promise<Operacion | null>;
 	remove: (id: string | number) => Promise<void>;
@@ -19,6 +21,7 @@ const OperacionesContext = createContext<OperacionesContextType | null>(null);
 
 export function OperacionesProvider({ children }: { children: React.ReactNode }) {
 	const [operaciones, setOperaciones] = useState<Operacion[]>([]);
+	const [stats, setStats] = useState<OperacionesStats | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [selectedTipos, setSelectedTipos] = useState<TipoOperacion[]>([]);
 
@@ -62,6 +65,7 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 
 	useEffect(() => {
 		void fetchAll();
+		void fetchStats();
 	}, [fetchAll]);
 
 	useEffect(() => {
@@ -113,6 +117,19 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 		}
 	}, []);
 
+	const fetchStats = useCallback(async (filters?: OperacionesFilters) => {
+		setLoading(true);
+		try {
+			const response = await operacionesClient.getStats(filters);
+			if (response?.error) throw new Error(response.error);
+			const next = response?.data ?? null;
+			setStats(next);
+			return next;
+		} finally {
+			setLoading(false);
+		}
+	}, []);
+
 	const create = useCallback(async (input: CreateOperacionInput) => {
 		setLoading(true);
 		try {
@@ -157,15 +174,17 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 	const value = useMemo(
 		() => ({
 			operaciones,
+			stats,
 			loading,
 			selectedTipos,
 			setSelectedTipos,
 			fetchById,
+			fetchStats,
 			create,
 			update,
 			remove,
 		}),
-		[operaciones, loading, selectedTipos, fetchById, create, update, remove]
+		[operaciones, stats, loading, selectedTipos, fetchById, fetchStats, create, update, remove]
 	);
 
 	return <OperacionesContext.Provider value={value}>{children}</OperacionesContext.Provider>;

@@ -84,7 +84,7 @@ function getTotals(operacion: Operacion) {
 }
 
 export default function OperacionesPage() {
-    const { operaciones, loading, selectedTipos, setSelectedTipos } = useOperaciones();
+    const { operaciones, loading, selectedTipos, stats, setSelectedTipos } = useOperaciones();
     const { productos } = useProductos();
     const { talleres } = useTenant();
     const [search, setSearch] = useState("");
@@ -126,28 +126,28 @@ export default function OperacionesPage() {
             <div css={styles.cardDatosContainer}>
                 <CardDato
                     titleText="Ventas"
-                    value={2856410}
+                    value={stats?.ventas ?? 0}
                     prefix="$"
                     icon={<Receipt size={22} color={COLOR.SEMANTIC.SUCCESS} />}
                     style={{ color: COLOR.SEMANTIC.SUCCESS }}
                 />
                 <CardDato
                     titleText="Compras"
-                    value={748550}
+                    value={stats?.compras ?? 0}
                     prefix="$"
                     icon={<Truck size={22} color={COLOR.SEMANTIC.DANGER} />}
                     style={{ color: COLOR.SEMANTIC.DANGER }}
                 />
                 <CardDato
                     titleText="Asignaciones"
-                    value={326500}
+                    value={stats?.asignaciones ?? 0}
                     prefix="$"
                     icon={<Wrench size={22} color={COLOR.SEMANTIC.INFO} />}
                     style={{ color: COLOR.SEMANTIC.INFO }}
                 />
                 <CardDato
                     titleText="Resultado Mensual"
-                    value={1781360}
+                    value={stats?.neto ?? 0}
                     prefix="$"
                     icon={<CircleDollarSign size={22} color={COLOR.SEMANTIC.SUCCESS} />}
                     style={{ color: COLOR.SEMANTIC.SUCCESS }}
@@ -165,7 +165,7 @@ export default function OperacionesPage() {
                         icon={<PlusIcon size={20} />}
                         text="Nueva operación"
                         onClick={() => setCreateOpen(true)}
-                        style={{ height: 40, width: '210px' }}
+                        css={styles.createButton}
                     />
                 </div>
                 <div css={styles.chipsContainer} aria-label="Filtrar por tipo de operación">
@@ -351,6 +351,13 @@ const styles = {
         fontSize: 14,
         [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
             display: "none",
+        },
+    }),
+    createButton: css({
+        height: 40,
+        width: 210,
+        [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+            width: "auto",
         },
     }),
     chipsContainer: css({
