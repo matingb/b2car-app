@@ -20,12 +20,14 @@ function TurnosVista({
   vista,
   fechaActual,
   onSelectTurno,
-  onSelectDia,
+  onSelectDiaMensual,
+  onSelectDiaSemanal,
 }: {
   vista: VistaTurnos;
   fechaActual: Date;
   onSelectTurno: (t: Turno) => void;
-  onSelectDia?: (d: Date, hora?: string) => void;
+  onSelectDiaMensual?: (d: Date, hora?: string) => void;
+  onSelectDiaSemanal?: (d: Date, hora?: string) => void;
 }) {
   switch (vista) {
     case VistaTurnos.Mensual:
@@ -33,7 +35,7 @@ function TurnosVista({
         <TurnosMonthlyView
           fechaActual={fechaActual}
           onSelectTurno={onSelectTurno}
-          onSelectDia={onSelectDia}
+          onSelectDia={onSelectDiaMensual}
         />
       );
     case VistaTurnos.Semanal:
@@ -41,7 +43,7 @@ function TurnosVista({
         <TurnosWeeklyGridHView
           fechaActual={fechaActual}
           onSelectTurno={onSelectTurno}
-          onSelectDia={onSelectDia}
+          onSelectDia={onSelectDiaSemanal}
         />
       );
     case VistaTurnos.Diaria:
@@ -62,6 +64,7 @@ export default function TurnosPage() {
     goPrevPeriod,
     goNextPeriod,
     goToToday,
+    setFechaActual,
   } = useTurnosCalendar();
   const { confirm } = useModalMessage();
   const { success } = useToast();
@@ -83,6 +86,11 @@ export default function TurnosPage() {
     setDefaultFechaCreate(d);
     setDefaultHoraCreate(hora);
     setModalCreateOpen(true);
+  };
+
+  const goToDailyForDate = (d: Date) => {
+    setFechaActual(d);
+    setVista(VistaTurnos.Diaria);
   };
 
 
@@ -118,7 +126,8 @@ export default function TurnosPage() {
             vista={vista}
             fechaActual={fechaActual}
             onSelectTurno={openDetails}
-            onSelectDia={openCreateForDate}
+            onSelectDiaMensual={goToDailyForDate}
+            onSelectDiaSemanal={openCreateForDate}
           />
         </div>
       )}

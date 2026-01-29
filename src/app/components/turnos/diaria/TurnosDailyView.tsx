@@ -5,7 +5,8 @@ import Card from "@/app/components/ui/Card";
 import Pill from "@/app/components/turnos/Pill";
 import { useTurnos } from "@/app/providers/TurnosProvider";
 import { Turno } from "@/model/types";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { css } from "@emotion/react";
 import { CalendarDays } from "lucide-react";
 import { horaAMinutos, isSameLocalDay, toISODateLocal } from "@/app/components/turnos/utils/calendar";
 
@@ -91,15 +92,13 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
   return (
     <div data-testid="turnos-view-diaria">
       <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
-        <Card>
-          <div style={{ padding: 12 }}>
+        <Card style={{padding: 0}}>
+          <div >
             <div style={styles.timelineRoot}>
               {showNowLine ? (
                 <div
-                  style={{
-                    ...styles.nowLineHorizontal,
-                    top: nowTop,
-                  }}
+                  css={styles.nowLineHorizontal}
+                  style={{ top: nowTop }}
                   aria-hidden="true"
                 />
               ) : null}
@@ -107,7 +106,7 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
               <div style={styles.timelineGrid}>
                 {horas.map((h) => (
                   <div key={h} style={styles.timelineRow}>
-                    <div style={styles.timelineHourLabel}>
+                    <div css={styles.timelineHourLabel}>
                       {String(h).padStart(2, "0")}:00
                     </div>
                     <div style={styles.timelineHourCell}>
@@ -117,7 +116,7 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
                 ))}
               </div>
 
-              <div style={styles.timelineOverlay} aria-label="Turnos en timeline">
+              <div css={styles.timelineOverlay} aria-label="Turnos en timeline">
                 {grupos.map((grupo) => {
                   const columns = Math.max(1, grupo.length);
                   return grupo.map((turno, idx) => {
@@ -228,15 +227,19 @@ const styles = {
     display: "flex",
     borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
   } as const,
-  timelineHourLabel: {
+  timelineHourLabel: css({
     width: 70,
     flexShrink: 0,
     padding: "14px 10px",
-    textAlign: "right" as const,
+    textAlign: "right",
     color: COLOR.TEXT.SECONDARY,
     fontWeight: 700,
     fontSize: 13,
-  } as const,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      width: 44,
+      padding: "14px 6px",
+    },
+  }),
   timelineHourCell: {
     position: "relative" as const,
     minHeight: 60,
@@ -252,12 +255,15 @@ const styles = {
     background: COLOR.BORDER.SUBTLE,
     opacity: 0.6,
   } as const,
-  timelineOverlay: {
-    position: "absolute" as const,
+  timelineOverlay: css({
+    position: "absolute",
     inset: 0,
     left: 70,
-    pointerEvents: "none" as const,
-  } as const,
+    pointerEvents: "none",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      left: 44,
+    },
+  }),
   timelineTurno: {
     position: "absolute" as const,
     pointerEvents: "auto" as const,
@@ -304,15 +310,18 @@ const styles = {
     justifyContent: "space-between",
     gap: 8,
   } as const,
-  nowLineHorizontal: {
-    position: "absolute" as const,
+  nowLineHorizontal: css({
+    position: "absolute",
     left: 70,
     right: 0,
     height: 2,
     background: COLOR.ICON.DANGER,
     zIndex: 3,
-    pointerEvents: "none" as const,
-  } as const,
+    pointerEvents: "none",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      left: 44,
+    },
+  }),
   dayListHeaderRow: {
     display: "flex",
     alignItems: "center",

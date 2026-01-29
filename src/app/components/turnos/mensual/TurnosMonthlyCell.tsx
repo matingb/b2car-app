@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Turno } from "@/model/types";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { css } from "@emotion/react";
 import { toISODateLocal } from "../utils/calendar";
 
 type Props = {
@@ -39,14 +40,15 @@ export default function TurnosMonthlyCell({
     return d;
   }, [dia, fechaActual]);
 
+
   return (
     <div
-      style={{
-        ...styles.monthCell,
-        ...(hovered ? styles.monthCellHover : undefined),
-        ...(isToday ? styles.monthCellToday : undefined),
-        ...(onSelectDia ? styles.monthCellClickable : undefined),
-      }}
+      css={[
+        styles.monthCell,
+        hovered && styles.monthCellHover,
+        isToday && styles.monthCellToday,
+        onSelectDia && styles.monthCellClickable,
+      ]}
       data-testid={isToday ? "month-cell-today" : "month-cell"}
       role={onSelectDia ? "button" : undefined}
       tabIndex={onSelectDia ? 0 : undefined}
@@ -64,11 +66,11 @@ export default function TurnosMonthlyCell({
           : undefined
       }
     >
-      <div style={styles.monthDayNumber}>
+      <div css={styles.monthDayNumber}>
         <h2>{dia.getDate()}</h2>
       </div>
 
-      <div style={styles.monthTurnosList}>
+      <div css={styles.monthTurnosList}>
         {visible.map((t) => (
           <button
             key={t.id}
@@ -77,10 +79,10 @@ export default function TurnosMonthlyCell({
               e.stopPropagation();
               onSelectTurno(t);
             }}
-            style={{
-              ...styles.monthTurnoItem,
-              ...(hoveredTurnoId === t.id ? styles.monthTurnoItemHover : undefined),
-            }}
+            css={[
+              styles.monthTurnoItem,
+              hoveredTurnoId === t.id && styles.monthTurnoItemHover,
+            ]}
             title={`${t.hora} - ${t.vehiculo.modelo}`}
             onMouseEnter={() => {
               setHoveredTurnoId(t.id);
@@ -89,17 +91,17 @@ export default function TurnosMonthlyCell({
               setHoveredTurnoId(null);
             }}
           >
-            <span style={{ fontWeight: 800 }}>{t.hora}</span>{" "}
-            <span style={styles.monthTurnoVehicle}>
+            <span css={styles.monthTurnoHour}>{t.hora}</span>{" "}
+            <span css={styles.monthTurnoVehicle}>
               {t.vehiculo.patente} - {t.vehiculo.marca}
             </span>
           </button>
         ))}
 
         {remaining > 0 ? (
-          <div style={styles.monthMoreText}>+{remaining} más</div>
+          <div css={styles.monthMoreText}>+{remaining} más</div>
         ) : (
-          <div style={styles.monthMoreSpacer} aria-hidden="true" />
+          <div css={styles.monthMoreSpacer} aria-hidden="true" />
         )}
       </div>
     </div>
@@ -107,7 +109,7 @@ export default function TurnosMonthlyCell({
 }
 
 const styles = {
-  monthCell: {
+  monthCell: css({
     minHeight: 140,
     borderRadius: 10,
     borderWidth: 1,
@@ -116,37 +118,62 @@ const styles = {
     background: COLOR.BACKGROUND.SUBTLE,
     padding: 10,
     display: "flex",
-    flexDirection: "column" as const,
+    flexDirection: "column",
     transition: "box-shadow 120ms ease, border-color 120ms ease, transform 120ms ease",
-  } as const,
-  monthCellClickable: {
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      minHeight: 100,
+      padding: 6,
+      borderRadius: 0,
+      border: "none",
+      transition: "box-shadow 120ms ease, transform 120ms ease",
+    },
+  }),
+  monthCellClickable: css({
     cursor: "pointer",
-  } as const,
-  monthCellHover: {
+  }),
+  monthCellHover: css({
     borderColor: COLOR.ACCENT.PRIMARY,
     boxShadow: "0 6px 14px rgba(17, 17, 17, 0.10)",
     transform: "translateY(-1px)",
-  } as const,
-  monthCellToday: {
+  }),
+  monthCellToday: css({
     borderWidth: 2,
     borderStyle: "solid",
     borderColor: COLOR.ACCENT.PRIMARY,
-  } as const,
-  monthDayNumber: {
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      border: "none",
+      boxShadow: `inset 0 0 0 2px ${COLOR.ACCENT.PRIMARY}`,
+    },
+  }),
+  monthDayNumber: css({
     fontWeight: 900,
     marginBottom: 8,
-  } as const,
-  monthTurnosList: {
+    fontSize: 16,
+    lineHeight: 1.1,
+    h2: {
+      margin: 0,
+      fontSize: "inherit",
+      lineHeight: "inherit",
+    },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      marginBottom: 4,
+      fontSize: 13,
+    },
+  }),
+  monthTurnosList: css({
     display: "flex",
-    flexDirection: "column" as const,
+    flexDirection: "column",
     gap: 6,
     flex: 1,
-  } as const,
-  monthTurnoItem: {
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      gap: 1,
+    },
+  }),
+  monthTurnoItem: css({
     width: "100%",
-    textAlign: "left" as const,
+    textAlign: "left",
     borderWidth: 1,
-    borderStyle: "solid" as const,
+    borderStyle: "solid",
     borderColor: COLOR.BORDER.SUBTLE,
     background: COLOR.BACKGROUND.SECONDARY,
     padding: "6px 8px",
@@ -154,32 +181,51 @@ const styles = {
     cursor: "pointer",
     fontSize: 12,
     overflow: "hidden",
-  } as const,
-  monthTurnoItemHover: {
+    whiteSpace: "nowrap",
+    textOverflow: "ellipsis",
+    lineHeight: 1.2,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      padding: "3px 4px",
+      borderRadius: 6,
+      fontSize: 7,
+      lineHeight: 1.1,
+    },
+  }),
+  monthTurnoHour: css({
+    fontWeight: 600,
+  }),
+  monthTurnoItemHover: css({
     borderColor: COLOR.ACCENT.PRIMARY,
     boxShadow: "0 0px 0px rgba(17, 17, 17, 0.10)",
     transform: "translateY(-1px)",
     transition: "box-shadow 120ms ease, border-color 120ms ease, transform 120ms ease",
-  } as const,
-  monthTurnoVehicle: {
+  }),
+  monthTurnoVehicle: css({
     color: COLOR.TEXT.SECONDARY,
-    whiteSpace: "nowrap" as const,
+    whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
     display: "inline-block",
     maxWidth: "100%",
-    verticalAlign: "bottom" as const,
-  } as const,
-  monthMoreText: {
+    verticalAlign: "bottom",
+  }),
+  monthMoreText: css({
     marginTop: "auto",
     fontSize: 12,
     fontWeight: 700,
     color: COLOR.TEXT.SECONDARY,
     paddingTop: 6,
-  } as const,
-  monthMoreSpacer: {
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      fontSize: 10,
+      paddingTop: 4,
+    },
+  }),
+  monthMoreSpacer: css({
     marginTop: "auto",
     height: 18,
-  } as const,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      height: 12,
+    },
+  }),
 } as const;
 

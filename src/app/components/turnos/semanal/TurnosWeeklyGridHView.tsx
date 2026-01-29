@@ -88,8 +88,8 @@ export default function TurnosWeeklyGridHView({
 
   return (
     <div data-testid="turnos-view-semanal">
-      <Card>
-        <div style={{ padding: 0 }}>
+      <Card style={{ padding: 0, borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ padding: 0, borderRadius: 8 }}>
         <div style={styles.scrollX}>
           <div style={styles.weekGridRoot}>
             <div style={styles.weekGridHeaderRow}>
@@ -246,6 +246,8 @@ const styles = {
     position: "sticky" as const,
     top: 0,
     zIndex: 2,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   weekGridDayHeaderCell: {
     width: 125,
