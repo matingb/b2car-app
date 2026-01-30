@@ -1,5 +1,6 @@
 export type CreateArregloRequest = {
   vehiculo_id: string;
+  taller_id: string;
   tipo: string;
   descripcion: string;
   kilometraje_leido: number;
@@ -12,6 +13,7 @@ export type CreateArregloRequest = {
 
 export type CreateArregloInsertPayload = {
   vehiculo_id: string;
+  taller_id: string;
   tipo: string;
   descripcion: string | null;
   kilometraje_leido: number;

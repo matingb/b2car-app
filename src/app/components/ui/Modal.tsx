@@ -116,7 +116,7 @@ export default function Modal({
                 type="submit"
                 text={submitting ? "Guardando..." : submitText}
                 disabled={isSubmitDisabled}
-                data-testid="modal-submit"
+                dataTestId="modal-submit"
                 hideText={false}
               />
             </div>

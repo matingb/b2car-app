@@ -93,7 +93,7 @@ export const vehiculoService = {
 
     const { data: arreglos, error: aError } = await supabase
       .from("arreglos")
-      .select("*, vehiculo:vehiculos(*)")
+      .select("*, vehiculo:vehiculos(*), taller:talleres(*)")
       .eq("vehiculo_id", id)
       .order("fecha", { ascending: false });
 

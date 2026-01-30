@@ -20,6 +20,7 @@ export interface ClienteDto {
 export interface ArregloDto {
     id: string;
     vehiculo_id: string;
+    taller_id?: string;
     tipo: string;
     descripcion: string;
     kilometraje_leido: number;

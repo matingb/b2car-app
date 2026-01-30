@@ -15,10 +15,12 @@ import {
   CheckCircle2,
   XCircle,
   Car,
+  Building2,
 } from "lucide-react";
 import { css } from "@emotion/react";
 import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
+import { useTenant } from "@/app/providers/TenantProvider";
 
 type Props = {
   arreglo: Arreglo;
@@ -31,6 +33,7 @@ export default function ArregloItem({
   onClick,
   onUpdated,
 }: Props) {
+  const { talleres } = useTenant();
   const router = useRouter();
   const [openEditModal, setOpenEditModal] = useState(false);
   const [arreglo, setArreglo] = useState<Arreglo>(initialArreglo);
@@ -73,7 +76,10 @@ export default function ArregloItem({
             <div style={styles.rightSection}>
               <div style={styles.priceSection}>
                 <span css={styles.priceValue}>
-                  {formatArs(arreglo.precio_final, { maxDecimals: 0, minDecimals: 0 })}
+                  {formatArs(arreglo.precio_final, {
+                    maxDecimals: 0,
+                    minDecimals: 0,
+                  })}
                 </span>
               </div>
             </div>
@@ -119,6 +125,20 @@ export default function ArregloItem({
                 label={arreglo.vehiculo.patente || "-"}
               />
             </div>
+            {talleres.length > 1 ? (
+              <div
+                css={[styles.infoColumn, styles.hideOnMobile]}
+                title={arreglo.taller?.ubicacion ?? undefined}
+              >
+                <span style={styles.infoLabel} data-testid="arreglo-item-taller-label">
+                  Taller
+                </span>
+                <IconLabel
+                  icon={<Building2 size={18} color={COLOR.ACCENT.PRIMARY} />}
+                  label={arreglo.taller?.nombre?.trim() || "Sin taller"}
+                />
+              </div>
+            ) : null}
           </div>
 
           {/* Observaciones */}
@@ -185,7 +205,7 @@ const styles = {
     marginBottom: 4,
     maxWidth: "85%",
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-       maxWidth: "100%",
+      maxWidth: "100%",
     },
   }),
   mainTitle: css({

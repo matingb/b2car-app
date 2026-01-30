@@ -48,6 +48,8 @@ export interface Vehiculo {
 export interface Arreglo {
   id: UUID;
   vehiculo: Vehiculo;
+  taller_id: UUID;
+  taller: Taller;
   tipo: string;
   descripcion: string;
   kilometraje_leido: number;

@@ -11,6 +11,7 @@ import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient
 import { isValidDate, toDateInputFormat } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { css } from "@emotion/react";
+import { useTenant } from "@/app/providers/TenantProvider";
 
 export type ArregloForm = {
   tipo: string;
@@ -34,6 +35,7 @@ type Props = {
 export default function ArregloModal({ open, onClose, vehiculoId, initial, onSubmitSuccess }: Props) {
   const { vehiculos, fetchAll: fetchVehiculos } = useVehiculos();
   const { create, update } = useArreglos();
+  const { tallerSeleccionadoId } = useTenant();
 
   const isEdit = !!initial?.id;
   const [tipo, setTipo] = useState(initial?.tipo ?? "");
@@ -123,8 +125,15 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         response = await update(initial.id, payload);
         if (!response) return;
       } else {
+        if (!tallerSeleccionadoId) {
+          throw new Error("Ocurrió un error al crear el arreglo");
+        }
         const finalVehiculoId = vehiculoId || selectedVehiculoId;
-        response = await create({ vehiculo_id: finalVehiculoId!, ...payload } as CreateArregloInput);
+        response = await create({
+          vehiculo_id: finalVehiculoId!,
+          taller_id: tallerSeleccionadoId,
+          ...payload,
+        } as CreateArregloInput);
       }
 
       if (response) {

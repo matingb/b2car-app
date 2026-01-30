@@ -3,6 +3,7 @@ import { CreateArregloResponse, GetArreglosResponse } from "@/app/api/arreglos/r
 
 export type CreateArregloInput = {
   vehiculo_id: string | number;
+  taller_id: string;
   tipo: string;
   fecha: string;
   kilometraje_leido: number;
@@ -13,12 +14,16 @@ export type CreateArregloInput = {
   extra_data?: string;
 };
 
-export type UpdateArregloInput = Partial<Omit<CreateArregloInput, "vehiculo_id">>;
+export type UpdateArregloInput = Partial<Omit<CreateArregloInput, "vehiculo_id" | "taller_id">>;
 
 export const arreglosClient = {
-  async getAll(): Promise<GetArreglosResponse> {
+  async getAll(params?: { tallerId?: string }): Promise<GetArreglosResponse> {
     try {
-      const res = await fetch("/api/arreglos");
+      const url = params?.tallerId
+        ? `/api/arreglos?taller_id=${encodeURIComponent(params.tallerId)}`
+        : "/api/arreglos";
+
+      const res = await fetch(url);
       const body: GetArreglosResponse = await res.json();
       if (!res.ok) {
         return { data: null, error: body?.error || `Error ${res.status}` };

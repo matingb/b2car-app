@@ -46,7 +46,7 @@ export default function ArreglosToolbar({
           text="Filtrar"
           onClick={onOpenFilters}
           style={styles.filterButton}
-          data-testid="arreglos-open-filters"
+          dataTestId="arreglos-open-filters"
           outline
         />
         <Button
@@ -54,7 +54,7 @@ export default function ArreglosToolbar({
           icon={<PlusIcon size={20} />}
           text="Crear arreglo"
           onClick={onOpenCreate}
-          data-testid="arreglos-open-create"
+          dataTestId="arreglos-open-create"
         />
       </div>
 

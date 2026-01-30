@@ -7,6 +7,17 @@ import { OperacionesProvider } from "@/app/providers/OperacionesProvider";
 const talleresMock: { id: string; nombre: string }[] = [];
 const getAllMock = vi.fn();
 
+vi.mock("@/app/providers/ProductosProvider", () => ({
+  useProductos: () => ({
+    productos: [],
+    isLoading: false,
+    loadProductos: vi.fn(),
+    getProductoById: vi.fn(),
+    updateProducto: vi.fn(),
+    removeProducto: vi.fn(),
+  }),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),

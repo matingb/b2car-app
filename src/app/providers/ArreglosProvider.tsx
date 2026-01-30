@@ -14,11 +14,12 @@ import {
   CreateArregloInput,
   UpdateArregloInput,
 } from "@/clients/arreglosClient";
+import { useTenant } from "@/app/providers/TenantProvider";
 
 type ArreglosContextType = {
   arreglos: Arreglo[];
   loading: boolean;
-  fetchAll: () => Promise<Arreglo[] | null>;
+  fetchAll: (params?: { tallerId?: string }) => Promise<Arreglo[] | null>;
   fetchById: (id: string | number) => Promise<Arreglo | null>;
   create: (input: CreateArregloInput) => Promise<Arreglo | null>;
   update: (
@@ -31,13 +32,14 @@ type ArreglosContextType = {
 const ArreglosContext = createContext<ArreglosContextType | null>(null);
 
 export function ArreglosProvider({ children }: { children: React.ReactNode }) {
+  const { tallerSeleccionadoId } = useTenant();
   const [arreglos, setArreglos] = useState<Arreglo[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (filters?: { tallerId?: string }) => {
     setLoading(true);
     try {
-      const { data, error } = await arreglosClient.getAll();
+      const { data, error } = await arreglosClient.getAll(filters);
       if (error) throw new Error(error);
       setArreglos(data ?? []);
       return data ?? null;
@@ -104,8 +106,10 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    if (tallerSeleccionadoId) {
+      fetchAll({ tallerId: tallerSeleccionadoId });
+    }
+  }, [fetchAll, tallerSeleccionadoId]);
 
   const value = useMemo(
     () => ({

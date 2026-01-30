@@ -73,6 +73,7 @@ export const createCreateArregloRequest = (
 ): CreateArregloRequest => {
   return {
     vehiculo_id: "v1",
+    taller_id: "t1",
     tipo: "Service",
     descripcion: "Cambio aceite",
     kilometraje_leido: 123,

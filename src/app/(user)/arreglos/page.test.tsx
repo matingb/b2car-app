@@ -29,6 +29,14 @@ vi.mock("@/app/providers/SheetProvider", () => ({
   }),
 }));
 
+vi.mock("@/app/providers/TenantProvider", () => ({
+  useTenant: () => ({
+    talleres: [{ id: "t1", nombre: "Taller 1", ubicacion: "X" }],
+    tallerSeleccionadoId: "t1",
+    setTallerSeleccionadoId: vi.fn(),
+  }),
+}));
+
 vi.mock("@/app/components/arreglos/ArregloModal", () => ({
   __esModule: true,
   default: () => null,

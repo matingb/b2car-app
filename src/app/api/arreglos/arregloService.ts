@@ -30,8 +30,19 @@ export type RecentActivity = {
 };
 
 export const arregloService = {
-  async listAll(supabase: SupabaseClient): Promise<ServiceResult<Arreglo[]>> {
-    const { data, error } = await supabase.from("arreglos").select("*, vehiculo:vehiculos(*)");
+  async listAll(
+    supabase: SupabaseClient,
+    filters?: { tallerId?: string }
+  ): Promise<ServiceResult<Arreglo[]>> {
+    let query = supabase
+      .from("arreglos")
+      .select("*, vehiculo:vehiculos(*), taller:talleres(*)");
+
+    if (filters?.tallerId) {
+      query = query.eq("taller_id", filters.tallerId);
+    }
+
+    const { data, error } = await query;
     if (error) return { data: null, error: toServiceError(error) };
     return { data: (data ?? []) as unknown as Arreglo[], error: null };
   },

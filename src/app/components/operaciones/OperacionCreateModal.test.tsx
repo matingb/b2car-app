@@ -5,6 +5,17 @@ import { runPendingPromises } from "@/tests/testUtils";
 import { productosClient } from "@/clients/productosClient";
 import OperacionCreateModal from "./OperacionCreateModal";
 
+vi.mock("@/app/providers/ProductosProvider", () => ({
+  useProductos: () => ({
+    productos: [],
+    isLoading: false,
+    loadProductos: vi.fn(),
+    getProductoById: vi.fn(),
+    updateProducto: vi.fn(),
+    removeProducto: vi.fn(),
+  }),
+}));
+
 vi.mock("@/app/components/ui/Autocomplete", () => ({
   __esModule: true,
   default: ({

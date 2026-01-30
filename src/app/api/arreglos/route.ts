@@ -5,15 +5,17 @@ import { IVA_RATE } from "@/lib/ivaRate";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { ArregloServiceError, arregloService } from "@/app/api/arreglos/arregloService";
 import type { CreateArregloInsertPayload, CreateArregloRequest } from "./arregloRequests";
+import type { NextRequest } from "next/server";
 
 export type GetArreglosResponse = {
     data: Arreglo[] | null;
     error?: string | null;
 };
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     const supabase = await createClient()
-    const { data, error } = await arregloService.listAll(supabase)
+    const tallerId = req.nextUrl.searchParams.get("taller_id") ?? undefined;
+    const { data, error } = await arregloService.listAll(supabase, { tallerId })
     if (error) {
         const status = error === ArregloServiceError.NotFound ? 404 : 500;
         const message = status === 404 ? "Arreglos no encontrados" : "Error cargando arreglos";
@@ -25,6 +27,8 @@ export async function GET() {
     const arreglos: Arreglo[] = (data ?? []).map(arreglo => ({
         id: arreglo.id,
         vehiculo: arreglo.vehiculo,
+        taller_id: arreglo.taller_id,
+        taller: arreglo.taller,
         tipo: arreglo.tipo,
         descripcion: arreglo.descripcion,
         kilometraje_leido: arreglo.kilometraje_leido,
@@ -51,6 +55,7 @@ export async function POST(req: Request) {
 
     const {
         vehiculo_id,
+        taller_id,
         tipo,
         descripcion,
         kilometraje_leido,
@@ -62,6 +67,7 @@ export async function POST(req: Request) {
     } = body as CreateArregloRequest
 
     if (!vehiculo_id) return Response.json({ error: "Falta vehiculo_id" }, { status: 400 });
+    if (!taller_id) return Response.json({ error: "Falta taller_id" }, { status: 400 });
     if (!fecha) return Response.json({ error: "Falta fecha" }, { status: 400 });
 
     const ivaRate = IVA_RATE
@@ -69,6 +75,7 @@ export async function POST(req: Request) {
 
     const insertPayload: CreateArregloInsertPayload = {
         vehiculo_id,
+        taller_id,
         tipo,
         descripcion: descripcion ?? null,
         kilometraje_leido,
