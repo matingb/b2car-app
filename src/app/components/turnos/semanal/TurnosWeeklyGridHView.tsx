@@ -17,8 +17,8 @@ import { COLOR } from "@/theme/theme";
 import TurnosWeeklySlotCell from "@/app/components/turnos/semanal/TurnosWeeklySlotCell";
 import { logger } from "@/lib/logger";
 
-const HORA_INICIO = 8;
-const HORA_COLUMNAS = 12; // 08:00 -> 19:00
+const HORA_INICIO = 6;
+const HORA_COLUMNAS = 16; // 06:00 -> 21:00
 const HORA_COL_WIDTH = 100;
 const ALTO_FILA_DIA = 150;
 
