@@ -5,6 +5,7 @@ import type { CreateVehiculoRequest } from '@/app/api/vehiculos/route';
 import type { CreateEmpresaRequest } from '@/app/api/clientes/empresas/route';
 import type { CreateParticularRequest } from '@/app/api/clientes/particulares/route';
 import type { CreateRepresentanteRequest } from '@/app/api/clientes/empresas/[id]/representantes/route';
+import type { Producto } from '@/app/providers/ProductosProvider';
 
 /**
  * Factory para crear objetos Vehiculo de prueba
@@ -179,6 +180,26 @@ export const createEmpresa = (overrides: Partial<Empresa> = {}): Empresa => {
     email: 'contacto@empresa.com',
     direccion: 'Av. Principal 456',
     vehiculos: [],
+    ...overrides,
+  };
+};
+
+/**
+ * Factory para crear objetos Producto (UI) de prueba
+ * @param overrides - Propiedades a sobrescribir en el objeto por defecto
+ * @returns Objeto Producto con valores por defecto y overrides aplicados
+ */
+export const createProducto = (overrides: Partial<Producto> = {}): Producto => {
+  return {
+    id: 'PROD-001',
+    nombre: 'Producto 1',
+    codigo: 'COD-001',
+    categorias: ['Cat'],
+    talleresConStock: 0,
+    precioUnitario: 100,
+    costoUnitario: 50,
+    proveedor: 'Proveedor 1',
+    ubicacion: 'Depósito',
     ...overrides,
   };
 };

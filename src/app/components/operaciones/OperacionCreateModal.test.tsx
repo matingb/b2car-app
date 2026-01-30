@@ -2,18 +2,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { runPendingPromises } from "@/tests/testUtils";
+import { createProducto } from "@/tests/factories";
 import { productosClient } from "@/clients/productosClient";
 import OperacionCreateModal from "./OperacionCreateModal";
 
+let mockProductos: ReturnType<typeof createProducto>[] = [];
+const mockProductosApi = {
+  productos: mockProductos,
+  isLoading: false,
+  loadProductos: vi.fn(),
+  getProductoById: vi.fn(),
+  updateProducto: vi.fn(),
+  removeProducto: vi.fn(),
+};
+
 vi.mock("@/app/providers/ProductosProvider", () => ({
-  useProductos: () => ({
-    productos: [],
-    isLoading: false,
-    loadProductos: vi.fn(),
-    getProductoById: vi.fn(),
-    updateProducto: vi.fn(),
-    removeProducto: vi.fn(),
-  }),
+  useProductos: () => mockProductosApi,
 }));
 
 vi.mock("@/app/components/ui/Autocomplete", () => ({
@@ -68,6 +72,12 @@ describe("OperacionCreateModal", () => {
     (productosClient.getAll as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: [],
     });
+
+    mockProductos = [
+      createProducto({ id: "PROD-001" }),
+      createProducto({ id: "PROD-EXTRA", codigo: "COD-EXTRA" }),
+    ];
+    mockProductosApi.productos = mockProductos;
   });
 
   it("si hay un solo taller, no muestra el dropdown de talleres", async () => {

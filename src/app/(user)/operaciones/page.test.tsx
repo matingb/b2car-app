@@ -95,7 +95,10 @@ describe("OperacionesPage", () => {
     });
     await runPendingPromises();
 
-    expect(getAllMock).toHaveBeenCalledWith({ tipo: [tipoSeleccionado] });
+    expect(getAllMock).toHaveBeenLastCalledWith(
+      { tipo: [tipoSeleccionado] },
+      expect.anything()
+    );
   });
 });
 
