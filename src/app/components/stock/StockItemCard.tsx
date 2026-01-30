@@ -8,6 +8,8 @@ import { getStockStatus } from "@/lib/stock";
 import StockProgressBar from "./StockProgressBar";
 import StockStatusPill from "./StockStatusPill";
 import { css } from "@emotion/react";
+import { AlertTriangle } from "lucide-react";
+import Color from "color";
 
 type Props = {
   item: StockItem;
@@ -54,18 +56,28 @@ export default function StockItemCard({ item, onClick }: Props) {
           ))}
           {item.categorias.length > 2 && <CategoryTag text={`+${item.categorias.length - 2}`} />}
         </div>
-
-        <div css={styles.stockCol}>
-          <div style={styles.stockText}>
-            <span style={{ fontWeight: 700 }}>{item.stockActual}</span>
-            <span style={{ color: COLOR.TEXT.SECONDARY }}> / {item.stockMaximo}</span>
+        
+        {item.stockMaximo === 0 ? (
+          <div style={styles.warningPanel}>
+            <AlertTriangle size={16} style={styles.warningIcon} />
+            <span>Stock no configurado para el taller seleccionado.</span>
           </div>
-          <StockProgressBar levels={item} height={8} />
-        </div>
+          
+        ) : (
+          <>
+            <div css={styles.stockCol}>
+              <div style={styles.stockText}>
+                <span style={{ fontWeight: 700 }}>{item.stockActual}</span>
+                <span style={{ color: COLOR.TEXT.SECONDARY }}> / {item.stockMaximo}</span>
+              </div>
+              <StockProgressBar levels={item} height={8} />
+            </div>
 
-        <div style={styles.statusCol}>
-          <StockStatusPill status={status} small />
-        </div>
+            <div style={styles.statusCol}>
+              <StockStatusPill status={status} small />
+            </div>
+          </>
+        )}
       </div>
     </Card>
   );
@@ -128,6 +140,23 @@ const styles = {
   }),
   stockText: {
     fontSize: 13,
+  },
+  warningPanel: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "8px 12px",
+    borderRadius: 10,
+    border: `1px solid ${Color(COLOR.SEMANTIC.WARNING).alpha(0.4).string()}`,
+    background: Color(COLOR.SEMANTIC.WARNING).alpha(0.03).string(),
+    color: COLOR.SEMANTIC.WARNING,
+    fontSize: 12,
+    width: "100%",
+    gridColumn: "2 / span 2",
+  },
+  warningIcon: {
+    color: COLOR.SEMANTIC.WARNING,
+    flexShrink: 0,
   },
   statusCol: {
     display: "flex",

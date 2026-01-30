@@ -7,6 +7,8 @@ import type { StockItem } from "@/model/stock";
 import { getStockStatus } from "@/lib/stock";
 import StockProgressBar from "./StockProgressBar";
 import StockStatusPill from "./StockStatusPill";
+import { AlertTriangle } from "lucide-react";
+import Color from "color";
 
 type Props = {
   item: StockItem;
@@ -30,11 +32,19 @@ export default function StockLevelsCard({ item, isEditing, draft, onChange }: Pr
         </div>
 
         <div style={{ marginTop: 8 }}>
-          <StockProgressBar levels={base} height={12} />
-        </div>
-
-        <div style={{ marginTop: 10 }}>
-          <StockStatusPill status={status} />
+          {base.stockMaximo === 0 ? (
+            <div style={styles.warningPanel}>
+              <AlertTriangle size={16} style={styles.warningIcon} />
+              <span>Definí un stock máximo para este producto en el taller.</span>
+            </div>
+          ) : (
+            <>
+              <StockProgressBar levels={base} height={12} />
+              <div style={{ marginTop: 10 }}>
+                <StockStatusPill status={status} />
+              </div>
+            </>
+          )}
         </div>
 
         {isEditing && (
@@ -77,6 +87,23 @@ const styles = {
   },
   muted: { fontSize: 13, color: COLOR.TEXT.SECONDARY },
   center: { fontSize: 18, fontWeight: 600 },
+  warningPanel: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "8px 12px",
+    borderRadius: 10,
+    border: `1px solid ${Color(COLOR.SEMANTIC.WARNING).alpha(0.4).string()}`,
+    background: Color(COLOR.SEMANTIC.WARNING).alpha(0.03).string(),
+    color: COLOR.SEMANTIC.WARNING,
+    fontSize: 12,
+    width: "100%",
+    gridColumn: "2 / span 2",
+  },
+  warningIcon: {
+    color: COLOR.SEMANTIC.WARNING,
+    flexShrink: 0,
+  },
   divider: { height: 1, background: COLOR.BORDER.SUBTLE, margin: "12px 0" },
   grid: {
     display: "grid",

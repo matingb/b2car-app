@@ -44,3 +44,4 @@ next-env.d.ts
 .cursorrules
 /secret
 /supabase/.schema
+/supabase/snippets
