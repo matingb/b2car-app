@@ -26,35 +26,19 @@ RESTART IDENTITY CASCADE;
 
 -- Tenants (solo uno)
 INSERT INTO public.tenants (id, nombre, estado, fecha_creacion, fecha_actualizacion) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'local', 'activo', now() - interval '120 days', now() - interval '1 day');
+  ('11111111-1111-1111-1111-111111111111', 'B2Car', 'activo', now() - interval '120 days', now() - interval '1 day');
 
 -- Usuarios (auth.users) para cumplir FK de tenant_members
 -- Nota: en Supabase los campos no listados tienen defaults.
-INSERT INTO auth.users (id, email, aud, role, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
-VALUES
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', 'admin1@local.test', 'authenticated', 'authenticated', '{"provider":"email","providers":["email"]}', '{"name":"Admin 1"}', now() - interval '120 days', now() - interval '1 day'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2', 'admin2@local.test', 'authenticated', 'authenticated', '{"provider":"email","providers":["email"]}', '{"name":"Admin 2"}', now() - interval '110 days', now() - interval '2 days'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3', 'admin3@local.test', 'authenticated', 'authenticated', '{"provider":"email","providers":["email"]}', '{"name":"Admin 3"}', now() - interval '100 days', now() - interval '3 days'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4', 'user1@local.test',  'authenticated', 'authenticated', '{"provider":"email","providers":["email"]}', '{"name":"User 1"}',  now() - interval '90 days',  now() - interval '4 days'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa5', 'user2@local.test',  'authenticated', 'authenticated', '{"provider":"email","providers":["email"]}', '{"name":"User 2"}',  now() - interval '80 days',  now() - interval '5 days'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa6', 'user3@local.test',  'authenticated', 'authenticated', '{"provider":"email","providers":["email"]}', '{"name":"User 3"}',  now() - interval '70 days',  now() - interval '6 days'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa7', 'user4@local.test',  'authenticated', 'authenticated', '{"provider":"email","providers":["email"]}', '{"name":"User 4"}',  now() - interval '60 days',  now() - interval '7 days'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa8', 'user5@local.test',  'authenticated', 'authenticated', '{"provider":"email","providers":["email"]}', '{"name":"User 5"}',  now() - interval '50 days',  now() - interval '8 days'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa9', 'user6@local.test',  'authenticated', 'authenticated', '{"provider":"email","providers":["email"]}', '{"name":"User 6"}',  now() - interval '40 days',  now() - interval '9 days'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa0a', 'user7@local.test',  'authenticated', 'authenticated', '{"provider":"email","providers":["email"]}', '{"name":"User 7"}',  now() - interval '30 days',  now() - interval '10 days');
+INSERT INTO "auth"."users" ("instance_id", "id", "aud", "role", "email", "encrypted_password", "email_confirmed_at", "invited_at", "confirmation_token", "confirmation_sent_at", "recovery_token", "recovery_sent_at", "email_change_token_new", "email_change", "email_change_sent_at", "last_sign_in_at", "raw_app_meta_data", "raw_user_meta_data", "is_super_admin", "created_at", "updated_at", "phone", "phone_confirmed_at", "phone_change", "phone_change_token", "phone_change_sent_at", "email_change_token_current", "email_change_confirm_status", "banned_until", "reauthentication_token", "reauthentication_sent_at", "is_sso_user", "deleted_at", "is_anonymous") VALUES ('00000000-0000-0000-0000-000000000000', '7ff568f8-4d46-463b-969c-9e68157fa769', 'authenticated', 'authenticated', 'local@user.ar', '$2a$10$bK5BZ1QuOXlYfYXBkzT8p.LNOFLOM4r2nlM6Rs06dWq091Vzuakt6', '2026-01-30 04:58:59.318335+00', null, '', null, '', null, '', '', null, null, '{"provider": "email", "providers": ["email"]}', '{"email_verified": true}', null, '2026-01-30 04:58:59.311336+00', '2026-01-30 04:58:59.31893+00', null, null, '', '', null, '', '0', null, '', null, 'false', null, 'false');
+INSERT INTO "auth"."users" ("instance_id", "id", "aud", "role", "email", "encrypted_password", "email_confirmed_at", "invited_at", "confirmation_token", "confirmation_sent_at", "recovery_token", "recovery_sent_at", "email_change_token_new", "email_change", "email_change_sent_at", "last_sign_in_at", "raw_app_meta_data", "raw_user_meta_data", "is_super_admin", "created_at", "updated_at", "phone", "phone_confirmed_at", "phone_change", "phone_change_token", "phone_change_sent_at", "email_change_token_current", "email_change_confirm_status", "banned_until", "reauthentication_token", "reauthentication_sent_at", "is_sso_user", "deleted_at", "is_anonymous") VALUES ('00000000-0000-0000-0000-000000000000', '4cdb1c76-3673-4731-b955-cd405f6903ab', 'authenticated', 'authenticated', 'nachoromero84@hotmail.com', '$2a$10$SPtcDqHKCexPaYPKShCGg.yrrGamZqNgUjGsOliHI/kmJxxaAYc8C', '2026-01-30 05:06:13.496442+00', null, '', null, '', null, '', '', null, null, '{"provider": "email", "providers": ["email"]}', '{"email_verified": true}', null, '2026-01-30 05:06:13.491833+00', '2026-01-30 05:06:13.497031+00', null, null, '', '', null, '', '0', null, '', null, 'false', null, 'false');
+INSERT INTO "auth"."users" ("instance_id", "id", "aud", "role", "email", "encrypted_password", "email_confirmed_at", "invited_at", "confirmation_token", "confirmation_sent_at", "recovery_token", "recovery_sent_at", "email_change_token_new", "email_change", "email_change_sent_at", "last_sign_in_at", "raw_app_meta_data", "raw_user_meta_data", "is_super_admin", "created_at", "updated_at", "phone", "phone_confirmed_at", "phone_change", "phone_change_token", "phone_change_sent_at", "email_change_token_current", "email_change_confirm_status", "banned_until", "reauthentication_token", "reauthentication_sent_at", "is_sso_user", "deleted_at", "is_anonymous") VALUES ('00000000-0000-0000-0000-000000000000', '8dfa870f-6d1c-4261-851c-64a192c66ca6', 'authenticated', 'authenticated', 'garzangb@gmail.com', '$2a$10$y2fhrgzDT67G0B52ab/u1ucZfZvstGKtDQG8ggDPLU4ssaUWZTXPu', '2026-01-30 05:07:52.277168+00', null, '', null, '', null, '', '', null, null, '{"provider": "email", "providers": ["email"]}', '{"email_verified": true}', null, '2026-01-30 05:07:52.272941+00', '2026-01-30 05:07:52.277686+00', null, null, '', '', null, '', '0', null, '', null, 'false', null, 'false');
 
 -- Tenant members
-INSERT INTO public.tenant_members (cliente_id, tenant_id, rol) VALUES
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', '11111111-1111-1111-1111-111111111111', 'admin'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2', '11111111-1111-1111-1111-111111111111', 'admin'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3', '11111111-1111-1111-1111-111111111111', 'admin'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4', '11111111-1111-1111-1111-111111111111', 'staff'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa5', '11111111-1111-1111-1111-111111111111', 'staff'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa6', '11111111-1111-1111-1111-111111111111', 'staff'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa7', '11111111-1111-1111-1111-111111111111', 'staff'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa8', '11111111-1111-1111-1111-111111111111', 'staff'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa9', '11111111-1111-1111-1111-111111111111', 'staff'),
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa0a', '11111111-1111-1111-1111-111111111111', 'staff');
+INSERT INTO "public"."tenant_members" ("cliente_id", "tenant_id", "rol") VALUES ('7ff568f8-4d46-463b-969c-9e68157fa769', '11111111-1111-1111-1111-111111111111', 'admin');
+INSERT INTO "public"."tenant_members" ("cliente_id", "tenant_id", "rol") VALUES ('4cdb1c76-3673-4731-b955-cd405f6903ab', '11111111-1111-1111-1111-111111111111', 'admin');
+INSERT INTO "public"."tenant_members" ("cliente_id", "tenant_id", "rol") VALUES ('8dfa870f-6d1c-4261-851c-64a192c66ca6', '11111111-1111-1111-1111-111111111111', 'admin');
+
 
 -- Clientes (base) - 20 registros (10 particulares + 10 empresas)
 INSERT INTO public.clientes (id, tipo_cliente, puntaje, fecha_creacion, tenant_id) VALUES
