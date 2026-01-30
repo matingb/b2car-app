@@ -147,8 +147,8 @@ export default function OperacionesPage() {
                 />
                 <CardDato
                     titleText="Resultado Mensual"
-                    value={stats?.neto}
-                    prefix="$"
+                    value={Math.abs(stats?.neto ?? 0)}
+                    prefix={ stats && stats.neto >= 0 ? "$" : "$-"}
                     icon={<CircleDollarSign size={22} color={COLOR.SEMANTIC.SUCCESS} />}
                     style={{ color: COLOR.SEMANTIC.SUCCESS }}
                 />
@@ -355,7 +355,7 @@ const styles = {
     }),
     createButton: css({
         height: 40,
-        width: 210,
+        minWidth: 180,
         [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
             width: "auto",
         },
