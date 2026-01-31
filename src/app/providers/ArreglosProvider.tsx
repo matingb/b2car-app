@@ -9,6 +9,7 @@ import React, {
   useState,
 } from "react";
 import { Arreglo } from "@/model/types";
+import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 import {
   arreglosClient,
   CreateArregloInput,
@@ -20,13 +21,27 @@ type ArreglosContextType = {
   arreglos: Arreglo[];
   loading: boolean;
   fetchAll: (params?: { tallerId?: string }) => Promise<Arreglo[] | null>;
-  fetchById: (id: string | number) => Promise<Arreglo | null>;
+  fetchById: (id: string | number) => Promise<ArregloDetalleData | null>;
   create: (input: CreateArregloInput) => Promise<Arreglo | null>;
   update: (
     id: string | number,
     input: UpdateArregloInput,
   ) => Promise<Arreglo | null>;
   remove: (id: string | number) => Promise<void>;
+
+  createDetalle: (arregloId: string | number, input: { descripcion: string; cantidad: number; valor: number }) => Promise<void>;
+  updateDetalle: (
+    arregloId: string | number,
+    detalleId: string,
+    patch: Partial<{ descripcion: string; cantidad: number; valor: number }>
+  ) => Promise<void>;
+  deleteDetalle: (arregloId: string | number, detalleId: string) => Promise<void>;
+
+  upsertRepuestoLinea: (
+    arregloId: string | number,
+    input: { taller_id: string; producto_id: string; cantidad: number; monto_unitario: number }
+  ) => Promise<void>;
+  deleteRepuestoLinea: (arregloId: string | number, lineaId: string) => Promise<void>;
 };
 
 const ArreglosContext = createContext<ArreglosContextType | null>(null);
@@ -105,6 +120,63 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const createDetalle = useCallback(async (arregloId: string | number, input: { descripcion: string; cantidad: number; valor: number }) => {
+    setLoading(true);
+    try {
+      const { error } = await arreglosClient.createDetalle(arregloId, input);
+      if (error) throw new Error(error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const updateDetalle = useCallback(async (
+    arregloId: string | number,
+    detalleId: string,
+    patch: Partial<{ descripcion: string; cantidad: number; valor: number }>
+  ) => {
+    setLoading(true);
+    try {
+      const { error } = await arreglosClient.updateDetalle(arregloId, detalleId, patch);
+      if (error) throw new Error(error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const deleteDetalle = useCallback(async (arregloId: string | number, detalleId: string) => {
+    setLoading(true);
+    try {
+      const { error } = await arreglosClient.deleteDetalle(arregloId, detalleId);
+      if (error) throw new Error(error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const upsertRepuestoLinea = useCallback(async (
+    arregloId: string | number,
+    input: { taller_id: string; producto_id: string; cantidad: number; monto_unitario: number }
+  ) => {
+    setLoading(true);
+    try {
+      const { error } = await arreglosClient.upsertRepuestoLinea(arregloId, input);
+      if (error) throw new Error(error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const deleteRepuestoLinea = useCallback(async (arregloId: string | number, lineaId: string) => {
+    setLoading(true);
+    try {
+      const { error } = await arreglosClient.deleteRepuestoLinea(arregloId, lineaId);
+      if (error) throw new Error(error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (tallerSeleccionadoId) {
       fetchAll({ tallerId: tallerSeleccionadoId });
@@ -120,8 +192,26 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       create,
       update,
       remove,
+      createDetalle,
+      updateDetalle,
+      deleteDetalle,
+      upsertRepuestoLinea,
+      deleteRepuestoLinea,
     }),
-    [arreglos, loading, fetchAll, fetchById, create, update, remove]
+    [
+      arreglos,
+      loading,
+      fetchAll,
+      fetchById,
+      create,
+      update,
+      remove,
+      createDetalle,
+      updateDetalle,
+      deleteDetalle,
+      upsertRepuestoLinea,
+      deleteRepuestoLinea,
+    ]
   );
 
   return (

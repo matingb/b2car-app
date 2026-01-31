@@ -94,9 +94,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     return (
       hasVehiculo &&
       isValidDate(fecha)
-      && descripcion.trim().length > 0
     );
-  }, [fecha, descripcion, vehiculoId, selectedVehiculoId]);
+  }, [fecha, vehiculoId, selectedVehiculoId]);
 
   if (!open) return null;
 
@@ -212,14 +211,12 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
 
         <div css={styles.row}>
           <div style={styles.field}>
-            <label style={styles.label}>
-              Descripcion <span aria-hidden="true" style={styles.required}>*</span>
-            </label>
+            <label style={styles.label}>Descripción (opcional)</label>
             <textarea
               style={styles.input}
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
-              placeholder="Descripcion"
+              placeholder="Notas generales del arreglo (opcional)"
               rows={3}
             />
           </div>

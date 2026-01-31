@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
-import { Arreglo } from "@/model/types";
 import { COLOR } from "@/theme/theme";
 import {
   Calendar,
@@ -14,13 +13,16 @@ import {
   XCircle,
   Trash,
   Gauge,
+  Plus,
 } from "lucide-react";
 import { Skeleton, Theme } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
+import ArregloItemModal from "@/app/components/arreglos/ArregloItemModal";
 import VehiculoInfoCard from "@/app/components/vehiculos/VehiculoInfoCard";
 import IconLabel from "@/app/components/ui/IconLabel";
 import Card from "@/app/components/ui/Card";
+import Button from "@/app/components/ui/Button";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { ROUTES } from "@/routing/routes";
 import IconButton from "@/app/components/ui/IconButton";
@@ -28,21 +30,33 @@ import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { logger } from "@/lib/logger";
 import { APP_LOCALE, formatArs } from "@/lib/format";
+import type {
+  ArregloDetalleData,
+  AsignacionArregloLinea,
+} from "@/app/api/arreglos/[id]/route";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const [arreglo, setArreglo] = useState<Arreglo | null>(null);
+  const [data, setData] = useState<ArregloDetalleData | null>(null);
   const [openModal, setOpenModal] = useState(false);
-  const { fetchById, update, remove, loading } = useArreglos();
+  const [openItemModal, setOpenItemModal] = useState(false);
+  const {
+    fetchById,
+    update,
+    remove,
+    deleteDetalle,
+    deleteRepuestoLinea,
+    loading,
+  } = useArreglos();
   const { confirm } = useModalMessage();
   const { success, error } = useToast();
 
   const reload = useCallback(async () => {
     try {
-      const arreglo = await fetchById(params.id);
-      if (!arreglo) return;
-      setArreglo(arreglo);
+      const data = await fetchById(params.id);
+      if (!data) return;
+      setData(data);
     } catch (err: unknown) {
       console.error(err);
     }
@@ -63,9 +77,17 @@ export default function ArregloDetailsPage() {
     setOpenModal(false);
   };
 
+  const handleOpenAddItem = () => {
+    setOpenItemModal(true);
+  };
+
+  const handleCloseItemModal = () => {
+    setOpenItemModal(false);
+  };
+
   const handleNavigateToVehiculo = () => {
-    if (arreglo?.vehiculo) {
-      router.push(`${ROUTES.vehiculos}/${arreglo.vehiculo.id}`);
+    if (data?.arreglo?.vehiculo) {
+      router.push(`${ROUTES.vehiculos}/${data.arreglo.vehiculo.id}`);
     }
   };
 
@@ -77,9 +99,9 @@ export default function ArregloDetailsPage() {
       cancelLabel: "Cancelar",
     });
     if (!confirmed) return;
-    if (!arreglo) return;
+    if (!data?.arreglo) return;
     try {
-      await remove(arreglo.id);
+      await remove(data.arreglo.id);
       router.push(ROUTES.arreglos);
       success("Éxito", "El arreglo ha sido eliminado.");
     } catch (err: unknown) {
@@ -89,13 +111,13 @@ export default function ArregloDetailsPage() {
   };
 
   const togglePago = async () => {
-    if (!arreglo) return;
+    if (!data?.arreglo) return;
     try {
-      const response = await update(arreglo.id, {
-        esta_pago: !arreglo.esta_pago,
+      const response = await update(data.arreglo.id, {
+        esta_pago: !data.arreglo.esta_pago,
       });
       if (!response) return;
-      setArreglo(response);
+      setData((prev) => (prev ? { ...prev, arreglo: response } : prev));
       success("Éxito", "El estado de pago ha sido actualizado.");
     } catch (err: unknown) {
       console.error(err);
@@ -103,9 +125,54 @@ export default function ArregloDetailsPage() {
     }
   };
 
+  const handleDeleteServicio = async (detalleId: string) => {
+    if (!data?.arreglo?.id) return;
+    const confirmed = await confirm({
+      title: "Eliminar servicio",
+      message: "¿Querés eliminar este servicio del arreglo?",
+      acceptLabel: "Eliminar",
+      cancelLabel: "Cancelar",
+    });
+    if (!confirmed) return;
+    try {
+      await deleteDetalle(data.arreglo.id, detalleId);
+      success("Éxito", "Servicio eliminado");
+      await reload();
+    } catch (err: unknown) {
+      logger.error("Error deleting detalle:", err);
+      error(
+        "Error",
+        err instanceof Error ? err.message : "No se pudo eliminar el servicio"
+      );
+    }
+  };
+
+  const handleDeleteRepuesto = async (lineaId: string) => {
+    if (!data?.arreglo?.id) return;
+    const confirmed = await confirm({
+      title: "Eliminar repuesto",
+      message:
+        "¿Querés eliminar este repuesto del arreglo? Esto devolverá el stock.",
+      acceptLabel: "Eliminar",
+      cancelLabel: "Cancelar",
+    });
+    if (!confirmed) return;
+    try {
+      await deleteRepuestoLinea(data.arreglo.id, lineaId);
+      success("Éxito", "Repuesto eliminado");
+      await reload();
+    } catch (err: unknown) {
+      logger.error("Error deleting repuesto linea:", err);
+      error(
+        "Error",
+        err instanceof Error ? err.message : "No se pudo eliminar el repuesto"
+      );
+    }
+  };
+
   if (loading) return loadingScreen();
 
-  if (!arreglo) {
+  if (!data?.arreglo) {
     return (
       <div>
         <ScreenHeader
@@ -118,9 +185,23 @@ export default function ArregloDetailsPage() {
     );
   }
 
+  const arreglo = data.arreglo;
+  const detalles = Array.isArray(data.detalles) ? data.detalles : [];
+  const repuestosLineas = flattenAsignacionesLineas(data);
+
+  const subtotalServicios = detalles.reduce(
+    (acc, d) => acc + safeNumber(d.valor) * safeNumber(d.cantidad),
+    0
+  );
+  const subtotalRepuestos = repuestosLineas.reduce(
+    (acc, l) => acc + safeNumber(l.monto_unitario) * safeNumber(l.cantidad),
+    0
+  );
+  const totalCalculado = subtotalServicios + subtotalRepuestos;
+
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 16}}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <ScreenHeader
           title="Arreglos"
           breadcrumbs={["Detalle"]}
@@ -179,9 +260,7 @@ export default function ArregloDetailsPage() {
               <div style={styles.cardContent}>
                 <div style={styles.infoGrid}>
                   <div>
-                    <div style={styles.fieldLabel}>
-                      Fecha
-                    </div>
+                    <div style={styles.fieldLabel}>Fecha</div>
                     <IconLabel
                       icon={<Calendar size={18} color={COLOR.ACCENT.PRIMARY} />}
                       label={
@@ -197,9 +276,7 @@ export default function ArregloDetailsPage() {
                   </div>
 
                   <div>
-                    <div style={styles.fieldLabel}>
-                      Tipo
-                    </div>
+                    <div style={styles.fieldLabel}>Tipo</div>
                     <IconLabel
                       icon={<Wrench size={18} color={COLOR.ACCENT.PRIMARY} />}
                       label={arreglo.tipo || "-"}
@@ -207,19 +284,18 @@ export default function ArregloDetailsPage() {
                   </div>
 
                   <div>
-                    <div style={styles.fieldLabel}>
-                      Precio
-                    </div>
+                    <div style={styles.fieldLabel}>Precio</div>
                     <IconLabel
                       icon={<Coins size={18} color={COLOR.ACCENT.PRIMARY} />}
-                      label={formatArs(arreglo.precio_final, { maxDecimals: 0, minDecimals: 0 })}
+                      label={formatArs(arreglo.precio_final, {
+                        maxDecimals: 0,
+                        minDecimals: 0,
+                      })}
                     />
                   </div>
 
                   <div>
-                    <div style={styles.fieldLabel}>
-                      Kilometraje
-                    </div>
+                    <div style={styles.fieldLabel}>Kilometraje</div>
                     <IconLabel
                       icon={<Gauge size={18} color={COLOR.ACCENT.PRIMARY} />}
                       label={
@@ -234,7 +310,12 @@ export default function ArregloDetailsPage() {
                 {arreglo.descripcion && (
                   <div style={{ marginTop: 8 }}>
                     <div style={{ fontWeight: 700 }}>Descripción</div>
-                    <div style={{ color: "rgba(0,0,0,0.8)", whiteSpace: "pre-wrap" }}>
+                    <div
+                      style={{
+                        color: "rgba(0,0,0,0.8)",
+                        whiteSpace: "pre-wrap",
+                      }}
+                    >
                       {arreglo.descripcion}
                     </div>
                   </div>
@@ -262,12 +343,201 @@ export default function ArregloDetailsPage() {
         </div>
       </div>
 
+      <div style={{ marginTop: 16 }}>
+        <div style={styles.detalleHeader}>
+          <div>
+            <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+              Detalle del Arreglo
+            </h3>
+            <div style={{ color: COLOR.TEXT.SECONDARY, marginTop: 2 }}>
+              Servicios y productos incluidos
+            </div>
+          </div>
+
+          <Button
+            text="Agregar item"
+            icon={<Plus size={18} />}
+            hideText={false}
+            onClick={handleOpenAddItem}
+            style={{ minWidth: 0 }}
+          />
+        </div>
+
+        <div style={styles.sectionTitle}>
+          <Wrench size={18} />
+          <span>Mano de Obra</span>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {detalles.length === 0 ? (
+            <div style={styles.emptyState}>Sin servicios cargados.</div>
+          ) : (
+            detalles.map((d) => (
+              <div key={d.id} style={styles.itemCardBlue}>
+                <div style={styles.itemIconCircleBlue}>
+                  <Wrench size={18} color={COLOR.ACCENT.PRIMARY} />
+                </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={styles.itemTitle}>{d.descripcion}</div>
+                  <div style={styles.itemSubTitle}>
+                    {safeNumber(d.cantidad)} x{" "}
+                    {formatArs(safeNumber(d.valor), {
+                      maxDecimals: 0,
+                      minDecimals: 0,
+                    })}
+                  </div>
+                </div>
+
+                <div style={styles.itemPrice}>
+                  {formatArs(safeNumber(d.valor) * safeNumber(d.cantidad), {
+                    maxDecimals: 0,
+                    minDecimals: 0,
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  style={styles.deleteBtn}
+                  aria-label="eliminar servicio"
+                  onClick={() => void handleDeleteServicio(d.id)}
+                >
+                  <Trash size={18} color={COLOR.ICON.DANGER} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div style={styles.subtotalRow}>
+          <span style={styles.subtotalLabel}>Subtotal</span>
+          <span
+            style={{ ...styles.subtotalValue, color: COLOR.ACCENT.PRIMARY }}
+          >
+            {formatArs(subtotalServicios, {
+              maxDecimals: 0,
+              minDecimals: 0,
+            })}
+          </span>
+        </div>
+
+        <div
+          style={{
+            height: 1,
+            background: COLOR.BORDER.SUBTLE,
+            margin: "18px 0",
+          }}
+        />
+
+        <div style={styles.sectionTitle}>
+          <span style={styles.repuestosIcon}>📦</span>
+          <span>Repuestos</span>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {repuestosLineas.length === 0 ? (
+            <div style={styles.emptyState}>Sin repuestos asignados.</div>
+          ) : (
+            repuestosLineas.map((l) => (
+              <div key={l.id} style={styles.itemCardGreen}>
+                <div style={styles.itemIconCircleGreen}>
+                  <span style={{ fontWeight: 900, color: "#0b7a32" }}>▣</span>
+                </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={styles.itemTitle}>
+                    {l.producto?.nombre || "Producto"}
+                  </div>
+                  <div style={styles.itemSubTitle}>
+                    {safeNumber(l.cantidad)} x{" "}
+                    {formatArs(safeNumber(l.monto_unitario), {
+                      maxDecimals: 0,
+                      minDecimals: 0,
+                    })}
+                  </div>
+                </div>
+
+                {l.producto?.codigo ? (
+                  <div style={styles.codePill}>{l.producto.codigo}</div>
+                ) : null}
+
+                <div style={styles.itemPrice}>
+                  {formatArs(
+                    safeNumber(l.monto_unitario) * safeNumber(l.cantidad),
+                    { maxDecimals: 0, minDecimals: 0 }
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  style={styles.deleteBtn}
+                  aria-label="eliminar repuesto"
+                  onClick={() => void handleDeleteRepuesto(l.id)}
+                >
+                  <Trash size={18} color={COLOR.ICON.DANGER} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div style={styles.subtotalRow}>
+          <span style={styles.subtotalLabel}>Subtotal</span>
+          <span style={{ ...styles.subtotalValue, color: COLOR.ACCENT.PRIMARY }}>
+            {formatArs(subtotalRepuestos, {
+              maxDecimals: 0,
+              minDecimals: 0,
+            })}
+          </span>
+        </div>
+
+        <div style={styles.totalFooter}>
+          <div style={styles.totalsRow}>
+            <div style={styles.totalsLeft}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={styles.dotBlue} />
+                <span style={{ color: COLOR.TEXT.SECONDARY }}>Servicios:</span>
+                <span style={{ fontWeight: 800 }}>
+                  {formatArs(subtotalServicios, {
+                    maxDecimals: 0,
+                    minDecimals: 0,
+                  })}
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={styles.dotGreen} />
+                <span style={{ color: COLOR.TEXT.SECONDARY }}>Productos:</span>
+                <span style={{ fontWeight: 800 }}>
+                  {formatArs(subtotalRepuestos, {
+                    maxDecimals: 0,
+                    minDecimals: 0,
+                  })}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ textAlign: "right" }}>
+              <div style={{ color: COLOR.TEXT.SECONDARY }}>
+                Total del arreglo
+              </div>
+              <div style={styles.totalBig}>
+                {formatArs(totalCalculado, {
+                  maxDecimals: 0,
+                  minDecimals: 0,
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {arreglo && arreglo.vehiculo && (
         <ArregloModal
           open={openModal}
           onClose={handleCloseModal}
           onSubmitSuccess={async (nuevo) => {
-            setArreglo(nuevo);
+            setData((prev) => (prev ? { ...prev, arreglo: nuevo } : prev));
+            await reload();
           }}
           vehiculoId={arreglo.vehiculo.id}
           initial={{
@@ -283,6 +553,16 @@ export default function ArregloDetailsPage() {
           }}
         />
       )}
+
+      {arreglo ? (
+        <ArregloItemModal
+          open={openItemModal}
+          onClose={handleCloseItemModal}
+          onSubmitSuccess={reload}
+          arregloId={arreglo.id}
+          tallerId={arreglo.taller_id ?? null}
+        />
+      ) : null}
     </div>
   );
 }
@@ -348,8 +628,160 @@ const styles = {
     display: "flex",
     flexDirection: "column" as const,
     flex: 1,
-    
+
     gap: 8,
+  },
+  detalleHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+    flexWrap: "wrap" as const,
+  },
+  sectionTitle: {
+    paddingTop: 10,
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    fontSize: 16,
+    fontWeight: 700,
+    color: COLOR.TEXT.SECONDARY,
+    marginBottom: 10,
+  },
+  repuestosIcon: {
+    display: "inline-flex",
+    width: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyState: {
+    padding: 12,
+    borderRadius: 12,
+    background: "rgba(0,0,0,0.03)",
+    color: "rgba(0,0,0,0.55)",
+    fontWeight: 600,
+  },
+  itemCardBlue: {
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+    padding: "14px 14px",
+    borderRadius: 12,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SUBTLE,
+  },
+  itemCardGreen: {
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+    padding: "14px 14px",
+    borderRadius: 12,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SUBTLE,
+  },
+  itemIconCircleBlue: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: COLOR.BACKGROUND.SUBTLE,
+  },
+  itemIconCircleGreen: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "rgba(22, 163, 74, 0.14)",
+  },
+  itemTitle: {
+    fontSize: 16,
+    fontWeight: 700,
+    lineHeight: 1.1,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap" as const,
+  },
+  itemSubTitle: {
+    marginTop: 6,
+    color: "rgba(0,0,0,0.55)",
+    fontWeight: 600,
+  },
+  itemPrice: {
+    fontSize: 18,
+    fontWeight: 800,
+    whiteSpace: "nowrap" as const,
+    marginLeft: 8,
+  },
+  deleteBtn: {
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    padding: 8,
+    borderRadius: 12,
+  },
+  codePill: {
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 999,
+    padding: "6px 10px",
+    fontWeight: 800,
+    color: "rgba(0,0,0,0.7)",
+    background: "rgba(255,255,255,0.8)",
+    whiteSpace: "nowrap" as const,
+  },
+  subtotalRow: {
+    marginTop: 10,
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "baseline",
+    gap: 8,
+  },
+  subtotalLabel: {
+    color: COLOR.TEXT.SECONDARY,
+    fontWeight: 700,
+  },
+  subtotalValue: {
+    fontWeight: 800,
+    fontSize: 16,
+  },
+  totalFooter: {
+    marginTop: 18,
+    paddingTop: 16,
+    borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
+  },
+  totalsRow: {
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 16,
+    flexWrap: "wrap" as const,
+  },
+  totalsLeft: {
+    display: "flex",
+    gap: 24,
+    flexWrap: "wrap" as const,
+  },
+  dotBlue: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    background: COLOR.ACCENT.PRIMARY,
+    display: "inline-block",
+  },
+  dotGreen: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    background: "#16a34a",
+    display: "inline-block",
+  },
+  totalBig: {
+    fontSize: 32,
+    fontWeight: 900,
   },
   infoGrid: {
     display: "grid",
@@ -393,3 +825,23 @@ const styles = {
     width: "100%",
   },
 } as const;
+
+function safeNumber(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function flattenAsignacionesLineas(
+  data: ArregloDetalleData
+): AsignacionArregloLinea[] {
+  if (!Array.isArray(data.asignaciones)) return [];
+  const out: AsignacionArregloLinea[] = [];
+  for (const op of data.asignaciones) {
+    if (!op || !Array.isArray(op.lineas)) continue;
+    for (const l of op.lineas) {
+      if (!l) continue;
+      out.push(l);
+    }
+  }
+  return out;
+}
