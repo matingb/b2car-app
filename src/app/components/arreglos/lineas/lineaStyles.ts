@@ -6,7 +6,6 @@ export type LineaVariant = "servicios" | "repuestos";
 export function itemIconCircleStyle(variant: LineaVariant): React.CSSProperties {
   return {
     ...styles.itemIconCircleBase,
-    // A bit more contrast than the card background
     background:
       variant === "repuestos"
         ? COLOR.BACKGROUND.SUCCESS_TINT
@@ -31,7 +30,11 @@ export const styles = {
     display: "flex",
     alignItems: "center",
     gap: 14,
-    
+    padding: "14px 14px",
+    borderRadius: 12,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SUBTLE,
+    flexWrap: "wrap" as const,
   },
   itemIconCircleBase: {
     width: 36,

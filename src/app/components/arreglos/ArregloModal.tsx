@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Autocomplete, { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import Modal from "@/app/components/ui/Modal";
 import { Arreglo, Vehiculo } from "@/model/types";
@@ -57,6 +57,18 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
 
   const [serviciosDraft, setServiciosDraft] = useState<ServicioLinea[]>([]);
   const [repuestosDraft, setRepuestosDraft] = useState<RepuestoLinea[]>([]);
+  const nextServicioSeq = useRef(0);
+  const nextRepuestoSeq = useRef(0);
+
+  const newServicioId = () => {
+    nextServicioSeq.current += 1;
+    return `svc-${nextServicioSeq.current}`;
+  };
+
+  const newRepuestoId = () => {
+    nextRepuestoSeq.current += 1;
+    return `rep-${nextRepuestoSeq.current}`;
+  };
 
   useEffect(() => {
     if (!vehiculoId && open) {
@@ -97,6 +109,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     if (!isEdit) {
       setServiciosDraft([]);
       setRepuestosDraft([]);
+      nextServicioSeq.current = 0;
+      nextRepuestoSeq.current = 0;
     }
   }, [open, initial, vehiculoId, isEdit]);
 
@@ -270,13 +284,10 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
             <ServicioLineasEditableSection
               items={serviciosDraft}
               onAdd={(input) => {
-                const tempId =
-                  globalThis.crypto?.randomUUID?.() ??
-                  `${Date.now()}-${Math.random().toString(16).slice(2)}`;
                 setServiciosDraft((prev) => [
                   ...prev,
                   {
-                    id: tempId,
+                    id: newServicioId(),
                     descripcion: input.descripcion,
                     cantidad: input.cantidad,
                     valor: input.valor,
@@ -326,13 +337,10 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
                     };
                     return next;
                   }
-                  const tempId =
-                    globalThis.crypto?.randomUUID?.() ??
-                    `${Date.now()}-${Math.random().toString(16).slice(2)}`;
                   return [
                     ...prev,
                     {
-                      id: tempId,
+                      id: newRepuestoId(),
                       stock_id: input.stock_id,
                       cantidad: input.cantidad,
                       monto_unitario: input.monto_unitario,

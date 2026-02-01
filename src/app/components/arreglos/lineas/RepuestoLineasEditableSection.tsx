@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { AlertTriangle, Check, Package, Pencil, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, Pencil, Plus, Trash2, Package } from "lucide-react";
 import { formatArs } from "@/lib/format";
 import { COLOR } from "@/theme/theme";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
@@ -9,7 +9,7 @@ import { useInventario } from "@/app/providers/InventarioProvider";
 import LineasSectionShell from "./LineasSectionShell";
 import { itemIconCircleStyle, styles } from "./lineaStyles";
 import { useInlineEditor } from "./useInlineEditor";
-import Card from "../../ui/Card";
+import EditableLineaCard from "./EditableLineaCard";
 
 export type RepuestoLinea = {
   id: string;
@@ -147,18 +147,6 @@ export default function RepuestoLineasEditableSection({
     </div>
   ) : null;
 
-  const confirmBtnStyle = (enabled: boolean): React.CSSProperties => ({
-    ...styles.confirmBtn,
-    opacity: enabled ? 1 : 0.5,
-    cursor: enabled ? "pointer" : "not-allowed",
-  });
-
-  const cancelBtnStyle = (enabled: boolean): React.CSSProperties => ({
-    ...styles.cancelBtn,
-    opacity: enabled ? 1 : 0.5,
-    cursor: enabled ? "pointer" : "not-allowed",
-  });
-
   return (
     <LineasSectionShell
       title={title}
@@ -185,7 +173,7 @@ export default function RepuestoLineasEditableSection({
 
           if (!isRowEditing) {
             return (
-              <Card key={item.id} style={styles.itemCard}>
+              <div key={item.id} style={styles.itemCard}>
                 <div style={itemIconCircleStyle("repuestos")}>
                   <Package size={18} color={COLOR.SEMANTIC.SUCCESS} />
                 </div>
@@ -225,102 +213,59 @@ export default function RepuestoLineasEditableSection({
                 >
                   <Trash2 size={18} color={COLOR.ICON.DANGER} />
                 </button>
-              </Card>
+              </div>
             );
           }
 
           const baseQty = Number(item.cantidad) || 0;
           const parsed = validateCurrent();
-          const totalDraft = safeInt(draft.cantidad) * safeMoney(draft.montoUnitario);
           const stock = findStock(item.stock_id);
           const stockActual = stock ? Number(stock.stockActual) || 0 : null;
           const delta = safeInt(draft.cantidad) - baseQty;
           const hasStockIssue = stockActual !== null && delta > 0 && delta > stockActual;
+          const productStyle: React.CSSProperties = { width: "100%" };
 
           return (
-            <Card key={item.id} style={{ ...styles.itemCard, gap: 10, flexWrap: "wrap" }}>
-              <div style={itemIconCircleStyle("repuestos")}>
-                <Package size={18} color={COLOR.SEMANTIC.SUCCESS} />
-              </div>
-
-              <div style={styles.itemMain}>
-                <div style={styles.itemTitle}>
-                  {titleText}
-                  {code ? (
-                    <span style={{ marginLeft: 8, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500 }}>
-                      {code}
-                    </span>
-                  ) : null}
-                </div>
-                {stock ? (
-                  <div style={{ marginTop: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
-                    Stock actual: <b>{Number(stock.stockActual) || 0}</b>
-                  </div>
-                ) : null}
-              </div>
-
-              <div style={{ ...styles.editorGrid, flex: "1 1 280px" }}>
-                <input
-                  style={{ ...styles.editorInput, ...styles.editorInputRight, flex: "0 0 72px" }}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={draft.cantidad}
-                  onChange={(e) => setDraft((p) => ({ ...p, cantidad: e.target.value.replace(/\D/g, "") }))}
-                  placeholder="1"
-                  disabled={!canInteract || !tallerId}
-                  aria-label="Cantidad"
-                />
-                <input
-                  style={{ ...styles.editorInput, ...styles.editorInputRight, flex: "0 0 120px" }}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={draft.montoUnitario}
-                  onChange={(e) => setDraft((p) => ({ ...p, montoUnitario: e.target.value.replace(/\D/g, "") }))}
-                  placeholder="0"
-                  disabled={!canInteract || !tallerId}
-                  aria-label="Precio unitario"
-                />
-                <div style={{ ...styles.itemTotal, flex: "0 0 110px", textAlign: "right" }}>
-                  {formatMoney(totalDraft)}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                style={confirmBtnStyle(canInteract && parsed.ok)}
-                aria-label="guardar cambios"
-                onClick={() => void save()}
-                disabled={!canInteract || !parsed.ok}
-                title={!parsed.ok ? parsed.message : "Guardar"}
-              >
-                <Check size={18} color={COLOR.SEMANTIC.SUCCESS} />
-              </button>
-              <button
-                type="button"
-                style={cancelBtnStyle(canInteract)}
-                aria-label="descartar cambios"
-                onClick={cancel}
-                disabled={!canInteract}
-                title="Cancelar"
-              >
-                <X size={18} color={COLOR.ICON.DANGER} />
-              </button>
-
-              {hasStockIssue ? (
-                <div style={{ marginLeft: 8, color: COLOR.ICON.DANGER, fontWeight: 700 }}>
-                  Stock insuficiente
-                </div>
-              ) : null}
-            </Card>
+            <div key={item.id}>
+              <EditableLineaCard
+                kind="repuestos"
+                mode="edit"
+                top={
+                  <Autocomplete
+                    options={stockOptions}
+                    value={draft.stockId}
+                    onChange={(v) => setDraft((p) => ({ ...p, stockId: v }))}
+                    placeholder={isLoading ? "Cargando inventario..." : "Buscar producto..."}
+                    disabled
+                    style={productStyle}
+                  />
+                }
+                qtyValue={draft.cantidad}
+                unitValue={draft.montoUnitario}
+                onQtyChange={(v) => setDraft((p) => ({ ...p, cantidad: v }))}
+                onUnitChange={(v) => setDraft((p) => ({ ...p, montoUnitario: v }))}
+                interactionEnabled={canInteract && !!tallerId}
+                validation={parsed.ok ? { ok: true } : { ok: false, message: parsed.message }}
+                onConfirm={save}
+                onCancel={cancel}
+                extra={
+                  hasStockIssue ? (
+                    <div style={{ color: COLOR.ICON.DANGER, fontWeight: 700 }}>
+                      Stock insuficiente
+                    </div>
+                  ) : null
+                }
+              />
+            </div>
           );
         })}
 
         {adding ? (
           (() => {
             const parsed = validateCurrent();
-            const totalDraft = safeInt(draft.cantidad) * safeMoney(draft.montoUnitario);
             const stock = draft.stockId ? findStock(draft.stockId) : null;
             const baseQty = 0;
+            const productStyle: React.CSSProperties = { width: "100%" };
             const hasStockIssue = (() => {
               if (!stock) return false;
               const delta = safeInt(draft.cantidad) - baseQty;
@@ -329,12 +274,10 @@ export default function RepuestoLineasEditableSection({
             })();
 
             return (
-              <Card style={{ ...styles.itemCard, gap: 10, flexWrap: "wrap" }}>
-                <div style={itemIconCircleStyle("repuestos")}>
-                  <Package size={18} color={COLOR.SEMANTIC.SUCCESS} />
-                </div>
-
-                <div style={{ ...styles.editorGrid, flex: "1 1 340px", justifyContent: "flex-end" }}>
+              <EditableLineaCard
+                kind="repuestos"
+                mode="add"
+                top={
                   <Autocomplete
                     options={stockOptions}
                     value={draft.stockId}
@@ -347,60 +290,25 @@ export default function RepuestoLineasEditableSection({
                     }}
                     placeholder={isLoading ? "Cargando inventario..." : "Buscar producto..."}
                     disabled={!tallerId || isLoading || !canInteract}
-                    style={{ flex: "1 1 240px" }}
+                    style={productStyle}
                   />
-                  <input
-                    style={{ ...styles.editorInput, ...styles.editorInputRight, flex: "0 0 72px" }}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={draft.cantidad}
-                    onChange={(e) => setDraft((p) => ({ ...p, cantidad: e.target.value.replace(/\D/g, "") }))}
-                    placeholder="1"
-                    disabled={!tallerId || !canInteract}
-                    aria-label="Cantidad"
-                  />
-                  <input
-                    style={{ ...styles.editorInput, ...styles.editorInputRight, flex: "0 0 120px" }}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={draft.montoUnitario}
-                    onChange={(e) => setDraft((p) => ({ ...p, montoUnitario: e.target.value.replace(/\D/g, "") }))}
-                    placeholder="0"
-                    disabled={!tallerId || !canInteract}
-                    aria-label="Precio unitario"
-                  />
-                  <div style={{ ...styles.itemTotal, flex: "0 0 110px", textAlign: "right" }}>
-                    {formatMoney(totalDraft)}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  style={confirmBtnStyle(canInteract && parsed.ok)}
-                  aria-label="agregar repuesto"
-                  onClick={() => void save()}
-                  disabled={!canInteract || !parsed.ok}
-                  title={!parsed.ok ? parsed.message : "Agregar"}
-                >
-                  <Check size={18} color={COLOR.SEMANTIC.SUCCESS} />
-                </button>
-                <button
-                  type="button"
-                  style={cancelBtnStyle(canInteract)}
-                  aria-label="cancelar agregar repuesto"
-                  onClick={cancel}
-                  disabled={!canInteract}
-                  title="Cancelar"
-                >
-                  <X size={18} color={COLOR.ICON.DANGER} />
-                </button>
-
-                {hasStockIssue ? (
-                  <div style={{ marginLeft: 8, color: COLOR.ICON.DANGER, fontWeight: 700 }}>
-                    Stock insuficiente
-                  </div>
-                ) : null}
-              </Card>
+                }
+                qtyValue={draft.cantidad}
+                unitValue={draft.montoUnitario}
+                onQtyChange={(v) => setDraft((p) => ({ ...p, cantidad: v }))}
+                onUnitChange={(v) => setDraft((p) => ({ ...p, montoUnitario: v }))}
+                interactionEnabled={canInteract && !!tallerId}
+                validation={parsed.ok ? { ok: true } : { ok: false, message: parsed.message }}
+                onConfirm={save}
+                onCancel={cancel}
+                extra={
+                  hasStockIssue ? (
+                    <div style={{ color: COLOR.ICON.DANGER, fontWeight: 700 }}>
+                      Stock insuficiente
+                    </div>
+                  ) : null
+                }
+              />
             );
           })()
         ) : (

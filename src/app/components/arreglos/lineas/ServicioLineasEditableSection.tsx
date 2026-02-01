@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { Check, Plus, Trash2, X, Pencil, Wrench } from "lucide-react";
+import { Plus, Trash2, Pencil, Wrench } from "lucide-react";
 import { formatArs } from "@/lib/format";
 import { COLOR } from "@/theme/theme";
 import LineasSectionShell from "./LineasSectionShell";
 import { itemIconCircleStyle, styles } from "./lineaStyles";
 import { useInlineEditor } from "./useInlineEditor";
 import Card from "../../ui/Card";
+import EditableLineaCard from "./EditableLineaCard";
 
 export type ServicioLinea = {
   id: string;
@@ -103,18 +104,6 @@ export default function ServicioLineasEditableSection({
   const renderQtyXUnit = (cantidad: number, unitario: number) =>
     `${cantidad} x ${formatMoney(unitario)}`;
 
-  const confirmBtnStyle = (enabled: boolean): React.CSSProperties => ({
-    ...styles.confirmBtn,
-    opacity: enabled ? 1 : 0.5,
-    cursor: enabled ? "pointer" : "not-allowed",
-  });
-
-  const cancelBtnStyle = (enabled: boolean): React.CSSProperties => ({
-    ...styles.cancelBtn,
-    opacity: enabled ? 1 : 0.5,
-    cursor: enabled ? "pointer" : "not-allowed",
-  });
-
   return (
     <LineasSectionShell
       title={title}
@@ -176,140 +165,61 @@ export default function ServicioLineasEditableSection({
           }
           
           const parsed = validateCurrent();
-          const totalDraft =
-            safeInt(draft.cantidad) * safeMoney(draft.valor);
-          const editorGridWithTotal: React.CSSProperties = {
-            ...styles.editorGrid,
-            gridTemplateColumns: "minmax(200px, 1fr) 72px 120px 110px",
-          };
+          const descriptionStyle: React.CSSProperties = { ...styles.editorInput, width: "100%" };
 
           return (
-            <Card key={item.id} style={{ ...styles.itemCard, gap: 10 }}>
-              <div style={itemIconCircleStyle("servicios")}>
-                <Wrench size={18} color={COLOR.ACCENT.PRIMARY} />
-              </div>
-
-              <div style={editorGridWithTotal}>
-                <input
-                  style={styles.editorInput}
-                  value={draft.descripcion}
-                  onChange={(e) => setDraft((p) => ({ ...p, descripcion: e.target.value }))}
-                  placeholder="Ej: Cambio de aceite"
-                  disabled={!canInteract}
-                />
-                <input
-                  style={{ ...styles.editorInput, ...styles.editorInputRight }}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={draft.cantidad}
-                  onChange={(e) => setDraft((p) => ({ ...p, cantidad: e.target.value.replace(/\D/g, "") }))}
-                  placeholder="1"
-                  disabled={!canInteract}
-                  aria-label="Cantidad"
-                />
-                <input
-                  style={{ ...styles.editorInput, ...styles.editorInputRight }}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={draft.valor}
-                  onChange={(e) => setDraft((p) => ({ ...p, valor: e.target.value.replace(/\D/g, "") }))}
-                  placeholder="0"
-                  disabled={!canInteract}
-                  aria-label="Valor unitario"
-                />
-                <div style={styles.itemTotal}>{formatMoney(totalDraft)}</div>
-              </div>
-
-              <button
-                type="button"
-                style={confirmBtnStyle(canInteract && parsed.ok)}
-                aria-label="guardar cambios"
-                onClick={() => void save()}
-                disabled={!canInteract || !parsed.ok}
-                title={!parsed.ok ? parsed.message : "Guardar"}
-              >
-                <Check size={18} color={COLOR.SEMANTIC.SUCCESS} />
-              </button>
-              <button
-                type="button"
-                style={cancelBtnStyle(canInteract)}
-                aria-label="descartar cambios"
-                onClick={cancel}
-                disabled={!canInteract}
-                title="Cancelar"
-              >
-                <X size={18} color={COLOR.ICON.DANGER} />
-              </button>
-            </Card>
+            <div key={item.id}>
+              <EditableLineaCard
+                kind="servicios"
+                mode="edit"
+                top={
+                  <input
+                    style={descriptionStyle}
+                    value={draft.descripcion}
+                    onChange={(e) => setDraft((p) => ({ ...p, descripcion: e.target.value }))}
+                    placeholder="Ej: Cambio de aceite"
+                    disabled={!canInteract}
+                  />
+                }
+                qtyValue={draft.cantidad}
+                unitValue={draft.valor}
+                onQtyChange={(v) => setDraft((p) => ({ ...p, cantidad: v }))}
+                onUnitChange={(v) => setDraft((p) => ({ ...p, valor: v }))}
+                interactionEnabled={canInteract}
+                validation={parsed.ok ? { ok: true } : { ok: false, message: parsed.message }}
+                onConfirm={save}
+                onCancel={cancel}
+              />
+            </div>
           );
         })}
 
         {adding ? (
           (() => {
             const parsed = validateCurrent();
-            const totalDraft = safeInt(draft.cantidad) * safeMoney(draft.valor);
-            const editorGridWithTotal: React.CSSProperties = {
-              ...styles.editorGrid,
-              gridTemplateColumns: "minmax(200px, 1fr) 72px 120px 110px",
-            };
+            const descriptionStyle: React.CSSProperties = { ...styles.editorInput, width: "100%" };
             return (
-              <div style={{ ...styles.itemCard, gap: 10 }}>
-                <div style={itemIconCircleStyle("servicios")}>
-                  <Wrench size={18} color={COLOR.ACCENT.PRIMARY} />
-                </div>
-
-                <div style={editorGridWithTotal}>
+              <EditableLineaCard
+                kind="servicios"
+                mode="add"
+                top={
                   <input
-                    style={styles.editorInput}
+                    style={descriptionStyle}
                     value={draft.descripcion}
                     onChange={(e) => setDraft((p) => ({ ...p, descripcion: e.target.value }))}
                     placeholder="Ej: Cambio de aceite"
                     disabled={!canInteract}
                   />
-                  <input
-                    style={{ ...styles.editorInput, ...styles.editorInputRight }}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={draft.cantidad}
-                    onChange={(e) => setDraft((p) => ({ ...p, cantidad: e.target.value.replace(/\D/g, "") }))}
-                    placeholder="1"
-                    disabled={!canInteract}
-                    aria-label="Cantidad"
-                  />
-                  <input
-                    style={{ ...styles.editorInput, ...styles.editorInputRight }}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={draft.valor}
-                    onChange={(e) => setDraft((p) => ({ ...p, valor: e.target.value.replace(/\D/g, "") }))}
-                    placeholder="0"
-                    disabled={!canInteract}
-                    aria-label="Valor unitario"
-                  />
-                  <div style={styles.itemTotal}>{formatMoney(totalDraft)}</div>
-                </div>
-
-                <button
-                  type="button"
-                  style={confirmBtnStyle(canInteract && parsed.ok)}
-                  aria-label="agregar servicio"
-                  onClick={() => void save()}
-                  disabled={!canInteract || !parsed.ok}
-                  title={!parsed.ok ? parsed.message : "Agregar"}
-                >
-                  <Check size={18} color={COLOR.SEMANTIC.SUCCESS} />
-                </button>
-                <button
-                  type="button"
-                  style={cancelBtnStyle(canInteract)}
-                  aria-label="cancelar agregar servicio"
-                  onClick={cancel}
-                  disabled={!canInteract}
-                  title="Cancelar"
-                >
-                  <X size={18} color={COLOR.ICON.DANGER} />
-                </button>
-              </div>
+                }
+                qtyValue={draft.cantidad}
+                unitValue={draft.valor}
+                onQtyChange={(v) => setDraft((p) => ({ ...p, cantidad: v }))}
+                onUnitChange={(v) => setDraft((p) => ({ ...p, valor: v }))}
+                interactionEnabled={canInteract}
+                validation={parsed.ok ? { ok: true } : { ok: false, message: parsed.message }}
+                onConfirm={save}
+                onCancel={cancel}
+              />
             );
           })()
         ) : (
