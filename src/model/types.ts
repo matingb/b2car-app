@@ -91,7 +91,7 @@ export interface Taller {
 export interface OperacionLinea {
   id: UUID;
   operacion_id: UUID;
-  producto_id: UUID;
+  stock_id: UUID;
   cantidad: number;
   monto_unitario: number;
   delta_cantidad: number;

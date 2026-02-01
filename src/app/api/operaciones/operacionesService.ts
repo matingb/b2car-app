@@ -18,7 +18,7 @@ export type OperacionesStats = {
 };
 
 export type CreateOperacionLineaInput = {
-	producto_id: string;
+	stock_id: string;
 	cantidad?: number;
 	monto_unitario?: number;
 	delta_cantidad?: number;
@@ -33,7 +33,7 @@ export type CreateOperacionInput = {
 };
 
 export type UpdateOperacionLineaInput = {
-	producto_id: string;
+	stock_id: string;
 	cantidad?: number;
 	monto_unitario?: number;
 	delta_cantidad?: number;
@@ -121,7 +121,7 @@ export const operacionesService = {
 	{
 		const lineasPayload = Array.isArray(input.lineas)
 			? input.lineas.map((l) => ({
-					producto_id: l.producto_id,
+					stock_id: l.stock_id,
 					cantidad: l.cantidad ?? 0,
 					monto_unitario: l.monto_unitario ?? 0,
 					delta_cantidad: l.delta_cantidad ?? 0,
@@ -167,7 +167,7 @@ export const operacionesService = {
 			if (input.lineas.length > 0) {
 				const lineasPayload = input.lineas.map((l) => ({
 					operacion_id: id,
-					producto_id: l.producto_id,
+					stock_id: l.stock_id,
 					cantidad: l.cantidad ?? 0,
 					monto_unitario: l.monto_unitario ?? 0,
 					delta_cantidad: l.delta_cantidad ?? 0,

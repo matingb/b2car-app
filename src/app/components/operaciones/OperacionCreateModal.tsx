@@ -6,7 +6,6 @@ import { css } from "@emotion/react";
 import { COLOR } from "@/theme/theme";
 import { useOperaciones } from "@/app/providers/OperacionesProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import { useProductos } from "@/app/providers/ProductosProvider";
 import { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import Dropdown from "@/app/components/ui/Dropdown";
 import type { TipoOperacion } from "@/model/types";
@@ -17,6 +16,7 @@ import OperacionLineaEditor, {
 } from "./OperacionLineaEditor";
 import { formatArs } from "@/lib/format";
 import Button from "../ui/Button";
+import { useInventario } from "@/app/providers/InventarioProvider";
 
 type TallerLite = { id: string; nombre: string };
 
@@ -45,7 +45,7 @@ function round2(n: number) {
 function createEmptyLinea(): LineaDraft {
   return {
     id: crypto.randomUUID?.() ?? String(Math.random()),
-    productoId: "",
+    stockId: "",
     cantidad: 1,
     unitario: 0,
     total: 0,
@@ -75,11 +75,11 @@ export default function OperacionCreateModal({
 }: Props) {
   const { create, loading } = useOperaciones();
   const { success, error } = useToast();
-  const { productos: productosFromProvider, isLoading: isProductosLoading } = useProductos();
 
   const [tipo, setTipo] = useState<OperacionTipoUi | null>("VENTA");
   const [tallerId, setTallerId] = useState<string>("");
   const [lineas, setLineas] = useState<LineaDraft[]>([createEmptyLinea()]);
+  const { inventario, isLoading: isInventarioLoading } = useInventario(tallerId || undefined);
   const didInitRef = React.useRef(false);
   const tipoConfigById = useMemo(
     () => new Map(TIPOS_UI.map((t) => [t.tipo, t])),
@@ -115,19 +115,20 @@ export default function OperacionCreateModal({
     if (talleres.length === 1) setTallerId(talleres[0].id);
   }, [open, talleres, tallerId]);
 
-  const productos = useMemo<ProductoLite[]>(
+  const stockItems = useMemo(
     () =>
-      productosFromProvider.map((p) => ({
-        id: p.id,
-        nombre: p.nombre,
-        codigo: p.codigo,
-        precio_unitario: Number(p.precioUnitario) || 0,
-        costo_unitario: Number(p.costoUnitario) || 0,
+      (inventario ?? []).map((s) => ({
+        id: s.id,
+        nombre: s.nombre,
+        codigo: s.codigo,
+        precio_unitario: Number(s.precioUnitario) || 0,
+        costo_unitario: Number(s.costoUnitario) || 0,
+        stockActual: Number(s.stockActual) || 0,
       })),
-    [productosFromProvider]
+    [inventario]
   );
 
-  // Al cambiar tipo (si está habilitado), recalcular unitario desde producto y total
+  // Al cambiar tipo (si está habilitado), recalcular unitario desde stock/producto y total
   useEffect(() => {
     if (!open) return;
     if (!tipo) return;
@@ -135,29 +136,26 @@ export default function OperacionCreateModal({
 
     setLineas((prev) =>
       prev.map((linea) => {
-        if (!linea.productoId) return linea;
-        const prod = productos.find((p) => p.id === linea.productoId);
-        if (!prod) return linea;
-        const unitario = getDefaultUnitario(prod, tipo);
+        if (!linea.stockId) return linea;
+        const item = stockItems.find((s) => s.id === linea.stockId);
+        if (!item) return linea;
+        const unitario = getDefaultUnitario(item, tipo);
         const total = round2((Number(linea.cantidad) || 0) * unitario);
         return { ...linea, unitario, total };
       }),
     );
-  }, [tipo, productos, open, isTipoEnabled]);
+  }, [tipo, stockItems, open, isTipoEnabled]);
 
-  const productosById = useMemo(
-    () => new Map(productos.map((p) => [p.id, p])),
-    [productos],
-  );
+  const stockById = useMemo(() => new Map(stockItems.map((s) => [s.id, s])), [stockItems]);
 
-  const productoOptions = useMemo<AutocompleteOption[]>(
+  const stockOptions = useMemo<AutocompleteOption[]>(
     () =>
-      productos.map((p) => ({
-        value: p.id,
-        label: p.nombre,
-        secondaryLabel: p.codigo,
+      stockItems.map((s) => ({
+        value: s.id,
+        label: s.nombre,
+        secondaryLabel: `${s.codigo || ""}${s.codigo ? " · " : ""}Stock: ${Number(s.stockActual) || 0}`,
       })),
-    [productos],
+    [stockItems],
   );
 
   const canSubmit = useMemo(() => {
@@ -167,7 +165,7 @@ export default function OperacionCreateModal({
     if (lineas.length === 0) return false;
     return lineas.every(
       (l) =>
-        Boolean(l.productoId) &&
+        Boolean(l.stockId) &&
         Number(l.cantidad) > 0 &&
         Number.isFinite(l.unitario),
     );
@@ -194,7 +192,7 @@ export default function OperacionCreateModal({
           const unitario = Number(l.unitario) || 0;
           const delta = tipo === "VENTA" ? -cantidad : cantidad;
           return {
-            producto_id: l.productoId,
+            stock_id: l.stockId,
             cantidad,
             monto_unitario: unitario,
             delta_cantidad: delta,
@@ -301,11 +299,11 @@ export default function OperacionCreateModal({
             {lineas.map((l, idx) => {
               const disabled = !tipo || !isTipoEnabled(tipo);
               const tipoLinea = !tipo || !isTipoEnabled(tipo) ? null : tipo;
-              const getDefaultUnitarioForProductoId = (productoId: string) => {
+              const getDefaultUnitarioForStockId = (stockId: string) => {
                 if (!tipoLinea) return null;
-                const prod = productosById.get(productoId);
-                if (!prod) return null;
-                return getDefaultUnitario(prod, tipoLinea);
+                const item = stockById.get(stockId);
+                if (!item) return null;
+                return getDefaultUnitario(item, tipoLinea);
               };
               return (
                 <OperacionLineaEditor
@@ -313,10 +311,10 @@ export default function OperacionCreateModal({
                   index={idx}
                   linea={l}
                   disabled={disabled}
-                  loadingProductos={isProductosLoading}
-                  productoOptions={productoOptions}
-                  getDefaultUnitarioForProductoId={
-                    getDefaultUnitarioForProductoId
+                  loadingStocks={isInventarioLoading}
+                  stockOptions={stockOptions}
+                  getDefaultUnitarioForStockId={
+                    getDefaultUnitarioForStockId
                   }
                   onChange={(next) => setLineaAt(idx, next)}
                   onRemove={() => removeLinea(idx)}

@@ -30,7 +30,7 @@ export type AsignacionArregloProducto = {
 export type AsignacionArregloLinea = {
   id: string;
   operacion_id: string;
-  producto_id: string;
+  stock_id: string;
   cantidad: number;
   monto_unitario: number;
   delta_cantidad: number;
@@ -95,19 +95,22 @@ export async function GET(
         operaciones_lineas(
           id,
           operacion_id,
-          producto_id,
+          stock_id,
           cantidad,
           monto_unitario,
           delta_cantidad,
           created_at,
-          producto:productos(
+          stock:stocks(
             id,
-            codigo,
-            nombre,
-            precio_unitario,
-            costo_unitario,
-            proveedor,
-            categorias
+            producto:productos(
+              id,
+              codigo,
+              nombre,
+              precio_unitario,
+              costo_unitario,
+              proveedor,
+              categorias
+            )
           )
         )
       )
@@ -139,11 +142,12 @@ export async function GET(
           const lineasRaw = Array.isArray(op.operaciones_lineas) ? (op.operaciones_lineas as unknown[]) : [];
           const lineas: AsignacionArregloLinea[] = lineasRaw.map((l) => {
             const linea = l as Record<string, unknown>;
-            const prod = (linea.producto ?? null) as Record<string, unknown> | null;
+            const stock = (linea.stock ?? null) as Record<string, unknown> | null;
+            const prod = (stock?.producto ?? null) as Record<string, unknown> | null;
             return {
               id: String(linea.id ?? ""),
               operacion_id: String(linea.operacion_id ?? ""),
-              producto_id: String(linea.producto_id ?? ""),
+              stock_id: String(linea.stock_id ?? ""),
               cantidad: Number(linea.cantidad ?? 0) || 0,
               monto_unitario: Number(linea.monto_unitario ?? 0) || 0,
               delta_cantidad: Number(linea.delta_cantidad ?? 0) || 0,

@@ -2,22 +2,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { runPendingPromises } from "@/tests/testUtils";
-import { createProducto } from "@/tests/factories";
-import { productosClient } from "@/clients/productosClient";
 import OperacionCreateModal from "./OperacionCreateModal";
 
-let mockProductos: ReturnType<typeof createProducto>[] = [];
-const mockProductosApi = {
-  productos: mockProductos,
+const mockInventario: unknown[] = [];
+const mockInventarioApi = {
+  inventario: mockInventario,
   isLoading: false,
-  loadProductos: vi.fn(),
-  getProductoById: vi.fn(),
-  updateProducto: vi.fn(),
-  removeProducto: vi.fn(),
+  loadInventarioByTaller: vi.fn(),
+  getStockById: vi.fn(),
+  upsertStock: vi.fn(),
+  updateStock: vi.fn(),
+  removeStock: vi.fn(),
+  tallerId: null,
 };
 
-vi.mock("@/app/providers/ProductosProvider", () => ({
-  useProductos: () => mockProductosApi,
+vi.mock("@/app/providers/InventarioProvider", () => ({
+  useInventario: () => mockInventarioApi,
 }));
 
 vi.mock("@/app/components/ui/Autocomplete", () => ({
@@ -60,24 +60,9 @@ vi.mock("@/app/providers/ToastProvider", () => ({
   }),
 }));
 
-vi.mock("@/clients/productosClient", () => ({
-  productosClient: {
-    getAll: vi.fn(),
-  },
-}));
-
 describe("OperacionCreateModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (productosClient.getAll as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: [],
-    });
-
-    mockProductos = [
-      createProducto({ id: "PROD-001" }),
-      createProducto({ id: "PROD-EXTRA", codigo: "COD-EXTRA" }),
-    ];
-    mockProductosApi.productos = mockProductos;
   });
 
   it("si hay un solo taller, no muestra el dropdown de talleres", async () => {

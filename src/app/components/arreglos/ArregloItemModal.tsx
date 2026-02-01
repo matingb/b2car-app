@@ -37,20 +37,20 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
   const [valorServicio, setValorServicio] = useState("0");
 
   // repuesto
-  const [productoId, setProductoId] = useState("");
+  const [stockId, setStockId] = useState("");
   const [cantidadRepuesto, setCantidadRepuesto] = useState("1");
   const [montoUnitario, setMontoUnitario] = useState("");
 
   const selectedStockItem = useMemo(() => {
-    if (!productoId) return null;
-    return inventario.find((s) => s.productoId === productoId) ?? null;
-  }, [inventario, productoId]);
+    if (!stockId) return null;
+    return inventario.find((s) => s.id === stockId) ?? null;
+  }, [inventario, stockId]);
 
   const stockActual = selectedStockItem ? safeNumber(selectedStockItem.stockActual) : null;
 
   const productoOptions: AutocompleteOption[] = useMemo(() => {
     return (inventario ?? []).map((s) => ({
-      value: s.productoId,
+      value: s.id,
       label: s.nombre,
       secondaryLabel: `${s.codigo || ""}${s.codigo ? " · " : ""}Stock: ${safeNumber(s.stockActual)}`,
     }));
@@ -81,7 +81,7 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
     }
 
     if (!tallerId) return false;
-    if (!productoId) return false;
+    if (!stockId) return false;
     if (!Number.isFinite(repuestoCantidad) || repuestoCantidad <= 0) return false;
     if (!Number.isFinite(repuestoMontoUnitario) || repuestoMontoUnitario < 0) return false;
     // permitir seleccionar, pero no permitir guardar si no hay stock suficiente
@@ -94,7 +94,7 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
     servicioCantidad,
     servicioValor,
     tallerId,
-    productoId,
+    stockId,
     repuestoCantidad,
     repuestoMontoUnitario,
     repuestoSinStock,
@@ -105,7 +105,7 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
     setDescripcion("");
     setCantidadServicio("1");
     setValorServicio("0");
-    setProductoId("");
+    setStockId("");
     setCantidadRepuesto("1");
     setMontoUnitario("");
     setMode("servicio");
@@ -127,7 +127,7 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
       } else {
         await upsertRepuestoLinea(arregloId, {
           taller_id: tallerId!,
-          producto_id: productoId,
+          stock_id: stockId,
           cantidad: repuestoCantidad,
           monto_unitario: repuestoMontoUnitario,
         });
@@ -234,10 +234,10 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
               </label>
               <Autocomplete
                 options={productoOptions}
-                value={productoId}
+                value={stockId}
                 onChange={(v) => {
-                  setProductoId(v);
-                  const found = inventario.find((s) => s.productoId === v);
+                  setStockId(v);
+                  const found = inventario.find((s) => s.id === v);
                   if (found && montoUnitario.trim().length === 0) {
                     setMontoUnitario(String(safeNumber(found.precioUnitario) || 0));
                   }

@@ -28,7 +28,7 @@ function mapLinea(row: OperacionLineaDTO): OperacionLinea {
 	return {
 		id: row.id,
 		operacion_id: row.operacion_id,
-		producto_id: row.producto_id,
+		stock_id: row.stock_id,
 		cantidad: Number(row.cantidad) || 0,
 		monto_unitario: Number(row.monto_unitario) || 0,
 		delta_cantidad: Number(row.delta_cantidad) || 0,

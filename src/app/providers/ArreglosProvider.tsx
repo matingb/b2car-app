@@ -39,7 +39,7 @@ type ArreglosContextType = {
 
   upsertRepuestoLinea: (
     arregloId: string | number,
-    input: { taller_id: string; producto_id: string; cantidad: number; monto_unitario: number }
+    input: { taller_id: string; stock_id: string; cantidad: number; monto_unitario: number }
   ) => Promise<void>;
   deleteRepuestoLinea: (arregloId: string | number, lineaId: string) => Promise<void>;
 };
@@ -156,7 +156,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
 
   const upsertRepuestoLinea = useCallback(async (
     arregloId: string | number,
-    input: { taller_id: string; producto_id: string; cantidad: number; monto_unitario: number }
+    input: { taller_id: string; stock_id: string; cantidad: number; monto_unitario: number }
   ) => {
     setLoading(true);
     try {

@@ -886,12 +886,6 @@ CREATE INDEX "idx_op_asig_arreglo_arreglo_id" ON "public"."operaciones_asignacio
 
 
 
-CREATE INDEX "idx_operaciones_lineas_operacion_id" ON "public"."operaciones_lineas" USING "btree" ("operacion_id");
-
-
-
-CREATE INDEX "idx_operaciones_lineas_producto_id" ON "public"."operaciones_lineas" USING "btree" ("producto_id");
-
 
 
 CREATE INDEX "idx_operaciones_tenant" ON "public"."operaciones" USING "btree" ("tenant_id");
@@ -965,11 +959,6 @@ CREATE INDEX "stocks_tenant_id_idx" ON "public"."stocks" USING "btree" ("tenant_
 CREATE INDEX "talleres_tenant_id_idx" ON "public"."talleres" USING "btree" ("tenant_id");
 
 
-
-CREATE UNIQUE INDEX "uq_operaciones_lineas_operacion_producto" ON "public"."operaciones_lineas" USING "btree" ("operacion_id", "producto_id");
-
-
-
 CREATE OR REPLACE TRIGGER "productos_set_updated_at" BEFORE UPDATE ON "public"."productos" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
 
@@ -1027,12 +1016,6 @@ ALTER TABLE ONLY "public"."operaciones_asignacion_arreglo"
 
 ALTER TABLE ONLY "public"."operaciones_lineas"
     ADD CONSTRAINT "operaciones_lineas_operacion_id_fkey" FOREIGN KEY ("operacion_id") REFERENCES "public"."operaciones"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."operaciones_lineas"
-    ADD CONSTRAINT "operaciones_lineas_producto_id_fkey" FOREIGN KEY ("producto_id") REFERENCES "public"."productos"("id") ON DELETE CASCADE;
-
 
 
 ALTER TABLE ONLY "public"."operaciones"

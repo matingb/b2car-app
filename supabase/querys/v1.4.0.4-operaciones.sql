@@ -21,7 +21,7 @@ CREATE INDEX IF NOT EXISTS idx_operaciones_tenant_tipo_created ON public.operaci
 CREATE TABLE IF NOT EXISTS operaciones_lineas(
     id uuid primary key default gen_random_uuid(),
     operacion_id uuid not null references public.operaciones(id) on delete cascade,
-    producto_id uuid not null references public.productos(id) on delete cascade,
+    stock_id uuid not null references public.stocks(id) on delete cascade,
     cantidad integer not null default 0,
     monto_unitario numeric(12,2) not null default 0,
     delta_cantidad integer not null default 0,
@@ -29,8 +29,8 @@ CREATE TABLE IF NOT EXISTS operaciones_lineas(
 );
 
 CREATE INDEX IF NOT EXISTS idx_operaciones_lineas_operacion_id ON public.operaciones_lineas (operacion_id);
-CREATE INDEX IF NOT EXISTS idx_operaciones_lineas_producto_id ON public.operaciones_lineas (producto_id);
-CREATE UNIQUE INDEX uq_operaciones_lineas_operacion_producto ON operaciones_lineas (operacion_id, producto_id);
+CREATE INDEX IF NOT EXISTS idx_operaciones_lineas_stock_id ON public.operaciones_lineas (stock_id);
+CREATE UNIQUE INDEX uq_operaciones_lineas_operacion_stock ON operaciones_lineas (operacion_id, stock_id);
 
 
 CREATE TABLE IF NOT EXISTS operaciones_asignacion_arreglo(
@@ -99,7 +99,7 @@ with check (
 -- RPC: crea operación + líneas + aplica stock (atómico)
 -- lineas: JSONB array de objetos:
 --   [
---     {"producto_id":"uuid", "cantidad": 3, "monto_unitario": 1200.50},
+--     {"stock_id":"uuid", "cantidad": 3, "monto_unitario": 1200.50},
 --     ...
 --   ]
 -- Para AJUSTE podés mandar opcionalmente "delta_cantidad" (puede ser + o -).
@@ -119,12 +119,14 @@ DECLARE
   v_operacion_id uuid;
 
   l jsonb;
-  v_producto_id uuid;
+  v_stock_id uuid;
   v_cantidad    int;
   v_monto       numeric(12,2);
   v_delta       int;
 
   v_rowcount int;
+  v_expected_ids int;
+  v_found_ids int;
 BEGIN
   -- tenant desde JWT del caller
   v_tenant_id := (auth.jwt() ->> 'tenant_id')::uuid;
@@ -138,14 +140,44 @@ BEGIN
     RAISE EXCEPTION 'lineas debe ser un array no vacío';
   END IF;
 
-  -- ESTO BLOQUEA LA FILA DE STOCK PARA QUE TRANSACCIONES ESPEREN A QUE TERMINE LA ANTERIOR
-  PERFORM 1
-  FROM public.stocks s
-  WHERE s.taller_id = p_taller_id
-    AND s.producto_id IN (
-      SELECT DISTINCT (line_elem ->> 'producto_id')::uuid
+  -- Validar existencia de stocks (y que correspondan al taller)
+  v_expected_ids := (
+    SELECT COUNT(DISTINCT (line_elem ->> 'stock_id')::uuid)
+    FROM jsonb_array_elements(p_lineas) AS line_elem
+  );
+
+  v_found_ids := (
+    SELECT COUNT(*)
+    FROM public.stocks s
+    WHERE s.id IN (
+      SELECT DISTINCT (line_elem ->> 'stock_id')::uuid
       FROM jsonb_array_elements(p_lineas) AS line_elem
     )
+  );
+
+  IF v_expected_ids <> v_found_ids THEN
+    RAISE EXCEPTION 'Algún stock_id no existe';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.stocks s
+    WHERE s.id IN (
+      SELECT DISTINCT (line_elem ->> 'stock_id')::uuid
+      FROM jsonb_array_elements(p_lineas) AS line_elem
+    )
+      AND s.taller_id <> p_taller_id
+    LIMIT 1
+  ) THEN
+    RAISE EXCEPTION 'Algún stock_id no pertenece al taller';
+  END IF;
+
+  PERFORM 1
+  FROM public.stocks s
+  WHERE s.id IN (
+    SELECT DISTINCT (line_elem ->> 'stock_id')::uuid
+    FROM jsonb_array_elements(p_lineas) AS line_elem
+  )
   FOR UPDATE;
 
   --  ----- CREA OPERACION --------
@@ -166,12 +198,12 @@ BEGIN
   -- líneas + stock
   FOR l IN SELECT * FROM jsonb_array_elements(p_lineas)
   LOOP
-    v_producto_id := (l ->> 'producto_id')::uuid;
+    v_stock_id := (l ->> 'stock_id')::uuid;
     v_cantidad    := (l ->> 'cantidad')::int;
     v_monto       := COALESCE((l ->> 'monto_unitario')::numeric, 0);
 
-    IF v_producto_id IS NULL OR v_cantidad IS NULL OR v_cantidad <= 0 THEN
-      RAISE EXCEPTION 'linea inválida (producto_id %, cantidad %)', v_producto_id, v_cantidad;
+    IF v_stock_id IS NULL OR v_cantidad IS NULL OR v_cantidad <= 0 THEN
+      RAISE EXCEPTION 'linea inválida (stock_id %, cantidad %)', v_stock_id, v_cantidad;
     END IF;
 
     v_delta :=
@@ -185,14 +217,14 @@ BEGIN
       END;
 
     IF v_delta = 0 THEN
-      RAISE EXCEPTION 'delta inválido para producto %', v_producto_id;
+      RAISE EXCEPTION 'delta inválido para stock %', v_stock_id;
     END IF;
 
     INSERT INTO public.operaciones_lineas (
-      operacion_id, producto_id, cantidad, monto_unitario, delta_cantidad
+      operacion_id, stock_id, cantidad, monto_unitario, delta_cantidad
     )
     VALUES (
-      v_operacion_id, v_producto_id, v_cantidad, v_monto, v_delta
+      v_operacion_id, v_stock_id, v_cantidad, v_monto, v_delta
     );
 
     -- aplicar stock
@@ -200,22 +232,24 @@ BEGIN
       UPDATE public.stocks s
       SET cantidad = s.cantidad + v_delta,
           updated_at = now()
-      WHERE s.taller_id  = p_taller_id
-        AND s.producto_id = v_producto_id
+      WHERE s.id = v_stock_id
         AND s.cantidad >= (-v_delta);
 
       GET DIAGNOSTICS v_rowcount = ROW_COUNT;
       IF v_rowcount = 0 THEN
-        RAISE EXCEPTION 'STOCK_INSUFICIENTE (producto %)', v_producto_id;
+        RAISE EXCEPTION 'STOCK_INSUFICIENTE (stock %)', v_stock_id;
       END IF;
 
     ELSE
-      INSERT INTO public.stocks (tenant_id, taller_id, producto_id, cantidad)
-      VALUES (v_tenant_id, p_taller_id, v_producto_id, v_delta)
-      ON CONFLICT (taller_id, producto_id)
-      DO UPDATE SET
-        cantidad   = public.stocks.cantidad + EXCLUDED.cantidad,
-        updated_at = now();
+      UPDATE public.stocks s
+      SET cantidad = s.cantidad + v_delta,
+          updated_at = now()
+      WHERE s.id = v_stock_id;
+
+      GET DIAGNOSTICS v_rowcount = ROW_COUNT;
+      IF v_rowcount = 0 THEN
+        RAISE EXCEPTION 'stock no encontrado (%)', v_stock_id;
+      END IF;
     END IF;
   END LOOP;
 

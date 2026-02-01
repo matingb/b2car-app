@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 export type UpsertRepuestoLineaRequest = {
   taller_id: string;
-  producto_id: string;
+  stock_id: string;
   cantidad: number;
   monto_unitario: number;
 };
@@ -26,7 +26,7 @@ export async function POST(
   }
 
   const tallerId = String(body.taller_id ?? "").trim();
-  const productoId = String(body.producto_id ?? "").trim();
+  const stockId = String(body.stock_id ?? "").trim();
   const cantidad = Number(body.cantidad);
   const montoUnitario = Number(body.monto_unitario);
 
@@ -36,8 +36,8 @@ export async function POST(
   if (!tallerId) {
     return Response.json({ data: null, error: "Falta taller_id" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
-  if (!productoId) {
-    return Response.json({ data: null, error: "Falta producto_id" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  if (!stockId) {
+    return Response.json({ data: null, error: "Falta stock_id" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
   if (!Number.isFinite(cantidad) || cantidad <= 0) {
     return Response.json({ data: null, error: "Cantidad inválida" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
@@ -49,7 +49,7 @@ export async function POST(
   const { data, error } = await supabase.rpc("rpc_set_asignacion_arreglo_linea", {
     p_arreglo_id: arregloId,
     p_taller_id: tallerId,
-    p_producto_id: productoId,
+    p_stock_id: stockId,
     p_cantidad: cantidad,
     p_monto_unitario: montoUnitario,
   });

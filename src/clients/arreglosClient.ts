@@ -173,7 +173,7 @@ export const arreglosClient = {
 
   async upsertRepuestoLinea(
     arregloId: string | number,
-    input: { taller_id: string; producto_id: string; cantidad: number; monto_unitario: number }
+    input: { taller_id: string; stock_id: string; cantidad: number; monto_unitario: number }
   ): Promise<UpsertRepuestoLineaResponse> {
     try {
       const res = await fetch(`/api/arreglos/${arregloId}/repuestos`, {

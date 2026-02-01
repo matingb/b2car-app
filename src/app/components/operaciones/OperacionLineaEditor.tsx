@@ -8,7 +8,7 @@ import IconButton from "@/app/components/ui/IconButton";
 import { COLOR } from "@/theme/theme";
 export type OperacionLineaDraft = {
   id: string;
-  productoId: string;
+  stockId: string;
   cantidad: number;
   unitario: number;
   total: number;
@@ -23,9 +23,9 @@ type Props = {
   index: number;
   linea: OperacionLineaDraft;
   disabled: boolean;
-  loadingProductos: boolean;
-  productoOptions: AutocompleteOption[];
-  getDefaultUnitarioForProductoId?: (productoId: string) => number | null;
+  loadingStocks: boolean;
+  stockOptions: AutocompleteOption[];
+  getDefaultUnitarioForStockId?: (stockId: string) => number | null;
   onChange: (next: OperacionLineaDraft) => void;
   onRemove?: () => void;
   canRemove?: boolean;
@@ -39,9 +39,9 @@ export default function OperacionLineaEditor({
   index,
   linea,
   disabled,
-  loadingProductos,
-  productoOptions,
-  getDefaultUnitarioForProductoId,
+  loadingStocks,
+  stockOptions,
+  getDefaultUnitarioForStockId,
   onChange,
   onRemove,
   canRemove = false,
@@ -59,9 +59,9 @@ export default function OperacionLineaEditor({
     return { ...next, unitario };
   };
 
-  const onProductoChange = (productoId: string) => {
-    const base: OperacionLineaDraft = { ...linea, productoId };
-    const unitDefault = getDefaultUnitarioForProductoId?.(productoId);
+  const onStockChange = (stockId: string) => {
+    const base: OperacionLineaDraft = { ...linea, stockId };
+    const unitDefault = getDefaultUnitarioForStockId?.(stockId);
     if (typeof unitDefault === "number" && Number.isFinite(unitDefault)) {
       onChange(recomputeFromUnit({ ...base, unitario: unitDefault }));
       return;
@@ -85,12 +85,12 @@ export default function OperacionLineaEditor({
     <div css={styles.lineRow} data-testid={`operaciones-line-${index}`}>
       <div>
         <Autocomplete
-          options={productoOptions}
-          value={linea.productoId}
-          onChange={onProductoChange}
-          placeholder={loadingProductos ? "Cargando productos..." : "Buscar producto..."}
-          disabled={disabled || loadingProductos}
-          dataTestId={`operaciones-line-${index}-producto`}
+          options={stockOptions}
+          value={linea.stockId}
+          onChange={onStockChange}
+          placeholder={loadingStocks ? "Cargando inventario..." : "Buscar item..."}
+          disabled={disabled || loadingStocks}
+          dataTestId={`operaciones-line-${index}-stock`}
           style={styles.autocompleteCompact}
           inputStyle={styles.controlInput}
         />

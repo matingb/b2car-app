@@ -102,7 +102,7 @@ export type OperacionDTO = {
 export type OperacionLineaDTO = {
     id: string;
     operacion_id: string;
-    producto_id: string;
+    stock_id: string;
     cantidad: number;
     monto_unitario: number;
     delta_cantidad: number;

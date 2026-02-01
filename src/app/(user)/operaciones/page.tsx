@@ -7,7 +7,6 @@ import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import Card from "@/app/components/ui/Card";
 import IconLabel from "@/app/components/ui/IconLabel";
 import { useOperaciones } from "@/app/providers/OperacionesProvider";
-import { useProductos } from "@/app/providers/ProductosProvider";
 import type { Operacion } from "@/model/types";
 import { formatDateLabel, formatDateTimeLabel } from "@/lib/fechas";
 import { formatArs } from "@/lib/format";
@@ -85,13 +84,10 @@ function getTotals(operacion: Operacion) {
 
 export default function OperacionesPage() {
     const { operaciones, loading, selectedTipos, stats, setSelectedTipos } = useOperaciones();
-    const { productos } = useProductos();
     const { talleres } = useTenant();
     const [search, setSearch] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [expandedOperacionId, setExpandedOperacionId] = useState<string | null>(null);
-
-    const productosById = useMemo(() => new Map(productos.map((p) => [p.id, p])), [productos]);
 
     const toggleTipo = (tipo: TipoOperacion) => {
         setSelectedTipos((prev) =>
@@ -260,16 +256,15 @@ export default function OperacionesPage() {
                                         <div style={styles.expandedTitle}>Productos</div>
                                         <div style={styles.expandedList}>
                                             {(operacion.lineas ?? []).map((linea) => {
-                                                const producto = productosById.get(linea.producto_id);
                                                 const total = (linea.cantidad || 0) * (linea.monto_unitario || 0);
                                                 return (
                                                     <div key={linea.id} style={styles.expandedRow}>
                                                         <div style={styles.expandedLeft}>
                                                             <div style={styles.expandedProductName}>
-                                                                {producto?.nombre ?? shortId(linea.producto_id)}
+                                                                {shortId(linea.stock_id)}
                                                             </div>
                                                             <div style={styles.expandedProductMeta}>
-                                                                {producto?.codigo ? `Código: ${producto.codigo}` : `ID: ${shortId(linea.producto_id)}`}
+                                                                {`Stock ID: ${shortId(linea.stock_id)}`}
                                                             </div>
                                                         </div>
                                                         <div style={styles.expandedRight}>
