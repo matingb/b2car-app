@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 
@@ -22,12 +23,20 @@ export async function DELETE(
   // Verificar pertenencia de la línea al arreglo (y a una operación asignación)
   const { data: ownsRow, error: ownsErr } = await supabase
     .from("operaciones_lineas")
-    .select("id, operacion_id, asig:operaciones_asignacion_arreglo!inner(arreglo_id)")
+    .select(`
+    id,
+    operacion_id,
+    operacion:operaciones!inner(
+      id,
+      asignacion:operaciones_asignacion_arreglo!inner(arreglo_id)
+    )
+  `)
     .eq("id", lineaId)
-    .eq("asig.arreglo_id", arregloId)
+    .eq("operacion.asignacion.arreglo_id", arregloId)
     .maybeSingle();
 
   if (ownsErr) {
+    logger.error("Error validando repuesto para eliminación", { error: ownsErr, arregloId, lineaId });
     return Response.json({ error: "Error validando repuesto" } satisfies DeleteRepuestoLineaResponse, { status: 500 });
   }
   if (!ownsRow?.id) {

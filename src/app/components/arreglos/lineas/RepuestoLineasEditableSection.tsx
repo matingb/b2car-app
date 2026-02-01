@@ -9,6 +9,7 @@ import { useInventario } from "@/app/providers/InventarioProvider";
 import LineasSectionShell from "./LineasSectionShell";
 import { itemIconCircleStyle, styles } from "./lineaStyles";
 import { useInlineEditor } from "./useInlineEditor";
+import Card from "../../ui/Card";
 
 export type RepuestoLinea = {
   id: string;
@@ -184,19 +185,24 @@ export default function RepuestoLineasEditableSection({
 
           if (!isRowEditing) {
             return (
-              <div key={item.id} style={styles.itemCard}>
+              <Card key={item.id} style={styles.itemCard}>
                 <div style={itemIconCircleStyle("repuestos")}>
                   <Package size={18} color={COLOR.SEMANTIC.SUCCESS} />
                 </div>
 
                 <div style={styles.itemMain}>
-                  <div style={styles.itemTitle}>{titleText}</div>
+                  <div style={styles.itemTitle}>
+                    {titleText}
+                    {code ? (
+                      <span style={{ marginLeft: 8, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500 }}>
+                        {code}
+                      </span>
+                    ) : null}
+                  </div>
                   <div style={styles.itemSubTitle}>
                     {renderQtyXUnit(item.cantidad, item.monto_unitario)}
                   </div>
                 </div>
-
-                {code ? <div style={styles.codePill}>{code}</div> : null}
 
                 <div style={styles.itemTotal}>{formatMoney(total)}</div>
 
@@ -219,7 +225,7 @@ export default function RepuestoLineasEditableSection({
                 >
                   <Trash2 size={18} color={COLOR.ICON.DANGER} />
                 </button>
-              </div>
+              </Card>
             );
           }
 
@@ -232,14 +238,20 @@ export default function RepuestoLineasEditableSection({
           const hasStockIssue = stockActual !== null && delta > 0 && delta > stockActual;
 
           return (
-            <div key={item.id} style={{ ...styles.itemCard, gap: 10 }}>
+            <Card key={item.id} style={{ ...styles.itemCard, gap: 10, flexWrap: "wrap" }}>
               <div style={itemIconCircleStyle("repuestos")}>
                 <Package size={18} color={COLOR.SEMANTIC.SUCCESS} />
               </div>
 
               <div style={styles.itemMain}>
-                <div style={styles.itemTitle}>{titleText}</div>
-                {code ? <div style={{ marginTop: 6, display: "inline-flex" }}><span style={styles.codePill}>{code}</span></div> : null}
+                <div style={styles.itemTitle}>
+                  {titleText}
+                  {code ? (
+                    <span style={{ marginLeft: 8, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500 }}>
+                      {code}
+                    </span>
+                  ) : null}
+                </div>
                 {stock ? (
                   <div style={{ marginTop: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
                     Stock actual: <b>{Number(stock.stockActual) || 0}</b>
@@ -247,9 +259,9 @@ export default function RepuestoLineasEditableSection({
                 ) : null}
               </div>
 
-              <div style={{ ...styles.editorGrid, gridTemplateColumns: "72px 120px 110px" as const }}>
+              <div style={{ ...styles.editorGrid, flex: "1 1 280px" }}>
                 <input
-                  style={{ ...styles.editorInput, ...styles.editorInputRight }}
+                  style={{ ...styles.editorInput, ...styles.editorInputRight, flex: "0 0 72px" }}
                   inputMode="numeric"
                   pattern="[0-9]*"
                   value={draft.cantidad}
@@ -259,7 +271,7 @@ export default function RepuestoLineasEditableSection({
                   aria-label="Cantidad"
                 />
                 <input
-                  style={{ ...styles.editorInput, ...styles.editorInputRight }}
+                  style={{ ...styles.editorInput, ...styles.editorInputRight, flex: "0 0 120px" }}
                   inputMode="numeric"
                   pattern="[0-9]*"
                   value={draft.montoUnitario}
@@ -268,7 +280,9 @@ export default function RepuestoLineasEditableSection({
                   disabled={!canInteract || !tallerId}
                   aria-label="Precio unitario"
                 />
-                <div style={styles.itemTotal}>{formatMoney(totalDraft)}</div>
+                <div style={{ ...styles.itemTotal, flex: "0 0 110px", textAlign: "right" }}>
+                  {formatMoney(totalDraft)}
+                </div>
               </div>
 
               <button
@@ -297,7 +311,7 @@ export default function RepuestoLineasEditableSection({
                   Stock insuficiente
                 </div>
               ) : null}
-            </div>
+            </Card>
           );
         })}
 
@@ -315,12 +329,12 @@ export default function RepuestoLineasEditableSection({
             })();
 
             return (
-              <div style={{ ...styles.itemCard, gap: 10 }}>
+              <Card style={{ ...styles.itemCard, gap: 10, flexWrap: "wrap" }}>
                 <div style={itemIconCircleStyle("repuestos")}>
                   <Package size={18} color={COLOR.SEMANTIC.SUCCESS} />
                 </div>
 
-                <div style={{ ...styles.editorGrid, gridTemplateColumns: "minmax(240px, 1fr) 72px 120px 110px" }}>
+                <div style={{ ...styles.editorGrid, flex: "1 1 340px", justifyContent: "flex-end" }}>
                   <Autocomplete
                     options={stockOptions}
                     value={draft.stockId}
@@ -333,9 +347,10 @@ export default function RepuestoLineasEditableSection({
                     }}
                     placeholder={isLoading ? "Cargando inventario..." : "Buscar producto..."}
                     disabled={!tallerId || isLoading || !canInteract}
+                    style={{ flex: "1 1 240px" }}
                   />
                   <input
-                    style={{ ...styles.editorInput, ...styles.editorInputRight }}
+                    style={{ ...styles.editorInput, ...styles.editorInputRight, flex: "0 0 72px" }}
                     inputMode="numeric"
                     pattern="[0-9]*"
                     value={draft.cantidad}
@@ -345,7 +360,7 @@ export default function RepuestoLineasEditableSection({
                     aria-label="Cantidad"
                   />
                   <input
-                    style={{ ...styles.editorInput, ...styles.editorInputRight }}
+                    style={{ ...styles.editorInput, ...styles.editorInputRight, flex: "0 0 120px" }}
                     inputMode="numeric"
                     pattern="[0-9]*"
                     value={draft.montoUnitario}
@@ -354,7 +369,9 @@ export default function RepuestoLineasEditableSection({
                     disabled={!tallerId || !canInteract}
                     aria-label="Precio unitario"
                   />
-                  <div style={styles.itemTotal}>{formatMoney(totalDraft)}</div>
+                  <div style={{ ...styles.itemTotal, flex: "0 0 110px", textAlign: "right" }}>
+                    {formatMoney(totalDraft)}
+                  </div>
                 </div>
 
                 <button
@@ -383,7 +400,7 @@ export default function RepuestoLineasEditableSection({
                     Stock insuficiente
                   </div>
                 ) : null}
-              </div>
+              </Card>
             );
           })()
         ) : (

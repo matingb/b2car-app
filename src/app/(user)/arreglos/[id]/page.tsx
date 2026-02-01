@@ -431,7 +431,7 @@ export default function ArregloDetailsPage() {
           style={{
             height: 1,
             background: COLOR.BORDER.SUBTLE,
-            margin: "18px 0",
+            margin: "12px 0",
           }}
         />
 
@@ -455,7 +455,7 @@ export default function ArregloDetailsPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={styles.dotBlue} />
                 <span style={{ color: COLOR.TEXT.SECONDARY }}>Servicios:</span>
-                <span style={{ fontWeight: 800 }}>
+                <span style={{ fontWeight: 600 }}>
                   {formatArs(subtotalServicios, {
                     maxDecimals: 0,
                     minDecimals: 0,
@@ -465,7 +465,7 @@ export default function ArregloDetailsPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={styles.dotGreen} />
                 <span style={{ color: COLOR.TEXT.SECONDARY }}>Productos:</span>
-                <span style={{ fontWeight: 800 }}>
+                <span style={{ fontWeight: 600 }}>
                   {formatArs(subtotalRepuestos, {
                     maxDecimals: 0,
                     minDecimals: 0,

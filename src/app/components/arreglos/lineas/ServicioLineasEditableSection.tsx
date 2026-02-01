@@ -7,6 +7,7 @@ import { COLOR } from "@/theme/theme";
 import LineasSectionShell from "./LineasSectionShell";
 import { itemIconCircleStyle, styles } from "./lineaStyles";
 import { useInlineEditor } from "./useInlineEditor";
+import Card from "../../ui/Card";
 
 export type ServicioLinea = {
   id: string;
@@ -137,7 +138,7 @@ export default function ServicioLineasEditableSection({
 
           if (!isRowEditing) {
             return (
-              <div key={item.id} style={styles.itemCard}>
+              <Card key={item.id} style={styles.itemCard}>
                 <div style={itemIconCircleStyle("servicios")}>
                   <Wrench size={18} color={COLOR.ACCENT.PRIMARY} />
                 </div>
@@ -170,10 +171,10 @@ export default function ServicioLineasEditableSection({
                 >
                   <Trash2 size={18} color={COLOR.ICON.DANGER} />
                 </button>
-              </div>
+              </Card>
             );
           }
-
+          
           const parsed = validateCurrent();
           const totalDraft =
             safeInt(draft.cantidad) * safeMoney(draft.valor);
@@ -183,7 +184,7 @@ export default function ServicioLineasEditableSection({
           };
 
           return (
-            <div key={item.id} style={{ ...styles.itemCard, gap: 10 }}>
+            <Card key={item.id} style={{ ...styles.itemCard, gap: 10 }}>
               <div style={itemIconCircleStyle("servicios")}>
                 <Wrench size={18} color={COLOR.ACCENT.PRIMARY} />
               </div>
@@ -239,7 +240,7 @@ export default function ServicioLineasEditableSection({
               >
                 <X size={18} color={COLOR.ICON.DANGER} />
               </button>
-            </div>
+            </Card>
           );
         })}
 

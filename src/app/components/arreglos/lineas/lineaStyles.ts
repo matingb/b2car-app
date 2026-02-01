@@ -31,10 +31,7 @@ export const styles = {
     display: "flex",
     alignItems: "center",
     gap: 14,
-    padding: "14px 14px",
-    borderRadius: 12,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.SUBTLE,
+    
   },
   itemIconCircleBase: {
     width: 36,
@@ -115,7 +112,7 @@ export const styles = {
     border: `2px dashed ${COLOR.BORDER.SUBTLE}`,
     background: "transparent",
     color: COLOR.TEXT.SECONDARY,
-    fontWeight: 700,
+    fontWeight: 600,
     cursor: "pointer",
   } as const,
   editorInput: {
@@ -136,8 +133,8 @@ export const styles = {
   editorGrid: {
     flex: 1,
     minWidth: 0,
-    display: "grid",
-    gridTemplateColumns: "minmax(180px, 1fr) 86px 130px",
+    display: "flex",
+    flexWrap: "wrap" as const,
     gap: 10,
     alignItems: "center",
   } as const,

@@ -51,10 +51,10 @@ const styles = {
   },
   subtotalLabel: {
     color: COLOR.TEXT.SECONDARY,
-    fontWeight: 700,
+    fontWeight: 600,
   },
   subtotalValue: {
-    fontWeight: 800,
+    fontWeight: 700,
     fontSize: 16,
     color: COLOR.ACCENT.PRIMARY,
   },
