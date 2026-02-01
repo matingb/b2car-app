@@ -117,7 +117,7 @@ export default function OperacionesPage() {
         <div>
             <ScreenHeader
                 title="Operaciones"
-                subtitle="Gestiona compras y ventas de stock"
+                subtitle="Gestioná los movimientos del stock: compras, ventas, ingresos y egresos."
             />
             <div css={styles.cardDatosContainer}>
                 <CardDato

@@ -37,11 +37,15 @@ function StockPageContent() {
 
   logger.debug(inventario, tallerSeleccionadoId)
 
+  const stockSubtitle = `Administra el inventario de repuestos y productos${
+    talleres.length > 1 ? " por taller" : ""
+  }`;
+
   return (
     <div>
       <ScreenHeader
         title="Stock"
-        subtitle="Administra el inventario de repuestos y productos"
+        subtitle={stockSubtitle}
       />
 
       <div style={{ marginTop: 12 }}>

@@ -27,7 +27,10 @@ function ProductosPageContent() {
 
   return (
     <div>
-      <ScreenHeader title="Productos" />
+      <ScreenHeader
+        title="Productos"
+        subtitle="Definí qué productos existen en el sistema y sus características"
+      />
       
       <div style={{ marginTop: 12 }}>
         <ProductosToolbar
