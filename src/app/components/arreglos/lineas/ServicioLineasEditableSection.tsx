@@ -109,6 +109,7 @@ export default function ServicioLineasEditableSection({
       title={title}
       titleIcon={<Wrench size={18} />}
       subtotal={subtotal}
+      collapseDisabled={isEditing}
     >
       <div style={styles.list}>
         {submitError ? (

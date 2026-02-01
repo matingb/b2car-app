@@ -152,6 +152,7 @@ export default function RepuestoLineasEditableSection({
       title={title}
       titleIcon={<Package size={18} />}
       subtotal={subtotal}
+      collapseDisabled={isEditing}
     >
       <div style={styles.list}>
         {renderWarnNoTaller}

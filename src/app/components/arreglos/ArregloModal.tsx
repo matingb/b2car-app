@@ -222,6 +222,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       disabledSubmit={!isValid}
       modalStyle={{
         width: "min(860px, 96vw)",
+        height: "min(820px, 90dvh)",
         overflow: "auto",
       }}
     >
@@ -252,8 +253,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           </div>
         </div>
 
-        <div css={styles.row}>
-          <div style={styles.field}>
+        <div css={styles.kmRow}>
+          <div css={styles.kmFechaField}>
             <label style={styles.label}>Kilometraje</label>
             <input
               style={styles.input}
@@ -264,13 +265,13 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
               placeholder="123456"
             />
           </div>
-          <div style={styles.field}>
+          <div css={styles.kmFechaField}>
             <label style={styles.label}>
               Fecha <span aria-hidden="true" style={styles.required}>*</span>
             </label>
             <input type="date" style={styles.input} value={fecha} onChange={(e) => setFecha(e.target.value)} />
           </div>
-          <div style={styles.field}>
+          <div css={styles.pagoField}>
             <label style={styles.label}>¿Esta pago?</label>
             <div style={{ display: "flex", alignItems: "center", gap: 8, height: 44 }}>
               <input type="checkbox" checked={estaPago} onChange={(e) => setEstaPago(e.target.checked)} />
@@ -391,6 +392,32 @@ const styles = {
       width: "100%",
       flexDirection: "column",
       gap: 8,
+    },
+  }),
+  kmRow: css({
+    display: "flex",
+    gap: 16,
+    marginTop: 10,
+    width: "auto",
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      width: "100%",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+  }),
+  kmFechaField: css({
+    flex: 1,
+    minWidth: 0,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      flex: "1 1 calc(50% - 4px)",
+      minWidth: 140,
+    },
+  }),
+  pagoField: css({
+    flex: 1,
+    minWidth: 0,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      flex: "1 1 100%",
     },
   }),
   field: { flex: 1 },
