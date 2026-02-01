@@ -20,12 +20,13 @@ export default function MenuSheet() {
 
       <nav css={styles.nav}>
         {items.map((item) => {
-          const isLogout = item.key === SidebarMenuKey.Logout;
-          const isClientes = item.key === SidebarMenuKey.Clientes;
-          const isStock = item.key === SidebarMenuKey.Stock;
+          const showDivider =
+            item.key === SidebarMenuKey.Logout ||
+            item.key === SidebarMenuKey.Clientes ||
+            item.key === SidebarMenuKey.Productos;
           return (
             <div key={item.key}>
-              {isLogout || isClientes || isStock ? (
+              {showDivider ? (
                 <Divider
                   style={{
                     width: "100%",

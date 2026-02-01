@@ -9,8 +9,8 @@ import { TenantProvider } from "@/app/providers/TenantProvider";
 import Divider from "@/app/components/ui/Divider";
 import { PanelLeft } from "lucide-react";
 import { COLOR } from "@/theme/theme";
-import { css } from '@emotion/react'
-import { BREAKPOINTS } from '@/theme/theme'
+import { css } from "@emotion/react";
+import { BREAKPOINTS } from "@/theme/theme";
 import { SidebarMenuKey, useSidebarMenu } from "@/app/hooks/useSidebarMenu";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -47,75 +47,78 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <TenantProvider>
         <ModalMessageProvider>
-            <SheetProvider>
-          <div style={s.appRoot}>
-            <div css={s.pageContent}>
-              <aside css={s.sidebarResponsive} style={s.sidebar} aria-label="Sidebar">
-                <div style={s.card}>
-                  <div style={s.sidebarHeaderRow}>
-                    <div
-                      style={s.brandBadge}
-                      onClick={() => setCollapsed((v) => !v)}
-                      title={collapsed ? "Expandir" : "Colapsar"}
-                      aria-label={
-                        collapsed ? "Expandir sidebar" : "Colapsar sidebar"
-                      }
-                    >
-                      <PanelLeft style={{ width: "3rem" }} size={18} />
+          <SheetProvider>
+            <div style={s.appRoot}>
+              <div css={s.pageContent}>
+                <aside
+                  css={s.sidebarResponsive}
+                  style={s.sidebar}
+                  aria-label="Sidebar"
+                >
+                  <div style={s.card}>
+                    <div style={s.sidebarHeaderRow}>
+                      <div
+                        style={s.brandBadge}
+                        onClick={() => setCollapsed((v) => !v)}
+                        title={collapsed ? "Expandir" : "Colapsar"}
+                        aria-label={
+                          collapsed ? "Expandir sidebar" : "Colapsar sidebar"
+                        }
+                      >
+                        <PanelLeft style={{ width: "3rem" }} size={18} />
+                      </div>
+                      {!collapsed && (
+                        <Divider
+                          orientation="vertical"
+                          style={{
+                            margin: "0.5rem 0.5rem",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        />
+                      )}
+                      <div style={s.brandTextWrap}>
+                        <div style={s.title}>{tenantName}</div>
+                      </div>
                     </div>
-                    {!collapsed && (
-                      <Divider
-                        orientation="vertical"
-                        style={{
-                          margin: "0.5rem 0.5rem",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      />
-                    )}
-                    <div style={s.brandTextWrap}>
-                      <div style={s.title}>{tenantName}</div>
-                    </div>
-                  </div>
 
-                  <nav css={s.navList}>
-                    {items.map((item) => {
-                      const isLogout = item.key === SidebarMenuKey.Logout;
-                      const isClientes = item.key === SidebarMenuKey.Clientes;
-                      const isStock = item.key === SidebarMenuKey.Stock;
-                      return (
-                        <div key={item.key}>
-                          {isLogout || isClientes || isStock ? (
-                            <Divider
-                              style={{
-                                width: collapsed ? "100%" : "100%",
-                                marginBottom: collapsed ? "0.5rem" : "0.5rem",
-                              }}
+                    <nav css={s.navList}>
+                      {items.map((item) => {
+                        const showDivider =
+                          item.key === SidebarMenuKey.Logout ||
+                          item.key === SidebarMenuKey.Clientes ||
+                          item.key === SidebarMenuKey.Productos;
+                        return (
+                          <div key={item.key}>
+                            {showDivider ? (
+                              <Divider
+                                style={{
+                                  width: collapsed ? "100%" : "100%",
+                                  marginBottom: collapsed ? "0.5rem" : "0.5rem",
+                                }}
+                              />
+                            ) : null}
+                            <SidebarItem
+                              href={item.href}
+                              label={item.label}
+                              icon={item.icon}
+                              disabled={item.disabled}
+                              isLoading={item.isLoading}
+                              collapsed={collapsed}
+                              onClick={item.onClick}
                             />
-                          ) : null}
-                          <SidebarItem
-                            href={item.href}
-                            label={item.label}
-                            icon={item.icon}
-                            disabled={item.disabled}
-                            isLoading={item.isLoading}
-                            collapsed={collapsed}
-                            onClick={item.onClick}
-                          />
-                        </div>
-                      );
-                    })}
-                  </nav>
-                </div>
-              </aside>
+                          </div>
+                        );
+                      })}
+                    </nav>
+                  </div>
+                </aside>
 
-              <main style={s.main}>
-                <div css={s.cardMain}>{children}</div>
-              </main>
-
+                <main style={s.main}>
+                  <div css={s.cardMain}>{children}</div>
+                </main>
+              </div>
             </div>
-
-          </div>
           </SheetProvider>
         </ModalMessageProvider>
       </TenantProvider>
@@ -144,7 +147,7 @@ const styles = {
   },
   sidebarResponsive: css({
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      display: 'none',
+      display: "none",
     },
   }),
   card: {
