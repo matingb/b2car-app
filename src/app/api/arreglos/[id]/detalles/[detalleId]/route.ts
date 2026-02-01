@@ -1,5 +1,7 @@
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
+import { detalleArregloService } from "@/app/api/arreglos/detalleArregloService";
+import { ServiceError } from "@/app/api/serviceError";
 
 export type UpdateDetalleArregloRequest = Partial<{
   descripcion: string;
@@ -74,16 +76,10 @@ export async function PUT(
     return Response.json({ data: null, error: "No hay cambios" } satisfies UpdateDetalleArregloResponse, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from("detalle_arreglo")
-    .update(patch)
-    .eq("id", detalleId)
-    .eq("arreglo_id", arregloId)
-    .select("id, arreglo_id, descripcion, cantidad, valor, created_at, updated_at")
-    .single();
+  const { data, error } = await detalleArregloService.updateById(supabase, arregloId, detalleId, patch);
 
   if (error || !data) {
-    const status = (error as { code?: string } | null)?.code === "PGRST116" ? 404 : 500;
+    const status = error === ServiceError.NotFound ? 404 : 500;
     const message = status === 404 ? "Detalle no encontrado" : "Error actualizando detalle del arreglo";
     return Response.json({ data: null, error: message } satisfies UpdateDetalleArregloResponse, { status });
   }
@@ -105,20 +101,11 @@ export async function DELETE(
     return Response.json({ error: "Falta detalleId" } satisfies DeleteDetalleArregloResponse, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from("detalle_arreglo")
-    .delete()
-    .eq("id", detalleId)
-    .eq("arreglo_id", arregloId)
-    .select("id")
-    .maybeSingle();
-
+  const { error } = await detalleArregloService.deleteById(supabase, arregloId, detalleId);
   if (error) {
-    return Response.json({ error: "Error eliminando detalle del arreglo" } satisfies DeleteDetalleArregloResponse, { status: 500 });
-  }
-
-  if (!data?.id) {
-    return Response.json({ error: "Detalle no encontrado" } satisfies DeleteDetalleArregloResponse, { status: 404 });
+    const status = error === ServiceError.NotFound ? 404 : 500;
+    const message = status === 404 ? "Detalle no encontrado" : "Error eliminando detalle del arreglo";
+    return Response.json({ error: message } satisfies DeleteDetalleArregloResponse, { status });
   }
 
   return Response.json({ error: null } satisfies DeleteDetalleArregloResponse, { status: 200 });

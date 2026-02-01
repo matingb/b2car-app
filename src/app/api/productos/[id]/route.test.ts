@@ -21,7 +21,8 @@ vi.mock("../productosService", async () => {
 });
 
 import { createClient } from "@/supabase/server";
-import { productosService, ProductosServiceError } from "../productosService";
+import { productosService } from "../productosService";
+import { ServiceError } from "@/app/api/serviceError";
 
 describe("/api/productos/[id]", () => {
   beforeEach(() => {
@@ -37,7 +38,7 @@ describe("/api/productos/[id]", () => {
   });
 
   it("GET not found devuelve 404", async () => {
-    vi.mocked(productosService.getById).mockResolvedValue({ data: null, error: ProductosServiceError.NotFound });
+    vi.mocked(productosService.getById).mockResolvedValue({ data: null, error: ServiceError.NotFound });
     const req = new NextRequest("http://localhost/api/productos/p1");
     const res = await GET(req, { params: Promise.resolve({ id: "p1" }) });
     expect(res.status).toBe(404);

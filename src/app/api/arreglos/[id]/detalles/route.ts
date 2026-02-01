@@ -1,5 +1,6 @@
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
+import { detalleArregloService } from "@/app/api/arreglos/detalleArregloService";
 
 export type CreateDetalleArregloRequest = {
   descripcion: string;
@@ -51,16 +52,12 @@ export async function POST(
     return Response.json({ data: null, error: "Valor inválido" } satisfies CreateDetalleArregloResponse, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from("detalle_arreglo")
-    .insert({
-      arreglo_id: arregloId,
-      descripcion,
-      cantidad,
-      valor,
-    })
-    .select("id, arreglo_id, descripcion, cantidad, valor, created_at, updated_at")
-    .single();
+  const { data, error } = await detalleArregloService.create(supabase, {
+    arreglo_id: arregloId,
+    descripcion,
+    cantidad,
+    valor,
+  });
 
   if (error || !data) {
     return Response.json(

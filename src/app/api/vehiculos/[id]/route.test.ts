@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET, PUT, DELETE } from "./route";
 import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
-import { VehiculoServiceError, vehiculoService } from "../vehiculoService";
+import { vehiculoService } from "../vehiculoService";
 import { NextRequest } from "next/server";
+import { ServiceError } from "@/app/api/serviceError";
 
 vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
@@ -40,7 +41,7 @@ describe("GET /api/vehiculos/[id]", () => {
     vi.mocked(vehiculoService.getById).mockResolvedValue({
       data: null,
       arreglos: [],
-      error: VehiculoServiceError.NotFound,
+      error: ServiceError.NotFound,
     });
 
     const req = new NextRequest("http://localhost/api/vehiculos/v1", { method: "GET" });

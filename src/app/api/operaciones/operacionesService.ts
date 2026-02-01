@@ -1,6 +1,7 @@
-import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OperacionDTO, OperacionLineaDTO } from "@/model/dtos";
 import { logger } from "@/lib/logger";
+import { ServiceError, toServiceError } from "@/app/api/serviceError";
 
 export type OperacionesFilters = {
 	fecha?: string; // YYYY-MM-DD
@@ -46,11 +47,6 @@ export type UpdateOperacionInput = {
 	arreglo_id?: string | null;
 };
 
-export enum OperacionesServiceError {
-	NotFound = "NotFound",
-	Unknown = "Unknown",
-}
-
 type OperacionRow = OperacionDTO & { operaciones_lineas?: OperacionLineaDTO[] | null };
 
 type OperacionLineaRow = {
@@ -62,12 +58,6 @@ type OperacionStatsRow = {
 	tipo?: string | null;
 	operaciones_lineas?: OperacionLineaRow[] | null;
 };
-
-function toServiceError(err: PostgrestError): OperacionesServiceError {
-	const code = (err as { code?: string }).code;
-	if (code === "PGRST116") return OperacionesServiceError.NotFound;
-	return OperacionesServiceError.Unknown;
-}
 
 function toDayStart(date: string) {
 	return `${date}T00:00:00.000Z`;
@@ -90,7 +80,7 @@ export const operacionesService = {
 	async list(
 		supabase: SupabaseClient,
 		filters: OperacionesFilters = {}
-	): Promise<{ data: OperacionRow[]; error: OperacionesServiceError | null }>
+	): Promise<{ data: OperacionRow[]; error: ServiceError | null }>
 	{
 		let query = supabase
 			.from("operaciones")
@@ -112,7 +102,7 @@ export const operacionesService = {
 	async getById(
 		supabase: SupabaseClient,
 		id: string
-	): Promise<{ data: OperacionRow | null; error: OperacionesServiceError | null }>
+	): Promise<{ data: OperacionRow | null; error: ServiceError | null }>
 	{
 		const { data, error } = await supabase
 			.from("operaciones")
@@ -127,7 +117,7 @@ export const operacionesService = {
 	async create(
 		supabase: SupabaseClient,
 		input: CreateOperacionInput
-	): Promise<{ data: OperacionRow | null; error: OperacionesServiceError | null }>
+	): Promise<{ data: OperacionRow | null; error: ServiceError | null }>
 	{
 		const lineasPayload = Array.isArray(input.lineas)
 			? input.lineas.map((l) => ({
@@ -148,7 +138,7 @@ export const operacionesService = {
 		logger.error("RPC crear_operacion_con_stock - operacionId:", operacionId, "rpcError:", rpcError);
 
 		if (rpcError || !operacionId) {
-			return { data: null, error: rpcError ? toServiceError(rpcError) : OperacionesServiceError.Unknown };
+			return { data: null, error: rpcError ? toServiceError(rpcError) : ServiceError.Unknown };
 		}
 
 		return this.getById(supabase, operacionId as string);
@@ -158,7 +148,7 @@ export const operacionesService = {
 		supabase: SupabaseClient,
 		id: string,
 		input: UpdateOperacionInput
-	): Promise<{ data: OperacionRow | null; error: OperacionesServiceError | null }>
+	): Promise<{ data: OperacionRow | null; error: ServiceError | null }>
 	{
 		const updatePayload: Record<string, string | undefined> = {};
 		if (input.tipo) updatePayload.tipo = input.tipo;
@@ -209,18 +199,18 @@ export const operacionesService = {
 	async deleteById(
 		supabase: SupabaseClient,
 		id: string
-	): Promise<{ error: OperacionesServiceError | null }>
+	): Promise<{ error: ServiceError | null }>
 	{
 		const { data, error } = await supabase.from("operaciones").delete().eq("id", id).select("id");
 		if (error) return { error: toServiceError(error) };
-		if (!data || data.length === 0) return { error: OperacionesServiceError.NotFound };
+		if (!data || data.length === 0) return { error: ServiceError.NotFound };
 		return { error: null };
 	},
 
 	async stats(
 		supabase: SupabaseClient,
 		filters: OperacionesFilters = {}
-	): Promise<{ data: OperacionesStats; error: OperacionesServiceError | null }>
+	): Promise<{ data: OperacionesStats; error: ServiceError | null }>
 	{
 		let query = supabase
 			.from("operaciones")

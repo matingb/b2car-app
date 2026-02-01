@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET, PUT } from "./route";
 import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
-import { VehiculoClienteServiceError, vehiculoService } from "../../vehiculoService";
+import { vehiculoService } from "../../vehiculoService";
 import { NextRequest } from "next/server";
+import { ServiceError } from "@/app/api/serviceError";
 
 vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
@@ -42,7 +43,7 @@ describe("PUT /api/vehiculos/[id]/cliente", () => {
   it("GET: si el vehículo no existe, devuelve 404 con mensaje de vehículo no encontrado", async () => {
     vi.mocked(vehiculoService.getClienteByVehiculoId).mockResolvedValue({
       data: null,
-      error: VehiculoClienteServiceError.NotFound,
+      error: ServiceError.NotFound,
     });
 
     const req = new NextRequest("http://localhost/api/vehiculos/v1/cliente", { method: "GET" });

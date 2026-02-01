@@ -20,7 +20,8 @@ vi.mock("../stocksService", async () => {
 });
 
 import { createClient } from "@/supabase/server";
-import { stocksService, StocksServiceError } from "../stocksService";
+import { stocksService } from "../stocksService";
+import { ServiceError } from "@/app/api/serviceError";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { createInventarioStockRow } from "@/tests/factories";
 
@@ -33,7 +34,7 @@ describe("/api/stocks/[id]", () => {
   });
 
   it("GET not found devuelve 404", async () => {
-    vi.mocked(stocksService.getById).mockResolvedValue({ data: null, error: StocksServiceError.NotFound });
+    vi.mocked(stocksService.getById).mockResolvedValue({ data: null, error: ServiceError.NotFound });
     const req = new NextRequest("http://localhost/api/stocks/s1");
     const res = await GET(req, { params: Promise.resolve({ id: "s1" }) });
     expect(res.status).toBe(404);

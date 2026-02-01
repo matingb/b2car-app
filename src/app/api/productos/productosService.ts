@@ -1,15 +1,5 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-
-export enum ProductosServiceError {
-  NotFound = "NotFound",
-  Unknown = "Unknown",
-}
-
-function toServiceError(err: PostgrestError): ProductosServiceError {
-  const code = (err as { code?: string }).code;
-  if (code === "PGRST116") return ProductosServiceError.NotFound;
-  return ProductosServiceError.Unknown;
-}
+import { ServiceError, toServiceError } from "@/app/api/serviceError";
 
 export type ListProductosFilters = {
   search?: string;
@@ -39,7 +29,7 @@ export type ProductoWithStocksCountRow = ProductoRow & {
 export type CreateProductoInput = Omit<ProductoRow, "id" | "tenantId" | "created_at" | "updated_at">;
 
 export const productosService = {
-  async list(supabase: SupabaseClient): Promise<{ data: ProductoWithStocksCountRow[]; error: ProductosServiceError | null }> {
+  async list(supabase: SupabaseClient): Promise<{ data: ProductoWithStocksCountRow[]; error: ServiceError | null }> {
     const query = supabase.from("productos").select("*, stocks(count)").order("nombre", { ascending: true });
     const { data, error } = await query;
     if (error) return { data: [], error: toServiceError(error) };
@@ -53,7 +43,7 @@ export const productosService = {
   async getById(
     supabase: SupabaseClient,
     id: string
-  ): Promise<{ data: ProductoRow | null; error: ProductosServiceError | null }> {
+  ): Promise<{ data: ProductoRow | null; error: ServiceError | null }> {
     const { data, error } = await supabase
       .from("productos")
       .select("*")
@@ -61,7 +51,7 @@ export const productosService = {
       .maybeSingle();
 
     if (error) return { data: null, error: toServiceError(error) };
-    if (!data) return { data: null, error: ProductosServiceError.NotFound };
+    if (!data) return { data: null, error: ServiceError.NotFound };
     return { data: data as ProductoRow, error: null };
   },
 
@@ -82,7 +72,7 @@ export const productosService = {
     supabase: SupabaseClient,
     id: string,
     patch: Partial<ProductoRow>
-  ): Promise<{ data: ProductoRow | null; error: ProductosServiceError | PostgrestError | null }> {
+  ): Promise<{ data: ProductoRow | null; error: ServiceError | PostgrestError | null }> {
     const { data, error } = await supabase
       .from("productos")
       .update(patch)
@@ -91,14 +81,14 @@ export const productosService = {
       .maybeSingle();
 
     if (error) return { data: null, error };
-    if (!data) return { data: null, error: ProductosServiceError.NotFound };
+    if (!data) return { data: null, error: ServiceError.NotFound };
     return { data: data as ProductoRow, error: null };
   },
 
   async deleteById(
     supabase: SupabaseClient,
     id: string
-  ): Promise<{ error: ProductosServiceError | PostgrestError | null }> {
+  ): Promise<{ error: ServiceError | PostgrestError | null }> {
     await supabase.from("stocks").delete().eq("productoId", id);
 
     const { error } = await supabase.from("productos").delete().eq("id", id);

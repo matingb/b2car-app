@@ -3,9 +3,10 @@ import { Arreglo } from "@/model/types"
 import { createClient } from "@/supabase/server"
 import { IVA_RATE } from "@/lib/ivaRate";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
-import { ArregloServiceError, arregloService } from "@/app/api/arreglos/arregloService";
+import { arregloService } from "@/app/api/arreglos/arregloService";
 import type { CreateArregloInsertPayload, CreateArregloRequest } from "./arregloRequests";
 import type { NextRequest } from "next/server";
+import { ServiceError } from "../serviceError";
 
 export type GetArreglosResponse = {
     data: Arreglo[] | null;
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
     const tallerId = req.nextUrl.searchParams.get("taller_id") ?? undefined;
     const { data, error } = await arregloService.listAll(supabase, { tallerId })
     if (error) {
-        const status = error === ArregloServiceError.NotFound ? 404 : 500;
+        const status = error === ServiceError.NotFound ? 404 : 500;
         const message = status === 404 ? "Arreglos no encontrados" : "Error cargando arreglos";
         return Response.json({ data: [], error: message }, { status })
     }
@@ -89,7 +90,7 @@ export async function POST(req: Request) {
 
     const { data: insertData, error: insertError } = await arregloService.create(supabase, insertPayload);
     if (insertError) {
-        const status = insertError === ArregloServiceError.NotFound ? 404 : 500;
+        const status = insertError === ServiceError.NotFound ? 404 : 500;
         const message = status === 404 ? "Arreglo no encontrado" : "Error creando arreglo";
         return Response.json({ error: message }, { status });
     }

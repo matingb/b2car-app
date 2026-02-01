@@ -3,7 +3,8 @@ import type { ProductoDTO, StockDTO, StockItemDTO } from "@/model/dtos";
 import type { GetStocksResponse, UpsertStockRequest, UpsertStockResponse } from "./contracts";
 import { createClient } from "@/supabase/server";
 import { stocksService, type StockItemRow, type StockRow } from "./stocksService";
-import { productosService, ProductosServiceError, type ProductoRow } from "../productos/productosService";
+import { productosService, type ProductoRow } from "../productos/productosService";
+import { ServiceError } from "@/app/api/serviceError";
 
 function mapStockRow(row: StockRow): StockDTO {
   return {
@@ -98,7 +99,7 @@ export async function POST(req: Request) {
     if (existing) {
       const productoRes = await productosService.getById(supabase, input.producto_id);
       const productoNombre =
-        productoRes.error === ProductosServiceError.NotFound || !productoRes.data
+        productoRes.error === ServiceError.NotFound || !productoRes.data
           ? input.producto_id
           : productoRes.data.nombre;
       const message = `El producto "${productoNombre}" ya tiene stock definido para el taller "${input.taller_id}"`;

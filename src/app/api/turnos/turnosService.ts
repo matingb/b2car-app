@@ -1,19 +1,10 @@
 import { Cliente, TipoCliente, Turno, Vehiculo } from "@/model/types";
-import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { TurnoEstado, TurnoDto as TurnoRow } from "@/model/dtos";
 import type { SupabaseError } from "@/model/types";
 import { logger } from "@/lib/logger";
+import { ServiceError, toServiceError } from "@/app/api/serviceError";
 
-export enum TurnosServiceError {
-	NotFound = "NotFound",
-	Unknown = "Unknown",
-}
-
-function toServiceError(err: PostgrestError): TurnosServiceError {
-	const code = (err as { code?: string }).code;
-	if (code === "PGRST116") return TurnosServiceError.NotFound;
-	return TurnosServiceError.Unknown;
-}
 
 export type ListTurnosFilters = {
 	fecha?: string; // YYYY-MM-DD
@@ -121,7 +112,7 @@ export const turnosService = {
 	async list(
 		supabase: SupabaseClient,
 		filters: ListTurnosFilters = {}
-	): Promise<{ data: Turno[]; error: TurnosServiceError | null }>
+	): Promise<{ data: Turno[]; error: ServiceError | null }>
 	{
 		let query = supabase
 			.from("vista_turnos_con_detalle")

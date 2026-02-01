@@ -1,7 +1,8 @@
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
-import { VehiculoClienteServiceError, vehiculoService } from "../../vehiculoService";
+import { vehiculoService } from "../../vehiculoService";
+import { ServiceError } from "@/app/api/serviceError";
 
 // GET /api/vehiculos/[id]/cliente
 // Devuelve los datos del cliente propietario del vehículo
@@ -15,13 +16,13 @@ export async function GET(
   const { data, error } = await vehiculoService.getClienteByVehiculoId(supabase, id);
   if (error) {
     const status =
-      error === VehiculoClienteServiceError.NotFound || error === VehiculoClienteServiceError.NoClienteAsignado
+      error === ServiceError.NotFound || error === ServiceError.NoClienteAsignado
         ? 404
         : 500;
     const message =
-      error === VehiculoClienteServiceError.NotFound
+      error === ServiceError.NotFound
         ? "Vehículo no encontrado"
-        : error === VehiculoClienteServiceError.NoClienteAsignado
+        : error === ServiceError.NoClienteAsignado
           ? "Vehículo sin cliente asignado"
           : "Error cargando cliente del vehículo";
     return Response.json({ data: null, error: message }, { status });

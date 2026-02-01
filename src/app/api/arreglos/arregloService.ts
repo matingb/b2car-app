@@ -1,19 +1,7 @@
-import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Arreglo } from "@/model/types";
 import type { CreateArregloInsertPayload, UpdateArregloRequest } from "./arregloRequests";
-
-export enum ArregloServiceError {
-  NotFound = "NotFound",
-  Unknown = "Unknown",
-}
-
-type ServiceResult<T> = { data: T | null; error: ArregloServiceError | null };
-
-function toServiceError(err: PostgrestError): ArregloServiceError {
-  const code = (err as { code?: string }).code;
-  if (code === "PGRST116") return ArregloServiceError.NotFound;
-  return ArregloServiceError.Unknown;
-}
+import { ServiceError, ServiceResult, toServiceError } from "@/app/api/serviceError";
 
 export type TiposConIngresos = {
   tipos: string[];
@@ -90,7 +78,7 @@ export const arregloService = {
   async deleteById(
     supabase: SupabaseClient,
     id: string
-  ): Promise<{ error: ArregloServiceError | null }> {
+  ): Promise<{ error: ServiceError | null }> {
 
     const { error } = await supabase.from("arreglos").delete().eq("id", id);
 

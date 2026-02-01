@@ -2,8 +2,9 @@ import type { NextRequest } from "next/server";
 import type { StockDTO } from "@/model/dtos";
 import type { GetStockByIdResponse, UpdateStockRequest, UpdateStockResponse } from "../contracts";
 import { createClient } from "@/supabase/server";
-import { stocksService, StocksServiceError, type StockItemRow, type StockRow } from "../stocksService";
+import { stocksService, type StockItemRow, type StockRow } from "../stocksService";
 import type { ProductoRow } from "../../productos/productosService";
+import { ServiceError } from "@/app/api/serviceError";
 
 function mapStockRow(row: StockRow): StockDTO {
   return {
@@ -49,7 +50,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!id) return Response.json({ data: null, error: "Falta id" } satisfies GetStockByIdResponse, { status: 400 });
 
   const { data, error } = await stocksService.getById(supabase, id);
-  if (error === StocksServiceError.NotFound || !data) {
+  if (error === ServiceError.NotFound || !data) {
     return Response.json({ data: null, error: "Stock no encontrado" } satisfies GetStockByIdResponse, { status: 404 });
   }
 
@@ -76,7 +77,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.stock_maximo !== undefined) patch.stock_maximo = body.stock_maximo;
 
   const { data: updated, error } = await stocksService.updateById(supabase, id, patch);
-  if (error === StocksServiceError.NotFound || !updated) {
+  if (error === ServiceError.NotFound || !updated) {
     return Response.json({ data: null, error: "Stock no encontrado" } satisfies UpdateStockResponse, { status: 404 });
   }
   return Response.json({ data: mapStockRow(updated), error: null } satisfies UpdateStockResponse, { status: 200 });
@@ -93,7 +94,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!id) return Response.json({ error: "Falta id" }, { status: 400 });
 
   const { error } = await stocksService.deleteById(supabase, id);
-  if (error === StocksServiceError.NotFound) return Response.json({ error: "Stock no encontrado" }, { status: 404 });
+  if (error === ServiceError.NotFound) return Response.json({ error: "Stock no encontrado" }, { status: 404 });
   if (error) return Response.json({ error: "Error eliminando stock" }, { status: 500 });
   return Response.json({ error: null }, { status: 200 });
 }

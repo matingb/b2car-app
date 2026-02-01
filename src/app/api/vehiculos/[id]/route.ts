@@ -1,7 +1,8 @@
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
-import { VehiculoServiceError, vehiculoService } from "../vehiculoService";
+import { vehiculoService } from "../vehiculoService";
+import { ServiceError } from "@/app/api/serviceError";
 
 // GET /api/vehiculos/[id]
 // Devuelve los datos de un vehículo junto con sus arreglos
@@ -14,7 +15,7 @@ export async function GET(
 
   const { data, arreglos, error } = await vehiculoService.getById(supabase, id);
   if (error) {
-    const status = error === VehiculoServiceError.NotFound ? 404 : 500;
+    const status = error === ServiceError.NotFound ? 404 : 500;
     const message = status === 404 ? "Vehículo no encontrado" : "Error cargando vehículo";
     return Response.json({ data: null, error: message }, { status });
   }

@@ -1,9 +1,10 @@
-import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Vehiculo } from "@/model/types";
 import { CreateVehiculoRequest } from "@/clients/vehiculoClient";
 import type { Cliente } from "@/model/types";
 import type { TipoCliente } from "@/model/types";
 import type { SupabaseError } from "@/model/types";
+import { ServiceError, toServiceError } from "@/app/api/serviceError";
 
 type ClienteJoinRow = {
   id: string;
@@ -23,28 +24,8 @@ type ClienteJoinRow = {
   } | null;
 };
 
-export enum VehiculoServiceError {
-  NotFound = "NotFound",
-  Unknown = "Unknown",
-}
-
-export enum VehiculoClienteServiceError {
-  NotFound = "NotFound",
-  NoClienteAsignado = "NoClienteAsignado",
-  Unknown = "Unknown",
-}
-
-function toServiceError(err: PostgrestError): VehiculoServiceError {
-  const code = (err as { code?: string }).code;
-  if (code === "PGRST116") return VehiculoServiceError.NotFound;
-  return VehiculoServiceError.Unknown;
-}
-
-function toClienteServiceError(err: PostgrestError): VehiculoClienteServiceError {
-  const code = (err as { code?: string }).code;
-  if (code === "PGRST116") return VehiculoClienteServiceError.NotFound;
-  return VehiculoClienteServiceError.Unknown;
-}
+export type VehiculoServiceError = ServiceError;
+export type VehiculoClienteServiceError = ServiceError;
 
 export const vehiculoService = {
   async list(supabase: SupabaseClient): Promise<{ data: Vehiculo[]; error: Error | null }> {
@@ -81,7 +62,7 @@ export const vehiculoService = {
   ): Promise<{
     data: Vehiculo | null;
     arreglos: unknown[];
-    error: VehiculoServiceError | null;
+    error: ServiceError | null;
   }> {
     const { data: vehiculo, error: vError } = await supabase
       .from("vista_vehiculos_con_clientes")
@@ -136,15 +117,15 @@ export const vehiculoService = {
   async getClienteByVehiculoId(
     supabase: SupabaseClient,
     vehiculoId: string
-  ): Promise<{ data: Cliente | null; error: VehiculoClienteServiceError | null }> {
+  ): Promise<{ data: Cliente | null; error: ServiceError | null }> {
     const { data: vData, error: vError } = await supabase
       .from("vehiculos")
       .select("cliente_id")
       .eq("id", vehiculoId)
       .single();
 
-    if (vError) return { data: null, error: toClienteServiceError(vError) };
-    if (!vData?.cliente_id) return { data: null, error: VehiculoClienteServiceError.NoClienteAsignado };
+    if (vError) return { data: null, error: toServiceError(vError) };
+    if (!vData?.cliente_id) return { data: null, error: ServiceError.NoClienteAsignado };
 
     const { data: cData, error: cError } = await supabase
       .from("clientes")
@@ -152,7 +133,7 @@ export const vehiculoService = {
       .eq("id", vData.cliente_id)
       .single();
 
-    if (cError) return { data: null, error: toClienteServiceError(cError) };
+    if (cError) return { data: null, error: toServiceError(cError) };
 
     const row = cData as unknown as ClienteJoinRow;
     const particular = row.particular;

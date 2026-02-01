@@ -2,8 +2,10 @@ import { Arreglo } from "@/model/types";
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
-import { ArregloServiceError, arregloService } from "@/app/api/arreglos/arregloService";
+import { arregloService } from "@/app/api/arreglos/arregloService";
+import { detalleArregloService } from "@/app/api/arreglos/detalleArregloService";
 import type { UpdateArregloRequest } from "../arregloRequests";
+import { ServiceError } from "../../serviceError";
 
 export type DetalleArreglo = {
   id: string;
@@ -71,16 +73,12 @@ export async function GET(
   const { data: arreglo, error } = await arregloService.getByIdWithVehiculo(supabase, id);
 
   if (error) {
-    const status = error === ArregloServiceError.NotFound ? 404 : 500;
+    const status = error === ServiceError.NotFound ? 404 : 500;
     const message = status === 404 ? "Arreglo no encontrado" : "Error cargando arreglo";
     return Response.json({ data: null, error: message }, { status });
   }
 
-  const { data: detallesRows, error: detallesError } = await supabase
-    .from("detalle_arreglo")
-    .select("id, arreglo_id, descripcion, cantidad, valor, created_at, updated_at")
-    .eq("arreglo_id", id)
-    .order("created_at", { ascending: true });
+  const { data: detallesRows, error: detallesError } = await detalleArregloService.listByArregloId(supabase, id);
 
   if (detallesError) {
     return Response.json({ data: null, error: "Error cargando detalles del arreglo" }, { status: 500 });
@@ -201,7 +199,7 @@ export async function PUT(
   );
 
   if (error) {
-    const status = error === ArregloServiceError.NotFound ? 404 : 500;
+    const status = error === ServiceError.NotFound ? 404 : 500;
     const message = status === 404 ? "Arreglo no encontrado" : "Error actualizando arreglo";
     return Response.json({ data: null, error: message }, { status });
   }
@@ -224,7 +222,7 @@ export async function DELETE(
   const { error } = await arregloService.deleteById(supabase, id);
 
   if (error) {
-    const status = error === ArregloServiceError.NotFound ? 404 : 500;
+    const status = error === ServiceError.NotFound ? 404 : 500;
     const message = status === 404 ? "Arreglo no encontrado" : "Error eliminando arreglo";
     return Response.json({ error: message }, { status });
   }

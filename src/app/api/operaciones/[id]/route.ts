@@ -6,9 +6,9 @@ import type { NextRequest } from "next/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import {
 	operacionesService,
-	OperacionesServiceError,
 	type UpdateOperacionInput,
 } from "@/app/api/operaciones/operacionesService";
+import { ServiceError } from "@/app/api/serviceError";
 
 export type UpdateOperacionRequest = UpdateOperacionInput;
 
@@ -56,7 +56,7 @@ export async function GET(
 
 	const { data, error } = await operacionesService.getById(supabase, id);
 	if (error) {
-		const status = error === OperacionesServiceError.NotFound ? 404 : 500;
+		const status = error === ServiceError.NotFound ? 404 : 500;
 		const message = status === 404 ? "Operación no encontrada" : "Error cargando operación";
 		return Response.json({ data: null, error: message } satisfies GetOperacionByIdResponse, { status });
 	}
@@ -78,7 +78,7 @@ export async function PUT(
 	const { data: updated, error } = await operacionesService.update(supabase, id, payload);
 	if (error || !updated) {
 		logger.error("PUT /api/operaciones/[id] - error:", error);
-		const status = error === OperacionesServiceError.NotFound ? 404 : 500;
+		const status = error === ServiceError.NotFound ? 404 : 500;
 		const message = status === 404 ? "Operación no encontrada" : "Error actualizando operación";
 		return Response.json({ data: null, error: message } satisfies UpdateOperacionResponse, { status });
 	}
@@ -96,7 +96,7 @@ export async function DELETE(
 
 	const { error } = await operacionesService.deleteById(supabase, id);
 	if (error) {
-		const status = error === OperacionesServiceError.NotFound ? 404 : 500;
+		const status = error === ServiceError.NotFound ? 404 : 500;
 		const message = status === 404 ? "Operación no encontrada" : "Error eliminando operación";
 		return Response.json({ error: message }, { status });
 	}

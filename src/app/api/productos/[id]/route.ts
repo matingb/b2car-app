@@ -3,8 +3,9 @@ import { logger } from "@/lib/logger";
 import type { ProductoDetailDTO, StockDTO } from "@/model/dtos";
 import type { GetProductoByIdResponse, UpdateProductoRequest, UpdateProductoResponse } from "../contracts";
 import { createClient } from "@/supabase/server";
-import { productosService, ProductosServiceError, type ProductoRow } from "../productosService";
+import { productosService, type ProductoRow } from "../productosService";
 import type { StockRow } from "../../stocks/stocksService";
+import { ServiceError } from "@/app/api/serviceError";
 
 function mapProducto(row: ProductoRow): Omit<ProductoDetailDTO, "stocks"> {
   return {
@@ -47,7 +48,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!id) return Response.json({ data: null, error: "Falta id" } satisfies GetProductoByIdResponse, { status: 400 });
 
   const productoRes = await productosService.getById(supabase, id);
-  if (productoRes.error === ProductosServiceError.NotFound || !productoRes.data) {
+  if (productoRes.error === ServiceError.NotFound || !productoRes.data) {
     return Response.json({ data: null, error: "Producto no encontrado" } satisfies GetProductoByIdResponse, { status: 404 });
   }
 
@@ -96,7 +97,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   try {
     const { data: updated, error } = await productosService.updateById(supabase, id, patch);
-    if (error === ProductosServiceError.NotFound || !updated) {
+    if (error === ServiceError.NotFound || !updated) {
       return Response.json({ data: null, error: "Producto no encontrado" } satisfies UpdateProductoResponse, { status: 404 });
     }
     const { data: stocks } = await supabase.from("stocks").select("*").eq("producto_id", id);
@@ -123,7 +124,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const { error } = await productosService.deleteById(supabase, id);
-    if (error === ProductosServiceError.NotFound) return Response.json({ error: "Producto no encontrado" }, { status: 404 });
+    if (error === ServiceError.NotFound) return Response.json({ error: "Producto no encontrado" }, { status: 404 });
     if (error) return Response.json({ error: "Error eliminando producto" }, { status: 500 });
     return Response.json({ error: null }, { status: 200 });
   } catch (error: unknown) {

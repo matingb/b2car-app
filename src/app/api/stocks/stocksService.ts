@@ -1,17 +1,7 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { ProductoRow } from "../productos/productosService";
 import { logger } from "@/lib/logger";
-
-export enum StocksServiceError {
-  NotFound = "NotFound",
-  Unknown = "Unknown",
-}
-
-function toServiceError(err: PostgrestError): StocksServiceError {
-  const code = (err as { code?: string }).code;
-  if (code === "PGRST116") return StocksServiceError.NotFound;
-  return StocksServiceError.Unknown;
-}
+import { ServiceError, toServiceError } from "@/app/api/serviceError";
 
 export type StockRow = {
   id: string;
@@ -32,7 +22,7 @@ export type StockItemRow = StockRow & {
 export const stocksService = {
   async listAll(
     supabase: SupabaseClient
-  ): Promise<{ data: StockItemRow[]; error: StocksServiceError | null }> {
+  ): Promise<{ data: StockItemRow[]; error: ServiceError | null }> {
     const { data, error } = await supabase
       .from("stocks")
       .select(
@@ -47,7 +37,7 @@ export const stocksService = {
   async listForTaller(
     supabase: SupabaseClient,
     tallerId: string 
-  ): Promise<{ data: StockItemRow[]; error: StocksServiceError | null }> {
+  ): Promise<{ data: StockItemRow[]; error: ServiceError | null }> {
     const query = supabase
       .from("stocks")
       .select(
@@ -65,7 +55,7 @@ export const stocksService = {
   async getById(
     supabase: SupabaseClient,
     id: string
-  ): Promise<{ data: StockItemRow | null; error: StocksServiceError | null }> {
+  ): Promise<{ data: StockItemRow | null; error: ServiceError | null }> {
     const { data, error } = await supabase
       .from("stocks")
       .select(
@@ -75,7 +65,7 @@ export const stocksService = {
       .maybeSingle();
 
     if (error) return { data: null, error: toServiceError(error) };
-    if (!data) return { data: null, error: StocksServiceError.NotFound };
+    if (!data) return { data: null, error: ServiceError.NotFound };
     return { data: data as StockItemRow, error: null };
   },
 
@@ -146,7 +136,7 @@ export const stocksService = {
     supabase: SupabaseClient,
     id: string,
     patch: Partial<Pick<StockRow, "cantidad" | "stock_minimo" | "stock_maximo">>
-  ): Promise<{ data: StockRow | null; error: StocksServiceError | PostgrestError | null }> {
+  ): Promise<{ data: StockRow | null; error: ServiceError | PostgrestError | null }> {
     const { data, error } = await supabase
       .from("stocks")
       .update(patch)
@@ -155,14 +145,14 @@ export const stocksService = {
       .maybeSingle();
 
     if (error) return { data: null, error };
-    if (!data) return { data: null, error: StocksServiceError.NotFound };
+    if (!data) return { data: null, error: ServiceError.NotFound };
     return { data: data as StockRow, error: null };
   },
 
   async deleteById(
     supabase: SupabaseClient,
     id: string
-  ): Promise<{ error: StocksServiceError | PostgrestError | null }> {
+  ): Promise<{ error: ServiceError | PostgrestError | null }> {
     const { error } = await supabase.from("stocks").delete().eq("id", id);
     if (error) return { error };
     return { error: null };
