@@ -3,7 +3,6 @@ import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { arregloService } from "@/app/api/arreglos/arregloService";
-import { detalleArregloService } from "@/app/api/arreglos/detalleArregloService";
 import type { UpdateArregloRequest } from "../arregloRequests";
 import { ServiceError } from "../../serviceError";
 
@@ -70,111 +69,33 @@ export async function GET(
   const supabase = await createClient();
   const { id } = await params;
 
-  const { data: arreglo, error } = await arregloService.getByIdWithVehiculo(supabase, id);
+  const { data: rpcData, error: rpcError } = await supabase.rpc(
+    "rpc_get_arreglo_detalle",
+    { p_arreglo_id: id }
+  );
 
-  if (error) {
-    const status = error === ServiceError.NotFound ? 404 : 500;
-    const message = status === 404 ? "Arreglo no encontrado" : "Error cargando arreglo";
-    return Response.json({ data: null, error: message }, { status });
+  if (rpcError) {
+    console.error("Error rpc_get_arreglo_detalle:", rpcError);
+    const status = String((rpcError as unknown as { code?: unknown })?.code ?? "").includes("42501") ? 401 : 500;
+    return Response.json(
+      { data: null, error: "Error cargando arreglo" },
+      { status }
+    );
   }
 
-  const { data: detallesRows, error: detallesError } = await detalleArregloService.listByArregloId(supabase, id);
-
-  if (detallesError) {
-    return Response.json({ data: null, error: "Error cargando detalles del arreglo" }, { status: 500 });
+  if (!rpcData) {
+    return Response.json({ data: null, error: "Arreglo no encontrado" }, { status: 404 });
   }
 
-  const { data: asigRows, error: asigError } = await supabase
-    .from("operaciones_asignacion_arreglo")
-    .select(`
-      operacion:operaciones(
-        id,
-        tipo,
-        taller_id,
-        created_at,
-        operaciones_lineas(
-          id,
-          operacion_id,
-          stock_id,
-          cantidad,
-          monto_unitario,
-          delta_cantidad,
-          created_at,
-          stock:stocks(
-            id,
-            producto:productos(
-              id,
-              codigo,
-              nombre,
-              precio_unitario,
-              costo_unitario,
-              proveedor,
-              categorias
-            )
-          )
-        )
-      )
-    `)
-    .eq("arreglo_id", id);
+  const rpc = rpcData as {
+    arreglo?: unknown;
+    detalles?: unknown;
+    asignaciones?: unknown;
+  };
 
-  if (asigError) {
-    return Response.json({ data: null, error: "Error cargando asignaciones del arreglo" }, { status: 500 });
-  }
-
-  const detalles: DetalleArreglo[] = Array.isArray(detallesRows)
-    ? detallesRows.map((r) => ({
-        id: String((r as { id?: unknown }).id ?? ""),
-        arreglo_id: String((r as { arreglo_id?: unknown }).arreglo_id ?? ""),
-        descripcion: String((r as { descripcion?: unknown }).descripcion ?? ""),
-        cantidad: Number((r as { cantidad?: unknown }).cantidad ?? 0) || 0,
-        valor: Number((r as { valor?: unknown }).valor ?? 0) || 0,
-        created_at: String((r as { created_at?: unknown }).created_at ?? ""),
-        updated_at: String((r as { updated_at?: unknown }).updated_at ?? ""),
-      }))
-    : [];
-
-  const asignaciones: AsignacionArregloOperacion[] = Array.isArray(asigRows)
-    ? (asigRows
-        .map((row) => (row as { operacion?: unknown } | null)?.operacion)
-        .filter(Boolean)
-        .map((opUnknown) => {
-          const op = opUnknown as Record<string, unknown>;
-          const lineasRaw = Array.isArray(op.operaciones_lineas) ? (op.operaciones_lineas as unknown[]) : [];
-          const lineas: AsignacionArregloLinea[] = lineasRaw.map((l) => {
-            const linea = l as Record<string, unknown>;
-            const stock = (linea.stock ?? null) as Record<string, unknown> | null;
-            const prod = (stock?.producto ?? null) as Record<string, unknown> | null;
-            return {
-              id: String(linea.id ?? ""),
-              operacion_id: String(linea.operacion_id ?? ""),
-              stock_id: String(linea.stock_id ?? ""),
-              cantidad: Number(linea.cantidad ?? 0) || 0,
-              monto_unitario: Number(linea.monto_unitario ?? 0) || 0,
-              delta_cantidad: Number(linea.delta_cantidad ?? 0) || 0,
-              created_at: String(linea.created_at ?? ""),
-              producto: prod
-                ? {
-                    id: String(prod.id ?? ""),
-                    codigo: String(prod.codigo ?? ""),
-                    nombre: String(prod.nombre ?? ""),
-                    precio_unitario: Number(prod.precio_unitario ?? 0) || 0,
-                    costo_unitario: Number(prod.costo_unitario ?? 0) || 0,
-                    proveedor: (prod.proveedor as string | null | undefined) ?? null,
-                    categorias: Array.isArray(prod.categorias) ? (prod.categorias as string[]) : [],
-                  }
-                : null,
-            };
-          });
-
-          return {
-            id: String(op.id ?? ""),
-            tipo: String(op.tipo ?? ""),
-            taller_id: String(op.taller_id ?? ""),
-            created_at: String(op.created_at ?? ""),
-            lineas,
-          };
-        })) as AsignacionArregloOperacion[]
-    : [];
+  const arreglo = rpc.arreglo as Arreglo;
+  const detalles = (Array.isArray(rpc.detalles) ? rpc.detalles : []) as DetalleArreglo[];
+  const asignaciones = (Array.isArray(rpc.asignaciones) ? rpc.asignaciones : []) as AsignacionArregloOperacion[];
 
   const payload: ArregloDetalleData = {
     arreglo: arreglo as Arreglo,

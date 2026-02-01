@@ -7,23 +7,19 @@ import { COLOR } from "@/theme/theme";
 import {
   Calendar,
   Wrench,
-  Package,
   Coins,
   Pencil,
   CheckCircle2,
   XCircle,
   Trash,
   Gauge,
-  Plus,
 } from "lucide-react";
 import { Skeleton, Theme } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
-import ArregloItemModal from "@/app/components/arreglos/ArregloItemModal";
 import VehiculoInfoCard from "@/app/components/vehiculos/VehiculoInfoCard";
 import IconLabel from "@/app/components/ui/IconLabel";
 import Card from "@/app/components/ui/Card";
-import Button from "@/app/components/ui/Button";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { ROUTES } from "@/routing/routes";
 import IconButton from "@/app/components/ui/IconButton";
@@ -35,19 +31,22 @@ import type {
   ArregloDetalleData,
   AsignacionArregloLinea,
 } from "@/app/api/arreglos/[id]/route";
-import ArregloDetalleSection from "./ArregloDetalleSection";
+import ServicioLineasEditableSection from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
+import RepuestoLineasEditableSection from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [data, setData] = useState<ArregloDetalleData | null>(null);
   const [openModal, setOpenModal] = useState(false);
-  const [openItemModal, setOpenItemModal] = useState(false);
   const {
     fetchById,
     update,
     remove,
+    createDetalle,
+    updateDetalle,
     deleteDetalle,
+    upsertRepuestoLinea,
     deleteRepuestoLinea,
     loading,
   } = useArreglos();
@@ -77,14 +76,6 @@ export default function ArregloDetailsPage() {
 
   const handleCloseModal = async () => {
     setOpenModal(false);
-  };
-
-  const handleOpenAddItem = () => {
-    setOpenItemModal(true);
-  };
-
-  const handleCloseItemModal = () => {
-    setOpenItemModal(false);
   };
 
   const handleNavigateToVehiculo = () => {
@@ -169,6 +160,72 @@ export default function ArregloDetailsPage() {
         "Error",
         err instanceof Error ? err.message : "No se pudo eliminar el repuesto"
       );
+    }
+  };
+
+  const handleAddServicio = async (input: {
+    descripcion: string;
+    cantidad: number;
+    valor: number;
+  }) => {
+    if (!data?.arreglo?.id) return;
+    try {
+      await createDetalle(data.arreglo.id, input);
+      success("Éxito", "Mano de obra agregada");
+      await reload();
+    } catch (err: unknown) {
+      logger.error("Error creating detalle:", err);
+      error(
+        "Error",
+        err instanceof Error ? err.message : "No se pudo agregar el servicio"
+      );
+      throw err;
+    }
+  };
+
+  const handleUpdateServicio = async (
+    detalleId: string,
+    patch: { descripcion: string; cantidad: number; valor: number }
+  ) => {
+    if (!data?.arreglo?.id) return;
+    try {
+      await updateDetalle(data.arreglo.id, detalleId, patch);
+      success("Éxito", "Servicio actualizado");
+      await reload();
+    } catch (err: unknown) {
+      logger.error("Error updating detalle:", err);
+      error(
+        "Error",
+        err instanceof Error ? err.message : "No se pudo actualizar el servicio"
+      );
+      throw err;
+    }
+  };
+
+  const handleUpsertRepuesto = async (input: {
+    stock_id: string;
+    cantidad: number;
+    monto_unitario: number;
+  }) => {
+    if (!data?.arreglo?.id) return;
+    const tallerId = data.arreglo.taller_id ?? null;
+    if (!tallerId) return;
+    try {
+      await upsertRepuestoLinea(data.arreglo.id, {
+        taller_id: tallerId,
+        stock_id: input.stock_id,
+        cantidad: input.cantidad,
+        monto_unitario: input.monto_unitario,
+      });
+      success("Éxito", "Repuesto guardado");
+      await reload();
+    } catch (err: unknown) {
+      logger.error("Error upserting repuesto:", err);
+      error(
+        "Error",
+        err instanceof Error ? err.message : "No se pudo guardar el repuesto"
+      );
+      throw err;
     }
   };
 
@@ -355,35 +412,19 @@ export default function ArregloDetailsPage() {
               Servicios y productos incluidos
             </div>
           </div>
-
-          <Button
-            text="Agregar item"
-            icon={<Plus size={18} />}
-            hideText={false}
-            onClick={handleOpenAddItem}
-            style={{ minWidth: 0 }}
-          />
         </div>
 
-        <ArregloDetalleSection
-          title="Mano de Obra"
-          titleIcon={<Wrench size={18} />}
-          emptyText="Sin servicios realizados."
-          items={detalles.map((d) => {
-            const cantidad = safeNumber(d.cantidad);
-            const unitario = safeNumber(d.valor);
-            return {
-              id: d.id,
-              title: d.descripcion,
-              cantidad: cantidad,
-              unitario: unitario,
-              total: cantidad * unitario,
-              deleteAriaLabel: "eliminar servicio",
-              onDelete: () => void handleDeleteServicio(d.id),
-            };
-          })}
-          itemIcon={<Wrench size={18} color={COLOR.ACCENT.PRIMARY} />}
-          variant="servicios"
+        <ServicioLineasEditableSection
+          items={detalles.map((d) => ({
+            id: d.id,
+            descripcion: d.descripcion,
+            cantidad: safeNumber(d.cantidad),
+            valor: safeNumber(d.valor),
+          }))}
+          onAdd={handleAddServicio}
+          onUpdate={handleUpdateServicio}
+          onDelete={handleDeleteServicio}
+          disabled={loading}
         />
 
         <div
@@ -394,26 +435,18 @@ export default function ArregloDetailsPage() {
           }}
         />
 
-        <ArregloDetalleSection
-          title="Repuestos"
-          titleIcon={<Package size={18} />}
-          emptyText="Sin repuestos asignados."
-          items={repuestosLineas.map((l) => {
-            const cantidad = safeNumber(l.cantidad);
-            const unitario = safeNumber(l.monto_unitario);
-            return {
-              id: l.id,
-              title: l.producto?.nombre || "Producto",
-              cantidad: cantidad,
-              unitario: unitario,
-              code: l.producto?.codigo ?? null,
-              total: unitario * cantidad,
-              deleteAriaLabel: "eliminar repuesto",
-              onDelete: () => void handleDeleteRepuesto(l.id),
-            };
-          })}
-          itemIcon={<Package size={18} color={COLOR.SEMANTIC.SUCCESS} />}
-          variant="repuestos"
+        <RepuestoLineasEditableSection
+          tallerId={arreglo.taller_id ?? null}
+          items={repuestosLineas.map((l) => ({
+            id: l.id,
+            stock_id: l.stock_id,
+            cantidad: safeNumber(l.cantidad),
+            monto_unitario: safeNumber(l.monto_unitario),
+            producto: l.producto ? { nombre: l.producto.nombre, codigo: l.producto.codigo } : null,
+          }))}
+          onUpsert={handleUpsertRepuesto}
+          onDelete={handleDeleteRepuesto}
+          disabled={loading}
         />
 
         <div style={styles.totalFooter}>
@@ -478,16 +511,6 @@ export default function ArregloDetailsPage() {
           }}
         />
       )}
-
-      {arreglo ? (
-        <ArregloItemModal
-          open={openItemModal}
-          onClose={handleCloseItemModal}
-          onSubmitSuccess={reload}
-          arregloId={arreglo.id}
-          tallerId={arreglo.taller_id ?? null}
-        />
-      ) : null}
     </div>
   );
 }

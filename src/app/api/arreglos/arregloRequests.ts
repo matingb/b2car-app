@@ -1,14 +1,18 @@
 export type CreateArregloRequest = {
   vehiculo_id: string;
   taller_id: string;
-  tipo: string;
-  descripcion: string;
-  kilometraje_leido: number;
+  tipo?: string;
+  descripcion?: string;
+  kilometraje_leido?: number;
   fecha: Date | string;
-  observaciones: string;
-  precio_final: number;
-  esta_pago: boolean;
-  extra_data: string;
+  observaciones?: string;
+  precio_final?: number;
+  esta_pago?: boolean;
+  extra_data?: string;
+
+  // opcional: creación "completa" desde el modal (1 POST)
+  detalles?: Array<{ descripcion: string; cantidad: number; valor: number }>;
+  repuestos?: Array<{ stock_id: string; cantidad: number; monto_unitario: number }>;
 };
 
 export type CreateArregloInsertPayload = {

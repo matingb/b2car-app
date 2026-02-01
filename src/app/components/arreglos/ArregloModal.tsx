@@ -10,8 +10,15 @@ import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient";
 import { isValidDate, toDateInputFormat } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
+import { formatArs } from "@/lib/format";
 import { css } from "@emotion/react";
 import { useTenant } from "@/app/providers/TenantProvider";
+import ServicioLineasEditableSection, {
+  type ServicioLinea,
+} from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
+import RepuestoLineasEditableSection, {
+  type RepuestoLinea,
+} from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
 
 export type ArregloForm = {
   tipo: string;
@@ -41,14 +48,15 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const [tipo, setTipo] = useState(initial?.tipo ?? "");
   const [fecha, setFecha] = useState(toDateInputFormat(initial?.fecha));
   const [km, setKm] = useState<string>(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
-  const [precio, setPrecio] = useState<string>(initial?.precio_final != null ? String(initial.precio_final) : "");
   const [observaciones, setObservaciones] = useState(initial?.observaciones ?? "");
-  const [descripcion, setDescripcion] = useState(initial?.descripcion ?? "");
   const [estaPago, setEstaPago] = useState<boolean>(!!initial?.esta_pago);
   const [extraData, setExtraData] = useState(initial?.extra_data ?? "");
   const [selectedVehiculoId, setSelectedVehiculoId] = useState<string>(vehiculoId ? String(vehiculoId) : "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [serviciosDraft, setServiciosDraft] = useState<ServicioLinea[]>([]);
+  const [repuestosDraft, setRepuestosDraft] = useState<RepuestoLinea[]>([]);
 
   useEffect(() => {
     if (!vehiculoId && open) {
@@ -81,13 +89,16 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     setTipo(initial?.tipo ?? "");
     setFecha(toDateInputFormat(initial?.fecha));
     setKm(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
-    setPrecio(initial?.precio_final != null ? String(initial.precio_final) : "");
     setObservaciones(initial?.observaciones ?? "");
-    setDescripcion(initial?.descripcion ?? "");
     setEstaPago(!!initial?.esta_pago);
     setExtraData(initial?.extra_data ?? "");
     setSelectedVehiculoId(vehiculoId ? String(vehiculoId) : "");
-  }, [open, initial, vehiculoId]);
+
+    if (!isEdit) {
+      setServiciosDraft([]);
+      setRepuestosDraft([]);
+    }
+  }, [open, initial, vehiculoId, isEdit]);
 
   const isValid = useMemo(() => {
     const hasVehiculo = vehiculoId || selectedVehiculoId.trim().length > 0;
@@ -98,6 +109,20 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   }, [fecha, vehiculoId, selectedVehiculoId]);
 
   if (!open) return null;
+
+  const subtotalServicios = serviciosDraft.reduce(
+    (acc, s) => acc + (Number(s.cantidad) || 0) * (Number(s.valor) || 0),
+    0
+  );
+  const subtotalRepuestos = repuestosDraft.reduce(
+    (acc, r) => acc + (Number(r.cantidad) || 0) * (Number(r.monto_unitario) || 0),
+    0
+  );
+  const totalCalculado = subtotalServicios + subtotalRepuestos;
+  const totalCalculadoLabel = formatArs(totalCalculado, {
+    maxDecimals: 0,
+    minDecimals: 0,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
 
@@ -111,9 +136,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         tipo: tipo.trim(),
         fecha,
         kilometraje_leido: Number(km),
-        precio_final: Number(precio),
         observaciones: observaciones?.trim() || undefined,
-        descripcion: descripcion?.trim() || undefined,
         esta_pago: !!estaPago,
         extra_data: extraData?.trim() || undefined,
       };
@@ -128,10 +151,27 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           throw new Error("Ocurrió un error al crear el arreglo");
         }
         const finalVehiculoId = vehiculoId || selectedVehiculoId;
+        const precioFinalCalculado = Math.round(Number(totalCalculado) || 0);
         response = await create({
           vehiculo_id: finalVehiculoId!,
           taller_id: tallerSeleccionadoId,
-          ...payload,
+          tipo: payload.tipo ?? "",
+          fecha: fecha,
+          kilometraje_leido: Number(km) || 0,
+          precio_final: precioFinalCalculado,
+          observaciones: payload.observaciones,
+          esta_pago: payload.esta_pago,
+          extra_data: payload.extra_data,
+          detalles: serviciosDraft.map((s) => ({
+            descripcion: String(s.descripcion ?? "").trim(),
+            cantidad: Number(s.cantidad) || 0,
+            valor: Number(s.valor) || 0,
+          })),
+          repuestos: repuestosDraft.map((r) => ({
+            stock_id: String(r.stock_id ?? "").trim(),
+            cantidad: Number(r.cantidad) || 0,
+            monto_unitario: Number(r.monto_unitario) || 0,
+          })),
         } as CreateArregloInput);
       }
 
@@ -144,11 +184,11 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         setTipo("");
         setFecha("");
         setKm("");
-        setPrecio("");
         setObservaciones("");
-        setDescripcion("");
         setEstaPago(false);
         setExtraData("");
+        setServiciosDraft([]);
+        setRepuestosDraft([]);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Ocurrio un error");
@@ -166,10 +206,14 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       submitText={isEdit ? "Guardar cambios" : "Crear"}
       submitting={submitting}
       disabledSubmit={!isValid}
+      modalStyle={{
+        width: "min(860px, 96vw)",
+        overflow: "auto",
+      }}
     >
       <div style={{ padding: "4px 0 12px" }}>
-        {!vehiculoId && (
-          <div css={styles.row}>
+        <div css={styles.row}>
+          {!vehiculoId && (
             <div style={styles.field}>
               <label style={styles.label}>
                 Vehiculo <span aria-hidden="true" style={styles.required}>*</span>
@@ -181,9 +225,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
                 placeholder="Buscar vehiculo..."
               />
             </div>
-          </div>
-        )}
-        <div css={styles.row}>
+          )}
           <div style={styles.field}>
             <label style={styles.label}>Tipo</label>
             <Autocomplete
@@ -194,37 +236,11 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
               allowCustomValue
             />
           </div>
-          <div style={styles.field}>
-            <label style={styles.label}>
-              Fecha <span aria-hidden="true" style={styles.required}>*</span>
-            </label>
-            <input type="date" style={styles.input} value={fecha} onChange={(e) => setFecha(e.target.value)} />
-          </div>
-          <div style={styles.field}>
-            <label style={styles.label}>¿Esta pago?</label>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input type="checkbox" checked={estaPago} onChange={(e) => setEstaPago(e.target.checked)} />
-              <span>Pagado</span>
-            </div>
-          </div>
         </div>
 
         <div css={styles.row}>
           <div style={styles.field}>
-            <label style={styles.label}>Descripción (opcional)</label>
-            <textarea
-              style={styles.input}
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-              placeholder="Notas generales del arreglo (opcional)"
-              rows={3}
-            />
-          </div>
-        </div>
-
-        <div css={styles.row}>
-          <div style={styles.field}>
-            <label style={styles.label}>Kilometraje </label>
+            <label style={styles.label}>Kilometraje</label>
             <input
               style={styles.input}
               inputMode="numeric"
@@ -235,17 +251,108 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
             />
           </div>
           <div style={styles.field}>
-            <label style={styles.label}>Precio final </label>
-            <input
-              style={styles.input}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={precio}
-              onChange={(e) => setPrecio(e.target.value.replace(/\D/g, ""))}
-              placeholder="50000"
-            />
+            <label style={styles.label}>
+              Fecha <span aria-hidden="true" style={styles.required}>*</span>
+            </label>
+            <input type="date" style={styles.input} value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          </div>
+          <div style={styles.field}>
+            <label style={styles.label}>¿Esta pago?</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, height: 44 }}>
+              <input type="checkbox" checked={estaPago} onChange={(e) => setEstaPago(e.target.checked)} />
+              <span>Pagado</span>
+            </div>
           </div>
         </div>
+
+        {!isEdit ? (
+          <div style={{ marginTop: 6 }}>
+            <ServicioLineasEditableSection
+              items={serviciosDraft}
+              onAdd={(input) => {
+                const tempId =
+                  globalThis.crypto?.randomUUID?.() ??
+                  `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                setServiciosDraft((prev) => [
+                  ...prev,
+                  {
+                    id: tempId,
+                    descripcion: input.descripcion,
+                    cantidad: input.cantidad,
+                    valor: input.valor,
+                  },
+                ]);
+              }}
+              onUpdate={(id, patch) => {
+                setServiciosDraft((prev) =>
+                  prev.map((s) =>
+                    s.id === id
+                      ? {
+                          ...s,
+                          descripcion: patch.descripcion,
+                          cantidad: patch.cantidad,
+                          valor: patch.valor,
+                        }
+                      : s
+                  )
+                );
+              }}
+              onDelete={(id) => {
+                setServiciosDraft((prev) => prev.filter((s) => s.id !== id));
+              }}
+              disabled={submitting}
+            />
+
+            <div
+              style={{
+                height: 1,
+                background: COLOR.BORDER.SUBTLE,
+                margin: "18px 0",
+              }}
+            />
+
+            <RepuestoLineasEditableSection
+              tallerId={tallerSeleccionadoId ?? null}
+              items={repuestosDraft}
+              onUpsert={(input) => {
+                setRepuestosDraft((prev) => {
+                  const idx = prev.findIndex((r) => r.stock_id === input.stock_id);
+                  if (idx >= 0) {
+                    const next = [...prev];
+                    next[idx] = {
+                      ...next[idx],
+                      cantidad: input.cantidad,
+                      monto_unitario: input.monto_unitario,
+                    };
+                    return next;
+                  }
+                  const tempId =
+                    globalThis.crypto?.randomUUID?.() ??
+                    `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                  return [
+                    ...prev,
+                    {
+                      id: tempId,
+                      stock_id: input.stock_id,
+                      cantidad: input.cantidad,
+                      monto_unitario: input.monto_unitario,
+                      producto: null,
+                    },
+                  ];
+                });
+              }}
+              onDelete={(id) => {
+                setRepuestosDraft((prev) => prev.filter((r) => r.id !== id));
+              }}
+              disabled={submitting}
+            />
+
+            <div style={stylesModal.totalRow}>
+              <span style={stylesModal.totalLabel}>Total calculado</span>
+              <span style={stylesModal.totalValue}>{totalCalculadoLabel}</span>
+            </div>
+          </div>
+        ) : null}
 
         <div css={styles.row}>
           <div style={styles.field}>
@@ -293,9 +400,29 @@ const styles = {
   input: {
     width: "100%",
     padding: "10px 12px",
+    boxSizing: "border-box" as const,
     borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
   },
   error: { color: "#b00020", fontSize: 13, marginTop: 6 },
+} as const;
+
+const stylesModal = {
+  totalRow: {
+    marginTop: 12,
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "baseline",
+    gap: 8,
+  },
+  totalLabel: {
+    color: COLOR.TEXT.SECONDARY,
+    fontWeight: 700,
+  },
+  totalValue: {
+    fontWeight: 700,
+    fontSize: 18,
+    color: COLOR.TEXT.PRIMARY,
+  },
 } as const;

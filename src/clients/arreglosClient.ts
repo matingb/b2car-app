@@ -16,6 +16,10 @@ export type CreateArregloInput = {
   descripcion?: string;
   esta_pago?: boolean;
   extra_data?: string;
+
+  // opcional: creación completa (servicios + repuestos) en 1 POST
+  detalles?: Array<{ descripcion: string; cantidad: number; valor: number }>;
+  repuestos?: Array<{ stock_id: string; cantidad: number; monto_unitario: number }>;
 };
 
 export type UpdateArregloInput = Partial<Omit<CreateArregloInput, "vehiculo_id" | "taller_id">>;
