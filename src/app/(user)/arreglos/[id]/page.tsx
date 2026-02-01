@@ -7,6 +7,7 @@ import { COLOR } from "@/theme/theme";
 import {
   Calendar,
   Wrench,
+  Package,
   Coins,
   Pencil,
   CheckCircle2,
@@ -34,6 +35,7 @@ import type {
   ArregloDetalleData,
   AsignacionArregloLinea,
 } from "@/app/api/arreglos/[id]/route";
+import ArregloDetalleSection from "./ArregloDetalleSection";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -363,63 +365,26 @@ export default function ArregloDetailsPage() {
           />
         </div>
 
-        <div style={styles.sectionTitle}>
-          <Wrench size={18} />
-          <span>Mano de Obra</span>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {detalles.length === 0 ? (
-            <div style={styles.emptyState}>Sin servicios cargados.</div>
-          ) : (
-            detalles.map((d) => (
-              <div key={d.id} style={styles.itemCardBlue}>
-                <div style={styles.itemIconCircleBlue}>
-                  <Wrench size={18} color={COLOR.ACCENT.PRIMARY} />
-                </div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={styles.itemTitle}>{d.descripcion}</div>
-                  <div style={styles.itemSubTitle}>
-                    {safeNumber(d.cantidad)} x{" "}
-                    {formatArs(safeNumber(d.valor), {
-                      maxDecimals: 0,
-                      minDecimals: 0,
-                    })}
-                  </div>
-                </div>
-
-                <div style={styles.itemPrice}>
-                  {formatArs(safeNumber(d.valor) * safeNumber(d.cantidad), {
-                    maxDecimals: 0,
-                    minDecimals: 0,
-                  })}
-                </div>
-
-                <button
-                  type="button"
-                  style={styles.deleteBtn}
-                  aria-label="eliminar servicio"
-                  onClick={() => void handleDeleteServicio(d.id)}
-                >
-                  <Trash size={18} color={COLOR.ICON.DANGER} />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div style={styles.subtotalRow}>
-          <span style={styles.subtotalLabel}>Subtotal</span>
-          <span
-            style={{ ...styles.subtotalValue, color: COLOR.ACCENT.PRIMARY }}
-          >
-            {formatArs(subtotalServicios, {
-              maxDecimals: 0,
-              minDecimals: 0,
-            })}
-          </span>
-        </div>
+        <ArregloDetalleSection
+          title="Mano de Obra"
+          titleIcon={<Wrench size={18} />}
+          emptyText="Sin servicios realizados."
+          items={detalles.map((d) => {
+            const cantidad = safeNumber(d.cantidad);
+            const unitario = safeNumber(d.valor);
+            return {
+              id: d.id,
+              title: d.descripcion,
+              cantidad: cantidad,
+              unitario: unitario,
+              total: cantidad * unitario,
+              deleteAriaLabel: "eliminar servicio",
+              onDelete: () => void handleDeleteServicio(d.id),
+            };
+          })}
+          itemIcon={<Wrench size={18} color={COLOR.ACCENT.PRIMARY} />}
+          variant="servicios"
+        />
 
         <div
           style={{
@@ -429,67 +394,27 @@ export default function ArregloDetailsPage() {
           }}
         />
 
-        <div style={styles.sectionTitle}>
-          <span style={styles.repuestosIcon}>📦</span>
-          <span>Repuestos</span>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {repuestosLineas.length === 0 ? (
-            <div style={styles.emptyState}>Sin repuestos asignados.</div>
-          ) : (
-            repuestosLineas.map((l) => (
-              <div key={l.id} style={styles.itemCardGreen}>
-                <div style={styles.itemIconCircleGreen}>
-                  <span style={{ fontWeight: 900, color: "#0b7a32" }}>▣</span>
-                </div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={styles.itemTitle}>
-                    {l.producto?.nombre || "Producto"}
-                  </div>
-                  <div style={styles.itemSubTitle}>
-                    {safeNumber(l.cantidad)} x{" "}
-                    {formatArs(safeNumber(l.monto_unitario), {
-                      maxDecimals: 0,
-                      minDecimals: 0,
-                    })}
-                  </div>
-                </div>
-
-                {l.producto?.codigo ? (
-                  <div style={styles.codePill}>{l.producto.codigo}</div>
-                ) : null}
-
-                <div style={styles.itemPrice}>
-                  {formatArs(
-                    safeNumber(l.monto_unitario) * safeNumber(l.cantidad),
-                    { maxDecimals: 0, minDecimals: 0 }
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  style={styles.deleteBtn}
-                  aria-label="eliminar repuesto"
-                  onClick={() => void handleDeleteRepuesto(l.id)}
-                >
-                  <Trash size={18} color={COLOR.ICON.DANGER} />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div style={styles.subtotalRow}>
-          <span style={styles.subtotalLabel}>Subtotal</span>
-          <span style={{ ...styles.subtotalValue, color: COLOR.ACCENT.PRIMARY }}>
-            {formatArs(subtotalRepuestos, {
-              maxDecimals: 0,
-              minDecimals: 0,
-            })}
-          </span>
-        </div>
+        <ArregloDetalleSection
+          title="Repuestos"
+          titleIcon={<Package size={18} />}
+          emptyText="Sin repuestos asignados."
+          items={repuestosLineas.map((l) => {
+            const cantidad = safeNumber(l.cantidad);
+            const unitario = safeNumber(l.monto_unitario);
+            return {
+              id: l.id,
+              title: l.producto?.nombre || "Producto",
+              cantidad: cantidad,
+              unitario: unitario,
+              code: l.producto?.codigo ?? null,
+              total: unitario * cantidad,
+              deleteAriaLabel: "eliminar repuesto",
+              onDelete: () => void handleDeleteRepuesto(l.id),
+            };
+          })}
+          itemIcon={<Package size={18} color={COLOR.SEMANTIC.SUCCESS} />}
+          variant="repuestos"
+        />
 
         <div style={styles.totalFooter}>
           <div style={styles.totalsRow}>
@@ -648,13 +573,6 @@ const styles = {
     color: COLOR.TEXT.SECONDARY,
     marginBottom: 10,
   },
-  repuestosIcon: {
-    display: "inline-flex",
-    width: 18,
-    height: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   emptyState: {
     padding: 12,
     borderRadius: 12,
@@ -781,7 +699,7 @@ const styles = {
   },
   totalBig: {
     fontSize: 32,
-    fontWeight: 900,
+    fontWeight: 700,
   },
   infoGrid: {
     display: "grid",
