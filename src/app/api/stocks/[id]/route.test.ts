@@ -23,7 +23,7 @@ import { createClient } from "@/supabase/server";
 import { stocksService } from "../stocksService";
 import { ServiceError } from "@/app/api/serviceError";
 import { SupabaseClient } from "@supabase/supabase-js";
-import { createInventarioStockRow } from "@/tests/factories";
+import { createStockRow } from "@/tests/factories";
 
 describe("/api/stocks/[id]", () => {
   beforeEach(() => {
@@ -42,10 +42,10 @@ describe("/api/stocks/[id]", () => {
 
   it("PUT actualiza y devuelve 200", async () => {
     vi.mocked(stocksService.updateById).mockResolvedValue({
-      data: createInventarioStockRow({
+      data: createStockRow({
         id: "STK-1",
-        tallerId: "TAL-001",
-        productoId: "PROD-001",
+        taller_id: "TAL-001",
+        producto_id: "PROD-001",
         cantidad: 11,
         stock_minimo: 2,
         stock_maximo: 20,

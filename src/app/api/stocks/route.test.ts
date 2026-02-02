@@ -32,15 +32,25 @@ vi.mock("../productos/productosService", async () => {
   };
 });
 
+vi.mock("../tenant/tenantService", async () => {
+  const actual = await vi.importActual<typeof import("../tenant/tenantService")>(
+    "../tenant/tenantService"
+  );
+  return {
+    ...actual,
+    tenantService: {
+      ...actual.tenantService,
+      getTalleres: vi.fn(),
+    },
+  };
+});
+
 import { GET, POST } from "./route";
 import { createClient } from "@/supabase/server";
 import { stocksService } from "./stocksService";
 import { productosService } from "../productos/productosService";
-import {
-  createInventarioProductoRow,
-  createInventarioStockItemRow,
-  createInventarioStockRow,
-} from "@/tests/factories";
+import { tenantService } from "../tenant/tenantService";
+import { createInventarioProductoRow, createStockItemRow, createStockRow } from "@/tests/factories";
 
 async function postStock(input: unknown) {
   const req = new Request("http://localhost/api/stocks", {
@@ -63,7 +73,7 @@ describe("/api/stocks", () => {
 
   it("GET devuelve lista (sin query params)", async () => {
     vi.mocked(stocksService.listAll).mockResolvedValue({
-      data: [createInventarioStockItemRow()],
+      data: [createStockItemRow()],
       error: null,
     });
 
@@ -79,7 +89,7 @@ describe("/api/stocks", () => {
     const tallerId = "TAL-001";
     
     vi.mocked(stocksService.listForTaller).mockResolvedValue({
-      data: [createInventarioStockItemRow({ tallerId })],
+      data: [createStockItemRow({ taller_id: tallerId })],
       error: null,
     });
 
@@ -97,9 +107,9 @@ describe("/api/stocks", () => {
   it("POST upsert creado devuelve 201", async () => {
     vi.mocked(stocksService.getByTallerProducto).mockResolvedValue({ data: null, error: null });
     vi.mocked(stocksService.create).mockResolvedValue({
-      data: createInventarioStockRow({
+      data: createStockRow({
         id: "STK-999",
-        productoId: "PROD-999",
+        producto_id: "PROD-999",
         cantidad: 10,
         stock_minimo: 0,
         stock_maximo: 0,
@@ -113,9 +123,9 @@ describe("/api/stocks", () => {
     expect(stocksService.create).toHaveBeenCalledTimes(1);
   });
 
-  it("POST cuando ya existe stock para producto+taller devuelve 409 con mensaje del backend", async () => {
+  it("POST cuando ya existe stock para producto+taller y el usuario tiene +1 taller devuelve 409 con mensaje incluyendo 'taller seleccionado'", async () => {
     vi.mocked(stocksService.getByTallerProducto).mockResolvedValue({
-      data: createInventarioStockRow({ tallerId: "TAL-001", productoId: "PROD-001" }),
+      data: createStockRow({ taller_id: "TAL-001", producto_id: "PROD-001" }),
       error: null,
     });
 
@@ -129,10 +139,47 @@ describe("/api/stocks", () => {
       error: null,
     });
 
+    vi.mocked(tenantService.getTalleres).mockResolvedValue({
+      data: [
+        { id: "TAL-001", nombre: "Taller 1", ubicacion: "Ubicación 1" },
+        { id: "TAL-002", nombre: "Taller 2", ubicacion: "Ubicación 2" },
+      ],
+      error: null,
+    });
+
     const { res, body } = await postStock({ tallerId: "TAL-001", productoId: "PROD-001", cantidad: 10 });
 
     expect(res.status).toBe(409);
-    expect(body.error).toBe(`El producto "Neumático 205/55 R16" ya tiene stock definido para el taller "TAL-001"`);
+    expect(body.error).toBe(
+      `El producto "Neumático 205/55 R16" ya tiene stock definido para el taller seleccionado.`
+    );
+  });
+
+  it("POST cuando ya existe stock para producto+taller devuelve 409", async () => {
+    vi.mocked(stocksService.getByTallerProducto).mockResolvedValue({
+      data: createStockRow({ taller_id: "TAL-001", producto_id: "PROD-001" }),
+      error: null,
+    });
+
+    vi.mocked(productosService.getById).mockResolvedValue({
+      data: createInventarioProductoRow({
+        id: "PROD-001",
+        nombre: "Neumático 205/55 R16",
+        proveedor: null,
+        categorias: [],
+      }),
+      error: null,
+    });
+
+    vi.mocked(tenantService.getTalleres).mockResolvedValue({
+      data: [{ id: "TAL-001", nombre: "Taller 1", ubicacion: "Ubicación 1" }],
+      error: null,
+    });
+
+    const { res, body } = await postStock({ tallerId: "TAL-001", productoId: "PROD-001", cantidad: 10 });
+
+    expect(res.status).toBe(409);
+    expect(body.error).toBe(`El producto "Neumático 205/55 R16" ya tiene stock definido.`);
   });
 });
 

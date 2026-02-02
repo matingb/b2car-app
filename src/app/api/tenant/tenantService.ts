@@ -6,9 +6,8 @@ export const tenantService = {
     async getTalleres(supabase: SupabaseClient): Promise<GetTalleresResponse> {
         const { data, error } = await supabase.from("talleres").select("id, nombre, ubicacion");
         if (error) {
-            throw new Error(error.message);
-        }
-        return { data: data as Taller[], error: null  };
+            return { data: null, error: error.message };
     }
-
-}
+    return { data: data as Taller[], error: null };
+  },
+};

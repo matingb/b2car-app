@@ -14,10 +14,9 @@ import StockStats from "@/app/components/stock/StockStats";
 import Dropdown from "@/app/components/ui/Dropdown";
 import { COLOR } from "@/theme/theme";
 import StockItemCard from "@/app/components/stock/StockItemCard";
-import { LoaderCircle, PlusIcon } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import TallerCreateModal from "@/app/components/inventario/TallerCreateModal";
 import { logger } from "@/lib/logger";
-import Button from "@/app/components/ui/Button";
 
 export default function StockPage() {
   return <StockPageContent />;

@@ -15,7 +15,6 @@ import {
 import { estadoAccentColor } from "@/app/components/turnos/utils/estado";
 import { COLOR } from "@/theme/theme";
 import TurnosWeeklySlotCell from "@/app/components/turnos/semanal/TurnosWeeklySlotCell";
-import { logger } from "@/lib/logger";
 
 const HORA_INICIO = 6;
 const HORA_COLUMNAS = 16; // 06:00 -> 21:00

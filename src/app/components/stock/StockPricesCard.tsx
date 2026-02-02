@@ -5,6 +5,7 @@ import Card from "@/app/components/ui/Card";
 import { COLOR } from "@/theme/theme";
 import type { StockItem } from "@/model/stock";
 import { formatArs } from "@/lib/format";
+import NumberInput from "@/app/components/ui/NumberInput";
 
 type Props = {
   item: StockItem;
@@ -31,11 +32,11 @@ export default function StockPricesCard({ item, isEditing, draft, onChange }: Pr
           <div>
             <div style={styles.label}>Precio compra</div>
             {isEditing ? (
-              <input
-                type="number"
-                style={styles.input}
+              <NumberInput
+                minValue={0}
                 value={draft.costoUnitario}
-                onChange={(e) => onChange({ costoUnitario: Number(e.target.value) || 0 })}
+                onValueChange={(next) => onChange({ costoUnitario: next })}
+                style={styles.input}
               />
             ) : (
               <div style={styles.value}>{formatArs(item.costoUnitario, { maxDecimals: 0, minDecimals: 0 })}</div>
@@ -45,11 +46,11 @@ export default function StockPricesCard({ item, isEditing, draft, onChange }: Pr
           <div>
             <div style={styles.label}>Precio venta</div>
             {isEditing ? (
-              <input
-                type="number"
-                style={styles.input}
+              <NumberInput
+                minValue={0}
                 value={draft.precioUnitario}
-                onChange={(e) => onChange({ precioUnitario: Number(e.target.value) || 0 })}
+                onValueChange={(next) => onChange({ precioUnitario: next })}
+                style={styles.input}
               />
             ) : (
               <div style={styles.value}>{formatArs(item.precioUnitario, { maxDecimals: 0, minDecimals: 0 })}</div>

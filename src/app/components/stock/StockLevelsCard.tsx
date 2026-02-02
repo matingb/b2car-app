@@ -9,6 +9,7 @@ import StockProgressBar from "./StockProgressBar";
 import StockStatusPill from "./StockStatusPill";
 import { AlertTriangle } from "lucide-react";
 import Color from "color";
+import NumberInput from "@/app/components/ui/NumberInput";
 
 type Props = {
   item: StockItem;
@@ -53,20 +54,22 @@ export default function StockLevelsCard({ item, isEditing, draft, onChange }: Pr
             <div style={styles.grid}>
               <div>
                 <div style={styles.label}>Stock mínimo</div>
-                <input
-                  type="number"
-                  style={styles.input}
+                <NumberInput
+                  minValue={0}
+                  allowDecimals={false}
                   value={draft.stockMinimo}
-                  onChange={(e) => onChange({ stockMinimo: Number(e.target.value) || 0 })}
+                  onValueChange={(next) => onChange({ stockMinimo: Math.round(next) })}
+                  style={styles.input}
                 />
               </div>
               <div>
                 <div style={styles.label}>Stock máximo</div>
-                <input
-                  type="number"
-                  style={styles.input}
+                <NumberInput
+                  minValue={0}
+                  allowDecimals={false}
                   value={draft.stockMaximo}
-                  onChange={(e) => onChange({ stockMaximo: Number(e.target.value) || 0 })}
+                  onValueChange={(next) => onChange({ stockMaximo: Math.round(next) })}
+                  style={styles.input}
                 />
               </div>
             </div>

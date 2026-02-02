@@ -4,6 +4,7 @@ import type { GetStocksResponse, UpsertStockRequest, UpsertStockResponse } from 
 import { createClient } from "@/supabase/server";
 import { stocksService, type StockItemRow, type StockRow } from "./stocksService";
 import { productosService, type ProductoRow } from "../productos/productosService";
+import { tenantService } from "../tenant/tenantService";
 import { ServiceError } from "@/app/api/serviceError";
 
 function mapStockRow(row: StockRow): StockDTO {
@@ -102,7 +103,16 @@ export async function POST(req: Request) {
         productoRes.error === ServiceError.NotFound || !productoRes.data
           ? input.producto_id
           : productoRes.data.nombre;
-      const message = `El producto "${productoNombre}" ya tiene stock definido para el taller seleccionado.`;
+      let includeTallerText = false;
+      const talleresRes = await tenantService.getTalleres(supabase);
+      
+      if (!talleresRes.error) {
+        includeTallerText = Array.isArray(talleresRes.data) && talleresRes.data.length > 1;
+      }
+
+      const message = includeTallerText
+        ? `El producto "${productoNombre}" ya tiene stock definido para el taller seleccionado.`
+        : `El producto "${productoNombre}" ya tiene stock definido.`;
       return Response.json({ data: null, error: message } satisfies UpsertStockResponse, { status: 409 });
     }
 

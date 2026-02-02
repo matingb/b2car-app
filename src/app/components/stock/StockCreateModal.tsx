@@ -159,7 +159,7 @@ export default function StockCreateModal({
       submitText="Crear"
       submitting={isLoading}
       disabledSubmit={!canSubmit}
-      modalError={submitError ? { titulo: "Se produjo un error al guardar.", descrippcion: submitError } : null}
+      modalError={submitError ? { titulo: "Se produjo un error al crear.", descrippcion: submitError } : null}
       modalStyle={{ overflowY: "auto" }}
     >
       <div style={{ padding: "4px 0 12px"}}>

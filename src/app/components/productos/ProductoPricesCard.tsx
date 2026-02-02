@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import Card from "@/app/components/ui/Card";
 import { COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
+import NumberInput from "@/app/components/ui/NumberInput";
 
 export type ProductoPricesDraft = {
   costoUnitario: number;
@@ -45,11 +46,11 @@ export default function ProductoPricesCard({
           <div>
             <div style={styles.label}>Precio compra</div>
             {isEditing ? (
-              <input
-                type="number"
-                style={styles.input}
+              <NumberInput
+                minValue={0}
                 value={draft.costoUnitario}
-                onChange={(e) => {onChange({  costoUnitario: Number(e.target.value)})}}
+                onValueChange={(next) => onChange({ costoUnitario: next })}
+                style={styles.input}
               />
             ) : (
               <div style={styles.value}>{formatArs(costoUnitario, { maxDecimals: 0, minDecimals: 0 })}</div>
@@ -59,11 +60,11 @@ export default function ProductoPricesCard({
           <div>
             <div style={styles.label}>Precio venta</div>
             {isEditing ? (
-              <input
-                type="number"
-                style={styles.input}
+              <NumberInput
+                minValue={0}
                 value={draft.precioUnitario}
-                onChange={(e) => {onChange({  precioUnitario: Number(e.target.value)})}}
+                onValueChange={(next) => onChange({ precioUnitario: next })}
+                style={styles.input}
               />
             ) : (
               <div style={styles.value}>{formatArs(precioUnitario, { maxDecimals: 0, minDecimals: 0 })}</div>

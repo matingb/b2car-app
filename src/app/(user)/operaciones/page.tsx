@@ -87,7 +87,7 @@ function getTotals(operacion: Operacion) {
 export default function OperacionesPage() {
     const { operaciones, loading, selectedTipos, stats, setSelectedTipos } = useOperaciones();
     const { talleres } = useTenant();
-    const { getStockById, inventario } = useInventario();
+    const { getStockById } = useInventario();
     const [search, setSearch] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [expandedOperacionId, setExpandedOperacionId] = useState<string | null>(null);

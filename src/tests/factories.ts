@@ -6,6 +6,7 @@ import type { CreateEmpresaRequest } from '@/app/api/clientes/empresas/route';
 import type { CreateParticularRequest } from '@/app/api/clientes/particulares/route';
 import type { CreateRepresentanteRequest } from '@/app/api/clientes/empresas/[id]/representantes/route';
 import type { Producto } from '@/app/providers/ProductosProvider';
+import type { StockItemRow, StockRow } from "@/app/api/stocks/stocksService";
 
 /**
  * Factory para crear objetos Vehiculo de prueba
@@ -53,6 +54,12 @@ export const createArreglo = (overrides: Partial<Arreglo> = {}): Arreglo => {
   return {
     id: '1',
     vehiculo: defaultVehiculo,
+    taller_id: "t1",
+    taller: {
+      id: "t1",
+      nombre: "Taller 1",
+      ubicacion: "Ubicación 1",
+    },
     tipo: 'Mantenimiento',
     descripcion: 'Cambio de aceite',
     kilometraje_leido: 50000,
@@ -224,22 +231,6 @@ export type InventarioProductoRow = {
   updated_at: string;
 };
 
-export type InventarioStockRow = {
-  id: string;
-  tenantId: string;
-  tallerId: string;
-  productoId: string;
-  cantidad: number;
-  stock_minimo: number;
-  stock_maximo: number;
-  created_at: string;
-  updated_at: string;
-};
-
-export type InventarioStockItemRow = InventarioStockRow & {
-  productos: InventarioProductoRow;
-};
-
 /**
  * Factory para crear filas de Producto (inventario)
  */
@@ -264,17 +255,12 @@ export const createInventarioProductoRow = (
   };
 };
 
-/**
- * Factory para crear filas de Stock (inventario)
- */
-export const createInventarioStockRow = (
-  overrides: Partial<InventarioStockRow> = {}
-): InventarioStockRow => {
+export const createStockRow = (overrides: Partial<StockRow> = {}): StockRow => {
   return {
     id: "STK-001",
-    tenantId: "TENANT-MOCK",
-    tallerId: "TAL-001",
-    productoId: "PROD-001",
+    tenant_id: "TENANT-MOCK",
+    taller_id: "TAL-001",
+    producto_id: "PROD-001",
     cantidad: 10,
     stock_minimo: 2,
     stock_maximo: 20,
@@ -284,14 +270,11 @@ export const createInventarioStockRow = (
   };
 };
 
-export const createInventarioStockItemRow = (
-  overrides: Partial<InventarioStockItemRow> = {}
-): InventarioStockItemRow => {
-  const { productos, ...stockOverrides } = overrides;
-  const productoId = stockOverrides.productoId ?? "PROD-001";
-
+export const createStockItemRow = (overrides: Partial<StockItemRow> = {}): StockItemRow => {
+  const { productos, ...rest } = overrides;
+  const productoId = (rest as Partial<StockRow>).producto_id ?? "PROD-001";
   return {
-    ...createInventarioStockRow({ ...stockOverrides, productoId }),
+    ...createStockRow({ ...(rest as Partial<StockRow>), producto_id: productoId }),
     productos: productos ?? createInventarioProductoRow({ id: productoId }),
   };
 };

@@ -4,6 +4,7 @@ import React from "react";
 import { BREAKPOINTS, COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import DropdownMultiSelect from "@/app/components/ui/DropdownMultiSelect";
+import NumberInput from "@/app/components/ui/NumberInput";
 
 export type ProductoFormFieldsValues = {
   nombre: string;
@@ -26,12 +27,6 @@ export default function ProductoFormFields({
   onChange,
   categoriasDisponibles,
 }: Props) {
-  const parseNonNegativeNumber = (v: string): number => {
-    const n = Number(v);
-    if (!Number.isFinite(n)) return 0;
-    return Math.max(0, n);
-  };
-
   return (
     <>
       <div css={styles.row}>
@@ -93,27 +88,19 @@ export default function ProductoFormFields({
       <div css={styles.row}>
         <div style={styles.field}>
           <label style={styles.label}>Precio compra</label>
-          <input
-            type="number"
-            min={0}
-            style={styles.input}
+          <NumberInput
+            minValue={0}
             value={values.precioCompra}
-            onChange={(e) =>
-              onChange({ precioCompra: parseNonNegativeNumber(e.target.value) })
-            }
+            onValueChange={(next) => onChange({ precioCompra: next })}
             placeholder="0"
           />
         </div>
         <div style={styles.field}>
           <label style={styles.label}>Precio venta</label>
-          <input
-            type="number"
-            min={0}
-            style={styles.input}
+          <NumberInput
+            minValue={0}
             value={values.precioVenta}
-            onChange={(e) =>
-              onChange({ precioVenta: parseNonNegativeNumber(e.target.value) })
-            }
+            onValueChange={(next) => onChange({ precioVenta: next })}
             placeholder="0"
           />
         </div>

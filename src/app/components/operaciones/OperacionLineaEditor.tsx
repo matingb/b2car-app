@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import IconButton from "@/app/components/ui/IconButton";
 import { COLOR } from "@/theme/theme";
+import NumberInput from "@/app/components/ui/NumberInput";
 export type OperacionLineaDraft = {
   id: string;
   stockId: string;
@@ -97,13 +98,12 @@ export default function OperacionLineaEditor({
       </div>
 
       <div>
-        <input
-          type="number"
-          min={0}
-          step={1}
+        <NumberInput
+          minValue={0}
+          allowDecimals={false}
           disabled={disabled}
           value={linea.cantidad}
-          onChange={(e) => onCantidadChange(Number(e.target.value) || 0)}
+          onValueChange={(next) => onCantidadChange(Math.round(next))}
           style={{ ...styles.controlInput, ...styles.qtyInput }}
           data-testid={`operaciones-line-${index}-cantidad`}
           aria-label="Cantidad"
@@ -111,13 +111,12 @@ export default function OperacionLineaEditor({
       </div>
 
       <div>
-        <input
-          type="number"
-          min={0}
-          step={0.01}
+        <NumberInput
+          minValue={0}
+          allowDecimals
           disabled={disabled}
           value={linea.unitario}
-          onChange={(e) => onUnitarioChange(Number(e.target.value) || 0)}
+          onValueChange={onUnitarioChange}
           style={{ ...styles.controlInput, ...styles.moneyInput }}
           data-testid={`operaciones-line-${index}-unitario`}
           aria-label="Unitario"
@@ -125,13 +124,12 @@ export default function OperacionLineaEditor({
       </div>
 
       <div>
-        <input
-          type="number"
-          min={0}
-          step={0.01}
+        <NumberInput
+          minValue={0}
+          allowDecimals
           disabled={disabled}
           value={linea.total}
-          onChange={(e) => onTotalChange(Number(e.target.value) || 0)}
+          onValueChange={onTotalChange}
           style={{ ...styles.controlInput, ...styles.moneyInput }}
           data-testid={`operaciones-line-${index}-total`}
           aria-label="Total"

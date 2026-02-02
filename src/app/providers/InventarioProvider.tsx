@@ -241,7 +241,7 @@ export function useInventario(tallerId?: string) {
   useEffect(() => {
     if (!tallerId) return;
     void ctx.loadInventarioByTaller(tallerId);
-  }, [ctx.loadInventarioByTaller, tallerId]);
+  }, [ctx, ctx.loadInventarioByTaller, tallerId]);
 
   return {
     ...ctx,
