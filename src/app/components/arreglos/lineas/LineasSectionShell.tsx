@@ -20,36 +20,43 @@ export default function LineasSectionShell({
   children,
   collapseDisabled = false,
 }: Props) {
-  const [collapsed, setCollapsed] = useState<boolean>(true);
+  const [collapsed, setCollapsed] = useState<boolean>(false);
   const ariaLabel = useMemo(
     () => (collapsed ? "Expandir sección" : "Colapsar sección"),
     [collapsed]
   );
 
   return (
-    <div>
+    <div style={{overflow: 'clip'}}>
       <div style={styles.sectionTitle}>
         <IconLabel icon={titleIcon} label={title} />
 
-        <button
-          type="button"
-          style={styles.toggleBtn}
-          onClick={() => setCollapsed((v) => !v)}
-          disabled={collapseDisabled}
-          aria-label={ariaLabel}
-          aria-expanded={!collapsed}
-          title={ariaLabel}
-        >
-          <ChevronDown
-            size={18}
-            color={COLOR.ICON.MUTED}
-            style={{
-              transition: "transform 120ms ease",
-              transform: collapsed ? "rotate(0deg)" : "rotate(180deg)",
-              opacity: collapseDisabled ? 0.5 : 1,
-            }}
-          />
-        </button>
+        <div style={styles.sectionRight}>
+          <div style={styles.subtotalInline}>
+            <span style={styles.subtotalLabel}>Subtotal</span>
+            <span style={styles.subtotalValue}>{subtotal}</span>
+          </div>
+
+          <button
+            type="button"
+            style={styles.toggleBtn}
+            onClick={() => setCollapsed((v) => !v)}
+            disabled={collapseDisabled}
+            aria-label={ariaLabel}
+            aria-expanded={!collapsed}
+            title={ariaLabel}
+          >
+            <ChevronDown
+              size={18}
+              color={COLOR.ICON.MUTED}
+              style={{
+                transition: "transform 120ms ease",
+                transform: collapsed ? "rotate(0deg)" : "rotate(180deg)",
+                opacity: collapseDisabled ? 0.5 : 1,
+              }}
+            />
+          </button>
+        </div>
       </div>
 
       <div style={styles.collapseOuter(collapsed)}>
@@ -58,10 +65,6 @@ export default function LineasSectionShell({
         </div>
       </div>
 
-      <div style={styles.subtotalRow}>
-        <span style={styles.subtotalLabel}>Subtotal</span>
-        <span style={styles.subtotalValue}>{subtotal}</span>
-      </div>
     </div>
   );
 }
@@ -77,6 +80,16 @@ const styles = {
     fontWeight: 700,
     color: COLOR.TEXT.SECONDARY,
     marginBottom: 10,
+  },
+  sectionRight: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+  subtotalInline: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: 8,
   },
   toggleBtn: {
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
@@ -99,13 +112,6 @@ const styles = {
     overflow: "hidden",
     minHeight: 0,
   } as const,
-  subtotalRow: {
-    marginTop: 10,
-    display: "flex",
-    justifyContent: "flex-end",
-    alignItems: "baseline",
-    gap: 8,
-  },
   subtotalLabel: {
     color: COLOR.TEXT.SECONDARY,
     fontWeight: 600,

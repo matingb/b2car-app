@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { COLOR } from "@/theme/theme";
 import { ChevronDown, X } from "lucide-react";
 
@@ -36,8 +37,10 @@ export default function Autocomplete({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Filtrar opciones basadas en el término de búsqueda
   const filteredOptions = options.filter(
@@ -54,7 +57,8 @@ export default function Autocomplete({
     const handleClickOutside = (event: MouseEvent) => {
       if (
         containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
+        !containerRef.current.contains(event.target as Node) &&
+        !dropdownRef.current?.contains(event.target as Node)
       ) {
         setIsOpen(false);
         if (!allowCustomValue) {
@@ -67,6 +71,48 @@ export default function Autocomplete({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [allowCustomValue]);
+
+  useEffect(() => {
+    if (!isOpen || disabled) return;
+
+    const updatePosition = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight || 0;
+      const spaceBelow = Math.max(0, viewportHeight - rect.bottom - 8);
+      const spaceAbove = Math.max(0, rect.top - 8);
+      const placeAbove = spaceBelow < 180 && spaceAbove > spaceBelow;
+      const maxHeight = Math.max(140, placeAbove ? spaceAbove : spaceBelow);
+
+      setDropdownStyle(
+        placeAbove
+          ? {
+              position: "fixed",
+              bottom: viewportHeight - rect.top + 4,
+              left: rect.left,
+              width: rect.width,
+              maxHeight,
+              zIndex: 2000,
+            }
+          : {
+              position: "fixed",
+              top: rect.bottom + 4,
+              left: rect.left,
+              width: rect.width,
+              maxHeight,
+              zIndex: 2000,
+            }
+      );
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isOpen, disabled]);
 
   // Manejar navegación con teclado
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -202,39 +248,44 @@ export default function Autocomplete({
         </div>
       </div>
 
-      {isOpen && !disabled && (
-        <div style={styles.dropdown}>
-          {filteredOptions.length > 0 ? (
-            <div style={styles.optionsList}>
-              {filteredOptions.map((option, index) => (
-                <div
-                  key={option.value}
-                  style={{
-                    ...styles.option,
-                    ...(highlightedIndex === index && styles.optionHighlighted),
-                    ...(value === option.value && styles.optionSelected),
-                  }}
-                  onClick={() => handleSelect(option)}
-                  onMouseEnter={() => setHighlightedIndex(index)}
-                >
-                  <div style={styles.optionContent}>
-                    <span style={styles.optionLabel}>{option.label}</span>
-                    {option.secondaryLabel && (
-                      <span style={styles.optionSecondary}>
-                        {option.secondaryLabel}
-                      </span>
-                    )}
+      {isOpen && !disabled
+        ? typeof document !== "undefined"
+          ? createPortal(
+              <div ref={dropdownRef} style={{ ...styles.dropdown, ...(dropdownStyle ?? {}) }}>
+                {filteredOptions.length > 0 ? (
+                  <div style={styles.optionsList}>
+                    {filteredOptions.map((option, index) => (
+                      <div
+                        key={option.value}
+                        style={{
+                          ...styles.option,
+                          ...(highlightedIndex === index && styles.optionHighlighted),
+                          ...(value === option.value && styles.optionSelected),
+                        }}
+                        onClick={() => handleSelect(option)}
+                        onMouseEnter={() => setHighlightedIndex(index)}
+                      >
+                        <div style={styles.optionContent}>
+                          <span style={styles.optionLabel}>{option.label}</span>
+                          {option.secondaryLabel && (
+                            <span style={styles.optionSecondary}>
+                              {option.secondaryLabel}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={styles.spinnerContainer} aria-label="Cargando opciones">
-              <div style={styles.spinner} />
-            </div>
-          )}
-        </div>
-      )}
+                ) : (
+                  <div style={styles.spinnerContainer} aria-label="Cargando opciones">
+                    <div style={styles.spinner} />
+                  </div>
+                )}
+              </div>,
+              document.body
+            )
+          : null
+        : null}
     </div>
   );
 }
@@ -285,15 +336,12 @@ const styles = {
     transition: "background 0.2s",
   },
   dropdown: {
-    position: "absolute",
-    top: "calc(100% + 4px)",
-    left: 0,
-    right: 0,
+    position: "fixed",
     backgroundColor: COLOR.BACKGROUND.SECONDARY,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 8,
     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-    zIndex: 1000,
+    zIndex: 2000,
     maxHeight: 300,
     overflow: "hidden",
   },

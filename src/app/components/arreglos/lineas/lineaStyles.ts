@@ -35,6 +35,7 @@ export const styles = {
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     background: COLOR.BACKGROUND.SUBTLE,
     flexWrap: "wrap" as const,
+    overflow: "clip",
   },
   itemIconCircleBase: {
     width: 36,

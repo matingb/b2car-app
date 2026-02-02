@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import Card from "@/app/components/ui/Card";
 import IconLabel from "@/app/components/ui/IconLabel";
 import { useOperaciones } from "@/app/providers/OperacionesProvider";
+import { useInventario } from "@/app/providers/InventarioProvider";
 import type { Operacion } from "@/model/types";
+import type { StockItem } from "@/model/stock";
 import { formatDateLabel, formatDateTimeLabel } from "@/lib/fechas";
 import { formatArs } from "@/lib/format";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
@@ -85,9 +87,46 @@ function getTotals(operacion: Operacion) {
 export default function OperacionesPage() {
     const { operaciones, loading, selectedTipos, stats, setSelectedTipos } = useOperaciones();
     const { talleres } = useTenant();
+    const { getStockById, inventario } = useInventario();
     const [search, setSearch] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [expandedOperacionId, setExpandedOperacionId] = useState<string | null>(null);
+    const [stocksById, setStocksById] = useState<Record<string, StockItem>>({});
+    const loadedStockIdsRef = useRef<Set<string>>(new Set());
+
+    useEffect(() => {
+        const ids = new Set<string>();
+        (operaciones ?? []).forEach((o) =>
+            (o.lineas ?? []).forEach((l) => {
+                if (l.stock_id) ids.add(l.stock_id);
+            })
+        );
+
+        const missing = Array.from(ids).filter((id) => !loadedStockIdsRef.current.has(id));
+        if (missing.length === 0) return;
+
+        let cancelled = false;
+        void (async () => {
+            const results = await Promise.all(
+                missing.map((id) => getStockById(id).catch(() => null))
+            );
+            if (cancelled) return;
+
+            setStocksById((prev) => {
+                const next = { ...prev };
+                missing.forEach((id, idx) => {
+                    const stock = results[idx];
+                    if (stock) next[id] = stock;
+                });
+                return next;
+            });
+            missing.forEach((id) => loadedStockIdsRef.current.add(id));
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [operaciones, getStockById]);
 
     const toggleTipo = (tipo: TipoOperacion) => {
         setSelectedTipos((prev) =>
@@ -256,15 +295,16 @@ export default function OperacionesPage() {
                                         <div style={styles.expandedTitle}>Productos</div>
                                         <div style={styles.expandedList}>
                                             {(operacion.lineas ?? []).map((linea) => {
+                                                const stockInfo = stocksById[linea.stock_id];
                                                 const total = (linea.cantidad || 0) * (linea.monto_unitario || 0);
                                                 return (
                                                     <div key={linea.id} style={styles.expandedRow}>
                                                         <div style={styles.expandedLeft}>
                                                             <div style={styles.expandedProductName}>
-                                                                {shortId(linea.stock_id)}
+                                                                {stockInfo?.nombre || shortId(linea.stock_id)}
                                                             </div>
                                                             <div style={styles.expandedProductMeta}>
-                                                                {`Stock ID: ${shortId(linea.stock_id)}`}
+                                                                {`Stock ID: ${shortId(linea.stock_id)}${stockInfo?.codigo ? ` · ${stockInfo.codigo}` : ""}`}
                                                             </div>
                                                         </div>
                                                         <div style={styles.expandedRight}>
