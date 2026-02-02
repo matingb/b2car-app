@@ -3,6 +3,7 @@ import type { ProductoDTO } from "@/model/dtos";
 import type { CreateProductoRequest, CreateProductoResponse, GetProductosResponse } from "./contracts";
 import { createClient } from "@/supabase/server";
 import { productosService, type ProductoRow, type ProductoWithStocksCountRow } from "./productosService";
+import { ServiceError } from "../serviceError";
 
 function mapProductoBase(row: ProductoRow): Omit<ProductoDTO, "talleresConStock"> {
   return {
@@ -58,9 +59,9 @@ export async function POST(req: Request) {
   if (typeof body.precio_unitario !== "number") return Response.json({ data: null, error: "Falta precio_unitario" } satisfies CreateProductoResponse, { status: 400 });
   if (typeof body.costo_unitario !== "number") return Response.json({ data: null, error: "Falta costo_unitario" } satisfies CreateProductoResponse, { status: 400 });
   if (body.precio_unitario < 0)
-    return Response.json({ data: null, error: "precio_unitario debe ser >= 0" } satisfies CreateProductoResponse, { status: 400 });
+    return Response.json({ data: null, error: "El precio de venta no puede ser negativo" } satisfies CreateProductoResponse, { status: 400 });
   if (body.costo_unitario < 0)
-    return Response.json({ data: null, error: "costo_unitario debe ser >= 0" } satisfies CreateProductoResponse, { status: 400 });
+    return Response.json({ data: null, error: "El costo no puede ser negativo" } satisfies CreateProductoResponse, { status: 400 });
 
   const insertPayload = {
     codigo: body.codigo.trim(),
@@ -77,6 +78,7 @@ export async function POST(req: Request) {
   try {
     const { data: created, error } = await productosService.create(supabase, insertPayload);
     if (error || !created) {
+      if (error === ServiceError.Conflict) return Response.json({ data: null, error: "Error al crear producto: Ya existe un producto con ese código" } satisfies CreateProductoResponse, { status: 409 });
       return Response.json({ data: null, error: "Error creando producto" } satisfies CreateProductoResponse, { status: 500 });
     }
     return Response.json(

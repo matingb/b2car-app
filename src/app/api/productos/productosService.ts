@@ -58,13 +58,14 @@ export const productosService = {
   async create(
     supabase: SupabaseClient,
     payload: CreateProductoInput
-  ): Promise<{ data: ProductoRow | null; error: PostgrestError | null }> {
+  ): Promise<{ data: ProductoRow | null; error: ServiceError | null }> {
     const { data, error } = await supabase
       .from("productos")
       .insert([payload])
       .select("*")
       .single();
 
+    if (error) return { data: null, error: toServiceError(error) };
     return { data: (data ?? null) as ProductoRow | null, error };
   },
 

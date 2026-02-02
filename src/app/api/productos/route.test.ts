@@ -22,6 +22,8 @@ import { productosService } from "./productosService";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { createInventarioProductoRow } from "@/tests/factories";
 import type { ProductoWithStocksCountRow } from "./productosService";
+import { ServiceError } from "../serviceError";
+import type { CreateProductoRequest } from "./contracts";
 
 describe("/api/productos", () => {
   beforeEach(() => {
@@ -35,6 +37,26 @@ describe("/api/productos", () => {
       }),
     } as unknown as SupabaseClient);
   });
+
+  const postProducto = async (payload: Partial<CreateProductoRequest>) => {
+    const reqPayload: CreateProductoRequest = {
+      codigo: "C1",
+      nombre: "Producto 1",
+      precio_unitario: 10,
+      costo_unitario: 7,
+      ...payload,
+    };
+
+    const req = new Request("http://localhost/api/productos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(reqPayload),
+    });
+    const res = await POST(req);
+    const body = await res.json().catch(() => null);
+
+    return { res, body };
+  };
 
   it("GET devuelve lista mapeada", async () => {
     vi.mocked(productosService.list).mockResolvedValue({
@@ -67,33 +89,29 @@ describe("/api/productos", () => {
   });
 
   it("POST sin nombre devuelve 400", async () => {
-    const req = new Request("http://localhost/api/productos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        codigo: "C1",
-        nombre: "   ",
-        precio_unitario: 10,
-        costo_unitario: 7,
-      }),
-    });
-    const res = await POST(req);
+    const { res } = await postProducto({ nombre: "   " });
     expect(res.status).toBe(400);
   });
 
   it("POST con precios negativos devuelve 400", async () => {
-    const req = new Request("http://localhost/api/productos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        codigo: "C1",
-        nombre: "Producto 1",
-        precio_unitario: -1,
-        costo_unitario: 7,
-      }),
-    });
-    const res = await POST(req);
+    const { res } = await postProducto({ precio_unitario: -1 });
     expect(res.status).toBe(400);
+  });
+
+  it("POST con costo negativo devuelve 400", async () => {
+    const { res } = await postProducto({ costo_unitario: -1 });
+    expect(res.status).toBe(400);
+  });
+
+  it("POST cuando ya existe un producto con ese código devuelve 409", async () => {
+    vi.mocked(productosService.create).mockResolvedValue({
+      data: null,
+      error: ServiceError.Conflict,
+    });
+
+    const { res } = await postProducto({});
+
+    expect(res.status).toBe(409);
   });
 
   it("POST exitoso devuelve 201", async () => {
@@ -101,20 +119,7 @@ describe("/api/productos", () => {
       data: createInventarioProductoRow({ id: "PROD-1", codigo: "C1", nombre: "Producto 1" }),
       error: null,
     });
-    const req = new Request("http://localhost/api/productos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        codigo: "C1",
-        nombre: "Producto 1",
-        precio_unitario: 10,
-        costo_unitario: 7,
-        proveedor: "Prov",
-        categorias: ["A"],
-      }),
-    });
-    const res = await POST(req);
-    const body = await res.json();
+    const { res, body } = await postProducto({ proveedor: "Prov", categorias: ["A"] });
 
     expect(res.status).toBe(201);
     expect(body.data?.id).toBeTruthy();
