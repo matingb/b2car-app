@@ -7,6 +7,14 @@ import { OperacionesProvider } from "@/app/providers/OperacionesProvider";
 const talleresMock: { id: string; nombre: string }[] = [];
 const getAllMock = vi.fn();
 
+vi.mock("@/app/providers/InventarioProvider", () => ({
+  useInventario: () => ({
+    getStockById: vi.fn().mockResolvedValue(null),
+    isLoading: false,
+    inventario: [],
+  }),
+}));
+
 vi.mock("@/app/providers/ProductosProvider", () => ({
   useProductos: () => ({
     productos: [],

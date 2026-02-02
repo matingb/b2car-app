@@ -72,8 +72,8 @@ export default function ProductoFormFields({
         </div>
       </div>
 
-      <div css={styles.row}>
-        <div style={styles.field}>
+      <div css={styles.rowLocationPrices}>
+        <div css={styles.locationField}>
           <label style={styles.label}>Ubicación</label>
           <input
             style={styles.input}
@@ -82,11 +82,7 @@ export default function ProductoFormFields({
             placeholder="Ej: Estante A-1"
           />
         </div>
-        <div style={styles.field} />
-      </div>
-
-      <div css={styles.row}>
-        <div style={styles.field}>
+        <div css={styles.priceField}>
           <label style={styles.label}>Precio compra</label>
           <NumberInput
             minValue={0}
@@ -95,7 +91,7 @@ export default function ProductoFormFields({
             placeholder="0"
           />
         </div>
-        <div style={styles.field}>
+        <div css={styles.priceField}>
           <label style={styles.label}>Precio venta</label>
           <NumberInput
             minValue={0}
@@ -133,8 +129,29 @@ const styles = {
       gap: 8,
     },
   }),
+  rowLocationPrices: css({
+    display: "grid",
+    gridTemplateColumns: "4fr 3fr 3fr",
+    columnGap: 16,
+    marginTop: 10,
+    width: "auto",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      width: "100%",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 8,
+    },
+  }),
   field: { flex: 1 },
   fieldWide: { flex: 1 },
+  locationField: css({
+    minWidth: 0,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      gridColumn: "1 / -1",
+    },
+  }),
+  priceField: css({
+    minWidth: 0,
+  }),
   label: {
     display: "block",
     fontSize: 13,
@@ -152,5 +169,7 @@ const styles = {
     borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    fontSize: 14,
+    outline: "none",
   },
 } as const;

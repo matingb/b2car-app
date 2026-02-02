@@ -237,11 +237,12 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
 export function useInventario(tallerId?: string) {
   const ctx = useContext(InventarioContext);
   if (!ctx) throw new Error("useInventario debe usarse dentro de InventarioProvider");
+  const { loadInventarioByTaller } = ctx;
 
   useEffect(() => {
     if (!tallerId) return;
-    void ctx.loadInventarioByTaller(tallerId);
-  }, [ctx, ctx.loadInventarioByTaller, tallerId]);
+    void loadInventarioByTaller(tallerId);
+  }, [loadInventarioByTaller, tallerId]);
 
   return {
     ...ctx,
