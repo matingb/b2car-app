@@ -78,7 +78,7 @@ export async function POST(req: Request) {
   try {
     const { data: created, error } = await productosService.create(supabase, insertPayload);
     if (error || !created) {
-      if (error === ServiceError.Conflict) return Response.json({ data: null, error: "Error al crear producto: Ya existe un producto con ese código" } satisfies CreateProductoResponse, { status: 409 });
+      if (error === ServiceError.Conflict) return Response.json({ data: null, error: `Ya existe un producto con el código ${insertPayload.codigo}` } satisfies CreateProductoResponse, { status: 409 });
       return Response.json({ data: null, error: "Error creando producto" } satisfies CreateProductoResponse, { status: 500 });
     }
     return Response.json(

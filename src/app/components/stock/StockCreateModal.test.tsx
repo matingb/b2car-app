@@ -53,7 +53,7 @@ describe("StockCreateModal", () => {
     await userEvent.click(screen.getByText("Producto 1"));
     await userEvent.click(screen.getByTestId("modal-submit"));
 
-    const errorBox = await screen.findByTestId("stock-create-modal-error");
+    const errorBox = await screen.findByTestId("modal-error");
     expect(errorBox).toHaveTextContent('El producto "Producto 1" ya tiene stock definido para "Taller Centro"');
     expect(toastSuccess).not.toHaveBeenCalled();
   });

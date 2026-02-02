@@ -16,6 +16,7 @@ type Props = {
   submitting?: boolean;
   disabledSubmit?: boolean;
   modalStyle?: React.CSSProperties;
+  modalError?: { titulo: string; descrippcion?: string } | null;
 };
 
 export default function Modal({
@@ -28,6 +29,7 @@ export default function Modal({
   submitting = false,
   disabledSubmit = false,
   modalStyle,
+  modalError,
 }: Props) {
   const titleId = useId();
   const restoreScrollRef = useRef<null | (() => void)>(null);
@@ -39,8 +41,6 @@ export default function Modal({
       return;
     }
 
-    // Bloquea scroll del contenido de fondo (generado por IA parece funcionar bien)
-    // Segun el agente esta solucion es Safari/iOS Safe
     const body = document.body;
     const html = document.documentElement;
     const scrollY = window.scrollY || window.pageYOffset || 0;
@@ -100,6 +100,15 @@ export default function Modal({
           </div>
 
           <form onSubmit={onSubmit}>
+            {modalError ? (
+              <div style={styles.errorBox} role="alert" aria-live="polite" data-testid="modal-error">
+                <div style={styles.errorTitle}>{modalError.titulo}</div>
+                {modalError.descrippcion ? (
+                  <div style={styles.errorText}>{modalError.descrippcion}</div>
+                ) : null}
+              </div>
+            ) : null}
+
             {children}
 
             <div style={styles.footer}>
@@ -165,6 +174,22 @@ const styles = {
     padding: "0.5rem 1rem",
     borderRadius: 8,
     cursor: "pointer",
+  },
+  errorBox: {
+    background: COLOR.BACKGROUND.DANGER_TINT,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 8,
+    padding: "12px 14px",
+    marginBottom: 10,
+    color: COLOR.ICON.DANGER,
+  },
+  errorTitle: {
+    fontWeight: 600,
+    marginBottom: 6,
+  },
+  errorText: {
+    whiteSpace: "pre-wrap" as const,
+    wordBreak: "break-word" as const,
   },
 } as const;
 

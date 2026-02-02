@@ -44,13 +44,15 @@ export type StockRegistro = {
 export type CreateProductoInput = Omit<Producto, "id" | "talleresConStock"> & { id?: string };
 export type UpdateProductoInput = Partial<Omit<Producto, "id" | "talleresConStock">>;
 
+export type CreateProductoResult = { producto: Producto | null; error: string | null };
+
 type ProductosContextType = {
   isLoading: boolean;
   categoriasDisponibles: readonly string[];
   productos: Producto[];
   loadProductos: () => Promise<void>;
   getProductoById: (productoId: string) => Promise<{ producto: Producto; stocks: StockRegistro[] } | null>; 
-  createProducto: (input: CreateProductoInput) => Promise<Producto | null>;
+  createProducto: (input: CreateProductoInput) => Promise<CreateProductoResult>;
   updateProducto: (productoId: string, input: UpdateProductoInput) => Promise<Producto | null>;
   removeProducto: (productoId: string) => Promise<void>;
 };
@@ -127,7 +129,7 @@ export function ProductosProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const createProducto = useCallback(async (input: CreateProductoInput): Promise<Producto | null> => {
+  const createProducto = useCallback(async (input: CreateProductoInput): Promise<CreateProductoResult> => {
     setIsLoading(true);
     try {
       const res = await productosClient.create({
@@ -138,9 +140,9 @@ export function ProductosProvider({ children }: { children: React.ReactNode }) {
         proveedor: input.proveedor ?? "",
         categorias: input.categorias ?? [],
       });
-      if (!res.data) return null;
+      if (!res.data) return { producto: null, error: res.error ?? "No se pudo crear el producto" };
       await loadProductos();
-      return mapProductoToInventario(res.data);
+      return { producto: mapProductoToInventario(res.data), error: null };
     } finally {
       setIsLoading(false);
     }

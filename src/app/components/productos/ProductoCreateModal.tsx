@@ -29,6 +29,7 @@ export default function ProductoCreateModal({
   const [precioCompra, setPrecioCompra] = useState<number>(0);
   const [precioVenta, setPrecioVenta] = useState<number>(0);
   const [categorias, setCategorias] = useState<string[]>([]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -39,6 +40,7 @@ export default function ProductoCreateModal({
     setPrecioCompra(0);
     setPrecioVenta(0);
     setCategorias([]);
+    setSubmitError(null);
   }, [open]);
 
   const canSubmit = useMemo(() => {
@@ -53,7 +55,8 @@ export default function ProductoCreateModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const created = await createProducto({
+    setSubmitError(null);
+    const { producto: created, error: createError } = await createProducto({
       nombre: nombre.trim(),
       codigo: codigo.trim(),
       proveedor: proveedor.trim(),
@@ -63,10 +66,13 @@ export default function ProductoCreateModal({
       costoUnitario: precioCompra,
     });
 
-    if (created) success("Producto creado satisfactoriamente");
-    else error("Ocurrió un error al crear el producto");
+    if (created) {
+      success("Producto creado satisfactoriamente");
+      onClose();
+      return;
+    }
 
-    onClose();
+    setSubmitError(createError ?? "Ocurrió un error al crear el producto");
   };
 
   return (
@@ -78,6 +84,11 @@ export default function ProductoCreateModal({
       submitText="Crear"
       submitting={isLoading}
       disabledSubmit={!canSubmit}
+      modalError={
+        submitError
+          ? { titulo: "Error al crear producto", descrippcion: submitError }
+          : null
+      }
       modalStyle={{ overflowY: "auto" }}
     >
       <div style={{ padding: "4px 0 12px" }}>

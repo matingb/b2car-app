@@ -33,6 +33,7 @@ export default function StockCreateModal({
 
   const [productoId, setProductoId] = useState("");
   const isCreatingProducto = productoId === CREATE_PRODUCTO_VALUE;
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Producto (solo si isCreatingProducto = true)
   const [nombre, setNombre] = useState("");
@@ -61,6 +62,7 @@ export default function StockCreateModal({
     setStockActual("");
     setStockMinimo("");
     setStockMaximo("");
+    setSubmitError(null);
   }, [open]);
 
   const canSubmit = useMemo(() => {
@@ -94,6 +96,7 @@ export default function StockCreateModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
 
     const stockActualN = parseOptionalNumber(stockActual);
     const stockMinimoN = parseOptionalNumber(stockMinimo);
@@ -101,7 +104,7 @@ export default function StockCreateModal({
 
     try {
       if (isCreatingProducto) {
-        const createdProducto = await createProducto({
+        const { producto: createdProducto, error: createProductoError } = await createProducto({
           nombre: nombre.trim(),
           codigo: codigo.trim(),
           proveedor: proveedor.trim(),
@@ -111,7 +114,7 @@ export default function StockCreateModal({
           costoUnitario: costoUnitario,
         });
         if (!createdProducto) {
-          toast.error("No se pudo crear el producto");
+          setSubmitError(createProductoError ?? "No se pudo crear el producto");
           return;
         }
         const createdStock = await upsertStock({
@@ -124,8 +127,10 @@ export default function StockCreateModal({
         if (createdStock) {
           onCreated?.(createdStock.id);
           toast.success("Stock creado satisfactoriamente");
+          onClose();
+          return;
         }
-        onClose();
+        setSubmitError("No se pudo crear el stock");
         return;
       }
 
@@ -139,11 +144,13 @@ export default function StockCreateModal({
       if (createdStock) {
         onCreated?.(createdStock.id);
         toast.success("Stock creado satisfactoriamente");
+        onClose();
+        return;
       }
-      onClose();
+      setSubmitError("No se pudo crear el stock");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "No se pudo crear el stock";
-      toast.error("Error creando stock", message);
+      setSubmitError(message);
     }
   };
 
@@ -156,6 +163,7 @@ export default function StockCreateModal({
       submitText="Crear"
       submitting={isLoading}
       disabledSubmit={!canSubmit}
+      modalError={submitError ? { titulo: "Se produjo un error al guardar.", descrippcion: submitError } : null}
       modalStyle={{ overflowY: "auto" }}
     >
       <div style={{ padding: "4px 0 12px"}}>
