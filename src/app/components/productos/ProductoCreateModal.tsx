@@ -2,11 +2,9 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
-import FilterChip from "@/app/components/ui/FilterChip";
-import { BREAKPOINTS, COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
-import { css } from "@emotion/react";
 import { useProductos } from "@/app/providers/ProductosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
+import ProductoFormFields from "@/app/components/productos/ProductoFormFields";
 
 type Props = {
   open: boolean;
@@ -20,7 +18,7 @@ export default function ProductoCreateModal({
   onClose,
 }: Props) {
   const { createProducto, isLoading } = useProductos();
-  const { success, error } = useToast();
+  const { success } = useToast();
 
   const [nombre, setNombre] = useState("");
   const [codigo, setCodigo] = useState("");
@@ -48,10 +46,6 @@ export default function ProductoCreateModal({
   }, [nombre, codigo, precioCompra, precioVenta]);
 
   if (!open) return null;
-
-  const toggleCategoria = (cat: string) => {
-    setCategorias((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,140 +86,28 @@ export default function ProductoCreateModal({
       modalStyle={{ overflowY: "auto" }}
     >
       <div style={{ padding: "4px 0 12px" }}>
-        <div css={styles.row}>
-          <div style={styles.fieldWide}>
-            <label style={styles.label}>
-              Nombre <span aria-hidden="true" style={styles.required}>*</span>
-            </label>
-            <input
-              style={styles.input}
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="Ej: Aceite Motor 10W40 Sintético"
-            />
-          </div>
-        </div>
-
-        <div css={styles.row}>
-          <div style={styles.field}>
-            <label style={styles.label}>
-              Código <span aria-hidden="true" style={styles.required}>*</span>
-            </label>
-            <input
-              style={styles.input}
-              value={codigo}
-              onChange={(e) => setCodigo(e.target.value)}
-              placeholder="Ej: ACE-10W40-SIN"
-            />
-          </div>
-          <div style={styles.field}>
-            <label style={styles.label}>Proveedor</label>
-            <input
-              style={styles.input}
-              value={proveedor}
-              onChange={(e) => setProveedor(e.target.value)}
-              placeholder="Ej: Lubricantes del Sur"
-            />
-          </div>
-        </div>
-
-        <div css={styles.row}>
-          <div style={styles.field}>
-            <label style={styles.label}>Ubicación</label>
-            <input
-              style={styles.input}
-              value={ubicacion}
-              onChange={(e) => setUbicacion(e.target.value)}
-              placeholder="Ej: Estante A-1"
-            />
-          </div>
-          <div style={styles.field} />
-        </div>
-
-        <div css={styles.row}>
-          <div style={styles.field}>
-            <label style={styles.label}>Precio compra</label>
-            <input
-              type="number"
-              min={0}
-              style={styles.input}
-              value={precioCompra}
-              onChange={(e) => {
-                const n = Number(e.target.value);
-                setPrecioCompra(Number.isFinite(n) ? Math.max(0, n) : 0);
-              }}
-              placeholder="0"
-            />
-          </div>
-          <div style={styles.field}>
-            <label style={styles.label}>Precio venta</label>
-            <input
-              type="number"
-              min={0}
-              style={styles.input}
-              value={precioVenta}
-              onChange={(e) => setPrecioVenta(Number(e.target.value))}
-              placeholder="0"
-            />
-          </div>
-        </div>
-
-        <div css={styles.row}>
-          <div style={styles.fieldWide}>
-            <label style={styles.label}>Categorías</label>
-            <div css={styles.chips}>
-              {categoriasDisponibles.map((cat) => (
-                <FilterChip
-                  key={cat}
-                  text={cat}
-                  selected={categorias.includes(cat)}
-                  onClick={() => toggleCategoria(cat)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
+        <ProductoFormFields
+          categoriasDisponibles={categoriasDisponibles}
+          values={{
+            nombre,
+            codigo,
+            proveedor,
+            ubicacion,
+            precioCompra,
+            precioVenta,
+            categorias,
+          }}
+          onChange={(patch) => {
+            if (patch.nombre !== undefined) setNombre(patch.nombre);
+            if (patch.codigo !== undefined) setCodigo(patch.codigo);
+            if (patch.proveedor !== undefined) setProveedor(patch.proveedor);
+            if (patch.ubicacion !== undefined) setUbicacion(patch.ubicacion);
+            if (patch.precioCompra !== undefined) setPrecioCompra(patch.precioCompra);
+            if (patch.precioVenta !== undefined) setPrecioVenta(patch.precioVenta);
+            if (patch.categorias !== undefined) setCategorias(patch.categorias);
+          }}
+        />
       </div>
     </Modal>
   );
 }
-
-const styles = {
-  row: css({
-    display: "flex",
-    gap: 16,
-    marginTop: 10,
-    width: "auto",
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      width: "100%",
-      flexDirection: "column",
-      gap: 8,
-    },
-  }),
-  field: { flex: 1 },
-  fieldWide: { flex: 1 },
-  label: {
-    display: "block",
-    fontSize: 13,
-    marginBottom: 6,
-    color: COLOR.TEXT.SECONDARY,
-  },
-  required: {
-    color: REQUIRED_ICON_COLOR,
-    fontWeight: 700,
-    marginLeft: 2,
-  },
-  input: {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 8,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.INPUT.PRIMARY.BACKGROUND,
-  },
-  chips: css({
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 8,
-  }),
-} as const;
-

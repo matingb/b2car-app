@@ -2,13 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
-import FilterChip from "@/app/components/ui/FilterChip";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useProductos } from "@/app/providers/ProductosProvider";
+import ProductoFormFields from "@/app/components/productos/ProductoFormFields";
 
 const CREATE_PRODUCTO_VALUE = "__create_producto__";
 
@@ -40,8 +40,8 @@ export default function StockCreateModal({
   const [codigo, setCodigo] = useState("");
   const [proveedor, setProveedor] = useState("");
   const [ubicacion, setUbicacion] = useState("");
-  const [precioUnitario, setPrecioUnitario] = useState<number>(0);
-  const [costoUnitario, setCostoUnitario] = useState<number>(0);
+  const [precioCompra, setPrecioCompra] = useState<number>(0);
+  const [precioVenta, setPrecioVenta] = useState<number>(0);
   const [categorias, setCategorias] = useState<string[]>([]);
 
   // Stock (opcional)
@@ -56,8 +56,8 @@ export default function StockCreateModal({
     setCodigo("");
     setProveedor("");
     setUbicacion("");
-    setPrecioUnitario(0);
-    setCostoUnitario(0);
+    setPrecioCompra(0);
+    setPrecioVenta(0);
     setCategorias([]);
     setStockActual("");
     setStockMinimo("");
@@ -83,10 +83,6 @@ export default function StockCreateModal({
 
   if (!open) return null;
 
-  const toggleCategoria = (cat: string) => {
-    setCategorias((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]));
-  };
-
   const parseOptionalNumber = (v: string): number | undefined => {
     const trimmed = v.trim();
     if (!trimmed) return undefined;
@@ -110,8 +106,8 @@ export default function StockCreateModal({
           proveedor: proveedor.trim(),
           ubicacion: ubicacion.trim(),
           categorias,
-          precioUnitario: precioUnitario,
-          costoUnitario: costoUnitario,
+          precioUnitario: precioVenta,
+          costoUnitario: precioCompra,
         });
         if (!createdProducto) {
           setSubmitError(createProductoError ?? "No se pudo crear el producto");
@@ -184,92 +180,28 @@ export default function StockCreateModal({
 
         {isCreatingProducto && (
           <>
-            <div css={styles.row}>
-              <div style={styles.fieldWide}>
-                <label style={styles.label}>Nombre</label>
-                <input
-                  style={styles.input}
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  placeholder="Ej: Aceite Motor 10W40 Sintético"
-                />
-              </div>
-            </div>
-
-            <div css={styles.row}>
-              <div style={styles.field}>
-                <label style={styles.label}>Código</label>
-                <input
-                  style={styles.input}
-                  value={codigo}
-                  onChange={(e) => setCodigo(e.target.value)}
-                  placeholder="Ej: ACE-10W40-SIN"
-                />
-              </div>
-              <div style={styles.field}>
-                <label style={styles.label}>Proveedor</label>
-                <input
-                  style={styles.input}
-                  value={proveedor}
-                  onChange={(e) => setProveedor(e.target.value)}
-                  placeholder="Ej: Lubricantes del Sur"
-                />
-              </div>
-            </div>
-
-            <div css={styles.row}>
-              <div style={styles.field}>
-                <label style={styles.label}>Ubicación</label>
-                <input
-                  style={styles.input}
-                  value={ubicacion}
-                  onChange={(e) => setUbicacion(e.target.value)}
-                  placeholder="Ej: Estante A-1"
-                />
-              </div>
-              <div style={styles.field} />
-            </div>
-
-            <div css={styles.row}>
-              <div style={styles.field}>
-                <label style={styles.label}>Precio compra</label>
-                <input
-                  type="number"
-                  min={0}
-                  style={styles.input}
-                  value={precioUnitario}
-                  onChange={(e) => setPrecioUnitario(Math.max(0, Number(e.target.value) || 0))}
-                  placeholder="0"
-                />
-              </div>
-              <div style={styles.field}>
-                <label style={styles.label}>Precio venta</label>
-                <input
-                  type="number"
-                  min={0}
-                  style={styles.input}
-                  value={costoUnitario}
-                  onChange={(e) => setCostoUnitario(Math.max(0, Number(e.target.value) || 0))}
-                  placeholder="0"
-                />
-              </div>
-            </div>
-
-            <div css={styles.row}>
-              <div style={styles.fieldWide}>
-                <label style={styles.label}>Categorías</label>
-                <div css={styles.chips}>
-                  {categoriasDisponibles.map((cat) => (
-                    <FilterChip
-                      key={cat}
-                      text={cat}
-                      selected={categorias.includes(cat)}
-                      onClick={() => toggleCategoria(cat)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+            <ProductoFormFields
+              categoriasDisponibles={categoriasDisponibles}
+              values={{
+                nombre,
+                codigo,
+                proveedor,
+                ubicacion,
+                precioCompra,
+                precioVenta,
+                categorias,
+              }}
+              onChange={(patch) => {
+                if (patch.nombre !== undefined) setNombre(patch.nombre);
+                if (patch.codigo !== undefined) setCodigo(patch.codigo);
+                if (patch.proveedor !== undefined) setProveedor(patch.proveedor);
+                if (patch.ubicacion !== undefined) setUbicacion(patch.ubicacion);
+                if (patch.precioCompra !== undefined) setPrecioCompra(patch.precioCompra);
+                if (patch.precioVenta !== undefined) setPrecioVenta(patch.precioVenta);
+                if (patch.categorias !== undefined) setCategorias(patch.categorias);
+              }}
+              showRequiredAsterisk
+            />
           </>
         )}
 
