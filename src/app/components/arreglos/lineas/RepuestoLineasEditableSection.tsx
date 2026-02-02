@@ -10,6 +10,7 @@ import LineasSectionShell from "./LineasSectionShell";
 import { itemIconCircleStyle, styles } from "./lineaStyles";
 import { useInlineEditor } from "./useInlineEditor";
 import EditableLineaCard from "./EditableLineaCard";
+import Card from "../../ui/Card";
 
 export type RepuestoLinea = {
   id: string;
@@ -174,7 +175,7 @@ export default function RepuestoLineasEditableSection({
 
           if (!isRowEditing) {
             return (
-              <div key={item.id} style={styles.itemCard}>
+              <Card key={item.id} style={styles.itemCard}>
                 <div style={itemIconCircleStyle("repuestos")}>
                   <Package size={18} color={COLOR.SEMANTIC.SUCCESS} />
                 </div>
@@ -214,7 +215,7 @@ export default function RepuestoLineasEditableSection({
                 >
                   <Trash2 size={18} color={COLOR.ICON.DANGER} />
                 </button>
-              </div>
+              </Card>
             );
           }
 

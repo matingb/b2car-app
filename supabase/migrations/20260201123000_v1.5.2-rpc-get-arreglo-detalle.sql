@@ -128,6 +128,10 @@ BEGIN
 END;
 $$;
 
+-- v1.5.2 - Índice único: productos por tenant y código
+CREATE UNIQUE INDEX IF NOT EXISTS uq_productos_tenant_codigo
+ON public.productos (tenant_id, codigo);
+
 -- v1.5.2 - Migración: crear detalle para arreglos sin detalle_arreglo
 -- Si no existe, genera un detalle usando descripcion y precio_final del arreglo.
 DO $$

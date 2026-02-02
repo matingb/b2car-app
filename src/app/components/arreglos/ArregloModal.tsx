@@ -19,6 +19,7 @@ import ServicioLineasEditableSection, {
 import RepuestoLineasEditableSection, {
   type RepuestoLinea,
 } from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
+import { useToast } from "@/app/providers/ToastProvider";
 
 export type ArregloForm = {
   tipo: string;
@@ -43,6 +44,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const { vehiculos, fetchAll: fetchVehiculos } = useVehiculos();
   const { create, update } = useArreglos();
   const { tallerSeleccionadoId } = useTenant();
+  const { success } = useToast();
 
   const isEdit = !!initial?.id;
   const [tipo, setTipo] = useState(initial?.tipo ?? "");
@@ -193,6 +195,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         onSubmitSuccess?.(response);
       }
 
+      
       onClose();
       if (!isEdit) {
         setTipo("");
@@ -203,6 +206,10 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         setExtraData("");
         setServiciosDraft([]);
         setRepuestosDraft([]);
+        success("Éxito", "Arreglo creado")
+      }
+      else{
+        success("Éxito", "Arreglo actualizado")
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Ocurrio un error");

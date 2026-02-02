@@ -20,7 +20,7 @@ export default function ProductoCreateModal({
   onClose,
 }: Props) {
   const { createProducto, isLoading } = useProductos();
-  const { success } = useToast();
+  const { success, error } = useToast();
 
   const [nombre, setNombre] = useState("");
   const [codigo, setCodigo] = useState("");
@@ -64,6 +64,8 @@ export default function ProductoCreateModal({
     });
 
     if (created) success("Producto creado satisfactoriamente");
+    else error("Ocurrió un error al crear el producto");
+
     onClose();
   };
 

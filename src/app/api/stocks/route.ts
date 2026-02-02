@@ -102,7 +102,7 @@ export async function POST(req: Request) {
         productoRes.error === ServiceError.NotFound || !productoRes.data
           ? input.producto_id
           : productoRes.data.nombre;
-      const message = `El producto "${productoNombre}" ya tiene stock definido para el taller "${input.taller_id}"`;
+      const message = `El producto "${productoNombre}" ya tiene stock definido para el taller seleccionado.`;
       return Response.json({ data: null, error: message } satisfies UpsertStockResponse, { status: 409 });
     }
 

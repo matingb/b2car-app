@@ -77,10 +77,11 @@ export default function ServicioLineasEditableSection({
     validate: (d) => {
       const descripcion = d.descripcion.trim();
       const cantidad = safeInt(d.cantidad);
-      const valor = safeMoney(d.valor);
+      const valorRaw = d.valor.trim();
+      const valor = valorRaw.length === 0 ? 0 : safeMoney(valorRaw);
       if (!descripcion) return { ok: false as const, message: "Falta descripción" };
       if (!Number.isFinite(cantidad) || cantidad <= 0) return { ok: false as const, message: "Cantidad inválida" };
-      if (!Number.isFinite(valor) || valor <= 0) return { ok: false as const, message: "Valor inválido" };
+      if (!Number.isFinite(valor) || valor < 0) return { ok: false as const, message: "Valor inválido" };
       return { ok: true as const, value: { descripcion, cantidad, valor } };
     },
     onAdd,

@@ -33,7 +33,6 @@ export default function StockCreateModal({
 
   const [productoId, setProductoId] = useState("");
   const isCreatingProducto = productoId === CREATE_PRODUCTO_VALUE;
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Producto (solo si isCreatingProducto = true)
   const [nombre, setNombre] = useState("");
@@ -62,7 +61,6 @@ export default function StockCreateModal({
     setStockActual("");
     setStockMinimo("");
     setStockMaximo("");
-    setSubmitError(null);
   }, [open]);
 
   const canSubmit = useMemo(() => {
@@ -96,7 +94,6 @@ export default function StockCreateModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitError(null);
 
     const stockActualN = parseOptionalNumber(stockActual);
     const stockMinimoN = parseOptionalNumber(stockMinimo);
@@ -114,7 +111,7 @@ export default function StockCreateModal({
           costoUnitario: costoUnitario,
         });
         if (!createdProducto) {
-          setSubmitError("No se pudo crear el producto");
+          toast.error("No se pudo crear el producto");
           return;
         }
         const createdStock = await upsertStock({
@@ -146,7 +143,7 @@ export default function StockCreateModal({
       onClose();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "No se pudo crear el stock";
-      setSubmitError(message);
+      toast.error("Error creando stock", message);
     }
   };
 
@@ -170,7 +167,6 @@ export default function StockCreateModal({
               value={productoId}
               onChange={(v) => {
                 setProductoId(v);
-                setSubmitError(null);
               }}
               placeholder="Buscar o crear producto..."
               dataTestId="stock-create-modal-producto-autocomplete"
@@ -231,9 +227,10 @@ export default function StockCreateModal({
                 <label style={styles.label}>Precio compra</label>
                 <input
                   type="number"
+                  min={0}
                   style={styles.input}
                   value={precioUnitario}
-                  onChange={(e) => setPrecioUnitario(Number(e.target.value) || 0)}
+                  onChange={(e) => setPrecioUnitario(Math.max(0, Number(e.target.value) || 0))}
                   placeholder="0"
                 />
               </div>
@@ -241,9 +238,10 @@ export default function StockCreateModal({
                 <label style={styles.label}>Precio venta</label>
                 <input
                   type="number"
+                  min={0}
                   style={styles.input}
                   value={costoUnitario}
-                  onChange={(e) => setCostoUnitario(Number(e.target.value) || 0)}
+                  onChange={(e) => setCostoUnitario(Math.max(0, Number(e.target.value) || 0))}
                   placeholder="0"
                 />
               </div>
@@ -272,9 +270,10 @@ export default function StockCreateModal({
             <label style={styles.label}>Cantidad actual (opcional)</label>
             <input
               type="number"
+              min={0}
               style={styles.input}
               value={stockActual}
-              onChange={(e) => setStockActual(e.target.value)}
+              onChange={(e) => setStockActual(e.target.value.replace(/^-/, ""))}
               placeholder="Ej: 12"
             />
           </div>
@@ -286,9 +285,10 @@ export default function StockCreateModal({
             <label style={styles.label}>Mínimo (opcional)</label>
             <input
               type="number"
+              min={0}
               style={styles.input}
               value={stockMinimo}
-              onChange={(e) => setStockMinimo(e.target.value)}
+              onChange={(e) => setStockMinimo(e.target.value.replace(/^-/, ""))}
               placeholder="Ej: 5"
             />
           </div>
@@ -296,33 +296,20 @@ export default function StockCreateModal({
             <label style={styles.label}>Máximo (opcional)</label>
             <input
               type="number"
+              min={0}
               style={styles.input}
               value={stockMaximo}
-              onChange={(e) => setStockMaximo(e.target.value)}
+              onChange={(e) => setStockMaximo(e.target.value.replace(/^-/, ""))}
               placeholder="Ej: 50"
             />
           </div>
         </div>
       </div>
-      {submitError ? (
-        <div style={styles.errorBox} role="alert" data-testid="stock-create-modal-error">
-          {submitError}
-        </div>
-      ) : null}
     </Modal>
   );
 }
 
 const styles = {
-  errorBox: {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: `1px solid ${COLOR.ICON.DANGER}`,
-    background: "rgba(139, 0, 0, 0.08)",
-    color: COLOR.ICON.DANGER,
-    fontSize: 13,
-    lineHeight: 1.35,
-  },
   row: css({
     display: "flex",
     gap: 16,

@@ -6,6 +6,7 @@ import { Check, Package, Wrench, X } from "lucide-react";
 import { formatArs } from "@/lib/format";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { itemIconCircleStyle, styles as lineaStyles } from "./lineaStyles";
+import Card from "../../ui/Card";
 
 type Kind = "servicios" | "repuestos";
 type Mode = "add" | "edit";
@@ -63,7 +64,7 @@ export default function EditableLineaCard({
   })();
 
   return (
-    <div css={styles.card}>
+    <Card css={styles.card}>
       <div style={itemIconCircleStyle(kind)}>
         {kind === "servicios" ? (
           <Wrench size={18} color={COLOR.ACCENT.PRIMARY} />
@@ -126,7 +127,7 @@ export default function EditableLineaCard({
       </div>
 
       {extra ? <div>{extra}</div> : null}
-    </div>
+    </Card>
   );
 }
 
