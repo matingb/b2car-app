@@ -5,8 +5,7 @@ import Modal from "@/app/components/ui/Modal";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import Dropdown, { type DropdownOption } from "@/app/components/ui/Dropdown";
-import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
-import FilterChip from "@/app/components/ui/FilterChip";
+import DropdownMultiSelect from "@/app/components/ui/DropdownMultiSelect";
 import type { StockFilters } from "@/app/hooks/stock/useStockFilters";
 import type { StockStatus } from "@/lib/stock";
 
@@ -27,13 +26,11 @@ export default function StockFiltersModal({
 }: Props) {
   const [estado, setEstado] = useState<StockStatus | "">(initial?.estado ?? "");
   const [categorias, setCategorias] = useState<string[]>(initial?.categorias ?? []);
-  const [categoriaToAdd, setCategoriaToAdd] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setEstado(initial?.estado ?? "");
     setCategorias(initial?.categorias ?? []);
-    setCategoriaToAdd("");
   }, [open, initial]);
 
   const estadoOptions = useMemo<DropdownOption[]>(
@@ -47,12 +44,9 @@ export default function StockFiltersModal({
     []
   );
 
-  const categoriaOptions = useMemo<AutocompleteOption[]>(() => {
-    // Mostrar solo las categorías no seleccionadas para facilitar multi-selección
-    return categoriasDisponibles
-      .filter((c) => !categorias.includes(c))
-      .map((c) => ({ value: c, label: c }));
-  }, [categoriasDisponibles, categorias]);
+  const categoriaOptions = useMemo(() => {
+    return categoriasDisponibles.map((c) => ({ value: c, label: c }));
+  }, [categoriasDisponibles]);
 
   if (!open) return null;
 
@@ -89,44 +83,13 @@ export default function StockFiltersModal({
         <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>Categorías</label>
-            <Autocomplete
+            <DropdownMultiSelect
               options={categoriaOptions}
-              value={categoriaToAdd}
-              onChange={(value) => {
-                if (!value) {
-                  setCategoriaToAdd("");
-                  return;
-                }
-                if (!categoriasDisponibles.includes(value)) {
-                  // Autocomplete no permite custom value por defecto, pero dejamos guardia
-                  setCategoriaToAdd("");
-                  return;
-                }
-                setCategorias((prev) => (prev.includes(value) ? prev : [...prev, value]));
-                setCategoriaToAdd("");
-              }}
-              placeholder="Buscar categoría..."
+              value={categorias}
+              onChange={setCategorias}
+              placeholder="Seleccionar categorías..."
+              dataTestId="stock-filter-categorias"
             />
-
-            {categorias.length > 0 && (
-              <div style={{ marginTop: 10 }}>
-                <div style={styles.selectedLabel}>Seleccionadas</div>
-                <div css={styles.selectedChips}>
-                  {categorias.map((cat) => (
-                    <FilterChip
-                      key={cat}
-                      text={cat}
-                      selected
-                      onClick={() => setCategorias((prev) => prev.filter((c) => c !== cat))}
-                      data-testid={`stock-selected-categoria-${cat}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            <div style={styles.hint}>
-              Tip: podés seleccionar múltiples categorías.
-            </div>
           </div>
         </div>
 
@@ -137,7 +100,6 @@ export default function StockFiltersModal({
             onClick={() => {
               setEstado("");
               setCategorias([]);
-              setCategoriaToAdd("");
             }}
           >
             Limpiar selección
@@ -165,26 +127,6 @@ const styles = {
     display: "block",
     fontSize: 13,
     marginBottom: 6,
-    color: COLOR.TEXT.SECONDARY,
-  },
-  chips: css({
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 8,
-  }),
-  selectedLabel: {
-    fontSize: 13,
-    color: COLOR.TEXT.SECONDARY,
-    marginBottom: 6,
-  },
-  selectedChips: css({
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 8,
-  }),
-  hint: {
-    marginTop: 8,
-    fontSize: 13,
     color: COLOR.TEXT.SECONDARY,
   },
   clearRow: {

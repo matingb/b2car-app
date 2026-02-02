@@ -200,7 +200,6 @@ export default function StockCreateModal({
                 if (patch.precioVenta !== undefined) setPrecioVenta(patch.precioVenta);
                 if (patch.categorias !== undefined) setCategorias(patch.categorias);
               }}
-              showRequiredAsterisk
             />
           </>
         )}
@@ -217,10 +216,6 @@ export default function StockCreateModal({
               placeholder="Ej: 12"
             />
           </div>
-          <div style={styles.field} />
-        </div>
-
-        <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>Mínimo (opcional)</label>
             <input

@@ -2,9 +2,10 @@
 
 import React from "react";
 import Card from "@/app/components/ui/Card";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { AlertCircle, AlertTriangle, Package, TrendingUp } from "lucide-react";
 import type { StockStatus } from "@/lib/stock";
+import { css } from "@emotion/react";
 
 type Stats = {
   total: number;
@@ -68,7 +69,7 @@ function StatCard({
 
 export default function StockStats({ stats, selectedEstado, onSelectEstado }: Props) {
   return (
-    <div style={styles.grid}>
+    <div css={styles.grid}>
       <StatCard
         title="Total items"
         value={stats.total}
@@ -108,11 +109,17 @@ export default function StockStats({ stats, selectedEstado, onSelectEstado }: Pr
 }
 
 const styles = {
-  grid: {
+  grid: css({
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
     gap: 12,
     marginTop: 12,
-  },
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      gridTemplateColumns: "1fr",
+    },
+  }),
 } as const;
 

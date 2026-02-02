@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import FilterChip from "@/app/components/ui/FilterChip";
 import { BREAKPOINTS, COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
+import DropdownMultiSelect from "@/app/components/ui/DropdownMultiSelect";
 
 export type ProductoFormFieldsValues = {
   nombre: string;
@@ -19,23 +19,13 @@ type Props = {
   values: ProductoFormFieldsValues;
   onChange: (patch: Partial<ProductoFormFieldsValues>) => void;
   categoriasDisponibles: readonly string[];
-  showRequiredAsterisk?: boolean;
 };
 
 export default function ProductoFormFields({
   values,
   onChange,
   categoriasDisponibles,
-  showRequiredAsterisk = true,
 }: Props) {
-  const toggleCategoria = (cat: string) => {
-    onChange({
-      categorias: values.categorias.includes(cat)
-        ? values.categorias.filter((c) => c !== cat)
-        : [...values.categorias, cat],
-    });
-  };
-
   const parseNonNegativeNumber = (v: string): number => {
     const n = Number(v);
     if (!Number.isFinite(n)) return 0;
@@ -48,11 +38,9 @@ export default function ProductoFormFields({
         <div style={styles.fieldWide}>
           <label style={styles.label}>
             Nombre{" "}
-            {showRequiredAsterisk ? (
-              <span aria-hidden="true" style={styles.required}>
-                *
-              </span>
-            ) : null}
+            <span aria-hidden="true" style={styles.required}>
+              *
+            </span>
           </label>
           <input
             style={styles.input}
@@ -67,11 +55,9 @@ export default function ProductoFormFields({
         <div style={styles.field}>
           <label style={styles.label}>
             Código{" "}
-            {showRequiredAsterisk ? (
-              <span aria-hidden="true" style={styles.required}>
-                *
-              </span>
-            ) : null}
+            <span aria-hidden="true" style={styles.required}>
+              *
+            </span>
           </label>
           <input
             style={styles.input}
@@ -112,7 +98,9 @@ export default function ProductoFormFields({
             min={0}
             style={styles.input}
             value={values.precioCompra}
-            onChange={(e) => onChange({ precioCompra: parseNonNegativeNumber(e.target.value) })}
+            onChange={(e) =>
+              onChange({ precioCompra: parseNonNegativeNumber(e.target.value) })
+            }
             placeholder="0"
           />
         </div>
@@ -123,7 +111,9 @@ export default function ProductoFormFields({
             min={0}
             style={styles.input}
             value={values.precioVenta}
-            onChange={(e) => onChange({ precioVenta: parseNonNegativeNumber(e.target.value) })}
+            onChange={(e) =>
+              onChange({ precioVenta: parseNonNegativeNumber(e.target.value) })
+            }
             placeholder="0"
           />
         </div>
@@ -132,16 +122,12 @@ export default function ProductoFormFields({
       <div css={styles.row}>
         <div style={styles.fieldWide}>
           <label style={styles.label}>Categorías</label>
-          <div css={styles.chips}>
-            {categoriasDisponibles.map((cat) => (
-              <FilterChip
-                key={cat}
-                text={cat}
-                selected={values.categorias.includes(cat)}
-                onClick={() => toggleCategoria(cat)}
-              />
-            ))}
-          </div>
+          <DropdownMultiSelect
+            options={categoriasDisponibles.map((c) => ({ value: c, label: c }))}
+            value={values.categorias}
+            onChange={(next) => onChange({ categorias: next })}
+            placeholder="Seleccionar categorías..."
+          />
         </div>
       </div>
     </>
@@ -180,10 +166,4 @@ const styles = {
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
   },
-  chips: css({
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 8,
-  }),
 } as const;
-

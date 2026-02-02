@@ -4,8 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
-import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
-import FilterChip from "@/app/components/ui/FilterChip";
+import DropdownMultiSelect from "@/app/components/ui/DropdownMultiSelect";
 import type { ProductosFilters } from "@/app/hooks/productos/useProductosFilters";
 
 type Props = {
@@ -24,19 +23,15 @@ export default function ProductosFiltersModal({
   onApply,
 }: Props) {
   const [categorias, setCategorias] = useState<string[]>(initial?.categorias ?? []);
-  const [categoriaToAdd, setCategoriaToAdd] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setCategorias(initial?.categorias ?? []);
-    setCategoriaToAdd("");
   }, [open, initial]);
 
-  const categoriaOptions = useMemo<AutocompleteOption[]>(() => {
-    return categoriasDisponibles
-      .filter((c) => !categorias.includes(c))
-      .map((c) => ({ value: c, label: c }));
-  }, [categoriasDisponibles, categorias]);
+  const categoriaOptions = useMemo(() => {
+    return categoriasDisponibles.map((c) => ({ value: c, label: c }));
+  }, [categoriasDisponibles]);
 
   if (!open) return null;
 
@@ -52,34 +47,12 @@ export default function ProductosFiltersModal({
         <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>Categorías</label>
-            <Autocomplete
+            <DropdownMultiSelect
               options={categoriaOptions}
-              value={categoriaToAdd}
-              onChange={(value) => {
-                if (!value) {
-                  setCategoriaToAdd("");
-                  return;
-                }
-                if (!categoriasDisponibles.includes(value)) {
-                  setCategoriaToAdd("");
-                  return;
-                }
-                setCategorias((prev) => (prev.includes(value) ? prev : [...prev, value]));
-                setCategoriaToAdd("");
-              }}
-              placeholder="Buscar categoría..."
+              value={categorias}
+              onChange={setCategorias}
+              placeholder="Seleccionar categorías..."
             />
-
-            {categorias.length > 0 && (
-              <div style={{ marginTop: 10 }}>
-                <div style={styles.selectedLabel}>Seleccionadas</div>
-                <div css={styles.selectedChips}>
-                  {categorias.map((cat) => (
-                    <FilterChip key={cat} text={cat} selected onClick={() => setCategorias((prev) => prev.filter((c) => c !== cat))} />
-                  ))}
-                </div>
-              </div>
-            )}
 
             <div style={styles.clearRow}>
               <button type="button" style={styles.clearButton} onClick={() => setCategorias([])}>
@@ -112,16 +85,6 @@ const styles = {
     marginBottom: 6,
     color: COLOR.TEXT.SECONDARY,
   },
-  selectedLabel: {
-    fontSize: 13,
-    color: COLOR.TEXT.SECONDARY,
-    marginBottom: 6,
-  },
-  selectedChips: css({
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 8,
-  }),
   clearRow: {
     display: "flex",
     justifyContent: "flex-end",
