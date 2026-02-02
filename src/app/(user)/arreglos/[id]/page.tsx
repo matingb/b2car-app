@@ -346,7 +346,7 @@ export default function ArregloDetailsPage() {
                     <div style={styles.fieldLabel}>Precio</div>
                     <IconLabel
                       icon={<Coins size={18} color={COLOR.ACCENT.PRIMARY} />}
-                      label={formatArs(arreglo.precio_final, {
+                      label={formatArs(totalCalculado, {
                         maxDecimals: 0,
                         minDecimals: 0,
                       })}

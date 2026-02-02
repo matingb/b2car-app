@@ -92,7 +92,7 @@ export default function EditableLineaCard({
             pattern="[0-9]*"
             value={unitValue}
             onChange={(e) => onUnitChange(e.target.value.replace(/\D/g, ""))}
-            placeholder="0"
+            placeholder="$73.000"
             disabled={!interactionEnabled}
             aria-label={kind === "servicios" ? "Valor unitario" : "Precio unitario"}
           />
