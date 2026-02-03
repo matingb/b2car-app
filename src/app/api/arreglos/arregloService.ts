@@ -24,12 +24,9 @@ export const arregloService = {
   ): Promise<ServiceResult<Arreglo[]>> {
     let query = supabase
       .from("arreglos")
-      .select(
-        "*, vehiculo:vehiculos(*), taller:talleres(*), detalles:detalle_arreglo(descripcion, cantidad, valor), asignaciones:operaciones_asignacion_arreglo(operacion:operaciones(operaciones_lineas(cantidad, monto_unitario)))"
-      );
-    // !!!!!!!!!!!
-    // TODO : EL CALCULO DE PRECIO_FINAL DEBERÍA ESTAR EN EL BACKEND MEDIANTE UN TRIGGER QUE ACTUALICE EL REGISTRO DE PRECIO NO CALCULANDO EN EL MOMENTO
-    // !!!!!!!!!!!
+      .select("*, vehiculo:vehiculos(*), taller:talleres(*), detalles:detalle_arreglo(descripcion)")
+      
+
     if (filters?.tallerId) {
       query = query.eq("taller_id", filters.tallerId);
     }
@@ -38,15 +35,9 @@ export const arregloService = {
     if (error) return { data: null, error: toServiceError(error) };
 
     const arreglos = (data ?? []).map((row) => {
-      const { detalles, asignaciones, ...rest } = row as {
-        detalles?: Array<{ descripcion?: unknown; cantidad?: unknown; valor?: unknown }> | null;
-        asignaciones?: Array<{
-          operacion?: {
-            operaciones_lineas?: Array<{ cantidad?: unknown; monto_unitario?: unknown }> | null;
-          } | null;
-        }> | null;
+      const { detalles, ...rest } = row as {
+        detalles?: Array<{ descripcion?: unknown }> | null;
         descripcion?: unknown;
-        precio_final?: unknown;
         [key: string]: unknown;
       };
 
@@ -55,29 +46,9 @@ export const arregloService = {
         .filter(Boolean)
         .join(" | ");
 
-      const totalServicios = (detalles ?? []).reduce((acc, d) => {
-        const cantidad = Number(d?.cantidad ?? 0) || 0;
-        const valor = Number(d?.valor ?? 0) || 0;
-        return acc + cantidad * valor;
-      }, 0);
-
-      const totalAsignaciones = (asignaciones ?? []).reduce((acc, a) => {
-        const lineas = a?.operacion?.operaciones_lineas ?? [];
-        if (!Array.isArray(lineas)) return acc;
-        const subtotal = lineas.reduce((sum, l) => {
-          const cantidad = Number(l?.cantidad ?? 0) || 0;
-          const monto = Number(l?.monto_unitario ?? 0) || 0;
-          return sum + cantidad * monto;
-        }, 0);
-        return acc + subtotal;
-      }, 0);
-
-      const precioCalculado = totalServicios + totalAsignaciones;
-
       return {
         ...rest,
         descripcion: descripcionConcatenada || String((row as { descripcion?: unknown })?.descripcion ?? ""),
-        precio_final: precioCalculado,
       };
     });
 

@@ -80,12 +80,12 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       const response = await arreglosClient.create(input);
       if (response?.error) throw new Error(response.error);
       const arreglo = response?.data;
-      fetchAll();
+      fetchAll({tallerId: tallerSeleccionadoId });
       return arreglo ?? null;
     } finally {
       setLoading(false);
     }
-  }, [fetchAll]);
+  }, [fetchAll, tallerSeleccionadoId]);
 
   const update = useCallback(
     async (
@@ -96,13 +96,13 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data, error } = await arreglosClient.update(id, input);
         if (error) throw new Error(error);
-        fetchAll();
+        fetchAll({tallerId: tallerSeleccionadoId });
         return data ?? null;
       } finally {
         setLoading(false);
       }
     },
-    [fetchAll]
+    [fetchAll, tallerSeleccionadoId]
   );
 
   const remove = useCallback(async (id: string | number) => {
@@ -110,22 +110,22 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await arreglosClient.delete(id);
       if (error) throw new Error(error);
-      fetchAll();
+      fetchAll({tallerId: tallerSeleccionadoId });
     } finally {
       setLoading(false);
     }
-  }, [fetchAll]);
+  }, [fetchAll, tallerSeleccionadoId]);
 
   const createDetalle = useCallback(async (arregloId: string | number, input: { descripcion: string; cantidad: number; valor: number }) => {
     setLoading(true);
     try {
       const { error } = await arreglosClient.createDetalle(arregloId, input);
       if (error) throw new Error(error);
-      fetchAll();
+      fetchAll({tallerId: tallerSeleccionadoId });
     } finally {
       setLoading(false);
     }
-  }, [fetchAll]);
+  }, [fetchAll, tallerSeleccionadoId]);
 
   const updateDetalle = useCallback(async (
     arregloId: string | number,
@@ -136,22 +136,22 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await arreglosClient.updateDetalle(arregloId, detalleId, patch);
       if (error) throw new Error(error);
-      fetchAll();
+      fetchAll({tallerId: tallerSeleccionadoId });
     } finally {
       setLoading(false);
     }
-  }, [fetchAll]);
+  }, [fetchAll, tallerSeleccionadoId]);
 
   const deleteDetalle = useCallback(async (arregloId: string | number, detalleId: string) => {
     setLoading(true);
     try {
       const { error } = await arreglosClient.deleteDetalle(arregloId, detalleId);
       if (error) throw new Error(error);
-      fetchAll();
+      fetchAll({tallerId: tallerSeleccionadoId });
     } finally {
       setLoading(false);
     }
-  }, [fetchAll]);
+  }, [fetchAll, tallerSeleccionadoId]);
 
   const upsertRepuestoLinea = useCallback(async (
     arregloId: string | number,
@@ -161,29 +161,28 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await arreglosClient.upsertRepuestoLinea(arregloId, input);
       if (error) throw new Error(error);
-      fetchAll();
+      fetchAll({tallerId: tallerSeleccionadoId });
     } finally {
       setLoading(false);
     }
-  }, [fetchAll]);
-
+  }, [fetchAll, tallerSeleccionadoId]);
   const deleteRepuestoLinea = useCallback(async (arregloId: string | number, lineaId: string) => {
     setLoading(true);
     try {
       const { error } = await arreglosClient.deleteRepuestoLinea(arregloId, lineaId);
       if (error) throw new Error(error);
-      fetchAll();
+      fetchAll({tallerId: tallerSeleccionadoId });
     } finally {
       setLoading(false);
     }
-  }, [fetchAll]);
+  }, [fetchAll , tallerSeleccionadoId]);
 
   useEffect(() => {
     if (tallerSeleccionadoId) {
       fetchAll({ tallerId: tallerSeleccionadoId });
     }
   }, [fetchAll, tallerSeleccionadoId]);
-
+ 
   const value = useMemo(
     () => ({
       arreglos,
