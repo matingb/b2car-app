@@ -85,7 +85,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchAll]);
 
   const update = useCallback(
     async (
@@ -102,7 +102,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     },
-    []
+    [fetchAll]
   );
 
   const remove = useCallback(async (id: string | number) => {
@@ -114,7 +114,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchAll]);
 
   const createDetalle = useCallback(async (arregloId: string | number, input: { descripcion: string; cantidad: number; valor: number }) => {
     setLoading(true);
@@ -125,7 +125,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchAll]);
 
   const updateDetalle = useCallback(async (
     arregloId: string | number,
@@ -140,7 +140,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchAll]);
 
   const deleteDetalle = useCallback(async (arregloId: string | number, detalleId: string) => {
     setLoading(true);
@@ -151,7 +151,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchAll]);
 
   const upsertRepuestoLinea = useCallback(async (
     arregloId: string | number,
@@ -165,7 +165,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchAll]);
 
   const deleteRepuestoLinea = useCallback(async (arregloId: string | number, lineaId: string) => {
     setLoading(true);
@@ -176,7 +176,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchAll]);
 
   useEffect(() => {
     if (tallerSeleccionadoId) {
