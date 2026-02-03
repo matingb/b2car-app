@@ -229,7 +229,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       disabledSubmit={!isValid}
       modalStyle={{
         width: "min(860px, 96vw)",
-        height: "min(820px, 90dvh)",
+        maxHeight: "90dvh",
         overflow: "auto",
       }}
     >

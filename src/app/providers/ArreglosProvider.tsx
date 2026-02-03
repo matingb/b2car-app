@@ -80,9 +80,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       const response = await arreglosClient.create(input);
       if (response?.error) throw new Error(response.error);
       const arreglo = response?.data;
-      if (arreglo) {
-        setArreglos((prev) => [...prev, arreglo]);
-      }
+      fetchAll();
       return arreglo ?? null;
     } finally {
       setLoading(false);
@@ -98,9 +96,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data, error } = await arreglosClient.update(id, input);
         if (error) throw new Error(error);
-        if (data) {
-          setArreglos((prev) => prev.map((a) => (a.id === id ? data : a)));
-        }
+        fetchAll();
         return data ?? null;
       } finally {
         setLoading(false);
@@ -114,7 +110,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await arreglosClient.delete(id);
       if (error) throw new Error(error);
-      setArreglos((prev) => prev.filter((a) => a.id !== id));
+      fetchAll();
     } finally {
       setLoading(false);
     }
@@ -125,6 +121,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await arreglosClient.createDetalle(arregloId, input);
       if (error) throw new Error(error);
+      fetchAll();
     } finally {
       setLoading(false);
     }
@@ -139,6 +136,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await arreglosClient.updateDetalle(arregloId, detalleId, patch);
       if (error) throw new Error(error);
+      fetchAll();
     } finally {
       setLoading(false);
     }
@@ -149,6 +147,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await arreglosClient.deleteDetalle(arregloId, detalleId);
       if (error) throw new Error(error);
+      fetchAll();
     } finally {
       setLoading(false);
     }
@@ -162,6 +161,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await arreglosClient.upsertRepuestoLinea(arregloId, input);
       if (error) throw new Error(error);
+      fetchAll();
     } finally {
       setLoading(false);
     }
@@ -172,6 +172,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await arreglosClient.deleteRepuestoLinea(arregloId, lineaId);
       if (error) throw new Error(error);
+      fetchAll();
     } finally {
       setLoading(false);
     }

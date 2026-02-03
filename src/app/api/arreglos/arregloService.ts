@@ -24,7 +24,7 @@ export const arregloService = {
   ): Promise<ServiceResult<Arreglo[]>> {
     let query = supabase
       .from("arreglos")
-      .select("*, vehiculo:vehiculos(*), taller:talleres(*)");
+      .select("*, vehiculo:vehiculos(*), taller:talleres(*), detalles:detalle_arreglo(descripcion)");
 
     if (filters?.tallerId) {
       query = query.eq("taller_id", filters.tallerId);
@@ -32,7 +32,26 @@ export const arregloService = {
 
     const { data, error } = await query;
     if (error) return { data: null, error: toServiceError(error) };
-    return { data: (data ?? []) as unknown as Arreglo[], error: null };
+
+    const arreglos = (data ?? []).map((row) => {
+      const { detalles, ...rest } = row as {
+        detalles?: Array<{ descripcion?: unknown }> | null;
+        descripcion?: unknown;
+        [key: string]: unknown;
+      };
+
+      const descripcionConcatenada = (detalles ?? [])
+        .map((d) => String(d?.descripcion ?? "").trim())
+        .filter(Boolean)
+        .join(" | ");
+
+      return {
+        ...rest,
+        descripcion: descripcionConcatenada || String((row as { descripcion?: unknown })?.descripcion ?? ""),
+      };
+    });
+
+    return { data: arreglos as unknown as Arreglo[], error: null };
   },
 
   async getByIdWithVehiculo(supabase: SupabaseClient, id: string): Promise<ServiceResult<Arreglo>> {
