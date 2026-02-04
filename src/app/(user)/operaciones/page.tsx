@@ -183,7 +183,7 @@ export default function OperacionesPage() {
                 <CardDato
                     titleText="Resultado Mensual"
                     value={Math.abs(stats?.neto ?? 0)}
-                    prefix={ stats && stats.neto >= 0 ? "$" : "$-"}
+                    prefix={ stats && stats.neto >= 0 ? "$" : "-$"}
                     icon={<CircleDollarSign size={22} color={COLOR.SEMANTIC.SUCCESS} />}
                     style={{ color: COLOR.SEMANTIC.SUCCESS }}
                 />

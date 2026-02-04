@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import type { PostgrestError } from "@supabase/supabase-js";
 
 /**
@@ -12,14 +13,16 @@ export enum ServiceError {
   Conflict = "Conflict",
   NoClienteAsignado = "NoClienteAsignado",
   Unknown = "Unknown",
+  StockInsuficiente = "Stock Insuficiente",
 }
 
 export type ServiceResult<T> = { data: T | null; error: ServiceError | null };
 
 export function toServiceError(err: PostgrestError): ServiceError {
-  const code = (err as { code?: string }).code;
-  if (code === "PGRST116") return ServiceError.NotFound;
-  if (code === "23505") return ServiceError.Conflict;
+  const code = err.code;
+  if (code == "PGRST116") return ServiceError.NotFound;
+  if (code == "23505") return ServiceError.Conflict;
+  if (code == "P0001") return ServiceError.StockInsuficiente;
   return ServiceError.Unknown;
 }
 

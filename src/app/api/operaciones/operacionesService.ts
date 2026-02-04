@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import type { OperacionDTO, OperacionLineaDTO } from "@/model/dtos";
 import { logger } from "@/lib/logger";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
@@ -138,7 +138,8 @@ export const operacionesService = {
 		logger.error("RPC crear_operacion_con_stock - operacionId:", operacionId, "rpcError:", rpcError);
 
 		if (rpcError || !operacionId) {
-			return { data: null, error: rpcError ? toServiceError(rpcError) : ServiceError.Unknown };
+			logger.error("Error creating operacion:", rpcError?.code);
+			return { data: null, error: toServiceError(rpcError ?? { code: "Unknown", message: "Unknown error" } as PostgrestError) };
 		}
 
 		return this.getById(supabase, operacionId as string);

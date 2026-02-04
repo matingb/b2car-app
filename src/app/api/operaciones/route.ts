@@ -83,7 +83,7 @@ export async function POST(req: Request) {
 	const { data, error } = await operacionesService.create(supabase, body);
 	if (error || !data) {
 		logger.error("POST /api/operaciones - error:", error);
-		return Response.json({ data: null, error: "Error creando operación" } satisfies CreateOperacionResponse, { status: 500 });
+		return Response.json({ data: null, error: error?.toString() } satisfies CreateOperacionResponse, { status: 500 });
 	}
 
 	const operacion: Operacion = mapOperacion(data as OperacionRow);
