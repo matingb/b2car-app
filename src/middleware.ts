@@ -4,7 +4,7 @@ import { logger } from '@/lib/logger';
 
 export async function middleware(request: NextRequest) {
   
-  if (process.env.LOG_EVERY_REQUUEST === 'true'){
+  if (process.env.LOG_EVERY_REQUEST === 'true'){
     logger.info('Request: ', {
       method: request.method,
       url: request.nextUrl.href,
@@ -16,13 +16,23 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
-    '/((?!_next/static|_next/image|favicon.ico|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|json)$).*)',
+    '/',
+    '/clientes/:path*',
+    '/vehiculos/:path*',
+    '/arreglos/:path*',
+    '/dashboard/:path*',
+    '/turnos/:path*',
+    '/stock/:path*',
+    '/productos/:path*',
+    '/operaciones/:path*',
+    '/api/clientes/:path*',
+    '/api/vehiculos/:path*',
+    '/api/arreglos/:path*',
+    '/api/productos/:path*',
+    '/api/stocks/:path*',
+    '/api/operaciones/:path*',
+    '/api/turnos/:path*',
+    '/api/dashboard/:path*',
+    '/api/tenant/:path*',
   ],
 }
