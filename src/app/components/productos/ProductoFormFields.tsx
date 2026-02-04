@@ -42,6 +42,7 @@ export default function ProductoFormFields({
             value={values.nombre}
             onChange={(e) => onChange({ nombre: e.target.value })}
             placeholder="Ej: Aceite Motor 10W40 Sintético"
+            data-testid="producto-form-nombre"
           />
         </div>
       </div>
@@ -59,6 +60,7 @@ export default function ProductoFormFields({
             value={values.codigo}
             onChange={(e) => onChange({ codigo: e.target.value })}
             placeholder="Ej: ACE-10W40-SIN"
+            data-testid="producto-form-codigo"
           />
         </div>
         <div style={styles.field}>
