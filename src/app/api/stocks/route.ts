@@ -121,7 +121,11 @@ export async function POST(req: Request) {
       logger.error("Error creating stock:", error);
       return Response.json({ data: null, error: "Error guardando stock" } satisfies UpsertStockResponse, { status: 500 });
     }
-    return Response.json({ data: mapStockRow(created), error: null } satisfies UpsertStockResponse, { status: 201 });
+    const item: StockItemDTO = {
+      ...mapStockRow(created),
+      producto: mapProducto(created.productos ?? null),
+    };
+    return Response.json({ data: item, error: null } satisfies UpsertStockResponse, { status: 201 });
   } catch (error: unknown) {
     logger.error("POST /api/stocks error:", error);
     return Response.json({ data: null, error: "Error guardando stock" } satisfies UpsertStockResponse, { status: 500 });

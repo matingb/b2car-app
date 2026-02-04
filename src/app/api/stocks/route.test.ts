@@ -107,7 +107,7 @@ describe("/api/stocks", () => {
   it("POST upsert creado devuelve 201", async () => {
     vi.mocked(stocksService.getByTallerProducto).mockResolvedValue({ data: null, error: null });
     vi.mocked(stocksService.create).mockResolvedValue({
-      data: createStockRow({
+      data: createStockItemRow({
         id: "STK-999",
         producto_id: "PROD-999",
         cantidad: 10,
@@ -117,10 +117,11 @@ describe("/api/stocks", () => {
       error: null,
     });
 
-    const { res } = await postStock({ tallerId: "TAL-001", productoId: "PROD-999", cantidad: 10 });
+    const { res, body } = await postStock({ tallerId: "TAL-001", productoId: "PROD-999", cantidad: 10 });
 
     expect(res.status).toBe(201);
     expect(stocksService.create).toHaveBeenCalledTimes(1);
+    expect(body.data?.producto).toBeDefined();
   });
 
   it("POST cuando ya existe stock para producto+taller y el usuario tiene +1 taller devuelve 409 con mensaje incluyendo 'taller seleccionado'", async () => {

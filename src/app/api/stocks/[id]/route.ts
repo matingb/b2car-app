@@ -80,7 +80,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error === ServiceError.NotFound || !updated) {
     return Response.json({ data: null, error: "Stock no encontrado" } satisfies UpdateStockResponse, { status: 404 });
   }
-  return Response.json({ data: mapStockRow(updated), error: null } satisfies UpdateStockResponse, { status: 200 });
+  const item = {
+    ...mapStockRow(updated),
+    producto: mapProducto((updated as StockItemRow).productos ?? null),
+  };
+  return Response.json({ data: item, error: null } satisfies UpdateStockResponse, { status: 200 });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

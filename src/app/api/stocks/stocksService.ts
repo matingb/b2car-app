@@ -87,20 +87,19 @@ export const stocksService = {
   async create(
     supabase: SupabaseClient,
     input: Omit<StockRow, "id" | "tenant_id" | "created_at" | "updated_at">
-  ): Promise<{ data: StockRow | null; error: PostgrestError | null }> {
+  ): Promise<{ data: StockItemRow | null; error: PostgrestError | null }> {
     const { data, error } = await supabase
       .from("stocks")
       .insert([input])
-      .select("*")
+      .select("*,productos(*)")
       .single();
-    return { data: (data ?? null) as StockRow | null, error };
+    return { data: (data ?? null) as StockItemRow | null, error };
   },
 
   async upsert(
     supabase: SupabaseClient,
     input: Omit<StockRow, "id" | "tenant_id" | "created_at" | "updated_at">
-  ): Promise<{ data: StockRow | null; created: boolean; error: PostgrestError | null }> {
-    // Try to find existing by unique (tenantId,tallerId,productoId)
+  ): Promise<{ data: StockItemRow | null; created: boolean; error: PostgrestError | null }> {
     const { data: existing, error: findError } = await supabase
       .from("stocks")
       .select("*")
@@ -119,34 +118,34 @@ export const stocksService = {
           stock_maximo: input.stock_maximo,
         })
         .eq("id", existing.id)
-        .select("*")
+        .select("*,productos(*)")
         .single();
-      return { data: (data ?? null) as StockRow | null, created: false, error };
+      return { data: (data ?? null) as StockItemRow | null, created: false, error };
     }
 
     const { data, error } = await supabase
       .from("stocks")
       .insert([input])
-      .select("*")
+      .select("*,productos(*)")
       .single();
-    return { data: (data ?? null) as StockRow | null, created: true, error };
+    return { data: (data ?? null) as StockItemRow | null, created: true, error };
   },
 
   async updateById(
     supabase: SupabaseClient,
     id: string,
     patch: Partial<Pick<StockRow, "cantidad" | "stock_minimo" | "stock_maximo">>
-  ): Promise<{ data: StockRow | null; error: ServiceError | PostgrestError | null }> {
+  ): Promise<{ data: StockItemRow | null; error: ServiceError | PostgrestError | null }> {
     const { data, error } = await supabase
       .from("stocks")
       .update(patch)
       .eq("id", id)
-      .select("*")
+      .select("*,productos(*)")
       .maybeSingle();
 
     if (error) return { data: null, error };
     if (!data) return { data: null, error: ServiceError.NotFound };
-    return { data: data as StockRow, error: null };
+    return { data: data as StockItemRow, error: null };
   },
 
   async deleteById(

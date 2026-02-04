@@ -9,7 +9,7 @@ import { useInventario } from "@/app/providers/InventarioProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useProductos } from "@/app/providers/ProductosProvider";
 import ProductoFormFields from "@/app/components/productos/ProductoFormFields";
-import { logger } from "@/lib/logger";
+import NumberInput from "@/app/components/ui/NumberInput";
 
 const CREATE_PRODUCTO_VALUE = "__create_producto__";
 
@@ -28,7 +28,7 @@ export default function StockCreateModal({
   onClose,
   onCreated,
 }: Props) {
-  const { productos, createProducto, isLoading } = useProductos();
+  const { productos, createProducto, isLoading : loadingProductos } = useProductos();
   const { upsertStock, isLoading : loadingStock } = useInventario();
   const toast = useToast();
 
@@ -45,10 +45,9 @@ export default function StockCreateModal({
   const [precioVenta, setPrecioVenta] = useState<number>(0);
   const [categorias, setCategorias] = useState<string[]>([]);
 
-  // Stock (opcional)
-  const [stockActual, setStockActual] = useState<string>("");
-  const [stockMinimo, setStockMinimo] = useState<string>("");
-  const [stockMaximo, setStockMaximo] = useState<string>("");
+  const [stockActual, setStockActual] = useState<number>(0);
+  const [stockMinimo, setStockMinimo] = useState<number>(0);
+  const [stockMaximo, setStockMaximo] = useState<number>(0);
 
   useEffect(() => {
     if (!open) return;
@@ -60,9 +59,9 @@ export default function StockCreateModal({
     setPrecioCompra(0);
     setPrecioVenta(0);
     setCategorias([]);
-    setStockActual("");
-    setStockMinimo("");
-    setStockMaximo("");
+    setStockActual(0);
+    setStockMinimo(0);
+    setStockMaximo(0);
     setSubmitError(null);
   }, [open]);
 
@@ -84,22 +83,16 @@ export default function StockCreateModal({
 
   if (!open) return null;
 
-  const parseOptionalNumber = (v: string): number | undefined => {
-    const trimmed = v.trim();
-    if (!trimmed) return undefined;
-    const n = Number(trimmed);
-    return Number.isFinite(n) ? n : undefined;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
 
-    const stockActualN = parseOptionalNumber(stockActual);
-    const stockMinimoN = parseOptionalNumber(stockMinimo);
-    const stockMaximoN = parseOptionalNumber(stockMaximo);
+    const stockActualN = stockActual === 0 ? undefined : stockActual;
+    const stockMinimoN = stockMinimo === 0 ? undefined : stockMinimo;
+    const stockMaximoN = stockMaximo === 0 ? undefined : stockMaximo;
 
     try {
+      let targetProductoId = productoId;
       if (isCreatingProducto) {
         const { producto: createdProducto, error: createProductoError } = await createProducto({
           nombre: nombre.trim(),
@@ -114,29 +107,24 @@ export default function StockCreateModal({
           setSubmitError(createProductoError ?? "No se pudo crear el producto");
           return;
         }
-        const createdStock = await upsertStock({
-          productoId: createdProducto.id,
-          tallerId,
-          stockActual: stockActualN,
-          stockMinimo: stockMinimoN,
-          stockMaximo: stockMaximoN,
-        });
-        logger.debug("Created stock after creating producto:", createdStock);
-        toast.success("Stock creado satisfactoriamente");
-        setSubmitError("No se pudo crear el stock");
-        return;
+        targetProductoId = createdProducto.id;
       }
 
       const createdStock = await upsertStock({
-        productoId,
+        productoId: targetProductoId,
         tallerId,
         stockActual: stockActualN,
         stockMinimo: stockMinimoN,
         stockMaximo: stockMaximoN,
       });
-      logger.debug("Created stock after creating producto:", createdStock);
+      if (!createdStock) {
+        setSubmitError("No se pudo crear el stock");
+        return;
+      }
+
       toast.success("Stock creado satisfactoriamente");
       onClose();
+      onCreated?.(createdStock.id);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "No se pudo crear el stock";
       setSubmitError(message);
@@ -150,7 +138,7 @@ export default function StockCreateModal({
       onClose={onClose}
       onSubmit={handleSubmit}
       submitText="Crear"
-      submitting={loadingStock}
+      submitting={loadingStock || loadingProductos}
       disabledSubmit={!canSubmit}
       modalError={submitError ? { titulo: "Se produjo un error al crear.", descrippcion: submitError } : null}
       modalStyle={{ overflowY: "auto" }}
@@ -200,34 +188,34 @@ export default function StockCreateModal({
         <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>Cantidad actual (opcional)</label>
-            <input
-              type="number"
-              min={0}
-              style={styles.input}
+            <NumberInput
+              minValue={0}
+              allowDecimals={false}
               value={stockActual}
-              onChange={(e) => setStockActual(e.target.value.replace(/^-/, ""))}
+              onValueChange={(next) => setStockActual(Math.round(next))}
+              style={styles.input}
               placeholder="Ej: 12"
             />
           </div>
           <div style={styles.field}>
             <label style={styles.label}>Mínimo (opcional)</label>
-            <input
-              type="number"
-              min={0}
-              style={styles.input}
+            <NumberInput
+              minValue={0}
+              allowDecimals={false}
               value={stockMinimo}
-              onChange={(e) => setStockMinimo(e.target.value.replace(/^-/, ""))}
+              onValueChange={(next) => setStockMinimo(Math.round(next))}
+              style={styles.input}
               placeholder="Ej: 5"
             />
           </div>
           <div style={styles.field}>
             <label style={styles.label}>Máximo (opcional)</label>
-            <input
-              type="number"
-              min={0}
-              style={styles.input}
+            <NumberInput
+              minValue={0}
+              allowDecimals={false}
               value={stockMaximo}
-              onChange={(e) => setStockMaximo(e.target.value.replace(/^-/, ""))}
+              onValueChange={(next) => setStockMaximo(Math.round(next))}
+              style={styles.input}
               placeholder="Ej: 50"
             />
           </div>
