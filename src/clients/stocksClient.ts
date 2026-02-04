@@ -6,6 +6,7 @@ import type {
   UpsertStockRequest,
   UpsertStockResponse,
 } from "@/app/api/stocks/contracts";
+import { logger } from "@/lib/logger";
 
 export const stocksClient = {
   async getAll(): Promise<GetStocksResponse> {
@@ -58,8 +59,9 @@ export const stocksClient = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
+      logger.debug("Upsert stock fetch response:", res);
       const body: UpsertStockResponse = await res.json().catch(() => ({ data: null, error: `Error ${res.status}` }));
-      if (!res.ok || body?.error) {
+      if (!res.ok  || body?.error) {
         return { data: null, error: body?.error || `Error ${res.status}` };
       }
       return { data: body.data || null, error: null };

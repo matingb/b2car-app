@@ -162,6 +162,7 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
           stock_minimo: input.stockMinimo,
           stock_maximo: input.stockMaximo,
         });
+        logger.debug("Upsert stock response:", res);
         if (!res.data) {
           throw new Error(res.error || "No se pudo guardar el stock");
         }

@@ -89,7 +89,7 @@ export default function TurnoCreateModal({
 	const [vehiculoNroInterno, setVehiculoNroInterno] = useState<string>("");
 
 	const isCreatingCliente = clienteId === CREATE_CLIENTE_VALUE;
-	const isCreatingVehiculo = vehiculoId === CREATE_VEHICULO_VALUE;
+	const isCreatingVehiculo = vehiculoId === CREATE_VEHICULO_VALUE || isCreatingCliente;
 
 	const tipoClienteOptions: AutocompleteOption[] = useMemo(
 		() => [

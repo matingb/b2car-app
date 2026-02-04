@@ -9,6 +9,7 @@ import { useInventario } from "@/app/providers/InventarioProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useProductos } from "@/app/providers/ProductosProvider";
 import ProductoFormFields from "@/app/components/productos/ProductoFormFields";
+import { logger } from "@/lib/logger";
 
 const CREATE_PRODUCTO_VALUE = "__create_producto__";
 
@@ -28,7 +29,7 @@ export default function StockCreateModal({
   onCreated,
 }: Props) {
   const { productos, createProducto, isLoading } = useProductos();
-  const { upsertStock } = useInventario();
+  const { upsertStock, isLoading : loadingStock } = useInventario();
   const toast = useToast();
 
   const [productoId, setProductoId] = useState("");
@@ -120,12 +121,8 @@ export default function StockCreateModal({
           stockMinimo: stockMinimoN,
           stockMaximo: stockMaximoN,
         });
-        if (createdStock) {
-          onCreated?.(createdStock.id);
-          toast.success("Stock creado satisfactoriamente");
-          onClose();
-          return;
-        }
+        logger.debug("Created stock after creating producto:", createdStock);
+        toast.success("Stock creado satisfactoriamente");
         setSubmitError("No se pudo crear el stock");
         return;
       }
@@ -137,13 +134,9 @@ export default function StockCreateModal({
         stockMinimo: stockMinimoN,
         stockMaximo: stockMaximoN,
       });
-      if (createdStock) {
-        onCreated?.(createdStock.id);
-        toast.success("Stock creado satisfactoriamente");
-        onClose();
-        return;
-      }
-      setSubmitError("No se pudo crear el stock");
+      logger.debug("Created stock after creating producto:", createdStock);
+      toast.success("Stock creado satisfactoriamente");
+      onClose();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "No se pudo crear el stock";
       setSubmitError(message);
@@ -157,7 +150,7 @@ export default function StockCreateModal({
       onClose={onClose}
       onSubmit={handleSubmit}
       submitText="Crear"
-      submitting={isLoading}
+      submitting={loadingStock}
       disabledSubmit={!canSubmit}
       modalError={submitError ? { titulo: "Se produjo un error al crear.", descrippcion: submitError } : null}
       modalStyle={{ overflowY: "auto" }}
