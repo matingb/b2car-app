@@ -7,7 +7,11 @@ export default function VehiculosLayout({ children }: { children: React.ReactNod
   return (
     <ClientesProvider>
       <VehiculosProvider>
-        <ArreglosProvider>{children}</ArreglosProvider>
+        <ArreglosProvider>
+          <InventarioProvider>
+            {children}
+          </InventarioProvider>
+        </ArreglosProvider>
       </VehiculosProvider>
     </ClientesProvider>
   );
