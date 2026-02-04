@@ -188,9 +188,9 @@ export default function StockDetailsPage() {
             draft={draft}
             onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
           />
-          <div style={{ marginTop: 12 }}>
+          {/* <div style={{ marginTop: 12 }}>
             <MovementsCard movimientos={item.historialMovimientos} />
-          </div>
+          </div> */}
         </div>
 
         <div style={styles.rightCol}>

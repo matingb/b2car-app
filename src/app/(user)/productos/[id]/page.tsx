@@ -273,9 +273,9 @@ export default function ProductoDetailsPage() {
             </div>
           </div>
 
-          <div style={{ marginTop: 12 }}>
+          {/* <div style={{ marginTop: 12 }}>
             <MovementsCard movimientos={movimientos} />
-          </div>
+          </div> */}
         </div>
 
         <div style={styles.rightCol}>
