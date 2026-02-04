@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Arreglo } from "@/model/types";
 import type { CreateArregloInsertPayload, UpdateArregloRequest } from "./arregloRequests";
 import { ServiceError, ServiceResult, toServiceError } from "@/app/api/serviceError";
+import { buildDescripcionFromDetalles } from "@/lib/arreglos";
 
 export type TiposConIngresos = {
   tipos: string[];
@@ -40,15 +41,10 @@ export const arregloService = {
         descripcion?: unknown;
         [key: string]: unknown;
       };
-
-      const descripcionConcatenada = (detalles ?? [])
-        .map((d) => String(d?.descripcion ?? "").trim())
-        .filter(Boolean)
-        .join(" | ");
-
+      const fallback = String((row as { descripcion?: unknown })?.descripcion ?? "");
       return {
         ...rest,
-        descripcion: descripcionConcatenada || String((row as { descripcion?: unknown })?.descripcion ?? ""),
+        descripcion: buildDescripcionFromDetalles(detalles, fallback),
       };
     });
 

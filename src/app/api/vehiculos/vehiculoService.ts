@@ -5,6 +5,7 @@ import type { Cliente } from "@/model/types";
 import type { TipoCliente } from "@/model/types";
 import type { SupabaseError } from "@/model/types";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
+import { buildDescripcionFromDetalles } from "@/lib/arreglos";
 
 type ClienteJoinRow = {
   id: string;
@@ -72,15 +73,25 @@ export const vehiculoService = {
 
     if (vError) return { data: null, arreglos: [], error: toServiceError(vError) };
 
-    const { data: arreglos, error: aError } = await supabase
+    const { data: arreglosRaw, error: aError } = await supabase
       .from("arreglos")
-      .select("*, vehiculo:vehiculos(*), taller:talleres(*)")
+      .select("*, vehiculo:vehiculos(*), taller:talleres(*), detalles:detalle_arreglo(descripcion)")
       .eq("vehiculo_id", id)
       .order("fecha", { ascending: false });
 
     if (aError) return { data: (vehiculo ?? null) as Vehiculo | null, arreglos: [], error: toServiceError(aError) };
 
-    return { data: (vehiculo ?? null) as Vehiculo | null, arreglos: (arreglos ?? []) as unknown[], error: null };
+    const arreglos = (arreglosRaw ?? []).map((row) => {
+      const { detalles, descripcion: descRow, ...rest } = row as {
+        detalles?: Array<{ descripcion?: unknown }> | null;
+        descripcion?: unknown;
+        [key: string]: unknown;
+      };
+      const fallback = String(descRow ?? "");
+      return { ...rest, descripcion: buildDescripcionFromDetalles(detalles, fallback) };
+    });
+
+    return { data: (vehiculo ?? null) as Vehiculo | null, arreglos: arreglos as unknown[], error: null };
   },
 
   async updateById(
