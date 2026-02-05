@@ -96,8 +96,21 @@ export async function DELETE(
 
 	const { error } = await operacionesService.deleteById(supabase, id);
 	if (error) {
-		const status = error === ServiceError.NotFound ? 404 : 500;
-		const message = status === 404 ? "Operación no encontrada" : "Error eliminando operación";
+		logger.error("DELETE /api/operaciones/[id] - error:", error);
+		let status = 500;
+		let message = "Error eliminando operación";
+		switch (error) {
+			case ServiceError.NotFound:
+				status = 404;
+				message = "Operación no encontrada";
+				break;
+			case ServiceError.StockInsuficiente:
+				status = 409;
+				message = "Stock insuficiente";
+				break;
+			default:
+				break;
+		}
 		return Response.json({ error: message }, { status });
 	}
 

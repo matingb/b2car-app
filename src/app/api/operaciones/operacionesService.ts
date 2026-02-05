@@ -202,9 +202,12 @@ export const operacionesService = {
 		id: string
 	): Promise<{ error: ServiceError | null }>
 	{
-		const { data, error } = await supabase.from("operaciones").delete().eq("id", id).select("id");
+		const { data, error } = await supabase.rpc("rpc_borrar_operacion_con_stock", {
+			p_operacion_id: id,
+		});
+		logger.error("RPC borrar_operacion_con_stock - data:", data, "error:", error);
 		if (error) return { error: toServiceError(error) };
-		if (!data || data.length === 0) return { error: ServiceError.NotFound };
+		if (!data) return { error: ServiceError.NotFound };
 		return { error: null };
 	},
 

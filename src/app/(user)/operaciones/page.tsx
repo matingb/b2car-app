@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
@@ -23,6 +23,7 @@ import {
     PlusIcon,
     Receipt,
     SlidersHorizontal,
+    Trash,
     Truck,
     Wrench,
 } from "lucide-react";
@@ -32,6 +33,8 @@ import CardDato from "@/app/components/graficos/CardDato";
 import Color from "color";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 import Button from "@/app/components/ui/Button";
+import IconButton from "@/app/components/ui/IconButton";
+import { useToast } from "@/app/providers/ToastProvider";
 
 
 const tipoConfig: Record<
@@ -85,9 +88,10 @@ function getTotals(operacion: Operacion) {
 }
 
 export default function OperacionesPage() {
-    const { operaciones, loading, selectedTipos, stats, setSelectedTipos } = useOperaciones();
+    const { operaciones, loading, selectedTipos, stats, setSelectedTipos, remove } = useOperaciones();
     const { talleres } = useTenant();
     const { getStockById } = useInventario();
+    const { success, error } = useToast();
     const [search, setSearch] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [expandedOperacionId, setExpandedOperacionId] = useState<string | null>(null);
@@ -151,6 +155,16 @@ export default function OperacionesPage() {
                     .some((v) => String(v).toLowerCase().includes(q));
             });
     }, [operaciones, search, talleres]);
+
+    const handleDelete = useCallback(async (operacion: Operacion) => {
+        try {
+            await remove(operacion.id);
+            success("Operación eliminada", "El movimiento fue eliminado correctamente.");
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : "No se pudo eliminar la operación";
+            error("Error eliminando operación", message);
+        }
+    }, [error, remove, success]);
 
     return (
         <div>
@@ -262,25 +276,42 @@ export default function OperacionesPage() {
                                     <div style={styles.cardContent}>
                                         <div style={styles.titleRow}>
                                             <div style={styles.title}>{config.label}</div>
-                                            <div style={styles.date}>{formatDateTimeLabel(operacion.created_at)}</div>
+                                            <div style={styles.titleActions}>
+                                                <div style={styles.date}>{formatDateTimeLabel(operacion.created_at)}</div>
+                                                
+                                            </div>
                                         </div>
 
                                         <div style={styles.metaRow}>
-                                            <IconLabel
-                                                icon={<Building2 size={14} color={COLOR.ICON.MUTED} />}
-                                                label={`Taller ${talleres.find(t => t.id === operacion.taller_id)?.nombre}`}
-                                                style={styles.metaItem}
-                                            />
-                                            <IconLabel
-                                                icon={<Package size={14} color={COLOR.ICON.MUTED} />}
-                                                label={`${totalLineas} productos`}
-                                                style={styles.metaItem}
-                                            />
-                                            <IconLabel
-                                                icon={<Coins size={14} color={COLOR.ICON.MUTED} />}
-                                                label={formatArs(totalMonto)}
-                                                style={styles.metaItem}
-                                            />
+                                            <div style={styles.metaGroup}>
+                                                <IconLabel
+                                                    icon={<Building2 size={14} color={COLOR.ICON.MUTED} />}
+                                                    label={`Taller ${talleres.find(t => t.id === operacion.taller_id)?.nombre}`}
+                                                    style={styles.metaItem}
+                                                />
+                                                <IconLabel
+                                                    icon={<Package size={14} color={COLOR.ICON.MUTED} />}
+                                                    label={`${totalLineas} productos`}
+                                                    style={styles.metaItem}
+                                                />
+                                                <IconLabel
+                                                    icon={<Coins size={14} color={COLOR.ICON.MUTED} />}
+                                                    label={formatArs(totalMonto)}
+                                                    style={styles.metaItem}
+                                                />
+                                            </div>
+                                            <div style={styles.metaActions}>
+                                                <IconButton
+                                                    icon={<Trash />}
+                                                    title="Eliminar"
+                                                    ariaLabel="Eliminar"
+                                                    hoverColor={COLOR.SEMANTIC.DANGER}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        void handleDelete(operacion);
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -564,6 +595,12 @@ const styles = {
         justifyContent: "space-between",
         gap: 12,
     },
+    titleActions: {
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        flexShrink: 0,
+    },
     title: {
         fontSize: 16,
         fontWeight: 600,
@@ -573,12 +610,29 @@ const styles = {
         color: COLOR.TEXT.SECONDARY,
         whiteSpace: "nowrap" as const,
     },
+    deleteButton: {
+        color: COLOR.SEMANTIC.DANGER,
+    },
     metaRow: {
         display: "flex",
-        gap: 14,
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
         flexWrap: "wrap" as const,
         color: COLOR.TEXT.SECONDARY,
         fontSize: 13,
+    },
+    metaGroup: {
+        display: "flex",
+        gap: 14,
+        flexWrap: "wrap" as const,
+        alignItems: "center",
+        minWidth: 0,
+    },
+    metaActions: {
+        display: "flex",
+        alignItems: "center",
+        flexShrink: 0,
     },
     metaItem: {
         color: COLOR.TEXT.SECONDARY,
