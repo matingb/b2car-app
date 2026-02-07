@@ -80,7 +80,7 @@ export default function ProductoCreateModal({
       disabledSubmit={!canSubmit}
       modalError={
         submitError
-          ? { titulo: "Error al crear producto", descrippcion: submitError }
+          ? { titulo: "Error al crear producto", descripcion: submitError }
           : null
       }
       modalStyle={{ overflowY: "auto" }}

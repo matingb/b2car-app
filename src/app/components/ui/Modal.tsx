@@ -16,7 +16,7 @@ type Props = {
   submitting?: boolean;
   disabledSubmit?: boolean;
   modalStyle?: React.CSSProperties;
-  modalError?: { titulo: string; descrippcion?: string } | null;
+  modalError?: { titulo: string; descripcion?: string } | null;
 };
 
 export default function Modal({
@@ -103,8 +103,8 @@ export default function Modal({
             {modalError ? (
               <div style={styles.errorBox} role="alert" aria-live="polite" data-testid="modal-error">
                 <div style={styles.errorTitle}>{modalError.titulo}</div>
-                {modalError.descrippcion ? (
-                  <div style={styles.errorText}>{modalError.descrippcion}</div>
+                {modalError.descripcion ? (
+                  <div style={styles.errorText}>{modalError.descripcion}</div>
                 ) : null}
               </div>
             ) : null}
