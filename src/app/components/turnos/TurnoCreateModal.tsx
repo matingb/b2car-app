@@ -9,8 +9,8 @@ import { useToast } from "@/app/providers/ToastProvider";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { useTurnos } from "@/app/providers/TurnosProvider";
 import { CreateTurnoInput } from "@/app/api/turnos/turnosService";
-import Dropdown from "@/app/components/ui/Dropdown";
 import { TipoCliente, Turno } from "@/model/types";
+import ClienteFormFields from "@/app/components/clientes/ClienteFormFields";
 
 export type CreatedTurno = {
 	id: number;
@@ -80,6 +80,7 @@ export default function TurnoCreateModal({
 	const [clienteTelefono, setClienteTelefono] = useState<string>("");
 	const [clienteEmail, setClienteEmail] = useState<string>("");
 	const [clienteDireccion, setClienteDireccion] = useState<string>("");
+	const [clienteInlineIsValid, setClienteInlineIsValid] = useState(false);
 
 	// Inline create Vehiculo
 	const [vehiculoPatente, setVehiculoPatente] = useState<string>("");
@@ -90,14 +91,6 @@ export default function TurnoCreateModal({
 
 	const isCreatingCliente = clienteId === CREATE_CLIENTE_VALUE;
 	const isCreatingVehiculo = vehiculoId === CREATE_VEHICULO_VALUE || isCreatingCliente;
-
-	const tipoClienteOptions: AutocompleteOption[] = useMemo(
-		() => [
-			{ value: TipoCliente.PARTICULAR, label: "Particular" },
-			{ value: TipoCliente.EMPRESA, label: "Empresa" },
-		],
-		[]
-	);
 
 	const clienteOptions: AutocompleteOption[] = useMemo(
 		() => [
@@ -191,6 +184,7 @@ export default function TurnoCreateModal({
 		setClienteTelefono("");
 		setClienteEmail("");
 		setClienteDireccion("");
+		setClienteInlineIsValid(false);
 
 		setVehiculoPatente("");
 		setVehiculoFechaPatente("");
@@ -198,13 +192,6 @@ export default function TurnoCreateModal({
 		setVehiculoModelo("");
 		setVehiculoNroInterno("");
 	}, [open, defaultClienteId, defaultFecha, defaultHora, turnoToEdit]);
-
-	const clienteInlineIsValid = useMemo(() => {
-		if (clienteNombre.trim().length === 0) return false;
-		if (clienteTipo === TipoCliente.PARTICULAR && clienteApellido.trim().length === 0) return false;
-		if (clienteTipo === TipoCliente.EMPRESA && clienteCuit.trim().length === 0) return false;
-		return true;
-	}, [clienteNombre, clienteTipo, clienteApellido, clienteCuit]);
 
 	const clienteIdForVehiculo = useMemo(() => {
 		if (isCreatingCliente) return "";
@@ -334,89 +321,27 @@ export default function TurnoCreateModal({
 					/>
 					{isCreatingCliente && (
 						<div style={styles.inlineForm}>
-							<div style={styles.row}>
-								<div style={styles.field}>
-									<label style={styles.label}>
-										Nombre <span aria-hidden="true" style={styles.required}>*</span>
-									</label>
-									<input
-										style={styles.input}
-										placeholder={clienteTipo === TipoCliente.EMPRESA ? "Nombre de la empresa" : "Nombre del cliente"}
-										value={clienteNombre}
-										onChange={(e) => setClienteNombre(e.target.value)}
-									/>
-								</div>
-
-								{clienteTipo === TipoCliente.PARTICULAR && (
-									<div style={styles.field}>
-										<label style={styles.label}>
-											Apellido <span aria-hidden="true" style={styles.required}>*</span>
-										</label>
-										<input
-											style={styles.input}
-											placeholder="Apellido"
-											value={clienteApellido}
-											onChange={(e) => setClienteApellido(e.target.value)}
-										/>
-									</div>
-								)}
-
-								{clienteTipo === TipoCliente.EMPRESA && (
-									<div style={styles.field}>
-										<label style={styles.label}>
-											CUIT <span aria-hidden="true" style={styles.required}>*</span>
-										</label>
-										<input
-											style={styles.input}
-											placeholder="XX-XXXXXXXX-X"
-											value={clienteCuit}
-											onChange={(e) => setClienteCuit(e.target.value)}
-										/>
-									</div>
-								)}
-
-								<div style={{ ...styles.field, maxWidth: 160 }}>
-									<label style={styles.label}>
-										Tipo <span aria-hidden="true" style={styles.required}>*</span>
-									</label>
-									<Dropdown
-										value={clienteTipo}
-										options={tipoClienteOptions}
-										onChange={(value) => setClienteTipo(value as TipoCliente)}
-									/>
-								</div>
-							</div>
-
-							<div style={styles.row}>
-								<div style={styles.field}>
-									<label style={styles.label}>Teléfono</label>
-									<input
-										style={styles.input}
-										placeholder="+54 11 1234–5678"
-										value={clienteTelefono}
-										onChange={(e) => setClienteTelefono(e.target.value)}
-									/>
-								</div>
-								<div style={styles.field}>
-									<label style={styles.label}>Email</label>
-									<input
-										style={styles.input}
-										placeholder="email@ejemplo.com"
-										value={clienteEmail}
-										onChange={(e) => setClienteEmail(e.target.value)}
-									/>
-								</div>
-							</div>
-
-							<div>
-								<label style={styles.label}>Dirección</label>
-								<input
-									style={styles.input}
-									placeholder="Dirección completa"
-									value={clienteDireccion}
-									onChange={(e) => setClienteDireccion(e.target.value)}
-								/>
-							</div>
+							<ClienteFormFields
+								value={{
+									nombre: clienteNombre,
+									apellido: clienteApellido,
+									cuit: clienteCuit,
+									telefono: clienteTelefono,
+									email: clienteEmail,
+									direccion: clienteDireccion,
+									tipo_cliente: clienteTipo,
+								}}
+								onChange={(patch) => {
+									if (patch.nombre !== undefined) setClienteNombre(patch.nombre);
+									if (patch.apellido !== undefined) setClienteApellido(patch.apellido);
+									if (patch.cuit !== undefined) setClienteCuit(patch.cuit);
+									if (patch.telefono !== undefined) setClienteTelefono(patch.telefono);
+									if (patch.email !== undefined) setClienteEmail(patch.email);
+									if (patch.direccion !== undefined) setClienteDireccion(patch.direccion);
+									if (patch.tipo_cliente !== undefined) setClienteTipo(patch.tipo_cliente);
+								}}
+								onValidityChange={({ isValid }) => setClienteInlineIsValid(isValid)}
+							/>
 						</div>
 					)}
 				</div>
