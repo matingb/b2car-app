@@ -11,6 +11,7 @@ import { useTurnos } from "@/app/providers/TurnosProvider";
 import { CreateTurnoInput } from "@/app/api/turnos/turnosService";
 import { TipoCliente, Turno } from "@/model/types";
 import ClienteFormFields from "@/app/components/clientes/ClienteFormFields";
+import VehiculoFormFields, { VehiculoFormFieldsValue } from "../vehiculos/VehiculoFormFields";
 
 export type CreatedTurno = {
 	id: number;
@@ -83,11 +84,16 @@ export default function TurnoCreateModal({
 	const [clienteInlineIsValid, setClienteInlineIsValid] = useState(false);
 
 	// Inline create Vehiculo
-	const [vehiculoPatente, setVehiculoPatente] = useState<string>("");
-	const [vehiculoFechaPatente, setVehiculoFechaPatente] = useState<string>("");
-	const [vehiculoMarca, setVehiculoMarca] = useState<string>("");
-	const [vehiculoModelo, setVehiculoModelo] = useState<string>("");
-	const [vehiculoNroInterno, setVehiculoNroInterno] = useState<string>("");
+	const [values, setValues] = useState<VehiculoFormFieldsValue>({
+		cliente_id: "",
+		patente: "",
+		marca: "",
+		modelo: "",
+		fecha_patente: "",
+		nro_interno: "",
+	});
+	const [vehiculoInlineIsValid, setVehiculoInlineIsValid] = useState(false);
+
 
 	const isCreatingCliente = clienteId === CREATE_CLIENTE_VALUE;
 	const isCreatingVehiculo = vehiculoId === CREATE_VEHICULO_VALUE || isCreatingCliente;
@@ -186,24 +192,20 @@ export default function TurnoCreateModal({
 		setClienteDireccion("");
 		setClienteInlineIsValid(false);
 
-		setVehiculoPatente("");
-		setVehiculoFechaPatente("");
-		setVehiculoMarca("");
-		setVehiculoModelo("");
-		setVehiculoNroInterno("");
+		setValues({
+			cliente_id: "",
+			patente: "",
+			marca: "",
+			modelo: "",
+			fecha_patente: "",
+			nro_interno: "",
+		});
 	}, [open, defaultClienteId, defaultFecha, defaultHora, turnoToEdit]);
 
 	const clienteIdForVehiculo = useMemo(() => {
 		if (isCreatingCliente) return "";
 		return clienteId;
 	}, [clienteId, isCreatingCliente]);
-
-	const vehiculoInlineIsValid = useMemo(() => {
-		if (vehiculoPatente.trim().length === 0) return false;
-		// Debe existir un cliente (seleccionado o por crear)
-		if (!selectedCliente && !isCreatingCliente) return false;
-		return true;
-	}, [vehiculoPatente, selectedCliente, isCreatingCliente]);
 
 	const isValid = useMemo(() => {
 		const okCliente = isCreatingCliente ? clienteInlineIsValid : clienteId.trim().length > 0;
@@ -253,11 +255,11 @@ export default function TurnoCreateModal({
 				if (!clienteIdToUse) throw new Error("Seleccioná o creá un cliente antes del vehículo");
 				const createdVehiculoId = await createVehiculo({
 					cliente_id: clienteIdToUse,
-					patente: vehiculoPatente.trim().replace(/\s/g, "").toUpperCase(),
-					marca: vehiculoMarca.trim() || "",
-					modelo: vehiculoModelo.trim() || "",
-					fecha_patente: vehiculoFechaPatente.trim() || "",
-					nro_interno: vehiculoNroInterno.trim() || "",
+					patente: values.patente.trim().replace(/\s/g, "").toUpperCase(),
+					marca: values.marca.trim() || "",
+					modelo: values.modelo.trim() || "",
+					fecha_patente: values.fecha_patente.trim() || "",
+					nro_interno: values.nro_interno.trim() || "",
 				});
 
 				if (!createdVehiculoId) throw new Error("No se pudo crear el vehículo");
@@ -303,7 +305,7 @@ export default function TurnoCreateModal({
 			submitText={isEditing ? "Guardar cambios" : "Guardar"}
 			submitting={submitting}
 			disabledSubmit={!isValid}
-			modalStyle={{overflowY: "auto"}}
+			modalStyle={{ overflowY: "auto" }}
 		>
 			<div style={{ display: "grid", gap: 12 }}>
 				<div>
@@ -363,78 +365,13 @@ export default function TurnoCreateModal({
 
 					{(isCreatingVehiculo || isCreatingCliente) && (
 						<div style={styles.inlineForm}>
-							{!selectedCliente && !isCreatingCliente ? (
-								<div style={styles.inlineError}>Primero seleccioná o creá un cliente.</div>
-							) : (
-								<>
-									<div style={styles.row}>
-										<div style={styles.field}>
-											<label style={styles.label}>
-												Patente <span aria-hidden="true" style={styles.required}>*</span>
-											</label>
-											<input
-												style={styles.input}
-												placeholder="AAA000 ~ AA000AA"
-												value={vehiculoPatente}
-												onChange={(e) => {
-													const noSpaces = e.target.value.replace(/\s/g, "");
-													setVehiculoPatente(noSpaces.toUpperCase());
-												}}
-												inputMode="text"
-												maxLength={7}
-											/>
-										</div>
-										<div style={styles.field}>
-											<label style={styles.label}>Año patente</label>
-											<input
-												type="text"
-												inputMode="numeric"
-												pattern="[0-9]*"
-												maxLength={4}
-												style={styles.input}
-												placeholder="YYYY"
-												value={vehiculoFechaPatente}
-												onChange={(e) => {
-													const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 4);
-													setVehiculoFechaPatente(onlyDigits);
-												}}
-											/>
-										</div>
-									</div>
-
-									<div style={styles.row}>
-										<div style={styles.field}>
-											<label style={styles.label}>Marca</label>
-											<input
-												style={styles.input}
-												placeholder="Toyota"
-												value={vehiculoMarca}
-												onChange={(e) => setVehiculoMarca(e.target.value)}
-											/>
-										</div>
-										<div style={styles.field}>
-											<label style={styles.label}>Modelo</label>
-											<input
-												style={styles.input}
-												placeholder="Corolla"
-												value={vehiculoModelo}
-												onChange={(e) => setVehiculoModelo(e.target.value)}
-											/>
-										</div>
-										{(selectedCliente?.tipo_cliente === TipoCliente.EMPRESA || clienteTipo === TipoCliente.EMPRESA) && (
-											<div style={styles.field}>
-												<label style={styles.label}>Nro interno</label>
-												<input
-													style={styles.input}
-													placeholder="123"
-													value={vehiculoNroInterno}
-													onChange={(e) => setVehiculoNroInterno(e.target.value)}
-												/>
-											</div>
-										)}
-									</div>
-								</>
-							)}
+							<VehiculoFormFields
+								value={values}
+								onChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))}
+								showClienteInput={false}
+								tipoCliente={selectedCliente?.tipo_cliente ?? TipoCliente.PARTICULAR}
+								onValidityChange={(valid) => setVehiculoInlineIsValid(valid)}
+							/>
 						</div>
 					)}
 				</div>

@@ -1,8 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
-import VehiculoFormModal, { VehiculoFormValues } from "./VehiculoFormModal";
+import { useToast } from "@/app/providers/ToastProvider";
+import Modal from "../ui/Modal";
+import VehiculoFormFields, { VehiculoFormFieldsValue } from "./VehiculoFormFields";
 
 type CreatedVehiculo = {
   id: string;
@@ -22,41 +24,83 @@ type Props = {
 
 export default function CreateVehiculoModal({ open, onClose, clienteId, tipoCliente }: Props) {
   const { create } = useVehiculos();
+  const { error: toastError } = useToast();
+  const [values, setValues] = useState<VehiculoFormFieldsValue>({
+    cliente_id: clienteId ? String(clienteId) : "",
+    patente: "",
+    marca: "",
+    modelo: "",
+    fecha_patente: "",
+    nro_interno: "",
+  });
+  const [isValid, setIsValid] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (values: VehiculoFormValues): Promise<CreatedVehiculo> => {
+  useEffect(() => {
+    if (!open) return;
+    setValues({
+      cliente_id: clienteId ? String(clienteId) : "",
+      patente: "",
+      marca: "",
+      modelo: "",
+      fecha_patente: "",
+      nro_interno: "",
+    });
+    setIsValid(false);
+    setSubmitting(false);
+  }, [open, clienteId]);
+
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    if (!isValid) return;
+    setSubmitting(true);
+
     const clienteToSend = clienteId ?? values.cliente_id;
     if (!clienteToSend) throw new Error("Debe seleccionar un cliente");
 
-    const vehiculo_id = await create({
-      cliente_id: clienteToSend,
-      patente: values.patente,
-      marca: values.marca,
-      modelo: values.modelo,
-      fecha_patente: values.fecha_patente,
-      nro_interno: values.nro_interno || null,
-    });
+    try {
+      const vehiculo_id = await create({
+        cliente_id: clienteToSend,
+        patente: values.patente.trim().toUpperCase(),
+        marca: values.marca.trim() || "",
+        modelo: values.modelo.trim() || "",
+        fecha_patente: values.fecha_patente || "",
+        nro_interno: values.nro_interno.trim() || null,
+      });
 
-    return {
-      id: vehiculo_id ?? "",
-      patente: values.patente,
-      marca: values.marca || undefined,
-      modelo: values.modelo || undefined,
-      fecha_patente: values.fecha_patente || undefined,
-      nro_interno: values.nro_interno || undefined,
-    };
+      onClose({
+        id: vehiculo_id ?? "",
+        patente: values.patente.trim().toUpperCase(),
+        marca: values.marca.trim() || undefined,
+        modelo: values.modelo.trim() || undefined,
+        fecha_patente: values.fecha_patente || undefined,
+        nro_interno: values.nro_interno.trim() || undefined,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Ocurrió un error";
+      toastError(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <VehiculoFormModal
+    <Modal
       open={open}
       title="Crear vehículo"
       submitText="Guardar"
-      onClose={onClose}
+      onClose={() => onClose()}
       onSubmit={handleSubmit}
-      initialValues={{ patente: "", marca: "", modelo: "", fecha_patente: "", nro_interno: "" }}
-      showClienteInput={!clienteId}
-      clienteId={clienteId}
-      tipoCliente={tipoCliente}
-    />
+      submitting={submitting}
+      disabledSubmit={!isValid}
+    >
+      <VehiculoFormFields
+        value={values}
+        onChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))}
+        showClienteInput={!clienteId}
+        tipoCliente={tipoCliente}
+        onValidityChange={(valid) => setIsValid(valid)}
+      />
+    </Modal>
   );
 }

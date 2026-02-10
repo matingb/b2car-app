@@ -123,7 +123,7 @@ export default function ClienteFormFields({
               </label>
               <input
                 style={styles.input}
-                placeholder="XX-XXXXXXXX-X"
+                placeholder="99-12345678-9"
                 value={value.cuit}
                 onChange={(e) => onChange({ cuit: e.target.value })}
               />
