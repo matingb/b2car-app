@@ -67,7 +67,7 @@ export default function TurnosPage() {
     setFechaActual,
   } = useTurnosCalendar();
   const { confirm } = useModalMessage();
-  const { success } = useToast();
+  const { success, error: toastError } = useToast();
 
   const [turnoSeleccionado, setTurnoSeleccionado] = useState<Turno | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -91,6 +91,64 @@ export default function TurnosPage() {
   const goToDailyForDate = (d: Date) => {
     setFechaActual(d);
     setVista(VistaTurnos.Diaria);
+  };
+
+  const buildTurnoWhatsappMessage = (turno: Turno) => {
+    const lines: string[] = [];
+
+    lines.push(`*Detalle del turno - ${localStorage.getItem("tenant_name")}*`);
+    if (turno.cliente?.nombre) {
+      lines.push(`👤 ${turno.cliente.nombre}`);
+    }
+    if (turno.vehiculo) {
+      const vehiculoLabel = `${turno.vehiculo.marca} ${turno.vehiculo.modelo} - ${turno.vehiculo.patente}`.trim();
+      lines.push(`🚗 ${vehiculoLabel}`);
+    }
+    lines.push(""
+    );
+    lines.push(`📅 Fecha: ${turno.fecha}`);
+    lines.push(`⏰ Hora: ${turno.hora} hs`);
+    if (turno.duracion != null && turno.duracion > 0) {
+      lines.push(`⏱️ Duración: ${turno.duracion} minutos`);
+    }
+    if (turno.descripcion) {
+      lines.push("");
+      lines.push(`📝 ${turno.descripcion}`);
+    }
+    if (turno.observaciones) {
+      lines.push("");
+      lines.push(`🗒️ Observaciones: ${turno.observaciones}`);
+    }
+
+    return lines.join("\n");
+  };
+
+  const buildWhatsappLink = (phone: string, message: string) => {
+    const encodedMessage = encodeURIComponent(message);
+    return `https://api.whatsapp.com/send/?phone=${phone}&text=${encodedMessage}&type=phone_number&app_absent=0`;
+  };
+
+  const handleShareTurno = (turno: Turno) => {
+    const telefono = turno.cliente?.telefono;
+    if (!telefono) {
+      toastError("El cliente no tiene teléfono cargado");
+      return;
+    }
+
+    const cleanPhone = telefono.replace(/\D/g, "");
+    if (!cleanPhone) {
+      toastError("El teléfono del cliente no es válido");
+      return;
+    }
+
+    const mensaje = buildTurnoWhatsappMessage(turno);
+    if (!mensaje) {
+      toastError("No se pudo generar el mensaje");
+      return;
+    }
+
+    const url = buildWhatsappLink(cleanPhone, mensaje);
+    window.open(url, "_blank");
   };
 
 
@@ -141,6 +199,7 @@ export default function TurnosPage() {
           setTurnoToEdit(turno);
           setModalCreateOpen(true);
         }}
+        onShare={handleShareTurno}
         onCancel={async (turno) => {
           setModalOpen(false);
           const confirmed = await confirm({
