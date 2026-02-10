@@ -11,6 +11,7 @@ import { css } from "@emotion/react";
 import { CalendarDays, Car, Clock, User, X } from "lucide-react";
 import { Turno } from "@/model/types";
 import { horaAMinutos } from "@/app/components/turnos/utils/calendar";
+import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
 
 type Props = {
   open: boolean;
@@ -18,6 +19,7 @@ type Props = {
   onClose: () => void;
   onEdit?: (turno: Turno) => void;
   onCancel?: (turno: Turno) => void;
+  onShare?: (turno: Turno) => void;
 };
 
 export default function TurnoDetailsModal({
@@ -26,6 +28,7 @@ export default function TurnoDetailsModal({
   onClose,
   onEdit,
   onCancel,
+  onShare,
 }: Props) {
   if (!open || !turno) return null;
 
@@ -155,6 +158,14 @@ export default function TurnoDetailsModal({
           </div>
 
           <div style={styles.footer}>
+            <Button
+              text="Compartir"
+              outline
+              hideText={false}
+              icon={<WhatsAppIcon size={16} color="#25D366" />}
+              onClick={() => onShare?.(turno)}
+              style={{ minWidth: 0 }}
+            />
             <Button
               text="Editar"
               outline

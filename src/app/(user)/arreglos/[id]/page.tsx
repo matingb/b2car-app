@@ -31,8 +31,11 @@ import type {
   ArregloDetalleData,
   AsignacionArregloLinea,
 } from "@/app/api/arreglos/[id]/route";
+import { vehiculoClient } from "@/clients/vehiculoClient";
 import ServicioLineasEditableSection from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
 import RepuestoLineasEditableSection from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
+import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
+import { useVehiculos } from "@/app/providers/VehiculosProvider";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -50,8 +53,108 @@ export default function ArregloDetailsPage() {
     deleteRepuestoLinea,
     loading,
   } = useArreglos();
+  const {fetchCliente} = useVehiculos();
   const { confirm } = useModalMessage();
   const { success, error } = useToast();
+
+  const buildWhatsappMessage = () => {
+    if (!data?.arreglo) return "";
+    const arreglo = data.arreglo;
+    const detalles = Array.isArray(data.detalles) ? data.detalles : [];
+    const repuestosLineas = flattenAsignacionesLineas(data);
+
+    const lines: string[] = [];
+
+    if (arreglo.esta_pago) {
+      lines.push(`*Detalle de Arreglo - ${localStorage.getItem("tenant_name")}*`)
+    }
+    else {
+      lines.push(`*Presupuesto de Arreglo - ${localStorage.getItem("tenant_name")}*`)
+    }
+    const titulo = arreglo.descripcion || arreglo.tipo || "Detalle del arreglo";
+    lines.push(`🔧 ${titulo}`);
+    lines.push(`🚗 Patente ${arreglo.vehiculo?.patente || "-"}`);
+    if (arreglo.kilometraje_leido) {
+      lines.push(`⏱️ KM actual ${arreglo.kilometraje_leido}`);
+    }
+    if (arreglo.observaciones) {
+      lines.push(`📝 Observaciones: ${arreglo.observaciones}`);
+    }
+    lines.push("");
+
+    if (detalles.length) {
+      lines.push("👨‍🔧 *Servicios:*");
+      detalles.forEach((d) => {
+        const cantidad = safeNumber(d.cantidad);
+        const valor = safeNumber(d.valor);
+        const total = cantidad * valor;
+        const label = String(d.descripcion ?? "").trim() || "Servicio";
+        const qty = cantidad ? ` x${cantidad}` : "";
+        lines.push(`• ${label}${qty} - ${formatArs(total, { maxDecimals: 0, minDecimals: 0 })}`);
+      });
+      lines.push("");
+    }
+
+    if (repuestosLineas.length) {
+      lines.push("📦 *Repuestos:*");
+      repuestosLineas.forEach((r) => {
+        const cantidad = safeNumber(r.cantidad);
+        const monto = safeNumber(r.monto_unitario);
+        const total = cantidad * monto;
+        const producto = r.producto?.nombre || r.producto?.codigo || "Repuesto";
+        const qty = cantidad ? ` x${cantidad}` : "";
+        lines.push(`• ${producto}${qty} - ${formatArs(total, { maxDecimals: 0, minDecimals: 0 })}`);
+      });
+      lines.push("");
+    }
+
+    const subtotalServicios = detalles.reduce(
+      (acc, d) => acc + safeNumber(d.valor) * safeNumber(d.cantidad),
+      0
+    );
+    const subtotalRepuestos = repuestosLineas.reduce(
+      (acc, l) => acc + safeNumber(l.monto_unitario) * safeNumber(l.cantidad),
+      0
+    );
+    const totalCalculado = subtotalServicios + subtotalRepuestos;
+    const total = arreglo.precio_final > 0 ? arreglo.precio_final : totalCalculado;
+    lines.push(`*Total arreglo ${formatArs(total, { maxDecimals: 0, minDecimals: 0 })}*`);
+
+    return lines.join("\n");
+  };
+
+  const buildWhatsappLink = (phone: string, message: string) => {
+    const encodedMessage = encodeURIComponent(message);
+    return `https://api.whatsapp.com/send/?phone=${phone}&text=${encodedMessage}&type=phone_number&app_absent=0`;
+  };
+
+  const handleOpenWhatsapp = async () => {
+    if (!data?.arreglo?.vehiculo?.id) {
+      error("Error", "No se pudo identificar el vehículo");
+      return;
+    }
+
+    const cliente = await fetchCliente(data.arreglo.vehiculo.id);
+    if (!cliente?.telefono) {
+      error("Error", "El cliente no tiene teléfono cargado");
+      return;
+    }
+
+    const cleanPhone = cliente.telefono.replace(/\D/g, "");
+    if (!cleanPhone) {
+      error("Error", "El teléfono del cliente no es válido");
+      return;
+    }
+
+    const mensaje = buildWhatsappMessage();
+    if (!mensaje) {
+      error("Error", "No se pudo generar el mensaje");
+      return;
+    }
+
+    const url = buildWhatsappLink(cleanPhone, mensaje);
+    window.open(url, "_blank");
+  };
 
   const reload = useCallback(async () => {
     try {
@@ -297,7 +400,14 @@ export default function ArregloDetailsPage() {
                     <XCircle size={18} color={COLOR.ICON.DANGER} />
                   )}
                 </button>
-
+                <IconButton
+                  icon={<WhatsAppIcon size={18} />}
+                  size={18}
+                  onClick={handleOpenWhatsapp}
+                  title="Enviar WhatsApp"
+                  ariaLabel="Enviar WhatsApp"
+                  hoverColor={COLOR.ACCENT.PRIMARY}
+                />
                 <IconButton
                   icon={<Trash />}
                   size={18}
@@ -305,7 +415,6 @@ export default function ArregloDetailsPage() {
                   title="Editar vehículo"
                   ariaLabel="Editar vehículo"
                 />
-
                 <IconButton
                   icon={<Pencil />}
                   size={18}
@@ -325,10 +434,10 @@ export default function ArregloDetailsPage() {
                       label={
                         arreglo.fecha
                           ? new Date(arreglo.fecha).toLocaleString(APP_LOCALE, {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                            })
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          })
                           : ""
                       }
                     />
@@ -381,7 +490,7 @@ export default function ArregloDetailsPage() {
             {arreglo.vehiculo && (
               <VehiculoInfoCard
                 vehiculo={arreglo.vehiculo}
-                onEdit={() => {}}
+                onEdit={() => { }}
                 maxKilometraje={arreglo.kilometraje_leido}
                 onClick={handleNavigateToVehiculo}
               />
