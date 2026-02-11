@@ -110,7 +110,7 @@ describe("buildTurnoWhatsappMessage", () => {
     const msg = buildTurnoWhatsappMessage(turno, "Taller Demo");
 
     expect(msg).toContain("👤 Juan");
-    expect(msg).toContain("🚗 Ford Fiesta - AA000BB");
+    expect(msg).toContain("🚗 AA000BB - Ford Fiesta");
     expect(msg).toContain("📅 Fecha: 2026-02-11");
     expect(msg).toContain("⏰ Hora: 10:30 hs");
     expect(msg).toContain("⏱️ Duración: 60 minutos");
