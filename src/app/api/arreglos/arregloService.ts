@@ -3,6 +3,7 @@ import type { Arreglo } from "@/model/types";
 import type { CreateArregloInsertPayload, UpdateArregloRequest } from "./arregloRequests";
 import { ServiceError, ServiceResult, toServiceError } from "@/app/api/serviceError";
 import { buildDescripcionFromDetalles } from "@/lib/arreglos";
+import { logger } from "@/lib/logger";
 
 export type TiposConIngresos = {
   tipos: string[];
@@ -26,7 +27,7 @@ export const arregloService = {
     let query = supabase
       .from("arreglos")
       .select("*, vehiculo:vehiculos(*), taller:talleres(*), detalles:detalle_arreglo(descripcion)")
-      
+
 
     if (filters?.tallerId) {
       query = query.eq("taller_id", filters.tallerId);
@@ -95,6 +96,26 @@ export const arregloService = {
     supabase: SupabaseClient,
     id: string
   ): Promise<{ error: ServiceError | null }> {
+
+    const { data: operaciones, error: operacionesError } = await supabase
+      .from("operaciones_asignacion_arreglo")
+      .select("operacion_id")
+      .eq("arreglo_id", id);
+      
+
+    if (operacionesError) {
+      logger.error("Error obteniendo operaciones relacionadas al arreglo:", operacionesError);
+      return { error: toServiceError(operacionesError) };
+    }
+
+    const { error: errorDeleteOpe } = await supabase.rpc("rpc_borrar_operaciones_con_stock_lista", {
+      p_operacion_ids: (operaciones ?? []).map((o) => String(o.operacion_id)),
+    });
+
+    if (errorDeleteOpe){
+      logger.error("Error borrando operaciones relacionadas al arreglo:", errorDeleteOpe);
+      return { error: toServiceError(errorDeleteOpe) };
+    } 
 
     const { error } = await supabase.from("arreglos").delete().eq("id", id);
 
