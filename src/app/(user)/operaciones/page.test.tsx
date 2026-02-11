@@ -63,6 +63,7 @@ vi.mock("@/app/providers/TenantProvider", () => ({
 }));
 
 import OperacionesPage from "./page";
+import ToastProvider from "@/app/providers/ToastProvider";
 
 describe("OperacionesPage", () => {
   beforeEach(() => {
@@ -78,7 +79,9 @@ describe("OperacionesPage", () => {
   it("debe cargar todas las operaciones al cargar la página", async () => {
     render(
       <OperacionesProvider>
-        <OperacionesPage />
+        <ToastProvider>
+          <OperacionesPage />
+        </ToastProvider>
       </OperacionesProvider>
     );
     await runPendingPromises();
@@ -89,7 +92,9 @@ describe("OperacionesPage", () => {
   it("Al cargar un tipo de operación, debe filtrar las operaciones por ese tipo", async () => {
     render(
       <OperacionesProvider>
-        <OperacionesPage />
+        <ToastProvider>
+          <OperacionesPage />
+        </ToastProvider>
       </OperacionesProvider>
     );
     await runPendingPromises();

@@ -12,6 +12,10 @@ import { CreateTurnoInput } from "@/app/api/turnos/turnosService";
 import { TipoCliente, Turno } from "@/model/types";
 import ClienteFormFields from "@/app/components/clientes/ClienteFormFields";
 import VehiculoFormFields, { VehiculoFormFieldsValue } from "../vehiculos/VehiculoFormFields";
+import { useModalMessage } from "@/app/providers/ModalMessageProvider";
+import { buildTurnoWhatsappMessage, buildWhatsappLink } from "@/lib/whatsapp";
+import { logger } from "@/lib/logger";
+import { TurnoDto } from "@/model/dtos";
 
 export type CreatedTurno = {
 	id: number;
@@ -57,9 +61,10 @@ export default function TurnoCreateModal({
 	defaultClienteId,
 	turnoToEdit,
 }: Props) {
-	const { clientes, createParticular, createEmpresa } = useClientes();
+	const { clientes, createParticular, createEmpresa, getClienteById} = useClientes();
 	const { vehiculos, create: createVehiculo } = useVehiculos();
 	const toast = useToast();
+	const { confirm } = useModalMessage();
 
 	const [clienteId, setClienteId] = useState(defaultClienteId ?? "");
 	const [vehiculoId, setVehiculoId] = useState("");
@@ -217,6 +222,32 @@ export default function TurnoCreateModal({
 
 	if (!open) return null;
 
+	const handleShareTurno = async (turno: TurnoDto) => {
+		const tenantName = localStorage.getItem("tenant_name") || undefined;
+		logger.debug(turno);
+		const mensaje = buildTurnoWhatsappMessage(turno as unknown as Turno, tenantName);
+		if (!mensaje) {
+			toast.error("Error", "No se pudo generar el mensaje");
+			return;
+		}
+
+		const cliente = await getClienteById(String(turno.cliente_id));
+		if (!cliente?.telefono) {
+			toast.error("Error", "El cliente no tiene teléfono cargado");
+			return;
+		}
+
+		const cleanPhone = cliente.telefono.replace(/\D/g, "");
+		if (!cleanPhone) {
+			toast.error("Error", "El teléfono del cliente no es válido");
+			return;
+		}
+
+		const url = buildWhatsappLink(cleanPhone, mensaje);
+		window.open(url, "_blank");
+	}
+
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!isValid) return;
@@ -287,6 +318,17 @@ export default function TurnoCreateModal({
 
 			toast.success(isEditing ? "Turno actualizado" : "Turno creado", `${fecha} ${hora}`);
 			onClose();
+			if (!isEditing && response) {
+				const confirmed = await confirm({
+					title: "Compartir turno",
+					message: `¿Querés compartir la informacion del turno recién creado?`,
+					acceptLabel: "Compartir",
+					cancelLabel: "Ahora no",
+				});
+				if (confirmed) {
+					await handleShareTurno(response);
+				}
+			}
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : "Ocurrió un error";
 			toast.error(msg);

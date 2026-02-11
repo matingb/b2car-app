@@ -9,7 +9,6 @@ import { css } from "@emotion/react";
 import IconButton from "@/app/components/ui/IconButton";
 import { Pencil, Save, Trash, X } from "lucide-react";
 import StockLevelsCard from "@/app/components/stock/StockLevelsCard";
-import MovementsCard from "@/app/components/inventario/MovementsCard";
 import ProductoInfoCard from "@/app/components/productos/ProductoInfoCard";
 import ProductoPricesCard from "@/app/components/productos/ProductoPricesCard";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";

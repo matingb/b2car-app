@@ -1,6 +1,6 @@
 import { Cliente, TipoCliente, Turno, Vehiculo } from "@/model/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { TurnoEstado, TurnoDto as TurnoRow } from "@/model/dtos";
+import { TurnoDto, TurnoEstado, TurnoDto as TurnoRow } from "@/model/dtos";
 import type { SupabaseError } from "@/model/types";
 import { logger } from "@/lib/logger";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
@@ -43,7 +43,7 @@ export type DeleteTurnoInput = {
 };
 
 export type CreateTurnoResponse = {
-	data: Turno | null;
+	data: TurnoDto | null;
 	error: SupabaseError | null;
 };
 

@@ -12,6 +12,7 @@ import React, {
 import { Turno } from "@/model/types";
 import { turnosClient } from "@/clients/turnosClient";
 import { CreateTurnoInput, ListTurnosFilters } from "@/app/api/turnos/turnosService";
+import { TurnoDto } from "@/model/dtos";
 
 
 type TurnosContextType = {
@@ -21,8 +22,8 @@ type TurnosContextType = {
   refresh: () => Promise<Turno[]>;
   filterTurnosByDate: (date: Date) => Turno[];
   getWithFilters: (filters: ListTurnosFilters) => Promise<Turno[]>;
-  create: (input: CreateTurnoInput) => Promise<Turno | null>;
-  update: (id: string, input: Partial<CreateTurnoInput>) => Promise<Turno | null>;
+  create: (input: CreateTurnoInput) => Promise<TurnoDto | null>;
+  update: (id: string, input: Partial<CreateTurnoInput>) => Promise<TurnoDto | null>;
   remove: (id: string) => Promise<boolean>;
 };
 

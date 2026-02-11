@@ -11,7 +11,7 @@ import { Pencil, Save, Trash, X } from "lucide-react";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import ProductoTallerStockCard from "@/app/components/productos/ProductoTallerStockCard";
-import MovementsCard, {
+import {
   type InventarioMovementRow,
 } from "@/app/components/inventario/MovementsCard";
 import ProductoInfoCard from "@/app/components/productos/ProductoInfoCard";

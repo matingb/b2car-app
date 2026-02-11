@@ -26,6 +26,7 @@ type ClientesContextType = {
   deleteRepresentante: (empresaId: string | number, representanteId: string | number) => Promise<void>;
   updateParticular: (id: string | number, input: UpdateParticularRequest) => Promise<Particular>;
   updateEmpresa: (id: string | number, input: UpdateEmpresaRequest) => Promise<Empresa>;
+  getClienteById: (id: string) => Promise<Cliente | null>;
 };
 
 const ClientesContext = createContext<ClientesContextType | undefined>(
@@ -168,6 +169,20 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     return data;
   }, []);
 
+  const getClienteById = useCallback(async (id: string): Promise<Cliente | null> => {
+    setLoading(true);
+    try {
+      const particular = await getParticularById(id);
+      if (particular) return particular as unknown as Cliente;
+      const empresa = await getEmpresaById(id);
+      if (empresa) return empresa as Cliente;
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getParticularById, getEmpresaById]);
+
+
   const contextValue = useMemo(
     () => ({
       clientes,
@@ -183,8 +198,9 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
       deleteRepresentante,
       updateParticular,
       updateEmpresa,
+      getClienteById,
     }),
-    [clientes, loading, fetchClientes, createParticular, createEmpresa, getParticularById, getEmpresaById, deleteCliente, listRepresentantes, createRepresentante, deleteRepresentante, updateParticular, updateEmpresa]
+    [clientes, loading, fetchClientes, createParticular, createEmpresa, getParticularById, getEmpresaById, deleteCliente, listRepresentantes, createRepresentante, deleteRepresentante, updateParticular, updateEmpresa, getClienteById]
   );
 
   return (

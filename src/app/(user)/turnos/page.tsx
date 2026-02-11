@@ -15,6 +15,7 @@ import { useTurnosCalendar } from "@/app/hooks/useTurnosCalendar";
 import { VistaTurnos } from "@/app/hooks/useTurnosCalendar";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
+import { buildTurnoWhatsappMessage, buildWhatsappLink } from "@/lib/whatsapp";
 
 function TurnosVista({
   vista,
@@ -93,41 +94,6 @@ export default function TurnosPage() {
     setVista(VistaTurnos.Diaria);
   };
 
-  const buildTurnoWhatsappMessage = (turno: Turno) => {
-    const lines: string[] = [];
-
-    lines.push(`*Detalle del turno - ${localStorage.getItem("tenant_name")}*`);
-    if (turno.cliente?.nombre) {
-      lines.push(`👤 ${turno.cliente.nombre}`);
-    }
-    if (turno.vehiculo) {
-      const vehiculoLabel = `${turno.vehiculo.marca} ${turno.vehiculo.modelo} - ${turno.vehiculo.patente}`.trim();
-      lines.push(`🚗 ${vehiculoLabel}`);
-    }
-    lines.push(""
-    );
-    lines.push(`📅 Fecha: ${turno.fecha}`);
-    lines.push(`⏰ Hora: ${turno.hora} hs`);
-    if (turno.duracion != null && turno.duracion > 0) {
-      lines.push(`⏱️ Duración: ${turno.duracion} minutos`);
-    }
-    if (turno.descripcion) {
-      lines.push("");
-      lines.push(`📝 ${turno.descripcion}`);
-    }
-    if (turno.observaciones) {
-      lines.push("");
-      lines.push(`🗒️ Observaciones: ${turno.observaciones}`);
-    }
-
-    return lines.join("\n");
-  };
-
-  const buildWhatsappLink = (phone: string, message: string) => {
-    const encodedMessage = encodeURIComponent(message);
-    return `https://api.whatsapp.com/send/?phone=${phone}&text=${encodedMessage}&type=phone_number&app_absent=0`;
-  };
-
   const handleShareTurno = (turno: Turno) => {
     const telefono = turno.cliente?.telefono;
     if (!telefono) {
@@ -141,7 +107,8 @@ export default function TurnosPage() {
       return;
     }
 
-    const mensaje = buildTurnoWhatsappMessage(turno);
+    const tenantName = localStorage.getItem("tenant_name") || undefined;
+    const mensaje = buildTurnoWhatsappMessage(turno, tenantName);
     if (!mensaje) {
       toastError("No se pudo generar el mensaje");
       return;

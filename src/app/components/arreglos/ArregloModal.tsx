@@ -11,8 +11,10 @@ import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient
 import { isValidDate, toDateInputFormat } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { formatArs } from "@/lib/format";
+import { buildArregloWhatsappMessage, buildWhatsappLink } from "@/lib/whatsapp";
 import { css } from "@emotion/react";
 import { useTenant } from "@/app/providers/TenantProvider";
+import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import ServicioLineasEditableSection, {
   type ServicioLinea,
 } from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
@@ -41,10 +43,11 @@ type Props = {
 };
 
 export default function ArregloModal({ open, onClose, vehiculoId, initial, onSubmitSuccess }: Props) {
-  const { vehiculos, fetchAll: fetchVehiculos } = useVehiculos();
-  const { create, update } = useArreglos();
+  const { vehiculos, fetchAll: fetchVehiculos, fetchCliente } = useVehiculos();
+  const { create, update, fetchById } = useArreglos();
   const { tallerSeleccionadoId } = useTenant();
-  const { success } = useToast();
+  const { confirm } = useModalMessage();
+  const { success, error: toastError } = useToast();
 
   const isEdit = !!initial?.id;
   const [tipo, setTipo] = useState(initial?.tipo ?? "");
@@ -140,8 +143,41 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     minDecimals: 0,
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleShareArreglo = async (arregloId: string | number) => {
+    try {
+      const detalle = await fetchById(arregloId);
+      if (!detalle?.arreglo?.vehiculo?.id) {
+        toastError("Error", "No se pudo identificar el vehículo");
+        return;
+      }
 
+      const cliente = await fetchCliente(String(detalle.arreglo.vehiculo.id));
+      if (!cliente?.telefono) {
+        toastError("Error", "El cliente no tiene teléfono cargado");
+        return;
+      }
+
+      const cleanPhone = cliente.telefono.replace(/\D/g, "");
+      if (!cleanPhone) {
+        toastError("Error", "El teléfono del cliente no es válido");
+        return;
+      }
+
+      const tenantName = localStorage.getItem("tenant_name") || undefined;
+      const mensaje = buildArregloWhatsappMessage(detalle, tenantName);
+      if (!mensaje) {
+        toastError("Error", "No se pudo generar el mensaje");
+        return;
+      }
+
+      const url = buildWhatsappLink(cleanPhone, mensaje);
+      window.open(url, "_blank");
+    } catch (err: unknown) {
+      toastError("Error", "No se pudo compartir el arreglo");
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValid) return;
     setSubmitting(true);
@@ -158,7 +194,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       };
 
       let response: Arreglo | null = null;
-      
+
       if (isEdit && initial?.id) {
         response = await update(initial.id, payload);
         if (!response) return;
@@ -195,7 +231,6 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         onSubmitSuccess?.(response);
       }
 
-      
       onClose();
       if (!isEdit) {
         setTipo("");
@@ -206,10 +241,22 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         setExtraData("");
         setServiciosDraft([]);
         setRepuestosDraft([]);
-        success("Éxito", "Arreglo creado")
+        success("Éxito", "Arreglo creado");
+      } else {
+        success("Éxito", "Arreglo actualizado");
       }
-      else{
-        success("Éxito", "Arreglo actualizado")
+
+      if (!isEdit && response) {
+        const label = response.esta_pago ? "detalle" : "presupuesto";
+        const confirmed = await confirm({
+          title: "Compartir arreglo",
+          message: `¿Querés compartir el ${label} del arreglo recién creado?`,
+          acceptLabel: "Compartir",
+          cancelLabel: "Ahora no",
+        });
+        if (confirmed) {
+          await handleShareArreglo(response.id);
+        }
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Ocurrio un error");
