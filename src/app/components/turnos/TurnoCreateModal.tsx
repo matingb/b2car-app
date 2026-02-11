@@ -14,10 +14,10 @@ import ClienteFormFields, { createEmptyClienteFormFieldsValue } from "@/app/comp
 import type { ClienteFormFieldsValue } from "@/app/components/clientes/ClienteFormFields";
 import VehiculoFormFields, { VehiculoFormFieldsValue } from "../vehiculos/VehiculoFormFields";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
-import { buildTurnoWhatsappMessage, buildWhatsappLink } from "@/lib/whatsapp";
-import { logger } from "@/lib/logger";
+import { buildTurnoWhatsappMessage } from "@/lib/whatsapp";
 import { TurnoDto } from "@/model/dtos";
 import { toISODateLocal } from "@/lib/fechas";
+import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
 
 export type CreatedTurno = {
 	id: number;
@@ -60,6 +60,7 @@ export default function TurnoCreateModal({
 	const { vehiculos, create: createVehiculo } = useVehiculos();
 	const toast = useToast();
 	const { confirm } = useModalMessage();
+	const { share } = useWhatsAppMessage();
 
 	const [clienteId, setClienteId] = useState(defaultClienteId ?? "");
 	const [vehiculoId, setVehiculoId] = useState("");
@@ -207,27 +208,9 @@ export default function TurnoCreateModal({
 
 	const handleShareTurno = async (turno: TurnoDto) => {
 		const tenantName = localStorage.getItem("tenant_name") || undefined;
-		logger.debug(turno);
 		const mensaje = buildTurnoWhatsappMessage(turno as unknown as Turno, tenantName);
-		if (!mensaje) {
-			toast.error("Error", "No se pudo generar el mensaje");
-			return;
-		}
-
 		const cliente = await getClienteById(String(turno.cliente_id));
-		if (!cliente?.telefono) {
-			toast.error("Error", "El cliente no tiene teléfono cargado");
-			return;
-		}
-
-		const cleanPhone = cliente.telefono.replace(/\D/g, "");
-		if (!cleanPhone) {
-			toast.error("Error", "El teléfono del cliente no es válido");
-			return;
-		}
-
-		const url = buildWhatsappLink(cleanPhone, mensaje);
-		window.open(url, "_blank");
+		await share(mensaje, cliente?.telefono);
 	}
 
 

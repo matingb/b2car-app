@@ -101,6 +101,11 @@ export function buildWhatsappLink(phone: string, message: string): string {
 	return `https://api.whatsapp.com/send/?phone=${phone}&text=${encodedMessage}&type=phone_number&app_absent=0`;
 }
 
+export function normalizeWhatsappPhone(rawPhone: string): string | null {
+	const cleaned = String(rawPhone ?? "").replace(/\D/g, "");
+	return cleaned ? cleaned : null;
+}
+
 function safeNumber(v: unknown): number {
 	const n = Number(v);
 	return Number.isFinite(n) ? n : 0;

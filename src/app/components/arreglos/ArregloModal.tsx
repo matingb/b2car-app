@@ -11,10 +11,11 @@ import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient
 import { isValidDate, toDateInputFormat } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { formatArs } from "@/lib/format";
-import { buildArregloWhatsappMessage, buildWhatsappLink } from "@/lib/whatsapp";
+import { buildArregloWhatsappMessage } from "@/lib/whatsapp";
 import { css } from "@emotion/react";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
+import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
 import ServicioLineasEditableSection, {
   type ServicioLinea,
 } from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
@@ -48,6 +49,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const { tallerSeleccionadoId } = useTenant();
   const { confirm } = useModalMessage();
   const { success, error: toastError } = useToast();
+  const { share } = useWhatsAppMessage();
 
   const isEdit = !!initial?.id;
   const [tipo, setTipo] = useState(initial?.tipo ?? "");
@@ -151,18 +153,6 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         return;
       }
 
-      const cliente = await fetchCliente(String(detalle.arreglo.vehiculo.id));
-      if (!cliente?.telefono) {
-        toastError("Error", "El cliente no tiene teléfono cargado");
-        return;
-      }
-
-      const cleanPhone = cliente.telefono.replace(/\D/g, "");
-      if (!cleanPhone) {
-        toastError("Error", "El teléfono del cliente no es válido");
-        return;
-      }
-
       const tenantName = localStorage.getItem("tenant_name") || undefined;
       const mensaje = buildArregloWhatsappMessage(detalle, tenantName);
       if (!mensaje) {
@@ -170,8 +160,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         return;
       }
 
-      const url = buildWhatsappLink(cleanPhone, mensaje);
-      window.open(url, "_blank");
+      const cliente = await fetchCliente(String(detalle.arreglo.vehiculo.id));
+      await share(mensaje, cliente?.telefono);
     } catch (err: unknown) {
       toastError("Error", err instanceof Error ? err.message : "No se pudo compartir el arreglo");
     }

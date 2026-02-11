@@ -15,7 +15,8 @@ import { useTurnosCalendar } from "@/app/hooks/useTurnosCalendar";
 import { VistaTurnos } from "@/app/hooks/useTurnosCalendar";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import { buildTurnoWhatsappMessage, buildWhatsappLink } from "@/lib/whatsapp";
+import { buildTurnoWhatsappMessage } from "@/lib/whatsapp";
+import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
 
 function TurnosVista({
   vista,
@@ -68,7 +69,8 @@ export default function TurnosPage() {
     setFechaActual,
   } = useTurnosCalendar();
   const { confirm } = useModalMessage();
-  const { success, error: toastError } = useToast();
+  const { success } = useToast();
+  const { share } = useWhatsAppMessage();
 
   const [turnoSeleccionado, setTurnoSeleccionado] = useState<Turno | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -95,27 +97,9 @@ export default function TurnosPage() {
   };
 
   const handleShareTurno = (turno: Turno) => {
-    const telefono = turno.cliente?.telefono;
-    if (!telefono) {
-      toastError("El cliente no tiene teléfono cargado");
-      return;
-    }
-
-    const cleanPhone = telefono.replace(/\D/g, "");
-    if (!cleanPhone) {
-      toastError("El teléfono del cliente no es válido");
-      return;
-    }
-
     const tenantName = localStorage.getItem("tenant_name") || undefined;
     const mensaje = buildTurnoWhatsappMessage(turno, tenantName);
-    if (!mensaje) {
-      toastError("No se pudo generar el mensaje");
-      return;
-    }
-
-    const url = buildWhatsappLink(cleanPhone, mensaje);
-    window.open(url, "_blank");
+    share(mensaje, turno.cliente?.telefono);
   };
 
 
