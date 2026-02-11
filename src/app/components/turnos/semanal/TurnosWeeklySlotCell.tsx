@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { COLOR } from "@/theme/theme";
-import { toISODateLocal } from "@/app/components/turnos/utils/calendar";
+import { toISODateLocal } from "@/lib/fechas";
 
 type Props = {
   dia: Date;

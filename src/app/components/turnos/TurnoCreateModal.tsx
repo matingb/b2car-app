@@ -10,12 +10,14 @@ import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { useTurnos } from "@/app/providers/TurnosProvider";
 import { CreateTurnoInput } from "@/app/api/turnos/turnosService";
 import { TipoCliente, Turno } from "@/model/types";
-import ClienteFormFields from "@/app/components/clientes/ClienteFormFields";
+import ClienteFormFields, { createEmptyClienteFormFieldsValue } from "@/app/components/clientes/ClienteFormFields";
+import type { ClienteFormFieldsValue } from "@/app/components/clientes/ClienteFormFields";
 import VehiculoFormFields, { VehiculoFormFieldsValue } from "../vehiculos/VehiculoFormFields";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { buildTurnoWhatsappMessage, buildWhatsappLink } from "@/lib/whatsapp";
 import { logger } from "@/lib/logger";
 import { TurnoDto } from "@/model/dtos";
+import { toISODateLocal } from "@/lib/fechas";
 
 export type CreatedTurno = {
 	id: number;
@@ -41,13 +43,6 @@ const TIPOS_TURNO = ["Mecánica", "Eléctrica", "Carrocería", "Pintura", "Neum�
 
 const CREATE_CLIENTE_VALUE = "__create_cliente__";
 const CREATE_VEHICULO_VALUE = "__create_vehiculo__";
-
-function toISODateLocal(date: Date) {
-	const y = date.getFullYear();
-	const m = String(date.getMonth() + 1).padStart(2, "0");
-	const d = String(date.getDate()).padStart(2, "0");
-	return `${y}-${m}-${d}`;
-}
 
 function norm(s: string) {
 	return s.trim().toLowerCase();
@@ -79,13 +74,7 @@ export default function TurnoCreateModal({
 	const isEditing = Boolean(turnoToEdit);
 
 	// Inline create Cliente
-	const [clienteTipo, setClienteTipo] = useState<TipoCliente>(TipoCliente.PARTICULAR);
-	const [clienteNombre, setClienteNombre] = useState<string>("");
-	const [clienteApellido, setClienteApellido] = useState<string>("");
-	const [clienteCuit, setClienteCuit] = useState<string>("");
-	const [clienteTelefono, setClienteTelefono] = useState<string>("");
-	const [clienteEmail, setClienteEmail] = useState<string>("");
-	const [clienteDireccion, setClienteDireccion] = useState<string>("");
+	const [clienteDraft, setClienteDraft] = useState<ClienteFormFieldsValue>(createEmptyClienteFormFieldsValue());
 	const [clienteInlineIsValid, setClienteInlineIsValid] = useState(false);
 
 	// Inline create Vehiculo
@@ -175,7 +164,7 @@ export default function TurnoCreateModal({
 			setDescripcion(turnoToEdit.descripcion ?? "");
 			setObservaciones(turnoToEdit.observaciones ?? "");
 			setSubmitting(false);
-			setClienteTipo(turnoToEdit.cliente.tipo_cliente ?? TipoCliente.PARTICULAR);
+			setClienteDraft(createEmptyClienteFormFieldsValue(turnoToEdit.cliente.tipo_cliente ?? TipoCliente.PARTICULAR));
 		} else {
 			setClienteId(defaultClienteId ?? "");
 			setVehiculoId("");
@@ -186,15 +175,9 @@ export default function TurnoCreateModal({
 			setDescripcion("");
 			setObservaciones("");
 			setSubmitting(false);
-			setClienteTipo(TipoCliente.PARTICULAR);
+			setClienteDraft(createEmptyClienteFormFieldsValue());
 		}
 
-		setClienteNombre("");
-		setClienteApellido("");
-		setClienteCuit("");
-		setClienteTelefono("");
-		setClienteEmail("");
-		setClienteDireccion("");
 		setClienteInlineIsValid(false);
 
 		setValues({
@@ -260,20 +243,20 @@ export default function TurnoCreateModal({
 			if (isCreatingCliente) {
 				if (!clienteInlineIsValid) throw new Error("Completá los datos obligatorios del cliente");
 				const createdCliente =
-					clienteTipo === TipoCliente.EMPRESA
+					clienteDraft.tipo_cliente === TipoCliente.EMPRESA
 						? await createEmpresa({
-							nombre: clienteNombre.trim(),
-							cuit: clienteCuit.trim(),
-							telefono: clienteTelefono.trim(),
-							email: clienteEmail.trim(),
-							direccion: clienteDireccion.trim(),
+							nombre: clienteDraft.nombre.trim(),
+							cuit: clienteDraft.cuit.trim(),
+							telefono: clienteDraft.telefono.trim(),
+							email: clienteDraft.email.trim(),
+							direccion: clienteDraft.direccion.trim(),
 						})
 						: await createParticular({
-							nombre: clienteNombre.trim(),
-							apellido: clienteApellido.trim() || undefined,
-							telefono: clienteTelefono.trim(),
-							email: clienteEmail.trim(),
-							direccion: clienteDireccion.trim(),
+							nombre: clienteDraft.nombre.trim(),
+							apellido: clienteDraft.apellido.trim() || undefined,
+							telefono: clienteDraft.telefono.trim(),
+							email: clienteDraft.email.trim(),
+							direccion: clienteDraft.direccion.trim(),
 						});
 
 				resolvedClienteId = String(createdCliente.id);
@@ -366,24 +349,8 @@ export default function TurnoCreateModal({
 					{isCreatingCliente && (
 						<div style={styles.inlineForm}>
 							<ClienteFormFields
-								value={{
-									nombre: clienteNombre,
-									apellido: clienteApellido,
-									cuit: clienteCuit,
-									telefono: clienteTelefono,
-									email: clienteEmail,
-									direccion: clienteDireccion,
-									tipo_cliente: clienteTipo,
-								}}
-								onChange={(patch) => {
-									if (patch.nombre !== undefined) setClienteNombre(patch.nombre);
-									if (patch.apellido !== undefined) setClienteApellido(patch.apellido);
-									if (patch.cuit !== undefined) setClienteCuit(patch.cuit);
-									if (patch.telefono !== undefined) setClienteTelefono(patch.telefono);
-									if (patch.email !== undefined) setClienteEmail(patch.email);
-									if (patch.direccion !== undefined) setClienteDireccion(patch.direccion);
-									if (patch.tipo_cliente !== undefined) setClienteTipo(patch.tipo_cliente);
-								}}
+								value={clienteDraft}
+								onChange={(patch) => setClienteDraft((prev) => ({ ...prev, ...patch }))}
 								onValidityChange={({ isValid }) => setClienteInlineIsValid(isValid)}
 							/>
 						</div>
@@ -411,7 +378,7 @@ export default function TurnoCreateModal({
 								value={values}
 								onChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))}
 								showClienteInput={false}
-								tipoCliente={selectedCliente?.tipo_cliente ?? TipoCliente.PARTICULAR}
+								tipoCliente={selectedCliente?.tipo_cliente ?? (isCreatingCliente ? clienteDraft.tipo_cliente : TipoCliente.PARTICULAR)}
 								onValidityChange={(valid) => setVehiculoInlineIsValid(valid)}
 							/>
 						</div>

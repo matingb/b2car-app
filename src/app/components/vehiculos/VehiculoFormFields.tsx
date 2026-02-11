@@ -15,8 +15,8 @@ export type VehiculoFormFieldsValue = {
 };
 
 export function validateVehiculoForm(
-  values: Pick<VehiculoFormFieldsValue, "cliente_id" | "patente">,
-  opts: { requireCliente: boolean }
+  values: Pick<VehiculoFormFieldsValue, "patente" | "cliente_id">,
+  opts: { requireCliente?: boolean } = { requireCliente: false }
 ): boolean {
   if (values.patente.trim().length === 0) return false;
   if (opts.requireCliente && (!values.cliente_id || values.cliente_id.trim().length === 0)) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { act, renderHook } from "@testing-library/react";
-import { getWeekDays } from "@/app/components/turnos/utils/calendar";
+import { getWeekDays } from "@/lib/fechas";
 import { runPendingPromises } from "@/tests/testUtils";
 import {
   buildPeriodoLabel,

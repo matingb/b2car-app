@@ -1,5 +1,3 @@
-"use client";
-
 import { COLOR } from "@/theme/theme";
 import { TurnoEstado } from "@/model/dtos";
 

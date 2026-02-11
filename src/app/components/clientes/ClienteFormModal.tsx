@@ -3,7 +3,10 @@
 import React, { useState } from "react";
 import Modal from "../ui/Modal";
 import { TipoCliente } from "@/model/types";
-import ClienteFormFields, { type ClienteFormFieldsValue } from "./ClienteFormFields";
+import ClienteFormFields, {
+  createEmptyClienteFormFieldsValue,
+  type ClienteFormFieldsValue,
+} from "./ClienteFormFields";
 
 type Props = {
   open: boolean;
@@ -17,7 +20,7 @@ type Props = {
     direccion: string;
     tipo_cliente: TipoCliente;
   }) => Promise<void> | void;
-  mode?: 'create' | 'edit';
+  mode?: "create" | "edit";
   initialValues?: {
     nombre?: string;
     apellido?: string;
@@ -29,42 +32,40 @@ type Props = {
   };
 };
 
-export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'create', initialValues }: Props) {
-  const [cliente, setCliente] = useState<ClienteFormFieldsValue>({
-    nombre: initialValues?.nombre ?? "",
-    apellido: initialValues?.apellido ?? "",
-    cuit: initialValues?.cuit ?? "",
-    telefono: initialValues?.telefono ?? "",
-    email: initialValues?.email ?? "",
-    direccion: initialValues?.direccion ?? "",
-    tipo_cliente: initialValues?.tipo_cliente ?? TipoCliente.PARTICULAR,
+export default function ClienteFormModal({
+  open,
+  onClose,
+  onSubmit,
+  mode = "create",
+  initialValues,
+}: Props) {
+  const [cliente, setCliente] = useState<ClienteFormFieldsValue>(() => {
+    const base = createEmptyClienteFormFieldsValue(
+      initialValues?.tipo_cliente ?? TipoCliente.PARTICULAR
+    );
+
+    return {
+      ...base,
+      ...(initialValues ?? {}),
+      // asegurar tipo_cliente incluso si initialValues viene undefined
+      tipo_cliente: initialValues?.tipo_cliente ?? base.tipo_cliente,
+    };
   });
   const [submitting, setSubmitting] = useState(false);
   const [isValid, setIsValid] = useState(false);
 
-  // Sincronizar con initialValues cuando cambian
   React.useEffect(() => {
     if (open && initialValues) {
+      const base = createEmptyClienteFormFieldsValue(
+        initialValues.tipo_cliente ?? TipoCliente.PARTICULAR
+      );
       setCliente({
-        nombre: initialValues.nombre ?? "",
-        apellido: initialValues.apellido ?? "",
-        cuit: initialValues.cuit ?? "",
-        telefono: initialValues.telefono ?? "",
-        email: initialValues.email ?? "",
-        direccion: initialValues.direccion ?? "",
-        tipo_cliente: initialValues.tipo_cliente ?? TipoCliente.PARTICULAR,
+        ...base,
+        ...initialValues,
+        tipo_cliente: initialValues.tipo_cliente ?? base.tipo_cliente,
       });
     } else if (open && !initialValues) {
-      // Reset en modo create
-      setCliente({
-        nombre: "",
-        apellido: "",
-        cuit: "",
-        telefono: "",
-        email: "",
-        direccion: "",
-        tipo_cliente: TipoCliente.PARTICULAR,
-      });
+      setCliente(createEmptyClienteFormFieldsValue(TipoCliente.PARTICULAR));
     }
   }, [open, initialValues]);
 
@@ -77,8 +78,14 @@ export default function ClienteFormModal({ open, onClose, onSubmit, mode = 'crea
       setSubmitting(true);
       await onSubmit({
         nombre: cliente.nombre.trim(),
-        apellido: cliente.tipo_cliente === TipoCliente.PARTICULAR ? cliente.apellido.trim() || undefined : undefined,
-        cuit: cliente.tipo_cliente === TipoCliente.EMPRESA ? cliente.cuit.trim() : undefined,
+        apellido:
+          cliente.tipo_cliente === TipoCliente.PARTICULAR
+            ? cliente.apellido.trim() || undefined
+            : undefined,
+        cuit:
+          cliente.tipo_cliente === TipoCliente.EMPRESA
+            ? cliente.cuit.trim()
+            : undefined,
         telefono: cliente.telefono.trim(),
         email: cliente.email.trim(),
         direccion: cliente.direccion.trim(),

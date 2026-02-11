@@ -11,9 +11,9 @@ import { Pencil, Save, Trash, X } from "lucide-react";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import ProductoTallerStockCard from "@/app/components/productos/ProductoTallerStockCard";
-import {
-  type InventarioMovementRow,
-} from "@/app/components/inventario/MovementsCard";
+// import {
+//   type InventarioMovementRow,
+// } from "@/app/components/inventario/MovementsCard";
 import ProductoInfoCard from "@/app/components/productos/ProductoInfoCard";
 import ProductoPricesCard from "@/app/components/productos/ProductoPricesCard";
 import {
@@ -66,29 +66,29 @@ export default function ProductoDetailsPage() {
     };
   }, [getProductoById, params.id]);
 
-  const movimientos = useMemo<InventarioMovementRow[]>(() => {
-    const nombrePorTaller = new Map(
-      talleres.map((t) => [t.id, t.nombre] as const),
-    );
-    const rows: InventarioMovementRow[] = [];
-    for (const reg of stockDelProducto) {
-      for (const mov of reg.historialMovimientos ?? []) {
-        rows.push({
-          fecha: mov.fecha,
-          tipo: mov.tipo,
-          cantidad: mov.cantidad,
-          motivo: mov.motivo,
-          tallerNombre: nombrePorTaller.get(reg.tallerId) ?? reg.tallerId,
-        });
-      }
-    }
-    const toKey = (f: string) => {
-      const [dd, mm, yyyy] = String(f ?? "").split("/");
-      return `${yyyy ?? ""}${mm ?? ""}${dd ?? ""}`;
-    };
-    rows.sort((a, b) => toKey(b.fecha).localeCompare(toKey(a.fecha)));
-    return rows;
-  }, [stockDelProducto, talleres]);
+  // const movimientos = useMemo<InventarioMovementRow[]>(() => {
+  //   const nombrePorTaller = new Map(
+  //     talleres.map((t) => [t.id, t.nombre] as const),
+  //   );
+  //   const rows: InventarioMovementRow[] = [];
+  //   for (const reg of stockDelProducto) {
+  //     for (const mov of reg.historialMovimientos ?? []) {
+  //       rows.push({
+  //         fecha: mov.fecha,
+  //         tipo: mov.tipo,
+  //         cantidad: mov.cantidad,
+  //         motivo: mov.motivo,
+  //         tallerNombre: nombrePorTaller.get(reg.tallerId) ?? reg.tallerId,
+  //       });
+  //     }
+  //   }
+  //   const toKey = (f: string) => {
+  //     const [dd, mm, yyyy] = String(f ?? "").split("/");
+  //     return `${yyyy ?? ""}${mm ?? ""}${dd ?? ""}`;
+  //   };
+  //   rows.sort((a, b) => toKey(b.fecha).localeCompare(toKey(a.fecha)));
+  //   return rows;
+  // }, [stockDelProducto, talleres]);
 
   const stockTotal = useMemo(() => {
     return stockDelProducto.reduce(

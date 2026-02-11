@@ -173,7 +173,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       const url = buildWhatsappLink(cleanPhone, mensaje);
       window.open(url, "_blank");
     } catch (err: unknown) {
-      toastError("Error", "No se pudo compartir el arreglo");
+      toastError("Error", err instanceof Error ? err.message : "No se pudo compartir el arreglo");
     }
   };
 

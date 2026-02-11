@@ -18,6 +18,20 @@ export type ClienteFormFieldsValue = {
 
 export type ClienteFormErrors = Partial<Record<"nombre" | "apellido" | "cuit", string>>;
 
+export function createEmptyClienteFormFieldsValue(
+  tipo_cliente: TipoCliente = TipoCliente.PARTICULAR
+): ClienteFormFieldsValue {
+  return {
+    nombre: "",
+    apellido: "",
+    cuit: "",
+    telefono: "",
+    email: "",
+    direccion: "",
+    tipo_cliente,
+  };
+}
+
 export function requiredClienteFields(tipo: TipoCliente): Array<keyof ClienteFormFieldsValue> {
   return tipo === TipoCliente.EMPRESA
     ? ["nombre", "cuit", "tipo_cliente"]

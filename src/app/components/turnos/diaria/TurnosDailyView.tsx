@@ -8,7 +8,7 @@ import { Turno } from "@/model/types";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import { CalendarDays } from "lucide-react";
-import { horaAMinutos, isSameLocalDay, toISODateLocal } from "@/app/components/turnos/utils/calendar";
+import { horaAMinutos, isSameLocalDay, toISODateLocal } from "@/lib/fechas";
 
 function detectarSuperposiciones(turnos: Turno[]) {
   const turnosOrdenados = [...turnos].sort(

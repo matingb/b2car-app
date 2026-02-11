@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Turno } from "@/model/types";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
-import { toISODateLocal } from "../utils/calendar";
+import { toISODateLocal } from "@/lib/fechas";
 
 type Props = {
   dia: Date;

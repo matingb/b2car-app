@@ -5,14 +5,14 @@ import Card from "@/app/components/ui/Card";
 import Pill from "@/app/components/turnos/Pill";
 import { useTurnos } from "@/app/providers/TurnosProvider";
 import { Turno } from "@/model/types";
-import { DIAS_SEMANA } from "@/app/components/turnos/constants";
 import {
   horaAMinutos,
   isSameLocalDay,
   toISODateLocal,
   getWeekDays,
-} from "@/app/components/turnos/utils/calendar";
-import { estadoAccentColor } from "@/app/components/turnos/utils/estado";
+  DIAS_SEMANA,
+} from "@/lib/fechas";
+import { estadoAccentColor } from "@/lib/turnos";
 import { COLOR } from "@/theme/theme";
 import TurnosWeeklySlotCell from "@/app/components/turnos/semanal/TurnosWeeklySlotCell";
 

@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { APP_LOCALE } from "@/lib/format";
-import { DIAS_SEMANA, MESES } from "@/app/components/turnos/constants";
-import { getWeekDays } from "@/app/components/turnos/utils/calendar";
+import { DIAS_SEMANA, MESES, getWeekDays } from "@/lib/fechas";
 
 export enum VistaTurnos {
   Semanal = "semanal",

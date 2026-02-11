@@ -13,6 +13,7 @@ import { Turno } from "@/model/types";
 import { turnosClient } from "@/clients/turnosClient";
 import { CreateTurnoInput, ListTurnosFilters } from "@/app/api/turnos/turnosService";
 import { TurnoDto } from "@/model/dtos";
+import { toISODateLocal } from "@/lib/fechas";
 
 
 type TurnosContextType = {
@@ -28,13 +29,6 @@ type TurnosContextType = {
 };
 
 const TurnosContext = createContext<TurnosContextType | null>(null);
-
-function toISODateLocal(date: Date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 export function TurnosProvider({ children }: { children: React.ReactNode }) {
   const [turnos, setTurnos] = useState<Turno[]>([]);

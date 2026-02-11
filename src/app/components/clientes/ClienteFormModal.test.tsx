@@ -4,7 +4,8 @@ import ClienteFormModal from "./ClienteFormModal";
 
 const mockValidity = vi.hoisted(() => ({ isValid: false }));
 
-vi.mock("./ClienteFormFields", async () => {
+vi.mock("./ClienteFormFields", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./ClienteFormFields")>();
   const React = await import("react");
   const ClienteFormFieldsMock = ({
     onValidityChange,
@@ -20,6 +21,7 @@ vi.mock("./ClienteFormFields", async () => {
 
   return {
     __esModule: true,
+    ...actual,
     default: ClienteFormFieldsMock,
   };
 });

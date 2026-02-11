@@ -10,7 +10,7 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import { CalendarDays, Car, Clock, User, X } from "lucide-react";
 import { Turno } from "@/model/types";
-import { horaAMinutos } from "@/app/components/turnos/utils/calendar";
+import { horaAMinutos } from "@/lib/fechas";
 import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
 
 type Props = {

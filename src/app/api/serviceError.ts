@@ -1,4 +1,3 @@
-import { logger } from "@/lib/logger";
 import type { PostgrestError } from "@supabase/supabase-js";
 
 /**
