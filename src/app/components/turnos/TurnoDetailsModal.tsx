@@ -12,6 +12,7 @@ import { CalendarDays, Car, Clock, User, X } from "lucide-react";
 import { Turno } from "@/model/types";
 import { horaAMinutos } from "@/lib/fechas";
 import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
+import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 
 type Props = {
   open: boolean;
@@ -125,7 +126,7 @@ export default function TurnoDetailsModal({
                   </div>
                   <div>
                     <div style={styles.infoLabel}>Vehiculo</div>
-                    <div style={styles.infoValue}>{turno.vehiculo.marca} {turno.vehiculo.modelo} - {turno.vehiculo.patente} </div>
+                    <div style={styles.infoValue}>{formatPatenteConMarcaYModelo(turno.vehiculo)}</div>
                   </div>
                 </div>
               </div>

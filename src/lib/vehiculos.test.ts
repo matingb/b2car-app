@@ -57,5 +57,3 @@ describe("formatPatenteConMarcaYModelo", () => {
     expect(patenteFormateada).toBe("AA111BB - Ford Fiesta");
   });
 });
-
-

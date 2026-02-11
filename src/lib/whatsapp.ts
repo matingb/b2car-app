@@ -1,6 +1,7 @@
 import { formatArs } from "@/lib/format";
 import type { ArregloDetalleData, AsignacionArregloLinea } from "@/app/api/arreglos/[id]/route";
 import type { Turno } from "@/model/types";
+import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 
 export function buildArregloWhatsappMessage(data: ArregloDetalleData, tenantName?: string): string {
 	if (!data?.arreglo) return "";
@@ -75,7 +76,7 @@ export function buildTurnoWhatsappMessage(turno: Turno, tenantName?: string): st
 		lines.push(`👤 ${turno.cliente.nombre}`);
 	}
 	if (turno.vehiculo) {
-		const vehiculoLabel = `${turno.vehiculo.marca} ${turno.vehiculo.modelo} - ${turno.vehiculo.patente}`.trim();
+		const vehiculoLabel = formatPatenteConMarcaYModelo(turno.vehiculo);
 		lines.push(`🚗 ${vehiculoLabel}`);
 	}
 	lines.push("");

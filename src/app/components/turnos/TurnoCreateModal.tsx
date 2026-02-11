@@ -18,6 +18,7 @@ import { buildTurnoWhatsappMessage } from "@/lib/whatsapp";
 import { TurnoDto } from "@/model/dtos";
 import { toISODateLocal } from "@/lib/fechas";
 import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
+import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 
 export type CreatedTurno = {
 	id: number;
@@ -127,7 +128,7 @@ export default function TurnoCreateModal({
 
 	const vehiculoOptions: AutocompleteOption[] = useMemo(() => {
 		const base: AutocompleteOption[] = vehiculosFiltrados.map((v) => {
-			const label = `${v.marca} ${v.modelo} - ${v.patente}`.trim();
+			const label = formatPatenteConMarcaYModelo(v);
 			const secondaryParts = [v.nombre_cliente, v.nro_interno ? `Int: ${v.nro_interno}` : ""].filter(Boolean);
 			return {
 				value: String(v.id),

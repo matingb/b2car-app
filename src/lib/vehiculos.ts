@@ -37,5 +37,3 @@ export function formatPatenteConMarcaYModelo(v: {
   const marcaModelo = [marca, modelo].filter(Boolean).join(" ");
   return [patente, marcaModelo].filter(Boolean).join(" - ");
 }
-
-
