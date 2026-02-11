@@ -7,6 +7,8 @@ import type { CreateParticularRequest } from '@/app/api/clientes/particulares/ro
 import type { CreateRepresentanteRequest } from '@/app/api/clientes/empresas/[id]/representantes/route';
 import type { Producto } from '@/app/providers/ProductosProvider';
 import type { StockItemRow, StockRow } from "@/app/api/stocks/stocksService";
+import type { Turno } from "@/model/types";
+import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 
 /**
  * Factory para crear objetos Vehiculo de prueba
@@ -276,6 +278,70 @@ export const createStockItemRow = (overrides: Partial<StockItemRow> = {}): Stock
   return {
     ...createStockRow({ ...(rest as Partial<StockRow>), producto_id: productoId }),
     productos: productos ?? createInventarioProductoRow({ id: productoId }),
+  };
+};
+
+/**
+ * Factory para crear objetos Turno de prueba
+ */
+export const createTurno = (overrides: Partial<Turno> = {}): Turno => {
+  const defaultCliente = createCliente();
+  const defaultVehiculo = createVehiculo();
+  return {
+    id: "1",
+    fecha: "2026-02-11",
+    hora: "10:30",
+    duracion: 60,
+    vehiculo: defaultVehiculo,
+    cliente: defaultCliente,
+    tipo: null,
+    estado: "confirmado",
+    descripcion: "Service",
+    observaciones: "Llegar 10 min antes",
+    ...overrides,
+  };
+};
+
+/**
+ * Factory para crear el payload ArregloDetalleData de prueba
+ */
+export const createArregloDetalleData = (
+  overrides: Partial<ArregloDetalleData> = {}
+): ArregloDetalleData => {
+  const arreglo = createArreglo({
+    esta_pago: false,
+    precio_final: 0,
+    kilometraje_leido: 123456,
+    observaciones: "Revisar filtro",
+    vehiculo: createVehiculo({ id: "v1", patente: "ABC123" }),
+  });
+
+  return {
+    arreglo,
+    detalles: [
+      { id: "d1", arreglo_id: String(arreglo.id), descripcion: "Mano de obra", cantidad: 2, valor: 1500 },
+    ],
+    asignaciones: [
+      {
+        id: "op1",
+        tipo: "egreso",
+        taller_id: "t1",
+        created_at: "2026-01-01",
+        lineas: [
+          {
+            id: "l1",
+            operacion_id: "op1",
+            stock_id: "s1",
+            cantidad: 1,
+            monto_unitario: 5000,
+            delta_cantidad: -1,
+            created_at: "2026-01-01",
+            producto: { id: "p1", codigo: "FIL-001", nombre: "Filtro" },
+          },
+        ],
+      },
+    ],
+    ...overrides,
   };
 };
 
