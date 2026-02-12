@@ -20,6 +20,7 @@ interface AutocompleteProps {
   style?: React.CSSProperties;
   inputStyle?: React.CSSProperties;
   allowCustomValue?: boolean;
+  isLoading?: boolean;
   dataTestId?: string;
 }
 
@@ -32,6 +33,7 @@ export default function Autocomplete({
   style,
   inputStyle,
   allowCustomValue = false,
+  isLoading = false,
   dataTestId,
 }: AutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -113,6 +115,18 @@ export default function Autocomplete({
       window.removeEventListener("scroll", updatePosition, true);
     };
   }, [isOpen, disabled]);
+
+  useEffect(() => {
+    // Avoid injecting duplicate keyframes when multiple Autocomplete instances mount.
+    const styleId = "autocomplete-spinner-keyframes";
+    if (typeof document === "undefined") return;
+    if (document.getElementById(styleId)) return;
+
+    const el = document.createElement("style");
+    el.id = styleId;
+    el.textContent = `@keyframes autocomplete-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+    document.head.appendChild(el);
+  }, []);
 
   // Manejar navegación con teclado
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -249,42 +263,42 @@ export default function Autocomplete({
       </div>
 
       {isOpen && !disabled
-        ? typeof document !== "undefined"
-          ? createPortal(
-              <div ref={dropdownRef} style={{ ...styles.dropdown, ...(dropdownStyle ?? {}) }}>
-                {filteredOptions.length > 0 ? (
-                  <div style={styles.optionsList}>
-                    {filteredOptions.map((option, index) => (
-                      <div
-                        key={option.value}
-                        style={{
-                          ...styles.option,
-                          ...(highlightedIndex === index && styles.optionHighlighted),
-                          ...(value === option.value && styles.optionSelected),
-                        }}
-                        onClick={() => handleSelect(option)}
-                        onMouseEnter={() => setHighlightedIndex(index)}
-                      >
-                        <div style={styles.optionContent}>
-                          <span style={styles.optionLabel}>{option.label}</span>
-                          {option.secondaryLabel && (
-                            <span style={styles.optionSecondary}>
-                              {option.secondaryLabel}
-                            </span>
-                          )}
-                        </div>
+        ? createPortal(
+            <div ref={dropdownRef} style={{ ...styles.dropdown, ...(dropdownStyle ?? {}) }}>
+              {isLoading ? (
+                <div style={styles.spinnerContainer} aria-label="Cargando opciones">
+                  <div style={styles.spinner} />
+                </div>
+              ) : filteredOptions.length > 0 ? (
+                <div style={styles.optionsList}>
+                  {filteredOptions.map((option, index) => (
+                    <div
+                      key={option.value}
+                      style={{
+                        ...styles.option,
+                        ...(highlightedIndex === index && styles.optionHighlighted),
+                        ...(value === option.value && styles.optionSelected),
+                      }}
+                      onClick={() => handleSelect(option)}
+                      onMouseEnter={() => setHighlightedIndex(index)}
+                    >
+                      <div style={styles.optionContent}>
+                        <span style={styles.optionLabel}>{option.label}</span>
+                        {option.secondaryLabel && (
+                          <span style={styles.optionSecondary}>{option.secondaryLabel}</span>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={styles.spinnerContainer} aria-label="Cargando opciones">
-                    <div style={styles.spinner} />
-                  </div>
-                )}
-              </div>,
-              document.body
-            )
-          : null
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={styles.emptyState} aria-label="Sin resultados">
+                  {searchTerm.trim() ? "Sin resultados" : "No hay opciones"}
+                </div>
+              )}
+            </div>,
+            document.body
+          )
         : null}
     </div>
   );
@@ -389,12 +403,9 @@ const styles = {
     borderTopColor: COLOR.ACCENT.PRIMARY,
     animation: "autocomplete-spin 0.8s linear infinite",
   },
+  emptyState: {
+    padding: "12px",
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 13,
+  },
 } as const;
-
-// Inline keyframes injection for the spinner animation
-const styleEl =
-  typeof document !== "undefined" ? document.createElement("style") : null;
-if (styleEl) {
-  styleEl.textContent = `@keyframes autocomplete-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
-  document.head.appendChild(styleEl);
-}
