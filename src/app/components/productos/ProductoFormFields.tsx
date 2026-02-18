@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import { BREAKPOINTS, COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import DropdownMultiSelect from "@/app/components/ui/DropdownMultiSelect";
@@ -20,13 +20,32 @@ type Props = {
   values: ProductoFormFieldsValues;
   onChange: (patch: Partial<ProductoFormFieldsValues>) => void;
   categoriasDisponibles: readonly string[];
+  onValidityChange?: (isValid: boolean) => void;
 };
+
+export function validateProductoForm(
+  values: ProductoFormFieldsValues
+): boolean {
+  return Boolean(
+    values.nombre.trim() && 
+    values.codigo.trim() && 
+    values.precioCompra >= 0 &&
+    values.precioVenta >= 0
+  );
+}
 
 export default function ProductoFormFields({
   values,
   onChange,
   categoriasDisponibles,
+  onValidityChange,
 }: Props) {
+  const isValid = useMemo(() => validateProductoForm(values), [values]);
+  useEffect(() => {
+    if (onValidityChange) {
+      onValidityChange(isValid);
+    }
+  }, [isValid, onValidityChange]);
   return (
     <>
       <div css={styles.row}>

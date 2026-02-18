@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
 import { useProductos } from "@/app/providers/ProductosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import ProductoFormFields from "@/app/components/productos/ProductoFormFields";
+import ProductoFormFields, { ProductoFormFieldsValues } from "@/app/components/productos/ProductoFormFields";
 
 type Props = {
   open: boolean;
@@ -20,30 +20,23 @@ export default function ProductoCreateModal({
   const { createProducto, isLoading } = useProductos();
   const { success } = useToast();
 
-  const [nombre, setNombre] = useState("");
-  const [codigo, setCodigo] = useState("");
-  const [proveedor, setProveedor] = useState("");
-  const [ubicacion, setUbicacion] = useState("");
-  const [precioCompra, setPrecioCompra] = useState<number>(0);
-  const [precioVenta, setPrecioVenta] = useState<number>(0);
-  const [categorias, setCategorias] = useState<string[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isValid, setIsValid] = useState(false);
+
+  const [values, setValues] = useState<ProductoFormFieldsValues>({
+    nombre: "",
+    codigo: "",
+    proveedor: "",
+    ubicacion: "",
+    precioCompra: 0,
+    precioVenta: 0,
+    categorias: [],
+  })
 
   useEffect(() => {
     if (!open) return;
-    setNombre("");
-    setCodigo("");
-    setProveedor("");
-    setUbicacion("");
-    setPrecioCompra(0);
-    setPrecioVenta(0);
-    setCategorias([]);
     setSubmitError(null);
   }, [open]);
-
-  const canSubmit = useMemo(() => {
-    return Boolean(nombre.trim() && codigo.trim() && precioCompra >= 0 && precioVenta >= 0);
-  }, [nombre, codigo, precioCompra, precioVenta]);
 
   if (!open) return null;
 
@@ -51,13 +44,13 @@ export default function ProductoCreateModal({
     e.preventDefault();
     setSubmitError(null);
     const { producto: created, error: createError } = await createProducto({
-      nombre: nombre.trim(),
-      codigo: codigo.trim(),
-      proveedor: proveedor.trim(),
-      ubicacion: ubicacion.trim(),
-      categorias,
-      precioUnitario: precioVenta,
-      costoUnitario: precioCompra,
+      nombre: values.nombre.trim(),
+      codigo: values.codigo.trim(),
+      proveedor: values.proveedor.trim(),
+      ubicacion: values.ubicacion.trim(),
+      categorias: values.categorias,
+      precioUnitario: values.precioVenta,
+      costoUnitario: values.precioCompra,
     });
 
     if (created) {
@@ -77,7 +70,7 @@ export default function ProductoCreateModal({
       onSubmit={handleSubmit}
       submitText="Crear"
       submitting={isLoading}
-      disabledSubmit={!canSubmit}
+      disabledSubmit={!isValid}
       modalError={
         submitError
           ? { titulo: "Error al crear producto", descripcion: submitError }
@@ -85,29 +78,12 @@ export default function ProductoCreateModal({
       }
       modalStyle={{ overflowY: "auto" }}
     >
-      <div style={{ padding: "4px 0 12px" }}>
-        <ProductoFormFields
+      <ProductoFormFields
           categoriasDisponibles={categoriasDisponibles}
-          values={{
-            nombre,
-            codigo,
-            proveedor,
-            ubicacion,
-            precioCompra,
-            precioVenta,
-            categorias,
-          }}
-          onChange={(patch) => {
-            if (patch.nombre !== undefined) setNombre(patch.nombre);
-            if (patch.codigo !== undefined) setCodigo(patch.codigo);
-            if (patch.proveedor !== undefined) setProveedor(patch.proveedor);
-            if (patch.ubicacion !== undefined) setUbicacion(patch.ubicacion);
-            if (patch.precioCompra !== undefined) setPrecioCompra(patch.precioCompra);
-            if (patch.precioVenta !== undefined) setPrecioVenta(patch.precioVenta);
-            if (patch.categorias !== undefined) setCategorias(patch.categorias);
-          }}
+          values={values}
+          onChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))}
+          onValidityChange={(isValid) => setIsValid(isValid)}
         />
-      </div>
     </Modal>
   );
 }
