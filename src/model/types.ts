@@ -42,6 +42,7 @@ export interface Vehiculo {
   marca: string;
   modelo: string;
   fecha_patente: string;
+  numero_chasis: string;
   nro_interno?: string | null;
 }
 

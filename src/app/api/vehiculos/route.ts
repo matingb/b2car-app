@@ -9,6 +9,7 @@ export type CreateVehiculoRequest = {
   marca?: string;
   modelo?: string;
   fecha_patente?: string;
+  numero_chasis?: string;
   nro_interno?: string;
 };
 
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   if (!body) return Response.json({ error: "JSON inválido" }, { status: 400 });
 
-  const { cliente_id, patente, marca, modelo, fecha_patente, nro_interno } = body as CreateVehiculoRequest;
+  const { cliente_id, patente, marca, modelo, fecha_patente, numero_chasis, nro_interno } = body as CreateVehiculoRequest;
 
   if (!cliente_id) return Response.json({ error: "Falta cliente_id" }, { status: 400 });
   if (!patente) return Response.json({ error: "Falta patente" }, { status: 400 });
@@ -48,6 +49,7 @@ export async function POST(req: Request) {
     marca: marca ?? "",
     modelo: modelo ?? "",
     fecha_patente: fecha_patente ?? "",
+    numero_chasis: numero_chasis ?? "",
     nro_interno: nro_interno ?? "",
   })
 

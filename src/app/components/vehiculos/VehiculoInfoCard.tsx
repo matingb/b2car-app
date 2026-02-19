@@ -31,6 +31,7 @@ export default function VehiculoInfoCard({
   style,
 }: Props) {
   const nroInterno = (vehiculo?.nro_interno ?? "").trim();
+  const numeroChasis = (vehiculo?.numero_chasis ?? "").trim();
 
   return (
     <div style={{ ...styles.container, ...style }}>
@@ -69,6 +70,15 @@ export default function VehiculoInfoCard({
               <IconLabel
                 icon={<Hash size={18} color={COLOR.ACCENT.PRIMARY} />}
                 label={nroInterno}
+              />
+            </div>
+          )}
+          {numeroChasis && (
+            <div>
+              <div style={styles.label}>N° chasis</div>
+              <IconLabel
+                icon={<Hash size={18} color={COLOR.ACCENT.PRIMARY} />}
+                label={numeroChasis}
               />
             </div>
           )}

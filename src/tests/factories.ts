@@ -23,6 +23,7 @@ export const createVehiculo = (overrides: Partial<Vehiculo> = {}): Vehiculo => {
     marca: 'Toyota',
     modelo: 'Corolla',
     fecha_patente: '2020-01-01',
+    numero_chasis: '',
     nro_interno: null,
     ...overrides,
   };

@@ -11,6 +11,7 @@ export type VehiculoFormFieldsValue = {
   marca: string;
   modelo: string;
   fecha_patente: string; // YYYY
+  numero_chasis: string;
   nro_interno: string;
 };
 
@@ -130,6 +131,15 @@ export default function VehiculoFormFields({
                 const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 4);
                 onChange({ fecha_patente: onlyDigits });
               }}
+            />
+          </div>
+          <div style={styles.field}>
+            <label style={styles.label}>N° chasis</label>
+            <input
+              style={styles.input}
+              placeholder="8AFZZZ54ZXJ123456"
+              value={value.numero_chasis}
+              onChange={(e) => onChange({ numero_chasis: e.target.value })}
             />
           </div>
         </div>

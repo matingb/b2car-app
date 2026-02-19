@@ -12,6 +12,7 @@ type CreatedVehiculo = {
   marca?: string;
   modelo?: string;
   fecha_patente?: string;
+  numero_chasis?: string;
   nro_interno?: string;
 };
 
@@ -31,6 +32,7 @@ export default function CreateVehiculoModal({ open, onClose, clienteId, tipoClie
     marca: "",
     modelo: "",
     fecha_patente: "",
+    numero_chasis: "",
     nro_interno: "",
   });
   const [isValid, setIsValid] = useState(false);
@@ -44,6 +46,7 @@ export default function CreateVehiculoModal({ open, onClose, clienteId, tipoClie
       marca: "",
       modelo: "",
       fecha_patente: "",
+      numero_chasis: "",
       nro_interno: "",
     });
     setIsValid(false);
@@ -65,6 +68,7 @@ export default function CreateVehiculoModal({ open, onClose, clienteId, tipoClie
         marca: values.marca.trim() || "",
         modelo: values.modelo.trim() || "",
         fecha_patente: values.fecha_patente || "",
+        numero_chasis: values.numero_chasis.trim() || "",
         nro_interno: values.nro_interno.trim() || null,
       });
 
@@ -74,6 +78,7 @@ export default function CreateVehiculoModal({ open, onClose, clienteId, tipoClie
         marca: values.marca.trim() || undefined,
         modelo: values.modelo.trim() || undefined,
         fecha_patente: values.fecha_patente || undefined,
+        numero_chasis: values.numero_chasis.trim() || undefined,
         nro_interno: values.nro_interno.trim() || undefined,
       });
     } catch (err) {

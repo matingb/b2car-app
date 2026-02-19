@@ -59,6 +59,7 @@ type TurnoListRow = TurnoRow & {
 	marca?: string | null;
 	modelo?: string | null;
 	fecha_patente?: string | null;
+	numero_chasis?: string | null;
 	nro_interno?: string | null;
 
 	cliente_id_full?: string | null;
@@ -141,6 +142,7 @@ export const turnosService = {
 				marca: row.marca ?? "",
 				modelo: row.modelo ?? "",
 				fecha_patente: row.fecha_patente ?? "",
+				numero_chasis: row.numero_chasis ?? "",
 				nro_interno: row.nro_interno ?? null,
 			};
 

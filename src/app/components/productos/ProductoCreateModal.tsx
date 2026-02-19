@@ -36,6 +36,16 @@ export default function ProductoCreateModal({
   useEffect(() => {
     if (!open) return;
     setSubmitError(null);
+    setValues({
+      nombre: "",
+      codigo: "",
+      proveedor: "",
+      ubicacion: "",
+      precioCompra: 0,
+      precioVenta: 0,
+      categorias: [],
+    });
+    setIsValid(false);
   }, [open]);
 
   if (!open) return null;

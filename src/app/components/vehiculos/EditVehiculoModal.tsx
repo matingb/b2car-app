@@ -24,6 +24,7 @@ export default function EditVehiculoModal({ open, onClose, vehiculo, tipoCliente
     marca: vehiculo.marca ?? "",
     modelo: vehiculo.modelo ?? "",
     fecha_patente: vehiculo.fecha_patente ?? "",
+    numero_chasis: vehiculo.numero_chasis ?? "",
     nro_interno: vehiculo.nro_interno ?? "",
   });
   const [isValid, setIsValid] = useState(false);
@@ -39,6 +40,7 @@ export default function EditVehiculoModal({ open, onClose, vehiculo, tipoCliente
       marca: vehiculo.marca ?? "",
       modelo: vehiculo.modelo ?? "",
       fecha_patente: vehiculo.fecha_patente ?? "",
+      numero_chasis: vehiculo.numero_chasis ?? "",
       nro_interno: vehiculo.nro_interno ?? "",
     });
     setIsValid(false);
@@ -55,6 +57,7 @@ export default function EditVehiculoModal({ open, onClose, vehiculo, tipoCliente
         marca: values.marca.trim() || "",
         modelo: values.modelo.trim() || "",
         fecha_patente: values.fecha_patente || "",
+        numero_chasis: values.numero_chasis.trim() || "",
         nro_interno: values.nro_interno.trim() || "",
       });
       success("Vehículo actualizado correctamente");

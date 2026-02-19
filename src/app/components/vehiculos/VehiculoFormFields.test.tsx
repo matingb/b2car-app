@@ -24,6 +24,7 @@ describe("VehiculoFormFields", () => {
       marca: "",
       modelo: "",
       fecha_patente: "",
+      numero_chasis: "",
       nro_interno: "",
     };
 

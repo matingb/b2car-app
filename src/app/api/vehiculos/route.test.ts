@@ -49,6 +49,7 @@ describe("POST /api/vehiculos", () => {
       marca: "",
       modelo: "",
       fecha_patente: "",
+      numero_chasis: "",
       nro_interno: "",
     });
 

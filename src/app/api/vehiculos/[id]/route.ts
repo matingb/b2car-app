@@ -32,7 +32,14 @@ export async function PUT(
   const supabase = await createClient();
   const { id } = await params;
 
-  let body: { patente?: string; marca?: string; modelo?: string; fecha_patente?: string; nro_interno?: string | null };
+  let body: {
+    patente?: string;
+    marca?: string;
+    modelo?: string;
+    fecha_patente?: string;
+    numero_chasis?: string;
+    nro_interno?: string | null;
+  };
   try {
     body = await req.json();
   } catch {
@@ -44,6 +51,7 @@ export async function PUT(
   if (body.marca !== undefined) updateData.marca = body.marca;
   if (body.modelo !== undefined) updateData.modelo = body.modelo;
   if (body.fecha_patente !== undefined) updateData.fecha_patente = body.fecha_patente;
+  if (body.numero_chasis !== undefined) updateData.numero_chasis = body.numero_chasis ?? "";
   if (body.nro_interno !== undefined) updateData.nro_interno = body.nro_interno ? body.nro_interno : null;
 
   if (Object.keys(updateData).length === 0) {

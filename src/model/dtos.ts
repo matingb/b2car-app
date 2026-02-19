@@ -7,6 +7,7 @@ export interface VehiculoDto {
     marca?: string;
     modelo?: string;
     fecha_patente?: string;
+    numero_chasis: string;
     created_at: string;
 }
 
