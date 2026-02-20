@@ -28,6 +28,7 @@ import { useToast } from "@/app/providers/ToastProvider";
 import { logger } from "@/lib/logger";
 import { APP_LOCALE, formatArs } from "@/lib/format";
 import { buildArregloWhatsappMessage, buildWhatsappLink } from "@/lib/whatsapp";
+import { safeNumber } from "@/lib/numbers";
 import type {
   ArregloDetalleData,
   AsignacionArregloLinea,
@@ -793,11 +794,6 @@ const styles = {
     width: "100%",
   },
 } as const;
-
-function safeNumber(v: unknown): number {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
 
 function flattenAsignacionesLineas(
   data: ArregloDetalleData

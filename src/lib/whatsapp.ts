@@ -2,6 +2,7 @@ import { formatArs } from "@/lib/format";
 import type { ArregloDetalleData, AsignacionArregloLinea } from "@/app/api/arreglos/[id]/route";
 import type { Turno } from "@/model/types";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
+import { safeNumber } from "@/lib/numbers";
 
 export function buildArregloWhatsappMessage(data: ArregloDetalleData, tenantName?: string): string {
 	if (!data?.arreglo) return "";
@@ -105,11 +106,6 @@ export function buildWhatsappLink(phone: string, message: string): string {
 export function normalizeWhatsappPhone(rawPhone: string): string | null {
 	const cleaned = String(rawPhone ?? "").replace(/\D/g, "");
 	return cleaned ? cleaned : null;
-}
-
-function safeNumber(v: unknown): number {
-	const n = Number(v);
-	return Number.isFinite(n) ? n : 0;
 }
 
 function flattenAsignacionesLineas(

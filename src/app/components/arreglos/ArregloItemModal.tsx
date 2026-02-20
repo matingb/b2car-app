@@ -8,6 +8,7 @@ import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { AlertTriangle, Package, Wrench } from "lucide-react";
+import { safeNumber } from "@/lib/numbers";
 
 type Props = {
   open: boolean;
@@ -18,11 +19,6 @@ type Props = {
 };
 
 type Mode = "servicio" | "repuesto";
-
-function safeNumber(v: unknown): number {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
 
 export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arregloId, tallerId }: Props) {
   const { createDetalle, upsertRepuestoLinea, loading } = useArreglos();
