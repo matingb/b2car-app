@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
 import { useProductos } from "@/app/providers/ProductosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
