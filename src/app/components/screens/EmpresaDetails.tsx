@@ -180,7 +180,9 @@ export default function EmpresaDetails() {
                 patente: nuevo.patente,
                 marca: nuevo.marca || '',
                 modelo: nuevo.modelo || '',
-                fecha_patente: nuevo.fecha_patente || ''
+                fecha_patente: nuevo.fecha_patente || '',
+                nro_interno: nuevo.nro_interno || '',
+                numero_chasis: nuevo.numero_chasis || '',
               },
               ...prev,
             ]);

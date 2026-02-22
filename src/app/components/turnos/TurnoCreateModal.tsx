@@ -87,6 +87,7 @@ export default function TurnoCreateModal({
 		modelo: "",
 		fecha_patente: "",
 		nro_interno: "",
+		numero_chasis: "",
 	});
 	const [vehiculoInlineIsValid, setVehiculoInlineIsValid] = useState(false);
 
@@ -189,6 +190,7 @@ export default function TurnoCreateModal({
 			modelo: "",
 			fecha_patente: "",
 			nro_interno: "",
+			numero_chasis: "",
 		});
 	}, [open, defaultClienteId, defaultFecha, defaultHora, turnoToEdit]);
 

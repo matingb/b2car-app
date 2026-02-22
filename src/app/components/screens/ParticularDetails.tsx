@@ -122,7 +122,8 @@ export default function ParticularDetails() {
                                 patente: nuevo.patente,
                                 marca: nuevo.marca || '',
                                 modelo: nuevo.modelo || '',
-                                fecha_patente: nuevo.fecha_patente || ''
+                                fecha_patente: nuevo.fecha_patente || '',
+                                numero_chasis: nuevo.numero_chasis || ''
                                 
                             },
 
