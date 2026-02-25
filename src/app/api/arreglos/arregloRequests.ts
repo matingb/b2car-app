@@ -1,7 +1,10 @@
+import type { EstadoArreglo } from "@/model/types";
+
 export type CreateArregloRequest = {
   vehiculo_id: string;
   taller_id: string;
   tipo?: string;
+  estado?: EstadoArreglo;
   descripcion?: string;
   kilometraje_leido?: number;
   fecha: Date | string;
@@ -19,6 +22,7 @@ export type CreateArregloInsertPayload = {
   vehiculo_id: string;
   taller_id: string;
   tipo: string;
+  estado: EstadoArreglo;
   descripcion: string | null;
   kilometraje_leido: number;
   fecha: Date | string;
@@ -31,6 +35,7 @@ export type CreateArregloInsertPayload = {
 
 export type UpdateArregloRequest = {
   tipo?: string;
+  estado?: EstadoArreglo;
   descripcion?: string;
   kilometraje_leido?: number;
   fecha?: string;

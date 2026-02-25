@@ -5,12 +5,14 @@ import Modal from "@/app/components/ui/Modal";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import Autocomplete, { AutocompleteOption } from "../ui/Autocomplete";
+import { ESTADOS_ARREGLO } from "@/model/types";
 
 export type ArregloFilters = {
   fechaDesde: string;
   fechaHasta: string;
   patente: string;
   tipo: string;
+  estado: string;
 };
 
 type Props = {
@@ -25,6 +27,7 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
   const [fechaHasta, setFechaHasta] = useState(initial?.fechaHasta ?? "");
   const [patente, setPatente] = useState(initial?.patente ?? "");
   const [tipo, setTipo] = useState(initial?.tipo ?? "");
+  const [estado, setEstado] = useState(initial?.estado ?? "");
 
   useEffect(() => {
     if (!open) return;
@@ -32,6 +35,7 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
     setFechaHasta(initial?.fechaHasta ?? "");
     setPatente(initial?.patente ?? "");
     setTipo(initial?.tipo ?? "");
+    setEstado(initial?.estado ?? "");
   }, [open, initial]);
 
   if (!open) return null;
@@ -43,6 +47,7 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
       fechaHasta,
       patente: patente.trim(),
       tipo: tipo.trim(),
+      estado: estado.trim(),
     });
     onClose();
   };
@@ -54,6 +59,11 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
     { value: "Mantenimiento", label: "Mantenimiento" },
     { value: "Revision", label: "Revision" },
   ];
+
+  const estadoOptions: AutocompleteOption[] = ESTADOS_ARREGLO.map((value) => ({
+    value,
+    label: value.replaceAll("_", " "),
+  }));
 
   return (
     <Modal
@@ -106,6 +116,18 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
               onChange={setTipo}
               placeholder="Mecanica, Chapa y pintura..."
               allowCustomValue
+            />
+          </div>
+        </div>
+
+        <div css={styles.row}>
+          <div style={styles.field}>
+            <label style={styles.label}>Estado</label>
+            <Autocomplete
+              options={estadoOptions}
+              value={estado}
+              onChange={setEstado}
+              placeholder="EN PROGRESO, ESPERA..."
             />
           </div>
         </div>

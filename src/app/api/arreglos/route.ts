@@ -1,5 +1,5 @@
 import { logger } from "@/lib/logger";
-import { Arreglo } from "@/model/types"
+import { Arreglo, ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types"
 import { createClient } from "@/supabase/server"
 import { IVA_RATE } from "@/lib/ivaRate";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
         taller_id: arreglo.taller_id,
         taller: arreglo.taller,
         tipo: arreglo.tipo,
+        estado: arreglo.estado,
         descripcion: arreglo.descripcion,
         kilometraje_leido: arreglo.kilometraje_leido,
         fecha: arreglo.fecha,
@@ -59,6 +60,7 @@ export async function POST(req: Request) {
         vehiculo_id,
         taller_id,
         tipo,
+        estado,
         descripcion,
         kilometraje_leido,
         fecha,
@@ -77,6 +79,13 @@ export async function POST(req: Request) {
     const precioFinalNumber = Number(precio_final) || 0;
     const kmNumber = Number(kilometraje_leido) || 0;
     const tipoValue = String(tipo ?? "").trim();
+    const estadoRaw = String(estado ?? "SIN_INICIAR").trim().toUpperCase();
+
+    if (!(ESTADOS_ARREGLO as string[]).includes(estadoRaw)) {
+        return Response.json({ error: "Estado de arreglo inválido" }, { status: 400 });
+    }
+
+    const estadoValue = estadoRaw as EstadoArreglo;
 
     const ivaRate = IVA_RATE
     const computedSinIva = Number((precioFinalNumber / (1 + ivaRate)).toFixed(2));
@@ -85,6 +94,7 @@ export async function POST(req: Request) {
         vehiculo_id,
         taller_id,
         tipo: tipoValue,
+        estado: estadoValue,
         descripcion: descripcion ?? null,
         kilometraje_leido: kmNumber,
         fecha,

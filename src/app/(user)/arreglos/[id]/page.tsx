@@ -37,6 +37,7 @@ import ServicioLineasEditableSection from "@/app/components/arreglos/lineas/Serv
 import RepuestoLineasEditableSection from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
 import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
+import type { EstadoArreglo } from "@/model/types";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -54,7 +55,7 @@ export default function ArregloDetailsPage() {
     deleteRepuestoLinea,
     loading,
   } = useArreglos();
-  const {fetchCliente} = useVehiculos();
+  const { fetchCliente } = useVehiculos();
   const { confirm } = useModalMessage();
   const { success, error } = useToast();
 
@@ -279,6 +280,7 @@ export default function ArregloDetailsPage() {
   }
 
   const arreglo = data.arreglo;
+  const estadoMeta = getEstadoMeta(arreglo.estado);
   const detalles = Array.isArray(data.detalles) ? data.detalles : [];
   const repuestosLineas = flattenAsignacionesLineas(data);
 
@@ -310,6 +312,10 @@ export default function ArregloDetailsPage() {
               <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
                 Resumen
               </h3>
+              <div style={{ ...styles.estadoRow, background: estadoMeta.bgColor }}>
+                <span style={{ ...styles.estadoDot, background: estadoMeta.dotColor }} />
+                <span style={styles.estadoLabel}>{estadoMeta.label}</span>
+              </div>
               <div
                 style={{
                   flex: 1,
@@ -529,6 +535,7 @@ export default function ArregloDetailsPage() {
           initial={{
             id: arreglo.id,
             tipo: arreglo.tipo,
+            estado: arreglo.estado,
             fecha: arreglo.fecha,
             kilometraje_leido: arreglo.kilometraje_leido,
             precio_final: arreglo.precio_final,
@@ -762,6 +769,28 @@ const styles = {
     color: COLOR.ICON.MUTED,
     marginBottom: 4,
   },
+  estadoRow: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    width: "fit-content",
+    padding: "6px 10px",
+    borderRadius: 999,
+    background: COLOR.BACKGROUND.INFO_TINT,
+  },
+  estadoDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+    background: COLOR.SEMANTIC.INFO,
+    display: "inline-block",
+    animation: "estado-dot-pulse 1.5s ease-out infinite",
+  },
+  estadoLabel: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: COLOR.TEXT.PRIMARY,
+  },
   cardContent: {
     display: "flex",
     flexDirection: "column" as const,
@@ -808,4 +837,48 @@ function flattenAsignacionesLineas(
     }
   }
   return out;
+}
+
+function getEstadoMeta(estado: EstadoArreglo | undefined) {
+  const safeEstado = estado ?? "SIN_INICIAR";
+  const label = safeEstado.replaceAll("_", " ");
+
+  switch (safeEstado) {
+    case "PRESUPUESTO":
+      return {
+        label,
+        dotColor: COLOR.SEMANTIC.WARNING,
+        bgColor: COLOR.BACKGROUND.SUBTLE,
+      };
+    case "SIN_INICIAR":
+      return {
+        label,
+        dotColor: COLOR.SEMANTIC.DISABLED,
+        bgColor: COLOR.BACKGROUND.SUBTLE,
+      };
+    case "EN_PROGRESO":
+      return {
+        label,
+        dotColor: COLOR.SEMANTIC.INFO,
+        bgColor: COLOR.BACKGROUND.INFO_TINT,
+      };
+    case "ESPERA":
+      return {
+        label,
+        dotColor: COLOR.SEMANTIC.WARNING,
+        bgColor: COLOR.BACKGROUND.SUBTLE,
+      };
+    case "TERMINADO":
+      return {
+        label,
+        dotColor: COLOR.SEMANTIC.SUCCESS,
+        bgColor: COLOR.BACKGROUND.SUCCESS_TINT,
+      };
+    default:
+      return {
+        label,
+        dotColor: COLOR.SEMANTIC.INFO,
+        bgColor: COLOR.BACKGROUND.INFO_TINT,
+      };
+  }
 }

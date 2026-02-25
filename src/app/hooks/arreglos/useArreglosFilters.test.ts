@@ -8,6 +8,7 @@ const emptyFilters: ArregloFilters = {
   fechaHasta: "",
   patente: "",
   tipo: "",
+  estado: "",
 };
 
 describe("filterArreglos", () => {

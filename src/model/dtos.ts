@@ -1,4 +1,4 @@
-import { TipoCliente, TipoOperacion } from "./types";
+import { EstadoArreglo, TipoCliente, TipoOperacion } from "./types";
 
 export interface VehiculoDto {
     id: string;
@@ -23,6 +23,7 @@ export interface ArregloDto {
     vehiculo_id: string;
     taller_id?: string;
     tipo: string;
+    estado: EstadoArreglo;
     descripcion: string;
     kilometraje_leido: number;
     fecha: Date;

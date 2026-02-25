@@ -46,12 +46,28 @@ export interface Vehiculo {
   nro_interno?: string | null;
 }
 
+export type EstadoArreglo =
+  | "PRESUPUESTO"
+  | "SIN_INICIAR"
+  | "EN_PROGRESO"
+  | "ESPERA"
+  | "TERMINADO";
+
+export const ESTADOS_ARREGLO: EstadoArreglo[] = [
+  "PRESUPUESTO",
+  "SIN_INICIAR",
+  "EN_PROGRESO",
+  "ESPERA",
+  "TERMINADO",
+];
+
 export interface Arreglo {
   id: UUID;
   vehiculo: Vehiculo;
   taller_id: UUID;
   taller: Taller;
   tipo: string;
+  estado: EstadoArreglo;
   descripcion: string;
   kilometraje_leido: number;
   fecha: string;

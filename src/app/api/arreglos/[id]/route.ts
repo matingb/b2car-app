@@ -5,6 +5,7 @@ import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { arregloService } from "@/app/api/arreglos/arregloService";
 import type { UpdateArregloRequest } from "../arregloRequests";
 import { ServiceError } from "../../serviceError";
+import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
 
 export type DetalleArreglo = {
   id: string;
@@ -114,8 +115,16 @@ export async function PUT(
   const supabase = await createClient();
   const { id } = await params;
 
-  const payload: UpdateArregloRequest | null = await req.json().catch(() => null);
+  const payload: (UpdateArregloRequest & { estado?: unknown }) | null = await req.json().catch(() => null);
   if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 });
+
+  if (payload.estado !== undefined) {
+    const estado = String(payload.estado ?? "").trim().toUpperCase();
+    if (!(ESTADOS_ARREGLO as string[]).includes(estado)) {
+      return Response.json({ data: null, error: "Estado de arreglo inválido" }, { status: 400 });
+    }
+    payload.estado = estado as EstadoArreglo;
+  }
 
   const { data, error } = await arregloService.updateById(
     supabase,

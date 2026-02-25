@@ -16,9 +16,11 @@ import RepuestoLineasEditableSection, {
 } from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
 import { useServiciosDraft } from "@/app/components/arreglos/hooks/useServiciosDraft";
 import { useRepuestosDraft } from "@/app/components/arreglos/hooks/useRepuestosDraft";
+import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
 
 export type ArregloForm = {
   tipo: string;
+  estado?: EstadoArreglo;
   fecha: string;
   kilometraje_leido: number | string;
   precio_final: number | string;
@@ -30,6 +32,7 @@ export type ArregloForm = {
 
 export type ArregloFormFieldsValues = {
   tipo: string;
+  estado: EstadoArreglo;
   fecha: string;
   km: string;
   observaciones: string;
@@ -66,6 +69,11 @@ const opcionesDefault: AutocompleteOption[] = [
   { value: "Mantenimiento", label: "Mantenimiento" },
   { value: "Revision", label: "Revision" },
 ];
+
+const estadoOptions: AutocompleteOption[] = ESTADOS_ARREGLO.map((estado) => ({
+  value: estado,
+  label: estado.replaceAll("_", " "),
+}));
 
 export function validateArregloForm(
   values: ArregloFormFieldsValues,
@@ -192,6 +200,20 @@ export default function ArregloFormFields({
             onChange={(next) => onValuesChange({ tipo: next })}
             placeholder="Mecanica, Chapa y pintura..."
             allowCustomValue
+          />
+        </div>
+
+        <div style={styles.field}>
+          <label style={styles.label}>Estado</label>
+          <Autocomplete
+            options={estadoOptions}
+            value={values.estado}
+            onChange={(next) => {
+              if ((ESTADOS_ARREGLO as string[]).includes(next)) {
+                onValuesChange({ estado: next as EstadoArreglo });
+              }
+            }}
+            placeholder="Seleccionar estado"
           />
         </div>
       </div>

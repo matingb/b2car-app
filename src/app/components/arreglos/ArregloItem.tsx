@@ -164,6 +164,7 @@ export default function ArregloItem({
         initial={{
           id: arreglo.id,
           tipo: arreglo.tipo,
+          estado: arreglo.estado,
           fecha: arreglo.fecha,
           kilometraje_leido: arreglo.kilometraje_leido,
           precio_final: arreglo.precio_final,

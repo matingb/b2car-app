@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import type { ArregloFilters } from "@/app/components/arreglos/ArregloFiltersModal";
 import { formatDateLabel } from "@/lib/fechas";
 
-export type ChipKind = "fechaRange" | "fechaDesde" | "fechaHasta" | "patente" | "tipo";
+export type ChipKind = "fechaRange" | "fechaDesde" | "fechaHasta" | "patente" | "tipo" | "estado";
 export type Chip = { key: string; text: string; kind: ChipKind };
 
 type DateRange = { from: Date | null; to: Date | null };
@@ -16,6 +16,7 @@ function createEmptyFilters(): ArregloFilters {
     fechaHasta: "",
     patente: "",
     tipo: "",
+    estado: "",
   };
 }
 
@@ -52,6 +53,12 @@ function matchesTipoFilter(arreglo: Arreglo, tipoFilter: string) {
   return String(arreglo?.tipo ?? "").toLowerCase().includes(tipoFilter);
 }
 
+function matchesEstadoFilter(arreglo: Arreglo, estadoFilter: string) {
+  if (!estadoFilter) return true;
+  const current = String(arreglo?.estado ?? "").toLowerCase();
+  return current.includes(estadoFilter);
+}
+
 function matchesDateRange(arreglo: Arreglo, range: DateRange) {
   if (!range.from && !range.to) return true;
 
@@ -70,6 +77,7 @@ export function filterArreglos(
   const query = params.search.trim().toLowerCase();
   const patenteFilter = params.filters.patente.trim().toLowerCase();
   const tipoFilter = params.filters.tipo.trim().toLowerCase();
+  const estadoFilter = params.filters.estado.trim().toLowerCase();
   const dateRange = getDateRange(params.filters);
 
   return arreglos.filter(
@@ -77,6 +85,7 @@ export function filterArreglos(
       matchesSearch(a, query) &&
       matchesPatenteFilter(a, patenteFilter) &&
       matchesTipoFilter(a, tipoFilter) &&
+      matchesEstadoFilter(a, estadoFilter) &&
       matchesDateRange(a, dateRange)
   );
 }
@@ -132,6 +141,14 @@ export function useArreglosFilters(arreglos?: Arreglo[]) {
       });
     }
 
+    if (filters.estado.trim()) {
+      items.push({
+        key: "estado",
+        text: filters.estado.trim().replaceAll("_", " "),
+        kind: "estado",
+      });
+    }
+
     return items;
   }, [filters]);
 
@@ -148,6 +165,8 @@ export function useArreglosFilters(arreglos?: Arreglo[]) {
           return { ...prev, patente: "" };
         case "tipo":
           return { ...prev, tipo: "" };
+        case "estado":
+          return { ...prev, estado: "" };
         default:
           return prev;
       }

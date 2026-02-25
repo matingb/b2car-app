@@ -4,11 +4,13 @@ import type { CreateDetalleArregloResponse } from "@/app/api/arreglos/[id]/detal
 import type { UpdateDetalleArregloResponse, DeleteDetalleArregloResponse } from "@/app/api/arreglos/[id]/detalles/[detalleId]/route";
 import type { UpsertRepuestoLineaResponse } from "@/app/api/arreglos/[id]/repuestos/route";
 import type { DeleteRepuestoLineaResponse } from "@/app/api/arreglos/[id]/repuestos/[lineaId]/route";
+import type { EstadoArreglo } from "@/model/types";
 
 export type CreateArregloInput = {
   vehiculo_id: string | number;
   taller_id: string;
   tipo: string;
+  estado?: EstadoArreglo;
   fecha: string;
   kilometraje_leido: number;
   precio_final: number;
