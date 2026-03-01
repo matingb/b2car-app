@@ -39,6 +39,15 @@ export async function login(email: string, password: string) {
 
   const tenant_name: string = jwt?.tenant_name as string;
 
+  if ( jwt?.error ) {
+    logger.error('Error in JWT payload', { error: jwt.error, email });
+    return {
+      ok: false,
+      error: AuthActionError.UNKNOWN,
+      message: jwt.error_description as string || 'Error en el token JWT',
+    } satisfies LoginResult
+  }
+  
 
   revalidatePath('/', 'layout')
   if (!session) {
