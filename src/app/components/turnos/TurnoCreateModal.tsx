@@ -2,23 +2,25 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
-import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { useTurnos } from "@/app/providers/TurnosProvider";
 import { CreateTurnoInput } from "@/app/api/turnos/turnosService";
 import { TipoCliente, Turno } from "@/model/types";
-import ClienteFormFields, { createEmptyClienteFormFieldsValue } from "@/app/components/clientes/ClienteFormFields";
-import type { ClienteFormFieldsValue } from "@/app/components/clientes/ClienteFormFields";
-import VehiculoFormFields, { VehiculoFormFieldsValue } from "../vehiculos/VehiculoFormFields";
+import { createEmptyClienteFormFieldsValue } from "@/app/components/clientes/ClienteFormFields";
+import type { VehiculoFormFieldsValue } from "../vehiculos/VehiculoFormFields";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { buildTurnoWhatsappMessage } from "@/lib/whatsapp";
 import { TurnoDto } from "@/model/dtos";
 import { toISODateLocal } from "@/lib/fechas";
 import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
-import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
+import TurnoFormFields, {
+	type TurnoFormFieldsModel,
+	type TurnoFormFieldsPatch,
+	type TurnoFormFieldsState,
+	getTurnoInlineFlags,
+} from "@/app/components/turnos/TurnoFormFields";
 
 export type CreatedTurno = {
 	id: number;
@@ -39,14 +41,16 @@ type Props = {
 	turnoToEdit?: Turno | null;
 };
 
-const DURACIONES_MIN = [30, 45, 60, 90, 120, 150, 180] as const;
-const TIPOS_TURNO = ["Mecánica", "Eléctrica", "Carrocería", "Pintura", "Neumáticos", "Service"] as const;
-
-const CREATE_CLIENTE_VALUE = "__create_cliente__";
-const CREATE_VEHICULO_VALUE = "__create_vehiculo__";
-
-function norm(s: string) {
-	return s.trim().toLowerCase();
+function createEmptyVehiculoDraft(): VehiculoFormFieldsValue {
+	return {
+		cliente_id: "",
+		patente: "",
+		marca: "",
+		modelo: "",
+		fecha_patente: "",
+		nro_interno: "",
+		numero_chasis: "",
+	};
 }
 
 export default function TurnoCreateModal({
@@ -63,149 +67,74 @@ export default function TurnoCreateModal({
 	const { confirm } = useModalMessage();
 	const { share } = useWhatsAppMessage();
 
-	const [clienteId, setClienteId] = useState(defaultClienteId ?? "");
-	const [vehiculoId, setVehiculoId] = useState("");
-	const [fecha, setFecha] = useState<string>(toISODateLocal(defaultFecha ?? new Date()));
-	const [hora, setHora] = useState<string>(defaultHora ?? "09:00");
-	const [duracion, setDuracion] = useState<number | null>(null);
-	const [tipo, setTipo] = useState<string>("Mecánica");
-	const [descripcion, setDescripcion] = useState<string>("");
-	const [observaciones, setObservaciones] = useState<string>("");
 	const [submitting, setSubmitting] = useState(false);
+	const [isValid, setIsValid] = useState(false);
 	const { create, update } = useTurnos();
 	const isEditing = Boolean(turnoToEdit);
 
-	// Inline create Cliente
-	const [clienteDraft, setClienteDraft] = useState<ClienteFormFieldsValue>(createEmptyClienteFormFieldsValue());
-	const [clienteInlineIsValid, setClienteInlineIsValid] = useState(false);
+	const [form, setForm] = useState<TurnoFormFieldsState>(() => ({
+		clienteId: defaultClienteId ?? "",
+		vehiculoId: "",
+		fecha: toISODateLocal(defaultFecha ?? new Date()),
+		hora: defaultHora ?? "09:00",
+		duracion: null,
+		tipo: "Mecánica",
+		descripcion: "",
+		observaciones: "",
+		clienteDraft: createEmptyClienteFormFieldsValue(),
+		clienteInlineIsValid: false,
+		vehiculoDraft: createEmptyVehiculoDraft(),
+		vehiculoInlineIsValid: false,
+	}));
 
-	// Inline create Vehiculo
-	const [values, setValues] = useState<VehiculoFormFieldsValue>({
-		cliente_id: "",
-		patente: "",
-		marca: "",
-		modelo: "",
-		fecha_patente: "",
-		nro_interno: "",
-		numero_chasis: "",
-	});
-	const [vehiculoInlineIsValid, setVehiculoInlineIsValid] = useState(false);
-
-
-	const isCreatingCliente = clienteId === CREATE_CLIENTE_VALUE;
-	const isCreatingVehiculo = vehiculoId === CREATE_VEHICULO_VALUE || isCreatingCliente;
-
-	const clienteOptions: AutocompleteOption[] = useMemo(
-		() => [
-			{ value: CREATE_CLIENTE_VALUE, label: "+ Crear cliente", secondaryLabel: "Cargar datos del cliente nuevo" },
-			...clientes.map((c) => ({
-				value: String(c.id),
-				label: c.nombre,
-				secondaryLabel: c.email || undefined,
-			})),
-		],
-		[clientes]
-	);
-
-	const selectedCliente = useMemo(() => {
-		if (!clienteId || isCreatingCliente) return undefined;
-		return clientes.find((c) => String(c.id) === clienteId);
-	}, [clientes, clienteId, isCreatingCliente]);
-
-	const vehiculosFiltrados = useMemo(() => {
-		if (!selectedCliente) return [];
-
-		// Nota: el modelo actual de Vehiculo no tiene cliente_id; filtramos por nombre_cliente.
-		const clienteNombre = norm(selectedCliente.nombre);
-		return vehiculos.filter((v) => {
-			const nombreClienteVeh = norm(v.nombre_cliente || "");
-			return (
-				nombreClienteVeh === clienteNombre ||
-				nombreClienteVeh.includes(clienteNombre) ||
-				clienteNombre.includes(nombreClienteVeh)
-			);
-		});
-	}, [vehiculos, selectedCliente]);
-
-	const vehiculoOptions: AutocompleteOption[] = useMemo(() => {
-		const base: AutocompleteOption[] = vehiculosFiltrados.map((v) => {
-			const label = formatPatenteConMarcaYModelo(v);
-			const secondaryParts = [v.nombre_cliente, v.nro_interno ? `Int: ${v.nro_interno}` : ""].filter(Boolean);
-			return {
-				value: String(v.id),
-				label: label.length > 3 ? label : v.patente,
-				secondaryLabel: secondaryParts.join(" · ") || undefined,
-			};
-		});
-
-		return [
-			{ value: CREATE_VEHICULO_VALUE, label: "+ Crear vehículo", secondaryLabel: "Cargar datos del vehículo nuevo" },
-			...base,
-		];
-	}, [vehiculosFiltrados]);
-
-	const tipoOptions: AutocompleteOption[] = useMemo(
-		() => TIPOS_TURNO.map((t) => ({ value: t, label: t })),
-		[]
-	);
-
-	const duracionOptions: AutocompleteOption[] = useMemo(
-		() => DURACIONES_MIN.map((m) => ({ value: String(m), label: `${m} min` })),
-		[]
-	);
+	const { isCreatingCliente, isCreatingVehiculo } = getTurnoInlineFlags(form);
 
 	useEffect(() => {
 		if (!open) return;
 
 		if (turnoToEdit) {
-			setClienteId(String(turnoToEdit.cliente.id));
-			setVehiculoId(String(turnoToEdit.vehiculo.id));
-			setFecha(turnoToEdit.fecha);
-			setHora(turnoToEdit.hora);
-			setDuracion(turnoToEdit.duracion ?? null);
-			setTipo(turnoToEdit.tipo ?? "Mecánica");
-			setDescripcion(turnoToEdit.descripcion ?? "");
-			setObservaciones(turnoToEdit.observaciones ?? "");
+			setForm((prev) => ({
+				...prev,
+				clienteId: String(turnoToEdit.cliente.id),
+				vehiculoId: String(turnoToEdit.vehiculo.id),
+				fecha: turnoToEdit.fecha,
+				hora: turnoToEdit.hora,
+				duracion: turnoToEdit.duracion ?? null,
+				tipo: turnoToEdit.tipo ?? "Mecánica",
+				descripcion: turnoToEdit.descripcion ?? "",
+				observaciones: turnoToEdit.observaciones ?? "",
+				clienteDraft: createEmptyClienteFormFieldsValue(turnoToEdit.cliente.tipo_cliente ?? TipoCliente.PARTICULAR),
+				clienteInlineIsValid: false,
+				vehiculoDraft: createEmptyVehiculoDraft(),
+				vehiculoInlineIsValid: false,
+			}));
 			setSubmitting(false);
-			setClienteDraft(createEmptyClienteFormFieldsValue(turnoToEdit.cliente.tipo_cliente ?? TipoCliente.PARTICULAR));
 		} else {
-			setClienteId(defaultClienteId ?? "");
-			setVehiculoId("");
-			setFecha(toISODateLocal(defaultFecha ?? new Date()));
-			setHora(defaultHora ?? "09:00");
-			setDuracion(null);
-			setTipo("Mecánica");
-			setDescripcion("");
-			setObservaciones("");
+			setForm((prev) => ({
+				...prev,
+				clienteId: defaultClienteId ?? "",
+				vehiculoId: "",
+				fecha: toISODateLocal(defaultFecha ?? new Date()),
+				hora: defaultHora ?? "09:00",
+				duracion: null,
+				tipo: "Mecánica",
+				descripcion: "",
+				observaciones: "",
+				clienteDraft: createEmptyClienteFormFieldsValue(),
+				clienteInlineIsValid: false,
+				vehiculoDraft: createEmptyVehiculoDraft(),
+				vehiculoInlineIsValid: false,
+			}));
 			setSubmitting(false);
-			setClienteDraft(createEmptyClienteFormFieldsValue());
 		}
 
-		setClienteInlineIsValid(false);
-
-		setValues({
-			cliente_id: "",
-			patente: "",
-			marca: "",
-			modelo: "",
-			fecha_patente: "",
-			nro_interno: "",
-			numero_chasis: "",
-		});
+		setIsValid(false);
 	}, [open, defaultClienteId, defaultFecha, defaultHora, turnoToEdit]);
 
 	const clienteIdForVehiculo = useMemo(() => {
 		if (isCreatingCliente) return "";
-		return clienteId;
-	}, [clienteId, isCreatingCliente]);
-
-	const isValid = useMemo(() => {
-		const okCliente = isCreatingCliente ? clienteInlineIsValid : clienteId.trim().length > 0;
-		const okVehiculo = isCreatingVehiculo ? vehiculoInlineIsValid : vehiculoId.trim().length > 0;
-		const okFecha = /^\d{4}-\d{2}-\d{2}$/.test(fecha);
-		const okHora = /^\d{2}:\d{2}$/.test(hora);
-		return okCliente && okVehiculo && okFecha && okHora
-	}, [clienteId, vehiculoId, fecha, hora, isCreatingCliente, isCreatingVehiculo, clienteInlineIsValid, vehiculoInlineIsValid]);
+		return form.clienteId;
+	}, [form.clienteId, isCreatingCliente]);
 
 	if (!open) return null;
 
@@ -223,60 +152,61 @@ export default function TurnoCreateModal({
 
 		setSubmitting(true);
 		try {
-			let resolvedClienteId = clienteId;
-			let resolvedVehiculoId = vehiculoId;
+			let resolvedClienteId = form.clienteId;
+			let resolvedVehiculoId = form.vehiculoId;
 
 			if (isCreatingCliente) {
-				if (!clienteInlineIsValid) throw new Error("Completá los datos obligatorios del cliente");
+				if (!form.clienteInlineIsValid) throw new Error("Completá los datos obligatorios del cliente");
 				const createdCliente =
-					clienteDraft.tipo_cliente === TipoCliente.EMPRESA
+					form.clienteDraft.tipo_cliente === TipoCliente.EMPRESA
 						? await createEmpresa({
-							nombre: clienteDraft.nombre.trim(),
-							cuit: clienteDraft.cuit.trim(),
-							telefono: clienteDraft.telefono.trim(),
-							email: clienteDraft.email.trim(),
-							direccion: clienteDraft.direccion.trim(),
+							nombre: form.clienteDraft.nombre.trim(),
+							cuit: form.clienteDraft.cuit.trim(),
+							telefono: form.clienteDraft.telefono.trim(),
+							email: form.clienteDraft.email.trim(),
+							direccion: form.clienteDraft.direccion.trim(),
 						})
 						: await createParticular({
-							nombre: clienteDraft.nombre.trim(),
-							apellido: clienteDraft.apellido.trim() || undefined,
-							telefono: clienteDraft.telefono.trim(),
-							email: clienteDraft.email.trim(),
-							direccion: clienteDraft.direccion.trim(),
+							nombre: form.clienteDraft.nombre.trim(),
+							apellido: form.clienteDraft.apellido.trim() || undefined,
+							telefono: form.clienteDraft.telefono.trim(),
+							email: form.clienteDraft.email.trim(),
+							direccion: form.clienteDraft.direccion.trim(),
 						});
 
 				resolvedClienteId = String(createdCliente.id);
-				setClienteId(resolvedClienteId);
+				setForm((prev) => ({ ...prev, clienteId: resolvedClienteId }));
 			}
 
 			if (isCreatingVehiculo) {
-				if (!vehiculoInlineIsValid) throw new Error("Completá los datos obligatorios del vehículo");
+				if (!form.vehiculoInlineIsValid) throw new Error("Completá los datos obligatorios del vehículo");
 				const clienteIdToUse = isCreatingCliente ? resolvedClienteId : clienteIdForVehiculo;
 				if (!clienteIdToUse) throw new Error("Seleccioná o creá un cliente antes del vehículo");
 				const createdVehiculoId = await createVehiculo({
 					cliente_id: clienteIdToUse,
-					patente: values.patente.trim().replace(/\s/g, "").toUpperCase(),
-					marca: values.marca.trim() || "",
-					modelo: values.modelo.trim() || "",
-					fecha_patente: values.fecha_patente.trim() || "",
-					nro_interno: values.nro_interno.trim() || "",
+					patente: form.vehiculoDraft.patente.trim().replace(/\s/g, "").toUpperCase(),
+					marca: form.vehiculoDraft.marca.trim() || "",
+					modelo: form.vehiculoDraft.modelo.trim() || "",
+					fecha_patente: form.vehiculoDraft.fecha_patente.trim() || "",
+					numero_chasis: form.vehiculoDraft.numero_chasis.trim() || "",
+					nro_interno: form.vehiculoDraft.nro_interno.trim() || null,
 				});
 
 				if (!createdVehiculoId) throw new Error("No se pudo crear el vehículo");
 				resolvedVehiculoId = String(createdVehiculoId);
-				setVehiculoId(resolvedVehiculoId);
+				setForm((prev) => ({ ...prev, vehiculoId: resolvedVehiculoId }));
 			}
 
 			const payload: CreateTurnoInput = {
-				fecha,
-				hora,
-				duracion,
+				fecha: form.fecha,
+				hora: form.hora,
+				duracion: form.duracion,
 				cliente_id: resolvedClienteId,
 				vehiculo_id: resolvedVehiculoId,
-				tipo,
+				tipo: form.tipo,
 				estado: turnoToEdit?.estado ?? "confirmado",
-				descripcion,
-				observaciones,
+				descripcion: form.descripcion,
+				observaciones: form.observaciones,
 			};
 
 			const response = isEditing
@@ -285,7 +215,7 @@ export default function TurnoCreateModal({
 
 			if (!response) throw new Error("No se recibió respuesta del servidor");
 
-			toast.success(isEditing ? "Turno actualizado" : "Turno creado", `${fecha} ${hora}`);
+			toast.success(isEditing ? "Turno actualizado" : "Turno creado", `${form.fecha} ${form.hora}`);
 			onClose();
 			if (!isEditing && response) {
 				const confirmed = await confirm({
@@ -307,6 +237,26 @@ export default function TurnoCreateModal({
 
 	};
 
+	const handleFormChange = (patch: TurnoFormFieldsPatch) => {
+		setForm((prev) => {
+			const { clienteDraft, vehiculoDraft, ...rest } = patch;
+			return {
+				...prev,
+				...rest,
+				clienteDraft: { ...prev.clienteDraft, ...(clienteDraft ?? {}) },
+				vehiculoDraft: { ...prev.vehiculoDraft, ...(vehiculoDraft ?? {}) },
+			};
+		});
+	};
+
+	const model: TurnoFormFieldsModel = {
+		state: form,
+		context: {
+			clientes,
+			vehiculos,
+		},
+	};
+
 	return (
 		<Modal
 			open={open}
@@ -318,193 +268,11 @@ export default function TurnoCreateModal({
 			disabledSubmit={!isValid}
 			modalStyle={{ overflowY: "auto" }}
 		>
-			<div style={{ display: "grid", gap: 12 }}>
-				<div>
-					<label style={styles.label}>
-						Cliente <span aria-hidden="true" style={styles.required}>*</span>
-					</label>
-					<Autocomplete
-						options={clienteOptions}
-						value={clienteId}
-						onChange={(v) => {
-							setClienteId(v);
-							setVehiculoId("");
-						}}
-						placeholder="Buscar cliente..."
-					/>
-					{isCreatingCliente && (
-						<div style={styles.inlineForm}>
-							<ClienteFormFields
-								value={clienteDraft}
-								onChange={(patch) => setClienteDraft((prev) => ({ ...prev, ...patch }))}
-								onValidityChange={({ isValid }) => setClienteInlineIsValid(isValid)}
-							/>
-						</div>
-					)}
-				</div>
-
-				<div>
-					<label style={styles.label}>
-						Vehículo <span aria-hidden="true" style={styles.required}>*</span>
-					</label>
-					{(!isCreatingCliente) && (
-						<Autocomplete
-							options={vehiculoOptions}
-							value={vehiculoId}
-							onChange={setVehiculoId}
-							placeholder={!selectedCliente && !isCreatingCliente ? "Seleccione o cree un cliente primero" : "Buscar o crear vehículo..."}
-							disabled={!selectedCliente && !isCreatingCliente}
-						/>
-					)}
-
-
-					{(isCreatingVehiculo || isCreatingCliente) && (
-						<div style={styles.inlineForm}>
-							<VehiculoFormFields
-								value={values}
-								onChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))}
-								showClienteInput={false}
-								tipoCliente={selectedCliente?.tipo_cliente ?? (isCreatingCliente ? clienteDraft.tipo_cliente : TipoCliente.PARTICULAR)}
-								onValidityChange={(valid) => setVehiculoInlineIsValid(valid)}
-							/>
-						</div>
-					)}
-				</div>
-
-				<div style={styles.row}>
-					<div style={styles.field}>
-						<label style={styles.label}>
-							Fecha <span aria-hidden="true" style={styles.required}>*</span>
-						</label>
-						<input
-							type="date"
-							style={styles.input}
-							value={fecha}
-							onChange={(e) => setFecha(e.target.value)}
-						/>
-					</div>
-					<div style={styles.field}>
-						<label style={styles.label}>
-							Hora <span aria-hidden="true" style={styles.required}>*</span>
-						</label>
-						<input
-							type="time"
-							step={300}
-							style={styles.input}
-							value={hora}
-							onChange={(e) => setHora(e.target.value)}
-						/>
-					</div>
-				</div>
-
-				<div style={styles.row}>
-					<div style={styles.field}>
-						<label style={styles.label}>
-							Duración
-						</label>
-						<Autocomplete
-							options={duracionOptions}
-							value={duracion !== null ? String(duracion) : ""} // esto es asi por que sting(null) da  -> "null"
-							onChange={(v) => {
-								if (!v) {
-									setDuracion(null);
-									return;
-								}
-								const parsed = Number(v);
-								setDuracion(Number.isFinite(parsed) ? parsed : null);
-							}}
-							placeholder="Seleccionar duración..."
-						/>
-					</div>
-					<div style={styles.field}>
-						<label style={styles.label}>
-							Tipo
-						</label>
-						<Autocomplete
-							options={tipoOptions}
-							value={tipo}
-							onChange={setTipo}
-							placeholder="Ej: Mecánica"
-							allowCustomValue
-						/>
-					</div>
-				</div>
-
-				<div>
-					<label style={styles.label}>Descripción del trabajo</label>
-					<textarea
-						style={styles.textarea}
-						value={descripcion}
-						onChange={(e) => setDescripcion(e.target.value)}
-						placeholder="Qué hay que hacer..."
-						rows={3}
-					/>
-				</div>
-
-				<div>
-					<label style={styles.label}>Observaciones</label>
-					<textarea
-						style={styles.textarea}
-						value={observaciones}
-						onChange={(e) => setObservaciones(e.target.value)}
-						placeholder="Notas internas, detalles, etc."
-						rows={3}
-					/>
-				</div>
-			</div>
+			<TurnoFormFields
+				model={model}
+				onChange={handleFormChange}
+				onValidityChange={setIsValid}
+			/>
 		</Modal>
 	);
 }
-
-const styles = {
-	row: {
-		display: "flex",
-		gap: 16,
-	},
-	field: {
-		flex: 1,
-		minWidth: 0,
-	},
-	inlineForm: {
-		marginTop: 10,
-		padding: 12,
-		borderRadius: 10,
-		border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-		background: COLOR.BACKGROUND.SECONDARY,
-	},
-	inlineError: {
-		color: "#b00020",
-		fontSize: 13,
-	},
-	label: {
-		display: "block",
-		fontSize: 13,
-		marginBottom: 6,
-		color: COLOR.TEXT.SECONDARY,
-	},
-	required: {
-		color: REQUIRED_ICON_COLOR,
-		fontWeight: 700,
-		marginLeft: 2,
-	},
-	input: {
-		width: "100%",
-		padding: "10px 12px",
-		borderRadius: 8,
-		border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-		background: COLOR.INPUT.PRIMARY.BACKGROUND,
-		color: COLOR.TEXT.PRIMARY,
-	},
-	textarea: {
-		width: "100%",
-		padding: "10px 12px",
-		borderRadius: 8,
-		border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-		background: COLOR.INPUT.PRIMARY.BACKGROUND,
-		color: COLOR.TEXT.PRIMARY,
-		resize: "vertical" as const,
-		fontFamily: "inherit",
-		fontSize: 14,
-	},
-} as const;
-

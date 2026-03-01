@@ -37,6 +37,7 @@ export interface Cliente {
 
 export interface Vehiculo {
   id: UUID;
+  cliente_id?: UUID | null;
   nombre_cliente: string;
   patente: string;
   marca: string;
