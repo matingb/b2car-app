@@ -26,11 +26,14 @@ export default function LoginPage() {
     setLoginError("");
     try {
       const result = await login(email, password);
-      localStorage.setItem('tenant_name', result.tenant_name || 'B2Car');
 
       if (!result.ok) {
         if (result.error === AuthActionError.INVALID_CREDENTIALS) {
           setLoginError("Email o contraseña incorrectos");
+          return;
+        }
+        if (result.error === AuthActionError.TENANT_INACTIVE) {
+          setLoginError("Tu organización está inactiva. Contactá al administrador.");
           return;
         }
 
@@ -38,6 +41,7 @@ export default function LoginPage() {
         return;
       }
 
+      localStorage.setItem('tenant_name', result.tenant_name || 'B2Car');
       router.push("/");
     } finally {
       setIsSubmitting(false);
