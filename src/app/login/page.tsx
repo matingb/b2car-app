@@ -37,7 +37,7 @@ export default function LoginPage() {
           return;
         }
 
-        setMessage(result.message ?? "Error desconocido durante el inicio de sesión.");
+        setMessage("Ocurrió un error durante el inicio de sesión. Por favor, intente nuevamente.");
         return;
       }
 
