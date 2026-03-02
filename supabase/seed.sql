@@ -25,7 +25,7 @@ TRUNCATE TABLE
 RESTART IDENTITY CASCADE;
 
 -- Tenants (solo uno)
-INSERT INTO public.tenants (id, nombre, estado, fecha_creacion, fecha_actualizacion) VALUES
+INSERT INTO public.tenants (id, nombre, estado, fecha_creacion, updated_at) VALUES
   ('11111111-1111-1111-1111-111111111111', 'B2Car', 'activo', now() - interval '120 days', now() - interval '1 day');
 
 -- Usuarios (auth.users) para cumplir FK de tenant_members
