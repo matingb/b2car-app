@@ -230,11 +230,8 @@ export default function VehiculoDetailsPage() {
               : undefined
           }
           onClose={handleCloseModal}
-          onSubmitSuccess={async (nuevo) => {
-            nuevo.vehiculo = vehiculo;
-            setArreglos((prev) => [nuevo, ...prev]
-            )
-            handleCloseModal(false);
+          onSubmitSuccess={async () => {
+            await handleCloseModal(true);
           }}
         />
       )}
