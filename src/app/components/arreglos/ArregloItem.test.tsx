@@ -60,5 +60,19 @@ describe("ArregloItem", () => {
     expect(screen.queryByTestId("arreglo-item-taller-label")).not.toBeInTheDocument();
     expect(screen.queryByText("Taller 1")).not.toBeInTheDocument();
   });
+
+  it("muestra el estado del arreglo en la card", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+
+    render(
+      <ArregloItem
+        arreglo={createArreglo({
+          estado: "EN_PROGRESO",
+        })}
+      />
+    );
+
+    expect(screen.getByText("EN PROGRESO")).toBeInTheDocument();
+  });
 });
 

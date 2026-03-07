@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Card from "@/app/components/ui/Card";
 import IconLabel from "@/app/components/ui/IconLabel";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
+import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
 import { Arreglo } from "@/model/types";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import {
@@ -55,8 +56,9 @@ export default function ArregloItem({
           {/* Header superior con badges y precio */}
           <div css={styles.topHeader}>
             <div style={styles.leftSection}>
-              <div css={styles.titleRow}>
-                <h3 css={styles.mainTitle}>{arreglo.descripcion}</h3>
+              <h3 css={styles.mainTitle}>{arreglo.descripcion}</h3>
+              <div css={styles.metaRow}>
+                <ArregloEstadoBadge estado={arreglo.estado} size="sm" />
                 <div style={styles.statusBadgeInline}>
                   {arreglo.esta_pago ? (
                     <>
@@ -73,8 +75,8 @@ export default function ArregloItem({
               </div>
             </div>
 
-            <div style={styles.rightSection}>
-              <div style={styles.priceSection}>
+            <div css={styles.rightSection}>
+              <div css={styles.priceSection}>
                 <span css={styles.priceValue}>
                   {formatArs(arreglo.precio_final, {
                     maxDecimals: 0,
@@ -198,15 +200,19 @@ const styles = {
   }),
   leftSection: {
     overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
   },
-  titleRow: css({
+  metaRow: css({
     display: "flex",
     alignItems: "center",
     gap: 8,
-    marginBottom: 4,
-    maxWidth: "85%",
+    flexWrap: "wrap",
+    maxWidth: "100%",
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       maxWidth: "100%",
+      rowGap: 6,
     },
   }),
   mainTitle: css({
@@ -220,7 +226,10 @@ const styles = {
     whiteSpace: "nowrap",
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       fontSize: 16,
-      maxWidth: `200px`,
+      maxWidth: "100%",
+      whiteSpace: "normal",
+      overflow: "visible",
+      textOverflow: "clip",
     },
   }),
   statusBadgeInline: {
@@ -236,18 +245,25 @@ const styles = {
       display: "none",
     },
   }),
-  rightSection: {
+  rightSection: css({
     display: "flex",
     alignItems: "center",
     gap: 12,
     flexShrink: 0,
-  },
-  priceSection: {
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      width: "100%",
+      justifyContent: "flex-start",
+    },
+  }),
+  priceSection: css({
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-end",
     gap: 2,
-  },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      alignItems: "flex-start",
+    },
+  }),
   priceLabel: {
     fontSize: 12,
     color: COLOR.TEXT.SECONDARY,
@@ -278,7 +294,7 @@ const styles = {
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       gridTemplateColumns: "2fr 1fr",
       gap: 12,
-      width: "10%",
+      width: "100%",
     },
   }),
   infoColumn: css({
