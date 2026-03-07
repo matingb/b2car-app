@@ -70,7 +70,7 @@ export default function StockDetailsPage() {
     });
     if (!ok) return;
     await removeStock(item.id);
-    success("Éxito", "El stock fue eliminado.");
+    success("Stock eliminado", "El stock se eliminó correctamente.");
     router.push(ROUTES.stock);
   }, [confirm, item, removeStock, router, success, tallerNombre]);
 
@@ -94,7 +94,7 @@ export default function StockDetailsPage() {
       stockMaximo: draft.stockMaximo,
     });
     setIsEditing(false);
-    success("Éxito", "Cambios guardados.");
+    success("Stock actualizado", "El stock se actualizó correctamente.");
     setItem({ ...draft });
     setIsSaving(false);
   }, [draft, success, updateProducto, updateStock]);

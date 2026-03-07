@@ -71,7 +71,7 @@ describe("StockCreateModal", () => {
       stockMaximo: undefined,
     });
 
-    expect(toastSuccess).toHaveBeenCalledWith(expect.any(String));
+    expect(toastSuccess).toHaveBeenCalledWith(expect.any(String), expect.any(String));
     expect(mockOnClose).toHaveBeenCalledTimes(1);
     expect(mockOnCreated).toHaveBeenCalledWith("STK-001");
   });
@@ -119,7 +119,7 @@ describe("StockCreateModal", () => {
         tallerId: TALLER_ID,
       })
     );
-    expect(toastSuccess).toHaveBeenCalledWith(expect.any(String));
+    expect(toastSuccess).toHaveBeenCalledWith(expect.any(String), expect.any(String));
     expect(mockOnClose).toHaveBeenCalledTimes(1);
     expect(mockOnCreated).toHaveBeenCalledWith("STK-NEW");
   });

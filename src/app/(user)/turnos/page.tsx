@@ -106,7 +106,7 @@ export default function TurnosPage() {
   const handleDeleteTurno = async (turno: Turno) => {
     await remove(turno.id);
     setModalOpen(false);
-    success("Turno eliminado correctamente.");
+    success("Turno eliminado", "El turno se eliminó correctamente.");
   }
 
   return (

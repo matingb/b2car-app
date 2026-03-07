@@ -117,7 +117,10 @@ export default function StockCreateModal({
         return;
       }
 
-      toast.success("Stock creado satisfactoriamente");
+      toast.success(
+        "Stock creado",
+        "El stock se registró correctamente para el taller seleccionado."
+      );
       onClose();
       onCreated?.(createdStock.id);
     } catch (err: unknown) {

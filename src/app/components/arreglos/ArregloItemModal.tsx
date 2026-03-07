@@ -119,7 +119,7 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
           cantidad: servicioCantidad,
           valor: servicioValor,
         });
-        success("Éxito", "Mano de obra agregada");
+        success("Servicio agregado", "La mano de obra se agregó correctamente.");
       } else {
         await upsertRepuestoLinea(arregloId, {
           taller_id: tallerId!,
@@ -127,7 +127,7 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
           cantidad: repuestoCantidad,
           monto_unitario: repuestoMontoUnitario,
         });
-        success("Éxito", "Repuesto agregado");
+        success("Repuesto agregado", "El repuesto se agregó correctamente.");
       }
 
       await onSubmitSuccess();

@@ -82,7 +82,7 @@ export default function EmpresaDetails() {
 
       const data = await updateEmpresa(clienteId, payload);
       setEmpresa(data);
-      toast.success('Empresa actualizada correctamente');
+      toast.success("Empresa actualizada", `${data.nombre} se actualizó correctamente.`);
       setOpenEditEmpresa(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error desconocido';
@@ -142,7 +142,7 @@ export default function EmpresaDetails() {
                   try {
                     await deleteRepresentante(clienteId, representanteId);
                     setRepresentantes((prev) => prev.filter((r) => r.id !== representanteId));
-                    toast.success("Representante eliminado");
+                    toast.success("Representante eliminado", "El representante se eliminó correctamente.");
                   } catch (err) {
                     const msg = err instanceof Error ? err.message : "No se pudo eliminar el representante";
                     toast.error(msg);
@@ -199,7 +199,7 @@ export default function EmpresaDetails() {
             try {
               const nuevo = await createRepresentante(clienteId, created);
               setRepresentantes(prev => [nuevo, ...prev]);
-              toast.success('Representante creado');
+              toast.success("Representante creado", "El representante se agregó correctamente.");
             } catch (err) {
               console.log(err)
               const msg = err instanceof Error ? err.message : "No se pudo crear el representante";

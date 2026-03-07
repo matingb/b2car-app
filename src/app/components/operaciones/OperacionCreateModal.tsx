@@ -26,8 +26,6 @@ type Props = {
   onClose: () => void;
 };
 
-type OperacionTipoUi = TipoOperacion;
-
 type ProductoLite = {
   id: string;
   nombre: string;
@@ -52,14 +50,25 @@ function createEmptyLinea(): LineaDraft {
   };
 }
 
-function getDefaultUnitario(producto: ProductoLite, tipo: OperacionTipoUi) {
+function getDefaultUnitario(producto: ProductoLite, tipo: TipoOperacion) {
   return tipo === "VENTA"
     ? Number(producto.precio_unitario) || 0
     : Number(producto.costo_unitario) || 0;
 }
 
+function buildOperacionCreatedMessage(
+  tipo: TipoOperacion,
+  tallerNombre: string,
+  tipoConfigById: Map<TipoOperacion, { label: string; disabled?: boolean; icon?: React.ReactNode }>
+) {
+  const tipoLabel = tipoConfigById.get(tipo)?.label.toLowerCase() ?? "operación";
+
+
+  return `La ${tipoLabel} se registró correctamente para ${tallerNombre}.`;
+}
+
 const TIPOS_UI: Array<{
-  tipo: OperacionTipoUi;
+  tipo: TipoOperacion;
   label: string;
   disabled?: boolean;
   icon?: React.ReactNode;
@@ -76,7 +85,7 @@ export default function OperacionCreateModal({
   const { create, loading } = useOperaciones();
   const { success, error } = useToast();
 
-  const [tipo, setTipo] = useState<OperacionTipoUi | null>("VENTA");
+  const [tipo, setTipo] = useState<TipoOperacion | null>("VENTA");
   const [tallerId, setTallerId] = useState<string>("");
   const [lineas, setLineas] = useState<LineaDraft[]>([createEmptyLinea()]);
   const { inventario, isLoading: isInventarioLoading } = useInventario(tallerId || undefined);
@@ -87,7 +96,7 @@ export default function OperacionCreateModal({
   );
 
   const isTipoEnabled = useCallback(
-    (value: OperacionTipoUi | null) => {
+    (value: TipoOperacion | null) => {
       if (!value) return false;
       return !tipoConfigById.get(value)?.disabled;
     },
@@ -202,7 +211,11 @@ export default function OperacionCreateModal({
 
       const created = await create(payload);
       if (created) {
-        success("Operación creada");
+        const tallerNombre = talleres.find((t) => t.id === tallerId)?.nombre ?? "el taller seleccionado";
+        success(
+          "Operación creada",
+          buildOperacionCreatedMessage(tipo, tallerNombre, tipoConfigById)
+        );
         onClose();
       }
     } catch (err: unknown) {

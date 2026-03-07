@@ -4,7 +4,10 @@ import React, { useEffect, useState } from "react";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import Modal from "../ui/Modal";
-import VehiculoFormFields, { VehiculoFormFieldsValue } from "./VehiculoFormFields";
+import VehiculoFormFields, {
+  VehiculoFormFieldsValue,
+} from "./VehiculoFormFields";
+import { formatPatente, formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 
 type CreatedVehiculo = {
   id: string;
@@ -23,9 +26,14 @@ type Props = {
   tipoCliente?: "particular" | "empresa";
 };
 
-export default function CreateVehiculoModal({ open, onClose, clienteId, tipoCliente }: Props) {
+export default function CreateVehiculoModal({
+  open,
+  onClose,
+  clienteId,
+  tipoCliente,
+}: Props) {
   const { create } = useVehiculos();
-  const { error: toastError } = useToast();
+  const { error: toastError, success } = useToast();
   const [values, setValues] = useState<VehiculoFormFieldsValue>({
     cliente_id: clienteId ? String(clienteId) : "",
     patente: "",
@@ -81,6 +89,11 @@ export default function CreateVehiculoModal({ open, onClose, clienteId, tipoClie
         numero_chasis: values.numero_chasis.trim() || undefined,
         nro_interno: values.nro_interno.trim() || undefined,
       });
+
+      success(
+        "Vehículo creado",
+        `${formatPatenteConMarcaYModelo({ patente: values.patente, marca: values.marca, modelo: values.modelo })} se registró correctamente.`,
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Ocurrió un error";
       toastError(msg);

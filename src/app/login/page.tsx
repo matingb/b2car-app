@@ -37,7 +37,7 @@ export default function LoginPage() {
           return;
         }
 
-        setMessage("Ocurrió un error durante el inicio de sesión. Por favor, intente nuevamente.");
+        setLoginError("Ocurrió un error durante el inicio de sesión. Por favor, intente nuevamente.");
         return;
       }
 

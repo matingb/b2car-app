@@ -64,7 +64,7 @@ export default function ProductoCreateModal({
     });
 
     if (created) {
-      success("Producto creado satisfactoriamente");
+      success("Producto creado", `${values.codigo} se registró correctamente.`);
       onClose();
       return;
     }

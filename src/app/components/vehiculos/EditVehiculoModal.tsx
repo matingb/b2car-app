@@ -60,7 +60,7 @@ export default function EditVehiculoModal({ open, onClose, vehiculo, tipoCliente
         numero_chasis: values.numero_chasis.trim() || "",
         nro_interno: values.nro_interno.trim() || "",
       });
-      success("Vehículo actualizado correctamente");
+      success("Vehículo actualizado", `${values.patente} se actualizó correctamente.`);
       onClose(true);
     } catch {
       error("No se pudo actualizar el vehículo");

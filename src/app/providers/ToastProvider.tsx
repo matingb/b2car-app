@@ -121,7 +121,6 @@ const styles = {
     position: "fixed" as const,
     top: 16,
     right: 16,
-    width: 360,
     maxWidth: "calc(100vw - 32px)",
     display: "flex",
     flexDirection: "column" as const,

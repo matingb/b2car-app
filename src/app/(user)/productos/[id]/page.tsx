@@ -133,7 +133,7 @@ export default function ProductoDetailsPage() {
     });
     if (!ok) return;
     await removeProducto(producto.id);
-    success("Producto eliminado satisfactoriamente");
+    success("Producto eliminado", `${producto.codigo} se eliminó correctamente.`);
     router.push("/productos");
   }, [confirm, producto, removeProducto, router, success]);
 
@@ -150,7 +150,7 @@ export default function ProductoDetailsPage() {
       categorias: draft.categorias,
     });
 
-    success("Producto actualizado satisfactoriamente");
+    success("Producto actualizado", `${draft.codigo} se actualizó correctamente.`);
     setProducto({ ...draft });
     setIsEditing(false);
     setIsSaving(false);

@@ -57,7 +57,7 @@ export default function ParticularDetails() {
             const data = await updateParticular(clienteId, payload);
             setParticular(data);
 
-            toast.success('Cliente actualizado correctamente');
+            toast.success("Cliente actualizado", `${data.nombre} ${data.apellido ?? ""} se actualizó correctamente.`);
             setOpenEditCliente(false);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Error desconocido';

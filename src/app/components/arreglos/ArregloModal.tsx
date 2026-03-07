@@ -222,9 +222,9 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         setEstaPago(false);
         setExtraData("");
         setInternal(createEmptyInternal());
-        success("Éxito", "Arreglo creado");
+        success("Arreglo creado", "El arreglo se registró correctamente.");
       } else {
-        success("Éxito", "Arreglo actualizado");
+        success("Arreglo actualizado", "Los cambios del arreglo se guardaron correctamente.");
       }
 
       if (!isEdit && response) {

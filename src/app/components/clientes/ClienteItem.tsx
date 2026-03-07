@@ -43,7 +43,7 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
       await deleteCliente(cliente.id, cliente.tipo_cliente);
       toast.success(
         "Cliente eliminado",
-        typeof nombre === "string" ? nombre : undefined
+        `${nombre.charAt(0).toUpperCase() + nombre.slice(1)} se eliminó correctamente.`
       );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Error de red";

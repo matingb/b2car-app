@@ -215,7 +215,12 @@ export default function TurnoCreateModal({
 
 			if (!response) throw new Error("No se recibió respuesta del servidor");
 
-			toast.success(isEditing ? "Turno actualizado" : "Turno creado", `${form.fecha} ${form.hora}`);
+			toast.success(
+				isEditing ? "Turno actualizado" : "Turno creado",
+				isEditing
+					? "Los cambios del turno se guardaron correctamente."
+					: `Turno agendado para ${form.fecha} a las ${form.hora}.`
+			);
 			onClose();
 			if (!isEditing && response) {
 				const confirmed = await confirm({

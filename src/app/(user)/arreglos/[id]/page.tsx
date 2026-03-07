@@ -131,7 +131,7 @@ export default function ArregloDetailsPage() {
     try {
       await remove(data.arreglo.id);
       router.push(ROUTES.arreglos);
-      success("Éxito", "El arreglo ha sido eliminado.");
+      success("Arreglo eliminado", "El arreglo se eliminó correctamente.");
     } catch (err: unknown) {
       logger.error("Error deleting arreglo:", err);
       error("Error", "No se pudo eliminar el arreglo");
@@ -146,7 +146,7 @@ export default function ArregloDetailsPage() {
       });
       if (!response) return;
       setData((prev) => (prev ? { ...prev, arreglo: response } : prev));
-      success("Éxito", "El estado de pago ha sido actualizado.");
+      success("Estado de pago actualizado", "El estado de pago se actualizó correctamente.");
     } catch (err: unknown) {
       console.error(err);
       error("Error", "No se pudo actualizar el estado de pago.");
@@ -164,7 +164,7 @@ export default function ArregloDetailsPage() {
     if (!confirmed) return;
     try {
       await deleteDetalle(data.arreglo.id, detalleId);
-      success("Éxito", "Servicio eliminado");
+      success("Servicio eliminado", "El servicio se eliminó correctamente.");
       await reload();
     } catch (err: unknown) {
       logger.error("Error deleting detalle:", err);
@@ -187,7 +187,7 @@ export default function ArregloDetailsPage() {
     if (!confirmed) return;
     try {
       await deleteRepuestoLinea(data.arreglo.id, lineaId);
-      success("Éxito", "Repuesto eliminado");
+      success("Repuesto eliminado", "El repuesto se eliminó correctamente.");
       await reload();
     } catch (err: unknown) {
       logger.error("Error deleting repuesto linea:", err);
@@ -206,7 +206,7 @@ export default function ArregloDetailsPage() {
     if (!data?.arreglo?.id) return;
     try {
       await createDetalle(data.arreglo.id, input);
-      success("Éxito", "Mano de obra agregada");
+      success("Servicio agregado", "La mano de obra se agregó correctamente.");
       await reload();
     } catch (err: unknown) {
       logger.error("Error creating detalle:", err);
@@ -225,7 +225,7 @@ export default function ArregloDetailsPage() {
     if (!data?.arreglo?.id) return;
     try {
       await updateDetalle(data.arreglo.id, detalleId, patch);
-      success("Éxito", "Servicio actualizado");
+      success("Servicio actualizado", "El servicio se actualizó correctamente.");
       await reload();
     } catch (err: unknown) {
       logger.error("Error updating detalle:", err);
@@ -252,7 +252,7 @@ export default function ArregloDetailsPage() {
         cantidad: input.cantidad,
         monto_unitario: input.monto_unitario,
       });
-      success("Éxito", "Repuesto guardado");
+      success("Repuesto actualizado", "El repuesto se actualizó correctamente.");
       await reload();
     } catch (err: unknown) {
       logger.error("Error upserting repuesto:", err);

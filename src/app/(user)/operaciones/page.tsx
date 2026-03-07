@@ -159,7 +159,7 @@ export default function OperacionesPage() {
     const handleDelete = useCallback(async (operacion: Operacion) => {
         try {
             await remove(operacion.id);
-            success("Operación eliminada", "El movimiento fue eliminado correctamente.");
+            success("Operación eliminada", "La operación se eliminó correctamente.");
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "No se pudo eliminar la operación";
             error("Error eliminando operación", message);

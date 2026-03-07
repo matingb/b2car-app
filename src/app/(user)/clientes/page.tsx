@@ -111,7 +111,7 @@ export default function ClientesPage() {
                 direccion: values.direccion,
               });
             }
-            toast.success("Cliente creado", values.nombre);
+            toast.success("Cliente creado", `${values.nombre} ${values.apellido ?? ""} se registró correctamente.`);
           } catch (e) {
             const message = e instanceof Error ? e.message : "";
             toast.error("No se pudo crear", message);
