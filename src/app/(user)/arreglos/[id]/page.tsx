@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { css } from "@emotion/react";
 import { useParams, useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import {
   Calendar,
   Wrench,
@@ -307,11 +308,17 @@ export default function ArregloDetailsPage() {
       <div style={styles.container}>
         <div style={styles.flexRow}>
           <div style={styles.summaryContainer}>
+            <h3 css={styles.mobileResumenTitle} style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+              Resumen
+            </h3>
+
             <div style={{ display: "flex", gap: 8 }}>
-              <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+              <h3 css={styles.desktopResumenTitle} style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
                 Resumen
               </h3>
-              <ArregloEstadoBadge estado={arreglo.estado} />
+              <div >
+                <ArregloEstadoBadge estado={arreglo.estado} />
+              </div>
               <div
                 style={{
                   flex: 1,
@@ -357,6 +364,9 @@ export default function ArregloDetailsPage() {
                 />
               </div>
             </div>
+
+            
+
             <Card>
               <div style={styles.cardContent}>
                 <div style={styles.infoGrid}>
@@ -610,6 +620,32 @@ const styles = {
 
     gap: 8,
   },
+  mobileResumenTitle: css({
+    display: "none",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "block",
+    },
+  }),
+  desktopResumenTitle: css({
+    display: "block",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "none",
+    },
+  }),
+  mobileEstadoBadgeRow: css({
+    display: "none",
+    alignItems: "center",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "flex",
+    },
+  }),
+  desktopEstadoBadge: css({
+    display: "flex",
+    alignItems: "center",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "none",
+    },
+  }),
   detalleHeader: {
     display: "flex",
     alignItems: "center",

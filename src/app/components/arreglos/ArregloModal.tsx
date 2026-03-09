@@ -170,7 +170,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         kilometraje_leido: Number(km),
         observaciones: observaciones?.trim() || undefined,
         esta_pago: !!estaPago,
-        extra_data: extraData?.trim() || undefined,
+        extra_data: extraData || undefined,
       };
 
       let response: Arreglo | null = null;

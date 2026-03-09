@@ -86,8 +86,8 @@ export function getArregloEstadoMeta(estado: EstadoArreglo | undefined): EstadoM
     case "ESPERA":
       return {
         label,
-        dotColor: COLOR.SEMANTIC.WARNING,
-        bgColor: COLOR.BACKGROUND.SUBTLE,
+        dotColor: COLOR.SEMANTIC.ALERT,
+        bgColor: COLOR.BACKGROUND.ALERT_TINT,
       };
     case "TERMINADO":
       return {
