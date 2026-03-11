@@ -17,6 +17,7 @@ import ServicioLineasCustomSection, {
 import RepuestoLineasEditableSection, {
   type RepuestoLinea,
 } from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
+import type { CreateArregloDetalleFormularioInput } from "@/app/api/arreglos/arregloRequests";
 import { useServiciosDraft } from "@/app/components/arreglos/hooks/useServiciosDraft";
 import { useRepuestosDraft } from "@/app/components/arreglos/hooks/useRepuestosDraft";
 import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
@@ -49,6 +50,7 @@ export type ArregloFormFieldsValues = {
 export type ArregloFormFieldsInternal = {
   serviciosDraft: ServicioLinea[];
   repuestosDraft: RepuestoLinea[];
+  detalleFormulario: CreateArregloDetalleFormularioInput | null;
   subtotalServicios: number;
   subtotalRepuestos: number;
   totalCalculado: number;
@@ -103,6 +105,7 @@ export default function ArregloFormFields({
 }: Props) {
   const { formularios } = useFormularios();
   const [customServiciosDraft, setCustomServiciosDraft] = useState<ServicioLinea[]>([]);
+  const [customDetalleFormulario, setCustomDetalleFormulario] = useState<CreateArregloDetalleFormularioInput | null>(null);
 
   const isValid = useMemo(
     () => validateArregloForm(values, vehiculoId),
@@ -165,7 +168,9 @@ export default function ArregloFormFields({
     reset: resetRepuestos,
   } = useRepuestosDraft();
 
-  const serviciosActivos = isCustomTipoSelected ? customServiciosDraft : serviciosDraft;
+  const serviciosActivos = isCustomTipoSelected
+    ? [...serviciosDraft, ...customServiciosDraft]
+    : serviciosDraft;
 
   const subtotalServicios = useMemo(
     () =>
@@ -195,8 +200,15 @@ export default function ArregloFormFields({
   const internalSnapshot = useMemo<ArregloFormFieldsInternal>(
     () => ({
       serviciosDraft,
-      ...(isCustomTipoSelected ? { serviciosDraft: customServiciosDraft } : {}),
       repuestosDraft,
+      detalleFormulario:
+        isCustomTipoSelected && selectedCustomFormulario
+          ? {
+            config_id: selectedCustomFormulario.id,
+            costo: Number(customDetalleFormulario?.costo) || 0,
+            metadata: customDetalleFormulario?.metadata ?? [],
+          }
+          : null,
       subtotalServicios,
       subtotalRepuestos,
       totalCalculado,
@@ -205,7 +217,9 @@ export default function ArregloFormFields({
     [
       serviciosDraft,
       customServiciosDraft,
+      customDetalleFormulario,
       isCustomTipoSelected,
+      selectedCustomFormulario,
       repuestosDraft,
       subtotalServicios,
       subtotalRepuestos,
@@ -229,6 +243,7 @@ export default function ArregloFormFields({
       return;
     }
     setCustomServiciosDraft([]);
+    setCustomDetalleFormulario(null);
   }, [isCustomTipoSelected, resetServicios]);
 
   useEffect(() => {
@@ -332,25 +347,24 @@ export default function ArregloFormFields({
         <div style={{ marginTop: 6 }}>
           {isCustomTipoSelected ? (
             <>
-            <ServicioLineasCustomSection
-              formTitle={selectedCustomFormulario?.descripcion}
-              defaultCosto={selectedCustomFormulario?.costoDefault}
-              lineDefs={customLineDefs}
-              disabled={submitting}
-              onServiciosChange={setCustomServiciosDraft}
-            />
-            <div style={styles.divider} />
+              <div style={styles.divider} />
+              <ServicioLineasCustomSection
+                formTitle={selectedCustomFormulario?.descripcion}
+                defaultCosto={selectedCustomFormulario?.costoDefault}
+                lineDefs={customLineDefs}
+                disabled={submitting}
+                onServiciosChange={setCustomServiciosDraft}
+                onDetalleChange={setCustomDetalleFormulario}
+              />
             </>
-          ) : (null)}
-
+          ) : null}
           <ServicioLineasEditableSection
-              items={serviciosDraft}
-              onAdd={onServiciosAdd}
-              onUpdate={onServiciosUpdate}
-              onDelete={onServiciosDelete}
-              disabled={submitting}
-            />
-
+            items={serviciosDraft}
+            onAdd={onServiciosAdd}
+            onUpdate={onServiciosUpdate}
+            onDelete={onServiciosDelete}
+            disabled={submitting}
+          />
           <div style={styles.divider} />
 
           <RepuestoLineasEditableSection

@@ -40,6 +40,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const createEmptyInternal = (): ArregloFormFieldsInternal => ({
     serviciosDraft: [],
     repuestosDraft: [],
+    detalleFormulario: null,
     subtotalServicios: 0,
     subtotalRepuestos: 0,
     totalCalculado: 0,
@@ -184,6 +185,12 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         }
         const finalVehiculoId = vehiculoId || selectedVehiculoId;
         const precioFinalCalculado = Math.round(Number(internal.totalCalculado) || 0);
+        const detalles = internal.serviciosDraft.map((s) => ({
+          descripcion: String(s.descripcion ?? "").trim(),
+          cantidad: Number(s.cantidad) || 0,
+          valor: Number(s.valor) || 0,
+        }));
+
         response = await create({
           vehiculo_id: finalVehiculoId!,
           taller_id: tallerSeleccionadoId,
@@ -195,16 +202,13 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           observaciones: payload.observaciones,
           esta_pago: payload.esta_pago,
           extra_data: payload.extra_data,
-          detalles: internal.serviciosDraft.map((s) => ({
-            descripcion: String(s.descripcion ?? "").trim(),
-            cantidad: Number(s.cantidad) || 0,
-            valor: Number(s.valor) || 0,
-          })),
+          detalles,
           repuestos: internal.repuestosDraft.map((r) => ({
             stock_id: String(r.stock_id ?? "").trim(),
             cantidad: Number(r.cantidad) || 0,
             monto_unitario: Number(r.monto_unitario) || 0,
           })),
+          detalle_formulario: internal.detalleFormulario ?? undefined,
         } as CreateArregloInput);
       }
 

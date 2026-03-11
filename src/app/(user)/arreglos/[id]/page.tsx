@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { css } from "@emotion/react";
 import { useParams, useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
@@ -35,16 +35,22 @@ import type {
   AsignacionArregloLinea,
 } from "@/app/api/arreglos/[id]/route";
 import ServicioLineasEditableSection from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
+import ServicioLineasCustomSection, {
+  parseCustomServicioLineDefs,
+} from "@/app/components/arreglos/lineas/ServicioLineasCustomSection";
 import RepuestoLineasEditableSection from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
 import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
+import { useFormularios } from "@/app/providers/FormulariosProvider";
+import type { ServicioLinea } from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [data, setData] = useState<ArregloDetalleData | null>(null);
   const [openModal, setOpenModal] = useState(false);
+  const [customServiciosDraft, setCustomServiciosDraft] = useState<ServicioLinea[]>([]);
   const {
     fetchById,
     update,
@@ -56,6 +62,7 @@ export default function ArregloDetailsPage() {
     deleteRepuestoLinea,
     loading,
   } = useArreglos();
+  const { formularios } = useFormularios();
   const { fetchCliente } = useVehiculos();
   const { confirm } = useModalMessage();
   const { success, error } = useToast();
@@ -265,6 +272,25 @@ export default function ArregloDetailsPage() {
     }
   };
 
+  const selectedCustomFormulario = useMemo(() => {
+    const tipo = String(data?.arreglo?.tipo ?? "").trim().toLowerCase();
+    if (!tipo) return null;
+    return (
+      formularios.find(
+        (formulario) => formulario.descripcion.trim().toLowerCase() === tipo
+      ) ?? null
+    );
+  }, [data?.arreglo?.tipo, formularios]);
+  const isCustomTipoSelected = Boolean(selectedCustomFormulario);
+  const customLineDefs = useMemo(
+    () => parseCustomServicioLineDefs(selectedCustomFormulario?.metadata),
+    [selectedCustomFormulario]
+  );
+
+  useEffect(() => {
+    setCustomServiciosDraft([]);
+  }, [data?.arreglo?.id, isCustomTipoSelected]);
+
   if (loading) return loadingScreen();
 
   if (!data?.arreglo) {
@@ -288,11 +314,18 @@ export default function ArregloDetailsPage() {
     (acc, d) => acc + safeNumber(d.valor) * safeNumber(d.cantidad),
     0
   );
+  const subtotalServiciosCustom =
+    customServiciosDraft.length > 0
+      ? customServiciosDraft.reduce(
+        (acc, s) => acc + safeNumber(s.valor) * safeNumber(s.cantidad),
+        0
+      )
+      : safeNumber(data.detalle_formulario?.costo);
   const subtotalRepuestos = repuestosLineas.reduce(
     (acc, l) => acc + safeNumber(l.monto_unitario) * safeNumber(l.cantidad),
     0
   );
-  const totalCalculado = subtotalServicios + subtotalRepuestos;
+  const totalCalculado = subtotalServicios + subtotalServiciosCustom + subtotalRepuestos;
 
   return (
     <div>
@@ -467,6 +500,28 @@ export default function ArregloDetailsPage() {
           disabled={loading}
         />
 
+        {isCustomTipoSelected ? (
+          <>
+            <div
+              style={{
+                height: 1,
+                background: COLOR.BORDER.SUBTLE,
+                margin: "12px 0",
+              }}
+            />
+            <ServicioLineasCustomSection
+              formTitle={selectedCustomFormulario?.descripcion}
+              defaultCosto={selectedCustomFormulario?.costoDefault}
+              lineDefs={customLineDefs}
+              initialDetalle={data.detalle_formulario}
+              editableOnLoad={false}
+              showEditButton
+              disabled={loading}
+              onServiciosChange={setCustomServiciosDraft}
+            />
+          </>
+        ) : null}
+
         <div
           style={{
             height: 1,
@@ -496,7 +551,7 @@ export default function ArregloDetailsPage() {
                 <span style={styles.dotBlue} />
                 <span style={{ color: COLOR.TEXT.SECONDARY }}>Servicios:</span>
                 <span style={{ fontWeight: 600 }}>
-                  {formatArs(subtotalServicios, {
+                  {formatArs(subtotalServicios + subtotalServiciosCustom, {
                     maxDecimals: 0,
                     minDecimals: 0,
                   })}

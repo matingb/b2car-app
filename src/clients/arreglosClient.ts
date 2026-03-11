@@ -4,6 +4,7 @@ import type { CreateDetalleArregloResponse } from "@/app/api/arreglos/[id]/detal
 import type { UpdateDetalleArregloResponse, DeleteDetalleArregloResponse } from "@/app/api/arreglos/[id]/detalles/[detalleId]/route";
 import type { UpsertRepuestoLineaResponse } from "@/app/api/arreglos/[id]/repuestos/route";
 import type { DeleteRepuestoLineaResponse } from "@/app/api/arreglos/[id]/repuestos/[lineaId]/route";
+import type { CreateArregloDetalleFormularioInput } from "@/app/api/arreglos/arregloRequests";
 import type { EstadoArreglo } from "@/model/types";
 
 export type CreateArregloInput = {
@@ -22,6 +23,7 @@ export type CreateArregloInput = {
   // opcional: creación completa (servicios + repuestos) en 1 POST
   detalles?: Array<{ descripcion: string; cantidad: number; valor: number }>;
   repuestos?: Array<{ stock_id: string; cantidad: number; monto_unitario: number }>;
+  detalle_formulario?: CreateArregloDetalleFormularioInput;
 };
 
 export type UpdateArregloInput = Partial<Omit<CreateArregloInput, "vehiculo_id" | "taller_id">>;

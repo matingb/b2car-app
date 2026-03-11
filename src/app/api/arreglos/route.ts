@@ -70,6 +70,7 @@ export async function POST(req: Request) {
         extra_data,
         detalles,
         repuestos,
+        detalle_formulario,
     } = body as CreateArregloRequest
 
     if (!vehiculo_id) return Response.json({ error: "Falta vehiculo_id" }, { status: 400 });
@@ -191,6 +192,7 @@ export async function POST(req: Request) {
     }
 
     // Servicios (detalle_arreglo)
+    logger.debug("Creando detalles de arreglo:", detallesArr);
     if (detallesArr.length > 0) {
         const normalized = detallesArr.map((d) => ({
             descripcion: String((d as { descripcion?: unknown }).descripcion ?? "").trim(),
@@ -215,6 +217,34 @@ export async function POST(req: Request) {
             if (detErr) {
                 return Response.json({ error: "Error creando detalle del arreglo" }, { status: 500 });
             }
+        }
+    }
+
+    // Detalle custom del formulario (1 fila por arreglo + formulario seleccionado)
+    if (detalle_formulario) {
+        const configId = String(detalle_formulario.config_id ?? "").trim() || null;
+        const costo = Number(detalle_formulario.costo);
+        const metadata = Array.isArray(detalle_formulario.metadata)
+            ? detalle_formulario.metadata
+            : [];
+
+        if (!Number.isFinite(costo) || costo < 0) {
+            return Response.json({ error: "Costo inválido en detalle de formulario" }, { status: 400 });
+        }
+
+        const { error: formErr } = await supabase
+            .from("detalle_arreglo_formulario")
+            .insert([
+                {
+                    arreglo_id: arregloId,
+                    config_id: configId,
+                    costo,
+                    metadata,
+                },
+            ]);
+
+        if (formErr) {
+            return Response.json({ error: "Error guardando detalle del formulario" }, { status: 500 });
         }
     }
 

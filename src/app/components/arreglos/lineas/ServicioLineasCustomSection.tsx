@@ -6,6 +6,7 @@ import { LibraryBig } from "lucide-react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
 import type { ServicioLinea } from "./ServicioLineasEditableSection";
+import type { ArregloFormularioLineaValue } from "@/app/api/arreglos/arregloRequests";
 import LineasSectionShell from "./LineasSectionShell";
 import Card from "../../ui/Card";
 import { styles as lineaStyles } from "./lineaStyles";
@@ -39,8 +40,18 @@ type Props = {
   formTitle?: string;
   defaultCosto?: number;
   lineDefs: CustomServicioLineDef[];
+  initialDetalle?: {
+    costo?: number;
+    metadata?: ArregloFormularioLineaValue[];
+  } | null;
+  editableOnLoad?: boolean;
+  showEditButton?: boolean;
   disabled?: boolean;
   onServiciosChange?: (items: ServicioLinea[]) => void;
+  onDetalleChange?: (payload: {
+    costo: number;
+    metadata: ArregloFormularioLineaValue[];
+  }) => void;
 };
 
 type RawRecord = Record<string, unknown>;
@@ -240,18 +251,47 @@ export function parseCustomServicioLineDefs(metadata: unknown): CustomServicioLi
 
 function makeInitialState(
   lineDefs: CustomServicioLineDef[],
-  _defaultCosto?: number
+  initialMetadata?: ArregloFormularioLineaValue[]
 ): Record<string, LineRuntimeState> {
   const next: Record<string, LineRuntimeState> = {};
 
-  for (const line of lineDefs) {
+  for (let index = 0; index < lineDefs.length; index += 1) {
+    const line = lineDefs[index];
+    const metadataLine = Array.isArray(initialMetadata)
+      ? initialMetadata[index]
+      : undefined;
+
     const values: Record<string, string> = {
-      __titulo: line.title ?? line.descripcion,
+      __titulo:
+        String(metadataLine?.title ?? line.title ?? line.descripcion).trim() ||
+        line.title ||
+        line.descripcion,
     };
+
     for (const field of line.fields) {
-      values[field.key] =
-        field.defaultValue == null ? "" : String(field.defaultValue);
+      const fromMetadata = metadataLine?.inputs?.find((input) => {
+        const inputTitle = String(input?.title ?? "").trim().toLowerCase();
+        return (
+          inputTitle === String(field.label).trim().toLowerCase() ||
+          inputTitle === String(field.key).trim().toLowerCase()
+        );
+      });
+
+      if (fromMetadata) {
+        const metadataValue = fromMetadata.value;
+        if (typeof metadataValue === "boolean") {
+          values[field.key] = metadataValue ? "true" : "false";
+        } else if (metadataValue == null) {
+          values[field.key] = "";
+        } else {
+          values[field.key] = String(metadataValue);
+        }
+        continue;
+      }
+
+      values[field.key] = field.defaultValue == null ? "" : String(field.defaultValue);
     }
+
     next[line.id] = { values };
   }
 
@@ -297,27 +337,53 @@ export default function ServicioLineasCustomSection({
   formTitle,
   defaultCosto,
   lineDefs,
+  initialDetalle,
+  editableOnLoad = true,
+  showEditButton = false,
   disabled = false,
   onServiciosChange,
+  onDetalleChange,
 }: Props) {
+  const [isEditing, setIsEditing] = useState<boolean>(editableOnLoad);
+
   const [formCostoInput, setFormCostoInput] = useState<string>(() =>
-    String(Number.isFinite(Number(defaultCosto)) ? Number(defaultCosto) : 0)
+    String(
+      Number.isFinite(Number(initialDetalle?.costo))
+        ? Number(initialDetalle?.costo)
+        : Number.isFinite(Number(defaultCosto))
+          ? Number(defaultCosto)
+          : 0
+    )
   );
 
   const [stateByLine, setStateByLine] = useState<Record<string, LineRuntimeState>>(
-    () => makeInitialState(lineDefs, defaultCosto)
+    () => makeInitialState(lineDefs, initialDetalle?.metadata)
   );
 
   useEffect(() => {
-    setStateByLine(makeInitialState(lineDefs, defaultCosto));
+    setIsEditing(editableOnLoad);
+    setStateByLine(makeInitialState(lineDefs, initialDetalle?.metadata));
     setFormCostoInput(
-      String(Number.isFinite(Number(defaultCosto)) ? Number(defaultCosto) : 0)
+      String(
+        Number.isFinite(Number(initialDetalle?.costo))
+          ? Number(initialDetalle?.costo)
+          : Number.isFinite(Number(defaultCosto))
+            ? Number(defaultCosto)
+            : 0
+      )
     );
-  }, [lineDefs, defaultCosto]);
+  }, [lineDefs, defaultCosto, initialDetalle, editableOnLoad]);
 
   const costoTotal = useMemo(
-    () => Math.max(0, parseNumber(formCostoInput, Number(defaultCosto) || 0)),
-    [formCostoInput, defaultCosto]
+    () =>
+      Math.max(
+        0,
+        parseNumber(
+          formCostoInput,
+          Number(initialDetalle?.costo ?? defaultCosto) || 0
+        )
+      ),
+    [formCostoInput, defaultCosto, initialDetalle?.costo]
   );
 
   const items = useMemo(() => {
@@ -330,6 +396,40 @@ export default function ServicioLineasCustomSection({
   useEffect(() => {
     onServiciosChange?.(items);
   }, [items, onServiciosChange]);
+
+  const detalleMetadata = useMemo<ArregloFormularioLineaValue[]>(() => {
+    return lineDefs.map((line) => {
+      const lineState = stateByLine[line.id] ?? { values: {} };
+      const title = String(
+        lineState.values.__titulo ?? line.title ?? line.descripcion
+      ).trim() || line.title || line.descripcion;
+
+      return {
+        title,
+        inputs: line.fields.map((field) => {
+          const raw = lineState.values[field.key];
+          const value: string | boolean | null =
+            field.component === "checkbox"
+              ? raw === "true"
+              : raw == null || raw === ""
+                ? null
+                : String(raw);
+
+          return {
+            title: field.label,
+            value,
+          };
+        }),
+      };
+    });
+  }, [lineDefs, stateByLine]);
+
+  useEffect(() => {
+    onDetalleChange?.({
+      costo: costoTotal,
+      metadata: detalleMetadata,
+    });
+  }, [onDetalleChange, costoTotal, detalleMetadata]);
 
   const subtotal = formCostoInput;
 
@@ -350,19 +450,38 @@ export default function ServicioLineasCustomSection({
       title={formTitle?.trim() || "Formulario"}
       titleIcon={<LibraryBig size={18} />}
       subtotal={
-        <input
-          value={subtotal}
-          onChange={(e) => setFormCostoInput(e.target.value.replace(/\D/g, ""))}
-          disabled={disabled}
-          inputMode="numeric"
-          pattern="[0-9]*"
-          aria-label="Costo total formulario custom"
-          style={customStyles.headerCostoInput}
-        />
+        isEditing ? (
+          <input
+            value={subtotal}
+            onChange={(e) => setFormCostoInput(e.target.value.replace(/\D/g, ""))}
+            disabled={disabled}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            aria-label="Costo total formulario custom"
+            style={customStyles.headerCostoInput}
+          />
+        ) : (
+          <span style={customStyles.headerCostoValue}>
+            {formatArs(costoTotal, { maxDecimals: 0, minDecimals: 0 })}
+          </span>
+        )
       }
       subtotalLabel="Costo $"
     >
       <div style={lineaStyles.list}>
+        {showEditButton ? (
+          <div style={customStyles.actionsRow}>
+            <button
+              type="button"
+              onClick={() => setIsEditing((prev) => !prev)}
+              disabled={disabled}
+              style={customStyles.editButton}
+            >
+              {isEditing ? "Cancelar" : "Editar"}
+            </button>
+          </div>
+        ) : null}
+
         {lineDefs.length === 0 ? (
           <div style={lineaStyles.emptyState}>Sin lineas custom configuradas.</div>
         ) : null}
@@ -374,15 +493,23 @@ export default function ServicioLineasCustomSection({
             <Card key={line.id} css={customStyles.card}>
               <div css={customStyles.body}>
                 <div css={customStyles.topWrap}>
-                  <input
-                    css={customStyles.titleInput}
-                    value={String(lineState.values.__titulo ?? line.title ?? line.descripcion)}
-                    onChange={(e) =>
-                      updateField(line.id, "__titulo", e.target.value)
-                    }
-                    disabled={disabled}
-                    placeholder="Titulo"
-                  />
+                  {isEditing ? (
+                    <input
+                      css={customStyles.titleInput}
+                      value={String(lineState.values.__titulo ?? line.title ?? line.descripcion)}
+                      onChange={(e) =>
+                        updateField(line.id, "__titulo", e.target.value)
+                      }
+                      disabled={disabled}
+                      placeholder="Titulo"
+                    />
+                  ) : (
+                    <div css={customStyles.titleReadonly}>
+                      {String(lineState.values.__titulo ?? line.title ?? line.descripcion).trim() ||
+                        line.title ||
+                        line.descripcion}
+                    </div>
+                  )}
 
                   <div style={customStyles.fieldsGrid}>
                     {line.fields.map((field) => {
@@ -400,7 +527,15 @@ export default function ServicioLineasCustomSection({
                               <span style={customStyles.requiredAsterisk}>*</span>
                             ) : null}
                           </label>
-                          {field.component === "textarea" ? (
+                          {!isEditing ? (
+                            <div style={customStyles.readonlyValue}>
+                              {field.component === "checkbox"
+                                ? value === "true"
+                                  ? "Si"
+                                  : "No"
+                                : value || "-"}
+                            </div>
+                          ) : field.component === "textarea" ? (
                             <textarea
                               {...commonProps}
                               rows={2}
@@ -503,6 +638,11 @@ const customStyles = {
     width: "100%",
     flex: 1,
     minWidth: 0,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      flexDirection: "column",
+      alignItems: "stretch",
+      flexWrap: "nowrap",
+    },
   }),
   titleInput: css({
     ...lineaStyles.editorInput,
@@ -511,6 +651,10 @@ const customStyles = {
     textAlign: "left",
     fontWeight: 700,
     flexShrink: 0,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      width: "100%",
+      minWidth: 0,
+    },
   }),
   headerCostoInput: {
     width: 120,
@@ -522,6 +666,25 @@ const customStyles = {
     fontWeight: 700,
     textAlign: "right" as const,
   },
+  headerCostoValue: {
+    color: COLOR.ACCENT.PRIMARY,
+    fontWeight: 700,
+    fontSize: 16,
+  },
+  actionsRow: {
+    display: "flex",
+    justifyContent: "flex-end",
+    marginBottom: 6,
+  },
+  editButton: {
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    color: COLOR.TEXT.PRIMARY,
+    borderRadius: 8,
+    padding: "6px 12px",
+    cursor: "pointer",
+    fontWeight: 700,
+  },
   fieldsGrid: {
     display: "flex",
     flexWrap: "wrap" as const,
@@ -530,6 +693,12 @@ const customStyles = {
     width: "auto",
     flex: 1,
     minWidth: 0,
+    [`@media (maxWidth: ${BREAKPOINTS.md}px)`]: {
+      width: "100%",
+      flexDirection: "column" as const,
+      alignItems: "stretch",
+      gap: 8,
+    },
   },
   fieldWrap: {
     display: "flex",
@@ -538,11 +707,41 @@ const customStyles = {
     minWidth: 180,
     maxWidth: "100%",
     gap: 4,
+    [`@media (maxWidth: ${BREAKPOINTS.md}px)`]: {
+      flex: "1 1 100%",
+      minWidth: 0,
+      width: "100%",
+    },
   },
   fieldLabel: {
     fontSize: 12,
     color: COLOR.TEXT.SECONDARY,
     fontWeight: 600,
+  },
+  titleReadonly: css({
+    width: 300,
+    minWidth: 300,
+    fontWeight: 700,
+    color: COLOR.TEXT.PRIMARY,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      width: "100%",
+      minWidth: 0,
+      whiteSpace: "normal",
+    },
+  }),
+  readonlyValue: {
+    width: "100%",
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 8,
+    padding: "8px 10px",
+    minHeight: 38,
+    background: COLOR.BACKGROUND.SUBTLE,
+    color: COLOR.TEXT.PRIMARY,
+    display: "flex",
+    alignItems: "center",
   },
   requiredAsterisk: {
     color: COLOR.ICON.DANGER,
