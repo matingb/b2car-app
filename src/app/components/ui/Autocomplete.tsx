@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { COLOR } from "@/theme/theme";
 import { ChevronDown, X } from "lucide-react";
@@ -9,6 +9,7 @@ export interface AutocompleteOption {
   value: string;
   label: string;
   secondaryLabel?: string;
+  icon?: ReactNode;
 }
 
 interface AutocompleteProps {
@@ -283,7 +284,12 @@ export default function Autocomplete({
                       onMouseEnter={() => setHighlightedIndex(index)}
                     >
                       <div style={styles.optionContent}>
-                        <span style={styles.optionLabel}>{option.label}</span>
+                        <span style={styles.optionLabelRow}>
+                          {option.icon ? (
+                            <span style={styles.optionIcon}>{option.icon}</span>
+                          ) : null}
+                          <span style={styles.optionLabel}>{option.label}</span>
+                        </span>
                         {option.secondaryLabel && (
                           <span style={styles.optionSecondary}>{option.secondaryLabel}</span>
                         )}
@@ -379,6 +385,17 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 2,
+  },
+  optionLabelRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  },
+  optionIcon: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: COLOR.TEXT.SECONDARY,
   },
   optionLabel: {
     fontSize: 14,

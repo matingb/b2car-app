@@ -9,6 +9,7 @@ type Props = {
   title: React.ReactNode;
   titleIcon: React.ReactNode;
   subtotal: React.ReactNode;
+  subtotalLabel?: React.ReactNode;
   children: React.ReactNode;
   collapseDisabled?: boolean;
 };
@@ -17,6 +18,7 @@ export default function LineasSectionShell({
   title,
   titleIcon,
   subtotal,
+  subtotalLabel = "Subtotal",
   children,
   collapseDisabled = false,
 }: Props) {
@@ -33,7 +35,7 @@ export default function LineasSectionShell({
 
         <div style={styles.sectionRight}>
           <div style={styles.subtotalInline}>
-            <span style={styles.subtotalLabel}>Subtotal</span>
+            <span style={styles.subtotalLabel}>{subtotalLabel}</span>
             <span style={styles.subtotalValue}>{subtotal}</span>
           </div>
 

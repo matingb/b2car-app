@@ -115,3 +115,13 @@ export type OperacionAsignacionArregloDTO = {
     operacion_id: string;
     arreglo_id: string;
 };
+
+export type FormularioConfigDTO = {
+    id: string;
+    tenant_id: string;
+    descripcion: string;
+    costodefault: number;
+    metadata: Record<string, unknown> | null;
+    created_at: string;
+    updated_at: string;
+};
