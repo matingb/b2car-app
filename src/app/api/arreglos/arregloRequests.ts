@@ -1,5 +1,21 @@
 import type { EstadoArreglo } from "@/model/types";
 
+export type ArregloFormularioInputValue = {
+  title: string;
+  value: string | boolean | null;
+};
+
+export type ArregloFormularioLineaValue = {
+  title: string;
+  inputs: ArregloFormularioInputValue[];
+};
+
+export type CreateArregloDetalleFormularioInput = {
+  config_id?: string;
+  costo: number;
+  metadata: ArregloFormularioLineaValue[];
+};
+
 export type CreateArregloRequest = {
   vehiculo_id: string;
   taller_id: string;
@@ -16,6 +32,7 @@ export type CreateArregloRequest = {
   // opcional: creación "completa" desde el modal (1 POST)
   detalles?: Array<{ descripcion: string; cantidad: number; valor: number }>;
   repuestos?: Array<{ stock_id: string; cantidad: number; monto_unitario: number }>;
+  detalle_formulario?: CreateArregloDetalleFormularioInput;
 };
 
 export type CreateArregloInsertPayload = {

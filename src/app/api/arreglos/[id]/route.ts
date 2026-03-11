@@ -6,6 +6,7 @@ import { arregloService } from "@/app/api/arreglos/arregloService";
 import type { UpdateArregloRequest } from "../arregloRequests";
 import { ServiceError } from "../../serviceError";
 import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
+import type { ArregloFormularioLineaValue } from "../arregloRequests";
 
 export type DetalleArreglo = {
   id: string;
@@ -50,6 +51,17 @@ export type ArregloDetalleData = {
   arreglo: Arreglo;
   detalles: DetalleArreglo[];
   asignaciones: AsignacionArregloOperacion[];
+  detalle_formulario: DetalleArregloFormulario | null;
+};
+
+export type DetalleArregloFormulario = {
+  id: string;
+  arreglo_id: string;
+  config_id: string | null;
+  costo: number;
+  metadata: ArregloFormularioLineaValue[];
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type GetArregloByIdResponse = {
@@ -98,10 +110,52 @@ export async function GET(
   const detalles = (Array.isArray(rpc.detalles) ? rpc.detalles : []) as DetalleArreglo[];
   const asignaciones = (Array.isArray(rpc.asignaciones) ? rpc.asignaciones : []) as AsignacionArregloOperacion[];
 
+  const { data: detalleFormularioRows, error: detalleFormularioError } = await supabase
+    .from("detalle_arreglo_formulario")
+    .select("id, arreglo_id, config_id, costo, metadata, created_at, updated_at")
+    .eq("arreglo_id", id)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (detalleFormularioError) {
+    return Response.json(
+      { data: null, error: "Error cargando detalle de formulario" },
+      { status: 500 }
+    );
+  }
+
+  const detalleFormularioRaw = Array.isArray(detalleFormularioRows)
+    ? detalleFormularioRows[0]
+    : null;
+
+  const detalleFormulario: DetalleArregloFormulario | null = detalleFormularioRaw
+    ? {
+      id: String(detalleFormularioRaw.id ?? ""),
+      arreglo_id: String(detalleFormularioRaw.arreglo_id ?? ""),
+      config_id:
+        detalleFormularioRaw.config_id == null
+          ? null
+          : String(detalleFormularioRaw.config_id),
+      costo: Number(detalleFormularioRaw.costo) || 0,
+      metadata: Array.isArray(detalleFormularioRaw.metadata)
+        ? (detalleFormularioRaw.metadata as ArregloFormularioLineaValue[])
+        : [],
+      created_at:
+        detalleFormularioRaw.created_at == null
+          ? undefined
+          : String(detalleFormularioRaw.created_at),
+      updated_at:
+        detalleFormularioRaw.updated_at == null
+          ? undefined
+          : String(detalleFormularioRaw.updated_at),
+    }
+    : null;
+
   const payload: ArregloDetalleData = {
     arreglo: arreglo as Arreglo,
     detalles,
     asignaciones,
+    detalle_formulario: detalleFormulario,
   };
 
   return Response.json({ data: payload, error: null });
