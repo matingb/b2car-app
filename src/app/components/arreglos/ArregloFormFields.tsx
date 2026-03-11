@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Autocomplete, {
   type AutocompleteOption,
 } from "@/app/components/ui/Autocomplete";
@@ -11,12 +11,17 @@ import { formatArs } from "@/lib/format";
 import ServicioLineasEditableSection, {
   type ServicioLinea,
 } from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
+import ServicioLineasCustomSection, {
+  parseCustomServicioLineDefs,
+} from "@/app/components/arreglos/lineas/ServicioLineasCustomSection";
 import RepuestoLineasEditableSection, {
   type RepuestoLinea,
 } from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
 import { useServiciosDraft } from "@/app/components/arreglos/hooks/useServiciosDraft";
 import { useRepuestosDraft } from "@/app/components/arreglos/hooks/useRepuestosDraft";
 import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
+import { useFormularios } from "@/app/providers/FormulariosProvider";
+import { LibraryBig } from "lucide-react";
 
 export type ArregloForm = {
   tipo: string;
@@ -62,7 +67,7 @@ type Props = {
   onChange?: (next: ArregloFormFieldsInternal) => void;
 };
 
-const opcionesDefault: AutocompleteOption[] = [
+const genericTipoOptions: AutocompleteOption[] = [
   { value: "Mecanica", label: "Mecanica" },
   { value: "Chapa y pintura", label: "Chapa y pintura" },
   { value: "Electricidad", label: "Electricidad" },
@@ -96,10 +101,54 @@ export default function ArregloFormFields({
   onValidityChange,
   onChange,
 }: Props) {
+  const { formularios } = useFormularios();
+  const [customServiciosDraft, setCustomServiciosDraft] = useState<ServicioLinea[]>([]);
+
   const isValid = useMemo(
     () => validateArregloForm(values, vehiculoId),
     [values, vehiculoId],
   );
+
+  const tipoOptions = useMemo<AutocompleteOption[]>(() => {
+    const used = new Set(
+      genericTipoOptions.map((opt) => opt.value.trim().toLowerCase())
+    );
+
+    const customOptions: AutocompleteOption[] = [];
+    for (const formulario of formularios) {
+      const descripcion = String(formulario.descripcion ?? "").trim();
+      if (!descripcion) continue;
+
+      const normalized = descripcion.toLowerCase();
+      if (used.has(normalized)) continue;
+
+      used.add(normalized);
+      customOptions.push({
+        value: descripcion,
+        label: descripcion,
+        icon: <LibraryBig size={14} />,
+      });
+    }
+
+    return [...genericTipoOptions, ...customOptions];
+  }, [formularios]);
+
+  const selectedCustomFormulario = useMemo(() => {
+    const selected = values.tipo.trim().toLowerCase();
+    if (!selected) return null;
+    return (
+      formularios.find(
+        (formulario) => formulario.descripcion.trim().toLowerCase() === selected
+      ) ?? null
+    );
+  }, [formularios, values.tipo]);
+
+  const customLineDefs = useMemo(
+    () => parseCustomServicioLineDefs(selectedCustomFormulario?.metadata),
+    [selectedCustomFormulario]
+  );
+
+  const isCustomTipoSelected = !!selectedCustomFormulario;
 
   const {
     items: serviciosDraft,
@@ -116,14 +165,16 @@ export default function ArregloFormFields({
     reset: resetRepuestos,
   } = useRepuestosDraft();
 
+  const serviciosActivos = isCustomTipoSelected ? customServiciosDraft : serviciosDraft;
+
   const subtotalServicios = useMemo(
     () =>
-      serviciosDraft.reduce(
+      serviciosActivos.reduce(
         (acc, s) =>
           acc + (Number(s.cantidad) || 0) * (Number(s.valor) || 0),
         0,
       ),
-    [serviciosDraft],
+    [serviciosActivos],
   );
   const subtotalRepuestos = useMemo(
     () =>
@@ -144,6 +195,7 @@ export default function ArregloFormFields({
   const internalSnapshot = useMemo<ArregloFormFieldsInternal>(
     () => ({
       serviciosDraft,
+      ...(isCustomTipoSelected ? { serviciosDraft: customServiciosDraft } : {}),
       repuestosDraft,
       subtotalServicios,
       subtotalRepuestos,
@@ -152,6 +204,8 @@ export default function ArregloFormFields({
     }),
     [
       serviciosDraft,
+      customServiciosDraft,
+      isCustomTipoSelected,
       repuestosDraft,
       subtotalServicios,
       subtotalRepuestos,
@@ -168,6 +222,14 @@ export default function ArregloFormFields({
     resetServicios();
     resetRepuestos();
   }, [isEdit, resetServicios, resetRepuestos]);
+
+  useEffect(() => {
+    if (isCustomTipoSelected) {
+      resetServicios();
+      return;
+    }
+    setCustomServiciosDraft([]);
+  }, [isCustomTipoSelected, resetServicios]);
 
   useEffect(() => {
     onChange?.(internalSnapshot);
@@ -195,7 +257,7 @@ export default function ArregloFormFields({
         <div style={styles.field}>
           <label style={styles.label}>Tipo</label>
           <Autocomplete
-            options={opcionesDefault}
+            options={tipoOptions}
             value={values.tipo}
             onChange={(next) => onValuesChange({ tipo: next })}
             placeholder="Mecanica, Chapa y pintura..."
@@ -269,13 +331,26 @@ export default function ArregloFormFields({
 
       {!isEdit ? (
         <div style={{ marginTop: 6 }}>
+          {isCustomTipoSelected ? (
+            <>
+            <ServicioLineasCustomSection
+              formTitle={selectedCustomFormulario?.descripcion}
+              defaultCosto={selectedCustomFormulario?.costoDefault}
+              lineDefs={customLineDefs}
+              disabled={submitting}
+              onServiciosChange={setCustomServiciosDraft}
+            />
+            <div style={styles.divider} />
+            </>
+          ) : (null)}
+
           <ServicioLineasEditableSection
-            items={serviciosDraft}
-            onAdd={onServiciosAdd}
-            onUpdate={onServiciosUpdate}
-            onDelete={onServiciosDelete}
-            disabled={submitting}
-          />
+              items={serviciosDraft}
+              onAdd={onServiciosAdd}
+              onUpdate={onServiciosUpdate}
+              onDelete={onServiciosDelete}
+              disabled={submitting}
+            />
 
           <div style={styles.divider} />
 
