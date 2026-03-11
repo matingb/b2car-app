@@ -4,7 +4,6 @@ import React, {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -13,6 +12,7 @@ import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 import {
   arreglosClient,
   CreateArregloInput,
+  GetArreglosInput,
   UpdateArregloInput,
 } from "@/clients/arreglosClient";
 import { useTenant } from "@/app/providers/TenantProvider";
@@ -20,7 +20,8 @@ import { useTenant } from "@/app/providers/TenantProvider";
 type ArreglosContextType = {
   arreglos: Arreglo[];
   loading: boolean;
-  fetchAll: (params?: { tallerId?: string }) => Promise<Arreglo[] | null>;
+  hasMore: boolean;
+  fetchAll: (params?: GetArreglosInput) => Promise<Arreglo[] | null>;
   fetchById: (id: string | number) => Promise<ArregloDetalleData | null>;
   create: (input: CreateArregloInput) => Promise<Arreglo | null>;
   update: (
@@ -50,13 +51,15 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
   const { tallerSeleccionadoId } = useTenant();
   const [arreglos, setArreglos] = useState<Arreglo[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
 
-  const fetchAll = useCallback(async (filters?: { tallerId?: string }) => {
+  const fetchAll = useCallback(async (filters?: GetArreglosInput) => {
     setLoading(true);
     try {
-      const { data, error } = await arreglosClient.getAll(filters);
+      const { data, error, page } = await arreglosClient.getAll(filters);
       if (error) throw new Error(error);
       setArreglos(data ?? []);
+      setHasMore(Boolean(page?.hasMore));
       return data ?? null;
     } finally {
       setLoading(false);
@@ -177,16 +180,14 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchAll , tallerSeleccionadoId]);
 
-  useEffect(() => {
-    if (tallerSeleccionadoId) {
-      fetchAll({ tallerId: tallerSeleccionadoId });
-    }
-  }, [fetchAll, tallerSeleccionadoId]);
- 
+  // No hacemos fetch inicial aquí: la página de arreglos hace la primera carga con limit y filtros.
+  // create/update/remove ya llaman fetchAll con tallerId para refrescar la lista.
+
   const value = useMemo(
     () => ({
       arreglos,
       loading,
+      hasMore,
       fetchAll,
       fetchById,
       create,
@@ -201,6 +202,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     [
       arreglos,
       loading,
+      hasMore,
       fetchAll,
       fetchById,
       create,

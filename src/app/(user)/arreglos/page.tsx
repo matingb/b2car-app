@@ -7,10 +7,12 @@ import ArregloFiltersModal from "@/app/components/arreglos/ArregloFiltersModal";
 import ArreglosToolbar from "@/app/components/arreglos/ArreglosToolbar";
 import ArreglosResults from "@/app/components/arreglos/ArreglosResults";
 import { useArreglosFilters } from "@/app/hooks/arreglos/useArreglosFilters";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTenant } from "@/app/providers/TenantProvider";
 import Dropdown from "@/app/components/ui/Dropdown";
 import { COLOR } from "@/theme/theme";
+
+const LIMIT_STEP = 5;
 
 export default function ArreglosPage() {
   return <ArreglosPageContent />;
@@ -18,11 +20,71 @@ export default function ArreglosPage() {
 
 function ArreglosPageContent() {
   const router = useRouter();
-  const { arreglos, loading } = useArreglos();
+  const { arreglos, loading, hasMore, fetchAll } = useArreglos();
   const { talleres, tallerSeleccionadoId, setTallerSeleccionadoId } = useTenant();
   const state = useArreglosFilters(arreglos);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);;
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [limit, setLimit] = useState(LIMIT_STEP);
+
+  const debouncedSearch = useMemo(() => state.search.trim(), [state.search]);
+
+  useEffect(() => {
+    setLimit(LIMIT_STEP);
+  }, [
+    tallerSeleccionadoId,
+    debouncedSearch,
+    state.filters.patente,
+    state.filters.tipo,
+    state.filters.estado,
+    state.filters.fechaDesde,
+    state.filters.fechaHasta,
+  ]);
+
+  const filterStrings = useMemo(
+    () => ({
+      patente: state.filters.patente || undefined,
+      tipo: state.filters.tipo || undefined,
+      estado: state.filters.estado || undefined,
+      fechaDesde: state.filters.fechaDesde || undefined,
+      fechaHasta: state.filters.fechaHasta || undefined,
+    }),
+    [
+      state.filters.patente,
+      state.filters.tipo,
+      state.filters.estado,
+      state.filters.fechaDesde,
+      state.filters.fechaHasta,
+    ]
+  );
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (typeof fetchAll !== "function" || !tallerSeleccionadoId || !limit) return;
+      void fetchAll({
+        tallerId: tallerSeleccionadoId,
+        limit,
+        search: debouncedSearch || undefined,
+        ...filterStrings,
+      });
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchAll, tallerSeleccionadoId, limit, debouncedSearch, filterStrings]);
+
+  const loadingInitial = loading && arreglos.length === 0;
+  const loadingMore = loading && arreglos.length > 0;
+  const loadingMoreBlockRef = useRef(false);
+
+  useEffect(() => {
+    if (!loadingMore) loadingMoreBlockRef.current = false;
+  }, [loadingMore]);
+
+  const handleLoadMore = () => {
+    if (!hasMore || loadingMore || loadingMoreBlockRef.current) return;
+    loadingMoreBlockRef.current = true;
+    setLimit((current) => current + LIMIT_STEP);
+  };
 
   return (
     <div>
@@ -57,7 +119,10 @@ function ArreglosPageContent() {
         style={styles.searchBarContainer}
       />
       <ArreglosResults
-        loading={loading}
+        loading={loadingInitial}
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+        onLoadMore={handleLoadMore}
         items={state.arreglosFiltrados}
         onSelect={(a) => router.push(`/arreglos/${a.id}`)}
             />

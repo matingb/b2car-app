@@ -8,41 +8,58 @@ import type { CreateArregloInsertPayload, CreateArregloRequest } from "./arreglo
 import type { NextRequest } from "next/server";
 import { ServiceError } from "../serviceError";
 import { detalleArregloService } from "@/app/api/arreglos/detalleArregloService";
+import type { ArregloListFilters } from "./arregloRepository";
+import { normalizePaginationLimit } from "@/lib/pagination";
 
 export type GetArreglosResponse = {
     data: Arreglo[] | null;
+    page: {
+        hasMore: boolean;
+    };
     error?: string | null;
 };
 
 export async function GET(req: NextRequest) {
     const supabase = await createClient()
-    const tallerId = req.nextUrl.searchParams.get("taller_id") ?? undefined;
-    const { data, error } = await arregloService.listAll(supabase, { tallerId })
+    const query = req.nextUrl.searchParams;
+    const toUndef = (value: string | null) => {
+        const trimmed = String(value ?? "").trim();
+        return trimmed ? trimmed : undefined;
+    };
+
+    const limit = normalizePaginationLimit(query.get("limit"));
+
+    const filters: ArregloListFilters = {
+        tallerId: toUndef(query.get("taller_id")),
+        search: toUndef(query.get("search")),
+        patente: toUndef(query.get("patente")),
+        tipo: toUndef(query.get("tipo")),
+        estado: toUndef(query.get("estado")),
+        fechaDesde: toUndef(query.get("fecha_desde")),
+        fechaHasta: toUndef(query.get("fecha_hasta")),
+        limit,
+    };
+
+    const { data, error } = await arregloService.getArreglo(supabase, filters)
     if (error) {
         const status = error === ServiceError.NotFound ? 404 : 500;
         const message = status === 404 ? "Arreglos no encontrados" : "Error cargando arreglos";
-        return Response.json({ data: [], error: message }, { status })
+        return Response.json({
+            data: [],
+            page: { hasMore: false },
+            error: message
+        }, { status })
     }
 
     logger.debug("GET /api/arreglos - data:", data, "error:", error);
 
-    const arreglos: Arreglo[] = (data ?? []).map(arreglo => ({
-        id: arreglo.id,
-        vehiculo: arreglo.vehiculo,
-        taller_id: arreglo.taller_id,
-        taller: arreglo.taller,
-        tipo: arreglo.tipo,
-        estado: arreglo.estado,
-        descripcion: arreglo.descripcion,
-        kilometraje_leido: arreglo.kilometraje_leido,
-        fecha: arreglo.fecha,
-        observaciones: arreglo.observaciones,
-        precio_final: arreglo.precio_final,
-        precio_sin_iva: arreglo.precio_sin_iva,
-        esta_pago: arreglo.esta_pago,
-        extra_data: arreglo.extra_data,
-    }));
-    return Response.json({ data: arreglos })
+    const arreglos: Arreglo[] = (data?.items ?? [])
+    return Response.json({
+        data: arreglos,
+        page: {
+            hasMore: data?.hasMore ?? false,
+        },
+    })
 }
 
 export type CreateArregloResponse = {
