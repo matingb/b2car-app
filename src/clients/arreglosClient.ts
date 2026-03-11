@@ -26,22 +26,53 @@ export type CreateArregloInput = {
 
 export type UpdateArregloInput = Partial<Omit<CreateArregloInput, "vehiculo_id" | "taller_id">>;
 
+export type GetArreglosInput = {
+  tallerId?: string;
+  search?: string;
+  patente?: string;
+  tipo?: string;
+  estado?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  limit?: number;
+};
+
 export const arreglosClient = {
-  async getAll(params?: { tallerId?: string }): Promise<GetArreglosResponse> {
+  async getAll(params?: GetArreglosInput): Promise<GetArreglosResponse> {
     try {
-      const url = params?.tallerId
-        ? `/api/arreglos?taller_id=${encodeURIComponent(params.tallerId)}`
-        : "/api/arreglos";
+      const searchParams = new URLSearchParams();
+      if (params?.tallerId) searchParams.set("taller_id", params.tallerId);
+      if (params?.search) searchParams.set("search", params.search);
+      if (params?.patente) searchParams.set("patente", params.patente);
+      if (params?.tipo) searchParams.set("tipo", params.tipo);
+      if (params?.estado) searchParams.set("estado", params.estado);
+      if (params?.fechaDesde) searchParams.set("fecha_desde", params.fechaDesde);
+      if (params?.fechaHasta) searchParams.set("fecha_hasta", params.fechaHasta);
+      if (typeof params?.limit === "number") searchParams.set("limit", String(params.limit));
+      const query = searchParams.toString();
+      const url = query ? `/api/arreglos?${query}` : "/api/arreglos";
 
       const res = await fetch(url);
       const body: GetArreglosResponse = await res.json();
       if (!res.ok) {
-        return { data: null, error: body?.error || `Error ${res.status}` };
+        return {
+          data: null,
+          page: body?.page ?? { hasMore: false },
+          error: body?.error || `Error ${res.status}`
+        };
       }
-      return { data: body.data || [], error: null };
+      return {
+        data: body.data || [],
+        page: body.page ?? { hasMore: false },
+        error: null
+      };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Error cargando arreglos";
-      return { data: null, error: message };
+      return {
+        data: null,
+        page: { hasMore: false },
+        error: message
+      };
     }
   },
 
