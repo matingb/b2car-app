@@ -23,6 +23,7 @@ import { useRepuestosDraft } from "@/app/components/arreglos/hooks/useRepuestosD
 import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
 import { useFormularios } from "@/app/providers/FormulariosProvider";
 import { LibraryBig } from "lucide-react";
+import { findMissingRequiredCustomFormFields } from "@/lib/arreglosCustomFormRequired";
 
 export type ArregloForm = {
   tipo: string;
@@ -92,6 +93,20 @@ export function validateArregloForm(
   return hasVehiculo && isValidDate(values.fecha);
 }
 
+export function shouldBlockCreateByCustomRequired(params: {
+  isEdit: boolean;
+  estado: EstadoArreglo;
+  isCustomTipoSelected: boolean;
+  missingRequiredCount: number;
+}): boolean {
+  return (
+    !params.isEdit &&
+    params.estado === "TERMINADO" &&
+    params.isCustomTipoSelected &&
+    params.missingRequiredCount > 0
+  );
+}
+
 export default function ArregloFormFields({
   vehiculoId,
   vehiculoOptions,
@@ -107,7 +122,7 @@ export default function ArregloFormFields({
   const [customServiciosDraft, setCustomServiciosDraft] = useState<ServicioLinea[]>([]);
   const [customDetalleFormulario, setCustomDetalleFormulario] = useState<CreateArregloDetalleFormularioInput | null>(null);
 
-  const isValid = useMemo(
+  const baseIsValid = useMemo(
     () => validateArregloForm(values, vehiculoId),
     [values, vehiculoId],
   );
@@ -152,6 +167,27 @@ export default function ArregloFormFields({
   );
 
   const isCustomTipoSelected = !!selectedCustomFormulario;
+  const missingCustomRequiredFields = useMemo(() => {
+    if (!isCustomTipoSelected || !selectedCustomFormulario) return [];
+    return findMissingRequiredCustomFormFields({
+      formMetadata: selectedCustomFormulario.metadata,
+      detalleMetadata: customDetalleFormulario?.metadata ?? [],
+    });
+  }, [isCustomTipoSelected, selectedCustomFormulario, customDetalleFormulario]);
+  const blockCreateByCustomRequired = useMemo(
+    () =>
+      shouldBlockCreateByCustomRequired({
+        isEdit,
+        estado: values.estado,
+        isCustomTipoSelected,
+        missingRequiredCount: missingCustomRequiredFields.length,
+      }),
+    [isEdit, values.estado, isCustomTipoSelected, missingCustomRequiredFields.length]
+  );
+  const isValid = useMemo(
+    () => baseIsValid && !blockCreateByCustomRequired,
+    [baseIsValid, blockCreateByCustomRequired]
+  );
 
   const {
     items: serviciosDraft,
@@ -356,6 +392,11 @@ export default function ArregloFormFields({
                 onServiciosChange={setCustomServiciosDraft}
                 onDetalleChange={setCustomDetalleFormulario}
               />
+              {blockCreateByCustomRequired ? (
+                <div style={styles.validationError}>
+                  Completa los campos obligatorios del formulario para crear en TERMINADO
+                </div>
+              ) : null}
             </>
           ) : null}
           <ServicioLineasEditableSection
@@ -460,6 +501,12 @@ const styles = {
     height: 1,
     background: COLOR.BORDER.SUBTLE,
     margin: "18px 0",
+  },
+  validationError: {
+    marginTop: 8,
+    color: COLOR.ICON.DANGER,
+    fontSize: 13,
+    fontWeight: 600,
   },
 } as const;
 

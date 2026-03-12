@@ -10,6 +10,10 @@ import type {
 import { ServiceError } from "../../serviceError";
 import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
 import type { ArregloFormularioLineaValue } from "../arregloRequests";
+import {
+  buildTerminadoRequiredFieldsErrorMessage,
+  findMissingRequiredCustomFormFields,
+} from "@/lib/arreglosCustomFormRequired";
 
 export type DetalleArreglo = {
   id: string;
@@ -191,6 +195,106 @@ export async function PUT(
   }
 
   const patchEntries = Object.entries(arregloPatch).filter(([, value]) => value !== undefined);
+  let currentArreglo: Arreglo | null = null;
+
+  if (arregloPatch.estado === "TERMINADO") {
+    const { data: currentData, error: currentError } = await arregloService.getByIdWithVehiculo(
+      supabase,
+      id
+    );
+
+    if (currentError) {
+      const status = currentError === ServiceError.NotFound ? 404 : 500;
+      const message = status === 404 ? "Arreglo no encontrado" : "Error actualizando arreglo";
+      return Response.json({ data: null, error: message }, { status });
+    }
+
+    currentArreglo = currentData;
+
+    const isTransitionToTerminado =
+      String(currentArreglo?.estado ?? "").trim().toUpperCase() !== "TERMINADO";
+
+    if (isTransitionToTerminado) {
+      const { data: detalleRows, error: detalleLookupError } = await supabase
+        .from("detalle_form_custom")
+        .select("config_id, metadata")
+        .eq("arreglo_id", id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (detalleLookupError) {
+        return Response.json(
+          { data: null, error: "Error cargando detalle de formulario" },
+          { status: 500 }
+        );
+      }
+
+      const detalleRow = Array.isArray(detalleRows) ? detalleRows[0] : null;
+      const existingConfigId =
+        detalleRow?.config_id == null ? null : String(detalleRow.config_id).trim() || null;
+      const existingMetadata = Array.isArray(detalleRow?.metadata)
+        ? (detalleRow.metadata as ArregloFormularioLineaValue[])
+        : [];
+
+      const hasIncomingConfigId =
+        detalle_formulario !== undefined &&
+        (detalle_formulario.formulario_id !== undefined ||
+          detalle_formulario.config_id !== undefined);
+      const incomingConfigId =
+        hasIncomingConfigId && detalle_formulario
+          ? String(detalle_formulario.formulario_id ?? detalle_formulario.config_id ?? "").trim() ||
+            null
+          : undefined;
+
+      const incomingMetadata =
+        detalle_formulario !== undefined
+          ? Array.isArray(detalle_formulario.metadata)
+            ? detalle_formulario.metadata
+            : []
+          : undefined;
+
+      const effectiveConfigId =
+        incomingConfigId !== undefined ? incomingConfigId : existingConfigId;
+      const effectiveMetadata = incomingMetadata ?? existingMetadata;
+
+      if (effectiveConfigId) {
+        const { data: formularioRow, error: formularioError } = await supabase
+          .from("formularios")
+          .select("metadata")
+          .eq("id", effectiveConfigId)
+          .maybeSingle();
+
+        if (formularioError) {
+          return Response.json(
+            { data: null, error: "Error cargando formulario custom" },
+            { status: 500 }
+          );
+        }
+
+        if (!formularioRow) {
+          return Response.json(
+            { data: null, error: "Formulario custom no encontrado" },
+            { status: 400 }
+          );
+        }
+
+        const missingFields = findMissingRequiredCustomFormFields({
+          formMetadata: formularioRow.metadata,
+          detalleMetadata: effectiveMetadata,
+        });
+
+        if (missingFields.length > 0) {
+          return Response.json(
+            {
+              data: null,
+              error: buildTerminadoRequiredFieldsErrorMessage(missingFields),
+            },
+            { status: 400 }
+          );
+        }
+      }
+    }
+  }
 
   let updatedArreglo: Arreglo | null = null;
   if (patchEntries.length > 0) {
@@ -208,18 +312,22 @@ export async function PUT(
 
     updatedArreglo = data;
   } else {
-    const { data: currentArreglo, error: currentError } = await arregloService.getByIdWithVehiculo(
-      supabase,
-      id
-    );
+    if (currentArreglo) {
+      updatedArreglo = currentArreglo;
+    } else {
+      const { data: fetchedArreglo, error: currentError } = await arregloService.getByIdWithVehiculo(
+        supabase,
+        id
+      );
 
-    if (currentError) {
-      const status = currentError === ServiceError.NotFound ? 404 : 500;
-      const message = status === 404 ? "Arreglo no encontrado" : "Error actualizando arreglo";
-      return Response.json({ data: null, error: message }, { status });
+      if (currentError) {
+        const status = currentError === ServiceError.NotFound ? 404 : 500;
+        const message = status === 404 ? "Arreglo no encontrado" : "Error actualizando arreglo";
+        return Response.json({ data: null, error: message }, { status });
+      }
+
+      updatedArreglo = fetchedArreglo;
     }
-
-    updatedArreglo = currentArreglo;
   }
 
   if (detalle_formulario) {
