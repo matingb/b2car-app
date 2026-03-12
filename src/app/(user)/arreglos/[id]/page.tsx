@@ -50,6 +50,7 @@ export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [data, setData] = useState<ArregloDetalleData | null>(null);
+  const [pageLoading, setPageLoading] = useState(true);
   const [openModal, setOpenModal] = useState(false);
   const [customServiciosDraft, setCustomServiciosDraft] = useState<ServicioLinea[]>([]);
   const {
@@ -97,19 +98,27 @@ export default function ArregloDetailsPage() {
     window.open(url, "_blank");
   };
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (options?: { showPageLoading?: boolean }) => {
+    const showPageLoading = options?.showPageLoading ?? false;
+    if (showPageLoading) {
+      setPageLoading(true);
+    }
     try {
       const data = await fetchById(params.id);
       if (!data) return;
       setData(data);
     } catch (err: unknown) {
       console.error(err);
+    } finally {
+      if (showPageLoading) {
+        setPageLoading(false);
+      }
     }
   }, [params.id, fetchById]);
 
   useEffect(() => {
     async function load() {
-      await reload();
+      await reload({ showPageLoading: true });
     }
     load();
   }, [params.id, reload]);
@@ -292,7 +301,7 @@ export default function ArregloDetailsPage() {
     setCustomServiciosDraft([]);
   }, [data?.arreglo?.id, isCustomTipoSelected]);
 
-  if (loading) return loadingScreen();
+  if (pageLoading) return loadingScreen();
 
   if (!data?.arreglo) {
     return (
@@ -621,7 +630,7 @@ export default function ArregloDetailsPage() {
           onClose={handleCloseModal}
           onSubmitSuccess={async (nuevo) => {
             setData((prev) => (prev ? { ...prev, arreglo: nuevo } : prev));
-            await reload();
+            //await reload();
           }}
           vehiculoId={arreglo.vehiculo.id}
           initial={{

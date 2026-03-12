@@ -20,6 +20,7 @@ import ArregloFormFields, {
   type ArregloFormFieldsInternal,
   type ArregloFormFieldsValues,
 } from "@/app/components/arreglos/ArregloFormFields";
+import { logger } from "@/lib/logger";
 
 type Props = {
   open: boolean;
@@ -178,7 +179,6 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
 
       if (isEdit && initial?.id) {
         response = await update(initial.id, payload);
-        if (!response) return;
       } else {
         if (!tallerSeleccionadoId) {
           throw new Error("Ocurrió un error al crear el arreglo");
@@ -212,9 +212,14 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         } as CreateArregloInput);
       }
 
-      if (response) {
-        onSubmitSuccess?.(response);
+      if (!response) {
+        throw new Error(
+          isEdit
+            ? "No se pudo actualizar el arreglo"
+            : "No se pudo crear el arreglo"
+        );
       }
+      onSubmitSuccess?.(response);
 
       onClose();
       if (!isEdit) {
@@ -259,6 +264,16 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       submitText={isEdit ? "Guardar cambios" : "Crear"}
       submitting={submitting}
       disabledSubmit={!isValid}
+      modalError={
+        error
+          ? {
+            titulo: isEdit
+              ? "No se pudo actualizar el arreglo"
+              : "No se pudo crear el arreglo",
+            descripcion: error,
+          }
+          : null
+      }
       modalStyle={{
         width: "min(860px, 96vw)",
         maxHeight: "90dvh",
@@ -278,12 +293,6 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           onChange={(next) => setInternal(next)}
         />
       </div>
-
-      {error && <div style={modalStyles.error}>{error}</div>}
     </Modal>
   );
 }
-
-const modalStyles = {
-  error: { color: "#b00020", fontSize: 13, marginTop: 6 },
-} as const;

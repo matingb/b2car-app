@@ -33,6 +33,11 @@ export default function Modal({
 }: Props) {
   const titleId = useId();
   const restoreScrollRef = useRef<null | (() => void)>(null);
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await onSubmit(e);
+  };
 
   useEffect(() => {
     if (!open) {
@@ -99,7 +104,7 @@ export default function Modal({
             </h2>
           </div>
 
-          <form onSubmit={onSubmit}>
+          <form onSubmit={handleFormSubmit}>
             {modalError ? (
               <div style={styles.errorBox} role="alert" aria-live="polite" data-testid="modal-error">
                 <div style={styles.errorTitle}>{modalError.titulo}</div>

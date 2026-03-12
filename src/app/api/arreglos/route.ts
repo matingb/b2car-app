@@ -10,6 +10,10 @@ import { ServiceError } from "../serviceError";
 import { detalleArregloService } from "@/app/api/arreglos/detalleArregloService";
 import type { ArregloListFilters } from "./arregloRepository";
 import { normalizePaginationLimit } from "@/lib/pagination";
+import {
+    buildTerminadoRequiredFieldsErrorMessage,
+    findMissingRequiredCustomFormFields,
+} from "@/lib/arreglosCustomFormRequired";
 
 export type GetArreglosResponse = {
     data: Arreglo[] | null;
@@ -104,6 +108,40 @@ export async function POST(req: Request) {
     }
 
     const estadoValue = estadoRaw as EstadoArreglo;
+    const detalleFormularioConfigId = detalle_formulario
+        ? String(detalle_formulario.formulario_id ?? detalle_formulario.config_id ?? "").trim()
+        : "";
+    const detalleFormularioMetadata = Array.isArray(detalle_formulario?.metadata)
+        ? detalle_formulario.metadata
+        : [];
+
+    if (estadoValue === "TERMINADO" && detalleFormularioConfigId) {
+        const { data: formularioRow, error: formularioError } = await supabase
+            .from("formularios")
+            .select("metadata")
+            .eq("id", detalleFormularioConfigId)
+            .maybeSingle();
+
+        if (formularioError) {
+            return Response.json({ error: "Error cargando formulario custom" }, { status: 500 });
+        }
+
+        if (!formularioRow) {
+            return Response.json({ error: "Formulario custom no encontrado" }, { status: 400 });
+        }
+
+        const missingFields = findMissingRequiredCustomFormFields({
+            formMetadata: formularioRow.metadata,
+            detalleMetadata: detalleFormularioMetadata,
+        });
+
+        if (missingFields.length > 0) {
+            return Response.json(
+                { error: buildTerminadoRequiredFieldsErrorMessage(missingFields) },
+                { status: 400 }
+            );
+        }
+    }
 
     const ivaRate = IVA_RATE
     const computedSinIva = Number((precioFinalNumber / (1 + ivaRate)).toFixed(2));

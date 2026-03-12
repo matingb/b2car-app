@@ -20,17 +20,66 @@ vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
 vi.mock("../arregloService", () => ({
   arregloService: {
     updateById: vi.fn(),
+    getByIdWithVehiculo: vi.fn(),
     deleteById: vi.fn(),
   },
 }));
 
 describe("Mutaciones /api/arreglos/[id]", () => {
-  const mockSupabase = {} as Awaited<ReturnType<typeof createClient>>;
+  let detalleLookupResult: { data: unknown; error: unknown };
+  let formularioLookupResult: { data: unknown; error: unknown };
+
+  const mockSupabase = {
+    from: vi.fn((table: string) => {
+      if (table === "detalle_form_custom") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(async () => detalleLookupResult),
+              })),
+            })),
+          })),
+        };
+      }
+
+      if (table === "formularios") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn(async () => formularioLookupResult),
+            })),
+          })),
+        };
+      }
+
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            order: vi.fn(() => ({
+              limit: vi.fn(async () => ({ data: [], error: null })),
+            })),
+          })),
+        })),
+      };
+    }),
+  } as unknown as Awaited<ReturnType<typeof createClient>>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    detalleLookupResult = { data: [], error: null };
+    formularioLookupResult = { data: null, error: null };
+
     vi.mocked(createClient).mockResolvedValue(mockSupabase);
-    vi.mocked(arregloService.updateById).mockResolvedValue({ data: { id: "a1" } as Arreglo, error: null });
+    vi.mocked(arregloService.updateById).mockResolvedValue({
+      data: { id: "a1" } as Arreglo,
+      error: null,
+    });
+    vi.mocked(arregloService.getByIdWithVehiculo).mockResolvedValue({
+      data: { id: "a1", estado: "EN_PROGRESO" } as Arreglo,
+      error: null,
+    });
     vi.mocked(arregloService.deleteById).mockResolvedValue(
       { error: null } as unknown as { error: null }
     );
@@ -105,6 +154,93 @@ describe("Mutaciones /api/arreglos/[id]", () => {
     expect(statsService.onDataChanged).not.toHaveBeenCalled();
   });
 
+  it("PUT: bloquea transicion a TERMINADO cuando faltan required", async () => {
+    detalleLookupResult = {
+      data: [
+        {
+          config_id: "f1",
+          metadata: [{ title: "Checklist", inputs: [{ title: "Patente", value: null }] }],
+        },
+      ],
+      error: null,
+    };
+    formularioLookupResult = {
+      data: {
+        metadata: [
+          {
+            title: "Checklist",
+            inputs: [{ key: "patente", label: "Patente", required: true }],
+          },
+        ],
+      },
+      error: null,
+    };
+
+    const req = new NextRequest("http://localhost/api/arreglos/a1", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ estado: "TERMINADO" }),
+    });
+
+    const response = await PUT(req, { params: Promise.resolve({ id: "a1" }) });
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(String(body?.error ?? "")).toContain("Patente");
+    expect(arregloService.updateById).not.toHaveBeenCalled();
+    expect(statsService.onDataChanged).not.toHaveBeenCalled();
+  });
+
+  it("PUT: permite transicion a TERMINADO cuando required estan completos", async () => {
+    detalleLookupResult = {
+      data: [
+        {
+          config_id: "f1",
+          metadata: [{ title: "Checklist", inputs: [{ title: "Patente", value: "AA123BB" }] }],
+        },
+      ],
+      error: null,
+    };
+    formularioLookupResult = {
+      data: {
+        metadata: [
+          {
+            title: "Checklist",
+            inputs: [{ key: "patente", label: "Patente", required: true }],
+          },
+        ],
+      },
+      error: null,
+    };
+
+    const req = new NextRequest("http://localhost/api/arreglos/a1", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ estado: "TERMINADO" }),
+    });
+
+    const response = await PUT(req, { params: Promise.resolve({ id: "a1" }) });
+
+    expect(response.status).toBe(200);
+    expect(arregloService.updateById).toHaveBeenCalledTimes(1);
+    expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("PUT: permite transicion a TERMINADO cuando no hay detalle/config", async () => {
+    detalleLookupResult = { data: [], error: null };
+
+    const req = new NextRequest("http://localhost/api/arreglos/a1", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ estado: "TERMINADO" }),
+    });
+
+    const response = await PUT(req, { params: Promise.resolve({ id: "a1" }) });
+
+    expect(response.status).toBe(200);
+    expect(arregloService.updateById).toHaveBeenCalledTimes(1);
+  });
+
   it("PUT: si el JSON es inválido, responde 400", async () => {
     const req = new NextRequest("http://localhost/api/arreglos/a1", {
       method: "PUT",
@@ -125,10 +261,8 @@ describe("Mutaciones /api/arreglos/[id]", () => {
     const req = {} as NextRequest;
     const params = Promise.resolve({ id: "a1" });
     await DELETE(req, { params });
-    
+
     expect(arregloService.deleteById).toHaveBeenCalledTimes(1);
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
   });
 });
-
-

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  shouldBlockCreateByCustomRequired,
   validateArregloForm,
   type ArregloFormFieldsValues,
 } from "./ArregloFormFields";
@@ -57,6 +58,52 @@ describe("validateArregloForm", () => {
     it("Dado un arreglo, al validar: " + name, () => {
       expect(validateArregloForm(values, vehiculoId)).toBe(expected);
     });
+  });
+});
+
+describe("shouldBlockCreateByCustomRequired", () => {
+  it("bloquea cuando es creacion, estado TERMINADO, tipo custom y faltan required", () => {
+    expect(
+      shouldBlockCreateByCustomRequired({
+        isEdit: false,
+        estado: "TERMINADO",
+        isCustomTipoSelected: true,
+        missingRequiredCount: 1,
+      })
+    ).toBe(true);
+  });
+
+  it("no bloquea cuando no faltan required", () => {
+    expect(
+      shouldBlockCreateByCustomRequired({
+        isEdit: false,
+        estado: "TERMINADO",
+        isCustomTipoSelected: true,
+        missingRequiredCount: 0,
+      })
+    ).toBe(false);
+  });
+
+  it("no bloquea en edicion", () => {
+    expect(
+      shouldBlockCreateByCustomRequired({
+        isEdit: true,
+        estado: "TERMINADO",
+        isCustomTipoSelected: true,
+        missingRequiredCount: 2,
+      })
+    ).toBe(false);
+  });
+
+  it("no bloquea si no es TERMINADO", () => {
+    expect(
+      shouldBlockCreateByCustomRequired({
+        isEdit: false,
+        estado: "EN_PROGRESO",
+        isCustomTipoSelected: true,
+        missingRequiredCount: 2,
+      })
+    ).toBe(false);
   });
 });
 
