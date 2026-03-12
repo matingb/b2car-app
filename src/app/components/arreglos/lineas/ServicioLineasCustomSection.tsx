@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { css } from "@emotion/react";
-import { LibraryBig } from "lucide-react";
+import { Check, LibraryBig, Pencil } from "lucide-react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
 import type { ServicioLinea } from "./ServicioLineasEditableSection";
@@ -52,6 +52,11 @@ type Props = {
     costo: number;
     metadata: ArregloFormularioLineaValue[];
   }) => void;
+  onConfirmEdit?: (payload: {
+    costo: number;
+    metadata: ArregloFormularioLineaValue[];
+    items: ServicioLinea[];
+  }) => Promise<void> | void;
 };
 
 type RawRecord = Record<string, unknown>;
@@ -343,6 +348,7 @@ export default function ServicioLineasCustomSection({
   disabled = false,
   onServiciosChange,
   onDetalleChange,
+  onConfirmEdit,
 }: Props) {
   const [isEditing, setIsEditing] = useState<boolean>(editableOnLoad);
 
@@ -445,10 +451,48 @@ export default function ServicioLineasCustomSection({
     }));
   };
 
+  const handleHeaderEditClick = async () => {
+    if (disabled) return;
+
+    if (!isEditing) {
+      setIsEditing(true);
+      return;
+    }
+
+    try {
+      await onConfirmEdit?.({
+        costo: costoTotal,
+        metadata: detalleMetadata,
+        items,
+      });
+      setIsEditing(false);
+    } catch {
+      // Keep editing mode when save fails.
+    }
+  };
+
   return (
     <LineasSectionShell
       title={formTitle?.trim() || "Formulario"}
       titleIcon={<LibraryBig size={18} />}
+      subtotalBeforeLabel={
+        showEditButton ? (
+          <button
+            type="button"
+            title={isEditing ? "Confirmar" : "Editar"}
+            style={customStyles.headerEditIconButton}
+            aria-label={isEditing ? "Confirmar cambios" : "Editar formulario"}
+            onClick={handleHeaderEditClick}
+            disabled={disabled}
+          >
+            {isEditing ? (
+              <Check size={18} color={COLOR.ACCENT.PRIMARY} />
+            ) : (
+              <Pencil size={18} color={COLOR.ICON.MUTED} />
+            )}
+          </button>
+        ) : null
+      }
       subtotal={
         isEditing ? (
           <input
@@ -469,19 +513,6 @@ export default function ServicioLineasCustomSection({
       subtotalLabel="Costo $"
     >
       <div style={lineaStyles.list}>
-        {showEditButton ? (
-          <div style={customStyles.actionsRow}>
-            <button
-              type="button"
-              onClick={() => setIsEditing((prev) => !prev)}
-              disabled={disabled}
-              style={customStyles.editButton}
-            >
-              {isEditing ? "Cancelar" : "Editar"}
-            </button>
-          </div>
-        ) : null}
-
         {lineDefs.length === 0 ? (
           <div style={lineaStyles.emptyState}>Sin lineas custom configuradas.</div>
         ) : null}
@@ -671,19 +702,15 @@ const customStyles = {
     fontWeight: 700,
     fontSize: 16,
   },
-  actionsRow: {
-    display: "flex",
-    justifyContent: "flex-end",
-    marginBottom: 6,
-  },
-  editButton: {
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.INPUT.PRIMARY.BACKGROUND,
-    color: COLOR.TEXT.PRIMARY,
-    borderRadius: 8,
-    padding: "6px 12px",
+  headerEditIconButton: {
+    border: "none",
+    background: "transparent",
     cursor: "pointer",
-    fontWeight: 700,
+    padding: 8,
+    borderRadius: 12,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
   fieldsGrid: {
     display: "flex",

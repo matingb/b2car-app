@@ -6,7 +6,7 @@
 --    Cada fila = un campo que se renderiza en el detalle del arreglo.
 -- ─────────────────────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.formulario_arreglo_config (
+CREATE TABLE IF NOT EXISTS public.formularios (
   id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id        uuid        NOT NULL
                                REFERENCES public.tenants(id)
@@ -19,19 +19,19 @@ CREATE TABLE IF NOT EXISTS public.formulario_arreglo_config (
   updated_at       timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_formulario_arreglo_config_tenant
-  ON public.formulario_arreglo_config (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_formularios_tenant
+  ON public.formularios (tenant_id);
 
-DROP TRIGGER IF EXISTS formulario_arreglo_config_set_updated_at
-  ON public.formulario_arreglo_config;
-CREATE TRIGGER formulario_arreglo_config_set_updated_at
-  BEFORE UPDATE ON public.formulario_arreglo_config
+DROP TRIGGER IF EXISTS formularios_set_updated_at
+  ON public.formularios;
+CREATE TRIGGER formularios_set_updated_at
+  BEFORE UPDATE ON public.formularios
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-ALTER TABLE public.formulario_arreglo_config ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_access ON public.formulario_arreglo_config;
+ALTER TABLE public.formularios ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_access ON public.formularios;
 CREATE POLICY tenant_access
-  ON public.formulario_arreglo_config
+  ON public.formularios
   TO authenticated
   USING  (tenant_id = public.current_tenant_id())
   WITH CHECK (tenant_id = public.current_tenant_id());
@@ -43,7 +43,7 @@ CREATE POLICY tenant_access
 --    Cada fila = un campo completado, generado a partir de la config.
 -- ─────────────────────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.detalle_arreglo_formulario (
+CREATE TABLE IF NOT EXISTS public.detalle_form_custom (
   id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id        uuid        NOT NULL
                                REFERENCES public.tenants(id)
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS public.detalle_arreglo_formulario (
                                REFERENCES public.arreglos(id)
                                ON DELETE CASCADE,
   config_id        uuid                              
-                               REFERENCES public.formulario_arreglo_config(id)
+                               REFERENCES public.formularios(id)
                                ON DELETE SET NULL,
   costo            numeric(12,2) NOT NULL DEFAULT 0, 
   metadata         jsonb,                            
@@ -60,25 +60,25 @@ CREATE TABLE IF NOT EXISTS public.detalle_arreglo_formulario (
   updated_at       timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_detalle_arreglo_formulario_arreglo_id
-  ON public.detalle_arreglo_formulario (arreglo_id);
+CREATE INDEX IF NOT EXISTS idx_detalle_form_custom_arreglo_id
+  ON public.detalle_form_custom (arreglo_id);
 
-CREATE INDEX IF NOT EXISTS idx_detalle_arreglo_formulario_tenant_arreglo
-  ON public.detalle_arreglo_formulario (tenant_id, arreglo_id);
+CREATE INDEX IF NOT EXISTS idx_detalle_form_custom_tenant_arreglo
+  ON public.detalle_form_custom (tenant_id, arreglo_id);
 
-CREATE INDEX IF NOT EXISTS idx_detalle_arreglo_formulario_config_id
-  ON public.detalle_arreglo_formulario (config_id);
+CREATE INDEX IF NOT EXISTS idx_detalle_form_custom_config_id
+  ON public.detalle_form_custom (config_id);
 
-DROP TRIGGER IF EXISTS detalle_arreglo_formulario_set_updated_at
-  ON public.detalle_arreglo_formulario;
-CREATE TRIGGER detalle_arreglo_formulario_set_updated_at
-  BEFORE UPDATE ON public.detalle_arreglo_formulario
+DROP TRIGGER IF EXISTS detalle_form_custom_set_updated_at
+  ON public.detalle_form_custom;
+CREATE TRIGGER detalle_form_custom_set_updated_at
+  BEFORE UPDATE ON public.detalle_form_custom
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-ALTER TABLE public.detalle_arreglo_formulario ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_access ON public.detalle_arreglo_formulario;
+ALTER TABLE public.detalle_form_custom ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_access ON public.detalle_form_custom;
 CREATE POLICY tenant_access
-  ON public.detalle_arreglo_formulario
+  ON public.detalle_form_custom
   TO authenticated
   USING  (tenant_id = public.current_tenant_id())
   WITH CHECK (tenant_id = public.current_tenant_id());

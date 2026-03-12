@@ -4,9 +4,9 @@ import {
 	formularioRepository,
     FormularioRepository
 } from "./formularioRepository";
-import { FormularioConfigDTO } from "@/model/dtos";
+import { FormularioTemplateDTO } from "@/model/dtos";
 
-export type FormularioConfigItem = {
+export type FormularioTemplateItem = {
 	id: string;
 	descripcion: string;
 	costoDefault: number;
@@ -15,7 +15,7 @@ export type FormularioConfigItem = {
 	updated_at: string;
 };
 
-function mapFormularioConfig(row: FormularioConfigDTO): FormularioConfigItem {
+function mapFormularioTemplate(row: FormularioTemplateDTO): FormularioTemplateItem {
 	return {
 		id: row.id,
 		descripcion: row.descripcion,
@@ -30,13 +30,13 @@ export function createFormularioService(repository : FormularioRepository) {
 	return {
 		async listAll(
 			supabase: SupabaseClient
-		): Promise<{ data: FormularioConfigItem[]; error: ServiceError | null }> {
+		): Promise<{ data: FormularioTemplateItem[]; error: ServiceError | null }> {
 			const { data, error } = await repository.listAll(supabase);
 
 		if (error) return { data: [], error: toServiceError(error) };
 
 			return {
-				data: data.map(mapFormularioConfig),
+				data: data.map(mapFormularioTemplate),
 				error: null,
 			};
 		},

@@ -116,7 +116,7 @@ export type OperacionAsignacionArregloDTO = {
     arreglo_id: string;
 };
 
-export type FormularioConfigDTO = {
+export type FormularioTemplateDTO = {
     id: string;
     tenant_id: string;
     descripcion: string;

@@ -3,7 +3,10 @@ import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { arregloService } from "@/app/api/arreglos/arregloService";
-import type { UpdateArregloRequest } from "../arregloRequests";
+import type {
+  CreateArregloDetalleFormularioInput,
+  UpdateArregloRequest,
+} from "../arregloRequests";
 import { ServiceError } from "../../serviceError";
 import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
 import type { ArregloFormularioLineaValue } from "../arregloRequests";
@@ -57,7 +60,7 @@ export type ArregloDetalleData = {
 export type DetalleArregloFormulario = {
   id: string;
   arreglo_id: string;
-  config_id: string | null;
+  formulario_id: string | null;
   costo: number;
   metadata: ArregloFormularioLineaValue[];
   created_at?: string;
@@ -111,8 +114,8 @@ export async function GET(
   const asignaciones = (Array.isArray(rpc.asignaciones) ? rpc.asignaciones : []) as AsignacionArregloOperacion[];
 
   const { data: detalleFormularioRows, error: detalleFormularioError } = await supabase
-    .from("detalle_arreglo_formulario")
-    .select("id, arreglo_id, config_id, costo, metadata, created_at, updated_at")
+    .from("detalle_form_custom")
+    .select("id, arreglo_id, formulario_id:config_id, costo, metadata, created_at, updated_at")
     .eq("arreglo_id", id)
     .order("created_at", { ascending: false })
     .limit(1);
@@ -132,10 +135,10 @@ export async function GET(
     ? {
       id: String(detalleFormularioRaw.id ?? ""),
       arreglo_id: String(detalleFormularioRaw.arreglo_id ?? ""),
-      config_id:
-        detalleFormularioRaw.config_id == null
+      formulario_id:
+        detalleFormularioRaw.formulario_id == null
           ? null
-          : String(detalleFormularioRaw.config_id),
+          : String(detalleFormularioRaw.formulario_id),
       costo: Number(detalleFormularioRaw.costo) || 0,
       metadata: Array.isArray(detalleFormularioRaw.metadata)
         ? (detalleFormularioRaw.metadata as ArregloFormularioLineaValue[])
@@ -169,31 +172,140 @@ export async function PUT(
   const supabase = await createClient();
   const { id } = await params;
 
-  const payload: (UpdateArregloRequest & { estado?: unknown }) | null = await req.json().catch(() => null);
+  const payload:
+    | (UpdateArregloRequest & {
+      estado?: unknown;
+      detalle_formulario?: CreateArregloDetalleFormularioInput;
+    })
+    | null = await req.json().catch(() => null);
   if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 });
 
-  if (payload.estado !== undefined) {
-    const estado = String(payload.estado ?? "").trim().toUpperCase();
+  const { detalle_formulario, ...arregloPatch } = payload;
+
+  if (arregloPatch.estado !== undefined) {
+    const estado = String(arregloPatch.estado ?? "").trim().toUpperCase();
     if (!(ESTADOS_ARREGLO as string[]).includes(estado)) {
       return Response.json({ data: null, error: "Estado de arreglo inválido" }, { status: 400 });
     }
-    payload.estado = estado as EstadoArreglo;
+    arregloPatch.estado = estado as EstadoArreglo;
   }
 
-  const { data, error } = await arregloService.updateById(
-    supabase,
-    id,
-    payload
-  );
+  const patchEntries = Object.entries(arregloPatch).filter(([, value]) => value !== undefined);
 
-  if (error) {
-    const status = error === ServiceError.NotFound ? 404 : 500;
-    const message = status === 404 ? "Arreglo no encontrado" : "Error actualizando arreglo";
-    return Response.json({ data: null, error: message }, { status });
+  let updatedArreglo: Arreglo | null = null;
+  if (patchEntries.length > 0) {
+    const { data, error } = await arregloService.updateById(
+      supabase,
+      id,
+      arregloPatch
+    );
+
+    if (error) {
+      const status = error === ServiceError.NotFound ? 404 : 500;
+      const message = status === 404 ? "Arreglo no encontrado" : "Error actualizando arreglo";
+      return Response.json({ data: null, error: message }, { status });
+    }
+
+    updatedArreglo = data;
+  } else {
+    const { data: currentArreglo, error: currentError } = await arregloService.getByIdWithVehiculo(
+      supabase,
+      id
+    );
+
+    if (currentError) {
+      const status = currentError === ServiceError.NotFound ? 404 : 500;
+      const message = status === 404 ? "Arreglo no encontrado" : "Error actualizando arreglo";
+      return Response.json({ data: null, error: message }, { status });
+    }
+
+    updatedArreglo = currentArreglo;
+  }
+
+  if (detalle_formulario) {
+    const hasConfigId =
+      detalle_formulario.formulario_id !== undefined ||
+      detalle_formulario.config_id !== undefined;
+    const configId = hasConfigId
+      ? String(detalle_formulario.formulario_id ?? detalle_formulario.config_id ?? "").trim() || null
+      : undefined;
+    const costo = Number(detalle_formulario.costo);
+    const metadata = Array.isArray(detalle_formulario.metadata)
+      ? detalle_formulario.metadata
+      : [];
+
+    if (!Number.isFinite(costo) || costo < 0) {
+      return Response.json(
+        { data: null, error: "Costo inválido en detalle de formulario" },
+        { status: 400 }
+      );
+    }
+
+    const { data: detalleRows, error: detalleLookupError } = await supabase
+      .from("detalle_form_custom")
+      .select("id")
+      .eq("arreglo_id", id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (detalleLookupError) {
+      return Response.json(
+        { data: null, error: "Error cargando detalle de formulario" },
+        { status: 500 }
+      );
+    }
+
+    const detalleId = Array.isArray(detalleRows)
+      ? String(detalleRows[0]?.id ?? "").trim()
+      : "";
+
+    if (detalleId) {
+      const updatePayload: {
+        costo: number;
+        metadata: ArregloFormularioLineaValue[];
+        config_id?: string | null;
+      } = {
+        costo,
+        metadata,
+      };
+      if (hasConfigId) {
+        updatePayload.config_id = configId;
+      }
+
+      const { error: detalleUpdateError } = await supabase
+        .from("detalle_form_custom")
+        .update(updatePayload)
+        .eq("id", detalleId);
+
+      if (detalleUpdateError) {
+        return Response.json(
+          { data: null, error: "Error actualizando detalle del formulario" },
+          { status: 500 }
+        );
+      }
+    } else {
+      const { error: detalleInsertError } = await supabase
+        .from("detalle_form_custom")
+        .insert([
+          {
+            arreglo_id: id,
+            config_id: configId ?? null,
+            costo,
+            metadata,
+          },
+        ]);
+
+      if (detalleInsertError) {
+        return Response.json(
+          { data: null, error: "Error guardando detalle del formulario" },
+          { status: 500 }
+        );
+      }
+    }
   }
 
   await statsService.onDataChanged(supabase);
-  return Response.json({ data: data, error: null }, { status: 200 });
+  return Response.json({ data: updatedArreglo, error: null }, { status: 200 });
 }
 
 // DELETE /api/arreglos/[id] -> eliminar arreglo
