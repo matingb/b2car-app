@@ -11,6 +11,7 @@ export type ArregloFormularioLineaValue = {
 };
 
 export type CreateArregloDetalleFormularioInput = {
+  formulario_id?: string;
   config_id?: string;
   costo: number;
   metadata: ArregloFormularioLineaValue[];
@@ -59,6 +60,7 @@ export type UpdateArregloRequest = {
   observaciones?: string;
   precio_final?: number;
   esta_pago?: boolean;
+  detalle_formulario?: CreateArregloDetalleFormularioInput;
 };
 
 

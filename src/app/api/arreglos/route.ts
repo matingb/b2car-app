@@ -220,9 +220,11 @@ export async function POST(req: Request) {
         }
     }
 
-    // Detalle custom del formulario (1 fila por arreglo + formulario seleccionado)
+    // Detalle custom del formulario (1 fila por arreglo + formulario template seleccionado)
     if (detalle_formulario) {
-        const configId = String(detalle_formulario.config_id ?? "").trim() || null;
+        const formularioId = String(
+            detalle_formulario.formulario_id ?? detalle_formulario.config_id ?? ""
+        ).trim() || null;
         const costo = Number(detalle_formulario.costo);
         const metadata = Array.isArray(detalle_formulario.metadata)
             ? detalle_formulario.metadata
@@ -233,11 +235,11 @@ export async function POST(req: Request) {
         }
 
         const { error: formErr } = await supabase
-            .from("detalle_arreglo_formulario")
+            .from("detalle_form_custom")
             .insert([
                 {
                     arreglo_id: arregloId,
-                    config_id: configId,
+                    config_id: formularioId,
                     costo,
                     metadata,
                 },

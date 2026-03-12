@@ -8,20 +8,20 @@ import React, {
 	useMemo,
 	useState,
 } from "react";
-import type { GetFormularioConfigResponse } from "@/app/api/arreglos/formularios/route";
-import type { FormularioConfigItem } from "@/app/api/arreglos/formularios/formularioService";
+import type { GetFormulariosResponse } from "@/app/api/arreglos/formularios/route";
+import type { FormularioTemplateItem } from "@/app/api/arreglos/formularios/formularioService";
 import { logger } from "@/lib/logger";
 
 type FormulariosContextType = {
-	formularios: FormularioConfigItem[];
+	formularios: FormularioTemplateItem[];
 	loading: boolean;
-	fetchAll: () => Promise<FormularioConfigItem[] | null>;
+	fetchAll: () => Promise<FormularioTemplateItem[] | null>;
 };
 
 const FormulariosContext = createContext<FormulariosContextType | null>(null);
 
 export function FormulariosProvider({ children }: { children: React.ReactNode }) {
-	const [formularios, setFormularios] = useState<FormularioConfigItem[]>([]);
+	const [formularios, setFormularios] = useState<FormularioTemplateItem[]>([]);
 	const [loading, setLoading] = useState(false);
 
 	const fetchAll = useCallback(async () => {
@@ -31,7 +31,7 @@ export function FormulariosProvider({ children }: { children: React.ReactNode })
 				method: "GET",
 			});
 
-			const body: GetFormularioConfigResponse = await response.json();
+			const body: GetFormulariosResponse = await response.json();
 			if (!response.ok || body.error) {
 				throw new Error(body.error || `Error ${response.status}`);
 			}

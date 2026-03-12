@@ -204,7 +204,7 @@ export default function ArregloFormFields({
       detalleFormulario:
         isCustomTipoSelected && selectedCustomFormulario
           ? {
-            config_id: selectedCustomFormulario.id,
+            formulario_id: selectedCustomFormulario.id,
             costo: Number(customDetalleFormulario?.costo) || 0,
             metadata: customDetalleFormulario?.metadata ?? [],
           }

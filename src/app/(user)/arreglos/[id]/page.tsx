@@ -34,6 +34,7 @@ import type {
   ArregloDetalleData,
   AsignacionArregloLinea,
 } from "@/app/api/arreglos/[id]/route";
+import type { ArregloFormularioLineaValue } from "@/app/api/arreglos/arregloRequests";
 import ServicioLineasEditableSection from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
 import ServicioLineasCustomSection, {
   parseCustomServicioLineDefs,
@@ -327,6 +328,44 @@ export default function ArregloDetailsPage() {
   );
   const totalCalculado = subtotalServicios + subtotalServiciosCustom + subtotalRepuestos;
 
+  const handleConfirmCustomEdit = async ({
+    costo,
+    metadata,
+  }: {
+    costo: number;
+    metadata: ArregloFormularioLineaValue[];
+  }) => {
+    if (!data?.arreglo?.id) return;
+
+    const nextPrecioFinal = subtotalServicios + costo + subtotalRepuestos;
+
+    try {
+      await update(data.arreglo.id, {
+        precio_final: nextPrecioFinal,
+        detalle_formulario: {
+          formulario_id: selectedCustomFormulario?.id,
+          costo,
+          metadata,
+        },
+      });
+
+      success(
+        "Formulario actualizado",
+        "Se actualizaron el arreglo y su detalle custom."
+      );
+      await reload();
+    } catch (err: unknown) {
+      logger.error("Error updating custom form detail:", err);
+      error(
+        "Error",
+        err instanceof Error
+          ? err.message
+          : "No se pudo actualizar el formulario custom"
+      );
+      throw err;
+    }
+  };
+
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -486,7 +525,22 @@ export default function ArregloDetailsPage() {
             </div>
           </div>
         </div>
-
+        {isCustomTipoSelected ? (
+          <>
+            <ServicioLineasCustomSection
+              formTitle={selectedCustomFormulario?.descripcion}
+              defaultCosto={selectedCustomFormulario?.costoDefault}
+              lineDefs={customLineDefs}
+              initialDetalle={data.detalle_formulario}
+              editableOnLoad={false}
+              showEditButton
+              disabled={loading}
+              onServiciosChange={setCustomServiciosDraft}
+              onConfirmEdit={handleConfirmCustomEdit}
+            />
+            <div style={styles.divider} />
+          </>
+        ) : null}
         <ServicioLineasEditableSection
           items={detalles.map((d) => ({
             id: d.id,
@@ -499,29 +553,6 @@ export default function ArregloDetailsPage() {
           onDelete={handleDeleteServicio}
           disabled={loading}
         />
-
-        {isCustomTipoSelected ? (
-          <>
-            <div
-              style={{
-                height: 1,
-                background: COLOR.BORDER.SUBTLE,
-                margin: "12px 0",
-              }}
-            />
-            <ServicioLineasCustomSection
-              formTitle={selectedCustomFormulario?.descripcion}
-              defaultCosto={selectedCustomFormulario?.costoDefault}
-              lineDefs={customLineDefs}
-              initialDetalle={data.detalle_formulario}
-              editableOnLoad={false}
-              showEditButton
-              disabled={loading}
-              onServiciosChange={setCustomServiciosDraft}
-            />
-          </>
-        ) : null}
-
         <div
           style={{
             height: 1,
@@ -650,6 +681,11 @@ function loadingScreen() {
 }
 
 const styles = {
+  divider: {
+    height: 1,
+    background: COLOR.BORDER.SUBTLE,
+    margin: "18px 0",
+  },
   iconBtn: {
     border: "none",
     background: "transparent",

@@ -1,20 +1,20 @@
 import { logger } from "@/lib/logger";
 import { createClient } from "@/supabase/server";
-import { formularioService, type FormularioConfigItem } from "./formularioService";
+import { formularioService, type FormularioTemplateItem } from "./formularioService";
 
-export type GetFormularioConfigResponse = {
-	data: FormularioConfigItem[] | null;
+export type GetFormulariosResponse = {
+	data: FormularioTemplateItem[] | null;
 	error?: string | null;
 };
 
-// GET /api/arreglos/formularios -> listar configuración dinámica del formulario por tenant
+// GET /api/arreglos/formularios -> listar formularios template por tenant
 export async function GET() {
 	const supabase = await createClient();
 	const { data: authData } = await supabase.auth.getSession();
 
 	if (!authData.session) {
 		return Response.json(
-			{ data: null, error: "Unauthorized" } satisfies GetFormularioConfigResponse,
+			{ data: null, error: "Unauthorized" } satisfies GetFormulariosResponse,
 			{ status: 401 }
 		);
 	}
@@ -23,13 +23,13 @@ export async function GET() {
 	if (error) {
 		logger.error("GET /api/arreglos/formularios - error:", error);
 		return Response.json(
-			{ data: [], error: "Error cargando configuración de formulario" } satisfies GetFormularioConfigResponse,
+			{ data: [], error: "Error cargando formularios" } satisfies GetFormulariosResponse,
 			{ status: 500 }
 		);
 	}
 
 	return Response.json(
-		{ data, error: null } satisfies GetFormularioConfigResponse,
+		{ data, error: null } satisfies GetFormulariosResponse,
 		{ status: 200 }
 	);
 }
