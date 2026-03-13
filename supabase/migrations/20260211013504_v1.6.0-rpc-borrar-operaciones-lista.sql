@@ -1,4 +1,4 @@
-create or replace function rpc_borrar_operaciones_con_stock_lista(
+create or replace function public.rpc_borrar_operaciones_con_stock_lista(
 	p_operacion_ids uuid[]
 )
 returns void
