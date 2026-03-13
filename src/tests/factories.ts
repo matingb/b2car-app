@@ -344,6 +344,7 @@ export const createArregloDetalleData = (
         ],
       },
     ],
+    detalle_formulario: null,
     ...overrides,
   };
 };
