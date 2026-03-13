@@ -57,5 +57,35 @@ describe("Autocomplete", () => {
     expect(screen.queryByText("Ford")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Sin resultados")).not.toBeInTheDocument();
   });
+
+  it("cuando hideClearButton=true y hay un valor seleccionado, no muestra el botón de limpiar", () => {
+    render(
+      <Autocomplete
+        options={[{ value: "1", label: "Toyota" }]}
+        value="1"
+        onChange={() => {}}
+        hideClearButton
+      />
+    );
+  
+    expect(
+      screen.queryByTestId("autocomplete-clear-button")
+    ).not.toBeInTheDocument();
+  });
+
+  it("cuando hideClearButton=false y hay un valor seleccionado, muestra el botón de limpiar", () => {
+    render(
+      <Autocomplete
+        options={[{ value: "1", label: "Toyota" }]}
+        value="1"
+        onChange={() => {}}
+        hideClearButton={false}
+      />
+    );
+
+    expect(
+      screen.getByTestId("autocomplete-clear-button")
+    ).toBeInTheDocument();
+  });
 });
 

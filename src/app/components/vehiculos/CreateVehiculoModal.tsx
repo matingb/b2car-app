@@ -7,7 +7,7 @@ import Modal from "../ui/Modal";
 import VehiculoFormFields, {
   VehiculoFormFieldsValue,
 } from "./VehiculoFormFields";
-import { formatPatente, formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
+import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 
 type CreatedVehiculo = {
   id: string;
