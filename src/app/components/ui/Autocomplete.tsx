@@ -22,6 +22,7 @@ interface AutocompleteProps {
   allowCustomValue?: boolean;
   isLoading?: boolean;
   dataTestId?: string;
+  hideClearButton?: boolean;
 }
 
 export default function Autocomplete({
@@ -35,6 +36,7 @@ export default function Autocomplete({
   allowCustomValue = false,
   isLoading = false,
   dataTestId,
+  hideClearButton = false,
 }: AutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -240,12 +242,13 @@ export default function Autocomplete({
           autoComplete="off"
         />
         <div style={styles.iconContainer}>
-          {value && !disabled && (
+          {value && !disabled && !hideClearButton && (
             <button
               type="button"
               onClick={handleClear}
               style={styles.clearButton}
               aria-label="Limpiar"
+              data-testid="autocomplete-clear-button"
             >
               <X size={16} color={COLOR.TEXT.SECONDARY} />
             </button>
