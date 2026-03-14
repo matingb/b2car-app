@@ -4,10 +4,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
-import Dropdown, { type DropdownOption } from "@/app/components/ui/Dropdown";
 import DropdownMultiSelect from "@/app/components/ui/DropdownMultiSelect";
 import type { StockFilters } from "@/app/hooks/stock/useStockFilters";
 import type { StockStatus } from "@/lib/stock";
+import Autocomplete, { AutocompleteOption } from "../ui/Autocomplete";
 
 type Props = {
   open: boolean;
@@ -33,7 +33,7 @@ export default function StockFiltersModal({
     setCategorias(initial?.categorias ?? []);
   }, [open, initial]);
 
-  const estadoOptions = useMemo<DropdownOption[]>(
+  const estadoOptions = useMemo<AutocompleteOption[]>(
     () => [
       { value: "", label: "Todos" },
       { value: "critico", label: "Sin stock" },
@@ -71,11 +71,12 @@ export default function StockFiltersModal({
         <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>Estado</label>
-            <Dropdown
+            <Autocomplete
               value={estado}
               options={estadoOptions}
               onChange={(v) => setEstado(v as StockStatus | "")}
               data-testid="stock-filter-estado"
+              hideClearButton
             />
           </div>
         </div>

@@ -6,17 +6,20 @@ import { useRouter } from "next/navigation";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import { INVENTARIO_CATEGORIAS_DISPONIBLES } from "@/app/providers/InventarioProvider";
-import { useStockFilters, useStockStats } from "@/app/hooks/stock/useStockFilters";
+import {
+  useStockFilters,
+  useStockStats,
+} from "@/app/hooks/stock/useStockFilters";
 import StockToolbar from "@/app/components/stock/StockToolbar";
 import StockFiltersModal from "@/app/components/stock/StockFiltersModal";
 import StockCreateModal from "@/app/components/stock/StockCreateModal";
 import StockStats from "@/app/components/stock/StockStats";
-import Dropdown from "@/app/components/ui/Dropdown";
 import { COLOR } from "@/theme/theme";
 import StockItemCard from "@/app/components/stock/StockItemCard";
 import { LoaderCircle } from "lucide-react";
 import TallerCreateModal from "@/app/components/inventario/TallerCreateModal";
 import { logger } from "@/lib/logger";
+import Autocomplete from "@/app/components/ui/Autocomplete";
 
 export default function StockPage() {
   return <StockPageContent />;
@@ -24,7 +27,8 @@ export default function StockPage() {
 
 function StockPageContent() {
   const router = useRouter();
-  const { talleres, tallerSeleccionadoId, setTallerSeleccionadoId } = useTenant();
+  const { talleres, tallerSeleccionadoId, setTallerSeleccionadoId } =
+    useTenant();
   const { inventario, isLoading } = useInventario(tallerSeleccionadoId);
   const categoriasDisponibles = INVENTARIO_CATEGORIAS_DISPONIBLES;
   const state = useStockFilters(inventario);
@@ -34,7 +38,7 @@ function StockPageContent() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isTallerCreateOpen, setIsTallerCreateOpen] = useState(false);
 
-  logger.debug(inventario, tallerSeleccionadoId)
+  logger.debug(inventario, tallerSeleccionadoId);
 
   const stockSubtitle = `Administra el inventario de repuestos y productos${
     talleres.length > 1 ? " por taller" : ""
@@ -42,32 +46,28 @@ function StockPageContent() {
 
   return (
     <div>
-      <ScreenHeader
-        title="Stock"
-        subtitle={stockSubtitle}
-      />
+      <ScreenHeader title="Stock" subtitle={stockSubtitle} />
 
-      <div style={{ marginTop: 12 }}>
-        <div style={styles.topRow}>
-          <div style={styles.leftTopRow}>
-            <div style={styles.tallerLabel}>Taller</div>
-            <div style={{ width: 280, height: 40 }}>
-              <Dropdown
-                value={tallerSeleccionadoId}
-                options={talleres.map((t) => ({ value: t.id, label: t.nombre }))}
-                onChange={setTallerSeleccionadoId}
-                style={{ height: 40, padding: '0 12px' }}
-              />
-            </div>
-          </div>
+      {talleres.length > 1 && (
+        <div style={styles.tallerDropdownContainer}>
+          <div style={styles.tallerLabel}>Taller</div>
+          <Autocomplete
+            value={tallerSeleccionadoId}
+            options={talleres.map((t) => ({ value: t.id, label: t.nombre }))}
+            onChange={setTallerSeleccionadoId}
+            style={{ height: 40, width: "280px", padding: "0 12px" }}
+            hideClearButton
+          />
         </div>
-      </div>
+      )}
 
       <div style={{ marginTop: 12 }}>
         <StockStats
           stats={stats}
           selectedEstado={state.filters.estado}
-          onSelectEstado={(estado) => state.applyFilters({ ...state.filters, estado })}
+          onSelectEstado={(estado) =>
+            state.applyFilters({ ...state.filters, estado })
+          }
         />
       </div>
 
@@ -85,7 +85,9 @@ function StockPageContent() {
 
       <div style={{ marginTop: 12 }}>
         <div style={styles.resultsHeader}>
-          <div style={styles.resultsTitle}><h2>Inventario</h2></div>
+          <div style={styles.resultsTitle}>
+            <h2>Inventario</h2>
+          </div>
           <div style={styles.resultsCount}>
             {state.itemsFiltrados.length} de {inventario.length} items
           </div>
@@ -94,13 +96,19 @@ function StockPageContent() {
         {!isLoading && state.itemsFiltrados.length === 0 ? (
           <div style={styles.empty}>
             <div style={styles.emptyTitle}>No se encontraron items</div>
-            <div style={styles.emptySub}>Probá ajustando búsqueda o filtros.</div>
+            <div style={styles.emptySub}>
+              Probá ajustando búsqueda o filtros.
+            </div>
           </div>
         ) : (
           <>
             {isLoading ? (
               <div style={styles.loading} data-testid="stock-loading">
-                <LoaderCircle className="animate-spin" size={28} color={COLOR.ACCENT.PRIMARY} />
+                <LoaderCircle
+                  className="animate-spin"
+                  size={28}
+                  color={COLOR.ACCENT.PRIMARY}
+                />
               </div>
             ) : (
               <div style={styles.list} data-testid="stock-results">
@@ -142,13 +150,8 @@ function StockPageContent() {
 }
 
 const styles = {
-  topRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  leftTopRow: {
+  tallerDropdownContainer: {
+    marginTop: 12,
     display: "flex",
     alignItems: "center",
     gap: 12,
@@ -189,4 +192,3 @@ const styles = {
     marginTop: 12,
   },
 } as const;
-

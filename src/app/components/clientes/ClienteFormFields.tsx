@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useMemo } from "react";
-import Dropdown from "@/app/components/ui/Dropdown";
-import type { DropdownOption } from "@/app/components/ui/Dropdown";
 import { TipoCliente } from "@/model/types";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
+import Autocomplete from "../ui/Autocomplete";
+import { AutocompleteOption } from "../ui/Autocomplete";
 
 export type ClienteFormFieldsValue = {
   nombre: string;
@@ -64,7 +64,7 @@ type Props = {
 const tipoClienteOptions = [
   { value: TipoCliente.PARTICULAR, label: "Particular" },
   { value: TipoCliente.EMPRESA, label: "Empresa" },
-] satisfies DropdownOption[];
+] satisfies AutocompleteOption[];
 
 export default function ClienteFormFields({
   value,
@@ -151,11 +151,12 @@ export default function ClienteFormFields({
                 *
               </span>
             </label>
-            <Dropdown
+            <Autocomplete
               value={value.tipo_cliente}
               options={tipoClienteOptions}
               onChange={(v) => onChange({ tipo_cliente: v as TipoCliente })}
               disabled={Boolean(disableTipo)}
+              hideClearButton
             />
           </div>
         </div>

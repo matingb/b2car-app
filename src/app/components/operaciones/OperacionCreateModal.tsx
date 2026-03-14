@@ -6,8 +6,7 @@ import { css } from "@emotion/react";
 import { COLOR } from "@/theme/theme";
 import { useOperaciones } from "@/app/providers/OperacionesProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
-import Dropdown from "@/app/components/ui/Dropdown";
+import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import type { TipoOperacion } from "@/model/types";
 import { Plus, Truck, Receipt } from "lucide-react";
 import OperacionLineaEditor, {
@@ -241,15 +240,16 @@ export default function OperacionCreateModal({
           {hasManyTalleres ? (
             <div style={styles.headerLeft}>
               <label style={styles.label}>Taller</label>
-              <Dropdown
+              <Autocomplete
                 value={tallerId || ""}
                 onChange={(v) => setTallerId(v)}
                 options={[
-                  { value: "", label: "Seleccionar taller…" },
                   ...talleres.map((t) => ({ value: t.id, label: t.nombre })),
                 ]}
+                placeholder="Seleccionar taller"
                 data-testid="operaciones-create-taller"
-                style={{ height: 44, padding: "10px 12px", fontSize: 14 }}
+                style={{ height: 44, fontSize: 14 }}
+                hideClearButton
               />
             </div>
           ) : null}
