@@ -213,7 +213,7 @@ export const supabaseArregloRepository: ArregloRepository = {
       .limit(limit);
     if (error) throw new Error(error.message);
     return (data ?? []) as Array<{
-      id?: unknown;
+      id: string;
       descripcion?: unknown;
       updated_at?: unknown;
       precio_final?: unknown;
