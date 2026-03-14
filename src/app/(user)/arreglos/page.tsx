@@ -6,19 +6,16 @@ import ArregloModal from "@/app/components/arreglos/ArregloModal";
 import ArregloFiltersModal from "@/app/components/arreglos/ArregloFiltersModal";
 import ArreglosToolbar from "@/app/components/arreglos/ArreglosToolbar";
 import ArreglosResults from "@/app/components/arreglos/ArreglosResults";
+import ScrollPage from "@/app/components/ui/ScrollPage";
 import { useArreglosFilters } from "@/app/hooks/arreglos/useArreglosFilters";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { COLOR } from "@/theme/theme";
 import Autocomplete from "@/app/components/ui/Autocomplete";
 
-const LIMIT_STEP = 5;
+const LIMIT_STEP = 50;
 
 export default function ArreglosPage() {
-  return <ArreglosPageContent />;
-}
-
-function ArreglosPageContent() {
   const router = useRouter();
   const { arreglos, loading, hasMore, fetchAll } = useArreglos();
   const { talleres, tallerSeleccionadoId, setTallerSeleccionadoId } = useTenant();
@@ -74,15 +71,8 @@ function ArreglosPageContent() {
 
   const loadingInitial = loading && arreglos.length === 0;
   const loadingMore = loading && arreglos.length > 0;
-  const loadingMoreBlockRef = useRef(false);
-
-  useEffect(() => {
-    if (!loadingMore) loadingMoreBlockRef.current = false;
-  }, [loadingMore]);
 
   const handleLoadMore = () => {
-    if (!hasMore || loadingMore || loadingMoreBlockRef.current) return;
-    loadingMoreBlockRef.current = true;
     setLimit((current) => current + LIMIT_STEP);
   };
 
@@ -113,14 +103,18 @@ function ArreglosPageContent() {
         onClearFilters={state.clearFilters}
         style={styles.searchBarContainer}
       />
-      <ArreglosResults
-        loading={loadingInitial}
+      <ScrollPage
         loadingMore={loadingMore}
         hasMore={hasMore}
         onLoadMore={handleLoadMore}
-        items={state.arreglosFiltrados}
-        onSelect={(a) => router.push(`/arreglos/${a.id}`)}
-      />
+        loadingMoreLabel="Cargando más arreglos..."
+      >
+        <ArreglosResults
+          loading={loadingInitial}
+          items={state.arreglosFiltrados}
+          onSelect={(a) => router.push(`/arreglos/${a.id}`)}
+        />
+      </ScrollPage>
 
       <ArregloModal
         open={isCreateModalOpen}
