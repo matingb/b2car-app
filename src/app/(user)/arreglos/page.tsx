@@ -9,8 +9,8 @@ import ArreglosResults from "@/app/components/arreglos/ArreglosResults";
 import { useArreglosFilters } from "@/app/hooks/arreglos/useArreglosFilters";
 import { useState } from "react";
 import { useTenant } from "@/app/providers/TenantProvider";
-import Dropdown from "@/app/components/ui/Dropdown";
 import { COLOR } from "@/theme/theme";
+import Autocomplete from "@/app/components/ui/Autocomplete";
 
 export default function ArreglosPage() {
   return <ArreglosPageContent />;
@@ -28,23 +28,18 @@ function ArreglosPageContent() {
     <div>
       <ScreenHeader title="Arreglos" />
 
-      {talleres.length > 1 ? (
-        <div style={{ marginTop: 12 }}>
-          <div style={styles.topRow}>
-            <div style={styles.leftTopRow}>
-              <div style={styles.tallerLabel}>Taller</div>
-              <div style={{ width: 280, height: 40 }}>
-                <Dropdown
-                  value={tallerSeleccionadoId}
-                  options={talleres.map((t) => ({ value: t.id, label: t.nombre }))}
-                  onChange={setTallerSeleccionadoId}
-                  style={{ height: 40, padding: "0 12px" }}
-                />
-              </div>
-            </div>
-          </div>
+      {talleres.length > 1 && (
+        <div style={styles.tallerDropdownContainer}>
+          <div style={styles.tallerLabel}>Taller</div>
+          <Autocomplete
+            value={tallerSeleccionadoId}
+            options={talleres.map((t) => ({ value: t.id, label: t.nombre }))}
+            onChange={setTallerSeleccionadoId}
+            style={{ height: 40, width: "280px", padding: "0 12px" }}
+            hideClearButton
+          />
         </div>
-      ) : null}
+      )}
 
       <ArreglosToolbar
         search={state.search}
@@ -60,7 +55,7 @@ function ArreglosPageContent() {
         loading={loading}
         items={state.arreglosFiltrados}
         onSelect={(a) => router.push(`/arreglos/${a.id}`)}
-            />
+      />
 
       <ArregloModal
         open={isCreateModalOpen}
@@ -76,15 +71,9 @@ function ArreglosPageContent() {
   );
 }
 
-
 const styles = {
-  topRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  leftTopRow: {
+  tallerDropdownContainer: {
+    marginTop: 12,
     display: "flex",
     alignItems: "center",
     gap: 12,
