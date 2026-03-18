@@ -17,7 +17,7 @@ export default function RootLayout({
       <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content"></meta>
       <head>
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <ToastProvider>
           <ServiceWorkerRegister />
           {children}

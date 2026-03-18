@@ -6,14 +6,12 @@ import { runPendingPromises } from "@/tests/testUtils";
 const {
   pushMock,
   successMock,
-  verifyOtpMock,
-  updateUserMock,
+  resetPasswordMock,
   searchParamsState,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   successMock: vi.fn(),
-  verifyOtpMock: vi.fn(),
-  updateUserMock: vi.fn(),
+  resetPasswordMock: vi.fn(),
   searchParamsState: {
     access_token: "recovery-token",
   },
@@ -39,13 +37,8 @@ vi.mock("@/app/providers/ToastProvider", () => ({
   }),
 }));
 
-vi.mock("@/supabase/client", () => ({
-  createClient: () => ({
-    auth: {
-      verifyOtp: verifyOtpMock,
-      updateUser: updateUserMock,
-    },
-  }),
+vi.mock("./actions", () => ({
+  resetPassword: resetPasswordMock,
 }));
 
 import ResetPasswordPage from "./page";
@@ -54,8 +47,7 @@ describe("ResetPasswordPage", () => {
   beforeEach(() => {
     pushMock.mockReset();
     successMock.mockReset();
-    verifyOtpMock.mockReset();
-    updateUserMock.mockReset();
+    resetPasswordMock.mockReset();
     searchParamsState.access_token = "recovery-token";
   });
 
@@ -76,8 +68,7 @@ describe("ResetPasswordPage", () => {
   });
 
   it("resetea la contraseña y redirige al raiz", async () => {
-    verifyOtpMock.mockResolvedValueOnce({ error: null });
-    updateUserMock.mockResolvedValueOnce({ error: null });
+    resetPasswordMock.mockResolvedValueOnce({ error: null });
 
     const user = userEvent.setup();
     render(<ResetPasswordPage />);
@@ -88,12 +79,8 @@ describe("ResetPasswordPage", () => {
 
     await runPendingPromises();
 
-    expect(verifyOtpMock).toHaveBeenCalledWith({
-      type: "recovery",
-      token_hash: "recovery-token",
-    });
-
-    expect(updateUserMock).toHaveBeenCalledWith({
+    expect(resetPasswordMock).toHaveBeenCalledWith({
+      token: "recovery-token",
       password: "Password1!",
     });
     expect(successMock).toHaveBeenCalledWith(

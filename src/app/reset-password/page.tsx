@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { css } from "@emotion/react";
 import PasswordRequirements, {
@@ -9,14 +9,22 @@ import PasswordRequirements, {
   MIN_PASSWORD_LENGTH,
 } from "@/app/components/auth/PasswordRequirements";
 import { useToast } from "@/app/providers/ToastProvider";
-import { createClient } from "@/supabase/client";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import pkg from "../../../package.json";
 import Button from "../components/ui/Button";
+import { resetPassword } from "./actions";
 
 const APP_VERSION = pkg.version;
 
 export default function ResetPasswordPage() {
+  return (
+    <Suspense>
+      <ResetPasswordContent />
+    </Suspense>
+  );
+}
+
+function ResetPasswordContent() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,7 +32,6 @@ export default function ResetPasswordPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
-  const supabase = useMemo(() => createClient(), []);
   const token = searchParams.get("access_token");
   const passwordValidationError = getPasswordValidationError(
     password,
@@ -49,26 +56,10 @@ export default function ResetPasswordPage() {
     setIsSubmitting(true);
 
     try {
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        type: "recovery",
-        token_hash: token ?? "",
-      });
+      const result = await resetPassword({ token: token ?? "", password });
 
-      if (verifyError) {
-        setFormError(
-          "El link puede que haya expirado. Intentá nuevamente o contactá soporte.",
-        );
-        return;
-      }
-
-      const { error: updateError } = await supabase.auth.updateUser({
-        password,
-      });
-
-      if (updateError) {
-        setFormError(
-          "No se pudo actualizar la contraseña. Intentá nuevamente.",
-        );
+      if (!result.ok) {
+        setFormError(result.message);
         return;
       }
 
@@ -86,9 +77,9 @@ export default function ResetPasswordPage() {
 
   return (
     <div style={styles.splitContainer}>
-      <div css={styles.leftPane} />
+      <div css={styles.leftPanel} />
 
-      <div css={styles.rightPane}>
+      <div css={styles.rightPanel}>
         <div style={styles.rightInner}>
           <Image
             src="/logos/logoGrande.svg"
@@ -173,7 +164,7 @@ const styles = {
     minHeight: "100dvh",
     width: "100%",
   },
-  leftPane: css({
+  leftPanel: css({
     flex: 1,
     position: "relative",
     display: "flex",
@@ -184,7 +175,7 @@ const styles = {
       display: "none",
     },
   }),
-  rightPane: css({
+  rightPanel: css({
     width: "45%",
     maxWidth: "100%",
     display: "flex",
