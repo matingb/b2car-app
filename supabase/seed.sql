@@ -7,6 +7,8 @@ SET search_path = public;
 
 -- Limpieza (solo tablas públicas)
 TRUNCATE TABLE
+  detalle_form_custom,
+  formularios,
   operaciones_asignacion_arreglo,
   operaciones_lineas,
   operaciones,
@@ -27,6 +29,68 @@ RESTART IDENTITY CASCADE;
 -- Tenants (solo uno)
 INSERT INTO public.tenants (id, nombre, estado, fecha_creacion, updated_at) VALUES
   ('11111111-1111-1111-1111-111111111111', 'B2Car', 'activo', now() - interval '120 days', now() - interval '1 day');
+
+-- Formularios (config dinamica)
+INSERT INTO public.formularios (tenant_id, descripcion, metadata)
+VALUES (
+  '11111111-1111-1111-1111-111111111111',
+  'FormDev',
+  $$[
+    {
+      "title": "Frenos delanteros",
+      "inputs": [
+        {
+          "title": "Estado",
+          "default": "",
+          "required": true,
+          "component": "input"
+        },
+        {
+          "title": "Potencia",
+          "default": "50%",
+          "options": [
+            "25%",
+            "50%",
+            "75%"
+          ],
+          "component": "selector"
+        },
+        {
+          "title": "Recambio",
+          "default": false,
+          "required": true,
+          "component": "checkbox"
+        }
+      ]
+    },
+    {
+      "title": "Agua sapito",
+      "inputs": [
+        {
+          "title": "Estado",
+          "default": false,
+          "required": true,
+          "component": "checkbox"
+        }
+      ]
+    },
+    {
+      "title": "Frenos traseros",
+      "inputs": [
+        {
+          "title": "Potencia",
+          "default": "50%",
+          "options": [
+            "25%",
+            "50%",
+            "75%"
+          ],
+          "component": "selector"
+        }
+      ]
+    }
+  ]$$::jsonb
+);
 
 -- Usuarios (auth.users) para cumplir FK de tenant_members
 -- Nota: en Supabase los campos no listados tienen defaults.
