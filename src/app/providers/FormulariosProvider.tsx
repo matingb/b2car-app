@@ -10,7 +10,6 @@ import React, {
 } from "react";
 import type { GetFormulariosResponse } from "@/app/api/arreglos/formularios/route";
 import type { FormularioTemplateItem } from "@/app/api/arreglos/formularios/formularioService";
-import { logger } from "@/lib/logger";
 
 type FormulariosContextType = {
 	formularios: FormularioTemplateItem[];

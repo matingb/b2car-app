@@ -20,7 +20,6 @@ import ArregloFormFields, {
   type ArregloFormFieldsInternal,
   type ArregloFormFieldsValues,
 } from "@/app/components/arreglos/ArregloFormFields";
-import { logger } from "@/lib/logger";
 
 type Props = {
   open: boolean;

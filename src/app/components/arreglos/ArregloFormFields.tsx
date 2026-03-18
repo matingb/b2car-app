@@ -250,18 +250,7 @@ export default function ArregloFormFields({
       totalCalculado,
       totalCalculadoLabel,
     }),
-    [
-      serviciosDraft,
-      customServiciosDraft,
-      customDetalleFormulario,
-      isCustomTipoSelected,
-      selectedCustomFormulario,
-      repuestosDraft,
-      subtotalServicios,
-      subtotalRepuestos,
-      totalCalculado,
-      totalCalculadoLabel,
-    ],
+    [serviciosDraft, customDetalleFormulario, isCustomTipoSelected, selectedCustomFormulario, repuestosDraft, subtotalServicios, subtotalRepuestos, totalCalculado, totalCalculadoLabel],
   );
 
   useEffect(() => {
