@@ -127,8 +127,8 @@ export const TIPOS_OPERACIONES: TipoOperacion[] = [
   "COMPRA",
   "VENTA",
   "ASIGNACION_ARREGLO",
-  "AJUSTE",
-  "TRANSFERENCIA",
+  //"AJUSTE",
+  //"TRANSFERENCIA",
 ];
 
 export interface Operacion {
