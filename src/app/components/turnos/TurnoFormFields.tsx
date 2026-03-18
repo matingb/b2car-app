@@ -8,6 +8,7 @@ import type { ClienteFormFieldsValue } from "@/app/components/clientes/ClienteFo
 import VehiculoFormFields, { type VehiculoFormFieldsValue } from "@/app/components/vehiculos/VehiculoFormFields";
 import { TipoCliente, type Cliente, type Vehiculo } from "@/model/types";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
+import { logger } from "@/lib/logger";
 
 export const CREATE_CLIENTE_VALUE = "__create_cliente__";
 export const CREATE_VEHICULO_VALUE = "__create_vehiculo__";
@@ -97,8 +98,14 @@ export default function TurnoFormFields(props: Props) {
 
   const vehiculosFiltrados = useMemo(() => {
     if (!selectedCliente) return [];
-
+    logger.debug(context.vehiculos, "Vehículos en contexto");
     const selectedClienteId = String(selectedCliente.id);
+    logger.debug("vehiculos fltrados", context.vehiculos.filter((v) => {
+      logger.debug(v)
+      const match = v.cliente_id != null && String(v.cliente_id) === selectedClienteId;
+      logger.debug(`Evaluando vehículo ${v.id} - cliente_id: ${v.cliente_id} - match: ${match}`);
+      return match;
+    }));
     return context.vehiculos.filter((v) => {
       return v.cliente_id != null && String(v.cliente_id) === selectedClienteId;
     });
