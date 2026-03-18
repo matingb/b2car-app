@@ -9,6 +9,7 @@ import type { ServicioLinea } from "./ServicioLineasEditableSection";
 import type { ArregloFormularioLineaValue } from "@/app/api/arreglos/arregloRequests";
 import LineasSectionShell from "./LineasSectionShell";
 import Card from "../../ui/Card";
+import Autocomplete from "../../ui/Autocomplete";
 import { styles as lineaStyles } from "./lineaStyles";
 
 type CustomFieldDef = {
@@ -524,25 +525,13 @@ export default function ServicioLineasCustomSection({
             <Card key={line.id} css={customStyles.card}>
               <div css={customStyles.body}>
                 <div css={customStyles.topWrap}>
-                  {isEditing ? (
-                    <input
-                      css={customStyles.titleInput}
-                      value={String(lineState.values.__titulo ?? line.title ?? line.descripcion)}
-                      onChange={(e) =>
-                        updateField(line.id, "__titulo", e.target.value)
-                      }
-                      disabled={disabled}
-                      placeholder="Titulo"
-                    />
-                  ) : (
-                    <div css={customStyles.titleReadonly}>
-                      {String(lineState.values.__titulo ?? line.title ?? line.descripcion).trim() ||
-                        line.title ||
-                        line.descripcion}
-                    </div>
-                  )}
+                  <span css={customStyles.lineDescriptionLabel}>
+                    {String(lineState.values.__titulo ?? line.title ?? line.descripcion).trim() ||
+                      line.title ||
+                      line.descripcion}
+                  </span>
 
-                  <div style={customStyles.fieldsGrid}>
+                  <div css={customStyles.fieldsGrid}>
                     {line.fields.map((field) => {
                       const value = String(lineState.values[field.key] ?? "");
                       const commonProps = {
@@ -551,7 +540,15 @@ export default function ServicioLineasCustomSection({
                       };
 
                       return (
-                        <div key={field.key} style={customStyles.fieldWrap}>
+                        <div
+                          key={field.key}
+                          css={customStyles.fieldWrap}
+                          style={
+                            field.component === "textarea"
+                              ? customStyles.textareaFieldWrap
+                              : undefined
+                          }
+                        >
                           <label style={customStyles.fieldLabel}>
                             {field.label}
                             {field.required ? (
@@ -559,7 +556,16 @@ export default function ServicioLineasCustomSection({
                             ) : null}
                           </label>
                           {!isEditing ? (
-                            <div style={customStyles.readonlyValue}>
+                            <div
+                              style={
+                                field.component === "textarea"
+                                  ? {
+                                      ...customStyles.readonlyValue,
+                                      ...customStyles.readonlyValueMultiline,
+                                    }
+                                  : customStyles.readonlyValue
+                              }
+                            >
                               {field.component === "checkbox"
                                 ? value === "true"
                                   ? "Si"
@@ -571,30 +577,27 @@ export default function ServicioLineasCustomSection({
                               {...commonProps}
                               rows={2}
                               value={value}
-                              style={customStyles.input}
+                              style={customStyles.textareaInput}
                               onChange={(e) =>
                                 updateField(line.id, field.key, e.target.value)
                               }
                             />
                           ) : field.component === "select" ? (
-                            <select
-                              disabled={disabled}
+                            <Autocomplete
+                              options={(field.options ?? []).map((option) => ({
+                                value: option.value,
+                                label: option.label,
+                              }))}
                               value={value}
-                              style={customStyles.input}
-                              onChange={(e) =>
-                                updateField(line.id, field.key, e.target.value)
+                              onChange={(nextValue) =>
+                                updateField(line.id, field.key, nextValue)
                               }
-                            >
-                              <option value="">Seleccionar...</option>
-                              {(field.options ?? []).map((option) => (
-                                <option
-                                  key={`${field.key}-${option.value}`}
-                                  value={option.value}
-                                >
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
+                              placeholder={field.placeholder ?? "Seleccionar..."}
+                              disabled={disabled}
+                              hideClearButton={false}
+                              allowCustomValue={false}
+                              inputStyle={customStyles.autocompleteInput}
+                            />
                           ) : field.component === "checkbox" ? (
                             <div style={customStyles.checkboxRow}>
                               <input
@@ -656,14 +659,14 @@ const customStyles = {
     gap: 10,
     [`@media (min-width: ${BREAKPOINTS.lg}px)`]: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       gap: 12,
     },
   }),
   topWrap: css({
     display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: "column",
+    alignItems: "stretch",
     flexWrap: "nowrap",
     gap: 8,
     width: "100%",
@@ -673,18 +676,6 @@ const customStyles = {
       flexDirection: "column",
       alignItems: "stretch",
       flexWrap: "nowrap",
-    },
-  }),
-  titleInput: css({
-    ...lineaStyles.editorInput,
-    width: 300,
-    minWidth: 300,
-    textAlign: "left",
-    fontWeight: 700,
-    flexShrink: 0,
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      width: "100%",
-      minWidth: 0,
     },
   }),
   headerCostoInput: {
@@ -714,51 +705,40 @@ const customStyles = {
   },
   fieldsGrid: {
     display: "flex",
-    flexWrap: "wrap" as const,
+    flexWrap: "nowrap" as const,
     alignItems: "flex-start",
     gap: 10,
     width: "auto",
     flex: 1,
     minWidth: 0,
-    [`@media (maxWidth: ${BREAKPOINTS.md}px)`]: {
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       width: "100%",
-      flexDirection: "column" as const,
+      flexWrap: "wrap" as const,
       alignItems: "stretch",
       gap: 8,
     },
   },
-  fieldWrap: {
+  fieldWrap: css({
     display: "flex",
     flexDirection: "column" as const,
-    flex: "1 1 220px",
-    minWidth: 180,
+    flex: "1 1 0",
+    minWidth: 0,
     maxWidth: "100%",
     gap: 4,
-    [`@media (maxWidth: ${BREAKPOINTS.md}px)`]: {
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       flex: "1 1 100%",
       minWidth: 0,
       width: "100%",
     },
+  }),
+  textareaFieldWrap: {
+    flex: "1.25 1 0",
   },
   fieldLabel: {
     fontSize: 12,
     color: COLOR.TEXT.SECONDARY,
     fontWeight: 600,
   },
-  titleReadonly: css({
-    width: 300,
-    minWidth: 300,
-    fontWeight: 700,
-    color: COLOR.TEXT.PRIMARY,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      width: "100%",
-      minWidth: 0,
-      whiteSpace: "normal",
-    },
-  }),
   readonlyValue: {
     width: "100%",
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
@@ -780,6 +760,21 @@ const customStyles = {
     borderRadius: 8,
     padding: "8px 10px",
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
+  },
+  textareaInput: {
+    width: "100%",
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 8,
+    padding: "8px 10px",
+    background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    minHeight: 72,
+    resize: "vertical" as const,
+    lineHeight: 1.4,
+  },
+  autocompleteInput: {
+    padding: "8px 68px 8px 10px",
+    minHeight: 38,
+    height: 38,
   },
   checkboxRow: {
     height: 38,
@@ -817,4 +812,18 @@ const customStyles = {
     fontSize: 14,
     whiteSpace: "nowrap" as const,
   },
+  readonlyValueMultiline: {
+    alignItems: "flex-start" as const,
+    minHeight: 72,
+    whiteSpace: "pre-wrap" as const,
+    lineHeight: 1.4,
+  },
+  lineDescriptionLabel: css({
+    display: "block",
+    width: "100%",
+    fontSize: 14,
+    lineHeight: 1.3,
+    fontWeight: 700,
+    color: COLOR.TEXT.SECONDARY,
+  }),
 } as const;
