@@ -204,9 +204,14 @@ export default function ArregloFormFields({
     reset: resetRepuestos,
   } = useRepuestosDraft();
 
-  const serviciosActivos = isCustomTipoSelected
-    ? [...serviciosDraft, ...customServiciosDraft]
-    : serviciosDraft;
+  const serviciosActivos = useMemo(
+    () =>
+      isCustomTipoSelected
+        ? [...serviciosDraft, ...customServiciosDraft]
+        : serviciosDraft,
+    [isCustomTipoSelected, serviciosDraft, customServiciosDraft]
+  );
+
 
   const subtotalServicios = useMemo(
     () =>
