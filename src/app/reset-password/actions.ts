@@ -2,9 +2,10 @@
 
 import { createClient } from '@/supabase/server'
 
-export type ResetPasswordResult =
-  | { ok: true }
-  | { ok: false; message: string }
+export type ResetPasswordResult = {
+  data: null
+  error: string | null
+}
 
 export async function resetPassword(params: {
   token: string
@@ -19,8 +20,8 @@ export async function resetPassword(params: {
 
   if (verifyError) {
     return {
-      ok: false,
-      message: 'El link puede que haya expirado. Intentá nuevamente o contactá soporte.',
+      data: null,
+      error: 'El link puede que haya expirado. Intentá nuevamente o contactá soporte.',
     }
   }
 
@@ -30,10 +31,10 @@ export async function resetPassword(params: {
 
   if (updateError) {
     return {
-      ok: false,
-      message: 'No se pudo actualizar la contraseña. Intentá nuevamente.',
+      data: null,
+      error: 'No se pudo actualizar la contraseña. Intentá nuevamente.',
     }
   }
 
-  return { ok: true }
+  return { data: null, error: null }
 }

@@ -56,10 +56,10 @@ function ResetPasswordContent() {
     setIsSubmitting(true);
 
     try {
-      const result = await resetPassword({ token: token ?? "", password });
+      const { error } = await resetPassword({ token: token ?? "", password });
 
-      if (!result.ok) {
-        setFormError(result.message);
+      if (error) {
+        setFormError(error);
         return;
       }
 

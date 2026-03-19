@@ -67,8 +67,30 @@ describe("ResetPasswordPage", () => {
     expect(submitButton).toBeDisabled();
   });
 
+  it("muestra el mensaje de error si falla el reset", async () => {
+    resetPasswordMock.mockResolvedValueOnce({
+      data: null,
+      error: "Mensaje de error",
+    });
+
+    const user = userEvent.setup();
+    render(<ResetPasswordPage />);
+
+    await user.type(screen.getByLabelText("Nueva contraseña"), "Password1!");
+    await user.type(screen.getByLabelText("Confirmar contraseña"), "Password1!");
+    await user.click(screen.getByRole("button", { name: "Actualizar contraseña" }));
+
+    await runPendingPromises();
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Mensaje de error"
+    );
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(successMock).not.toHaveBeenCalled();
+  });
+
   it("resetea la contraseña y redirige al raiz", async () => {
-    resetPasswordMock.mockResolvedValueOnce({ ok: true });
+    resetPasswordMock.mockResolvedValueOnce({ data: null, error: null });
 
     const user = userEvent.setup();
     render(<ResetPasswordPage />);
