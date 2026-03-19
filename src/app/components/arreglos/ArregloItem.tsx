@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
 import Card from "@/app/components/ui/Card";
 import IconLabel from "@/app/components/ui/IconLabel";
-import ArregloModal from "@/app/components/arreglos/ArregloModal";
 import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
 import { Arreglo } from "@/model/types";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
@@ -26,22 +25,15 @@ import { useTenant } from "@/app/providers/TenantProvider";
 type Props = {
   arreglo: Arreglo;
   onClick?: (arreglo: Arreglo) => void;
-  onUpdated?: () => Promise<void> | void;
 };
 
 export default function ArregloItem({
   arreglo: initialArreglo,
   onClick,
-  onUpdated,
 }: Props) {
   const { talleres } = useTenant();
   const router = useRouter();
-  const [openEditModal, setOpenEditModal] = useState(false);
-  const [arreglo, setArreglo] = useState<Arreglo>(initialArreglo);
-
-  useEffect(() => {
-    setArreglo(initialArreglo);
-  }, [initialArreglo]);
+  const arreglo = initialArreglo;
 
   return (
     <div>
@@ -55,8 +47,8 @@ export default function ArregloItem({
         <div style={styles.container}>
           {/* Header superior con badges y precio */}
           <div css={styles.topHeader}>
-            <div style={styles.leftSection}>
-              <h3 css={styles.mainTitle}>{arreglo.descripcion}</h3>
+            <div css={styles.leftSection}>
+              <h3 css={styles.mainTitle}>{arreglo.descripcion ? arreglo.descripcion : arreglo.tipo}</h3>
               <div css={styles.metaRow}>
                 <ArregloEstadoBadge estado={arreglo.estado} size="sm" />
                 <div style={styles.statusBadgeInline}>
@@ -93,7 +85,7 @@ export default function ArregloItem({
           {/* Grid de informaciИn */}
           <div css={styles.infoGrid}>
             <div css={[styles.infoColumn, styles.hideOnMobile]}>
-              <span style={styles.infoLabel}>Tipo</span>
+              <span css={styles.infoLabel}>Tipo</span>
               <IconLabel
                 icon={<Wrench size={18} color={COLOR.ACCENT.PRIMARY} />}
                 label={arreglo.tipo || "N/A"}
@@ -101,7 +93,7 @@ export default function ArregloItem({
             </div>
 
             <div css={styles.infoColumn}>
-              <span style={styles.infoLabel}>Fecha</span>
+              <span css={styles.infoLabel}>Fecha</span>
               <IconLabel
                 icon={<Calendar size={18} color={COLOR.ACCENT.PRIMARY} />}
                 label={formatDateLabel(arreglo.fecha)}
@@ -109,7 +101,7 @@ export default function ArregloItem({
             </div>
 
             <div css={[styles.infoColumn, styles.hideOnMobile]}>
-              <span style={styles.infoLabel}>Kilometraje</span>
+              <span css={styles.infoLabel}>Kilometraje</span>
               <IconLabel
                 icon={<Gauge size={18} color={COLOR.ACCENT.PRIMARY} />}
                 label={
@@ -121,10 +113,10 @@ export default function ArregloItem({
             </div>
 
             <div css={styles.infoColumn}>
-              <span style={styles.infoLabel}>Vehiculo</span>
+              <span css={styles.infoLabel}>Vehiculo</span>
               <IconLabel
                 icon={<Car size={18} color={COLOR.ACCENT.PRIMARY} />}
-                label={arreglo.vehiculo.patente || "-"}
+                label={`${arreglo.vehiculo.marca || ""} ${arreglo.vehiculo.modelo || ""}`.trim() || "-"}
               />
             </div>
             {talleres.length > 1 ? (
@@ -132,7 +124,7 @@ export default function ArregloItem({
                 css={[styles.infoColumn, styles.hideOnMobile]}
                 title={arreglo.taller?.ubicacion ?? undefined}
               >
-                <span style={styles.infoLabel} data-testid="arreglo-item-taller-label">
+                <span css={styles.infoLabel} data-testid="arreglo-item-taller-label">
                   Taller
                 </span>
                 <IconLabel
@@ -157,25 +149,6 @@ export default function ArregloItem({
           )}
         </div>
       </Card>
-
-      <ArregloModal
-        open={openEditModal}
-        onClose={() => setOpenEditModal(false)}
-        onSubmitSuccess={() => onUpdated?.()}
-        vehiculoId={arreglo.vehiculo.id}
-        initial={{
-          id: arreglo.id,
-          tipo: arreglo.tipo,
-          estado: arreglo.estado,
-          fecha: arreglo.fecha,
-          kilometraje_leido: arreglo.kilometraje_leido,
-          precio_final: arreglo.precio_final,
-          observaciones: arreglo.observaciones,
-          descripcion: arreglo.descripcion,
-          esta_pago: arreglo.esta_pago,
-          extra_data: arreglo.extra_data,
-        }}
-      />
     </div>
   );
 }
@@ -192,18 +165,21 @@ const styles = {
     gap: 16,
     alignItems: "center",
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "flex-start",
-      gap: 4,
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1fr) auto",
+      alignItems: "center",
+      gap: 8,
     },
   }),
-  leftSection: {
+  leftSection: css({
     overflow: "hidden",
     display: "flex",
     flexDirection: "column",
     gap: 8,
-  },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "contents",
+    },
+  }),
   metaRow: css({
     display: "flex",
     alignItems: "center",
@@ -213,6 +189,7 @@ const styles = {
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       maxWidth: "100%",
       rowGap: 6,
+      gridColumn: "1 / 2",
     },
   }),
   mainTitle: css({
@@ -251,8 +228,9 @@ const styles = {
     gap: 12,
     flexShrink: 0,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      width: "100%",
-      justifyContent: "flex-start",
+      width: "auto",
+      justifyContent: "flex-end",
+      alignSelf: "center",
     },
   }),
   priceSection: css({
@@ -261,7 +239,7 @@ const styles = {
     alignItems: "flex-end",
     gap: 2,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      alignItems: "flex-start",
+      alignItems: "flex-end",
     },
   }),
   priceLabel: {
@@ -292,8 +270,8 @@ const styles = {
     gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
     gap: 16,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      gridTemplateColumns: "2fr 1fr",
-      gap: 12,
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+      gap: 10,
       width: "100%",
     },
   }),
@@ -301,19 +279,25 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 6,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      gap: 0,
+    },
   }),
   hideOnMobile: css({
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       display: "none",
     },
   }),
-  infoLabel: {
+  infoLabel: css({
     fontSize: 12,
     fontWeight: 600,
     color: COLOR.TEXT.SECONDARY,
     textTransform: "uppercase",
     letterSpacing: "0.5px",
-  },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "none",
+    },
+  }),
   observaciones: {
     marginTop: 8,
     fontSize: 14,
