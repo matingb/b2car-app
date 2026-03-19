@@ -131,7 +131,7 @@ export default function Modal({
                 text={submitting ? "Guardando..." : submitText}
                 disabled={isSubmitDisabled}
                 dataTestId="modal-submit"
-                hideText={false}
+                hideTextOnMobile={false}
               />
             </div>
           </form>

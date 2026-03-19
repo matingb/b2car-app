@@ -162,7 +162,7 @@ export default function TurnoDetailsModal({
             <Button
               text="Compartir"
               outline
-              hideText={false}
+              hideTextOnMobile={false}
               icon={<WhatsAppIcon size={16} color="#25D366" />}
               onClick={() => onShare?.(turno)}
               style={{ minWidth: 0 }}
@@ -170,13 +170,13 @@ export default function TurnoDetailsModal({
             <Button
               text="Editar"
               outline
-              hideText={false}
+              hideTextOnMobile={false}
               onClick={() => onEdit?.(turno)}
               style={{ minWidth: 0 }}
             />
             <Button
               text="Eliminar"
-              hideText={false}
+              hideTextOnMobile={false}
               onClick={() => onCancel?.(turno)}
               style={{ minWidth: 0, background: COLOR.ICON.DANGER }}
             />

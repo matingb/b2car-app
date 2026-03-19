@@ -8,7 +8,7 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   style?: React.CSSProperties;
   text: string;
   onClick?: () => void;
-  hideText?: boolean;
+  hideTextOnMobile?: boolean;
   outline?: boolean;
   dataTestId?: string;
 };
@@ -17,7 +17,7 @@ export default function Button({
   icon = null,
   style,
   text,
-  hideText = true,
+  hideTextOnMobile = true,
   outline = false,
   onClick,
   dataTestId,
@@ -47,7 +47,7 @@ export default function Button({
       aria-label={text}
     >
       {icon && icon}
-      <p css={hideText ? styles.text : undefined}>{text}</p>
+      <p css={hideTextOnMobile ? styles.hideTextOnMobile : undefined}>{text}</p>
     </button>
   );
 }
@@ -93,7 +93,7 @@ const styles = {
     opacity: 0.6,
     cursor: "default",
   },
-  text: css({
+  hideTextOnMobile: css({
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       display: 'none',
     },

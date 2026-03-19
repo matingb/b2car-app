@@ -59,7 +59,7 @@ export default function TurnosToolbar({
         <Button
           text="Hoy"
           outline
-          hideText={false}
+          hideTextOnMobile={false}
           onClick={onToday}
           style={{ minWidth: 0, height: 40 }}
         />

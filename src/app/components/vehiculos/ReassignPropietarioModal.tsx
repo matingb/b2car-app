@@ -116,7 +116,7 @@ export default function ReassignPropietarioModal({ open, vehiculoId, currentClie
                 text={submitting ? "Guardando..." : "Guardar"}
                 disabled={!isValid || submitting}
                 style={{ opacity: isValid ? 1 : 0.6 }}
-                hideText={false}
+                hideTextOnMobile={false}
               />
             </div>
           </form>

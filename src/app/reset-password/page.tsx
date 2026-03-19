@@ -145,6 +145,7 @@ function ResetPasswordContent() {
 
             <Button
               text={isSubmitting ? "Actualizando..." : "Actualizar contraseña"}
+              hideTextOnMobile={false}
               disabled={isSubmitDisabled}
               type="submit"
               style={{ width: "100%", height: "45px" }}
