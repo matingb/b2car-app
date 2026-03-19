@@ -68,7 +68,7 @@ describe("ResetPasswordPage", () => {
   });
 
   it("resetea la contraseña y redirige al raiz", async () => {
-    resetPasswordMock.mockResolvedValueOnce({ error: null });
+    resetPasswordMock.mockResolvedValueOnce({ ok: true });
 
     const user = userEvent.setup();
     render(<ResetPasswordPage />);
