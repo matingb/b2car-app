@@ -45,6 +45,7 @@ import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
 import { useFormularios } from "@/app/providers/FormulariosProvider";
 import type { ServicioLinea } from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
+import type { EstadoArreglo } from "@/model/types";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -168,6 +169,26 @@ export default function ArregloDetailsPage() {
     } catch (err: unknown) {
       console.error(err);
       error("Error", "No se pudo actualizar el estado de pago.");
+    }
+  };
+
+  const handleEstadoChange = async (nextEstado: EstadoArreglo) => {
+    if (!data?.arreglo || loading) return;
+    if (data.arreglo.estado === nextEstado) return;
+
+    try {
+      const response = await update(data.arreglo.id, {
+        estado: nextEstado,
+      });
+      if (!response) return;
+      setData((prev) => (prev ? { ...prev, arreglo: response } : prev));
+      success("Estado actualizado", "El estado del arreglo se actualizó correctamente.");
+    } catch (err: unknown) {
+      logger.error("Error updating arreglo estado:", err);
+      error(
+        "Error",
+        err instanceof Error ? err.message : "No se pudo actualizar el estado del arreglo."
+      );
     }
   };
 
@@ -398,7 +419,10 @@ export default function ArregloDetailsPage() {
                 Resumen
               </h3>
               <div >
-                <ArregloEstadoBadge estado={arreglo.estado} />
+                <ArregloEstadoBadge
+                  estado={arreglo.estado}
+                  onStateChange={handleEstadoChange}
+                />
               </div>
               <div
                 style={{

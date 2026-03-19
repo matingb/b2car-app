@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
-import ArregloEstadoBadge, { getArregloEstadoMeta } from "./ArregloEstadoBadge";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import ArregloEstadoBadge, {
+  getArregloEstadoMeta,
+  getArregloEstadoProgress,
+} from "./ArregloEstadoBadge";
 import { COLOR } from "@/theme/theme";
 import type { EstadoArreglo } from "@/model/types";
 
@@ -64,6 +67,11 @@ describe("getArregloEstadoMeta", () => {
 });
 
 describe("ArregloEstadoBadge", () => {
+  it("expone un progreso por defecto segun el estado", () => {
+    expect(getArregloEstadoProgress("PRESUPUESTO")).toBe(0);
+    expect(getArregloEstadoProgress("SIN_INICIAR")).toBe(10);
+  });
+
   it("renderiza el label transformado con espacios", () => {
     render(<ArregloEstadoBadge estado="EN_PROGRESO" />);
 
@@ -74,5 +82,39 @@ describe("ArregloEstadoBadge", () => {
     render(<ArregloEstadoBadge />);
 
     expect(screen.getByText("SIN INICIAR")).toBeInTheDocument();
+  });
+
+  it("si recibe progress, usa ese valor para el llenado radial", () => {
+    render(<ArregloEstadoBadge estado="EN_PROGRESO" progress={25} />);
+
+    const progressCircle = screen.getByTestId("arreglo-estado-progress");
+    const radialFill = progressCircle.firstElementChild as HTMLElement;
+
+    expect(radialFill).toHaveStyle({
+      background: `conic-gradient(${COLOR.SEMANTIC.INFO} 0deg 90deg, ${COLOR.BACKGROUND.INFO_TINT} 90deg 360deg)`,
+    });
+  });
+
+  it("si recibe onStateChange, abre un dropdown y permite elegir otro estado", () => {
+    const onStateChange = vi.fn();
+
+    render(<ArregloEstadoBadge estado="EN_PROGRESO" onStateChange={onStateChange} />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Cambiar estado de arreglo. Estado actual: EN PROGRESO",
+      })
+    );
+
+    expect(
+      screen.getByRole("listbox", { name: "Opciones de estado de arreglo" })
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("option", { name: "TERMINADO" }));
+
+    expect(onStateChange).toHaveBeenCalledWith("TERMINADO");
+    expect(
+      screen.queryByRole("listbox", { name: "Opciones de estado de arreglo" })
+    ).not.toBeInTheDocument();
   });
 });
