@@ -1,4 +1,5 @@
 import { Vehiculo, Cliente, Arreglo, TipoCliente, Particular } from '@/model/types';
+import type { VehiculoFormFieldsValue } from '@/app/components/vehiculos/VehiculoFormFields';
 import { Empresa } from '@/clients/clientes/empresaClient';
 import type { CreateArregloRequest } from '@/app/api/arreglos/arregloRequests';
 import type { CreateVehiculoRequest } from '@/app/api/vehiculos/route';
@@ -95,6 +96,24 @@ export const createCreateArregloRequest = (
     precio_final: 1000,
     esta_pago: false,
     extra_data: "",
+    ...overrides,
+  };
+};
+
+/**
+ * Factory para crear valores del formulario de vehículo (UI)
+ */
+export const createVehiculoFormFieldsValue = (
+  overrides: Partial<VehiculoFormFieldsValue> = {}
+): VehiculoFormFieldsValue => {
+  return {
+    cliente_id: "",
+    patente: "",
+    marca: "",
+    modelo: "",
+    fecha_patente: "",
+    numero_chasis: "",
+    nro_interno: "",
     ...overrides,
   };
 };

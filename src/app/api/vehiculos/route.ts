@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     marca: marca ?? "",
     modelo: modelo ?? "",
     fecha_patente: fecha_patente ?? "",
-    numero_chasis: numero_chasis ?? "",
+    numero_chasis: (numero_chasis ?? "").toUpperCase(),
     nro_interno: nro_interno ?? "",
   })
 

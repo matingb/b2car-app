@@ -1,7 +1,8 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-import VehiculoFormFields, { validateVehiculoForm, type VehiculoFormFieldsValue } from "./VehiculoFormFields";
+import { fireEvent, render, screen } from "@testing-library/react";
+import VehiculoFormFields, { validateVehiculoForm } from "./VehiculoFormFields";
+import { createVehiculoFormFieldsValue } from "@/tests/factories";
 
 const mockClientes = vi.hoisted(() => ([]));
 
@@ -18,19 +19,22 @@ vi.mock("../ui/Autocomplete", () => ({
 
 describe("VehiculoFormFields", () => {
   it("muestra el input de cliente cuando showClienteInput=true", () => {
-    const value: VehiculoFormFieldsValue = {
-      cliente_id: "",
-      patente: "",
-      marca: "",
-      modelo: "",
-      fecha_patente: "",
-      numero_chasis: "",
-      nro_interno: "",
-    };
+    const value = createVehiculoFormFieldsValue();
 
     render(<VehiculoFormFields value={value} onChange={() => {}} showClienteInput />);
 
     expect(screen.getByPlaceholderText("Buscar cliente...")).toBeInTheDocument();
+  });
+
+  it("convierte el número de chasis a mayúsculas al escribir", () => {
+    const handleChange = vi.fn();
+    const value = createVehiculoFormFieldsValue({ patente: "AAA000" });
+    render(<VehiculoFormFields value={value} onChange={handleChange} />);
+
+    const chasisInput = screen.getByTestId("numero-chasis-input");
+    fireEvent.change(chasisInput, { target: { value: "abc123xyz" } });
+
+    expect(handleChange).toHaveBeenCalledWith({ numero_chasis: "ABC123XYZ" });
   });
 
   [

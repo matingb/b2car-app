@@ -136,10 +136,11 @@ export default function VehiculoFormFields({
           <div style={styles.field}>
             <label style={styles.label}>N° chasis</label>
             <input
+              data-testid="numero-chasis-input"
               style={styles.input}
               placeholder="8AFZZZ54ZXJ123456"
               value={value.numero_chasis}
-              onChange={(e) => onChange({ numero_chasis: e.target.value })}
+              onChange={(e) => onChange({ numero_chasis: e.target.value.toUpperCase() })}
             />
           </div>
         </div>

@@ -51,7 +51,7 @@ export async function PUT(
   if (body.marca !== undefined) updateData.marca = body.marca;
   if (body.modelo !== undefined) updateData.modelo = body.modelo;
   if (body.fecha_patente !== undefined) updateData.fecha_patente = body.fecha_patente;
-  if (body.numero_chasis !== undefined) updateData.numero_chasis = body.numero_chasis ?? "";
+  if (body.numero_chasis !== undefined) updateData.numero_chasis = (body.numero_chasis ?? "").toUpperCase();
   if (body.nro_interno !== undefined) updateData.nro_interno = body.nro_interno ? body.nro_interno : null;
 
   if (Object.keys(updateData).length === 0) {
