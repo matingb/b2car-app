@@ -172,7 +172,10 @@ export const supabaseArregloRepository: ArregloRepository = {
   },
 
   async deleteById(supabase, id) {
-    const { error } = await supabase.from("arreglos").delete().eq("id", id);
+    //const { error } = await supabase.from("arreglos").delete().eq("id", id);
+    const { error } = await supabase.rpc("rpc_borrar_arreglo", {
+      p_arreglo_id: id,
+    });
     return { error: error ? toServiceError(error) : null };
   },
 

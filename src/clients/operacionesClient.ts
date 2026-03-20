@@ -15,7 +15,7 @@ export type CreateOperacionInput = {
 	arreglo_id?: string | null;
 };
 
-export type UpdateOperacionInput = Partial<CreateOperacionInput>;
+export type UpdateOperacionInput = Partial<Omit<CreateOperacionInput, "arreglo_id">>;
 
 export type GetOperacionesResponse = {
 	data: Operacion[] | null;

@@ -2,6 +2,7 @@ import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import type { OperacionDTO, OperacionLineaDTO } from "@/model/dtos";
 import { logger } from "@/lib/logger";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
+import { UpdateOperacionRequest } from "./[id]/route";
 
 export type OperacionesFilters = {
 	fecha?: string; // YYYY-MM-DD
@@ -44,7 +45,6 @@ export type UpdateOperacionInput = {
 	taller_id?: string;
 	created_at?: string;
 	lineas?: UpdateOperacionLineaInput[];
-	arreglo_id?: string | null;
 };
 
 type OperacionRow = OperacionDTO & { operaciones_lineas?: OperacionLineaDTO[] | null };
@@ -149,7 +149,7 @@ export const operacionesService = {
 		supabase: SupabaseClient,
 		id: string,
 		input: UpdateOperacionInput
-	): Promise<{ data: OperacionRow | null; error: ServiceError | null }>
+	): Promise<{ data: UpdateOperacionRequest | null; error: ServiceError | null }>
 	{
 		const updatePayload: Record<string, string | undefined> = {};
 		if (input.tipo) updatePayload.tipo = input.tipo;
@@ -176,21 +176,6 @@ export const operacionesService = {
 
 				const { error: insertError } = await supabase.from("operaciones_lineas").insert(lineasPayload);
 				if (insertError) return { data: null, error: toServiceError(insertError) };
-			}
-		}
-
-		if (input.arreglo_id !== undefined) {
-			if (input.arreglo_id) {
-				const { error: upsertError } = await supabase
-					.from("operaciones_asignacion_arreglo")
-					.upsert({ operacion_id: id, arreglo_id: input.arreglo_id });
-				if (upsertError) return { data: null, error: toServiceError(upsertError) };
-			} else {
-				const { error: deleteAsigError } = await supabase
-					.from("operaciones_asignacion_arreglo")
-					.delete()
-					.eq("operacion_id", id);
-				if (deleteAsigError) return { data: null, error: toServiceError(deleteAsigError) };
 			}
 		}
 

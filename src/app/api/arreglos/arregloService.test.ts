@@ -64,34 +64,24 @@ describe("arregloService", () => {
   });
 
   describe("deleteById", () => {
-    it("si listOperacionIdsByArregloId falla, retorna error sin llamar a los siguientes pasos", async () => {
-      const deleteOperaciones = vi.fn();
-      const deleteById = vi.fn();
+    it("si deleteById falla en el repositorio, retorna ese error", async () => {
       const repo = makeRepo({
-        listOperacionIdsByArregloId: vi.fn().mockResolvedValue({ data: null, error: ServiceError.Unknown }),
-        deleteOperacionesConStockLista: deleteOperaciones,
-        deleteById,
+        deleteById: vi.fn().mockResolvedValue({ error: ServiceError.Unknown }),
       });
 
       const result = await createArregloService(repo).deleteById(mockSupabase, "a1");
 
       expect(result.error).toBe(ServiceError.Unknown);
-      expect(deleteOperaciones).not.toHaveBeenCalled();
-      expect(deleteById).not.toHaveBeenCalled();
     });
 
-    it("si deleteOperacionesConStockLista falla, retorna error sin eliminar el arreglo", async () => {
-      const deleteById = vi.fn();
+    it("si deleteById del repositorio no falla, retorna error null", async () => {
       const repo = makeRepo({
-        listOperacionIdsByArregloId: vi.fn().mockResolvedValue({ data: ["op1"], error: null }),
-        deleteOperacionesConStockLista: vi.fn().mockResolvedValue({ error: ServiceError.Unknown }),
-        deleteById,
+        deleteById: vi.fn().mockResolvedValue({ error: null }),
       });
 
       const result = await createArregloService(repo).deleteById(mockSupabase, "a1");
 
-      expect(result.error).toBe(ServiceError.Unknown);
-      expect(deleteById).not.toHaveBeenCalled();
+      expect(result.error).toBeNull();
     });
   });
 

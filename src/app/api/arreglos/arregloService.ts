@@ -75,24 +75,6 @@ export function createArregloService(repository: ArregloRepository) {
     },
 
     async deleteById(supabase: SupabaseClient, id: string): Promise<{ error: ServiceError | null }> {
-      const { data: operacionIds, error: operacionesError } = await repository.listOperacionIdsByArregloId(
-        supabase,
-        id
-      );
-      if (operacionesError) {
-        logger.error("Error obteniendo operaciones relacionadas al arreglo:", operacionesError);
-        return { error: operacionesError };
-      }
-
-      const { error: deleteOperacionesError } = await repository.deleteOperacionesConStockLista(
-        supabase,
-        operacionIds ?? []
-      );
-      if (deleteOperacionesError) {
-        logger.error("Error borrando operaciones relacionadas al arreglo:", deleteOperacionesError);
-        return { error: deleteOperacionesError };
-      }
-
       const { error } = await repository.deleteById(supabase, id);
       if (error) return { error };
       return { error: null };

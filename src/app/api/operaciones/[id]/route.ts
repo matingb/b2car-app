@@ -57,7 +57,7 @@ export async function GET(
 	const { data, error } = await operacionesService.getById(supabase, id);
 	if (error) {
 		const status = error === ServiceError.NotFound ? 404 : 500;
-		const message = status === 404 ? "Operación no encontrada" : "Error cargando operación";
+		const message = status === 404 ? "OperaciÃ³n no encontrada" : "Error cargando operaciÃ³n";
 		return Response.json({ data: null, error: message } satisfies GetOperacionByIdResponse, { status });
 	}
 
@@ -73,13 +73,19 @@ export async function PUT(
 
 	const payload: UpdateOperacionRequest | null = await req.json().catch(() => null);
 	if (!payload)
-		return Response.json({ data: null, error: "JSON inválido" } satisfies UpdateOperacionResponse, { status: 400 });
+		return Response.json({ data: null, error: "JSON invÃ¡lido" } satisfies UpdateOperacionResponse, { status: 400 });
+	if (Object.prototype.hasOwnProperty.call(payload, "arreglo_id")) {
+		return Response.json(
+			{ data: null, error: "arreglo_id no se puede modificar en una operaciÃ³n existente" } satisfies UpdateOperacionResponse,
+			{ status: 400 }
+		);
+	}
 
 	const { data: updated, error } = await operacionesService.update(supabase, id, payload);
 	if (error || !updated) {
 		logger.error("PUT /api/operaciones/[id] - error:", error);
 		const status = error === ServiceError.NotFound ? 404 : 500;
-		const message = status === 404 ? "Operación no encontrada" : "Error actualizando operación";
+		const message = status === 404 ? "OperaciÃ³n no encontrada" : "Error actualizando operaciÃ³n";
 		return Response.json({ data: null, error: message } satisfies UpdateOperacionResponse, { status });
 	}
 
@@ -98,11 +104,11 @@ export async function DELETE(
 	if (error) {
 		logger.error("DELETE /api/operaciones/[id] - error:", error);
 		let status = 500;
-		let message = "Error eliminando operación";
+		let message = "Error eliminando operaciÃ³n";
 		switch (error) {
 			case ServiceError.NotFound:
 				status = 404;
-				message = "Operación no encontrada";
+				message = "OperaciÃ³n no encontrada";
 				break;
 			case ServiceError.StockInsuficiente:
 				status = 409;
