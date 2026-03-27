@@ -84,7 +84,7 @@ export const supabaseArregloRepository: ArregloRepository = {
 
     let query = supabase
       .from("arreglos")
-      .select("*, vehiculo:vehiculos(*), taller:talleres(*), detalles:detalle_arreglo(descripcion)")
+      .select("*, vehiculo:vista_vehiculos_con_clientes(*), taller:talleres(*), detalles:detalle_arreglo(descripcion)")
       .order("fecha", { ascending: false })
       .order("updated_at", { ascending: false })
       .order("id", { ascending: false })

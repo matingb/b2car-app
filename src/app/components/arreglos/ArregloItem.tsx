@@ -8,14 +8,13 @@ import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
 import { Arreglo } from "@/model/types";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import {
-  Calendar,
   Wrench,
-  Gauge,
   FileText,
   CheckCircle2,
   XCircle,
   Car,
   Building2,
+  User,
 } from "lucide-react";
 import { css } from "@emotion/react";
 import { formatArs } from "@/lib/format";
@@ -69,6 +68,7 @@ export default function ArregloItem({
 
             <div css={styles.rightSection}>
               <div css={styles.priceSection}>
+                <span css={styles.dateValue}>{formatDateLabel(arreglo.fecha)}</span>
                 <span css={styles.priceValue}>
                   {formatArs(arreglo.precio_final, {
                     maxDecimals: 0,
@@ -84,39 +84,25 @@ export default function ArregloItem({
 
           {/* Grid de informaciИn */}
           <div css={styles.infoGrid}>
-            <div css={[styles.infoColumn, styles.hideOnMobile]}>
-              <span css={styles.infoLabel}>Tipo</span>
-              <IconLabel
-                icon={<Wrench size={18} color={COLOR.ACCENT.PRIMARY} />}
-                label={arreglo.tipo || "N/A"}
-              />
-            </div>
-
-            <div css={styles.infoColumn}>
-              <span css={styles.infoLabel}>Fecha</span>
-              <IconLabel
-                icon={<Calendar size={18} color={COLOR.ACCENT.PRIMARY} />}
-                label={formatDateLabel(arreglo.fecha)}
-              />
-            </div>
-
-            <div css={[styles.infoColumn, styles.hideOnMobile]}>
-              <span css={styles.infoLabel}>Kilometraje</span>
-              <IconLabel
-                icon={<Gauge size={18} color={COLOR.ACCENT.PRIMARY} />}
-                label={
-                  arreglo.kilometraje_leido
-                    ? `${arreglo.kilometraje_leido.toLocaleString()} km`
-                    : "N/A"
-                }
-              />
-            </div>
-
             <div css={styles.infoColumn}>
               <span css={styles.infoLabel}>Vehiculo</span>
               <IconLabel
                 icon={<Car size={18} color={COLOR.ACCENT.PRIMARY} />}
                 label={`${arreglo.vehiculo.marca || ""} ${arreglo.vehiculo.modelo || ""}`.trim() || "-"}
+              />
+            </div>
+            <div css={styles.infoColumn}>
+              <span css={styles.infoLabel}>Cliente</span>
+              <IconLabel
+                icon={<User size={18} color={COLOR.ACCENT.PRIMARY} />}
+                label={`${arreglo.vehiculo.nombre_cliente || "-"}`}
+              />
+            </div>
+            <div css={[styles.infoColumn, styles.hideOnMobile]}>
+              <span css={styles.infoLabel}>Tipo</span>
+              <IconLabel
+                icon={<Wrench size={18} color={COLOR.ACCENT.PRIMARY} />}
+                label={arreglo.tipo || "N/A"}
               />
             </div>
             {talleres.length > 1 ? (
@@ -224,7 +210,7 @@ const styles = {
   }),
   rightSection: css({
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-end",
     gap: 12,
     flexShrink: 0,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
@@ -237,9 +223,19 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-end",
-    gap: 2,
+    gap: 4,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       alignItems: "flex-end",
+    },
+  }),
+  dateValue: css({
+    fontSize: 12,
+    lineHeight: 1.2,
+    color: COLOR.TEXT.SECONDARY,
+    fontWeight: 500,
+    whiteSpace: "nowrap",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      fontSize: 11,
     },
   }),
   priceLabel: {
