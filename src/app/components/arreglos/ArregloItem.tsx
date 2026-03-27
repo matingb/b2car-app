@@ -91,13 +91,15 @@ export default function ArregloItem({
                 label={`${arreglo.vehiculo.marca || ""} ${arreglo.vehiculo.modelo || ""}`.trim() || "-"}
               />
             </div>
-            <div css={styles.infoColumn}>
-              <span css={styles.infoLabel}>Cliente</span>
-              <IconLabel
-                icon={<User size={18} color={COLOR.ACCENT.PRIMARY} />}
-                label={`${arreglo.vehiculo.nombre_cliente || "-"}`}
-              />
-            </div>
+            {arreglo.vehiculo.nombre_cliente && (
+              <div css={styles.infoColumn}>
+                <span css={styles.infoLabel}>Cliente</span>
+                <IconLabel
+                  icon={<User size={18} color={COLOR.ACCENT.PRIMARY} />}
+                  label={`${arreglo.vehiculo.nombre_cliente || "-"}`}
+                />
+              </div>
+            )}
             <div css={[styles.infoColumn, styles.hideOnMobile]}>
               <span css={styles.infoLabel}>Tipo</span>
               <IconLabel
