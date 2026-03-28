@@ -67,15 +67,13 @@ export default function ArregloItem({
             </div>
 
             <div css={styles.rightSection}>
-              <div css={styles.priceSection}>
-                <span css={styles.dateValue}>{formatDateLabel(arreglo.fecha)}</span>
-                <span css={styles.priceValue}>
-                  {formatArs(arreglo.precio_final, {
-                    maxDecimals: 0,
-                    minDecimals: 0,
-                  })}
-                </span>
-              </div>
+              <span css={styles.dateValue}>{formatDateLabel(arreglo.fecha)}</span>
+              <span css={styles.priceValue}>
+                {formatArs(arreglo.precio_final, {
+                  maxDecimals: 0,
+                  minDecimals: 0,
+                })}
+              </span>
             </div>
           </div>
 
@@ -155,8 +153,10 @@ const styles = {
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       display: "grid",
       gridTemplateColumns: "minmax(0, 1fr) auto",
-      alignItems: "center",
-      gap: 8,
+      gridTemplateAreas: "\"title date\" \"meta price\"",
+      alignItems: "start",
+      columnGap: 12,
+      rowGap: 4,
     },
   }),
   leftSection: css({
@@ -175,9 +175,9 @@ const styles = {
     flexWrap: "wrap",
     maxWidth: "100%",
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      gridArea: "meta",
       maxWidth: "100%",
       rowGap: 6,
-      gridColumn: "1 / 2",
     },
   }),
   mainTitle: css({
@@ -190,6 +190,7 @@ const styles = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      gridArea: "title",
       fontSize: 16,
       maxWidth: "100%",
       whiteSpace: "normal",
@@ -212,22 +213,12 @@ const styles = {
   }),
   rightSection: css({
     display: "flex",
-    alignItems: "flex-end",
-    gap: 12,
-    flexShrink: 0,
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      width: "auto",
-      justifyContent: "flex-end",
-      alignSelf: "center",
-    },
-  }),
-  priceSection: css({
-    display: "flex",
     flexDirection: "column",
     alignItems: "flex-end",
     gap: 4,
+    flexShrink: 0,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      alignItems: "flex-end",
+      display: "contents",
     },
   }),
   dateValue: css({
@@ -237,7 +228,11 @@ const styles = {
     fontWeight: 500,
     whiteSpace: "nowrap",
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      gridArea: "date",
+      justifySelf: "end",
+      alignSelf: "center",
       fontSize: 11,
+      textAlign: "right",
     },
   }),
   priceLabel: {
@@ -250,7 +245,11 @@ const styles = {
     fontWeight: 700,
     color: COLOR.ACCENT.PRIMARY,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      gridArea: "price",
+      justifySelf: "end",
+      alignSelf: "center",
       fontSize: 20,
+      lineHeight: 1,
     },
   }),
   divider: {
