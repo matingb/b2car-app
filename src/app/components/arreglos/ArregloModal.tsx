@@ -274,7 +274,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           : null
       }
       modalStyle={{
-        width: "min(860px, 96vw)",
+        width: isEdit ? "min(860px, 96vw)" : "min(1100px, 92vw)",
         maxHeight: "90dvh",
         overflow: "auto",
       }}

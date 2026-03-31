@@ -513,18 +513,18 @@ export default function ServicioLineasCustomSection({
       }
       subtotalLabel="Costo $"
     >
-      <div style={lineaStyles.list}>
-        {lineDefs.length === 0 ? (
-          <div style={lineaStyles.emptyState}>Sin lineas custom configuradas.</div>
-        ) : null}
+      <Card css={customStyles.listCard}>
+        <div css={customStyles.rowsList}>
+          {lineDefs.length === 0 ? (
+            <div style={lineaStyles.emptyState}>Sin lineas custom configuradas.</div>
+          ) : null}
 
-        {lineDefs.map((line) => {
-          const lineState = stateByLine[line.id] ?? { values: {} };
+          {lineDefs.map((line) => {
+            const lineState = stateByLine[line.id] ?? { values: {} };
 
-          return (
-            <Card key={line.id} css={customStyles.card}>
-              <div css={customStyles.body}>
-                <div css={customStyles.topWrap}>
+            return (
+              <div key={line.id} css={customStyles.rowItem}>
+                <div css={customStyles.rowContent}>
                   <span css={customStyles.lineDescriptionLabel}>
                     {String(lineState.values.__titulo ?? line.title ?? line.descripcion).trim() ||
                       line.title ||
@@ -575,7 +575,7 @@ export default function ServicioLineasCustomSection({
                           ) : field.component === "textarea" ? (
                             <textarea
                               {...commonProps}
-                              rows={2}
+                              rows={1}
                               value={value}
                               style={customStyles.textareaInput}
                               onChange={(e) =>
@@ -634,48 +634,43 @@ export default function ServicioLineasCustomSection({
                   </div>
                 </div>
               </div>
-            </Card>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </Card>
     </LineasSectionShell>
   );
 }
 
 const customStyles = {
-  card: css({
-    ...lineaStyles.itemCard,
-    gap: 10,
-    alignItems: "center",
-    [`@media (min-width: ${BREAKPOINTS.lg}px)`]: {
-      flexWrap: "nowrap",
-    },
+  listCard: css({
+    padding: "8px 10px",
   }),
-  body: css({
-    flex: 1,
+  rowsList: css({
     display: "flex",
     flexDirection: "column",
-    alignItems: "stretch",
-    gap: 10,
-    [`@media (min-width: ${BREAKPOINTS.lg}px)`]: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      gap: 12,
-    },
-  }),
-  topWrap: css({
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "stretch",
-    flexWrap: "nowrap",
-    gap: 8,
+    gap: 0,
     width: "100%",
-    flex: 1,
+  }),
+  rowItem: css({
+    width: "100%",
+    padding: "6px 0",
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    "&:last-of-type": {
+      borderBottom: "none",
+    },
+  }),
+  rowContent: css({
+    display: "flex",
+    alignItems: "flex-start",
+    flexWrap: "nowrap",
+    gap: 10,
+    width: "100%",
     minWidth: 0,
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       flexDirection: "column",
       alignItems: "stretch",
-      flexWrap: "nowrap",
+      gap: 6,
     },
   }),
   headerCostoInput: {
@@ -707,44 +702,46 @@ const customStyles = {
     display: "flex",
     flexWrap: "nowrap" as const,
     alignItems: "flex-start",
+    justifyContent: "space-between",
     gap: 10,
-    width: "auto",
+    width: "100%",
     flex: 1,
     minWidth: 0,
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      width: "100%",
       flexWrap: "wrap" as const,
-      alignItems: "stretch",
+      justifyContent: "flex-start",
       gap: 8,
     },
   },
   fieldWrap: css({
     display: "flex",
     flexDirection: "column" as const,
+    alignItems: "stretch",
     flex: "1 1 0",
-    minWidth: 0,
+    minWidth: 120,
     maxWidth: "100%",
-    gap: 4,
+    gap: 2,
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       flex: "1 1 100%",
       minWidth: 0,
-      width: "100%",
     },
   }),
   textareaFieldWrap: {
-    flex: "1.25 1 0",
+    flex: "1.4 1 0",
+    minWidth: 160,
   },
   fieldLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLOR.TEXT.SECONDARY,
     fontWeight: 600,
+    whiteSpace: "nowrap" as const,
   },
   readonlyValue: {
     width: "100%",
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 8,
-    padding: "8px 10px",
-    minHeight: 38,
+    borderRadius: 6,
+    padding: "4px 8px",
+    minHeight: 30,
     background: COLOR.BACKGROUND.SUBTLE,
     color: COLOR.TEXT.PRIMARY,
     display: "flex",
@@ -757,34 +754,39 @@ const customStyles = {
   input: {
     width: "100%",
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 8,
-    padding: "8px 10px",
+    borderRadius: 6,
+    padding: "4px 8px",
+    minHeight: 30,
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    fontSize: 13,
   },
   textareaInput: {
     width: "100%",
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 8,
-    padding: "8px 10px",
+    borderRadius: 6,
+    padding: "4px 8px",
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
-    minHeight: 72,
+    minHeight: 30,
     resize: "vertical" as const,
-    lineHeight: 1.4,
+    lineHeight: 1.2,
+    fontSize: 13,
   },
   autocompleteInput: {
-    padding: "8px 68px 8px 10px",
-    minHeight: 38,
-    height: 38,
+    padding: "4px 50px 4px 8px",
+    minHeight: 30,
+    height: 30,
+    fontSize: 13,
   },
   checkboxRow: {
-    height: 38,
+    height: 30,
     display: "flex",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
+    whiteSpace: "nowrap" as const,
   },
   checkboxText: {
     color: COLOR.TEXT.SECONDARY,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 600,
   },
   footer: css({
@@ -813,17 +815,27 @@ const customStyles = {
     whiteSpace: "nowrap" as const,
   },
   readonlyValueMultiline: {
-    alignItems: "flex-start" as const,
-    minHeight: 72,
-    whiteSpace: "pre-wrap" as const,
-    lineHeight: 1.4,
+    alignItems: "center" as const,
+    minHeight: 30,
+    lineHeight: 1.2,
   },
   lineDescriptionLabel: css({
-    display: "block",
-    width: "100%",
-    fontSize: 14,
-    lineHeight: 1.3,
+    display: "inline-flex",
+    width: 280,
+    flex: "0 0 280px",
+    fontSize: 13,
+    lineHeight: 1.2,
     fontWeight: 700,
     color: COLOR.TEXT.SECONDARY,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      width: "100%",
+      flex: "0 0 auto",
+      whiteSpace: "normal",
+      overflow: "visible",
+      textOverflow: "unset",
+    },
   }),
 } as const;
