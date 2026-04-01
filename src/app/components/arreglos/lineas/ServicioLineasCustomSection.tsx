@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { css } from "@emotion/react";
-import { Check, LibraryBig, Pencil } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Circle, LibraryBig, Pencil } from "lucide-react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
 import type { ServicioLinea } from "./ServicioLineasEditableSection";
@@ -323,7 +323,16 @@ function buildServicioLinea(
 
   for (const field of line.fields) {
     if (field.key === "cantidad" || field.key === "valor") continue;
-    const value = String(state.values[field.key] ?? "").trim();
+    const rawValue = String(state.values[field.key] ?? "").trim();
+    if (!rawValue) continue;
+    const value =
+      field.component === "checkbox"
+        ? rawValue === "true"
+          ? "Si"
+          : rawValue === "false"
+            ? "No"
+            : ""
+        : rawValue;
     if (!value) continue;
     parts.push(`${field.label}: ${value}`);
   }
@@ -339,6 +348,88 @@ function buildServicioLinea(
   };
 }
 
+function isFieldAnswered(field: CustomFieldDef, value: unknown): boolean {
+  const normalized = String(value ?? "").trim();
+  if (field.component === "checkbox") {
+    return normalized === "true" || normalized === "false";
+  }
+  return normalized.length > 0;
+}
+
+function pluralizeObligatorio(count: number): string {
+  return `${count} obligatorio${count === 1 ? "" : "s"}`;
+}
+
+function pluralizeCampo(count: number): string {
+  return `${count} campo${count === 1 ? "" : "s"}`;
+}
+
+type LineVisualStatus = {
+  tone: "complete" | "warning" | "pending";
+  label: string;
+  detail: string;
+};
+
+function getLineVisualStatus(
+  line: CustomServicioLineDef,
+  state: LineRuntimeState
+): LineVisualStatus {
+  const requiredFields = line.fields.filter((field) => field.required);
+  const answeredCount = line.fields.filter((field) =>
+    isFieldAnswered(field, state.values[field.key])
+  ).length;
+  const completedRequired = requiredFields.filter((field) =>
+    isFieldAnswered(field, state.values[field.key])
+  ).length;
+  const missingRequired = requiredFields.length - completedRequired;
+
+  if (requiredFields.length > 0) {
+    if (missingRequired === 0) {
+      return {
+        tone: "complete",
+        label: "Completo",
+        detail: `${pluralizeObligatorio(completedRequired)} completos`,
+      };
+    }
+
+    if (answeredCount > 0) {
+      return {
+        tone: "warning",
+        label: "Incompleto",
+        detail: `${pluralizeObligatorio(missingRequired)} pendiente${missingRequired === 1 ? "" : "s"}`,
+      };
+    }
+
+    return {
+      tone: "pending",
+      label: "Pendiente",
+      detail: `${pluralizeObligatorio(requiredFields.length)} por completar`,
+    };
+  }
+
+  if (answeredCount > 0) {
+    return {
+      tone: "complete",
+      label: "Completo",
+      detail: `${pluralizeCampo(answeredCount)} cargados`,
+    };
+  }
+
+  return {
+    tone: "pending",
+    label: "Pendiente",
+    detail: "Sin datos cargados",
+  };
+}
+
+function getLineTitle(line: CustomServicioLineDef, state: LineRuntimeState): string {
+  return (
+    String(state.values.__titulo ?? line.title ?? line.descripcion).trim() ||
+    line.title ||
+    line.descripcion
+  );
+}
+
 export default function ServicioLineasCustomSection({
   formTitle,
   defaultCosto,
@@ -352,6 +443,10 @@ export default function ServicioLineasCustomSection({
   onConfirmEdit,
 }: Props) {
   const [isEditing, setIsEditing] = useState<boolean>(editableOnLoad);
+  const initialStateByLine = useMemo(
+    () => makeInitialState(lineDefs, initialDetalle?.metadata),
+    [lineDefs, initialDetalle?.metadata]
+  );
 
   const [formCostoInput, setFormCostoInput] = useState<string>(() =>
     String(
@@ -364,12 +459,16 @@ export default function ServicioLineasCustomSection({
   );
 
   const [stateByLine, setStateByLine] = useState<Record<string, LineRuntimeState>>(
-    () => makeInitialState(lineDefs, initialDetalle?.metadata)
+    () => initialStateByLine
   );
+  const [dirtyFieldsByLine, setDirtyFieldsByLine] = useState<
+    Record<string, Record<string, boolean>>
+  >({});
 
   useEffect(() => {
     setIsEditing(editableOnLoad);
-    setStateByLine(makeInitialState(lineDefs, initialDetalle?.metadata));
+    setStateByLine(initialStateByLine);
+    setDirtyFieldsByLine({});
     setFormCostoInput(
       String(
         Number.isFinite(Number(initialDetalle?.costo))
@@ -379,7 +478,7 @@ export default function ServicioLineasCustomSection({
             : 0
       )
     );
-  }, [lineDefs, defaultCosto, initialDetalle, editableOnLoad]);
+  }, [initialStateByLine, defaultCosto, initialDetalle, editableOnLoad]);
 
   const costoTotal = useMemo(
     () =>
@@ -418,6 +517,10 @@ export default function ServicioLineasCustomSection({
           const value: string | boolean | null =
             field.component === "checkbox"
               ? raw === "true"
+                ? true
+                : raw === "false"
+                  ? false
+                  : null
               : raw == null || raw === ""
                 ? null
                 : String(raw);
@@ -439,6 +542,23 @@ export default function ServicioLineasCustomSection({
   }, [onDetalleChange, costoTotal, detalleMetadata]);
 
   const subtotal = formCostoInput;
+  const lineCards = useMemo(
+    () =>
+      lineDefs.map((line) => {
+        const lineState = stateByLine[line.id] ?? { values: {} };
+        return {
+          line,
+          lineState,
+          title: getLineTitle(line, lineState),
+          status: getLineVisualStatus(line, lineState),
+        };
+      }),
+    [lineDefs, stateByLine]
+  );
+  const completedItemsCount = useMemo(
+    () => lineCards.filter(({ status }) => status.tone === "complete").length,
+    [lineCards]
+  );
 
   const updateField = (lineId: string, key: string, value: string) => {
     setStateByLine((prev) => ({
@@ -448,6 +568,13 @@ export default function ServicioLineasCustomSection({
           ...(prev[lineId]?.values ?? {}),
           [key]: value,
         },
+      },
+    }));
+    setDirtyFieldsByLine((prev) => ({
+      ...prev,
+      [lineId]: {
+        ...(prev[lineId] ?? {}),
+        [key]: true,
       },
     }));
   };
@@ -514,124 +641,198 @@ export default function ServicioLineasCustomSection({
       subtotalLabel="Costo $"
     >
       <Card css={customStyles.listCard}>
+        {lineDefs.length > 0 ? (
+          <div css={customStyles.summaryRow}>
+            <span css={customStyles.summaryValue}>
+              {completedItemsCount} de {lineCards.length} items cargados
+            </span>
+          </div>
+        ) : null}
         <div css={customStyles.rowsList}>
           {lineDefs.length === 0 ? (
             <div style={lineaStyles.emptyState}>Sin lineas custom configuradas.</div>
           ) : null}
 
-          {lineDefs.map((line) => {
-            const lineState = stateByLine[line.id] ?? { values: {} };
+          {lineCards.map(({ line, lineState, title, status }) => {
+            const isComplete = status.tone === "complete";
+            const isWarning = status.tone === "warning";
+            const isLast = lineCards[lineCards.length - 1]?.line.id === line.id;
 
             return (
-              <div key={line.id} css={customStyles.rowItem}>
-                <div css={customStyles.rowContent}>
-                  <span css={customStyles.lineDescriptionLabel}>
-                    {String(lineState.values.__titulo ?? line.title ?? line.descripcion).trim() ||
-                      line.title ||
-                      line.descripcion}
-                  </span>
+              <div
+                key={line.id}
+                css={[
+                  customStyles.rowSection,
+                  !isLast && customStyles.rowSectionDivider,
+                ]}
+              >
+                <div css={customStyles.rowHeader}>
+                  <div
+                    css={[
+                      customStyles.statusIconWrap,
+                      isComplete && customStyles.statusIconWrapComplete,
+                      isWarning && customStyles.statusIconWrapWarning,
+                    ]}
+                    aria-hidden="true"
+                  >
+                    {isComplete ? (
+                      <CheckCircle2 size={18} />
+                    ) : isWarning ? (
+                      <AlertTriangle size={18} />
+                    ) : (
+                      <Circle size={18} />
+                    )}
+                  </div>
 
-                  <div css={customStyles.fieldsGrid}>
-                    {line.fields.map((field) => {
-                      const value = String(lineState.values[field.key] ?? "");
-                      const commonProps = {
-                        disabled,
-                        placeholder: field.placeholder,
-                      };
+                  <div css={customStyles.rowHeaderBody}>
+                    <div css={customStyles.rowHeaderTop}>
+                      <span css={customStyles.lineDescriptionLabel}>{title}</span>
+                      <span
+                        css={[customStyles.statusBadge]}
+                        data-testid={`custom-line-status-${line.id}`}
+                      >
+                        {status.label}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-                      return (
-                        <div
-                          key={field.key}
-                          css={customStyles.fieldWrap}
-                          style={
-                            field.component === "textarea"
-                              ? customStyles.textareaFieldWrap
-                              : undefined
-                          }
-                        >
+                <div css={customStyles.fieldsGrid}>
+                  {line.fields.map((field) => {
+                    const value = String(lineState.values[field.key] ?? "");
+                    const isAnswered = isFieldAnswered(field, value);
+                    const isDirty = Boolean(dirtyFieldsByLine[line.id]?.[field.key]);
+                    const showFieldWarning =
+                      field.required &&
+                      !isAnswered &&
+                      (status.tone === "warning" || isDirty);
+                    const readOnly = disabled || !isEditing;
+                    const commonProps = {
+                      disabled: readOnly,
+                      placeholder: field.placeholder,
+                    };
+
+                    return (
+                      <div
+                        key={field.key}
+                        css={[
+                          customStyles.fieldCard,
+                          field.component === "textarea" && customStyles.fieldCardWide,
+                        ]}
+                      >
+                        <div css={customStyles.fieldTopRow}>
                           <label style={customStyles.fieldLabel}>
                             {field.label}
                             {field.required ? (
                               <span style={customStyles.requiredAsterisk}>*</span>
                             ) : null}
                           </label>
-                          {!isEditing ? (
-                            <div
-                              style={
-                                field.component === "textarea"
-                                  ? {
-                                      ...customStyles.readonlyValue,
-                                      ...customStyles.readonlyValueMultiline,
-                                    }
-                                  : customStyles.readonlyValue
-                              }
-                            >
-                              {field.component === "checkbox"
-                                ? value === "true"
-                                  ? "Si"
-                                  : "No"
-                                : value || "-"}
-                            </div>
-                          ) : field.component === "textarea" ? (
-                            <textarea
-                              {...commonProps}
-                              rows={1}
-                              value={value}
-                              style={customStyles.textareaInput}
-                              onChange={(e) =>
-                                updateField(line.id, field.key, e.target.value)
-                              }
-                            />
-                          ) : field.component === "select" ? (
-                            <Autocomplete
-                              options={(field.options ?? []).map((option) => ({
-                                value: option.value,
-                                label: option.label,
-                              }))}
-                              value={value}
-                              onChange={(nextValue) =>
-                                updateField(line.id, field.key, nextValue)
-                              }
-                              placeholder={field.placeholder ?? "Seleccionar..."}
-                              disabled={disabled}
-                              hideClearButton={false}
-                              allowCustomValue={false}
-                              inputStyle={customStyles.autocompleteInput}
-                            />
-                          ) : field.component === "checkbox" ? (
-                            <div style={customStyles.checkboxRow}>
-                              <input
-                                type="checkbox"
-                                disabled={disabled}
-                                checked={value === "true"}
-                                onChange={(e) =>
-                                  updateField(
-                                    line.id,
-                                    field.key,
-                                    e.target.checked ? "true" : "false"
-                                  )
-                                }
-                              />
-                              <span style={customStyles.checkboxText}>
-                                {value === "true" ? "Si" : "No"}
-                              </span>
-                            </div>
-                          ) : (
-                            <input
-                              {...commonProps}
-                              type={field.component === "text" ? "text" : "number"}
-                              inputMode={field.component === "text" ? "text" : "decimal"}
-                              value={value}
-                              style={customStyles.input}
-                              onChange={(e) =>
-                                updateField(line.id, field.key, e.target.value)
-                              }
-                            />
-                          )}
                         </div>
-                      );
-                    })}
-                  </div>
+                        {!isEditing ? (
+                          <div
+                            css={customStyles.readonlyValueWrap}
+                            style={
+                              field.component === "textarea"
+                                ? {
+                                    ...customStyles.readonlyValue,
+                                    ...customStyles.readonlyValueMultiline,
+                                    ...(showFieldWarning ? customStyles.controlWarning : {}),
+                                  }
+                                : {
+                                    ...customStyles.readonlyValue,
+                                    ...(showFieldWarning ? customStyles.controlWarning : {}),
+                                  }
+                            }
+                          >
+                            {field.component === "checkbox"
+                              ? value === "true"
+                                ? "Si"
+                                : value === "false"
+                                  ? "No"
+                                  : "-"
+                              : value || "-"}
+                          </div>
+                        ) : field.component === "textarea" ? (
+                          <textarea
+                            {...commonProps}
+                            rows={2}
+                            value={value}
+                            style={{
+                              ...customStyles.textareaInput,
+                              ...(showFieldWarning ? customStyles.controlWarning : {}),
+                            }}
+                            onChange={(e) =>
+                              updateField(line.id, field.key, e.target.value)
+                            }
+                          />
+                        ) : field.component === "select" ? (
+                          <Autocomplete
+                            options={(field.options ?? []).map((option) => ({
+                              value: option.value,
+                              label: option.label,
+                            }))}
+                            value={value}
+                            onChange={(nextValue) =>
+                              updateField(line.id, field.key, nextValue)
+                            }
+                            placeholder={field.placeholder ?? "Seleccionar..."}
+                            disabled={readOnly}
+                            hideClearButton={false}
+                            allowCustomValue={false}
+                            inputStyle={{
+                              ...customStyles.autocompleteInput,
+                              ...(showFieldWarning ? customStyles.controlWarning : {}),
+                            }}
+                          />
+                        ) : field.component === "checkbox" ? (
+                          <div css={customStyles.binaryChoiceRow}>
+                            {[
+                              { optionValue: "true", label: "Si" },
+                              { optionValue: "false", label: "No" },
+                            ].map((option) => {
+                              const selected = value === option.optionValue;
+                              return (
+                                <button
+                                  key={option.optionValue}
+                                  type="button"
+                                  disabled={readOnly}
+                                  aria-pressed={selected}
+                                  css={[
+                                    customStyles.binaryChoiceButton,
+                                    showFieldWarning && customStyles.binaryChoiceButtonWarning,
+                                    selected && customStyles.binaryChoiceButtonSelected,
+                                  ]}
+                                  onClick={() =>
+                                    updateField(
+                                      line.id,
+                                      field.key,
+                                      selected ? "" : option.optionValue
+                                    )
+                                  }
+                                >
+                                  {option.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <input
+                            {...commonProps}
+                            type={field.component === "text" ? "text" : "number"}
+                            inputMode={field.component === "text" ? "text" : "decimal"}
+                            value={value}
+                            style={{
+                              ...customStyles.input,
+                              ...(showFieldWarning ? customStyles.controlWarning : {}),
+                            }}
+                            onChange={(e) =>
+                              updateField(line.id, field.key, e.target.value)
+                            }
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -646,32 +847,68 @@ const customStyles = {
   listCard: css({
     padding: "8px 10px",
   }),
+  summaryRow: css({
+    padding: "2px 2px 8px",
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    marginBottom: 2,
+  }),
+  summaryValue: css({
+    fontSize: 12,
+    fontWeight: 700,
+    color: COLOR.TEXT.SECONDARY,
+  }),
   rowsList: css({
     display: "flex",
     flexDirection: "column",
-    gap: 0,
     width: "100%",
   }),
-  rowItem: css({
+  rowSection: css({
     width: "100%",
-    padding: "6px 0",
-    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    "&:last-of-type": {
-      borderBottom: "none",
-    },
-  }),
-  rowContent: css({
+    padding: "8px 2px",
     display: "flex",
-    alignItems: "flex-start",
-    flexWrap: "nowrap",
-    gap: 10,
+    flexDirection: "column",
+    gap: 4,
+  }),
+  rowSectionDivider: css({
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+  }),
+  rowHeader: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
     width: "100%",
+  }),
+  rowHeaderBody: css({
+    flex: 1,
     minWidth: 0,
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+  }),
+  rowHeaderTop: css({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       flexDirection: "column",
       alignItems: "stretch",
-      gap: 6,
     },
+  }),
+  statusIconWrap: css({
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    display: "inline-flex",
+    alignItems: "center",
+    flexShrink: 0,
+    color: COLOR.TEXT.SECONDARY,
+  }),
+  statusIconWrapComplete: css({
+    color: COLOR.SEMANTIC.SUCCESS,
+  }),
+  statusIconWrapWarning: css({
+    color: COLOR.SEMANTIC.WARNING,
   }),
   headerCostoInput: {
     width: 120,
@@ -689,8 +926,8 @@ const customStyles = {
     fontSize: 16,
   },
   headerEditIconButton: {
-    border: "none",
-    background: "transparent",
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SECONDARY,
     cursor: "pointer",
     padding: 8,
     borderRadius: 12,
@@ -698,55 +935,54 @@ const customStyles = {
     alignItems: "center",
     justifyContent: "center",
   },
-  fieldsGrid: {
-    display: "flex",
-    flexWrap: "nowrap" as const,
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 10,
+  fieldsGrid: css({
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+    gap: 6,
     width: "100%",
-    flex: 1,
-    minWidth: 0,
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      flexWrap: "wrap" as const,
-      justifyContent: "flex-start",
-      gap: 8,
-    },
-  },
-  fieldWrap: css({
-    display: "flex",
-    flexDirection: "column" as const,
-    alignItems: "stretch",
-    flex: "1 1 0",
-    minWidth: 120,
-    maxWidth: "100%",
-    gap: 2,
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      flex: "1 1 100%",
-      minWidth: 0,
+      gridTemplateColumns: "1fr",
     },
   }),
-  textareaFieldWrap: {
-    flex: "1.4 1 0",
-    minWidth: 160,
-  },
+  fieldCard: css({
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 4,
+    minWidth: 0,
+  }),
+  fieldCardWide: css({
+    gridColumn: "span 2",
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      gridColumn: "span 1",
+    },
+  }),
+  fieldTopRow: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+  }),
   fieldLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: COLOR.TEXT.SECONDARY,
     fontWeight: 600,
-    whiteSpace: "nowrap" as const,
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.04em",
   },
   readonlyValue: {
     width: "100%",
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 6,
-    padding: "4px 8px",
-    minHeight: 30,
-    background: COLOR.BACKGROUND.SUBTLE,
+    borderRadius: 8,
+    padding: "7px 10px",
+    minHeight: 34,
+    background: COLOR.BACKGROUND.SECONDARY,
     color: COLOR.TEXT.PRIMARY,
     display: "flex",
     alignItems: "center",
   },
+  readonlyValueWrap: css({
+    width: "100%",
+  }),
   requiredAsterisk: {
     color: COLOR.ICON.DANGER,
     marginLeft: 3,
@@ -754,88 +990,92 @@ const customStyles = {
   input: {
     width: "100%",
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 6,
-    padding: "4px 8px",
-    minHeight: 30,
+    borderRadius: 8,
+    padding: "7px 10px",
+    minHeight: 34,
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
     fontSize: 13,
+  },
+  controlWarning: {
+    borderColor: COLOR.SEMANTIC.WARNING,
   },
   textareaInput: {
     width: "100%",
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 6,
-    padding: "4px 8px",
+    borderRadius: 8,
+    padding: "7px 10px",
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
-    minHeight: 30,
+    minHeight: 46,
     resize: "vertical" as const,
-    lineHeight: 1.2,
+    lineHeight: 1.4,
     fontSize: 13,
   },
   autocompleteInput: {
-    padding: "4px 50px 4px 8px",
-    minHeight: 30,
-    height: 30,
+    padding: "7px 40px 7px 10px",
+    minHeight: 34,
+    height: 34,
     fontSize: 13,
   },
-  checkboxRow: {
-    height: 30,
+  binaryChoiceRow: css({
+    display: "flex",
+    gap: 6,
+    flexWrap: "wrap",
+  }),
+  binaryChoiceButton: css({
+    minWidth: 50,
+    height: 34,
     display: "flex",
     alignItems: "center",
-    gap: 6,
-    whiteSpace: "nowrap" as const,
-  },
-  checkboxText: {
+    justifyContent: "center",
+    padding: "0 8px",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SECONDARY,
     color: COLOR.TEXT.SECONDARY,
     fontSize: 12,
-    fontWeight: 600,
+    fontWeight: 700,
+    cursor: "pointer",
+  }),
+  binaryChoiceButtonWarning: css({
+    borderColor: COLOR.SEMANTIC.WARNING,
+  }),
+  binaryChoiceButtonSelected: css({
+    background: COLOR.BACKGROUND.INFO_TINT,
+    borderColor: COLOR.ACCENT.PRIMARY,
+    color: COLOR.ACCENT.PRIMARY,
+  }),
+  readonlyValueMultiline: {
+    alignItems: "flex-start" as const,
+    minHeight: 46,
+    lineHeight: 1.4,
   },
-  footer: css({
-    display: "flex",
-    justifyContent: "space-between",
+  statusBadge: css({
+    display: "inline-flex",
     alignItems: "center",
-    gap: 12,
-    width: "100%",
-    borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    paddingTop: 8,
-    marginTop: 4,
-    [`@media (min-width: ${BREAKPOINTS.lg}px)`]: {
-      width: "auto",
-      minWidth: 140,
-      flexShrink: 0,
-      justifyContent: "flex-end",
-      borderTop: "none",
-      paddingTop: 0,
-      marginTop: 0,
+    justifyContent: "center",
+    width: "fit-content",
+    borderRadius: 999,
+    padding: "4px 10px",
+    fontSize: 11,
+    fontWeight: 700,
+    color: COLOR.TEXT.TERTIARY,
+    background: COLOR.BACKGROUND.SECONDARY,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    whiteSpace: "nowrap",
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      display: "none",
     },
   }),
-  previewTotal: {
-    color: COLOR.TEXT.PRIMARY,
-    fontWeight: 700,
-    fontSize: 14,
-    whiteSpace: "nowrap" as const,
-  },
-  readonlyValueMultiline: {
-    alignItems: "center" as const,
-    minHeight: 30,
-    lineHeight: 1.2,
-  },
   lineDescriptionLabel: css({
     display: "inline-flex",
-    width: 280,
-    flex: "0 0 280px",
+    flex: 1,
+    minWidth: 0,
     fontSize: 13,
-    lineHeight: 1.2,
+    lineHeight: 1.25,
     fontWeight: 700,
-    color: COLOR.TEXT.SECONDARY,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
+    color: COLOR.TEXT.PRIMARY,
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       width: "100%",
-      flex: "0 0 auto",
-      whiteSpace: "normal",
-      overflow: "visible",
-      textOverflow: "unset",
     },
   }),
 } as const;
