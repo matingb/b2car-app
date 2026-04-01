@@ -356,19 +356,7 @@ function isFieldAnswered(field: CustomFieldDef, value: unknown): boolean {
   return normalized.length > 0;
 }
 
-function pluralizeObligatorio(count: number): string {
-  return `${count} obligatorio${count === 1 ? "" : "s"}`;
-}
-
-function pluralizeCampo(count: number): string {
-  return `${count} campo${count === 1 ? "" : "s"}`;
-}
-
-type LineVisualStatus = {
-  tone: "complete" | "warning" | "pending";
-  label: string;
-  detail: string;
-};
+type LineVisualStatus = "complete" | "warning" | "pending";
 
 function getLineVisualStatus(
   line: CustomServicioLineDef,
@@ -385,41 +373,21 @@ function getLineVisualStatus(
 
   if (requiredFields.length > 0) {
     if (missingRequired === 0) {
-      return {
-        tone: "complete",
-        label: "Completo",
-        detail: `${pluralizeObligatorio(completedRequired)} completos`,
-      };
+      return "complete";
     }
 
     if (answeredCount > 0) {
-      return {
-        tone: "warning",
-        label: "Incompleto",
-        detail: `${pluralizeObligatorio(missingRequired)} pendiente${missingRequired === 1 ? "" : "s"}`,
-      };
+      return "warning";
     }
 
-    return {
-      tone: "pending",
-      label: "Pendiente",
-      detail: `${pluralizeObligatorio(requiredFields.length)} por completar`,
-    };
+    return "pending";
   }
 
   if (answeredCount > 0) {
-    return {
-      tone: "complete",
-      label: "Completo",
-      detail: `${pluralizeCampo(answeredCount)} cargados`,
-    };
+    return "complete";
   }
 
-  return {
-    tone: "pending",
-    label: "Pendiente",
-    detail: "Sin datos cargados",
-  };
+  return "pending";
 }
 
 function getLineTitle(line: CustomServicioLineDef, state: LineRuntimeState): string {
@@ -556,7 +524,7 @@ export default function ServicioLineasCustomSection({
     [lineDefs, stateByLine]
   );
   const completedItemsCount = useMemo(
-    () => lineCards.filter(({ status }) => status.tone === "complete").length,
+    () => lineCards.filter(({ status }) => status === "complete").length,
     [lineCards]
   );
 
@@ -653,9 +621,9 @@ export default function ServicioLineasCustomSection({
             <div style={lineaStyles.emptyState}>Sin lineas custom configuradas.</div>
           ) : null}
 
-          {lineCards.map(({ line, lineState, title, status }) => {
-            const isComplete = status.tone === "complete";
-            const isWarning = status.tone === "warning";
+          {lineCards.map(({ line, lineState, title, status }, lineIndex) => {
+            const isComplete = status === "complete";
+            const isWarning = status === "warning";
             const isLast = lineCards[lineCards.length - 1]?.line.id === line.id;
 
             return (
@@ -673,6 +641,8 @@ export default function ServicioLineasCustomSection({
                       isComplete && customStyles.statusIconWrapComplete,
                       isWarning && customStyles.statusIconWrapWarning,
                     ]}
+                    data-testid={`custom-line-${lineIndex}-status-icon`}
+                    data-status={status}
                     aria-hidden="true"
                   >
                     {isComplete ? (
@@ -684,33 +654,24 @@ export default function ServicioLineasCustomSection({
                     )}
                   </div>
 
-                  <div css={customStyles.rowHeaderBody}>
-                    <div css={customStyles.rowHeaderTop}>
-                      <span css={customStyles.lineDescriptionLabel}>{title}</span>
-                      <span
-                        css={[customStyles.statusBadge]}
-                        data-testid={`custom-line-status-${line.id}`}
-                      >
-                        {status.label}
-                      </span>
-                    </div>
-                  </div>
+                  <span css={customStyles.lineDescriptionLabel}>{title}</span>
                 </div>
 
                 <div css={customStyles.fieldsGrid}>
-                  {line.fields.map((field) => {
+                  {line.fields.map((field, fieldIndex) => {
                     const value = String(lineState.values[field.key] ?? "");
                     const isAnswered = isFieldAnswered(field, value);
                     const isDirty = Boolean(dirtyFieldsByLine[line.id]?.[field.key]);
                     const showFieldWarning =
                       field.required &&
                       !isAnswered &&
-                      (status.tone === "warning" || isDirty);
+                      (status === "warning" || isDirty);
                     const readOnly = disabled || !isEditing;
                     const commonProps = {
                       disabled: readOnly,
                       placeholder: field.placeholder,
                     };
+                    const fieldTestIdBase = `custom-line-${lineIndex}-field-${fieldIndex}`;
 
                     return (
                       <div
@@ -731,6 +692,7 @@ export default function ServicioLineasCustomSection({
                         {!isEditing ? (
                           <div
                             css={customStyles.readonlyValueWrap}
+                            data-testid={`${fieldTestIdBase}-readonly`}
                             style={
                               field.component === "textarea"
                                 ? {
@@ -755,6 +717,7 @@ export default function ServicioLineasCustomSection({
                         ) : field.component === "textarea" ? (
                           <textarea
                             {...commonProps}
+                            data-testid={`${fieldTestIdBase}-input`}
                             rows={2}
                             value={value}
                             style={{
@@ -779,6 +742,7 @@ export default function ServicioLineasCustomSection({
                             disabled={readOnly}
                             hideClearButton={false}
                             allowCustomValue={false}
+                            dataTestId={`${fieldTestIdBase}-input`}
                             inputStyle={{
                               ...customStyles.autocompleteInput,
                               ...(showFieldWarning ? customStyles.controlWarning : {}),
@@ -795,6 +759,7 @@ export default function ServicioLineasCustomSection({
                                 <button
                                   key={option.optionValue}
                                   type="button"
+                                    data-testid={`${fieldTestIdBase}-option-${option.optionValue}`}
                                   disabled={readOnly}
                                   aria-pressed={selected}
                                   css={[
@@ -818,6 +783,7 @@ export default function ServicioLineasCustomSection({
                         ) : (
                           <input
                             {...commonProps}
+                            data-testid={`${fieldTestIdBase}-input`}
                             type={field.component === "text" ? "text" : "number"}
                             inputMode={field.component === "text" ? "text" : "decimal"}
                             value={value}
@@ -877,23 +843,6 @@ const customStyles = {
     alignItems: "center",
     gap: 5,
     width: "100%",
-  }),
-  rowHeaderBody: css({
-    flex: 1,
-    minWidth: 0,
-    display: "flex",
-    flexDirection: "column",
-    gap: 2,
-  }),
-  rowHeaderTop: css({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      flexDirection: "column",
-      alignItems: "stretch",
-    },
   }),
   statusIconWrap: css({
     width: 24,
@@ -1049,33 +998,11 @@ const customStyles = {
     minHeight: 46,
     lineHeight: 1.4,
   },
-  statusBadge: css({
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "fit-content",
-    borderRadius: 999,
-    padding: "4px 10px",
-    fontSize: 11,
-    fontWeight: 700,
-    color: COLOR.TEXT.TERTIARY,
-    background: COLOR.BACKGROUND.SECONDARY,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    whiteSpace: "nowrap",
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      display: "none",
-    },
-  }),
   lineDescriptionLabel: css({
     display: "inline-flex",
-    flex: 1,
-    minWidth: 0,
     fontSize: 13,
     lineHeight: 1.25,
     fontWeight: 700,
     color: COLOR.TEXT.PRIMARY,
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      width: "100%",
-    },
   }),
 } as const;

@@ -13,14 +13,17 @@ vi.mock("../../ui/Autocomplete", () => ({
     placeholder,
     disabled,
     inputStyle,
+    dataTestId,
   }: {
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
     disabled?: boolean;
     inputStyle?: React.CSSProperties;
+    dataTestId?: string;
   }) => (
     <input
+      data-testid={dataTestId}
       value={value}
       placeholder={placeholder}
       disabled={disabled}
@@ -75,17 +78,26 @@ describe("ServicioLineasCustomSection", () => {
       />
     );
 
-    expect(screen.getByTestId("custom-line-status-frenos")).toHaveTextContent("Pendiente");
+    expect(screen.getByTestId("custom-line-0-status-icon")).toHaveAttribute(
+      "data-status",
+      "pending"
+    );
 
-    fireEvent.change(screen.getByPlaceholderText("Seleccionar..."), {
+    fireEvent.change(screen.getByTestId("custom-line-0-field-0-input"), {
       target: { value: "75%" },
     });
 
-    expect(screen.getByTestId("custom-line-status-frenos")).toHaveTextContent("Incompleto");
+    expect(screen.getByTestId("custom-line-0-status-icon")).toHaveAttribute(
+      "data-status",
+      "warning"
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: "No" }));
+    fireEvent.click(screen.getByTestId("custom-line-0-field-1-option-false"));
 
-    expect(screen.getByTestId("custom-line-status-frenos")).toHaveTextContent("Completo");
+    expect(screen.getByTestId("custom-line-0-status-icon")).toHaveAttribute(
+      "data-status",
+      "complete"
+    );
 
     await waitFor(() => {
       expect(onDetalleChange).toHaveBeenLastCalledWith({
@@ -107,7 +119,7 @@ describe("ServicioLineasCustomSection", () => {
   it("muestra warning en required solo despues de cambios aplicados", () => {
     render(<ServicioLineasCustomSection lineDefs={lineDefs} />);
 
-    const estadoInput = screen.getByPlaceholderText("Seleccionar...");
+    const estadoInput = screen.getByTestId("custom-line-0-field-0-input");
 
     expect(estadoInput).not.toHaveStyle(`border-color: #FF8C00`);
 
@@ -142,12 +154,13 @@ describe("ServicioLineasCustomSection", () => {
       />
     );
 
-    expect(screen.getByTestId("custom-line-status-frenos")).toHaveTextContent("Incompleto");
-    expect(
-      screen
-        .getAllByText("-")
-        .find((element) => element.getAttribute("style")?.includes("border-color: rgb(255, 140, 0)"))
-    ).toBeTruthy();
+    expect(screen.getByTestId("custom-line-0-status-icon")).toHaveAttribute(
+      "data-status",
+      "warning"
+    );
+    expect(screen.getByTestId("custom-line-0-field-1-readonly")).toHaveStyle(
+      `border-color: #FF8C00`
+    );
   });
 
   it("renderiza valores en modo lectura y confirma cambios al entrar en edicion", async () => {
@@ -176,10 +189,13 @@ describe("ServicioLineasCustomSection", () => {
       />
     );
 
-    expect(screen.getByTestId("custom-line-status-frenos")).toHaveTextContent("Completo");
-    expect(screen.getByText("50%")).toBeInTheDocument();
-    expect(screen.getByText("No")).toBeInTheDocument();
-    expect(screen.getByText("Revisar rotulas")).toBeInTheDocument();
+    expect(screen.getByTestId("custom-line-0-status-icon")).toHaveAttribute(
+      "data-status",
+      "complete"
+    );
+    expect(screen.getByTestId("custom-line-0-field-0-readonly")).toHaveTextContent("50%");
+    expect(screen.getByTestId("custom-line-0-field-1-readonly")).toHaveTextContent("No");
+    expect(screen.getByTestId("custom-line-0-field-2-readonly")).toHaveTextContent("Revisar rotulas");
 
     fireEvent.click(screen.getByRole("button", { name: "Editar formulario" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar cambios" }));
