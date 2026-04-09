@@ -28,7 +28,7 @@ import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { logger } from "@/lib/logger";
 import { APP_LOCALE, formatArs } from "@/lib/format";
-import { buildArregloWhatsappMessage, buildWhatsappLink } from "@/lib/whatsapp";
+import { buildArregloWhatsappMessage } from "@/lib/whatsapp";
 import { safeNumber } from "@/lib/numbers";
 import type {
   ArregloDetalleData,
@@ -46,6 +46,7 @@ import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
 import { useFormularios } from "@/app/providers/FormulariosProvider";
 import type { ServicioLinea } from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
 import type { EstadoArreglo } from "@/model/types";
+import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -69,6 +70,7 @@ export default function ArregloDetailsPage() {
   const { fetchCliente } = useVehiculos();
   const { confirm } = useModalMessage();
   const { success, error } = useToast();
+  const { share } = useWhatsAppMessage();
 
   const handleOpenWhatsapp = async () => {
     if (!data?.arreglo?.vehiculo?.id) {
@@ -82,12 +84,6 @@ export default function ArregloDetailsPage() {
       return;
     }
 
-    const cleanPhone = cliente.telefono.replace(/\D/g, "");
-    if (!cleanPhone) {
-      error("Error", "El teléfono del cliente no es válido");
-      return;
-    }
-
     const tenantName = localStorage.getItem("tenant_name") || undefined;
     const mensaje = buildArregloWhatsappMessage(data, tenantName);
     if (!mensaje) {
@@ -95,8 +91,7 @@ export default function ArregloDetailsPage() {
       return;
     }
 
-    const url = buildWhatsappLink(cleanPhone, mensaje);
-    window.open(url, "_blank");
+    await share(mensaje, cliente?.telefono);
   };
 
   const reload = useCallback(async (options?: { showPageLoading?: boolean }) => {
@@ -410,41 +405,55 @@ export default function ArregloDetailsPage() {
       <div style={styles.container}>
         <div style={styles.flexRow}>
           <div style={styles.summaryContainer}>
-            <h3 css={styles.mobileResumenTitle} style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
-              Resumen
-            </h3>
-
-            <div style={{ display: "flex", gap: 8 }}>
-              <h3 css={styles.desktopResumenTitle} style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+            <div css={styles.mobileSummaryHeader}>
+              <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
                 Resumen
               </h3>
-              <div >
+              <div css={styles.mobileSummaryStatusRow}>
                 <ArregloEstadoBadge
                   estado={arreglo.estado}
                   onStateChange={handleEstadoChange}
                 />
+                <div style={styles.paymentStatus}>
+                  {arreglo.esta_pago ? <>Pagado</> : <>Pendiente</>}
+                  <button
+                    onClick={togglePago}
+                    style={styles.iconBtn}
+                    aria-label="toggle pago"
+                  >
+                    {arreglo.esta_pago ? (
+                      <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} />
+                    ) : (
+                      <XCircle size={18} color={COLOR.ICON.DANGER} />
+                    )}
+                  </button>
+                </div>
               </div>
-              <div
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                {arreglo.esta_pago ? <>Pagado</> : <>Pendiente</>}
-                <button
-                  onClick={togglePago}
-                  style={styles.iconBtn}
-                  aria-label="toggle pago"
-                >
-                  {arreglo.esta_pago ? (
-                    <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} />
-                  ) : (
-                    <XCircle size={18} color={COLOR.ICON.DANGER} />
-                  )}
-                </button>
+            </div>
+
+            <div css={styles.desktopSummaryRow}>
+              <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+                Resumen
+              </h3>
+              <ArregloEstadoBadge
+                estado={arreglo.estado}
+                onStateChange={handleEstadoChange}
+              />
+              <div style={styles.desktopSummaryActions}>
+                <div style={styles.paymentStatus}>
+                  {arreglo.esta_pago ? <>Pagado</> : <>Pendiente</>}
+                  <button
+                    onClick={togglePago}
+                    style={styles.iconBtn}
+                    aria-label="toggle pago"
+                  >
+                    {arreglo.esta_pago ? (
+                      <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} />
+                    ) : (
+                      <XCircle size={18} color={COLOR.ICON.DANGER} />
+                    )}
+                  </button>
+                </div>
                 <IconButton
                   icon={<WhatsAppIcon size={18} />}
                   size={18}
@@ -470,8 +479,30 @@ export default function ArregloDetailsPage() {
               </div>
             </div>
 
-            
-
+            <div css={styles.summaryActionsRow}>
+              <IconButton
+                icon={<WhatsAppIcon size={18} />}
+                size={18}
+                onClick={handleOpenWhatsapp}
+                title="Enviar WhatsApp"
+                ariaLabel="Enviar WhatsApp"
+                hoverColor={COLOR.ACCENT.PRIMARY}
+              />
+              <IconButton
+                icon={<Trash />}
+                size={18}
+                onClick={handleDeleteArreglo}
+                title="Editar vehículo"
+                ariaLabel="Editar vehículo"
+              />
+              <IconButton
+                icon={<Pencil />}
+                size={18}
+                onClick={handleOpenEdit}
+                title="Editar vehículo"
+                ariaLabel="Editar vehículo"
+              />
+            </div>
             <Card>
               <div style={styles.cardContent}>
                 <div style={styles.infoGrid}>
@@ -744,33 +775,53 @@ const styles = {
 
     gap: 8,
   },
-  mobileResumenTitle: css({
+  mobileSummaryHeader: css({
     display: "none",
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "block",
-    },
-  }),
-  desktopResumenTitle: css({
-    display: "block",
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "none",
-    },
-  }),
-  mobileEstadoBadgeRow: css({
-    display: "none",
-    alignItems: "center",
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+      flexWrap: "wrap",
     },
   }),
-  desktopEstadoBadge: css({
+  mobileSummaryStatusRow: css({
     display: "flex",
     alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 8,
+    flexWrap: "wrap",
+  }),
+  desktopSummaryRow: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       display: "none",
     },
   }),
-  detalleHeader: {
+  desktopSummaryActions: {
+    flex: 1,
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: 4,
+  },
+  summaryActionsRow: css({
+    display: "none",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "flex",
+      justifyContent: "flex-start",
+      alignItems: "center",
+      gap: 4,
+    },
+  }),
+  paymentStatus: {
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+    marginLeft: "auto",
+  },  detalleHeader: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
@@ -972,3 +1023,7 @@ function flattenAsignacionesLineas(
   }
   return out;
 }
+
+
+
+

@@ -105,7 +105,8 @@ export function buildWhatsappLink(phone: string, message: string): string {
 
 export function normalizeWhatsappPhone(rawPhone: string): string | null {
 	const cleaned = String(rawPhone ?? "").replace(/\D/g, "");
-	return cleaned ? cleaned : null;
+	if (!cleaned) return null;
+	return cleaned.startsWith("54") ? cleaned : `54${cleaned}`;
 }
 
 function flattenAsignacionesLineas(
