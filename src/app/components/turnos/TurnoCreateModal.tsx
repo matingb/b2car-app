@@ -7,7 +7,7 @@ import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useTurnos } from "@/app/providers/TurnosProvider";
 import { CreateTurnoInput } from "@/app/api/turnos/turnosService";
-import { TipoCliente, Turno } from "@/model/types";
+import { Cliente, TipoCliente, Turno, Vehiculo } from "@/model/types";
 import { createEmptyClienteFormFieldsValue } from "@/app/components/clientes/ClienteFormFields";
 import type { VehiculoFormFieldsValue } from "../vehiculos/VehiculoFormFields";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
@@ -140,8 +140,21 @@ export default function TurnoCreateModal({
 
 	const handleShareTurno = async (turno: TurnoDto) => {
 		const tenantName = localStorage.getItem("tenant_name") || undefined;
-		const mensaje = buildTurnoWhatsappMessage(turno as unknown as Turno, tenantName);
 		const cliente = await getClienteById(String(turno.cliente_id));
+		const vehiculo = vehiculos.find(v => String(v.id) === String(turno.vehiculo_id));
+		const turnoParaMensaje: Turno = {
+			id: turno.id,
+			fecha: turno.fecha,
+			hora: turno.hora,
+			duracion: turno.duracion,
+			tipo: turno.tipo,
+			estado: turno.estado,
+			descripcion: turno.descripcion ?? undefined,
+			observaciones: turno.observaciones ?? undefined,
+			cliente: cliente as Cliente,
+			vehiculo: vehiculo as Vehiculo,
+		};
+		const mensaje = buildTurnoWhatsappMessage(turnoParaMensaje, tenantName);
 		await share(mensaje, cliente?.telefono);
 	}
 

@@ -9,6 +9,7 @@ import type { CreateRepresentanteRequest } from '@/app/api/clientes/empresas/[id
 import type { Producto } from '@/app/providers/ProductosProvider';
 import type { StockItemRow, StockRow } from "@/app/api/stocks/stocksService";
 import type { Turno } from "@/model/types";
+import type { TurnoDto } from "@/model/dtos";
 import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 
 /**
@@ -300,6 +301,25 @@ export const createStockItemRow = (overrides: Partial<StockItemRow> = {}): Stock
   return {
     ...createStockRow({ ...(rest as Partial<StockRow>), producto_id: productoId }),
     productos: productos ?? createInventarioProductoRow({ id: productoId }),
+  };
+};
+
+/**
+ * Factory para crear objetos TurnoDto de prueba (respuesta de la API)
+ */
+export const createTurnoDto = (overrides: Partial<TurnoDto> = {}): TurnoDto => {
+  return {
+    id: "1",
+    fecha: "2026-02-11",
+    hora: "10:30",
+    duracion: null,
+    vehiculo_id: "1",
+    cliente_id: "1",
+    tipo: null,
+    estado: "confirmado",
+    descripcion: null,
+    observaciones: null,
+    ...overrides,
   };
 };
 

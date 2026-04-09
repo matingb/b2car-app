@@ -188,7 +188,15 @@ export default function TurnoFormFields(props: Props) {
           options={clienteOptions}
           value={state.clienteId}
           onChange={(v) => {
-            onChange({ clienteId: v, vehiculoId: "" });
+            const newCliente = context.clientes.find((c) => String(c.id) === v);
+            const vehiculosDelCliente = newCliente
+              ? context.vehiculos.filter(
+                  (veh) => veh.cliente_id != null && String(veh.cliente_id) === String(newCliente.id)
+                )
+              : [];
+            const autoVehiculoId =
+              vehiculosDelCliente.length === 1 ? String(vehiculosDelCliente[0].id) : "";
+            onChange({ clienteId: v, vehiculoId: autoVehiculoId });
           }}
           placeholder="Buscar cliente..."
         />
