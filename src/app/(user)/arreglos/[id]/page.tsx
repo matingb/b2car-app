@@ -28,7 +28,7 @@ import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { logger } from "@/lib/logger";
 import { APP_LOCALE, formatArs } from "@/lib/format";
-import { buildArregloWhatsappMessage } from "@/lib/whatsapp";
+import { assembleClientePhone, buildArregloWhatsappMessage } from "@/lib/whatsapp";
 import { safeNumber } from "@/lib/numbers";
 import type {
   ArregloDetalleData,
@@ -79,7 +79,8 @@ export default function ArregloDetailsPage() {
     }
 
     const cliente = await fetchCliente(data.arreglo.vehiculo.id);
-    if (!cliente?.telefono) {
+    const fullPhone = cliente ? assembleClientePhone(cliente) : "";
+    if (!fullPhone) {
       error("Error", "El cliente no tiene teléfono cargado");
       return;
     }
@@ -91,7 +92,7 @@ export default function ArregloDetailsPage() {
       return;
     }
 
-    await share(mensaje, cliente?.telefono);
+    await share(mensaje, fullPhone);
   };
 
   const reload = useCallback(async (options?: { showPageLoading?: boolean }) => {

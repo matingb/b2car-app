@@ -72,6 +72,7 @@ export const particularClient = {
         id: particular.id,
         nombre: `${particular.nombre} ${particular.apellido || ''}`.trim(),
         tipo_cliente: TipoCliente.PARTICULAR,
+        codigo_pais: particular.codigo_pais,
         telefono: particular.telefono,
         email: particular.email,
         direccion: particular.direccion,

@@ -8,6 +8,7 @@ export type Empresa = {
   id: string;
   nombre: string;
   cuit: string;
+  codigo_pais?: string;
   telefono: string;
   email: string;
   direccion: string;
@@ -17,6 +18,7 @@ export type Empresa = {
 export type UpdateEmpresaRequest = {
   nombre: string;
   cuit: string;
+  codigo_pais?: string;
   telefono: string;
   email: string;
   direccion: string;

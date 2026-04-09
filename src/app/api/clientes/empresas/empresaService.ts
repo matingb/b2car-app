@@ -8,6 +8,7 @@ type ClienteInsertRow = { id: string };
 type EmpresaInsertRow = {
   nombre?: string;
   cuit?: string;
+  codigo_pais?: string;
   telefono?: string;
   email?: string;
   direccion?: string;
@@ -57,7 +58,7 @@ export const empresaService = {
 
   async createClienteEmpresa(
     supabase: SupabaseClient,
-    payload: { nombre: string; cuit: string; telefono?: string; email?: string; direccion?: string }
+    payload: { nombre: string; cuit: string; codigo_pais?: string; telefono?: string; email?: string; direccion?: string }
   ): Promise<{ data: Cliente | null; error: Error | null }> {
     const { data: clienteInsert, error: errorCliente } = await supabase
       .from("clientes")
@@ -88,6 +89,7 @@ export const empresaService = {
       nombre: inserted.nombre ?? payload.nombre,
       cuit: inserted.cuit ?? payload.cuit,
       tipo_cliente: TipoCliente.EMPRESA,
+      codigo_pais: inserted.codigo_pais,
       telefono: inserted.telefono ?? "",
       email: inserted.email ?? "",
       direccion: inserted.direccion ?? "",
@@ -109,8 +111,9 @@ export const empresaService = {
     const empresa: Empresa = {
       id: row.id,
       nombre: row.empresa?.nombre ?? "",
-      telefono: row.empresa?.telefono ?? "",
       cuit: row.empresa?.cuit ?? "",
+      codigo_pais: row.empresa?.codigo_pais ?? undefined,
+      telefono: row.empresa?.telefono ?? "",
       email: row.empresa?.email ?? "",
       direccion: row.empresa?.direccion ?? "",
       vehiculos: row.vehiculos ?? [],

@@ -6,6 +6,7 @@ import { particularService } from "./particularService";
 export type CreateParticularRequest = {
   nombre: string;
   apellido?: string;
+  codigo_pais?: string;
   telefono: string;
   email: string;
   direccion: string;

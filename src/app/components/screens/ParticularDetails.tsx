@@ -39,6 +39,7 @@ export default function ParticularDetails() {
     const handleEditCliente = async (values: {
         nombre: string;
         apellido?: string;
+        codigo_pais?: string;
         telefono: string;
         email: string;
         direccion: string;
@@ -50,6 +51,7 @@ export default function ParticularDetails() {
             const payload: UpdateParticularRequest = {
                 nombre: values.nombre,
                 apellido: values.apellido,
+                codigo_pais: values.codigo_pais,
                 telefono: values.telefono,
                 email: values.email,
                 direccion: values.direccion,
@@ -100,6 +102,7 @@ export default function ParticularDetails() {
                 initialValues={{
                     nombre: particular?.nombre ?? "",
                     apellido: particular?.apellido ?? "",
+                    codigo_pais: particular?.codigo_pais,
                     telefono: particular?.telefono ?? "",
                     email: particular?.email ?? "",
                     direccion: particular?.direccion ?? "",

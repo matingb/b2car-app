@@ -4,15 +4,17 @@ import React, { useEffect, useMemo, useState } from "react";
 import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
+import PhoneInput from "@/app/components/ui/PhoneInput";
 
 interface Props {
   open: boolean;
-  onClose: (created?: { nombre: string; apellido?: string; telefono?: string }) => void;
+  onClose: (created?: { nombre: string; apellido?: string; codigo_pais?: string; telefono?: string }) => void;
 }
 
 export default function CreateRepresentanteModal({ open, onClose }: Props) {
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
+  const [codigoPais, setCodigoPais] = useState("54");
   const [telefono, setTelefono] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,9 +35,15 @@ export default function CreateRepresentanteModal({ open, onClose }: Props) {
     if (!isValid) return;
     setSubmitting(true);
     setError(null);
-    onClose({ nombre: nombre.trim(), apellido: apellido.trim() || undefined, telefono: telefono.trim() || undefined });
+    onClose({
+      nombre: nombre.trim(),
+      apellido: apellido.trim() || undefined,
+      codigo_pais: codigoPais || undefined,
+      telefono: telefono.trim() || undefined,
+    });
     setNombre("");
     setApellido("");
+    setCodigoPais("54");
     setTelefono("");
     setSubmitting(false);
   };
@@ -59,10 +67,14 @@ export default function CreateRepresentanteModal({ open, onClose }: Props) {
                 <label style={styles.label}>Apellido</label>
                 <input style={styles.input} value={apellido} placeholder="Apellido" onChange={e => setApellido(e.target.value)} />
               </div>
-              <div style={styles.field}> 
-                <label style={styles.label}>Teléfono</label>
-                <input style={styles.input} value={telefono} placeholder="Teléfono" onChange={e => setTelefono(e.target.value)} />
-              </div>
+              <PhoneInput
+                codigoPais={codigoPais}
+                telefono={telefono}
+                onChange={({ codigoPais: cp, telefono: tel }) => {
+                  if (cp !== undefined) setCodigoPais(cp);
+                  if (tel !== undefined) setTelefono(tel);
+                }}
+              />
             </div>
             {error && <div style={styles.error}>{error}</div>}
             <div style={styles.footer}>

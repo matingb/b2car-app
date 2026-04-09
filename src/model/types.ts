@@ -6,6 +6,7 @@ export interface Particular {
   id: UUID
   nombre: string
   apellido?: string
+  codigo_pais?: string
   telefono: string
   email: string
   direccion: string
@@ -17,6 +18,7 @@ export interface Representante {
   empresa_id: UUID;
   nombre: string;
   apellido: string;
+  codigo_pais?: string;
   telefono: string;
 }
 
@@ -29,6 +31,7 @@ export interface Cliente {
   id: UUID
   nombre: string
   tipo_cliente: TipoCliente
+  codigo_pais?: string
   telefono: string
   email: string
   direccion: string

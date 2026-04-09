@@ -75,6 +75,7 @@ export const empresaClient = {
         id: empresa.id,
         nombre: empresa.nombre,
         tipo_cliente: TipoCliente.EMPRESA,
+        codigo_pais: empresa.codigo_pais,
         telefono: empresa.telefono,
         email: empresa.email,
         direccion: empresa.direccion,

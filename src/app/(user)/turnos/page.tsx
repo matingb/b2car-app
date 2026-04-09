@@ -15,7 +15,7 @@ import { useTurnosCalendar } from "@/app/hooks/useTurnosCalendar";
 import { VistaTurnos } from "@/app/hooks/useTurnosCalendar";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import { buildTurnoWhatsappMessage } from "@/lib/whatsapp";
+import { assembleClientePhone, buildTurnoWhatsappMessage } from "@/lib/whatsapp";
 import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
 
 function TurnosVista({
@@ -99,7 +99,7 @@ export default function TurnosPage() {
   const handleShareTurno = (turno: Turno) => {
     const tenantName = localStorage.getItem("tenant_name") || undefined;
     const mensaje = buildTurnoWhatsappMessage(turno, tenantName);
-    share(mensaje, turno.cliente?.telefono);
+    share(mensaje, turno.cliente ? assembleClientePhone(turno.cliente) : undefined);
   };
 
 

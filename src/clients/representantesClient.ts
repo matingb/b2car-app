@@ -8,6 +8,7 @@ export type GetRepresentantesResponse = {
 export type CreateRepresentanteInput = {
   nombre: string;
   apellido?: string;
+  codigo_pais?: string;
   telefono?: string;
 };
 

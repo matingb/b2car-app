@@ -9,7 +9,7 @@ import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient";
 import { toDateInputFormat } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
-import { buildArregloWhatsappMessage } from "@/lib/whatsapp";
+import { assembleClientePhone, buildArregloWhatsappMessage } from "@/lib/whatsapp";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
@@ -151,7 +151,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       }
 
       const cliente = await fetchCliente(String(detalle.arreglo.vehiculo.id));
-      await share(mensaje, cliente?.telefono);
+      await share(mensaje, cliente ? assembleClientePhone(cliente) : undefined);
     } catch (err: unknown) {
       toastError("Error", err instanceof Error ? err.message : "No se pudo compartir el arreglo");
     }

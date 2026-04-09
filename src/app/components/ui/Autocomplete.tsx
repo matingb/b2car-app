@@ -325,7 +325,7 @@ const styles = {
   },
   input: {
     width: "100%",
-    padding: "10px 76px 10px 12px",
+    padding: "10px 46px 10px 12px",
     borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     backgroundColor: COLOR.INPUT.PRIMARY.BACKGROUND,

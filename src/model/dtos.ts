@@ -38,10 +38,11 @@ export interface ParticularDto {
     id: string;
     nombre: string;
     apellido?: string;
+    codigo_pais?: string;
     telefono: string;
     email: string;
     direccion: string;
-    }
+}
 
 export interface TurnoDto {
     id: string;

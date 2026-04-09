@@ -15,6 +15,7 @@ type Props = {
     nombre: string;
     apellido?: string;
     cuit?: string;
+    codigo_pais?: string;
     telefono: string;
     email: string;
     direccion: string;
@@ -25,6 +26,7 @@ type Props = {
     nombre?: string;
     apellido?: string;
     cuit?: string;
+    codigo_pais?: string;
     telefono?: string;
     email?: string;
     direccion?: string;
@@ -43,11 +45,10 @@ export default function ClienteFormModal({
     const base = createEmptyClienteFormFieldsValue(
       initialValues?.tipo_cliente ?? TipoCliente.PARTICULAR
     );
-
     return {
       ...base,
       ...(initialValues ?? {}),
-      // asegurar tipo_cliente incluso si initialValues viene undefined
+      codigoPais: initialValues?.codigo_pais ?? base.codigoPais,
       tipo_cliente: initialValues?.tipo_cliente ?? base.tipo_cliente,
     };
   });
@@ -62,7 +63,8 @@ export default function ClienteFormModal({
       setCliente({
         ...base,
         ...initialValues,
-        tipo_cliente: initialValues.tipo_cliente ?? base.tipo_cliente,
+      codigoPais: initialValues.codigo_pais ?? base.codigoPais,
+      tipo_cliente: initialValues.tipo_cliente ?? base.tipo_cliente,
       });
     } else if (open && !initialValues) {
       setCliente(createEmptyClienteFormFieldsValue(TipoCliente.PARTICULAR));
@@ -86,6 +88,7 @@ export default function ClienteFormModal({
           cliente.tipo_cliente === TipoCliente.EMPRESA
             ? cliente.cuit.trim()
             : undefined,
+        codigo_pais: cliente.codigoPais || undefined,
         telefono: cliente.telefono.trim(),
         email: cliente.email.trim(),
         direccion: cliente.direccion.trim(),

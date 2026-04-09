@@ -162,6 +162,7 @@ export default function TurnoCreateModal({
 						? await createEmpresa({
 							nombre: form.clienteDraft.nombre.trim(),
 							cuit: form.clienteDraft.cuit.trim(),
+							codigo_pais: form.clienteDraft.codigoPais || undefined,
 							telefono: form.clienteDraft.telefono.trim(),
 							email: form.clienteDraft.email.trim(),
 							direccion: form.clienteDraft.direccion.trim(),
@@ -169,6 +170,7 @@ export default function TurnoCreateModal({
 						: await createParticular({
 							nombre: form.clienteDraft.nombre.trim(),
 							apellido: form.clienteDraft.apellido.trim() || undefined,
+							codigo_pais: form.clienteDraft.codigoPais || undefined,
 							telefono: form.clienteDraft.telefono.trim(),
 							email: form.clienteDraft.email.trim(),
 							direccion: form.clienteDraft.direccion.trim(),

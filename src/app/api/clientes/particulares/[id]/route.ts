@@ -7,6 +7,7 @@ import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 export type UpdateParticularRequest = {
   nombre: string;
   apellido?: string;
+  codigo_pais?: string;
   telefono: string;
   email: string;
   direccion: string;

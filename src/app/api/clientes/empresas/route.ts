@@ -8,6 +8,7 @@ import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 export type CreateEmpresaRequest = {
   nombre: string;
   cuit: string;
+  codigo_pais?: string;
   telefono: string;
   email: string;
   direccion: string;

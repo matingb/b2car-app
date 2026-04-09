@@ -5,11 +5,13 @@ import { TipoCliente } from "@/model/types";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import Autocomplete from "../ui/Autocomplete";
 import { AutocompleteOption } from "../ui/Autocomplete";
+import PhoneInput from "../ui/PhoneInput";
 
 export type ClienteFormFieldsValue = {
   nombre: string;
   apellido: string;
   cuit: string;
+  codigoPais: string;
   telefono: string;
   email: string;
   direccion: string;
@@ -25,12 +27,14 @@ export function createEmptyClienteFormFieldsValue(
     nombre: "",
     apellido: "",
     cuit: "",
+    codigoPais: "54",
     telefono: "",
     email: "",
     direccion: "",
     tipo_cliente,
   };
 }
+
 
 export function requiredClienteFields(tipo: TipoCliente): Array<keyof ClienteFormFieldsValue> {
   return tipo === TipoCliente.EMPRESA
@@ -161,16 +165,13 @@ export default function ClienteFormFields({
           </div>
         </div>
 
+        <PhoneInput
+          codigoPais={value.codigoPais}
+          telefono={value.telefono}
+          onChange={onChange}
+        />
+
         <div style={styles.row}>
-          <div style={styles.field}>
-            <label style={styles.label}>Teléfono</label>
-            <input
-              style={styles.input}
-              placeholder="+54 11 1234–5678"
-              value={value.telefono}
-              onChange={(e) => onChange({ telefono: e.target.value })}
-            />
-          </div>
           <div style={styles.field}>
             <label style={styles.label}>Email</label>
             <input
@@ -229,9 +230,13 @@ const styles = {
   input: {
     width: "100%",
     padding: "10px 12px",
+    height: "43px",
     borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
     color: COLOR.TEXT.PRIMARY,
+  },
+  codigoPaisInput: {
+    width: "60px",
   },
 } as const;

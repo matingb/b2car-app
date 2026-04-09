@@ -103,6 +103,20 @@ export function buildWhatsappLink(phone: string, message: string): string {
 	return `https://api.whatsapp.com/send/?phone=${phone}&text=${encodedMessage}&type=phone_number&app_absent=0`;
 }
 
+/**
+ * Construye el número completo para WhatsApp a partir de los campos separados
+ * del modelo de cliente. Equivalente a pasar el número normalizado a normalizeWhatsappPhone.
+ */
+export function assembleClientePhone(cliente: {
+  codigo_pais?: string | null;
+  telefono?: string | null;
+}): string {
+  return [cliente.codigo_pais, cliente.telefono]
+    .map((s) => (s ?? "").replace(/\D/g, ""))
+    .filter(Boolean)
+    .join("");
+}
+
 export function normalizeWhatsappPhone(rawPhone: string): string | null {
 	const cleaned = String(rawPhone ?? "").replace(/\D/g, "");
 	if (!cleaned) return null;

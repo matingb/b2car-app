@@ -64,6 +64,7 @@ export default function EmpresaDetails() {
   const handleEditEmpresa = async (values: {
     nombre: string;
     cuit?: string;
+    codigo_pais?: string;
     telefono: string;
     email: string;
     direccion: string;
@@ -75,6 +76,7 @@ export default function EmpresaDetails() {
       const payload: UpdateEmpresaRequest = {
         nombre: values.nombre,
         cuit: values.cuit || '',
+        codigo_pais: values.codigo_pais,
         telefono: values.telefono,
         email: values.email,
         direccion: values.direccion,
@@ -161,6 +163,7 @@ export default function EmpresaDetails() {
         initialValues={{
           nombre: empresa?.nombre ?? "",
           cuit: empresa?.cuit ?? "",
+          codigo_pais: empresa?.codigo_pais,
           telefono: empresa?.telefono ?? "",
           email: empresa?.email ?? "",
           direccion: empresa?.direccion ?? "",

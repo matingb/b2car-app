@@ -24,6 +24,7 @@ export async function GET(
 export type CreateRepresentanteRequest = {
     nombre: string;
     apellido: string | null;
+    codigo_pais?: string | null;
     telefono: string | null;
     empresa_id: string;
 };
@@ -43,18 +44,19 @@ export async function POST(
   const body = await req.json().catch(() => null);
   if (!body) return Response.json({ error: "JSON inválido" }, { status: 400 });
 
-  const { nombre, apellido, telefono } = body as {
+  const { nombre, apellido, codigo_pais, telefono } = body as {
     nombre?: string;
     apellido?: string;
+    codigo_pais?: string;
     telefono?: string;
   };
 
   if (!nombre) return Response.json({ error: "Falta nombre" }, { status: 400 });
 
-  // Insert tratando ambos nombres de columnas
   const insertPayload: CreateRepresentanteRequest = {
     nombre: nombre.trim(),
     apellido: apellido?.trim() || null,
+    codigo_pais: codigo_pais?.trim() || null,
     telefono: telefono?.trim() || null,
     empresa_id: id,
   };

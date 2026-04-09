@@ -5,6 +5,7 @@ import type { Particular } from "@/model/types";
 type ParticularInsertRow = {
   nombre?: string;
   apellido?: string;
+  codigo_pais?: string;
   telefono?: string;
   email?: string;
   direccion?: string;
@@ -31,7 +32,7 @@ export const particularService = {
 
   async createClienteParticular(
     supabase: SupabaseClient,
-    payload: { nombre: string; apellido?: string; telefono?: string; email?: string; direccion?: string }
+    payload: { nombre: string; apellido?: string; codigo_pais?: string; telefono?: string; email?: string; direccion?: string }
   ): Promise<{ data: Cliente | null; error: Error | null }> {
     const { data: clienteInsert, error: errorCliente } = await supabase
       .from("clientes")
@@ -60,6 +61,7 @@ export const particularService = {
       nombre: data.nombre,
       tipo_cliente: TipoCliente.PARTICULAR,
       apellido: data.apellido,
+      codigo_pais: data.codigo_pais,
       telefono: data.telefono,
       email: data.email,
       direccion: data.direccion,
@@ -82,6 +84,7 @@ export const particularService = {
       id: row.id,
       nombre: row.particular?.nombre ?? "",
       apellido: row.particular?.apellido ?? "",
+      codigo_pais: row.particular?.codigo_pais ?? undefined,
       telefono: row.particular?.telefono ?? "",
       email: row.particular?.email ?? "",
       direccion: row.particular?.direccion ?? "",

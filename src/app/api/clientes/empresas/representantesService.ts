@@ -8,8 +8,8 @@ export const representantesService = {
   ): Promise<{ data: Representante[]; error: Error | null }> {
     const { data, error } = await supabase
       .from("representantes")
-      .select("id, empresa_id, empresa_id, nombre, apellido, telefono")
-      .or(`empresa_id.eq.${empresaId},empresa_id.eq.${empresaId}`);
+      .select("id, empresa_id, nombre, apellido, codigo_pais, telefono")
+      .eq("empresa_id", empresaId);
 
     if (error) return { data: [], error: new Error(error.message) };
     return { data: (data ?? []) as Representante[], error: null };
@@ -18,7 +18,7 @@ export const representantesService = {
   async create(
     supabase: SupabaseClient,
     empresaId: string,
-    payload: { nombre: string; apellido: string | null; telefono: string | null }
+    payload: { nombre: string; apellido: string | null; codigo_pais?: string | null; telefono: string | null }
   ): Promise<{ data: Representante | null; error: Error | null }> {
     const insertPayload = { ...payload, empresa_id: empresaId };
 
@@ -26,7 +26,7 @@ export const representantesService = {
       .from("representantes")
       .insert([insertPayload])
       .eq("empresa_id", empresaId)
-      .select("id, nombre, apellido, telefono")
+      .select("id, nombre, apellido, codigo_pais, telefono")
       .single();
 
     if (error) return { data: null, error: new Error(error.message) };
