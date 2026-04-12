@@ -10,7 +10,6 @@ SELECT
   t.duracion,
   t.vehiculo_id,
   t.cliente_id,
-  t.tenant_id,
   t.tipo,
   t.estado,
   t.descripcion,
@@ -35,6 +34,7 @@ SELECT
   e.direccion AS empresa_direccion,
   e.cuit AS empresa_cuit,
   v.numero_chasis,
+  t.tenant_id,
   COALESCE(
     NULLIF(TRIM(CONCAT(p.nombre, ' ', p.apellido)), ''),
     NULLIF(TRIM(e.nombre), '')
