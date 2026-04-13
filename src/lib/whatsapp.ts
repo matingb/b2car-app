@@ -120,7 +120,7 @@ export function assembleClientePhone(cliente: {
 export function normalizeWhatsappPhone(rawPhone: string): string | null {
 	const cleaned = String(rawPhone ?? "").replace(/\D/g, "");
 	if (!cleaned) return null;
-	return cleaned.startsWith("54") ? cleaned : `54${cleaned}`;
+	return cleaned;
 }
 
 function flattenAsignacionesLineas(
