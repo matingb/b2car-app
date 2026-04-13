@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { TipoCliente } from "@/model/types";
-import "@radix-ui/themes/styles.css";
 import ParticularDetails from "@/app/components/screens/ParticularDetails";
 import EmpresaDetails from "@/app/components/screens/EmpresaDetails";
 import { useClientes } from "@/app/providers/ClientesProvider";

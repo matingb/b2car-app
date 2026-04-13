@@ -19,6 +19,7 @@ import { useClientes } from "@/app/providers/ClientesProvider";
 import { css } from "@emotion/react";
 import { logger } from "@/lib/logger";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
+import { formatTelephoneNumber } from "@/lib/telefono";
 
 
 export default function EmpresaDetails() {
@@ -114,7 +115,7 @@ export default function EmpresaDetails() {
         <div css={styles.half}>
           <ContactInfoCard
             email={empresa?.email ?? ''}
-            telefono={empresa?.telefono}
+            telefono={formatTelephoneNumber(empresa?.codigo_pais, empresa?.telefono ?? "")}
             onEdit={() => setOpenEditEmpresa(true)}
             cuit={empresa?.cuit ?? ''}
             direccion={empresa?.direccion ?? ''}

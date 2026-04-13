@@ -2,18 +2,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Cliente } from "@/model/types";
 import { TipoCliente } from "@/model/types";
 
-type ClienteListRow = {
+export type ClienteListRow = {
   id: string;
   tipo_cliente: TipoCliente;
   particular?: {
     nombre?: string;
     apellido?: string;
+    codigo_pais?: string;
     telefono?: string;
     email?: string;
     direccion?: string;
   } | null;
   empresa?: {
     nombre?: string;
+    codigo_pais?: string;
     telefono?: string;
     email?: string;
     direccion?: string;
@@ -67,6 +69,7 @@ export const clienteService = {
           id: cliente.id,
           nombre,
           tipo_cliente: cliente.tipo_cliente,
+          codigo_pais: cliente.particular?.codigo_pais ?? "",
           telefono: cliente.particular?.telefono ?? "",
           email: cliente.particular?.email ?? "",
           direccion: cliente.particular?.direccion ?? "",
@@ -77,6 +80,7 @@ export const clienteService = {
         id: cliente.id,
         nombre: cliente.empresa?.nombre ?? "",
         tipo_cliente: cliente.tipo_cliente,
+        codigo_pais: cliente.empresa?.codigo_pais ?? "",
         telefono: cliente.empresa?.telefono ?? "",
         email: cliente.empresa?.email ?? "",
         direccion: cliente.empresa?.direccion ?? "",

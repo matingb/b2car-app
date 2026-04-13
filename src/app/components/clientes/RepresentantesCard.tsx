@@ -6,6 +6,7 @@ import { Plus, User, X } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import { Representante } from "@/model/types";
 import IconButton from "../ui/IconButton";
+import { formatTelephoneNumber } from "@/lib/telefono";
 
 type Props = {
   representantes: Representante[];
@@ -52,7 +53,7 @@ export default function RepresentantesCard({ representantes, onAddRepresentante,
                 {(r.nombre + ' ' + (r.apellido || '')).trim()}
               </div>
               <div style={{ color: 'rgba(0,0,0,0.7)', fontSize: 13 }}>
-                {r.telefono || '-'}
+                {formatTelephoneNumber(r.codigo_pais, r.telefono) }
               </div>
             </Card>
           ))

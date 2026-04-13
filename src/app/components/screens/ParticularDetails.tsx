@@ -11,6 +11,7 @@ import { useToast } from "@/app/providers/ToastProvider";
 import type { UpdateParticularRequest } from "@/app/api/clientes/particulares/[id]/route";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import { useParams } from "next/navigation";
+import { formatTelephoneNumber } from "@/lib/telefono";
 
 
 export default function ParticularDetails() {
@@ -83,7 +84,7 @@ export default function ParticularDetails() {
             <div style={{ display: "flex", gap: 16, flexDirection: "column"}}>
                 <ContactInfoCard
                     email={particular?.email}
-                    telefono={particular?.telefono}
+                    telefono={formatTelephoneNumber(particular?.codigo_pais, particular?.telefono ?? "")}
                     direccion={particular?.direccion}
                     onEdit={() => setOpenEditCliente(true)}
                 />

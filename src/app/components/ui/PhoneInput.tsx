@@ -40,6 +40,7 @@ export default function PhoneInput({ codigoPais, telefono, onChange, style }: Pr
           placeholder="3511234567"
           value={telefono}
           onChange={(e) => onChange({ telefono: e.target.value })}
+          type="number"
         />
       </div>
     </div>

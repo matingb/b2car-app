@@ -6,24 +6,7 @@ import type { TipoCliente } from "@/model/types";
 import type { SupabaseError } from "@/model/types";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
 import { buildDescripcionFromDetalles } from "@/lib/arreglos";
-
-type ClienteJoinRow = {
-  id: string;
-  tipo_cliente: TipoCliente;
-  particular?: {
-    nombre?: string;
-    apellido?: string;
-    telefono?: string;
-    email?: string;
-    direccion?: string;
-  } | null;
-  empresa?: {
-    nombre?: string;
-    telefono?: string;
-    email?: string;
-    direccion?: string;
-  } | null;
-};
+import type { ClienteListRow} from "@/app/api/clientes/clienteService";
 
 export type VehiculoServiceError = ServiceError;
 export type VehiculoClienteServiceError = ServiceError;
@@ -146,7 +129,7 @@ export const vehiculoService = {
 
     if (cError) return { data: null, error: toServiceError(cError) };
 
-    const row = cData as unknown as ClienteJoinRow;
+    const row = cData as unknown as ClienteListRow;
     const particular = row.particular;
     const empresa = row.empresa;
 
@@ -154,6 +137,7 @@ export const vehiculoService = {
       id: row.id,
       nombre: particular ? `${particular.nombre} ${particular.apellido}`.trim() : empresa?.nombre || "",
       tipo_cliente: row.tipo_cliente,
+      codigo_pais: particular?.codigo_pais || empresa?.codigo_pais || "",
       telefono: particular?.telefono || empresa?.telefono || "",
       email: particular?.email || empresa?.email || "",
       direccion: particular?.direccion || empresa?.direccion || "",

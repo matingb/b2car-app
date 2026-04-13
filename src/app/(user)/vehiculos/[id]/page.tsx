@@ -6,7 +6,6 @@ import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { Vehiculo, Arreglo, Cliente } from "@/model/types";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { Skeleton, Theme } from "@radix-ui/themes";
-import "@radix-ui/themes/styles.css";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
 import EditVehiculoModal from "@/app/components/vehiculos/EditVehiculoModal";
 import VehiculoInfoCard from "@/app/components/vehiculos/VehiculoInfoCard";

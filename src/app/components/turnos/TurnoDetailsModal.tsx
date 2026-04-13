@@ -13,6 +13,7 @@ import { Turno } from "@/model/types";
 import { horaAMinutos } from "@/lib/fechas";
 import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
+import { formatTelephoneNumber } from "@/lib/telefono";
 
 type Props = {
   open: boolean;
@@ -113,7 +114,7 @@ export default function TurnoDetailsModal({
                     <div style={styles.infoLabel}>Titular</div>
                     <div style={styles.infoValue}>{turno.cliente.nombre}</div>
                     {turno.cliente.telefono ? (
-                      <div style={styles.infoSubValue}>{turno.cliente.telefono}</div>
+                      <div style={styles.infoSubValue}>{formatTelephoneNumber(turno.cliente.codigo_pais, turno.cliente.telefono)}</div>
                     ) : null}
                     {turno.cliente.email ? (
                       <div style={styles.infoSubValue}>{turno.cliente.email}</div>

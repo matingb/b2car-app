@@ -8,6 +8,7 @@ import Avatar from "@/app/components/ui/Avatar";
 import { Cliente } from "@/model/types";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { Phone, Mail, MapPin, Pencil } from "lucide-react";
+import { formatTelephoneNumber } from "@/lib/telefono";
 
 type Props = {
   cliente: Cliente;
@@ -84,7 +85,7 @@ export default function PropietarioCard({
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <IconLabel
               icon={<Phone size={16} color={COLOR.ACCENT.PRIMARY} />}
-              label={cliente.telefono || "-"}
+              label={formatTelephoneNumber(cliente.codigo_pais, cliente.telefono ?? "")}
             />
             <IconLabel
               icon={<Mail size={16} color={COLOR.ACCENT.PRIMARY} />}

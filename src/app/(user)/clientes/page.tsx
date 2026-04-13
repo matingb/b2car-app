@@ -99,6 +99,7 @@ export default function ClientesPage() {
                 nombre: values.nombre,
                 apellido: values.apellido,
                 telefono: values.telefono,
+                codigo_pais: values.codigo_pais,
                 email: values.email,
                 direccion: values.direccion,
               });
@@ -107,6 +108,7 @@ export default function ClientesPage() {
                 nombre: values.nombre,
                 cuit: values.cuit!,
                 telefono: values.telefono,
+                codigo_pais: values.codigo_pais,
                 email: values.email,
                 direccion: values.direccion,
               });

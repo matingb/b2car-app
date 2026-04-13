@@ -66,10 +66,12 @@ type TurnoListRow = TurnoRow & {
 	tipo_cliente?: TipoCliente | null;
 	particular_nombre?: string | null;
 	particular_apellido?: string | null;
+	particular_codigo_pais?: string | null;
 	particular_telefono?: string | null;
 	particular_email?: string | null;
 	particular_direccion?: string | null;
 	empresa_nombre?: string | null;
+	empresa_codigo_pais?: string | null;
 	empresa_telefono?: string | null;
 	empresa_email?: string | null;
 	empresa_direccion?: string | null;
@@ -152,6 +154,7 @@ export const turnosService = {
 					id: row.cliente_id_full ?? row.cliente_id,
 					nombre: nombreCliente,
 					tipo_cliente: TipoCliente.PARTICULAR,
+					codigo_pais: row.particular_codigo_pais ?? undefined,
 					telefono: row.particular_telefono ?? "",
 					email: row.particular_email ?? "",
 					direccion: row.particular_direccion ?? "",
@@ -161,6 +164,7 @@ export const turnosService = {
 					id: row.cliente_id_full ?? row.cliente_id,
 					nombre: row.empresa_nombre ?? nombreCliente,
 					tipo_cliente: row.tipo_cliente ?? TipoCliente.EMPRESA,
+					codigo_pais: row.empresa_codigo_pais ?? undefined,
 					telefono: row.empresa_telefono ?? "",
 					email: row.empresa_email ?? "",
 					direccion: row.empresa_direccion ?? "",

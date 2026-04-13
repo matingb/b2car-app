@@ -21,6 +21,7 @@ import { useToast } from "@/app/providers/ToastProvider";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import IconButton from "../ui/IconButton";
 import { css } from "@emotion/react";
+import { formatTelephoneNumber } from "@/lib/telefono";
 
 export default function ClienteItem({ cliente }: { cliente: Cliente }) {
   const modal = useModalMessage();
@@ -87,7 +88,7 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
                 {cliente.telefono && (
                   <div css={styles.contactRow}>
                     <Phone size={14} />
-                    <span>{cliente.telefono}</span>
+                    <span>{formatTelephoneNumber(cliente.codigo_pais, cliente.telefono ?? "")}</span>
                   </div>
                 )}
 

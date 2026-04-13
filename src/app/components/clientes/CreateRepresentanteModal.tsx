@@ -26,7 +26,7 @@ export default function CreateRepresentanteModal({ open, onClose }: Props) {
     }
   }, [open]);
 
-  const isValid = useMemo(() => nombre.trim().length > 0, [nombre]);
+  const isValid = useMemo(() => nombre.trim().length > 0 && apellido.trim().length > 0, [nombre, apellido]);
 
   if (!open) return null;
 
@@ -64,7 +64,7 @@ export default function CreateRepresentanteModal({ open, onClose }: Props) {
                 <input style={styles.input} value={nombre} placeholder="Nombre" onChange={e => setNombre(e.target.value)} />
               </div>
               <div style={styles.field}> 
-                <label style={styles.label}>Apellido</label>
+                <label style={styles.label}>Apellido <span aria-hidden="true" style={styles.required}>*</span></label>
                 <input style={styles.input} value={apellido} placeholder="Apellido" onChange={e => setApellido(e.target.value)} />
               </div>
               <PhoneInput
