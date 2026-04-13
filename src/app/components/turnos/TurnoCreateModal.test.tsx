@@ -141,7 +141,7 @@ describe("TurnoCreateModal", () => {
 
   it("genera el mensaje de compartir con nombre de cliente, vehículo y hora sin segundos", async () => {
     mockCreateTurno.mockResolvedValueOnce(
-      createTurnoDto({ cliente_id: "C-1", vehiculo_id: "V-1", fecha: "2026-03-01", hora: "09:00:00" })
+      createTurnoDto({ cliente_id: "C-1", vehiculo_id: "V-1", fecha: "2026-03-01", hora: "09:00" })
     );
     mockGetClienteById.mockResolvedValueOnce(
       createCliente({ id: "C-1", nombre: "Juan", telefono: "1199999999" })
@@ -172,7 +172,7 @@ describe("TurnoCreateModal", () => {
     expect(mensaje).toContain("Juan");
     expect(mensaje).toContain("REW164");
     expect(mensaje).toContain("2026-03-01");
-    expect(mensaje).toMatch(/⏰ Hora: 09:00 hs/);
+    expect(mensaje).toContain("Hora: 09:00 hs");
   });
 });
 

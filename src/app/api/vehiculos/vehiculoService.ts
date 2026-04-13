@@ -2,7 +2,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Vehiculo } from "@/model/types";
 import { CreateVehiculoRequest } from "@/clients/vehiculoClient";
 import type { Cliente } from "@/model/types";
-import type { TipoCliente } from "@/model/types";
 import type { SupabaseError } from "@/model/types";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
 import { buildDescripcionFromDetalles } from "@/lib/arreglos";

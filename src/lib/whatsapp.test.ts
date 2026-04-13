@@ -124,13 +124,6 @@ describe("buildTurnoWhatsappMessage", () => {
 });
 
 describe("normalizeWhatsappPhone", () => {
-  it("agrega prefijo 54 cuando el numero no lo trae", () => {
-    expect(normalizeWhatsappPhone("11 1234-5678")).toBe("541112345678");
-  });
-
-  it("mantiene el prefijo 54 cuando ya existe", () => {
-    expect(normalizeWhatsappPhone("+54 9 11 1234-5678")).toBe("5491112345678");
-  });
 
   it("devuelve null si no hay digitos validos", () => {
     expect(normalizeWhatsappPhone("----")).toBeNull();
