@@ -135,7 +135,7 @@ Deno.serve(async (req: Request) => {
       try {
         const result = await sendEmail({
           to: [recipient],
-          subject: `Recordatorio de turno para manana - ${getTenantName(turno)}`,
+          subject: `Recordatorio de turno para mañana - ${getTenantName(turno)}`,
           text: buildTurnoReminderText(turno),
           html: buildTurnoReminderHtml(turno),
           tags: [
@@ -143,6 +143,7 @@ Deno.serve(async (req: Request) => {
             { key: "target_date", value: targetDate },
             { key: "turno_id", value: turno.id },
           ],
+          from: `${getTenantName(turno)} <no-reply@b2car.ar>`,
         });
 
         summary.sent += 1;

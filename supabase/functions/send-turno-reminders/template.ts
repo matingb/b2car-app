@@ -80,7 +80,7 @@ export function buildTurnoReminderHtml(turno: TurnoReminderRow) {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f7f9;">
     <tr>
       <td align="center" style="padding: 40px 16px;">
-        <table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 16px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 4px 20px rgba(0, 0, 0, 0.06); max-width: 480px; width: 100%;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 16px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 4px 20px rgba(0, 0, 0, 0.06); max-width: 860px; width: 100%;">
           <tr>
             <td align="center" style="padding: 24px 24px 12px 24px;">
               <img src="${LOGO_URL}" alt="B2Car" width="220" style="display: block; max-width: 100%; height: auto;" />
@@ -92,7 +92,7 @@ export function buildTurnoReminderHtml(turno: TurnoReminderRow) {
                 Recordatorio de turno
               </h1>
               <p style="font-size: 15px; line-height: 24px; color: #6b7280; margin: 0;">
-                Te recordamos que tenes un turno programado para manana en <strong style="color: #111111;">${tenantName}</strong>.
+                Te recordamos que tenes un turno programado para mañana en <strong style="color: #111111;">${tenantName}</strong>.
               </p>
             </td>
           </tr>
