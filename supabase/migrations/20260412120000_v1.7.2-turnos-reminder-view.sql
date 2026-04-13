@@ -43,7 +43,9 @@ SELECT
     NULLIF(TRIM(p.email), ''),
     NULLIF(TRIM(e.email), '')
   )::text AS cliente_email,
-  tn.nombre::text AS tenant_nombre
+  tn.nombre::text AS tenant_nombre,
+  p.codigo_pais AS particular_codigo_pais,
+  e.codigo_pais AS empresa_codigo_pais
 FROM public.turnos t
 LEFT JOIN public.vehiculos v ON t.vehiculo_id = v.id
 LEFT JOIN public.clientes c ON t.cliente_id = c.id
