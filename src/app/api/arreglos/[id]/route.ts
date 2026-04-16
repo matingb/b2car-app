@@ -4,7 +4,6 @@ import type { NextRequest } from "next/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { arregloService } from "@/app/api/arreglos/arregloService";
 import type {
-  CreateArregloDetalleFormularioInput,
   UpdateArregloRequest,
 } from "../arregloRequests";
 import { ServiceError } from "../../serviceError";
@@ -14,6 +13,7 @@ import {
   buildTerminadoRequiredFieldsErrorMessage,
   findMissingRequiredCustomFormFields,
 } from "@/lib/arreglosCustomFormRequired";
+import { computeArregloDescripcion } from "../arregloDescripcionService";
 
 export type DetalleArreglo = {
   id: string;
@@ -176,15 +176,12 @@ export async function PUT(
   const supabase = await createClient();
   const { id } = await params;
 
-  const payload:
-    | (UpdateArregloRequest & {
-      estado?: unknown;
-      detalle_formulario?: CreateArregloDetalleFormularioInput;
-    })
-    | null = await req.json().catch(() => null);
+  const payload: UpdateArregloRequest | null = await req.json().catch(() => null);
   if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 });
 
-  const { detalle_formulario, ...arregloPatch } = payload;
+  const { detalle_formulario, ...restPayload } = payload;
+  const arregloPatch: UpdateArregloRequest = { ...restPayload };
+  delete (arregloPatch as { descripcion?: unknown }).descripcion;
 
   if (arregloPatch.estado !== undefined) {
     const estado = String(arregloPatch.estado ?? "").trim().toUpperCase();
@@ -192,6 +189,27 @@ export async function PUT(
       return Response.json({ data: null, error: "Estado de arreglo inválido" }, { status: 400 });
     }
     arregloPatch.estado = estado as EstadoArreglo;
+  }
+
+  if (arregloPatch.tipo !== undefined) {
+    arregloPatch.tipo = String(arregloPatch.tipo ?? "").trim();
+    const { data: descripcionCalculada, error: descripcionError } = await computeArregloDescripcion(
+      supabase,
+      id,
+      { tipo: arregloPatch.tipo }
+    );
+
+    if (descripcionError) {
+      const status = descripcionError === ServiceError.NotFound ? 404 : 500;
+      const message = status === 404 ? "Arreglo no encontrado" : "Error actualizando arreglo";
+      return Response.json({ data: null, error: message }, { status });
+    }
+
+    if (descripcionCalculada == null) {
+      return Response.json({ data: null, error: "Error actualizando arreglo" }, { status: 500 });
+    }
+
+    arregloPatch.descripcion = descripcionCalculada;
   }
 
   const patchEntries = Object.entries(arregloPatch).filter(([, value]) => value !== undefined);

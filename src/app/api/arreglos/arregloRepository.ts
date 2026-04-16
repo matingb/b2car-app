@@ -20,8 +20,6 @@ export type ArregloListFilters = {
 };
 
 export type ArregloListPageRow = {
-  detalles?: Array<{ descripcion?: unknown }> | null;
-  descripcion?: unknown;
   [key: string]: unknown;
 };
 
@@ -84,7 +82,7 @@ export const supabaseArregloRepository: ArregloRepository = {
 
     let query = supabase
       .from("arreglos")
-      .select("*, vehiculo:vista_vehiculos_con_clientes(*), taller:talleres(*), detalles:detalle_arreglo(descripcion)")
+      .select("*, vehiculo:vista_vehiculos_con_clientes(*), taller:talleres(*)")
       .order("fecha", { ascending: false })
       .order("updated_at", { ascending: false })
       .order("id", { ascending: false })

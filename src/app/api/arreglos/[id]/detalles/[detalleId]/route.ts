@@ -2,6 +2,7 @@ import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 import { detalleArregloService } from "@/app/api/arreglos/detalleArregloService";
 import { ServiceError } from "@/app/api/serviceError";
+import { syncArregloDescripcion } from "@/app/api/arreglos/arregloDescripcionService";
 
 export type UpdateDetalleArregloRequest = Partial<{
   descripcion: string;
@@ -84,6 +85,13 @@ export async function PUT(
     return Response.json({ data: null, error: message } satisfies UpdateDetalleArregloResponse, { status });
   }
 
+  const { error: syncError } = await syncArregloDescripcion(supabase, arregloId);
+  if (syncError) {
+    const status = syncError === ServiceError.NotFound ? 404 : 500;
+    const message = "Error actualizando la descripción del arreglo";
+    return Response.json({ data: null, error: message } satisfies UpdateDetalleArregloResponse, { status });
+  }
+
   return Response.json({ data, error: null } satisfies UpdateDetalleArregloResponse, { status: 200 });
 }
 
@@ -105,6 +113,13 @@ export async function DELETE(
   if (error) {
     const status = error === ServiceError.NotFound ? 404 : 500;
     const message = status === 404 ? "Detalle no encontrado" : "Error eliminando detalle del arreglo";
+    return Response.json({ error: message } satisfies DeleteDetalleArregloResponse, { status });
+  }
+
+  const { error: syncError } = await syncArregloDescripcion(supabase, arregloId);
+  if (syncError) {
+    const status = syncError === ServiceError.NotFound ? 404 : 500;
+    const message = "Error actualizando la descripción del arreglo";
     return Response.json({ error: message } satisfies DeleteDetalleArregloResponse, { status });
   }
 

@@ -16,7 +16,6 @@ export type CreateArregloInput = {
   kilometraje_leido: number;
   precio_final: number;
   observaciones?: string;
-  descripcion?: string;
   esta_pago?: boolean;
   extra_data?: string;
 

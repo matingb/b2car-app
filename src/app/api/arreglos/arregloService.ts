@@ -2,8 +2,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Arreglo } from "@/model/types";
 import type { CreateArregloInsertPayload, UpdateArregloRequest } from "./arregloRequests";
 import { ServiceError, ServiceResult } from "@/app/api/serviceError";
-import { buildDescripcionFromDetalles } from "@/lib/arreglos";
-import { logger } from "@/lib/logger";
 import {
   type ArregloListFilters,
   type ArregloRepository,
@@ -29,19 +27,6 @@ export type ArregloListPage = {
   hasMore: boolean;
 };
 
-function mapArregloDescripcion(row: {
-  detalles?: Array<{ descripcion?: unknown }> | null;
-  descripcion?: unknown;
-  [key: string]: unknown;
-}) {
-  const { detalles, ...rest } = row;
-  const fallback = String(row?.descripcion ?? "");
-  return {
-    ...rest,
-    descripcion: buildDescripcionFromDetalles(detalles, fallback),
-  };
-}
-
 export function createArregloService(repository: ArregloRepository) {
   return {
     async getArreglo(
@@ -51,7 +36,7 @@ export function createArregloService(repository: ArregloRepository) {
       const { data, error } = await repository.getArreglo(supabase, filters);
       if (error) return { data: null, error };
 
-      const items = (data?.rows ?? []).map(mapArregloDescripcion) as unknown as Arreglo[];
+      const items = (data?.rows ?? []) as unknown as Arreglo[];
       return { data: { items, hasMore: Boolean(data?.hasMore) }, error: null };
     },
 

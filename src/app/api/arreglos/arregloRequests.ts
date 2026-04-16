@@ -22,7 +22,6 @@ export type CreateArregloRequest = {
   taller_id: string;
   tipo?: string;
   estado?: EstadoArreglo;
-  descripcion?: string;
   kilometraje_leido?: number;
   fecha: Date | string;
   observaciones?: string;

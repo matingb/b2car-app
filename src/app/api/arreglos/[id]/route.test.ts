@@ -3,6 +3,7 @@ import { PUT, DELETE } from "./route";
 import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { arregloService } from "../arregloService";
+import { computeArregloDescripcion } from "../arregloDescripcionService";
 import { NextRequest } from "next/server";
 import { Arreglo } from "@/model/types";
 import { ServiceError } from "@/app/api/serviceError";
@@ -23,6 +24,10 @@ vi.mock("../arregloService", () => ({
     getByIdWithVehiculo: vi.fn(),
     deleteById: vi.fn(),
   },
+}));
+
+vi.mock("../arregloDescripcionService", () => ({
+  computeArregloDescripcion: vi.fn(),
 }));
 
 describe("Mutaciones /api/arreglos/[id]", () => {
@@ -83,19 +88,28 @@ describe("Mutaciones /api/arreglos/[id]", () => {
     vi.mocked(arregloService.deleteById).mockResolvedValue(
       { error: null } as unknown as { error: null }
     );
+    vi.mocked(computeArregloDescripcion).mockResolvedValue({
+      data: "Service | Cambio aceite",
+      error: null,
+    });
   });
 
   it("si update es exitoso, registra cambios en los stats", async () => {
     const req = new NextRequest("http://localhost/api/arreglos/a1", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ descripcion: "Nueva desc" }),
+      body: JSON.stringify({ tipo: "Service" }),
     });
 
     const params = Promise.resolve({ id: "a1" });
     await PUT(req, { params });
 
     expect(arregloService.updateById).toHaveBeenCalledTimes(1);
+    expect(arregloService.updateById).toHaveBeenCalledWith(
+      mockSupabase,
+      "a1",
+      expect.objectContaining({ tipo: "Service", descripcion: "Service | Cambio aceite" })
+    );
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
     expect(statsService.onDataChanged).toHaveBeenCalledWith(mockSupabase);
   });

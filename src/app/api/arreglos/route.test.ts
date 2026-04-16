@@ -44,6 +44,25 @@ describe("POST /api/arreglos", () => {
         };
       }
 
+      if (table === "detalle_arreglo") {
+        return {
+          insert: vi.fn(() => ({
+            select: vi.fn(() => ({
+              single: vi.fn(async () => ({
+                data: {
+                  id: "d1",
+                  arreglo_id: "a1",
+                  descripcion: "Cambio aceite",
+                  cantidad: 1,
+                  valor: 1000,
+                },
+                error: null,
+              })),
+            })),
+          })),
+        };
+      }
+
       return {
         insert: vi.fn(async () => ({ error: null })),
         select: vi.fn(() => ({
@@ -70,12 +89,23 @@ describe("POST /api/arreglos", () => {
     const req = new Request("http://localhost/api/arreglos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(createCreateArregloRequest()),
+      body: JSON.stringify(
+        createCreateArregloRequest({
+          tipo: "Service",
+          detalles: [{ descripcion: "Cambio aceite", cantidad: 1, valor: 1000 }],
+        })
+      ),
     });
 
     await POST(req);
 
     expect(arregloService.create).toHaveBeenCalledTimes(1);
+    expect(arregloService.create).toHaveBeenCalledWith(
+      mockSupabase,
+      expect.objectContaining({
+        descripcion: "Cambio aceite",
+      })
+    );
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
   });
 

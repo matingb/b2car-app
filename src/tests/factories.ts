@@ -90,7 +90,6 @@ export const createCreateArregloRequest = (
     taller_id: "t1",
     tipo: "Service",
     estado: "SIN_INICIAR",
-    descripcion: "Cambio aceite",
     kilometraje_leido: 123,
     fecha: new Date().toISOString(),
     observaciones: "",

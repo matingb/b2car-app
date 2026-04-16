@@ -14,6 +14,7 @@ import {
     buildTerminadoRequiredFieldsErrorMessage,
     findMissingRequiredCustomFormFields,
 } from "@/lib/arreglosCustomFormRequired";
+import { buildArregloDescripcion } from "@/lib/arreglos";
 
 export type GetArreglosResponse = {
     data: Arreglo[] | null;
@@ -82,7 +83,6 @@ export async function POST(req: Request) {
         taller_id,
         tipo,
         estado,
-        descripcion,
         kilometraje_leido,
         fecha,
         observaciones,
@@ -114,6 +114,23 @@ export async function POST(req: Request) {
     const detalleFormularioMetadata = Array.isArray(detalle_formulario?.metadata)
         ? detalle_formulario.metadata
         : [];
+    const detallesArr = Array.isArray(detalles) ? detalles : [];
+    const repuestosArr = Array.isArray(repuestos) ? repuestos : [];
+    const normalizedDetalles = detallesArr.map((d) => ({
+        descripcion: String((d as { descripcion?: unknown }).descripcion ?? "").trim(),
+        cantidad: Number((d as { cantidad?: unknown }).cantidad),
+        valor: Number((d as { valor?: unknown }).valor),
+    }));
+
+    for (const d of normalizedDetalles) {
+        if (!d.descripcion) return Response.json({ error: "Falta descripción en servicios" }, { status: 400 });
+        if (!Number.isFinite(d.cantidad) || d.cantidad <= 0) {
+            return Response.json({ error: "Cantidad inválida en servicios" }, { status: 400 });
+        }
+        if (!Number.isFinite(d.valor) || d.valor < 0) {
+            return Response.json({ error: "Valor inválido en servicios" }, { status: 400 });
+        }
+    }
 
     if (estadoValue === "TERMINADO" && detalleFormularioConfigId) {
         const { data: formularioRow, error: formularioError } = await supabase
@@ -151,7 +168,11 @@ export async function POST(req: Request) {
         taller_id,
         tipo: tipoValue,
         estado: estadoValue,
-        descripcion: descripcion ?? null,
+        descripcion: buildArregloDescripcion({
+            tipo: tipoValue,
+            detalles: normalizedDetalles,
+            detalleFormulario: detalleFormularioMetadata,
+        }),
         kilometraje_leido: kmNumber,
         fecha,
         observaciones: observaciones ?? null,
@@ -172,9 +193,6 @@ export async function POST(req: Request) {
     // Esto se usa principalmente desde el ArregloModal (crear).
     const arregloId = String((insertData as { id?: unknown })?.id ?? "");
     const tallerId = String(taller_id ?? "").trim();
-
-    const detallesArr = Array.isArray(detalles) ? detalles : [];
-    const repuestosArr = Array.isArray(repuestos) ? repuestos : [];
 
     // Repuestos: validar + pre-chequear stock (best-effort) para evitar parciales.
     if (repuestosArr.length > 0) {
@@ -248,21 +266,8 @@ export async function POST(req: Request) {
 
     // Servicios (detalle_arreglo)
     logger.debug("Creando detalles de arreglo:", detallesArr);
-    if (detallesArr.length > 0) {
-        const normalized = detallesArr.map((d) => ({
-            descripcion: String((d as { descripcion?: unknown }).descripcion ?? "").trim(),
-            cantidad: Number((d as { cantidad?: unknown }).cantidad),
-            valor: Number((d as { valor?: unknown }).valor),
-        }));
-
-        for (const d of normalized) {
-            if (!d.descripcion) return Response.json({ error: "Falta descripción en servicios" }, { status: 400 });
-            if (!Number.isFinite(d.cantidad) || d.cantidad <= 0) return Response.json({ error: "Cantidad inválida en servicios" }, { status: 400 });
-            // UX: valor unitario mínimo 1 (según el modal)
-            if (!Number.isFinite(d.valor) || d.valor <= 0) return Response.json({ error: "Valor inválido en servicios" }, { status: 400 });
-        }
-
-        for (const d of normalized) {
+    if (normalizedDetalles.length > 0) {
+        for (const d of normalizedDetalles) {
             const { error: detErr } = await detalleArregloService.create(supabase, {
                 arreglo_id: arregloId,
                 descripcion: d.descripcion,

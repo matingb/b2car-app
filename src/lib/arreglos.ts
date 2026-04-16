@@ -1,14 +1,39 @@
-/**
- * Construye la descripción de un arreglo a partir de sus detalles (servicios).
- * Si no hay detalles con descripción, usa el fallback (ej. columna descripcion del arreglo).
- */
-export function buildDescripcionFromDetalles(
-  detalles: Array<{ descripcion?: unknown }> | null | undefined,
-  fallback: string
-): string {
-  const concatenada = (detalles ?? [])
-    .map((d) => String(d?.descripcion ?? "").trim())
-    .filter(Boolean)
-    .join(" | ");
-  return concatenada || fallback;
+export const ARREGLO_DESCRIPCION_FALLBACK = "Arreglo registrado sin detalle específico";
+
+type ArregloDescripcionDetalle = {
+  descripcion?: unknown;
+};
+
+export function buildArregloDescripcion({
+  tipo,
+  detalles,
+  detalleFormulario,
+  fallback = ARREGLO_DESCRIPCION_FALLBACK,
+}: {
+  tipo?: unknown;
+  detalles?: ArregloDescripcionDetalle[] | null;
+  detalleFormulario?: unknown;
+  fallback?: string;
+}): string {
+  const tipoNormalizado = String(tipo ?? "").trim();
+  const detallesNormalizados = (detalles ?? [])
+    .map((detalle) => String(detalle?.descripcion ?? "").trim())
+    .filter(Boolean);
+  const hasDetalleFormulario = Array.isArray(detalleFormulario)
+    ? detalleFormulario.length > 0
+    : Boolean(detalleFormulario);
+
+  if (tipoNormalizado && hasDetalleFormulario && detallesNormalizados.length > 0) {
+    return [tipoNormalizado, ...detallesNormalizados].join(" | ");
+  }
+
+  if (detallesNormalizados.length > 0) {
+    return detallesNormalizados.join(" | ");
+  }
+  
+  if (tipoNormalizado) {
+    return tipoNormalizado;
+  }
+
+  return fallback;
 }

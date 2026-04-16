@@ -1,6 +1,8 @@
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 import { detalleArregloService } from "@/app/api/arreglos/detalleArregloService";
+import { syncArregloDescripcion } from "@/app/api/arreglos/arregloDescripcionService";
+import { ServiceError } from "@/app/api/serviceError";
 
 export type CreateDetalleArregloRequest = {
   descripcion: string;
@@ -64,6 +66,13 @@ export async function POST(
       { data: null, error: "Error creando detalle del arreglo" } satisfies CreateDetalleArregloResponse,
       { status: 500 }
     );
+  }
+
+  const { error: syncError } = await syncArregloDescripcion(supabase, arregloId);
+  if (syncError) {
+    const status = syncError === ServiceError.NotFound ? 404 : 500;
+    const message = "Error actualizando la descripción del arreglo";
+    return Response.json({ data: null, error: message } satisfies CreateDetalleArregloResponse, { status });
   }
 
   return Response.json({ data, error: null } satisfies CreateDetalleArregloResponse, { status: 201 });

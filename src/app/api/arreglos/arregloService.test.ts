@@ -34,11 +34,11 @@ describe("arregloService", () => {
       expect(result).toEqual({ data: null, error: ServiceError.Unknown });
     });
 
-    it("construye descripcion concatenando los detalles del arreglo", async () => {
+    it("devuelve las filas del repositorio sin recalcular descripcion", async () => {
       const repo = makeRepo({
         getArreglo: vi.fn().mockResolvedValue({
           data: {
-            rows: [{ id: "a1", descripcion: "fallback", detalles: [{ descripcion: "Service" }, { descripcion: "Frenos" }] }],
+            rows: [{ id: "a1", descripcion: "Service | Frenos", tipo: "Service" }],
             hasMore: false,
           },
           error: null,
@@ -48,11 +48,11 @@ describe("arregloService", () => {
       expect(result.data?.items[0]).toMatchObject({ descripcion: "Service | Frenos" });
     });
 
-    it("usa descripcion original como fallback cuando no hay detalles", async () => {
+    it("preserva la descripcion persistida tal como viene", async () => {
       const repo = makeRepo({
         getArreglo: vi.fn().mockResolvedValue({
           data: {
-            rows: [{ id: "a1", descripcion: "Solo texto", detalles: [] }],
+            rows: [{ id: "a1", descripcion: "Solo texto", tipo: "" }],
             hasMore: false,
           },
           error: null,
