@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { RepuestoLinea } from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
+import type {
+  RepuestoLinea,
+  RepuestoUpsertInput,
+} from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
 
-type UpsertInput = { stock_id: string; cantidad: number; monto_unitario: number };
+const NEW_PRODUCT_VALUE = "__nuevo_producto__";
 
 export function useRepuestosDraft() {
   const [items, setItems] = useState<RepuestoLinea[]>([]);
@@ -15,8 +18,38 @@ export function useRepuestosDraft() {
   }, []);
 
   const onUpsert = useCallback(
-    (input: UpsertInput) => {
+    (input: RepuestoUpsertInput) => {
       setItems((prev) => {
+        if (input.tipo === "nuevo") {
+          const idx = input.id
+            ? prev.findIndex((r) => r.id === input.id)
+            : prev.findIndex(
+                (r) =>
+                  r.tipo === "nuevo" &&
+                  r.nuevoProducto?.codigo.trim().toLowerCase() === input.codigo.trim().toLowerCase()
+              );
+          const nextItem: RepuestoLinea = {
+            id: idx >= 0 ? prev[idx].id : newId(),
+            tipo: "nuevo",
+            stock_id: NEW_PRODUCT_VALUE,
+            cantidad: input.cantidad,
+            monto_unitario: input.precio_venta,
+            producto: { nombre: input.nombre, codigo: input.codigo },
+            nuevoProducto: {
+              codigo: input.codigo,
+              nombre: input.nombre,
+              precioCompra: input.precio_compra,
+              precioVenta: input.precio_venta,
+            },
+          };
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = nextItem;
+            return next;
+          }
+          return [...prev, nextItem];
+        }
+
         const idx = prev.findIndex((r) => r.stock_id === input.stock_id);
         if (idx >= 0) {
           const next = [...prev];

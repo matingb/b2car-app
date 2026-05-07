@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { POST } from "./route";
 import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
-import { arregloService } from "./arregloService";
-import { Arreglo } from "@/model/types";
 import { createCreateArregloRequest } from "@/tests/factories";
 
 vi.mock("@/supabase/server", () => ({
@@ -16,17 +14,27 @@ vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
   },
 }));
 
-vi.mock("./arregloService", () => ({
-  arregloService: {
-    create: vi.fn(),
-  },
-}));
-
 describe("POST /api/arreglos", () => {
   let formularioLookupResult: { data: unknown; error: unknown };
-  let detalleInsertResult: { error: unknown };
+  const rpc = vi.fn();
+  const createdArreglo = {
+    id: "a1",
+    vehiculo_id: "v1",
+    taller_id: "t1",
+    tipo: "Service",
+    estado: "SIN_INICIAR",
+    descripcion: "Cambio aceite",
+    kilometraje_leido: 123,
+    fecha: "2026-01-01T00:00:00.000Z",
+    observaciones: "",
+    precio_final: 1000,
+    precio_sin_iva: 826.45,
+    esta_pago: false,
+    extra_data: "",
+  };
 
   const mockSupabase = {
+    rpc,
     from: vi.fn((table: string) => {
       if (table === "formularios") {
         return {
@@ -38,26 +46,11 @@ describe("POST /api/arreglos", () => {
         };
       }
 
-      if (table === "detalle_form_custom") {
+      if (table === "arreglos") {
         return {
-          insert: vi.fn(async () => detalleInsertResult),
-        };
-      }
-
-      if (table === "detalle_arreglo") {
-        return {
-          insert: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: vi.fn(async () => ({
-                data: {
-                  id: "d1",
-                  arreglo_id: "a1",
-                  descripcion: "Cambio aceite",
-                  cantidad: 1,
-                  valor: 1000,
-                },
-                error: null,
-              })),
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn(async () => ({ data: createdArreglo, error: null })),
             })),
           })),
         };
@@ -76,13 +69,9 @@ describe("POST /api/arreglos", () => {
     vi.clearAllMocks();
 
     formularioLookupResult = { data: null, error: null };
-    detalleInsertResult = { error: null };
+    rpc.mockResolvedValue({ data: "a1", error: null });
 
     vi.mocked(createClient).mockResolvedValue(mockSupabase);
-    vi.mocked(arregloService.create).mockResolvedValue({
-      data: { id: "a1" } as Arreglo,
-      error: null,
-    });
   });
 
   it("si el insert es exitoso, registra cambios en los stats", async () => {
@@ -99,11 +88,12 @@ describe("POST /api/arreglos", () => {
 
     await POST(req);
 
-    expect(arregloService.create).toHaveBeenCalledTimes(1);
-    expect(arregloService.create).toHaveBeenCalledWith(
-      mockSupabase,
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith(
+      "rpc_crear_arreglo_completo",
       expect.objectContaining({
-        descripcion: "Cambio aceite",
+        p_descripcion: "Cambio aceite",
+        p_detalles: [{ descripcion: "Cambio aceite", cantidad: 1, valor: 1000 }],
       })
     );
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
@@ -142,7 +132,7 @@ describe("POST /api/arreglos", () => {
 
     expect(response.status).toBe(400);
     expect(String(body?.error ?? "")).toContain("Patente");
-    expect(arregloService.create).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
     expect(statsService.onDataChanged).not.toHaveBeenCalled();
   });
 
@@ -177,7 +167,7 @@ describe("POST /api/arreglos", () => {
     const response = await POST(req);
 
     expect(response.status).toBe(201);
-    expect(arregloService.create).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledTimes(1);
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
   });
 
@@ -196,6 +186,6 @@ describe("POST /api/arreglos", () => {
     const response = await POST(req);
 
     expect(response.status).toBe(201);
-    expect(arregloService.create).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledTimes(1);
   });
 });

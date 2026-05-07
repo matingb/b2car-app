@@ -202,11 +202,22 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           esta_pago: payload.esta_pago,
           extra_data: payload.extra_data,
           detalles,
-          repuestos: internal.repuestosDraft.map((r) => ({
-            stock_id: String(r.stock_id ?? "").trim(),
-            cantidad: Number(r.cantidad) || 0,
-            monto_unitario: Number(r.monto_unitario) || 0,
-          })),
+          repuestos: internal.repuestosDraft
+            .filter((r) => r.tipo !== "nuevo")
+            .map((r) => ({
+              stock_id: String(r.stock_id ?? "").trim(),
+              cantidad: Number(r.cantidad) || 0,
+              monto_unitario: Number(r.monto_unitario) || 0,
+            })),
+          repuestos_nuevos: internal.repuestosDraft
+            .filter((r) => r.tipo === "nuevo" && r.nuevoProducto)
+            .map((r) => ({
+              codigo: String(r.nuevoProducto?.codigo ?? "").trim(),
+              nombre: String(r.nuevoProducto?.nombre ?? "").trim(),
+              precio_compra: Number(r.nuevoProducto?.precioCompra) || 0,
+              precio_venta: Number(r.nuevoProducto?.precioVenta) || 0,
+              cantidad: Number(r.cantidad) || 0,
+            })),
           detalle_formulario: internal.detalleFormulario ?? undefined,
         } as CreateArregloInput);
       }

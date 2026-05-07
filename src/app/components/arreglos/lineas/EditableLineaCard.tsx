@@ -19,8 +19,11 @@ type Props = {
   top: React.ReactNode;
   qtyValue: string;
   unitValue: string;
+  purchaseUnitValue?: string;
   onQtyChange: (value: string) => void;
   onUnitChange: (value: string) => void;
+  onPurchaseUnitChange?: (value: string) => void;
+  showPurchaseUnit?: boolean;
   interactionEnabled: boolean;
   validation: Validation;
   onConfirm: () => void | Promise<void>;
@@ -34,8 +37,11 @@ export default function EditableLineaCard({
   top,
   qtyValue,
   unitValue,
+  purchaseUnitValue = "",
   onQtyChange,
   onUnitChange,
+  onPurchaseUnitChange,
+  showPurchaseUnit = false,
   interactionEnabled,
   validation,
   onConfirm,
@@ -77,26 +83,51 @@ export default function EditableLineaCard({
         <div css={styles.topWrap}>{top}</div>
 
         <div css={styles.qtyUnitRow}>
-          <input
-            css={styles.qtyInput}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={qtyValue}
-            onChange={(e) => onQtyChange(e.target.value.replace(/\D/g, ""))}
-            placeholder="1"
-            disabled={!interactionEnabled}
-            aria-label="Cantidad"
-          />
-          <input
-            css={styles.unitInput}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={unitValue}
-            onChange={(e) => onUnitChange(e.target.value.replace(/\D/g, ""))}
-            placeholder="$73.000"
-            disabled={!interactionEnabled}
-            aria-label={kind === "servicios" ? "Valor unitario" : "Precio unitario"}
-          />
+          <label css={styles.fieldWrap(showPurchaseUnit, "qty")}>
+            {showPurchaseUnit ? <span css={styles.fieldLabel}>Cantidad</span> : null}
+            <input
+              css={styles.qtyInput}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={qtyValue}
+              onChange={(e) => onQtyChange(e.target.value.replace(/\D/g, ""))}
+              placeholder="1"
+              disabled={!interactionEnabled}
+              aria-label="Cantidad"
+            />
+          </label>
+          {showPurchaseUnit ? (
+            <label css={styles.fieldWrap(true, "unit")}>
+              <span css={styles.fieldLabel}>Precio compra</span>
+              <input
+                css={styles.unitInput}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={purchaseUnitValue}
+                onChange={(e) => onPurchaseUnitChange?.(e.target.value.replace(/\D/g, ""))}
+                placeholder="$73.000"
+                disabled={!interactionEnabled}
+                aria-label="Precio compra"
+              />
+            </label>
+          ) : null}
+          <label css={styles.fieldWrap(showPurchaseUnit, "unit")}>
+            {showPurchaseUnit ? (
+              <span css={styles.fieldLabel}>
+                {kind === "servicios" ? "Valor unitario" : "Precio venta"}
+              </span>
+            ) : null}
+            <input
+              css={styles.unitInput}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={unitValue}
+              onChange={(e) => onUnitChange(e.target.value.replace(/\D/g, ""))}
+              placeholder="$73.000"
+              disabled={!interactionEnabled}
+              aria-label={kind === "servicios" ? "Valor unitario" : "Precio unitario"}
+            />
+          </label>
         </div>
 
         <div css={styles.footer}>
@@ -171,6 +202,7 @@ const styles = {
   }),
   qtyUnitRow: css({
     display: "flex",
+    alignItems: "flex-end",
     gap: 10,
     width: "100%",
     [`@media (min-width: ${BREAKPOINTS.lg}px)`]: {
@@ -178,20 +210,36 @@ const styles = {
       flexWrap: "nowrap",
     },
   }),
+  fieldWrap: (withLabel: boolean, variant: "qty" | "unit") => css({
+    display: "flex",
+    flexDirection: "column",
+    gap: withLabel ? 4 : 0,
+    width: variant === "qty" ? 70 : 130,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      width: withLabel ? "100%" : variant === "qty" ? "30%" : "70%",
+      minWidth: withLabel ? 110 : undefined,
+    },
+  }),
+  fieldLabel: css({
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
+    fontWeight: 700,
+    lineHeight: 1.2,
+  }),
   qtyInput: css({
     ...lineaStyles.editorInput,
     ...lineaStyles.editorInputRight,
-    width: 70,
+    width: "100%",
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      width: "30%",
+      width: "100%",
     },
   }),
   unitInput: css({
     ...lineaStyles.editorInput,
     ...lineaStyles.editorInputRight,
-    width: 130,
+    width: "100%",
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      width: "70%",
+      width: "100%",
     },
   }),
   footer: css({

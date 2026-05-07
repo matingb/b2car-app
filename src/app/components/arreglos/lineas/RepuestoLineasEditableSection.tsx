@@ -17,14 +17,38 @@ export type RepuestoLinea = {
   stock_id: string;
   cantidad: number;
   monto_unitario: number;
+  tipo?: "existente" | "nuevo";
   producto?: { nombre?: string; codigo?: string | null } | null;
+  nuevoProducto?: {
+    codigo: string;
+    nombre: string;
+    precioCompra: number;
+    precioVenta: number;
+  };
 };
 
 type Draft = {
   stockId: string;
   cantidad: string;
   montoUnitario: string;
+  codigo: string;
+  nombre: string;
+  precioCompra: string;
+  precioVenta: string;
 };
+
+export type RepuestoUpsertInput =
+  | { tipo?: "existente"; stock_id: string; cantidad: number; monto_unitario: number }
+  | {
+      id?: string;
+      tipo: "nuevo";
+      codigo: string;
+      nombre: string;
+      precio_compra: number;
+      precio_venta: number;
+      cantidad: number;
+      monto_unitario: number;
+    };
 
 type Props = {
   title?: string;
@@ -32,9 +56,11 @@ type Props = {
   tallerId: string | null;
   items: RepuestoLinea[];
   disabled?: boolean;
-  onUpsert: (input: { stock_id: string; cantidad: number; monto_unitario: number }) => void | Promise<void>;
+  onUpsert: (input: RepuestoUpsertInput) => void | Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
 };
+
+const NEW_PRODUCT_VALUE = "__nuevo_producto__";
 
 function safeInt(v: string): number {
   const n = Number(v);
@@ -67,11 +93,19 @@ export default function RepuestoLineasEditableSection({
   );
 
   const stockOptions: AutocompleteOption[] = useMemo(() => {
-    return (inventario ?? []).map((s) => ({
+    return [
+      {
+        value: NEW_PRODUCT_VALUE,
+        label: "Nuevo producto",
+        secondaryLabel: "Crear producto, stock, compra y asignacion",
+        icon: <Plus size={14} />,
+      },
+      ...(inventario ?? []).map((s) => ({
       value: s.id,
       label: s.nombre,
       secondaryLabel: `${s.codigo || ""}${s.codigo ? " · " : ""}Stock: ${Number(s.stockActual) || 0}`,
-    }));
+    })),
+    ];
   }, [inventario]);
 
   const {
@@ -87,14 +121,18 @@ export default function RepuestoLineasEditableSection({
     cancel,
     save,
     validateCurrent,
-  } = useInlineEditor<RepuestoLinea, Draft, { stock_id: string; cantidad: number; monto_unitario: number }>({
+  } = useInlineEditor<RepuestoLinea, Draft, RepuestoUpsertInput>({
     items,
     getId: (i) => i.id,
-    initialDraft: { stockId: "", cantidad: "1", montoUnitario: "" },
+    initialDraft: { stockId: "", cantidad: "1", montoUnitario: "", codigo: "", nombre: "", precioCompra: "", precioVenta: "" },
     draftFromItem: (item) => ({
       stockId: item.stock_id,
       cantidad: String(item.cantidad ?? 1),
       montoUnitario: String(item.monto_unitario ?? ""),
+      codigo: item.nuevoProducto?.codigo ?? "",
+      nombre: item.nuevoProducto?.nombre ?? "",
+      precioCompra: item.nuevoProducto?.precioCompra != null ? String(item.nuevoProducto.precioCompra) : "",
+      precioVenta: item.nuevoProducto?.precioVenta != null ? String(item.nuevoProducto.precioVenta) : "",
     }),
     validate: (d, ctx) => {
       if (!tallerId) return { ok: false as const, message: "No hay taller asociado" };
@@ -103,6 +141,35 @@ export default function RepuestoLineasEditableSection({
       const montoUnitario = safeMoney(d.montoUnitario);
       if (!stockId) return { ok: false as const, message: "Falta producto" };
       if (!Number.isFinite(cantidad) || cantidad <= 0) return { ok: false as const, message: "Cantidad inválida" };
+      if (stockId === NEW_PRODUCT_VALUE) {
+        const codigo = String(d.codigo ?? "").trim();
+        const nombre = String(d.nombre ?? "").trim();
+        const precioCompra = safeMoney(d.precioCompra);
+        const precioVenta = safeMoney(d.precioVenta);
+        if (!codigo) return { ok: false as const, message: "Falta código" };
+        if (!nombre) return { ok: false as const, message: "Falta nombre" };
+        if (!Number.isFinite(precioCompra) || precioCompra < 0) return { ok: false as const, message: "Precio de compra inválido" };
+        if (!Number.isFinite(precioVenta) || precioVenta < 0) return { ok: false as const, message: "Precio de venta inválido" };
+        const editingId = ctx.mode === "edit" && ctx.item ? ctx.item.id : null;
+        if (items.some((i) => i.id !== editingId && i.tipo === "nuevo" && i.nuevoProducto?.codigo?.trim().toLowerCase() === codigo.toLowerCase())) {
+          return { ok: false as const, message: "Ese código ya está agregado" };
+        }
+        if (items.some((i) => i.id !== editingId && i.tipo !== "nuevo" && i.producto?.codigo?.trim().toLowerCase() === codigo.toLowerCase())) {
+          return { ok: false as const, message: "Ese código ya existe en repuestos" };
+        }
+        return {
+          ok: true as const,
+          value: {
+            tipo: "nuevo",
+            codigo,
+            nombre,
+            precio_compra: precioCompra,
+            precio_venta: precioVenta,
+            cantidad,
+            monto_unitario: precioVenta,
+          },
+        };
+      }
       if (!Number.isFinite(montoUnitario) || montoUnitario < 0) return { ok: false as const, message: "Monto inválido" };
 
       if (ctx.mode === "add" && items.some((i) => i.stock_id === stockId)) {
@@ -120,10 +187,10 @@ export default function RepuestoLineasEditableSection({
         return { ok: false as const, message: "Stock insuficiente" };
       }
 
-      return { ok: true as const, value: { stock_id: stockId, cantidad, monto_unitario: montoUnitario } };
+      return { ok: true as const, value: { tipo: "existente", stock_id: stockId, cantidad, monto_unitario: montoUnitario } };
     },
     onAdd: (value) => onUpsert(value),
-    onUpdate: (_id, value) => onUpsert(value),
+    onUpdate: (id, value) => onUpsert(value.tipo === "nuevo" ? { ...value, id } : value),
   });
 
   const canInteract = !disabled && !submitting;
@@ -170,8 +237,8 @@ export default function RepuestoLineasEditableSection({
         {items.map((item) => {
           const total = (Number(item.cantidad) || 0) * (Number(item.monto_unitario) || 0);
           const isRowEditing = editingId === item.id;
-          const code = item.producto?.codigo ?? null;
-          const titleText = item.producto?.nombre || findStock(item.stock_id)?.nombre || "Producto";
+          const code = item.nuevoProducto?.codigo ?? item.producto?.codigo ?? null;
+          const titleText = item.nuevoProducto?.nombre || item.producto?.nombre || findStock(item.stock_id)?.nombre || "Producto";
 
           if (!isRowEditing) {
             return (
@@ -224,7 +291,8 @@ export default function RepuestoLineasEditableSection({
           const stock = findStock(item.stock_id);
           const stockActual = stock ? Number(stock.stockActual) || 0 : null;
           const delta = safeInt(draft.cantidad) - baseQty;
-          const hasStockIssue = stockActual !== null && delta > 0 && delta > stockActual;
+          const isNewProduct = item.tipo === "nuevo" || draft.stockId === NEW_PRODUCT_VALUE;
+          const hasStockIssue = !isNewProduct && stockActual !== null && delta > 0 && delta > stockActual;
           const productStyle: React.CSSProperties = { width: "100%" };
 
           return (
@@ -233,19 +301,44 @@ export default function RepuestoLineasEditableSection({
                 kind="repuestos"
                 mode="edit"
                 top={
-                  <Autocomplete
-                    options={stockOptions}
-                    value={draft.stockId}
-                    onChange={(v) => setDraft((p) => ({ ...p, stockId: v }))}
-                    placeholder={isLoading ? "Cargando inventario..." : "Buscar producto..."}
-                    disabled
-                    style={productStyle}
-                  />
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <Autocomplete
+                      options={stockOptions}
+                      value={draft.stockId}
+                      onChange={(v) => setDraft((p) => ({ ...p, stockId: v }))}
+                      placeholder={isLoading ? "Cargando inventario..." : "Buscar producto..."}
+                      disabled
+                      style={productStyle}
+                    />
+                    {isNewProduct ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 8 }}>
+                        <input
+                          style={styles.editorInput}
+                          value={draft.codigo}
+                          onChange={(e) => setDraft((p) => ({ ...p, codigo: e.target.value }))}
+                          placeholder="Codigo"
+                          disabled={!canInteract}
+                          aria-label="Codigo"
+                        />
+                        <input
+                          style={styles.editorInput}
+                          value={draft.nombre}
+                          onChange={(e) => setDraft((p) => ({ ...p, nombre: e.target.value }))}
+                          placeholder="Nombre"
+                          disabled={!canInteract}
+                          aria-label="Nombre"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
                 }
                 qtyValue={draft.cantidad}
-                unitValue={draft.montoUnitario}
+                unitValue={isNewProduct ? draft.precioVenta : draft.montoUnitario}
+                purchaseUnitValue={draft.precioCompra}
                 onQtyChange={(v) => setDraft((p) => ({ ...p, cantidad: v }))}
-                onUnitChange={(v) => setDraft((p) => ({ ...p, montoUnitario: v }))}
+                onUnitChange={(v) => setDraft((p) => (isNewProduct ? { ...p, precioVenta: v } : { ...p, montoUnitario: v }))}
+                onPurchaseUnitChange={(v) => setDraft((p) => ({ ...p, precioCompra: v }))}
+                showPurchaseUnit={isNewProduct}
                 interactionEnabled={canInteract && !!tallerId}
                 validation={parsed.ok ? { ok: true } : { ok: false, message: parsed.message }}
                 onConfirm={save}
@@ -268,8 +361,9 @@ export default function RepuestoLineasEditableSection({
             const stock = draft.stockId ? findStock(draft.stockId) : null;
             const baseQty = 0;
             const productStyle: React.CSSProperties = { width: "100%" };
+            const isNewProduct = draft.stockId === NEW_PRODUCT_VALUE;
             const hasStockIssue = (() => {
-              if (!stock) return false;
+              if (isNewProduct || !stock) return false;
               const delta = safeInt(draft.cantidad) - baseQty;
               const stockActual = Number(stock.stockActual) || 0;
               return delta > 0 && delta > stockActual;
@@ -280,25 +374,56 @@ export default function RepuestoLineasEditableSection({
                 kind="repuestos"
                 mode="add"
                 top={
-                  <Autocomplete
-                    options={stockOptions}
-                    value={draft.stockId}
-                    onChange={(v) => {
-                      setDraft((p) => ({ ...p, stockId: v }));
-                      const found = inventario.find((s) => s.id === v);
-                      if (found && String(draft.montoUnitario || "").trim().length === 0) {
-                        setDraft((p) => ({ ...p, montoUnitario: String(Number(found.precioUnitario) || 0) }));
-                      }
-                    }}
-                    placeholder={isLoading ? "Cargando inventario..." : "Buscar producto..."}
-                    disabled={!tallerId || isLoading || !canInteract}
-                    style={productStyle}
-                  />
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <Autocomplete
+                      options={stockOptions}
+                      value={draft.stockId}
+                      onChange={(v) => {
+                        setDraft((p) => ({
+                          ...p,
+                          stockId: v,
+                          montoUnitario: v === NEW_PRODUCT_VALUE ? "" : p.montoUnitario,
+                          precioVenta: v === NEW_PRODUCT_VALUE ? p.precioVenta : "",
+                          precioCompra: v === NEW_PRODUCT_VALUE ? p.precioCompra : "",
+                        }));
+                        const found = inventario.find((s) => s.id === v);
+                        if (found && String(draft.montoUnitario || "").trim().length === 0) {
+                          setDraft((p) => ({ ...p, montoUnitario: String(Number(found.precioUnitario) || 0) }));
+                        }
+                      }}
+                      placeholder={isLoading ? "Cargando inventario..." : "Buscar producto..."}
+                      disabled={!tallerId || isLoading || !canInteract}
+                      style={productStyle}
+                    />
+                    {isNewProduct ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 8 }}>
+                        <input
+                          style={styles.editorInput}
+                          value={draft.codigo}
+                          onChange={(e) => setDraft((p) => ({ ...p, codigo: e.target.value }))}
+                          placeholder="Codigo"
+                          disabled={!canInteract}
+                          aria-label="Codigo"
+                        />
+                        <input
+                          style={styles.editorInput}
+                          value={draft.nombre}
+                          onChange={(e) => setDraft((p) => ({ ...p, nombre: e.target.value }))}
+                          placeholder="Nombre"
+                          disabled={!canInteract}
+                          aria-label="Nombre"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
                 }
                 qtyValue={draft.cantidad}
-                unitValue={draft.montoUnitario}
+                unitValue={isNewProduct ? draft.precioVenta : draft.montoUnitario}
+                purchaseUnitValue={draft.precioCompra}
                 onQtyChange={(v) => setDraft((p) => ({ ...p, cantidad: v }))}
-                onUnitChange={(v) => setDraft((p) => ({ ...p, montoUnitario: v }))}
+                onUnitChange={(v) => setDraft((p) => (isNewProduct ? { ...p, precioVenta: v } : { ...p, montoUnitario: v }))}
+                onPurchaseUnitChange={(v) => setDraft((p) => ({ ...p, precioCompra: v }))}
+                showPurchaseUnit={isNewProduct}
                 interactionEnabled={canInteract && !!tallerId}
                 validation={parsed.ok ? { ok: true } : { ok: false, message: parsed.message }}
                 onConfirm={save}

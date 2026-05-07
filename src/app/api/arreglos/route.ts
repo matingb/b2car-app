@@ -7,7 +7,6 @@ import { arregloService } from "@/app/api/arreglos/arregloService";
 import type { CreateArregloInsertPayload, CreateArregloRequest } from "./arregloRequests";
 import type { NextRequest } from "next/server";
 import { ServiceError } from "../serviceError";
-import { detalleArregloService } from "@/app/api/arreglos/detalleArregloService";
 import type { ArregloListFilters } from "./arregloRepository";
 import { normalizePaginationLimit } from "@/lib/pagination";
 import {
@@ -91,6 +90,7 @@ export async function POST(req: Request) {
         extra_data,
         detalles,
         repuestos,
+        repuestos_nuevos,
         detalle_formulario,
     } = body as CreateArregloRequest
 
@@ -116,6 +116,7 @@ export async function POST(req: Request) {
         : [];
     const detallesArr = Array.isArray(detalles) ? detalles : [];
     const repuestosArr = Array.isArray(repuestos) ? repuestos : [];
+    const repuestosNuevosArr = Array.isArray(repuestos_nuevos) ? repuestos_nuevos : [];
     const normalizedDetalles = detallesArr.map((d) => ({
         descripcion: String((d as { descripcion?: unknown }).descripcion ?? "").trim(),
         cantidad: Number((d as { cantidad?: unknown }).cantidad),
@@ -182,134 +183,100 @@ export async function POST(req: Request) {
         extra_data: extra_data ?? null,
     };
 
-    const { data: insertData, error: insertError } = await arregloService.create(supabase, insertPayload);
-    if (insertError) {
-        const status = insertError === ServiceError.NotFound ? 404 : 500;
-        const message = status === 404 ? "Arreglo no encontrado" : "Error creando arreglo";
+    // Opcional: crear líneas (servicios + repuestos) en el mismo POST.
+    // Esto se usa principalmente desde el ArregloModal (crear).
+    const normalizedRepuestos = repuestosArr.map((r) => ({
+        stock_id: String((r as { stock_id?: unknown }).stock_id ?? "").trim(),
+        cantidad: Number((r as { cantidad?: unknown }).cantidad),
+        monto_unitario: Number((r as { monto_unitario?: unknown }).monto_unitario),
+    }));
+
+    const normalizedRepuestosNuevos = repuestosNuevosArr.map((r) => ({
+        codigo: String((r as { codigo?: unknown }).codigo ?? "").trim(),
+        nombre: String((r as { nombre?: unknown }).nombre ?? "").trim(),
+        precio_compra: Number((r as { precio_compra?: unknown }).precio_compra),
+        precio_venta: Number((r as { precio_venta?: unknown }).precio_venta),
+        cantidad: Number((r as { cantidad?: unknown }).cantidad),
+    }));
+
+    for (const r of normalizedRepuestos) {
+        if (!r.stock_id) return Response.json({ error: "Falta stock_id en repuestos" }, { status: 400 });
+        if (!Number.isFinite(r.cantidad) || r.cantidad <= 0) return Response.json({ error: "Cantidad invalida en repuestos" }, { status: 400 });
+        if (!Number.isFinite(r.monto_unitario) || r.monto_unitario < 0) return Response.json({ error: "Monto unitario invalido en repuestos" }, { status: 400 });
+    }
+
+    const stockIdSet = new Set<string>();
+    for (const r of normalizedRepuestos) {
+        if (stockIdSet.has(r.stock_id)) {
+            return Response.json({ error: "Repuestos duplicados (stock_id)" }, { status: 400 });
+        }
+        stockIdSet.add(r.stock_id);
+    }
+
+    const codigoSet = new Set<string>();
+    for (const r of normalizedRepuestosNuevos) {
+        const codigoKey = r.codigo.toLowerCase();
+        if (!r.codigo) return Response.json({ error: "Falta codigo en producto nuevo" }, { status: 400 });
+        if (!r.nombre) return Response.json({ error: "Falta nombre en producto nuevo" }, { status: 400 });
+        if (!Number.isFinite(r.precio_compra) || r.precio_compra < 0) return Response.json({ error: "Precio de compra invalido" }, { status: 400 });
+        if (!Number.isFinite(r.precio_venta) || r.precio_venta < 0) return Response.json({ error: "Precio de venta invalido" }, { status: 400 });
+        if (!Number.isFinite(r.cantidad) || r.cantidad <= 0) return Response.json({ error: "Cantidad invalida en producto nuevo" }, { status: 400 });
+        if (codigoSet.has(codigoKey)) {
+            return Response.json({ error: "Ya existe un producto con ese codigo. Seleccionalo desde el listado." }, { status: 409 });
+        }
+        codigoSet.add(codigoKey);
+    }
+
+    if (detalle_formulario) {
+        const costo = Number(detalle_formulario.costo);
+        if (!Number.isFinite(costo) || costo < 0) {
+            return Response.json({ error: "Costo invalido en detalle de formulario" }, { status: 400 });
+        }
+    }
+
+    const { data: arregloIdRpc, error: rpcError } = await supabase.rpc("rpc_crear_arreglo_completo", {
+        p_vehiculo_id: insertPayload.vehiculo_id,
+        p_taller_id: insertPayload.taller_id,
+        p_tipo: insertPayload.tipo,
+        p_estado: insertPayload.estado,
+        p_descripcion: insertPayload.descripcion,
+        p_kilometraje_leido: insertPayload.kilometraje_leido,
+        p_fecha: insertPayload.fecha,
+        p_observaciones: insertPayload.observaciones,
+        p_precio_final: insertPayload.precio_final,
+        p_precio_sin_iva: insertPayload.precio_sin_iva,
+        p_esta_pago: insertPayload.esta_pago,
+        p_extra_data: insertPayload.extra_data,
+        p_detalles: normalizedDetalles,
+        p_repuestos: normalizedRepuestos,
+        p_repuestos_nuevos: normalizedRepuestosNuevos,
+        p_detalle_formulario: detalle_formulario ?? null,
+    });
+
+    if (rpcError || !arregloIdRpc) {
+        const raw = String(rpcError?.message ?? "");
+        const isStock = raw.includes("STOCK_INSUFICIENTE");
+        const isDuplicate = raw.includes("PRODUCTO_CODIGO_DUPLICADO") || raw.includes("uq_productos_tenant_codigo");
+        const status = isStock ? 409 : isDuplicate ? 409 : 500;
+        const message = isStock
+            ? "Stock insuficiente"
+            : isDuplicate
+                ? "Ya existe un producto con ese codigo. Seleccionalo desde el listado."
+                : "No se pudieron guardar los repuestos.";
         return Response.json({ error: message }, { status });
     }
 
-    // Opcional: crear líneas (servicios + repuestos) en el mismo POST.
-    // Esto se usa principalmente desde el ArregloModal (crear).
-    const arregloId = String((insertData as { id?: unknown })?.id ?? "");
-    const tallerId = String(taller_id ?? "").trim();
+    const { data: createdArreglo, error: fetchError } = await supabase
+        .from("arreglos")
+        .select("*")
+        .eq("id", String(arregloIdRpc))
+        .single();
 
-    // Repuestos: validar + pre-chequear stock (best-effort) para evitar parciales.
-    if (repuestosArr.length > 0) {
-        const normalized = repuestosArr.map((r) => ({
-            stock_id: String((r as { stock_id?: unknown }).stock_id ?? "").trim(),
-            cantidad: Number((r as { cantidad?: unknown }).cantidad),
-            monto_unitario: Number((r as { monto_unitario?: unknown }).monto_unitario),
-        }));
-
-        for (const r of normalized) {
-            if (!r.stock_id) return Response.json({ error: "Falta stock_id en repuestos" }, { status: 400 });
-            if (!Number.isFinite(r.cantidad) || r.cantidad <= 0) return Response.json({ error: "Cantidad inválida en repuestos" }, { status: 400 });
-            if (!Number.isFinite(r.monto_unitario) || r.monto_unitario < 0) return Response.json({ error: "Monto unitario inválido en repuestos" }, { status: 400 });
-        }
-
-        // No permitir duplicados por stock_id (la tabla es unique por (operacion_id, stock_id))
-        const stockIdSet = new Set<string>();
-        for (const r of normalized) {
-            if (stockIdSet.has(r.stock_id)) {
-                return Response.json({ error: "Repuestos duplicados (stock_id)" }, { status: 400 });
-            }
-            stockIdSet.add(r.stock_id);
-        }
-
-        const stockIds = Array.from(stockIdSet);
-        const { data: stocksRows, error: stocksErr } = await supabase
-            .from("stocks")
-            .select("id, taller_id, cantidad")
-            .in("id", stockIds);
-
-        if (stocksErr) {
-            return Response.json({ error: "Error validando stock" }, { status: 500 });
-        }
-
-        const stocksMap = new Map<string, { taller_id: string; cantidad: number }>();
-        for (const s of (stocksRows ?? []) as Array<{ id: string; taller_id: string; cantidad: number }>) {
-            stocksMap.set(String(s.id), {
-                taller_id: String(s.taller_id ?? ""),
-                cantidad: Number(s.cantidad ?? 0) || 0,
-            });
-        }
-
-        for (const r of normalized) {
-            const found = stocksMap.get(r.stock_id);
-            if (!found) return Response.json({ error: "Stock no encontrado" }, { status: 400 });
-            if (String(found.taller_id) !== tallerId) {
-                return Response.json({ error: "El stock no pertenece al taller" }, { status: 400 });
-            }
-            if ((Number(found.cantidad) || 0) < r.cantidad) {
-                return Response.json({ error: "Stock insuficiente" }, { status: 409 });
-            }
-        }
-
-        for (const r of normalized) {
-            const { error: rpcErr } = await supabase.rpc("rpc_set_asignacion_arreglo_linea", {
-                p_arreglo_id: arregloId,
-                p_taller_id: tallerId,
-                p_stock_id: r.stock_id,
-                p_cantidad: r.cantidad,
-                p_monto_unitario: r.monto_unitario,
-            });
-            if (rpcErr) {
-                const raw = String(rpcErr?.message ?? "");
-                const isStock = raw.includes("STOCK_INSUFICIENTE");
-                const status = isStock ? 409 : 500;
-                const message = isStock ? "Stock insuficiente" : "Error guardando repuesto";
-                return Response.json({ error: message }, { status });
-            }
-        }
-    }
-
-    // Servicios (detalle_arreglo)
-    logger.debug("Creando detalles de arreglo:", detallesArr);
-    if (normalizedDetalles.length > 0) {
-        for (const d of normalizedDetalles) {
-            const { error: detErr } = await detalleArregloService.create(supabase, {
-                arreglo_id: arregloId,
-                descripcion: d.descripcion,
-                cantidad: d.cantidad,
-                valor: d.valor,
-            });
-            if (detErr) {
-                return Response.json({ error: "Error creando detalle del arreglo" }, { status: 500 });
-            }
-        }
-    }
-
-    // Detalle custom del formulario (1 fila por arreglo + formulario template seleccionado)
-    if (detalle_formulario) {
-        const formularioId = String(
-            detalle_formulario.formulario_id ?? detalle_formulario.config_id ?? ""
-        ).trim() || null;
-        const costo = Number(detalle_formulario.costo);
-        const metadata = Array.isArray(detalle_formulario.metadata)
-            ? detalle_formulario.metadata
-            : [];
-
-        if (!Number.isFinite(costo) || costo < 0) {
-            return Response.json({ error: "Costo inválido en detalle de formulario" }, { status: 400 });
-        }
-
-        const { error: formErr } = await supabase
-            .from("detalle_form_custom")
-            .insert([
-                {
-                    arreglo_id: arregloId,
-                    config_id: formularioId,
-                    costo,
-                    metadata,
-                },
-            ]);
-
-        if (formErr) {
-            return Response.json({ error: "Error guardando detalle del formulario" }, { status: 500 });
-        }
+    if (fetchError || !createdArreglo) {
+        return Response.json({ error: "Arreglo creado, pero no se pudo cargar" }, { status: 500 });
     }
 
     await statsService.onDataChanged(supabase);
-    return Response.json({ data: insertData, error: null }, { status: 201 });
+    return Response.json({ data: createdArreglo, error: null }, { status: 201 });
+
 }

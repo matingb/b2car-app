@@ -2,9 +2,12 @@ import { GetArregloByIdResponse, UpdateArregloResponse } from "@/app/api/arreglo
 import { CreateArregloResponse, GetArreglosResponse } from "@/app/api/arreglos/route";
 import type { CreateDetalleArregloResponse } from "@/app/api/arreglos/[id]/detalles/route";
 import type { UpdateDetalleArregloResponse, DeleteDetalleArregloResponse } from "@/app/api/arreglos/[id]/detalles/[detalleId]/route";
-import type { UpsertRepuestoLineaResponse } from "@/app/api/arreglos/[id]/repuestos/route";
+import type { UpsertRepuestoLineaResponse, UpsertRepuestoRequest } from "@/app/api/arreglos/[id]/repuestos/route";
 import type { DeleteRepuestoLineaResponse } from "@/app/api/arreglos/[id]/repuestos/[lineaId]/route";
-import type { CreateArregloDetalleFormularioInput } from "@/app/api/arreglos/arregloRequests";
+import type {
+  CreateArregloDetalleFormularioInput,
+  CreateArregloRepuestoNuevoInput,
+} from "@/app/api/arreglos/arregloRequests";
 import type { EstadoArreglo } from "@/model/types";
 
 export type CreateArregloInput = {
@@ -22,6 +25,7 @@ export type CreateArregloInput = {
   // opcional: creación completa (servicios + repuestos) en 1 POST
   detalles?: Array<{ descripcion: string; cantidad: number; valor: number }>;
   repuestos?: Array<{ stock_id: string; cantidad: number; monto_unitario: number }>;
+  repuestos_nuevos?: CreateArregloRepuestoNuevoInput[];
   detalle_formulario?: CreateArregloDetalleFormularioInput;
 };
 
@@ -211,7 +215,7 @@ export const arreglosClient = {
 
   async upsertRepuestoLinea(
     arregloId: string | number,
-    input: { taller_id: string; stock_id: string; cantidad: number; monto_unitario: number }
+    input: UpsertRepuestoRequest
   ): Promise<UpsertRepuestoLineaResponse> {
     try {
       const res = await fetch(`/api/arreglos/${arregloId}/repuestos`, {

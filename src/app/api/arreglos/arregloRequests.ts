@@ -17,6 +17,14 @@ export type CreateArregloDetalleFormularioInput = {
   metadata: ArregloFormularioLineaValue[];
 };
 
+export type CreateArregloRepuestoNuevoInput = {
+  codigo: string;
+  nombre: string;
+  precio_compra: number;
+  precio_venta: number;
+  cantidad: number;
+};
+
 export type CreateArregloRequest = {
   vehiculo_id: string;
   taller_id: string;
@@ -32,6 +40,7 @@ export type CreateArregloRequest = {
   // opcional: creación "completa" desde el modal (1 POST)
   detalles?: Array<{ descripcion: string; cantidad: number; valor: number }>;
   repuestos?: Array<{ stock_id: string; cantidad: number; monto_unitario: number }>;
+  repuestos_nuevos?: CreateArregloRepuestoNuevoInput[];
   detalle_formulario?: CreateArregloDetalleFormularioInput;
 };
 

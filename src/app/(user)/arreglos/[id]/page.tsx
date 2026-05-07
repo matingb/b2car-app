@@ -40,6 +40,7 @@ import ServicioLineasCustomSection, {
   parseCustomServicioLineDefs,
 } from "@/app/components/arreglos/lineas/ServicioLineasCustomSection";
 import RepuestoLineasEditableSection from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
+import type { RepuestoUpsertInput } from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
 import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
@@ -47,6 +48,7 @@ import { useFormularios } from "@/app/providers/FormulariosProvider";
 import type { ServicioLinea } from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
 import type { EstadoArreglo } from "@/model/types";
 import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
+import { useInventario } from "@/app/providers/InventarioProvider";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -67,6 +69,7 @@ export default function ArregloDetailsPage() {
     loading,
   } = useArreglos();
   const { formularios } = useFormularios();
+  const { loadInventarioByTaller } = useInventario();
   const { fetchCliente } = useVehiculos();
   const { confirm } = useModalMessage();
   const { success, error } = useToast();
@@ -272,22 +275,31 @@ export default function ArregloDetailsPage() {
     }
   };
 
-  const handleUpsertRepuesto = async (input: {
-    stock_id: string;
-    cantidad: number;
-    monto_unitario: number;
-  }) => {
+  const handleUpsertRepuesto = async (input: RepuestoUpsertInput) => {
     if (!data?.arreglo?.id) return;
     const tallerId = data.arreglo.taller_id ?? null;
     if (!tallerId) return;
     try {
-      await upsertRepuestoLinea(data.arreglo.id, {
-        taller_id: tallerId,
-        stock_id: input.stock_id,
-        cantidad: input.cantidad,
-        monto_unitario: input.monto_unitario,
-      });
+      if (input.tipo === "nuevo") {
+        await upsertRepuestoLinea(data.arreglo.id, {
+          tipo: "nuevo",
+          taller_id: tallerId,
+          codigo: input.codigo,
+          nombre: input.nombre,
+          precio_compra: input.precio_compra,
+          precio_venta: input.precio_venta,
+          cantidad: input.cantidad,
+        });
+      } else {
+        await upsertRepuestoLinea(data.arreglo.id, {
+          taller_id: tallerId,
+          stock_id: input.stock_id,
+          cantidad: input.cantidad,
+          monto_unitario: input.monto_unitario,
+        });
+      }
       success("Repuesto actualizado", "El repuesto se actualizó correctamente.");
+      await loadInventarioByTaller(tallerId);
       await reload();
     } catch (err: unknown) {
       logger.error("Error upserting repuesto:", err);

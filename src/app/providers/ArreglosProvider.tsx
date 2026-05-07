@@ -15,6 +15,7 @@ import {
   GetArreglosInput,
   UpdateArregloInput,
 } from "@/clients/arreglosClient";
+import type { UpsertRepuestoRequest } from "@/app/api/arreglos/[id]/repuestos/route";
 import { useTenant } from "@/app/providers/TenantProvider";
 
 type ArreglosContextType = {
@@ -40,7 +41,7 @@ type ArreglosContextType = {
 
   upsertRepuestoLinea: (
     arregloId: string | number,
-    input: { taller_id: string; stock_id: string; cantidad: number; monto_unitario: number }
+    input: UpsertRepuestoRequest
   ) => Promise<void>;
   deleteRepuestoLinea: (arregloId: string | number, lineaId: string) => Promise<void>;
 };
@@ -158,7 +159,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
 
   const upsertRepuestoLinea = useCallback(async (
     arregloId: string | number,
-    input: { taller_id: string; stock_id: string; cantidad: number; monto_unitario: number }
+    input: UpsertRepuestoRequest
   ) => {
     setLoading(true);
     try {
@@ -169,6 +170,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
   }, [fetchAll, tallerSeleccionadoId]);
+
   const deleteRepuestoLinea = useCallback(async (arregloId: string | number, lineaId: string) => {
     setLoading(true);
     try {
