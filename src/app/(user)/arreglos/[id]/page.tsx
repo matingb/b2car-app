@@ -14,9 +14,9 @@ import {
   XCircle,
   Trash,
   Gauge,
+  FileText,
 } from "lucide-react";
 import { Skeleton, Theme } from "@radix-ui/themes";
-import "@radix-ui/themes/styles.css";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
 import VehiculoInfoCard from "@/app/components/vehiculos/VehiculoInfoCard";
 import IconLabel from "@/app/components/ui/IconLabel";
@@ -49,6 +49,7 @@ import type { ServicioLinea } from "@/app/components/arreglos/lineas/ServicioLin
 import type { EstadoArreglo } from "@/model/types";
 import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
 import { useInventario } from "@/app/providers/InventarioProvider";
+import { openArregloPrintableInvoice } from "@/lib/arregloPrintableInvoice";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -96,6 +97,34 @@ export default function ArregloDetailsPage() {
     }
 
     await share(mensaje, fullPhone);
+  };
+
+  const handleOpenPrintableInvoice = async () => {
+    if (!data?.arreglo) {
+      error("Error", "No se pudo generar el comprobante");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank", "width=900,height=1200");
+    if (!printWindow) {
+      error("Error", "El navegador bloqueó la ventana de impresión");
+      return;
+    }
+
+    printWindow.document.write("<!doctype html><title>Generando PDF</title><p>Generando comprobante...</p>");
+    const cliente = data.arreglo.vehiculo?.id
+      ? await fetchCliente(data.arreglo.vehiculo.id).catch(() => null)
+      : null;
+    const tenantName = localStorage.getItem("tenant_name") || undefined;
+    const opened = openArregloPrintableInvoice({
+      data,
+      tenantName,
+      cliente,
+    }, printWindow);
+
+    if (!opened) {
+      error("Error", "El navegador bloqueó la ventana de impresión");
+    }
   };
 
   const reload = useCallback(async (options?: { showPageLoading?: boolean }) => {
@@ -468,6 +497,14 @@ export default function ArregloDetailsPage() {
                   </button>
                 </div>
                 <IconButton
+                  icon={<FileText />}
+                  size={18}
+                  onClick={handleOpenPrintableInvoice}
+                  title="Generar PDF"
+                  ariaLabel="Generar PDF"
+                  hoverColor={COLOR.ACCENT.PRIMARY}
+                />
+                <IconButton
                   icon={<WhatsAppIcon size={18} />}
                   size={18}
                   onClick={handleOpenWhatsapp}
@@ -493,6 +530,14 @@ export default function ArregloDetailsPage() {
             </div>
 
             <div css={styles.summaryActionsRow}>
+              <IconButton
+                icon={<FileText />}
+                size={18}
+                onClick={handleOpenPrintableInvoice}
+                title="Generar PDF"
+                ariaLabel="Generar PDF"
+                hoverColor={COLOR.ACCENT.PRIMARY}
+              />
               <IconButton
                 icon={<WhatsAppIcon size={18} />}
                 size={18}
