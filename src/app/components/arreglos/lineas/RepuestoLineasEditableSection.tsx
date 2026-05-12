@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useMemo } from "react";
+import { css } from "@emotion/react";
 import { AlertTriangle, Pencil, Plus, Trash2, Package } from "lucide-react";
 import { formatArs } from "@/lib/format";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import LineasSectionShell from "./LineasSectionShell";
@@ -242,13 +243,13 @@ export default function RepuestoLineasEditableSection({
 
           if (!isRowEditing) {
             return (
-              <Card key={item.id} style={styles.itemCard}>
-                <div style={itemIconCircleStyle("repuestos")}>
+              <Card key={item.id} css={readStyles.card}>
+                <div css={readStyles.icon}>
                   <Package size={18} color={COLOR.SEMANTIC.SUCCESS} />
                 </div>
 
-                <div style={styles.itemMain}>
-                  <div style={styles.itemTitle}>
+                <div css={readStyles.main}>
+                  <div css={readStyles.title}>
                     {titleText}
                     {code ? (
                       <span style={{ marginLeft: 8, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500 }}>
@@ -256,32 +257,40 @@ export default function RepuestoLineasEditableSection({
                       </span>
                     ) : null}
                   </div>
-                  <div style={styles.itemSubTitle}>
+                  <div css={readStyles.desktopSubtitle}>
                     {renderQtyXUnit(item.cantidad, item.monto_unitario)}
+                  </div>
+                  <div css={readStyles.mobileMeta}>
+                    <span css={readStyles.mobileQtyUnit}>
+                      {renderQtyXUnit(item.cantidad, item.monto_unitario)}
+                    </span>
+                    <span css={readStyles.mobileMetaTotal}>{formatMoney(total)}</span>
                   </div>
                 </div>
 
-                <div style={styles.itemTotal}>{formatMoney(total)}</div>
+                <div css={readStyles.total}>{formatMoney(total)}</div>
 
-                <button
-                  type="button"
-                  style={styles.actionBtn}
-                  aria-label="editar repuesto"
-                  onClick={() => startEdit(item)}
-                  disabled={!canInteract || isEditing || !tallerId}
-                >
-                  <Pencil size={18} color={COLOR.ICON.MUTED} />
-                </button>
+                <div css={readStyles.actions}>
+                  <button
+                    type="button"
+                    css={readStyles.actionBtn}
+                    aria-label="editar repuesto"
+                    onClick={() => startEdit(item)}
+                    disabled={!canInteract || isEditing || !tallerId}
+                  >
+                    <Pencil size={18} color={COLOR.ICON.MUTED} />
+                  </button>
 
-                <button
-                  type="button"
-                  style={styles.actionBtn}
-                  aria-label="eliminar repuesto"
-                  onClick={() => onDelete(item.id)}
-                  disabled={!canInteract || isEditing || !tallerId}
-                >
-                  <Trash2 size={18} color={COLOR.ICON.DANGER} />
-                </button>
+                  <button
+                    type="button"
+                    css={readStyles.actionBtn}
+                    aria-label="eliminar repuesto"
+                    onClick={() => onDelete(item.id)}
+                    disabled={!canInteract || isEditing || !tallerId}
+                  >
+                    <Trash2 size={18} color={COLOR.ICON.DANGER} />
+                  </button>
+                </div>
               </Card>
             );
           }
@@ -343,6 +352,8 @@ export default function RepuestoLineasEditableSection({
                 validation={parsed.ok ? { ok: true } : { ok: false, message: parsed.message }}
                 onConfirm={save}
                 onCancel={cancel}
+                hideLeadingIcon={isNewProduct}
+                hideTotalText={isNewProduct}
                 extra={
                   hasStockIssue ? (
                     <div style={{ color: COLOR.ICON.DANGER, fontWeight: 700 }}>
@@ -428,6 +439,8 @@ export default function RepuestoLineasEditableSection({
                 validation={parsed.ok ? { ok: true } : { ok: false, message: parsed.message }}
                 onConfirm={save}
                 onCancel={cancel}
+                hideLeadingIcon={isNewProduct}
+                hideTotalText={isNewProduct}
                 extra={
                   hasStockIssue ? (
                     <div style={{ color: COLOR.ICON.DANGER, fontWeight: 700 }}>
@@ -454,4 +467,100 @@ export default function RepuestoLineasEditableSection({
     </LineasSectionShell>
   );
 }
+
+const readStyles = {
+  card: css({
+    ...styles.itemCard,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1fr)",
+      alignItems: "stretch",
+      gap: 10,
+    },
+  }),
+  icon: css({
+    ...itemIconCircleStyle("repuestos"),
+    flexShrink: 0,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      display: "none",
+    },
+  }),
+  main: css({
+    ...styles.itemMain,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      width: "100%",
+    },
+  }),
+  title: css({
+    ...styles.itemTitle,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      width: "100%",
+      whiteSpace: "nowrap",
+    },
+  }),
+  desktopSubtitle: css({
+    ...styles.itemSubTitle,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      display: "none",
+    },
+  }),
+  mobileMeta: css({
+    display: "none",
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      display: "flex",
+      alignItems: "baseline",
+      gap: 12,
+      marginTop: 8,
+      minWidth: 0,
+    },
+  }),
+  mobileQtyUnit: css({
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 14,
+    fontWeight: 600,
+    lineHeight: 1.2,
+  }),
+  mobileMetaTotal: css({
+    flexShrink: 0,
+    whiteSpace: "nowrap",
+    fontSize: 16,
+    fontWeight: 700,
+    lineHeight: 1.2,
+  }),
+  total: css({
+    ...styles.itemTotal,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      display: "none",
+    },
+  }),
+  actions: css({
+    display: "flex",
+    gap: 8,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      display: "grid",
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+      width: "100%",
+    },
+  }),
+  actionBtn: css({
+    ...styles.actionBtn,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      width: "100%",
+      padding: "6px 0",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+      background: COLOR.BACKGROUND.SECONDARY,
+    },
+    "&:disabled": {
+      cursor: "not-allowed",
+      opacity: 0.45,
+    },
+  }),
+} as const;
 

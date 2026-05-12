@@ -29,6 +29,8 @@ type Props = {
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
   extra?: React.ReactNode;
+  hideLeadingIcon?: boolean;
+  hideTotalText?: boolean;
 };
 
 export default function EditableLineaCard({
@@ -47,6 +49,8 @@ export default function EditableLineaCard({
   onConfirm,
   onCancel,
   extra,
+  hideLeadingIcon = false,
+  hideTotalText = false,
 }: Props) {
   const qty = safeInt(qtyValue);
   const unit = safeMoney(unitValue);
@@ -71,18 +75,20 @@ export default function EditableLineaCard({
 
   return (
     <Card css={styles.card}>
-      <div style={itemIconCircleStyle(kind)}>
-        {kind === "servicios" ? (
-          <Wrench size={18} color={COLOR.ACCENT.PRIMARY} />
-        ) : (
-          <Package size={18} color={COLOR.SEMANTIC.SUCCESS} />
-        )}
-      </div>
+      {hideLeadingIcon ? null : (
+        <div style={itemIconCircleStyle(kind)}>
+          {kind === "servicios" ? (
+            <Wrench size={18} color={COLOR.ACCENT.PRIMARY} />
+          ) : (
+            <Package size={18} color={COLOR.SEMANTIC.SUCCESS} />
+          )}
+        </div>
+      )}
 
       <div css={styles.body}>
         <div css={styles.topWrap}>{top}</div>
 
-        <div css={styles.qtyUnitRow}>
+        <div css={styles.qtyUnitRow(showPurchaseUnit)}>
           <label css={styles.fieldWrap(showPurchaseUnit, "qty")}>
             {showPurchaseUnit ? <span css={styles.fieldLabel}>Cantidad</span> : null}
             <input
@@ -131,11 +137,12 @@ export default function EditableLineaCard({
         </div>
 
         <div css={styles.footer}>
-          <div style={styles.totalText}>{totalText}</div>
+          {hideTotalText ? null : <div style={styles.totalText}>{totalText}</div>}
           <div css={styles.actions}>
             <button
               type="button"
-              style={styles.confirmBtn(confirmEnabled)}
+              css={styles.confirmBtn}
+              style={styles.actionState(confirmEnabled)}
               aria-label={confirmAriaLabel}
               onClick={() => void onConfirm()}
               disabled={!confirmEnabled}
@@ -145,7 +152,8 @@ export default function EditableLineaCard({
             </button>
             <button
               type="button"
-              style={styles.cancelBtn(cancelEnabled)}
+              css={styles.cancelBtn}
+              style={styles.actionState(cancelEnabled)}
               aria-label={cancelAriaLabel}
               onClick={onCancel}
               disabled={!cancelEnabled}
@@ -186,9 +194,13 @@ const styles = {
   }),
   body: css({
     flex: 1,
+    minWidth: 0,
     display: "flex",
     flexDirection: "column",
     gap: 10,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      width: "100%",
+    },
     [`@media (min-width: ${BREAKPOINTS.lg}px)`]: {
       flexDirection: "row",
       alignItems: "center",
@@ -196,15 +208,23 @@ const styles = {
     },
   }),
   topWrap: css({
+    minWidth: 0,
+    width: "100%",
     [`@media (min-width: ${BREAKPOINTS.lg}px)`]: {
       flex: 1,
     },
   }),
-  qtyUnitRow: css({
+  qtyUnitRow: (showPurchaseUnit: boolean) => css({
     display: "flex",
     alignItems: "flex-end",
     gap: 10,
     width: "100%",
+    minWidth: 0,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      display: "grid",
+      gridTemplateColumns: showPurchaseUnit ? "repeat(3, minmax(0, 1fr))" : "minmax(0, 0.45fr) minmax(0, 1fr)",
+      gap: 8,
+    },
     [`@media (min-width: ${BREAKPOINTS.lg}px)`]: {
       width: "auto",
       flexWrap: "nowrap",
@@ -216,8 +236,8 @@ const styles = {
     gap: withLabel ? 4 : 0,
     width: variant === "qty" ? 70 : 130,
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      width: withLabel ? "100%" : variant === "qty" ? "30%" : "70%",
-      minWidth: withLabel ? 110 : undefined,
+      width: "100%",
+      minWidth: 0,
     },
   }),
   fieldLabel: css({
@@ -248,6 +268,11 @@ const styles = {
     justifyContent: "space-between",
     gap: 12,
     width: "100%",
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      alignItems: "stretch",
+      flexDirection: "column",
+      gap: 8,
+    },
     [`@media (min-width: ${BREAKPOINTS.lg}px)`]: {
       width: "auto",
       flexShrink: 0,
@@ -257,14 +282,25 @@ const styles = {
     display: "flex",
     gap: 8,
     flexShrink: 0,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      display: "grid",
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+      width: "100%",
+    },
   }),
-  confirmBtn: (enabled: boolean): React.CSSProperties => ({
+  confirmBtn: css({
     ...lineaStyles.confirmBtn,
-    opacity: enabled ? 1 : 0.5,
-    cursor: enabled ? "pointer" : "not-allowed",
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      width: "100%",
+    },
   }),
-  cancelBtn: (enabled: boolean): React.CSSProperties => ({
+  cancelBtn: css({
     ...lineaStyles.cancelBtn,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      width: "100%",
+    },
+  }),
+  actionState: (enabled: boolean): React.CSSProperties => ({
     opacity: enabled ? 1 : 0.5,
     cursor: enabled ? "pointer" : "not-allowed",
   }),
