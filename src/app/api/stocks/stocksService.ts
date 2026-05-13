@@ -11,6 +11,7 @@ export type StockRow = {
   cantidad: number;
   stock_minimo: number;
   stock_maximo: number;
+  show_in_stock: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -44,6 +45,7 @@ export const stocksService = {
         `*,productos(*)`
       )
       .eq("taller_id", tallerId)
+      .eq("show_in_stock", true)
       .order("updated_at", { ascending: false });
 
     const { data, error } = await query;
@@ -146,6 +148,19 @@ export const stocksService = {
     if (error) return { data: null, error };
     if (!data) return { data: null, error: ServiceError.NotFound };
     return { data: data as StockItemRow, error: null };
+  },
+
+  async updateShowInStockByProducto(
+    supabase: SupabaseClient,
+    productoId: string,
+    showInStock: boolean
+  ): Promise<{ error: ServiceError | PostgrestError | null }> {
+    const { error } = await supabase
+      .from("stocks")
+      .update({ show_in_stock: showInStock })
+      .eq("producto_id", productoId);
+    if (error) return { error };
+    return { error: null };
   },
 
   async deleteById(

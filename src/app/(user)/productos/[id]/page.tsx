@@ -11,11 +11,9 @@ import { Pencil, Save, Trash, X } from "lucide-react";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import ProductoTallerStockCard from "@/app/components/productos/ProductoTallerStockCard";
-// import {
-//   type InventarioMovementRow,
-// } from "@/app/components/inventario/MovementsCard";
 import ProductoInfoCard from "@/app/components/productos/ProductoInfoCard";
 import ProductoPricesCard from "@/app/components/productos/ProductoPricesCard";
+import Toggle from "@/app/components/ui/Toggle";
 import {
   Producto,
   StockRegistro,
@@ -41,6 +39,7 @@ export default function ProductoDetailsPage() {
   const {
     getProductoById,
     updateProducto,
+    updateShowInStock,
     removeProducto,
     categoriasDisponibles,
     isLoading,
@@ -108,6 +107,20 @@ export default function ProductoDetailsPage() {
     if (!fechas.length) return undefined;
     return fechas.sort((a, b) => toKey(b).localeCompare(toKey(a)))[0];
   }, [stockDelProducto]);
+
+  const showInStock = useMemo(() => {
+    if (!stockDelProducto.length) return false;
+    return stockDelProducto.every((s) => s.showInStock);
+  }, [stockDelProducto]);
+
+  const handleToggleShowInStock = useCallback(async (value: boolean) => {
+    if (!producto) return;
+    setStockDelProducto((prev) => prev.map((s) => ({ ...s, showInStock: value })));
+    const ok = await updateShowInStock(producto.id, value);
+    if (!ok) {
+      setStockDelProducto((prev) => prev.map((s) => ({ ...s, showInStock: !value })));
+    }
+  }, [producto, updateShowInStock]);
 
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<Producto | null>(null);
@@ -253,6 +266,15 @@ export default function ProductoDetailsPage() {
         <div style={styles.code}>{producto.codigo}</div>
       </div>
 
+      <div style={styles.toggleRow}>
+        <Toggle
+          checked={showInStock}
+          onChange={handleToggleShowInStock}
+          label="Mostrar en inventario"
+        />
+        <span style={styles.toggleLabel}>Mostrar en inventario</span>
+      </div>
+
       <div css={styles.grid}>
         <div style={styles.leftCol}>
           <div>
@@ -355,6 +377,16 @@ const styles = {
   code: {
     marginTop: 4,
     fontSize: 13,
+    color: COLOR.TEXT.SECONDARY,
+  },
+  toggleRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+  },
+  toggleLabel: {
+    fontSize: 14,
     color: COLOR.TEXT.SECONDARY,
   },
   grid: css({

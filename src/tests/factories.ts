@@ -288,6 +288,7 @@ export const createStockRow = (overrides: Partial<StockRow> = {}): StockRow => {
     cantidad: 10,
     stock_minimo: 2,
     stock_maximo: 20,
+    show_in_stock: true,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides,

@@ -37,6 +37,7 @@ export type UpdateProductoRequest = Partial<{
   costo_unitario: number;
   proveedor: string | null;
   categorias: string[];
+  show_in_stock: boolean;
 }>;
 
 export type UpdateProductoResponse = {

@@ -4,7 +4,7 @@ import type { ProductoDetailDTO, StockDTO } from "@/model/dtos";
 import type { GetProductoByIdResponse, UpdateProductoRequest, UpdateProductoResponse } from "../contracts";
 import { createClient } from "@/supabase/server";
 import { productosService, type ProductoRow } from "../productosService";
-import type { StockRow } from "../../stocks/stocksService";
+import { stocksService, type StockRow } from "../../stocks/stocksService";
 import { ServiceError } from "@/app/api/serviceError";
 
 function mapProducto(row: ProductoRow): Omit<ProductoDetailDTO, "stocks"> {
@@ -32,6 +32,7 @@ function mapStock(row: StockRow): StockDTO {
     cantidad: Number(row.cantidad) || 0,
     stock_minimo: Number(row.stock_minimo) || 0,
     stock_maximo: Number(row.stock_maximo) || 0,
+    show_in_stock: row.show_in_stock,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -100,6 +101,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (error === ServiceError.NotFound || !updated) {
       return Response.json({ data: null, error: "Producto no encontrado" } satisfies UpdateProductoResponse, { status: 404 });
     }
+
+    if (body.show_in_stock !== undefined) {
+      await stocksService.updateShowInStockByProducto(supabase, id, body.show_in_stock);
+    }
+
     const { data: stocks } = await supabase.from("stocks").select("*").eq("producto_id", id);
 
     return Response.json(

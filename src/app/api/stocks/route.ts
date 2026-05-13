@@ -15,6 +15,7 @@ function mapStockRow(row: StockRow): StockDTO {
     cantidad: Number(row.cantidad) || 0,
     stock_minimo: Number(row.stock_minimo) || 0,
     stock_maximo: Number(row.stock_maximo) || 0,
+    show_in_stock: row.show_in_stock,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -85,6 +86,7 @@ export async function POST(req: Request) {
     cantidad: typeof body.cantidad === "number" ? body.cantidad : 0,
     stock_minimo: typeof body.stock_minimo === "number" ? body.stock_minimo : 0,
     stock_maximo: typeof body.stock_maximo === "number" ? body.stock_maximo : 0,
+    show_in_stock: true,
   };
 
   try {

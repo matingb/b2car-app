@@ -82,6 +82,7 @@ export type StockDTO = {
     cantidad: number;
     stock_minimo: number;
     stock_maximo: number;
+    show_in_stock: boolean;
     created_at: string;
     updated_at: string;
 };

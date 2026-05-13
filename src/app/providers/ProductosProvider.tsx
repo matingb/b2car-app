@@ -37,6 +37,7 @@ export type StockRegistro = {
   stockActual: number;
   stockMinimo: number;
   stockMaximo: number;
+  showInStock: boolean;
   ultimaActualizacion: string;
   historialMovimientos: StockMovement[];
 };
@@ -54,6 +55,7 @@ type ProductosContextType = {
   getProductoById: (productoId: string) => Promise<{ producto: Producto; stocks: StockRegistro[] } | null>; 
   createProducto: (input: CreateProductoInput) => Promise<CreateProductoResult>;
   updateProducto: (productoId: string, input: UpdateProductoInput) => Promise<Producto | null>;
+  updateShowInStock: (productoId: string, showInStock: boolean) => Promise<boolean>;
   removeProducto: (productoId: string) => Promise<void>;
 };
 
@@ -104,6 +106,7 @@ export function ProductosProvider({ children }: { children: React.ReactNode }) {
       stockActual: Number(s.cantidad) || 0,
       stockMinimo: Number(s.stock_minimo) || 0,
       stockMaximo: Number(s.stock_maximo) || 0,
+      showInStock: s.show_in_stock,
       ultimaActualizacion: isoToShortEsDate(s.updated_at),
       historialMovimientos: [],
     };
@@ -167,6 +170,15 @@ export function ProductosProvider({ children }: { children: React.ReactNode }) {
     }
   }, [loadProductos]);
 
+  const updateShowInStock = useCallback(async (productoId: string, showInStock: boolean): Promise<boolean> => {
+    try {
+      const res = await productosClient.update(productoId, { show_in_stock: showInStock });
+      return !res.error;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const removeProducto = useCallback(async (productoId: string) => {
     setIsLoading(true);
     try {
@@ -186,9 +198,10 @@ export function ProductosProvider({ children }: { children: React.ReactNode }) {
       getProductoById,
       createProducto,
       updateProducto,
+      updateShowInStock,
       removeProducto,
     }),
-    [isLoading, productos, loadProductos, getProductoById, createProducto, updateProducto, removeProducto]
+    [isLoading, productos, loadProductos, getProductoById, createProducto, updateProducto, updateShowInStock, removeProducto]
   );
 
   useEffect(() => {

@@ -132,10 +132,10 @@ BEGIN
   RETURNING id INTO v_producto_id;
 
   INSERT INTO public.stocks (
-    tenant_id, taller_id, producto_id, cantidad, stock_minimo, stock_maximo
+    tenant_id, taller_id, producto_id, cantidad, stock_minimo, stock_maximo, show_in_stock
   )
   VALUES (
-    v_tenant_id, p_taller_id, v_producto_id, 0, 0, 0
+    v_tenant_id, p_taller_id, v_producto_id, 0, 0, 0, false
   )
   RETURNING id INTO v_stock_id;
 
