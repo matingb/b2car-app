@@ -5,12 +5,12 @@ import { css } from "@emotion/react";
 import { AlertTriangle, Check, CheckCircle2, Circle, LibraryBig, Pencil } from "lucide-react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
-import type { ServicioLinea } from "./ServicioLineasEditableSection";
+import type { ServicioLinea } from "@/app/components/arreglos/lineas/servicios/ServicioLineasEditableSection";
 import type { ArregloFormularioLineaValue } from "@/app/api/arreglos/arregloRequests";
-import LineasSectionShell from "./LineasSectionShell";
-import Card from "../../ui/Card";
-import Autocomplete from "../../ui/Autocomplete";
-import { styles as lineaStyles } from "./lineaStyles";
+import LineasSectionShell from "@/app/components/arreglos/lineas/shared/LineasSectionShell";
+import Card from "@/app/components/ui/Card";
+import Autocomplete from "@/app/components/ui/Autocomplete";
+import { styles as lineaStyles } from "@/app/components/arreglos/lineas/shared/lineaStyles";
 
 type CustomFieldDef = {
   key: string;
@@ -759,7 +759,7 @@ export default function ServicioLineasCustomSection({
                                 <button
                                   key={option.optionValue}
                                   type="button"
-                                    data-testid={`${fieldTestIdBase}-option-${option.optionValue}`}
+                                  data-testid={`${fieldTestIdBase}-option-${option.optionValue}`}
                                   disabled={readOnly}
                                   aria-pressed={selected}
                                   css={[

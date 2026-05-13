@@ -35,17 +35,17 @@ import type {
   AsignacionArregloLinea,
 } from "@/app/api/arreglos/[id]/route";
 import type { ArregloFormularioLineaValue } from "@/app/api/arreglos/arregloRequests";
-import ServicioLineasEditableSection from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
+import ServicioLineasEditableSection from "@/app/components/arreglos/lineas/servicios/ServicioLineasEditableSection";
 import ServicioLineasCustomSection, {
   parseCustomServicioLineDefs,
-} from "@/app/components/arreglos/lineas/ServicioLineasCustomSection";
-import RepuestoLineasEditableSection from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
-import type { RepuestoUpsertInput } from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
+} from "@/app/components/arreglos/lineas/servicios/ServicioLineasCustomSection";
+import RepuestoLineasEditableSection from "@/app/components/arreglos/lineas/repuestos/RepuestoLineasEditableSection";
+import type { RepuestoUpsertInput } from "@/app/components/arreglos/lineas/repuestos/RepuestoLineasEditableSection";
 import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
 import { useFormularios } from "@/app/providers/FormulariosProvider";
-import type { ServicioLinea } from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
+import type { ServicioLinea } from "@/app/components/arreglos/lineas/servicios/ServicioLineasEditableSection";
 import type { EstadoArreglo } from "@/model/types";
 import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
 import { useInventario } from "@/app/providers/InventarioProvider";
@@ -325,6 +325,7 @@ export default function ArregloDetailsPage() {
           stock_id: input.stock_id,
           cantidad: input.cantidad,
           monto_unitario: input.monto_unitario,
+          precio_compra: input.precio_compra,
         });
       }
       success("Repuesto actualizado", "El repuesto se actualizó correctamente.");

@@ -1,5 +1,5 @@
 import React from "react";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 
 export type LineaVariant = "servicios" | "repuestos";
 
@@ -40,20 +40,30 @@ export const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-  },
+  } as const,
+  hideItemIconOnSm: {
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "none",
+    },
+  } as const,
   itemMain: { flex: 1, minWidth: 0 },
   itemTitle: {
     fontSize: 16,
     fontWeight: 700,
-    lineHeight: 1.1,
+    height: "27px",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap" as const,
   },
   itemSubTitle: {
-    marginTop: 6,
     color: COLOR.TEXT.SECONDARY,
     fontWeight: 600,
+  },
+  itemSubTitleCode: {
+    marginLeft: 4,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 13,
+    fontWeight: 500,
   },
   codePill: {
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
@@ -149,4 +159,3 @@ export const styles = {
     background: COLOR.BACKGROUND.SUBTLE,
   } as const,
 } as const;
-

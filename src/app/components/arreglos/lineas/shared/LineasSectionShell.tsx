@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import React, { useMemo, useState } from "react";
 import { COLOR } from "@/theme/theme";
@@ -31,7 +31,7 @@ export default function LineasSectionShell({
   );
 
   return (
-    <div style={{overflow: 'clip'}}>
+    <div style={{ overflow: "clip" }}>
       <div style={styles.sectionTitle}>
         <IconLabel icon={titleIcon} label={title} />
 
@@ -65,11 +65,8 @@ export default function LineasSectionShell({
       </div>
 
       <div style={styles.collapseOuter(collapsed)}>
-        <div style={styles.collapseInner}>
-          {children}
-        </div>
+        <div style={styles.collapseInner}>{children}</div>
       </div>
-
     </div>
   );
 }
@@ -127,4 +124,3 @@ const styles = {
     color: COLOR.ACCENT.PRIMARY,
   },
 } as const;
-

@@ -170,10 +170,8 @@ export default function LineDetalleOperacion({
                 <div key={linea.id} style={styles.expandedRow}>
                   <div style={styles.expandedLeft}>
                     <div style={styles.expandedProductName}>
-                      {stockInfo?.nombre || shortId(linea.stock_id)}
-                    </div>
-                    <div style={styles.expandedProductMeta}>
-                      {`Stock ID: ${shortId(linea.stock_id)}${stockInfo?.codigo ? ` · ${stockInfo.codigo}` : ""}`}
+                      <span>{stockInfo?.nombre || shortId(linea.stock_id)}</span>
+                      <span style={styles.expandedProductMeta}>{stockInfo?.codigo ? ` · ${stockInfo.codigo}` : ""}</span>
                     </div>
                   </div>
                   <div style={styles.expandedRight}>

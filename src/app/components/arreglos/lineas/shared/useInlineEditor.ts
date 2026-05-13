@@ -105,4 +105,3 @@ export function useInlineEditor<TItem, TDraft, TValue>({
     validateCurrent,
   };
 }
-

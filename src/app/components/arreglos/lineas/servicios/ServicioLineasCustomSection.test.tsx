@@ -5,7 +5,7 @@ import ServicioLineasCustomSection, {
   type CustomServicioLineDef,
 } from "./ServicioLineasCustomSection";
 
-vi.mock("../../ui/Autocomplete", () => ({
+vi.mock("../../../ui/Autocomplete", () => ({
   __esModule: true,
   default: ({
     value,

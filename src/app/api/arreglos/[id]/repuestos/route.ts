@@ -7,6 +7,7 @@ export type UpsertRepuestoLineaRequest = {
   stock_id: string;
   cantidad: number;
   monto_unitario: number;
+  precio_compra?: number | null;
 };
 
 export type CreateInlineProductoRepuestoRequest = {
@@ -44,6 +45,19 @@ function mapInlineRpcError(error: unknown): { status: number; message: string } 
   return { status: 500, message: "No se pudieron guardar los repuestos." };
 }
 
+function mapExistingRepuestoRpcError(error: unknown): { status: number; message: string } {
+  const raw = String((error as { message?: unknown } | null)?.message ?? "");
+
+  if (raw.includes("PRECIO_COMPRA_REQUERIDO")) {
+    return { status: 400, message: "Precio de compra requerido para cubrir stock faltante" };
+  }
+  if (raw.includes("STOCK_INSUFICIENTE")) {
+    return { status: 409, message: "Stock insuficiente" };
+  }
+
+  return { status: 500, message: "Error guardando repuesto" };
+}
+
 async function upsertRepuestoExistente(
   supabase: SupabaseClient,
   arregloId: string,
@@ -70,20 +84,25 @@ async function upsertRepuestoExistente(
     return Response.json({ data: null, error: "Monto unitario invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
 
-  const { data, error } = await supabase.rpc("rpc_set_asignacion_arreglo_linea", {
+  const precioCompraRaw = body.precio_compra;
+  const precioCompra =
+    precioCompraRaw == null || precioCompraRaw === ("" as unknown) ? null : Number(precioCompraRaw);
+  if (precioCompra != null && (!Number.isFinite(precioCompra) || precioCompra < 0)) {
+    return Response.json({ data: null, error: "Precio de compra invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
+
+  const { data, error } = await supabase.rpc("rpc_asignar_repuesto_existente_con_compra", {
     p_arreglo_id: arregloId,
     p_taller_id: tallerId,
     p_stock_id: stockId,
     p_cantidad: cantidad,
     p_monto_unitario: montoUnitario,
+    p_precio_compra: precioCompra,
   });
 
   if (error || !data) {
-    const raw = String(error?.message ?? "");
-    const isStock = raw.includes("STOCK_INSUFICIENTE");
-    const status = isStock ? 409 : 500;
-    const message = isStock ? "Stock insuficiente" : "Error guardando repuesto";
-    return Response.json({ data: null, error: message } satisfies UpsertRepuestoLineaResponse, { status });
+    const mapped = mapExistingRepuestoRpcError(error);
+    return Response.json({ data: null, error: mapped.message } satisfies UpsertRepuestoLineaResponse, { status: mapped.status });
   }
 
   return Response.json({ data: { operacion_id: String(data) }, error: null } satisfies UpsertRepuestoLineaResponse, { status: 200 });

@@ -10,13 +10,13 @@ import { isValidDate } from "@/lib/fechas";
 import { formatArs } from "@/lib/format";
 import ServicioLineasEditableSection, {
   type ServicioLinea,
-} from "@/app/components/arreglos/lineas/ServicioLineasEditableSection";
+} from "@/app/components/arreglos/lineas/servicios/ServicioLineasEditableSection";
 import ServicioLineasCustomSection, {
   parseCustomServicioLineDefs,
-} from "@/app/components/arreglos/lineas/ServicioLineasCustomSection";
+} from "@/app/components/arreglos/lineas/servicios/ServicioLineasCustomSection";
 import RepuestoLineasEditableSection, {
   type RepuestoLinea,
-} from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
+} from "@/app/components/arreglos/lineas/repuestos/RepuestoLineasEditableSection";
 import type { CreateArregloDetalleFormularioInput } from "@/app/api/arreglos/arregloRequests";
 import { useServiciosDraft } from "@/app/components/arreglos/hooks/useServiciosDraft";
 import { useRepuestosDraft } from "@/app/components/arreglos/hooks/useRepuestosDraft";

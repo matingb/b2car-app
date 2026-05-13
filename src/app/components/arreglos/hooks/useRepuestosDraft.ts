@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import type {
   RepuestoLinea,
   RepuestoUpsertInput,
-} from "@/app/components/arreglos/lineas/RepuestoLineasEditableSection";
+} from "@/app/components/arreglos/lineas/repuestos/RepuestoLineasEditableSection";
 
 const NEW_PRODUCT_VALUE = "__nuevo_producto__";
 

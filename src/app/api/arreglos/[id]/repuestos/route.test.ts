@@ -34,12 +34,13 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(rpc).toHaveBeenCalledWith("rpc_set_asignacion_arreglo_linea", {
+    expect(rpc).toHaveBeenCalledWith("rpc_asignar_repuesto_existente_con_compra", {
       p_arreglo_id: "A-1",
       p_taller_id: "T-1",
       p_stock_id: "S-1",
       p_cantidad: 2,
       p_monto_unitario: 1500,
+      p_precio_compra: null,
     });
     await expect(res.json()).resolves.toEqual({
       data: { operacion_id: "OP-1" },
