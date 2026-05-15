@@ -4,7 +4,7 @@ import type { ProductoDetailDTO, StockDTO } from "@/model/dtos";
 import type { GetProductoByIdResponse, UpdateProductoRequest, UpdateProductoResponse } from "../contracts";
 import { createClient } from "@/supabase/server";
 import { productosService, type ProductoRow } from "../productosService";
-import { stocksService, type StockRow } from "../../stocks/stocksService";
+import type { StockRow } from "../../stocks/stocksService";
 import { ServiceError } from "@/app/api/serviceError";
 
 function mapProducto(row: ProductoRow): Omit<ProductoDetailDTO, "stocks"> {
@@ -19,6 +19,7 @@ function mapProducto(row: ProductoRow): Omit<ProductoDetailDTO, "stocks"> {
     costo_unitario: Number(row.costo_unitario) || 0,
     proveedor: row.proveedor ?? null,
     categorias: Array.isArray(row.categorias) ? row.categorias : [],
+    show_in_stock: row.show_in_stock,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -32,7 +33,6 @@ function mapStock(row: StockRow): StockDTO {
     cantidad: Number(row.cantidad) || 0,
     stock_minimo: Number(row.stock_minimo) || 0,
     stock_maximo: Number(row.stock_maximo) || 0,
-    show_in_stock: row.show_in_stock,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -85,7 +85,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return Response.json({ data: null, error: "costo_unitario debe ser >= 0" } satisfies UpdateProductoResponse, { status: 400 });
   }
 
-  const patch: Partial<Omit<ProductoRow, "id" | "tenant_id" | "created_at" | "updated_at">> = {};
+  const patch: Partial<Omit<ProductoRow, "id" | "tenantId" | "created_at" | "updated_at">> = {};
   if (body.codigo !== undefined) patch.codigo = String(body.codigo ?? "").trim();
   if (body.nombre !== undefined) patch.nombre = String(body.nombre ?? "").trim();
   if (body.marca !== undefined) patch.marca = body.marca ?? null;
@@ -95,15 +95,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.costo_unitario !== undefined) patch.costo_unitario = body.costo_unitario;
   if (body.proveedor !== undefined) patch.proveedor = body.proveedor ?? null;
   if (body.categorias !== undefined) patch.categorias = Array.isArray(body.categorias) ? body.categorias.filter(Boolean) : [];
+  if (body.show_in_stock !== undefined) patch.show_in_stock = body.show_in_stock;
 
   try {
     const { data: updated, error } = await productosService.updateById(supabase, id, patch);
     if (error === ServiceError.NotFound || !updated) {
       return Response.json({ data: null, error: "Producto no encontrado" } satisfies UpdateProductoResponse, { status: 404 });
-    }
-
-    if (body.show_in_stock !== undefined) {
-      await stocksService.updateShowInStockByProducto(supabase, id, body.show_in_stock);
     }
 
     const { data: stocks } = await supabase.from("stocks").select("*").eq("producto_id", id);

@@ -123,19 +123,19 @@ BEGIN
   END IF;
 
   INSERT INTO public.productos (
-    tenant_id, codigo, nombre, precio_unitario, costo_unitario, categorias
+    tenant_id, codigo, nombre, precio_unitario, costo_unitario, categorias, show_in_stock
   )
   VALUES (
     v_tenant_id, trim(p_codigo), trim(p_nombre),
-    p_precio_venta, p_precio_compra, ARRAY[]::text[]
+    p_precio_venta, p_precio_compra, ARRAY[]::text[], false
   )
   RETURNING id INTO v_producto_id;
 
   INSERT INTO public.stocks (
-    tenant_id, taller_id, producto_id, cantidad, stock_minimo, stock_maximo, show_in_stock
+    tenant_id, taller_id, producto_id, cantidad, stock_minimo, stock_maximo
   )
   VALUES (
-    v_tenant_id, p_taller_id, v_producto_id, 0, 0, 0, false
+    v_tenant_id, p_taller_id, v_producto_id, 0, 0, 0
   )
   RETURNING id INTO v_stock_id;
 

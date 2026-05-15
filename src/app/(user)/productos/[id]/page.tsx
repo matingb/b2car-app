@@ -108,17 +108,14 @@ export default function ProductoDetailsPage() {
     return fechas.sort((a, b) => toKey(b).localeCompare(toKey(a)))[0];
   }, [stockDelProducto]);
 
-  const showInStock = useMemo(() => {
-    if (!stockDelProducto.length) return false;
-    return stockDelProducto.every((s) => s.showInStock);
-  }, [stockDelProducto]);
+  const showInStock = producto?.showInStock ?? true;
 
   const handleToggleShowInStock = useCallback(async (value: boolean) => {
     if (!producto) return;
-    setStockDelProducto((prev) => prev.map((s) => ({ ...s, showInStock: value })));
+    setProducto((prev) => prev ? { ...prev, showInStock: value } : prev);
     const ok = await updateShowInStock(producto.id, value);
     if (!ok) {
-      setStockDelProducto((prev) => prev.map((s) => ({ ...s, showInStock: !value })));
+      setProducto((prev) => prev ? { ...prev, showInStock: !value } : prev);
     }
   }, [producto, updateShowInStock]);
 

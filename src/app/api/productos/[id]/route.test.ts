@@ -58,6 +58,7 @@ describe("/api/productos/[id]", () => {
         costo_unitario: 7,
         proveedor: "Prov",
         categorias: ["A"],
+        show_in_stock: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },

@@ -18,6 +18,7 @@ export type ProductoRow = {
   costo_unitario: number;
   proveedor: string | null;
   categorias: string[] | null;
+  show_in_stock: boolean;
   created_at: string;
   updated_at: string;
 };

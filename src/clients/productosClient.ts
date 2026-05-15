@@ -103,6 +103,7 @@ export function mapProductoToInventario(dto: ProductoDTO): Producto {
     proveedor: dto.proveedor ?? "",
     ubicacion: "",
     talleresConStock: dto.talleresConStock ?? 0,
+    showInStock: dto.show_in_stock,
   };
 }
 

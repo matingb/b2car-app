@@ -46,6 +46,7 @@ const inventario = [
     precioUnitario: 1500,
     proveedor: "",
     ubicacion: "",
+    showInStock: true,
     ultimaActualizacion: "",
     historialMovimientos: [],
   },
@@ -63,6 +64,7 @@ const inventario = [
     precioUnitario: 500,
     proveedor: "",
     ubicacion: "",
+    showInStock: true,
     ultimaActualizacion: "",
     historialMovimientos: [],
   },
@@ -72,7 +74,7 @@ function setup(overrides: Partial<Parameters<typeof RepuestoLineasEditableSectio
   vi.mocked(useInventario).mockReturnValue({
     inventario,
     isLoading: false,
-  } as ReturnType<typeof useInventario>);
+  } as unknown as ReturnType<typeof useInventario>);
 
   const onUpsert = vi.fn();
   const onDelete = vi.fn();

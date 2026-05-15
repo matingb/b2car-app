@@ -15,6 +15,7 @@ export type CreateProductoRequest = {
   costo_unitario: number;
   proveedor?: string;
   categorias?: string[];
+  show_in_stock?: boolean;
 };
 
 export type CreateProductoResponse = {

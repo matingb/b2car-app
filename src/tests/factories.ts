@@ -231,6 +231,7 @@ export const createProducto = (overrides: Partial<Producto> = {}): Producto => {
     costoUnitario: 50,
     proveedor: 'Proveedor 1',
     ubicacion: 'Depósito',
+    showInStock: true,
     ...overrides,
   };
 };
@@ -251,6 +252,7 @@ export type InventarioProductoRow = {
   costo_unitario: number;
   proveedor: string | null;
   categorias: string[] | null;
+  show_in_stock: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -273,6 +275,7 @@ export const createInventarioProductoRow = (
     costo_unitario: 50,
     proveedor: "Proveedor 1",
     categorias: ["Cat"],
+    show_in_stock: true,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides,
@@ -288,7 +291,6 @@ export const createStockRow = (overrides: Partial<StockRow> = {}): StockRow => {
     cantidad: 10,
     stock_minimo: 2,
     stock_maximo: 20,
-    show_in_stock: true,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
     ...overrides,

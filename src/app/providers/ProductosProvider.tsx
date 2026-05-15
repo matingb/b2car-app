@@ -28,6 +28,7 @@ export type Producto = {
   costoUnitario: number;
   proveedor: string;
   ubicacion: string;
+  showInStock: boolean;
 };
 
 export type StockRegistro = {
@@ -37,13 +38,12 @@ export type StockRegistro = {
   stockActual: number;
   stockMinimo: number;
   stockMaximo: number;
-  showInStock: boolean;
   ultimaActualizacion: string;
   historialMovimientos: StockMovement[];
 };
 
-export type CreateProductoInput = Omit<Producto, "id" | "talleresConStock"> & { id?: string };
-export type UpdateProductoInput = Partial<Omit<Producto, "id" | "talleresConStock">>;
+export type CreateProductoInput = Omit<Producto, "id" | "talleresConStock" | "showInStock"> & { id?: string };
+export type UpdateProductoInput = Partial<Omit<Producto, "id" | "talleresConStock" | "showInStock">>;
 
 export type CreateProductoResult = { producto: Producto | null; error: string | null };
 
@@ -106,7 +106,6 @@ export function ProductosProvider({ children }: { children: React.ReactNode }) {
       stockActual: Number(s.cantidad) || 0,
       stockMinimo: Number(s.stock_minimo) || 0,
       stockMaximo: Number(s.stock_maximo) || 0,
-      showInStock: s.show_in_stock,
       ultimaActualizacion: isoToShortEsDate(s.updated_at),
       historialMovimientos: [],
     };

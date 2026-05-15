@@ -70,6 +70,7 @@ export type ProductoDTO = {
     costo_unitario: number;
     proveedor: string | null;
     categorias: string[];
+    show_in_stock: boolean;
     talleresConStock?: number;
     created_at: string;
     updated_at: string;
@@ -82,7 +83,6 @@ export type StockDTO = {
     cantidad: number;
     stock_minimo: number;
     stock_maximo: number;
-    show_in_stock: boolean;
     created_at: string;
     updated_at: string;
 };
