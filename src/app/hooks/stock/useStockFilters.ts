@@ -4,19 +4,23 @@ import { useMemo, useState } from "react";
 import type { StockItem } from "@/model/stock";
 import { getStockStatus, type StockStatus } from "@/lib/stock";
 
+export type StockVisibilidad = "taller" | "esporadico" | "todos";
+
 export type StockFilters = {
   categorias: string[];
   estado: StockStatus | "";
+  visibilidad: StockVisibilidad;
 };
 
 export type StockChipKind =
   | { type: "estado" }
-  | { type: "categoria"; value: string };
+  | { type: "categoria"; value: string }
+  | { type: "visibilidad" };
 
 export type StockChip = { key: string; text: string; kind: StockChipKind };
 
 function createEmptyFilters(): StockFilters {
-  return { categorias: [], estado: "" };
+  return { categorias: [], estado: "", visibilidad: "taller" };
 }
 
 function matchesSearch(item: StockItem, query: string) {
@@ -41,6 +45,12 @@ function matchesEstado(item: StockItem, estado: StockFilters["estado"]) {
   return getStockStatus(item) === estado;
 }
 
+function matchesVisibilidad(item: StockItem, visibilidad: StockVisibilidad) {
+  if (visibilidad === "todos") return true;
+  if (visibilidad === "esporadico") return !item.showInStock;
+  return item.showInStock;
+}
+
 export function filterStockItems(
   items: StockItem[] | undefined,
   params: { search: string; filters: StockFilters }
@@ -48,6 +58,7 @@ export function filterStockItems(
   if (!items) return [];
   return items.filter(
     (i) =>
+      matchesVisibilidad(i, params.filters.visibilidad) &&
       matchesSearch(i, params.search) &&
       matchesCategorias(i, params.filters.categorias) &&
       matchesEstado(i, params.filters.estado)
@@ -64,6 +75,13 @@ export function useStockFilters(items?: StockItem[]) {
 
   const chips = useMemo<StockChip[]>(() => {
     const result: StockChip[] = [];
+    if (filters.visibilidad !== "taller") {
+      result.push({
+        key: "visibilidad",
+        text: filters.visibilidad === "todos" ? "Mostrar todos" : "Stock esporádico",
+        kind: { type: "visibilidad" },
+      });
+    }
     if (filters.estado) {
       result.push({
         key: "estado",
@@ -86,10 +104,11 @@ export function useStockFilters(items?: StockItem[]) {
       });
     }
     return result;
-  }, [filters.estado, filters.categorias]);
+  }, [filters.visibilidad, filters.estado, filters.categorias]);
 
   const removeFilter = (kind: StockChipKind) => {
     setFilters((prev) => {
+      if (kind.type === "visibilidad") return { ...prev, visibilidad: "taller" as StockVisibilidad };
       if (kind.type === "estado") return { ...prev, estado: "" };
       return { ...prev, categorias: prev.categorias.filter((c) => c !== kind.value) };
     });

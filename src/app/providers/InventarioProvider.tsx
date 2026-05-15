@@ -108,6 +108,7 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
       precioUnitario: Number(p.precio_unitario) || 0,
       proveedor: p.proveedor ?? "",
       ubicacion: "",
+      showInStock: dto.show_in_stock,
       ultimaActualizacion: isoToShortEsDate(dto.updated_at),
       historialMovimientos: [],
     };

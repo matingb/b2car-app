@@ -45,7 +45,6 @@ export const stocksService = {
         `*,productos(*)`
       )
       .eq("taller_id", tallerId)
-      .eq("show_in_stock", true)
       .order("updated_at", { ascending: false });
 
     const { data, error } = await query;

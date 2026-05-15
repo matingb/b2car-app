@@ -5,7 +5,7 @@ import Modal from "@/app/components/ui/Modal";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import DropdownMultiSelect from "@/app/components/ui/DropdownMultiSelect";
-import type { StockFilters } from "@/app/hooks/stock/useStockFilters";
+import type { StockFilters, StockVisibilidad } from "@/app/hooks/stock/useStockFilters";
 import type { StockStatus } from "@/lib/stock";
 import Autocomplete, { AutocompleteOption } from "../ui/Autocomplete";
 
@@ -26,12 +26,23 @@ export default function StockFiltersModal({
 }: Props) {
   const [estado, setEstado] = useState<StockStatus | "">(initial?.estado ?? "");
   const [categorias, setCategorias] = useState<string[]>(initial?.categorias ?? []);
+  const [visibilidad, setVisibilidad] = useState<StockVisibilidad>(initial?.visibilidad ?? "taller");
 
   useEffect(() => {
     if (!open) return;
     setEstado(initial?.estado ?? "");
     setCategorias(initial?.categorias ?? []);
+    setVisibilidad(initial?.visibilidad ?? "taller");
   }, [open, initial]);
+
+  const visibilidadOptions = useMemo<AutocompleteOption[]>(
+    () => [
+      { value: "taller", label: "Stock taller" },
+      { value: "esporadico", label: "Stock esporádico" },
+      { value: "todos", label: "Mostrar todos" },
+    ],
+    []
+  );
 
   const estadoOptions = useMemo<AutocompleteOption[]>(
     () => [
@@ -55,6 +66,7 @@ export default function StockFiltersModal({
     onApply({
       estado,
       categorias,
+      visibilidad,
     });
     onClose();
   };
@@ -68,6 +80,19 @@ export default function StockFiltersModal({
       submitText="Aplicar filtros"
     >
       <div style={{ padding: "4px 0 12px" }}>
+        <div css={styles.row}>
+          <div style={styles.field}>
+            <label style={styles.label}>Visibilidad</label>
+            <Autocomplete
+              value={visibilidad}
+              options={visibilidadOptions}
+              onChange={(v) => setVisibilidad((v || "taller") as StockVisibilidad)}
+              data-testid="stock-filter-visibilidad"
+              hideClearButton
+            />
+          </div>
+        </div>
+
         <div css={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>Estado</label>
@@ -99,6 +124,7 @@ export default function StockFiltersModal({
             type="button"
             style={styles.clearButton}
             onClick={() => {
+              setVisibilidad("taller");
               setEstado("");
               setCategorias([]);
             }}
