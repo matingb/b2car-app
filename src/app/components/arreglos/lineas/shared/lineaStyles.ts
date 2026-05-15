@@ -158,4 +158,39 @@ export const styles = {
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     background: COLOR.BACKGROUND.SUBTLE,
   } as const,
+  editorQtyInput: {
+    paddingLeft: 8,
+    paddingRight: 8,
+    width: "65px",
+    textAlign: "center" as const,
+  } as const,
+  editorFieldUnit: {
+    flex: "1 1 0",
+    minWidth: 0,
+    [`@media (min-width: ${BREAKPOINTS.xl}px)`]: {
+      maxWidth: 200,
+    },
+  } as const,
+  editorFooter: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    width: "100%",
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      gap: 8,
+    },
+    [`@media (min-width: ${BREAKPOINTS.xl}px)`]: {
+      width: "auto",
+      flexShrink: 0,
+    },
+  } as const,
+  editorTotalText: {
+    fontWeight: 700,
+    fontSize: 16,
+    whiteSpace: "nowrap" as const,
+    minWidth: 70,
+  } as const,
 } as const;
+
+export const innerFillStyle: React.CSSProperties = { width: "100%" };

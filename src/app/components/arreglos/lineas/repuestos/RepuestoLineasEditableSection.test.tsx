@@ -241,4 +241,114 @@ describe("RepuestoLineasEditableSection", () => {
       screen.getByRole("button", { name: /agregar repuesto/i })
     ).toBeDisabled();
   });
+
+  it("muestra hint de compra al crear un producto nuevo con cantidad válida", () => {
+    setup();
+    startNewProduct();
+
+    fireEvent.change(screen.getByLabelText("Código"), {
+      target: { value: "NEW-001" },
+    });
+    fireEvent.change(screen.getByLabelText("Nombre"), {
+      target: { value: "Producto nuevo" },
+    });
+    fireEvent.change(screen.getByLabelText("Cantidad"), {
+      target: { value: "5" },
+    });
+    fireEvent.change(screen.getByLabelText("Precio compra"), {
+      target: { value: "1000" },
+    });
+
+    expect(screen.getByText(/Se comprarán 5 unidades/)).toBeInTheDocument();
+    expect(screen.getByText(/Stock disponible: 0/)).toBeInTheDocument();
+  });
+
+  it("no muestra hint de compra para producto nuevo cuando hay conflicto de código", () => {
+    setup();
+    startNewProduct();
+
+    fireEvent.change(screen.getByLabelText("Cantidad"), {
+      target: { value: "3" },
+    });
+    fireEvent.change(screen.getByLabelText("Precio compra"), {
+      target: { value: "500" },
+    });
+    fireEvent.change(screen.getByLabelText("Código"), {
+      target: { value: "FIL-001" },
+    });
+
+    expect(
+      screen.getByText("Ya existe un producto con ese código. Seleccionalo desde el listado.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Se comprarán/)).not.toBeInTheDocument();
+  });
+
+  it("conflicto de código duplicado en items tiene prioridad sobre hint de compra", () => {
+    const existingNewItem: RepuestoLinea = {
+      id: "rep-1",
+      stock_id: "__nuevo_producto__",
+      tipo: "nuevo",
+      cantidad: 1,
+      monto_unitario: 100,
+      nuevoProducto: {
+        codigo: "DUP-001",
+        nombre: "Producto dup",
+        precioCompra: 50,
+        precioVenta: 100,
+      },
+    };
+    setup({ items: [existingNewItem] });
+    startNewProduct();
+
+    fireEvent.change(screen.getByLabelText("Cantidad"), {
+      target: { value: "3" },
+    });
+    fireEvent.change(screen.getByLabelText("Precio compra"), {
+      target: { value: "500" },
+    });
+    fireEvent.change(screen.getByLabelText("Código"), {
+      target: { value: "DUP-001" },
+    });
+
+    expect(
+      screen.getByText("Este producto ya fue cargado en este arreglo")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Se comprarán/)).not.toBeInTheDocument();
+  });
+
+  it("muestra warning de repuesto duplicado al seleccionar stock ya existente en el arreglo", () => {
+    const existingItem: RepuestoLinea = {
+      id: "rep-1",
+      stock_id: "s1",
+      cantidad: 2,
+      monto_unitario: 1500,
+    };
+    setup({ items: [existingItem] });
+    selectStock("s1");
+
+    expect(
+      screen.getByText("El repuesto ya se encuentra en el arreglo")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Se comprarán/)).not.toBeInTheDocument();
+  });
+
+  it("conflicto de repuesto duplicado tiene prioridad sobre hint de stock insuficiente", () => {
+    const existingItem: RepuestoLinea = {
+      id: "rep-1",
+      stock_id: "s2",
+      cantidad: 1,
+      monto_unitario: 500,
+    };
+    setup({ items: [existingItem] });
+    selectStock("s2");
+
+    fireEvent.change(screen.getByLabelText("Cantidad"), {
+      target: { value: "10" },
+    });
+
+    expect(
+      screen.getByText("El repuesto ya se encuentra en el arreglo")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Se comprarán/)).not.toBeInTheDocument();
+  });
 });

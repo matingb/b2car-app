@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import { Plus, Package } from "lucide-react";
 import { formatArs } from "@/lib/format";
-import { safeNumber } from "@/lib/numbers";
+import { safeInt, safeNumber } from "@/lib/numbers";
 import { COLOR } from "@/theme/theme";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import { useInventario } from "@/app/providers/InventarioProvider";
@@ -13,6 +13,7 @@ import { useInlineEditor } from "@/app/components/arreglos/lineas/shared/useInli
 import { InlineEditorProvider } from "@/app/components/arreglos/lineas/shared/InlineEditorContext";
 import ConflictWarning from "@/app/components/arreglos/lineas/shared/ConflictWarning";
 import EditableLineaCard from "@/app/components/arreglos/lineas/shared/EditableLineaCard";
+import NewProductLineaCard from "@/app/components/arreglos/lineas/shared/NewProductLineaCard";
 import NewProductBadge from "@/app/components/arreglos/lineas/repuestos/NewProductBadge";
 import NewProductFields from "@/app/components/arreglos/lineas/repuestos/NewProductFields";
 import ReadOnlyLineaCard from "@/app/components/arreglos/lineas/shared/ReadOnlyLineaCard";
@@ -168,18 +169,30 @@ export default function RepuestoLineasEditableSection({
   const renderEditor = (item: RepuestoLinea | null) => {
     const stockState = computeStockState(item, draft, items, inventario);
     const validation = validateCurrent();
-    const extraHint = submitting ? undefined : stockState.hasExistingRepuestoConflict ? (
-      <ConflictWarning message="El repuesto ya se encuentra en el arreglo" />
-    ) : stockState.hasStockIssue ? (
-      <StockPurchaseHint
-        stockActual={stockState.stockActual}
-        faltante={stockState.faltante}
-        precioCompra={safeNumber(draft.precioCompra)}
-      />
-    ) : undefined;
+    const newProductConflict = stockState.isNewProduct
+      ? conflictMessageFor(draft.codigo, item?.id)
+      : null;
+    const newProductQty = safeInt(draft.cantidad);
+
+    const extraHint = submitting ? undefined
+      : stockState.hasExistingRepuestoConflict ? (
+        <ConflictWarning message="El repuesto ya se encuentra en el arreglo" />
+      ) : stockState.hasStockIssue ? (
+        <StockPurchaseHint
+          stockActual={stockState.stockActual}
+          faltante={stockState.faltante}
+          precioCompra={safeNumber(draft.precioCompra)}
+        />
+      ) : stockState.isNewProduct && !newProductConflict && newProductQty > 0 ? (
+        <StockPurchaseHint
+          stockActual={0}
+          faltante={newProductQty}
+          precioCompra={safeNumber(draft.precioCompra)}
+        />
+      ) : undefined;
 
     const card = stockState.isNewProduct ? (
-      <EditableLineaCard
+      <NewProductLineaCard
         top={
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <NewProductBadge
@@ -209,15 +222,15 @@ export default function RepuestoLineasEditableSection({
         }
         draft={{
           qty: draft.cantidad,
-          unit: draft.precioVenta,
           purchaseUnit: draft.precioCompra,
+          saleUnit: draft.precioVenta,
         }}
         onDraftChange={(patch) => {
           setDraft((p) => {
             const next: RepuestoDraft = { ...p };
             if (patch.qty !== undefined) next.cantidad = patch.qty;
-            if (patch.unit !== undefined) {
-              next.precioVenta = patch.unit;
+            if (patch.saleUnit !== undefined) {
+              next.precioVenta = patch.saleUnit;
               next.precioVentaTouched = true;
             }
             if (patch.purchaseUnit !== undefined) {
@@ -227,7 +240,6 @@ export default function RepuestoLineasEditableSection({
             return next;
           });
         }}
-        showPurchaseUnit
         extra={extraHint}
       />
     ) : (

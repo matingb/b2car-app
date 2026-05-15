@@ -3,6 +3,7 @@ import type { RepuestoDraft, RepuestoLinea } from "./RepuestoLineasEditableSecti
 import {
   NEW_PRODUCT_VALUE,
   applyStockSelection,
+  computeStockState,
   getNewProductConflictMessage,
   validateRepuestoDraft,
   type RepuestoValidatorEnv,
@@ -39,17 +40,17 @@ const item = (over: Partial<RepuestoLinea> & { id: string; stock_id: string }): 
 });
 
 describe("validateRepuestoDraft", () => {
-  it("requires a tallerId", () => {
+  it("requiere tallerId", () => {
     const result = validateRepuestoDraft(emptyDraft, { mode: "add" }, { ...baseEnv, tallerId: null });
     expect(result).toEqual({ ok: false, message: "No hay taller asociado" });
   });
 
-  it("requires a stockId", () => {
+  it("requiere stockId", () => {
     const result = validateRepuestoDraft(emptyDraft, { mode: "add" }, baseEnv);
     expect(result).toEqual({ ok: false, message: "Falta producto" });
   });
 
-  it("rejects non-positive cantidad", () => {
+  it("rechaza cantidad no positiva", () => {
     const result = validateRepuestoDraft(
       { ...emptyDraft, stockId: "abc", cantidad: "0" },
       { mode: "add" },
@@ -58,15 +59,15 @@ describe("validateRepuestoDraft", () => {
     expect(result).toEqual({ ok: false, message: "Cantidad inválida" });
   });
 
-  describe("new product branch", () => {
+  describe("producto nuevo", () => {
     const newProductBase = { ...emptyDraft, stockId: NEW_PRODUCT_VALUE, cantidad: "1" };
 
-    it("requires código", () => {
+    it("requiere código", () => {
       const result = validateRepuestoDraft(newProductBase, { mode: "add" }, baseEnv);
       expect(result).toEqual({ ok: false, message: "Falta código" });
     });
 
-    it("requires nombre", () => {
+    it("requiere nombre", () => {
       const result = validateRepuestoDraft(
         { ...newProductBase, codigo: "FIL-001" },
         { mode: "add" },
@@ -75,7 +76,7 @@ describe("validateRepuestoDraft", () => {
       expect(result).toEqual({ ok: false, message: "Falta nombre" });
     });
 
-    it("rejects negative precio de compra", () => {
+    it("rechaza precio de compra negativo", () => {
       const result = validateRepuestoDraft(
         { ...newProductBase, codigo: "C", nombre: "N", precioCompra: "-5", precioVenta: "10" },
         { mode: "add" },
@@ -84,7 +85,7 @@ describe("validateRepuestoDraft", () => {
       expect(result).toEqual({ ok: false, message: "Precio de compra inválido" });
     });
 
-    it("rejects negative precio de venta", () => {
+    it("rechaza precio de venta negativo", () => {
       const result = validateRepuestoDraft(
         { ...newProductBase, codigo: "C", nombre: "N", precioCompra: "5", precioVenta: "-10" },
         { mode: "add" },
@@ -93,7 +94,7 @@ describe("validateRepuestoDraft", () => {
       expect(result).toEqual({ ok: false, message: "Precio de venta inválido" });
     });
 
-    it("flags duplicate codigo against another new item", () => {
+    it("detecta código duplicado contra otro item nuevo", () => {
       const env: RepuestoValidatorEnv = {
         ...baseEnv,
         items: [
@@ -113,7 +114,7 @@ describe("validateRepuestoDraft", () => {
       expect(result).toEqual({ ok: false, message: "Este producto ya fue cargado en este arreglo" });
     });
 
-    it("flags codigo that already exists in inventario", () => {
+    it("detecta código que ya existe en inventario", () => {
       const env: RepuestoValidatorEnv = {
         ...baseEnv,
         inventario: [stock({ id: "s1", codigo: "FIL-001" })],
@@ -129,7 +130,7 @@ describe("validateRepuestoDraft", () => {
       });
     });
 
-    it("returns an upsert payload when the new product is valid", () => {
+    it("devuelve payload de upsert cuando el producto nuevo es válido", () => {
       const result = validateRepuestoDraft(
         {
           ...newProductBase,
@@ -157,10 +158,10 @@ describe("validateRepuestoDraft", () => {
     });
   });
 
-  describe("existing stock branch", () => {
+  describe("stock existente", () => {
     const existingBase = { ...emptyDraft, stockId: "s1", cantidad: "2", montoUnitario: "100" };
 
-    it("rejects negative monto unitario", () => {
+    it("rechaza monto unitario negativo", () => {
       const env: RepuestoValidatorEnv = { ...baseEnv, inventario: [stock({ id: "s1", stockActual: 10 })] };
       const result = validateRepuestoDraft(
         { ...existingBase, montoUnitario: "-1" },
@@ -170,7 +171,7 @@ describe("validateRepuestoDraft", () => {
       expect(result).toEqual({ ok: false, message: "Monto inválido" });
     });
 
-    it("blocks adding the same stock twice in add mode", () => {
+    it("bloquea agregar el mismo stock dos veces en modo agregar", () => {
       const env: RepuestoValidatorEnv = {
         ...baseEnv,
         inventario: [stock({ id: "s1", stockActual: 10 })],
@@ -180,7 +181,7 @@ describe("validateRepuestoDraft", () => {
       expect(result).toEqual({ ok: false, message: "Ese repuesto ya está agregado" });
     });
 
-    it("allows editing the same stock that is already in the arreglo", () => {
+    it("permite editar el mismo stock que ya está en el arreglo", () => {
       const target = item({ id: "a", stock_id: "s1", cantidad: 2 });
       const env: RepuestoValidatorEnv = {
         ...baseEnv,
@@ -191,12 +192,12 @@ describe("validateRepuestoDraft", () => {
       expect(result.ok).toBe(true);
     });
 
-    it("returns 'Stock no encontrado' when the stockId is not in inventario", () => {
+    it("devuelve error cuando el stockId no está en inventario", () => {
       const result = validateRepuestoDraft(existingBase, { mode: "add" }, baseEnv);
       expect(result).toEqual({ ok: false, message: "Stock no encontrado" });
     });
 
-    it("returns ok when stockActual covers the cantidad", () => {
+    it("devuelve ok cuando el stock cubre la cantidad", () => {
       const env: RepuestoValidatorEnv = {
         ...baseEnv,
         inventario: [stock({ id: "s1", stockActual: 10 })],
@@ -212,7 +213,7 @@ describe("validateRepuestoDraft", () => {
       });
     });
 
-    it("requires precio de compra when stockActual is insufficient", () => {
+    it("requiere precio de compra cuando el stock es insuficiente", () => {
       const env: RepuestoValidatorEnv = {
         ...baseEnv,
         inventario: [stock({ id: "s1", stockActual: 1 })],
@@ -228,7 +229,7 @@ describe("validateRepuestoDraft", () => {
       });
     });
 
-    it("emits precio_compra in the payload when stock is insufficient", () => {
+    it("incluye precio_compra en el payload cuando el stock es insuficiente", () => {
       const env: RepuestoValidatorEnv = {
         ...baseEnv,
         inventario: [stock({ id: "s1", stockActual: 1 })],
@@ -250,7 +251,7 @@ describe("validateRepuestoDraft", () => {
       });
     });
 
-    it("uses item.cantidad as baseQty so editing within current stock succeeds", () => {
+    it("usa item.cantidad como baseQty para que editar dentro del stock actual funcione", () => {
       const target = item({ id: "a", stock_id: "s1", cantidad: 5 });
       const env: RepuestoValidatorEnv = {
         ...baseEnv,
@@ -269,12 +270,12 @@ describe("validateRepuestoDraft", () => {
 });
 
 describe("getNewProductConflictMessage", () => {
-  it("returns null for an empty codigo", () => {
+  it("devuelve null para código vacío", () => {
     expect(getNewProductConflictMessage("", { items: [], inventario: [] })).toBeNull();
     expect(getNewProductConflictMessage("   ", { items: [], inventario: [] })).toBeNull();
   });
 
-  it("flags collision with another new item", () => {
+  it("detecta colisión con otro item nuevo", () => {
     const env = {
       items: [
         item({
@@ -291,7 +292,7 @@ describe("getNewProductConflictMessage", () => {
     );
   });
 
-  it("flags collision with an existing repuesto's producto.codigo", () => {
+  it("detecta colisión con el código de un repuesto existente", () => {
     const env = {
       items: [item({ id: "x", stock_id: "s1", producto: { codigo: "FIL-001" } })],
       inventario: [],
@@ -301,14 +302,14 @@ describe("getNewProductConflictMessage", () => {
     );
   });
 
-  it("flags collision with an inventario entry", () => {
+  it("detecta colisión con una entrada del inventario", () => {
     const env = { items: [], inventario: [stock({ id: "s1", codigo: "FIL-001" })] };
     expect(getNewProductConflictMessage("FIL-001", env)).toBe(
       "Ya existe un producto con ese código. Seleccionalo desde el listado.",
     );
   });
 
-  it("ignores the current item when checking duplicates", () => {
+  it("ignora el item actual al verificar duplicados", () => {
     const env = {
       items: [
         item({
@@ -324,8 +325,109 @@ describe("getNewProductConflictMessage", () => {
   });
 });
 
+describe("computeStockState", () => {
+  it("detecta modo agregar cuando item es null", () => {
+    const result = computeStockState(null, emptyDraft, [], []);
+    expect(result.mode).toBe("add");
+  });
+
+  it("detecta modo editar cuando se provee un item", () => {
+    const target = item({ id: "a", stock_id: "s1" });
+    const result = computeStockState(target, { ...emptyDraft, stockId: "s1" }, [target], []);
+    expect(result.mode).toBe("edit");
+  });
+
+  it("marca isNewProduct cuando el stockId es el sentinel de nuevo producto", () => {
+    const draft = { ...emptyDraft, stockId: NEW_PRODUCT_VALUE };
+    const result = computeStockState(null, draft, [], []);
+    expect(result.isNewProduct).toBe(true);
+  });
+
+  it("marca isNewProduct cuando se edita un item de tipo nuevo", () => {
+    const target = item({ id: "a", stock_id: NEW_PRODUCT_VALUE, tipo: "nuevo" });
+    const result = computeStockState(target, { ...emptyDraft, stockId: NEW_PRODUCT_VALUE }, [target], []);
+    expect(result.isNewProduct).toBe(true);
+  });
+
+  it("no marca isNewProduct para una selección de stock regular", () => {
+    const inv = [stock({ id: "s1", stockActual: 10 })];
+    const result = computeStockState(null, { ...emptyDraft, stockId: "s1", cantidad: "1" }, [], inv);
+    expect(result.isNewProduct).toBe(false);
+  });
+
+  it("detecta conflicto de repuesto duplicado al agregar un stock que ya está en items", () => {
+    const inv = [stock({ id: "s1", stockActual: 10 })];
+    const existing = [item({ id: "a", stock_id: "s1" })];
+    const result = computeStockState(null, { ...emptyDraft, stockId: "s1" }, existing, inv);
+    expect(result.hasExistingRepuestoConflict).toBe(true);
+    expect(result.hasStockIssue).toBe(false);
+  });
+
+  it("no marca conflicto al editar el mismo item", () => {
+    const target = item({ id: "a", stock_id: "s1" });
+    const inv = [stock({ id: "s1", stockActual: 10 })];
+    const result = computeStockState(target, { ...emptyDraft, stockId: "s1" }, [target], inv);
+    expect(result.hasExistingRepuestoConflict).toBe(false);
+  });
+
+  it("detecta faltante de stock cuando la cantidad excede el disponible", () => {
+    const inv = [stock({ id: "s1", stockActual: 2 })];
+    const draft = { ...emptyDraft, stockId: "s1", cantidad: "5" };
+    const result = computeStockState(null, draft, [], inv);
+    expect(result.hasStockIssue).toBe(true);
+    expect(result.faltante).toBe(3);
+    expect(result.stockActual).toBe(2);
+  });
+
+  it("no marca faltante cuando el stock cubre la cantidad", () => {
+    const inv = [stock({ id: "s1", stockActual: 10 })];
+    const draft = { ...emptyDraft, stockId: "s1", cantidad: "5" };
+    const result = computeStockState(null, draft, [], inv);
+    expect(result.hasStockIssue).toBe(false);
+    expect(result.faltante).toBe(0);
+  });
+
+  it("conflicto de duplicado tiene prioridad sobre faltante de stock", () => {
+    const inv = [stock({ id: "s1", stockActual: 1 })];
+    const existing = [item({ id: "a", stock_id: "s1" })];
+    const draft = { ...emptyDraft, stockId: "s1", cantidad: "5" };
+    const result = computeStockState(null, draft, existing, inv);
+    expect(result.hasExistingRepuestoConflict).toBe(true);
+    expect(result.hasStockIssue).toBe(false);
+  });
+
+  it("showPurchaseField es true para productos nuevos", () => {
+    const draft = { ...emptyDraft, stockId: NEW_PRODUCT_VALUE, cantidad: "1" };
+    const result = computeStockState(null, draft, [], []);
+    expect(result.showPurchaseField).toBe(true);
+  });
+
+  it("showPurchaseField es true cuando el stock es insuficiente", () => {
+    const inv = [stock({ id: "s1", stockActual: 1 })];
+    const draft = { ...emptyDraft, stockId: "s1", cantidad: "5" };
+    const result = computeStockState(null, draft, [], inv);
+    expect(result.showPurchaseField).toBe(true);
+  });
+
+  it("showPurchaseField es false cuando el stock cubre la cantidad", () => {
+    const inv = [stock({ id: "s1", stockActual: 10 })];
+    const draft = { ...emptyDraft, stockId: "s1", cantidad: "3" };
+    const result = computeStockState(null, draft, [], inv);
+    expect(result.showPurchaseField).toBe(false);
+  });
+
+  it("usa item.cantidad como baseQty al editar, reduciendo el faltante", () => {
+    const target = item({ id: "a", stock_id: "s1", cantidad: 5 });
+    const inv = [stock({ id: "s1", stockActual: 2 })];
+    const draft = { ...emptyDraft, stockId: "s1", cantidad: "6" };
+    // faltante = 6 - 5(baseQty) - 2(stock) = 0 → no faltante
+    const result = computeStockState(target, draft, [target], inv);
+    expect(result.hasStockIssue).toBe(false);
+  });
+});
+
 describe("applyStockSelection", () => {
-  it("preserves new-product fields when picking the sentinel", () => {
+  it("preserva campos de producto nuevo al seleccionar el sentinel", () => {
     const prev: RepuestoDraft = {
       ...emptyDraft,
       codigo: "X",
@@ -341,7 +443,7 @@ describe("applyStockSelection", () => {
     });
   });
 
-  it("prefills monto unitario and precio compra from the picked stock", () => {
+  it("precarga monto unitario y precio compra del stock seleccionado", () => {
     const result = applyStockSelection("s1", emptyDraft, [
       { id: "s1", precioUnitario: 150, costoUnitario: 100 },
     ]);
@@ -354,7 +456,7 @@ describe("applyStockSelection", () => {
     });
   });
 
-  it("keeps the user-typed monto unitario instead of overwriting with the prefill", () => {
+  it("conserva el monto unitario ingresado por el usuario sin sobreescribir", () => {
     const result = applyStockSelection(
       "s1",
       { ...emptyDraft, montoUnitario: "200" },
@@ -364,7 +466,7 @@ describe("applyStockSelection", () => {
     expect(result.precioCompra).toBe("100");
   });
 
-  it("clears prefill fields when the id is unknown or empty", () => {
+  it("limpia campos precargados cuando el id es desconocido o vacío", () => {
     const result = applyStockSelection(
       "",
       { ...emptyDraft, precioVenta: "9", precioCompra: "8", precioVentaTouched: true },
