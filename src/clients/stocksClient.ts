@@ -8,6 +8,10 @@ import type {
 } from "@/app/api/stocks/contracts";
 import { logger } from "@/lib/logger";
 
+type UpsertStockClientResponse = UpsertStockResponse & {
+  status?: number;
+};
+
 export const stocksClient = {
   async getAll(): Promise<GetStocksResponse> {
     try {
@@ -52,7 +56,7 @@ export const stocksClient = {
     }
   },
 
-  async upsert(input: UpsertStockRequest): Promise<UpsertStockResponse> {
+  async upsert(input: UpsertStockRequest): Promise<UpsertStockClientResponse> {
     try {
       const res = await fetch("/api/stocks", {
         method: "POST",
@@ -62,9 +66,9 @@ export const stocksClient = {
       logger.debug("Upsert stock fetch response:", res);
       const body: UpsertStockResponse = await res.json().catch(() => ({ data: null, error: `Error ${res.status}` }));
       if (!res.ok  || body?.error) {
-        return { data: null, error: body?.error || `Error ${res.status}` };
+        return { data: null, error: body?.error || `Error ${res.status}`, status: res.status };
       }
-      return { data: body.data || null, error: null };
+      return { data: body.data || null, error: null, status: res.status };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "No se pudo guardar el stock";
       return { data: null, error: message };

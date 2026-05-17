@@ -147,5 +147,21 @@ describe("StockCreateModal", () => {
     expect(errorBox).toHaveTextContent('El producto "Producto 1" ya tiene stock definido para "Taller Centro"');
     expect(toastSuccess).not.toHaveBeenCalled();
   });
+
+  it("muestra un link al producto cuando el error de stock existente es 409", async () => {
+    const conflictError = new Error('El producto "Producto 1" ya tiene stock definido.');
+    (conflictError as Error & { status?: number }).status = 409;
+    mockUpsertStock.mockRejectedValueOnce(conflictError);
+
+    renderModal();
+
+    const productoInput = screen.getByTestId("stock-create-modal-producto-autocomplete");
+    await userEvent.click(productoInput);
+    await userEvent.click(screen.getByText("Producto 1"));
+    await userEvent.click(screen.getByTestId("modal-submit"));
+
+    const link = await screen.findByRole("link", { name: "Ver configuración del producto" });
+    expect(link).toHaveAttribute("href", "/productos/PROD-001");
+  });
 });
 
