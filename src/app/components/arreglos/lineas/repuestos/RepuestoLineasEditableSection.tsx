@@ -31,6 +31,7 @@ export type RepuestoLinea = {
   stock_id: string;
   cantidad: number;
   monto_unitario: number;
+  precioCompra?: number;
   tipo?: "existente" | "nuevo";
   producto?: { nombre?: string; codigo?: string | null } | null;
   nuevoProducto?: {

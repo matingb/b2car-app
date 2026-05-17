@@ -12,7 +12,7 @@ describe("useRepuestosDraft", () => {
     const { result } = renderHook(() => useRepuestosDraft());
 
     act(() => {
-      result.current.onUpsert({ stock_id: "STK-1", cantidad: 2, monto_unitario: 500 });
+      result.current.onUpsert({ stock_id: "STK-1", cantidad: 2, monto_unitario: 500, precio_compra: 300 });
     });
 
     expect(result.current.items).toEqual([
@@ -21,6 +21,7 @@ describe("useRepuestosDraft", () => {
         stock_id: "STK-1",
         cantidad: 2,
         monto_unitario: 500,
+        precioCompra: 300,
         producto: null,
       },
     ]);
@@ -37,7 +38,7 @@ describe("useRepuestosDraft", () => {
     expect(idBefore).toBe("rep-1");
 
     act(() => {
-      result.current.onUpsert({ stock_id: "STK-1", cantidad: 3, monto_unitario: 250 });
+      result.current.onUpsert({ stock_id: "STK-1", cantidad: 3, monto_unitario: 250, precio_compra: 120 });
     });
 
     expect(result.current.items).toHaveLength(1);
@@ -46,6 +47,7 @@ describe("useRepuestosDraft", () => {
       stock_id: "STK-1",
       cantidad: 3,
       monto_unitario: 250,
+      precioCompra: 120,
     });
   });
 
