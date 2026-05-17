@@ -12,6 +12,7 @@ import {
   Users,
   Wrench,
   ScrollText,
+  IdCard,
 } from "lucide-react";
 import { logOut } from "@/app/login/actions";
 import { useRouter } from "next/navigation";
@@ -25,6 +26,7 @@ export enum SidebarMenuKey {
   Stock = "stock",
   Productos = "productos",
   Operaciones = "operaciones",
+  Empleados = "empleados",
   Logout = "logout",
 }
 
@@ -124,6 +126,13 @@ export function useSidebarMenu() {
         label: "Operaciones",
         icon: <ScrollText size={18} />,
         onClick: () => router.push(ROUTES.operaciones),
+      },
+      {
+        key: SidebarMenuKey.Empleados,
+        href: ROUTES.empleados,
+        label: "Empleados",
+        icon: <IdCard size={18} />,
+        onClick: () => router.push(ROUTES.empleados),
       },
       {
         key: SidebarMenuKey.Logout,

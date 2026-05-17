@@ -118,6 +118,21 @@ export type OperacionAsignacionArregloDTO = {
     arreglo_id: string;
 };
 
+export type EmpleadoDTO = {
+    id: string;
+    taller_id: string;
+    nombre: string;
+    apellido: string;
+    dni: string;
+    email: string | null;
+    telefono: string | null;
+    cumpleanos: string | null;
+    salario: number | null;
+    fecha_ingreso: string | null;
+    created_at: string;
+    updated_at: string;
+};
+
 export type FormularioTemplateDTO = {
     id: string;
     tenant_id: string;

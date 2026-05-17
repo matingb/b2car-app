@@ -10,6 +10,7 @@ export const ROUTES = {
 	stock: "/stock",
 	productos: "/productos",
 	operaciones: "/operaciones",
+	empleados: "/empleados",
 } as const;
 
 export const API_ROUTES = {
