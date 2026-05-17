@@ -7,7 +7,7 @@ import { Arreglo, Vehiculo } from "@/model/types";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient";
-import { toDateInputFormat } from "@/lib/fechas";
+import { toDateInputFormat, toISODateLocal } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { assembleClientePhone, buildArregloWhatsappMessage } from "@/lib/whatsapp";
 import { useTenant } from "@/app/providers/TenantProvider";
@@ -28,6 +28,10 @@ type Props = {
   onClose: (updated?: boolean) => void;
   onSubmitSuccess?: (arreglo: Arreglo) => void;
 };
+
+export function getArregloModalFecha(initialFecha?: string): string {
+  return initialFecha ? toDateInputFormat(initialFecha) : toISODateLocal(new Date());
+}
 
 export default function ArregloModal({ open, onClose, vehiculoId, initial, onSubmitSuccess }: Props) {
   const { vehiculos, fetchAll: fetchVehiculos, fetchCliente } = useVehiculos();
@@ -50,7 +54,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const isEdit = !!initial?.id;
   const [tipo, setTipo] = useState(initial?.tipo ?? "");
   const [estado, setEstado] = useState<EstadoArreglo>(initial?.estado ?? "SIN_INICIAR");
-  const [fecha, setFecha] = useState(toDateInputFormat(initial?.fecha));
+  const [fecha, setFecha] = useState(getArregloModalFecha(initial?.fecha));
   const [km, setKm] = useState<string>(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
   const [observaciones, setObservaciones] = useState(initial?.observaciones ?? "");
   const [estaPago, setEstaPago] = useState<boolean>(!!initial?.esta_pago);
@@ -85,7 +89,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     if (!open) return;
     setTipo(initial?.tipo ?? "");
     setEstado(initial?.estado ?? "SIN_INICIAR");
-    setFecha(toDateInputFormat(initial?.fecha));
+    setFecha(getArregloModalFecha(initial?.fecha));
     setKm(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
     setObservaciones(initial?.observaciones ?? "");
     setEstaPago(!!initial?.esta_pago);
@@ -235,7 +239,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       if (!isEdit) {
         setTipo("");
         setEstado("SIN_INICIAR");
-        setFecha("");
+        setFecha(getArregloModalFecha());
         setKm("");
         setObservaciones("");
         setEstaPago(false);

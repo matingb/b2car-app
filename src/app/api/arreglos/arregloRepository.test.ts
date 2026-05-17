@@ -20,12 +20,17 @@ function createQueryChain(resolvedValue: { data: unknown; error: unknown }) {
 }
 
 function makeSupabase(tableData: Record<string, { data: unknown; error: unknown }>) {
-  return {
+  const chains: Record<string, ReturnType<typeof createQueryChain>> = {};
+  const supabase = {
     from: vi.fn().mockImplementation((table: string) =>
-      createQueryChain(tableData[table] ?? { data: [], error: null }),
+      (chains[table] = createQueryChain(tableData[table] ?? { data: [], error: null })),
     ),
     rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
-  } as unknown as SupabaseClient;
+    __chains: chains,
+  };
+  return supabase as unknown as SupabaseClient & {
+    __chains: Record<string, ReturnType<typeof createQueryChain>>;
+  };
 }
 
 const pgError = (code = "XXXXX"): PostgrestError => ({
@@ -58,6 +63,43 @@ describe("supabaseArregloRepository", () => {
       const result = await supabaseArregloRepository.getArreglo(supabase, {
         limit: 10,
         patente: "XYZ999",
+      });
+
+      expect(result.data).toBeNull();
+      expect(result.error).toBe(ServiceError.Unknown);
+    });
+  });
+
+  describe("getArreglo - busqueda por dueno", () => {
+    it("incluye vehiculos encontrados por nombre_cliente en la busqueda global", async () => {
+      const supabase = makeSupabase({
+        vista_vehiculos_con_clientes: { data: [{ id: "v1" }], error: null },
+        arreglos: { data: [{ id: "a1", vehiculo_id: "v1" }], error: null },
+      });
+
+      const result = await supabaseArregloRepository.getArreglo(supabase, {
+        limit: 10,
+        search: "Juan",
+      });
+
+      expect(result.error).toBeNull();
+      expect(supabase.from).toHaveBeenCalledWith("vista_vehiculos_con_clientes");
+      expect(supabase.__chains.vista_vehiculos_con_clientes.or).toHaveBeenCalledWith(
+        "nombre_cliente.ilike.%Juan%,patente.ilike.%Juan%"
+      );
+      expect(supabase.__chains.arreglos.or).toHaveBeenCalledWith(
+        "descripcion.ilike.%Juan%,tipo.ilike.%Juan%,observaciones.ilike.%Juan%,vehiculo_id.in.(v1)"
+      );
+    });
+
+    it("si la busqueda de vehiculos falla, retorna el error propagado", async () => {
+      const supabase = makeSupabase({
+        vista_vehiculos_con_clientes: { data: null, error: pgError() },
+      });
+
+      const result = await supabaseArregloRepository.getArreglo(supabase, {
+        limit: 10,
+        search: "Juan",
       });
 
       expect(result.data).toBeNull();

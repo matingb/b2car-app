@@ -73,6 +73,20 @@ async function listVehiculoIdsByPatente(supabase: SupabaseClient, patenteRaw?: s
   return { ids, error: null };
 }
 
+async function listVehiculoIdsBySearch(supabase: SupabaseClient, searchRaw?: string) {
+  const search = String(searchRaw ?? "").trim();
+  if (!search) return { ids: [] as string[], error: null as ReturnType<typeof toServiceError> | null };
+
+  const { data, error } = await supabase
+    .from("vista_vehiculos_con_clientes")
+    .select("id")
+    .or(`nombre_cliente.ilike.%${search}%,patente.ilike.%${search}%`);
+
+  if (error) return { ids: [], error: toServiceError(error) };
+  const ids = (data ?? []).map((row) => String((row as { id?: unknown }).id ?? "")).filter(Boolean);
+  return { ids, error: null };
+}
+
 export const supabaseArregloRepository: ArregloRepository = {
   async getArreglo(supabase, filters) {
     const limit = normalizePaginationLimit(filters.limit);
@@ -94,10 +108,22 @@ export const supabaseArregloRepository: ArregloRepository = {
     if (safeTipo) query = query.ilike("tipo", `%${safeTipo}%`);
     if (safeEstado) query = query.eq("estado", safeEstado);
 
+    const { ids: vehiculoIdsBySearch, error: searchVehiculoError } = await listVehiculoIdsBySearch(
+      supabase,
+      safeSearch
+    );
+    if (searchVehiculoError) return { data: null, error: searchVehiculoError };
+
     if (safeSearch) {
-      query = query.or(
-        `descripcion.ilike.%${safeSearch}%,tipo.ilike.%${safeSearch}%,observaciones.ilike.%${safeSearch}%`
-      );
+      const searchConditions = [
+        `descripcion.ilike.%${safeSearch}%`,
+        `tipo.ilike.%${safeSearch}%`,
+        `observaciones.ilike.%${safeSearch}%`,
+      ];
+      if (vehiculoIdsBySearch.length > 0) {
+        searchConditions.push(`vehiculo_id.in.(${vehiculoIdsBySearch.join(",")})`);
+      }
+      query = query.or(searchConditions.join(","));
     }
 
     const { ids: vehiculoIdsByPatente, error: patenteError } = await listVehiculoIdsByPatente(

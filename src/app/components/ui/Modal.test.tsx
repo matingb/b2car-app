@@ -61,4 +61,65 @@ describe("Modal", () => {
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
+
+  it("cierra cuando se hace click afuera del contenido", async () => {
+    const onClose = vi.fn();
+
+    render(
+      <Modal
+        open
+        title="Mi Modal"
+        submitText="Guardar"
+        onClose={onClose}
+        onSubmit={vi.fn()}
+      >
+        <div>Contenido</div>
+      </Modal>
+    );
+
+    await userEvent.click(screen.getByTestId("modal-overlay"));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("no cierra cuando se hace click dentro del contenido", async () => {
+    const onClose = vi.fn();
+
+    render(
+      <Modal
+        open
+        title="Mi Modal"
+        submitText="Guardar"
+        onClose={onClose}
+        onSubmit={vi.fn()}
+      >
+        <button type="button">Accion interna</button>
+      </Modal>
+    );
+
+    await userEvent.click(screen.getByText("Accion interna"));
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("no cierra con click afuera mientras esta guardando", async () => {
+    const onClose = vi.fn();
+
+    render(
+      <Modal
+        open
+        title="Mi Modal"
+        submitText="Guardar"
+        onClose={onClose}
+        onSubmit={vi.fn()}
+        submitting
+      >
+        <div>Contenido</div>
+      </Modal>
+    );
+
+    await userEvent.click(screen.getByTestId("modal-overlay"));
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

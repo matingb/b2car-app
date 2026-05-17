@@ -37,8 +37,10 @@ function matchesSearch(arreglo: Arreglo, query: string) {
     String(v ?? "").toLowerCase().includes(query)
   );
   const patente = String(arreglo?.vehiculo?.patente ?? "").toLowerCase();
+  const nombreCliente = String(arreglo?.vehiculo?.nombre_cliente ?? "").toLowerCase();
   const inPatente = patente.includes(query);
-  return inFlat || inPatente;
+  const inNombreCliente = nombreCliente.includes(query);
+  return inFlat || inPatente || inNombreCliente;
 }
 
 function matchesPatenteFilter(arreglo: Arreglo, patenteFilter: string) {

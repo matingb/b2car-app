@@ -39,6 +39,15 @@ describe("filterArreglos", () => {
     expect(result.map((a) => a.id)).toEqual([2]);
   });
 
+  it("filtra por busqueda coincidiendo con el nombre del dueno del vehiculo", () => {
+    const arreglos = [
+      createArreglo({ id: 1, vehiculo: createVehiculo({ nombre_cliente: "Ana Torres" }) }),
+      createArreglo({ id: 2, vehiculo: createVehiculo({ nombre_cliente: "Juan Perez" }) }),
+    ];
+    const result = filterArreglos(arreglos, { search: "  juan  ", filters: emptyFilters });
+    expect(result.map((a) => a.id)).toEqual([2]);
+  });
+
   it("filtra por filtro de patente", () => {
     const arreglos = [
       createArreglo({ id: 1, vehiculo: createVehiculo({ patente: "ABC123" }) }),

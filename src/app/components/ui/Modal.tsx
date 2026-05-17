@@ -39,6 +39,13 @@ export default function Modal({
     await onSubmit(e);
   };
 
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (submitting) return;
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   useEffect(() => {
     if (!open) {
       restoreScrollRef.current?.();
@@ -96,6 +103,7 @@ export default function Modal({
       aria-modal="true"
       aria-labelledby={titleId}
       data-testid="modal-overlay"
+      onClick={handleOverlayClick}
     >
       <Card style={{ ...styles.modal, ...modalStyle }}>
           <div style={styles.headerRow}>
