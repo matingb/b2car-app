@@ -113,6 +113,7 @@ export default function Modal({
           </div>
 
           <form onSubmit={handleFormSubmit}>
+            {children}
             {modalError ? (
               <div style={styles.errorBox} role="alert" aria-live="polite" data-testid="modal-error">
                 <div style={styles.errorTitle}>{modalError.titulo}</div>
@@ -121,9 +122,6 @@ export default function Modal({
                 ) : null}
               </div>
             ) : null}
-
-            {children}
-
             <div style={styles.footer}>
               <button
                 type="button"
