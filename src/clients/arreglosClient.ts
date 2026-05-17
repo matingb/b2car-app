@@ -24,7 +24,7 @@ export type CreateArregloInput = {
 
   // opcional: creación completa (servicios + repuestos) en 1 POST
   detalles?: Array<{ descripcion: string; cantidad: number; valor: number }>;
-  repuestos?: Array<{ stock_id: string; cantidad: number; monto_unitario: number }>;
+  repuestos?: Array<{ stock_id: string; cantidad: number; monto_unitario: number; precio_compra?: number | null }>;
   repuestos_nuevos?: CreateArregloRepuestoNuevoInput[];
   detalle_formulario?: CreateArregloDetalleFormularioInput;
 };

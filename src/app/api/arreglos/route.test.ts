@@ -171,6 +171,41 @@ describe("POST /api/arreglos", () => {
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
   });
 
+  it("propaga precio_compra de repuestos existentes al RPC de creacion completa", async () => {
+    const req = new Request("http://localhost/api/arreglos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        createCreateArregloRequest({
+          repuestos: [
+            {
+              stock_id: "s1",
+              cantidad: 5,
+              monto_unitario: 1500,
+              precio_compra: 900,
+            },
+          ],
+        })
+      ),
+    });
+
+    await POST(req);
+
+    expect(rpc).toHaveBeenCalledWith(
+      "rpc_crear_arreglo_completo",
+      expect.objectContaining({
+        p_repuestos: [
+          {
+            stock_id: "s1",
+            cantidad: 5,
+            monto_unitario: 1500,
+            precio_compra: 900,
+          },
+        ],
+      })
+    );
+  });
+
   it("permite creacion en TERMINADO sin detalle/config", async () => {
     const req = new Request("http://localhost/api/arreglos", {
       method: "POST",

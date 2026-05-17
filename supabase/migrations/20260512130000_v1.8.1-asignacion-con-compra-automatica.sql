@@ -89,3 +89,40 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_asignar_repuesto_existente_con_compra(uuid, uuid, uuid, int, numeric, numeric) TO authenticated;
+
+-- v1.8.4 - Usa compra automatica de faltante tambien al crear un arreglo completo.
+-- El modal de creacion envia precio_compra en p_repuestos cuando el stock existente
+-- no alcanza. Esta helper delega en el mismo RPC atomico usado por el detalle.
+
+CREATE OR REPLACE FUNCTION public._asignar_repuestos_existentes_a_arreglo(
+  p_arreglo_id uuid,
+  p_taller_id uuid,
+  p_repuestos jsonb
+)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+DECLARE
+  v_item jsonb;
+BEGIN
+  IF p_repuestos IS NULL OR jsonb_array_length(p_repuestos) = 0 THEN
+    RETURN;
+  END IF;
+
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_repuestos)
+  LOOP
+    PERFORM public.rpc_asignar_repuesto_existente_con_compra(
+      p_arreglo_id := p_arreglo_id,
+      p_taller_id := p_taller_id,
+      p_stock_id := (v_item ->> 'stock_id')::uuid,
+      p_cantidad := (v_item ->> 'cantidad')::int,
+      p_monto_unitario := (v_item ->> 'monto_unitario')::numeric,
+      p_precio_compra := NULLIF(v_item ->> 'precio_compra', '')::numeric
+    );
+  END LOOP;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public._asignar_repuestos_existentes_a_arreglo(uuid, uuid, jsonb) TO authenticated;
+

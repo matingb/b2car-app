@@ -212,6 +212,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
               stock_id: String(r.stock_id ?? "").trim(),
               cantidad: Number(r.cantidad) || 0,
               monto_unitario: Number(r.monto_unitario) || 0,
+              precio_compra: r.precioCompra,
             })),
           repuestos_nuevos: internal.repuestosDraft
             .filter((r) => r.tipo === "nuevo" && r.nuevoProducto)

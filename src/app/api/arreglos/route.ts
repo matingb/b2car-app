@@ -189,6 +189,10 @@ export async function POST(req: Request) {
         stock_id: String((r as { stock_id?: unknown }).stock_id ?? "").trim(),
         cantidad: Number((r as { cantidad?: unknown }).cantidad),
         monto_unitario: Number((r as { monto_unitario?: unknown }).monto_unitario),
+        precio_compra:
+            (r as { precio_compra?: unknown }).precio_compra == null
+                ? null
+                : Number((r as { precio_compra?: unknown }).precio_compra),
     }));
 
     const normalizedRepuestosNuevos = repuestosNuevosArr.map((r) => ({
@@ -203,6 +207,9 @@ export async function POST(req: Request) {
         if (!r.stock_id) return Response.json({ error: "Falta stock_id en repuestos" }, { status: 400 });
         if (!Number.isFinite(r.cantidad) || r.cantidad <= 0) return Response.json({ error: "Cantidad invalida en repuestos" }, { status: 400 });
         if (!Number.isFinite(r.monto_unitario) || r.monto_unitario < 0) return Response.json({ error: "Monto unitario invalido en repuestos" }, { status: 400 });
+        if (r.precio_compra != null && (!Number.isFinite(r.precio_compra) || r.precio_compra < 0)) {
+            return Response.json({ error: "Precio de compra invalido en repuestos" }, { status: 400 });
+        }
     }
 
     const stockIdSet = new Set<string>();

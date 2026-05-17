@@ -57,6 +57,7 @@ export function useRepuestosDraft() {
             ...next[idx],
             cantidad: input.cantidad,
             monto_unitario: input.monto_unitario,
+            precioCompra: input.precio_compra,
           };
           return next;
         }
@@ -67,6 +68,7 @@ export function useRepuestosDraft() {
             stock_id: input.stock_id,
             cantidad: input.cantidad,
             monto_unitario: input.monto_unitario,
+            precioCompra: input.precio_compra,
             producto: null,
           },
         ];
