@@ -16,7 +16,7 @@ type Props = {
   submitting?: boolean;
   disabledSubmit?: boolean;
   modalStyle?: React.CSSProperties;
-  modalError?: { titulo: string; descripcion?: string } | null;
+  modalError?: { titulo: string; descripcion?: React.ReactNode } | null;
 };
 
 export default function Modal({
@@ -192,13 +192,16 @@ const styles = {
     borderRadius: 8,
     padding: "12px 14px",
     marginBottom: 10,
+    marginTop: 10,
     color: COLOR.ICON.DANGER,
   },
   errorTitle: {
+    fontSize: 14,
     fontWeight: 600,
     marginBottom: 6,
   },
   errorText: {
+    fontSize: 13,
     whiteSpace: "pre-wrap" as const,
     wordBreak: "break-word" as const,
   },

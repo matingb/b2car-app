@@ -295,7 +295,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         overflow: "auto",
       }}
     >
-      <div style={{ padding: "4px 0 12px" }}>
+      <div>
         <ArregloFormFields
           vehiculoId={vehiculoId}
           vehiculoOptions={vehiculoOptions}

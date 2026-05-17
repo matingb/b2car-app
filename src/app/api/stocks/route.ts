@@ -111,9 +111,11 @@ export async function POST(req: Request) {
         includeTallerText = Array.isArray(talleresRes.data) && talleresRes.data.length > 1;
       }
 
-      const message = includeTallerText
+      let message = includeTallerText
         ? `El producto "${productoNombre}" ya tiene stock definido para el taller seleccionado.`
         : `El producto "${productoNombre}" ya tiene stock definido.`;
+      message +=
+        " Revise si el producto ya figura en el inventario o si tiene deshabilitada la opción para mostrarse allí.";
       return Response.json({ data: null, error: message } satisfies UpsertStockResponse, { status: 409 });
     }
 

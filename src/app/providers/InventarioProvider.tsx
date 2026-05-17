@@ -166,7 +166,9 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
         });
         logger.debug("Upsert stock response:", res);
         if (!res.data) {
-          throw new Error(res.error || "No se pudo guardar el stock");
+          const error = new Error(res.error || "No se pudo guardar el stock");
+          (error as Error & { status?: number }).status = res.status;
+          throw error;
         }
         await loadInventarioByTaller(input.tallerId);
         return mapStockItemDtoToUi(res.data as StockItemDTO);

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import Modal from "@/app/components/ui/Modal";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import { useProductos } from "@/app/providers/ProductosProvider";
@@ -27,6 +28,7 @@ export default function StockCreateModal({
   const toast = useToast();
 
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitErrorProductId, setSubmitErrorProductId] = useState<string | null>(null);
 
   const [valuesStock, setValuesStock] = useState<StockFormFieldsValues>({
     productId: "",
@@ -62,6 +64,7 @@ export default function StockCreateModal({
       stockMaximo: 0,
     });
     setSubmitError(null);
+    setSubmitErrorProductId(null);
   }, [open]);
 
   const [isValidStock, setIsValidStock] = useState(false);
@@ -73,6 +76,8 @@ export default function StockCreateModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
+    setSubmitErrorProductId(null);
+    let submittedProductId = valuesStock.productId;
 
     const stockActualN = valuesStock.stockActual === 0 ? undefined : valuesStock.stockActual;
     const stockMinimoN = valuesStock.stockMinimo === 0 ? undefined : valuesStock.stockMinimo;
@@ -104,6 +109,7 @@ export default function StockCreateModal({
 
         productId = producto.id;
       }
+      submittedProductId = productId;
 
       const createdStock = await upsertStock({
         productoId: productId,
@@ -125,6 +131,10 @@ export default function StockCreateModal({
       onCreated?.(createdStock.id);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "No se pudo crear el stock";
+      const status = err instanceof Error ? (err as Error & { status?: number }).status : undefined;
+      if (status === 409 && submittedProductId.trim()) {
+        setSubmitErrorProductId(submittedProductId.trim());
+      }
       setSubmitError(message);
     }
   };
@@ -138,7 +148,22 @@ export default function StockCreateModal({
       submitText="Crear"
       submitting={loadingStock || loadingProductos}
       disabledSubmit={!canSubmit}
-      modalError={submitError ? { titulo: "Se produjo un error al crear.", descripcion: submitError } : null}
+      modalError={
+        submitError
+          ? {
+              titulo: "Se produjo un error al crear.",
+              descripcion: 
+                <>
+                {submitError}{" "}
+                {submitErrorProductId && (
+                <Link href={`/productos/${submitErrorProductId}`} style={styles.errorLink}>
+                  Ver configuración del producto
+                </Link>
+                )}
+                </>
+            }
+          : null
+      }
       modalStyle={{ overflowY: "auto" }}
     >
       <StockFormFields
@@ -152,4 +177,10 @@ export default function StockCreateModal({
     </Modal>
   );
 }
+
+const styles = {
+  errorLink: {
+    textDecoration: "underline",
+  },
+} as const;
 
