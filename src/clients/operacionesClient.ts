@@ -10,6 +10,7 @@ export type CreateOperacionLineaInput = {
 export type CreateOperacionInput = {
 	tipo: TipoOperacion;
 	taller_id: string;
+	fecha?: string;
 	created_at?: string;
 	lineas?: CreateOperacionLineaInput[];
 	arreglo_id?: string | null;

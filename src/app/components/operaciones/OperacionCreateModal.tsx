@@ -16,6 +16,7 @@ import OperacionLineaEditor, {
 import { formatArs } from "@/lib/format";
 import Button from "../ui/Button";
 import { useInventario } from "@/app/providers/InventarioProvider";
+import { isValidDate, toISODateLocal } from "@/lib/fechas";
 
 type TallerLite = { id: string; nombre: string };
 
@@ -86,6 +87,7 @@ export default function OperacionCreateModal({
 
   const [tipo, setTipo] = useState<TipoOperacion | null>("VENTA");
   const [tallerId, setTallerId] = useState<string>("");
+  const [fecha, setFecha] = useState<string>(() => toISODateLocal(new Date()));
   const [lineas, setLineas] = useState<LineaDraft[]>([createEmptyLinea()]);
   const { inventario, isLoading: isInventarioLoading } = useInventario(tallerId || undefined);
   const didInitRef = React.useRef(false);
@@ -113,6 +115,7 @@ export default function OperacionCreateModal({
     didInitRef.current = true;
 
     setTipo("VENTA");
+    setFecha(toISODateLocal(new Date()));
     setLineas([createEmptyLinea()]);
     setTallerId(talleres.length === 1 ? talleres[0].id : "");
   }, [open, talleres]);
@@ -170,6 +173,7 @@ export default function OperacionCreateModal({
     if (!open) return false;
     if (!tipo || !isTipoEnabled(tipo)) return false;
     if (!tallerId) return false;
+    if (!isValidDate(fecha)) return false;
     if (lineas.length === 0) return false;
     return lineas.every(
       (l) =>
@@ -177,7 +181,7 @@ export default function OperacionCreateModal({
         Number(l.cantidad) > 0 &&
         Number.isFinite(l.unitario),
     );
-  }, [open, tipo, isTipoEnabled, tallerId, lineas]);
+  }, [open, tipo, isTipoEnabled, tallerId, fecha, lineas]);
 
   const setLineaAt = (idx: number, nextLinea: LineaDraft) => {
     setLineas((prev) => prev.map((l, i) => (i === idx ? nextLinea : l)));
@@ -195,6 +199,7 @@ export default function OperacionCreateModal({
       const payload = {
         tipo,
         taller_id: tallerId,
+        fecha,
         lineas: lineas.map((l) => {
           const cantidad = Number(l.cantidad) || 0;
           const unitario = Number(l.unitario) || 0;
@@ -253,6 +258,17 @@ export default function OperacionCreateModal({
               />
             </div>
           ) : null}
+
+          <div style={styles.headerLeft}>
+            <label style={styles.label}>Fecha</label>
+            <input
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              data-testid="operaciones-create-fecha"
+              style={styles.dateInput}
+            />
+          </div>
 
           <div style={styles.headerRight}>
             <label style={styles.label}>Tipo de operación</label>
@@ -385,6 +401,16 @@ const styles = {
     color: COLOR.TEXT.SECONDARY,
     marginBottom: 6,
   },
+  dateInput: {
+    height: 44,
+    width: "100%",
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 10,
+    padding: "0 12px",
+    fontSize: 14,
+    color: COLOR.TEXT.PRIMARY,
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
+  } as const,
   tipoRow: css({
     display: "flex",
     alignItems: "stretch",

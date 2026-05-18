@@ -138,6 +138,7 @@ export interface Operacion {
   id: UUID;
   tipo: TipoOperacion;
   taller_id: UUID;
+  fecha: string;
   created_at: string;
   lineas: OperacionLinea[];
 }
