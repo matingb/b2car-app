@@ -42,6 +42,7 @@ function mapOperacion(row: OperacionRow): Operacion {
 		id: row.id,
 		tipo: row.tipo,
 		taller_id: row.taller_id,
+		fecha: row.fecha,
 		created_at: row.created_at,
 		lineas: lineas.map(mapLinea),
 	};

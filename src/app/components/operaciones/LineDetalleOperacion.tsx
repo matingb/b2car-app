@@ -10,6 +10,7 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import type { Operacion } from "@/model/types";
 import type { StockItem } from "@/model/stock";
 import { formatArs } from "@/lib/format";
+import { toDateInputFormat } from "@/lib/fechas";
 
 type Props = {
   operacion: Operacion;
@@ -38,24 +39,6 @@ function getTotals(operacion: Operacion) {
   return { totalLineas, totalMonto };
 }
 
-function formatDateTime24h(dateString: string): string {
-  if (!dateString) return "";
-  const normalized = dateString.replace(" ", "T");
-  const d = new Date(normalized);
-  if (Number.isNaN(d.getTime())) {
-    return dateString.slice(0, 16).replace("T", " ");
-  }
-  return new Intl.DateTimeFormat("es-AR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "UTC",
-  }).format(d);
-}
-
 export default function LineDetalleOperacion({
   operacion,
   tipoLabel,
@@ -80,7 +63,7 @@ export default function LineDetalleOperacion({
             </div>
             <div css={styles.title}>{tipoLabel}</div>
           </div>
-          <div css={styles.date}>{formatDateTime24h(operacion.created_at)}</div>
+          <div css={styles.date}>{toDateInputFormat(operacion.fecha)}</div>
         </div>
 
         <div css={[styles.metaRow, !expanded && styles.metaRowCollapsed]}>

@@ -28,6 +28,7 @@ export type CreateOperacionLineaInput = {
 export type CreateOperacionInput = {
 	tipo: string;
 	taller_id: string;
+	fecha?: string;
 	created_at?: string;
 	lineas?: CreateOperacionLineaInput[];
 	arreglo_id?: string | null;
@@ -43,6 +44,7 @@ export type UpdateOperacionLineaInput = {
 export type UpdateOperacionInput = {
 	tipo?: string;
 	taller_id?: string;
+	fecha?: string;
 	created_at?: string;
 	lineas?: UpdateOperacionLineaInput[];
 };
@@ -85,13 +87,14 @@ export const operacionesService = {
 		let query = supabase
 			.from("operaciones")
 			.select("*, operaciones_lineas(*)")
+			.order("fecha", { ascending: false })
 			.order("created_at", { ascending: false });
 
 		if (filters.fecha) {
-			query = query.gte("created_at", toDayStart(filters.fecha)).lte("created_at", toDayEnd(filters.fecha));
+			query = query.gte("fecha", toDayStart(filters.fecha)).lte("fecha", toDayEnd(filters.fecha));
 		}
-		if (filters.from) query = query.gte("created_at", toDayStart(filters.from));
-		if (filters.to) query = query.lte("created_at", toDayEnd(filters.to));
+		if (filters.from) query = query.gte("fecha", toDayStart(filters.from));
+		if (filters.to) query = query.lte("fecha", toDayEnd(filters.to));
 		if (filters.tipo && filters.tipo.length > 0) query = query.in("tipo", filters.tipo);
 
 		const { data, error } = await query;
@@ -133,6 +136,7 @@ export const operacionesService = {
 			p_taller_id: input.taller_id,
 			p_lineas: lineasPayload,
 			p_arreglo_id: input.arreglo_id ?? null,
+			p_fecha: input.fecha ?? null,
 		});
 
 		logger.error("RPC crear_operacion_con_stock - operacionId:", operacionId, "rpcError:", rpcError);
@@ -154,6 +158,7 @@ export const operacionesService = {
 		const updatePayload: Record<string, string | undefined> = {};
 		if (input.tipo) updatePayload.tipo = input.tipo;
 		if (input.taller_id) updatePayload.taller_id = input.taller_id;
+		if (input.fecha) updatePayload.fecha = input.fecha;
 		if (input.created_at) updatePayload.created_at = input.created_at;
 
 		if (Object.keys(updatePayload).length > 0) {
@@ -206,10 +211,10 @@ export const operacionesService = {
 			.select("tipo, operaciones_lineas(cantidad, monto_unitario)");
 
 		if (filters.fecha) {
-			query = query.gte("created_at", toDayStart(filters.fecha)).lte("created_at", toDayEnd(filters.fecha));
+			query = query.gte("fecha", toDayStart(filters.fecha)).lte("fecha", toDayEnd(filters.fecha));
 		}
-		if (filters.from) query = query.gte("created_at", toDayStart(filters.from));
-		if (filters.to) query = query.lte("created_at", toDayEnd(filters.to));
+		if (filters.from) query = query.gte("fecha", toDayStart(filters.from));
+		if (filters.to) query = query.lte("fecha", toDayEnd(filters.to));
 		if (filters.tipo && filters.tipo.length > 0) query = query.in("tipo", filters.tipo);
 
 		const { data, error } = await query;
