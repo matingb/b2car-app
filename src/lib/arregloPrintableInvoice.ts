@@ -45,7 +45,7 @@ export function buildArregloPrintableInvoiceHtml({
 }: BuildInvoiceOptions): string {
   const arreglo = data.arreglo;
   const vehiculo = arreglo.vehiculo;
-  const normalizedTenant =  "Scariati taller" ; //String(tenantName ?? "").trim() || "Taller";
+  const normalizedTenant =  String(tenantName ?? "").trim() || "Taller";
   const serviceLines = buildServiceLines(data);
   const repuestoLines = buildRepuestoLines(data);
   const subtotalServicios = data.detalles.reduce(
