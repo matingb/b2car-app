@@ -45,7 +45,7 @@ export function buildArregloPrintableInvoiceHtml({
 }: BuildInvoiceOptions): string {
   const arreglo = data.arreglo;
   const vehiculo = arreglo.vehiculo;
-  const normalizedTenant = (tenantName ?? "").trim() || "Taller";
+  const normalizedTenant =  "Scariati taller" ; //String(tenantName ?? "").trim() || "Taller";
   const serviceLines = buildServiceLines(data);
   const repuestoLines = buildRepuestoLines(data);
   const subtotalServicios = data.detalles.reduce(
@@ -88,7 +88,7 @@ export function buildArregloPrintableInvoiceHtml({
     }
     .header {
       display: grid;
-      grid-template-columns: 150px 1fr 74px 92px;
+      grid-template-columns: 250px 1fr 74px 92px;
       align-items: stretch;
       border-bottom: 2px solid #222;
       min-height: 42px;
@@ -101,7 +101,7 @@ export function buildArregloPrintableInvoiceHtml({
       border-right: 2px solid #222;
     }
     .brand-name {
-      font-size: 28px;
+      font-size: 24px;
       font-weight: 800;
       letter-spacing: 0.5px;
     }
@@ -330,7 +330,7 @@ export function buildArregloPrintableInvoiceHtml({
           <div class="brand-name">${escapeHtml(normalizedTenant)}</div>
           <div class="brand-address">${escapeHtml(arreglo.taller?.ubicacion || "")}</div>
         </div>
-        <div class="doc-title">Detalle orden trabajo</div>
+        <div class="doc-title">Detalle de arreglo</div>
         <div class="number-label">N&deg;</div>
         <div class="number-value">${escapeHtml(invoiceNumber)}</div>
       </div>
