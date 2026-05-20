@@ -7,7 +7,7 @@ type DashboardStatsResponse = {
   error?: string | null;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient();
 
   const { data: auth } = await supabase.auth.getSession();
@@ -19,7 +19,11 @@ export async function GET() {
   }
 
   try {
-    const stats = await statsService.getStats(supabase);
+    const url = new URL(request.url);
+    const periodFrom = url.searchParams.get("from") ?? undefined;
+    const periodTo = url.searchParams.get("to") ?? undefined;
+    const tallerId = url.searchParams.get("tallerId") ?? undefined;
+    const stats = await statsService.getStats(supabase, periodFrom, periodTo, tallerId);
     return Response.json(
       { data: stats, error: null } satisfies DashboardStatsResponse,
       {

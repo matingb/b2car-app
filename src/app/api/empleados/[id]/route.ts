@@ -125,6 +125,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
     }
   }
+  if (body.salario_vigente_desde !== undefined && body.salario_vigente_desde !== null) {
+    if (!isValidIsoDate(body.salario_vigente_desde)) {
+      return Response.json(
+        { data: null, error: "salario_vigente_desde debe ser una fecha válida (YYYY-MM-DD)" } satisfies UpdateEmpleadoResponse,
+        { status: 400 }
+      );
+    }
+  }
   if (body.cumpleanos !== undefined && body.cumpleanos !== null && !isValidIsoDate(body.cumpleanos)) {
     return Response.json(
       { data: null, error: "cumpleanos debe ser una fecha válida (YYYY-MM-DD)" } satisfies UpdateEmpleadoResponse,
@@ -161,6 +169,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return Response.json(
         { data: null, error: "Error actualizando empleado" } satisfies UpdateEmpleadoResponse,
         { status: 500 }
+      );
+    }
+
+    if (body.salario_vigente_desde && body.salario !== undefined && body.salario !== null) {
+      const vigenteDesdeMes = `${body.salario_vigente_desde.slice(0, 7)}-01`;
+      await empleadosService.recordSalarioChange(
+        supabase,
+        updated.id,
+        updated.taller_id,
+        body.salario,
+        vigenteDesdeMes
       );
     }
 

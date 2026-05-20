@@ -16,6 +16,11 @@ type Props = {
   onSaved?: (empleado: Empleado) => void;
 };
 
+function currentMonthValue(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function buildInitialValues(empleado: Empleado): EmpleadoFormFieldsValues {
   return {
     tallerId: empleado.tallerId,
@@ -26,6 +31,7 @@ function buildInitialValues(empleado: Empleado): EmpleadoFormFieldsValues {
     telefono: empleado.telefono,
     cumpleanos: empleado.cumpleanos,
     salario: empleado.salario,
+    salarioVigenteDesde: currentMonthValue(),
     fechaIngreso: empleado.fechaIngreso,
   };
 }
@@ -51,6 +57,7 @@ export default function EmpleadoEditModal({ open, empleado, onClose, onSaved }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
+    const salarioChanged = values.salario !== empleado.salario;
     const { empleado: updated, error: updateError } = await updateEmpleado(empleado.id, {
       tallerId: values.tallerId,
       nombre: values.nombre,
@@ -60,6 +67,9 @@ export default function EmpleadoEditModal({ open, empleado, onClose, onSaved }: 
       telefono: values.telefono,
       cumpleanos: values.cumpleanos,
       salario: values.salario,
+      ...(salarioChanged && values.salarioVigenteDesde
+        ? { salarioVigenteDesde: `${values.salarioVigenteDesde}-01` }
+        : {}),
       fechaIngreso: values.fechaIngreso,
     });
 
@@ -94,6 +104,7 @@ export default function EmpleadoEditModal({ open, empleado, onClose, onSaved }: 
         values={values}
         onChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))}
         onValidityChange={(isValid) => setIsValid(isValid)}
+        showSalarioVigenteDesde
       />
     </Modal>
   );

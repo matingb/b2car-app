@@ -15,6 +15,7 @@ export type EmpleadoFormFieldsValues = {
   telefono: string;
   cumpleanos: string;
   salario: number | null;
+  salarioVigenteDesde?: string;
   fechaIngreso: string;
 };
 
@@ -23,6 +24,7 @@ type Props = {
   onChange: (patch: Partial<EmpleadoFormFieldsValues>) => void;
   talleres: Taller[];
   onValidityChange?: (isValid: boolean) => void;
+  showSalarioVigenteDesde?: boolean;
 };
 
 export function validateEmpleadoForm(values: EmpleadoFormFieldsValues): boolean {
@@ -40,6 +42,7 @@ export default function EmpleadoFormFields({
   onChange,
   talleres,
   onValidityChange,
+  showSalarioVigenteDesde = false,
 }: Props) {
   const isValid = useMemo(() => validateEmpleadoForm(values), [values]);
 
@@ -180,7 +183,19 @@ export default function EmpleadoFormFields({
             placeholder="0"
           />
         </div>
-        <div style={styles.field} />
+        <div style={styles.field}>
+          {showSalarioVigenteDesde && (
+            <>
+              <label style={styles.label}>Vigente desde</label>
+              <input
+                type="month"
+                style={styles.input}
+                value={values.salarioVigenteDesde ?? ""}
+                onChange={(e) => onChange({ salarioVigenteDesde: e.target.value })}
+              />
+            </>
+          )}
+        </div>
       </div>
     </>
   );

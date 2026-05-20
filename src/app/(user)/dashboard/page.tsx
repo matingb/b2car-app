@@ -1,106 +1,175 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
-import Card from "@/app/components/ui/Card";
 import { useDashboard } from "@/app/providers/DashboardProvider";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { css } from "@emotion/react";
+import { CircleDollarSign, Scale, TrendingDown, Wrench } from "lucide-react";
+import DashboardMetricCard from "@/app/components/dashboard/DashboardMetricCard";
+import DashboardExpandablePanel from "@/app/components/dashboard/DashboardExpandablePanel";
+import PeriodSelector, { buildPeriodOptions, type PeriodOption } from "@/app/components/dashboard/PeriodSelector";
+import GraficoArreglosPorDia from "@/app/components/graficos/GraficoArreglosPorDia";
+import GraficoIngresosPorMes from "@/app/components/graficos/GraficoIngresosPorMes";
+import GraficoGastosPorMes from "@/app/components/graficos/GraficoGastosPorMes";
+import GraficoBalancePorMes from "@/app/components/graficos/GraficoBalancePorMes";
 import CantidadTiposArreglos from "@/app/components/graficos/CantidadTiposArreglos";
 import EstadoCobroArreglos from "@/app/components/graficos/EstadoCobroArreglos";
-import CardDato from "@/app/components/graficos/CardDato";
-import GraficoArea from "@/app/components/graficos/CantidadNuevosClientes";
 import RecentActivityCard from "@/app/components/dashboard/RecentActivityCard";
-import { Car, CircleDollarSign, Users, Wrench } from "lucide-react";
-import { ROUTES } from "@/routing/routes";
-import { useRouter } from "next/navigation";
-import { css } from "@emotion/react";
+import Card from "@/app/components/ui/Card";
+
+type ActiveCard = "arreglos" | "facturacion" | "gastos" | "balance";
+
+function periodMonths(period: PeriodOption): number {
+    const from = new Date(period.from);
+    const to = new Date(period.to);
+    return (to.getUTCFullYear() - from.getUTCFullYear()) * 12
+        + (to.getUTCMonth() - from.getUTCMonth());
+}
+
+function granularityLabel(period: PeriodOption): string {
+    const months = periodMonths(period);
+    if (months <= 1) return "por día";
+    if (months <= 3) return "por semana";
+    return "por mes";
+}
+
+function buildPanelLabels(period: PeriodOption): Record<ActiveCard, string> {
+    const gran = granularityLabel(period);
+    return {
+        arreglos: `Arreglos realizados · ${gran}`,
+        facturacion: `Facturación · ${gran} (mano de obra · repuestos · ventas)`,
+        gastos: `Gastos · ${gran} (repuestos · sueldos)`,
+        balance: `Balance · facturación vs gastos · ${gran}`,
+    };
+}
+
+function defaultPeriod(): PeriodOption {
+    const options = buildPeriodOptions(6);
+    return options[0];
+}
 
 export default function DashboardPage() {
-    const router = useRouter();
-    const { stats, loading, error } = useDashboard();
+    const { stats, loading, error, fetchStats } = useDashboard();
+    const [activeCard, setActiveCard] = useState<ActiveCard>("facturacion");
+    const [period, setPeriod] = useState<PeriodOption>(defaultPeriod);
+
+    const handlePeriodChange = useCallback(
+        (newPeriod: PeriodOption) => {
+            setPeriod(newPeriod);
+            fetchStats({ from: newPeriod.from, to: newPeriod.to });
+        },
+        [fetchStats]
+    );
+
+    // Fetch with selected period on mount
+    useEffect(() => {
+        fetchStats({ from: period.from, to: period.to });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const panelLabels = buildPanelLabels(period);
+
+    const balanceValue = stats?.totals?.balance ?? undefined;
+    const balanceColor =
+        balanceValue === undefined
+            ? COLOR.ACCENT.PRIMARY
+            : balanceValue >= 0
+            ? COLOR.SEMANTIC.SUCCESS
+            : COLOR.SEMANTIC.DANGER;
 
     return (
         <div>
-            <ScreenHeader title="Dashboard" />
+            <div css={styles.headerRow}>
+                <ScreenHeader title="Dashboard" />
+                <PeriodSelector value={period} onChange={handlePeriodChange} />
+            </div>
 
-            <div css={styles.cardDatosContainer}>
-                <CardDato
-                    titleText="Clientes"
-                    value={stats?.totals?.clientes}
-                    icon={<Users size={22} color={COLOR.ACCENT.PRIMARY} />}
-                    onClick={() => router.push(ROUTES.clientes)}
+            {/* 4 cards de métricas de negocio */}
+            <div css={styles.cardGrid}>
+                <DashboardMetricCard
+                    titleText="Arreglos realizados"
+                    value={stats?.totals?.arreglosEsteMes}
+                    icon={<Wrench size={20} color={COLOR.ACCENT.PRIMARY} />}
+                    isActive={activeCard === "arreglos"}
+                    onClick={() => setActiveCard("arreglos")}
                 />
-                <CardDato
-                    titleText="Vehiculos"
-                    value={stats?.totals?.vehiculos}
-                    icon={<Car size={22} color={COLOR.ACCENT.PRIMARY} />}
-                    onClick={() => router.push(ROUTES.vehiculos)}
-                />
-                <CardDato
-                    titleText="Arreglos"
-                    value={stats?.totals?.arreglos}
-                    icon={<Wrench size={22} color={COLOR.ACCENT.PRIMARY} />}
-                    onClick={() => router.push(ROUTES.arreglos)}
-                />
-                <CardDato
-                    titleText="Ingresos Mensuales"
+                <DashboardMetricCard
+                    titleText="Facturación"
                     value={stats?.totals?.montoIngresos}
                     prefix="$"
-                    icon={<CircleDollarSign size={22} color={COLOR.ACCENT.PRIMARY} />}
+                    icon={<CircleDollarSign size={20} color={COLOR.ACCENT.PRIMARY} />}
+                    isActive={activeCard === "facturacion"}
+                    onClick={() => setActiveCard("facturacion")}
+                />
+                <DashboardMetricCard
+                    titleText="Gastos"
+                    value={stats?.totals?.gastos}
+                    prefix="$"
+                    icon={<TrendingDown size={20} color={COLOR.SEMANTIC.DANGER} />}
+                    isActive={activeCard === "gastos"}
+                    onClick={() => setActiveCard("gastos")}
+                    valueColor={COLOR.SEMANTIC.DANGER}
+                />
+                <DashboardMetricCard
+                    titleText="Balance"
+                    value={balanceValue}
+                    prefix="$"
+                    icon={<Scale size={20} color={balanceColor} />}
+                    isActive={activeCard === "balance"}
+                    onClick={() => setActiveCard("balance")}
+                    valueColor={balanceColor}
                 />
             </div>
 
-            <div css={styles.mainPanel}>
-                <div style={{ width: "100%" }}>
-                    <h3 css={styles.title}>Clientes | Nuevos este mes</h3>
-                    <Card style={{padding: '16px 4px'}}>
+            {/* Panel expandible según la card seleccionada */}
+            <div style={{ marginTop: 12 }}>
+                {(["arreglos", "facturacion", "gastos", "balance"] as ActiveCard[]).map((card) => (
+                    <DashboardExpandablePanel
+                        key={card}
+                        isOpen={activeCard === card}
+                        title={panelLabels[card]}
+                    >
                         {loading ? (
                             <span style={{ color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
                                 Cargando...
                             </span>
-                        ) : null}
-
-                        {error ? (
-                            <div style={{ color: COLOR.ICON.DANGER, fontSize: 13 }}>
-                                {error}
-                            </div>
-                        ) : null}
-
-                        <GraficoArea
-                            x={stats?.clientes?.nuevosEsteMes?.dias}
-                            values={stats?.clientes?.nuevosEsteMes?.valor}
-                        />
-                    </Card>
-                </div>
+                        ) : error ? (
+                            <div style={{ color: COLOR.ICON.DANGER, fontSize: 13 }}>{error}</div>
+                        ) : card === "arreglos" ? (
+                            <GraficoArreglosPorDia data={stats?.arreglosPorPeriodo} />
+                        ) : card === "facturacion" ? (
+                            <GraficoIngresosPorMes data={stats?.ingresosPorPeriodo} />
+                        ) : card === "gastos" ? (
+                            <GraficoGastosPorMes data={stats?.gastosPorPeriodo} />
+                        ) : (
+                            <GraficoBalancePorMes
+                                ingresosPorPeriodo={stats?.ingresosPorPeriodo}
+                                gastosPorPeriodo={stats?.gastosPorPeriodo}
+                            />
+                        )}
+                    </DashboardExpandablePanel>
+                ))}
             </div>
 
             <div css={styles.mainPanel}>
-                <div css={styles.grafico}>
+                <div css={styles.halfPanel}>
                     <h3 css={styles.title}>Arreglos | Tipos</h3>
                     <Card>
-                        {loading ? (
+                        {loading && (
                             <span style={{ color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
                                 Cargando...
                             </span>
-                        ) : null}
-                        {error ? (
-                            <div style={{ color: COLOR.ICON.DANGER, fontSize: 13 }}>
-                                {error}
-                            </div>
-                        ) : null}
-
+                        )}
+                        {error && (
+                            <div style={{ color: COLOR.ICON.DANGER, fontSize: 13 }}>{error}</div>
+                        )}
                         <CantidadTiposArreglos
                             items={(() => {
                                 const tipos = stats?.arreglos?.tipos?.tipos ?? [];
                                 const cantidad = stats?.arreglos?.tipos?.cantidad ?? [];
                                 const ingresos = stats?.arreglos?.tipos?.ingresos ?? [];
-
-                                const len = Math.min(
-                                    tipos.length,
-                                    cantidad.length,
-                                    ingresos.length
-                                );
-
+                                const len = Math.min(tipos.length, cantidad.length, ingresos.length);
                                 return Array.from({ length: len }).map((_, idx) => ({
                                     tipo: tipos[idx] ?? `Tipo ${idx + 1}`,
                                     cantidad: cantidad[idx] ?? 0,
@@ -111,21 +180,17 @@ export default function DashboardPage() {
                     </Card>
                 </div>
 
-                <div css={styles.grafico}>
+                <div css={styles.halfPanel}>
                     <h3 css={styles.title}>Arreglos | Estado de pago</h3>
                     <Card>
-                        {loading ? (
+                        {loading && (
                             <span style={{ color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
                                 Cargando...
                             </span>
-                        ) : null}
-
-                        {error ? (
-                            <div style={{ color: COLOR.ICON.DANGER, fontSize: 13 }}>
-                                {error}
-                            </div>
-                        ) : null}
-
+                        )}
+                        {error && (
+                            <div style={{ color: COLOR.ICON.DANGER, fontSize: 13 }}>{error}</div>
+                        )}
                         <EstadoCobroArreglos
                             total={stats?.totals?.arreglos ?? null}
                             cobrados={stats?.arreglos?.cobrados ?? null}
@@ -145,18 +210,22 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </div>
-
-
-
-
         </div>
     );
 }
 
 const styles = {
-    cardDatosContainer: css({
+    headerRow: css({
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        flexWrap: "wrap",
+    }),
+    cardGrid: css({
         display: "grid",
-        gap: 16,
+        gap: 12,
         marginTop: 16,
         gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
         [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
@@ -170,12 +239,12 @@ const styles = {
         display: "flex",
         flexDirection: "row",
         gap: 16,
-        marginTop: 16,
+        marginTop: 24,
         [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
-            flexDirection: 'column',
+            flexDirection: "column",
         },
     }),
-    grafico: css({
+    halfPanel: css({
         width: "50%",
         [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
             width: "100%",
@@ -183,21 +252,21 @@ const styles = {
     }),
     activityPanel: {
         display: "flex",
-        flexDirection: "column",
+        flexDirection: "column" as const,
         gap: 12,
-        marginTop: 16,
+        marginTop: 24,
     },
     activityList: {
         display: "flex",
         flexDirection: "column" as const,
         gap: 12,
     },
-    title: {
+    title: css({
         fontSize: 20,
         fontWeight: 600,
         marginBottom: 8,
         [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
             fontSize: 18,
         },
-    },
+    }),
 } as const;

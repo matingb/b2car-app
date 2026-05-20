@@ -38,7 +38,7 @@ export type CreateEmpleadoInput = {
   fechaIngreso?: string;
 };
 
-export type UpdateEmpleadoInput = Partial<CreateEmpleadoInput>;
+export type UpdateEmpleadoInput = Partial<CreateEmpleadoInput & { salarioVigenteDesde: string | null }>;
 
 export type CreateEmpleadoResult = { empleado: Empleado | null; error: string | null };
 export type UpdateEmpleadoResult = { empleado: Empleado | null; error: string | null };
@@ -149,6 +149,7 @@ export function EmpleadosProvider({ children }: { children: React.ReactNode }) {
           ...(input.telefono !== undefined ? { telefono: emptyToNull(input.telefono) ?? null } : {}),
           ...(input.cumpleanos !== undefined ? { cumpleanos: emptyToNull(input.cumpleanos) ?? null } : {}),
           ...(input.salario !== undefined ? { salario: input.salario ?? null } : {}),
+          ...(input.salarioVigenteDesde !== undefined ? { salario_vigente_desde: input.salarioVigenteDesde ?? null } : {}),
           ...(input.fechaIngreso !== undefined
             ? { fecha_ingreso: emptyToNull(input.fechaIngreso) ?? null }
             : {}),

@@ -97,4 +97,19 @@ export const empleadosService = {
     if (error) return { error };
     return { error: null };
   },
+
+  async recordSalarioChange(
+    supabase: SupabaseClient,
+    empleadoId: string,
+    tallerId: string,
+    salario: number,
+    vigenteDesde: string
+  ): Promise<{ error: ServiceError | PostgrestError | null }> {
+    const { error } = await supabase.from("empleado_salarios").upsert(
+      [{ empleado_id: empleadoId, taller_id: tallerId, salario, vigente_desde: vigenteDesde }],
+      { onConflict: "empleado_id,vigente_desde" }
+    );
+    if (error) return { error };
+    return { error: null };
+  },
 };

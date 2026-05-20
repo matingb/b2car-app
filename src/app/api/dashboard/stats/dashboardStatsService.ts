@@ -20,12 +20,15 @@ export type DashboardStats = {
     vehiculos?: number;
     arreglos?: number;
     montoIngresos?: number;
+    arreglosEsteMes?: number;
+    gastos?: number;
+    balance?: number;
   };
   recentActivities?: Array<{
     id: string;
     titulo: string;
     vehiculo: string;
-    fechaUltimaActualizacion: string; // ISO
+    fechaUltimaActualizacion: string;
     monto: number;
   }>;
   arreglos?: {
@@ -44,6 +47,9 @@ export type DashboardStats = {
       valor: number[];
     };
   };
+  arreglosPorPeriodo?: Array<{ label: string; cantidad: number }>;
+  ingresosPorPeriodo?: Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>;
+  gastosPorPeriodo?: Array<{ label: string; repuestos: number; sueldos: number }>;
   lastUpdatedAt?: string;
   [key: string]: unknown;
 };
@@ -56,60 +62,85 @@ function startOfNextUtcMonth(d: Date) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1, 0, 0, 0));
 }
 
-async function getStats(supabase: SupabaseClient): Promise<DashboardStats> {
+async function getStats(
+  supabase: SupabaseClient,
+  periodFrom?: string,
+  periodTo?: string,
+  tallerId?: string
+): Promise<DashboardStats> {
   const now = new Date();
-  const fromMonth = startOfUtcMonth(now).toISOString();
-  const toMonth = startOfNextUtcMonth(now).toISOString();
+  const from = periodFrom ?? startOfUtcMonth(now).toISOString();
+  const to = periodTo ?? startOfNextUtcMonth(now).toISOString();
   const recentLimit = 5;
 
   const [
     clientesTotal,
     vehiculosTotal,
-    arreglosTotal,
-    cobrados,
-    pendientes,
-    montoIngresos,
+    resumen,
     tipos,
     recentActivities,
     nuevosEsteMes,
+    arreglosPorPeriodo,
+    ingresosPorPeriodo,
+    gastosPorPeriodo,
   ] = await Promise.all([
     clienteService.countAll(supabase),
     vehiculoService.countAll(supabase),
-    arregloService.countAll(supabase),
-    arregloService.countByPago(supabase, true),
-    arregloService.countByPago(supabase, false),
-    arregloService.sumIngresos(supabase, fromMonth, toMonth),
-    arregloService.tiposConIngresos(supabase),
-    arregloService.listRecentActivities(supabase, recentLimit),
-    clienteService.nuevosPorDia(supabase, fromMonth, toMonth),
+    arregloService.arreglosResumen(supabase, from, to, tallerId),
+    arregloService.tiposConIngresos(supabase, from, to, tallerId),
+    arregloService.listRecentActivities(supabase, recentLimit, from, to, tallerId),
+    clienteService.nuevosPorDia(supabase, from, to),
+    arregloService.arreglosPorPeriodo(supabase, from, to, tallerId),
+    arregloService.ingresosPorPeriodo(supabase, from, to, tallerId),
+    arregloService.gastosPorPeriodo(supabase, from, to, tallerId),
   ]);
+
+  const arreglosEsteMes = arreglosPorPeriodo.reduce((sum, d) => sum + d.cantidad, 0);
+  const gastos = gastosPorPeriodo.reduce((sum, d) => sum + d.repuestos + d.sueldos, 0);
+  const balance = resumen.montoIngresos - gastos;
 
   return {
     totals: {
       clientes: clientesTotal,
       vehiculos: vehiculosTotal,
-      arreglos: arreglosTotal,
-      montoIngresos,
+      arreglos: resumen.total,
+      montoIngresos: resumen.montoIngresos,
+      arreglosEsteMes,
+      gastos,
+      balance,
     },
     recentActivities,
     arreglos: {
       tipos,
-      total: arreglosTotal,
-      cobrados,
-      pendientes,
+      total: resumen.total,
+      cobrados: resumen.cobrados,
+      pendientes: resumen.pendientes,
     },
     clientes: {
       nuevosEsteMes,
     },
+    arreglosPorPeriodo,
+    ingresosPorPeriodo,
+    gastosPorPeriodo,
     lastUpdatedAt: new Date().toISOString(),
   };
 }
 
 export const statsService = {
-  async getStats(supabase: SupabaseClient): Promise<DashboardStats> {
+  async getStats(
+    supabase: SupabaseClient,
+    periodFrom?: string,
+    periodTo?: string,
+    tallerId?: string
+  ): Promise<DashboardStats> {
     const getCached = unstable_cache(
-      async () => getStats(supabase),
-      [DASHBOARD_STATS_TAG_PREFIX],
+      async () => getStats(supabase, periodFrom, periodTo, tallerId),
+      [
+        DASHBOARD_STATS_TAG_PREFIX,
+        periodFrom ?? "current",
+        periodTo ?? "current",
+        tallerId ?? "all",
+      ],
       { revalidate: 3600, tags: [DASHBOARD_STATS_TAG_PREFIX] }
     );
 
@@ -121,5 +152,3 @@ export const statsService = {
     invalidateDashboardStats();
   },
 } as const;
-
-

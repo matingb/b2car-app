@@ -15,13 +15,16 @@ export type DashboardStats = {
 		clientes?: number;
 		vehiculos?: number;
 		arreglos?: number;
-        montoIngresos?: number;
+		montoIngresos?: number;
+		arreglosEsteMes?: number;
+		gastos?: number;
+		balance?: number;
 	};
     recentActivities?: Array<{
         id: string;
         titulo: string;
         vehiculo: string;
-        fechaUltimaActualizacion: string; // ISO
+        fechaUltimaActualizacion: string;
         monto: number;
     }>;
 	arreglos?: {
@@ -34,19 +37,16 @@ export type DashboardStats = {
 		cobrados?: number;
 		pendientes?: number;
 	};
-    clientes?:{
+    clientes?: {
         nuevosEsteMes?: {
-            dias: string[],
+            dias: string[];
             valor: number[];
-        }
-    }
-	ingresos?: {
-		mesActual?: number;
-		total?: number;
-		moneda?: string;
-	};
+        };
+    };
+	arreglosPorPeriodo?: Array<{ label: string; cantidad: number }>;
+	ingresosPorPeriodo?: Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>;
+	gastosPorPeriodo?: Array<{ label: string; repuestos: number; sueldos: number }>;
 	lastUpdatedAt?: string;
-	// Permite extender desde el backend sin romper el tipado del frontend
 	[key: string]: unknown;
 };
 
@@ -55,12 +55,20 @@ type DashboardStatsApiResponse = {
 	error?: string | null;
 };
 
+export type PeriodOption = {
+	label: string;
+	from: string;
+	to: string;
+};
+
+type FetchStatsOptions = { from?: string; to?: string; tallerId?: string };
+
 type DashboardContextType = {
 	stats: DashboardStats | null;
 	loading: boolean;
 	error: string | null;
-	fetchStats: () => Promise<DashboardStats | null>;
-	refresh: () => Promise<DashboardStats | null>;
+	fetchStats: (options?: FetchStatsOptions) => Promise<DashboardStats | null>;
+	refresh: (options?: FetchStatsOptions) => Promise<DashboardStats | null>;
 };
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -70,13 +78,17 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	const fetchStats = useCallback(async () => {
+	const fetchStats = useCallback(async (options?: FetchStatsOptions) => {
 		const startTime = performance.now();
 		setLoading(true);
 		setError(null);
 		try {
-
-			const res = await fetch("/api/dashboard/stats");
+			const params = new URLSearchParams();
+			if (options?.from) params.set("from", options.from);
+			if (options?.to) params.set("to", options.to);
+			if (options?.tallerId) params.set("tallerId", options.tallerId);
+			const qs = params.size > 0 ? `?${params.toString()}` : "";
+			const res = await fetch(`/api/dashboard/stats${qs}`);
 			const body: Partial<DashboardStatsApiResponse> = await res
 				.json()
 				.catch(() => ({}));

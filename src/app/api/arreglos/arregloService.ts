@@ -65,20 +65,22 @@ export function createArregloService(repository: ArregloRepository) {
       return { error: null };
     },
 
-    async countAll(supabase: SupabaseClient): Promise<number> {
-      return repository.countAll(supabase);
+    async arreglosResumen(
+      supabase: SupabaseClient,
+      fromISO?: string,
+      toISO?: string,
+      tallerId?: string
+    ): Promise<{ total: number; cobrados: number; pendientes: number; montoIngresos: number }> {
+      return repository.arreglosResumen(supabase, fromISO, toISO, tallerId);
     },
 
-    async countByPago(supabase: SupabaseClient, estaPago: boolean): Promise<number> {
-      return repository.countByPago(supabase, estaPago);
-    },
-
-    async sumIngresos(supabase: SupabaseClient, fromISO: string, toISO: string): Promise<number> {
-      return repository.sumIngresos(supabase, fromISO, toISO);
-    },
-
-    async tiposConIngresos(supabase: SupabaseClient): Promise<TiposConIngresos> {
-      const rows = await repository.tiposConIngresos(supabase);
+    async tiposConIngresos(
+      supabase: SupabaseClient,
+      fromISO?: string,
+      toISO?: string,
+      tallerId?: string
+    ): Promise<TiposConIngresos> {
+      const rows = await repository.tiposConIngresos(supabase, fromISO, toISO, tallerId);
       const tipos: string[] = [];
       const cantidad: number[] = [];
       const ingresos: number[] = [];
@@ -92,8 +94,14 @@ export function createArregloService(repository: ArregloRepository) {
       return { tipos, cantidad, ingresos };
     },
 
-    async listRecentActivities(supabase: SupabaseClient, limit: number): Promise<RecentActivity[]> {
-      const rows = await repository.listRecentActivities(supabase, limit);
+    async listRecentActivities(
+      supabase: SupabaseClient,
+      limit: number,
+      fromISO?: string,
+      toISO?: string,
+      tallerId?: string
+    ): Promise<RecentActivity[]> {
+      const rows = await repository.listRecentActivities(supabase, limit, fromISO, toISO, tallerId);
       return rows
         .map((r) => ({
           id: String(r.id ?? ""),
@@ -103,6 +111,33 @@ export function createArregloService(repository: ArregloRepository) {
           monto: Number(r.precio_final ?? 0) || 0,
         }))
         .filter((a) => a.id);
+    },
+
+    async arreglosPorPeriodo(
+      supabase: SupabaseClient,
+      fromISO: string,
+      toISO: string,
+      tallerId?: string
+    ): Promise<Array<{ label: string; cantidad: number }>> {
+      return repository.arreglosPorPeriodo(supabase, fromISO, toISO, tallerId);
+    },
+
+    async ingresosPorPeriodo(
+      supabase: SupabaseClient,
+      fromISO: string,
+      toISO: string,
+      tallerId?: string
+    ): Promise<Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>> {
+      return repository.ingresosPorPeriodo(supabase, fromISO, toISO, tallerId);
+    },
+
+    async gastosPorPeriodo(
+      supabase: SupabaseClient,
+      fromISO: string,
+      toISO: string,
+      tallerId?: string
+    ): Promise<Array<{ label: string; repuestos: number; sueldos: number }>> {
+      return repository.gastosPorPeriodo(supabase, fromISO, toISO, tallerId);
     },
   };
 }
