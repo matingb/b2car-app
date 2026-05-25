@@ -131,7 +131,7 @@ export function useStockFilters(items?: StockItem[]) {
 
 export function useStockStats(items?: StockItem[]) {
   return useMemo(() => {
-    const list = items ?? [];
+    const list = (items ?? []).filter((i) => i.showInStock);
     const criticos = list.filter((i) => getStockStatus(i) === "critico").length;
     const bajos = list.filter((i) => getStockStatus(i) === "bajo").length;
     const altos = list.filter((i) => getStockStatus(i) === "alto").length;
