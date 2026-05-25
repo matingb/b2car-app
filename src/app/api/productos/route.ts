@@ -65,7 +65,7 @@ export async function POST(req: Request) {
     return Response.json({ data: null, error: "El costo no puede ser negativo" } satisfies CreateProductoResponse, { status: 400 });
 
   const insertPayload = {
-    codigo: body.codigo.trim(),
+    codigo: body.codigo.trim().toUpperCase(),
     nombre: body.nombre.trim(),
     marca: body.marca?.trim() ?? null,
     modelo: body.modelo?.trim() ?? null,
