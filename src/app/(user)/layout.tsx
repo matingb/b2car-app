@@ -12,6 +12,7 @@ import { COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import { BREAKPOINTS } from "@/theme/theme";
 import { SidebarMenuKey, useSidebarMenu } from "@/app/hooks/useSidebarMenu";
+import TenantNameText from "@/app/components/ui/TenantNameText";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -34,9 +35,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       },
       brandTextWrap: {
         display: collapsed ? "none" : "block",
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
+        flex: 1,
+        minWidth: 0,
       },
     } as typeof styles & {
       brandTextWrap: React.CSSProperties;
@@ -78,7 +78,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         />
                       )}
                       <div style={s.brandTextWrap}>
-                        <div style={s.title}>{tenantName}</div>
+                        <TenantNameText
+                          name={tenantName}
+                          maxFontSize={20}
+                          minFontSize={6}
+                          style={s.title}
+                        />
                       </div>
                     </div>
 
@@ -188,9 +193,6 @@ const styles = {
   },
   title: {
     color: COLOR.TEXT.PRIMARY,
-    fontSize: "1.25rem",
-    lineHeight: "1.75rem",
-    fontWeight: 600,
     marginLeft: "0.5rem",
   },
   subtitle: {

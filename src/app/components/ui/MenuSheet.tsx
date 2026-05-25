@@ -6,6 +6,7 @@ import SidebarItem from "./SidebarItem";
 import { css } from "@emotion/react";
 import { SidebarMenuKey, useSidebarMenu } from "@/app/hooks/useSidebarMenu";
 import { useSheet } from "@/app/providers/SheetProvider";
+import TenantNameText from "@/app/components/ui/TenantNameText";
 
 export default function MenuSheet() {
 
@@ -15,7 +16,12 @@ export default function MenuSheet() {
   return (
     <div css={styles.container}>
       <div css={styles.brand}>
-        <span style={{ fontWeight: 700, fontSize: 24 }}>{tenantName}</span>
+        <TenantNameText
+          name={tenantName}
+          maxFontSize={24}
+          minFontSize={7}
+          fontWeight={700}
+        />
       </div>
 
       <nav css={styles.nav}>
@@ -67,6 +73,9 @@ const styles = {
     flexDirection: "column",
     gap: 4,
     paddingInline: "0.25rem",
+    width: "90%",
+    maxWidth: "18rem",
+    textAlign: "center",
   }),
   nav: css({
     display: "flex",

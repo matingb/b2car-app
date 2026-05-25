@@ -16,7 +16,7 @@ export function buildArregloWhatsappMessage(data: ArregloDetalleData, tenantName
 
 	lines.push(`*${header}${normalizedTenant ? ` - ${normalizedTenant}` : ""}*`);
 
-	const titulo = arreglo.descripcion || arreglo.tipo || "Detalle del arreglo";
+	const titulo = arreglo.tipo || arreglo.descripcion || "Detalle del arreglo";
 	lines.push(`🔧 ${titulo}`);
 	lines.push(`🚗 Patente ${arreglo.vehiculo?.patente || "-"}`);
 	if (arreglo.kilometraje_leido) {
@@ -27,19 +27,6 @@ export function buildArregloWhatsappMessage(data: ArregloDetalleData, tenantName
 	}
 	lines.push("");
 
-	if (detalles.length) {
-		lines.push("👨‍🔧 *Servicios:*");
-		detalles.forEach((d) => {
-			const cantidad = safeNumber(d.cantidad);
-			const valor = safeNumber(d.valor);
-			const total = cantidad * valor;
-			const label = String(d.descripcion ?? "").trim() || "Servicio";
-			const qty = cantidad ? ` x${cantidad}` : "";
-			lines.push(`• ${label}${qty} - ${formatArs(total, { maxDecimals: 0, minDecimals: 0 })}`);
-		});
-		lines.push("");
-	}
-
 	if (repuestosLineas.length) {
 		lines.push("📦 *Repuestos:*");
 		repuestosLineas.forEach((r) => {
@@ -49,6 +36,19 @@ export function buildArregloWhatsappMessage(data: ArregloDetalleData, tenantName
 			const producto = r.producto?.nombre || r.producto?.codigo || "Repuesto";
 			const qty = cantidad ? ` x${cantidad}` : "";
 			lines.push(`• ${producto}${qty} - ${formatArs(total, { maxDecimals: 0, minDecimals: 0 })}`);
+		});
+		lines.push("");
+	}
+
+	if (detalles.length) {
+		lines.push("👨‍🔧 *Servicios:*");
+		detalles.forEach((d) => {
+			const cantidad = safeNumber(d.cantidad);
+			const valor = safeNumber(d.valor);
+			const total = cantidad * valor;
+			const label = String(d.descripcion ?? "").trim() || "Servicio";
+			const qty = cantidad ? ` x${cantidad}` : "";
+			lines.push(`• ${label}${qty} - ${formatArs(total, { maxDecimals: 0, minDecimals: 0 })}`);
 		});
 		lines.push("");
 	}
