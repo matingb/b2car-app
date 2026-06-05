@@ -23,6 +23,7 @@ import {
   applyStockSelection,
   computeStockState,
   getNewProductConflictMessage,
+  getNextNewProductCode,
   validateRepuestoDraft,
 } from "@/app/components/arreglos/lineas/repuestos/repuestoValidator";
 
@@ -120,6 +121,11 @@ export default function RepuestoLineasEditableSection({
 
   const conflictMessageFor = (codigo: string, currentItemId?: string) =>
     getNewProductConflictMessage(codigo, { items, inventario }, currentItemId);
+
+  const defaultNewProductCode = useMemo(
+    () => getNextNewProductCode({ items, inventario }),
+    [items, inventario]
+  );
 
   const {
     editingId,
@@ -251,7 +257,7 @@ export default function RepuestoLineasEditableSection({
             value={draft.stockId}
             onChange={(v) => {
               if (stockState.mode === "edit") return;
-              setDraft((p) => applyStockSelection(v, p, inventario));
+              setDraft((p) => applyStockSelection(v, p, inventario, defaultNewProductCode));
             }}
             placeholder={isLoading ? "Cargando inventario..." : "Buscar producto..."}
             disabled={stockState.mode === "edit" || !tallerId || isLoading || !canInteract}

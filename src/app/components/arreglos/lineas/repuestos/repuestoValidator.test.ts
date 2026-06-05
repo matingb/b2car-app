@@ -5,6 +5,7 @@ import {
   applyStockSelection,
   computeStockState,
   getNewProductConflictMessage,
+  getNextNewProductCode,
   validateRepuestoDraft,
   type RepuestoValidatorEnv,
   type InventarioEntry,
@@ -443,6 +444,25 @@ describe("applyStockSelection", () => {
     });
   });
 
+  it("precarga el codigo sugerido al seleccionar producto nuevo si el draft no tiene codigo", () => {
+    expect(applyStockSelection(NEW_PRODUCT_VALUE, emptyDraft, [], "AL4")).toEqual({
+      ...emptyDraft,
+      stockId: NEW_PRODUCT_VALUE,
+      montoUnitario: "",
+      codigo: "AL4",
+    });
+  });
+
+  it("no pisa el codigo ingresado al seleccionar producto nuevo", () => {
+    const result = applyStockSelection(
+      NEW_PRODUCT_VALUE,
+      { ...emptyDraft, codigo: "MANUAL-1" },
+      [],
+      "AL4",
+    );
+    expect(result.codigo).toBe("MANUAL-1");
+  });
+
   it("precarga monto unitario y precio compra del stock seleccionado", () => {
     const result = applyStockSelection("s1", emptyDraft, [
       { id: "s1", precioUnitario: 150, costoUnitario: 100 },
@@ -478,5 +498,58 @@ describe("applyStockSelection", () => {
       precioCompra: "",
       precioVentaTouched: false,
     });
+  });
+});
+
+describe("getNextNewProductCode", () => {
+  it("devuelve AL1 cuando no hay codigos AL", () => {
+    expect(
+      getNextNewProductCode({
+        items: [],
+        inventario: [stock({ id: "s1", codigo: "FIL-001" })],
+      }),
+    ).toBe("AL1");
+  });
+
+  it("usa el mayor numero de los codigos AL del inventario y suma uno", () => {
+    expect(
+      getNextNewProductCode({
+        items: [],
+        inventario: [
+          stock({ id: "s1", codigo: "AL1" }),
+          stock({ id: "s2", codigo: "AL9" }),
+          stock({ id: "s3", codigo: "FIL-001" }),
+        ],
+      }),
+    ).toBe("AL10");
+  });
+
+  it("ignora codigos que empiezan con AL pero no tienen sufijo numerico", () => {
+    expect(
+      getNextNewProductCode({
+        items: [],
+        inventario: [
+          stock({ id: "s1", codigo: "ALFA" }),
+          stock({ id: "s2", codigo: "AL-9" }),
+          stock({ id: "s3", codigo: "AL2" }),
+        ],
+      }),
+    ).toBe("AL3");
+  });
+
+  it("incluye productos ya cargados en el arreglo para evitar sugerir duplicados", () => {
+    expect(
+      getNextNewProductCode({
+        inventario: [stock({ id: "s1", codigo: "AL4" })],
+        items: [
+          item({
+            id: "x",
+            stock_id: NEW_PRODUCT_VALUE,
+            tipo: "nuevo",
+            nuevoProducto: { codigo: "AL7", nombre: "N", precioCompra: 0, precioVenta: 0 },
+          }),
+        ],
+      }),
+    ).toBe("AL8");
   });
 });

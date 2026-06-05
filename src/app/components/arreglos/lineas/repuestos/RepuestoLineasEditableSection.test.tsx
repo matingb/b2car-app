@@ -152,6 +152,14 @@ describe("RepuestoLineasEditableSection", () => {
     });
   });
 
+  it("precarga codigo AL al crear un producto nuevo", () => {
+    setup();
+
+    startNewProduct();
+
+    expect(screen.getByDisplayValue("AL1")).toBeInTheDocument();
+  });
+
   it("auto-sincroniza precio venta con precio compra hasta que el usuario lo modifique", () => {
     setup();
     startNewProduct();
