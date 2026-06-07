@@ -49,7 +49,7 @@ export default function GraficoArreglos({ data }: Props) {
                     width={28}
                     allowDecimals={false}
                 />
-                <ChartTooltip cursor={false} content={<GraficoTooltip titleKey="label" labelMap={{ cantidad: "Arreglos" }} />} />
+                <ChartTooltip cursor={false} content={<GraficoTooltip labelMap={{ cantidad: "Arreglos" }} />} />
                 <Bar
                     dataKey="cantidad"
                     fill="var(--color-cantidad)"

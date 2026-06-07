@@ -67,7 +67,7 @@ export default function GraficoBalance({ ingresosPorPeriodo, gastosPorPeriodo }:
                     width={64}
                     tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                 />
-                <ChartTooltip cursor={false} content={<GraficoTooltip titleKey="label" formatter={formatCurrency} />} />
+                <ChartTooltip cursor={false} content={<GraficoTooltip formatter={formatCurrency} />} />
                 <ChartLegend content={<ChartLegendContent />} />
                 <Bar dataKey="ingresos" fill="var(--color-ingresos)" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="gastos" fill="var(--color-gastos)" radius={[3, 3, 0, 0]} />

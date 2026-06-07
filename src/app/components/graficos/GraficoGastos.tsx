@@ -59,7 +59,7 @@ export default function GraficoGastos({ data }: Props) {
                     width={64}
                     tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                 />
-                <ChartTooltip cursor={false} content={<GraficoTooltip titleKey="label" formatter={formatCurrency} />} />
+                <ChartTooltip cursor={false} content={<GraficoTooltip formatter={formatCurrency} />} />
                 <ChartLegend content={<ChartLegendContent />} />
                 <Bar dataKey="repuestos" fill="var(--color-repuestos)" stackId="a" />
                 <Bar dataKey="sueldos" fill="var(--color-sueldos)" stackId="a" radius={[3, 3, 0, 0]} />
