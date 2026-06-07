@@ -5,16 +5,16 @@ import { COLOR } from "@/theme/theme";
 import {
     ChartContainer,
     ChartTooltip,
-    ChartTooltipContent,
     type ChartConfig,
 } from "@/app/components/shadcn/ui/chart";
+import GraficoTooltip from "./GraficoTooltip";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 type Props = {
     data?: Array<{ label: string; cantidad: number }>;
 };
 
-export default function GraficoArreglosPorDia({ data }: Props) {
+export default function GraficoArreglos({ data }: Props) {
     const { chartData, config } = useMemo(() => {
         const chartData = (data ?? []).map((d) => ({
             label: d.label,
@@ -49,17 +49,7 @@ export default function GraficoArreglosPorDia({ data }: Props) {
                     width={28}
                     allowDecimals={false}
                 />
-                <ChartTooltip
-                    cursor={false}
-                    content={
-                        <ChartTooltipContent
-                            indicator="dot"
-                            labelFormatter={(_, payload) =>
-                                payload?.[0]?.payload?.label ?? ""
-                            }
-                        />
-                    }
-                />
+                <ChartTooltip cursor={false} content={<GraficoTooltip titleKey="label" labelMap={{ cantidad: "Arreglos" }} />} />
                 <Bar
                     dataKey="cantidad"
                     fill="var(--color-cantidad)"

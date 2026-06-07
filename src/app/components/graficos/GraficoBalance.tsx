@@ -7,9 +7,9 @@ import {
     ChartLegend,
     ChartLegendContent,
     ChartTooltip,
-    ChartTooltipContent,
     type ChartConfig,
 } from "@/app/components/shadcn/ui/chart";
+import GraficoTooltip from "./GraficoTooltip";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 type Props = {
@@ -21,7 +21,7 @@ function formatCurrency(value: number) {
     return `$${value.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
 }
 
-export default function GraficoBalancePorMes({ ingresosPorPeriodo, gastosPorPeriodo }: Props) {
+export default function GraficoBalance({ ingresosPorPeriodo, gastosPorPeriodo }: Props) {
     const { chartData, config } = useMemo(() => {
         const ingresosMap = new Map(
             (ingresosPorPeriodo ?? []).map((d) => [
@@ -67,17 +67,7 @@ export default function GraficoBalancePorMes({ ingresosPorPeriodo, gastosPorPeri
                     width={64}
                     tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                 />
-                <ChartTooltip
-                    cursor={false}
-                    content={
-                        <ChartTooltipContent
-                            formatter={(value) => formatCurrency(Number(value))}
-                            labelFormatter={(_, payload) =>
-                                payload?.[0]?.payload?.label ?? ""
-                            }
-                        />
-                    }
-                />
+                <ChartTooltip cursor={false} content={<GraficoTooltip titleKey="label" formatter={formatCurrency} />} />
                 <ChartLegend content={<ChartLegendContent />} />
                 <Bar dataKey="ingresos" fill="var(--color-ingresos)" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="gastos" fill="var(--color-gastos)" radius={[3, 3, 0, 0]} />

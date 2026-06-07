@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { COLOR } from "@/theme/theme";
+import Dropdown from "../ui/Dropdown";
 
 export type PeriodOption = {
     label: string;
@@ -14,7 +14,7 @@ const MONTH_NAMES_ES = [
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-export function buildPeriodOptions(count = 6): PeriodOption[] {
+export function buildPeriodOptions(count = 12): PeriodOption[] {
     const options: PeriodOption[] = [];
     const now = new Date();
     for (let i = 0; i < count; i++) {
@@ -27,87 +27,28 @@ export function buildPeriodOptions(count = 6): PeriodOption[] {
     return options;
 }
 
-function buildRangeOptions(): PeriodOption[] {
-    const now = new Date();
-    const currentMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const nextMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-
-    return [2, 3, 6, 12].map((n) => ({
-        label: `Últimos ${n} meses`,
-        from: new Date(Date.UTC(currentMonthStart.getUTCFullYear(), currentMonthStart.getUTCMonth() - n + 1, 1)).toISOString(),
-        to: nextMonthStart.toISOString(),
-    }));
-}
-
 type Props = {
     value: PeriodOption;
     onChange: (period: PeriodOption) => void;
 };
 
 export default function PeriodSelector({ value, onChange }: Props) {
-    const { monthOptions, rangeOptions, allOptions } = useMemo(() => {
-        const monthOptions = buildPeriodOptions(12);
-        const rangeOptions = buildRangeOptions();
-        return { monthOptions, rangeOptions, allOptions: [...rangeOptions, ...monthOptions] };
-    }, []);
-
-    function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
-        const selected = allOptions.find((o) => o.from === e.target.value);
-        if (selected) onChange(selected);
-    }
+    const options = useMemo(() => buildPeriodOptions(12), []);
 
     return (
-        <div style={styles.wrapper}>
-            <label style={styles.label} htmlFor="period-select">
-                Período
-            </label>
-            <select
-                id="period-select"
-                value={value.from}
-                onChange={handleChange}
-                style={styles.select}
-            >
-                <optgroup label="Rangos">
-                    {rangeOptions.map((opt) => (
-                        <option key={opt.from} value={opt.from}>
-                            {opt.label}
-                        </option>
-                    ))}
-                </optgroup>
-                <optgroup label="Mes específico">
-                    {monthOptions.map((opt) => (
-                        <option key={opt.from} value={opt.from}>
-                            {opt.label}
-                        </option>
-                    ))}
-                </optgroup>
-            </select>
-        </div>
+        <Dropdown
+            style={styles.dropdown}
+            options={options.map((o) => ({ value: o.from, label: o.label }))}
+            value={value.from}
+            onChange={(f) => onChange(options.find((o) => o.from === f) ?? value)}
+        />
     );
 }
 
 const styles = {
-    wrapper: {
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-    },
-    label: {
-        fontSize: 13,
-        fontWeight: 500,
-        color: COLOR.TEXT.SECONDARY,
-        whiteSpace: "nowrap" as const,
-    },
-    select: {
-        fontSize: 14,
-        fontWeight: 500,
-        color: COLOR.TEXT.PRIMARY,
-        background: COLOR.BACKGROUND.SECONDARY,
-        border: `1.5px solid ${COLOR.BORDER.DEFAULT}`,
-        borderRadius: 6,
-        padding: "5px 10px",
-        cursor: "pointer",
-        outline: "none",
-        appearance: "auto" as const,
+    dropdown: {
+        position: "relative" as const,
+        height: "35px",
+        width: "150px",
     },
 } as const;

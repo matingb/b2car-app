@@ -7,40 +7,35 @@ import {
     ChartLegend,
     ChartLegendContent,
     ChartTooltip,
-    ChartTooltipContent,
     type ChartConfig,
 } from "@/app/components/shadcn/ui/chart";
+import GraficoTooltip from "./GraficoTooltip";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 type Props = {
-    data?: Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>;
+    data?: Array<{ label: string; repuestos: number; sueldos: number }>;
 };
 
 function formatCurrency(value: number) {
     return `$${value.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
 }
 
-export default function GraficoIngresosPorMes({ data }: Props) {
+export default function GraficoGastos({ data }: Props) {
     const { chartData, config } = useMemo(() => {
         const chartData = (data ?? []).map((d) => ({
             label: d.label,
-            mano_de_obra: d.mano_de_obra,
             repuestos: d.repuestos,
-            ventas: d.ventas,
+            sueldos: d.sueldos,
         }));
 
         const config: ChartConfig = {
-            mano_de_obra: {
-                label: "Mano de obra",
-                color: COLOR.GRAPHICS.PRIMARY,
-            },
             repuestos: {
                 label: "Repuestos",
-                color: COLOR.GRAPHICS.TERTIARY,
+                color: COLOR.GRAPHICS.PRIMARY,
             },
-            ventas: {
-                label: "Ventas",
-                color: COLOR.GRAPHICS.QUINARY,
+            sueldos: {
+                label: "Sueldos",
+                color: COLOR.GRAPHICS.TERTIARY,
             },
         };
 
@@ -64,21 +59,10 @@ export default function GraficoIngresosPorMes({ data }: Props) {
                     width={64}
                     tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                 />
-                <ChartTooltip
-                    cursor={false}
-                    content={
-                        <ChartTooltipContent
-                            formatter={(value) => formatCurrency(Number(value))}
-                            labelFormatter={(_, payload) =>
-                                payload?.[0]?.payload?.label ?? ""
-                            }
-                        />
-                    }
-                />
+                <ChartTooltip cursor={false} content={<GraficoTooltip titleKey="label" formatter={formatCurrency} />} />
                 <ChartLegend content={<ChartLegendContent />} />
-                <Bar dataKey="mano_de_obra" fill="var(--color-mano_de_obra)" stackId="a" />
                 <Bar dataKey="repuestos" fill="var(--color-repuestos)" stackId="a" />
-                <Bar dataKey="ventas" fill="var(--color-ventas)" stackId="a" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="sueldos" fill="var(--color-sueldos)" stackId="a" radius={[3, 3, 0, 0]} />
             </BarChart>
         </ChartContainer>
     );

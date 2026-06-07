@@ -9,10 +9,12 @@ import { CircleDollarSign, Scale, TrendingDown, Wrench } from "lucide-react";
 import DashboardMetricCard from "@/app/components/dashboard/DashboardMetricCard";
 import DashboardExpandablePanel from "@/app/components/dashboard/DashboardExpandablePanel";
 import PeriodSelector, { buildPeriodOptions, type PeriodOption } from "@/app/components/dashboard/PeriodSelector";
-import GraficoArreglosPorDia from "@/app/components/graficos/GraficoArreglosPorDia";
-import GraficoIngresosPorMes from "@/app/components/graficos/GraficoIngresosPorMes";
-import GraficoGastosPorMes from "@/app/components/graficos/GraficoGastosPorMes";
-import GraficoBalancePorMes from "@/app/components/graficos/GraficoBalancePorMes";
+import GranularitySelector from "@/app/components/dashboard/GranularitySelector";
+import GraficoArreglos from "@/app/components/graficos/GraficoArreglos";
+import GraficoIngresos from "@/app/components/graficos/GraficoIngresos";
+import GraficoGastos from "@/app/components/graficos/GraficoGastos";
+import GraficoBalance from "@/app/components/graficos/GraficoBalance";
+import { applyGranularity, type Granularity } from "@/lib/dashboard/aggregation";
 import CantidadTiposArreglos from "@/app/components/graficos/CantidadTiposArreglos";
 import EstadoCobroArreglos from "@/app/components/graficos/EstadoCobroArreglos";
 import RecentActivityCard from "@/app/components/dashboard/RecentActivityCard";
@@ -20,39 +22,27 @@ import Card from "@/app/components/ui/Card";
 
 type ActiveCard = "arreglos" | "facturacion" | "gastos" | "balance";
 
-function periodMonths(period: PeriodOption): number {
-    const from = new Date(period.from);
-    const to = new Date(period.to);
-    return (to.getUTCFullYear() - from.getUTCFullYear()) * 12
-        + (to.getUTCMonth() - from.getUTCMonth());
-}
-
-function granularityLabel(period: PeriodOption): string {
-    const months = periodMonths(period);
-    if (months <= 1) return "por día";
-    if (months <= 3) return "por semana";
-    return "por mes";
-}
-
-function buildPanelLabels(period: PeriodOption): Record<ActiveCard, string> {
-    const gran = granularityLabel(period);
-    return {
-        arreglos: `Arreglos realizados · ${gran}`,
-        facturacion: `Facturación · ${gran} (mano de obra · repuestos · ventas)`,
-        gastos: `Gastos · ${gran} (repuestos · sueldos)`,
-        balance: `Balance · facturación vs gastos · ${gran}`,
-    };
-}
+const PANEL_TITLES: Record<ActiveCard, string> = {
+    arreglos: "Arreglos realizados",
+    facturacion: "Facturación",
+    gastos: "Gastos",
+    balance: "Balance",
+};
 
 function defaultPeriod(): PeriodOption {
-    const options = buildPeriodOptions(6);
-    return options[0];
+    return buildPeriodOptions(1)[0];
 }
 
 export default function DashboardPage() {
     const { stats, loading, error, fetchStats } = useDashboard();
     const [activeCard, setActiveCard] = useState<ActiveCard>("facturacion");
     const [period, setPeriod] = useState<PeriodOption>(defaultPeriod);
+    const [granularity, setGranularity] = useState<Record<ActiveCard, Granularity>>({
+        arreglos: "day",
+        facturacion: "day",
+        gastos: "day",
+        balance: "day",
+    });
 
     const handlePeriodChange = useCallback(
         (newPeriod: PeriodOption) => {
@@ -62,13 +52,62 @@ export default function DashboardPage() {
         [fetchStats]
     );
 
-    // Fetch with selected period on mount
     useEffect(() => {
         fetchStats({ from: period.from, to: period.to });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [fetchStats, period.from, period.to]);
 
-    const panelLabels = buildPanelLabels(period);
+    const arreglosData = applyGranularity(
+        stats?.arreglosPorPeriodo ?? [],
+        granularity.arreglos,
+        period.from,
+        (label, items) => ({ label, cantidad: items.reduce((s, i) => s + i.cantidad, 0) }),
+    );
+
+    const ingresosData = applyGranularity(
+        stats?.ingresosPorPeriodo ?? [],
+        granularity.facturacion,
+        period.from,
+        (label, items) => ({
+            label,
+            mano_de_obra: items.reduce((s, i) => s + i.mano_de_obra, 0),
+            repuestos: items.reduce((s, i) => s + i.repuestos, 0),
+            ventas: items.reduce((s, i) => s + i.ventas, 0),
+        }),
+    );
+
+    const gastosData = applyGranularity(
+        stats?.gastosPorPeriodo ?? [],
+        granularity.gastos,
+        period.from,
+        (label, items) => ({
+            label,
+            repuestos: items.reduce((s, i) => s + i.repuestos, 0),
+            sueldos: items.reduce((s, i) => s + i.sueldos, 0),
+        }),
+    );
+
+    const ingresosBalanceData = applyGranularity(
+        stats?.ingresosPorPeriodo ?? [],
+        granularity.balance,
+        period.from,
+        (label, items) => ({
+            label,
+            mano_de_obra: items.reduce((s, i) => s + i.mano_de_obra, 0),
+            repuestos: items.reduce((s, i) => s + i.repuestos, 0),
+            ventas: items.reduce((s, i) => s + i.ventas, 0),
+        }),
+    );
+
+    const gastosBalanceData = applyGranularity(
+        stats?.gastosPorPeriodo ?? [],
+        granularity.balance,
+        period.from,
+        (label, items) => ({
+            label,
+            repuestos: items.reduce((s, i) => s + i.repuestos, 0),
+            sueldos: items.reduce((s, i) => s + i.sueldos, 0),
+        }),
+    );
 
     const balanceValue = stats?.totals?.balance ?? undefined;
     const balanceColor =
@@ -77,6 +116,15 @@ export default function DashboardPage() {
             : balanceValue >= 0
             ? COLOR.SEMANTIC.SUCCESS
             : COLOR.SEMANTIC.DANGER;
+
+    function makeGranularitySelector(card: ActiveCard) {
+        return (
+            <GranularitySelector
+                value={granularity[card]}
+                onChange={(g) => setGranularity((prev) => ({ ...prev, [card]: g }))}
+            />
+        );
+    }
 
     return (
         <div>
@@ -128,7 +176,8 @@ export default function DashboardPage() {
                     <DashboardExpandablePanel
                         key={card}
                         isOpen={activeCard === card}
-                        title={panelLabels[card]}
+                        title={PANEL_TITLES[card]}
+                        headerAction={makeGranularitySelector(card)}
                     >
                         {loading ? (
                             <span style={{ color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
@@ -137,15 +186,15 @@ export default function DashboardPage() {
                         ) : error ? (
                             <div style={{ color: COLOR.ICON.DANGER, fontSize: 13 }}>{error}</div>
                         ) : card === "arreglos" ? (
-                            <GraficoArreglosPorDia data={stats?.arreglosPorPeriodo} />
+                            <GraficoArreglos data={arreglosData} />
                         ) : card === "facturacion" ? (
-                            <GraficoIngresosPorMes data={stats?.ingresosPorPeriodo} />
+                            <GraficoIngresos data={ingresosData} />
                         ) : card === "gastos" ? (
-                            <GraficoGastosPorMes data={stats?.gastosPorPeriodo} />
+                            <GraficoGastos data={gastosData} />
                         ) : (
-                            <GraficoBalancePorMes
-                                ingresosPorPeriodo={stats?.ingresosPorPeriodo}
-                                gastosPorPeriodo={stats?.gastosPorPeriodo}
+                            <GraficoBalance
+                                ingresosPorPeriodo={ingresosBalanceData}
+                                gastosPorPeriodo={gastosBalanceData}
                             />
                         )}
                     </DashboardExpandablePanel>

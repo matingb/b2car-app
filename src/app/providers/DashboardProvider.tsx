@@ -55,12 +55,6 @@ type DashboardStatsApiResponse = {
 	error?: string | null;
 };
 
-export type PeriodOption = {
-	label: string;
-	from: string;
-	to: string;
-};
-
 type FetchStatsOptions = { from?: string; to?: string; tallerId?: string };
 
 type DashboardContextType = {
