@@ -15,11 +15,14 @@ function makeRepo(overrides: Partial<ArregloRepository> = {}): ArregloRepository
     listOperacionIdsByArregloId: vi.fn().mockResolvedValue({ data: [], error: null }),
     deleteOperacionesConStockLista: vi.fn().mockResolvedValue({ error: null }),
     deleteById: vi.fn().mockResolvedValue({ error: null }),
-    countAll: vi.fn().mockResolvedValue(0),
-    countByPago: vi.fn().mockResolvedValue(0),
-    sumIngresos: vi.fn().mockResolvedValue(0),
+    arreglosResumen: vi
+      .fn()
+      .mockResolvedValue({ total: 0, cobrados: 0, pendientes: 0, montoIngresos: 0 }),
     tiposConIngresos: vi.fn().mockResolvedValue([]),
     listRecentActivities: vi.fn().mockResolvedValue([]),
+    arreglosPorPeriodo: vi.fn().mockResolvedValue([]),
+    ingresosPorPeriodo: vi.fn().mockResolvedValue([]),
+    gastosPorPeriodo: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
 }

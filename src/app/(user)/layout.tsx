@@ -92,7 +92,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         const showDivider =
                           item.key === SidebarMenuKey.Logout ||
                           item.key === SidebarMenuKey.Clientes ||
-                          item.key === SidebarMenuKey.Productos;
+                          item.key === SidebarMenuKey.Productos ||
+                          item.key === SidebarMenuKey.Empleados;
                         return (
                           <div key={item.key}>
                             {showDivider ? (

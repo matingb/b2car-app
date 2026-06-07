@@ -43,15 +43,24 @@ export interface ArregloRepository {
     operacionIds: string[]
   ): Promise<{ error: ReturnType<typeof toServiceError> | null }>;
   deleteById(supabase: SupabaseClient, id: string): Promise<{ error: ReturnType<typeof toServiceError> | null }>;
-  countAll(supabase: SupabaseClient): Promise<number>;
-  countByPago(supabase: SupabaseClient, estaPago: boolean): Promise<number>;
-  sumIngresos(supabase: SupabaseClient, fromISO: string, toISO: string): Promise<number>;
+  arreglosResumen(
+    supabase: SupabaseClient,
+    fromISO?: string,
+    toISO?: string,
+    tallerId?: string
+  ): Promise<{ total: number; cobrados: number; pendientes: number; montoIngresos: number }>;
   tiposConIngresos(
-    supabase: SupabaseClient
+    supabase: SupabaseClient,
+    fromISO?: string,
+    toISO?: string,
+    tallerId?: string
   ): Promise<Array<{ tipo?: unknown; cantidad?: unknown; ingresos?: unknown }>>;
   listRecentActivities(
     supabase: SupabaseClient,
-    limit: number
+    limit: number,
+    fromISO?: string,
+    toISO?: string,
+    tallerId?: string
   ): Promise<
     Array<{
       id?: unknown;
@@ -61,6 +70,24 @@ export interface ArregloRepository {
       vehiculo?: { patente?: unknown } | null;
     }>
   >;
+  arreglosPorPeriodo(
+    supabase: SupabaseClient,
+    fromISO: string,
+    toISO: string,
+    tallerId?: string
+  ): Promise<Array<{ label: string; cantidad: number }>>;
+  ingresosPorPeriodo(
+    supabase: SupabaseClient,
+    fromISO: string,
+    toISO: string,
+    tallerId?: string
+  ): Promise<Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>>;
+  gastosPorPeriodo(
+    supabase: SupabaseClient,
+    fromISO: string,
+    toISO: string,
+    tallerId?: string
+  ): Promise<Array<{ label: string; repuestos: number; sueldos: number }>>;
 }
 
 async function listVehiculoIdsByPatente(supabase: SupabaseClient, patenteRaw?: string) {
@@ -203,41 +230,45 @@ export const supabaseArregloRepository: ArregloRepository = {
     return { error: error ? toServiceError(error) : null };
   },
 
-  async countAll(supabase) {
-    const { data, error } = await supabase.rpc("dashboard_count_arreglos");
-    if (error) throw new Error(error.message);
-    return (data ?? 0) as number;
-  },
-
-  async countByPago(supabase, estaPago) {
-    const { data, error } = await supabase.rpc("dashboard_count_arreglos_by_pago", {
-      p_esta_pago: estaPago,
+  async arreglosResumen(supabase, fromISO?, toISO?, tallerId?) {
+    const { data, error } = await supabase.rpc("dashboard_arreglos_resumen", {
+      p_from: fromISO ?? null,
+      p_to: toISO ?? null,
+      p_taller_id: tallerId ?? null,
     });
     if (error) throw new Error(error.message);
-    return (data ?? 0) as number;
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | { total?: unknown; cobrados?: unknown; pendientes?: unknown; monto_ingresos?: unknown }
+      | null
+      | undefined;
+    return {
+      total: Number(row?.total ?? 0),
+      cobrados: Number(row?.cobrados ?? 0),
+      pendientes: Number(row?.pendientes ?? 0),
+      montoIngresos: Number(row?.monto_ingresos ?? 0),
+    };
   },
 
-  async sumIngresos(supabase, fromISO, toISO) {
-    const { data, error } = await supabase.rpc("dashboard_sum_ingresos", {
-      p_from: fromISO,
-      p_to: toISO,
+  async tiposConIngresos(supabase, fromISO?, toISO?, tallerId?) {
+    const { data, error } = await supabase.rpc("dashboard_tipos_con_ingresos", {
+      p_from: fromISO ?? null,
+      p_to: toISO ?? null,
+      p_taller_id: tallerId ?? null,
     });
-    if (error) throw new Error(error.message);
-    return (data ?? 0) as number;
-  },
-
-  async tiposConIngresos(supabase) {
-    const { data, error } = await supabase.rpc("dashboard_tipos_con_ingresos");
     if (error) throw new Error(error.message);
     return (data ?? []) as Array<{ tipo?: unknown; cantidad?: unknown; ingresos?: unknown }>;
   },
 
-  async listRecentActivities(supabase, limit) {
-    const { data, error } = await supabase
+  async listRecentActivities(supabase, limit, fromISO?, toISO?, tallerId?) {
+    let query = supabase
       .from("arreglos")
       .select("id, descripcion, updated_at, precio_final, vehiculo:vehiculos(patente)")
       .order("updated_at", { ascending: false })
       .limit(limit);
+    if (fromISO) query = query.gte("fecha", fromISO);
+    if (toISO) query = query.lt("fecha", toISO);
+    if (tallerId) query = query.eq("taller_id", tallerId);
+    const { data, error } = await query;
     if (error) throw new Error(error.message);
     return (data ?? []) as Array<{
       id: string;
@@ -246,5 +277,47 @@ export const supabaseArregloRepository: ArregloRepository = {
       precio_final?: unknown;
       vehiculo?: { patente?: unknown } | null;
     }>;
+  },
+
+  async arreglosPorPeriodo(supabase, fromISO, toISO, tallerId?) {
+    const { data, error } = await supabase.rpc("dashboard_arreglos_por_periodo", {
+      p_from: fromISO,
+      p_to: toISO,
+      p_taller_id: tallerId ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r: { label?: unknown; cantidad?: unknown }) => ({
+      label: String(r.label ?? ""),
+      cantidad: Number(r.cantidad ?? 0),
+    }));
+  },
+
+  async ingresosPorPeriodo(supabase, fromISO, toISO, tallerId?) {
+    const { data, error } = await supabase.rpc("dashboard_ingresos_por_periodo", {
+      p_from: fromISO,
+      p_to: toISO,
+      p_taller_id: tallerId ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r: { label?: unknown; mano_de_obra?: unknown; repuestos?: unknown; ventas?: unknown }) => ({
+      label: String(r.label ?? ""),
+      mano_de_obra: Number(r.mano_de_obra ?? 0),
+      repuestos: Number(r.repuestos ?? 0),
+      ventas: Number(r.ventas ?? 0),
+    }));
+  },
+
+  async gastosPorPeriodo(supabase, fromISO, toISO, tallerId?) {
+    const { data, error } = await supabase.rpc("dashboard_gastos_por_periodo", {
+      p_from: fromISO,
+      p_to: toISO,
+      p_taller_id: tallerId ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r: { label?: unknown; repuestos?: unknown; sueldos?: unknown }) => ({
+      label: String(r.label ?? ""),
+      repuestos: Number(r.repuestos ?? 0),
+      sueldos: Number(r.sueldos ?? 0),
+    }));
   },
 };

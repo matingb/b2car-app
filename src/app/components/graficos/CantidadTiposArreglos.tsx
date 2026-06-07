@@ -11,6 +11,7 @@ import {
 } from "@/app/components/shadcn/ui/chart";
 import { Cell, Pie, PieChart } from "recharts";
 import { formatNumberAr } from "@/lib/format";
+import GraficoTooltip from "./GraficoTooltip";
 
 type Props = {
     items?: Array<{
@@ -20,53 +21,24 @@ type Props = {
     }>;
 };
 
+const TIPOS_EXTRA_ROWS = [
+    {
+        key: "cantidad",
+        label: "Cantidad",
+        formatter: (v: unknown) =>
+            formatNumberAr(Number(v ?? 0), { maxDecimals: 0, minDecimals: 0 }),
+    },
+    {
+        key: "ingresos",
+        label: "Ingresos",
+        formatter: (v: unknown) =>
+            `$${formatNumberAr(Number(v ?? 0), { maxDecimals: 2, minDecimals: 2 })}`,
+    },
+];
+
 export default function CantidadTiposArreglos({
     items,
 }: Props) {
-    function TiposTooltip({
-        active,
-        payload,
-    }: {
-        active?: boolean;
-        payload?: Array<{
-            payload?: {
-                tipo?: unknown;
-                cantidad?: unknown;
-                ingresos?: unknown;
-            } & Record<string, unknown>;
-        }>;
-    }) {
-        if (!active || !payload?.length) return null;
-
-        const p = payload[0]?.payload;
-        const tipo = String(p?.tipo ?? "");
-        const cantidad = Number(p?.cantidad ?? 0);
-        const ingresos = Number(p?.ingresos ?? 0);
-
-        if (!tipo) return null;
-
-        return (
-            <div className="border-border/50 bg-background min-w-[12rem] rounded-lg border px-3 py-2 text-xs shadow-xl">
-                <div className="text-foreground mb-1 text-sm font-semibold">
-                    {tipo}
-                </div>
-                <div className="text-muted-foreground">
-                    Cantidad:{" "}
-                    <span className="text-foreground font-medium">
-                        {formatNumberAr(cantidad, { maxDecimals: 0, minDecimals: 0 })}
-                    </span>
-                </div>
-                <div className="text-muted-foreground">
-                    Ingresos:{" "}
-                    <span className="text-foreground font-medium">
-                        $
-                        {formatNumberAr(ingresos, { maxDecimals: 2, minDecimals: 2 })}
-                    </span>
-                </div>
-            </div>
-        );
-    }
-
     const tipoSeries = useMemo(() => {
         const safeItems = (items ?? []).filter(
             (i) => i && typeof i.tipo === "string"
@@ -117,7 +89,7 @@ export default function CantidadTiposArreglos({
                 <ChartTooltip
                     cursor={false}
                     content={
-                        <TiposTooltip />
+                        <GraficoTooltip titleKey="tipo" extraRows={TIPOS_EXTRA_ROWS} />
                     }
                 />
                 <Pie
