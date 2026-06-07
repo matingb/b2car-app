@@ -246,74 +246,54 @@ DECLARE
 BEGIN
   SELECT * INTO b FROM public.dashboard_pick_bucket(p_from, p_to);
 
-  IF b.trunc_name = 'month' THEN
-    RETURN QUERY
-    WITH slots AS (
-      SELECT generate_series(
-        date_trunc('month', p_from),
-        date_trunc('month', p_to - interval '1 second'),
-        interval '1 month'
-      ) AS slot_start
-    ),
-    compras AS (
-      SELECT date_trunc('month', o.fecha) AS slot_start,
-             COALESCE(SUM(ol.cantidad * ol.monto_unitario), 0)::numeric AS rep
-      FROM public.operaciones o
-      JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
-      WHERE o.tipo = 'COMPRA' AND o.fecha >= p_from AND o.fecha < p_to
-        AND (p_taller_id IS NULL OR o.taller_id = p_taller_id)
-      GROUP BY 1
-    ),
-    sueldo_mes AS (
-      SELECT m.slot_start,
-             COALESCE(lat.sueldos, 0)::numeric AS sueldos
-      FROM slots m
-      LEFT JOIN LATERAL (
-        SELECT SUM(eff.salario) AS sueldos
-        FROM (
-          SELECT DISTINCT ON (es.empleado_id) es.salario
-          FROM public.empleado_salarios es
-          JOIN public.empleados e ON e.id = es.empleado_id
-          WHERE (p_taller_id IS NULL OR e.taller_id = p_taller_id)
-            AND es.vigente_desde <= (m.slot_start + interval '1 month' - interval '1 day')::date
-            AND (e.fecha_ingreso IS NULL OR e.fecha_ingreso < (m.slot_start + interval '1 month')::date)
-          ORDER BY es.empleado_id, es.vigente_desde DESC
-        ) eff
-      ) lat ON true
-    )
-    SELECT to_char(s.slot_start, b.label_fmt),
-           COALESCE(compras.rep, 0),
-           COALESCE(sueldo_mes.sueldos, 0)
-    FROM slots s
-    LEFT JOIN compras    USING (slot_start)
-    LEFT JOIN sueldo_mes USING (slot_start)
-    ORDER BY s.slot_start;
-
-  ELSE
-    RETURN QUERY
-    WITH slots AS (
-      SELECT generate_series(
-        date_trunc(b.trunc_name, p_from),
-        date_trunc(b.trunc_name, p_to - interval '1 second'),
-        b.step
-      ) AS slot_start
-    ),
-    compras AS (
-      SELECT date_trunc(b.trunc_name, o.fecha) AS slot_start,
-             COALESCE(SUM(ol.cantidad * ol.monto_unitario), 0)::numeric AS rep
-      FROM public.operaciones o
-      JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
-      WHERE o.tipo = 'COMPRA' AND o.fecha >= p_from AND o.fecha < p_to
-        AND (p_taller_id IS NULL OR o.taller_id = p_taller_id)
-      GROUP BY 1
-    )
-    SELECT to_char(s.slot_start, b.label_fmt),
-           COALESCE(compras.rep, 0),
-           0::numeric
-    FROM slots s
-    LEFT JOIN compras USING (slot_start)
-    ORDER BY s.slot_start;
-  END IF;
+  RETURN QUERY
+  WITH slots AS (
+    SELECT generate_series(
+      date_trunc(b.trunc_name, p_from),
+      date_trunc(b.trunc_name, p_to - interval '1 second'),
+      b.step
+    ) AS slot_start
+  ),
+  compras AS (
+    SELECT date_trunc(b.trunc_name, o.fecha) AS slot_start,
+           COALESCE(SUM(ol.cantidad * ol.monto_unitario), 0)::numeric AS rep
+    FROM public.operaciones o
+    JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
+    WHERE o.tipo = 'COMPRA' AND o.fecha >= p_from AND o.fecha < p_to
+      AND (p_taller_id IS NULL OR o.taller_id = p_taller_id)
+    GROUP BY 1
+  ),
+  meses AS (
+    SELECT generate_series(
+      date_trunc('month', p_from),
+      date_trunc('month', p_to - interval '1 second'),
+      interval '1 month'
+    ) AS mes_start
+  ),
+  sueldo_mes AS (
+    SELECT m.mes_start,
+           COALESCE(lat.sueldos, 0)::numeric AS sueldos
+    FROM meses m
+    LEFT JOIN LATERAL (
+      SELECT SUM(eff.salario) AS sueldos
+      FROM (
+        SELECT DISTINCT ON (es.empleado_id) es.salario
+        FROM public.empleado_salarios es
+        JOIN public.empleados e ON e.id = es.empleado_id
+        WHERE (p_taller_id IS NULL OR e.taller_id = p_taller_id)
+          AND es.vigente_desde < (m.mes_start + interval '1 month')::date
+          AND (e.fecha_ingreso IS NULL OR e.fecha_ingreso < (m.mes_start + interval '1 month')::date)
+        ORDER BY es.empleado_id, es.vigente_desde DESC
+      ) eff
+    ) lat ON true
+  )
+  SELECT to_char(s.slot_start, b.label_fmt),
+         COALESCE(compras.rep, 0),
+         COALESCE(sm.sueldos, 0)
+  FROM slots s
+  LEFT JOIN compras    USING (slot_start)
+  LEFT JOIN sueldo_mes sm ON date_trunc(b.trunc_name, sm.mes_start) = s.slot_start
+  ORDER BY s.slot_start;
 END;
 $$;
 

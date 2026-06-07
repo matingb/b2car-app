@@ -9,6 +9,7 @@ import type {
 import { createClient } from "@/supabase/server";
 import { empleadosService, type EmpleadoRow } from "../empleadosService";
 import { ServiceError } from "@/app/api/serviceError";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
 function mapEmpleado(row: EmpleadoRow): EmpleadoDTO {
   return {
@@ -174,13 +175,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (body.salario_vigente_desde && body.salario !== undefined && body.salario !== null) {
       const vigenteDesdeMes = `${body.salario_vigente_desde.slice(0, 7)}-01`;
-      await empleadosService.recordSalarioChange(
+      const { error: salarioError } = await empleadosService.recordSalarioChange(
         supabase,
         updated.id,
         updated.taller_id,
         body.salario,
         vigenteDesdeMes
       );
+      if (salarioError) {
+        logger.error("Error guardando historial salarial:", salarioError);
+        return Response.json(
+          { data: null, error: "Error guardando historial salarial" } satisfies UpdateEmpleadoResponse,
+          { status: 500 }
+        );
+      }
+      await statsService.onDataChanged(supabase);
     }
 
     return Response.json(
