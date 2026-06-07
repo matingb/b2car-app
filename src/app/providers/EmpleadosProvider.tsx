@@ -40,6 +40,14 @@ export type CreateEmpleadoInput = {
 
 export type UpdateEmpleadoInput = Partial<CreateEmpleadoInput & { salarioVigenteDesde: string | null }>;
 
+export type SalarioHistorial = {
+  id: string;
+  empleadoId: string;
+  salario: number;
+  vigenteDesde: string;
+  createdAt: string;
+};
+
 export type CreateEmpleadoResult = { empleado: Empleado | null; error: string | null };
 export type UpdateEmpleadoResult = { empleado: Empleado | null; error: string | null };
 
@@ -51,6 +59,7 @@ type EmpleadosContextType = {
   createEmpleado: (input: CreateEmpleadoInput) => Promise<CreateEmpleadoResult>;
   updateEmpleado: (id: string, input: UpdateEmpleadoInput) => Promise<UpdateEmpleadoResult>;
   removeEmpleado: (id: string) => Promise<{ error: string | null }>;
+  getSalarioHistory: (id: string) => Promise<{ data: SalarioHistorial[]; error: string | null }>;
 };
 
 const EmpleadosContext = createContext<EmpleadosContextType | null>(null);
@@ -166,6 +175,24 @@ export function EmpleadosProvider({ children }: { children: React.ReactNode }) {
     [loadEmpleados]
   );
 
+  const getSalarioHistory = useCallback(
+    async (id: string): Promise<{ data: SalarioHistorial[]; error: string | null }> => {
+      const res = await empleadosClient.getSalarioHistory(id);
+      if (res.error || !res.data) return { data: [], error: res.error ?? "Error" };
+      return {
+        data: res.data.map((dto) => ({
+          id: dto.id,
+          empleadoId: dto.empleadoId,
+          salario: dto.salario,
+          vigenteDesde: dto.vigenteDesde,
+          createdAt: dto.createdAt,
+        })),
+        error: null,
+      };
+    },
+    []
+  );
+
   const removeEmpleado = useCallback(
     async (id: string) => {
       setIsLoading(true);
@@ -190,6 +217,7 @@ export function EmpleadosProvider({ children }: { children: React.ReactNode }) {
       createEmpleado,
       updateEmpleado,
       removeEmpleado,
+      getSalarioHistory,
     }),
     [
       isLoading,
@@ -199,6 +227,7 @@ export function EmpleadosProvider({ children }: { children: React.ReactNode }) {
       createEmpleado,
       updateEmpleado,
       removeEmpleado,
+      getSalarioHistory,
     ]
   );
 

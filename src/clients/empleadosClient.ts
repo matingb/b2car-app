@@ -3,6 +3,7 @@ import type {
   CreateEmpleadoResponse,
   GetEmpleadoByIdResponse,
   GetEmpleadosResponse,
+  GetSalarioHistorialResponse,
   UpdateEmpleadoRequest,
   UpdateEmpleadoResponse,
 } from "@/app/api/empleados/contracts";
@@ -76,6 +77,20 @@ export const empleadosClient = {
       return { data: body.data || null, error: null };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "No se pudo actualizar el empleado";
+      return { data: null, error: message };
+    }
+  },
+
+  async getSalarioHistory(id: string): Promise<GetSalarioHistorialResponse> {
+    try {
+      const res = await fetch(`/api/empleados/${id}/salarios`);
+      const body: GetSalarioHistorialResponse = await res.json();
+      if (!res.ok) {
+        return { data: null, error: body?.error || `Error ${res.status}` };
+      }
+      return { data: body.data || [], error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Error cargando historial salarial";
       return { data: null, error: message };
     }
   },

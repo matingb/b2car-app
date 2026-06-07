@@ -23,6 +23,14 @@ export type EmpleadoRow = {
 
 export type CreateEmpleadoInput = Omit<EmpleadoRow, "id" | "tenant_id" | "created_at" | "updated_at">;
 
+export type SalarioHistorialRow = {
+  id: string;
+  empleado_id: string;
+  salario: number;
+  vigente_desde: string;
+  created_at: string;
+};
+
 export const empleadosService = {
   async list(
     supabase: SupabaseClient,
@@ -111,5 +119,18 @@ export const empleadosService = {
     );
     if (error) return { error };
     return { error: null };
+  },
+
+  async getSalarioHistory(
+    supabase: SupabaseClient,
+    empleadoId: string
+  ): Promise<{ data: SalarioHistorialRow[]; error: ServiceError | PostgrestError | null }> {
+    const { data, error } = await supabase
+      .from("empleado_salarios")
+      .select("id, empleado_id, salario, vigente_desde, created_at")
+      .eq("empleado_id", empleadoId)
+      .order("vigente_desde", { ascending: false });
+    if (error) return { data: [], error };
+    return { data: (data ?? []) as SalarioHistorialRow[], error: null };
   },
 };

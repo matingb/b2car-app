@@ -96,6 +96,7 @@ export default function EmpleadoCreateModal({ open, onClose }: Props) {
         values={values}
         onChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))}
         onValidityChange={(isValid) => setIsValid(isValid)}
+        mode="create"
       />
     </Modal>
   );

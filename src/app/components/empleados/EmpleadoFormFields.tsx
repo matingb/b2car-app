@@ -24,25 +24,27 @@ type Props = {
   onChange: (patch: Partial<EmpleadoFormFieldsValues>) => void;
   talleres: Taller[];
   onValidityChange?: (isValid: boolean) => void;
-  showSalarioVigenteDesde?: boolean;
+  mode: "create" | "edit";
 };
 
-export function validateEmpleadoForm(values: EmpleadoFormFieldsValues): boolean {
+export function validateEmpleadoForm(
+  values: EmpleadoFormFieldsValues,
+): boolean {
   return Boolean(
     values.tallerId.trim() &&
-      values.nombre.trim() &&
-      values.apellido.trim() &&
-      values.dni.trim() &&
-      (values.salario === null || values.salario >= 0)
+    values.nombre.trim() &&
+    values.apellido.trim() &&
+    values.dni.trim() &&
+    (values.salario === null || values.salario >= 0),
   );
 }
 
 export default function EmpleadoFormFields({
+  mode,
   values,
   onChange,
   talleres,
   onValidityChange,
-  showSalarioVigenteDesde = false,
 }: Props) {
   const isValid = useMemo(() => validateEmpleadoForm(values), [values]);
 
@@ -53,8 +55,14 @@ export default function EmpleadoFormFields({
   }, [isValid, onValidityChange]);
 
   const tallerOptions = useMemo(
-    () => [{ id: "", nombre: "Seleccionar taller..." } as Pick<Taller, "id" | "nombre">, ...talleres],
-    [talleres]
+    () => [
+      { id: "", nombre: "Seleccionar taller..." } as Pick<
+        Taller,
+        "id" | "nombre"
+      >,
+      ...talleres,
+    ],
+    [talleres],
   );
 
   return (
@@ -173,30 +181,30 @@ export default function EmpleadoFormFields({
         </div>
       </div>
 
-      <div css={styles.row}>
-        <div style={styles.field}>
-          <label style={styles.label}>Salario</label>
-          <NumberInput
-            minValue={0}
-            value={values.salario ?? 0}
-            onValueChange={(next) => onChange({ salario: next })}
-            placeholder="0"
-          />
+      {mode === "create" && (
+        <div css={styles.row}>
+          <div style={styles.field}>
+            <label style={styles.label}>Salario</label>
+            <NumberInput
+              minValue={0}
+              value={values.salario ?? 0}
+              onValueChange={(next) => onChange({ salario: next })}
+              placeholder="0"
+            />
+          </div>
+          <div style={styles.field}>
+            <label style={styles.label}>Vigente desde</label>
+            <input
+              type="month"
+              style={styles.input}
+              value={values.salarioVigenteDesde ?? ""}
+              onChange={(e) =>
+                onChange({ salarioVigenteDesde: e.target.value })
+              }
+            />
+          </div>
         </div>
-        <div style={styles.field}>
-          {showSalarioVigenteDesde && (
-            <>
-              <label style={styles.label}>Vigente desde</label>
-              <input
-                type="month"
-                style={styles.input}
-                value={values.salarioVigenteDesde ?? ""}
-                onChange={(e) => onChange({ salarioVigenteDesde: e.target.value })}
-              />
-            </>
-          )}
-        </div>
-      </div>
+      )}
     </>
   );
 }

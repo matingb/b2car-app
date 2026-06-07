@@ -104,7 +104,7 @@ export default function EmpleadoEditModal({ open, empleado, onClose, onSaved }: 
         values={values}
         onChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))}
         onValidityChange={(isValid) => setIsValid(isValid)}
-        showSalarioVigenteDesde
+        mode="edit"
       />
     </Modal>
   );

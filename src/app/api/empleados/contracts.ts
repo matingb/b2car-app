@@ -1,5 +1,18 @@
 import type { EmpleadoDTO } from "@/model/dtos";
 
+export type SalarioHistorialDTO = {
+  id: string;
+  empleadoId: string;
+  salario: number;
+  vigenteDesde: string;
+  createdAt: string;
+};
+
+export type GetSalarioHistorialResponse = {
+  data: SalarioHistorialDTO[] | null;
+  error?: string | null;
+};
+
 export type GetEmpleadosResponse = {
   data: EmpleadoDTO[] | null;
   error?: string | null;
