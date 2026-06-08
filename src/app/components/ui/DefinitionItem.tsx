@@ -38,7 +38,7 @@ const styles = {
     gap: 6,
     color: COLOR.TEXT.PRIMARY,
     fontWeight: 500,
-    fontSize: 14,
+    fontSize: 16,
   },
   ddIcon: { display: "inline-flex" },
 } as const;

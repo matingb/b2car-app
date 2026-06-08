@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Pencil, Trash } from "lucide-react";
+import { Trash } from "lucide-react";
 import { css } from "@emotion/react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
@@ -130,25 +130,30 @@ export default function EmpleadoDetailPage() {
             ariaLabel="Eliminar"
             hoverColor={COLOR.ICON.DANGER}
           />
-          <IconButton
-            icon={<Pencil />}
-            onClick={() => setIsEditOpen(true)}
-            title="Editar"
-            ariaLabel="Editar"
-          />
         </div>
       </div>
 
       <EmpleadoProfileCard empleado={empleado} tallerNombre={tallerNombre} />
 
-      <EmpleadoInfoPersonalCard empleado={empleado} />
+      <div style={styles.sections}>
+        <div css={styles.cardsRow}>
+          <div css={styles.cardColumn}>
+            <EmpleadoContactoCard
+              empleado={empleado}
+              onEdit={() => setIsEditOpen(true)}
+            />
+          </div>
 
-      <EmpleadoContactoCard empleado={empleado} />
-      
-      <SalarioHistorialCard
-        empleado={empleado}
-        onSalarioUpdated={setEmpleado}
-      />
+          <div css={styles.cardColumn}>
+            <EmpleadoInfoPersonalCard empleado={empleado} />
+          </div>
+        </div>
+
+        <SalarioHistorialCard
+          empleado={empleado}
+          onSalarioUpdated={setEmpleado}
+        />
+      </div>
 
       <EmpleadoEditModal
         open={isEditOpen}
@@ -164,7 +169,7 @@ const styles = {
   container: css({
     display: "flex",
     flexDirection: "column",
-    gap: 12,
+    gap: 0,
   }),
   headerRow: css({
     display: "flex",
@@ -177,19 +182,25 @@ const styles = {
     gap: 4,
     flexShrink: 0,
   },
-  grid: css({
-    display: "grid",
-    gridTemplateColumns: "2fr 1fr",
-    gap: 12,
-    alignItems: "start",
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      gridTemplateColumns: "1fr",
+  sections: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 16,
+  },
+  cardsRow: css({
+    display: "flex",
+    gap: 16,
+    alignItems: "stretch",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      flexDirection: "column",
     },
   }),
-  col: css({
+  cardColumn: css({
     display: "flex",
     flexDirection: "column",
-    gap: 12,
+    alignItems: "stretch",
+    flex: "1 1 0",
+    minWidth: 0,
   }),
   statusText: {
     marginTop: 16,

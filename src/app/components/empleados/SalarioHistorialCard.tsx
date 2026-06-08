@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { TrendingUp } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { COLOR } from "@/theme/theme";
-import Button from "@/app/components/ui/Button";
-import SectionCard from "@/app/components/empleados/SectionCard";
+import Card from "@/app/components/ui/Card";
+import IconButton from "@/app/components/ui/IconButton";
 import { useEmpleados, type Empleado, type SalarioHistorial } from "@/app/providers/EmpleadosProvider";
 import SalarioUpdateModal from "./SalarioUpdateModal";
 
@@ -22,10 +22,10 @@ function formatSalario(amount: number): string {
 }
 
 function formatMonth(isoDate: string): string {
-  if (!isoDate) return "—";
+  if (!isoDate) return "-";
   const [year, month] = isoDate.split("-");
-  const months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-  return `${months[Number(month) - 1]} ${year}`;
+  const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  return `${months[Number(month) - 1] ?? month} ${year}`;
 }
 
 export default function SalarioHistorialCard({ empleado, onSalarioUpdated }: Props) {
@@ -50,44 +50,43 @@ export default function SalarioHistorialCard({ empleado, onSalarioUpdated }: Pro
     void loadHistory();
   };
 
-  const action = (
-    <Button
-      text="Actualizar salario"
-      onClick={() => setIsModalOpen(true)}
-      style={{ fontSize: 13, padding: "6px 12px", minWidth: 0 }}
-      hideTextOnMobile={false}
-    />
-  );
-
   return (
     <>
-      <SectionCard
-        icon={<TrendingUp size={16} color={COLOR.TEXT.SECONDARY} />}
-        title="Historial salarial"
-        action={action}
-      >
-        {isLoading ? (
-          <div style={styles.empty}>Cargando...</div>
-        ) : historial.length === 0 ? (
-          <div style={styles.empty}>Sin historial registrado.</div>
-        ) : (
-          <div style={styles.list}>
-            {historial.map((item, index) => (
-              <div key={item.id} style={styles.row}>
-                <div style={styles.dotCol}>
-                  <div style={{ ...styles.dot, ...(index === 0 ? styles.dotActive : {}) }} />
-                  {index < historial.length - 1 && <div style={styles.line} />}
+      <div style={styles.main}>
+        <div style={styles.header}>
+          <h3 style={styles.title}>Historial salarial</h3>
+          <IconButton
+            icon={<Pencil />}
+            size={18}
+            onClick={() => setIsModalOpen(true)}
+            title="Actualizar salario"
+            ariaLabel="Actualizar salario"
+          />
+        </div>
+        <Card style={historial.length > 0 ? styles.contentPanel : styles.contentPanelEmpty}>
+          {isLoading ? (
+            <div style={styles.empty}>Cargando...</div>
+          ) : historial.length === 0 ? (
+            <div style={styles.empty}>Sin historial registrado.</div>
+          ) : (
+            <div style={styles.list}>
+              {historial.map((item, index) => (
+                <div key={item.id} style={styles.row}>
+                  <div style={styles.dotCol}>
+                    <div style={{ ...styles.dot, ...(index === 0 ? styles.dotActive : {}) }} />
+                    {index < historial.length - 1 && <div style={styles.line} />}
+                  </div>
+                  <div style={styles.rowContent}>
+                    <div style={styles.rowMonth}>{formatMonth(item.vigenteDesde)}</div>
+                    <div style={styles.rowSalario}>{formatSalario(item.salario)}</div>
+                    {index === 0 && <span style={styles.badge}>Actual</span>}
+                  </div>
                 </div>
-                <div style={styles.rowContent}>
-                  <div style={styles.rowMonth}>{formatMonth(item.vigenteDesde)}</div>
-                  <div style={styles.rowSalario}>{formatSalario(item.salario)}</div>
-                  {index === 0 && <span style={styles.badge}>Actual</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </SectionCard>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
 
       <SalarioUpdateModal
         open={isModalOpen}
@@ -100,6 +99,37 @@ export default function SalarioHistorialCard({ empleado, onSalarioUpdated }: Pro
 }
 
 const styles = {
+  main: {
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "stretch",
+    height: "100%",
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    fontSize: 20,
+    marginBottom: 8,
+    fontWeight: 600,
+  },
+  title: {
+    margin: 0,
+  },
+  contentPanel: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 4,
+    width: "100%",
+    height: "100%",
+  },
+  contentPanelEmpty: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    minHeight: 84,
+  },
   empty: {
     fontSize: 13,
     color: COLOR.TEXT.SECONDARY,

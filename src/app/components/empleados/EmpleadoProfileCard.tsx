@@ -1,6 +1,7 @@
 import React from "react";
-import { Briefcase } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { COLOR } from "@/theme/theme";
+import Avatar from "@/app/components/ui/Avatar";
 import type { Empleado } from "@/app/providers/EmpleadosProvider";
 
 type Props = {
@@ -8,28 +9,17 @@ type Props = {
   tallerNombre: string;
 };
 
-function getInitials(nombre: string, apellido: string) {
-  return `${nombre.trim().charAt(0)}${apellido.trim().charAt(0)}`.toUpperCase();
-}
-
 export default function EmpleadoProfileCard({ empleado, tallerNombre }: Props) {
-  const initials = getInitials(empleado.nombre, empleado.apellido);
+  const nombreCompleto = `${empleado.nombre} ${empleado.apellido}`.trim();
 
   return (
-    <div style={styles.card}>
-      <div style={styles.banner} />
-      <div style={styles.body}>
-        <div style={styles.avatar}>
-          <span style={styles.avatarText}>{initials}</span>
-        </div>
-        <div style={styles.titleBlock}>
-          <h2 style={styles.name}>
-            {empleado.nombre} {empleado.apellido}
-          </h2>
-          <div style={styles.subtitleRow}>
-            <Briefcase size={14} color={COLOR.TEXT.SECONDARY} />
-            {tallerNombre && <span style={styles.subtitleText}>{tallerNombre}</span>}
-          </div>
+    <div style={styles.header}>
+      <Avatar nombre={nombreCompleto} size={60} />
+      <div style={styles.titleBlock}>
+        <h1 style={styles.name}>{nombreCompleto}</h1>
+        <div style={styles.subtitleRow}>
+          <Building2 size={14} color={COLOR.TEXT.SECONDARY} />
+          {tallerNombre && <span style={styles.subtitleText}>{tallerNombre}</span>}
         </div>
       </div>
     </div>
@@ -37,55 +27,21 @@ export default function EmpleadoProfileCard({ empleado, tallerNombre }: Props) {
 }
 
 const styles = {
-  card: {
-    background: COLOR.BACKGROUND.SECONDARY,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  banner: {
-    height: 64,
-    background: COLOR.BACKGROUND.INFO_TINT,
-  },
-  body: {
-    padding: "0 20px 20px",
+  header: {
     display: "flex",
-    alignItems: "flex-end",
+    alignItems: "center",
     gap: 16,
-    marginTop: -32,
-  },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: "50%",
-    background: COLOR.BACKGROUND.SECONDARY,
-    border: `4px solid ${COLOR.BACKGROUND.SECONDARY}`,
-    boxShadow: "0 1px 2px 0 rgba(0,0,0,0.05)",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    fontSize: 24,
-    fontWeight: 700,
-    background: COLOR.BACKGROUND.INFO_TINT,
-    width: "100%",
-    height: "100%",
-    borderRadius: "50%",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: COLOR.ACCENT.PRIMARY,
+    marginBottom: 14,
+    marginTop: 12,
   },
   titleBlock: {
     display: "flex",
     flexDirection: "column" as const,
-    gap: 2,
-    paddingBottom: 4,
+    gap: 4,
   },
   name: {
-    fontSize: 22,
-    fontWeight: 600,
+    fontSize: 24,
+    fontWeight: 700,
     margin: 0,
   },
   subtitleRow: {
