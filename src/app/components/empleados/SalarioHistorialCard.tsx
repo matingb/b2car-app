@@ -155,13 +155,14 @@ const styles = {
     height: 10,
     borderRadius: "50%",
     background: COLOR.BORDER.DEFAULT,
-    marginTop: 4,
+    marginTop: 7,
+    marginBottom: 6,
     flexShrink: 0,
   },
   dotActive: {
     background: COLOR.ACCENT.PRIMARY,
-    width: 12,
-    height: 12,
+    width: 14,
+    height: 14,
   },
   line: {
     width: 2,
