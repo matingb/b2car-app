@@ -147,6 +147,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     );
   }
 
+  const hasSalarioHistoryChange =
+    !!body.salario_vigente_desde && body.salario !== undefined && body.salario !== null;
+
   const patch: Partial<Omit<EmpleadoRow, "id" | "tenant_id" | "created_at" | "updated_at">> = {};
   if (body.taller_id !== undefined) patch.taller_id = String(body.taller_id ?? "").trim();
   if (body.nombre !== undefined) patch.nombre = String(body.nombre ?? "").trim();
@@ -155,11 +158,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.email !== undefined) patch.email = body.email?.trim() || null;
   if (body.telefono !== undefined) patch.telefono = body.telefono?.trim() || null;
   if (body.cumpleanos !== undefined) patch.cumpleanos = body.cumpleanos || null;
-  if (body.salario !== undefined) patch.salario = body.salario ?? null;
+  if (body.salario !== undefined && !hasSalarioHistoryChange) patch.salario = body.salario ?? null;
   if (body.fecha_ingreso !== undefined) patch.fecha_ingreso = body.fecha_ingreso || null;
 
   try {
-    const { data: updated, error } = await empleadosService.updateById(supabase, id, patch);
+    const hasEmpleadoPatch = Object.keys(patch).length > 0;
+    const { data: empleadoActualizado, error } = hasEmpleadoPatch
+      ? await empleadosService.updateById(supabase, id, patch)
+      : await empleadosService.getById(supabase, id);
+    let updated = empleadoActualizado;
     if (error === ServiceError.NotFound || !updated) {
       return Response.json(
         { data: null, error: "Empleado no encontrado" } satisfies UpdateEmpleadoResponse,
@@ -173,13 +180,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
     }
 
-    if (body.salario_vigente_desde && body.salario !== undefined && body.salario !== null) {
-      const vigenteDesdeMes = `${body.salario_vigente_desde.slice(0, 7)}-01`;
+    if (hasSalarioHistoryChange) {
+      const vigenteDesdeMes = `${body.salario_vigente_desde!.slice(0, 7)}-01`;
       const { error: salarioError } = await empleadosService.recordSalarioChange(
         supabase,
         updated.id,
         updated.taller_id,
-        body.salario,
+        body.salario!,
         vigenteDesdeMes
       );
       if (salarioError) {
@@ -189,6 +196,30 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           { status: 500 }
         );
       }
+
+      const { data: latestSalario, error: latestSalarioError } =
+        await empleadosService.getLatestSalario(supabase, updated.id);
+      if (latestSalarioError || !latestSalario) {
+        logger.error("Error calculando salario actual:", latestSalarioError);
+        return Response.json(
+          { data: null, error: "Error calculando salario actual" } satisfies UpdateEmpleadoResponse,
+          { status: 500 }
+        );
+      }
+
+      const { data: updatedWithLatestSalario, error: salarioActualError } =
+        await empleadosService.updateById(supabase, updated.id, {
+          salario: Number(latestSalario.salario),
+        });
+      if (salarioActualError || !updatedWithLatestSalario) {
+        logger.error("Error actualizando salario actual:", salarioActualError);
+        return Response.json(
+          { data: null, error: "Error actualizando salario actual" } satisfies UpdateEmpleadoResponse,
+          { status: 500 }
+        );
+      }
+
+      updated = updatedWithLatestSalario;
       await statsService.onDataChanged(supabase);
     }
 

@@ -16,13 +16,22 @@ vi.mock("../empleadosService", async () => {
       getById: vi.fn(),
       updateById: vi.fn(),
       deleteById: vi.fn(),
+      recordSalarioChange: vi.fn(),
+      getLatestSalario: vi.fn(),
     },
   };
 });
 
+vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
+  statsService: {
+    onDataChanged: vi.fn(),
+  },
+}));
+
 import { createClient } from "@/supabase/server";
 import { empleadosService, type EmpleadoRow } from "../empleadosService";
 import { ServiceError } from "@/app/api/serviceError";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
 function createEmpleadoRow(overrides: Partial<EmpleadoRow> = {}): EmpleadoRow {
   return {
@@ -96,6 +105,56 @@ describe("/api/empleados/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(body.data?.nombre).toBe("Pedro");
+  });
+
+  it("PUT con salario retroactivo conserva como actual el salario del ultimo mes vigente", async () => {
+    const empleadoActual = createEmpleadoRow({ salario: 2000 });
+    vi.mocked(empleadosService.getById).mockResolvedValue({
+      data: empleadoActual,
+      error: null,
+    });
+    vi.mocked(empleadosService.recordSalarioChange).mockResolvedValue({ error: null });
+    vi.mocked(empleadosService.getLatestSalario).mockResolvedValue({
+      data: {
+        id: "SAL-2",
+        empleado_id: "EMP-1",
+        salario: 2000,
+        vigente_desde: "2026-06-01",
+        created_at: "2026-06-01T00:00:00.000Z",
+      },
+      error: null,
+    });
+    vi.mocked(empleadosService.updateById).mockResolvedValue({
+      data: createEmpleadoRow({ salario: 2000 }),
+      error: null,
+    });
+
+    const req = new NextRequest("http://localhost/api/empleados/EMP-1", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        salario: 1500,
+        salario_vigente_desde: "2026-05-01",
+      }),
+    });
+    const res = await PUT(req, { params: Promise.resolve({ id: "EMP-1" }) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data?.salario).toBe(2000);
+    expect(empleadosService.recordSalarioChange).toHaveBeenCalledWith(
+      expect.anything(),
+      "EMP-1",
+      "TAL-1",
+      1500,
+      "2026-05-01"
+    );
+    expect(empleadosService.updateById).toHaveBeenCalledWith(
+      expect.anything(),
+      "EMP-1",
+      { salario: 2000 }
+    );
+    expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
   });
 
   it("PUT rechaza nombre vacío con 400", async () => {

@@ -22,6 +22,10 @@ import Card from "@/app/components/ui/Card";
 
 type ActiveCard = "arreglos" | "facturacion" | "gastos" | "balance";
 
+const DASHBOARD_GRANULARITY_STORAGE_KEY = "b2car.dashboard.granularity";
+const ACTIVE_CARDS: ActiveCard[] = ["arreglos", "facturacion", "gastos", "balance"];
+const GRANULARITY_VALUES: Granularity[] = ["day", "week", "month"];
+
 const PANEL_TITLES: Record<ActiveCard, string> = {
     arreglos: "Arreglos realizados",
     facturacion: "Facturación",
@@ -33,16 +37,42 @@ function defaultPeriod(): PeriodOption {
     return buildPeriodOptions(1)[0];
 }
 
-export default function DashboardPage() {
-    const { stats, loading, error, fetchStats } = useDashboard();
-    const [activeCard, setActiveCard] = useState<ActiveCard>("facturacion");
-    const [period, setPeriod] = useState<PeriodOption>(defaultPeriod);
-    const [granularity, setGranularity] = useState<Record<ActiveCard, Granularity>>({
+function defaultGranularity(): Record<ActiveCard, Granularity> {
+    return {
         arreglos: "day",
         facturacion: "day",
         gastos: "day",
         balance: "day",
-    });
+    };
+}
+
+function isGranularity(value: unknown): value is Granularity {
+    return typeof value === "string" && GRANULARITY_VALUES.includes(value as Granularity);
+}
+
+function loadGranularity(): Record<ActiveCard, Granularity> {
+    const fallback = defaultGranularity();
+    if (typeof window === "undefined") return fallback;
+
+    try {
+        const raw = window.localStorage.getItem(DASHBOARD_GRANULARITY_STORAGE_KEY);
+        if (!raw) return fallback;
+        const parsed = JSON.parse(raw) as Partial<Record<ActiveCard, unknown>>;
+        return ACTIVE_CARDS.reduce<Record<ActiveCard, Granularity>>((acc, card) => {
+            const value = parsed?.[card];
+            acc[card] = isGranularity(value) ? value : fallback[card];
+            return acc;
+        }, { ...fallback });
+    } catch {
+        return fallback;
+    }
+}
+
+export default function DashboardPage() {
+    const { stats, loading, error, fetchStats } = useDashboard();
+    const [activeCard, setActiveCard] = useState<ActiveCard>("facturacion");
+    const [period, setPeriod] = useState<PeriodOption>(defaultPeriod);
+    const [granularity, setGranularity] = useState<Record<ActiveCard, Granularity>>(loadGranularity);
 
     const handlePeriodChange = useCallback(
         (newPeriod: PeriodOption) => {
@@ -55,6 +85,10 @@ export default function DashboardPage() {
     useEffect(() => {
         fetchStats({ from: period.from, to: period.to });
     }, [fetchStats, period.from, period.to]);
+
+    useEffect(() => {
+        window.localStorage.setItem(DASHBOARD_GRANULARITY_STORAGE_KEY, JSON.stringify(granularity));
+    }, [granularity]);
 
     const arreglosData = applyGranularity(
         stats?.arreglosPorPeriodo ?? [],
@@ -172,7 +206,7 @@ export default function DashboardPage() {
 
             {/* Panel expandible según la card seleccionada */}
             <div style={{ marginTop: 12 }}>
-                {(["arreglos", "facturacion", "gastos", "balance"] as ActiveCard[]).map((card) => (
+                {ACTIVE_CARDS.map((card) => (
                     <DashboardExpandablePanel
                         key={card}
                         isOpen={activeCard === card}
@@ -188,9 +222,15 @@ export default function DashboardPage() {
                         ) : card === "arreglos" ? (
                             <GraficoArreglos data={arreglosData} />
                         ) : card === "facturacion" ? (
-                            <GraficoIngresos data={ingresosData} />
+                            <GraficoIngresos
+                                data={ingresosData}
+                                isMonthly={granularity.facturacion === "month"}
+                            />
                         ) : card === "gastos" ? (
-                            <GraficoGastos data={gastosData} />
+                            <GraficoGastos
+                                data={gastosData}
+                                isMonthly={granularity.gastos === "month"}
+                            />
                         ) : (
                             <GraficoBalance
                                 ingresosPorPeriodo={ingresosBalanceData}

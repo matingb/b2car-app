@@ -1,5 +1,5 @@
 import React from "react";
-import { CalendarClock, DollarSign } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import { css } from "@emotion/react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Card from "@/app/components/ui/Card";

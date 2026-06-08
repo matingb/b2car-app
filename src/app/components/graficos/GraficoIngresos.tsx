@@ -10,10 +10,11 @@ import {
     type ChartConfig,
 } from "@/app/components/shadcn/ui/chart";
 import GraficoTooltip from "./GraficoTooltip";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
 
 type Props = {
     data?: Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>;
+    isMonthly?: boolean;
 };
 
 function formatCurrency(value: number) {
@@ -26,7 +27,11 @@ const LABELS: Record<string, string> = {
     ventas: "Ventas",
 };
 
-export default function GraficoIngresos({ data }: Props) {
+const MONTHLY_LABELS: Record<string, string> = {
+    valor: "Monto",
+};
+
+export default function GraficoIngresos({ data, isMonthly = false }: Props) {
     const { chartData, config } = useMemo(() => {
         const chartData = (data ?? []).map((d) => ({
             label: d.label,
@@ -52,6 +57,62 @@ export default function GraficoIngresos({ data }: Props) {
 
         return { chartData, config };
     }, [data]);
+
+    const { monthlyChartData, monthlyConfig } = useMemo(() => {
+        const totals = (data ?? []).reduce(
+            (acc, item) => ({
+                mano_de_obra: acc.mano_de_obra + item.mano_de_obra,
+                repuestos: acc.repuestos + item.repuestos,
+                ventas: acc.ventas + item.ventas,
+            }),
+            { mano_de_obra: 0, repuestos: 0, ventas: 0 }
+        );
+
+        const monthlyChartData = [
+            { label: "Mano de obra", valor: totals.mano_de_obra, color: COLOR.GRAPHICS.PRIMARY },
+            { label: "Repuestos", valor: totals.repuestos, color: COLOR.GRAPHICS.TERTIARY },
+            { label: "Ventas", valor: totals.ventas, color: COLOR.GRAPHICS.QUINARY },
+        ];
+
+        const monthlyConfig: ChartConfig = {
+            valor: {
+                label: "Monto",
+                color: COLOR.GRAPHICS.PRIMARY,
+            },
+        };
+
+        return { monthlyChartData, monthlyConfig };
+    }, [data]);
+
+    if (isMonthly) {
+        return (
+            <ChartContainer config={monthlyConfig} className="w-full h-[220px]">
+                <BarChart data={monthlyChartData} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                        dataKey="label"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        interval={0}
+                    />
+                    <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        width={64}
+                        tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                    />
+                    <ChartTooltip cursor={false} content={<GraficoTooltip labelMap={MONTHLY_LABELS} formatter={formatCurrency} />} />
+                    <Bar dataKey="valor" radius={[3, 3, 0, 0]}>
+                        {monthlyChartData.map((entry) => (
+                            <Cell key={entry.label} fill={entry.color} />
+                        ))}
+                    </Bar>
+                </BarChart>
+            </ChartContainer>
+        );
+    }
 
     return (
         <ChartContainer config={config} className="w-full h-[220px]">

@@ -11,7 +11,7 @@ type Props = {
   onChange: (g: Granularity) => void;
 };
 
-const OPTIONS: Granularity[] = ["day", "week"];
+const OPTIONS: Granularity[] = ["day", "week", "month"];
 
 export default function GranularitySelector({ value, onChange }: Props) {
   return (

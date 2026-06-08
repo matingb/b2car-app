@@ -1,17 +1,23 @@
-export type Granularity = "day" | "week";
+export type Granularity = "day" | "week" | "month";
 
 export const GRANULARITY_LABELS: Record<Granularity, string> = {
     day: "Diario",
     week: "Semanal",
+    month: "Mensual",
 };
 
+const MONTH_NAMES_SHORT_ES = [
+    "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+    "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+];
+
 /**
- * Re-agrupa datos diarios (label="DD") según la granularidad pedida.
+ * Re-agrupa datos diarios (label="DD") segun la granularidad pedida.
  *
- * @param data    Array de puntos diarios con { label: "DD", ...valores numéricos }
- * @param granularity  "day" | "week"
- * @param periodFrom   ISO string del inicio del período (e.g. "2026-05-01T00:00:00.000Z")
- * @param merge        Función que recibe (label, items) y devuelve un ítem sumado
+ * @param data Array de puntos diarios con { label: "DD", ...valores numericos }
+ * @param granularity "day" | "week" | "month"
+ * @param periodFrom ISO string del inicio del periodo (e.g. "2026-05-01T00:00:00.000Z")
+ * @param merge Funcion que recibe (label, items) y devuelve un item sumado
  */
 export function applyGranularity<T extends { label: string }>(
     data: T[],
@@ -21,7 +27,18 @@ export function applyGranularity<T extends { label: string }>(
 ): T[] {
     if (!data.length) return data;
     if (granularity === "day") return data;
+    if (granularity === "month") return groupByMonth(data, periodFrom, merge);
     return groupByCalendarWeek(data, periodFrom, merge);
+}
+
+function groupByMonth<T extends { label: string }>(
+    data: T[],
+    periodFrom: string,
+    merge: (label: string, items: T[]) => T,
+): T[] {
+    const from = new Date(periodFrom);
+    const label = `${MONTH_NAMES_SHORT_ES[from.getUTCMonth()]} ${from.getUTCFullYear()}`;
+    return [merge(label, data)];
 }
 
 function groupByCalendarWeek<T extends { label: string }>(
@@ -31,7 +48,6 @@ function groupByCalendarWeek<T extends { label: string }>(
 ): T[] {
     const from = new Date(periodFrom);
 
-    // Mapear cada punto al lunes de su semana ISO
     type Bucket = { weekStart: Date; label: string; items: T[] };
     const buckets = new Map<string, Bucket>();
 
@@ -40,9 +56,7 @@ function groupByCalendarWeek<T extends { label: string }>(
         if (isNaN(day)) continue;
 
         const date = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), day));
-
-        // Lunes de la semana ISO
-        const dow = date.getUTCDay(); // 0=Dom, 1=Lun, ..., 6=Sáb
+        const dow = date.getUTCDay();
         const toMonday = dow === 0 ? -6 : 1 - dow;
         const monday = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + toMonday));
 

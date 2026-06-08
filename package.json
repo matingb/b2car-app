@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest",
     "test:watch": "vitest --watch",
-    "push": "next build && git push"
+    "push": "next build && git push",
+    "up" : "next build --turbopack && next start"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

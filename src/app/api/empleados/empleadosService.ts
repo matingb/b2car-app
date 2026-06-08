@@ -121,6 +121,21 @@ export const empleadosService = {
     return { error: null };
   },
 
+  async getLatestSalario(
+    supabase: SupabaseClient,
+    empleadoId: string
+  ): Promise<{ data: SalarioHistorialRow | null; error: ServiceError | PostgrestError | null }> {
+    const { data, error } = await supabase
+      .from("empleado_salarios")
+      .select("id, empleado_id, salario, vigente_desde, created_at")
+      .eq("empleado_id", empleadoId)
+      .order("vigente_desde", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) return { data: null, error };
+    return { data: (data ?? null) as SalarioHistorialRow | null, error: null };
+  },
+
   async getSalarioHistory(
     supabase: SupabaseClient,
     empleadoId: string
