@@ -283,7 +283,10 @@ export async function POST(req: Request) {
         return Response.json({ error: "Arreglo creado, pero no se pudo cargar" }, { status: 500 });
     }
 
-    await statsService.onDataChanged(supabase);
+    await statsService.onDataChanged(
+        supabase,
+        (createdArreglo as { tenant_id?: string | null }).tenant_id
+    );
     return Response.json({ data: createdArreglo, error: null }, { status: 201 });
 
 }

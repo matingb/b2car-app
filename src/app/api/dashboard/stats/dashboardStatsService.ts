@@ -2,16 +2,39 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { arregloService } from "@/app/api/arreglos/arregloService";
 import { clienteService } from "@/app/api/clientes/clienteService";
 import { vehiculoService } from "@/app/api/vehiculos/vehiculoService";
+import { decodeJwtPayload } from "@/lib/jwt";
 import { revalidateTag, unstable_cache } from "next/cache";
 
 const DASHBOARD_STATS_TAG_PREFIX = "dashboard-stats";
 
-function invalidateDashboardStats() {
+function dashboardStatsTag(tenantId: string) {
+  const normalized = String(tenantId).trim();
+  return normalized
+    ? `${DASHBOARD_STATS_TAG_PREFIX}:tenant:${normalized}`
+    : `${DASHBOARD_STATS_TAG_PREFIX}:tenant:unknown`;
+}
+
+function invalidateDashboardStats(tenantIds?: string | string[] | null) {
   try {
-    revalidateTag(DASHBOARD_STATS_TAG_PREFIX);
+    const ids = Array.isArray(tenantIds) ? tenantIds : [tenantIds];
+    const uniqueTags = new Set(
+      ids
+        .map((id) => String(id ?? "").trim())
+        .filter(Boolean)
+        .map((id) => dashboardStatsTag(id))
+    );
+    uniqueTags.forEach((tag) => revalidateTag(tag));
   } catch {
     // ignore
   }
+}
+
+async function getSessionTenantId(supabase: SupabaseClient): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token ?? "";
+  const jwt = decodeJwtPayload(token);
+  const tenantId = jwt?.tenant_id;
+  return typeof tenantId === "string" && tenantId.trim() ? tenantId : null;
 }
 
 export type DashboardStats = {
@@ -65,8 +88,7 @@ function startOfNextUtcMonth(d: Date) {
 async function getStats(
   supabase: SupabaseClient,
   periodFrom?: string,
-  periodTo?: string,
-  tallerId?: string
+  periodTo?: string
 ): Promise<DashboardStats> {
   const now = new Date();
   const from = periodFrom ?? startOfUtcMonth(now).toISOString();
@@ -86,13 +108,13 @@ async function getStats(
   ] = await Promise.all([
     clienteService.countAll(supabase),
     vehiculoService.countAll(supabase),
-    arregloService.arreglosResumen(supabase, from, to, tallerId),
-    arregloService.tiposConIngresos(supabase, from, to, tallerId),
-    arregloService.listRecentActivities(supabase, recentLimit, from, to, tallerId),
+    arregloService.arreglosResumen(supabase, from, to),
+    arregloService.tiposConIngresos(supabase, from, to),
+    arregloService.listRecentActivities(supabase, recentLimit, from, to),
     clienteService.nuevosPorDia(supabase, from, to),
-    arregloService.arreglosPorPeriodo(supabase, from, to, tallerId),
-    arregloService.ingresosPorPeriodo(supabase, from, to, tallerId),
-    arregloService.gastosPorPeriodo(supabase, from, to, tallerId),
+    arregloService.arreglosPorPeriodo(supabase, from, to),
+    arregloService.ingresosPorPeriodo(supabase, from, to),
+    arregloService.gastosPorPeriodo(supabase, from, to),
   ]);
 
   const arreglosEsteMes = arreglosPorPeriodo.reduce((sum, d) => sum + d.cantidad, 0);
@@ -131,24 +153,37 @@ export const statsService = {
     supabase: SupabaseClient,
     periodFrom?: string,
     periodTo?: string,
-    tallerId?: string
+    tenantId?: string
   ): Promise<DashboardStats> {
+    const resolvedTenantId = tenantId ?? (await getSessionTenantId(supabase));
+    if (!resolvedTenantId) throw new Error("JWT sin tenant_id");
+
     const getCached = unstable_cache(
-      async () => getStats(supabase, periodFrom, periodTo, tallerId),
+      async () => getStats(supabase, periodFrom, periodTo),
       [
         DASHBOARD_STATS_TAG_PREFIX,
         periodFrom ?? "current",
         periodTo ?? "current",
-        tallerId ?? "all",
+        resolvedTenantId,
       ],
-      { revalidate: 3600, tags: [DASHBOARD_STATS_TAG_PREFIX] }
+      { revalidate: 3600, tags: [dashboardStatsTag(resolvedTenantId)] }
     );
 
     return await getCached();
   },
 
-  async onDataChanged(supabase: SupabaseClient) {
-    void supabase;
-    invalidateDashboardStats();
+  async onDataChanged(supabase: SupabaseClient, tenantIds?: string | string[] | null) {
+    const ids = Array.isArray(tenantIds) ? tenantIds : [tenantIds];
+    const explicitIds = ids
+      .map((id) => String(id ?? "").trim())
+      .filter(Boolean);
+
+    if (explicitIds.length > 0) {
+      invalidateDashboardStats(explicitIds);
+      return;
+    }
+
+    const tenantId = await getSessionTenantId(supabase);
+    if (tenantId) invalidateDashboardStats(tenantId);
   },
 } as const;

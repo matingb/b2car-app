@@ -78,11 +78,11 @@ describe("Mutaciones /api/arreglos/[id]", () => {
 
     vi.mocked(createClient).mockResolvedValue(mockSupabase);
     vi.mocked(arregloService.updateById).mockResolvedValue({
-      data: { id: "a1" } as Arreglo,
+      data: { id: "a1", tenant_id: "TEN-1", taller_id: "TAL-1" } as unknown as Arreglo,
       error: null,
     });
     vi.mocked(arregloService.getByIdWithVehiculo).mockResolvedValue({
-      data: { id: "a1", estado: "EN_PROGRESO" } as Arreglo,
+      data: { id: "a1", tenant_id: "TEN-1", estado: "EN_PROGRESO", taller_id: "TAL-1" } as unknown as Arreglo,
       error: null,
     });
     vi.mocked(arregloService.deleteById).mockResolvedValue(
@@ -111,7 +111,7 @@ describe("Mutaciones /api/arreglos/[id]", () => {
       expect.objectContaining({ tipo: "Service", descripcion: "Service | Cambio aceite" })
     );
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
-    expect(statsService.onDataChanged).toHaveBeenCalledWith(mockSupabase);
+    expect(statsService.onDataChanged).toHaveBeenCalledWith(mockSupabase, "TEN-1");
   });
 
   it("PUT: si el estado es inválido devuelve 400 y no llama al service", async () => {
@@ -278,5 +278,6 @@ describe("Mutaciones /api/arreglos/[id]", () => {
 
     expect(arregloService.deleteById).toHaveBeenCalledTimes(1);
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
+    expect(statsService.onDataChanged).toHaveBeenCalledWith(mockSupabase, "TEN-1");
   });
 });

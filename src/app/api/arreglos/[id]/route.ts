@@ -430,7 +430,10 @@ export async function PUT(
     }
   }
 
-  await statsService.onDataChanged(supabase);
+  await statsService.onDataChanged(
+    supabase,
+    (updatedArreglo as { tenant_id?: string | null } | null)?.tenant_id
+  );
   return Response.json({ data: updatedArreglo, error: null }, { status: 200 });
 }
 
@@ -445,6 +448,17 @@ export async function DELETE(
   if (!id)
     return Response.json({ error: "ID de arreglo no proporcionado" }, { status: 400 });
 
+  const { data: currentArreglo, error: currentError } = await arregloService.getByIdWithVehiculo(
+    supabase,
+    id
+  );
+
+  if (currentError) {
+    const status = currentError === ServiceError.NotFound ? 404 : 500;
+    const message = status === 404 ? "Arreglo no encontrado" : "Error eliminando arreglo";
+    return Response.json({ error: message }, { status });
+  }
+
   const { error } = await arregloService.deleteById(supabase, id);
 
   if (error) {
@@ -453,6 +467,9 @@ export async function DELETE(
     return Response.json({ error: message }, { status });
   }
 
-  await statsService.onDataChanged(supabase);
+  await statsService.onDataChanged(
+    supabase,
+    (currentArreglo as { tenant_id?: string | null } | null)?.tenant_id
+  );
   return Response.json({ error: null }, { status: 200 });
 }

@@ -87,8 +87,9 @@ export async function POST(req: Request) {
 		return Response.json({ data: null, error: error?.toString() } satisfies CreateOperacionResponse, { status: 500 });
 	}
 
-	const operacion: Operacion = mapOperacion(data as OperacionRow);
+	const createdRow = data as OperacionRow;
+	const operacion: Operacion = mapOperacion(createdRow);
 
-	await statsService.onDataChanged(supabase);
+	await statsService.onDataChanged(supabase, createdRow.tenant_id);
 	return Response.json({ data: operacion, error: null } satisfies CreateOperacionResponse, { status: 201 });
 }

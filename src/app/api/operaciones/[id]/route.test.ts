@@ -7,6 +7,12 @@ vi.mock("@/supabase/server", () => ({
 	createClient: vi.fn(),
 }));
 
+vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
+	statsService: {
+		onDataChanged: vi.fn(),
+	},
+}));
+
 vi.mock("../operacionesService", async () => {
 	const actual = await vi.importActual<typeof import("../operacionesService")>("../operacionesService");
 	return {
@@ -20,6 +26,7 @@ vi.mock("../operacionesService", async () => {
 
 import { createClient } from "@/supabase/server";
 import { operacionesService } from "../operacionesService";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
 describe("/api/operaciones/[id]", () => {
 	beforeEach(() => {
@@ -46,6 +53,7 @@ describe("/api/operaciones/[id]", () => {
 		vi.mocked(operacionesService.update).mockResolvedValue({
 			data: {
 				id: "op-1",
+				tenant_id: "TEN-1",
 				tipo: "VENTA",
 				taller_id: "t1",
 				created_at: new Date().toISOString(),
@@ -64,5 +72,6 @@ describe("/api/operaciones/[id]", () => {
 
 		expect(res.status).toBe(200);
 		expect(vi.mocked(operacionesService.update)).toHaveBeenCalledWith(expect.anything(), "op-1", { tipo: "VENTA" });
+		expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "TEN-1");
 	});
 });

@@ -162,10 +162,25 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.fecha_ingreso !== undefined) patch.fecha_ingreso = body.fecha_ingreso || null;
 
   try {
+    const { data: currentEmpleado, error: currentEmpleadoError } =
+      await empleadosService.getById(supabase, id);
+    if (currentEmpleadoError === ServiceError.NotFound || !currentEmpleado) {
+      return Response.json(
+        { data: null, error: "Empleado no encontrado" } satisfies UpdateEmpleadoResponse,
+        { status: 404 }
+      );
+    }
+    if (currentEmpleadoError) {
+      return Response.json(
+        { data: null, error: "Error actualizando empleado" } satisfies UpdateEmpleadoResponse,
+        { status: 500 }
+      );
+    }
+
     const hasEmpleadoPatch = Object.keys(patch).length > 0;
     const { data: empleadoActualizado, error } = hasEmpleadoPatch
       ? await empleadosService.updateById(supabase, id, patch)
-      : await empleadosService.getById(supabase, id);
+      : { data: currentEmpleado, error: null };
     let updated = empleadoActualizado;
     if (error === ServiceError.NotFound || !updated) {
       return Response.json(
@@ -220,8 +235,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
 
       updated = updatedWithLatestSalario;
-      await statsService.onDataChanged(supabase);
     }
+
+    await statsService.onDataChanged(
+      supabase,
+      [currentEmpleado.tenant_id, updated.tenant_id]
+    );
 
     return Response.json(
       { data: mapEmpleado(updated), error: null } satisfies UpdateEmpleadoResponse,
@@ -247,6 +266,15 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!id) return Response.json({ error: "Falta id" }, { status: 400 });
 
   try {
+    const { data: currentEmpleado, error: currentEmpleadoError } =
+      await empleadosService.getById(supabase, id);
+    if (currentEmpleadoError === ServiceError.NotFound || !currentEmpleado) {
+      return Response.json({ error: "Empleado no encontrado" }, { status: 404 });
+    }
+    if (currentEmpleadoError) {
+      return Response.json({ error: "Error eliminando empleado" }, { status: 500 });
+    }
+
     const { error } = await empleadosService.deleteById(supabase, id);
     if (error === ServiceError.NotFound) {
       return Response.json({ error: "Empleado no encontrado" }, { status: 404 });
@@ -254,6 +282,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     if (error) {
       return Response.json({ error: "Error eliminando empleado" }, { status: 500 });
     }
+    await statsService.onDataChanged(supabase, currentEmpleado.tenant_id);
     return Response.json({ error: null }, { status: 200 });
   } catch (error: unknown) {
     logger.error("DELETE /api/empleados/[id] error:", error);

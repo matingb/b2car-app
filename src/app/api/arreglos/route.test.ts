@@ -19,6 +19,7 @@ describe("POST /api/arreglos", () => {
   const rpc = vi.fn();
   const createdArreglo = {
     id: "a1",
+    tenant_id: "TEN-1",
     vehiculo_id: "v1",
     taller_id: "t1",
     tipo: "Service",
@@ -97,6 +98,7 @@ describe("POST /api/arreglos", () => {
       })
     );
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
+    expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "TEN-1");
   });
 
   it("bloquea creacion en TERMINADO cuando faltan required", async () => {
@@ -169,6 +171,7 @@ describe("POST /api/arreglos", () => {
     expect(response.status).toBe(201);
     expect(rpc).toHaveBeenCalledTimes(1);
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
+    expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "TEN-1");
   });
 
   it("propaga precio_compra de repuestos existentes al RPC de creacion completa", async () => {

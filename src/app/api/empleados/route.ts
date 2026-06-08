@@ -8,6 +8,7 @@ import type {
 } from "./contracts";
 import { createClient } from "@/supabase/server";
 import { empleadosService, type EmpleadoRow } from "./empleadosService";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
 function mapEmpleado(row: EmpleadoRow): EmpleadoDTO {
   return {
@@ -143,6 +144,7 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
+    await statsService.onDataChanged(supabase, created.tenant_id);
     return Response.json(
       { data: mapEmpleado(created), error: null } satisfies CreateEmpleadoResponse,
       { status: 201 }

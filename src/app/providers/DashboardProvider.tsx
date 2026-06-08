@@ -5,7 +5,6 @@ import React, {
 	createContext,
 	useCallback,
 	useContext,
-	useEffect,
 	useMemo,
 	useState,
 } from "react";
@@ -55,7 +54,7 @@ type DashboardStatsApiResponse = {
 	error?: string | null;
 };
 
-type FetchStatsOptions = { from?: string; to?: string; tallerId?: string };
+type FetchStatsOptions = { from?: string; to?: string };
 
 type DashboardContextType = {
 	stats: DashboardStats | null;
@@ -80,7 +79,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 			const params = new URLSearchParams();
 			if (options?.from) params.set("from", options.from);
 			if (options?.to) params.set("to", options.to);
-			if (options?.tallerId) params.set("tallerId", options.tallerId);
 			const qs = params.size > 0 ? `?${params.toString()}` : "";
 			const res = await fetch(`/api/dashboard/stats${qs}`);
 			const body: Partial<DashboardStatsApiResponse> = await res
@@ -105,10 +103,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 			setLoading(false);
 		}
 	}, []);
-
-	useEffect(() => {
-		fetchStats();
-	}, [fetchStats]);
 
 	const value = useMemo<DashboardContextType>(
 		() => ({

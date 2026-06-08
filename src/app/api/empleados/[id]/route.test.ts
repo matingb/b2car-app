@@ -90,6 +90,10 @@ describe("/api/empleados/[id]", () => {
   });
 
   it("PUT actualiza y devuelve 200", async () => {
+    vi.mocked(empleadosService.getById).mockResolvedValue({
+      data: createEmpleadoRow({ id: "EMP-1", nombre: "Juan" }),
+      error: null,
+    });
     vi.mocked(empleadosService.updateById).mockResolvedValue({
       data: createEmpleadoRow({ id: "EMP-1", nombre: "Pedro" }),
       error: null,
@@ -105,6 +109,7 @@ describe("/api/empleados/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(body.data?.nombre).toBe("Pedro");
+    expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), ["TEN-1", "TEN-1"]);
   });
 
   it("PUT con salario retroactivo conserva como actual el salario del ultimo mes vigente", async () => {
@@ -154,7 +159,7 @@ describe("/api/empleados/[id]", () => {
       "EMP-1",
       { salario: 2000 }
     );
-    expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
+    expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), ["TEN-1", "TEN-1"]);
   });
 
   it("PUT rechaza nombre vacío con 400", async () => {
@@ -188,7 +193,7 @@ describe("/api/empleados/[id]", () => {
   });
 
   it("PUT not found devuelve 404", async () => {
-    vi.mocked(empleadosService.updateById).mockResolvedValue({
+    vi.mocked(empleadosService.getById).mockResolvedValue({
       data: null,
       error: ServiceError.NotFound,
     });
@@ -203,9 +208,14 @@ describe("/api/empleados/[id]", () => {
   });
 
   it("DELETE elimina y devuelve 200", async () => {
+    vi.mocked(empleadosService.getById).mockResolvedValue({
+      data: createEmpleadoRow({ id: "EMP-1", taller_id: "TAL-1" }),
+      error: null,
+    });
     vi.mocked(empleadosService.deleteById).mockResolvedValue({ error: null });
     const req = new NextRequest("http://localhost/api/empleados/EMP-1", { method: "DELETE" });
     const res = await DELETE(req, { params: Promise.resolve({ id: "EMP-1" }) });
     expect(res.status).toBe(200);
+    expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "TEN-1");
   });
 });

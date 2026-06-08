@@ -22,8 +22,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const periodFrom = url.searchParams.get("from") ?? undefined;
     const periodTo = url.searchParams.get("to") ?? undefined;
-    const tallerId = url.searchParams.get("tallerId") ?? undefined;
-    const stats = await statsService.getStats(supabase, periodFrom, periodTo, tallerId);
+    const stats = await statsService.getStats(supabase, periodFrom, periodTo);
     return Response.json(
       { data: stats, error: null } satisfies DashboardStatsResponse,
       {

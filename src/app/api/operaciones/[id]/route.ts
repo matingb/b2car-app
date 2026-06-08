@@ -90,8 +90,10 @@ export async function PUT(
 		return Response.json({ data: null, error: message } satisfies UpdateOperacionResponse, { status });
 	}
 
-	await statsService.onDataChanged(supabase);
-	return Response.json({ data: mapOperacion(updated as OperacionRow), error: null } satisfies UpdateOperacionResponse, { status: 200 });
+	const updatedRow = updated as OperacionRow;
+	const updatedOperacion = mapOperacion(updatedRow);
+	await statsService.onDataChanged(supabase, updatedRow.tenant_id);
+	return Response.json({ data: updatedOperacion, error: null } satisfies UpdateOperacionResponse, { status: 200 });
 }
 
 export async function DELETE(
@@ -100,6 +102,13 @@ export async function DELETE(
 ) {
 	const supabase = await createClient();
 	const { id } = await params;
+
+	const { data: currentOperacion, error: currentError } = await operacionesService.getById(supabase, id);
+	if (currentError || !currentOperacion) {
+		const status = currentError === ServiceError.NotFound ? 404 : 500;
+		const message = status === 404 ? "OperaciÃƒÂ³n no encontrada" : "Error eliminando operaciÃƒÂ³n";
+		return Response.json({ error: message }, { status });
+	}
 
 	const { error } = await operacionesService.deleteById(supabase, id);
 	if (error) {
@@ -121,6 +130,9 @@ export async function DELETE(
 		return Response.json({ error: message }, { status });
 	}
 
-	await statsService.onDataChanged(supabase);
+	await statsService.onDataChanged(
+		supabase,
+		(currentOperacion as OperacionRow).tenant_id
+	);
 	return Response.json({ error: null }, { status: 200 });
 }

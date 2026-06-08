@@ -18,10 +18,17 @@ vi.mock("./empleadosService", async () => {
   };
 });
 
+vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
+  statsService: {
+    onDataChanged: vi.fn(),
+  },
+}));
+
 import { createClient } from "@/supabase/server";
 import { empleadosService, type EmpleadoRow } from "./empleadosService";
 import { SupabaseClient } from "@supabase/supabase-js";
 import type { CreateEmpleadoRequest } from "./contracts";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
 function createEmpleadoRow(overrides: Partial<EmpleadoRow> = {}): EmpleadoRow {
   return {
@@ -160,5 +167,6 @@ describe("/api/empleados", () => {
 
     expect(res.status).toBe(201);
     expect(body.data?.id).toBe("EMP-1");
+    expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "TEN-1");
   });
 });
