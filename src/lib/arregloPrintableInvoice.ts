@@ -4,6 +4,7 @@ import type {
 } from "@/app/api/arreglos/[id]/route";
 import type { Cliente } from "@/model/types";
 import { APP_LOCALE, formatArs } from "@/lib/format";
+import { formatDateLabel } from "@/lib/fechas";
 import { safeNumber } from "@/lib/numbers";
 
 type InvoiceLine = {
@@ -488,9 +489,8 @@ function renderPartsTable(lines: InvoiceLine[]): string {
 }
 
 function formatDate(date: string | null | undefined): string {
-  const parsed = date ? new Date(date) : null;
-  if (!parsed || Number.isNaN(parsed.getTime())) return "____/____/____";
-  return parsed.toLocaleDateString(APP_LOCALE);
+  const formatted = date ? formatDateLabel(date) : "";
+  return formatted || "____/____/____";
 }
 
 function formatMoney(value: number): string {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatTimeAgo, isValidDate } from "./fechas";
+import { formatDateLabel, formatTimeAgo, isValidDate, toDateInputFormat } from "./fechas";
 
 describe("isValidDate", () => {
   it("debería retornar true para una fecha válida en formato YYYY-MM-DD", () => {
@@ -58,6 +58,22 @@ describe("formatTimeAgo", () => {
   it("para años (>=12 meses), devuelve 'Hace ... años'", () => {
     const fecha = new Date(now.getTime() - 2 * 365 * 24 * 60 * 60 * 1000);
     expect(formatTimeAgo(fecha, now)).toBe("Hace 2 años");
+  });
+});
+
+describe("toDateInputFormat", () => {
+  it("preserva el dia de calendario cuando la fecha viene a medianoche UTC", () => {
+    expect(toDateInputFormat("2026-06-08T00:00:00.000Z")).toBe("2026-06-08");
+  });
+
+  it("preserva el dia de calendario cuando Supabase devuelve fecha con espacio y timezone", () => {
+    expect(toDateInputFormat("2026-06-08 00:00:00+00")).toBe("2026-06-08");
+  });
+});
+
+describe("formatDateLabel", () => {
+  it("muestra el dia correcto para una fecha guardada a medianoche UTC", () => {
+    expect(formatDateLabel("2026-06-08T00:00:00.000Z")).toBe("08/06/2026");
   });
 });
 

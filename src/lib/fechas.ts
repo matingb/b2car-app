@@ -93,8 +93,12 @@ export const isValidDate = (dateString: string): boolean => {
 export const toDateInputFormat = (dateString: string | undefined): string => {
   if (!dateString) return "";
 
+  const calendarDateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (calendarDateMatch) return calendarDateMatch[0];
+
   // Crear objeto Date desde el string ISO
   const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "";
 
   // Obtener año, mes y día en el timezone local
   const year = date.getFullYear();
