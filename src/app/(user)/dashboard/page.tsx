@@ -1,30 +1,23 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
-import { useDashboard } from "@/app/providers/DashboardProvider";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import { CircleDollarSign, Scale, TrendingDown, Wrench } from "lucide-react";
 import DashboardMetricCard from "@/app/components/dashboard/DashboardMetricCard";
 import DashboardExpandablePanel from "@/app/components/dashboard/DashboardExpandablePanel";
-import PeriodSelector, { buildPeriodOptions, type PeriodOption } from "@/app/components/dashboard/PeriodSelector";
+import PeriodSelector from "@/app/components/dashboard/PeriodSelector";
 import GranularitySelector from "@/app/components/dashboard/GranularitySelector";
 import GraficoArreglos from "@/app/components/graficos/GraficoArreglos";
 import GraficoIngresos from "@/app/components/graficos/GraficoIngresos";
 import GraficoGastos from "@/app/components/graficos/GraficoGastos";
 import GraficoBalance from "@/app/components/graficos/GraficoBalance";
-import { applyGranularity, type Granularity } from "@/lib/dashboard/aggregation";
 import CantidadTiposArreglos from "@/app/components/graficos/CantidadTiposArreglos";
 import EstadoCobroArreglos from "@/app/components/graficos/EstadoCobroArreglos";
 import RecentActivityCard from "@/app/components/dashboard/RecentActivityCard";
 import Card from "@/app/components/ui/Card";
-
-type ActiveCard = "arreglos" | "facturacion" | "gastos" | "balance";
-
-const DASHBOARD_GRANULARITY_STORAGE_KEY = "b2car.dashboard.granularity";
-const ACTIVE_CARDS: ActiveCard[] = ["arreglos", "facturacion", "gastos", "balance"];
-const GRANULARITY_VALUES: Granularity[] = ["day", "week", "month"];
+import { useDashboardControls, ACTIVE_CARDS, type ActiveCard } from "@/app/hooks/dashboard/useDashboardControls";
 
 const PANEL_TITLES: Record<ActiveCard, string> = {
     arreglos: "Arreglos realizados",
@@ -33,123 +26,17 @@ const PANEL_TITLES: Record<ActiveCard, string> = {
     balance: "Balance",
 };
 
-function defaultPeriod(): PeriodOption {
-    return buildPeriodOptions(1)[0];
-}
-
-function defaultGranularity(): Record<ActiveCard, Granularity> {
-    return {
-        arreglos: "day",
-        facturacion: "day",
-        gastos: "day",
-        balance: "day",
-    };
-}
-
-function isGranularity(value: unknown): value is Granularity {
-    return typeof value === "string" && GRANULARITY_VALUES.includes(value as Granularity);
-}
-
-function loadGranularity(): Record<ActiveCard, Granularity> {
-    const fallback = defaultGranularity();
-    if (typeof window === "undefined") return fallback;
-
-    try {
-        const raw = window.localStorage.getItem(DASHBOARD_GRANULARITY_STORAGE_KEY);
-        if (!raw) return fallback;
-        const parsed = JSON.parse(raw) as Partial<Record<ActiveCard, unknown>>;
-        return ACTIVE_CARDS.reduce<Record<ActiveCard, Granularity>>((acc, card) => {
-            const value = parsed?.[card];
-            acc[card] = isGranularity(value) ? value : fallback[card];
-            return acc;
-        }, { ...fallback });
-    } catch {
-        return fallback;
-    }
-}
-
 export default function DashboardPage() {
-    const { stats, loading, error, fetchStats } = useDashboard();
+    const {
+        stats, loading, error,
+        period, handlePeriodChange,
+        granularity, setGranularity,
+        arreglosData, ingresosData, gastosData,
+        ingresosBalanceData, gastosBalanceData,
+        balanceValue, balanceColor,
+    } = useDashboardControls();
+
     const [activeCard, setActiveCard] = useState<ActiveCard>("facturacion");
-    const [period, setPeriod] = useState<PeriodOption>(defaultPeriod);
-    const [granularity, setGranularity] = useState<Record<ActiveCard, Granularity>>(loadGranularity);
-
-    const handlePeriodChange = useCallback(
-        (newPeriod: PeriodOption) => {
-            setPeriod(newPeriod);
-            fetchStats({ from: newPeriod.from, to: newPeriod.to });
-        },
-        [fetchStats]
-    );
-
-    useEffect(() => {
-        fetchStats({ from: period.from, to: period.to });
-    }, [fetchStats, period.from, period.to]);
-
-    useEffect(() => {
-        window.localStorage.setItem(DASHBOARD_GRANULARITY_STORAGE_KEY, JSON.stringify(granularity));
-    }, [granularity]);
-
-    const arreglosData = applyGranularity(
-        stats?.arreglosPorPeriodo ?? [],
-        granularity.arreglos,
-        period.from,
-        (label, items) => ({ label, cantidad: items.reduce((s, i) => s + i.cantidad, 0) }),
-    );
-
-    const ingresosData = applyGranularity(
-        stats?.ingresosPorPeriodo ?? [],
-        granularity.facturacion,
-        period.from,
-        (label, items) => ({
-            label,
-            mano_de_obra: items.reduce((s, i) => s + i.mano_de_obra, 0),
-            repuestos: items.reduce((s, i) => s + i.repuestos, 0),
-            ventas: items.reduce((s, i) => s + i.ventas, 0),
-        }),
-    );
-
-    const gastosData = applyGranularity(
-        stats?.gastosPorPeriodo ?? [],
-        granularity.gastos,
-        period.from,
-        (label, items) => ({
-            label,
-            repuestos: items.reduce((s, i) => s + i.repuestos, 0),
-            sueldos: items.reduce((s, i) => s + i.sueldos, 0),
-        }),
-    );
-
-    const ingresosBalanceData = applyGranularity(
-        stats?.ingresosPorPeriodo ?? [],
-        granularity.balance,
-        period.from,
-        (label, items) => ({
-            label,
-            mano_de_obra: items.reduce((s, i) => s + i.mano_de_obra, 0),
-            repuestos: items.reduce((s, i) => s + i.repuestos, 0),
-            ventas: items.reduce((s, i) => s + i.ventas, 0),
-        }),
-    );
-
-    const gastosBalanceData = applyGranularity(
-        stats?.gastosPorPeriodo ?? [],
-        granularity.balance,
-        period.from,
-        (label, items) => ({
-            label,
-            repuestos: items.reduce((s, i) => s + i.repuestos, 0),
-            sueldos: items.reduce((s, i) => s + i.sueldos, 0),
-        }),
-    );
-
-    const balanceValue = stats?.totals?.balance ?? undefined;
-    const balanceColor =
-        balanceValue === undefined
-            ? COLOR.ACCENT.PRIMARY
-            : balanceValue >= 0
-            ? COLOR.SEMANTIC.SUCCESS
-            : COLOR.SEMANTIC.DANGER;
 
     function makeGranularitySelector(card: ActiveCard) {
         return (
@@ -220,21 +107,25 @@ export default function DashboardPage() {
                         ) : error ? (
                             <div style={{ color: COLOR.ICON.DANGER, fontSize: 13 }}>{error}</div>
                         ) : card === "arreglos" ? (
-                            <GraficoArreglos data={arreglosData} />
+                            <GraficoArreglos
+                                data={arreglosData}
+                                granularity={granularity.arreglos}
+                            />
                         ) : card === "facturacion" ? (
                             <GraficoIngresos
                                 data={ingresosData}
-                                isMonthly={granularity.facturacion === "month"}
+                                granularity={granularity.facturacion}
                             />
                         ) : card === "gastos" ? (
                             <GraficoGastos
                                 data={gastosData}
-                                isMonthly={granularity.gastos === "month"}
+                                granularity={granularity.gastos}
                             />
                         ) : (
                             <GraficoBalance
                                 ingresosPorPeriodo={ingresosBalanceData}
                                 gastosPorPeriodo={gastosBalanceData}
+                                granularity={granularity.balance}
                             />
                         )}
                     </DashboardExpandablePanel>

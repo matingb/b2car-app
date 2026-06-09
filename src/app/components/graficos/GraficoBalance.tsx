@@ -11,18 +11,22 @@ import {
 } from "@/app/components/shadcn/ui/chart";
 import GraficoTooltip from "./GraficoTooltip";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { type Granularity } from "@/lib/dashboard/aggregation";
 
 type Props = {
     ingresosPorPeriodo?: Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>;
     gastosPorPeriodo?: Array<{ label: string; repuestos: number; sueldos: number }>;
+    granularity?: Granularity;
 };
 
 function formatCurrency(value: number) {
     return `$${value.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`;
 }
 
-export default function GraficoBalance({ ingresosPorPeriodo, gastosPorPeriodo }: Props) {
-    const { chartData, config } = useMemo(() => {
+export default function GraficoBalance({ ingresosPorPeriodo, gastosPorPeriodo, granularity }: Props) {
+    const isMonthly = granularity === "month";
+
+    const { chartData, monthlyPoint, config } = useMemo(() => {
         const ingresosMap = new Map(
             (ingresosPorPeriodo ?? []).map((d) => [
                 d.label,
@@ -36,19 +40,42 @@ export default function GraficoBalance({ ingresosPorPeriodo, gastosPorPeriodo }:
             return { label: d.label, ingresos, gastos };
         });
 
+        const totalIngresos = (ingresosPorPeriodo ?? []).reduce(
+            (s, d) => s + d.mano_de_obra + d.repuestos + d.ventas, 0
+        );
+        const totalGastos = (gastosPorPeriodo ?? []).reduce(
+            (s, d) => s + d.repuestos + d.sueldos, 0
+        );
+
         const config: ChartConfig = {
-            ingresos: {
-                label: "Facturación",
-                color: COLOR.SEMANTIC.SUCCESS,
-            },
-            gastos: {
-                label: "Gastos",
-                color: COLOR.SEMANTIC.DANGER,
-            },
+            ingresos: { label: "Facturación", color: COLOR.SEMANTIC.SUCCESS },
+            gastos: { label: "Gastos", color: COLOR.SEMANTIC.DANGER },
         };
 
-        return { chartData, config };
+        return { chartData, monthlyPoint: [{ label: "", ingresos: totalIngresos, gastos: totalGastos }], config };
     }, [ingresosPorPeriodo, gastosPorPeriodo]);
+
+    if (isMonthly) {
+        return (
+            <ChartContainer config={config} className="w-full h-[220px]">
+                <BarChart data={monthlyPoint} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="label" hide />
+                    <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        width={64}
+                        tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                    />
+                    <ChartTooltip cursor={false} content={<GraficoTooltip formatter={formatCurrency} />} />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Bar dataKey="ingresos" fill="var(--color-ingresos)" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="gastos" fill="var(--color-gastos)" radius={[3, 3, 0, 0]} />
+                </BarChart>
+            </ChartContainer>
+        );
+    }
 
     return (
         <ChartContainer config={config} className="w-full h-[220px]">
