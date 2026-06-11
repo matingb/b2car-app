@@ -27,6 +27,7 @@ export type CreateEmpleadoRequest = {
   telefono?: string | null;
   cumpleanos?: string | null;
   salario?: number | null;
+  salario_vigente_desde?: string | null;
   fecha_ingreso?: string | null;
 };
 

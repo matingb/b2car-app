@@ -63,6 +63,7 @@ export default function EmpleadoCreateModal({ open, onClose }: Props) {
       telefono: values.telefono,
       cumpleanos: values.cumpleanos,
       salario: values.salario,
+      salarioVigenteDesde: values.salarioVigenteDesde,
       fechaIngreso: values.fechaIngreso,
     });
 

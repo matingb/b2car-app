@@ -41,7 +41,7 @@ export default function SalarioUpdateModal({ open, empleado, onClose, onSaved }:
     setSubmitError(null);
     const { empleado: updated, error } = await updateEmpleado(empleado.id, {
       salario,
-      salarioVigenteDesde: vigenteDesde ? `${vigenteDesde}-01` : null,
+      salarioVigenteDesde: vigenteDesde ? `${vigenteDesde}-01` : undefined,
     });
     if (updated) {
       success("Salario actualizado", `Nuevo salario vigente desde ${formatMonth(vigenteDesde)}.`);
