@@ -123,6 +123,12 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+  if (body.salario_vigente_desde && !isValidIsoDate(body.salario_vigente_desde)) {
+    return Response.json(
+      { data: null, error: "salario_vigente_desde debe ser una fecha válida (YYYY-MM-DD)" } satisfies CreateEmpleadoResponse,
+      { status: 400 }
+    );
+  }
 
   const insertPayload = {
     taller_id: body.taller_id.trim(),
@@ -144,6 +150,25 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
+
+    if (body.salario_vigente_desde) {
+      const vigenteDesdeMes = `${body.salario_vigente_desde.slice(0, 7)}-01`;
+      const { error: salarioError } = await empleadosService.recordSalarioChange(
+        supabase,
+        created.id,
+        created.taller_id,
+        body.salario!,
+        vigenteDesdeMes
+      );
+      if (salarioError) {
+        logger.error("Error guardando historial salarial:", salarioError);
+        return Response.json(
+          { data: null, error: "Error guardando historial salarial" } satisfies CreateEmpleadoResponse,
+          { status: 500 }
+        );
+      }
+    }
+
     await statsService.onDataChanged(supabase, created.tenant_id);
     return Response.json(
       { data: mapEmpleado(created), error: null } satisfies CreateEmpleadoResponse,

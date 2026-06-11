@@ -35,6 +35,7 @@ export type CreateEmpleadoInput = {
   telefono?: string;
   cumpleanos?: string;
   salario?: number | null;
+  salarioVigenteDesde?: string;
   fechaIngreso?: string;
 };
 
@@ -122,6 +123,12 @@ export function EmpleadosProvider({ children }: { children: React.ReactNode }) {
     async (input: CreateEmpleadoInput): Promise<CreateEmpleadoResult> => {
       setIsLoading(true);
       try {
+        const rawVigenteDesde = emptyToNull(input.salarioVigenteDesde);
+        const salarioVigenteDesde = rawVigenteDesde
+          ? /^\d{4}-\d{2}$/.test(rawVigenteDesde)
+            ? `${rawVigenteDesde}-01`
+            : rawVigenteDesde
+          : null;
         const res = await empleadosClient.create({
           taller_id: input.tallerId,
           nombre: input.nombre.trim(),
@@ -131,6 +138,7 @@ export function EmpleadosProvider({ children }: { children: React.ReactNode }) {
           telefono: emptyToNull(input.telefono),
           cumpleanos: emptyToNull(input.cumpleanos),
           salario: input.salario ?? null,
+          salario_vigente_desde: salarioVigenteDesde,
           fecha_ingreso: emptyToNull(input.fechaIngreso),
         });
         if (!res.data) {
