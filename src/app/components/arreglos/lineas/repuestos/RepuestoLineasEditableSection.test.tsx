@@ -152,12 +152,22 @@ describe("RepuestoLineasEditableSection", () => {
     });
   });
 
-  it("precarga codigo AL al crear un producto nuevo", () => {
+  it("el campo código empieza vacío al crear un producto nuevo", () => {
     setup();
 
     startNewProduct();
 
-    expect(screen.getByDisplayValue("AL1")).toBeInTheDocument();
+    expect(screen.getByLabelText("Código")).toHaveValue("");
+  });
+
+  it("auto-genera el código al escribir el nombre del producto", () => {
+    setup();
+
+    startNewProduct();
+
+    fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: "Filtro aceite" } });
+
+    expect(screen.getByLabelText("Código")).toHaveValue("FIL-ACE-001");
   });
 
   it("auto-sincroniza precio venta con precio compra hasta que el usuario lo modifique", () => {

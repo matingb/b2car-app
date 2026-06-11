@@ -18,12 +18,12 @@ import NewProductBadge from "@/app/components/arreglos/lineas/repuestos/NewProdu
 import NewProductFields from "@/app/components/arreglos/lineas/repuestos/NewProductFields";
 import ReadOnlyLineaCard from "@/app/components/arreglos/lineas/shared/ReadOnlyLineaCard";
 import StockPurchaseHint from "@/app/components/arreglos/lineas/repuestos/StockPurchaseHint";
+import { generateProductCode } from "@/app/components/arreglos/lineas/repuestos/repuestoCode";
 import {
   NEW_PRODUCT_VALUE,
   applyStockSelection,
   computeStockState,
   getNewProductConflictMessage,
-  getNextNewProductCode,
   validateRepuestoDraft,
 } from "@/app/components/arreglos/lineas/repuestos/repuestoValidator";
 
@@ -52,6 +52,7 @@ export type RepuestoDraft = {
   precioCompra: string;
   precioVenta: string;
   precioVentaTouched: boolean;
+  codigoTouched: boolean;
 };
 
 export type RepuestoUpsertInput =
@@ -122,11 +123,6 @@ export default function RepuestoLineasEditableSection({
   const conflictMessageFor = (codigo: string, currentItemId?: string) =>
     getNewProductConflictMessage(codigo, { items, inventario }, currentItemId);
 
-  const defaultNewProductCode = useMemo(
-    () => getNextNewProductCode({ items, inventario }),
-    [items, inventario]
-  );
-
   const {
     editingId,
     adding,
@@ -143,7 +139,7 @@ export default function RepuestoLineasEditableSection({
   } = useInlineEditor<RepuestoLinea, RepuestoDraft, RepuestoUpsertInput>({
     items,
     getId: (i) => i.id,
-    initialDraft: { stockId: "", cantidad: "1", montoUnitario: "", codigo: "", nombre: "", precioCompra: "", precioVenta: "", precioVentaTouched: false },
+    initialDraft: { stockId: "", cantidad: "1", montoUnitario: "", codigo: "", nombre: "", precioCompra: "", precioVenta: "", precioVentaTouched: false, codigoTouched: false },
     draftFromItem: (item) => {
       const stockMatch = item.tipo !== "nuevo" ? inventario.find((s) => s.id === item.stock_id) ?? null : null;
       const costoUnitarioPrefill = stockMatch ? String(Number(stockMatch.costoUnitario) || 0) : "";
@@ -160,6 +156,7 @@ export default function RepuestoLineasEditableSection({
         precioVentaTouched: item.nuevoProducto
           ? Number(item.nuevoProducto.precioVenta ?? 0) !== Number(item.nuevoProducto.precioCompra ?? 0)
           : false,
+        codigoTouched: true,
       };
     },
     validate: (d, ctx) => validateRepuestoDraft(d, ctx, { tallerId, items, inventario }),
@@ -213,6 +210,7 @@ export default function RepuestoLineasEditableSection({
                         precioCompra: "",
                         precioVenta: "",
                         precioVentaTouched: false,
+                        codigoTouched: false,
                       })
                   : undefined
               }
@@ -221,8 +219,14 @@ export default function RepuestoLineasEditableSection({
               codigo={draft.codigo}
               nombre={draft.nombre}
               conflictMessage={submitting ? null : conflictMessageFor(draft.codigo, item?.id)}
-              onCodigoChange={(v) => updateDraft({ codigo: v })}
-              onNombreChange={(v) => updateDraft({ nombre: v })}
+              onCodigoChange={(v) => updateDraft({ codigo: v, codigoTouched: v.trim().length > 0 })}
+              onNombreChange={(v) => {
+                const patch: Partial<RepuestoDraft> = { nombre: v };
+                if (!draft.codigoTouched) {
+                  patch.codigo = generateProductCode(v, { items, inventario });
+                }
+                updateDraft(patch);
+              }}
               disabled={!canInteract || !tallerId}
             />
           </div>
@@ -257,7 +261,7 @@ export default function RepuestoLineasEditableSection({
             value={draft.stockId}
             onChange={(v) => {
               if (stockState.mode === "edit") return;
-              setDraft((p) => applyStockSelection(v, p, inventario, defaultNewProductCode));
+              setDraft((p) => applyStockSelection(v, p, inventario));
             }}
             placeholder={isLoading ? "Cargando inventario..." : "Buscar producto..."}
             disabled={stockState.mode === "edit" || !tallerId || isLoading || !canInteract}

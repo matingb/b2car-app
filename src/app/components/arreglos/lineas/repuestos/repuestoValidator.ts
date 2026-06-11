@@ -6,7 +6,6 @@ import type {
 } from "./RepuestoLineasEditableSection";
 
 export const NEW_PRODUCT_VALUE = "__nuevo_producto__";
-const NEW_PRODUCT_CODE_PREFIX = "AL";
 
 export type InventarioEntry = {
   id: string;
@@ -112,29 +111,6 @@ export function applyStockSelection(
     precioCompra: String(Number(stock.costoUnitario) || 0),
     precioVentaTouched: false,
   };
-}
-
-export function getNextNewProductCode(
-  env: Pick<RepuestoValidatorEnv, "items" | "inventario">,
-): string {
-  const codes = [
-    ...env.inventario.map((s) => s.codigo),
-    ...env.items.map((i) =>
-      i.tipo === "nuevo" ? i.nuevoProducto?.codigo : i.producto?.codigo,
-    ),
-  ];
-
-  const max = codes.reduce((currentMax, rawCode) => {
-    const code = String(rawCode ?? "").trim().toUpperCase();
-    if (!code.startsWith(NEW_PRODUCT_CODE_PREFIX)) return currentMax;
-
-    const suffix = code.slice(NEW_PRODUCT_CODE_PREFIX.length);
-    if (!/^\d+$/.test(suffix)) return currentMax;
-
-    return Math.max(currentMax, Number(suffix));
-  }, 0);
-
-  return `${NEW_PRODUCT_CODE_PREFIX}${max + 1}`;
 }
 
 export type RepuestoValidatorEnv = {
