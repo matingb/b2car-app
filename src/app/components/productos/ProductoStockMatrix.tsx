@@ -98,7 +98,7 @@ function StockRow({
 
   return (
     <Card style={{ ...(selected ? styles.selectedCard : {}) }}>
-      <div css={styles.stockRow}>
+      <div css={configured ? styles.stockRow : styles.stockRowUnconfigured}>
         <div style={styles.tallerBlock}>
           <div style={styles.tallerName}>{taller.nombre}</div>
           <div style={styles.tallerMeta}>{configured ? "Stock configurado" : "Sin stock configurado"}</div>
@@ -111,45 +111,17 @@ function StockRow({
           </div>
         </div>
 
-        <div css={styles.fieldsGrid}>
-          <div>
-            <label style={styles.label}>Actual</label>
-            <NumberInput
-              minValue={0}
-              allowDecimals={false}
-              value={draft.stockActual}
-              onValueChange={(next) => setDraft((prev) => ({ ...prev, stockActual: Math.round(next) }))}
-              style={styles.input}
-            />
+        {configured ? (
+          <>
+            {renderFields(draft, setDraft)}
+            {renderProgress(draft, stock)}
+          </>
+        ) : (
+          <div style={styles.unconfiguredEditor}>
+            {renderProgress(draft, stock)}
+            {renderFields(draft, setDraft)}
           </div>
-          <div>
-            <label style={styles.label}>Minimo</label>
-            <NumberInput
-              minValue={0}
-              allowDecimals={false}
-              value={draft.stockMinimo}
-              onValueChange={(next) => setDraft((prev) => ({ ...prev, stockMinimo: Math.round(next) }))}
-              style={styles.input}
-            />
-          </div>
-          <div>
-            <label style={styles.label}>Maximo</label>
-            <NumberInput
-              minValue={0}
-              allowDecimals={false}
-              value={draft.stockMaximo}
-              onValueChange={(next) => setDraft((prev) => ({ ...prev, stockMaximo: Math.round(next) }))}
-              style={styles.input}
-            />
-          </div>
-        </div>
-
-        <div style={styles.progressBlock}>
-          <StockProgressBar levels={draft} height={8} />
-          <div style={styles.updatedAt}>
-            {stock?.ultimaActualizacion ? `Actualizado ${stock.ultimaActualizacion}` : "Pendiente de guardar"}
-          </div>
-        </div>
+        )}
 
         <div style={styles.actions}>
           {configured ? (
@@ -184,6 +156,54 @@ function StockRow({
       </div>
       {error ? <div style={styles.error}>{error}</div> : null}
     </Card>
+  );
+}
+
+function renderFields(draft: Draft, setDraft: React.Dispatch<React.SetStateAction<Draft>>) {
+  return (
+    <div css={styles.fieldsGrid}>
+      <div>
+        <label style={styles.label}>Actual</label>
+        <NumberInput
+          minValue={0}
+          allowDecimals={false}
+          value={draft.stockActual}
+          onValueChange={(next) => setDraft((prev) => ({ ...prev, stockActual: Math.round(next) }))}
+          style={styles.input}
+        />
+      </div>
+      <div>
+        <label style={styles.label}>Minimo</label>
+        <NumberInput
+          minValue={0}
+          allowDecimals={false}
+          value={draft.stockMinimo}
+          onValueChange={(next) => setDraft((prev) => ({ ...prev, stockMinimo: Math.round(next) }))}
+          style={styles.input}
+        />
+      </div>
+      <div>
+        <label style={styles.label}>Maximo</label>
+        <NumberInput
+          minValue={0}
+          allowDecimals={false}
+          value={draft.stockMaximo}
+          onValueChange={(next) => setDraft((prev) => ({ ...prev, stockMaximo: Math.round(next) }))}
+          style={styles.input}
+        />
+      </div>
+    </div>
+  );
+}
+
+function renderProgress(draft: Draft, stock?: StockRegistro) {
+  return (
+    <div style={styles.progressBlock}>
+      <StockProgressBar levels={draft} height={8} />
+      {stock?.ultimaActualizacion ? (
+        <div style={styles.updatedAt}>Actualizado {stock.ultimaActualizacion}</div>
+      ) : null}
+    </div>
   );
 }
 
@@ -243,6 +263,16 @@ const styles = {
       alignItems: "stretch",
     },
   }),
+  stockRowUnconfigured: css({
+    display: "grid",
+    gridTemplateColumns: "1fr 2.6fr auto",
+    gap: 12,
+    alignItems: "center",
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      gridTemplateColumns: "1fr",
+      alignItems: "stretch",
+    },
+  }),
   tallerBlock: {
     minWidth: 0,
   },
@@ -294,6 +324,12 @@ const styles = {
     display: "flex",
     flexDirection: "column" as const,
     gap: 7,
+  },
+  unconfiguredEditor: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 10,
+    minWidth: 0,
   },
   updatedAt: {
     fontSize: 12,

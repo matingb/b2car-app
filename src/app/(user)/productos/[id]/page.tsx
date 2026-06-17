@@ -260,22 +260,8 @@ export default function ProductoDetailsPage() {
         <span style={styles.toggleLabel}>Mostrar en inventario</span>
       </div>
 
-      <div css={styles.grid}>
-        <div style={styles.leftCol}>
-          <div>
-            <h3 style={styles.sectionTitle}>Stock por taller</h3>
-            <ProductoStockMatrix
-              productoId={producto.id}
-              talleres={talleres}
-              stocks={stockDelProducto}
-              selectedTallerId={selectedTallerId}
-              onSave={handleSaveStock}
-              onDelete={handleDeleteStock}
-            />
-          </div>
-        </div>
-
-        <div style={styles.rightCol}>
+      <div css={styles.infoGrid}>
+        <div>
           <ProductoInfoCard
             codigo={producto.codigo}
             proveedor={producto.proveedor}
@@ -292,21 +278,33 @@ export default function ProductoDetailsPage() {
             }}
             onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
           />
-
-          <div style={{ marginTop: 12 }}>
-            <ProductoPricesCard
-              costoUnitario={producto.costoUnitario}
-              precioUnitario={producto.precioUnitario}
-              stockTotal={stockTotal}
-              isEditing={isEditing}
-              draft={{
-                costoUnitario: draft.costoUnitario,
-                precioUnitario: draft.precioUnitario,
-              }}
-              onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
-            />
-          </div>
         </div>
+
+        <div>
+          <ProductoPricesCard
+            costoUnitario={producto.costoUnitario}
+            precioUnitario={producto.precioUnitario}
+            stockTotal={stockTotal}
+            isEditing={isEditing}
+            draft={{
+              costoUnitario: draft.costoUnitario,
+              precioUnitario: draft.precioUnitario,
+            }}
+            onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
+          />
+        </div>
+      </div>
+
+      <div style={styles.stockSection}>
+        <h3 style={styles.sectionTitle}>Stock por taller</h3>
+        <ProductoStockMatrix
+          productoId={producto.id}
+          talleres={talleres}
+          stocks={stockDelProducto}
+          selectedTallerId={selectedTallerId}
+          onSave={handleSaveStock}
+          onDelete={handleDeleteStock}
+        />
       </div>
     </div>
   );
@@ -360,15 +358,16 @@ const styles = {
     fontSize: 14,
     color: COLOR.TEXT.SECONDARY,
   },
-  grid: css({
+  infoGrid: css({
     display: "grid",
-    gridTemplateColumns: "2fr 1fr",
+    gridTemplateColumns: "1fr 1fr",
     gap: 12,
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       gridTemplateColumns: "1fr",
     },
   }),
-  leftCol: { display: "flex", flexDirection: "column" as const, gap: 12 },
-  rightCol: { display: "flex", flexDirection: "column" as const, gap: 12 },
+  stockSection: {
+    marginTop: 14,
+  },
   sectionTitle: { fontSize: 18, fontWeight: 600, margin: "0 0 8px" },
 } as const;
