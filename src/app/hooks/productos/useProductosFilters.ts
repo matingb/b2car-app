@@ -64,6 +64,10 @@ export function getProductoStockSummary(p: Producto, tallerId = "") {
   };
 }
 
+function getProductoStockStatus(p: Producto, tallerId: string): StockStatus {
+  return getProductoStockSummary(p, tallerId).worstStatus ?? "critico";
+}
+
 function matchesTaller(p: Producto, tallerId: string) {
   if (!tallerId) return true;
   return (p.stocks ?? []).some((s) => s.tallerId === tallerId);
@@ -71,8 +75,7 @@ function matchesTaller(p: Producto, tallerId: string) {
 
 function matchesEstado(p: Producto, tallerId: string, estado: StockStatus | "") {
   if (!estado) return true;
-  const stocks = getRelevantStocks(p, tallerId);
-  return stocks.some((s) => getStockStatus(s) === estado);
+  return getProductoStockStatus(p, tallerId) === estado;
 }
 
 function matchesVisibilidad(p: Producto, visibilidad: ProductosFilters["visibilidad"]) {
@@ -102,6 +105,21 @@ export function useProductosFilters(productos?: Producto[]) {
 
   const productosFiltrados = useMemo(() => {
     return filterProductos(productos, { search, filters });
+  }, [productos, search, filters]);
+
+  const stats = useMemo(() => {
+    const base = (productos ?? []).filter(
+      (p) =>
+        matchesVisibilidad(p, filters.visibilidad) &&
+        matchesTaller(p, filters.tallerId) &&
+        matchesSearch(p, search) &&
+        matchesCategorias(p, filters.categorias)
+    );
+    const criticos = base.filter((p) => getProductoStockStatus(p, filters.tallerId) === "critico").length;
+    const bajos = base.filter((p) => getProductoStockStatus(p, filters.tallerId) === "bajo").length;
+    const altos = base.filter((p) => getProductoStockStatus(p, filters.tallerId) === "alto").length;
+    const normales = base.filter((p) => getProductoStockStatus(p, filters.tallerId) === "normal").length;
+    return { criticos, bajos, altos, normales, total: base.length };
   }, [productos, search, filters]);
 
   const chips = useMemo<ProductosChip[]>(() => {
@@ -157,6 +175,7 @@ export function useProductosFilters(productos?: Producto[]) {
     filters,
     chips,
     productosFiltrados,
+    stats,
     applyFilters,
     clearFilters,
     removeFilter,

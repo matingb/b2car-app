@@ -14,6 +14,7 @@ import { LoaderCircle } from "lucide-react";
 import { useProductos } from "@/app/providers/ProductosProvider";
 import { css } from "@emotion/react";
 import { useTenant } from "@/app/providers/TenantProvider";
+import StockStats from "@/app/components/stock/StockStats";
 
 export default function ProductosPage() {
   return <ProductosPageContent />;
@@ -33,7 +34,16 @@ function ProductosPageContent() {
         title="Productos"
         subtitle="Definí qué productos existen en el sistema y sus características"
       />
-      
+      <div style={{ marginTop: 12 }}>
+        <StockStats
+          stats={state.stats}
+          selectedEstado={state.filters.estado}
+          onSelectEstado={(estado) =>
+            state.applyFilters({ ...state.filters, estado })
+          }
+        />
+      </div>
+
       <div style={{ marginTop: 12 }}>
         <ProductosToolbar
           search={state.search}

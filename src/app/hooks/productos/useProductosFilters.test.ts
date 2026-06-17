@@ -53,6 +53,20 @@ describe("filterProductos", () => {
 
     expect(result.map((p) => p.id)).toEqual(["oculto"]);
   });
+
+  it("considera sin stock a productos sin filas de stock configuradas", () => {
+    const productos = [
+      createProducto({ id: "sin-stock", stocks: [] }),
+      createProducto({ id: "normal", stocks: [stock({ stockActual: 10, stockMinimo: 2, stockMaximo: 20 })] }),
+    ];
+
+    const result = filterProductos(productos, {
+      search: "",
+      filters: { categorias: [], tallerId: "", estado: "critico", visibilidad: "inventario" },
+    });
+
+    expect(result.map((p) => p.id)).toEqual(["sin-stock"]);
+  });
 });
 
 describe("getProductoStockSummary", () => {

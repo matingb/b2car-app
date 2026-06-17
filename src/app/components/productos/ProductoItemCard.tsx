@@ -25,7 +25,6 @@ function CategoryTag({ text }: { text: string }) {
 
 export default function ProductoItemCard({ producto, tallerId = "", onClick }: Props) {
   const summary = getProductoStockSummary(producto, tallerId);
-  const talleresConStock = tallerId ? summary.talleresConStock : producto.talleresConStock ?? summary.talleresConStock;
   const categorias = producto.categorias ?? [];
 
   return (
@@ -45,11 +44,7 @@ export default function ProductoItemCard({ producto, tallerId = "", onClick }: P
         </div>
 
         <div css={styles.right}>
-          <div style={styles.rightInfo}>
-            <span style={styles.metaText}>{talleresConStock} talleres</span>
-            <span style={styles.metaDot}>·</span>
-            <span style={styles.metaText}>{producto.proveedor || "Sin proveedor"}</span>
-          </div>
+          
           <div style={styles.statusRow}>
             {summary.worstStatus ? (
               <StockStatusPill status={summary.worstStatus} small />
