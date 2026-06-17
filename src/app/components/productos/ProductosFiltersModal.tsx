@@ -6,10 +6,14 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import DropdownMultiSelect from "@/app/components/ui/DropdownMultiSelect";
 import type { ProductosFilters } from "@/app/hooks/productos/useProductosFilters";
+import Autocomplete from "@/app/components/ui/Autocomplete";
+import Dropdown from "@/app/components/ui/Dropdown";
+import type { Taller } from "@/model/types";
 
 type Props = {
   open: boolean;
   categoriasDisponibles: readonly string[];
+  talleres: Taller[];
   initial?: Partial<ProductosFilters>;
   onClose: () => void;
   onApply: (filters: ProductosFilters) => void;
@@ -18,15 +22,24 @@ type Props = {
 export default function ProductosFiltersModal({
   open,
   categoriasDisponibles,
+  talleres,
   initial,
   onClose,
   onApply,
 }: Props) {
   const [categorias, setCategorias] = useState<string[]>(initial?.categorias ?? []);
+  const [tallerId, setTallerId] = useState(initial?.tallerId ?? "");
+  const [estado, setEstado] = useState<ProductosFilters["estado"]>(initial?.estado ?? "");
+  const [visibilidad, setVisibilidad] = useState<ProductosFilters["visibilidad"]>(
+    initial?.visibilidad ?? "inventario"
+  );
 
   useEffect(() => {
     if (!open) return;
     setCategorias(initial?.categorias ?? []);
+    setTallerId(initial?.tallerId ?? "");
+    setEstado(initial?.estado ?? "");
+    setVisibilidad(initial?.visibilidad ?? "inventario");
   }, [open, initial]);
 
   const categoriaOptions = useMemo(() => {
@@ -37,7 +50,7 @@ export default function ProductosFiltersModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onApply({ categorias });
+    onApply({ categorias, tallerId, estado, visibilidad });
     onClose();
   };
 
@@ -46,17 +59,72 @@ export default function ProductosFiltersModal({
       <div style={{ padding: "4px 0 12px" }}>
         <div css={styles.row}>
           <div style={styles.field}>
-            <label style={styles.label}>Categorías</label>
+            <label style={styles.label}>Taller</label>
+            <Autocomplete
+              options={[
+                { value: "", label: "Todos los talleres" },
+                ...talleres.map((t) => ({ value: t.id, label: t.nombre })),
+              ]}
+              value={tallerId}
+              onChange={setTallerId}
+              placeholder="Todos los talleres"
+            />
+          </div>
+        </div>
+
+        <div css={styles.row}>
+          <div style={styles.field}>
+            <label style={styles.label}>Estado de stock</label>
+            <Dropdown
+              value={estado}
+              onChange={(value) => setEstado(value as ProductosFilters["estado"])}
+              options={[
+                { value: "", label: "Todos" },
+                { value: "critico", label: "Sin stock" },
+                { value: "bajo", label: "Stock bajo" },
+                { value: "normal", label: "Stock normal" },
+                { value: "alto", label: "Exceso stock" },
+              ]}
+              style={{ width: "100%", height: 40 }}
+            />
+          </div>
+          <div style={styles.field}>
+            <label style={styles.label}>Visibilidad</label>
+            <Dropdown
+              value={visibilidad}
+              onChange={(value) => setVisibilidad(value as ProductosFilters["visibilidad"])}
+              options={[
+                { value: "inventario", label: "Mostrar en inventario" },
+                { value: "esporadico", label: "Stock esporadico" },
+                { value: "todos", label: "Todos" },
+              ]}
+              style={{ width: "100%", height: 40 }}
+            />
+          </div>
+        </div>
+
+        <div css={styles.row}>
+          <div style={styles.field}>
+            <label style={styles.label}>Categorias</label>
             <DropdownMultiSelect
               options={categoriaOptions}
               value={categorias}
               onChange={setCategorias}
-              placeholder="Seleccionar categorías..."
+              placeholder="Seleccionar categorias..."
             />
 
             <div style={styles.clearRow}>
-              <button type="button" style={styles.clearButton} onClick={() => setCategorias([])}>
-                Limpiar selección
+              <button
+                type="button"
+                style={styles.clearButton}
+                onClick={() => {
+                  setCategorias([]);
+                  setTallerId("");
+                  setEstado("");
+                  setVisibilidad("inventario");
+                }}
+              >
+                Limpiar filtros
               </button>
             </div>
           </div>
@@ -99,4 +167,3 @@ const styles = {
     cursor: "pointer",
   },
 } as const;
-

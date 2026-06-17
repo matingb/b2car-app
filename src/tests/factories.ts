@@ -232,6 +232,7 @@ export const createProducto = (overrides: Partial<Producto> = {}): Producto => {
     proveedor: 'Proveedor 1',
     ubicacion: 'Depósito',
     showInStock: true,
+    stocks: [],
     ...overrides,
   };
 };

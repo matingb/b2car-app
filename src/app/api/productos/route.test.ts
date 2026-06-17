@@ -20,8 +20,8 @@ vi.mock("./productosService", async () => {
 import { createClient } from "@/supabase/server";
 import { productosService } from "./productosService";
 import { SupabaseClient } from "@supabase/supabase-js";
-import { createInventarioProductoRow } from "@/tests/factories";
-import type { ProductoWithStocksCountRow } from "./productosService";
+import { createInventarioProductoRow, createStockRow } from "@/tests/factories";
+import type { ProductoWithStocksRow } from "./productosService";
 import { ServiceError } from "../serviceError";
 import type { CreateProductoRequest } from "./contracts";
 
@@ -63,8 +63,12 @@ describe("/api/productos", () => {
       data: [
         {
           ...createInventarioProductoRow({ id: "PROD-1", codigo: "C1", nombre: "Producto 1" }),
+          stocks: [
+            createStockRow({ id: "STK-1", producto_id: "PROD-1", taller_id: "TAL-1" }),
+            createStockRow({ id: "STK-2", producto_id: "PROD-1", taller_id: "TAL-2" }),
+          ],
           talleresConStock: 2,
-        } satisfies ProductoWithStocksCountRow,
+        } satisfies ProductoWithStocksRow,
       ],
       error: null,
     });
@@ -76,6 +80,7 @@ describe("/api/productos", () => {
     expect(body.data.length).toBeGreaterThan(0);
     expect(typeof body.data[0].talleresConStock).toBe("number");
     expect(body.data[0].talleresConStock).toBe(2);
+    expect(body.data[0].stocks).toHaveLength(2);
   });
 
   it("POST con JSON inválido devuelve 400", async () => {

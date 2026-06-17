@@ -13,6 +13,7 @@ import ProductoItemCard from "@/app/components/productos/ProductoItemCard";
 import { LoaderCircle } from "lucide-react";
 import { useProductos } from "@/app/providers/ProductosProvider";
 import { css } from "@emotion/react";
+import { useTenant } from "@/app/providers/TenantProvider";
 
 export default function ProductosPage() {
   return <ProductosPageContent />;
@@ -21,6 +22,7 @@ export default function ProductosPage() {
 function ProductosPageContent() {
   const router = useRouter();
   const { productos, categoriasDisponibles, isLoading } = useProductos();
+  const { talleres } = useTenant();
   const state = useProductosFilters(productos);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -69,6 +71,7 @@ function ProductosPageContent() {
               <ProductoItemCard
                 key={p.id}
                 producto={p}
+                tallerId={state.filters.tallerId}
                 onClick={() => router.push(`/productos/${p.id}`)}
               />
             ))}
@@ -79,6 +82,7 @@ function ProductosPageContent() {
       <ProductosFiltersModal
         open={isFiltersOpen}
         categoriasDisponibles={categoriasDisponibles}
+        talleres={talleres}
         initial={state.filters}
         onClose={() => setIsFiltersOpen(false)}
         onApply={state.applyFilters}

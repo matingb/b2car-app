@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
@@ -10,90 +10,74 @@ import IconButton from "@/app/components/ui/IconButton";
 import { Pencil, Save, Trash, X } from "lucide-react";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import ProductoTallerStockCard from "@/app/components/productos/ProductoTallerStockCard";
 import ProductoInfoCard from "@/app/components/productos/ProductoInfoCard";
 import ProductoPricesCard from "@/app/components/productos/ProductoPricesCard";
+import ProductoStockMatrix from "@/app/components/productos/ProductoStockMatrix";
 import Toggle from "@/app/components/ui/Toggle";
 import {
   Producto,
+  SaveProductoStockInput,
+  SaveProductoStockResult,
   StockRegistro,
   useProductos,
 } from "@/app/providers/ProductosProvider";
 import { logger } from "@/lib/logger";
 
-const Header = () => {
-  return (
-    <ScreenHeader
-      title="Productos"
-      breadcrumbs={["Detalle"]}
-      hasBackButton
-      style={{ width: "100%" }}
-    />
-  );
-};
+const Header = () => (
+  <ScreenHeader
+    title="Productos"
+    breadcrumbs={["Detalle"]}
+    hasBackButton
+    style={{ width: "100%" }}
+  />
+);
 
 export default function ProductoDetailsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectedTallerId = searchParams.get("tallerId") ?? "";
   const { talleres } = useTenant();
   const {
     getProductoById,
     updateProducto,
     updateShowInStock,
+    saveProductoStock,
+    removeProductoStock,
     removeProducto,
     categoriasDisponibles,
     isLoading,
   } = useProductos();
   const { confirm } = useModalMessage();
-  const { success } = useToast();
+  const { success, error } = useToast();
 
   const [producto, setProducto] = useState<Producto | null>(null);
   const [stockDelProducto, setStockDelProducto] = useState<StockRegistro[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState<Producto | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
+  const loadProducto = useCallback(
+    async (isCancelled?: () => boolean) => {
       const res = await getProductoById(params.id);
-      if (cancelled) return;
+      if (isCancelled?.()) return;
       setProducto(res?.producto ?? null);
       setStockDelProducto(res?.stocks ?? []);
       logger.debug("Loaded producto details: ", res);
-    }
-    void load();
+    },
+    [getProductoById, params.id]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadProducto(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, [getProductoById, params.id]);
-
-  // const movimientos = useMemo<InventarioMovementRow[]>(() => {
-  //   const nombrePorTaller = new Map(
-  //     talleres.map((t) => [t.id, t.nombre] as const),
-  //   );
-  //   const rows: InventarioMovementRow[] = [];
-  //   for (const reg of stockDelProducto) {
-  //     for (const mov of reg.historialMovimientos ?? []) {
-  //       rows.push({
-  //         fecha: mov.fecha,
-  //         tipo: mov.tipo,
-  //         cantidad: mov.cantidad,
-  //         motivo: mov.motivo,
-  //         tallerNombre: nombrePorTaller.get(reg.tallerId) ?? reg.tallerId,
-  //       });
-  //     }
-  //   }
-  //   const toKey = (f: string) => {
-  //     const [dd, mm, yyyy] = String(f ?? "").split("/");
-  //     return `${yyyy ?? ""}${mm ?? ""}${dd ?? ""}`;
-  //   };
-  //   rows.sort((a, b) => toKey(b.fecha).localeCompare(toKey(a.fecha)));
-  //   return rows;
-  // }, [stockDelProducto, talleres]);
+  }, [loadProducto]);
 
   const stockTotal = useMemo(() => {
-    return stockDelProducto.reduce(
-      (acc, s) => acc + (Number(s.stockActual) || 0),
-      0,
-    );
+    return stockDelProducto.reduce((acc, s) => acc + (Number(s.stockActual) || 0), 0);
   }, [stockDelProducto]);
 
   const ultimaActualizacion = useMemo(() => {
@@ -101,27 +85,25 @@ export default function ProductoDetailsPage() {
       const [dd, mm, yyyy] = String(f ?? "").split("/");
       return `${yyyy ?? ""}${mm ?? ""}${dd ?? ""}`;
     };
-    const fechas = stockDelProducto
-      .map((s) => s.ultimaActualizacion)
-      .filter(Boolean);
+    const fechas = stockDelProducto.map((s) => s.ultimaActualizacion).filter(Boolean);
     if (!fechas.length) return undefined;
     return fechas.sort((a, b) => toKey(b).localeCompare(toKey(a)))[0];
   }, [stockDelProducto]);
 
   const showInStock = producto?.showInStock ?? true;
 
-  const handleToggleShowInStock = useCallback(async (value: boolean) => {
-    if (!producto) return;
-    setProducto((prev) => prev ? { ...prev, showInStock: value } : prev);
-    const ok = await updateShowInStock(producto.id, value);
-    if (!ok) {
-      setProducto((prev) => prev ? { ...prev, showInStock: !value } : prev);
-    }
-  }, [producto, updateShowInStock]);
-
-  const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState<Producto | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const handleToggleShowInStock = useCallback(
+    async (value: boolean) => {
+      if (!producto) return;
+      setProducto((prev) => (prev ? { ...prev, showInStock: value } : prev));
+      const ok = await updateShowInStock(producto.id, value);
+      if (!ok) {
+        setProducto((prev) => (prev ? { ...prev, showInStock: !value } : prev));
+        error("No se pudo actualizar", "La visibilidad del producto no se guardo.");
+      }
+    },
+    [error, producto, updateShowInStock]
+  );
 
   useEffect(() => {
     if (!producto) {
@@ -137,20 +119,20 @@ export default function ProductoDetailsPage() {
     if (!producto) return;
     const ok = await confirm({
       title: "Eliminar producto",
-      message: `¿Eliminar "${producto.nombre}"? Se eliminará también el stock asociado en todos los talleres.`,
+      message: `Eliminar "${producto.nombre}"? Se eliminara tambien el stock asociado en todos los talleres.`,
       acceptLabel: "Eliminar",
       cancelLabel: "Cancelar",
     });
     if (!ok) return;
     await removeProducto(producto.id);
-    success("Producto eliminado", `${producto.codigo} se eliminó correctamente.`);
+    success("Producto eliminado", `${producto.codigo} se elimino correctamente.`);
     router.push("/productos");
   }, [confirm, producto, removeProducto, router, success]);
 
   const handleSave = useCallback(async () => {
     if (!draft) return;
     setIsSaving(true);
-    await updateProducto(draft.id, {
+    const updated = await updateProducto(draft.id, {
       nombre: draft.nombre,
       codigo: draft.codigo,
       proveedor: draft.proveedor,
@@ -160,23 +142,51 @@ export default function ProductoDetailsPage() {
       categorias: draft.categorias,
     });
 
-    success("Producto actualizado", `${draft.codigo} se actualizó correctamente.`);
-    setProducto({ ...draft });
+    success("Producto actualizado", `${draft.codigo} se actualizo correctamente.`);
+    setProducto(updated ?? { ...draft });
+    if (updated?.stocks) setStockDelProducto(updated.stocks);
     setIsEditing(false);
     setIsSaving(false);
   }, [draft, success, updateProducto]);
 
+  const handleSaveStock = useCallback(
+    async (input: SaveProductoStockInput): Promise<SaveProductoStockResult> => {
+      const result = await saveProductoStock(input);
+      if (!result.error) {
+        success("Stock actualizado", "La configuracion del taller se guardo correctamente.");
+        await loadProducto();
+      }
+      return result;
+    },
+    [loadProducto, saveProductoStock, success]
+  );
+
+  const handleDeleteStock = useCallback(
+    async (stockId: string, tallerNombre: string) => {
+      const ok = await confirm({
+        title: "Eliminar stock",
+        message: `Eliminar la configuracion de stock para ${tallerNombre}?`,
+        acceptLabel: "Eliminar",
+        cancelLabel: "Cancelar",
+      });
+      if (!ok) return false;
+      const removed = await removeProductoStock(stockId);
+      if (!removed) {
+        error("No se pudo eliminar el stock", "Intenta nuevamente.");
+        return false;
+      }
+      success("Stock eliminado", "La configuracion del taller se elimino correctamente.");
+      await loadProducto();
+      return true;
+    },
+    [confirm, error, loadProducto, removeProductoStock, success]
+  );
+
   if (isLoading && !producto) {
     return (
       <div>
-        <ScreenHeader
-          title="Productos"
-          breadcrumbs={["Detalle"]}
-          hasBackButton
-        />
-        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>
-          Cargando...
-        </div>
+        <ScreenHeader title="Productos" breadcrumbs={["Detalle"]} hasBackButton />
+        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>Cargando...</div>
       </div>
     );
   }
@@ -185,9 +195,7 @@ export default function ProductoDetailsPage() {
     return (
       <div>
         <Header />
-        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>
-          Cargando...
-        </div>
+        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>Cargando...</div>
       </div>
     );
   }
@@ -196,9 +204,7 @@ export default function ProductoDetailsPage() {
     return (
       <div>
         <Header />
-        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>
-          Guardando...
-        </div>
+        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>Guardando...</div>
       </div>
     );
   }
@@ -219,12 +225,7 @@ export default function ProductoDetailsPage() {
                 title="Cancelar"
                 ariaLabel="Cancelar"
               />
-              <IconButton
-                icon={<Save />}
-                onClick={handleSave}
-                title="Guardar"
-                ariaLabel="Guardar"
-              />
+              <IconButton icon={<Save />} onClick={handleSave} title="Guardar" ariaLabel="Guardar" />
             </>
           ) : (
             <>
@@ -235,12 +236,7 @@ export default function ProductoDetailsPage() {
                 ariaLabel="Eliminar"
                 hoverColor={COLOR.ICON.DANGER}
               />
-              <IconButton
-                icon={<Pencil />}
-                onClick={() => setIsEditing(true)}
-                title="Editar"
-                ariaLabel="Editar"
-              />
+              <IconButton icon={<Pencil />} onClick={() => setIsEditing(true)} title="Editar" ariaLabel="Editar" />
             </>
           )}
         </div>
@@ -251,11 +247,7 @@ export default function ProductoDetailsPage() {
           <input
             style={styles.titleInput}
             value={draft.nombre}
-            onChange={(e) =>
-              setDraft((p: Producto | null) =>
-                p ? { ...p, nombre: e.target.value } : p,
-              )
-            }
+            onChange={(e) => setDraft((p) => (p ? { ...p, nombre: e.target.value } : p))}
           />
         ) : (
           <h2 style={styles.title}>{producto.nombre}</h2>
@@ -264,11 +256,7 @@ export default function ProductoDetailsPage() {
       </div>
 
       <div style={styles.toggleRow}>
-        <Toggle
-          checked={showInStock}
-          onChange={handleToggleShowInStock}
-          label="Mostrar en inventario"
-        />
+        <Toggle checked={showInStock} onChange={handleToggleShowInStock} label="Mostrar en inventario" />
         <span style={styles.toggleLabel}>Mostrar en inventario</span>
       </div>
 
@@ -276,25 +264,15 @@ export default function ProductoDetailsPage() {
         <div style={styles.leftCol}>
           <div>
             <h3 style={styles.sectionTitle}>Stock por taller</h3>
-            <div css={styles.talleresGrid}>
-              {talleres.map((t) => {
-                const s = stockDelProducto.find((x) => x.tallerId === t.id);
-                return (
-                  <ProductoTallerStockCard
-                    key={t.id}
-                    tallerNombre={t.nombre}
-                    stockActual={s?.stockActual ?? 0}
-                    stockMinimo={s?.stockMinimo ?? 0}
-                    stockMaximo={s?.stockMaximo ?? 0}
-                  />
-                );
-              })}
-            </div>
+            <ProductoStockMatrix
+              productoId={producto.id}
+              talleres={talleres}
+              stocks={stockDelProducto}
+              selectedTallerId={selectedTallerId}
+              onSave={handleSaveStock}
+              onDelete={handleDeleteStock}
+            />
           </div>
-
-          {/* <div style={{ marginTop: 12 }}>
-            <MovementsCard movimientos={movimientos} />
-          </div> */}
         </div>
 
         <div style={styles.rightCol}>
@@ -312,9 +290,7 @@ export default function ProductoDetailsPage() {
               ubicacion: draft.ubicacion,
               categorias: draft.categorias,
             }}
-            onChange={(patch) =>
-              setDraft((p: Producto | null) => (p ? { ...p, ...patch } : p))
-            }
+            onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
           />
 
           <div style={{ marginTop: 12 }}>
@@ -327,9 +303,7 @@ export default function ProductoDetailsPage() {
                 costoUnitario: draft.costoUnitario,
                 precioUnitario: draft.precioUnitario,
               }}
-              onChange={(patch) =>
-                setDraft((p: Producto | null) => (p ? { ...p, ...patch } : p))
-              }
+              onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
             />
           </div>
         </div>
@@ -397,12 +371,4 @@ const styles = {
   leftCol: { display: "flex", flexDirection: "column" as const, gap: 12 },
   rightCol: { display: "flex", flexDirection: "column" as const, gap: 12 },
   sectionTitle: { fontSize: 18, fontWeight: 600, margin: "0 0 8px" },
-  talleresGrid: css({
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: 12,
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      gridTemplateColumns: "1fr",
-    },
-  }),
 } as const;

@@ -2,7 +2,8 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { StockMovement } from "@/model/stock";
-import { productosClient, mapProductoDetailToInventario, mapProductoToInventario } from "@/clients/productosClient";
+import { productosClient, mapProductoDetailToInventario, mapProductoToInventario, mapStockDtoToInventario } from "@/clients/productosClient";
+import { stocksClient } from "@/clients/stocksClient";
 import type { ProductoDetailDTO, StockDTO } from "@/model/dtos";
 
 export const INVENTARIO_CATEGORIAS_DISPONIBLES = [
@@ -18,19 +19,6 @@ export const INVENTARIO_CATEGORIAS_DISPONIBLES = [
   "Accesorios",
 ] as const;
 
-export type Producto = {
-  id: string;
-  nombre: string;
-  codigo: string;
-  categorias: string[];
-  talleresConStock: number;
-  precioUnitario: number;
-  costoUnitario: number;
-  proveedor: string;
-  ubicacion: string;
-  showInStock: boolean;
-};
-
 export type StockRegistro = {
   id: string;
   productoId: string;
@@ -42,8 +30,36 @@ export type StockRegistro = {
   historialMovimientos: StockMovement[];
 };
 
-export type CreateProductoInput = Omit<Producto, "id" | "talleresConStock" | "showInStock"> & { id?: string };
-export type UpdateProductoInput = Partial<Omit<Producto, "id" | "talleresConStock" | "showInStock">>;
+export type Producto = {
+  id: string;
+  nombre: string;
+  codigo: string;
+  categorias: string[];
+  talleresConStock: number;
+  precioUnitario: number;
+  costoUnitario: number;
+  proveedor: string;
+  ubicacion: string;
+  showInStock: boolean;
+  stocks: StockRegistro[];
+};
+
+export type CreateProductoInput = Omit<Producto, "id" | "talleresConStock" | "showInStock" | "stocks"> & { id?: string };
+export type UpdateProductoInput = Partial<Omit<Producto, "id" | "talleresConStock" | "showInStock" | "stocks">>;
+export type SaveProductoStockInput = {
+  stockId?: string;
+  productoId: string;
+  tallerId: string;
+  stockActual: number;
+  stockMinimo: number;
+  stockMaximo: number;
+};
+
+export type SaveProductoStockResult = {
+  stock: StockRegistro | null;
+  error: string | null;
+  status?: number;
+};
 
 export type CreateProductoResult = { producto: Producto | null; error: string | null };
 
@@ -56,23 +72,17 @@ type ProductosContextType = {
   createProducto: (input: CreateProductoInput) => Promise<CreateProductoResult>;
   updateProducto: (productoId: string, input: UpdateProductoInput) => Promise<Producto | null>;
   updateShowInStock: (productoId: string, showInStock: boolean) => Promise<boolean>;
+  saveProductoStock: (input: SaveProductoStockInput) => Promise<SaveProductoStockResult>;
+  removeProductoStock: (stockId: string) => Promise<boolean>;
   removeProducto: (productoId: string) => Promise<void>;
 };
 
 const ProductosContext = createContext<ProductosContextType | null>(null);
 
-function formatShortEsDate(d: Date) {
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = String(d.getFullYear());
-  return `${day}/${month}/${year}`;
-}
-
-function isoToShortEsDate(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return formatShortEsDate(d);
+function getResponseStatus(res: unknown): number | undefined {
+  if (!res || typeof res !== "object" || !("status" in res)) return undefined;
+  const status = (res as { status?: unknown }).status;
+  return typeof status === "number" ? status : undefined;
 }
 
 export function ProductosProvider({ children }: { children: React.ReactNode }) {
@@ -98,18 +108,7 @@ export function ProductosProvider({ children }: { children: React.ReactNode }) {
     return mapProductoDetailToInventario(dto);
   };
 
-  const mapProductoStockToRegistro = (s: StockDTO): StockRegistro => {
-    return {
-      id: s.id,
-      productoId: s.productoId,
-      tallerId: s.tallerId,
-      stockActual: Number(s.cantidad) || 0,
-      stockMinimo: Number(s.stock_minimo) || 0,
-      stockMaximo: Number(s.stock_maximo) || 0,
-      ultimaActualizacion: isoToShortEsDate(s.updated_at),
-      historialMovimientos: [],
-    };
-  };
+  const mapProductoStockToRegistro = (s: StockDTO): StockRegistro => mapStockDtoToInventario(s);
 
   const getProductoById = useCallback(
     async (productoId: string) => {
@@ -178,6 +177,46 @@ export function ProductosProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const saveProductoStock = useCallback(async (input: SaveProductoStockInput): Promise<SaveProductoStockResult> => {
+    setIsLoading(true);
+    try {
+      const payload = {
+        cantidad: input.stockActual,
+        stock_minimo: input.stockMinimo,
+        stock_maximo: input.stockMaximo,
+      };
+      const res = input.stockId
+        ? await stocksClient.update(input.stockId, payload)
+        : await stocksClient.upsert({
+            productoId: input.productoId,
+            tallerId: input.tallerId,
+            ...payload,
+          });
+
+      if (!res.data) {
+        return {
+          stock: null,
+          error: res.error ?? "No se pudo guardar el stock",
+          status: getResponseStatus(res),
+        };
+      }
+
+      return { stock: mapStockDtoToInventario(res.data), error: null, status: getResponseStatus(res) };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const removeProductoStock = useCallback(async (stockId: string): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      const res = await stocksClient.delete(stockId);
+      return !res.error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const removeProducto = useCallback(async (productoId: string) => {
     setIsLoading(true);
     try {
@@ -198,9 +237,11 @@ export function ProductosProvider({ children }: { children: React.ReactNode }) {
       createProducto,
       updateProducto,
       updateShowInStock,
+      saveProductoStock,
+      removeProductoStock,
       removeProducto,
     }),
-    [isLoading, productos, loadProductos, getProductoById, createProducto, updateProducto, updateShowInStock, removeProducto]
+    [isLoading, productos, loadProductos, getProductoById, createProducto, updateProducto, updateShowInStock, saveProductoStock, removeProductoStock, removeProducto]
   );
 
   useEffect(() => {

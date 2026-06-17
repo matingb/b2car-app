@@ -72,6 +72,7 @@ export type ProductoDTO = {
     categorias: string[];
     show_in_stock: boolean;
     talleresConStock?: number;
+    stocks?: StockDTO[];
     created_at: string;
     updated_at: string;
 };
