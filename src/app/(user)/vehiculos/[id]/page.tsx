@@ -201,6 +201,7 @@ export default function VehiculoDetailsPage() {
           loading={false}
           items={arreglosFilters.arreglosFiltrados}
           onSelect={(a) => router.push(`/arreglos/${a.id}`)}
+          showObservaciones={true}
         />
       </div>
       <ArregloFiltersModal
@@ -217,7 +218,6 @@ export default function VehiculoDetailsPage() {
             editArreglo
               ? {
                 id: editArreglo.id,
-                tipo: editArreglo.tipo,
                 fecha: editArreglo.fecha,
                 kilometraje_leido: editArreglo.kilometraje_leido,
                 precio_final: editArreglo.precio_final,

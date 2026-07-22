@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import ArregloEstadoBadge, {
-  getArregloEstadoMeta,
-  getArregloEstadoProgress,
-} from "./ArregloEstadoBadge";
+import ArregloEstadoBadge from "./ArregloEstadoBadge";
+import { getArregloEstadoMeta, getArregloEstadoProgress } from "./hooks/useArregloEstado";
 import { COLOR } from "@/theme/theme";
 import type { EstadoArreglo } from "@/model/types";
 
@@ -17,33 +15,33 @@ describe("getArregloEstadoMeta", () => {
       {
         estado: "PRESUPUESTO",
         dotColor: COLOR.SEMANTIC.WARNING,
-        bgColor: COLOR.BACKGROUND.WARNING_TINT,
+        bgColor: "transparent",
       },
       {
         estado: "SIN_INICIAR",
         dotColor: COLOR.SEMANTIC.DISABLED,
-        bgColor: COLOR.BACKGROUND.DISABLED_TINT,
+        bgColor: "transparent",
       },
       {
         estado: "EN_PROGRESO",
         dotColor: COLOR.SEMANTIC.INFO,
-        bgColor: COLOR.BACKGROUND.INFO_TINT,
+        bgColor: "transparent",
       },
       {
         estado: "ESPERA",
         dotColor: COLOR.SEMANTIC.ALERT,
-        bgColor: COLOR.BACKGROUND.ALERT_TINT,
+        bgColor: "transparent",
       },
       {
         estado: "TERMINADO",
         dotColor: COLOR.SEMANTIC.SUCCESS,
-        bgColor: COLOR.BACKGROUND.SUCCESS_TINT,
+        bgColor: "transparent",
       },
     ];
 
     for (const { estado, dotColor, bgColor } of cases) {
       const meta = getArregloEstadoMeta(estado);
-      expect(meta.label).toBe(estado.replaceAll("_", " "));
+      expect(meta.label.toLowerCase()).toBe(estado.replaceAll("_", " ").toLowerCase());
       expect(meta.dotColor).toBe(dotColor);
       expect(meta.bgColor).toBe(bgColor);
     }
@@ -52,17 +50,17 @@ describe("getArregloEstadoMeta", () => {
   it("si estado es undefined, usa SIN_INICIAR por defecto", () => {
     const meta = getArregloEstadoMeta(undefined);
 
-    expect(meta.label).toBe("SIN INICIAR");
+    expect(meta.label).toBe("Sin iniciar");
     expect(meta.dotColor).toBe(COLOR.SEMANTIC.DISABLED);
-    expect(meta.bgColor).toBe(COLOR.BACKGROUND.DISABLED_TINT);
+    expect(meta.bgColor).toBe("transparent");
   });
 
   it("si recibe un estado no contemplado, mantiene label y cae al estilo INFO", () => {
     const meta = getArregloEstadoMeta("PAUSADO" as EstadoArreglo);
 
-    expect(meta.label).toBe("PAUSADO");
+    expect(meta.label).toBe("Pausado");
     expect(meta.dotColor).toBe(COLOR.SEMANTIC.INFO);
-    expect(meta.bgColor).toBe(COLOR.BACKGROUND.INFO_TINT);
+    expect(meta.bgColor).toBe("transparent");
   });
 });
 
@@ -75,13 +73,13 @@ describe("ArregloEstadoBadge", () => {
   it("renderiza el label transformado con espacios", () => {
     render(<ArregloEstadoBadge estado="EN_PROGRESO" />);
 
-    expect(screen.getByText("EN PROGRESO")).toBeInTheDocument();
+    expect(screen.getByText("En progreso")).toBeInTheDocument();
   });
 
   it("renderiza SIN INICIAR cuando no se pasa estado", () => {
     render(<ArregloEstadoBadge />);
 
-    expect(screen.getByText("SIN INICIAR")).toBeInTheDocument();
+    expect(screen.getByText("Sin iniciar")).toBeInTheDocument();
   });
 
   it("si recibe progress, usa ese valor para el llenado radial", () => {
@@ -91,7 +89,7 @@ describe("ArregloEstadoBadge", () => {
     const radialFill = progressCircle.firstElementChild as HTMLElement;
 
     expect(radialFill).toHaveStyle({
-      background: `conic-gradient(${COLOR.SEMANTIC.INFO} 0deg 90deg, ${COLOR.BACKGROUND.INFO_TINT} 90deg 360deg)`,
+      background: `conic-gradient(${COLOR.SEMANTIC.INFO} 0deg 90deg, transparent 90deg 360deg)`,
     });
   });
 
@@ -102,7 +100,7 @@ describe("ArregloEstadoBadge", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Cambiar estado de arreglo. Estado actual: EN PROGRESO",
+        name: "Cambiar estado de arreglo. Estado actual: En progreso",
       })
     );
 

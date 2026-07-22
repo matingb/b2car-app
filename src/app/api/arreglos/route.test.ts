@@ -22,7 +22,6 @@ describe("POST /api/arreglos", () => {
     tenant_id: "TEN-1",
     vehiculo_id: "v1",
     taller_id: "t1",
-    tipo: "Service",
     estado: "SIN_INICIAR",
     descripcion: "Cambio aceite",
     kilometraje_leido: 123,
@@ -81,7 +80,6 @@ describe("POST /api/arreglos", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(
         createCreateArregloRequest({
-          tipo: "Service",
           detalles: [{ descripcion: "Cambio aceite", cantidad: 1, valor: 1000 }],
         })
       ),
@@ -94,7 +92,15 @@ describe("POST /api/arreglos", () => {
       "rpc_crear_arreglo_completo",
       expect.objectContaining({
         p_descripcion: "Cambio aceite",
-        p_detalles: [{ descripcion: "Cambio aceite", cantidad: 1, valor: 1000 }],
+        p_detalles: [
+          {
+            descripcion: "Cambio aceite",
+            cantidad: 1,
+            valor: 1000,
+            tipo_arreglo_id: null,
+            empleado_id: null,
+          },
+        ],
       })
     );
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
@@ -203,6 +209,8 @@ describe("POST /api/arreglos", () => {
             cantidad: 5,
             monto_unitario: 1500,
             precio_compra: 900,
+            tipo_arreglo_id: null,
+            empleado_id: null,
           },
         ],
       })

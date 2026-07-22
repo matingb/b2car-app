@@ -70,7 +70,6 @@ export interface Arreglo {
   vehiculo: Vehiculo;
   taller_id: UUID;
   taller: Taller;
-  tipo: string;
   estado: EstadoArreglo;
   descripcion: string;
   kilometraje_leido: number;

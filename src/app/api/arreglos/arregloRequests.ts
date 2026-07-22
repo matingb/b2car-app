@@ -23,12 +23,13 @@ export type CreateArregloRepuestoNuevoInput = {
   precio_compra: number;
   precio_venta: number;
   cantidad: number;
+  tipo_arreglo_id?: string | null;
+  empleado_id?: string | null;
 };
 
 export type CreateArregloRequest = {
   vehiculo_id: string;
   taller_id: string;
-  tipo?: string;
   estado?: EstadoArreglo;
   kilometraje_leido?: number;
   fecha: Date | string;
@@ -38,8 +39,21 @@ export type CreateArregloRequest = {
   extra_data?: string;
 
   // opcional: creación "completa" desde el modal (1 POST)
-  detalles?: Array<{ descripcion: string; cantidad: number; valor: number }>;
-  repuestos?: Array<{ stock_id: string; cantidad: number; monto_unitario: number; precio_compra?: number | null }>;
+  detalles?: Array<{
+    descripcion: string;
+    cantidad: number;
+    valor: number;
+    tipo_arreglo_id?: string | null;
+    empleado_id?: string | null;
+  }>;
+  repuestos?: Array<{
+    stock_id: string;
+    cantidad: number;
+    monto_unitario: number;
+    precio_compra?: number | null;
+    tipo_arreglo_id?: string | null;
+    empleado_id?: string | null;
+  }>;
   repuestos_nuevos?: CreateArregloRepuestoNuevoInput[];
   detalle_formulario?: CreateArregloDetalleFormularioInput;
 };
@@ -47,7 +61,6 @@ export type CreateArregloRequest = {
 export type CreateArregloInsertPayload = {
   vehiculo_id: string;
   taller_id: string;
-  tipo: string;
   estado: EstadoArreglo;
   descripcion: string | null;
   kilometraje_leido: number;
@@ -60,7 +73,6 @@ export type CreateArregloInsertPayload = {
 };
 
 export type UpdateArregloRequest = {
-  tipo?: string;
   estado?: EstadoArreglo;
   descripcion?: string;
   kilometraje_leido?: number;

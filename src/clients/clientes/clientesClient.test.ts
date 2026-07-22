@@ -10,8 +10,8 @@ describe('clientesClient', () => {
     describe('getAll', () => {
         it('debería retornar una lista de clientes cuando la respuesta es exitosa', async () => {
             const clientes = [
-                createCliente({ id: 1, nombre: 'Juan Pérez' }),
-                createCliente({ id: 2, nombre: 'Empresa XYZ' }),
+                createCliente({ id: "1", nombre: 'Juan Pérez' }),
+                createCliente({ id: "2", nombre: 'Empresa XYZ' }),
             ];
 
             mockApi.mockResolvedValueOnce({

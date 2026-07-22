@@ -13,7 +13,6 @@ import {
   buildTerminadoRequiredFieldsErrorMessage,
   findMissingRequiredCustomFormFields,
 } from "@/lib/arreglosCustomFormRequired";
-import { computeArregloDescripcion } from "../arregloDescripcionService";
 
 export type DetalleArreglo = {
   id: string;
@@ -21,6 +20,8 @@ export type DetalleArreglo = {
   descripcion: string;
   cantidad: number;
   valor: number;
+  tipo_arreglo_id: string | null;
+  empleado_id: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -43,6 +44,8 @@ export type AsignacionArregloLinea = {
   monto_unitario: number;
   delta_cantidad: number;
   created_at: string;
+  tipo_arreglo_id: string | null;
+  empleado_id: string | null;
   producto?: AsignacionArregloProducto | null;
 };
 
@@ -191,26 +194,7 @@ export async function PUT(
     arregloPatch.estado = estado as EstadoArreglo;
   }
 
-  if (arregloPatch.tipo !== undefined) {
-    arregloPatch.tipo = String(arregloPatch.tipo ?? "").trim();
-    const { data: descripcionCalculada, error: descripcionError } = await computeArregloDescripcion(
-      supabase,
-      id,
-      { tipo: arregloPatch.tipo }
-    );
 
-    if (descripcionError) {
-      const status = descripcionError === ServiceError.NotFound ? 404 : 500;
-      const message = status === 404 ? "Arreglo no encontrado" : "Error actualizando arreglo";
-      return Response.json({ data: null, error: message }, { status });
-    }
-
-    if (descripcionCalculada == null) {
-      return Response.json({ data: null, error: "Error actualizando arreglo" }, { status: 500 });
-    }
-
-    arregloPatch.descripcion = descripcionCalculada;
-  }
 
   const patchEntries = Object.entries(arregloPatch).filter(([, value]) => value !== undefined);
   let currentArreglo: Arreglo | null = null;

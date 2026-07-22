@@ -9,22 +9,12 @@ import DashboardMetricCard from "@/app/components/dashboard/DashboardMetricCard"
 import DashboardExpandablePanel from "@/app/components/dashboard/DashboardExpandablePanel";
 import PeriodSelector from "@/app/components/dashboard/PeriodSelector";
 import GranularitySelector from "@/app/components/dashboard/GranularitySelector";
-import GraficoArreglos from "@/app/components/graficos/GraficoArreglos";
-import GraficoIngresos from "@/app/components/graficos/GraficoIngresos";
-import GraficoGastos from "@/app/components/graficos/GraficoGastos";
-import GraficoBalance from "@/app/components/graficos/GraficoBalance";
-import CantidadTiposArreglos from "@/app/components/graficos/CantidadTiposArreglos";
-import EstadoCobroArreglos from "@/app/components/graficos/EstadoCobroArreglos";
 import RecentActivityCard from "@/app/components/dashboard/RecentActivityCard";
-import Card from "@/app/components/ui/Card";
 import { useDashboardControls, ACTIVE_CARDS, type ActiveCard } from "@/app/hooks/dashboard/useDashboardControls";
-
-const PANEL_TITLES: Record<ActiveCard, string> = {
-    arreglos: "Arreglos realizados",
-    facturacion: "Facturación",
-    gastos: "Gastos",
-    balance: "Balance",
-};
+import PanelFacturacion from "@/app/components/dashboard/panels/PanelFacturacion";
+import PanelGastos from "@/app/components/dashboard/panels/PanelGastos";
+import PanelArreglos from "@/app/components/dashboard/panels/PanelArreglos";
+import PanelBalance from "@/app/components/dashboard/panels/PanelBalance";
 
 export default function DashboardPage() {
     const {
@@ -97,8 +87,6 @@ export default function DashboardPage() {
                     <DashboardExpandablePanel
                         key={card}
                         isOpen={activeCard === card}
-                        title={PANEL_TITLES[card]}
-                        headerAction={makeGranularitySelector(card)}
                     >
                         {loading ? (
                             <span style={{ color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
@@ -107,77 +95,36 @@ export default function DashboardPage() {
                         ) : error ? (
                             <div style={{ color: COLOR.ICON.DANGER, fontSize: 13 }}>{error}</div>
                         ) : card === "arreglos" ? (
-                            <GraficoArreglos
-                                data={arreglosData}
+                            <PanelArreglos
+                                arreglosData={arreglosData}
                                 granularity={granularity.arreglos}
+                                stats={stats}
+                                headerAction={makeGranularitySelector(card)}
                             />
                         ) : card === "facturacion" ? (
-                            <GraficoIngresos
-                                data={ingresosData}
+                            <PanelFacturacion
+                                ingresosData={ingresosData}
                                 granularity={granularity.facturacion}
+                                stats={stats}
+                                headerAction={makeGranularitySelector(card)}
                             />
                         ) : card === "gastos" ? (
-                            <GraficoGastos
-                                data={gastosData}
+                            <PanelGastos
+                                gastosData={gastosData}
                                 granularity={granularity.gastos}
+                                stats={stats}
+                                headerAction={makeGranularitySelector(card)}
                             />
                         ) : (
-                            <GraficoBalance
-                                ingresosPorPeriodo={ingresosBalanceData}
-                                gastosPorPeriodo={gastosBalanceData}
+                            <PanelBalance
+                                ingresosBalanceData={ingresosBalanceData}
+                                gastosBalanceData={gastosBalanceData}
                                 granularity={granularity.balance}
+                                headerAction={makeGranularitySelector(card)}
                             />
                         )}
                     </DashboardExpandablePanel>
                 ))}
-            </div>
-
-            <div css={styles.mainPanel}>
-                <div css={styles.halfPanel}>
-                    <h3 css={styles.title}>Arreglos | Tipos</h3>
-                    <Card>
-                        {loading && (
-                            <span style={{ color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
-                                Cargando...
-                            </span>
-                        )}
-                        {error && (
-                            <div style={{ color: COLOR.ICON.DANGER, fontSize: 13 }}>{error}</div>
-                        )}
-                        <CantidadTiposArreglos
-                            items={(() => {
-                                const tipos = stats?.arreglos?.tipos?.tipos ?? [];
-                                const cantidad = stats?.arreglos?.tipos?.cantidad ?? [];
-                                const ingresos = stats?.arreglos?.tipos?.ingresos ?? [];
-                                const len = Math.min(tipos.length, cantidad.length, ingresos.length);
-                                return Array.from({ length: len }).map((_, idx) => ({
-                                    tipo: tipos[idx] ?? `Tipo ${idx + 1}`,
-                                    cantidad: cantidad[idx] ?? 0,
-                                    ingresos: ingresos[idx] ?? 0,
-                                }));
-                            })()}
-                        />
-                    </Card>
-                </div>
-
-                <div css={styles.halfPanel}>
-                    <h3 css={styles.title}>Arreglos | Estado de pago</h3>
-                    <Card>
-                        {loading && (
-                            <span style={{ color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
-                                Cargando...
-                            </span>
-                        )}
-                        {error && (
-                            <div style={{ color: COLOR.ICON.DANGER, fontSize: 13 }}>{error}</div>
-                        )}
-                        <EstadoCobroArreglos
-                            total={stats?.totals?.arreglos ?? null}
-                            cobrados={stats?.arreglos?.cobrados ?? null}
-                            pendientes={stats?.arreglos?.pendientes ?? null}
-                        />
-                    </Card>
-                </div>
             </div>
 
             <div style={styles.activityPanel}>
@@ -220,15 +167,23 @@ const styles = {
         flexDirection: "row",
         gap: 16,
         marginTop: 24,
-        [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+        [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
             flexDirection: "column",
         },
     }),
     halfPanel: css({
         width: "50%",
-        [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+        display: "flex",
+        flexDirection: "column",
+        [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
             width: "100%",
         },
+    }),
+    chartWrapper: css({
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
     }),
     activityPanel: {
         display: "flex",
@@ -248,5 +203,16 @@ const styles = {
         [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
             fontSize: 18,
         },
+    }),
+    subTitle: css({
+        fontSize: 15,
+        fontWeight: 600,
+        marginBottom: 8,
+        color: COLOR.TEXT.SECONDARY,
+    }),
+    divider: css({
+        height: 1,
+        background: COLOR.BORDER.SUBTLE,
+        margin: "18px 0",
     }),
 } as const;

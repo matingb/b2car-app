@@ -52,7 +52,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   });
 
   const isEdit = !!initial?.id;
-  const [tipo, setTipo] = useState(initial?.tipo ?? "");
+
   const [estado, setEstado] = useState<EstadoArreglo>(initial?.estado ?? "SIN_INICIAR");
   const [fecha, setFecha] = useState(getArregloModalFecha(initial?.fecha));
   const [km, setKm] = useState<string>(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
@@ -87,7 +87,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
 
   useEffect(() => {
     if (!open) return;
-    setTipo(initial?.tipo ?? "");
+
     setEstado(initial?.estado ?? "SIN_INICIAR");
     setFecha(getArregloModalFecha(initial?.fecha));
     setKm(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
@@ -105,7 +105,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   if (!open) return null;
 
   const fieldValues: ArregloFormFieldsValues = {
-    tipo,
+
     estado,
     fecha,
     km,
@@ -117,7 +117,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
 
   const handleFieldsChange = (patch: Partial<ArregloFormFieldsValues>) => {
     const setters: Record<keyof ArregloFormFieldsValues, (value: unknown) => void> = {
-      tipo: (value) => setTipo(typeof value === "string" ? value : ""),
+
       estado: (value) => {
         const next = String(value ?? "").trim().toUpperCase();
         if ((ESTADOS_ARREGLO as string[]).includes(next)) {
@@ -169,7 +169,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
 
     try {
       const payload: Partial<UpdateArregloInput> = {
-        tipo: tipo.trim(),
+
         estado,
         fecha,
         kilometraje_leido: Number(km),
@@ -192,12 +192,14 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           descripcion: String(s.descripcion ?? "").trim(),
           cantidad: Number(s.cantidad) || 0,
           valor: Number(s.valor) || 0,
+          tipo_arreglo_id: s.tipoArregloId || null,
+          empleado_id: s.empleadoId || null,
         }));
 
         response = await create({
           vehiculo_id: finalVehiculoId!,
           taller_id: tallerSeleccionadoId,
-          tipo: payload.tipo ?? "",
+
           estado,
           fecha: fecha,
           kilometraje_leido: Number(km) || 0,
@@ -213,6 +215,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
               cantidad: Number(r.cantidad) || 0,
               monto_unitario: Number(r.monto_unitario) || 0,
               precio_compra: r.precioCompra,
+              tipo_arreglo_id: r.tipoArregloId || null,
+              empleado_id: r.empleadoId || null,
             })),
           repuestos_nuevos: internal.repuestosDraft
             .filter((r) => r.tipo === "nuevo" && r.nuevoProducto)
@@ -222,6 +226,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
               precio_compra: Number(r.nuevoProducto?.precioCompra) || 0,
               precio_venta: Number(r.nuevoProducto?.precioVenta) || 0,
               cantidad: Number(r.cantidad) || 0,
+              tipo_arreglo_id: r.tipoArregloId || null,
+              empleado_id: r.empleadoId || null,
             })),
           detalle_formulario: internal.detalleFormulario ?? undefined,
         } as CreateArregloInput);
@@ -238,7 +244,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
 
       onClose();
       if (!isEdit) {
-        setTipo("");
+
         setEstado("SIN_INICIAR");
         setFecha(getArregloModalFecha());
         setKm("");

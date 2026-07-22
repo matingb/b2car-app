@@ -1,48 +1,61 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from "react";
-import { COLOR } from "@/theme/theme";
 
 type Props = {
     isOpen: boolean;
-    title: string;
     children: React.ReactNode;
-    headerAction?: React.ReactNode;
 };
 
-export default function DashboardExpandablePanel({ isOpen, title, children, headerAction }: Props) {
+export default function DashboardExpandablePanel({ isOpen, children }: Props) {
     const contentRef = useRef<HTMLDivElement>(null);
     const [height, setHeight] = useState<number>(0);
     const [hasBeenOpen, setHasBeenOpen] = useState(isOpen);
+    const [openCount, setOpenCount] = useState(isOpen ? 1 : 0);
 
     useEffect(() => {
-        if (isOpen) setHasBeenOpen(true);
+        if (isOpen) {
+            setHasBeenOpen(true);
+            setOpenCount(c => c + 1);
+        }
     }, [isOpen]);
 
     useEffect(() => {
         if (!contentRef.current || !hasBeenOpen) return;
-        if (isOpen) {
-            setHeight(contentRef.current.scrollHeight);
-        } else {
-            setHeight(0);
-        }
-    }, [isOpen, children, hasBeenOpen]);
+
+        const updateHeight = () => {
+            if (isOpen) {
+                setHeight(contentRef.current?.scrollHeight || 0);
+            } else {
+                setHeight(0);
+            }
+        };
+
+        updateHeight();
+
+        const observer = new ResizeObserver(() => {
+            if (isOpen) {
+                setHeight(contentRef.current?.scrollHeight || 0);
+            }
+        });
+
+        observer.observe(contentRef.current);
+        return () => observer.disconnect();
+    }, [isOpen, children, hasBeenOpen, openCount]);
 
     return (
         <div
             style={{
+                display: "flex",
+                flexDirection: "column",
                 overflow: "hidden",
-                transition: "height 0.3s ease",
+                transition: "height 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                 height,
             }}
         >
             <div ref={contentRef}>
                 <div style={styles.panel}>
-                    <div style={styles.header}>
-                        <h3 style={styles.title}>{title}</h3>
-                        {headerAction}
-                    </div>
-                    {hasBeenOpen ? children : null}
+                    {hasBeenOpen ? <div key={openCount} style={{ animation: isOpen ? "fadeIn 0.5s ease-out" : "none" }}>{children}</div> : null}
                 </div>
             </div>
         </div>
@@ -51,22 +64,8 @@ export default function DashboardExpandablePanel({ isOpen, title, children, head
 
 const styles = {
     panel: {
-        border: `2px solid ${COLOR.BORDER.DEFAULT}`,
-        borderRadius: 8,
-        padding: "16px",
-        background: COLOR.BACKGROUND.SUBTLE,
-        boxShadow: "0 4px 12px rgba(0, 128, 162, 0.08)",
-    },
-    header: {
         display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: 12,
-    },
-    title: {
-        fontSize: 16,
-        fontWeight: 600,
-        color: COLOR.TEXT.SECONDARY,
-        margin: 0,
+        flexDirection: "column",
+        gap: 16,
     },
 } as const;

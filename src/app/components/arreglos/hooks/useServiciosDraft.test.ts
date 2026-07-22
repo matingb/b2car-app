@@ -2,6 +2,8 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { useServiciosDraft } from "@/app/components/arreglos/hooks/useServiciosDraft";
 
+const base = { tipoArregloId: null, empleadoId: null };
+
 describe("useServiciosDraft", () => {
   it("inicia vacío", () => {
     const { result } = renderHook(() => useServiciosDraft());
@@ -12,8 +14,8 @@ describe("useServiciosDraft", () => {
     const { result } = renderHook(() => useServiciosDraft());
 
     act(() => {
-      result.current.onAdd({ descripcion: "Cambio aceite", cantidad: 1, valor: 1000 });
-      result.current.onAdd({ descripcion: "Frenos", cantidad: 2, valor: 500 });
+      result.current.onAdd({ descripcion: "Cambio aceite", cantidad: 1, valor: 1000, ...base });
+      result.current.onAdd({ descripcion: "Frenos", cantidad: 2, valor: 500, ...base });
     });
 
     expect(result.current.items).toHaveLength(2);
@@ -31,16 +33,32 @@ describe("useServiciosDraft", () => {
     });
   });
 
+  it("onAdd conserva tipoArregloId/empleadoId", () => {
+    const { result } = renderHook(() => useServiciosDraft());
+
+    act(() => {
+      result.current.onAdd({
+        descripcion: "Cambio aceite",
+        cantidad: 1,
+        valor: 1000,
+        tipoArregloId: "tipo-1",
+        empleadoId: "emp-1",
+      });
+    });
+
+    expect(result.current.items[0]).toMatchObject({ tipoArregloId: "tipo-1", empleadoId: "emp-1" });
+  });
+
   it("onUpdate actualiza el item por id", () => {
     const { result } = renderHook(() => useServiciosDraft());
 
     act(() => {
-      result.current.onAdd({ descripcion: "A", cantidad: 1, valor: 10 });
-      result.current.onAdd({ descripcion: "B", cantidad: 1, valor: 20 });
+      result.current.onAdd({ descripcion: "A", cantidad: 1, valor: 10, ...base });
+      result.current.onAdd({ descripcion: "B", cantidad: 1, valor: 20, ...base });
     });
 
     act(() => {
-      result.current.onUpdate("svc-2", { descripcion: "B2", cantidad: 3, valor: 99 });
+      result.current.onUpdate("svc-2", { descripcion: "B2", cantidad: 3, valor: 99, ...base });
     });
 
     expect(result.current.items).toHaveLength(2);
@@ -52,8 +70,8 @@ describe("useServiciosDraft", () => {
     const { result } = renderHook(() => useServiciosDraft());
 
     act(() => {
-      result.current.onAdd({ descripcion: "A", cantidad: 1, valor: 10 });
-      result.current.onAdd({ descripcion: "B", cantidad: 1, valor: 20 });
+      result.current.onAdd({ descripcion: "A", cantidad: 1, valor: 10, ...base });
+      result.current.onAdd({ descripcion: "B", cantidad: 1, valor: 20, ...base });
     });
 
     act(() => {
@@ -61,7 +79,7 @@ describe("useServiciosDraft", () => {
     });
 
     expect(result.current.items).toEqual([
-      { id: "svc-2", descripcion: "B", cantidad: 1, valor: 20 },
+      { id: "svc-2", descripcion: "B", cantidad: 1, valor: 20, ...base },
     ]);
   });
 
@@ -69,8 +87,8 @@ describe("useServiciosDraft", () => {
     const { result } = renderHook(() => useServiciosDraft());
 
     act(() => {
-      result.current.onAdd({ descripcion: "A", cantidad: 1, valor: 10 });
-      result.current.onAdd({ descripcion: "B", cantidad: 1, valor: 20 });
+      result.current.onAdd({ descripcion: "A", cantidad: 1, valor: 10, ...base });
+      result.current.onAdd({ descripcion: "B", cantidad: 1, valor: 20, ...base });
     });
 
     act(() => {
@@ -80,10 +98,9 @@ describe("useServiciosDraft", () => {
     expect(result.current.items).toEqual([]);
 
     act(() => {
-      result.current.onAdd({ descripcion: "C", cantidad: 1, valor: 30 });
+      result.current.onAdd({ descripcion: "C", cantidad: 1, valor: 30, ...base });
     });
 
     expect(result.current.items[0]?.id).toBe("svc-1");
   });
 });
-

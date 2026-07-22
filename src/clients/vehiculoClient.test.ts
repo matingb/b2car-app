@@ -9,7 +9,7 @@ describe('vehiculoClient', () => {
 
     describe('getById', () => {
         it('debería retornar un vehículo con sus arreglos cuando la respuesta es exitosa', async () => {
-            const vehiculo = createVehiculo({ id: 1 });
+            const vehiculo = createVehiculo({ id: "1" });
             const arreglos = [createArreglo({ vehiculo: vehiculo })];
 
             mockApi.mockResolvedValueOnce({
@@ -53,7 +53,7 @@ describe('vehiculoClient', () => {
             const mensajeError = 'Network error';
             mockApi.mockRejectedValueOnce(new Error(mensajeError));
 
-            const result = await vehiculoClient.getById(1);
+            const result = await vehiculoClient.getById("1");
             expect(result).toEqual({
                 data: null,
                 error: mensajeError,
@@ -64,8 +64,8 @@ describe('vehiculoClient', () => {
     describe('getAll', () => {
         it('debería retornar una lista de vehículos cuando la respuesta es exitosa', async () => {
             const vehiculos = [
-                createVehiculo({ id: 1, patente: 'ABC123' }),
-                createVehiculo({ id: 2, patente: 'XYZ789' }),
+                createVehiculo({ id: "1", patente: 'ABC123' }),
+                createVehiculo({ id: "2", patente: 'XYZ789' }),
             ];
 
             mockApi.mockResolvedValueOnce({
@@ -116,7 +116,7 @@ describe('vehiculoClient', () => {
 
     describe('getClienteForVehiculo', () => {
         it('debería retornar el cliente propietario cuando la respuesta es exitosa', async () => {
-            const cliente = createCliente({ id: 1 });
+            const cliente = createCliente({ id: "1" });
             const vehiculoId = 1;
 
             mockApi.mockResolvedValueOnce({

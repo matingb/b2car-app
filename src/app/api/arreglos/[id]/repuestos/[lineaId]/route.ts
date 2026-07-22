@@ -1,6 +1,8 @@
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 import { repuestosService } from "@/app/api/arreglos/repuestos/repuestosService";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { syncArregloDescripcion } from "@/app/api/arreglos/arregloDescripcionService";
 
 export type DeleteRepuestoLineaResponse = {
   error?: string | null;
@@ -91,6 +93,9 @@ export async function DELETE(
       { status: 500 }
     );
   }
+
+  await syncArregloDescripcion(supabase, arregloId);
+  await statsService.onDataChanged(supabase);
 
   return Response.json({ error: null } satisfies DeleteRepuestoLineaResponse, { status: 200 });
 }

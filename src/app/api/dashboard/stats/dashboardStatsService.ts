@@ -55,11 +55,6 @@ export type DashboardStats = {
     monto: number;
   }>;
   arreglos?: {
-    tipos?: {
-      tipos: string[];
-      cantidad: number[];
-      ingresos: number[];
-    };
     total?: number;
     cobrados?: number;
     pendientes?: number;
@@ -73,6 +68,10 @@ export type DashboardStats = {
   arreglosPorPeriodo?: Array<{ label: string; cantidad: number }>;
   ingresosPorPeriodo?: Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>;
   gastosPorPeriodo?: Array<{ label: string; repuestos: number; sueldos: number }>;
+  facturacionPorTipo?: Array<{ label: string; cantidad: number; monto: number }>;
+  facturacionPorEmpleado?: Array<{ label: string; cantidad: number; monto: number }>;
+  costoPorTipo?: Array<{ label: string; cantidad: number; monto: number }>;
+  costoPorEmpleado?: Array<{ label: string; cantidad: number; monto: number }>;
   lastUpdatedAt?: string;
   [key: string]: unknown;
 };
@@ -99,22 +98,28 @@ async function getStats(
     clientesTotal,
     vehiculosTotal,
     resumen,
-    tipos,
     recentActivities,
     nuevosEsteMes,
     arreglosPorPeriodo,
     ingresosPorPeriodo,
     gastosPorPeriodo,
+    facturacionPorTipo,
+    facturacionPorEmpleado,
+    costoPorTipo,
+    costoPorEmpleado,
   ] = await Promise.all([
     clienteService.countAll(supabase),
     vehiculoService.countAll(supabase),
     arregloService.arreglosResumen(supabase, from, to),
-    arregloService.tiposConIngresos(supabase, from, to),
     arregloService.listRecentActivities(supabase, recentLimit, from, to),
     clienteService.nuevosPorDia(supabase, from, to),
     arregloService.arreglosPorPeriodo(supabase, from, to),
     arregloService.ingresosPorPeriodo(supabase, from, to),
     arregloService.gastosPorPeriodo(supabase, from, to),
+    arregloService.facturacionPorTipo(supabase, from, to),
+    arregloService.facturacionPorEmpleado(supabase, from, to),
+    arregloService.costoPorTipo(supabase, from, to),
+    arregloService.costoPorEmpleado(supabase, from, to),
   ]);
 
   const arreglosEsteMes = arreglosPorPeriodo.reduce((sum, d) => sum + d.cantidad, 0);
@@ -133,7 +138,6 @@ async function getStats(
     },
     recentActivities,
     arreglos: {
-      tipos,
       total: resumen.total,
       cobrados: resumen.cobrados,
       pendientes: resumen.pendientes,
@@ -144,6 +148,10 @@ async function getStats(
     arreglosPorPeriodo,
     ingresosPorPeriodo,
     gastosPorPeriodo,
+    facturacionPorTipo,
+    facturacionPorEmpleado,
+    costoPorTipo,
+    costoPorEmpleado,
     lastUpdatedAt: new Date().toISOString(),
   };
 }

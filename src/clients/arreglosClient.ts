@@ -13,7 +13,6 @@ import type { EstadoArreglo } from "@/model/types";
 export type CreateArregloInput = {
   vehiculo_id: string | number;
   taller_id: string;
-  tipo: string;
   estado?: EstadoArreglo;
   fecha: string;
   kilometraje_leido: number;
@@ -23,8 +22,21 @@ export type CreateArregloInput = {
   extra_data?: string;
 
   // opcional: creación completa (servicios + repuestos) en 1 POST
-  detalles?: Array<{ descripcion: string; cantidad: number; valor: number }>;
-  repuestos?: Array<{ stock_id: string; cantidad: number; monto_unitario: number; precio_compra?: number | null }>;
+  detalles?: Array<{
+    descripcion: string;
+    cantidad: number;
+    valor: number;
+    tipo_arreglo_id?: string | null;
+    empleado_id?: string | null;
+  }>;
+  repuestos?: Array<{
+    stock_id: string;
+    cantidad: number;
+    monto_unitario: number;
+    precio_compra?: number | null;
+    tipo_arreglo_id?: string | null;
+    empleado_id?: string | null;
+  }>;
   repuestos_nuevos?: CreateArregloRepuestoNuevoInput[];
   detalle_formulario?: CreateArregloDetalleFormularioInput;
 };
@@ -35,7 +47,6 @@ export type GetArreglosInput = {
   tallerId?: string;
   search?: string;
   patente?: string;
-  tipo?: string;
   estado?: string;
   fechaDesde?: string;
   fechaHasta?: string;
@@ -49,7 +60,6 @@ export const arreglosClient = {
       if (params?.tallerId) searchParams.set("taller_id", params.tallerId);
       if (params?.search) searchParams.set("search", params.search);
       if (params?.patente) searchParams.set("patente", params.patente);
-      if (params?.tipo) searchParams.set("tipo", params.tipo);
       if (params?.estado) searchParams.set("estado", params.estado);
       if (params?.fechaDesde) searchParams.set("fecha_desde", params.fechaDesde);
       if (params?.fechaHasta) searchParams.set("fecha_hasta", params.fechaHasta);
@@ -153,7 +163,13 @@ export const arreglosClient = {
 
   async createDetalle(
     arregloId: string | number,
-    input: { descripcion: string; cantidad: number; valor: number }
+    input: {
+      descripcion: string;
+      cantidad: number;
+      valor: number;
+      tipo_arreglo_id?: string | null;
+      empleado_id?: string | null;
+    }
   ): Promise<CreateDetalleArregloResponse> {
     try {
       const res = await fetch(`/api/arreglos/${arregloId}/detalles`, {
@@ -175,7 +191,13 @@ export const arreglosClient = {
   async updateDetalle(
     arregloId: string | number,
     detalleId: string,
-    patch: Partial<{ descripcion: string; cantidad: number; valor: number }>
+    patch: Partial<{
+      descripcion: string;
+      cantidad: number;
+      valor: number;
+      tipo_arreglo_id: string | null;
+      empleado_id: string | null;
+    }>
   ): Promise<UpdateDetalleArregloResponse> {
     try {
       const res = await fetch(`/api/arreglos/${arregloId}/detalles/${detalleId}`, {

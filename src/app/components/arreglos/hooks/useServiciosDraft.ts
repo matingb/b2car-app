@@ -3,8 +3,14 @@
 import { useCallback, useRef, useState } from "react";
 import type { ServicioLinea } from "@/app/components/arreglos/lineas/servicios/ServicioLineasEditableSection";
 
-type AddInput = { descripcion: string; cantidad: number; valor: number };
-type UpdatePatch = { descripcion: string; cantidad: number; valor: number };
+type AddInput = {
+  descripcion: string;
+  cantidad: number;
+  valor: number;
+  tipoArregloId: string | null;
+  empleadoId: string | null;
+};
+type UpdatePatch = AddInput;
 
 export function useServiciosDraft() {
   const [items, setItems] = useState<ServicioLinea[]>([]);

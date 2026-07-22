@@ -11,12 +11,27 @@ export default function Card({ children, onClick, style, ...rest }: CardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const isClickable = onClick !== undefined;
 
+  const handleMouseOver = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isClickable) return;
+    const target = e.target as HTMLElement | null;
+    const isIsolated = Boolean(target?.closest?.('[data-isolate-hover="true"]'));
+    if (isIsolated) {
+      setIsHovered(false);
+    } else {
+      setIsHovered(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (isClickable) setIsHovered(false);
+  };
+
   const hoverStyles = {
     border: `2px solid ${COLOR.ACCENT.PRIMARY}`,
     transform: "translateY(-2px)",
     boxShadow: "0 4px 12px rgba(0, 128, 162, 0.15)",
     cursor: "pointer",
-  }
+  };
 
   const containerStyles = {
     ...styles.container,
@@ -30,8 +45,8 @@ export default function Card({ children, onClick, style, ...rest }: CardProps) {
       {...rest}
       style={containerStyles}
       onClick={onClick}
-      onMouseEnter={() => isClickable && setIsHovered(true)}
-      onMouseLeave={() => isClickable && setIsHovered(false)}
+      onMouseOver={handleMouseOver}
+      onMouseLeave={handleMouseLeave}
     >
       {children}
     </div>

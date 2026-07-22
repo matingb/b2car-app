@@ -8,6 +8,14 @@ vi.mock("@/app/providers/InventarioProvider", () => ({
   useInventario: vi.fn(),
 }));
 
+vi.mock("@/app/providers/TiposArregloProvider", () => ({
+  useTiposArreglo: () => ({ tipos: [], isLoading: false, loadTipos: vi.fn(), createTipo: vi.fn() }),
+}));
+
+vi.mock("@/app/providers/EmpleadosProvider", () => ({
+  useEmpleados: () => ({ empleados: [], isLoading: false, loadEmpleados: vi.fn() }),
+}));
+
 vi.mock("@/app/components/ui/Autocomplete", () => ({
   __esModule: true,
   default: ({
@@ -20,15 +28,23 @@ vi.mock("@/app/components/ui/Autocomplete", () => ({
     onChange: (value: string) => void;
     placeholder?: string;
     disabled?: boolean;
-  }) => (
-    <input
-      data-testid="stock-autocomplete"
-      value={value}
-      placeholder={placeholder}
-      disabled={disabled ?? false}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  ),
+  }) => {
+    const testId =
+      placeholder?.includes("Categoría") || placeholder === "Tipo"
+        ? "tipo-autocomplete"
+        : placeholder?.includes("Empleado") || placeholder === "Empleado"
+        ? "empleado-autocomplete"
+        : "stock-autocomplete";
+    return (
+      <input
+        data-testid={testId}
+        value={value}
+        placeholder={placeholder}
+        disabled={disabled ?? false}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  },
 }));
 
 const inventario = [
@@ -148,6 +164,8 @@ describe("RepuestoLineasEditableSection", () => {
         precio_venta: 800,
         cantidad: 3,
         monto_unitario: 800,
+        tipo_arreglo_id: null,
+        empleado_id: null,
       });
     });
   });
@@ -216,6 +234,8 @@ describe("RepuestoLineasEditableSection", () => {
         precioCompra: 50,
         precioVenta: 100,
       },
+      tipoArregloId: null,
+      empleadoId: null,
     };
     setup({ items: [existingNewItem] });
     startNewProduct();
@@ -314,6 +334,8 @@ describe("RepuestoLineasEditableSection", () => {
         precioCompra: 50,
         precioVenta: 100,
       },
+      tipoArregloId: null,
+      empleadoId: null,
     };
     setup({ items: [existingNewItem] });
     startNewProduct();
@@ -340,6 +362,8 @@ describe("RepuestoLineasEditableSection", () => {
       stock_id: "s1",
       cantidad: 2,
       monto_unitario: 1500,
+      tipoArregloId: null,
+      empleadoId: null,
     };
     setup({ items: [existingItem] });
     selectStock("s1");
@@ -356,6 +380,8 @@ describe("RepuestoLineasEditableSection", () => {
       stock_id: "s2",
       cantidad: 1,
       monto_unitario: 500,
+      tipoArregloId: null,
+      empleadoId: null,
     };
     setup({ items: [existingItem] });
     selectStock("s2");

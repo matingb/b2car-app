@@ -27,6 +27,19 @@ vi.mock("@/app/components/arreglos/ArregloModal", () => ({
   default: () => null,
 }));
 
+vi.mock("@/app/providers/ArreglosProvider", () => ({
+  useArreglos: () => ({
+    update: vi.fn(),
+  }),
+}));
+
+vi.mock("@/app/providers/ToastProvider", () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+  }),
+}));
+
 describe("ArregloItem", () => {
   it("si hay más de un taller, muestra el IconLabel de Taller", () => {
     talleresMock = [
@@ -73,6 +86,75 @@ describe("ArregloItem", () => {
     );
 
     expect(screen.getByText("EN PROGRESO")).toBeInTheDocument();
+  });
+
+  it("muestra u oculta las observaciones según la prop showObservaciones", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+    const arregloConObs = createArreglo({
+      observaciones: "Service básico preventivo",
+    });
+
+    const { rerender } = render(
+      <ArregloItem arreglo={arregloConObs} showObservaciones={true} />
+    );
+
+    expect(
+      screen.getByText('"Service básico preventivo"')
+    ).toBeInTheDocument();
+
+    rerender(
+      <ArregloItem arreglo={arregloConObs} showObservaciones={false} />
+    );
+
+    expect(
+      screen.queryByText('"Service básico preventivo"')
+    ).not.toBeInTheDocument();
+  });
+
+  it("soporta la prop mostrarObservaciones alternativamente", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+    const arregloConObs = createArreglo({
+      observaciones: "Observación de prueba",
+    });
+
+    render(
+      <ArregloItem arreglo={arregloConObs} mostrarObservaciones={false} />
+    );
+
+    expect(
+      screen.queryByText('"Observación de prueba"')
+    ).not.toBeInTheDocument();
+  });
+
+  it("muestra el texto Pago pendiente cuando esta_pago es false", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+
+    render(
+      <ArregloItem
+        arreglo={createArreglo({
+          esta_pago: false,
+        })}
+      />
+    );
+
+    expect(screen.getByText("Pago pendiente")).toBeInTheDocument();
+  });
+
+  it("renderiza las iniciales de los empleados asignados", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+
+    render(
+      <ArregloItem
+        arreglo={createArreglo({})}
+        empleados={[
+          { nombre: "Carlos", apellido: "Gimenez" },
+          { nombre: "Maria", apellido: "Fernandez" },
+        ]}
+      />
+    );
+
+    expect(screen.getByText("CG")).toBeInTheDocument();
+    expect(screen.getByText("MF")).toBeInTheDocument();
   });
 });
 

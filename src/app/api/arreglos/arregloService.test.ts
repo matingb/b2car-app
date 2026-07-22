@@ -18,7 +18,10 @@ function makeRepo(overrides: Partial<ArregloRepository> = {}): ArregloRepository
     arreglosResumen: vi
       .fn()
       .mockResolvedValue({ total: 0, cobrados: 0, pendientes: 0, montoIngresos: 0 }),
-    tiposConIngresos: vi.fn().mockResolvedValue([]),
+    facturacionPorTipo: vi.fn().mockResolvedValue([]),
+    facturacionPorEmpleado: vi.fn().mockResolvedValue([]),
+    costoPorTipo: vi.fn().mockResolvedValue([]),
+    costoPorEmpleado: vi.fn().mockResolvedValue([]),
     listRecentActivities: vi.fn().mockResolvedValue([]),
     arreglosPorPeriodo: vi.fn().mockResolvedValue([]),
     ingresosPorPeriodo: vi.fn().mockResolvedValue([]),
@@ -88,17 +91,31 @@ describe("arregloService", () => {
     });
   });
 
-  describe("tiposConIngresos", () => {
-    it("tipo null o vacío se normaliza a 'Sin tipo'", async () => {
-      const repo = makeRepo({
-        tiposConIngresos: vi.fn().mockResolvedValue([
-          { tipo: null, cantidad: 3, ingresos: 1000 },
-          { tipo: "  ", cantidad: 1, ingresos: 500 },
-          { tipo: "Service", cantidad: 2, ingresos: 2000 },
-        ]),
-      });
-      const result = await createArregloService(repo).tiposConIngresos(mockSupabase);
-      expect(result.tipos).toEqual(["Sin tipo", "Sin tipo", "Service"]);
+  describe("desgloses de facturacion y costo", () => {
+    const desglose = [{ label: "Mecanica", cantidad: 2, monto: 2000 }];
+
+    it("facturacionPorTipo delega en el repositorio", async () => {
+      const repo = makeRepo({ facturacionPorTipo: vi.fn().mockResolvedValue(desglose) });
+      const result = await createArregloService(repo).facturacionPorTipo(mockSupabase, "2026-01-01", "2026-02-01");
+      expect(result).toEqual(desglose);
+    });
+
+    it("facturacionPorEmpleado delega en el repositorio", async () => {
+      const repo = makeRepo({ facturacionPorEmpleado: vi.fn().mockResolvedValue(desglose) });
+      const result = await createArregloService(repo).facturacionPorEmpleado(mockSupabase, "2026-01-01", "2026-02-01");
+      expect(result).toEqual(desglose);
+    });
+
+    it("costoPorTipo delega en el repositorio", async () => {
+      const repo = makeRepo({ costoPorTipo: vi.fn().mockResolvedValue(desglose) });
+      const result = await createArregloService(repo).costoPorTipo(mockSupabase, "2026-01-01", "2026-02-01");
+      expect(result).toEqual(desglose);
+    });
+
+    it("costoPorEmpleado delega en el repositorio", async () => {
+      const repo = makeRepo({ costoPorEmpleado: vi.fn().mockResolvedValue(desglose) });
+      const result = await createArregloService(repo).costoPorEmpleado(mockSupabase, "2026-01-01", "2026-02-01");
+      expect(result).toEqual(desglose);
     });
   });
 

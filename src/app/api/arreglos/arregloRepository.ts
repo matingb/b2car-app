@@ -12,7 +12,6 @@ export type ArregloListFilters = {
   tallerId?: string;
   search?: string;
   patente?: string;
-  tipo?: string;
   estado?: string;
   fechaDesde?: string;
   fechaHasta?: string;
@@ -27,6 +26,8 @@ export type ArregloListPageResult = {
   rows: ArregloListPageRow[];
   hasMore: boolean;
 };
+
+export type DesgloseLinea = { label: string; cantidad: number; monto: number };
 
 export interface ArregloRepository {
   getArreglo(supabase: SupabaseClient, filters: ArregloListFilters): Promise<ServiceResult<ArregloListPageResult>>;
@@ -49,12 +50,30 @@ export interface ArregloRepository {
     toISO?: string,
     tallerId?: string
   ): Promise<{ total: number; cobrados: number; pendientes: number; montoIngresos: number }>;
-  tiposConIngresos(
+  facturacionPorTipo(
     supabase: SupabaseClient,
     fromISO?: string,
     toISO?: string,
     tallerId?: string
-  ): Promise<Array<{ tipo?: unknown; cantidad?: unknown; ingresos?: unknown }>>;
+  ): Promise<DesgloseLinea[]>;
+  facturacionPorEmpleado(
+    supabase: SupabaseClient,
+    fromISO?: string,
+    toISO?: string,
+    tallerId?: string
+  ): Promise<DesgloseLinea[]>;
+  costoPorTipo(
+    supabase: SupabaseClient,
+    fromISO?: string,
+    toISO?: string,
+    tallerId?: string
+  ): Promise<DesgloseLinea[]>;
+  costoPorEmpleado(
+    supabase: SupabaseClient,
+    fromISO: string,
+    toISO: string,
+    tallerId?: string
+  ): Promise<DesgloseLinea[]>;
   listRecentActivities(
     supabase: SupabaseClient,
     limit: number,
@@ -90,6 +109,14 @@ export interface ArregloRepository {
   ): Promise<Array<{ label: string; repuestos: number; sueldos: number }>>;
 }
 
+function mapDesgloseRows(data: unknown): DesgloseLinea[] {
+  return ((data ?? []) as Array<{ label?: unknown; cantidad?: unknown; monto?: unknown }>).map((r) => ({
+    label: String(r.label ?? "").trim() || "Sin datos",
+    cantidad: Number(r.cantidad ?? 0) || 0,
+    monto: Number(Number(r.monto ?? 0).toFixed(2)) || 0,
+  }));
+}
+
 async function listVehiculoIdsByPatente(supabase: SupabaseClient, patenteRaw?: string) {
   const patente = String(patenteRaw ?? "").trim();
   if (!patente) return { ids: null as string[] | null, error: null as ReturnType<typeof toServiceError> | null };
@@ -118,7 +145,6 @@ export const supabaseArregloRepository: ArregloRepository = {
   async getArreglo(supabase, filters) {
     const limit = normalizePaginationLimit(filters.limit);
     const safeSearch = String(filters.search ?? "").trim();
-    const safeTipo = String(filters.tipo ?? "").trim();
     const safeEstado = String(filters.estado ?? "").trim().toUpperCase();
 
     let query = supabase
@@ -132,7 +158,6 @@ export const supabaseArregloRepository: ArregloRepository = {
     if (filters.tallerId) query = query.eq("taller_id", filters.tallerId);
     if (filters.fechaDesde) query = query.gte("fecha", filters.fechaDesde);
     if (filters.fechaHasta) query = query.lte("fecha", filters.fechaHasta);
-    if (safeTipo) query = query.ilike("tipo", `%${safeTipo}%`);
     if (safeEstado) query = query.eq("estado", safeEstado);
 
     const { ids: vehiculoIdsBySearch, error: searchVehiculoError } = await listVehiculoIdsBySearch(
@@ -144,7 +169,6 @@ export const supabaseArregloRepository: ArregloRepository = {
     if (safeSearch) {
       const searchConditions = [
         `descripcion.ilike.%${safeSearch}%`,
-        `tipo.ilike.%${safeSearch}%`,
         `observaciones.ilike.%${safeSearch}%`,
       ];
       if (vehiculoIdsBySearch.length > 0) {
@@ -249,14 +273,48 @@ export const supabaseArregloRepository: ArregloRepository = {
     };
   },
 
-  async tiposConIngresos(supabase, fromISO?, toISO?, tallerId?) {
-    const { data, error } = await supabase.rpc("dashboard_tipos_con_ingresos", {
+  async facturacionPorTipo(supabase, fromISO?, toISO?, tallerId?) {
+    const { data, error } = await supabase.rpc("dashboard_facturacion_por_tipo", {
+      top: 6,
       p_from: fromISO ?? null,
       p_to: toISO ?? null,
       p_taller_id: tallerId ?? null,
     });
     if (error) throw new Error(error.message);
-    return (data ?? []) as Array<{ tipo?: unknown; cantidad?: unknown; ingresos?: unknown }>;
+    return mapDesgloseRows(data);
+  },
+
+  async facturacionPorEmpleado(supabase, fromISO?, toISO?, tallerId?) {
+    const { data, error } = await supabase.rpc("dashboard_facturacion_por_empleado", {
+      top: 6,
+      p_from: fromISO ?? null,
+      p_to: toISO ?? null,
+      p_taller_id: tallerId ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return mapDesgloseRows(data);
+  },
+
+  async costoPorTipo(supabase, fromISO?, toISO?, tallerId?) {
+    const { data, error } = await supabase.rpc("dashboard_costo_por_tipo", {
+      top: 6,
+      p_from: fromISO ?? null,
+      p_to: toISO ?? null,
+      p_taller_id: tallerId ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return mapDesgloseRows(data);
+  },
+
+  async costoPorEmpleado(supabase, fromISO, toISO, tallerId?) {
+    const { data, error } = await supabase.rpc("dashboard_costo_por_empleado", {
+      p_from: fromISO,
+      p_to: toISO,
+      top: 6,
+      p_taller_id: tallerId ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return mapDesgloseRows(data);
   },
 
   async listRecentActivities(supabase, limit, fromISO?, toISO?, tallerId?) {

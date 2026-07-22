@@ -17,6 +17,9 @@ import NewProductLineaCard from "@/app/components/arreglos/lineas/shared/NewProd
 import NewProductBadge from "@/app/components/arreglos/lineas/repuestos/NewProductBadge";
 import NewProductFields from "@/app/components/arreglos/lineas/repuestos/NewProductFields";
 import ReadOnlyLineaCard from "@/app/components/arreglos/lineas/shared/ReadOnlyLineaCard";
+import TipoArregloSelect from "@/app/components/arreglos/lineas/shared/TipoArregloSelect";
+import EmpleadoSelect from "@/app/components/arreglos/lineas/shared/EmpleadoSelect";
+import TipoEmpleadoChips from "@/app/components/arreglos/lineas/shared/TipoEmpleadoChips";
 import StockPurchaseHint from "@/app/components/arreglos/lineas/repuestos/StockPurchaseHint";
 import { generateProductCode } from "@/app/components/arreglos/lineas/repuestos/repuestoCode";
 import {
@@ -41,6 +44,8 @@ export type RepuestoLinea = {
     precioCompra: number;
     precioVenta: number;
   };
+  tipoArregloId: string | null;
+  empleadoId: string | null;
 };
 
 export type RepuestoDraft = {
@@ -53,6 +58,8 @@ export type RepuestoDraft = {
   precioVenta: string;
   precioVentaTouched: boolean;
   codigoTouched: boolean;
+  tipoArregloId: string | null;
+  empleadoId: string | null;
 };
 
 export type RepuestoUpsertInput =
@@ -62,6 +69,8 @@ export type RepuestoUpsertInput =
       cantidad: number;
       monto_unitario: number;
       precio_compra?: number;
+      tipo_arreglo_id?: string | null;
+      empleado_id?: string | null;
     }
   | {
       id?: string;
@@ -72,6 +81,8 @@ export type RepuestoUpsertInput =
       precio_venta: number;
       cantidad: number;
       monto_unitario: number;
+      tipo_arreglo_id?: string | null;
+      empleado_id?: string | null;
     };
 
 type Props = {
@@ -80,6 +91,8 @@ type Props = {
   tallerId: string | null;
   items: RepuestoLinea[];
   disabled?: boolean;
+  defaultTipoArregloId?: string | null;
+  defaultEmpleadoId?: string | null;
   onUpsert: (input: RepuestoUpsertInput) => void | Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
 };
@@ -90,6 +103,8 @@ export default function RepuestoLineasEditableSection({
   tallerId,
   items,
   disabled = false,
+  defaultTipoArregloId = null,
+  defaultEmpleadoId = null,
   onUpsert,
   onDelete,
 }: Props) {
@@ -139,7 +154,19 @@ export default function RepuestoLineasEditableSection({
   } = useInlineEditor<RepuestoLinea, RepuestoDraft, RepuestoUpsertInput>({
     items,
     getId: (i) => i.id,
-    initialDraft: { stockId: "", cantidad: "1", montoUnitario: "", codigo: "", nombre: "", precioCompra: "", precioVenta: "", precioVentaTouched: false, codigoTouched: false },
+    initialDraft: {
+      stockId: "",
+      cantidad: "1",
+      montoUnitario: "",
+      codigo: "",
+      nombre: "",
+      precioCompra: "",
+      precioVenta: "",
+      precioVentaTouched: false,
+      codigoTouched: false,
+      tipoArregloId: defaultTipoArregloId,
+      empleadoId: defaultEmpleadoId,
+    },
     draftFromItem: (item) => {
       const stockMatch = item.tipo !== "nuevo" ? inventario.find((s) => s.id === item.stock_id) ?? null : null;
       const costoUnitarioPrefill = stockMatch ? String(Number(stockMatch.costoUnitario) || 0) : "";
@@ -157,6 +184,8 @@ export default function RepuestoLineasEditableSection({
           ? Number(item.nuevoProducto.precioVenta ?? 0) !== Number(item.nuevoProducto.precioCompra ?? 0)
           : false,
         codigoTouched: true,
+        tipoArregloId: item.tipoArregloId ?? null,
+        empleadoId: item.empleadoId ?? null,
       };
     },
     validate: (d, ctx) => validateRepuestoDraft(d, ctx, { tallerId, items, inventario }),
@@ -194,6 +223,31 @@ export default function RepuestoLineasEditableSection({
           precioCompra={safeNumber(draft.precioCompra)}
         />
       ) : undefined;
+
+    const tipoEmpleadoSelectors = (
+      <div style={styles.tipoEmpleadoRow}>
+        <div style={styles.tipoEmpleadoField}>
+          <TipoArregloSelect
+            value={draft.tipoArregloId}
+            onChange={(tipoArregloId) => updateDraft({ tipoArregloId })}
+            disabled={!canInteract}
+          />
+        </div>
+        <div style={styles.tipoEmpleadoField}>
+          <EmpleadoSelect
+            value={draft.empleadoId}
+            onChange={(empleadoId) => updateDraft({ empleadoId })}
+            disabled={!canInteract}
+          />
+        </div>
+      </div>
+    );
+    const extra = (
+      <>
+        {tipoEmpleadoSelectors}
+        {extraHint}
+      </>
+    );
 
     const card = stockState.isNewProduct ? (
       <NewProductLineaCard
@@ -251,7 +305,7 @@ export default function RepuestoLineasEditableSection({
             return next;
           });
         }}
-        extra={extraHint}
+        extra={extra}
       />
     ) : (
       <EditableLineaCard
@@ -281,7 +335,7 @@ export default function RepuestoLineasEditableSection({
           updateDraft(next);
         }}
         showPurchaseUnit={stockState.showPurchaseField}
-        extra={extraHint}
+        extra={extra}
       />
     );
 
@@ -330,14 +384,13 @@ export default function RepuestoLineasEditableSection({
               <ReadOnlyLineaCard
                 key={item.id}
                 kind="repuestos"
-                title={titleText}
-                subtitle={
-                  code ? (
-                    <span style={styles.itemSubTitleCode}>
-                      {`• ${code}`}
-                    </span>
-                  ) : undefined
+                title={
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <span>{titleText}</span>
+                    {code ? <span style={styles.itemSubTitleCode}>{code}</span> : null}
+                  </div>
                 }
+                subtitle={<TipoEmpleadoChips tipoArregloId={item.tipoArregloId} empleadoId={item.empleadoId} />}
                 cantidad={Number(item.cantidad) || 0}
                 unitario={Number(item.monto_unitario) || 0}
                 onEdit={() => startEdit(item)}

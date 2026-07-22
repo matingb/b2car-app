@@ -32,7 +32,6 @@ export default function ArreglosPage() {
     tallerSeleccionadoId,
     debouncedSearch,
     state.filters.patente,
-    state.filters.tipo,
     state.filters.estado,
     state.filters.fechaDesde,
     state.filters.fechaHasta,
@@ -41,14 +40,12 @@ export default function ArreglosPage() {
   const filterStrings = useMemo(
     () => ({
       patente: state.filters.patente || undefined,
-      tipo: state.filters.tipo || undefined,
       estado: state.filters.estado || undefined,
       fechaDesde: state.filters.fechaDesde || undefined,
       fechaHasta: state.filters.fechaHasta || undefined,
     }),
     [
       state.filters.patente,
-      state.filters.tipo,
       state.filters.estado,
       state.filters.fechaDesde,
       state.filters.fechaHasta,
@@ -113,6 +110,7 @@ export default function ArreglosPage() {
           loading={loadingInitial}
           items={state.arreglosFiltrados}
           onSelect={(a) => router.push(`/arreglos/${a.id}`)}
+          showObservaciones={false}
         />
       </ScrollPage>
 

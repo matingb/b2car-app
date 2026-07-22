@@ -345,6 +345,8 @@ function buildServicioLinea(
     descripcion: parts.length > 0 ? `${tituloBase} - ${parts.join(" | ")}` : tituloBase,
     cantidad,
     valor,
+    tipoArregloId: null,
+    empleadoId: null,
   };
 }
 

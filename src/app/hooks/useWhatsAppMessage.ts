@@ -2,17 +2,26 @@
 
 import { useCallback } from "react";
 import { useToast } from "@/app/providers/ToastProvider";
-import { buildWhatsappLink, normalizeWhatsappPhone } from "@/lib/whatsapp";
+import { useVehiculos } from "@/app/providers/VehiculosProvider";
+import {
+  assembleClientePhone,
+  buildArregloWhatsappMessage,
+  buildWhatsappLink,
+  normalizeWhatsappPhone,
+} from "@/lib/whatsapp";
+import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 
 const ERRORS = {
   message_empty: "No se pudo generar el mensaje",
   phone_missing: "El cliente no tiene teléfono cargado",
   phone_invalid: "El teléfono del cliente no es válido",
   open_failed: "No se pudo abrir WhatsApp",
+  vehiculo_missing: "No se pudo identificar el vehículo",
 } as const;
 
 export function useWhatsAppMessage() {
   const toast = useToast();
+  const { fetchCliente } = useVehiculos();
 
   const share = useCallback(
     async (message: string, phone: string | null | undefined): Promise<void> => {
@@ -48,6 +57,31 @@ export function useWhatsAppMessage() {
     [toast]
   );
 
-  return { share };
-}
+  const shareArreglo = useCallback(
+    async (data: ArregloDetalleData | null): Promise<void> => {
+      if (!data?.arreglo?.vehiculo?.id) {
+        toast.error("Error", ERRORS.vehiculo_missing);
+        return;
+      }
 
+      const cliente = await fetchCliente(data.arreglo.vehiculo.id);
+      const fullPhone = cliente ? assembleClientePhone(cliente) : "";
+      if (!fullPhone) {
+        toast.error("Error", ERRORS.phone_missing);
+        return;
+      }
+
+      const tenantName = localStorage.getItem("tenant_name") || undefined;
+      const mensaje = buildArregloWhatsappMessage(data, tenantName);
+      if (!mensaje) {
+        toast.error("Error", ERRORS.message_empty);
+        return;
+      }
+
+      await share(mensaje, fullPhone);
+    },
+    [fetchCliente, share, toast]
+  );
+
+  return { share, shareArreglo };
+}

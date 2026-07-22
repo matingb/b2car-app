@@ -87,21 +87,21 @@ describe("ArreglosPage", () => {
       createArreglo({
         id: "1",
         descripcion: "Cambio de aceite",
-        tipo: "Mecanica",
+
         fecha: "2025-01-10",
         vehiculo: createVehiculo({ patente: "AAA111" }),
       }),
       createArreglo({
         id: "2",
         descripcion: "Reparación de frenos",
-        tipo: "Revision",
+
         fecha: "2025-02-10",
         vehiculo: createVehiculo({ patente: "BBB222" }),
       }),
       createArreglo({
         id: "3",
         descripcion: "Pintura completa",
-        tipo: "Chapa y pintura",
+
         fecha: "2025-01-15",
         vehiculo: createVehiculo({ patente: "CCC333" }),
       }),

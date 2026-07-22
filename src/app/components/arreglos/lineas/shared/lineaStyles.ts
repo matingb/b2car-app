@@ -173,23 +173,41 @@ export const styles = {
   } as const,
   editorFooter: {
     display: "flex",
+    flexDirection: "row" as const,
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
     width: "100%",
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      gap: 8,
-    },
-    [`@media (min-width: ${BREAKPOINTS.xl}px)`]: {
+    borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    paddingTop: 12,
+    marginTop: 4,
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
       width: "auto",
+      flexDirection: "column" as const,
+      alignItems: "flex-end",
+      justifyContent: "flex-start",
+      borderTop: "none",
+      borderLeft: `1px solid ${COLOR.BORDER.SUBTLE}`,
+      paddingTop: 0,
+      paddingLeft: 16,
+      marginTop: 0,
       flexShrink: 0,
+      minHeight: "100%",
     },
   } as const,
   editorTotalText: {
     fontWeight: 700,
-    fontSize: 16,
+    fontSize: 18,
     whiteSpace: "nowrap" as const,
     minWidth: 70,
+  } as const,
+  tipoEmpleadoRow: {
+    display: "flex",
+    flexWrap: "wrap" as const,
+    gap: 10,
+    width: "100%",
+  } as const,
+  tipoEmpleadoField: {
+    flex: "0 1 auto",
   } as const,
 } as const;
 

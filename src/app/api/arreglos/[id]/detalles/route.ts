@@ -3,11 +3,15 @@ import type { NextRequest } from "next/server";
 import { detalleArregloService } from "@/app/api/arreglos/detalleArregloService";
 import { syncArregloDescripcion } from "@/app/api/arreglos/arregloDescripcionService";
 import { ServiceError } from "@/app/api/serviceError";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { isValidUuid } from "@/lib/uuid";
 
 export type CreateDetalleArregloRequest = {
   descripcion: string;
   cantidad: number;
   valor: number;
+  tipo_arreglo_id?: string | null;
+  empleado_id?: string | null;
 };
 
 export type DetalleArregloResponseRow = {
@@ -16,6 +20,8 @@ export type DetalleArregloResponseRow = {
   descripcion: string;
   cantidad: number;
   valor: number;
+  tipo_arreglo_id: string | null;
+  empleado_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -40,6 +46,8 @@ export async function POST(
   const descripcion = String(body.descripcion ?? "").trim();
   const cantidad = Number(body.cantidad);
   const valor = Number(body.valor);
+  const tipoArregloIdRaw = body.tipo_arreglo_id;
+  const empleadoIdRaw = body.empleado_id;
 
   if (!arregloId) {
     return Response.json({ data: null, error: "Falta arreglo_id" } satisfies CreateDetalleArregloResponse, { status: 400 });
@@ -53,12 +61,20 @@ export async function POST(
   if (!Number.isFinite(valor) || valor < 0) {
     return Response.json({ data: null, error: "Valor inválido" } satisfies CreateDetalleArregloResponse, { status: 400 });
   }
+  if (tipoArregloIdRaw != null && !isValidUuid(tipoArregloIdRaw)) {
+    return Response.json({ data: null, error: "tipo_arreglo_id inválido" } satisfies CreateDetalleArregloResponse, { status: 400 });
+  }
+  if (empleadoIdRaw != null && !isValidUuid(empleadoIdRaw)) {
+    return Response.json({ data: null, error: "empleado_id inválido" } satisfies CreateDetalleArregloResponse, { status: 400 });
+  }
 
   const { data, error } = await detalleArregloService.create(supabase, {
     arreglo_id: arregloId,
     descripcion,
     cantidad,
     valor,
+    tipo_arreglo_id: tipoArregloIdRaw ?? null,
+    empleado_id: empleadoIdRaw ?? null,
   });
 
   if (error || !data) {
@@ -75,6 +91,7 @@ export async function POST(
     return Response.json({ data: null, error: message } satisfies CreateDetalleArregloResponse, { status });
   }
 
+  await statsService.onDataChanged(supabase);
+
   return Response.json({ data, error: null } satisfies CreateDetalleArregloResponse, { status: 201 });
 }
-

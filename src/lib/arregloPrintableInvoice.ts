@@ -417,10 +417,9 @@ function buildRepuestoLines(data: ArregloDetalleData): InvoiceLine[] {
 }
 
 function customDetailLabel(data: ArregloDetalleData): string {
-  const tipo = String(data.arreglo.tipo ?? "").trim();
   const metadata = data.detalle_formulario?.metadata ?? [];
   const firstTitle = metadata.find((line) => String(line.title ?? "").trim())?.title;
-  return firstTitle ? `${tipo || "Formulario"} - ${firstTitle}` : tipo || "Detalle de formulario";
+  return firstTitle ? `Formulario - ${firstTitle}` : "Detalle de formulario";
 }
 
 function renderField(value: string, label: string): string {

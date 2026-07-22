@@ -3,11 +3,15 @@ import type { NextRequest } from "next/server";
 import { detalleArregloService } from "@/app/api/arreglos/detalleArregloService";
 import { ServiceError } from "@/app/api/serviceError";
 import { syncArregloDescripcion } from "@/app/api/arreglos/arregloDescripcionService";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { isValidUuid } from "@/lib/uuid";
 
 export type UpdateDetalleArregloRequest = Partial<{
   descripcion: string;
   cantidad: number;
   valor: number;
+  tipo_arreglo_id: string | null;
+  empleado_id: string | null;
 }>;
 
 export type DetalleArregloResponseRow = {
@@ -16,6 +20,8 @@ export type DetalleArregloResponseRow = {
   descripcion: string;
   cantidad: number;
   valor: number;
+  tipo_arreglo_id: string | null;
+  empleado_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -67,6 +73,20 @@ export async function PUT(
     patch.valor = valor;
   }
 
+  if (body.tipo_arreglo_id !== undefined) {
+    if (body.tipo_arreglo_id !== null && !isValidUuid(body.tipo_arreglo_id)) {
+      return Response.json({ data: null, error: "tipo_arreglo_id inválido" } satisfies UpdateDetalleArregloResponse, { status: 400 });
+    }
+    patch.tipo_arreglo_id = body.tipo_arreglo_id;
+  }
+
+  if (body.empleado_id !== undefined) {
+    if (body.empleado_id !== null && !isValidUuid(body.empleado_id)) {
+      return Response.json({ data: null, error: "empleado_id inválido" } satisfies UpdateDetalleArregloResponse, { status: 400 });
+    }
+    patch.empleado_id = body.empleado_id;
+  }
+
   if (!arregloId) {
     return Response.json({ data: null, error: "Falta arreglo_id" } satisfies UpdateDetalleArregloResponse, { status: 400 });
   }
@@ -91,6 +111,8 @@ export async function PUT(
     const message = "Error actualizando la descripción del arreglo";
     return Response.json({ data: null, error: message } satisfies UpdateDetalleArregloResponse, { status });
   }
+
+  await statsService.onDataChanged(supabase);
 
   return Response.json({ data, error: null } satisfies UpdateDetalleArregloResponse, { status: 200 });
 }
@@ -123,6 +145,7 @@ export async function DELETE(
     return Response.json({ error: message } satisfies DeleteDetalleArregloResponse, { status });
   }
 
+  await statsService.onDataChanged(supabase);
+
   return Response.json({ error: null } satisfies DeleteDetalleArregloResponse, { status: 200 });
 }
-

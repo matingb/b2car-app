@@ -10,7 +10,7 @@ describe('empresaClient', () => {
 
     describe('getById', () => {
         it('debería retornar una empresa cuando la respuesta es exitosa', async () => {
-            const empresa = createEmpresa({ id: 1 });
+            const empresa = createEmpresa({ id: "1" });
 
             mockApi.mockResolvedValueOnce({
                 ok: true,
@@ -37,7 +37,7 @@ describe('empresaClient', () => {
                 }),
             });
 
-            const result = await empresaClient.getById(1);
+            const result = await empresaClient.getById("1");
 
             expect(result).toEqual({
                 data: null,
@@ -49,7 +49,7 @@ describe('empresaClient', () => {
             const mensajeError = 'Not found';
             mockApi.mockRejectedValueOnce(new Error(mensajeError));
 
-            const result = await empresaClient.getById(999);
+            const result = await empresaClient.getById("999");
 
             expect(result).toEqual({
                 data: null,
@@ -76,7 +76,7 @@ describe('empresaClient', () => {
                 direccion: 'Torre Empresarial 100',
             };
             const clienteEsperado = createCliente({
-                id: 2,
+                id: "2",
                 nombre: 'Tech Solutions S.A.',
                 tipo_cliente: TipoCliente.EMPRESA,
                 telefono: '0987654321',

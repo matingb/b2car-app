@@ -195,11 +195,6 @@ export default function Autocomplete({
     setSearchTerm(newValue);
     setIsOpen(true);
     setHighlightedIndex(-1);
-
-    // Si se permite valor personalizado, actualizar en tiempo real
-    if (allowCustomValue) {
-      onChange(newValue);
-    }
   };
 
   const handleInputClick = () => {
@@ -210,8 +205,13 @@ export default function Autocomplete({
 
   const handleBlur = () => {
     // Si se permite valor personalizado, asegurar que se guarde lo escrito
-    if (allowCustomValue && searchTerm.trim()) {
-      onChange(searchTerm.trim());
+    if (allowCustomValue) {
+      if (searchTerm.trim()) {
+        onChange(searchTerm.trim());
+      } else if (!value) {
+        // If it was already empty, ensure it stays empty
+        onChange("");
+      }
     }
   };
 
@@ -230,9 +230,7 @@ export default function Autocomplete({
           value={
             isOpen
               ? searchTerm
-              : allowCustomValue
-              ? value
-              : selectedOption?.label || ""
+              : selectedOption?.label || (allowCustomValue ? value : "")
           }
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}

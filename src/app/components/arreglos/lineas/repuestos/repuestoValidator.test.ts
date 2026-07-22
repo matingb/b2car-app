@@ -20,6 +20,8 @@ const emptyDraft: RepuestoDraft = {
   precioVenta: "",
   precioVentaTouched: false,
   codigoTouched: false,
+  tipoArregloId: null,
+  empleadoId: null,
 };
 
 const baseEnv: RepuestoValidatorEnv = {
@@ -37,6 +39,8 @@ const stock = (over: Partial<InventarioEntry> & { id: string }): InventarioEntry
 const item = (over: Partial<RepuestoLinea> & { id: string; stock_id: string }): RepuestoLinea => ({
   cantidad: 1,
   monto_unitario: 0,
+  tipoArregloId: null,
+  empleadoId: null,
   ...over,
 });
 
@@ -154,6 +158,8 @@ describe("validateRepuestoDraft", () => {
           precio_venta: 12,
           cantidad: 3,
           monto_unitario: 12,
+          tipo_arreglo_id: null,
+          empleado_id: null,
         },
       });
     });
@@ -210,7 +216,14 @@ describe("validateRepuestoDraft", () => {
       );
       expect(result).toEqual({
         ok: true,
-        value: { tipo: "existente", stock_id: "s1", cantidad: 3, monto_unitario: 100 },
+        value: {
+          tipo: "existente",
+          stock_id: "s1",
+          cantidad: 3,
+          monto_unitario: 100,
+          tipo_arreglo_id: null,
+          empleado_id: null,
+        },
       });
     });
 
@@ -248,6 +261,8 @@ describe("validateRepuestoDraft", () => {
           cantidad: 3,
           monto_unitario: 100,
           precio_compra: 50,
+          tipo_arreglo_id: null,
+          empleado_id: null,
         },
       });
     });

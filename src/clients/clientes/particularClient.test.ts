@@ -10,7 +10,7 @@ describe('particularClient', () => {
 
     describe('getById', () => {
         it('debería retornar un particular cuando la respuesta es exitosa', async () => {
-            const particular = createParticular({ id: 1 });
+            const particular = createParticular({ id: "1" });
 
             mockApi.mockResolvedValueOnce({
                 ok: true,
@@ -37,7 +37,7 @@ describe('particularClient', () => {
                 }),
             });
 
-            const result = await particularClient.getById(1);
+            const result = await particularClient.getById("1");
 
             expect(result).toEqual({
                 data: null,
@@ -49,7 +49,7 @@ describe('particularClient', () => {
             const mensajeError = 'Not found';
             mockApi.mockRejectedValueOnce(new Error(mensajeError));
 
-            const result = await particularClient.getById(999);
+            const result = await particularClient.getById("999");
 
             expect(result).toEqual({
                 data: null,
@@ -76,7 +76,7 @@ describe('particularClient', () => {
                 direccion: 'Calle Nueva 789',
             };
             const clienteEsperado = createCliente({
-                id: 2,
+                id: "2",
                 nombre: 'María García',
                 tipo_cliente: TipoCliente.PARTICULAR,
                 telefono: '0987654321',

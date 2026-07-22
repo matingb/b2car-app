@@ -11,7 +11,7 @@ export type ArregloFilters = {
   fechaDesde: string;
   fechaHasta: string;
   patente: string;
-  tipo: string;
+
   estado: string;
 };
 
@@ -26,7 +26,7 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
   const [fechaDesde, setFechaDesde] = useState(initial?.fechaDesde ?? "");
   const [fechaHasta, setFechaHasta] = useState(initial?.fechaHasta ?? "");
   const [patente, setPatente] = useState(initial?.patente ?? "");
-  const [tipo, setTipo] = useState(initial?.tipo ?? "");
+
   const [estado, setEstado] = useState(initial?.estado ?? "");
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
     setFechaDesde(initial?.fechaDesde ?? "");
     setFechaHasta(initial?.fechaHasta ?? "");
     setPatente(initial?.patente ?? "");
-    setTipo(initial?.tipo ?? "");
+
     setEstado(initial?.estado ?? "");
   }, [open, initial]);
 
@@ -46,19 +46,13 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
       fechaDesde,
       fechaHasta,
       patente: patente.trim(),
-      tipo: tipo.trim(),
+
       estado: estado.trim(),
     });
     onClose();
   };
 
-  const opcionesDefault: AutocompleteOption[] = [
-    { value: "Mecanica", label: "Mecanica" },
-    { value: "Chapa y pintura", label: "Chapa y pintura" },
-    { value: "Electricidad", label: "Electricidad" },
-    { value: "Mantenimiento", label: "Mantenimiento" },
-    { value: "Revision", label: "Revision" },
-  ];
+
 
   const estadoOptions: AutocompleteOption[] = ESTADOS_ARREGLO.map((value) => ({
     value,
@@ -108,16 +102,7 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
               placeholder="ABC123"
             />
           </div>
-          <div style={styles.field}>
-            <label style={styles.label}>Tipo de arreglo</label>
-            <Autocomplete
-              options={opcionesDefault}
-              value={tipo}
-              onChange={setTipo}
-              placeholder="Mecanica, Chapa y pintura..."
-              allowCustomValue
-            />
-          </div>
+
         </div>
 
         <div css={styles.row}>

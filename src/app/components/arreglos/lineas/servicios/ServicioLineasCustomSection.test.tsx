@@ -219,6 +219,8 @@ describe("ServicioLineasCustomSection", () => {
             descripcion: "Frenos delanteros - Estado: 50% | Rectificar: No | Nota: Revisar rotulas",
             cantidad: 1,
             valor: 25000,
+            tipoArregloId: null,
+            empleadoId: null,
           },
         ],
       });

@@ -1,35 +1,17 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { css } from "@emotion/react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
-import { BREAKPOINTS, COLOR } from "@/theme/theme";
-import {
-  Calendar,
-  Wrench,
-  Coins,
-  Pencil,
-  CheckCircle2,
-  XCircle,
-  Trash,
-  Gauge,
-  FileText,
-} from "lucide-react";
+import { COLOR } from "@/theme/theme";
 import { Skeleton, Theme } from "@radix-ui/themes";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
-import VehiculoInfoCard from "@/app/components/vehiculos/VehiculoInfoCard";
-import IconLabel from "@/app/components/ui/IconLabel";
-import Card from "@/app/components/ui/Card";
+import ArregloSummaryCard from "@/app/components/arreglos/ArregloSummaryCard";
+import ArregloTotalsFooter from "@/app/components/arreglos/ArregloTotalsFooter";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
-import { ROUTES } from "@/routing/routes";
-import IconButton from "@/app/components/ui/IconButton";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { logger } from "@/lib/logger";
-import { formatArs } from "@/lib/format";
-import { formatDateLabel } from "@/lib/fechas";
-import { assembleClientePhone, buildArregloWhatsappMessage } from "@/lib/whatsapp";
 import { safeNumber } from "@/lib/numbers";
 import type {
   ArregloDetalleData,
@@ -42,19 +24,15 @@ import ServicioLineasCustomSection, {
 } from "@/app/components/arreglos/lineas/servicios/ServicioLineasCustomSection";
 import RepuestoLineasEditableSection from "@/app/components/arreglos/lineas/repuestos/RepuestoLineasEditableSection";
 import type { RepuestoUpsertInput } from "@/app/components/arreglos/lineas/repuestos/RepuestoLineasEditableSection";
-import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
-import { useVehiculos } from "@/app/providers/VehiculosProvider";
-import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
 import { useFormularios } from "@/app/providers/FormulariosProvider";
 import type { ServicioLinea } from "@/app/components/arreglos/lineas/servicios/ServicioLineasEditableSection";
-import type { EstadoArreglo } from "@/model/types";
-import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
 import { useInventario } from "@/app/providers/InventarioProvider";
-import { openArregloPrintableInvoice } from "@/lib/arregloPrintableInvoice";
+import { useUltimoTipoEmpleado } from "@/app/components/arreglos/hooks/useUltimoTipoEmpleado";
+import { useTiposArreglo } from "@/app/providers/TiposArregloProvider";
+import { useEmpleados } from "@/app/providers/EmpleadosProvider";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
-  const router = useRouter();
   const [data, setData] = useState<ArregloDetalleData | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [openModal, setOpenModal] = useState(false);
@@ -62,7 +40,6 @@ export default function ArregloDetailsPage() {
   const {
     fetchById,
     update,
-    remove,
     createDetalle,
     updateDetalle,
     deleteDetalle,
@@ -72,61 +49,11 @@ export default function ArregloDetailsPage() {
   } = useArreglos();
   const { formularios } = useFormularios();
   const { loadInventarioByTaller } = useInventario();
-  const { fetchCliente } = useVehiculos();
+  const { loadTipos } = useTiposArreglo();
+  const { loadEmpleados } = useEmpleados();
   const { confirm } = useModalMessage();
   const { success, error } = useToast();
-  const { share } = useWhatsAppMessage();
-
-  const handleOpenWhatsapp = async () => {
-    if (!data?.arreglo?.vehiculo?.id) {
-      error("Error", "No se pudo identificar el vehículo");
-      return;
-    }
-
-    const cliente = await fetchCliente(data.arreglo.vehiculo.id);
-    const fullPhone = cliente ? assembleClientePhone(cliente) : "";
-    if (!fullPhone) {
-      error("Error", "El cliente no tiene teléfono cargado");
-      return;
-    }
-
-    const tenantName = localStorage.getItem("tenant_name") || undefined;
-    const mensaje = buildArregloWhatsappMessage(data, tenantName);
-    if (!mensaje) {
-      error("Error", "No se pudo generar el mensaje");
-      return;
-    }
-
-    await share(mensaje, fullPhone);
-  };
-
-  const handleOpenPrintableInvoice = async () => {
-    if (!data?.arreglo) {
-      error("Error", "No se pudo generar el comprobante");
-      return;
-    }
-
-    const printWindow = window.open("", "_blank", "width=900,height=1200");
-    if (!printWindow) {
-      error("Error", "El navegador bloqueó la ventana de impresión");
-      return;
-    }
-
-    printWindow.document.write("<!doctype html><title>Generando PDF</title><p>Generando comprobante...</p>");
-    const cliente = data.arreglo.vehiculo?.id
-      ? await fetchCliente(data.arreglo.vehiculo.id).catch(() => null)
-      : null;
-    const tenantName = localStorage.getItem("tenant_name") || undefined;
-    const opened = openArregloPrintableInvoice({
-      data,
-      tenantName,
-      cliente,
-    }, printWindow);
-
-    if (!opened) {
-      error("Error", "El navegador bloqueó la ventana de impresión");
-    }
-  };
+  const { ultimo: ultimoUsado, registrar: registrarUltimoUsado } = useUltimoTipoEmpleado();
 
   const reload = useCallback(async (options?: { showPageLoading?: boolean }) => {
     const showPageLoading = options?.showPageLoading ?? false;
@@ -134,7 +61,11 @@ export default function ArregloDetailsPage() {
       setPageLoading(true);
     }
     try {
-      const data = await fetchById(params.id);
+      const [data] = await Promise.all([
+        fetchById(params.id),
+        loadTipos().catch(() => {}),
+        loadEmpleados().catch(() => {}),
+      ]);
       if (!data) return;
       setData(data);
     } catch (err: unknown) {
@@ -144,7 +75,7 @@ export default function ArregloDetailsPage() {
         setPageLoading(false);
       }
     }
-  }, [params.id, fetchById]);
+  }, [params.id, fetchById, loadTipos, loadEmpleados]);
 
   useEffect(() => {
     async function load() {
@@ -159,66 +90,6 @@ export default function ArregloDetailsPage() {
 
   const handleCloseModal = async () => {
     setOpenModal(false);
-  };
-
-  const handleNavigateToVehiculo = () => {
-    if (data?.arreglo?.vehiculo) {
-      router.push(`${ROUTES.vehiculos}/${data.arreglo.vehiculo.id}`);
-    }
-  };
-
-  const handleDeleteArreglo = async () => {
-    const confirmed = await confirm({
-      message: "¿Estás seguro de que deseas eliminar este arreglo?",
-      title: "Eliminar arreglo",
-      acceptLabel: "Eliminar",
-      cancelLabel: "Cancelar",
-    });
-    if (!confirmed) return;
-    if (!data?.arreglo) return;
-    try {
-      await remove(data.arreglo.id);
-      router.push(ROUTES.arreglos);
-      success("Arreglo eliminado", "El arreglo se eliminó correctamente.");
-    } catch (err: unknown) {
-      logger.error("Error deleting arreglo:", err);
-      error("Error", "No se pudo eliminar el arreglo");
-    }
-  };
-
-  const togglePago = async () => {
-    if (!data?.arreglo) return;
-    try {
-      const response = await update(data.arreglo.id, {
-        esta_pago: !data.arreglo.esta_pago,
-      });
-      if (!response) return;
-      setData((prev) => (prev ? { ...prev, arreglo: response } : prev));
-      success("Estado de pago actualizado", "El estado de pago se actualizó correctamente.");
-    } catch (err: unknown) {
-      console.error(err);
-      error("Error", "No se pudo actualizar el estado de pago.");
-    }
-  };
-
-  const handleEstadoChange = async (nextEstado: EstadoArreglo) => {
-    if (!data?.arreglo || loading) return;
-    if (data.arreglo.estado === nextEstado) return;
-
-    try {
-      const response = await update(data.arreglo.id, {
-        estado: nextEstado,
-      });
-      if (!response) return;
-      setData((prev) => (prev ? { ...prev, arreglo: response } : prev));
-      success("Estado actualizado", "El estado del arreglo se actualizó correctamente.");
-    } catch (err: unknown) {
-      logger.error("Error updating arreglo estado:", err);
-      error(
-        "Error",
-        err instanceof Error ? err.message : "No se pudo actualizar el estado del arreglo."
-      );
-    }
   };
 
   const handleDeleteServicio = async (detalleId: string) => {
@@ -270,10 +141,19 @@ export default function ArregloDetailsPage() {
     descripcion: string;
     cantidad: number;
     valor: number;
+    tipoArregloId: string | null;
+    empleadoId: string | null;
   }) => {
     if (!data?.arreglo?.id) return;
     try {
-      await createDetalle(data.arreglo.id, input);
+      await createDetalle(data.arreglo.id, {
+        descripcion: input.descripcion,
+        cantidad: input.cantidad,
+        valor: input.valor,
+        tipo_arreglo_id: input.tipoArregloId,
+        empleado_id: input.empleadoId,
+      });
+      registrarUltimoUsado(input.tipoArregloId, input.empleadoId);
       success("Servicio agregado", "La mano de obra se agregó correctamente.");
       await reload();
     } catch (err: unknown) {
@@ -288,11 +168,24 @@ export default function ArregloDetailsPage() {
 
   const handleUpdateServicio = async (
     detalleId: string,
-    patch: { descripcion: string; cantidad: number; valor: number }
+    patch: {
+      descripcion: string;
+      cantidad: number;
+      valor: number;
+      tipoArregloId: string | null;
+      empleadoId: string | null;
+    }
   ) => {
     if (!data?.arreglo?.id) return;
     try {
-      await updateDetalle(data.arreglo.id, detalleId, patch);
+      await updateDetalle(data.arreglo.id, detalleId, {
+        descripcion: patch.descripcion,
+        cantidad: patch.cantidad,
+        valor: patch.valor,
+        tipo_arreglo_id: patch.tipoArregloId,
+        empleado_id: patch.empleadoId,
+      });
+      registrarUltimoUsado(patch.tipoArregloId, patch.empleadoId);
       success("Servicio actualizado", "El servicio se actualizó correctamente.");
       await reload();
     } catch (err: unknown) {
@@ -319,6 +212,8 @@ export default function ArregloDetailsPage() {
           precio_compra: input.precio_compra,
           precio_venta: input.precio_venta,
           cantidad: input.cantidad,
+          tipo_arreglo_id: input.tipo_arreglo_id ?? null,
+          empleado_id: input.empleado_id ?? null,
         });
       } else {
         await upsertRepuestoLinea(data.arreglo.id, {
@@ -327,8 +222,11 @@ export default function ArregloDetailsPage() {
           cantidad: input.cantidad,
           monto_unitario: input.monto_unitario,
           precio_compra: input.precio_compra,
+          tipo_arreglo_id: input.tipo_arreglo_id ?? null,
+          empleado_id: input.empleado_id ?? null,
         });
       }
+      registrarUltimoUsado(input.tipo_arreglo_id ?? null, input.empleado_id ?? null);
       success("Repuesto actualizado", "El repuesto se actualizó correctamente.");
       await loadInventarioByTaller(tallerId);
       await reload();
@@ -343,14 +241,14 @@ export default function ArregloDetailsPage() {
   };
 
   const selectedCustomFormulario = useMemo(() => {
-    const tipo = String(data?.arreglo?.tipo ?? "").trim().toLowerCase();
-    if (!tipo) return null;
+    const formId = data?.detalle_formulario?.formulario_id;
+    if (!formId) return null;
     return (
       formularios.find(
-        (formulario) => formulario.descripcion.trim().toLowerCase() === tipo
+        (formulario) => formulario.id === formId
       ) ?? null
     );
-  }, [data?.arreglo?.tipo, formularios]);
+  }, [data?.detalle_formulario?.formulario_id, formularios]);
   const isCustomTipoSelected = Boolean(selectedCustomFormulario);
   const customLineDefs = useMemo(
     () => parseCustomServicioLineDefs(selectedCustomFormulario?.metadata),
@@ -446,193 +344,14 @@ export default function ArregloDetailsPage() {
         />
       </div>
 
-      <div style={styles.container}>
-        <div style={styles.flexRow}>
-          <div style={styles.summaryContainer}>
-            <div css={styles.mobileSummaryHeader}>
-              <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
-                Resumen
-              </h3>
-              <div css={styles.mobileSummaryStatusRow}>
-                <ArregloEstadoBadge
-                  estado={arreglo.estado}
-                  onStateChange={handleEstadoChange}
-                />
-                <div style={styles.paymentStatus}>
-                  {arreglo.esta_pago ? <>Pagado</> : <>Pendiente</>}
-                  <button
-                    onClick={togglePago}
-                    style={styles.iconBtn}
-                    aria-label="toggle pago"
-                  >
-                    {arreglo.esta_pago ? (
-                      <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} />
-                    ) : (
-                      <XCircle size={18} color={COLOR.ICON.DANGER} />
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div css={styles.desktopSummaryRow}>
-              <h3 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
-                Resumen
-              </h3>
-              <ArregloEstadoBadge
-                estado={arreglo.estado}
-                onStateChange={handleEstadoChange}
-              />
-              <div style={styles.desktopSummaryActions}>
-                <div style={styles.paymentStatus}>
-                  {arreglo.esta_pago ? <>Pagado</> : <>Pendiente</>}
-                  <button
-                    onClick={togglePago}
-                    style={styles.iconBtn}
-                    aria-label="toggle pago"
-                  >
-                    {arreglo.esta_pago ? (
-                      <CheckCircle2 size={18} color={COLOR.ACCENT.PRIMARY} />
-                    ) : (
-                      <XCircle size={18} color={COLOR.ICON.DANGER} />
-                    )}
-                  </button>
-                </div>
-                <IconButton
-                  icon={<FileText />}
-                  size={18}
-                  onClick={handleOpenPrintableInvoice}
-                  title="Generar PDF"
-                  ariaLabel="Generar PDF"
-                  hoverColor={COLOR.ACCENT.PRIMARY}
-                />
-                <IconButton
-                  icon={<WhatsAppIcon size={18} />}
-                  size={18}
-                  onClick={handleOpenWhatsapp}
-                  title="Enviar WhatsApp"
-                  ariaLabel="Enviar WhatsApp"
-                  hoverColor={COLOR.ACCENT.PRIMARY}
-                />
-                <IconButton
-                  icon={<Trash />}
-                  size={18}
-                  onClick={handleDeleteArreglo}
-                  title="Editar vehículo"
-                  ariaLabel="Editar vehículo"
-                />
-                <IconButton
-                  icon={<Pencil />}
-                  size={18}
-                  onClick={handleOpenEdit}
-                  title="Editar vehículo"
-                  ariaLabel="Editar vehículo"
-                />
-              </div>
-            </div>
-
-            <div css={styles.summaryActionsRow}>
-              <IconButton
-                icon={<FileText />}
-                size={18}
-                onClick={handleOpenPrintableInvoice}
-                title="Generar PDF"
-                ariaLabel="Generar PDF"
-                hoverColor={COLOR.ACCENT.PRIMARY}
-              />
-              <IconButton
-                icon={<WhatsAppIcon size={18} />}
-                size={18}
-                onClick={handleOpenWhatsapp}
-                title="Enviar WhatsApp"
-                ariaLabel="Enviar WhatsApp"
-                hoverColor={COLOR.ACCENT.PRIMARY}
-              />
-              <IconButton
-                icon={<Trash />}
-                size={18}
-                onClick={handleDeleteArreglo}
-                title="Editar vehículo"
-                ariaLabel="Editar vehículo"
-              />
-              <IconButton
-                icon={<Pencil />}
-                size={18}
-                onClick={handleOpenEdit}
-                title="Editar vehículo"
-                ariaLabel="Editar vehículo"
-              />
-            </div>
-            <Card>
-              <div style={styles.cardContent}>
-                <div style={styles.infoGrid}>
-                  <div>
-                    <div style={styles.fieldLabel}>Fecha</div>
-                    <IconLabel
-                      icon={<Calendar size={18} color={COLOR.ACCENT.PRIMARY} />}
-                      label={
-                        arreglo.fecha
-                          ? formatDateLabel(arreglo.fecha)
-                          : ""
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <div style={styles.fieldLabel}>Tipo</div>
-                    <IconLabel
-                      icon={<Wrench size={18} color={COLOR.ACCENT.PRIMARY} />}
-                      label={arreglo.tipo || "-"}
-                    />
-                  </div>
-
-                  <div>
-                    <div style={styles.fieldLabel}>Precio</div>
-                    <IconLabel
-                      icon={<Coins size={18} color={COLOR.ACCENT.PRIMARY} />}
-                      label={formatArs(totalCalculado, {
-                        maxDecimals: 0,
-                        minDecimals: 0,
-                      })}
-                    />
-                  </div>
-
-                  <div>
-                    <div style={styles.fieldLabel}>Kilometraje</div>
-                    <IconLabel
-                      icon={<Gauge size={18} color={COLOR.ACCENT.PRIMARY} />}
-                      label={
-                        arreglo.kilometraje_leido
-                          ? `${arreglo.kilometraje_leido.toLocaleString()} km`
-                          : "N/A"
-                      }
-                    />
-                  </div>
-                </div>
-
-
-
-                {arreglo.observaciones && (
-                  <div style={{ marginTop: 8 }}>
-                    <div style={{ fontWeight: 700 }}>Observaciones</div>
-                    <div style={{ color: "rgba(0,0,0,0.8)" }}>
-                      {arreglo.observaciones}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Card>
-            {arreglo.vehiculo && (
-              <VehiculoInfoCard
-                vehiculo={arreglo.vehiculo}
-                onEdit={() => { }}
-                maxKilometraje={arreglo.kilometraje_leido}
-                onClick={handleNavigateToVehiculo}
-              />
-            )}
-          </div>
-        </div>
-      </div>
+      <ArregloSummaryCard
+        data={data}
+        totalCalculado={totalCalculado}
+        onOpenEdit={handleOpenEdit}
+        onArregloChange={(nuevoArreglo) => {
+          setData((prev) => (prev ? { ...prev, arreglo: nuevoArreglo } : prev));
+        }}
+      />
 
       <div style={{ marginTop: 16 }}>
         <div style={styles.detalleHeader}>
@@ -667,7 +386,11 @@ export default function ArregloDetailsPage() {
             descripcion: d.descripcion,
             cantidad: safeNumber(d.cantidad),
             valor: safeNumber(d.valor),
+            tipoArregloId: d.tipo_arreglo_id ?? null,
+            empleadoId: d.empleado_id ?? null,
           }))}
+          defaultTipoArregloId={ultimoUsado.tipoArregloId}
+          defaultEmpleadoId={ultimoUsado.empleadoId}
           onAdd={handleAddServicio}
           onUpdate={handleUpdateServicio}
           onDelete={handleDeleteServicio}
@@ -689,50 +412,21 @@ export default function ArregloDetailsPage() {
             cantidad: safeNumber(l.cantidad),
             monto_unitario: safeNumber(l.monto_unitario),
             producto: l.producto ? { nombre: l.producto.nombre, codigo: l.producto.codigo } : null,
+            tipoArregloId: l.tipo_arreglo_id ?? null,
+            empleadoId: l.empleado_id ?? null,
           }))}
+          defaultTipoArregloId={ultimoUsado.tipoArregloId}
+          defaultEmpleadoId={ultimoUsado.empleadoId}
           onUpsert={handleUpsertRepuesto}
           onDelete={handleDeleteRepuesto}
           disabled={loading}
         />
 
-        <div style={styles.totalFooter}>
-          <div style={styles.totalsRow}>
-            <div style={styles.totalsLeft}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={styles.dotBlue} />
-                <span style={{ color: COLOR.TEXT.SECONDARY }}>Servicios:</span>
-                <span style={{ fontWeight: 600 }}>
-                  {formatArs(subtotalServicios + subtotalServiciosCustom, {
-                    maxDecimals: 0,
-                    minDecimals: 0,
-                  })}
-                </span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={styles.dotGreen} />
-                <span style={{ color: COLOR.TEXT.SECONDARY }}>Productos:</span>
-                <span style={{ fontWeight: 600 }}>
-                  {formatArs(subtotalRepuestos, {
-                    maxDecimals: 0,
-                    minDecimals: 0,
-                  })}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ textAlign: "right" }}>
-              <div style={{ color: COLOR.TEXT.SECONDARY }}>
-                Total del arreglo
-              </div>
-              <div style={styles.totalBig}>
-                {formatArs(totalCalculado, {
-                  maxDecimals: 0,
-                  minDecimals: 0,
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
+        <ArregloTotalsFooter
+          subtotalServicios={subtotalServicios + subtotalServiciosCustom}
+          subtotalRepuestos={subtotalRepuestos}
+          total={totalCalculado}
+        />
       </div>
 
       {arreglo && arreglo.vehiculo && (
@@ -741,12 +435,11 @@ export default function ArregloDetailsPage() {
           onClose={handleCloseModal}
           onSubmitSuccess={async (nuevo) => {
             setData((prev) => (prev ? { ...prev, arreglo: nuevo } : prev));
-            //await reload();
           }}
           vehiculoId={arreglo.vehiculo.id}
           initial={{
             id: arreglo.id,
-            tipo: arreglo.tipo,
+
             estado: arreglo.estado,
             fecha: arreglo.fecha,
             kilometraje_leido: arreglo.kilometraje_leido,
@@ -806,236 +499,12 @@ const styles = {
     background: COLOR.BORDER.SUBTLE,
     margin: "18px 0",
   },
-  iconBtn: {
-    border: "none",
-    background: "transparent",
-    cursor: "pointer",
-    padding: 6,
-    borderRadius: 6,
-  },
-  container: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 16,
-    marginTop: 16,
-  },
-  flexRow: {
-    display: "flex",
-    gap: 16,
-    flexWrap: "wrap" as const,
-  },
-  summaryContainer: {
-    display: "flex",
-    flexDirection: "column" as const,
-    flex: 1,
-
-    gap: 8,
-  },
-  mobileSummaryHeader: css({
-    display: "none",
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 8,
-      flexWrap: "wrap",
-    },
-  }),
-  mobileSummaryStatusRow: css({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 8,
-    flexWrap: "wrap",
-  }),
-  desktopSummaryRow: css({
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "none",
-    },
-  }),
-  desktopSummaryActions: {
-    flex: 1,
-    display: "flex",
-    justifyContent: "flex-end",
-    alignItems: "center",
-    gap: 4,
-  },
-  summaryActionsRow: css({
-    display: "none",
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "flex",
-      justifyContent: "flex-start",
-      alignItems: "center",
-      gap: 4,
-    },
-  }),
-  paymentStatus: {
-    display: "flex",
-    alignItems: "center",
-    gap: 4,
-    marginLeft: "auto",
-  },  detalleHeader: {
+  detalleHeader: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 16,
     flexWrap: "wrap" as const,
-  },
-  sectionTitle: {
-    paddingTop: 10,
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    fontSize: 16,
-    fontWeight: 700,
-    color: COLOR.TEXT.SECONDARY,
-    marginBottom: 10,
-  },
-  emptyState: {
-    padding: 12,
-    borderRadius: 12,
-    background: "rgba(0,0,0,0.03)",
-    color: "rgba(0,0,0,0.55)",
-    fontWeight: 600,
-  },
-  itemCardBlue: {
-    display: "flex",
-    alignItems: "center",
-    gap: 14,
-    padding: "14px 14px",
-    borderRadius: 12,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.SUBTLE,
-  },
-  itemCardGreen: {
-    display: "flex",
-    alignItems: "center",
-    gap: 14,
-    padding: "14px 14px",
-    borderRadius: 12,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.SUBTLE,
-  },
-  itemIconCircleBlue: {
-    width: 36,
-    height: 36,
-    borderRadius: 999,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: COLOR.BACKGROUND.SUBTLE,
-  },
-  itemIconCircleGreen: {
-    width: 36,
-    height: 36,
-    borderRadius: 999,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "rgba(22, 163, 74, 0.14)",
-  },
-  itemTitle: {
-    fontSize: 16,
-    fontWeight: 700,
-    lineHeight: 1.1,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap" as const,
-  },
-  itemSubTitle: {
-    marginTop: 6,
-    color: "rgba(0,0,0,0.55)",
-    fontWeight: 600,
-  },
-  itemPrice: {
-    fontSize: 18,
-    fontWeight: 800,
-    whiteSpace: "nowrap" as const,
-    marginLeft: 8,
-  },
-  deleteBtn: {
-    border: "none",
-    background: "transparent",
-    cursor: "pointer",
-    padding: 8,
-    borderRadius: 12,
-  },
-  codePill: {
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 999,
-    padding: "6px 10px",
-    fontWeight: 800,
-    color: "rgba(0,0,0,0.7)",
-    background: "rgba(255,255,255,0.8)",
-    whiteSpace: "nowrap" as const,
-  },
-  subtotalRow: {
-    marginTop: 10,
-    display: "flex",
-    justifyContent: "flex-end",
-    alignItems: "baseline",
-    gap: 8,
-  },
-  subtotalLabel: {
-    color: COLOR.TEXT.SECONDARY,
-    fontWeight: 700,
-  },
-  subtotalValue: {
-    fontWeight: 800,
-    fontSize: 16,
-  },
-  totalFooter: {
-    marginTop: 18,
-    paddingTop: 16,
-    borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
-  },
-  totalsRow: {
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: 16,
-    flexWrap: "wrap" as const,
-  },
-  totalsLeft: {
-    display: "flex",
-    gap: 24,
-    flexWrap: "wrap" as const,
-  },
-  dotBlue: {
-    width: 12,
-    height: 12,
-    borderRadius: 999,
-    background: COLOR.ACCENT.PRIMARY,
-    display: "inline-block",
-  },
-  dotGreen: {
-    width: 12,
-    height: 12,
-    borderRadius: 999,
-    background: "#16a34a",
-    display: "inline-block",
-  },
-  totalBig: {
-    fontSize: 32,
-    fontWeight: 700,
-  },
-  infoGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: 12,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    color: COLOR.ICON.MUTED,
-    marginBottom: 4,
-  },
-  cardContent: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 12,
   },
   loadingContainer: {
     flex: 1,
@@ -1079,7 +548,3 @@ function flattenAsignacionesLineas(
   }
   return out;
 }
-
-
-
-

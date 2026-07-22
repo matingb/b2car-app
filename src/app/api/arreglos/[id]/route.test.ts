@@ -3,7 +3,7 @@ import { PUT, DELETE } from "./route";
 import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { arregloService } from "../arregloService";
-import { computeArregloDescripcion } from "../arregloDescripcionService";
+import { syncArregloDescripcion } from "../arregloDescripcionService";
 import { NextRequest } from "next/server";
 import { Arreglo } from "@/model/types";
 import { ServiceError } from "@/app/api/serviceError";
@@ -27,7 +27,7 @@ vi.mock("../arregloService", () => ({
 }));
 
 vi.mock("../arregloDescripcionService", () => ({
-  computeArregloDescripcion: vi.fn(),
+  syncArregloDescripcion: vi.fn(),
 }));
 
 describe("Mutaciones /api/arreglos/[id]", () => {
@@ -88,8 +88,8 @@ describe("Mutaciones /api/arreglos/[id]", () => {
     vi.mocked(arregloService.deleteById).mockResolvedValue(
       { error: null } as unknown as { error: null }
     );
-    vi.mocked(computeArregloDescripcion).mockResolvedValue({
-      data: "Service | Cambio aceite",
+    vi.mocked(syncArregloDescripcion).mockResolvedValue({
+      descripcion: "Service | Cambio aceite",
       error: null,
     });
   });
@@ -98,7 +98,7 @@ describe("Mutaciones /api/arreglos/[id]", () => {
     const req = new NextRequest("http://localhost/api/arreglos/a1", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tipo: "Service" }),
+      body: JSON.stringify({ descripcion: "Service | Cambio aceite" }),
     });
 
     const params = Promise.resolve({ id: "a1" });
@@ -108,7 +108,7 @@ describe("Mutaciones /api/arreglos/[id]", () => {
     expect(arregloService.updateById).toHaveBeenCalledWith(
       mockSupabase,
       "a1",
-      expect.objectContaining({ tipo: "Service", descripcion: "Service | Cambio aceite" })
+      expect.objectContaining({ descripcion: "Service | Cambio aceite" })
     );
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
     expect(statsService.onDataChanged).toHaveBeenCalledWith(mockSupabase, "TEN-1");

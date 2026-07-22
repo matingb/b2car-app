@@ -2,23 +2,21 @@ import { describe, expect, it } from "vitest";
 import { ARREGLO_DESCRIPCION_FALLBACK, buildArregloDescripcion } from "./arreglos";
 
 describe("buildArregloDescripcion", () => {
-  it("concatena tipo y detalles cuando existe detalle_formulario", () => {
+  it("concatena detalles cuando existe detalle_formulario", () => {
     expect(
       buildArregloDescripcion({
-        tipo: "Service",
         detalles: [{ descripcion: "Cambio aceite" }, { descripcion: "Filtro de aire" }],
         detalleFormulario: [{ metadata: [] }],
       })
-    ).toBe("Service | Cambio aceite | Filtro de aire");
+    ).toBe("Cambio aceite | Filtro de aire");
   });
 
-  it("usa solo el tipo cuando no hay detalles", () => {
+  it("usa el fallback cuando no hay detalles", () => {
     expect(
       buildArregloDescripcion({
-        tipo: "Frenos",
         detalles: [],
       })
-    ).toBe("Frenos");
+    ).toBe(ARREGLO_DESCRIPCION_FALLBACK);
   });
 
   it("usa solo los detalles cuando no hay tipo", () => {
@@ -29,10 +27,9 @@ describe("buildArregloDescripcion", () => {
     ).toBe("Pastillas delanteras | Rectificar discos");
   });
 
-  it("usa el fallback cuando no hay tipo ni detalles", () => {
+  it("usa el fallback cuando no hay detalles validos", () => {
     expect(
       buildArregloDescripcion({
-        tipo: " ",
         detalles: [{ descripcion: "  " }],
       })
     ).toBe(ARREGLO_DESCRIPCION_FALLBACK);

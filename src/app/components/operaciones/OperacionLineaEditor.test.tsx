@@ -30,11 +30,10 @@ function Wrapper(props: { initial: OperacionLineaDraft }) {
   return (
     <OperacionLineaEditor
       index={0}
-      tipo="VENTA"
       linea={linea}
       disabled={false}
-      loadingProductos={false}
-      productoOptions={[]}
+      loadingStocks={false}
+      stockOptions={[]}
       onChange={setLinea}
       canRemove={false}
     />
@@ -47,7 +46,7 @@ describe("OperacionLineaEditor", () => {
       <Wrapper
         initial={{
           id: "l1",
-          productoId: "p1",
+          stockId: "p1",
           cantidad: 2,
           unitario: 10,
           total: 20,
@@ -70,7 +69,7 @@ describe("OperacionLineaEditor", () => {
       <Wrapper
         initial={{
           id: "l1",
-          productoId: "p1",
+          stockId: "p1",
           cantidad: 3,
           unitario: 10,
           total: 30,
@@ -92,7 +91,7 @@ describe("OperacionLineaEditor", () => {
       <Wrapper
         initial={{
           id: "l1",
-          productoId: "p1",
+          stockId: "p1",
           cantidad: 3,
           unitario: 10,
           total: 30,

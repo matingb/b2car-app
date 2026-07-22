@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Autocomplete, {
   type AutocompleteOption,
 } from "@/app/components/ui/Autocomplete";
@@ -11,22 +11,18 @@ import { formatArs } from "@/lib/format";
 import ServicioLineasEditableSection, {
   type ServicioLinea,
 } from "@/app/components/arreglos/lineas/servicios/ServicioLineasEditableSection";
-import ServicioLineasCustomSection, {
-  parseCustomServicioLineDefs,
-} from "@/app/components/arreglos/lineas/servicios/ServicioLineasCustomSection";
 import RepuestoLineasEditableSection, {
   type RepuestoLinea,
 } from "@/app/components/arreglos/lineas/repuestos/RepuestoLineasEditableSection";
 import type { CreateArregloDetalleFormularioInput } from "@/app/api/arreglos/arregloRequests";
 import { useServiciosDraft } from "@/app/components/arreglos/hooks/useServiciosDraft";
 import { useRepuestosDraft } from "@/app/components/arreglos/hooks/useRepuestosDraft";
+import { useUltimoTipoEmpleado } from "@/app/components/arreglos/hooks/useUltimoTipoEmpleado";
 import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
-import { useFormularios } from "@/app/providers/FormulariosProvider";
-import { LibraryBig } from "lucide-react";
-import { findMissingRequiredCustomFormFields } from "@/lib/arreglosCustomFormRequired";
+import ArregloPagoBadge from "@/app/components/arreglos/ArregloPagoBadge";
 
 export type ArregloForm = {
-  tipo: string;
+
   estado?: EstadoArreglo;
   fecha: string;
   kilometraje_leido: number | string;
@@ -38,7 +34,7 @@ export type ArregloForm = {
 };
 
 export type ArregloFormFieldsValues = {
-  tipo: string;
+
   estado: EstadoArreglo;
   fecha: string;
   km: string;
@@ -70,13 +66,7 @@ type Props = {
   onChange?: (next: ArregloFormFieldsInternal) => void;
 };
 
-const genericTipoOptions: AutocompleteOption[] = [
-  { value: "Mecanica", label: "Mecanica" },
-  { value: "Chapa y pintura", label: "Chapa y pintura" },
-  { value: "Electricidad", label: "Electricidad" },
-  { value: "Mantenimiento", label: "Mantenimiento" },
-  { value: "Revision", label: "Revision" },
-];
+
 
 const estadoOptions: AutocompleteOption[] = ESTADOS_ARREGLO.map((estado) => ({
   value: estado,
@@ -118,72 +108,16 @@ export default function ArregloFormFields({
   onValidityChange,
   onChange,
 }: Props) {
-  const { formularios } = useFormularios();
   const [customServiciosDraft, setCustomServiciosDraft] = useState<ServicioLinea[]>([]);
-  const [customDetalleFormulario, setCustomDetalleFormulario] = useState<CreateArregloDetalleFormularioInput | null>(null);
 
   const baseIsValid = useMemo(
     () => validateArregloForm(values, vehiculoId),
     [values, vehiculoId],
   );
 
-  const tipoOptions = useMemo<AutocompleteOption[]>(() => {
-    const used = new Set(
-      genericTipoOptions.map((opt) => opt.value.trim().toLowerCase())
-    );
+  const isCustomTipoSelected = false;
+  const blockCreateByCustomRequired = false;
 
-    const customOptions: AutocompleteOption[] = [];
-    for (const formulario of formularios) {
-      const descripcion = String(formulario.descripcion ?? "").trim();
-      if (!descripcion) continue;
-
-      const normalized = descripcion.toLowerCase();
-      if (used.has(normalized)) continue;
-
-      used.add(normalized);
-      customOptions.push({
-        value: descripcion,
-        label: descripcion,
-        icon: <LibraryBig size={14} />,
-      });
-    }
-
-    return [...genericTipoOptions, ...customOptions];
-  }, [formularios]);
-
-  const selectedCustomFormulario = useMemo(() => {
-    const selected = values.tipo.trim().toLowerCase();
-    if (!selected) return null;
-    return (
-      formularios.find(
-        (formulario) => formulario.descripcion.trim().toLowerCase() === selected
-      ) ?? null
-    );
-  }, [formularios, values.tipo]);
-
-  const customLineDefs = useMemo(
-    () => parseCustomServicioLineDefs(selectedCustomFormulario?.metadata),
-    [selectedCustomFormulario]
-  );
-
-  const isCustomTipoSelected = !!selectedCustomFormulario;
-  const missingCustomRequiredFields = useMemo(() => {
-    if (!isCustomTipoSelected || !selectedCustomFormulario) return [];
-    return findMissingRequiredCustomFormFields({
-      formMetadata: selectedCustomFormulario.metadata,
-      detalleMetadata: customDetalleFormulario?.metadata ?? [],
-    });
-  }, [isCustomTipoSelected, selectedCustomFormulario, customDetalleFormulario]);
-  const blockCreateByCustomRequired = useMemo(
-    () =>
-      shouldBlockCreateByCustomRequired({
-        isEdit,
-        estado: values.estado,
-        isCustomTipoSelected,
-        missingRequiredCount: missingCustomRequiredFields.length,
-      }),
-    [isEdit, values.estado, isCustomTipoSelected, missingCustomRequiredFields.length]
-  );
   const isValid = useMemo(
     () => baseIsValid && !blockCreateByCustomRequired,
     [baseIsValid, blockCreateByCustomRequired]
@@ -203,6 +137,30 @@ export default function ArregloFormFields({
     onDelete: onRepuestosDelete,
     reset: resetRepuestos,
   } = useRepuestosDraft();
+
+  const { ultimo: ultimoUsado, registrar: registrarUltimoUsado } = useUltimoTipoEmpleado();
+
+  const handleServiciosAdd = useCallback(
+    (input: Parameters<typeof onServiciosAdd>[0]) => {
+      registrarUltimoUsado(input.tipoArregloId, input.empleadoId);
+      return onServiciosAdd(input);
+    },
+    [onServiciosAdd, registrarUltimoUsado]
+  );
+  const handleServiciosUpdate = useCallback(
+    (id: string, patch: Parameters<typeof onServiciosUpdate>[1]) => {
+      registrarUltimoUsado(patch.tipoArregloId, patch.empleadoId);
+      return onServiciosUpdate(id, patch);
+    },
+    [onServiciosUpdate, registrarUltimoUsado]
+  );
+  const handleRepuestosUpsert = useCallback(
+    (input: Parameters<typeof onRepuestosUpsert>[0]) => {
+      registrarUltimoUsado(input.tipo_arreglo_id ?? null, input.empleado_id ?? null);
+      return onRepuestosUpsert(input);
+    },
+    [onRepuestosUpsert, registrarUltimoUsado]
+  );
 
   const serviciosActivos = useMemo(
     () =>
@@ -242,20 +200,13 @@ export default function ArregloFormFields({
     () => ({
       serviciosDraft,
       repuestosDraft,
-      detalleFormulario:
-        isCustomTipoSelected && selectedCustomFormulario
-          ? {
-            formulario_id: selectedCustomFormulario.id,
-            costo: Number(customDetalleFormulario?.costo) || 0,
-            metadata: customDetalleFormulario?.metadata ?? [],
-          }
-          : null,
+      detalleFormulario: null,
       subtotalServicios,
       subtotalRepuestos,
       totalCalculado,
       totalCalculadoLabel,
     }),
-    [serviciosDraft, customDetalleFormulario, isCustomTipoSelected, selectedCustomFormulario, repuestosDraft, subtotalServicios, subtotalRepuestos, totalCalculado, totalCalculadoLabel],
+    [serviciosDraft, repuestosDraft, subtotalServicios, subtotalRepuestos, totalCalculado, totalCalculadoLabel],
   );
 
   useEffect(() => {
@@ -273,7 +224,6 @@ export default function ArregloFormFields({
       return;
     }
     setCustomServiciosDraft([]);
-    setCustomDetalleFormulario(null);
   }, [isCustomTipoSelected, resetServicios]);
 
   useEffect(() => {
@@ -299,16 +249,6 @@ export default function ArregloFormFields({
             />
           </div>
         )}
-        <div style={styles.field}>
-          <label style={styles.label}>Tipo</label>
-          <Autocomplete
-            options={tipoOptions}
-            value={values.tipo}
-            onChange={(next) => onValuesChange({ tipo: next })}
-            placeholder="Mecanica, Chapa y pintura..."
-            allowCustomValue
-          />
-        </div>
 
         <div style={styles.field}>
           <label style={styles.label}>Estado</label>
@@ -360,44 +300,27 @@ export default function ArregloFormFields({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 8,
               height: 44,
             }}
           >
-            <input
-              type="checkbox"
-              checked={values.estaPago}
-              onChange={(e) => onValuesChange({ estaPago: e.target.checked })}
+            <ArregloPagoBadge
+              estaPago={values.estaPago}
+              onClick={() => onValuesChange({ estaPago: !values.estaPago })}
+              size="md"
             />
-            <span>Pagado</span>
           </div>
         </div>
       </div>
 
       {!isEdit ? (
         <div style={{ marginTop: 6 }}>
-          {isCustomTipoSelected ? (
-            <>
-              <div style={styles.divider} />
-              <ServicioLineasCustomSection
-                formTitle={selectedCustomFormulario?.descripcion}
-                defaultCosto={selectedCustomFormulario?.costoDefault}
-                lineDefs={customLineDefs}
-                disabled={submitting}
-                onServiciosChange={setCustomServiciosDraft}
-                onDetalleChange={setCustomDetalleFormulario}
-              />
-              {blockCreateByCustomRequired ? (
-                <div style={styles.validationError}>
-                  Completa los campos obligatorios del formulario para crear en TERMINADO
-                </div>
-              ) : null}
-            </>
-          ) : null}
+
           <ServicioLineasEditableSection
             items={serviciosDraft}
-            onAdd={onServiciosAdd}
-            onUpdate={onServiciosUpdate}
+            defaultTipoArregloId={ultimoUsado.tipoArregloId}
+            defaultEmpleadoId={ultimoUsado.empleadoId}
+            onAdd={handleServiciosAdd}
+            onUpdate={handleServiciosUpdate}
             onDelete={onServiciosDelete}
             disabled={submitting}
           />
@@ -406,7 +329,9 @@ export default function ArregloFormFields({
           <RepuestoLineasEditableSection
             tallerId={tallerId}
             items={repuestosDraft}
-            onUpsert={onRepuestosUpsert}
+            defaultTipoArregloId={ultimoUsado.tipoArregloId}
+            defaultEmpleadoId={ultimoUsado.empleadoId}
+            onUpsert={handleRepuestosUpsert}
             onDelete={onRepuestosDelete}
             disabled={submitting}
           />

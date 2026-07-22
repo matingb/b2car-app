@@ -41,7 +41,15 @@ describe("buildArregloWhatsappMessage", () => {
         vehiculo: createVehiculo({ id: "v1", patente: "ABC123" }),
       }),
       detalles: [
-        { id: "d1", arreglo_id: "a1", descripcion: "Mano de obra", cantidad: 2, valor: 1500 },
+        {
+          id: "d1",
+          arreglo_id: "a1",
+          descripcion: "Mano de obra",
+          cantidad: 2,
+          valor: 1500,
+          tipo_arreglo_id: null,
+          empleado_id: null,
+        },
       ],
       asignaciones: [
         {
@@ -58,6 +66,8 @@ describe("buildArregloWhatsappMessage", () => {
               monto_unitario: 5000,
               delta_cantidad: -1,
               created_at: "2026-01-01",
+              tipo_arreglo_id: null,
+              empleado_id: null,
               producto: { id: "p1", codigo: "FIL-001", nombre: "Filtro" },
             },
           ],

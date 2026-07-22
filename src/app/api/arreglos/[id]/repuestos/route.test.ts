@@ -6,6 +6,12 @@ vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
+vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
+  statsService: {
+    onDataChanged: vi.fn(),
+  },
+}));
+
 describe("POST /api/arreglos/[id]/repuestos", () => {
   const rpc = vi.fn();
   const mockSupabase = { rpc } as unknown as Awaited<ReturnType<typeof createClient>>;
@@ -41,6 +47,8 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
       p_cantidad: 2,
       p_monto_unitario: 1500,
       p_precio_compra: null,
+      p_tipo_arreglo_id: null,
+      p_empleado_id: null,
     });
     await expect(res.json()).resolves.toEqual({
       data: { operacion_id: "OP-1" },
@@ -99,6 +107,8 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
       p_precio_compra: 100,
       p_precio_venta: 180,
       p_cantidad: 2,
+      p_tipo_arreglo_id: null,
+      p_empleado_id: null,
     });
     await expect(res.json()).resolves.toEqual({
       data: { operacion_id: "OP-2" },
@@ -133,6 +143,8 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
       p_cantidad: 5,
       p_monto_unitario: 1500,
       p_precio_compra: 800,
+      p_tipo_arreglo_id: null,
+      p_empleado_id: null,
     });
   });
 

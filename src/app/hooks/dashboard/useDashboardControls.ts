@@ -42,15 +42,22 @@ export function useDashboardControls() {
     const { stats, loading, error, fetchStats } = useDashboard();
 
     const [period, setPeriod] = useState<PeriodOption>(() => buildPeriodOptions(1)[0]);
-    const [granularity, setGranularity] = useState<Record<ActiveCard, Granularity>>(loadGranularity);
+    const [granularity, setGranularity] = useState<Record<ActiveCard, Granularity>>(defaultGranularity);
+    const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {
         fetchStats({ from: period.from, to: period.to });
     }, [fetchStats, period.from, period.to]);
 
     useEffect(() => {
+        setGranularity(loadGranularity());
+        setHydrated(true);
+    }, []);
+
+    useEffect(() => {
+        if (!hydrated) return;
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(granularity));
-    }, [granularity]);
+    }, [hydrated, granularity]);
 
     const handlePeriodChange = useCallback(
         (newPeriod: PeriodOption) => {

@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ServiceError, ServiceResult, toServiceError } from "@/app/api/serviceError";
 
-const DETALLE_ARREGLO_SELECT = "id, arreglo_id, descripcion, cantidad, valor, created_at, updated_at";
+const DETALLE_ARREGLO_SELECT =
+  "id, arreglo_id, descripcion, cantidad, valor, tipo_arreglo_id, empleado_id, created_at, updated_at";
 
 export type DetalleArregloRow = {
   id: string;
@@ -9,6 +10,8 @@ export type DetalleArregloRow = {
   descripcion: string;
   cantidad: number;
   valor: number;
+  tipo_arreglo_id: string | null;
+  empleado_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -43,7 +46,14 @@ export const detalleArregloService = {
 
   async create(
     supabase: SupabaseClient,
-    payload: { arreglo_id: string; descripcion: string; cantidad: number; valor: number }
+    payload: {
+      arreglo_id: string;
+      descripcion: string;
+      cantidad: number;
+      valor: number;
+      tipo_arreglo_id?: string | null;
+      empleado_id?: string | null;
+    }
   ): Promise<ServiceResult<DetalleArregloRow>> {
     const { data, error } = await supabase
       .from("detalle_arreglo")

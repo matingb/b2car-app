@@ -12,7 +12,7 @@ type Kind = "servicios" | "repuestos";
 
 type Props = {
   kind: Kind;
-  title: string;
+  title: React.ReactNode;
   subtitle?: React.ReactNode;
   cantidad: number;
   unitario: number;
@@ -48,11 +48,10 @@ export default function ReadOnlyLineaCard({
       <div css={readStyles.main}>
         <div css={readStyles.title}>
           {title}
-          {subtitle}
         </div>
-        <div css={readStyles.desktopSubtitle}>{qtyXUnit}</div>
-        <div css={readStyles.mobileMeta}>
-          <span css={readStyles.mobileQtyUnit}>{qtyXUnit}</span>
+        <div css={readStyles.subtitleRow}>
+          {subtitle}
+          <span css={readStyles.qtyXUnit}>{qtyXUnit}</span>
         </div>
       </div>
 
@@ -102,40 +101,23 @@ const readStyles = {
     ...styles.itemMain,
     display: "flex",
     flexDirection: "column",
-    justifyContent: "space-between",
+    justifyContent: "center",
+    gap: 4,
     height: "100%",
   }),
   title: css({
     ...styles.itemTitle,
   }),
-  desktopSubtitle: css({
-    ...styles.itemSubTitle,
-    minHeight: 36,
+  subtitleRow: css({
     display: "flex",
+    flexWrap: "wrap",
     alignItems: "center",
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      display: "none",
-    },
+    gap: 8,
   }),
-  mobileMeta: css({
-    display: "none",
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-      minHeight: 36,
-      minWidth: 0,
-    },
-  }),
-  mobileQtyUnit: css({
-    minWidth: 0,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
+  qtyXUnit: css({
     color: COLOR.TEXT.SECONDARY,
-    fontSize: 14,
-    fontWeight: 600,
-    lineHeight: 1.2,
+    fontSize: 13,
+    fontWeight: 500,
   }),
   side: css({
     minWidth: 96,

@@ -14,6 +14,12 @@ vi.mock("@/app/api/arreglos/repuestos/repuestosService", () => ({
   },
 }));
 
+vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
+  statsService: {
+    onDataChanged: vi.fn(),
+  },
+}));
+
 import { createClient } from "@/supabase/server";
 import { repuestosService } from "@/app/api/arreglos/repuestos/repuestosService";
 

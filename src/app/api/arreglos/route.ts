@@ -14,6 +14,7 @@ import {
     findMissingRequiredCustomFormFields,
 } from "@/lib/arreglosCustomFormRequired";
 import { buildArregloDescripcion } from "@/lib/arreglos";
+import { isValidUuid } from "@/lib/uuid";
 
 export type GetArreglosResponse = {
     data: Arreglo[] | null;
@@ -37,7 +38,6 @@ export async function GET(req: NextRequest) {
         tallerId: toUndef(query.get("taller_id")),
         search: toUndef(query.get("search")),
         patente: toUndef(query.get("patente")),
-        tipo: toUndef(query.get("tipo")),
         estado: toUndef(query.get("estado")),
         fechaDesde: toUndef(query.get("fecha_desde")),
         fechaHasta: toUndef(query.get("fecha_hasta")),
@@ -80,7 +80,6 @@ export async function POST(req: Request) {
     const {
         vehiculo_id,
         taller_id,
-        tipo,
         estado,
         kilometraje_leido,
         fecha,
@@ -100,7 +99,6 @@ export async function POST(req: Request) {
 
     const precioFinalNumber = Number(precio_final) || 0;
     const kmNumber = Number(kilometraje_leido) || 0;
-    const tipoValue = String(tipo ?? "").trim();
     const estadoRaw = String(estado ?? "SIN_INICIAR").trim().toUpperCase();
 
     if (!(ESTADOS_ARREGLO as string[]).includes(estadoRaw)) {
@@ -121,6 +119,8 @@ export async function POST(req: Request) {
         descripcion: String((d as { descripcion?: unknown }).descripcion ?? "").trim(),
         cantidad: Number((d as { cantidad?: unknown }).cantidad),
         valor: Number((d as { valor?: unknown }).valor),
+        tipo_arreglo_id: (d as { tipo_arreglo_id?: unknown }).tipo_arreglo_id || null,
+        empleado_id: (d as { empleado_id?: unknown }).empleado_id || null,
     }));
 
     for (const d of normalizedDetalles) {
@@ -130,6 +130,12 @@ export async function POST(req: Request) {
         }
         if (!Number.isFinite(d.valor) || d.valor < 0) {
             return Response.json({ error: "Valor inválido en servicios" }, { status: 400 });
+        }
+        if (d.tipo_arreglo_id != null && !isValidUuid(d.tipo_arreglo_id)) {
+            return Response.json({ error: "tipo_arreglo_id inválido en servicios" }, { status: 400 });
+        }
+        if (d.empleado_id != null && !isValidUuid(d.empleado_id)) {
+            return Response.json({ error: "empleado_id inválido en servicios" }, { status: 400 });
         }
     }
 
@@ -167,10 +173,8 @@ export async function POST(req: Request) {
     const insertPayload: CreateArregloInsertPayload = {
         vehiculo_id,
         taller_id,
-        tipo: tipoValue,
         estado: estadoValue,
         descripcion: buildArregloDescripcion({
-            tipo: tipoValue,
             detalles: normalizedDetalles,
             detalleFormulario: detalleFormularioMetadata,
         }),
@@ -193,6 +197,8 @@ export async function POST(req: Request) {
             (r as { precio_compra?: unknown }).precio_compra == null
                 ? null
                 : Number((r as { precio_compra?: unknown }).precio_compra),
+        tipo_arreglo_id: (r as { tipo_arreglo_id?: unknown }).tipo_arreglo_id || null,
+        empleado_id: (r as { empleado_id?: unknown }).empleado_id || null,
     }));
 
     const normalizedRepuestosNuevos = repuestosNuevosArr.map((r) => ({
@@ -201,6 +207,8 @@ export async function POST(req: Request) {
         precio_compra: Number((r as { precio_compra?: unknown }).precio_compra),
         precio_venta: Number((r as { precio_venta?: unknown }).precio_venta),
         cantidad: Number((r as { cantidad?: unknown }).cantidad),
+        tipo_arreglo_id: (r as { tipo_arreglo_id?: unknown }).tipo_arreglo_id || null,
+        empleado_id: (r as { empleado_id?: unknown }).empleado_id || null,
     }));
 
     for (const r of normalizedRepuestos) {
@@ -209,6 +217,12 @@ export async function POST(req: Request) {
         if (!Number.isFinite(r.monto_unitario) || r.monto_unitario < 0) return Response.json({ error: "Monto unitario invalido en repuestos" }, { status: 400 });
         if (r.precio_compra != null && (!Number.isFinite(r.precio_compra) || r.precio_compra < 0)) {
             return Response.json({ error: "Precio de compra invalido en repuestos" }, { status: 400 });
+        }
+        if (r.tipo_arreglo_id != null && !isValidUuid(r.tipo_arreglo_id)) {
+            return Response.json({ error: "tipo_arreglo_id invalido en repuestos" }, { status: 400 });
+        }
+        if (r.empleado_id != null && !isValidUuid(r.empleado_id)) {
+            return Response.json({ error: "empleado_id invalido en repuestos" }, { status: 400 });
         }
     }
 
@@ -228,6 +242,12 @@ export async function POST(req: Request) {
         if (!Number.isFinite(r.precio_compra) || r.precio_compra < 0) return Response.json({ error: "Precio de compra invalido" }, { status: 400 });
         if (!Number.isFinite(r.precio_venta) || r.precio_venta < 0) return Response.json({ error: "Precio de venta invalido" }, { status: 400 });
         if (!Number.isFinite(r.cantidad) || r.cantidad <= 0) return Response.json({ error: "Cantidad invalida en producto nuevo" }, { status: 400 });
+        if (r.tipo_arreglo_id != null && !isValidUuid(r.tipo_arreglo_id)) {
+            return Response.json({ error: "tipo_arreglo_id invalido en producto nuevo" }, { status: 400 });
+        }
+        if (r.empleado_id != null && !isValidUuid(r.empleado_id)) {
+            return Response.json({ error: "empleado_id invalido en producto nuevo" }, { status: 400 });
+        }
         if (codigoSet.has(codigoKey)) {
             return Response.json({ error: "Ya existe un producto con ese codigo. Seleccionalo desde el listado." }, { status: 409 });
         }
@@ -244,7 +264,6 @@ export async function POST(req: Request) {
     const { data: arregloIdRpc, error: rpcError } = await supabase.rpc("rpc_crear_arreglo_completo", {
         p_vehiculo_id: insertPayload.vehiculo_id,
         p_taller_id: insertPayload.taller_id,
-        p_tipo: insertPayload.tipo,
         p_estado: insertPayload.estado,
         p_descripcion: insertPayload.descripcion,
         p_kilometraje_leido: insertPayload.kilometraje_leido,
@@ -261,6 +280,7 @@ export async function POST(req: Request) {
     });
 
     if (rpcError || !arregloIdRpc) {
+        logger.error("RPC Error in rpc_crear_arreglo_completo:", rpcError);
         const raw = String(rpcError?.message ?? "");
         const isStock = raw.includes("STOCK_INSUFICIENTE");
         const isDuplicate = raw.includes("PRODUCTO_CODIGO_DUPLICADO") || raw.includes("uq_productos_tenant_codigo");

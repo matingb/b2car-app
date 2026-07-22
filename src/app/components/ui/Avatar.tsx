@@ -3,6 +3,8 @@ import { COLOR } from "@/theme/theme";
 interface AvatarProps {
   size?: number;
   nombre: string;
+  bgColor?: string;
+  textColor?: string;
 }
 
 function getInitials(nombre?: string): string {
@@ -22,7 +24,7 @@ function getInitials(nombre?: string): string {
   return (first + second).toUpperCase();
 }
 
-export default function Avatar({ size = 40, nombre }: AvatarProps) {
+export default function Avatar({ size = 40, nombre, bgColor, textColor }: AvatarProps) {
   const initials = getInitials(nombre);
 
   const fontSize = Math.max(12, Math.round(size * 0.4));
@@ -32,6 +34,8 @@ export default function Avatar({ size = 40, nombre }: AvatarProps) {
     width: size,
     height: size,
     fontSize,
+    ...(bgColor && { background: bgColor }),
+    ...(textColor && { color: textColor }),
   };
 
   return <div style={avatarStyle}>{initials}</div>;

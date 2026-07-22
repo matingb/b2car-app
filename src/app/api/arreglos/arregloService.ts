@@ -5,6 +5,7 @@ import { ServiceError, ServiceResult } from "@/app/api/serviceError";
 import {
   type ArregloListFilters,
   type ArregloRepository,
+  type DesgloseLinea,
   supabaseArregloRepository,
 } from "./arregloRepository";
 
@@ -74,24 +75,40 @@ export function createArregloService(repository: ArregloRepository) {
       return repository.arreglosResumen(supabase, fromISO, toISO, tallerId);
     },
 
-    async tiposConIngresos(
+    async facturacionPorTipo(
       supabase: SupabaseClient,
       fromISO?: string,
       toISO?: string,
       tallerId?: string
-    ): Promise<TiposConIngresos> {
-      const rows = await repository.tiposConIngresos(supabase, fromISO, toISO, tallerId);
-      const tipos: string[] = [];
-      const cantidad: number[] = [];
-      const ingresos: number[] = [];
+    ): Promise<DesgloseLinea[]> {
+      return repository.facturacionPorTipo(supabase, fromISO, toISO, tallerId);
+    },
 
-      for (const r of rows) {
-        tipos.push(String(r.tipo ?? "").trim() || "Sin tipo");
-        cantidad.push(Number(r.cantidad ?? 0) || 0);
-        ingresos.push(Number(Number(r.ingresos ?? 0).toFixed(2)) || 0);
-      }
+    async facturacionPorEmpleado(
+      supabase: SupabaseClient,
+      fromISO?: string,
+      toISO?: string,
+      tallerId?: string
+    ): Promise<DesgloseLinea[]> {
+      return repository.facturacionPorEmpleado(supabase, fromISO, toISO, tallerId);
+    },
 
-      return { tipos, cantidad, ingresos };
+    async costoPorTipo(
+      supabase: SupabaseClient,
+      fromISO?: string,
+      toISO?: string,
+      tallerId?: string
+    ): Promise<DesgloseLinea[]> {
+      return repository.costoPorTipo(supabase, fromISO, toISO, tallerId);
+    },
+
+    async costoPorEmpleado(
+      supabase: SupabaseClient,
+      fromISO: string,
+      toISO: string,
+      tallerId?: string
+    ): Promise<DesgloseLinea[]> {
+      return repository.costoPorEmpleado(supabase, fromISO, toISO, tallerId);
     },
 
     async listRecentActivities(

@@ -1,5 +1,8 @@
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { isValidUuid } from "@/lib/uuid";
+import { syncArregloDescripcion } from "@/app/api/arreglos/arregloDescripcionService";
 
 export type UpsertRepuestoLineaRequest = {
   tipo?: "existente";
@@ -8,6 +11,8 @@ export type UpsertRepuestoLineaRequest = {
   cantidad: number;
   monto_unitario: number;
   precio_compra?: number | null;
+  tipo_arreglo_id?: string | null;
+  empleado_id?: string | null;
 };
 
 export type CreateInlineProductoRepuestoRequest = {
@@ -18,6 +23,8 @@ export type CreateInlineProductoRepuestoRequest = {
   precio_compra: number;
   precio_venta: number;
   cantidad: number;
+  tipo_arreglo_id?: string | null;
+  empleado_id?: string | null;
 };
 
 export type UpsertRepuestoRequest =
@@ -91,6 +98,13 @@ async function upsertRepuestoExistente(
     return Response.json({ data: null, error: "Precio de compra invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
 
+  if (body.tipo_arreglo_id != null && !isValidUuid(body.tipo_arreglo_id)) {
+    return Response.json({ data: null, error: "tipo_arreglo_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
+  if (body.empleado_id != null && !isValidUuid(body.empleado_id)) {
+    return Response.json({ data: null, error: "empleado_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
+
   const { data, error } = await supabase.rpc("rpc_asignar_repuesto_existente_con_compra", {
     p_arreglo_id: arregloId,
     p_taller_id: tallerId,
@@ -98,12 +112,17 @@ async function upsertRepuestoExistente(
     p_cantidad: cantidad,
     p_monto_unitario: montoUnitario,
     p_precio_compra: precioCompra,
+    p_tipo_arreglo_id: body.tipo_arreglo_id ?? null,
+    p_empleado_id: body.empleado_id ?? null,
   });
 
   if (error || !data) {
     const mapped = mapExistingRepuestoRpcError(error);
     return Response.json({ data: null, error: mapped.message } satisfies UpsertRepuestoLineaResponse, { status: mapped.status });
   }
+
+  await syncArregloDescripcion(supabase, arregloId);
+  await statsService.onDataChanged(supabase);
 
   return Response.json({ data: { operacion_id: String(data) }, error: null } satisfies UpsertRepuestoLineaResponse, { status: 200 });
 }
@@ -133,6 +152,12 @@ async function createRepuestoConProductoNuevo(
   if (!Number.isFinite(cantidad) || cantidad <= 0) {
     return Response.json({ data: null, error: "Cantidad invalida" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
+  if (body.tipo_arreglo_id != null && !isValidUuid(body.tipo_arreglo_id)) {
+    return Response.json({ data: null, error: "tipo_arreglo_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
+  if (body.empleado_id != null && !isValidUuid(body.empleado_id)) {
+    return Response.json({ data: null, error: "empleado_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
 
   const { data, error } = await supabase.rpc("rpc_crear_producto_inline_para_arreglo", {
     p_arreglo_id: arregloId,
@@ -142,12 +167,17 @@ async function createRepuestoConProductoNuevo(
     p_precio_compra: precioCompra,
     p_precio_venta: precioVenta,
     p_cantidad: cantidad,
+    p_tipo_arreglo_id: body.tipo_arreglo_id ?? null,
+    p_empleado_id: body.empleado_id ?? null,
   });
 
   if (error || !data) {
     const mapped = mapInlineRpcError(error);
     return Response.json({ data: null, error: mapped.message } satisfies UpsertRepuestoLineaResponse, { status: mapped.status });
   }
+
+  await syncArregloDescripcion(supabase, arregloId);
+  await statsService.onDataChanged(supabase);
 
   return Response.json({ data: { operacion_id: String(data) }, error: null } satisfies UpsertRepuestoLineaResponse, { status: 200 });
 }

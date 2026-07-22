@@ -6,7 +6,6 @@ import {
 } from "./ArregloFormFields";
 
 const base: ArregloFormFieldsValues = {
-  tipo: "Mecanica",
   estado: "SIN_INICIAR",
   fecha: "2026-01-15",
   km: "123",

@@ -36,10 +36,16 @@ export default function GraficoTooltip({
     if (!active || !payload?.length) return null;
 
     const nested = payload[0]?.payload ?? {};
+    const sliceColor =
+        payload[0]?.color ??
+        payload[0]?.fill ??
+        payload[0]?.stroke ??
+        (nested.fill as string | undefined) ??
+        (nested.color as string | undefined);
 
     const rows = extraRows
         ? extraRows
-              .filter(({ key }) => Number(nested[key] ?? 0) !== 0)
+              .filter(({ key }) => nested[key] !== undefined && nested[key] !== null)
               .map(({ key, label, formatter: fmt }) => ({
                   key,
                   label,
@@ -64,20 +70,26 @@ export default function GraficoTooltip({
     return (
         <div className="border-border/50 bg-background min-w-[12rem] rounded-lg border px-3 py-2 text-xs shadow-xl">
             {titleKey && (
-                <div className="text-foreground mb-1 text-sm font-semibold">
-                    {String(nested[titleKey] ?? "")}
+                <div className="text-foreground mb-1.5 text-sm font-semibold flex items-center gap-2">
+                    {sliceColor && (
+                        <span
+                            style={{ backgroundColor: sliceColor }}
+                            className="inline-block size-3 rounded-[3px] shrink-0 border border-black/10 shadow-sm"
+                        />
+                    )}
+                    <span>{String(nested[titleKey] ?? "")}</span>
                 </div>
             )}
             {rows.map(({ key, label, formatted, color }) => (
-                <div key={key} className="flex items-center gap-1.5 text-muted-foreground">
-                    {color && (
+                <div key={key} className="flex items-center gap-2 text-muted-foreground py-0.5">
+                    {!titleKey && (color || sliceColor) && (
                         <span
-                            style={{ backgroundColor: color }}
-                            className="inline-block size-2 shrink-0"
+                            style={{ backgroundColor: color || sliceColor }}
+                            className="inline-block size-2.5 rounded-[2px] shrink-0 border border-black/10"
                         />
                     )}
-                    {label}:{" "}
-                    <span className="text-foreground font-medium">{formatted}</span>
+                    <span>{label}:</span>{" "}
+                    <span className="text-foreground font-medium ml-auto">{formatted}</span>
                 </div>
             ))}
         </div>

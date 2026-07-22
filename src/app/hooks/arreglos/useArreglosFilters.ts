@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import type { ArregloFilters } from "@/app/components/arreglos/ArregloFiltersModal";
 import { formatDateLabel } from "@/lib/fechas";
 
-export type ChipKind = "fechaRange" | "fechaDesde" | "fechaHasta" | "patente" | "tipo" | "estado";
+export type ChipKind = "fechaRange" | "fechaDesde" | "fechaHasta" | "patente" | "estado";
 export type Chip = { key: string; text: string; kind: ChipKind };
 
 type DateRange = { from: Date | null; to: Date | null };
@@ -15,7 +15,7 @@ function createEmptyFilters(): ArregloFilters {
     fechaDesde: "",
     fechaHasta: "",
     patente: "",
-    tipo: "",
+
     estado: "",
   };
 }
@@ -50,10 +50,7 @@ function matchesPatenteFilter(arreglo: Arreglo, patenteFilter: string) {
     .includes(patenteFilter);
 }
 
-function matchesTipoFilter(arreglo: Arreglo, tipoFilter: string) {
-  if (!tipoFilter) return true;
-  return String(arreglo?.tipo ?? "").toLowerCase().includes(tipoFilter);
-}
+
 
 function matchesEstadoFilter(arreglo: Arreglo, estadoFilter: string) {
   if (!estadoFilter) return true;
@@ -78,7 +75,7 @@ export function filterArreglos(
   if (!arreglos) return [];
   const query = params.search.trim().toLowerCase();
   const patenteFilter = params.filters.patente.trim().toLowerCase();
-  const tipoFilter = params.filters.tipo.trim().toLowerCase();
+
   const estadoFilter = params.filters.estado.trim().toLowerCase();
   const dateRange = getDateRange(params.filters);
 
@@ -86,7 +83,7 @@ export function filterArreglos(
     (a) =>
       matchesSearch(a, query) &&
       matchesPatenteFilter(a, patenteFilter) &&
-      matchesTipoFilter(a, tipoFilter) &&
+
       matchesEstadoFilter(a, estadoFilter) &&
       matchesDateRange(a, dateRange)
   );
@@ -135,13 +132,7 @@ export function useArreglosFilters(arreglos?: Arreglo[]) {
       });
     }
 
-    if (filters.tipo.trim()) {
-      items.push({
-        key: "tipo",
-        text: filters.tipo.trim(),
-        kind: "tipo",
-      });
-    }
+
 
     if (filters.estado.trim()) {
       items.push({
@@ -165,8 +156,7 @@ export function useArreglosFilters(arreglos?: Arreglo[]) {
           return { ...prev, fechaHasta: "" };
         case "patente":
           return { ...prev, patente: "" };
-        case "tipo":
-          return { ...prev, tipo: "" };
+
         case "estado":
           return { ...prev, estado: "" };
         default:

@@ -1,72 +1,82 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { ServiceError, type ServiceResult, toServiceError } from "@/app/api/serviceError";
+import { ServiceError, toServiceError } from "@/app/api/serviceError";
 import { buildArregloDescripcion } from "@/lib/arreglos";
-import { detalleArregloService } from "./detalleArregloService";
 
-export async function computeArregloDescripcion(
-  supabase: SupabaseClient,
-  arregloId: string,
-  overrides?: { tipo?: string }
-): Promise<ServiceResult<string>> {
-  const { data: arregloRow, error: arregloError } = await supabase
-    .from("arreglos")
-    .select("tipo, detalle_form_custom(metadata)")
-    .eq("id", arregloId)
-    .single();
 
-  if (arregloError) {
-    return { data: null, error: toServiceError(arregloError) };
-  }
-
-  const { data: detalles, error: detallesError } = await detalleArregloService.listByArregloId(
-    supabase,
-    arregloId
-  );
-
-  if (detallesError) {
-    return { data: null, error: detallesError };
-  }
-
-console.log("arregloRow", arregloRow);
-
-  return {
-    data: buildArregloDescripcion({
-      tipo: overrides?.tipo ?? arregloRow?.tipo,
-      detalles,
-      detalleFormulario: arregloRow?.detalle_form_custom ?? null,
-    }),
-    error: null,
-  };
-}
 
 export async function syncArregloDescripcion(
   supabase: SupabaseClient,
-  arregloId: string,
-  overrides?: { tipo?: string }
+  arregloId: string
 ): Promise<{ descripcion: string | null; error: ServiceError | null }> {
-  const { data: descripcion, error: descripcionError } = await computeArregloDescripcion(
-    supabase,
-    arregloId,
-    overrides
+  const { data: rpcData, error: rpcError } = await supabase.rpc(
+    "rpc_get_arreglo_detalle",
+    { p_arreglo_id: arregloId }
   );
 
-  if (descripcionError || !descripcion) {
-    return { descripcion: null, error: descripcionError ?? ServiceError.NotFound };
+  if (rpcError || !rpcData) {
+    return { descripcion: null, error: rpcError ? toServiceError(rpcError) : ServiceError.NotFound };
   }
+
+  const rpc = rpcData as {
+    arreglo?: unknown;
+    detalles?: unknown[];
+    asignaciones?: unknown[];
+  };
+
+  const detalles = Array.isArray(rpc.detalles) ? rpc.detalles : [];
+  const asignaciones = Array.isArray(rpc.asignaciones) ? rpc.asignaciones : [];
+
+  const tipoIds = new Set<string>();
+  const empleadoIds = new Set<string>();
+
+  (detalles as Record<string, unknown>[]).forEach((d) => {
+    if (typeof d.tipo_arreglo_id === "string") tipoIds.add(d.tipo_arreglo_id);
+    if (typeof d.empleado_id === "string") empleadoIds.add(d.empleado_id);
+  });
+
+  (asignaciones as Record<string, unknown>[]).forEach((a) => {
+    if (Array.isArray(a.lineas)) {
+      (a.lineas as Record<string, unknown>[]).forEach((l) => {
+        if (typeof l.tipo_arreglo_id === "string") tipoIds.add(l.tipo_arreglo_id);
+        if (typeof l.empleado_id === "string") empleadoIds.add(l.empleado_id);
+      });
+    }
+  });
+
+  const tiposArray = Array.from(tipoIds);
+  const empleadosArray = Array.from(empleadoIds);
+
+  const { data: detalleFormularioRows } = await supabase
+    .from("detalle_form_custom")
+    .select("metadata")
+    .eq("arreglo_id", arregloId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+    
+  const detalleFormulario = detalleFormularioRows?.[0] ?? null;
+
+  const descripcion = buildArregloDescripcion({
+
+    detalles: detalles as Record<string, unknown>[],
+    detalleFormulario,
+  });
+
+  const updatePayload = {
+    descripcion,
+
+    tipos: tiposArray,
+    empleados: empleadosArray,
+  };
 
   const { data: updatedRow, error: updateError } = await supabase
     .from("arreglos")
-    .update({ descripcion })
+    .update(updatePayload)
     .eq("id", arregloId)
     .select("id")
     .maybeSingle();
 
-  if (updateError) {
-    return { descripcion: null, error: toServiceError(updateError) };
-  }
-
-  if (!updatedRow?.id) {
-    return { descripcion: null, error: ServiceError.NotFound };
+  if (updateError || !updatedRow?.id) {
+    return { descripcion: null, error: updateError ? toServiceError(updateError) : ServiceError.NotFound };
   }
 
   return { descripcion, error: null };

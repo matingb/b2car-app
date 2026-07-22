@@ -31,11 +31,26 @@ type ArreglosContextType = {
   ) => Promise<Arreglo | null>;
   remove: (id: string | number) => Promise<void>;
 
-  createDetalle: (arregloId: string | number, input: { descripcion: string; cantidad: number; valor: number }) => Promise<void>;
+  createDetalle: (
+    arregloId: string | number,
+    input: {
+      descripcion: string;
+      cantidad: number;
+      valor: number;
+      tipo_arreglo_id?: string | null;
+      empleado_id?: string | null;
+    }
+  ) => Promise<void>;
   updateDetalle: (
     arregloId: string | number,
     detalleId: string,
-    patch: Partial<{ descripcion: string; cantidad: number; valor: number }>
+    patch: Partial<{
+      descripcion: string;
+      cantidad: number;
+      valor: number;
+      tipo_arreglo_id: string | null;
+      empleado_id: string | null;
+    }>
   ) => Promise<void>;
   deleteDetalle: (arregloId: string | number, detalleId: string) => Promise<void>;
 
@@ -120,7 +135,16 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchAll, tallerSeleccionadoId]);
 
-  const createDetalle = useCallback(async (arregloId: string | number, input: { descripcion: string; cantidad: number; valor: number }) => {
+  const createDetalle = useCallback(async (
+    arregloId: string | number,
+    input: {
+      descripcion: string;
+      cantidad: number;
+      valor: number;
+      tipo_arreglo_id?: string | null;
+      empleado_id?: string | null;
+    }
+  ) => {
     setLoading(true);
     try {
       const { error } = await arreglosClient.createDetalle(arregloId, input);
@@ -134,7 +158,13 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
   const updateDetalle = useCallback(async (
     arregloId: string | number,
     detalleId: string,
-    patch: Partial<{ descripcion: string; cantidad: number; valor: number }>
+    patch: Partial<{
+      descripcion: string;
+      cantidad: number;
+      valor: number;
+      tipo_arreglo_id: string | null;
+      empleado_id: string | null;
+    }>
   ) => {
     setLoading(true);
     try {

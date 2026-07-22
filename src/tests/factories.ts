@@ -65,7 +65,6 @@ export const createArreglo = (overrides: Partial<Arreglo> = {}): Arreglo => {
       nombre: "Taller 1",
       ubicacion: "Ubicación 1",
     },
-    tipo: 'Mantenimiento',
     estado: 'SIN_INICIAR',
     descripcion: 'Cambio de aceite',
     kilometraje_leido: 50000,
@@ -88,7 +87,6 @@ export const createCreateArregloRequest = (
   return {
     vehiculo_id: "v1",
     taller_id: "t1",
-    tipo: "Service",
     estado: "SIN_INICIAR",
     kilometraje_leido: 123,
     fecha: new Date().toISOString(),
@@ -363,7 +361,15 @@ export const createArregloDetalleData = (
   return {
     arreglo,
     detalles: [
-      { id: "d1", arreglo_id: String(arreglo.id), descripcion: "Mano de obra", cantidad: 2, valor: 1500 },
+      {
+        id: "d1",
+        arreglo_id: String(arreglo.id),
+        descripcion: "Mano de obra",
+        cantidad: 2,
+        valor: 1500,
+        tipo_arreglo_id: null,
+        empleado_id: null,
+      },
     ],
     asignaciones: [
       {
@@ -380,6 +386,8 @@ export const createArregloDetalleData = (
             monto_unitario: 5000,
             delta_cantidad: -1,
             created_at: "2026-01-01",
+            tipo_arreglo_id: null,
+            empleado_id: null,
             producto: { id: "p1", codigo: "FIL-001", nombre: "Filtro" },
           },
         ],

@@ -7,12 +7,18 @@ import ArregloItem from "./ArregloItem";
 type Props = {
   arreglos: Arreglo[];
   onItemClick?: (arreglo: Arreglo) => void;
+  showObservaciones?: boolean;
+  mostrarObservaciones?: boolean;
 };
 
 export default function ArreglosList({
   arreglos,
   onItemClick,
+  showObservaciones,
+  mostrarObservaciones,
 }: Props) {
+  const shouldShowObs = showObservaciones ?? mostrarObservaciones;
+
   return (
     <>
       {arreglos.length === 0 ? (
@@ -26,6 +32,7 @@ export default function ArreglosList({
               key={arreglo.id}
               arreglo={arreglo}
               onClick={onItemClick}
+              showObservaciones={shouldShowObs}
             />
           ))}
         </div>
