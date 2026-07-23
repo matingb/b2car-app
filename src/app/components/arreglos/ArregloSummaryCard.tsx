@@ -78,23 +78,6 @@ export default function ArregloSummaryCard({
       .filter(Boolean);
   }, [data, empleados]);
 
-  const assignedTipos = useMemo(() => {
-    const ids = new Set<string>();
-    data.detalles.forEach((d) => {
-      if (d.categoria_arreglo_id) ids.add(d.categoria_arreglo_id);
-    });
-    data.asignaciones.forEach((a) => {
-      a.lineas.forEach((l) => {
-        if (l.categoria_arreglo_id) ids.add(l.categoria_arreglo_id);
-      });
-    });
-    const foundTipos = Array.from(ids)
-      .map((id) => categorias.find((t) => t.id === id))
-      .filter(Boolean);
-
-    return foundTipos;
-  }, [data, categorias]);
-
   const arreglo = data.arreglo;
   if (!arreglo) return null;
 
@@ -149,52 +132,43 @@ export default function ArregloSummaryCard({
     }
   };
 
-
   return (
     <section style={styles.container}>
       <Card style={{ padding: 0, overflow: "hidden", backgroundColor: COLOR.BACKGROUND.SECONDARY }}>
         {/* Top Header */}
         <div style={styles.header}>
           <div style={styles.headerLeft}>
-            <div style={styles.iconContainer}>
-              <Wrench size={24} color={COLOR.TEXT.CONTRAST} />
-            </div>
-            
-            <div style={styles.headerInfo}>
-                <h3 style={styles.title}>Arreglo #{arreglo.id.slice(-6)}</h3>
-                {/* Vehículo info */}
-                {arreglo.vehiculo ? (
-                  <div
-                    style={styles.vehiculoRow}
-                    onClick={handleNavigateToVehiculo}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div style={styles.patenteWrapper}>
-                      <CarFront size={16} color={COLOR.ICON.MUTED} />
-                      <span style={styles.patente}>{arreglo.vehiculo.patente}</span>
-                    </div>
-                    <div style={styles.hideOnMobileDivider} />
-                    <span style={styles.hideOnMobileText}>
-                      {arreglo.vehiculo.marca} {arreglo.vehiculo.modelo}
-                      {arreglo.vehiculo.fecha_patente ? ` (${arreglo.vehiculo.fecha_patente})` : ""}
+            {/* Vehículo info */}
+            {arreglo.vehiculo ? (
+              <Card
+                style={styles.vehiculoCard}
+                onClick={handleNavigateToVehiculo}
+                role="button"
+                tabIndex={0}
+              >
+                <div style={styles.vehiculoPatenteRow}>
+                  <CarFront size={16} color={COLOR.ICON.MUTED} />
+                  <span style={styles.patente}>{arreglo.vehiculo.patente}</span>
+                </div>
+                <div style={styles.divider} />
+                <span style={styles.vehiculoText}>
+                  {arreglo.vehiculo.marca} {arreglo.vehiculo.modelo}
+                  {arreglo.vehiculo.fecha_patente ? ` (${arreglo.vehiculo.fecha_patente})` : ""}
+                </span>
+                {arreglo.vehiculo.nro_interno && (
+                  <>
+                    <div style={styles.divider} />
+                    <span style={styles.internalCode}>
+                      INT: {arreglo.vehiculo.nro_interno}
                     </span>
-                    
-                    {arreglo.vehiculo.nro_interno && (
-                      <>
-                        <div style={styles.hideOnMobileDivider} />
-                        <span style={styles.hideOnMobileInternalCode}>
-                          INT: {arreglo.vehiculo.nro_interno}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <span style={{ fontSize: 14, color: COLOR.TEXT.SECONDARY }}>Sin vehículo</span>
+                  </>
                 )}
-            </div>
+              </Card>
+            ) : (
+              <span style={{ fontSize: 14, color: COLOR.TEXT.SECONDARY }}>Sin vehículo</span>
+            )}
 
-            <span style={styles.hideOnMobilePipe}>|</span>
+            <span style={styles.pipe}>|</span>
 
             {/* Estado */}
             <div style={styles.estadoRow}>
@@ -249,6 +223,7 @@ export default function ArregloSummaryCard({
           </div>
         </div>
 
+        {/* Body Content */}
         <div style={styles.bodyContent}>
           <div style={styles.gridContainer}>
             {/* Block 1: Amount, Date, Mileage */}
@@ -283,7 +258,7 @@ export default function ArregloSummaryCard({
             <div style={styles.block2}>
               <div>
                 <span style={styles.blockLabelWithIcon}>
-                  <Wrench size={14} /> Categorías de Arreglo
+                  <Wrench size={14} /> Tipos de Arreglo
                 </span>
                 <ArregloCategoriasList
                   categorias={arreglo.categorias?.map((id) => categorias.find((t) => t.id === id)) ?? []}
@@ -345,61 +320,37 @@ export default function ArregloSummaryCard({
 
 const styles = {
   container: {
-    width: "100%",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 16,
     marginTop: 16,
     fontFamily: "var(--font-geist-sans), sans-serif",
   },
   header: {
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    padding: "20px 24px",
+    padding: "12px 16px",
     display: "flex",
-    flexDirection: "column",
+    flexWrap: "wrap" as const,
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: 16,
-    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
   },
   headerLeft: {
     display: "flex",
-    alignItems: "flex-start",
-    gap: 16,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 9999,
-    display: "flex",
+    flexWrap: "wrap" as const,
     alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-    backgroundColor: COLOR.TEXT.PRIMARY,
+    gap: 12,
   },
-  headerInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 600,
-    color: COLOR.TEXT.PRIMARY,
-    letterSpacing: "-0.025em",
-    margin: 0,
-  },
-  vehiculoRow: {
+  vehiculoCard: {
     display: "flex",
-    flexDirection: "column",
-    gap: 8,
-    marginTop: 4,
-    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 16,
-    },
+    flexWrap: "wrap" as const,
+    alignItems: "center",
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    padding: "6px 12px",
+    gap: 12,
   },
-  patenteWrapper: {
+  vehiculoPatenteRow: {
     display: "flex",
     alignItems: "center",
     gap: 6,
@@ -410,51 +361,45 @@ const styles = {
     color: COLOR.TEXT.PRIMARY,
     fontSize: 14,
   },
-  hideOnMobileDivider: {
+  divider: {
     width: 1,
     height: 16,
     backgroundColor: COLOR.BORDER.DEFAULT,
-    display: "none",
-    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "block",
-    },
   },
-  hideOnMobileText: {
+  vehiculoText: {
     fontSize: 14,
     fontWeight: 500,
     color: COLOR.TEXT.SECONDARY,
     display: "none",
-    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "block",
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      display: "block"
     },
   },
-  hideOnMobileInternalCode: {
+  internalCode: {
     fontSize: 12,
     fontWeight: 500,
     color: COLOR.TEXT.TERTIARY,
-    textTransform: "uppercase",
+    textTransform: "uppercase" as const,
     letterSpacing: "0.05em",
     display: "none",
-    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "block",
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      display: "block"
     },
   },
-  hideOnMobilePipe: {
+  pipe: {
     color: COLOR.BORDER.DEFAULT,
-    display: "none",
-    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      display: "block",
-    },
   },
   estadoRow: {
     display: "flex",
+    flexWrap: "wrap" as const,
     alignItems: "center",
-    gap: 8,
+    gap: 12,
   },
   paymentStatus: {
     display: "flex",
-    flexDirection: "column",
-    gap: 4,
+    alignItems: "center",
+    paddingLeft: 12,
+    borderLeft: `1px solid ${COLOR.BORDER.DEFAULT}`,
   },
   headerActions: {
     display: "flex",
@@ -463,16 +408,17 @@ const styles = {
   },
   bodyContent: {
     padding: 24,
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 24,
   },
   gridContainer: {
-    display: "grid",
-    gridTemplateColumns: "1fr",
+    display: "flex",
+    flexWrap: "wrap" as const,
     gap: 32,
-    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      gridTemplateColumns: "1fr 1fr",
-    },
   },
   block1: {
+    flex: "1 1 300px",
     display: "flex",
     flexDirection: "column" as const,
     gap: 16,
@@ -504,9 +450,12 @@ const styles = {
     letterSpacing: "-0.025em",
   },
   detailsGrid: {
-    gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+    display: "flex",
+    flexWrap: "wrap" as const,
+    gap: 12,
   },
   detailBox: {
+    flex: "1 1 130px",
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 8,
@@ -519,9 +468,11 @@ const styles = {
     fontSize: 14,
     fontWeight: 500,
     color: COLOR.TEXT.PRIMARY,
+    marginTop: 4,
     whiteSpace: "nowrap" as const,
   },
   block2: {
+    flex: "1 1 300px",
     display: "flex",
     flexDirection: "column" as const,
     gap: 20,
@@ -555,10 +506,10 @@ const styles = {
     color: COLOR.TEXT.SECONDARY,
     fontSize: 14,
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
-    padding: 12,
-    borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 8,
+    padding: 12,
     margin: 0,
     lineHeight: 1.5,
   },
-} as const;
+};

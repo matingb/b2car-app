@@ -23,8 +23,6 @@ import { formatDateLabel } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
-import { useEmpleados } from "@/app/providers/EmpleadosProvider";
-import { useBreakpoint } from "@/app/providers/BreakpointProvider";
 import ArregloCategoriasList from "@/app/components/arreglos/ArregloCategoriasList";
 
 type EmpleadoInfo = {
@@ -48,8 +46,6 @@ const AVATAR_COLORS = [
   { bg: "#fde68a", text: "#78350f" }, // amber
 ];
 
-
-
 function getFullName(emp: EmpleadoInfo | string): string {
   if (typeof emp === "string") return emp;
   return `${emp.nombre || ""} ${emp.apellido || ""}`.trim();
@@ -64,15 +60,11 @@ export default function ArregloItem({
 }: Props) {
   const { talleres } = useTenant();
   const { categorias } = useCategoriasArreglo();
-  const { empleados } = useEmpleados();
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
   const [isBadgeOpen, setIsBadgeOpen] = useState(false);
-  const { isMd, isLg, isXl } = useBreakpoint();
 
   const arreglo = initialArreglo;
-
-  const categoriasLimit = isLg ? 2 : 3;
 
   const shouldShowObservaciones =
     showObservaciones ?? mostrarObservaciones ?? false;
@@ -88,14 +80,6 @@ export default function ArregloItem({
     (arreglo as unknown as { tecnicos?: EmpleadoInfo[] }).tecnicos ||
     [];
 
-  const resolvedEmpleados = rawEmpleados.map(emp => {
-    if (typeof emp === "string") {
-      const found = empleados.find(e => e.id === emp);
-      return found ? found : { id: emp, nombre: emp };
-    }
-    return emp;
-  });
-
   return (
     <div 
       style={styles.wrapper(isBadgeOpen || isHovered)}
@@ -109,15 +93,15 @@ export default function ArregloItem({
         }}
         style={styles.card}
       >
-        <div style={styles.cardBody(isMd)}>
+        <div style={styles.cardBody}>
           {/* Sección Izquierda: Información Principal */}
-          <div style={styles.mainInfoSection(isMd)}>
-            <div style={styles.topRow(isXl)}>
+          <div style={styles.mainInfoSection}>
+            <div style={styles.topRow}>
               <h4 style={styles.mainTitle}>
                 {arreglo.descripcion || "Arreglo sin descripción"}
               </h4>
-              <div style={styles.badgesGroup(isMd)}>
-                <ArregloPagoBadge estaPago={arreglo.esta_pago} arregloId={arreglo.id} size="sm" hideTextOnMobile />
+              <div style={styles.badgesGroup}>
+                <ArregloPagoBadge estaPago={arreglo.esta_pago} arregloId={arreglo.id} size="sm" />
                 <ArregloEstadoBadge 
                   estado={arreglo.estado} 
                   size="sm" 
@@ -131,28 +115,27 @@ export default function ArregloItem({
             <div style={styles.metaRow}>
               <div style={styles.metaItem}>
                 <CarFront size={16} color={COLOR.ICON.MUTED} />
-                <span style={styles.hideOnMobileInline(isMd)}>{vehiculoText}</span>
-                <span style={styles.showOnMobileInline(isMd)}>{arreglo.vehiculo?.patente || "Sin vehículo"}</span>
+                <span style={styles.metaTextBold}>{vehiculoText}</span>
               </div>
 
               {arreglo.vehiculo?.nombre_cliente && (
                 <div style={styles.metaItem}>
                   <User size={16} color={COLOR.ICON.MUTED} />
-                  <span style={styles.hideOnMobileInlineStyleSecondary(isMd)}>Cliente:</span>
+                  <span style={{ color: COLOR.TEXT.SECONDARY }}>Cliente:</span>
                   <span style={styles.metaTextBold}>
                     {arreglo.vehiculo.nombre_cliente}
                   </span>
                 </div>
               )}
 
-              {resolvedEmpleados.length > 0 && (
-                <div style={styles.hideOnMobileFlex(isMd)}>
+              {rawEmpleados.length > 0 && (
+                <div style={styles.metaItem}>
                   <Users size={16} color={COLOR.ICON.MUTED} />
-                  <span style={styles.textSecondary}>
-                    {resolvedEmpleados.length === 1 ? "Técnico:" : "Técnicos:"}
+                  <span style={{ color: COLOR.TEXT.SECONDARY }}>
+                    {rawEmpleados.length === 1 ? "Técnico:" : "Técnicos:"}
                   </span>
                   <div style={styles.avatarsContainer}>
-                    {resolvedEmpleados.map((emp, idx) => {
+                    {rawEmpleados.map((emp, idx) => {
                       const colorScheme =
                         AVATAR_COLORS[idx % AVATAR_COLORS.length];
                       const name = getFullName(emp);
@@ -160,7 +143,7 @@ export default function ArregloItem({
                         <div
                           key={idx}
                           title={name}
-                          style={styles.avatarItem(idx, resolvedEmpleados.length - idx)}
+                          style={styles.avatarItem(idx, rawEmpleados.length - idx)}
                         >
                           <Avatar
                             nombre={name}
@@ -175,21 +158,23 @@ export default function ArregloItem({
                 </div>
               )}
             </div>
+
+            {/* Categorías */}
             {arreglo.categorias && arreglo.categorias.length > 0 && (
-              <div style={styles.hideOnMobileFlexCategorias(isMd)}>
+              <div style={styles.metaItem}>
                 <Wrench size={16} color={COLOR.ICON.MUTED} />
-                <span style={styles.textSecondary}>Categorías:</span>
+                <span style={{ color: COLOR.TEXT.SECONDARY }}>Categorías:</span>
                 <ArregloCategoriasList
                   categorias={arreglo.categorias.map(id => ({ id, nombre: categorias.find(t => t.id === id)?.nombre || "Desconocido" }))}
                   size="sm"
-                  limit={categoriasLimit}
+                  limit={3}
                 />
               </div>
             )}
           </div>
 
-          {/* Sección Derecha: Fecha, Precio y Taller (Centrado) */}
-          <div style={styles.rightInfoSection(hasObservaciones, isMd)}>
+          {/* Sección Derecha: Fecha, Precio y Taller */}
+          <div style={styles.rightInfoSection(hasObservaciones)}>
             <div style={styles.dateContainer}>
               <Calendar size={15} color={COLOR.ICON.MUTED} />
               <span>{formatDateLabel(arreglo.fecha)}</span>
@@ -205,7 +190,7 @@ export default function ArregloItem({
             {talleres.length > 1 && arreglo.taller ? (
               <div
                 data-testid="arreglo-item-taller-label"
-                style={styles.tallerContainer(isMd)}
+                style={styles.tallerContainer}
                 title={arreglo.taller.ubicacion ?? undefined}
               >
                 <Building2 size={14} color={COLOR.ICON.MUTED} />
@@ -221,7 +206,7 @@ export default function ArregloItem({
             <FileText
               size={16}
               color={COLOR.ICON.MUTED}
-              style={styles.observacionesIcon}
+              style={{ flexShrink: 0, marginTop: 2 }}
             />
             <span style={styles.observacionesText}>
               &quot;{arreglo.observaciones}&quot;
@@ -247,29 +232,26 @@ const styles = {
     borderRadius: 12,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
   },
-  cardBody: (isMd: boolean) => ({
+  cardBody: {
     display: "flex",
-    flexDirection: isMd ? "row" as const : "column" as const,
+    flexWrap: "wrap" as const,
     width: "100%",
-  }),
-  mainInfoSection: (isMd: boolean) => ({
-    flex: 1,
+  },
+  mainInfoSection: {
+    flex: "1 1 350px",
     padding: "16px 20px",
     display: "flex",
     flexDirection: "column" as const,
     justifyContent: "center",
-    gap: 6,
-    borderBottom: isMd ? "none" : `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRight: isMd ? `1px solid ${COLOR.BORDER.SUBTLE}` : "none",
-  }),
-  topRow: (isXl: boolean) => ({
+    gap: 10,
+  },
+  topRow: {
     display: "flex",
-    flexDirection: isXl ? "row" as const : "column" as const,
-    gap: 6,
-    flexWrap: isXl ? "nowrap" as const : undefined,
-    alignItems: isXl ? "flex-start" : undefined,
-    justifyContent: isXl ? "space-between" : undefined,
-  }),
+    flexWrap: "wrap" as const,
+    gap: 8,
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
   mainTitle: {
     fontSize: 17,
     fontWeight: 700,
@@ -278,18 +260,18 @@ const styles = {
     lineHeight: 1.3,
     paddingRight: 8,
   },
-  badgesGroup: (isMd: boolean) => ({ // Using isMd as approximation for sm in original css (original had sm)
+  badgesGroup: {
     display: "flex",
     alignItems: "center",
     gap: 8,
     flexShrink: 0,
-    flexWrap: isMd ? "nowrap" as const : "wrap" as const, // original was sm for nowrap
-  }),
+    flexWrap: "wrap" as const,
+  },
   metaRow: {
     display: "flex",
     flexWrap: "wrap" as const,
     alignItems: "center",
-    rowGap: 6,
+    rowGap: 8,
     columnGap: 20,
     fontSize: 13,
     color: COLOR.TEXT.SECONDARY,
@@ -297,20 +279,13 @@ const styles = {
   metaItem: {
     display: "flex",
     alignItems: "center",
+    flexWrap: "wrap" as const,
     gap: 6,
+    fontSize: 13,
   },
   metaTextBold: {
     fontWeight: 600,
     color: COLOR.TEXT.PRIMARY,
-  },
-  textPrimary: {
-    color: COLOR.TEXT.PRIMARY,
-  },
-  textSecondary: {
-    color: COLOR.TEXT.SECONDARY,
-  },
-  textTertiary: {
-    color: COLOR.TEXT.TERTIARY,
   },
   avatarsContainer: {
     display: "flex",
@@ -324,19 +299,17 @@ const styles = {
     boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
     display: "flex",
   }),
-  rightInfoSection: (hasObservaciones: boolean, isMd: boolean) => ({
+  rightInfoSection: (hasObservaciones: boolean) => ({
+    flex: "1 1 190px",
     padding: "16px 20px",
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     display: "flex",
-    flexDirection: "column" as const,
+    flexWrap: "wrap" as const,
+    flexDirection: "row" as const,
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    width: isMd ? 160 : undefined,
-    textAlign: isMd ? "center" as const : undefined,
-    borderTopRightRadius: isMd ? 12 : undefined,
-    borderBottomLeftRadius: hasObservaciones ? 0 : (isMd ? 0 : 12),
-    borderBottomRightRadius: hasObservaciones ? 0 : 12,
+    justifyContent: "space-between",
+    gap: 12,
+    borderLeft: `1px solid ${COLOR.BORDER.SUBTLE}`,
   }),
   dateContainer: {
     display: "flex",
@@ -353,15 +326,15 @@ const styles = {
     color: COLOR.ACCENT.PRIMARY,
     letterSpacing: "-0.5px",
   },
-  tallerContainer: (isMd: boolean) => ({
-    display: isMd ? "flex" : "none",
+  tallerContainer: {
+    display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
     fontSize: 12,
     fontWeight: 500,
     color: COLOR.TEXT.TERTIARY,
-  }),
+  },
   observacionesContainer: {
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
@@ -372,10 +345,6 @@ const styles = {
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
   },
-  observacionesIcon: {
-    flexShrink: 0,
-    marginTop: 2,
-  },
   observacionesText: {
     fontSize: 13,
     fontStyle: "italic",
@@ -383,30 +352,4 @@ const styles = {
     color: COLOR.TEXT.SECONDARY,
     lineHeight: 1.4,
   },
-  hideOnMobileInline: (isMd: boolean) => ({
-    display: isMd ? "inline" : "none",
-    fontWeight: 600,
-    color: COLOR.TEXT.PRIMARY,
-  }),
-  showOnMobileInline: (isMd: boolean) => ({
-    display: isMd ? "none" : "inline",
-    fontWeight: 600,
-    color: COLOR.TEXT.PRIMARY,
-  }),
-  hideOnMobileInlineStyleSecondary: (isMd: boolean) => ({
-    display: isMd ? "inline" : "none",
-    color: COLOR.TEXT.SECONDARY,
-  }),
-  hideOnMobileFlex: (isMd: boolean) => ({
-    display: isMd ? "flex" : "none",
-    alignItems: "center",
-    gap: 6,
-  }),
-  hideOnMobileFlexCategorias: (isMd: boolean) => ({
-    display: isMd ? "flex" : "none",
-    alignItems: "center",
-    gap: 6,
-    fontSize: 13,
-  }),
 } as const;
-
