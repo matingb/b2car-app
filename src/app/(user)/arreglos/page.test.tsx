@@ -49,6 +49,30 @@ vi.mock("@/app/providers/VehiculosProvider", () => ({
   }),
 }));
 
+vi.mock("@/app/providers/ToastProvider", () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  }),
+}));
+
+vi.mock("@/app/providers/BreakpointProvider", () => ({
+  useBreakpoint: () => "lg",
+}));
+
+vi.mock("@/app/providers/EmpleadosProvider", () => ({
+  useEmpleados: () => ({
+    empleados: [],
+  }),
+}));
+
+vi.mock("@/app/providers/CategoriasArregloProvider", () => ({
+  useCategoriasArreglo: () => ({
+    categorias: [],
+  }),
+}));
+
 import ArreglosPage from "./page";
 
 async function aplicarFiltros(params: {

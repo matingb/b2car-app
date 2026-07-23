@@ -12,6 +12,10 @@ vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
   },
 }));
 
+vi.mock("@/app/api/arreglos/arregloDescripcionService", () => ({
+  syncArregloDescripcion: vi.fn().mockResolvedValue({ descripcion: null, error: null }),
+}));
+
 describe("POST /api/arreglos/[id]/repuestos", () => {
   const rpc = vi.fn();
   const mockSupabase = { rpc } as unknown as Awaited<ReturnType<typeof createClient>>;

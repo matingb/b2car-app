@@ -75,15 +75,16 @@ describe('empresaClient', () => {
                 email: 'info@techsolutions.com',
                 direccion: 'Torre Empresarial 100',
             };
-            const clienteEsperado = createCliente({
-                id: "2",
+            const clienteEsperado = {
+                id: 2,
                 nombre: 'Tech Solutions S.A.',
-                tipo_cliente: TipoCliente.EMPRESA,
+                cuit: '30-98765432-1',
                 telefono: '0987654321',
                 email: 'info@techsolutions.com',
                 direccion: 'Torre Empresarial 100',
-                cuit: '30-98765432-1',
-            });
+                tipo_cliente: TipoCliente.EMPRESA,
+                codigo_pais: undefined,
+            };
 
             mockApi.mockResolvedValueOnce({
                 ok: true,

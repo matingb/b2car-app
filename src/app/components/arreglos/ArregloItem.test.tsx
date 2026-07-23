@@ -33,6 +33,28 @@ vi.mock("@/app/providers/ArreglosProvider", () => ({
   }),
 }));
 
+vi.mock("@/app/providers/CategoriasArregloProvider", () => ({
+  useCategoriasArreglo: () => ({
+    categorias: [],
+  }),
+}));
+
+vi.mock("@/app/providers/EmpleadosProvider", () => ({
+  useEmpleados: () => ({
+    empleados: [],
+  }),
+}));
+
+vi.mock("@/app/providers/BreakpointProvider", () => ({
+  useBreakpoint: () => ({
+    isSm: false,
+    isMd: false,
+    isLg: false,
+    isXl: false,
+    is2Xl: false,
+  }),
+}));
+
 vi.mock("@/app/providers/ToastProvider", () => ({
   useToast: () => ({
     success: vi.fn(),
@@ -85,7 +107,7 @@ describe("ArregloItem", () => {
       />
     );
 
-    expect(screen.getByText("EN PROGRESO")).toBeInTheDocument();
+    expect(screen.getByText("En progreso")).toBeInTheDocument();
   });
 
   it("muestra u oculta las observaciones según la prop showObservaciones", () => {

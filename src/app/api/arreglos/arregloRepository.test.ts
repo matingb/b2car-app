@@ -88,7 +88,7 @@ describe("supabaseArregloRepository", () => {
         "nombre_cliente.ilike.%Juan%,patente.ilike.%Juan%"
       );
       expect(supabase.__chains.arreglos.or).toHaveBeenCalledWith(
-        "descripcion.ilike.%Juan%,tipo.ilike.%Juan%,observaciones.ilike.%Juan%,vehiculo_id.in.(v1)"
+        "descripcion.ilike.%Juan%,observaciones.ilike.%Juan%,vehiculo_id.in.(v1)"
       );
     });
 

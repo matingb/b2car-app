@@ -7,6 +7,9 @@ import { TenantProvider } from "@/app/providers/TenantProvider";
 import { ModalMessageProvider } from "@/app/providers/ModalMessageProvider";
 import ToastProvider from "@/app/providers/ToastProvider";
 import { SheetProvider } from "@/app/providers/SheetProvider";
+import { CategoriasArregloProvider } from "@/app/providers/CategoriasArregloProvider";
+import { EmpleadosProvider } from "@/app/providers/EmpleadosProvider";
+import { BreakpointProvider } from "@/app/providers/BreakpointProvider";
 import { createArreglo, createCliente, createVehiculo } from "@/tests/factories";
 import { ROUTES } from "@/routing/routes";
 import { TipoCliente } from "@/model/types";
@@ -56,6 +59,8 @@ vi.mock("@/clients/clientes/clientesClient", () => ({
   },
 }));
 
+
+
 vi.mock("@/clients/arreglosClient", () => ({
   arreglosClient: {
     getAll: (...args: unknown[]) => arreglosGetAllMock(...args),
@@ -80,15 +85,21 @@ vi.mock("@/app/hooks/useWhatsAppMessage", () => ({
 function TestShell() {
   return (
     <TenantProvider>
-      <SheetProvider>
-        <ModalMessageProvider>
-          <ToastProvider>
-            <VehiculosLayout>
-              <VehiculoDetailsPage />
-            </VehiculosLayout>
-          </ToastProvider>
-        </ModalMessageProvider>
-      </SheetProvider>
+      <BreakpointProvider>
+        <CategoriasArregloProvider>
+          <EmpleadosProvider>
+            <SheetProvider>
+              <ModalMessageProvider>
+                <ToastProvider>
+                  <VehiculosLayout>
+                    <VehiculoDetailsPage />
+                  </VehiculosLayout>
+                </ToastProvider>
+              </ModalMessageProvider>
+            </SheetProvider>
+          </EmpleadosProvider>
+        </CategoriasArregloProvider>
+      </BreakpointProvider>
     </TenantProvider>
   );
 }
@@ -192,7 +203,8 @@ describe("VehiculoDetailsPage integration", () => {
 
     render(<TestShell />);
 
-    expect(await screen.findByText("AA123BB - Toyota Corolla")).toBeInTheDocument();
+    const elements = await screen.findAllByText("AA123BB - Toyota Corolla");
+    expect(elements.length).toBeGreaterThan(0);
 
     await user.click(screen.getByTestId("arreglos-open-create"));
 

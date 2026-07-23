@@ -5,6 +5,20 @@ import { getArregloEstadoMeta, getArregloEstadoProgress } from "./hooks/useArreg
 import { COLOR } from "@/theme/theme";
 import type { EstadoArreglo } from "@/model/types";
 
+vi.mock("@/app/providers/ArreglosProvider", () => ({
+  useArreglos: () => ({
+    updateArreglo: vi.fn(),
+  }),
+}));
+
+vi.mock("@/app/providers/ToastProvider", () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  }),
+}));
+
 describe("getArregloEstadoMeta", () => {
   it("mapea cada estado conocido a colores semanticos esperados", () => {
     const cases: Array<{
@@ -108,7 +122,7 @@ describe("ArregloEstadoBadge", () => {
       screen.getByRole("listbox", { name: "Opciones de estado de arreglo" })
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("option", { name: "TERMINADO" }));
+    fireEvent.click(screen.getByRole("option", { name: "Terminado" }));
 
     expect(onStateChange).toHaveBeenCalledWith("TERMINADO");
     expect(

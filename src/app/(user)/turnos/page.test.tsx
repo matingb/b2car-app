@@ -57,6 +57,12 @@ vi.mock("@/app/components/ui/ScreenHeader", () => ({
   default: () => null,
 }));
 
+vi.mock("@/app/providers/VehiculosProvider", () => ({
+  useVehiculos: () => ({
+    vehiculos: [],
+  }),
+}));
+
 import TurnosPage from "./page";
 
 describe("TurnosPage", () => {

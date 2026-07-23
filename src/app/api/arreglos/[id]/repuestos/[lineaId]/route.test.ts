@@ -20,6 +20,10 @@ vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
   },
 }));
 
+vi.mock("@/app/api/arreglos/arregloDescripcionService", () => ({
+  syncArregloDescripcion: vi.fn().mockResolvedValue({ descripcion: null, error: null }),
+}));
+
 import { createClient } from "@/supabase/server";
 import { repuestosService } from "@/app/api/arreglos/repuestos/repuestosService";
 

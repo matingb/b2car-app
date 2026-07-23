@@ -98,7 +98,7 @@ describe("Mutaciones /api/arreglos/[id]", () => {
     const req = new NextRequest("http://localhost/api/arreglos/a1", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ descripcion: "Service | Cambio aceite" }),
+      body: JSON.stringify({ observaciones: "Nuevas observaciones" }),
     });
 
     const params = Promise.resolve({ id: "a1" });
@@ -108,7 +108,7 @@ describe("Mutaciones /api/arreglos/[id]", () => {
     expect(arregloService.updateById).toHaveBeenCalledWith(
       mockSupabase,
       "a1",
-      expect.objectContaining({ descripcion: "Service | Cambio aceite" })
+      expect.objectContaining({ observaciones: "Nuevas observaciones" })
     );
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
     expect(statsService.onDataChanged).toHaveBeenCalledWith(mockSupabase, "TEN-1");

@@ -75,14 +75,15 @@ describe('particularClient', () => {
                 email: 'maria@example.com',
                 direccion: 'Calle Nueva 789',
             };
-            const clienteEsperado = createCliente({
-                id: "2",
+            const clienteEsperado = {
+                id: 2,
                 nombre: 'María García',
                 tipo_cliente: TipoCliente.PARTICULAR,
                 telefono: '0987654321',
                 email: 'maria@example.com',
                 direccion: 'Calle Nueva 789',
-            });
+                codigo_pais: undefined,
+            };
 
             mockApi.mockResolvedValueOnce({
                 ok: true,
