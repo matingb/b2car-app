@@ -20,7 +20,6 @@ export type StockItem = {
   costoUnitario: number;
   precioUnitario: number;
   proveedor: string;
-  ubicacion: string;
   showInStock: boolean;
   ultimaActualizacion: string;
   historialMovimientos: StockMovement[];

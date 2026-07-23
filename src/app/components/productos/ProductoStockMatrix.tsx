@@ -6,12 +6,16 @@ import NumberInput from "@/app/components/ui/NumberInput";
 import Button from "@/app/components/ui/Button";
 import IconButton from "@/app/components/ui/IconButton";
 import StockProgressBar from "@/app/components/stock/StockProgressBar";
-import StockStatusPill from "@/app/components/stock/StockStatusPill";
-import { getStockStatus } from "@/lib/stock";
+import StockStatusIcon from "@/app/components/stock/StockStatusIcon";
+import { getStockPercentage, getStockStatus, type StockStatus } from "@/lib/stock";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
-import { Plus, Save, Trash } from "lucide-react";
-import type { SaveProductoStockInput, SaveProductoStockResult, StockRegistro } from "@/app/providers/ProductosProvider";
+import { Pencil, Plus, Save, Trash, X } from "lucide-react";
+import type {
+  SaveProductoStockInput,
+  SaveProductoStockResult,
+  StockRegistro,
+} from "@/app/providers/ProductosProvider";
 import type { Taller } from "@/model/types";
 
 type Props = {
@@ -46,6 +50,26 @@ function isValidDraft(draft: Draft) {
   );
 }
 
+function TallerIdentity({
+  taller,
+  configured,
+  status,
+}: {
+  taller: Taller;
+  configured: boolean;
+  status?: StockStatus;
+}) {
+  return (
+    <div css={styles.tallerBlock}>
+      <StockStatusIcon status={configured ? status : undefined} />
+      <div css={styles.tallerContent}>
+        <div css={styles.tallerName}>{taller.nombre}</div>
+        {taller.ubicacion ? <div css={styles.tallerMeta}>{taller.ubicacion}</div> : null}
+      </div>
+    </div>
+  );
+}
+
 function StockRow({
   productoId,
   taller,
@@ -64,22 +88,38 @@ function StockRow({
   const [draft, setDraft] = useState<Draft>(() => createDraft(stock));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const configured = Boolean(stock);
 
   useEffect(() => {
     setDraft(createDraft(stock));
     setError(null);
+    setIsEditing(false);
   }, [stock]);
 
-  const status = getStockStatus(draft);
+  const levels = isEditing || !stock ? draft : createDraft(stock);
+  const status = getStockStatus(levels);
   const valid = isValidDraft(draft);
-  const configured = Boolean(stock);
+
+  const startEditing = () => {
+    setDraft(createDraft(stock));
+    setError(null);
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setDraft(createDraft(stock));
+    setError(null);
+    setIsEditing(false);
+  };
 
   const handleSave = async () => {
     setError(null);
     if (!valid) {
-      setError("El stock debe ser positivo y el minimo no puede superar el maximo.");
+      setError("El stock debe ser positivo y el mínimo no puede superar el máximo.");
       return;
     }
+
     setSaving(true);
     try {
       const result = await onSave({
@@ -88,51 +128,64 @@ function StockRow({
         tallerId: taller.id,
         ...draft,
       });
+
       if (result.error) {
         setError(result.error);
+      } else {
+        setIsEditing(false);
       }
     } finally {
       setSaving(false);
     }
   };
 
+  const cardStyle = {
+    ...(configured ? styles.configuredCard : styles.unconfiguredCard),
+    ...(selected ? styles.selectedCard : {}),
+  };
+
   return (
-    <Card style={{ ...(selected ? styles.selectedCard : {}) }}>
-      <div css={configured ? styles.stockRow : styles.stockRowUnconfigured}>
-        <div style={styles.tallerBlock}>
-          <div style={styles.tallerName}>{taller.nombre}</div>
-          <div style={styles.tallerMeta}>{configured ? "Stock configurado" : "Sin stock configurado"}</div>
-          <div style={styles.statusWrap}>
-            {draft.stockMaximo > 0 ? (
-              <StockStatusPill status={status} small />
-            ) : (
-              <span style={styles.pendingPill}>Sin maximo</span>
-            )}
+    <Card style={cardStyle}>
+      {configured && !isEditing ? (
+        <div css={styles.stockReadRow}>
+          <TallerIdentity taller={taller} configured status={status} />
+          <div css={styles.readDetails}>
+            {renderValues(levels)}
+            {renderProgress(levels, stock)}
+          </div>
+          <div css={styles.actions}>
+            <IconButton
+              icon={<Pencil />}
+              onClick={startEditing}
+              title="Editar stock"
+              ariaLabel={`Editar stock de ${taller.nombre}`}
+            />
           </div>
         </div>
-
-        {configured ? (
-          <>
-            {renderFields(draft, setDraft)}
-            {renderProgress(draft, stock)}
-          </>
-        ) : (
-          <div style={styles.unconfiguredEditor}>
-            {renderProgress(draft, stock)}
+      ) : isEditing ? (
+        <div css={styles.stockEditRow}>
+          <TallerIdentity taller={taller} configured={configured} status={configured ? status : undefined} />
+          <div css={styles.editor}>
+            {configured ? renderProgress(levels, stock) : null}
             {renderFields(draft, setDraft)}
           </div>
-        )}
-
-        <div style={styles.actions}>
-          {configured ? (
-            <>
-              <IconButton
-                icon={<Save />}
-                onClick={handleSave}
-                title="Guardar stock"
-                ariaLabel="Guardar stock"
-                disabled={saving || !valid}
-              />
+          <div css={styles.actions}>
+            <Button
+              icon={<Save size={17} />}
+              text={saving ? "Guardando" : "Guardar"}
+              onClick={handleSave}
+              disabled={saving || !valid}
+              hideTextOnMobile={false}
+              style={styles.saveButton}
+            />
+            <IconButton
+              icon={<X />}
+              onClick={cancelEditing}
+              title="Cancelar edición"
+              ariaLabel="Cancelar edición"
+              disabled={saving}
+            />
+            {configured ? (
               <IconButton
                 icon={<Trash />}
                 onClick={() => stock?.id && onDelete(stock.id, taller.nombre)}
@@ -141,20 +194,28 @@ function StockRow({
                 hoverColor={COLOR.ICON.DANGER}
                 disabled={saving}
               />
-            </>
-          ) : (
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <div css={styles.unconfiguredRow}>
+          <TallerIdentity taller={taller} configured={false} />
+          <div css={styles.pendingState}>
+            <span css={styles.pendingLabel}>Estado de inventario</span>
+            <strong css={styles.pendingValue}>Pendiente de parámetros</strong>
+          </div>
+          <div css={styles.actions}>
             <Button
               icon={<Plus size={18} />}
-              text={saving ? "Guardando" : "Configurar"}
-              onClick={handleSave}
-              disabled={saving || !valid}
-              style={{ minWidth: 132, height: 40 }}
+              text="Configurar stock"
+              onClick={startEditing}
               hideTextOnMobile={false}
+              style={styles.configureButton}
             />
-          )}
+          </div>
         </div>
-      </div>
-      {error ? <div style={styles.error}>{error}</div> : null}
+      )}
+      {error ? <div css={styles.error}>{error}</div> : null}
     </Card>
   );
 }
@@ -163,7 +224,7 @@ function renderFields(draft: Draft, setDraft: React.Dispatch<React.SetStateActio
   return (
     <div css={styles.fieldsGrid}>
       <div>
-        <label style={styles.label}>Actual</label>
+        <label css={styles.label}>Actual</label>
         <NumberInput
           minValue={0}
           allowDecimals={false}
@@ -173,7 +234,7 @@ function renderFields(draft: Draft, setDraft: React.Dispatch<React.SetStateActio
         />
       </div>
       <div>
-        <label style={styles.label}>Minimo</label>
+        <label css={styles.label}>Mínimo</label>
         <NumberInput
           minValue={0}
           allowDecimals={false}
@@ -183,7 +244,7 @@ function renderFields(draft: Draft, setDraft: React.Dispatch<React.SetStateActio
         />
       </div>
       <div>
-        <label style={styles.label}>Maximo</label>
+        <label css={styles.label}>Máximo</label>
         <NumberInput
           minValue={0}
           allowDecimals={false}
@@ -196,13 +257,36 @@ function renderFields(draft: Draft, setDraft: React.Dispatch<React.SetStateActio
   );
 }
 
-function renderProgress(draft: Draft, stock?: StockRegistro) {
+function renderValues(levels: Draft) {
   return (
-    <div style={styles.progressBlock}>
-      <StockProgressBar levels={draft} height={8} />
-      {stock?.ultimaActualizacion ? (
-        <div style={styles.updatedAt}>Actualizado {stock.ultimaActualizacion}</div>
-      ) : null}
+    <div css={styles.valuesGrid}>
+      <StockValue label="Actual" value={`${levels.stockActual} uds.`} />
+      <StockValue label="Mínimo" value={`${levels.stockMinimo} uds.`} />
+      <StockValue label="Máximo" value={levels.stockMaximo > 0 ? `${levels.stockMaximo} uds.` : "Sin máximo"} />
+    </div>
+  );
+}
+
+function StockValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div css={styles.label}>{label}</div>
+      <div css={styles.readValue}>{value}</div>
+    </div>
+  );
+}
+
+function renderProgress(levels: Draft, stock?: StockRegistro) {
+  const capacity = Math.round(getStockPercentage(levels));
+
+  return (
+    <div css={styles.progressBlock}>
+      <div css={styles.capacityHeader}>
+        <span>Nivel de stock</span>
+        <strong>{capacity}%</strong>
+      </div>
+      <StockProgressBar levels={levels} height={8} />
+      {stock?.ultimaActualizacion ? <div css={styles.updatedAt}>Actualizado {stock.ultimaActualizacion}</div> : null}
     </div>
   );
 }
@@ -216,20 +300,28 @@ export default function ProductoStockMatrix({
   onDelete,
 }: Props) {
   const stockByTaller = useMemo(() => {
-    return new Map(stocks.map((s) => [s.tallerId, s] as const));
+    return new Map(stocks.map((stock) => [stock.tallerId, stock] as const));
   }, [stocks]);
+
+  const sortedTalleres = useMemo(
+    () =>
+      [...talleres].sort(
+        (a, b) => Number(stockByTaller.has(b.id)) - Number(stockByTaller.has(a.id)),
+      ),
+    [stockByTaller, talleres],
+  );
 
   if (!talleres.length) {
     return (
       <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
-        <div style={styles.empty}>No hay talleres configurados para este tenant.</div>
+        <div css={styles.empty}>No hay talleres configurados para este tenant.</div>
       </Card>
     );
   }
 
   return (
     <div css={styles.matrix}>
-      {talleres.map((taller) => (
+      {sortedTalleres.map((taller) => (
         <StockRow
           key={taller.id}
           productoId={productoId}
@@ -248,57 +340,79 @@ const styles = {
   matrix: css({
     display: "flex",
     flexDirection: "column",
-    gap: 10,
+    gap: 12,
   }),
+  configuredCard: {
+    background: COLOR.BACKGROUND.SUBTLE,
+  },
+  unconfiguredCard: {
+    border: `1px dashed ${COLOR.BORDER.DEFAULT}`,
+    background: COLOR.BACKGROUND.SECONDARY,
+    boxShadow: "none",
+  },
   selectedCard: {
     border: `2px solid ${COLOR.ACCENT.PRIMARY}`,
   },
-  stockRow: css({
+  stockReadRow: css({
     display: "grid",
-    gridTemplateColumns: "1.1fr 1.5fr 1fr auto",
-    gap: 12,
+    gridTemplateColumns: "minmax(220px, 0.9fr) minmax(420px, 2.2fr) auto",
+    gap: 16,
     alignItems: "center",
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
       gridTemplateColumns: "1fr",
       alignItems: "stretch",
     },
   }),
-  stockRowUnconfigured: css({
+  stockEditRow: css({
     display: "grid",
-    gridTemplateColumns: "1fr 2.6fr auto",
-    gap: 12,
+    gridTemplateColumns: "minmax(220px, 0.9fr) minmax(360px, 2.2fr) auto",
+    gap: 16,
     alignItems: "center",
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
       gridTemplateColumns: "1fr",
       alignItems: "stretch",
     },
   }),
-  tallerBlock: {
+  unconfiguredRow: css({
+    display: "grid",
+    gridTemplateColumns: "minmax(220px, 1fr) auto auto",
+    gap: 16,
+    alignItems: "center",
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      gridTemplateColumns: "1fr",
+      alignItems: "stretch",
+    },
+  }),
+  tallerBlock: css({
+    display: "flex",
+    gap: 12,
     minWidth: 0,
-  },
-  tallerName: {
+    alignItems: "flex-start",
+  }),
+  tallerContent: css({
+    minWidth: 0,
+  }),
+  tallerName: css({
     fontSize: 15,
     fontWeight: 700,
     overflow: "hidden",
     textOverflow: "ellipsis",
-    whiteSpace: "nowrap" as const,
-  },
-  tallerMeta: {
+    whiteSpace: "nowrap",
+  }),
+  tallerMeta: css({
     marginTop: 3,
     fontSize: 12,
     color: COLOR.TEXT.SECONDARY,
-  },
-  statusWrap: {
-    marginTop: 8,
-  },
-  pendingPill: {
-    padding: "4px 10px",
-    borderRadius: 999,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    color: COLOR.TEXT.SECONDARY,
-    fontSize: 12,
-    fontWeight: 700,
-  },
+  }),
+  readDetails: css({
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1.35fr) minmax(180px, 0.85fr)",
+    gap: 16,
+    alignItems: "center",
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      gridTemplateColumns: "1fr",
+    },
+  }),
   fieldsGrid: css({
     display: "grid",
     gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
@@ -307,12 +421,20 @@ const styles = {
       gridTemplateColumns: "1fr",
     },
   }),
-  label: {
+  valuesGrid: css({
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: 12,
+  }),
+  label: css({
     display: "block",
-    fontSize: 12,
+    fontSize: 11,
     color: COLOR.TEXT.SECONDARY,
     marginBottom: 5,
-  },
+    fontWeight: 700,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+  }),
   input: {
     width: "100%",
     padding: "9px 10px",
@@ -320,35 +442,73 @@ const styles = {
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
   },
-  progressBlock: {
+  readValue: css({
+    fontSize: 15,
+    fontWeight: 700,
+  }),
+  progressBlock: css({
     display: "flex",
-    flexDirection: "column" as const,
+    flexDirection: "column",
     gap: 7,
-  },
-  unconfiguredEditor: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 10,
     minWidth: 0,
-  },
-  updatedAt: {
-    fontSize: 12,
+  }),
+  capacityHeader: css({
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 8,
     color: COLOR.TEXT.SECONDARY,
-  },
-  actions: {
+    fontSize: 11,
+  }),
+  updatedAt: css({
+    fontSize: 11,
+    color: COLOR.TEXT.SECONDARY,
+  }),
+  editor: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    minWidth: 0,
+  }),
+  pendingState: css({
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    gap: 2,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      alignItems: "flex-start",
+    },
+  }),
+  pendingLabel: css({
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
+  }),
+  pendingValue: css({
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 13,
+  }),
+  actions: css({
     display: "flex",
     justifyContent: "flex-end",
     alignItems: "center",
     gap: 6,
+  }),
+  saveButton: {
+    minWidth: 116,
+    height: 38,
+    fontSize: 14,
   },
-  error: {
+  configureButton: {
+    minWidth: 156,
+    height: 40,
+  },
+  error: css({
     marginTop: 10,
     color: COLOR.ICON.DANGER,
     fontSize: 13,
     fontWeight: 600,
-  },
-  empty: {
+  }),
+  empty: css({
     color: COLOR.TEXT.SECONDARY,
     fontSize: 14,
-  },
+  }),
 } as const;

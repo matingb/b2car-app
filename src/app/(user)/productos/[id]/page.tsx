@@ -7,11 +7,12 @@ import { useTenant } from "@/app/providers/TenantProvider";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import IconButton from "@/app/components/ui/IconButton";
-import { Pencil, Save, Trash, X } from "lucide-react";
+import Card from "@/app/components/ui/Card";
+import NumberInput from "@/app/components/ui/NumberInput";
+import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
+import { Building2, Layers3, Package, Pencil, Save, Trash, TrendingUp, X } from "lucide-react";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import ProductoInfoCard from "@/app/components/productos/ProductoInfoCard";
-import ProductoPricesCard from "@/app/components/productos/ProductoPricesCard";
 import ProductoStockMatrix from "@/app/components/productos/ProductoStockMatrix";
 import Toggle from "@/app/components/ui/Toggle";
 import {
@@ -22,6 +23,7 @@ import {
   useProductos,
 } from "@/app/providers/ProductosProvider";
 import { logger } from "@/lib/logger";
+import { formatArs } from "@/lib/format";
 
 const Header = () => (
   <ScreenHeader
@@ -56,6 +58,7 @@ export default function ProductoDetailsPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<Producto | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [categoriaToAdd, setCategoriaToAdd] = useState("");
 
   const loadProducto = useCallback(
     async (isCancelled?: () => boolean) => {
@@ -91,6 +94,20 @@ export default function ProductoDetailsPage() {
   }, [stockDelProducto]);
 
   const showInStock = producto?.showInStock ?? true;
+
+  const categoriaOptions = useMemo<AutocompleteOption[]>(() => {
+    const selected = draft?.categorias ?? [];
+    return categoriasDisponibles
+      .filter((categoria) => !selected.includes(categoria))
+      .map((categoria) => ({ value: categoria, label: categoria }));
+  }, [categoriasDisponibles, draft?.categorias]);
+
+  const margen = useMemo(() => {
+    const costo = draft?.costoUnitario ?? producto?.costoUnitario ?? 0;
+    const precio = draft?.precioUnitario ?? producto?.precioUnitario ?? 0;
+    if (!costo) return 0;
+    return ((precio - costo) / costo) * 100;
+  }, [draft?.costoUnitario, draft?.precioUnitario, producto?.costoUnitario, producto?.precioUnitario]);
 
   const handleToggleShowInStock = useCallback(
     async (value: boolean) => {
@@ -136,7 +153,6 @@ export default function ProductoDetailsPage() {
       nombre: draft.nombre,
       codigo: draft.codigo,
       proveedor: draft.proveedor,
-      ubicacion: draft.ubicacion,
       costoUnitario: draft.costoUnitario,
       precioUnitario: draft.precioUnitario,
       categorias: draft.categorias,
@@ -242,61 +258,143 @@ export default function ProductoDetailsPage() {
         </div>
       </div>
 
-      <div style={styles.titleBlock}>
-        {isEditing ? (
-          <input
-            style={styles.titleInput}
-            value={draft.nombre}
-            onChange={(e) => setDraft((p) => (p ? { ...p, nombre: e.target.value } : p))}
-          />
-        ) : (
-          <h2 style={styles.title}>{producto.nombre}</h2>
-        )}
-        <div style={styles.code}>{producto.codigo}</div>
-      </div>
+      <Card style={styles.detailCard}>
+        <div css={styles.detailToolbar}>
+          <div css={styles.productIdentity}>
+            <span style={styles.productIcon}>
+              <Package size={19} />
+            </span>
+            {isEditing ? (
+              <input
+                aria-label="Nombre del producto"
+                style={styles.nameInput}
+                value={draft.nombre}
+                onChange={(e) => setDraft((current) => (current ? { ...current, nombre: e.target.value } : current))}
+              />
+            ) : (
+              <h2 style={styles.productName}>{producto.nombre}</h2>
+            )}
+            <span style={styles.identityDivider} />
+            {isEditing ? (
+              <input
+                aria-label="Código del producto"
+                style={styles.codeInput}
+                value={draft.codigo}
+                onChange={(e) => setDraft((current) => (current ? { ...current, codigo: e.target.value } : current))}
+              />
+            ) : (
+              <span style={styles.codeBadge}>{producto.codigo}</span>
+            )}
+          </div>
 
-      <div style={styles.toggleRow}>
-        <Toggle checked={showInStock} onChange={handleToggleShowInStock} label="Mostrar en inventario" />
-        <span style={styles.toggleLabel}>Mostrar en inventario</span>
-      </div>
-
-      <div css={styles.infoGrid}>
-        <div>
-          <ProductoInfoCard
-            codigo={producto.codigo}
-            proveedor={producto.proveedor}
-            ubicacion={producto.ubicacion}
-            categorias={producto.categorias}
-            categoriasDisponibles={categoriasDisponibles}
-            ultimaActualizacion={ultimaActualizacion}
-            isEditing={isEditing}
-            draft={{
-              codigo: draft.codigo,
-              proveedor: draft.proveedor,
-              ubicacion: draft.ubicacion,
-              categorias: draft.categorias,
-            }}
-            onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
-          />
+          <div style={styles.inventoryToggle}>
+            <Toggle checked={showInStock} onChange={handleToggleShowInStock} label="Mostrar en inventario" />
+            <span>Mostrar en inventario</span>
+          </div>
         </div>
 
-        <div>
-          <ProductoPricesCard
-            costoUnitario={producto.costoUnitario}
-            precioUnitario={producto.precioUnitario}
-            stockTotal={stockTotal}
-            isEditing={isEditing}
-            draft={{
-              costoUnitario: draft.costoUnitario,
-              precioUnitario: draft.precioUnitario,
-            }}
-            onChange={(patch) => setDraft((p) => (p ? { ...p, ...patch } : p))}
-          />
+        <div css={styles.detailBody}>
+          <section css={styles.primarySummary}>
+            <div css={styles.priceSummary}>
+              <div>
+                <div style={styles.eyebrow}>PRECIO DE VENTA</div>
+                <div style={styles.priceRow}>
+                  {isEditing ? (
+                    <NumberInput
+                      aria-label="Precio de venta"
+                      minValue={0}
+                      value={draft.precioUnitario}
+                      onValueChange={(precioUnitario) =>
+                        setDraft((current) => (current ? { ...current, precioUnitario } : current))
+                      }
+                      style={styles.priceInput}
+                    />
+                  ) : (
+                    <div style={styles.priceValue}>{formatArs(producto.precioUnitario, { maxDecimals: 0, minDecimals: 0 })}</div>
+                  )}
+                  <span style={styles.marginPill}><TrendingUp size={14} /> Margen: {margen.toFixed(1)}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div css={styles.metricsRow}>
+              <Metric label="Precio de compra">
+                {isEditing ? (
+                  <NumberInput
+                    aria-label="Precio de compra"
+                    minValue={0}
+                    value={draft.costoUnitario}
+                    onValueChange={(costoUnitario) =>
+                      setDraft((current) => (current ? { ...current, costoUnitario } : current))
+                    }
+                    style={styles.metricInput}
+                  />
+                ) : (
+                  formatArs(producto.costoUnitario, { maxDecimals: 0, minDecimals: 0 })
+                )}
+              </Metric>
+              <Metric label="Stock disponible">{stockTotal} uds.</Metric>
+            </div>
+          </section>
+
+          <section css={styles.secondarySummary}>
+            <div>
+              <div style={styles.eyebrow}><Layers3 size={14} /> CATEGORÍAS</div>
+              {isEditing ? (
+                <div>
+                  <Autocomplete
+                    options={categoriaOptions}
+                    value={categoriaToAdd}
+                    onChange={(categoria) => {
+                      if (!categoria || !categoriasDisponibles.includes(categoria)) {
+                        setCategoriaToAdd("");
+                        return;
+                      }
+                      setDraft((current) =>
+                        current && !current.categorias.includes(categoria)
+                          ? { ...current, categorias: [...current.categorias, categoria] }
+                          : current
+                      );
+                      setCategoriaToAdd("");
+                    }}
+                    placeholder="Agregar categoría..."
+                  />
+                  <CategoryList
+                    categories={draft.categorias}
+                    editable
+                    onRemove={(categoria) =>
+                      setDraft((current) =>
+                        current
+                          ? { ...current, categorias: current.categorias.filter((item) => item !== categoria) }
+                          : current
+                      )
+                    }
+                  />
+                </div>
+              ) : (
+                <CategoryList categories={producto.categorias} />
+              )}
+            </div>
+
+            <InfoField icon={<Building2 size={16} />} label="Proveedor">
+              {isEditing ? (
+                <input
+                  style={styles.infoInput}
+                  value={draft.proveedor}
+                  onChange={(e) => setDraft((current) => (current ? { ...current, proveedor: e.target.value } : current))}
+                />
+              ) : (
+                producto.proveedor || "-"
+              )}
+            </InfoField>
+            <div style={styles.updatedAt}><span>Última actualización:</span> <strong>{ultimaActualizacion ?? "Sin movimientos"}</strong></div>
+          </section>
         </div>
-      </div>
+      </Card>
 
       <div style={styles.stockSection}>
         <h3 style={styles.sectionTitle}>Stock por taller</h3>
+        <p style={styles.sectionDescription}>Configuración y niveles de inventario por cada taller.</p>
         <ProductoStockMatrix
           productoId={producto.id}
           talleres={talleres}
@@ -306,6 +404,62 @@ export default function ProductoDetailsPage() {
           onDelete={handleDeleteStock}
         />
       </div>
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={styles.metricCard}>
+      <div style={styles.metricLabel}>{label}</div>
+      <div style={styles.metricValue}>{children}</div>
+    </div>
+  );
+}
+
+function CategoryList({
+  categories,
+  editable = false,
+  onRemove,
+}: {
+  categories: string[];
+  editable?: boolean;
+  onRemove?: (category: string) => void;
+}) {
+  if (!categories.length) return <span style={styles.emptyValue}>Sin categorías</span>;
+
+  return (
+    <div style={styles.categoryList}>
+      {categories.map((category) => (
+        <span key={category} style={styles.categoryTag}>
+          {category}
+          {editable ? (
+            <button
+              type="button"
+              aria-label={`Quitar categoría ${category}`}
+              onClick={() => onRemove?.(category)}
+              style={styles.removeCategoryButton}
+            >
+              <X size={13} />
+            </button>
+          ) : null}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function InfoField({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+  return (
+    <div style={styles.infoField}>
+      <div style={styles.infoLabel}>{icon}{label}</div>
+      <div style={styles.infoValue}>{children}</div>
     </div>
   );
 }
@@ -322,52 +476,267 @@ const styles = {
     gap: 4,
     flexShrink: 0,
   },
-  titleBlock: {
+  detailCard: {
+    marginTop: 16,
+    padding: 0,
+    overflow: "hidden",
+    background: COLOR.BACKGROUND.SECONDARY,
+  },
+  detailToolbar: css({
     display: "flex",
-    alignItems: "baseline",
-    gap: 12,
-    marginTop: 12,
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 600,
-    margin: 0,
-  },
-  titleInput: {
-    width: "100%",
-    fontSize: 22,
-    fontWeight: 600,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 8,
-    padding: "10px 12px",
-    background: COLOR.INPUT.PRIMARY.BACKGROUND,
-  },
-  code: {
-    marginTop: 4,
-    fontSize: 13,
-    color: COLOR.TEXT.SECONDARY,
-  },
-  toggleRow: {
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+    padding: "14px 20px",
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SUBTLE,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      alignItems: "flex-start",
+      flexDirection: "column",
+    },
+  }),
+  productIdentity: css({
     display: "flex",
     alignItems: "center",
     gap: 10,
-    marginBottom: 12,
+    minWidth: 0,
+    flex: 1,
+  }),
+  productIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: COLOR.BACKGROUND.INFO_TINT,
+    color: COLOR.ACCENT.PRIMARY,
+    flexShrink: 0,
   },
-  toggleLabel: {
-    fontSize: 14,
+  productName: {
+    margin: 0,
+    fontSize: 17,
+    fontWeight: 700,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap" as const,
+  },
+  nameInput: {
+    minWidth: 0,
+    width: "100%",
+    maxWidth: 440,
+    padding: "8px 10px",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    fontSize: 17,
+    fontWeight: 700,
+  },
+  identityDivider: {
+    width: 1,
+    height: 22,
+    background: COLOR.BORDER.SUBTLE,
+    flexShrink: 0,
+  },
+  codeBadge: {
+    padding: "6px 10px",
+    borderRadius: 7,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     color: COLOR.TEXT.SECONDARY,
+    fontSize: 13,
+    fontWeight: 700,
+    whiteSpace: "nowrap" as const,
   },
-  infoGrid: css({
+  codeInput: {
+    width: 132,
+    padding: "6px 10px",
+    borderRadius: 7,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 13,
+    fontWeight: 700,
+  },
+  inventoryToggle: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 13,
+    fontWeight: 600,
+    flexShrink: 0,
+  },
+  detailBody: css({
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 12,
+    gridTemplateColumns: "minmax(0, 1.05fr) minmax(280px, 0.95fr)",
+    padding: "28px 32px 22px",
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      gridTemplateColumns: "1fr",
+      gap: 24,
+      padding: "22px 20px",
+    },
+  }),
+  primarySummary: css({
+    paddingRight: 16,
+    borderRight: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      paddingRight: 0,
+      paddingBottom: 24,
+      borderRight: "none",
+      borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    },
+  }),
+  priceSummary: css({ display: "block" }),
+  priceRow: {
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap" as const,
+    gap: 12,
+    marginTop: 8,
+  },
+  marginPill: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    padding: "5px 9px",
+    borderRadius: 7,
+    border: "none",
+    background: COLOR.BACKGROUND.SUCCESS_TINT,
+    color: COLOR.SEMANTIC.SUCCESS,
+    fontSize: 12,
+    fontWeight: 800,
+    whiteSpace: "nowrap" as const,
+  },
+  metricsRow: css({
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 12,
+    marginTop: 24,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       gridTemplateColumns: "1fr",
     },
   }),
+  secondarySummary: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 20,
+    paddingLeft: 24,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      paddingLeft: 0,
+    },
+  }),
+  eyebrow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 11,
+    fontWeight: 800,
+    letterSpacing: "0.08em",
+  },
+  priceValue: {
+    fontSize: 36,
+    fontWeight: 700,
+    letterSpacing: "-0.03em",
+  },
+  priceInput: {
+    width: 190,
+    padding: "9px 12px",
+    fontSize: 28,
+    fontWeight: 700,
+  },
+  metricCard: {
+    minHeight: 72,
+    padding: "12px 14px",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SUBTLE,
+  },
+  metricLabel: {
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.05em",
+    textTransform: "uppercase" as const,
+  },
+  metricValue: {
+    marginTop: 6,
+    fontSize: 16,
+    fontWeight: 700,
+  },
+  metricInput: {
+    marginTop: 5,
+    padding: "6px 8px",
+    fontSize: 15,
+    fontWeight: 700,
+  },
+  categoryList: {
+    display: "flex",
+    flexWrap: "wrap" as const,
+    gap: 8,
+    marginTop: 10,
+  },
+  categoryTag: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    padding: "5px 9px",
+    borderRadius: 999,
+    background: COLOR.BACKGROUND.SUBTLE,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  removeCategoryButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+    border: "none",
+    background: "transparent",
+    color: COLOR.TEXT.SECONDARY,
+    cursor: "pointer",
+  },
+  emptyValue: {
+    display: "block",
+    marginTop: 10,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 13,
+  },
+  infoField: {
+    minWidth: 0,
+  },
+  infoLabel: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  infoValue: {
+    marginTop: 7,
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 14,
+    fontWeight: 700,
+  },
+  infoInput: {
+    width: "100%",
+    padding: "9px 10px",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    fontSize: 14,
+  },
+  updatedAt: {
+    marginTop: "auto",
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
+  },
   stockSection: {
-    marginTop: 14,
+    marginTop: 20,
   },
   sectionTitle: { fontSize: 18, fontWeight: 600, margin: "0 0 8px" },
+  sectionDescription: { margin: "-3px 0 12px", color: COLOR.TEXT.SECONDARY, fontSize: 14 },
 } as const;

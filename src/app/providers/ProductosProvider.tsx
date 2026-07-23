@@ -39,7 +39,6 @@ export type Producto = {
   precioUnitario: number;
   costoUnitario: number;
   proveedor: string;
-  ubicacion: string;
   showInStock: boolean;
   stocks: StockRegistro[];
 };

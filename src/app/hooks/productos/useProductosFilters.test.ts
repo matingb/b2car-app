@@ -18,7 +18,7 @@ function stock(overrides: Partial<StockRegistro>): StockRegistro {
 }
 
 describe("filterProductos", () => {
-  it("filtra por taller y estado de stock", () => {
+  it("filtra por el taller seleccionado y el estado de stock", () => {
     const productos = [
       createProducto({
         id: "p1",
@@ -34,7 +34,8 @@ describe("filterProductos", () => {
 
     const result = filterProductos(productos, {
       search: "",
-      filters: { categorias: [], tallerId: "TAL-1", estado: "critico", visibilidad: "inventario" },
+      tallerId: "TAL-1",
+      filters: { categorias: [], estado: "critico", visibilidad: "inventario" },
     });
 
     expect(result.map((p) => p.id)).toEqual(["p1"]);
@@ -48,10 +49,24 @@ describe("filterProductos", () => {
 
     const result = filterProductos(productos, {
       search: "",
-      filters: { categorias: [], tallerId: "", estado: "", visibilidad: "esporadico" },
+      filters: { categorias: [], estado: "", visibilidad: "esporadico" },
     });
 
     expect(result.map((p) => p.id)).toEqual(["oculto"]);
+  });
+
+  it("incluye los productos esporadicos al usar la vista todos", () => {
+    const productos = [
+      createProducto({ id: "visible", showInStock: true }),
+      createProducto({ id: "esporadico", showInStock: false }),
+    ];
+
+    const result = filterProductos(productos, {
+      search: "",
+      filters: { categorias: [], estado: "", visibilidad: "todos" },
+    });
+
+    expect(result.map((producto) => producto.id)).toEqual(["visible", "esporadico"]);
   });
 
   it("considera sin stock a productos sin filas de stock configuradas", () => {
@@ -62,7 +77,7 @@ describe("filterProductos", () => {
 
     const result = filterProductos(productos, {
       search: "",
-      filters: { categorias: [], tallerId: "", estado: "critico", visibilidad: "inventario" },
+      filters: { categorias: [], estado: "critico", visibilidad: "inventario" },
     });
 
     expect(result.map((p) => p.id)).toEqual(["sin-stock"]);

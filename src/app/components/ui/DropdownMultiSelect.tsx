@@ -16,6 +16,9 @@ type Props = {
   onChange: (next: string[]) => void;
   placeholder?: string;
   disabled?: boolean;
+  clearable?: boolean;
+  allowDeselection?: boolean;
+  clearOptionLabel?: string;
   style?: React.CSSProperties;
   inputStyle?: React.CSSProperties;
   dataTestId?: string;
@@ -27,6 +30,9 @@ export default function DropdownMultiSelect({
   onChange,
   placeholder = "Seleccionar...",
   disabled = false,
+  clearable = true,
+  allowDeselection = true,
+  clearOptionLabel,
   style,
   inputStyle,
   dataTestId,
@@ -107,8 +113,12 @@ export default function DropdownMultiSelect({
 
   const toggleValue = (v: string) => {
     const set = new Set(value);
-    if (set.has(v)) set.delete(v);
-    else set.add(v);
+    if (set.has(v)) {
+      if (!allowDeselection) return;
+      set.delete(v);
+    } else {
+      set.add(v);
+    }
     onChange(Array.from(set));
   };
 
@@ -150,7 +160,7 @@ export default function DropdownMultiSelect({
           disabled={disabled}
         />
         <div style={styles.iconContainer}>
-          {value.length > 0 && !disabled && (
+          {clearable && value.length > 0 && !disabled && (
             <button type="button" onClick={handleClear} style={styles.clearButton} aria-label="Limpiar">
               <X size={16} color={COLOR.TEXT.SECONDARY} />
             </button>
@@ -173,6 +183,11 @@ export default function DropdownMultiSelect({
           ? createPortal(
               <div ref={dropdownRef} style={{ ...styles.dropdown, ...(dropdownStyle ?? {}) }}>
                 <div style={styles.optionsList}>
+                  {clearOptionLabel && value.length > 0 ? (
+                    <button type="button" style={styles.clearOption} onClick={handleClear}>
+                      {clearOptionLabel}
+                    </button>
+                  ) : null}
                   {options.map((opt) => {
                     const checked = value.includes(opt.value);
                     return (
@@ -180,6 +195,7 @@ export default function DropdownMultiSelect({
                         <input
                           type="checkbox"
                           checked={checked}
+                          disabled={checked && !allowDeselection}
                           onChange={() => toggleValue(opt.value)}
                           style={styles.checkbox}
                         />
@@ -263,6 +279,18 @@ const styles = {
     padding: "10px 12px",
     cursor: "pointer",
     borderRadius: 8,
+  },
+  clearOption: {
+    width: "100%",
+    border: "none",
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: "transparent",
+    color: COLOR.ACCENT.PRIMARY,
+    cursor: "pointer",
+    padding: "10px 12px",
+    textAlign: "left" as const,
+    fontSize: 14,
+    fontWeight: 700,
   },
   checkbox: {
     width: 16,

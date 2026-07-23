@@ -102,7 +102,6 @@ export function mapProductoToInventario(dto: ProductoDTO): Producto {
     precioUnitario: dto.precio_unitario ?? 0,
     costoUnitario: dto.costo_unitario ?? 0,
     proveedor: dto.proveedor ?? "",
-    ubicacion: "",
     talleresConStock: dto.talleresConStock ?? 0,
     showInStock: dto.show_in_stock,
     stocks: (dto.stocks ?? []).map(mapStockDtoToInventario),

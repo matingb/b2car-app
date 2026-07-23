@@ -2,107 +2,122 @@
 
 import SearchBar from "@/app/components/ui/SearchBar";
 import Button from "@/app/components/ui/Button";
-import FilterChip from "@/app/components/ui/FilterChip";
-import { Filter, PlusIcon } from "lucide-react";
-import { COLOR } from "@/theme/theme";
+import DropdownMultiSelect from "@/app/components/ui/DropdownMultiSelect";
+import Toggle from "@/app/components/ui/Toggle";
+import { PlusIcon } from "lucide-react";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
-import type { ProductosChip, ProductosChipKind } from "@/app/hooks/productos/useProductosFilters";
 
 type Props = {
   search: string;
   onSearchChange: (value: string) => void;
-  onOpenFilters: () => void;
-  chips: ProductosChip[];
-  onChipClick: (kind: ProductosChipKind) => void;
+  categoriasDisponibles: readonly string[];
+  categorias: string[];
+  onCategoriasChange: (categorias: string[]) => void;
+  showEsporadicos: boolean;
+  onShowEsporadicosChange: (checked: boolean) => void;
   onNewProductClick?: () => void;
-  onClearFilters: () => void;
-  style?: React.CSSProperties;
 };
 
 export default function ProductosToolbar({
   search,
   onSearchChange,
-  onOpenFilters,
-  chips,
-  onChipClick,
-  onClearFilters,
+  categoriasDisponibles,
+  categorias,
+  onCategoriasChange,
+  showEsporadicos,
+  onShowEsporadicosChange,
   onNewProductClick,
-  style
 }: Props) {
   return (
-    <div style={{ ...styles.container, ...(style ?? {}) }}>
-      <div style={styles.row}>
-        <SearchBar value={search} onChange={onSearchChange} placeholder="Buscar productos..." style={styles.search} />
-        <Button icon={<Filter size={20} />} text="Filtrar" onClick={onOpenFilters} style={styles.filterButton} outline />
+    <div css={styles.container}>
+      <SearchBar
+        value={search}
+        onChange={onSearchChange}
+        placeholder="Buscar productos..."
+        style={styles.search}
+      />
+
+      <div css={styles.filtersRow}>
+        <label css={styles.sporadicToggle}>
+          <Toggle
+            checked={showEsporadicos}
+            onChange={onShowEsporadicosChange}
+            label="Mostrar esporádicos"
+          />
+          <span>Esporádicos</span>
+        </label>
+
+        <div css={styles.categoriesSelect}>
+          <DropdownMultiSelect
+            options={categoriasDisponibles.map((categoria) => ({ value: categoria, label: categoria }))}
+            value={categorias}
+            onChange={onCategoriasChange}
+            placeholder="Categorías"
+            clearable={false}
+            clearOptionLabel="Todas"
+            inputStyle={styles.categoriesInput}
+          />
+        </div>
+
         <Button
           icon={<PlusIcon size={20} />}
           text="Nuevo producto"
           onClick={onNewProductClick}
-          style={{ height: 40 }}
+          style={styles.newButton}
         />
       </div>
-
-      {chips.length > 0 && (
-        <div css={styles.chipsContainer} aria-label="Filtros aplicados" data-testid="productos-active-filters">
-          <div css={styles.chipsItems}>
-            {chips.map((chip) => (
-              <FilterChip key={chip.key} text={chip.text} onClick={() => onChipClick(chip.kind)} />
-            ))}
-          </div>
-          <button type="button" css={styles.chipsClear} style={styles.clearButton} onClick={onClearFilters}>
-            Limpiar filtros
-          </button>
-        </div>
-      )}
     </div>
   );
 }
 
 const styles = {
-  container: {
+  container: css({
     display: "flex",
-    flexDirection: "column" as const,
-    gap: 10,
-  },
-  row: {
-    display: "flex",
-    gap: 12,
     alignItems: "center",
-  },
+    gap: 12,
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      alignItems: "stretch",
+      flexDirection: "column",
+    },
+  }),
   search: {
     width: "100%",
     flex: 1,
   },
-  filterButton: {
-    height: "40px",
-    width: "48px",
-    minWidth: "100px",
-  },
-  clearButton: {
-    background: COLOR.BACKGROUND.SUBTLE,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    color: COLOR.TEXT.PRIMARY,
-    padding: "0.5rem 1rem",
-    borderRadius: 8,
-    cursor: "pointer",
-  },
-  chipsContainer: css({
+  filtersRow: css({
     display: "flex",
-    gap: "10px",
     alignItems: "center",
-    flexWrap: "nowrap",
-  }),
-  chipsItems: css({
-    display: "flex",
-    gap: "10px",
-    alignItems: "center",
-    flexWrap: "wrap",
-    flex: 1,
-    minWidth: 0,
-  }),
-  chipsClear: css({
-    marginLeft: "auto",
+    justifyContent: "flex-end",
+    gap: 10,
     flexShrink: 0,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      alignItems: "stretch",
+      flexDirection: "column",
+    },
   }),
+  sporadicToggle: css({
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 13,
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+  }),
+  categoriesSelect: css({
+    width: 200,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      width: "100%",
+    },
+  }),
+  categoriesInput: {
+    height: 40,
+    paddingTop: 9,
+    paddingBottom: 9,
+  },
+  newButton: {
+    height: 40,
+    whiteSpace: "nowrap" as const,
+  },
 } as const;
-

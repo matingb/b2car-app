@@ -30,8 +30,7 @@ function matchesSearch(item: StockItem, query: string) {
   return (
     item.nombre.toLowerCase().includes(q) ||
     item.codigo.toLowerCase().includes(q) ||
-    item.proveedor.toLowerCase().includes(q) ||
-    item.ubicacion.toLowerCase().includes(q)
+    item.proveedor.toLowerCase().includes(q)
   );
 }
 

@@ -10,7 +10,6 @@ export type ProductoFormFieldsValues = {
   nombre: string;
   codigo: string;
   proveedor: string;
-  ubicacion: string;
   precioCompra: number;
   precioVenta: number;
   categorias: string[];
@@ -93,16 +92,7 @@ export default function ProductoFormFields({
         </div>
       </div>
 
-      <div css={styles.rowLocationPrices}>
-        <div css={styles.locationField}>
-          <label style={styles.label}>Ubicación</label>
-          <input
-            style={styles.input}
-            value={values.ubicacion}
-            onChange={(e) => onChange({ ubicacion: e.target.value })}
-            placeholder="Ej: Estante A-1"
-          />
-        </div>
+      <div css={styles.rowPrices}>
         <div css={styles.priceField}>
           <label style={styles.label}>Precio compra</label>
           <NumberInput
@@ -150,26 +140,20 @@ const styles = {
       gap: 8,
     },
   }),
-  rowLocationPrices: css({
+  rowPrices: css({
     display: "grid",
-    gridTemplateColumns: "4fr 3fr 3fr",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     columnGap: 16,
     marginTop: 10,
     width: "auto",
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       width: "100%",
-      gridTemplateColumns: "1fr 1fr",
+      gridTemplateColumns: "1fr",
       gap: 8,
     },
   }),
   field: { flex: 1 },
   fieldWide: { flex: 1 },
-  locationField: css({
-    minWidth: 0,
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      gridColumn: "1 / -1",
-    },
-  }),
   priceField: css({
     minWidth: 0,
   }),

@@ -9,14 +9,12 @@ import FilterChip from "@/app/components/ui/FilterChip";
 export type ProductoInfoDraft = {
   codigo: string;
   proveedor: string;
-  ubicacion: string;
   categorias: string[];
 };
 
 type Props = {
   codigo: string;
   proveedor: string;
-  ubicacion: string;
   categorias: string[];
   categoriasDisponibles: readonly string[];
   ultimaActualizacion?: string;
@@ -45,7 +43,6 @@ function CategoryTag({ text }: { text: string }) {
 export default function ProductoInfoCard({
   codigo,
   proveedor,
-  ubicacion,
   categorias,
   categoriasDisponibles,
   ultimaActualizacion,
@@ -92,19 +89,6 @@ export default function ProductoInfoCard({
               />
             ) : (
               <div style={styles.value}>{proveedor || "-"}</div>
-            )}
-          </div>
-
-          <div>
-            <div style={styles.label}>Ubicación</div>
-            {isEditing ? (
-              <input
-                style={styles.input}
-                value={draft.ubicacion}
-                onChange={(e) => onChange({ ubicacion: e.target.value })}
-              />
-            ) : (
-              <div style={styles.value}>{ubicacion || "-"}</div>
             )}
           </div>
 

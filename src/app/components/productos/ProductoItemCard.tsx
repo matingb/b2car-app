@@ -4,10 +4,9 @@ import React from "react";
 import Card from "@/app/components/ui/Card";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import type { Producto } from "@/app/providers/ProductosProvider";
-import { Package } from "lucide-react";
 import { css } from "@emotion/react";
 import { getProductoStockSummary } from "@/app/hooks/productos/useProductosFilters";
-import StockStatusPill from "@/app/components/stock/StockStatusPill";
+import StockStatusIcon from "@/app/components/stock/StockStatusIcon";
 
 type Props = {
   producto: Producto;
@@ -31,9 +30,7 @@ export default function ProductoItemCard({ producto, tallerId = "", onClick }: P
     <Card onClick={onClick} data-testid={`producto-item-${producto.id}`}>
       <div style={styles.container}>
         <div style={styles.leftGroup}>
-          <div style={styles.iconBadge}>
-            <Package size={18} color={COLOR.TEXT.CONTRAST} />
-          </div>
+          <StockStatusIcon status={summary.worstStatus} />
 
           <div style={styles.details}>
             <div style={styles.title}>{producto.nombre}</div>
@@ -44,14 +41,6 @@ export default function ProductoItemCard({ producto, tallerId = "", onClick }: P
         </div>
 
         <div css={styles.right}>
-          
-          <div style={styles.statusRow}>
-            {summary.worstStatus ? (
-              <StockStatusPill status={summary.worstStatus} small />
-            ) : (
-              <span style={styles.noStock}>Sin stock configurado</span>
-            )}
-          </div>
           <div style={styles.cats}>
             {categorias.slice(0, 2).map((c) => (
               <CategoryTag key={c} text={c} />
@@ -83,16 +72,6 @@ const styles = {
     display: "flex",
     flexDirection: "column" as const,
     minWidth: 0,
-  },
-  iconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    background: COLOR.ACCENT.PRIMARY,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
   },
   title: {
     fontSize: 18,
@@ -142,20 +121,4 @@ const styles = {
       display: "none",
     },
   }),
-  rightInfo: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    flexWrap: "wrap" as const,
-    justifyContent: "flex-end",
-  },
-  statusRow: {
-    display: "flex",
-    justifyContent: "flex-end",
-  },
-  noStock: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: COLOR.TEXT.SECONDARY,
-  },
 } as const;

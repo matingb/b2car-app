@@ -19,7 +19,7 @@ vi.mock("@/app/providers/InventarioProvider", () => ({
 vi.mock("@/app/providers/ProductosProvider", () => ({
   useProductos: () => ({
     productos: [
-      { id: "PROD-001", nombre: "Producto 1", codigo: "P1", categorias: [], precioUnitario: 0, costoUnitario: 0, proveedor: "", ubicacion: "", talleresConStock: 0 },
+      { id: "PROD-001", nombre: "Producto 1", codigo: "P1", categorias: [], precioUnitario: 0, costoUnitario: 0, proveedor: "", talleresConStock: 0 },
     ],
     createProducto: mockCreateProducto,
     isLoading: false,
@@ -87,7 +87,6 @@ describe("StockCreateModal", () => {
         precioUnitario: 0,
         costoUnitario: 0,
         proveedor: "",
-        ubicacion: "",
         talleresConStock: 0,
       },
       error: null,
