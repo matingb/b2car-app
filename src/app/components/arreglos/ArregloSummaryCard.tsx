@@ -1,8 +1,6 @@
-
 "use client";
 
 import React, { useMemo } from "react";
-
 import { useRouter } from "next/navigation";
 import {
   Calendar,
@@ -154,41 +152,49 @@ export default function ArregloSummaryCard({
 
   return (
     <section style={styles.container}>
-      <Card style={styles.card}>
+      <Card style={{ padding: 0, overflow: "hidden", backgroundColor: COLOR.BACKGROUND.SECONDARY }}>
         {/* Top Header */}
         <div style={styles.header}>
           <div style={styles.headerLeft}>
-            {/* Vehículo info */}
-            {arreglo.vehiculo ? (
-              <Card
-                style={styles.vehiculoCard}
-                onClick={handleNavigateToVehiculo}
-                role="button"
-                tabIndex={0}
-              >
-                <div style={styles.vehiculoPatenteRow}>
-                  <CarFront size={16} color={COLOR.ICON.MUTED} />
-                  <span style={styles.patente}>{arreglo.vehiculo.patente}</span>
-                </div>
-                <div className="w-[1px] h-4 hidden sm:block" style={styles.divider} />
-                <span className="text-sm font-medium hidden sm:block" style={styles.textSecondary}>
-                  {arreglo.vehiculo.marca} {arreglo.vehiculo.modelo}
-                  {arreglo.vehiculo.fecha_patente ? ` (${arreglo.vehiculo.fecha_patente})` : ""}
-                </span>
-                {arreglo.vehiculo.nro_interno && (
-                  <>
-                    <div className="w-[1px] h-4 hidden sm:block" style={styles.divider} />
-                    <span className="text-xs font-medium uppercase tracking-wider hidden sm:block" style={styles.textTertiary}>
-                      INT: {arreglo.vehiculo.nro_interno}
+            <div style={styles.iconContainer}>
+              <Wrench size={24} color={COLOR.TEXT.CONTRAST} />
+            </div>
+            
+            <div style={styles.headerInfo}>
+                <h3 style={styles.title}>Arreglo #{arreglo.id.slice(-6)}</h3>
+                {/* Vehículo info */}
+                {arreglo.vehiculo ? (
+                  <div
+                    style={styles.vehiculoRow}
+                    onClick={handleNavigateToVehiculo}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div style={styles.patenteWrapper}>
+                      <CarFront size={16} color={COLOR.ICON.MUTED} />
+                      <span style={styles.patente}>{arreglo.vehiculo.patente}</span>
+                    </div>
+                    <div style={styles.hideOnMobileDivider} />
+                    <span style={styles.hideOnMobileText}>
+                      {arreglo.vehiculo.marca} {arreglo.vehiculo.modelo}
+                      {arreglo.vehiculo.fecha_patente ? ` (${arreglo.vehiculo.fecha_patente})` : ""}
                     </span>
-                  </>
+                    
+                    {arreglo.vehiculo.nro_interno && (
+                      <>
+                        <div style={styles.hideOnMobileDivider} />
+                        <span style={styles.hideOnMobileInternalCode}>
+                          INT: {arreglo.vehiculo.nro_interno}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 14, color: COLOR.TEXT.SECONDARY }}>Sin vehículo</span>
                 )}
-              </Card>
-            ) : (
-              <span style={styles.noVehiculoText}>Sin vehículo</span>
-            )}
+            </div>
 
-            <span className="hidden md:block" style={styles.pipe}>|</span>
+            <span style={styles.hideOnMobilePipe}>|</span>
 
             {/* Estado */}
             <div style={styles.estadoRow}>
@@ -243,9 +249,8 @@ export default function ArregloSummaryCard({
           </div>
         </div>
 
-        {/* Body Content */}
-        <div className="p-5 sm:p-6 lg:p-8 flex flex-col gap-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+        <div style={styles.bodyContent}>
+          <div style={styles.gridContainer}>
             {/* Block 1: Amount, Date, Mileage */}
             <div style={styles.block1}>
               <div>
@@ -254,7 +259,7 @@ export default function ArregloSummaryCard({
                   {formatArs(totalCalculado, { maxDecimals: 0, minDecimals: 0 })}
                 </div>
               </div>
-              <div className="grid gap-3" style={styles.detailsGrid}>
+              <div style={styles.detailsGrid}>
                 <div style={styles.detailBox}>
                   <span style={styles.blockLabel}>Ingreso</span>
                   <div style={styles.detailValue}>
@@ -340,41 +345,61 @@ export default function ArregloSummaryCard({
 
 const styles = {
   container: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 16,
+    width: "100%",
     marginTop: 16,
     fontFamily: "var(--font-geist-sans), sans-serif",
-  },
-  card: {
-    padding: 0,
-    overflow: "hidden",
-    backgroundColor: COLOR.BACKGROUND.SECONDARY,
   },
   header: {
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    padding: "12px 16px",
+    padding: "20px 24px",
     display: "flex",
-    flexWrap: "wrap" as const,
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: "column",
     gap: 16,
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
   },
   headerLeft: {
     display: "flex",
-    flexWrap: "wrap" as const,
-    alignItems: "center",
-    gap: 12,
+    alignItems: "flex-start",
+    gap: 16,
   },
-  vehiculoCard: {
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 9999,
     display: "flex",
     alignItems: "center",
-    backgroundColor: COLOR.BACKGROUND.SECONDARY,
-    padding: "6px 12px",
-    gap: 12,
+    justifyContent: "center",
+    flexShrink: 0,
+    backgroundColor: COLOR.TEXT.PRIMARY,
   },
-  vehiculoPatenteRow: {
+  headerInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 600,
+    color: COLOR.TEXT.PRIMARY,
+    letterSpacing: "-0.025em",
+    margin: 0,
+  },
+  vehiculoRow: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    marginTop: 4,
+    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 16,
+    },
+  },
+  patenteWrapper: {
     display: "flex",
     alignItems: "center",
     gap: 6,
@@ -385,37 +410,67 @@ const styles = {
     color: COLOR.TEXT.PRIMARY,
     fontSize: 14,
   },
-  divider: {
+  hideOnMobileDivider: {
+    width: 1,
+    height: 16,
     backgroundColor: COLOR.BORDER.DEFAULT,
+    display: "none",
+    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "block",
+    },
   },
-  textSecondary: {
-    color: COLOR.TEXT.SECONDARY,
-  },
-  textTertiary: {
-    color: COLOR.TEXT.TERTIARY,
-  },
-  noVehiculoText: {
+  hideOnMobileText: {
     fontSize: 14,
+    fontWeight: 500,
     color: COLOR.TEXT.SECONDARY,
+    display: "none",
+    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "block",
+    },
   },
-  pipe: {
+  hideOnMobileInternalCode: {
+    fontSize: 12,
+    fontWeight: 500,
+    color: COLOR.TEXT.TERTIARY,
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    display: "none",
+    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "block",
+    },
+  },
+  hideOnMobilePipe: {
     color: COLOR.BORDER.DEFAULT,
+    display: "none",
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      display: "block",
+    },
   },
   estadoRow: {
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
   paymentStatus: {
     display: "flex",
-    alignItems: "center",
-    paddingLeft: 12,
-    borderLeft: `1px solid ${COLOR.BORDER.DEFAULT}`,
+    flexDirection: "column",
+    gap: 4,
   },
   headerActions: {
     display: "flex",
     alignItems: "center",
     gap: 4,
+  },
+  bodyContent: {
+    padding: 24,
+  },
+  gridContainer: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 32,
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      gridTemplateColumns: "1fr 1fr",
+    },
   },
   block1: {
     display: "flex",

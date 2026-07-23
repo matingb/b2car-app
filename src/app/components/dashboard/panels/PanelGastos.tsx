@@ -24,16 +24,16 @@ export default function PanelGastos({ gastosData, granularity, stats, headerActi
             </DashboardSectionCard>
 
             <DashboardSectionCard>
-                <div className="flex flex-col xl:flex-row gap-4 mt-2">
-                    <div className="w-full xl:w-1/2 flex flex-col">
+                <div style={styles.mainPanel}>
+                    <div style={styles.halfPanel}>
                         <h4 style={TYPOGRAPHY.dashboard.chartTitle}>Costo por categoría</h4>
-                        <div className="flex-1 flex flex-col justify-center">
+                        <div style={styles.chartWrapper}>
                             <DesglosePieChart items={stats?.costoPorTipo} montoLabel="Costo" variant="danger" />
                         </div>
                     </div>
-                    <div className="w-full xl:w-1/2 flex flex-col">
+                    <div style={styles.halfPanel}>
                         <h4 style={TYPOGRAPHY.dashboard.chartTitle}>Costo por empleado</h4>
-                        <div className="flex-1 flex flex-col justify-center">
+                        <div style={styles.chartWrapper}>
                             <DesglosePieChart items={stats?.costoPorEmpleado} montoLabel="Costo" variant="danger" />
                         </div>
                     </div>
@@ -42,3 +42,29 @@ export default function PanelGastos({ gastosData, granularity, stats, headerActi
         </div>
     );
 }
+
+const styles = {
+    mainPanel: {
+        display: "flex",
+        flexDirection: "row" as const,
+        gap: 16,
+        marginTop: 8,
+        [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
+            flexDirection: "column" as const,
+        },
+    },
+    halfPanel: {
+        width: "50%",
+        display: "flex",
+        flexDirection: "column" as const,
+        [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
+            width: "100%",
+        },
+    },
+    chartWrapper: {
+        flex: 1,
+        display: "flex",
+        flexDirection: "column" as const,
+        justifyContent: "center",
+    },
+} as const;

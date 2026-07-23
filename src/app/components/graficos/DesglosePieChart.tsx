@@ -130,7 +130,7 @@ export default function DesglosePieChart({ items, montoLabel = "Monto", variant 
                     </PieChart>
                 </ChartContainer>
             </div>
-            
+
             <div className="flex-1 w-full space-y-3">
                 {series.data.map((item) => {
                     const barWidth = maxMonto > 0 ? (item.monto / maxMonto) * 100 : 0;
@@ -144,8 +144,8 @@ export default function DesglosePieChart({ items, montoLabel = "Monto", variant 
                                 </div>
                             </div>
                             <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                <div 
-                                    className="h-full rounded-full transition-all duration-500" 
+                                <div
+                                    className="h-full rounded-full transition-all duration-500"
                                     style={{ width: `${barWidth}%`, backgroundColor: item.fill }}
                                 ></div>
                             </div>

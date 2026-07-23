@@ -4,10 +4,10 @@
 import React from "react";
 
 import GraficoArreglos from "@/app/components/graficos/GraficoArreglos";
-import DesglosePieChart from "@/app/components/graficos/DesglosePieChart";
+import CantidadTiposArreglos from "@/app/components/graficos/CantidadTiposArreglos";
 import EstadoCobroArreglos from "@/app/components/graficos/EstadoCobroArreglos";
 import DashboardSectionCard from "@/app/components/dashboard/DashboardSectionCard";
-import { BREAKPOINTS, TYPOGRAPHY } from "@/theme/theme";
+import { TYPOGRAPHY } from "@/theme/theme";
 import type { DashboardStats } from "@/app/providers/DashboardProvider";
 import type { Granularity } from "@/lib/dashboard/aggregation";
 
@@ -26,19 +26,16 @@ export default function PanelArreglos({ arreglosData, granularity, stats, header
             </DashboardSectionCard>
 
             <DashboardSectionCard>
-                <div className="flex flex-col xl:flex-row gap-4 mt-2">
-                    <div className="w-full xl:w-1/2 flex flex-col">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 8 }}>
+                    <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column" }}>
                         <h4 style={TYPOGRAPHY.dashboard.chartTitle}>Arreglos por tipo</h4>
-                        <div className="flex-1 flex flex-col justify-center">
-                            <DesglosePieChart
-                                items={stats?.facturacionPorTipo ?? []}
-                                montoLabel="Ingresos"
-                            />
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                            <CantidadTiposArreglos items={stats?.facturacionPorTipo ?? []} />
                         </div>
                     </div>
-                    <div className="w-full xl:w-1/2 flex flex-col">
+                    <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column" }}>
                         <h4 style={TYPOGRAPHY.dashboard.chartTitle}>Estado de pago</h4>
-                        <div className="flex-1 flex flex-col justify-center">
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                             <EstadoCobroArreglos
                                 total={stats?.totals?.arreglos ?? null}
                                 cobrados={stats?.arreglos?.cobrados ?? null}

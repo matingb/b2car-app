@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-
+import { css } from "@emotion/react";
 import { COLOR } from "@/theme/theme";
 
 export type CategoriaItem = {
@@ -32,12 +32,12 @@ export default function ArregloCategoriasList({ categorias, limit = 3, emptyText
   return (
     <div style={styles.container(size)}>
       {displayed.map((t) => (
-        <span key={t.id} style={styles.chip(size) as React.CSSProperties}>
+        <span key={t.id} css={styles.chip(size)}>
           {t.nombre}
         </span>
       ))}
       {remaining > 0 && (
-        <span style={styles.chip(size) as React.CSSProperties} title={`${remaining} categorías más`}>
+        <span css={styles.chip(size)} title={`${remaining} categorías más`}>
           +{remaining}
         </span>
       )}
@@ -51,7 +51,7 @@ const styles = {
     gap: size === "sm" ? 4 : 8,
     flexWrap: "wrap" as const,
   }),
-  chip: (size: "sm" | "md") => ({
+  chip: (size: "sm" | "md") => css({
     padding: size === "sm" ? "2px 8px" : "6px 12px",
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,

@@ -1,8 +1,7 @@
-
 "use client";
 
 import React from "react";
-
+import { css } from "@emotion/react";
 import GraficoIngresos from "@/app/components/graficos/GraficoIngresos";
 import DesglosePieChart from "@/app/components/graficos/DesglosePieChart";
 import DashboardSectionCard from "@/app/components/dashboard/DashboardSectionCard";
@@ -25,16 +24,16 @@ export default function PanelFacturacion({ ingresosData, granularity, stats, hea
             </DashboardSectionCard>
 
             <DashboardSectionCard>
-                <div className="flex flex-col xl:flex-row gap-4 mt-2">
-                    <div className="w-full xl:w-1/2 flex flex-col">
+                <div css={styles.mainPanel}>
+                    <div css={styles.halfPanel}>
                         <h4 style={TYPOGRAPHY.dashboard.chartTitle}>Facturación por categoría</h4>
-                        <div className="flex-1 flex flex-col justify-center">
+                        <div css={styles.chartWrapper}>
                             <DesglosePieChart items={stats?.facturacionPorTipo} montoLabel="Facturación" />
                         </div>
                     </div>
-                    <div className="w-full xl:w-1/2 flex flex-col">
+                    <div css={styles.halfPanel}>
                         <h4 style={TYPOGRAPHY.dashboard.chartTitle}>Facturación por empleado</h4>
-                        <div className="flex-1 flex flex-col justify-center">
+                        <div css={styles.chartWrapper}>
                             <DesglosePieChart items={stats?.facturacionPorEmpleado} montoLabel="Facturación" />
                         </div>
                     </div>
@@ -43,3 +42,29 @@ export default function PanelFacturacion({ ingresosData, granularity, stats, hea
         </div>
     );
 }
+
+const styles = {
+    mainPanel: css({
+        display: "flex",
+        flexDirection: "row",
+        gap: 16,
+        marginTop: 8,
+        [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
+            flexDirection: "column",
+        },
+    }),
+    halfPanel: css({
+        width: "50%",
+        display: "flex",
+        flexDirection: "column",
+        [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
+            width: "100%",
+        },
+    }),
+    chartWrapper: css({
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+    }),
+};

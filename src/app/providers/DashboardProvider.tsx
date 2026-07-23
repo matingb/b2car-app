@@ -19,24 +19,24 @@ export type DashboardStats = {
 		gastos?: number;
 		balance?: number;
 	};
-    recentActivities?: Array<{
-        id: string;
-        titulo: string;
-        vehiculo: string;
-        fechaUltimaActualizacion: string;
-        monto: number;
-    }>;
+	recentActivities?: Array<{
+		id: string;
+		titulo: string;
+		vehiculo: string;
+		fechaUltimaActualizacion: string;
+		monto: number;
+	}>;
 	arreglos?: {
-        total?: number;
+		total?: number;
 		cobrados?: number;
 		pendientes?: number;
 	};
-    clientes?: {
-        nuevosEsteMes?: {
-            dias: string[];
-            valor: number[];
-        };
-    };
+	clientes?: {
+		nuevosEsteMes?: {
+			dias: string[];
+			valor: number[];
+		};
+	};
 	arreglosPorPeriodo?: Array<{ label: string; cantidad: number }>;
 	ingresosPorPeriodo?: Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>;
 	gastosPorPeriodo?: Array<{ label: string; repuestos: number; sueldos: number }>;
