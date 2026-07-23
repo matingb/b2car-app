@@ -20,7 +20,7 @@ export type DetalleArreglo = {
   descripcion: string;
   cantidad: number;
   valor: number;
-  tipo_arreglo_id: string | null;
+  categoria_arreglo_id: string | null;
   empleado_id: string | null;
   created_at?: string;
   updated_at?: string;
@@ -44,7 +44,7 @@ export type AsignacionArregloLinea = {
   monto_unitario: number;
   delta_cantidad: number;
   created_at: string;
-  tipo_arreglo_id: string | null;
+  categoria_arreglo_id: string | null;
   empleado_id: string | null;
   producto?: AsignacionArregloProducto | null;
 };

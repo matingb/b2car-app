@@ -1,12 +1,11 @@
-/** @jsxImportSource @emotion/react */
 "use client";
 
 import React from "react";
-import { css } from "@emotion/react";
+
 import GraficoGastos from "@/app/components/graficos/GraficoGastos";
 import DesglosePieChart from "@/app/components/graficos/DesglosePieChart";
 import DashboardSectionCard from "@/app/components/dashboard/DashboardSectionCard";
-import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { BREAKPOINTS, TYPOGRAPHY } from "@/theme/theme";
 import type { DashboardStats } from "@/app/providers/DashboardProvider";
 import type { Granularity } from "@/lib/dashboard/aggregation";
 
@@ -25,16 +24,16 @@ export default function PanelGastos({ gastosData, granularity, stats, headerActi
             </DashboardSectionCard>
 
             <DashboardSectionCard>
-                <div css={styles.mainPanel}>
-                    <div css={styles.halfPanel}>
-                        <h4 css={styles.subTitle}>Costo por tipo</h4>
-                        <div css={styles.chartWrapper}>
+                <div className="flex flex-col xl:flex-row gap-4 mt-2">
+                    <div className="w-full xl:w-1/2 flex flex-col">
+                        <h4 style={TYPOGRAPHY.dashboard.chartTitle}>Costo por categoría</h4>
+                        <div className="flex-1 flex flex-col justify-center">
                             <DesglosePieChart items={stats?.costoPorTipo} montoLabel="Costo" variant="danger" />
                         </div>
                     </div>
-                    <div css={styles.halfPanel}>
-                        <h4 css={styles.subTitle}>Costo por empleado</h4>
-                        <div css={styles.chartWrapper}>
+                    <div className="w-full xl:w-1/2 flex flex-col">
+                        <h4 style={TYPOGRAPHY.dashboard.chartTitle}>Costo por empleado</h4>
+                        <div className="flex-1 flex flex-col justify-center">
                             <DesglosePieChart items={stats?.costoPorEmpleado} montoLabel="Costo" variant="danger" />
                         </div>
                     </div>
@@ -43,35 +42,3 @@ export default function PanelGastos({ gastosData, granularity, stats, headerActi
         </div>
     );
 }
-
-const styles = {
-    mainPanel: css({
-        display: "flex",
-        flexDirection: "row",
-        gap: 16,
-        marginTop: 8,
-        [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
-            flexDirection: "column",
-        },
-    }),
-    halfPanel: css({
-        width: "50%",
-        display: "flex",
-        flexDirection: "column",
-        [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
-            width: "100%",
-        },
-    }),
-    chartWrapper: css({
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-    }),
-    subTitle: css({
-        fontSize: 15,
-        fontWeight: 600,
-        marginBottom: 8,
-        color: COLOR.TEXT.SECONDARY,
-    }),
-};

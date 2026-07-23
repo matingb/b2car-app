@@ -17,9 +17,10 @@ import NewProductLineaCard from "@/app/components/arreglos/lineas/shared/NewProd
 import NewProductBadge from "@/app/components/arreglos/lineas/repuestos/NewProductBadge";
 import NewProductFields from "@/app/components/arreglos/lineas/repuestos/NewProductFields";
 import ReadOnlyLineaCard from "@/app/components/arreglos/lineas/shared/ReadOnlyLineaCard";
-import TipoArregloSelect from "@/app/components/arreglos/lineas/shared/TipoArregloSelect";
+import CategoriaArregloSelect from "@/app/components/arreglos/lineas/shared/CategoriaArregloSelect";
 import EmpleadoSelect from "@/app/components/arreglos/lineas/shared/EmpleadoSelect";
-import TipoEmpleadoChips from "@/app/components/arreglos/lineas/shared/TipoEmpleadoChips";
+import CategoriaChip from "@/app/components/arreglos/lineas/shared/CategoriaChip";
+import EmpleadoChip from "@/app/components/arreglos/lineas/shared/EmpleadoChip";
 import StockPurchaseHint from "@/app/components/arreglos/lineas/repuestos/StockPurchaseHint";
 import { generateProductCode } from "@/app/components/arreglos/lineas/repuestos/repuestoCode";
 import {
@@ -44,7 +45,7 @@ export type RepuestoLinea = {
     precioCompra: number;
     precioVenta: number;
   };
-  tipoArregloId: string | null;
+  categoriaArregloId: string | null;
   empleadoId: string | null;
 };
 
@@ -58,7 +59,7 @@ export type RepuestoDraft = {
   precioVenta: string;
   precioVentaTouched: boolean;
   codigoTouched: boolean;
-  tipoArregloId: string | null;
+  categoriaArregloId: string | null;
   empleadoId: string | null;
 };
 
@@ -69,7 +70,7 @@ export type RepuestoUpsertInput =
       cantidad: number;
       monto_unitario: number;
       precio_compra?: number;
-      tipo_arreglo_id?: string | null;
+      categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }
   | {
@@ -81,7 +82,7 @@ export type RepuestoUpsertInput =
       precio_venta: number;
       cantidad: number;
       monto_unitario: number;
-      tipo_arreglo_id?: string | null;
+      categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     };
 
@@ -91,7 +92,7 @@ type Props = {
   tallerId: string | null;
   items: RepuestoLinea[];
   disabled?: boolean;
-  defaultTipoArregloId?: string | null;
+  defaultCategoriaArregloId?: string | null;
   defaultEmpleadoId?: string | null;
   onUpsert: (input: RepuestoUpsertInput) => void | Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
@@ -103,7 +104,7 @@ export default function RepuestoLineasEditableSection({
   tallerId,
   items,
   disabled = false,
-  defaultTipoArregloId = null,
+  defaultCategoriaArregloId = null,
   defaultEmpleadoId = null,
   onUpsert,
   onDelete,
@@ -164,7 +165,7 @@ export default function RepuestoLineasEditableSection({
       precioVenta: "",
       precioVentaTouched: false,
       codigoTouched: false,
-      tipoArregloId: defaultTipoArregloId,
+      categoriaArregloId: defaultCategoriaArregloId,
       empleadoId: defaultEmpleadoId,
     },
     draftFromItem: (item) => {
@@ -184,7 +185,7 @@ export default function RepuestoLineasEditableSection({
           ? Number(item.nuevoProducto.precioVenta ?? 0) !== Number(item.nuevoProducto.precioCompra ?? 0)
           : false,
         codigoTouched: true,
-        tipoArregloId: item.tipoArregloId ?? null,
+        categoriaArregloId: item.categoriaArregloId ?? null,
         empleadoId: item.empleadoId ?? null,
       };
     },
@@ -227,9 +228,9 @@ export default function RepuestoLineasEditableSection({
     const tipoEmpleadoSelectors = (
       <div style={styles.tipoEmpleadoRow}>
         <div style={styles.tipoEmpleadoField}>
-          <TipoArregloSelect
-            value={draft.tipoArregloId}
-            onChange={(tipoArregloId) => updateDraft({ tipoArregloId })}
+          <CategoriaArregloSelect
+            value={draft.categoriaArregloId}
+            onChange={(categoriaArregloId) => updateDraft({ categoriaArregloId })}
             disabled={!canInteract}
           />
         </div>
@@ -390,7 +391,7 @@ export default function RepuestoLineasEditableSection({
                     {code ? <span style={styles.itemSubTitleCode}>{code}</span> : null}
                   </div>
                 }
-                subtitle={<TipoEmpleadoChips tipoArregloId={item.tipoArregloId} empleadoId={item.empleadoId} />}
+                subtitle={<><CategoriaChip categoriaArregloId={item.categoriaArregloId} /><EmpleadoChip empleadoId={item.empleadoId} /></>}
                 cantidad={Number(item.cantidad) || 0}
                 unitario={Number(item.monto_unitario) || 0}
                 onEdit={() => startEdit(item)}

@@ -16,8 +16,6 @@ export function buildArregloWhatsappMessage(data: ArregloDetalleData, tenantName
 
 	lines.push(`*${header}${normalizedTenant ? ` - ${normalizedTenant}` : ""}*`);
 
-	//const titulo = arreglo.tipo || arreglo.descripcion || "Detalle del arreglo";
-	//lines.push(`🔧 ${titulo}`);
 	lines.push(`🚗 Patente ${arreglo.vehiculo?.patente || "-"}`);
 	if (arreglo.kilometraje_leido) {
 		lines.push(`⏱️ KM actual ${arreglo.kilometraje_leido}`);

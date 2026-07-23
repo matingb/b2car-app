@@ -7,22 +7,7 @@ interface AvatarProps {
   textColor?: string;
 }
 
-function getInitials(nombre?: string): string {
-  if (!nombre) return "?";
-
-  const parts = nombre.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-
-  if (parts.length === 1) {
-    // Take up to two characters from a single-word name
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-
-  // Use the first letter of the first two words
-  const first = parts[0][0] ?? "";
-  const second = parts[1][0] ?? "";
-  return (first + second).toUpperCase();
-}
+import { getInitials } from "@/lib/initials";
 
 export default function Avatar({ size = 40, nombre, bgColor, textColor }: AvatarProps) {
   const initials = getInitials(nombre);

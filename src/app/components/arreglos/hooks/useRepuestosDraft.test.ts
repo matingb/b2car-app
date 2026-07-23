@@ -23,7 +23,7 @@ describe("useRepuestosDraft", () => {
         monto_unitario: 500,
         precioCompra: 300,
         producto: null,
-        tipoArregloId: null,
+        categoriaArregloId: null,
         empleadoId: null,
       },
     ]);

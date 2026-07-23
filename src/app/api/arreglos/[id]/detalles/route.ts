@@ -10,7 +10,7 @@ export type CreateDetalleArregloRequest = {
   descripcion: string;
   cantidad: number;
   valor: number;
-  tipo_arreglo_id?: string | null;
+  categoria_arreglo_id?: string | null;
   empleado_id?: string | null;
 };
 
@@ -20,7 +20,7 @@ export type DetalleArregloResponseRow = {
   descripcion: string;
   cantidad: number;
   valor: number;
-  tipo_arreglo_id: string | null;
+  categoria_arreglo_id: string | null;
   empleado_id: string | null;
   created_at: string;
   updated_at: string;
@@ -46,7 +46,7 @@ export async function POST(
   const descripcion = String(body.descripcion ?? "").trim();
   const cantidad = Number(body.cantidad);
   const valor = Number(body.valor);
-  const tipoArregloIdRaw = body.tipo_arreglo_id;
+  const categoriaArregloIdRaw = body.categoria_arreglo_id;
   const empleadoIdRaw = body.empleado_id;
 
   if (!arregloId) {
@@ -61,8 +61,8 @@ export async function POST(
   if (!Number.isFinite(valor) || valor < 0) {
     return Response.json({ data: null, error: "Valor inválido" } satisfies CreateDetalleArregloResponse, { status: 400 });
   }
-  if (tipoArregloIdRaw != null && !isValidUuid(tipoArregloIdRaw)) {
-    return Response.json({ data: null, error: "tipo_arreglo_id inválido" } satisfies CreateDetalleArregloResponse, { status: 400 });
+  if (categoriaArregloIdRaw != null && !isValidUuid(categoriaArregloIdRaw)) {
+    return Response.json({ data: null, error: "categoria_arreglo_id inválido" } satisfies CreateDetalleArregloResponse, { status: 400 });
   }
   if (empleadoIdRaw != null && !isValidUuid(empleadoIdRaw)) {
     return Response.json({ data: null, error: "empleado_id inválido" } satisfies CreateDetalleArregloResponse, { status: 400 });
@@ -73,7 +73,7 @@ export async function POST(
     descripcion,
     cantidad,
     valor,
-    tipo_arreglo_id: tipoArregloIdRaw ?? null,
+    categoria_arreglo_id: categoriaArregloIdRaw ?? null,
     empleado_id: empleadoIdRaw ?? null,
   });
 

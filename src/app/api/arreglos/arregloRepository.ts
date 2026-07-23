@@ -274,7 +274,7 @@ export const supabaseArregloRepository: ArregloRepository = {
   },
 
   async facturacionPorTipo(supabase, fromISO?, toISO?, tallerId?) {
-    const { data, error } = await supabase.rpc("dashboard_facturacion_por_tipo", {
+    const { data, error } = await supabase.rpc("dashboard_facturacion_por_categoria", {
       top: 6,
       p_from: fromISO ?? null,
       p_to: toISO ?? null,
@@ -296,7 +296,7 @@ export const supabaseArregloRepository: ArregloRepository = {
   },
 
   async costoPorTipo(supabase, fromISO?, toISO?, tallerId?) {
-    const { data, error } = await supabase.rpc("dashboard_costo_por_tipo", {
+    const { data, error } = await supabase.rpc("dashboard_costo_por_categoria", {
       top: 6,
       p_from: fromISO ?? null,
       p_to: toISO ?? null,

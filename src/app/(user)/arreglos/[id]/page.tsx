@@ -28,7 +28,7 @@ import { useFormularios } from "@/app/providers/FormulariosProvider";
 import type { ServicioLinea } from "@/app/components/arreglos/lineas/servicios/ServicioLineasEditableSection";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import { useUltimoTipoEmpleado } from "@/app/components/arreglos/hooks/useUltimoTipoEmpleado";
-import { useTiposArreglo } from "@/app/providers/TiposArregloProvider";
+import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
 import { useEmpleados } from "@/app/providers/EmpleadosProvider";
 
 export default function ArregloDetailsPage() {
@@ -49,7 +49,7 @@ export default function ArregloDetailsPage() {
   } = useArreglos();
   const { formularios } = useFormularios();
   const { loadInventarioByTaller } = useInventario();
-  const { loadTipos } = useTiposArreglo();
+  const { loadCategorias } = useCategoriasArreglo();
   const { loadEmpleados } = useEmpleados();
   const { confirm } = useModalMessage();
   const { success, error } = useToast();
@@ -63,7 +63,7 @@ export default function ArregloDetailsPage() {
     try {
       const [data] = await Promise.all([
         fetchById(params.id),
-        loadTipos().catch(() => {}),
+        loadCategorias().catch(() => {}),
         loadEmpleados().catch(() => {}),
       ]);
       if (!data) return;
@@ -75,7 +75,7 @@ export default function ArregloDetailsPage() {
         setPageLoading(false);
       }
     }
-  }, [params.id, fetchById, loadTipos, loadEmpleados]);
+  }, [params.id, fetchById, loadCategorias, loadEmpleados]);
 
   useEffect(() => {
     async function load() {
@@ -141,7 +141,7 @@ export default function ArregloDetailsPage() {
     descripcion: string;
     cantidad: number;
     valor: number;
-    tipoArregloId: string | null;
+    categoriaArregloId: string | null;
     empleadoId: string | null;
   }) => {
     if (!data?.arreglo?.id) return;
@@ -150,10 +150,10 @@ export default function ArregloDetailsPage() {
         descripcion: input.descripcion,
         cantidad: input.cantidad,
         valor: input.valor,
-        tipo_arreglo_id: input.tipoArregloId,
+        categoria_arreglo_id: input.categoriaArregloId,
         empleado_id: input.empleadoId,
       });
-      registrarUltimoUsado(input.tipoArregloId, input.empleadoId);
+      registrarUltimoUsado(input.categoriaArregloId, input.empleadoId);
       success("Servicio agregado", "La mano de obra se agregó correctamente.");
       await reload();
     } catch (err: unknown) {
@@ -172,7 +172,7 @@ export default function ArregloDetailsPage() {
       descripcion: string;
       cantidad: number;
       valor: number;
-      tipoArregloId: string | null;
+      categoriaArregloId: string | null;
       empleadoId: string | null;
     }
   ) => {
@@ -182,10 +182,10 @@ export default function ArregloDetailsPage() {
         descripcion: patch.descripcion,
         cantidad: patch.cantidad,
         valor: patch.valor,
-        tipo_arreglo_id: patch.tipoArregloId,
+        categoria_arreglo_id: patch.categoriaArregloId,
         empleado_id: patch.empleadoId,
       });
-      registrarUltimoUsado(patch.tipoArregloId, patch.empleadoId);
+      registrarUltimoUsado(patch.categoriaArregloId, patch.empleadoId);
       success("Servicio actualizado", "El servicio se actualizó correctamente.");
       await reload();
     } catch (err: unknown) {
@@ -212,7 +212,7 @@ export default function ArregloDetailsPage() {
           precio_compra: input.precio_compra,
           precio_venta: input.precio_venta,
           cantidad: input.cantidad,
-          tipo_arreglo_id: input.tipo_arreglo_id ?? null,
+          categoria_arreglo_id: input.categoria_arreglo_id ?? null,
           empleado_id: input.empleado_id ?? null,
         });
       } else {
@@ -222,11 +222,11 @@ export default function ArregloDetailsPage() {
           cantidad: input.cantidad,
           monto_unitario: input.monto_unitario,
           precio_compra: input.precio_compra,
-          tipo_arreglo_id: input.tipo_arreglo_id ?? null,
+          categoria_arreglo_id: input.categoria_arreglo_id ?? null,
           empleado_id: input.empleado_id ?? null,
         });
       }
-      registrarUltimoUsado(input.tipo_arreglo_id ?? null, input.empleado_id ?? null);
+      registrarUltimoUsado(input.categoria_arreglo_id ?? null, input.empleado_id ?? null);
       success("Repuesto actualizado", "El repuesto se actualizó correctamente.");
       await loadInventarioByTaller(tallerId);
       await reload();
@@ -386,10 +386,10 @@ export default function ArregloDetailsPage() {
             descripcion: d.descripcion,
             cantidad: safeNumber(d.cantidad),
             valor: safeNumber(d.valor),
-            tipoArregloId: d.tipo_arreglo_id ?? null,
+            categoriaArregloId: d.categoria_arreglo_id ?? null,
             empleadoId: d.empleado_id ?? null,
           }))}
-          defaultTipoArregloId={ultimoUsado.tipoArregloId}
+          defaultCategoriaArregloId={ultimoUsado.categoriaArregloId}
           defaultEmpleadoId={ultimoUsado.empleadoId}
           onAdd={handleAddServicio}
           onUpdate={handleUpdateServicio}
@@ -412,10 +412,10 @@ export default function ArregloDetailsPage() {
             cantidad: safeNumber(l.cantidad),
             monto_unitario: safeNumber(l.monto_unitario),
             producto: l.producto ? { nombre: l.producto.nombre, codigo: l.producto.codigo } : null,
-            tipoArregloId: l.tipo_arreglo_id ?? null,
+            categoriaArregloId: l.categoria_arreglo_id ?? null,
             empleadoId: l.empleado_id ?? null,
           }))}
-          defaultTipoArregloId={ultimoUsado.tipoArregloId}
+          defaultCategoriaArregloId={ultimoUsado.categoriaArregloId}
           defaultEmpleadoId={ultimoUsado.empleadoId}
           onUpsert={handleUpsertRepuesto}
           onDelete={handleDeleteRepuesto}

@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { useServiciosDraft } from "@/app/components/arreglos/hooks/useServiciosDraft";
 
-const base = { tipoArregloId: null, empleadoId: null };
+const base = { categoriaArregloId: null, empleadoId: null };
 
 describe("useServiciosDraft", () => {
   it("inicia vacío", () => {
@@ -33,7 +33,7 @@ describe("useServiciosDraft", () => {
     });
   });
 
-  it("onAdd conserva tipoArregloId/empleadoId", () => {
+  it("onAdd conserva categoriaArregloId/empleadoId", () => {
     const { result } = renderHook(() => useServiciosDraft());
 
     act(() => {
@@ -41,12 +41,12 @@ describe("useServiciosDraft", () => {
         descripcion: "Cambio aceite",
         cantidad: 1,
         valor: 1000,
-        tipoArregloId: "tipo-1",
+        categoriaArregloId: "tipo-1",
         empleadoId: "emp-1",
       });
     });
 
-    expect(result.current.items[0]).toMatchObject({ tipoArregloId: "tipo-1", empleadoId: "emp-1" });
+    expect(result.current.items[0]).toMatchObject({ categoriaArregloId: "tipo-1", empleadoId: "emp-1" });
   });
 
   it("onUpdate actualiza el item por id", () => {

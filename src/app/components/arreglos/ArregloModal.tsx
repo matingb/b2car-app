@@ -192,7 +192,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           descripcion: String(s.descripcion ?? "").trim(),
           cantidad: Number(s.cantidad) || 0,
           valor: Number(s.valor) || 0,
-          tipo_arreglo_id: s.tipoArregloId || null,
+          categoria_arreglo_id: s.categoriaArregloId || null,
           empleado_id: s.empleadoId || null,
         }));
 
@@ -215,7 +215,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
               cantidad: Number(r.cantidad) || 0,
               monto_unitario: Number(r.monto_unitario) || 0,
               precio_compra: r.precioCompra,
-              tipo_arreglo_id: r.tipoArregloId || null,
+              categoria_arreglo_id: r.categoriaArregloId || null,
               empleado_id: r.empleadoId || null,
             })),
           repuestos_nuevos: internal.repuestosDraft
@@ -226,7 +226,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
               precio_compra: Number(r.nuevoProducto?.precioCompra) || 0,
               precio_venta: Number(r.nuevoProducto?.precioVenta) || 0,
               cantidad: Number(r.cantidad) || 0,
-              tipo_arreglo_id: r.tipoArregloId || null,
+              categoria_arreglo_id: r.categoriaArregloId || null,
               empleado_id: r.empleadoId || null,
             })),
           detalle_formulario: internal.detalleFormulario ?? undefined,

@@ -142,21 +142,21 @@ export default function ArregloFormFields({
 
   const handleServiciosAdd = useCallback(
     (input: Parameters<typeof onServiciosAdd>[0]) => {
-      registrarUltimoUsado(input.tipoArregloId, input.empleadoId);
+      registrarUltimoUsado(input.categoriaArregloId, input.empleadoId);
       return onServiciosAdd(input);
     },
     [onServiciosAdd, registrarUltimoUsado]
   );
   const handleServiciosUpdate = useCallback(
     (id: string, patch: Parameters<typeof onServiciosUpdate>[1]) => {
-      registrarUltimoUsado(patch.tipoArregloId, patch.empleadoId);
+      registrarUltimoUsado(patch.categoriaArregloId, patch.empleadoId);
       return onServiciosUpdate(id, patch);
     },
     [onServiciosUpdate, registrarUltimoUsado]
   );
   const handleRepuestosUpsert = useCallback(
     (input: Parameters<typeof onRepuestosUpsert>[0]) => {
-      registrarUltimoUsado(input.tipo_arreglo_id ?? null, input.empleado_id ?? null);
+      registrarUltimoUsado(input.categoria_arreglo_id ?? null, input.empleado_id ?? null);
       return onRepuestosUpsert(input);
     },
     [onRepuestosUpsert, registrarUltimoUsado]
@@ -317,7 +317,7 @@ export default function ArregloFormFields({
 
           <ServicioLineasEditableSection
             items={serviciosDraft}
-            defaultTipoArregloId={ultimoUsado.tipoArregloId}
+            defaultCategoriaArregloId={ultimoUsado.categoriaArregloId}
             defaultEmpleadoId={ultimoUsado.empleadoId}
             onAdd={handleServiciosAdd}
             onUpdate={handleServiciosUpdate}
@@ -329,7 +329,7 @@ export default function ArregloFormFields({
           <RepuestoLineasEditableSection
             tallerId={tallerId}
             items={repuestosDraft}
-            defaultTipoArregloId={ultimoUsado.tipoArregloId}
+            defaultCategoriaArregloId={ultimoUsado.categoriaArregloId}
             defaultEmpleadoId={ultimoUsado.empleadoId}
             onUpsert={handleRepuestosUpsert}
             onDelete={onRepuestosDelete}

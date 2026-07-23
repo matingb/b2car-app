@@ -2,21 +2,22 @@
 
 import React, { useMemo } from "react";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
-import { useTiposArreglo } from "@/app/providers/TiposArregloProvider";
+import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
+import { COLOR } from "@/theme/theme";
 
 type Props = {
   value: string | null;
-  onChange: (tipoArregloId: string | null) => void;
+  onChange: (categoriaArregloId: string | null) => void;
   disabled?: boolean;
   placeholder?: string;
 };
 
-export default function TipoArregloSelect({ value, onChange, disabled, placeholder = "+ Categoría" }: Props) {
-  const { tipos, createTipo } = useTiposArreglo();
+export default function CategoriaArregloSelect({ value, onChange, disabled, placeholder = "+ Categoría" }: Props) {
+  const { categorias, createCategoria } = useCategoriasArreglo();
 
   const options = useMemo<AutocompleteOption[]>(
-    () => tipos.map((t) => ({ value: t.id, label: t.nombre })),
-    [tipos]
+    () => categorias.map((t) => ({ value: t.id, label: t.nombre })),
+    [categorias]
   );
 
   const handleChange = (next: string) => {
@@ -26,19 +27,19 @@ export default function TipoArregloSelect({ value, onChange, disabled, placehold
       return;
     }
 
-    const existing = tipos.find((t) => t.id === trimmed);
+    const existing = categorias.find((t) => t.id === trimmed);
     if (existing) {
       onChange(existing.id);
       return;
     }
 
     // No matchea ningun id existente: el usuario escribio un nombre nuevo.
-    void createTipo(trimmed).then((res) => {
-      if (res.tipo) onChange(res.tipo.id);
+    void createCategoria(trimmed).then((res) => {
+      if (res.categoria) onChange(res.categoria.id);
     });
   };
 
-  const selectedOption = value ? tipos.find((t) => t.id === value) : null;
+  const selectedOption = value ? categorias.find((t) => t.id === value) : null;
   const label = selectedOption ? selectedOption.nombre : (value || "");
   const isSelected = !!value;
 
@@ -59,9 +60,9 @@ export default function TipoArregloSelect({ value, onChange, disabled, placehold
         maxWidth: "100%",
       }}
       inputStyle={{
-        backgroundColor: isSelected ? "#f1f5f9" : "#ffffff",
-        color: isSelected ? "#475569" : "#64748b",
-        border: isSelected ? "1px solid transparent" : "1px dashed #cbd5e1",
+        backgroundColor: isSelected ? COLOR.BACKGROUND.SUBTLE : COLOR.BACKGROUND.PRIMARY,
+        color: isSelected ? COLOR.TEXT.PRIMARY : COLOR.TEXT.SECONDARY,
+        border: isSelected ? `1px solid ${COLOR.BORDER.SUBTLE}` : `1px dashed ${COLOR.BORDER.SUBTLE}`,
         borderRadius: 999,
         padding: "4px 28px 4px 12px",
         height: 28,

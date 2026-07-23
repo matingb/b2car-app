@@ -7,7 +7,7 @@ import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
 import ArregloPagoBadge from "@/app/components/arreglos/ArregloPagoBadge";
 import Avatar from "@/app/components/ui/Avatar";
 import { Arreglo } from "@/model/types";
-import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { COLOR } from "@/theme/theme";
 import {
   FileText,
   CarFront,
@@ -15,12 +15,17 @@ import {
   User,
   Calendar,
   Users,
+  Wrench,
 } from "lucide-react";
-import { css } from "@emotion/react";
+
 import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { useTenant } from "@/app/providers/TenantProvider";
+import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
+import { useEmpleados } from "@/app/providers/EmpleadosProvider";
+import { useBreakpoint } from "@/app/providers/BreakpointProvider";
+import ArregloCategoriasList from "@/app/components/arreglos/ArregloCategoriasList";
 
 type EmpleadoInfo = {
   id?: string;
@@ -58,10 +63,16 @@ export default function ArregloItem({
   empleados: empleadosProp,
 }: Props) {
   const { talleres } = useTenant();
+  const { categorias } = useCategoriasArreglo();
+  const { empleados } = useEmpleados();
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
   const [isBadgeOpen, setIsBadgeOpen] = useState(false);
+  const { isMd, isLg, isXl } = useBreakpoint();
+
   const arreglo = initialArreglo;
+
+  const categoriasLimit = isLg ? 2 : 3;
 
   const shouldShowObservaciones =
     showObservaciones ?? mostrarObservaciones ?? false;
@@ -77,9 +88,17 @@ export default function ArregloItem({
     (arreglo as unknown as { tecnicos?: EmpleadoInfo[] }).tecnicos ||
     [];
 
+  const resolvedEmpleados = rawEmpleados.map(emp => {
+    if (typeof emp === "string") {
+      const found = empleados.find(e => e.id === emp);
+      return found ? found : { id: emp, nombre: emp };
+    }
+    return emp;
+  });
+
   return (
     <div 
-      style={{ position: "relative", zIndex: isBadgeOpen || isHovered ? 50 : 1 }}
+      style={styles.wrapper(isBadgeOpen || isHovered)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -88,25 +107,17 @@ export default function ArregloItem({
           if (onClick) return onClick(arreglo);
           router.push(`/arreglos/${arreglo.id}`);
         }}
-        style={{
-          cursor: "pointer",
-          boxSizing: "border-box",
-          padding: 0,
-          overflow: "visible",
-          position: "relative",
-          borderRadius: 12,
-          border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-        }}
+        style={styles.card}
       >
-        <div css={styles.cardBody}>
+        <div style={styles.cardBody(isMd)}>
           {/* Sección Izquierda: Información Principal */}
-          <div css={styles.mainInfoSection}>
-            <div css={styles.topRow}>
-              <h4 css={styles.mainTitle}>
+          <div style={styles.mainInfoSection(isMd)}>
+            <div style={styles.topRow(isXl)}>
+              <h4 style={styles.mainTitle}>
                 {arreglo.descripcion || "Arreglo sin descripción"}
               </h4>
-              <div css={styles.badgesGroup}>
-                <ArregloPagoBadge estaPago={arreglo.esta_pago} arregloId={arreglo.id} size="sm" />
+              <div style={styles.badgesGroup(isMd)}>
+                <ArregloPagoBadge estaPago={arreglo.esta_pago} arregloId={arreglo.id} size="sm" hideTextOnMobile />
                 <ArregloEstadoBadge 
                   estado={arreglo.estado} 
                   size="sm" 
@@ -117,30 +128,31 @@ export default function ArregloItem({
             </div>
 
             {/* Fila Metadatos 1: Vehículo, Cliente y Empleados */}
-            <div css={styles.metaRow}>
+            <div style={styles.metaRow}>
               <div style={styles.metaItem}>
                 <CarFront size={16} color={COLOR.ICON.MUTED} />
-                <span style={styles.metaTextBold}>{vehiculoText}</span>
+                <span style={styles.hideOnMobileInline(isMd)}>{vehiculoText}</span>
+                <span style={styles.showOnMobileInline(isMd)}>{arreglo.vehiculo?.patente || "Sin vehículo"}</span>
               </div>
 
               {arreglo.vehiculo?.nombre_cliente && (
                 <div style={styles.metaItem}>
                   <User size={16} color={COLOR.ICON.MUTED} />
-                  <span style={{ color: COLOR.TEXT.SECONDARY }}>Cliente:</span>
+                  <span style={styles.hideOnMobileInlineStyleSecondary(isMd)}>Cliente:</span>
                   <span style={styles.metaTextBold}>
                     {arreglo.vehiculo.nombre_cliente}
                   </span>
                 </div>
               )}
 
-              {rawEmpleados.length > 0 && (
-                <div style={styles.metaItem}>
+              {resolvedEmpleados.length > 0 && (
+                <div style={styles.hideOnMobileFlex(isMd)}>
                   <Users size={16} color={COLOR.ICON.MUTED} />
-                  <span style={{ color: COLOR.TEXT.SECONDARY }}>
-                    {rawEmpleados.length === 1 ? "Técnico:" : "Técnicos:"}
+                  <span style={styles.textSecondary}>
+                    {resolvedEmpleados.length === 1 ? "Técnico:" : "Técnicos:"}
                   </span>
                   <div style={styles.avatarsContainer}>
-                    {rawEmpleados.map((emp, idx) => {
+                    {resolvedEmpleados.map((emp, idx) => {
                       const colorScheme =
                         AVATAR_COLORS[idx % AVATAR_COLORS.length];
                       const name = getFullName(emp);
@@ -148,14 +160,7 @@ export default function ArregloItem({
                         <div
                           key={idx}
                           title={name}
-                          style={{
-                            marginLeft: idx === 0 ? 0 : -6,
-                            zIndex: rawEmpleados.length - idx,
-                            borderRadius: "50%",
-                            border: "2px solid #ffffff",
-                            boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
-                            display: "flex",
-                          }}
+                          style={styles.avatarItem(idx, resolvedEmpleados.length - idx)}
                         >
                           <Avatar
                             nombre={name}
@@ -170,12 +175,21 @@ export default function ArregloItem({
                 </div>
               )}
             </div>
-
-
+            {arreglo.categorias && arreglo.categorias.length > 0 && (
+              <div style={styles.hideOnMobileFlexCategorias(isMd)}>
+                <Wrench size={16} color={COLOR.ICON.MUTED} />
+                <span style={styles.textSecondary}>Categorías:</span>
+                <ArregloCategoriasList
+                  categorias={arreglo.categorias.map(id => ({ id, nombre: categorias.find(t => t.id === id)?.nombre || "Desconocido" }))}
+                  size="sm"
+                  limit={categoriasLimit}
+                />
+              </div>
+            )}
           </div>
 
           {/* Sección Derecha: Fecha, Precio y Taller (Centrado) */}
-          <div css={styles.rightInfoSection(hasObservaciones)}>
+          <div style={styles.rightInfoSection(hasObservaciones, isMd)}>
             <div style={styles.dateContainer}>
               <Calendar size={15} color={COLOR.ICON.MUTED} />
               <span>{formatDateLabel(arreglo.fecha)}</span>
@@ -191,7 +205,7 @@ export default function ArregloItem({
             {talleres.length > 1 && arreglo.taller ? (
               <div
                 data-testid="arreglo-item-taller-label"
-                style={styles.tallerContainer}
+                style={styles.tallerContainer(isMd)}
                 title={arreglo.taller.ubicacion ?? undefined}
               >
                 <Building2 size={14} color={COLOR.ICON.MUTED} />
@@ -207,7 +221,7 @@ export default function ArregloItem({
             <FileText
               size={16}
               color={COLOR.ICON.MUTED}
-              style={{ flexShrink: 0, marginTop: 2 }}
+              style={styles.observacionesIcon}
             />
             <span style={styles.observacionesText}>
               &quot;{arreglo.observaciones}&quot;
@@ -220,64 +234,66 @@ export default function ArregloItem({
 }
 
 const styles = {
-  cardBody: css({
-    display: "flex",
-    flexDirection: "column",
-    width: "100%",
-    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      flexDirection: "row",
-    },
+  wrapper: (isHoveredOrBadgeOpen: boolean) => ({
+    position: "relative" as const,
+    zIndex: isHoveredOrBadgeOpen ? 50 : 1,
   }),
-  mainInfoSection: css({
+  card: {
+    cursor: "pointer",
+    boxSizing: "border-box" as const,
+    padding: 0,
+    overflow: "visible",
+    position: "relative" as const,
+    borderRadius: 12,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+  },
+  cardBody: (isMd: boolean) => ({
+    display: "flex",
+    flexDirection: isMd ? "row" as const : "column" as const,
+    width: "100%",
+  }),
+  mainInfoSection: (isMd: boolean) => ({
     flex: 1,
     padding: "16px 20px",
     display: "flex",
-    flexDirection: "column",
+    flexDirection: "column" as const,
     justifyContent: "center",
     gap: 6,
-    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      borderBottom: "none",
-      borderRight: `1px solid ${COLOR.BORDER.SUBTLE}`,
-      padding: "16px 20px",
-    },
+    borderBottom: isMd ? "none" : `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRight: isMd ? `1px solid ${COLOR.BORDER.SUBTLE}` : "none",
   }),
-  topRow: css({
+  topRow: (isXl: boolean) => ({
     display: "flex",
-    flexDirection: "column",
+    flexDirection: isXl ? "row" as const : "column" as const,
     gap: 6,
-    [`@media (min-width: ${BREAKPOINTS.xl}px)`]: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-    },
+    flexWrap: isXl ? "nowrap" as const : undefined,
+    alignItems: isXl ? "flex-start" : undefined,
+    justifyContent: isXl ? "space-between" : undefined,
   }),
-  mainTitle: css({
+  mainTitle: {
     fontSize: 17,
     fontWeight: 700,
     color: COLOR.TEXT.PRIMARY,
     margin: 0,
     lineHeight: 1.3,
     paddingRight: 8,
-  }),
-  badgesGroup: css({
+  },
+  badgesGroup: (isMd: boolean) => ({ // Using isMd as approximation for sm in original css (original had sm)
     display: "flex",
     alignItems: "center",
     gap: 8,
     flexShrink: 0,
-    flexWrap: "wrap",
+    flexWrap: isMd ? "nowrap" as const : "wrap" as const, // original was sm for nowrap
   }),
-  metaRow: css({
+  metaRow: {
     display: "flex",
-    flexWrap: "wrap",
+    flexWrap: "wrap" as const,
     alignItems: "center",
     rowGap: 6,
     columnGap: 20,
     fontSize: 13,
     color: COLOR.TEXT.SECONDARY,
-  }),
-
+  },
   metaItem: {
     display: "flex",
     alignItems: "center",
@@ -287,33 +303,40 @@ const styles = {
     fontWeight: 600,
     color: COLOR.TEXT.PRIMARY,
   },
+  textPrimary: {
+    color: COLOR.TEXT.PRIMARY,
+  },
+  textSecondary: {
+    color: COLOR.TEXT.SECONDARY,
+  },
+  textTertiary: {
+    color: COLOR.TEXT.TERTIARY,
+  },
   avatarsContainer: {
     display: "flex",
     alignItems: "center",
   },
-
-  rightInfoSection: (hasObservaciones: boolean) => css({
+  avatarItem: (idx: number, zIndex: number) => ({
+    marginLeft: idx === 0 ? 0 : -6,
+    zIndex,
+    borderRadius: "50%",
+    border: "2px solid #ffffff",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+    display: "flex",
+  }),
+  rightInfoSection: (hasObservaciones: boolean, isMd: boolean) => ({
     padding: "16px 20px",
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     display: "flex",
-    flexDirection: "row",
+    flexDirection: "column" as const,
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 4,
-    borderBottomLeftRadius: hasObservaciones ? 0 : 12,
+    justifyContent: "center",
+    gap: 8,
+    width: isMd ? 160 : undefined,
+    textAlign: isMd ? "center" as const : undefined,
+    borderTopRightRadius: isMd ? 12 : undefined,
+    borderBottomLeftRadius: hasObservaciones ? 0 : (isMd ? 0 : 12),
     borderBottomRightRadius: hasObservaciones ? 0 : 12,
-    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      width: 190,
-      minWidth: 190,
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "16px 20px",
-      textAlign: "center",
-      borderTopRightRadius: 12,
-      borderBottomLeftRadius: 0,
-      borderBottomRightRadius: hasObservaciones ? 0 : 12,
-    },
   }),
   dateContainer: {
     display: "flex",
@@ -330,15 +353,15 @@ const styles = {
     color: COLOR.ACCENT.PRIMARY,
     letterSpacing: "-0.5px",
   },
-  tallerContainer: {
-    display: "flex",
+  tallerContainer: (isMd: boolean) => ({
+    display: isMd ? "flex" : "none",
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
     fontSize: 12,
     fontWeight: 500,
     color: COLOR.TEXT.TERTIARY,
-  },
+  }),
   observacionesContainer: {
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
@@ -349,6 +372,10 @@ const styles = {
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
   },
+  observacionesIcon: {
+    flexShrink: 0,
+    marginTop: 2,
+  },
   observacionesText: {
     fontSize: 13,
     fontStyle: "italic",
@@ -356,5 +383,30 @@ const styles = {
     color: COLOR.TEXT.SECONDARY,
     lineHeight: 1.4,
   },
+  hideOnMobileInline: (isMd: boolean) => ({
+    display: isMd ? "inline" : "none",
+    fontWeight: 600,
+    color: COLOR.TEXT.PRIMARY,
+  }),
+  showOnMobileInline: (isMd: boolean) => ({
+    display: isMd ? "none" : "inline",
+    fontWeight: 600,
+    color: COLOR.TEXT.PRIMARY,
+  }),
+  hideOnMobileInlineStyleSecondary: (isMd: boolean) => ({
+    display: isMd ? "inline" : "none",
+    color: COLOR.TEXT.SECONDARY,
+  }),
+  hideOnMobileFlex: (isMd: boolean) => ({
+    display: isMd ? "flex" : "none",
+    alignItems: "center",
+    gap: 6,
+  }),
+  hideOnMobileFlexCategorias: (isMd: boolean) => ({
+    display: isMd ? "flex" : "none",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 13,
+  }),
 } as const;
 

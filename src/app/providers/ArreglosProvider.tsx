@@ -37,7 +37,7 @@ type ArreglosContextType = {
       descripcion: string;
       cantidad: number;
       valor: number;
-      tipo_arreglo_id?: string | null;
+      categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }
   ) => Promise<void>;
@@ -48,7 +48,7 @@ type ArreglosContextType = {
       descripcion: string;
       cantidad: number;
       valor: number;
-      tipo_arreglo_id: string | null;
+      categoria_arreglo_id: string | null;
       empleado_id: string | null;
     }>
   ) => Promise<void>;
@@ -141,7 +141,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       descripcion: string;
       cantidad: number;
       valor: number;
-      tipo_arreglo_id?: string | null;
+      categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }
   ) => {
@@ -162,7 +162,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       descripcion: string;
       cantidad: number;
       valor: number;
-      tipo_arreglo_id: string | null;
+      categoria_arreglo_id: string | null;
       empleado_id: string | null;
     }>
   ) => {

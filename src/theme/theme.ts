@@ -92,8 +92,6 @@ const GRAPHICS_DANGER_SECONDARY = mixHexColors(RED_DANGER, GRAPHICS_GRAY_TARGET,
 const GRAPHICS_DANGER_TERTIARY = mixHexColors(RED_DANGER, GRAPHICS_GRAY_TARGET, 2 / 6);
 const GRAPHICS_DANGER_QUATERNARY = mixHexColors(RED_DANGER, GRAPHICS_GRAY_TARGET, 3 / 6);
 const GRAPHICS_DANGER_QUINARY = mixHexColors(RED_DANGER, GRAPHICS_GRAY_TARGET, 4 / 6);
-const GRAPHICS_DANGER_SENARY = mixHexColors(RED_DANGER, GRAPHICS_GRAY_TARGET, 5 / 6);
-const GRAPHICS_DANGER_SEPTENARY = GRAPHICS_GRAY_TARGET;
 
 export const COLOR = {
     BACKGROUND: {
@@ -154,8 +152,6 @@ export const COLOR = {
         TERTIARY: GRAPHICS_DANGER_TERTIARY,
         QUATERNARY: GRAPHICS_DANGER_QUATERNARY,
         QUINARY: GRAPHICS_DANGER_QUINARY,
-        SENARY: GRAPHICS_DANGER_SENARY,
-        SEPTENARY: GRAPHICS_DANGER_SEPTENARY,
     },
     SEMANTIC: {
         DANGER: RED_DANGER,
@@ -174,3 +170,15 @@ export const BREAKPOINTS = {
   xl: 1280,
   xxl: 1536,
 } as const
+
+export const TYPOGRAPHY = {
+    dashboard: {
+        chartTitle: {
+            fontSize: 16,
+            fontWeight: 600,
+            color: COLOR.TEXT.PRIMARY,
+            margin: 0,
+            marginBottom: 8,
+        }
+    }
+} as const;

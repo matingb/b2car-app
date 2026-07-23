@@ -55,7 +55,7 @@ AS $$
     AND (p_taller_id IS NULL OR a.taller_id = p_taller_id);
 $$;
 
--- 2. Top N tipos de arreglos con cantidad e ingresos, filtrado por período.
+-- 2. Top N categorias de arreglos con cantidad e ingresos, filtrado por período.
 CREATE OR REPLACE FUNCTION public.dashboard_tipos_con_ingresos(
   top         integer     DEFAULT 4,
   p_from      timestamptz DEFAULT NULL,

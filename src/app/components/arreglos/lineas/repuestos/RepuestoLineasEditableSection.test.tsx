@@ -8,8 +8,8 @@ vi.mock("@/app/providers/InventarioProvider", () => ({
   useInventario: vi.fn(),
 }));
 
-vi.mock("@/app/providers/TiposArregloProvider", () => ({
-  useTiposArreglo: () => ({ tipos: [], isLoading: false, loadTipos: vi.fn(), createTipo: vi.fn() }),
+vi.mock("@/app/providers/CategoriasArregloProvider", () => ({
+  useCategoriasArreglo: () => ({ categorias: [], isLoading: false, loadCategorias: vi.fn(), createCategoria: vi.fn() }),
 }));
 
 vi.mock("@/app/providers/EmpleadosProvider", () => ({
@@ -164,7 +164,7 @@ describe("RepuestoLineasEditableSection", () => {
         precio_venta: 800,
         cantidad: 3,
         monto_unitario: 800,
-        tipo_arreglo_id: null,
+        categoria_arreglo_id: null,
         empleado_id: null,
       });
     });
@@ -234,7 +234,7 @@ describe("RepuestoLineasEditableSection", () => {
         precioCompra: 50,
         precioVenta: 100,
       },
-      tipoArregloId: null,
+      categoriaArregloId: null,
       empleadoId: null,
     };
     setup({ items: [existingNewItem] });
@@ -334,7 +334,7 @@ describe("RepuestoLineasEditableSection", () => {
         precioCompra: 50,
         precioVenta: 100,
       },
-      tipoArregloId: null,
+      categoriaArregloId: null,
       empleadoId: null,
     };
     setup({ items: [existingNewItem] });
@@ -362,7 +362,7 @@ describe("RepuestoLineasEditableSection", () => {
       stock_id: "s1",
       cantidad: 2,
       monto_unitario: 1500,
-      tipoArregloId: null,
+      categoriaArregloId: null,
       empleadoId: null,
     };
     setup({ items: [existingItem] });
@@ -380,7 +380,7 @@ describe("RepuestoLineasEditableSection", () => {
       stock_id: "s2",
       cantidad: 1,
       monto_unitario: 500,
-      tipoArregloId: null,
+      categoriaArregloId: null,
       empleadoId: null,
     };
     setup({ items: [existingItem] });

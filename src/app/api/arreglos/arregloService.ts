@@ -9,12 +9,6 @@ import {
   supabaseArregloRepository,
 } from "./arregloRepository";
 
-export type TiposConIngresos = {
-  tipos: string[];
-  cantidad: number[];
-  ingresos: number[];
-};
-
 export type RecentActivity = {
   id: string;
   titulo: string;

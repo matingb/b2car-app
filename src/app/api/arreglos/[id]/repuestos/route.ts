@@ -11,7 +11,7 @@ export type UpsertRepuestoLineaRequest = {
   cantidad: number;
   monto_unitario: number;
   precio_compra?: number | null;
-  tipo_arreglo_id?: string | null;
+  categoria_arreglo_id?: string | null;
   empleado_id?: string | null;
 };
 
@@ -23,7 +23,7 @@ export type CreateInlineProductoRepuestoRequest = {
   precio_compra: number;
   precio_venta: number;
   cantidad: number;
-  tipo_arreglo_id?: string | null;
+  categoria_arreglo_id?: string | null;
   empleado_id?: string | null;
 };
 
@@ -98,8 +98,8 @@ async function upsertRepuestoExistente(
     return Response.json({ data: null, error: "Precio de compra invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
 
-  if (body.tipo_arreglo_id != null && !isValidUuid(body.tipo_arreglo_id)) {
-    return Response.json({ data: null, error: "tipo_arreglo_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  if (body.categoria_arreglo_id != null && !isValidUuid(body.categoria_arreglo_id)) {
+    return Response.json({ data: null, error: "categoria_arreglo_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
   if (body.empleado_id != null && !isValidUuid(body.empleado_id)) {
     return Response.json({ data: null, error: "empleado_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
@@ -112,7 +112,7 @@ async function upsertRepuestoExistente(
     p_cantidad: cantidad,
     p_monto_unitario: montoUnitario,
     p_precio_compra: precioCompra,
-    p_tipo_arreglo_id: body.tipo_arreglo_id ?? null,
+    p_categoria_arreglo_id: body.categoria_arreglo_id ?? null,
     p_empleado_id: body.empleado_id ?? null,
   });
 
@@ -152,8 +152,8 @@ async function createRepuestoConProductoNuevo(
   if (!Number.isFinite(cantidad) || cantidad <= 0) {
     return Response.json({ data: null, error: "Cantidad invalida" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
-  if (body.tipo_arreglo_id != null && !isValidUuid(body.tipo_arreglo_id)) {
-    return Response.json({ data: null, error: "tipo_arreglo_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  if (body.categoria_arreglo_id != null && !isValidUuid(body.categoria_arreglo_id)) {
+    return Response.json({ data: null, error: "categoria_arreglo_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
   if (body.empleado_id != null && !isValidUuid(body.empleado_id)) {
     return Response.json({ data: null, error: "empleado_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
@@ -167,7 +167,7 @@ async function createRepuestoConProductoNuevo(
     p_precio_compra: precioCompra,
     p_precio_venta: precioVenta,
     p_cantidad: cantidad,
-    p_tipo_arreglo_id: body.tipo_arreglo_id ?? null,
+    p_categoria_arreglo_id: body.categoria_arreglo_id ?? null,
     p_empleado_id: body.empleado_id ?? null,
   });
 

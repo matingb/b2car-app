@@ -10,7 +10,7 @@ export type UpdateDetalleArregloRequest = Partial<{
   descripcion: string;
   cantidad: number;
   valor: number;
-  tipo_arreglo_id: string | null;
+  categoria_arreglo_id: string | null;
   empleado_id: string | null;
 }>;
 
@@ -20,7 +20,7 @@ export type DetalleArregloResponseRow = {
   descripcion: string;
   cantidad: number;
   valor: number;
-  tipo_arreglo_id: string | null;
+  categoria_arreglo_id: string | null;
   empleado_id: string | null;
   created_at: string;
   updated_at: string;
@@ -73,11 +73,11 @@ export async function PUT(
     patch.valor = valor;
   }
 
-  if (body.tipo_arreglo_id !== undefined) {
-    if (body.tipo_arreglo_id !== null && !isValidUuid(body.tipo_arreglo_id)) {
-      return Response.json({ data: null, error: "tipo_arreglo_id inválido" } satisfies UpdateDetalleArregloResponse, { status: 400 });
+  if (body.categoria_arreglo_id !== undefined) {
+    if (body.categoria_arreglo_id !== null && !isValidUuid(body.categoria_arreglo_id)) {
+      return Response.json({ data: null, error: "categoria_arreglo_id inválido" } satisfies UpdateDetalleArregloResponse, { status: 400 });
     }
-    patch.tipo_arreglo_id = body.tipo_arreglo_id;
+    patch.categoria_arreglo_id = body.categoria_arreglo_id;
   }
 
   if (body.empleado_id !== undefined) {

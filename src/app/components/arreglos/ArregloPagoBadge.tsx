@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
-import { COLOR } from "@/theme/theme";
+import { css } from "@emotion/react";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { Arreglo } from "@/model/types";
@@ -11,9 +12,10 @@ type Props = {
   onClick?: (e: React.MouseEvent) => void;
   onPagoUpdated?: (updatedArreglo: Arreglo) => void;
   size?: "sm" | "md";
+  hideTextOnMobile?: boolean;
 };
 
-export default function ArregloPagoBadge({ estaPago, arregloId, onClick, onPagoUpdated, size = "md" }: Props) {
+export default function ArregloPagoBadge({ estaPago, arregloId, onClick, onPagoUpdated, size = "md", hideTextOnMobile }: Props) {
   const { update } = useArreglos();
   const { success, error } = useToast();
   const [loading, setLoading] = useState(false);
@@ -49,20 +51,27 @@ export default function ArregloPagoBadge({ estaPago, arregloId, onClick, onPagoU
     }
   };
 
+  const textStyles = hideTextOnMobile ? css({
+    display: "none",
+    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "inline",
+    }
+  }) : undefined;
+
   const content = loading ? (
     <>
       <Loader2 size={badgeSize} color={COLOR.TEXT.SECONDARY} className="animate-spin" />
-      <span>Actualizando...</span>
+      <span css={textStyles}>Actualizando...</span>
     </>
   ) : estaPago ? (
     <>
       <CheckCircle2 size={badgeSize} color={COLOR.SEMANTIC.SUCCESS} />
-      <span>Pagado</span>
+      <span css={textStyles}>Pagado</span>
     </>
   ) : (
     <>
       <XCircle size={badgeSize} color={COLOR.SEMANTIC.DANGER} />
-      <span>Pago pendiente</span>
+      <span css={textStyles}>Pago pendiente</span>
     </>
   );
 
@@ -73,6 +82,7 @@ export default function ArregloPagoBadge({ estaPago, arregloId, onClick, onPagoU
     display: "inline-flex",
     alignItems: "center",
     gap: size === "sm" ? 4 : 6,
+    whiteSpace: "nowrap",
     fontSize,
     fontWeight: 600,
     color: COLOR.TEXT.PRIMARY,

@@ -47,7 +47,7 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
       p_cantidad: 2,
       p_monto_unitario: 1500,
       p_precio_compra: null,
-      p_tipo_arreglo_id: null,
+      p_categoria_arreglo_id: null,
       p_empleado_id: null,
     });
     await expect(res.json()).resolves.toEqual({
@@ -107,7 +107,7 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
       p_precio_compra: 100,
       p_precio_venta: 180,
       p_cantidad: 2,
-      p_tipo_arreglo_id: null,
+      p_categoria_arreglo_id: null,
       p_empleado_id: null,
     });
     await expect(res.json()).resolves.toEqual({
@@ -143,7 +143,7 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
       p_cantidad: 5,
       p_monto_unitario: 1500,
       p_precio_compra: 800,
-      p_tipo_arreglo_id: null,
+      p_categoria_arreglo_id: null,
       p_empleado_id: null,
     });
   });

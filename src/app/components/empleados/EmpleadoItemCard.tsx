@@ -13,11 +13,7 @@ type Props = {
   onClick: () => void;
 };
 
-function getInitials(nombre: string, apellido: string) {
-  const a = nombre.trim().charAt(0);
-  const b = apellido.trim().charAt(0);
-  return `${a}${b}`.toUpperCase();
-}
+import { getInitials } from "@/lib/initials";
 
 function formatSalario(amount: number | null) {
   if (amount === null) return "Sin definir";
@@ -29,7 +25,7 @@ function formatSalario(amount: number | null) {
 }
 
 export default function EmpleadoItemCard({ empleado, tallerNombre, onClick }: Props) {
-  const initials = getInitials(empleado.nombre, empleado.apellido);
+  const initials = getInitials(`${empleado.nombre} ${empleado.apellido}`);
 
   return (
     <Card onClick={onClick} data-testid={`empleado-item-${empleado.id}`}>

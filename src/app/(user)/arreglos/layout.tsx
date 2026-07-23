@@ -4,7 +4,7 @@ import { VehiculosProvider } from "@/app/providers/VehiculosProvider";
 import { InventarioProvider } from "@/app/providers/InventarioProvider";
 import { FormulariosProvider } from "@/app/providers/FormulariosProvider";
 import { EmpleadosProvider } from "@/app/providers/EmpleadosProvider";
-import { TiposArregloProvider } from "@/app/providers/TiposArregloProvider";
+import { CategoriasArregloProvider } from "@/app/providers/CategoriasArregloProvider";
 
 export default function ArreglosLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -13,9 +13,9 @@ export default function ArreglosLayout({ children }: { children: React.ReactNode
         <ArreglosProvider>
           <FormulariosProvider>
             <EmpleadosProvider>
-              <TiposArregloProvider>
+              <CategoriasArregloProvider>
                 {children}
-              </TiposArregloProvider>
+              </CategoriasArregloProvider>
             </EmpleadosProvider>
           </FormulariosProvider>
         </ArreglosProvider>

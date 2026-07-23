@@ -23,7 +23,7 @@ export type CreateArregloRepuestoNuevoInput = {
   precio_compra: number;
   precio_venta: number;
   cantidad: number;
-  tipo_arreglo_id?: string | null;
+  categoria_arreglo_id?: string | null;
   empleado_id?: string | null;
 };
 
@@ -43,7 +43,7 @@ export type CreateArregloRequest = {
     descripcion: string;
     cantidad: number;
     valor: number;
-    tipo_arreglo_id?: string | null;
+    categoria_arreglo_id?: string | null;
     empleado_id?: string | null;
   }>;
   repuestos?: Array<{
@@ -51,7 +51,7 @@ export type CreateArregloRequest = {
     cantidad: number;
     monto_unitario: number;
     precio_compra?: number | null;
-    tipo_arreglo_id?: string | null;
+    categoria_arreglo_id?: string | null;
     empleado_id?: string | null;
   }>;
   repuestos_nuevos?: CreateArregloRepuestoNuevoInput[];

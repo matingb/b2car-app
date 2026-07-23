@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { ServiceError, ServiceResult, toServiceError } from "@/app/api/serviceError";
 
 const DETALLE_ARREGLO_SELECT =
-  "id, arreglo_id, descripcion, cantidad, valor, tipo_arreglo_id, empleado_id, created_at, updated_at";
+  "id, arreglo_id, descripcion, cantidad, valor, categoria_arreglo_id, empleado_id, created_at, updated_at";
 
 export type DetalleArregloRow = {
   id: string;
@@ -10,7 +10,7 @@ export type DetalleArregloRow = {
   descripcion: string;
   cantidad: number;
   valor: number;
-  tipo_arreglo_id: string | null;
+  categoria_arreglo_id: string | null;
   empleado_id: string | null;
   created_at: string;
   updated_at: string;
@@ -51,7 +51,7 @@ export const detalleArregloService = {
       descripcion: string;
       cantidad: number;
       valor: number;
-      tipo_arreglo_id?: string | null;
+      categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }
   ): Promise<ServiceResult<DetalleArregloRow>> {

@@ -41,7 +41,7 @@ export function useRepuestosDraft() {
               precioCompra: input.precio_compra,
               precioVenta: input.precio_venta,
             },
-            tipoArregloId: input.tipo_arreglo_id ?? null,
+            categoriaArregloId: input.categoria_arreglo_id ?? null,
             empleadoId: input.empleado_id ?? null,
           };
           if (idx >= 0) {
@@ -60,7 +60,7 @@ export function useRepuestosDraft() {
             cantidad: input.cantidad,
             monto_unitario: input.monto_unitario,
             precioCompra: input.precio_compra,
-            tipoArregloId: input.tipo_arreglo_id ?? null,
+            categoriaArregloId: input.categoria_arreglo_id ?? null,
             empleadoId: input.empleado_id ?? null,
           };
           return next;
@@ -74,7 +74,7 @@ export function useRepuestosDraft() {
             monto_unitario: input.monto_unitario,
             precioCompra: input.precio_compra,
             producto: null,
-            tipoArregloId: input.tipo_arreglo_id ?? null,
+            categoriaArregloId: input.categoria_arreglo_id ?? null,
             empleadoId: input.empleado_id ?? null,
           },
         ];

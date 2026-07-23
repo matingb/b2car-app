@@ -26,7 +26,7 @@ export type CreateArregloInput = {
     descripcion: string;
     cantidad: number;
     valor: number;
-    tipo_arreglo_id?: string | null;
+    categoria_arreglo_id?: string | null;
     empleado_id?: string | null;
   }>;
   repuestos?: Array<{
@@ -34,7 +34,7 @@ export type CreateArregloInput = {
     cantidad: number;
     monto_unitario: number;
     precio_compra?: number | null;
-    tipo_arreglo_id?: string | null;
+    categoria_arreglo_id?: string | null;
     empleado_id?: string | null;
   }>;
   repuestos_nuevos?: CreateArregloRepuestoNuevoInput[];
@@ -167,7 +167,7 @@ export const arreglosClient = {
       descripcion: string;
       cantidad: number;
       valor: number;
-      tipo_arreglo_id?: string | null;
+      categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }
   ): Promise<CreateDetalleArregloResponse> {
@@ -195,7 +195,7 @@ export const arreglosClient = {
       descripcion: string;
       cantidad: number;
       valor: number;
-      tipo_arreglo_id: string | null;
+      categoria_arreglo_id: string | null;
       empleado_id: string | null;
     }>
   ): Promise<UpdateDetalleArregloResponse> {

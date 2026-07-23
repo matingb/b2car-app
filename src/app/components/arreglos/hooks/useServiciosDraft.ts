@@ -7,7 +7,7 @@ type AddInput = {
   descripcion: string;
   cantidad: number;
   valor: number;
-  tipoArregloId: string | null;
+  categoriaArregloId: string | null;
   empleadoId: string | null;
 };
 type UpdatePatch = AddInput;

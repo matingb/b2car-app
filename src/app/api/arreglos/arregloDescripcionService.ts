@@ -26,24 +26,24 @@ export async function syncArregloDescripcion(
   const detalles = Array.isArray(rpc.detalles) ? rpc.detalles : [];
   const asignaciones = Array.isArray(rpc.asignaciones) ? rpc.asignaciones : [];
 
-  const tipoIds = new Set<string>();
+  const categoriaIds = new Set<string>();
   const empleadoIds = new Set<string>();
 
   (detalles as Record<string, unknown>[]).forEach((d) => {
-    if (typeof d.tipo_arreglo_id === "string") tipoIds.add(d.tipo_arreglo_id);
+    if (typeof d.categoria_arreglo_id === "string") categoriaIds.add(d.categoria_arreglo_id);
     if (typeof d.empleado_id === "string") empleadoIds.add(d.empleado_id);
   });
 
   (asignaciones as Record<string, unknown>[]).forEach((a) => {
     if (Array.isArray(a.lineas)) {
       (a.lineas as Record<string, unknown>[]).forEach((l) => {
-        if (typeof l.tipo_arreglo_id === "string") tipoIds.add(l.tipo_arreglo_id);
+        if (typeof l.categoria_arreglo_id === "string") categoriaIds.add(l.categoria_arreglo_id);
         if (typeof l.empleado_id === "string") empleadoIds.add(l.empleado_id);
       });
     }
   });
 
-  const tiposArray = Array.from(tipoIds);
+  const categoriasArray = Array.from(categoriaIds);
   const empleadosArray = Array.from(empleadoIds);
 
   const { data: detalleFormularioRows } = await supabase
@@ -64,7 +64,7 @@ export async function syncArregloDescripcion(
   const updatePayload = {
     descripcion,
 
-    tipos: tiposArray,
+    categorias: categoriasArray,
     empleados: empleadosArray,
   };
 

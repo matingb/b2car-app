@@ -8,7 +8,7 @@ SET search_path = public;
 -- Limpieza (solo tablas públicas)
 TRUNCATE TABLE
   detalle_arreglo,
-  tipos_arreglo,
+  categorias_arreglo,
   empleados,
   detalle_form_custom,
   formularios,
@@ -33,21 +33,21 @@ RESTART IDENTITY CASCADE;
 INSERT INTO public.tenants (id, nombre, estado, fecha_creacion, updated_at) VALUES
   ('11111111-1111-1111-1111-111111111111', 'B2Car', 'activo', now() - interval '180 days', now() - interval '1 day');
 
--- Tipos de Arreglo por defecto
-INSERT INTO public.tipos_arreglo (id, tenant_id, nombre, color, activo) VALUES
-  ('b1000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Service',     '#3B82F6',true),
-  ('b1000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','Frenos',      '#EF4444',true),
-  ('b1000000-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','Diagnóstico', '#8B5CF6',true),
-  ('b1000000-0000-0000-0000-000000000004','11111111-1111-1111-1111-111111111111','Aceite',      '#F59E0B',true),
-  ('b1000000-0000-0000-0000-000000000005','11111111-1111-1111-1111-111111111111','Batería',     '#10B981',true),
-  ('b1000000-0000-0000-0000-000000000006','11111111-1111-1111-1111-111111111111','Luces',       '#6366F1',true),
-  ('b1000000-0000-0000-0000-000000000007','11111111-1111-1111-1111-111111111111','Alineación',  '#EC4899',true),
-  ('b1000000-0000-0000-0000-000000000008','11111111-1111-1111-1111-111111111111','Suspensión',  '#14B8A6',true),
-  ('b1000000-0000-0000-0000-000000000009','11111111-1111-1111-1111-111111111111','Motor',       '#F97316',true),
-  ('b1000000-0000-0000-0000-000000000010','11111111-1111-1111-1111-111111111111','Electricidad', '#EAB308',true);
+-- Categorías de Arreglo por defecto
+INSERT INTO public.categorias_arreglo (id, tenant_id, nombre) VALUES
+  ('b1000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Service'),
+  ('b1000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','Frenos'),
+  ('b1000000-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','Diagnóstico'),
+  ('b1000000-0000-0000-0000-000000000004','11111111-1111-1111-1111-111111111111','Aceite'),
+  ('b1000000-0000-0000-0000-000000000005','11111111-1111-1111-1111-111111111111','Batería'),
+  ('b1000000-0000-0000-0000-000000000006','11111111-1111-1111-1111-111111111111','Luces'),
+  ('b1000000-0000-0000-0000-000000000007','11111111-1111-1111-1111-111111111111','Alineación'),
+  ('b1000000-0000-0000-0000-000000000008','11111111-1111-1111-1111-111111111111','Suspensión'),
+  ('b1000000-0000-0000-0000-000000000009','11111111-1111-1111-1111-111111111111','Motor'),
+  ('b1000000-0000-0000-0000-000000000010','11111111-1111-1111-1111-111111111111','Electricidad');
 
 -- Formularios (config dinamica)
-INSERT INTO public.formularios (tenant_id, descripcion, metadata, tipo_arreglo_id)
+INSERT INTO public.formularios (tenant_id, descripcion, metadata, categoria_arreglo_id)
 VALUES (
   '11111111-1111-1111-1111-111111111111',
   'FormDev',
@@ -261,9 +261,9 @@ INSERT INTO public.arreglos (id, vehiculo_id, taller_id, estado, fecha, precio_f
   ('80000000-0000-0000-0000-000000000040','40000000-0000-0000-0000-000000000003','50000000-0000-0000-0000-000000000001','TERMINADO', date_trunc('month',now()-interval '5 months')+interval '24 days',38000, true,'Diagnóstico',     '11111111-1111-1111-1111-111111111111',date_trunc('month',now()-interval '5 months')+interval '24 days',date_trunc('month',now()-interval '5 months')+interval '25 days','Chequeo');
 
 -- ===========================================================================
--- DETALLE ARREGLO (Mano de obra con tipo_arreglo_id y empleado_id)
+-- DETALLE ARREGLO (Mano de obra con categoria_arreglo_id y empleado_id)
 -- ===========================================================================
-INSERT INTO public.detalle_arreglo (id, tenant_id, arreglo_id, descripcion, cantidad, valor, tipo_arreglo_id, empleado_id) VALUES
+INSERT INTO public.detalle_arreglo (id, tenant_id, arreglo_id, descripcion, cantidad, valor, categoria_arreglo_id, empleado_id) VALUES
   -- Mes actual
   ('d0000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000001','Mano de obra cambio de aceite y filtros',1,45000,'b1000000-0000-0000-0000-000000000001','e1000000-0000-0000-0000-000000000001'),
   ('d0000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000001','Inspección general de fluidos y correas',1,67000,'b1000000-0000-0000-0000-000000000001','e1000000-0000-0000-0000-000000000002'),
@@ -391,7 +391,7 @@ INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha) VALUES
 -- ===========================================================================
 
 -- ASIGNACION_ARREGLO lineas (mes actual)
-INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, monto_unitario, delta_cantidad, tipo_arreglo_id, empleado_id) VALUES
+INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, monto_unitario, delta_cantidad, categoria_arreglo_id, empleado_id) VALUES
   ('91000000-0000-0000-0000-000000000001','90000000-0000-0000-0000-000000000001','70000000-0000-0000-0000-000000000001', 2, 6500,-2, 'b1000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000001'),
   ('91000000-0000-0000-0000-000000000002','90000000-0000-0000-0000-000000000002','70000000-0000-0000-0000-000000000004', 1, 9800,-1, 'b1000000-0000-0000-0000-000000000002', 'e1000000-0000-0000-0000-000000000003'),
   ('91000000-0000-0000-0000-000000000003','90000000-0000-0000-0000-000000000003','70000000-0000-0000-0000-000000000008', 1,68000,-1, 'b1000000-0000-0000-0000-000000000005', 'e1000000-0000-0000-0000-000000000002'),
@@ -399,20 +399,20 @@ INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, mon
   ('91000000-0000-0000-0000-000000000005','90000000-0000-0000-0000-000000000005','70000000-0000-0000-0000-000000000005', 1, 5200,-1, 'b1000000-0000-0000-0000-000000000004', 'e1000000-0000-0000-0000-000000000003');
 
 -- ASIGNACION_ARREGLO lineas (mes -1, Abril)
-INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, monto_unitario, delta_cantidad, tipo_arreglo_id, empleado_id) VALUES
+INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, monto_unitario, delta_cantidad, categoria_arreglo_id, empleado_id) VALUES
   ('91000000-0000-0000-0000-000000000011','90000000-0000-0000-0000-000000000011','70000000-0000-0000-0000-000000000001', 2, 6500,-2, 'b1000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000003'),
   ('91000000-0000-0000-0000-000000000012','90000000-0000-0000-0000-000000000012','70000000-0000-0000-0000-000000000005', 1, 5200,-1, 'b1000000-0000-0000-0000-000000000002', 'e1000000-0000-0000-0000-000000000001'),
   ('91000000-0000-0000-0000-000000000013','90000000-0000-0000-0000-000000000013','70000000-0000-0000-0000-000000000002', 3, 4200,-3, 'b1000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000001'),
   ('91000000-0000-0000-0000-000000000014','90000000-0000-0000-0000-000000000014','70000000-0000-0000-0000-000000000006', 2, 9800,-2, 'b1000000-0000-0000-0000-000000000002', 'e1000000-0000-0000-0000-000000000003');
 
 -- ASIGNACION_ARREGLO lineas (mes -2, Marzo)
-INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, monto_unitario, delta_cantidad, tipo_arreglo_id, empleado_id) VALUES
+INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, monto_unitario, delta_cantidad, categoria_arreglo_id, empleado_id) VALUES
   ('91000000-0000-0000-0000-000000000015','90000000-0000-0000-0000-000000000015','70000000-0000-0000-0000-000000000001', 2, 6500,-2, 'b1000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000002'),
   ('91000000-0000-0000-0000-000000000016','90000000-0000-0000-0000-000000000016','70000000-0000-0000-0000-000000000004', 1, 5200,-1, 'b1000000-0000-0000-0000-000000000002', 'e1000000-0000-0000-0000-000000000003'),
   ('91000000-0000-0000-0000-000000000017','90000000-0000-0000-0000-000000000017','70000000-0000-0000-0000-000000000009', 1, 4300,-1, 'b1000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000003');
 
 -- ASIGNACION_ARREGLO lineas (meses -3, -4, -5)
-INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, monto_unitario, delta_cantidad, tipo_arreglo_id, empleado_id) VALUES
+INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, monto_unitario, delta_cantidad, categoria_arreglo_id, empleado_id) VALUES
   ('91000000-0000-0000-0000-000000000018','90000000-0000-0000-0000-000000000018','70000000-0000-0000-0000-000000000001', 2, 6500,-2, 'b1000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000003'),
   ('91000000-0000-0000-0000-000000000019','90000000-0000-0000-0000-000000000019','70000000-0000-0000-0000-000000000004', 1, 5200,-1, 'b1000000-0000-0000-0000-000000000004', 'e1000000-0000-0000-0000-000000000002'),
   ('91000000-0000-0000-0000-000000000020','90000000-0000-0000-0000-000000000020','70000000-0000-0000-0000-000000000001', 1, 6500,-1, 'b1000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000003'),

@@ -119,7 +119,7 @@ export async function POST(req: Request) {
         descripcion: String((d as { descripcion?: unknown }).descripcion ?? "").trim(),
         cantidad: Number((d as { cantidad?: unknown }).cantidad),
         valor: Number((d as { valor?: unknown }).valor),
-        tipo_arreglo_id: (d as { tipo_arreglo_id?: unknown }).tipo_arreglo_id || null,
+        categoria_arreglo_id: (d as { categoria_arreglo_id?: unknown }).categoria_arreglo_id || null,
         empleado_id: (d as { empleado_id?: unknown }).empleado_id || null,
     }));
 
@@ -131,8 +131,8 @@ export async function POST(req: Request) {
         if (!Number.isFinite(d.valor) || d.valor < 0) {
             return Response.json({ error: "Valor inválido en servicios" }, { status: 400 });
         }
-        if (d.tipo_arreglo_id != null && !isValidUuid(d.tipo_arreglo_id)) {
-            return Response.json({ error: "tipo_arreglo_id inválido en servicios" }, { status: 400 });
+        if (d.categoria_arreglo_id != null && !isValidUuid(d.categoria_arreglo_id)) {
+            return Response.json({ error: "categoria_arreglo_id inválido en servicios" }, { status: 400 });
         }
         if (d.empleado_id != null && !isValidUuid(d.empleado_id)) {
             return Response.json({ error: "empleado_id inválido en servicios" }, { status: 400 });
@@ -197,7 +197,7 @@ export async function POST(req: Request) {
             (r as { precio_compra?: unknown }).precio_compra == null
                 ? null
                 : Number((r as { precio_compra?: unknown }).precio_compra),
-        tipo_arreglo_id: (r as { tipo_arreglo_id?: unknown }).tipo_arreglo_id || null,
+        categoria_arreglo_id: (r as { categoria_arreglo_id?: unknown }).categoria_arreglo_id || null,
         empleado_id: (r as { empleado_id?: unknown }).empleado_id || null,
     }));
 
@@ -207,7 +207,7 @@ export async function POST(req: Request) {
         precio_compra: Number((r as { precio_compra?: unknown }).precio_compra),
         precio_venta: Number((r as { precio_venta?: unknown }).precio_venta),
         cantidad: Number((r as { cantidad?: unknown }).cantidad),
-        tipo_arreglo_id: (r as { tipo_arreglo_id?: unknown }).tipo_arreglo_id || null,
+        categoria_arreglo_id: (r as { categoria_arreglo_id?: unknown }).categoria_arreglo_id || null,
         empleado_id: (r as { empleado_id?: unknown }).empleado_id || null,
     }));
 
@@ -218,8 +218,8 @@ export async function POST(req: Request) {
         if (r.precio_compra != null && (!Number.isFinite(r.precio_compra) || r.precio_compra < 0)) {
             return Response.json({ error: "Precio de compra invalido en repuestos" }, { status: 400 });
         }
-        if (r.tipo_arreglo_id != null && !isValidUuid(r.tipo_arreglo_id)) {
-            return Response.json({ error: "tipo_arreglo_id invalido en repuestos" }, { status: 400 });
+        if (r.categoria_arreglo_id != null && !isValidUuid(r.categoria_arreglo_id)) {
+            return Response.json({ error: "categoria_arreglo_id invalido en repuestos" }, { status: 400 });
         }
         if (r.empleado_id != null && !isValidUuid(r.empleado_id)) {
             return Response.json({ error: "empleado_id invalido en repuestos" }, { status: 400 });
@@ -242,8 +242,8 @@ export async function POST(req: Request) {
         if (!Number.isFinite(r.precio_compra) || r.precio_compra < 0) return Response.json({ error: "Precio de compra invalido" }, { status: 400 });
         if (!Number.isFinite(r.precio_venta) || r.precio_venta < 0) return Response.json({ error: "Precio de venta invalido" }, { status: 400 });
         if (!Number.isFinite(r.cantidad) || r.cantidad <= 0) return Response.json({ error: "Cantidad invalida en producto nuevo" }, { status: 400 });
-        if (r.tipo_arreglo_id != null && !isValidUuid(r.tipo_arreglo_id)) {
-            return Response.json({ error: "tipo_arreglo_id invalido en producto nuevo" }, { status: 400 });
+        if (r.categoria_arreglo_id != null && !isValidUuid(r.categoria_arreglo_id)) {
+            return Response.json({ error: "categoria_arreglo_id invalido en producto nuevo" }, { status: 400 });
         }
         if (r.empleado_id != null && !isValidUuid(r.empleado_id)) {
             return Response.json({ error: "empleado_id invalido en producto nuevo" }, { status: 400 });

@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import { useEmpleados } from "@/app/providers/EmpleadosProvider";
+import { COLOR } from "@/theme/theme";
 
 type Props = {
   value: string | null;
@@ -11,13 +12,7 @@ type Props = {
   placeholder?: string;
 };
 
-// Helper for initials
-function getInitials(name: string) {
-  const parts = name.trim().split(" ");
-  if (parts.length === 0) return "";
-  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
+import { getInitials } from "@/lib/initials";
 
 export default function EmpleadoSelect({ value, onChange, disabled, placeholder = "+ Empleado" }: Props) {
   const { empleados } = useEmpleados();
@@ -48,9 +43,9 @@ export default function EmpleadoSelect({ value, onChange, disabled, placeholder 
         disabled={disabled}
         style={{ width: "100%" }}
         inputStyle={{
-          backgroundColor: isSelected ? "#eef2ff" : "#ffffff",
-          color: isSelected ? "#4338ca" : "#64748b",
-          border: isSelected ? "1px solid transparent" : "1px dashed #cbd5e1",
+          backgroundColor: isSelected ? COLOR.BACKGROUND.INFO_TINT : COLOR.BACKGROUND.PRIMARY,
+          color: isSelected ? COLOR.ACCENT.PRIMARY : COLOR.TEXT.SECONDARY,
+          border: isSelected ? "1px solid transparent" : `1px dashed ${COLOR.BORDER.SUBTLE}`,
           borderRadius: 999,
           padding: isSelected ? "4px 28px 4px 26px" : "4px 28px 4px 12px",
           height: 28,
@@ -73,8 +68,8 @@ const styles = {
     width: 16,
     height: 16,
     borderRadius: 999,
-    background: "#c7d2fe",
-    color: "#3730a3",
+    background: COLOR.ACCENT.PRIMARY,
+    color: COLOR.TEXT.CONTRAST,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

@@ -1,7 +1,8 @@
+
 "use client";
 
 import React, { useMemo } from "react";
-import { css } from "@emotion/react";
+
 import { useRouter } from "next/navigation";
 import {
   Calendar,
@@ -28,11 +29,12 @@ import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useEmpleados } from "@/app/providers/EmpleadosProvider";
-import { useTiposArreglo } from "@/app/providers/TiposArregloProvider";
+import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
 import type { EstadoArreglo } from "@/model/types";
 import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 import { useArregloPrintableInvoice } from "@/app/components/arreglos/hooks/useArregloPrintableInvoice";
 import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
+import ArregloCategoriasList from "@/app/components/arreglos/ArregloCategoriasList";
 
 export interface ArregloSummaryCardProps {
   data: ArregloDetalleData;
@@ -61,7 +63,7 @@ export default function ArregloSummaryCard({
   const { handleOpenPrintableInvoice } = useArregloPrintableInvoice();
   const { shareArreglo } = useWhatsAppMessage();
   const { empleados } = useEmpleados();
-  const { tipos } = useTiposArreglo();
+  const { categorias } = useCategoriasArreglo();
 
   const assignedEmpleados = useMemo(() => {
     const ids = new Set<string>();
@@ -81,19 +83,19 @@ export default function ArregloSummaryCard({
   const assignedTipos = useMemo(() => {
     const ids = new Set<string>();
     data.detalles.forEach((d) => {
-      if (d.tipo_arreglo_id) ids.add(d.tipo_arreglo_id);
+      if (d.categoria_arreglo_id) ids.add(d.categoria_arreglo_id);
     });
     data.asignaciones.forEach((a) => {
       a.lineas.forEach((l) => {
-        if (l.tipo_arreglo_id) ids.add(l.tipo_arreglo_id);
+        if (l.categoria_arreglo_id) ids.add(l.categoria_arreglo_id);
       });
     });
     const foundTipos = Array.from(ids)
-      .map((id) => tipos.find((t) => t.id === id))
+      .map((id) => categorias.find((t) => t.id === id))
       .filter(Boolean);
 
     return foundTipos;
-  }, [data, tipos]);
+  }, [data, categorias]);
 
   const arreglo = data.arreglo;
   if (!arreglo) return null;
@@ -152,7 +154,7 @@ export default function ArregloSummaryCard({
 
   return (
     <section style={styles.container}>
-      <Card style={{ padding: 0, overflow: "hidden", backgroundColor: COLOR.BACKGROUND.SECONDARY }}>
+      <Card style={styles.card}>
         {/* Top Header */}
         <div style={styles.header}>
           <div style={styles.headerLeft}>
@@ -168,25 +170,25 @@ export default function ArregloSummaryCard({
                   <CarFront size={16} color={COLOR.ICON.MUTED} />
                   <span style={styles.patente}>{arreglo.vehiculo.patente}</span>
                 </div>
-                <div css={styles.hideOnMobileDivider} />
-                <span css={styles.hideOnMobileText}>
+                <div className="w-[1px] h-4 hidden sm:block" style={styles.divider} />
+                <span className="text-sm font-medium hidden sm:block" style={styles.textSecondary}>
                   {arreglo.vehiculo.marca} {arreglo.vehiculo.modelo}
                   {arreglo.vehiculo.fecha_patente ? ` (${arreglo.vehiculo.fecha_patente})` : ""}
                 </span>
                 {arreglo.vehiculo.nro_interno && (
                   <>
-                    <div css={styles.hideOnMobileDivider} />
-                    <span css={styles.hideOnMobileInternalCode}>
+                    <div className="w-[1px] h-4 hidden sm:block" style={styles.divider} />
+                    <span className="text-xs font-medium uppercase tracking-wider hidden sm:block" style={styles.textTertiary}>
                       INT: {arreglo.vehiculo.nro_interno}
                     </span>
                   </>
                 )}
               </Card>
             ) : (
-              <span style={{ fontSize: 14, color: COLOR.TEXT.SECONDARY }}>Sin vehículo</span>
+              <span style={styles.noVehiculoText}>Sin vehículo</span>
             )}
 
-            <span css={styles.hideOnMobilePipe}>|</span>
+            <span className="hidden md:block" style={styles.pipe}>|</span>
 
             {/* Estado */}
             <div style={styles.estadoRow}>
@@ -242,8 +244,8 @@ export default function ArregloSummaryCard({
         </div>
 
         {/* Body Content */}
-        <div css={styles.bodyContent}>
-          <div css={styles.gridContainer}>
+        <div className="p-5 sm:p-6 lg:p-8 flex flex-col gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
             {/* Block 1: Amount, Date, Mileage */}
             <div style={styles.block1}>
               <div>
@@ -252,7 +254,7 @@ export default function ArregloSummaryCard({
                   {formatArs(totalCalculado, { maxDecimals: 0, minDecimals: 0 })}
                 </div>
               </div>
-              <div css={styles.detailsGrid}>
+              <div className="grid gap-3" style={styles.detailsGrid}>
                 <div style={styles.detailBox}>
                   <span style={styles.blockLabel}>Ingreso</span>
                   <div style={styles.detailValue}>
@@ -276,19 +278,14 @@ export default function ArregloSummaryCard({
             <div style={styles.block2}>
               <div>
                 <span style={styles.blockLabelWithIcon}>
-                  <Wrench size={14} /> Tipos de Arreglo
+                  <Wrench size={14} /> Categorías de Arreglo
                 </span>
-                <div style={styles.chipsRow}>
-                  {assignedTipos.length > 0 ? (
-                    assignedTipos.map((t, idx) => (
-                      <span key={t?.id ?? idx} style={styles.tipoChip}>
-                        {t?.nombre}
-                      </span>
-                    ))
-                  ) : (
-                    <span style={styles.emptyText}>Sin tipos registrados</span>
-                  )}
-                </div>
+                <ArregloCategoriasList
+                  categorias={arreglo.categorias?.map((id) => categorias.find((t) => t.id === id)) ?? []}
+                  size="md"
+                  limit={3}
+                  emptyText="Sin categorías registradas"
+                />
               </div>
 
               <div>
@@ -349,6 +346,11 @@ const styles = {
     marginTop: 16,
     fontFamily: "var(--font-geist-sans), sans-serif",
   },
+  card: {
+    padding: 0,
+    overflow: "hidden",
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+  },
   header: {
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
@@ -383,42 +385,22 @@ const styles = {
     color: COLOR.TEXT.PRIMARY,
     fontSize: 14,
   },
-  hideOnMobileDivider: css({
-    width: 1,
-    height: 16,
+  divider: {
     backgroundColor: COLOR.BORDER.DEFAULT,
-    display: "none",
-    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "block",
-    },
-  }),
-  hideOnMobileText: css({
-    fontSize: 14,
-    fontWeight: 500,
+  },
+  textSecondary: {
     color: COLOR.TEXT.SECONDARY,
-    display: "none",
-    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "block",
-    },
-  }),
-  hideOnMobileInternalCode: css({
-    fontSize: 12,
-    fontWeight: 500,
+  },
+  textTertiary: {
     color: COLOR.TEXT.TERTIARY,
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.05em",
-    display: "none",
-    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "block",
-    },
-  }),
-  hideOnMobilePipe: css({
+  },
+  noVehiculoText: {
+    fontSize: 14,
+    color: COLOR.TEXT.SECONDARY,
+  },
+  pipe: {
     color: COLOR.BORDER.DEFAULT,
-    display: "none",
-    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      display: "block",
-    },
-  }),
+  },
   estadoRow: {
     display: "flex",
     alignItems: "center",
@@ -435,23 +417,6 @@ const styles = {
     alignItems: "center",
     gap: 4,
   },
-  bodyContent: css({
-    padding: 20,
-    display: "flex",
-    flexDirection: "column",
-    gap: 24,
-    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: { padding: 24 },
-    [`@media (min-width: ${BREAKPOINTS.lg}px)`]: { padding: 32 },
-  }),
-  gridContainer: css({
-    display: "grid",
-    gridTemplateColumns: "1fr",
-    gap: 24,
-    [`@media (min-width: ${BREAKPOINTS.lg}px)`]: {
-      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-      gap: 32,
-    },
-  }),
   block1: {
     display: "flex",
     flexDirection: "column" as const,
@@ -483,11 +448,9 @@ const styles = {
     color: COLOR.TEXT.PRIMARY,
     letterSpacing: "-0.025em",
   },
-  detailsGrid: css({
-    display: "grid",
+  detailsGrid: {
     gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
-    gap: 12,
-  }),
+  },
   detailBox: {
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
@@ -512,16 +475,6 @@ const styles = {
     display: "flex",
     flexWrap: "wrap" as const,
     gap: 8,
-  },
-  tipoChip: {
-    padding: "6px 12px",
-    backgroundColor: COLOR.BACKGROUND.PRIMARY,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    color: COLOR.TEXT.SECONDARY,
-    fontSize: 14,
-    fontWeight: 500,
-    borderRadius: 8,
-    boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
   },
   empleadoChip: {
     display: "inline-flex",

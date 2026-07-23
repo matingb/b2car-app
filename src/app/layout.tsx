@@ -1,6 +1,7 @@
 import "../globals.css";
 import { ServiceWorkerRegister } from "./providers/ServiceWorkerRegister";
 import ToastProvider from "./providers/ToastProvider";
+import { BreakpointProvider } from "./providers/BreakpointProvider";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -19,8 +20,10 @@ export default function RootLayout({
       </head>
       <body suppressHydrationWarning>
         <ToastProvider>
-          <ServiceWorkerRegister />
-          {children}
+          <BreakpointProvider>
+            <ServiceWorkerRegister />
+            {children}
+          </BreakpointProvider>
         </ToastProvider>
       </body>
     </html>

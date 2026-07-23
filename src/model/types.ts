@@ -78,7 +78,9 @@ export interface Arreglo {
   precio_final: number;
   precio_sin_iva: number;
   esta_pago: boolean;
-  extra_data: string; 
+  extra_data: string;
+  categorias?: string[];
+  empleados?: string[];
 }
 
 export interface Turno {

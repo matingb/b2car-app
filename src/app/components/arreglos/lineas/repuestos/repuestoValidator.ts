@@ -211,7 +211,7 @@ function validateNewProduct(
       precio_venta: precioVenta,
       cantidad,
       monto_unitario: precioVenta,
-      tipo_arreglo_id: draft.tipoArregloId,
+      categoria_arreglo_id: draft.categoriaArregloId,
       empleado_id: draft.empleadoId,
     },
   };
@@ -252,7 +252,7 @@ function validateExistingStock(
         cantidad,
         monto_unitario: montoUnitario,
         precio_compra: precioCompra,
-        tipo_arreglo_id: draft.tipoArregloId,
+        categoria_arreglo_id: draft.categoriaArregloId,
         empleado_id: draft.empleadoId,
       },
     };
@@ -265,7 +265,7 @@ function validateExistingStock(
       stock_id: stockId,
       cantidad,
       monto_unitario: montoUnitario,
-      tipo_arreglo_id: draft.tipoArregloId,
+      categoria_arreglo_id: draft.categoriaArregloId,
       empleado_id: draft.empleadoId,
     },
   };

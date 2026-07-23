@@ -11,16 +11,17 @@ import { useInlineEditor } from "@/app/components/arreglos/lineas/shared/useInli
 import { InlineEditorProvider } from "@/app/components/arreglos/lineas/shared/InlineEditorContext";
 import EditableLineaCard from "@/app/components/arreglos/lineas/shared/EditableLineaCard";
 import ReadOnlyLineaCard from "@/app/components/arreglos/lineas/shared/ReadOnlyLineaCard";
-import TipoArregloSelect from "@/app/components/arreglos/lineas/shared/TipoArregloSelect";
+import CategoriaArregloSelect from "@/app/components/arreglos/lineas/shared/CategoriaArregloSelect";
 import EmpleadoSelect from "@/app/components/arreglos/lineas/shared/EmpleadoSelect";
-import TipoEmpleadoChips from "@/app/components/arreglos/lineas/shared/TipoEmpleadoChips";
+import CategoriaChip from "@/app/components/arreglos/lineas/shared/CategoriaChip";
+import EmpleadoChip from "@/app/components/arreglos/lineas/shared/EmpleadoChip";
 
 export type ServicioLinea = {
   id: string;
   descripcion: string;
   cantidad: number;
   valor: number;
-  tipoArregloId: string | null;
+  categoriaArregloId: string | null;
   empleadoId: string | null;
 };
 
@@ -28,7 +29,7 @@ type ServicioLineaValue = {
   descripcion: string;
   cantidad: number;
   valor: number;
-  tipoArregloId: string | null;
+  categoriaArregloId: string | null;
   empleadoId: string | null;
 };
 
@@ -36,7 +37,7 @@ type Draft = {
   descripcion: string;
   cantidad: string;
   valor: string;
-  tipoArregloId: string | null;
+  categoriaArregloId: string | null;
   empleadoId: string | null;
 };
 
@@ -45,7 +46,7 @@ type Props = {
   emptyText?: string;
   items: ServicioLinea[];
   disabled?: boolean;
-  defaultTipoArregloId?: string | null;
+  defaultCategoriaArregloId?: string | null;
   defaultEmpleadoId?: string | null;
   onAdd: (input: ServicioLineaValue) => void | Promise<void>;
   onUpdate: (id: string, patch: ServicioLineaValue) => void | Promise<void>;
@@ -57,7 +58,7 @@ export default function ServicioLineasEditableSection({
   emptyText = "Sin servicios realizados.",
   items,
   disabled = false,
-  defaultTipoArregloId = null,
+  defaultCategoriaArregloId = null,
   defaultEmpleadoId = null,
   onAdd,
   onUpdate,
@@ -83,14 +84,14 @@ export default function ServicioLineasEditableSection({
       descripcion: "",
       cantidad: "1",
       valor: "",
-      tipoArregloId: defaultTipoArregloId,
+      categoriaArregloId: defaultCategoriaArregloId,
       empleadoId: defaultEmpleadoId,
     },
     draftFromItem: (item) => ({
       descripcion: item.descripcion ?? "",
       cantidad: String(item.cantidad ?? 1),
       valor: String(item.valor ?? ""),
-      tipoArregloId: item.tipoArregloId ?? null,
+      categoriaArregloId: item.categoriaArregloId ?? null,
       empleadoId: item.empleadoId ?? null,
     }),
     validate: (d) => {
@@ -103,7 +104,7 @@ export default function ServicioLineasEditableSection({
       if (!Number.isFinite(valor) || valor < 0) return { ok: false as const, message: "Valor inválido" };
       return {
         ok: true as const,
-        value: { descripcion, cantidad, valor, tipoArregloId: d.tipoArregloId, empleadoId: d.empleadoId },
+        value: { descripcion, cantidad, valor, categoriaArregloId: d.categoriaArregloId, empleadoId: d.empleadoId },
       };
     },
     onAdd,
@@ -156,9 +157,9 @@ export default function ServicioLineasEditableSection({
           extra={
             <div style={styles.tipoEmpleadoRow}>
               <div style={styles.tipoEmpleadoField}>
-                <TipoArregloSelect
-                  value={draft.tipoArregloId}
-                  onChange={(tipoArregloId) => setDraft((p) => ({ ...p, tipoArregloId }))}
+                <CategoriaArregloSelect
+                  value={draft.categoriaArregloId}
+                  onChange={(categoriaArregloId) => setDraft((p) => ({ ...p, categoriaArregloId }))}
                   disabled={!canInteract}
                 />
               </div>
@@ -201,7 +202,7 @@ export default function ServicioLineasEditableSection({
                 key={item.id}
                 kind="servicios"
                 title={item.descripcion || "Sin nombre"}
-                subtitle={<TipoEmpleadoChips tipoArregloId={item.tipoArregloId} empleadoId={item.empleadoId} />}
+                subtitle={<><CategoriaChip categoriaArregloId={item.categoriaArregloId} /><EmpleadoChip empleadoId={item.empleadoId} /></>}
                 cantidad={Number(item.cantidad) || 0}
                 unitario={Number(item.valor) || 0}
                 onEdit={() => startEdit(item)}
