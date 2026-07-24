@@ -17,7 +17,6 @@ const EMPTY_PRODUCT_DRAFT: ProductoFormFieldsValues = {
     nombre: "",
     codigo: "",
     proveedor: "",
-    ubicacion: "",
     precioCompra: 0,
     precioVenta: 0,
     categorias: [],

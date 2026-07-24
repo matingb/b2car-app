@@ -1,8 +1,9 @@
 import { logger } from "@/lib/logger";
-import type { ProductoDTO } from "@/model/dtos";
+import type { ProductoDTO, StockDTO } from "@/model/dtos";
 import type { CreateProductoRequest, CreateProductoResponse, GetProductosResponse } from "./contracts";
 import { createClient } from "@/supabase/server";
-import { productosService, type ProductoRow, type ProductoWithStocksCountRow } from "./productosService";
+import { productosService, type ProductoRow, type ProductoWithStocksRow } from "./productosService";
+import type { StockRow } from "../stocks/stocksService";
 import { ServiceError } from "../serviceError";
 
 function mapProductoBase(row: ProductoRow): Omit<ProductoDTO, "talleresConStock"> {
@@ -23,10 +24,25 @@ function mapProductoBase(row: ProductoRow): Omit<ProductoDTO, "talleresConStock"
   };
 }
 
-function mapProducto(row: ProductoWithStocksCountRow): ProductoDTO {
+function mapStock(row: StockRow): StockDTO {
+  return {
+    id: row.id,
+    tallerId: row.taller_id,
+    productoId: row.producto_id,
+    cantidad: Number(row.cantidad) || 0,
+    stock_minimo: Number(row.stock_minimo) || 0,
+    stock_maximo: Number(row.stock_maximo) || 0,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function mapProducto(row: ProductoWithStocksRow): ProductoDTO {
+  const stocks = Array.isArray(row.stocks) ? row.stocks : [];
   return {
     ...mapProductoBase(row),
-    talleresConStock: row.talleresConStock ?? 0,
+    talleresConStock: stocks.length,
+    stocks: stocks.map((s) => mapStock(s as StockRow)),
   };
 }
 

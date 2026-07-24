@@ -7,7 +7,6 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
   LogOut,
-  Boxes,
   Package,
   Users,
   Wrench,
@@ -112,13 +111,6 @@ export function useSidebarMenu() {
         label: "Productos",
         icon: <Package size={18} />,
         onClick: () => router.push(ROUTES.productos),
-      },
-      {
-        key: SidebarMenuKey.Stock,
-        href: ROUTES.stock,
-        label: "Stock",
-        icon: <Boxes size={18} />,
-        onClick: () => router.push(ROUTES.stock),
       },
       {
         key: SidebarMenuKey.Operaciones,

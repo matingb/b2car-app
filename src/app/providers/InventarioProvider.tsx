@@ -34,7 +34,6 @@ export type Producto = {
   precioUnitario: number;
   costoUnitario: number;
   proveedor: string;
-  ubicacion: string;
   talleresConStock: number;
   showInStock: boolean;
 };
@@ -108,7 +107,6 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
       costoUnitario: Number(p.costo_unitario) || 0,
       precioUnitario: Number(p.precio_unitario) || 0,
       proveedor: p.proveedor ?? "",
-      ubicacion: "",
       showInStock: dto.producto?.show_in_stock ?? true,
       ultimaActualizacion: isoToShortEsDate(dto.updated_at),
       historialMovimientos: [],

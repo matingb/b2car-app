@@ -1,5 +1,6 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
+import type { StockRow } from "../stocks/stocksService";
 
 export type ListProductosFilters = {
   search?: string;
@@ -23,20 +24,22 @@ export type ProductoRow = {
   updated_at: string;
 };
 
-export type ProductoWithStocksCountRow = ProductoRow & {
+export type ProductoWithStocksRow = ProductoRow & {
   talleresConStock: number;
+  stocks: StockRow[];
 };
 
 export type CreateProductoInput = Omit<ProductoRow, "id" | "tenantId" | "created_at" | "updated_at">;
 
 export const productosService = {
-  async list(supabase: SupabaseClient): Promise<{ data: ProductoWithStocksCountRow[]; error: ServiceError | null }> {
-    const query = supabase.from("productos").select("*, stocks(count)").order("nombre", { ascending: true });
+  async list(supabase: SupabaseClient): Promise<{ data: ProductoWithStocksRow[]; error: ServiceError | null }> {
+    const query = supabase.from("productos").select("*, stocks(*)").order("nombre", { ascending: true });
     const { data, error } = await query;
     if (error) return { data: [], error: toServiceError(error) };
-    const mapped: ProductoWithStocksCountRow[] = data.map((row) => ({
+    const mapped: ProductoWithStocksRow[] = data.map((row) => ({
       ...row,
-      talleresConStock: Number(row.stocks?.[0]?.count) || 0,
+      stocks: Array.isArray(row.stocks) ? row.stocks : [],
+      talleresConStock: Array.isArray(row.stocks) ? row.stocks.length : 0,
     }));
     return { data: mapped, error: null };
   },
@@ -91,7 +94,7 @@ export const productosService = {
     supabase: SupabaseClient,
     id: string
   ): Promise<{ error: ServiceError | PostgrestError | null }> {
-    await supabase.from("stocks").delete().eq("productoId", id);
+    await supabase.from("stocks").delete().eq("producto_id", id);
 
     const { error } = await supabase.from("productos").delete().eq("id", id);
     if (error) return { error };

@@ -11,6 +11,13 @@ export type OperacionesFilters = {
 	tipo?: string[];
 };
 
+export type OperacionesPagination = {
+	page: number;
+	pageSize: number;
+};
+
+export const OPERACIONES_PAGE_SIZE = 50;
+
 export type OperacionesStats = {
 	ventas: number;
 	compras: number;
@@ -51,55 +58,58 @@ export type UpdateOperacionInput = {
 
 type OperacionRow = OperacionDTO & { operaciones_lineas?: OperacionLineaDTO[] | null };
 
-type OperacionLineaRow = {
-	cantidad?: number | null;
-	monto_unitario?: number | null;
+type OperacionesStatsRow = {
+	ventas?: number | string | null;
+	compras?: number | string | null;
+	asignaciones?: number | string | null;
+	neto?: number | string | null;
 };
 
-type OperacionStatsRow = {
-	tipo?: string | null;
-	operaciones_lineas?: OperacionLineaRow[] | null;
-};
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-function toDayStart(date: string) {
-	return `${date}T00:00:00.000Z`;
+function toTimestampStart(value: string) {
+	return DATE_ONLY_PATTERN.test(value) ? `${value}T00:00:00.000Z` : value;
 }
 
-function toDayEnd(date: string) {
-	return `${date}T23:59:59.999Z`;
-}
+function toTimestampEndExclusive(value: string) {
+	if (!DATE_ONLY_PATTERN.test(value)) return value;
 
-function sumOperacionLineas(lineas: OperacionLineaRow[] | null | undefined) {
-	if (!Array.isArray(lineas)) return 0;
-	return lineas.reduce((acc, l) => {
-		const cantidad = Number(l.cantidad) || 0;
-		const monto = Number(l.monto_unitario) || 0;
-		return acc + cantidad * monto;
-	}, 0);
+	const date = new Date(`${value}T00:00:00.000Z`);
+	date.setUTCDate(date.getUTCDate() + 1);
+	return date.toISOString();
 }
 
 export const operacionesService = {
 	async list(
 		supabase: SupabaseClient,
-		filters: OperacionesFilters = {}
-	): Promise<{ data: OperacionRow[]; error: ServiceError | null }>
+		filters: OperacionesFilters = {},
+		pagination: OperacionesPagination = { page: 1, pageSize: OPERACIONES_PAGE_SIZE }
+	): Promise<{ data: OperacionRow[]; total: number; error: ServiceError | null }>
 	{
+		const page = Math.max(1, Math.trunc(pagination.page) || 1);
+		const pageSize = OPERACIONES_PAGE_SIZE;
+		const from = (page - 1) * pageSize;
+		const to = from + pageSize - 1;
+
 		let query = supabase
 			.from("operaciones")
-			.select("*, operaciones_lineas(*)")
+			.select("*, operaciones_lineas(*)", { count: "exact" })
 			.order("fecha", { ascending: false })
-			.order("created_at", { ascending: false });
+			.order("created_at", { ascending: false })
+			.order("id", { ascending: false });
 
 		if (filters.fecha) {
-			query = query.gte("fecha", toDayStart(filters.fecha)).lte("fecha", toDayEnd(filters.fecha));
+			query = query
+				.gte("fecha", toTimestampStart(filters.fecha))
+				.lt("fecha", toTimestampEndExclusive(filters.fecha));
 		}
-		if (filters.from) query = query.gte("fecha", toDayStart(filters.from));
-		if (filters.to) query = query.lte("fecha", toDayEnd(filters.to));
+		if (filters.from) query = query.gte("fecha", toTimestampStart(filters.from));
+		if (filters.to) query = query.lt("fecha", toTimestampEndExclusive(filters.to));
 		if (filters.tipo && filters.tipo.length > 0) query = query.in("tipo", filters.tipo);
 
-		const { data, error } = await query;
-		if (error) return { data: [], error: toServiceError(error) };
-		return { data: (data ?? []) as OperacionRow[], error: null };
+		const { data, count, error } = await query.range(from, to);
+		if (error) return { data: [], total: 0, error: toServiceError(error) };
+		return { data: (data ?? []) as OperacionRow[], total: count ?? 0, error: null };
 	},
 
 	async getById(
@@ -206,34 +216,26 @@ export const operacionesService = {
 		filters: OperacionesFilters = {}
 	): Promise<{ data: OperacionesStats; error: ServiceError | null }>
 	{
-		let query = supabase
-			.from("operaciones")
-			.select("tipo, operaciones_lineas(cantidad, monto_unitario)");
-
-		if (filters.fecha) {
-			query = query.gte("fecha", toDayStart(filters.fecha)).lte("fecha", toDayEnd(filters.fecha));
-		}
-		if (filters.from) query = query.gte("fecha", toDayStart(filters.from));
-		if (filters.to) query = query.lte("fecha", toDayEnd(filters.to));
-		if (filters.tipo && filters.tipo.length > 0) query = query.in("tipo", filters.tipo);
-
-		const { data, error } = await query;
+		const { data, error } = await supabase.rpc("rpc_operaciones_stats", {
+			p_from: filters.fecha ? toTimestampStart(filters.fecha) : filters.from ? toTimestampStart(filters.from) : null,
+			p_to: filters.fecha
+				? toTimestampEndExclusive(filters.fecha)
+				: filters.to
+					? toTimestampEndExclusive(filters.to)
+					: null,
+			p_tipos: filters.tipo && filters.tipo.length > 0 ? filters.tipo : null,
+		});
 		if (error) return { data: { ventas: 0, compras: 0, asignaciones: 0, neto: 0 }, error: toServiceError(error) };
 
-		const totals = (data ?? []).reduce(
-			(acc, row) => {
-				const tipo = (row as OperacionStatsRow).tipo ?? "";
-				const monto = sumOperacionLineas((row as OperacionStatsRow).operaciones_lineas);
-				if (tipo === "VENTA") acc.ventas += monto;
-				else if (tipo === "COMPRA") acc.compras += monto;
-				else if (tipo === "ASIGNACION_ARREGLO") acc.asignaciones += monto;
-				return acc;
+		const row = (Array.isArray(data) ? data[0] : data) as OperacionesStatsRow | null;
+		return {
+			data: {
+				ventas: Number(row?.ventas) || 0,
+				compras: Number(row?.compras) || 0,
+				asignaciones: Number(row?.asignaciones) || 0,
+				neto: Number(row?.neto) || 0,
 			},
-			{ ventas: 0, compras: 0, asignaciones: 0 }
-		);
-
-		const neto = totals.ventas - totals.compras + totals.asignaciones;
-
-		return { data: { ...totals, neto }, error: null };
+			error: null,
+		};
 	},
 };

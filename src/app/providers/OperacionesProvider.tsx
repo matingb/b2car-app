@@ -1,9 +1,19 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { operacionesClient, CreateOperacionInput, UpdateOperacionInput, OperacionesStats } from "@/clients/operacionesClient";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+	operacionesClient,
+	type CreateOperacionInput,
+	type UpdateOperacionInput,
+	type OperacionesPagination,
+	type OperacionesStats,
+	OPERACIONES_PAGE_SIZE,
+} from "@/clients/operacionesClient";
 import type { Operacion, OperacionesFilters, TipoOperacion } from "@/model/types";
 import { useDebouncedAbortableAsync } from "@/app/hooks/useDebouncedAbortableAsync";
+import { buildPeriodOptions, type PeriodOption } from "@/app/components/dashboard/PeriodSelector";
+
+export type OperacionesPeriod = PeriodOption;
 
 type OperacionesContextType = {
 	operaciones: Operacion[];
@@ -11,6 +21,11 @@ type OperacionesContextType = {
 	loading: boolean;
 	selectedTipos: TipoOperacion[];
 	setSelectedTipos: React.Dispatch<React.SetStateAction<TipoOperacion[]>>;
+	period: OperacionesPeriod;
+	setPeriod: (period: OperacionesPeriod) => void;
+	pagination: OperacionesPagination;
+	hasMore: boolean;
+	loadMore: () => void;
 	fetchById: (id: string | number) => Promise<Operacion | null>;
 	create: (input: CreateOperacionInput) => Promise<Operacion | null>;
 	update: (id: string | number, input: UpdateOperacionInput) => Promise<Operacion | null>;
@@ -19,31 +34,43 @@ type OperacionesContextType = {
 
 const OperacionesContext = createContext<OperacionesContextType | null>(null);
 
+function getCurrentMonthPeriod(): OperacionesPeriod {
+	return buildPeriodOptions(1)[0];
+}
+
 export function OperacionesProvider({ children }: { children: React.ReactNode }) {
 	const [operaciones, setOperaciones] = useState<Operacion[]>([]);
 	const [stats, setStats] = useState<OperacionesStats | null>(null);
 	const [loading, setLoading] = useState(false);
-	const [selectedTipos, setSelectedTipos] = useState<TipoOperacion[]>([]);
+	const [selectedTiposState, setSelectedTiposState] = useState<TipoOperacion[]>([]);
+	const [period, setPeriodState] = useState<OperacionesPeriod>(getCurrentMonthPeriod);
+	const [page, setCurrentPage] = useState(1);
+	const [reloadVersion, setReloadVersion] = useState(0);
+	const [pagination, setPagination] = useState<OperacionesPagination>({
+		page: 1,
+		pageSize: OPERACIONES_PAGE_SIZE,
+		total: 0,
+	});
 
-	const prevSelectedTiposRef = useRef<TipoOperacion[] | null>(null);
-
-	type FetchAllResult = {
+	type FetchPageResult = {
 		operaciones: Operacion[];
-		stats?: OperacionesStats | null;
+		stats: OperacionesStats | null;
+		pagination: OperacionesPagination;
 	};
 
-	const refreshCore = useCallback(async (signal: AbortSignal, filters?: OperacionesFilters): Promise<FetchAllResult> => {
-		const hasFilters = Boolean(
-			filters?.fecha ||
-				filters?.from ||
-				filters?.to ||
-				(Array.isArray(filters?.tipo) && filters.tipo.length > 0)
-		);
+	const activeFilters = useMemo<OperacionesFilters>(() => ({
+		from: period.from,
+		to: period.to,
+		...(selectedTiposState.length > 0 ? { tipo: selectedTiposState } : {}),
+	}), [period.from, period.to, selectedTiposState]);
 
-		const normalizedFilters = hasFilters ? (filters ?? {}) : undefined;
-
+	const refreshCore = useCallback(async (
+		signal: AbortSignal,
+		filters: OperacionesFilters,
+		targetPage: number,
+	): Promise<FetchPageResult> => {
 		const [listRes, statsRes] = await Promise.all([
-			operacionesClient.getAll(normalizedFilters, { signal }),
+			operacionesClient.getAll(filters, { signal, page: targetPage }),
 			operacionesClient.getStats(filters, { signal }),
 		]);
 
@@ -52,31 +79,64 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 		return {
 			operaciones: listRes?.data ?? [],
 			stats: statsRes?.data ?? null,
+			pagination: listRes?.pagination ?? {
+				page: targetPage,
+				pageSize: OPERACIONES_PAGE_SIZE,
+				total: 0,
+			},
 		};
 	}, []);
 
 	const refreshDebounced = useDebouncedAbortableAsync(refreshCore, {
-		debounceMs: 500,
+		debounceMs: 0,
 		onStart: () => setLoading(true),
 		onSuccess: (data) => {
-			setOperaciones(data.operaciones);
-			if (data.stats !== undefined) setStats(data.stats);
+			const lastPage = Math.max(1, Math.ceil(data.pagination.total / data.pagination.pageSize));
+			if (data.pagination.page > lastPage) {
+				setCurrentPage(lastPage);
+				return;
+			}
+
+			setOperaciones((previous) => {
+				if (data.pagination.page === 1) return data.operaciones;
+
+				const existingIds = new Set(previous.map((operacion) => operacion.id));
+				return [
+					...previous,
+					...data.operaciones.filter((operacion) => !existingIds.has(operacion.id)),
+				];
+			});
+			setStats(data.stats);
+			setPagination(data.pagination);
 		},
 		onFinally: () => setLoading(false),
 	});
 
 	useEffect(() => {
-		if (prevSelectedTiposRef.current === null) {
-			prevSelectedTiposRef.current = selectedTipos;
-			return;
-		}
-		if (prevSelectedTiposRef.current === selectedTipos) return;
-		prevSelectedTiposRef.current = selectedTipos;
+		refreshDebounced.runNow(activeFilters, page);
+	}, [activeFilters, page, refreshDebounced, reloadVersion]);
 
-		const filters: OperacionesFilters | undefined =
-			selectedTipos.length > 0 ? { tipo: selectedTipos } : undefined;
-		refreshDebounced.run(filters);
-	}, [selectedTipos, refreshDebounced]);
+	const setSelectedTipos = useCallback<React.Dispatch<React.SetStateAction<TipoOperacion[]>>>((next) => {
+		setCurrentPage(1);
+		setSelectedTiposState(next);
+	}, []);
+
+	const setPeriod = useCallback((nextPeriod: OperacionesPeriod) => {
+		setCurrentPage(1);
+		setPeriodState(nextPeriod);
+	}, []);
+
+	const hasMore = pagination.page * pagination.pageSize < pagination.total;
+
+	const loadMore = useCallback(() => {
+		if (loading || !hasMore) return;
+		setCurrentPage((currentPage) => currentPage + 1);
+	}, [hasMore, loading]);
+
+	const refresh = useCallback(async () => {
+		setCurrentPage(1);
+		setReloadVersion((current) => current + 1);
+	}, []);
 
 	const fetchById = useCallback(async (id: string | number) => {
 		setLoading(true);
@@ -89,42 +149,18 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 		}
 	}, []);
 
-	const getCurrentFilters = useCallback((): OperacionesFilters | undefined => {
-		return selectedTipos.length > 0 ? { tipo: selectedTipos } : undefined;
-	}, [selectedTipos]);
-
-	const refresh = useCallback(
-		async (filters?: OperacionesFilters) => {
-			setLoading(true);
-			try {
-				const controller = new AbortController();
-				const data = await refreshCore(controller.signal, filters);
-				setOperaciones(data.operaciones);
-				if (data.stats !== undefined) setStats(data.stats);
-				return data;
-			} finally {
-				setLoading(false);
-			}
-		},
-		[refreshCore]
-	);
-
-	useEffect(() => {
-		refreshDebounced.runNow();
-	}, [refreshDebounced]);
-
 	const create = useCallback(async (input: CreateOperacionInput) => {
 		setLoading(true);
 		try {
 			const response = await operacionesClient.create(input);
 			if (response?.error) throw new Error(response.error);
 			const operacion = response?.data ?? null;
-			try { await refresh(getCurrentFilters()); } catch { /* ignore */ }
+			try { await refresh(); } catch { /* ignore */ }
 			return operacion;
 		} finally {
 			setLoading(false);
 		}
-	}, [getCurrentFilters, refresh]);
+	}, [refresh]);
 
 	const update = useCallback(async (id: string | number, input: UpdateOperacionInput) => {
 		setLoading(true);
@@ -132,41 +168,57 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 			const response = await operacionesClient.update(id, input);
 			if (response?.error) throw new Error(response.error);
 			const updated = response?.data ?? null;
-
-			try { await refresh(getCurrentFilters()); } catch { /* ignore */ }
-
+			try { await refresh(); } catch { /* ignore */ }
 			return updated;
 		} finally {
 			setLoading(false);
 		}
-	}, [getCurrentFilters, refresh]);
+	}, [refresh]);
 
 	const remove = useCallback(async (id: string | number) => {
 		setLoading(true);
 		try {
 			const { error } = await operacionesClient.delete(id);
 			if (error) throw new Error(error);
-			try {
-				await refresh(getCurrentFilters());
-			} catch { /* ignore */ }
+			try { await refresh(); } catch { /* ignore */ }
 		} finally {
 			setLoading(false);
 		}
-	}, [getCurrentFilters, refresh]);
+	}, [refresh]);
 
 	const value = useMemo(
 		() => ({
 			operaciones,
 			stats,
 			loading,
-			selectedTipos,
+			selectedTipos: selectedTiposState,
 			setSelectedTipos,
+			period,
+			setPeriod,
+			pagination,
+			hasMore,
+			loadMore,
 			fetchById,
 			create,
 			update,
 			remove,
 		}),
-		[operaciones, stats, loading, selectedTipos, fetchById, create, update, remove]
+		[
+			operaciones,
+			stats,
+			loading,
+			selectedTiposState,
+			setSelectedTipos,
+			period,
+			setPeriod,
+			pagination,
+			hasMore,
+			loadMore,
+			fetchById,
+			create,
+			update,
+			remove,
+		]
 	);
 
 	return <OperacionesContext.Provider value={value}>{children}</OperacionesContext.Provider>;

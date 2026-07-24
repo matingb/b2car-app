@@ -10,7 +10,7 @@
     "test": "vitest",
     "test:watch": "vitest --watch",
     "push": "next build && git push",
-    "up" : "next build --turbopack && next start"
+    "up": "next build --turbopack && next start"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -23,7 +23,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "color": "^5.0.3",
-    "lucide-react": "^0.544.0",
+    "lucide-react": "^0.571.0",
     "next": "15.5.7",
     "react": "19.1.0",
     "react-dom": "19.1.0",

@@ -5,6 +5,7 @@ import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import {
 	operacionesService,
+	OPERACIONES_PAGE_SIZE,
 	type CreateOperacionInput,
 	type OperacionesFilters,
 } from "@/app/api/operaciones/operacionesService";
@@ -13,6 +14,11 @@ export type CreateOperacionRequest = CreateOperacionInput;
 
 export type GetOperacionesResponse = {
 	data: Operacion[] | null;
+	pagination: {
+		page: number;
+		pageSize: number;
+		total: number;
+	};
 	error?: string | null;
 };
 
@@ -51,6 +57,8 @@ export async function GET(req: Request) {
 	const supabase = await createClient();
 	const { searchParams } = new URL(req.url);
 	const tipos = searchParams.getAll("tipo").filter(Boolean);
+	const requestedPage = Number.parseInt(searchParams.get("page") ?? "1", 10);
+	const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 	const filters: OperacionesFilters = {
 		fecha: searchParams.get("fecha") || undefined,
 		from: searchParams.get("from") || undefined,
@@ -58,15 +66,26 @@ export async function GET(req: Request) {
 		tipo: tipos.length > 0 ? tipos : undefined,
 	};
 
-	const { data, error } = await operacionesService.list(supabase, filters);
-	logger.debug("GET /api/operaciones - filters:", filters, "data:", data, "error:", error);
+	const { data, total, error } = await operacionesService.list(supabase, filters, {
+		page,
+		pageSize: OPERACIONES_PAGE_SIZE,
+	});
+	logger.debug("GET /api/operaciones - filters:", filters, "page:", page, "total:", total, "error:", error);
 
 	if (error) {
-		return Response.json({ data: [], error: "Error cargando operaciones" } satisfies GetOperacionesResponse, { status: 500 });
+		return Response.json({
+			data: [],
+			pagination: { page, pageSize: OPERACIONES_PAGE_SIZE, total: 0 },
+			error: "Error cargando operaciones",
+		} satisfies GetOperacionesResponse, { status: 500 });
 	}
 
 	return Response.json(
-		{ data: (data ?? []).map((row) => mapOperacion(row as OperacionRow)), error: null } satisfies GetOperacionesResponse,
+		{
+			data: (data ?? []).map((row) => mapOperacion(row as OperacionRow)),
+			pagination: { page, pageSize: OPERACIONES_PAGE_SIZE, total },
+			error: null,
+		} satisfies GetOperacionesResponse,
 		{ status: 200 }
 	);
 }

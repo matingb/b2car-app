@@ -4,61 +4,43 @@ import React from "react";
 import Card from "@/app/components/ui/Card";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import type { Producto } from "@/app/providers/ProductosProvider";
-import { Package } from "lucide-react";
 import { css } from "@emotion/react";
+import { getProductoStockSummary } from "@/app/hooks/productos/useProductosFilters";
+import StockStatusIcon from "@/app/components/stock/StockStatusIcon";
 
 type Props = {
   producto: Producto;
+  tallerId?: string;
   onClick: () => void;
 };
 
 function CategoryTag({ text }: { text: string }) {
   return (
-    <span
-      style={{
-        padding: "4px 10px",
-        borderRadius: 999,
-        border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-        background: COLOR.BACKGROUND.SUBTLE,
-        fontSize: 12,
-        color: COLOR.TEXT.PRIMARY,
-        whiteSpace: "nowrap",
-      }}
-    >
+    <span style={styles.categoryTag}>
       {text}
     </span>
   );
 }
 
-export default function ProductoItemCard({ producto, onClick }: Props) {
-  const talleresConStock = producto.talleresConStock ?? 0;
+export default function ProductoItemCard({ producto, tallerId = "", onClick }: Props) {
+  const summary = getProductoStockSummary(producto, tallerId);
   const categorias = producto.categorias ?? [];
 
   return (
-    <Card
-      onClick={onClick}
-      data-testid={`producto-item-${producto.id}`}
-    >
+    <Card onClick={onClick} data-testid={`producto-item-${producto.id}`}>
       <div style={styles.container}>
         <div style={styles.leftGroup}>
-          <div style={styles.iconBadge}>
-            <Package size={18} color={COLOR.TEXT.CONTRAST} />
-          </div>
+          <StockStatusIcon status={summary.worstStatus} />
 
           <div style={styles.details}>
             <div style={styles.title}>{producto.nombre}</div>
-            <div style={styles.subtitle}>{producto.codigo}</div>
-
-
+            <div style={styles.subtitle}>
+              {producto.codigo} · Stock total: {summary.stockTotal}
+            </div>
           </div>
         </div>
 
         <div css={styles.right}>
-          <div style={styles.rightInfo}>
-            <span style={styles.metaText}>{talleresConStock} talleres</span>
-            <span style={styles.metaDot}>•</span>
-            <span style={styles.metaText}>{producto.proveedor || "Sin proveedor"}</span>
-          </div>
           <div style={styles.cats}>
             {categorias.slice(0, 2).map((c) => (
               <CategoryTag key={c} text={c} />
@@ -91,16 +73,6 @@ const styles = {
     flexDirection: "column" as const,
     minWidth: 0,
   },
-  iconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    background: COLOR.ACCENT.PRIMARY,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
   title: {
     fontSize: 18,
     fontWeight: 600,
@@ -112,27 +84,6 @@ const styles = {
   subtitle: {
     fontSize: 13,
     color: COLOR.TEXT.SECONDARY,
-  },
-  infoRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 6,
-  },
-  infoText: {
-    fontSize: 13,
-    color: COLOR.TEXT.SECONDARY,
-    whiteSpace: "nowrap" as const,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    maxWidth: 220,
-  },
-  metaRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 4,
-    flexWrap: "wrap" as const,
   },
   metaText: {
     fontSize: 12,
@@ -150,6 +101,15 @@ const styles = {
     gap: 8,
     minWidth: 0,
   },
+  categoryTag: {
+    padding: "4px 10px",
+    borderRadius: 999,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SUBTLE,
+    fontSize: 12,
+    color: COLOR.TEXT.PRIMARY,
+    whiteSpace: "nowrap" as const,
+  },
   right: css({
     display: "flex",
     flexDirection: "column" as const,
@@ -158,15 +118,7 @@ const styles = {
     gap: 6,
     minWidth: 0,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      display: 'none',
+      display: "none",
     },
   }),
-  rightInfo: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    flexWrap: "wrap" as const,
-    justifyContent: "flex-end",
-  },
 } as const;
-

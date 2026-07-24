@@ -5,7 +5,6 @@ import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { useRouter } from "next/navigation";
 import { useProductosFilters } from "@/app/hooks/productos/useProductosFilters";
 import ProductosToolbar from "@/app/components/productos/ProductosToolbar";
-import ProductosFiltersModal from "@/app/components/productos/ProductosFiltersModal";
 import ProductoCreateModal from "@/app/components/productos/ProductoCreateModal";
 import Card from "@/app/components/ui/Card";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
@@ -13,6 +12,9 @@ import ProductoItemCard from "@/app/components/productos/ProductoItemCard";
 import { LoaderCircle } from "lucide-react";
 import { useProductos } from "@/app/providers/ProductosProvider";
 import { css } from "@emotion/react";
+import { useTenant } from "@/app/providers/TenantProvider";
+import StockStats from "@/app/components/stock/StockStats";
+import ProductosTallerSelector from "@/app/components/productos/ProductosTallerSelector";
 
 export default function ProductosPage() {
   return <ProductosPageContent />;
@@ -21,25 +23,50 @@ export default function ProductosPage() {
 function ProductosPageContent() {
   const router = useRouter();
   const { productos, categoriasDisponibles, isLoading } = useProductos();
-  const state = useProductosFilters(productos);
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const { talleres } = useTenant();
+  const [selectedTallerId, setSelectedTallerId] = useState("");
+  const state = useProductosFilters(productos, selectedTallerId);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   return (
     <div>
-      <ScreenHeader
-        title="Productos"
+      <div css={styles.headerTop}>
+        <ScreenHeader
+          title="Productos"
         subtitle="Definí qué productos existen en el sistema y sus características"
-      />
-      
+        />
+        <ProductosTallerSelector
+          talleres={talleres}
+          value={selectedTallerId}
+          onChange={setSelectedTallerId}
+        />
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <StockStats
+          stats={state.stats}
+          selectedEstado={state.filters.estado}
+          onSelectEstado={(estado) =>
+            state.applyFilters({ ...state.filters, estado })
+          }
+        />
+      </div>
+
       <div style={{ marginTop: 12 }}>
         <ProductosToolbar
           search={state.search}
           onSearchChange={state.setSearch}
-          onOpenFilters={() => setIsFiltersOpen(true)}
-          chips={state.chips}
-          onChipClick={state.removeFilter}
-          onClearFilters={state.clearFilters}
+          categoriasDisponibles={categoriasDisponibles}
+          categorias={state.filters.categorias}
+          onCategoriasChange={(categorias) =>
+            state.applyFilters({ ...state.filters, categorias })
+          }
+          showEsporadicos={state.filters.visibilidad === "todos"}
+          onShowEsporadicosChange={(checked) =>
+            state.applyFilters({
+              ...state.filters,
+              visibilidad: checked ? "todos" : "inventario",
+            })
+          }
           onNewProductClick={() => setIsCreateOpen(true)}
         />
       </div>
@@ -69,20 +96,13 @@ function ProductosPageContent() {
               <ProductoItemCard
                 key={p.id}
                 producto={p}
+                tallerId={selectedTallerId}
                 onClick={() => router.push(`/productos/${p.id}`)}
               />
             ))}
           </div>
         )}
       </div>
-
-      <ProductosFiltersModal
-        open={isFiltersOpen}
-        categoriasDisponibles={categoriasDisponibles}
-        initial={state.filters}
-        onClose={() => setIsFiltersOpen(false)}
-        onApply={state.applyFilters}
-      />
 
       <ProductoCreateModal
         open={isCreateOpen}
@@ -94,12 +114,16 @@ function ProductosPageContent() {
 }
 
 const styles = {
-  headerTop: {
+  headerTop: css({
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-  },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      alignItems: "flex-start",
+      flexDirection: "column",
+    },
+  }),
   resultsHeader: {
     display: "flex",
     alignItems: "baseline",

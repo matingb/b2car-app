@@ -2,7 +2,9 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
+import PeriodSelector from "@/app/components/dashboard/PeriodSelector";
 import SearchBar from "@/app/components/ui/SearchBar";
+import ScrollPage from "@/app/components/ui/ScrollPage";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import Card from "@/app/components/ui/Card";
 import { useOperaciones } from "@/app/providers/OperacionesProvider";
@@ -82,7 +84,19 @@ function getTotals(operacion: Operacion) {
 }
 
 export default function OperacionesPage() {
-    const { operaciones, loading, selectedTipos, stats, setSelectedTipos, remove } = useOperaciones();
+    const {
+        operaciones,
+        loading,
+        selectedTipos,
+        stats,
+        setSelectedTipos,
+        remove,
+        period,
+        setPeriod,
+        pagination,
+        hasMore,
+        loadMore,
+    } = useOperaciones();
     const { talleres } = useTenant();
     const { getStockById } = useInventario();
     const { success, error } = useToast();
@@ -91,6 +105,8 @@ export default function OperacionesPage() {
     const [expandedOperacionId, setExpandedOperacionId] = useState<string | null>(null);
     const [stocksById, setStocksById] = useState<Record<string, StockItem>>({});
     const loadedStockIdsRef = useRef<Set<string>>(new Set());
+    const loadingInitial = loading && operaciones.length === 0;
+    const loadingMore = loading && operaciones.length > 0;
 
     useEffect(() => {
         const ids = new Set<string>();
@@ -162,10 +178,13 @@ export default function OperacionesPage() {
 
     return (
         <div>
-            <ScreenHeader
-                title="Operaciones"
-                subtitle="Gestioná los movimientos del stock: compras, ventas, ingresos y egresos."
-            />
+            <div css={styles.headerRow}>
+                <ScreenHeader
+                    title="Operaciones"
+                    subtitle="Gestioná los movimientos del stock: compras, ventas, ingresos y egresos."
+                />
+                <PeriodSelector value={period} onChange={setPeriod} />
+            </div>
             <div css={styles.cardDatosContainer}>
                 <CardDato
                     titleText="Ventas"
@@ -234,11 +253,18 @@ export default function OperacionesPage() {
             <div style={styles.resultsHeader}>
                 <div style={styles.resultsTitle}><h2>Listado</h2></div>
                 <div style={styles.resultsCount}>
-                    {operacionesFiltradas.length} de {operaciones.length} operaciones
+                    {operacionesFiltradas.length} de {pagination.total} operaciones
                 </div>
             </div>
 
-            {loading ? (
+            <ScrollPage
+                loading={loadingInitial}
+                loadingMore={loadingMore}
+                hasMore={hasMore}
+                onLoadMore={loadMore}
+                loadingMoreLabel="Cargando más operaciones..."
+            >
+            {loadingInitial ? (
                 <ListSkeleton rows={6} />
             ) : operacionesFiltradas.length === 0 ? (
                 <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
@@ -275,6 +301,7 @@ export default function OperacionesPage() {
                     })}
                 </div>
             )}
+            </ScrollPage>
 
             {createOpen ? (
                 <OperacionCreateModal
@@ -288,6 +315,13 @@ export default function OperacionesPage() {
 }
 
 const styles = {
+    headerRow: css({
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        flexWrap: "wrap",
+    }),
     cardDatosContainer: css({
         display: "grid",
         gap: 16,

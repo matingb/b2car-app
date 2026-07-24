@@ -2,80 +2,128 @@
 
 import { useMemo, useState } from "react";
 import type { Producto } from "@/app/providers/ProductosProvider";
+import { getStockStatus, type StockStatus } from "@/lib/stock";
 
 export type ProductosFilters = {
   categorias: string[];
+  estado: StockStatus | "";
+  visibilidad: "inventario" | "esporadico" | "todos";
 };
 
-export type ProductosChipKind = { type: "categoria"; value: string };
-export type ProductosChip = { key: string; text: string; kind: ProductosChipKind };
-
 function createEmptyFilters(): ProductosFilters {
-  return { categorias: [] };
+  return { categorias: [], estado: "", visibilidad: "inventario" };
 }
 
-function matchesSearch(p: Producto, query: string) {
+function matchesSearch(producto: Producto, query: string) {
   if (!query) return true;
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+
   return (
-    p.nombre.toLowerCase().includes(q) ||
-    p.codigo.toLowerCase().includes(q) ||
-    p.proveedor.toLowerCase().includes(q) ||
-    p.ubicacion.toLowerCase().includes(q)
+    producto.nombre.toLowerCase().includes(normalizedQuery) ||
+    producto.codigo.toLowerCase().includes(normalizedQuery) ||
+    producto.proveedor.toLowerCase().includes(normalizedQuery)
   );
 }
 
-function matchesCategorias(p: Producto, categorias: string[]) {
-  if (!categorias || categorias.length === 0) return true;
-  return p.categorias.some((c) => categorias.includes(c));
+function matchesCategorias(producto: Producto, categorias: string[]) {
+  if (!categorias.length) return true;
+  return producto.categorias.some((categoria) => categorias.includes(categoria));
+}
+
+function getRelevantStocks(producto: Producto, tallerId: string) {
+  const stocks = producto.stocks ?? [];
+  return tallerId ? stocks.filter((stock) => stock.tallerId === tallerId) : stocks;
+}
+
+function statusRank(status: StockStatus) {
+  if (status === "critico") return 0;
+  if (status === "bajo") return 1;
+  if (status === "alto") return 2;
+  return 3;
+}
+
+export function getProductoStockSummary(producto: Producto, tallerId = "") {
+  const stocks = getRelevantStocks(producto, tallerId);
+  const stockTotal = stocks.reduce((total, stock) => total + (Number(stock.stockActual) || 0), 0);
+  const statuses = stocks.map((stock) => getStockStatus(stock));
+  const worstStatus = statuses.sort((a, b) => statusRank(a) - statusRank(b))[0] ?? null;
+
+  return {
+    stockTotal,
+    talleresConStock: stocks.length,
+    worstStatus,
+  };
+}
+
+function getProductoStockStatus(producto: Producto, tallerId: string): StockStatus {
+  return getProductoStockSummary(producto, tallerId).worstStatus ?? "critico";
+}
+
+function matchesTaller(producto: Producto, tallerId: string) {
+  return !tallerId || (producto.stocks ?? []).some((stock) => stock.tallerId === tallerId);
+}
+
+function matchesEstado(producto: Producto, tallerId: string, estado: StockStatus | "") {
+  return !estado || getProductoStockStatus(producto, tallerId) === estado;
+}
+
+function matchesVisibilidad(producto: Producto, visibilidad: ProductosFilters["visibilidad"]) {
+  if (visibilidad === "todos") return true;
+  if (visibilidad === "esporadico") return !producto.showInStock;
+  return producto.showInStock;
 }
 
 export function filterProductos(
   productos: Producto[] | undefined,
-  params: { search: string; filters: ProductosFilters }
+  params: { search: string; filters: ProductosFilters; tallerId?: string },
 ) {
   if (!productos) return [];
+  const tallerId = params.tallerId ?? "";
+
   return productos.filter(
-    (p) => matchesSearch(p, params.search) && matchesCategorias(p, params.filters.categorias)
+    (producto) =>
+      matchesVisibilidad(producto, params.filters.visibilidad) &&
+      matchesTaller(producto, tallerId) &&
+      matchesEstado(producto, tallerId, params.filters.estado) &&
+      matchesSearch(producto, params.search) &&
+      matchesCategorias(producto, params.filters.categorias),
   );
 }
 
-export function useProductosFilters(productos?: Producto[]) {
+export function useProductosFilters(productos?: Producto[], tallerId = "") {
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<ProductosFilters>(createEmptyFilters);
 
-  const productosFiltrados = useMemo(() => {
-    return filterProductos(productos, { search, filters });
-  }, [productos, search, filters]);
+  const productosFiltrados = useMemo(
+    () => filterProductos(productos, { search, filters, tallerId }),
+    [productos, search, filters, tallerId],
+  );
 
-  const chips = useMemo<ProductosChip[]>(() => {
-    return (filters.categorias ?? []).map((cat) => ({
-      key: `cat:${cat}`,
-      text: cat,
-      kind: { type: "categoria", value: cat },
-    }));
-  }, [filters.categorias]);
+  const stats = useMemo(() => {
+    const base = (productos ?? []).filter(
+      (producto) =>
+        matchesVisibilidad(producto, filters.visibilidad) &&
+        matchesTaller(producto, tallerId) &&
+        matchesSearch(producto, search) &&
+        matchesCategorias(producto, filters.categorias),
+    );
+    const criticos = base.filter((producto) => getProductoStockStatus(producto, tallerId) === "critico").length;
+    const bajos = base.filter((producto) => getProductoStockStatus(producto, tallerId) === "bajo").length;
+    const altos = base.filter((producto) => getProductoStockStatus(producto, tallerId) === "alto").length;
+    const normales = base.filter((producto) => getProductoStockStatus(producto, tallerId) === "normal").length;
 
-  const removeFilter = (kind: ProductosChipKind) => {
-    setFilters((prev) => ({
-      ...prev,
-      categorias: prev.categorias.filter((c) => c !== kind.value),
-    }));
-  };
+    return { criticos, bajos, altos, normales, total: base.length };
+  }, [productos, search, filters, tallerId]);
 
-  const clearFilters = () => setFilters(createEmptyFilters());
   const applyFilters = (next: ProductosFilters) => setFilters(next);
 
   return {
     search,
     setSearch,
     filters,
-    chips,
     productosFiltrados,
+    stats,
     applyFilters,
-    clearFilters,
-    removeFilter,
   };
 }
-

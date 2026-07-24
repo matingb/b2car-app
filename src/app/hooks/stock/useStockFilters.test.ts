@@ -16,7 +16,6 @@ function stockItem(overrides: Partial<StockItem>): StockItem {
     costoUnitario: 100,
     precioUnitario: 150,
     proveedor: "",
-    ubicacion: "",
     showInStock: true,
     ultimaActualizacion: "",
     historialMovimientos: [],

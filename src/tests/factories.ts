@@ -228,8 +228,8 @@ export const createProducto = (overrides: Partial<Producto> = {}): Producto => {
     precioUnitario: 100,
     costoUnitario: 50,
     proveedor: 'Proveedor 1',
-    ubicacion: 'Depósito',
     showInStock: true,
+    stocks: [],
     ...overrides,
   };
 };

@@ -1,6 +1,7 @@
 import type {
   ProductoDTO,
   ProductoDetailDTO,
+  StockDTO,
 } from "@/model/dtos";
 import type {
   CreateProductoRequest,
@@ -10,7 +11,7 @@ import type {
   UpdateProductoRequest,
   UpdateProductoResponse,
 } from "@/app/api/productos/contracts";
-import { Producto } from "@/app/providers/InventarioProvider";
+import type { Producto, StockRegistro } from "@/app/providers/ProductosProvider";
 
 export const productosClient = {
   async getAll(): Promise<GetProductosResponse> {
@@ -101,13 +102,44 @@ export function mapProductoToInventario(dto: ProductoDTO): Producto {
     precioUnitario: dto.precio_unitario ?? 0,
     costoUnitario: dto.costo_unitario ?? 0,
     proveedor: dto.proveedor ?? "",
-    ubicacion: "",
     talleresConStock: dto.talleresConStock ?? 0,
     showInStock: dto.show_in_stock,
+    stocks: (dto.stocks ?? []).map(mapStockDtoToInventario),
   };
 }
 
 export function mapProductoDetailToInventario(dto: ProductoDetailDTO) {
-  return mapProductoToInventario(dto as unknown as ProductoDTO);
+  return mapProductoToInventario({
+    ...(dto as unknown as ProductoDTO),
+    talleresConStock: dto.stocks?.length ?? 0,
+    stocks: dto.stocks ?? [],
+  });
+}
+
+export function mapStockDtoToInventario(s: StockDTO): StockRegistro {
+  return {
+    id: s.id,
+    productoId: s.productoId,
+    tallerId: s.tallerId,
+    stockActual: Number(s.cantidad) || 0,
+    stockMinimo: Number(s.stock_minimo) || 0,
+    stockMaximo: Number(s.stock_maximo) || 0,
+    ultimaActualizacion: isoToShortEsDate(s.updated_at),
+    historialMovimientos: [],
+  };
+}
+
+function formatShortEsDate(d: Date) {
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = String(d.getFullYear());
+  return `${day}/${month}/${year}`;
+}
+
+function isoToShortEsDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return formatShortEsDate(d);
 }
 

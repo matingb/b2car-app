@@ -20,8 +20,17 @@ export type UpdateOperacionInput = Partial<Omit<CreateOperacionInput, "arreglo_i
 
 export type GetOperacionesResponse = {
 	data: Operacion[] | null;
+	pagination?: OperacionesPagination;
 	error?: string | null;
 };
+
+export type OperacionesPagination = {
+	page: number;
+	pageSize: number;
+	total: number;
+};
+
+export const OPERACIONES_PAGE_SIZE = 50;
 
 export type GetOperacionByIdResponse = {
 	data: Operacion | null;
@@ -63,7 +72,7 @@ function mapOperacionFromApi(value: unknown): Operacion | null {
 export const operacionesClient = {
 	async getAll(
 		filters?: OperacionesFilters,
-		options?: { signal?: AbortSignal }
+		options?: { signal?: AbortSignal; page?: number }
 	): Promise<GetOperacionesResponse> {
 		try {
 			const queryParams = new URLSearchParams();
@@ -73,6 +82,7 @@ export const operacionesClient = {
 			if (Array.isArray(filters?.tipo) && filters.tipo.length > 0) {
 				filters.tipo.forEach((t) => queryParams.append("tipo", t));
 			}
+			queryParams.append("page", String(Math.max(1, options?.page ?? 1)));
 
 			const qs = queryParams.toString();
 			const res = await fetch(qs ? `/api/operaciones?${qs}` : "/api/operaciones", {
@@ -85,7 +95,15 @@ export const operacionesClient = {
 			const mapped = Array.isArray(body.data)
 				? body.data.map((o) => mapOperacionFromApi(o)).filter(Boolean) as Operacion[]
 				: [];
-			return { data: mapped, error: null };
+			return {
+				data: mapped,
+				pagination: body.pagination ?? {
+					page: Math.max(1, options?.page ?? 1),
+					pageSize: OPERACIONES_PAGE_SIZE,
+					total: mapped.length,
+				},
+				error: null,
+			};
 		} catch (err: unknown) {
 			if (err instanceof DOMException && err.name === "AbortError") {
 				return { data: null, error: null };
@@ -173,6 +191,9 @@ export const operacionesClient = {
 			if (filters?.fecha) queryParams.append("fecha", filters.fecha);
 			if (filters?.from) queryParams.append("from", filters.from);
 			if (filters?.to) queryParams.append("to", filters.to);
+			if (Array.isArray(filters?.tipo) && filters.tipo.length > 0) {
+				filters.tipo.forEach((t) => queryParams.append("tipo", t));
+			}
 
 			const qs = queryParams.toString();
 			const res = await fetch(qs ? `/api/operaciones/stats?${qs}` : "/api/operaciones/stats", {
