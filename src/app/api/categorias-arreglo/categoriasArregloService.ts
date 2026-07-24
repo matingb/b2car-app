@@ -18,7 +18,6 @@ export type CreateCategoriaArregloInput = {
 export const categoriasArregloService = {
   async list(
     supabase: SupabaseClient,
-    _filters: ListCategoriasArregloFilters = {}
   ): Promise<{ data: CategoriaArregloRow[]; error: ServiceError | null }> {
     const query = supabase.from("categorias_arreglo").select("*").order("nombre", { ascending: true });
 

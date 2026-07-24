@@ -1,4 +1,3 @@
-import type { NextRequest } from "next/server";
 import { logger } from "@/lib/logger";
 import { createClient } from "@/supabase/server";
 import { categoriasArregloService, type CategoriaArregloRow } from "./categoriasArregloService";
@@ -34,7 +33,7 @@ function mapCategoriaArreglo(row: CategoriaArregloRow): CategoriaArregloDTO {
   };
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getSession();
   if (!auth.session) {
