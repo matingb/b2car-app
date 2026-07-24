@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getArregloModalFecha } from "./ArregloModal";
+import { getArregloModalFecha, normalizeArregloObservaciones } from "./ArregloModal";
 
 describe("getArregloModalFecha", () => {
   afterEach(() => {
@@ -15,5 +15,15 @@ describe("getArregloModalFecha", () => {
 
   it("respeta la fecha inicial cuando se edita un arreglo", () => {
     expect(getArregloModalFecha("2026-03-19T12:00:00.000Z")).toBe("2026-03-19");
+  });
+});
+
+describe("normalizeArregloObservaciones", () => {
+  it("mantiene una cadena vacía al editar para eliminar las observaciones existentes", () => {
+    expect(normalizeArregloObservaciones("   ", true)).toBe("");
+  });
+
+  it("omite una observación vacía al crear un arreglo", () => {
+    expect(normalizeArregloObservaciones("   ", false)).toBeUndefined();
   });
 });

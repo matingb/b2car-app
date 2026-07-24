@@ -33,7 +33,7 @@ import type { EstadoArreglo } from "@/model/types";
 import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 import { useArregloPrintableInvoice } from "@/app/components/arreglos/hooks/useArregloPrintableInvoice";
 import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
-import ArregloCategoriasList from "@/app/components/arreglos/ArregloCategoriasList";
+import CategoriaChip from "@/app/components/arreglos/lineas/shared/CategoriaChip";
 import { css } from "@emotion/react";
 
 export interface ArregloSummaryCardProps {
@@ -67,6 +67,12 @@ export default function ArregloSummaryCard({
 
   const arreglo = data.arreglo;
   if (!arreglo) return null;
+
+  const categoriasDelArreglo = (arreglo.categorias ?? []).filter((id) =>
+    categorias.some((categoria) => categoria.id === id)
+  );
+  const categoriasMostradas = categoriasDelArreglo.slice(0, 3);
+  const categoriasRestantes = categoriasDelArreglo.length - categoriasMostradas.length;
 
   const handlePrintableInvoice = () => {
     handleOpenPrintableInvoice(data);
@@ -243,12 +249,20 @@ export default function ArregloSummaryCard({
                 <span style={styles.blockLabelWithIcon}>
                   <Wrench size={14} /> Tipos de Arreglo
                 </span>
-                <ArregloCategoriasList
-                  categorias={arreglo.categorias?.map((id) => categorias.find((t) => t.id === id)) ?? []}
-                  size="md"
-                  limit={3}
-                  emptyText="Sin categorías registradas"
-                />
+                <div style={styles.chipsRow}>
+                  {categoriasMostradas.length > 0 ? (
+                    <>
+                      {categoriasMostradas.map((categoriaId) => (
+                        <CategoriaChip key={categoriaId} categoriaArregloId={categoriaId} />
+                      ))}
+                      {categoriasRestantes > 0 ? (
+                        <CategoriaChip categoriaArregloId={null} label={`+${categoriasRestantes}`} />
+                      ) : null}
+                    </>
+                  ) : (
+                    <span style={styles.emptyText}>Sin categorías registradas</span>
+                  )}
+                </div>
               </div>
 
               <div>

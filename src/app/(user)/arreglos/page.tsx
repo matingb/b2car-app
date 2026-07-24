@@ -142,6 +142,6 @@ const styles = {
   },
   searchBarContainer: {
     marginBottom: 16,
-    marginTop: 8,
+    marginTop: 16,
   },
 } as const;

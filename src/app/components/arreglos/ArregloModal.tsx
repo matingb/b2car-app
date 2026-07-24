@@ -33,6 +33,11 @@ export function getArregloModalFecha(initialFecha?: string): string {
   return initialFecha ? toDateInputFormat(initialFecha) : toISODateLocal(new Date());
 }
 
+export function normalizeArregloObservaciones(observaciones: string, isEdit: boolean): string | undefined {
+  const normalized = observaciones.trim();
+  return isEdit ? normalized : normalized || undefined;
+}
+
 export default function ArregloModal({ open, onClose, vehiculoId, initial, onSubmitSuccess }: Props) {
   const { vehiculos, fetchAll: fetchVehiculos, fetchCliente } = useVehiculos();
   const { create, update, fetchById } = useArreglos();
@@ -173,7 +178,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         estado,
         fecha,
         kilometraje_leido: Number(km),
-        observaciones: observaciones?.trim() || undefined,
+        // En edición, una cadena vacía es un cambio válido: elimina las observaciones previas.
+        observaciones: normalizeArregloObservaciones(observaciones, isEdit),
         esta_pago: !!estaPago,
         extra_data: extraData || undefined,
       };

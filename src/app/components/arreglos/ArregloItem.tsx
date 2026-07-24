@@ -222,7 +222,7 @@ const styles = {
     padding: 0,
     overflow: "visible",
     position: "relative" as const,
-    borderRadius: 12,
+    borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
   },
   cardBody: css({
@@ -343,7 +343,7 @@ const styles = {
   }),
   priceValue: css({
     fontSize: 18,
-    fontWeight: 800,
+    fontWeight: 700,
     color: COLOR.ACCENT.PRIMARY,
     letterSpacing: "-0.5px",
     [`@media (min-width: ${BREAKPOINTS.md}px)`]: {

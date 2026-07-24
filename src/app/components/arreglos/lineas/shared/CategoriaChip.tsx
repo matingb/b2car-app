@@ -6,12 +6,13 @@ import { COLOR } from "@/theme/theme";
 
 type Props = {
   categoriaArregloId: string | null;
+  label?: string;
 };
 
-export default function CategoriaChip({ categoriaArregloId }: Props) {
+export default function CategoriaChip({ categoriaArregloId, label }: Props) {
   const { categorias } = useCategoriasArreglo();
 
-  const nombre = categorias.find((t) => t.id === categoriaArregloId)?.nombre;
+  const nombre = label ?? categorias.find((t) => t.id === categoriaArregloId)?.nombre;
   if (!nombre) return null;
 
   return (

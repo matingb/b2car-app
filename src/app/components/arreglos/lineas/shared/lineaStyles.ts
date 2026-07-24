@@ -198,7 +198,7 @@ export const styles = {
     fontWeight: 700,
     fontSize: 18,
     whiteSpace: "nowrap" as const,
-    minWidth: 70,
+    minWidth: 0,
   } as const,
   tipoEmpleadoRow: {
     display: "flex",

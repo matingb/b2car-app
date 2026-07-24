@@ -249,42 +249,57 @@ export default function RepuestoLineasEditableSection({
         {extraHint}
       </>
     );
+    const newProductHeader = (
+      <>
+        <NewProductBadge
+          onClose={
+            stockState.mode === "add"
+              ? () =>
+                  updateDraft({
+                    stockId: "",
+                    codigo: "",
+                    nombre: "",
+                    precioCompra: "",
+                    precioVenta: "",
+                    precioVentaTouched: false,
+                    codigoTouched: false,
+                  })
+              : undefined
+          }
+        />
+        <div style={newProductStyles.selectors}>
+          <CategoriaArregloSelect
+            value={draft.categoriaArregloId}
+            onChange={(categoriaArregloId) => updateDraft({ categoriaArregloId })}
+            disabled={!canInteract}
+          />
+          <EmpleadoSelect
+            value={draft.empleadoId}
+            onChange={(empleadoId) => updateDraft({ empleadoId })}
+            disabled={!canInteract}
+          />
+        </div>
+      </>
+    );
 
     const card = stockState.isNewProduct ? (
       <NewProductLineaCard
+        header={newProductHeader}
         top={
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <NewProductBadge
-              onClose={
-                stockState.mode === "add"
-                  ? () =>
-                      updateDraft({
-                        stockId: "",
-                        codigo: "",
-                        nombre: "",
-                        precioCompra: "",
-                        precioVenta: "",
-                        precioVentaTouched: false,
-                        codigoTouched: false,
-                      })
-                  : undefined
+          <NewProductFields
+            codigo={draft.codigo}
+            nombre={draft.nombre}
+            conflictMessage={submitting ? null : conflictMessageFor(draft.codigo, item?.id)}
+            onCodigoChange={(v) => updateDraft({ codigo: v, codigoTouched: v.trim().length > 0 })}
+            onNombreChange={(v) => {
+              const patch: Partial<RepuestoDraft> = { nombre: v };
+              if (!draft.codigoTouched) {
+                patch.codigo = generateProductCode(v, { items, inventario });
               }
-            />
-            <NewProductFields
-              codigo={draft.codigo}
-              nombre={draft.nombre}
-              conflictMessage={submitting ? null : conflictMessageFor(draft.codigo, item?.id)}
-              onCodigoChange={(v) => updateDraft({ codigo: v, codigoTouched: v.trim().length > 0 })}
-              onNombreChange={(v) => {
-                const patch: Partial<RepuestoDraft> = { nombre: v };
-                if (!draft.codigoTouched) {
-                  patch.codigo = generateProductCode(v, { items, inventario });
-                }
-                updateDraft(patch);
-              }}
-              disabled={!canInteract || !tallerId}
-            />
-          </div>
+              updateDraft(patch);
+            }}
+            disabled={!canInteract || !tallerId}
+          />
         }
         draft={{
           qty: draft.cantidad,
@@ -306,7 +321,7 @@ export default function RepuestoLineasEditableSection({
             return next;
           });
         }}
-        extra={extra}
+        extra={extraHint}
       />
     ) : (
       <EditableLineaCard
@@ -421,3 +436,13 @@ export default function RepuestoLineasEditableSection({
     </LineasSectionShell>
   );
 }
+
+const newProductStyles = {
+  selectors: {
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap" as const,
+    gap: 10,
+    minWidth: 0,
+  },
+} as const;
