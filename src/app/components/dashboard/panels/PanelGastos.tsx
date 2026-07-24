@@ -8,6 +8,7 @@ import DashboardSectionCard from "@/app/components/dashboard/DashboardSectionCar
 import { BREAKPOINTS, TYPOGRAPHY } from "@/theme/theme";
 import type { DashboardStats } from "@/app/providers/DashboardProvider";
 import type { Granularity } from "@/lib/dashboard/aggregation";
+import { css } from "@emotion/react";
 
 type Props = {
     gastosData: Array<{ label: string; repuestos: number; sueldos: number }>;
@@ -24,14 +25,14 @@ export default function PanelGastos({ gastosData, granularity, stats, headerActi
             </DashboardSectionCard>
 
             <DashboardSectionCard>
-                <div style={styles.mainPanel}>
-                    <div style={styles.halfPanel}>
+                <div css={styles.mainPanel}>
+                    <div css={styles.halfPanel}>
                         <h4 style={TYPOGRAPHY.dashboard.chartTitle}>Costo por categoría</h4>
                         <div style={styles.chartWrapper}>
                             <DesglosePieChart items={stats?.costoPorTipo} montoLabel="Costo" variant="danger" />
                         </div>
                     </div>
-                    <div style={styles.halfPanel}>
+                    <div css={styles.halfPanel}>
                         <h4 style={TYPOGRAPHY.dashboard.chartTitle}>Costo por empleado</h4>
                         <div style={styles.chartWrapper}>
                             <DesglosePieChart items={stats?.costoPorEmpleado} montoLabel="Costo" variant="danger" />
@@ -44,23 +45,23 @@ export default function PanelGastos({ gastosData, granularity, stats, headerActi
 }
 
 const styles = {
-    mainPanel: {
+    mainPanel: css({
         display: "flex",
-        flexDirection: "row" as const,
+        flexDirection: "row",
         gap: 16,
         marginTop: 8,
         [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
-            flexDirection: "column" as const,
+            flexDirection: "column",
         },
-    },
-    halfPanel: {
+    }),
+    halfPanel: css({
         width: "50%",
         display: "flex",
         flexDirection: "column" as const,
         [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
             width: "100%",
         },
-    },
+    }),
     chartWrapper: {
         flex: 1,
         display: "flex",

@@ -34,7 +34,7 @@ function mapCategoriaArreglo(row: CategoriaArregloRow): CategoriaArregloDTO {
   };
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getSession();
   if (!auth.session) {

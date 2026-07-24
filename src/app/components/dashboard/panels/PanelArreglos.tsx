@@ -4,7 +4,7 @@
 import React from "react";
 
 import GraficoArreglos from "@/app/components/graficos/GraficoArreglos";
-import CantidadTiposArreglos from "@/app/components/graficos/CantidadTiposArreglos";
+import VolumenDeTrabajo from "@/app/components/graficos/VolumenDeTrabajo";
 import EstadoCobroArreglos from "@/app/components/graficos/EstadoCobroArreglos";
 import DashboardSectionCard from "@/app/components/dashboard/DashboardSectionCard";
 import { TYPOGRAPHY } from "@/theme/theme";
@@ -28,9 +28,9 @@ export default function PanelArreglos({ arreglosData, granularity, stats, header
             <DashboardSectionCard>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 8 }}>
                     <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column" }}>
-                        <h4 style={TYPOGRAPHY.dashboard.chartTitle}>Arreglos por tipo</h4>
+                        <h4 style={TYPOGRAPHY.dashboard.chartTitle}>Volumen de trabajo por categoría</h4>
                         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                            <CantidadTiposArreglos items={stats?.facturacionPorTipo ?? []} />
+                            <VolumenDeTrabajo items={stats?.facturacionPorTipo ?? []} />
                         </div>
                     </div>
                     <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column" }}>

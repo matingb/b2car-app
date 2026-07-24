@@ -9,8 +9,7 @@ export type CategoriaArregloRow = {
   updated_at: string;
 };
 
-export type ListCategoriasArregloFilters = {
-};
+export type ListCategoriasArregloFilters = Record<string, never>;
 
 export type CreateCategoriaArregloInput = {
   nombre: string;
@@ -19,9 +18,9 @@ export type CreateCategoriaArregloInput = {
 export const categoriasArregloService = {
   async list(
     supabase: SupabaseClient,
-    filters: ListCategoriasArregloFilters = {}
+    _filters: ListCategoriasArregloFilters = {}
   ): Promise<{ data: CategoriaArregloRow[]; error: ServiceError | null }> {
-    let query = supabase.from("categorias_arreglo").select("*").order("nombre", { ascending: true });
+    const query = supabase.from("categorias_arreglo").select("*").order("nombre", { ascending: true });
 
     const { data, error } = await query;
     if (error) return { data: [], error: toServiceError(error) };

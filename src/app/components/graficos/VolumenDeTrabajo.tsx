@@ -36,7 +36,7 @@ const TIPOS_EXTRA_ROWS = [
     },
 ];
 
-export default function CantidadTiposArreglos({
+export default function VolumenDeTrabajo({
     items,
 }: Props) {
     const tipoSeries = useMemo(() => {
@@ -111,7 +111,7 @@ export default function CantidadTiposArreglos({
                     ))}
                 </Pie>
 
-                <ChartLegend content={<ChartLegendContent nameKey="key"/>} />
+                <ChartLegend content={<ChartLegendContent nameKey="key" />} />
             </PieChart>
         </ChartContainer>
     );

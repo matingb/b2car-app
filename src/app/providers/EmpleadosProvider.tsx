@@ -10,6 +10,20 @@ import React, {
 } from "react";
 import { empleadosClient } from "@/clients/empleadosClient";
 import type { EmpleadoDTO } from "@/model/dtos";
+import { getStringColorIndex } from "@/lib/utils";
+
+export const EMPLEADO_COLORS = [
+  { bg: "#eef2ff", text: "#4338ca", border: "#e0e7ff", avatarBg: "#c7d2fe", avatarText: "#312e81" }, // indigo
+  { bg: "#f0fdfa", text: "#0f766e", border: "#ccfbf1", avatarBg: "#99f6e4", avatarText: "#134e4a" }, // teal
+  { bg: "#fff1f2", text: "#be123c", border: "#ffe4e6", avatarBg: "#fecdd3", avatarText: "#881337" }, // rose
+  { bg: "#fffbeb", text: "#b45309", border: "#fef3c7", avatarBg: "#fde68a", avatarText: "#78350f" }, // amber
+];
+
+export function getEmpleadoColor(id?: string | null) {
+  const safeId = id ?? "";
+  const colorIndex = getStringColorIndex(safeId, EMPLEADO_COLORS.length);
+  return EMPLEADO_COLORS[colorIndex];
+}
 
 export type Empleado = {
   id: string;

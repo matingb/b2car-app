@@ -23,8 +23,8 @@ export default function ArregloPagoBadge({ estaPago, arregloId, onClick, onPagoU
 
   const isInteractive = Boolean(onClick || arregloId);
   const badgeSize = size === "sm" ? 14 : 16;
-  const padding = size === "sm" ? "3px 8px" : "4px 10px";
-  const fontSize = size === "sm" ? 12 : 14;
+  const padding = size === "sm" ? "4px 10px" : "6px 10px";
+  const fontSize = size === "sm" ? 12 : 13;
 
   const handleToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -81,13 +81,14 @@ export default function ArregloPagoBadge({ estaPago, arregloId, onClick, onPagoU
   const style: React.CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
-    gap: size === "sm" ? 4 : 6,
+    gap: size === "sm" ? 6 : 8,
     whiteSpace: "nowrap",
     fontSize,
     fontWeight: 600,
     color: COLOR.TEXT.PRIMARY,
     backgroundColor: baseBg,
     padding,
+    height: size === "sm" ? 26 : 32,
     borderRadius: 8,
     border: `1px solid ${isHovered && isInteractive && !loading ? activeColor : COLOR.BORDER.SUBTLE
       }`,

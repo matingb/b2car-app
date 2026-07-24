@@ -116,7 +116,14 @@ export async function GET(
     asignaciones?: unknown;
   };
 
-  const arreglo = rpc.arreglo as Arreglo;
+  const arregloRaw = rpc.arreglo as Record<string, unknown>;
+  const { empleados_detallados, ...rest } = arregloRaw;
+  const arreglo = {
+    ...rest,
+    empleados: empleados_detallados || [],
+  };
+  const typedArreglo = arreglo as Arreglo;
+
   const detalles = (Array.isArray(rpc.detalles) ? rpc.detalles : []) as DetalleArreglo[];
   const asignaciones = (Array.isArray(rpc.asignaciones) ? rpc.asignaciones : []) as AsignacionArregloOperacion[];
 
@@ -162,7 +169,7 @@ export async function GET(
     : null;
 
   const payload: ArregloDetalleData = {
-    arreglo: arreglo as Arreglo,
+    arreglo: typedArreglo,
     detalles,
     asignaciones,
     detalle_formulario: detalleFormulario,

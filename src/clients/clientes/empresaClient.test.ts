@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { empresaClient } from './empresaClient';
-import { createEmpresa, createCliente } from '@/tests/factories';
+import { createEmpresa } from '@/tests/factories';
 import { TipoCliente } from '@/model/types';
 
 const mockApi = vi.fn();

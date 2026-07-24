@@ -80,7 +80,7 @@ export interface Arreglo {
   esta_pago: boolean;
   extra_data: string;
   categorias?: string[];
-  empleados?: string[];
+  empleados?: Array<{ id: string; nombre: string; apellido?: string }>;
 }
 
 export interface Turno {

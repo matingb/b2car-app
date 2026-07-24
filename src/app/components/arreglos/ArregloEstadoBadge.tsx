@@ -21,10 +21,10 @@ type Props = {
 
 const SIZE_MAP: Record<
   BadgeSize,
-  { padding: string; gap: number; dot: number; fontSize: number; icon: number }
+  { padding: string; gap: number; dot: number; fontSize: number; icon: number; height: number }
 > = {
-  sm: { padding: "4px 10px", gap: 6, dot: 12, fontSize: 12, icon: 14 },
-  md: { padding: "6px 10px", gap: 8, dot: 14, fontSize: 13, icon: 16 },
+  sm: { padding: "4px 10px", gap: 6, dot: 12, fontSize: 12, icon: 14, height: 26 },
+  md: { padding: "6px 10px", gap: 8, dot: 14, fontSize: 13, icon: 16, height: 32 },
 };
 
 const getStyles = (
@@ -46,6 +46,7 @@ const getStyles = (
     gap: token.gap,
     width: "fit-content",
     padding: token.padding,
+    height: token.height,
     borderRadius: 8,
     background: meta.bgColor,
     flexShrink: 0,

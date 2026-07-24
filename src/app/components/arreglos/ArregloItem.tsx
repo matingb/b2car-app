@@ -7,7 +7,7 @@ import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
 import ArregloPagoBadge from "@/app/components/arreglos/ArregloPagoBadge";
 import Avatar from "@/app/components/ui/Avatar";
 import { Arreglo } from "@/model/types";
-import { COLOR } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import {
   FileText,
   CarFront,
@@ -22,8 +22,10 @@ import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { useTenant } from "@/app/providers/TenantProvider";
+import { getEmpleadoColor } from "@/app/providers/EmpleadosProvider";
 import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
 import ArregloCategoriasList from "@/app/components/arreglos/ArregloCategoriasList";
+import { css } from "@emotion/react";
 
 type EmpleadoInfo = {
   id?: string;
@@ -39,12 +41,7 @@ type Props = {
   empleados?: EmpleadoInfo[];
 };
 
-const AVATAR_COLORS = [
-  { bg: "#c7d2fe", text: "#312e81" }, // indigo
-  { bg: "#99f6e4", text: "#134e4a" }, // teal
-  { bg: "#fecdd3", text: "#881337" }, // rose
-  { bg: "#fde68a", text: "#78350f" }, // amber
-];
+
 
 function getFullName(emp: EmpleadoInfo | string): string {
   if (typeof emp === "string") return emp;
@@ -59,6 +56,7 @@ export default function ArregloItem({
   empleados: empleadosProp,
 }: Props) {
   const { talleres } = useTenant();
+
   const { categorias } = useCategoriasArreglo();
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
@@ -74,11 +72,7 @@ export default function ArregloItem({
     ? formatPatenteConMarcaYModelo(arreglo.vehiculo)
     : "Sin vehículo";
 
-  const rawEmpleados =
-    empleadosProp ||
-    (arreglo as unknown as { empleados?: EmpleadoInfo[] }).empleados ||
-    (arreglo as unknown as { tecnicos?: EmpleadoInfo[] }).tecnicos ||
-    [];
+  const resolvedEmpleados = empleadosProp || arreglo.empleados || [];
 
   return (
     <div 
@@ -93,15 +87,15 @@ export default function ArregloItem({
         }}
         style={styles.card}
       >
-        <div style={styles.cardBody}>
+        <div css={styles.cardBody}>
           {/* Sección Izquierda: Información Principal */}
-          <div style={styles.mainInfoSection}>
-            <div style={styles.topRow}>
+          <div css={styles.mainInfoSection}>
+            <div css={styles.topRow}>
               <h4 style={styles.mainTitle}>
                 {arreglo.descripcion || "Arreglo sin descripción"}
               </h4>
               <div style={styles.badgesGroup}>
-                <ArregloPagoBadge estaPago={arreglo.esta_pago} arregloId={arreglo.id} size="sm" />
+                <ArregloPagoBadge estaPago={arreglo.esta_pago} arregloId={arreglo.id} size="sm" hideTextOnMobile />
                 <ArregloEstadoBadge 
                   estado={arreglo.estado} 
                   size="sm" 
@@ -128,28 +122,27 @@ export default function ArregloItem({
                 </div>
               )}
 
-              {rawEmpleados.length > 0 && (
+              {resolvedEmpleados.length > 0 && (
                 <div style={styles.metaItem}>
                   <Users size={16} color={COLOR.ICON.MUTED} />
                   <span style={{ color: COLOR.TEXT.SECONDARY }}>
-                    {rawEmpleados.length === 1 ? "Técnico:" : "Técnicos:"}
+                    {resolvedEmpleados.length === 1 ? "Técnico:" : "Técnicos:"}
                   </span>
                   <div style={styles.avatarsContainer}>
-                    {rawEmpleados.map((emp, idx) => {
-                      const colorScheme =
-                        AVATAR_COLORS[idx % AVATAR_COLORS.length];
+                    {resolvedEmpleados.map((emp, idx) => {
+                      const colorScheme = getEmpleadoColor(emp.id);
                       const name = getFullName(emp);
                       return (
                         <div
                           key={idx}
                           title={name}
-                          style={styles.avatarItem(idx, rawEmpleados.length - idx)}
+                          style={styles.avatarItem(idx, resolvedEmpleados.length - idx)}
                         >
                           <Avatar
                             nombre={name}
                             size={24}
-                            bgColor={colorScheme.bg}
-                            textColor={colorScheme.text}
+                            bgColor={colorScheme.avatarBg}
+                            textColor={colorScheme.avatarText}
                           />
                         </div>
                       );
@@ -174,13 +167,13 @@ export default function ArregloItem({
           </div>
 
           {/* Sección Derecha: Fecha, Precio y Taller */}
-          <div style={styles.rightInfoSection(hasObservaciones)}>
-            <div style={styles.dateContainer}>
+          <div css={styles.rightInfoSection(hasObservaciones)}>
+            <div css={styles.dateContainer}>
               <Calendar size={15} color={COLOR.ICON.MUTED} />
               <span>{formatDateLabel(arreglo.fecha)}</span>
             </div>
 
-            <div style={styles.priceValue}>
+            <div css={styles.priceValue}>
               {formatArs(arreglo.precio_final, {
                 maxDecimals: 0,
                 minDecimals: 0,
@@ -190,7 +183,7 @@ export default function ArregloItem({
             {talleres.length > 1 && arreglo.taller ? (
               <div
                 data-testid="arreglo-item-taller-label"
-                style={styles.tallerContainer}
+                css={styles.tallerContainer}
                 title={arreglo.taller.ubicacion ?? undefined}
               >
                 <Building2 size={14} color={COLOR.ICON.MUTED} />
@@ -232,26 +225,39 @@ const styles = {
     borderRadius: 12,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
   },
-  cardBody: {
+  cardBody: css({
     display: "flex",
-    flexWrap: "wrap" as const,
+    flexDirection: "column",
     width: "100%",
-  },
-  mainInfoSection: {
-    flex: "1 1 350px",
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      flexDirection: "row",
+    },
+  }),
+  mainInfoSection: css({
+    flex: 1,
     padding: "16px 20px",
     display: "flex",
-    flexDirection: "column" as const,
+    flexDirection: "column",
     justifyContent: "center",
-    gap: 10,
-  },
-  topRow: {
+    gap: 6,
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      borderBottom: "none",
+      borderRight: `1px solid ${COLOR.BORDER.SUBTLE}`,
+      padding: "16px 20px",
+    },
+  }),
+  topRow: css({
     display: "flex",
-    flexWrap: "wrap" as const,
-    gap: 8,
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-  },
+    flexDirection: "column",
+    gap: 6,
+    [`@media (min-width: ${BREAKPOINTS.xl}px)`]: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+    },
+  }),
   mainTitle: {
     fontSize: 17,
     fontWeight: 700,
@@ -299,42 +305,64 @@ const styles = {
     boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
     display: "flex",
   }),
-  rightInfoSection: (hasObservaciones: boolean) => ({
-    flex: "1 1 190px",
+  rightInfoSection: (hasObservaciones: boolean) => css({
     padding: "16px 20px",
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     display: "flex",
-    flexWrap: "wrap" as const,
-    flexDirection: "row" as const,
+    flexWrap: "wrap",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-    borderLeft: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    gap: 4,
+    borderBottomLeftRadius: hasObservaciones ? 0 : 12,
+    borderBottomRightRadius: hasObservaciones ? 0 : 12,
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      width: 190,
+      minWidth: 190,
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "16px 20px",
+      textAlign: "center",
+      borderTopRightRadius: 12,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: hasObservaciones ? 0 : 12,
+    },
   }),
-  dateContainer: {
+  dateContainer: css({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 500,
     color: COLOR.TEXT.SECONDARY,
-  },
-  priceValue: {
-    fontSize: 22,
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      fontSize: 13,
+    },
+  }),
+  priceValue: css({
+    fontSize: 18,
     fontWeight: 800,
     color: COLOR.ACCENT.PRIMARY,
     letterSpacing: "-0.5px",
-  },
-  tallerContainer: {
-    display: "flex",
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      fontSize: 22,
+    },
+  }),
+  tallerContainer: css({
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
     fontSize: 12,
+    marginTop: 4,
     fontWeight: 500,
     color: COLOR.TEXT.TERTIARY,
-  },
+    display: "none",
+    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "flex"
+    },
+  }),
   observacionesContainer: {
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,

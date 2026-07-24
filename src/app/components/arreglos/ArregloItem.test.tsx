@@ -43,6 +43,13 @@ vi.mock("@/app/providers/EmpleadosProvider", () => ({
   useEmpleados: () => ({
     empleados: [],
   }),
+  getEmpleadoColor: vi.fn(() => ({
+    bg: "#eef2ff",
+    text: "#4338ca",
+    border: "#e0e7ff",
+    avatarBg: "#c7d2fe",
+    avatarText: "#312e81",
+  })),
 }));
 
 vi.mock("@/app/providers/BreakpointProvider", () => ({
@@ -177,6 +184,25 @@ describe("ArregloItem", () => {
 
     expect(screen.getByText("CG")).toBeInTheDocument();
     expect(screen.getByText("MF")).toBeInTheDocument();
+  });
+
+  it("renderiza las iniciales desde la propiedad empleados que provee la base de datos (mapeada en el backend)", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+
+    render(
+      <ArregloItem
+        arreglo={{
+          ...createArreglo({}),
+          empleados: [
+            { id: "e1", nombre: "Laura", apellido: "Gomez" },
+            { id: "e2", nombre: "Pedro", apellido: "Pascal" },
+          ],
+        }}
+      />
+    );
+
+    expect(screen.getByText("LG")).toBeInTheDocument();
+    expect(screen.getByText("PP")).toBeInTheDocument();
   });
 });
 

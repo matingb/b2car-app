@@ -56,13 +56,18 @@ export const vehiculoService = {
 
     const { data: arreglosRaw, error: aError } = await supabase
       .from("arreglos")
-      .select("*, vehiculo:vehiculos(*), taller:talleres(*)")
+      .select("*, vehiculo:vehiculos(*), taller:talleres(*), empleados_detallados:arreglos_empleados_detallados")
       .eq("vehiculo_id", id)
       .order("fecha", { ascending: false });
 
     if (aError) return { data: (vehiculo ?? null) as Vehiculo | null, arreglos: [], error: toServiceError(aError) };
 
-    return { data: (vehiculo ?? null) as Vehiculo | null, arreglos: (arreglosRaw ?? []) as unknown[], error: null };
+    const mappedArreglos = (arreglosRaw ?? []).map((arr: Record<string, unknown>) => {
+      const { empleados_detallados, ...rest } = arr;
+      return { ...rest, empleados: empleados_detallados || [] };
+    });
+
+    return { data: (vehiculo ?? null) as Vehiculo | null, arreglos: mappedArreglos as unknown[], error: null };
   },
 
   async updateById(

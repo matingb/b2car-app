@@ -149,7 +149,7 @@ export const supabaseArregloRepository: ArregloRepository = {
 
     let query = supabase
       .from("arreglos")
-      .select("*, vehiculo:vista_vehiculos_con_clientes(*), taller:talleres(*)")
+      .select("*, vehiculo:vista_vehiculos_con_clientes(*), taller:talleres(*), empleados_detallados:arreglos_empleados_detallados")
       .order("fecha", { ascending: false })
       .order("updated_at", { ascending: false })
       .order("id", { ascending: false })
@@ -190,29 +190,57 @@ export const supabaseArregloRepository: ArregloRepository = {
     const { data, error } = await query;
     if (error) return { data: null, error: toServiceError(error) };
 
-    const rows = (data ?? []) as ArregloListPageRow[];
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
     const { items, hasMore } = sliceWithHasMore(rows, limit);
-    return { data: { rows: items, hasMore }, error: null };
+    const mappedRows = items.map((r) => {
+      const { empleados_detallados, ...rest } = r;
+      const mapped = { ...rest, empleados: empleados_detallados || [] };
+      return mapped;
+    }) as ArregloListPageRow[];
+
+    return {
+      data: {
+        rows: mappedRows,
+        hasMore,
+      },
+      error: null,
+    };
   },
 
   async getByIdWithVehiculo(supabase, id) {
     const { data, error } = await supabase
       .from("arreglos")
-      .select("*, vehiculo:vehiculos(*)")
+      .select("*, vehiculo:vehiculos(*), empleados_detallados:arreglos_empleados_detallados")
       .eq("id", id)
       .single();
     if (error) return { data: null, error: toServiceError(error) };
-    return { data: (data ?? null) as Arreglo | null, error: null };
+
+    const rawData = data as Record<string, unknown>;
+    const { empleados_detallados, ...rest } = rawData;
+    const mappedData = {
+      ...rest,
+      empleados: empleados_detallados || [],
+    };
+
+    return { data: mappedData as Arreglo, error: null };
   },
 
   async create(supabase, payload) {
     const { data, error } = await supabase
       .from("arreglos")
       .insert([payload])
-      .select("*, vehiculo:vehiculos(*)")
+      .select("*, vehiculo:vehiculos(*), empleados_detallados:arreglos_empleados_detallados")
       .single();
     if (error) return { data: null, error: toServiceError(error) };
-    return { data: (data ?? null) as Arreglo | null, error: null };
+    
+    const rawData = data as Record<string, unknown>;
+    const { empleados_detallados, ...rest } = rawData;
+    const mappedData = {
+      ...rest,
+      empleados: empleados_detallados || [],
+    };
+
+    return { data: mappedData as Arreglo, error: null };
   },
 
   async updateById(supabase, id, payload) {
@@ -220,10 +248,18 @@ export const supabaseArregloRepository: ArregloRepository = {
       .from("arreglos")
       .update(payload)
       .eq("id", id)
-      .select("*, vehiculo:vehiculos(*)")
+      .select("*, vehiculo:vehiculos(*), empleados_detallados:arreglos_empleados_detallados")
       .single();
     if (error) return { data: null, error: toServiceError(error) };
-    return { data: (data ?? null) as Arreglo | null, error: null };
+
+    const rawData = data as Record<string, unknown>;
+    const { empleados_detallados, ...rest } = rawData;
+    const mappedData = {
+      ...rest,
+      empleados: empleados_detallados || [],
+    };
+
+    return { data: mappedData as Arreglo, error: null };
   },
 
   async listOperacionIdsByArregloId(supabase, id) {

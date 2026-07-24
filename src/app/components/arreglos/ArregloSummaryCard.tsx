@@ -26,13 +26,15 @@ import { logger } from "@/lib/logger";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import { useEmpleados } from "@/app/providers/EmpleadosProvider";
+import { getEmpleadoColor } from "@/app/providers/EmpleadosProvider";
+
 import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
 import type { EstadoArreglo } from "@/model/types";
 import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 import { useArregloPrintableInvoice } from "@/app/components/arreglos/hooks/useArregloPrintableInvoice";
 import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
 import ArregloCategoriasList from "@/app/components/arreglos/ArregloCategoriasList";
+import { css } from "@emotion/react";
 
 export interface ArregloSummaryCardProps {
   data: ArregloDetalleData;
@@ -40,13 +42,6 @@ export interface ArregloSummaryCardProps {
   onOpenEdit: () => void;
   onArregloChange: (updatedArreglo: NonNullable<ArregloDetalleData["arreglo"]>) => void;
 }
-
-const EMPLEADO_COLORS = [
-  { bg: "#eef2ff", text: "#4338ca", border: "#e0e7ff", avatarBg: "#c7d2fe", avatarText: "#312e81" }, // indigo
-  { bg: "#f0fdfa", text: "#0f766e", border: "#ccfbf1", avatarBg: "#99f6e4", avatarText: "#134e4a" }, // teal
-  { bg: "#fff1f2", text: "#be123c", border: "#ffe4e6", avatarBg: "#fecdd3", avatarText: "#881337" }, // rose
-  { bg: "#fffbeb", text: "#b45309", border: "#fef3c7", avatarBg: "#fde68a", avatarText: "#78350f" }, // amber
-];
 
 export default function ArregloSummaryCard({
   data,
@@ -60,23 +55,15 @@ export default function ArregloSummaryCard({
   const { success, error } = useToast();
   const { handleOpenPrintableInvoice } = useArregloPrintableInvoice();
   const { shareArreglo } = useWhatsAppMessage();
-  const { empleados } = useEmpleados();
+
   const { categorias } = useCategoriasArreglo();
 
   const assignedEmpleados = useMemo(() => {
-    const ids = new Set<string>();
-    data.detalles.forEach((d) => {
-      if (d.empleado_id) ids.add(d.empleado_id);
-    });
-    data.asignaciones.forEach((a) => {
-      a.lineas.forEach((l) => {
-        if (l.empleado_id) ids.add(l.empleado_id);
-      });
-    });
-    return Array.from(ids)
-      .map((id) => empleados.find((e) => e.id === id))
-      .filter(Boolean);
-  }, [data, empleados]);
+    if (data.arreglo.empleados && data.arreglo.empleados.length > 0) {
+      return data.arreglo.empleados;
+    }
+    return [];
+  }, [data]);
 
   const arreglo = data.arreglo;
   if (!arreglo) return null;
@@ -136,7 +123,7 @@ export default function ArregloSummaryCard({
     <section style={styles.container}>
       <Card style={{ padding: 0, overflow: "hidden", backgroundColor: COLOR.BACKGROUND.SECONDARY }}>
         {/* Top Header */}
-        <div style={styles.header}>
+        <div css={styles.header}>
           <div style={styles.headerLeft}>
             {/* Vehículo info */}
             {arreglo.vehiculo ? (
@@ -150,25 +137,22 @@ export default function ArregloSummaryCard({
                   <CarFront size={16} color={COLOR.ICON.MUTED} />
                   <span style={styles.patente}>{arreglo.vehiculo.patente}</span>
                 </div>
-                <div style={styles.divider} />
-                <span style={styles.vehiculoText}>
+                <div css={styles.hideOnMobileDivider} />
+                <span css={styles.hideOnMobileText}>
                   {arreglo.vehiculo.marca} {arreglo.vehiculo.modelo}
                   {arreglo.vehiculo.fecha_patente ? ` (${arreglo.vehiculo.fecha_patente})` : ""}
                 </span>
                 {arreglo.vehiculo.nro_interno && (
-                  <>
-                    <div style={styles.divider} />
-                    <span style={styles.internalCode}>
+                  <div css={styles.hideOnMobileInternalCode}>
+                    <span>
                       INT: {arreglo.vehiculo.nro_interno}
                     </span>
-                  </>
+                  </div>
                 )}
               </Card>
             ) : (
               <span style={{ fontSize: 14, color: COLOR.TEXT.SECONDARY }}>Sin vehículo</span>
             )}
-
-            <span style={styles.pipe}>|</span>
 
             {/* Estado */}
             <div style={styles.estadoRow}>
@@ -176,14 +160,13 @@ export default function ArregloSummaryCard({
                 estado={arreglo.estado}
                 onStateChange={handleEstadoChange}
               />
-              <div style={styles.paymentStatus}>
-                <ArregloPagoBadge
-                  estaPago={arreglo.esta_pago}
-                  arregloId={arreglo.id}
-                  onPagoUpdated={onArregloChange}
-                  size="md"
-                />
-              </div>
+              <ArregloPagoBadge
+                estaPago={arreglo.esta_pago}
+                arregloId={arreglo.id}
+                onPagoUpdated={onArregloChange}
+                size="md"
+                hideTextOnMobile
+              />
             </div>
           </div>
 
@@ -225,7 +208,7 @@ export default function ArregloSummaryCard({
 
         {/* Body Content */}
         <div style={styles.bodyContent}>
-          <div style={styles.gridContainer}>
+          <div css={styles.gridContainer}>
             {/* Block 1: Amount, Date, Mileage */}
             <div style={styles.block1}>
               <div>
@@ -274,9 +257,9 @@ export default function ArregloSummaryCard({
                 </span>
                 <div style={styles.chipsRow}>
                   {assignedEmpleados.length > 0 ? (
-                    assignedEmpleados.map((emp, idx) => {
+                    assignedEmpleados.map((emp) => {
                       if (!emp) return null;
-                      const color = EMPLEADO_COLORS[idx % EMPLEADO_COLORS.length];
+                      const color = getEmpleadoColor(emp.id);
                       return (
                         <span
                           key={emp.id}
@@ -326,16 +309,19 @@ const styles = {
     marginTop: 16,
     fontFamily: "var(--font-geist-sans), sans-serif",
   },
-  header: {
+  header: css({
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    padding: "12px 16px",
+    padding: "20px 24px",
     display: "flex",
-    flexWrap: "wrap" as const,
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: "column",
     gap: 16,
-  },
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+  }),
   headerLeft: {
     display: "flex",
     flexWrap: "wrap" as const,
@@ -361,45 +347,42 @@ const styles = {
     color: COLOR.TEXT.PRIMARY,
     fontSize: 14,
   },
-  divider: {
+  hideOnMobileDivider: css({
     width: 1,
     height: 16,
     backgroundColor: COLOR.BORDER.DEFAULT,
-  },
-  vehiculoText: {
+    display: "none",
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      display: "block",
+    },
+  }),
+  hideOnMobileText: css({
     fontSize: 14,
     fontWeight: 500,
     color: COLOR.TEXT.SECONDARY,
     display: "none",
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      display: "block"
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      display: "block",
     },
-  },
-  internalCode: {
+  }),
+  hideOnMobileInternalCode: css({
     fontSize: 12,
     fontWeight: 500,
     color: COLOR.TEXT.TERTIARY,
-    textTransform: "uppercase" as const,
+    textTransform: "uppercase",
     letterSpacing: "0.05em",
     display: "none",
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      display: "block"
+    borderLeft: `2px solid ${COLOR.BORDER.DEFAULT}`,
+    paddingLeft: 6,
+    [`@media (min-width: ${BREAKPOINTS.lg}px)`]: {
+      display: "block",
     },
-  },
-  pipe: {
-    color: COLOR.BORDER.DEFAULT,
-  },
+  }),
   estadoRow: {
     display: "flex",
     flexWrap: "wrap" as const,
     alignItems: "center",
     gap: 12,
-  },
-  paymentStatus: {
-    display: "flex",
-    alignItems: "center",
-    paddingLeft: 12,
-    borderLeft: `1px solid ${COLOR.BORDER.DEFAULT}`,
   },
   headerActions: {
     display: "flex",
@@ -412,13 +395,15 @@ const styles = {
     flexDirection: "column" as const,
     gap: 24,
   },
-  gridContainer: {
-    display: "flex",
-    flexWrap: "wrap" as const,
+  gridContainer: css({
+    display: "grid",
+    gridTemplateColumns: "1fr",
     gap: 32,
-  },
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      gridTemplateColumns: "1fr 1fr",
+    },
+  }),
   block1: {
-    flex: "1 1 300px",
     display: "flex",
     flexDirection: "column" as const,
     gap: 16,
@@ -450,12 +435,11 @@ const styles = {
     letterSpacing: "-0.025em",
   },
   detailsGrid: {
-    display: "flex",
-    flexWrap: "wrap" as const,
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
     gap: 12,
   },
   detailBox: {
-    flex: "1 1 130px",
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 8,
@@ -472,7 +456,6 @@ const styles = {
     whiteSpace: "nowrap" as const,
   },
   block2: {
-    flex: "1 1 300px",
     display: "flex",
     flexDirection: "column" as const,
     gap: 20,
