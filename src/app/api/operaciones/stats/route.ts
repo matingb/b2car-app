@@ -10,10 +10,12 @@ type OperacionesStatsResponse = {
 export async function GET(req: Request) {
 	const supabase = await createClient();
 	const url = new URL(req.url);
+	const tipos = url.searchParams.getAll("tipo").filter(Boolean);
 	const filters = {
 		fecha: url.searchParams.get("fecha") || undefined,
 		from: url.searchParams.get("from") || undefined,
 		to: url.searchParams.get("to") || undefined,
+		tipo: tipos.length > 0 ? tipos : undefined,
 	};
 
 	const { data, error } = await operacionesService.stats(supabase, filters);

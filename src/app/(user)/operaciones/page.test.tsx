@@ -6,6 +6,7 @@ import { OperacionesProvider } from "@/app/providers/OperacionesProvider";
 
 const talleresMock: { id: string; nombre: string }[] = [];
 const getAllMock = vi.fn();
+const getStatsMock = vi.fn();
 
 vi.mock("@/app/providers/InventarioProvider", () => ({
   useInventario: () => ({
@@ -47,8 +48,10 @@ vi.mock("@/app/components/ui/ScreenHeader", () => ({
 }));
 
 vi.mock("@/clients/operacionesClient", () => ({
+	OPERACIONES_PAGE_SIZE: 50,
   operacionesClient: {
     getAll: (...args: unknown[]) => getAllMock(...args),
+    getStats: (...args: unknown[]) => getStatsMock(...args),
     getById: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
@@ -69,6 +72,8 @@ describe("OperacionesPage", () => {
   beforeEach(() => {
     getAllMock.mockReset();
     getAllMock.mockResolvedValue({ data: [], error: null });
+    getStatsMock.mockReset();
+    getStatsMock.mockResolvedValue({ data: null, error: null });
     vi.useFakeTimers();
   });
 
@@ -86,7 +91,10 @@ describe("OperacionesPage", () => {
     );
     await runPendingPromises();
 
-    expect(getAllMock).toHaveBeenCalledTimes(1);
+    expect(getAllMock).toHaveBeenCalledWith(
+      expect.objectContaining({ from: expect.any(String), to: expect.any(String) }),
+      expect.objectContaining({ page: 1 })
+    );
   });
 
   it("Al cargar un tipo de operación, debe filtrar las operaciones por ese tipo", async () => {
@@ -109,8 +117,12 @@ describe("OperacionesPage", () => {
     await runPendingPromises();
 
     expect(getAllMock).toHaveBeenLastCalledWith(
-      { tipo: [tipoSeleccionado] },
-      expect.anything()
+      expect.objectContaining({
+        from: expect.any(String),
+        to: expect.any(String),
+        tipo: [tipoSeleccionado],
+      }),
+      expect.objectContaining({ page: 1 })
     );
   });
 });
