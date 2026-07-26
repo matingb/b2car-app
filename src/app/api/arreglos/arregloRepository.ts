@@ -311,7 +311,7 @@ export const supabaseArregloRepository: ArregloRepository = {
 
   async facturacionPorTipo(supabase, fromISO?, toISO?, tallerId?) {
     const { data, error } = await supabase.rpc("dashboard_facturacion_por_categoria", {
-      top: 6,
+      top: 100,
       p_from: fromISO ?? null,
       p_to: toISO ?? null,
       p_taller_id: tallerId ?? null,
@@ -322,7 +322,7 @@ export const supabaseArregloRepository: ArregloRepository = {
 
   async facturacionPorEmpleado(supabase, fromISO?, toISO?, tallerId?) {
     const { data, error } = await supabase.rpc("dashboard_facturacion_por_empleado", {
-      top: 6,
+      top: 100,
       p_from: fromISO ?? null,
       p_to: toISO ?? null,
       p_taller_id: tallerId ?? null,
@@ -333,7 +333,7 @@ export const supabaseArregloRepository: ArregloRepository = {
 
   async costoPorTipo(supabase, fromISO?, toISO?, tallerId?) {
     const { data, error } = await supabase.rpc("dashboard_costo_por_categoria", {
-      top: 6,
+      top: 100,
       p_from: fromISO ?? null,
       p_to: toISO ?? null,
       p_taller_id: tallerId ?? null,
@@ -346,7 +346,7 @@ export const supabaseArregloRepository: ArregloRepository = {
     const { data, error } = await supabase.rpc("dashboard_costo_por_empleado", {
       p_from: fromISO,
       p_to: toISO,
-      top: 6,
+      top: 100,
       p_taller_id: tallerId ?? null,
     });
     if (error) throw new Error(error.message);
