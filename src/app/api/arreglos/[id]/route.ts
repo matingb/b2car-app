@@ -189,6 +189,16 @@ export async function PUT(
   const payload: UpdateArregloRequest | null = await req.json().catch(() => null);
   if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 });
 
+  if (Object.prototype.hasOwnProperty.call(payload, "esta_pago")) {
+    return Response.json(
+      {
+        data: null,
+        error: "El cobro se registra desde la acciÃ³n de pago para conservar el asiento financiero.",
+      },
+      { status: 400 }
+    );
+  }
+
   const { detalle_formulario, ...restPayload } = payload;
   const arregloPatch: UpdateArregloRequest = { ...restPayload };
   delete (arregloPatch as { descripcion?: unknown }).descripcion;

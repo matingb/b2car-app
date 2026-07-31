@@ -17,6 +17,8 @@ vi.mock("@/app/api/arreglos/arregloDescripcionService", () => ({
 }));
 
 describe("POST /api/arreglos/[id]/repuestos", () => {
+  const CUENTA_ID = "11111111-1111-4111-8111-111111111111";
+  const IDEMPOTENCY_KEY = "22222222-2222-4222-8222-222222222222";
   const rpc = vi.fn();
   const mockSupabase = { rpc } as unknown as Awaited<ReturnType<typeof createClient>>;
 
@@ -51,6 +53,8 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
       p_cantidad: 2,
       p_monto_unitario: 1500,
       p_precio_compra: null,
+      p_cuenta_id: null,
+      p_idempotency_key: null,
       p_categoria_arreglo_id: null,
       p_empleado_id: null,
     });
@@ -95,6 +99,8 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
         precio_compra: 100,
         precio_venta: 180,
         cantidad: 2,
+        cuenta_financiera_id: CUENTA_ID,
+        idempotency_key: IDEMPOTENCY_KEY,
       }),
     });
 
@@ -111,6 +117,8 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
       p_precio_compra: 100,
       p_precio_venta: 180,
       p_cantidad: 2,
+      p_cuenta_id: CUENTA_ID,
+      p_idempotency_key: IDEMPOTENCY_KEY,
       p_categoria_arreglo_id: null,
       p_empleado_id: null,
     });
@@ -132,6 +140,8 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
         cantidad: 5,
         monto_unitario: 1500,
         precio_compra: 800,
+        cuenta_financiera_id: CUENTA_ID,
+        idempotency_key: IDEMPOTENCY_KEY,
       }),
     });
 
@@ -147,9 +157,34 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
       p_cantidad: 5,
       p_monto_unitario: 1500,
       p_precio_compra: 800,
+      p_cuenta_id: CUENTA_ID,
+      p_idempotency_key: IDEMPOTENCY_KEY,
       p_categoria_arreglo_id: null,
       p_empleado_id: null,
     });
+  });
+
+  it("exige cuenta e idempotencia antes de generar una compra automática", async () => {
+    const req = new Request("http://localhost/api/arreglos/A-1/repuestos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tipo: "nuevo",
+        taller_id: "T-1",
+        codigo: "FILT-1",
+        nombre: "Filtro",
+        precio_compra: 100,
+        precio_venta: 180,
+        cantidad: 2,
+      }),
+    });
+
+    const res = await POST(req as never, {
+      params: Promise.resolve({ id: "A-1" }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("mapea PRECIO_COMPRA_REQUERIDO del RPC a 400", async () => {
@@ -219,6 +254,8 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
         precio_compra: 100,
         precio_venta: 180,
         cantidad: 2,
+        cuenta_financiera_id: CUENTA_ID,
+        idempotency_key: IDEMPOTENCY_KEY,
       }),
     });
 

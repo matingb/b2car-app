@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
+import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import Modal from "@/app/components/ui/Modal";
 import { Arreglo, Vehiculo } from "@/model/types";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
@@ -20,6 +20,12 @@ import ArregloFormFields, {
   type ArregloFormFieldsInternal,
   type ArregloFormFieldsValues,
 } from "@/app/components/arreglos/ArregloFormFields";
+import { finanzasClient } from "@/clients/finanzasClient";
+import type { CuentaFinanciera } from "@/model/finanzas";
+import { useInventario } from "@/app/providers/InventarioProvider";
+import { COLOR } from "@/theme/theme";
+import { isValidDate } from "@/lib/fechas";
+import { generateUuidV4 } from "@/lib/uuid";
 
 type Props = {
   open: boolean;
@@ -42,6 +48,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const { vehiculos, fetchAll: fetchVehiculos, fetchCliente } = useVehiculos();
   const { create, update, fetchById } = useArreglos();
   const { tallerSeleccionadoId } = useTenant();
+  const { inventario, isLoading: isInventarioLoading } = useInventario(tallerSeleccionadoId ?? undefined);
   const { confirm } = useModalMessage();
   const { success, error: toastError } = useToast();
   const { share } = useWhatsAppMessage();
@@ -63,6 +70,10 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const [km, setKm] = useState<string>(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
   const [observaciones, setObservaciones] = useState(initial?.observaciones ?? "");
   const [estaPago, setEstaPago] = useState<boolean>(!!initial?.esta_pago);
+  const [cuentasFinancieras, setCuentasFinancieras] = useState<CuentaFinanciera[]>([]);
+  const [cuentaFinancieraId, setCuentaFinancieraId] = useState("");
+  const [fechaCobro, setFechaCobro] = useState(() => toISODateLocal(new Date()));
+  const [isLoadingCuentas, setIsLoadingCuentas] = useState(false);
   const [extraData, setExtraData] = useState(initial?.extra_data ?? "");
   const [selectedVehiculoId, setSelectedVehiculoId] = useState<string>(vehiculoId ? String(vehiculoId) : "");
   const [submitting, setSubmitting] = useState(false);
@@ -98,6 +109,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     setKm(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
     setObservaciones(initial?.observaciones ?? "");
     setEstaPago(!!initial?.esta_pago);
+    setCuentaFinancieraId("");
+    setFechaCobro(toISODateLocal(new Date()));
     setExtraData(initial?.extra_data ?? "");
     setSelectedVehiculoId(vehiculoId ? String(vehiculoId) : "");
     setIsValid(false);
@@ -106,6 +119,48 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       setInternal(createEmptyInternal());
     }
   }, [open, initial, vehiculoId, isEdit]);
+
+  const requiereCompraAutomatica = useMemo(() => {
+    if (isEdit) return false;
+    return internal.repuestosDraft.some((repuesto) => {
+      if (repuesto.tipo === "nuevo") return true;
+      const stock = inventario.find((item) => item.id === repuesto.stock_id);
+      return Boolean(stock && Number(repuesto.cantidad) > Number(stock.stockActual));
+    });
+  }, [inventario, internal.repuestosDraft, isEdit]);
+
+  const requiereCuentaFinanciera = estaPago || requiereCompraAutomatica;
+
+  useEffect(() => {
+    if (!open || isEdit || !requiereCuentaFinanciera) return;
+
+    let cancelled = false;
+    setIsLoadingCuentas(true);
+    void finanzasClient.listarCuentas().then((response) => {
+      if (cancelled) return;
+      if (response.error) {
+        setError(response.error);
+        setCuentasFinancieras([]);
+      } else {
+        setCuentasFinancieras((response.data ?? []).filter((cuenta) => cuenta.activo));
+      }
+    }).finally(() => {
+      if (!cancelled) setIsLoadingCuentas(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, open, requiereCuentaFinanciera]);
+
+  const cuentaOptions = useMemo<AutocompleteOption[]>(
+    () => cuentasFinancieras.map((cuenta) => ({
+      value: cuenta.id,
+      label: cuenta.nombre,
+      secondaryLabel: cuenta.tipo.replaceAll("_", " "),
+    })),
+    [cuentasFinancieras],
+  );
 
   if (!open) return null;
 
@@ -169,6 +224,14 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValid) return;
+    if (requiereCuentaFinanciera && !cuentaFinancieraId) {
+      setError("SeleccionÃ¡ la cuenta financiera que registrarÃ¡ el movimiento.");
+      return;
+    }
+    if (estaPago && !isValidDate(fechaCobro)) {
+      setError("IngresÃ¡ una fecha de cobro vÃ¡lida.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
 
@@ -180,7 +243,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         kilometraje_leido: Number(km),
         // En edición, una cadena vacía es un cambio válido: elimina las observaciones previas.
         observaciones: normalizeArregloObservaciones(observaciones, isEdit),
-        esta_pago: !!estaPago,
+        ...(!isEdit ? { esta_pago: !!estaPago } : {}),
         extra_data: extraData || undefined,
       };
 
@@ -212,6 +275,11 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           precio_final: precioFinalCalculado,
           observaciones: payload.observaciones,
           esta_pago: payload.esta_pago,
+          ...(requiereCuentaFinanciera ? {
+            cuenta_financiera_id: cuentaFinancieraId,
+            idempotency_key: generateUuidV4(),
+          } : {}),
+          ...(estaPago ? { fecha_cobro: fechaCobro } : {}),
           extra_data: payload.extra_data,
           detalles,
           repuestos: internal.repuestosDraft
@@ -290,7 +358,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       onSubmit={handleSubmit}
       submitText={isEdit ? "Guardar cambios" : "Crear"}
       submitting={submitting}
-      disabledSubmit={!isValid}
+      disabledSubmit={!isValid || (requiereCuentaFinanciera && (!cuentaFinancieraId || isLoadingCuentas || (requiereCompraAutomatica && isInventarioLoading))) || (estaPago && !isValidDate(fechaCobro))}
       modalError={
         error
           ? {
@@ -319,7 +387,91 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           onValidityChange={(next) => setIsValid(next)}
           onChange={(next) => setInternal(next)}
         />
+        {!isEdit && requiereCuentaFinanciera ? (
+          <div style={styles.finanzasBox}>
+            <div style={styles.finanzasTitle}>
+              {estaPago ? "Cobro del arreglo" : "Compra automÃ¡tica de repuestos"}
+            </div>
+            <div style={styles.finanzasHelp}>
+              {estaPago
+                ? "SeleccionÃ¡ la cuenta y la fecha que se usarÃ¡n para registrar el ingreso."
+                : "Este arreglo requiere una compra de repuestos; seleccionÃ¡ la cuenta para registrar ese egreso."}
+            </div>
+            <div style={styles.finanzasRow}>
+              <label style={styles.finanzasField}>
+                Cuenta financiera
+                <Autocomplete
+                  value={cuentaFinancieraId}
+                  onChange={setCuentaFinancieraId}
+                  options={cuentaOptions}
+                  placeholder={isLoadingCuentas ? "Cargando cuentas..." : "Seleccionar cuenta"}
+                  disabled={isLoadingCuentas}
+                  hideClearButton
+                  dataTestId="arreglo-cuenta-financiera"
+                />
+              </label>
+              {estaPago ? (
+                <label style={styles.finanzasField}>
+                  Fecha de cobro
+                  <input
+                    type="date"
+                    value={fechaCobro}
+                    onChange={(event) => setFechaCobro(event.target.value)}
+                    style={styles.finanzasInput}
+                    data-testid="arreglo-fecha-cobro"
+                  />
+                </label>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </div>
     </Modal>
   );
 }
+
+const styles = {
+  finanzasBox: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 10,
+    marginTop: 16,
+    padding: 14,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 12,
+    background: COLOR.BACKGROUND.SUBTLE,
+  },
+  finanzasTitle: {
+    color: COLOR.TEXT.PRIMARY,
+    fontWeight: 700,
+    fontSize: 14,
+  },
+  finanzasHelp: {
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 13,
+    lineHeight: 1.4,
+  },
+  finanzasRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 12,
+    flexWrap: "wrap" as const,
+  },
+  finanzasField: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 6,
+    minWidth: 220,
+    flex: 1,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 13,
+  },
+  finanzasInput: {
+    height: 42,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 10,
+    padding: "0 12px",
+    color: COLOR.TEXT.PRIMARY,
+    background: COLOR.BACKGROUND.PRIMARY,
+  } as const,
+} as const;

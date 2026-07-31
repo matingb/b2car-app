@@ -305,7 +305,7 @@ export default function ArregloFormFields({
           >
             <ArregloPagoBadge
               estaPago={values.estaPago}
-              onClick={() => onValuesChange({ estaPago: !values.estaPago })}
+              onClick={isEdit ? undefined : () => onValuesChange({ estaPago: !values.estaPago })}
               size="md"
             />
           </div>

@@ -147,7 +147,7 @@ export function createArregloService(repository: ArregloRepository) {
       fromISO: string,
       toISO: string,
       tallerId?: string
-    ): Promise<Array<{ label: string; repuestos: number; sueldos: number }>> {
+    ): Promise<Array<{ label: string; repuestos: number; sueldos: number; eventuales: number }>> {
       return repository.gastosPorPeriodo(supabase, fromISO, toISO, tallerId);
     },
   };

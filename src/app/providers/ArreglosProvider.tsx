@@ -29,6 +29,11 @@ type ArreglosContextType = {
     id: string | number,
     input: UpdateArregloInput,
   ) => Promise<Arreglo | null>;
+  cobrar: (
+    id: string | number,
+    input: { cuenta_financiera_id: string; fecha_cobro: string; idempotency_key?: string | null },
+  ) => Promise<Arreglo | null>;
+  anularCobro: (id: string | number, idempotencyKey?: string | null) => Promise<Arreglo | null>;
   remove: (id: string | number) => Promise<void>;
 
   createDetalle: (
@@ -123,6 +128,33 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     },
     [fetchAll, tallerSeleccionadoId]
   );
+
+  const cobrar = useCallback(async (
+    id: string | number,
+    input: { cuenta_financiera_id: string; fecha_cobro: string; idempotency_key?: string | null },
+  ) => {
+    setLoading(true);
+    try {
+      const { data, error } = await arreglosClient.cobrar(id, input);
+      if (error) throw new Error(error);
+      void fetchAll({ tallerId: tallerSeleccionadoId });
+      return data ?? null;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchAll, tallerSeleccionadoId]);
+
+  const anularCobro = useCallback(async (id: string | number, idempotencyKey?: string | null) => {
+    setLoading(true);
+    try {
+      const { data, error } = await arreglosClient.anularCobro(id, idempotencyKey);
+      if (error) throw new Error(error);
+      void fetchAll({ tallerId: tallerSeleccionadoId });
+      return data ?? null;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchAll, tallerSeleccionadoId]);
 
   const remove = useCallback(async (id: string | number) => {
     setLoading(true);
@@ -224,6 +256,8 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       fetchById,
       create,
       update,
+      cobrar,
+      anularCobro,
       remove,
       createDetalle,
       updateDetalle,
@@ -239,6 +273,8 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       fetchById,
       create,
       update,
+      cobrar,
+      anularCobro,
       remove,
       createDetalle,
       updateDetalle,

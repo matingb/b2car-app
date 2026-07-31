@@ -12,6 +12,7 @@ import {
   Wrench,
   ScrollText,
   IdCard,
+  WalletCards,
 } from "lucide-react";
 import { logOut } from "@/app/login/actions";
 import { useRouter } from "next/navigation";
@@ -25,6 +26,7 @@ export enum SidebarMenuKey {
   Stock = "stock",
   Productos = "productos",
   Operaciones = "operaciones",
+  CuentasFinancieras = "cuentas-financieras",
   Empleados = "empleados",
   Logout = "logout",
 }
@@ -118,6 +120,13 @@ export function useSidebarMenu() {
         label: "Operaciones",
         icon: <ScrollText size={18} />,
         onClick: () => router.push(ROUTES.operaciones),
+      },
+      {
+        key: SidebarMenuKey.CuentasFinancieras,
+        href: ROUTES.cuentasFinancieras,
+        label: "Finanzas",
+        icon: <WalletCards size={18} />,
+        onClick: () => router.push(ROUTES.cuentasFinancieras),
       },
       {
         key: SidebarMenuKey.Empleados,

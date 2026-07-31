@@ -9,6 +9,7 @@ import {
 	type UpdateOperacionInput,
 } from "@/app/api/operaciones/operacionesService";
 import { ServiceError } from "@/app/api/serviceError";
+import { isValidUuid } from "@/lib/uuid";
 
 export type UpdateOperacionRequest = UpdateOperacionInput;
 
@@ -81,6 +82,18 @@ export async function PUT(
 			{ status: 400 }
 		);
 	}
+	if (payload.cuenta_financiera_id && !isValidUuid(payload.cuenta_financiera_id)) {
+		return Response.json(
+			{ data: null, error: "cuenta_financiera_id invÃ¡lida" } satisfies UpdateOperacionResponse,
+			{ status: 400 }
+		);
+	}
+	if (!payload.idempotency_key || !isValidUuid(payload.idempotency_key)) {
+		return Response.json(
+			{ data: null, error: "idempotency_key invÃ¡lida" } satisfies UpdateOperacionResponse,
+			{ status: 400 }
+		);
+	}
 
 	const { data: updated, error } = await operacionesService.update(supabase, id, payload);
 	if (error || !updated) {
@@ -102,6 +115,10 @@ export async function DELETE(
 ) {
 	const supabase = await createClient();
 	const { id } = await params;
+	const idempotencyKey = _req.headers.get("x-idempotency-key")?.trim() ?? "";
+	if (!isValidUuid(idempotencyKey)) {
+		return Response.json({ error: "X-Idempotency-Key invÃ¡lida" }, { status: 400 });
+	}
 
 	const { data: currentOperacion, error: currentError } = await operacionesService.getById(supabase, id);
 	if (currentError || !currentOperacion) {
@@ -110,7 +127,7 @@ export async function DELETE(
 		return Response.json({ error: message }, { status });
 	}
 
-	const { error } = await operacionesService.deleteById(supabase, id);
+	const { error } = await operacionesService.deleteById(supabase, id, idempotencyKey);
 	if (error) {
 		logger.error("DELETE /api/operaciones/[id] - error:", error);
 		let status = 500;

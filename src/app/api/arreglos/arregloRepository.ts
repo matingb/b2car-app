@@ -106,7 +106,7 @@ export interface ArregloRepository {
     fromISO: string,
     toISO: string,
     tallerId?: string
-  ): Promise<Array<{ label: string; repuestos: number; sueldos: number }>>;
+  ): Promise<Array<{ label: string; repuestos: number; sueldos: number; eventuales: number }>>;
 }
 
 function mapDesgloseRows(data: unknown): DesgloseLinea[] {
@@ -408,10 +408,11 @@ export const supabaseArregloRepository: ArregloRepository = {
       p_taller_id: tallerId ?? null,
     });
     if (error) throw new Error(error.message);
-    return (data ?? []).map((r: { label?: unknown; repuestos?: unknown; sueldos?: unknown }) => ({
+    return (data ?? []).map((r: { label?: unknown; repuestos?: unknown; sueldos?: unknown; eventuales?: unknown }) => ({
       label: String(r.label ?? ""),
       repuestos: Number(r.repuestos ?? 0),
       sueldos: Number(r.sueldos ?? 0),
+      eventuales: Number(r.eventuales ?? 0),
     }));
   },
 };

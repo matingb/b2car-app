@@ -30,12 +30,15 @@ import { useInventario } from "@/app/providers/InventarioProvider";
 import { useUltimoTipoEmpleado } from "@/app/components/arreglos/hooks/useUltimoTipoEmpleado";
 import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
 import { useEmpleados } from "@/app/providers/EmpleadosProvider";
+import CuentaCompraAutomaticaModal from "@/app/components/arreglos/CuentaCompraAutomaticaModal";
+import { generateUuidV4 } from "@/lib/uuid";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
   const [data, setData] = useState<ArregloDetalleData | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [openModal, setOpenModal] = useState(false);
+  const [compraPendiente, setCompraPendiente] = useState<RepuestoUpsertInput | null>(null);
   const [customServiciosDraft, setCustomServiciosDraft] = useState<ServicioLinea[]>([]);
   const {
     fetchById,
@@ -198,10 +201,27 @@ export default function ArregloDetailsPage() {
     }
   };
 
-  const handleUpsertRepuesto = async (input: RepuestoUpsertInput) => {
+  const handleUpsertRepuesto = async (
+    input: RepuestoUpsertInput,
+    cuentaFinancieraId?: string,
+  ) => {
     if (!data?.arreglo?.id) return;
     const tallerId = data.arreglo.taller_id ?? null;
     if (!tallerId) return;
+    const requiereCompraAutomatica =
+      input.tipo === "nuevo" ||
+      input.precio_compra !== undefined;
+    if (requiereCompraAutomatica && !cuentaFinancieraId) {
+      setCompraPendiente(input);
+      return;
+    }
+
+    const cuentaPayload = requiereCompraAutomatica
+      ? {
+        cuenta_financiera_id: cuentaFinancieraId,
+        idempotency_key: generateUuidV4(),
+      }
+      : {};
     try {
       if (input.tipo === "nuevo") {
         await upsertRepuestoLinea(data.arreglo.id, {
@@ -212,6 +232,7 @@ export default function ArregloDetailsPage() {
           precio_compra: input.precio_compra,
           precio_venta: input.precio_venta,
           cantidad: input.cantidad,
+          ...cuentaPayload,
           categoria_arreglo_id: input.categoria_arreglo_id ?? null,
           empleado_id: input.empleado_id ?? null,
         });
@@ -222,6 +243,7 @@ export default function ArregloDetailsPage() {
           cantidad: input.cantidad,
           monto_unitario: input.monto_unitario,
           precio_compra: input.precio_compra,
+          ...cuentaPayload,
           categoria_arreglo_id: input.categoria_arreglo_id ?? null,
           empleado_id: input.empleado_id ?? null,
         });
@@ -451,6 +473,16 @@ export default function ArregloDetailsPage() {
           }}
         />
       )}
+      <CuentaCompraAutomaticaModal
+        open={Boolean(compraPendiente)}
+        onClose={() => setCompraPendiente(null)}
+        onConfirm={async (cuentaId) => {
+          const pending = compraPendiente;
+          if (!pending) return;
+          await handleUpsertRepuesto(pending, cuentaId);
+          setCompraPendiente(null);
+        }}
+      />
     </div>
   );
 }

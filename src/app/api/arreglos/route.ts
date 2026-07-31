@@ -86,6 +86,9 @@ export async function POST(req: Request) {
         observaciones,
         precio_final,
         esta_pago,
+        cuenta_financiera_id,
+        fecha_cobro,
+        idempotency_key,
         extra_data,
         detalles,
         repuestos,
@@ -96,6 +99,23 @@ export async function POST(req: Request) {
     if (!vehiculo_id) return Response.json({ error: "Falta vehiculo_id" }, { status: 400 });
     if (!taller_id) return Response.json({ error: "Falta taller_id" }, { status: 400 });
     if (!fecha) return Response.json({ error: "Falta fecha" }, { status: 400 });
+
+    const cuentaFinancieraId = typeof cuenta_financiera_id === "string" ? cuenta_financiera_id.trim() : "";
+    const fechaCobro = typeof fecha_cobro === "string" ? fecha_cobro.trim() : "";
+    const idempotencyKey = typeof idempotency_key === "string" ? idempotency_key.trim() : "";
+    const estaPagoValue = typeof esta_pago === "boolean" ? esta_pago : false;
+    if (estaPagoValue && !cuentaFinancieraId) {
+        return Response.json({ error: "SeleccionÃ¡ una cuenta financiera para registrar el cobro" }, { status: 400 });
+    }
+    if (cuentaFinancieraId && !isValidUuid(cuentaFinancieraId)) {
+        return Response.json({ error: "cuenta_financiera_id invÃ¡lida" }, { status: 400 });
+    }
+    if (fechaCobro && Number.isNaN(new Date(`${fechaCobro}T00:00:00.000Z`).getTime())) {
+        return Response.json({ error: "fecha_cobro invÃ¡lida" }, { status: 400 });
+    }
+    if ((estaPagoValue || cuentaFinancieraId) && !isValidUuid(idempotencyKey)) {
+        return Response.json({ error: "idempotency_key invÃ¡lida" }, { status: 400 });
+    }
 
     const precioFinalNumber = Number(precio_final) || 0;
     const kmNumber = Number(kilometraje_leido) || 0;
@@ -183,7 +203,7 @@ export async function POST(req: Request) {
         observaciones: observaciones ?? null,
         precio_final: precioFinalNumber,
         precio_sin_iva: computedSinIva,
-        esta_pago: typeof esta_pago === 'boolean' ? esta_pago : false,
+        esta_pago: estaPagoValue,
         extra_data: extra_data ?? null,
     };
 
@@ -254,6 +274,13 @@ export async function POST(req: Request) {
         codigoSet.add(codigoKey);
     }
 
+    if (normalizedRepuestosNuevos.length > 0 && !cuentaFinancieraId) {
+        return Response.json(
+            { error: "SeleccionÃ¡ una cuenta financiera para registrar la compra automÃ¡tica" },
+            { status: 400 }
+        );
+    }
+
     if (detalle_formulario) {
         const costo = Number(detalle_formulario.costo);
         if (!Number.isFinite(costo) || costo < 0) {
@@ -277,6 +304,9 @@ export async function POST(req: Request) {
         p_repuestos: normalizedRepuestos,
         p_repuestos_nuevos: normalizedRepuestosNuevos,
         p_detalle_formulario: detalle_formulario ?? null,
+        p_cuenta_id: cuentaFinancieraId || null,
+        p_fecha_cobro: fechaCobro || null,
+        p_idempotency_key: idempotencyKey || null,
     });
 
     if (rpcError || !arregloIdRpc) {
@@ -284,11 +314,14 @@ export async function POST(req: Request) {
         const raw = String(rpcError?.message ?? "");
         const isStock = raw.includes("STOCK_INSUFICIENTE");
         const isDuplicate = raw.includes("PRODUCTO_CODIGO_DUPLICADO") || raw.includes("uq_productos_tenant_codigo");
-        const status = isStock ? 409 : isDuplicate ? 409 : 500;
+        const requiereCuenta = raw.includes("cuenta_id requerido") || raw.includes("CUENTA_FINANCIERA_REQUERIDA");
+        const status = isStock ? 409 : isDuplicate ? 409 : requiereCuenta ? 400 : 500;
         const message = isStock
             ? "Stock insuficiente"
             : isDuplicate
                 ? "Ya existe un producto con ese codigo. Seleccionalo desde el listado."
+                : requiereCuenta
+                    ? "SeleccionÃ¡ una cuenta financiera para registrar la compra automÃ¡tica"
                 : "No se pudieron guardar los repuestos.";
         return Response.json({ error: message }, { status });
     }

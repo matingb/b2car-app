@@ -4,7 +4,10 @@ import { css } from "@emotion/react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
+import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { Arreglo } from "@/model/types";
+import CobroArregloModal from "@/app/components/arreglos/CobroArregloModal";
+import { generateUuidV4 } from "@/lib/uuid";
 
 type Props = {
   estaPago: boolean;
@@ -16,10 +19,12 @@ type Props = {
 };
 
 export default function ArregloPagoBadge({ estaPago, arregloId, onClick, onPagoUpdated, size = "md", hideTextOnMobile }: Props) {
-  const { update } = useArreglos();
+  const { anularCobro } = useArreglos();
   const { success, error } = useToast();
+  const { confirm } = useModalMessage();
   const [loading, setLoading] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [cobroOpen, setCobroOpen] = useState(false);
 
   const isInteractive = Boolean(onClick || arregloId);
   const badgeSize = size === "sm" ? 14 : 16;
@@ -36,9 +41,25 @@ export default function ArregloPagoBadge({ estaPago, arregloId, onClick, onPagoU
 
     if (!arregloId || loading) return;
 
+    if (!estaPago) {
+      setCobroOpen(true);
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: "Anular cobro",
+      message: "Se generarÃ¡ un reverso del ingreso registrado. Â¿QuerÃ©s continuar?",
+      acceptLabel: "Anular cobro",
+      cancelLabel: "Cancelar",
+    });
+    if (!confirmed) return;
+
     setLoading(true);
     try {
-      const response = await update(arregloId, { esta_pago: !estaPago });
+      const response = await anularCobro(
+        arregloId,
+        generateUuidV4(),
+      );
       if (response) {
         onPagoUpdated?.(response);
         success("Estado de pago", "El estado se actualizó correctamente.");
@@ -113,24 +134,37 @@ export default function ArregloPagoBadge({ estaPago, arregloId, onClick, onPagoU
 
   if (isInteractive) {
     return (
-      <button
-        onClick={handleToggle}
-        type="button"
-        disabled={loading}
-        data-isolate-hover="true"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        onMouseOver={(e) => e.stopPropagation()}
-        onMouseOut={(e) => e.stopPropagation()}
-        title={estaPago ? "Marcar como pendiente" : "Marcar como pagado"}
-        style={{
-          ...style,
-          color: COLOR.TEXT.PRIMARY,
-          opacity: loading ? 0.7 : 1,
-        }}
-      >
-        {content}
-      </button>
+      <>
+        <button
+          onClick={handleToggle}
+          type="button"
+          disabled={loading}
+          data-isolate-hover="true"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onMouseOver={(e) => e.stopPropagation()}
+          onMouseOut={(e) => e.stopPropagation()}
+          title={estaPago ? "Marcar como pendiente" : "Marcar como pagado"}
+          style={{
+            ...style,
+            color: COLOR.TEXT.PRIMARY,
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {content}
+        </button>
+        {arregloId ? (
+          <CobroArregloModal
+            open={cobroOpen}
+            arregloId={arregloId}
+            onClose={() => setCobroOpen(false)}
+            onPaid={(updated) => {
+              onPagoUpdated?.(updated);
+              success("Cobro registrado", "El ingreso se registrÃ³ correctamente.");
+            }}
+          />
+        ) : null}
+      </>
     );
   }
 

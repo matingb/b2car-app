@@ -56,6 +56,7 @@ describe("/api/operaciones/[id]", () => {
 				tenant_id: "TEN-1",
 				tipo: "VENTA",
 				taller_id: "t1",
+				fecha: new Date().toISOString(),
 				created_at: new Date().toISOString(),
 				operaciones_lineas: [],
 			},
@@ -65,13 +66,19 @@ describe("/api/operaciones/[id]", () => {
 		const req = new NextRequest("http://localhost/api/operaciones/op-1", {
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ tipo: "VENTA" }),
+			body: JSON.stringify({
+				tipo: "VENTA",
+				idempotency_key: "00000000-0000-4000-8000-000000000001",
+			}),
 		});
 
 		const res = await PUT(req, { params: Promise.resolve({ id: "op-1" }) });
 
 		expect(res.status).toBe(200);
-		expect(vi.mocked(operacionesService.update)).toHaveBeenCalledWith(expect.anything(), "op-1", { tipo: "VENTA" });
+		expect(vi.mocked(operacionesService.update)).toHaveBeenCalledWith(expect.anything(), "op-1", {
+			tipo: "VENTA",
+			idempotency_key: "00000000-0000-4000-8000-000000000001",
+		});
 		expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "TEN-1");
 	});
 });

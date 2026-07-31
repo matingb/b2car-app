@@ -217,6 +217,31 @@ describe("POST /api/arreglos", () => {
     );
   });
 
+  it("exige cuenta financiera antes de crear un producto que genera compra automática", async () => {
+    const req = new Request("http://localhost/api/arreglos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        createCreateArregloRequest({
+          repuestos_nuevos: [
+            {
+              codigo: "FILT-1",
+              nombre: "Filtro",
+              precio_compra: 100,
+              precio_venta: 180,
+              cantidad: 1,
+            },
+          ],
+        })
+      ),
+    });
+
+    const response = await POST(req);
+
+    expect(response.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("permite creacion en TERMINADO sin detalle/config", async () => {
     const req = new Request("http://localhost/api/arreglos", {
       method: "POST",

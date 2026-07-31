@@ -7,7 +7,7 @@ import type { Granularity } from "@/lib/dashboard/aggregation";
 
 type Props = {
     ingresosBalanceData: Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>;
-    gastosBalanceData: Array<{ label: string; repuestos: number; sueldos: number }>;
+    gastosBalanceData: Array<{ label: string; repuestos: number; sueldos: number; eventuales: number }>;
     granularity: Granularity;
     headerAction?: React.ReactNode;
 };

@@ -18,8 +18,17 @@ export type DesgloseItem = {
     label: string;
     cantidad: number;
     monto: number;
-    subItems?: any[];
     fill?: string;
+};
+
+export type DesglosePieChartSubItem = DesgloseItem & {
+    key: string;
+    porcentaje: number;
+    fill: string;
+};
+
+export type DesglosePieChartDataItem = DesglosePieChartSubItem & {
+    subItems?: DesglosePieChartSubItem[];
 };
 
 type Props = {
@@ -105,16 +114,17 @@ export default function DesglosePieChart({ items, montoLabel = "Monto", variant 
         const safeItems = (items ?? []).filter((i) => i && typeof i.label === "string");
         const colors = variant === "danger" ? DANGER_COLORS : DEFAULT_COLORS;
 
-        let processedItems = [...safeItems].sort((a, b) => b.monto - a.monto);
+        const processedItems = [...safeItems].sort((a, b) => b.monto - a.monto);
         const total = processedItems.reduce((acc, item) => acc + Number(item?.monto ?? 0), 0);
 
-        const itemsWithColor = processedItems.map((item, idx) => ({
+        const itemsWithColor: DesglosePieChartSubItem[] = processedItems.map((item, idx) => ({
             ...item,
+            key: `linea_${idx}`,
             porcentaje: total > 0 ? (item.monto / total) * 100 : 0,
             fill: getDistributedColor(idx, processedItems.length, colors)
         }));
 
-        let pieDataItems = [...itemsWithColor];
+        let pieDataItems: DesglosePieChartDataItem[] = [...itemsWithColor];
 
         if (pieDataItems.length > maxItems + 1) {
             const top = pieDataItems.slice(0, maxItems);
@@ -126,6 +136,7 @@ export default function DesglosePieChart({ items, montoLabel = "Monto", variant 
             pieDataItems = [
                 ...top,
                 {
+                    key: "otros",
                     label: "Otros",
                     monto: restMonto,
                     cantidad: restCantidad,
@@ -138,7 +149,7 @@ export default function DesglosePieChart({ items, montoLabel = "Monto", variant 
 
         const keys = pieDataItems.map((_, idx) => `linea_${idx}`);
 
-        const data = keys.map((key, idx) => {
+        const data: DesglosePieChartDataItem[] = keys.map((key, idx) => {
             const item = pieDataItems[idx];
             return {
                 key,

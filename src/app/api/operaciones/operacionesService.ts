@@ -2,7 +2,6 @@ import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import type { OperacionDTO, OperacionLineaDTO } from "@/model/dtos";
 import { logger } from "@/lib/logger";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
-import { UpdateOperacionRequest } from "./[id]/route";
 
 export type OperacionesFilters = {
 	fecha?: string; // YYYY-MM-DD
@@ -22,6 +21,7 @@ export type OperacionesStats = {
 	ventas: number;
 	compras: number;
 	asignaciones: number;
+	gastos: number;
 	neto: number;
 };
 
@@ -39,6 +39,8 @@ export type CreateOperacionInput = {
 	created_at?: string;
 	lineas?: CreateOperacionLineaInput[];
 	arreglo_id?: string | null;
+	cuenta_financiera_id?: string | null;
+	idempotency_key?: string | null;
 };
 
 export type UpdateOperacionLineaInput = {
@@ -54,14 +56,38 @@ export type UpdateOperacionInput = {
 	fecha?: string;
 	created_at?: string;
 	lineas?: UpdateOperacionLineaInput[];
+	cuenta_financiera_id?: string | null;
+	idempotency_key?: string | null;
 };
 
 type OperacionRow = OperacionDTO & { operaciones_lineas?: OperacionLineaDTO[] | null };
+
+/**
+ * ProyecciÃ³n de la RPC que mezcla stock y gastos sin forzar estos Ãºltimos a
+ * pertenecer a un taller. `lineas` llega como JSONB para conservar una sola
+ * paginaciÃ³n y un orden estable.
+ */
+export type OperacionListRow = {
+	id: string;
+	tipo: string;
+	taller_id: string | null;
+	fecha: string;
+	created_at: string;
+	lineas: unknown;
+	gasto_id: string | null;
+	descripcion: string | null;
+	categoria_gasto: string | null;
+	cuenta_financiera_id: string | null;
+	cuenta_financiera_nombre: string | null;
+	monto: number | string | null;
+	total_count: number | string | null;
+};
 
 type OperacionesStatsRow = {
 	ventas?: number | string | null;
 	compras?: number | string | null;
 	asignaciones?: number | string | null;
+	gastos?: number | string | null;
 	neto?: number | string | null;
 };
 
@@ -84,32 +110,32 @@ export const operacionesService = {
 		supabase: SupabaseClient,
 		filters: OperacionesFilters = {},
 		pagination: OperacionesPagination = { page: 1, pageSize: OPERACIONES_PAGE_SIZE }
-	): Promise<{ data: OperacionRow[]; total: number; error: ServiceError | null }>
+	): Promise<{ data: OperacionListRow[]; total: number; error: ServiceError | null }>
 	{
 		const page = Math.max(1, Math.trunc(pagination.page) || 1);
 		const pageSize = OPERACIONES_PAGE_SIZE;
-		const from = (page - 1) * pageSize;
-		const to = from + pageSize - 1;
+		const from = filters.fecha
+			? toTimestampStart(filters.fecha)
+			: filters.from
+				? toTimestampStart(filters.from)
+				: null;
+		const to = filters.fecha
+			? toTimestampEndExclusive(filters.fecha)
+			: filters.to
+				? toTimestampEndExclusive(filters.to)
+				: null;
 
-		let query = supabase
-			.from("operaciones")
-			.select("*, operaciones_lineas(*)", { count: "exact" })
-			.order("fecha", { ascending: false })
-			.order("created_at", { ascending: false })
-			.order("id", { ascending: false });
-
-		if (filters.fecha) {
-			query = query
-				.gte("fecha", toTimestampStart(filters.fecha))
-				.lt("fecha", toTimestampEndExclusive(filters.fecha));
-		}
-		if (filters.from) query = query.gte("fecha", toTimestampStart(filters.from));
-		if (filters.to) query = query.lt("fecha", toTimestampEndExclusive(filters.to));
-		if (filters.tipo && filters.tipo.length > 0) query = query.in("tipo", filters.tipo);
-
-		const { data, count, error } = await query.range(from, to);
+		const { data, error } = await supabase.rpc("rpc_listar_operaciones_con_gastos", {
+			p_from: from,
+			p_to: to,
+			p_tipos: filters.tipo && filters.tipo.length > 0 ? filters.tipo : null,
+			p_page: page,
+			p_page_size: pageSize,
+		});
 		if (error) return { data: [], total: 0, error: toServiceError(error) };
-		return { data: (data ?? []) as OperacionRow[], total: count ?? 0, error: null };
+		const rows = (Array.isArray(data) ? data : []) as OperacionListRow[];
+		const total = rows.length > 0 ? Number(rows[0]?.total_count) || 0 : 0;
+		return { data: rows, total, error: null };
 	},
 
 	async getById(
@@ -147,6 +173,8 @@ export const operacionesService = {
 			p_lineas: lineasPayload,
 			p_arreglo_id: input.arreglo_id ?? null,
 			p_fecha: input.fecha ?? null,
+			p_cuenta_id: input.cuenta_financiera_id ?? null,
+			p_idempotency_key: input.idempotency_key ?? null,
 		});
 
 		logger.error("RPC crear_operacion_con_stock - operacionId:", operacionId, "rpcError:", rpcError);
@@ -163,47 +191,67 @@ export const operacionesService = {
 		supabase: SupabaseClient,
 		id: string,
 		input: UpdateOperacionInput
-	): Promise<{ data: UpdateOperacionRequest | null; error: ServiceError | null }>
+	): Promise<{ data: OperacionRow | null; error: ServiceError | null }>
 	{
-		const updatePayload: Record<string, string | undefined> = {};
-		if (input.tipo) updatePayload.tipo = input.tipo;
-		if (input.taller_id) updatePayload.taller_id = input.taller_id;
-		if (input.fecha) updatePayload.fecha = input.fecha;
-		if (input.created_at) updatePayload.created_at = input.created_at;
+		const current = await this.getById(supabase, id);
+		if (current.error || !current.data) return { data: null, error: current.error ?? ServiceError.NotFound };
 
-		if (Object.keys(updatePayload).length > 0) {
-			const { error: updateError } = await supabase.from("operaciones").update(updatePayload).eq("id", id);
-			if (updateError) return { data: null, error: toServiceError(updateError) };
+		const currentLineas = Array.isArray(current.data.operaciones_lineas)
+			? current.data.operaciones_lineas
+			: [];
+		const lineas = Array.isArray(input.lineas)
+			? input.lineas
+			: currentLineas;
+		const lineasPayload = lineas.map((linea) => ({
+			stock_id: linea.stock_id,
+			cantidad: linea.cantidad ?? 0,
+			monto_unitario: linea.monto_unitario ?? 0,
+			delta_cantidad: linea.delta_cantidad ?? 0,
+		}));
+		const tipo = input.tipo ?? current.data.tipo;
+		const tallerId = input.taller_id ?? current.data.taller_id;
+		const fecha = input.fecha ?? current.data.fecha;
+		const esOperacionFinanciera = tipo === "COMPRA" || tipo === "VENTA";
+		const cuentaFueInformada = Object.prototype.hasOwnProperty.call(input, "cuenta_financiera_id");
+		let cuentaFinancieraId = input.cuenta_financiera_id ?? null;
+
+		// Una actualización parcial conserva la cuenta del asiento vigente. Si el
+		// cliente manda null explícitamente, la RPC la rechaza para COMPRA/VENTA.
+		if (esOperacionFinanciera && !cuentaFueInformada && current.data.evento_financiero_actual_id) {
+			const { data: evento, error: eventoError } = await supabase
+				.from("eventos_financieros")
+				.select("cuenta_financiera_id")
+				.eq("id", current.data.evento_financiero_actual_id)
+				.maybeSingle();
+			if (eventoError) return { data: null, error: toServiceError(eventoError) };
+			cuentaFinancieraId = evento?.cuenta_financiera_id ?? null;
 		}
 
-		if (Array.isArray(input.lineas)) {
-			const { error: deleteError } = await supabase.from("operaciones_lineas").delete().eq("operacion_id", id);
-			if (deleteError) return { data: null, error: toServiceError(deleteError) };
-
-			if (input.lineas.length > 0) {
-				const lineasPayload = input.lineas.map((l) => ({
-					operacion_id: id,
-					stock_id: l.stock_id,
-					cantidad: l.cantidad ?? 0,
-					monto_unitario: l.monto_unitario ?? 0,
-					delta_cantidad: l.delta_cantidad ?? 0,
-				}));
-
-				const { error: insertError } = await supabase.from("operaciones_lineas").insert(lineasPayload);
-				if (insertError) return { data: null, error: toServiceError(insertError) };
-			}
+		const { data: updatedId, error: rpcError } = await supabase.rpc("rpc_actualizar_operacion_con_stock", {
+			p_operacion_id: id,
+			p_tipo: tipo,
+			p_taller_id: tallerId,
+			p_lineas: lineasPayload,
+			p_fecha: fecha,
+			p_cuenta_id: cuentaFinancieraId,
+			p_idempotency_key: input.idempotency_key ?? null,
+		});
+		if (rpcError || !updatedId) {
+			return { data: null, error: toServiceError(rpcError ?? { code: "Unknown", message: "No se pudo actualizar la operaciÃ³n" } as PostgrestError) };
 		}
 
-		return this.getById(supabase, id);
+		return this.getById(supabase, String(updatedId));
 	},
 
 	async deleteById(
 		supabase: SupabaseClient,
-		id: string
+		id: string,
+		idempotencyKey?: string | null,
 	): Promise<{ error: ServiceError | null }>
 	{
 		const { data, error } = await supabase.rpc("rpc_borrar_operacion_con_stock", {
 			p_operacion_id: id,
+			p_idempotency_key: idempotencyKey ?? null,
 		});
 		logger.error("RPC borrar_operacion_con_stock - data:", data, "error:", error);
 		if (error) return { error: toServiceError(error) };
@@ -225,7 +273,7 @@ export const operacionesService = {
 					: null,
 			p_tipos: filters.tipo && filters.tipo.length > 0 ? filters.tipo : null,
 		});
-		if (error) return { data: { ventas: 0, compras: 0, asignaciones: 0, neto: 0 }, error: toServiceError(error) };
+		if (error) return { data: { ventas: 0, compras: 0, asignaciones: 0, gastos: 0, neto: 0 }, error: toServiceError(error) };
 
 		const row = (Array.isArray(data) ? data[0] : data) as OperacionesStatsRow | null;
 		return {
@@ -233,6 +281,7 @@ export const operacionesService = {
 				ventas: Number(row?.ventas) || 0,
 				compras: Number(row?.compras) || 0,
 				asignaciones: Number(row?.asignaciones) || 0,
+				gastos: Number(row?.gastos) || 0,
 				neto: Number(row?.neto) || 0,
 			},
 			error: null,

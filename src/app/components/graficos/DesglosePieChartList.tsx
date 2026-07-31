@@ -2,10 +2,11 @@ import React, { useMemo } from "react";
 import { ChevronDown } from "lucide-react";
 import { getStyles } from "./DesglosePieChart.styles";
 import DesglosePieChartItem from "./DesglosePieChartItem";
+import type { DesglosePieChartDataItem } from "./DesglosePieChart";
 
 export type DesglosePieChartListProps = {
-    topItems: any[];
-    otrosItem?: any;
+    topItems: DesglosePieChartDataItem[];
+    otrosItem?: DesglosePieChartDataItem;
     maxMonto: number;
     isMobile: boolean;
     showListOnMobile: boolean;
@@ -95,7 +96,7 @@ export default function DesglosePieChartList({
                                 <div style={otrosSubItemsStyle}>
                                     <div style={styles.listInner}>
                                         <div style={styles.subItemsContainer}>
-                                            {otrosItem.subItems?.map((sub: any, idx: number) => (
+                                            {otrosItem.subItems?.map((sub, idx) => (
                                                 <DesglosePieChartItem
                                                     key={`${otrosItem.key}_sub_${idx}`}
                                                     label={sub.label}

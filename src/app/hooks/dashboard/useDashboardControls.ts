@@ -101,6 +101,7 @@ export function useDashboardControls() {
                 label,
                 repuestos: items.reduce((s, i) => s + i.repuestos, 0),
                 sueldos: items.reduce((s, i) => s + i.sueldos, 0),
+                eventuales: items.reduce((s, i) => s + i.eventuales, 0),
             }),
         ),
         [stats?.gastosPorPeriodo, granularity.gastos, period.from]
@@ -130,6 +131,7 @@ export function useDashboardControls() {
                 label,
                 repuestos: items.reduce((s, i) => s + i.repuestos, 0),
                 sueldos: items.reduce((s, i) => s + i.sueldos, 0),
+                eventuales: items.reduce((s, i) => s + i.eventuales, 0),
             }),
         ),
         [stats?.gastosPorPeriodo, granularity.balance, period.from]

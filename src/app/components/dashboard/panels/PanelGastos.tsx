@@ -11,7 +11,7 @@ import type { Granularity } from "@/lib/dashboard/aggregation";
 import { css } from "@emotion/react";
 
 type Props = {
-    gastosData: Array<{ label: string; repuestos: number; sueldos: number }>;
+    gastosData: Array<{ label: string; repuestos: number; sueldos: number; eventuales: number }>;
     granularity: Granularity;
     stats: DashboardStats | null;
     headerAction?: React.ReactNode;

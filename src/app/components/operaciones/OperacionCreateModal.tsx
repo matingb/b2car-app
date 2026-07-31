@@ -17,6 +17,9 @@ import { formatArs } from "@/lib/format";
 import Button from "../ui/Button";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import { isValidDate, toISODateLocal } from "@/lib/fechas";
+import { generateUuidV4 } from "@/lib/uuid";
+import { finanzasClient } from "@/clients/finanzasClient";
+import type { CuentaFinanciera } from "@/model/finanzas";
 
 type TallerLite = { id: string; nombre: string };
 
@@ -42,7 +45,7 @@ function round2(n: number) {
 
 function createEmptyLinea(): LineaDraft {
   return {
-    id: crypto.randomUUID?.() ?? String(Math.random()),
+    id: generateUuidV4(),
     stockId: "",
     cantidad: 1,
     unitario: 0,
@@ -87,6 +90,9 @@ export default function OperacionCreateModal({
 
   const [tipo, setTipo] = useState<TipoOperacion | null>("VENTA");
   const [tallerId, setTallerId] = useState<string>("");
+  const [cuentaFinancieraId, setCuentaFinancieraId] = useState<string>("");
+  const [cuentasFinancieras, setCuentasFinancieras] = useState<CuentaFinanciera[]>([]);
+  const [isLoadingCuentas, setIsLoadingCuentas] = useState(false);
   const [fecha, setFecha] = useState<string>(() => toISODateLocal(new Date()));
   const [lineas, setLineas] = useState<LineaDraft[]>([createEmptyLinea()]);
   const { inventario, isLoading: isInventarioLoading } = useInventario(tallerId || undefined);
@@ -118,7 +124,25 @@ export default function OperacionCreateModal({
     setFecha(toISODateLocal(new Date()));
     setLineas([createEmptyLinea()]);
     setTallerId(talleres.length === 1 ? talleres[0].id : "");
+    setCuentaFinancieraId("");
   }, [open, talleres]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    setIsLoadingCuentas(true);
+    void finanzasClient.listarCuentas().then((response) => {
+      if (cancelled) return;
+      setCuentasFinancieras((response.data ?? []).filter((cuenta) => cuenta.activo));
+    }).finally(() => {
+      if (!cancelled) setIsLoadingCuentas(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -169,10 +193,20 @@ export default function OperacionCreateModal({
     [stockItems],
   );
 
+  const cuentaOptions = useMemo<AutocompleteOption[]>(
+    () => cuentasFinancieras.map((cuenta) => ({
+      value: cuenta.id,
+      label: cuenta.nombre,
+      secondaryLabel: `${cuenta.tipo.replaceAll("_", " ")} · Saldo: ${formatArs(cuenta.saldoActual)}`,
+    })),
+    [cuentasFinancieras],
+  );
+
   const canSubmit = useMemo(() => {
     if (!open) return false;
     if (!tipo || !isTipoEnabled(tipo)) return false;
     if (!tallerId) return false;
+    if (!cuentaFinancieraId) return false;
     if (!isValidDate(fecha)) return false;
     if (lineas.length === 0) return false;
     return lineas.every(
@@ -181,7 +215,7 @@ export default function OperacionCreateModal({
         Number(l.cantidad) > 0 &&
         Number.isFinite(l.unitario),
     );
-  }, [open, tipo, isTipoEnabled, tallerId, fecha, lineas]);
+  }, [open, tipo, isTipoEnabled, tallerId, cuentaFinancieraId, fecha, lineas]);
 
   const setLineaAt = (idx: number, nextLinea: LineaDraft) => {
     setLineas((prev) => prev.map((l, i) => (i === idx ? nextLinea : l)));
@@ -200,6 +234,8 @@ export default function OperacionCreateModal({
         tipo,
         taller_id: tallerId,
         fecha,
+        cuenta_financiera_id: cuentaFinancieraId,
+        idempotency_key: generateUuidV4(),
         lineas: lineas.map((l) => {
           const cantidad = Number(l.cantidad) || 0;
           const unitario = Number(l.unitario) || 0;
@@ -267,6 +303,20 @@ export default function OperacionCreateModal({
               onChange={(e) => setFecha(e.target.value)}
               data-testid="operaciones-create-fecha"
               style={styles.dateInput}
+            />
+          </div>
+
+          <div style={styles.headerLeft}>
+            <label style={styles.label}>Cuenta financiera</label>
+            <Autocomplete
+              value={cuentaFinancieraId}
+              onChange={setCuentaFinancieraId}
+              options={cuentaOptions}
+              placeholder="Seleccionar cuenta"
+              dataTestId="operaciones-create-cuenta-financiera"
+              isLoading={isLoadingCuentas}
+              hideClearButton
+              style={{ height: 44, fontSize: 14 }}
             />
           </div>
 

@@ -21,6 +21,7 @@ import {
     Receipt,
     SlidersHorizontal,
     Truck,
+    WalletCards,
     Wrench,
 } from "lucide-react";
 import { TipoOperacion, TIPOS_OPERACIONES } from "@/model/types";
@@ -28,9 +29,12 @@ import { useTenant } from "@/app/providers/TenantProvider";
 import CardDato from "@/app/components/graficos/CardDato";
 import Color from "color";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
+import GastoModal from "@/app/components/operaciones/GastoModal";
 import LineDetalleOperacion from "@/app/components/operaciones/LineDetalleOperacion";
 import Button from "@/app/components/ui/Button";
 import { useToast } from "@/app/providers/ToastProvider";
+import { finanzasClient } from "@/clients/finanzasClient";
+import type { GastoFinanciero } from "@/model/finanzas";
 
 
 const tipoConfig: Record<
@@ -48,6 +52,12 @@ const tipoConfig: Record<
         icon: <Receipt size={18} />,
         color: COLOR.SEMANTIC.SUCCESS,
         bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
+    },
+    GASTO: {
+        label: "Gasto",
+        icon: <WalletCards size={18} />,
+        color: COLOR.SEMANTIC.DANGER,
+        bg: Color(COLOR.SEMANTIC.DANGER).alpha(0.12).toString(),
     },
     ASIGNACION_ARREGLO: {
         label: "Asignación",
@@ -69,12 +79,15 @@ const tipoConfig: Record<
     },
 };
 
-function shortId(value: string) {
+function shortId(value?: string | null) {
     if (!value) return "-";
     return value.slice(0, 8).toUpperCase();
 }
 
 function getTotals(operacion: Operacion) {
+    if (operacion.tipo === "GASTO") {
+        return { totalLineas: 0, totalMonto: Number(operacion.monto) || 0 };
+    }
     const totalLineas = operacion.lineas?.length ?? 0;
     const totalMonto = (operacion.lineas ?? []).reduce(
         (acc, linea) => acc + (linea.cantidad || 0) * (linea.monto_unitario || 0),
@@ -91,6 +104,7 @@ export default function OperacionesPage() {
         stats,
         setSelectedTipos,
         remove,
+        refresh,
         period,
         setPeriod,
         pagination,
@@ -102,11 +116,23 @@ export default function OperacionesPage() {
     const { success, error } = useToast();
     const [search, setSearch] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
+    const [gastoOpen, setGastoOpen] = useState(false);
+    const [gastoEdit, setGastoEdit] = useState<GastoFinanciero | null>(null);
+    const [cuentaGastoPreseleccionadaId, setCuentaGastoPreseleccionadaId] = useState<string | null>(null);
     const [expandedOperacionId, setExpandedOperacionId] = useState<string | null>(null);
     const [stocksById, setStocksById] = useState<Record<string, StockItem>>({});
     const loadedStockIdsRef = useRef<Set<string>>(new Set());
     const loadingInitial = loading && operaciones.length === 0;
     const loadingMore = loading && operaciones.length > 0;
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("nuevo") !== "gasto") return;
+
+        setCuentaGastoPreseleccionadaId(params.get("cuenta_financiera_id"));
+        setGastoOpen(true);
+        window.history.replaceState(null, "", window.location.pathname);
+    }, []);
 
     useEffect(() => {
         const ids = new Set<string>();
@@ -156,6 +182,9 @@ export default function OperacionesPage() {
                 const { totalLineas, totalMonto } = getTotals(o);
                 return [
                     o.tipo,
+                    o.descripcion,
+                    o.categoria_gasto,
+                    o.cuenta_financiera_nombre,
                     talleres.find(t => t.id === o.taller_id)?.nombre || shortId(o.taller_id),
                     formatDateLabel(o.created_at),
                     String(totalLineas),
@@ -168,13 +197,38 @@ export default function OperacionesPage() {
 
     const handleDelete = useCallback(async (operacion: Operacion) => {
         try {
+            if (operacion.tipo === "GASTO") {
+                const gastoId = operacion.gasto_id ?? operacion.id;
+                const response = await finanzasClient.eliminarGasto(gastoId);
+                if (response.error) throw new Error(response.error);
+                await refresh();
+                success("Gasto eliminado", "El gasto se revirtiÃ³ correctamente.");
+                return;
+            }
             await remove(operacion.id);
             success("Operación eliminada", "La operación se eliminó correctamente.");
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "No se pudo eliminar la operación";
             error("Error eliminando operación", message);
         }
-    }, [error, remove, success]);
+    }, [error, refresh, remove, success]);
+
+    const handleEditGasto = useCallback((operacion: Operacion) => {
+        const gastoId = operacion.gasto_id ?? operacion.id;
+        setGastoEdit({
+            id: gastoId,
+            cuentaId: operacion.cuenta_financiera_id ?? "",
+            categoria: operacion.categoria_gasto ?? "OTROS",
+            importe: Number(operacion.monto) || 0,
+            fecha: operacion.fecha,
+            descripcion: operacion.descripcion ?? "",
+            arregloId: null,
+            operacionId: null,
+            createdAt: operacion.created_at,
+            updatedAt: operacion.created_at,
+        });
+        setGastoOpen(true);
+    }, []);
 
     return (
         <div>
@@ -208,6 +262,13 @@ export default function OperacionesPage() {
                     style={{ color: COLOR.SEMANTIC.INFO }}
                 />
                 <CardDato
+                    titleText="Gastos eventuales"
+                    value={stats?.gastos}
+                    prefix="$"
+                    icon={<WalletCards size={22} color={COLOR.SEMANTIC.DANGER} />}
+                    style={{ color: COLOR.SEMANTIC.DANGER }}
+                />
+                <CardDato
                     titleText="Resultado Mensual"
                     value={Math.abs(stats?.neto ?? 0)}
                     prefix={ stats && stats.neto >= 0 ? "$" : "-$"}
@@ -228,6 +289,17 @@ export default function OperacionesPage() {
                         text="Nueva operación"
                         onClick={() => setCreateOpen(true)}
                         css={styles.createButton}
+                    />
+                    <Button
+                        icon={<PlusIcon size={20} />}
+                        text="Nuevo gasto"
+                        onClick={() => {
+                            setGastoEdit(null);
+                            setCuentaGastoPreseleccionadaId(null);
+                            setGastoOpen(true);
+                        }}
+                        outline
+                        css={styles.gastoButton}
                     />
                 </div>
                 <div css={styles.chipsContainer} aria-label="Filtrar por tipo de operación">
@@ -296,6 +368,7 @@ export default function OperacionesPage() {
                                 onDelete={() => {
                                     void handleDelete(operacion);
                                 }}
+                                onEdit={operacion.tipo === "GASTO" ? () => handleEditGasto(operacion) : undefined}
                             />
                         );
                     })}
@@ -308,6 +381,20 @@ export default function OperacionesPage() {
                     open={createOpen}
                     talleres={talleres}
                     onClose={() => setCreateOpen(false)}
+                />
+            ) : null}
+            {gastoOpen ? (
+                <GastoModal
+                    open={gastoOpen}
+                    gasto={gastoEdit}
+                    cuentaPreseleccionadaId={cuentaGastoPreseleccionadaId}
+                    onClose={() => {
+                        setGastoOpen(false);
+                        setGastoEdit(null);
+                    }}
+                    onSaved={() => {
+                        void refresh();
+                    }}
                 />
             ) : null}
         </div>
@@ -327,7 +414,7 @@ const styles = {
         gap: 16,
         marginTop: 12,
         marginBottom: 16,
-        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+        gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
         [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
             gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
         },
@@ -377,6 +464,13 @@ const styles = {
     createButton: css({
         height: 40,
         minWidth: 180,
+        [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+            width: "auto",
+        },
+    }),
+    gastoButton: css({
+        height: 40,
+        minWidth: 145,
         [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
             width: "auto",
         },

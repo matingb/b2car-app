@@ -11,6 +11,8 @@ export type UpsertRepuestoLineaRequest = {
   cantidad: number;
   monto_unitario: number;
   precio_compra?: number | null;
+  cuenta_financiera_id?: string | null;
+  idempotency_key?: string | null;
   categoria_arreglo_id?: string | null;
   empleado_id?: string | null;
 };
@@ -23,6 +25,8 @@ export type CreateInlineProductoRepuestoRequest = {
   precio_compra: number;
   precio_venta: number;
   cantidad: number;
+  cuenta_financiera_id?: string | null;
+  idempotency_key?: string | null;
   categoria_arreglo_id?: string | null;
   empleado_id?: string | null;
 };
@@ -57,6 +61,9 @@ function mapExistingRepuestoRpcError(error: unknown): { status: number; message:
 
   if (raw.includes("PRECIO_COMPRA_REQUERIDO")) {
     return { status: 400, message: "Precio de compra requerido para cubrir stock faltante" };
+  }
+  if (raw.includes("CUENTA_FINANCIERA_REQUERIDA") || raw.includes("cuenta financiera requerida")) {
+    return { status: 400, message: "SeleccionÃ¡ una cuenta financiera para registrar la compra" };
   }
   if (raw.includes("STOCK_INSUFICIENTE")) {
     return { status: 409, message: "Stock insuficiente" };
@@ -105,6 +112,18 @@ async function upsertRepuestoExistente(
     return Response.json({ data: null, error: "empleado_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
 
+  const cuentaId = body.cuenta_financiera_id?.trim() || null;
+  const idempotencyKey = body.idempotency_key?.trim() || null;
+  if (cuentaId && !isValidUuid(cuentaId)) {
+    return Response.json({ data: null, error: "cuenta_financiera_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
+  if (idempotencyKey && !isValidUuid(idempotencyKey)) {
+    return Response.json({ data: null, error: "idempotency_key invalida" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
+  if (precioCompra != null && precioCompra > 0 && (!cuentaId || !idempotencyKey)) {
+    return Response.json({ data: null, error: "Cuenta financiera e idempotency_key requeridas para la compra automÃ¡tica" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
+
   const { data, error } = await supabase.rpc("rpc_asignar_repuesto_existente_con_compra", {
     p_arreglo_id: arregloId,
     p_taller_id: tallerId,
@@ -112,6 +131,8 @@ async function upsertRepuestoExistente(
     p_cantidad: cantidad,
     p_monto_unitario: montoUnitario,
     p_precio_compra: precioCompra,
+    p_cuenta_id: cuentaId,
+    p_idempotency_key: idempotencyKey,
     p_categoria_arreglo_id: body.categoria_arreglo_id ?? null,
     p_empleado_id: body.empleado_id ?? null,
   });
@@ -159,6 +180,15 @@ async function createRepuestoConProductoNuevo(
     return Response.json({ data: null, error: "empleado_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
 
+  const cuentaId = body.cuenta_financiera_id?.trim() || null;
+  const idempotencyKey = body.idempotency_key?.trim() || null;
+  if (!cuentaId || !isValidUuid(cuentaId)) {
+    return Response.json({ data: null, error: "Cuenta financiera requerida para crear el producto" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
+  if (!idempotencyKey || !isValidUuid(idempotencyKey)) {
+    return Response.json({ data: null, error: "idempotency_key requerida para crear el producto" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
+
   const { data, error } = await supabase.rpc("rpc_crear_producto_inline_para_arreglo", {
     p_arreglo_id: arregloId,
     p_taller_id: tallerId,
@@ -167,6 +197,8 @@ async function createRepuestoConProductoNuevo(
     p_precio_compra: precioCompra,
     p_precio_venta: precioVenta,
     p_cantidad: cantidad,
+    p_cuenta_id: cuentaId,
+    p_idempotency_key: idempotencyKey,
     p_categoria_arreglo_id: body.categoria_arreglo_id ?? null,
     p_empleado_id: body.empleado_id ?? null,
   });

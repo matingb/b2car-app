@@ -9,6 +9,7 @@ import type {
   CreateArregloRepuestoNuevoInput,
 } from "@/app/api/arreglos/arregloRequests";
 import type { EstadoArreglo } from "@/model/types";
+import { generateUuidV4 } from "@/lib/uuid";
 
 export type CreateArregloInput = {
   vehiculo_id: string | number;
@@ -19,6 +20,11 @@ export type CreateArregloInput = {
   precio_final: number;
   observaciones?: string;
   esta_pago?: boolean;
+  /** Requerida si se registra el arreglo como cobrado al crearlo. */
+  cuenta_financiera_id?: string | null;
+  /** Fecha contable del cobro; por defecto se propone hoy en la UI. */
+  fecha_cobro?: string | null;
+  idempotency_key?: string | null;
   extra_data?: string;
 
   // opcional: creación completa (servicios + repuestos) en 1 POST
@@ -42,6 +48,12 @@ export type CreateArregloInput = {
 };
 
 export type UpdateArregloInput = Partial<Omit<CreateArregloInput, "vehiculo_id" | "taller_id">>;
+
+export type CobrarArregloInput = {
+  cuenta_financiera_id: string;
+  fecha_cobro: string;
+  idempotency_key?: string | null;
+};
 
 export type GetArreglosInput = {
   tallerId?: string;
@@ -107,10 +119,14 @@ export const arreglosClient = {
 
   async create(input: CreateArregloInput): Promise<CreateArregloResponse | null> {
     try {
+      const payload: CreateArregloInput = {
+        ...input,
+        idempotency_key: input.idempotency_key ?? generateUuidV4(),
+      };
       const res = await fetch("/api/arreglos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
+        body: JSON.stringify(payload),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok || body?.error) {
@@ -157,8 +173,48 @@ export const arreglosClient = {
     return {error: null}
   },
 
-  async togglePago(id: string | number, esta_pago: boolean): Promise<{ error?: string | null }> {
-    return this.update(id, { esta_pago });
+  async cobrar(
+    id: string | number,
+    input: CobrarArregloInput,
+  ): Promise<UpdateArregloResponse> {
+    try {
+      const payload: CobrarArregloInput = {
+        ...input,
+        idempotency_key: input.idempotency_key ?? generateUuidV4(),
+      };
+      const res = await fetch(`/api/arreglos/${id}/cobro`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body: UpdateArregloResponse = await res.json().catch(() => ({ data: null, error: `Error ${res.status}` }));
+      if (!res.ok || body.error) {
+        return { data: null, error: body.error || `Error ${res.status}` };
+      }
+      return { data: body.data ?? null, error: null };
+    } catch (err: unknown) {
+      return { data: null, error: err instanceof Error ? err.message : "No se pudo registrar el cobro" };
+    }
+  },
+
+  async anularCobro(
+    id: string | number,
+    idempotencyKey?: string | null,
+  ): Promise<UpdateArregloResponse> {
+    try {
+      const key = idempotencyKey ?? generateUuidV4();
+      const res = await fetch(`/api/arreglos/${id}/cobro`, {
+        method: "DELETE",
+        headers: { "X-Idempotency-Key": key },
+      });
+      const body: UpdateArregloResponse = await res.json().catch(() => ({ data: null, error: `Error ${res.status}` }));
+      if (!res.ok || body.error) {
+        return { data: null, error: body.error || `Error ${res.status}` };
+      }
+      return { data: body.data ?? null, error: null };
+    } catch (err: unknown) {
+      return { data: null, error: err instanceof Error ? err.message : "No se pudo anular el cobro" };
+    }
   },
 
   async createDetalle(
