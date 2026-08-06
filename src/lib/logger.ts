@@ -12,10 +12,10 @@ function getLogLevel(): LogLevel {
   const envLevel =
     process.env.LOG_LEVEL ??
     process.env['NEXT_PUBLIC_LOG_LEVEL'] ??
-    'none';
+    'info';
 
   const normalized = envLevel.toLowerCase() as LogLevel;
-  return LEVEL_ORDER[normalized] ? normalized : 'none';
+  return LEVEL_ORDER[normalized] ? normalized : 'info';
 }
 
 const CURRENT_LEVEL = getLogLevel();
@@ -26,15 +26,15 @@ function shouldLog(level: LogLevel) {
 
 export const logger = {
   debug: (...args: unknown[]) => {
-    if (shouldLog('debug')) console.log('[DEBUG]', ...args);
+    if (shouldLog('debug')) console.debug('[DEBUG]', ...args);
   },
   info: (...args: unknown[]) => {
     if (shouldLog('info')) console.log('[INFO]', ...args);
   },
   warn: (...args: unknown[]) => {
-    if (shouldLog('warn')) console.log('[WARN]', ...args);
+    if (shouldLog('warn')) console.warn('[WARN]', ...args);
   },
   error: (...args: unknown[]) => {
-    if (shouldLog('error')) console.log('[ERROR]', ...args);
+    if (shouldLog('error')) console.error('[ERROR]', ...args);
   },
 };
