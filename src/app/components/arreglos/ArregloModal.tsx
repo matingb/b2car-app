@@ -14,6 +14,7 @@ import { useTenant } from "@/app/providers/TenantProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
 import { useToast } from "@/app/providers/ToastProvider";
+import { useInventario } from "@/app/providers/InventarioProvider";
 import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
 import ArregloFormFields, {
   type ArregloForm,
@@ -45,6 +46,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const { confirm } = useModalMessage();
   const { success, error: toastError } = useToast();
   const { share } = useWhatsAppMessage();
+  const { loadInventarioByTaller } = useInventario();
 
   const createEmptyInternal = (): ArregloFormFieldsInternal => ({
     serviciosDraft: [],
@@ -247,6 +249,10 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         );
       }
       onSubmitSuccess?.(response);
+
+      if (tallerSeleccionadoId) {
+        loadInventarioByTaller(tallerSeleccionadoId).catch(() => {});
+      }
 
       onClose();
       if (!isEdit) {

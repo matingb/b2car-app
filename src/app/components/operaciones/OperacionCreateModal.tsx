@@ -89,7 +89,7 @@ export default function OperacionCreateModal({
   const [tallerId, setTallerId] = useState<string>("");
   const [fecha, setFecha] = useState<string>(() => toISODateLocal(new Date()));
   const [lineas, setLineas] = useState<LineaDraft[]>([createEmptyLinea()]);
-  const { inventario, isLoading: isInventarioLoading } = useInventario(tallerId || undefined);
+  const { inventario, isLoading: isInventarioLoading, loadInventarioByTaller } = useInventario(tallerId || undefined);
   const didInitRef = React.useRef(false);
   const tipoConfigById = useMemo(
     () => new Map(TIPOS_UI.map((t) => [t.tipo, t])),
@@ -220,6 +220,10 @@ export default function OperacionCreateModal({
           "Operación creada",
           buildOperacionCreatedMessage(tipo, tallerNombre, tipoConfigById)
         );
+        // Refrescar inventario para que otros consumidores vean stock actualizado
+        if (tallerId) {
+          loadInventarioByTaller(tallerId).catch(() => {});
+        }
         onClose();
       }
     } catch (err: unknown) {
