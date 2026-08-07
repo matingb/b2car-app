@@ -12,13 +12,13 @@ import { formatNumberAr } from "@/lib/format";
 import GraficoTooltip from "./GraficoTooltip";
 import { ChevronDown } from "lucide-react";
 import { getStyles } from "./DesglosePieChart.styles";
-import DesglosePieChartList from "./DesglosePieChartList";
+import DesglosePieChartList, { ChartDataItem } from "./DesglosePieChartList";
 
 export type DesgloseItem = {
     label: string;
     cantidad: number;
     monto: number;
-    subItems?: any[];
+    subItems?: DesgloseItem[];
     fill?: string;
 };
 
@@ -105,13 +105,16 @@ export default function DesglosePieChart({ items, montoLabel = "Monto", variant 
         const safeItems = (items ?? []).filter((i) => i && typeof i.label === "string");
         const colors = variant === "danger" ? DANGER_COLORS : DEFAULT_COLORS;
 
-        let processedItems = [...safeItems].sort((a, b) => b.monto - a.monto);
+        const processedItems = [...safeItems].sort((a, b) => b.monto - a.monto);
         const total = processedItems.reduce((acc, item) => acc + Number(item?.monto ?? 0), 0);
 
-        const itemsWithColor = processedItems.map((item, idx) => ({
-            ...item,
+        const itemsWithColor: ChartDataItem[] = processedItems.map((item, idx) => ({
+            key: `linea_${idx}`,
+            label: item.label,
+            cantidad: item.cantidad,
+            monto: item.monto,
             porcentaje: total > 0 ? (item.monto / total) * 100 : 0,
-            fill: getDistributedColor(idx, processedItems.length, colors)
+            fill: getDistributedColor(idx, processedItems.length, colors),
         }));
 
         let pieDataItems = [...itemsWithColor];
@@ -126,36 +129,24 @@ export default function DesglosePieChart({ items, montoLabel = "Monto", variant 
             pieDataItems = [
                 ...top,
                 {
+                    key: "linea_otros",
                     label: "Otros",
-                    monto: restMonto,
                     cantidad: restCantidad,
+                    monto: restMonto,
                     porcentaje: total > 0 ? (restMonto / total) * 100 : 0,
-                    subItems: rest,
                     fill: "#94a3b8", // Static gray for the "Otros" group slice
+                    subItems: rest,
                 },
             ];
         }
 
-        const keys = pieDataItems.map((_, idx) => `linea_${idx}`);
-
-        const data = keys.map((key, idx) => {
-            const item = pieDataItems[idx];
-            return {
-                key,
-                label: item.label ?? key,
-                cantidad: Number(item.cantidad ?? 0),
-                monto: item.monto,
-                porcentaje: item.porcentaje,
-                fill: item.fill,
-                subItems: item.subItems,
-            };
-        });
+        const data: ChartDataItem[] = pieDataItems;
 
         const config: ChartConfig = {};
-        keys.forEach((key, idx) => {
-            config[key] = {
-                label: pieDataItems[idx]?.label ?? key,
-                color: pieDataItems[idx]?.fill ?? colors[0],
+        data.forEach((item) => {
+            config[item.key] = {
+                label: item.label ?? item.key,
+                color: item.fill ?? colors[0],
             };
         });
 

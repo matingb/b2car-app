@@ -3,9 +3,19 @@ import { ChevronDown } from "lucide-react";
 import { getStyles } from "./DesglosePieChart.styles";
 import DesglosePieChartItem from "./DesglosePieChartItem";
 
+export type ChartDataItem = {
+    key: string;
+    label: string;
+    cantidad: number;
+    monto: number;
+    porcentaje: number;
+    fill: string;
+    subItems?: ChartDataItem[];
+};
+
 export type DesglosePieChartListProps = {
-    topItems: any[];
-    otrosItem?: any;
+    topItems: ChartDataItem[];
+    otrosItem?: ChartDataItem;
     maxMonto: number;
     isMobile: boolean;
     showListOnMobile: boolean;
@@ -95,7 +105,7 @@ export default function DesglosePieChartList({
                                 <div style={otrosSubItemsStyle}>
                                     <div style={styles.listInner}>
                                         <div style={styles.subItemsContainer}>
-                                            {otrosItem.subItems?.map((sub: any, idx: number) => (
+                                            {otrosItem.subItems?.map((sub: ChartDataItem, idx: number) => (
                                                 <DesglosePieChartItem
                                                     key={`${otrosItem.key}_sub_${idx}`}
                                                     label={sub.label}
