@@ -261,7 +261,7 @@ export async function POST(req: Request) {
         }
     }
 
-    const { data: arregloIdRpc, error: rpcError } = await supabase.rpc("rpc_crear_arreglo_completo", {
+    const rpcPayload = {
         p_vehiculo_id: insertPayload.vehiculo_id,
         p_taller_id: insertPayload.taller_id,
         p_estado: insertPayload.estado,
@@ -277,7 +277,11 @@ export async function POST(req: Request) {
         p_repuestos: normalizedRepuestos,
         p_repuestos_nuevos: normalizedRepuestosNuevos,
         p_detalle_formulario: detalle_formulario ?? null,
-    });
+    };
+
+    logger.debug("Llamando a rpc_crear_arreglo_completo con payload:", JSON.stringify(rpcPayload, null, 2));
+
+    const { data: arregloIdRpc, error: rpcError } = await supabase.rpc("rpc_crear_arreglo_completo", rpcPayload);
 
     if (rpcError || !arregloIdRpc) {
         logger.error("RPC Error in rpc_crear_arreglo_completo:", rpcError);
