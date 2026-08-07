@@ -258,6 +258,8 @@ function validateExistingStock(
     };
   }
 
+  const precioCompraFallback = safeNumber(draft.precioCompra) || Number(stock.costoUnitario) || 0;
+
   return {
     ok: true,
     value: {
@@ -265,6 +267,7 @@ function validateExistingStock(
       stock_id: stockId,
       cantidad,
       monto_unitario: montoUnitario,
+      ...(precioCompraFallback > 0 ? { precio_compra: precioCompraFallback } : {}),
       categoria_arreglo_id: draft.categoriaArregloId,
       empleado_id: draft.empleadoId,
     },

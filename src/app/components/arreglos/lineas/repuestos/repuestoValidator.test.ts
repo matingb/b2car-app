@@ -207,7 +207,7 @@ describe("validateRepuestoDraft", () => {
     it("devuelve ok cuando el stock cubre la cantidad", () => {
       const env: RepuestoValidatorEnv = {
         ...baseEnv,
-        inventario: [stock({ id: "s1", stockActual: 10 })],
+        inventario: [stock({ id: "s1", stockActual: 10, costoUnitario: 80 })],
       };
       const result = validateRepuestoDraft(
         { ...existingBase, cantidad: "3" },
@@ -221,6 +221,7 @@ describe("validateRepuestoDraft", () => {
           stock_id: "s1",
           cantidad: 3,
           monto_unitario: 100,
+          precio_compra: 80,
           categoria_arreglo_id: null,
           empleado_id: null,
         },
