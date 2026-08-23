@@ -60,6 +60,7 @@ function TestProbe() {
     updateCuenta,
     deleteCuenta,
     createTransferencia,
+    getCuentaById,
   } = useCuentasFinancieras();
 
   return (
@@ -68,6 +69,9 @@ function TestProbe() {
       <div data-testid="cuentas-count">{cuentas.length}</div>
       <div data-testid="cuentas-activas-count">{cuentasActivas.length}</div>
       <div data-testid="saldo-total">{saldoTotal}</div>
+      <div data-testid="cuenta-1-saldo">
+        {cuentas.find((c) => c.id === "cuenta-1")?.saldoActual ?? "none"}
+      </div>
       <button
         type="button"
         onClick={() =>
@@ -104,6 +108,12 @@ function TestProbe() {
         }
       >
         Transferir
+      </button>
+      <button
+        type="button"
+        onClick={() => void getCuentaById("cuenta-1")}
+      >
+        Obtener cuenta 1
       </button>
     </div>
   );
@@ -257,6 +267,31 @@ describe("CuentasFinancierasProvider", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("saldo-total")).toHaveTextContent("2000");
+    });
+  });
+
+  it("actualiza el saldo en el estado global al consultar getCuentaById", async () => {
+    obtenerCuentaMock.mockResolvedValue({
+      data: { ...initialCuentas[0], saldoActual: 9999 },
+      error: null,
+    });
+
+    render(
+      <CuentasFinancierasProvider>
+        <TestProbe />
+      </CuentasFinancierasProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading")).toHaveTextContent("ready");
+    });
+    expect(screen.getByTestId("cuenta-1-saldo")).toHaveTextContent("2500");
+
+    fireEvent.click(screen.getByRole("button", { name: "Obtener cuenta 1" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("cuenta-1-saldo")).toHaveTextContent("9999");
+      expect(screen.getByTestId("saldo-total")).toHaveTextContent("9999");
     });
   });
 });

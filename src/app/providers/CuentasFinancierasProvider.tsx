@@ -6,6 +6,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { finanzasClient } from "@/clients/finanzasClient";
@@ -54,28 +55,38 @@ export function CuentasFinancierasProvider({
   const [cuentas, setCuentas] = useState<CuentaFinanciera[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const inFlightPromiseRef = useRef<Promise<void> | null>(null);
 
   const loadCuentas = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const res = await finanzasClient.listarCuentas();
-      if (res.error) {
-        setLoadError(res.error);
-        setCuentas([]);
-      } else {
-        setCuentas(res.data ?? []);
-      }
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : "No se pudieron cargar las cuentas financieras";
-      setLoadError(msg);
-      setCuentas([]);
-    } finally {
-      setLoading(false);
+    if (inFlightPromiseRef.current) {
+      return inFlightPromiseRef.current;
     }
+    const run = async () => {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const res = await finanzasClient.listarCuentas();
+        if (res.error) {
+          setLoadError(res.error);
+          setCuentas([]);
+        } else {
+          setCuentas(res.data ?? []);
+        }
+      } catch (err: unknown) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : "No se pudieron cargar las cuentas financieras";
+        setLoadError(msg);
+        setCuentas([]);
+      } finally {
+        setLoading(false);
+        inFlightPromiseRef.current = null;
+      }
+    };
+    const promise = run();
+    inFlightPromiseRef.current = promise;
+    return promise;
   }, []);
 
   useEffect(() => {
@@ -250,5 +261,12 @@ export function useCuentasFinancieras() {
       "useCuentasFinancieras debe usarse dentro de CuentasFinancierasProvider"
     );
   }
+
+  const { refresh } = ctx;
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
   return ctx;
 }
