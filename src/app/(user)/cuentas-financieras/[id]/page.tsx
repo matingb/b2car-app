@@ -132,7 +132,7 @@ export default function CuentaFinancieraDetailPage() {
     if (!cuenta || deleting) return;
     const accepted = await confirm({
       title: "Eliminar cuenta financiera",
-      message: `Â¿QuerÃ©s eliminar la cuenta \"${cuenta.nombre}\"? Esta acciÃ³n no se puede deshacer.`,
+      message: `¿Querés eliminar la cuenta \"${cuenta.nombre}\"? Esta acción no se puede deshacer.`,
       acceptLabel: "Eliminar",
       cancelLabel: "Cancelar",
     });
@@ -145,7 +145,7 @@ export default function CuentaFinancieraDetailPage() {
       errorToast("No se pudo eliminar la cuenta", response.error);
       return;
     }
-    success("Cuenta eliminada", `${cuenta.nombre} se eliminÃ³ correctamente.`);
+    success("Cuenta eliminada", `${cuenta.nombre} se eliminó correctamente.`);
     router.push(ROUTES.cuentasFinancieras);
   };
 
@@ -184,7 +184,7 @@ export default function CuentaFinancieraDetailPage() {
     return (
       <div>
         <ScreenHeader title="Cuenta financiera" hasBackButton />
-        <div style={styles.pageStatus}>No se encontrÃ³ la cuenta solicitada.</div>
+        <div style={styles.pageStatus}>No se encontró la cuenta solicitada.</div>
       </div>
     );
   }
@@ -253,7 +253,7 @@ export default function CuentaFinancieraDetailPage() {
 
       {!cuenta.activo ? (
         <div style={styles.inactiveNotice} role="status">
-          Esta cuenta estÃ¡ inactiva. PodÃ©s consultar su historial, pero no registrar nuevos gastos ni transferencias.
+          Esta cuenta está inactiva. Podés consultar su historial, pero no registrar nuevos gastos ni transferencias.
         </div>
       ) : null}
 

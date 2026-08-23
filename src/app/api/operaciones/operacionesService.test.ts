@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { operacionesService } from "./operacionesService";
 
 describe("operacionesService.list", () => {
-	it("pagina operaciones y gastos en una Ãºnica RPC con total estable", async () => {
+	it("pagina operaciones y gastos en una única RPC con total estable", async () => {
 		const rpc = vi.fn().mockResolvedValue({
 			data: [{ total_count: 123 }],
 			error: null,
@@ -32,7 +32,7 @@ describe("operacionesService.list", () => {
 describe("operacionesService.update", () => {
 	afterEach(() => vi.restoreAllMocks());
 
-	it("conserva la cuenta del evento vigente en una actualizaciÃ³n parcial de venta", async () => {
+	it("conserva la cuenta del evento vigente en una actualización parcial de venta", async () => {
 		const operacionId = "11111111-1111-4111-8111-111111111111";
 		const cuentaId = "22222222-2222-4222-8222-222222222222";
 		const eventoId = "33333333-3333-4333-8333-333333333333";

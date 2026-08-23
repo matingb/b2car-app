@@ -49,7 +49,7 @@ describe("/api/operaciones/[id]", () => {
 		expect(vi.mocked(operacionesService.update)).not.toHaveBeenCalled();
 	});
 
-	it("PUT actualiza una operaciÃ³n sin tocar el arreglo", async () => {
+	it("PUT actualiza una operación sin tocar el arreglo", async () => {
 		vi.mocked(operacionesService.update).mockResolvedValue({
 			data: {
 				id: "op-1",

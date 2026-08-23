@@ -193,7 +193,7 @@ export async function PUT(
     return Response.json(
       {
         data: null,
-        error: "El cobro se registra desde la acciÃ³n de pago para conservar el asiento financiero.",
+        error: "El cobro se registra desde la acción de pago para conservar el asiento financiero.",
       },
       { status: 400 }
     );

@@ -105,16 +105,16 @@ export async function POST(req: Request) {
     const idempotencyKey = typeof idempotency_key === "string" ? idempotency_key.trim() : "";
     const estaPagoValue = typeof esta_pago === "boolean" ? esta_pago : false;
     if (estaPagoValue && !cuentaFinancieraId) {
-        return Response.json({ error: "SeleccionÃ¡ una cuenta financiera para registrar el cobro" }, { status: 400 });
+        return Response.json({ error: "Seleccioná una cuenta financiera para registrar el cobro" }, { status: 400 });
     }
     if (cuentaFinancieraId && !isValidUuid(cuentaFinancieraId)) {
-        return Response.json({ error: "cuenta_financiera_id invÃ¡lida" }, { status: 400 });
+        return Response.json({ error: "cuenta_financiera_id inválida" }, { status: 400 });
     }
     if (fechaCobro && Number.isNaN(new Date(`${fechaCobro}T00:00:00.000Z`).getTime())) {
-        return Response.json({ error: "fecha_cobro invÃ¡lida" }, { status: 400 });
+        return Response.json({ error: "fecha_cobro inválida" }, { status: 400 });
     }
     if ((estaPagoValue || cuentaFinancieraId) && !isValidUuid(idempotencyKey)) {
-        return Response.json({ error: "idempotency_key invÃ¡lida" }, { status: 400 });
+        return Response.json({ error: "idempotency_key inválida" }, { status: 400 });
     }
 
     const precioFinalNumber = Number(precio_final) || 0;
@@ -276,7 +276,7 @@ export async function POST(req: Request) {
 
     if (normalizedRepuestosNuevos.length > 0 && !cuentaFinancieraId) {
         return Response.json(
-            { error: "SeleccionÃ¡ una cuenta financiera para registrar la compra automÃ¡tica" },
+            { error: "Seleccioná una cuenta financiera para registrar la compra automática" },
             { status: 400 }
         );
     }
@@ -321,7 +321,7 @@ export async function POST(req: Request) {
             : isDuplicate
                 ? "Ya existe un producto con ese codigo. Seleccionalo desde el listado."
                 : requiereCuenta
-                    ? "SeleccionÃ¡ una cuenta financiera para registrar la compra automÃ¡tica"
+                    ? "Seleccioná una cuenta financiera para registrar la compra automática"
                 : "No se pudieron guardar los repuestos.";
         return Response.json({ error: message }, { status });
     }

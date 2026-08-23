@@ -101,7 +101,7 @@ export default function TransferenciaFinancieraModal({
       <div style={styles.form}>
         {activeAccounts.length < 2 ? (
           <div style={styles.notice} role="status">
-            NecesitÃ¡s al menos dos cuentas activas para registrar una transferencia.
+            Necesitás al menos dos cuentas activas para registrar una transferencia.
           </div>
         ) : null}
 
@@ -172,7 +172,7 @@ export default function TransferenciaFinancieraModal({
         </div>
 
         <label style={styles.field}>
-          <span style={styles.label}>DescripciÃ³n (opcional)</span>
+          <span style={styles.label}>Descripción (opcional)</span>
           <textarea
             value={descripcion}
             onChange={(event) => setDescripcion(event.target.value)}

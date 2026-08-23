@@ -63,9 +63,9 @@ export type UpdateOperacionInput = {
 type OperacionRow = OperacionDTO & { operaciones_lineas?: OperacionLineaDTO[] | null };
 
 /**
- * ProyecciÃ³n de la RPC que mezcla stock y gastos sin forzar estos Ãºltimos a
+ * Proyección de la RPC que mezcla stock y gastos sin forzar estos últimos a
  * pertenecer a un taller. `lineas` llega como JSONB para conservar una sola
- * paginaciÃ³n y un orden estable.
+ * paginación y un orden estable.
  */
 export type OperacionListRow = {
 	id: string;
@@ -237,7 +237,7 @@ export const operacionesService = {
 			p_idempotency_key: input.idempotency_key ?? null,
 		});
 		if (rpcError || !updatedId) {
-			return { data: null, error: toServiceError(rpcError ?? { code: "Unknown", message: "No se pudo actualizar la operaciÃ³n" } as PostgrestError) };
+			return { data: null, error: toServiceError(rpcError ?? { code: "Unknown", message: "No se pudo actualizar la operación" } as PostgrestError) };
 		}
 
 		return this.getById(supabase, String(updatedId));

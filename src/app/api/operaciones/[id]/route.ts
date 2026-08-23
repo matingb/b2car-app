@@ -59,7 +59,7 @@ export async function GET(
 	const { data, error } = await operacionesService.getById(supabase, id);
 	if (error) {
 		const status = error === ServiceError.NotFound ? 404 : 500;
-		const message = status === 404 ? "OperaciÃ³n no encontrada" : "Error cargando operaciÃ³n";
+		const message = status === 404 ? "Operación no encontrada" : "Error cargando operación";
 		return Response.json({ data: null, error: message } satisfies GetOperacionByIdResponse, { status });
 	}
 
@@ -75,22 +75,22 @@ export async function PUT(
 
 	const payload: UpdateOperacionRequest | null = await req.json().catch(() => null);
 	if (!payload)
-		return Response.json({ data: null, error: "JSON invÃ¡lido" } satisfies UpdateOperacionResponse, { status: 400 });
+		return Response.json({ data: null, error: "JSON inválido" } satisfies UpdateOperacionResponse, { status: 400 });
 	if (Object.prototype.hasOwnProperty.call(payload, "arreglo_id")) {
 		return Response.json(
-			{ data: null, error: "arreglo_id no se puede modificar en una operaciÃ³n existente" } satisfies UpdateOperacionResponse,
+			{ data: null, error: "arreglo_id no se puede modificar en una operación existente" } satisfies UpdateOperacionResponse,
 			{ status: 400 }
 		);
 	}
 	if (payload.cuenta_financiera_id && !isValidUuid(payload.cuenta_financiera_id)) {
 		return Response.json(
-			{ data: null, error: "cuenta_financiera_id invÃ¡lida" } satisfies UpdateOperacionResponse,
+			{ data: null, error: "cuenta_financiera_id inválida" } satisfies UpdateOperacionResponse,
 			{ status: 400 }
 		);
 	}
 	if (!payload.idempotency_key || !isValidUuid(payload.idempotency_key)) {
 		return Response.json(
-			{ data: null, error: "idempotency_key invÃ¡lida" } satisfies UpdateOperacionResponse,
+			{ data: null, error: "idempotency_key inválida" } satisfies UpdateOperacionResponse,
 			{ status: 400 }
 		);
 	}
@@ -99,7 +99,7 @@ export async function PUT(
 	if (error || !updated) {
 		logger.error("PUT /api/operaciones/[id] - error:", error);
 		const status = error === ServiceError.NotFound ? 404 : 500;
-		const message = status === 404 ? "OperaciÃ³n no encontrada" : "Error actualizando operaciÃ³n";
+		const message = status === 404 ? "Operación no encontrada" : "Error actualizando operación";
 		return Response.json({ data: null, error: message } satisfies UpdateOperacionResponse, { status });
 	}
 
@@ -117,13 +117,13 @@ export async function DELETE(
 	const { id } = await params;
 	const idempotencyKey = _req.headers.get("x-idempotency-key")?.trim() ?? "";
 	if (!isValidUuid(idempotencyKey)) {
-		return Response.json({ error: "X-Idempotency-Key invÃ¡lida" }, { status: 400 });
+		return Response.json({ error: "X-Idempotency-Key inválida" }, { status: 400 });
 	}
 
 	const { data: currentOperacion, error: currentError } = await operacionesService.getById(supabase, id);
 	if (currentError || !currentOperacion) {
 		const status = currentError === ServiceError.NotFound ? 404 : 500;
-		const message = status === 404 ? "OperaciÃƒÂ³n no encontrada" : "Error eliminando operaciÃƒÂ³n";
+		const message = status === 404 ? "Operación no encontrada" : "Error eliminando operación";
 		return Response.json({ error: message }, { status });
 	}
 
@@ -131,11 +131,11 @@ export async function DELETE(
 	if (error) {
 		logger.error("DELETE /api/operaciones/[id] - error:", error);
 		let status = 500;
-		let message = "Error eliminando operaciÃ³n";
+		let message = "Error eliminando operación";
 		switch (error) {
 			case ServiceError.NotFound:
 				status = 404;
-				message = "OperaciÃ³n no encontrada";
+				message = "Operación no encontrada";
 				break;
 			case ServiceError.StockInsuficiente:
 				status = 409;

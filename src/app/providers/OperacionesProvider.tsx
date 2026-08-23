@@ -26,7 +26,7 @@ type OperacionesContextType = {
 	pagination: OperacionesPagination;
 	hasMore: boolean;
 	loadMore: () => void;
-	/** Recarga la primera pÃ¡gina conservando filtros y perÃ­odo actuales. */
+	/** Recarga la primera página conservando filtros y período actuales. */
 	refresh: () => Promise<void>;
 	fetchById: (id: string | number) => Promise<Operacion | null>;
 	create: (input: CreateOperacionInput) => Promise<Operacion | null>;

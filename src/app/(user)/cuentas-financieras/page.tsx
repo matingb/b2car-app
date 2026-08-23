@@ -81,7 +81,7 @@ export default function CuentasFinancierasPage() {
     const created = response.data;
     if (!created) throw new Error(response.error || "No se pudo crear la cuenta.");
     setCuentas((previous) => [...previous, created]);
-    success("Cuenta creada", `${created.nombre} se registrÃ³ correctamente.`);
+    success("Cuenta creada", `${created.nombre} se registró correctamente.`);
   };
 
   const handleTransfer = async (draft: TransferenciaFinancieraDraft) => {
@@ -104,7 +104,7 @@ export default function CuentasFinancierasPage() {
       <div css={styles.headerRow}>
         <ScreenHeader
           title="Cuentas financieras"
-          subtitle="ConsultÃ¡ tus saldos y registrÃ¡ los movimientos de caja, bancos y billeteras."
+          subtitle="Consultá tus saldos y registrá los movimientos de caja, bancos y billeteras."
         />
         <div css={styles.actions}>
           <Button
@@ -198,12 +198,12 @@ export default function CuentasFinancierasPage() {
         <Card style={styles.emptyCard}>
           <WalletCards size={26} color={COLOR.TEXT.TERTIARY} />
           <div style={styles.emptyTitle}>
-            {cuentas.length === 0 ? "TodavÃ­a no hay cuentas financieras" : "No hay cuentas para esos filtros"}
+            {cuentas.length === 0 ? "Todavía no hay cuentas financieras" : "No hay cuentas para esos filtros"}
           </div>
           <div style={styles.emptyText}>
             {cuentas.length === 0
-              ? "CreÃ¡ una cuenta para comenzar a registrar ingresos, gastos y transferencias."
-              : "ProbÃ¡ cambiando la bÃºsqueda o el estado seleccionado."}
+              ? "Creá una cuenta para comenzar a registrar ingresos, gastos y transferencias."
+              : "Probá cambiando la búsqueda o el estado seleccionado."}
           </div>
           {cuentas.length === 0 ? (
             <Button

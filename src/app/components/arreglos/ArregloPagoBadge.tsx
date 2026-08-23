@@ -48,7 +48,7 @@ export default function ArregloPagoBadge({ estaPago, arregloId, onClick, onPagoU
 
     const confirmed = await confirm({
       title: "Anular cobro",
-      message: "Se generarÃ¡ un reverso del ingreso registrado. Â¿QuerÃ©s continuar?",
+      message: "Se generará un reverso del ingreso registrado. ¿Querés continuar?",
       acceptLabel: "Anular cobro",
       cancelLabel: "Cancelar",
     });
@@ -160,7 +160,7 @@ export default function ArregloPagoBadge({ estaPago, arregloId, onClick, onPagoU
             onClose={() => setCobroOpen(false)}
             onPaid={(updated) => {
               onPagoUpdated?.(updated);
-              success("Cobro registrado", "El ingreso se registrÃ³ correctamente.");
+              success("Cobro registrado", "El ingreso se registró correctamente.");
             }}
           />
         ) : null}

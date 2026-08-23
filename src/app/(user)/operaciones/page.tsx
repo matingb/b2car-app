@@ -202,7 +202,7 @@ export default function OperacionesPage() {
                 const response = await finanzasClient.eliminarGasto(gastoId);
                 if (response.error) throw new Error(response.error);
                 await refresh();
-                success("Gasto eliminado", "El gasto se revirtiÃ³ correctamente.");
+                success("Gasto eliminado", "El gasto se revirtió correctamente.");
                 return;
             }
             await remove(operacion.id);

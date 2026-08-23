@@ -77,7 +77,7 @@ export default function CuentaCompraAutomaticaModal({ open, onClose, onConfirm }
     >
       <div css={styles.form}>
         <p css={styles.help}>
-          Para cubrir el faltante se registrarÃ¡ una compra de stock. ElegÃ­ la cuenta desde la que se realiza el egreso.
+          Para cubrir el faltante se registrará una compra de stock. Elegí la cuenta desde la que se realiza el egreso.
         </p>
         <label css={styles.label}>
           Cuenta financiera

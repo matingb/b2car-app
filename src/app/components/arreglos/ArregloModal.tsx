@@ -225,11 +225,11 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     e.preventDefault();
     if (!isValid) return;
     if (requiereCuentaFinanciera && !cuentaFinancieraId) {
-      setError("SeleccionÃ¡ la cuenta financiera que registrarÃ¡ el movimiento.");
+      setError("Seleccioná la cuenta financiera que registrará el movimiento.");
       return;
     }
     if (estaPago && !isValidDate(fechaCobro)) {
-      setError("IngresÃ¡ una fecha de cobro vÃ¡lida.");
+      setError("Ingresá una fecha de cobro válida.");
       return;
     }
     setSubmitting(true);
@@ -390,12 +390,12 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         {!isEdit && requiereCuentaFinanciera ? (
           <div style={styles.finanzasBox}>
             <div style={styles.finanzasTitle}>
-              {estaPago ? "Cobro del arreglo" : "Compra automÃ¡tica de repuestos"}
+              {estaPago ? "Cobro del arreglo" : "Compra automática de repuestos"}
             </div>
             <div style={styles.finanzasHelp}>
               {estaPago
-                ? "SeleccionÃ¡ la cuenta y la fecha que se usarÃ¡n para registrar el ingreso."
-                : "Este arreglo requiere una compra de repuestos; seleccionÃ¡ la cuenta para registrar ese egreso."}
+                ? "Seleccioná la cuenta y la fecha que se usarán para registrar el ingreso."
+                : "Este arreglo requiere una compra de repuestos; seleccioná la cuenta para registrar ese egreso."}
             </div>
             <div style={styles.finanzasRow}>
               <label style={styles.finanzasField}>

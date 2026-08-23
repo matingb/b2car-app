@@ -21,7 +21,7 @@ type Props = {
 };
 
 /**
- * El cobro no es un toggle: solicita explÃ­citamente la cuenta y la fecha que
+ * El cobro no es un toggle: solicita explícitamente la cuenta y la fecha que
  * deben quedar en el asiento financiero inmutable.
  */
 export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: Props) {
@@ -99,7 +99,7 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
     >
       <div css={styles.form}>
         <p css={styles.help}>
-          ElegÃ­ la cuenta y la fecha que se usarÃ¡n para registrar el ingreso.
+          Elegí la cuenta y la fecha que se usarán para registrar el ingreso.
         </p>
         <label css={styles.label}>
           Cuenta financiera

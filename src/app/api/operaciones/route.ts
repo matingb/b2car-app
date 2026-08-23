@@ -120,13 +120,13 @@ export async function POST(req: Request) {
 	if (!body.taller_id)
 		return Response.json({ data: null, error: "Falta taller_id" } satisfies CreateOperacionResponse, { status: 400 });
 	if ((body.tipo === "COMPRA" || body.tipo === "VENTA") && !body.cuenta_financiera_id) {
-		return Response.json({ data: null, error: "SeleccionÃ¡ una cuenta financiera" } satisfies CreateOperacionResponse, { status: 400 });
+		return Response.json({ data: null, error: "Seleccioná una cuenta financiera" } satisfies CreateOperacionResponse, { status: 400 });
 	}
 	if (body.cuenta_financiera_id && !isValidUuid(body.cuenta_financiera_id)) {
-		return Response.json({ data: null, error: "cuenta_financiera_id invÃ¡lida" } satisfies CreateOperacionResponse, { status: 400 });
+		return Response.json({ data: null, error: "cuenta_financiera_id inválida" } satisfies CreateOperacionResponse, { status: 400 });
 	}
 	if (!body.idempotency_key || !isValidUuid(body.idempotency_key)) {
-		return Response.json({ data: null, error: "idempotency_key invÃ¡lida" } satisfies CreateOperacionResponse, { status: 400 });
+		return Response.json({ data: null, error: "idempotency_key inválida" } satisfies CreateOperacionResponse, { status: 400 });
 	}
 
 	const { data, error } = await operacionesService.create(supabase, body);

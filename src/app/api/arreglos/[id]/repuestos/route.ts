@@ -63,7 +63,7 @@ function mapExistingRepuestoRpcError(error: unknown): { status: number; message:
     return { status: 400, message: "Precio de compra requerido para cubrir stock faltante" };
   }
   if (raw.includes("CUENTA_FINANCIERA_REQUERIDA") || raw.includes("cuenta financiera requerida")) {
-    return { status: 400, message: "SeleccionÃ¡ una cuenta financiera para registrar la compra" };
+    return { status: 400, message: "Seleccioná una cuenta financiera para registrar la compra" };
   }
   if (raw.includes("STOCK_INSUFICIENTE")) {
     return { status: 409, message: "Stock insuficiente" };
@@ -121,7 +121,7 @@ async function upsertRepuestoExistente(
     return Response.json({ data: null, error: "idempotency_key invalida" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
   if (precioCompra != null && precioCompra > 0 && (!cuentaId || !idempotencyKey)) {
-    return Response.json({ data: null, error: "Cuenta financiera e idempotency_key requeridas para la compra automÃ¡tica" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+    return Response.json({ data: null, error: "Cuenta financiera e idempotency_key requeridas para la compra automática" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
 
   const { data, error } = await supabase.rpc("rpc_asignar_repuesto_existente_con_compra", {

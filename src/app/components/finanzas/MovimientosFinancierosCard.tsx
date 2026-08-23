@@ -70,7 +70,7 @@ export default function MovimientosFinancierosCard({ movimientos, loading = fals
             {error}
           </div>
         ) : ordered.length === 0 ? (
-          <div style={styles.status}>TodavÃ­a no hay movimientos registrados.</div>
+          <div style={styles.status}>Todavía no hay movimientos registrados.</div>
         ) : (
           <div style={styles.list}>
             {ordered.map((movimiento) => {
@@ -93,11 +93,11 @@ export default function MovimientosFinancierosCard({ movimientos, loading = fals
                       </div>
                       <div style={styles.meta}>
                         <span>{formatFinancialDate(movimiento.fecha)}</span>
-                        <span style={styles.dot}>Â·</span>
+                        <span style={styles.dot}>·</span>
                         <span>{presentation.label}</span>
                         {categoria ? (
                           <>
-                            <span style={styles.dot}>Â·</span>
+                            <span style={styles.dot}>·</span>
                             <span style={styles.category}>{categoria}</span>
                           </>
                         ) : null}
