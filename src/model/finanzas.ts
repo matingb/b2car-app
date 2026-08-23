@@ -8,7 +8,8 @@ export type TipoCuentaFinanciera =
   | "EFECTIVO"
   | "CUENTA_BANCARIA"
   | "BILLETERA_DIGITAL"
-  | "TARJETA_CREDITO";
+  | "TARJETA_CREDITO"
+  | "OTRO";
 
 export type TipoMovimientoFinanciero =
   | "APERTURA_CUENTA"

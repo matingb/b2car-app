@@ -10,14 +10,7 @@ type Props = Omit<
   value: number;
   onValueChange: (next: number) => void;
   minValue?: number;
-  /**
-   * Permite borrar el contenido mientras se edita.
-   * En blur se normaliza al `minValue` (o 0).
-   */
   allowEmptyWhileEditing?: boolean;
-  /**
-   * Permite decimales (mantiene estados intermedios como "0.").
-   */
   allowDecimals?: boolean;
 };
 

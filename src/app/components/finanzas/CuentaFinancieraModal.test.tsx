@@ -12,9 +12,10 @@ describe("CuentaFinancieraModal", () => {
     render(<CuentaFinancieraModal open onClose={onClose} onSave={onSave} showActivo={false} />);
 
     await user.type(screen.getByTestId("cuenta-financiera-nombre"), "Caja taller");
-    await user.selectOptions(screen.getByTestId("cuenta-financiera-tipo"), "EFECTIVO");
+    await user.click(screen.getByTestId("cuenta-financiera-tipo"));
+    await user.click(screen.getByRole("option", { name: "Efectivo" }));
     await user.clear(screen.getByTestId("cuenta-financiera-saldo-inicial"));
-    await user.type(screen.getByTestId("cuenta-financiera-saldo-inicial"), "1.500,50");
+    await user.type(screen.getByTestId("cuenta-financiera-saldo-inicial"), "1500.50");
     await user.click(screen.getByTestId("modal-submit"));
 
     await waitFor(() => {
@@ -57,6 +58,27 @@ describe("CuentaFinancieraModal", () => {
           nombre: "Banco",
           tipo: "CUENTA_BANCARIA",
           activo: false,
+        })
+      );
+    });
+  });
+
+  it("permite cambiar el tipo de cuenta mediante el dropdown", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    render(<CuentaFinancieraModal open onClose={vi.fn()} onSave={onSave} />);
+
+    await user.type(screen.getByTestId("cuenta-financiera-nombre"), "Mercado Pago");
+    await user.click(screen.getByTestId("cuenta-financiera-tipo"));
+    await user.click(screen.getByRole("option", { name: "Billetera digital" }));
+    await user.click(screen.getByTestId("modal-submit"));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nombre: "Mercado Pago",
+          tipo: "BILLETERA_DIGITAL",
         })
       );
     });

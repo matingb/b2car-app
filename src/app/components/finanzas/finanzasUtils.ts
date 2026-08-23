@@ -5,13 +5,15 @@ export const CUENTA_TIPOS: readonly TipoCuentaFinanciera[] = [
   "CUENTA_BANCARIA",
   "BILLETERA_DIGITAL",
   "TARJETA_CREDITO",
+  "OTRO",
 ];
 
 const CUENTA_TIPO_LABELS: Record<TipoCuentaFinanciera, string> = {
   EFECTIVO: "Efectivo",
   CUENTA_BANCARIA: "Cuenta bancaria",
   BILLETERA_DIGITAL: "Billetera digital",
-  TARJETA_CREDITO: "Tarjeta de cr\u00e9dito",
+  TARJETA_CREDITO: "Tarjeta de cr\u00e9édito",
+  OTRO: "Otro",
 };
 
 export function getCuentaTipoLabel(value: string | null | undefined) {

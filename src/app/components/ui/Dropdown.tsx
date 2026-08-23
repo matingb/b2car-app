@@ -13,9 +13,16 @@ export interface DropdownOption {
     value: string;
     onChange: (value: string) => void;
     style?: React.CSSProperties;
+    dataTestId?: string;
   }
 
-export default function Dropdown({ options, value, onChange, style }: DropdownProps) {
+export default function Dropdown({
+    options,
+    value,
+    onChange,
+    style,
+    dataTestId,
+}: DropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties | null>(null);
@@ -108,6 +115,7 @@ export default function Dropdown({ options, value, onChange, style }: DropdownPr
                 style={{ ...styles.trigger, ...style }}
                 onClick={() => setIsOpen((prev) => !prev)}
                 onKeyDown={handleKeyDown}
+                data-testid={dataTestId}
             >
                 <span style={styles.label}>{options.find((option: DropdownOption) => option.value === value)?.label}</span>
                 <ChevronDown
@@ -137,6 +145,7 @@ export default function Dropdown({ options, value, onChange, style }: DropdownPr
                                     }}
                                     onClick={() => handleSelect(option)}
                                     onMouseEnter={() => setHighlightedIndex(index)}
+                                    data-testid={dataTestId ? `${dataTestId}-option-${option.value}` : undefined}
                                 >
                                     <span style={styles.optionLabel}>{option.label}</span>
                                 </div>

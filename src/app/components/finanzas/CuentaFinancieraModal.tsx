@@ -2,9 +2,11 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
+import Dropdown from "@/app/components/ui/Dropdown";
+import NumberInput from "@/app/components/ui/NumberInput";
 import { COLOR } from "@/theme/theme";
 import type { TipoCuentaFinanciera } from "@/model/finanzas";
-import { CUENTA_TIPOS, getCuentaTipoLabel, normalizeMoneyInput } from "./finanzasUtils";
+import { CUENTA_TIPOS, getCuentaTipoLabel } from "./finanzasUtils";
 
 export type CuentaFinancieraDraft = {
   nombre: string;
@@ -51,7 +53,6 @@ export default function CuentaFinancieraModal({
   onSave,
 }: Props) {
   const [draft, setDraft] = useState<CuentaFinancieraDraft>(() => buildDraft(initialValues));
-  const [saldoInicialText, setSaldoInicialText] = useState("0");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -59,10 +60,18 @@ export default function CuentaFinancieraModal({
     if (!open) return;
     const next = buildDraft(initialValues);
     setDraft(next);
-    setSaldoInicialText(String(next.saldoInicial));
     setSubmitError(null);
     setSubmitting(false);
   }, [initialValues, open]);
+
+  const tipoOptions = useMemo(
+    () =>
+      CUENTA_TIPOS.map((tipo) => ({
+        value: tipo,
+        label: getCuentaTipoLabel(tipo),
+      })),
+    []
+  );
 
   const canSubmit = useMemo(() => {
     return Boolean(draft.nombre.trim()) && Boolean(draft.tipo);
@@ -76,7 +85,6 @@ export default function CuentaFinancieraModal({
       await onSave({
         ...draft,
         nombre: draft.nombre.trim(),
-        saldoInicial: normalizeMoneyInput(saldoInicialText),
       });
       onClose();
     } catch (error: unknown) {
@@ -117,34 +125,30 @@ export default function CuentaFinancieraModal({
           />
         </label>
 
-        <label style={styles.field}>
+        <div style={styles.field}>
           <span style={styles.label}>Tipo</span>
-          <select
+          <Dropdown
+            options={tipoOptions}
             value={draft.tipo}
-            onChange={(event) =>
+            onChange={(tipo) =>
               setDraft((previous) => ({
                 ...previous,
-                tipo: event.target.value as TipoCuentaFinanciera,
+                tipo: tipo as TipoCuentaFinanciera,
               }))
             }
-            style={styles.input}
-            data-testid="cuenta-financiera-tipo"
-          >
-            {CUENTA_TIPOS.map((tipo) => (
-              <option key={tipo} value={tipo}>
-                {getCuentaTipoLabel(tipo)}
-              </option>
-            ))}
-          </select>
-        </label>
+            style={styles.dropdown}
+            dataTestId="cuenta-financiera-tipo"
+          />
+        </div>
 
         {showSaldoInicial ? (
-          <label style={styles.field}>
+          <div style={styles.field}>
             <span style={styles.label}>Saldo inicial</span>
-            <input
-              inputMode="decimal"
-              value={saldoInicialText}
-              onChange={(event) => setSaldoInicialText(event.target.value)}
+            <NumberInput
+              value={draft.saldoInicial}
+              onValueChange={(saldoInicial) =>
+                setDraft((previous) => ({ ...previous, saldoInicial }))
+              }
               placeholder="0"
               style={styles.input}
               data-testid="cuenta-financiera-saldo-inicial"
@@ -152,7 +156,7 @@ export default function CuentaFinancieraModal({
             <span style={styles.hint}>
               Se usa como punto de partida para calcular el saldo actual.
             </span>
-          </label>
+          </div>
         ) : null}
 
         {showActivo ? (
@@ -192,6 +196,12 @@ const styles = {
     fontSize: 13,
     fontWeight: 600,
     color: COLOR.TEXT.SECONDARY,
+  },
+  dropdown: {
+    width: "100%",
+    minHeight: 42,
+    fontSize: 14,
+    color: COLOR.TEXT.PRIMARY,
   },
   input: {
     width: "100%",
