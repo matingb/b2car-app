@@ -177,8 +177,6 @@ export const operacionesService = {
 			p_idempotency_key: input.idempotency_key ?? null,
 		});
 
-		logger.error("RPC crear_operacion_con_stock - operacionId:", operacionId, "rpcError:", rpcError);
-
 		if (rpcError || !operacionId) {
 			logger.error("Error creating operacion:", rpcError?.code);
 			return { data: null, error: toServiceError(rpcError ?? { code: "Unknown", message: "Unknown error" } as PostgrestError) };
@@ -253,7 +251,6 @@ export const operacionesService = {
 			p_operacion_id: id,
 			p_idempotency_key: idempotencyKey ?? null,
 		});
-		logger.error("RPC borrar_operacion_con_stock - data:", data, "error:", error);
 		if (error) return { error: toServiceError(error) };
 		if (!data) return { error: ServiceError.NotFound };
 		return { error: null };

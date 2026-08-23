@@ -93,7 +93,12 @@ WHERE m.evento_id = e_reverso.id
 -- ===========================================================================
 
 ALTER TABLE public.cuentas_financieras
-  ADD COLUMN IF NOT EXISTS saldo numeric(14,2) NOT NULL DEFAULT 0;
+  ADD COLUMN IF NOT EXISTS saldo numeric(14,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS idempotency_key uuid;
+
+CREATE UNIQUE INDEX IF NOT EXISTS cuentas_financieras_tenant_idempotency_key
+  ON public.cuentas_financieras (tenant_id, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
 
 -- Backfill desde historial existente
 UPDATE public.cuentas_financieras AS c
@@ -225,6 +230,9 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
+  IF current_setting('app.finanzas_tenant_cleanup', true) = 'on' THEN
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  END IF;
   RAISE EXCEPTION 'Los movimientos financieros son inmutables. Use un movimiento de reverso.'
     USING ERRCODE = '55000';
 END;
@@ -374,14 +382,19 @@ BEGIN
   );
   IF v_existente_id IS NOT NULL THEN RETURN v_existente_id; END IF;
 
-  IF p_movimiento_id IS NOT NULL THEN
-    PERFORM 1
-    FROM public.movimientos_financieros AS m
-    WHERE m.reversa_movimiento_id = p_movimiento_id AND m.tipo = 'REVERSO';
-    IF FOUND THEN
-      RAISE EXCEPTION 'El movimiento financiero % ya fue revertido', p_movimiento_id
-        USING ERRCODE = '55000';
-    END IF;
+  PERFORM 1
+  FROM public.movimientos_financieros AS origen
+  JOIN public.movimientos_financieros AS rev
+    ON rev.reversa_movimiento_id = origen.id AND rev.tipo = 'REVERSO'
+  WHERE origen.tenant_id = v_tenant_id
+    AND (
+      (p_movimiento_id IS NOT NULL AND origen.id = p_movimiento_id)
+      OR (p_grupo_id IS NOT NULL AND origen.grupo_id = p_grupo_id
+          AND origen.tipo <> 'REVERSO')
+    );
+  IF FOUND THEN
+    RAISE EXCEPTION 'El movimiento financiero ya fue revertido'
+      USING ERRCODE = '55000';
   END IF;
 
   v_nuevo_grupo_id := gen_random_uuid();
@@ -522,15 +535,15 @@ BEGIN
     PERFORM pg_advisory_xact_lock(hashtext(v_tenant_id::text || ':' || p_idempotency_key::text));
   END IF;
 
-  v_existente_id := public._finanzas_movimiento_idempotente(v_tenant_id, p_idempotency_key, 'APERTURA_CUENTA');
-  IF v_existente_id IS NOT NULL THEN
-    SELECT m.cuenta_financiera_id INTO v_cuenta_id
-    FROM public.movimientos_financieros AS m WHERE m.id = v_existente_id;
-    RETURN v_cuenta_id;
+  IF p_idempotency_key IS NOT NULL THEN
+    SELECT c.id INTO v_cuenta_id
+    FROM public.cuentas_financieras AS c
+    WHERE c.tenant_id = v_tenant_id AND c.idempotency_key = p_idempotency_key;
+    IF v_cuenta_id IS NOT NULL THEN RETURN v_cuenta_id; END IF;
   END IF;
 
-  INSERT INTO public.cuentas_financieras (tenant_id, nombre, tipo)
-  VALUES (v_tenant_id, v_nombre, v_tipo)
+  INSERT INTO public.cuentas_financieras (tenant_id, nombre, tipo, idempotency_key)
+  VALUES (v_tenant_id, v_nombre, v_tipo, p_idempotency_key)
   RETURNING id INTO v_cuenta_id;
 
   IF COALESCE(p_saldo_inicial, 0) <> 0 THEN
@@ -1717,3 +1730,108 @@ GRANT EXECUTE ON FUNCTION public.rpc_borrar_arreglo(uuid) TO authenticated, serv
 GRANT EXECUTE ON FUNCTION public.rpc_crear_arreglo_completo(uuid, uuid, public.estado_arreglo, text, int, timestamptz, text, numeric, numeric, boolean, jsonb, jsonb, jsonb, jsonb, jsonb, uuid, timestamptz, uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.rpc_asignar_repuesto_existente_con_compra(uuid, uuid, uuid, int, numeric, numeric, uuid, uuid, uuid, uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.rpc_crear_producto_inline_para_arreglo(uuid, uuid, text, text, numeric, numeric, int, uuid, uuid, uuid, uuid) TO authenticated, service_role;
+
+-- Lifecycle: borrado integral de tenant
+CREATE OR REPLACE FUNCTION public.eliminar_tenant(p_tenant_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF p_tenant_id IS NULL THEN
+    RAISE EXCEPTION 'El tenant_id es obligatorio' USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM 1
+  FROM public.tenants AS t
+  WHERE t.id = p_tenant_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'No existe el tenant %', p_tenant_id USING ERRCODE = 'P0002';
+  END IF;
+
+  PERFORM set_config('app.finanzas_tenant_cleanup', 'on', true);
+
+  DELETE FROM public.movimientos_financieros
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.cuentas_financieras
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.empleado_salarios
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.detalle_form_custom
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.detalle_arreglo
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.operaciones_lineas AS ol
+  USING public.operaciones AS o
+  WHERE ol.operacion_id = o.id
+    AND o.tenant_id = p_tenant_id;
+
+  DELETE FROM public.operaciones_asignacion_arreglo AS oaa
+  USING public.operaciones AS o
+  WHERE oaa.operacion_id = o.id
+    AND o.tenant_id = p_tenant_id;
+
+  DELETE FROM public.turnos
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.operaciones
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.stocks
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.arreglos
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.empleados
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.vehiculos
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.representantes AS r
+  USING public.empresas AS e, public.clientes AS c
+  WHERE r.empresa_id = e.id
+    AND e.id = c.id
+    AND c.tenant_id = p_tenant_id;
+
+  DELETE FROM public.empresas AS e
+  USING public.clientes AS c
+  WHERE e.id = c.id
+    AND c.tenant_id = p_tenant_id;
+
+  DELETE FROM public.particulares AS p
+  USING public.clientes AS c
+  WHERE p.id = c.id
+    AND c.tenant_id = p_tenant_id;
+
+  DELETE FROM public.clientes
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.formularios
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.talleres
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.productos
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.tenant_members
+  WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.tenants
+  WHERE id = p_tenant_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.eliminar_tenant(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.eliminar_tenant(uuid) TO service_role;
+

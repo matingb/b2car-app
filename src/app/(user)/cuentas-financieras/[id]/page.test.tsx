@@ -73,7 +73,7 @@ describe("CuentaFinancieraDetailPage", () => {
     );
     await waitFor(() => {
       expect(obtenerCuenta).toHaveBeenCalledWith(cuenta.id);
-      expect(listarMovimientos).toHaveBeenCalledWith(cuenta.id);
+      expect(listarMovimientos).toHaveBeenCalledWith(cuenta.id, { limit: 50, offset: 0 });
     });
   });
 });

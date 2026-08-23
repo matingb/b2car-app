@@ -47,28 +47,63 @@ export default function CuentaFinancieraDetailPage() {
     updateCuenta,
     deleteCuenta,
     createTransferencia,
+    getMovimientos,
   } = useCuentasFinancieras();
+
+  const PAGE = 50;
 
   const [cuenta, setCuenta] = useState<CuentaFinanciera | null>(null);
   const [movimientos, setMovimientos] = useState<MovimientoFinanciero[]>([]);
   const { loading } = useCuentasFinancieras();
+  const [movimientosLoading, setMovimientosLoading] = useState(false);
   const [movimientosError, setMovimientosError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const loadMovimientos = useCallback(
+    async (offset: number) => {
+      if (offset === 0) {
+        setMovimientosLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+      try {
+        const page = await getMovimientos(cuentaId, { limit: PAGE, offset });
+        setMovimientos((prev) => (offset === 0 ? page : [...prev, ...page]));
+        setHasMore(page.length === PAGE);
+        setMovimientosError(null);
+      } catch (err) {
+        setMovimientosError(
+          err instanceof Error
+            ? err.message
+            : "No se pudieron cargar los movimientos"
+        );
+      } finally {
+        if (offset === 0) {
+          setMovimientosLoading(false);
+        } else {
+          setLoadingMore(false);
+        }
+      }
+    },
+    [cuentaId, getMovimientos]
+  );
 
   useEffect(() => {
     let cancelled = false;
     getCuentaById(cuentaId).then((cuentaData) => {
       if (!cancelled && cuentaData) {
         setCuenta(cuentaData);
-        setMovimientos(cuentaData.movimientos || []);
       }
     });
+    void loadMovimientos(0);
     return () => {
       cancelled = true;
     };
-  }, [cuentaId, getCuentaById]);
+  }, [cuentaId, getCuentaById, loadMovimientos]);
 
   const editInitialValues = useMemo<CuentaFinancieraDraft | null>(() => {
     if (!cuenta) return null;
@@ -106,8 +141,8 @@ export default function CuentaFinancieraDetailPage() {
     const cuentaData = await getCuentaById(cuentaId);
     if (cuentaData) {
       setCuenta(cuentaData);
-      setMovimientos(cuentaData.movimientos ?? []);
     }
+    void loadMovimientos(0);
   };
 
   const handleDelete = async () => {
@@ -243,7 +278,14 @@ export default function CuentaFinancieraDetailPage() {
         />
       </div>
 
-      <MovimientosFinancierosCard movimientos={movimientos} error={movimientosError} />
+      <MovimientosFinancierosCard
+        movimientos={movimientos}
+        loading={movimientosLoading}
+        error={movimientosError}
+        hasMore={hasMore}
+        onLoadMore={() => void loadMovimientos(movimientos.length)}
+        loadingMore={loadingMore}
+      />
 
       <CuentaFinancieraModal
         open={isEditOpen}

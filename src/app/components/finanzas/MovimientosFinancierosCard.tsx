@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React from "react";
 import Card from "@/app/components/ui/Card";
 import { COLOR } from "@/theme/theme";
 import type { MovimientoFinanciero } from "@/model/finanzas";
@@ -13,10 +13,15 @@ import {
 } from "lucide-react";
 import { formatFinancialDate, formatMoney } from "./finanzasUtils";
 
+import ScrollPage from "@/app/components/ui/ScrollPage";
+
 type Props = {
   movimientos: MovimientoFinanciero[];
   loading?: boolean;
   error?: string | null;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
+  loadingMore?: boolean;
 };
 
 function getMovementPresentation(tipo: string, importe: number) {
@@ -39,15 +44,14 @@ function getMovementPresentation(tipo: string, importe: number) {
   }
 }
 
-export default function MovimientosFinancierosCard({ movimientos, loading = false, error }: Props) {
-  const ordered = useMemo(
-    () =>
-      [...movimientos].sort(
-        (left, right) => new Date(right.fecha).getTime() - new Date(left.fecha).getTime()
-      ),
-    [movimientos]
-  );
-
+export default function MovimientosFinancierosCard({
+  movimientos,
+  loading = false,
+  error,
+  hasMore = false,
+  onLoadMore,
+  loadingMore = false,
+}: Props) {
   return (
     <section aria-labelledby="movimientos-financieros-title">
       <div style={styles.header}>
@@ -57,7 +61,7 @@ export default function MovimientosFinancierosCard({ movimientos, loading = fals
           </h2>
           <p style={styles.subtitle}>Ingresos, egresos y transferencias de esta cuenta.</p>
         </div>
-        {!loading ? <span style={styles.count}>{ordered.length} movimientos</span> : null}
+        {!loading ? <span style={styles.count}>{movimientos.length} movimientos</span> : null}
       </div>
 
       <Card style={styles.card}>
@@ -69,49 +73,56 @@ export default function MovimientosFinancierosCard({ movimientos, loading = fals
           <div style={styles.error} role="alert">
             {error}
           </div>
-        ) : ordered.length === 0 ? (
+        ) : movimientos.length === 0 ? (
           <div style={styles.status}>Todavía no hay movimientos registrados.</div>
         ) : (
-          <div style={styles.list}>
-            {ordered.map((movimiento) => {
-              const importe = Number(movimiento.importe) || 0;
-              const isIncome = importe >= 0;
-              const presentation = getMovementPresentation(movimiento.tipo, importe);
-              const color = isIncome ? COLOR.SEMANTIC.SUCCESS : COLOR.ICON.DANGER;
-              const background = isIncome
-                ? COLOR.BACKGROUND.SUCCESS_TINT
-                : COLOR.BACKGROUND.DANGER_TINT;
-              const categoria = movimiento.categoria?.replaceAll("_", " ").toLowerCase();
+          <ScrollPage
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onLoadMore={onLoadMore}
+            loadingMoreLabel="Cargando más movimientos..."
+          >
+            <div style={styles.list}>
+              {movimientos.map((movimiento) => {
+                const importe = Number(movimiento.importe) || 0;
+                const isIncome = importe >= 0;
+                const presentation = getMovementPresentation(movimiento.tipo, importe);
+                const color = isIncome ? COLOR.SEMANTIC.SUCCESS : COLOR.ICON.DANGER;
+                const background = isIncome
+                  ? COLOR.BACKGROUND.SUCCESS_TINT
+                  : COLOR.BACKGROUND.DANGER_TINT;
+                const categoria = movimiento.categoria?.replaceAll("_", " ").toLowerCase();
 
-              return (
-                <div key={movimiento.id} style={styles.row}>
-                  <div style={styles.rowLeft}>
-                    <div style={{ ...styles.iconWrap, color, background }}>{presentation.icon}</div>
-                    <div style={styles.copy}>
-                      <div style={styles.description}>
-                        {movimiento.descripcion || presentation.label}
-                      </div>
-                      <div style={styles.meta}>
-                        <span>{formatFinancialDate(movimiento.fecha)}</span>
-                        <span style={styles.dot}>·</span>
-                        <span>{presentation.label}</span>
-                        {categoria ? (
-                          <>
-                            <span style={styles.dot}>·</span>
-                            <span style={styles.category}>{categoria}</span>
-                          </>
-                        ) : null}
+                return (
+                  <div key={movimiento.id} style={styles.row}>
+                    <div style={styles.rowLeft}>
+                      <div style={{ ...styles.iconWrap, color, background }}>{presentation.icon}</div>
+                      <div style={styles.copy}>
+                        <div style={styles.description}>
+                          {movimiento.descripcion || presentation.label}
+                        </div>
+                        <div style={styles.meta}>
+                          <span>{formatFinancialDate(movimiento.fecha)}</span>
+                          <span style={styles.dot}>·</span>
+                          <span>{presentation.label}</span>
+                          {categoria ? (
+                            <>
+                              <span style={styles.dot}>·</span>
+                              <span style={styles.category}>{categoria}</span>
+                            </>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
+                    <strong style={{ ...styles.amount, color }}>
+                      {isIncome ? "+" : "-"}
+                      {formatMoney(Math.abs(importe))}
+                    </strong>
                   </div>
-                  <strong style={{ ...styles.amount, color }}>
-                    {isIncome ? "+" : "-"}
-                    {formatMoney(Math.abs(importe))}
-                  </strong>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </ScrollPage>
         )}
       </Card>
     </section>

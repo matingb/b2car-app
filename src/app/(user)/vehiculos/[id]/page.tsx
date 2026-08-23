@@ -42,49 +42,40 @@ export default function VehiculoDetailsPage() {
     return Math.max(...arreglos.map((a) => Number(a.kilometraje_leido) || 0));
   }, [arreglos]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const { data, arreglos, error } = await vehiculoClient.getById(params.id);
-        if (cancelled) return;
-
-        if (error) {
-          setError(error);
-          setVehiculo(null);
-          setArreglos([]);
-          return;
-        }
-
-        if (!data) {
-          setVehiculo(null);
-          setArreglos([]);
-        } else {
-          setVehiculo(data);
-          setArreglos(arreglos || []);
-
-          const clienteResponse = await vehiculoClient.getClienteForVehiculo(params.id);
-          if (!cancelled && clienteResponse.data) {
-            setCliente(clienteResponse.data);
-          }
-        }
-      } catch (err: unknown) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "No se pudo cargar el vehículo");
-      } finally {
-        if (!cancelled) setLoading(false);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, arreglos, error } = await vehiculoClient.getById(params.id);
+      if (error) {
+        setError(error);
+        setVehiculo(null);
+        setArreglos([]);
+        return;
       }
-    }
 
-    void load();
-    return () => {
-      cancelled = true;
-    };
+      if (!data) {
+        setVehiculo(null);
+        setArreglos([]);
+      } else {
+        setVehiculo(data);
+        setArreglos(arreglos || []);
+
+        const clienteResponse = await vehiculoClient.getClienteForVehiculo(params.id);
+        if (clienteResponse.data) {
+          setCliente(clienteResponse.data);
+        }
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "No se pudo cargar el vehículo");
+    } finally {
+      setLoading(false);
+    }
   }, [params.id]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const handleOpenCreate = () => {
     setEditArreglo(null);
@@ -95,21 +86,21 @@ export default function VehiculoDetailsPage() {
     setOpenModal(false);
     setEditArreglo(null);
     if (updated) {
-      window.location.reload();
+      void load();
     }
   };
 
   const handleCloseEditVehiculo = (updated?: boolean) => {
     setOpenEditVehiculo(false);
     if (updated) {
-      window.location.reload();
+      void load();
     }
   };
 
   const handleCloseReassignOwner = (updated?: boolean) => {
     setOpenReassignOwner(false);
     if (updated) {
-      window.location.reload();
+      void load();
     }
   };
 

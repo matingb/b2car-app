@@ -8,8 +8,6 @@ import type {
 import {
   asRows,
   mapCuenta,
-  mapMovimiento,
-  mapRows,
   rpcStatus,
   validateUpdateCuenta,
   validateUuid,
@@ -40,20 +38,6 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
       { data: null, error: status === 404 ? "Cuenta financiera no encontrada" : "Error cargando cuenta financiera" } satisfies ObtenerCuentaFinancieraResponse,
       { status }
     );
-  }
-
-  const { data: movsData, error: movsError } = await supabase.rpc("rpc_finanzas_listar_movimientos", {
-    p_cuenta_id: id,
-    p_from: null,
-    p_to: null,
-    p_limit: null,
-    p_offset: null,
-  });
-
-  if (!movsError && movsData) {
-    cuenta.movimientos = mapRows(movsData, mapMovimiento) ?? [];
-  } else {
-    cuenta.movimientos = [];
   }
 
   return Response.json({ data: cuenta, error: null } satisfies ObtenerCuentaFinancieraResponse, { status: 200 });
