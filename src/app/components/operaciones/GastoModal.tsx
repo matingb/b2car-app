@@ -5,6 +5,7 @@ import { css } from "@emotion/react";
 import Modal from "@/app/components/ui/Modal";
 import Autocomplete from "@/app/components/ui/Autocomplete";
 import { useToast } from "@/app/providers/ToastProvider";
+import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
 import { finanzasClient } from "@/clients/finanzasClient";
 import type { CuentaFinanciera, GastoFinanciero } from "@/model/finanzas";
 import { COLOR } from "@/theme/theme";
@@ -46,8 +47,7 @@ export default function GastoModal({
   gasto,
 }: Props) {
   const { success, error } = useToast();
-  const [cuentas, setCuentas] = useState<CuentaFinanciera[]>([]);
-  const [loadingCuentas, setLoadingCuentas] = useState(false);
+  const { cuentas, loading: loadingCuentas } = useCuentasFinancieras();
   const [submitting, setSubmitting] = useState(false);
   const [cuentaId, setCuentaId] = useState("");
   const [categoria, setCategoria] = useState<string>("ALQUILER");
@@ -62,23 +62,7 @@ export default function GastoModal({
     setImporte(gasto ? String(gasto.importe) : "");
     setFecha(getInitialDate(gasto));
     setDescripcion(gasto?.descripcion ?? "");
-
-    let cancelled = false;
-    setLoadingCuentas(true);
-    void finanzasClient.listarCuentas().then((result) => {
-      if (cancelled) return;
-      if (result.error) {
-        error("No se pudieron cargar las cuentas", result.error);
-        setCuentas([]);
-      } else {
-        setCuentas(result.data ?? []);
-      }
-      setLoadingCuentas(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, gasto, cuentaPreseleccionadaId, error]);
+  }, [open, gasto, cuentaPreseleccionadaId]);
 
   const cuentasElegibles = useMemo(
     () => cuentas.filter((cuenta) => cuenta.activo || cuenta.id === gasto?.cuentaId),

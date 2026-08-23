@@ -6,6 +6,7 @@ import Modal from "@/app/components/ui/Modal";
 import { Arreglo, Vehiculo } from "@/model/types";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
+import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
 import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient";
 import { toDateInputFormat, toISODateLocal } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
@@ -20,8 +21,6 @@ import ArregloFormFields, {
   type ArregloFormFieldsInternal,
   type ArregloFormFieldsValues,
 } from "@/app/components/arreglos/ArregloFormFields";
-import { finanzasClient } from "@/clients/finanzasClient";
-import type { CuentaFinanciera } from "@/model/finanzas";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import { COLOR } from "@/theme/theme";
 import { isValidDate } from "@/lib/fechas";
@@ -47,6 +46,7 @@ export function normalizeArregloObservaciones(observaciones: string, isEdit: boo
 export default function ArregloModal({ open, onClose, vehiculoId, initial, onSubmitSuccess }: Props) {
   const { vehiculos, fetchAll: fetchVehiculos, fetchCliente } = useVehiculos();
   const { create, update, fetchById } = useArreglos();
+  const { cuentasActivas, loading: isLoadingCuentas } = useCuentasFinancieras();
   const { tallerSeleccionadoId } = useTenant();
   const { inventario, isLoading: isInventarioLoading } = useInventario(tallerSeleccionadoId ?? undefined);
   const { confirm } = useModalMessage();
@@ -70,10 +70,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const [km, setKm] = useState<string>(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
   const [observaciones, setObservaciones] = useState(initial?.observaciones ?? "");
   const [estaPago, setEstaPago] = useState<boolean>(!!initial?.esta_pago);
-  const [cuentasFinancieras, setCuentasFinancieras] = useState<CuentaFinanciera[]>([]);
   const [cuentaFinancieraId, setCuentaFinancieraId] = useState("");
   const [fechaCobro, setFechaCobro] = useState(() => toISODateLocal(new Date()));
-  const [isLoadingCuentas, setIsLoadingCuentas] = useState(false);
   const [extraData, setExtraData] = useState(initial?.extra_data ?? "");
   const [selectedVehiculoId, setSelectedVehiculoId] = useState<string>(vehiculoId ? String(vehiculoId) : "");
   const [submitting, setSubmitting] = useState(false);
@@ -131,35 +129,13 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
 
   const requiereCuentaFinanciera = estaPago || requiereCompraAutomatica;
 
-  useEffect(() => {
-    if (!open || isEdit || !requiereCuentaFinanciera) return;
-
-    let cancelled = false;
-    setIsLoadingCuentas(true);
-    void finanzasClient.listarCuentas().then((response) => {
-      if (cancelled) return;
-      if (response.error) {
-        setError(response.error);
-        setCuentasFinancieras([]);
-      } else {
-        setCuentasFinancieras((response.data ?? []).filter((cuenta) => cuenta.activo));
-      }
-    }).finally(() => {
-      if (!cancelled) setIsLoadingCuentas(false);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isEdit, open, requiereCuentaFinanciera]);
-
   const cuentaOptions = useMemo<AutocompleteOption[]>(
-    () => cuentasFinancieras.map((cuenta) => ({
+    () => cuentasActivas.map((cuenta) => ({
       value: cuenta.id,
       label: cuenta.nombre,
       secondaryLabel: cuenta.tipo.replaceAll("_", " "),
     })),
-    [cuentasFinancieras],
+    [cuentasActivas],
   );
 
   if (!open) return null;

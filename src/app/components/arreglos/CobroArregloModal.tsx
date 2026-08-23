@@ -6,8 +6,7 @@ import Modal from "@/app/components/ui/Modal";
 import Autocomplete from "@/app/components/ui/Autocomplete";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import { finanzasClient } from "@/clients/finanzasClient";
-import type { CuentaFinanciera } from "@/model/finanzas";
+import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
 import type { Arreglo } from "@/model/types";
 import { COLOR } from "@/theme/theme";
 import { isValidDate, toISODateLocal } from "@/lib/fechas";
@@ -27,41 +26,22 @@ type Props = {
 export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: Props) {
   const { cobrar } = useArreglos();
   const { error } = useToast();
-  const [cuentas, setCuentas] = useState<CuentaFinanciera[]>([]);
+  const { cuentasActivas, loading: loadingCuentas } = useCuentasFinancieras();
   const [cuentaId, setCuentaId] = useState("");
   const [fechaCobro, setFechaCobro] = useState(() => toISODateLocal(new Date()));
-  const [loadingCuentas, setLoadingCuentas] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setCuentaId("");
     setFechaCobro(toISODateLocal(new Date()));
+  }, [open]);
 
-    let cancelled = false;
-    setLoadingCuentas(true);
-    void finanzasClient.listarCuentas().then((response) => {
-      if (cancelled) return;
-      if (response.error) {
-        error("No se pudieron cargar las cuentas", response.error);
-        setCuentas([]);
-      } else {
-        setCuentas((response.data ?? []).filter((cuenta) => cuenta.activo));
-      }
-    }).finally(() => {
-      if (!cancelled) setLoadingCuentas(false);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [error, open]);
-
-  const opciones = useMemo(() => cuentas.map((cuenta) => ({
+  const opciones = useMemo(() => cuentasActivas.map((cuenta) => ({
     value: cuenta.id,
     label: cuenta.nombre,
     secondaryLabel: cuenta.tipo.replaceAll("_", " "),
-  })), [cuentas]);
+  })), [cuentasActivas]);
 
   const canSubmit = Boolean(cuentaId && isValidDate(fechaCobro) && !loadingCuentas && !submitting);
 

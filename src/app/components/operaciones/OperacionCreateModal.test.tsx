@@ -52,6 +52,14 @@ vi.mock("@/app/providers/OperacionesProvider", () => ({
   }),
 }));
 
+vi.mock("@/app/providers/CuentasFinancierasProvider", () => ({
+  useCuentasFinancieras: () => ({
+    cuentas: [],
+    cuentasActivas: [],
+    loading: false,
+  }),
+}));
+
 vi.mock("@/app/providers/ToastProvider", () => ({
   useToast: () => ({
     success: vi.fn(),

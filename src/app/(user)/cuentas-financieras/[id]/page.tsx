@@ -17,7 +17,7 @@ import Button from "@/app/components/ui/Button";
 import IconButton from "@/app/components/ui/IconButton";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import { finanzasClient } from "@/clients/finanzasClient";
+import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
 import type { CuentaFinanciera, MovimientoFinanciero } from "@/model/finanzas";
 import { ROUTES } from "@/routing/routes";
 import { COLOR } from "@/theme/theme";
@@ -41,8 +41,16 @@ export default function CuentaFinancieraDetailPage() {
   const { success, error: errorToast } = useToast();
   const cuentaId = params.id;
 
+  const {
+    cuentas,
+    getCuentaById,
+    updateCuenta,
+    deleteCuenta,
+    createTransferencia,
+    getMovimientos,
+  } = useCuentasFinancieras();
+
   const [cuenta, setCuenta] = useState<CuentaFinanciera | null>(null);
-  const [cuentas, setCuentas] = useState<CuentaFinanciera[]>([]);
   const [movimientos, setMovimientos] = useState<MovimientoFinanciero[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -58,31 +66,33 @@ export default function CuentaFinancieraDetailPage() {
     setMovimientosError(null);
     setNotFound(false);
 
-    const [cuentaResponse, movimientosResponse, cuentasResponse] = await Promise.all([
-      finanzasClient.obtenerCuenta(cuentaId),
-      finanzasClient.listarMovimientos(cuentaId),
-      finanzasClient.listarCuentas(),
-    ]);
+    try {
+      const [cuentaData, movsData] = await Promise.all([
+        getCuentaById(cuentaId),
+        getMovimientos(cuentaId).catch((err: unknown) => {
+          setMovimientosError(
+            err instanceof Error ? err.message : "Error cargando movimientos"
+          );
+          return [];
+        }),
+      ]);
 
-    if (cuentaResponse.error) {
+      if (!cuentaData) {
+        setNotFound(true);
+        setCuenta(null);
+      } else {
+        setCuenta(cuentaData);
+      }
+      setMovimientos(movsData);
+    } catch (err: unknown) {
+      setLoadError(
+        err instanceof Error ? err.message : "Error cargando cuenta"
+      );
       setCuenta(null);
-      setLoadError(cuentaResponse.error);
-    } else if (!cuentaResponse.data) {
-      setCuenta(null);
-      setNotFound(true);
-    } else {
-      setCuenta(cuentaResponse.data);
+    } finally {
+      setLoading(false);
     }
-
-    setMovimientos(movimientosResponse.data ?? []);
-    setMovimientosError(movimientosResponse.error ?? null);
-    if (cuentasResponse.error) {
-      setCuentas(cuentaResponse.data ? [cuentaResponse.data] : []);
-    } else {
-      setCuentas(cuentasResponse.data ?? []);
-    }
-    setLoading(false);
-  }, [cuentaId]);
+  }, [cuentaId, getCuentaById, getMovimientos]);
 
   useEffect(() => {
     void load();
@@ -100,31 +110,27 @@ export default function CuentaFinancieraDetailPage() {
 
   const handleSave = async (draft: CuentaFinancieraDraft) => {
     if (!cuenta) return;
-    const response = await finanzasClient.actualizarCuenta(cuenta.id, {
+    const updated = await updateCuenta(cuenta.id, {
       nombre: draft.nombre,
       tipo: draft.tipo,
       activo: draft.activo,
     });
-    if (!response.data) throw new Error(response.error || "No se pudo actualizar la cuenta.");
-    setCuenta(response.data);
-    setCuentas((previous) =>
-      previous.map((item) => (item.id === response.data?.id ? response.data : item))
-    );
+    setCuenta(updated);
     success("Cuenta actualizada", "Los cambios se guardaron correctamente.");
   };
 
   const handleTransfer = async (draft: TransferenciaFinancieraDraft) => {
-    const response = await finanzasClient.crearTransferencia({
+    await createTransferencia({
       cuentaOrigenId: draft.cuentaOrigenId,
       cuentaDestinoId: draft.cuentaDestinoId,
       importe: draft.importe,
       fecha: draft.fecha,
       descripcion: draft.descripcion || null,
     });
-    if (!response.data) {
-      throw new Error(response.error || "No se pudo registrar la transferencia.");
-    }
-    success("Transferencia registrada", "El movimiento aparece en el historial de la cuenta.");
+    success(
+      "Transferencia registrada",
+      "El movimiento aparece en el historial de la cuenta."
+    );
     await load();
   };
 
@@ -132,21 +138,24 @@ export default function CuentaFinancieraDetailPage() {
     if (!cuenta || deleting) return;
     const accepted = await confirm({
       title: "Eliminar cuenta financiera",
-      message: `¿Querés eliminar la cuenta \"${cuenta.nombre}\"? Esta acción no se puede deshacer.`,
+      message: `¿Querés eliminar la cuenta "${cuenta.nombre}"? Esta acción no se puede deshacer.`,
       acceptLabel: "Eliminar",
       cancelLabel: "Cancelar",
     });
     if (!accepted) return;
 
     setDeleting(true);
-    const response = await finanzasClient.eliminarCuenta(cuenta.id);
-    setDeleting(false);
-    if (response.error) {
-      errorToast("No se pudo eliminar la cuenta", response.error);
-      return;
+    try {
+      await deleteCuenta(cuenta.id);
+      success("Cuenta eliminada", `${cuenta.nombre} se eliminó correctamente.`);
+      router.push(ROUTES.cuentasFinancieras);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "No se pudo eliminar la cuenta";
+      errorToast("No se pudo eliminar la cuenta", message);
+    } finally {
+      setDeleting(false);
     }
-    success("Cuenta eliminada", `${cuenta.nombre} se eliminó correctamente.`);
-    router.push(ROUTES.cuentasFinancieras);
   };
 
   if (loading) {

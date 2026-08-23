@@ -35,6 +35,7 @@ vi.mock("@/clients/finanzasClient", () => ({
   },
 }));
 
+import { CuentasFinancierasProvider } from "@/app/providers/CuentasFinancierasProvider";
 import CuentaFinancieraDetailPage from "./page";
 
 const cuenta: CuentaFinanciera = {
@@ -59,7 +60,11 @@ describe("CuentaFinancieraDetailPage", () => {
   });
 
   it("expone Nuevo gasto con la cuenta preseleccionada para Operaciones", async () => {
-    render(<CuentaFinancieraDetailPage />);
+    render(
+      <CuentasFinancierasProvider>
+        <CuentaFinancieraDetailPage />
+      </CuentasFinancierasProvider>
+    );
 
     const gastoLink = await screen.findByTestId("cuenta-financiera-nuevo-gasto");
     expect(gastoLink).toHaveAttribute(

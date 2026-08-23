@@ -20,6 +20,8 @@ vi.mock("@/app/providers/ToastProvider", () => ({
   useToast: () => toast,
 }));
 
+import { CuentasFinancierasProvider } from "@/app/providers/CuentasFinancierasProvider";
+
 const CUENTA_ID = "11111111-1111-4111-8111-111111111111";
 
 describe("GastoModal", () => {
@@ -58,7 +60,11 @@ describe("GastoModal", () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     const onSaved = vi.fn();
-    render(<GastoModal open onClose={onClose} onSaved={onSaved} />);
+    render(
+      <CuentasFinancierasProvider>
+        <GastoModal open onClose={onClose} onSaved={onSaved} />
+      </CuentasFinancierasProvider>
+    );
 
     await waitFor(() => expect(screen.getByTestId("gasto-cuenta")).toBeEnabled());
     await user.click(screen.getByTestId("gasto-cuenta"));

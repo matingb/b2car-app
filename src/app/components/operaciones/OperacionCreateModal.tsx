@@ -6,6 +6,7 @@ import { css } from "@emotion/react";
 import { COLOR } from "@/theme/theme";
 import { useOperaciones } from "@/app/providers/OperacionesProvider";
 import { useToast } from "@/app/providers/ToastProvider";
+import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import type { TipoOperacion } from "@/model/types";
 import { Plus, Truck, Receipt } from "lucide-react";
@@ -18,8 +19,6 @@ import Button from "../ui/Button";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import { isValidDate, toISODateLocal } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
-import { finanzasClient } from "@/clients/finanzasClient";
-import type { CuentaFinanciera } from "@/model/finanzas";
 
 type TallerLite = { id: string; nombre: string };
 
@@ -43,20 +42,20 @@ function round2(n: number) {
   return Math.round((Number(n) || 0) * 100) / 100;
 }
 
+function getDefaultUnitario(item: ProductoLite, tipo: TipoOperacion | null) {
+  if (tipo === "VENTA") return item.precio_unitario;
+  if (tipo === "COMPRA") return item.costo_unitario;
+  return 0;
+}
+
 function createEmptyLinea(): LineaDraft {
   return {
-    id: generateUuidV4(),
+    localId: generateUuidV4(),
     stockId: "",
     cantidad: 1,
     unitario: 0,
     total: 0,
   };
-}
-
-function getDefaultUnitario(producto: ProductoLite, tipo: TipoOperacion) {
-  return tipo === "VENTA"
-    ? Number(producto.precio_unitario) || 0
-    : Number(producto.costo_unitario) || 0;
 }
 
 function buildOperacionCreatedMessage(
@@ -87,12 +86,11 @@ export default function OperacionCreateModal({
 }: Props) {
   const { create, loading } = useOperaciones();
   const { success, error } = useToast();
+  const { cuentasActivas, loading: isLoadingCuentas } = useCuentasFinancieras();
 
   const [tipo, setTipo] = useState<TipoOperacion | null>("VENTA");
   const [tallerId, setTallerId] = useState<string>("");
   const [cuentaFinancieraId, setCuentaFinancieraId] = useState<string>("");
-  const [cuentasFinancieras, setCuentasFinancieras] = useState<CuentaFinanciera[]>([]);
-  const [isLoadingCuentas, setIsLoadingCuentas] = useState(false);
   const [fecha, setFecha] = useState<string>(() => toISODateLocal(new Date()));
   const [lineas, setLineas] = useState<LineaDraft[]>([createEmptyLinea()]);
   const { inventario, isLoading: isInventarioLoading } = useInventario(tallerId || undefined);
@@ -126,23 +124,6 @@ export default function OperacionCreateModal({
     setTallerId(talleres.length === 1 ? talleres[0].id : "");
     setCuentaFinancieraId("");
   }, [open, talleres]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    let cancelled = false;
-    setIsLoadingCuentas(true);
-    void finanzasClient.listarCuentas().then((response) => {
-      if (cancelled) return;
-      setCuentasFinancieras((response.data ?? []).filter((cuenta) => cuenta.activo));
-    }).finally(() => {
-      if (!cancelled) setIsLoadingCuentas(false);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -194,12 +175,12 @@ export default function OperacionCreateModal({
   );
 
   const cuentaOptions = useMemo<AutocompleteOption[]>(
-    () => cuentasFinancieras.map((cuenta) => ({
+    () => cuentasActivas.map((cuenta) => ({
       value: cuenta.id,
       label: cuenta.nombre,
       secondaryLabel: `${cuenta.tipo.replaceAll("_", " ")} · Saldo: ${formatArs(cuenta.saldoActual)}`,
     })),
-    [cuentasFinancieras],
+    [cuentasActivas],
   );
 
   const canSubmit = useMemo(() => {
@@ -386,7 +367,7 @@ export default function OperacionCreateModal({
               };
               return (
                 <OperacionLineaEditor
-                  key={l.id}
+                  key={l.localId || l.id || idx}
                   index={idx}
                   linea={l}
                   disabled={disabled}

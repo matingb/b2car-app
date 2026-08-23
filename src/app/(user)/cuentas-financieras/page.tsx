@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftRight, Plus, RefreshCw, WalletCards } from "lucide-react";
 import { css } from "@emotion/react";
@@ -9,8 +9,7 @@ import SearchBar from "@/app/components/ui/SearchBar";
 import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
 import { useToast } from "@/app/providers/ToastProvider";
-import { finanzasClient } from "@/clients/finanzasClient";
-import type { CuentaFinanciera } from "@/model/finanzas";
+import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
 import { ROUTES } from "@/routing/routes";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import CuentasFinancierasCard from "@/app/components/finanzas/CuentasFinancierasCard";
@@ -27,30 +26,21 @@ type EstadoFilter = "todas" | "activas" | "inactivas";
 export default function CuentasFinancierasPage() {
   const router = useRouter();
   const { success } = useToast();
-  const [cuentas, setCuentas] = useState<CuentaFinanciera[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const {
+    cuentas,
+    cuentasActivas,
+    saldoTotal,
+    loading,
+    loadError,
+    refresh,
+    createCuenta,
+    createTransferencia,
+  } = useCuentasFinancieras();
+
   const [search, setSearch] = useState("");
   const [estado, setEstado] = useState<EstadoFilter>("todas");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
-
-  const loadCuentas = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    const response = await finanzasClient.listarCuentas();
-    if (response.error) {
-      setLoadError(response.error);
-      setCuentas([]);
-    } else {
-      setCuentas(response.data ?? []);
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    void loadCuentas();
-  }, [loadCuentas]);
 
   const cuentasFiltradas = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -66,37 +56,24 @@ export default function CuentasFinancierasPage() {
     });
   }, [cuentas, estado, search]);
 
-  const cuentasActivas = useMemo(() => cuentas.filter((cuenta) => cuenta.activo), [cuentas]);
-  const saldoTotal = useMemo(
-    () => cuentasActivas.reduce((total, cuenta) => total + (Number(cuenta.saldoActual) || 0), 0),
-    [cuentasActivas]
-  );
-
   const handleCreate = async (draft: CuentaFinancieraDraft) => {
-    const response = await finanzasClient.crearCuenta({
+    const created = await createCuenta({
       nombre: draft.nombre,
       tipo: draft.tipo,
       saldoInicial: draft.saldoInicial,
     });
-    const created = response.data;
-    if (!created) throw new Error(response.error || "No se pudo crear la cuenta.");
-    setCuentas((previous) => [...previous, created]);
     success("Cuenta creada", `${created.nombre} se registró correctamente.`);
   };
 
   const handleTransfer = async (draft: TransferenciaFinancieraDraft) => {
-    const response = await finanzasClient.crearTransferencia({
+    await createTransferencia({
       cuentaOrigenId: draft.cuentaOrigenId,
       cuentaDestinoId: draft.cuentaDestinoId,
       importe: draft.importe,
       fecha: draft.fecha,
       descripcion: draft.descripcion || null,
     });
-    if (!response.data) {
-      throw new Error(response.error || "No se pudo registrar la transferencia.");
-    }
     success("Transferencia registrada", "Los saldos de las cuentas fueron actualizados.");
-    await loadCuentas();
   };
 
   return (
@@ -189,7 +166,7 @@ export default function CuentasFinancierasPage() {
             outline
             icon={<RefreshCw size={16} />}
             text="Reintentar"
-            onClick={() => void loadCuentas()}
+            onClick={() => void refresh()}
             hideTextOnMobile={false}
             style={{ marginTop: 12 }}
           />

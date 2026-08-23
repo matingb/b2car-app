@@ -62,6 +62,20 @@ vi.mock("@/app/providers/BreakpointProvider", () => ({
   }),
 }));
 
+vi.mock("@/app/providers/ModalMessageProvider", () => ({
+  useModalMessage: () => ({
+    confirm: vi.fn(),
+  }),
+}));
+
+vi.mock("@/app/providers/CuentasFinancierasProvider", () => ({
+  useCuentasFinancieras: () => ({
+    cuentas: [],
+    cuentasActivas: [],
+    loading: false,
+  }),
+}));
+
 vi.mock("@/app/providers/ToastProvider", () => ({
   useToast: () => ({
     success: vi.fn(),

@@ -82,24 +82,28 @@ vi.mock("@/app/hooks/useWhatsAppMessage", () => ({
   }),
 }));
 
+import { CuentasFinancierasProvider } from "@/app/providers/CuentasFinancierasProvider";
+
 function TestShell() {
   return (
     <TenantProvider>
-      <BreakpointProvider>
-        <CategoriasArregloProvider>
-          <EmpleadosProvider>
-            <SheetProvider>
-              <ModalMessageProvider>
-                <ToastProvider>
-                  <VehiculosLayout>
-                    <VehiculoDetailsPage />
-                  </VehiculosLayout>
-                </ToastProvider>
-              </ModalMessageProvider>
-            </SheetProvider>
-          </EmpleadosProvider>
-        </CategoriasArregloProvider>
-      </BreakpointProvider>
+      <CuentasFinancierasProvider>
+        <BreakpointProvider>
+          <CategoriasArregloProvider>
+            <EmpleadosProvider>
+              <SheetProvider>
+                <ModalMessageProvider>
+                  <ToastProvider>
+                    <VehiculosLayout>
+                      <VehiculoDetailsPage />
+                    </VehiculosLayout>
+                  </ToastProvider>
+                </ModalMessageProvider>
+              </SheetProvider>
+            </EmpleadosProvider>
+          </CategoriasArregloProvider>
+        </BreakpointProvider>
+      </CuentasFinancierasProvider>
     </TenantProvider>
   );
 }
