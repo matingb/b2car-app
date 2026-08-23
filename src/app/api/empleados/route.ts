@@ -110,6 +110,12 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    if (!body.salario_vigente_desde?.trim()) {
+      return Response.json(
+        { data: null, error: "Falta salario_vigente_desde cuando se especifica salario" } satisfies CreateEmpleadoResponse,
+        { status: 400 }
+      );
+    }
   }
   if (body.cumpleanos && !isValidIsoDate(body.cumpleanos)) {
     return Response.json(

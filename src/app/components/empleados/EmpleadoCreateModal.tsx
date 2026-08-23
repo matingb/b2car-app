@@ -14,6 +14,11 @@ type Props = {
   onClose: () => void;
 };
 
+function currentMonthValue(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function buildInitialValues(defaultTallerId: string): EmpleadoFormFieldsValues {
   return {
     tallerId: defaultTallerId,
@@ -24,6 +29,7 @@ function buildInitialValues(defaultTallerId: string): EmpleadoFormFieldsValues {
     telefono: "",
     cumpleanos: "",
     salario: null,
+    salarioVigenteDesde: currentMonthValue(),
     fechaIngreso: "",
   };
 }

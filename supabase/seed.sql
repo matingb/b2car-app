@@ -170,6 +170,11 @@ INSERT INTO public.empleados (id, tenant_id, taller_id, nombre, apellido, dni, s
   ('e1000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000001','Maria',  'Fernandez','31456789',155000,'2025-02-01'),
   ('e1000000-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000002','Carlos', 'Gimenez',  '35678901',140000,'2025-05-01');
 
+INSERT INTO public.empleado_salarios (empleado_id, tenant_id, taller_id, salario, vigente_desde) VALUES
+  ('e1000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000001',180000,'2024-12-01'),
+  ('e1000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000001',155000,'2025-02-01'),
+  ('e1000000-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000002',140000,'2025-05-01');
+
 -- Productos (10)
 INSERT INTO public.productos (id, tenant_id, codigo, nombre, marca, modelo, descripcion, precio_unitario, costo_unitario, proveedor, categorias, created_at, updated_at) VALUES
   ('60000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','ACE-5W30', 'Aceite 5W30',     'Shell',   'Helix', 'Aceite sintético 1L',    6500, 4200,'Distribuidora Norte',ARRAY['Aceites y Lubricantes'],now() - interval '160 days',now() - interval '1 day'),

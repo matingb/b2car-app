@@ -30,12 +30,16 @@ type Props = {
 export function validateEmpleadoForm(
   values: EmpleadoFormFieldsValues,
 ): boolean {
+  const hasValidSalario =
+    values.salario === null ||
+    (values.salario >= 0 && Boolean(values.salarioVigenteDesde?.trim()));
+
   return Boolean(
     values.tallerId.trim() &&
     values.nombre.trim() &&
     values.apellido.trim() &&
     values.dni.trim() &&
-    (values.salario === null || values.salario >= 0),
+    hasValidSalario,
   );
 }
 
