@@ -47,56 +47,28 @@ export default function CuentaFinancieraDetailPage() {
     updateCuenta,
     deleteCuenta,
     createTransferencia,
-    getMovimientos,
   } = useCuentasFinancieras();
 
   const [cuenta, setCuenta] = useState<CuentaFinanciera | null>(null);
   const [movimientos, setMovimientos] = useState<MovimientoFinanciero[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { loading } = useCuentasFinancieras();
   const [movimientosError, setMovimientosError] = useState<string | null>(null);
-  const [notFound, setNotFound] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    setMovimientosError(null);
-    setNotFound(false);
-
-    try {
-      const [cuentaData, movsData] = await Promise.all([
-        getCuentaById(cuentaId),
-        getMovimientos(cuentaId).catch((err: unknown) => {
-          setMovimientosError(
-            err instanceof Error ? err.message : "Error cargando movimientos"
-          );
-          return [];
-        }),
-      ]);
-
-      if (!cuentaData) {
-        setNotFound(true);
-        setCuenta(null);
-      } else {
-        setCuenta(cuentaData);
-      }
-      setMovimientos(movsData);
-    } catch (err: unknown) {
-      setLoadError(
-        err instanceof Error ? err.message : "Error cargando cuenta"
-      );
-      setCuenta(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [cuentaId, getCuentaById, getMovimientos]);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    getCuentaById(cuentaId).then((cuentaData) => {
+      if (!cancelled && cuentaData) {
+        setCuenta(cuentaData);
+        setMovimientos(cuentaData.movimientos || []);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cuentaId, getCuentaById]);
 
   const editInitialValues = useMemo<CuentaFinancieraDraft | null>(() => {
     if (!cuenta) return null;
@@ -131,7 +103,11 @@ export default function CuentaFinancieraDetailPage() {
       "Transferencia registrada",
       "El movimiento aparece en el historial de la cuenta."
     );
-    await load();
+    const cuentaData = await getCuentaById(cuentaId);
+    if (cuentaData) {
+      setCuenta(cuentaData);
+      setMovimientos(cuentaData.movimientos ?? []);
+    }
   };
 
   const handleDelete = async () => {
@@ -162,34 +138,12 @@ export default function CuentaFinancieraDetailPage() {
     return (
       <div>
         <ScreenHeader title="Cuenta financiera" hasBackButton />
-        <div style={styles.pageStatus} role="status">
-          Cargando cuenta...
-        </div>
+        <div style={styles.pageStatus}>Cargando...</div>
       </div>
     );
   }
 
-  if (loadError) {
-    return (
-      <div>
-        <ScreenHeader title="Cuenta financiera" hasBackButton />
-        <Card style={styles.errorCard}>
-          <div style={styles.errorTitle}>No se pudo cargar la cuenta.</div>
-          <div style={styles.errorText}>{loadError}</div>
-          <Button
-            outline
-            icon={<RefreshCw size={16} />}
-            text="Reintentar"
-            onClick={() => void load()}
-            hideTextOnMobile={false}
-            style={{ marginTop: 12 }}
-          />
-        </Card>
-      </div>
-    );
-  }
-
-  if (notFound || !cuenta) {
+  if (!cuenta) {
     return (
       <div>
         <ScreenHeader title="Cuenta financiera" hasBackButton />

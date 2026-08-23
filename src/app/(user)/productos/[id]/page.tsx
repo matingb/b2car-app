@@ -60,24 +60,42 @@ export default function ProductoDetailsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [categoriaToAdd, setCategoriaToAdd] = useState("");
 
-  const loadProducto = useCallback(
-    async (isCancelled?: () => boolean) => {
-      const res = await getProductoById(params.id);
-      if (isCancelled?.()) return;
-      setProducto(res?.producto ?? null);
-      setStockDelProducto(res?.stocks ?? []);
-      logger.debug("Loaded producto details: ", res);
-    },
-    [getProductoById, params.id]
-  );
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void loadProducto(() => cancelled);
+
+    async function load() {
+      setLoading(true);
+      setLoadError(null);
+
+      try {
+        const res = await getProductoById(params.id);
+        if (cancelled) return;
+
+        if (!res || !res.producto) {
+          setProducto(null);
+          setStockDelProducto([]);
+        } else {
+          setProducto(res.producto);
+          setStockDelProducto(res.stocks ?? []);
+          logger.debug("Loaded producto details: ", res);
+        }
+      } catch (err: unknown) {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : "Error cargando producto");
+        setProducto(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
     return () => {
       cancelled = true;
     };
-  }, [loadProducto]);
+  }, [getProductoById, params.id]);
 
   const stockTotal = useMemo(() => {
     return stockDelProducto.reduce((acc, s) => acc + (Number(s.stockActual) || 0), 0);
@@ -170,11 +188,19 @@ export default function ProductoDetailsPage() {
       const result = await saveProductoStock(input);
       if (!result.error) {
         success("Stock actualizado", "La configuracion del taller se guardo correctamente.");
-        await loadProducto();
+        try {
+          const res = await getProductoById(params.id);
+          if (res?.producto) {
+            setProducto(res.producto);
+            setStockDelProducto(res.stocks ?? []);
+          }
+        } catch (e) {
+          console.error(e);
+        }
       }
       return result;
     },
-    [loadProducto, saveProductoStock, success]
+    [getProductoById, params.id, saveProductoStock, success]
   );
 
   const handleDeleteStock = useCallback(
@@ -192,17 +218,34 @@ export default function ProductoDetailsPage() {
         return false;
       }
       success("Stock eliminado", "La configuracion del taller se elimino correctamente.");
-      await loadProducto();
+      try {
+        const res = await getProductoById(params.id);
+        if (res?.producto) {
+          setProducto(res.producto);
+          setStockDelProducto(res.stocks ?? []);
+        }
+      } catch (e) {
+        console.error(e);
+      }
       return true;
     },
-    [confirm, error, loadProducto, removeProductoStock, success]
+    [confirm, error, getProductoById, params.id, removeProductoStock, success]
   );
 
-  if (isLoading && !producto) {
+  if (loading) {
     return (
       <div>
-        <ScreenHeader title="Productos" breadcrumbs={["Detalle"]} hasBackButton />
+        <Header />
         <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>Cargando...</div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div>
+        <Header />
+        <div style={{ marginTop: 16, color: COLOR.ICON.DANGER }}>{loadError}</div>
       </div>
     );
   }
@@ -211,7 +254,7 @@ export default function ProductoDetailsPage() {
     return (
       <div>
         <Header />
-        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>Cargando...</div>
+        <div style={{ marginTop: 16, color: COLOR.TEXT.SECONDARY }}>No se encontró el producto solicitado.</div>
       </div>
     );
   }

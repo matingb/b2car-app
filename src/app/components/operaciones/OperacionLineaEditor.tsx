@@ -8,7 +8,7 @@ import IconButton from "@/app/components/ui/IconButton";
 import { COLOR } from "@/theme/theme";
 import NumberInput from "@/app/components/ui/NumberInput";
 export type OperacionLineaDraft = {
-  id: string;
+  id?: string;
   stockId: string;
   cantidad: number;
   unitario: number;

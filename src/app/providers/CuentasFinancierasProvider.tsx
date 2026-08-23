@@ -109,18 +109,21 @@ export function CuentasFinancierasProvider({
 
   const getCuentaById = useCallback(
     async (id: string): Promise<CuentaFinanciera | null> => {
-      const existing = cuentas.find((c) => c.id === id);
       try {
         const res = await finanzasClient.obtenerCuenta(id);
         if (res.error || !res.data) {
-          return existing ?? null;
+          return null;
         }
-        return res.data;
+        const updated = res.data;
+        setCuentas((prev) =>
+          prev.map((c) => (c.id === updated.id ? updated : c))
+        );
+        return updated;
       } catch {
-        return existing ?? null;
+        return null;
       }
     },
-    [cuentas]
+    []
   );
 
   const createCuenta = useCallback(

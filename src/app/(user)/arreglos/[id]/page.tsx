@@ -36,7 +36,8 @@ import { generateUuidV4 } from "@/lib/uuid";
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
   const [data, setData] = useState<ArregloDetalleData | null>(null);
-  const [pageLoading, setPageLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [errorState, setErrorState] = useState<string | null>(null);
   const [openModal, setOpenModal] = useState(false);
   const [compraPendiente, setCompraPendiente] = useState<RepuestoUpsertInput | null>(null);
   const [customServiciosDraft, setCustomServiciosDraft] = useState<ServicioLinea[]>([]);
@@ -48,7 +49,7 @@ export default function ArregloDetailsPage() {
     deleteDetalle,
     upsertRepuestoLinea,
     deleteRepuestoLinea,
-    loading,
+    loading: providerLoading,
   } = useArreglos();
   const { formularios } = useFormularios();
   const { loadInventarioByTaller } = useInventario();
@@ -61,31 +62,42 @@ export default function ArregloDetailsPage() {
   const reload = useCallback(async (options?: { showPageLoading?: boolean }) => {
     const showPageLoading = options?.showPageLoading ?? false;
     if (showPageLoading) {
-      setPageLoading(true);
+      setLoading(true);
     }
+    setErrorState(null);
+
     try {
-      const [data] = await Promise.all([
+      const [fetchedData] = await Promise.all([
         fetchById(params.id),
         loadCategorias().catch(() => {}),
         loadEmpleados().catch(() => {}),
       ]);
-      if (!data) return;
-      setData(data);
+      if (!fetchedData) {
+        setData(null);
+        return;
+      }
+      setData(fetchedData);
     } catch (err: unknown) {
       console.error(err);
+      setErrorState(err instanceof Error ? err.message : "Error cargando arreglo");
     } finally {
       if (showPageLoading) {
-        setPageLoading(false);
+        setLoading(false);
       }
     }
   }, [params.id, fetchById, loadCategorias, loadEmpleados]);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
+      if (cancelled) return;
       await reload({ showPageLoading: true });
     }
-    load();
-  }, [params.id, reload]);
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [reload]);
 
   const handleOpenEdit = () => {
     setOpenModal(true);
@@ -281,17 +293,22 @@ export default function ArregloDetailsPage() {
     setCustomServiciosDraft([]);
   }, [data?.arreglo?.id, isCustomTipoSelected]);
 
-  if (pageLoading) return loadingScreen();
+  if (loading) return loadingScreen();
+
+  if (errorState) {
+    return (
+      <div>
+        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton />
+        <div style={{ marginTop: 16, color: COLOR.ICON.DANGER }}>{errorState}</div>
+      </div>
+    );
+  }
 
   if (!data?.arreglo) {
     return (
       <div>
-        <ScreenHeader
-          title="Arreglos"
-          breadcrumbs={["Detalle"]}
-          hasBackButton
-        />
-        <div style={{ marginTop: 16 }}>Arreglo no encontrado.</div>
+        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton />
+        <div style={{ marginTop: 16 }}>No se encontró el arreglo solicitado.</div>
       </div>
     );
   }
@@ -395,7 +412,7 @@ export default function ArregloDetailsPage() {
               initialDetalle={data.detalle_formulario}
               editableOnLoad={false}
               showEditButton
-              disabled={loading}
+              disabled={providerLoading}
               onServiciosChange={setCustomServiciosDraft}
               onConfirmEdit={handleConfirmCustomEdit}
             />
@@ -416,7 +433,7 @@ export default function ArregloDetailsPage() {
           onAdd={handleAddServicio}
           onUpdate={handleUpdateServicio}
           onDelete={handleDeleteServicio}
-          disabled={loading}
+          disabled={providerLoading}
         />
         <div
           style={{
@@ -441,7 +458,7 @@ export default function ArregloDetailsPage() {
           defaultEmpleadoId={ultimoUsado.empleadoId}
           onUpsert={handleUpsertRepuesto}
           onDelete={handleDeleteRepuesto}
-          disabled={loading}
+          disabled={providerLoading}
         />
 
         <ArregloTotalsFooter

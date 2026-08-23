@@ -217,14 +217,14 @@ export const operacionesService = {
 
 		// Una actualización parcial conserva la cuenta del asiento vigente. Si el
 		// cliente manda null explícitamente, la RPC la rechaza para COMPRA/VENTA.
-		if (esOperacionFinanciera && !cuentaFueInformada && current.data.evento_financiero_actual_id) {
-			const { data: evento, error: eventoError } = await supabase
-				.from("eventos_financieros")
+		if (esOperacionFinanciera && !cuentaFueInformada && current.data.movimiento_financiero_id) {
+			const { data: movimiento, error: movimientoError } = await supabase
+				.from("movimientos_financieros")
 				.select("cuenta_financiera_id")
-				.eq("id", current.data.evento_financiero_actual_id)
+				.eq("id", current.data.movimiento_financiero_id)
 				.maybeSingle();
-			if (eventoError) return { data: null, error: toServiceError(eventoError) };
-			cuentaFinancieraId = evento?.cuenta_financiera_id ?? null;
+			if (movimientoError) return { data: null, error: toServiceError(movimientoError) };
+			cuentaFinancieraId = movimiento?.cuenta_financiera_id ?? null;
 		}
 
 		const { data: updatedId, error: rpcError } = await supabase.rpc("rpc_actualizar_operacion_con_stock", {

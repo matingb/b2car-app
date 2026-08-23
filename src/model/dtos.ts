@@ -103,7 +103,7 @@ export type OperacionDTO = {
     taller_id: string;
     fecha: string;
     created_at: string;
-    evento_financiero_actual_id?: string | null;
+    movimiento_financiero_id?: string | null;
 };
 
 export type OperacionLineaDTO = {

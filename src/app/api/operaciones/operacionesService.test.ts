@@ -44,7 +44,7 @@ describe("operacionesService.update", () => {
 			taller_id: "66666666-6666-4666-8666-666666666666",
 			fecha: "2026-07-31T00:00:00.000Z",
 			created_at: "2026-07-31T00:00:00.000Z",
-			evento_financiero_actual_id: eventoId,
+			movimiento_financiero_id: eventoId,
 			operaciones_lineas: [],
 		};
 		const getById = vi.spyOn(operacionesService, "getById")
@@ -59,7 +59,7 @@ describe("operacionesService.update", () => {
 
 		const result = await operacionesService.update(supabase, operacionId, { idempotency_key: idempotencyKey });
 
-		expect(from).toHaveBeenCalledWith("eventos_financieros");
+		expect(from).toHaveBeenCalledWith("movimientos_financieros");
 		expect(rpc).toHaveBeenCalledWith("rpc_actualizar_operacion_con_stock", expect.objectContaining({
 			p_operacion_id: operacionId,
 			p_tipo: "VENTA",

@@ -79,7 +79,7 @@ export interface Arreglo {
   precio_sin_iva: number;
   esta_pago: boolean;
   fecha_cobro?: string | null;
-  evento_financiero_actual_id?: string | null;
+  movimiento_financiero_id?: string | null;
   extra_data: string;
   categorias?: string[];
   empleados?: Array<{ id: string; nombre: string; apellido?: string }>;

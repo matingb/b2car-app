@@ -7,7 +7,7 @@ import Autocomplete from "@/app/components/ui/Autocomplete";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
 import { finanzasClient } from "@/clients/finanzasClient";
-import type { CuentaFinanciera, GastoFinanciero } from "@/model/finanzas";
+import type { GastoFinanciero } from "@/model/finanzas";
 import { COLOR } from "@/theme/theme";
 import { isValidDate, toISODateLocal } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";

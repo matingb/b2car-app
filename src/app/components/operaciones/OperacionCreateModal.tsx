@@ -50,7 +50,7 @@ function getDefaultUnitario(item: ProductoLite, tipo: TipoOperacion | null) {
 
 function createEmptyLinea(): LineaDraft {
   return {
-    localId: generateUuidV4(),
+    id: generateUuidV4(),
     stockId: "",
     cantidad: 1,
     unitario: 0,
@@ -367,7 +367,7 @@ export default function OperacionCreateModal({
               };
               return (
                 <OperacionLineaEditor
-                  key={l.localId || l.id || idx}
+                  key={l.id || idx}
                   index={idx}
                   linea={l}
                   disabled={disabled}

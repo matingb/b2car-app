@@ -42,55 +42,75 @@ export default function VehiculoDetailsPage() {
     return Math.max(...arreglos.map((a) => Number(a.kilometraje_leido) || 0));
   }, [arreglos]);
 
-  // El filtrado (search + patente/tipo/fecha) se maneja con useArreglosFilters
+  useEffect(() => {
+    let cancelled = false;
 
-  const reload = useCallback(async () => {
-    try {
+    async function load() {
       setLoading(true);
       setError(null);
 
-      const { data, arreglos, error } = await vehiculoClient.getById(params.id);
-      if (error) throw new Error(error);
+      try {
+        const { data, arreglos, error } = await vehiculoClient.getById(params.id);
+        if (cancelled) return;
 
-      setVehiculo(data);
-      setArreglos(arreglos || []);
+        if (error) {
+          setError(error);
+          setVehiculo(null);
+          setArreglos([]);
+          return;
+        }
 
-      const clienteResponse = await vehiculoClient.getClienteForVehiculo(
-        params.id
-      );
-      if (clienteResponse.data) {
-        setCliente(clienteResponse.data);
+        if (!data) {
+          setVehiculo(null);
+          setArreglos([]);
+        } else {
+          setVehiculo(data);
+          setArreglos(arreglos || []);
+
+          const clienteResponse = await vehiculoClient.getClienteForVehiculo(params.id);
+          if (!cancelled && clienteResponse.data) {
+            setCliente(clienteResponse.data);
+          }
+        }
+      } catch (err: unknown) {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "No se pudo cargar el vehículo");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "No se pudo cargar el vehículo";
-      setError(message);
-    } finally {
-      setLoading(false);
     }
-  }, [params.id]);
 
-  useEffect(() => {
-    async function load() {
-      await reload();
-    }
-    load();
-  }, [params.id, reload]);
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [params.id]);
 
   const handleOpenCreate = () => {
     setEditArreglo(null);
     setOpenModal(true);
   };
 
-  const handleCloseModal = async (updated?: boolean) => {
+  const handleCloseModal = (updated?: boolean) => {
     setOpenModal(false);
     setEditArreglo(null);
-    if (updated) await reload();
+    if (updated) {
+      window.location.reload();
+    }
   };
 
-  const handleCloseEditVehiculo = async (updated?: boolean) => {
+  const handleCloseEditVehiculo = (updated?: boolean) => {
     setOpenEditVehiculo(false);
-    if (updated) await reload();
+    if (updated) {
+      window.location.reload();
+    }
+  };
+
+  const handleCloseReassignOwner = (updated?: boolean) => {
+    setOpenReassignOwner(false);
+    if (updated) {
+      window.location.reload();
+    }
   };
 
   const handleDeleteVehiculo = async () => {
@@ -124,13 +144,28 @@ export default function VehiculoDetailsPage() {
     }
   };
 
-  if (loading) return loadingScreen();
+  if (loading) {
+    return (
+      <div>
+        <ScreenHeader title="Vehículo" hasBackButton />
+        <div
+          style={{
+            marginTop: 16,
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          Cargando...
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
       <div>
-        <ScreenHeader title="Vehículos" breadcrumbs={["Detalle"]} />
-        <div style={{ marginTop: 16, color: COLOR.ICON.DANGER }}>{error}</div>
+        <ScreenHeader title="Vehículo" hasBackButton />
+        <div style={styles.notFoundText}>{error}</div>
       </div>
     );
   }
@@ -138,8 +173,8 @@ export default function VehiculoDetailsPage() {
   if (!vehiculo) {
     return (
       <div>
-        <ScreenHeader title="Vehículos" breadcrumbs={["Detalle"]} />
-        <div style={styles.notFoundText}>Vehículo no encontrado.</div>
+        <ScreenHeader title="Vehículo" hasBackButton />
+        <div style={styles.notFoundText}>No se encontró el vehículo solicitado.</div>
       </div>
     );
   }
@@ -247,10 +282,7 @@ export default function VehiculoDetailsPage() {
           open={openReassignOwner}
           vehiculoId={vehiculo.id}
           currentClienteId={cliente?.id}
-          onClose={async (updated) => {
-            setOpenReassignOwner(false);
-            if (updated) await reload();
-          }}
+          onClose={handleCloseReassignOwner}
         />
       )}
     </div>

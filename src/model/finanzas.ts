@@ -46,11 +46,11 @@ export type CuentaFinanciera = {
   activo: boolean;
   createdAt: string;
   updatedAt: string;
+  movimientos?: MovimientoFinanciero[];
 };
 
 export type MovimientoFinanciero = {
   id: string;
-  eventoId: string;
   cuentaId: string;
   tipo: TipoMovimientoFinanciero;
   importe: number;
@@ -59,7 +59,7 @@ export type MovimientoFinanciero = {
   categoria: string | null;
   arregloId: string | null;
   operacionId: string | null;
-  reversaEventoId: string | null;
+  reversaMovimientoId: string | null;
   createdAt: string;
 };
 
@@ -72,7 +72,7 @@ export type TransferenciaFinanciera = {
   importe: number;
   fecha: string;
   descripcion: string | null;
-  reversaEventoId: string | null;
+  reversaMovimientoId: string | null;
   createdAt: string;
 };
 
@@ -84,7 +84,7 @@ export type GastoFinanciero = {
   importe: number;
   fecha: string;
   descripcion: string;
-  reversaEventoId?: string | null;
+  reversaMovimientoId?: string | null;
   createdAt: string;
   /** Metadata supplied by operation contexts; the current gasto read RPC does not return it. */
   arregloId?: string | null;

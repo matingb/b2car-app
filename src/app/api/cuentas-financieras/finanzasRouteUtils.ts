@@ -422,16 +422,14 @@ export function mapMovimiento(row: unknown): MovimientoFinanciero | null {
   const source = asRecord(row);
   if (!source) return null;
   const id = asText(pick(source, "id", "movimiento_id"));
-  const eventoId = asText(pick(source, "evento_id", "eventoId"));
   const cuentaId = asText(pick(source, "cuenta_financiera_id", "cuenta_id", "cuentaId"));
   const tipo = asText(pick(source, "tipo"));
   const importe = asNumber(pick(source, "importe"));
   const fecha = asTimestamp(pick(source, "fecha"));
   const createdAt = asTimestamp(pick(source, "created_at", "createdAt"));
-  if (!id || !eventoId || !cuentaId || !tipo || importe === null || !fecha || !createdAt) return null;
+  if (!id || !cuentaId || !tipo || importe === null || !fecha || !createdAt) return null;
   return {
     id,
-    eventoId,
     cuentaId,
     tipo,
     importe,
@@ -440,7 +438,7 @@ export function mapMovimiento(row: unknown): MovimientoFinanciero | null {
     categoria: asNullableText(pick(source, "categoria_gasto", "categoria")),
     arregloId: asNullableText(pick(source, "arreglo_id", "arregloId")),
     operacionId: asNullableText(pick(source, "operacion_id", "operacionId")),
-    reversaEventoId: asNullableText(pick(source, "reversa_evento_id", "reversaEventoId")),
+    reversaMovimientoId: asNullableText(pick(source, "reversa_movimiento_id", "reversaMovimientoId")),
     createdAt,
   };
 }
@@ -466,7 +464,7 @@ export function mapTransferencia(row: unknown): TransferenciaFinanciera | null {
     importe,
     fecha,
     descripcion: asNullableText(pick(source, "descripcion")),
-    reversaEventoId: asNullableText(pick(source, "reversa_evento_id", "reversaEventoId")),
+    reversaMovimientoId: asNullableText(pick(source, "reversa_movimiento_id", "reversaMovimientoId")),
     createdAt,
   };
 }
@@ -491,7 +489,7 @@ export function mapGasto(row: unknown): GastoFinanciero | null {
     importe,
     fecha,
     descripcion,
-    reversaEventoId: asNullableText(pick(source, "reversa_evento_id", "reversaEventoId")),
+    reversaMovimientoId: asNullableText(pick(source, "reversa_movimiento_id", "reversaMovimientoId")),
     createdAt,
   };
 }
