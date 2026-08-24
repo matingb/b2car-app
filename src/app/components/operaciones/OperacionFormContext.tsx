@@ -11,6 +11,11 @@ import { generateUuidV4 } from "@/lib/uuid";
 import type { TipoOperacion } from "@/model/types";
 import type { GastoFinanciero } from "@/model/finanzas";
 import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
+import {
+  type CuentaFinancieraDraft,
+  EMPTY_CUENTA_FINANCIERA_DRAFT,
+  validateCuentaFinancieraForm,
+} from "@/app/components/finanzas/CuentaFinancieraFormFields";
 import type { OperacionLineaDraft } from "./OperacionLineaEditor";
 import {
   type OperacionModalProps,
@@ -23,6 +28,8 @@ import {
   getDefaultUnitario,
   round2,
 } from "./operacionModalTypes";
+
+export const CREATE_CUENTA_VALUE = "__create_cuenta__";
 
 type StockItemWithActual = ProductoLite & { stockActual: number };
 
@@ -38,6 +45,8 @@ type OperacionFormContextValue = {
   setFecha: (fecha: string) => void;
   cuentaFinancieraId: string;
   setCuentaFinancieraId: (id: string) => void;
+  cuentaDraft: CuentaFinancieraDraft;
+  setCuentaDraft: (draft: CuentaFinancieraDraft) => void;
   isEditingGasto: boolean;
   gasto: GastoFinanciero | null | undefined;
   tipoConfigById: Map<TipoOperacion, TipoOperacionConfig>;
@@ -88,11 +97,12 @@ export function OperacionFormProvider({
 }: OperacionModalProps & { children: React.ReactNode }) {
   const { create, loading: isOperacionesLoading, refresh: refreshOperaciones } = useOperaciones();
   const { success, error } = useToast();
-  const { loading: isLoadingCuentas, refresh: refreshCuentas } = useCuentasFinancieras();
+  const { loading: isLoadingCuentas, refresh: refreshCuentas, createCuenta } = useCuentasFinancieras();
 
   const [tipo, setTipo] = useState<TipoOperacion | null>(gasto ? "GASTO" : initialTipo ?? "VENTA");
   const [tallerId, setTallerId] = useState<string>("");
   const [cuentaFinancieraId, setCuentaFinancieraId] = useState<string>(gasto?.cuentaId ?? initialCuentaId ?? "");
+  const [cuentaDraft, setCuentaDraft] = useState<CuentaFinancieraDraft>(() => ({ ...EMPTY_CUENTA_FINANCIERA_DRAFT }));
   const [fecha, setFecha] = useState<string>(() => (gasto?.fecha ? gasto.fecha.slice(0, 10) : toISODateLocal(new Date())));
   const [lineas, setLineas] = useState<OperacionLineaDraft[]>([createEmptyLinea()]);
 
@@ -219,10 +229,13 @@ export function OperacionFormProvider({
     setLineas((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
+  const isCreatingCuenta = cuentaFinancieraId === CREATE_CUENTA_VALUE;
+
   const canSubmit = useMemo(() => {
     if (!open) return false;
     if (!tipo || !isTipoEnabled(tipo)) return false;
     if (!cuentaFinancieraId) return false;
+    if (isCreatingCuenta && !validateCuentaFinancieraForm(cuentaDraft)) return false;
     if (!isValidDate(fecha)) return false;
 
     if (tipo === "GASTO") {
@@ -250,6 +263,8 @@ export function OperacionFormProvider({
     tipo,
     isTipoEnabled,
     cuentaFinancieraId,
+    isCreatingCuenta,
+    cuentaDraft,
     fecha,
     montoGasto,
     categoriaGasto,
@@ -266,11 +281,22 @@ export function OperacionFormProvider({
     e.preventDefault();
     if (!canSubmit || !tipo) return;
 
+    let targetCuentaId = cuentaFinancieraId;
+    if (isCreatingCuenta) {
+      const created = await createCuenta({
+        nombre: cuentaDraft.nombre.trim(),
+        tipo: cuentaDraft.tipo,
+        saldoInicial: 0,
+      });
+      success("Cuenta creada", `${created.nombre} se registró correctamente.`);
+      targetCuentaId = created.id;
+    }
+
     if (tipo === "GASTO") {
       setIsSubmittingGasto(true);
       try {
         const payload = {
-          cuentaId: cuentaFinancieraId,
+          cuentaId: targetCuentaId,
           categoria: categoriaGasto,
           importe: Number(montoGasto),
           fecha,
@@ -301,7 +327,7 @@ export function OperacionFormProvider({
         tipo,
         taller_id: tallerId,
         fecha,
-        cuenta_financiera_id: cuentaFinancieraId,
+        cuenta_financiera_id: targetCuentaId,
         idempotency_key: generateUuidV4(),
         lineas: lineas.map((l) => {
           const cantidad = Number(l.cantidad) || 0;
@@ -343,6 +369,8 @@ export function OperacionFormProvider({
     setFecha,
     cuentaFinancieraId,
     setCuentaFinancieraId,
+    cuentaDraft,
+    setCuentaDraft,
     isEditingGasto: Boolean(gasto),
     gasto,
     tipoConfigById,

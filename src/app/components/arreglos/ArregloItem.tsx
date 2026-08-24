@@ -95,7 +95,15 @@ export default function ArregloItem({
                 {arreglo.descripcion || "Arreglo sin descripción"}
               </h4>
               <div style={styles.badgesGroup}>
-                <ArregloPagoBadge estaPago={arreglo.esta_pago} arregloId={arreglo.id} size="sm" hideTextOnMobile />
+                <ArregloPagoBadge
+                  estaPago={arreglo.esta_pago}
+                  totalCobrado={arreglo.total_cobrado}
+                  saldoPendiente={arreglo.saldo_pendiente}
+                  precioFinal={arreglo.precio_final}
+                  arregloId={arreglo.id}
+                  size="sm"
+                  hideTextOnMobile
+                />
                 <ArregloEstadoBadge 
                   estado={arreglo.estado} 
                   size="sm" 

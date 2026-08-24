@@ -66,28 +66,90 @@ describe("/api/arreglos/[id]/cobro", () => {
     expect(rpc).toHaveBeenCalledWith("rpc_finanzas_cobrar_arreglo", {
       p_arreglo_id: ARREGLO_ID,
       p_cuenta_id: CUENTA_ID,
+      p_monto: null,
       p_fecha_cobro: "2026-07-31T12:00:00.000Z",
+      p_descripcion: null,
       p_idempotency_key: IDEMPOTENCY_KEY,
+      p_pagos: null,
     });
     expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), arreglo.tenant_id);
     await expect(response.json()).resolves.toMatchObject({ data: { id: ARREGLO_ID } });
   });
 
-  it("exige idempotencia al anular y la entrega al RPC de reverso", async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: "reverso-id", error: null });
+  it("registra cobro parcial con monto y descripcion", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { operacion_id: "op-1" }, error: null });
     vi.mocked(createClient).mockResolvedValue(mockSupabase(rpc));
 
-    const missingKey = await DELETE(
-      new NextRequest(`http://localhost/api/arreglos/${ARREGLO_ID}/cobro`, { method: "DELETE" }),
+    const response = await POST(
+      new NextRequest(`http://localhost/api/arreglos/${ARREGLO_ID}/cobro`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cuenta_financiera_id: CUENTA_ID,
+          fecha_cobro: "2026-07-31",
+          monto: 10000,
+          descripcion: "Seña inicial",
+          idempotency_key: IDEMPOTENCY_KEY,
+        }),
+      }),
       { params: Promise.resolve({ id: ARREGLO_ID }) }
     );
-    expect(missingKey.status).toBe(400);
-    expect(rpc).not.toHaveBeenCalled();
+
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("rpc_finanzas_cobrar_arreglo", {
+      p_arreglo_id: ARREGLO_ID,
+      p_cuenta_id: CUENTA_ID,
+      p_monto: 10000,
+      p_fecha_cobro: "2026-07-31T12:00:00.000Z",
+      p_descripcion: "Seña inicial",
+      p_idempotency_key: IDEMPOTENCY_KEY,
+      p_pagos: null,
+    });
+  });
+
+  it("registra cobro dividido en múltiples cuentas", async () => {
+    const CUENTA_2_ID = "55555555-5555-4555-8555-555555555555";
+    const rpc = vi.fn().mockResolvedValue({ data: { operaciones_ids: ["op-1", "op-2"] }, error: null });
+    vi.mocked(createClient).mockResolvedValue(mockSupabase(rpc));
+
+    const response = await POST(
+      new NextRequest(`http://localhost/api/arreglos/${ARREGLO_ID}/cobro`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fecha_cobro: "2026-07-31",
+          pagos: [
+            { cuenta_financiera_id: CUENTA_ID, monto: 15000, descripcion: "Efectivo" },
+            { cuenta_financiera_id: CUENTA_2_ID, monto: 10000, descripcion: "Mercado Pago" },
+          ],
+          idempotency_key: IDEMPOTENCY_KEY,
+        }),
+      }),
+      { params: Promise.resolve({ id: ARREGLO_ID }) }
+    );
+
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("rpc_finanzas_cobrar_arreglo", {
+      p_arreglo_id: ARREGLO_ID,
+      p_cuenta_id: null,
+      p_monto: null,
+      p_fecha_cobro: "2026-07-31T12:00:00.000Z",
+      p_descripcion: null,
+      p_idempotency_key: IDEMPOTENCY_KEY,
+      p_pagos: [
+        { cuenta_id: CUENTA_ID, monto: 15000, descripcion: "Efectivo" },
+        { cuenta_id: CUENTA_2_ID, monto: 10000, descripcion: "Mercado Pago" },
+      ],
+    });
+  });
+
+  it("anula el cobro entregando p_operacion_id si se especifica", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { anulada_operacion_id: "op-1" }, error: null });
+    vi.mocked(createClient).mockResolvedValue(mockSupabase(rpc));
 
     const response = await DELETE(
-      new NextRequest(`http://localhost/api/arreglos/${ARREGLO_ID}/cobro`, {
+      new NextRequest(`http://localhost/api/arreglos/${ARREGLO_ID}/cobro?operacion_id=55555555-5555-4555-8555-555555555555`, {
         method: "DELETE",
-        headers: { "X-Idempotency-Key": IDEMPOTENCY_KEY },
       }),
       { params: Promise.resolve({ id: ARREGLO_ID }) }
     );
@@ -95,7 +157,94 @@ describe("/api/arreglos/[id]/cobro", () => {
     expect(response.status).toBe(200);
     expect(rpc).toHaveBeenCalledWith("rpc_finanzas_anular_cobro_arreglo", {
       p_arreglo_id: ARREGLO_ID,
-      p_idempotency_key: IDEMPOTENCY_KEY,
+      p_operacion_id: "55555555-5555-4555-8555-555555555555",
     });
+  });
+
+  it("anula el último cobro si no se especifica operacion_id", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { anulada_operacion_id: "op-1" }, error: null });
+    vi.mocked(createClient).mockResolvedValue(mockSupabase(rpc));
+
+    const response = await DELETE(
+      new NextRequest(`http://localhost/api/arreglos/${ARREGLO_ID}/cobro`, {
+        method: "DELETE",
+      }),
+      { params: Promise.resolve({ id: ARREGLO_ID }) }
+    );
+
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("rpc_finanzas_anular_cobro_arreglo", {
+      p_arreglo_id: ARREGLO_ID,
+      p_operacion_id: null,
+    });
+  });
+
+  it("rechaza el cobro si no se especifica cuenta financiera", async () => {
+    const rpc = vi.fn();
+    vi.mocked(createClient).mockResolvedValue(mockSupabase(rpc));
+
+    const response = await POST(
+      new NextRequest(`http://localhost/api/arreglos/${ARREGLO_ID}/cobro`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fecha_cobro: "2026-07-31",
+          monto: 10000,
+        }),
+      }),
+      { params: Promise.resolve({ id: ARREGLO_ID }) }
+    );
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error).toContain("cuenta financiera válida");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("rechaza el cobro si algún pago en la lista no tiene cuenta", async () => {
+    const rpc = vi.fn();
+    vi.mocked(createClient).mockResolvedValue(mockSupabase(rpc));
+
+    const response = await POST(
+      new NextRequest(`http://localhost/api/arreglos/${ARREGLO_ID}/cobro`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fecha_cobro: "2026-07-31",
+          pagos: [
+            { cuenta_financiera_id: "", monto: 10000 },
+          ],
+        }),
+      }),
+      { params: Promise.resolve({ id: ARREGLO_ID }) }
+    );
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error).toContain("cuenta financiera válida");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("rechaza el cobro si el monto es menor o igual a cero", async () => {
+    const rpc = vi.fn();
+    vi.mocked(createClient).mockResolvedValue(mockSupabase(rpc));
+
+    const response = await POST(
+      new NextRequest(`http://localhost/api/arreglos/${ARREGLO_ID}/cobro`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cuenta_financiera_id: CUENTA_ID,
+          fecha_cobro: "2026-07-31",
+          monto: -500,
+        }),
+      }),
+      { params: Promise.resolve({ id: ARREGLO_ID }) }
+    );
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.error).toContain("mayor a 0");
+    expect(rpc).not.toHaveBeenCalled();
   });
 });

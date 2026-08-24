@@ -21,7 +21,7 @@ export const MESES = [
  * Convierte una Date al formato YYYY-MM-DD respetando el timezone local.
  * Útil para comparar/filtrar turnos por día e inicializar inputs type="date".
  */
-export function toISODateLocal(date: Date): string {
+export function toISODateLocal(date: Date = new Date()): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
@@ -112,15 +112,18 @@ export const toDateInputFormat = (dateString: string | undefined): string => {
  * Formatea una fecha a DD/MM/YYYY (usado en UI), intentando normalizar strings con espacio.
  * Mantiene el comportamiento previo usado en ArregloItem y useArreglosFilters.
  */
-export function formatDateLabel(dateString: string): string {
-  if (!dateString) return "";
+export function formatDateLabel(
+  dateString: string | null | undefined,
+  fallback = ""
+): string {
+  if (!dateString) return fallback;
   const normalized = dateString.replace(" ", "T");
   const d = new Date(normalized);
   if (Number.isNaN(d.getTime())) {
     const base = dateString.slice(0, 10);
     const [y, m, da] = base.split("-");
     if (y && m && da) return `${da}/${m}/${y}`;
-    return base;
+    return base || fallback;
   }
   return new Intl.DateTimeFormat(APP_LOCALE, {
     year: "numeric",
@@ -134,8 +137,11 @@ export function formatDateLabel(dateString: string): string {
  * Formatea una fecha a DD/MM/YYYY HH:mm (usado en UI), intentando normalizar strings con espacio.
  * Mantiene el comportamiento previo usado en TurnoItem.
  */
-export function formatDateTimeLabel(dateString: string): string {
-  if (!dateString) return "";
+export function formatDateTimeLabel(
+  dateString: string | null | undefined,
+  fallback = ""
+): string {
+  if (!dateString) return fallback;
   const normalized = dateString.replace(" ", "T");
   const d = new Date(normalized);
   if (Number.isNaN(d.getTime())) {
@@ -143,7 +149,7 @@ export function formatDateTimeLabel(dateString: string): string {
     const [y, m, da] = base.split("-");
     const time = dateString.slice(11, 16);
     if (y && m && da) return `${da}/${m}/${y} ${time}`;
-    return base + " " + time;
+    return (base + " " + time).trim() || fallback;
   }
   return new Intl.DateTimeFormat(APP_LOCALE, {
     year: "numeric",

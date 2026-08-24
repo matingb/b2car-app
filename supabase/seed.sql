@@ -14,6 +14,9 @@ TRUNCATE TABLE
   formularios,
   operaciones_asignacion_arreglo,
   operaciones_lineas,
+  movimientos_financieros,
+  operaciones_movimiento_cuenta,
+  cuentas_financieras,
   operaciones,
   arreglos,
   turnos,
@@ -32,6 +35,11 @@ RESTART IDENTITY CASCADE;
 -- Tenants (solo uno)
 INSERT INTO public.tenants (id, nombre, estado, fecha_creacion, updated_at) VALUES
   ('11111111-1111-1111-1111-111111111111', 'B2Car', 'activo', now() - interval '180 days', now() - interval '1 day');
+
+-- Cuentas Financieras (2 cuentas bancarias)
+INSERT INTO public.cuentas_financieras (id, tenant_id, nombre, tipo, saldo, activo, created_at, updated_at) VALUES
+  ('c0000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Banco Galicia',  'CUENTA_BANCARIA',0,true,now() - interval '180 days',now() - interval '180 days'),
+  ('c0000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','Banco Santander','CUENTA_BANCARIA',0,true,now() - interval '180 days',now() - interval '180 days');
 
 -- Categorías de Arreglo por defecto
 INSERT INTO public.categorias_arreglo (id, tenant_id, nombre) VALUES
@@ -386,6 +394,15 @@ INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha) VALUES
   ('90000000-0000-0000-0000-000000000203','11111111-1111-1111-1111-111111111111','VENTA','50000000-0000-0000-0000-000000000001',date_trunc('month',now()-interval '3 months')+interval '12 days'),
   ('90000000-0000-0000-0000-000000000204','11111111-1111-1111-1111-111111111111','VENTA','50000000-0000-0000-0000-000000000002',date_trunc('month',now()-interval '4 months')+interval '18 days'),
   ('90000000-0000-0000-0000-000000000205','11111111-1111-1111-1111-111111111111','VENTA','50000000-0000-0000-0000-000000000003',date_trunc('month',now()-interval '5 months')+interval '15 days');
+
+-- APERTURA_CUENTA operaciones - Saldo inicial para cuentas bancarias
+INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha) VALUES
+  ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','MOVIMIENTO_CUENTA',NULL,now() - interval '180 days'),
+  ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','MOVIMIENTO_CUENTA',NULL,now() - interval '180 days');
+
+INSERT INTO public.operaciones_movimiento_cuenta (operacion_id, tenant_id, subtipo, cuenta_id, importe, created_by, created_at) VALUES
+  ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','APERTURA_CUENTA','c0000000-0000-0000-0000-000000000001',2500000,'7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '180 days'),
+  ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','APERTURA_CUENTA','c0000000-0000-0000-0000-000000000002',1800000,'7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '180 days');
 
 -- ===========================================================================
 -- OPERACIONES_LINEAS

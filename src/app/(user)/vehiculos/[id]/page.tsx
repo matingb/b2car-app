@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { Vehiculo, Arreglo, Cliente } from "@/model/types";
-import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { BREAKPOINTS } from "@/theme/theme";
 import { Skeleton, Theme } from "@radix-ui/themes";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
 import EditVehiculoModal from "@/app/components/vehiculos/EditVehiculoModal";
@@ -135,22 +135,7 @@ export default function VehiculoDetailsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div>
-        <ScreenHeader title="Vehículo" hasBackButton />
-        <div
-          style={{
-            marginTop: 16,
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          Cargando...
-        </div>
-      </div>
-    );
-  }
+  if (loading) return loadingScreen();
 
   if (error) {
     return (

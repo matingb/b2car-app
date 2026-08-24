@@ -1,13 +1,17 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React from "react";
 import { css } from "@emotion/react";
 import { COLOR } from "@/theme/theme";
-import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
-import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
-import { formatArs } from "@/lib/format";
+import Autocomplete from "@/app/components/ui/Autocomplete";
+import CuentaFinancieraFormFields from "@/app/components/finanzas/CuentaFinancieraFormFields";
+import CuentaFinancieraAutocomplete, {
+  CREATE_CUENTA_VALUE,
+} from "@/app/components/finanzas/CuentaFinancieraAutocomplete";
 import { TIPOS_UI } from "./operacionModalTypes";
 import { useOperacionForm } from "./OperacionFormContext";
+
+export { CREATE_CUENTA_VALUE };
 
 export default function OperacionHeaderFields() {
   const {
@@ -18,104 +22,105 @@ export default function OperacionHeaderFields() {
     setFecha,
     cuentaFinancieraId,
     setCuentaFinancieraId,
+    cuentaDraft,
+    setCuentaDraft,
     tipo,
     setTipo,
   } = useOperacionForm();
 
-  const { cuentasActivas, loading: isLoadingCuentas } = useCuentasFinancieras();
-
+  const isCreatingCuenta = cuentaFinancieraId === CREATE_CUENTA_VALUE;
   const hasManyTalleres = talleres.length > 1;
 
-  const cuentaOptions = useMemo<AutocompleteOption[]>(
-    () =>
-      cuentasActivas.map((cuenta) => ({
-        value: cuenta.id,
-        label: cuenta.nombre,
-        secondaryLabel: `${cuenta.tipo.replaceAll("_", " ")} · Saldo: ${formatArs(cuenta.saldoActual)}`,
-      })),
-    [cuentasActivas],
-  );
-
   return (
-    <div css={styles.headerRow}>
-      {tipo !== "GASTO" && hasManyTalleres ? (
+    <>
+      <div css={styles.headerRow}>
+        {tipo !== "GASTO" && hasManyTalleres ? (
+          <div style={styles.headerLeft}>
+            <label style={styles.label}>Taller</label>
+            <Autocomplete
+              value={tallerId || ""}
+              onChange={setTallerId}
+              options={talleres.map((t) => ({ value: t.id, label: t.nombre }))}
+              placeholder="Seleccionar taller"
+              dataTestId="operaciones-create-taller"
+              style={{ height: 44, fontSize: 14 }}
+              hideClearButton
+            />
+          </div>
+        ) : null}
+
         <div style={styles.headerLeft}>
-          <label style={styles.label}>Taller</label>
-          <Autocomplete
-            value={tallerId || ""}
-            onChange={setTallerId}
-            options={talleres.map((t) => ({ value: t.id, label: t.nombre }))}
-            placeholder="Seleccionar taller"
-            dataTestId="operaciones-create-taller"
-            style={{ height: 44, fontSize: 14 }}
-            hideClearButton
+          <label style={styles.label}>Fecha</label>
+          <input
+            type="date"
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+            data-testid="operaciones-create-fecha"
+            style={styles.dateInput}
           />
         </div>
-      ) : null}
 
-      <div style={styles.headerLeft}>
-        <label style={styles.label}>Fecha</label>
-        <input
-          type="date"
-          value={fecha}
-          onChange={(e) => setFecha(e.target.value)}
-          data-testid="operaciones-create-fecha"
-          style={styles.dateInput}
-        />
-      </div>
+        <div style={styles.headerLeft}>
+          <label style={styles.label}>Cuenta financiera</label>
+          <CuentaFinancieraAutocomplete
+            value={cuentaFinancieraId}
+            onChange={setCuentaFinancieraId}
+            dataTestId="operaciones-create-cuenta-financiera"
+            hideClearButton
+            style={{ height: 44, fontSize: 14 }}
+          />
+        </div>
 
-      <div style={styles.headerLeft}>
-        <label style={styles.label}>Cuenta financiera</label>
-        <Autocomplete
-          value={cuentaFinancieraId}
-          onChange={setCuentaFinancieraId}
-          options={cuentaOptions}
-          placeholder="Seleccionar cuenta"
-          dataTestId="operaciones-create-cuenta-financiera"
-          isLoading={isLoadingCuentas}
-          hideClearButton
-          style={{ height: 44, fontSize: 14 }}
-        />
-      </div>
-
-      <div style={styles.headerRight}>
-        <label style={styles.label}>Tipo de operación</label>
-        <div css={styles.tipoRow}>
-          {TIPOS_UI.map((t) => {
-            const isSelected = tipo === t.tipo;
-            const isDisabled = Boolean(t.disabled);
-            return (
-              <span key={t.tipo} css={styles.tooltipWrap}>
-                <button
-                  type="button"
-                  onClick={() => !isDisabled && setTipo(t.tipo)}
-                  disabled={isDisabled}
-                  data-testid={`operaciones-create-tipo-${t.tipo}`}
-                  css={[
-                    styles.tipoChip,
-                    isSelected && styles.tipoChipSelected,
-                    isDisabled && styles.tipoChipDisabled,
-                  ]}
-                >
-                  {t.icon ? (
-                    <span style={{ display: "flex" }}>{t.icon}</span>
-                  ) : null}
-                  <span>{t.label}</span>
-                </button>
-                {isDisabled ? (
-                  <span
-                    css={styles.tooltip}
-                    className="operaciones-tooltip"
+        <div style={styles.headerRight}>
+          <label style={styles.label}>Tipo de operación</label>
+          <div css={styles.tipoRow}>
+            {TIPOS_UI.map((t) => {
+              const isSelected = tipo === t.tipo;
+              const isDisabled = Boolean(t.disabled);
+              return (
+                <span key={t.tipo} css={styles.tooltipWrap}>
+                  <button
+                    type="button"
+                    onClick={() => !isDisabled && setTipo(t.tipo)}
+                    disabled={isDisabled}
+                    data-testid={`operaciones-create-tipo-${t.tipo}`}
+                    css={[
+                      styles.tipoChip,
+                      isSelected && styles.tipoChipSelected,
+                      isDisabled && styles.tipoChipDisabled,
+                    ]}
                   >
-                    En construcción
-                  </span>
-                ) : null}
-              </span>
-            );
-          })}
+                    {t.icon ? (
+                      <span style={{ display: "flex" }}>{t.icon}</span>
+                    ) : null}
+                    <span>{t.label}</span>
+                  </button>
+                  {isDisabled ? (
+                    <span
+                      css={styles.tooltip}
+                      className="operaciones-tooltip"
+                    >
+                      En construcción
+                    </span>
+                  ) : null}
+                </span>
+              );
+            })}
+          </div>
         </div>
       </div>
-    </div>
+
+      {isCreatingCuenta && (
+        <CuentaFinancieraFormFields
+          values={cuentaDraft}
+          onChange={(patch) => setCuentaDraft({ ...cuentaDraft, ...patch })}
+          showSaldoInicial={false}
+          showActivo={false}
+          compact
+          dataTestIdPrefix="operaciones-cuenta"
+        />
+      )}
+    </>
   );
 }
 
@@ -221,5 +226,12 @@ const styles = {
   tipoChipDisabled: css({
     opacity: 0.6,
     cursor: "default",
+  }),
+  inlineForm: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    width: "100%",
+    marginBottom: 12,
   }),
 } as const;

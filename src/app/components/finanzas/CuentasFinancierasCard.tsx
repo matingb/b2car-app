@@ -10,7 +10,8 @@ import {
   WalletCards,
   CircleDollarSign,
 } from "lucide-react";
-import { formatMoney, getCuentaTipoLabel } from "./finanzasUtils";
+import { formatArs } from "@/lib/format";
+import { getCuentaTipoLabel } from "@/model/finanzas";
 
 type Props = {
   nombre: string;
@@ -90,7 +91,7 @@ export default function CuentasFinancierasCard({
       <div style={styles.balanceBlock}>
         <span style={styles.balanceLabel}>Saldo actual</span>
         <strong style={{ ...styles.balance, color: saldoColor }}>
-          {formatMoney(saldoNumber)}
+          {formatArs(saldoNumber)}
         </strong>
       </div>
     </Card>

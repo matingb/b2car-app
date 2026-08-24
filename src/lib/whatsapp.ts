@@ -12,7 +12,8 @@ export function buildArregloWhatsappMessage(data: ArregloDetalleData, tenantName
 	const repuestosLineas = flattenAsignacionesLineas(data);
 	const lines: string[] = [];
 	const normalizedTenant = (tenantName ?? "").trim();
-	const header = arreglo.esta_pago ? "Detalle de Arreglo" : "Presupuesto de Arreglo";
+	const isPagado = (arreglo.total_cobrado || 0) >= (arreglo.precio_final || 0) && (arreglo.precio_final || 0) > 0;
+	const header = isPagado ? "Detalle de Arreglo" : "Presupuesto de Arreglo";
 
 	lines.push(`*${header}${normalizedTenant ? ` - ${normalizedTenant}` : ""}*`);
 

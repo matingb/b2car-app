@@ -20,6 +20,7 @@ interface AutocompleteProps {
   disabled?: boolean;
   style?: React.CSSProperties;
   inputStyle?: React.CSSProperties;
+  optionLabelStyle?: React.CSSProperties;
   allowCustomValue?: boolean;
   isLoading?: boolean;
   dataTestId?: string;
@@ -34,6 +35,7 @@ export default function Autocomplete({
   disabled = false,
   style,
   inputStyle,
+  optionLabelStyle,
   allowCustomValue = false,
   isLoading = false,
   dataTestId,
@@ -289,7 +291,9 @@ export default function Autocomplete({
                           {option.icon ? (
                             <span style={styles.optionIcon}>{option.icon}</span>
                           ) : null}
-                          <span style={styles.optionLabel}>{option.label}</span>
+                          <span style={{ ...styles.optionLabel, ...(optionLabelStyle ?? {}) }}>
+                            {option.label}
+                          </span>
                         </span>
                         {option.secondaryLabel && (
                           <span style={styles.optionSecondary}>{option.secondaryLabel}</span>
@@ -323,7 +327,7 @@ const styles = {
   },
   input: {
     width: "100%",
-    padding: "10px 46px 10px 12px",
+    padding: "8px 40px 8px 10px",
     borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     backgroundColor: COLOR.INPUT.PRIMARY.BACKGROUND,
@@ -385,7 +389,6 @@ const styles = {
   optionContent: {
     display: "flex",
     flexDirection: "column",
-    gap: 2,
   },
   optionLabelRow: {
     display: "flex",

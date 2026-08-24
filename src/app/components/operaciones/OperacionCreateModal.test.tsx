@@ -262,7 +262,6 @@ describe("OperacionCreateModal", () => {
   });
 
   it("permite registrar una venta seleccionando item y guardando", async () => {
-    const mockCreate = vi.fn().mockResolvedValue({ id: "OP1" });
     vi.mocked(mockInventarioApi).inventario = [
       {
         id: "S1",

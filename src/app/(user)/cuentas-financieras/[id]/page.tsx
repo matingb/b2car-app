@@ -7,7 +7,6 @@ import {
   ArrowLeftRight,
   Pencil,
   ReceiptText,
-  RefreshCw,
   Trash2,
 } from "lucide-react";
 import { css } from "@emotion/react";
@@ -27,12 +26,10 @@ import CuentaFinancieraModal, {
 import TransferenciaFinancieraModal, {
   type TransferenciaFinancieraDraft,
 } from "@/app/components/finanzas/TransferenciaFinancieraModal";
-import MovimientosFinancierosCard from "@/app/components/finanzas/MovimientosFinancierosCard";
-import {
-  formatFinancialDate,
-  formatMoney,
-  getCuentaTipoLabel,
-} from "@/app/components/finanzas/finanzasUtils";
+import MovimientosFinancierosList from "@/app/components/finanzas/MovimientosFinancierosList";
+import { formatArs } from "@/lib/format";
+import { formatDateLabel } from "@/lib/fechas";
+import { getCuentaTipoLabel } from "@/model/finanzas";
 
 export default function CuentaFinancieraDetailPage() {
   const params = useParams<{ id: string }>();
@@ -225,7 +222,7 @@ export default function CuentaFinancieraDetailPage() {
             <div style={styles.type}>{getCuentaTipoLabel(cuenta.tipo)}</div>
             <div style={styles.balanceLabel}>Saldo actual</div>
             <div style={{ ...styles.balanceValue, color: saldoActual < 0 ? COLOR.ICON.DANGER : COLOR.TEXT.PRIMARY }}>
-              {formatMoney(saldoActual)}
+              {formatArs(saldoActual)}
             </div>
           </div>
           <span
@@ -240,11 +237,11 @@ export default function CuentaFinancieraDetailPage() {
         <div css={styles.balanceMeta}>
           <div style={styles.metaItem}>
             <span style={styles.metaLabel}>Saldo inicial</span>
-            <strong>{formatMoney(saldoInicial)}</strong>
+            <strong>{formatArs(saldoInicial)}</strong>
           </div>
           <div style={styles.metaItem}>
             <span style={styles.metaLabel}>Creada</span>
-            <strong>{formatFinancialDate(cuenta.createdAt)}</strong>
+            <strong>{formatDateLabel(cuenta.createdAt)}</strong>
           </div>
         </div>
       </Card>
@@ -278,7 +275,7 @@ export default function CuentaFinancieraDetailPage() {
         />
       </div>
 
-      <MovimientosFinancierosCard
+      <MovimientosFinancierosList
         movimientos={movimientos}
         loading={movimientosLoading}
         error={movimientosError}

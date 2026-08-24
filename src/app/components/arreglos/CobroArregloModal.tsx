@@ -1,14 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { css } from "@emotion/react";
+import { CheckCircle2 } from "lucide-react";
+import RegistrarPagoSection, {
+  type PagoDraftItem,
+  CREATE_CUENTA_VALUE,
+} from "@/app/components/arreglos/RegistrarPagoSection";
+import CobroArregloHistorial from "@/app/components/arreglos/CobroArregloHistorial";
+import {
+  type CuentaFinancieraDraft,
+  EMPTY_CUENTA_FINANCIERA_DRAFT,
+  validateCuentaFinancieraForm,
+} from "@/app/components/finanzas/CuentaFinancieraFormFields";
 import Modal from "@/app/components/ui/Modal";
-import Autocomplete from "@/app/components/ui/Autocomplete";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
+import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
-import type { Arreglo } from "@/model/types";
+import type { Arreglo, CobroArregloItem } from "@/model/types";
 import { COLOR } from "@/theme/theme";
+import { formatArs } from "@/lib/format";
 import { isValidDate, toISODateLocal } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
 
@@ -19,31 +31,184 @@ type Props = {
   onPaid?: (arreglo: Arreglo) => void;
 };
 
-/**
- * El cobro no es un toggle: solicita explícitamente la cuenta y la fecha que
- * deben quedar en el asiento financiero inmutable.
- */
-export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: Props) {
-  const { cobrar } = useArreglos();
-  const { error } = useToast();
-  const { cuentasActivas, loading: loadingCuentas } = useCuentasFinancieras();
-  const [cuentaId, setCuentaId] = useState("");
-  const [fechaCobro, setFechaCobro] = useState(() => toISODateLocal(new Date()));
-  const [submitting, setSubmitting] = useState(false);
+function useAnimatedCounter(target: number, isReady: boolean, duration = 450) {
+  const [current, setCurrent] = useState<number | null>(null);
+  const prevRef = useRef<number>(0);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!open) return;
-    setCuentaId("");
-    setFechaCobro(toISODateLocal(new Date()));
-  }, [open]);
+    if (!isReady) {
+      setCurrent(null);
+      prevRef.current = 0;
+      return;
+    }
 
-  const opciones = useMemo(() => cuentasActivas.map((cuenta) => ({
-    value: cuenta.id,
-    label: cuenta.nombre,
-    secondaryLabel: cuenta.tipo.replaceAll("_", " "),
-  })), [cuentasActivas]);
+    const from = prevRef.current;
+    const to = target;
+    const start = performance.now();
 
-  const canSubmit = Boolean(cuentaId && isValidDate(fechaCobro) && !loadingCuentas && !submitting);
+    const tick = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      const val = from + (to - from) * ease;
+      setCurrent(val);
+
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        prevRef.current = to;
+      }
+    };
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [target, isReady, duration]);
+
+  return isReady && current !== null ? Math.round(current) : null;
+}
+
+export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: Props) {
+  const { cobrar, anularCobro, fetchById } = useArreglos();
+  const { success, error } = useToast();
+  const { confirm } = useModalMessage();
+  const { loading: loadingCuentas } = useCuentasFinancieras();
+
+  const [loadingData, setLoadingData] = useState(false);
+  const [arreglo, setArreglo] = useState<Arreglo | null>(null);
+  const [cobros, setCobros] = useState<CobroArregloItem[]>([]);
+
+  const [pagosDraft, setPagosDraft] = useState<PagoDraftItem[]>([
+    {
+      id: generateUuidV4(),
+      cuentaId: "",
+      monto: "",
+      fecha: toISODateLocal(new Date()),
+      descripcion: "",
+    },
+  ]);
+  const [submitting, setSubmitting] = useState(false);
+  const [anulandoOpId, setAnulandoOpId] = useState<string | null>(null);
+  const inFlightRef = useRef(false);
+
+  const loadArregloDetails = useCallback(async () => {
+    if (!arregloId || inFlightRef.current) return;
+    inFlightRef.current = true;
+    setLoadingData(true);
+    try {
+      const data = await fetchById(arregloId);
+      if (data?.arreglo) {
+        setArreglo(data.arreglo);
+        setCobros(data.cobros ?? []);
+
+        const saldo = Math.max(
+          0,
+          Number(data.arreglo.precio_final || 0) - Number(data.arreglo.total_cobrado || 0)
+        );
+
+        setPagosDraft([
+          {
+            id: generateUuidV4(),
+            cuentaId: "",
+            monto: saldo > 0 ? String(saldo) : "",
+            fecha: toISODateLocal(new Date()),
+            descripcion: "",
+          },
+        ]);
+      }
+    } catch (err) {
+      console.error("Error loading arreglo for cobro modal:", err);
+    } finally {
+      setLoadingData(false);
+      inFlightRef.current = false;
+    }
+  }, [arregloId, fetchById]);
+
+  useEffect(() => {
+    if (open) {
+      void loadArregloDetails();
+    } else {
+      setArreglo(null);
+    }
+  }, [open, loadArregloDetails]);
+
+  const precioFinal = Number(arreglo?.precio_final || 0);
+  const totalCobrado = Number(arreglo?.total_cobrado || 0);
+  const saldoPendiente = Math.max(0, precioFinal - totalCobrado);
+
+  const isReady = open && !loadingData && arreglo !== null;
+  const animatedPrecioFinal = useAnimatedCounter(precioFinal, isReady, 450);
+  const animatedTotalCobrado = useAnimatedCounter(totalCobrado, isReady, 450);
+  const animatedSaldoPendiente = useAnimatedCounter(saldoPendiente, isReady, 450);
+
+  const totalSumDraft = useMemo(() => {
+    return pagosDraft.reduce((acc, row) => acc + (Number(row.monto) || 0), 0);
+  }, [pagosDraft]);
+
+  const canSubmit = useMemo(() => {
+    if (loadingCuentas || submitting) return false;
+    if (pagosDraft.length === 0) return false;
+
+    return pagosDraft.every((p) => {
+      const isCreating = p.cuentaId === CREATE_CUENTA_VALUE;
+      const hasValidCuenta = isCreating
+        ? validateCuentaFinancieraForm(p.cuentaDraft)
+        : Boolean(p.cuentaId);
+      const montoNum = Number(p.monto);
+      return (
+        hasValidCuenta &&
+        Number.isFinite(montoNum) &&
+        montoNum > 0 &&
+        isValidDate(p.fecha)
+      );
+    });
+  }, [loadingCuentas, submitting, pagosDraft]);
+
+  const handleAddPagoRow = () => {
+    const restante = Math.max(0, saldoPendiente - totalSumDraft);
+    setPagosDraft((prev) => [
+      ...prev,
+      {
+        id: generateUuidV4(),
+        cuentaId: "",
+        monto: restante > 0 ? String(restante) : "",
+        fecha: toISODateLocal(new Date()),
+        descripcion: "",
+      },
+    ]);
+  };
+
+  const handleRemovePagoRow = (id: string) => {
+    if (pagosDraft.length <= 1) return;
+    setPagosDraft((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handleUpdatePagoRow = (id: string, field: keyof PagoDraftItem, value: string) => {
+    setPagosDraft((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
+    );
+  };
+
+  const handleUpdatePagoCuentaDraft = (id: string, patch: Partial<CuentaFinancieraDraft>) => {
+    setPagosDraft((prev) =>
+      prev.map((row) =>
+        row.id === id
+          ? {
+              ...row,
+              cuentaDraft: {
+                ...(row.cuentaDraft || EMPTY_CUENTA_FINANCIERA_DRAFT),
+                ...patch,
+              },
+            }
+          : row
+      )
+    );
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -51,12 +216,53 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
 
     setSubmitting(true);
     try {
-      const updated = await cobrar(arregloId, {
-        cuenta_financiera_id: cuentaId,
-        fecha_cobro: fechaCobro,
-        idempotency_key: generateUuidV4(),
-      });
+      const resolvedPagos = await Promise.all(
+        pagosDraft.map(async (p) => {
+          let cuentaId = p.cuentaId;
+          if (p.cuentaId === CREATE_CUENTA_VALUE && p.cuentaDraft) {
+            const created = await createCuenta({
+              nombre: p.cuentaDraft.nombre.trim(),
+              tipo: p.cuentaDraft.tipo,
+              saldoInicial: 0,
+            });
+            cuentaId = created.id;
+          }
+          return {
+            cuentaId,
+            monto: Number(p.monto),
+            fecha: p.fecha,
+            descripcion: p.descripcion.trim() || undefined,
+          };
+        })
+      );
+
+      let updated: Arreglo | null = null;
+
+      if (resolvedPagos.length === 1) {
+        const single = resolvedPagos[0];
+        updated = await cobrar(arregloId, {
+          cuenta_financiera_id: single.cuentaId,
+          fecha_cobro: single.fecha,
+          monto: single.monto,
+          descripcion: single.descripcion,
+          idempotency_key: generateUuidV4(),
+        });
+      } else {
+        const pagosPayload = resolvedPagos.map((p) => ({
+          cuenta_financiera_id: p.cuentaId,
+          monto: p.monto,
+          descripcion: p.descripcion,
+        }));
+
+        updated = await cobrar(arregloId, {
+          fecha_cobro: resolvedPagos[0].fecha,
+          pagos: pagosPayload,
+          idempotency_key: generateUuidV4(),
+        });
+      }
+
       if (!updated) throw new Error("No se pudo registrar el cobro");
+      success("Cobro registrado", `Se registraron ${formatArs(totalSumDraft)} en las cuentas seleccionadas.`);
       onPaid?.(updated);
       onClose();
     } catch (cause: unknown) {
@@ -66,58 +272,159 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
     }
   };
 
+  const handleAnularCobro = async (opId: string, importe: number) => {
+    const confirmed = await confirm({
+      title: "Anular cobro",
+      message: `¿Estás seguro de que querés anular este cobro de ${formatArs(importe)}? Se generará el reverso contable correspondiente.`,
+      acceptLabel: "Anular cobro",
+      cancelLabel: "Cancelar",
+    });
+    if (!confirmed) return;
+
+    setAnulandoOpId(opId);
+    try {
+      const updated = await anularCobro(arregloId, opId);
+      if (updated) {
+        success("Cobro anulado", "El cobro fue anulado y el saldo del arreglo fue actualizado.");
+        onPaid?.(updated);
+        await loadArregloDetails();
+      }
+    } catch (err) {
+      error("Error", err instanceof Error ? err.message : "No se pudo anular el cobro");
+    } finally {
+      setAnulandoOpId(null);
+    }
+  };
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       onSubmit={handleSubmit}
-      title="Registrar cobro"
-      submitText="Cobrar"
+      title="Gestión de Cobros"
+      submitText={
+        totalSumDraft > 0
+          ? `Cobrar ${formatArs(totalSumDraft)}`
+          : "Registrar Cobro"
+      }
       submitting={submitting}
       disabledSubmit={!canSubmit}
-      modalStyle={{ width: "min(500px, 96vw)" }}
+      modalStyle={{ width: "min(640px, 96vw)" }}
     >
       <div css={styles.form}>
-        <p css={styles.help}>
-          Elegí la cuenta y la fecha que se usarán para registrar el ingreso.
-        </p>
-        <label css={styles.label}>
-          Cuenta financiera
-          <Autocomplete
-            value={cuentaId}
-            onChange={setCuentaId}
-            options={opciones}
-            placeholder={loadingCuentas ? "Cargando cuentas..." : "Seleccionar cuenta"}
-            disabled={loadingCuentas}
-            hideClearButton
-            dataTestId="arreglo-cobro-cuenta"
-          />
-        </label>
-        <label css={styles.label}>
-          Fecha de cobro
-          <input
-            type="date"
-            value={fechaCobro}
-            onChange={(event) => setFechaCobro(event.target.value)}
-            data-testid="arreglo-cobro-fecha"
-            style={styles.input}
-          />
-        </label>
+        {/* Resumen Financiero del Arreglo */}
+        <div css={styles.summaryBox}>
+          <div css={styles.summaryItem}>
+            <span css={styles.summaryLabel}>Total Arreglo</span>
+            <span css={styles.summaryValue} data-testid="summary-total">
+              {animatedPrecioFinal !== null
+                ? formatArs(animatedPrecioFinal, { maxDecimals: 0 })
+                : "-"}
+            </span>
+          </div>
+          <div css={styles.summaryItem}>
+            <span css={styles.summaryLabel}>Cobrado</span>
+            <span css={styles.summaryValueSuccess} data-testid="summary-cobrado">
+              {animatedTotalCobrado !== null
+                ? formatArs(animatedTotalCobrado, { maxDecimals: 0 })
+                : "-"}
+            </span>
+          </div>
+          <div css={styles.summaryItem}>
+            <span css={styles.summaryLabel}>Saldo Pendiente</span>
+            <span
+              css={
+                animatedSaldoPendiente !== null && animatedSaldoPendiente > 0
+                  ? styles.summaryValueDanger
+                  : styles.summaryValueSuccess
+              }
+              data-testid="summary-saldo"
+            >
+              {animatedSaldoPendiente !== null
+                ? formatArs(animatedSaldoPendiente, { maxDecimals: 0 })
+                : "-"}
+            </span>
+          </div>
+        </div>
+
+        {saldoPendiente <= 0 && precioFinal > 0 ? (
+          <div css={styles.alertSuccess}>
+            <CheckCircle2 size={18} color={COLOR.SEMANTIC.SUCCESS} />
+            <span>El arreglo se encuentra <strong>totalmente pagado</strong>. Podés registrar cobros adicionales o anular cobros existentes.</span>
+          </div>
+        ) : null}
+
+        <RegistrarPagoSection
+          pagos={pagosDraft}
+          loadingCuentas={loadingCuentas}
+          onAddPago={handleAddPagoRow}
+          onRemovePago={handleRemovePagoRow}
+          onUpdatePago={handleUpdatePagoRow}
+          onUpdatePagoCuentaDraft={handleUpdatePagoCuentaDraft}
+        />
+
+        <CobroArregloHistorial
+          cobros={cobros}
+          anulandoOpId={anulandoOpId}
+          onAnularCobro={handleAnularCobro}
+        />
       </div>
     </Modal>
   );
 }
 
 const styles = {
-  form: css({ display: "flex", flexDirection: "column", gap: 14, paddingTop: 4 }),
-  help: css({ margin: 0, color: COLOR.TEXT.SECONDARY, fontSize: 14, lineHeight: 1.45 }),
-  label: css({ display: "flex", flexDirection: "column", gap: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13 }),
-  input: {
-    height: 42,
+  form: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+    paddingTop: 4,
+  }),
+  summaryBox: css({
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr",
+    gap: 12,
+    padding: "12px 16px",
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 10,
-    padding: "0 12px",
+  }),
+  summaryItem: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+  }),
+  summaryLabel: css({
+    fontSize: 11,
+    textTransform: "uppercase",
+    fontWeight: 600,
+    color: COLOR.TEXT.TERTIARY,
+  }),
+  summaryValue: css({
+    fontSize: 16,
+    fontWeight: 700,
     color: COLOR.TEXT.PRIMARY,
-    background: COLOR.BACKGROUND.PRIMARY,
-  } as const,
+  }),
+  summaryValueSuccess: css({
+    fontSize: 16,
+    fontWeight: 700,
+    color: COLOR.SEMANTIC.SUCCESS,
+  }),
+  summaryValueDanger: css({
+    fontSize: 16,
+    fontWeight: 700,
+    color: COLOR.SEMANTIC.DANGER,
+  }),
+  alertSuccess: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "10px 14px",
+    borderRadius: 8,
+    backgroundColor: "rgba(22, 163, 74, 0.08)",
+    border: "1px solid rgba(22, 163, 74, 0.25)",
+    fontSize: 13,
+    color: COLOR.TEXT.PRIMARY,
+    lineHeight: 1.4,
+  }),
 } as const;

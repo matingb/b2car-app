@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { createClient } from "@/supabase/server";
+import { logger } from "@/lib/logger";
 import type {
   ActualizarTransferenciaFinancieraResponse,
   EliminarFinanzasResponse,
@@ -17,16 +18,20 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getSession();
   if (!auth.session) {
+    logger.warn("[PUT /api/cuentas-financieras/transferencias/[id]] No autenticado");
     return Response.json({ data: null, error: "Unauthorized" } satisfies ActualizarTransferenciaFinancieraResponse, { status: 401 });
   }
 
   const { id } = await params;
   const idError = validateUuid(id, "transferenciaId");
   if (idError) {
+    logger.error("[PUT /api/cuentas-financieras/transferencias/[id]] ID inválido:", id);
     return Response.json({ data: null, error: idError } satisfies ActualizarTransferenciaFinancieraResponse, { status: 400 });
   }
-  const parsed = validateUpdateTransferencia(await req.json().catch(() => null));
+  const rawBody = await req.json().catch(() => null);
+  const parsed = validateUpdateTransferencia(rawBody);
   if (parsed.error || !parsed.value) {
+    logger.error("[PUT /api/cuentas-financieras/transferencias/[id]] Validación fallida:", parsed.error, { rawBody });
     return Response.json({ data: null, error: parsed.error ?? "JSON inválido" } satisfies ActualizarTransferenciaFinancieraResponse, { status: 400 });
   }
 
@@ -41,9 +46,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     p_idempotency_key: input.idempotencyKey ?? null,
   });
   if (updateError) {
+    logger.error("[PUT /api/cuentas-financieras/transferencias/[id]] Error en RPC rpc_actualizar_movimiento_cuenta:", updateError, { id, input });
     const status = rpcStatus(updateError);
     return Response.json(
-      { data: null, error: status === 404 ? "Transferencia no encontrada" : "Error actualizando transferencia" } satisfies ActualizarTransferenciaFinancieraResponse,
+      { data: null, error: updateError.message || (status === 404 ? "Transferencia no encontrada" : "Error actualizando transferencia") } satisfies ActualizarTransferenciaFinancieraResponse,
       { status }
     );
   }
@@ -68,20 +74,25 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getSession();
   if (!auth.session) {
+    logger.warn("[DELETE /api/cuentas-financieras/transferencias/[id]] No autenticado");
     return Response.json({ error: "Unauthorized" } satisfies EliminarFinanzasResponse, { status: 401 });
   }
 
   const { id } = await params;
   const idError = validateUuid(id, "transferenciaId");
-  if (idError) return Response.json({ error: idError } satisfies EliminarFinanzasResponse, { status: 400 });
+  if (idError) {
+    logger.error("[DELETE /api/cuentas-financieras/transferencias/[id]] ID inválido:", id);
+    return Response.json({ error: idError } satisfies EliminarFinanzasResponse, { status: 400 });
+  }
 
   const { data, error } = await supabase.rpc("rpc_eliminar_movimiento_cuenta", {
     p_operacion_id: id,
   });
   if (error || data === false) {
+    logger.error("[DELETE /api/cuentas-financieras/transferencias/[id]] Error eliminando transferencia:", error, { id, data });
     const status = data === false ? 404 : rpcStatus(error);
     return Response.json(
-      { error: status === 404 ? "Transferencia no encontrada" : "Error eliminando transferencia" } satisfies EliminarFinanzasResponse,
+      { error: (error && error.message) || (status === 404 ? "Transferencia no encontrada" : "Error eliminando transferencia") } satisfies EliminarFinanzasResponse,
       { status }
     );
   }

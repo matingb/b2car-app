@@ -1,13 +1,21 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
+import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import Modal from "@/app/components/ui/Modal";
 import { Arreglo, Vehiculo } from "@/model/types";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
-import { CreateArregloInput, UpdateArregloInput } from "@/clients/arreglosClient";
+import CuentaFinancieraFormFields, {
+  type CuentaFinancieraDraft,
+  EMPTY_CUENTA_FINANCIERA_DRAFT,
+  validateCuentaFinancieraForm,
+} from "@/app/components/finanzas/CuentaFinancieraFormFields";
+import CuentaFinancieraAutocomplete, {
+  CREATE_CUENTA_VALUE,
+} from "@/app/components/finanzas/CuentaFinancieraAutocomplete";
+import { UpdateArregloInput } from "@/clients/arreglosClient";
 import { toDateInputFormat, toISODateLocal } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { assembleClientePhone, buildArregloWhatsappMessage } from "@/lib/whatsapp";
@@ -46,12 +54,14 @@ export function normalizeArregloObservaciones(observaciones: string, isEdit: boo
 export default function ArregloModal({ open, onClose, vehiculoId, initial, onSubmitSuccess }: Props) {
   const { vehiculos, fetchAll: fetchVehiculos, fetchCliente } = useVehiculos();
   const { create, update, fetchById } = useArreglos();
-  const { cuentasActivas, loading: isLoadingCuentas } = useCuentasFinancieras();
+  const { loading: isLoadingCuentas, createCuenta } = useCuentasFinancieras();
   const { tallerSeleccionadoId } = useTenant();
   const { inventario, isLoading: isInventarioLoading } = useInventario(tallerSeleccionadoId ?? undefined);
   const { confirm } = useModalMessage();
   const { success, error: toastError } = useToast();
   const { share } = useWhatsAppMessage();
+
+  const [cuentaDraft, setCuentaDraft] = useState<CuentaFinancieraDraft>(() => ({ ...EMPTY_CUENTA_FINANCIERA_DRAFT }));
 
   const createEmptyInternal = (): ArregloFormFieldsInternal => ({
     serviciosDraft: [],
@@ -85,29 +95,28 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     if (!vehiculoId && open) {
       fetchVehiculos();
     }
-  }, [open, vehiculoId, fetchVehiculos]);
+  }, [vehiculoId, open, fetchVehiculos]);
 
   const vehiculoOptions: AutocompleteOption[] = useMemo(
     () =>
-      vehiculos.map((v: Vehiculo) => {
-        return {
-          value: String(v.id),
-          label: formatPatenteConMarcaYModelo(v),
-          secondaryLabel: v.nombre_cliente,
-        };
-      }),
+      vehiculos.map((v: Vehiculo) => ({
+        value: String(v.id),
+        label: formatPatenteConMarcaYModelo(v),
+      })),
     [vehiculos]
   );
 
   useEffect(() => {
     if (!open) return;
-
+    setError(null);
+    setSubmitting(false);
     setEstado(initial?.estado ?? "SIN_INICIAR");
     setFecha(getArregloModalFecha(initial?.fecha));
     setKm(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
     setObservaciones(initial?.observaciones ?? "");
     setEstaPago(!!initial?.esta_pago);
     setCuentaFinancieraId("");
+    setCuentaDraft({ ...EMPTY_CUENTA_FINANCIERA_DRAFT });
     setFechaCobro(toISODateLocal(new Date()));
     setExtraData(initial?.extra_data ?? "");
     setSelectedVehiculoId(vehiculoId ? String(vehiculoId) : "");
@@ -128,20 +137,11 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   }, [inventario, internal.repuestosDraft, isEdit]);
 
   const requiereCuentaFinanciera = estaPago || requiereCompraAutomatica;
-
-  const cuentaOptions = useMemo<AutocompleteOption[]>(
-    () => cuentasActivas.map((cuenta) => ({
-      value: cuenta.id,
-      label: cuenta.nombre,
-      secondaryLabel: cuenta.tipo.replaceAll("_", " "),
-    })),
-    [cuentasActivas],
-  );
+  const isCreatingCuenta = cuentaFinancieraId === CREATE_CUENTA_VALUE;
 
   if (!open) return null;
 
   const fieldValues: ArregloFormFieldsValues = {
-
     estado,
     fecha,
     km,
@@ -153,25 +153,23 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
 
   const handleFieldsChange = (patch: Partial<ArregloFormFieldsValues>) => {
     const setters: Record<keyof ArregloFormFieldsValues, (value: unknown) => void> = {
-
       estado: (value) => {
         const next = String(value ?? "").trim().toUpperCase();
         if ((ESTADOS_ARREGLO as string[]).includes(next)) {
           setEstado(next as EstadoArreglo);
         }
       },
-      fecha: (value) => setFecha(typeof value === "string" ? value : ""),
-      km: (value) => setKm(typeof value === "string" ? value : ""),
-      observaciones: (value) =>
-        setObservaciones(typeof value === "string" ? value : ""),
+      fecha: (value) => setFecha(String(value ?? "")),
+      km: (value) => setKm(String(value ?? "")),
+      observaciones: (value) => setObservaciones(String(value ?? "")),
       estaPago: (value) => setEstaPago(Boolean(value)),
-      extraData: (value) => setExtraData(typeof value === "string" ? value : ""),
-      selectedVehiculoId: (value) =>
-        setSelectedVehiculoId(typeof value === "string" ? value : ""),
+      extraData: (value) => setExtraData(String(value ?? "")),
+      selectedVehiculoId: (value) => setSelectedVehiculoId(String(value ?? "")),
     };
 
-    (Object.keys(patch) as (keyof ArregloFormFieldsValues)[]).forEach((key) => {
-      setters[key](patch[key]);
+    Object.entries(patch).forEach(([key, value]) => {
+      const setter = setters[key as keyof ArregloFormFieldsValues];
+      if (setter) setter(value);
     });
   };
 
@@ -199,33 +197,31 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid) return;
-    if (requiereCuentaFinanciera && !cuentaFinancieraId) {
-      setError("Seleccioná la cuenta financiera que registrará el movimiento.");
-      return;
-    }
-    if (estaPago && !isValidDate(fechaCobro)) {
-      setError("Ingresá una fecha de cobro válida.");
-      return;
-    }
+    if (submitting) return;
+
     setSubmitting(true);
     setError(null);
-
     try {
-      const payload: Partial<UpdateArregloInput> = {
-
-        estado,
-        fecha,
-        kilometraje_leido: Number(km),
-        // En edición, una cadena vacía es un cambio válido: elimina las observaciones previas.
-        observaciones: normalizeArregloObservaciones(observaciones, isEdit),
-        ...(!isEdit ? { esta_pago: !!estaPago } : {}),
-        extra_data: extraData || undefined,
-      };
+      let targetCuentaId = cuentaFinancieraId;
+      if (requiereCuentaFinanciera && isCreatingCuenta) {
+        const created = await createCuenta({
+          nombre: cuentaDraft.nombre.trim(),
+          tipo: cuentaDraft.tipo,
+          saldoInicial: 0,
+        });
+        success("Cuenta creada", `${created.nombre} se registró correctamente.`);
+        targetCuentaId = created.id;
+      }
 
       let response: Arreglo | null = null;
-
       if (isEdit && initial?.id) {
+        const payload: UpdateArregloInput = {
+          estado,
+          fecha,
+          kilometraje_leido: Number(km) || 0,
+          observaciones: normalizeArregloObservaciones(observaciones, isEdit),
+          extra_data: extraData || undefined,
+        };
         response = await update(initial.id, payload);
       } else {
         if (!tallerSeleccionadoId) {
@@ -244,19 +240,18 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         response = await create({
           vehiculo_id: finalVehiculoId!,
           taller_id: tallerSeleccionadoId,
-
           estado,
-          fecha: fecha,
+          fecha,
           kilometraje_leido: Number(km) || 0,
           precio_final: precioFinalCalculado,
-          observaciones: payload.observaciones,
-          esta_pago: payload.esta_pago,
+          observaciones: normalizeArregloObservaciones(observaciones, false),
+          esta_pago: !!estaPago,
           ...(requiereCuentaFinanciera ? {
-            cuenta_financiera_id: cuentaFinancieraId,
+            cuenta_financiera_id: targetCuentaId,
             idempotency_key: generateUuidV4(),
           } : {}),
           ...(estaPago ? { fecha_cobro: fechaCobro } : {}),
-          extra_data: payload.extra_data,
+          extra_data: extraData || undefined,
           detalles,
           repuestos: internal.repuestosDraft
             .filter((r) => r.tipo !== "nuevo")
@@ -280,21 +275,16 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
               empleado_id: r.empleadoId || null,
             })),
           detalle_formulario: internal.detalleFormulario ?? undefined,
-        } as CreateArregloInput);
+        });
       }
 
       if (!response) {
-        throw new Error(
-          isEdit
-            ? "No se pudo actualizar el arreglo"
-            : "No se pudo crear el arreglo"
-        );
+        throw new Error(isEdit ? "No se pudo actualizar el arreglo" : "No se pudo crear el arreglo");
       }
       onSubmitSuccess?.(response);
-
       onClose();
-      if (!isEdit) {
 
+      if (!isEdit) {
         setEstado("SIN_INICIAR");
         setFecha(getArregloModalFecha());
         setKm("");
@@ -303,21 +293,18 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         setExtraData("");
         setInternal(createEmptyInternal());
         success("Arreglo creado", "El arreglo se registró correctamente.");
-      } else {
-        success("Arreglo actualizado", "Los cambios del arreglo se guardaron correctamente.");
-      }
 
-      if (!isEdit && response) {
-        const label = response.esta_pago ? "detalle" : "presupuesto";
         const confirmed = await confirm({
           title: "Compartir arreglo",
-          message: `¿Querés compartir el ${label} del arreglo recién creado?`,
+          message: `¿Querés compartir el ${response.esta_pago ? "detalle" : "presupuesto"} del arreglo recién creado?`,
           acceptLabel: "Compartir",
           cancelLabel: "Ahora no",
         });
         if (confirmed) {
           await handleShareArreglo(response.id);
         }
+      } else {
+        success("Arreglo actualizado", "Los cambios del arreglo se guardaron correctamente.");
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Ocurrio un error");
@@ -325,6 +312,13 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       setSubmitting(false);
     }
   };
+
+  const isCuentaValid = !requiereCuentaFinanciera || (
+    Boolean(cuentaFinancieraId) &&
+    (!isCreatingCuenta || validateCuentaFinancieraForm(cuentaDraft)) &&
+    !isLoadingCuentas &&
+    (!requiereCompraAutomatica || !isInventarioLoading)
+  );
 
   return (
     <Modal
@@ -334,13 +328,11 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       onSubmit={handleSubmit}
       submitText={isEdit ? "Guardar cambios" : "Crear"}
       submitting={submitting}
-      disabledSubmit={!isValid || (requiereCuentaFinanciera && (!cuentaFinancieraId || isLoadingCuentas || (requiereCompraAutomatica && isInventarioLoading))) || (estaPago && !isValidDate(fechaCobro))}
+      disabledSubmit={!isValid || !isCuentaValid || (estaPago && !isValidDate(fechaCobro))}
       modalError={
         error
           ? {
-            titulo: isEdit
-              ? "No se pudo actualizar el arreglo"
-              : "No se pudo crear el arreglo",
+            titulo: isEdit ? "No se pudo actualizar el arreglo" : "No se pudo crear el arreglo",
             descripcion: error,
           }
           : null
@@ -376,11 +368,9 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
             <div style={styles.finanzasRow}>
               <label style={styles.finanzasField}>
                 Cuenta financiera
-                <Autocomplete
+                <CuentaFinancieraAutocomplete
                   value={cuentaFinancieraId}
                   onChange={setCuentaFinancieraId}
-                  options={cuentaOptions}
-                  placeholder={isLoadingCuentas ? "Cargando cuentas..." : "Seleccionar cuenta"}
                   disabled={isLoadingCuentas}
                   hideClearButton
                   dataTestId="arreglo-cuenta-financiera"
@@ -399,6 +389,17 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
                 </label>
               ) : null}
             </div>
+
+            {isCreatingCuenta && (
+              <CuentaFinancieraFormFields
+                values={cuentaDraft}
+                onChange={(patch) => setCuentaDraft((prev) => ({ ...prev, ...patch }))}
+                showSaldoInicial={false}
+                showActivo={false}
+                compact
+                dataTestIdPrefix="arreglo-cuenta"
+              />
+            )}
           </div>
         ) : null}
       </div>
@@ -450,4 +451,11 @@ const styles = {
     color: COLOR.TEXT.PRIMARY,
     background: COLOR.BACKGROUND.PRIMARY,
   } as const,
+  inlineForm: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 8,
+    width: "100%",
+    marginTop: 6,
+  },
 } as const;

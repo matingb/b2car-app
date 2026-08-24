@@ -48,7 +48,6 @@ export default function ProductoDetailsPage() {
     removeProductoStock,
     removeProducto,
     categoriasDisponibles,
-    isLoading,
   } = useProductos();
   const { confirm } = useModalMessage();
   const { success, error } = useToast();

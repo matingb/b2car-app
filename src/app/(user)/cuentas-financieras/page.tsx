@@ -19,7 +19,7 @@ import CuentaFinancieraModal, {
 import TransferenciaFinancieraModal, {
   type TransferenciaFinancieraDraft,
 } from "@/app/components/finanzas/TransferenciaFinancieraModal";
-import { formatMoney } from "@/app/components/finanzas/finanzasUtils";
+import { formatArs } from "@/lib/format";
 
 type EstadoFilter = "todas" | "activas" | "inactivas";
 
@@ -114,7 +114,7 @@ export default function CuentasFinancierasPage() {
         <Card style={styles.summaryCard}>
           <div style={styles.summaryLabel}>Saldo disponible</div>
           <strong style={{ ...styles.summaryValue, color: saldoTotal < 0 ? COLOR.ICON.DANGER : COLOR.TEXT.PRIMARY }}>
-            {formatMoney(saldoTotal)}
+            {formatArs(saldoTotal)}
           </strong>
         </Card>
       </div>

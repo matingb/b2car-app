@@ -1,4 +1,4 @@
-import { CATEGORIAS_GASTO_FINANCIERO } from "@/model/finanzas";
+import { CATEGORIAS_GASTO_FINANCIERO, CUENTA_TIPOS } from "@/model/finanzas";
 import type {
   ActualizarCuentaFinancieraInput,
   ActualizarGastoFinancieroInput,
@@ -15,12 +15,7 @@ import type {
 
 type JsonRecord = Record<string, unknown>;
 
-export const ACCOUNT_TYPES: readonly TipoCuentaFinanciera[] = [
-  "EFECTIVO",
-  "CUENTA_BANCARIA",
-  "BILLETERA_DIGITAL",
-  "TARJETA_CREDITO",
-];
+export const ACCOUNT_TYPES: readonly TipoCuentaFinanciera[] = CUENTA_TIPOS;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -441,6 +436,7 @@ export function mapMovimiento(row: unknown): MovimientoFinanciero | null {
     descripcion: asNullableText(pick(source, "descripcion")),
     categoria: asNullableText(pick(source, "categoria_gasto", "categoria")),
     operacionId: asNullableText(pick(source, "operacion_id", "operacionId")),
+    arregloId: asNullableText(pick(source, "arreglo_id", "arregloId")),
     reversaMovimientoId: null, // deprecated en nueva arquitectura
     createdAt,
   };

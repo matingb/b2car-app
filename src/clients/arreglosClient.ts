@@ -49,9 +49,18 @@ export type CreateArregloInput = {
 
 export type UpdateArregloInput = Partial<Omit<CreateArregloInput, "vehiculo_id" | "taller_id">>;
 
-export type CobrarArregloInput = {
+export type CobroPagoItemInput = {
   cuenta_financiera_id: string;
+  monto: number;
+  descripcion?: string | null;
+};
+
+export type CobrarArregloInput = {
+  cuenta_financiera_id?: string;
   fecha_cobro: string;
+  monto?: number | null;
+  descripcion?: string | null;
+  pagos?: CobroPagoItemInput[];
   idempotency_key?: string | null;
 };
 
@@ -199,13 +208,16 @@ export const arreglosClient = {
 
   async anularCobro(
     id: string | number,
-    idempotencyKey?: string | null,
+    operacionId?: string | null,
   ): Promise<UpdateArregloResponse> {
     try {
-      const key = idempotencyKey ?? generateUuidV4();
+      const headers: Record<string, string> = {};
+      if (operacionId) {
+        headers["x-operacion-id"] = operacionId;
+      }
       const res = await fetch(`/api/arreglos/${id}/cobro`, {
         method: "DELETE",
-        headers: { "X-Idempotency-Key": key },
+        headers,
       });
       const body: UpdateArregloResponse = await res.json().catch(() => ({ data: null, error: `Error ${res.status}` }));
       if (!res.ok || body.error) {

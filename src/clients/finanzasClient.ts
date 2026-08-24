@@ -32,10 +32,16 @@ async function request<T>(
     const response = await fetch(url, init);
     const body = (await response.json().catch(() => null)) as FinanzasResponse<T> | null;
     if (!response.ok || body?.error) {
-      return { data: null, error: body?.error || `Error ${response.status}` };
+      const errorMsg = body?.error || `Error ${response.status}`;
+      console.error(`[finanzasClient] Error en petición a ${url} (status ${response.status}):`, errorMsg, {
+        init,
+        body,
+      });
+      return { data: null, error: errorMsg };
     }
     return { data: body?.data ?? null, error: null };
   } catch (error: unknown) {
+    console.error(`[finanzasClient] Excepción de red en petición a ${url}:`, error, { init });
     return {
       data: null,
       error: error instanceof Error ? error.message : fallbackMessage,
@@ -55,10 +61,13 @@ async function remove(
     });
     const body = (await response.json().catch(() => null)) as EliminarFinanzasResponse | null;
     if (!response.ok || body?.error) {
-      return { error: body?.error || `Error ${response.status}` };
+      const errorMsg = body?.error || `Error ${response.status}`;
+      console.error(`[finanzasClient] Error en DELETE a ${url} (status ${response.status}):`, errorMsg, { body });
+      return { error: errorMsg };
     }
     return { error: null };
   } catch (error: unknown) {
+    console.error(`[finanzasClient] Excepción de red en DELETE a ${url}:`, error);
     return { error: error instanceof Error ? error.message : fallbackMessage };
   }
 }

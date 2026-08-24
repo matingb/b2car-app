@@ -197,9 +197,6 @@ const styles = {
         boxSizing: "border-box" as const,
         userSelect: "none" as const,
     },
-    label: {
-        flex: 1,
-    },
     dropdown: {
         position: "fixed" as const,
         backgroundColor: COLOR.BACKGROUND.SECONDARY,
@@ -225,6 +222,14 @@ const styles = {
     },
     optionSelected: {
         backgroundColor: COLOR.BACKGROUND.SUBTLE,
+    },
+    label: {
+        fontSize: 13,
+        color: COLOR.TEXT.PRIMARY,
+        fontWeight: 500,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap" as const,
     },
     optionLabel: {
         fontSize: 13,

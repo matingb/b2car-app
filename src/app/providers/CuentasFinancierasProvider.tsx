@@ -27,7 +27,6 @@ export type CuentasFinancierasContextType = {
   loading: boolean;
   loadError: string | null;
   loadCuentas: () => Promise<void>;
-  refresh: () => Promise<void>;
   getCuentaById: (id: string) => Promise<CuentaFinanciera | null>;
   createCuenta: (input: CrearCuentaFinancieraInput) => Promise<CuentaFinanciera>;
   updateCuenta: (
@@ -56,13 +55,16 @@ export function CuentasFinancierasProvider({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const inFlightPromiseRef = useRef<Promise<void> | null>(null);
+  const hasLoadedRef = useRef(false);
 
-  const loadCuentas = useCallback(async () => {
+  const loadCuentas = useCallback(async (opts?: { silent?: boolean }) => {
     if (inFlightPromiseRef.current) {
       return inFlightPromiseRef.current;
     }
     const run = async () => {
-      setLoading(true);
+      if (!opts?.silent && !hasLoadedRef.current) {
+        setLoading(true);
+      }
       setLoadError(null);
       try {
         const res = await finanzasClient.listarCuentas();
@@ -71,6 +73,7 @@ export function CuentasFinancierasProvider({
           setCuentas([]);
         } else {
           setCuentas(res.data ?? []);
+          hasLoadedRef.current = true;
         }
       } catch (err: unknown) {
         const msg =
@@ -186,14 +189,18 @@ export function CuentasFinancierasProvider({
     ): Promise<TransferenciaFinanciera> => {
       setLoading(true);
       try {
+        console.info("[CuentasFinancierasProvider] Creando transferencia con input:", input);
         const res = await finanzasClient.crearTransferencia(input);
         if (res.error || !res.data) {
-          throw new Error(
-            res.error || "No se pudo registrar la transferencia."
-          );
+          const errorMsg = res.error || "No se pudo registrar la transferencia.";
+          console.error("[CuentasFinancierasProvider] Falló crearTransferencia:", errorMsg, { input, res });
+          throw new Error(errorMsg);
         }
         await loadCuentas();
         return res.data;
+      } catch (err) {
+        console.error("[CuentasFinancierasProvider] Excepción en createTransferencia:", err);
+        throw err;
       } finally {
         setLoading(false);
       }
@@ -226,7 +233,6 @@ export function CuentasFinancierasProvider({
       loading,
       loadError,
       loadCuentas,
-      refresh: loadCuentas,
       getCuentaById,
       createCuenta,
       updateCuenta,
@@ -256,7 +262,6 @@ export function CuentasFinancierasProvider({
     </CuentasFinancierasContext.Provider>
   );
 }
-
 export function useCuentasFinancieras() {
   const ctx = useContext(CuentasFinancierasContext);
   if (!ctx) {
@@ -265,11 +270,12 @@ export function useCuentasFinancieras() {
     );
   }
 
-  const { refresh } = ctx;
+  const { loadCuentas } = ctx;
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    loadCuentas();
+  }, [loadCuentas]);
 
   return ctx;
 }
+

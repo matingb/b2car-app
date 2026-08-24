@@ -168,6 +168,13 @@ export default function ArregloSummaryCard({
               />
               <ArregloPagoBadge
                 estaPago={arreglo.esta_pago}
+                totalCobrado={arreglo.total_cobrado}
+                saldoPendiente={
+                  arreglo.saldo_pendiente != null
+                    ? arreglo.saldo_pendiente
+                    : Math.max(0, (arreglo.precio_final || 0) - (arreglo.total_cobrado || 0))
+                }
+                precioFinal={arreglo.precio_final}
                 arregloId={arreglo.id}
                 onPagoUpdated={onArregloChange}
                 size="md"

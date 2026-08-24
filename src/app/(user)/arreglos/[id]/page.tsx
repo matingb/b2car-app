@@ -465,6 +465,12 @@ export default function ArregloDetailsPage() {
           subtotalServicios={subtotalServicios + subtotalServiciosCustom}
           subtotalRepuestos={subtotalRepuestos}
           total={totalCalculado}
+          totalCobrado={arreglo.total_cobrado}
+          saldoPendiente={
+            arreglo.saldo_pendiente != null
+              ? arreglo.saldo_pendiente
+              : Math.max(0, totalCalculado - (arreglo.total_cobrado || 0))
+          }
         />
       </div>
 

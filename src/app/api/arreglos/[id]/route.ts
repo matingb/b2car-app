@@ -1,4 +1,4 @@
-import { Arreglo } from "@/model/types";
+import { Arreglo, CobroArregloItem } from "@/model/types";
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
@@ -62,6 +62,7 @@ export type ArregloDetalleData = {
   detalles: DetalleArreglo[];
   asignaciones: AsignacionArregloOperacion[];
   detalle_formulario: DetalleArregloFormulario | null;
+  cobros?: CobroArregloItem[];
 };
 
 export type DetalleArregloFormulario = {
@@ -114,6 +115,7 @@ export async function GET(
     arreglo?: unknown;
     detalles?: unknown;
     asignaciones?: unknown;
+    cobros?: unknown;
   };
 
   const arregloRaw = rpc.arreglo as Record<string, unknown>;
@@ -126,6 +128,7 @@ export async function GET(
 
   const detalles = (Array.isArray(rpc.detalles) ? rpc.detalles : []) as DetalleArreglo[];
   const asignaciones = (Array.isArray(rpc.asignaciones) ? rpc.asignaciones : []) as AsignacionArregloOperacion[];
+  const cobros = (Array.isArray(rpc.cobros) ? rpc.cobros : []) as CobroArregloItem[];
 
   const { data: detalleFormularioRows, error: detalleFormularioError } = await supabase
     .from("detalle_form_custom")
@@ -173,6 +176,7 @@ export async function GET(
     detalles,
     asignaciones,
     detalle_formulario: detalleFormulario,
+    cobros,
   };
 
   return Response.json({ data: payload, error: null });

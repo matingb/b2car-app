@@ -11,6 +11,7 @@ import { Arreglo } from "@/model/types";
 import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 import {
   arreglosClient,
+  CobrarArregloInput,
   CreateArregloInput,
   GetArreglosInput,
   UpdateArregloInput,
@@ -31,9 +32,9 @@ type ArreglosContextType = {
   ) => Promise<Arreglo | null>;
   cobrar: (
     id: string | number,
-    input: { cuenta_financiera_id: string; fecha_cobro: string; idempotency_key?: string | null },
+    input: CobrarArregloInput,
   ) => Promise<Arreglo | null>;
-  anularCobro: (id: string | number, idempotencyKey?: string | null) => Promise<Arreglo | null>;
+  anularCobro: (id: string | number, operacionId?: string | null) => Promise<Arreglo | null>;
   remove: (id: string | number) => Promise<void>;
 
   createDetalle: (
@@ -88,13 +89,13 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchById = useCallback(async (id: string | number) => {
-    setLoading(true);
     try {
       const response = await arreglosClient.getById(id);
       if (response.error) throw new Error(response.error);
       return response.data ?? null;
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      return null;
     }
   }, []);
 
@@ -131,7 +132,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
 
   const cobrar = useCallback(async (
     id: string | number,
-    input: { cuenta_financiera_id: string; fecha_cobro: string; idempotency_key?: string | null },
+    input: CobrarArregloInput,
   ) => {
     setLoading(true);
     try {
@@ -144,10 +145,10 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchAll, tallerSeleccionadoId]);
 
-  const anularCobro = useCallback(async (id: string | number, idempotencyKey?: string | null) => {
+  const anularCobro = useCallback(async (id: string | number, operacionId?: string | null) => {
     setLoading(true);
     try {
-      const { data, error } = await arreglosClient.anularCobro(id, idempotencyKey);
+      const { data, error } = await arreglosClient.anularCobro(id, operacionId);
       if (error) throw new Error(error);
       void fetchAll({ tallerId: tallerSeleccionadoId });
       return data ?? null;

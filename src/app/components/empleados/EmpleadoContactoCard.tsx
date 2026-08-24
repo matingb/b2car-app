@@ -4,19 +4,13 @@ import { COLOR } from "@/theme/theme";
 import Card from "@/app/components/ui/Card";
 import IconButton from "@/app/components/ui/IconButton";
 import IconLabel from "@/app/components/ui/IconLabel";
+import { formatDateLabel } from "@/lib/fechas";
 import type { Empleado } from "@/app/providers/EmpleadosProvider";
 
 type Props = {
   empleado: Empleado;
   onEdit?: () => void;
 };
-
-function formatDate(iso: string) {
-  if (!iso) return "-";
-  const [year, month, day] = iso.split("-");
-  if (!year || !month || !day) return iso;
-  return `${day}/${month}/${year}`;
-}
 
 export default function EmpleadoContactoCard({ empleado, onEdit }: Props) {
   return (
@@ -49,7 +43,7 @@ export default function EmpleadoContactoCard({ empleado, onEdit }: Props) {
           />
           <IconLabel
             icon={<Calendar size={18} style={{ color: COLOR.ACCENT.PRIMARY }} />}
-            label={`Nacimiento ${formatDate(empleado.cumpleanos)}`}
+            label={`Nacimiento ${formatDateLabel(empleado.cumpleanos, "-")}`}
           />
         </div>
       </Card>

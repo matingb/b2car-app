@@ -65,6 +65,19 @@ export const ESTADOS_ARREGLO: EstadoArreglo[] = [
   "TERMINADO",
 ];
 
+export type EstadoPagoArreglo = "PENDIENTE" | "PARCIAL" | "PAGADO" | "SOBREPAGO";
+
+export interface CobroArregloItem {
+  id: string;
+  operacion_id: string;
+  importe: number;
+  cuenta_id: string;
+  cuenta_nombre: string;
+  descripcion?: string | null;
+  fecha: string;
+  created_at: string;
+}
+
 export interface Arreglo {
   id: UUID;
   vehiculo: Vehiculo;
@@ -78,6 +91,9 @@ export interface Arreglo {
   precio_final: number;
   precio_sin_iva: number;
   esta_pago: boolean;
+  total_cobrado?: number;
+  saldo_pendiente?: number;
+  cobros?: CobroArregloItem[];
   fecha_cobro?: string | null;
   movimiento_financiero_id?: string | null;
   extra_data: string;

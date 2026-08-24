@@ -12,6 +12,32 @@ export type TipoCuentaFinanciera =
   | "BILLETERA_DIGITAL"
   | "TARJETA_CREDITO";
 
+export const CUENTA_TIPOS: readonly TipoCuentaFinanciera[] = [
+  "EFECTIVO",
+  "CUENTA_BANCARIA",
+  "BILLETERA_DIGITAL",
+  "TARJETA_CREDITO",
+];
+
+export const CUENTA_TIPO_LABELS: Record<TipoCuentaFinanciera, string> = {
+  EFECTIVO: "Efectivo",
+  CUENTA_BANCARIA: "Cuenta bancaria",
+  BILLETERA_DIGITAL: "Billetera digital",
+  TARJETA_CREDITO: "Tarjeta de crédito",
+};
+
+export const CUENTAS_TIPOS: ReadonlyArray<{ value: TipoCuentaFinanciera; label: string }> = [
+  { value: "EFECTIVO", label: "Efectivo" },
+  { value: "CUENTA_BANCARIA", label: "Cuenta bancaria" },
+  { value: "BILLETERA_DIGITAL", label: "Billetera digital" },
+  { value: "TARJETA_CREDITO", label: "Tarjeta de crédito" },
+];
+
+export function getCuentaTipoLabel(value: string | null | undefined): string {
+  const tipo = value?.toUpperCase() as TipoCuentaFinanciera | undefined;
+  return (tipo && CUENTA_TIPO_LABELS[tipo]) || "Cuenta";
+}
+
 /** Subtipo de un MOVIMIENTO_CUENTA (lo que el usuario registra explícitamente). */
 export type SubtipoMovimientoCuenta =
   | "GASTO"
@@ -81,6 +107,7 @@ export type MovimientoFinanciero = {
   descripcion: string | null;
   categoria: string | null;
   operacionId: string | null;
+  arregloId?: string | null;
   /** @deprecated Siempre null en la nueva arquitectura. */
   reversaMovimientoId: string | null;
   createdAt: string;

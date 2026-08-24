@@ -6,7 +6,7 @@ import Dropdown from "@/app/components/ui/Dropdown";
 import NumberInput from "@/app/components/ui/NumberInput";
 import { COLOR } from "@/theme/theme";
 import type { CuentaFinanciera } from "@/model/finanzas";
-import { toLocalISODate } from "./finanzasUtils";
+import { toISODateLocal } from "@/lib/fechas";
 
 export type TransferenciaFinancieraDraft = {
   cuentaOrigenId: string;
@@ -35,7 +35,7 @@ export default function TransferenciaFinancieraModal({
   const [origenId, setOrigenId] = useState("");
   const [destinoId, setDestinoId] = useState("");
   const [importe, setImporte] = useState<number>(0);
-  const [fecha, setFecha] = useState(toLocalISODate());
+  const [fecha, setFecha] = useState(toISODateLocal());
   const [descripcion, setDescripcion] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export default function TransferenciaFinancieraModal({
     setOrigenId(defaultOrigen);
     setDestinoId(defaultDestino);
     setImporte(0);
-    setFecha(toLocalISODate());
+    setFecha(toISODateLocal());
     setDescripcion("");
     setSubmitError(null);
     setSubmitting(false);
@@ -76,14 +76,15 @@ export default function TransferenciaFinancieraModal({
     if (!canSubmit || submitting) return;
     setSubmitting(true);
     setSubmitError(null);
+    const draft: TransferenciaFinancieraDraft = {
+      cuentaOrigenId: origenId,
+      cuentaDestinoId: destinoId,
+      importe,
+      fecha,
+      descripcion: descripcion.trim(),
+    };
     try {
-      await onCreate({
-        cuentaOrigenId: origenId,
-        cuentaDestinoId: destinoId,
-        importe,
-        fecha,
-        descripcion: descripcion.trim(),
-      });
+      await onCreate(draft);
       onClose();
     } catch (error: unknown) {
       setSubmitError(
