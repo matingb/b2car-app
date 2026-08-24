@@ -14,6 +14,7 @@ export interface DropdownOption {
     onChange: (value: string) => void;
     style?: React.CSSProperties;
     dataTestId?: string;
+    disabled?: boolean;
   }
 
 export default function Dropdown({
@@ -22,6 +23,7 @@ export default function Dropdown({
     onChange,
     style,
     dataTestId,
+    disabled = false,
 }: DropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -107,14 +109,27 @@ export default function Dropdown({
 
     return (
         <div ref={containerRef} style={{ ...styles.container, ...style }}>
-            <div
+            <button
+                type="button"
                 role="button"
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
-                tabIndex={0}
-                style={{ ...styles.trigger, ...style }}
-                onClick={() => setIsOpen((prev) => !prev)}
-                onKeyDown={handleKeyDown}
+                aria-disabled={disabled}
+                disabled={disabled}
+                tabIndex={disabled ? -1 : 0}
+                style={{
+                    ...styles.trigger,
+                    ...(disabled ? { opacity: 0.6, cursor: "not-allowed" } : {}),
+                    ...style,
+                }}
+                onClick={() => {
+                    if (disabled) return;
+                    setIsOpen((prev) => !prev);
+                }}
+                onKeyDown={(e) => {
+                    if (disabled) return;
+                    handleKeyDown(e);
+                }}
                 data-testid={dataTestId}
             >
                 <span style={styles.label}>{options.find((option: DropdownOption) => option.value === value)?.label}</span>
@@ -127,7 +142,7 @@ export default function Dropdown({
                         flexShrink: 0,
                     }}
                 />
-            </div>
+            </button>
 
             {isOpen
                 ? createPortal(

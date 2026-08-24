@@ -29,7 +29,6 @@ import { useTenant } from "@/app/providers/TenantProvider";
 import CardDato from "@/app/components/graficos/CardDato";
 import Color from "color";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
-import GastoModal from "@/app/components/operaciones/GastoModal";
 import LineDetalleOperacion from "@/app/components/operaciones/LineDetalleOperacion";
 import Button from "@/app/components/ui/Button";
 import { useToast } from "@/app/providers/ToastProvider";
@@ -77,6 +76,12 @@ const tipoConfig: Record<
         color: COLOR.SEMANTIC.DISABLED,
         bg: Color(COLOR.SEMANTIC.DISABLED).alpha(0.12).toString(),
     },
+    MOVIMIENTO_CUENTA: {
+        label: "Movimiento",
+        icon: <WalletCards size={18} />,
+        color: COLOR.SEMANTIC.INFO,
+        bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
+    },
 };
 
 function shortId(value?: string | null) {
@@ -116,9 +121,9 @@ export default function OperacionesPage() {
     const { success, error } = useToast();
     const [search, setSearch] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
-    const [gastoOpen, setGastoOpen] = useState(false);
-    const [gastoEdit, setGastoEdit] = useState<GastoFinanciero | null>(null);
+    const [initialTipo, setInitialTipo] = useState<TipoOperacion>("VENTA");
     const [cuentaGastoPreseleccionadaId, setCuentaGastoPreseleccionadaId] = useState<string | null>(null);
+    const [gastoEdit, setGastoEdit] = useState<GastoFinanciero | null>(null);
     const [expandedOperacionId, setExpandedOperacionId] = useState<string | null>(null);
     const [stocksById, setStocksById] = useState<Record<string, StockItem>>({});
     const loadedStockIdsRef = useRef<Set<string>>(new Set());
@@ -130,7 +135,8 @@ export default function OperacionesPage() {
         if (params.get("nuevo") !== "gasto") return;
 
         setCuentaGastoPreseleccionadaId(params.get("cuenta_financiera_id"));
-        setGastoOpen(true);
+        setInitialTipo("GASTO");
+        setCreateOpen(true);
         window.history.replaceState(null, "", window.location.pathname);
     }, []);
 
@@ -227,7 +233,8 @@ export default function OperacionesPage() {
             createdAt: operacion.created_at,
             updatedAt: operacion.created_at,
         });
-        setGastoOpen(true);
+        setInitialTipo("GASTO");
+        setCreateOpen(true);
     }, []);
 
     return (
@@ -287,19 +294,13 @@ export default function OperacionesPage() {
                     <Button
                         icon={<PlusIcon size={20} />}
                         text="Nueva operación"
-                        onClick={() => setCreateOpen(true)}
-                        css={styles.createButton}
-                    />
-                    <Button
-                        icon={<PlusIcon size={20} />}
-                        text="Nuevo gasto"
                         onClick={() => {
-                            setGastoEdit(null);
+                            setInitialTipo("VENTA");
                             setCuentaGastoPreseleccionadaId(null);
-                            setGastoOpen(true);
+                            setGastoEdit(null);
+                            setCreateOpen(true);
                         }}
-                        outline
-                        css={styles.gastoButton}
+                        css={styles.createButton}
                     />
                 </div>
                 <div css={styles.chipsContainer} aria-label="Filtrar por tipo de operación">
@@ -380,20 +381,14 @@ export default function OperacionesPage() {
                 <OperacionCreateModal
                     open={createOpen}
                     talleres={talleres}
-                    onClose={() => setCreateOpen(false)}
-                />
-            ) : null}
-            {gastoOpen ? (
-                <GastoModal
-                    open={gastoOpen}
+                    initialTipo={initialTipo}
+                    initialCuentaId={cuentaGastoPreseleccionadaId}
                     gasto={gastoEdit}
-                    cuentaPreseleccionadaId={cuentaGastoPreseleccionadaId}
                     onClose={() => {
-                        setGastoOpen(false);
+                        setCreateOpen(false);
+                        setInitialTipo("VENTA");
+                        setCuentaGastoPreseleccionadaId(null);
                         setGastoEdit(null);
-                    }}
-                    onSaved={() => {
-                        void refresh();
                     }}
                 />
             ) : null}
@@ -464,13 +459,6 @@ const styles = {
     createButton: css({
         height: 40,
         minWidth: 180,
-        [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-            width: "auto",
-        },
-    }),
-    gastoButton: css({
-        height: 40,
-        minWidth: 145,
         [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
             width: "auto",
         },

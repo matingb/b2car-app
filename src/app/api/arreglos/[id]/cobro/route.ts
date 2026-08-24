@@ -59,7 +59,7 @@ export async function POST(
   const { error: rpcError } = await supabase.rpc("rpc_finanzas_cobrar_arreglo", {
     p_arreglo_id: id,
     p_cuenta_id: cuentaId,
-    p_fecha_cobro: fechaCobro,
+    p_fecha_cobro: DATE_ONLY.test(fechaCobro) ? `${fechaCobro}T12:00:00.000Z` : fechaCobro,
     p_idempotency_key: idempotencyKey,
   });
   if (rpcError) {

@@ -11,7 +11,7 @@ const CUENTA_TIPO_LABELS: Record<TipoCuentaFinanciera, string> = {
   EFECTIVO: "Efectivo",
   CUENTA_BANCARIA: "Cuenta bancaria",
   BILLETERA_DIGITAL: "Billetera digital",
-  TARJETA_CREDITO: "Tarjeta de cr\u00e9édito"
+  TARJETA_CREDITO: "Tarjeta de crédito",
 };
 
 export function getCuentaTipoLabel(value: string | null | undefined) {
@@ -48,10 +48,4 @@ export function formatFinancialDate(value: string | null | undefined) {
 export function toLocalISODate(date = new Date()) {
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
-}
-
-export function normalizeMoneyInput(value: string) {
-  const normalized = value.trim().replace(/\./g, "").replace(",", ".");
-  const amount = Number(normalized);
-  return Number.isFinite(amount) ? amount : 0;
 }

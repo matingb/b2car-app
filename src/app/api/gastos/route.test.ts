@@ -79,17 +79,16 @@ describe("/api/gastos", () => {
     const body = await response.json();
 
     expect(response.status).toBe(201);
-    expect(rpc).toHaveBeenNthCalledWith(1, "rpc_finanzas_registrar_gasto", {
+    expect(rpc).toHaveBeenNthCalledWith(1, "rpc_crear_movimiento_cuenta", {
+      p_subtipo: "GASTO",
       p_cuenta_id: ACCOUNT_ID,
-      p_categoria: "ALQUILER",
+      p_categoria_gasto: "ALQUILER",
       p_importe: 150000,
-      p_fecha: "2026-07-31",
+      p_fecha: "2026-07-31T12:00:00.000Z",
       p_descripcion: "Alquiler del taller",
       p_idempotency_key: null,
       p_arreglo_id: null,
-      p_operacion_id: null,
     });
-    expect(rpc).toHaveBeenNthCalledWith(2, "rpc_finanzas_obtener_gasto", { p_gasto_id: EXPENSE_ID });
     expect(body.data).toMatchObject({
       id: EXPENSE_ID,
       cuentaId: ACCOUNT_ID,

@@ -144,7 +144,7 @@ export default function ArregloPagoBadge({ estaPago, arregloId, onClick, onPagoU
           onMouseLeave={handleMouseLeave}
           onMouseOver={(e) => e.stopPropagation()}
           onMouseOut={(e) => e.stopPropagation()}
-          title={estaPago ? "Marcar como pendiente" : "Marcar como pagado"}
+          title={estaPago ? "Anular cobro" : "Registrar cobro"}
           style={{
             ...style,
             color: COLOR.TEXT.PRIMARY,

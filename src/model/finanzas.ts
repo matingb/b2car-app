@@ -1,7 +1,9 @@
 /**
- * Contrato compartido de la contabilidad operativa. Las cuentas, movimientos,
- * transferencias y gastos se exponen con nombres en camelCase, sin filtrar la
- * representación interna de las RPC de Postgres hacia los componentes.
+ * Contrato compartido de la contabilidad operativa.
+ *
+ * Dos entidades separadas:
+ *   - MovimientoCuenta: evento de negocio explícito (GASTO, INGRESO, TRANSFERENCIA).
+ *   - MovimientoFinanciero: entrada del ledger inmutable, derivada automáticamente.
  */
 
 export type TipoCuentaFinanciera =
@@ -10,15 +12,19 @@ export type TipoCuentaFinanciera =
   | "BILLETERA_DIGITAL"
   | "TARJETA_CREDITO";
 
-export type TipoMovimientoFinanciero =
-  | "APERTURA_CUENTA"
-  | "TRANSFERENCIA"
+/** Subtipo de un MOVIMIENTO_CUENTA (lo que el usuario registra explícitamente). */
+export type SubtipoMovimientoCuenta =
   | "GASTO"
-  | "COBRO_ARREGLO"
-  | "COMPRA_STOCK"
-  | "VENTA_STOCK"
-  | "REVERSO"
+  | "INGRESO"
+  | "TRANSFERENCIA"
+  | "APERTURA_CUENTA"
   | (string & {});
+
+/**
+ * @deprecated Usar SubtipoMovimientoCuenta.
+ * Mantenido temporalmente para compatibilidad con código existente.
+ */
+export type TipoMovimientoFinanciero = SubtipoMovimientoCuenta | "COBRO_ARREGLO" | "COMPRA_STOCK" | "VENTA_STOCK" | "MOVIMIENTO";
 
 export const CATEGORIAS_GASTO_FINANCIERO = [
   "ALQUILER",
@@ -37,6 +43,21 @@ export const CATEGORIAS_GASTO_FINANCIERO = [
 
 export type CategoriaGastoFinanciero = (typeof CATEGORIAS_GASTO_FINANCIERO)[number];
 
+export const CATEGORIAS_GASTO: ReadonlyArray<{ value: CategoriaGastoFinanciero; label: string }> = [
+  { value: "ALQUILER", label: "Alquiler" },
+  { value: "SERVICIOS", label: "Servicios" },
+  { value: "SUELDOS_HONORARIOS", label: "Sueldos y honorarios" },
+  { value: "IMPUESTOS", label: "Impuestos" },
+  { value: "INSUMOS_REPUESTOS", label: "Insumos y repuestos" },
+  { value: "HERRAMIENTAS_EQUIPAMIENTO", label: "Herramientas y equipamiento" },
+  { value: "MANTENIMIENTO", label: "Mantenimiento" },
+  { value: "SEGUROS", label: "Seguros" },
+  { value: "TRANSPORTE_COMBUSTIBLE", label: "Transporte y combustible" },
+  { value: "MARKETING_PUBLICIDAD", label: "Marketing y publicidad" },
+  { value: "COMISIONES_GASTOS_BANCARIOS", label: "Comisiones y gastos bancarios" },
+  { value: "OTROS", label: "Otros" },
+];
+
 export type CuentaFinanciera = {
   id: string;
   nombre: string;
@@ -49,20 +70,45 @@ export type CuentaFinanciera = {
   movimientos?: MovimientoFinanciero[];
 };
 
+/** Entrada del ledger inmutable. Derivada automáticamente de operaciones. */
 export type MovimientoFinanciero = {
   id: string;
   cuentaId: string;
+  /** Tipo derivado de la operación fuente: subtipo OMC o tipo_operacion. */
   tipo: TipoMovimientoFinanciero;
   importe: number;
   fecha: string;
   descripcion: string | null;
   categoria: string | null;
-  arregloId: string | null;
   operacionId: string | null;
+  /** @deprecated Siempre null en la nueva arquitectura. */
   reversaMovimientoId: string | null;
   createdAt: string;
 };
 
+/** Evento financiero explícito registrado por el usuario (tipo MOVIMIENTO_CUENTA). */
+export type MovimientoCuenta = {
+  /** ID de la operación base. */
+  id: string;
+  subtipo: SubtipoMovimientoCuenta;
+  /** Solo para GASTO, INGRESO, APERTURA_CUENTA. */
+  cuentaId: string | null;
+  cuentaNombre?: string | null;
+  /** Solo para TRANSFERENCIA. */
+  cuentaOrigenId: string | null;
+  cuentaOrigenNombre?: string | null;
+  cuentaDestinoId: string | null;
+  cuentaDestinoNombre?: string | null;
+  /** Importe como lo ve el usuario (siempre positivo). */
+  importe: number;
+  categoria: string | null;
+  descripcion: string | null;
+  arregloId: string | null;
+  fecha: string;
+  createdAt: string;
+};
+
+/** @deprecated Usar MovimientoCuenta con subtipo='TRANSFERENCIA'. */
 export type TransferenciaFinanciera = {
   id: string;
   cuentaOrigenId: string;

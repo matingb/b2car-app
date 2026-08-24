@@ -52,9 +52,9 @@ describe("TransferenciaFinancieraModal", () => {
       />
     );
 
-    expect(screen.queryByRole("option", { name: "Cuenta vieja" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Cuenta vieja")).not.toBeInTheDocument();
     expect(screen.getByTestId("transferencia-cuenta-origen")).toBeDisabled();
-    await user.type(screen.getByTestId("transferencia-importe"), "2.000");
+    await user.type(screen.getByTestId("transferencia-importe"), "2000.5");
     await user.type(screen.getByTestId("transferencia-descripcion"), "Deposito diario");
     await user.click(screen.getByTestId("modal-submit"));
 
@@ -63,7 +63,7 @@ describe("TransferenciaFinancieraModal", () => {
         expect.objectContaining({
           cuentaOrigenId: "caja",
           cuentaDestinoId: "banco",
-          importe: 2000,
+          importe: 2000.5,
           descripcion: "Deposito diario",
         })
       );

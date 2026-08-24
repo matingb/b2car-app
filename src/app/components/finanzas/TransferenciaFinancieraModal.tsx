@@ -2,9 +2,11 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
+import Dropdown from "@/app/components/ui/Dropdown";
+import NumberInput from "@/app/components/ui/NumberInput";
 import { COLOR } from "@/theme/theme";
 import type { CuentaFinanciera } from "@/model/finanzas";
-import { normalizeMoneyInput, toLocalISODate } from "./finanzasUtils";
+import { toLocalISODate } from "./finanzasUtils";
 
 export type TransferenciaFinancieraDraft = {
   cuentaOrigenId: string;
@@ -32,7 +34,7 @@ export default function TransferenciaFinancieraModal({
   const activeAccounts = useMemo(() => cuentas.filter((cuenta) => cuenta.activo), [cuentas]);
   const [origenId, setOrigenId] = useState("");
   const [destinoId, setDestinoId] = useState("");
-  const [importeText, setImporteText] = useState("");
+  const [importe, setImporte] = useState<number>(0);
   const [fecha, setFecha] = useState(toLocalISODate());
   const [descripcion, setDescripcion] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -47,14 +49,26 @@ export default function TransferenciaFinancieraModal({
     const defaultDestino = activeAccounts.find((cuenta) => cuenta.id !== defaultOrigen)?.id ?? "";
     setOrigenId(defaultOrigen);
     setDestinoId(defaultDestino);
-    setImporteText("");
+    setImporte(0);
     setFecha(toLocalISODate());
     setDescripcion("");
     setSubmitError(null);
     setSubmitting(false);
   }, [activeAccounts, cuentaOrigenId, open]);
 
-  const importe = normalizeMoneyInput(importeText);
+  const origenOptions = useMemo(
+    () => activeAccounts.map((cuenta) => ({ value: cuenta.id, label: cuenta.nombre })),
+    [activeAccounts]
+  );
+
+  const destinoOptions = useMemo(
+    () =>
+      activeAccounts
+        .filter((cuenta) => cuenta.id !== origenId)
+        .map((cuenta) => ({ value: cuenta.id, label: cuenta.nombre })),
+    [activeAccounts, origenId]
+  );
+
   const canSubmit = Boolean(origenId && destinoId && origenId !== destinoId && importe > 0 && fecha);
   const originIsFixed = Boolean(cuentaOrigenId);
 
@@ -105,59 +119,47 @@ export default function TransferenciaFinancieraModal({
           </div>
         ) : null}
 
-        <label style={styles.field}>
+        <div style={styles.field}>
           <span style={styles.label}>Desde</span>
-          <select
+          <Dropdown
+            options={origenOptions}
             value={origenId}
-            onChange={(event) => {
-              const next = event.target.value;
+            onChange={(next) => {
               setOrigenId(next);
               if (next === destinoId) {
                 setDestinoId(activeAccounts.find((cuenta) => cuenta.id !== next)?.id ?? "");
               }
             }}
             disabled={originIsFixed}
-            style={styles.input}
-            data-testid="transferencia-cuenta-origen"
-          >
-            {activeAccounts.map((cuenta) => (
-              <option key={cuenta.id} value={cuenta.id}>
-                {cuenta.nombre}
-              </option>
-            ))}
-          </select>
-        </label>
+            style={styles.dropdown}
+            dataTestId="transferencia-cuenta-origen"
+          />
+        </div>
 
-        <label style={styles.field}>
+        <div style={styles.field}>
           <span style={styles.label}>Hacia</span>
-          <select
+          <Dropdown
+            options={destinoOptions}
             value={destinoId}
-            onChange={(event) => setDestinoId(event.target.value)}
-            style={styles.input}
-            data-testid="transferencia-cuenta-destino"
-          >
-            {activeAccounts
-              .filter((cuenta) => cuenta.id !== origenId)
-              .map((cuenta) => (
-                <option key={cuenta.id} value={cuenta.id}>
-                  {cuenta.nombre}
-                </option>
-              ))}
-          </select>
-        </label>
+            onChange={(next) => setDestinoId(next)}
+            style={styles.dropdown}
+            dataTestId="transferencia-cuenta-destino"
+          />
+        </div>
 
         <div style={styles.twoColumns}>
-          <label style={styles.field}>
+          <div style={styles.field}>
             <span style={styles.label}>Importe</span>
-            <input
-              inputMode="decimal"
-              value={importeText}
-              onChange={(event) => setImporteText(event.target.value)}
+            <NumberInput
+              value={importe}
+              onValueChange={setImporte}
+              minValue={0}
+              allowDecimals
               placeholder="0"
               style={styles.input}
               data-testid="transferencia-importe"
             />
-          </label>
+          </div>
 
           <label style={styles.field}>
             <span style={styles.label}>Fecha</span>
@@ -202,6 +204,9 @@ const styles = {
     color: COLOR.TEXT.SECONDARY,
     fontSize: 13,
     fontWeight: 600,
+  },
+  dropdown: {
+    width: "100%",
   },
   input: {
     width: "100%",

@@ -75,6 +75,10 @@ function validTimestamp(value: string): boolean {
   return !Number.isNaN(new Date(value).getTime());
 }
 
+function toTimestamp(value: string): string {
+  return DATE_ONLY_RE.test(value) ? `${value}T12:00:00.000Z` : value;
+}
+
 function validOptionalTimestamp(value: string | undefined, field = "fecha"): string | null {
   if (value === undefined) return null;
   return validTimestamp(value) ? null : `${field} debe ser una fecha válida`;
@@ -152,7 +156,7 @@ export function validateCreateCuenta(body: unknown): Validated<CrearCuentaFinanc
       nombre: nombre!,
       tipo,
       ...(saldoInicial === undefined ? {} : { saldoInicial }),
-      ...(fecha === undefined ? {} : { fecha }),
+      ...(fecha === undefined ? {} : { fecha: toTimestamp(fecha) }),
       ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
     },
   };
@@ -210,7 +214,7 @@ export function validateCreateTransferencia(body: unknown): Validated<CrearTrans
       cuentaOrigenId: cuentaOrigenId!,
       cuentaDestinoId: cuentaDestinoId!,
       importe,
-      ...(fecha === undefined ? {} : { fecha }),
+      ...(fecha === undefined ? {} : { fecha: toTimestamp(fecha) }),
       ...(descripcion === undefined ? {} : { descripcion }),
       ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
     },
@@ -244,7 +248,7 @@ export function validateUpdateTransferencia(body: unknown): Validated<Actualizar
     const fecha = stringValue(body, "fecha");
     const error = validOptionalTimestamp(fecha);
     if (error || !fecha) return { error: error ?? "Falta fecha" };
-    patch.fecha = fecha;
+    patch.fecha = toTimestamp(fecha);
   }
   if (own(body, "descripcion")) {
     const descripcion = nullableStringValue(body, "descripcion");
@@ -301,7 +305,7 @@ export function validateCreateGasto(body: unknown): Validated<CrearGastoFinancie
       categoria: categoria!,
       importe,
       descripcion: descripcion!,
-      ...(fecha === undefined ? {} : { fecha }),
+      ...(fecha === undefined ? {} : { fecha: toTimestamp(fecha) }),
       ...(arregloId === undefined ? {} : { arregloId }),
       ...(operacionId === undefined ? {} : { operacionId }),
       ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
@@ -334,7 +338,7 @@ export function validateUpdateGasto(body: unknown): Validated<ActualizarGastoFin
     const fecha = stringValue(body, "fecha");
     const error = validOptionalTimestamp(fecha);
     if (error || !fecha) return { error: error ?? "Falta fecha" };
-    patch.fecha = fecha;
+    patch.fecha = toTimestamp(fecha);
   }
   if (own(body, "descripcion")) {
     const descripcion = stringValue(body, "descripcion");
@@ -423,11 +427,11 @@ export function mapMovimiento(row: unknown): MovimientoFinanciero | null {
   if (!source) return null;
   const id = asText(pick(source, "id", "movimiento_id"));
   const cuentaId = asText(pick(source, "cuenta_financiera_id", "cuenta_id", "cuentaId"));
-  const tipo = asText(pick(source, "tipo"));
+  const tipo = asText(pick(source, "tipo")) ?? "MOVIMIENTO";
   const importe = asNumber(pick(source, "importe"));
   const fecha = asTimestamp(pick(source, "fecha"));
   const createdAt = asTimestamp(pick(source, "created_at", "createdAt"));
-  if (!id || !cuentaId || !tipo || importe === null || !fecha || !createdAt) return null;
+  if (!id || !cuentaId || importe === null || !fecha || !createdAt) return null;
   return {
     id,
     cuentaId,
@@ -436,9 +440,8 @@ export function mapMovimiento(row: unknown): MovimientoFinanciero | null {
     fecha,
     descripcion: asNullableText(pick(source, "descripcion")),
     categoria: asNullableText(pick(source, "categoria_gasto", "categoria")),
-    arregloId: asNullableText(pick(source, "arreglo_id", "arregloId")),
     operacionId: asNullableText(pick(source, "operacion_id", "operacionId")),
-    reversaMovimientoId: asNullableText(pick(source, "reversa_movimiento_id", "reversaMovimientoId")),
+    reversaMovimientoId: null, // deprecated en nueva arquitectura
     createdAt,
   };
 }
@@ -476,7 +479,7 @@ export function mapGasto(row: unknown): GastoFinanciero | null {
   const cuentaId = asText(pick(source, "cuenta_financiera_id", "cuenta_id", "cuentaId"));
   const cuentaNombre = asNullableText(pick(source, "cuenta_financiera_nombre", "cuenta_nombre", "cuentaNombre"));
   const categoria = asText(pick(source, "categoria_gasto", "categoria"));
-  const importe = asNumber(pick(source, "importe"));
+  const importe = asNumber(pick(source, "importe", "monto"));
   const fecha = asTimestamp(pick(source, "fecha"));
   const descripcion = asText(pick(source, "descripcion"));
   const createdAt = asTimestamp(pick(source, "created_at", "createdAt"));
@@ -486,10 +489,10 @@ export function mapGasto(row: unknown): GastoFinanciero | null {
     cuentaId,
     cuentaNombre,
     categoria,
-    importe,
+    importe: Math.abs(importe), // el ledger almacena negativo, mostrar positivo
     fecha,
     descripcion,
-    reversaMovimientoId: asNullableText(pick(source, "reversa_movimiento_id", "reversaMovimientoId")),
+    reversaMovimientoId: null, // deprecated en nueva arquitectura
     createdAt,
   };
 }

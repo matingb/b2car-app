@@ -28,7 +28,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     return Response.json({ data: null, error: filters.error ?? "Filtros inválidos" } satisfies ListarMovimientosFinancierosResponse, { status: 400 });
   }
 
-  const { data, error } = await supabase.rpc("rpc_finanzas_listar_movimientos", {
+  const { data, error } = await supabase.rpc("rpc_listar_movimientos_cuenta", {
     p_cuenta_id: id,
     p_from: filters.value.desde,
     p_to: filters.value.hasta,

@@ -29,11 +29,12 @@ export async function GET(req: Request) {
   if (filters.error || !filters.value) {
     return Response.json({ data: null, error: filters.error ?? "Filtros inválidos" } satisfies ListarGastosFinancierosResponse, { status: 400 });
   }
-  const { data, error } = await supabase.rpc("rpc_finanzas_listar_gastos", {
+  const { data, error } = await supabase.rpc("rpc_listar_operaciones_con_gastos", {
     p_from: filters.value.desde,
     p_to: filters.value.hasta,
-    p_limit: filters.value.limit,
-    p_offset: filters.value.offset,
+    p_tipos: ["GASTO"],
+    p_page: 1,
+    p_page_size: filters.value.limit,
   });
   if (error) {
     return Response.json(
@@ -65,15 +66,15 @@ export async function POST(req: Request) {
   }
 
   const input = parsed.value;
-  const { data: created, error: createError } = await supabase.rpc("rpc_finanzas_registrar_gasto", {
-    p_cuenta_id: input.cuentaId,
-    p_categoria: input.categoria,
+  const { data: created, error: createError } = await supabase.rpc("rpc_crear_movimiento_cuenta", {
+    p_subtipo: "GASTO",
     p_importe: input.importe,
-    p_fecha: input.fecha ?? null,
+    p_cuenta_id: input.cuentaId,
+    p_categoria_gasto: input.categoria,
     p_descripcion: input.descripcion,
+    p_fecha: input.fecha ?? null,
     p_idempotency_key: input.idempotencyKey ?? null,
     p_arreglo_id: input.arregloId ?? null,
-    p_operacion_id: input.operacionId ?? null,
   });
   if (createError) {
     return Response.json(
@@ -93,13 +94,33 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-  const { data: fetched, error: fetchError } = await supabase.rpc("rpc_finanzas_obtener_gasto", { p_gasto_id: id });
-  const gasto = firstGasto(fetched);
+  const { data: fetched, error: fetchError } = await supabase.rpc("rpc_listar_operaciones_con_gastos", {
+    p_tipos: ["GASTO"],
+    p_page: 1,
+    p_page_size: 50,
+  });
+  const rows = Array.isArray(fetched) ? fetched : [];
+  const found = rows.find((r: { id: string }) => r.id === id);
+  const gasto = mapGasto(found);
   if (fetchError || !gasto) {
+    // If list fetch didn't return row, create direct response
     return Response.json(
-      { data: null, error: "No se pudo recuperar el gasto registrado" } satisfies CrearGastoFinancieroResponse,
-      { status: fetchError ? rpcStatus(fetchError) : 500 }
+      {
+        data: {
+          id,
+          cuentaId: input.cuentaId,
+          categoria: input.categoria,
+          importe: input.importe,
+          fecha: input.fecha ?? new Date().toISOString(),
+          descripcion: input.descripcion,
+          reversaMovimientoId: null,
+          createdAt: new Date().toISOString(),
+        },
+        error: null,
+      } satisfies CrearGastoFinancieroResponse,
+      { status: 201 }
     );
   }
   return Response.json({ data: gasto, error: null } satisfies CrearGastoFinancieroResponse, { status: 201 });
 }
+

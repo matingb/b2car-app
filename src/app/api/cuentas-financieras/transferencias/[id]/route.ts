@@ -3,21 +3,15 @@ import { createClient } from "@/supabase/server";
 import type {
   ActualizarTransferenciaFinancieraResponse,
   EliminarFinanzasResponse,
+  TransferenciaFinanciera,
 } from "@/model/finanzas";
 import {
-  asRows,
-  extractRpcId,
-  mapTransferencia,
   rpcStatus,
   validateUpdateTransferencia,
   validateUuid,
 } from "../../finanzasRouteUtils";
 
 type RouteContext = { params: Promise<{ id: string }> };
-
-function firstTransferencia(data: unknown) {
-  return mapTransferencia(asRows(data)[0]);
-}
 
 export async function PUT(req: NextRequest, { params }: RouteContext) {
   const supabase = await createClient();
@@ -37,25 +31,13 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
   }
 
   const input = parsed.value;
-  const { data: currentData, error: currentError } = await supabase.rpc("rpc_finanzas_obtener_transferencia", {
-    p_transferencia_id: id,
-  });
-  const current = firstTransferencia(currentData);
-  if (currentError || !current) {
-    const status = currentError ? rpcStatus(currentError) : 404;
-    return Response.json(
-      { data: null, error: status === 404 ? "Transferencia no encontrada" : "Error cargando transferencia" } satisfies ActualizarTransferenciaFinancieraResponse,
-      { status }
-    );
-  }
-
-  const { data: updated, error: updateError } = await supabase.rpc("rpc_finanzas_actualizar_transferencia", {
-    p_transferencia_id: id,
-    p_cuenta_origen_id: input.cuentaOrigenId ?? current.cuentaOrigenId,
-    p_cuenta_destino_id: input.cuentaDestinoId ?? current.cuentaDestinoId,
-    p_importe: input.importe ?? current.importe,
-    p_fecha: input.fecha ?? current.fecha,
-    p_descripcion: input.descripcion === undefined ? current.descripcion : input.descripcion,
+  const { error: updateError } = await supabase.rpc("rpc_actualizar_movimiento_cuenta", {
+    p_operacion_id: id,
+    p_cuenta_origen_id: input.cuentaOrigenId ?? null,
+    p_cuenta_destino_id: input.cuentaDestinoId ?? null,
+    p_importe: input.importe ?? null,
+    p_fecha: input.fecha ?? null,
+    p_descripcion: input.descripcion === undefined ? null : input.descripcion,
     p_idempotency_key: input.idempotencyKey ?? null,
   });
   if (updateError) {
@@ -66,28 +48,20 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     );
   }
 
-  const inlineTransferencia = firstTransferencia(updated);
-  if (inlineTransferencia) {
-    return Response.json({ data: inlineTransferencia, error: null } satisfies ActualizarTransferenciaFinancieraResponse, { status: 200 });
-  }
-  const updatedId = extractRpcId(updated);
-  if (!updatedId) {
-    return Response.json(
-      { data: null, error: "Respuesta inválida al actualizar transferencia" } satisfies ActualizarTransferenciaFinancieraResponse,
-      { status: 500 }
-    );
-  }
-  const { data: fetched, error: fetchError } = await supabase.rpc("rpc_finanzas_obtener_transferencia", {
-    p_transferencia_id: updatedId,
-  });
-  const transferencia = firstTransferencia(fetched);
-  if (fetchError || !transferencia) {
-    return Response.json(
-      { data: null, error: fetchError && rpcStatus(fetchError) === 404 ? "Transferencia no encontrada" : "No se pudo recuperar la transferencia actualizada" } satisfies ActualizarTransferenciaFinancieraResponse,
-      { status: fetchError ? rpcStatus(fetchError) : 500 }
-    );
-  }
-  return Response.json({ data: transferencia, error: null } satisfies ActualizarTransferenciaFinancieraResponse, { status: 200 });
+  const result: TransferenciaFinanciera = {
+    id,
+    cuentaOrigenId: input.cuentaOrigenId ?? "",
+    cuentaOrigenNombre: null,
+    cuentaDestinoId: input.cuentaDestinoId ?? "",
+    cuentaDestinoNombre: null,
+    importe: input.importe ?? 0,
+    fecha: input.fecha ?? new Date().toISOString(),
+    descripcion: input.descripcion ?? null,
+    reversaMovimientoId: null,
+    createdAt: new Date().toISOString(),
+  };
+
+  return Response.json({ data: result, error: null } satisfies ActualizarTransferenciaFinancieraResponse, { status: 200 });
 }
 
 export async function DELETE(req: NextRequest, { params }: RouteContext) {
@@ -100,13 +74,9 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
   const { id } = await params;
   const idError = validateUuid(id, "transferenciaId");
   if (idError) return Response.json({ error: idError } satisfies EliminarFinanzasResponse, { status: 400 });
-  const idempotencyKey = req.headers.get("x-idempotency-key")?.trim();
-  const idempotencyError = validateUuid(idempotencyKey, "X-Idempotency-Key");
-  if (idempotencyError) return Response.json({ error: idempotencyError } satisfies EliminarFinanzasResponse, { status: 400 });
 
-  const { data, error } = await supabase.rpc("rpc_finanzas_eliminar_transferencia", {
-    p_transferencia_id: id,
-    p_idempotency_key: idempotencyKey,
+  const { data, error } = await supabase.rpc("rpc_eliminar_movimiento_cuenta", {
+    p_operacion_id: id,
   });
   if (error || data === false) {
     const status = data === false ? 404 : rpcStatus(error);
@@ -117,3 +87,4 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
   }
   return Response.json({ error: null } satisfies EliminarFinanzasResponse, { status: 200 });
 }
+

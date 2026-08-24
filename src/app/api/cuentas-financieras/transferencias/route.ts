@@ -1,16 +1,10 @@
 import { createClient } from "@/supabase/server";
-import type { CrearTransferenciaFinancieraResponse } from "@/model/finanzas";
+import type { CrearTransferenciaFinancieraResponse, TransferenciaFinanciera } from "@/model/finanzas";
 import {
-  asRows,
   extractRpcId,
-  mapTransferencia,
   rpcStatus,
   validateCreateTransferencia,
 } from "../finanzasRouteUtils";
-
-function firstTransferencia(data: unknown) {
-  return mapTransferencia(asRows(data)[0]);
-}
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -25,12 +19,13 @@ export async function POST(req: Request) {
   }
 
   const input = parsed.value;
-  const { data: created, error: createError } = await supabase.rpc("rpc_finanzas_transferir", {
+  const { data: created, error: createError } = await supabase.rpc("rpc_crear_movimiento_cuenta", {
+    p_subtipo: "TRANSFERENCIA",
+    p_importe: input.importe,
     p_cuenta_origen_id: input.cuentaOrigenId,
     p_cuenta_destino_id: input.cuentaDestinoId,
-    p_importe: input.importe,
-    p_fecha: input.fecha ?? null,
     p_descripcion: input.descripcion ?? null,
+    p_fecha: input.fecha ?? null,
     p_idempotency_key: input.idempotencyKey ?? null,
   });
   if (createError) {
@@ -40,11 +35,6 @@ export async function POST(req: Request) {
     );
   }
 
-  const inlineTransferencia = firstTransferencia(created);
-  if (inlineTransferencia) {
-    return Response.json({ data: inlineTransferencia, error: null } satisfies CrearTransferenciaFinancieraResponse, { status: 201 });
-  }
-
   const id = extractRpcId(created);
   if (!id) {
     return Response.json(
@@ -52,15 +42,20 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-  const { data: fetched, error: fetchError } = await supabase.rpc("rpc_finanzas_obtener_transferencia", {
-    p_transferencia_id: id,
-  });
-  const transferencia = firstTransferencia(fetched);
-  if (fetchError || !transferencia) {
-    return Response.json(
-      { data: null, error: "No se pudo recuperar la transferencia registrada" } satisfies CrearTransferenciaFinancieraResponse,
-      { status: fetchError ? rpcStatus(fetchError) : 500 }
-    );
-  }
-  return Response.json({ data: transferencia, error: null } satisfies CrearTransferenciaFinancieraResponse, { status: 201 });
+
+  const result: TransferenciaFinanciera = {
+    id,
+    cuentaOrigenId: input.cuentaOrigenId,
+    cuentaOrigenNombre: null,
+    cuentaDestinoId: input.cuentaDestinoId,
+    cuentaDestinoNombre: null,
+    importe: input.importe,
+    fecha: input.fecha ?? new Date().toISOString(),
+    descripcion: input.descripcion ?? null,
+    reversaMovimientoId: null,
+    createdAt: new Date().toISOString(),
+  };
+
+  return Response.json({ data: result, error: null } satisfies CrearTransferenciaFinancieraResponse, { status: 201 });
 }
+

@@ -10,6 +10,8 @@ import {
   CircleDollarSign,
   ReceiptText,
   RotateCcw,
+  ShoppingCart,
+  TrendingUp,
 } from "lucide-react";
 import { formatFinancialDate, formatMoney } from "./finanzasUtils";
 
@@ -24,24 +26,36 @@ type Props = {
   loadingMore?: boolean;
 };
 
+const LABELS: Record<string, string> = {
+  APERTURA_CUENTA: "Saldo inicial",
+  GASTO: "Gasto",
+  COBRO_ARREGLO: "Cobro de arreglo",
+  COMPRA_STOCK: "Compra de stock",
+  VENTA_STOCK: "Venta de stock",
+  REVERSO: "Reverso",
+};
+
+const ICONS: Record<string, React.ReactNode> = {
+  APERTURA_CUENTA: <CircleDollarSign size={17} />,
+  GASTO: <ReceiptText size={17} />,
+  COBRO_ARREGLO: <CircleDollarSign size={17} />,
+  COMPRA_STOCK: <ShoppingCart size={17} />,
+  VENTA_STOCK: <TrendingUp size={17} />,
+  REVERSO: <RotateCcw size={17} />,
+};
+
 function getMovementPresentation(tipo: string, importe: number) {
-  switch (tipo) {
-    case "saldo_inicial":
-      return { label: "Saldo inicial", icon: <CircleDollarSign size={17} /> };
-    case "transferencia_entrada":
-      return { label: "Transferencia recibida", icon: <ArrowDownLeft size={17} /> };
-    case "transferencia_salida":
-      return { label: "Transferencia enviada", icon: <ArrowUpRight size={17} /> };
-    case "gasto":
-      return { label: "Gasto", icon: <ReceiptText size={17} /> };
-    case "ingreso":
-      return { label: "Ingreso", icon: <ArrowDownLeft size={17} /> };
-    default:
-      return {
-        label: importe < 0 ? "Egreso" : "Movimiento",
-        icon: <RotateCcw size={17} />,
-      };
+  if (tipo === "TRANSFERENCIA") {
+    return importe < 0
+      ? { label: "Transferencia enviada", icon: <ArrowUpRight size={17} /> }
+      : { label: "Transferencia recibida", icon: <ArrowDownLeft size={17} /> };
   }
+  const label = LABELS[tipo];
+  if (label) return { label, icon: ICONS[tipo] ?? <CircleDollarSign size={17} /> };
+  return {
+    label: importe < 0 ? "Egreso" : "Ingreso",
+    icon: <CircleDollarSign size={17} />,
+  };
 }
 
 export default function MovimientosFinancierosCard({

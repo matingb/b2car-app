@@ -148,9 +148,9 @@ export default function CuentaFinancieraDetailPage() {
   const handleDelete = async () => {
     if (!cuenta || deleting) return;
     const accepted = await confirm({
-      title: "Eliminar cuenta financiera",
-      message: `¿Querés eliminar la cuenta "${cuenta.nombre}"? Esta acción no se puede deshacer.`,
-      acceptLabel: "Eliminar",
+      title: "Dar de baja cuenta",
+      message: `¿Querés dar de baja la cuenta "${cuenta.nombre}"? La cuenta quedará inactiva y no se podrá usar para nuevos movimientos.`,
+      acceptLabel: "Dar de baja",
       cancelLabel: "Cancelar",
     });
     if (!accepted) return;
@@ -158,7 +158,7 @@ export default function CuentaFinancieraDetailPage() {
     setDeleting(true);
     try {
       await deleteCuenta(cuenta.id);
-      success("Cuenta eliminada", `${cuenta.nombre} se eliminó correctamente.`);
+      success("Cuenta dada de baja", `${cuenta.nombre} se dio de baja correctamente.`);
       router.push(ROUTES.cuentasFinancieras);
     } catch (err: unknown) {
       const message =

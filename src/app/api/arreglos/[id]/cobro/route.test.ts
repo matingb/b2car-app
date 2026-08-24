@@ -66,7 +66,7 @@ describe("/api/arreglos/[id]/cobro", () => {
     expect(rpc).toHaveBeenCalledWith("rpc_finanzas_cobrar_arreglo", {
       p_arreglo_id: ARREGLO_ID,
       p_cuenta_id: CUENTA_ID,
-      p_fecha_cobro: "2026-07-31",
+      p_fecha_cobro: "2026-07-31T12:00:00.000Z",
       p_idempotency_key: IDEMPOTENCY_KEY,
     });
     expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), arreglo.tenant_id);

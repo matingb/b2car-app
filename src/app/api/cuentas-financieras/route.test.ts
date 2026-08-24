@@ -82,7 +82,7 @@ describe("/api/cuentas-financieras", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("crea con los argumentos de la RPC y recupera la cuenta creada", async () => {
+  it("crea con los argumentos de la RPC y recupera la cuenta creada cuando retorna ID", async () => {
     const rpc = vi
       .fn()
       .mockResolvedValueOnce({ data: ACCOUNT_ID, error: null })
@@ -110,4 +110,37 @@ describe("/api/cuentas-financieras", () => {
     });
     expect(body.data).toMatchObject({ id: ACCOUNT_ID, saldoActual: 2300.5 });
   });
+
+  it("crea y retorna directamente la cuenta cuando la RPC devuelve la fila completa", async () => {
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({ data: [cuentaRow({ saldo_inicial: "1000", saldo: "1000" })], error: null });
+    vi.mocked(createClient).mockResolvedValue(mockSupabase({ rpc }));
+    const request = new Request("http://localhost/api/cuentas-financieras", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre: "Caja principal", tipo: "EFECTIVO", saldoInicial: 1000 }),
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith("rpc_finanzas_crear_cuenta", {
+      p_nombre: "Caja principal",
+      p_tipo: "EFECTIVO",
+      p_saldo_inicial: 1000,
+      p_fecha: null,
+      p_idempotency_key: null,
+    });
+    expect(body.data).toMatchObject({
+      id: ACCOUNT_ID,
+      nombre: "Caja principal",
+      tipo: "EFECTIVO",
+      saldoInicial: 1000,
+      saldoActual: 1000,
+    });
+  });
 });
+

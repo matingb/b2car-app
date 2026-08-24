@@ -128,7 +128,8 @@ export type TipoOperacion =
   | "GASTO"
   | "ASIGNACION_ARREGLO"
   | "AJUSTE"
-  | "TRANSFERENCIA";
+  | "TRANSFERENCIA"
+  | "MOVIMIENTO_CUENTA";
 
 export const TIPOS_OPERACIONES: TipoOperacion[] = [
   "COMPRA",
