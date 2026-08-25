@@ -17,7 +17,9 @@ type JsonRecord = Record<string, unknown>;
 
 export const ACCOUNT_TYPES: readonly TipoCuentaFinanciera[] = CUENTA_TIPOS;
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// PostgreSQL acepta UUIDs canónicos de cualquier versión. No restringimos la
+// versión para poder consultar registros históricos que usan UUIDs legacy.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_TEXT_LENGTH = 500;
 const MAX_DESCRIPTION_LENGTH = 2_000;

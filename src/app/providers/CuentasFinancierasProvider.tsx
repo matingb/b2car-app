@@ -27,6 +27,8 @@ export type CuentasFinancierasContextType = {
   loading: boolean;
   loadError: string | null;
   loadCuentas: () => Promise<void>;
+  /** Recarga las cuentas; alias público para las pantallas consumidoras. */
+  refresh: () => Promise<void>;
   getCuentaById: (id: string) => Promise<CuentaFinanciera | null>;
   createCuenta: (input: CrearCuentaFinancieraInput) => Promise<CuentaFinanciera>;
   updateCuenta: (
@@ -233,6 +235,7 @@ export function CuentasFinancierasProvider({
       loading,
       loadError,
       loadCuentas,
+      refresh: loadCuentas,
       getCuentaById,
       createCuenta,
       updateCuenta,

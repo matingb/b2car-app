@@ -77,7 +77,7 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
   const { cobrar, anularCobro, fetchById } = useArreglos();
   const { success, error } = useToast();
   const { confirm } = useModalMessage();
-  const { loading: loadingCuentas } = useCuentasFinancieras();
+  const { loading: loadingCuentas, createCuenta } = useCuentasFinancieras();
 
   const [loadingData, setLoadingData] = useState(false);
   const [arreglo, setArreglo] = useState<Arreglo | null>(null);

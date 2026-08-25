@@ -6,6 +6,7 @@ import { Calendar, Plus, Trash2 } from "lucide-react";
 import CuentaFinancieraAutocomplete, {
   CREATE_CUENTA_VALUE,
 } from "@/app/components/finanzas/CuentaFinancieraAutocomplete";
+import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import CuentaFinancieraFormFields, {
   type CuentaFinancieraDraft,
   EMPTY_CUENTA_FINANCIERA_DRAFT,

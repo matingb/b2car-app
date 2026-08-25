@@ -56,6 +56,7 @@ function TestProbe() {
     cuentasActivas,
     saldoTotal,
     loading,
+    refresh,
     createCuenta,
     updateCuenta,
     deleteCuenta,
@@ -115,6 +116,9 @@ function TestProbe() {
       >
         Obtener cuenta 1
       </button>
+      <button type="button" onClick={() => void refresh()}>
+        Recargar cuentas
+      </button>
     </div>
   );
 }
@@ -147,6 +151,30 @@ describe("CuentasFinancierasProvider", () => {
     expect(screen.getByTestId("cuentas-activas-count")).toHaveTextContent("1");
     // Only active account (Caja Principal: 2500) counts towards saldoTotal
     expect(screen.getByTestId("saldo-total")).toHaveTextContent("2500");
+  });
+
+  it("expone refresh para volver a cargar las cuentas", async () => {
+    const cuentasActualizadas = [{ ...initialCuentas[0], saldoActual: 3000 }];
+    listarCuentasMock
+      .mockResolvedValueOnce({ data: initialCuentas, error: null })
+      .mockResolvedValueOnce({ data: cuentasActualizadas, error: null });
+
+    render(
+      <CuentasFinancierasProvider>
+        <TestProbe />
+      </CuentasFinancierasProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading")).toHaveTextContent("ready");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Recargar cuentas" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("cuentas-count")).toHaveTextContent("1");
+      expect(screen.getByTestId("saldo-total")).toHaveTextContent("3000");
+    });
   });
 
   it("permite crear una cuenta y actualiza el estado local", async () => {
