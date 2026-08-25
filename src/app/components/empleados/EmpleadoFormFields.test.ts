@@ -48,15 +48,20 @@ describe("validateEmpleadoForm", () => {
     expect(validateEmpleadoForm(baseValues({ salario: null }))).toBe(true);
   });
 
-  it("acepta salario 0", () => {
-    expect(validateEmpleadoForm(baseValues({ salario: 0 }))).toBe(true);
+  it("acepta salario 0 con vigencia", () => {
+    expect(validateEmpleadoForm(baseValues({ salario: 0, salarioVigenteDesde: "2026-08" }))).toBe(true);
   });
 
-  it("acepta salario positivo", () => {
-    expect(validateEmpleadoForm(baseValues({ salario: 100000 }))).toBe(true);
+  it("acepta salario positivo con vigencia", () => {
+    expect(validateEmpleadoForm(baseValues({ salario: 100000, salarioVigenteDesde: "2026-08" }))).toBe(true);
+  });
+
+  it("rechaza salario si falta vigencia", () => {
+    expect(validateEmpleadoForm(baseValues({ salario: 100000, salarioVigenteDesde: "" }))).toBe(false);
+    expect(validateEmpleadoForm(baseValues({ salario: 100000, salarioVigenteDesde: "   " }))).toBe(false);
   });
 
   it("rechaza salario negativo", () => {
-    expect(validateEmpleadoForm(baseValues({ salario: -1 }))).toBe(false);
+    expect(validateEmpleadoForm(baseValues({ salario: -1, salarioVigenteDesde: "2026-08" }))).toBe(false);
   });
 });

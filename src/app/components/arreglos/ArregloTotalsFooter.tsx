@@ -8,13 +8,21 @@ export interface ArregloTotalsFooterProps {
   subtotalServicios: number;
   subtotalRepuestos: number;
   total: number;
+  totalCobrado?: number;
+  saldoPendiente?: number;
 }
 
 export default function ArregloTotalsFooter({
   subtotalServicios,
   subtotalRepuestos,
   total,
+  totalCobrado,
+  saldoPendiente,
 }: ArregloTotalsFooterProps) {
+  const hasCobros = totalCobrado != null && totalCobrado > 0;
+  const isFullyPaid = hasCobros && totalCobrado >= total && total > 0;
+  const effectiveSaldo = saldoPendiente != null ? saldoPendiente : Math.max(0, total - (totalCobrado || 0));
+
   return (
     <div style={styles.totalFooter}>
       <div style={styles.totalsRow}>
@@ -49,6 +57,21 @@ export default function ArregloTotalsFooter({
               minDecimals: 0,
             })}
           </div>
+          {hasCobros ? (
+            <div style={{ fontSize: 13, marginTop: 4, display: "flex", justifyContent: "flex-end", gap: 8, alignItems: "center" }}>
+              <span style={{ color: "#16a34a", fontWeight: 600 }}>
+                Cobrado: {formatArs(totalCobrado, { maxDecimals: 0 })}
+              </span>
+              {!isFullyPaid && effectiveSaldo > 0 ? (
+                <>
+                  <span style={{ color: COLOR.TEXT.TERTIARY }}>•</span>
+                  <span style={{ color: "#d97706", fontWeight: 600 }}>
+                    Pendiente: {formatArs(effectiveSaldo, { maxDecimals: 0 })}
+                  </span>
+                </>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

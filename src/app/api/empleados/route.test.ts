@@ -14,6 +14,7 @@ vi.mock("./empleadosService", async () => {
       ...actual.empleadosService,
       list: vi.fn(),
       create: vi.fn(),
+      recordSalarioChange: vi.fn(),
     },
   };
 });
@@ -55,6 +56,7 @@ describe("/api/empleados", () => {
     vi.mocked(createClient).mockResolvedValue({
       auth: { getSession: async () => ({ data: { session: { access_token: "t" } } }) },
     } as unknown as SupabaseClient);
+    vi.mocked(empleadosService.recordSalarioChange).mockResolvedValue({ error: null });
   });
 
   const postEmpleado = async (payload: Partial<CreateEmpleadoRequest>) => {
@@ -157,13 +159,22 @@ describe("/api/empleados", () => {
     expect(res.status).toBe(400);
   });
 
+  it("POST con salario pero sin salario_vigente_desde devuelve 400", async () => {
+    const { res } = await postEmpleado({ salario: 1000 });
+    expect(res.status).toBe(400);
+  });
+
   it("POST exitoso devuelve 201", async () => {
     vi.mocked(empleadosService.create).mockResolvedValue({
       data: createEmpleadoRow({ id: "EMP-1" }),
       error: null,
     });
 
-    const { res, body } = await postEmpleado({ salario: 1000, cumpleanos: "1990-05-15" });
+    const { res, body } = await postEmpleado({
+      salario: 1000,
+      salario_vigente_desde: "2026-05-01",
+      cumpleanos: "1990-05-15",
+    });
 
     expect(res.status).toBe(201);
     expect(body.data?.id).toBe("EMP-1");

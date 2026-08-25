@@ -38,23 +38,15 @@ export default function EmpleadoDetailPage() {
   const { success, error: errorToast } = useToast();
 
   const [empleado, setEmpleado] = useState<Empleado | null>(null);
-  const [notFound, setNotFound] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      const res = await getEmpleadoById(params.id);
-      if (cancelled) return;
-      if (!res) {
-        setNotFound(true);
-        setEmpleado(null);
-        return;
+    getEmpleadoById(params.id).then((res) => {
+      if (!cancelled && res) {
+        setEmpleado(res);
       }
-      setNotFound(false);
-      setEmpleado(res);
-    }
-    void load();
+    });
     return () => {
       cancelled = true;
     };
@@ -89,18 +81,7 @@ export default function EmpleadoDetailPage() {
     router.push(ROUTES.empleados);
   }, [confirm, empleado, errorToast, removeEmpleado, router, success]);
 
-  if (notFound) {
-    return (
-      <div>
-        <PageHeader />
-        <div style={styles.statusText}>
-          No se encontró el empleado solicitado.
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading && !empleado) {
+  if (isLoading) {
     return (
       <div>
         <PageHeader />
@@ -113,7 +94,7 @@ export default function EmpleadoDetailPage() {
     return (
       <div>
         <PageHeader />
-        <div style={styles.statusText}>Cargando...</div>
+        <div style={styles.statusText}>No se encontró el empleado solicitado.</div>
       </div>
     );
   }

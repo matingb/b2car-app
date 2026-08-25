@@ -1,6 +1,6 @@
 import { createClient } from '@/supabase/server'
 import type { NextRequest } from 'next/server'
-import { Vehiculo } from '@/model/types'
+import { TipoCliente, Vehiculo } from '@/model/types'
 import { empresaService } from '../empresaService'
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
@@ -30,7 +30,7 @@ export type UpdateEmpresaResponse = {
 };
 
 export type GetEmpresaByIdResponse = {
-  data: Empresa | null;
+  data: (Empresa & { tipo_cliente: TipoCliente.EMPRESA }) | null;
   error?: string | null;
 };
 

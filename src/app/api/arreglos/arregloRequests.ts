@@ -36,6 +36,9 @@ export type CreateArregloRequest = {
   observaciones?: string;
   precio_final?: number;
   esta_pago?: boolean;
+  cuenta_financiera_id?: string | null;
+  fecha_cobro?: string | null;
+  idempotency_key?: string | null;
   extra_data?: string;
 
   // opcional: creación "completa" desde el modal (1 POST)

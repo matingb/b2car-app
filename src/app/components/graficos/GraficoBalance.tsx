@@ -15,7 +15,7 @@ import { type Granularity } from "@/lib/dashboard/aggregation";
 
 type Props = {
     ingresosPorPeriodo?: Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>;
-    gastosPorPeriodo?: Array<{ label: string; repuestos: number; sueldos: number }>;
+    gastosPorPeriodo?: Array<{ label: string; repuestos: number; sueldos: number; eventuales: number }>;
     granularity?: Granularity;
 };
 
@@ -36,7 +36,7 @@ export default function GraficoBalance({ ingresosPorPeriodo, gastosPorPeriodo, g
 
         const chartData = (gastosPorPeriodo ?? []).map((d) => {
             const ingresos = ingresosMap.get(d.label) ?? 0;
-            const gastos = d.repuestos + d.sueldos;
+            const gastos = d.repuestos + d.sueldos + d.eventuales;
             return { label: d.label, ingresos, gastos };
         });
 
@@ -44,7 +44,7 @@ export default function GraficoBalance({ ingresosPorPeriodo, gastosPorPeriodo, g
             (s, d) => s + d.mano_de_obra + d.repuestos + d.ventas, 0
         );
         const totalGastos = (gastosPorPeriodo ?? []).reduce(
-            (s, d) => s + d.repuestos + d.sueldos, 0
+            (s, d) => s + d.repuestos + d.sueldos + d.eventuales, 0
         );
 
         const config: ChartConfig = {

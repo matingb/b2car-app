@@ -34,6 +34,7 @@ import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 import { useArregloPrintableInvoice } from "@/app/components/arreglos/hooks/useArregloPrintableInvoice";
 import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
 import CategoriaChip from "@/app/components/arreglos/lineas/shared/CategoriaChip";
+import { getArregloDeleteConfirmationMessage } from "@/app/components/arreglos/arregloDeleteConfirmation";
 import { css } from "@emotion/react";
 
 export interface ArregloSummaryCardProps {
@@ -90,7 +91,7 @@ export default function ArregloSummaryCard({
 
   const handleDeleteArreglo = async () => {
     const confirmed = await confirm({
-      message: "¿Estás seguro de que deseas eliminar este arreglo?",
+      message: getArregloDeleteConfirmationMessage(data.cobros?.length ?? 0),
       title: "Eliminar arreglo",
       acceptLabel: "Eliminar",
       cancelLabel: "Cancelar",
@@ -168,6 +169,13 @@ export default function ArregloSummaryCard({
               />
               <ArregloPagoBadge
                 estaPago={arreglo.esta_pago}
+                totalCobrado={arreglo.total_cobrado}
+                saldoPendiente={
+                  arreglo.saldo_pendiente != null
+                    ? arreglo.saldo_pendiente
+                    : Math.max(0, (arreglo.precio_final || 0) - (arreglo.total_cobrado || 0))
+                }
+                precioFinal={arreglo.precio_final}
                 arregloId={arreglo.id}
                 onPagoUpdated={onArregloChange}
                 size="md"

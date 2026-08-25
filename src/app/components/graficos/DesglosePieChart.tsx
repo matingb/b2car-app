@@ -12,14 +12,23 @@ import { formatNumberAr } from "@/lib/format";
 import GraficoTooltip from "./GraficoTooltip";
 import { ChevronDown } from "lucide-react";
 import { getStyles } from "./DesglosePieChart.styles";
-import DesglosePieChartList, { ChartDataItem } from "./DesglosePieChartList";
+import DesglosePieChartList from "./DesglosePieChartList";
 
 export type DesgloseItem = {
     label: string;
     cantidad: number;
     monto: number;
-    subItems?: DesgloseItem[];
     fill?: string;
+};
+
+export type DesglosePieChartSubItem = DesgloseItem & {
+    key: string;
+    porcentaje: number;
+    fill: string;
+};
+
+export type DesglosePieChartDataItem = DesglosePieChartSubItem & {
+    subItems?: DesglosePieChartSubItem[];
 };
 
 type Props = {
@@ -64,7 +73,6 @@ function getDistributedColor(idx: number, totalItems: number, palette: string[])
     const mappedIdx = Math.round((idx / (totalItems - 1)) * (palette.length - 1));
     return palette[mappedIdx];
 }
-
 export default function DesglosePieChart({ items, montoLabel = "Monto", variant = "default", maxItems = 5 }: Props) {
     const [showListOnMobile, setShowListOnMobile] = useState(false);
     const [expandedOtros, setExpandedOtros] = useState(false);
@@ -108,16 +116,14 @@ export default function DesglosePieChart({ items, montoLabel = "Monto", variant 
         const processedItems = [...safeItems].sort((a, b) => b.monto - a.monto);
         const total = processedItems.reduce((acc, item) => acc + Number(item?.monto ?? 0), 0);
 
-        const itemsWithColor: ChartDataItem[] = processedItems.map((item, idx) => ({
+        const itemsWithColor: DesglosePieChartSubItem[] = processedItems.map((item, idx) => ({
+            ...item,
             key: `linea_${idx}`,
-            label: item.label,
-            cantidad: item.cantidad,
-            monto: item.monto,
             porcentaje: total > 0 ? (item.monto / total) * 100 : 0,
-            fill: getDistributedColor(idx, processedItems.length, colors),
+            fill: getDistributedColor(idx, processedItems.length, colors)
         }));
 
-        let pieDataItems = [...itemsWithColor];
+        let pieDataItems: DesglosePieChartDataItem[] = [...itemsWithColor];
 
         if (pieDataItems.length > maxItems + 1) {
             const top = pieDataItems.slice(0, maxItems);
@@ -129,24 +135,37 @@ export default function DesglosePieChart({ items, montoLabel = "Monto", variant 
             pieDataItems = [
                 ...top,
                 {
-                    key: "linea_otros",
+                    key: "otros",
                     label: "Otros",
-                    cantidad: restCantidad,
                     monto: restMonto,
+                    cantidad: restCantidad,
                     porcentaje: total > 0 ? (restMonto / total) * 100 : 0,
-                    fill: "#94a3b8", // Static gray for the "Otros" group slice
                     subItems: rest,
+                    fill: "#94a3b8", // Static gray for the "Otros" group slice
                 },
             ];
         }
 
-        const data: ChartDataItem[] = pieDataItems;
+        const keys = pieDataItems.map((_, idx) => `linea_${idx}`);
+
+        const data: DesglosePieChartDataItem[] = keys.map((key, idx) => {
+            const item = pieDataItems[idx];
+            return {
+                key,
+                label: item.label ?? key,
+                cantidad: Number(item.cantidad ?? 0),
+                monto: item.monto,
+                porcentaje: item.porcentaje,
+                fill: item.fill,
+                subItems: item.subItems,
+            };
+        });
 
         const config: ChartConfig = {};
-        data.forEach((item) => {
-            config[item.key] = {
-                label: item.label ?? item.key,
-                color: item.fill ?? colors[0],
+        keys.forEach((key, idx) => {
+            config[key] = {
+                label: pieDataItems[idx]?.label ?? key,
+                color: pieDataItems[idx]?.fill ?? colors[0],
             };
         });
 

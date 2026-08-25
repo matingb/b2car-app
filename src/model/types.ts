@@ -65,6 +65,19 @@ export const ESTADOS_ARREGLO: EstadoArreglo[] = [
   "TERMINADO",
 ];
 
+export type EstadoPagoArreglo = "PENDIENTE" | "PARCIAL" | "PAGADO" | "SOBREPAGO";
+
+export interface CobroArregloItem {
+  id: string;
+  operacion_id: string;
+  importe: number;
+  cuenta_id: string;
+  cuenta_nombre: string;
+  descripcion?: string | null;
+  fecha: string;
+  created_at: string;
+}
+
 export interface Arreglo {
   id: UUID;
   vehiculo: Vehiculo;
@@ -78,6 +91,11 @@ export interface Arreglo {
   precio_final: number;
   precio_sin_iva: number;
   esta_pago: boolean;
+  total_cobrado?: number;
+  saldo_pendiente?: number;
+  cobros?: CobroArregloItem[];
+  fecha_cobro?: string | null;
+  movimiento_financiero_id?: string | null;
   extra_data: string;
   categorias?: string[];
   empleados?: Array<{ id: string; nombre: string; apellido?: string }>;
@@ -123,14 +141,21 @@ export interface OperacionLinea {
 export type TipoOperacion =
   | "COMPRA"
   | "VENTA"
+  | "GASTO"
   | "ASIGNACION_ARREGLO"
+  | "COBRO_ARREGLO"
   | "AJUSTE"
-  | "TRANSFERENCIA";
+  | "INGRESO"
+  | "APERTURA_CUENTA"
+  | "TRANSFERENCIA"
+  | "MOVIMIENTO_CUENTA";
 
 export const TIPOS_OPERACIONES: TipoOperacion[] = [
   "COMPRA",
   "VENTA",
+  "GASTO",
   "ASIGNACION_ARREGLO",
+  "COBRO_ARREGLO",
   //"AJUSTE",
   //"TRANSFERENCIA",
 ];
@@ -138,10 +163,20 @@ export const TIPOS_OPERACIONES: TipoOperacion[] = [
 export interface Operacion {
   id: UUID;
   tipo: TipoOperacion;
-  taller_id: UUID;
+  /** Los gastos son globales del tenant y no pertenecen a un taller. */
+  taller_id: UUID | null;
   fecha: string;
   created_at: string;
   lineas: OperacionLinea[];
+  /** Los gastos se proyectan en Operaciones, pero no son operaciones de stock. */
+  gasto_id?: UUID;
+  descripcion?: string;
+  categoria_gasto?: string;
+  cuenta_financiera_id?: UUID;
+  cuenta_financiera_nombre?: string;
+  monto?: number;
+  /** Arreglo asociado cuando la operación corresponde a uno de sus cobros. */
+  arreglo_id?: UUID;
 }
 
 export type OperacionesFilters = {

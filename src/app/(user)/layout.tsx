@@ -6,6 +6,7 @@ import { SessionProvider } from "@/app/providers/SessionProvider";
 import { ModalMessageProvider } from "@/app/providers/ModalMessageProvider";
 import { SheetProvider } from "@/app/providers/SheetProvider";
 import { TenantProvider } from "@/app/providers/TenantProvider";
+import { CuentasFinancierasProvider } from "@/app/providers/CuentasFinancierasProvider";
 import Divider from "@/app/components/ui/Divider";
 import { PanelLeft } from "lucide-react";
 import { COLOR } from "@/theme/theme";
@@ -46,87 +47,89 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <TenantProvider>
-        <ModalMessageProvider>
-          <SheetProvider>
-            <div style={s.appRoot}>
-              <div css={s.pageContent}>
-                <aside
-                  css={s.sidebarResponsive}
-                  style={s.sidebar}
-                  aria-label="Sidebar"
-                >
-                  <div style={s.card}>
-                    <div style={s.sidebarHeaderRow}>
-                      <div
-                        style={s.brandBadge}
-                        onClick={() => setCollapsed((v) => !v)}
-                        title={collapsed ? "Expandir" : "Colapsar"}
-                        aria-label={
-                          collapsed ? "Expandir sidebar" : "Colapsar sidebar"
-                        }
-                      >
-                        <PanelLeft style={{ width: "3rem" }} size={18} />
+        <CuentasFinancierasProvider>
+          <ModalMessageProvider>
+            <SheetProvider>
+              <div style={s.appRoot}>
+                <div css={s.pageContent}>
+                  <aside
+                    css={s.sidebarResponsive}
+                    style={s.sidebar}
+                    aria-label="Sidebar"
+                  >
+                    <div style={s.card}>
+                      <div style={s.sidebarHeaderRow}>
+                        <div
+                          style={s.brandBadge}
+                          onClick={() => setCollapsed((v) => !v)}
+                          title={collapsed ? "Expandir" : "Colapsar"}
+                          aria-label={
+                            collapsed ? "Expandir sidebar" : "Colapsar sidebar"
+                          }
+                        >
+                          <PanelLeft style={{ width: "3rem" }} size={18} />
+                        </div>
+                        {!collapsed && (
+                          <Divider
+                            orientation="vertical"
+                            style={{
+                              margin: "0.5rem 0.5rem",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          />
+                        )}
+                        <div style={s.brandTextWrap}>
+                          <TenantNameText
+                            name={tenantName}
+                            maxFontSize={20}
+                            minFontSize={6}
+                            style={s.title}
+                          />
+                        </div>
                       </div>
-                      {!collapsed && (
-                        <Divider
-                          orientation="vertical"
-                          style={{
-                            margin: "0.5rem 0.5rem",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        />
-                      )}
-                      <div style={s.brandTextWrap}>
-                        <TenantNameText
-                          name={tenantName}
-                          maxFontSize={20}
-                          minFontSize={6}
-                          style={s.title}
-                        />
-                      </div>
-                    </div>
 
-                    <nav css={s.navList}>
-                      {items.map((item) => {
-                        const showDivider =
-                          item.key === SidebarMenuKey.Logout ||
-                          item.key === SidebarMenuKey.Clientes ||
-                          item.key === SidebarMenuKey.Productos ||
-                          item.key === SidebarMenuKey.Empleados;
-                        return (
-                          <div key={item.key}>
-                            {showDivider ? (
-                              <Divider
-                                style={{
-                                  width: collapsed ? "100%" : "100%",
-                                  marginBottom: collapsed ? "0.5rem" : "0.5rem",
-                                }}
+                      <nav css={s.navList}>
+                        {items.map((item) => {
+                          const showDivider =
+                            item.key === SidebarMenuKey.Logout ||
+                            item.key === SidebarMenuKey.Clientes ||
+                            item.key === SidebarMenuKey.Productos ||
+                            item.key === SidebarMenuKey.Empleados;
+                          return (
+                            <div key={item.key}>
+                              {showDivider ? (
+                                <Divider
+                                  style={{
+                                    width: collapsed ? "100%" : "100%",
+                                    marginBottom: collapsed ? "0.5rem" : "0.5rem",
+                                  }}
+                                />
+                              ) : null}
+                              <SidebarItem
+                                href={item.href}
+                                label={item.label}
+                                icon={item.icon}
+                                disabled={item.disabled}
+                                isLoading={item.isLoading}
+                                collapsed={collapsed}
+                                onClick={item.onClick}
                               />
-                            ) : null}
-                            <SidebarItem
-                              href={item.href}
-                              label={item.label}
-                              icon={item.icon}
-                              disabled={item.disabled}
-                              isLoading={item.isLoading}
-                              collapsed={collapsed}
-                              onClick={item.onClick}
-                            />
-                          </div>
-                        );
-                      })}
-                    </nav>
-                  </div>
-                </aside>
+                            </div>
+                          );
+                        })}
+                      </nav>
+                    </div>
+                  </aside>
 
-                <main style={s.main}>
-                  <div css={s.cardMain}>{children}</div>
-                </main>
+                  <main style={s.main}>
+                    <div css={s.cardMain}>{children}</div>
+                  </main>
+                </div>
               </div>
-            </div>
-          </SheetProvider>
-        </ModalMessageProvider>
+            </SheetProvider>
+          </ModalMessageProvider>
+        </CuentasFinancierasProvider>
       </TenantProvider>
     </SessionProvider>
   );

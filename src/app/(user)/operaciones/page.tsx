@@ -12,25 +12,32 @@ import { useInventario } from "@/app/providers/InventarioProvider";
 import type { Operacion } from "@/model/types";
 import type { StockItem } from "@/model/stock";
 import { formatDateLabel } from "@/lib/fechas";
+import { formatArs } from "@/lib/format";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import {
+    ArrowDownRight,
     ArrowLeftRight,
+    ArrowUpRight,
     CircleDollarSign,
     PlusIcon,
     Receipt,
     SlidersHorizontal,
     Truck,
+    WalletCards,
     Wrench,
 } from "lucide-react";
 import { TipoOperacion, TIPOS_OPERACIONES } from "@/model/types";
 import { useTenant } from "@/app/providers/TenantProvider";
-import CardDato from "@/app/components/graficos/CardDato";
 import Color from "color";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 import LineDetalleOperacion from "@/app/components/operaciones/LineDetalleOperacion";
 import Button from "@/app/components/ui/Button";
 import { useToast } from "@/app/providers/ToastProvider";
+import { useModalMessage } from "@/app/providers/ModalMessageProvider";
+import { finanzasClient } from "@/clients/finanzasClient";
+import type { GastoFinanciero } from "@/model/finanzas";
+import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 
 
 const tipoConfig: Record<
@@ -49,11 +56,23 @@ const tipoConfig: Record<
         color: COLOR.SEMANTIC.SUCCESS,
         bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
     },
+    GASTO: {
+        label: "Gasto",
+        icon: <WalletCards size={18} />,
+        color: COLOR.SEMANTIC.DANGER,
+        bg: Color(COLOR.SEMANTIC.DANGER).alpha(0.12).toString(),
+    },
     ASIGNACION_ARREGLO: {
         label: "Asignación",
         icon: <Wrench size={18} />,
         color: COLOR.SEMANTIC.INFO,
         bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
+    },
+    COBRO_ARREGLO: {
+        label: "Cobro de arreglo",
+        icon: <CircleDollarSign size={18} />,
+        color: COLOR.SEMANTIC.SUCCESS,
+        bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
     },
     AJUSTE: {
         label: "Ajuste",
@@ -61,26 +80,73 @@ const tipoConfig: Record<
         color: COLOR.SEMANTIC.WARNING,
         bg: Color(COLOR.SEMANTIC.WARNING).alpha(0.12).toString(),
     },
+    INGRESO: {
+        label: "Ingreso",
+        icon: <CircleDollarSign size={18} />,
+        color: COLOR.SEMANTIC.SUCCESS,
+        bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
+    },
+    APERTURA_CUENTA: {
+        label: "Apertura de cuenta",
+        icon: <WalletCards size={18} />,
+        color: COLOR.SEMANTIC.INFO,
+        bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
+    },
     TRANSFERENCIA: {
         label: "Transferencia",
         icon: <ArrowLeftRight size={18} />,
         color: COLOR.SEMANTIC.DISABLED,
         bg: Color(COLOR.SEMANTIC.DISABLED).alpha(0.12).toString(),
     },
+    MOVIMIENTO_CUENTA: {
+        label: "Movimiento",
+        icon: <WalletCards size={18} />,
+        color: COLOR.SEMANTIC.INFO,
+        bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
+    },
 };
 
-function shortId(value: string) {
+function shortId(value?: string | null) {
     if (!value) return "-";
     return value.slice(0, 8).toUpperCase();
 }
 
 function getTotals(operacion: Operacion) {
+    if (["GASTO", "COBRO_ARREGLO", "INGRESO", "APERTURA_CUENTA", "TRANSFERENCIA", "MOVIMIENTO_CUENTA"].includes(operacion.tipo)) {
+        return { totalLineas: 0, totalMonto: Number(operacion.monto) || 0 };
+    }
     const totalLineas = operacion.lineas?.length ?? 0;
     const totalMonto = (operacion.lineas ?? []).reduce(
         (acc, linea) => acc + (linea.cantidad || 0) * (linea.monto_unitario || 0),
         0
     );
     return { totalLineas, totalMonto };
+}
+
+export function formatOperacionCardAmount(value: number) {
+    return formatArs(value, { maxDecimals: 0, minDecimals: 0 });
+}
+
+function ResumenMetrica({
+    label,
+    value,
+    color,
+}: {
+    label: string;
+    value: number | undefined;
+    color: string;
+}) {
+    const numericValue = Number(value) || 0;
+    const animatedValue = useAnimatedNumber(numericValue);
+
+    return (
+        <div css={styles.resumenMetrica}>
+            <span css={styles.resumenMetricaLabel}>{label}</span>
+            <strong css={styles.resumenMetricaValor} style={{ color }}>
+                {formatOperacionCardAmount(animatedValue ?? numericValue)}
+            </strong>
+        </div>
+    );
 }
 
 export default function OperacionesPage() {
@@ -91,6 +157,7 @@ export default function OperacionesPage() {
         stats,
         setSelectedTipos,
         remove,
+        refresh,
         period,
         setPeriod,
         pagination,
@@ -100,13 +167,30 @@ export default function OperacionesPage() {
     const { talleres } = useTenant();
     const { getStockById } = useInventario();
     const { success, error } = useToast();
+    const { confirm } = useModalMessage();
     const [search, setSearch] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
+    const [initialTipo, setInitialTipo] = useState<TipoOperacion>("VENTA");
+    const [cuentaGastoPreseleccionadaId, setCuentaGastoPreseleccionadaId] = useState<string | null>(null);
+    const [gastoEdit, setGastoEdit] = useState<GastoFinanciero | null>(null);
     const [expandedOperacionId, setExpandedOperacionId] = useState<string | null>(null);
     const [stocksById, setStocksById] = useState<Record<string, StockItem>>({});
     const loadedStockIdsRef = useRef<Set<string>>(new Set());
     const loadingInitial = loading && operaciones.length === 0;
     const loadingMore = loading && operaciones.length > 0;
+    const neto = Number(stats?.neto) || 0;
+    const animatedNeto = useAnimatedNumber(neto);
+    const netoVisible = animatedNeto ?? neto;
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("nuevo") !== "gasto") return;
+
+        setCuentaGastoPreseleccionadaId(params.get("cuenta_financiera_id"));
+        setInitialTipo("GASTO");
+        setCreateOpen(true);
+        window.history.replaceState(null, "", window.location.pathname);
+    }, []);
 
     useEffect(() => {
         const ids = new Set<string>();
@@ -156,6 +240,9 @@ export default function OperacionesPage() {
                 const { totalLineas, totalMonto } = getTotals(o);
                 return [
                     o.tipo,
+                    o.descripcion,
+                    o.categoria_gasto,
+                    o.cuenta_financiera_nombre,
                     talleres.find(t => t.id === o.taller_id)?.nombre || shortId(o.taller_id),
                     formatDateLabel(o.created_at),
                     String(totalLineas),
@@ -168,13 +255,48 @@ export default function OperacionesPage() {
 
     const handleDelete = useCallback(async (operacion: Operacion) => {
         try {
+            if (operacion.tipo === "COBRO_ARREGLO") {
+                const accepted = await confirm({
+                    title: "Eliminar cobro",
+                    message: "Al eliminar este cobro se revertira el ingreso de la cuenta y se actualizara el estado de pago del arreglo asociado.",
+                    acceptLabel: "Eliminar cobro",
+                    cancelLabel: "Cancelar",
+                });
+                if (!accepted) return;
+            }
+            if (operacion.tipo === "GASTO") {
+                const gastoId = operacion.gasto_id ?? operacion.id;
+                const response = await finanzasClient.eliminarGasto(gastoId);
+                if (response.error) throw new Error(response.error);
+                await refresh();
+                success("Gasto eliminado", "El gasto se revirtió correctamente.");
+                return;
+            }
             await remove(operacion.id);
             success("Operación eliminada", "La operación se eliminó correctamente.");
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "No se pudo eliminar la operación";
             error("Error eliminando operación", message);
         }
-    }, [error, remove, success]);
+    }, [confirm, error, refresh, remove, success]);
+
+    const handleEditGasto = useCallback((operacion: Operacion) => {
+        const gastoId = operacion.gasto_id ?? operacion.id;
+        setGastoEdit({
+            id: gastoId,
+            cuentaId: operacion.cuenta_financiera_id ?? "",
+            categoria: operacion.categoria_gasto ?? "OTROS",
+            importe: Number(operacion.monto) || 0,
+            fecha: operacion.fecha,
+            descripcion: operacion.descripcion ?? "",
+            arregloId: null,
+            operacionId: null,
+            createdAt: operacion.created_at,
+            updatedAt: operacion.created_at,
+        });
+        setInitialTipo("GASTO");
+        setCreateOpen(true);
+    }, []);
 
     return (
         <div>
@@ -186,34 +308,41 @@ export default function OperacionesPage() {
                 <PeriodSelector value={period} onChange={setPeriod} />
             </div>
             <div css={styles.cardDatosContainer}>
-                <CardDato
-                    titleText="Ventas"
-                    value={stats?.ventas}
-                    prefix="$"
-                    icon={<Receipt size={22} color={COLOR.SEMANTIC.SUCCESS} />}
-                    style={{ color: COLOR.SEMANTIC.SUCCESS }}
-                />
-                <CardDato
-                    titleText="Compras"
-                    value={stats?.compras}
-                    prefix="$"
-                    icon={<Truck size={22} color={COLOR.SEMANTIC.DANGER} />}
-                    style={{ color: COLOR.SEMANTIC.DANGER }}
-                />
-                <CardDato
-                    titleText="Asignaciones"
-                    value={stats?.asignaciones}
-                    prefix="$"
-                    icon={<Wrench size={22} color={COLOR.SEMANTIC.INFO} />}
-                    style={{ color: COLOR.SEMANTIC.INFO }}
-                />
-                <CardDato
-                    titleText="Resultado Mensual"
-                    value={Math.abs(stats?.neto ?? 0)}
-                    prefix={ stats && stats.neto >= 0 ? "$" : "-$"}
-                    icon={<CircleDollarSign size={22} color={COLOR.SEMANTIC.SUCCESS} />}
-                    style={{ color: COLOR.SEMANTIC.SUCCESS }}
-                />
+                <Card style={styles.resumenGrupoCard} aria-label="Resumen de ingresos">
+                    <div css={styles.resumenGrupoTitulo}>
+                        <ArrowUpRight size={24} color={COLOR.SEMANTIC.SUCCESS} />
+                        Ingresos
+                    </div>
+                    <div css={styles.resumenMetricas}>
+                        <ResumenMetrica label="Ventas" value={stats?.ventas} color={COLOR.SEMANTIC.SUCCESS} />
+                        <ResumenMetrica label="Cobros de arreglos" value={stats?.cobros} color={COLOR.SEMANTIC.SUCCESS} />
+                    </div>
+                </Card>
+
+                <Card style={styles.resumenGrupoCard} aria-label="Resumen de egresos">
+                    <div css={styles.resumenGrupoTitulo}>
+                        <ArrowDownRight size={24} color={COLOR.SEMANTIC.DANGER} />
+                        Egresos
+                    </div>
+                    <div css={styles.resumenMetricas}>
+                        <ResumenMetrica label="Compras" value={stats?.compras} color={COLOR.SEMANTIC.DANGER} />
+                        <ResumenMetrica label="Repuestos usados" value={stats?.asignaciones} color={COLOR.SEMANTIC.DANGER} />
+                        <ResumenMetrica label="Gastos eventuales" value={stats?.gastos} color={COLOR.SEMANTIC.DANGER} />
+                    </div>
+                </Card>
+
+                <Card
+                    style={{ ...styles.resultadoCard, color: neto >= 0 ? COLOR.SEMANTIC.SUCCESS : COLOR.SEMANTIC.DANGER }}
+                    aria-label="Resultado del período"
+                >
+                    <div css={styles.resultadoTitulo}>
+                        <CircleDollarSign size={24} />
+                        Resultado del período
+                    </div>
+                    <strong css={styles.resultadoValor}>
+                        {netoVisible < 0 ? "-" : ""}{formatOperacionCardAmount(Math.abs(netoVisible))}
+                    </strong>
+                </Card>
             </div>
             <div style={styles.searchBarContainer}>
                 <div style={styles.searchRow}>
@@ -226,7 +355,12 @@ export default function OperacionesPage() {
                     <Button
                         icon={<PlusIcon size={20} />}
                         text="Nueva operación"
-                        onClick={() => setCreateOpen(true)}
+                        onClick={() => {
+                            setInitialTipo("VENTA");
+                            setCuentaGastoPreseleccionadaId(null);
+                            setGastoEdit(null);
+                            setCreateOpen(true);
+                        }}
                         css={styles.createButton}
                     />
                 </div>
@@ -296,6 +430,7 @@ export default function OperacionesPage() {
                                 onDelete={() => {
                                     void handleDelete(operacion);
                                 }}
+                                onEdit={operacion.tipo === "GASTO" ? () => handleEditGasto(operacion) : undefined}
                             />
                         );
                     })}
@@ -307,7 +442,15 @@ export default function OperacionesPage() {
                 <OperacionCreateModal
                     open={createOpen}
                     talleres={talleres}
-                    onClose={() => setCreateOpen(false)}
+                    initialTipo={initialTipo}
+                    initialCuentaId={cuentaGastoPreseleccionadaId}
+                    gasto={gastoEdit}
+                    onClose={() => {
+                        setCreateOpen(false);
+                        setInitialTipo("VENTA");
+                        setCuentaGastoPreseleccionadaId(null);
+                        setGastoEdit(null);
+                    }}
                 />
             ) : null}
         </div>
@@ -327,13 +470,90 @@ const styles = {
         gap: 16,
         marginTop: 12,
         marginBottom: 16,
-        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-        [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-        },
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
         [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
             gridTemplateColumns: "repeat(1, minmax(0, 1fr))",
         },
+    }),
+    resumenGrupoCard: {
+        padding: "4px",
+        display: "flex",
+        flexDirection: "column" as const,
+    },
+    resumenGrupoTitulo: css({
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "12px 12px 4px",
+        color: COLOR.TEXT.PRIMARY,
+        fontSize: 22,
+        lineHeight: 1,
+        fontWeight: 600,
+        "& > svg": {
+            display: "block",
+            flexShrink: 0,
+        },
+    }),
+    resumenMetricas: css({
+        display: "flex",
+        flexDirection: "column",
+        flex: 1,
+        "& > :not(:last-child)": {
+            borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+        },
+    }),
+    resumenMetrica: css({
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) auto",
+        alignItems: "baseline",
+        columnGap: 16,
+        minWidth: 0,
+        padding: "14px 16px",
+    }),
+    resumenMetricaLabel: css({
+        color: COLOR.TEXT.SECONDARY,
+        fontSize: 18,
+        lineHeight: 1.3,
+    }),
+    resumenMetricaValor: css({
+        fontSize: "clamp(20px, 2.5vw, 40px)",
+        lineHeight: 1.15,
+        whiteSpace: "nowrap",
+        textAlign: "right",
+        fontVariantNumeric: "tabular-nums",
+    }),
+    resultadoCard: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 16,
+        flexWrap: "wrap" as const,
+        gridColumn: "1 / -1",
+        minHeight: 88,
+        order: -1,
+    },
+    resultadoTitulo: css({
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        color: "inherit",
+        fontSize: 22,
+        lineHeight: 1,
+        fontWeight: 700,
+        textTransform: "uppercase",
+        letterSpacing: "0.04em",
+        "& > svg": {
+            display: "block",
+            flexShrink: 0,
+        },
+    }),
+    resultadoValor: css({
+        color: "inherit",
+        fontSize: "clamp(28px, 4vw, 44px)",
+        lineHeight: 1.1,
+        whiteSpace: "nowrap",
+        fontVariantNumeric: "tabular-nums",
+        marginLeft: "auto",
     }),
     searchBarContainer: {
         display: "flex",

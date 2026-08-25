@@ -13,9 +13,18 @@ export interface DropdownOption {
     value: string;
     onChange: (value: string) => void;
     style?: React.CSSProperties;
+    dataTestId?: string;
+    disabled?: boolean;
   }
 
-export default function Dropdown({ options, value, onChange, style }: DropdownProps) {
+export default function Dropdown({
+    options,
+    value,
+    onChange,
+    style,
+    dataTestId,
+    disabled = false,
+}: DropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties | null>(null);
@@ -100,14 +109,28 @@ export default function Dropdown({ options, value, onChange, style }: DropdownPr
 
     return (
         <div ref={containerRef} style={{ ...styles.container, ...style }}>
-            <div
+            <button
+                type="button"
                 role="button"
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
-                tabIndex={0}
-                style={{ ...styles.trigger, ...style }}
-                onClick={() => setIsOpen((prev) => !prev)}
-                onKeyDown={handleKeyDown}
+                aria-disabled={disabled}
+                disabled={disabled}
+                tabIndex={disabled ? -1 : 0}
+                style={{
+                    ...styles.trigger,
+                    ...(disabled ? { opacity: 0.6, cursor: "not-allowed" } : {}),
+                    ...style,
+                }}
+                onClick={() => {
+                    if (disabled) return;
+                    setIsOpen((prev) => !prev);
+                }}
+                onKeyDown={(e) => {
+                    if (disabled) return;
+                    handleKeyDown(e);
+                }}
+                data-testid={dataTestId}
             >
                 <span style={styles.label}>{options.find((option: DropdownOption) => option.value === value)?.label}</span>
                 <ChevronDown
@@ -119,7 +142,7 @@ export default function Dropdown({ options, value, onChange, style }: DropdownPr
                         flexShrink: 0,
                     }}
                 />
-            </div>
+            </button>
 
             {isOpen
                 ? createPortal(
@@ -137,6 +160,7 @@ export default function Dropdown({ options, value, onChange, style }: DropdownPr
                                     }}
                                     onClick={() => handleSelect(option)}
                                     onMouseEnter={() => setHighlightedIndex(index)}
+                                    data-testid={dataTestId ? `${dataTestId}-option-${option.value}` : undefined}
                                 >
                                     <span style={styles.optionLabel}>{option.label}</span>
                                 </div>
@@ -173,9 +197,6 @@ const styles = {
         boxSizing: "border-box" as const,
         userSelect: "none" as const,
     },
-    label: {
-        flex: 1,
-    },
     dropdown: {
         position: "fixed" as const,
         backgroundColor: COLOR.BACKGROUND.SECONDARY,
@@ -201,6 +222,14 @@ const styles = {
     },
     optionSelected: {
         backgroundColor: COLOR.BACKGROUND.SUBTLE,
+    },
+    label: {
+        fontSize: 13,
+        color: COLOR.TEXT.PRIMARY,
+        fontWeight: 500,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap" as const,
     },
     optionLabel: {
         fontSize: 13,

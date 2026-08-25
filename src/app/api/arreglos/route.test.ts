@@ -107,6 +107,37 @@ describe("POST /api/arreglos", () => {
     expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "TEN-1");
   });
 
+  it("envía los datos de cobro incluidos en la firma de la RPC", async () => {
+    const cuentaId = "c0000000-0000-4000-8000-000000000001";
+    const idempotencyKey = "e0000000-0000-4000-8000-000000000001";
+    const fechaCobro = "2026-08-25";
+    const req = new Request("http://localhost/api/arreglos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        createCreateArregloRequest({
+          esta_pago: true,
+          cuenta_financiera_id: cuentaId,
+          fecha_cobro: fechaCobro,
+          idempotency_key: idempotencyKey,
+        })
+      ),
+    });
+
+    const response = await POST(req);
+
+    expect(response.status).toBe(201);
+    expect(rpc).toHaveBeenCalledWith(
+      "rpc_crear_arreglo_completo",
+      expect.objectContaining({
+        p_esta_pago: true,
+        p_cuenta_id: cuentaId,
+        p_fecha_cobro: fechaCobro,
+        p_idempotency_key: idempotencyKey,
+      })
+    );
+  });
+
   it("bloquea creacion en TERMINADO cuando faltan required", async () => {
     formularioLookupResult = {
       data: {
@@ -215,6 +246,31 @@ describe("POST /api/arreglos", () => {
         ],
       })
     );
+  });
+
+  it("exige cuenta financiera antes de crear un producto que genera compra automática", async () => {
+    const req = new Request("http://localhost/api/arreglos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        createCreateArregloRequest({
+          repuestos_nuevos: [
+            {
+              codigo: "FILT-1",
+              nombre: "Filtro",
+              precio_compra: 100,
+              precio_venta: 180,
+              cantidad: 1,
+            },
+          ],
+        })
+      ),
+    });
+
+    const response = await POST(req);
+
+    expect(response.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("permite creacion en TERMINADO sin detalle/config", async () => {

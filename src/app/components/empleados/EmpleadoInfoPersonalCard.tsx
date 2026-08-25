@@ -4,25 +4,11 @@ import { css } from "@emotion/react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Card from "@/app/components/ui/Card";
 import DefinitionItem from "@/app/components/ui/DefinitionItem";
+import { formatArs } from "@/lib/format";
+import { formatDateLabel } from "@/lib/fechas";
 import type { Empleado } from "@/app/providers/EmpleadosProvider";
 
 type Props = { empleado: Empleado };
-
-function formatDate(iso: string) {
-  if (!iso) return "-";
-  const [year, month, day] = iso.split("-");
-  if (!year || !month || !day) return iso;
-  return `${day}/${month}/${year}`;
-}
-
-function formatSalario(amount: number | null): string {
-  if (amount === null) return "-";
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
 
 export default function EmpleadoInfoPersonalCard({ empleado }: Props) {
   return (
@@ -34,11 +20,11 @@ export default function EmpleadoInfoPersonalCard({ empleado }: Props) {
         <div css={styles.grid}>
           <DefinitionItem
             label="Salario actual"
-            value={formatSalario(empleado.salario)}
+            value={empleado.salario != null ? formatArs(empleado.salario, { maxDecimals: 0 }) : "-"}
           />
           <DefinitionItem
             label="Fecha de ingreso"
-            value={formatDate(empleado.fechaIngreso)}
+            value={formatDateLabel(empleado.fechaIngreso, "-")}
             icon={<CalendarClock size={14} color={COLOR.TEXT.SECONDARY} />}
           />
         </div>

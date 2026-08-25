@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useId } from "react";
+import { createPortal } from "react-dom";
 import Card from "./Card";
 import Button from "./Button";
 import { COLOR } from "@/theme/theme";
@@ -40,11 +41,18 @@ export default function Modal({
   };
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
     if (submitting) return;
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
+
+  const [mounted, setMounted] = React.useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -92,11 +100,11 @@ export default function Modal({
     };
   }, [open]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const isSubmitDisabled = disabledSubmit || submitting;
 
-  return (
+  const modalContent = (
     <div
       style={styles.overlay}
       role="dialog"
@@ -104,6 +112,8 @@ export default function Modal({
       aria-labelledby={titleId}
       data-testid="modal-overlay"
       onClick={handleOverlayClick}
+      onPointerDown={(e) => e.stopPropagation()}
+      onPointerUp={(e) => e.stopPropagation()}
     >
       <Card style={{ ...styles.modal, ...modalStyle }}>
           <div style={styles.headerRow}>
@@ -144,6 +154,8 @@ export default function Modal({
         </Card>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
 
 const styles = {

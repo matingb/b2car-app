@@ -19,13 +19,14 @@ function clampInt(value: number, min: number, max: number) {
  * Formatea un número usando separadores AR: miles con ".", decimales con ",".
  */
 export function formatNumberAr(
-  value: number,
+  value: number | null | undefined,
   options: FormatNumberArOptions = {}
 ): string {
-  if (!Number.isFinite(value)) return "";
+  const num = typeof value === "number" ? value : Number(value);
+  if (value == null || !Number.isFinite(num)) return "";
 
-  const sign = value < 0 ? "-" : "";
-  const abs = Math.abs(value);
+  const sign = num < 0 ? "-" : "";
+  const abs = Math.abs(num);
 
   const safeMax = clampInt(options.maxDecimals ?? 2, 0, 6);
   const safeMin = clampInt(options.minDecimals ?? 0, 0, safeMax);
@@ -46,10 +47,14 @@ export function formatNumberAr(
  * Formatea un monto en pesos argentinos con prefijo "$".
  */
 export function formatArs(
-  value: number,
+  value: number | null | undefined,
   options: FormatNumberArOptions = {}
 ): string {
-  return `$${formatNumberAr(value, options)}`;
+  const num = typeof value === "number" ? value : Number(value);
+  if (value == null || !Number.isFinite(num)) {
+    return "$0";
+  }
+  return `$${formatNumberAr(num, options)}`;
 }
 
 

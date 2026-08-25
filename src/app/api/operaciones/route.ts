@@ -1,13 +1,15 @@
 import { logger } from "@/lib/logger";
 import type { Operacion, OperacionLinea } from "@/model/types";
-import type { OperacionDTO, OperacionLineaDTO } from "@/model/dtos";
+import type { OperacionDTO } from "@/model/dtos";
 import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { isValidUuid } from "@/lib/uuid";
 import {
 	operacionesService,
 	OPERACIONES_PAGE_SIZE,
 	type CreateOperacionInput,
 	type OperacionesFilters,
+	type OperacionListRow,
 } from "@/app/api/operaciones/operacionesService";
 
 export type CreateOperacionRequest = CreateOperacionInput;
@@ -27,29 +29,48 @@ export type CreateOperacionResponse = {
 	error?: string | null;
 };
 
-type OperacionRow = OperacionDTO & { operaciones_lineas?: OperacionLineaDTO[] | null };
+type OperacionRow = OperacionDTO & { operaciones_lineas?: unknown[] | null };
 
-function mapLinea(row: OperacionLineaDTO): OperacionLinea {
+function mapLineaFromUnknown(row: unknown): OperacionLinea | null {
+	if (!row || typeof row !== "object") return null;
+	const source = row as Record<string, unknown>;
+	const id = String(source.id ?? "");
+	const operacionId = String(source.operacion_id ?? "");
+	const stockId = String(source.stock_id ?? "");
+	if (!id || !operacionId || !stockId) return null;
 	return {
-		id: row.id,
-		operacion_id: row.operacion_id,
-		stock_id: row.stock_id,
-		cantidad: Number(row.cantidad) || 0,
-		monto_unitario: Number(row.monto_unitario) || 0,
-		delta_cantidad: Number(row.delta_cantidad) || 0,
-		created_at: row.created_at,
+		id,
+		operacion_id: operacionId,
+		stock_id: stockId,
+		cantidad: Number(source.cantidad) || 0,
+		monto_unitario: Number(source.monto_unitario) || 0,
+		delta_cantidad: Number(source.delta_cantidad) || 0,
+		created_at: String(source.created_at ?? ""),
 	};
 }
 
-function mapOperacion(row: OperacionRow): Operacion {
-	const lineas = Array.isArray(row.operaciones_lineas) ? row.operaciones_lineas : [];
+function mapOperacion(row: OperacionRow | OperacionListRow): Operacion {
+	const rawLineas = "lineas" in row ? row.lineas : row.operaciones_lineas;
+	const lineas = Array.isArray(rawLineas)
+		? rawLineas.map(mapLineaFromUnknown).filter((linea): linea is OperacionLinea => Boolean(linea))
+		: [];
+	const movimiento = "gasto_id" in row ? row : null;
 	return {
-		id: row.id,
-		tipo: row.tipo,
-		taller_id: row.taller_id,
-		fecha: row.fecha,
-		created_at: row.created_at,
-		lineas: lineas.map(mapLinea),
+		id: String(row.id),
+		tipo: row.tipo as Operacion["tipo"],
+		taller_id: row.taller_id ?? null,
+		fecha: String(row.fecha),
+		created_at: String(row.created_at),
+		lineas,
+		...(movimiento ? {
+			gasto_id: movimiento.gasto_id ?? undefined,
+			descripcion: movimiento.descripcion ?? undefined,
+			categoria_gasto: movimiento.categoria_gasto ?? undefined,
+			cuenta_financiera_id: movimiento.cuenta_financiera_id ?? undefined,
+			cuenta_financiera_nombre: movimiento.cuenta_financiera_nombre ?? undefined,
+			monto: Number(movimiento.monto) || 0,
+			arreglo_id: movimiento.arreglo_id ?? undefined,
+		} : {}),
 	};
 }
 
@@ -82,7 +103,7 @@ export async function GET(req: Request) {
 
 	return Response.json(
 		{
-			data: (data ?? []).map((row) => mapOperacion(row as OperacionRow)),
+			data: (data ?? []).map((row) => mapOperacion(row as OperacionListRow)),
 			pagination: { page, pageSize: OPERACIONES_PAGE_SIZE, total },
 			error: null,
 		} satisfies GetOperacionesResponse,
@@ -99,6 +120,15 @@ export async function POST(req: Request) {
 	if (!body.tipo) return Response.json({ data: null, error: "Falta tipo" } satisfies CreateOperacionResponse, { status: 400 });
 	if (!body.taller_id)
 		return Response.json({ data: null, error: "Falta taller_id" } satisfies CreateOperacionResponse, { status: 400 });
+	if ((body.tipo === "COMPRA" || body.tipo === "VENTA") && !body.cuenta_financiera_id) {
+		return Response.json({ data: null, error: "Seleccioná una cuenta financiera" } satisfies CreateOperacionResponse, { status: 400 });
+	}
+	if (body.cuenta_financiera_id && !isValidUuid(body.cuenta_financiera_id)) {
+		return Response.json({ data: null, error: "cuenta_financiera_id inválida" } satisfies CreateOperacionResponse, { status: 400 });
+	}
+	if (!body.idempotency_key || !isValidUuid(body.idempotency_key)) {
+		return Response.json({ data: null, error: "idempotency_key inválida" } satisfies CreateOperacionResponse, { status: 400 });
+	}
 
 	const { data, error } = await operacionesService.create(supabase, body);
 	if (error || !data) {

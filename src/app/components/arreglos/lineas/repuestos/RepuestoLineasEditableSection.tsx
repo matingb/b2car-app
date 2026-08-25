@@ -70,6 +70,8 @@ export type RepuestoUpsertInput =
       cantidad: number;
       monto_unitario: number;
       precio_compra?: number;
+      cuenta_financiera_id?: string | null;
+      idempotency_key?: string | null;
       categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }
@@ -82,6 +84,8 @@ export type RepuestoUpsertInput =
       precio_venta: number;
       cantidad: number;
       monto_unitario: number;
+      cuenta_financiera_id?: string | null;
+      idempotency_key?: string | null;
       categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     };

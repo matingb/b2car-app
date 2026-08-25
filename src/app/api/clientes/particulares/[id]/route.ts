@@ -1,6 +1,6 @@
 import { createClient } from '@/supabase/server'
 import type { NextRequest } from 'next/server'
-import { Particular } from '@/model/types'
+import { Particular, TipoCliente } from '@/model/types'
 import { particularService } from '../particularService'
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
@@ -19,7 +19,7 @@ export type UpdateParticularResponse = {
 };
 
 export type GetParticularByIdResponse = {
-  data: Particular | null;
+  data: (Particular & { tipo_cliente: TipoCliente.PARTICULAR }) | null;
   error?: string | null;
 };
 

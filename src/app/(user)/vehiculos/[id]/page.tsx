@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { Vehiculo, Arreglo, Cliente } from "@/model/types";
-import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { BREAKPOINTS } from "@/theme/theme";
 import { Skeleton, Theme } from "@radix-ui/themes";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
 import EditVehiculoModal from "@/app/components/vehiculos/EditVehiculoModal";
@@ -42,55 +42,66 @@ export default function VehiculoDetailsPage() {
     return Math.max(...arreglos.map((a) => Number(a.kilometraje_leido) || 0));
   }, [arreglos]);
 
-  // El filtrado (search + patente/tipo/fecha) se maneja con useArreglosFilters
-
-  const reload = useCallback(async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-
       const { data, arreglos, error } = await vehiculoClient.getById(params.id);
-      if (error) throw new Error(error);
+      if (error) {
+        setError(error);
+        setVehiculo(null);
+        setArreglos([]);
+        return;
+      }
 
-      setVehiculo(data);
-      setArreglos(arreglos || []);
+      if (!data) {
+        setVehiculo(null);
+        setArreglos([]);
+      } else {
+        setVehiculo(data);
+        setArreglos(arreglos || []);
 
-      const clienteResponse = await vehiculoClient.getClienteForVehiculo(
-        params.id
-      );
-      if (clienteResponse.data) {
-        setCliente(clienteResponse.data);
+        const clienteResponse = await vehiculoClient.getClienteForVehiculo(params.id);
+        if (clienteResponse.data) {
+          setCliente(clienteResponse.data);
+        }
       }
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "No se pudo cargar el vehículo";
-      setError(message);
+      setError(err instanceof Error ? err.message : "No se pudo cargar el vehículo");
     } finally {
       setLoading(false);
     }
   }, [params.id]);
 
   useEffect(() => {
-    async function load() {
-      await reload();
-    }
-    load();
-  }, [params.id, reload]);
+    void load();
+  }, [load]);
 
   const handleOpenCreate = () => {
     setEditArreglo(null);
     setOpenModal(true);
   };
 
-  const handleCloseModal = async (updated?: boolean) => {
+  const handleCloseModal = (updated?: boolean) => {
     setOpenModal(false);
     setEditArreglo(null);
-    if (updated) await reload();
+    if (updated) {
+      void load();
+    }
   };
 
-  const handleCloseEditVehiculo = async (updated?: boolean) => {
+  const handleCloseEditVehiculo = (updated?: boolean) => {
     setOpenEditVehiculo(false);
-    if (updated) await reload();
+    if (updated) {
+      void load();
+    }
+  };
+
+  const handleCloseReassignOwner = (updated?: boolean) => {
+    setOpenReassignOwner(false);
+    if (updated) {
+      void load();
+    }
   };
 
   const handleDeleteVehiculo = async () => {
@@ -129,8 +140,8 @@ export default function VehiculoDetailsPage() {
   if (error) {
     return (
       <div>
-        <ScreenHeader title="Vehículos" breadcrumbs={["Detalle"]} />
-        <div style={{ marginTop: 16, color: COLOR.ICON.DANGER }}>{error}</div>
+        <ScreenHeader title="Vehículo" hasBackButton />
+        <div style={styles.notFoundText}>{error}</div>
       </div>
     );
   }
@@ -138,8 +149,8 @@ export default function VehiculoDetailsPage() {
   if (!vehiculo) {
     return (
       <div>
-        <ScreenHeader title="Vehículos" breadcrumbs={["Detalle"]} />
-        <div style={styles.notFoundText}>Vehículo no encontrado.</div>
+        <ScreenHeader title="Vehículo" hasBackButton />
+        <div style={styles.notFoundText}>No se encontró el vehículo solicitado.</div>
       </div>
     );
   }
@@ -247,10 +258,7 @@ export default function VehiculoDetailsPage() {
           open={openReassignOwner}
           vehiculoId={vehiculo.id}
           currentClienteId={cliente?.id}
-          onClose={async (updated) => {
-            setOpenReassignOwner(false);
-            if (updated) await reload();
-          }}
+          onClose={handleCloseReassignOwner}
         />
       )}
     </div>

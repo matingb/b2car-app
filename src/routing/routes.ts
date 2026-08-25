@@ -10,6 +10,7 @@ export const ROUTES = {
 	stock: "/stock",
 	productos: "/productos",
 	operaciones: "/operaciones",
+	cuentasFinancieras: "/cuentas-financieras",
 	empleados: "/empleados",
 } as const;
 
@@ -19,6 +20,7 @@ export const API_ROUTES = {
 		particulares: "/api/clientes/particulares",
 	vehiculos: "/api/vehiculos",
 	arreglos: "/api/arreglos",
+	cuentasFinancieras: "/api/cuentas-financieras",
 } as const;
 
 export type AppRouteKey = keyof typeof ROUTES;

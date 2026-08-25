@@ -57,7 +57,6 @@ export default function EmpleadoEditModal({ open, empleado, onClose, onSaved }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
-    const salarioChanged = values.salario !== empleado.salario;
     const { empleado: updated, error: updateError } = await updateEmpleado(empleado.id, {
       tallerId: values.tallerId,
       nombre: values.nombre,
@@ -67,8 +66,12 @@ export default function EmpleadoEditModal({ open, empleado, onClose, onSaved }: 
       telefono: values.telefono,
       cumpleanos: values.cumpleanos,
       salario: values.salario,
-      ...(salarioChanged && values.salarioVigenteDesde
-        ? { salarioVigenteDesde: `${values.salarioVigenteDesde}-01` }
+      ...(values.salarioVigenteDesde
+        ? {
+            salarioVigenteDesde: /^\d{4}-\d{2}$/.test(values.salarioVigenteDesde)
+              ? `${values.salarioVigenteDesde}-01`
+              : values.salarioVigenteDesde,
+          }
         : {}),
       fechaIngreso: values.fechaIngreso,
     });

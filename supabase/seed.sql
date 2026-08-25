@@ -14,6 +14,9 @@ TRUNCATE TABLE
   formularios,
   operaciones_asignacion_arreglo,
   operaciones_lineas,
+  movimientos_financieros,
+  operaciones_movimiento_cuenta,
+  cuentas_financieras,
   operaciones,
   arreglos,
   turnos,
@@ -32,6 +35,11 @@ RESTART IDENTITY CASCADE;
 -- Tenants (solo uno)
 INSERT INTO public.tenants (id, nombre, estado, fecha_creacion, updated_at) VALUES
   ('11111111-1111-1111-1111-111111111111', 'B2Car', 'activo', now() - interval '180 days', now() - interval '1 day');
+
+-- Cuentas Financieras (2 cuentas bancarias)
+INSERT INTO public.cuentas_financieras (id, tenant_id, nombre, tipo, saldo, activo, created_at, updated_at) VALUES
+  ('c0000000-0000-4000-8000-000000000001','11111111-1111-1111-1111-111111111111','Banco Galicia',  'CUENTA_BANCARIA',0,true,now() - interval '180 days',now() - interval '180 days'),
+  ('c0000000-0000-4000-8000-000000000002','11111111-1111-1111-1111-111111111111','Banco Santander','CUENTA_BANCARIA',0,true,now() - interval '180 days',now() - interval '180 days');
 
 -- Categorías de Arreglo por defecto
 INSERT INTO public.categorias_arreglo (id, tenant_id, nombre) VALUES
@@ -169,6 +177,11 @@ INSERT INTO public.empleados (id, tenant_id, taller_id, nombre, apellido, dni, s
   ('e1000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000001','Juan',   'Rodriguez','28345678',180000,'2024-12-01'),
   ('e1000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000001','Maria',  'Fernandez','31456789',155000,'2025-02-01'),
   ('e1000000-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000002','Carlos', 'Gimenez',  '35678901',140000,'2025-05-01');
+
+INSERT INTO public.empleado_salarios (empleado_id, tenant_id, taller_id, salario, vigente_desde) VALUES
+  ('e1000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000001',180000,'2024-12-01'),
+  ('e1000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000001',155000,'2025-02-01'),
+  ('e1000000-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000002',140000,'2025-05-01');
 
 -- Productos (10)
 INSERT INTO public.productos (id, tenant_id, codigo, nombre, marca, modelo, descripcion, precio_unitario, costo_unitario, proveedor, categorias, created_at, updated_at) VALUES
@@ -382,6 +395,67 @@ INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha) VALUES
   ('90000000-0000-0000-0000-000000000204','11111111-1111-1111-1111-111111111111','VENTA','50000000-0000-0000-0000-000000000002',date_trunc('month',now()-interval '4 months')+interval '18 days'),
   ('90000000-0000-0000-0000-000000000205','11111111-1111-1111-1111-111111111111','VENTA','50000000-0000-0000-0000-000000000003',date_trunc('month',now()-interval '5 months')+interval '15 days');
 
+-- APERTURA_CUENTA operaciones - Saldo inicial para cuentas bancarias
+INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha) VALUES
+  ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','MOVIMIENTO_CUENTA',NULL,now() - interval '180 days'),
+  ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','MOVIMIENTO_CUENTA',NULL,now() - interval '180 days');
+
+INSERT INTO public.operaciones_movimiento_cuenta (operacion_id, tenant_id, subtipo, cuenta_id, importe, created_by, created_at) VALUES
+  ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','APERTURA_CUENTA','c0000000-0000-4000-8000-000000000001',2500000,'7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '180 days'),
+  ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','APERTURA_CUENTA','c0000000-0000-4000-8000-000000000002',1800000,'7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '180 days');
+
+-- Pagos de arreglos: la migración de pagos parciales recalcula esta_pago desde
+-- total_cobrado. El seed deja un caso parcial, dos pendientes y el resto cobrado.
+UPDATE public.arreglos
+SET total_cobrado = CASE id
+  WHEN '80000000-0000-0000-0000-000000000007' THEN 50000
+  WHEN '80000000-0000-0000-0000-000000000009' THEN 0
+  WHEN '80000000-0000-0000-0000-000000000010' THEN 0
+  ELSE precio_final
+END
+WHERE tenant_id = '11111111-1111-1111-1111-111111111111';
+
+-- Cada cobro tiene una operación, su movimiento de cuenta y el vínculo al
+-- arreglo. Los IDs se derivan del arreglo y son UUID v4 válidos y estables.
+INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha)
+SELECT
+  ('f0000000-0000-4000-8000-' || right(a.id::text, 12))::uuid,
+  a.tenant_id,
+  'MOVIMIENTO_CUENTA',
+  NULL,
+  a.fecha + interval '1 day'
+FROM public.arreglos AS a
+WHERE a.tenant_id = '11111111-1111-1111-1111-111111111111'
+  AND a.total_cobrado > 0;
+
+INSERT INTO public.operaciones_movimiento_cuenta (
+  operacion_id, tenant_id, subtipo, cuenta_id, importe, descripcion, created_by, created_at
+)
+SELECT
+  ('f0000000-0000-4000-8000-' || right(a.id::text, 12))::uuid,
+  a.tenant_id,
+  'INGRESO',
+  CASE WHEN right(a.id::text, 1)::integer % 2 = 0
+    THEN 'c0000000-0000-4000-8000-000000000001'::uuid
+    ELSE 'c0000000-0000-4000-8000-000000000002'::uuid
+  END,
+  a.total_cobrado,
+  'Cobro de arreglo: ' || a.descripcion,
+  '7ff568f8-4d46-463b-969c-9e68157fa769'::uuid,
+  a.fecha + interval '1 day'
+FROM public.arreglos AS a
+WHERE a.tenant_id = '11111111-1111-1111-1111-111111111111'
+  AND a.total_cobrado > 0;
+
+INSERT INTO public.operaciones_cobro_arreglo (operacion_id, arreglo_id, tenant_id)
+SELECT
+  ('f0000000-0000-4000-8000-' || right(a.id::text, 12))::uuid,
+  a.id,
+  a.tenant_id
+FROM public.arreglos AS a
+WHERE a.tenant_id = '11111111-1111-1111-1111-111111111111'
+  AND a.total_cobrado > 0;
+
 -- ===========================================================================
 -- OPERACIONES_LINEAS
 -- Stocks Taller Central (001): 70000...001, 002, 003
@@ -501,10 +575,64 @@ INSERT INTO public.turnos (id, fecha, hora, duracion, vehiculo_id, cliente_id, t
 DO $$
 DECLARE
   v_arreglo record;
+  v_invalid_accounts integer;
+  v_account_balance_mismatches integer;
+  v_payment_mismatches integer;
+  v_price_mismatches integer;
 BEGIN
   FOR v_arreglo IN SELECT id FROM public.arreglos LOOP
     PERFORM public._sync_arreglo_derivados(v_arreglo.id);
   END LOOP;
+
+  -- Las rutas aceptan UUIDs canónicos; las cuentas del seed deben ser navegables.
+  SELECT count(*) INTO v_invalid_accounts
+  FROM public.cuentas_financieras
+  WHERE id::text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+  IF v_invalid_accounts > 0 THEN
+    RAISE EXCEPTION 'Seed inconsistente: % cuenta(s) con UUID no navegable', v_invalid_accounts;
+  END IF;
+
+  -- El saldo materializado de cada cuenta debe ser exactamente su ledger.
+  SELECT count(*) INTO v_account_balance_mismatches
+  FROM public.cuentas_financieras AS c
+  LEFT JOIN public.movimientos_financieros AS m ON m.cuenta_financiera_id = c.id
+  GROUP BY c.id, c.saldo
+  HAVING c.saldo <> COALESCE(SUM(m.importe), 0);
+  IF v_account_balance_mismatches > 0 THEN
+    RAISE EXCEPTION 'Seed inconsistente: % saldo(s) de cuenta no coincide(n) con el ledger', v_account_balance_mismatches;
+  END IF;
+
+  -- Cada total cobrado tiene el mismo respaldo en movimientos de ingreso.
+  SELECT count(*) INTO v_payment_mismatches
+  FROM public.arreglos AS a
+  LEFT JOIN public.operaciones_cobro_arreglo AS oca ON oca.arreglo_id = a.id
+  LEFT JOIN public.operaciones_movimiento_cuenta AS omc ON omc.operacion_id = oca.operacion_id
+  GROUP BY a.id, a.total_cobrado
+  HAVING COALESCE(SUM(omc.importe) FILTER (WHERE omc.subtipo = 'INGRESO'), 0) <> a.total_cobrado;
+  IF v_payment_mismatches > 0 THEN
+    RAISE EXCEPTION 'Seed inconsistente: % arreglo(s) no coincide(n) con sus cobros', v_payment_mismatches;
+  END IF;
+
+  -- Cuando hay líneas de trabajo/repuestos, su total debe explicar el precio final.
+  WITH totales AS (
+    SELECT
+      a.id,
+      a.precio_final,
+      COALESCE((SELECT SUM(d.cantidad * d.valor) FROM public.detalle_arreglo AS d WHERE d.arreglo_id = a.id), 0)
+      + COALESCE((
+        SELECT SUM(ol.cantidad * ol.monto_unitario)
+        FROM public.operaciones_asignacion_arreglo AS oaa
+        JOIN public.operaciones_lineas AS ol ON ol.operacion_id = oaa.operacion_id
+        WHERE oaa.arreglo_id = a.id
+      ), 0) AS total_detallado
+    FROM public.arreglos AS a
+  )
+  SELECT count(*) INTO v_price_mismatches
+  FROM totales
+  WHERE total_detallado > 0 AND total_detallado <> precio_final;
+  IF v_price_mismatches > 0 THEN
+    RAISE EXCEPTION 'Seed inconsistente: % arreglo(s) no coincide(n) con sus líneas', v_price_mismatches;
+  END IF;
 END;
 $$;
 

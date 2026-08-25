@@ -39,7 +39,7 @@ export type DashboardStats = {
 	};
 	arreglosPorPeriodo?: Array<{ label: string; cantidad: number }>;
 	ingresosPorPeriodo?: Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>;
-	gastosPorPeriodo?: Array<{ label: string; repuestos: number; sueldos: number }>;
+	gastosPorPeriodo?: Array<{ label: string; repuestos: number; sueldos: number; eventuales: number }>;
 	facturacionPorTipo?: Array<{ label: string; cantidad: number; monto: number }>;
 	facturacionPorEmpleado?: Array<{ label: string; cantidad: number; monto: number }>;
 	costoPorTipo?: Array<{ label: string; cantidad: number; monto: number }>;

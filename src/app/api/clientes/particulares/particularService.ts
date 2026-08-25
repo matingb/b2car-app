@@ -13,8 +13,13 @@ type ParticularInsertRow = {
 
 type ParticularByIdRow = {
   id: string;
+  tipo_cliente?: string | null;
   particular?: ParticularInsertRow | null;
   vehiculos?: unknown[] | null;
+};
+
+type ParticularDetalle = Particular & {
+  tipo_cliente: TipoCliente.PARTICULAR;
 };
 
 export const particularService = {
@@ -70,7 +75,7 @@ export const particularService = {
     return { data: c, error: null };
   },
 
-  async getByIdWithVehiculos(supabase: SupabaseClient, id: string): Promise<{ data: Particular | null; error: Error | null; code?: string }> {
+  async getByIdWithVehiculos(supabase: SupabaseClient, id: string): Promise<{ data: ParticularDetalle | null; error: Error | null; code?: string }> {
     const { data, error } = await supabase
       .from("clientes")
       .select("*, particular:particulares(*), vehiculos(*)")
@@ -80,8 +85,13 @@ export const particularService = {
     if (error) return { data: null, error: new Error(error.message), code: (error as { code?: string }).code };
 
     const row = data as unknown as ParticularByIdRow;
+    if (row.tipo_cliente !== TipoCliente.PARTICULAR || !row.particular) {
+      return { data: null, error: null };
+    }
+
     const particular = {
       id: row.id,
+      tipo_cliente: TipoCliente.PARTICULAR,
       nombre: row.particular?.nombre ?? "",
       apellido: row.particular?.apellido ?? "",
       codigo_pais: row.particular?.codigo_pais ?? undefined,
@@ -89,7 +99,7 @@ export const particularService = {
       email: row.particular?.email ?? "",
       direccion: row.particular?.direccion ?? "",
       vehiculos: row.vehiculos ?? [],
-    } as unknown as Particular;
+    } as ParticularDetalle;
 
     return { data: particular, error: null };
   },

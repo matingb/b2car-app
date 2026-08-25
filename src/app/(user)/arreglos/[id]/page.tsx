@@ -30,12 +30,16 @@ import { useInventario } from "@/app/providers/InventarioProvider";
 import { useUltimoTipoEmpleado } from "@/app/components/arreglos/hooks/useUltimoTipoEmpleado";
 import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
 import { useEmpleados } from "@/app/providers/EmpleadosProvider";
+import CuentaCompraAutomaticaModal from "@/app/components/arreglos/CuentaCompraAutomaticaModal";
+import { generateUuidV4 } from "@/lib/uuid";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
   const [data, setData] = useState<ArregloDetalleData | null>(null);
-  const [pageLoading, setPageLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [errorState, setErrorState] = useState<string | null>(null);
   const [openModal, setOpenModal] = useState(false);
+  const [compraPendiente, setCompraPendiente] = useState<RepuestoUpsertInput | null>(null);
   const [customServiciosDraft, setCustomServiciosDraft] = useState<ServicioLinea[]>([]);
   const {
     fetchById,
@@ -45,7 +49,7 @@ export default function ArregloDetailsPage() {
     deleteDetalle,
     upsertRepuestoLinea,
     deleteRepuestoLinea,
-    loading,
+    loading: providerLoading,
   } = useArreglos();
   const { formularios } = useFormularios();
   const { loadInventarioByTaller } = useInventario();
@@ -58,31 +62,42 @@ export default function ArregloDetailsPage() {
   const reload = useCallback(async (options?: { showPageLoading?: boolean }) => {
     const showPageLoading = options?.showPageLoading ?? false;
     if (showPageLoading) {
-      setPageLoading(true);
+      setLoading(true);
     }
+    setErrorState(null);
+
     try {
-      const [data] = await Promise.all([
+      const [fetchedData] = await Promise.all([
         fetchById(params.id),
         loadCategorias().catch(() => {}),
         loadEmpleados().catch(() => {}),
       ]);
-      if (!data) return;
-      setData(data);
+      if (!fetchedData) {
+        setData(null);
+        return;
+      }
+      setData(fetchedData);
     } catch (err: unknown) {
       console.error(err);
+      setErrorState(err instanceof Error ? err.message : "Error cargando arreglo");
     } finally {
       if (showPageLoading) {
-        setPageLoading(false);
+        setLoading(false);
       }
     }
   }, [params.id, fetchById, loadCategorias, loadEmpleados]);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
+      if (cancelled) return;
       await reload({ showPageLoading: true });
     }
-    load();
-  }, [params.id, reload]);
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [reload]);
 
   const handleOpenEdit = () => {
     setOpenModal(true);
@@ -198,10 +213,27 @@ export default function ArregloDetailsPage() {
     }
   };
 
-  const handleUpsertRepuesto = async (input: RepuestoUpsertInput) => {
+  const handleUpsertRepuesto = async (
+    input: RepuestoUpsertInput,
+    cuentaFinancieraId?: string,
+  ) => {
     if (!data?.arreglo?.id) return;
     const tallerId = data.arreglo.taller_id ?? null;
     if (!tallerId) return;
+    const requiereCompraAutomatica =
+      input.tipo === "nuevo" ||
+      input.precio_compra !== undefined;
+    if (requiereCompraAutomatica && !cuentaFinancieraId) {
+      setCompraPendiente(input);
+      return;
+    }
+
+    const cuentaPayload = requiereCompraAutomatica
+      ? {
+        cuenta_financiera_id: cuentaFinancieraId,
+        idempotency_key: generateUuidV4(),
+      }
+      : {};
     try {
       if (input.tipo === "nuevo") {
         await upsertRepuestoLinea(data.arreglo.id, {
@@ -212,6 +244,7 @@ export default function ArregloDetailsPage() {
           precio_compra: input.precio_compra,
           precio_venta: input.precio_venta,
           cantidad: input.cantidad,
+          ...cuentaPayload,
           categoria_arreglo_id: input.categoria_arreglo_id ?? null,
           empleado_id: input.empleado_id ?? null,
         });
@@ -222,6 +255,7 @@ export default function ArregloDetailsPage() {
           cantidad: input.cantidad,
           monto_unitario: input.monto_unitario,
           precio_compra: input.precio_compra,
+          ...cuentaPayload,
           categoria_arreglo_id: input.categoria_arreglo_id ?? null,
           empleado_id: input.empleado_id ?? null,
         });
@@ -259,17 +293,22 @@ export default function ArregloDetailsPage() {
     setCustomServiciosDraft([]);
   }, [data?.arreglo?.id, isCustomTipoSelected]);
 
-  if (pageLoading) return loadingScreen();
+  if (loading) return loadingScreen();
+
+  if (errorState) {
+    return (
+      <div>
+        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton />
+        <div style={{ marginTop: 16, color: COLOR.ICON.DANGER }}>{errorState}</div>
+      </div>
+    );
+  }
 
   if (!data?.arreglo) {
     return (
       <div>
-        <ScreenHeader
-          title="Arreglos"
-          breadcrumbs={["Detalle"]}
-          hasBackButton
-        />
-        <div style={{ marginTop: 16 }}>Arreglo no encontrado.</div>
+        <ScreenHeader title="Arreglos" breadcrumbs={["Detalle"]} hasBackButton />
+        <div style={{ marginTop: 16 }}>No se encontró el arreglo solicitado.</div>
       </div>
     );
   }
@@ -373,7 +412,7 @@ export default function ArregloDetailsPage() {
               initialDetalle={data.detalle_formulario}
               editableOnLoad={false}
               showEditButton
-              disabled={loading}
+              disabled={providerLoading}
               onServiciosChange={setCustomServiciosDraft}
               onConfirmEdit={handleConfirmCustomEdit}
             />
@@ -394,7 +433,7 @@ export default function ArregloDetailsPage() {
           onAdd={handleAddServicio}
           onUpdate={handleUpdateServicio}
           onDelete={handleDeleteServicio}
-          disabled={loading}
+          disabled={providerLoading}
         />
         <div
           style={{
@@ -419,13 +458,19 @@ export default function ArregloDetailsPage() {
           defaultEmpleadoId={ultimoUsado.empleadoId}
           onUpsert={handleUpsertRepuesto}
           onDelete={handleDeleteRepuesto}
-          disabled={loading}
+          disabled={providerLoading}
         />
 
         <ArregloTotalsFooter
           subtotalServicios={subtotalServicios + subtotalServiciosCustom}
           subtotalRepuestos={subtotalRepuestos}
           total={totalCalculado}
+          totalCobrado={arreglo.total_cobrado}
+          saldoPendiente={
+            arreglo.saldo_pendiente != null
+              ? arreglo.saldo_pendiente
+              : Math.max(0, totalCalculado - (arreglo.total_cobrado || 0))
+          }
         />
       </div>
 
@@ -451,6 +496,16 @@ export default function ArregloDetailsPage() {
           }}
         />
       )}
+      <CuentaCompraAutomaticaModal
+        open={Boolean(compraPendiente)}
+        onClose={() => setCompraPendiente(null)}
+        onConfirm={async (cuentaId) => {
+          const pending = compraPendiente;
+          if (!pending) return;
+          await handleUpsertRepuesto(pending, cuentaId);
+          setCompraPendiente(null);
+        }}
+      />
     </div>
   );
 }

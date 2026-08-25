@@ -42,6 +42,12 @@ vi.mock("@/app/providers/SheetProvider", () => ({
   }),
 }));
 
+vi.mock("@/app/providers/ModalMessageProvider", () => ({
+  useModalMessage: () => ({
+    confirm: vi.fn().mockResolvedValue(true),
+  }),
+}));
+
 vi.mock("@/app/components/ui/ScreenHeader", () => ({
   __esModule: true,
   default: () => null,
@@ -65,7 +71,7 @@ vi.mock("@/app/providers/TenantProvider", () => ({
   }),
 }));
 
-import OperacionesPage from "./page";
+import OperacionesPage, { formatOperacionCardAmount } from "./page";
 import ToastProvider from "@/app/providers/ToastProvider";
 
 describe("OperacionesPage", () => {
@@ -75,10 +81,18 @@ describe("OperacionesPage", () => {
     getStatsMock.mockReset();
     getStatsMock.mockResolvedValue({ data: null, error: null });
     vi.useFakeTimers();
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(1500);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("debe cargar todas las operaciones al cargar la página", async () => {
@@ -124,6 +138,38 @@ describe("OperacionesPage", () => {
       }),
       expect.objectContaining({ page: 1 })
     );
+  });
+
+  it("ofrece un filtro específico para los cobros de arreglos", async () => {
+    render(
+      <OperacionesProvider>
+        <ToastProvider>
+          <OperacionesPage />
+        </ToastProvider>
+      </OperacionesProvider>
+    );
+    await runPendingPromises();
+
+    expect(screen.getByTestId("operaciones-chip-COBRO_ARREGLO")).toHaveTextContent("Cobro de arreglo");
+  });
+
+  it("agrupa las estadísticas en ingresos, egresos y resultado", async () => {
+    render(
+      <OperacionesProvider>
+        <ToastProvider>
+          <OperacionesPage />
+        </ToastProvider>
+      </OperacionesProvider>
+    );
+    await runPendingPromises();
+
+    expect(screen.getByLabelText("Resumen de ingresos")).toHaveTextContent("Ventas");
+    expect(screen.getByLabelText("Resumen de egresos")).toHaveTextContent("Compras");
+    expect(screen.getByLabelText("Resultado del período")).toBeInTheDocument();
+  });
+  it("formatea los fotogramas animados de las cards sin decimales", () => {
+    expect(formatOperacionCardAmount(875.625)).toBe("$876");
+    expect(formatOperacionCardAmount(1234567.25)).toBe("$1.234.567");
   });
 });
 

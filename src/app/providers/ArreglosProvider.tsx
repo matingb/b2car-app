@@ -11,6 +11,7 @@ import { Arreglo } from "@/model/types";
 import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 import {
   arreglosClient,
+  CobrarArregloInput,
   CreateArregloInput,
   GetArreglosInput,
   UpdateArregloInput,
@@ -29,6 +30,11 @@ type ArreglosContextType = {
     id: string | number,
     input: UpdateArregloInput,
   ) => Promise<Arreglo | null>;
+  cobrar: (
+    id: string | number,
+    input: CobrarArregloInput,
+  ) => Promise<Arreglo | null>;
+  anularCobro: (id: string | number, operacionId?: string | null) => Promise<Arreglo | null>;
   remove: (id: string | number) => Promise<void>;
 
   createDetalle: (
@@ -83,13 +89,13 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchById = useCallback(async (id: string | number) => {
-    setLoading(true);
     try {
       const response = await arreglosClient.getById(id);
       if (response.error) throw new Error(response.error);
       return response.data ?? null;
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      return null;
     }
   }, []);
 
@@ -123,6 +129,33 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     },
     [fetchAll, tallerSeleccionadoId]
   );
+
+  const cobrar = useCallback(async (
+    id: string | number,
+    input: CobrarArregloInput,
+  ) => {
+    setLoading(true);
+    try {
+      const { data, error } = await arreglosClient.cobrar(id, input);
+      if (error) throw new Error(error);
+      void fetchAll({ tallerId: tallerSeleccionadoId });
+      return data ?? null;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchAll, tallerSeleccionadoId]);
+
+  const anularCobro = useCallback(async (id: string | number, operacionId?: string | null) => {
+    setLoading(true);
+    try {
+      const { data, error } = await arreglosClient.anularCobro(id, operacionId);
+      if (error) throw new Error(error);
+      void fetchAll({ tallerId: tallerSeleccionadoId });
+      return data ?? null;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchAll, tallerSeleccionadoId]);
 
   const remove = useCallback(async (id: string | number) => {
     setLoading(true);
@@ -224,6 +257,8 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       fetchById,
       create,
       update,
+      cobrar,
+      anularCobro,
       remove,
       createDetalle,
       updateDetalle,
@@ -239,6 +274,8 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       fetchById,
       create,
       update,
+      cobrar,
+      anularCobro,
       remove,
       createDetalle,
       updateDetalle,

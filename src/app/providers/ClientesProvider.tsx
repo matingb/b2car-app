@@ -172,15 +172,40 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
   const getClienteById = useCallback(async (id: string): Promise<Cliente | null> => {
     setLoading(true);
     try {
-      const particular = await getParticularById(id);
-      if (particular) return particular as unknown as Cliente;
-      const empresa = await getEmpresaById(id);
-      if (empresa) return empresa as Cliente;
+      const particularResponse = await particularClient.getById(id);
+      if (particularResponse.data) {
+        const particular = particularResponse.data;
+        return {
+          id: particular.id,
+          nombre: `${particular.nombre} ${particular.apellido ?? ""}`.trim(),
+          tipo_cliente: TipoCliente.PARTICULAR,
+          codigo_pais: particular.codigo_pais,
+          telefono: particular.telefono,
+          email: particular.email,
+          direccion: particular.direccion,
+        };
+      }
+
+      const empresaResponse = await empresaClient.getById(id);
+      if (empresaResponse.data) {
+        const empresa = empresaResponse.data;
+        return {
+          id: empresa.id,
+          nombre: empresa.nombre,
+          tipo_cliente: TipoCliente.EMPRESA,
+          codigo_pais: empresa.codigo_pais,
+          telefono: empresa.telefono,
+          email: empresa.email,
+          direccion: empresa.direccion,
+          cuit: empresa.cuit,
+        };
+      }
+
       return null;
     } finally {
       setLoading(false);
     }
-  }, [getParticularById, getEmpresaById]);
+  }, []);
 
 
   const contextValue = useMemo(

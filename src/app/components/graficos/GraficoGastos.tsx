@@ -14,7 +14,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { type Granularity } from "@/lib/dashboard/aggregation";
 
 type Props = {
-    data?: Array<{ label: string; repuestos: number; sueldos: number }>;
+    data?: Array<{ label: string; repuestos: number; sueldos: number; eventuales: number }>;
     granularity?: Granularity;
 };
 
@@ -25,6 +25,7 @@ function formatCurrency(value: number) {
 const LABELS: Record<string, string> = {
     repuestos: "Repuestos",
     sueldos: "Sueldos",
+    eventuales: "Gastos eventuales",
 };
 
 export default function GraficoGastos({ data, granularity }: Props) {
@@ -35,16 +36,22 @@ export default function GraficoGastos({ data, granularity }: Props) {
             label: d.label,
             repuestos: d.repuestos,
             sueldos: d.sueldos,
+            eventuales: d.eventuales,
         }));
 
         const totals = chartData.reduce(
-            (acc, d) => ({ repuestos: acc.repuestos + d.repuestos, sueldos: acc.sueldos + d.sueldos }),
-            { repuestos: 0, sueldos: 0 }
+            (acc, d) => ({
+                repuestos: acc.repuestos + d.repuestos,
+                sueldos: acc.sueldos + d.sueldos,
+                eventuales: acc.eventuales + d.eventuales,
+            }),
+            { repuestos: 0, sueldos: 0, eventuales: 0 }
         );
 
         const config: ChartConfig = {
             repuestos: { label: "Repuestos", color: COLOR.GRAPHICS_DANGER.PRIMARY },
             sueldos: { label: "Sueldos", color: COLOR.GRAPHICS_DANGER.TERTIARY },
+            eventuales: { label: "Gastos eventuales", color: COLOR.GRAPHICS_DANGER.SECONDARY },
         };
 
         return { chartData, monthlyPoint: [{ label: "", ...totals }], config };
@@ -67,6 +74,7 @@ export default function GraficoGastos({ data, granularity }: Props) {
                     <ChartLegend content={<ChartLegendContent />} />
                     <Bar dataKey="repuestos" fill="var(--color-repuestos)" radius={[3, 3, 0, 0]} />
                     <Bar dataKey="sueldos" fill="var(--color-sueldos)" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="eventuales" fill="var(--color-eventuales)" radius={[3, 3, 0, 0]} />
                 </BarChart>
             </ChartContainer>
         );
@@ -93,6 +101,7 @@ export default function GraficoGastos({ data, granularity }: Props) {
                 <ChartLegend content={<ChartLegendContent />} />
                 <Bar dataKey="repuestos" fill="var(--color-repuestos)" stackId="a" />
                 <Bar dataKey="sueldos" fill="var(--color-sueldos)" stackId="a" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="eventuales" fill="var(--color-eventuales)" stackId="a" radius={[3, 3, 0, 0]} />
             </BarChart>
         </ChartContainer>
     );

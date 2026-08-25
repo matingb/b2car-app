@@ -1,4 +1,5 @@
 import type { Operacion, OperacionesFilters, TipoOperacion } from "@/model/types";
+import { generateUuidV4 } from "@/lib/uuid";
 
 export type CreateOperacionLineaInput = {
 	stock_id: string;
@@ -14,6 +15,10 @@ export type CreateOperacionInput = {
 	created_at?: string;
 	lineas?: CreateOperacionLineaInput[];
 	arreglo_id?: string | null;
+	/** Cuenta que registra el ingreso (venta) o el egreso (compra). */
+	cuenta_financiera_id?: string | null;
+	/** Protege reintentos del navegador contra asientos duplicados. */
+	idempotency_key?: string | null;
 };
 
 export type UpdateOperacionInput = Partial<Omit<CreateOperacionInput, "arreglo_id">>;
@@ -51,6 +56,8 @@ export type OperacionesStats = {
 	ventas: number;
 	compras: number;
 	asignaciones: number;
+	cobros: number;
+	gastos: number;
 	neto: number;
 };
 
@@ -132,10 +139,14 @@ export const operacionesClient = {
 
 	async create(input: CreateOperacionInput): Promise<CreateOperacionResponse | null> {
 		try {
+			const payload: CreateOperacionInput = {
+				...input,
+				idempotency_key: input.idempotency_key ?? generateUuidV4(),
+			};
 			const res = await fetch("/api/operaciones", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(input),
+				body: JSON.stringify(payload),
 			});
 			const body = await res.json().catch(() => ({}));
 			if (!res.ok || body?.error) {
@@ -150,10 +161,14 @@ export const operacionesClient = {
 
 	async update(id: string | number, input: UpdateOperacionInput): Promise<UpdateOperacionResponse> {
 		try {
+			const payload: UpdateOperacionInput = {
+				...input,
+				idempotency_key: input.idempotency_key ?? generateUuidV4(),
+			};
 			const res = await fetch(`/api/operaciones/${id}`, {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(input),
+				body: JSON.stringify(payload),
 			});
 			const body = await res.json().catch(() => ({}));
 			if (!res.ok || body?.error) {
@@ -168,8 +183,10 @@ export const operacionesClient = {
 
 	async delete(id: string | number): Promise<{ error?: string | null }> {
 		try {
+			const idempotencyKey = generateUuidV4();
 			const res = await fetch(`/api/operaciones/${id}`, {
 				method: "DELETE",
+				headers: idempotencyKey ? { "X-Idempotency-Key": idempotencyKey } : undefined,
 			});
 			const body = await res.json().catch(() => ({}));
 			if (!res.ok || body?.error) {

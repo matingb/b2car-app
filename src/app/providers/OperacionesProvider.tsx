@@ -26,6 +26,8 @@ type OperacionesContextType = {
 	pagination: OperacionesPagination;
 	hasMore: boolean;
 	loadMore: () => void;
+	/** Recarga la primera página conservando filtros y período actuales. */
+	refresh: () => Promise<void>;
 	fetchById: (id: string | number) => Promise<Operacion | null>;
 	create: (input: CreateOperacionInput) => Promise<Operacion | null>;
 	update: (id: string | number, input: UpdateOperacionInput) => Promise<Operacion | null>;
@@ -198,6 +200,7 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 			pagination,
 			hasMore,
 			loadMore,
+			refresh,
 			fetchById,
 			create,
 			update,
@@ -214,6 +217,7 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 			pagination,
 			hasMore,
 			loadMore,
+			refresh,
 			fetchById,
 			create,
 			update,

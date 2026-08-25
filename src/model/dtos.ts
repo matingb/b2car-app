@@ -100,7 +100,7 @@ export type OperacionDTO = {
     id: string;
     tenant_id: string;
     tipo: TipoOperacion;
-    taller_id: string;
+    taller_id: string | null;
     fecha: string;
     created_at: string;
 };
