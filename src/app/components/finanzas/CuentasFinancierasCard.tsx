@@ -9,10 +9,10 @@ import {
   MoreHorizontal,
   WalletCards,
   CircleDollarSign,
-  Star,
 } from "lucide-react";
 import { formatArs } from "@/lib/format";
 import { getCuentaTipoLabel } from "@/model/finanzas";
+import CuentaFavoritaButton from "./CuentaFavoritaButton";
 
 type Props = {
   nombre: string;
@@ -85,19 +85,11 @@ export default function CuentasFinancierasCard({
         </div>
         <div style={styles.topActions}>
           {activo && onFavorite ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onFavorite();
-              }}
-              style={{ ...styles.favoriteButton, ...(favorita ? styles.favoriteButtonActive : null) }}
-              title={favorita ? "Cuenta favorita" : "Marcar como favorita"}
-              aria-label={favorita ? `${nombre} es la cuenta favorita` : `Marcar ${nombre} como favorita`}
-              aria-pressed={favorita}
-            >
-              <Star size={17} fill={favorita ? "currentColor" : "none"} />
-            </button>
+            <CuentaFavoritaButton
+              favorita={favorita}
+              onFavorite={onFavorite}
+              dataTestId={`cuenta-favorita-button-${nombre}`}
+            />
           ) : null}
           <span
             style={{
@@ -184,23 +176,6 @@ const styles = {
     alignItems: "center",
     gap: 6,
     flexShrink: 0,
-  },
-  favoriteButton: {
-    width: 30,
-    height: 30,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.PRIMARY,
-    color: COLOR.TEXT.TERTIARY,
-    cursor: "pointer",
-  },
-  favoriteButtonActive: {
-    color: COLOR.SEMANTIC.WARNING,
-    background: COLOR.BACKGROUND.WARNING_TINT,
-    borderColor: COLOR.SEMANTIC.WARNING,
   },
   activeStatus: {
     color: COLOR.SEMANTIC.SUCCESS,

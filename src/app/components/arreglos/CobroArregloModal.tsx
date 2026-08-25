@@ -325,7 +325,7 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
       open={open}
       onClose={onClose}
       onSubmit={handleSubmit}
-      title="Gestion de cobros"
+      title="Gestión de cobros"
       submitText={
         totalSumDraft > 0
           ? `Cobrar ${formatArs(totalSumDraft)}`
@@ -336,7 +336,6 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
       modalStyle={{ width: "min(640px, 96vw)" }}
     >
       <div css={styles.form}>
-        {/* Resumen Financiero del Arreglo */}
         <div css={styles.summaryBox}>
           <div css={styles.summaryItem}>
             <span css={styles.summaryLabel}>Total Arreglo</span>

@@ -19,13 +19,16 @@ describe("CuentasFinancierasCard", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Marcar Caja principal como favorita" }));
+    fireEvent.click(screen.getByTestId("cuenta-favorita-button-Caja principal"));
 
     expect(onFavorite).toHaveBeenCalledTimes(1);
     expect(onClick).not.toHaveBeenCalled();
   });
 
-  it("identifica visual y semanticamente la cuenta favorita", () => {
+  it("identifica visualmente la cuenta favorita y previene clicks", () => {
+    const onClick = vi.fn();
+    const onFavorite = vi.fn();
+
     render(
       <CuentasFinancierasCard
         nombre="Banco"
@@ -33,13 +36,18 @@ describe("CuentasFinancierasCard", () => {
         saldo={0}
         activo
         favorita
-        onFavorite={vi.fn()}
+        onClick={onClick}
+        onFavorite={onFavorite}
       />
     );
 
-    expect(screen.getByRole("button", { name: "Banco es la cuenta favorita" })).toHaveAttribute(
-      "aria-pressed",
-      "true"
-    );
+    const favoriteButton = screen.getByTestId("cuenta-favorita-button-Banco");
+    expect(favoriteButton).toHaveAttribute("aria-pressed", "true");
+    expect(favoriteButton).toHaveAttribute("aria-disabled", "true");
+
+    fireEvent.click(favoriteButton);
+
+    expect(onFavorite).not.toHaveBeenCalled();
+    expect(onClick).not.toHaveBeenCalled();
   });
 });
