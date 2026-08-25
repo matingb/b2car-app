@@ -59,19 +59,21 @@ export default function ArregloSummaryCard({
 
   const { categorias } = useCategoriasArreglo();
 
-  const assignedEmpleados = useMemo(() => {
-    if (data.arreglo.empleados && data.arreglo.empleados.length > 0) {
-      return data.arreglo.empleados;
-    }
-    return [];
-  }, [data]);
+  const assignedEmpleados = useMemo(
+    () => data.arreglo.empleados ?? [],
+    [data.arreglo.empleados]
+  );
 
   const arreglo = data.arreglo;
   if (!arreglo) return null;
 
-  const categoriasDelArreglo = (arreglo.categorias ?? []).filter((id) =>
-    categorias.some((categoria) => categoria.id === id)
+  const categoriasDelArreglo = useMemo(() =>
+    [...new Set(arreglo.categorias ?? [])].filter((id) =>
+      categorias.some((c) => c.id === id)
+    ),
+    [arreglo.categorias, categorias]
   );
+
   const categoriasMostradas = categoriasDelArreglo.slice(0, 3);
   const categoriasRestantes = categoriasDelArreglo.length - categoriasMostradas.length;
 
@@ -260,11 +262,18 @@ export default function ArregloSummaryCard({
                 <div style={styles.chipsRow}>
                   {categoriasMostradas.length > 0 ? (
                     <>
-                      {categoriasMostradas.map((categoriaId) => (
-                        <CategoriaChip key={categoriaId} categoriaArregloId={categoriaId} />
+                      {categoriasMostradas.map((categoriaId, idx) => (
+                        <CategoriaChip
+                          key={categoriaId ? `cat-${categoriaId}` : `cat-idx-${idx}`}
+                          categoriaArregloId={categoriaId}
+                        />
                       ))}
                       {categoriasRestantes > 0 ? (
-                        <CategoriaChip categoriaArregloId={null} label={`+${categoriasRestantes}`} />
+                        <CategoriaChip
+                          key="cat-restantes"
+                          categoriaArregloId={null}
+                          label={`+${categoriasRestantes}`}
+                        />
                       ) : null}
                     </>
                   ) : (
@@ -280,7 +289,6 @@ export default function ArregloSummaryCard({
                 <div style={styles.chipsRow}>
                   {assignedEmpleados.length > 0 ? (
                     assignedEmpleados.map((emp) => {
-                      if (!emp) return null;
                       const color = getEmpleadoColor(emp.id);
                       return (
                         <span
@@ -293,7 +301,7 @@ export default function ArregloSummaryCard({
                           }}
                         >
                           <Avatar
-                            nombre={`${emp.nombre} ${emp.apellido || ""}`}
+                            nombre={`${emp.nombre} ${emp.apellido ?? ""}`.trim()}
                             size={20}
                             bgColor={color.avatarBg}
                             textColor={color.avatarText}
