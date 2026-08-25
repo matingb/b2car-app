@@ -30,7 +30,6 @@ import ArregloFormFields, {
   type ArregloFormFieldsInternal,
   type ArregloFormFieldsValues,
 } from "@/app/components/arreglos/ArregloFormFields";
-import { useInventario } from "@/app/providers/InventarioProvider";
 import { COLOR } from "@/theme/theme";
 import { isValidDate } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
