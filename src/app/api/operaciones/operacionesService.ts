@@ -181,7 +181,7 @@ export const operacionesService = {
 		});
 
 		if (rpcError || !operacionId) {
-			logger.error("Error creating operacion:", rpcError?.code);
+			logger.error("[operacionesService.create] Error en rpc_crear_operacion_con_stock:", rpcError);
 			return { data: null, error: toServiceError(rpcError ?? { code: "Unknown", message: "Unknown error" } as PostgrestError) };
 		}
 
@@ -224,7 +224,10 @@ export const operacionesService = {
 				.select("cuenta_financiera_id")
 				.eq("operacion_id", id)
 				.maybeSingle();
-			if (movimientoError) return { data: null, error: toServiceError(movimientoError) };
+			if (movimientoError) {
+				logger.error("[operacionesService.update] Error obteniendo cuenta financiera:", movimientoError);
+				return { data: null, error: toServiceError(movimientoError) };
+			}
 			cuentaFinancieraId = movimiento?.cuenta_financiera_id ?? null;
 		}
 
@@ -238,6 +241,7 @@ export const operacionesService = {
 			p_idempotency_key: input.idempotency_key ?? null,
 		});
 		if (rpcError || !updatedId) {
+			logger.error("[operacionesService.update] Error en rpc_actualizar_operacion_con_stock:", rpcError);
 			return { data: null, error: toServiceError(rpcError ?? { code: "Unknown", message: "No se pudo actualizar la operación" } as PostgrestError) };
 		}
 
@@ -250,16 +254,27 @@ export const operacionesService = {
 		idempotencyKey?: string | null,
 	): Promise<{ error: ServiceError | null }>
 	{
-		const { data, error } = await supabase.rpc("rpc_borrar_operacion_completa", {
-			p_operacion_id: id,
-			p_idempotency_key: idempotencyKey ?? null,
-		});
-		if (error) return { error: toServiceError(error) };
-		const deleted = Boolean(
-			data && typeof data === "object" && "eliminada" in data && data.eliminada
-		);
-		if (!deleted) return { error: ServiceError.NotFound };
-		return { error: null };
+		try {
+			const { data, error } = await supabase.rpc("rpc_borrar_operacion_completa", {
+				p_operacion_id: id,
+				p_idempotency_key: idempotencyKey ?? null,
+			});
+			if (error) {
+				logger.error("[operacionesService.deleteById] Error en rpc_borrar_operacion_completa:", error);
+				return { error: toServiceError(error) };
+			}
+			const deleted = Boolean(
+				data && typeof data === "object" && "eliminada" in data && data.eliminada
+			);
+			if (!deleted) {
+				logger.warn("[operacionesService.deleteById] Operación no encontrada o no eliminada:", { id, data });
+				return { error: ServiceError.NotFound };
+			}
+			return { error: null };
+		} catch (err) {
+			logger.error("[operacionesService.deleteById] Excepción inesperada:", err);
+			return { error: ServiceError.Unknown };
+		}
 	},
 
 	async stats(

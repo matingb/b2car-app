@@ -108,4 +108,46 @@ describe("operacionesService.deleteById", () => {
 		});
 		expect(result.error).toBeNull();
 	});
+
+	it("maneja error devuelto por la RPC y lo loguea", async () => {
+		const rpc = vi.fn().mockResolvedValue({
+			data: null,
+			error: { code: "55000", message: "Los movimientos del ledger son inmutables." },
+		});
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		const result = await operacionesService.deleteById(
+			supabase,
+			"operacion-1"
+		);
+
+		expect(result.error).toBe("Unknown");
+	});
+
+	it("devuelve NotFound si data.eliminada es false o data es nulo", async () => {
+		const rpc = vi.fn().mockResolvedValue({
+			data: null,
+			error: null,
+		});
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		const result = await operacionesService.deleteById(
+			supabase,
+			"operacion-1"
+		);
+
+		expect(result.error).toBe("NotFound");
+	});
+
+	it("captura excepciones y devuelve ServiceError.Unknown", async () => {
+		const rpc = vi.fn().mockRejectedValue(new Error("Network disconnect"));
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		const result = await operacionesService.deleteById(
+			supabase,
+			"operacion-1"
+		);
+
+		expect(result.error).toBe("Unknown");
+	});
 });

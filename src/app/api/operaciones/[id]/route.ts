@@ -113,43 +113,48 @@ export async function DELETE(
 	_req: NextRequest,
 	{ params }: { params: Promise<{ id: string }> }
 ) {
-	const supabase = await createClient();
-	const { id } = await params;
-	const idempotencyKey = _req.headers.get("x-idempotency-key")?.trim() ?? "";
-	if (!isValidUuid(idempotencyKey)) {
-		return Response.json({ error: "X-Idempotency-Key inválida" }, { status: 400 });
-	}
-
-	const { data: currentOperacion, error: currentError } = await operacionesService.getById(supabase, id);
-	if (currentError || !currentOperacion) {
-		const status = currentError === ServiceError.NotFound ? 404 : 500;
-		const message = status === 404 ? "Operación no encontrada" : "Error eliminando operación";
-		return Response.json({ error: message }, { status });
-	}
-
-	const { error } = await operacionesService.deleteById(supabase, id, idempotencyKey);
-	if (error) {
-		logger.error("DELETE /api/operaciones/[id] - error:", error);
-		let status = 500;
-		let message = "Error eliminando operación";
-		switch (error) {
-			case ServiceError.NotFound:
-				status = 404;
-				message = "Operación no encontrada";
-				break;
-			case ServiceError.StockInsuficiente:
-				status = 409;
-				message = "Stock insuficiente";
-				break;
-			default:
-				break;
+	try {
+		const supabase = await createClient();
+		const { id } = await params;
+		const idempotencyKey = _req.headers.get("x-idempotency-key")?.trim() ?? "";
+		if (!isValidUuid(idempotencyKey)) {
+			return Response.json({ error: "X-Idempotency-Key inválida" }, { status: 400 });
 		}
-		return Response.json({ error: message }, { status });
-	}
 
-	await statsService.onDataChanged(
-		supabase,
-		(currentOperacion as OperacionRow).tenant_id
-	);
-	return Response.json({ error: null }, { status: 200 });
+		const { data: currentOperacion, error: currentError } = await operacionesService.getById(supabase, id);
+		if (currentError || !currentOperacion) {
+			const status = currentError === ServiceError.NotFound ? 404 : 500;
+			const message = status === 404 ? "Operación no encontrada" : "Error eliminando operación";
+			return Response.json({ error: message }, { status });
+		}
+
+		const { error } = await operacionesService.deleteById(supabase, id, idempotencyKey);
+		if (error) {
+			logger.error("DELETE /api/operaciones/[id] - error:", error);
+			let status = 500;
+			let message = "Error eliminando operación";
+			switch (error) {
+				case ServiceError.NotFound:
+					status = 404;
+					message = "Operación no encontrada";
+					break;
+				case ServiceError.StockInsuficiente:
+					status = 409;
+					message = "Stock insuficiente";
+					break;
+				default:
+					break;
+			}
+			return Response.json({ error: message }, { status });
+		}
+
+		await statsService.onDataChanged(
+			supabase,
+			(currentOperacion as OperacionRow).tenant_id
+		);
+		return Response.json({ error: null }, { status: 200 });
+	} catch (err) {
+		logger.error("DELETE /api/operaciones/[id] - error inesperado:", err);
+		return Response.json({ error: "Error eliminando operación" }, { status: 500 });
+	}
 }
