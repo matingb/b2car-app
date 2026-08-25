@@ -54,7 +54,7 @@ function mapOperacion(row: OperacionRow | OperacionListRow): Operacion {
 	const lineas = Array.isArray(rawLineas)
 		? rawLineas.map(mapLineaFromUnknown).filter((linea): linea is OperacionLinea => Boolean(linea))
 		: [];
-	const gasto = "gasto_id" in row ? row : null;
+	const movimiento = "gasto_id" in row ? row : null;
 	return {
 		id: String(row.id),
 		tipo: row.tipo as Operacion["tipo"],
@@ -62,13 +62,14 @@ function mapOperacion(row: OperacionRow | OperacionListRow): Operacion {
 		fecha: String(row.fecha),
 		created_at: String(row.created_at),
 		lineas,
-		...(gasto ? {
-			gasto_id: gasto.gasto_id ?? undefined,
-			descripcion: gasto.descripcion ?? undefined,
-			categoria_gasto: gasto.categoria_gasto ?? undefined,
-			cuenta_financiera_id: gasto.cuenta_financiera_id ?? undefined,
-			cuenta_financiera_nombre: gasto.cuenta_financiera_nombre ?? undefined,
-			monto: Number(gasto.monto) || 0,
+		...(movimiento ? {
+			gasto_id: movimiento.gasto_id ?? undefined,
+			descripcion: movimiento.descripcion ?? undefined,
+			categoria_gasto: movimiento.categoria_gasto ?? undefined,
+			cuenta_financiera_id: movimiento.cuenta_financiera_id ?? undefined,
+			cuenta_financiera_nombre: movimiento.cuenta_financiera_nombre ?? undefined,
+			monto: Number(movimiento.monto) || 0,
+			arreglo_id: movimiento.arreglo_id ?? undefined,
 		} : {}),
 	};
 }

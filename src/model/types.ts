@@ -143,7 +143,10 @@ export type TipoOperacion =
   | "VENTA"
   | "GASTO"
   | "ASIGNACION_ARREGLO"
+  | "COBRO_ARREGLO"
   | "AJUSTE"
+  | "INGRESO"
+  | "APERTURA_CUENTA"
   | "TRANSFERENCIA"
   | "MOVIMIENTO_CUENTA";
 
@@ -152,6 +155,7 @@ export const TIPOS_OPERACIONES: TipoOperacion[] = [
   "VENTA",
   "GASTO",
   "ASIGNACION_ARREGLO",
+  "COBRO_ARREGLO",
   //"AJUSTE",
   //"TRANSFERENCIA",
 ];
@@ -171,6 +175,8 @@ export interface Operacion {
   cuenta_financiera_id?: UUID;
   cuenta_financiera_nombre?: string;
   monto?: number;
+  /** Arreglo asociado cuando la operación corresponde a uno de sus cobros. */
+  arreglo_id?: UUID;
 }
 
 export type OperacionesFilters = {

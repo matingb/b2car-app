@@ -125,5 +125,33 @@ describe("OperacionesPage", () => {
       expect.objectContaining({ page: 1 })
     );
   });
+
+  it("ofrece un filtro específico para los cobros de arreglos", async () => {
+    render(
+      <OperacionesProvider>
+        <ToastProvider>
+          <OperacionesPage />
+        </ToastProvider>
+      </OperacionesProvider>
+    );
+    await runPendingPromises();
+
+    expect(screen.getByTestId("operaciones-chip-COBRO_ARREGLO")).toHaveTextContent("Cobro de arreglo");
+  });
+
+  it("agrupa las estadísticas en ingresos, egresos y resultado", async () => {
+    render(
+      <OperacionesProvider>
+        <ToastProvider>
+          <OperacionesPage />
+        </ToastProvider>
+      </OperacionesProvider>
+    );
+    await runPendingPromises();
+
+    expect(screen.getByLabelText("Resumen de ingresos")).toHaveTextContent("Ventas");
+    expect(screen.getByLabelText("Resumen de egresos")).toHaveTextContent("Compras");
+    expect(screen.getByLabelText("Resultado del período")).toBeInTheDocument();
+  });
 });
 

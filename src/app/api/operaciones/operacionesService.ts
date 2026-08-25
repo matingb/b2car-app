@@ -21,6 +21,7 @@ export type OperacionesStats = {
 	ventas: number;
 	compras: number;
 	asignaciones: number;
+	cobros: number;
 	gastos: number;
 	neto: number;
 };
@@ -80,6 +81,7 @@ export type OperacionListRow = {
 	cuenta_financiera_id: string | null;
 	cuenta_financiera_nombre: string | null;
 	monto: number | string | null;
+	arreglo_id: string | null;
 	total_count: number | string | null;
 };
 
@@ -87,6 +89,7 @@ type OperacionesStatsRow = {
 	ventas?: number | string | null;
 	compras?: number | string | null;
 	asignaciones?: number | string | null;
+	cobros?: number | string | null;
 	gastos?: number | string | null;
 	neto?: number | string | null;
 };
@@ -270,7 +273,7 @@ export const operacionesService = {
 					: null,
 			p_tipos: filters.tipo && filters.tipo.length > 0 ? filters.tipo : null,
 		});
-		if (error) return { data: { ventas: 0, compras: 0, asignaciones: 0, gastos: 0, neto: 0 }, error: toServiceError(error) };
+		if (error) return { data: { ventas: 0, compras: 0, asignaciones: 0, cobros: 0, gastos: 0, neto: 0 }, error: toServiceError(error) };
 
 		const row = (Array.isArray(data) ? data[0] : data) as OperacionesStatsRow | null;
 		return {
@@ -278,6 +281,7 @@ export const operacionesService = {
 				ventas: Number(row?.ventas) || 0,
 				compras: Number(row?.compras) || 0,
 				asignaciones: Number(row?.asignaciones) || 0,
+				cobros: Number(row?.cobros) || 0,
 				gastos: Number(row?.gastos) || 0,
 				neto: Number(row?.neto) || 0,
 			},

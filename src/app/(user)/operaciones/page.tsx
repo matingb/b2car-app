@@ -12,10 +12,13 @@ import { useInventario } from "@/app/providers/InventarioProvider";
 import type { Operacion } from "@/model/types";
 import type { StockItem } from "@/model/stock";
 import { formatDateLabel } from "@/lib/fechas";
+import { formatArs } from "@/lib/format";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import {
+    ArrowDownRight,
     ArrowLeftRight,
+    ArrowUpRight,
     CircleDollarSign,
     PlusIcon,
     Receipt,
@@ -26,7 +29,6 @@ import {
 } from "lucide-react";
 import { TipoOperacion, TIPOS_OPERACIONES } from "@/model/types";
 import { useTenant } from "@/app/providers/TenantProvider";
-import CardDato from "@/app/components/graficos/CardDato";
 import Color from "color";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 import LineDetalleOperacion from "@/app/components/operaciones/LineDetalleOperacion";
@@ -64,11 +66,29 @@ const tipoConfig: Record<
         color: COLOR.SEMANTIC.INFO,
         bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
     },
+    COBRO_ARREGLO: {
+        label: "Cobro de arreglo",
+        icon: <CircleDollarSign size={18} />,
+        color: COLOR.SEMANTIC.SUCCESS,
+        bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
+    },
     AJUSTE: {
         label: "Ajuste",
         icon: <SlidersHorizontal size={18} />,
         color: COLOR.SEMANTIC.WARNING,
         bg: Color(COLOR.SEMANTIC.WARNING).alpha(0.12).toString(),
+    },
+    INGRESO: {
+        label: "Ingreso",
+        icon: <CircleDollarSign size={18} />,
+        color: COLOR.SEMANTIC.SUCCESS,
+        bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
+    },
+    APERTURA_CUENTA: {
+        label: "Apertura de cuenta",
+        icon: <WalletCards size={18} />,
+        color: COLOR.SEMANTIC.INFO,
+        bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
     },
     TRANSFERENCIA: {
         label: "Transferencia",
@@ -90,7 +110,7 @@ function shortId(value?: string | null) {
 }
 
 function getTotals(operacion: Operacion) {
-    if (operacion.tipo === "GASTO") {
+    if (["GASTO", "COBRO_ARREGLO", "INGRESO", "APERTURA_CUENTA", "TRANSFERENCIA", "MOVIMIENTO_CUENTA"].includes(operacion.tipo)) {
         return { totalLineas: 0, totalMonto: Number(operacion.monto) || 0 };
     }
     const totalLineas = operacion.lineas?.length ?? 0;
@@ -99,6 +119,25 @@ function getTotals(operacion: Operacion) {
         0
     );
     return { totalLineas, totalMonto };
+}
+
+function ResumenMetrica({
+    label,
+    value,
+    color,
+}: {
+    label: string;
+    value: number | undefined;
+    color: string;
+}) {
+    return (
+        <div css={styles.resumenMetrica}>
+            <span css={styles.resumenMetricaLabel}>{label}</span>
+            <strong css={styles.resumenMetricaValor} style={{ color }}>
+                {formatArs(value ?? 0)}
+            </strong>
+        </div>
+    );
 }
 
 export default function OperacionesPage() {
@@ -247,41 +286,41 @@ export default function OperacionesPage() {
                 <PeriodSelector value={period} onChange={setPeriod} />
             </div>
             <div css={styles.cardDatosContainer}>
-                <CardDato
-                    titleText="Ventas"
-                    value={stats?.ventas}
-                    prefix="$"
-                    icon={<Receipt size={22} color={COLOR.SEMANTIC.SUCCESS} />}
-                    style={{ color: COLOR.SEMANTIC.SUCCESS }}
-                />
-                <CardDato
-                    titleText="Compras"
-                    value={stats?.compras}
-                    prefix="$"
-                    icon={<Truck size={22} color={COLOR.SEMANTIC.DANGER} />}
-                    style={{ color: COLOR.SEMANTIC.DANGER }}
-                />
-                <CardDato
-                    titleText="Asignaciones"
-                    value={stats?.asignaciones}
-                    prefix="$"
-                    icon={<Wrench size={22} color={COLOR.SEMANTIC.INFO} />}
-                    style={{ color: COLOR.SEMANTIC.INFO }}
-                />
-                <CardDato
-                    titleText="Gastos eventuales"
-                    value={stats?.gastos}
-                    prefix="$"
-                    icon={<WalletCards size={22} color={COLOR.SEMANTIC.DANGER} />}
-                    style={{ color: COLOR.SEMANTIC.DANGER }}
-                />
-                <CardDato
-                    titleText="Resultado Mensual"
-                    value={Math.abs(stats?.neto ?? 0)}
-                    prefix={ stats && stats.neto >= 0 ? "$" : "-$"}
-                    icon={<CircleDollarSign size={22} color={COLOR.SEMANTIC.SUCCESS} />}
-                    style={{ color: COLOR.SEMANTIC.SUCCESS }}
-                />
+                <Card style={styles.resumenGrupoCard} aria-label="Resumen de ingresos">
+                    <div css={styles.resumenGrupoTitulo}>
+                        <ArrowUpRight size={20} color={COLOR.SEMANTIC.SUCCESS} />
+                        Ingresos
+                    </div>
+                    <div css={styles.resumenMetricasDosColumnas}>
+                        <ResumenMetrica label="Ventas" value={stats?.ventas} color={COLOR.SEMANTIC.SUCCESS} />
+                        <ResumenMetrica label="Cobros de arreglos" value={stats?.cobros} color={COLOR.SEMANTIC.SUCCESS} />
+                    </div>
+                </Card>
+
+                <Card style={styles.resumenGrupoCard} aria-label="Resumen de egresos">
+                    <div css={styles.resumenGrupoTitulo}>
+                        <ArrowDownRight size={20} color={COLOR.SEMANTIC.DANGER} />
+                        Egresos
+                    </div>
+                    <div css={styles.resumenMetricasTresColumnas}>
+                        <ResumenMetrica label="Compras" value={stats?.compras} color={COLOR.SEMANTIC.DANGER} />
+                        <ResumenMetrica label="Repuestos usados" value={stats?.asignaciones} color={COLOR.SEMANTIC.DANGER} />
+                        <ResumenMetrica label="Gastos eventuales" value={stats?.gastos} color={COLOR.SEMANTIC.DANGER} />
+                    </div>
+                </Card>
+
+                <Card
+                    style={{ ...styles.resultadoCard, color: (stats?.neto ?? 0) >= 0 ? COLOR.SEMANTIC.SUCCESS : COLOR.SEMANTIC.DANGER }}
+                    aria-label="Resultado del período"
+                >
+                    <div css={styles.resultadoTitulo}>
+                        <CircleDollarSign size={18} />
+                        Resultado del período
+                    </div>
+                    <strong css={styles.resultadoValor}>
+                        {(stats?.neto ?? 0) < 0 ? "-" : ""}{formatArs(Math.abs(stats?.neto ?? 0))}
+                    </strong>
+                </Card>
             </div>
             <div style={styles.searchBarContainer}>
                 <div style={styles.searchRow}>
@@ -366,7 +405,7 @@ export default function OperacionesPage() {
                                 onToggle={() => {
                                     setExpandedOperacionId((prev) => (prev === operacion.id ? null : operacion.id));
                                 }}
-                                onDelete={() => {
+                                onDelete={operacion.tipo === "COBRO_ARREGLO" ? undefined : () => {
                                     void handleDelete(operacion);
                                 }}
                                 onEdit={operacion.tipo === "GASTO" ? () => handleEditGasto(operacion) : undefined}
@@ -409,13 +448,87 @@ const styles = {
         gap: 16,
         marginTop: 12,
         marginBottom: 16,
-        gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+        gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1.5fr) minmax(220px, 1fr)",
         [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
             gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
         },
         [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
             gridTemplateColumns: "repeat(1, minmax(0, 1fr))",
         },
+    }),
+    resumenGrupoCard: {
+        padding: "4px",
+        display: "flex",
+        flexDirection: "column" as const,
+        minHeight: 138,
+    },
+    resumenGrupoTitulo: css({
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "8px 12px 4px",
+        color: COLOR.TEXT.PRIMARY,
+        fontSize: 18,
+        fontWeight: 600,
+    }),
+    resumenMetricasDosColumnas: css({
+        display: "grid",
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        flex: 1,
+        "& > :not(:last-child)": {
+            borderRight: `1px solid ${COLOR.BORDER.SUBTLE}`,
+        },
+    }),
+    resumenMetricasTresColumnas: css({
+        display: "grid",
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+        flex: 1,
+        "& > :not(:last-child)": {
+            borderRight: `1px solid ${COLOR.BORDER.SUBTLE}`,
+        },
+    }),
+    resumenMetrica: css({
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        gap: 6,
+        minWidth: 0,
+        padding: "12px 16px",
+    }),
+    resumenMetricaLabel: css({
+        color: COLOR.TEXT.SECONDARY,
+        fontSize: 13,
+        lineHeight: 1.2,
+    }),
+    resumenMetricaValor: css({
+        fontSize: 20,
+        lineHeight: 1.15,
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+    }),
+    resultadoCard: {
+        display: "flex",
+        flexDirection: "column" as const,
+        justifyContent: "center",
+        gap: 8,
+        minHeight: 138,
+    },
+    resultadoTitulo: css({
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        color: "inherit",
+        fontSize: 13,
+        fontWeight: 700,
+        textTransform: "uppercase",
+        letterSpacing: "0.04em",
+    }),
+    resultadoValor: css({
+        color: "inherit",
+        fontSize: 28,
+        lineHeight: 1.1,
+        whiteSpace: "nowrap",
     }),
     searchBarContainer: {
         display: "flex",

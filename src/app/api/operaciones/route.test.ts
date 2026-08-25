@@ -44,6 +44,7 @@ describe("GET /api/operaciones", () => {
 				cuenta_financiera_id: null,
 				cuenta_financiera_nombre: null,
 				monto: null,
+				arreglo_id: null,
 				total_count: 83,
 			}],
 			total: 83,
@@ -68,5 +69,38 @@ describe("GET /api/operaciones", () => {
 		expect(response.status).toBe(200);
 		expect(body.pagination).toEqual({ page: 2, pageSize: 50, total: 83 });
 		expect(body.data).toHaveLength(1);
+	});
+
+	it("conserva el tipo COBRO_ARREGLO para que no se presente como ajuste", async () => {
+		vi.mocked(operacionesService.list).mockResolvedValue({
+			data: [{
+				id: "op-cobro",
+				tipo: "COBRO_ARREGLO",
+				taller_id: "taller-1",
+				fecha: "2026-08-25T00:00:00.000Z",
+				created_at: "2026-08-25T00:00:00.000Z",
+				lineas: [],
+				gasto_id: null,
+				descripcion: "Cobro parcial",
+				categoria_gasto: null,
+				cuenta_financiera_id: "cuenta-1",
+				cuenta_financiera_nombre: "Caja",
+				monto: 12500,
+				arreglo_id: "arreglo-1",
+				total_count: 1,
+			}],
+			total: 1,
+			error: null,
+		} as Awaited<ReturnType<typeof operacionesService.list>>);
+
+		const response = await GET(new Request("http://localhost/api/operaciones"));
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body.data[0]).toMatchObject({
+			tipo: "COBRO_ARREGLO",
+			monto: 12500,
+			arreglo_id: "arreglo-1",
+		});
 	});
 });

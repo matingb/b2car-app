@@ -56,6 +56,7 @@ export type OperacionesStats = {
 	ventas: number;
 	compras: number;
 	asignaciones: number;
+	cobros: number;
 	gastos: number;
 	neto: number;
 };

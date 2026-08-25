@@ -70,3 +70,20 @@ describe("operacionesService.update", () => {
 		expect(getById).toHaveBeenCalledTimes(2);
 	});
 });
+
+describe("operacionesService.stats", () => {
+	it("incluye los cobros de arreglos y trata las asignaciones como importe", async () => {
+		const rpc = vi.fn().mockResolvedValue({
+			data: [{ ventas: "100000", compras: "20000", asignaciones: "15000", cobros: "45000", gastos: "5000", neto: "120000" }],
+			error: null,
+		});
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		const result = await operacionesService.stats(supabase, {});
+
+		expect(result).toEqual({
+			data: { ventas: 100000, compras: 20000, asignaciones: 15000, cobros: 45000, gastos: 5000, neto: 120000 },
+			error: null,
+		});
+	});
+});

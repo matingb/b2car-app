@@ -22,7 +22,7 @@ type Props = {
   stocksById: Record<string, StockItem>;
   expanded: boolean;
   onToggle: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
   onEdit?: () => void;
 };
 
@@ -32,7 +32,7 @@ function shortId(value: string) {
 }
 
 function getTotals(operacion: Operacion) {
-  if (operacion.tipo === "GASTO") {
+  if (["GASTO", "COBRO_ARREGLO", "INGRESO", "APERTURA_CUENTA", "TRANSFERENCIA", "MOVIMIENTO_CUENTA"].includes(operacion.tipo)) {
     return { totalLineas: 0, totalMonto: Number(operacion.monto) || 0 };
   }
 
@@ -59,6 +59,7 @@ export default function LineDetalleOperacion({
 }: Props) {
   const { totalLineas, totalMonto } = getTotals(operacion);
   const isGasto = operacion.tipo === "GASTO";
+  const isMovimientoFinanciero = ["GASTO", "COBRO_ARREGLO", "INGRESO", "APERTURA_CUENTA", "TRANSFERENCIA", "MOVIMIENTO_CUENTA"].includes(operacion.tipo);
   const deleteTitle = isGasto ? "Eliminar gasto" : "Eliminar movimiento";
 
   return (
@@ -77,8 +78,8 @@ export default function LineDetalleOperacion({
         <div css={[styles.metaRow, !expanded && styles.metaRowCollapsed]}>
           <div css={[styles.metaGroup, styles.desktopOnly]}>
             <IconLabel
-              icon={isGasto ? <Tag size={18} color={COLOR.ICON.MUTED} /> : <Package size={18} color={COLOR.ICON.MUTED} />}
-              label={isGasto ? (operacion.categoria_gasto ?? "Gasto") : `${totalLineas} productos`}
+              icon={isGasto ? <Tag size={18} color={COLOR.ICON.MUTED} /> : isMovimientoFinanciero ? <WalletCards size={18} color={COLOR.ICON.MUTED} /> : <Package size={18} color={COLOR.ICON.MUTED} />}
+              label={isGasto ? (operacion.categoria_gasto ?? "Gasto") : isMovimientoFinanciero ? "Movimiento financiero" : `${totalLineas} productos`}
               style={styles.metaItem}
             />
             <IconLabel
@@ -86,7 +87,7 @@ export default function LineDetalleOperacion({
               label={formatArs(totalMonto)}
               style={styles.metaAmount}
             />
-            {isGasto ? (
+            {isMovimientoFinanciero ? (
               <IconLabel
                 icon={<WalletCards size={16} color={COLOR.ICON.MUTED} />}
                 label={operacion.cuenta_financiera_nombre ?? "Cuenta financiera"}
@@ -103,8 +104,8 @@ export default function LineDetalleOperacion({
 
           <div css={[styles.metaGroup, styles.mobileOnly]}>
             <IconLabel
-              icon={isGasto ? <Tag size={18} color={COLOR.ICON.MUTED} /> : <Package size={18} color={COLOR.ICON.MUTED} />}
-              label={isGasto ? "Gasto" : `${totalLineas}`}
+              icon={isGasto ? <Tag size={18} color={COLOR.ICON.MUTED} /> : isMovimientoFinanciero ? <WalletCards size={18} color={COLOR.ICON.MUTED} /> : <Package size={18} color={COLOR.ICON.MUTED} />}
+              label={isGasto ? "Gasto" : isMovimientoFinanciero ? "Movimiento" : `${totalLineas}`}
               style={styles.metaItem}
             />
             <IconLabel
@@ -112,7 +113,7 @@ export default function LineDetalleOperacion({
               label={formatArs(totalMonto)}
               style={styles.metaAmount}
             />
-            {isGasto ? (
+            {isMovimientoFinanciero ? (
               <IconLabel
                 icon={<WalletCards size={16} color={COLOR.ICON.MUTED} />}
                 label={operacion.cuenta_financiera_nombre ?? "Cuenta"}
@@ -139,7 +140,7 @@ export default function LineDetalleOperacion({
                 }}
               />
             ) : null}
-            <IconButton
+            {onDelete ? <IconButton
               icon={<Trash />}
               title={deleteTitle}
               ariaLabel={deleteTitle}
@@ -148,7 +149,7 @@ export default function LineDetalleOperacion({
                 e.stopPropagation();
                 onDelete();
               }}
-            />
+            /> : null}
           </div>
 
           <div css={[styles.metaActions, styles.mobileOnly]}>
@@ -163,7 +164,7 @@ export default function LineDetalleOperacion({
                 }}
               />
             ) : null}
-            <IconButton
+            {onDelete ? <IconButton
               icon={<Trash />}
               title={deleteTitle}
               ariaLabel={deleteTitle}
@@ -172,7 +173,7 @@ export default function LineDetalleOperacion({
                 e.stopPropagation();
                 onDelete();
               }}
-            />
+            /> : null}
           </div>
         </div>
       </div>
@@ -186,13 +187,13 @@ export default function LineDetalleOperacion({
         <div style={styles.expandedContainer}>
           <div style={styles.expandedHeader}>
             <div style={styles.expandedHeaderLeft}>
-              <div style={styles.expandedTitle}>{isGasto ? "Detalle del gasto" : "Productos"}</div>
+              <div style={styles.expandedTitle}>{isMovimientoFinanciero ? "Detalle del movimiento" : "Productos"}</div>
               <div css={styles.mobileOnly} style={styles.expandedMetaInline}>
               </div>
             </div>
           </div>
           <div style={styles.expandedList}>
-            {isGasto ? (
+            {isMovimientoFinanciero ? (
               <div style={styles.expandedExpense}>
                 <div style={styles.expandedExpenseDescription}>{operacion.descripcion || "Sin descripción"}</div>
                 <div style={styles.expandedExpenseMeta}>
