@@ -177,6 +177,10 @@ export function validateUpdateCuenta(body: unknown): Validated<ActualizarCuentaF
     if (typeof body.activo !== "boolean") return { error: "activo debe ser booleano" };
     patch.activo = body.activo;
   }
+  if (own(body, "favorita")) {
+    if (typeof body.favorita !== "boolean") return { error: "favorita debe ser booleano" };
+    patch.favorita = body.favorita;
+  }
   if (Object.keys(patch).length === 0) return { error: "No hay campos para actualizar" };
   return { value: patch };
 }
@@ -411,12 +415,13 @@ export function mapCuenta(row: unknown): CuentaFinanciera | null {
   const saldoInicial = asNumber(pick(source, "saldo_inicial", "saldoInicial")) ?? 0;
   const saldoActual = asNumber(pick(source, "saldo", "saldo_actual", "saldoActual"));
   const activo = asBoolean(pick(source, "activo"));
+  const favorita = asBoolean(pick(source, "favorita")) ?? false;
   const createdAt = asTimestamp(pick(source, "created_at", "createdAt"));
   const updatedAt = asTimestamp(pick(source, "updated_at", "updatedAt"));
   if (!id || !nombre || !isAccountType(tipo) || saldoActual === null || activo === null || !createdAt || !updatedAt) {
     return null;
   }
-  return { id, nombre, tipo, saldoInicial, saldoActual, activo, createdAt, updatedAt };
+  return { id, nombre, tipo, saldoInicial, saldoActual, activo, favorita, createdAt, updatedAt };
 }
 
 export function mapMovimiento(row: unknown): MovimientoFinanciero | null {

@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   WalletCards,
   CircleDollarSign,
+  Star,
 } from "lucide-react";
 import { formatArs } from "@/lib/format";
 import { getCuentaTipoLabel } from "@/model/finanzas";
@@ -18,7 +19,9 @@ type Props = {
   tipo: string;
   saldo: number | null | undefined;
   activo: boolean;
+  favorita?: boolean;
   onClick?: () => void;
+  onFavorite?: () => void;
 };
 
 function CuentaIcon({ tipo }: { tipo: string }) {
@@ -42,7 +45,9 @@ export default function CuentasFinancierasCard({
   tipo,
   saldo,
   activo,
+  favorita = false,
   onClick,
+  onFavorite,
 }: Props) {
   const saldoNumber = Number(saldo) || 0;
   const saldoColor = saldoNumber < 0 ? COLOR.ICON.DANGER : COLOR.TEXT.PRIMARY;
@@ -78,14 +83,31 @@ export default function CuentasFinancierasCard({
             <div style={styles.type}>{getCuentaTipoLabel(tipo)}</div>
           </div>
         </div>
-        <span
-          style={{
-            ...styles.status,
-            ...(activo ? styles.activeStatus : styles.inactiveStatus),
-          }}
-        >
-          {activo ? "Activa" : "Inactiva"}
-        </span>
+        <div style={styles.topActions}>
+          {activo && onFavorite ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onFavorite();
+              }}
+              style={{ ...styles.favoriteButton, ...(favorita ? styles.favoriteButtonActive : null) }}
+              title={favorita ? "Cuenta favorita" : "Marcar como favorita"}
+              aria-label={favorita ? `${nombre} es la cuenta favorita` : `Marcar ${nombre} como favorita`}
+              aria-pressed={favorita}
+            >
+              <Star size={17} fill={favorita ? "currentColor" : "none"} />
+            </button>
+          ) : null}
+          <span
+            style={{
+              ...styles.status,
+              ...(activo ? styles.activeStatus : styles.inactiveStatus),
+            }}
+          >
+            {activo ? "Activa" : "Inactiva"}
+          </span>
+        </div>
       </div>
 
       <div style={styles.balanceBlock}>
@@ -156,6 +178,29 @@ const styles = {
     fontSize: 12,
     fontWeight: 700,
     flexShrink: 0,
+  },
+  topActions: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 0,
+  },
+  favoriteButton: {
+    width: 30,
+    height: 30,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.PRIMARY,
+    color: COLOR.TEXT.TERTIARY,
+    cursor: "pointer",
+  },
+  favoriteButtonActive: {
+    color: COLOR.SEMANTIC.WARNING,
+    background: COLOR.BACKGROUND.WARNING_TINT,
+    borderColor: COLOR.SEMANTIC.WARNING,
   },
   activeStatus: {
     color: COLOR.SEMANTIC.SUCCESS,

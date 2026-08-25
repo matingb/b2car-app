@@ -91,6 +91,7 @@ export type CuentaFinanciera = {
   saldoInicial: number;
   saldoActual: number;
   activo: boolean;
+  favorita: boolean;
   createdAt: string;
   updatedAt: string;
   movimientos?: MovimientoFinanciero[];
@@ -177,6 +178,7 @@ export type ActualizarCuentaFinancieraInput = Partial<{
   nombre: string;
   tipo: TipoCuentaFinanciera;
   activo: boolean;
+  favorita: boolean;
 }>;
 
 export type CrearTransferenciaFinancieraInput = {

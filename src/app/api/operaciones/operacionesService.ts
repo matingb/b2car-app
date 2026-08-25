@@ -250,12 +250,15 @@ export const operacionesService = {
 		idempotencyKey?: string | null,
 	): Promise<{ error: ServiceError | null }>
 	{
-		const { data, error } = await supabase.rpc("rpc_borrar_operacion_con_stock", {
+		const { data, error } = await supabase.rpc("rpc_borrar_operacion_completa", {
 			p_operacion_id: id,
 			p_idempotency_key: idempotencyKey ?? null,
 		});
 		if (error) return { error: toServiceError(error) };
-		if (!data) return { error: ServiceError.NotFound };
+		const deleted = Boolean(
+			data && typeof data === "object" && "eliminada" in data && data.eliminada
+		);
+		if (!deleted) return { error: ServiceError.NotFound };
 		return { error: null };
 	},
 

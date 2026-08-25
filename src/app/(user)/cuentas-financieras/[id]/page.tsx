@@ -330,7 +330,7 @@ const styles = {
     borderRadius: 999,
     padding: "5px 10px",
     fontSize: 12,
-    fontWeight: 700,
+    fontWeight: 600,
     flexShrink: 0,
   },
   activeStatus: { color: COLOR.SEMANTIC.SUCCESS, background: COLOR.BACKGROUND.SUCCESS_TINT },

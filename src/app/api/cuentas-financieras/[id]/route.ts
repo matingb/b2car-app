@@ -64,6 +64,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     p_nombre: input.nombre ?? null,
     p_tipo: input.tipo ?? null,
     p_activo: input.activo ?? null,
+    p_favorita: input.favorita ?? null,
   });
   if (updateError) {
     return Response.json(

@@ -71,11 +71,43 @@ export default function MovimientoFinancieroItem({
     ? COLOR.BACKGROUND.SUCCESS_TINT
     : COLOR.BACKGROUND.DANGER_TINT;
   const categoria = movimiento.categoria?.replaceAll("_", " ").toLowerCase();
+  const clickable = Boolean(onClick || movimiento.arregloId || movimiento.operacionId);
+
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+      return;
+    }
+    if (movimiento.arregloId) {
+      router.push(`/arreglos/${movimiento.arregloId}`);
+      return;
+    }
+    if (movimiento.operacionId) {
+      router.push(`/operaciones?operacion_id=${movimiento.operacionId}`);
+    }
+  };
 
   return (
     <div
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? handleClick : undefined}
+      onKeyDown={
+        clickable
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                handleClick();
+              }
+            }
+          : undefined
+      }
+      onMouseEnter={clickable ? () => setIsHovered(true) : undefined}
+      onMouseLeave={clickable ? () => setIsHovered(false) : undefined}
       style={{
         ...styles.row,
+        ...(clickable ? styles.clickable : {}),
+        ...(isHovered ? styles.hovered : {}),
         ...(isLast ? styles.lastRow : {}),
       }}
     >

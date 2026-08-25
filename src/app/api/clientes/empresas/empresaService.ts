@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger'
 import { SupabaseClient } from '@supabase/supabase-js'
-import { Empresa } from './[id]/route'
+import type { Empresa } from './[id]/route'
 import { TipoCliente, Cliente } from "@/model/types";
 import type { Vehiculo } from "@/model/types";
 
@@ -16,6 +16,7 @@ type EmpresaInsertRow = {
 
 type EmpresaByIdRow = {
   id: string;
+  tipo_cliente?: string | null;
   empresa?: EmpresaInsertRow | null;
   vehiculos?: Vehiculo[] | null;
 };
@@ -23,6 +24,10 @@ type EmpresaByIdRow = {
 export type EmpresaTenantResponse = {
   data: Empresa | null;
   error?: Error | null;
+};
+
+type EmpresaDetalle = Empresa & {
+  tipo_cliente: TipoCliente.EMPRESA;
 };
 
 export const empresaService = {
@@ -98,7 +103,7 @@ export const empresaService = {
     return { data: c, error: null };
   },
 
-  async getByIdWithVehiculos(supabase: SupabaseClient, id: string): Promise<{ data: Empresa | null; error: Error | null; code?: string }> {
+  async getByIdWithVehiculos(supabase: SupabaseClient, id: string): Promise<{ data: EmpresaDetalle | null; error: Error | null; code?: string }> {
     const { data, error } = await supabase
       .from("clientes")
       .select("*, empresa:empresas(*), vehiculos(*)")
@@ -108,8 +113,13 @@ export const empresaService = {
     if (error) return { data: null, error: new Error(error.message), code: (error as { code?: string }).code };
 
     const row = data as unknown as EmpresaByIdRow;
-    const empresa: Empresa = {
+    if (row.tipo_cliente !== TipoCliente.EMPRESA || !row.empresa) {
+      return { data: null, error: null };
+    }
+
+    const empresa: EmpresaDetalle = {
       id: row.id,
+      tipo_cliente: TipoCliente.EMPRESA,
       nombre: row.empresa?.nombre ?? "",
       cuit: row.empresa?.cuit ?? "",
       codigo_pais: row.empresa?.codigo_pais ?? undefined,

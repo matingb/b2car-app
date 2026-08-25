@@ -35,6 +35,7 @@ const initialCuentas: CuentaFinanciera[] = [
     saldoInicial: 1000,
     saldoActual: 2500,
     activo: true,
+    favorita: true,
     createdAt: "2026-07-01T00:00:00Z",
     updatedAt: "2026-07-01T00:00:00Z",
   },
@@ -45,6 +46,7 @@ const initialCuentas: CuentaFinanciera[] = [
     saldoInicial: 5000,
     saldoActual: 8000,
     activo: false,
+    favorita: false,
     createdAt: "2026-07-01T00:00:00Z",
     updatedAt: "2026-07-01T00:00:00Z",
   },
@@ -185,6 +187,7 @@ describe("CuentasFinancierasProvider", () => {
       saldoInicial: 500,
       saldoActual: 500,
       activo: true,
+      favorita: false,
       createdAt: "2026-07-02T00:00:00Z",
       updatedAt: "2026-07-02T00:00:00Z",
     };

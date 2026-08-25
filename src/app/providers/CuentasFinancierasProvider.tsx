@@ -23,6 +23,7 @@ import type {
 export type CuentasFinancierasContextType = {
   cuentas: CuentaFinanciera[];
   cuentasActivas: CuentaFinanciera[];
+  cuentaFavorita: CuentaFinanciera | null;
   saldoTotal: number;
   loading: boolean;
   loadError: string | null;
@@ -103,6 +104,11 @@ export function CuentasFinancierasProvider({
     [cuentas]
   );
 
+  const cuentaFavorita = useMemo(
+    () => cuentasActivas.find((cuenta) => cuenta.favorita) ?? null,
+    [cuentasActivas]
+  );
+
   const saldoTotal = useMemo(
     () =>
       cuentasActivas.reduce(
@@ -162,7 +168,10 @@ export function CuentasFinancierasProvider({
         }
         const updated = res.data;
         setCuentas((previous) =>
-          previous.map((item) => (item.id === updated.id ? updated : item))
+          previous.map((item) => {
+            if (item.id === updated.id) return updated;
+            return input.favorita === true ? { ...item, favorita: false } : item;
+          })
         );
         return updated;
       } finally {
@@ -231,6 +240,7 @@ export function CuentasFinancierasProvider({
     () => ({
       cuentas,
       cuentasActivas,
+      cuentaFavorita,
       saldoTotal,
       loading,
       loadError,
@@ -246,6 +256,7 @@ export function CuentasFinancierasProvider({
     [
       cuentas,
       cuentasActivas,
+      cuentaFavorita,
       saldoTotal,
       loading,
       loadError,

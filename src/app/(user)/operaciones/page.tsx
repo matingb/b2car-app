@@ -34,8 +34,10 @@ import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateMo
 import LineDetalleOperacion from "@/app/components/operaciones/LineDetalleOperacion";
 import Button from "@/app/components/ui/Button";
 import { useToast } from "@/app/providers/ToastProvider";
+import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { finanzasClient } from "@/clients/finanzasClient";
 import type { GastoFinanciero } from "@/model/finanzas";
+import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 
 
 const tipoConfig: Record<
@@ -121,6 +123,10 @@ function getTotals(operacion: Operacion) {
     return { totalLineas, totalMonto };
 }
 
+export function formatOperacionCardAmount(value: number) {
+    return formatArs(value, { maxDecimals: 0, minDecimals: 0 });
+}
+
 function ResumenMetrica({
     label,
     value,
@@ -130,11 +136,14 @@ function ResumenMetrica({
     value: number | undefined;
     color: string;
 }) {
+    const numericValue = Number(value) || 0;
+    const animatedValue = useAnimatedNumber(numericValue);
+
     return (
         <div css={styles.resumenMetrica}>
             <span css={styles.resumenMetricaLabel}>{label}</span>
             <strong css={styles.resumenMetricaValor} style={{ color }}>
-                {formatArs(value ?? 0)}
+                {formatOperacionCardAmount(animatedValue ?? numericValue)}
             </strong>
         </div>
     );
@@ -158,6 +167,7 @@ export default function OperacionesPage() {
     const { talleres } = useTenant();
     const { getStockById } = useInventario();
     const { success, error } = useToast();
+    const { confirm } = useModalMessage();
     const [search, setSearch] = useState("");
     const [createOpen, setCreateOpen] = useState(false);
     const [initialTipo, setInitialTipo] = useState<TipoOperacion>("VENTA");
@@ -168,6 +178,9 @@ export default function OperacionesPage() {
     const loadedStockIdsRef = useRef<Set<string>>(new Set());
     const loadingInitial = loading && operaciones.length === 0;
     const loadingMore = loading && operaciones.length > 0;
+    const neto = Number(stats?.neto) || 0;
+    const animatedNeto = useAnimatedNumber(neto);
+    const netoVisible = animatedNeto ?? neto;
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -242,6 +255,15 @@ export default function OperacionesPage() {
 
     const handleDelete = useCallback(async (operacion: Operacion) => {
         try {
+            if (operacion.tipo === "COBRO_ARREGLO") {
+                const accepted = await confirm({
+                    title: "Eliminar cobro",
+                    message: "Al eliminar este cobro se revertira el ingreso de la cuenta y se actualizara el estado de pago del arreglo asociado.",
+                    acceptLabel: "Eliminar cobro",
+                    cancelLabel: "Cancelar",
+                });
+                if (!accepted) return;
+            }
             if (operacion.tipo === "GASTO") {
                 const gastoId = operacion.gasto_id ?? operacion.id;
                 const response = await finanzasClient.eliminarGasto(gastoId);
@@ -256,7 +278,7 @@ export default function OperacionesPage() {
             const message = err instanceof Error ? err.message : "No se pudo eliminar la operación";
             error("Error eliminando operación", message);
         }
-    }, [error, refresh, remove, success]);
+    }, [confirm, error, refresh, remove, success]);
 
     const handleEditGasto = useCallback((operacion: Operacion) => {
         const gastoId = operacion.gasto_id ?? operacion.id;
@@ -288,10 +310,10 @@ export default function OperacionesPage() {
             <div css={styles.cardDatosContainer}>
                 <Card style={styles.resumenGrupoCard} aria-label="Resumen de ingresos">
                     <div css={styles.resumenGrupoTitulo}>
-                        <ArrowUpRight size={20} color={COLOR.SEMANTIC.SUCCESS} />
+                        <ArrowUpRight size={24} color={COLOR.SEMANTIC.SUCCESS} />
                         Ingresos
                     </div>
-                    <div css={styles.resumenMetricasDosColumnas}>
+                    <div css={styles.resumenMetricas}>
                         <ResumenMetrica label="Ventas" value={stats?.ventas} color={COLOR.SEMANTIC.SUCCESS} />
                         <ResumenMetrica label="Cobros de arreglos" value={stats?.cobros} color={COLOR.SEMANTIC.SUCCESS} />
                     </div>
@@ -299,10 +321,10 @@ export default function OperacionesPage() {
 
                 <Card style={styles.resumenGrupoCard} aria-label="Resumen de egresos">
                     <div css={styles.resumenGrupoTitulo}>
-                        <ArrowDownRight size={20} color={COLOR.SEMANTIC.DANGER} />
+                        <ArrowDownRight size={24} color={COLOR.SEMANTIC.DANGER} />
                         Egresos
                     </div>
-                    <div css={styles.resumenMetricasTresColumnas}>
+                    <div css={styles.resumenMetricas}>
                         <ResumenMetrica label="Compras" value={stats?.compras} color={COLOR.SEMANTIC.DANGER} />
                         <ResumenMetrica label="Repuestos usados" value={stats?.asignaciones} color={COLOR.SEMANTIC.DANGER} />
                         <ResumenMetrica label="Gastos eventuales" value={stats?.gastos} color={COLOR.SEMANTIC.DANGER} />
@@ -310,15 +332,15 @@ export default function OperacionesPage() {
                 </Card>
 
                 <Card
-                    style={{ ...styles.resultadoCard, color: (stats?.neto ?? 0) >= 0 ? COLOR.SEMANTIC.SUCCESS : COLOR.SEMANTIC.DANGER }}
+                    style={{ ...styles.resultadoCard, color: neto >= 0 ? COLOR.SEMANTIC.SUCCESS : COLOR.SEMANTIC.DANGER }}
                     aria-label="Resultado del período"
                 >
                     <div css={styles.resultadoTitulo}>
-                        <CircleDollarSign size={18} />
+                        <CircleDollarSign size={24} />
                         Resultado del período
                     </div>
                     <strong css={styles.resultadoValor}>
-                        {(stats?.neto ?? 0) < 0 ? "-" : ""}{formatArs(Math.abs(stats?.neto ?? 0))}
+                        {netoVisible < 0 ? "-" : ""}{formatOperacionCardAmount(Math.abs(netoVisible))}
                     </strong>
                 </Card>
             </div>
@@ -405,7 +427,7 @@ export default function OperacionesPage() {
                                 onToggle={() => {
                                     setExpandedOperacionId((prev) => (prev === operacion.id ? null : operacion.id));
                                 }}
-                                onDelete={operacion.tipo === "COBRO_ARREGLO" ? undefined : () => {
+                                onDelete={() => {
                                     void handleDelete(operacion);
                                 }}
                                 onEdit={operacion.tipo === "GASTO" ? () => handleEditGasto(operacion) : undefined}
@@ -448,10 +470,7 @@ const styles = {
         gap: 16,
         marginTop: 12,
         marginBottom: 16,
-        gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1.5fr) minmax(220px, 1fr)",
-        [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-        },
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
         [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
             gridTemplateColumns: "repeat(1, minmax(0, 1fr))",
         },
@@ -460,75 +479,81 @@ const styles = {
         padding: "4px",
         display: "flex",
         flexDirection: "column" as const,
-        minHeight: 138,
     },
     resumenGrupoTitulo: css({
         display: "flex",
         alignItems: "center",
         gap: 8,
-        padding: "8px 12px 4px",
+        padding: "12px 12px 4px",
         color: COLOR.TEXT.PRIMARY,
-        fontSize: 18,
+        fontSize: 22,
+        lineHeight: 1,
         fontWeight: 600,
-    }),
-    resumenMetricasDosColumnas: css({
-        display: "grid",
-        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-        flex: 1,
-        "& > :not(:last-child)": {
-            borderRight: `1px solid ${COLOR.BORDER.SUBTLE}`,
+        "& > svg": {
+            display: "block",
+            flexShrink: 0,
         },
     }),
-    resumenMetricasTresColumnas: css({
-        display: "grid",
-        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    resumenMetricas: css({
+        display: "flex",
+        flexDirection: "column",
         flex: 1,
         "& > :not(:last-child)": {
-            borderRight: `1px solid ${COLOR.BORDER.SUBTLE}`,
+            borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
         },
     }),
     resumenMetrica: css({
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        gap: 6,
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) auto",
+        alignItems: "baseline",
+        columnGap: 16,
         minWidth: 0,
-        padding: "12px 16px",
+        padding: "14px 16px",
     }),
     resumenMetricaLabel: css({
         color: COLOR.TEXT.SECONDARY,
-        fontSize: 13,
-        lineHeight: 1.2,
+        fontSize: 18,
+        lineHeight: 1.3,
     }),
     resumenMetricaValor: css({
-        fontSize: 20,
+        fontSize: "clamp(20px, 2.5vw, 40px)",
         lineHeight: 1.15,
         whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
+        textAlign: "right",
+        fontVariantNumeric: "tabular-nums",
     }),
     resultadoCard: {
         display: "flex",
-        flexDirection: "column" as const,
-        justifyContent: "center",
-        gap: 8,
-        minHeight: 138,
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 16,
+        flexWrap: "wrap" as const,
+        gridColumn: "1 / -1",
+        minHeight: 88,
+        order: -1,
     },
     resultadoTitulo: css({
         display: "flex",
         alignItems: "center",
         gap: 8,
         color: "inherit",
-        fontSize: 13,
+        fontSize: 22,
+        lineHeight: 1,
         fontWeight: 700,
         textTransform: "uppercase",
         letterSpacing: "0.04em",
+        "& > svg": {
+            display: "block",
+            flexShrink: 0,
+        },
     }),
     resultadoValor: css({
         color: "inherit",
-        fontSize: 28,
+        fontSize: "clamp(28px, 4vw, 44px)",
         lineHeight: 1.1,
         whiteSpace: "nowrap",
+        fontVariantNumeric: "tabular-nums",
+        marginLeft: "auto",
     }),
     searchBarContainer: {
         display: "flex",

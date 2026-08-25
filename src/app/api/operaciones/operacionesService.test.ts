@@ -87,3 +87,25 @@ describe("operacionesService.stats", () => {
 		});
 	});
 });
+
+describe("operacionesService.deleteById", () => {
+	it("usa el dispatcher que contempla cobros y movimientos financieros", async () => {
+		const rpc = vi.fn().mockResolvedValue({
+			data: { eliminada: true, tipo: "COBRO_ARREGLO", arreglo_id: "arreglo-1" },
+			error: null,
+		});
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		const result = await operacionesService.deleteById(
+			supabase,
+			"operacion-1",
+			"11111111-1111-4111-8111-111111111111"
+		);
+
+		expect(rpc).toHaveBeenCalledWith("rpc_borrar_operacion_completa", {
+			p_operacion_id: "operacion-1",
+			p_idempotency_key: "11111111-1111-4111-8111-111111111111",
+		});
+		expect(result.error).toBeNull();
+	});
+});

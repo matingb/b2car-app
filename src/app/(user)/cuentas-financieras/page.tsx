@@ -25,7 +25,7 @@ type EstadoFilter = "todas" | "activas" | "inactivas";
 
 export default function CuentasFinancierasPage() {
   const router = useRouter();
-  const { success } = useToast();
+  const { success, error: errorToast } = useToast();
   const {
     cuentas,
     cuentasActivas,
@@ -34,6 +34,7 @@ export default function CuentasFinancierasPage() {
     loadError,
     refresh,
     createCuenta,
+    updateCuenta,
     createTransferencia,
   } = useCuentasFinancieras();
 
@@ -74,6 +75,18 @@ export default function CuentasFinancierasPage() {
       descripcion: draft.descripcion || null,
     });
     success("Transferencia registrada", "Los saldos de las cuentas fueron actualizados.");
+  };
+
+  const handleFavorite = async (cuentaId: string, cuentaNombre: string) => {
+    try {
+      await updateCuenta(cuentaId, { favorita: true });
+      success("Cuenta favorita actualizada", `${cuentaNombre} sera la cuenta sugerida para los cobros.`);
+    } catch (cause: unknown) {
+      errorToast(
+        "No se pudo actualizar la cuenta favorita",
+        cause instanceof Error ? cause.message : "Error inesperado"
+      );
+    }
   };
 
   return (
@@ -201,6 +214,8 @@ export default function CuentasFinancierasPage() {
               tipo={cuenta.tipo}
               saldo={cuenta.saldoActual}
               activo={cuenta.activo}
+              favorita={cuenta.favorita}
+              onFavorite={() => void handleFavorite(cuenta.id, cuenta.nombre)}
               onClick={() => router.push(`${ROUTES.cuentasFinancieras}/${cuenta.id}`)}
             />
           ))}

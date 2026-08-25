@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { css } from "@emotion/react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, WalletCards } from "lucide-react";
 import RegistrarPagoSection, {
   type PagoDraftItem,
   CREATE_CUENTA_VALUE,
@@ -77,7 +77,9 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
   const { cobrar, anularCobro, fetchById } = useArreglos();
   const { success, error } = useToast();
   const { confirm } = useModalMessage();
-  const { loading: loadingCuentas, createCuenta } = useCuentasFinancieras();
+  const { loading: loadingCuentas, createCuenta, cuentaFavorita } = useCuentasFinancieras();
+  const cuentaFavoritaId = cuentaFavorita?.id ?? null;
+  const hasCuentaFavorita = cuentaFavoritaId !== null;
 
   const [loadingData, setLoadingData] = useState(false);
   const [arreglo, setArreglo] = useState<Arreglo | null>(null);
@@ -94,6 +96,7 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
   ]);
   const [submitting, setSubmitting] = useState(false);
   const [anulandoOpId, setAnulandoOpId] = useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const inFlightRef = useRef(false);
 
   const loadArregloDetails = useCallback(async () => {
@@ -114,7 +117,7 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
         setPagosDraft([
           {
             id: generateUuidV4(),
-            cuentaId: "",
+            cuentaId: cuentaFavoritaId ?? "",
             monto: saldo > 0 ? String(saldo) : "",
             fecha: toISODateLocal(new Date()),
             descripcion: "",
@@ -127,15 +130,16 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
       setLoadingData(false);
       inFlightRef.current = false;
     }
-  }, [arregloId, fetchById]);
+  }, [arregloId, cuentaFavoritaId, fetchById]);
 
   useEffect(() => {
     if (open) {
+      setShowAdvanced(!hasCuentaFavorita);
       void loadArregloDetails();
     } else {
       setArreglo(null);
     }
-  }, [open, loadArregloDetails]);
+  }, [open, hasCuentaFavorita, loadArregloDetails]);
 
   const precioFinal = Number(arreglo?.precio_final || 0);
   const totalCobrado = Number(arreglo?.total_cobrado || 0);
@@ -208,6 +212,26 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
           : row
       )
     );
+  };
+
+  const resetSimplePayment = useCallback(() => {
+    if (!cuentaFavoritaId) return;
+    setPagosDraft([
+      {
+        id: generateUuidV4(),
+        cuentaId: cuentaFavoritaId,
+        monto: saldoPendiente > 0 ? String(saldoPendiente) : "",
+        fecha: toISODateLocal(new Date()),
+        descripcion: "",
+      },
+    ]);
+  }, [cuentaFavoritaId, saldoPendiente]);
+
+  const handleToggleAdvanced = () => {
+    if (showAdvanced && cuentaFavorita) {
+      resetSimplePayment();
+    }
+    setShowAdvanced((current) => !current);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -301,7 +325,7 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
       open={open}
       onClose={onClose}
       onSubmit={handleSubmit}
-      title="Gestión de Cobros"
+      title="Gestion de cobros"
       submitText={
         totalSumDraft > 0
           ? `Cobrar ${formatArs(totalSumDraft)}`
@@ -354,14 +378,42 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
           </div>
         ) : null}
 
-        <RegistrarPagoSection
-          pagos={pagosDraft}
-          loadingCuentas={loadingCuentas}
-          onAddPago={handleAddPagoRow}
-          onRemovePago={handleRemovePagoRow}
-          onUpdatePago={handleUpdatePagoRow}
-          onUpdatePagoCuentaDraft={handleUpdatePagoCuentaDraft}
-        />
+        {cuentaFavorita && !showAdvanced ? (
+          <div css={styles.simplePayment} data-testid="cobro-simple">
+            <div css={styles.simpleAccountIcon}>
+              <WalletCards size={20} />
+            </div>
+            <div css={styles.simpleAccountText}>
+              <span css={styles.simpleAccountLabel}>El cobro se acreditara en la cuenta favorita</span>
+              <strong css={styles.simpleAccountName}>{cuentaFavorita.nombre}</strong>
+              <span css={styles.simpleAccountAmount}>
+                Importe: {formatArs(totalSumDraft, { maxDecimals: 0 })}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <RegistrarPagoSection
+            pagos={pagosDraft}
+            loadingCuentas={loadingCuentas}
+            onAddPago={handleAddPagoRow}
+            onRemovePago={handleRemovePagoRow}
+            onUpdatePago={handleUpdatePagoRow}
+            onUpdatePagoCuentaDraft={handleUpdatePagoCuentaDraft}
+          />
+        )}
+
+        {cuentaFavorita ? (
+          <button
+            type="button"
+            css={styles.advancedToggle}
+            onClick={handleToggleAdvanced}
+            aria-expanded={showAdvanced}
+            data-testid="cobro-advanced-toggle"
+          >
+            <span>{showAdvanced ? "Usar cobro simplificado" : "Elegir otra cuenta o dividir el pago"}</span>
+            <ChevronDown size={17} css={showAdvanced ? styles.chevronOpen : undefined} />
+          </button>
+        ) : null}
 
         <CobroArregloHistorial
           cobros={cobros}
@@ -426,5 +478,61 @@ const styles = {
     fontSize: 13,
     color: COLOR.TEXT.PRIMARY,
     lineHeight: 1.4,
+  }),
+  simplePayment: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "14px 16px",
+    borderRadius: 10,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    backgroundColor: COLOR.BACKGROUND.INFO_TINT,
+  }),
+  simpleAccountIcon: css({
+    width: 42,
+    height: 42,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    borderRadius: 10,
+    color: COLOR.ACCENT.PRIMARY,
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
+  }),
+  simpleAccountText: css({
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+  }),
+  simpleAccountLabel: css({
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
+  }),
+  simpleAccountName: css({
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 16,
+  }),
+  simpleAccountAmount: css({
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 13,
+  }),
+  advancedToggle: css({
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    padding: "9px 11px",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SUBTLE,
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+  }),
+  chevronOpen: css({
+    transform: "rotate(180deg)",
   }),
 } as const;

@@ -12,22 +12,33 @@ import { COLOR } from "@/theme/theme";
 
 export default function ClientesDetailsPage() {
   const params = useParams<{ id: string }>();
-  const { getClienteById, loading } = useClientes();
+  const { getClienteById } = useClientes();
   const [tipo, setTipo] = useState<TipoCliente | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    getClienteById(params.id).then((cliente) => {
-      if (!cancelled && cliente) {
-        setTipo(cliente.tipo_cliente);
-      }
-    });
+    setLoadingDetail(true);
+    setTipo(null);
+
+    getClienteById(params.id)
+      .then((cliente) => {
+        if (!cancelled) {
+          setTipo(cliente?.tipo_cliente ?? null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingDetail(false);
+        }
+      });
+
     return () => {
       cancelled = true;
     };
   }, [params.id, getClienteById]);
 
-  if (loading) {
+  if (loadingDetail) {
     return (
       <div>
         <ScreenHeader title="Clientes" breadcrumbs={["Detalle"]} hasBackButton />

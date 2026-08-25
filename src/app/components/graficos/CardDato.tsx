@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo } from "react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Card from "../ui/Card";
 import { css } from "@emotion/react";
+import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 
 type Props = {
     titleText?: string;
@@ -20,10 +21,6 @@ function getNumericMeta(value: number | undefined): { value: number; decimals: n
     if (value < 0) return null;
     const decimals = Number.isInteger(value) ? 0 : 2;
     return { value, decimals };
-}
-
-function easeOutCubic(t: number) {
-    return 1 - Math.pow(1 - t, 3);
 }
 
 function formatNumberEs(value: number, decimals: number) {
@@ -50,39 +47,7 @@ export default function CardDato({
     style = {color: COLOR.ACCENT.PRIMARY},
 }: Props) {
     const parsed = useMemo(() => getNumericMeta(value), [value]);
-    const [animatedValue, setAnimatedValue] = useState<number | null>(null);
-    const rafIdRef = useRef<number | null>(null);
-
-    useEffect(() => {
-        if (!parsed) {
-            setAnimatedValue(null);
-            return;
-        }
-
-        const from = 0;
-        const to = parsed.value;
-        const durationMs = 1500; // Tiene que durar 500ms mas que el de los graficos
-        const start = performance.now();
-        setAnimatedValue(from);
-
-        const tick = (now: number) => {
-            const elapsed = now - start;
-            const t = Math.min(elapsed / durationMs, 1);
-            const eased = easeOutCubic(t);
-            const current = from + (to - from) * eased;
-            setAnimatedValue(current);
-            if (t < 1) {
-                rafIdRef.current = requestAnimationFrame(tick);
-            }
-        };
-
-        if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = requestAnimationFrame(tick);
-        return () => {
-            if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
-            rafIdRef.current = null;
-        };
-    }, [parsed]);
+    const animatedValue = useAnimatedNumber(parsed?.value);
 
     const displayValue = useMemo(() => {
         if (!parsed) return "";

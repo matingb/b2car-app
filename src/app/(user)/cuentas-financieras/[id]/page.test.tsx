@@ -45,6 +45,7 @@ const cuenta: CuentaFinanciera = {
   saldoInicial: 1000,
   saldoActual: 1500,
   activo: true,
+  favorita: true,
   createdAt: "2026-07-01T00:00:00Z",
   updatedAt: "2026-07-01T00:00:00Z",
 };
