@@ -485,7 +485,7 @@ const styles = {
     padding: "14px 16px",
     borderRadius: 10,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    backgroundColor: COLOR.BACKGROUND.INFO_TINT,
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
   }),
   simpleAccountIcon: css({
     width: 42,
@@ -496,7 +496,7 @@ const styles = {
     flexShrink: 0,
     borderRadius: 10,
     color: COLOR.ACCENT.PRIMARY,
-    backgroundColor: COLOR.BACKGROUND.PRIMARY,
+    backgroundColor: COLOR.BACKGROUND.INFO_TINT,
   }),
   simpleAccountText: css({
     minWidth: 0,

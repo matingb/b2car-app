@@ -125,10 +125,12 @@ export default function CuentasFinancierasPage() {
           </div>
         </Card>
         <Card style={styles.summaryCard}>
-          <div style={styles.summaryLabel}>Saldo disponible</div>
-          <strong style={{ ...styles.summaryValue, color: saldoTotal < 0 ? COLOR.ICON.DANGER : COLOR.TEXT.PRIMARY }}>
-            {formatArs(saldoTotal)}
-          </strong>
+          <div>
+            <div style={styles.summaryLabel}>Saldo disponible</div>
+            <strong style={{ ...styles.summaryValue, color: saldoTotal < 0 ? COLOR.ICON.DANGER : COLOR.TEXT.PRIMARY }}>
+              {formatArs(saldoTotal)}
+            </strong>
+          </div>
         </Card>
       </div>
 
