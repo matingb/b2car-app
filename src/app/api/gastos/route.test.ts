@@ -84,7 +84,7 @@ describe("/api/gastos", () => {
       p_cuenta_id: ACCOUNT_ID,
       p_categoria_gasto: "ALQUILER",
       p_importe: 150000,
-      p_fecha: "2026-07-31T12:00:00.000Z",
+      p_fecha: expect.stringMatching(/^2026-07-31T/),
       p_descripcion: "Alquiler del taller",
       p_idempotency_key: null,
       p_arreglo_id: null,

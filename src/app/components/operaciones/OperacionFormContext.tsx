@@ -299,7 +299,7 @@ export function OperacionFormProvider({
           cuentaId: targetCuentaId,
           categoria: categoriaGasto,
           importe: Number(montoGasto),
-          fecha,
+          fecha: toISODateTimeWithCurrentTime(fecha),
           descripcion: descripcionGasto.trim(),
           idempotencyKey: generateUuidV4(),
         };

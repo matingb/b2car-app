@@ -61,6 +61,7 @@ export default function LineDetalleOperacion({
   const isGasto = operacion.tipo === "GASTO";
   const isMovimientoFinanciero = ["GASTO", "COBRO_ARREGLO", "INGRESO", "APERTURA_CUENTA", "TRANSFERENCIA", "MOVIMIENTO_CUENTA"].includes(operacion.tipo);
   const deleteTitle = isGasto ? "Eliminar gasto" : "Eliminar movimiento";
+  const title = operacion.tipo === "COBRO_ARREGLO" ? (operacion.descripcion || tipoLabel) : tipoLabel;
 
   return (
     <Card style={styles.card} onClick={onToggle}>
@@ -70,7 +71,7 @@ export default function LineDetalleOperacion({
             <div css={[styles.iconWrap, { background: tipoBg, color: tipoColor }]}>
               {tipoIcon}
             </div>
-            <div css={styles.title}>{tipoLabel}</div>
+            <div css={styles.title}>{title}</div>
           </div>
           <div css={styles.date}>{formatDateTimeLabel(operacion.fecha)}</div>
         </div>

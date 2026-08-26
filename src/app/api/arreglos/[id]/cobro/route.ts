@@ -3,6 +3,7 @@ import { createClient } from "@/supabase/server";
 import { isValidUuid } from "@/lib/uuid";
 import type { Arreglo } from "@/model/types";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { isValidDate, toISODateTimeWithCurrentTime } from "@/lib/fechas";
 
 
 type CobroRequest = {
@@ -18,13 +19,6 @@ type CobroResponse = {
   data: Arreglo | null;
   error?: string | null;
 };
-
-const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-
-function isValidDate(value: string) {
-  if (!DATE_ONLY.test(value)) return false;
-  return !Number.isNaN(new Date(`${value}T00:00:00.000Z`).getTime());
-}
 
 async function fetchArreglo(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -105,7 +99,7 @@ export async function POST(
     p_arreglo_id: id,
     p_cuenta_id: singleCuentaId,
     p_monto: singleMonto,
-    p_fecha_cobro: DATE_ONLY.test(fechaCobro) ? `${fechaCobro}T12:00:00.000Z` : fechaCobro,
+    p_fecha_cobro: toISODateTimeWithCurrentTime(fechaCobro),
     p_descripcion: singleDescripcion,
     p_idempotency_key: idempotencyKey || null,
     p_pagos: formattedPagos,

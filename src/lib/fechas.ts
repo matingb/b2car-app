@@ -29,21 +29,24 @@ export function toISODateLocal(date: Date = new Date()): string {
 }
 
 /**
- * Completa una fecha de calendario con la hora local actual para enviarla como
- * timestamp. Las operaciones usan UTC para representar su fecha de negocio,
- * por eso se preserva el día elegido y se expresa la hora en ese mismo formato.
+ * Completa una fecha de calendario (YYYY-MM-DD) con la hora local actual para
+ * enviarla como timestamp. Si el valor ya es un timestamp completo o un objeto Date,
+ * lo devuelve en formato ISO sin modificar (comportamiento idempotente).
  */
 export function toISODateTimeWithCurrentTime(
-  dateString: string,
+  dateInput: string | Date,
   now: Date = new Date()
 ): string {
-  if (!isValidDate(dateString)) return now.toISOString();
+  if (dateInput instanceof Date) {
+    return isNaN(dateInput.getTime()) ? now.toISOString() : dateInput.toISOString();
+  }
+  if (typeof dateInput !== "string" || !isValidDate(dateInput)) return String(dateInput);
 
   const hours = String(now.getHours()).padStart(2, "0");
   const minutes = String(now.getMinutes()).padStart(2, "0");
   const seconds = String(now.getSeconds()).padStart(2, "0");
   const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
-  return `${dateString}T${hours}:${minutes}:${seconds}.${milliseconds}Z`;
+  return `${dateInput}T${hours}:${minutes}:${seconds}.${milliseconds}Z`;
 }
 
 export function horaAMinutos(hora: string) {

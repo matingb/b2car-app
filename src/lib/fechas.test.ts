@@ -89,6 +89,19 @@ describe("toISODateTimeWithCurrentTime", () => {
 
     expect(toISODateTimeWithCurrentTime("2026-08-20", now)).toBe("2026-08-20T14:30:45.123Z");
   });
+
+  it("devuelve el string intacto si ya es un timestamp completo ISO (idempotencia)", () => {
+    const now = new Date(2026, 7, 26, 14, 30, 45, 123);
+    const isoString = "2026-08-20T10:15:00.000Z";
+
+    expect(toISODateTimeWithCurrentTime(isoString, now)).toBe(isoString);
+  });
+
+  it("acepta un objeto Date y devuelve su ISO string", () => {
+    const dateObj = new Date("2026-08-20T10:15:00.000Z");
+
+    expect(toISODateTimeWithCurrentTime(dateObj)).toBe("2026-08-20T10:15:00.000Z");
+  });
 });
 
 

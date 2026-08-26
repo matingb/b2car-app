@@ -193,6 +193,37 @@ describe("OperacionesPage", () => {
     expect(screen.getByText("08/06/2026, 14:30")).toBeInTheDocument();
   });
 
+  it("muestra el detalle del auto en el título de la operación de cobro de arreglo", async () => {
+    getAllMock.mockResolvedValue({
+      data: [{
+        id: "op-cobro-1",
+        tipo: "COBRO_ARREGLO",
+        taller_id: "taller-1",
+        fecha: "2026-08-26T17:49:00.000Z",
+        created_at: "2026-08-26T17:49:00.000Z",
+        descripcion: "Cobro de arreglo - BCD444",
+        cuenta_financiera_nombre: "Banco Santander",
+        monto: 260000,
+        lineas: [],
+      }],
+      pagination: { page: 1, pageSize: 50, total: 1 },
+      error: null,
+    });
+
+    render(
+      <OperacionesProvider>
+        <ToastProvider>
+          <OperacionesPage />
+        </ToastProvider>
+      </OperacionesProvider>
+    );
+    await runPendingPromises();
+
+    const titles = screen.getAllByText("Cobro de arreglo - BCD444");
+    expect(titles.length).toBeGreaterThanOrEqual(1);
+    expect(titles[0]).toBeInTheDocument();
+  });
+
   it("formatea los fotogramas animados de las cards sin decimales", () => {
     expect(formatOperacionCardAmount(875.625)).toBe("$876");
     expect(formatOperacionCardAmount(1234567.25)).toBe("$1.234.567");

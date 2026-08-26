@@ -1,4 +1,5 @@
 import { CATEGORIAS_GASTO_FINANCIERO, CUENTA_TIPOS } from "@/model/finanzas";
+import { toISODateTimeWithCurrentTime } from "@/lib/fechas";
 import type {
   ActualizarCuentaFinancieraInput,
   ActualizarGastoFinancieroInput,
@@ -70,10 +71,6 @@ function validTimestamp(value: string): boolean {
     return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
   }
   return !Number.isNaN(new Date(value).getTime());
-}
-
-function toTimestamp(value: string): string {
-  return DATE_ONLY_RE.test(value) ? `${value}T12:00:00.000Z` : value;
 }
 
 function validOptionalTimestamp(value: string | undefined, field = "fecha"): string | null {
@@ -153,7 +150,7 @@ export function validateCreateCuenta(body: unknown): Validated<CrearCuentaFinanc
       nombre: nombre!,
       tipo,
       ...(saldoInicial === undefined ? {} : { saldoInicial }),
-      ...(fecha === undefined ? {} : { fecha: toTimestamp(fecha) }),
+      ...(fecha === undefined ? {} : { fecha: toISODateTimeWithCurrentTime(fecha) }),
       ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
     },
   };
@@ -215,7 +212,7 @@ export function validateCreateTransferencia(body: unknown): Validated<CrearTrans
       cuentaOrigenId: cuentaOrigenId!,
       cuentaDestinoId: cuentaDestinoId!,
       importe,
-      ...(fecha === undefined ? {} : { fecha: toTimestamp(fecha) }),
+      ...(fecha === undefined ? {} : { fecha: toISODateTimeWithCurrentTime(fecha) }),
       ...(descripcion === undefined ? {} : { descripcion }),
       ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
     },
@@ -249,7 +246,7 @@ export function validateUpdateTransferencia(body: unknown): Validated<Actualizar
     const fecha = stringValue(body, "fecha");
     const error = validOptionalTimestamp(fecha);
     if (error || !fecha) return { error: error ?? "Falta fecha" };
-    patch.fecha = toTimestamp(fecha);
+    patch.fecha = toISODateTimeWithCurrentTime(fecha);
   }
   if (own(body, "descripcion")) {
     const descripcion = nullableStringValue(body, "descripcion");
@@ -306,7 +303,7 @@ export function validateCreateGasto(body: unknown): Validated<CrearGastoFinancie
       categoria: categoria!,
       importe,
       descripcion: descripcion!,
-      ...(fecha === undefined ? {} : { fecha: toTimestamp(fecha) }),
+      ...(fecha === undefined ? {} : { fecha: toISODateTimeWithCurrentTime(fecha) }),
       ...(arregloId === undefined ? {} : { arregloId }),
       ...(operacionId === undefined ? {} : { operacionId }),
       ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
@@ -339,7 +336,7 @@ export function validateUpdateGasto(body: unknown): Validated<ActualizarGastoFin
     const fecha = stringValue(body, "fecha");
     const error = validOptionalTimestamp(fecha);
     if (error || !fecha) return { error: error ?? "Falta fecha" };
-    patch.fecha = toTimestamp(fecha);
+    patch.fecha = toISODateTimeWithCurrentTime(fecha);
   }
   if (own(body, "descripcion")) {
     const descripcion = stringValue(body, "descripcion");

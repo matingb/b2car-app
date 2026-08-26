@@ -52,7 +52,7 @@ describe("POST /api/cuentas-financieras/transferencias", () => {
       p_cuenta_origen_id: ORIGEN_ID,
       p_cuenta_destino_id: DESTINO_ID,
       p_descripcion: "Transferencia de prueba",
-      p_fecha: "2026-08-24T12:00:00.000Z",
+      p_fecha: expect.stringMatching(/^2026-08-24T/),
       p_idempotency_key: IDEMPOTENCY_KEY,
     });
     expect(body.data).toMatchObject({

@@ -15,6 +15,7 @@ import {
 } from "@/lib/arreglosCustomFormRequired";
 import { buildArregloDescripcion } from "@/lib/arreglos";
 import { isValidUuid } from "@/lib/uuid";
+import { toISODateTimeWithCurrentTime } from "@/lib/fechas";
 
 export type GetArreglosResponse = {
     data: Arreglo[] | null;
@@ -294,7 +295,7 @@ export async function POST(req: Request) {
         p_estado: insertPayload.estado,
         p_descripcion: insertPayload.descripcion,
         p_kilometraje_leido: insertPayload.kilometraje_leido,
-        p_fecha: insertPayload.fecha,
+        p_fecha: toISODateTimeWithCurrentTime(insertPayload.fecha),
         p_observaciones: insertPayload.observaciones,
         p_precio_final: insertPayload.precio_final,
         p_precio_sin_iva: insertPayload.precio_sin_iva,
@@ -305,7 +306,7 @@ export async function POST(req: Request) {
         p_repuestos_nuevos: normalizedRepuestosNuevos,
         p_detalle_formulario: detalle_formulario ?? null,
         p_cuenta_id: cuentaFinancieraId || null,
-        p_fecha_cobro: fechaCobro || null,
+        p_fecha_cobro: fechaCobro ? toISODateTimeWithCurrentTime(fechaCobro) : null,
         p_idempotency_key: idempotencyKey || null,
     };
 

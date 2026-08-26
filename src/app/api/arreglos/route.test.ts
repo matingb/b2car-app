@@ -132,7 +132,7 @@ describe("POST /api/arreglos", () => {
       expect.objectContaining({
         p_esta_pago: true,
         p_cuenta_id: cuentaId,
-        p_fecha_cobro: fechaCobro,
+        p_fecha_cobro: expect.stringMatching(/^2026-08-25T/),
         p_idempotency_key: idempotencyKey,
       })
     );

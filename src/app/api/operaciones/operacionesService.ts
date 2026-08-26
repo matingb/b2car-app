@@ -2,6 +2,7 @@ import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import type { OperacionDTO, OperacionLineaDTO } from "@/model/dtos";
 import { logger } from "@/lib/logger";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
+import { toISODateTimeWithCurrentTime } from "@/lib/fechas";
 
 export type OperacionesFilters = {
 	fecha?: string; // YYYY-MM-DD
@@ -175,7 +176,7 @@ export const operacionesService = {
 			p_taller_id: input.taller_id,
 			p_lineas: lineasPayload,
 			p_arreglo_id: input.arreglo_id ?? null,
-			p_fecha: input.fecha ?? null,
+			p_fecha: input.fecha ? toISODateTimeWithCurrentTime(input.fecha) : null,
 			p_cuenta_id: input.cuenta_financiera_id ?? null,
 			p_idempotency_key: input.idempotency_key ?? null,
 		});
@@ -211,7 +212,8 @@ export const operacionesService = {
 		}));
 		const tipo = input.tipo ?? current.data.tipo;
 		const tallerId = input.taller_id ?? current.data.taller_id;
-		const fecha = input.fecha ?? current.data.fecha;
+		const rawFecha = input.fecha ?? current.data.fecha;
+		const fecha = rawFecha ? toISODateTimeWithCurrentTime(rawFecha) : rawFecha;
 		const esOperacionFinanciera = tipo === "COMPRA" || tipo === "VENTA";
 		const cuentaFueInformada = Object.prototype.hasOwnProperty.call(input, "cuenta_financiera_id");
 		let cuentaFinancieraId = input.cuenta_financiera_id ?? null;
