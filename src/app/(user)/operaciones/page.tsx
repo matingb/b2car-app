@@ -466,7 +466,7 @@ const styles = {
         flexWrap: "wrap",
     }),
     cardDatosContainer: css({
-        display: "grid",
+        display: "none",
         gap: 16,
         marginTop: 12,
         marginBottom: 16,
