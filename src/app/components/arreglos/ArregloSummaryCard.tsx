@@ -58,21 +58,21 @@ export default function ArregloSummaryCard({
   const { shareArreglo } = useWhatsAppMessage();
 
   const { categorias } = useCategoriasArreglo();
+  const arreglo = data.arreglo;
 
   const assignedEmpleados = useMemo(
-    () => data.arreglo.empleados ?? [],
-    [data.arreglo.empleados]
+    () => arreglo?.empleados ?? [],
+    [arreglo?.empleados]
   );
-
-  const arreglo = data.arreglo;
-  if (!arreglo) return null;
 
   const categoriasDelArreglo = useMemo(() =>
-    [...new Set(arreglo.categorias ?? [])].filter((id) =>
+    [...new Set(arreglo?.categorias ?? [])].filter((id) =>
       categorias.some((c) => c.id === id)
     ),
-    [arreglo.categorias, categorias]
+    [arreglo?.categorias, categorias]
   );
+
+  if (!arreglo) return null;
 
   const categoriasMostradas = categoriasDelArreglo.slice(0, 3);
   const categoriasRestantes = categoriasDelArreglo.length - categoriasMostradas.length;
