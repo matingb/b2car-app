@@ -28,12 +28,20 @@ LANGUAGE sql STABLE SET search_path = '' AS $$
         SELECT jsonb_agg(jsonb_build_object(
           'id', l.id, 'operacion_id', l.operacion_id, 'stock_id', l.stock_id,
           'cantidad', l.cantidad, 'monto_unitario', l.monto_unitario,
-          'delta_cantidad', l.delta_cantidad, 'created_at', l.created_at
+          'delta_cantidad', l.delta_cantidad, 'created_at', l.created_at,
+          'nombre', p.nombre, 'codigo', p.codigo
         ) ORDER BY l.created_at, l.id)
-        FROM public.operaciones_lineas AS l WHERE l.operacion_id = o.id
+        FROM public.operaciones_lineas AS l
+        LEFT JOIN public.stocks AS s ON s.id = l.stock_id
+        LEFT JOIN public.productos AS p ON p.id = s.producto_id
+        WHERE l.operacion_id = o.id
       ), '[]'::jsonb) AS lineas,
       CASE WHEN omc.subtipo = 'GASTO' THEN o.id ELSE NULL END AS gasto_id,
-      omc.descripcion,
+      CASE
+        WHEN o.tipo = 'ASIGNACION_ARREGLO' AND v.id IS NOT NULL THEN
+          'Asignación · ' || TRIM(v.marca || ' ' || v.modelo) || ' (' || v.patente || ')'
+        ELSE omc.descripcion
+      END AS descripcion,
       omc.categoria_gasto,
       COALESCE(omc.cuenta_id, omc.cuenta_origen_id) AS cuenta_financiera_id,
       COALESCE(cf_s.nombre, cf_o.nombre) AS cuenta_financiera_nombre,
@@ -41,10 +49,13 @@ LANGUAGE sql STABLE SET search_path = '' AS $$
         abs(omc.importe),
         (SELECT SUM(l.cantidad * l.monto_unitario) FROM public.operaciones_lineas AS l WHERE l.operacion_id = o.id)
       )::numeric AS monto,
-      oca.arreglo_id
+      COALESCE(oca.arreglo_id, oaa.arreglo_id) AS arreglo_id
     FROM public.operaciones AS o
     LEFT JOIN public.operaciones_movimiento_cuenta AS omc ON omc.operacion_id = o.id
     LEFT JOIN public.operaciones_cobro_arreglo AS oca ON oca.operacion_id = o.id
+    LEFT JOIN public.operaciones_asignacion_arreglo AS oaa ON oaa.operacion_id = o.id
+    LEFT JOIN public.arreglos AS a ON a.id = COALESCE(oca.arreglo_id, oaa.arreglo_id)
+    LEFT JOIN public.vehiculos AS v ON v.id = a.vehiculo_id
     LEFT JOIN public.cuentas_financieras AS cf_s ON cf_s.id = omc.cuenta_id
     LEFT JOIN public.cuentas_financieras AS cf_o ON cf_o.id = omc.cuenta_origen_id
     WHERE o.tenant_id = (SELECT public.current_tenant_id())

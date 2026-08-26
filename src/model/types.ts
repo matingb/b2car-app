@@ -136,6 +136,8 @@ export interface OperacionLinea {
   monto_unitario: number;
   delta_cantidad: number;
   created_at: string;
+  nombre?: string;
+  codigo?: string;
 }
 
 export type TipoOperacion =

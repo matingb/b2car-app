@@ -238,6 +238,12 @@ export default function OperacionesPage() {
             .filter((o) => {
                 if (!q) return true;
                 const { totalLineas, totalMonto } = getTotals(o);
+                const lineasInfo = (o.lineas ?? []).flatMap((l) => [
+                    l.nombre,
+                    l.codigo,
+                    stocksById[l.stock_id]?.nombre,
+                    stocksById[l.stock_id]?.codigo,
+                ]);
                 return [
                     o.tipo,
                     o.descripcion,
@@ -247,11 +253,12 @@ export default function OperacionesPage() {
                     formatDateLabel(o.created_at),
                     String(totalLineas),
                     String(totalMonto),
+                    ...lineasInfo,
                 ]
                     .filter(Boolean)
                     .some((v) => String(v).toLowerCase().includes(q));
             });
-    }, [operaciones, search, talleres]);
+    }, [operaciones, search, talleres, stocksById]);
 
     const handleDelete = useCallback(async (operacion: Operacion) => {
         try {
