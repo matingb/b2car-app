@@ -167,6 +167,32 @@ describe("OperacionesPage", () => {
     expect(screen.getByLabelText("Resumen de egresos")).toHaveTextContent("Compras");
     expect(screen.getByLabelText("Resultado del período")).toBeInTheDocument();
   });
+  it("muestra la hora junto con la fecha de cada operacion", async () => {
+    getAllMock.mockResolvedValue({
+      data: [{
+        id: "operacion-con-hora",
+        tipo: "VENTA",
+        taller_id: "taller-1",
+        fecha: "2026-06-08T14:30:00.000Z",
+        created_at: "2026-06-08T14:30:00.000Z",
+        lineas: [],
+      }],
+      pagination: { page: 1, pageSize: 50, total: 1 },
+      error: null,
+    });
+
+    render(
+      <OperacionesProvider>
+        <ToastProvider>
+          <OperacionesPage />
+        </ToastProvider>
+      </OperacionesProvider>
+    );
+    await runPendingPromises();
+
+    expect(screen.getByText("08/06/2026, 14:30")).toBeInTheDocument();
+  });
+
   it("formatea los fotogramas animados de las cards sin decimales", () => {
     expect(formatOperacionCardAmount(875.625)).toBe("$876");
     expect(formatOperacionCardAmount(1234567.25)).toBe("$1.234.567");

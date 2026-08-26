@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatDateLabel, formatTimeAgo, isValidDate, toDateInputFormat } from "./fechas";
+import { formatDateLabel, formatDateTimeLabel, formatTimeAgo, isValidDate, toDateInputFormat, toISODateTimeWithCurrentTime } from "./fechas";
 
 describe("isValidDate", () => {
   it("debería retornar true para una fecha válida en formato YYYY-MM-DD", () => {
@@ -74,6 +74,20 @@ describe("toDateInputFormat", () => {
 describe("formatDateLabel", () => {
   it("muestra el dia correcto para una fecha guardada a medianoche UTC", () => {
     expect(formatDateLabel("2026-06-08T00:00:00.000Z")).toBe("08/06/2026");
+  });
+});
+
+describe("formatDateTimeLabel", () => {
+  it("muestra fecha y hora en formato de 24 horas", () => {
+    expect(formatDateTimeLabel("2026-06-08T14:30:00.000Z")).toBe("08/06/2026, 14:30");
+  });
+});
+
+describe("toISODateTimeWithCurrentTime", () => {
+  it("conserva el dia elegido y completa la hora actual", () => {
+    const now = new Date(2026, 7, 26, 14, 30, 45, 123);
+
+    expect(toISODateTimeWithCurrentTime("2026-08-20", now)).toBe("2026-08-20T14:30:45.123Z");
   });
 });
 

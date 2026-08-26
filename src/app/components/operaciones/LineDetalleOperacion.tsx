@@ -10,7 +10,7 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import type { Operacion } from "@/model/types";
 import type { StockItem } from "@/model/stock";
 import { formatArs } from "@/lib/format";
-import { toDateInputFormat } from "@/lib/fechas";
+import { formatDateTimeLabel } from "@/lib/fechas";
 
 type Props = {
   operacion: Operacion;
@@ -72,7 +72,7 @@ export default function LineDetalleOperacion({
             </div>
             <div css={styles.title}>{tipoLabel}</div>
           </div>
-          <div css={styles.date}>{toDateInputFormat(operacion.fecha)}</div>
+          <div css={styles.date}>{formatDateTimeLabel(operacion.fecha)}</div>
         </div>
 
         <div css={[styles.metaRow, !expanded && styles.metaRowCollapsed]}>

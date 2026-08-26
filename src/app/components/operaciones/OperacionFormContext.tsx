@@ -6,7 +6,7 @@ import { useToast } from "@/app/providers/ToastProvider";
 import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import { finanzasClient } from "@/clients/finanzasClient";
-import { isValidDate, toISODateLocal } from "@/lib/fechas";
+import { isValidDate, toISODateLocal, toISODateTimeWithCurrentTime } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
 import type { TipoOperacion } from "@/model/types";
 import type { GastoFinanciero } from "@/model/finanzas";
@@ -326,7 +326,7 @@ export function OperacionFormProvider({
       const payload = {
         tipo,
         taller_id: tallerId,
-        fecha,
+        fecha: toISODateTimeWithCurrentTime(fecha),
         cuenta_financiera_id: targetCuentaId,
         idempotency_key: generateUuidV4(),
         lineas: lineas.map((l) => {

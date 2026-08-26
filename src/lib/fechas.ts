@@ -28,6 +28,24 @@ export function toISODateLocal(date: Date = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
+/**
+ * Completa una fecha de calendario con la hora local actual para enviarla como
+ * timestamp. Las operaciones usan UTC para representar su fecha de negocio,
+ * por eso se preserva el día elegido y se expresa la hora en ese mismo formato.
+ */
+export function toISODateTimeWithCurrentTime(
+  dateString: string,
+  now: Date = new Date()
+): string {
+  if (!isValidDate(dateString)) return now.toISOString();
+
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+  const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
+  return `${dateString}T${hours}:${minutes}:${seconds}.${milliseconds}Z`;
+}
+
 export function horaAMinutos(hora: string) {
   const [h, m] = hora.split(":").map(Number);
   return h * 60 + m;
@@ -157,6 +175,7 @@ export function formatDateTimeLabel(
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
     timeZone: "UTC",
   }).format(d);
 }
