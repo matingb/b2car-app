@@ -39,7 +39,12 @@ export default function PanelArreglos({ arreglosData, granularity, stats, header
                             <EstadoCobroArreglos
                                 total={stats?.totals?.arreglos ?? null}
                                 cobrados={stats?.arreglos?.cobrados ?? null}
+                                parciales={stats?.arreglos?.parciales ?? null}
                                 pendientes={stats?.arreglos?.pendientes ?? null}
+                                montoCobradoTotal={stats?.arreglos?.montoCobradoTotal ?? null}
+                                montoCobradoParcial={stats?.arreglos?.montoCobradoParcial ?? null}
+                                montoPendienteParcial={stats?.arreglos?.montoPendienteParcial ?? null}
+                                montoPendiente={stats?.arreglos?.montoPendiente ?? null}
                             />
                         </div>
                     </div>

@@ -29,7 +29,12 @@ export type DashboardStats = {
 	arreglos?: {
 		total?: number;
 		cobrados?: number;
+		parciales?: number;
 		pendientes?: number;
+		montoCobradoTotal?: number;
+		montoCobradoParcial?: number;
+		montoPendienteParcial?: number;
+		montoPendiente?: number;
 	};
 	clientes?: {
 		nuevosEsteMes?: {

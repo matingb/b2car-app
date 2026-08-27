@@ -138,4 +138,49 @@ describe("supabaseArregloRepository", () => {
       expect(result.data).toEqual(["op1", "op2"]);
     });
   });
+
+  describe("arreglosResumen", () => {
+    it("mapea los importes de cada estado de cobro que devuelve la RPC", async () => {
+      const supabase = makeSupabase({});
+      vi.mocked(supabase.rpc).mockResolvedValue({
+        data: [
+          {
+            total: 5,
+            cobrados: 2,
+            parciales: 1,
+            pendientes: 2,
+            monto_ingresos: 25000,
+            monto_cobrado_total: 12000,
+            monto_cobrado_parcial: 3000,
+            monto_pendiente_parcial: 2000,
+            monto_pendiente: 8000,
+          },
+        ],
+        error: null,
+      });
+
+      const result = await supabaseArregloRepository.arreglosResumen(
+        supabase,
+        "2026-08-01T00:00:00.000Z",
+        "2026-09-01T00:00:00.000Z"
+      );
+
+      expect(supabase.rpc).toHaveBeenCalledWith("dashboard_arreglos_resumen", {
+        p_from: "2026-08-01T00:00:00.000Z",
+        p_to: "2026-09-01T00:00:00.000Z",
+        p_taller_id: null,
+      });
+      expect(result).toEqual({
+        total: 5,
+        cobrados: 2,
+        parciales: 1,
+        pendientes: 2,
+        montoIngresos: 25000,
+        montoCobradoTotal: 12000,
+        montoCobradoParcial: 3000,
+        montoPendienteParcial: 2000,
+        montoPendiente: 8000,
+      });
+    });
+  });
 });

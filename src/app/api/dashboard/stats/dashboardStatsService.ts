@@ -57,7 +57,12 @@ export type DashboardStats = {
   arreglos?: {
     total?: number;
     cobrados?: number;
+    parciales?: number;
     pendientes?: number;
+    montoCobradoTotal?: number;
+    montoCobradoParcial?: number;
+    montoPendienteParcial?: number;
+    montoPendiente?: number;
   };
   clientes?: {
     nuevosEsteMes?: {
@@ -140,7 +145,12 @@ async function getStats(
     arreglos: {
       total: resumen.total,
       cobrados: resumen.cobrados,
+      parciales: resumen.parciales,
       pendientes: resumen.pendientes,
+      montoCobradoTotal: resumen.montoCobradoTotal,
+      montoCobradoParcial: resumen.montoCobradoParcial,
+      montoPendienteParcial: resumen.montoPendienteParcial,
+      montoPendiente: resumen.montoPendiente,
     },
     clientes: {
       nuevosEsteMes,

@@ -4,6 +4,7 @@ import type { CreateArregloInsertPayload, UpdateArregloRequest } from "./arreglo
 import { ServiceError, ServiceResult } from "@/app/api/serviceError";
 import {
   type ArregloListFilters,
+  type ArreglosResumen,
   type ArregloRepository,
   type DesgloseLinea,
   supabaseArregloRepository,
@@ -65,7 +66,7 @@ export function createArregloService(repository: ArregloRepository) {
       fromISO?: string,
       toISO?: string,
       tallerId?: string
-    ): Promise<{ total: number; cobrados: number; pendientes: number; montoIngresos: number }> {
+    ): Promise<ArreglosResumen> {
       return repository.arreglosResumen(supabase, fromISO, toISO, tallerId);
     },
 

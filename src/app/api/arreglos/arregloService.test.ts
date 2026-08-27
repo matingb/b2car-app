@@ -17,7 +17,17 @@ function makeRepo(overrides: Partial<ArregloRepository> = {}): ArregloRepository
     deleteById: vi.fn().mockResolvedValue({ error: null }),
     arreglosResumen: vi
       .fn()
-      .mockResolvedValue({ total: 0, cobrados: 0, pendientes: 0, montoIngresos: 0 }),
+      .mockResolvedValue({
+        total: 0,
+        cobrados: 0,
+        parciales: 0,
+        pendientes: 0,
+        montoIngresos: 0,
+        montoCobradoTotal: 0,
+        montoCobradoParcial: 0,
+        montoPendienteParcial: 0,
+        montoPendiente: 0,
+      }),
     facturacionPorTipo: vi.fn().mockResolvedValue([]),
     facturacionPorEmpleado: vi.fn().mockResolvedValue([]),
     costoPorTipo: vi.fn().mockResolvedValue([]),
@@ -31,6 +41,27 @@ function makeRepo(overrides: Partial<ArregloRepository> = {}): ArregloRepository
 }
 
 describe("arregloService", () => {
+  describe("arreglosResumen", () => {
+    it("preserva las cantidades e importes de los cobros parciales", async () => {
+      const resumen = {
+        total: 5,
+        cobrados: 2,
+        parciales: 1,
+        pendientes: 2,
+        montoIngresos: 25000,
+        montoCobradoTotal: 12000,
+        montoCobradoParcial: 3000,
+        montoPendienteParcial: 2000,
+        montoPendiente: 8000,
+      };
+      const repo = makeRepo({ arreglosResumen: vi.fn().mockResolvedValue(resumen) });
+
+      const result = await createArregloService(repo).arreglosResumen(mockSupabase);
+
+      expect(result).toEqual(resumen);
+    });
+  });
+
   describe("getArreglo", () => {
     it("propaga el error del repositorio", async () => {
       const repo = makeRepo({

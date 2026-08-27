@@ -7,57 +7,131 @@ import {
     ChartLegend,
     ChartLegendContent,
     ChartTooltip,
-    ChartTooltipContent,
     type ChartConfig,
 } from "@/app/components/shadcn/ui/chart";
 import { Cell, Pie, PieChart } from "recharts";
+import { formatArs, formatNumberAr } from "@/lib/format";
+import GraficoTooltip from "./GraficoTooltip";
 
 type Props = {
     total?: number | null;
     cobrados?: number | null;
+    parciales?: number | null;
     pendientes?: number | null;
+    montoCobradoTotal?: number | null;
+    montoCobradoParcial?: number | null;
+    montoPendienteParcial?: number | null;
+    montoPendiente?: number | null;
     className?: string;
 };
+
+const tooltipRows = [
+    {
+        key: "cantidad",
+        label: "Arreglos",
+        formatter: (value: unknown) =>
+            formatNumberAr(Number(value ?? 0), { maxDecimals: 0, minDecimals: 0 }),
+    },
+    {
+        key: "montoCobrado",
+        label: "Cobrado",
+        formatter: (value: unknown) => formatArs(Number(value ?? 0)),
+    },
+    {
+        key: "montoPendiente",
+        label: "Pendiente",
+        formatter: (value: unknown) => formatArs(Number(value ?? 0)),
+    },
+];
 
 export default function EstadoCobroArreglos({
     total,
     cobrados,
+    parciales,
     pendientes,
+    montoCobradoTotal,
+    montoCobradoParcial,
+    montoPendienteParcial,
+    montoPendiente,
     className,
 }: Props) {
     const { chartData, totalLabel } = useMemo(() => {
         const cobradosValue = Number(cobrados ?? 0);
+        const parcialesValue = Number(parciales ?? 0);
         const pendientesValue = Number(pendientes ?? 0);
-        const totalValue = Number(total ?? cobradosValue + pendientesValue);
+        const totalValue = Number(total ?? cobradosValue + parcialesValue + pendientesValue);
+        const montoCobradoTotalValue = Number(montoCobradoTotal ?? 0);
+        const montoCobradoParcialValue = Number(montoCobradoParcial ?? 0);
+        const montoPendienteParcialValue = Number(montoPendienteParcial ?? 0);
+        const montoPendienteValue = Number(montoPendiente ?? 0);
 
         const safeTotal = Number.isFinite(totalValue) ? totalValue : 0;
         const safeCobrados = Number.isFinite(cobradosValue) ? cobradosValue : 0;
+        const safeParciales = Number.isFinite(parcialesValue) ? parcialesValue : 0;
         const safePendientes = Number.isFinite(pendientesValue)
             ? pendientesValue
+            : 0;
+        const safeMontoCobradoTotal = Number.isFinite(montoCobradoTotalValue)
+            ? montoCobradoTotalValue
+            : 0;
+        const safeMontoCobradoParcial = Number.isFinite(montoCobradoParcialValue)
+            ? montoCobradoParcialValue
+            : 0;
+        const safeMontoPendienteParcial = Number.isFinite(montoPendienteParcialValue)
+            ? montoPendienteParcialValue
+            : 0;
+        const safeMontoPendiente = Number.isFinite(montoPendienteValue)
+            ? montoPendienteValue
             : 0;
 
         return {
             chartData: [
-                { key: "cobrados", name: "Cobrados", value: safeCobrados },
+                {
+                    key: "cobrados",
+                    name: "Cobrados totalmente",
+                    cantidad: safeCobrados,
+                    montoCobrado: safeMontoCobradoTotal,
+                },
+                {
+                    key: "parciales",
+                    name: "Cobrados parcialmente",
+                    cantidad: safeParciales,
+                    montoCobrado: safeMontoCobradoParcial,
+                    montoPendiente: safeMontoPendienteParcial,
+                },
                 {
                     key: "pendientes",
-                    name: "Por cobrar",
-                    value: safePendientes,
+                    name: "Sin cobrar",
+                    cantidad: safePendientes,
+                    montoPendiente: safeMontoPendiente,
                 },
             ],
             totalLabel: safeTotal,
         };
-    }, [total, cobrados, pendientes]);
+    }, [
+        total,
+        cobrados,
+        parciales,
+        pendientes,
+        montoCobradoTotal,
+        montoCobradoParcial,
+        montoPendienteParcial,
+        montoPendiente,
+    ]);
 
     const chartConfig: ChartConfig = useMemo(
         () => ({
             cobrados: {
-                label: "Cobrados",
+                label: "Cobrados totalmente",
                 color: COLOR.GRAPHICS.PRIMARY,
             },
-            pendientes: {
-                label: "Por cobrar",
+            parciales: {
+                label: "Cobrados parcialmente",
                 color: COLOR.GRAPHICS.QUINARY,
+            },
+            pendientes: {
+                label: "Sin cobrar",
+                color: COLOR.GRAPHICS.NONARY,
             },
         }),
         []
@@ -73,16 +147,13 @@ export default function EstadoCobroArreglos({
                     <ChartTooltip
                         cursor={false}
                         content={
-                            <ChartTooltipContent
-                                indicator="dot"
-                                nameKey="key"
-                            />
+                            <GraficoTooltip titleKey="name" extraRows={tooltipRows} />
                         }
                     />
 
                     <Pie
                         data={chartData}
-                        dataKey="value"
+                        dataKey="cantidad"
                         nameKey="name"
                         cx="50%"
                         cy="50%"

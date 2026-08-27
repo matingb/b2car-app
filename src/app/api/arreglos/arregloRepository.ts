@@ -29,6 +29,18 @@ export type ArregloListPageResult = {
 
 export type DesgloseLinea = { label: string; cantidad: number; monto: number };
 
+export type ArreglosResumen = {
+  total: number;
+  cobrados: number;
+  pendientes: number;
+  parciales: number;
+  montoIngresos: number;
+  montoCobradoTotal: number;
+  montoCobradoParcial: number;
+  montoPendienteParcial: number;
+  montoPendiente: number;
+};
+
 export interface ArregloRepository {
   getArreglo(supabase: SupabaseClient, filters: ArregloListFilters): Promise<ServiceResult<ArregloListPageResult>>;
   getByIdWithVehiculo(supabase: SupabaseClient, id: string): Promise<ServiceResult<Arreglo>>;
@@ -49,7 +61,7 @@ export interface ArregloRepository {
     fromISO?: string,
     toISO?: string,
     tallerId?: string
-  ): Promise<{ total: number; cobrados: number; pendientes: number; montoIngresos: number }>;
+  ): Promise<ArreglosResumen>;
   facturacionPorTipo(
     supabase: SupabaseClient,
     fromISO?: string,
@@ -298,14 +310,29 @@ export const supabaseArregloRepository: ArregloRepository = {
     });
     if (error) throw new Error(error.message);
     const row = (Array.isArray(data) ? data[0] : data) as
-      | { total?: unknown; cobrados?: unknown; pendientes?: unknown; monto_ingresos?: unknown }
+      | {
+          total?: unknown;
+          cobrados?: unknown;
+          pendientes?: unknown;
+          parciales?: unknown;
+          monto_ingresos?: unknown;
+          monto_cobrado_total?: unknown;
+          monto_cobrado_parcial?: unknown;
+          monto_pendiente_parcial?: unknown;
+          monto_pendiente?: unknown;
+        }
       | null
       | undefined;
     return {
       total: Number(row?.total ?? 0),
       cobrados: Number(row?.cobrados ?? 0),
       pendientes: Number(row?.pendientes ?? 0),
+      parciales: Number(row?.parciales ?? 0),
       montoIngresos: Number(row?.monto_ingresos ?? 0),
+      montoCobradoTotal: Number(row?.monto_cobrado_total ?? 0),
+      montoCobradoParcial: Number(row?.monto_cobrado_parcial ?? 0),
+      montoPendienteParcial: Number(row?.monto_pendiente_parcial ?? 0),
+      montoPendiente: Number(row?.monto_pendiente ?? 0),
     };
   },
 
