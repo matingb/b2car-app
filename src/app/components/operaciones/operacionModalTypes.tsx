@@ -25,6 +25,17 @@ export type OperacionModalProps = {
   initialTipo?: TipoOperacion;
   initialCuentaId?: string | null;
   gasto?: GastoFinanciero | null;
+  /**
+   * Restringe el modal a una operación de stock ya existente. Se usa desde el
+   * detalle de producto para evitar que la operación cambie de taller o de
+   * producto durante su carga.
+   */
+  contextualStock?: {
+    stockId: string;
+    tallerId: string;
+  } | null;
+  /** Se ejecuta únicamente luego de que la operación de stock fue creada. */
+  onSuccess?: () => Promise<void> | void;
 };
 
 export type TipoOperacionConfig = {
@@ -50,10 +61,10 @@ export function getDefaultUnitario(item: ProductoLite, tipo: TipoOperacion | nul
   return 0;
 }
 
-export function createEmptyLinea(): OperacionLineaDraft {
+export function createEmptyLinea(stockId = ""): OperacionLineaDraft {
   return {
     id: generateUuidV4(),
-    stockId: "",
+    stockId,
     cantidad: 1,
     unitario: 0,
     total: 0,

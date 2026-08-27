@@ -41,6 +41,7 @@ type OperacionFormContextValue = {
   setTipo: (tipo: TipoOperacion) => void;
   tallerId: string;
   setTallerId: (id: string) => void;
+  isContextualStock: boolean;
   fecha: string;
   setFecha: (fecha: string) => void;
   cuentaFinancieraId: string;
@@ -93,18 +94,27 @@ export function OperacionFormProvider({
   initialTipo,
   initialCuentaId,
   gasto,
+  contextualStock,
+  onSuccess,
   children,
 }: OperacionModalProps & { children: React.ReactNode }) {
   const { create, loading: isOperacionesLoading, refresh: refreshOperaciones } = useOperaciones();
   const { success, error } = useToast();
-  const { loading: isLoadingCuentas, refresh: refreshCuentas, createCuenta } = useCuentasFinancieras();
+  const {
+    loading: isLoadingCuentas,
+    refresh: refreshCuentas,
+    createCuenta,
+    cuentaFavorita,
+  } = useCuentasFinancieras();
 
-  const [tipo, setTipo] = useState<TipoOperacion | null>(gasto ? "GASTO" : initialTipo ?? "VENTA");
-  const [tallerId, setTallerId] = useState<string>("");
-  const [cuentaFinancieraId, setCuentaFinancieraId] = useState<string>(gasto?.cuentaId ?? initialCuentaId ?? "");
+  const [tipo, setTipoState] = useState<TipoOperacion | null>(gasto ? "GASTO" : contextualStock ? "VENTA" : initialTipo ?? "VENTA");
+  const [tallerId, setTallerIdState] = useState<string>("");
+  const [cuentaFinancieraId, setCuentaFinancieraId] = useState<string>(
+    gasto?.cuentaId ?? initialCuentaId ?? cuentaFavorita?.id ?? ""
+  );
   const [cuentaDraft, setCuentaDraft] = useState<CuentaFinancieraDraft>(() => ({ ...EMPTY_CUENTA_FINANCIERA_DRAFT }));
   const [fecha, setFecha] = useState<string>(() => (gasto?.fecha ? gasto.fecha.slice(0, 10) : toISODateLocal(new Date())));
-  const [lineas, setLineas] = useState<OperacionLineaDraft[]>([createEmptyLinea()]);
+  const [lineas, setLineas] = useState<OperacionLineaDraft[]>([createEmptyLinea(contextualStock?.stockId)]);
 
   const [categoriaGasto, setCategoriaGasto] = useState<string>(gasto?.categoria ?? "ALQUILER");
   const [montoGasto, setMontoGasto] = useState<string>(gasto ? String(gasto.importe) : "");
@@ -122,9 +132,24 @@ export function OperacionFormProvider({
   const isTipoEnabled = useCallback(
     (value: TipoOperacion | null) => {
       if (!value) return false;
+      if (contextualStock) return value === "VENTA" || value === "COMPRA";
       return !tipoConfigById.get(value)?.disabled;
     },
-    [tipoConfigById],
+    [contextualStock, tipoConfigById],
+  );
+
+  const setTipo = useCallback(
+    (value: TipoOperacion) => {
+      if (isTipoEnabled(value)) setTipoState(value);
+    },
+    [isTipoEnabled],
+  );
+
+  const setTallerId = useCallback(
+    (id: string) => {
+      if (!contextualStock) setTallerIdState(id);
+    },
+    [contextualStock],
   );
 
   useEffect(() => {
@@ -136,10 +161,10 @@ export function OperacionFormProvider({
     didInitRef.current = true;
 
     if (gasto) {
-      setTipo("GASTO");
+      setTipoState("GASTO");
       setFecha(gasto.fecha ? gasto.fecha.slice(0, 10) : toISODateLocal(new Date()));
       setLineas([createEmptyLinea()]);
-      setTallerId(talleres.length === 1 ? talleres[0].id : "");
+      setTallerIdState(talleres[0]?.id ?? "");
       setCuentaFinancieraId(gasto.cuentaId || "");
       setCategoriaGasto(gasto.categoria || "ALQUILER");
       setMontoGasto(String(gasto.importe || ""));
@@ -147,21 +172,40 @@ export function OperacionFormProvider({
       return;
     }
 
-    setTipo(initialTipo ?? "VENTA");
+    setTipoState(contextualStock ? "VENTA" : initialTipo ?? "VENTA");
     setFecha(toISODateLocal(new Date()));
-    setLineas([createEmptyLinea()]);
-    setTallerId(talleres.length === 1 ? talleres[0].id : "");
-    setCuentaFinancieraId(initialCuentaId ?? "");
+    setLineas([createEmptyLinea(contextualStock?.stockId)]);
+    setTallerIdState(contextualStock?.tallerId ?? talleres[0]?.id ?? "");
+    setCuentaFinancieraId(initialCuentaId ?? cuentaFavorita?.id ?? "");
     setCategoriaGasto("ALQUILER");
     setMontoGasto("");
     setDescripcionGasto("");
-  }, [open, talleres, initialTipo, initialCuentaId, gasto]);
+  }, [open, talleres, initialTipo, initialCuentaId, gasto, contextualStock, cuentaFavorita]);
 
   useEffect(() => {
     if (!open) return;
+    if (contextualStock) {
+      setTallerIdState(contextualStock.tallerId);
+      return;
+    }
     if (tallerId) return;
-    if (talleres.length === 1) setTallerId(talleres[0].id);
-  }, [open, talleres, tallerId]);
+    const firstTallerId = talleres[0]?.id;
+    if (firstTallerId) setTallerIdState(firstTallerId);
+  }, [open, talleres, tallerId, contextualStock]);
+
+  useEffect(() => {
+    if (
+      !open ||
+      gasto ||
+      initialCuentaId ||
+      cuentaFinancieraId ||
+      !cuentaFavorita?.id
+    ) {
+      return;
+    }
+
+    setCuentaFinancieraId(cuentaFavorita.id);
+  }, [open, gasto, initialCuentaId, cuentaFinancieraId, cuentaFavorita]);
 
   const stockItems = useMemo<StockItemWithActual[]>(
     () =>
@@ -218,16 +262,22 @@ export function OperacionFormProvider({
   );
 
   const setLineaAt = useCallback((idx: number, nextLinea: OperacionLineaDraft) => {
-    setLineas((prev) => prev.map((l, i) => (i === idx ? nextLinea : l)));
-  }, []);
+    setLineas((prev) => prev.map((l, i) => (
+      i === idx
+        ? { ...nextLinea, stockId: contextualStock?.stockId ?? nextLinea.stockId }
+        : l
+    )));
+  }, [contextualStock]);
 
   const addLinea = useCallback(() => {
+    if (contextualStock) return;
     setLineas((prev) => [...prev, createEmptyLinea()]);
-  }, []);
+  }, [contextualStock]);
 
   const removeLinea = useCallback((idx: number) => {
+    if (contextualStock) return;
     setLineas((prev) => prev.filter((_, i) => i !== idx));
-  }, []);
+  }, [contextualStock]);
 
   const isCreatingCuenta = cuentaFinancieraId === CREATE_CUENTA_VALUE;
 
@@ -344,6 +394,11 @@ export function OperacionFormProvider({
 
       const created = await create(payload);
       if (created) {
+        try {
+          await Promise.all([refreshCuentas(), onSuccess?.()]);
+        } catch (refreshError) {
+          console.error("No se pudieron refrescar los datos luego de crear la operación", refreshError);
+        }
         const tallerNombre = talleres.find((t) => t.id === tallerId)?.nombre ?? "el taller seleccionado";
         success(
           "Operación creada",
@@ -365,6 +420,7 @@ export function OperacionFormProvider({
     setTipo,
     tallerId,
     setTallerId,
+    isContextualStock: Boolean(contextualStock),
     fecha,
     setFecha,
     cuentaFinancieraId,

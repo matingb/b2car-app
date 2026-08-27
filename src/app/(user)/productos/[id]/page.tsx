@@ -14,6 +14,9 @@ import { Building2, Layers3, Package, Pencil, Save, Trash, TrendingUp, X } from 
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import ProductoStockMatrix from "@/app/components/productos/ProductoStockMatrix";
+import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
+import { OperacionesProvider } from "@/app/providers/OperacionesProvider";
+import { InventarioProvider } from "@/app/providers/InventarioProvider";
 import Toggle from "@/app/components/ui/Toggle";
 import {
   Producto,
@@ -61,6 +64,7 @@ export default function ProductoDetailsPage() {
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [contextualStock, setContextualStock] = useState<{ stockId: string; tallerId: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -230,6 +234,13 @@ export default function ProductoDetailsPage() {
     },
     [confirm, error, getProductoById, params.id, removeProductoStock, success]
   );
+
+  const handleOperacionCreated = useCallback(async () => {
+    const res = await getProductoById(params.id);
+    if (!res?.producto) return;
+    setProducto(res.producto);
+    setStockDelProducto(res.stocks ?? []);
+  }, [getProductoById, params.id]);
 
   if (loading) {
     return (
@@ -444,8 +455,26 @@ export default function ProductoDetailsPage() {
           selectedTallerId={selectedTallerId}
           onSave={handleSaveStock}
           onDelete={handleDeleteStock}
+          onRegisterOperation={(stock, taller) => {
+            setContextualStock({ stockId: stock.id, tallerId: taller.id });
+          }}
         />
       </div>
+
+      {contextualStock ? (
+        <OperacionesProvider>
+          <InventarioProvider>
+            <OperacionCreateModal
+              open
+              talleres={talleres}
+              initialTipo="VENTA"
+              contextualStock={contextualStock}
+              onSuccess={handleOperacionCreated}
+              onClose={() => setContextualStock(null)}
+            />
+          </InventarioProvider>
+        </OperacionesProvider>
+      ) : null}
     </div>
   );
 }

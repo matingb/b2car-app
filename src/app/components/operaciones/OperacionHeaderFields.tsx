@@ -26,6 +26,7 @@ export default function OperacionHeaderFields() {
     setCuentaDraft,
     tipo,
     setTipo,
+    isContextualStock,
   } = useOperacionForm();
 
   const isCreatingCuenta = cuentaFinancieraId === CREATE_CUENTA_VALUE;
@@ -33,8 +34,8 @@ export default function OperacionHeaderFields() {
 
   return (
     <>
-      <div css={styles.headerRow}>
-        {tipo !== "GASTO" && hasManyTalleres ? (
+      <div css={styles.headerRow} data-testid="operaciones-datos-principales">
+        {tipo !== "GASTO" && hasManyTalleres && !isContextualStock ? (
           <div style={styles.headerLeft}>
             <label style={styles.label}>Taller</label>
             <Autocomplete
@@ -74,7 +75,7 @@ export default function OperacionHeaderFields() {
         <div style={styles.headerRight}>
           <label style={styles.label}>Tipo de operación</label>
           <div css={styles.tipoRow}>
-            {TIPOS_UI.map((t) => {
+            {(isContextualStock ? TIPOS_UI.filter((t) => t.tipo === "VENTA" || t.tipo === "COMPRA") : TIPOS_UI).map((t) => {
               const isSelected = tipo === t.tipo;
               const isDisabled = Boolean(t.disabled);
               return (
@@ -127,17 +128,21 @@ export default function OperacionHeaderFields() {
 const styles = {
   headerRow: css({
     display: "flex",
-    flexDirection: "column",
     gap: 12,
+    alignItems: "flex-end",
+    flexWrap: "wrap",
     marginBottom: 12,
+    "@media (max-width: 680px)": {
+      flexDirection: "column",
+      alignItems: "stretch",
+    },
   }),
   headerLeft: {
-    minWidth: 240,
-    maxWidth: 360,
-    flex: "0 0 auto",
+    flex: "1 1 0",
+    minWidth: 0,
   } as const,
   headerRight: {
-    flex: "1 1 auto",
+    flex: "1 0 100%",
     display: "flex",
     flexDirection: "column",
   } as const,

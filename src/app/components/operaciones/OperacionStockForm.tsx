@@ -20,6 +20,7 @@ export default function OperacionStockForm() {
     stockOptions,
     isInventarioLoading,
     getDefaultUnitarioForStockId,
+    isContextualStock,
   } = useOperacionForm();
 
   const isEnabled = Boolean(tipo && isTipoEnabled(tipo));
@@ -54,26 +55,29 @@ export default function OperacionStockForm() {
               index={idx}
               linea={l}
               disabled={disabled}
+              stockSelectionDisabled={isContextualStock}
               loadingStocks={isInventarioLoading}
               stockOptions={stockOptions}
               getDefaultUnitarioForStockId={getDefaultUnitarioForStockId}
               onChange={(next) => setLineaAt(idx, next)}
               onRemove={() => removeLinea(idx)}
-              canRemove={lineas.length > 1}
+              canRemove={!isContextualStock && lineas.length > 1}
             />
           );
         })}
       </div>
 
       <div style={styles.addAndTotalRow}>
-        <Button
-          onClick={addLinea}
-          disabled={!isEnabled}
-          dataTestId="operaciones-add-line"
-          text="Agregar Producto"
-          icon={<Plus size={16} />}
-          outline
-        />
+        {!isContextualStock ? (
+          <Button
+            onClick={addLinea}
+            disabled={!isEnabled}
+            dataTestId="operaciones-add-line"
+            text="Agregar Producto"
+            icon={<Plus size={16} />}
+            outline
+          />
+        ) : null}
 
         <div style={styles.totalInline}>
           <div style={styles.totalInlineLabel}>TOTAL OPERACIÓN</div>

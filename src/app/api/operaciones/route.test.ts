@@ -20,8 +20,9 @@ vi.mock("./operacionesService", () => ({
 }));
 
 import { createClient } from "@/supabase/server";
+import { ServiceError } from "@/app/api/serviceError";
 import { operacionesService } from "./operacionesService";
-import { GET } from "./route";
+import { GET, POST } from "./route";
 
 describe("GET /api/operaciones", () => {
 	beforeEach(() => {
@@ -102,5 +103,38 @@ describe("GET /api/operaciones", () => {
 			monto: 12500,
 			arreglo_id: "arreglo-1",
 		});
+	});
+});
+
+describe("POST /api/operaciones", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		vi.mocked(createClient).mockResolvedValue({} as unknown as SupabaseClient);
+	});
+
+	it("devuelve conflicto y conserva el mensaje cuando la RPC rechaza una venta por stock insuficiente", async () => {
+		vi.mocked(operacionesService.create).mockResolvedValue({
+			data: null,
+			error: ServiceError.StockInsuficiente,
+		} as Awaited<ReturnType<typeof operacionesService.create>>);
+
+		const response = await POST(new Request("http://localhost/api/operaciones", {
+			method: "POST",
+			body: JSON.stringify({
+				tipo: "VENTA",
+				taller_id: "11111111-1111-4111-8111-111111111111",
+				cuenta_financiera_id: "22222222-2222-4222-8222-222222222222",
+				idempotency_key: "33333333-3333-4333-8333-333333333333",
+				lineas: [{
+					stock_id: "44444444-4444-4444-8444-444444444444",
+					cantidad: 2,
+					monto_unitario: 3500,
+					delta_cantidad: -2,
+				}],
+			}),
+		}));
+
+		expect(response.status).toBe(409);
+		expect(await response.json()).toEqual({ data: null, error: "Stock insuficiente" });
 	});
 });

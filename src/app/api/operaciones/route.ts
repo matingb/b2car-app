@@ -4,6 +4,7 @@ import type { OperacionDTO } from "@/model/dtos";
 import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { isValidUuid } from "@/lib/uuid";
+import { ServiceError } from "@/app/api/serviceError";
 import {
 	operacionesService,
 	OPERACIONES_PAGE_SIZE,
@@ -133,6 +134,9 @@ export async function POST(req: Request) {
 	const { data, error } = await operacionesService.create(supabase, body);
 	if (error || !data) {
 		logger.error("POST /api/operaciones - error:", error);
+		if (error === ServiceError.StockInsuficiente) {
+			return Response.json({ data: null, error: "Stock insuficiente" } satisfies CreateOperacionResponse, { status: 409 });
+		}
 		return Response.json({ data: null, error: error?.toString() } satisfies CreateOperacionResponse, { status: 500 });
 	}
 

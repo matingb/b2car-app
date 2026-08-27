@@ -24,6 +24,7 @@ type Props = {
   index: number;
   linea: OperacionLineaDraft;
   disabled: boolean;
+  stockSelectionDisabled?: boolean;
   loadingStocks: boolean;
   stockOptions: AutocompleteOption[];
   getDefaultUnitarioForStockId?: (stockId: string) => number | null;
@@ -40,6 +41,7 @@ export default function OperacionLineaEditor({
   index,
   linea,
   disabled,
+  stockSelectionDisabled = false,
   loadingStocks,
   stockOptions,
   getDefaultUnitarioForStockId,
@@ -90,7 +92,7 @@ export default function OperacionLineaEditor({
           value={linea.stockId}
           onChange={onStockChange}
           placeholder={loadingStocks ? "Cargando inventario..." : "Buscar item..."}
-          disabled={disabled || loadingStocks}
+          disabled={disabled || stockSelectionDisabled || loadingStocks}
           dataTestId={`operaciones-line-${index}-stock`}
           style={styles.autocompleteCompact}
           inputStyle={styles.controlInput}

@@ -18,8 +18,28 @@ const mockInventarioApi = {
 
 const mockCrearGasto = vi.fn();
 const mockActualizarGasto = vi.fn();
+const mockCrearOperacion = vi.fn();
 const mockRefreshOperaciones = vi.fn();
 const mockRefreshCuentas = vi.fn();
+const mockToastSuccess = vi.fn();
+const mockToastError = vi.fn();
+const mockCuentasApi = {
+  cuentas: [],
+  cuentasActivas: [
+    { id: "C1", nombre: "Caja Chica", tipo: "EFECTIVO", saldoActual: 10000, activo: true },
+  ],
+  cuentaFavorita: null as {
+    id: string;
+    nombre: string;
+    tipo: string;
+    saldoActual: number;
+    activo: boolean;
+    favorita: boolean;
+  } | null,
+  loading: false,
+  refresh: mockRefreshCuentas,
+  createCuenta: vi.fn(),
+};
 
 vi.mock("@/clients/finanzasClient", () => ({
   finanzasClient: {
@@ -59,27 +79,20 @@ vi.mock("@/app/components/ui/Autocomplete", () => ({
 
 vi.mock("@/app/providers/OperacionesProvider", () => ({
   useOperaciones: () => ({
-    create: vi.fn(),
+    create: mockCrearOperacion,
     loading: false,
     refresh: mockRefreshOperaciones,
   }),
 }));
 
 vi.mock("@/app/providers/CuentasFinancierasProvider", () => ({
-  useCuentasFinancieras: () => ({
-    cuentas: [],
-    cuentasActivas: [
-      { id: "C1", nombre: "Caja Chica", tipo: "EFECTIVO", saldoActual: 10000, activo: true },
-    ],
-    loading: false,
-    refresh: mockRefreshCuentas,
-  }),
+  useCuentasFinancieras: () => mockCuentasApi,
 }));
 
 vi.mock("@/app/providers/ToastProvider", () => ({
   useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
+    success: mockToastSuccess,
+    error: mockToastError,
     info: vi.fn(),
   }),
 }));
@@ -87,6 +100,8 @@ vi.mock("@/app/providers/ToastProvider", () => ({
 describe("OperacionCreateModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockInventarioApi.inventario = [];
+    mockCuentasApi.cuentaFavorita = null;
     mockCrearGasto.mockResolvedValue({
       data: { id: "G1", cuentaId: "C1", categoria: "ALQUILER", importe: 5000 },
       error: null,
@@ -259,6 +274,173 @@ describe("OperacionCreateModal", () => {
     await runPendingPromises();
 
     expect(screen.getByTestId("operaciones-create-taller")).toBeInTheDocument();
+  });
+
+  it("preselecciona el primer taller y la cuenta favorita", async () => {
+    mockCuentasApi.cuentaFavorita = {
+      id: "C-FAVORITA",
+      nombre: "Caja principal",
+      tipo: "EFECTIVO",
+      saldoActual: 10000,
+      activo: true,
+      favorita: true,
+    };
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[
+          { id: "T1", nombre: "Taller Centro" },
+          { id: "T2", nombre: "Taller Norte" },
+        ]}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("operaciones-create-taller")).toHaveValue("T1");
+      expect(screen.getByTestId("operaciones-create-cuenta-financiera")).toHaveValue("C-FAVORITA");
+    });
+  });
+
+  it("crea una venta contextual para el stock y taller preseleccionados", async () => {
+    mockInventarioApi.inventario = [{
+      id: "S-CONTEXTO",
+      nombre: "Filtro de Aceite",
+      codigo: "FA-01",
+      precioUnitario: 3500,
+      costoUnitario: 2000,
+      stockActual: 10,
+    }];
+    mockCrearOperacion.mockResolvedValue({ id: "O-1" });
+    const onClose = vi.fn();
+    const onSuccess = vi.fn();
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[
+          { id: "T-1", nombre: "Taller Centro" },
+          { id: "T-2", nombre: "Taller Norte" },
+        ]}
+        initialCuentaId="C-1"
+        contextualStock={{ stockId: "S-CONTEXTO", tallerId: "T-2" }}
+        onSuccess={onSuccess}
+        onClose={onClose}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("operaciones-line-0-stock")).toHaveValue("S-CONTEXTO");
+      expect(screen.getByTestId("operaciones-line-0-unitario")).toHaveValue(3500);
+    });
+
+    expect(screen.getByTestId("operaciones-line-0-stock")).toBeDisabled();
+    expect(screen.queryByTestId("operaciones-create-taller")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("operaciones-create-tipo-GASTO")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("operaciones-add-line")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("modal-submit"));
+
+    await waitFor(() => {
+      expect(mockCrearOperacion).toHaveBeenCalledWith(expect.objectContaining({
+        tipo: "VENTA",
+        taller_id: "T-2",
+        cuenta_financiera_id: "C-1",
+        lineas: [{
+          stock_id: "S-CONTEXTO",
+          cantidad: 1,
+          monto_unitario: 3500,
+          delta_cantidad: -1,
+        }],
+      }));
+    });
+
+    expect(mockRefreshCuentas).toHaveBeenCalledTimes(1);
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("permite cambiar una operación contextual a compra y usa el costo del producto", async () => {
+    mockInventarioApi.inventario = [{
+      id: "S-CONTEXTO",
+      nombre: "Filtro de Aceite",
+      codigo: "FA-01",
+      precioUnitario: 3500,
+      costoUnitario: 2000,
+      stockActual: 10,
+    }];
+    mockCrearOperacion.mockResolvedValue({ id: "O-2" });
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T-2", nombre: "Taller Norte" }]}
+        initialCuentaId="C-1"
+        contextualStock={{ stockId: "S-CONTEXTO", tallerId: "T-2" }}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("operaciones-line-0-unitario")).toHaveValue(3500);
+    });
+    await userEvent.click(screen.getByTestId("operaciones-create-tipo-COMPRA"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("operaciones-line-0-unitario")).toHaveValue(2000);
+    });
+    await userEvent.click(screen.getByTestId("modal-submit"));
+
+    await waitFor(() => {
+      expect(mockCrearOperacion).toHaveBeenCalledWith(expect.objectContaining({
+        tipo: "COMPRA",
+        taller_id: "T-2",
+        lineas: [expect.objectContaining({
+          stock_id: "S-CONTEXTO",
+          monto_unitario: 2000,
+          delta_cantidad: 1,
+        })],
+      }));
+    });
+  });
+
+  it("mantiene abierto el modal contextual cuando el backend informa stock insuficiente", async () => {
+    mockInventarioApi.inventario = [{
+      id: "S-CONTEXTO",
+      nombre: "Filtro de Aceite",
+      codigo: "FA-01",
+      precioUnitario: 3500,
+      costoUnitario: 2000,
+      stockActual: 1,
+    }];
+    mockCrearOperacion.mockRejectedValue(new Error("Stock insuficiente"));
+    const onClose = vi.fn();
+    const onSuccess = vi.fn();
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T-2", nombre: "Taller Norte" }]}
+        initialCuentaId="C-1"
+        contextualStock={{ stockId: "S-CONTEXTO", tallerId: "T-2" }}
+        onSuccess={onSuccess}
+        onClose={onClose}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("operaciones-line-0-unitario")).toHaveValue(3500);
+    });
+    await userEvent.clear(screen.getByTestId("operaciones-line-0-cantidad"));
+    await userEvent.type(screen.getByTestId("operaciones-line-0-cantidad"), "2");
+    await userEvent.click(screen.getByTestId("modal-submit"));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("Error creando operación", "Stock insuficiente");
+    });
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("permite registrar una venta seleccionando item y guardando", async () => {

@@ -25,6 +25,7 @@ type Props = {
   selectedTallerId?: string;
   onSave: (input: SaveProductoStockInput) => Promise<SaveProductoStockResult>;
   onDelete: (stockId: string, tallerNombre: string) => Promise<boolean>;
+  onRegisterOperation: (stock: StockRegistro, taller: Taller) => void;
 };
 
 type Draft = {
@@ -77,6 +78,7 @@ function StockRow({
   selected,
   onSave,
   onDelete,
+  onRegisterOperation,
 }: {
   productoId: string;
   taller: Taller;
@@ -84,6 +86,7 @@ function StockRow({
   selected: boolean;
   onSave: Props["onSave"];
   onDelete: Props["onDelete"];
+  onRegisterOperation: Props["onRegisterOperation"];
 }) {
   const [draft, setDraft] = useState<Draft>(() => createDraft(stock));
   const [saving, setSaving] = useState(false);
@@ -154,6 +157,18 @@ function StockRow({
             {renderProgress(levels, stock)}
           </div>
           <div css={styles.actions}>
+            <Button
+              icon={<Plus size={17} />}
+              text=""
+              onClick={() => {
+                if (stock) onRegisterOperation(stock, taller);
+              }}
+              dataTestId={`producto-stock-${stock?.id}-registrar-operacion`}
+              title="Registrar operación"
+              ariaLabel={`Registrar operación en ${taller.nombre}`}
+              hideTextOnMobile={false}
+              style={styles.operationButton}
+            />
             <IconButton
               icon={<Pencil />}
               onClick={startEditing}
@@ -298,6 +313,7 @@ export default function ProductoStockMatrix({
   selectedTallerId,
   onSave,
   onDelete,
+  onRegisterOperation,
 }: Props) {
   const stockByTaller = useMemo(() => {
     return new Map(stocks.map((stock) => [stock.tallerId, stock] as const));
@@ -330,6 +346,7 @@ export default function ProductoStockMatrix({
           selected={selectedTallerId === taller.id}
           onSave={onSave}
           onDelete={onDelete}
+          onRegisterOperation={onRegisterOperation}
         />
       ))}
     </div>
@@ -500,6 +517,14 @@ const styles = {
   configureButton: {
     minWidth: 156,
     height: 40,
+  },
+  operationButton: {
+    width: 38,
+    minWidth: 38,
+    height: 38,
+    padding: 8,
+    gap: 0,
+    flex: "0 0 38px",
   },
   error: css({
     marginTop: 10,

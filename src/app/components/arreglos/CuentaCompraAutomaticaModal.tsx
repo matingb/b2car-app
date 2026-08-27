@@ -26,7 +26,7 @@ export { CREATE_CUENTA_VALUE };
 /** Se muestra antes de confirmar una compra de stock disparada desde un arreglo. */
 export default function CuentaCompraAutomaticaModal({ open, onClose, onConfirm }: Props) {
   const { error, success } = useToast();
-  const { loading, createCuenta } = useCuentasFinancieras();
+  const { loading, createCuenta, cuentaFavorita } = useCuentasFinancieras();
   const [cuentaId, setCuentaId] = useState("");
   const [cuentaDraft, setCuentaDraft] = useState<CuentaFinancieraDraft>(() => ({ ...EMPTY_CUENTA_FINANCIERA_DRAFT }));
   const [submitting, setSubmitting] = useState(false);
@@ -38,6 +38,11 @@ export default function CuentaCompraAutomaticaModal({ open, onClose, onConfirm }
     setCuentaId("");
     setCuentaDraft({ ...EMPTY_CUENTA_FINANCIERA_DRAFT });
   }, [open]);
+
+  useEffect(() => {
+    if (!open || cuentaId || !cuentaFavorita?.id) return;
+    setCuentaId(cuentaFavorita.id);
+  }, [open, cuentaId, cuentaFavorita]);
 
   const isValid = useMemo(() => {
     if (loading || submitting) return false;

@@ -11,6 +11,7 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   hideTextOnMobile?: boolean;
   outline?: boolean;
   dataTestId?: string;
+  ariaLabel?: string;
 };
 
 export default function Button({
@@ -21,6 +22,7 @@ export default function Button({
   outline = false,
   onClick,
   dataTestId,
+  ariaLabel,
   ...rest
 }: ButtonProps) {
 
@@ -44,7 +46,7 @@ export default function Button({
       onClick={onClick}
       css={[styles.button, outline && styles.buttonOutline]}
       data-testid={dataTestId}
-      aria-label={text}
+      aria-label={ariaLabel ?? text}
     >
       {icon && icon}
       <p css={hideTextOnMobile ? styles.hideTextOnMobile : undefined}>{text}</p>
