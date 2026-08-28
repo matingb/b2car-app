@@ -393,6 +393,7 @@ export const supabaseArregloRepository: ArregloRepository = {
     let query = supabase
       .from("arreglos")
       .select("id, descripcion, updated_at, precio_final, vehiculo:vehiculos(patente)")
+      .or("estado.neq.PRESUPUESTO,estado.is.null")
       .order("updated_at", { ascending: false })
       .limit(limit);
     if (fromISO) query = query.gte("fecha", fromISO);

@@ -211,4 +211,32 @@ describe("supabaseArregloRepository", () => {
       });
     });
   });
+
+  describe("listRecentActivities", () => {
+    it("aplica filtro para excluir arreglos en estado PRESUPUESTO y ordena por updated_at descendente", async () => {
+      const supabase = makeSupabase({
+        arreglos: {
+          data: [
+            {
+              id: "a1",
+              descripcion: "Cambio de aceite",
+              updated_at: "2026-08-28T10:00:00Z",
+              precio_final: 5000,
+              vehiculo: { patente: "AA123BB" },
+            },
+          ],
+          error: null,
+        },
+      });
+
+      const result = await supabaseArregloRepository.listRecentActivities(supabase, 5);
+
+      expect(supabase.from).toHaveBeenCalledWith("arreglos");
+      expect(supabase.__chains.arreglos.or).toHaveBeenCalledWith("estado.neq.PRESUPUESTO,estado.is.null");
+      expect(supabase.__chains.arreglos.order).toHaveBeenCalledWith("updated_at", { ascending: false });
+      expect(supabase.__chains.arreglos.limit).toHaveBeenCalledWith(5);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("a1");
+    });
+  });
 });
