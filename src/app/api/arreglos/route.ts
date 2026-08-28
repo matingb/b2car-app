@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
         search: toUndef(query.get("search")),
         patente: toUndef(query.get("patente")),
         estado: toUndef(query.get("estado")),
+        estadoPago: toUndef(query.get("estado_pago")),
         fechaDesde: toUndef(query.get("fecha_desde")),
         fechaHasta: toUndef(query.get("fecha_hasta")),
         limit,

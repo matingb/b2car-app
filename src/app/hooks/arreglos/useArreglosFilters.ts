@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import type { ArregloFilters } from "@/app/components/arreglos/ArregloFiltersModal";
 import { formatDateLabel } from "@/lib/fechas";
 
-export type ChipKind = "fechaRange" | "fechaDesde" | "fechaHasta" | "patente" | "estado";
+export type ChipKind = "fechaRange" | "fechaDesde" | "fechaHasta" | "patente" | "estado" | "estadoPago";
 export type Chip = { key: string; text: string; kind: ChipKind };
 
 type DateRange = { from: Date | null; to: Date | null };
@@ -17,6 +17,7 @@ function createEmptyFilters(): ArregloFilters {
     patente: "",
 
     estado: "",
+    estadoPago: "",
   };
 }
 
@@ -58,6 +59,20 @@ function matchesEstadoFilter(arreglo: Arreglo, estadoFilter: string) {
   return current.includes(estadoFilter);
 }
 
+function matchesEstadoPagoFilter(arreglo: Arreglo, estadoPagoFilter: string) {
+  if (!estadoPagoFilter) return true;
+
+  const estadoPago = estadoPagoFilter.toUpperCase();
+  if (estadoPago !== "PENDIENTE" && estadoPago !== "PARCIAL" && estadoPago !== "PAGADO") {
+    return true;
+  }
+  if (estadoPago === "PAGADO") return arreglo.esta_pago === true;
+
+  if (arreglo.esta_pago === true) return false;
+  const totalCobrado = Number(arreglo.total_cobrado ?? 0);
+  return estadoPago === "PARCIAL" ? totalCobrado > 0 : totalCobrado <= 0;
+}
+
 function matchesDateRange(arreglo: Arreglo, range: DateRange) {
   if (!range.from && !range.to) return true;
 
@@ -77,6 +92,7 @@ export function filterArreglos(
   const patenteFilter = params.filters.patente.trim().toLowerCase();
 
   const estadoFilter = params.filters.estado.trim().toLowerCase();
+  const estadoPagoFilter = params.filters.estadoPago.trim();
   const dateRange = getDateRange(params.filters);
 
   return arreglos.filter(
@@ -85,6 +101,7 @@ export function filterArreglos(
       matchesPatenteFilter(a, patenteFilter) &&
 
       matchesEstadoFilter(a, estadoFilter) &&
+      matchesEstadoPagoFilter(a, estadoPagoFilter) &&
       matchesDateRange(a, dateRange)
   );
 }
@@ -142,6 +159,14 @@ export function useArreglosFilters(arreglos?: Arreglo[]) {
       });
     }
 
+    if (filters.estadoPago.trim()) {
+      items.push({
+        key: "estadoPago",
+        text: `Pago: ${filters.estadoPago.trim().toLowerCase()}`,
+        kind: "estadoPago",
+      });
+    }
+
     return items;
   }, [filters]);
 
@@ -159,6 +184,8 @@ export function useArreglosFilters(arreglos?: Arreglo[]) {
 
         case "estado":
           return { ...prev, estado: "" };
+        case "estadoPago":
+          return { ...prev, estadoPago: "" };
         default:
           return prev;
       }

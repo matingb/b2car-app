@@ -9,6 +9,7 @@ const emptyFilters: ArregloFilters = {
   patente: "",
 
   estado: "",
+  estadoPago: "",
 };
 
 describe("filterArreglos", () => {
@@ -58,6 +59,27 @@ describe("filterArreglos", () => {
       filters: { ...emptyFilters, patente: "xYz" },
     });
     expect(result.map((a) => a.id)).toEqual(["2"]);
+  });
+
+  it("filtra por estado de pago pendiente, parcial y pagado", () => {
+    const arreglos = [
+      createArreglo({ id: "pendiente", esta_pago: false, total_cobrado: 0 }),
+      createArreglo({ id: "parcial", esta_pago: false, total_cobrado: 500 }),
+      createArreglo({ id: "pagado", esta_pago: true, total_cobrado: 1000 }),
+    ];
+
+    expect(
+      filterArreglos(arreglos, { search: "", filters: { ...emptyFilters, estadoPago: "PENDIENTE" } })
+        .map((arreglo) => arreglo.id)
+    ).toEqual(["pendiente"]);
+    expect(
+      filterArreglos(arreglos, { search: "", filters: { ...emptyFilters, estadoPago: "PARCIAL" } })
+        .map((arreglo) => arreglo.id)
+    ).toEqual(["parcial"]);
+    expect(
+      filterArreglos(arreglos, { search: "", filters: { ...emptyFilters, estadoPago: "PAGADO" } })
+        .map((arreglo) => arreglo.id)
+    ).toEqual(["pagado"]);
   });
 
 

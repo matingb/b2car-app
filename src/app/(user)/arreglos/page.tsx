@@ -33,6 +33,7 @@ export default function ArreglosPage() {
     debouncedSearch,
     state.filters.patente,
     state.filters.estado,
+    state.filters.estadoPago,
     state.filters.fechaDesde,
     state.filters.fechaHasta,
   ]);
@@ -41,12 +42,14 @@ export default function ArreglosPage() {
     () => ({
       patente: state.filters.patente || undefined,
       estado: state.filters.estado || undefined,
+      estadoPago: state.filters.estadoPago || undefined,
       fechaDesde: state.filters.fechaDesde || undefined,
       fechaHasta: state.filters.fechaHasta || undefined,
     }),
     [
       state.filters.patente,
       state.filters.estado,
+      state.filters.estadoPago,
       state.filters.fechaDesde,
       state.filters.fechaHasta,
     ]

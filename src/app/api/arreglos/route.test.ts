@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { POST } from "./route";
+import { GET, POST } from "./route";
 import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { arregloService } from "@/app/api/arreglos/arregloService";
 import { createCreateArregloRequest } from "@/tests/factories";
+import { NextRequest } from "next/server";
 
 vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
@@ -11,6 +13,12 @@ vi.mock("@/supabase/server", () => ({
 vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
   statsService: {
     onDataChanged: vi.fn(),
+  },
+}));
+
+vi.mock("@/app/api/arreglos/arregloService", () => ({
+  arregloService: {
+    getArreglo: vi.fn(),
   },
 }));
 
@@ -70,8 +78,24 @@ describe("POST /api/arreglos", () => {
 
     formularioLookupResult = { data: null, error: null };
     rpc.mockResolvedValue({ data: "a1", error: null });
+    vi.mocked(arregloService.getArreglo).mockResolvedValue({
+      data: { items: [], hasMore: false },
+      error: null,
+    });
 
     vi.mocked(createClient).mockResolvedValue(mockSupabase);
+  });
+
+  it("recibe el filtro de estado de pago en el listado", async () => {
+    const response = await GET(
+      new NextRequest("http://localhost/api/arreglos?taller_id=t1&estado_pago=PARCIAL")
+    );
+
+    expect(response.status).toBe(200);
+    expect(arregloService.getArreglo).toHaveBeenCalledWith(
+      mockSupabase,
+      expect.objectContaining({ tallerId: "t1", estadoPago: "PARCIAL" })
+    );
   });
 
   it("si el insert es exitoso, registra cambios en los stats", async () => {

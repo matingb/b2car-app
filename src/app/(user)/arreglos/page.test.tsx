@@ -93,12 +93,15 @@ async function aplicarFiltros(params: {
   patente: string;
   fechaDesde: string;
   fechaHasta: string;
+  estadoPago?: string;
 }) {
   await userEvent.click(screen.getByTestId("arreglos-open-filters"));
   expect(screen.getByTestId("modal-overlay")).toBeInTheDocument();
 
   await userEvent.clear(screen.getByTestId("arreglos-filter-patente"));
-  await userEvent.type(screen.getByTestId("arreglos-filter-patente"), params.patente);
+  if (params.patente) {
+    await userEvent.type(screen.getByTestId("arreglos-filter-patente"), params.patente);
+  }
 
   fireEvent.change(screen.getByTestId("arreglos-filter-fecha-desde"), {
     target: { value: params.fechaDesde },
@@ -106,6 +109,11 @@ async function aplicarFiltros(params: {
   fireEvent.change(screen.getByTestId("arreglos-filter-fecha-hasta"), {
     target: { value: params.fechaHasta },
   });
+
+  if (params.estadoPago) {
+    await userEvent.click(screen.getByTestId("arreglos-filter-estado-pago"));
+    await userEvent.click(await screen.findByText(params.estadoPago));
+  }
 
   await userEvent.click(screen.getByTestId("modal-submit"));
   await runPendingPromises();
@@ -179,6 +187,28 @@ describe("ArreglosPage", () => {
     expect(screen.getByTestId("arreglo-item-1")).toBeInTheDocument();
     expect(screen.getByTestId("arreglo-item-2")).toBeInTheDocument();
     expect(screen.getByTestId("arreglo-item-3")).toBeInTheDocument();
+  });
+
+  it("ofrece el selector de estado de pago junto al estado y filtra los parciales", async () => {
+    arreglosMock = [
+      createArreglo({ id: "pendiente", esta_pago: false, total_cobrado: 0 }),
+      createArreglo({ id: "parcial", esta_pago: false, total_cobrado: 500 }),
+      createArreglo({ id: "pagado", esta_pago: true, total_cobrado: 1000 }),
+    ];
+
+    render(<ArreglosPage />);
+
+    await aplicarFiltros({
+      patente: "",
+      fechaDesde: "",
+      fechaHasta: "",
+      estadoPago: "Parcial",
+    });
+
+    expect(screen.queryByTestId("arreglo-item-pendiente")).not.toBeInTheDocument();
+    expect(screen.getByTestId("arreglo-item-parcial")).toBeInTheDocument();
+    expect(screen.queryByTestId("arreglo-item-pagado")).not.toBeInTheDocument();
+    expect(screen.getByText("Pago: parcial")).toBeInTheDocument();
   });
 });
 

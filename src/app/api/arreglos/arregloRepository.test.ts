@@ -70,6 +70,34 @@ describe("supabaseArregloRepository", () => {
     });
   });
 
+  describe("getArreglo - filtro por estado de pago", () => {
+    it("traduce el estado parcial a un cobro mayor que cero sin marcarlo como pagado", async () => {
+      const supabase = makeSupabase({ arreglos: { data: [], error: null } });
+
+      const result = await supabaseArregloRepository.getArreglo(supabase, {
+        limit: 10,
+        estadoPago: "PARCIAL",
+      });
+
+      expect(result.error).toBeNull();
+      expect(supabase.__chains.arreglos.eq).toHaveBeenCalledWith("esta_pago", false);
+      expect(supabase.__chains.arreglos.gt).toHaveBeenCalledWith("total_cobrado", 0);
+    });
+
+    it("traduce el estado pendiente a un arreglo sin cobros", async () => {
+      const supabase = makeSupabase({ arreglos: { data: [], error: null } });
+
+      const result = await supabaseArregloRepository.getArreglo(supabase, {
+        limit: 10,
+        estadoPago: "PENDIENTE",
+      });
+
+      expect(result.error).toBeNull();
+      expect(supabase.__chains.arreglos.eq).toHaveBeenCalledWith("esta_pago", false);
+      expect(supabase.__chains.arreglos.lte).toHaveBeenCalledWith("total_cobrado", 0);
+    });
+  });
+
   describe("getArreglo - busqueda por dueno", () => {
     it("incluye vehiculos encontrados por nombre_cliente en la busqueda global", async () => {
       const supabase = makeSupabase({

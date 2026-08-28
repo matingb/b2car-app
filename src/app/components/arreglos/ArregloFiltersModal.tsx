@@ -13,6 +13,7 @@ export type ArregloFilters = {
   patente: string;
 
   estado: string;
+  estadoPago: string;
 };
 
 type Props = {
@@ -28,6 +29,7 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
   const [patente, setPatente] = useState(initial?.patente ?? "");
 
   const [estado, setEstado] = useState(initial?.estado ?? "");
+  const [estadoPago, setEstadoPago] = useState(initial?.estadoPago ?? "");
 
   useEffect(() => {
     if (!open) return;
@@ -36,6 +38,7 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
     setPatente(initial?.patente ?? "");
 
     setEstado(initial?.estado ?? "");
+    setEstadoPago(initial?.estadoPago ?? "");
   }, [open, initial]);
 
   if (!open) return null;
@@ -48,6 +51,7 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
       patente: patente.trim(),
 
       estado: estado.trim(),
+      estadoPago: estadoPago.trim(),
     });
     onClose();
   };
@@ -58,6 +62,11 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
     value,
     label: value.replaceAll("_", " "),
   }));
+  const estadoPagoOptions: AutocompleteOption[] = [
+    { value: "PENDIENTE", label: "Pendiente" },
+    { value: "PARCIAL", label: "Parcial" },
+    { value: "PAGADO", label: "Pagado" },
+  ];
 
   return (
     <Modal
@@ -113,6 +122,16 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
               value={estado}
               onChange={setEstado}
               placeholder="EN PROGRESO, ESPERA..."
+            />
+          </div>
+          <div style={styles.field}>
+            <label style={styles.label}>Estado de pago</label>
+            <Autocomplete
+              dataTestId="arreglos-filter-estado-pago"
+              options={estadoPagoOptions}
+              value={estadoPago}
+              onChange={setEstadoPago}
+              placeholder="Pendiente, parcial o pagado"
             />
           </div>
         </div>

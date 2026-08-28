@@ -13,6 +13,7 @@ export type ArregloListFilters = {
   search?: string;
   patente?: string;
   estado?: string;
+  estadoPago?: string;
   fechaDesde?: string;
   fechaHasta?: string;
   limit: number;
@@ -158,6 +159,7 @@ export const supabaseArregloRepository: ArregloRepository = {
     const limit = normalizePaginationLimit(filters.limit);
     const safeSearch = String(filters.search ?? "").trim();
     const safeEstado = String(filters.estado ?? "").trim().toUpperCase();
+    const safeEstadoPago = String(filters.estadoPago ?? "").trim().toUpperCase();
 
     let query = supabase
       .from("arreglos")
@@ -171,6 +173,13 @@ export const supabaseArregloRepository: ArregloRepository = {
     if (filters.fechaDesde) query = query.gte("fecha", filters.fechaDesde);
     if (filters.fechaHasta) query = query.lte("fecha", filters.fechaHasta);
     if (safeEstado) query = query.eq("estado", safeEstado);
+    if (safeEstadoPago === "PAGADO") {
+      query = query.eq("esta_pago", true);
+    } else if (safeEstadoPago === "PARCIAL") {
+      query = query.eq("esta_pago", false).gt("total_cobrado", 0);
+    } else if (safeEstadoPago === "PENDIENTE") {
+      query = query.eq("esta_pago", false).lte("total_cobrado", 0);
+    }
 
     const { ids: vehiculoIdsBySearch, error: searchVehiculoError } = await listVehiculoIdsBySearch(
       supabase,

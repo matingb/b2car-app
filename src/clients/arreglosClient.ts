@@ -69,6 +69,7 @@ export type GetArreglosInput = {
   search?: string;
   patente?: string;
   estado?: string;
+  estadoPago?: string;
   fechaDesde?: string;
   fechaHasta?: string;
   limit?: number;
@@ -82,6 +83,7 @@ export const arreglosClient = {
       if (params?.search) searchParams.set("search", params.search);
       if (params?.patente) searchParams.set("patente", params.patente);
       if (params?.estado) searchParams.set("estado", params.estado);
+      if (params?.estadoPago) searchParams.set("estado_pago", params.estadoPago);
       if (params?.fechaDesde) searchParams.set("fecha_desde", params.fechaDesde);
       if (params?.fechaHasta) searchParams.set("fecha_hasta", params.fechaHasta);
       if (typeof params?.limit === "number") searchParams.set("limit", String(params.limit));
