@@ -178,7 +178,7 @@ export const supabaseArregloRepository: ArregloRepository = {
     } else if (safeEstadoPago === "PARCIAL") {
       query = query.eq("esta_pago", false).gt("total_cobrado", 0);
     } else if (safeEstadoPago === "PENDIENTE") {
-      query = query.eq("esta_pago", false).lte("total_cobrado", 0);
+      query = query.eq("esta_pago", false).lte("total_cobrado", 0).neq("estado", "PRESUPUESTO");
     }
 
     const { ids: vehiculoIdsBySearch, error: searchVehiculoError } = await listVehiculoIdsBySearch(

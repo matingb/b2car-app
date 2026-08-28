@@ -170,6 +170,7 @@ export default function ArregloSummaryCard({
                 onStateChange={handleEstadoChange}
               />
               <ArregloPagoBadge
+                estado={arreglo.estado}
                 estaPago={arreglo.esta_pago}
                 totalCobrado={arreglo.total_cobrado}
                 saldoPendiente={

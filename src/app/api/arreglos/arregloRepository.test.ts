@@ -84,7 +84,7 @@ describe("supabaseArregloRepository", () => {
       expect(supabase.__chains.arreglos.gt).toHaveBeenCalledWith("total_cobrado", 0);
     });
 
-    it("traduce el estado pendiente a un arreglo sin cobros", async () => {
+    it("al filtrar por pagos PENDIENTE busca arreglos sin cobros y excluye presupuestos ya que no devengan cobranzas ni pueden estar pagos", async () => {
       const supabase = makeSupabase({ arreglos: { data: [], error: null } });
 
       const result = await supabaseArregloRepository.getArreglo(supabase, {
@@ -95,6 +95,18 @@ describe("supabaseArregloRepository", () => {
       expect(result.error).toBeNull();
       expect(supabase.__chains.arreglos.eq).toHaveBeenCalledWith("esta_pago", false);
       expect(supabase.__chains.arreglos.lte).toHaveBeenCalledWith("total_cobrado", 0);
+      expect(supabase.__chains.arreglos.neq).toHaveBeenCalledWith("estado", "PRESUPUESTO");
+    });
+
+    it("no excluye presupuestos cuando no se especifica filtro de estado o pago", async () => {
+      const supabase = makeSupabase({ arreglos: { data: [], error: null } });
+
+      const result = await supabaseArregloRepository.getArreglo(supabase, {
+        limit: 10,
+      });
+
+      expect(result.error).toBeNull();
+      expect(supabase.__chains.arreglos.neq).not.toHaveBeenCalled();
     });
   });
 
