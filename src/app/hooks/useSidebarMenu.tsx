@@ -13,6 +13,7 @@ import {
   ScrollText,
   IdCard,
   WalletCards,
+  Settings,
 } from "lucide-react";
 import { logOut } from "@/app/login/actions";
 import { useRouter } from "next/navigation";
@@ -28,6 +29,7 @@ export enum SidebarMenuKey {
   Operaciones = "operaciones",
   CuentasFinancieras = "cuentas-financieras",
   Empleados = "empleados",
+  Configuracion = "configuracion",
   Logout = "logout",
 }
 
@@ -46,6 +48,7 @@ export function useSidebarMenu() {
 
   const [tenantName, setTenantName] = useState("B2Car");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [canManageFacturacion, setCanManageFacturacion] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -56,6 +59,20 @@ export function useSidebarMenu() {
     } catch {
       // ignore (e.g. blocked storage)
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/facturacion/configuracion", { cache: "no-store" })
+      .then((response) => {
+        if (!cancelled) setCanManageFacturacion(response.ok);
+      })
+      .catch(() => {
+        if (!cancelled) setCanManageFacturacion(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const items: SidebarMenuItem[] = useMemo(() => {
@@ -135,6 +152,15 @@ export function useSidebarMenu() {
         icon: <IdCard size={18} />,
         onClick: () => router.push(ROUTES.empleados),
       },
+      ...(canManageFacturacion
+        ? [{
+            key: SidebarMenuKey.Configuracion,
+            href: ROUTES.configuracion,
+            label: "Configuración",
+            icon: <Settings size={18} />,
+            onClick: () => router.push(ROUTES.configuracion),
+          }]
+        : []),
       {
         key: SidebarMenuKey.Logout,
         href: "",
@@ -145,7 +171,7 @@ export function useSidebarMenu() {
         isLoading: isLoggingOut,
       },
     ];
-  }, [isLoggingOut, router]);
+  }, [canManageFacturacion, isLoggingOut, router]);
 
   return { tenantName, items, isLoggingOut } as const;
 }

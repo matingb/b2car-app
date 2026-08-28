@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type ValidationOk<TValue> = { ok: true; value: TValue };
 type ValidationBad = { ok: false; message: string };
@@ -16,6 +16,7 @@ type Options<TItem, TDraft, TValue> = {
   validate: (draft: TDraft, ctx: { mode: Mode; item?: TItem }) => ValidationResult<TValue>;
   onAdd: (value: TValue) => void | Promise<void>;
   onUpdate: (id: string, value: TValue, item: TItem) => void | Promise<void>;
+  cancelWhen?: boolean;
 };
 
 export function useInlineEditor<TItem, TDraft, TValue>({
@@ -26,6 +27,7 @@ export function useInlineEditor<TItem, TDraft, TValue>({
   validate,
   onAdd,
   onUpdate,
+  cancelWhen = false,
 }: Options<TItem, TDraft, TValue>) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -34,6 +36,13 @@ export function useInlineEditor<TItem, TDraft, TValue>({
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const isEditing = !!editingId || adding;
+
+  useEffect(() => {
+    if (!cancelWhen) return;
+    setEditingId(null);
+    setAdding(false);
+    setSubmitError(null);
+  }, [cancelWhen]);
 
   const editingItem = useMemo(() => {
     if (!editingId) return null;

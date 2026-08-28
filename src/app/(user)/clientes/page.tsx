@@ -102,6 +102,9 @@ export default function ClientesPage() {
                 codigo_pais: values.codigo_pais,
                 email: values.email,
                 direccion: values.direccion,
+                tipo_documento_fiscal: values.tipo_documento_fiscal,
+                numero_documento_fiscal: values.numero_documento_fiscal,
+                condicion_iva_receptor_id: values.condicion_iva_receptor_id,
               });
             } else {
               await createEmpresa({
@@ -111,6 +114,7 @@ export default function ClientesPage() {
                 codigo_pais: values.codigo_pais,
                 email: values.email,
                 direccion: values.direccion,
+                condicion_iva_receptor_id: values.condicion_iva_receptor_id,
               });
             }
             toast.success("Cliente creado", `${values.nombre} ${values.apellido ?? ""} se registró correctamente.`);

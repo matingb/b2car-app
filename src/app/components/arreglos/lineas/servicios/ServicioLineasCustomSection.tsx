@@ -48,6 +48,7 @@ type Props = {
   editableOnLoad?: boolean;
   showEditButton?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
   onServiciosChange?: (items: ServicioLinea[]) => void;
   onDetalleChange?: (payload: {
     costo: number;
@@ -408,6 +409,7 @@ export default function ServicioLineasCustomSection({
   editableOnLoad = true,
   showEditButton = false,
   disabled = false,
+  readOnly = false,
   onServiciosChange,
   onDetalleChange,
   onConfirmEdit,
@@ -436,7 +438,7 @@ export default function ServicioLineasCustomSection({
   >({});
 
   useEffect(() => {
-    setIsEditing(editableOnLoad);
+    setIsEditing(editableOnLoad && !readOnly);
     setStateByLine(initialStateByLine);
     setDirtyFieldsByLine({});
     setFormCostoInput(
@@ -448,7 +450,7 @@ export default function ServicioLineasCustomSection({
             : 0
       )
     );
-  }, [initialStateByLine, defaultCosto, initialDetalle, editableOnLoad]);
+  }, [initialStateByLine, defaultCosto, initialDetalle, editableOnLoad, readOnly]);
 
   const costoTotal = useMemo(
     () =>
@@ -550,7 +552,7 @@ export default function ServicioLineasCustomSection({
   };
 
   const handleHeaderEditClick = async () => {
-    if (disabled) return;
+    if (disabled || readOnly) return;
 
     if (!isEditing) {
       setIsEditing(true);
@@ -574,7 +576,7 @@ export default function ServicioLineasCustomSection({
       title={formTitle?.trim() || "Formulario"}
       titleIcon={<LibraryBig size={18} />}
       subtotalBeforeLabel={
-        showEditButton ? (
+        showEditButton && !readOnly ? (
           <button
             type="button"
             title={isEditing ? "Confirmar" : "Editar"}
@@ -668,9 +670,9 @@ export default function ServicioLineasCustomSection({
                       field.required &&
                       !isAnswered &&
                       (status === "warning" || isDirty);
-                    const readOnly = disabled || !isEditing;
+                    const fieldReadOnly = disabled || readOnly || !isEditing;
                     const commonProps = {
-                      disabled: readOnly,
+                      disabled: fieldReadOnly,
                       placeholder: field.placeholder,
                     };
                     const fieldTestIdBase = `custom-line-${lineIndex}-field-${fieldIndex}`;
@@ -741,7 +743,7 @@ export default function ServicioLineasCustomSection({
                               updateField(line.id, field.key, nextValue)
                             }
                             placeholder={field.placeholder ?? "Seleccionar..."}
-                            disabled={readOnly}
+                            disabled={fieldReadOnly}
                             hideClearButton={false}
                             allowCustomValue={false}
                             dataTestId={`${fieldTestIdBase}-input`}
@@ -762,7 +764,7 @@ export default function ServicioLineasCustomSection({
                                   key={option.optionValue}
                                   type="button"
                                   data-testid={`${fieldTestIdBase}-option-${option.optionValue}`}
-                                  disabled={readOnly}
+                                  disabled={fieldReadOnly}
                                   aria-pressed={selected}
                                   css={[
                                     customStyles.binaryChoiceButton,

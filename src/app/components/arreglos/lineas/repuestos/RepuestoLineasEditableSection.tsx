@@ -96,6 +96,7 @@ type Props = {
   tallerId: string | null;
   items: RepuestoLinea[];
   disabled?: boolean;
+  readOnly?: boolean;
   defaultCategoriaArregloId?: string | null;
   defaultEmpleadoId?: string | null;
   onUpsert: (input: RepuestoUpsertInput) => void | Promise<void>;
@@ -108,6 +109,7 @@ export default function RepuestoLineasEditableSection({
   tallerId,
   items,
   disabled = false,
+  readOnly = false,
   defaultCategoriaArregloId = null,
   defaultEmpleadoId = null,
   onUpsert,
@@ -196,9 +198,10 @@ export default function RepuestoLineasEditableSection({
     validate: (d, ctx) => validateRepuestoDraft(d, ctx, { tallerId, items, inventario }),
     onAdd: (value) => onUpsert(value),
     onUpdate: (id, value) => onUpsert(value.tipo === "nuevo" ? { ...value, id } : value),
+    cancelWhen: readOnly,
   });
 
-  const canInteract = !disabled && !submitting;
+  const canInteract = !disabled && !readOnly && !submitting;
 
   const findStock = (stockId: string) => inventario.find((s) => s.id === stockId) ?? null;
 
@@ -416,6 +419,7 @@ export default function RepuestoLineasEditableSection({
                 onEdit={() => startEdit(item)}
                 onDelete={() => onDelete(item.id)}
                 canInteract={canInteract && !isEditing && !!tallerId}
+                readOnly={readOnly}
               />
             );
           }
@@ -424,7 +428,7 @@ export default function RepuestoLineasEditableSection({
 
         {adding ? (
           renderEditor(null)
-        ) : (
+        ) : readOnly ? null : (
           <button
             type="button"
             style={styles.addRowBtn}

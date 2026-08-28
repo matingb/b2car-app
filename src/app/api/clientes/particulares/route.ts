@@ -10,6 +10,9 @@ export type CreateParticularRequest = {
   telefono: string;
   email: string;
   direccion: string;
+  tipo_documento_fiscal?: 80 | 86 | 96 | null;
+  numero_documento_fiscal?: string | null;
+  condicion_iva_receptor_id?: number | null;
 };
 
 export type CreateParticularResponse = {

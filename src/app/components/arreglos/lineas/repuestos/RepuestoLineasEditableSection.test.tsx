@@ -121,6 +121,23 @@ function selectStock(stockId: string) {
 }
 
 describe("RepuestoLineasEditableSection", () => {
+  it("oculta todas las acciones cuando el arreglo está fiscalmente bloqueado", () => {
+    setup({
+      readOnly: true,
+      items: [{
+        id: "rep-readonly",
+        stock_id: "s1",
+        cantidad: 1,
+        monto_unitario: 1500,
+        producto: { nombre: "Filtro de aceite", codigo: "FIL-001" },
+      }],
+    });
+
+    expect(screen.queryByRole("button", { name: /agregar repuesto/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /editar repuesto/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /eliminar repuesto/i })).not.toBeInTheDocument();
+  });
+
   it("muestra estado vacío y botón de agregar", () => {
     setup();
     expect(screen.getByText("Sin repuestos asignados.")).toBeInTheDocument();

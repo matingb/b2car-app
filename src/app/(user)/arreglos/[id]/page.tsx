@@ -32,6 +32,9 @@ import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider"
 import { useEmpleados } from "@/app/providers/EmpleadosProvider";
 import CuentaCompraAutomaticaModal from "@/app/components/arreglos/CuentaCompraAutomaticaModal";
 import { generateUuidV4 } from "@/lib/uuid";
+import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
+import type { FacturaElectronicaResumen } from "@/lib/facturacion/types";
+import { LockKeyhole } from "lucide-react";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -41,6 +44,9 @@ export default function ArregloDetailsPage() {
   const [openModal, setOpenModal] = useState(false);
   const [compraPendiente, setCompraPendiente] = useState<RepuestoUpsertInput | null>(null);
   const [customServiciosDraft, setCustomServiciosDraft] = useState<ServicioLinea[]>([]);
+  const [facturaElectronica, setFacturaElectronica] = useState<FacturaElectronicaResumen | null>(null);
+  const [canEmitFactura, setCanEmitFactura] = useState(false);
+  const [openFacturaModal, setOpenFacturaModal] = useState(false);
   const {
     fetchById,
     update,
@@ -59,6 +65,15 @@ export default function ArregloDetailsPage() {
   const { success, error } = useToast();
   const { ultimo: ultimoUsado, registrar: registrarUltimoUsado } = useUltimoTipoEmpleado();
 
+  const refreshFacturaElectronica = useCallback(async () => {
+    const response = await fetch(`/api/arreglos/${params.id}/factura`, { cache: "no-store" });
+    if (!response.ok) return;
+    const body = await response.json();
+    const fiscal = body?.data;
+    setFacturaElectronica(fiscal?.factura ?? null);
+    setCanEmitFactura(Boolean(fiscal?.canEmit));
+  }, [params.id]);
+
   const reload = useCallback(async (options?: { showPageLoading?: boolean }) => {
     const showPageLoading = options?.showPageLoading ?? false;
     if (showPageLoading) {
@@ -71,6 +86,7 @@ export default function ArregloDetailsPage() {
         fetchById(params.id),
         loadCategorias().catch(() => {}),
         loadEmpleados().catch(() => {}),
+        refreshFacturaElectronica().catch(() => {}),
       ]);
       if (!fetchedData) {
         setData(null);
@@ -85,7 +101,7 @@ export default function ArregloDetailsPage() {
         setLoading(false);
       }
     }
-  }, [params.id, fetchById, loadCategorias, loadEmpleados]);
+  }, [params.id, fetchById, loadCategorias, loadEmpleados, refreshFacturaElectronica]);
 
   useEffect(() => {
     let cancelled = false;
@@ -314,6 +330,7 @@ export default function ArregloDetailsPage() {
   }
 
   const arreglo = data.arreglo;
+  const fiscalReadOnly = facturaElectronica?.estado === "AUTORIZADA";
   const detalles = Array.isArray(data.detalles) ? data.detalles : [];
   const repuestosLineas = flattenAsignacionesLineas(data);
 
@@ -390,6 +407,9 @@ export default function ArregloDetailsPage() {
         onArregloChange={(nuevoArreglo) => {
           setData((prev) => (prev ? { ...prev, arreglo: nuevoArreglo } : prev));
         }}
+        canEmitFactura={canEmitFactura}
+        facturaElectronica={facturaElectronica}
+        onOpenFactura={() => setOpenFacturaModal(true)}
       />
 
       <div style={{ marginTop: 16 }}>
@@ -403,6 +423,19 @@ export default function ArregloDetailsPage() {
             </div>
           </div>
         </div>
+        {fiscalReadOnly ? (
+          <div style={styles.fiscalLockNotice} role="status">
+            <LockKeyhole size={20} />
+            <div>
+              <strong>
+                Factura C N° {String(facturaElectronica.numeroComprobante ?? 0).padStart(8, "0")} autorizada
+              </strong>
+              <div style={styles.fiscalLockText}>
+                Las líneas de mano de obra, formulario y repuestos coinciden con un comprobante fiscal y ya no pueden modificarse.
+              </div>
+            </div>
+          </div>
+        ) : null}
         {isCustomTipoSelected ? (
           <>
             <ServicioLineasCustomSection
@@ -413,6 +446,7 @@ export default function ArregloDetailsPage() {
               editableOnLoad={false}
               showEditButton
               disabled={providerLoading}
+              readOnly={fiscalReadOnly}
               onServiciosChange={setCustomServiciosDraft}
               onConfirmEdit={handleConfirmCustomEdit}
             />
@@ -434,6 +468,7 @@ export default function ArregloDetailsPage() {
           onUpdate={handleUpdateServicio}
           onDelete={handleDeleteServicio}
           disabled={providerLoading}
+          readOnly={fiscalReadOnly}
         />
         <div
           style={{
@@ -459,6 +494,7 @@ export default function ArregloDetailsPage() {
           onUpsert={handleUpsertRepuesto}
           onDelete={handleDeleteRepuesto}
           disabled={providerLoading}
+          readOnly={fiscalReadOnly}
         />
 
         <ArregloTotalsFooter
@@ -504,6 +540,17 @@ export default function ArregloDetailsPage() {
           if (!pending) return;
           await handleUpsertRepuesto(pending, cuentaId);
           setCompraPendiente(null);
+        }}
+      />
+      <FacturaElectronicaModal
+        open={openFacturaModal}
+        arregloId={arreglo.id}
+        onClose={() => setOpenFacturaModal(false)}
+        onAuthorized={(factura) => {
+          setFacturaElectronica(factura);
+          setCanEmitFactura(false);
+          setCompraPendiente(null);
+          void refreshFacturaElectronica();
         }}
       />
     </div>
@@ -560,6 +607,22 @@ const styles = {
     justifyContent: "space-between",
     gap: 16,
     flexWrap: "wrap" as const,
+  },
+  fiscalLockNotice: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 10,
+    margin: "14px 0",
+    padding: 14,
+    borderRadius: 10,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SUBTLE,
+    color: COLOR.TEXT.PRIMARY,
+  },
+  fiscalLockText: {
+    color: COLOR.TEXT.SECONDARY,
+    marginTop: 3,
+    lineHeight: 1.4,
   },
   loadingContainer: {
     flex: 1,

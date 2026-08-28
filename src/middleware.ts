@@ -25,6 +25,8 @@ export const config = {
     '/stock/:path*',
     '/productos/:path*',
     '/operaciones/:path*',
+    '/configuracion/:path*',
+    '/facturacion/:path*',
     '/api/clientes/:path*',
     '/api/vehiculos/:path*',
     '/api/arreglos/:path*',
@@ -34,5 +36,7 @@ export const config = {
     '/api/turnos/:path*',
     '/api/dashboard/:path*',
     '/api/tenant/:path*',
+    '/api/facturacion/:path*',
+    '/api/facturas/:path*',
   ],
 }

@@ -12,6 +12,7 @@ export type CreateEmpresaRequest = {
   telefono: string;
   email: string;
   direccion: string;
+  condicion_iva_receptor_id?: number | null;
 };
 
 export type CreateEmpresaResponse = {

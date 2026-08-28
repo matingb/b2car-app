@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   compiler: { emotion: true },
-  /* config options here */
+  serverExternalPackages: ["@afipsdk/afip.js"],
 };
 
 export default nextConfig;

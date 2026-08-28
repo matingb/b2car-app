@@ -19,6 +19,7 @@ type Props = {
   onEdit: () => void;
   onDelete: () => void;
   canInteract: boolean;
+  readOnly?: boolean;
 };
 
 export default function ReadOnlyLineaCard({
@@ -30,6 +31,7 @@ export default function ReadOnlyLineaCard({
   onEdit,
   onDelete,
   canInteract,
+  readOnly = false,
 }: Props) {
   const total = cantidad * unitario;
   const qtyXUnit = renderQtyXUnit(cantidad, unitario);
@@ -58,7 +60,7 @@ export default function ReadOnlyLineaCard({
       <div css={readStyles.side}>
         <div css={readStyles.total}>{formatMoney(total)}</div>
 
-        <div css={readStyles.actions}>
+        {!readOnly ? <div css={readStyles.actions}>
           <button
             type="button"
             css={readStyles.actionBtn}
@@ -78,7 +80,7 @@ export default function ReadOnlyLineaCard({
           >
             <Trash2 size={18} color={COLOR.ICON.DANGER} />
           </button>
-        </div>
+        </div> : null}
       </div>
     </Card>
   );

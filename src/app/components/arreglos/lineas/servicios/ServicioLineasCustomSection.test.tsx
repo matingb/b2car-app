@@ -68,6 +68,19 @@ const lineDefs: CustomServicioLineDef[] = [
 ];
 
 describe("ServicioLineasCustomSection", () => {
+  it("oculta la edición del formulario cuando está fiscalmente bloqueado", () => {
+    render(
+      <ServicioLineasCustomSection
+        lineDefs={lineDefs}
+        editableOnLoad={false}
+        showEditButton
+        readOnly
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Editar formulario" })).not.toBeInTheDocument();
+  });
+
   it("actualiza el estado visual de la linea segun campos obligatorios", async () => {
     const onDetalleChange = vi.fn();
 

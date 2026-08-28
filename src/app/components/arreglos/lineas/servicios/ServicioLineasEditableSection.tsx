@@ -46,6 +46,7 @@ type Props = {
   emptyText?: string;
   items: ServicioLinea[];
   disabled?: boolean;
+  readOnly?: boolean;
   defaultCategoriaArregloId?: string | null;
   defaultEmpleadoId?: string | null;
   onAdd: (input: ServicioLineaValue) => void | Promise<void>;
@@ -58,6 +59,7 @@ export default function ServicioLineasEditableSection({
   emptyText = "Sin servicios realizados.",
   items,
   disabled = false,
+  readOnly = false,
   defaultCategoriaArregloId = null,
   defaultEmpleadoId = null,
   onAdd,
@@ -109,6 +111,7 @@ export default function ServicioLineasEditableSection({
     },
     onAdd,
     onUpdate: (id, value) => onUpdate(id, value),
+    cancelWhen: readOnly,
   });
 
   const subtotalValue = useMemo(
@@ -120,7 +123,7 @@ export default function ServicioLineasEditableSection({
     [subtotalValue]
   );
 
-  const canInteract = !disabled && !submitting;
+  const canInteract = !disabled && !readOnly && !submitting;
 
   const renderEditor = (mode: "add" | "edit") => {
     const parsed = validateCurrent();
@@ -208,6 +211,7 @@ export default function ServicioLineasEditableSection({
                 onEdit={() => startEdit(item)}
                 onDelete={() => onDelete(item.id)}
                 canInteract={canInteract && !isEditing}
+                readOnly={readOnly}
               />
             );
           }
@@ -216,7 +220,7 @@ export default function ServicioLineasEditableSection({
 
         {adding ? (
           renderEditor("add")
-        ) : (
+        ) : readOnly ? null : (
           <button
             type="button"
             style={styles.addRowBtn}

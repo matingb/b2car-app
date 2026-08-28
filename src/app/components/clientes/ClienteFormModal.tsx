@@ -20,6 +20,9 @@ type Props = {
     email: string;
     direccion: string;
     tipo_cliente: TipoCliente;
+    tipo_documento_fiscal?: 80 | 86 | 96 | null;
+    numero_documento_fiscal?: string | null;
+    condicion_iva_receptor_id?: number | null;
   }) => Promise<void> | void;
   mode?: "create" | "edit";
   initialValues?: {
@@ -31,6 +34,9 @@ type Props = {
     email?: string;
     direccion?: string;
     tipo_cliente?: TipoCliente;
+    tipo_documento_fiscal?: 80 | 86 | 96 | null;
+    numero_documento_fiscal?: string | null;
+    condicion_iva_receptor_id?: number | null;
   };
 };
 
@@ -50,6 +56,9 @@ export default function ClienteFormModal({
       ...(initialValues ?? {}),
       codigoPais: initialValues?.codigo_pais ?? base.codigoPais,
       tipo_cliente: initialValues?.tipo_cliente ?? base.tipo_cliente,
+      tipoDocumentoFiscal: String(initialValues?.tipo_documento_fiscal ?? base.tipoDocumentoFiscal) as "80" | "86" | "96",
+      numeroDocumentoFiscal: initialValues?.numero_documento_fiscal ?? base.numeroDocumentoFiscal,
+      condicionIvaReceptorId: String(initialValues?.condicion_iva_receptor_id ?? base.condicionIvaReceptorId),
     };
   });
   const [submitting, setSubmitting] = useState(false);
@@ -65,6 +74,9 @@ export default function ClienteFormModal({
         ...initialValues,
       codigoPais: initialValues.codigo_pais ?? base.codigoPais,
       tipo_cliente: initialValues.tipo_cliente ?? base.tipo_cliente,
+      tipoDocumentoFiscal: String(initialValues.tipo_documento_fiscal ?? base.tipoDocumentoFiscal) as "80" | "86" | "96",
+      numeroDocumentoFiscal: initialValues.numero_documento_fiscal ?? base.numeroDocumentoFiscal,
+      condicionIvaReceptorId: String(initialValues.condicion_iva_receptor_id ?? base.condicionIvaReceptorId),
       });
     } else if (open && !initialValues) {
       setCliente(createEmptyClienteFormFieldsValue(TipoCliente.PARTICULAR));
@@ -93,6 +105,9 @@ export default function ClienteFormModal({
         email: cliente.email.trim(),
         direccion: cliente.direccion.trim(),
         tipo_cliente: cliente.tipo_cliente,
+        tipo_documento_fiscal: cliente.tipo_cliente === TipoCliente.EMPRESA ? 80 : Number(cliente.tipoDocumentoFiscal) as 80 | 86 | 96,
+        numero_documento_fiscal: cliente.tipo_cliente === TipoCliente.EMPRESA ? cliente.cuit.trim().replace(/\D/g, "") || null : cliente.numeroDocumentoFiscal.trim().replace(/\D/g, "") || null,
+        condicion_iva_receptor_id: Number(cliente.condicionIvaReceptorId) || null,
       });
       onClose();
     } catch (err) {

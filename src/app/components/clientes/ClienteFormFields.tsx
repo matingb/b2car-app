@@ -11,6 +11,9 @@ export type ClienteFormFieldsValue = {
   nombre: string;
   apellido: string;
   cuit: string;
+  tipoDocumentoFiscal: "80" | "86" | "96";
+  numeroDocumentoFiscal: string;
+  condicionIvaReceptorId: string;
   codigoPais: string;
   telefono: string;
   email: string;
@@ -27,6 +30,9 @@ export function createEmptyClienteFormFieldsValue(
     nombre: "",
     apellido: "",
     cuit: "",
+    tipoDocumentoFiscal: tipo_cliente === TipoCliente.EMPRESA ? "80" : "96",
+    numeroDocumentoFiscal: "",
+    condicionIvaReceptorId: "5",
     codigoPais: "54",
     telefono: "",
     email: "",
@@ -183,6 +189,49 @@ export default function ClienteFormFields({
           </div>
         </div>
 
+        <div style={styles.fiscalBox}>
+          <div style={styles.fiscalTitle}>Perfil fiscal (puede completarse al facturar)</div>
+          <div style={styles.row}>
+            {value.tipo_cliente === TipoCliente.PARTICULAR ? (
+              <div style={styles.field}>
+                <label style={styles.label}>Tipo de documento</label>
+                <select style={styles.input} value={value.tipoDocumentoFiscal} onChange={(e) => onChange({ tipoDocumentoFiscal: e.target.value as "80" | "86" | "96" })}>
+                  <option value="96">DNI</option>
+                  <option value="86">CUIL</option>
+                  <option value="80">CUIT</option>
+                </select>
+              </div>
+            ) : null}
+            {value.tipo_cliente === TipoCliente.EMPRESA ? (
+              <div style={styles.field}>
+                <label style={styles.label}>Documento fiscal</label>
+                <div style={styles.fiscalHint}>Se utiliza el CUIT obligatorio cargado arriba.</div>
+              </div>
+            ) : (
+              <div style={styles.field}>
+                <label style={styles.label}>Número de documento</label>
+                <input style={styles.input} inputMode="numeric" value={value.numeroDocumentoFiscal} onChange={(e) => onChange({ numeroDocumentoFiscal: e.target.value })} />
+              </div>
+            )}
+            <div style={styles.field}>
+              <label style={styles.label}>Condición IVA receptor</label>
+              <select style={styles.input} value={value.condicionIvaReceptorId} onChange={(e) => onChange({ condicionIvaReceptorId: e.target.value })}>
+                <option value="1">Responsable inscripto</option>
+                <option value="4">IVA exento</option>
+                <option value="5">Consumidor final</option>
+                <option value="6">Monotributista</option>
+                <option value="7">Sujeto no categorizado</option>
+                <option value="8">Proveedor del exterior</option>
+                <option value="9">Cliente del exterior</option>
+                <option value="10">IVA liberado - Ley 19.640</option>
+                <option value="13">Monotributista social</option>
+                <option value="15">IVA no alcanzado</option>
+                <option value="16">Monotributo trabajador promovido</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
         <div style={styles.row}>
           <div style={{ ...styles.field, flex: 1 }}>
             <label style={styles.label}>Dirección</label>
@@ -238,5 +287,26 @@ const styles = {
   },
   codigoPaisInput: {
     width: "60px",
+  },
+  fiscalBox: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 10,
+    padding: 12,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 8,
+    background: COLOR.BACKGROUND.SUBTLE,
+  },
+  fiscalTitle: {
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 13,
+    fontWeight: 600,
+  },
+  fiscalHint: {
+    minHeight: 42,
+    display: "flex",
+    alignItems: "center",
+    color: COLOR.TEXT.TERTIARY,
+    fontSize: 13,
   },
 } as const;

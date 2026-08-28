@@ -9,6 +9,8 @@ import {
   Trash,
   Gauge,
   FileText,
+  ReceiptText,
+  Download,
   CarFront,
   Users,
 } from "lucide-react";
@@ -36,12 +38,16 @@ import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
 import CategoriaChip from "@/app/components/arreglos/lineas/shared/CategoriaChip";
 import { getArregloDeleteConfirmationMessage } from "@/app/components/arreglos/arregloDeleteConfirmation";
 import { css } from "@emotion/react";
+import type { FacturaElectronicaResumen } from "@/lib/facturacion/types";
 
 export interface ArregloSummaryCardProps {
   data: ArregloDetalleData;
   totalCalculado: number;
   onOpenEdit: () => void;
   onArregloChange: (updatedArreglo: NonNullable<ArregloDetalleData["arreglo"]>) => void;
+  canEmitFactura?: boolean;
+  facturaElectronica?: FacturaElectronicaResumen | null;
+  onOpenFactura?: () => void;
 }
 
 export default function ArregloSummaryCard({
@@ -49,6 +55,9 @@ export default function ArregloSummaryCard({
   totalCalculado,
   onOpenEdit,
   onArregloChange,
+  canEmitFactura = false,
+  facturaElectronica,
+  onOpenFactura,
 }: ArregloSummaryCardProps) {
   const router = useRouter();
   const { update, remove, loading } = useArreglos();
@@ -187,6 +196,30 @@ export default function ArregloSummaryCard({
           </div>
 
           <div style={styles.headerActions}>
+            {facturaElectronica?.estado === "AUTORIZADA" ? (
+              <div style={styles.facturaAutorizada}>
+                <button type="button" style={styles.facturaInfoButton} onClick={onOpenFactura}>
+                  FC {String(facturaElectronica.numeroComprobante ?? "").padStart(8, "0")} · CAE {facturaElectronica.cae ?? "-"} · vence {facturaElectronica.caeVencimiento ?? "-"}
+                </button>
+                <IconButton
+                  icon={<Download />}
+                  size={18}
+                  onClick={onOpenFactura}
+                  title="Descargar PDF de Factura C"
+                  ariaLabel="Descargar PDF de Factura C"
+                  hoverColor={COLOR.SEMANTIC.SUCCESS}
+                />
+              </div>
+            ) : canEmitFactura ? (
+              <IconButton
+                icon={<ReceiptText />}
+                size={18}
+                onClick={onOpenFactura}
+                title={facturaElectronica?.estado === "RECHAZADA" ? "Reintentar factura electrónica" : "Facturar electrónicamente"}
+                ariaLabel={facturaElectronica?.estado === "RECHAZADA" ? "Reintentar factura electrónica" : "Facturar electrónicamente"}
+                hoverColor={COLOR.ACCENT.PRIMARY}
+              />
+            ) : null}
             <IconButton
               icon={<Trash />}
               size={18}
@@ -199,8 +232,8 @@ export default function ArregloSummaryCard({
               icon={<FileText />}
               size={18}
               onClick={handlePrintableInvoice}
-              title="Generar PDF"
-              ariaLabel="Generar PDF"
+              title="Comprobante no fiscal"
+              ariaLabel="Comprobante no fiscal"
               hoverColor={COLOR.ACCENT.PRIMARY}
             />
             <IconButton
@@ -418,6 +451,24 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 4,
+  },
+  facturaAutorizada: {
+    display: "flex",
+    alignItems: "center",
+    gap: 2,
+    maxWidth: 380,
+  },
+  facturaInfoButton: {
+    border: "none",
+    background: COLOR.BACKGROUND.SUCCESS_TINT,
+    color: COLOR.SEMANTIC.SUCCESS,
+    borderRadius: 6,
+    padding: "6px 8px",
+    fontSize: 11,
+    cursor: "pointer",
+    whiteSpace: "nowrap" as const,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   },
   bodyContent: {
     padding: 24,

@@ -12,6 +12,8 @@ export const ROUTES = {
 	operaciones: "/operaciones",
 	cuentasFinancieras: "/cuentas-financieras",
 	empleados: "/empleados",
+	configuracion: "/configuracion",
+	facturacion: "/facturacion",
 } as const;
 
 export const API_ROUTES = {
