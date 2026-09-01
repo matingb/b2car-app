@@ -7,10 +7,12 @@ import { facturacionErrorResponse, requireTenantAdmin } from "@/lib/facturacion/
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const actor = await requireTenantAdmin();
-    const config = await getFacturacionConfig(actor.tenantId);
+    const ambiente = new URL(request.url).searchParams.get("ambiente") === "PRODUCCION"
+      ? "PRODUCCION" : "HOMOLOGACION";
+    const config = await getFacturacionConfig(actor.tenantId, ambiente);
     return Response.json({ data: config, error: null });
   } catch (error) {
     return facturacionErrorResponse(error);

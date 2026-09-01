@@ -105,6 +105,7 @@ export default function ClientesPage() {
                 tipo_documento_fiscal: values.tipo_documento_fiscal,
                 numero_documento_fiscal: values.numero_documento_fiscal,
                 condicion_iva_receptor_id: values.condicion_iva_receptor_id,
+                fce_mipyme_alcanzado: values.fce_mipyme_alcanzado,
               });
             } else {
               await createEmpresa({
@@ -115,6 +116,7 @@ export default function ClientesPage() {
                 email: values.email,
                 direccion: values.direccion,
                 condicion_iva_receptor_id: values.condicion_iva_receptor_id,
+                fce_mipyme_alcanzado: values.fce_mipyme_alcanzado,
               });
             }
             toast.success("Cliente creado", `${values.nombre} ${values.apellido ?? ""} se registró correctamente.`);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ReceiptText, Settings, ShieldCheck } from "lucide-react";
+import { ReceiptText, ShieldCheck, TriangleAlert } from "lucide-react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
@@ -12,12 +12,14 @@ const emptyConfig: FacturacionConfiguracionPublica = {
   razonSocial: "",
   nombreFantasia: null,
   cuit: "",
+  condicionIvaEmisor: "MONOTRIBUTISTA",
   domicilio: "",
   ingresosBrutos: null,
   inicioActividades: "",
   puntoVenta: 1,
   habilitada: false,
   ambiente: "HOMOLOGACION",
+  fceMontoMinimo: null,
   credenciales: {
     configuradas: false,
     certificadoNombre: null,
@@ -29,6 +31,7 @@ const emptyConfig: FacturacionConfiguracionPublica = {
 };
 
 export default function ConfiguracionPage() {
+  const [ambiente, setAmbiente] = useState<"HOMOLOGACION" | "PRODUCCION">("HOMOLOGACION");
   const [config, setConfig] = useState<FacturacionConfiguracionPublica>(emptyConfig);
   const [certificate, setCertificate] = useState<File | null>(null);
   const [privateKey, setPrivateKey] = useState<File | null>(null);
@@ -43,16 +46,16 @@ export default function ConfiguracionPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/facturacion/configuracion", { cache: "no-store" });
+      const response = await fetch(`/api/facturacion/configuracion?ambiente=${ambiente}`, { cache: "no-store" });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "No se pudo cargar la configuración fiscal");
-      setConfig(body.data ?? emptyConfig);
+      setConfig(body.data ?? { ...emptyConfig, ambiente });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo cargar la configuración fiscal");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [ambiente]);
 
   useEffect(() => {
     void load();
@@ -108,11 +111,15 @@ export default function ConfiguracionPage() {
     setError(null);
     setMessage(null);
     try {
-      const response = await fetch("/api/facturacion/configuracion/probar", { method: "POST" });
+      const response = await fetch("/api/facturacion/configuracion/probar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ambiente }),
+      });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "No se pudo probar la conexión fiscal");
       setMessage(
-        `Conexión de homologación correcta. Último comprobante Factura C: ${body.data.ultimoComprobante}.`,
+        `Conexión de ${ambiente.toLowerCase()} correcta. Último comprobante: ${body.data.ultimoComprobante}.`,
       );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo probar la conexión fiscal");
@@ -124,25 +131,32 @@ export default function ConfiguracionPage() {
   return (
     <div>
       <ScreenHeader title="Configuración" breadcrumbs={["Administración"]} />
-      <div style={styles.layout}>
-        <nav style={styles.navigation} aria-label="Secciones de configuración">
-          <div style={styles.navigationTitle}><Settings size={16} /> Secciones</div>
-          <a href="#facturacion-electronica" style={styles.navigationItem}>
-            <ReceiptText size={16} /> Facturación electrónica
-          </a>
-        </nav>
-
-        <main style={styles.content}>
+      <main style={styles.sections}>
+        <section id="facturacion" style={styles.section}>
+          <div style={styles.groupHeading}>
+            <h2 style={styles.groupTitle}>Facturación</h2>
+            <p style={styles.groupDescription}>Datos fiscales, credenciales y ambientes de emisión de comprobantes ARCA.</p>
+          </div>
           <Card id="facturacion-electronica" style={styles.card}>
             <div style={styles.sectionHeading}>
               <div style={styles.headingIcon}><ReceiptText size={20} /></div>
               <div>
                 <h2 style={styles.title}>Facturación electrónica</h2>
                 <p style={styles.help}>
-                  POC de ARCA en homologación para un emisor monotributista. La integración emite únicamente Factura C.
+                  Configurá cada ambiente de forma independiente. El tipo de comprobante A, B o C se determina según la condición IVA del emisor y receptor.
                 </p>
               </div>
-              <span style={styles.environment}>HOMOLOGACIÓN</span>
+              <label style={styles.environmentSelector}>Ambiente
+                <select
+                  style={styles.compactInput}
+                  value={ambiente}
+                  onChange={(event) => setAmbiente(event.target.value as "HOMOLOGACION" | "PRODUCCION")}
+                  disabled={saving || testing}
+                >
+                  <option value="HOMOLOGACION">Homologación</option>
+                  <option value="PRODUCCION">Producción</option>
+                </select>
+              </label>
             </div>
 
             {loading ? <p>Cargando configuración…</p> : null}
@@ -158,6 +172,12 @@ export default function ConfiguracionPage() {
                   <Field label="CUIT" required>
                     <input required inputMode="numeric" style={styles.input} value={config.cuit} onChange={(event) => update("cuit", event.target.value)} />
                   </Field>
+                  <Field label="Condición IVA del emisor" required>
+                    <select style={styles.input} value={config.condicionIvaEmisor} onChange={(event) => update("condicionIvaEmisor", event.target.value as FacturacionConfiguracionPublica["condicionIvaEmisor"])}>
+                      <option value="MONOTRIBUTISTA">Monotributista</option>
+                      <option value="RESPONSABLE_INSCRIPTO">Responsable inscripto</option>
+                    </select>
+                  </Field>
                   <Field label="Punto de venta exclusivo" required>
                     <input required type="number" min={1} style={styles.input} value={config.puntoVenta} onChange={(event) => update("puntoVenta", Number(event.target.value))} />
                   </Field>
@@ -170,7 +190,17 @@ export default function ConfiguracionPage() {
                   <Field label="Inicio de actividades" required>
                     <input required type="date" style={styles.input} value={config.inicioActividades} onChange={(event) => update("inicioActividades", event.target.value)} />
                   </Field>
+                  <Field label="Monto mínimo FCE MiPyME">
+                    <input type="number" min={0} step="0.01" style={styles.input} value={config.fceMontoMinimo ?? ""} onChange={(event) => update("fceMontoMinimo", event.target.value ? Number(event.target.value) : null)} placeholder="Dejar vacío si no está configurado" />
+                  </Field>
                 </div>
+
+                {ambiente === "PRODUCCION" ? (
+                  <div style={styles.productionWarning}>
+                    <TriangleAlert size={18} />
+                    Producción genera comprobantes fiscales reales. Verificá CUIT, punto de venta y credenciales antes de habilitarla.
+                  </div>
+                ) : null}
 
                 <div style={styles.credentialsBox}>
                   <div style={styles.credentialsHeader}>
@@ -206,7 +236,7 @@ export default function ConfiguracionPage() {
 
                 <label style={styles.checkbox}>
                   <input type="checkbox" checked={config.habilitada} onChange={(event) => update("habilitada", event.target.checked)} />
-                  Habilitar emisión de homologación
+                  Habilitar emisión de {ambiente.toLowerCase()}
                 </label>
 
                 {error ? <div style={styles.error}>{error}</div> : null}
@@ -225,8 +255,8 @@ export default function ConfiguracionPage() {
               </form>
             ) : null}
           </Card>
-        </main>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }
@@ -246,17 +276,18 @@ function formatDate(value: string | null): string {
 }
 
 const styles = {
-  layout: { display: "flex", flexWrap: "wrap" as const, alignItems: "flex-start", gap: 20, marginTop: 16 },
-  navigation: { display: "flex", flex: "1 1 190px", maxWidth: 220, width: "100%", flexDirection: "column" as const, gap: 8, alignSelf: "start", position: "sticky" as const, top: 16 },
-  navigationTitle: { display: "flex", alignItems: "center", gap: 8, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 700, padding: "0 10px 6px" },
-  navigationItem: { display: "flex", alignItems: "center", gap: 8, color: COLOR.TEXT.PRIMARY, background: COLOR.BACKGROUND.SUBTLE, border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 10, padding: "11px 12px", textDecoration: "none", fontSize: 14, fontWeight: 600 },
-  content: { flex: "999 1 620px", minWidth: 0 },
-  card: { maxWidth: 980 },
+  sections: { display: "flex", flexDirection: "column" as const, gap: 32, marginTop: 20, maxWidth: 980 },
+  section: { display: "flex", flexDirection: "column" as const, gap: 14 },
+  groupHeading: { display: "flex", flexDirection: "column" as const, gap: 4 },
+  groupTitle: { fontSize: 22, margin: 0 },
+  groupDescription: { color: COLOR.TEXT.SECONDARY, lineHeight: 1.5, margin: 0 },
+  card: { width: "100%" },
   sectionHeading: { display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 18, flexWrap: "wrap" as const },
   headingIcon: { width: 40, height: 40, borderRadius: 10, background: COLOR.BACKGROUND.SUBTLE, display: "flex", alignItems: "center", justifyContent: "center", color: COLOR.ACCENT.PRIMARY },
   title: { fontSize: 20, margin: "0 0 4px" },
   help: { color: COLOR.TEXT.SECONDARY, lineHeight: 1.5, margin: 0, maxWidth: 650 },
-  environment: { marginLeft: "auto", border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 999, padding: "5px 9px", color: COLOR.TEXT.SECONDARY, fontSize: 11, fontWeight: 800 },
+  environmentSelector: { marginLeft: "auto", display: "flex", flexDirection: "column" as const, gap: 4, color: COLOR.TEXT.SECONDARY, fontSize: 11, fontWeight: 700 },
+  compactInput: { height: 34, borderRadius: 8, border: `1px solid ${COLOR.BORDER.SUBTLE}`, padding: "0 9px", color: COLOR.TEXT.PRIMARY, background: COLOR.INPUT.PRIMARY.BACKGROUND },
   form: { display: "flex", flexDirection: "column" as const, gap: 16 },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 },
   field: { display: "flex", flexDirection: "column" as const, gap: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13 },
@@ -272,6 +303,7 @@ const styles = {
   mono: { fontFamily: "monospace", fontSize: 11, overflowWrap: "anywhere" as const },
   small: { color: COLOR.TEXT.TERTIARY, fontSize: 13 },
   checkbox: { display: "flex", alignItems: "center", gap: 8, color: COLOR.TEXT.PRIMARY, fontSize: 14 },
+  productionWarning: { display: "flex", alignItems: "flex-start", gap: 9, borderRadius: 8, padding: 12, color: COLOR.SEMANTIC.WARNING, background: COLOR.BACKGROUND.SUBTLE, border: `1px solid ${COLOR.SEMANTIC.WARNING}` },
   actions: { display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" as const },
   error: { color: COLOR.ICON.DANGER, background: COLOR.BACKGROUND.DANGER_TINT, padding: 12, borderRadius: 8 },
   success: { color: COLOR.SEMANTIC.SUCCESS, background: COLOR.BACKGROUND.SUCCESS_TINT, padding: 12, borderRadius: 8 },

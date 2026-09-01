@@ -13,10 +13,12 @@ import {
   type FacturacionPreflight,
   type PerfilFiscalCliente,
 } from "@/lib/facturacion/types";
+import { determineVoucher } from "@/lib/facturacion/arcaPayload";
 
 type Props = {
   open: boolean;
-  arregloId: string;
+  arregloId?: string;
+  operacionId?: string;
   onClose: () => void;
   onAuthorized: (factura: FacturaElectronicaResumen) => void;
 };
@@ -29,27 +31,32 @@ type FiscalDraft = {
 
 function defaultDraft(receptor: PerfilFiscalCliente): FiscalDraft {
   return {
-    tipoDocumento: String(receptor.tipoDocumento ?? 96),
+    tipoDocumento: String(receptor.tipoDocumento ?? 99),
     numeroDocumento: receptor.numeroDocumento ?? "",
     condicionIvaReceptorId: String(receptor.condicionIvaReceptorId ?? 5),
   };
 }
 
-export default function FacturaElectronicaModal({ open, arregloId, onClose, onAuthorized }: Props) {
+export default function FacturaElectronicaModal({ open, arregloId, operacionId, onClose, onAuthorized }: Props) {
   const [preflight, setPreflight] = useState<FacturacionPreflight | null>(null);
   const [factura, setFactura] = useState<FacturaElectronicaResumen | null>(null);
-  const [receptor, setReceptor] = useState<FiscalDraft>({ tipoDocumento: "96", numeroDocumento: "", condicionIvaReceptorId: "5" });
+  const [receptor, setReceptor] = useState<FiscalDraft>({ tipoDocumento: "99", numeroDocumento: "", condicionIvaReceptorId: "5" });
   const [fechas, setFechas] = useState<FacturaFechaInput>({ fechaComprobante: "" });
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ambiente, setAmbiente] = useState<"HOMOLOGACION" | "PRODUCCION">("HOMOLOGACION");
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const endpoint = operacionId ? `/api/operaciones/${operacionId}/factura` : `/api/arreglos/${arregloId}/factura`;
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetch(`/api/arreglos/${arregloId}/factura`, { cache: "no-store" })
+    setPreflight(null);
+    setFactura(null);
+    fetch(`${endpoint}?ambiente=${ambiente}`, { cache: "no-store" })
       .then(async (response) => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.error || "No se pudo preparar la factura electrónica");
@@ -69,12 +76,19 @@ export default function FacturaElectronicaModal({ open, arregloId, onClose, onAu
     return () => {
       cancelled = true;
     };
-  }, [arregloId, open]);
+  }, [ambiente, endpoint, open]);
 
   const canRetry = factura?.estado === "RECHAZADA";
   const canSubmit = Boolean(preflight && (preflight.puedeEmitir || canRetry) && factura?.estado !== "AUTORIZADA" && factura?.estado !== "INCIERTA");
   const isServiceConcept = preflight?.concepto === 2 || preflight?.concepto === 3;
-  const submitText = canRetry ? "Reintentar emisión" : "Emitir Factura C";
+  const voucherPreview = useMemo(() => {
+    if (!preflight?.emisor) return null;
+    return determineVoucher(
+      preflight.emisor.condicionIvaEmisor,
+      Number(receptor.condicionIvaReceptorId) as PerfilFiscalCliente["condicionIvaReceptorId"],
+    );
+  }, [preflight?.emisor, receptor.condicionIvaReceptorId]);
+  const submitText = canRetry ? "Reintentar emisión" : `Emitir ${voucherPreview ? `Factura ${voucherPreview.clase}` : "factura"}`;
 
   const invoiceLabel = useMemo(() => {
     if (!factura?.numeroComprobante) return "";
@@ -86,11 +100,13 @@ export default function FacturaElectronicaModal({ open, arregloId, onClose, onAu
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch(`/api/arreglos/${arregloId}/factura`, {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey,
+          ambiente,
+          condicionVenta: "CONTADO",
           receptor: {
             tipoDocumento: Number(receptor.tipoDocumento),
             numeroDocumento: receptor.numeroDocumento,
@@ -134,29 +150,39 @@ export default function FacturaElectronicaModal({ open, arregloId, onClose, onAu
         <div style={styles.content}>
           {factura?.estado === "AUTORIZADA" ? (
             <div style={styles.authorized}>
-              <strong>Factura C autorizada: {invoiceLabel}</strong>
+              <strong>Factura {factura.claseComprobante} autorizada: {invoiceLabel}</strong>
               <span>CAE {factura.cae ?? "-"} · vence {factura.caeVencimiento ?? "-"}</span>
               <Button icon={<Download size={16} />} text="Descargar PDF" onClick={downloadPdf} hideTextOnMobile={false} />
             </div>
           ) : null}
           <section style={styles.summary}>
             <div><span style={styles.label}>Emisor</span><strong>{preflight.emisor?.razonSocial ?? "Configuración pendiente"}</strong><span>{preflight.emisor?.cuit ?? ""} · Punto de venta {preflight.emisor?.puntoVenta ?? "-"}</span></div>
-            <div><span style={styles.label}>Comprobante</span><strong>Factura C (tipo 11)</strong><span>Concepto {preflight.concepto}: {preflight.concepto === 1 ? "productos" : preflight.concepto === 2 ? "servicios" : "productos y servicios"}</span></div>
+            <div><span style={styles.label}>Comprobante</span><strong>Factura {voucherPreview?.clase ?? preflight.claseComprobante} (tipo {voucherPreview?.tipo ?? preflight.tipoComprobante})</strong><span>Concepto {preflight.concepto}: {preflight.concepto === 1 ? "productos" : preflight.concepto === 2 ? "servicios" : "productos y servicios"}</span></div>
           </section>
+          <label style={styles.field}>Ambiente de emisión
+            <select style={styles.input} value={ambiente} onChange={(event) => setAmbiente(event.target.value as "HOMOLOGACION" | "PRODUCCION")} disabled={submitting}>
+              <option value="HOMOLOGACION">Homologación</option>
+              <option value="PRODUCCION">Producción</option>
+            </select>
+          </label>
           <section style={styles.box}>
             <strong>Receptor</strong>
             <span style={styles.muted}>{preflight.receptor.nombre}</span>
             <div style={styles.grid}>
               <label style={styles.field}>Tipo de documento
-                <select style={styles.input} value={receptor.tipoDocumento} onChange={(event) => setReceptor((previous) => ({ ...previous, tipoDocumento: event.target.value }))}>
+                <select style={styles.input} value={receptor.tipoDocumento} onChange={(event) => setReceptor((previous) => ({
+                  ...previous,
+                  tipoDocumento: event.target.value,
+                  ...(event.target.value === "99" ? { numeroDocumento: "", condicionIvaReceptorId: "5" } : {}),
+                }))}>
                   {TIPOS_DOCUMENTO_FISCAL.map((tipo) => <option key={tipo.id} value={tipo.id}>{tipo.label}</option>)}
                 </select>
               </label>
               <label style={styles.field}>Número de documento
-                <input style={styles.input} inputMode="numeric" value={receptor.numeroDocumento} onChange={(event) => setReceptor((previous) => ({ ...previous, numeroDocumento: event.target.value }))} />
+                <input style={styles.input} inputMode="numeric" value={receptor.numeroDocumento} disabled={receptor.tipoDocumento === "99"} placeholder={receptor.tipoDocumento === "99" ? "No requerido" : undefined} onChange={(event) => setReceptor((previous) => ({ ...previous, numeroDocumento: event.target.value }))} />
               </label>
               <label style={styles.field}>Condición IVA
-                <select style={styles.input} value={receptor.condicionIvaReceptorId} onChange={(event) => setReceptor((previous) => ({ ...previous, condicionIvaReceptorId: event.target.value }))}>
+                <select style={styles.input} value={receptor.condicionIvaReceptorId} disabled={receptor.tipoDocumento === "99"} onChange={(event) => setReceptor((previous) => ({ ...previous, condicionIvaReceptorId: event.target.value }))}>
                   {CONDICIONES_IVA_RECEPTOR.map((condicion) => <option key={condicion.id} value={condicion.id}>{condicion.label}</option>)}
                 </select>
               </label>

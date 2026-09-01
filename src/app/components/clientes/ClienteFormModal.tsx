@@ -23,6 +23,7 @@ type Props = {
     tipo_documento_fiscal?: 80 | 86 | 96 | null;
     numero_documento_fiscal?: string | null;
     condicion_iva_receptor_id?: number | null;
+    fce_mipyme_alcanzado?: boolean;
   }) => Promise<void> | void;
   mode?: "create" | "edit";
   initialValues?: {
@@ -37,6 +38,7 @@ type Props = {
     tipo_documento_fiscal?: 80 | 86 | 96 | null;
     numero_documento_fiscal?: string | null;
     condicion_iva_receptor_id?: number | null;
+    fce_mipyme_alcanzado?: boolean;
   };
 };
 
@@ -59,6 +61,7 @@ export default function ClienteFormModal({
       tipoDocumentoFiscal: String(initialValues?.tipo_documento_fiscal ?? base.tipoDocumentoFiscal) as "80" | "86" | "96",
       numeroDocumentoFiscal: initialValues?.numero_documento_fiscal ?? base.numeroDocumentoFiscal,
       condicionIvaReceptorId: String(initialValues?.condicion_iva_receptor_id ?? base.condicionIvaReceptorId),
+      fceMipymeAlcanzado: initialValues?.fce_mipyme_alcanzado ?? base.fceMipymeAlcanzado,
     };
   });
   const [submitting, setSubmitting] = useState(false);
@@ -77,6 +80,7 @@ export default function ClienteFormModal({
       tipoDocumentoFiscal: String(initialValues.tipo_documento_fiscal ?? base.tipoDocumentoFiscal) as "80" | "86" | "96",
       numeroDocumentoFiscal: initialValues.numero_documento_fiscal ?? base.numeroDocumentoFiscal,
       condicionIvaReceptorId: String(initialValues.condicion_iva_receptor_id ?? base.condicionIvaReceptorId),
+      fceMipymeAlcanzado: initialValues.fce_mipyme_alcanzado ?? base.fceMipymeAlcanzado,
       });
     } else if (open && !initialValues) {
       setCliente(createEmptyClienteFormFieldsValue(TipoCliente.PARTICULAR));
@@ -108,6 +112,7 @@ export default function ClienteFormModal({
         tipo_documento_fiscal: cliente.tipo_cliente === TipoCliente.EMPRESA ? 80 : Number(cliente.tipoDocumentoFiscal) as 80 | 86 | 96,
         numero_documento_fiscal: cliente.tipo_cliente === TipoCliente.EMPRESA ? cliente.cuit.trim().replace(/\D/g, "") || null : cliente.numeroDocumentoFiscal.trim().replace(/\D/g, "") || null,
         condicion_iva_receptor_id: Number(cliente.condicionIvaReceptorId) || null,
+        fce_mipyme_alcanzado: cliente.fceMipymeAlcanzado,
       });
       onClose();
     } catch (err) {

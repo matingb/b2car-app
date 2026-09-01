@@ -13,6 +13,7 @@ export type CreateParticularRequest = {
   tipo_documento_fiscal?: 80 | 86 | 96 | null;
   numero_documento_fiscal?: string | null;
   condicion_iva_receptor_id?: number | null;
+  fce_mipyme_alcanzado?: boolean;
 };
 
 export type CreateParticularResponse = {

@@ -87,8 +87,15 @@ export async function validateCredentialPair(
       throw new FacturacionValidationError("La clave privada no corresponde al certificado seleccionado");
     }
     const expiresAt = new Date(certificateObject.validTo);
-    if (Number.isNaN(expiresAt.getTime())) {
+    const validFrom = new Date(certificateObject.validFrom);
+    if (Number.isNaN(expiresAt.getTime()) || Number.isNaN(validFrom.getTime())) {
       throw new FacturacionValidationError("No se pudo determinar el vencimiento del certificado");
+    }
+    if (validFrom.getTime() > Date.now()) {
+      throw new FacturacionValidationError("El certificado fiscal todavía no está vigente");
+    }
+    if (expiresAt.getTime() <= Date.now()) {
+      throw new FacturacionValidationError("El certificado fiscal está vencido");
     }
     return {
       cert,
@@ -117,10 +124,12 @@ export async function uploadCredentialPair(
   tenantId: string,
   certificate: File,
   privateKey: File,
+  ambiente?: "HOMOLOGACION" | "PRODUCCION",
 ): Promise<CredentialStorageMetadata> {
   const validated = await validateCredentialPair(certificate, privateKey);
   const version = randomUUID();
-  const basePath = `${tenantId}/credentials/${version}`;
+  const environmentPath = ambiente ? `${ambiente.toLowerCase()}/` : "";
+  const basePath = `${tenantId}/${environmentPath}credentials/${version}`;
   const certificatePath = `${basePath}/certificate.pem`;
   const privateKeyPath = `${basePath}/private-key.pem`;
   const admin = createAdminClient();

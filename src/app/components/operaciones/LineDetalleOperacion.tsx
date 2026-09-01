@@ -14,6 +14,8 @@ import {
 import OperacionMeta from "./OperacionMeta";
 import OperacionActions from "./OperacionActions";
 import OperacionExpandedDetail from "./OperacionExpandedDetail";
+import Button from "@/app/components/ui/Button";
+import { ReceiptText } from "lucide-react";
 
 export { getOperacionTitle };
 
@@ -29,6 +31,7 @@ type Props = {
   onToggle: () => void;
   onDelete?: () => void;
   onEdit?: () => void;
+  onInvoice?: () => void;
 };
 
 export default function LineDetalleOperacion({
@@ -43,6 +46,7 @@ export default function LineDetalleOperacion({
   onToggle,
   onDelete,
   onEdit,
+  onInvoice,
 }: Props) {
   const {
     title,
@@ -105,6 +109,17 @@ export default function LineDetalleOperacion({
                 ? "Detalle del movimiento"
                 : "Productos"}
             </div>
+            {onInvoice ? (
+              <div onClick={(event) => event.stopPropagation()}>
+                <Button
+                  text="Emitir factura"
+                  icon={<ReceiptText size={16} />}
+                  outline
+                  onClick={onInvoice}
+                  hideTextOnMobile={false}
+                />
+              </div>
+            ) : null}
           </div>
           <OperacionExpandedDetail
             operacion={operacion}

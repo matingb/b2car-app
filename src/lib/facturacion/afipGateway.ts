@@ -6,6 +6,7 @@ export type ArcaGatewayConfig = {
   cuit: string;
   cert: string;
   key: string;
+  production: boolean;
 };
 
 export type ArcaGateway = {
@@ -33,28 +34,47 @@ export async function createArcaGateway(config: ArcaGatewayConfig): Promise<Arca
     cert: config.cert,
     key: config.key,
     access_token: accessToken,
-    production: false,
+    production: config.production,
   });
+
+  const withTimeout = async <T>(promise: Promise<T>, label: string): Promise<T> => {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<T>((_, reject) => {
+          timeout = setTimeout(
+            () => reject(new Error(`${label}: ARCA no respondió dentro de 25 segundos`)),
+            25_000,
+          );
+        }),
+      ]);
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
+  };
 
   return {
     async getLastVoucher(puntoVenta, tipoComprobante) {
-      return Number(await client.ElectronicBilling.getLastVoucher(puntoVenta, tipoComprobante));
+      return Number(await withTimeout(
+        client.ElectronicBilling.getLastVoucher(puntoVenta, tipoComprobante),
+        "Consulta de último comprobante",
+      ));
     },
     async getVoucherInfo(numero, puntoVenta, tipoComprobante) {
-      return (await client.ElectronicBilling.getVoucherInfo(
-        numero,
-        puntoVenta,
-        tipoComprobante,
+      return (await withTimeout(
+        client.ElectronicBilling.getVoucherInfo(numero, puntoVenta, tipoComprobante),
+        "Consulta de comprobante",
       )) as Record<string, unknown> | null;
     },
     async createVoucher(payload) {
-      return (await client.ElectronicBilling.createVoucher(payload)) as {
+      return (await withTimeout(client.ElectronicBilling.createVoucher(payload), "Autorización de comprobante")) as {
         CAE: string;
         CAEFchVto: string;
       };
     },
     async getServerStatus() {
-      return (await client.ElectronicBilling.getServerStatus()) as Record<string, unknown>;
+      return (await withTimeout(client.ElectronicBilling.getServerStatus(), "Estado del servicio")) as Record<string, unknown>;
     },
   };
 }

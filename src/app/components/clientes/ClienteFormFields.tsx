@@ -14,6 +14,7 @@ export type ClienteFormFieldsValue = {
   tipoDocumentoFiscal: "80" | "86" | "96";
   numeroDocumentoFiscal: string;
   condicionIvaReceptorId: string;
+  fceMipymeAlcanzado: boolean;
   codigoPais: string;
   telefono: string;
   email: string;
@@ -33,6 +34,7 @@ export function createEmptyClienteFormFieldsValue(
     tipoDocumentoFiscal: tipo_cliente === TipoCliente.EMPRESA ? "80" : "96",
     numeroDocumentoFiscal: "",
     condicionIvaReceptorId: "5",
+    fceMipymeAlcanzado: false,
     codigoPais: "54",
     telefono: "",
     email: "",
@@ -230,6 +232,17 @@ export default function ClienteFormFields({
               </select>
             </div>
           </div>
+          <label style={styles.fceCheckbox}>
+            <input
+              type="checkbox"
+              checked={value.fceMipymeAlcanzado}
+              onChange={(event) => onChange({ fceMipymeAlcanzado: event.target.checked })}
+            />
+            <span>
+              Receptor alcanzado por Factura de Crédito Electrónica MiPyME
+              <small style={styles.fiscalHint}>La emisión común se bloqueará al superar el monto configurado para evitar un comprobante incorrecto.</small>
+            </span>
+          </label>
         </div>
 
         <div style={styles.row}>
@@ -301,6 +314,13 @@ const styles = {
     color: COLOR.TEXT.SECONDARY,
     fontSize: 13,
     fontWeight: 600,
+  },
+  fceCheckbox: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 8,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 13,
   },
   fiscalHint: {
     minHeight: 42,

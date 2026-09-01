@@ -1,4 +1,4 @@
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, PDFPage } from "pdf-lib";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -80,6 +80,21 @@ describe("QR fiscal ARCA", () => {
 });
 
 describe("PDF fiscal propio", () => {
+  it("pinta explícitamente de blanco el encabezado principal", async () => {
+    const drawRectangle = vi.spyOn(PDFPage.prototype, "drawRectangle");
+
+    await generateFiscalInvoicePdf(invoice());
+
+    expect(drawRectangle).toHaveBeenCalledWith(expect.objectContaining({
+      x: 38,
+      y: 588,
+      width: 519.28,
+      height: 210,
+      color: expect.objectContaining({ red: 1, green: 1, blue: 1 }),
+    }));
+    drawRectangle.mockRestore();
+  });
+
   it("genera un PDF válido a partir del snapshot", async () => {
     const bytes = await generateFiscalInvoicePdf(invoice());
     expect(Buffer.from(bytes).subarray(0, 5).toString("ascii")).toBe("%PDF-");

@@ -14,6 +14,7 @@ import {
   IdCard,
   WalletCards,
   Settings,
+  ReceiptText,
 } from "lucide-react";
 import { logOut } from "@/app/login/actions";
 import { useRouter } from "next/navigation";
@@ -29,6 +30,7 @@ export enum SidebarMenuKey {
   Operaciones = "operaciones",
   CuentasFinancieras = "cuentas-financieras",
   Empleados = "empleados",
+  Facturas = "facturas",
   Configuracion = "configuracion",
   Logout = "logout",
 }
@@ -151,6 +153,13 @@ export function useSidebarMenu() {
         label: "Empleados",
         icon: <IdCard size={18} />,
         onClick: () => router.push(ROUTES.empleados),
+      },
+      {
+        key: SidebarMenuKey.Facturas,
+        href: ROUTES.facturacion,
+        label: "Facturas",
+        icon: <ReceiptText size={18} />,
+        onClick: () => router.push(ROUTES.facturacion),
       },
       ...(canManageFacturacion
         ? [{

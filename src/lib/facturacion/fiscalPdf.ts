@@ -2,13 +2,20 @@ import "server-only";
 
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import QRCode from "qrcode";
-import { CONDICIONES_IVA_RECEPTOR, TIPOS_DOCUMENTO_FISCAL } from "./types";
+import {
+  CONDICIONES_IVA_RECEPTOR,
+  TIPOS_DOCUMENTO_FISCAL,
+  type DocumentoFiscalClase,
+  type FacturaClase,
+  type FacturaTotales,
+} from "./types";
 
 const ARCA_QR_URL = "https://www.arca.gob.ar/fe/qr/?p=";
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 const MARGIN = 38;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+const WHITE = rgb(1, 1, 1);
 
 type FiscalRecord = Record<string, unknown>;
 
@@ -32,6 +39,10 @@ export type FiscalPdfInvoice = {
   total: number;
   puntoVenta: number;
   tipoComprobante: number;
+  claseComprobante?: FacturaClase;
+  documentoTipo?: DocumentoFiscalClase;
+  condicionVenta?: string;
+  totales?: FacturaTotales;
   numeroComprobante: number;
   cae: string;
   caeVencimiento: string;
@@ -239,7 +250,7 @@ function drawFirstHeader(page: PDFPage, invoice: FiscalPdfInvoice, fonts: Fonts)
   const emitter = invoice.emisorSnapshot;
   const receiver = invoice.receptorSnapshot;
   const topY = 588;
-  page.drawRectangle({ x: MARGIN, y: topY, width: CONTENT_WIDTH, height: 210, borderWidth: 0.8 });
+  page.drawRectangle({ x: MARGIN, y: topY, width: CONTENT_WIDTH, height: 210, color: WHITE, borderWidth: 0.8 });
   page.drawLine({ start: { x: 298, y: topY }, end: { x: 298, y: topY + 210 }, thickness: 0.8 });
 
   drawCentered(page, text(emitter.nombreFantasia) || text(emitter.razonSocial), 168, 757, fonts.bold, 17);
@@ -247,11 +258,13 @@ function drawFirstHeader(page: PDFPage, invoice: FiscalPdfInvoice, fonts: Fonts)
   drawLabeledValue(page, fonts, "Domicilio Comercial:", text(emitter.domicilio), 54, 699, 139);
   drawLabeledValue(page, fonts, "Condición IVA:", text(emitter.condicionIva) || "Monotributista", 54, 682, 119);
 
-  page.drawRectangle({ x: 276, y: 744, width: 44, height: 54, color: rgb(1, 1, 1), borderWidth: 0.8 });
-  drawCentered(page, "C", 298, 766, fonts.bold, 22);
-  drawCentered(page, "COD. 011", 298, 751, fonts.bold, 6.5);
+  page.drawRectangle({ x: 276, y: 744, width: 44, height: 54, color: WHITE, borderWidth: 0.8 });
+  drawCentered(page, invoice.claseComprobante ?? "C", 298, 766, fonts.bold, 22);
+  drawCentered(page, `COD. ${String(invoice.tipoComprobante).padStart(3, "0")}`, 298, 751, fonts.bold, 6.5);
 
-  page.drawText("FACTURA", { x: 330, y: 758, font: fonts.bold, size: 18 });
+  const documentLabel = invoice.documentoTipo === "FACTURA"
+    ? "FACTURA" : invoice.documentoTipo === "NOTA_CREDITO" ? "NOTA DE CRÉDITO" : "NOTA DE DÉBITO";
+  page.drawText(documentLabel, { x: 330, y: 758, font: fonts.bold, size: invoice.documentoTipo === "FACTURA" ? 18 : 12 });
   drawLabeledValue(page, fonts, "Punto de Venta:", String(invoice.puntoVenta).padStart(5, "0"), 330, 731, 414);
   drawLabeledValue(page, fonts, "Comp. Nro:", String(invoice.numeroComprobante).padStart(8, "0"), 330, 714, 414);
   drawLabeledValue(page, fonts, "Fecha de Emisión:", formatDate(invoice.fechaComprobante), 330, 697, 414);
@@ -261,7 +274,7 @@ function drawFirstHeader(page: PDFPage, invoice: FiscalPdfInvoice, fonts: Fonts)
 
   let receiverTop = 574;
   if (invoice.concepto !== 1) {
-    page.drawRectangle({ x: MARGIN, y: 542, width: CONTENT_WIDTH, height: 31, borderWidth: 0.8 });
+    page.drawRectangle({ x: MARGIN, y: 542, width: CONTENT_WIDTH, height: 31, color: WHITE, borderWidth: 0.8 });
     drawLabeledValue(page, fonts, "Período Facturado Desde:", formatDate(invoice.fechaServicioDesde), 50, 554, 164);
     drawLabeledValue(page, fonts, "Hasta:", formatDate(invoice.fechaServicioHasta), 252, 554, 284);
     drawLabeledValue(page, fonts, "Fecha de Vto. para el pago:", formatDate(invoice.fechaVencimientoPago), 365, 554, 488);
@@ -269,20 +282,22 @@ function drawFirstHeader(page: PDFPage, invoice: FiscalPdfInvoice, fonts: Fonts)
   }
 
   const receiverBottom = receiverTop - 65;
-  page.drawRectangle({ x: MARGIN, y: receiverBottom, width: CONTENT_WIDTH, height: 65, borderWidth: 0.8 });
-  const documentLabel = TIPOS_DOCUMENTO_FISCAL.find((item) => item.id === number(receiver.tipoDocumento))?.label ?? "Documento";
+  page.drawRectangle({ x: MARGIN, y: receiverBottom, width: CONTENT_WIDTH, height: 65, color: WHITE, borderWidth: 0.8 });
+  const receiverDocumentLabel = TIPOS_DOCUMENTO_FISCAL.find((item) => item.id === number(receiver.tipoDocumento))?.label ?? "Documento";
   const ivaLabel = CONDICIONES_IVA_RECEPTOR.find((item) => item.id === number(receiver.condicionIvaReceptorId))?.label ?? "Consumidor final";
-  drawLabeledValue(page, fonts, `${documentLabel}:`, text(receiver.numeroDocumento), 50, receiverTop - 19, 90);
+  drawLabeledValue(page, fonts, `${receiverDocumentLabel}:`, text(receiver.numeroDocumento), 50, receiverTop - 19, 90);
   drawLabeledValue(page, fonts, "Apellido y Nombre / Razón Social:", text(receiver.nombre), 298, receiverTop - 19, 438);
   drawLabeledValue(page, fonts, "Condición IVA:", ivaLabel, 50, receiverTop - 38, 116);
   drawLabeledValue(page, fonts, "Domicilio:", text(receiver.domicilio) || "-", 298, receiverTop - 38, 352);
-  drawLabeledValue(page, fonts, "Condición de Venta:", "Contado", 50, receiverTop - 56, 141);
+  drawLabeledValue(page, fonts, "Condición de Venta:", invoice.condicionVenta || "Contado", 50, receiverTop - 56, 141);
 }
 
 function drawContinuationHeader(page: PDFPage, invoice: FiscalPdfInvoice, fonts: Fonts, pageNumber: number) {
   const emitter = invoice.emisorSnapshot;
   page.drawText(text(emitter.nombreFantasia) || text(emitter.razonSocial), { x: MARGIN, y: 798, font: fonts.bold, size: 14 });
-  const label = `FACTURA C ${String(invoice.puntoVenta).padStart(5, "0")}-${String(invoice.numeroComprobante).padStart(8, "0")}`;
+  const kind = invoice.documentoTipo === "FACTURA" ? "FACTURA"
+    : invoice.documentoTipo === "NOTA_CREDITO" ? "NC" : "ND";
+  const label = `${kind} ${invoice.claseComprobante ?? "C"} ${String(invoice.puntoVenta).padStart(5, "0")}-${String(invoice.numeroComprobante).padStart(8, "0")}`;
   drawRight(page, label, PAGE_WIDTH - MARGIN, 798, fonts.bold, 11);
   drawRight(page, `Página ${pageNumber}`, PAGE_WIDTH - MARGIN, 782, fonts.regular, 8);
   page.drawLine({ start: { x: MARGIN, y: 775 }, end: { x: PAGE_WIDTH - MARGIN, y: 775 }, thickness: 0.8 });
@@ -329,10 +344,12 @@ async function drawFooter(
   invoice: FiscalPdfInvoice,
   fonts: Fonts,
 ) {
-  drawLabeledValue(page, fonts, "Importe Otros Tributos:", formatAmount(0), 350, 220, 489);
-  page.drawLine({ start: { x: 350, y: 202 }, end: { x: 557, y: 202 }, thickness: 0.8 });
-  page.drawText("Importe Total:", { x: 350, y: 182, font: fonts.bold, size: 11 });
-  drawRight(page, formatAmount(invoice.total), 557, 182, fonts.bold, 11);
+  drawLabeledValue(page, fonts, "Importe Neto:", formatAmount(invoice.totales?.netoGravado ?? invoice.total), 350, 238, 489);
+  drawLabeledValue(page, fonts, "Importe IVA:", formatAmount(invoice.totales?.iva ?? 0), 350, 220, 489);
+  drawLabeledValue(page, fonts, "Otros Tributos:", formatAmount(invoice.totales?.tributos ?? 0), 350, 204, 489);
+  page.drawLine({ start: { x: 350, y: 190 }, end: { x: 557, y: 190 }, thickness: 0.8 });
+  page.drawText("Importe Total:", { x: 350, y: 172, font: fonts.bold, size: 11 });
+  drawRight(page, formatAmount(invoice.total), 557, 172, fonts.bold, 11);
   page.drawLine({ start: { x: MARGIN, y: 150 }, end: { x: PAGE_WIDTH - MARGIN, y: 150 }, thickness: 0.35, color: rgb(0.75, 0.75, 0.75) });
 
   const qrBytes = await QRCode.toBuffer(buildArcaQrUrl(invoice), {
@@ -351,7 +368,7 @@ async function drawFooter(
 
 export async function generateFiscalInvoicePdf(invoice: FiscalPdfInvoice): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
-  pdf.setTitle(`Factura C ${invoice.puntoVenta}-${invoice.numeroComprobante}`);
+  pdf.setTitle(`${invoice.documentoTipo ?? "FACTURA"} ${invoice.claseComprobante ?? "C"} ${invoice.puntoVenta}-${invoice.numeroComprobante}`);
   pdf.setSubject("Comprobante electrónico autorizado por ARCA");
   const fonts: Fonts = {
     regular: await pdf.embedFont(StandardFonts.Helvetica),

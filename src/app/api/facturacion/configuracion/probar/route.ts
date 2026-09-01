@@ -3,10 +3,12 @@ import { facturacionErrorResponse, requireTenantAdmin } from "@/lib/facturacion/
 
 export const runtime = "nodejs";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const actor = await requireTenantAdmin();
-    const result = await testFacturacionConnection(actor.tenantId);
+    const body = await request.json().catch(() => null) as { ambiente?: string } | null;
+    const ambiente = body?.ambiente === "PRODUCCION" ? "PRODUCCION" : "HOMOLOGACION";
+    const result = await testFacturacionConnection(actor.tenantId, ambiente);
     return Response.json({ data: result, error: null });
   } catch (error) {
     if (error instanceof FacturacionValidationError) {

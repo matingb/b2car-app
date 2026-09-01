@@ -32,6 +32,7 @@ import { useTenant } from "@/app/providers/TenantProvider";
 import Color from "color";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 import LineDetalleOperacion from "@/app/components/operaciones/LineDetalleOperacion";
+import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
 import Button from "@/app/components/ui/Button";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
@@ -174,6 +175,7 @@ export default function OperacionesPage() {
     const [cuentaGastoPreseleccionadaId, setCuentaGastoPreseleccionadaId] = useState<string | null>(null);
     const [gastoEdit, setGastoEdit] = useState<GastoFinanciero | null>(null);
     const [expandedOperacionId, setExpandedOperacionId] = useState<string | null>(null);
+    const [facturaOperacionId, setFacturaOperacionId] = useState<string | null>(null);
     const [stocksById, setStocksById] = useState<Record<string, StockItem>>({});
     const loadedStockIdsRef = useRef<Set<string>>(new Set());
     const loadingInitial = loading && operaciones.length === 0;
@@ -438,6 +440,7 @@ export default function OperacionesPage() {
                                     void handleDelete(operacion);
                                 }}
                                 onEdit={operacion.tipo === "GASTO" ? () => handleEditGasto(operacion) : undefined}
+                                onInvoice={operacion.tipo === "VENTA" ? () => setFacturaOperacionId(operacion.id) : undefined}
                             />
                         );
                     })}
@@ -457,6 +460,17 @@ export default function OperacionesPage() {
                         setInitialTipo("VENTA");
                         setCuentaGastoPreseleccionadaId(null);
                         setGastoEdit(null);
+                    }}
+                />
+            ) : null}
+            {facturaOperacionId ? (
+                <FacturaElectronicaModal
+                    open
+                    operacionId={facturaOperacionId}
+                    onClose={() => setFacturaOperacionId(null)}
+                    onAuthorized={() => {
+                        success("Factura autorizada", "La venta quedó vinculada al comprobante fiscal.");
+                        setFacturaOperacionId(null);
                     }}
                 />
             ) : null}

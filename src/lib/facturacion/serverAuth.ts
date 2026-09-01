@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@/supabase/server";
 import { createAdminClient } from "@/supabase/admin";
+import { FacturacionValidationError } from "./arcaPayload";
 
 export class FacturacionHttpError extends Error {
   constructor(
@@ -78,6 +79,9 @@ export async function requireTenantAdmin(): Promise<TenantActor> {
 export function facturacionErrorResponse(error: unknown): Response {
   if (error instanceof FacturacionHttpError) {
     return Response.json({ error: error.message }, { status: error.status });
+  }
+  if (error instanceof FacturacionValidationError) {
+    return Response.json({ error: error.message }, { status: 422 });
   }
   console.error("Error de facturación electrónica", error);
   return Response.json({ error: "No se pudo completar la operación de facturación" }, { status: 500 });
