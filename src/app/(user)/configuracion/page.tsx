@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ReceiptText, ShieldCheck, TriangleAlert } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
+import Dropdown from "@/app/components/ui/Dropdown";
 import { COLOR } from "@/theme/theme";
 import type { FacturacionConfiguracionPublica } from "@/lib/facturacion/types";
 
@@ -19,7 +20,6 @@ const emptyConfig: FacturacionConfiguracionPublica = {
   puntoVenta: 1,
   habilitada: false,
   ambiente: "HOMOLOGACION",
-  fceMontoMinimo: null,
   credenciales: {
     configuradas: false,
     certificadoNombre: null,
@@ -31,7 +31,6 @@ const emptyConfig: FacturacionConfiguracionPublica = {
 };
 
 export default function ConfiguracionPage() {
-  const [ambiente, setAmbiente] = useState<"HOMOLOGACION" | "PRODUCCION">("HOMOLOGACION");
   const [config, setConfig] = useState<FacturacionConfiguracionPublica>(emptyConfig);
   const [certificate, setCertificate] = useState<File | null>(null);
   const [privateKey, setPrivateKey] = useState<File | null>(null);
@@ -46,16 +45,16 @@ export default function ConfiguracionPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/facturacion/configuracion?ambiente=${ambiente}`, { cache: "no-store" });
+      const response = await fetch("/api/facturacion/configuracion", { cache: "no-store" });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "No se pudo cargar la configuración fiscal");
-      setConfig(body.data ?? { ...emptyConfig, ambiente });
+      setConfig(body.data ?? emptyConfig);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo cargar la configuración fiscal");
     } finally {
       setLoading(false);
     }
-  }, [ambiente]);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -114,12 +113,11 @@ export default function ConfiguracionPage() {
       const response = await fetch("/api/facturacion/configuracion/probar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ambiente }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "No se pudo probar la conexión fiscal");
       setMessage(
-        `Conexión de ${ambiente.toLowerCase()} correcta. Último comprobante: ${body.data.ultimoComprobante}.`,
+        `Conexión correcta. Último comprobante: ${body.data.ultimoComprobante}.`,
       );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo probar la conexión fiscal");
@@ -135,78 +133,59 @@ export default function ConfiguracionPage() {
         <section id="facturacion" style={styles.section}>
           <div style={styles.groupHeading}>
             <h2 style={styles.groupTitle}>Facturación</h2>
-            <p style={styles.groupDescription}>Datos fiscales, credenciales y ambientes de emisión de comprobantes ARCA.</p>
+            <p style={styles.groupDescription}>Datos fiscales, credenciales y emisión de comprobantes ARCA.</p>
           </div>
           <Card id="facturacion-electronica" style={styles.card}>
-            <div style={styles.sectionHeading}>
-              <div style={styles.headingIcon}><ReceiptText size={20} /></div>
-              <div>
-                <h2 style={styles.title}>Facturación electrónica</h2>
-                <p style={styles.help}>
-                  Configurá cada ambiente de forma independiente. El tipo de comprobante A, B o C se determina según la condición IVA del emisor y receptor.
-                </p>
-              </div>
-              <label style={styles.environmentSelector}>Ambiente
-                <select
-                  style={styles.compactInput}
-                  value={ambiente}
-                  onChange={(event) => setAmbiente(event.target.value as "HOMOLOGACION" | "PRODUCCION")}
-                  disabled={saving || testing}
-                >
-                  <option value="HOMOLOGACION">Homologación</option>
-                  <option value="PRODUCCION">Producción</option>
-                </select>
-              </label>
-            </div>
-
             {loading ? <p>Cargando configuración…</p> : null}
             {!loading ? (
               <form onSubmit={save} style={styles.form}>
-                <div style={styles.grid}>
-                  <Field label="Razón social" required>
-                    <input required style={styles.input} value={config.razonSocial} onChange={(event) => update("razonSocial", event.target.value)} />
-                  </Field>
-                  <Field label="Nombre de fantasía">
-                    <input style={styles.input} value={config.nombreFantasia ?? ""} onChange={(event) => update("nombreFantasia", event.target.value || null)} />
-                  </Field>
-                  <Field label="CUIT" required>
-                    <input required inputMode="numeric" style={styles.input} value={config.cuit} onChange={(event) => update("cuit", event.target.value)} />
-                  </Field>
-                  <Field label="Condición IVA del emisor" required>
-                    <select style={styles.input} value={config.condicionIvaEmisor} onChange={(event) => update("condicionIvaEmisor", event.target.value as FacturacionConfiguracionPublica["condicionIvaEmisor"])}>
-                      <option value="MONOTRIBUTISTA">Monotributista</option>
-                      <option value="RESPONSABLE_INSCRIPTO">Responsable inscripto</option>
-                    </select>
-                  </Field>
-                  <Field label="Punto de venta exclusivo" required>
-                    <input required type="number" min={1} style={styles.input} value={config.puntoVenta} onChange={(event) => update("puntoVenta", Number(event.target.value))} />
-                  </Field>
-                  <Field label="Domicilio" required wide>
-                    <input required style={styles.input} value={config.domicilio} onChange={(event) => update("domicilio", event.target.value)} />
-                  </Field>
-                  <Field label="Ingresos Brutos">
-                    <input style={styles.input} value={config.ingresosBrutos ?? ""} onChange={(event) => update("ingresosBrutos", event.target.value || null)} />
-                  </Field>
-                  <Field label="Inicio de actividades" required>
-                    <input required type="date" style={styles.input} value={config.inicioActividades} onChange={(event) => update("inicioActividades", event.target.value)} />
-                  </Field>
-                  <Field label="Monto mínimo FCE MiPyME">
-                    <input type="number" min={0} step="0.01" style={styles.input} value={config.fceMontoMinimo ?? ""} onChange={(event) => update("fceMontoMinimo", event.target.value ? Number(event.target.value) : null)} placeholder="Dejar vacío si no está configurado" />
-                  </Field>
-                </div>
-
-                {ambiente === "PRODUCCION" ? (
-                  <div style={styles.productionWarning}>
-                    <TriangleAlert size={18} />
-                    Producción genera comprobantes fiscales reales. Verificá CUIT, punto de venta y credenciales antes de habilitarla.
+                <div style={styles.fiscalFields}>
+                  <div style={styles.fiscalRow}>
+                    <Field label="CUIT" required style={styles.fieldThird}>
+                      <input required inputMode="numeric" style={styles.input} value={config.cuit} onChange={(event) => update("cuit", event.target.value)} />
+                    </Field>
+                    <Field label="Razón social" required style={styles.fieldThird}>
+                      <input required style={styles.input} value={config.razonSocial} onChange={(event) => update("razonSocial", event.target.value)} />
+                    </Field>
+                    <Field label="Nombre de fantasía" style={styles.fieldThird}>
+                      <input style={styles.input} value={config.nombreFantasia ?? ""} onChange={(event) => update("nombreFantasia", event.target.value || null)} />
+                    </Field>
                   </div>
-                ) : null}
+                  <div style={styles.fiscalRow}>
+                    <Field label="Domicilio" required style={styles.fieldTwoThirds}>
+                      <input required style={styles.input} value={config.domicilio} onChange={(event) => update("domicilio", event.target.value)} />
+                    </Field>
+                    <Field label="Inicio de actividades" required style={styles.fieldThird}>
+                      <input required type="date" style={styles.input} value={config.inicioActividades} onChange={(event) => update("inicioActividades", event.target.value)} />
+                    </Field>
+                  </div>
+                  <div style={styles.fiscalRow}>
+                    <Field label="Condición frente al IVA" required style={styles.fieldThird}>
+                      <Dropdown
+                        options={[
+                          { value: "MONOTRIBUTISTA", label: "Monotributista" },
+                          { value: "RESPONSABLE_INSCRIPTO", label: "Responsable inscripto" },
+                        ]}
+                        value={config.condicionIvaEmisor}
+                        onChange={(value) => update("condicionIvaEmisor", value as FacturacionConfiguracionPublica["condicionIvaEmisor"])}
+                        style={styles.dropdown}
+                        dataTestId="facturacion-condicion-iva"
+                      />
+                    </Field>
+                    <Field label="N° de inscripción IIBB" style={styles.fieldThird}>
+                      <input style={styles.input} value={config.ingresosBrutos ?? ""} onChange={(event) => update("ingresosBrutos", event.target.value || null)} />
+                    </Field>
+                    <Field label="N° de punto de venta" required style={styles.fieldThird}>
+                      <input required type="number" min={1} style={styles.input} value={config.puntoVenta} onChange={(event) => update("puntoVenta", Number(event.target.value))} />
+                    </Field>
+                  </div>
+                </div>
 
                 <div style={styles.credentialsBox}>
                   <div style={styles.credentialsHeader}>
                     <div>
                       <strong>Certificado y clave privada</strong>
-                      <div style={styles.small}>Se guardan como un par versionado en un bucket privado de Supabase.</div>
+                      <div style={styles.small}>Se guarda el par de certificados encriptados en nuestras bases.</div>
                     </div>
                     <div style={config.credenciales.configuradas ? styles.readyBadge : styles.missingBadge}>
                       <ShieldCheck size={15} />
@@ -236,7 +215,7 @@ export default function ConfiguracionPage() {
 
                 <label style={styles.checkbox}>
                   <input type="checkbox" checked={config.habilitada} onChange={(event) => update("habilitada", event.target.checked)} />
-                  Habilitar emisión de {ambiente.toLowerCase()}
+                  Habilitar emisión
                 </label>
 
                 {error ? <div style={styles.error}>{error}</div> : null}
@@ -261,8 +240,8 @@ export default function ConfiguracionPage() {
   );
 }
 
-function Field({ label, children, required, wide }: { label: string; children: React.ReactNode; required?: boolean; wide?: boolean }) {
-  return <label style={{ ...styles.field, ...(wide ? styles.wide : {}) }}>{label}{required ? " *" : null}{children}</label>;
+function Field({ label, children, required, style }: { label: string; children: React.ReactNode; required?: boolean; style?: React.CSSProperties }) {
+  return <label style={{ ...styles.field, ...style }}>{label}{required ? " *" : null}{children}</label>;
 }
 
 function Metadata({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
@@ -282,17 +261,15 @@ const styles = {
   groupTitle: { fontSize: 22, margin: 0 },
   groupDescription: { color: COLOR.TEXT.SECONDARY, lineHeight: 1.5, margin: 0 },
   card: { width: "100%" },
-  sectionHeading: { display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 18, flexWrap: "wrap" as const },
-  headingIcon: { width: 40, height: 40, borderRadius: 10, background: COLOR.BACKGROUND.SUBTLE, display: "flex", alignItems: "center", justifyContent: "center", color: COLOR.ACCENT.PRIMARY },
-  title: { fontSize: 20, margin: "0 0 4px" },
-  help: { color: COLOR.TEXT.SECONDARY, lineHeight: 1.5, margin: 0, maxWidth: 650 },
-  environmentSelector: { marginLeft: "auto", display: "flex", flexDirection: "column" as const, gap: 4, color: COLOR.TEXT.SECONDARY, fontSize: 11, fontWeight: 700 },
-  compactInput: { height: 34, borderRadius: 8, border: `1px solid ${COLOR.BORDER.SUBTLE}`, padding: "0 9px", color: COLOR.TEXT.PRIMARY, background: COLOR.INPUT.PRIMARY.BACKGROUND },
   form: { display: "flex", flexDirection: "column" as const, gap: 16 },
+  fiscalFields: { display: "flex", flexDirection: "column" as const, gap: 14 },
+  fiscalRow: { display: "flex", gap: 14, flexWrap: "wrap" as const },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 },
   field: { display: "flex", flexDirection: "column" as const, gap: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13 },
-  wide: { gridColumn: "1 / -1" },
+  fieldThird: { flex: "1 1 220px", minWidth: 0 },
+  fieldTwoThirds: { flex: "2 1 440px", minWidth: 0 },
   input: { height: 42, borderRadius: 8, border: `1px solid ${COLOR.BORDER.SUBTLE}`, padding: "0 12px", color: COLOR.TEXT.PRIMARY, background: COLOR.INPUT.PRIMARY.BACKGROUND },
+  dropdown: { width: "100%", minHeight: 42 },
   fileInput: { minHeight: 42, borderRadius: 8, border: `1px solid ${COLOR.BORDER.SUBTLE}`, padding: 9, color: COLOR.TEXT.PRIMARY, background: COLOR.INPUT.PRIMARY.BACKGROUND },
   credentialsBox: { display: "flex", flexDirection: "column" as const, gap: 12, border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 10, padding: 14, background: COLOR.BACKGROUND.SUBTLE },
   credentialsHeader: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" as const },
@@ -303,7 +280,6 @@ const styles = {
   mono: { fontFamily: "monospace", fontSize: 11, overflowWrap: "anywhere" as const },
   small: { color: COLOR.TEXT.TERTIARY, fontSize: 13 },
   checkbox: { display: "flex", alignItems: "center", gap: 8, color: COLOR.TEXT.PRIMARY, fontSize: 14 },
-  productionWarning: { display: "flex", alignItems: "flex-start", gap: 9, borderRadius: 8, padding: 12, color: COLOR.SEMANTIC.WARNING, background: COLOR.BACKGROUND.SUBTLE, border: `1px solid ${COLOR.SEMANTIC.WARNING}` },
   actions: { display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" as const },
   error: { color: COLOR.ICON.DANGER, background: COLOR.BACKGROUND.DANGER_TINT, padding: 12, borderRadius: 8 },
   success: { color: COLOR.SEMANTIC.SUCCESS, background: COLOR.BACKGROUND.SUCCESS_TINT, padding: 12, borderRadius: 8 },

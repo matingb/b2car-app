@@ -4,6 +4,7 @@ import {
   issueVentaElectronica,
   parseFacturaIssueInput,
 } from "@/lib/facturacion/facturacionService";
+import { getFacturacionAmbiente } from "@/lib/facturacion/environment";
 import {
   facturacionErrorResponse,
   requireTenantActor,
@@ -11,13 +12,11 @@ import {
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const actor = await requireTenantActor();
     const { id } = await params;
-    const ambiente = new URL(request.url).searchParams.get("ambiente") === "PRODUCCION"
-      ? "PRODUCCION" : "HOMOLOGACION";
-    const result = await getVentaFacturaPreflight(actor, id, ambiente);
+    const result = await getVentaFacturaPreflight(actor, id, getFacturacionAmbiente());
     return Response.json({
       data: { ...result, canEmit: Boolean(result.preflight.puedeEmitir) },
       error: null,

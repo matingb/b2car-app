@@ -117,7 +117,6 @@ export type FacturacionConfiguracionPublica = {
   puntoVenta: number;
   habilitada: boolean;
   ambiente: FacturacionAmbiente;
-  fceMontoMinimo: number | null;
   credenciales: {
     configuradas: boolean;
     certificadoNombre: string | null;

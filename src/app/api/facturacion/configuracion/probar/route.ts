@@ -1,14 +1,13 @@
 import { FacturacionValidationError, testFacturacionConnection } from "@/lib/facturacion/facturacionService";
+import { getFacturacionAmbiente } from "@/lib/facturacion/environment";
 import { facturacionErrorResponse, requireTenantAdmin } from "@/lib/facturacion/serverAuth";
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     const actor = await requireTenantAdmin();
-    const body = await request.json().catch(() => null) as { ambiente?: string } | null;
-    const ambiente = body?.ambiente === "PRODUCCION" ? "PRODUCCION" : "HOMOLOGACION";
-    const result = await testFacturacionConnection(actor.tenantId, ambiente);
+    const result = await testFacturacionConnection(actor.tenantId, getFacturacionAmbiente());
     return Response.json({ data: result, error: null });
   } catch (error) {
     if (error instanceof FacturacionValidationError) {

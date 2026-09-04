@@ -3,16 +3,15 @@ import {
   saveFacturacionConfig,
   FacturacionValidationError,
 } from "@/lib/facturacion/facturacionService";
+import { getFacturacionAmbiente } from "@/lib/facturacion/environment";
 import { facturacionErrorResponse, requireTenantAdmin } from "@/lib/facturacion/serverAuth";
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const actor = await requireTenantAdmin();
-    const ambiente = new URL(request.url).searchParams.get("ambiente") === "PRODUCCION"
-      ? "PRODUCCION" : "HOMOLOGACION";
-    const config = await getFacturacionConfig(actor.tenantId, ambiente);
+    const config = await getFacturacionConfig(actor.tenantId, getFacturacionAmbiente());
     return Response.json({ data: config, error: null });
   } catch (error) {
     return facturacionErrorResponse(error);

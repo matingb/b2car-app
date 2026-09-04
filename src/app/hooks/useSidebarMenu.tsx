@@ -50,7 +50,6 @@ export function useSidebarMenu() {
 
   const [tenantName, setTenantName] = useState("B2Car");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [canManageFacturacion, setCanManageFacturacion] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -61,20 +60,6 @@ export function useSidebarMenu() {
     } catch {
       // ignore (e.g. blocked storage)
     }
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/facturacion/configuracion", { cache: "no-store" })
-      .then((response) => {
-        if (!cancelled) setCanManageFacturacion(response.ok);
-      })
-      .catch(() => {
-        if (!cancelled) setCanManageFacturacion(false);
-      });
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   const items: SidebarMenuItem[] = useMemo(() => {
@@ -161,15 +146,13 @@ export function useSidebarMenu() {
         icon: <ReceiptText size={18} />,
         onClick: () => router.push(ROUTES.facturacion),
       },
-      ...(canManageFacturacion
-        ? [{
-            key: SidebarMenuKey.Configuracion,
-            href: ROUTES.configuracion,
-            label: "Configuración",
-            icon: <Settings size={18} />,
-            onClick: () => router.push(ROUTES.configuracion),
-          }]
-        : []),
+      {
+        key: SidebarMenuKey.Configuracion,
+        href: ROUTES.configuracion,
+        label: "Configuración",
+        icon: <Settings size={18} />,
+        onClick: () => router.push(ROUTES.configuracion),
+      },
       {
         key: SidebarMenuKey.Logout,
         href: "",
@@ -180,7 +163,7 @@ export function useSidebarMenu() {
         isLoading: isLoggingOut,
       },
     ];
-  }, [canManageFacturacion, isLoggingOut, router]);
+  }, [isLoggingOut, router]);
 
   return { tenantName, items, isLoggingOut } as const;
 }

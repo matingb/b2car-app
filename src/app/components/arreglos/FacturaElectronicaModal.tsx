@@ -45,7 +45,6 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ambiente, setAmbiente] = useState<"HOMOLOGACION" | "PRODUCCION">("HOMOLOGACION");
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const endpoint = operacionId ? `/api/operaciones/${operacionId}/factura` : `/api/arreglos/${arregloId}/factura`;
 
@@ -56,7 +55,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
     setError(null);
     setPreflight(null);
     setFactura(null);
-    fetch(`${endpoint}?ambiente=${ambiente}`, { cache: "no-store" })
+    fetch(endpoint, { cache: "no-store" })
       .then(async (response) => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.error || "No se pudo preparar la factura electrónica");
@@ -76,7 +75,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
     return () => {
       cancelled = true;
     };
-  }, [ambiente, endpoint, open]);
+  }, [endpoint, open]);
 
   const canRetry = factura?.estado === "RECHAZADA";
   const canSubmit = Boolean(preflight && (preflight.puedeEmitir || canRetry) && factura?.estado !== "AUTORIZADA" && factura?.estado !== "INCIERTA");
@@ -105,7 +104,6 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           idempotencyKey,
-          ambiente,
           condicionVenta: "CONTADO",
           receptor: {
             tipoDocumento: Number(receptor.tipoDocumento),
@@ -159,12 +157,6 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
             <div><span style={styles.label}>Emisor</span><strong>{preflight.emisor?.razonSocial ?? "Configuración pendiente"}</strong><span>{preflight.emisor?.cuit ?? ""} · Punto de venta {preflight.emisor?.puntoVenta ?? "-"}</span></div>
             <div><span style={styles.label}>Comprobante</span><strong>Factura {voucherPreview?.clase ?? preflight.claseComprobante} (tipo {voucherPreview?.tipo ?? preflight.tipoComprobante})</strong><span>Concepto {preflight.concepto}: {preflight.concepto === 1 ? "productos" : preflight.concepto === 2 ? "servicios" : "productos y servicios"}</span></div>
           </section>
-          <label style={styles.field}>Ambiente de emisión
-            <select style={styles.input} value={ambiente} onChange={(event) => setAmbiente(event.target.value as "HOMOLOGACION" | "PRODUCCION")} disabled={submitting}>
-              <option value="HOMOLOGACION">Homologación</option>
-              <option value="PRODUCCION">Producción</option>
-            </select>
-          </label>
           <section style={styles.box}>
             <strong>Receptor</strong>
             <span style={styles.muted}>{preflight.receptor.nombre}</span>

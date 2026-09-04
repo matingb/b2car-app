@@ -20,6 +20,7 @@ import {
 } from "./arcaPayload";
 import { createArcaGateway, sanitizeFiscalPayload } from "./afipGateway";
 import { deleteCredentialPair, downloadCredentialPair, uploadCredentialPair } from "./credentialStorage";
+import { getFacturacionAmbiente, reachesFceMipymeLimit } from "./environment";
 import { generateFiscalInvoicePdf, type FiscalPdfInvoice } from "./fiscalPdf";
 import {
   CONDICIONES_IVA_RECEPTOR,
@@ -53,7 +54,6 @@ type StoredConfig = {
   inicioActividades: string;
   puntoVenta: number;
   habilitada: boolean;
-  fceMontoMinimo: number | null;
   certificatePath: string | null;
   privateKeyPath: string | null;
   certificateOriginalFilename: string | null;
@@ -173,7 +173,6 @@ function mapConfig(value: unknown): StoredConfig | null {
     inicioActividades: text(row.inicio_actividades),
     puntoVenta: number(row.punto_venta),
     habilitada: row.habilitada !== false && credentials && certificateValid,
-    fceMontoMinimo: row.fce_monto_minimo == null ? null : number(row.fce_monto_minimo),
     certificatePath,
     privateKeyPath,
     certificateOriginalFilename: nullable(row.cert_original_filename),
@@ -197,7 +196,6 @@ function publicConfig(config: StoredConfig): FacturacionConfiguracionPublica {
     puntoVenta: config.puntoVenta,
     habilitada: config.habilitada && configured,
     ambiente: config.ambiente,
-    fceMontoMinimo: config.fceMontoMinimo,
     credenciales: {
       configuradas: configured,
       certificadoNombre: config.certificateOriginalFilename,
@@ -222,9 +220,7 @@ export function validateConfigurationInput(value: unknown): FacturacionConfigura
     inicioActividades: text(row.inicioActividades),
     puntoVenta: number(row.puntoVenta),
     habilitada: row.habilitada !== false,
-    ambiente: parseAmbiente(row.ambiente),
-    fceMontoMinimo: row.fceMontoMinimo == null || row.fceMontoMinimo === ""
-      ? null : number(row.fceMontoMinimo),
+    ambiente: getFacturacionAmbiente(),
     credenciales: {
       configuradas: false, certificadoNombre: null, clavePrivadaNombre: null,
       fingerprintSha256: null, vencimiento: null, actualizadasAt: null,
@@ -239,15 +235,12 @@ export function validateConfigurationInput(value: unknown): FacturacionConfigura
   if (!Number.isInteger(config.puntoVenta) || config.puntoVenta <= 0) {
     throw new FacturacionValidationError("El punto de venta debe ser un entero positivo");
   }
-  if (config.fceMontoMinimo != null && config.fceMontoMinimo <= 0) {
-    throw new FacturacionValidationError("El monto mínimo FCE debe ser positivo");
-  }
   return config;
 }
 
 async function getStoredConfig(
   tenantId: string,
-  ambiente: FacturacionAmbiente = "HOMOLOGACION",
+  ambiente: FacturacionAmbiente = getFacturacionAmbiente(),
 ): Promise<StoredConfig | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -262,7 +255,7 @@ async function getStoredConfig(
 
 export async function getFacturacionConfig(
   tenantId: string,
-  ambiente: FacturacionAmbiente = "HOMOLOGACION",
+  ambiente: FacturacionAmbiente = getFacturacionAmbiente(),
 ): Promise<FacturacionConfiguracionPublica | null> {
   const config = await getStoredConfig(tenantId, ambiente);
   return config ? publicConfig(config) : null;
@@ -299,7 +292,6 @@ export async function saveFacturacionConfig(
       inicio_actividades: config.inicioActividades,
       punto_venta: config.puntoVenta,
       habilitada: config.habilitada && credentialsConfigured,
-      fce_monto_minimo: config.fceMontoMinimo,
       ...(uploaded ? {
         cert_storage_path: uploaded.certificatePath,
         key_storage_path: uploaded.privateKeyPath,
@@ -342,7 +334,7 @@ async function createGateway(config: StoredConfig) {
 
 export async function testFacturacionConnection(
   tenantId: string,
-  ambiente: FacturacionAmbiente = "HOMOLOGACION",
+  ambiente: FacturacionAmbiente = getFacturacionAmbiente(),
 ) {
   const config = await getStoredConfig(tenantId, ambiente);
   if (!config) throw new FacturacionValidationError("La configuración fiscal está incompleta");
@@ -575,7 +567,7 @@ export async function getDocumentoPreflight(
   actor: TenantActor,
   origenTipo: FacturaOrigenTipo,
   origenId: string,
-  ambiente: FacturacionAmbiente = "HOMOLOGACION",
+  ambiente: FacturacionAmbiente = getFacturacionAmbiente(),
 ): Promise<{ factura: FacturaElectronicaResumen | null; preflight: FacturacionPreflight }> {
   const [config, source, existing] = await Promise.all([
     getStoredConfig(actor.tenantId, ambiente),
@@ -599,10 +591,9 @@ export async function getDocumentoPreflight(
   }
   const voucher = determineVoucher(config?.condicionIvaEmisor ?? "MONOTRIBUTISTA", source.receptor.condicionIvaReceptorId ?? 5);
   const factura = existing ? mapSummary(existing) : null;
-  const fceBloqueada = Boolean(source.receptor.fceMipymeAlcanzado
-    && (!config?.fceMontoMinimo || source.total >= config.fceMontoMinimo));
+  const fceBloqueada = reachesFceMipymeLimit(source.total);
   if (!mensaje && (!config || !config.habilitada)) mensaje = `Falta configurar o habilitar ${ambiente.toLowerCase()}`;
-  if (!mensaje && fceBloqueada) mensaje = "El receptor requiere FCE MiPyME, todavía no soportada";
+  if (!mensaje && fceBloqueada) mensaje = "El importe alcanza el límite FCE MiPyME configurado para la emisión común";
   if (!mensaje && factura?.estado === "AUTORIZADA") mensaje = "El origen ya posee una factura autorizada";
   if (!mensaje && (factura?.estado === "ENVIANDO" || factura?.estado === "INCIERTA")) mensaje = "Existe una emisión pendiente de reconciliación";
   return {
@@ -642,7 +633,7 @@ export function parseFacturaIssueInput(value: unknown): FacturaIssueInput {
   }
   return {
     idempotencyKey: assertUuid(row.idempotencyKey, "La clave de idempotencia"),
-    ambiente: parseAmbiente(row.ambiente),
+    ambiente: getFacturacionAmbiente(),
     condicionVenta,
     receptor: {
       tipoDocumento: parseDocumento(receiver.tipoDocumento),
@@ -773,6 +764,9 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
   const concept = deriveFacturaConcepto(input.lines);
   const dates = validateFechas(concept, input.dates);
   const fiscal = fiscalizeLineas(input.lines, input.config.condicionIvaEmisor);
+  if (reachesFceMipymeLimit(fiscal.totales.total)) {
+    throw new FacturacionValidationError("El importe alcanza el límite FCE MiPyME configurado para la emisión común");
+  }
   const voucher = determineVoucher(input.config.condicionIvaEmisor, input.receiver.condicionIvaReceptorId, input.documentType);
   const token = randomUUID();
   if (!(await lease(input.config, voucher.tipo, token, true))) {
@@ -912,9 +906,6 @@ async function issueSourceFactura(
   const document = validateDocument(receiver.tipoDocumento, receiver.numeroDocumento);
   if (document.tipoDocumento === 99 && source.total >= await identificationThreshold(input.fechas.fechaComprobante)) {
     throw new FacturacionValidationError("Por el monto del comprobante debe identificar al consumidor final");
-  }
-  if (receiver.fceMipymeAlcanzado && (!config.fceMontoMinimo || source.total >= config.fceMontoMinimo)) {
-    throw new FacturacionValidationError("El receptor requiere Factura de Crédito Electrónica MiPyME");
   }
   const supabase = await createClient();
   const { data: idempotent } = await supabase.from("facturas_electronicas").select("*")
