@@ -35,6 +35,7 @@ function mockSupabase(rpc: ReturnType<typeof vi.fn>) {
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
           maybeSingle: vi.fn().mockResolvedValue({ data: arreglo, error: null }),
+          single: vi.fn().mockResolvedValue({ data: arreglo, error: null }),
         })),
       })),
     })),
@@ -257,6 +258,10 @@ describe("/api/arreglos/[id]/cobro", () => {
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
             maybeSingle: vi.fn().mockResolvedValue({
+              data: { ...arreglo, estado: "PRESUPUESTO" },
+              error: null,
+            }),
+            single: vi.fn().mockResolvedValue({
               data: { ...arreglo, estado: "PRESUPUESTO" },
               error: null,
             }),

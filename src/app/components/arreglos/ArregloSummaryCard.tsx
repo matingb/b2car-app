@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Calendar,
@@ -32,7 +32,7 @@ import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider"
 import type { EstadoArreglo } from "@/model/types";
 import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 import { useArregloPrintableInvoice } from "@/app/components/arreglos/hooks/useArregloPrintableInvoice";
-import { useWhatsAppMessage } from "@/app/hooks/useWhatsAppMessage";
+import ArregloWhatsAppModal from "@/app/components/arreglos/ArregloWhatsAppModal";
 import CategoriaChip from "@/app/components/arreglos/lineas/shared/CategoriaChip";
 import { getArregloDeleteConfirmationMessage } from "@/app/components/arreglos/arregloDeleteConfirmation";
 import { css } from "@emotion/react";
@@ -55,7 +55,7 @@ export default function ArregloSummaryCard({
   const { confirm } = useModalMessage();
   const { success, error } = useToast();
   const { handleOpenPrintableInvoice } = useArregloPrintableInvoice();
-  const { shareArreglo } = useWhatsAppMessage();
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
 
   const { categorias } = useCategoriasArreglo();
   const arreglo = data.arreglo;
@@ -82,7 +82,7 @@ export default function ArregloSummaryCard({
   };
 
   const handleWhatsApp = () => {
-    shareArreglo(data);
+    setIsWhatsAppModalOpen(true);
   };
 
   const handleNavigateToVehiculo = () => {
@@ -176,9 +176,9 @@ export default function ArregloSummaryCard({
                 saldoPendiente={
                   arreglo.saldo_pendiente != null
                     ? arreglo.saldo_pendiente
-                    : Math.max(0, (arreglo.precio_final || 0) - (arreglo.total_cobrado || 0))
+                    : Math.max(0, (totalCalculado || arreglo.precio_final || 0) - (arreglo.total_cobrado || 0))
                 }
-                precioFinal={arreglo.precio_final}
+                precioFinal={totalCalculado || arreglo.precio_final}
                 arregloId={arreglo.id}
                 onPagoUpdated={onArregloChange}
                 size="md"
@@ -328,6 +328,11 @@ export default function ArregloSummaryCard({
           )}
         </div>
       </Card>
+      <ArregloWhatsAppModal
+        open={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+        data={data}
+      />
     </section>
   );
 }

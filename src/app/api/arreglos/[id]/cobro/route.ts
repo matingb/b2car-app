@@ -7,6 +7,9 @@ import { isValidDate, toISODateTimeWithCurrentTime } from "@/lib/fechas";
 import { logger } from "@/lib/logger";
 
 
+import { arregloService } from "../../arregloService";
+import { ServiceError } from "@/app/api/serviceError";
+
 type CobroRequest = {
   cuenta_financiera_id?: unknown;
   fecha_cobro?: unknown;
@@ -25,10 +28,15 @@ async function fetchArreglo(
   supabase: Awaited<ReturnType<typeof createClient>>,
   id: string,
 ): Promise<{ data: Arreglo | null; error: string | null }> {
-  const { data, error } = await supabase.from("arreglos").select("*").eq("id", id).maybeSingle();
-  if (error) return { data: null, error: "No se pudo recuperar el arreglo" };
+  const { data, error } = await arregloService.getByIdWithVehiculo(supabase, id);
+  if (error) {
+    return {
+      data: null,
+      error: error === ServiceError.NotFound ? "Arreglo no encontrado" : "No se pudo recuperar el arreglo",
+    };
+  }
   if (!data) return { data: null, error: "Arreglo no encontrado" };
-  return { data: data as Arreglo, error: null };
+  return { data, error: null };
 }
 
 export async function POST(
