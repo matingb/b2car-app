@@ -52,7 +52,7 @@ export function normalizeArregloObservaciones(observaciones: string, isEdit: boo
 }
 
 export default function ArregloModal({ open, onClose, vehiculoId, initial, onSubmitSuccess }: Props) {
-  const { vehiculos, fetchAll: fetchVehiculos, fetchCliente } = useVehiculos();
+  const { vehiculos, fetchAll: fetchVehiculos } = useVehiculos();
   const { create, update, fetchById } = useArreglos();
   const { loading: isLoadingCuentas, createCuenta } = useCuentasFinancieras();
   const { tallerSeleccionadoId } = useTenant();

@@ -1,4 +1,4 @@
-import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { COLOR } from "@/theme/theme";
 
 export const styles = {
   modalOverride: {

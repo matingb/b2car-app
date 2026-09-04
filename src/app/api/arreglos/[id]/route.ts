@@ -37,7 +37,7 @@ export async function GET(
   const { data, error } = await arregloCompletoService.getArregloDetalleCompleto(supabase, id);
 
   if (error) {
-    const status = error === ServiceError.NotFound ? 404 : error === ServiceError.Unauthorized ? 401 : 500;
+    const status = error === ServiceError.NotFound ? 404 : 500;
     const message = error === ServiceError.NotFound ? "Arreglo no encontrado" : "Error cargando arreglo";
     return Response.json({ data: null, error: message }, { status });
   }

@@ -307,7 +307,7 @@ describe("ArregloWhatsAppModal", () => {
   });
 
   it("aplica los formatos de whatsapp como negrita y cursiva en la burbuja de previsualización", async () => {
-    const { container } = render(
+    render(
       <ArregloWhatsAppModal
         open
         onClose={vi.fn()}

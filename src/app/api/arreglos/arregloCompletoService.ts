@@ -136,8 +136,6 @@ export const arregloCompletoService = {
           formulario_id:
             detalleFormularioRaw.formulario_id != null
               ? String(detalleFormularioRaw.formulario_id)
-              : detalleFormularioRaw.config_id != null
-              ? String(detalleFormularioRaw.config_id)
               : null,
           costo: Number(detalleFormularioRaw.costo) || 0,
           metadata: Array.isArray(detalleFormularioRaw.metadata)

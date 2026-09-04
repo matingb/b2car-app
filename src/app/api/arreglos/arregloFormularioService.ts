@@ -44,8 +44,6 @@ export const arregloFormularioService = {
         formulario_id:
           row.formulario_id != null
             ? String(row.formulario_id)
-            : row.config_id != null
-            ? String(row.config_id)
             : null,
         costo: Number(row.costo) || 0,
         metadata: Array.isArray(row.metadata)
