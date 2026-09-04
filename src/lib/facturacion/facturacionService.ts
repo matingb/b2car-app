@@ -1,7 +1,8 @@
 import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";
-import { createAdminClient } from "@/supabase/admin";
+import { createClient } from "@/supabase/server";
+
 import {
   amountToCents,
   buildComprobantePayload,
@@ -248,7 +249,8 @@ async function getStoredConfig(
   tenantId: string,
   ambiente: FacturacionAmbiente = "HOMOLOGACION",
 ): Promise<StoredConfig | null> {
-  const { data, error } = await createAdminClient()
+  const supabase = await createClient();
+  const { data, error } = await supabase
     .from("facturacion_configuracion_ambiente")
     .select("*")
     .eq("tenant_id", tenantId)
@@ -277,13 +279,13 @@ export async function saveFacturacionConfig(
   if (Boolean(certificate) !== Boolean(privateKey)) {
     throw new FacturacionValidationError("Debe seleccionar certificado y clave privada juntos");
   }
-  const admin = createAdminClient();
+  const supabase = await createClient();
   const previous = await getStoredConfig(tenantId, config.ambiente);
   const uploaded = certificate && privateKey
     ? await uploadCredentialPair(tenantId, certificate, privateKey, config.ambiente)
     : null;
   const credentialsConfigured = Boolean(uploaded || (previous?.certificatePath && previous.privateKeyPath));
-  const { data, error } = await admin
+  const { data, error } = await supabase
     .from("facturacion_configuracion_ambiente")
     .upsert({
       tenant_id: tenantId,
@@ -360,8 +362,8 @@ async function getClientProfile(tenantId: string, clienteId: string | null): Pro
       fceMipymeAlcanzado: false,
     };
   }
-  const admin = createAdminClient();
-  const { data, error } = await admin
+  const supabase = await createClient();
+  const { data, error } = await supabase
     .from("clientes")
     .select("id, tipo_cliente, tipo_documento_fiscal, numero_documento_fiscal, condicion_iva_receptor_id, fce_mipyme_alcanzado")
     .eq("id", clienteId)
@@ -371,8 +373,8 @@ async function getClientProfile(tenantId: string, clienteId: string | null): Pro
   const client = record(data);
   const company = text(client.tipo_cliente) === "empresa";
   const { data: identity } = company
-    ? await admin.from("empresas").select("nombre, direccion").eq("id", clienteId).maybeSingle()
-    : await admin.from("particulares").select("nombre, apellido, direccion").eq("id", clienteId).maybeSingle();
+    ? await supabase.from("empresas").select("nombre, direccion").eq("id", clienteId).maybeSingle()
+    : await supabase.from("particulares").select("nombre, apellido, direccion").eq("id", clienteId).maybeSingle();
   const profile = record(identity);
   return {
     clienteId,
@@ -405,8 +407,8 @@ async function resolveStockLines(
   origen: "REPUESTO" | "VENTA",
 ): Promise<FacturaLinea[]> {
   if (!operationIds.length) return [];
-  const admin = createAdminClient();
-  const { data: rows, error } = await admin
+  const supabase = await createClient();
+  const { data: rows, error } = await supabase
     .from("operaciones_lineas")
     .select("id, operacion_id, stock_id, cantidad, monto_unitario, iva_alicuota_id, created_at")
     .in("operacion_id", operationIds)
@@ -415,7 +417,7 @@ async function resolveStockLines(
   const stockIds = (rows ?? []).map((row) => text(record(row).stock_id)).filter(Boolean);
   const stockMap = new Map<string, DbRecord>();
   if (stockIds.length) {
-    const { data: stocks, error: stockError } = await admin
+    const { data: stocks, error: stockError } = await supabase
       .from("stocks").select("id, producto_id").in("id", stockIds).eq("tenant_id", tenantId);
     if (stockError) throw new Error("No se pudo resolver el stock");
     (stocks ?? []).forEach((item) => stockMap.set(text(record(item).id), record(item)));
@@ -423,7 +425,7 @@ async function resolveStockLines(
   const productIds = Array.from(stockMap.values()).map((row) => text(row.producto_id)).filter(Boolean);
   const products = new Map<string, DbRecord>();
   if (productIds.length) {
-    const { data, error: productError } = await admin
+    const { data, error: productError } = await supabase
       .from("productos").select("id, codigo, nombre, iva_alicuota_id")
       .in("id", productIds).eq("tenant_id", tenantId);
     if (productError) throw new Error("No se pudieron resolver los productos");
@@ -449,21 +451,21 @@ async function resolveStockLines(
 }
 
 async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise<CanonicalSource> {
-  const admin = createAdminClient();
-  const { data, error } = await admin
+  const supabase = await createClient();
+  const { data, error } = await supabase
     .from("arreglos").select("id, vehiculo_id, fecha, precio_final")
     .eq("id", arregloId).eq("tenant_id", tenantId).maybeSingle();
   if (error || !data) throw new FacturacionValidationError("Arreglo no encontrado");
   const repair = record(data);
-  const { data: vehicle } = await admin.from("vehiculos").select("cliente_id").eq("id", text(repair.vehiculo_id)).maybeSingle();
+  const { data: vehicle } = await supabase.from("vehiculos").select("cliente_id").eq("id", text(repair.vehiculo_id)).maybeSingle();
   const clienteId = nullable(record(vehicle).cliente_id);
   if (!clienteId) throw new FacturacionValidationError("El vehículo no tiene un cliente asociado");
   const [{ data: services, error: serviceError }, { data: forms, error: formError }, assignments] = await Promise.all([
-    admin.from("detalle_arreglo").select("id, descripcion, cantidad, valor, iva_alicuota_id, created_at")
+    supabase.from("detalle_arreglo").select("id, descripcion, cantidad, valor, iva_alicuota_id, created_at")
       .eq("arreglo_id", arregloId).eq("tenant_id", tenantId).order("created_at"),
-    admin.from("detalle_form_custom").select("id, costo, metadata, config_id, created_at")
+    supabase.from("detalle_form_custom").select("id, costo, metadata, config_id, created_at")
       .eq("arreglo_id", arregloId).eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(1),
-    admin.from("operaciones_asignacion_arreglo").select("operacion_id").eq("arreglo_id", arregloId),
+    supabase.from("operaciones_asignacion_arreglo").select("operacion_id").eq("arreglo_id", arregloId),
   ]);
   if (serviceError || formError || assignments.error) throw new Error("No se pudo cargar el detalle del arreglo");
   const lineas: FacturaLinea[] = [];
@@ -484,7 +486,7 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise
   }
   const assignedIds = (assignments.data ?? []).map((row) => text(record(row).operacion_id)).filter(Boolean);
   if (assignedIds.length) {
-    const { data: validOperations, error: operationError } = await admin
+    const { data: validOperations, error: operationError } = await supabase
       .from("operaciones").select("id").in("id", assignedIds).eq("tenant_id", tenantId).eq("tipo", "ASIGNACION_ARREGLO");
     if (operationError) throw new Error("No se pudieron validar las asignaciones");
     const repuestos = await resolveStockLines(tenantId, (validOperations ?? []).map((row) => text(record(row).id)), "REPUESTO");
@@ -497,8 +499,8 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise
 }
 
 async function getCanonicalVenta(tenantId: string, operationId: string): Promise<CanonicalSource> {
-  const admin = createAdminClient();
-  const { data, error } = await admin
+  const supabase = await createClient();
+  const { data, error } = await supabase
     .from("operaciones").select("id, tipo, fecha, cliente_id")
     .eq("id", operationId).eq("tenant_id", tenantId).maybeSingle();
   if (error || !data) throw new FacturacionValidationError("Venta no encontrada");
@@ -559,8 +561,8 @@ async function latestSourceInvoice(
   tenantId: string, tipo: FacturaOrigenTipo, id: string,
   ambiente: FacturacionAmbiente, documentoTipo: DocumentoFiscalClase = "FACTURA",
 ) {
-  const admin = createAdminClient();
-  let query = admin.from("facturas_electronicas").select("*")
+  const supabase = await createClient();
+  let query = supabase.from("facturas_electronicas").select("*")
     .eq("tenant_id", tenantId).eq("ambiente", ambiente).eq("documento_tipo", documentoTipo)
     .order("created_at", { ascending: false }).limit(1);
   query = tipo === "ARREGLO" ? query.eq("arreglo_id", id) : query.eq("operacion_id", id);
@@ -606,8 +608,7 @@ export async function getDocumentoPreflight(
   return {
     factura,
     preflight: {
-      puedeEmitir: actor.role === "admin" && actor.claimedRole === "admin"
-        && Boolean(config?.habilitada) && !diferenciasTotal
+      puedeEmitir: Boolean(config?.habilitada) && !diferenciasTotal
         && !fceBloqueada && (!factura || factura.estado === "RECHAZADA"),
       configuracionCompleta: Boolean(config?.habilitada), origenListo: !diferenciasTotal,
       diferenciasTotal, fceBloqueada, mensaje,
@@ -681,20 +682,21 @@ async function saveFiscalProfile(tenantId: string, receiver: PerfilFiscalCliente
   if (!receiver.clienteId) return;
   const document = validateDocument(receiver.tipoDocumento, receiver.numeroDocumento);
   if (!receiver.condicionIvaReceptorId) throw new FacturacionValidationError("La condición IVA es obligatoria");
-  const admin = createAdminClient();
-  const { error } = await admin.from("clientes").update({
+  const supabase = await createClient();
+  const { error } = await supabase.from("clientes").update({
     tipo_documento_fiscal: document.tipoDocumento === 99 ? null : document.tipoDocumento,
     numero_documento_fiscal: document.tipoDocumento === 99 ? null : document.numeroDocumento,
     condicion_iva_receptor_id: receiver.condicionIvaReceptorId,
   }).eq("id", receiver.clienteId).eq("tenant_id", tenantId);
   if (error) throw new Error("No se pudo guardar el perfil fiscal del cliente");
   if (document.tipoDocumento === 80) {
-    await admin.from("empresas").update({ cuit: document.numeroDocumento }).eq("id", receiver.clienteId);
+    await supabase.from("empresas").update({ cuit: document.numeroDocumento }).eq("id", receiver.clienteId);
   }
 }
 
 async function identificationThreshold(date: string): Promise<number> {
-  const { data, error } = await createAdminClient()
+  const supabase = await createClient();
+  const { data, error } = await supabase
     .from("facturacion_parametros_normativos")
     .select("valor_numerico")
     .eq("clave", "CONSUMIDOR_FINAL_IDENTIFICACION")
@@ -740,9 +742,9 @@ function errorDetails(error: unknown) {
 }
 
 async function lease(config: StoredConfig, tipo: number, token: string, acquire: boolean) {
-  const admin = createAdminClient();
+  const supabase = await createClient();
   const functionName = acquire ? "rpc_facturacion_adquirir_lease" : "rpc_facturacion_liberar_lease";
-  const { data, error } = await admin.rpc(functionName, {
+  const { data, error } = await supabase.rpc(functionName, {
     p_emisor_cuit: config.cuit, p_punto_venta: config.puntoVenta,
     p_tipo_comprobante: tipo, p_lease_token: token, ...(acquire ? { p_segundos: 120 } : {}),
   });
@@ -765,7 +767,7 @@ type EmitDocumentInput = {
 };
 
 async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResult> {
-  const admin = createAdminClient();
+  const supabase = await createClient();
   validateDocument(input.receiver.tipoDocumento, input.receiver.numeroDocumento);
   if (!input.receiver.condicionIvaReceptorId) throw new FacturacionValidationError("La condición IVA es obligatoria");
   const concept = deriveFacturaConcepto(input.lines);
@@ -836,14 +838,14 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
       importe_iva: line.importeIva, importe_total: line.importeTotal,
       snapshot: line.snapshot ?? {},
     }));
-    const { data: invoiceId, error: prepareError } = await admin.rpc("rpc_facturacion_preparar_documento", {
+    const { data: invoiceId, error: prepareError } = await supabase.rpc("rpc_facturacion_preparar_documento", {
       p_encabezado: header, p_lineas: dbLines,
       p_factura_id: input.retry ? text(input.retry.id) : null,
     });
     if (prepareError || !invoiceId) throw new Error("No se pudo preparar el documento fiscal");
-    const { count } = await admin.from("facturacion_emision_intentos")
+    const { count } = await supabase.from("facturacion_emision_intentos")
       .select("id", { count: "exact", head: true }).eq("factura_id", invoiceId);
-    const { data: attempt, error: attemptError } = await admin.from("facturacion_emision_intentos")
+    const { data: attempt, error: attemptError } = await supabase.from("facturacion_emision_intentos")
       .insert({
         factura_id: invoiceId, numero_intento: (count ?? 0) + 1, estado: "ENVIADO",
         candidato: { numero: candidateNumber, ...payload }, request_sanitizado: sanitizeFiscalPayload(payload),
@@ -856,12 +858,12 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
       if (!cae || !/^\d{14}$/.test(cae) || !expiration || !isIsoDate(expiration)) {
         throw new Error("ARCA no devolvió un CAE válido y el comprobante debe reconciliarse");
       }
-      const { data, error } = await admin.from("facturas_electronicas").update({
+      const { data, error } = await supabase.from("facturas_electronicas").update({
         estado: "AUTORIZADA", cae, cae_vencimiento: expiration,
         autorizada_at: new Date().toISOString(), error_codigo: null, error_mensaje: null,
       }).eq("id", invoiceId).select("*").single();
       if (error || !data) throw new Error("ARCA autorizó el documento pero no se pudo persistir");
-      await admin.from("facturacion_emision_intentos").update({
+      await supabase.from("facturacion_emision_intentos").update({
         estado: "AUTORIZADO", response_sanitizada: sanitizeFiscalPayload(response),
         completed_at: new Date().toISOString(),
       }).eq("id", record(attempt).id);
@@ -879,11 +881,11 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
       }
       const detail = errorDetails(cause);
       const state = detail.rejected ? "RECHAZADA" : "INCIERTA";
-      const { data, error } = await admin.from("facturas_electronicas").update({
+      const { data, error } = await supabase.from("facturas_electronicas").update({
         estado: state, error_codigo: detail.code, error_mensaje: detail.message,
       }).eq("id", invoiceId).select("*").single();
       if (error || !data) throw new Error("No se pudo persistir el resultado fiscal");
-      await admin.from("facturacion_emision_intentos").update({
+      await supabase.from("facturacion_emision_intentos").update({
         estado: state === "RECHAZADA" ? "RECHAZADO" : "INCIERTO",
         response_sanitizada: sanitizeFiscalPayload(record(cause).response),
         error_codigo: detail.code, error_mensaje: detail.message, completed_at: new Date().toISOString(),
@@ -914,8 +916,8 @@ async function issueSourceFactura(
   if (receiver.fceMipymeAlcanzado && (!config.fceMontoMinimo || source.total >= config.fceMontoMinimo)) {
     throw new FacturacionValidationError("El receptor requiere Factura de Crédito Electrónica MiPyME");
   }
-  const admin = createAdminClient();
-  const { data: idempotent } = await admin.from("facturas_electronicas").select("*")
+  const supabase = await createClient();
+  const { data: idempotent } = await supabase.from("facturas_electronicas").select("*")
     .eq("tenant_id", actor.tenantId).eq("idempotency_key", input.idempotencyKey).maybeSingle();
   if (idempotent) {
     const summary = mapSummary(idempotent);
@@ -946,8 +948,8 @@ export function issueVentaElectronica(actor: TenantActor, id: string, input: Fac
 }
 
 export async function reconcileFactura(actor: TenantActor, facturaId: string): Promise<FacturaElectronicaResumen> {
-  const admin = createAdminClient();
-  const { data, error } = await admin.from("facturas_electronicas").select("*")
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("facturas_electronicas").select("*")
     .eq("id", facturaId).eq("tenant_id", actor.tenantId).maybeSingle();
   if (error || !data) throw new FacturacionValidationError("Documento fiscal no encontrado");
   const invoice = record(data);
@@ -972,15 +974,15 @@ export async function reconcileFactura(actor: TenantActor, facturaId: string): P
   if (!cae || !/^\d{14}$/.test(cae) || !expiration || !isIsoDate(expiration)) {
     throw new FacturacionValidationError("ARCA devolvió el comprobante sin un CAE vigente válido");
   }
-  const { data: updated, error: updateError } = await admin.from("facturas_electronicas").update({
+  const { data: updated, error: updateError } = await supabase.from("facturas_electronicas").update({
     estado: "AUTORIZADA", cae,
     cae_vencimiento: expiration,
     autorizada_at: new Date().toISOString(), error_codigo: null, error_mensaje: null,
   }).eq("id", facturaId).select("*").single();
   if (updateError || !updated) throw new Error("No se pudo reconciliar el documento localmente");
-  const { count } = await admin.from("facturacion_emision_intentos")
+  const { count } = await supabase.from("facturacion_emision_intentos")
     .select("id", { count: "exact", head: true }).eq("factura_id", facturaId);
-  await admin.from("facturacion_emision_intentos").insert({
+  await supabase.from("facturacion_emision_intentos").insert({
     factura_id: facturaId, numero_intento: (count ?? 0) + 1, estado: "AUTORIZADO",
     candidato: { ...candidate, reconciliacion: true }, response_sanitizada: sanitizeFiscalPayload(info),
     completed_at: new Date().toISOString(),
@@ -1026,15 +1028,15 @@ export async function issueNotaFiscal(
   facturaId: string,
   input: ReturnType<typeof parseNotaInput>,
 ): Promise<FacturaIssueResult> {
-  const admin = createAdminClient();
-  const { data, error } = await admin.from("facturas_electronicas").select("*")
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("facturas_electronicas").select("*")
     .eq("id", facturaId).eq("tenant_id", actor.tenantId).maybeSingle();
   if (error || !data) throw new FacturacionValidationError("Factura original no encontrada");
   const original = record(data);
   if (text(original.estado) !== "AUTORIZADA" || text(original.documento_tipo) !== "FACTURA") {
     throw new FacturacionValidationError("La nota debe asociarse a una factura autorizada");
   }
-  const { data: idempotent, error: idempotencyError } = await admin.from("facturas_electronicas")
+  const { data: idempotent, error: idempotencyError } = await supabase.from("facturas_electronicas")
     .select("*").eq("tenant_id", actor.tenantId).eq("idempotency_key", input.idempotencyKey).maybeSingle();
   if (idempotencyError) throw new Error("No se pudo verificar la idempotencia de la nota");
   let retry: DbRecord | null = null;
@@ -1053,7 +1055,7 @@ export async function issueNotaFiscal(
     }
     retry = previous;
   }
-  const { data: adjustments } = await admin.from("facturas_electronicas")
+  const { data: adjustments } = await supabase.from("facturas_electronicas")
     .select("documento_tipo,total").eq("documento_asociado_id", facturaId)
     .eq("tenant_id", actor.tenantId).eq("estado", "AUTORIZADA");
   const credit = (adjustments ?? []).filter((row) => text(record(row).documento_tipo) === "NOTA_CREDITO")
@@ -1069,7 +1071,7 @@ export async function issueNotaFiscal(
   if (normalizeDocumentNumber(originalEmitter.cuit as string) !== config.cuit) {
     throw new FacturacionValidationError("El CUIT configurado ya no coincide con el emisor de la factura original");
   }
-  const { data: rawLines, error: lineError } = await admin.from("facturas_electronicas_lineas")
+  const { data: rawLines, error: lineError } = await supabase.from("facturas_electronicas_lineas")
     .select("*").eq("factura_id", facturaId).order("ordinal");
   if (lineError || !rawLines?.length) throw new Error("No se pudo cargar el detalle de la factura original");
   const originalLines = rawLines.map(mapLine);
@@ -1140,8 +1142,8 @@ export async function listFacturas(tenantId: string, filters: FacturasListFilter
     throw new FacturacionValidationError("La fecha desde no puede ser posterior a la fecha hasta");
   }
   const from = (page - 1) * pageSize;
-  const admin = createAdminClient();
-  let query = admin.from("facturas_electronicas").select("*", { count: "exact" })
+  const supabase = await createClient();
+  let query = supabase.from("facturas_electronicas").select("*", { count: "exact" })
     .eq("tenant_id", tenantId).order("fecha_comprobante", { ascending: false })
     .order("created_at", { ascending: false }).range(from, from + pageSize - 1);
   if (filters.estado) query = query.eq("estado", filters.estado);
@@ -1160,19 +1162,19 @@ export async function listFacturas(tenantId: string, filters: FacturasListFilter
 }
 
 export async function getFacturaDetalle(tenantId: string, facturaId: string): Promise<FacturaElectronicaDetalle> {
-  const admin = createAdminClient();
-  const { data, error } = await admin.from("facturas_electronicas").select("*")
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("facturas_electronicas").select("*")
     .eq("id", facturaId).eq("tenant_id", tenantId).maybeSingle();
   if (error || !data) throw new FacturacionValidationError("Documento fiscal no encontrado");
   const invoice = record(data);
   const [lines, attempts, associated, adjustments] = await Promise.all([
-    admin.from("facturas_electronicas_lineas").select("*").eq("factura_id", facturaId).order("ordinal"),
-    admin.from("facturacion_emision_intentos").select("*").eq("factura_id", facturaId).order("numero_intento"),
+    supabase.from("facturas_electronicas_lineas").select("*").eq("factura_id", facturaId).order("ordinal"),
+    supabase.from("facturacion_emision_intentos").select("*").eq("factura_id", facturaId).order("numero_intento"),
     invoice.documento_asociado_id
-      ? admin.from("facturas_electronicas").select("*")
+      ? supabase.from("facturas_electronicas").select("*")
         .eq("id", invoice.documento_asociado_id).eq("tenant_id", tenantId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
-    admin.from("facturas_electronicas").select("*")
+    supabase.from("facturas_electronicas").select("*")
       .eq("documento_asociado_id", facturaId).eq("tenant_id", tenantId).order("created_at"),
   ]);
   if (lines.error || attempts.error || associated.error || adjustments.error) {
@@ -1234,14 +1236,14 @@ const PDF_TEMPLATE_VERSION = "fiscal-v2";
 const PDF_BUCKET = "facturacion-comprobantes";
 
 export async function buildFacturaPdf(tenantId: string, facturaId: string): Promise<{ bytes: Uint8Array; filename: string }> {
-  const admin = createAdminClient();
+  const supabase = await createClient();
   const detail = await getFacturaDetalle(tenantId, facturaId);
   if (detail.estado !== "AUTORIZADA") throw new FacturacionValidationError("El PDF sólo está disponible para documentos autorizados");
-  const { data: invoice } = await admin.from("facturas_electronicas")
+  const { data: invoice } = await supabase.from("facturas_electronicas")
     .select("pdf_storage_path").eq("id", facturaId).eq("tenant_id", tenantId).single();
   const storedPath = nullable(record(invoice).pdf_storage_path);
   if (storedPath) {
-    const downloaded = await admin.storage.from(PDF_BUCKET).download(storedPath);
+    const downloaded = await supabase.storage.from(PDF_BUCKET).download(storedPath);
     if (!downloaded.error && downloaded.data) {
       return { bytes: new Uint8Array(await downloaded.data.arrayBuffer()), filename: pdfFilename(detail) };
     }
@@ -1263,9 +1265,9 @@ export async function buildFacturaPdf(tenantId: string, facturaId: string): Prom
   };
   const bytes = await generateFiscalInvoicePdf(fiscal);
   const path = `${tenantId}/${detail.ambiente.toLowerCase()}/${detail.id}/${PDF_TEMPLATE_VERSION}.pdf`;
-  const uploaded = await admin.storage.from(PDF_BUCKET).upload(path, bytes, { contentType: "application/pdf", upsert: true });
+  const uploaded = await supabase.storage.from(PDF_BUCKET).upload(path, bytes, { contentType: "application/pdf", upsert: true });
   if (!uploaded.error) {
-    await admin.from("facturas_electronicas").update({
+    await supabase.from("facturas_electronicas").update({
       pdf_storage_path: path,
       pdf_sha256: createHash("sha256").update(bytes).digest("hex"),
       pdf_template_version: PDF_TEMPLATE_VERSION,

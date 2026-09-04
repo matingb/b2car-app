@@ -6,7 +6,7 @@ import {
   createPublicKey,
   randomUUID,
 } from "node:crypto";
-import { createAdminClient } from "@/supabase/admin";
+import { createClient } from "@/supabase/server";
 import { FacturacionValidationError } from "./arcaPayload";
 
 export const FACTURACION_CERTIFICATES_BUCKET = "facturacion-certificados";
@@ -113,8 +113,8 @@ export async function validateCredentialPair(
 
 async function removeCredentialObjects(paths: string[]): Promise<void> {
   if (paths.length === 0) return;
-  const admin = createAdminClient();
-  const { error } = await admin.storage
+  const supabase = await createClient();
+  const { error } = await supabase.storage
     .from(FACTURACION_CERTIFICATES_BUCKET)
     .remove(paths);
   if (error) throw new Error("No se pudieron eliminar credenciales fiscales obsoletas");
@@ -132,9 +132,9 @@ export async function uploadCredentialPair(
   const basePath = `${tenantId}/${environmentPath}credentials/${version}`;
   const certificatePath = `${basePath}/certificate.pem`;
   const privateKeyPath = `${basePath}/private-key.pem`;
-  const admin = createAdminClient();
+  const supabase = await createClient();
 
-  const { error: certificateError } = await admin.storage
+  const { error: certificateError } = await supabase.storage
     .from(FACTURACION_CERTIFICATES_BUCKET)
     .upload(certificatePath, Buffer.from(validated.cert, "utf8"), {
       contentType: "application/x-pem-file",
@@ -142,7 +142,7 @@ export async function uploadCredentialPair(
     });
   if (certificateError) throw new Error("No se pudo guardar el certificado fiscal");
 
-  const { error: keyError } = await admin.storage
+  const { error: keyError } = await supabase.storage
     .from(FACTURACION_CERTIFICATES_BUCKET)
     .upload(privateKeyPath, Buffer.from(validated.key, "utf8"), {
       contentType: "application/x-pem-file",
@@ -170,10 +170,10 @@ export async function downloadCredentialPair(
   if (!certificatePath || !privateKeyPath) {
     throw new FacturacionValidationError("Falta subir el certificado y la clave privada fiscal");
   }
-  const admin = createAdminClient();
+  const supabase = await createClient();
   const [certificateResult, keyResult] = await Promise.all([
-    admin.storage.from(FACTURACION_CERTIFICATES_BUCKET).download(certificatePath),
-    admin.storage.from(FACTURACION_CERTIFICATES_BUCKET).download(privateKeyPath),
+    supabase.storage.from(FACTURACION_CERTIFICATES_BUCKET).download(certificatePath),
+    supabase.storage.from(FACTURACION_CERTIFICATES_BUCKET).download(privateKeyPath),
   ]);
   if (certificateResult.error || keyResult.error || !certificateResult.data || !keyResult.data) {
     throw new Error("No se pudieron leer las credenciales fiscales activas");

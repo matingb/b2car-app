@@ -7,8 +7,8 @@ const storageMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/supabase/admin", () => ({
-  createAdminClient: () => ({
+vi.mock("@/supabase/server", () => ({
+  createClient: async () => ({
     storage: {
       from: () => ({
         upload: storageMocks.upload,

@@ -1,7 +1,6 @@
 import "server-only";
 
 import { createClient } from "@/supabase/server";
-import { createAdminClient } from "@/supabase/admin";
 import { FacturacionValidationError } from "./arcaPayload";
 
 export class FacturacionHttpError extends Error {
@@ -35,16 +34,7 @@ export async function requireTenantActor(): Promise<TenantActor> {
     throw new FacturacionHttpError("La sesión no tiene un tenant activo", 403);
   }
 
-  let admin: ReturnType<typeof createAdminClient>;
-  try {
-    admin = createAdminClient();
-  } catch {
-    throw new FacturacionHttpError(
-      "La facturación electrónica no tiene configurado el acceso interno a Supabase",
-      500,
-    );
-  }
-  const { data: membership, error: membershipError } = await admin
+  const { data: membership, error: membershipError } = await supabase
     .from("tenant_members")
     .select("tenant_id, rol")
     .eq("cliente_id", userId)
@@ -52,6 +42,10 @@ export async function requireTenantActor(): Promise<TenantActor> {
     .maybeSingle();
 
   if (membershipError) {
+    console.error(
+      "Error al validar membresía de tenant para facturación:",
+      membershipError,
+    );
     throw new FacturacionHttpError(
       "No se pudo validar la membresía por un error de configuración interna",
       500,

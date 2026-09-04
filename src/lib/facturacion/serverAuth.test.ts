@@ -3,15 +3,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getClaims: vi.fn(),
   maybeSingle: vi.fn(),
-  createAdminClient: vi.fn(),
 }));
+
+function serverClient() {
+  const query = {
+    select: vi.fn(),
+    eq: vi.fn(),
+    maybeSingle: mocks.maybeSingle,
+  };
+  query.select.mockReturnValue(query);
+  query.eq.mockReturnValue(query);
+  return {
+    auth: { getClaims: mocks.getClaims },
+    from: vi.fn(() => query),
+  };
+}
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/supabase/server", () => ({
-  createClient: async () => ({ auth: { getClaims: mocks.getClaims } }),
-}));
-vi.mock("@/supabase/admin", () => ({
-  createAdminClient: mocks.createAdminClient,
+  createClient: async () => serverClient(),
 }));
 
 import {
@@ -20,21 +30,9 @@ import {
   requireTenantAdmin,
 } from "./serverAuth";
 
-function adminClient() {
-  const query = {
-    select: vi.fn(),
-    eq: vi.fn(),
-    maybeSingle: mocks.maybeSingle,
-  };
-  query.select.mockReturnValue(query);
-  query.eq.mockReturnValue(query);
-  return { from: vi.fn(() => query) };
-}
-
 beforeEach(() => {
   mocks.getClaims.mockReset();
   mocks.maybeSingle.mockReset();
-  mocks.createAdminClient.mockReset();
   mocks.getClaims.mockResolvedValue({
     data: {
       claims: {
@@ -45,7 +43,6 @@ beforeEach(() => {
     },
     error: null,
   });
-  mocks.createAdminClient.mockImplementation(adminClient);
   mocks.maybeSingle.mockResolvedValue({
     data: { tenant_id: "tenant-1", rol: "admin" },
     error: null,
@@ -70,12 +67,18 @@ describe("autorización fiscal tenant-scoped", () => {
     } satisfies Partial<FacturacionHttpError>);
   });
 
-  it("reporta como error interno una service_role inválida o una consulta privilegiada fallida", async () => {
-    mocks.maybeSingle.mockResolvedValue({ data: null, error: { message: "invalid api key" } });
+  it("reporta como error interno una consulta de membresía fallida", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.maybeSingle.mockResolvedValue({ data: null, error: { message: "query error" } });
     await expect(requireTenantActor()).rejects.toMatchObject({
       status: 500,
       message: expect.stringContaining("configuración interna"),
     });
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "Error al validar membresía de tenant para facturación:",
+      expect.objectContaining({ message: "query error" }),
+    );
+    consoleSpy.mockRestore();
   });
 
   it("rechaza si el rol firmado o el rol vivo no es admin", async () => {
@@ -84,5 +87,22 @@ describe("autorización fiscal tenant-scoped", () => {
       error: null,
     });
     await expect(requireTenantAdmin()).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("permite a un usuario no admin autenticado operar con su tenant", async () => {
+    mocks.getClaims.mockResolvedValue({
+      data: { claims: { sub: "user-2", tenant_id: "tenant-2", user_role: "empleado" } },
+      error: null,
+    });
+    mocks.maybeSingle.mockResolvedValue({
+      data: { tenant_id: "tenant-2", rol: "empleado" },
+      error: null,
+    });
+    await expect(requireTenantActor()).resolves.toEqual({
+      userId: "user-2",
+      tenantId: "tenant-2",
+      role: "empleado",
+      claimedRole: "empleado",
+    });
   });
 });

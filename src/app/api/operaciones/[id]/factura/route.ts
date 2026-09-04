@@ -7,7 +7,6 @@ import {
 import {
   facturacionErrorResponse,
   requireTenantActor,
-  requireTenantAdmin,
 } from "@/lib/facturacion/serverAuth";
 
 export const runtime = "nodejs";
@@ -20,7 +19,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       ? "PRODUCCION" : "HOMOLOGACION";
     const result = await getVentaFacturaPreflight(actor, id, ambiente);
     return Response.json({
-      data: { ...result, canEmit: actor.role === "admin" && actor.claimedRole === "admin" },
+      data: { ...result, canEmit: Boolean(result.preflight.puedeEmitir) },
       error: null,
     });
   } catch (error) {
@@ -33,7 +32,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const actor = await requireTenantAdmin();
+    const actor = await requireTenantActor();
     const { id } = await params;
     const result = await issueVentaElectronica(actor, id, parseFacturaIssueInput(await request.json().catch(() => null)));
     return Response.json({ data: result.invoice, error: result.message ?? null }, { status: result.httpStatus });
