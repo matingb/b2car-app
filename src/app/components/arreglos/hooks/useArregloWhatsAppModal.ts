@@ -124,8 +124,12 @@ export function useArregloWhatsAppModal({
   };
 
   const handleReset = () => {
-    setIsCustomized(false);
-    setMensaje(generatedMessage);
+    if (isCustomized) {
+      setIsCustomized(false);
+      setMensaje(generatedMessage);
+    } else {
+      setConfig(DEFAULT_WHATSAPP_CONFIG);
+    }
   };
 
   const handleCopy = async () => {
@@ -192,6 +196,7 @@ export function useArregloWhatsAppModal({
     phone,
     setPhone,
     clienteNombre,
+    setClienteNombre,
     loadingCliente,
     handleSubmit,
   };

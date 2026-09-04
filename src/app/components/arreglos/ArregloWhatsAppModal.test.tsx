@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ArregloWhatsAppModal from "./ArregloWhatsAppModal";
 import { createArreglo, createArregloDetalleData, createVehiculo } from "@/tests/factories";
@@ -80,7 +80,7 @@ describe("ArregloWhatsAppModal", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renderiza el modal con toggles iniciales (Agrupado por defecto) y datos del cliente", async () => {
+  it("renderiza el modal de dos columnas con mockup de celular y datos del cliente", async () => {
     render(
       <ArregloWhatsAppModal
         open
@@ -89,16 +89,18 @@ describe("ArregloWhatsAppModal", () => {
       />
     );
 
-    expect(screen.getByText("Compartir por WhatsApp")).toBeInTheDocument();
-    expect(screen.getByText("Configuración del contenido:")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Compartir" })).toBeInTheDocument();
+    expect(screen.getByText("Previsualización del mensaje")).toBeInTheDocument();
+    expect(screen.getByText("Elementos a incluir")).toBeInTheDocument();
 
-    // Debe cargar el cliente
+    // Debe cargar el cliente y mostrarlo tanto en la sección de cliente como en la cabecera del celular
     await waitFor(() => {
-      expect(screen.getByText("Contacto: Carlos Gómez")).toBeInTheDocument();
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
     });
 
-    const phoneInput = screen.getByLabelText("Teléfono WhatsApp:") as HTMLInputElement;
+    const phoneInput = screen.getByLabelText("WhatsApp") as HTMLInputElement;
     expect(phoneInput.value).toBe("5491198765432");
+    expect(screen.getByText("en línea")).toBeInTheDocument();
 
     // Por defecto: Detalle ON, Precios OFF, Subtotales ON, Total ON
     const textarea = screen.getByPlaceholderText("El mensaje de WhatsApp aparecerá aquí...") as HTMLTextAreaElement;
@@ -109,7 +111,7 @@ describe("ArregloWhatsAppModal", () => {
     expect(textarea.value).toContain("*Total arreglo $28.000*");
   });
 
-  it("permite apagar el detalle de ítems para mostrar solo resumen de montos", async () => {
+  it("permite apagar el detalle de trabajos para mostrar solo resumen de montos", async () => {
     render(
       <ArregloWhatsAppModal
         open
@@ -119,10 +121,10 @@ describe("ArregloWhatsAppModal", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Contacto: Carlos Gómez")).toBeInTheDocument();
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
     });
 
-    const toggleDetalle = screen.getByRole("checkbox", { name: "Detalle de repuestos y servicios" });
+    const toggleDetalle = screen.getByRole("checkbox", { name: "Detalle de trabajos" });
     fireEvent.click(toggleDetalle);
 
     const textarea = screen.getByPlaceholderText("El mensaje de WhatsApp aparecerá aquí...") as HTMLTextAreaElement;
@@ -144,10 +146,10 @@ describe("ArregloWhatsAppModal", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Contacto: Carlos Gómez")).toBeInTheDocument();
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
     });
 
-    const togglePrecios = screen.getByRole("checkbox", { name: "Precios individuales por ítem" });
+    const togglePrecios = screen.getByRole("checkbox", { name: "Precios unitarios" });
     fireEvent.click(togglePrecios);
 
     const textarea = screen.getByPlaceholderText("El mensaje de WhatsApp aparecerá aquí...") as HTMLTextAreaElement;
@@ -165,7 +167,7 @@ describe("ArregloWhatsAppModal", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Contacto: Carlos Gómez")).toBeInTheDocument();
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
     });
 
     const toggleTotal = screen.getByRole("checkbox", { name: "Total general" });
@@ -185,13 +187,13 @@ describe("ArregloWhatsAppModal", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Contacto: Carlos Gómez")).toBeInTheDocument();
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
     });
 
     const textarea = screen.getByPlaceholderText("El mensaje de WhatsApp aparecerá aquí...") as HTMLTextAreaElement;
     expect(textarea.value).toContain("⏱️ KM actual 75000");
 
-    const toggleKm = screen.getByRole("checkbox", { name: "Kilometraje actual" });
+    const toggleKm = screen.getByRole("checkbox", { name: "Kilometraje" });
     fireEvent.click(toggleKm);
 
     expect(textarea.value).not.toContain("⏱️ KM actual");
@@ -207,19 +209,19 @@ describe("ArregloWhatsAppModal", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Contacto: Carlos Gómez")).toBeInTheDocument();
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
     });
 
     const textarea = screen.getByPlaceholderText("El mensaje de WhatsApp aparecerá aquí...") as HTMLTextAreaElement;
     expect(textarea.value).toContain("📝 Observaciones: Ruido en tren delantero");
 
-    const toggleObs = screen.getByRole("checkbox", { name: "Observaciones generales" });
+    const toggleObs = screen.getByRole("checkbox", { name: "Observaciones" });
     fireEvent.click(toggleObs);
 
     expect(textarea.value).not.toContain("📝 Observaciones:");
   });
 
-  it("permite editar el texto a mano y luego restablecerlo", async () => {
+  it("permite editar el texto a mano directamente dentro de la burbuja y restablecerlo", async () => {
     render(
       <ArregloWhatsAppModal
         open
@@ -229,22 +231,23 @@ describe("ArregloWhatsAppModal", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Contacto: Carlos Gómez")).toBeInTheDocument();
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
     });
 
     const textarea = screen.getByPlaceholderText("El mensaje de WhatsApp aparecerá aquí...") as HTMLTextAreaElement;
-    fireEvent.change(textarea, { target: { value: "Mensaje personalizado para Carlos" } });
+    fireEvent.change(textarea, { target: { value: "Mensaje personalizado para Carlos Gómez en su auto" } });
 
-    expect(screen.getByText("Editado manualmente")).toBeInTheDocument();
-    expect(textarea.value).toBe("Mensaje personalizado para Carlos");
+    expect(screen.getByText("✏️ Editado a mano")).toBeInTheDocument();
+    expect(textarea.value).toBe("Mensaje personalizado para Carlos Gómez en su auto");
+    expect(screen.getByRole("button", { name: "Restablecer texto" })).toBeInTheDocument();
 
     // Restablecer
-    fireEvent.click(screen.getByTitle("Restablecer mensaje original según toggles"));
-    expect(screen.queryByText("Editado manualmente")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Restablecer texto" }));
+    expect(screen.queryByText("✏️ Editado a mano")).not.toBeInTheDocument();
     expect(textarea.value).toContain("_Subtotal repuestos: $16.000_");
   });
 
-  it("copia el mensaje al portapapeles", async () => {
+  it("copia el mensaje al portapapeles desde el botón flotante", async () => {
     const writeTextMock = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", {
       clipboard: {
@@ -261,7 +264,7 @@ describe("ArregloWhatsAppModal", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Contacto: Carlos Gómez")).toBeInTheDocument();
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
     });
 
     const copyBtn = screen.getByTitle("Copiar texto al portapapeles");
@@ -290,10 +293,10 @@ describe("ArregloWhatsAppModal", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Contacto: Carlos Gómez")).toBeInTheDocument();
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
     });
 
-    const submitBtn = screen.getByRole("button", { name: "Enviar WhatsApp" });
+    const submitBtn = screen.getByRole("button", { name: "Abrir chat de WhatsApp" });
     fireEvent.click(submitBtn);
 
     expect(openSpy).toHaveBeenCalled();
@@ -302,4 +305,134 @@ describe("ArregloWhatsAppModal", () => {
     expect(calledUrl).toContain("phone=5491199998888");
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("aplica los formatos de whatsapp como negrita y cursiva en la burbuja de previsualización", async () => {
+    const { container } = render(
+      <ArregloWhatsAppModal
+        open
+        onClose={vi.fn()}
+        data={sampleData}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
+    });
+
+    // En modo formato (por defecto), los títulos entre asteriscos se renderizan con <strong>
+    const strongs = document.body.querySelectorAll("strong");
+    const strongTexts = Array.from(strongs).map((s) => s.textContent);
+    expect(strongTexts.some((t) => t?.includes("Presupuesto de Arreglo"))).toBe(true);
+    expect(strongTexts.some((t) => t?.includes("Total arreglo"))).toBe(true);
+
+    // Los subtotales entre guiones bajos se renderizan con <em>
+    const ems = document.body.querySelectorAll("em");
+    const emTexts = Array.from(ems).map((e) => e.textContent);
+    expect(emTexts.some((t) => t?.includes("Subtotal repuestos"))).toBe(true);
+    expect(emTexts.some((t) => t?.includes("Subtotal mano de obra"))).toBe(true);
+  });
+
+  it("permite alternar entre la vista de Formato y el modo Editar texto", async () => {
+    render(
+      <ArregloWhatsAppModal
+        open
+        onClose={vi.fn()}
+        data={sampleData}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
+    });
+
+    // Cambiar a modo Editar
+    const btnEditar = screen.getByRole("button", { name: "Editar" });
+    fireEvent.click(btnEditar);
+
+    // Debe mostrar la cabecera de edición y la sugerencia de formato
+    expect(screen.getByText("Edición manual del mensaje")).toBeInTheDocument();
+    expect(screen.getByText(/negrita/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ver formato" })).not.toBeInTheDocument();
+
+    // Volver a modo Formato
+    const btnFormato = screen.getByRole("button", { name: "Formato" });
+    fireEvent.click(btnFormato);
+
+    expect(screen.getByText("Previsualización del mensaje")).toBeInTheDocument();
+  });
+
+  it("el nombre del cliente no es un input editable y se muestra como texto informativo", async () => {
+    render(
+      <ArregloWhatsAppModal
+        open
+        onClose={vi.fn()}
+        data={sampleData}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
+    });
+
+    // Asegura que no sea un elemento input de texto
+    expect(screen.queryByRole("textbox", { name: "Cliente" })).not.toBeInTheDocument();
+  });
+
+  it("el botón 'Abrir chat de WhatsApp' aplica efecto hover al pasar el cursor", async () => {
+    render(
+      <ArregloWhatsAppModal
+        open
+        onClose={vi.fn()}
+        data={sampleData}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
+    });
+
+    const submitBtn = screen.getByRole("button", { name: "Abrir chat de WhatsApp" });
+    expect(submitBtn.style.background).toBe("rgb(225, 255, 199)"); // #E1FFC7
+
+    act(() => {
+      fireEvent.mouseEnter(submitBtn);
+    });
+    expect(submitBtn.style.background).toBe("rgb(212, 252, 177)"); // #d4fcb1
+
+    act(() => {
+      fireEvent.mouseLeave(submitBtn);
+    });
+    expect(submitBtn.style.background).toBe("rgb(225, 255, 199)"); // #E1FFC7
+  });
+
+  it("en el modo editar el botón de copiar permanece alineado a la derecha por defecto y al editar", async () => {
+    render(
+      <ArregloWhatsAppModal
+        open
+        onClose={vi.fn()}
+        data={sampleData}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
+    });
+
+    // Cambiar a modo Editar
+    const btnEditar = screen.getByRole("button", { name: "Editar" });
+    fireEvent.click(btnEditar);
+
+    const copyBtn = screen.getByTitle("Copiar texto al portapapeles");
+    const actionsGroup = copyBtn.parentElement as HTMLElement;
+    expect(actionsGroup.style.marginLeft).toBe("auto");
+
+    // Editar texto
+    const textarea = screen.getByPlaceholderText("El mensaje de WhatsApp aparecerá aquí...") as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "Texto editado manualmente" } });
+
+    expect(screen.getByText("✏️ Editado a mano")).toBeInTheDocument();
+    expect(actionsGroup.style.marginLeft).toBe("auto");
+  });
 });
+
+
