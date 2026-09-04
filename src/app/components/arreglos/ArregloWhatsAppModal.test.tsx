@@ -392,17 +392,17 @@ describe("ArregloWhatsAppModal", () => {
     });
 
     const submitBtn = screen.getByRole("button", { name: "Abrir chat de WhatsApp" });
-    expect(submitBtn.style.background).toBe("rgb(225, 255, 199)"); // #E1FFC7
+    expect(submitBtn.style.background).toBe("rgb(0, 121, 149)"); // COLOR.ACCENT.PRIMARY (#007995)
 
     act(() => {
       fireEvent.mouseEnter(submitBtn);
     });
-    expect(submitBtn.style.background).toBe("rgb(212, 252, 177)"); // #d4fcb1
+    expect(submitBtn.style.background).toBe("rgb(0, 111, 135)"); // COLOR.ACCENT.HOVER (#006f87)
 
     act(() => {
       fireEvent.mouseLeave(submitBtn);
     });
-    expect(submitBtn.style.background).toBe("rgb(225, 255, 199)"); // #E1FFC7
+    expect(submitBtn.style.background).toBe("rgb(0, 121, 149)"); // COLOR.ACCENT.PRIMARY (#007995)
   });
 
   it("en el modo editar el botón de copiar permanece alineado a la derecha por defecto y al editar", async () => {

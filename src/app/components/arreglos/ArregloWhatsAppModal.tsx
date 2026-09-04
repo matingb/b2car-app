@@ -327,7 +327,7 @@ export default function ArregloWhatsAppModal({
                 ...(isSubmitHovered ? styles.submitButtonHover : {}),
               }}
             >
-              <Send size={16} color="#075E54" />
+              <Send size={16} color={COLOR.TEXT.CONTRAST} />
               <span>Abrir chat de WhatsApp</span>
             </button>
           </div>
