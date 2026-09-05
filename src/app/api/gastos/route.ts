@@ -12,6 +12,7 @@ import {
   rpcStatus,
   validateCreateGasto,
 } from "../cuentas-financieras/finanzasRouteUtils";
+import { logger } from "@/lib/logger";
 
 function firstGasto(data: unknown) {
   return mapGasto(asRows(data)[0]);
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
   if (parsed.error || !parsed.value) {
     return Response.json({ data: null, error: parsed.error ?? "JSON inválido" } satisfies CrearGastoFinancieroResponse, { status: 400 });
   }
-
+  console.log("testttttt")
   const input = parsed.value;
   const { data: created, error: createError } = await supabase.rpc("rpc_crear_movimiento_cuenta", {
     p_subtipo: "GASTO",
@@ -77,6 +78,7 @@ export async function POST(req: Request) {
     p_arreglo_id: input.arregloId ?? null,
   });
   if (createError) {
+    logger.error("Error registrando gasto", createError);
     return Response.json(
       { data: null, error: "Error registrando gasto" } satisfies CrearGastoFinancieroResponse,
       { status: rpcStatus(createError) }
@@ -112,7 +114,7 @@ export async function POST(req: Request) {
           categoria: input.categoria,
           importe: input.importe,
           fecha: input.fecha ?? new Date().toISOString(),
-          descripcion: input.descripcion,
+          descripcion: input.descripcion ?? null,
           reversaMovimientoId: null,
           createdAt: new Date().toISOString(),
         },

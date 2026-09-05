@@ -49,7 +49,7 @@ export default function OperacionGastoForm() {
       </div>
 
       <div style={styles.formFieldFull}>
-        <label style={styles.label}>Descripción</label>
+        <label style={styles.label}>Descripción (opcional)</label>
         <textarea
           value={descripcionGasto}
           onChange={(e) => setDescripcionGasto(e.target.value)}
