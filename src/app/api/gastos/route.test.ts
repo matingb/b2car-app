@@ -6,7 +6,14 @@ vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
+vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
+  statsService: {
+    onDataChanged: vi.fn(),
+  },
+}));
+
 import { createClient } from "@/supabase/server";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
 const ACCOUNT_ID = "11111111-1111-4111-8111-111111111111";
 const EXPENSE_ID = "22222222-2222-4222-8222-222222222222";
@@ -69,6 +76,7 @@ describe("/api/gastos", () => {
       p_arreglo_id: null,
     });
     expect(body.data).toMatchObject({ id: EXPENSE_ID, descripcion: null });
+    expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything());
   });
 
   it("registra un gasto con categoría y descripción requeridas", async () => {
