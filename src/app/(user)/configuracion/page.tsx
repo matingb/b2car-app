@@ -105,7 +105,7 @@ export default function ConfiguracionPage() {
       setCredentialUploadAttempted(false);
       setMessage(
         body.data.credenciales.configuradas
-          ? "Configuración fiscal guardada y credenciales activas en Storage privado."
+          ? "Configuración fiscal guardada y credenciales activas."
           : "Configuración guardada. Subí el certificado y la clave privada para poder emitir comprobantes.",
       );
     } catch (cause) {

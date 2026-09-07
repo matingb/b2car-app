@@ -49,6 +49,6 @@ const styles = {
     dropdown: {
         position: "relative" as const,
         height: "35px",
-        width: "150px",
+        width: "155px",
     },
 } as const;

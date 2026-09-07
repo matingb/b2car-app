@@ -56,7 +56,7 @@ export default function FacturacionCertificadosCard({
           />
           {isConfigured ? (
             <span style={styles.activeBadge}>
-              <ShieldCheck size={14} /> Credenciales activas
+              <ShieldCheck size={14} /> Activo (vence {formatDateLabel(credenciales.vencimiento, "-")})
             </span>
           ) : (
             <span style={styles.pendingBadge}>
@@ -67,31 +67,6 @@ export default function FacturacionCertificadosCard({
       </div>
 
       <div style={styles.body}>
-        {isConfigured && (
-          <div style={styles.metadataCard}>
-            <div style={styles.metadataItem}>
-              <span style={styles.metadataLabel}>Certificado</span>
-              <strong style={styles.metadataValue} title={credenciales.certificadoNombre ?? ""}>
-                {credenciales.certificadoNombre ?? "-"}
-              </strong>
-            </div>
-
-            <div style={styles.metadataItem}>
-              <span style={styles.metadataLabel}>Clave privada</span>
-              <strong style={styles.metadataValue} title={credenciales.clavePrivadaNombre ?? ""}>
-                {credenciales.clavePrivadaNombre ?? "-"}
-              </strong>
-            </div>
-
-            <div style={styles.metadataItem}>
-              <span style={styles.metadataLabel}>Vencimiento</span>
-              <strong style={styles.metadataValue}>
-                {formatDateLabel(credenciales.vencimiento, "-")}
-              </strong>
-            </div>
-          </div>
-        )}
-
         <div style={styles.uploadersGrid}>
           <CertificadoUploader
             label={

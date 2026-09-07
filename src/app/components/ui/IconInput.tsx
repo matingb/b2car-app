@@ -28,7 +28,8 @@ export default function IconInput({
         padding: "0 12px",
         height: 42,
         minWidth: 0,
-        opacity: disabled ? 0.7 : 1,
+        opacity: disabled ? 0.6 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
         ...wrapperStyle,
       }}
     >
@@ -57,6 +58,7 @@ export default function IconInput({
           padding: 0,
           fontSize: 14,
           color: COLOR.TEXT.PRIMARY,
+          cursor: disabled ? "not-allowed" : "pointer",
           ...inputStyle,
         }}
       />
