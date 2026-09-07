@@ -15,6 +15,7 @@ type Props = {
   onClose: () => void;
   onSubmit?: (e: React.FormEvent) => void | Promise<void>;
   submitText?: string;
+  submittingText?: string;
   submitting?: boolean;
   disabledSubmit?: boolean;
   modalStyle?: React.CSSProperties;
@@ -33,6 +34,7 @@ export default function Modal({
   onClose,
   onSubmit,
   submitText = "Guardar",
+  submittingText = "Guardando...",
   submitting = false,
   disabledSubmit = false,
   modalStyle,
@@ -165,7 +167,7 @@ export default function Modal({
                 </button>
                 <Button
                   type="submit"
-                  text={submitting ? "Guardando..." : submitText}
+                  text={submitting ? submittingText : submitText}
                   disabled={isSubmitDisabled}
                   dataTestId="modal-submit"
                   hideTextOnMobile={false}

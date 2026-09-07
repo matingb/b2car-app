@@ -8,6 +8,7 @@ import Checkbox from "@/app/components/ui/Checkbox";
 import FacturacionEmpresaCard from "@/app/components/facturacion/FacturacionEmpresaCard";
 import FacturacionFiscalCard from "@/app/components/facturacion/FacturacionFiscalCard";
 import FacturacionCertificadosCard from "@/app/components/facturacion/FacturacionCertificadosCard";
+import GenerarClaveModal from "@/app/components/facturacion/GenerarClaveModal";
 import { COLOR } from "@/theme/theme";
 import type { FacturacionConfiguracionPublica } from "@/lib/facturacion/types";
 
@@ -39,6 +40,7 @@ export default function ConfiguracionPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [generateKeyOpen, setGenerateKeyOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -150,7 +152,8 @@ export default function ConfiguracionPage() {
               <p style={styles.loadingText}>Cargando configuración fiscal…</p>
             </div>
           ) : (
-            <form onSubmit={save} style={styles.form}>
+            <>
+              <form onSubmit={save} style={styles.form}>
               {/* Card 1: Datos de la Empresa */}
               <FacturacionEmpresaCard
                 razonSocial={config.razonSocial}
@@ -183,6 +186,7 @@ export default function ConfiguracionPage() {
                 disabled={saving || testing}
                 onCertificateChange={setCertificate}
                 onPrivateKeyChange={setPrivateKey}
+                onGenerateKey={() => setGenerateKeyOpen(true)}
               />
 
               {/* Feedback Alerts */}
@@ -229,7 +233,21 @@ export default function ConfiguracionPage() {
                   />
                 </div>
               </div>
-            </form>
+              </form>
+              <GenerarClaveModal
+                open={generateKeyOpen}
+                razonSocial={config.razonSocial}
+                cuit={config.cuit}
+                onClose={() => setGenerateKeyOpen(false)}
+                onGenerated={() => {
+                  setGenerateKeyOpen(false);
+                  setError(null);
+                  setMessage(
+                    "Se descargaron la clave privada y el CSR. Subí el CSR a ARCA y conservá la clave para cargarla después junto al certificado .pem.",
+                  );
+                }}
+              />
+            </>
           )}
         </div>
       </main>

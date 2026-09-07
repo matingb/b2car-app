@@ -1,9 +1,10 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck, Info } from "lucide-react";
+import { ShieldCheck, Info, KeyRound } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import { formatDateLabel } from "@/lib/fechas";
+import Button from "@/app/components/ui/Button";
 import CertificadoUploader from "./CertificadoUploader";
 import type { FacturacionConfiguracionPublica } from "@/lib/facturacion/types";
 
@@ -13,6 +14,7 @@ interface FacturacionCertificadosCardProps {
   privateKey: File | null;
   onCertificateChange: (file: File | null) => void;
   onPrivateKeyChange: (file: File | null) => void;
+  onGenerateKey: () => void;
   disabled?: boolean;
 }
 
@@ -22,6 +24,7 @@ export default function FacturacionCertificadosCard({
   privateKey,
   onCertificateChange,
   onPrivateKeyChange,
+  onGenerateKey,
   disabled = false,
 }: FacturacionCertificadosCardProps) {
   const isConfigured = credenciales.configuradas;
@@ -38,7 +41,17 @@ export default function FacturacionCertificadosCard({
           </p>
         </div>
 
-        <div>
+        <div style={styles.headerActions}>
+          <Button
+            type="button"
+            text="Generar clave"
+            icon={<KeyRound size={16} />}
+            outline
+            disabled={disabled}
+            onClick={onGenerateKey}
+            hideTextOnMobile={false}
+            style={styles.generateKeyButton}
+          />
           {isConfigured ? (
             <span style={styles.activeBadge}>
               <ShieldCheck size={14} /> Credenciales activas
@@ -135,6 +148,17 @@ const styles = {
     display: "flex",
     flexDirection: "column" as const,
     gap: 4,
+  },
+  headerActions: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap" as const,
+  },
+  generateKeyButton: {
+    minWidth: 0,
+    fontSize: 13,
+    padding: "7px 10px",
   },
   title: {
     fontSize: 16,
