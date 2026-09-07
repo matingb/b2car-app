@@ -42,6 +42,26 @@ describe("Modal", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("muestra el botón de cierre opcional y llama a onClose", async () => {
+    const onClose = vi.fn();
+
+    render(
+      <Modal
+        open
+        title="Mi Modal"
+        onClose={onClose}
+        onSubmit={vi.fn()}
+        showCloseButton
+      >
+        <div />
+      </Modal>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("Cuando se hace click en el botón de guardar, se debe llamar a la función onSubmit y luego a la función onClose", async () => {
     const onSubmit = vi.fn(async () => {});
 

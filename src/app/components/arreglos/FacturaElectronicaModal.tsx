@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, ExternalLink } from "lucide-react";
+import { CircleAlert, Download, ReceiptText } from "lucide-react";
 import Modal from "@/app/components/ui/Modal";
 import Button from "@/app/components/ui/Button";
+import Dropdown from "@/app/components/ui/Dropdown";
+import IconInput from "@/app/components/ui/IconInput";
 import { COLOR } from "@/theme/theme";
 import {
   CONDICIONES_IVA_RECEPTOR,
@@ -36,6 +38,9 @@ function defaultDraft(receptor: PerfilFiscalCliente): FiscalDraft {
     condicionIvaReceptorId: String(receptor.condicionIvaReceptorId ?? 5),
   };
 }
+
+const documentOptions = TIPOS_DOCUMENTO_FISCAL.map((tipo) => ({ value: String(tipo.id), label: tipo.label }));
+const ivaOptions = CONDICIONES_IVA_RECEPTOR.map((condicion) => ({ value: String(condicion.id), label: condicion.label }));
 
 export default function FacturaElectronicaModal({ open, arregloId, operacionId, onClose, onAuthorized }: Props) {
   const [preflight, setPreflight] = useState<FacturacionPreflight | null>(null);
@@ -140,7 +145,9 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       submitText={submitText}
       submitting={submitting}
       disabledSubmit={!canSubmit || loading}
-      modalStyle={{ width: "min(860px, 96vw)", overflow: "auto" }}
+      showCloseButton
+      modalStyle={styles.modal}
+      footerStyle={styles.footer}
       modalError={error ? { titulo: "No se pudo emitir la factura", descripcion: error } : null}
     >
       {loading ? <p style={styles.muted}>Preparando datos fiscales…</p> : null}
@@ -153,62 +160,117 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
               <Button icon={<Download size={16} />} text="Descargar PDF" onClick={downloadPdf} hideTextOnMobile={false} />
             </div>
           ) : null}
-          <section style={styles.summary}>
-            <div><span style={styles.label}>Emisor</span><strong>{preflight.emisor?.razonSocial ?? "Configuración pendiente"}</strong><span>{preflight.emisor?.cuit ?? ""} · Punto de venta {preflight.emisor?.puntoVenta ?? "-"}</span></div>
-            <div><span style={styles.label}>Comprobante</span><strong>Factura {voucherPreview?.clase ?? preflight.claseComprobante} (tipo {voucherPreview?.tipo ?? preflight.tipoComprobante})</strong><span>Concepto {preflight.concepto}: {preflight.concepto === 1 ? "productos" : preflight.concepto === 2 ? "servicios" : "productos y servicios"}</span></div>
+          <section style={styles.summary} aria-label="Resumen fiscal">
+            <div style={styles.summaryItem}>
+              <div style={styles.summaryIcon}><ReceiptText size={17} /></div>
+              <div style={styles.summaryText}>
+                <span style={styles.label}>Tipo de comprobante</span>
+                <strong>Factura {voucherPreview?.clase ?? preflight.claseComprobante} (tipo {voucherPreview?.tipo ?? preflight.tipoComprobante})</strong>
+                <span style={styles.summaryDetail}>Concepto {preflight.concepto}: {preflight.concepto === 1 ? "productos" : preflight.concepto === 2 ? "servicios" : "productos y servicios"}</span>
+              </div>
+            </div>
+            <div style={{ ...styles.summaryItem, ...styles.emitterSummary }}>
+              <div style={styles.summaryText}>
+                <span style={styles.label}>Datos del emisor</span>
+                <strong>{preflight.emisor?.razonSocial ?? "Configuración pendiente"}</strong>
+                <span style={styles.summaryDetail}>{preflight.emisor?.cuit ?? ""} · Punto de venta {preflight.emisor?.puntoVenta ?? "-"}</span>
+              </div>
+            </div>
           </section>
-          <section style={styles.box}>
-            <strong>Receptor</strong>
-            <span style={styles.muted}>{preflight.receptor.nombre}</span>
+          <section style={styles.section}>
+            <div style={styles.sectionTitle}>Datos del receptor: <span style={styles.recipientName}>{preflight.receptor.nombre}</span></div>
             <div style={styles.grid}>
               <label style={styles.field}>Tipo de documento
-                <select style={styles.input} value={receptor.tipoDocumento} onChange={(event) => setReceptor((previous) => ({
-                  ...previous,
-                  tipoDocumento: event.target.value,
-                  ...(event.target.value === "99" ? { numeroDocumento: "", condicionIvaReceptorId: "5" } : {}),
-                }))}>
-                  {TIPOS_DOCUMENTO_FISCAL.map((tipo) => <option key={tipo.id} value={tipo.id}>{tipo.label}</option>)}
-                </select>
+                <Dropdown
+                  id="factura-tipo-documento"
+                  options={documentOptions}
+                  value={receptor.tipoDocumento}
+                  onChange={(value) => setReceptor((previous) => ({
+                    ...previous,
+                    tipoDocumento: value,
+                    ...(value === "99" ? { numeroDocumento: "", condicionIvaReceptorId: "5" } : {}),
+                  }))}
+                  style={styles.dropdown}
+                  dataTestId="factura-tipo-documento"
+                />
               </label>
               <label style={styles.field}>Número de documento
-                <input style={styles.input} inputMode="numeric" value={receptor.numeroDocumento} disabled={receptor.tipoDocumento === "99"} placeholder={receptor.tipoDocumento === "99" ? "No requerido" : undefined} onChange={(event) => setReceptor((previous) => ({ ...previous, numeroDocumento: event.target.value }))} />
+                <IconInput
+                  icon={null}
+                  inputMode="numeric"
+                  value={receptor.numeroDocumento}
+                  disabled={receptor.tipoDocumento === "99"}
+                  placeholder={receptor.tipoDocumento === "99" ? "No requerido" : undefined}
+                  wrapperStyle={styles.inputWrapper}
+                  data-testid="factura-numero-documento"
+                  onChange={(event) => setReceptor((previous) => ({ ...previous, numeroDocumento: event.target.value }))}
+                />
               </label>
               <label style={styles.field}>Condición IVA
-                <select style={styles.input} value={receptor.condicionIvaReceptorId} disabled={receptor.tipoDocumento === "99"} onChange={(event) => setReceptor((previous) => ({ ...previous, condicionIvaReceptorId: event.target.value }))}>
-                  {CONDICIONES_IVA_RECEPTOR.map((condicion) => <option key={condicion.id} value={condicion.id}>{condicion.label}</option>)}
-                </select>
+                <Dropdown
+                  id="factura-condicion-iva"
+                  options={ivaOptions}
+                  value={receptor.condicionIvaReceptorId}
+                  disabled={receptor.tipoDocumento === "99"}
+                  onChange={(value) => setReceptor((previous) => ({ ...previous, condicionIvaReceptorId: value }))}
+                  style={styles.dropdown}
+                  dataTestId="factura-condicion-iva"
+                />
               </label>
             </div>
           </section>
-          <section style={styles.box}>
-            <strong>Fechas</strong>
-            <div style={styles.grid}>
-              <label style={styles.field}>Fecha de comprobante
-                <input type="date" style={styles.input} value={fechas.fechaComprobante} onChange={(event) => setFechas((previous) => ({ ...previous, fechaComprobante: event.target.value }))} />
+          <section style={styles.section}>
+            <div style={styles.sectionTitle}>Fechas aplicables</div>
+            <div style={styles.dateGrid}>
+              <label style={styles.field}>Comprobante
+                <IconInput
+                  icon={null}
+                  type="date"
+                  value={fechas.fechaComprobante}
+                  wrapperStyle={styles.inputWrapper}
+                  onChange={(event) => setFechas((previous) => ({ ...previous, fechaComprobante: event.target.value }))}
+                />
               </label>
               {isServiceConcept ? <>
+                <label style={styles.field}>Vencimiento
+                  <IconInput
+                    icon={null}
+                    type="date"
+                    value={fechas.fechaVencimientoPago ?? ""}
+                    wrapperStyle={styles.inputWrapper}
+                    onChange={(event) => setFechas((previous) => ({ ...previous, fechaVencimientoPago: event.target.value }))}
+                  />
+                </label>
                 <label style={styles.field}>Servicio desde
-                  <input type="date" style={styles.input} value={fechas.fechaServicioDesde ?? ""} onChange={(event) => setFechas((previous) => ({ ...previous, fechaServicioDesde: event.target.value }))} />
+                  <IconInput
+                    icon={null}
+                    type="date"
+                    value={fechas.fechaServicioDesde ?? ""}
+                    wrapperStyle={styles.inputWrapper}
+                    onChange={(event) => setFechas((previous) => ({ ...previous, fechaServicioDesde: event.target.value }))}
+                  />
                 </label>
                 <label style={styles.field}>Servicio hasta
-                  <input type="date" style={styles.input} value={fechas.fechaServicioHasta ?? ""} onChange={(event) => setFechas((previous) => ({ ...previous, fechaServicioHasta: event.target.value }))} />
-                </label>
-                <label style={styles.field}>Vencimiento de pago
-                  <input type="date" style={styles.input} value={fechas.fechaVencimientoPago ?? ""} onChange={(event) => setFechas((previous) => ({ ...previous, fechaVencimientoPago: event.target.value }))} />
+                  <IconInput
+                    icon={null}
+                    type="date"
+                    value={fechas.fechaServicioHasta ?? ""}
+                    wrapperStyle={styles.inputWrapper}
+                    onChange={(event) => setFechas((previous) => ({ ...previous, fechaServicioHasta: event.target.value }))}
+                  />
                 </label>
               </> : null}
             </div>
           </section>
-          <section style={styles.box}>
-            <strong>Detalle fiscal</strong>
+          <section style={styles.detail} aria-label="Detalle a facturar">
             <div style={styles.lines}>
               {preflight.lineas.map((linea) => <div style={styles.line} key={`${linea.origen}-${linea.ordinal}`}><span>{linea.descripcion}{linea.codigo ? ` (${linea.codigo})` : ""} × {linea.cantidad}</span><strong>{linea.subtotal.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}</strong></div>)}
             </div>
-            <div style={styles.total}><span>Total</span><strong>{preflight.total.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}</strong></div>
+            <div style={styles.total}><span>Total a facturar</span><strong style={styles.totalAmount}>{preflight.total.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}</strong></div>
           </section>
-          {preflight.mensaje && factura?.estado !== "RECHAZADA" ? <div style={styles.warning}>{preflight.mensaje}</div> : null}
-          {factura?.estado === "INCIERTA" ? <div style={styles.warning}>La emisión quedó incierta. No se asignará otro número hasta reconciliar el comprobante candidato.</div> : null}
-          {factura?.estado !== "AUTORIZADA" ? <div style={styles.immutability}><ExternalLink size={16} />Luego de autorizar la factura, ya no podrán realizarse modificaciones sobre el arreglo.</div> : null}
+          {preflight.mensaje && factura?.estado !== "RECHAZADA" ? <div style={styles.warning}><CircleAlert size={16} /><span>{preflight.mensaje}</span></div> : null}
+          {factura?.estado === "INCIERTA" ? <div style={styles.warning}><CircleAlert size={16} /><span>La emisión quedó incierta. No se asignará otro número hasta reconciliar el comprobante candidato.</span></div> : null}
+          {factura?.estado !== "AUTORIZADA" ? <div style={styles.immutability}><CircleAlert size={16} /><span>Luego de autorizar la factura, ya no podrán realizarse modificaciones sobre el arreglo.</span></div> : null}
         </div>
       ) : null}
     </Modal>
@@ -216,18 +278,62 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
 }
 
 const styles = {
-  content: { display: "flex", flexDirection: "column" as const, gap: 14 },
-  summary: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, padding: 12, borderRadius: 8, background: COLOR.BACKGROUND.SUBTLE },
-  box: { display: "flex", flexDirection: "column" as const, gap: 10, border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 8, padding: 12 },
-  label: { display: "block", fontSize: 11, color: COLOR.TEXT.TERTIARY, textTransform: "uppercase" as const, marginBottom: 4 },
+  modal: {
+    width: "min(780px, 94vw)",
+    maxHeight: "90dvh",
+    overflowY: "auto" as const,
+    background: COLOR.BACKGROUND.SECONDARY,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    padding: "18px 18px 0",
+  },
+  content: { display: "flex", flexDirection: "column" as const, gap: 16 },
+  summary: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: 0,
+    padding: 12,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 8,
+    background: COLOR.BACKGROUND.SUBTLE,
+  },
+  summaryItem: { display: "flex", alignItems: "center", gap: 12, minWidth: 0 },
+  emitterSummary: { borderLeft: `1px solid ${COLOR.BORDER.SUBTLE}`, paddingLeft: 16, marginLeft: 16 },
+  summaryIcon: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: "0 0 auto",
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    color: COLOR.ACCENT.PRIMARY,
+    background: COLOR.BACKGROUND.INFO_TINT,
+  },
+  summaryText: { display: "flex", flexDirection: "column" as const, gap: 2, minWidth: 0 },
+  summaryDetail: { color: COLOR.TEXT.SECONDARY, fontSize: 13 },
+  section: { display: "flex", flexDirection: "column" as const, gap: 12 },
+  sectionTitle: {
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    paddingBottom: 10,
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 13,
+    fontWeight: 600,
+  },
+  recipientName: { color: COLOR.ACCENT.PRIMARY },
+  label: { display: "block", fontSize: 11, color: COLOR.TEXT.TERTIARY, textTransform: "uppercase" as const, letterSpacing: "0.04em" },
   muted: { color: COLOR.TEXT.SECONDARY, fontSize: 13, lineHeight: 1.4 },
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 },
-  field: { display: "flex", flexDirection: "column" as const, gap: 5, color: COLOR.TEXT.SECONDARY, fontSize: 13 },
-  input: { height: 40, borderRadius: 8, border: `1px solid ${COLOR.BORDER.SUBTLE}`, padding: "0 10px", color: COLOR.TEXT.PRIMARY, background: COLOR.INPUT.PRIMARY.BACKGROUND },
-  lines: { display: "flex", flexDirection: "column" as const, gap: 7 },
+  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 },
+  dateGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16 },
+  field: { display: "flex", flexDirection: "column" as const, gap: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500, minWidth: 0 },
+  dropdown: { width: "100%", height: 42 },
+  inputWrapper: { width: "100%" },
+  detail: { border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 8, padding: 14, background: COLOR.BACKGROUND.SUBTLE },
+  lines: { display: "flex", flexDirection: "column" as const, gap: 8 },
   line: { display: "flex", justifyContent: "space-between", gap: 12, color: COLOR.TEXT.SECONDARY, fontSize: 13 },
-  total: { display: "flex", justifyContent: "space-between", borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`, paddingTop: 10, color: COLOR.TEXT.PRIMARY },
-  warning: { background: COLOR.BACKGROUND.DANGER_TINT, color: COLOR.ICON.DANGER, borderRadius: 8, padding: 10, fontSize: 13 },
-  immutability: { display: "flex", alignItems: "center", gap: 8, color: COLOR.TEXT.SECONDARY, fontSize: 13 },
-  authorized: { display: "flex", flexDirection: "column" as const, alignItems: "flex-start", gap: 8, background: COLOR.BACKGROUND.SUCCESS_TINT, color: COLOR.SEMANTIC.SUCCESS, padding: 12, borderRadius: 8 },
+  total: { display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`, marginTop: 12, paddingTop: 12, color: COLOR.TEXT.PRIMARY, fontSize: 14 },
+  totalAmount: { color: COLOR.ACCENT.PRIMARY, fontSize: 18 },
+  warning: { display: "flex", alignItems: "flex-start", gap: 8, background: COLOR.BACKGROUND.ALERT_TINT, border: `1px solid ${COLOR.SEMANTIC.ALERT}`, color: COLOR.SEMANTIC.WARNING, borderRadius: 8, padding: 12, fontSize: 13, lineHeight: 1.4 },
+  immutability: { display: "flex", alignItems: "flex-start", gap: 8, background: COLOR.BACKGROUND.ALERT_TINT, border: `1px solid ${COLOR.SEMANTIC.ALERT}`, color: COLOR.SEMANTIC.WARNING, borderRadius: 8, padding: 12, fontSize: 13, lineHeight: 1.4 },
+  footer: { margin: "20px -18px 0", padding: "16px 18px 18px", borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`, gap: 12 },
+  authorized: { display: "flex", flexDirection: "column" as const, alignItems: "flex-start", gap: 8, background: COLOR.BACKGROUND.SUCCESS_TINT, color: COLOR.SEMANTIC.SUCCESS, padding: 14, borderRadius: 8 },
 } as const;

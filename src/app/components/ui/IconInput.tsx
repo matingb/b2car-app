@@ -4,7 +4,7 @@ import React from "react";
 import { COLOR } from "@/theme/theme";
 
 type Props = {
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   wrapperStyle?: React.CSSProperties;
   invalid?: boolean;
 } & React.InputHTMLAttributes<HTMLInputElement>;
@@ -32,16 +32,18 @@ export default function IconInput({
         ...wrapperStyle,
       }}
     >
-      <span
-        style={{
-          display: "flex",
-          color: COLOR.TEXT.SECONDARY,
-          flexShrink: 0,
-          alignItems: "center",
-        }}
-      >
-        {icon}
-      </span>
+      {icon ? (
+        <span
+          style={{
+            display: "flex",
+            color: COLOR.TEXT.SECONDARY,
+            flexShrink: 0,
+            alignItems: "center",
+          }}
+        >
+          {icon}
+        </span>
+      ) : null}
       <input
         {...rest}
         disabled={disabled}

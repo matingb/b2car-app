@@ -10,7 +10,6 @@ import {
   Gauge,
   FileText,
   ReceiptText,
-  Download,
   CarFront,
   Users,
 } from "lucide-react";
@@ -197,21 +196,7 @@ export default function ArregloSummaryCard({
           </div>
 
           <div style={styles.headerActions}>
-            {facturaElectronica?.estado === "AUTORIZADA" ? (
-              <div style={styles.facturaAutorizada}>
-                <button type="button" style={styles.facturaInfoButton} onClick={onOpenFactura}>
-                  FC {String(facturaElectronica.numeroComprobante ?? "").padStart(8, "0")} · CAE {facturaElectronica.cae ?? "-"} · vence {facturaElectronica.caeVencimiento ?? "-"}
-                </button>
-                <IconButton
-                  icon={<Download />}
-                  size={18}
-                  onClick={onOpenFactura}
-                  title="Descargar PDF de Factura C"
-                  ariaLabel="Descargar PDF de Factura C"
-                  hoverColor={COLOR.SEMANTIC.SUCCESS}
-                />
-              </div>
-            ) : canEmitFactura ? (
+            {canEmitFactura ? (
               <IconButton
                 icon={<ReceiptText />}
                 size={18}
@@ -457,24 +442,6 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 4,
-  },
-  facturaAutorizada: {
-    display: "flex",
-    alignItems: "center",
-    gap: 2,
-    maxWidth: 380,
-  },
-  facturaInfoButton: {
-    border: "none",
-    background: COLOR.BACKGROUND.SUCCESS_TINT,
-    color: COLOR.SEMANTIC.SUCCESS,
-    borderRadius: 6,
-    padding: "6px 8px",
-    fontSize: 11,
-    cursor: "pointer",
-    whiteSpace: "nowrap" as const,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
   },
   bodyContent: {
     padding: 24,

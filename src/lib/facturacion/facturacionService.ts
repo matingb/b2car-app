@@ -40,6 +40,7 @@ import {
   type PerfilFiscalCliente,
 } from "./types";
 import type { TenantActor } from "./serverAuth";
+import { logger } from "../logger";
 
 type DbRecord = Record<string, unknown>;
 
@@ -836,6 +837,7 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
       p_encabezado: header, p_lineas: dbLines,
       p_factura_id: input.retry ? text(input.retry.id) : null,
     });
+    logger.error("prepareError", prepareError);
     if (prepareError || !invoiceId) throw new Error("No se pudo preparar el documento fiscal");
     const { count } = await supabase.from("facturacion_emision_intentos")
       .select("id", { count: "exact", head: true }).eq("factura_id", invoiceId);

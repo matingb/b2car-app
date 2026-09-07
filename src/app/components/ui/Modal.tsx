@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Card from "./Card";
 import Button from "./Button";
 import { COLOR } from "@/theme/theme";
+import { X } from "lucide-react";
 
 
 type Props = {
@@ -20,6 +21,9 @@ type Props = {
   modalError?: { titulo: string; descripcion?: React.ReactNode } | null;
   hideHeader?: boolean;
   hideFooter?: boolean;
+  showCloseButton?: boolean;
+  footerStyle?: React.CSSProperties;
+  submitButtonStyle?: React.CSSProperties;
 };
 
 export default function Modal({
@@ -35,6 +39,9 @@ export default function Modal({
   modalError,
   hideHeader = false,
   hideFooter = false,
+  showCloseButton = false,
+  footerStyle,
+  submitButtonStyle,
 }: Props) {
   const titleId = useId();
   const restoreScrollRef = useRef<null | (() => void)>(null);
@@ -127,6 +134,11 @@ export default function Modal({
               <h2 id={titleId} style={styles.title} data-testid="modal-title">
                 {title}
               </h2>
+              {showCloseButton ? (
+                <button type="button" style={styles.closeButton} onClick={onClose} disabled={submitting} aria-label="Cerrar">
+                  <X size={17} />
+                </button>
+              ) : null}
             </div>
           ) : null}
 
@@ -141,7 +153,7 @@ export default function Modal({
               </div>
             ) : null}
             {!hideFooter ? (
-              <div style={styles.footer}>
+              <div style={{ ...styles.footer, ...footerStyle }}>
                 <button
                   type="button"
                   style={styles.cancel}
@@ -157,6 +169,7 @@ export default function Modal({
                   disabled={isSubmitDisabled}
                   dataTestId="modal-submit"
                   hideTextOnMobile={false}
+                  style={submitButtonStyle}
                 />
               </div>
             ) : null}
@@ -193,6 +206,19 @@ const styles = {
   },
   title: {
     margin: 0,
+  },
+  closeButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 28,
+    height: 28,
+    padding: 0,
+    border: "none",
+    background: "transparent",
+    color: COLOR.TEXT.TERTIARY,
+    cursor: "pointer",
+    borderRadius: 6,
   },
   footer: {
     display: "flex",

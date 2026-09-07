@@ -58,18 +58,16 @@ export default function FacturasToolbar({
       </div>
 
       <div css={styles.documentTypeChips} aria-label="Filtrar por tipo de documento">
-        <span style={styles.documentTypeLabel}>Tipo de documento</span>
         {([
-          ["", "Todos"],
           ["FACTURA", "Facturas"],
           ["NOTA_CREDITO", "Notas de crédito"],
           ["NOTA_DEBITO", "Notas de débito"],
         ] as const).map(([value, label]) => (
           <FilterChip
-            key={value || "TODOS"}
+            key={value}
             text={label}
             selected={documentoTipo === value}
-            onClick={() => onDocumentoTipoChange(value)}
+            onClick={() => onDocumentoTipoChange(documentoTipo === value ? "" : value)}
           />
         ))}
       </div>

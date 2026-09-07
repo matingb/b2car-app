@@ -1,20 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
-import { BadgeMinus, BadgePlus, Download, FileSpreadsheet, FileText, ReceiptText } from "lucide-react";
-import Color from "color";
+import { Download, FileSpreadsheet, ReceiptText } from "lucide-react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
+import FacturaListItem from "@/app/components/facturacion/FacturaListItem";
 import FacturasFiltersModal, { type FacturasFilters } from "@/app/components/facturacion/FacturasFiltersModal";
 import FacturasToolbar, { type FacturaDocumentoTipoFilter, type FacturaFilterChip } from "@/app/components/facturacion/FacturasToolbar";
 import {
   FACTURA_ESTADO_LABEL,
-  comprobanteLabel,
   type FacturaElectronicaEstado,
-  type FacturaElectronicaResumen,
   type FacturasPaginadas,
 } from "@/lib/facturacion/types";
 import { COLOR } from "@/theme/theme";
@@ -27,36 +24,9 @@ function isFilterKey(value: string): value is keyof FacturasFilters {
   return value in initialFilters;
 }
 
-const documentPresentation = {
-  FACTURA: {
-    icon: <FileText size={20} />,
-    color: COLOR.ACCENT.PRIMARY,
-    background: Color(COLOR.ACCENT.PRIMARY).alpha(0.12).toString(),
-  },
-  NOTA_CREDITO: {
-    icon: <BadgeMinus size={20} />,
-    color: COLOR.SEMANTIC.DANGER,
-    background: Color(COLOR.SEMANTIC.DANGER).alpha(0.12).toString(),
-  },
-  NOTA_DEBITO: {
-    icon: <BadgePlus size={20} />,
-    color: COLOR.SEMANTIC.WARNING,
-    background: Color(COLOR.SEMANTIC.WARNING).alpha(0.14).toString(),
-  },
-} as const;
-
-function formatMoney(value: number) {
-  return value.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
-
 function formatDate(value: string) {
   if (!value) return "-";
   return new Intl.DateTimeFormat("es-AR").format(new Date(`${value}T12:00:00`));
-}
-
-function voucherNumber(invoice: FacturaElectronicaResumen) {
-  if (!invoice.numeroComprobante) return "Sin número";
-  return `${String(invoice.puntoVenta).padStart(5, "0")}-${String(invoice.numeroComprobante).padStart(8, "0")}`;
 }
 
 export default function FacturacionPage() {
@@ -171,29 +141,7 @@ export default function FacturacionPage() {
       {!loading && result.items.length ? (
         <div style={styles.list}>
           {result.items.map((invoice) => {
-            const presentation = documentPresentation[invoice.documentoTipo];
-            return (
-              <Link href={`/facturacion/${invoice.id}`} key={invoice.id} style={styles.invoiceLink}>
-                <Card style={styles.invoiceCard}>
-                  <div style={styles.invoiceMain}>
-                    <div style={{ ...styles.icon, color: presentation.color, background: presentation.background }}>{presentation.icon}</div>
-                  <div style={styles.invoiceIdentity}>
-                    <div style={styles.invoiceTitle}>
-                      <strong>{comprobanteLabel(invoice.documentoTipo, invoice.claseComprobante)}</strong>
-                      <span style={statusStyle(invoice.estado)}>{FACTURA_ESTADO_LABEL[invoice.estado]}</span>
-                    </div>
-                    <span style={styles.number}>{voucherNumber(invoice)}</span>
-                    <span style={styles.meta}>{invoice.receptorNombre} · {invoice.receptorDocumento || "Sin documento"}</span>
-                  </div>
-                </div>
-                <div style={styles.invoiceData}>
-                  <span>{formatDate(invoice.fechaComprobante)}</span>
-                  <strong>{formatMoney(invoice.total)}</strong>
-                  <small>{invoice.ambiente === "PRODUCCION" ? "Producción" : "Homologación"}</small>
-                </div>
-              </Card>
-            </Link>
-            );
+            return <FacturaListItem key={invoice.id} invoice={invoice} />;
           })}
         </div>
       ) : null}
@@ -216,31 +164,12 @@ export default function FacturacionPage() {
   );
 }
 
-function statusStyle(status: FacturaElectronicaEstado): React.CSSProperties {
-  const palette = status === "AUTORIZADA"
-    ? { color: COLOR.SEMANTIC.SUCCESS, background: COLOR.BACKGROUND.SUCCESS_TINT }
-    : status === "RECHAZADA"
-      ? { color: COLOR.ICON.DANGER, background: COLOR.BACKGROUND.DANGER_TINT }
-      : { color: COLOR.TEXT.SECONDARY, background: COLOR.BACKGROUND.SUBTLE };
-  return { ...styles.status, ...palette };
-}
-
 const styles = {
   toolbar: { display: "flex", justifyContent: "space-between", alignItems: "end", gap: 12, margin: "24px 0 12px", flexWrap: "wrap" as const },
   heading: { margin: 0, fontSize: 20 }, count: { color: COLOR.TEXT.SECONDARY, fontSize: 13 },
   exportActions: { display: "flex", gap: 8 },
   exportLink: { display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", color: COLOR.TEXT.PRIMARY, border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 8, padding: "8px 11px", fontSize: 13, fontWeight: 600 },
   list: { display: "flex", flexDirection: "column" as const, gap: 9 },
-  invoiceLink: { textDecoration: "none", color: "inherit" },
-  invoiceCard: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" as const, transition: "border-color .15s ease" },
-  invoiceMain: { display: "flex", gap: 12, alignItems: "center", minWidth: 0, flex: "1 1 420px" },
-  icon: { width: 42, height: 42, borderRadius: 10, background: COLOR.BACKGROUND.SUBTLE, color: COLOR.ACCENT.PRIMARY, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" },
-  invoiceIdentity: { display: "flex", flexDirection: "column" as const, gap: 3, minWidth: 0 },
-  invoiceTitle: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const },
-  number: { fontFamily: "monospace", color: COLOR.TEXT.PRIMARY, fontSize: 13 },
-  meta: { color: COLOR.TEXT.SECONDARY, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const },
-  status: { borderRadius: 999, padding: "3px 7px", fontSize: 10, fontWeight: 800, textTransform: "uppercase" as const },
-  invoiceData: { display: "grid", gridTemplateColumns: "110px minmax(110px, auto)", gap: "3px 18px", textAlign: "right" as const, alignItems: "center" },
   pagination: { display: "flex", justifyContent: "center", alignItems: "center", gap: 14, marginTop: 20, color: COLOR.TEXT.SECONDARY, fontSize: 13 },
   empty: { display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 8, padding: 36, textAlign: "center" as const, color: COLOR.TEXT.SECONDARY },
   error: { color: COLOR.ICON.DANGER, background: COLOR.BACKGROUND.DANGER_TINT, padding: 12, borderRadius: 8, marginBottom: 12 },

@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
+import Card from "@/app/components/ui/Card";
 import { COLOR } from "@/theme/theme";
 import { Skeleton, Theme } from "@radix-ui/themes";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
@@ -38,6 +39,7 @@ import { LockKeyhole } from "lucide-react";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [data, setData] = useState<ArregloDetalleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorState, setErrorState] = useState<string | null>(null);
@@ -425,17 +427,30 @@ export default function ArregloDetailsPage() {
           </div>
         </div>
         {fiscalReadOnly ? (
-          <div style={styles.fiscalLockNotice} role="status">
-            <LockKeyhole size={20} />
+          <Card
+            style={styles.fiscalLockNotice}
+            onClick={() => router.push(`/facturacion/${facturaElectronica.id}`)}
+            role="button"
+            tabIndex={0}
+            title="Ver detalle de la factura"
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                router.push(`/facturacion/${facturaElectronica.id}`);
+              }
+            }}
+          >
+            <LockKeyhole size={20} color={COLOR.SEMANTIC.SUCCESS} />
             <div>
-              <strong>
-                Factura C N° {String(facturaElectronica.numeroComprobante ?? 0).padStart(8, "0")} autorizada
-              </strong>
+              <div style={styles.fiscalInvoiceTitle}>
+                <strong>Factura {facturaElectronica.claseComprobante} N° {String(facturaElectronica.numeroComprobante ?? 0).padStart(8, "0")} autorizada</strong>
+                <span>CAE {facturaElectronica.cae ?? "-"}{facturaElectronica.caeVencimiento ? ` · vence ${facturaElectronica.caeVencimiento}` : ""}</span>
+              </div>
               <div style={styles.fiscalLockText}>
                 Las líneas de mano de obra, formulario y repuestos coinciden con un comprobante fiscal y ya no pueden modificarse.
               </div>
             </div>
-          </div>
+          </Card>
         ) : null}
         {isCustomTipoSelected ? (
           <>
@@ -615,10 +630,15 @@ const styles = {
     gap: 10,
     margin: "14px 0",
     padding: 14,
-    borderRadius: 10,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.SUBTLE,
+    background: COLOR.BACKGROUND.SUCCESS_TINT,
     color: COLOR.TEXT.PRIMARY,
+  },
+  fiscalInvoiceTitle: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap" as const,
+    color: COLOR.SEMANTIC.SUCCESS,
   },
   fiscalLockText: {
     color: COLOR.TEXT.SECONDARY,
