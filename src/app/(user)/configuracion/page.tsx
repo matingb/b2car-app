@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ShieldCheck, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import Button from "@/app/components/ui/Button";
-import Checkbox from "@/app/components/ui/Checkbox";
 import FacturacionEmpresaCard from "@/app/components/facturacion/FacturacionEmpresaCard";
 import FacturacionFiscalCard from "@/app/components/facturacion/FacturacionFiscalCard";
 import FacturacionCertificadosCard from "@/app/components/facturacion/FacturacionCertificadosCard";
@@ -21,7 +20,6 @@ const emptyConfig: FacturacionConfiguracionPublica = {
   ingresosBrutos: null,
   inicioActividades: "",
   puntoVenta: 1,
-  habilitada: false,
   ambiente: "HOMOLOGACION",
   credenciales: {
     configuradas: false,
@@ -33,6 +31,10 @@ const emptyConfig: FacturacionConfiguracionPublica = {
   },
 };
 
+function configSnapshot(config: FacturacionConfiguracionPublica): string {
+  return JSON.stringify(config);
+}
+
 export default function ConfiguracionPage() {
   const [config, setConfig] = useState<FacturacionConfiguracionPublica>(emptyConfig);
   const [certificate, setCertificate] = useState<File | null>(null);
@@ -41,6 +43,8 @@ export default function ConfiguracionPage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [generateKeyOpen, setGenerateKeyOpen] = useState(false);
+  const [savedConfigSnapshot, setSavedConfigSnapshot] = useState<string | null>(null);
+  const [credentialUploadAttempted, setCredentialUploadAttempted] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,7 +55,12 @@ export default function ConfiguracionPage() {
       const response = await fetch("/api/facturacion/configuracion", { cache: "no-store" });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "No se pudo cargar la configuración fiscal");
-      setConfig(body.data ?? emptyConfig);
+      const loadedConfig = body.data ?? emptyConfig;
+      setConfig(loadedConfig);
+      setSavedConfigSnapshot(configSnapshot(loadedConfig));
+      setCertificate(null);
+      setPrivateKey(null);
+      setCredentialUploadAttempted(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo cargar la configuración fiscal");
     } finally {
@@ -62,13 +71,6 @@ export default function ConfiguracionPage() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  const update = <K extends keyof FacturacionConfiguracionPublica>(
-    key: K,
-    value: FacturacionConfiguracionPublica[K],
-  ) => {
-    setConfig((previous) => ({ ...previous, [key]: value }));
-  };
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -97,12 +99,14 @@ export default function ConfiguracionPage() {
       if (!response.ok) throw new Error(body.error || "No se pudo guardar la configuración fiscal");
 
       setConfig(body.data);
+      setSavedConfigSnapshot(configSnapshot(body.data));
       setCertificate(null);
       setPrivateKey(null);
+      setCredentialUploadAttempted(false);
       setMessage(
         body.data.credenciales.configuradas
           ? "Configuración fiscal guardada y credenciales activas en Storage privado."
-          : "Configuración guardada. Subí el certificado y la clave privada para habilitar la emisión.",
+          : "Configuración guardada. Subí el certificado y la clave privada para poder emitir comprobantes.",
       );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo guardar la configuración fiscal");
@@ -110,6 +114,18 @@ export default function ConfiguracionPage() {
       setSaving(false);
     }
   };
+
+  const hasUnsavedConfigChanges = savedConfigSnapshot === null || savedConfigSnapshot !== configSnapshot(config);
+  const canTestConnection = config.credenciales.configuradas
+    && !hasUnsavedConfigChanges
+    && !credentialUploadAttempted
+    && !certificate
+    && !privateKey;
+  const testConnectionDisabledReason = !config.credenciales.configuradas
+    ? "Configurá y guardá el certificado y la clave privada para probar la conexión"
+    : hasUnsavedConfigChanges || credentialUploadAttempted || certificate || privateKey
+      ? "Guardá o recargá la configuración antes de probar la conexión"
+      : undefined;
 
   const testConnection = async () => {
     setTesting(true);
@@ -123,7 +139,7 @@ export default function ConfiguracionPage() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "No se pudo probar la conexión fiscal");
       setMessage(
-        `Conexión correcta con ARCA. Último comprobante: ${body.data.ultimoComprobante}.`,
+        `Conexión correcta con ARCA. Ya puede generar comprobantes fiscales.`,
       );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo probar la conexión fiscal");
@@ -187,6 +203,7 @@ export default function ConfiguracionPage() {
                 onCertificateChange={setCertificate}
                 onPrivateKeyChange={setPrivateKey}
                 onGenerateKey={() => setGenerateKeyOpen(true)}
+                onCredentialUploadAttempt={() => setCredentialUploadAttempted(true)}
               />
 
               {/* Feedback Alerts */}
@@ -204,22 +221,15 @@ export default function ConfiguracionPage() {
                 </div>
               )}
 
-              {/* Acciones y Habilitación */}
+              {/* Acciones */}
               <div style={styles.actionsBar}>
-                <Checkbox
-                  id="habilitar-emision"
-                  checked={config.habilitada}
-                  onChange={(checked) => update("habilitada", checked)}
-                  label="Habilitar emisión de comprobantes"
-                  disabled={saving || testing}
-                />
-
                 <div style={styles.actionButtons}>
                   <Button
                     type="button"
                     text={testing ? "Probando conexión…" : "Probar conexión"}
                     outline
-                    disabled={testing || saving || !config.credenciales.configuradas}
+                    disabled={testing || saving || !canTestConnection}
+                    title={testConnectionDisabledReason}
                     onClick={testConnection}
                     hideTextOnMobile={false}
                   />
@@ -331,7 +341,7 @@ const styles = {
   actionsBar: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     gap: 16,
     flexWrap: "wrap" as const,
     paddingTop: 16,

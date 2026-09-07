@@ -15,6 +15,7 @@ interface FacturacionCertificadosCardProps {
   onCertificateChange: (file: File | null) => void;
   onPrivateKeyChange: (file: File | null) => void;
   onGenerateKey: () => void;
+  onCredentialUploadAttempt: () => void;
   disabled?: boolean;
 }
 
@@ -25,6 +26,7 @@ export default function FacturacionCertificadosCard({
   onCertificateChange,
   onPrivateKeyChange,
   onGenerateKey,
+  onCredentialUploadAttempt,
   disabled = false,
 }: FacturacionCertificadosCardProps) {
   const isConfigured = credenciales.configuradas;
@@ -100,6 +102,7 @@ export default function FacturacionCertificadosCard({
             accept=".crt,.pem"
             file={certificate}
             onFileChange={onCertificateChange}
+            onUploadAttempt={onCredentialUploadAttempt}
             existingFileName={credenciales.certificadoNombre}
             disabled={disabled}
           />
@@ -113,6 +116,7 @@ export default function FacturacionCertificadosCard({
             accept=".key,.pem"
             file={privateKey}
             onFileChange={onPrivateKeyChange}
+            onUploadAttempt={onCredentialUploadAttempt}
             existingFileName={credenciales.clavePrivadaNombre}
             disabled={disabled}
           />

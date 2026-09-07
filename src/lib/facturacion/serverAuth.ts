@@ -20,6 +20,14 @@ export type TenantActor = {
   claimedRole: string;
 };
 
+const CUIT_CERTIFICATE_RELATION_MESSAGE = "El CUIT ingresado no está asociado al certificado configurado";
+
+function isCuitCertificateRelationError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : "";
+  return /ValidacionDeToken/i.test(message)
+    && /CUIT\s+en\s+lista\s+de\s+relaciones/i.test(message);
+}
+
 export async function requireTenantActor(): Promise<TenantActor> {
   const supabase = await createClient();
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
@@ -76,6 +84,9 @@ export function facturacionErrorResponse(error: unknown): Response {
   }
   if (error instanceof FacturacionValidationError) {
     return Response.json({ error: error.message }, { status: 422 });
+  }
+  if (isCuitCertificateRelationError(error)) {
+    return Response.json({ error: CUIT_CERTIFICATE_RELATION_MESSAGE }, { status: 422 });
   }
   console.error("Error de facturación electrónica", error);
   return Response.json({ error: "No se pudo completar la operación de facturación" }, { status: 500 });

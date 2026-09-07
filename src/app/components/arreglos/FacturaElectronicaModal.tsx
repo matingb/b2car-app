@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CircleAlert, Download, ReceiptText } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CircleAlert, Download, ReceiptText, Settings2 } from "lucide-react";
 import Modal from "@/app/components/ui/Modal";
 import Button from "@/app/components/ui/Button";
 import Dropdown from "@/app/components/ui/Dropdown";
@@ -43,6 +44,7 @@ const documentOptions = TIPOS_DOCUMENTO_FISCAL.map((tipo) => ({ value: String(ti
 const ivaOptions = CONDICIONES_IVA_RECEPTOR.map((condicion) => ({ value: String(condicion.id), label: condicion.label }));
 
 export default function FacturaElectronicaModal({ open, arregloId, operacionId, onClose, onAuthorized }: Props) {
+  const router = useRouter();
   const [preflight, setPreflight] = useState<FacturacionPreflight | null>(null);
   const [factura, setFactura] = useState<FacturaElectronicaResumen | null>(null);
   const [receptor, setReceptor] = useState<FiscalDraft>({ tipoDocumento: "99", numeroDocumento: "", condicionIvaReceptorId: "5" });
@@ -84,7 +86,8 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   }, [endpoint, open]);
 
   const canRetry = factura?.estado === "RECHAZADA";
-  const canSubmit = Boolean(preflight && (preflight.puedeEmitir || canRetry) && factura?.estado !== "AUTORIZADA" && factura?.estado !== "INCIERTA");
+  const needsConfiguration = Boolean(preflight && !preflight.configuracionCompleta);
+  const canSubmit = Boolean(!needsConfiguration && preflight && (preflight.puedeEmitir || canRetry) && factura?.estado !== "AUTORIZADA" && factura?.estado !== "INCIERTA");
   const isServiceConcept = preflight?.concepto === 2 || preflight?.concepto === 3;
   const voucherPreview = useMemo(() => {
     if (!preflight?.emisor) return null;
@@ -93,7 +96,9 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       Number(receptor.condicionIvaReceptorId) as PerfilFiscalCliente["condicionIvaReceptorId"],
     );
   }, [preflight?.emisor, receptor.condicionIvaReceptorId]);
-  const submitText = canRetry ? "Reintentar emisión" : `Emitir ${voucherPreview ? `Factura ${voucherPreview.clase}` : "factura"}`;
+  const submitText = needsConfiguration
+    ? "Configurar facturación"
+    : canRetry ? "Reintentar emisión" : `Emitir ${voucherPreview ? `Factura ${voucherPreview.clase}` : "factura"}`;
 
   const invoiceLabel = useMemo(() => {
     if (!factura?.numeroComprobante) return "";
@@ -101,6 +106,11 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   }, [factura?.numeroComprobante, preflight?.emisor?.puntoVenta]);
 
   const handleSubmit = async () => {
+    if (needsConfiguration) {
+      onClose();
+      router.push("/configuracion");
+      return;
+    }
     if (!preflight || !canSubmit) return;
     setSubmitting(true);
     setError(null);
@@ -140,19 +150,30 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   return (
     <Modal
       open={open}
-      title="Facturación electrónica"
+      title={needsConfiguration ? "Facturación electrónica sin configurar" : "Facturación electrónica"}
       onClose={onClose}
       onSubmit={handleSubmit}
       submitText={submitText}
       submitting={submitting}
-      disabledSubmit={!canSubmit || loading}
+      disabledSubmit={loading || (!needsConfiguration && !canSubmit)}
       showCloseButton
       modalStyle={styles.modal}
       footerStyle={styles.footer}
       modalError={error ? { titulo: "No se pudo emitir la factura", descripcion: error } : null}
     >
       {loading ? <p style={styles.muted}>Preparando datos fiscales…</p> : null}
-      {!loading && preflight ? (
+      {!loading && needsConfiguration ? (
+        <div style={styles.configurationContent}>
+          <div style={styles.configurationIcon}><Settings2 size={24} /></div>
+          <div style={styles.configurationText}>
+            <strong>Antes de emitir un comprobante, configurá la facturación electrónica.</strong>
+            <span>
+              Completá los datos fiscales y cargá el certificado junto con su clave privada para poder emitir con ARCA.
+            </span>
+          </div>
+        </div>
+      ) : null}
+      {!loading && preflight && !needsConfiguration ? (
         <div style={styles.content}>
           {factura?.estado === "AUTORIZADA" ? (
             <div style={styles.authorized}>
@@ -288,6 +309,31 @@ const styles = {
     padding: "18px 18px 0",
   },
   content: { display: "flex", flexDirection: "column" as const, gap: 16 },
+  configurationContent: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 14,
+    padding: "8px 0 10px",
+  },
+  configurationIcon: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    flexShrink: 0,
+    color: COLOR.ACCENT.PRIMARY,
+    background: COLOR.BACKGROUND.INFO_TINT,
+  },
+  configurationText: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 6,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 14,
+    lineHeight: 1.5,
+  },
   summary: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",

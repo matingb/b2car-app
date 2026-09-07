@@ -115,7 +115,6 @@ export type FacturacionConfiguracionPublica = {
   ingresosBrutos: string | null;
   inicioActividades: string;
   puntoVenta: number;
-  habilitada: boolean;
   ambiente: FacturacionAmbiente;
   credenciales: {
     configuradas: boolean;

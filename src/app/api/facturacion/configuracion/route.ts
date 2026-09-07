@@ -5,6 +5,7 @@ import {
 } from "@/lib/facturacion/facturacionService";
 import { getFacturacionAmbiente } from "@/lib/facturacion/environment";
 import { facturacionErrorResponse, requireTenantAdmin } from "@/lib/facturacion/serverAuth";
+import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -48,6 +49,7 @@ export async function PUT(request: Request) {
     return Response.json({ data: config, error: null });
   } catch (error) {
     if (error instanceof FacturacionValidationError) {
+      logger.error("FacturacionValidationError", { error });
       return Response.json({ error: error.message }, { status: 422 });
     }
     return facturacionErrorResponse(error);

@@ -11,6 +11,7 @@ interface CertificadoUploaderProps {
   accept: string;
   file: File | null;
   onFileChange: (file: File | null) => void;
+  onUploadAttempt?: () => void;
   existingFileName?: string | null;
   required?: boolean;
   disabled?: boolean;
@@ -28,6 +29,7 @@ export default function CertificadoUploader({
   accept,
   file,
   onFileChange,
+  onUploadAttempt,
   existingFileName,
   required = false,
   disabled = false,
@@ -44,6 +46,8 @@ export default function CertificadoUploader({
       onFileChange(null);
       return;
     }
+
+    onUploadAttempt?.();
 
     if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
       setSizeError(

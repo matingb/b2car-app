@@ -54,7 +54,7 @@ type StoredConfig = {
   ingresosBrutos: string | null;
   inicioActividades: string;
   puntoVenta: number;
-  habilitada: boolean;
+  configurada: boolean;
   certificatePath: string | null;
   privateKeyPath: string | null;
   certificateOriginalFilename: string | null;
@@ -162,6 +162,14 @@ function mapConfig(value: unknown): StoredConfig | null {
   const credentials = Boolean(certificatePath && privateKeyPath);
   const certificateValid = !certificateExpiresAt
     || new Date(certificateExpiresAt).getTime() > Date.now();
+  const fiscalDataValid = Boolean(
+    text(row.razon_social)
+    && text(row.domicilio)
+    && isValidCuitCuil(normalizeDocumentNumber(text(row.cuit)))
+    && isIsoDate(text(row.inicio_actividades))
+    && Number.isInteger(number(row.punto_venta))
+    && number(row.punto_venta) > 0,
+  );
   return {
     ambiente: parseAmbiente(row.ambiente),
     razonSocial: text(row.razon_social),
@@ -173,7 +181,7 @@ function mapConfig(value: unknown): StoredConfig | null {
     ingresosBrutos: nullable(row.ingresos_brutos),
     inicioActividades: text(row.inicio_actividades),
     puntoVenta: number(row.punto_venta),
-    habilitada: row.habilitada !== false && credentials && certificateValid,
+    configurada: fiscalDataValid && credentials && certificateValid,
     certificatePath,
     privateKeyPath,
     certificateOriginalFilename: nullable(row.cert_original_filename),
@@ -195,7 +203,6 @@ function publicConfig(config: StoredConfig): FacturacionConfiguracionPublica {
     ingresosBrutos: config.ingresosBrutos,
     inicioActividades: config.inicioActividades,
     puntoVenta: config.puntoVenta,
-    habilitada: config.habilitada && configured,
     ambiente: config.ambiente,
     credenciales: {
       configuradas: configured,
@@ -220,7 +227,6 @@ export function validateConfigurationInput(value: unknown): FacturacionConfigura
     ingresosBrutos: nullable(row.ingresosBrutos),
     inicioActividades: text(row.inicioActividades),
     puntoVenta: number(row.puntoVenta),
-    habilitada: row.habilitada !== false,
     ambiente: getFacturacionAmbiente(),
     credenciales: {
       configuradas: false, certificadoNombre: null, clavePrivadaNombre: null,
@@ -278,7 +284,6 @@ export async function saveFacturacionConfig(
   const uploaded = certificate && privateKey
     ? await uploadCredentialPair(tenantId, certificate, privateKey, config.ambiente)
     : null;
-  const credentialsConfigured = Boolean(uploaded || (previous?.certificatePath && previous.privateKeyPath));
   const { data, error } = await supabase
     .from("facturacion_configuracion_ambiente")
     .upsert({
@@ -292,7 +297,6 @@ export async function saveFacturacionConfig(
       ingresos_brutos: config.ingresosBrutos,
       inicio_actividades: config.inicioActividades,
       punto_venta: config.puntoVenta,
-      habilitada: config.habilitada && credentialsConfigured,
       ...(uploaded ? {
         cert_storage_path: uploaded.certificatePath,
         key_storage_path: uploaded.privateKeyPath,
@@ -593,16 +597,16 @@ export async function getDocumentoPreflight(
   const voucher = determineVoucher(config?.condicionIvaEmisor ?? "MONOTRIBUTISTA", source.receptor.condicionIvaReceptorId ?? 5);
   const factura = existing ? mapSummary(existing) : null;
   const fceBloqueada = reachesFceMipymeLimit(source.total);
-  if (!mensaje && (!config || !config.habilitada)) mensaje = `Falta configurar o habilitar ${ambiente.toLowerCase()}`;
+  if (!mensaje && !config?.configurada) mensaje = "La facturación electrónica no está configurada";
   if (!mensaje && fceBloqueada) mensaje = "El importe alcanza el límite FCE MiPyME configurado para la emisión común";
   if (!mensaje && factura?.estado === "AUTORIZADA") mensaje = "El origen ya posee una factura autorizada";
   if (!mensaje && (factura?.estado === "ENVIANDO" || factura?.estado === "INCIERTA")) mensaje = "Existe una emisión pendiente de reconciliación";
   return {
     factura,
     preflight: {
-      puedeEmitir: Boolean(config?.habilitada) && !diferenciasTotal
+      puedeEmitir: Boolean(config?.configurada) && !diferenciasTotal
         && !fceBloqueada && (!factura || factura.estado === "RECHAZADA"),
-      configuracionCompleta: Boolean(config?.habilitada), origenListo: !diferenciasTotal,
+      configuracionCompleta: Boolean(config?.configurada), origenListo: !diferenciasTotal,
       diferenciasTotal, fceBloqueada, mensaje,
       emisor: config ? {
         razonSocial: config.razonSocial, cuit: config.cuit, puntoVenta: config.puntoVenta,
@@ -900,7 +904,7 @@ async function issueSourceFactura(
   input: FacturaIssueInput,
 ): Promise<FacturaIssueResult> {
   const config = await getStoredConfig(actor.tenantId, input.ambiente);
-  if (!config?.habilitada) throw new FacturacionValidationError("La configuración fiscal está incompleta o deshabilitada");
+  if (!config?.configurada) throw new FacturacionValidationError("La facturación electrónica no está configurada");
   const source = await getCanonicalSource(actor.tenantId, origenTipo, origenId);
   validateLineasYTotal(source.lineas, source.total);
   validateFechas(deriveFacturaConcepto(source.lineas), input.fechas);
@@ -1059,7 +1063,7 @@ export async function issueNotaFiscal(
     throw new FacturacionValidationError("La nota de crédito supera el saldo fiscal disponible");
   }
   const config = await getStoredConfig(actor.tenantId, parseAmbiente(original.ambiente));
-  if (!config?.habilitada) throw new FacturacionValidationError("La configuración del ambiente no está habilitada");
+  if (!config?.configurada) throw new FacturacionValidationError("La facturación electrónica no está configurada");
   const originalEmitter = record(original.emisor_snapshot);
   if (normalizeDocumentNumber(originalEmitter.cuit as string) !== config.cuit) {
     throw new FacturacionValidationError("El CUIT configurado ya no coincide con el emisor de la factura original");

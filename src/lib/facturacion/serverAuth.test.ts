@@ -26,6 +26,7 @@ vi.mock("@/supabase/server", () => ({
 
 import {
   FacturacionHttpError,
+  facturacionErrorResponse,
   requireTenantActor,
   requireTenantAdmin,
 } from "./serverAuth";
@@ -104,5 +105,32 @@ describe("autorización fiscal tenant-scoped", () => {
       role: "empleado",
       claimedRole: "empleado",
     });
+  });
+});
+
+describe("respuestas de errores fiscales", () => {
+  it("traduce el CUIT sin relación con el certificado para el frontend", async () => {
+    const error = Object.assign(
+      new Error("(600) ValidacionDeToken: No aparecio CUIT en lista de relaciones: 20239684484"),
+      { code: 600 },
+    );
+
+    const response = facturacionErrorResponse(error);
+
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toEqual({
+      error: "El CUIT ingresado no está asociado al certificado configurado",
+    });
+  });
+
+  it("mantiene el mensaje genérico para errores técnicos no reconocidos", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const response = facturacionErrorResponse(new Error("Fallo inesperado"));
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "No se pudo completar la operación de facturación",
+    });
+    consoleSpy.mockRestore();
   });
 });

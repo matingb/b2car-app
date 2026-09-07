@@ -107,7 +107,7 @@ export default function FacturacionFiscalCard({
               onChange={(e) =>
                 onChange({ ingresosBrutos: e.target.value || null })
               }
-              placeholder="Ej: 30-71234567-8"
+              placeholder="Ej: 30712345678910"
               style={styles.input}
             />
           </div>

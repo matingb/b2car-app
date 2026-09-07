@@ -47,7 +47,7 @@ export default function ArregloDetailsPage() {
   const [compraPendiente, setCompraPendiente] = useState<RepuestoUpsertInput | null>(null);
   const [customServiciosDraft, setCustomServiciosDraft] = useState<ServicioLinea[]>([]);
   const [facturaElectronica, setFacturaElectronica] = useState<FacturaElectronicaResumen | null>(null);
-  const [canEmitFactura, setCanEmitFactura] = useState(false);
+  const [canEmitFactura, setCanEmitFactura] = useState(true);
   const [openFacturaModal, setOpenFacturaModal] = useState(false);
   const {
     fetchById,
@@ -73,7 +73,7 @@ export default function ArregloDetailsPage() {
     const body = await response.json();
     const fiscal = body?.data;
     setFacturaElectronica(fiscal?.factura ?? null);
-    setCanEmitFactura(Boolean(fiscal?.canEmit));
+    setCanEmitFactura(!["AUTORIZADA", "ENVIANDO", "INCIERTA"].includes(fiscal?.factura?.estado));
   }, [params.id]);
 
   const reload = useCallback(async (options?: { showPageLoading?: boolean }) => {
