@@ -69,6 +69,42 @@ export function validateDocument(
   return { tipoDocumento, numeroDocumento: normalized };
 }
 
+/**
+ * ARCA admite DNI, CUIL, CUIT o el documento 99 solamente para consumidor final.
+ * Todo receptor con una condición fiscal distinta debe identificarse con CUIT.
+ */
+export function receiverDocumentTypesForCondition(
+  condicionIvaReceptorId: PerfilFiscalCliente["condicionIvaReceptorId"],
+): DocumentoFiscalTipo[] {
+  if (!condicionIvaReceptorId) {
+    throw new FacturacionValidationError("La condición IVA del receptor es obligatoria");
+  }
+  return condicionIvaReceptorId === 5 ? [99, 96, 86, 80] : [80];
+}
+
+export function validateReceiverIdentification(
+  receptor: Pick<PerfilFiscalCliente, "tipoDocumento" | "numeroDocumento" | "condicionIvaReceptorId">,
+  claseComprobante: FacturaClase,
+): { tipoDocumento: DocumentoFiscalTipo; numeroDocumento: string } {
+  const doc = validateDocument(receptor.tipoDocumento, receptor.numeroDocumento);
+  const condition = receptor.condicionIvaReceptorId;
+  const allowedTypes = receiverDocumentTypesForCondition(condition);
+
+  if ((claseComprobante === "A" || claseComprobante === "M") && doc.tipoDocumento !== 80) {
+    throw new FacturacionValidationError("Los comprobantes A o M requieren CUIT del receptor");
+  }
+  if (!allowedTypes.includes(doc.tipoDocumento)) {
+    if (condition === 1) {
+      throw new FacturacionValidationError("Un receptor Responsable Inscripto debe identificarse con CUIT");
+    }
+    throw new FacturacionValidationError("Los receptores que no son consumidor final deben identificarse con CUIT");
+  }
+  if (doc.tipoDocumento === 99 && condition !== 5) {
+    throw new FacturacionValidationError("El documento 99 sólo corresponde a consumidor final");
+  }
+  return doc;
+}
+
 export function deriveFacturaConcepto(lineas: FacturaLinea[]): FacturaConcepto {
   const servicios = lineas.some((linea) => linea.origen === "SERVICIO" || linea.origen === "FORMULARIO");
   const productos = lineas.some((linea) => linea.origen === "REPUESTO" || linea.origen === "VENTA");
@@ -228,14 +264,7 @@ export function buildComprobantePayload(input: {
 }): Record<string, unknown> {
   if (!Number.isInteger(input.voucherNumber) || input.voucherNumber <= 0) throw new FacturacionValidationError("Número candidato inválido");
   if (!Number.isInteger(input.puntoVenta) || input.puntoVenta <= 0) throw new FacturacionValidationError("Punto de venta inválido");
-  const doc = validateDocument(input.receptor.tipoDocumento, input.receptor.numeroDocumento);
-  if (!input.receptor.condicionIvaReceptorId) throw new FacturacionValidationError("La condición IVA es obligatoria");
-  if ((input.claseComprobante === "A" || input.claseComprobante === "M") && doc.tipoDocumento !== 80) {
-    throw new FacturacionValidationError("Los comprobantes A o M requieren CUIT del receptor");
-  }
-  if (doc.tipoDocumento === 99 && input.receptor.condicionIvaReceptorId !== 5) {
-    throw new FacturacionValidationError("El documento 99 sólo corresponde a consumidor final");
-  }
+  const doc = validateReceiverIdentification(input.receptor, input.claseComprobante);
   const fechas = validateFechas(input.concepto, input.fechas);
   const payload: Record<string, unknown> = {
     CantReg: 1, PtoVta: input.puntoVenta, CbteTipo: input.tipoComprobante,

@@ -17,6 +17,7 @@ import {
   validateDocument,
   validateFechas,
   validateLineasYTotal,
+  validateReceiverIdentification,
 } from "./arcaPayload";
 import { createArcaGateway, sanitizeFiscalPayload } from "./afipGateway";
 import { deleteCredentialPair, downloadCredentialPair, uploadCredentialPair } from "./credentialStorage";
@@ -764,7 +765,6 @@ type EmitDocumentInput = {
 
 async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResult> {
   const supabase = await createClient();
-  validateDocument(input.receiver.tipoDocumento, input.receiver.numeroDocumento);
   if (!input.receiver.condicionIvaReceptorId) throw new FacturacionValidationError("La condición IVA es obligatoria");
   const concept = deriveFacturaConcepto(input.lines);
   const dates = validateFechas(concept, input.dates);
@@ -773,6 +773,7 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
     throw new FacturacionValidationError("El importe alcanza el límite FCE MiPyME configurado para la emisión común");
   }
   const voucher = determineVoucher(input.config.condicionIvaEmisor, input.receiver.condicionIvaReceptorId, input.documentType);
+  validateReceiverIdentification(input.receiver, voucher.clase);
   const token = randomUUID();
   if (!(await lease(input.config, voucher.tipo, token, true))) {
     throw new FacturacionValidationError("Hay otra emisión en curso para el punto de venta");

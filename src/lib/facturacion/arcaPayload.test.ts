@@ -8,6 +8,7 @@ import {
   FacturacionValidationError,
   fiscalizeLineas,
   validateDocument,
+  validateReceiverIdentification,
   validateFechas,
   validateLineasYTotal,
 } from "./arcaPayload";
@@ -61,6 +62,24 @@ describe("facturación ARCA: receptor y Factura C", () => {
 
   it("admite consumidor final sin identificar con documento 99", () => {
     expect(validateDocument(99, null)).toEqual({ tipoDocumento: 99, numeroDocumento: "0" });
+  });
+
+  it("exige CUIT para receptores con condición fiscal, incluso en Factura C", () => {
+    expect(() => validateReceiverIdentification({
+      tipoDocumento: 96,
+      numeroDocumento: "12345678",
+      condicionIvaReceptorId: 1,
+    }, "C")).toThrow("Responsable Inscripto debe identificarse con CUIT");
+    expect(validateReceiverIdentification({
+      tipoDocumento: 80,
+      numeroDocumento: "20-12345678-6",
+      condicionIvaReceptorId: 1,
+    }, "A")).toEqual({ tipoDocumento: 80, numeroDocumento: "20123456786" });
+    expect(validateReceiverIdentification({
+      tipoDocumento: 96,
+      numeroDocumento: "12345678",
+      condicionIvaReceptorId: 5,
+    }, "B")).toEqual({ tipoDocumento: 96, numeroDocumento: "12345678" });
   });
 
   it("construye Factura C sin IVA ni tributos y con fechas de servicio", () => {
@@ -140,7 +159,7 @@ describe("facturación ARCA: matriz A/B/C e IVA", () => {
         numeroDocumento: "0",
         condicionIvaReceptorId: 5,
       },
-      fechas: { fechaComprobante: "2026-09-01" },
+      fechas: { fechaComprobante: new Date().toISOString().slice(0, 10) },
       totales: fiscal.totales,
       lineas: fiscal.lineas,
     });

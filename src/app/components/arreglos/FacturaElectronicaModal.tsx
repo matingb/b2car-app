@@ -16,7 +16,11 @@ import {
   type FacturacionPreflight,
   type PerfilFiscalCliente,
 } from "@/lib/facturacion/types";
-import { determineVoucher } from "@/lib/facturacion/arcaPayload";
+import {
+  determineVoucher,
+  receiverDocumentTypesForCondition,
+  validateReceiverIdentification,
+} from "@/lib/facturacion/arcaPayload";
 
 type Props = {
   open: boolean;
@@ -33,21 +37,32 @@ type FiscalDraft = {
 };
 
 function defaultDraft(receptor: PerfilFiscalCliente): FiscalDraft {
+  const condicionIvaReceptorId = receptor.condicionIvaReceptorId ?? 5;
+  const requiresCuit = condicionIvaReceptorId !== 5;
   return {
-    tipoDocumento: String(receptor.tipoDocumento ?? 99),
-    numeroDocumento: receptor.numeroDocumento ?? "",
-    condicionIvaReceptorId: String(receptor.condicionIvaReceptorId ?? 5),
+    tipoDocumento: String(requiresCuit ? 80 : receptor.tipoDocumento ?? 99),
+    numeroDocumento: requiresCuit && receptor.tipoDocumento !== 80 ? "" : receptor.numeroDocumento ?? "",
+    condicionIvaReceptorId: String(condicionIvaReceptorId),
   };
 }
 
-const documentOptions = TIPOS_DOCUMENTO_FISCAL.map((tipo) => ({ value: String(tipo.id), label: tipo.label }));
 const ivaOptions = CONDICIONES_IVA_RECEPTOR.map((condicion) => ({ value: String(condicion.id), label: condicion.label }));
+const condicionVentaOptions = [
+  { value: "CONTADO", label: "Contado" },
+  { value: "TARJETA DE DEBITO", label: "Tarjeta de débito" },
+  { value: "TARJETA DE CREDITO", label: "Tarjeta de crédito" },
+  { value: "CUENTA CORRIENTE", label: "Cuenta corriente" },
+  { value: "CHEQUE", label: "Cheque" },
+  { value: "TRANSFERENCIA BANCARIA", label: "Transferencia bancaria" },
+  { value: "OTRA", label: "Otra" },
+];
 
 export default function FacturaElectronicaModal({ open, arregloId, operacionId, onClose, onAuthorized }: Props) {
   const router = useRouter();
   const [preflight, setPreflight] = useState<FacturacionPreflight | null>(null);
   const [factura, setFactura] = useState<FacturaElectronicaResumen | null>(null);
   const [receptor, setReceptor] = useState<FiscalDraft>({ tipoDocumento: "99", numeroDocumento: "", condicionIvaReceptorId: "5" });
+  const [condicionVenta, setCondicionVenta] = useState("CONTADO");
   const [fechas, setFechas] = useState<FacturaFechaInput>({ fechaComprobante: "" });
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -72,6 +87,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         setPreflight(data.preflight);
         setFactura(data.factura);
         setReceptor(defaultDraft(data.preflight.receptor));
+        setCondicionVenta("CONTADO");
         setFechas(data.preflight.fechasDefault);
       })
       .catch((cause) => {
@@ -87,8 +103,9 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
 
   const canRetry = factura?.estado === "RECHAZADA";
   const needsConfiguration = Boolean(preflight && !preflight.configuracionCompleta);
-  const canSubmit = Boolean(!needsConfiguration && preflight && (preflight.puedeEmitir || canRetry) && factura?.estado !== "AUTORIZADA" && factura?.estado !== "INCIERTA");
   const isServiceConcept = preflight?.concepto === 2 || preflight?.concepto === 3;
+  const receptorCondition = Number(receptor.condicionIvaReceptorId) as PerfilFiscalCliente["condicionIvaReceptorId"];
+  const receiverIsConsumerFinal = receptorCondition === 5;
   const voucherPreview = useMemo(() => {
     if (!preflight?.emisor) return null;
     return determineVoucher(
@@ -96,6 +113,34 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       Number(receptor.condicionIvaReceptorId) as PerfilFiscalCliente["condicionIvaReceptorId"],
     );
   }, [preflight?.emisor, receptor.condicionIvaReceptorId]);
+  const documentOptions = useMemo(
+    () => receiverDocumentTypesForCondition(receptorCondition).map((tipo) => ({
+      value: String(tipo),
+      label: TIPOS_DOCUMENTO_FISCAL.find((option) => option.id === tipo)?.label ?? "CUIT",
+    })),
+    [receptorCondition],
+  );
+  const receiverIdentificationError = useMemo(() => {
+    if (!preflight || !voucherPreview) return null;
+    try {
+      validateReceiverIdentification({
+        tipoDocumento: Number(receptor.tipoDocumento) as PerfilFiscalCliente["tipoDocumento"],
+        numeroDocumento: receptor.numeroDocumento,
+        condicionIvaReceptorId: receptorCondition,
+      }, voucherPreview.clase);
+      return null;
+    } catch (cause) {
+      return cause instanceof Error ? cause.message : "La identificación del receptor no es válida";
+    }
+  }, [preflight, receptor.tipoDocumento, receptor.numeroDocumento, receptorCondition, voucherPreview]);
+  const canSubmit = Boolean(
+    !needsConfiguration
+    && preflight
+    && !receiverIdentificationError
+    && (preflight.puedeEmitir || canRetry)
+    && factura?.estado !== "AUTORIZADA"
+    && factura?.estado !== "INCIERTA",
+  );
   const submitText = needsConfiguration
     ? "Configurar facturación"
     : canRetry ? "Reintentar emisión" : `Emitir ${voucherPreview ? `Factura ${voucherPreview.clase}` : "factura"}`;
@@ -120,7 +165,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           idempotencyKey,
-          condicionVenta: "CONTADO",
+          condicionVenta,
           receptor: {
             tipoDocumento: Number(receptor.tipoDocumento),
             numeroDocumento: receptor.numeroDocumento,
@@ -201,7 +246,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
           </section>
           <section style={styles.section}>
             <div style={styles.sectionTitle}>Datos del receptor: <span style={styles.recipientName}>{preflight.receptor.nombre}</span></div>
-            <div style={styles.grid}>
+            <div style={styles.recipientGrid}>
               <label style={styles.field}>Tipo de documento
                 <Dropdown
                   id="factura-tipo-documento"
@@ -212,6 +257,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
                     tipoDocumento: value,
                     ...(value === "99" ? { numeroDocumento: "", condicionIvaReceptorId: "5" } : {}),
                   }))}
+                  disabled={!receiverIsConsumerFinal}
                   style={styles.dropdown}
                   dataTestId="factura-tipo-documento"
                 />
@@ -222,21 +268,41 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
                   inputMode="numeric"
                   value={receptor.numeroDocumento}
                   disabled={receptor.tipoDocumento === "99"}
-                  placeholder={receptor.tipoDocumento === "99" ? "No requerido" : undefined}
+                  placeholder={receptor.tipoDocumento === "99" ? "No requerido" : receptor.tipoDocumento === "80" ? "Ej: 20123456786" : undefined}
                   wrapperStyle={styles.inputWrapper}
                   data-testid="factura-numero-documento"
                   onChange={(event) => setReceptor((previous) => ({ ...previous, numeroDocumento: event.target.value }))}
                 />
+                {receiverIdentificationError ? <span style={styles.validationError}>{receiverIdentificationError}</span> : null}
               </label>
               <label style={styles.field}>Condición IVA
                 <Dropdown
                   id="factura-condicion-iva"
                   options={ivaOptions}
                   value={receptor.condicionIvaReceptorId}
-                  disabled={receptor.tipoDocumento === "99"}
-                  onChange={(value) => setReceptor((previous) => ({ ...previous, condicionIvaReceptorId: value }))}
+                  onChange={(value) => setReceptor((previous) => {
+                    const requiresCuit = Number(value) !== 5;
+                    return {
+                      ...previous,
+                      condicionIvaReceptorId: value,
+                      ...(requiresCuit ? {
+                        tipoDocumento: "80",
+                        numeroDocumento: previous.tipoDocumento === "80" ? previous.numeroDocumento : "",
+                      } : {}),
+                    };
+                  })}
                   style={styles.dropdown}
                   dataTestId="factura-condicion-iva"
+                />
+              </label>
+              <label style={styles.field}>Condición de venta
+                <Dropdown
+                  id="factura-condicion-venta"
+                  options={condicionVentaOptions}
+                  value={condicionVenta}
+                  onChange={setCondicionVenta}
+                  style={styles.dropdown}
+                  dataTestId="factura-condicion-venta"
                 />
               </label>
             </div>
@@ -301,7 +367,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
 
 const styles = {
   modal: {
-    width: "min(780px, 94vw)",
+    width: "min(1020px, 96vw)",
     maxHeight: "90dvh",
     overflowY: "auto" as const,
     background: COLOR.BACKGROUND.SECONDARY,
@@ -369,11 +435,16 @@ const styles = {
   recipientName: { color: COLOR.ACCENT.PRIMARY },
   label: { display: "block", fontSize: 11, color: COLOR.TEXT.TERTIARY, textTransform: "uppercase" as const, letterSpacing: "0.04em" },
   muted: { color: COLOR.TEXT.SECONDARY, fontSize: 13, lineHeight: 1.4 },
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 },
+  recipientGrid: {
+    display: "grid",
+    gridTemplateColumns: "minmax(145px, 0.7fr) minmax(190px, 1fr) minmax(175px, 0.9fr) minmax(205px, 1.1fr)",
+    gap: 16,
+  },
   dateGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16 },
   field: { display: "flex", flexDirection: "column" as const, gap: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500, minWidth: 0 },
   dropdown: { width: "100%", height: 42 },
   inputWrapper: { width: "100%" },
+  validationError: { color: COLOR.SEMANTIC.DANGER, fontSize: 12, lineHeight: 1.35 },
   detail: { border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 8, padding: 14, background: COLOR.BACKGROUND.SUBTLE },
   lines: { display: "flex", flexDirection: "column" as const, gap: 8 },
   line: { display: "flex", justifyContent: "space-between", gap: 12, color: COLOR.TEXT.SECONDARY, fontSize: 13 },
