@@ -63,6 +63,7 @@ function mapOperacion(row: OperacionRow | OperacionListRow): Operacion {
 		fecha: String(row.fecha),
 		created_at: String(row.created_at),
 		lineas,
+		factura_asociada: "factura_asociada" in row && row.factura_asociada === true,
 		...(movimiento ? {
 			gasto_id: movimiento.gasto_id ?? undefined,
 			descripcion: movimiento.descripcion ?? undefined,

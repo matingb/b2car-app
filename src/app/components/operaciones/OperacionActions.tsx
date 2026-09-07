@@ -2,7 +2,7 @@
 
 import React from "react";
 import { css } from "@emotion/react";
-import { Pencil, Trash } from "lucide-react";
+import { Pencil, ReceiptText, Trash } from "lucide-react";
 import IconButton from "@/app/components/ui/IconButton";
 import { COLOR } from "@/theme/theme";
 
@@ -10,6 +10,7 @@ type Props = {
   isGasto: boolean;
   deleteTitle: string;
   onEdit?: () => void;
+  onInvoice?: () => void;
   onDelete?: () => void;
 };
 
@@ -17,9 +18,10 @@ export default function OperacionActions({
   isGasto,
   deleteTitle,
   onEdit,
+  onInvoice,
   onDelete,
 }: Props) {
-  if (!onEdit && !onDelete) return null;
+  if (!onEdit && !onInvoice && !onDelete) return null;
 
   return (
     <div css={styles.metaActions}>
@@ -31,6 +33,18 @@ export default function OperacionActions({
           onClick={(e) => {
             e.stopPropagation();
             onEdit();
+          }}
+        />
+      ) : null}
+      {onInvoice ? (
+        <IconButton
+          icon={<ReceiptText />}
+          title="Facturar electrónicamente"
+          ariaLabel="Facturar electrónicamente"
+          hoverColor={COLOR.ACCENT.PRIMARY}
+          onClick={(e) => {
+            e.stopPropagation();
+            onInvoice();
           }}
         />
       ) : null}

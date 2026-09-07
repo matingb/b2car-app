@@ -83,6 +83,7 @@ export type OperacionListRow = {
 	cuenta_financiera_nombre: string | null;
 	monto: number | string | null;
 	arreglo_id: string | null;
+	factura_asociada?: boolean;
 	total_count: number | string | null;
 };
 
@@ -139,7 +140,27 @@ export const operacionesService = {
 		if (error) return { data: [], total: 0, error: toServiceError(error) };
 		const rows = (Array.isArray(data) ? data : []) as OperacionListRow[];
 		const total = rows.length > 0 ? Number(rows[0]?.total_count) || 0 : 0;
-		return { data: rows, total, error: null };
+		const ventaIds = rows.filter((row) => row.tipo === "VENTA").map((row) => row.id);
+		if (!ventaIds.length) return { data: rows, total, error: null };
+
+		const { data: invoices, error: invoiceError } = await supabase
+			.from("facturas_electronicas")
+			.select("operacion_id")
+			.eq("documento_tipo", "FACTURA")
+			.in("operacion_id", ventaIds);
+		if (invoiceError) return { data: [], total: 0, error: toServiceError(invoiceError) };
+
+		const invoiceOperationIds = new Set(
+			(invoices ?? []).map((invoice) => String(invoice.operacion_id ?? "")).filter(Boolean),
+		);
+		return {
+			data: rows.map((row) => ({
+				...row,
+				factura_asociada: row.tipo === "VENTA" && invoiceOperationIds.has(row.id),
+			})),
+			total,
+			error: null,
+		};
 	},
 
 	async getById(

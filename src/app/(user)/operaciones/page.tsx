@@ -436,7 +436,7 @@ export default function OperacionesPage() {
                                 onToggle={() => {
                                     setExpandedOperacionId((prev) => (prev === operacion.id ? null : operacion.id));
                                 }}
-                                onDelete={() => {
+                                onDelete={operacion.factura_asociada ? undefined : () => {
                                     void handleDelete(operacion);
                                 }}
                                 onEdit={operacion.tipo === "GASTO" ? () => handleEditGasto(operacion) : undefined}

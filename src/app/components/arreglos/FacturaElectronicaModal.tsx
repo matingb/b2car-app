@@ -52,6 +52,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const [error, setError] = useState<string | null>(null);
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const endpoint = operacionId ? `/api/operaciones/${operacionId}/factura` : `/api/arreglos/${arregloId}/factura`;
+  const sourceLabel = operacionId ? "venta" : "arreglo";
 
   useEffect(() => {
     if (!open) return;
@@ -270,7 +271,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
           </section>
           {preflight.mensaje && factura?.estado !== "RECHAZADA" ? <div style={styles.warning}><CircleAlert size={16} /><span>{preflight.mensaje}</span></div> : null}
           {factura?.estado === "INCIERTA" ? <div style={styles.warning}><CircleAlert size={16} /><span>La emisión quedó incierta. No se asignará otro número hasta reconciliar el comprobante candidato.</span></div> : null}
-          {factura?.estado !== "AUTORIZADA" ? <div style={styles.immutability}><CircleAlert size={16} /><span>Luego de autorizar la factura, ya no podrán realizarse modificaciones sobre el arreglo.</span></div> : null}
+          {factura?.estado !== "AUTORIZADA" ? <div style={styles.immutability}><CircleAlert size={16} /><span>Luego de autorizar la factura, ya no podrán realizarse modificaciones sobre la {sourceLabel}.</span></div> : null}
         </div>
       ) : null}
     </Modal>

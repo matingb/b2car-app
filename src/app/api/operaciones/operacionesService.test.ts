@@ -27,6 +27,30 @@ describe("operacionesService.list", () => {
 		expect(result.total).toBe(123);
 		expect(result.error).toBeNull();
 	});
+
+	it("marca las ventas que ya tienen una factura asociada con una única consulta adicional", async () => {
+		const rpc = vi.fn().mockResolvedValue({
+			data: [
+				{ id: "venta-facturada", tipo: "VENTA", total_count: 2 },
+				{ id: "venta-sin-factura", tipo: "VENTA", total_count: 2 },
+			],
+			error: null,
+		});
+		const inFilter = vi.fn().mockResolvedValue({ data: [{ operacion_id: "venta-facturada" }], error: null });
+		const eq = vi.fn().mockReturnValue({ in: inFilter });
+		const select = vi.fn().mockReturnValue({ eq });
+		const from = vi.fn().mockReturnValue({ select });
+		const supabase = { rpc, from } as unknown as SupabaseClient;
+
+		const result = await operacionesService.list(supabase);
+
+		expect(from).toHaveBeenCalledWith("facturas_electronicas");
+		expect(inFilter).toHaveBeenCalledWith("operacion_id", ["venta-facturada", "venta-sin-factura"]);
+		expect(result.data).toEqual(expect.arrayContaining([
+			expect.objectContaining({ id: "venta-facturada", factura_asociada: true }),
+			expect.objectContaining({ id: "venta-sin-factura", factura_asociada: false }),
+		]));
+	});
 });
 
 describe("operacionesService.update", () => {

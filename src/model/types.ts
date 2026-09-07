@@ -192,6 +192,8 @@ export interface Operacion {
   monto?: number;
   /** Arreglo asociado cuando la operación corresponde a uno de sus cobros. */
   arreglo_id?: UUID;
+  /** Indica si la venta ya tiene un comprobante fiscal asociado. */
+  factura_asociada?: boolean;
 }
 
 export type OperacionesFilters = {
