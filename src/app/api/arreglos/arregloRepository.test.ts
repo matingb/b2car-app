@@ -197,7 +197,7 @@ describe("supabaseArregloRepository", () => {
           },
         ],
         error: null,
-      } as any);
+      } as unknown as { data: unknown; error: null });
 
       const result = await supabaseArregloRepository.arreglosResumen(
         supabase,

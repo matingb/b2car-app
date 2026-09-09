@@ -49,6 +49,9 @@ export interface Cliente {
   numero_documento_fiscal?: string | null
   condicion_iva_receptor_id?: CondicionIvaReceptorId | null
   fce_mipyme_alcanzado?: boolean
+  saldo_cuenta?: number
+  vehiculos?: Vehiculo[]
+  vehiculos_count?: number
 }
 
 export interface Vehiculo {

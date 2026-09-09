@@ -232,5 +232,3 @@ export default function EmpresaDetails() {
     </div>
   );
 }
-
-const styles = {} as const;

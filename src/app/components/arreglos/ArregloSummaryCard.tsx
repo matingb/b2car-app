@@ -17,9 +17,7 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Card from "@/app/components/ui/Card";
 import IconButton from "@/app/components/ui/IconButton";
 import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
-import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
-import ArregloPagoBadge from "@/app/components/arreglos/ArregloPagoBadge";
-import ArregloFacturaBadge from "@/app/components/arreglos/ArregloFacturaBadge";
+import ArregloBadges from "@/app/components/arreglos/ArregloBadges";
 import Avatar from "@/app/components/ui/Avatar";
 import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
@@ -172,42 +170,26 @@ export default function ArregloSummaryCard({
               <span style={{ fontSize: 14, color: COLOR.TEXT.SECONDARY }}>Sin vehículo</span>
             )}
 
-            {/* Estado */}
-            <div style={styles.estadoRow}>
-              <ArregloEstadoBadge
-                estado={arreglo.estado}
-                onStateChange={handleEstadoChange}
-              />
-              <ArregloPagoBadge
-                estado={arreglo.estado}
-                estaPago={arreglo.esta_pago}
-                totalCobrado={arreglo.total_cobrado}
-                saldoPendiente={
-                  arreglo.saldo_pendiente != null
-                    ? arreglo.saldo_pendiente
-                    : Math.max(0, (totalCalculado || arreglo.precio_final || 0) - (arreglo.total_cobrado || 0))
-                }
-                precioFinal={totalCalculado || arreglo.precio_final}
-                arregloId={arreglo.id}
-                onPagoUpdated={onArregloChange}
-                size="md"
-                hideTextOnMobile
-              />
-              <ArregloFacturaBadge
-                arregloId={arreglo.id}
-                esFacturable={arreglo.es_facturable !== false}
-                factura={facturaElectronica || null}
-                onFacturableChanged={(nextVal) => {
-                  onArregloChange({ ...arreglo, es_facturable: nextVal });
-                }}
-                onOpenFacturaModal={canEmitFactura ? onOpenFactura : undefined}
-                size="md"
-              />
-            </div>
+            {/* Estado y Badges */}
+            <ArregloBadges
+              arreglo={arreglo}
+              variant="inline"
+              size="md"
+              totalCalculado={totalCalculado}
+              facturaElectronica={facturaElectronica}
+              canEmitFactura={canEmitFactura}
+              hidePagoTextOnMobile={true}
+              onStateChange={handleEstadoChange}
+              onPagoUpdated={onArregloChange}
+              onFacturableChanged={(nextVal) => {
+                onArregloChange({ ...arreglo, es_facturable: nextVal });
+              }}
+              onOpenFacturaModal={canEmitFactura && arreglo.estado !== "PRESUPUESTO" ? onOpenFactura : undefined}
+            />
           </div>
 
           <div style={styles.headerActions}>
-            {canEmitFactura && onOpenFactura && arreglo.es_facturable !== false ? (
+            {canEmitFactura && onOpenFactura && arreglo.es_facturable !== false && arreglo.estado !== "PRESUPUESTO" ? (
               <IconButton
                 icon={<ReceiptText />}
                 size={18}
@@ -443,12 +425,6 @@ const styles = {
       display: "block",
     },
   }),
-  estadoRow: {
-    display: "flex",
-    flexWrap: "wrap" as const,
-    alignItems: "center",
-    gap: 12,
-  },
   noFacturableBadge: {
     display: "inline-flex",
     alignItems: "center",

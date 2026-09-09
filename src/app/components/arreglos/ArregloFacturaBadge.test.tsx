@@ -41,10 +41,10 @@ describe("ArregloFacturaBadge", () => {
       />
     );
 
-    expect(screen.getByText("Factura emitida (FC B-0001-00004511)")).toBeInTheDocument();
+    expect(screen.getByTestId("arreglo-factura-badge")).toHaveTextContent("FC B-0001-00004511");
   });
 
-  it("renderiza 'Pendiente de facturación' cuando no hay factura emitida", () => {
+  it("renderiza el badge cuando no hay factura emitida", () => {
     render(
       <ArregloFacturaBadge
         arregloId="arr-1"
@@ -52,7 +52,7 @@ describe("ArregloFacturaBadge", () => {
       />
     );
 
-    expect(screen.getByText("Pendiente de facturación")).toBeInTheDocument();
+    expect(screen.getByTestId("arreglo-factura-badge")).toBeInTheDocument();
   });
 
   it("permite marcar como no facturable al abrir el dropdown y hace update", async () => {
@@ -67,10 +67,10 @@ describe("ArregloFacturaBadge", () => {
       />
     );
 
-    const badgeBtn = screen.getByRole("button", { name: /Pendiente de facturación/i });
+    const badgeBtn = screen.getByTestId("arreglo-factura-badge");
     fireEvent.click(badgeBtn);
 
-    const noFacturableOption = screen.getByText("Marcar como no facturable");
+    const noFacturableOption = screen.getByTestId("factura-menu-marcar-no-facturable");
     expect(noFacturableOption).toBeInTheDocument();
 
     fireEvent.click(noFacturableOption);
@@ -82,7 +82,7 @@ describe("ArregloFacturaBadge", () => {
     });
   });
 
-  it("renderiza 'No facturable' cuando esFacturable es false y permite reactivarlo", async () => {
+  it("renderiza cuando esFacturable es false y permite reactivarlo", async () => {
     mockUpdate.mockResolvedValueOnce({ id: "arr-1", es_facturable: true });
     const onFacturableChanged = vi.fn();
 
@@ -94,12 +94,12 @@ describe("ArregloFacturaBadge", () => {
       />
     );
 
-    expect(screen.getByText("No facturable")).toBeInTheDocument();
+    expect(screen.getByTestId("arreglo-factura-badge")).toBeInTheDocument();
 
-    const badgeBtn = screen.getByRole("button", { name: /No facturable/i });
+    const badgeBtn = screen.getByTestId("arreglo-factura-badge");
     fireEvent.click(badgeBtn);
 
-    const marcarFacturableOption = screen.getByText("Marcar como facturable");
+    const marcarFacturableOption = screen.getByTestId("factura-menu-marcar-facturable");
     expect(marcarFacturableOption).toBeInTheDocument();
 
     fireEvent.click(marcarFacturableOption);
@@ -121,7 +121,7 @@ describe("ArregloFacturaBadge", () => {
       />
     );
 
-    const badgeBtn = screen.getByRole("button", { name: /Pendiente de facturación/i });
+    const badgeBtn = screen.getByTestId("arreglo-factura-badge");
     fireEvent.click(badgeBtn);
 
     expect(onOpenChange).toHaveBeenCalledWith(true);

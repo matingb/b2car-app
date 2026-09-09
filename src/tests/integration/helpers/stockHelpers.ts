@@ -2,7 +2,6 @@ import { expect } from "vitest";
 import {
   productosService,
   type CreateProductoInput,
-  type ProductoRow as Producto,
 } from "@/app/api/productos/productosService";
 import {
   stocksService,

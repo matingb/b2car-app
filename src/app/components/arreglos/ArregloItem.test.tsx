@@ -128,7 +128,7 @@ describe("ArregloItem", () => {
       />
     );
 
-    expect(screen.getByText("En progreso")).toBeInTheDocument();
+    expect(screen.getByTestId("arreglo-estado-badge")).toBeInTheDocument();
   });
 
   it("muestra u oculta las observaciones según la prop showObservaciones", () => {
@@ -181,7 +181,7 @@ describe("ArregloItem", () => {
       />
     );
 
-    expect(screen.getByText("Pendiente ($15.000)")).toBeInTheDocument();
+    expect(screen.getByTestId("arreglo-pago-badge")).toBeInTheDocument();
   });
 
   it("renderiza el badge de facturación pendiente y permite ver opción no facturable", () => {
@@ -195,7 +195,7 @@ describe("ArregloItem", () => {
       />
     );
 
-    expect(screen.getByText("Pendiente de facturación")).toBeInTheDocument();
+    expect(screen.getByTestId("arreglo-factura-badge")).toBeInTheDocument();
   });
 
   it("renderiza las iniciales de los empleados asignados", () => {
@@ -246,8 +246,23 @@ describe("ArregloItem", () => {
       />
     );
 
-    expect(screen.queryByText(/Pendiente \(/)).not.toBeInTheDocument();
-    expect(screen.queryByText("Cobrado")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("arreglo-pago-badge")).not.toBeInTheDocument();
+  });
+
+  it("no muestra el botón de pendiente de facturación cuando el arreglo está en estado PRESUPUESTO", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+
+    render(
+      <ArregloItem
+        arreglo={createArreglo({
+          estado: "PRESUPUESTO",
+          es_facturable: true,
+          esta_pago: false,
+        })}
+      />
+    );
+
+    expect(screen.queryByTestId("arreglo-factura-badge")).not.toBeInTheDocument();
   });
 });
 

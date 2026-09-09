@@ -1,18 +1,18 @@
 "use client";
 
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import ClienteFormModal from "@/app/components/clientes/ClienteFormModal";
 import ClienteItem from "@/app/components/clientes/ClienteItem";
-import { useState, useMemo } from "react";
+import ClientesFiltersModal, { ClientesFilters } from "@/app/components/clientes/ClientesFiltersModal";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, Filter, User, Building2, AlertCircle, CheckCircle2 } from "lucide-react";
 import Button from "@/app/components/ui/Button";
 import { useToast } from "@/app/providers/ToastProvider";
 import { TipoCliente } from "@/model/types";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
-import { BREAKPOINTS } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 
 export default function ClientesPage() {
@@ -20,12 +20,30 @@ export default function ClientesPage() {
   const toast = useToast();
 
   const [search, setSearch] = useState("");
-  const [selectedTipos, setSelectedTipos] = useState<TipoCliente[]>([]);
+  const [tipoClienteFilter, setTipoClienteFilter] = useState<"" | "particular" | "empresa">("");
+  const [saldoFilter, setSaldoFilter] = useState<"" | "PENDIENTE" | "AL_DIA">("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+
   const clientesFiltrados = useMemo(() => {
     if (!clientes) return [];
     const q = search.trim().toLowerCase();
     return clientes
-      .filter((c) => selectedTipos.length === 0 || selectedTipos.includes(c.tipo_cliente))
+      .filter((c) => {
+        if (!tipoClienteFilter) return true;
+        return c.tipo_cliente === tipoClienteFilter;
+      })
+      .filter((c) => {
+        if (!saldoFilter) return true;
+        const saldo = c.saldo_cuenta ?? 0;
+        if (saldoFilter === "PENDIENTE") {
+          return saldo > 0;
+        }
+        if (saldoFilter === "AL_DIA") {
+          return saldo <= 0;
+        }
+        return true;
+      })
       .filter((c) =>
         !q
           ? true
@@ -35,15 +53,20 @@ export default function ClientesPage() {
               .includes(q)
           )
       );
-  }, [clientes, search, selectedTipos]);
+  }, [clientes, search, tipoClienteFilter, saldoFilter]);
 
-  const [open, setOpen] = useState(false);
-
-  const toggleTipo = (tipo: TipoCliente) => {
-    setSelectedTipos((prev) =>
-      prev.includes(tipo) ? prev.filter((t) => t !== tipo) : [...prev, tipo]
-    );
+  const handleApplyModalFilters = (filters: ClientesFilters) => {
+    setTipoClienteFilter(filters.tipoCliente);
+    setSaldoFilter(filters.saldo);
   };
+
+  const handleClearAllFilters = () => {
+    setTipoClienteFilter("");
+    setSaldoFilter("");
+    setSearch("");
+  };
+
+  const hasActiveFilters = tipoClienteFilter !== "" || saldoFilter !== "" || search.trim() !== "";
 
   return (
     <div>
@@ -54,33 +77,114 @@ export default function ClientesPage() {
             value={search}
             onChange={setSearch}
             placeholder="Buscar clientes..."
+            inputTestId="clientes-search"
             style={styles.searchBar}
           />
-          <Button icon={<PlusIcon size={20} />} text="Crear cliente" onClick={() => setOpen(true)} style={styles.newButton} />
+          <Button
+            icon={<Filter size={20} />}
+            text="Filtrar"
+            onClick={() => setFiltersOpen(true)}
+            style={styles.filterButton}
+            dataTestId="clientes-open-filters"
+            outline
+          />
+          <Button
+            icon={<PlusIcon size={20} />}
+            text="Crear cliente"
+            onClick={() => setOpen(true)}
+            style={styles.newButton}
+            dataTestId="clientes-open-create"
+          />
         </div>
-        <div css={styles.chipsContainer} aria-label="Filtrar por tipo de cliente">
-          {[TipoCliente.PARTICULAR, TipoCliente.EMPRESA].map((tipo) => {
-            const isSelected = selectedTipos.includes(tipo);
-            return (
-              <button
-                key={tipo}
-                type="button"
-                onClick={() => toggleTipo(tipo)}
-                css={[
-                  styles.chipBase,
-                  isSelected && styles.chipSelected,
-                  styles.chipResponsive,
-                ]}
-              >
-                {tipo === TipoCliente.PARTICULAR ? "Particulares" : "Empresas"}
-              </button>
-            );
-          })}
+
+        <div css={styles.chipsContainer} aria-label="Filtrar clientes">
+          <div css={styles.chipsGroup}>
+            <button
+              type="button"
+              data-testid="clientes-chip-particular"
+              onClick={() =>
+                setTipoClienteFilter((prev) => (prev === "particular" ? "" : "particular"))
+              }
+              css={[
+                styles.chipBase,
+                tipoClienteFilter === "particular" && styles.chipSelected,
+                styles.chipResponsive,
+              ]}
+            >
+              <User size={14} />
+              <span>Particulares</span>
+            </button>
+            <button
+              type="button"
+              data-testid="clientes-chip-empresa"
+              onClick={() =>
+                setTipoClienteFilter((prev) => (prev === "empresa" ? "" : "empresa"))
+              }
+              css={[
+                styles.chipBase,
+                tipoClienteFilter === "empresa" && styles.chipSelected,
+                styles.chipResponsive,
+              ]}
+            >
+              <Building2 size={14} />
+              <span>Empresas</span>
+            </button>
+          </div>
+
+          <span css={styles.chipDivider} />
+
+          <div css={styles.chipsGroup}>
+            <button
+              type="button"
+              data-testid="clientes-chip-saldo-pendiente"
+              onClick={() =>
+                setSaldoFilter((prev) => (prev === "PENDIENTE" ? "" : "PENDIENTE"))
+              }
+              css={[
+                styles.chipBase,
+                saldoFilter === "PENDIENTE" && styles.chipSelectedDanger,
+                styles.chipResponsive,
+              ]}
+            >
+              <AlertCircle size={14} />
+              <span>Saldo pendiente</span>
+            </button>
+            <button
+              type="button"
+              data-testid="clientes-chip-saldo-al-dia"
+              onClick={() =>
+                setSaldoFilter((prev) => (prev === "AL_DIA" ? "" : "AL_DIA"))
+              }
+              css={[
+                styles.chipBase,
+                saldoFilter === "AL_DIA" && styles.chipSelectedSuccess,
+                styles.chipResponsive,
+              ]}
+            >
+              <CheckCircle2 size={14} />
+              <span>Saldo al día</span>
+            </button>
+          </div>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleClearAllFilters}
+              css={styles.clearButton}
+              data-testid="clientes-clear-filters"
+            >
+              Limpiar filtros
+            </button>
+          )}
         </div>
       </div>
 
       {loading ? (
         <ListSkeleton />
+      ) : clientesFiltrados.length === 0 ? (
+        <div style={styles.emptyContainer} data-testid="clientes-empty-state">
+          <p style={styles.emptyText}>No se encontraron clientes para los filtros aplicados.</p>
+        </div>
       ) : (
         <div style={styles.list}>
           {clientesFiltrados.map((cliente) => (
@@ -88,6 +192,16 @@ export default function ClientesPage() {
           ))}
         </div>
       )}
+
+      <ClientesFiltersModal
+        open={filtersOpen}
+        initial={{
+          tipoCliente: tipoClienteFilter,
+          saldo: saldoFilter,
+        }}
+        onClose={() => setFiltersOpen(false)}
+        onApply={handleApplyModalFilters}
+      />
 
       <ClienteFormModal
         open={open}
@@ -135,7 +249,7 @@ const styles = {
   searchBarContainer: {
     display: "flex",
     flexDirection: "column" as const,
-    gap: 10,
+    gap: 12,
     marginBottom: 16,
     marginTop: 8,
   },
@@ -145,11 +259,16 @@ const styles = {
     alignItems: "center",
   },
   searchBar: {
-    flexGrow: 0,
+    flexGrow: 1,
+  },
+  filterButton: {
+    height: "40px",
+    width: "48px",
+    minWidth: "100px",
   },
   newButton: {
-    height: '40px',
-    width: '48px',
+    height: "40px",
+    width: "48px",
   },
   list: {
     display: "flex",
@@ -163,32 +282,102 @@ const styles = {
     alignItems: "center",
     flexWrap: "wrap",
   }),
+  chipsGroup: css({
+    display: "flex",
+    gap: "8px",
+    alignItems: "center",
+  }),
+  chipDivider: css({
+    width: "1px",
+    height: "20px",
+    backgroundColor: COLOR.BORDER.SUBTLE,
+    margin: "0 4px",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      display: "none",
+    },
+  }),
   chipBase: css({
-    padding: "8px 16px",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "8px 14px",
     borderRadius: "24px",
-    border: "1px solid var(--color-border-subtle)",
-    background: "var(--color-background-subtle)",
-    color: "var(--color-text-primary)",
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SUBTLE,
+    color: COLOR.TEXT.PRIMARY,
     cursor: "pointer",
     fontWeight: 500,
+    fontSize: "14px",
     transition:
       "transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, background-color 150ms ease, color 150ms ease",
     "&:hover": {
-      borderColor: "var(--color-accent-secondary)",
-      transform: "translateY(-2px)",
-      boxShadow: "0 4px 12px rgba(0, 128, 162, 0.15)",
+      borderColor: COLOR.ACCENT.PRIMARY,
+      transform: "translateY(-1px)",
+      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
     },
   }),
   chipSelected: css({
-    background: "var(--color-button-primary-background)",
-    borderColor: "var(--color-accent-secondary)",
-    color: "var(--color-button-primary-text)",
+    background: COLOR.BUTTON.PRIMARY.BACKGROUND,
+    borderColor: COLOR.ACCENT.PRIMARY,
+    color: COLOR.BUTTON.PRIMARY.TEXT,
     boxShadow: "none",
+    fontWeight: 600,
+    "&:hover": {
+      color: COLOR.BUTTON.PRIMARY.TEXT,
+    },
+  }),
+  chipSelectedDanger: css({
+    background: COLOR.BACKGROUND.DANGER_TINT,
+    borderColor: COLOR.SEMANTIC.DANGER,
+    color: COLOR.SEMANTIC.DANGER,
+    boxShadow: "none",
+    fontWeight: 600,
+    "&:hover": {
+      borderColor: COLOR.SEMANTIC.DANGER,
+    },
+  }),
+  chipSelectedSuccess: css({
+    background: COLOR.BACKGROUND.SUCCESS_TINT,
+    borderColor: COLOR.SEMANTIC.SUCCESS,
+    color: COLOR.SEMANTIC.SUCCESS,
+    boxShadow: "none",
+    fontWeight: 600,
+    "&:hover": {
+      borderColor: COLOR.SEMANTIC.SUCCESS,
+    },
   }),
   chipResponsive: css({
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      fontSize: '14px',
-      padding : '6px 12px',
+      fontSize: "13px",
+      padding: "6px 10px",
     },
   }),
+  clearButton: css({
+    background: "transparent",
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    color: COLOR.TEXT.SECONDARY,
+    padding: "6px 12px",
+    borderRadius: "18px",
+    cursor: "pointer",
+    fontSize: "13px",
+    fontWeight: 500,
+    transition: "border-color 150ms ease, color 150ms ease",
+    "&:hover": {
+      borderColor: COLOR.BORDER.DEFAULT,
+      color: COLOR.TEXT.PRIMARY,
+    },
+  }),
+  emptyContainer: {
+    padding: "48px 24px",
+    textAlign: "center" as const,
+    background: COLOR.BACKGROUND.SECONDARY,
+    borderRadius: 12,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    marginTop: 8,
+  },
+  emptyText: {
+    margin: 0,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 15,
+  },
 };

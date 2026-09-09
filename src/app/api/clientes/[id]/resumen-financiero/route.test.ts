@@ -85,8 +85,22 @@ describe("GET /api/clientes/[id]/resumen-financiero", () => {
         cliente_id: "cli-123",
         vehiculo_id: "veh-1",
       },
+      {
+        id: "arr-4", // Presupuesto: NO debe contar para saldo a facturar ni para deuda
+        precio_final: 70000,
+        total_cobrado: 0,
+        esta_pago: false,
+        estado: "PRESUPUESTO",
+        es_facturable: true,
+        cliente_id: "cli-123",
+        vehiculo_id: "veh-1",
+      },
     ];
     const mockFacturas = [{ arreglo_id: "arr-3" }];
+
+    const mockNeq = vi.fn().mockImplementation(() => ({
+      or: () => Promise.resolve({ data: mockArreglos, error: null }),
+    }));
 
     const mockFrom = vi.fn((table: string) => {
       if (table === "vehiculos") {
@@ -99,9 +113,7 @@ describe("GET /api/clientes/[id]/resumen-financiero", () => {
       if (table === "arreglos") {
         return {
           select: () => ({
-            neq: () => ({
-              or: () => Promise.resolve({ data: mockArreglos, error: null }),
-            }),
+            neq: mockNeq,
           }),
         };
       }
@@ -127,9 +139,10 @@ describe("GET /api/clientes/[id]/resumen-financiero", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    // arr-1 pendiente: 150000, arr-2 pendiente: 100000, arr-3: 0 => saldo_cuenta = 250000
+    expect(mockNeq).toHaveBeenCalledWith("estado", "PRESUPUESTO");
+    // arr-1 pendiente: 150000, arr-2 pendiente: 100000, arr-3: 0, arr-4 (presupuesto): excluido => saldo_cuenta = 250000
     expect(json.data.saldo_cuenta).toBe(250000);
-    // arr-1 pendiente factura: 200000. arr-2 no facturable (0). arr-3 ya facturado (0) => saldo_a_facturar = 200000
+    // arr-1 pendiente factura: 200000. arr-2 no facturable (0). arr-3 ya facturado (0). arr-4 presupuesto (excluido) => saldo_a_facturar = 200000
     expect(json.data.saldo_a_facturar).toBe(200000);
     expect(json.data.total_historico_trabajos).toBe(450000);
     expect(json.data.total_historico_cobrado).toBe(200000);

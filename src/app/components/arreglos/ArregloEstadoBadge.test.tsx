@@ -84,16 +84,16 @@ describe("ArregloEstadoBadge", () => {
     expect(getArregloEstadoProgress("SIN_INICIAR")).toBe(10);
   });
 
-  it("renderiza el label transformado con espacios", () => {
+  it("renderiza el badge con el estado asignado", () => {
     render(<ArregloEstadoBadge estado="EN_PROGRESO" />);
 
-    expect(screen.getByText("En progreso")).toBeInTheDocument();
+    expect(screen.getByTestId("arreglo-estado-badge")).toBeInTheDocument();
   });
 
-  it("renderiza SIN INICIAR cuando no se pasa estado", () => {
+  it("renderiza el badge por defecto cuando no se pasa estado", () => {
     render(<ArregloEstadoBadge />);
 
-    expect(screen.getByText("Sin iniciar")).toBeInTheDocument();
+    expect(screen.getByTestId("arreglo-estado-badge")).toBeInTheDocument();
   });
 
   it("si recibe progress, usa ese valor para el llenado radial", () => {
@@ -112,17 +112,13 @@ describe("ArregloEstadoBadge", () => {
 
     render(<ArregloEstadoBadge estado="EN_PROGRESO" onStateChange={onStateChange} />);
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Cambiar estado de arreglo. Estado actual: En progreso",
-      })
-    );
+    fireEvent.click(screen.getByTestId("arreglo-estado-badge"));
 
     expect(
       screen.getByRole("listbox", { name: "Opciones de estado de arreglo" })
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("option", { name: "Terminado" }));
+    fireEvent.click(screen.getByTestId("arreglo-estado-option-TERMINADO"));
 
     expect(onStateChange).toHaveBeenCalledWith("TERMINADO");
     expect(

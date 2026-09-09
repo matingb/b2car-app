@@ -3,9 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Card from "@/app/components/ui/Card";
-import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
-import ArregloPagoBadge from "@/app/components/arreglos/ArregloPagoBadge";
-import ArregloFacturaBadge from "@/app/components/arreglos/ArregloFacturaBadge";
+import ArregloBadges from "@/app/components/arreglos/ArregloBadges";
 import Avatar from "@/app/components/ui/Avatar";
 import { Arreglo } from "@/model/types";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
@@ -197,38 +195,15 @@ export default function ArregloItem({
         </div>
 
         {/* Footer del card con estado a la izquierda y badges de facturación/pago a la derecha */}
-        <div css={styles.footerRow} data-isolate-hover="true">
-          <div css={styles.footerLeft}>
-            <ArregloEstadoBadge 
-              estado={arreglo.estado} 
-              size="sm" 
-              arregloId={arreglo.id}
-              onOpenChange={setIsBadgeOpen}
-            />
-          </div>
-          <div css={styles.footerRight}>
-            <ArregloFacturaBadge
-              arregloId={arreglo.id}
-              esFacturable={arreglo.es_facturable !== false}
-              factura={arreglo.factura_electronica || null}
-              onFacturableChanged={(val) => {
-                arreglo.es_facturable = val;
-              }}
-              onOpenChange={setIsBadgeOpen}
-              size="sm"
-            />
-            <ArregloPagoBadge
-              estado={arreglo.estado}
-              estaPago={arreglo.esta_pago}
-              totalCobrado={arreglo.total_cobrado}
-              saldoPendiente={arreglo.saldo_pendiente}
-              precioFinal={arreglo.precio_final}
-              arregloId={arreglo.id}
-              size="sm"
-              variant="footer"
-            />
-          </div>
-        </div>
+        <ArregloBadges
+          arreglo={arreglo}
+          variant="footer"
+          size="sm"
+          onOpenChange={setIsBadgeOpen}
+          onFacturableChanged={(val) => {
+            arreglo.es_facturable = val;
+          }}
+        />
       </Card>
     </div>
   );
@@ -396,27 +371,4 @@ const styles = {
     color: COLOR.TEXT.SECONDARY,
     lineHeight: 1.4,
   },
-  footerRow: css({
-    padding: "10px 16px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    flexWrap: "wrap",
-    backgroundColor: "#ffffff",
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-    borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
-  }),
-  footerLeft: css({
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-  }),
-  footerRight: css({
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  }),
 } as const;

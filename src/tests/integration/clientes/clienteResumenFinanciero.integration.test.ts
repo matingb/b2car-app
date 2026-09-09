@@ -52,6 +52,10 @@ describe("Integration: Resumen Financiero del Cliente", () => {
     expect(Number(resumen?.saldo_cuenta)).toBe(150000);
     // 2. El saldo a facturar es sólo $100.000 (excluye el no facturable y el presupuesto)
     expect(Number(resumen?.saldo_a_facturar)).toBe(100000);
+    // 3. Cantidad de arreglos pendientes de factura es sólo 1 (excluye no facturable y presupuesto)
+    expect(resumen?.cantidad_arreglos_pendientes_factura).toBe(1);
+    // 4. Total histórico de trabajos excluye presupuestos
+    expect(Number(resumen?.total_historico_trabajos)).toBe(150000);
   });
 
   it("descuenta del saldo a facturar cuando se emite una factura electrónica autorizada manteniendo la deuda", async () => {

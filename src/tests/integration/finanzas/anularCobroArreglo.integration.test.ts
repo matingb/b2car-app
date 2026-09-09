@@ -56,7 +56,7 @@ describe("Integration - Anular Cobro", () => {
       monto: 30000,
       descripcion: "Primer pago parcial",
     });
-    const cobro1Id = detalle1?.cobros?.[0]?.operacion_id!;
+    const cobro1Id = detalle1?.cobros?.[0]?.operacion_id ?? "";
 
     // Cobro 2
     const detalle2 = await cuandoSeCobraUnArreglo(arreglo.id, {
@@ -65,7 +65,7 @@ describe("Integration - Anular Cobro", () => {
       descripcion: "Segundo pago parcial",
     });
     const cobro2Item = detalle2?.cobros?.find((c) => c.operacion_id !== cobro1Id);
-    const cobro2Id = cobro2Item?.operacion_id!;
+    const cobro2Id = cobro2Item?.operacion_id ?? "";
 
     // Verificamos estado previo
     await expectSaldoCuenta(cuenta.id, 50000);

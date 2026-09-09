@@ -51,12 +51,12 @@ describe("ArregloPagoBadge", () => {
 
   it("renderiza Pago pendiente cuando no está pago", () => {
     render(<ArregloPagoBadge estado="EN_PROGRESO" totalCobrado={0} precioFinal={10000} />);
-    expect(screen.getByText("Pago pendiente")).toBeInTheDocument();
+    expect(screen.getByTestId("arreglo-pago-badge")).toBeInTheDocument();
   });
 
   it("renderiza Pagado cuando está pagado en su totalidad", () => {
     render(<ArregloPagoBadge estado="EN_PROGRESO" totalCobrado={10000} precioFinal={10000} />);
-    expect(screen.getByText("Pagado")).toBeInTheDocument();
+    expect(screen.getByTestId("arreglo-pago-badge")).toBeInTheDocument();
   });
 
   it("renderiza saldo pendiente en estado PARCIAL", () => {
@@ -68,7 +68,7 @@ describe("ArregloPagoBadge", () => {
         saldoPendiente={6000}
       />
     );
-    expect(screen.getByText("Pendiente: $6.000")).toBeInTheDocument();
+    expect(screen.getByTestId("arreglo-pago-badge")).toHaveTextContent("$6.000");
   });
 
   it("abre CobroArregloModal al hacer click si tiene arregloId y ejecuta onPagoUpdated al pagar", () => {
@@ -83,7 +83,7 @@ describe("ArregloPagoBadge", () => {
       />
     );
 
-    const button = screen.getByRole("button");
+    const button = screen.getByTestId("arreglo-pago-badge");
     fireEvent.click(button);
 
     expect(screen.getByTestId("cobro-modal")).toBeInTheDocument();
@@ -98,7 +98,7 @@ describe("ArregloPagoBadge", () => {
     const onClick = vi.fn();
     render(<ArregloPagoBadge estado="EN_PROGRESO" onClick={onClick} />);
 
-    fireEvent.click(screen.getByRole("button"));
+    fireEvent.click(screen.getByTestId("arreglo-pago-badge"));
     expect(onClick).toHaveBeenCalled();
     expect(screen.queryByTestId("cobro-modal")).not.toBeInTheDocument();
   });

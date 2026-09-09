@@ -113,9 +113,9 @@ describe("ClienteArreglosTab", () => {
     });
 
     // Validar elementos del nuevo footer de los cards
-    expect(screen.getByText("Factura emitida (FC B-0001-00004511)")).toBeInTheDocument();
-    expect(screen.getByText("Cobrado")).toBeInTheDocument();
-    expect(screen.getByText("Pendiente de facturación")).toBeInTheDocument();
-    expect(screen.getByText("Pendiente ($40.000)")).toBeInTheDocument();
+    expect(screen.getAllByTestId("arreglo-factura-badge")).toHaveLength(2);
+    expect(screen.getAllByTestId("arreglo-pago-badge")).toHaveLength(2);
+    expect(screen.getAllByTestId("arreglo-estado-badge")).toHaveLength(2);
+    expect(screen.getAllByTestId("arreglo-factura-badge")[0]).toHaveTextContent("FC B-0001-00004511");
   });
 });

@@ -365,24 +365,26 @@ export default function ArregloFormFields({
         </div>
       </div>
 
-      <div css={styles.row}>
-        <div style={styles.facturableBox}>
-          <label style={styles.checkboxLabel}>
-            <input
-              type="checkbox"
-              checked={values.esFacturable !== false}
-              onChange={(e) => onValuesChange({ esFacturable: e.target.checked })}
-              style={styles.checkbox}
-            />
-            <span style={styles.checkboxTitle}>Arreglo facturable</span>
-          </label>
-          <span style={styles.helpText}>
-            {values.esFacturable !== false
-              ? "Este trabajo computa en el saldo a facturar del cliente hasta que se emita su comprobante oficial."
-              : "Trabajo no facturable. Queda eximido del saldo a facturar del cliente."}
-          </span>
+      {values.estado !== "PRESUPUESTO" && (
+        <div css={styles.row}>
+          <div style={styles.facturableBox}>
+            <label style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={values.esFacturable !== false}
+                onChange={(e) => onValuesChange({ esFacturable: e.target.checked })}
+                style={styles.checkbox}
+              />
+              <span style={styles.checkboxTitle}>Arreglo facturable</span>
+            </label>
+            <span style={styles.helpText}>
+              {values.esFacturable !== false
+                ? "Este trabajo computa en el saldo a facturar del cliente hasta que se emita su comprobante oficial."
+                : "Trabajo no facturable. Queda eximido del saldo a facturar del cliente."}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

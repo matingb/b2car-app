@@ -55,14 +55,64 @@ export const clienteService = {
   async listAll(
     supabase: SupabaseClient
   ): Promise<{ data: Cliente[]; error: Error | null }> {
-    const { data, error } = await supabase
-      .from("clientes")
-      .select("*, particular:particulares(*), empresa:empresas(*)");
+    const [clientesRes, vehiculosRes, arreglosRes] = await Promise.all([
+      supabase
+        .from("clientes")
+        .select("*, particular:particulares(*), empresa:empresas(*)"),
+      supabase
+        .from("vehiculos")
+        .select("id, cliente_id"),
+      supabase
+        .from("arreglos")
+        .select("id, precio_final, total_cobrado, esta_pago, cliente_id, vehiculo_id, estado")
+        .neq("estado", "PRESUPUESTO"),
+    ]);
 
-    if (error) return { data: [], error: new Error(error.message) };
+    if (clientesRes.error) return { data: [], error: new Error(clientesRes.error.message) };
 
-    const rows = (data ?? []) as ClienteListRow[];
+    const vehiculoToCliente = new Map<string, string>();
+    const vehiculosCountMap = new Map<string, number>();
+
+    for (const v of (vehiculosRes.data ?? []) as Array<{ id: string; cliente_id: string | null }>) {
+      if (v.cliente_id) {
+        vehiculoToCliente.set(v.id, v.cliente_id);
+        vehiculosCountMap.set(v.cliente_id, (vehiculosCountMap.get(v.cliente_id) ?? 0) + 1);
+      }
+    }
+
+    const saldoCuentaMap = new Map<string, number>();
+
+    for (const a of (arreglosRes.data ?? []) as Array<{
+      id: string;
+      precio_final?: number | null;
+      total_cobrado?: number | null;
+      esta_pago?: boolean | null;
+      cliente_id?: string | null;
+      vehiculo_id?: string | null;
+      estado?: string;
+    }>) {
+      if (a.estado === "PRESUPUESTO") continue;
+      const targetClienteId =
+        a.cliente_id || (a.vehiculo_id ? vehiculoToCliente.get(a.vehiculo_id) : null);
+      if (targetClienteId) {
+        const precio = Number(a.precio_final ?? 0);
+        const cobrado = Number(a.total_cobrado ?? 0);
+        const estaPagado = a.esta_pago === true || (precio > 0 && cobrado >= precio);
+        const pendienteCobro = estaPagado ? 0 : Math.max(0, precio - cobrado);
+        if (pendienteCobro > 0) {
+          saldoCuentaMap.set(
+            targetClienteId,
+            (saldoCuentaMap.get(targetClienteId) ?? 0) + pendienteCobro
+          );
+        }
+      }
+    }
+
+    const rows = (clientesRes.data ?? []) as ClienteListRow[];
     const clientes: Cliente[] = rows.map((cliente) => {
+      const saldo_cuenta = saldoCuentaMap.get(cliente.id) ?? 0;
+      const vehiculos_count = vehiculosCountMap.get(cliente.id) ?? 0;
+
       if (cliente.tipo_cliente === TipoCliente.PARTICULAR) {
         const nombre = `${cliente.particular?.nombre || ""} ${cliente.particular?.apellido || ""}`.trim();
         return {
@@ -73,6 +123,8 @@ export const clienteService = {
           telefono: cliente.particular?.telefono ?? "",
           email: cliente.particular?.email ?? "",
           direccion: cliente.particular?.direccion ?? "",
+          saldo_cuenta,
+          vehiculos_count,
         };
       }
 
@@ -85,6 +137,8 @@ export const clienteService = {
         email: cliente.empresa?.email ?? "",
         direccion: cliente.empresa?.direccion ?? "",
         cuit: cliente.empresa?.cuit,
+        saldo_cuenta,
+        vehiculos_count,
       };
     });
 

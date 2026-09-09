@@ -451,10 +451,13 @@ async function resolveStockLines(
 async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise<CanonicalSource> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("arreglos").select("id, vehiculo_id, fecha, precio_final")
+    .from("arreglos").select("id, vehiculo_id, fecha, precio_final, estado")
     .eq("id", arregloId).eq("tenant_id", tenantId).maybeSingle();
   if (error || !data) throw new FacturacionValidationError("Arreglo no encontrado");
   const repair = record(data);
+  if (repair.estado === "PRESUPUESTO") {
+    throw new FacturacionValidationError("No se puede facturar un presupuesto");
+  }
   const { data: vehicle } = await supabase.from("vehiculos").select("cliente_id").eq("id", text(repair.vehiculo_id)).maybeSingle();
   const clienteId = nullable(record(vehicle).cliente_id);
   if (!clienteId) throw new FacturacionValidationError("El vehículo no tiene un cliente asociado");

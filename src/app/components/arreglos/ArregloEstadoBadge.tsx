@@ -176,6 +176,7 @@ export default function ArregloEstadoBadge({
     <div ref={containerRef} style={styles.container}>
       <button
         type="button"
+        data-testid="arreglo-estado-badge"
         disabled={!isInteractive || loading}
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
@@ -219,6 +220,7 @@ export default function ArregloEstadoBadge({
               <button
                 className="arreglo-estado-option"
                 key={option.value}
+                data-testid={`arreglo-estado-option-${option.value}`}
                 type="button"
                 role="option"
                 aria-selected={isSelected}

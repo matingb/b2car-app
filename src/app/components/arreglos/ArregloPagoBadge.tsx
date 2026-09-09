@@ -272,6 +272,7 @@ export default function ArregloPagoBadge({
           onClick={handleToggle}
           type="button"
           disabled={loading}
+          data-testid="arreglo-pago-badge"
           data-isolate-hover="true"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
@@ -299,5 +300,9 @@ export default function ArregloPagoBadge({
     );
   }
 
-  return <span style={style}>{content}</span>;
+  return (
+    <span style={style} data-testid="arreglo-pago-badge">
+      {content}
+    </span>
+  );
 }

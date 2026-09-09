@@ -82,11 +82,14 @@ export const clienteFinanzasService = {
       let cantPendientesFactura = 0;
 
       for (const a of arregloRows) {
+        if (a.estado === "PRESUPUESTO") {
+          continue;
+        }
         const precio = Number(a.precio_final ?? 0);
         const cobrado = Number(a.total_cobrado ?? 0);
         const facturable = a.es_facturable !== false;
         const estaPagado = a.esta_pago === true || (precio > 0 && cobrado >= precio);
-        const pendienteCobro = Math.max(0, precio - cobrado);
+        const pendienteCobro = estaPagado ? 0 : Math.max(0, precio - cobrado);
 
         totalHistoricoTrabajos += precio;
         totalHistoricoCobrado += cobrado;
@@ -183,7 +186,7 @@ export const clienteFinanzasService = {
 
       let query = supabase
         .from("arreglos")
-        .select("id, fecha, created_at, descripcion, precio_final, vehiculo_id, esta_pago")
+        .select("id, fecha, created_at, descripcion, precio_final, vehiculo_id, esta_pago, estado")
         .neq("estado", "PRESUPUESTO");
 
       if (vehiculoIds.length > 0) {
@@ -216,7 +219,7 @@ export const clienteFinanzasService = {
       }> = [];
 
       if (arregloIds.length > 0) {
-        let cobrosQuery = supabase
+        const cobrosQuery = supabase
           .from("operaciones_cobro_arreglo")
           .select(`
             operacion_id,
@@ -238,6 +241,9 @@ export const clienteFinanzasService = {
       const movimientos: ClienteMovimientoCuenta[] = [];
 
       for (const a of arregloRows) {
+        if (a.estado === "PRESUPUESTO") {
+          continue;
+        }
         const patente = vehiculoMap.get(a.vehiculo_id) ?? "";
         movimientos.push({
           id: a.id,

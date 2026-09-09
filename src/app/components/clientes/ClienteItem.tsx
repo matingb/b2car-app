@@ -2,26 +2,50 @@
 
 import React from "react";
 import {
+  Building2,
+  Car,
+  FileText,
   Mail,
+  MapPin,
   Phone,
   Trash2,
-  FileText,
-  MapPin,
-  Building2,
   User as UserIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Cliente, TipoCliente } from "@/model/types";
-import Avatar from "@/app/components/ui/Avatar";
-import Card from "@/app/components/ui/Card";
 import { ROUTES } from "@/routing/routes";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useClientes } from "@/app/providers/ClientesProvider";
-import IconButton from "../ui/IconButton";
-import { css } from "@emotion/react";
 import { formatTelephoneNumber } from "@/lib/telefono";
+import { getInitials } from "@/lib/initials";
+import { css } from "@emotion/react";
+import { clientesClient } from "@/clients/clientes/clientesClient";
+
+function DataCell({
+  icon,
+  text,
+  isMissing = false,
+  title,
+}: {
+  icon: React.ReactNode;
+  text: string;
+  isMissing?: boolean;
+  title?: string;
+}) {
+  return (
+    <div
+      title={title ?? text}
+      css={[styles.dataCell, isMissing && styles.dataCellMissing]}
+    >
+      <div css={[styles.dataCellIcon, isMissing && styles.dataCellIconMissing]}>
+        {icon}
+      </div>
+      <span css={styles.dataCellText}>{text}</span>
+    </div>
+  );
+}
 
 export default function ClienteItem({ cliente }: { cliente: Cliente }) {
   const modal = useModalMessage();
@@ -61,194 +85,387 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
     router.push(ROUTES.clientes + "/" + cliente.id);
   };
 
+  const initials = getInitials(cliente.nombre);
+  const isEmpresa = cliente.tipo_cliente === TipoCliente.EMPRESA;
+  const tipoLabel = isEmpresa ? "Empresa" : "Particular";
+  const cuitOrDoc =
+    cliente.cuit
+      ? `CUIT: ${cliente.cuit}`
+      : cliente.numero_documento_fiscal
+      ? `Doc: ${cliente.numero_documento_fiscal}`
+      : null;
+
+  const formattedPhone = cliente.telefono
+    ? formatTelephoneNumber(cliente.codigo_pais, cliente.telefono)
+    : "";
+
+  const rawVehicles = cliente.vehiculos ?? cliente.vehiculos_count;
+  const vehiclesCount = Array.isArray(rawVehicles)
+    ? rawVehicles.length
+    : typeof rawVehicles === "number"
+    ? rawVehicles
+    : undefined;
+
+  const hasVehicles = vehiclesCount !== undefined && vehiclesCount > 0;
+  const vehiclesText = hasVehicles
+    ? `${vehiclesCount} ${vehiclesCount === 1 ? "Vehículo" : "Vehículos"}`
+    : "Sin vehículos";
+
+  const [saldoLoaded, setSaldoLoaded] = React.useState<number | undefined>(cliente.saldo_cuenta);
+
+  React.useEffect(() => {
+    if (cliente.saldo_cuenta !== undefined) {
+      setSaldoLoaded(cliente.saldo_cuenta);
+      return;
+    }
+
+    let cancelled = false;
+    const promise = clientesClient.getResumenFinanciero?.(cliente.id);
+    if (promise && typeof promise.then === "function") {
+      promise
+        .then((res) => {
+          if (!cancelled && res?.data?.saldo_cuenta !== undefined) {
+            setSaldoLoaded(res.data.saldo_cuenta);
+          }
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cliente.id, cliente.saldo_cuenta]);
+
+  // Balance/deuda computation: en B2Car, saldo_cuenta > 0 representa deuda pendiente (a cobrar)
+  const currentSaldo = saldoLoaded ?? cliente.saldo_cuenta ?? 0;
+  const debt = currentSaldo > 0 ? currentSaldo : 0;
+  const hasDebt = debt > 0;
+
   return (
-    <Card style={{ padding: "10px 12px" }} onClick={handleOnClick}>
-      <div css={styles.container}>
-        <div css={styles.leftGroup}>
-          <Avatar nombre={cliente.nombre} />
-
-          <div css={styles.details}>
-            <div css={styles.name}>{`${cliente.nombre}`}</div>
-
-            <div css={styles.infoBlock}>
-              <div style={styles.direccionRow}>
-                <MapPin size={16} color={COLOR.ICON.MUTED} />
-                <span style={styles.direccionText}>
-                  {cliente.direccion !== "" ? cliente.direccion : "-"}
-                </span>
-              </div>
-              <div css={styles.contact}>
-                {cliente.email && (
-                  <div css={styles.contactRow}>
-                    <Mail size={14} />
-                    <span>{cliente.email}</span>
-                  </div>
-                )}
-
-                {cliente.telefono && (
-                  <div css={styles.contactRow}>
-                    <Phone size={14} />
-                    <span>{formatTelephoneNumber(cliente.codigo_pais, cliente.telefono ?? "")}</span>
-                  </div>
-                )}
-
-                {cliente.tipo_cliente === TipoCliente.EMPRESA &&
-                  cliente.cuit && (
-                    <div css={styles.contactRow}>
-                      <FileText size={14} />
-                      <span>CUIT: {cliente.cuit}</span>
-                    </div>
-                  )}
-              </div>
-            </div>
-          </div>
+    <div
+      onClick={handleOnClick}
+      data-testid="cliente-item"
+      css={styles.card}
+    >
+      {/* Left: Client Identity */}
+      <div css={styles.identity}>
+        <div css={styles.avatar} title={cliente.nombre}>
+          {initials}
         </div>
-
-        <div css={styles.actions}>
-          <div css={styles.tipoCliente}>
-            <span css={styles.tipoClienteIcon}>
-              {cliente.tipo_cliente === TipoCliente.PARTICULAR ? (
-                <UserIcon size={16} color={COLOR.TEXT.CONTRAST} />
+        <div css={styles.identityText}>
+          <h3 css={styles.name} title={cliente.nombre}>
+            {cliente.nombre}
+          </h3>
+          <div css={styles.metaRow}>
+            <span css={styles.typeBadge} title={`Tipo: ${tipoLabel}`}>
+              {isEmpresa ? (
+                <Building2 size={14} />
               ) : (
-                <Building2 size={16} color={COLOR.TEXT.CONTRAST} />
+                <UserIcon size={14} />
               )}
+              <span>{tipoLabel}</span>
             </span>
-            <span css={styles.tipoClienteText}>
-              {cliente.tipo_cliente === TipoCliente.PARTICULAR
-                ? "Particular"
-                : "Empresa"}
-            </span>
-          </div>
-
-          <div css={styles.actionButtons}>
-            <IconButton
-              icon={<Trash2 />}
-              onClick={handleDelete}
-              size={20}
-              hoverColor={COLOR.ICON.DANGER}
-            />
+            {cuitOrDoc && (
+              <>
+                <span css={styles.separator}>•</span>
+                <span css={styles.docBadge} title={cuitOrDoc}>
+                  <FileText size={14} />
+                  <span>{cuitOrDoc}</span>
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
-    </Card>
+
+      {/* Center: Data Grid */}
+      <div css={styles.dataGrid}>
+        <DataCell
+          icon={<Phone size={16} />}
+          text={formattedPhone || "Sin teléfono"}
+          title={formattedPhone ? `Teléfono: ${formattedPhone}` : "Sin teléfono"}
+          isMissing={!cliente.telefono}
+        />
+        <DataCell
+          icon={<Mail size={16} />}
+          text={cliente.email || "Sin correo"}
+          title={cliente.email ? `Correo: ${cliente.email}` : "Sin correo"}
+          isMissing={!cliente.email}
+        />
+        <DataCell
+          icon={<MapPin size={16} />}
+          text={cliente.direccion || "Sin dirección"}
+          title={cliente.direccion ? `Dirección: ${cliente.direccion}` : "Sin dirección"}
+          isMissing={!cliente.direccion}
+        />
+        <DataCell
+          icon={<Car size={16} />}
+          text={vehiclesText}
+          title={vehiclesText}
+          isMissing={!hasVehicles}
+        />
+      </div>
+
+      {/* Right: Client Status & Actions */}
+      <div css={styles.statusSection}>
+        {hasDebt ? (
+          <div
+            css={styles.balanceBlock}
+            title={`Saldo pendiente a cobrar: $${debt.toLocaleString("es-AR")}`}
+          >
+            <div css={styles.debtAmount} data-testid="cliente-debt-amount">
+              {`$${debt.toLocaleString("es-AR")}`}
+            </div>
+            <div css={styles.debtBadge} data-testid="cliente-debt-badge">
+              A Cobrar
+            </div>
+          </div>
+        ) : (
+          <div
+            css={styles.balanceBlock}
+            title="Cuenta corriente al día ($0)"
+          >
+            <div css={styles.cleanAmount} data-testid="cliente-clean-amount">
+              $0
+            </div>
+            <div css={styles.cleanBadge} data-testid="cliente-clean-badge">
+              Al día
+            </div>
+          </div>
+        )}
+
+        <div css={styles.deleteDivider}>
+          <button
+            type="button"
+            onClick={handleDelete}
+            css={styles.deleteButton}
+            title="Eliminar cliente"
+            aria-label="Eliminar cliente"
+            data-testid="cliente-delete-btn"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
 const styles = {
-  iconSize: 20,
-  container: css({
+  card: css({
     display: "flex",
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    gap: 12,
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      alignItems: "center",
-      gap: 8,
-      padding: "0px 0px",
+    justifyContent: "space-between",
+    gap: 16,
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 12,
+    padding: 16,
+    boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+    cursor: "pointer",
+    transition: "border-color 200ms ease, box-shadow 200ms ease",
+    "&:hover": {
+      borderColor: COLOR.ACCENT.PRIMARY,
+      boxShadow: "0 2px 8px rgba(0, 128, 162, 0.12)",
+    },
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      flexDirection: "column",
+      alignItems: "stretch",
+      gap: 14,
     },
   }),
-  leftGroup: css({
+  identity: css({
     display: "flex",
     alignItems: "center",
-    gap: 12,
-    width: "100%",
-    cursor: "pointer",
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      gap: 10,
+    gap: 16,
+    flexShrink: 0,
+    width: 270,
+    minWidth: 0,
+    [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
+      width: 240,
+    },
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      width: "100%",
     },
   }),
-  details: css({
+  avatar: css({
+    width: 48,
+    height: 48,
+    borderRadius: "50%",
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
+    color: COLOR.ACCENT.PRIMARY,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 700,
+    fontSize: 16,
+    flexShrink: 0,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+  }),
+  identityText: css({
+    minWidth: 0,
     display: "flex",
     flexDirection: "column",
   }),
   name: css({
-    fontSize: 18,
-    fontWeight: 600,
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      fontSize: 16,
-    },
+    margin: 0,
+    fontWeight: 700,
+    fontSize: 16,
+    color: COLOR.TEXT.PRIMARY,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   }),
-  infoBlock: css({
+  metaRow: css({
+    fontSize: 12,
+    fontWeight: 500,
+    color: COLOR.TEXT.SECONDARY,
     display: "flex",
-    flexDirection: "column",
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "none",
-    },
-  }),
-  contact: css({
-    display: "flex",
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 4,
-    color: "rgba(0,0,0,0.7)",
-    fontSize: 14,
-    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
-      flexDirection: "column",
-      gap: 4,
-    },
-  }),
-  contactRow: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  direccionRow: {
-    display: "flex",
-    flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: 6,
-  },
-  actionButton: {
-    border: "none",
-    background: "transparent",
-    cursor: "pointer",
-    padding: 6,
-    borderRadius: 6,
+    marginTop: 3,
+  }),
+  typeBadge: css({
     display: "inline-flex",
     alignItems: "center",
-    justifyContent: "center",
-  },
-  actions: css({
-    display: "flex",
-    gap: 8,
-    alignItems: "center",
+    gap: 4,
   }),
-  actionButtons: css({
-    display: "inline-flex",
-    gap: 8,
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "none",
-    },
+  separator: css({
+    color: COLOR.BORDER.WEAK,
   }),
-  tipoCliente: css({
+  docBadge: css({
     display: "inline-flex",
     alignItems: "center",
-    gap: 8,
-    background: COLOR.ACCENT.PRIMARY,
-    padding: "6px 12px",
-    borderRadius: 8,
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      gap: 4,
-      padding: "8px 8px",
-    },
+    gap: 4,
+    whiteSpace: "nowrap",
   }),
-  tipoClienteIcon: css({
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-  }),
-  tipoClienteText: css({
-    fontSize: 14,
-    fontWeight: 600,
-    color: COLOR.TEXT.CONTRAST,
+  dataGrid: css({
+    flex: 1,
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    columnGap: 20,
+    rowGap: 10,
+    minWidth: 0,
+    padding: "0 20px",
+    borderLeft: `1px solid ${COLOR.BORDER.SUBTLE}`,
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
-      display: "none",
+      borderLeft: "none",
+      padding: "12px 0",
+      borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+      gap: "10px 16px",
+    },
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      gridTemplateColumns: "1fr",
+      gap: 8,
     },
   }),
-  direccionText: {
+  dataCell: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
     fontSize: 14,
+    color: COLOR.TEXT.SECONDARY,
+    minWidth: 0,
+  }),
+  dataCellMissing: css({
+    color: COLOR.BORDER.WEAK,
+  }),
+  dataCellIcon: css({
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
     color: COLOR.ICON.MUTED,
-  },
+  }),
+  dataCellIconMissing: css({
+    color: COLOR.BORDER.SUBTLE,
+  }),
+  dataCellText: css({
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    minWidth: 0,
+    flex: 1,
+  }),
+  statusSection: css({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 16,
+    flexShrink: 0,
+    width: 190,
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      width: "100%",
+      justifyContent: "space-between",
+      paddingTop: 12,
+      borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    },
+  }),
+  balanceBlock: css({
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    flex: 1,
+  }),
+  debtAmount: css({
+    fontSize: 18,
+    fontWeight: 900,
+    color: COLOR.SEMANTIC.DANGER,
+    lineHeight: 1,
+    marginBottom: 4,
+  }),
+  cleanAmount: css({
+    fontSize: 16,
+    fontWeight: 700,
+    color: COLOR.BORDER.WEAK,
+    lineHeight: 1,
+    marginBottom: 4,
+  }),
+  debtBadge: css({
+    fontSize: 10,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    color: COLOR.SEMANTIC.DANGER,
+    backgroundColor: COLOR.BACKGROUND.DANGER_TINT,
+    padding: "2px 6px",
+    borderRadius: 4,
+    display: "inline-block",
+  }),
+  cleanBadge: css({
+    fontSize: 10,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    color: COLOR.SEMANTIC.SUCCESS,
+    backgroundColor: COLOR.BACKGROUND.SUCCESS_TINT,
+    padding: "2px 6px",
+    borderRadius: 4,
+    display: "inline-block",
+  }),
+  deleteDivider: css({
+    display: "flex",
+    alignItems: "center",
+    borderLeft: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    paddingLeft: 16,
+    marginLeft: 8,
+  }),
+  deleteButton: css({
+    background: "transparent",
+    border: "none",
+    color: COLOR.TEXT.TERTIARY,
+    cursor: "pointer",
+    padding: 8,
+    borderRadius: 8,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "color 150ms ease, background-color 150ms ease",
+    "&:hover": {
+      color: COLOR.SEMANTIC.DANGER,
+      backgroundColor: COLOR.BACKGROUND.DANGER_TINT,
+    },
+  }),
 } as const;

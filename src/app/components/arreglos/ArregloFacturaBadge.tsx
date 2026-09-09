@@ -164,15 +164,17 @@ export default function ArregloFacturaBadge({
 
   // 1. Factura Emitida
   if (isEmitida) {
+    const nro = formatFacturaNumero();
     return (
       <button
         type="button"
+        data-testid="arreglo-factura-badge"
         onClick={handleBadgeClick}
         title="Ver factura emitida"
         css={[styles.badgeBase, styles.badgeEmitida, isSmall && styles.badgeSm]}
       >
-        <FileText size={isSmall ? 13 : 14} color="#2563eb" />
-        <span>Factura emitida ({formatFacturaNumero()})</span>
+        <FileText size={isSmall ? 13 : 14} color={COLOR.ACCENT.PRIMARY} />
+        <span>{nro ? `Factura emitida (${nro})` : "Factura emitida"}</span>
       </button>
     );
   }
@@ -183,6 +185,7 @@ export default function ArregloFacturaBadge({
       <div ref={containerRef} css={styles.container}>
         <button
           type="button"
+          data-testid="arreglo-factura-badge"
           onClick={handleBadgeClick}
           title="Trabajo exento de facturación (clic para cambiar)"
           css={[styles.badgeBase, styles.badgeNoFacturable, isSmall && styles.badgeSm]}
@@ -190,32 +193,33 @@ export default function ArregloFacturaBadge({
           {loading ? (
             <Loader2 size={isSmall ? 13 : 14} className="animate-spin" />
           ) : (
-            <FileX2 size={isSmall ? 13 : 14} color="#64748b" />
+            <FileX2 size={isSmall ? 13 : 14} color={COLOR.ICON.MUTED} />
           )}
           <span>No facturable</span>
         </button>
 
         {isOpen && typeof document !== "undefined"
           ? createPortal(
-              <div
-                ref={dropdownRef}
-                css={styles.dropdownMenu}
-                style={dropdownCoords ?? undefined}
+            <div
+              ref={dropdownRef}
+              css={styles.dropdownMenu}
+              style={dropdownCoords ?? undefined}
+            >
+              <button
+                type="button"
+                css={styles.menuItem}
+                data-testid="factura-menu-marcar-facturable"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleFacturable(true);
+                }}
               >
-                <button
-                  type="button"
-                  css={styles.menuItem}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleToggleFacturable(true);
-                  }}
-                >
-                  <Check size={14} color={COLOR.SEMANTIC.SUCCESS} />
-                  <span>Marcar como facturable</span>
-                </button>
-              </div>,
-              document.body
-            )
+                <Check size={14} color={COLOR.SEMANTIC.SUCCESS} />
+                <span>Marcar como facturable</span>
+              </button>
+            </div>,
+            document.body
+          )
           : null}
       </div>
     );
@@ -226,8 +230,9 @@ export default function ArregloFacturaBadge({
     <div ref={containerRef} css={styles.container}>
       <button
         type="button"
+        data-testid="arreglo-factura-badge"
         onClick={handleBadgeClick}
-        title="Pendiente de facturación (clic para cambiar)"
+        title="Factura pendiente (clic para cambiar)"
         css={[styles.badgeBase, styles.badgePendiente, isSmall && styles.badgeSm]}
       >
         {loading ? (
@@ -235,45 +240,47 @@ export default function ArregloFacturaBadge({
         ) : (
           <FileX2 size={isSmall ? 13 : 14} color="#475569" />
         )}
-        <span>Pendiente de facturación</span>
+        <span>Factura pendiente</span>
       </button>
 
       {isOpen && typeof document !== "undefined"
         ? createPortal(
-            <div
-              ref={dropdownRef}
-              css={styles.dropdownMenu}
-              style={dropdownCoords ?? undefined}
-            >
-              {onOpenFacturaModal && (
-                <button
-                  type="button"
-                  css={styles.menuItem}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsOpen(false);
-                    onOpenChange?.(false);
-                    onOpenFacturaModal();
-                  }}
-                >
-                  <ReceiptText size={14} color={COLOR.ACCENT.PRIMARY} />
-                  <span>Emitir factura electrónica</span>
-                </button>
-              )}
+          <div
+            ref={dropdownRef}
+            css={styles.dropdownMenu}
+            style={dropdownCoords ?? undefined}
+          >
+            {onOpenFacturaModal && (
               <button
                 type="button"
                 css={styles.menuItem}
+                data-testid="factura-menu-emitir"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleToggleFacturable(false);
+                  setIsOpen(false);
+                  onOpenChange?.(false);
+                  onOpenFacturaModal();
                 }}
               >
-                <Ban size={14} color={COLOR.SEMANTIC.DANGER} />
-                <span>Marcar como no facturable</span>
+                <ReceiptText size={14} color={COLOR.ACCENT.PRIMARY} />
+                <span>Emitir factura electrónica</span>
               </button>
-            </div>,
-            document.body
-          )
+            )}
+            <button
+              type="button"
+              css={styles.menuItem}
+              data-testid="factura-menu-marcar-no-facturable"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleFacturable(false);
+              }}
+            >
+              <Ban size={14} color={COLOR.SEMANTIC.DANGER} />
+              <span>Marcar como no facturable</span>
+            </button>
+          </div>,
+          document.body
+        )
         : null}
     </div>
   );
@@ -307,39 +314,40 @@ const styles = {
     fontSize: 12,
   }),
   badgeEmitida: css({
-    backgroundColor: "#eff6ff",
-    borderColor: "#bfdbfe",
-    color: "#1d4ed8",
+    backgroundColor: COLOR.BACKGROUND.INFO_TINT,
+    borderColor: COLOR.BORDER.SUBTLE,
+    color: COLOR.ACCENT.PRIMARY,
     "&:hover": {
-      backgroundColor: "#dbeafe",
-      borderColor: "#93c5fd",
+      backgroundColor: COLOR.BACKGROUND.PRIMARY,
+      borderColor: COLOR.ACCENT.PRIMARY,
+      color: COLOR.ACCENT.HOVER,
     },
   }),
   badgePendiente: css({
-    backgroundColor: "#ffffff",
-    border: "1px dashed #cbd5e1",
-    color: "#475569",
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    border: `1px dashed ${COLOR.BORDER.DEFAULT}`,
+    color: COLOR.TEXT.SECONDARY,
     "&:hover": {
-      borderColor: "#94a3b8",
-      backgroundColor: "#f8fafc",
-      color: "#1e293b",
+      borderColor: COLOR.BORDER.WEAK,
+      backgroundColor: COLOR.BACKGROUND.SUBTLE,
+      color: COLOR.TEXT.PRIMARY,
     },
   }),
   badgeNoFacturable: css({
-    backgroundColor: "#f8fafc",
-    border: "1px dashed #cbd5e1",
-    color: "#64748b",
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
+    border: `1px dashed ${COLOR.BORDER.DEFAULT}`,
+    color: COLOR.TEXT.TERTIARY,
     "&:hover": {
-      borderColor: "#94a3b8",
-      backgroundColor: "#f1f5f9",
-      color: "#334155",
+      borderColor: COLOR.BORDER.WEAK,
+      backgroundColor: COLOR.BACKGROUND.PRIMARY,
+      color: COLOR.TEXT.SECONDARY,
     },
   }),
   dropdownMenu: css({
     position: "fixed",
     minWidth: 230,
-    backgroundColor: "#ffffff",
-    border: "1px solid var(--color-border-subtle, #e2e8f0)",
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 10,
     boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
     zIndex: 2500,
@@ -356,14 +364,14 @@ const styles = {
     padding: "8px 12px",
     fontSize: 13,
     fontWeight: 500,
-    color: "#334155",
+    color: COLOR.TEXT.PRIMARY,
     backgroundColor: "transparent",
     cursor: "pointer",
     textAlign: "left",
     transition: "background-color 120ms ease, color 120ms ease",
     "&:hover": {
-      backgroundColor: "#f1f5f9",
-      color: "#0f172a",
+      backgroundColor: COLOR.BACKGROUND.SUBTLE,
+      color: COLOR.TEXT.PRIMARY,
     },
   }),
 };
