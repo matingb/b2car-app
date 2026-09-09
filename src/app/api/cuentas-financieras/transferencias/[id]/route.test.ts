@@ -65,5 +65,24 @@ describe("PUT /api/cuentas-financieras/transferencias/[id]", () => {
       p_operacion_id: ORIGINAL_ID,
     });
   });
+
+  it("devuelve 409 y mensaje de negocio depurado cuando falla por error 55000", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: "55000", message: "Los movimientos del ledger son inmutables." },
+    });
+    vi.mocked(createClient).mockResolvedValue(mockSupabase(rpc));
+
+    const response = await DELETE(
+      new NextRequest(`http://localhost/api/cuentas-financieras/transferencias/${ORIGINAL_ID}`, {
+        method: "DELETE",
+      }),
+      { params: Promise.resolve({ id: ORIGINAL_ID }) }
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toBe("Los movimientos financieros registrados no se pueden modificar ni eliminar");
+  });
 });
 

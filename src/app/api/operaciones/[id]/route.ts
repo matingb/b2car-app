@@ -142,6 +142,10 @@ export async function DELETE(
 					status = 409;
 					message = "Stock insuficiente";
 					break;
+				case ServiceError.MovimientoFinancieroInmutable:
+					status = 409;
+					message = "Los movimientos financieros registrados no se pueden modificar ni eliminar";
+					break;
 				default:
 					break;
 			}

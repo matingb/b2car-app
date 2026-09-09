@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapCuenta, validateUpdateCuenta, validateUuid } from "./finanzasRouteUtils";
+import { mapCuenta, rpcErrorMessage, rpcStatus, validateUpdateCuenta, validateUuid } from "./finanzasRouteUtils";
 
 describe("validateUuid", () => {
   it("acepta UUIDs canónicos legacy para consultar registros existentes", () => {
@@ -29,5 +29,24 @@ describe("cuenta favorita", () => {
       created_at: "2026-08-25T00:00:00Z",
       updated_at: "2026-08-25T00:00:00Z",
     })?.favorita).toBe(true);
+  });
+});
+
+describe("rpcErrorMessage", () => {
+  it("depura el error 55000 (ledger inmutable) devolviendo un mensaje claro de negocio al cliente", () => {
+    const error = { code: "55000", message: "Los movimientos del ledger son inmutables." };
+    const result = rpcErrorMessage(error, "Error por defecto");
+    expect(result).toBe("Los movimientos financieros registrados no se pueden modificar ni eliminar");
+  });
+
+  it("depura el error 55001 (arreglo facturado)", () => {
+    const error = { code: "55001", message: "protegido por factura" };
+    const result = rpcErrorMessage(error, "Error por defecto");
+    expect(result).toBe("El arreglo ya posee una factura electrónica autorizada y sus datos fiscales no se pueden modificar");
+  });
+
+  it("devuelve el mensaje fallback cuando el error es desconocido o null", () => {
+    expect(rpcErrorMessage(null, "Error por defecto")).toBe("Error por defecto");
+    expect(rpcErrorMessage({ code: "UNKNOWN", message: "tech error" }, "Error por defecto")).toBe("Error por defecto");
   });
 });

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { POST as postCobroRoute, DELETE as deleteCobroRoute } from "@/app/api/arreglos/[id]/cobro/route";
+import { DELETE as deleteArregloRoute } from "@/app/api/arreglos/[id]/route";
 import { POST as postRepuestosRoute } from "@/app/api/arreglos/[id]/repuestos/route";
 import { DELETE as deleteRepuestoLineaRoute } from "@/app/api/arreglos/[id]/repuestos/[lineaId]/route";
 
@@ -94,6 +95,19 @@ export async function eliminarRepuestoLineaViaRoute(
 
   return deleteRepuestoLineaRoute(req, {
     params: Promise.resolve({ id: arregloId, lineaId }),
+  });
+}
+
+/**
+ * Driver: Invoca la API route DELETE /api/arreglos/[id] encapsulando el request.
+ */
+export async function borrarArregloViaRoute(arregloId: string): Promise<Response> {
+  const req = new NextRequest(`http://localhost:3000/api/arreglos/${arregloId}`, {
+    method: "DELETE",
+  });
+
+  return deleteArregloRoute(req, {
+    params: Promise.resolve({ id: arregloId }),
   });
 }
 

@@ -55,9 +55,12 @@ export function createArregloService(repository: ArregloRepository) {
       return repository.updateById(supabase, id, payload);
     },
 
-    async deleteById(supabase: SupabaseClient, id: string): Promise<{ error: ServiceError | null }> {
-      const { error } = await repository.deleteById(supabase, id);
-      if (error) return { error };
+    async deleteById(
+      supabase: SupabaseClient,
+      id: string
+    ): Promise<{ error: ServiceError | null; message?: string | null }> {
+      const { error, message } = await repository.deleteById(supabase, id);
+      if (error) return { error, message };
       return { error: null };
     },
 

@@ -532,3 +532,21 @@ export function rpcStatus(error: { code?: string | null } | null | undefined): 4
       return 500;
   }
 }
+
+export function rpcErrorMessage(
+  error: { code?: string | null; message?: string | null } | null | undefined,
+  fallbackMessage: string
+): string {
+  if (!error) return fallbackMessage;
+  switch (error.code) {
+    case "55000":
+      return "Los movimientos financieros registrados no se pueden modificar ni eliminar";
+    case "55001":
+      return "El arreglo ya posee una factura electrónica autorizada y sus datos fiscales no se pueden modificar";
+    case "23505":
+      return "El registro ya existe o entra en conflicto con otro existente";
+    default:
+      return fallbackMessage;
+  }
+}
+

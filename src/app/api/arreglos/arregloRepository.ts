@@ -57,7 +57,10 @@ export interface ArregloRepository {
     supabase: SupabaseClient,
     operacionIds: string[]
   ): Promise<{ error: ReturnType<typeof toServiceError> | null }>;
-  deleteById(supabase: SupabaseClient, id: string): Promise<{ error: ReturnType<typeof toServiceError> | null }>;
+  deleteById(
+    supabase: SupabaseClient,
+    id: string
+  ): Promise<{ error: ReturnType<typeof toServiceError> | null; message?: string | null }>;
   arreglosResumen(
     supabase: SupabaseClient,
     fromISO?: string,
@@ -319,11 +322,13 @@ export const supabaseArregloRepository: ArregloRepository = {
   },
 
   async deleteById(supabase, id) {
-    //const { error } = await supabase.from("arreglos").delete().eq("id", id);
     const { error } = await supabase.rpc("rpc_borrar_arreglo", {
       p_arreglo_id: id,
     });
-    return { error: error ? toServiceError(error) : null };
+    return {
+      error: error ? toServiceError(error) : null,
+      message: error?.message ?? null,
+    };
   },
 
   async arreglosResumen(supabase, fromISO?, toISO?, tallerId?) {

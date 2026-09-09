@@ -7,6 +7,7 @@ import type {
   TransferenciaFinanciera,
 } from "@/model/finanzas";
 import {
+  rpcErrorMessage,
   rpcStatus,
   validateUpdateTransferencia,
   validateUuid,
@@ -48,8 +49,9 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
   if (updateError) {
     logger.error("[PUT /api/cuentas-financieras/transferencias/[id]] Error en RPC rpc_actualizar_movimiento_cuenta:", updateError, { id, input });
     const status = rpcStatus(updateError);
+    const fallbackMsg = status === 404 ? "Transferencia no encontrada" : "Error actualizando transferencia";
     return Response.json(
-      { data: null, error: updateError.message || (status === 404 ? "Transferencia no encontrada" : "Error actualizando transferencia") } satisfies ActualizarTransferenciaFinancieraResponse,
+      { data: null, error: rpcErrorMessage(updateError, fallbackMsg) } satisfies ActualizarTransferenciaFinancieraResponse,
       { status }
     );
   }
@@ -91,8 +93,9 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
   if (error || data === false) {
     logger.error("[DELETE /api/cuentas-financieras/transferencias/[id]] Error eliminando transferencia:", error, { id, data });
     const status = data === false ? 404 : rpcStatus(error);
+    const fallbackMsg = status === 404 ? "Transferencia no encontrada" : "Error eliminando transferencia";
     return Response.json(
-      { error: (error && error.message) || (status === 404 ? "Transferencia no encontrada" : "Error eliminando transferencia") } satisfies EliminarFinanzasResponse,
+      { error: data === false ? fallbackMsg : rpcErrorMessage(error, fallbackMsg) } satisfies EliminarFinanzasResponse,
       { status }
     );
   }

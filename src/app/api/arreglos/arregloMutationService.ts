@@ -210,12 +210,19 @@ export const arregloMutationService = {
       return { error: message, status };
     }
 
-    const { error } = await arregloService.deleteById(supabase, id);
+    const { error, message } = await arregloService.deleteById(supabase, id);
 
     if (error) {
+      if (error === ServiceError.ArregloFacturado) {
+        return {
+          error: message || "El arreglo ya posee una factura electronica autorizada y sus datos fiscales no se pueden modificar",
+          status: 409,
+        };
+      }
+
       const status = error === ServiceError.NotFound ? 404 : 500;
-      const message = status === 404 ? "Arreglo no encontrado" : "Error eliminando arreglo";
-      return { error: message, status };
+      const errorMessage = status === 404 ? "Arreglo no encontrado" : "Error eliminando arreglo";
+      return { error: errorMessage, status };
     }
 
     await statsService.onDataChanged(

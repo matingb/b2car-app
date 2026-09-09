@@ -147,17 +147,21 @@ describe("arregloMutationService", () => {
       expect(statsService.onDataChanged).toHaveBeenCalledWith(supabase, "ten-1");
     });
 
-    it("retorna 404 si el arreglo no existe", async () => {
+    it("retorna 409 con mensaje específico si el arreglo posee factura electrónica autorizada", async () => {
+      const errorMessage = "El arreglo esta facturado";
       vi.mocked(arregloService.getByIdWithVehiculo).mockResolvedValue({
-        data: null,
-        error: ServiceError.NotFound,
+        data: { id: "a1", tenant_id: "ten-1" } as unknown as Arreglo,
+        error: null,
+      });
+      vi.mocked(arregloService.deleteById).mockResolvedValue({
+        error: ServiceError.ArregloFacturado,
+        message: errorMessage,
       });
 
       const result = await arregloMutationService.deleteArregloCompleto(supabase, "a1");
 
-      expect(result.error).toBe("Arreglo no encontrado");
-      expect(result.status).toBe(404);
-      expect(arregloService.deleteById).not.toHaveBeenCalled();
+      expect(result.status).toBe(409);
+      expect(result.error).toBe(errorMessage);
     });
   });
 });

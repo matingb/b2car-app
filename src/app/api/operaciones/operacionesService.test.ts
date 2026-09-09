@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { operacionesService } from "./operacionesService";
+import { ServiceError } from "../serviceError";
 
 describe("operacionesService.list", () => {
 	it("pagina operaciones y gastos en una única RPC con total estable", async () => {
@@ -145,7 +146,7 @@ describe("operacionesService.deleteById", () => {
 			"operacion-1"
 		);
 
-		expect(result.error).toBe("Unknown");
+		expect(result.error).toBe(ServiceError.MovimientoFinancieroInmutable);
 	});
 
 	it("devuelve NotFound si data.eliminada es false o data es nulo", async () => {

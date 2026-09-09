@@ -13,14 +13,17 @@ export enum ServiceError {
   NoClienteAsignado = "NoClienteAsignado",
   Unknown = "Unknown",
   StockInsuficiente = "Stock Insuficiente",
+  ArregloFacturado = "ArregloFacturado",
+  MovimientoFinancieroInmutable = "MovimientoFinancieroInmutable",
 }
-
 export type ServiceResult<T> = { data: T | null; error: ServiceError | null };
 
 export function toServiceError(err: PostgrestError): ServiceError {
   const code = err.code;
-  if (code == "PGRST116") return ServiceError.NotFound;
+  if (code == "PGRST116" || code == "P0002") return ServiceError.NotFound;
   if (code == "23505") return ServiceError.Conflict;
+  if (code == "55000") return ServiceError.MovimientoFinancieroInmutable;
+  if (code == "55001") return ServiceError.ArregloFacturado;
   if (code == "P0001") return ServiceError.StockInsuficiente;
   return ServiceError.Unknown;
 }
