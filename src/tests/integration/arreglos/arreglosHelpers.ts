@@ -9,7 +9,7 @@ import type { StockRow as Stock } from "@/app/api/stocks/stocksService";
 import { arregloCompletoService } from "@/app/api/arreglos/arregloCompletoService";
 import { testClient, SEED } from "@/tests/integration";
 import { createCreateArregloRequest } from "@/tests/factories";
-import { DadoQueExisteUnProductoConStock } from "../helpers/stockHelpers";
+import { dadoQueExisteUnProductoConStock } from "../helpers/stockHelpers";
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -90,7 +90,7 @@ export async function deleteRepuestoLinea(
 /**
  * Precondición: Crea un producto con stock y un arreglo que ya consume dicho repuesto.
  */
-export async function DadoQueExisteUnArregloConRepuesto({
+export async function dadoQueExisteUnArregloConRepuesto({
   stock = {},
   repuesto = {},
 }: DadoQueExisteUnArregloConRepuestoArgs = {}): Promise<DadoQueExisteUnArregloConRepuestoResult> {
@@ -98,7 +98,7 @@ export async function DadoQueExisteUnArregloConRepuesto({
   const stockAUsar = repuesto.cantidad ?? 3;
   const montoUnitario = repuesto.monto_unitario ?? 6500;
 
-  const { stockId } = await DadoQueExisteUnProductoConStock({
+  const { stockId } = await dadoQueExisteUnProductoConStock({
     stock: { cantidad: cantidadInicial, taller_id: SEED.tallerId, ...stock },
   });
 
@@ -114,11 +114,14 @@ export async function DadoQueExisteUnArregloConRepuesto({
   const { data: detalle } = await arregloCompletoService.getArregloDetalleCompleto(testClient, arregloId);
   const lineaId = detalle?.asignaciones[0]?.lineas[0]?.id;
   if (!lineaId) {
-    throw new Error("DadoQueExisteUnArregloConRepuesto: no se encontró lineaId en el arreglo creado");
+    throw new Error("dadoQueExisteUnArregloConRepuesto: no se encontró lineaId en el arreglo creado");
   }
 
   return { arregloId, stockId, lineaId, cantidadInicial, stockAUsar };
 }
+
+/** @deprecated Utilizar dadoQueExisteUnArregloConRepuesto */
+export const DadoQueExisteUnArregloConRepuesto = dadoQueExisteUnArregloConRepuesto;
 
 // ─── Assertion Helpers ────────────────────────────────────────────────────────
 

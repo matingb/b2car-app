@@ -23,7 +23,7 @@ export interface DadoQueExisteUnProductoArgs {
 /**
  * Crea un producto y su stock asociado utilizando los servicios de la aplicación.
  */
-export async function DadoQueExisteUnProductoConStock(
+export async function dadoQueExisteUnProductoConStock(
   { producto = {}, stock = {} }: DadoQueExisteUnProductoArgs = {},
   client = testClient
 ): Promise<DadoQueExisteUnProductoResult> {
@@ -48,7 +48,7 @@ export async function DadoQueExisteUnProductoConStock(
 
   if (prodError || !productoCreado) {
     throw new Error(
-      `DadoQueExisteUnProductoConStock: error al crear producto: ${prodError ?? "sin respuesta"}`
+      `dadoQueExisteUnProductoConStock: error al crear producto: ${prodError ?? "sin respuesta"}`
     );
   }
 
@@ -68,7 +68,7 @@ export async function DadoQueExisteUnProductoConStock(
 
   if (stockError || !stockCreado) {
     throw new Error(
-      `DadoQueExisteUnProductoConStock: error al crear stock: ${stockError?.message ?? "sin respuesta"}`
+      `dadoQueExisteUnProductoConStock: error al crear stock: ${stockError?.message ?? "sin respuesta"}`
     );
   }
 
@@ -77,6 +77,9 @@ export async function DadoQueExisteUnProductoConStock(
     stockId: stockCreado.id,
   };
 }
+
+/** @deprecated Utilizar dadoQueExisteUnProductoConStock */
+export const DadoQueExisteUnProductoConStock = dadoQueExisteUnProductoConStock;
 
 /**
  * Verifica la cantidad disponible de un stock específico.

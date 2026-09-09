@@ -4,13 +4,13 @@ import { arregloCompletoService } from "@/app/api/arreglos/arregloCompletoServic
 import { testClient, SEED } from "@/tests/integration";
 import { createCreateArregloRequest } from "@/tests/factories";
 import {
-  DadoQueExisteUnProductoConStock,
+  dadoQueExisteUnProductoConStock,
   expectCantidadDeStock,
 } from "../helpers/stockHelpers";
 import {
   postArregloAndGetId,
   deleteRepuestoLinea,
-  DadoQueExisteUnArregloConRepuesto,
+  dadoQueExisteUnArregloConRepuesto,
   expectArregloSinRepuestos,
 } from "./arreglosHelpers";
 
@@ -52,7 +52,7 @@ describe("Integration - Creación de arreglos", () => {
     const precioFinalTotal = stockAUsar * precioUnitario; // 19500
     const cantidadInicial = 200;
 
-    const { stockId } = await DadoQueExisteUnProductoConStock({
+    const { stockId } = await dadoQueExisteUnProductoConStock({
       stock: { cantidad: cantidadInicial, taller_id: SEED.tallerId },
     });
 
@@ -86,7 +86,7 @@ describe("Integration - Creación de arreglos", () => {
   });
 
   it("Cuando se elimina un repuesto de un arreglo, se revierte la asignación y devuelve el item al stock total", async () => {
-    const { arregloId, stockId, lineaId, cantidadInicial } = await DadoQueExisteUnArregloConRepuesto({
+    const { arregloId, stockId, lineaId, cantidadInicial } = await dadoQueExisteUnArregloConRepuesto({
       stock: { cantidad: 200, taller_id: SEED.tallerId },
       repuesto: { cantidad: 3, monto_unitario: 6500 },
     });
