@@ -40,6 +40,8 @@ export type CreateArregloRequest = {
   fecha_cobro?: string | null;
   idempotency_key?: string | null;
   extra_data?: string;
+  cliente_id?: string | null;
+  es_facturable?: boolean;
 
   // opcional: creación "completa" desde el modal (1 POST)
   detalles?: Array<{
@@ -73,6 +75,8 @@ export type CreateArregloInsertPayload = {
   precio_sin_iva: number;
   esta_pago: boolean;
   extra_data: string | null;
+  cliente_id?: string | null;
+  es_facturable?: boolean;
 };
 
 export type UpdateArregloRequest = {
@@ -83,6 +87,8 @@ export type UpdateArregloRequest = {
   observaciones?: string;
   precio_final?: number;
   esta_pago?: boolean;
+  es_facturable?: boolean;
+  cliente_id?: string | null;
   detalle_formulario?: CreateArregloDetalleFormularioInput;
 };
 

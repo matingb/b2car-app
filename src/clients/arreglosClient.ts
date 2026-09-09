@@ -26,6 +26,8 @@ export type CreateArregloInput = {
   fecha_cobro?: string | null;
   idempotency_key?: string | null;
   extra_data?: string;
+  cliente_id?: string | null;
+  es_facturable?: boolean;
 
   // opcional: creación completa (servicios + repuestos) en 1 POST
   detalles?: Array<{
@@ -66,6 +68,7 @@ export type CobrarArregloInput = {
 
 export type GetArreglosInput = {
   tallerId?: string;
+  clienteId?: string;
   search?: string;
   patente?: string;
   estado?: string;
@@ -80,6 +83,7 @@ export const arreglosClient = {
     try {
       const searchParams = new URLSearchParams();
       if (params?.tallerId) searchParams.set("taller_id", params.tallerId);
+      if (params?.clienteId) searchParams.set("cliente_id", params.clienteId);
       if (params?.search) searchParams.set("search", params.search);
       if (params?.patente) searchParams.set("patente", params.patente);
       if (params?.estado) searchParams.set("estado", params.estado);

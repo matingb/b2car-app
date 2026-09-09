@@ -1,26 +1,23 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { Building2, MapPin } from "lucide-react";
-import { BREAKPOINTS, COLOR } from "@/theme/theme";
-import { Representante, TipoCliente, Vehiculo } from "@/model/types";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
+import { TipoCliente, Vehiculo, Representante, ClienteResumenFinanciero } from "@/model/types";
 import CreateVehiculoModal from "../vehiculos/CreateVehiculoModal";
-import ClienteHeader from "../clientes/ClienteHeader";
-import ContactInfoCard from "../clientes/ContactInfoCard";
 import VehiculosAsociadosCard from "../clientes/VehiculosAsociadosCard";
-import RepresentantesCard from "../clientes/RepresentantesCard";
 import CreateRepresentanteModal from "../clientes/CreateRepresentanteModal";
 import ClienteFormModal from "../clientes/ClienteFormModal";
+import ClienteProfileCard from "../clientes/ClienteProfileCard";
+import ClienteTabsNav, { type ClienteTabKey } from "../clientes/ClienteTabsNav";
+import ClienteArreglosTab from "../clientes/ClienteArreglosTab";
+import ClienteCuentaCorrienteTab from "../clientes/ClienteCuentaCorrienteTab";
 import { useToast } from "@/app/providers/ToastProvider";
 import type { UpdateEmpresaRequest } from "@/app/api/clientes/empresas/[id]/route";
 import { useParams } from "next/navigation";
 import { Empresa } from "@/clients/clientes/empresaClient";
 import { useClientes } from "@/app/providers/ClientesProvider";
-import { css } from "@emotion/react";
 import { logger } from "@/lib/logger";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
-import { formatTelephoneNumber } from "@/lib/telefono";
-
+import { clientesClient } from "@/clients/clientes/clientesClient";
 
 export default function EmpresaDetails() {
   const params = useParams();
@@ -31,25 +28,42 @@ export default function EmpresaDetails() {
   const [openEditEmpresa, setOpenEditEmpresa] = useState(false);
   const [representantes, setRepresentantes] = useState<Representante[]>([]);
   const [openRepresentante, setOpenRepresentante] = useState(false);
+  const [activeTab, setActiveTab] = useState<ClienteTabKey>("vehiculos");
+  const [resumenFinanciero, setResumenFinanciero] = useState<ClienteResumenFinanciero | null>(null);
+  const [loadingFinanzas, setLoadingFinanzas] = useState(false);
+
   const toast = useToast();
   const { getEmpresaById, listRepresentantes, createRepresentante, deleteRepresentante, updateEmpresa } = useClientes();
   const { confirm } = useModalMessage();
 
+  const loadFinanzas = useCallback(async () => {
+    if (!clienteId) return;
+    setLoadingFinanzas(true);
+    try {
+      const res = await clientesClient.getResumenFinanciero(clienteId);
+      if (res.data) setResumenFinanciero(res.data);
+    } catch (e) {
+      logger.error("Error cargando resumen financiero", e);
+    } finally {
+      setLoadingFinanzas(false);
+    }
+  }, [clienteId]);
+
   useEffect(() => {
     async function load() {
-      const empresa = await getEmpresaById(clienteId);
-      if (empresa) {
-        setEmpresa(empresa);
-        setVehiculos(empresa.vehiculos || []);
+      const empresaData = await getEmpresaById(clienteId);
+      if (empresaData) {
+        setEmpresa(empresaData);
+        setVehiculos(empresaData.vehiculos || []);
       }
     }
     if (clienteId) {
       load();
+      void loadFinanzas();
     }
-  }, [clienteId, getEmpresaById]);
+  }, [clienteId, getEmpresaById, loadFinanzas]);
 
-
-  React.useEffect(() => {
+  useEffect(() => {
     const loadRepresentantes = async () => {
       if (!clienteId) return;
       try {
@@ -94,67 +108,70 @@ export default function EmpresaDetails() {
     }
   };
 
+  const handleDeleteRepresentante = async (representanteId: string) => {
+    if (!clienteId) return;
+    const ok = await confirm({
+      title: "Eliminar representante",
+      message: "¿Estás seguro de que deseas eliminar este representante?",
+      acceptLabel: "Eliminar",
+      cancelLabel: "Cancelar",
+    });
+    if (!ok) return;
+    try {
+      await deleteRepresentante(clienteId, representanteId);
+      setRepresentantes((prev) => prev.filter((r) => r.id !== representanteId));
+      toast.success("Representante eliminado", "El representante se eliminó correctamente.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "No se pudo eliminar el representante";
+      toast.error(msg);
+    }
+  };
 
   return (
     <div>
-      <ClienteHeader
+      {/* TARJETA PRINCIPAL DEL CLIENTE FIEL AL MOCKUP */}
+      <ClienteProfileCard
+        tipo={TipoCliente.EMPRESA}
         nombre={empresa?.nombre ?? "-"}
-        icon={<Building2 size={22} color={COLOR.ACCENT.PRIMARY} />}
-        subtitle={
-          empresa?.direccion ? (
-            <>
-              <MapPin size={16} /> {empresa.direccion}
-            </>
-          ) : undefined
-        }
-        showCreateButton={!!clienteId}
-        onCreateClick={() => setOpenVehiculo(true)}
+        direccion={empresa?.direccion}
+        email={empresa?.email}
+        telefono={empresa?.telefono}
+        codigo_pais={empresa?.codigo_pais}
+        cuit={empresa?.cuit}
+        resumenFinanciero={resumenFinanciero}
+        loadingFinanzas={loadingFinanzas}
+        onEditCliente={() => setOpenEditEmpresa(true)}
+        representantes={representantes}
+        onAddRepresentante={() => setOpenRepresentante(true)}
+        onDeleteRepresentante={handleDeleteRepresentante}
       />
 
-      <div css={styles.columnsRow}>
-        <div css={styles.half}>
-          <ContactInfoCard
-            email={empresa?.email ?? ''}
-            telefono={formatTelephoneNumber(empresa?.codigo_pais, empresa?.telefono ?? "")}
-            onEdit={() => setOpenEditEmpresa(true)}
-            cuit={empresa?.cuit ?? ''}
-            direccion={empresa?.direccion ?? ''}
-          />
-        </div>
-        <div css={styles.half}>
-          <VehiculosAsociadosCard
-            vehiculos={vehiculos}
-            onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
-          />
-        </div>
-      </div>
-      <div style={styles.fullWidthMarginTop}>
-        <RepresentantesCard
-          representantes={representantes}
-          onAddRepresentante={clienteId ? () => setOpenRepresentante(true) : undefined}
-          onDeleteRepresentante={
-            clienteId
-              ? async (representanteId) => {
-                  const ok = await confirm({
-                    title: "Eliminar representante",
-                    message: "¿Estás seguro de que deseas eliminar este representante?",
-                    acceptLabel: "Eliminar",
-                    cancelLabel: "Cancelar",
-                  });
-                  if (!ok) return;
-                  try {
-                    await deleteRepresentante(clienteId, representanteId);
-                    setRepresentantes((prev) => prev.filter((r) => r.id !== representanteId));
-                    toast.success("Representante eliminado", "El representante se eliminó correctamente.");
-                  } catch (err) {
-                    const msg = err instanceof Error ? err.message : "No se pudo eliminar el representante";
-                    toast.error(msg);
-                  }
-                }
-              : undefined
-          }
+      {/* TABS DE NAVEGACIÓN */}
+      <ClienteTabsNav
+        activeTab={activeTab}
+        onChangeTab={setActiveTab}
+        vehiculosCount={vehiculos.length}
+      />
+
+      {/* CONTENIDO SEGÚN TAB ACTIVA */}
+      {activeTab === "vehiculos" && (
+        <VehiculosAsociadosCard
+          vehiculos={vehiculos}
+          onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
         />
-      </div>
+      )}
+
+      {activeTab === "arreglos" && (
+        <ClienteArreglosTab
+          clienteId={clienteId}
+        />
+      )}
+
+      {activeTab === "cuenta_corriente" && (
+        <ClienteCuentaCorrienteTab
+          clienteId={clienteId}
+        />
+      )}
 
       <ClienteFormModal
         open={openEditEmpresa}
@@ -216,25 +233,4 @@ export default function EmpresaDetails() {
   );
 }
 
-const styles = {
-  columnsRow: css({
-    display: "flex",
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      flexWrap: "wrap",
-    },
-    gap: 16,
-  }),
-  half: css({
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "stretch",
-    width: "50%",
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      width: "100%",
-    },
-  }),
-  fullWidthMarginTop: {
-    width: "100%",
-    marginTop: 16,
-  },
-} as const;
+const styles = {} as const;

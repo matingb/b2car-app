@@ -169,18 +169,33 @@ describe("ArregloItem", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("muestra el texto Pago pendiente cuando esta_pago es false", () => {
+  it("muestra el badge Pendiente con monto en el footer cuando esta_pago es false", () => {
     talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
 
     render(
       <ArregloItem
         arreglo={createArreglo({
           esta_pago: false,
+          precio_final: 15000,
         })}
       />
     );
 
-    expect(screen.getByText("Pago pendiente")).toBeInTheDocument();
+    expect(screen.getByText("Pendiente ($15.000)")).toBeInTheDocument();
+  });
+
+  it("renderiza el badge de facturación pendiente y permite ver opción no facturable", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+
+    render(
+      <ArregloItem
+        arreglo={createArreglo({
+          es_facturable: true,
+        })}
+      />
+    );
+
+    expect(screen.getByText("Pendiente de facturación")).toBeInTheDocument();
   });
 
   it("renderiza las iniciales de los empleados asignados", () => {
@@ -219,7 +234,7 @@ describe("ArregloItem", () => {
     expect(screen.getByText("PP")).toBeInTheDocument();
   });
 
-  it("no muestra el texto Pago pendiente cuando el arreglo está en estado PRESUPUESTO", () => {
+  it("no muestra el badge de pago cuando el arreglo está en estado PRESUPUESTO", () => {
     talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
 
     render(
@@ -231,8 +246,8 @@ describe("ArregloItem", () => {
       />
     );
 
-    expect(screen.queryByText("Pago pendiente")).not.toBeInTheDocument();
-    expect(screen.queryByText("Pagado")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Pendiente \(/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Cobrado")).not.toBeInTheDocument();
   });
 });
 

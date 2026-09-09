@@ -10,6 +10,7 @@ import {
 
 export type ArregloListFilters = {
   tallerId?: string;
+  clienteId?: string;
   search?: string;
   patente?: string;
   estado?: string;
@@ -163,13 +164,14 @@ export const supabaseArregloRepository: ArregloRepository = {
 
     let query = supabase
       .from("arreglos")
-      .select("*, vehiculo:vista_vehiculos_con_clientes(*), taller:talleres(*), empleados_detallados:arreglos_empleados_detallados")
+      .select("*, vehiculo:vista_vehiculos_con_clientes(*), taller:talleres(*), empleados_detallados:arreglos_empleados_detallados, facturas_electronicas(id, estado, clase_comprobante, punto_venta, numero_comprobante)")
       .order("fecha", { ascending: false })
       .order("updated_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(getLimitSentinel(limit));
 
     if (filters.tallerId) query = query.eq("taller_id", filters.tallerId);
+    if (filters.clienteId) query = query.eq("cliente_id", filters.clienteId);
     if (filters.fechaDesde) query = query.gte("fecha", filters.fechaDesde);
     if (filters.fechaHasta) query = query.lte("fecha", filters.fechaHasta);
     if (safeEstado) query = query.eq("estado", safeEstado);
@@ -214,8 +216,16 @@ export const supabaseArregloRepository: ArregloRepository = {
     const rows = (data ?? []) as Array<Record<string, unknown>>;
     const { items, hasMore } = sliceWithHasMore(rows, limit);
     const mappedRows = items.map((r) => {
-      const { empleados_detallados, ...rest } = r;
-      const mapped = { ...rest, empleados: empleados_detallados || [] };
+      const { empleados_detallados, facturas_electronicas, ...rest } = r;
+      const facturas = Array.isArray(facturas_electronicas)
+        ? (facturas_electronicas as Array<Record<string, unknown>>)
+        : [];
+      const factura = facturas.find((f) => f?.estado === "AUTORIZADA") || facturas[0] || null;
+      const mapped = {
+        ...rest,
+        empleados: empleados_detallados || [],
+        factura_electronica: factura,
+      };
       return mapped;
     }) as ArregloListPageRow[];
 
@@ -231,19 +241,24 @@ export const supabaseArregloRepository: ArregloRepository = {
   async getByIdWithVehiculo(supabase, id) {
     const { data, error } = await supabase
       .from("arreglos")
-      .select("*, vehiculo:vehiculos(*), empleados_detallados:arreglos_empleados_detallados")
+      .select("*, vehiculo:vehiculos(*), empleados_detallados:arreglos_empleados_detallados, facturas_electronicas(id, estado, clase_comprobante, punto_venta, numero_comprobante)")
       .eq("id", id)
       .single();
     if (error) return { data: null, error: toServiceError(error) };
 
     const rawData = data as Record<string, unknown>;
-    const { empleados_detallados, ...rest } = rawData;
+    const { empleados_detallados, facturas_electronicas, ...rest } = rawData;
+    const facturas = Array.isArray(facturas_electronicas)
+      ? (facturas_electronicas as Array<Record<string, unknown>>)
+      : [];
+    const factura = facturas.find((f) => f?.estado === "AUTORIZADA") || facturas[0] || null;
     const mappedData = {
       ...rest,
       empleados: empleados_detallados || [],
+      factura_electronica: factura,
     };
 
-    return { data: mappedData as Arreglo, error: null };
+    return { data: mappedData as unknown as Arreglo, error: null };
   },
 
   async create(supabase, payload) {

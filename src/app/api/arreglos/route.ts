@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
 
     const filters: ArregloListFilters = {
         tallerId: toUndef(query.get("taller_id")),
+        clienteId: toUndef(query.get("cliente_id")) ?? toUndef(query.get("clienteId")),
         search: toUndef(query.get("search")),
         patente: toUndef(query.get("patente")),
         estado: toUndef(query.get("estado")),
@@ -211,6 +212,8 @@ export async function POST(req: Request) {
         precio_sin_iva: computedSinIva,
         esta_pago: estaPagoValue,
         extra_data: extra_data ?? null,
+        cliente_id: (body as CreateArregloRequest).cliente_id ? String((body as CreateArregloRequest).cliente_id).trim() : null,
+        es_facturable: typeof (body as CreateArregloRequest).es_facturable === "boolean" ? (body as CreateArregloRequest).es_facturable : true,
     };
 
     // Opcional: crear líneas (servicios + repuestos) en el mismo POST.

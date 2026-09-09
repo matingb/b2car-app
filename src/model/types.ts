@@ -91,6 +91,14 @@ export interface CobroArregloItem {
   created_at: string;
 }
 
+export interface FacturaElectronicaBadgeInfo {
+  id?: string;
+  estado?: string;
+  clase_comprobante?: string;
+  punto_venta?: number;
+  numero_comprobante?: number;
+}
+
 export interface Arreglo {
   id: UUID;
   vehiculo: Vehiculo;
@@ -109,9 +117,36 @@ export interface Arreglo {
   cobros?: CobroArregloItem[];
   fecha_cobro?: string | null;
   movimiento_financiero_id?: string | null;
+  cliente_id?: UUID;
+  es_facturable?: boolean;
+  factura_electronica?: FacturaElectronicaBadgeInfo | null;
   extra_data: string;
   categorias?: string[];
   empleados?: Array<{ id: string; nombre: string; apellido?: string }>;
+}
+
+export interface ClienteResumenFinanciero {
+  saldo_cuenta: number;
+  saldo_a_facturar: number;
+  total_historico_trabajos: number;
+  total_historico_cobrado: number;
+  cantidad_arreglos_pendientes_pago: number;
+  cantidad_arreglos_pendientes_factura: number;
+}
+
+export interface ClienteMovimientoCuenta {
+  id: string;
+  fecha: string;
+  created_at: string;
+  tipo_movimiento: "CARGO_ARREGLO" | "COBRO" | string;
+  concepto: string;
+  comprobante?: string | null;
+  debito: number;
+  credito: number;
+  saldo_acumulado?: number;
+  arreglo_id?: string | null;
+  operacion_id?: string | null;
+  cuenta_nombre?: string | null;
 }
 
 export interface Turno {

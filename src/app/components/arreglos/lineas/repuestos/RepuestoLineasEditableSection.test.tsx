@@ -130,6 +130,8 @@ describe("RepuestoLineasEditableSection", () => {
         cantidad: 1,
         monto_unitario: 1500,
         producto: { nombre: "Filtro de aceite", codigo: "FIL-001" },
+        categoriaArregloId: null,
+        empleadoId: null,
       }],
     });
 

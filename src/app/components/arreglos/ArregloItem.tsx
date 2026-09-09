@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Card from "@/app/components/ui/Card";
 import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
 import ArregloPagoBadge from "@/app/components/arreglos/ArregloPagoBadge";
+import ArregloFacturaBadge from "@/app/components/arreglos/ArregloFacturaBadge";
 import Avatar from "@/app/components/ui/Avatar";
 import { Arreglo } from "@/model/types";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
@@ -41,8 +42,6 @@ type Props = {
   empleados?: EmpleadoInfo[];
 };
 
-
-
 function getFullName(emp: EmpleadoInfo | string): string {
   if (typeof emp === "string") return emp;
   return `${emp.nombre || ""} ${emp.apellido || ""}`.trim();
@@ -66,7 +65,6 @@ export default function ArregloItem({
 
   const shouldShowObservaciones =
     showObservaciones ?? mostrarObservaciones ?? false;
-  const hasObservaciones = Boolean(shouldShowObservaciones && arreglo.observaciones);
 
   const vehiculoText = arreglo.vehiculo
     ? formatPatenteConMarcaYModelo(arreglo.vehiculo)
@@ -94,24 +92,6 @@ export default function ArregloItem({
               <h4 style={styles.mainTitle}>
                 {arreglo.descripcion || "Arreglo sin descripción"}
               </h4>
-              <div style={styles.badgesGroup}>
-                <ArregloPagoBadge
-                  estado={arreglo.estado}
-                  estaPago={arreglo.esta_pago}
-                  totalCobrado={arreglo.total_cobrado}
-                  saldoPendiente={arreglo.saldo_pendiente}
-                  precioFinal={arreglo.precio_final}
-                  arregloId={arreglo.id}
-                  size="sm"
-                  hideTextOnMobile
-                />
-                <ArregloEstadoBadge 
-                  estado={arreglo.estado} 
-                  size="sm" 
-                  arregloId={arreglo.id}
-                  onOpenChange={setIsBadgeOpen}
-                />
-              </div>
             </div>
 
             {/* Fila Metadatos 1: Vehículo, Cliente y Empleados */}
@@ -173,20 +153,34 @@ export default function ArregloItem({
                 />
               </div>
             )}
+
+            {/* Observaciones unificadas en el cuerpo */}
+            {shouldShowObservaciones && arreglo.observaciones && (
+              <div style={styles.observacionesContainer}>
+                <FileText
+                  size={15}
+                  color={COLOR.ICON.MUTED}
+                  style={{ flexShrink: 0, marginTop: 2 }}
+                />
+                <span style={styles.observacionesText}>
+                  &quot;{arreglo.observaciones}&quot;
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Sección Derecha: Fecha, Precio y Taller */}
-          <div css={styles.rightInfoSection(hasObservaciones)}>
-            <div css={styles.dateContainer}>
-              <Calendar size={15} color={COLOR.ICON.MUTED} />
-              <span>{formatDateLabel(arreglo.fecha)}</span>
-            </div>
-
+          <div css={styles.rightInfoSection}>
             <div css={styles.priceValue}>
               {formatArs(arreglo.precio_final, {
                 maxDecimals: 0,
                 minDecimals: 0,
               })}
+            </div>
+
+            <div css={styles.dateContainer}>
+              <Calendar size={15} color={COLOR.ICON.MUTED} />
+              <span>{formatDateLabel(arreglo.fecha)}</span>
             </div>
 
             {talleres.length > 1 && arreglo.taller ? (
@@ -202,19 +196,39 @@ export default function ArregloItem({
           </div>
         </div>
 
-        {/* Bloque Inferior de Observaciones */}
-        {shouldShowObservaciones && arreglo.observaciones && (
-          <div style={styles.observacionesContainer}>
-            <FileText
-              size={16}
-              color={COLOR.ICON.MUTED}
-              style={{ flexShrink: 0, marginTop: 2 }}
+        {/* Footer del card con estado a la izquierda y badges de facturación/pago a la derecha */}
+        <div css={styles.footerRow} data-isolate-hover="true">
+          <div css={styles.footerLeft}>
+            <ArregloEstadoBadge 
+              estado={arreglo.estado} 
+              size="sm" 
+              arregloId={arreglo.id}
+              onOpenChange={setIsBadgeOpen}
             />
-            <span style={styles.observacionesText}>
-              &quot;{arreglo.observaciones}&quot;
-            </span>
           </div>
-        )}
+          <div css={styles.footerRight}>
+            <ArregloFacturaBadge
+              arregloId={arreglo.id}
+              esFacturable={arreglo.es_facturable !== false}
+              factura={arreglo.factura_electronica || null}
+              onFacturableChanged={(val) => {
+                arreglo.es_facturable = val;
+              }}
+              onOpenChange={setIsBadgeOpen}
+              size="sm"
+            />
+            <ArregloPagoBadge
+              estado={arreglo.estado}
+              estaPago={arreglo.esta_pago}
+              totalCobrado={arreglo.total_cobrado}
+              saldoPendiente={arreglo.saldo_pendiente}
+              precioFinal={arreglo.precio_final}
+              arregloId={arreglo.id}
+              size="sm"
+              variant="footer"
+            />
+          </div>
+        </div>
       </Card>
     </div>
   );
@@ -314,7 +328,7 @@ const styles = {
     boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
     display: "flex",
   }),
-  rightInfoSection: (hasObservaciones: boolean) => css({
+  rightInfoSection: css({
     padding: "16px 20px",
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     display: "flex",
@@ -322,9 +336,7 @@ const styles = {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 4,
-    borderBottomLeftRadius: hasObservaciones ? 0 : 12,
-    borderBottomRightRadius: hasObservaciones ? 0 : 12,
+    gap: 8,
     [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
       width: 190,
       minWidth: 190,
@@ -333,9 +345,7 @@ const styles = {
       justifyContent: "center",
       padding: "16px 20px",
       textAlign: "center",
-      borderTopRightRadius: 12,
-      borderBottomLeftRadius: 0,
-      borderBottomRightRadius: hasObservaciones ? 0 : 12,
+      borderTopRightRadius: 8,
     },
   }),
   dateContainer: css({
@@ -351,12 +361,12 @@ const styles = {
     },
   }),
   priceValue: css({
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 700,
-    color: COLOR.ACCENT.PRIMARY,
+    color: COLOR.TEXT.PRIMARY,
     letterSpacing: "-0.5px",
     [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      fontSize: 22,
+      fontSize: 24,
     },
   }),
   tallerContainer: css({
@@ -369,18 +379,15 @@ const styles = {
     color: COLOR.TEXT.TERTIARY,
     display: "none",
     [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "flex"
+      display: "flex",
     },
   }),
   observacionesContainer: {
-    backgroundColor: COLOR.BACKGROUND.PRIMARY,
-    borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    padding: "12px 16px 12px 20px",
     display: "flex",
     alignItems: "flex-start",
-    gap: 10,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
+    gap: 8,
+    marginTop: 4,
+    paddingTop: 4,
   },
   observacionesText: {
     fontSize: 13,
@@ -389,4 +396,27 @@ const styles = {
     color: COLOR.TEXT.SECONDARY,
     lineHeight: 1.4,
   },
+  footerRow: css({
+    padding: "10px 16px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    flexWrap: "wrap",
+    backgroundColor: "#ffffff",
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
+  }),
+  footerLeft: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  }),
+  footerRight: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  }),
 } as const;

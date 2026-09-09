@@ -82,6 +82,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const [km, setKm] = useState<string>(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
   const [observaciones, setObservaciones] = useState(initial?.observaciones ?? "");
   const [estaPago, setEstaPago] = useState<boolean>(!!initial?.esta_pago);
+  const [esFacturable, setEsFacturable] = useState<boolean>(initial?.es_facturable !== false);
   const [cuentaFinancieraId, setCuentaFinancieraId] = useState("");
   const [fechaCobro, setFechaCobro] = useState(() => toISODateLocal(new Date()));
   const [extraData, setExtraData] = useState(initial?.extra_data ?? "");
@@ -117,6 +118,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     setKm(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
     setObservaciones(initial?.observaciones ?? "");
     setEstaPago(!!initial?.esta_pago);
+    setEsFacturable(initial?.es_facturable !== false);
     setCuentaFinancieraId("");
     setCuentaDraft({ ...EMPTY_CUENTA_FINANCIERA_DRAFT });
     setFechaCobro(toISODateLocal(new Date()));
@@ -151,6 +153,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     estaPago,
     extraData,
     selectedVehiculoId,
+    esFacturable,
   };
 
   const handleFieldsChange = (patch: Partial<ArregloFormFieldsValues>) => {
@@ -165,6 +168,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       km: (value) => setKm(String(value ?? "")),
       observaciones: (value) => setObservaciones(String(value ?? "")),
       estaPago: (value) => setEstaPago(Boolean(value)),
+      esFacturable: (value) => setEsFacturable(Boolean(value)),
       extraData: (value) => setExtraData(String(value ?? "")),
       selectedVehiculoId: (value) => setSelectedVehiculoId(String(value ?? "")),
     };
@@ -215,6 +219,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           kilometraje_leido: Number(km) || 0,
           observaciones: normalizeArregloObservaciones(observaciones, isEdit),
           extra_data: extraData || undefined,
+          es_facturable: esFacturable,
         };
         response = await update(initial.id, payload);
       } else {
@@ -240,6 +245,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           precio_final: precioFinalCalculado,
           observaciones: normalizeArregloObservaciones(observaciones, false),
           esta_pago: !!estaPago,
+          es_facturable: esFacturable,
           ...(requiereCuentaFinanciera ? {
             cuenta_financiera_id: targetCuentaId,
             idempotency_key: generateUuidV4(),

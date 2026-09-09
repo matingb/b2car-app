@@ -10,11 +10,17 @@ import { User } from "lucide-react";
 interface VehiculoCardProps {
   vehiculo: Vehiculo;
   onClick: () => void;
+  showCliente?: boolean;
 }
 
-export default function VehiculoCard({ vehiculo, onClick }: VehiculoCardProps) {
-  const title = `${vehiculo.marca} ${vehiculo.modelo}`;
+export default function VehiculoCard({
+  vehiculo,
+  onClick,
+  showCliente = true,
+}: VehiculoCardProps) {
+  const title = [vehiculo.marca, vehiculo.modelo].filter(Boolean).join(" ");
   const nroInterno = (vehiculo.nro_interno ?? "").trim();
+  const nombreCliente = (vehiculo.nombre_cliente ?? "").trim();
 
   return (
     <Card
@@ -43,20 +49,24 @@ export default function VehiculoCard({ vehiculo, onClick }: VehiculoCardProps) {
               </div>
             </div>
           )}
-          <div css={styles.detailsRow}>
-            <IconLabel
-              icon={<User size={18} color={COLOR.ACCENT.PRIMARY} />}
-              label={vehiculo.nombre_cliente}
-            />
-            {nroInterno && (
-              <span
-                css={styles.internalChip}
-                title={`N° interno: ${nroInterno}`}
-              >
-                INT {nroInterno}
-              </span>
-            )}
-          </div>
+          {(Boolean(showCliente && nombreCliente) || Boolean(nroInterno)) && (
+            <div css={styles.detailsRow}>
+              {showCliente && Boolean(nombreCliente) && (
+                <IconLabel
+                  icon={<User size={18} color={COLOR.ACCENT.PRIMARY} />}
+                  label={nombreCliente}
+                />
+              )}
+              {nroInterno && (
+                <span
+                  css={styles.internalChip}
+                  title={`N° interno: ${nroInterno}`}
+                >
+                  INT {nroInterno}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </Card>

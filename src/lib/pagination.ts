@@ -7,6 +7,7 @@ export const DEFAULT_LIMIT = 100;
 export const MIN_LIMIT = 1;
 
 export function normalizePaginationLimit(input: unknown): number {
+  if (input === null || input === undefined || input === "") return DEFAULT_LIMIT;
   const parsed = Number(input);
   const safeValue = Number.isFinite(parsed) ? Math.trunc(parsed) : DEFAULT_LIMIT;
   if (safeValue < MIN_LIMIT) return MIN_LIMIT;

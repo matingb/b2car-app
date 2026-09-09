@@ -14,5 +14,21 @@ describe("VehiculoCard", () => {
     await userEvent.click(screen.getByTestId("vehiculo-card"));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  it("muestra el nombre de cliente por defecto si está presente", () => {
+    const vehiculo = createVehiculo({ nombre_cliente: "Juan Perez" });
+
+    render(<VehiculoCard vehiculo={vehiculo} onClick={vi.fn()} />);
+
+    expect(screen.getByText("Juan Perez")).toBeInTheDocument();
+  });
+
+  it("oculta el nombre de cliente cuando showCliente es false", () => {
+    const vehiculo = createVehiculo({ nombre_cliente: "Juan Perez" });
+
+    render(<VehiculoCard vehiculo={vehiculo} onClick={vi.fn()} showCliente={false} />);
+
+    expect(screen.queryByText("Juan Perez")).not.toBeInTheDocument();
+  });
 });
 

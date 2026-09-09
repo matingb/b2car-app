@@ -6,8 +6,10 @@ import {
 } from "@/lib/pagination";
 
 describe("pagination helpers", () => {
-  it("normalizePaginationLimit: cuando se recibe un valor invalido, usa la constante DEFAULT_PAGINATION_LIMIT para iniciar una paginacion estable", () => {
+  it("normalizePaginationLimit: cuando se recibe un valor invalido o vacio, usa la constante DEFAULT_PAGINATION_LIMIT para iniciar una paginacion estable", () => {
     expect(normalizePaginationLimit(undefined)).toBe(100);
+    expect(normalizePaginationLimit(null)).toBe(100);
+    expect(normalizePaginationLimit("")).toBe(100);
     expect(normalizePaginationLimit("abc")).toBe(100);
   });
 

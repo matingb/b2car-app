@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   amountToCents,
   buildFacturaCPayload,
@@ -52,6 +52,14 @@ describe("facturación ARCA: detalle y totales", () => {
 });
 
 describe("facturación ARCA: receptor y Factura C", () => {
+  beforeEach(() => {
+    vi.setSystemTime(new Date("2026-08-28T12:00:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("valida DNI, CUIL y CUIT sin permitir consumidor sin documento", () => {
     expect(validateDocument(96, "12.345.678")).toEqual({ tipoDocumento: 96, numeroDocumento: "12345678" });
     expect(validateDocument(86, "20-12345678-6")).toEqual({ tipoDocumento: 86, numeroDocumento: "20123456786" });

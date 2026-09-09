@@ -19,6 +19,7 @@ import IconButton from "@/app/components/ui/IconButton";
 import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
 import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
 import ArregloPagoBadge from "@/app/components/arreglos/ArregloPagoBadge";
+import ArregloFacturaBadge from "@/app/components/arreglos/ArregloFacturaBadge";
 import Avatar from "@/app/components/ui/Avatar";
 import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
@@ -192,11 +193,21 @@ export default function ArregloSummaryCard({
                 size="md"
                 hideTextOnMobile
               />
+              <ArregloFacturaBadge
+                arregloId={arreglo.id}
+                esFacturable={arreglo.es_facturable !== false}
+                factura={facturaElectronica || null}
+                onFacturableChanged={(nextVal) => {
+                  onArregloChange({ ...arreglo, es_facturable: nextVal });
+                }}
+                onOpenFacturaModal={canEmitFactura ? onOpenFactura : undefined}
+                size="md"
+              />
             </div>
           </div>
 
           <div style={styles.headerActions}>
-            {canEmitFactura ? (
+            {canEmitFactura && onOpenFactura && arreglo.es_facturable !== false ? (
               <IconButton
                 icon={<ReceiptText />}
                 size={18}
@@ -437,6 +448,17 @@ const styles = {
     flexWrap: "wrap" as const,
     alignItems: "center",
     gap: 12,
+  },
+  noFacturableBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    fontSize: 12,
+    fontWeight: 600,
+    color: COLOR.TEXT.SECONDARY,
+    background: "var(--color-background-subtle, #f1f5f9)",
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 16,
+    padding: "4px 10px",
   },
   headerActions: {
     display: "flex",

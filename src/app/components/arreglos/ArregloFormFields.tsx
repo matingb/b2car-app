@@ -22,7 +22,6 @@ import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
 import ArregloPagoBadge from "@/app/components/arreglos/ArregloPagoBadge";
 
 export type ArregloForm = {
-
   estado?: EstadoArreglo;
   fecha: string;
   kilometraje_leido: number | string;
@@ -30,6 +29,8 @@ export type ArregloForm = {
   observaciones?: string;
   descripcion?: string;
   esta_pago?: boolean;
+  es_facturable?: boolean;
+  cliente_id?: string;
   extra_data?: string;
 };
 
@@ -42,6 +43,7 @@ export type ArregloFormFieldsValues = {
   estaPago: boolean;
   extraData: string;
   selectedVehiculoId: string;
+  esFacturable?: boolean;
 };
 
 export type ArregloFormFieldsInternal = {
@@ -362,11 +364,63 @@ export default function ArregloFormFields({
           />
         </div>
       </div>
+
+      <div css={styles.row}>
+        <div style={styles.facturableBox}>
+          <label style={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={values.esFacturable !== false}
+              onChange={(e) => onValuesChange({ esFacturable: e.target.checked })}
+              style={styles.checkbox}
+            />
+            <span style={styles.checkboxTitle}>Arreglo facturable</span>
+          </label>
+          <span style={styles.helpText}>
+            {values.esFacturable !== false
+              ? "Este trabajo computa en el saldo a facturar del cliente hasta que se emita su comprobante oficial."
+              : "Trabajo no facturable. Queda eximido del saldo a facturar del cliente."}
+          </span>
+        </div>
+      </div>
     </>
   );
 }
 
 const styles = {
+  facturableBox: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 4,
+    padding: "10px 14px",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: "var(--color-background-subtle, rgba(0,0,0,0.02))",
+    width: "100%",
+  },
+  checkboxLabel: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    cursor: "pointer",
+    userSelect: "none" as const,
+  },
+  checkbox: {
+    width: 16,
+    height: 16,
+    cursor: "pointer",
+    accentColor: COLOR.ACCENT.PRIMARY,
+  },
+  checkboxTitle: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: COLOR.TEXT.PRIMARY,
+  },
+  helpText: {
+    fontSize: 12,
+    color: COLOR.TEXT.SECONDARY,
+    marginLeft: 24,
+  },
   row: css({
     display: "flex",
     gap: 16,
