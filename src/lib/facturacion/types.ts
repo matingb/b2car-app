@@ -22,7 +22,6 @@ export type PerfilFiscalCliente = {
   tipoDocumento: DocumentoFiscalTipo | null;
   numeroDocumento: string | null;
   condicionIvaReceptorId: CondicionIvaReceptorId | null;
-  fceMipymeAlcanzado?: boolean;
 };
 
 export type FacturaLinea = {
@@ -131,7 +130,6 @@ export type FacturacionPreflight = {
   configuracionCompleta: boolean;
   origenListo: boolean;
   diferenciasTotal: boolean;
-  fceBloqueada: boolean;
   mensaje?: string;
   emisor?: Pick<FacturacionConfiguracionPublica,
     "razonSocial" | "cuit" | "puntoVenta" | "ambiente" | "condicionIvaEmisor">;

@@ -7,6 +7,10 @@ import Modal from "@/app/components/ui/Modal";
 import Button from "@/app/components/ui/Button";
 import Dropdown from "@/app/components/ui/Dropdown";
 import IconInput from "@/app/components/ui/IconInput";
+import {
+  useArcaPadronLookup,
+  type ArcaPadronLookupState,
+} from "@/app/hooks/useArcaPadronLookup";
 import { COLOR } from "@/theme/theme";
 import {
   CONDICIONES_IVA_RECEPTOR,
@@ -57,6 +61,53 @@ const condicionVentaOptions = [
   { value: "OTRA", label: "Otra" },
 ];
 
+function ArcaPadronInvoiceFeedback({
+  lookup,
+  onSelectCandidate,
+}: {
+  lookup: ArcaPadronLookupState;
+  onSelectCandidate: (candidate: string) => void;
+}) {
+  if (lookup.status === "IDLE") return null;
+  if (lookup.status === "LOADING") {
+    return <span style={styles.lookupPending}>Consultando datos del receptor en ARCA...</span>;
+  }
+  if (lookup.status === "FOUND") {
+    return (
+      <div style={styles.lookupFound} role="status">
+        <strong>{lookup.person.nombreCompleto}</strong>
+        <span>{lookup.person.cuit}{lookup.person.estadoClave ? ` · ${lookup.person.estadoClave}` : ""}</span>
+        {lookup.person.direccion ? <span>{lookup.person.direccion}</span> : null}
+      </div>
+    );
+  }
+  if (lookup.status === "MULTIPLE") {
+    return (
+      <div style={styles.lookupFound} role="status">
+        <strong>El DNI tiene más de una clave fiscal asociada</strong>
+        <label style={styles.lookupCandidateLabel}>
+          Elegí el CUIL que corresponde al receptor
+          <select
+            defaultValue=""
+            style={styles.lookupCandidateSelect}
+            onChange={(event) => {
+              if (event.target.value) onSelectCandidate(event.target.value);
+            }}
+          >
+            <option value="" disabled>Seleccionar CUIL</option>
+            {lookup.candidates.map((candidate) => <option value={candidate} key={candidate}>{candidate}</option>)}
+          </select>
+        </label>
+      </div>
+    );
+  }
+  return (
+    <span style={lookup.status === "NOT_FOUND" ? styles.lookupPending : styles.lookupError}>
+      {lookup.message}
+    </span>
+  );
+}
+
 export default function FacturaElectronicaModal({ open, arregloId, operacionId, onClose, onAuthorized }: Props) {
   const router = useRouter();
   const [preflight, setPreflight] = useState<FacturacionPreflight | null>(null);
@@ -106,6 +157,14 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const isServiceConcept = preflight?.concepto === 2 || preflight?.concepto === 3;
   const receptorCondition = Number(receptor.condicionIvaReceptorId) as PerfilFiscalCliente["condicionIvaReceptorId"];
   const receiverIsConsumerFinal = receptorCondition === 5;
+  const lookupDocumentType = receptor.tipoDocumento === "80" || receptor.tipoDocumento === "86" || receptor.tipoDocumento === "96"
+    ? Number(receptor.tipoDocumento) as 80 | 86 | 96
+    : null;
+  const arcaPadronLookup = useArcaPadronLookup({
+    enabled: open,
+    documentType: lookupDocumentType,
+    documentNumber: receptor.numeroDocumento,
+  });
   const voucherPreview = useMemo(() => {
     if (!preflight?.emisor) return null;
     return determineVoucher(
@@ -245,7 +304,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
             </div>
           </section>
           <section style={styles.section}>
-            <div style={styles.sectionTitle}>Datos del receptor: <span style={styles.recipientName}>{preflight.receptor.nombre}</span></div>
+            <div style={styles.sectionTitle}>Identificación del receptor</div>
             <div style={styles.recipientGrid}>
               <label style={styles.field}>Tipo de documento
                 <Dropdown
@@ -275,6 +334,22 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
                 />
                 {receiverIdentificationError ? <span style={styles.validationError}>{receiverIdentificationError}</span> : null}
               </label>
+            </div>
+            <ArcaPadronInvoiceFeedback
+              lookup={arcaPadronLookup}
+              onSelectCandidate={(candidate) => setReceptor((previous) => ({
+                ...previous,
+                tipoDocumento: "86",
+                numeroDocumento: candidate,
+              }))}
+            />
+            <span style={styles.recipientReference}>
+              Cliente seleccionado: <strong style={styles.recipientName}>{preflight.receptor.nombre}</strong>. La consulta permite verificar sus datos; por sí sola no modifica su ficha.
+            </span>
+          </section>
+          <section style={styles.section}>
+            <div style={styles.sectionTitle}>Condiciones de la factura</div>
+            <div style={styles.conditionsGrid}>
               <label style={styles.field}>Condición IVA
                 <Dropdown
                   id="factura-condicion-iva"
@@ -437,7 +512,12 @@ const styles = {
   muted: { color: COLOR.TEXT.SECONDARY, fontSize: 13, lineHeight: 1.4 },
   recipientGrid: {
     display: "grid",
-    gridTemplateColumns: "minmax(145px, 0.7fr) minmax(190px, 1fr) minmax(175px, 0.9fr) minmax(205px, 1.1fr)",
+    gridTemplateColumns: "minmax(145px, 0.7fr) minmax(190px, 1fr)",
+    gap: 16,
+  },
+  conditionsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: 16,
   },
   dateGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16 },
@@ -445,6 +525,31 @@ const styles = {
   dropdown: { width: "100%", height: 42 },
   inputWrapper: { width: "100%" },
   validationError: { color: COLOR.SEMANTIC.DANGER, fontSize: 12, lineHeight: 1.35 },
+  recipientReference: { color: COLOR.TEXT.TERTIARY, fontSize: 12, lineHeight: 1.4 },
+  lookupPending: { color: COLOR.TEXT.TERTIARY, fontSize: 12 },
+  lookupError: { color: COLOR.SEMANTIC.DANGER, fontSize: 12, lineHeight: 1.4 },
+  lookupFound: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 3,
+    padding: "10px 12px",
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 8,
+    background: COLOR.BACKGROUND.INFO_TINT,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
+    lineHeight: 1.35,
+  },
+  lookupCandidateLabel: { display: "flex", flexDirection: "column" as const, gap: 5, fontSize: 12 },
+  lookupCandidateSelect: {
+    width: "100%",
+    height: 38,
+    padding: "7px 9px",
+    borderRadius: 6,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    color: COLOR.TEXT.PRIMARY,
+  },
   detail: { border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 8, padding: 14, background: COLOR.BACKGROUND.SUBTLE },
   lines: { display: "flex", flexDirection: "column" as const, gap: 8 },
   line: { display: "flex", justifyContent: "space-between", gap: 12, color: COLOR.TEXT.SECONDARY, fontSize: 13 },

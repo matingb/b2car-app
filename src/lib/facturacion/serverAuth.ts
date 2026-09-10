@@ -1,7 +1,9 @@
 import "server-only";
 
 import { createClient } from "@/supabase/server";
+import { logger } from "@/lib/logger";
 import { FacturacionValidationError } from "./arcaPayload";
+import { FceMipymeQueryError } from "./fceMipyme";
 
 export class FacturacionHttpError extends Error {
   constructor(
@@ -50,7 +52,7 @@ export async function requireTenantActor(): Promise<TenantActor> {
     .maybeSingle();
 
   if (membershipError) {
-    console.error(
+    logger.error(
       "Error al validar membresía de tenant para facturación:",
       membershipError,
     );
@@ -85,9 +87,12 @@ export function facturacionErrorResponse(error: unknown): Response {
   if (error instanceof FacturacionValidationError) {
     return Response.json({ error: error.message }, { status: 422 });
   }
+  if (error instanceof FceMipymeQueryError) {
+    return Response.json({ error: error.message, code: error.code }, { status: 503 });
+  }
   if (isCuitCertificateRelationError(error)) {
     return Response.json({ error: CUIT_CERTIFICATE_RELATION_MESSAGE }, { status: 422 });
   }
-  console.error("Error de facturación electrónica", error);
+  logger.error("Error de facturación electrónica", error);
   return Response.json({ error: "No se pudo completar la operación de facturación" }, { status: 500 });
 }

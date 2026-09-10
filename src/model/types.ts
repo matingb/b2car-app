@@ -13,7 +13,6 @@ export interface Particular {
   tipo_documento_fiscal?: DocumentoFiscalTipo | null
   numero_documento_fiscal?: string | null
   condicion_iva_receptor_id?: CondicionIvaReceptorId | null
-  fce_mipyme_alcanzado?: boolean
   vehiculos: Vehiculo[]
 }
 
@@ -48,7 +47,6 @@ export interface Cliente {
   tipo_documento_fiscal?: DocumentoFiscalTipo | null
   numero_documento_fiscal?: string | null
   condicion_iva_receptor_id?: CondicionIvaReceptorId | null
-  fce_mipyme_alcanzado?: boolean
   saldo_cuenta?: number
   vehiculos?: Vehiculo[]
   vehiculos_count?: number

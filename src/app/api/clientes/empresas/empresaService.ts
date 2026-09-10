@@ -63,7 +63,7 @@ export const empresaService = {
 
   async createClienteEmpresa(
     supabase: SupabaseClient,
-    payload: { nombre: string; cuit: string; codigo_pais?: string; telefono?: string; email?: string; direccion?: string; condicion_iva_receptor_id?: number | null; fce_mipyme_alcanzado?: boolean }
+    payload: { nombre: string; cuit: string; codigo_pais?: string; telefono?: string; email?: string; direccion?: string; condicion_iva_receptor_id?: number | null }
   ): Promise<{ data: Cliente | null; error: Error | null }> {
     const { data: clienteInsert, error: errorCliente } = await supabase
       .from("clientes")
@@ -72,7 +72,6 @@ export const empresaService = {
         tipo_documento_fiscal: 80,
         numero_documento_fiscal: payload.cuit.replace(/\D/g, ""),
         condicion_iva_receptor_id: payload.condicion_iva_receptor_id ?? null,
-        fce_mipyme_alcanzado: payload.fce_mipyme_alcanzado === true,
       }])
       .select("id, tipo_cliente")
       .single();
@@ -115,7 +114,6 @@ export const empresaService = {
       tipo_documento_fiscal: 80,
       numero_documento_fiscal: payload.cuit.replace(/\D/g, ""),
       condicion_iva_receptor_id: (payload.condicion_iva_receptor_id ?? null) as Cliente["condicion_iva_receptor_id"],
-      fce_mipyme_alcanzado: payload.fce_mipyme_alcanzado === true,
     };
 
     return { data: c, error: null };

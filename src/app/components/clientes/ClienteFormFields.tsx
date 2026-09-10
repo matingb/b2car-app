@@ -1,8 +1,12 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { TipoCliente } from "@/model/types";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
+import {
+  useArcaPadronLookup,
+  type ArcaPadronLookupState,
+} from "@/app/hooks/useArcaPadronLookup";
 import Autocomplete from "../ui/Autocomplete";
 import { AutocompleteOption } from "../ui/Autocomplete";
 import PhoneInput from "../ui/PhoneInput";
@@ -14,7 +18,6 @@ export type ClienteFormFieldsValue = {
   tipoDocumentoFiscal: "80" | "86" | "96";
   numeroDocumentoFiscal: string;
   condicionIvaReceptorId: string;
-  fceMipymeAlcanzado: boolean;
   codigoPais: string;
   telefono: string;
   email: string;
@@ -34,7 +37,6 @@ export function createEmptyClienteFormFieldsValue(
     tipoDocumentoFiscal: tipo_cliente === TipoCliente.EMPRESA ? "80" : "96",
     numeroDocumentoFiscal: "",
     condicionIvaReceptorId: "5",
-    fceMipymeAlcanzado: false,
     codigoPais: "54",
     telefono: "",
     email: "",
@@ -78,6 +80,54 @@ const tipoClienteOptions = [
   { value: TipoCliente.EMPRESA, label: "Empresa" },
 ] satisfies AutocompleteOption[];
 
+function ArcaPadronFeedback({
+  lookup,
+  onSelectCandidate,
+}: {
+  lookup: ArcaPadronLookupState;
+  onSelectCandidate: (candidate: string) => void;
+}) {
+  if (lookup.status === "IDLE") return null;
+  if (lookup.status === "LOADING") {
+    return <span style={styles.lookupPending}>Consultando datos en ARCA...</span>;
+  }
+  if (lookup.status === "FOUND") {
+    return (
+      <div style={styles.lookupFound} role="status">
+        <strong>Datos encontrados en ARCA</strong>
+        <span>{lookup.person.nombreCompleto} · {lookup.person.cuit}</span>
+        {lookup.person.direccion ? <span>{lookup.person.direccion}</span> : null}
+        <small>Revisalos antes de guardar.</small>
+      </div>
+    );
+  }
+  if (lookup.status === "MULTIPLE") {
+    return (
+      <div style={styles.lookupFound} role="status">
+        <strong>El DNI tiene más de una clave fiscal asociada</strong>
+        <label style={styles.lookupCandidateLabel}>
+          Elegí el CUIL para completar los datos
+          <select
+            defaultValue=""
+            style={styles.input}
+            onChange={(event) => {
+              if (event.target.value) onSelectCandidate(event.target.value);
+            }}
+          >
+            <option value="" disabled>Seleccionar CUIL</option>
+            {lookup.candidates.map((candidate) => <option value={candidate} key={candidate}>{candidate}</option>)}
+          </select>
+        </label>
+      </div>
+    );
+  }
+  return (
+    <span style={lookup.status === "NOT_FOUND" ? styles.lookupPending : styles.lookupError}>
+      {lookup.message}
+    </span>
+  );
+}
+
 export default function ClienteFormFields({
   value,
   onChange,
@@ -94,6 +144,39 @@ export default function ClienteFormFields({
       }),
     [value.nombre, value.apellido, value.cuit, value.tipo_cliente]
   );
+  const lookupDocumentType = value.tipo_cliente === TipoCliente.EMPRESA
+    ? 80
+    : Number(value.tipoDocumentoFiscal) as 80 | 86 | 96;
+  const lookupDocumentNumber = value.tipo_cliente === TipoCliente.EMPRESA
+    ? value.cuit
+    : value.numeroDocumentoFiscal;
+  const lookup = useArcaPadronLookup({
+    documentType: lookupDocumentType,
+    documentNumber: lookupDocumentNumber,
+  });
+  const appliedLookup = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (lookup.status !== "FOUND") return;
+    const lookupKey = `${value.tipo_cliente}:${lookup.person.cuit}`;
+    if (appliedLookup.current === lookupKey) return;
+    appliedLookup.current = lookupKey;
+
+    if (value.tipo_cliente === TipoCliente.EMPRESA) {
+      onChange({
+        nombre: lookup.person.razonSocial ?? lookup.person.nombreCompleto,
+        cuit: lookup.person.cuit,
+        ...(lookup.person.direccion ? { direccion: lookup.person.direccion } : {}),
+      });
+      return;
+    }
+
+    onChange({
+      nombre: lookup.person.nombre,
+      ...(lookup.person.apellido ? { apellido: lookup.person.apellido } : {}),
+      ...(lookup.person.direccion ? { direccion: lookup.person.direccion } : {}),
+    });
+  }, [lookup, onChange, value.tipo_cliente]);
 
   useEffect(() => {
     onValidityChange?.(validation);
@@ -192,7 +275,7 @@ export default function ClienteFormFields({
         </div>
 
         <div style={styles.fiscalBox}>
-          <div style={styles.fiscalTitle}>Perfil fiscal (puede completarse al facturar)</div>
+          <div style={styles.fiscalTitle}>Perfil fiscal</div>
           <div style={styles.row}>
             {value.tipo_cliente === TipoCliente.PARTICULAR ? (
               <div style={styles.field}>
@@ -232,17 +315,13 @@ export default function ClienteFormFields({
               </select>
             </div>
           </div>
-          <label style={styles.fceCheckbox}>
-            <input
-              type="checkbox"
-              checked={value.fceMipymeAlcanzado}
-              onChange={(event) => onChange({ fceMipymeAlcanzado: event.target.checked })}
-            />
-            <span>
-              Receptor alcanzado por Factura de Crédito Electrónica MiPyME
-              <small style={styles.fiscalHint}>La emisión común se bloqueará al superar el monto configurado para evitar un comprobante incorrecto.</small>
-            </span>
-          </label>
+          <ArcaPadronFeedback
+            lookup={lookup}
+            onSelectCandidate={(candidate) => onChange({
+              tipoDocumentoFiscal: "86",
+              numeroDocumentoFiscal: candidate,
+            })}
+          />
         </div>
 
         <div style={styles.row}>
@@ -315,18 +394,37 @@ const styles = {
     fontSize: 13,
     fontWeight: 600,
   },
-  fceCheckbox: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 8,
-    color: COLOR.TEXT.SECONDARY,
-    fontSize: 13,
-  },
   fiscalHint: {
     minHeight: 42,
     display: "flex",
     alignItems: "center",
     color: COLOR.TEXT.TERTIARY,
     fontSize: 13,
+  },
+  lookupPending: {
+    color: COLOR.TEXT.TERTIARY,
+    fontSize: 12,
+  },
+  lookupError: {
+    color: COLOR.SEMANTIC.DANGER,
+    fontSize: 12,
+    lineHeight: 1.4,
+  },
+  lookupFound: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 3,
+    padding: "9px 10px",
+    borderRadius: 6,
+    background: COLOR.BACKGROUND.INFO_TINT,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
+    lineHeight: 1.35,
+  },
+  lookupCandidateLabel: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 5,
+    fontSize: 12,
   },
 } as const;

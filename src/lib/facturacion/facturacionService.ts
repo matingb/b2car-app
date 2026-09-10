@@ -21,7 +21,8 @@ import {
 } from "./arcaPayload";
 import { createArcaGateway, sanitizeFiscalPayload } from "./afipGateway";
 import { deleteCredentialPair, downloadCredentialPair, uploadCredentialPair } from "./credentialStorage";
-import { getFacturacionAmbiente, reachesFceMipymeLimit } from "./environment";
+import { getFacturacionAmbiente } from "./environment";
+import { assertFceMipymeAllowed } from "./fceMipyme";
 import { generateFiscalInvoicePdf, type FiscalPdfInvoice } from "./fiscalPdf";
 import {
   CONDICIONES_IVA_RECEPTOR,
@@ -357,13 +358,12 @@ async function getClientProfile(tenantId: string, clienteId: string | null): Pro
     return {
       clienteId: null, nombre: "Consumidor final", domicilio: null,
       tipoDocumento: 99, numeroDocumento: "0", condicionIvaReceptorId: 5,
-      fceMipymeAlcanzado: false,
     };
   }
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("clientes")
-    .select("id, tipo_cliente, tipo_documento_fiscal, numero_documento_fiscal, condicion_iva_receptor_id, fce_mipyme_alcanzado")
+    .select("id, tipo_cliente, tipo_documento_fiscal, numero_documento_fiscal, condicion_iva_receptor_id")
     .eq("id", clienteId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -382,7 +382,6 @@ async function getClientProfile(tenantId: string, clienteId: string | null): Pro
     tipoDocumento: parseDocumento(client.tipo_documento_fiscal),
     numeroDocumento: nullable(client.numero_documento_fiscal),
     condicionIvaReceptorId: parseCondicion(client.condicion_iva_receptor_id),
-    fceMipymeAlcanzado: client.fce_mipyme_alcanzado === true,
   };
 }
 
@@ -600,18 +599,15 @@ export async function getDocumentoPreflight(
   }
   const voucher = determineVoucher(config?.condicionIvaEmisor ?? "MONOTRIBUTISTA", source.receptor.condicionIvaReceptorId ?? 5);
   const factura = existing ? mapSummary(existing) : null;
-  const fceBloqueada = reachesFceMipymeLimit(source.total);
   if (!mensaje && !config?.configurada) mensaje = "La facturación electrónica no está configurada";
-  if (!mensaje && fceBloqueada) mensaje = "El importe alcanza el límite FCE MiPyME configurado para la emisión común";
   if (!mensaje && factura?.estado === "AUTORIZADA") mensaje = "El origen ya posee una factura autorizada";
   if (!mensaje && (factura?.estado === "ENVIANDO" || factura?.estado === "INCIERTA")) mensaje = "Existe una emisión pendiente de reconciliación";
   return {
     factura,
     preflight: {
-      puedeEmitir: Boolean(config?.configurada) && !diferenciasTotal
-        && !fceBloqueada && (!factura || factura.estado === "RECHAZADA"),
+      puedeEmitir: Boolean(config?.configurada) && !diferenciasTotal && (!factura || factura.estado === "RECHAZADA"),
       configuracionCompleta: Boolean(config?.configurada), origenListo: !diferenciasTotal,
-      diferenciasTotal, fceBloqueada, mensaje,
+      diferenciasTotal, mensaje,
       emisor: config ? {
         razonSocial: config.razonSocial, cuit: config.cuit, puntoVenta: config.puntoVenta,
         ambiente: config.ambiente, condicionIvaEmisor: config.condicionIvaEmisor,
@@ -772,17 +768,21 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
   const concept = deriveFacturaConcepto(input.lines);
   const dates = validateFechas(concept, input.dates);
   const fiscal = fiscalizeLineas(input.lines, input.config.condicionIvaEmisor);
-  if (reachesFceMipymeLimit(fiscal.totales.total)) {
-    throw new FacturacionValidationError("El importe alcanza el límite FCE MiPyME configurado para la emisión común");
-  }
   const voucher = determineVoucher(input.config.condicionIvaEmisor, input.receiver.condicionIvaReceptorId, input.documentType);
-  validateReceiverIdentification(input.receiver, voucher.clase);
+  const receiverDocument = validateReceiverIdentification(input.receiver, voucher.clase);
+  const gateway = await createGateway(input.config);
+  if (input.documentType === "FACTURA" && receiverDocument.tipoDocumento === 80) {
+    const requirement = await gateway.getFceMipymeRequirement(
+      receiverDocument.numeroDocumento,
+      dates.fechaComprobante,
+    );
+    assertFceMipymeAllowed(requirement, fiscal.totales.total);
+  }
   const token = randomUUID();
   if (!(await lease(input.config, voucher.tipo, token, true))) {
     throw new FacturacionValidationError("Hay otra emisión en curso para el punto de venta");
   }
   try {
-    const gateway = await createGateway(input.config);
     const candidateNumber = (await gateway.getLastVoucher(input.config.puntoVenta, voucher.tipo)) + 1;
     const payload = buildComprobantePayload({
       voucherNumber: candidateNumber, puntoVenta: input.config.puntoVenta,

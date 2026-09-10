@@ -13,7 +13,6 @@ export type CreateEmpresaRequest = {
   email: string;
   direccion: string;
   condicion_iva_receptor_id?: number | null;
-  fce_mipyme_alcanzado?: boolean;
 };
 
 export type CreateEmpresaResponse = {

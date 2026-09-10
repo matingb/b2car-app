@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js'
+import { logger } from "@/lib/logger";
 import { TipoCliente, Cliente } from "@/model/types";
 import type { Particular } from "@/model/types";
 
@@ -28,7 +29,7 @@ export const particularService = {
       .rpc('delete_particular', { particular_id: id })
 
     if (error) {
-      console.error('Error eliminando particular', error)
+      logger.error('Error eliminando particular', error)
       return { error: new Error(error.message) }
     }
 
@@ -37,7 +38,7 @@ export const particularService = {
 
   async createClienteParticular(
     supabase: SupabaseClient,
-    payload: { nombre: string; apellido?: string; codigo_pais?: string; telefono?: string; email?: string; direccion?: string; tipo_documento_fiscal?: 80 | 86 | 96 | null; numero_documento_fiscal?: string | null; condicion_iva_receptor_id?: number | null; fce_mipyme_alcanzado?: boolean }
+    payload: { nombre: string; apellido?: string; codigo_pais?: string; telefono?: string; email?: string; direccion?: string; tipo_documento_fiscal?: 80 | 86 | 96 | null; numero_documento_fiscal?: string | null; condicion_iva_receptor_id?: number | null }
   ): Promise<{ data: Cliente | null; error: Error | null }> {
     const numeroDocumentoFiscal = payload.numero_documento_fiscal?.replace(/\D/g, "") || null;
     const tipoDocumentoFiscal = numeroDocumentoFiscal
@@ -50,7 +51,6 @@ export const particularService = {
         tipo_documento_fiscal: tipoDocumentoFiscal,
         numero_documento_fiscal: numeroDocumentoFiscal,
         condicion_iva_receptor_id: payload.condicion_iva_receptor_id ?? null,
-        fce_mipyme_alcanzado: payload.fce_mipyme_alcanzado === true,
       }])
       .select("id, tipo_cliente")
       .single();
@@ -91,7 +91,6 @@ export const particularService = {
       tipo_documento_fiscal: tipoDocumentoFiscal,
       numero_documento_fiscal: numeroDocumentoFiscal,
       condicion_iva_receptor_id: (payload.condicion_iva_receptor_id ?? null) as Cliente["condicion_iva_receptor_id"],
-      fce_mipyme_alcanzado: payload.fce_mipyme_alcanzado === true,
     };
 
     return { data: c, error: null };

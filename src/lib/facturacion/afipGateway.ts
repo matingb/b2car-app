@@ -1,6 +1,12 @@
 import "server-only";
 
 import Afip from "@afipsdk/afip.js";
+import {
+  FceMipymeQueryError,
+  parseFceMipymeRequirement,
+  type FceMipymeRequirement,
+} from "./fceMipyme";
+import { logger } from "../logger";
 
 export type ArcaGatewayConfig = {
   cuit: string;
@@ -8,6 +14,30 @@ export type ArcaGatewayConfig = {
   key: string;
   production: boolean;
 };
+
+type WsfecredB2carConfig = Pick<ArcaGatewayConfig, "cuit" | "cert" | "key">;
+
+function normalizePem(value: string | undefined): string {
+  return (value ?? "").replace(/\\n/g, "\n").trim();
+}
+
+/**
+ * WSFECRED usa un certificado institucional de B2Car. La emisión WSFE mantiene
+ * las credenciales fiscales del tenant recibidas en ArcaGatewayConfig.
+ */
+export function getWsfecredB2carConfig(): WsfecredB2carConfig {
+  const cuit = (process.env.B2CAR_ARCA_CUIT ?? "").replace(/\D/g, "");
+  const cert = normalizePem(process.env.B2CAR_ARCA_CERT);
+  const key = normalizePem(process.env.B2CAR_ARCA_KEY);
+
+  if (!/^\d{11}$/.test(cuit) || !cert || !key) {
+    throw new FceMipymeQueryError(
+      "Falta configurar las credenciales institucionales de B2Car para consultar Factura de Crédito Electrónica MiPyME.",
+    );
+  }
+
+  return { cuit, cert, key };
+}
 
 export type ArcaGateway = {
   getLastVoucher: (puntoVenta: number, tipoComprobante: number) => Promise<number>;
@@ -19,6 +49,10 @@ export type ArcaGateway = {
   createVoucher: (
     payload: Record<string, unknown>,
   ) => Promise<{ CAE: string; CAEFchVto: string }>;
+  getFceMipymeRequirement: (
+    cuitReceptor: string,
+    fechaEmision: string,
+  ) => Promise<FceMipymeRequirement>;
   getServerStatus: () => Promise<Record<string, unknown>>;
 };
 
@@ -72,6 +106,42 @@ export async function createArcaGateway(config: ArcaGatewayConfig): Promise<Arca
         CAE: string;
         CAEFchVto: string;
       };
+    },
+    async getFceMipymeRequirement(cuitReceptor, fechaEmision) {
+      try {
+        const wsfecredConfig = getWsfecredB2carConfig();
+        const wsfecredClient = new Afip({
+          CUIT: wsfecredConfig.cuit,
+          cert: wsfecredConfig.cert,
+          key: wsfecredConfig.key,
+          access_token: accessToken,
+          production: config.production,
+        });
+        const service = wsfecredClient.WebService("wsfecred");
+        const auth = await withTimeout(service.getTokenAuthorization(), "Autenticación para consulta FCE MiPyME") as {
+          token?: unknown;
+          sign?: unknown;
+        };
+        const token = typeof auth.token === "string" ? auth.token : "";
+        const sign = typeof auth.sign === "string" ? auth.sign : "";
+        if (!token || !sign) {
+          throw new FceMipymeQueryError("No se pudo autenticar la consulta de Factura de Crédito Electrónica MiPyME. Reintentá la emisión.");
+        }
+        const response = await withTimeout(service.executeRequest("consultarMontoObligadoRecepcion", {
+          authRequest: {
+            token,
+            sign,
+            cuitRepresentada: Number(wsfecredConfig.cuit),
+          },
+          cuitConsultada: Number(cuitReceptor),
+          fechaEmision,
+        }), "Consulta de obligación FCE MiPyME");
+        return parseFceMipymeRequirement(response);
+      } catch (error) {
+        logger.error(error);
+        if (error instanceof FceMipymeQueryError) throw error;
+        throw new FceMipymeQueryError();
+      }
     },
     async getServerStatus() {
       return (await withTimeout(client.ElectronicBilling.getServerStatus(), "Estado del servicio")) as Record<string, unknown>;

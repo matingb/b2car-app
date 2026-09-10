@@ -5,6 +5,7 @@ import {
   parseFacturaIssueInput,
 } from "@/lib/facturacion/facturacionService";
 import { getFacturacionAmbiente } from "@/lib/facturacion/environment";
+import { FceMipymeRequiredError } from "@/lib/facturacion/fceMipyme";
 import {
   facturacionErrorResponse,
   requireTenantActor,
@@ -23,7 +24,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     });
   } catch (error) {
     if (error instanceof FacturacionValidationError) {
-      return Response.json({ error: error.message }, { status: 422 });
+      return Response.json({
+        error: error.message,
+        code: error instanceof FceMipymeRequiredError ? error.code : null,
+      }, { status: 422 });
     }
     return facturacionErrorResponse(error);
   }
@@ -37,7 +41,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return Response.json({ data: result.invoice, error: result.message ?? null }, { status: result.httpStatus });
   } catch (error) {
     if (error instanceof FacturacionValidationError) {
-      return Response.json({ error: error.message }, { status: 422 });
+      return Response.json({
+        error: error.message,
+        code: error instanceof FceMipymeRequiredError ? error.code : null,
+      }, { status: 422 });
     }
     return facturacionErrorResponse(error);
   }
