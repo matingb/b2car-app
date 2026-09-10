@@ -12,6 +12,8 @@ import {
   rpcStatus,
   validateCreateGasto,
 } from "../cuentas-financieras/finanzasRouteUtils";
+import { logger } from "@/lib/logger";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
 function firstGasto(data: unknown) {
   return mapGasto(asRows(data)[0]);
@@ -64,7 +66,6 @@ export async function POST(req: Request) {
   if (parsed.error || !parsed.value) {
     return Response.json({ data: null, error: parsed.error ?? "JSON inválido" } satisfies CrearGastoFinancieroResponse, { status: 400 });
   }
-
   const input = parsed.value;
   const { data: created, error: createError } = await supabase.rpc("rpc_crear_movimiento_cuenta", {
     p_subtipo: "GASTO",
@@ -77,11 +78,17 @@ export async function POST(req: Request) {
     p_arreglo_id: input.arregloId ?? null,
   });
   if (createError) {
+    logger.error("Error registrando gasto", createError);
     return Response.json(
       { data: null, error: "Error registrando gasto" } satisfies CrearGastoFinancieroResponse,
       { status: rpcStatus(createError) }
     );
   }
+
+  // El dashboard se cachea por tenant. Un gasto genérico se registra como
+  // MOVIMIENTO_CUENTA/GASTO, por lo que no pasa por las rutas de operaciones
+  // que ya invalidan ese cache.
+  await statsService.onDataChanged(supabase);
 
   const inlineGasto = firstGasto(created);
   if (inlineGasto) {
@@ -112,7 +119,7 @@ export async function POST(req: Request) {
           categoria: input.categoria,
           importe: input.importe,
           fecha: input.fecha ?? new Date().toISOString(),
-          descripcion: input.descripcion,
+          descripcion: input.descripcion ?? null,
           reversaMovimientoId: null,
           createdAt: new Date().toISOString(),
         },

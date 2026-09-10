@@ -12,6 +12,7 @@ import {
   validateUpdateGasto,
   validateUuid,
 } from "../../cuentas-financieras/finanzasRouteUtils";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -93,6 +94,8 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     );
   }
 
+  await statsService.onDataChanged(supabase);
+
   const { data: refreshed } = await fetchGastoById(supabase, id);
   const resultGasto: GastoFinanciero = refreshed ?? {
     ...current,
@@ -126,6 +129,7 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
       { status }
     );
   }
+  await statsService.onDataChanged(supabase);
   return Response.json({ error: null } satisfies EliminarFinanzasResponse, { status: 200 });
 }
 

@@ -271,7 +271,7 @@ export function validateCreateGasto(body: unknown): Validated<CrearGastoFinancie
   const cuentaId = stringValue(body, "cuentaId");
   const categoria = stringValue(body, "categoria");
   const importe = numberValue(body, "importe");
-  const descripcion = stringValue(body, "descripcion");
+  const descripcion = own(body, "descripcion") ? nullableStringValue(body, "descripcion") : undefined;
   const fecha = own(body, "fecha") ? stringValue(body, "fecha") : undefined;
   const arregloId = own(body, "arregloId") ? nullableUuidValue(body, "arregloId") : undefined;
   const operacionId = own(body, "operacionId") ? nullableUuidValue(body, "operacionId") : undefined;
@@ -283,8 +283,10 @@ export function validateCreateGasto(body: unknown): Validated<CrearGastoFinancie
   if (categoriaError) return { error: categoriaError };
   if (!isExpenseCategory(categoria)) return { error: "categoria de gasto inválida" };
   if (importe === undefined || importe <= 0) return { error: "importe debe ser un número mayor a 0" };
-  const descripcionError = textError(descripcion, "descripcion", MAX_DESCRIPTION_LENGTH);
-  if (descripcionError) return { error: descripcionError };
+  if (own(body, "descripcion") && descripcion === undefined) return { error: "descripcion debe ser texto o null" };
+  if (descripcion !== undefined && descripcion !== null && descripcion.length > MAX_DESCRIPTION_LENGTH) {
+    return { error: `descripcion supera el máximo de ${MAX_DESCRIPTION_LENGTH} caracteres` };
+  }
   if (own(body, "fecha") && fecha === undefined) return { error: "fecha debe ser texto" };
   const fechaError = validOptionalTimestamp(fecha);
   if (fechaError) return { error: fechaError };
@@ -302,7 +304,7 @@ export function validateCreateGasto(body: unknown): Validated<CrearGastoFinancie
       cuentaId: cuentaId!,
       categoria: categoria!,
       importe,
-      descripcion: descripcion!,
+      descripcion: descripcion ?? null,
       ...(fecha === undefined ? {} : { fecha: toISODateTimeWithCurrentTime(fecha) }),
       ...(arregloId === undefined ? {} : { arregloId }),
       ...(operacionId === undefined ? {} : { operacionId }),
@@ -339,9 +341,11 @@ export function validateUpdateGasto(body: unknown): Validated<ActualizarGastoFin
     patch.fecha = toISODateTimeWithCurrentTime(fecha);
   }
   if (own(body, "descripcion")) {
-    const descripcion = stringValue(body, "descripcion");
-    const error = textError(descripcion, "descripcion", MAX_DESCRIPTION_LENGTH);
-    if (error) return { error };
+    const descripcion = nullableStringValue(body, "descripcion");
+    if (descripcion === undefined) return { error: "descripcion debe ser texto o null" };
+    if (descripcion !== null && descripcion.length > MAX_DESCRIPTION_LENGTH) {
+      return { error: `descripcion supera el máximo de ${MAX_DESCRIPTION_LENGTH} caracteres` };
+    }
     patch.descripcion = descripcion;
   }
   if (Object.keys(patch).length === 0) return { error: "No hay campos para actualizar" };
@@ -481,9 +485,9 @@ export function mapGasto(row: unknown): GastoFinanciero | null {
   const categoria = asText(pick(source, "categoria_gasto", "categoria"));
   const importe = asNumber(pick(source, "importe", "monto"));
   const fecha = asTimestamp(pick(source, "fecha"));
-  const descripcion = asText(pick(source, "descripcion"));
+  const descripcion = asNullableText(pick(source, "descripcion"));
   const createdAt = asTimestamp(pick(source, "created_at", "createdAt"));
-  if (!id || !cuentaId || !categoria || importe === null || !fecha || !descripcion || !createdAt) return null;
+  if (!id || !cuentaId || !categoria || importe === null || !fecha || !createdAt) return null;
   return {
     id,
     cuentaId,

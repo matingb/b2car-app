@@ -7,7 +7,14 @@ vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
+vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
+  statsService: {
+    onDataChanged: vi.fn(),
+  },
+}));
+
 import { createClient } from "@/supabase/server";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
 const ACCOUNT_ID = "11111111-1111-4111-8111-111111111111";
 const ORIGINAL_ID = "22222222-2222-4222-8222-222222222222";
@@ -71,6 +78,7 @@ describe("PUT /api/gastos/[id]", () => {
       p_idempotency_key: IDEMPOTENCY_KEY,
     });
     expect(body.data).toMatchObject({ id: ORIGINAL_ID, descripcion: "Alquiler renegociado" });
+    expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything());
   });
 
   it("elimina el gasto via rpc_eliminar_movimiento_cuenta", async () => {
@@ -88,6 +96,7 @@ describe("PUT /api/gastos/[id]", () => {
     expect(rpc).toHaveBeenCalledWith("rpc_eliminar_movimiento_cuenta", {
       p_operacion_id: ORIGINAL_ID,
     });
+    expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything());
   });
 });
 

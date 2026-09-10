@@ -292,7 +292,6 @@ export function OperacionFormProvider({
       const importeNum = Number(montoGasto);
       return (
         Boolean(categoriaGasto) &&
-        Boolean(descripcionGasto.trim()) &&
         Number.isFinite(importeNum) &&
         importeNum > 0 &&
         !isLoadingCuentas &&
@@ -350,7 +349,7 @@ export function OperacionFormProvider({
           categoria: categoriaGasto,
           importe: Number(montoGasto),
           fecha: toISODateTimeWithCurrentTime(fecha),
-          descripcion: descripcionGasto.trim(),
+          descripcion: descripcionGasto.trim() || null,
           idempotencyKey: generateUuidV4(),
         };
         const response = gasto

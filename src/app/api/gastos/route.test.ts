@@ -6,7 +6,14 @@ vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
+vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
+  statsService: {
+    onDataChanged: vi.fn(),
+  },
+}));
+
 import { createClient } from "@/supabase/server";
+import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
 const ACCOUNT_ID = "11111111-1111-4111-8111-111111111111";
 const EXPENSE_ID = "22222222-2222-4222-8222-222222222222";
@@ -42,8 +49,11 @@ describe("/api/gastos", () => {
     vi.clearAllMocks();
   });
 
-  it("rechaza un gasto sin descripción antes de invocar la RPC", async () => {
-    const rpc = vi.fn();
+  it("registra un gasto sin descripción", async () => {
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({ data: EXPENSE_ID, error: null })
+      .mockResolvedValueOnce({ data: [gastoRow({ descripcion: null })], error: null });
     vi.mocked(createClient).mockResolvedValue(mockSupabase({ rpc }));
     const request = new Request("http://localhost/api/gastos", {
       method: "POST",
@@ -52,9 +62,21 @@ describe("/api/gastos", () => {
     });
 
     const response = await POST(request);
+    const body = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(rpc).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(rpc).toHaveBeenNthCalledWith(1, "rpc_crear_movimiento_cuenta", {
+      p_subtipo: "GASTO",
+      p_cuenta_id: ACCOUNT_ID,
+      p_categoria_gasto: "ALQUILER",
+      p_importe: 150000,
+      p_fecha: null,
+      p_descripcion: null,
+      p_idempotency_key: null,
+      p_arreglo_id: null,
+    });
+    expect(body.data).toMatchObject({ id: EXPENSE_ID, descripcion: null });
+    expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything());
   });
 
   it("registra un gasto con categoría y descripción requeridas", async () => {
@@ -105,5 +127,16 @@ describe("/api/gastos", () => {
 
     expect(response.status).toBe(400);
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("lista gastos sin descripción", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: [gastoRow({ descripcion: null })], error: null });
+    vi.mocked(createClient).mockResolvedValue(mockSupabase({ rpc }));
+
+    const response = await GET(new Request("http://localhost/api/gastos"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual([expect.objectContaining({ id: EXPENSE_ID, descripcion: null })]);
   });
 });

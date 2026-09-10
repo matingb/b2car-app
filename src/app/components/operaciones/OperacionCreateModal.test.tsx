@@ -158,7 +158,7 @@ describe("OperacionCreateModal", () => {
     expect(screen.getByTestId("operaciones-line-1-remove")).toBeInTheDocument();
   });
 
-  it("permite registrar un gasto al seleccionar el tipo Gasto", async () => {
+  it("permite registrar un gasto sin descripción al seleccionar el tipo Gasto", async () => {
     const onClose = vi.fn();
     render(
       <OperacionCreateModal
@@ -181,7 +181,6 @@ describe("OperacionCreateModal", () => {
     // Completar datos
     await userEvent.type(screen.getByTestId("operaciones-create-cuenta-financiera"), "C1");
     await userEvent.type(screen.getByTestId("gasto-importe"), "15000");
-    await userEvent.type(screen.getByTestId("gasto-descripcion"), "Pago de internet");
 
     // Guardar
     await userEvent.click(screen.getByTestId("modal-submit"));
@@ -193,7 +192,7 @@ describe("OperacionCreateModal", () => {
           cuentaId: "C1",
           categoria: "ALQUILER",
           importe: 15000,
-          descripcion: "Pago de internet",
+          descripcion: null,
           idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/i),
         })
       );
