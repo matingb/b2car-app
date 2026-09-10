@@ -94,7 +94,7 @@ describe("/api/operaciones/[id]", () => {
 				taller_id: "t1",
 				fecha: new Date().toISOString(),
 				created_at: new Date().toISOString(),
-			} as any,
+			},
 			error: null,
 		});
 		vi.mocked(operacionesService.deleteById).mockResolvedValue({
@@ -122,7 +122,7 @@ describe("/api/operaciones/[id]", () => {
 				taller_id: "t1",
 				fecha: new Date().toISOString(),
 				created_at: new Date().toISOString(),
-			} as any,
+			},
 			error: null,
 		});
 		vi.mocked(operacionesService.deleteById).mockResolvedValue({

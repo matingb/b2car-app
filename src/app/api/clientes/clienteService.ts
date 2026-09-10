@@ -97,14 +97,11 @@ export const clienteService = {
       if (targetClienteId) {
         const precio = Number(a.precio_final ?? 0);
         const cobrado = Number(a.total_cobrado ?? 0);
-        const estaPagado = a.esta_pago === true || (precio > 0 && cobrado >= precio);
-        const pendienteCobro = estaPagado ? 0 : Math.max(0, precio - cobrado);
-        if (pendienteCobro > 0) {
-          saldoCuentaMap.set(
-            targetClienteId,
-            (saldoCuentaMap.get(targetClienteId) ?? 0) + pendienteCobro
-          );
-        }
+        const saldoNetoArreglo = precio - cobrado;
+        saldoCuentaMap.set(
+          targetClienteId,
+          (saldoCuentaMap.get(targetClienteId) ?? 0) + saldoNetoArreglo
+        );
       }
     }
 

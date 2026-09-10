@@ -7,7 +7,7 @@ import ClienteItem from "@/app/components/clientes/ClienteItem";
 import ClientesFiltersModal, { ClientesFilters } from "@/app/components/clientes/ClientesFiltersModal";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
-import { PlusIcon, Filter, User, Building2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { PlusIcon, Filter, User, Building2, AlertCircle, CheckCircle2, Info } from "lucide-react";
 import Button from "@/app/components/ui/Button";
 import { useToast } from "@/app/providers/ToastProvider";
 import { TipoCliente } from "@/model/types";
@@ -21,7 +21,7 @@ export default function ClientesPage() {
 
   const [search, setSearch] = useState("");
   const [tipoClienteFilter, setTipoClienteFilter] = useState<"" | "particular" | "empresa">("");
-  const [saldoFilter, setSaldoFilter] = useState<"" | "PENDIENTE" | "AL_DIA">("");
+  const [saldoFilter, setSaldoFilter] = useState<"" | "PENDIENTE" | "AL_DIA" | "A_FAVOR">("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -40,7 +40,10 @@ export default function ClientesPage() {
           return saldo > 0;
         }
         if (saldoFilter === "AL_DIA") {
-          return saldo <= 0;
+          return saldo === 0;
+        }
+        if (saldoFilter === "A_FAVOR") {
+          return saldo < 0;
         }
         return true;
       })
@@ -163,6 +166,21 @@ export default function ClientesPage() {
             >
               <CheckCircle2 size={14} />
               <span>Saldo al día</span>
+            </button>
+            <button
+              type="button"
+              data-testid="clientes-chip-saldo-a-favor"
+              onClick={() =>
+                setSaldoFilter((prev) => (prev === "A_FAVOR" ? "" : "A_FAVOR"))
+              }
+              css={[
+                styles.chipBase,
+                saldoFilter === "A_FAVOR" && styles.chipSelectedInfo,
+                styles.chipResponsive,
+              ]}
+            >
+              <Info size={14} />
+              <span>Saldo a favor</span>
             </button>
           </div>
 
@@ -344,6 +362,15 @@ const styles = {
     fontWeight: 600,
     "&:hover": {
       borderColor: COLOR.SEMANTIC.SUCCESS,
+    },
+  }),
+  chipSelectedInfo: css({
+    background: "#eff6ff",
+    borderColor: "#2563eb",
+    color: "#1d4ed8",
+    boxShadow: "none",
+    "&:hover": {
+      borderColor: "#2563eb",
     },
   }),
   chipResponsive: css({

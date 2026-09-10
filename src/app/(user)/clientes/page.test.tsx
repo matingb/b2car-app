@@ -62,6 +62,16 @@ const mockClientes: Cliente[] = [
     direccion: "Calle 4",
     saldo_cuenta: 50000,
   },
+  {
+    id: "empresa-3",
+    nombre: "Logística con Crédito SA",
+    tipo_cliente: TipoCliente.EMPRESA,
+    cuit: "30-33333333-3",
+    telefono: "555",
+    email: "credito@test.com",
+    direccion: "Calle 5",
+    saldo_cuenta: -20000,
+  },
 ];
 
 vi.mock("@/app/providers/ClientesProvider", () => ({
@@ -86,6 +96,7 @@ describe("ClientesPage Filtros", () => {
     expect(screen.getByText("Maria Deuda")).toBeInTheDocument();
     expect(screen.getByText("Taller Hermanos SA")).toBeInTheDocument();
     expect(screen.getByText("Transportes Sur SRL")).toBeInTheDocument();
+    expect(screen.getByText("Logística con Crédito SA")).toBeInTheDocument();
     expect(screen.getByTestId("clientes-open-filters")).toBeInTheDocument();
   });
 
@@ -130,6 +141,18 @@ describe("ClientesPage Filtros", () => {
     expect(screen.getByText("Juan Perez")).toBeInTheDocument();
     expect(screen.queryByText("Maria Deuda")).not.toBeInTheDocument();
     expect(screen.getByText("Taller Hermanos SA")).toBeInTheDocument();
+    expect(screen.queryByText("Transportes Sur SRL")).not.toBeInTheDocument();
+    expect(screen.queryByText("Logística con Crédito SA")).not.toBeInTheDocument();
+  });
+
+  it("filtra por saldo a favor sin mezclar clientes al día o con deuda", () => {
+    render(<ClientesPage />);
+
+    fireEvent.click(screen.getByTestId("clientes-chip-saldo-a-favor"));
+
+    expect(screen.getByText("Logística con Crédito SA")).toBeInTheDocument();
+    expect(screen.queryByText("Juan Perez")).not.toBeInTheDocument();
+    expect(screen.queryByText("Maria Deuda")).not.toBeInTheDocument();
     expect(screen.queryByText("Transportes Sur SRL")).not.toBeInTheDocument();
   });
 

@@ -3,6 +3,8 @@ import { testClient, createAdminTestClient, SEED } from "@/tests/integration";
 import { dadoQueExisteUnProductoConStock } from "./stockHelpers";
 import { particularService } from "@/app/api/clientes/particulares/particularService";
 import { vehiculoService } from "@/app/api/vehiculos/vehiculoService";
+import type { Arreglo, Cliente, EstadoArreglo } from "@/model/types";
+import type { CreateArregloInsertPayload } from "@/app/api/arreglos/arregloRequests";
 import type { StockRow as Stock } from "@/app/api/stocks/stocksService";
 import { stocksService } from "@/app/api/stocks/stocksService";
 import { cuentasFinancierasService } from "@/app/api/cuentas-financieras/cuentasFinancierasService";
@@ -30,7 +32,7 @@ export interface DadoUnArregloOptions {
   taller_id?: string;
   cliente_id?: string;
   tipo?: string;
-  estado?: string;
+  estado?: EstadoArreglo;
   descripcion?: string;
   kilometraje_leido?: number;
   fecha?: string;
@@ -46,11 +48,11 @@ export interface DadoUnArregloCobradoOptions {
   precioFinal?: number;
   montoCobrado?: number;
   cuentaId?: string;
-  estado?: string;
+  estado?: EstadoArreglo;
 }
 
 export interface DadoUnArregloCobradoResult {
-  arreglo: any;
+  arreglo: Arreglo;
   cuentaId: string;
   operacionId: string;
   montoCobrado: number;
@@ -65,7 +67,7 @@ export interface DadoUnArregloConRepuestoOptions {
 }
 
 export interface DadoUnArregloConRepuestoResult {
-  arreglo: any;
+  arreglo: Arreglo;
   stockId: string;
   productoId: string;
   operacionId: string;
@@ -111,8 +113,8 @@ export async function dadoUnaCuentaFinanciera(options?: {
 /**
  * Fixture: Crea un arreglo base mediante el repositorio con valores predeterminados sensatos.
  */
-export async function dadoUnArreglo(overrides: DadoUnArregloOptions = {}): Promise<any> {
-  const payload = {
+export async function dadoUnArreglo(overrides: DadoUnArregloOptions = {}): Promise<Arreglo> {
+  const payload: CreateArregloInsertPayload & { tenant_id: string; total_cobrado: number } = {
     tenant_id: SEED.tenantId,
     vehiculo_id: overrides.vehiculo_id ?? SEED.vehiculoId,
     taller_id: overrides.taller_id ?? SEED.tallerId,
@@ -127,10 +129,10 @@ export async function dadoUnArreglo(overrides: DadoUnArregloOptions = {}): Promi
     total_cobrado: overrides.total_cobrado ?? 0,
     esta_pago: overrides.esta_pago ?? false,
     es_facturable: overrides.es_facturable ?? true,
-    extra_data: {},
+    extra_data: "{}",
   };
 
-  const { data, error } = await supabaseArregloRepository.create(testClient, payload as any);
+  const { data, error } = await supabaseArregloRepository.create(testClient, payload);
 
   if (error || !data) {
     throw new Error(`dadoUnArreglo falló: ${error ?? "sin respuesta"}`);
@@ -265,7 +267,7 @@ export async function dadoUnClienteParticularConVehiculo(overrides?: {
   nombre?: string;
   apellido?: string;
   patente?: string;
-}): Promise<{ cliente: any; vehiculo: any }> {
+}): Promise<{ cliente: Cliente; vehiculo: { id: string } }> {
   const stamp = `${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
   const { data: cliente, error: cliError } = await particularService.createClienteParticular(
     testClient,
@@ -302,7 +304,7 @@ export async function dadoUnClienteParticularConVehiculo(overrides?: {
 /**
  * Fixture: Simula la emisión de una factura electrónica autorizada vinculada al arreglo.
  */
-export async function dadoUnaFacturaAutorizadaParaArreglo(arregloId: string): Promise<any> {
+export async function dadoUnaFacturaAutorizadaParaArreglo(arregloId: string): Promise<Record<string, unknown>> {
   const { data, error } = await adminClient
     .from("facturas_electronicas")
     .insert([

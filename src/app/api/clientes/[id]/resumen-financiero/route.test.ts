@@ -95,6 +95,16 @@ describe("GET /api/clientes/[id]/resumen-financiero", () => {
         cliente_id: "cli-123",
         vehiculo_id: "veh-1",
       },
+      {
+        id: "arr-5", // Sobrepago: debe conservarse en el saldo neto consolidado
+        precio_final: 100000,
+        total_cobrado: 400000,
+        esta_pago: true,
+        estado: "FINALIZADO",
+        es_facturable: false,
+        cliente_id: "cli-123",
+        vehiculo_id: "veh-1",
+      },
     ];
     const mockFacturas = [{ arreglo_id: "arr-3" }];
 
@@ -140,12 +150,12 @@ describe("GET /api/clientes/[id]/resumen-financiero", () => {
 
     expect(res.status).toBe(200);
     expect(mockNeq).toHaveBeenCalledWith("estado", "PRESUPUESTO");
-    // arr-1 pendiente: 150000, arr-2 pendiente: 100000, arr-3: 0, arr-4 (presupuesto): excluido => saldo_cuenta = 250000
-    expect(json.data.saldo_cuenta).toBe(250000);
+    // Deuda inicial de 250000 menos sobrepago de arr-5 (300000) => saldo a favor de 50000.
+    expect(json.data.saldo_cuenta).toBe(-50000);
     // arr-1 pendiente factura: 200000. arr-2 no facturable (0). arr-3 ya facturado (0). arr-4 presupuesto (excluido) => saldo_a_facturar = 200000
     expect(json.data.saldo_a_facturar).toBe(200000);
-    expect(json.data.total_historico_trabajos).toBe(450000);
-    expect(json.data.total_historico_cobrado).toBe(200000);
+    expect(json.data.total_historico_trabajos).toBe(550000);
+    expect(json.data.total_historico_cobrado).toBe(600000);
     expect(json.data.cantidad_arreglos_pendientes_pago).toBe(2);
     expect(json.data.cantidad_arreglos_pendientes_factura).toBe(1);
   });

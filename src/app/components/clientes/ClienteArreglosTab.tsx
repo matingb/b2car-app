@@ -69,7 +69,7 @@ export default function ClienteArreglosTab({ clienteId, onNewArreglo }: Props) {
     <div css={styles.container}>
       <div css={styles.toolbar}>
         <span css={styles.totalText}>
-          {arreglos.length} trabajo{arreglos.length === 1 ? "" : "s"} registrado{arreglos.length === 1 ? "" : "s"}
+          {arreglos.length} arreglo{arreglos.length === 1 ? "" : "s"} registrado{arreglos.length === 1 ? "" : "s"}
         </span>
         {onNewArreglo ? (
           <Button

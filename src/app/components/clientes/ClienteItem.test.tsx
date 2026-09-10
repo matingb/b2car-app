@@ -105,6 +105,14 @@ describe("ClienteItem", () => {
     expect(screen.getByTestId("cliente-debt-amount")).toHaveTextContent("$140.000");
   });
 
+  it("muestra saldo a favor cuando el saldo consolidado es negativo", () => {
+    render(<ClienteItem cliente={{ ...particularCliente, saldo_cuenta: -45000 }} />);
+
+    expect(screen.getByTestId("cliente-credit-amount")).toHaveTextContent("$45.000");
+    expect(screen.getByTestId("cliente-credit-badge")).toHaveTextContent("Saldo a favor");
+    expect(screen.queryByTestId("cliente-clean-badge")).not.toBeInTheDocument();
+  });
+
   it("muestra placeholders cuando faltan datos (teléfono, email, dirección, vehículos)", () => {
     const incompleteCliente: Cliente = {
       id: "cliente-3",

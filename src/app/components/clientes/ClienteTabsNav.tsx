@@ -21,7 +21,7 @@ export default function ClienteTabsNav({
 }: Props) {
   const tabs: Array<{ key: ClienteTabKey; label: string; count?: number }> = [
     { key: "vehiculos", label: "Vehículos", count: vehiculosCount },
-    { key: "arreglos", label: "Trabajos y Arreglos", count: arreglosCount },
+    { key: "arreglos", label: "Arreglos", count: arreglosCount },
     { key: "cuenta_corriente", label: "Cuenta Corriente" },
   ];
 

@@ -89,13 +89,13 @@ export const clienteFinanzasService = {
         const cobrado = Number(a.total_cobrado ?? 0);
         const facturable = a.es_facturable !== false;
         const estaPagado = a.esta_pago === true || (precio > 0 && cobrado >= precio);
-        const pendienteCobro = estaPagado ? 0 : Math.max(0, precio - cobrado);
+        const saldoNetoArreglo = precio - cobrado;
 
         totalHistoricoTrabajos += precio;
         totalHistoricoCobrado += cobrado;
-        saldoCuenta += pendienteCobro;
+        saldoCuenta += saldoNetoArreglo;
 
-        if (!estaPagado && pendienteCobro > 0) {
+        if (!estaPagado && saldoNetoArreglo > 0) {
           cantPendientesPago++;
         }
 

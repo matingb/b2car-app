@@ -31,7 +31,7 @@ describe("Integration: Borrado de Arreglo ", () => {
   });
 
   it("restituye automáticamente el stock al inventario al borrar un arreglo con repuestos asignados", async () => {
-    const { arreglo, stockId, stockInicial, cantidadAsignada } =
+    const { arreglo, stockId, stockInicial } =
       await dadoUnArregloConRepuesto({
         stockInicial: 30,
         cantidadAsignada: 5,

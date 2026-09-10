@@ -141,35 +141,6 @@ export default function ArregloSummaryCard({
         {/* Top Header */}
         <div css={styles.header}>
           <div style={styles.headerLeft}>
-            {/* Vehículo info */}
-            {arreglo.vehiculo ? (
-              <Card
-                style={styles.vehiculoCard}
-                onClick={handleNavigateToVehiculo}
-                role="button"
-                tabIndex={0}
-              >
-                <div style={styles.vehiculoPatenteRow}>
-                  <CarFront size={16} color={COLOR.ICON.MUTED} />
-                  <span style={styles.patente}>{arreglo.vehiculo.patente}</span>
-                </div>
-                <div css={styles.hideOnMobileDivider} />
-                <span css={styles.hideOnMobileText}>
-                  {arreglo.vehiculo.marca} {arreglo.vehiculo.modelo}
-                  {arreglo.vehiculo.fecha_patente ? ` (${arreglo.vehiculo.fecha_patente})` : ""}
-                </span>
-                {arreglo.vehiculo.nro_interno && (
-                  <div css={styles.hideOnMobileInternalCode}>
-                    <span>
-                      INT: {arreglo.vehiculo.nro_interno}
-                    </span>
-                  </div>
-                )}
-              </Card>
-            ) : (
-              <span style={{ fontSize: 14, color: COLOR.TEXT.SECONDARY }}>Sin vehículo</span>
-            )}
-
             {/* Estado y Badges */}
             <ArregloBadges
               arreglo={arreglo}
@@ -245,6 +216,34 @@ export default function ArregloSummaryCard({
                   {formatArs(totalCalculado, { maxDecimals: 0, minDecimals: 0 })}
                 </div>
               </div>
+              {/* Vehículo info */}
+              {arreglo.vehiculo ? (
+                <Card
+                  style={styles.vehiculoCard}
+                  onClick={handleNavigateToVehiculo}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div style={styles.vehiculoPatenteRow}>
+                    <CarFront size={16} color={COLOR.ICON.MUTED} />
+                    <span style={styles.patente}>{arreglo.vehiculo.patente}</span>
+                  </div>
+                  <div css={styles.hideOnMobileDivider} />
+                  <span css={styles.hideOnMobileText}>
+                    {arreglo.vehiculo.marca} {arreglo.vehiculo.modelo}
+                    {arreglo.vehiculo.fecha_patente ? ` (${arreglo.vehiculo.fecha_patente})` : ""}
+                  </span>
+                  {arreglo.vehiculo.nro_interno && (
+                    <div css={styles.hideOnMobileInternalCode}>
+                      <span>
+                        INT: {arreglo.vehiculo.nro_interno}
+                      </span>
+                    </div>
+                  )}
+                </Card>
+              ) : (
+                <span style={{ fontSize: 14, color: COLOR.TEXT.SECONDARY }}>Sin vehículo</span>
+              )}
               <div style={styles.detailsGrid}>
                 <div style={styles.detailBox}>
                   <span style={styles.blockLabel}>Ingreso</span>
@@ -379,7 +378,7 @@ const styles = {
     display: "flex",
     flexWrap: "wrap" as const,
     alignItems: "center",
-    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
     padding: "6px 12px",
     gap: 12,
   },

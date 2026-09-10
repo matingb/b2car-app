@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapCuenta, rpcErrorMessage, rpcStatus, validateUpdateCuenta, validateUuid } from "./finanzasRouteUtils";
+import { mapCuenta, rpcErrorMessage, validateUpdateCuenta, validateUuid } from "./finanzasRouteUtils";
 
 describe("validateUuid", () => {
   it("acepta UUIDs canónicos legacy para consultar registros existentes", () => {

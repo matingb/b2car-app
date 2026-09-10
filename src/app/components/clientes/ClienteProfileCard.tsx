@@ -16,6 +16,7 @@ import { formatArs } from "@/lib/format";
 import { formatTelephoneNumber } from "@/lib/telefono";
 import type { ClienteResumenFinanciero, Representante, TipoCliente } from "@/model/types";
 import { css } from "@emotion/react";
+import Card from "../ui/Card";
 
 type Props = {
   tipo: TipoCliente;
@@ -60,9 +61,11 @@ export default function ClienteProfileCard({
   const isEmpresa = tipo === "empresa";
   const saldoCuenta = resumenFinanciero?.saldo_cuenta ?? 0;
   const tieneDeuda = saldoCuenta > 0;
+  const tieneSaldoAFavor = saldoCuenta < 0;
+  const saldoVisible = Math.abs(saldoCuenta);
 
   return (
-    <div css={styles.cardContainer}>
+    <Card style={styles.cardContainer}>
       {/* HEADER ROW */}
       <div css={styles.headerRow}>
         {/* Left: Avatar + Name + Address */}
@@ -91,24 +94,28 @@ export default function ClienteProfileCard({
         {/* Right: Financial Balance & Badges */}
         <div css={styles.financialSection}>
           <div css={styles.balanceRow}>
-            <span css={styles.balanceLabel}>Saldo en cuenta:</span>
             <span
               css={[
                 styles.balanceAmount,
-                tieneDeuda ? styles.balanceDanger : styles.balanceClean,
+                tieneDeuda
+                  ? styles.balanceDanger
+                  : tieneSaldoAFavor
+                    ? styles.balanceFavor
+                    : styles.balanceClean,
               ]}
             >
               {loadingFinanzas
                 ? "..."
-                : formatArs(saldoCuenta, { maxDecimals: 0, minDecimals: 0 })}
+                : formatArs(saldoVisible, { maxDecimals: 0, minDecimals: 0 })}
             </span>
+            {tieneDeuda ? (
+              <span css={styles.deudaBadge}>Deuda pendiente</span>
+            ) : tieneSaldoAFavor ? (
+              <span css={styles.saldoFavorBadge}>Saldo a favor</span>
+            ) : (
+              <span css={styles.alDiaBadge}>Al día</span>
+            )}
           </div>
-
-          {tieneDeuda ? (
-            <span css={styles.deudaBadge}>Deuda pendiente</span>
-          ) : (
-            <span css={styles.alDiaBadge}>Al día</span>
-          )}
         </div>
       </div>
 
@@ -207,15 +214,15 @@ export default function ClienteProfileCard({
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 
 const styles = {
-  cardContainer: css({
+  cardContainer: {
     marginTop: "20px",
     marginBottom: "20px",
-    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    //backgroundColor: COLOR.BACKGROUND.SECONDARY,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 16,
     padding: "24px 28px",
@@ -223,7 +230,7 @@ const styles = {
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       padding: "16px 16px",
     },
-  }),
+  },
   headerRow: css({
     display: "flex",
     justifyContent: "space-between",
@@ -266,7 +273,7 @@ const styles = {
   clientName: css({
     margin: 0,
     fontSize: 24,
-    fontWeight: 800,
+    fontWeight: 700,
     color: COLOR.TEXT.PRIMARY,
     lineHeight: 1.2,
   }),
@@ -289,9 +296,9 @@ const styles = {
   }),
   balanceRow: css({
     display: "flex",
-    alignItems: "baseline",
+    alignItems: "flex-end",
     gap: 10,
-    flexWrap: "wrap",
+    flexWrap: "wrap"
   }),
   balanceLabel: css({
     fontSize: 14,
@@ -300,7 +307,7 @@ const styles = {
   }),
   balanceAmount: css({
     fontSize: 32,
-    fontWeight: 800,
+    fontWeight: 700,
     lineHeight: 1,
     letterSpacing: "-0.02em",
   }),
@@ -309,6 +316,9 @@ const styles = {
   }),
   balanceClean: css({
     color: COLOR.SEMANTIC.SUCCESS,
+  }),
+  balanceFavor: css({
+    color: "#2563eb",
   }),
   deudaBadge: css({
     display: "inline-flex",
@@ -329,6 +339,17 @@ const styles = {
     color: COLOR.SEMANTIC.SUCCESS,
     backgroundColor: COLOR.BACKGROUND.SUCCESS_TINT,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 9999,
+    padding: "4px 12px",
+  }),
+  saldoFavorBadge: css({
+    display: "inline-flex",
+    alignItems: "center",
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#1d4ed8",
+    backgroundColor: "#eff6ff",
+    border: "1px solid #bfdbfe",
     borderRadius: 9999,
     padding: "4px 12px",
   }),

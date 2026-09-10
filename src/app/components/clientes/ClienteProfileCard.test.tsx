@@ -48,7 +48,6 @@ describe("ClienteProfileCard", () => {
   it("renderiza el saldo deudor y el badge de deuda pendiente", () => {
     render(<ClienteProfileCard {...defaultProps} />);
 
-    expect(screen.getByText("Saldo en cuenta:")).toBeInTheDocument();
     // Saldo formatted as $ 430.000 (ARS)
     expect(screen.getByText(/430\.000/)).toBeInTheDocument();
     expect(screen.getByText("Deuda pendiente")).toBeInTheDocument();
@@ -72,6 +71,26 @@ describe("ClienteProfileCard", () => {
     expect(screen.getByText("Al día")).toBeInTheDocument();
     expect(screen.queryByText("Deuda pendiente")).not.toBeInTheDocument();
     expect(screen.queryByText(/Faltan facturar/)).not.toBeInTheDocument();
+  });
+
+  it("muestra saldo a favor en azul cuando los cobros superan los trabajos", () => {
+    render(
+      <ClienteProfileCard
+        {...defaultProps}
+        resumenFinanciero={{
+          saldo_cuenta: -75000,
+          saldo_a_facturar: 0,
+          total_historico_trabajos: 200000,
+          total_historico_cobrado: 275000,
+          cantidad_arreglos_pendientes_pago: 0,
+          cantidad_arreglos_pendientes_factura: 0,
+        }}
+      />
+    );
+
+    expect(screen.getByText("Saldo a favor")).toBeInTheDocument();
+    expect(screen.getByText(/75\.000/)).toBeInTheDocument();
+    expect(screen.queryByText("Al día")).not.toBeInTheDocument();
   });
 
   it("renderiza los datos de contacto y permite llamar a onEditCliente", () => {

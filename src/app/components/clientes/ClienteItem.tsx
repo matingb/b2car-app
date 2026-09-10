@@ -22,6 +22,8 @@ import { formatTelephoneNumber } from "@/lib/telefono";
 import { getInitials } from "@/lib/initials";
 import { css } from "@emotion/react";
 import { clientesClient } from "@/clients/clientes/clientesClient";
+import Card from "../ui/Card";
+import IconButton from "../ui/IconButton";
 
 function DataCell({
   icon,
@@ -136,13 +138,15 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
     };
   }, [cliente.id, cliente.saldo_cuenta]);
 
-  // Balance/deuda computation: en B2Car, saldo_cuenta > 0 representa deuda pendiente (a cobrar)
+  // saldo_cuenta es neto: positivo = deuda, negativo = saldo a favor.
   const currentSaldo = saldoLoaded ?? cliente.saldo_cuenta ?? 0;
   const debt = currentSaldo > 0 ? currentSaldo : 0;
+  const credit = currentSaldo < 0 ? Math.abs(currentSaldo) : 0;
   const hasDebt = debt > 0;
+  const hasCredit = credit > 0;
 
   return (
-    <div
+    <Card
       onClick={handleOnClick}
       data-testid="cliente-item"
       css={styles.card}
@@ -220,6 +224,18 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
               A Cobrar
             </div>
           </div>
+        ) : hasCredit ? (
+          <div
+            css={styles.balanceBlock}
+            title={`Saldo a favor: $${credit.toLocaleString("es-AR")}`}
+          >
+            <div css={styles.creditAmount} data-testid="cliente-credit-amount">
+              {`$${credit.toLocaleString("es-AR")}`}
+            </div>
+            <div css={styles.creditBadge} data-testid="cliente-credit-badge">
+              Saldo a favor
+            </div>
+          </div>
         ) : (
           <div
             css={styles.balanceBlock}
@@ -235,19 +251,17 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
         )}
 
         <div css={styles.deleteDivider}>
-          <button
-            type="button"
+          <IconButton
+            icon={<Trash2 />}
             onClick={handleDelete}
-            css={styles.deleteButton}
             title="Eliminar cliente"
-            aria-label="Eliminar cliente"
+            ariaLabel="Eliminar cliente"
+            hoverColor={COLOR.ICON.DANGER}
             data-testid="cliente-delete-btn"
-          >
-            <Trash2 size={18} />
-          </button>
+          />
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -258,7 +272,7 @@ const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     gap: 16,
-    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 12,
     padding: 16,
@@ -411,7 +425,7 @@ const styles = {
   }),
   debtAmount: css({
     fontSize: 18,
-    fontWeight: 900,
+    fontWeight: 700,
     color: COLOR.SEMANTIC.DANGER,
     lineHeight: 1,
     marginBottom: 4,
@@ -420,6 +434,13 @@ const styles = {
     fontSize: 16,
     fontWeight: 700,
     color: COLOR.BORDER.WEAK,
+    lineHeight: 1,
+    marginBottom: 4,
+  }),
+  creditAmount: css({
+    fontSize: 18,
+    fontWeight: 900,
+    color: "#2563eb",
     lineHeight: 1,
     marginBottom: 4,
   }),
@@ -445,27 +466,22 @@ const styles = {
     borderRadius: 4,
     display: "inline-block",
   }),
+  creditBadge: css({
+    fontSize: 10,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    color: "#1d4ed8",
+    backgroundColor: "#eff6ff",
+    padding: "2px 6px",
+    borderRadius: 4,
+    display: "inline-block",
+  }),
   deleteDivider: css({
     display: "flex",
     alignItems: "center",
     borderLeft: `1px solid ${COLOR.BORDER.SUBTLE}`,
     paddingLeft: 16,
     marginLeft: 8,
-  }),
-  deleteButton: css({
-    background: "transparent",
-    border: "none",
-    color: COLOR.TEXT.TERTIARY,
-    cursor: "pointer",
-    padding: 8,
-    borderRadius: 8,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "color 150ms ease, background-color 150ms ease",
-    "&:hover": {
-      color: COLOR.SEMANTIC.DANGER,
-      backgroundColor: COLOR.BACKGROUND.DANGER_TINT,
-    },
   }),
 } as const;

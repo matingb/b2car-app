@@ -8,7 +8,7 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 
 export type ClientesFilters = {
   tipoCliente: "" | "particular" | "empresa";
-  saldo: "" | "PENDIENTE" | "AL_DIA";
+  saldo: "" | "PENDIENTE" | "AL_DIA" | "A_FAVOR";
 };
 
 export const DEFAULT_CLIENTES_FILTERS: ClientesFilters = {
@@ -84,6 +84,7 @@ export default function ClientesFiltersModal({ open, initial, onClose, onApply }
               <option value="">Todos los saldos</option>
               <option value="PENDIENTE">Saldo pendiente (a cobrar)</option>
               <option value="AL_DIA">Saldo al día</option>
+              <option value="A_FAVOR">Saldo a favor</option>
             </select>
           </Field>
         </div>
