@@ -317,7 +317,6 @@ export function OperacionFormProvider({
     fecha,
     montoGasto,
     categoriaGasto,
-    descripcionGasto,
     isLoadingCuentas,
     isSubmittingGasto,
     tallerId,

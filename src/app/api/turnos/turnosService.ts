@@ -263,7 +263,7 @@ export const turnosService = {
 		input: UpdateTurnoInput
 	): Promise<{ data: Turno | null; error: SupabaseError | null }> {
 
-		const { id: _id, ...rest } = input;
+		const { id, ...rest } = input;
 		const updatePayload: Omit<UpdateTurnoInput, "id"> = {
 			...rest,
 			...("vehiculo_id" in input ? { vehiculo_id: input.vehiculo_id ?? null } : {}),
@@ -274,7 +274,7 @@ export const turnosService = {
 		const { data: updated, error } = await supabase
 			.from("turnos")
 			.update(updatePayload)
-			.eq("id", input.id)
+			.eq("id", id)
 			.select("*")
 			.single();
 

@@ -84,7 +84,7 @@ export default function Dropdown({
             window.removeEventListener("resize", updatePosition);
             window.removeEventListener("scroll", updatePosition, true);
         };
-    }, [isOpen]);
+    }, [isOpen, dropdownWidth]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         switch (e.key) {
