@@ -112,20 +112,10 @@ export const turnoFormStyles = {
   dropdownHoraInicio: {
     width: "105px",
     height: 38,
-    borderRadius: 8,
-    fontSize: 14,
-    color: COLOR.TEXT.PRIMARY,
-    backgroundColor: COLOR.BACKGROUND.SECONDARY,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
   },
   dropdownHoraFin: {
     width: "105px",
     height: 38,
-    borderRadius: 8,
-    fontSize: 14,
-    color: COLOR.TEXT.PRIMARY,
-    backgroundColor: COLOR.BACKGROUND.SECONDARY,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
   },
   pillSeparator: {
     color: COLOR.TEXT.SECONDARY,
@@ -215,7 +205,6 @@ export const turnoFormStyles = {
     width: "auto",
     minWidth: 95,
     height: 36,
-    padding: "4px 8px",
     borderRadius: 6,
     fontSize: 15,
     fontWeight: 400,
