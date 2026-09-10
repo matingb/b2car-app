@@ -13,6 +13,14 @@ vi.mock("@/app/providers/TurnosProvider", () => ({
   }),
 }));
 
+vi.mock("@/app/providers/TenantProvider", () => ({
+  useTenant: () => ({
+    talleres: [{ id: "t1", nombre: "Taller Central", ubicacion: "Calle 123" }],
+    tallerSeleccionadoId: "t1",
+    setTallerSeleccionadoId: vi.fn(),
+  }),
+}));
+
 const mockCreateParticular = vi.fn();
 const mockCreateEmpresa = vi.fn();
 const mockGetClienteById = vi.fn();
@@ -76,23 +84,12 @@ vi.mock("@/app/providers/ModalMessageProvider", () => ({
   }),
 }));
 
-
 describe("TurnoCreateModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("habilita el botón Guardar cuando el usuario selecciona cliente y vehículo", async () => {
-    mockCreateTurno.mockResolvedValueOnce({
-      id: "T-1",
-      fecha: "2026-03-01",
-      hora: "09:00",
-      duracion: null,
-      cliente_id: "C-1",
-      vehiculo_id: "V-1",
-      tipo: "Mecánica",
-    });
-
+  it("habilita el botón Guardar cuando el usuario ingresa un título", async () => {
     render(
       <TurnoCreateModal
         open
@@ -105,18 +102,14 @@ describe("TurnoCreateModal", () => {
     const submit = screen.getByTestId("modal-submit");
     expect(submit).toBeDisabled();
 
-    // seleccionar cliente
-    await userEvent.click(screen.getByPlaceholderText("Buscar cliente..."));
-    await userEvent.click(screen.getByText("Juan"));
-
-    // seleccionar vehículo (ahora debería estar habilitado)
-    await userEvent.click(screen.getByPlaceholderText("Buscar o crear vehículo..."));
-    await userEvent.click(screen.getByText("REW164"));
+    // ingresar título directamente
+    const tituloInput = screen.getByPlaceholderText(/Ej: Service/i);
+    await userEvent.type(tituloInput, "Revisión general de frenos");
 
     await waitFor(() => expect(submit).not.toBeDisabled());
   });
 
-  it("auto-selecciona el vehículo cuando el cliente tiene uno solo", async () => {
+  it("auto-selecciona el vehículo y sugiere título cuando se elige un cliente con un solo vehículo", async () => {
     render(
       <TurnoCreateModal
         open
@@ -129,19 +122,22 @@ describe("TurnoCreateModal", () => {
     const submit = screen.getByTestId("modal-submit");
     expect(submit).toBeDisabled();
 
-    await userEvent.click(screen.getByPlaceholderText("Buscar cliente..."));
+    await userEvent.click(screen.getByPlaceholderText("Buscar cliente"));
     await userEvent.click(screen.getByText("Juan"));
 
-    // sin seleccionar vehículo manualmente, el botón debe habilitarse
+    // sin seleccionar vehículo manualmente, el vehículo se autoselecciona y el título se autocompleta
     await waitFor(() => expect(submit).not.toBeDisabled());
 
     const vehiculoInput = screen.getByPlaceholderText("Buscar o crear vehículo...");
     expect(vehiculoInput).toHaveValue("REW164");
+
+    const tituloInput = screen.getByPlaceholderText(/Ej: Service/i);
+    expect(tituloInput).toHaveValue("Mecánica - REW164 - Juan");
   });
 
   it("genera el mensaje de compartir con nombre de cliente, vehículo y hora sin segundos", async () => {
     mockCreateTurno.mockResolvedValueOnce(
-      createTurnoDto({ cliente_id: "C-1", vehiculo_id: "V-1", fecha: "2026-03-01", hora: "09:00" })
+      createTurnoDto({ titulo: "Service", cliente_id: "C-1", vehiculo_id: "V-1", fecha: "2026-03-01", hora: "09:00" })
     );
     mockGetClienteById.mockResolvedValueOnce(
       createCliente({ id: "C-1", nombre: "Juan", telefono: "1199999999" })
@@ -157,10 +153,8 @@ describe("TurnoCreateModal", () => {
       />
     );
 
-    await userEvent.click(screen.getByPlaceholderText("Buscar cliente..."));
+    await userEvent.click(screen.getByPlaceholderText("Buscar cliente"));
     await userEvent.click(screen.getByText("Juan"));
-    await userEvent.click(screen.getByPlaceholderText("Buscar o crear vehículo..."));
-    await userEvent.click(screen.getByText("REW164"));
 
     const submit = screen.getByTestId("modal-submit");
     await waitFor(() => expect(submit).not.toBeDisabled());
@@ -175,4 +169,3 @@ describe("TurnoCreateModal", () => {
     expect(mensaje).toContain("Hora: 09:00 hs");
   });
 });
-

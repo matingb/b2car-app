@@ -46,11 +46,13 @@ export interface ParticularDto {
 
 export interface TurnoDto {
     id: string;
+    titulo: string;
     fecha: string;
     hora: string;
     duracion: number | null;
-    vehiculo_id: string;
-    cliente_id: string;
+    taller_id: string;
+    vehiculo_id: string | null;
+    cliente_id: string | null;
     tipo: string | null;
     estado: TurnoEstado;
     descripcion: string | null;

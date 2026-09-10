@@ -6,6 +6,7 @@ import { ChevronDown } from "lucide-react";
 export interface DropdownOption {
     value: string;
     label: string;
+    selectedLabel?: string;
   }
 
   interface DropdownProps {
@@ -13,6 +14,7 @@ export interface DropdownOption {
     value: string;
     onChange: (value: string) => void;
     style?: React.CSSProperties;
+    dropdownWidth?: number | string;
     dataTestId?: string;
     disabled?: boolean;
     id?: string;
@@ -23,6 +25,7 @@ export default function Dropdown({
     value,
     onChange,
     style,
+    dropdownWidth,
     dataTestId,
     disabled = false,
     id,
@@ -60,10 +63,17 @@ export default function Dropdown({
             const placeAbove = spaceBelow < 180 && spaceAbove > spaceBelow;
             const maxHeight = Math.max(140, placeAbove ? spaceAbove : spaceBelow);
 
+            const viewportWidth = window.innerWidth || 0;
+            const resolvedWidth = dropdownWidth ?? rect.width;
+            let left = rect.left;
+            if (typeof resolvedWidth === "number" && viewportWidth > 0 && left + resolvedWidth > viewportWidth - 8) {
+                left = Math.max(8, viewportWidth - resolvedWidth - 8);
+            }
+
             setDropdownStyle(
                 placeAbove
-                    ? { position: "fixed", bottom: viewportHeight - rect.top + 4, left: rect.left, width: rect.width, maxHeight, zIndex: 2000 }
-                    : { position: "fixed", top: rect.bottom + 4, left: rect.left, width: rect.width, maxHeight, zIndex: 2000 }
+                    ? { position: "fixed", bottom: viewportHeight - rect.top + 4, left, width: resolvedWidth, minWidth: rect.width, maxHeight, zIndex: 2000 }
+                    : { position: "fixed", top: rect.bottom + 4, left, width: resolvedWidth, minWidth: rect.width, maxHeight, zIndex: 2000 }
             );
         };
 
@@ -109,6 +119,8 @@ export default function Dropdown({
         setHighlightedIndex(-1);
     };
 
+    const selectedOption = options.find((option: DropdownOption) => option.value === value);
+
     return (
         <div ref={containerRef} style={{ ...styles.container, ...style }}>
             <button
@@ -135,7 +147,7 @@ export default function Dropdown({
                 }}
                 data-testid={dataTestId}
             >
-                <span style={styles.label}>{options.find((option: DropdownOption) => option.value === value)?.label}</span>
+                <span style={styles.label}>{selectedOption?.selectedLabel ?? selectedOption?.label}</span>
                 <ChevronDown
                     size={16}
                     color={COLOR.TEXT.SECONDARY}
@@ -238,5 +250,6 @@ const styles = {
         fontSize: 13,
         color: COLOR.TEXT.PRIMARY,
         fontWeight: 500,
+        whiteSpace: "nowrap" as const,
     },
 }

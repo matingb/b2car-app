@@ -52,18 +52,8 @@ export const turnosClient = {
             return { error: { message }, data: null };
         }
     },
-    async getAll(): Promise<GetTurnosResponse> {
-        try {
-            const res = await fetch("/api/turnos");
-            const body: GetTurnosResponse = await res.json();
-            if (!res.ok) {
-                return { data: null, error: body?.error || { message: `Error ${res.status}` } };
-            }
-            return { data: body.data || [], error: null };
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : "Error cargando turnos";
-            return { data: null, error: { message } };
-        }
+    async getAll(tallerId?: string): Promise<GetTurnosResponse> {
+        return this.getWithFilters(tallerId ? { taller_id: tallerId } : {});
     },
     async getWithFilters(filters: ListTurnosFilters): Promise<GetTurnosResponse> {
         try {
@@ -72,6 +62,7 @@ export const turnosClient = {
             if (filters.from) queryParams.append("from", filters.from);
             if (filters.to) queryParams.append("to", filters.to);
             if (filters.estado) queryParams.append("estado", filters.estado);
+            if (filters.taller_id) queryParams.append("taller_id", filters.taller_id);
 
             const res = await fetch(`/api/turnos?${queryParams.toString()}`);
             const body: GetTurnosResponse = await res.json();

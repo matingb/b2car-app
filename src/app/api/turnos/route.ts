@@ -7,16 +7,18 @@ import {
 } from "./turnosService";
 import { TurnoEstado } from "@/model/dtos";
 
-function isIsoDate(value: unknown): value is string {
-	return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+const VALID_ESTADOS: readonly TurnoEstado[] = ["confirmado", "pendiente", "cancelado"] as const;
+
+function isIsoDate(value?: string | null): value is string {
+	return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
 }
 
-function isHourMinute(value: unknown): value is string {
-	return typeof value === "string" && /^\d{2}:\d{2}$/.test(value);
+function isHourMinute(value?: string | null): value is string {
+	return Boolean(value && /^\d{2}:\d{2}$/.test(value));
 }
 
 function isTurnoEstado(value: unknown): value is TurnoEstado {
-	return value === "Confirmado" || value === "Pendiente" || value === "Cancelado";
+	return VALID_ESTADOS.includes(value as TurnoEstado);
 }
 
 export async function GET(req: Request) {
@@ -27,6 +29,7 @@ export async function GET(req: Request) {
 	const from = url.searchParams.get("from") ?? undefined;
 	const to = url.searchParams.get("to") ?? undefined;
 	const estado = url.searchParams.get("estado") ?? undefined;
+	const taller_id = url.searchParams.get("taller_id") ?? undefined;
 
 	if (fecha && !isIsoDate(fecha)) {
 		return Response.json({ data: [], error: "Query param 'fecha' inválido (YYYY-MM-DD)" }, { status: 400 });
@@ -39,7 +42,7 @@ export async function GET(req: Request) {
 	}
 	if (estado && !isTurnoEstado(estado)) {
 		return Response.json(
-			{ data: [], error: "Query param 'estado' inválido (Confirmado|Pendiente|Cancelado)" },
+			{ data: [], error: "Query param 'estado' inválido (confirmado|pendiente|cancelado)" },
 			{ status: 400 }
 		);
 	}
@@ -49,9 +52,10 @@ export async function GET(req: Request) {
 		from,
 		to,
 		estado: estado as TurnoEstado | undefined,
+		taller_id,
 	});
 
-	logger.debug("GET /api/turnos - filters:", { fecha, from, to, estado }, "data:", data, "error:", error);
+	logger.debug("GET /api/turnos - filters:", { fecha, from, to, estado, taller_id }, "data:", data, "error:", error);
 
 	if (error) {
 		const status = error === "NotFound" ? 404 : 500;
@@ -70,14 +74,22 @@ export async function POST(req: Request) {
 		return Response.json({ data: null, error: { message: "JSON invalido", code: "validation" } }, { status: 400 });
 	}
 
+	const titulo = body.titulo;
+	const taller_id = body.taller_id;
 	const fecha = body.fecha;
 	const hora = body.hora;
 	const duracion = body.duracion;
-	const vehiculo_id = body.vehiculo_id;
-	const cliente_id = body.cliente_id;
-	const tipo = body.tipo;
+	const vehiculo_id = body.vehiculo_id?.trim() || null;
+	const cliente_id = body.cliente_id?.trim() || null;
+	const tipo = body.tipo?.trim() || null;
 	const estado = body.estado;
 
+	if (!titulo?.trim()) {
+		return Response.json({ data: null, error: { message: "Falta título del turno", code: "validation" } }, { status: 400 });
+	}
+	if (!taller_id?.trim()) {
+		return Response.json({ data: null, error: { message: "Falta taller id", code: "validation" } }, { status: 400 });
+	}
 	if (!isIsoDate(fecha)) {
 		return Response.json({ data: null, error: { message: "Falta/invalid fecha (YYYY-MM-DD)", code: "validation" } }, { status: 400 });
 	}
@@ -85,22 +97,17 @@ export async function POST(req: Request) {
 		return Response.json({ data: null, error: { message: "Falta/invalid hora (HH:mm)", code: "validation" } }, { status: 400 });
 	}
 
-	if (typeof vehiculo_id !== "string" || !vehiculo_id.trim()) {
-		return Response.json({ data: null, error: { message: "Falta vehiculo id", code: "validation" } }, { status: 400 });
-	}
-	if (typeof cliente_id !== "string" || !cliente_id.trim()) {
-		return Response.json({ data: null, error: { message: "Falta cliente id", code: "validation" } }, { status: 400 });
-	}
-
 	const estadoFinal: TurnoEstado = isTurnoEstado(estado) ? estado : "confirmado";
 
 	const input: CreateTurnoInput = {
+		titulo: titulo.trim(),
+		taller_id: taller_id.trim(),
 		fecha: fecha,
 		hora: hora,
 		duracion,
-		vehiculo_id: vehiculo_id.trim(),
-		cliente_id: cliente_id.trim(),
-		tipo: tipo?.trim() ?? null,
+		vehiculo_id,
+		cliente_id,
+		tipo,
 		estado: estadoFinal,
 		descripcion: body.descripcion?.trim() ?? null,
 		observaciones: body.observaciones?.trim() ?? null,
@@ -110,15 +117,22 @@ export async function POST(req: Request) {
 
 	if (insertError) {
 		const code = insertError.code || "";
-		const status = code === "23505" ? 409 : 500;
-		const message = status === 409 ? "Ya existe un turno para ese horario" : "Error al crear turno";
+		let status = 500;
+		let message = insertError.message ? `Error al crear turno: ${insertError.message}` : "Error al crear turno";
+		if (code === "23505") {
+			status = 409;
+			message = "Ya existe un turno para ese horario";
+		} else if (code === "23502") {
+			status = 400;
+			message = `Falta un campo obligatorio`;
+		} else if (code === "23503") {
+			status = 400;
+			message = `El cliente, vehículo o taller especificado no existe o no es válido (${insertError.message})`;
+		}
 		logger.error("POST /api/turnos - error:", insertError);
-		return Response.json({ data: null, error: { message, code: insertError.code } }, { status });
+		return Response.json({ data: null, error: { message, code: insertError.code, details: insertError.message } }, { status });
 	}
 
 	await statsService.onDataChanged(supabase);
 	return Response.json({ data: inserted, error: null }, { status: 201 });
 }
-
-
-

@@ -310,9 +310,11 @@ export const createStockItemRow = (overrides: Partial<StockItemRow> = {}): Stock
 export const createTurnoDto = (overrides: Partial<TurnoDto> = {}): TurnoDto => {
   return {
     id: "1",
+    titulo: "Service 10.000km",
     fecha: "2026-02-11",
     hora: "10:30",
     duracion: null,
+    taller_id: "t1",
     vehiculo_id: "1",
     cliente_id: "1",
     tipo: null,
@@ -331,9 +333,12 @@ export const createTurno = (overrides: Partial<Turno> = {}): Turno => {
   const defaultVehiculo = createVehiculo();
   return {
     id: "1",
+    titulo: "Service 10.000km",
     fecha: "2026-02-11",
     hora: "10:30",
     duracion: 60,
+    taller_id: "t1",
+    taller: { id: "t1", nombre: "Taller Central", ubicacion: "Av. Siempre Viva 123" },
     vehiculo: defaultVehiculo,
     cliente: defaultCliente,
     tipo: null,

@@ -11,10 +11,10 @@ import React, {
 
 import { Turno } from "@/model/types";
 import { turnosClient } from "@/clients/turnosClient";
-import { CreateTurnoInput, ListTurnosFilters } from "@/app/api/turnos/turnosService";
+import { CreateTurnoInput, ListTurnosFilters, UpdateTurnoInput } from "@/app/api/turnos/turnosService";
 import { TurnoDto } from "@/model/dtos";
 import { toISODateLocal } from "@/lib/fechas";
-
+import { useTenant } from "./TenantProvider";
 
 type TurnosContextType = {
   turnos: Turno[];
@@ -24,13 +24,14 @@ type TurnosContextType = {
   filterTurnosByDate: (date: Date) => Turno[];
   getWithFilters: (filters: ListTurnosFilters) => Promise<Turno[]>;
   create: (input: CreateTurnoInput) => Promise<TurnoDto | null>;
-  update: (id: string, input: Partial<CreateTurnoInput>) => Promise<TurnoDto | null>;
+  update: (id: string, input: Partial<UpdateTurnoInput>) => Promise<TurnoDto | null>;
   remove: (id: string) => Promise<boolean>;
 };
 
 const TurnosContext = createContext<TurnosContextType | null>(null);
 
 export function TurnosProvider({ children }: { children: React.ReactNode }) {
+  const { tallerSeleccionadoId } = useTenant();
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,8 +40,7 @@ export function TurnosProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      // mock local (cuando venga backend, reemplazar por fetch / client)
-      const data = await turnosClient.getAll();
+      const data = await turnosClient.getAll(tallerSeleccionadoId ?? undefined);
       const turnosData = data.data || [];
       if (data.error) {
         throw new Error(data.error.message);
@@ -56,12 +56,16 @@ export function TurnosProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tallerSeleccionadoId]);
 
   const getWithFilters = useCallback(async (filters: ListTurnosFilters) => {
     setError(null);
     try {
-      const data = await turnosClient.getWithFilters(filters);
+      const mergedFilters: ListTurnosFilters = {
+        ...filters,
+        taller_id: filters.taller_id ?? tallerSeleccionadoId ?? undefined,
+      };
+      const data = await turnosClient.getWithFilters(mergedFilters);
       const turnosData = data.data || [];
       if (data.error) {
         throw new Error(data.error.message);
@@ -73,46 +77,52 @@ export function TurnosProvider({ children }: { children: React.ReactNode }) {
       setError(message);
       return [];
     }
-  }, []);
+  }, [tallerSeleccionadoId]);
 
   const create = useCallback(async (input: CreateTurnoInput) => {
     setLoading(true);
     try {
-      const response = await turnosClient.create(input);
+      const payload: CreateTurnoInput = {
+        ...input,
+        taller_id: (input.taller_id || tallerSeleccionadoId) ?? "",
+      };
+      const response = await turnosClient.create(payload);
       if (response?.error) throw new Error(response.error.message);
       const turno = response?.data;
+      await refresh();
       return turno ?? null;
     }
     finally {
       setLoading(false);
     }
-  }, []);
+  }, [tallerSeleccionadoId, refresh]);
 
-  const update = useCallback(async (id: string, input: Partial<CreateTurnoInput>) => {
+  const update = useCallback(async (id: string, input: Partial<UpdateTurnoInput>) => {
     setLoading(true);
     try {
-      
       const response = await turnosClient.update({ id, ...input });
       if (response?.error) throw new Error(response.error.message);
       const turno = response?.data;
+      await refresh();
       return turno ?? null;
     }
     finally {
       setLoading(false);
     }
-  }, []);
+  }, [refresh]);
 
   const remove = useCallback(async (id: string) => {
     setLoading(true);
     try {
       const response = await turnosClient.delete(id);
       if (response?.error) throw new Error(response.error.message);
+      await refresh();
       return response?.data ?? false;
     }
     finally {
       setLoading(false);
     }
-  }, []);
+  }, [refresh]);
 
   const filterTurnosByDate = useCallback(
     (date: Date) => {
@@ -138,9 +148,8 @@ export function TurnosProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    
-  }, []);
-
+    void refresh();
+  }, [refresh]);
 
   return (
     <TurnosContext.Provider value={value}>{children}</TurnosContext.Provider>
@@ -152,4 +161,3 @@ export function useTurnos() {
   if (!ctx) throw new Error("useTurnos debe usarse dentro de TurnosProvider");
   return ctx;
 }
-

@@ -10,15 +10,14 @@ import ScrollPage from "@/app/components/ui/ScrollPage";
 import { useArreglosFilters } from "@/app/hooks/arreglos/useArreglosFilters";
 import { useEffect, useMemo, useState } from "react";
 import { useTenant } from "@/app/providers/TenantProvider";
-import { COLOR } from "@/theme/theme";
-import Autocomplete from "@/app/components/ui/Autocomplete";
+import TallerSelector from "@/app/components/ui/TallerSelector";
 
 const LIMIT_STEP = 50;
 
 export default function ArreglosPage() {
   const router = useRouter();
   const { arreglos, loading, hasMore, fetchAll } = useArreglos();
-  const { talleres, tallerSeleccionadoId, setTallerSeleccionadoId } = useTenant();
+  const { tallerSeleccionadoId } = useTenant();
   const state = useArreglosFilters(arreglos);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -80,18 +79,7 @@ export default function ArreglosPage() {
     <div>
       <ScreenHeader title="Arreglos" />
 
-      {talleres.length > 1 && (
-        <div style={styles.tallerDropdownContainer}>
-          <div style={styles.tallerLabel}>Taller</div>
-          <Autocomplete
-            value={tallerSeleccionadoId}
-            options={talleres.map((t) => ({ value: t.id, label: t.nombre }))}
-            onChange={setTallerSeleccionadoId}
-            style={{ height: 40, width: "280px", padding: "0 12px" }}
-            hideClearButton
-          />
-        </div>
-      )}
+      <TallerSelector />
 
       <ArreglosToolbar
         search={state.search}
@@ -132,17 +120,6 @@ export default function ArreglosPage() {
 }
 
 const styles = {
-  tallerDropdownContainer: {
-    marginTop: 12,
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-  },
-  tallerLabel: {
-    fontSize: 13,
-    color: COLOR.TEXT.SECONDARY,
-    fontWeight: 600,
-  },
   searchBarContainer: {
     marginBottom: 16,
     marginTop: 16,

@@ -6,9 +6,10 @@ import {
   CREATE_VEHICULO_VALUE,
   getTurnoInlineFlags,
   validateTurnoForm,
+  buildSuggestedTurnoTitle,
   type TurnoFormFieldsState,
 } from "./TurnoFormFields";
-import { TipoCliente } from "@/model/types";
+import { TipoCliente, type Cliente, type Vehiculo } from "@/model/types";
 
 const emptyVehiculoDraft: VehiculoFormFieldsValue = {
   cliente_id: "",
@@ -21,6 +22,7 @@ const emptyVehiculoDraft: VehiculoFormFieldsValue = {
 };
 
 const base: TurnoFormFieldsState = {
+  titulo: "Service 10.000km",
   clienteId: "C-1",
   vehiculoId: "V-1",
   fecha: "2026-03-01",
@@ -51,21 +53,58 @@ describe("getTurnoInlineFlags", () => {
   });
 });
 
+describe("buildSuggestedTurnoTitle", () => {
+  it("construye sugerencia completa con tipo, patente, modelo y cliente", () => {
+    const vehiculo: Vehiculo = {
+      id: "v1",
+      patente: "AB123CD",
+      marca: "Ford",
+      modelo: "Fiesta",
+      nombre_cliente: "Juan Perez",
+      fecha_patente: "",
+      numero_chasis: "",
+    };
+    const cliente: Cliente = {
+      id: "c1",
+      nombre: "Juan Perez",
+      tipo_cliente: TipoCliente.PARTICULAR,
+      telefono: "12345",
+      email: "juan@test.com",
+      direccion: "",
+    };
+    const title = buildSuggestedTurnoTitle({ tipo: "Mecánica", vehiculo, cliente });
+    expect(title).toBe("Mecánica - AB123CD (Ford Fiesta) - Juan Perez");
+  });
+
+  it("construye sugerencia sin vehículo", () => {
+    const cliente: Cliente = {
+      id: "c1",
+      nombre: "Juan Perez",
+      tipo_cliente: TipoCliente.PARTICULAR,
+      telefono: "12345",
+      email: "juan@test.com",
+      direccion: "",
+    };
+    const title = buildSuggestedTurnoTitle({ tipo: "Service", cliente });
+    expect(title).toBe("Service - Juan Perez");
+  });
+});
+
 describe("validateTurnoForm", () => {
   [
     {
-      name: "es válido cuando hay cliente y vehículo seleccionados y fecha/hora tienen formato válido",
+      name: "es válido cuando hay título, cliente, vehículo y fecha/hora válidos",
       state: base,
       expected: true,
     },
     {
-      name: "es inválido si no hay cliente seleccionado",
-      state: { ...base, clienteId: "" },
-      expected: false,
+      name: "es válido sin cliente ni vehículo mientras haya título y fecha/hora válidos",
+      state: { ...base, clienteId: "", vehiculoId: "" },
+      expected: true,
     },
     {
-      name: "es inválido si no hay vehículo seleccionado",
-      state: { ...base, vehiculoId: "" },
+      name: "es inválido si no hay título",
+      state: { ...base, titulo: "   " },
       expected: false,
     },
     {
@@ -92,13 +131,18 @@ describe("validateTurnoForm", () => {
     },
     {
       name: "en modo crear cliente, es inválido si clienteInlineIsValid=false",
-      state: { ...base, clienteId: CREATE_CLIENTE_VALUE, vehiculoId: "" , clienteInlineIsValid: false },
+      state: { ...base, clienteId: CREATE_CLIENTE_VALUE, vehiculoId: "", clienteInlineIsValid: false },
       expected: false,
     },
     {
       name: "en modo crear vehículo, depende de vehiculoInlineIsValid",
       state: { ...base, vehiculoId: CREATE_VEHICULO_VALUE, vehiculoInlineIsValid: true },
       expected: true,
+    },
+    {
+      name: "en modo crear vehículo, es inválido si vehiculoInlineIsValid=false",
+      state: { ...base, vehiculoId: CREATE_VEHICULO_VALUE, vehiculoInlineIsValid: false },
+      expected: false,
     },
     {
       name: "es inválido si la fecha no tiene formato yyyy-MM-dd",
@@ -123,4 +167,3 @@ describe("validateTurnoForm", () => {
     });
   });
 });
-

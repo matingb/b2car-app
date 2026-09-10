@@ -12,9 +12,8 @@ import ProductoItemCard from "@/app/components/productos/ProductoItemCard";
 import { LoaderCircle } from "lucide-react";
 import { useProductos } from "@/app/providers/ProductosProvider";
 import { css } from "@emotion/react";
-import { useTenant } from "@/app/providers/TenantProvider";
 import StockStats from "@/app/components/stock/StockStats";
-import ProductosTallerSelector from "@/app/components/productos/ProductosTallerSelector";
+import TallerSelector from "@/app/components/ui/TallerSelector";
 
 export default function ProductosPage() {
   return <ProductosPageContent />;
@@ -23,24 +22,22 @@ export default function ProductosPage() {
 function ProductosPageContent() {
   const router = useRouter();
   const { productos, categoriasDisponibles, isLoading } = useProductos();
-  const { talleres } = useTenant();
   const [selectedTallerId, setSelectedTallerId] = useState("");
   const state = useProductosFilters(productos, selectedTallerId);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   return (
     <div>
-      <div css={styles.headerTop}>
-        <ScreenHeader
-          title="Productos"
+      <ScreenHeader
+        title="Productos"
         subtitle="Definí qué productos existen en el sistema y sus características"
-        />
-        <ProductosTallerSelector
-          talleres={talleres}
-          value={selectedTallerId}
-          onChange={setSelectedTallerId}
-        />
-      </div>
+      />
+
+      <TallerSelector
+        allOption="Vista general"
+        value={selectedTallerId}
+        onChange={setSelectedTallerId}
+      />
       <div style={{ marginTop: 12 }}>
         <StockStats
           stats={state.stats}
@@ -114,16 +111,6 @@ function ProductosPageContent() {
 }
 
 const styles = {
-  headerTop: css({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      alignItems: "flex-start",
-      flexDirection: "column",
-    },
-  }),
   resultsHeader: {
     display: "flex",
     alignItems: "baseline",

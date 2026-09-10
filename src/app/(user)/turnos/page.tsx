@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { useTurnos } from "@/app/providers/TurnosProvider";
+import TallerSelector from "@/app/components/ui/TallerSelector";
 import { Turno } from "@/model/types";
 import { COLOR } from "@/theme/theme";
 import TurnosToolbar from "@/app/components/turnos/TurnosToolbar";
@@ -102,16 +103,17 @@ export default function TurnosPage() {
     share(mensaje, turno.cliente ? assembleClientePhone(turno.cliente) : undefined);
   };
 
-
   const handleDeleteTurno = async (turno: Turno) => {
     await remove(turno.id);
     setModalOpen(false);
     success("Turno eliminado", "El turno se eliminó correctamente.");
-  }
+  };
 
   return (
     <div style={{ minWidth: 0, maxWidth: "100%", overflowX: "hidden" }}>
       <ScreenHeader title="Turnos" breadcrumbs={["Agenda"]} />
+
+      <TallerSelector />
 
       <TurnosToolbar
         vista={vista}
@@ -154,8 +156,8 @@ export default function TurnosPage() {
         onCancel={async (turno) => {
           setModalOpen(false);
           const confirmed = await confirm({
-            message: "¿Estás seguro de que deseas eliminar este arreglo?",
-            title: "Eliminar arreglo",
+            message: "¿Estás seguro de que deseas eliminar este turno?",
+            title: "Eliminar turno",
             acceptLabel: "Eliminar",
             cancelLabel: "Cancelar",
           });

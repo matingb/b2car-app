@@ -154,11 +154,14 @@ export interface ClienteMovimientoCuenta {
 
 export interface Turno {
 	id: string;
+	titulo: string;
 	fecha: string; // YYYY-MM-DD
 	hora: string; // HH:mm
 	duracion: number | null; // minutos
-	vehiculo: Vehiculo;
-	cliente: Cliente;
+	taller_id: UUID;
+	taller?: Taller | null;
+	vehiculo?: Vehiculo | null;
+	cliente?: Cliente | null;
 	tipo: string | null;
 	estado: TurnoEstado;
 	telefono?: string;

@@ -190,20 +190,31 @@ export default function TurnosWeeklyGridHView({
                                     >
                                       <div style={styles.turnoBlockTopRow}>
                                         <span style={styles.turnoHora}>
-                                          {turno.vehiculo.patente} - {turno.hora}
+                                          {turno.hora} - {turno.titulo}
                                         </span>
                                       </div>
-                                      <div style={styles.turnoVehiculo}>
-                                        {turno.vehiculo.marca} {turno.vehiculo.modelo}
-                                      </div>
-                                      <div style={styles.turnoTitular}>
-                                        {turno.cliente.nombre}
-                                      </div>
+                                      {turno.vehiculo ? (
+                                        <div style={styles.turnoVehiculo}>
+                                          {turno.vehiculo.patente ? `${turno.vehiculo.patente} · ` : ""}{turno.vehiculo.marca} {turno.vehiculo.modelo}
+                                        </div>
+                                      ) : null}
+                                      {turno.cliente ? (
+                                        <div style={styles.turnoTitular}>
+                                          {turno.cliente.nombre}
+                                        </div>
+                                      ) : null}
+                                      {turno.descripcion ? (
+                                        <div style={styles.turnoDescripcion} title={turno.descripcion}>
+                                          {turno.descripcion}
+                                        </div>
+                                      ) : null}
                                       <div style={styles.turnoBottomRow}>
                                         <Pill text={turno.tipo || "Sin tipo"} />
-                                        <span style={styles.turnoDuracion}>
-                                          {turno.duracion}min
-                                        </span>
+                                        {turno.duracion != null ? (
+                                          <span style={styles.turnoDuracion}>
+                                            {turno.duracion}min
+                                          </span>
+                                        ) : null}
                                       </div>
                                     </div>
                                   );
@@ -337,6 +348,16 @@ const styles = {
     WebkitLineClamp: 1,
     WebkitBoxOrient: "vertical" as const,
     overflow: "hidden",
+  },
+  turnoDescripcion: {
+    marginTop: 2,
+    fontSize: 12,
+    color: COLOR.TEXT.TERTIARY,
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical" as const,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   },
   turnoBottomRow: {
     marginTop: 8,

@@ -1,19 +1,18 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
-import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
-import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
-import ClienteFormFields from "@/app/components/clientes/ClienteFormFields";
+import React, { useEffect, useMemo, useState } from "react";
+import Autocomplete from "@/app/components/ui/Autocomplete";
+import { type Cliente, type Vehiculo } from "@/model/types";
 import type { ClienteFormFieldsValue } from "@/app/components/clientes/ClienteFormFields";
-import VehiculoFormFields, { type VehiculoFormFieldsValue } from "@/app/components/vehiculos/VehiculoFormFields";
-import { TipoCliente, type Cliente, type Vehiculo } from "@/model/types";
-import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
-import { logger } from "@/lib/logger";
+import type { VehiculoFormFieldsValue } from "@/app/components/vehiculos/VehiculoFormFields";
+import { turnoFormStyles as styles } from "@/app/components/turnos/TurnoFormFieldsStyles";
+import { useTurnoHorarios } from "@/app/components/turnos/hooks/useTurnoHorarios";
+import TurnoClienteVehiculoFields from "@/app/components/turnos/fields/TurnoClienteVehiculoFields";
+import TurnoDateTimePicker from "@/app/components/turnos/fields/TurnoDateTimePicker";
 
 export const CREATE_CLIENTE_VALUE = "__create_cliente__";
 export const CREATE_VEHICULO_VALUE = "__create_vehiculo__";
 
-const DURACIONES_MIN = [30, 45, 60, 90, 120, 150, 180] as const;
 const TIPOS_TURNO = [
   "Mecánica",
   "Eléctrica",
@@ -24,6 +23,7 @@ const TIPOS_TURNO = [
 ] as const;
 
 export type TurnoFormFieldsState = {
+  titulo: string;
   clienteId: string;
   vehiculoId: string;
   fecha: string;
@@ -75,15 +75,31 @@ export function validateTurnoForm(input: {
   isCreatingVehiculo: boolean;
 }): boolean {
   const { state } = input;
-  const okCliente = input.isCreatingCliente
-    ? state.clienteInlineIsValid
-    : state.clienteId.trim().length > 0;
-  const okVehiculo = input.isCreatingVehiculo
-    ? state.vehiculoInlineIsValid
-    : state.vehiculoId.trim().length > 0;
+  const okTitulo = Boolean(state.titulo && state.titulo.trim().length > 0);
+  const okCliente = input.isCreatingCliente ? state.clienteInlineIsValid : true;
+  const okVehiculo = input.isCreatingVehiculo ? state.vehiculoInlineIsValid : true;
   const okFecha = /^\d{4}-\d{2}-\d{2}$/.test(state.fecha);
   const okHora = /^\d{2}:\d{2}$/.test(state.hora);
-  return okCliente && okVehiculo && okFecha && okHora;
+  return okTitulo && okCliente && okVehiculo && okFecha && okHora;
+}
+
+export function buildSuggestedTurnoTitle(params: {
+  tipo?: string;
+  vehiculo?: Vehiculo;
+  cliente?: Cliente;
+}): string {
+  const parts: string[] = [];
+  if (params.tipo) parts.push(params.tipo);
+  if (params.vehiculo?.patente) {
+    const veh = params.vehiculo.modelo
+      ? `${params.vehiculo.patente} (${params.vehiculo.marca} ${params.vehiculo.modelo})`.trim()
+      : params.vehiculo.patente;
+    parts.push(veh);
+  }
+  if (params.cliente?.nombre) {
+    parts.push(params.cliente.nombre);
+  }
+  return parts.join(" - ");
 }
 
 export default function TurnoFormFields(props: Props) {
@@ -91,84 +107,49 @@ export default function TurnoFormFields(props: Props) {
   const { state, context } = model;
   const { isCreatingCliente, isCreatingVehiculo } = getTurnoInlineFlags(state);
 
-  const selectedCliente = useMemo(() => {
-    if (!state.clienteId || isCreatingCliente) return undefined;
-    return context.clientes.find((c) => String(c.id) === state.clienteId);
-  }, [context.clientes, state.clienteId, isCreatingCliente]);
+  const [tituloManualmenteEditado, setTituloManualmenteEditado] = useState(false);
+  const [ultimoTituloSugerido, setUltimoTituloSugerido] = useState("");
 
-  const vehiculosFiltrados = useMemo(() => {
-    if (!selectedCliente) return [];
-    logger.debug(context.vehiculos, "Vehículos en contexto");
-    const selectedClienteId = String(selectedCliente.id);
-    logger.debug("vehiculos fltrados", context.vehiculos.filter((v) => {
-      logger.debug(v)
-      const match = v.cliente_id != null && String(v.cliente_id) === selectedClienteId;
-      logger.debug(`Evaluando vehículo ${v.id} - cliente_id: ${v.cliente_id} - match: ${match}`);
-      return match;
-    }));
-    return context.vehiculos.filter((v) => {
-      return v.cliente_id != null && String(v.cliente_id) === selectedClienteId;
-    });
-  }, [context.vehiculos, selectedCliente]);
+  const horarios = useTurnoHorarios(state.hora, state.duracion);
 
-  const vehiculoDisabled = !selectedCliente && !isCreatingCliente;
-  const vehiculoPlaceholder =
-    !selectedCliente && !isCreatingCliente
-      ? "Seleccione o cree un cliente primero"
-      : "Buscar o crear vehículo...";
-
-  const clienteOptions: AutocompleteOption[] = useMemo(
-    () => [
-      {
-        value: CREATE_CLIENTE_VALUE,
-        label: "+ Crear cliente",
-        secondaryLabel: "Cargar datos del cliente nuevo",
-      },
-      ...context.clientes.map((c) => ({
-        value: String(c.id),
-        label: c.nombre,
-        secondaryLabel: c.email || undefined,
-      })),
-    ],
-    [context.clientes]
+  const selectedCliente = useMemo(
+    () =>
+      !state.clienteId || isCreatingCliente
+        ? undefined
+        : context.clientes.find((c) => String(c.id) === state.clienteId),
+    [context.clientes, state.clienteId, isCreatingCliente]
   );
 
-  const vehiculoOptions: AutocompleteOption[] = useMemo(() => {
-    const base: AutocompleteOption[] = vehiculosFiltrados.map((v) => {
-      const label = formatPatenteConMarcaYModelo(v);
-      const secondaryParts = [
-        v.nombre_cliente,
-        v.nro_interno ? `Int: ${v.nro_interno}` : "",
-      ].filter(Boolean);
-      return {
-        value: String(v.id),
-        label: label.length > 3 ? label : v.patente,
-        secondaryLabel: secondaryParts.join(" · ") || undefined,
-      };
-    });
+  const selectedVehiculo = useMemo(
+    () =>
+      !state.vehiculoId || isCreatingVehiculo
+        ? undefined
+        : context.vehiculos.find((v) => String(v.id) === state.vehiculoId),
+    [context.vehiculos, state.vehiculoId, isCreatingVehiculo]
+  );
 
-    return [
-      {
-        value: CREATE_VEHICULO_VALUE,
-        label: "+ Crear vehículo",
-        secondaryLabel: "Cargar datos del vehículo nuevo",
-      },
-      ...base,
-    ];
-  }, [vehiculosFiltrados]);
+  const sugerirTitulo = (patch: { cliente?: Cliente; vehiculo?: Vehiculo; tipo?: string }) => {
+    const cli = patch.cliente ?? selectedCliente;
+    const veh = patch.vehiculo ?? selectedVehiculo;
+    const tip = patch.tipo ?? state.tipo;
+    const nuevoSugerido = buildSuggestedTurnoTitle({ cliente: cli, vehiculo: veh, tipo: tip });
+
+    if (
+      !tituloManualmenteEditado ||
+      state.titulo.trim() === "" ||
+      state.titulo === ultimoTituloSugerido
+    ) {
+      if (nuevoSugerido) {
+        setUltimoTituloSugerido(nuevoSugerido);
+        return nuevoSugerido;
+      }
+    }
+    return undefined;
+  };
 
   const isValid = useMemo(
-    () =>
-      validateTurnoForm({
-        state,
-        isCreatingCliente,
-        isCreatingVehiculo,
-      }),
-    [
-      state,
-      isCreatingCliente,
-      isCreatingVehiculo,
-    ]
+    () => validateTurnoForm({ state, isCreatingCliente, isCreatingVehiculo }),
+    [state, isCreatingCliente, isCreatingVehiculo]
   );
 
   useEffect(() => {
@@ -177,145 +158,59 @@ export default function TurnoFormFields(props: Props) {
 
   return (
     <div style={styles.container}>
+      <TurnoClienteVehiculoFields
+        state={state}
+        context={context}
+        onChange={onChange}
+        selectedCliente={selectedCliente}
+        selectedVehiculo={selectedVehiculo}
+      />
+
       <div>
         <label style={styles.label}>
-          Cliente{" "}
+          Título{" "}
           <span aria-hidden="true" style={styles.required}>
             *
           </span>
         </label>
-        <Autocomplete
-          options={clienteOptions}
-          value={state.clienteId}
-          onChange={(v) => {
-            const newCliente = context.clientes.find((c) => String(c.id) === v);
-            const vehiculosDelCliente = newCliente
-              ? context.vehiculos.filter(
-                  (veh) => veh.cliente_id != null && String(veh.cliente_id) === String(newCliente.id)
-                )
-              : [];
-            const autoVehiculoId =
-              vehiculosDelCliente.length === 1 ? String(vehiculosDelCliente[0].id) : "";
-            onChange({ clienteId: v, vehiculoId: autoVehiculoId });
+        <input
+          type="text"
+          style={styles.input}
+          value={state.titulo}
+          onChange={(e) => {
+            setTituloManualmenteEditado(true);
+            onChange({ titulo: e.target.value });
           }}
-          placeholder="Buscar cliente..."
+          placeholder="Ej: Service 10.000km, Revisión general, Cambio de aceite..."
         />
-        {isCreatingCliente && (
-          <div style={styles.inlineForm}>
-            <ClienteFormFields
-              value={state.clienteDraft}
-              onChange={(patch) => onChange({ clienteDraft: patch })}
-              onValidityChange={({ isValid }) => {
-                if (isValid !== state.clienteInlineIsValid) {
-                  onChange({ clienteInlineIsValid: isValid });
-                }
-              }}
-            />
-          </div>
-        )}
       </div>
 
       <div>
         <label style={styles.label}>
-          Vehículo{" "}
+          Fecha y horario{" "}
           <span aria-hidden="true" style={styles.required}>
             *
           </span>
         </label>
-        {!isCreatingCliente && (
-          <Autocomplete
-            options={vehiculoOptions}
-            value={state.vehiculoId}
-            onChange={(v) => onChange({ vehiculoId: v })}
-            placeholder={vehiculoPlaceholder}
-            disabled={vehiculoDisabled}
-          />
-        )}
-
-        {(isCreatingVehiculo || isCreatingCliente) && (
-          <div style={styles.inlineForm}>
-            <VehiculoFormFields
-              value={state.vehiculoDraft}
-              onChange={(patch) => onChange({ vehiculoDraft: patch })}
-              showClienteInput={false}
-              tipoCliente={
-                selectedCliente?.tipo_cliente ??
-                (isCreatingCliente
-                  ? state.clienteDraft.tipo_cliente
-                  : TipoCliente.PARTICULAR)
-              }
-              onValidityChange={(isValid) => {
-                if (isValid !== state.vehiculoInlineIsValid) {
-                  onChange({ vehiculoInlineIsValid: isValid });
-                }
-              }}
-            />
-          </div>
-        )}
+        <TurnoDateTimePicker
+          fecha={state.fecha}
+          horarios={horarios}
+          onChange={onChange}
+        />
       </div>
 
-      <div style={styles.row}>
-        <div style={styles.field}>
-          <label style={styles.label}>
-            Fecha{" "}
-            <span aria-hidden="true" style={styles.required}>
-              *
-            </span>
-          </label>
-          <input
-            type="date"
-            style={styles.input}
-            value={state.fecha}
-            onChange={(e) => onChange({ fecha: e.target.value })}
-          />
-        </div>
-        <div style={styles.field}>
-          <label style={styles.label}>
-            Hora{" "}
-            <span aria-hidden="true" style={styles.required}>
-              *
-            </span>
-          </label>
-          <input
-            type="time"
-            step={300}
-            style={styles.input}
-            value={state.hora}
-            onChange={(e) => onChange({ hora: e.target.value })}
-          />
-        </div>
-      </div>
-
-      <div style={styles.row}>
-        <div style={styles.field}>
-          <label style={styles.label}>Duración</label>
-          <Autocomplete
-            options={DURACIONES_MIN.map((m) => ({
-              value: String(m),
-              label: `${m} min`,
-            }))}
-            value={state.duracion !== null ? String(state.duracion) : ""}
-            onChange={(v) => {
-              if (!v) {
-                onChange({ duracion: null });
-                return;
-              }
-              const parsed = Number(v);
-              onChange({ duracion: Number.isFinite(parsed) ? parsed : null });
-            }}
-            placeholder="Seleccionar duración..."
-          />
-        </div>
-        <div style={styles.field}>
-          <label style={styles.label}>Tipo</label>
-          <Autocomplete
-            options={TIPOS_TURNO.map((t) => ({ value: t, label: t }))}
-            value={state.tipo}
-            onChange={(v) => onChange({ tipo: v })}
-            placeholder="Ej: Mecánica"
-            allowCustomValue
-          />
-        </div>
+      <div>
+        <label style={styles.label}>Tipo de servicio</label>
+        <Autocomplete
+          options={TIPOS_TURNO.map((t) => ({ value: t, label: t }))}
+          value={state.tipo}
+          onChange={(v) => {
+            const nuevoTitulo = sugerirTitulo({ tipo: v });
+            onChange({ tipo: v, ...(nuevoTitulo ? { titulo: nuevoTitulo } : {}) });
+          }}
+          placeholder="Ej: Mecánica"
+          allowCustomValue
+        />
       </div>
 
       <div>
@@ -342,53 +237,3 @@ export default function TurnoFormFields(props: Props) {
     </div>
   );
 }
-
-const styles = {
-  container: { display: "grid", gap: 12 },
-  row: {
-    display: "flex",
-    gap: 16,
-  },
-  field: {
-    flex: 1,
-    minWidth: 0,
-  },
-  inlineForm: {
-    marginTop: 10,
-    padding: 12,
-    borderRadius: 10,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.SECONDARY,
-  },
-  label: {
-    display: "block",
-    fontSize: 13,
-    marginBottom: 6,
-    color: COLOR.TEXT.SECONDARY,
-  },
-  required: {
-    color: REQUIRED_ICON_COLOR,
-    fontWeight: 700,
-    marginLeft: 2,
-  },
-  input: {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 8,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.INPUT.PRIMARY.BACKGROUND,
-    color: COLOR.TEXT.PRIMARY,
-  },
-  textarea: {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 8,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.INPUT.PRIMARY.BACKGROUND,
-    color: COLOR.TEXT.PRIMARY,
-    resize: "vertical" as const,
-    fontFamily: "inherit",
-    fontSize: 14,
-  },
-} as const;
-

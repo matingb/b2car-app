@@ -146,13 +146,20 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
                         role="button"
                         aria-label={`Turno ${turno.hora} ${turno.vehiculo}`}
                       >
-                        <div style={styles.tlHora}>{turno.hora}</div>
-                        <div style={styles.tlVehiculo} title={turno.vehiculo.modelo}>
-                          {turno.vehiculo.marca} {turno.vehiculo.modelo}
-                        </div>
-                        {showTitular ? (
+                        <div style={styles.tlHora}>{turno.hora} - {turno.titulo}</div>
+                        {turno.vehiculo ? (
+                          <div style={styles.tlVehiculo} title={turno.vehiculo.modelo}>
+                            {turno.vehiculo.patente ? `${turno.vehiculo.patente} · ` : ""}{turno.vehiculo.marca} {turno.vehiculo.modelo}
+                          </div>
+                        ) : null}
+                        {showTitular && turno.cliente ? (
                           <div style={styles.tlTitular} title={turno.cliente.nombre}>
                             {turno.cliente.nombre}
+                          </div>
+                        ) : null}
+                        {turno.descripcion ? (
+                          <div style={styles.tlDescripcion} title={turno.descripcion}>
+                            {turno.descripcion}
                           </div>
                         ) : null}
                         {showBottom ? (
@@ -190,13 +197,20 @@ export default function TurnosDailyView({ fechaActual, onSelectTurno }: Props) {
                 >
                   <div style={styles.dayListTime}>{t.hora}</div>
                   <div style={{ display: "grid", gap: 2, flex: 1, minWidth: 0 }}>
-                    <div style={styles.dayListVehiculo} title={t.vehiculo.modelo}>
-                      {t.vehiculo.marca} {t.vehiculo.modelo}
+                    <div style={styles.dayListVehiculo} title={t.titulo}>
+                      {t.titulo}
                     </div>
                     <div style={styles.dayListSub}>
-                      {t.cliente.nombre}
+                      {t.vehiculo ? `${t.vehiculo.patente} (${t.vehiculo.marca} ${t.vehiculo.modelo})` : ""}
+                      {t.vehiculo && t.cliente ? " • " : ""}
+                      {t.cliente ? t.cliente.nombre : ""}
                       {t.duracion != null ? <> • {t.duracion} min</> : null}
                     </div>
+                    {t.descripcion ? (
+                      <div style={styles.dayListDesc} title={t.descripcion}>
+                        {t.descripcion}
+                      </div>
+                    ) : null}
                   </div>
                 </button>
               ))}
@@ -298,6 +312,15 @@ const styles = {
     overflow: "hidden",
     textOverflow: "ellipsis",
   } as const,
+  tlDescripcion: {
+    fontSize: 11,
+    opacity: 0.8,
+    display: "-webkit-box",
+    WebkitLineClamp: 1,
+    WebkitBoxOrient: "vertical" as const,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  } as const,
   tlDuracion: {
     fontSize: 12,
     opacity: 0.9,
@@ -358,6 +381,15 @@ const styles = {
     color: COLOR.TEXT.SECONDARY,
     fontSize: 13,
     whiteSpace: "nowrap" as const,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  } as const,
+  dayListDesc: {
+    color: COLOR.TEXT.TERTIARY,
+    fontSize: 12,
+    display: "-webkit-box",
+    WebkitLineClamp: 1,
+    WebkitBoxOrient: "vertical" as const,
     overflow: "hidden",
     textOverflow: "ellipsis",
   } as const,

@@ -11,6 +11,14 @@ vi.mock("@/app/providers/TurnosProvider", () => ({
   }),
 }));
 
+vi.mock("@/app/providers/TenantProvider", () => ({
+  useTenant: () => ({
+    talleres: [{ id: "t1", nombre: "Taller Central", ubicacion: "Calle 123" }],
+    tallerSeleccionadoId: "t1",
+    setTallerSeleccionadoId: vi.fn(),
+  }),
+}));
+
 vi.mock("@/app/providers/ModalMessageProvider", () => ({
   useModalMessage: () => ({
     alert: vi.fn(),

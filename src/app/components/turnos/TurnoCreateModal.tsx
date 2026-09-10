@@ -6,6 +6,7 @@ import { useClientes } from "@/app/providers/ClientesProvider";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useTurnos } from "@/app/providers/TurnosProvider";
+import { useTenant } from "@/app/providers/TenantProvider";
 import { CreateTurnoInput } from "@/app/api/turnos/turnosService";
 import { Cliente, TipoCliente, Turno, Vehiculo } from "@/model/types";
 import { createEmptyClienteFormFieldsValue } from "@/app/components/clientes/ClienteFormFields";
@@ -24,11 +25,12 @@ import TurnoFormFields, {
 
 export type CreatedTurno = {
 	id: number;
+	titulo: string;
 	fecha: string;
 	hora: string;
 	duracion: number | null;
-	cliente_id: string;
-	vehiculo_id: string;
+	cliente_id: string | null;
+	vehiculo_id: string | null;
 	tipo: string | null;
 };
 
@@ -61,8 +63,9 @@ export default function TurnoCreateModal({
 	defaultClienteId,
 	turnoToEdit,
 }: Props) {
-	const { clientes, createParticular, createEmpresa, getClienteById} = useClientes();
+	const { clientes, createParticular, createEmpresa, getClienteById } = useClientes();
 	const { vehiculos, create: createVehiculo } = useVehiculos();
+	const { tallerSeleccionadoId } = useTenant();
 	const toast = useToast();
 	const { confirm } = useModalMessage();
 	const { share } = useWhatsAppMessage();
@@ -73,11 +76,12 @@ export default function TurnoCreateModal({
 	const isEditing = Boolean(turnoToEdit);
 
 	const [form, setForm] = useState<TurnoFormFieldsState>(() => ({
-		clienteId: defaultClienteId ?? "",
-		vehiculoId: "",
+		titulo: turnoToEdit?.titulo ?? "",
+		clienteId: defaultClienteId ?? (turnoToEdit?.cliente?.id ? String(turnoToEdit.cliente.id) : ""),
+		vehiculoId: turnoToEdit?.vehiculo?.id ? String(turnoToEdit.vehiculo.id) : "",
 		fecha: toISODateLocal(defaultFecha ?? new Date()),
 		hora: defaultHora ?? "09:00",
-		duracion: null,
+		duracion: turnoToEdit?.duracion ?? 60,
 		tipo: "Mecánica",
 		descripcion: "",
 		observaciones: "",
@@ -95,15 +99,16 @@ export default function TurnoCreateModal({
 		if (turnoToEdit) {
 			setForm((prev) => ({
 				...prev,
-				clienteId: String(turnoToEdit.cliente.id),
-				vehiculoId: String(turnoToEdit.vehiculo.id),
+				titulo: turnoToEdit.titulo ?? "",
+				clienteId: turnoToEdit.cliente ? String(turnoToEdit.cliente.id) : "",
+				vehiculoId: turnoToEdit.vehiculo ? String(turnoToEdit.vehiculo.id) : "",
 				fecha: turnoToEdit.fecha,
 				hora: turnoToEdit.hora,
-				duracion: turnoToEdit.duracion ?? null,
+				duracion: turnoToEdit.duracion ?? 60,
 				tipo: turnoToEdit.tipo ?? "Mecánica",
 				descripcion: turnoToEdit.descripcion ?? "",
 				observaciones: turnoToEdit.observaciones ?? "",
-				clienteDraft: createEmptyClienteFormFieldsValue(turnoToEdit.cliente.tipo_cliente ?? TipoCliente.PARTICULAR),
+				clienteDraft: createEmptyClienteFormFieldsValue(turnoToEdit.cliente?.tipo_cliente ?? TipoCliente.PARTICULAR),
 				clienteInlineIsValid: false,
 				vehiculoDraft: createEmptyVehiculoDraft(),
 				vehiculoInlineIsValid: false,
@@ -112,11 +117,12 @@ export default function TurnoCreateModal({
 		} else {
 			setForm((prev) => ({
 				...prev,
+				titulo: "",
 				clienteId: defaultClienteId ?? "",
 				vehiculoId: "",
 				fecha: toISODateLocal(defaultFecha ?? new Date()),
 				hora: defaultHora ?? "09:00",
-				duracion: null,
+				duracion: 60,
 				tipo: "Mecánica",
 				descripcion: "",
 				observaciones: "",
@@ -140,10 +146,12 @@ export default function TurnoCreateModal({
 
 	const handleShareTurno = async (turno: TurnoDto) => {
 		const tenantName = localStorage.getItem("tenant_name") || undefined;
-		const cliente = await getClienteById(String(turno.cliente_id));
-		const vehiculo = vehiculos.find(v => String(v.id) === String(turno.vehiculo_id));
+		const cliente = turno.cliente_id ? await getClienteById(String(turno.cliente_id)) : null;
+		const vehiculo = turno.vehiculo_id ? vehiculos.find(v => String(v.id) === String(turno.vehiculo_id)) ?? null : null;
 		const turnoParaMensaje: Turno = {
 			id: turno.id,
+			titulo: turno.titulo,
+			taller_id: turno.taller_id,
 			fecha: turno.fecha,
 			hora: turno.hora,
 			duracion: turno.duracion,
@@ -151,13 +159,14 @@ export default function TurnoCreateModal({
 			estado: turno.estado,
 			descripcion: turno.descripcion ?? undefined,
 			observaciones: turno.observaciones ?? undefined,
-			cliente: cliente as Cliente,
-			vehiculo: vehiculo as Vehiculo,
+			cliente: cliente as Cliente | null,
+			vehiculo: vehiculo as Vehiculo | null,
 		};
 		const mensaje = buildTurnoWhatsappMessage(turnoParaMensaje, tenantName);
-		await share(mensaje, cliente?.telefono);
-	}
-
+		if (cliente?.telefono) {
+			await share(mensaje, cliente.telefono);
+		}
+	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -196,7 +205,7 @@ export default function TurnoCreateModal({
 			if (isCreatingVehiculo) {
 				if (!form.vehiculoInlineIsValid) throw new Error("Completá los datos obligatorios del vehículo");
 				const clienteIdToUse = isCreatingCliente ? resolvedClienteId : clienteIdForVehiculo;
-				if (!clienteIdToUse) throw new Error("Seleccioná o creá un cliente antes del vehículo");
+				if (!clienteIdToUse) throw new Error("Seleccioná o creá un cliente antes de crear un vehículo nuevo");
 				const createdVehiculoId = await createVehiculo({
 					cliente_id: clienteIdToUse,
 					patente: form.vehiculoDraft.patente.trim().replace(/\s/g, "").toUpperCase(),
@@ -213,11 +222,13 @@ export default function TurnoCreateModal({
 			}
 
 			const payload: CreateTurnoInput = {
+				titulo: form.titulo.trim(),
+				taller_id: turnoToEdit?.taller_id || tallerSeleccionadoId,
 				fecha: form.fecha,
 				hora: form.hora,
 				duracion: form.duracion,
-				cliente_id: resolvedClienteId,
-				vehiculo_id: resolvedVehiculoId,
+				cliente_id: resolvedClienteId || null,
+				vehiculo_id: resolvedVehiculoId || null,
 				tipo: form.tipo,
 				estado: turnoToEdit?.estado ?? "confirmado",
 				descripcion: form.descripcion,
@@ -237,10 +248,10 @@ export default function TurnoCreateModal({
 					: `Turno agendado para ${form.fecha} a las ${form.hora}.`
 			);
 			onClose();
-			if (!isEditing && response) {
+			if (!isEditing && response && resolvedClienteId) {
 				const confirmed = await confirm({
 					title: "Compartir turno",
-					message: `¿Querés compartir la informacion del turno recién creado?`,
+					message: `¿Querés compartir la información del turno recién creado por WhatsApp?`,
 					acceptLabel: "Compartir",
 					cancelLabel: "Ahora no",
 				});
@@ -254,7 +265,6 @@ export default function TurnoCreateModal({
 		} finally {
 			setSubmitting(false);
 		}
-
 	};
 
 	const handleFormChange = (patch: TurnoFormFieldsPatch) => {

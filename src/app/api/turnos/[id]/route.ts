@@ -40,6 +40,8 @@ export async function PUT(
 
 	const input: UpdateTurnoInput = {
 		id,
+		titulo: body.titulo,
+		taller_id: body.taller_id,
 		fecha: body.fecha,
 		hora: body.hora,
 		duracion: body.duracion,
@@ -55,10 +57,20 @@ export async function PUT(
 
 	if (updateError) {
 		const code = updateError.code || "";
-		const status = code === "23505" ? 409 : 500;
-		const message = status === 409 ? "Ya existe un turno para ese horario" : "Error al actualizar turno";
+		let status = 500;
+		let message = updateError.message ? `Error al actualizar turno: ${updateError.message}` : "Error al actualizar turno";
+		if (code === "23505") {
+			status = 409;
+			message = "Ya existe un turno para ese horario";
+		} else if (code === "23502") {
+			status = 400;
+			message = `Falta un campo obligatorio`;
+		} else if (code === "23503") {
+			status = 400;
+			message = `El cliente, vehículo o taller especificado no existe o no es válido (${updateError.message})`;
+		}
 		logger.error("PUT /api/turnos - error:", updateError);
-		return Response.json({ data: null, error: { message, code: updateError.code } }, { status });
+		return Response.json({ data: null, error: { message, code: updateError.code, details: updateError.message } }, { status });
 	}
 
 	await statsService.onDataChanged(supabase);

@@ -83,7 +83,7 @@ export default function TurnosMonthlyCell({
               styles.monthTurnoItem,
               hoveredTurnoId === t.id && styles.monthTurnoItemHover,
             ]}
-            title={`${t.hora} - ${t.vehiculo.modelo}`}
+            title={`${t.hora} - ${t.titulo || t.vehiculo?.modelo || "Turno"}`}
             onMouseEnter={() => {
               setHoveredTurnoId(t.id);
             }}
@@ -93,7 +93,7 @@ export default function TurnosMonthlyCell({
           >
             <span css={styles.monthTurnoHour}>{t.hora}</span>{" "}
             <span css={styles.monthTurnoVehicle}>
-              {t.vehiculo.patente} - {t.vehiculo.marca}
+              {t.titulo || (t.vehiculo ? `${t.vehiculo.patente} - ${t.vehiculo.marca}` : "Turno")}
             </span>
           </button>
         ))}

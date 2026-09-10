@@ -233,6 +233,9 @@ export function buildTurnoWhatsappMessage(turno: Turno, tenantName?: string): st
 	const normalizedTenant = (tenantName ?? "").trim();
 
 	lines.push(`*Detalle del turno${normalizedTenant ? ` - ${normalizedTenant}` : ""}*`);
+	if (turno.taller?.nombre) {
+		lines.push(`📍 Sucursal: ${turno.taller.nombre}${turno.taller.ubicacion ? ` (${turno.taller.ubicacion})` : ""}`);
+	}
 	if (turno.cliente?.nombre) {
 		lines.push(`👤 ${turno.cliente.nombre}`);
 	}

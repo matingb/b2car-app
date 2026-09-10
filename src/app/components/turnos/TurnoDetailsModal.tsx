@@ -8,7 +8,7 @@ import Pill from "@/app/components/turnos/Pill";
 import { APP_LOCALE } from "@/lib/format";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
-import { CalendarDays, Car, Clock, User, X } from "lucide-react";
+import { CalendarDays, Car, Clock, MapPin, User, X } from "lucide-react";
 import { Turno } from "@/model/types";
 import { horaAMinutos } from "@/lib/fechas";
 import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
@@ -44,13 +44,14 @@ export default function TurnoDetailsModal({
   const finHora = String(Math.floor(finMin / 60)).padStart(2, "0");
   const finMinStr = String(finMin % 60).padStart(2, "0");
 
+
   return (
     <div style={styles.overlay} role="dialog" aria-modal="true">
       <div style={styles.modal}>
         <Card>
           <div style={styles.header}>
             <div>
-              <h2 style={{ margin: 0, fontSize: 20 }}>Detalle del turno</h2>
+              <h2 style={{ margin: 0, fontSize: 20 }}>{turno.titulo || "Detalle del turno"}</h2>
               <div style={{ color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
                 Información completa del turno
               </div>
@@ -63,8 +64,11 @@ export default function TurnoDetailsModal({
             />
           </div>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
             <Pill text={turno.tipo || "Sin tipo"} />
+            {turno.taller?.nombre ? (
+              <Pill text={`📍 ${turno.taller.nombre}`} />
+            ) : null}
           </div>
 
           <div css={styles.grid}>
@@ -80,62 +84,87 @@ export default function TurnoDetailsModal({
                     <div style={styles.infoSubValue}>{turno.hora} hs</div>
                   </div>
                 </div>
-                {(
-                  <div style={styles.infoRow}>
-                    <div style={styles.iconWrap}>
-                      <Clock size={18} color={COLOR.ACCENT.PRIMARY} />
-                    </div>
-                    <div>
-                      <div style={styles.infoLabel}>Duración</div>
-                      {(turno.duracion !== null && turno.duracion > 0) && (<>
+
+                <div style={styles.infoRow}>
+                  <div style={styles.iconWrap}>
+                    <Clock size={18} color={COLOR.ACCENT.PRIMARY} />
+                  </div>
+                  <div>
+                    <div style={styles.infoLabel}>Duración</div>
+                    {turno.duracion !== null && turno.duracion > 0 ? (
+                      <>
                         <div style={styles.infoValue}>{turno.duracion} minutos</div>
                         <div style={styles.infoSubValue}>
                           Fin estimado: {finHora}:{finMinStr}
                         </div>
-                        </>)
-                      }
-                      {(turno.duracion == null) && (
-                        <div style={styles.infoValue}>Sin definir</div>
-                      )}
+                      </>
+                    ) : (
+                      <div style={styles.infoValue}>Sin definir</div>
+                    )}
+                  </div>
+                </div>
+
+                {turno.taller ? (
+                  <div style={styles.infoRow}>
+                    <div style={styles.iconWrap}>
+                      <MapPin size={18} color={COLOR.ACCENT.PRIMARY} />
+                    </div>
+                    <div>
+                      <div style={styles.infoLabel}>Sucursal</div>
+                      <div style={styles.infoValue}>{turno.taller.nombre}</div>
+                      {turno.taller.ubicacion ? (
+                        <div style={styles.infoSubValue}>{turno.taller.ubicacion}</div>
+                      ) : null}
                     </div>
                   </div>
-                )}
-
+                ) : null}
               </div>
             </Card>
 
             <Card>
               <div style={{ display: "grid", gap: 10 }}>
-                <div style={styles.infoRow}>
-                  <div style={styles.iconWrap}>
-                    <User size={18} color={COLOR.ACCENT.PRIMARY} />
+                {turno.cliente ? (
+                  <div style={styles.infoRow}>
+                    <div style={styles.iconWrap}>
+                      <User size={18} color={COLOR.ACCENT.PRIMARY} />
+                    </div>
+                    <div>
+                      <div style={styles.infoLabel}>Titular</div>
+                      <div style={styles.infoValue}>{turno.cliente.nombre}</div>
+                      {turno.cliente.telefono ? (
+                        <div style={styles.infoSubValue}>
+                          {formatTelephoneNumber(turno.cliente.codigo_pais, turno.cliente.telefono)}
+                        </div>
+                      ) : null}
+                      {turno.cliente.email ? (
+                        <div style={styles.infoSubValue}>{turno.cliente.email}</div>
+                      ) : null}
+                    </div>
                   </div>
-                  <div>
-                    <div style={styles.infoLabel}>Titular</div>
-                    <div style={styles.infoValue}>{turno.cliente.nombre}</div>
-                    {turno.cliente.telefono ? (
-                      <div style={styles.infoSubValue}>{formatTelephoneNumber(turno.cliente.codigo_pais, turno.cliente.telefono)}</div>
-                    ) : null}
-                    {turno.cliente.email ? (
-                      <div style={styles.infoSubValue}>{turno.cliente.email}</div>
-                    ) : null}
+                ) : null}
+
+                {turno.vehiculo ? (
+                  <div style={styles.infoRow}>
+                    <div style={styles.iconWrap}>
+                      <Car size={18} color={COLOR.ACCENT.PRIMARY} />
+                    </div>
+                    <div>
+                      <div style={styles.infoLabel}>Vehículo</div>
+                      <div style={styles.infoValue}>{formatPatenteConMarcaYModelo(turno.vehiculo)}</div>
+                    </div>
                   </div>
-                </div>
-                <div style={styles.infoRow}>
-                  <div style={styles.iconWrap}>
-                    <Car size={18} color={COLOR.ACCENT.PRIMARY} />
+                ) : null}
+
+                {!turno.cliente && !turno.vehiculo ? (
+                  <div style={{ padding: "8px 0", color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
+                    Turno sin cliente ni vehículo registrado.
                   </div>
-                  <div>
-                    <div style={styles.infoLabel}>Vehiculo</div>
-                    <div style={styles.infoValue}>{formatPatenteConMarcaYModelo(turno.vehiculo)}</div>
-                  </div>
-                </div>
+                ) : null}
               </div>
             </Card>
           </div>
 
           <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-
             {turno.descripcion ? (
               <Card>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>
@@ -164,8 +193,10 @@ export default function TurnoDetailsModal({
               text="Compartir"
               outline
               hideTextOnMobile={false}
-              icon={<WhatsAppIcon size={16} color="#25D366" />}
+              icon={<WhatsAppIcon size={16} color={turno.cliente?.telefono ? "#25D366" : COLOR.TEXT.TERTIARY} />}
               onClick={() => onShare?.(turno)}
+              disabled={!turno.cliente?.telefono}
+              title={turno.cliente?.telefono ? "Compartir por WhatsApp" : "El cliente no tiene teléfono registrado"}
               style={{ minWidth: 0 }}
             />
             <Button
@@ -179,7 +210,7 @@ export default function TurnoDetailsModal({
               text="Eliminar"
               hideTextOnMobile={false}
               onClick={() => onCancel?.(turno)}
-              style={{ minWidth: 0, background: COLOR.ICON.DANGER }}
+              style={{ minWidth: 0, background: COLOR.ICON.DANGER, borderColor: COLOR.ICON.DANGER }}
             />
           </div>
         </Card>
@@ -192,40 +223,32 @@ const styles = {
   overlay: {
     position: "fixed" as const,
     inset: 0,
-    background: "rgba(0,0,0,0.3)",
+    background: "rgba(0,0,0,0.5)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 50,
-    overflowY: "auto" as const,
-    overscrollBehavior: "contain" as const,
+    zIndex: 60,
+    padding: 16,
   },
   modal: {
-    width: "min(860px, 92vw)",
-    maxHeight: "calc(100dvh - 24px)",
-    WebkitOverflowScrolling: "touch" as const,
+    width: "100%",
+    maxWidth: 620,
+    maxHeight: "90vh",
+    overflowY: "auto" as const,
   },
   header: {
     display: "flex",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: 8,
-    marginBottom: 10,
-  },
-  footer: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: 8,
-    marginTop: 14,
-    flexWrap: "wrap" as const,
+    marginBottom: 12,
   },
   grid: css({
-    display: "grid",
-    gap: 10,
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     marginTop: 12,
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      gridTemplateColumns: "repeat(1, minmax(0, 1fr))",
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 12,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      gridTemplateColumns: "1fr",
     },
   }),
   infoRow: {
@@ -234,29 +257,30 @@ const styles = {
     alignItems: "flex-start",
   },
   iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    padding: 6,
+    borderRadius: 8,
     background: COLOR.BACKGROUND.PRIMARY,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
   },
   infoLabel: {
-    fontSize: 12,
-    fontWeight: 700,
+    fontSize: 11,
     color: COLOR.TEXT.SECONDARY,
+    fontWeight: 600,
   },
   infoValue: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 700,
-    marginTop: 2,
   },
   infoSubValue: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLOR.TEXT.SECONDARY,
-    marginTop: 2,
+  },
+  footer: {
+    marginTop: 16,
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 8,
   },
 } as const;
-
