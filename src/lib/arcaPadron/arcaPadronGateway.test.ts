@@ -103,6 +103,49 @@ describe("adapter institucional de padrón ARCA", () => {
     expect(arcaState.getTaxpayerDetails).not.toHaveBeenCalled();
   });
 
+  it("resuelve un DNI con una unica clave fiscal antes de consultar la persona", async () => {
+    configureB2carCredentials();
+    arcaState.getTaxIDByDocument.mockResolvedValue({ idPersona: [20123456786] });
+    arcaState.getTaxpayerDetails.mockResolvedValue({
+      idPersona: 20123456786,
+      tipoPersona: "FISICA",
+      estadoClave: "ACTIVO",
+      datosGenerales: {
+        nombre: "Ana",
+        apellido: "Perez",
+      },
+    });
+
+    await expect(lookupArcaPadronPerson(96, "12345678")).resolves.toMatchObject({
+      status: "FOUND",
+      person: {
+        cuit: "20123456786",
+        nombre: "Ana",
+        apellido: "Perez",
+      },
+    });
+    expect(arcaState.getTaxIDByDocument).toHaveBeenCalledWith("12345678");
+    expect(arcaState.getTaxpayerDetails).toHaveBeenCalledWith(20123456786);
+  });
+
+  it("informa que no existe la persona cuando A13 no devuelve datos", async () => {
+    configureB2carCredentials();
+    arcaState.getTaxpayerDetails.mockResolvedValue(null);
+
+    await expect(lookupArcaPadronPerson(80, "20-12345678-6")).rejects.toMatchObject({
+      code: "ARCA_PADRON_NOT_FOUND",
+    } satisfies Partial<ArcaPadronLookupError>);
+  });
+
+  it("encapsula una falla del WS de A13 sin exponer el error del proveedor", async () => {
+    configureB2carCredentials();
+    arcaState.getTaxpayerDetails.mockRejectedValue(new Error("SOAP unavailable"));
+
+    await expect(lookupArcaPadronPerson(80, "20-12345678-6")).rejects.toMatchObject({
+      code: "ARCA_PADRON_UNAVAILABLE",
+    } satisfies Partial<ArcaPadronLookupError>);
+  });
+
   it("requiere un identificador completo y las credenciales institucionales", async () => {
     await expect(lookupArcaPadronPerson(96, "1234567")).rejects.toMatchObject({
       code: "ARCA_PADRON_INVALID_DOCUMENT",

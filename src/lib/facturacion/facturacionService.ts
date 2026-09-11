@@ -19,7 +19,7 @@ import {
   validateLineasYTotal,
   validateReceiverIdentification,
 } from "./arcaPayload";
-import { createArcaGateway, sanitizeFiscalPayload } from "./afipGateway";
+import { createArcaGateway, sanitizeFiscalPayload, type ArcaGateway } from "./afipGateway";
 import { deleteCredentialPair, downloadCredentialPair, uploadCredentialPair } from "./credentialStorage";
 import { getFacturacionAmbiente } from "./environment";
 import { assertFceMipymeAllowed } from "./fceMipyme";
@@ -339,6 +339,46 @@ async function createGateway(config: StoredConfig) {
   });
 }
 
+function asResponseList(value: unknown): DbRecord[] {
+  if (Array.isArray(value)) return value.map(record);
+  return value && typeof value === "object" ? [record(value)] : [];
+}
+
+export function isConfiguredSalesPoint(salesPoints: unknown, puntoVenta: number): boolean {
+  return asResponseList(salesPoints).some((salesPoint) => (
+    number(
+      salesPoint.Nro
+      ?? salesPoint.nro
+      ?? salesPoint.PtoVta
+      ?? salesPoint.puntoVenta,
+      Number.NaN,
+    ) === puntoVenta
+  ));
+}
+
+function isNoSalesPointsResponse(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /\b602\b/.test(message) && /FEParamGetPtosVenta/i.test(message);
+}
+
+export async function checkArcaBillingConnection(
+  gateway: Pick<ArcaGateway, "getVoucherTypes" | "getSalesPoints">,
+  puntoVenta: number,
+): Promise<{ puntoVentaConfigurado: boolean }> {
+  const voucherTypes = asResponseList(await gateway.getVoucherTypes());
+  if (!voucherTypes.length) {
+    throw new FacturacionValidationError("ARCA no devolvió tipos de comprobante para validar la conexión");
+  }
+  let salesPoints: unknown;
+  try {
+    salesPoints = await gateway.getSalesPoints();
+  } catch (error) {
+    if (isNoSalesPointsResponse(error)) return { puntoVentaConfigurado: false };
+    throw error;
+  }
+  return { puntoVentaConfigurado: isConfiguredSalesPoint(salesPoints, puntoVenta) };
+}
+
 export async function testFacturacionConnection(
   tenantId: string,
   ambiente: FacturacionAmbiente = getFacturacionAmbiente(),
@@ -346,11 +386,10 @@ export async function testFacturacionConnection(
   const config = await getStoredConfig(tenantId, ambiente);
   if (!config) throw new FacturacionValidationError("La configuración fiscal está incompleta");
   const gateway = await createGateway(config);
-  const tipo = determineVoucher(config.condicionIvaEmisor, 5).tipo;
-  const [status, lastVoucher] = await Promise.all([
-    gateway.getServerStatus(), gateway.getLastVoucher(config.puntoVenta, tipo),
-  ]);
-  return { status: sanitizeFiscalPayload(status), ultimoComprobante: lastVoucher, ambiente };
+  return {
+    ambiente,
+    ...await checkArcaBillingConnection(gateway, config.puntoVenta),
+  };
 }
 
 async function getClientProfile(tenantId: string, clienteId: string | null): Promise<PerfilFiscalCliente> {

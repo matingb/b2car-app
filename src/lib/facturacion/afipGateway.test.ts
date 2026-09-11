@@ -6,12 +6,16 @@ vi.mock("server-only", () => ({}));
 
 const afipState = vi.hoisted(() => ({
   configs: [] as Record<string, unknown>[],
+  getVoucherTypes: vi.fn(),
+  getSalesPoints: vi.fn(),
 }));
 
 vi.mock("@afipsdk/afip.js", () => ({
   default: class {
     ElectronicBilling = {
       getLastVoucher: vi.fn(),
+      getVoucherTypes: afipState.getVoucherTypes,
+      getSalesPoints: afipState.getSalesPoints,
       getVoucherInfo: vi.fn(),
       createVoucher: vi.fn(),
       getServerStatus: vi.fn(),
@@ -34,6 +38,7 @@ vi.mock("@afipsdk/afip.js", () => ({
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.clearAllMocks();
   afipState.configs.length = 0;
 });
 
@@ -84,5 +89,23 @@ describe("credenciales institucionales para WSFECRED", () => {
         key: "CLAVE B2CAR",
       }),
     ]);
+  });
+
+  it("usa los metodos de parametros WSFE para tipos de comprobante y puntos de venta", async () => {
+    vi.stubEnv("AFIPSDK_ACCESS_TOKEN", "token-afip-sdk");
+    afipState.getVoucherTypes.mockResolvedValue([{ Id: 11, Desc: "Factura C" }]);
+    afipState.getSalesPoints.mockResolvedValue([{ Nro: 3 }]);
+
+    const gateway = await createArcaGateway({
+      cuit: "20111222333",
+      cert: "CERTIFICADO TENANT",
+      key: "CLAVE TENANT",
+      production: false,
+    });
+
+    await expect(gateway.getVoucherTypes()).resolves.toEqual([{ Id: 11, Desc: "Factura C" }]);
+    await expect(gateway.getSalesPoints()).resolves.toEqual([{ Nro: 3 }]);
+    expect(afipState.getVoucherTypes).toHaveBeenCalledOnce();
+    expect(afipState.getSalesPoints).toHaveBeenCalledOnce();
   });
 });

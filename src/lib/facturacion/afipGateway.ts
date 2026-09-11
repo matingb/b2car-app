@@ -41,6 +41,8 @@ export function getWsfecredB2carConfig(): WsfecredB2carConfig {
 
 export type ArcaGateway = {
   getLastVoucher: (puntoVenta: number, tipoComprobante: number) => Promise<number>;
+  getVoucherTypes: () => Promise<unknown>;
+  getSalesPoints: () => Promise<unknown>;
   getVoucherInfo: (
     numero: number,
     puntoVenta: number,
@@ -94,6 +96,18 @@ export async function createArcaGateway(config: ArcaGatewayConfig): Promise<Arca
         client.ElectronicBilling.getLastVoucher(puntoVenta, tipoComprobante),
         "Consulta de último comprobante",
       ));
+    },
+    async getVoucherTypes() {
+      return withTimeout(
+        client.ElectronicBilling.getVoucherTypes(),
+        "Consulta de tipos de comprobante",
+      );
+    },
+    async getSalesPoints() {
+      return withTimeout(
+        client.ElectronicBilling.getSalesPoints(),
+        "Consulta de puntos de venta",
+      );
     },
     async getVoucherInfo(numero, puntoVenta, tipoComprobante) {
       return (await withTimeout(

@@ -132,6 +132,7 @@ export default function ClienteFormModal({
       <ClienteFormFields
         value={cliente}
         onChange={(patch) => setCliente((prev) => ({ ...prev, ...patch }))}
+        enableArcaPadronLookup={mode === "create"}
         disableTipo={mode === "edit"}
         onValidityChange={({ isValid }) => setIsValid(isValid)}
       />

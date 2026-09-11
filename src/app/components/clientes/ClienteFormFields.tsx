@@ -4,9 +4,12 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { TipoCliente } from "@/model/types";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import {
+  getArcaPadronLookupQueryKey,
+  isArcaPadronLookupReady,
   useArcaPadronLookup,
   type ArcaPadronLookupState,
 } from "@/app/hooks/useArcaPadronLookup";
+import type { ArcaPadronPerson } from "@/lib/arcaPadron/types";
 import Autocomplete from "../ui/Autocomplete";
 import { AutocompleteOption } from "../ui/Autocomplete";
 import PhoneInput from "../ui/PhoneInput";
@@ -69,11 +72,71 @@ type Props = {
   value: ClienteFormFieldsValue;
   onChange: (patch: Partial<ClienteFormFieldsValue>) => void;
   disableTipo?: boolean;
+  enableArcaPadronLookup?: boolean;
   onValidityChange?: (result: {
     isValid: boolean;
     errors: ClienteFormErrors;
   }) => void;
 };
+
+const AUTO_FILLED_FIELDS = [
+  "nombre",
+  "apellido",
+  "cuit",
+  "numeroDocumentoFiscal",
+  "direccion",
+] as const;
+
+type AutoFilledField = typeof AUTO_FILLED_FIELDS[number];
+type AppliedArcaAutofill = {
+  documentKey: string;
+  values: Partial<Pick<ClienteFormFieldsValue, AutoFilledField>>;
+};
+
+export function getArcaPadronDocumentKey(value: ClienteFormFieldsValue): string {
+  const documentType = value.tipo_cliente === TipoCliente.EMPRESA
+    ? "80"
+    : value.tipoDocumentoFiscal;
+  const documentNumber = value.tipo_cliente === TipoCliente.EMPRESA
+    ? value.cuit
+    : value.numeroDocumentoFiscal;
+  return `${value.tipo_cliente}:${documentType}:${documentNumber.replace(/\D/g, "")}`;
+}
+
+export function mapArcaPadronPersonToClienteFields(
+  value: ClienteFormFieldsValue,
+  person: ArcaPadronPerson,
+): Partial<ClienteFormFieldsValue> {
+  if (value.tipo_cliente === TipoCliente.EMPRESA) {
+    return {
+      nombre: person.razonSocial ?? person.nombreCompleto,
+      cuit: person.cuit,
+      ...(person.direccion ? { direccion: person.direccion } : {}),
+    };
+  }
+
+  return {
+    nombre: person.nombre,
+    ...(person.apellido ? { apellido: person.apellido } : {}),
+    tipoDocumentoFiscal: value.tipoDocumentoFiscal === "96" ? "86" : value.tipoDocumentoFiscal,
+    numeroDocumentoFiscal: person.cuit,
+    ...(person.direccion ? { direccion: person.direccion } : {}),
+  };
+}
+
+export function clearArcaPadronAutofill(
+  value: ClienteFormFieldsValue,
+  applied: AppliedArcaAutofill,
+): Partial<ClienteFormFieldsValue> {
+  const patch: Partial<ClienteFormFieldsValue> = {};
+  for (const field of AUTO_FILLED_FIELDS) {
+    const automaticValue = applied.values[field];
+    if (automaticValue !== undefined && value[field] === automaticValue) {
+      patch[field] = "";
+    }
+  }
+  return patch;
+}
 
 const tipoClienteOptions = [
   { value: TipoCliente.PARTICULAR, label: "Particular" },
@@ -132,6 +195,7 @@ export default function ClienteFormFields({
   value,
   onChange,
   disableTipo,
+  enableArcaPadronLookup = false,
   onValidityChange,
 }: Props) {
   const validation = useMemo(
@@ -150,33 +214,63 @@ export default function ClienteFormFields({
   const lookupDocumentNumber = value.tipo_cliente === TipoCliente.EMPRESA
     ? value.cuit
     : value.numeroDocumentoFiscal;
+  const documentKey = getArcaPadronDocumentKey(value);
+  const appliedLookup = useRef<string | null>(null);
+  const appliedAutofill = useRef<AppliedArcaAutofill | null>(null);
+  const previousDocumentKey = useRef(documentKey);
+  const manuallyEditedFields = useRef(new Set<string>());
+  const lookupReady = isArcaPadronLookupReady(lookupDocumentType, lookupDocumentNumber);
+  const lookupQueryKey = getArcaPadronLookupQueryKey(lookupDocumentType, lookupDocumentNumber);
+  const lookupEnabled = enableArcaPadronLookup
+    && appliedAutofill.current?.documentKey !== documentKey;
   const lookup = useArcaPadronLookup({
+    enabled: lookupEnabled,
     documentType: lookupDocumentType,
     documentNumber: lookupDocumentNumber,
   });
-  const appliedLookup = useRef<string | null>(null);
 
   useEffect(() => {
-    if (lookup.status !== "FOUND") return;
-    const lookupKey = `${value.tipo_cliente}:${lookup.person.cuit}`;
+    if (previousDocumentKey.current === documentKey) return;
+    previousDocumentKey.current = documentKey;
+    appliedLookup.current = null;
+    manuallyEditedFields.current.clear();
+
+    const previousAutofill = appliedAutofill.current;
+    if (!previousAutofill || previousAutofill.documentKey === documentKey) return;
+    appliedAutofill.current = null;
+    const patch = clearArcaPadronAutofill(value, previousAutofill);
+    if (Object.keys(patch).length > 0) onChange(patch);
+  }, [documentKey, onChange, value]);
+
+  useEffect(() => {
+    if (!lookupEnabled || lookup.status !== "FOUND" || lookup.queryKey !== lookupQueryKey) return;
+    const fields = mapArcaPadronPersonToClienteFields(value, lookup.person);
+    const autofillKey = getArcaPadronDocumentKey({ ...value, ...fields });
+    const lookupKey = `${value.tipo_cliente}:${autofillKey}`;
     if (appliedLookup.current === lookupKey) return;
-    appliedLookup.current = lookupKey;
-
-    if (value.tipo_cliente === TipoCliente.EMPRESA) {
-      onChange({
-        nombre: lookup.person.razonSocial ?? lookup.person.nombreCompleto,
-        cuit: lookup.person.cuit,
-        ...(lookup.person.direccion ? { direccion: lookup.person.direccion } : {}),
-      });
-      return;
+    const patch: Partial<ClienteFormFieldsValue> = {};
+    for (const [field, fieldValue] of Object.entries(fields) as Array<[AutoFilledField | "tipoDocumentoFiscal", string]>) {
+      if (!manuallyEditedFields.current.has(`${documentKey}:${field}`)) {
+        Object.assign(patch, { [field]: fieldValue });
+      }
     }
+    appliedLookup.current = lookupKey;
+    appliedAutofill.current = {
+      documentKey: autofillKey,
+      values: Object.fromEntries(
+        AUTO_FILLED_FIELDS
+          .filter((field) => patch[field] !== undefined)
+          .map((field) => [field, patch[field]]),
+      ),
+    };
+    previousDocumentKey.current = autofillKey;
+    manuallyEditedFields.current.clear();
+    if (Object.keys(patch).length > 0) onChange(patch);
+  }, [documentKey, lookup, lookupEnabled, lookupQueryKey, onChange, value]);
 
-    onChange({
-      nombre: lookup.person.nombre,
-      ...(lookup.person.apellido ? { apellido: lookup.person.apellido } : {}),
-      ...(lookup.person.direccion ? { direccion: lookup.person.direccion } : {}),
-    });
-  }, [lookup, onChange, value.tipo_cliente]);
+  const markFieldAsManual = (field: AutoFilledField) => {
+    if (lookupReady) manuallyEditedFields.current.add(`${documentKey}:${field}`);
+  };
 
   useEffect(() => {
     onValidityChange?.(validation);
@@ -201,7 +295,10 @@ export default function ClienteFormFields({
                   : "Nombre del cliente"
               }
               value={value.nombre}
-              onChange={(e) => onChange({ nombre: e.target.value })}
+              onChange={(e) => {
+                markFieldAsManual("nombre");
+                onChange({ nombre: e.target.value });
+              }}
             />
           </div>
 
@@ -217,7 +314,10 @@ export default function ClienteFormFields({
                 style={styles.input}
                 placeholder="Apellido"
                 value={value.apellido}
-                onChange={(e) => onChange({ apellido: e.target.value })}
+                onChange={(e) => {
+                  markFieldAsManual("apellido");
+                  onChange({ apellido: e.target.value });
+                }}
               />
             </div>
           )}
@@ -331,7 +431,10 @@ export default function ClienteFormFields({
               style={styles.input}
               placeholder="Dirección completa"
               value={value.direccion}
-              onChange={(e) => onChange({ direccion: e.target.value })}
+              onChange={(e) => {
+                markFieldAsManual("direccion");
+                onChange({ direccion: e.target.value });
+              }}
             />
           </div>
         </div>

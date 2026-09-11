@@ -1,8 +1,12 @@
 import "server-only";
 
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { Arca } from "@arcasdk/core";
+import {
+  ArcaB2carConfigurationError,
+  createArcaB2carClient,
+  getArcaB2carConfig,
+  type ArcaB2carConfig,
+} from "@/lib/arca/arcaB2car";
 import type {
   ArcaPadronDocumentType,
   ArcaPadronLookupResult,
@@ -22,13 +26,7 @@ export class ArcaPadronLookupError extends Error {
   }
 }
 
-export type ArcaPadronB2carConfig = {
-  cuit: number;
-  cert: string;
-  key: string;
-  production: boolean;
-  ticketPath: string;
-};
+export type ArcaPadronB2carConfig = ArcaB2carConfig;
 
 function record(value: unknown): UnknownRecord {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -48,10 +46,6 @@ function normalizeDocument(value: string): string {
   return value.replace(/\D/g, "");
 }
 
-function normalizePem(value: string | undefined): string {
-  return (value ?? "").trim().replace(/\\n/g, "\n");
-}
-
 function expectedLength(documentType: ArcaPadronDocumentType): number {
   return documentType === 96 ? 8 : 11;
 }
@@ -66,29 +60,18 @@ function ensureDocument(documentType: ArcaPadronDocumentType, documentNumber: st
 }
 
 /**
- * Credenciales institucionales de B2Car, aisladas de las credenciales del tenant.
- * El ticket se conserva temporalmente fuera del árbol del proyecto para no exponerlo
- * ni dejarlo como archivo sin seguimiento durante el desarrollo.
+ * Compatibilidad del adapter A13 con la configuración institucional compartida.
  */
 export function getArcaPadronB2carConfig(): ArcaPadronB2carConfig {
-  const normalizedCuit = normalizeDocument(process.env.B2CAR_ARCA_CUIT ?? "");
-  const cert = normalizePem(process.env.B2CAR_ARCA_CERT);
-  const key = normalizePem(process.env.B2CAR_ARCA_KEY);
-
-  if (normalizedCuit.length !== 11 || !cert || !key) {
+  try {
+    return getArcaB2carConfig("b2car-arca-padron-tickets");
+  } catch (error) {
+    if (!(error instanceof ArcaB2carConfigurationError)) throw error;
     throw new ArcaPadronLookupError(
       "La consulta de padrón ARCA no está configurada. Cargá las credenciales institucionales de B2Car.",
       "ARCA_PADRON_NOT_CONFIGURED",
     );
   }
-
-  return {
-    cuit: Number(normalizedCuit),
-    cert,
-    key,
-    production: process.env.ARCA_AMBIENTE === "PRODUCCION",
-    ticketPath: join(tmpdir(), "b2car-arca-padron-tickets"),
-  };
 }
 
 function extractAddress(general: UnknownRecord): string | null {
@@ -121,13 +104,7 @@ function mapPerson(details: unknown, fallbackCuit: string): ArcaPadronPerson {
 }
 
 function createArcaClient(config: ArcaPadronB2carConfig): Arca {
-  return new Arca({
-    cuit: config.cuit,
-    cert: config.cert,
-    key: config.key,
-    production: config.production,
-    ticketPath: config.ticketPath,
-  });
+  return createArcaB2carClient(config);
 }
 
 async function lookupCuitOrCuil(
@@ -177,6 +154,7 @@ export async function lookupArcaPadronPerson(
       ? await lookupDni(arca, document)
       : await lookupCuitOrCuil(arca, document);
   } catch (error) {
+    logger.error("Error al consultar el padrón ARCA", { error });
     if (error instanceof ArcaPadronLookupError) throw error;
     logger.error("Falló la consulta institucional al padrón ARCA");
     throw new ArcaPadronLookupError(

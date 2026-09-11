@@ -8,9 +8,10 @@ import Button from "@/app/components/ui/Button";
 import Dropdown from "@/app/components/ui/Dropdown";
 import IconInput from "@/app/components/ui/IconInput";
 import {
-  useArcaPadronLookup,
-  type ArcaPadronLookupState,
-} from "@/app/hooks/useArcaPadronLookup";
+  normalizeArcaCuit,
+  useArcaInscriptionLookup,
+  type ArcaInscriptionLookupState,
+} from "@/app/hooks/useArcaInscriptionLookup";
 import { COLOR } from "@/theme/theme";
 import {
   CONDICIONES_IVA_RECEPTOR,
@@ -22,9 +23,12 @@ import {
 } from "@/lib/facturacion/types";
 import {
   determineVoucher,
-  receiverDocumentTypesForCondition,
   validateReceiverIdentification,
 } from "@/lib/facturacion/arcaPayload";
+import {
+  documentTypesForInvoiceCondition,
+  responsableInscriptoNeedsCuit,
+} from "./facturaReceptorRules";
 
 type Props = {
   open: boolean;
@@ -61,50 +65,38 @@ const condicionVentaOptions = [
   { value: "OTRA", label: "Otra" },
 ];
 
-function ArcaPadronInvoiceFeedback({
+function ArcaInscriptionInvoiceFeedback({
   lookup,
-  onSelectCandidate,
+  onRetry,
 }: {
-  lookup: ArcaPadronLookupState;
-  onSelectCandidate: (candidate: string) => void;
+  lookup: ArcaInscriptionLookupState;
+  onRetry: () => void;
 }) {
   if (lookup.status === "IDLE") return null;
   if (lookup.status === "LOADING") {
-    return <span style={styles.lookupPending}>Consultando datos del receptor en ARCA...</span>;
+    return <span style={styles.lookupPending}>Verificando la condición IVA del receptor en ARCA...</span>;
   }
   if (lookup.status === "FOUND") {
     return (
       <div style={styles.lookupFound} role="status">
-        <strong>{lookup.person.nombreCompleto}</strong>
-        <span>{lookup.person.cuit}{lookup.person.estadoClave ? ` · ${lookup.person.estadoClave}` : ""}</span>
-        {lookup.person.direccion ? <span>{lookup.person.direccion}</span> : null}
+        <strong>Condición IVA verificada: {lookup.condition.condicionIvaLabel}</strong>
+        <span>CUIT {lookup.condition.cuit} · Constancia de Inscripción ARCA</span>
       </div>
     );
   }
-  if (lookup.status === "MULTIPLE") {
+  if (lookup.status === "UNDETERMINED") {
     return (
-      <div style={styles.lookupFound} role="status">
-        <strong>El DNI tiene más de una clave fiscal asociada</strong>
-        <label style={styles.lookupCandidateLabel}>
-          Elegí el CUIL que corresponde al receptor
-          <select
-            defaultValue=""
-            style={styles.lookupCandidateSelect}
-            onChange={(event) => {
-              if (event.target.value) onSelectCandidate(event.target.value);
-            }}
-          >
-            <option value="" disabled>Seleccionar CUIL</option>
-            {lookup.candidates.map((candidate) => <option value={candidate} key={candidate}>{candidate}</option>)}
-          </select>
-        </label>
+      <div style={styles.lookupError} role="status">
+        <span>{lookup.message}</span>
+        <button type="button" style={styles.lookupRetry} onClick={onRetry}>Reintentar</button>
       </div>
     );
   }
   return (
-    <span style={lookup.status === "NOT_FOUND" ? styles.lookupPending : styles.lookupError}>
-      {lookup.message}
-    </span>
+    <div style={styles.lookupError} role="status">
+      <span>{lookup.message}</span>
+      <button type="button" style={styles.lookupRetry} onClick={onRetry}>Reintentar</button>
+    </div>
   );
 }
 
@@ -115,6 +107,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const [receptor, setReceptor] = useState<FiscalDraft>({ tipoDocumento: "99", numeroDocumento: "", condicionIvaReceptorId: "5" });
   const [condicionVenta, setCondicionVenta] = useState("CONTADO");
   const [fechas, setFechas] = useState<FacturaFechaInput>({ fechaComprobante: "" });
+  const [automaticConditionCuit, setAutomaticConditionCuit] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -138,6 +131,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         setPreflight(data.preflight);
         setFactura(data.factura);
         setReceptor(defaultDraft(data.preflight.receptor));
+        setAutomaticConditionCuit(null);
         setCondicionVenta("CONTADO");
         setFechas(data.preflight.fechasDefault);
       })
@@ -155,32 +149,67 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const canRetry = factura?.estado === "RECHAZADA";
   const needsConfiguration = Boolean(preflight && !preflight.configuracionCompleta);
   const isServiceConcept = preflight?.concepto === 2 || preflight?.concepto === 3;
-  const receptorCondition = Number(receptor.condicionIvaReceptorId) as PerfilFiscalCliente["condicionIvaReceptorId"];
-  const receiverIsConsumerFinal = receptorCondition === 5;
-  const lookupDocumentType = receptor.tipoDocumento === "80" || receptor.tipoDocumento === "86" || receptor.tipoDocumento === "96"
-    ? Number(receptor.tipoDocumento) as 80 | 86 | 96
+  const receptorCondition = receptor.condicionIvaReceptorId
+    ? Number(receptor.condicionIvaReceptorId) as PerfilFiscalCliente["condicionIvaReceptorId"]
     : null;
-  const arcaPadronLookup = useArcaPadronLookup({
-    enabled: open,
-    documentType: lookupDocumentType,
-    documentNumber: receptor.numeroDocumento,
+  const receiverIsConsumerFinal = receptorCondition === 5;
+  const receiverIsResponsibleInscripto = receptorCondition === 1;
+  const responsibleInscriptoDocumentInvalid = responsableInscriptoNeedsCuit(
+    receptorCondition,
+    receptor.tipoDocumento,
+  );
+  const lookupCuit = receptor.tipoDocumento === "80"
+    ? normalizeArcaCuit(receptor.numeroDocumento)
+    : "";
+  const arcaInscriptionLookup = useArcaInscriptionLookup({
+    enabled: open && receptor.tipoDocumento === "80",
+    cuit: lookupCuit,
   });
+  const verifiedArcaCondition = arcaInscriptionLookup.status === "FOUND"
+    ? arcaInscriptionLookup.condition
+    : null;
+
+  useEffect(() => {
+    if (!automaticConditionCuit || automaticConditionCuit === lookupCuit) return;
+    setAutomaticConditionCuit(null);
+    setReceptor((previous) => ({ ...previous, condicionIvaReceptorId: "" }));
+  }, [automaticConditionCuit, lookupCuit]);
+
+  useEffect(() => {
+    if (!verifiedArcaCondition) return;
+    setReceptor((previous) => {
+      if (
+        previous.tipoDocumento !== "80"
+        || normalizeArcaCuit(previous.numeroDocumento) !== verifiedArcaCondition.cuit
+      ) {
+        return previous;
+      }
+      return {
+        ...previous,
+        condicionIvaReceptorId: String(verifiedArcaCondition.condicionIvaReceptorId),
+      };
+    });
+    setAutomaticConditionCuit(verifiedArcaCondition.cuit);
+  }, [verifiedArcaCondition]);
+
   const voucherPreview = useMemo(() => {
-    if (!preflight?.emisor) return null;
+    if (!preflight?.emisor || receptorCondition === null) return null;
     return determineVoucher(
       preflight.emisor.condicionIvaEmisor,
-      Number(receptor.condicionIvaReceptorId) as PerfilFiscalCliente["condicionIvaReceptorId"],
+      receptorCondition,
     );
-  }, [preflight?.emisor, receptor.condicionIvaReceptorId]);
+  }, [preflight?.emisor, receptorCondition]);
   const documentOptions = useMemo(
-    () => receiverDocumentTypesForCondition(receptorCondition).map((tipo) => ({
+    () => documentTypesForInvoiceCondition(receptorCondition).map((tipo) => ({
       value: String(tipo),
       label: TIPOS_DOCUMENTO_FISCAL.find((option) => option.id === tipo)?.label ?? "CUIT",
     })),
     [receptorCondition],
   );
   const receiverIdentificationError = useMemo(() => {
-    if (!preflight || !voucherPreview) return null;
+    if (!preflight) return null;
+    if (receptorCondition === null) return "Verificá o seleccioná la condición IVA del receptor.";
+    if (!voucherPreview) return null;
     try {
       validateReceiverIdentification({
         tipoDocumento: Number(receptor.tipoDocumento) as PerfilFiscalCliente["tipoDocumento"],
@@ -195,7 +224,9 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const canSubmit = Boolean(
     !needsConfiguration
     && preflight
+    && receptorCondition !== null
     && !receiverIdentificationError
+    && !responsibleInscriptoDocumentInvalid
     && (preflight.puedeEmitir || canRetry)
     && factura?.estado !== "AUTORIZADA"
     && factura?.estado !== "INCIERTA",
@@ -311,15 +342,23 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
                   id="factura-tipo-documento"
                   options={documentOptions}
                   value={receptor.tipoDocumento}
-                  onChange={(value) => setReceptor((previous) => ({
-                    ...previous,
-                    tipoDocumento: value,
-                    ...(value === "99" ? { numeroDocumento: "", condicionIvaReceptorId: "5" } : {}),
-                  }))}
-                  disabled={!receiverIsConsumerFinal}
+                  onChange={(value) => {
+                    setAutomaticConditionCuit(null);
+                    setReceptor((previous) => ({
+                      ...previous,
+                      tipoDocumento: value,
+                      ...(value === "99" ? { numeroDocumento: "", condicionIvaReceptorId: "5" } : {}),
+                    }));
+                  }}
+                  disabled={!receiverIsConsumerFinal && !receiverIsResponsibleInscripto}
                   style={styles.dropdown}
                   dataTestId="factura-tipo-documento"
                 />
+              {responsibleInscriptoDocumentInvalid ? (
+                <span style={styles.validationError} role="alert">
+                  Para un receptor Responsable Inscripto debe seleccionarse CUIT.
+                </span>
+              ) : null}
               </label>
               <label style={styles.field}>Número de documento
                 <IconInput
@@ -335,16 +374,12 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
                 {receiverIdentificationError ? <span style={styles.validationError}>{receiverIdentificationError}</span> : null}
               </label>
             </div>
-            <ArcaPadronInvoiceFeedback
-              lookup={arcaPadronLookup}
-              onSelectCandidate={(candidate) => setReceptor((previous) => ({
-                ...previous,
-                tipoDocumento: "86",
-                numeroDocumento: candidate,
-              }))}
+            <ArcaInscriptionInvoiceFeedback
+              lookup={arcaInscriptionLookup}
+              onRetry={arcaInscriptionLookup.retry}
             />
             <span style={styles.recipientReference}>
-              Cliente seleccionado: <strong style={styles.recipientName}>{preflight.receptor.nombre}</strong>. La consulta permite verificar sus datos; por sí sola no modifica su ficha.
+              Cliente seleccionado: <strong style={styles.recipientName}>{preflight.receptor.nombre}</strong>. La consulta verifica la condición IVA para este comprobante y no modifica su ficha.
             </span>
           </section>
           <section style={styles.section}>
@@ -355,17 +390,20 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
                   id="factura-condicion-iva"
                   options={ivaOptions}
                   value={receptor.condicionIvaReceptorId}
-                  onChange={(value) => setReceptor((previous) => {
-                    const requiresCuit = Number(value) !== 5;
-                    return {
-                      ...previous,
-                      condicionIvaReceptorId: value,
-                      ...(requiresCuit ? {
-                        tipoDocumento: "80",
-                        numeroDocumento: previous.tipoDocumento === "80" ? previous.numeroDocumento : "",
-                      } : {}),
-                    };
-                  })}
+                  onChange={(value) => {
+                    setAutomaticConditionCuit(null);
+                    setReceptor((previous) => {
+                      const requiresCuit = Number(value) !== 5;
+                      return {
+                        ...previous,
+                        condicionIvaReceptorId: value,
+                        ...(requiresCuit ? {
+                          tipoDocumento: "80",
+                          numeroDocumento: previous.tipoDocumento === "80" ? previous.numeroDocumento : "",
+                        } : {}),
+                      };
+                    });
+                  }}
                   style={styles.dropdown}
                   dataTestId="factura-condicion-iva"
                 />
@@ -527,7 +565,26 @@ const styles = {
   validationError: { color: COLOR.SEMANTIC.DANGER, fontSize: 12, lineHeight: 1.35 },
   recipientReference: { color: COLOR.TEXT.TERTIARY, fontSize: 12, lineHeight: 1.4 },
   lookupPending: { color: COLOR.TEXT.TERTIARY, fontSize: 12 },
-  lookupError: { color: COLOR.SEMANTIC.DANGER, fontSize: 12, lineHeight: 1.4 },
+  lookupError: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    color: COLOR.SEMANTIC.DANGER,
+    fontSize: 12,
+    lineHeight: 1.4,
+  },
+  lookupRetry: {
+    flex: "0 0 auto",
+    border: 0,
+    padding: 0,
+    background: "transparent",
+    color: COLOR.ACCENT.PRIMARY,
+    cursor: "pointer",
+    font: "inherit",
+    fontWeight: 600,
+    textDecoration: "underline",
+  },
   lookupFound: {
     display: "flex",
     flexDirection: "column" as const,

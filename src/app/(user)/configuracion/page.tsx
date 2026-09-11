@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { ShieldCheck, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { ShieldCheck, AlertCircle, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import Button from "@/app/components/ui/Button";
 import FacturacionEmpresaCard from "@/app/components/facturacion/FacturacionEmpresaCard";
@@ -46,11 +46,13 @@ export default function ConfiguracionPage() {
   const [savedConfigSnapshot, setSavedConfigSnapshot] = useState<string | null>(null);
   const [credentialUploadAttempted, setCredentialUploadAttempted] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setWarning(null);
     try {
       const response = await fetch("/api/facturacion/configuracion", { cache: "no-store" });
       const body = await response.json();
@@ -75,6 +77,7 @@ export default function ConfiguracionPage() {
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
+    setWarning(null);
     setMessage(null);
 
     if (Boolean(certificate) !== Boolean(privateKey)) {
@@ -130,6 +133,7 @@ export default function ConfiguracionPage() {
   const testConnection = async () => {
     setTesting(true);
     setError(null);
+    setWarning(null);
     setMessage(null);
     try {
       const response = await fetch("/api/facturacion/configuracion/probar", {
@@ -137,6 +141,12 @@ export default function ConfiguracionPage() {
         headers: { "Content-Type": "application/json" },
       });
       const body = await response.json();
+      if (response.ok && body.data?.puntoVentaConfigurado === false) {
+        setWarning(
+          `La conexión con ARCA fue exitosa, pero el punto de venta ${config.puntoVenta} no aparece entre los habilitados. Revisalo en ARCA y en la configuración antes de emitir.`,
+        );
+        return;
+      }
       if (!response.ok) throw new Error(body.error || "No se pudo probar la conexión fiscal");
       setMessage(
         `Conexión correcta con ARCA. Ya puede generar comprobantes fiscales.`,
@@ -211,6 +221,13 @@ export default function ConfiguracionPage() {
                 <div style={styles.errorAlert} role="alert">
                   <AlertCircle size={18} color={COLOR.SEMANTIC.DANGER} style={{ flexShrink: 0 }} />
                   <span>{error}</span>
+                </div>
+              )}
+
+              {warning && (
+                <div style={styles.warningAlert} role="alert">
+                  <AlertTriangle size={18} color={COLOR.SEMANTIC.WARNING} style={{ flexShrink: 0 }} />
+                  <span>{warning}</span>
                 </div>
               )}
 
@@ -335,6 +352,18 @@ const styles = {
     color: COLOR.SEMANTIC.SUCCESS,
     background: `${COLOR.SEMANTIC.SUCCESS}14`,
     border: `1px solid ${COLOR.SEMANTIC.SUCCESS}33`,
+    fontSize: 13,
+    fontWeight: 500,
+  },
+  warningAlert: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "12px 16px",
+    borderRadius: 8,
+    color: COLOR.SEMANTIC.WARNING,
+    background: COLOR.BACKGROUND.WARNING_TINT,
+    border: `1px solid ${COLOR.SEMANTIC.WARNING}33`,
     fontSize: 13,
     fontWeight: 500,
   },

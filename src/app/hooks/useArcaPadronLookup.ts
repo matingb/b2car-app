@@ -9,8 +9,8 @@ import type {
 export type ArcaPadronLookupState =
   | { status: "IDLE" }
   | { status: "LOADING" }
-  | { status: "FOUND"; person: Extract<ArcaPadronLookupResult, { status: "FOUND" }>['person'] }
-  | { status: "MULTIPLE"; candidates: string[] }
+  | { status: "FOUND"; queryKey: string; person: Extract<ArcaPadronLookupResult, { status: "FOUND" }>['person'] }
+  | { status: "MULTIPLE"; queryKey: string; candidates: string[] }
   | { status: "NOT_FOUND"; message: string }
   | { status: "ERROR"; message: string };
 
@@ -26,6 +26,13 @@ export function isArcaPadronLookupReady(
 ): boolean {
   const expected = documentLength(documentType);
   return expected !== null && documentNumber.replace(/\D/g, "").length === expected;
+}
+
+export function getArcaPadronLookupQueryKey(
+  documentType: ArcaPadronDocumentType,
+  documentNumber: string,
+): string {
+  return `${documentType}:${documentNumber.replace(/\D/g, "")}`;
 }
 
 type Params = {
@@ -45,6 +52,9 @@ export function useArcaPadronLookup({
     [documentNumber],
   );
   const ready = isArcaPadronLookupReady(documentType, normalizedDocument);
+  const queryKey = documentType === null
+    ? ""
+    : getArcaPadronLookupQueryKey(documentType, normalizedDocument);
   const [state, setState] = useState<ArcaPadronLookupState>({ status: "IDLE" });
 
   useEffect(() => {
@@ -79,11 +89,11 @@ export function useArcaPadronLookup({
           return;
         }
         if (body.data?.status === "FOUND") {
-          setState({ status: "FOUND", person: body.data.person });
+          setState({ status: "FOUND", queryKey, person: body.data.person });
           return;
         }
         if (body.data?.status === "MULTIPLE") {
-          setState({ status: "MULTIPLE", candidates: body.data.candidates });
+          setState({ status: "MULTIPLE", queryKey, candidates: body.data.candidates });
           return;
         }
         setState({ status: "ERROR", message: "ARCA devolvió una respuesta inválida" });
@@ -101,7 +111,7 @@ export function useArcaPadronLookup({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [documentType, enabled, normalizedDocument, ready]);
+  }, [documentType, enabled, normalizedDocument, queryKey, ready]);
 
   return state;
 }
