@@ -108,7 +108,7 @@ const styles = {
   }),
   totalText: css({
     fontSize: 14,
-    color: "var(--color-text-secondary, #64748b)",
+    color: COLOR.TEXT.SECONDARY,
     fontWeight: 500,
   }),
   list: css({
@@ -139,8 +139,8 @@ const styles = {
   errorBox: css({
     padding: 16,
     borderRadius: 8,
-    backgroundColor: "#fef2f2",
-    color: "#dc2626",
+    backgroundColor: COLOR.BACKGROUND.DANGER_TINT,
+    color: COLOR.SEMANTIC.DANGER,
     fontSize: 14,
   }),
 };

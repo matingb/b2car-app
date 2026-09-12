@@ -2,6 +2,7 @@
 
 import React, { ReactNode } from "react";
 import Avatar from "@/app/components/ui/Avatar";
+import { COLOR } from "@/theme/theme";
 
 type Props = {
   nombre: string;
@@ -33,7 +34,7 @@ export default function ClienteHeader({
           {nombre}
         </h1>
         {subtitle && (
-          <div style={{ color: "#666", fontSize: 14, display: "flex", gap: 8 }}>
+          <div style={{ color: COLOR.TEXT.SECONDARY, fontSize: 14, display: "flex", gap: 8 }}>
             {subtitle}
           </div>
         )}

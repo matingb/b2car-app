@@ -17,7 +17,7 @@ describe("ClienteTabsNav", () => {
 
     expect(screen.getByText("Vehículos")).toBeInTheDocument();
     expect(screen.getByText("4")).toBeInTheDocument();
-    expect(screen.getByText("Trabajos y Arreglos")).toBeInTheDocument();
+    expect(screen.getByText("Arreglos")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("Cuenta Corriente")).toBeInTheDocument();
 

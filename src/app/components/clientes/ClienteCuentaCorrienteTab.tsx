@@ -111,9 +111,9 @@ export default function ClienteCuentaCorrienteTab({ clienteId }: Props) {
                     <td css={styles.td}>
                       <div css={styles.conceptoCell}>
                         {isCargo ? (
-                          <ArrowUpRight size={16} color="#e11d48" />
+                          <ArrowUpRight size={16} color={COLOR.SEMANTIC.DANGER} />
                         ) : (
-                          <ArrowDownLeft size={16} color="#16a34a" />
+                          <ArrowDownLeft size={16} color={COLOR.SEMANTIC.SUCCESS} />
                         )}
                         <span>{m.concepto}</span>
                       </div>
@@ -216,10 +216,10 @@ const styles = {
   toggleGroup: css({
     display: "inline-flex",
     alignItems: "center",
-    backgroundColor: "var(--color-background-subtle, #f1f5f9)",
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
     padding: 3,
     borderRadius: 8,
-    border: "1px solid var(--color-border-subtle, #e2e8f0)",
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     gap: 2,
   }),
   toggleButton: css({
@@ -230,24 +230,24 @@ const styles = {
     borderRadius: 6,
     border: "none",
     background: "transparent",
-    color: "var(--color-text-secondary, #64748b)",
+    color: COLOR.TEXT.SECONDARY,
     fontSize: 13,
     fontWeight: 500,
     cursor: "pointer",
     transition: "all 0.15s ease",
     "&:hover": {
-      color: "var(--color-text-primary, #1e293b)",
+      color: COLOR.TEXT.PRIMARY,
     },
   }),
   toggleButtonActive: css({
-    backgroundColor: "var(--color-card-background, #ffffff)",
-    color: "var(--color-text-primary, #0f172a)",
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    color: COLOR.TEXT.PRIMARY,
     fontWeight: 600,
     boxShadow: "0 1px 2px rgba(0, 0, 0, 0.06)",
   }),
   desktopContainer: css({
-    backgroundColor: "var(--color-card-background, #ffffff)",
-    border: "1px solid var(--color-border-subtle, #e2e8f0)",
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 12,
     overflowX: "auto",
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
@@ -266,36 +266,36 @@ const styles = {
     fontWeight: 700,
     textTransform: "uppercase",
     letterSpacing: "0.04em",
-    color: "var(--color-text-secondary, #64748b)",
-    borderBottom: "1px solid var(--color-border-subtle, #e2e8f0)",
-    backgroundColor: "var(--color-background-subtle, #f8fafc)",
+    color: COLOR.TEXT.SECONDARY,
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
   }),
   thRight: css({
     textAlign: "right",
   }),
   tr: css({
-    borderBottom: "1px solid var(--color-border-subtle, #f1f5f9)",
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
     "&:last-child": {
       borderBottom: "none",
     },
     "&:hover": {
-      backgroundColor: "var(--color-background-subtle, #f8fafc)",
+      backgroundColor: COLOR.BACKGROUND.SUBTLE,
     },
   }),
   td: css({
     padding: "14px 16px",
-    color: "var(--color-text-primary, #1e293b)",
+    color: COLOR.TEXT.PRIMARY,
   }),
   tdFecha: css({
     padding: "14px 16px",
     fontSize: 13,
-    color: "var(--color-text-secondary, #64748b)",
+    color: COLOR.TEXT.SECONDARY,
     whiteSpace: "nowrap",
   }),
   tdSec: css({
     padding: "14px 16px",
     fontSize: 13,
-    color: "var(--color-text-secondary, #64748b)",
+    color: COLOR.TEXT.SECONDARY,
   }),
   tdRight: css({
     textAlign: "right",
@@ -311,27 +311,27 @@ const styles = {
     display: "inline-block",
     padding: "2px 8px",
     borderRadius: 6,
-    backgroundColor: "#f1f5f9",
-    color: "#475569",
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
+    color: COLOR.TEXT.SECONDARY,
     fontSize: 12,
   }),
   debitoText: css({
-    color: "var(--color-text-primary, #0f172a)",
+    color: COLOR.SEMANTIC.DANGER,
     fontWeight: 600,
   }),
   creditoText: css({
-    color: "#16a34a",
+    color: COLOR.SEMANTIC.SUCCESS,
     fontWeight: 600,
   }),
   saldoText: css({
     fontWeight: 700,
-    color: "var(--color-text-primary, #0f172a)",
+    color: COLOR.TEXT.PRIMARY,
   }),
   cardsList: css({
     display: "flex",
     flexDirection: "column",
-    backgroundColor: "var(--color-card-background, #ffffff)",
-    border: "1px solid var(--color-border-subtle, #e2e8f0)",
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 12,
     overflow: "hidden",
   }),
@@ -340,8 +340,8 @@ const styles = {
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
       display: "flex",
       flexDirection: "column",
-      backgroundColor: "var(--color-card-background, #ffffff)",
-      border: "1px solid var(--color-border-subtle, #e2e8f0)",
+      backgroundColor: COLOR.BACKGROUND.SECONDARY,
+      border: `1px solid ${COLOR.BORDER.SUBTLE}`,
       borderRadius: 12,
       overflow: "hidden",
     },
@@ -351,13 +351,13 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 8,
-    borderBottom: "1px solid var(--color-border-subtle, #f1f5f9)",
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
     transition: "background-color 0.15s ease",
     "&:last-child": {
       borderBottom: "none",
     },
     "&:hover": {
-      backgroundColor: "var(--color-background-subtle, #f8fafc)",
+      backgroundColor: COLOR.BACKGROUND.SUBTLE,
     },
   }),
   cardRowTop: css({
@@ -369,7 +369,7 @@ const styles = {
   cardConcepto: css({
     fontSize: 14,
     fontWeight: 600,
-    color: "var(--color-text-primary, #1e293b)",
+    color: COLOR.TEXT.PRIMARY,
     lineHeight: 1.35,
     minWidth: 0,
     wordBreak: "break-word",
@@ -382,10 +382,10 @@ const styles = {
     textAlign: "right",
   }),
   cardDebitoText: css({
-    color: "#e11d48",
+    color: COLOR.SEMANTIC.DANGER,
   }),
   cardCreditoText: css({
-    color: "#16a34a",
+    color: COLOR.SEMANTIC.SUCCESS,
   }),
   cardRowBottom: css({
     display: "flex",
@@ -393,7 +393,7 @@ const styles = {
     justifyContent: "space-between",
     gap: 8,
     fontSize: 12,
-    color: "var(--color-text-secondary, #64748b)",
+    color: COLOR.TEXT.SECONDARY,
   }),
   cardMetaLeft: css({
     display: "flex",
@@ -403,12 +403,12 @@ const styles = {
     minWidth: 0,
   }),
   cardDot: css({
-    color: "var(--color-text-tertiary, #94a3b8)",
+    color: COLOR.TEXT.TERTIARY,
   }),
   cardSaldo: css({
     fontSize: 12,
     fontWeight: 500,
-    color: "var(--color-text-secondary, #64748b)",
+    color: COLOR.TEXT.SECONDARY,
     whiteSpace: "nowrap",
     flexShrink: 0,
   }),
@@ -435,8 +435,8 @@ const styles = {
   errorBox: css({
     padding: 16,
     borderRadius: 8,
-    backgroundColor: "#fef2f2",
-    color: "#dc2626",
+    backgroundColor: COLOR.BACKGROUND.DANGER_TINT,
+    color: COLOR.SEMANTIC.DANGER,
     fontSize: 14,
   }),
 };

@@ -294,42 +294,67 @@ const styles = {
   },
   chipsContainer: css({
     display: "flex",
-    gap: "10px",
+    gap: "8px",
     alignItems: "center",
-    flexWrap: "wrap",
+    width: "100%",
+    overflowX: "auto",
+    flexWrap: "nowrap",
+    WebkitOverflowScrolling: "touch",
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    "&::-webkit-scrollbar": {
+      display: "none",
+    },
+    paddingBottom: 4,
+    paddingTop: 2,
+    [`@media (min-width: ${BREAKPOINTS.lg}px)`]: {
+      flexWrap: "wrap",
+      overflowX: "visible",
+    },
   }),
   chipsGroup: css({
     display: "flex",
     gap: "8px",
     alignItems: "center",
+    flexShrink: 0,
   }),
   chipDivider: css({
     width: "1px",
     height: "20px",
     backgroundColor: COLOR.BORDER.SUBTLE,
     margin: "0 4px",
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "none",
-    },
+    flexShrink: 0,
   }),
   chipBase: css({
     display: "inline-flex",
     alignItems: "center",
     gap: "6px",
-    padding: "8px 14px",
-    borderRadius: "24px",
+    padding: "6px 14px",
+    height: "34px",
+    borderRadius: "999px",
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.SUBTLE,
+    background: COLOR.BACKGROUND.SECONDARY,
     color: COLOR.TEXT.PRIMARY,
     cursor: "pointer",
     fontWeight: 500,
-    fontSize: "14px",
+    fontSize: "13px",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+    boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)",
     transition:
       "transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, background-color 150ms ease, color 150ms ease",
     "&:hover": {
       borderColor: COLOR.ACCENT.PRIMARY,
       transform: "translateY(-1px)",
-      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)",
+    },
+    "&:active": {
+      transform: "scale(0.97)",
+    },
+    "& svg": {
+      flexShrink: 0,
+      color: COLOR.ICON.MUTED,
+      transition: "color 150ms ease",
     },
   }),
   chipSelected: css({
@@ -338,8 +363,13 @@ const styles = {
     color: COLOR.BUTTON.PRIMARY.TEXT,
     boxShadow: "none",
     fontWeight: 600,
+    "& svg": {
+      color: "currentColor",
+    },
     "&:hover": {
       color: COLOR.BUTTON.PRIMARY.TEXT,
+      background: COLOR.ACCENT.HOVER,
+      borderColor: COLOR.ACCENT.HOVER,
     },
   }),
   chipSelectedDanger: css({
@@ -348,8 +378,12 @@ const styles = {
     color: COLOR.SEMANTIC.DANGER,
     boxShadow: "none",
     fontWeight: 600,
+    "& svg": {
+      color: COLOR.SEMANTIC.DANGER,
+    },
     "&:hover": {
       borderColor: COLOR.SEMANTIC.DANGER,
+      background: COLOR.BACKGROUND.DANGER_TINT,
     },
   }),
   chipSelectedSuccess: css({
@@ -358,38 +392,52 @@ const styles = {
     color: COLOR.SEMANTIC.SUCCESS,
     boxShadow: "none",
     fontWeight: 600,
+    "& svg": {
+      color: COLOR.SEMANTIC.SUCCESS,
+    },
     "&:hover": {
       borderColor: COLOR.SEMANTIC.SUCCESS,
+      background: COLOR.BACKGROUND.SUCCESS_TINT,
     },
   }),
   chipSelectedInfo: css({
-    background: "#eff6ff",
-    borderColor: "#2563eb",
-    color: "#1d4ed8",
+    background: COLOR.BACKGROUND.INFO_TINT,
+    borderColor: COLOR.SEMANTIC.INFO,
+    color: COLOR.SEMANTIC.INFO,
     boxShadow: "none",
+    fontWeight: 600,
+    "& svg": {
+      color: COLOR.SEMANTIC.INFO,
+    },
     "&:hover": {
-      borderColor: "#2563eb",
+      borderColor: COLOR.SEMANTIC.INFO,
+      background: COLOR.BACKGROUND.INFO_TINT,
     },
   }),
   chipResponsive: css({
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      fontSize: "13px",
-      padding: "6px 10px",
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      fontSize: "12px",
+      padding: "5px 11px",
+      height: "32px",
     },
   }),
   clearButton: css({
     background: "transparent",
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     color: COLOR.TEXT.SECONDARY,
-    padding: "6px 12px",
-    borderRadius: "18px",
+    padding: "5px 12px",
+    height: "32px",
+    borderRadius: "999px",
     cursor: "pointer",
-    fontSize: "13px",
+    fontSize: "12px",
     fontWeight: 500,
-    transition: "border-color 150ms ease, color 150ms ease",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+    transition: "border-color 150ms ease, color 150ms ease, background-color 150ms ease",
     "&:hover": {
       borderColor: COLOR.BORDER.DEFAULT,
       color: COLOR.TEXT.PRIMARY,
+      backgroundColor: COLOR.BACKGROUND.SUBTLE,
     },
   }),
   emptyContainer: {

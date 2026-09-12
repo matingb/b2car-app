@@ -53,7 +53,7 @@ const styles = {
   navContainer: css({
     display: "flex",
     gap: 28,
-    borderBottom: "1px solid var(--color-border-subtle, #e2e8f0)",
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
     marginBottom: 20,
     overflowX: "auto",
     scrollbarWidth: "none",
@@ -66,7 +66,7 @@ const styles = {
     padding: "10px 4px 12px 4px",
     fontSize: 15,
     fontWeight: 500,
-    color: "var(--color-text-secondary, #64748b)",
+    color: COLOR.TEXT.SECONDARY,
     cursor: "pointer",
     display: "inline-flex",
     alignItems: "center",
@@ -75,7 +75,7 @@ const styles = {
     marginBottom: -1,
     transition: "color 150ms ease, border-color 150ms ease",
     "&:hover": {
-      color: "var(--color-text-primary, #0f172a)",
+      color: COLOR.TEXT.PRIMARY,
     },
   }),
   tabButtonActive: css({
@@ -94,11 +94,11 @@ const styles = {
     fontWeight: 700,
     padding: "2px 7px",
     borderRadius: 10,
-    backgroundColor: "var(--color-background-subtle, #f1f5f9)",
-    color: "var(--color-text-secondary, #64748b)",
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
+    color: COLOR.TEXT.SECONDARY,
   }),
   countBadgeActive: css({
-    backgroundColor: "rgba(0, 128, 162, 0.12)",
+    backgroundColor: COLOR.BACKGROUND.INFO_TINT,
     color: COLOR.ACCENT.PRIMARY,
   }),
 };

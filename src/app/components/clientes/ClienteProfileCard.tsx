@@ -65,7 +65,7 @@ export default function ClienteProfileCard({
   const saldoVisible = Math.abs(saldoCuenta);
 
   return (
-    <Card style={styles.cardContainer}>
+    <Card css={styles.cardContainer}>
       {/* HEADER ROW */}
       <div css={styles.headerRow}>
         {/* Left: Avatar + Name + Address */}
@@ -219,10 +219,9 @@ export default function ClienteProfileCard({
 }
 
 const styles = {
-  cardContainer: {
+  cardContainer: css({
     marginTop: "20px",
     marginBottom: "20px",
-    //backgroundColor: COLOR.BACKGROUND.SECONDARY,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 16,
     padding: "24px 28px",
@@ -230,7 +229,7 @@ const styles = {
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       padding: "16px 16px",
     },
-  },
+  }),
   headerRow: css({
     display: "flex",
     justifyContent: "space-between",
@@ -318,7 +317,7 @@ const styles = {
     color: COLOR.SEMANTIC.SUCCESS,
   }),
   balanceFavor: css({
-    color: "#2563eb",
+    color: COLOR.SEMANTIC.INFO,
   }),
   deudaBadge: css({
     display: "inline-flex",
@@ -347,9 +346,9 @@ const styles = {
     alignItems: "center",
     fontSize: 12,
     fontWeight: 600,
-    color: "#1d4ed8",
-    backgroundColor: "#eff6ff",
-    border: "1px solid #bfdbfe",
+    color: COLOR.SEMANTIC.INFO,
+    backgroundColor: COLOR.BACKGROUND.INFO_TINT,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 9999,
     padding: "4px 12px",
   }),

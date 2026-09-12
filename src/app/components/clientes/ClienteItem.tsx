@@ -523,7 +523,7 @@ const styles = {
   creditAmount: css({
     fontSize: 18,
     fontWeight: 900,
-    color: "#2563eb",
+    color: COLOR.SEMANTIC.INFO,
     lineHeight: 1,
     marginBottom: 4,
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
@@ -558,8 +558,8 @@ const styles = {
     fontWeight: 700,
     textTransform: "uppercase",
     letterSpacing: "0.05em",
-    color: "#1d4ed8",
-    backgroundColor: "#eff6ff",
+    color: COLOR.SEMANTIC.INFO,
+    backgroundColor: COLOR.BACKGROUND.INFO_TINT,
     padding: "2px 6px",
     borderRadius: 4,
     display: "inline-block",

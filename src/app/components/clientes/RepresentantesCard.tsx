@@ -52,7 +52,7 @@ export default function RepresentantesCard({ representantes, onAddRepresentante,
               <div style={{ fontWeight: 700, marginTop: 0, textAlign: 'center' }}>
                 {(r.nombre + ' ' + (r.apellido || '')).trim()}
               </div>
-              <div style={{ color: 'rgba(0,0,0,0.7)', fontSize: 13 }}>
+              <div style={{ color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
                 {formatTelephoneNumber(r.codigo_pais, r.telefono) }
               </div>
             </Card>
@@ -108,7 +108,7 @@ const styles = {
     justifyContent: 'center',
     gap: 0,
     borderRadius: 8,
-    background: 'rgba(0,0,0,0.02)',
+    background: COLOR.BACKGROUND.SUBTLE,
     cursor: 'default',
     padding: 8,
     boxSizing: 'border-box',

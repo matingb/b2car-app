@@ -72,3 +72,7 @@ Formatting utilities are centralized in `src/lib/`. Always check and reuse these
 - **Phone Numbers (`@/lib/telefono`)**:
   - `formatTelephoneNumber(codigo_pais, number)`: Formats telephone numbers with country code.
 
+## Theme
+
+Always use the theme colors defined in `src/app/theme/theme.css`.
+Don't use `!important` unless it is really necessary.

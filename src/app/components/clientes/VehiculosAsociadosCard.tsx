@@ -82,7 +82,7 @@ const styles = {
   },
   totalText: {
     fontSize: 14,
-    color: "var(--color-text-secondary, #64748b)",
+    color: COLOR.TEXT.SECONDARY,
     fontWeight: 500,
   },
   list: {
