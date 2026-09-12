@@ -24,6 +24,7 @@ import { css } from "@emotion/react";
 import { clientesClient } from "@/clients/clientes/clientesClient";
 import Card from "../ui/Card";
 import IconButton from "../ui/IconButton";
+import ExpandButton from "../ui/ExpandButton";
 
 function DataCell({
   icon,
@@ -145,45 +146,119 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
   const hasDebt = debt > 0;
   const hasCredit = credit > 0;
 
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  const toggleExpand = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    setIsExpanded((prev) => !prev);
+  };
+
   return (
     <Card
       onClick={handleOnClick}
       data-testid="cliente-item"
       css={styles.card}
     >
-      {/* Left: Client Identity */}
-      <div css={styles.identity}>
-        <div css={styles.avatar} title={cliente.nombre}>
-          {initials}
-        </div>
-        <div css={styles.identityText}>
-          <h3 css={styles.name} title={cliente.nombre}>
-            {cliente.nombre}
-          </h3>
-          <div css={styles.metaRow}>
-            <span css={styles.typeBadge} title={`Tipo: ${tipoLabel}`}>
-              {isEmpresa ? (
-                <Building2 size={14} />
-              ) : (
-                <UserIcon size={14} />
-              )}
-              <span>{tipoLabel}</span>
-            </span>
-            {cuitOrDoc && (
-              <>
-                <span css={styles.separator}>•</span>
-                <span css={styles.docBadge} title={cuitOrDoc}>
-                  <FileText size={14} />
-                  <span>{cuitOrDoc}</span>
-                </span>
-              </>
-            )}
+      {/* Top / Identity Row: In desktop it unwraps via display: contents; in mobile it is a compact header */}
+      <div css={styles.topRow}>
+        {/* Left: Client Identity */}
+        <div css={styles.identity}>
+          <div css={styles.avatar} title={cliente.nombre}>
+            {initials}
           </div>
+          <div css={styles.identityText}>
+            <h3 css={styles.name} title={cliente.nombre}>
+              {cliente.nombre}
+            </h3>
+            <div css={styles.metaRow}>
+              <span css={styles.typeBadge} title={`Tipo: ${tipoLabel}`}>
+                {isEmpresa ? (
+                  <Building2 size={14} />
+                ) : (
+                  <UserIcon size={14} />
+                )}
+                <span>{tipoLabel}</span>
+              </span>
+              {cuitOrDoc && (
+                <>
+                  <span css={styles.separator}>•</span>
+                  <span css={styles.docBadge} title={cuitOrDoc}>
+                    <FileText size={14} />
+                    <span>{cuitOrDoc}</span>
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Client Status & Actions */}
+        <div css={styles.statusSection}>
+          {hasDebt ? (
+            <div
+              css={styles.balanceBlock}
+              title={`Saldo pendiente a cobrar: $${debt.toLocaleString("es-AR")}`}
+            >
+              <div css={styles.debtAmount} data-testid="cliente-debt-amount">
+                {`$${debt.toLocaleString("es-AR")}`}
+              </div>
+              <div css={styles.debtBadge} data-testid="cliente-debt-badge">
+                A Cobrar
+              </div>
+            </div>
+          ) : hasCredit ? (
+            <div
+              css={styles.balanceBlock}
+              title={`Saldo a favor: $${credit.toLocaleString("es-AR")}`}
+            >
+              <div css={styles.creditAmount} data-testid="cliente-credit-amount">
+                {`$${credit.toLocaleString("es-AR")}`}
+              </div>
+              <div css={styles.creditBadge} data-testid="cliente-credit-badge">
+                Saldo a favor
+              </div>
+            </div>
+          ) : (
+            <div
+              css={styles.balanceBlock}
+              title="Cuenta corriente al día ($0)"
+            >
+              <div css={styles.cleanAmount} data-testid="cliente-clean-amount">
+                $0
+              </div>
+              <div css={styles.cleanBadge} data-testid="cliente-clean-badge">
+                Al día
+              </div>
+            </div>
+          )}
+
+          <div css={styles.deleteDivider}>
+            <IconButton
+              icon={<Trash2 />}
+              onClick={handleDelete}
+              title="Eliminar cliente"
+              ariaLabel="Eliminar cliente"
+              hoverColor={COLOR.ICON.DANGER}
+              data-testid="cliente-delete-btn"
+            />
+          </div>
+
+          <ExpandButton
+            isExpanded={isExpanded}
+            onToggle={toggleExpand}
+            title={isExpanded ? "Menos detalles" : "Más detalles"}
+            ariaLabel={
+              isExpanded
+                ? "Colapsar detalles del cliente"
+                : "Expandir detalles del cliente"
+            }
+            dataTestId="cliente-expand-btn"
+          />
         </div>
       </div>
 
-      {/* Center: Data Grid */}
-      <div css={styles.dataGrid}>
+      {/* Center / Collapsible: Data Grid */}
+      <div css={[styles.dataGrid, isExpanded ? styles.dataGridOpenMobile : styles.dataGridClosedMobile]}>
         <DataCell
           icon={<Phone size={16} />}
           text={formattedPhone || "Sin teléfono"}
@@ -208,58 +283,6 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
           title={vehiclesText}
           isMissing={!hasVehicles}
         />
-      </div>
-
-      {/* Right: Client Status & Actions */}
-      <div css={styles.statusSection}>
-        {hasDebt ? (
-          <div
-            css={styles.balanceBlock}
-            title={`Saldo pendiente a cobrar: $${debt.toLocaleString("es-AR")}`}
-          >
-            <div css={styles.debtAmount} data-testid="cliente-debt-amount">
-              {`$${debt.toLocaleString("es-AR")}`}
-            </div>
-            <div css={styles.debtBadge} data-testid="cliente-debt-badge">
-              A Cobrar
-            </div>
-          </div>
-        ) : hasCredit ? (
-          <div
-            css={styles.balanceBlock}
-            title={`Saldo a favor: $${credit.toLocaleString("es-AR")}`}
-          >
-            <div css={styles.creditAmount} data-testid="cliente-credit-amount">
-              {`$${credit.toLocaleString("es-AR")}`}
-            </div>
-            <div css={styles.creditBadge} data-testid="cliente-credit-badge">
-              Saldo a favor
-            </div>
-          </div>
-        ) : (
-          <div
-            css={styles.balanceBlock}
-            title="Cuenta corriente al día ($0)"
-          >
-            <div css={styles.cleanAmount} data-testid="cliente-clean-amount">
-              $0
-            </div>
-            <div css={styles.cleanBadge} data-testid="cliente-clean-badge">
-              Al día
-            </div>
-          </div>
-        )}
-
-        <div css={styles.deleteDivider}>
-          <IconButton
-            icon={<Trash2 />}
-            onClick={handleDelete}
-            title="Eliminar cliente"
-            ariaLabel="Eliminar cliente"
-            hoverColor={COLOR.ICON.DANGER}
-            data-testid="cliente-delete-btn"
-          />
-        </div>
       </div>
     </Card>
   );
@@ -286,7 +309,20 @@ const styles = {
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
       flexDirection: "column",
       alignItems: "stretch",
-      gap: 14,
+      gap: 0,
+      padding: "12px 14px",
+    },
+  }),
+  topRow: css({
+    display: "contents",
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+      width: "100%",
+      order: 1,
     },
   }),
   identity: css({
@@ -296,11 +332,14 @@ const styles = {
     flexShrink: 0,
     width: 270,
     minWidth: 0,
+    order: 1,
     [`@media (max-width: ${BREAKPOINTS.xl}px)`]: {
       width: 240,
     },
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
-      width: "100%",
+      width: "auto",
+      flex: 1,
+      gap: 10,
     },
   }),
   avatar: css({
@@ -316,6 +355,11 @@ const styles = {
     fontSize: 16,
     flexShrink: 0,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      width: 40,
+      height: 40,
+      fontSize: 14,
+    },
   }),
   identityText: css({
     minWidth: 0,
@@ -330,6 +374,9 @@ const styles = {
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      fontSize: 15,
+    },
   }),
   metaRow: css({
     fontSize: 12,
@@ -364,16 +411,41 @@ const styles = {
     minWidth: 0,
     padding: "0 20px",
     borderLeft: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    order: 2,
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
       borderLeft: "none",
-      padding: "12px 0",
-      borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
       gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
       gap: "10px 16px",
+      width: "100%",
+      overflow: "hidden",
+      transition:
+        "max-height 240ms ease, opacity 200ms ease, transform 200ms ease, margin-top 240ms ease, padding-top 240ms ease",
+      transformOrigin: "top",
     },
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       gridTemplateColumns: "1fr",
       gap: 8,
+    },
+  }),
+  dataGridOpenMobile: css({
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      maxHeight: 600,
+      opacity: 1,
+      transform: "translateY(0)",
+      marginTop: 10,
+      paddingTop: 10,
+      borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    },
+  }),
+  dataGridClosedMobile: css({
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      maxHeight: 0,
+      opacity: 0,
+      transform: "translateY(-4px)",
+      pointerEvents: "none",
+      marginTop: 0,
+      paddingTop: 0,
+      borderTop: "1px solid transparent",
     },
   }),
   dataCell: css({
@@ -410,18 +482,21 @@ const styles = {
     gap: 16,
     flexShrink: 0,
     width: 190,
+    order: 3,
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
-      width: "100%",
-      justifyContent: "space-between",
-      paddingTop: 12,
-      borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
+      width: "auto",
+      order: 2,
+      gap: 6,
     },
   }),
   balanceBlock: css({
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-end",
-    flex: 1,
+    flexShrink: 0,
+    [`@media (min-width: ${BREAKPOINTS.lg}px)`]: {
+      flex: 1,
+    },
   }),
   debtAmount: css({
     fontSize: 18,
@@ -429,6 +504,10 @@ const styles = {
     color: COLOR.SEMANTIC.DANGER,
     lineHeight: 1,
     marginBottom: 4,
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      fontSize: 15,
+      marginBottom: 3,
+    },
   }),
   cleanAmount: css({
     fontSize: 16,
@@ -436,6 +515,10 @@ const styles = {
     color: COLOR.BORDER.WEAK,
     lineHeight: 1,
     marginBottom: 4,
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      fontSize: 14,
+      marginBottom: 3,
+    },
   }),
   creditAmount: css({
     fontSize: 18,
@@ -443,6 +526,10 @@ const styles = {
     color: "#2563eb",
     lineHeight: 1,
     marginBottom: 4,
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      fontSize: 15,
+      marginBottom: 3,
+    },
   }),
   debtBadge: css({
     fontSize: 10,
@@ -483,5 +570,8 @@ const styles = {
     borderLeft: `1px solid ${COLOR.BORDER.SUBTLE}`,
     paddingLeft: 16,
     marginLeft: 8,
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      display: "none",
+    },
   }),
 } as const;

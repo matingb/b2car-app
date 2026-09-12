@@ -227,4 +227,25 @@ describe("ClienteItem", () => {
       expect(screen.getByTestId("cliente-debt-badge")).toBeInTheDocument();
     });
   });
+
+  it("permite expandir y colapsar los detalles con el botón chevron sin disparar la navegación", () => {
+    render(<ClienteItem cliente={particularCliente} />);
+
+    const expandBtn = screen.getByTestId("cliente-expand-btn");
+    expect(expandBtn).toHaveAttribute("aria-expanded", "false");
+    expect(expandBtn).toHaveAttribute("aria-label", "Expandir detalles del cliente");
+
+    // Click to expand
+    fireEvent.click(expandBtn);
+    expect(expandBtn).toHaveAttribute("aria-expanded", "true");
+    expect(expandBtn).toHaveAttribute("aria-label", "Colapsar detalles del cliente");
+    expect(mockPush).not.toHaveBeenCalled();
+
+    // Click to collapse
+    fireEvent.click(expandBtn);
+    expect(expandBtn).toHaveAttribute("aria-expanded", "false");
+    expect(expandBtn).toHaveAttribute("aria-label", "Expandir detalles del cliente");
+    expect(mockPush).not.toHaveBeenCalled();
+  });
 });
+
