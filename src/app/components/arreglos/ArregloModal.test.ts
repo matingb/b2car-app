@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getArregloModalFecha, normalizeArregloObservaciones } from "./ArregloModal";
+import { getArregloModalFecha, normalizeArregloObservaciones, parseCombustibleLeido } from "./ArregloModal";
 
 describe("getArregloModalFecha", () => {
   afterEach(() => {
@@ -25,5 +25,17 @@ describe("normalizeArregloObservaciones", () => {
 
   it("omite una observación vacía al crear un arreglo", () => {
     expect(normalizeArregloObservaciones("   ", false)).toBeUndefined();
+  });
+});
+
+describe("parseCombustibleLeido", () => {
+  it("acepta porcentajes entre 0 y 100 y mantiene vacío como opcional", () => {
+    expect(parseCombustibleLeido("0")).toBe(0);
+    expect(parseCombustibleLeido("65")).toBe(65);
+    expect(parseCombustibleLeido(" ")).toBeUndefined();
+  });
+
+  it("rechaza valores fuera del rango", () => {
+    expect(parseCombustibleLeido("101")).toBeUndefined();
   });
 });

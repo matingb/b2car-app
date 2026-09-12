@@ -26,6 +26,7 @@ export interface ArregloDto {
     estado: EstadoArreglo;
     descripcion: string;
     kilometraje_leido: number;
+    combustible_leido?: number | null;
     fecha: Date;
     observaciones: string;
     precio_final: number;

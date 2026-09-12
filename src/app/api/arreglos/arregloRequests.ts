@@ -32,6 +32,7 @@ export type CreateArregloRequest = {
   taller_id: string;
   estado?: EstadoArreglo;
   kilometraje_leido?: number;
+  combustible_leido?: number | null;
   fecha: Date | string;
   observaciones?: string;
   precio_final?: number;
@@ -69,6 +70,7 @@ export type CreateArregloInsertPayload = {
   estado: EstadoArreglo;
   descripcion: string | null;
   kilometraje_leido: number;
+  combustible_leido: number | null;
   fecha: Date | string;
   observaciones: string | null;
   precio_final: number;
@@ -83,6 +85,7 @@ export type UpdateArregloRequest = {
   estado?: EstadoArreglo;
   descripcion?: string;
   kilometraje_leido?: number;
+  combustible_leido?: number | null;
   fecha?: string;
   observaciones?: string;
   precio_final?: number;

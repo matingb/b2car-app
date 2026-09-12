@@ -131,6 +131,36 @@ describe("POST /api/arreglos", () => {
     expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "TEN-1");
   });
 
+  it("envía el nivel de combustible a la RPC", async () => {
+    const req = new Request("http://localhost/api/arreglos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(createCreateArregloRequest({ combustible_leido: 65 })),
+    });
+
+    const response = await POST(req);
+
+    expect(response.status).toBe(201);
+    expect(rpc).toHaveBeenCalledWith(
+      "rpc_crear_arreglo_completo",
+      expect.objectContaining({ p_combustible_leido: 65 })
+    );
+  });
+
+  it("rechaza un nivel de combustible fuera del rango permitido", async () => {
+    const req = new Request("http://localhost/api/arreglos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(createCreateArregloRequest({ combustible_leido: 101 })),
+    });
+
+    const response = await POST(req);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "combustible_leido debe ser un porcentaje entre 0 y 100" });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("envía los datos de cobro incluidos en la firma de la RPC", async () => {
     const cuentaId = "c0000000-0000-4000-8000-000000000001";
     const idempotencyKey = "e0000000-0000-4000-8000-000000000001";

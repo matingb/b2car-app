@@ -193,6 +193,76 @@ describe("OperacionesPage", () => {
     expect(screen.getByText("08/06/2026, 14:30")).toBeInTheDocument();
   });
 
+  it("muestra la cuenta financiera asociada a compras y ventas", async () => {
+    getAllMock.mockResolvedValue({
+      data: [
+        {
+          id: "op-compra-cuenta",
+          tipo: "COMPRA",
+          taller_id: "taller-1",
+          fecha: "2026-08-26T17:49:00.000Z",
+          created_at: "2026-08-26T17:49:00.000Z",
+          cuenta_financiera_nombre: "Banco para compras",
+          lineas: [],
+        },
+        {
+          id: "op-venta-cuenta",
+          tipo: "VENTA",
+          taller_id: "taller-1",
+          fecha: "2026-08-26T17:49:00.000Z",
+          created_at: "2026-08-26T17:49:00.000Z",
+          cuenta_financiera_nombre: "Caja para ventas",
+          lineas: [],
+        },
+      ],
+      pagination: { page: 1, pageSize: 50, total: 2 },
+      error: null,
+    });
+
+    render(
+      <OperacionesProvider>
+        <ToastProvider>
+          <OperacionesPage />
+        </ToastProvider>
+      </OperacionesProvider>
+    );
+    await runPendingPromises();
+
+    expect(screen.getAllByText("Banco para compras")).toHaveLength(2);
+    expect(screen.getAllByText("Caja para ventas")).toHaveLength(2);
+  });
+
+  it("no muestra el indicador de cuenta cuando la operación no tiene una asociada", async () => {
+    getAllMock.mockResolvedValue({
+      data: [
+        {
+          id: "op-cobro-sin-cuenta",
+          tipo: "COBRO_ARREGLO",
+          taller_id: "taller-1",
+          fecha: "2026-08-26T17:49:00.000Z",
+          created_at: "2026-08-26T17:49:00.000Z",
+          monto: 10000,
+          lineas: [],
+          cuenta_financiera_id: null,
+          cuenta_financiera_nombre: null,
+        },
+      ],
+      pagination: { page: 1, pageSize: 50, total: 1 },
+      error: null,
+    });
+
+    render(
+      <OperacionesProvider>
+        <ToastProvider>
+          <OperacionesPage />
+        </ToastProvider>
+      </OperacionesProvider>
+    );
+    await runPendingPromises();
+
+    expect(screen.queryByText("Cuenta financiera")).not.toBeInTheDocument();
+  });
+
   it("muestra el detalle del auto en el título de la operación de cobro de arreglo", async () => {
     getAllMock.mockResolvedValue({
       data: [{

@@ -87,13 +87,29 @@ export default function ArregloItem({
           {/* Sección Izquierda: Información Principal */}
           <div css={styles.mainInfoSection}>
             <div css={styles.topRow}>
-              <h4 style={styles.mainTitle}>
+              <h4 css={styles.mainTitle}>
                 {arreglo.descripcion || "Arreglo sin descripción"}
               </h4>
             </div>
 
             {/* Fila Metadatos 1: Vehículo, Cliente y Empleados */}
-            <div style={styles.metaRow}>
+            <div css={styles.mobileMetaRow}>
+              <div style={styles.metaItem}>
+                <CarFront size={16} color={COLOR.ICON.MUTED} />
+                <span css={styles.mobileMetaText}>{vehiculoText}</span>
+              </div>
+              {resolvedEmpleados.length > 0 ? (
+                <div style={styles.metaItem}>
+                  <User size={16} color={COLOR.ICON.MUTED} />
+                  <span css={styles.mobileMetaText}>
+                    {getFullName(resolvedEmpleados[0])}
+                    {resolvedEmpleados.length > 1 ? ` +${resolvedEmpleados.length - 1}` : ""}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
+            <div css={styles.desktopMetaRow}>
               <div style={styles.metaItem}>
                 <CarFront size={16} color={COLOR.ICON.MUTED} />
                 <span style={styles.metaTextBold}>{vehiculoText}</span>
@@ -141,7 +157,8 @@ export default function ArregloItem({
 
             {/* Categorías */}
             {arreglo.categorias && arreglo.categorias.length > 0 && (
-              <div style={styles.metaItem}>
+              <div css={styles.desktopOnlyContent}>
+                <div style={styles.metaItem}>
                 <Wrench size={16} color={COLOR.ICON.MUTED} />
                 <span style={{ color: COLOR.TEXT.SECONDARY }}>Categorías:</span>
                 <ArregloCategoriasList
@@ -149,20 +166,23 @@ export default function ArregloItem({
                   size="sm"
                   limit={3}
                 />
+                </div>
               </div>
             )}
 
             {/* Observaciones unificadas en el cuerpo */}
             {shouldShowObservaciones && arreglo.observaciones && (
-              <div style={styles.observacionesContainer}>
-                <FileText
-                  size={15}
-                  color={COLOR.ICON.MUTED}
-                  style={{ flexShrink: 0, marginTop: 2 }}
-                />
-                <span style={styles.observacionesText}>
-                  &quot;{arreglo.observaciones}&quot;
-                </span>
+              <div css={styles.desktopOnlyContent}>
+                <div style={styles.observacionesContainer}>
+                  <FileText
+                    size={15}
+                    color={COLOR.ICON.MUTED}
+                    style={{ flexShrink: 0, marginTop: 2 }}
+                  />
+                  <span style={styles.observacionesText}>
+                    &quot;{arreglo.observaciones}&quot;
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -195,15 +215,17 @@ export default function ArregloItem({
         </div>
 
         {/* Footer del card con estado a la izquierda y badges de facturación/pago a la derecha */}
-        <ArregloBadges
-          arreglo={arreglo}
-          variant="footer"
-          size="sm"
-          onOpenChange={setIsBadgeOpen}
-          onFacturableChanged={(val) => {
-            arreglo.es_facturable = val;
-          }}
-        />
+        <div css={styles.desktopOnlyContent}>
+          <ArregloBadges
+            arreglo={arreglo}
+            variant="footer"
+            size="sm"
+            onOpenChange={setIsBadgeOpen}
+            onFacturableChanged={(val) => {
+              arreglo.es_facturable = val;
+            }}
+          />
+        </div>
       </Card>
     </div>
   );
@@ -233,7 +255,7 @@ const styles = {
   }),
   mainInfoSection: css({
     flex: 1,
-    padding: "16px 20px",
+    padding: "17px 20px 15px",
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
@@ -256,14 +278,19 @@ const styles = {
       justifyContent: "space-between",
     },
   }),
-  mainTitle: {
+  mainTitle: css({
     fontSize: 17,
     fontWeight: 700,
     color: COLOR.TEXT.PRIMARY,
     margin: 0,
     lineHeight: 1.3,
     paddingRight: 8,
-  },
+    [`@media (max-width: ${BREAKPOINTS.md - 1}px)`]: {
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    },
+  }),
   badgesGroup: {
     display: "flex",
     alignItems: "center",
@@ -280,6 +307,44 @@ const styles = {
     fontSize: 13,
     color: COLOR.TEXT.SECONDARY,
   },
+  desktopMetaRow: css({
+    display: "none",
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      display: "flex",
+      flexWrap: "wrap",
+      alignItems: "center",
+      rowGap: 8,
+      columnGap: 20,
+      fontSize: 13,
+      color: COLOR.TEXT.SECONDARY,
+    },
+  }),
+  mobileMetaRow: css({
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    columnGap: 18,
+    rowGap: 6,
+    color: COLOR.TEXT.SECONDARY,
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      display: "none",
+    },
+  }),
+  mobileMetaText: css({
+    maxWidth: "min(48vw, 185px)",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 13,
+    fontWeight: 500,
+  }),
+  desktopOnlyContent: css({
+    display: "none",
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
+      display: "block",
+    },
+  }),
   metaItem: {
     display: "flex",
     alignItems: "center",
@@ -304,7 +369,7 @@ const styles = {
     display: "flex",
   }),
   rightInfoSection: css({
-    padding: "16px 20px",
+    padding: "13px 20px",
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     display: "flex",
     flexWrap: "wrap",
@@ -312,6 +377,8 @@ const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
     [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
       width: 190,
       minWidth: 190,
@@ -321,6 +388,8 @@ const styles = {
       padding: "16px 20px",
       textAlign: "center",
       borderTopRightRadius: 8,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
     },
   }),
   dateContainer: css({
@@ -353,7 +422,7 @@ const styles = {
     fontWeight: 500,
     color: COLOR.TEXT.TERTIARY,
     display: "none",
-    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
       display: "flex",
     },
   }),

@@ -9,6 +9,7 @@ describe("arregloCompletoService", () => {
       arreglo: {
         id: "a1",
         descripcion: "Arreglo 1",
+        combustible_leido: 65,
         empleados_detallados: [
           { id: "e1", nombre: "Juan", apellido: "Perez" },
         ],
@@ -46,6 +47,7 @@ describe("arregloCompletoService", () => {
     expect(result.error).toBeNull();
     expect(result.data).toBeDefined();
     expect(result.data?.arreglo.id).toBe("a1");
+    expect(result.data?.arreglo.combustible_leido).toBe(65);
     expect(result.data?.arreglo.empleados).toEqual([
       { id: "e1", nombre: "Juan", apellido: "Perez" },
     ]);

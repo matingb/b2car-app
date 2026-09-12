@@ -85,6 +85,7 @@ export async function POST(req: Request) {
         taller_id,
         estado,
         kilometraje_leido,
+        combustible_leido,
         fecha,
         observaciones,
         precio_final,
@@ -122,6 +123,12 @@ export async function POST(req: Request) {
 
     const precioFinalNumber = Number(precio_final) || 0;
     const kmNumber = Number(kilometraje_leido) || 0;
+    const combustibleLeido = combustible_leido == null || String(combustible_leido).trim() === ""
+        ? null
+        : Number(combustible_leido);
+    if (!Number.isInteger(combustibleLeido ?? 0) || (combustibleLeido != null && (combustibleLeido < 0 || combustibleLeido > 100))) {
+        return Response.json({ error: "combustible_leido debe ser un porcentaje entre 0 y 100" }, { status: 400 });
+    }
     const estadoRaw = String(estado ?? "SIN_INICIAR").trim().toUpperCase();
 
     if (!(ESTADOS_ARREGLO as string[]).includes(estadoRaw)) {
@@ -206,6 +213,7 @@ export async function POST(req: Request) {
             detalleFormulario: detalleFormularioMetadata,
         }),
         kilometraje_leido: kmNumber,
+        combustible_leido: combustibleLeido,
         fecha,
         observaciones: observaciones ?? null,
         precio_final: precioFinalNumber,
@@ -303,6 +311,7 @@ export async function POST(req: Request) {
         p_estado: insertPayload.estado,
         p_descripcion: insertPayload.descripcion,
         p_kilometraje_leido: insertPayload.kilometraje_leido,
+        p_combustible_leido: insertPayload.combustible_leido,
         p_fecha: toISODateTimeWithCurrentTime(insertPayload.fecha),
         p_observaciones: insertPayload.observaciones,
         p_precio_final: insertPayload.precio_final,

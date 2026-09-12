@@ -15,7 +15,7 @@ type MetaItemConfig = {
 
 type Props = {
   metaBadge: MetaItemConfig;
-  accountOrWorkshop: MetaItemConfig;
+  accountOrWorkshop: MetaItemConfig | null;
   totalMonto: number;
 };
 
@@ -25,7 +25,7 @@ export default function OperacionMeta({
   totalMonto,
 }: Props) {
   const BadgeIcon = metaBadge.icon;
-  const OriginIcon = accountOrWorkshop.icon;
+  const OriginIcon = accountOrWorkshop?.icon;
 
   const renderGroup = (isMobile: boolean) => (
     <div
@@ -41,11 +41,13 @@ export default function OperacionMeta({
         label={formatArs(totalMonto)}
         style={styles.metaAmount}
       />
-      <IconLabel
-        icon={<OriginIcon size={isMobile ? 14 : 16} color={COLOR.ICON.MUTED} />}
-        label={isMobile ? accountOrWorkshop.labelMobile : accountOrWorkshop.labelDesktop}
-        style={styles.metaTaller}
-      />
+      {accountOrWorkshop && OriginIcon ? (
+        <IconLabel
+          icon={<OriginIcon size={isMobile ? 14 : 16} color={COLOR.ICON.MUTED} />}
+          label={isMobile ? accountOrWorkshop.labelMobile : accountOrWorkshop.labelDesktop}
+          style={styles.metaTaller}
+        />
+      ) : null}
     </div>
   );
 

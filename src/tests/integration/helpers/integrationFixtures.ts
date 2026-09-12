@@ -35,6 +35,7 @@ export interface DadoUnArregloOptions {
   estado?: EstadoArreglo;
   descripcion?: string;
   kilometraje_leido?: number;
+  combustible_leido?: number | null;
   fecha?: string;
   observaciones?: string;
   precio_final?: number;
@@ -122,6 +123,7 @@ export async function dadoUnArreglo(overrides: DadoUnArregloOptions = {}): Promi
     estado: overrides.estado ?? "SIN_INICIAR",
     descripcion: overrides.descripcion ?? "Mantenimiento general",
     kilometraje_leido: overrides.kilometraje_leido ?? 50000,
+    combustible_leido: overrides.combustible_leido ?? null,
     fecha: overrides.fecha ?? new Date().toISOString(),
     observaciones: overrides.observaciones ?? "",
     precio_final: overrides.precio_final ?? 50000,

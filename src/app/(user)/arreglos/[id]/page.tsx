@@ -540,6 +540,7 @@ export default function ArregloDetailsPage() {
             estado: arreglo.estado,
             fecha: arreglo.fecha,
             kilometraje_leido: arreglo.kilometraje_leido,
+            combustible_leido: arreglo.combustible_leido,
             precio_final: arreglo.precio_final,
             observaciones: arreglo.observaciones,
             descripcion: arreglo.descripcion,

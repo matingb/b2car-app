@@ -17,6 +17,7 @@ export type CreateArregloInput = {
   estado?: EstadoArreglo;
   fecha: string;
   kilometraje_leido: number;
+  combustible_leido?: number | null;
   precio_final: number;
   observaciones?: string;
   esta_pago?: boolean;

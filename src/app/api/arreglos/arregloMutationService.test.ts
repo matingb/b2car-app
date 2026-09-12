@@ -102,6 +102,35 @@ describe("arregloMutationService", () => {
       expect(result.status).toBe(400);
     });
 
+    it("actualiza el combustible leido cuando es un porcentaje valido", async () => {
+      vi.mocked(arregloService.updateById).mockResolvedValue({
+        data: { id: "a1", tenant_id: "ten-1" } as unknown as Arreglo,
+        error: null,
+      });
+
+      const result = await arregloMutationService.updateArregloCompleto(supabase, "a1", {
+        combustible_leido: 65,
+      });
+
+      expect(result.status).toBe(200);
+      expect(arregloService.updateById).toHaveBeenCalledWith(supabase, "a1", {
+        combustible_leido: 65,
+      });
+    });
+
+    it("rechaza un combustible fuera del rango permitido", async () => {
+      const result = await arregloMutationService.updateArregloCompleto(supabase, "a1", {
+        combustible_leido: 101,
+      });
+
+      expect(result).toMatchObject({
+        data: null,
+        error: "combustible_leido debe ser un porcentaje entre 0 y 100",
+        status: 400,
+      });
+      expect(arregloService.updateById).not.toHaveBeenCalled();
+    });
+
     it("actualiza arreglo, upsert de formulario y notifica stats", async () => {
       vi.mocked(arregloService.updateById).mockResolvedValue({
         data: { id: "a1", tenant_id: "ten-1", estado: "EN_PROGRESO" } as unknown as Arreglo,

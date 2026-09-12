@@ -231,6 +231,7 @@ export default function VehiculoDetailsPage() {
                 id: editArreglo.id,
                 fecha: editArreglo.fecha,
                 kilometraje_leido: editArreglo.kilometraje_leido,
+                combustible_leido: editArreglo.combustible_leido,
                 precio_final: editArreglo.precio_final,
                 observaciones: editArreglo.observaciones,
                 descripcion: editArreglo.descripcion,

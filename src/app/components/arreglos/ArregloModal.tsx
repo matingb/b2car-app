@@ -51,6 +51,13 @@ export function normalizeArregloObservaciones(observaciones: string, isEdit: boo
   return isEdit ? normalized : normalized || undefined;
 }
 
+export function parseCombustibleLeido(combustible: string): number | undefined {
+  const normalized = combustible.trim();
+  if (!normalized) return undefined;
+  const value = Number(normalized);
+  return Number.isInteger(value) && value >= 0 && value <= 100 ? value : undefined;
+}
+
 export default function ArregloModal({ open, onClose, vehiculoId, initial, onSubmitSuccess }: Props) {
   const { vehiculos, fetchAll: fetchVehiculos } = useVehiculos();
   const { create, update, fetchById } = useArreglos();
@@ -80,6 +87,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const [estado, setEstado] = useState<EstadoArreglo>(initial?.estado ?? "SIN_INICIAR");
   const [fecha, setFecha] = useState(getArregloModalFecha(initial?.fecha));
   const [km, setKm] = useState<string>(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
+  const [combustible, setCombustible] = useState<string>(initial?.combustible_leido != null ? String(initial.combustible_leido) : "");
   const [observaciones, setObservaciones] = useState(initial?.observaciones ?? "");
   const [estaPago, setEstaPago] = useState<boolean>(!!initial?.esta_pago);
   const [esFacturable, setEsFacturable] = useState<boolean>(initial?.es_facturable !== false);
@@ -116,6 +124,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     setEstado(initial?.estado ?? "SIN_INICIAR");
     setFecha(getArregloModalFecha(initial?.fecha));
     setKm(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
+    setCombustible(initial?.combustible_leido != null ? String(initial.combustible_leido) : "");
     setObservaciones(initial?.observaciones ?? "");
     setEstaPago(!!initial?.esta_pago);
     setEsFacturable(initial?.es_facturable !== false);
@@ -142,6 +151,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
 
   const requiereCuentaFinanciera = estaPago || requiereCompraAutomatica;
   const isCreatingCuenta = cuentaFinancieraId === CREATE_CUENTA_VALUE;
+  const combustibleLeido = parseCombustibleLeido(combustible);
+  const isCombustibleValid = !combustible.trim() || combustibleLeido !== undefined;
 
   if (!open) return null;
 
@@ -149,6 +160,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     estado,
     fecha,
     km,
+    combustible,
     observaciones,
     estaPago,
     extraData,
@@ -166,6 +178,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       },
       fecha: (value) => setFecha(String(value ?? "")),
       km: (value) => setKm(String(value ?? "")),
+      combustible: (value) => setCombustible(String(value ?? "")),
       observaciones: (value) => setObservaciones(String(value ?? "")),
       estaPago: (value) => setEstaPago(Boolean(value)),
       esFacturable: (value) => setEsFacturable(Boolean(value)),
@@ -217,6 +230,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           estado,
           fecha,
           kilometraje_leido: Number(km) || 0,
+          combustible_leido: combustibleLeido ?? null,
           observaciones: normalizeArregloObservaciones(observaciones, isEdit),
           extra_data: extraData || undefined,
           es_facturable: esFacturable,
@@ -242,6 +256,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           estado,
           fecha,
           kilometraje_leido: Number(km) || 0,
+          combustible_leido: combustibleLeido,
           precio_final: precioFinalCalculado,
           observaciones: normalizeArregloObservaciones(observaciones, false),
           esta_pago: !!estaPago,
@@ -293,6 +308,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         setEstado("SIN_INICIAR");
         setFecha(getArregloModalFecha());
         setKm("");
+        setCombustible("");
         setObservaciones("");
         setEstaPago(false);
         setExtraData("");
@@ -334,7 +350,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       onSubmit={handleSubmit}
       submitText={isEdit ? "Guardar cambios" : "Crear"}
       submitting={submitting}
-      disabledSubmit={!isValid || !isCuentaValid || (estaPago && !isValidDate(fechaCobro))}
+      disabledSubmit={!isValid || !isCuentaValid || !isCombustibleValid || (estaPago && !isValidDate(fechaCobro))}
       modalError={
         error
           ? {

@@ -1,0 +1,2 @@
+# Cliente oficial de Supabase para la Data API HTTPS.
+supabase==2.31.0

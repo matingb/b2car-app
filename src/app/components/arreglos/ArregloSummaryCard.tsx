@@ -8,6 +8,7 @@ import {
   Pencil,
   Trash,
   Gauge,
+  Fuel,
   FileText,
   ReceiptText,
   CarFront,
@@ -244,7 +245,15 @@ export default function ArregloSummaryCard({
               ) : (
                 <span style={{ fontSize: 14, color: COLOR.TEXT.SECONDARY }}>Sin vehículo</span>
               )}
-              <div style={styles.detailsGrid}>
+              <div
+                style={{
+                  ...styles.detailsGrid,
+                  gridTemplateColumns:
+                    arreglo.combustible_leido != null
+                      ? "repeat(3, minmax(0, 1fr))"
+                      : "repeat(2, minmax(0, 1fr))",
+                }}
+              >
                 <div style={styles.detailBox}>
                   <span style={styles.blockLabel}>Ingreso</span>
                   <div style={styles.detailValue}>
@@ -261,6 +270,15 @@ export default function ArregloSummaryCard({
                       : "-"}
                   </div>
                 </div>
+                {arreglo.combustible_leido != null ? (
+                  <div style={styles.detailBox}>
+                    <span style={styles.blockLabel}>Combustible</span>
+                    <div style={styles.detailValue}>
+                      <Fuel size={16} color={COLOR.ICON.MUTED} />
+                      {arreglo.combustible_leido}%
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
 

@@ -99,6 +99,21 @@ export const arregloMutationService = {
       };
     }
 
+    if (Object.prototype.hasOwnProperty.call(payload, "combustible_leido")) {
+      const combustibleLeido = payload.combustible_leido;
+      if (
+        combustibleLeido !== null &&
+        combustibleLeido !== undefined &&
+        (!Number.isInteger(combustibleLeido) || combustibleLeido < 0 || combustibleLeido > 100)
+      ) {
+        return {
+          data: null,
+          error: "combustible_leido debe ser un porcentaje entre 0 y 100",
+          status: 400,
+        };
+      }
+    }
+
     const { detalle_formulario, ...restPayload } = payload;
     const arregloPatch: UpdateArregloRequest = { ...restPayload };
     delete (arregloPatch as { descripcion?: unknown }).descripcion;

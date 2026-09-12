@@ -25,6 +25,7 @@ export type ArregloForm = {
   estado?: EstadoArreglo;
   fecha: string;
   kilometraje_leido: number | string;
+  combustible_leido?: number | string | null;
   precio_final: number | string;
   observaciones?: string;
   descripcion?: string;
@@ -39,6 +40,7 @@ export type ArregloFormFieldsValues = {
   estado: EstadoArreglo;
   fecha: string;
   km: string;
+  combustible: string;
   observaciones: string;
   estaPago: boolean;
   extraData: string;
@@ -284,6 +286,22 @@ export default function ArregloFormFields({
               onValuesChange({ km: e.target.value.replace(/\D/g, "") })
             }
             placeholder="123456"
+          />
+        </div>
+        <div css={styles.kmFechaField}>
+          <label style={styles.label}>Combustible (%)</label>
+          <input
+            style={styles.input}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            min={0}
+            max={100}
+            value={values.combustible}
+            onChange={(e) =>
+              onValuesChange({ combustible: e.target.value.replace(/\D/g, "") })
+            }
+            placeholder="50"
+            data-testid="arreglo-combustible"
           />
         </div>
         <div css={styles.kmFechaField}>

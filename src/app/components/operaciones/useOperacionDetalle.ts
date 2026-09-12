@@ -95,6 +95,11 @@ export function useOperacionDetalle({
     "TRANSFERENCIA",
     "MOVIMIENTO_CUENTA",
   ].includes(operacion.tipo);
+  const esOperacionConCuenta =
+    isMovimientoFinanciero || ["COMPRA", "VENTA"].includes(operacion.tipo);
+  const hasCuentaFinanciera = Boolean(
+    operacion.cuenta_financiera_id || operacion.cuenta_financiera_nombre?.trim()
+  );
 
   const { totalLineas, totalMonto } = getTotals(operacion);
   const title = getOperacionTitle(operacion, tipoLabel, stocksById);
@@ -117,12 +122,14 @@ export function useOperacionDetalle({
         labelMobile: `${totalLineas}`,
       };
 
-  const accountOrWorkshop = isMovimientoFinanciero
-    ? {
+  const accountOrWorkshop = esOperacionConCuenta
+    ? hasCuentaFinanciera
+      ? {
         icon: WalletCards,
         labelDesktop: operacion.cuenta_financiera_nombre ?? "Cuenta financiera",
         labelMobile: operacion.cuenta_financiera_nombre ?? "Cuenta",
       }
+      : null
     : {
         icon: Building2,
         labelDesktop: tallerLabel,

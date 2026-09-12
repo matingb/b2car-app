@@ -9,6 +9,7 @@ const base: ArregloFormFieldsValues = {
   estado: "SIN_INICIAR",
   fecha: "2026-01-15",
   km: "123",
+  combustible: "",
   observaciones: "",
   estaPago: false,
   extraData: "",
