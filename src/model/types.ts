@@ -6,13 +6,12 @@ export interface Particular {
   id: UUID
   nombre: string
   apellido?: string
+  /** DNI (7/8 dígitos) o CUIL (11 dígitos), sin formato. */
+  dni_cuil?: string | null
   codigo_pais?: string
   telefono: string
   email: string
   direccion: string
-  tipo_documento_fiscal?: DocumentoFiscalTipo | null
-  numero_documento_fiscal?: string | null
-  condicion_iva_receptor_id?: CondicionIvaReceptorId | null
   vehiculos: Vehiculo[]
 }
 
@@ -30,11 +29,6 @@ export enum TipoCliente {
   EMPRESA = "empresa",
 }
 
-export type DocumentoFiscalTipo = 80 | 86 | 96;
-
-export type CondicionIvaReceptorId =
-  | 1 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 13 | 15 | 16;
-
 export interface Cliente {
   id: UUID
   nombre: string
@@ -44,9 +38,6 @@ export interface Cliente {
   email: string
   direccion: string
   cuit?: string
-  tipo_documento_fiscal?: DocumentoFiscalTipo | null
-  numero_documento_fiscal?: string | null
-  condicion_iva_receptor_id?: CondicionIvaReceptorId | null
   saldo_cuenta?: number
   vehiculos?: Vehiculo[]
   vehiculos_count?: number

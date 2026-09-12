@@ -37,11 +37,10 @@ describe("ClienteFormFields validation", () => {
 });
 
 describe("autocompletado de clientes desde Padrón A13", () => {
-  it("mapea una persona resuelta desde DNI y conserva campos editables del formulario", () => {
+  it("mapea una persona resuelta desde DNI y conserva el CUIL para futuras consultas", () => {
     const value = {
       ...createEmptyClienteFormFieldsValue(TipoCliente.PARTICULAR),
-      tipoDocumentoFiscal: "96" as const,
-      numeroDocumentoFiscal: "12345678",
+      dniCuil: "12345678",
     };
 
     expect(mapArcaPadronPersonToClienteFields(value, {
@@ -56,8 +55,7 @@ describe("autocompletado de clientes desde Padrón A13", () => {
     })).toEqual({
       nombre: "Ana",
       apellido: "Pérez",
-      tipoDocumentoFiscal: "86",
-      numeroDocumentoFiscal: "20123456786",
+      dniCuil: "20123456786",
       direccion: "Av. Siempre Viva 123",
     });
   });
@@ -89,21 +87,21 @@ describe("autocompletado de clientes desde Padrón A13", () => {
       ...createEmptyClienteFormFieldsValue(TipoCliente.PARTICULAR),
       nombre: "Ana",
       apellido: "Editado manualmente",
-      numeroDocumentoFiscal: "20123456786",
+      dniCuil: "20123456786",
       direccion: "Av. Siempre Viva 123",
     };
 
     expect(clearArcaPadronAutofill(value, {
-      documentKey: "PARTICULAR:86:20123456786",
+      documentKey: "particular:86:20123456786",
       values: {
         nombre: "Ana",
         apellido: "Pérez",
-        numeroDocumentoFiscal: "20123456786",
+        dniCuil: "20123456786",
         direccion: "Av. Siempre Viva 123",
       },
     })).toEqual({
       nombre: "",
-      numeroDocumentoFiscal: "",
+      dniCuil: "",
       direccion: "",
     });
   });
@@ -111,10 +109,9 @@ describe("autocompletado de clientes desde Padrón A13", () => {
   it("distingue el documento anterior del nuevo para que una respuesta tardía no se aplique", () => {
     const dni = {
       ...createEmptyClienteFormFieldsValue(TipoCliente.PARTICULAR),
-      tipoDocumentoFiscal: "96" as const,
-      numeroDocumentoFiscal: "12345678",
+      dniCuil: "12345678",
     };
-    const changedDni = { ...dni, numeroDocumentoFiscal: "87654321" };
+    const changedDni = { ...dni, dniCuil: "87654321" };
 
     expect(getArcaPadronDocumentKey(dni)).not.toBe(getArcaPadronDocumentKey(changedDni));
   });

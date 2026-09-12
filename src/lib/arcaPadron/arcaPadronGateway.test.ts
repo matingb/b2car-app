@@ -147,7 +147,7 @@ describe("adapter institucional de padrón ARCA", () => {
   });
 
   it("requiere un identificador completo y las credenciales institucionales", async () => {
-    await expect(lookupArcaPadronPerson(96, "1234567")).rejects.toMatchObject({
+    await expect(lookupArcaPadronPerson(96, "123456")).rejects.toMatchObject({
       code: "ARCA_PADRON_INVALID_DOCUMENT",
     } satisfies Partial<ArcaPadronLookupError>);
 

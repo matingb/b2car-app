@@ -26,7 +26,7 @@ type Props = {
   telefono?: string | null;
   codigo_pais?: string | null;
   cuit?: string | null;
-  numero_documento?: string | null;
+  dniCuil?: string | null;
   resumenFinanciero: ClienteResumenFinanciero | null;
   loadingFinanzas?: boolean;
   onEditCliente: () => void;
@@ -50,7 +50,7 @@ export default function ClienteProfileCard({
   telefono,
   codigo_pais,
   cuit,
-  numero_documento,
+  dniCuil,
   resumenFinanciero,
   loadingFinanzas,
   onEditCliente,
@@ -151,10 +151,10 @@ export default function ClienteProfileCard({
                 <span css={styles.docIcon}>CUIT:</span>
                 <span>{cuit}</span>
               </div>
-            ) : numero_documento ? (
+            ) : dniCuil ? (
               <div css={styles.contactItem}>
-                <span css={styles.docIcon}>DOC:</span>
-                <span>{numero_documento}</span>
+                <span css={styles.docIcon}>DNI/CUIL:</span>
+                <span>{dniCuil}</span>
               </div>
             ) : null}
           </div>

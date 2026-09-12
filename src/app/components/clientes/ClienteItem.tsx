@@ -94,8 +94,6 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
   const cuitOrDoc =
     cliente.cuit
       ? `CUIT: ${cliente.cuit}`
-      : cliente.numero_documento_fiscal
-      ? `Doc: ${cliente.numero_documento_fiscal}`
       : null;
 
   const formattedPhone = cliente.telefono

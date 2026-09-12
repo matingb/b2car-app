@@ -39,6 +39,7 @@ export interface ParticularDto {
     id: string;
     nombre: string;
     apellido?: string;
+    dni_cuil?: string | null;
     codigo_pais?: string;
     telefono: string;
     email: string;

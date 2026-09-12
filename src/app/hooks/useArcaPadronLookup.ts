@@ -15,7 +15,7 @@ export type ArcaPadronLookupState =
   | { status: "ERROR"; message: string };
 
 function documentLength(documentType: ArcaPadronDocumentType | null): number | null {
-  if (documentType === 96) return 8;
+  if (documentType === 96) return null;
   if (documentType === 80 || documentType === 86) return 11;
   return null;
 }
@@ -24,8 +24,10 @@ export function isArcaPadronLookupReady(
   documentType: ArcaPadronDocumentType | null,
   documentNumber: string,
 ): boolean {
+  const normalized = documentNumber.replace(/\D/g, "");
+  if (documentType === 96) return normalized.length === 7 || normalized.length === 8;
   const expected = documentLength(documentType);
-  return expected !== null && documentNumber.replace(/\D/g, "").length === expected;
+  return expected !== null && normalized.length === expected;
 }
 
 export function getArcaPadronLookupQueryKey(

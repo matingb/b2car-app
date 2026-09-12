@@ -46,14 +46,13 @@ function normalizeDocument(value: string): string {
   return value.replace(/\D/g, "");
 }
 
-function expectedLength(documentType: ArcaPadronDocumentType): number {
-  return documentType === 96 ? 8 : 11;
-}
-
 function ensureDocument(documentType: ArcaPadronDocumentType, documentNumber: string): string {
   const normalized = normalizeDocument(documentNumber);
-  if (normalized.length !== expectedLength(documentType)) {
-    const label = documentType === 96 ? "DNI de 8 dígitos" : "CUIT/CUIL de 11 dígitos";
+  const isValid = documentType === 96
+    ? normalized.length === 7 || normalized.length === 8
+    : normalized.length === 11;
+  if (!isValid) {
+    const label = documentType === 96 ? "DNI de 7 u 8 dígitos" : "CUIT/CUIL de 11 dígitos";
     throw new ArcaPadronLookupError(`Ingresá un ${label} para consultar el padrón de ARCA`, "ARCA_PADRON_INVALID_DOCUMENT");
   }
   return normalized;
@@ -68,7 +67,7 @@ export function getArcaPadronB2carConfig(): ArcaPadronB2carConfig {
   } catch (error) {
     if (!(error instanceof ArcaB2carConfigurationError)) throw error;
     throw new ArcaPadronLookupError(
-      "La consulta de padrón ARCA no está configurada. Cargá las credenciales institucionales de B2Car.",
+      "La consulta al padrón de ARCA no está disponible",
       "ARCA_PADRON_NOT_CONFIGURED",
     );
   }

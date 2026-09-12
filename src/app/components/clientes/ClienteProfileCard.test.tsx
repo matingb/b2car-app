@@ -124,7 +124,7 @@ describe("ClienteProfileCard", () => {
       <ClienteProfileCard
         tipo={TipoCliente.PARTICULAR}
         nombre="Juan Pérez"
-        numero_documento="35123456"
+        dniCuil="35123456"
         resumenFinanciero={null}
         loadingFinanzas={false}
         onEditCliente={vi.fn()}

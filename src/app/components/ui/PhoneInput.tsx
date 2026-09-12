@@ -19,9 +19,11 @@ type Props = {
   telefono: string;
   onChange: (patch: { codigoPais?: string; telefono?: string }) => void;
   style?: React.CSSProperties;
+  /** Permite al formulario anfitrión alinear sus controles con el resto de sus inputs. */
+  inputStyle?: React.CSSProperties;
 };
 
-export default function PhoneInput({ codigoPais, telefono, onChange, style }: Props) {
+export default function PhoneInput({ codigoPais, telefono, onChange, style, inputStyle }: Props) {
   return (
     <div style={{ display: "flex", gap: 8, ...style }}>
       <div style={{ flex: "0 0 120px" }}>
@@ -31,12 +33,13 @@ export default function PhoneInput({ codigoPais, telefono, onChange, style }: Pr
           options={PAISES_REGION}
           onChange={(v) => onChange({ codigoPais: v ?? "54" })}
           hideClearButton
+          inputStyle={inputStyle}
         />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <label style={styles.label}>Teléfono</label>
         <input
-          style={styles.input}
+          style={{ ...styles.input, ...inputStyle }}
           placeholder="3511234567"
           value={telefono}
           onChange={(e) => onChange({ telefono: e.target.value })}

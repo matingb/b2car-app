@@ -62,6 +62,7 @@ export default function ParticularDetails() {
     telefono: string;
     email: string;
     direccion: string;
+    dni_cuil?: string | null;
     tipo_cliente: TipoCliente;
   }) => {
     if (!clienteId) return;
@@ -74,6 +75,7 @@ export default function ParticularDetails() {
         telefono: values.telefono,
         email: values.email,
         direccion: values.direccion,
+        dni_cuil: values.dni_cuil,
       };
       const data = await updateParticular(clienteId, payload);
       setParticular(data);
@@ -101,7 +103,7 @@ export default function ParticularDetails() {
         email={particular?.email}
         telefono={particular?.telefono}
         codigo_pais={particular?.codigo_pais}
-        numero_documento={particular?.numero_documento_fiscal}
+        dniCuil={particular?.dni_cuil}
         resumenFinanciero={resumenFinanciero}
         loadingFinanzas={loadingFinanzas}
         onEditCliente={() => setOpenEditCliente(true)}
@@ -146,6 +148,7 @@ export default function ParticularDetails() {
           telefono: particular?.telefono ?? "",
           email: particular?.email ?? "",
           direccion: particular?.direccion ?? "",
+          dni_cuil: particular?.dni_cuil ?? null,
           tipo_cliente: TipoCliente.PARTICULAR,
         }}
       />

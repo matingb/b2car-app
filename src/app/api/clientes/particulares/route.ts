@@ -2,6 +2,7 @@ import { Cliente } from "@/model/types";
 import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { particularService } from "./particularService";
+import { isValidDniCuil, normalizeDniCuil } from "@/lib/documentos";
 
 export type CreateParticularRequest = {
   nombre: string;
@@ -10,9 +11,8 @@ export type CreateParticularRequest = {
   telefono: string;
   email: string;
   direccion: string;
-  tipo_documento_fiscal?: 80 | 86 | 96 | null;
-  numero_documento_fiscal?: string | null;
-  condicion_iva_receptor_id?: number | null;
+  /** DNI (7/8 dígitos) o CUIL (11 dígitos). */
+  dni_cuil?: string | null;
 };
 
 export type CreateParticularResponse = {
@@ -26,9 +26,19 @@ export async function POST(req: Request) {
   if (!payload) return Response.json({ error: "JSON inválido" }, { status: 400 });
 
   if (!payload.nombre) return Response.json({ error: "Falta nombre" }, { status: 400 });
+  const dniCuil = normalizeDniCuil(payload.dni_cuil);
+  if (dniCuil && !isValidDniCuil(dniCuil)) {
+    return Response.json({ error: "El DNI/CUIL debe tener 7 u 8 dígitos para DNI, u 11 para CUIL" }, { status: 400 });
+  }
 
-  const { data, error } = await particularService.createClienteParticular(supabase, payload);
+  const { data, error } = await particularService.createClienteParticular(supabase, {
+    ...payload,
+    dni_cuil: dniCuil,
+  });
   if (error || !data) {
+    if (error?.code === "23505") {
+      return Response.json({ error: "Ya existe un particular con ese DNI/CUIL" }, { status: 409 });
+    }
     return Response.json({ error: error?.message || "No se pudo crear el particular" }, { status: 500 });
   }
 

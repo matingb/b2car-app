@@ -15,9 +15,9 @@ afterEach(() => {
 });
 
 describe("disparador automático de padrón ARCA", () => {
-  it("se habilita al completar 8 dígitos para DNI", () => {
+  it("se habilita al completar 7 u 8 dígitos para DNI", () => {
     expect(isArcaPadronLookupReady(96, "12.345.678")).toBe(true);
-    expect(isArcaPadronLookupReady(96, "1234567")).toBe(false);
+    expect(isArcaPadronLookupReady(96, "1234567")).toBe(true);
     expect(isArcaPadronLookupReady(96, "123456789")).toBe(false);
   });
 

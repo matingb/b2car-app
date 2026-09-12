@@ -407,7 +407,7 @@ const styles = {
   priceValue: css({
     fontSize: 20,
     fontWeight: 700,
-    color: COLOR.TEXT.PRIMARY,
+    color: COLOR.ACCENT.PRIMARY,
     letterSpacing: "-0.5px",
     [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
       fontSize: 24,

@@ -63,15 +63,12 @@ export const empresaService = {
 
   async createClienteEmpresa(
     supabase: SupabaseClient,
-    payload: { nombre: string; cuit: string; codigo_pais?: string; telefono?: string; email?: string; direccion?: string; condicion_iva_receptor_id?: number | null }
+    payload: { nombre: string; cuit: string; codigo_pais?: string; telefono?: string; email?: string; direccion?: string }
   ): Promise<{ data: Cliente | null; error: Error | null }> {
     const { data: clienteInsert, error: errorCliente } = await supabase
       .from("clientes")
       .insert([{
         tipo_cliente: TipoCliente.EMPRESA,
-        tipo_documento_fiscal: 80,
-        numero_documento_fiscal: payload.cuit.replace(/\D/g, ""),
-        condicion_iva_receptor_id: payload.condicion_iva_receptor_id ?? null,
       }])
       .select("id, tipo_cliente")
       .single();
@@ -111,9 +108,6 @@ export const empresaService = {
       telefono: inserted.telefono ?? "",
       email: inserted.email ?? "",
       direccion: inserted.direccion ?? "",
-      tipo_documento_fiscal: 80,
-      numero_documento_fiscal: payload.cuit.replace(/\D/g, ""),
-      condicion_iva_receptor_id: (payload.condicion_iva_receptor_id ?? null) as Cliente["condicion_iva_receptor_id"],
     };
 
     return { data: c, error: null };

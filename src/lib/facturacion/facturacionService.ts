@@ -24,6 +24,8 @@ import { deleteCredentialPair, downloadCredentialPair, uploadCredentialPair } fr
 import { getFacturacionAmbiente } from "./environment";
 import { assertFceMipymeAllowed } from "./fceMipyme";
 import { generateFiscalInvoicePdf, type FiscalPdfInvoice } from "./fiscalPdf";
+import { lookupArcaPadronPerson } from "@/lib/arcaPadron/arcaPadronGateway";
+import { lookupArcaInscriptionVatCondition } from "@/lib/arcaInscripcion/arcaInscripcionGateway";
 import {
   CONDICIONES_IVA_RECEPTOR,
   type CondicionIvaEmisor,
@@ -402,7 +404,7 @@ async function getClientProfile(tenantId: string, clienteId: string | null): Pro
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("clientes")
-    .select("id, tipo_cliente, tipo_documento_fiscal, numero_documento_fiscal, condicion_iva_receptor_id")
+    .select("id, tipo_cliente")
     .eq("id", clienteId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -410,18 +412,53 @@ async function getClientProfile(tenantId: string, clienteId: string | null): Pro
   const client = record(data);
   const company = text(client.tipo_cliente) === "empresa";
   const { data: identity } = company
-    ? await supabase.from("empresas").select("nombre, direccion").eq("id", clienteId).maybeSingle()
-    : await supabase.from("particulares").select("nombre, apellido, direccion").eq("id", clienteId).maybeSingle();
+    ? await supabase.from("empresas").select("nombre, direccion, cuit").eq("id", clienteId).maybeSingle()
+    : await supabase.from("particulares").select("nombre, apellido, direccion, dni_cuil").eq("id", clienteId).maybeSingle();
   const profile = record(identity);
-  return {
-    clienteId,
-    nombre: company ? text(profile.nombre) || "Cliente"
-      : [text(profile.nombre), text(profile.apellido)].filter(Boolean).join(" ") || "Cliente",
-    domicilio: nullable(profile.direccion),
-    tipoDocumento: parseDocumento(client.tipo_documento_fiscal),
-    numeroDocumento: nullable(client.numero_documento_fiscal),
-    condicionIvaReceptorId: parseCondicion(client.condicion_iva_receptor_id),
-  };
+  const nombre = company ? text(profile.nombre) || "Cliente"
+    : [text(profile.nombre), text(profile.apellido)].filter(Boolean).join(" ") || "Cliente";
+  const domicilio = nullable(profile.direccion);
+  const storedDocument = normalizeDocumentNumber(text(company ? profile.cuit : profile.dni_cuil));
+
+  if (!storedDocument) {
+    return {
+      clienteId,
+      nombre,
+      domicilio,
+      tipoDocumento: 99,
+      numeroDocumento: "0",
+      condicionIvaReceptorId: 5,
+    };
+  }
+
+  const documentType = company ? 80 : storedDocument.length === 11 ? 86 : 96;
+  try {
+    const lookup = await lookupArcaPadronPerson(documentType, storedDocument);
+    if (lookup.status === "MULTIPLE") {
+      throw new FacturacionValidationError(
+        "El DNI del cliente tiene más de un CUIL asociado en ARCA. Guardá el CUIL correcto en su ficha antes de emitir.",
+      );
+    }
+    const cuit = normalizeDocumentNumber(lookup.person.cuit);
+    const vat = await lookupArcaInscriptionVatCondition(cuit);
+    const condicionIvaReceptorId = vat.status === "FOUND"
+      ? vat.condition.condicionIvaReceptorId
+      : null;
+    return {
+      clienteId,
+      nombre: lookup.person.razonSocial ?? lookup.person.nombreCompleto ?? nombre,
+      domicilio: lookup.person.direccion ?? domicilio,
+      tipoDocumento: company || (condicionIvaReceptorId !== null && condicionIvaReceptorId !== 5) ? 80 : 86,
+      numeroDocumento: cuit,
+      condicionIvaReceptorId,
+    };
+  } catch (cause) {
+    if (cause instanceof FacturacionValidationError) throw cause;
+    logger.error("No se pudo resolver el perfil fiscal vigente en ARCA", cause);
+    throw new FacturacionValidationError(
+      cause instanceof Error ? cause.message : "No se pudo consultar la información fiscal en ARCA",
+    );
+  }
 }
 
 function appendLine(lineas: FacturaLinea[], input: Omit<FacturaLinea, "ordinal" | "subtotal">) {
@@ -713,22 +750,6 @@ function receiverSnapshot(receiver: PerfilFiscalCliente) {
   };
 }
 
-async function saveFiscalProfile(tenantId: string, receiver: PerfilFiscalCliente) {
-  if (!receiver.clienteId) return;
-  const document = validateDocument(receiver.tipoDocumento, receiver.numeroDocumento);
-  if (!receiver.condicionIvaReceptorId) throw new FacturacionValidationError("La condición IVA es obligatoria");
-  const supabase = await createClient();
-  const { error } = await supabase.from("clientes").update({
-    tipo_documento_fiscal: document.tipoDocumento === 99 ? null : document.tipoDocumento,
-    numero_documento_fiscal: document.tipoDocumento === 99 ? null : document.numeroDocumento,
-    condicion_iva_receptor_id: receiver.condicionIvaReceptorId,
-  }).eq("id", receiver.clienteId).eq("tenant_id", tenantId);
-  if (error) throw new Error("No se pudo guardar el perfil fiscal del cliente");
-  if (document.tipoDocumento === 80) {
-    await supabase.from("empresas").update({ cuit: document.numeroDocumento }).eq("id", receiver.clienteId);
-  }
-}
-
 async function identificationThreshold(date: string): Promise<number> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -951,7 +972,21 @@ async function issueSourceFactura(
   const source = await getCanonicalSource(actor.tenantId, origenTipo, origenId);
   validateLineasYTotal(source.lineas, source.total);
   validateFechas(deriveFacturaConcepto(source.lineas), input.fechas);
-  const receiver = { ...source.receptor, ...input.receptor };
+  const receiver =
+    source.receptor.clienteId && source.receptor.tipoDocumento !== 99
+      ? {
+          ...source.receptor,
+          // Si ARCA no pudo determinar la condición vigente, se admite la
+          // selección puntual del usuario para este comprobante; no se guarda
+          // en la ficha del cliente.
+          ...(source.receptor.condicionIvaReceptorId === null
+            ? {
+                condicionIvaReceptorId:
+                  input.receptor.condicionIvaReceptorId,
+              }
+            : {}),
+        }
+      : { ...source.receptor, ...input.receptor };
   const document = validateDocument(receiver.tipoDocumento, receiver.numeroDocumento);
   if (document.tipoDocumento === 99 && source.total >= await identificationThreshold(input.fechas.fechaComprobante)) {
     throw new FacturacionValidationError("Por el monto del comprobante debe identificar al consumidor final");
@@ -971,7 +1006,6 @@ async function issueSourceFactura(
       message: summary.estado === "AUTORIZADA" ? undefined : "La emisión debe reconciliarse antes de reintentar",
     };
   }
-  await saveFiscalProfile(actor.tenantId, receiver);
   return emitDocument({
     actor, source, config, documentType: "FACTURA", idempotencyKey: input.idempotencyKey,
     receiver, dates: input.fechas, condition: input.condicionVenta,

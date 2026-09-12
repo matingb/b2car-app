@@ -47,6 +47,33 @@ describe("POST /api/clientes/particulares", () => {
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
     expect(statsService.onDataChanged).toHaveBeenCalledWith(mockSupabase);
   });
+
+  it("rechaza un DNI/CUIL con formato inválido antes de crear el cliente", async () => {
+    const response = await POST(new Request("http://localhost/api/clientes/particulares", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(createCreateParticularRequest({ dni_cuil: "123" })),
+    }));
+
+    expect(response.status).toBe(400);
+    expect(particularService.createClienteParticular).not.toHaveBeenCalled();
+  });
+
+  it("expone un conflicto entendible cuando el DNI/CUIL ya existe", async () => {
+    vi.mocked(particularService.createClienteParticular).mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error("duplicate key"), { code: "23505" }),
+    } as Awaited<ReturnType<typeof particularService.createClienteParticular>>);
+
+    const response = await POST(new Request("http://localhost/api/clientes/particulares", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(createCreateParticularRequest({ dni_cuil: "20-12345678-6" })),
+    }));
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: "Ya existe un particular con ese DNI/CUIL" });
+  });
 });
 
 

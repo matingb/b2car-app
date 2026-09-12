@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import { TipoCliente } from "@/model/types";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
+import { isValidDniCuil, normalizeDniCuil } from "@/lib/documentos";
 import {
   getArcaPadronLookupQueryKey,
   isArcaPadronLookupReady,
@@ -18,9 +19,7 @@ export type ClienteFormFieldsValue = {
   nombre: string;
   apellido: string;
   cuit: string;
-  tipoDocumentoFiscal: "80" | "86" | "96";
-  numeroDocumentoFiscal: string;
-  condicionIvaReceptorId: string;
+  dniCuil: string;
   codigoPais: string;
   telefono: string;
   email: string;
@@ -28,7 +27,7 @@ export type ClienteFormFieldsValue = {
   tipo_cliente: TipoCliente;
 };
 
-export type ClienteFormErrors = Partial<Record<"nombre" | "apellido" | "cuit", string>>;
+export type ClienteFormErrors = Partial<Record<"nombre" | "apellido" | "cuit" | "dniCuil", string>>;
 
 export function createEmptyClienteFormFieldsValue(
   tipo_cliente: TipoCliente = TipoCliente.PARTICULAR
@@ -37,9 +36,7 @@ export function createEmptyClienteFormFieldsValue(
     nombre: "",
     apellido: "",
     cuit: "",
-    tipoDocumentoFiscal: tipo_cliente === TipoCliente.EMPRESA ? "80" : "96",
-    numeroDocumentoFiscal: "",
-    condicionIvaReceptorId: "5",
+    dniCuil: "",
     codigoPais: "54",
     telefono: "",
     email: "",
@@ -55,7 +52,7 @@ export function requiredClienteFields(tipo: TipoCliente): Array<keyof ClienteFor
     : ["nombre", "apellido", "tipo_cliente"];
 }
 
-export function validateClienteForm(values: Pick<ClienteFormFieldsValue, "nombre" | "apellido" | "cuit" | "tipo_cliente">): {
+export function validateClienteForm(values: Pick<ClienteFormFieldsValue, "nombre" | "apellido" | "cuit" | "tipo_cliente"> & { dniCuil?: string }): {
   isValid: boolean;
   errors: ClienteFormErrors;
 } {
@@ -64,6 +61,10 @@ export function validateClienteForm(values: Pick<ClienteFormFieldsValue, "nombre
   if (values.nombre.trim().length === 0) errors.nombre = "Campo obligatorio";
   if (values.tipo_cliente === TipoCliente.PARTICULAR && values.apellido.trim().length === 0) errors.apellido = "Campo obligatorio";
   if (values.tipo_cliente === TipoCliente.EMPRESA && values.cuit.trim().length === 0) errors.cuit = "Campo obligatorio";
+  const dniCuil = normalizeDniCuil(values.dniCuil);
+  if (values.tipo_cliente === TipoCliente.PARTICULAR && dniCuil && !isValidDniCuil(dniCuil)) {
+    errors.dniCuil = "Ingresá un DNI de 7 u 8 dígitos o un CUIL de 11 dígitos";
+  }
 
   return { isValid: Object.keys(errors).length === 0, errors };
 }
@@ -83,7 +84,7 @@ const AUTO_FILLED_FIELDS = [
   "nombre",
   "apellido",
   "cuit",
-  "numeroDocumentoFiscal",
+  "dniCuil",
   "direccion",
 ] as const;
 
@@ -94,12 +95,13 @@ type AppliedArcaAutofill = {
 };
 
 export function getArcaPadronDocumentKey(value: ClienteFormFieldsValue): string {
+  const particularDocument = normalizeDniCuil(value.dniCuil) ?? "";
   const documentType = value.tipo_cliente === TipoCliente.EMPRESA
     ? "80"
-    : value.tipoDocumentoFiscal;
+    : particularDocument.length === 11 ? "86" : "96";
   const documentNumber = value.tipo_cliente === TipoCliente.EMPRESA
     ? value.cuit
-    : value.numeroDocumentoFiscal;
+    : particularDocument;
   return `${value.tipo_cliente}:${documentType}:${documentNumber.replace(/\D/g, "")}`;
 }
 
@@ -118,8 +120,7 @@ export function mapArcaPadronPersonToClienteFields(
   return {
     nombre: person.nombre,
     ...(person.apellido ? { apellido: person.apellido } : {}),
-    tipoDocumentoFiscal: value.tipoDocumentoFiscal === "96" ? "86" : value.tipoDocumentoFiscal,
-    numeroDocumentoFiscal: person.cuit,
+    dniCuil: person.cuit,
     ...(person.direccion ? { direccion: person.direccion } : {}),
   };
 }
@@ -204,16 +205,17 @@ export default function ClienteFormFields({
         nombre: value.nombre,
         apellido: value.apellido,
         cuit: value.cuit,
+        dniCuil: value.dniCuil,
         tipo_cliente: value.tipo_cliente,
       }),
-    [value.nombre, value.apellido, value.cuit, value.tipo_cliente]
+    [value.nombre, value.apellido, value.cuit, value.dniCuil, value.tipo_cliente]
   );
   const lookupDocumentType = value.tipo_cliente === TipoCliente.EMPRESA
     ? 80
-    : Number(value.tipoDocumentoFiscal) as 80 | 86 | 96;
+    : (normalizeDniCuil(value.dniCuil)?.length ?? 0) === 11 ? 86 : 96;
   const lookupDocumentNumber = value.tipo_cliente === TipoCliente.EMPRESA
     ? value.cuit
-    : value.numeroDocumentoFiscal;
+    : value.dniCuil;
   const documentKey = getArcaPadronDocumentKey(value);
   const appliedLookup = useRef<string | null>(null);
   const appliedAutofill = useRef<AppliedArcaAutofill | null>(null);
@@ -249,7 +251,7 @@ export default function ClienteFormFields({
     const lookupKey = `${value.tipo_cliente}:${autofillKey}`;
     if (appliedLookup.current === lookupKey) return;
     const patch: Partial<ClienteFormFieldsValue> = {};
-    for (const [field, fieldValue] of Object.entries(fields) as Array<[AutoFilledField | "tipoDocumentoFiscal", string]>) {
+    for (const [field, fieldValue] of Object.entries(fields) as Array<[AutoFilledField, string]>) {
       if (!manuallyEditedFields.current.has(`${documentKey}:${field}`)) {
         Object.assign(patch, { [field]: fieldValue });
       }
@@ -352,17 +354,35 @@ export default function ClienteFormFields({
               onChange={(v) => onChange({ tipo_cliente: v as TipoCliente })}
               disabled={Boolean(disableTipo)}
               hideClearButton
+              inputStyle={styles.input}
             />
           </div>
         </div>
 
-        <PhoneInput
-          codigoPais={value.codigoPais}
-          telefono={value.telefono}
-          onChange={onChange}
-        />
+        
 
         <div style={styles.row}>
+          {value.tipo_cliente === TipoCliente.PARTICULAR && (
+            <div style={styles.field}>
+              <label style={styles.label}>DNI / CUIL (Padron ARCA) <span style={styles.optional}></span></label>
+              <input
+                style={styles.input}
+                inputMode="numeric"
+                placeholder="Ej: 12345678 o 20-12345678-6"
+                value={value.dniCuil}
+                onChange={(e) => {
+                  markFieldAsManual("dniCuil");
+                  onChange({ dniCuil: e.target.value });
+                }}
+              />
+              {value.tipo_cliente === TipoCliente.PARTICULAR ? (
+          <ArcaPadronFeedback
+            lookup={lookup}
+            onSelectCandidate={(candidate) => onChange({ dniCuil: candidate })}
+          />
+        ) : null}
+            </div>
+          )}
           <div style={styles.field}>
             <label style={styles.label}>Email</label>
             <input
@@ -374,55 +394,14 @@ export default function ClienteFormFields({
           </div>
         </div>
 
-        <div style={styles.fiscalBox}>
-          <div style={styles.fiscalTitle}>Perfil fiscal</div>
-          <div style={styles.row}>
-            {value.tipo_cliente === TipoCliente.PARTICULAR ? (
-              <div style={styles.field}>
-                <label style={styles.label}>Tipo de documento</label>
-                <select style={styles.input} value={value.tipoDocumentoFiscal} onChange={(e) => onChange({ tipoDocumentoFiscal: e.target.value as "80" | "86" | "96" })}>
-                  <option value="96">DNI</option>
-                  <option value="86">CUIL</option>
-                  <option value="80">CUIT</option>
-                </select>
-              </div>
-            ) : null}
-            {value.tipo_cliente === TipoCliente.EMPRESA ? (
-              <div style={styles.field}>
-                <label style={styles.label}>Documento fiscal</label>
-                <div style={styles.fiscalHint}>Se utiliza el CUIT obligatorio cargado arriba.</div>
-              </div>
-            ) : (
-              <div style={styles.field}>
-                <label style={styles.label}>Número de documento</label>
-                <input style={styles.input} inputMode="numeric" value={value.numeroDocumentoFiscal} onChange={(e) => onChange({ numeroDocumentoFiscal: e.target.value })} />
-              </div>
-            )}
-            <div style={styles.field}>
-              <label style={styles.label}>Condición IVA receptor</label>
-              <select style={styles.input} value={value.condicionIvaReceptorId} onChange={(e) => onChange({ condicionIvaReceptorId: e.target.value })}>
-                <option value="1">Responsable inscripto</option>
-                <option value="4">IVA exento</option>
-                <option value="5">Consumidor final</option>
-                <option value="6">Monotributista</option>
-                <option value="7">Sujeto no categorizado</option>
-                <option value="8">Proveedor del exterior</option>
-                <option value="9">Cliente del exterior</option>
-                <option value="10">IVA liberado - Ley 19.640</option>
-                <option value="13">Monotributista social</option>
-                <option value="15">IVA no alcanzado</option>
-                <option value="16">Monotributo trabajador promovido</option>
-              </select>
-            </div>
-          </div>
-          <ArcaPadronFeedback
-            lookup={lookup}
-            onSelectCandidate={(candidate) => onChange({
-              tipoDocumentoFiscal: "86",
-              numeroDocumentoFiscal: candidate,
-            })}
-          />
-        </div>
+        <PhoneInput
+          codigoPais={value.codigoPais}
+          telefono={value.telefono}
+          onChange={onChange}
+          inputStyle={styles.input}
+        />
+
+        
 
         <div style={styles.row}>
           <div style={{ ...styles.field, flex: 1 }}>
@@ -466,6 +445,10 @@ const styles = {
     marginBottom: 6,
     color: COLOR.TEXT.SECONDARY,
   },
+  optional: {
+    color: COLOR.TEXT.TERTIARY,
+    fontWeight: 400,
+  },
   required: {
     color: REQUIRED_ICON_COLOR,
     fontWeight: 700,
@@ -482,27 +465,6 @@ const styles = {
   },
   codigoPaisInput: {
     width: "60px",
-  },
-  fiscalBox: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 10,
-    padding: 12,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 8,
-    background: COLOR.BACKGROUND.SUBTLE,
-  },
-  fiscalTitle: {
-    color: COLOR.TEXT.SECONDARY,
-    fontSize: 13,
-    fontWeight: 600,
-  },
-  fiscalHint: {
-    minHeight: 42,
-    display: "flex",
-    alignItems: "center",
-    color: COLOR.TEXT.TERTIARY,
-    fontSize: 13,
   },
   lookupPending: {
     color: COLOR.TEXT.TERTIARY,

@@ -2,6 +2,15 @@ import { SupabaseClient } from '@supabase/supabase-js'
 import { logger } from "@/lib/logger";
 import { TipoCliente, Cliente } from "@/model/types";
 import type { Particular } from "@/model/types";
+import { normalizeDniCuil } from "@/lib/documentos";
+
+type ParticularServiceError = Error & { code?: string };
+
+function databaseError(error: { message?: string; code?: string } | null, fallback: string): ParticularServiceError {
+  const result = new Error(error?.message || fallback) as ParticularServiceError;
+  result.code = error?.code;
+  return result;
+}
 
 type ParticularInsertRow = {
   nombre?: string;
@@ -10,6 +19,7 @@ type ParticularInsertRow = {
   telefono?: string;
   email?: string;
   direccion?: string;
+  dni_cuil?: string | null;
 };
 
 type ParticularByIdRow = {
@@ -38,25 +48,19 @@ export const particularService = {
 
   async createClienteParticular(
     supabase: SupabaseClient,
-    payload: { nombre: string; apellido?: string; codigo_pais?: string; telefono?: string; email?: string; direccion?: string; tipo_documento_fiscal?: 80 | 86 | 96 | null; numero_documento_fiscal?: string | null; condicion_iva_receptor_id?: number | null }
-  ): Promise<{ data: Cliente | null; error: Error | null }> {
-    const numeroDocumentoFiscal = payload.numero_documento_fiscal?.replace(/\D/g, "") || null;
-    const tipoDocumentoFiscal = numeroDocumentoFiscal
-      ? (payload.tipo_documento_fiscal ?? 96)
-      : null;
+    payload: { nombre: string; apellido?: string; codigo_pais?: string; telefono?: string; email?: string; direccion?: string; dni_cuil?: string | null }
+  ): Promise<{ data: Cliente | null; error: ParticularServiceError | null }> {
+    const dniCuil = normalizeDniCuil(payload.dni_cuil);
     const { data: clienteInsert, error: errorCliente } = await supabase
       .from("clientes")
       .insert([{
         tipo_cliente: TipoCliente.PARTICULAR,
-        tipo_documento_fiscal: tipoDocumentoFiscal,
-        numero_documento_fiscal: numeroDocumentoFiscal,
-        condicion_iva_receptor_id: payload.condicion_iva_receptor_id ?? null,
       }])
       .select("id, tipo_cliente")
       .single();
 
     if (errorCliente || !clienteInsert) {
-      return { data: null, error: new Error(errorCliente?.message || "No se pudo crear el particular") };
+      return { data: null, error: databaseError(errorCliente, "No se pudo crear el particular") };
     }
 
     const clienteId = clienteInsert.id;
@@ -67,6 +71,7 @@ export const particularService = {
       telefono: payload.telefono,
       email: payload.email,
       direccion: payload.direccion,
+      dni_cuil: dniCuil,
     };
 
     const { data, error: detalleError } = await supabase
@@ -76,7 +81,19 @@ export const particularService = {
       .single();
 
     if (detalleError || !data) {
-      return { data: null, error: new Error(detalleError?.message || "No se pudo crear el particular") };
+      const { error: cleanupError } = await supabase
+        .from("clientes")
+        .delete()
+        .eq("id", clienteId);
+
+      if (cleanupError) {
+        logger.error(
+          "No se pudo revertir el cliente creado al fallar el detalle de particular",
+          cleanupError,
+        );
+      }
+
+      return { data: null, error: databaseError(detalleError, "No se pudo crear el particular") };
     }
 
     const c: Cliente & { apellido?: string } = {
@@ -88,9 +105,6 @@ export const particularService = {
       telefono: data.telefono,
       email: data.email,
       direccion: data.direccion,
-      tipo_documento_fiscal: tipoDocumentoFiscal,
-      numero_documento_fiscal: numeroDocumentoFiscal,
-      condicion_iva_receptor_id: (payload.condicion_iva_receptor_id ?? null) as Cliente["condicion_iva_receptor_id"],
     };
 
     return { data: c, error: null };
@@ -115,6 +129,7 @@ export const particularService = {
       tipo_cliente: TipoCliente.PARTICULAR,
       nombre: row.particular?.nombre ?? "",
       apellido: row.particular?.apellido ?? "",
+      dni_cuil: row.particular?.dni_cuil ?? null,
       codigo_pais: row.particular?.codigo_pais ?? undefined,
       telefono: row.particular?.telefono ?? "",
       email: row.particular?.email ?? "",
@@ -125,7 +140,7 @@ export const particularService = {
     return { data: particular, error: null };
   },
 
-  async updateById(supabase: SupabaseClient, id: string, payload: Record<string, unknown>): Promise<{ data: unknown | null; error: Error | null }> {
+  async updateById(supabase: SupabaseClient, id: string, payload: Record<string, unknown>): Promise<{ data: unknown | null; error: ParticularServiceError | null }> {
     const { data, error } = await supabase
       .from("particulares")
       .update(payload)
@@ -133,7 +148,7 @@ export const particularService = {
       .select()
       .single();
 
-    if (error) return { data: null, error: new Error(error.message) };
+    if (error) return { data: null, error: databaseError(error, "No se pudo actualizar el particular") };
     return { data: data ?? null, error: null };
   },
 }
