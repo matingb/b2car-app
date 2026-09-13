@@ -27,6 +27,7 @@ describe('clientesClient', () => {
             expect(mockApi).toHaveBeenCalledWith('/api/clientes');
             expect(result).toEqual({
                 data: clientes,
+                page: { hasMore: false },
                 error: null,
             });
         });
@@ -43,6 +44,7 @@ describe('clientesClient', () => {
 
             expect(result).toEqual({
                 data: [],
+                page: { hasMore: false },
                 error: null,
             });
         });
@@ -55,6 +57,7 @@ describe('clientesClient', () => {
 
             expect(result).toEqual({
                 data: null,
+                page: { hasMore: false },
                 error: mensajeError,
             });
         });

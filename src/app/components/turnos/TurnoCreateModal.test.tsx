@@ -31,6 +31,7 @@ vi.mock("@/app/providers/ClientesProvider", () => ({
         id: "C-1",
         nombre: "Juan",
         tipo_cliente: "particular",
+        dni_cuil: "35123456",
         telefono: "11",
         email: "a@a.com",
         direccion: "x",
@@ -167,5 +168,22 @@ describe("TurnoCreateModal", () => {
     expect(mensaje).toContain("REW164");
     expect(mensaje).toContain("2026-03-01");
     expect(mensaje).toContain("Hora: 09:00 hs");
+  });
+
+  it("muestra el DNI debajo del nombre y no el email en las opciones del selector de clientes", async () => {
+    render(
+      <TurnoCreateModal
+        open
+        onClose={vi.fn()}
+        defaultFecha={new Date(2026, 2, 1)}
+        defaultHora="09:00"
+      />
+    );
+
+    await userEvent.click(screen.getByPlaceholderText("Buscar cliente"));
+
+    expect(screen.getByText("Juan")).toBeInTheDocument();
+    expect(screen.getByText("DNI: 35123456")).toBeInTheDocument();
+    expect(screen.queryByText("a@a.com")).not.toBeInTheDocument();
   });
 });

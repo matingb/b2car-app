@@ -1,8 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Cliente, Particular, TipoCliente } from "@/model/types";
-import { clientesClient, DeleteClienteResponse } from "@/clients/clientes/clientesClient";
+import { clientesClient, DeleteClienteResponse, GetClientesInput } from "@/clients/clientes/clientesClient";
 import { CreateParticularRequest } from "../api/clientes/particulares/route";
 import { CreateEmpresaRequest } from "../api/clientes/empresas/route";
 import { Empresa, empresaClient } from "@/clients/clientes/empresaClient";
@@ -11,11 +11,14 @@ import { representantesClient, CreateRepresentanteInput } from "@/clients/repres
 import { Representante } from "@/model/types";
 import type { UpdateParticularRequest } from "../api/clientes/particulares/[id]/route";
 import type { UpdateEmpresaRequest } from "../api/clientes/empresas/[id]/route";
+import { logger } from "@/lib/logger";
 
 type ClientesContextType = {
   clientes: Cliente[];
   loading: boolean;
-  refetch: () => Promise<void>;
+  hasMore: boolean;
+  fetchAll: (filters?: GetClientesInput) => Promise<Cliente[] | null>;
+  searchClientes: (search: string, options?: { tipo?: "particular" | "empresa"; limit?: number }) => Promise<Cliente[]>;
   getParticularById: (id: string) => Promise<Particular | null>;
   getEmpresaById: (id: string) => Promise<Empresa | null>;
   createParticular: (input: CreateParticularRequest) => Promise<Cliente>;
@@ -36,17 +39,56 @@ const ClientesContext = createContext<ClientesContextType | undefined>(
 export function ClientesProvider({ children }: { children: React.ReactNode }) {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
 
-  const fetchClientes = useCallback(async () => {
+  const clientCacheRef = useRef<Map<string, Cliente>>(new Map());
+  const lastFiltersRef = useRef<GetClientesInput | undefined>({ limit: 50 });
+
+  const fetchAll = useCallback(async (filters?: GetClientesInput): Promise<Cliente[] | null> => {
+    lastFiltersRef.current = filters;
     setLoading(true);
     try {
-      const { data, error } = await clientesClient.getAll();
+      const { data, page, error } = await clientesClient.getAll(filters);
       if (error) {
-        console.error("Error cargando clientes", error);
+        logger.error("Error cargando clientes:", error);
       }
-      setClientes(data ?? []);
+      const list = data ?? [];
+      for (const c of list) {
+        clientCacheRef.current.set(String(c.id), c);
+      }
+      setClientes(list);
+      setHasMore(Boolean(page?.hasMore));
+      return list;
     } catch (err) {
-      console.error("Error cargando clientes", err);
+      logger.error("Error cargando clientes:", err);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const searchClientes = useCallback(async (
+    search: string,
+    options?: { tipo?: "particular" | "empresa"; limit?: number }
+  ): Promise<Cliente[]> => {
+    try {
+      const { data, error } = await clientesClient.getAll({
+        search: search.trim() || undefined,
+        tipo: options?.tipo,
+        limit: options?.limit ?? 20,
+      });
+      if (error) {
+        logger.error("Error buscando clientes:", error);
+        return [];
+      }
+      const list = data ?? [];
+      for (const c of list) {
+        clientCacheRef.current.set(String(c.id), c);
+      }
+      return list;
+    } catch (err) {
+      logger.error("Error buscando clientes:", err);
+      return [];
     }
   }, []);
 
@@ -55,7 +97,8 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     if (error || !data) {
       throw new Error(error || "No se pudo crear el cliente");
     }
-    setClientes((prev) => [...prev, data]);
+    clientCacheRef.current.set(String(data.id), data);
+    setClientes((prev) => [data, ...prev]);
     return data;
   }, []);
 
@@ -64,46 +107,38 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     if (error || !data) {
       throw new Error(error || "No se pudo crear el cliente");
     }
-    setClientes((prev) => [...prev, data]);
+    clientCacheRef.current.set(String(data.id), data);
+    setClientes((prev) => [data, ...prev]);
     return data;
   }, []);
 
   useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        await fetchClientes();
-      } catch (e) {
-        console.error("Error cargando clientes", e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [fetchClientes]);
+    void fetchAll(lastFiltersRef.current);
+  }, [fetchAll]);
 
   const getParticularById = useCallback(async (id: string): Promise<Particular | null> => {
-    setLoading(true);
     try {
       const { data, error } = await particularClient.getById(id);
       if (error) {
-        console.error("Error cargando particular", error);
+        logger.error("Error cargando particular:", error);
       }
       return data ?? null;
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      logger.error("Error cargando particular:", err);
+      return null;
     }
   }, []);  
 
   const getEmpresaById = useCallback(async (id: string): Promise<Empresa | null> => {
-    setLoading(true);
     try {
       const { data, error } = await empresaClient.getById(id);
       if (error) {
-        console.error("Error cargando empresa", error);
+        logger.error("Error cargando empresa:", error);
       }
       return data ?? null;
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      logger.error("Error cargando empresa:", err);
+      return null;
     }
   }, []);  
 
@@ -119,8 +154,8 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
       if(response?.error) {
         throw new Error(response.error);
       }
+      clientCacheRef.current.delete(String(id));
       setClientes((prev) => prev.filter((c) => c.id !== id));
-      //return response;
     } finally {
       setLoading(false);
     }
@@ -136,7 +171,6 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
 
   const createRepresentante = useCallback(async (empresaId: string | number, input: CreateRepresentanteInput) => {
     const { data, error } = await representantesClient.create(empresaId, input);
-    console.log({data, error});
     if (error || !data) {
       throw new Error(error || "No se pudo crear el representante");
     }
@@ -156,6 +190,17 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
       throw new Error(error || "No se pudo actualizar el particular");
     }
     const nombre = `${data?.nombre || ""} ${data?.apellido || ""}`.trim();
+    const updatedCliente: Cliente = {
+      id: String(data.id),
+      nombre,
+      tipo_cliente: TipoCliente.PARTICULAR,
+      codigo_pais: data.codigo_pais,
+      telefono: data.telefono,
+      email: data.email,
+      direccion: data.direccion,
+      dni_cuil: data.dni_cuil,
+    };
+    clientCacheRef.current.set(String(data.id), updatedCliente);
     setClientes((prev) => prev.map((c) => c.id === data.id ? { ...c, nombre } : c));
     return data;
   }, []);
@@ -165,17 +210,39 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
     if (error || !data) {
       throw new Error(error || "No se pudo actualizar la empresa");
     }
+    const updatedCliente: Cliente = {
+      id: String(data.id),
+      nombre: data.nombre,
+      tipo_cliente: TipoCliente.EMPRESA,
+      codigo_pais: data.codigo_pais,
+      telefono: data.telefono,
+      email: data.email,
+      direccion: data.direccion,
+      cuit: data.cuit,
+    };
+    clientCacheRef.current.set(String(data.id), updatedCliente);
     setClientes((prev) => prev.map((c) => c.id === data.id ? { ...c, ...data } : c));
     return data;
   }, []);
 
   const getClienteById = useCallback(async (id: string): Promise<Cliente | null> => {
-    setLoading(true);
+    const stringId = String(id);
+    const cached = clientCacheRef.current.get(stringId);
+    if (cached) {
+      return cached;
+    }
+
+    const inState = clientes.find((c) => String(c.id) === stringId);
+    if (inState) {
+      clientCacheRef.current.set(stringId, inState);
+      return inState;
+    }
+
     try {
-      const particularResponse = await particularClient.getById(id);
+      const particularResponse = await particularClient.getById(stringId);
       if (particularResponse.data) {
         const particular = particularResponse.data;
-        return {
+        const clientObj: Cliente = {
           id: particular.id,
           nombre: `${particular.nombre} ${particular.apellido ?? ""}`.trim(),
           tipo_cliente: TipoCliente.PARTICULAR,
@@ -183,13 +250,16 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
           telefono: particular.telefono,
           email: particular.email,
           direccion: particular.direccion,
+          dni_cuil: particular.dni_cuil,
         };
+        clientCacheRef.current.set(stringId, clientObj);
+        return clientObj;
       }
 
-      const empresaResponse = await empresaClient.getById(id);
+      const empresaResponse = await empresaClient.getById(stringId);
       if (empresaResponse.data) {
         const empresa = empresaResponse.data;
-        return {
+        const clientObj: Cliente = {
           id: empresa.id,
           nombre: empresa.nombre,
           tipo_cliente: TipoCliente.EMPRESA,
@@ -199,20 +269,25 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
           direccion: empresa.direccion,
           cuit: empresa.cuit,
         };
+        clientCacheRef.current.set(stringId, clientObj);
+        return clientObj;
       }
 
       return null;
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      logger.error("Error obteniendo cliente por id:", err);
+      return null;
     }
-  }, []);
+  }, [clientes]);
 
 
   const contextValue = useMemo(
     () => ({
       clientes,
       loading,
-      refetch: fetchClientes,
+      hasMore,
+      fetchAll,
+      searchClientes,
       createParticular,
       createEmpresa,
       getParticularById,
@@ -225,7 +300,24 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
       updateEmpresa,
       getClienteById,
     }),
-    [clientes, loading, fetchClientes, createParticular, createEmpresa, getParticularById, getEmpresaById, deleteCliente, listRepresentantes, createRepresentante, deleteRepresentante, updateParticular, updateEmpresa, getClienteById]
+    [
+      clientes,
+      loading,
+      hasMore,
+      fetchAll,
+      searchClientes,
+      createParticular,
+      createEmpresa,
+      getParticularById,
+      getEmpresaById,
+      deleteCliente,
+      listRepresentantes,
+      createRepresentante,
+      deleteRepresentante,
+      updateParticular,
+      updateEmpresa,
+      getClienteById,
+    ]
   );
 
   return (
@@ -235,9 +327,28 @@ export function ClientesProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+const defaultClientesContext: ClientesContextType = {
+  clientes: [],
+  loading: false,
+  hasMore: false,
+  fetchAll: async () => [],
+  searchClientes: async () => [],
+  getParticularById: async () => null,
+  getEmpresaById: async () => null,
+  createParticular: async () => ({} as Cliente),
+  createEmpresa: async () => ({} as Cliente),
+  deleteCliente: async () => {},
+  listRepresentantes: async () => [],
+  createRepresentante: async () => ({} as Representante),
+  deleteRepresentante: async () => {},
+  updateParticular: async () => ({} as Particular),
+  updateEmpresa: async () => ({} as Empresa),
+  getClienteById: async () => null,
+};
+
 export function useClientes() {
   const ctx = useContext(ClientesContext);
-  if (!ctx)
-    throw new Error("useClientes debe usarse dentro de ClientesProvider");
-  return ctx;
+  return ctx ?? defaultClientesContext;
 }
+
+

@@ -15,6 +15,7 @@ import {
   getTurnoInlineFlags,
 } from "@/app/components/turnos/TurnoFormFields";
 import type { TurnoFormFieldsState, TurnoFormFieldsPatch, TurnoFormFieldsContext } from "@/app/components/turnos/TurnoFormFields";
+import { formatClienteDocumento } from "@/lib/documentos";
 
 type Props = {
   state: TurnoFormFieldsState;
@@ -41,7 +42,7 @@ export default function TurnoClienteVehiculoFields({
 
   const vehiculoPlaceholder =
     vehiculosFiltrados.length === 0
-      ? "No hay vehículos registrados para este cliente"
+      ? "No hay vehículos registrados"
       : "Buscar o crear vehículo...";
 
   const clienteOptions: AutocompleteOption[] = [
@@ -53,7 +54,7 @@ export default function TurnoClienteVehiculoFields({
     ...context.clientes.map((c) => ({
       value: String(c.id),
       label: c.nombre,
-      secondaryLabel: c.email || undefined,
+      secondaryLabel: formatClienteDocumento(c),
     })),
   ];
 

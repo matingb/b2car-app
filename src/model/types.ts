@@ -38,6 +38,7 @@ export interface Cliente {
   email: string
   direccion: string
   cuit?: string
+  dni_cuil?: string | null
   saldo_cuenta?: number
   vehiculos?: Vehiculo[]
   vehiculos_count?: number

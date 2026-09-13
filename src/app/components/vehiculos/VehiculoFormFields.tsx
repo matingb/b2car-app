@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Autocomplete, { AutocompleteOption } from "../ui/Autocomplete";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { useClientes } from "@/app/providers/ClientesProvider";
+import { formatClienteDocumento } from "@/lib/documentos";
 
 export type VehiculoFormFieldsValue = {
   cliente_id?: string;
@@ -73,7 +74,7 @@ export default function VehiculoFormFields({
           ? c.nombre
           : `${c.nombre} ${"apellido" in c && c.apellido ? c.apellido : ""}`.trim()
       ),
-      secondaryLabel: String(c.email || ""),
+      secondaryLabel: formatClienteDocumento(c) || "",
     }));
     setClientesOptions(opts);
   }, [showClienteInput, clientes, tipoCliente]);

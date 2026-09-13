@@ -4,9 +4,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
-import Autocomplete, { AutocompleteOption } from "@/app/components/ui/Autocomplete";
+import Autocomplete from "@/app/components/ui/Autocomplete";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
+
+import ClienteAutocomplete from "@/app/components/clientes/ClienteAutocomplete";
+import type { Cliente } from "@/model/types";
 
 interface Props {
   open: boolean;
@@ -16,43 +19,56 @@ interface Props {
 }
 
 export default function ReassignPropietarioModal({ open, vehiculoId, currentClienteId, onClose }: Props) {
-  const [clientesOptions, setClientesOptions] = useState<AutocompleteOption[]>([]);
-  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedNewClienteId, setSelectedNewClienteId] = useState<string>("");
-  const { clientes } = useClientes();
+  const [currentCliente, setCurrentCliente] = useState<Cliente | null>(null);
+  const [loadingCurrent, setLoadingCurrent] = useState(false);
+  const { clientes, getClienteById } = useClientes();
   const { reassignOwner } = useVehiculos();
 
-  // Current owner option (read only)
-  const currentOption = useMemo(() => {
-    if (!currentClienteId) return undefined;
-    return clientesOptions.find(o => o.value === String(currentClienteId));
-  }, [currentClienteId, clientesOptions]);
+  useEffect(() => {
+    if (!open || !currentClienteId) {
+      setCurrentCliente(null);
+      return;
+    }
+
+    const stringId = String(currentClienteId);
+    const found = clientes?.find?.((c) => String(c.id) === stringId);
+    if (found) {
+      setCurrentCliente(found);
+      return;
+    }
+
+    if (typeof getClienteById === "function") {
+      setLoadingCurrent(true);
+      void getClienteById(stringId)
+        .then((c) => {
+          if (c) setCurrentCliente(c);
+        })
+        .finally(() => {
+          setLoadingCurrent(false);
+        });
+    }
+  }, [open, currentClienteId, clientes, getClienteById]);
 
   useEffect(() => {
     if (!open) return;
     setError(null);
     setSelectedNewClienteId("");
-    let active = true;
-    (async () => {
-      setLoading(true);
-      try {
-        const opts = clientes.map((c) => ({
-          value: String(c.id),
-          label: String(c.nombre || ""),
-          secondaryLabel: String(c.email || ""),
-        }));
-        if (active) setClientesOptions(opts);
-      } catch (e) {
-        console.error(e);
-        if (active) setError("No se pudieron cargar los clientes");
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => { active = false; };
-  }, [open, clientes]);
+  }, [open]);
+
+  const currentOption = useMemo(() => {
+    if (!currentClienteId) return undefined;
+    if (currentCliente) {
+      return {
+        value: String(currentCliente.id),
+        label: currentCliente.nombre,
+        secondaryLabel: currentCliente.email || undefined,
+      };
+    }
+    return undefined;
+  }, [currentClienteId, currentCliente]);
 
   const isValid = useMemo(() => {
     if (!selectedNewClienteId) return false;
@@ -68,7 +84,7 @@ export default function ReassignPropietarioModal({ open, vehiculoId, currentClie
     setSubmitting(true);
     setError(null);
     try {
-      await reassignOwner(vehiculoId, selectedNewClienteId)
+      await reassignOwner(vehiculoId, selectedNewClienteId);
       onClose(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ocurrió un error");
@@ -92,7 +108,7 @@ export default function ReassignPropietarioModal({ open, vehiculoId, currentClie
                   options={currentOption ? [currentOption] : []}
                   value={currentOption?.value || ""}
                   onChange={() => { }}
-                  placeholder={loading ? "Cargando..." : "Sin propietario"}
+                  placeholder={loadingCurrent ? "Cargando propietario..." : "Sin propietario"}
                   disabled
                 />
               </div>
@@ -100,12 +116,10 @@ export default function ReassignPropietarioModal({ open, vehiculoId, currentClie
                 <label style={styles.label}>
                   Nuevo propietario <span aria-hidden="true" style={styles.required}>*</span>
                 </label>
-                <Autocomplete
-                  options={clientesOptions}
+                <ClienteAutocomplete
                   value={selectedNewClienteId}
                   onChange={(v) => setSelectedNewClienteId(v)}
-                  placeholder={loading ? "Cargando clientes..." : "Seleccionar cliente"}
-                  disabled={loading}
+                  placeholder="Seleccionar nuevo propietario..."
                 />
               </div>
             </div>

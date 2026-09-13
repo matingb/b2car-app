@@ -1,6 +1,6 @@
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import ClientesPage from "./page";
 import { Cliente, TipoCliente } from "@/model/types";
 
@@ -74,23 +74,87 @@ const mockClientes: Cliente[] = [
   },
 ];
 
+let mockClientesState = [...mockClientes];
+let listeners: Array<() => void> = [];
+
+const mockFetchAll = vi.fn((filters?: {
+  tipo?: string;
+  saldo?: string;
+  search?: string;
+  limit?: number;
+}) => {
+  let list = [...mockClientes];
+  if (filters?.tipo) {
+    list = list.filter((c) => c.tipo_cliente === filters.tipo);
+  }
+  if (filters?.saldo === "PENDIENTE") {
+    list = list.filter((c) => (c.saldo_cuenta ?? 0) > 0);
+  } else if (filters?.saldo === "AL_DIA") {
+    list = list.filter((c) => (c.saldo_cuenta ?? 0) === 0);
+  } else if (filters?.saldo === "A_FAVOR") {
+    list = list.filter((c) => (c.saldo_cuenta ?? 0) < 0);
+  }
+  if (filters?.search) {
+    const q = filters.search.toLowerCase();
+    list = list.filter((c) =>
+      c.nombre.toLowerCase().includes(q) || (c.email && c.email.toLowerCase().includes(q))
+    );
+  }
+  mockClientesState = list;
+  listeners.forEach((l) => l());
+  return Promise.resolve(list);
+});
+
 vi.mock("@/app/providers/ClientesProvider", () => ({
-  useClientes: () => ({
-    clientes: mockClientes,
-    loading: false,
-    createParticular: vi.fn(),
-    createEmpresa: vi.fn(),
-    deleteCliente: vi.fn(),
-  }),
+  useClientes: () => {
+    const [, forceUpdate] = React.useState(0);
+    React.useEffect(() => {
+      const listener = () => forceUpdate((n) => n + 1);
+      listeners.push(listener);
+      return () => {
+        listeners = listeners.filter((l) => l !== listener);
+      };
+    }, []);
+
+    return {
+      clientes: mockClientesState,
+      loading: false,
+      hasMore: false,
+      fetchAll: mockFetchAll,
+      createParticular: vi.fn(),
+      createEmpresa: vi.fn(),
+      deleteCliente: vi.fn(),
+    };
+  },
 }));
+
+function renderAndFlush() {
+  render(<ClientesPage />);
+  act(() => {
+    vi.advanceTimersByTime(300);
+  });
+}
+
+function clickAndFlush(element: HTMLElement) {
+  fireEvent.click(element);
+  act(() => {
+    vi.advanceTimersByTime(300);
+  });
+}
 
 describe("ClientesPage Filtros", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockClientesState = [...mockClientes];
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renderiza todos los clientes por defecto", () => {
-    render(<ClientesPage />);
+    renderAndFlush();
 
     expect(screen.getByText("Juan Perez")).toBeInTheDocument();
     expect(screen.getByText("Maria Deuda")).toBeInTheDocument();
@@ -101,9 +165,9 @@ describe("ClientesPage Filtros", () => {
   });
 
   it("filtra por particulares al presionar el chip 'Particulares'", () => {
-    render(<ClientesPage />);
+    renderAndFlush();
 
-    fireEvent.click(screen.getByTestId("clientes-chip-particular"));
+    clickAndFlush(screen.getByTestId("clientes-chip-particular"));
 
     expect(screen.getByText("Juan Perez")).toBeInTheDocument();
     expect(screen.getByText("Maria Deuda")).toBeInTheDocument();
@@ -112,9 +176,9 @@ describe("ClientesPage Filtros", () => {
   });
 
   it("filtra por empresas al presionar el chip 'Empresas'", () => {
-    render(<ClientesPage />);
+    renderAndFlush();
 
-    fireEvent.click(screen.getByTestId("clientes-chip-empresa"));
+    clickAndFlush(screen.getByTestId("clientes-chip-empresa"));
 
     expect(screen.queryByText("Juan Perez")).not.toBeInTheDocument();
     expect(screen.queryByText("Maria Deuda")).not.toBeInTheDocument();
@@ -123,9 +187,9 @@ describe("ClientesPage Filtros", () => {
   });
 
   it("filtra por saldo pendiente al presionar el chip 'Saldo pendiente'", () => {
-    render(<ClientesPage />);
+    renderAndFlush();
 
-    fireEvent.click(screen.getByTestId("clientes-chip-saldo-pendiente"));
+    clickAndFlush(screen.getByTestId("clientes-chip-saldo-pendiente"));
 
     expect(screen.queryByText("Juan Perez")).not.toBeInTheDocument();
     expect(screen.getByText("Maria Deuda")).toBeInTheDocument();
@@ -134,9 +198,9 @@ describe("ClientesPage Filtros", () => {
   });
 
   it("filtra por saldo al día al presionar el chip 'Saldo al día'", () => {
-    render(<ClientesPage />);
+    renderAndFlush();
 
-    fireEvent.click(screen.getByTestId("clientes-chip-saldo-al-dia"));
+    clickAndFlush(screen.getByTestId("clientes-chip-saldo-al-dia"));
 
     expect(screen.getByText("Juan Perez")).toBeInTheDocument();
     expect(screen.queryByText("Maria Deuda")).not.toBeInTheDocument();
@@ -146,9 +210,9 @@ describe("ClientesPage Filtros", () => {
   });
 
   it("filtra por saldo a favor sin mezclar clientes al día o con deuda", () => {
-    render(<ClientesPage />);
+    renderAndFlush();
 
-    fireEvent.click(screen.getByTestId("clientes-chip-saldo-a-favor"));
+    clickAndFlush(screen.getByTestId("clientes-chip-saldo-a-favor"));
 
     expect(screen.getByText("Logística con Crédito SA")).toBeInTheDocument();
     expect(screen.queryByText("Juan Perez")).not.toBeInTheDocument();
@@ -157,10 +221,10 @@ describe("ClientesPage Filtros", () => {
   });
 
   it("combina filtros: Empresas con Saldo pendiente", () => {
-    render(<ClientesPage />);
+    renderAndFlush();
 
-    fireEvent.click(screen.getByTestId("clientes-chip-empresa"));
-    fireEvent.click(screen.getByTestId("clientes-chip-saldo-pendiente"));
+    clickAndFlush(screen.getByTestId("clientes-chip-empresa"));
+    clickAndFlush(screen.getByTestId("clientes-chip-saldo-pendiente"));
 
     expect(screen.queryByText("Juan Perez")).not.toBeInTheDocument();
     expect(screen.queryByText("Maria Deuda")).not.toBeInTheDocument();
@@ -169,7 +233,7 @@ describe("ClientesPage Filtros", () => {
   });
 
   it("permite abrir el modal con el botón 'Filtrar' y aplicar filtros", () => {
-    render(<ClientesPage />);
+    renderAndFlush();
 
     // Abrir modal con botón Filtrar
     fireEvent.click(screen.getByTestId("clientes-open-filters"));
@@ -183,7 +247,7 @@ describe("ClientesPage Filtros", () => {
       target: { value: "AL_DIA" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Aplicar filtros" }));
+    clickAndFlush(screen.getByRole("button", { name: "Aplicar filtros" }));
 
     // Solo Juan Perez cumple ser Particular y Saldo al día
     expect(screen.getByText("Juan Perez")).toBeInTheDocument();
@@ -193,12 +257,12 @@ describe("ClientesPage Filtros", () => {
   });
 
   it("restablece los filtros al hacer clic en 'Limpiar filtros'", () => {
-    render(<ClientesPage />);
+    renderAndFlush();
 
-    fireEvent.click(screen.getByTestId("clientes-chip-empresa"));
+    clickAndFlush(screen.getByTestId("clientes-chip-empresa"));
     expect(screen.getByTestId("clientes-clear-filters")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId("clientes-clear-filters"));
+    clickAndFlush(screen.getByTestId("clientes-clear-filters"));
 
     expect(screen.getByText("Juan Perez")).toBeInTheDocument();
     expect(screen.getByText("Maria Deuda")).toBeInTheDocument();
