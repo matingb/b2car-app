@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CheckCircle2, XCircle, AlertCircle, Info, Loader2, Clock } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, Info, Loader2 } from "lucide-react";
 import { css } from "@emotion/react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { Arreglo, EstadoArreglo, EstadoPagoArreglo } from "@/model/types";
@@ -54,7 +54,6 @@ export default function ArregloPagoBadge({
   onPagoUpdated,
   size = "md",
   hideTextOnMobile,
-  variant = "default",
 }: Props) {
   const [loading] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -100,18 +99,10 @@ export default function ArregloPagoBadge({
 
   let content: React.ReactNode;
   let activeColor: string;
-  let activeBg: string;
-  let activeBorder: string;
-  let activeTextColor: string;
   let tooltipText: string;
-
-  const isFooter = variant === "footer";
 
   if (loading) {
     activeColor = COLOR.TEXT.SECONDARY;
-    activeBg = isFooter ? "#f8fafc" : "transparent";
-    activeBorder = COLOR.BORDER.SUBTLE;
-    activeTextColor = COLOR.TEXT.PRIMARY;
     tooltipText = "Actualizando...";
     content = (
       <>
@@ -119,66 +110,10 @@ export default function ArregloPagoBadge({
         <span css={textStyles}>Actualizando...</span>
       </>
     );
-  } else if (isFooter) {
-    switch (effectiveEstado) {
-      case "PAGADO":
-        activeColor = "#16a34a";
-        activeBg = "#f0fdf4";
-        activeBorder = "#bbf7d0";
-        activeTextColor = "#16a34a";
-        tooltipText = totalCobrado ? `Pagado total: ${formatArs(totalCobrado)}` : "Cobrado";
-        content = (
-          <>
-            <CheckCircle2 size={badgeSize} color="#16a34a" />
-            <span css={textStyles}>Cobrado</span>
-          </>
-        );
-        break;
-
-      case "PARCIAL":
-      case "PENDIENTE":
-      default:
-        activeColor = "#b45309";
-        activeBg = "#fffbeb";
-        activeBorder = "#fde68a";
-        activeTextColor = "#b45309";
-        tooltipText = effectiveSaldoPendiente > 0
-          ? `Pendiente: ${formatArs(effectiveSaldoPendiente)} (Cobrado: ${formatArs(totalCobrado || 0)})`
-          : "Pendiente";
-        content = (
-          <>
-            <Clock size={badgeSize} color="#b45309" />
-            <span css={textStyles}>
-              {effectiveSaldoPendiente > 0
-                ? `Pendiente (${formatArs(effectiveSaldoPendiente, { maxDecimals: 0 })})`
-                : "Pendiente"}
-            </span>
-          </>
-        );
-        break;
-
-      case "SOBREPAGO":
-        activeColor = "#2563eb";
-        activeBg = "#eff6ff";
-        activeBorder = "#bfdbfe";
-        activeTextColor = "#1d4ed8";
-        tooltipText = "Saldo a favor del cliente";
-        content = (
-          <>
-            <Info size={badgeSize} color="#2563eb" />
-            <span css={textStyles}>Saldo a favor</span>
-          </>
-        );
-        break;
-    }
   } else {
-    // Default variant
-    activeBg = "transparent";
-    activeTextColor = COLOR.TEXT.PRIMARY;
     switch (effectiveEstado) {
       case "PAGADO":
         activeColor = COLOR.SEMANTIC.SUCCESS;
-        activeBorder = isHovered && isInteractive ? activeColor : COLOR.BORDER.SUBTLE;
         tooltipText = totalCobrado ? `Pagado total: ${formatArs(totalCobrado)}` : "Pagado";
         content = (
           <>
@@ -189,14 +124,13 @@ export default function ArregloPagoBadge({
         break;
 
       case "PARCIAL":
-        activeColor = "#d97706"; // Amber 600
-        activeBorder = isHovered && isInteractive ? activeColor : COLOR.BORDER.SUBTLE;
+        activeColor = COLOR.SEMANTIC.WARNING;
         tooltipText = effectiveSaldoPendiente > 0
           ? `Saldo pendiente: ${formatArs(effectiveSaldoPendiente)} (Cobrado: ${formatArs(totalCobrado || 0)})`
           : "Pago parcial";
         content = (
           <>
-            <AlertCircle size={badgeSize} color="#d97706" />
+            <AlertCircle size={badgeSize} color={COLOR.SEMANTIC.WARNING} />
             <span css={textStyles}>
               {effectiveSaldoPendiente > 0
                 ? `Pendiente: ${formatArs(effectiveSaldoPendiente, { maxDecimals: 0 })}`
@@ -208,7 +142,6 @@ export default function ArregloPagoBadge({
 
       case "SOBREPAGO":
         activeColor = COLOR.ACCENT.PRIMARY;
-        activeBorder = isHovered && isInteractive ? activeColor : COLOR.BORDER.SUBTLE;
         tooltipText = "Saldo a favor del cliente";
         content = (
           <>
@@ -221,7 +154,6 @@ export default function ArregloPagoBadge({
       case "PENDIENTE":
       default:
         activeColor = COLOR.SEMANTIC.DANGER;
-        activeBorder = isHovered && isInteractive ? activeColor : COLOR.BORDER.SUBTLE;
         tooltipText = "Registrar cobro";
         content = (
           <>
@@ -240,12 +172,12 @@ export default function ArregloPagoBadge({
     whiteSpace: "nowrap",
     fontSize,
     fontWeight: 600,
-    color: activeTextColor,
-    backgroundColor: activeBg,
+    color: COLOR.TEXT.PRIMARY,
+    backgroundColor: "transparent",
     padding,
     height: size === "sm" ? 28 : 32,
     borderRadius: 8,
-    border: `1px solid ${isFooter ? activeBorder : (isHovered && isInteractive && !loading ? activeColor : COLOR.BORDER.SUBTLE)}`,
+    border: `1px solid ${isHovered && isInteractive && !loading ? activeColor : COLOR.BORDER.SUBTLE}`,
     filter: isHovered && isInteractive && !loading ? "brightness(0.97)" : "none",
     cursor: isInteractive && !loading ? "pointer" : "default",
     transition: "all 0.18s ease-in-out",
