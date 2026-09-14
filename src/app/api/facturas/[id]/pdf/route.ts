@@ -1,5 +1,5 @@
 import { buildFacturaPdf, FacturacionValidationError } from "@/lib/facturacion/facturacionService";
-import { facturacionErrorResponse, requireTenantActor } from "@/lib/facturacion/serverAuth";
+import { facturacionErrorResponse, requireTenantBillingActor } from "@/lib/facturacion/serverAuth";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const actor = await requireTenantActor();
+    const actor = await requireTenantBillingActor();
     const { id } = await params;
     const pdf = await buildFacturaPdf(actor.tenantId, id);
     const body = Uint8Array.from(pdf.bytes).buffer;

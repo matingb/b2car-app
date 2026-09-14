@@ -16,6 +16,22 @@ import { SidebarMenuKey, useSidebarMenu } from "@/app/hooks/useSidebarMenu";
 import TenantNameText from "@/app/components/ui/TenantNameText";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <SessionProvider>
+      <TenantProvider>
+        <CuentasFinancierasProvider>
+          <ModalMessageProvider>
+            <SheetProvider>
+              <AppShell>{children}</AppShell>
+            </SheetProvider>
+          </ModalMessageProvider>
+        </CuentasFinancierasProvider>
+      </TenantProvider>
+    </SessionProvider>
+  );
+}
+
+function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
 
   const { tenantName, items } = useSidebarMenu();
@@ -45,13 +61,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [collapsed]);
 
   return (
-    <SessionProvider>
-      <TenantProvider>
-        <CuentasFinancierasProvider>
-          <ModalMessageProvider>
-            <SheetProvider>
-              <div style={s.appRoot}>
-                <div css={s.pageContent}>
+    <div style={s.appRoot}>
+      <div css={s.pageContent}>
                   <aside
                     css={s.sidebarResponsive}
                     style={s.sidebar}
@@ -125,13 +136,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <main style={s.main}>
                     <div css={s.cardMain}>{children}</div>
                   </main>
-                </div>
-              </div>
-            </SheetProvider>
-          </ModalMessageProvider>
-        </CuentasFinancierasProvider>
-      </TenantProvider>
-    </SessionProvider>
+      </div>
+    </div>
   );
 }
 

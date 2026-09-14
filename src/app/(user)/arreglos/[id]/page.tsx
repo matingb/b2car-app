@@ -36,6 +36,8 @@ import { generateUuidV4 } from "@/lib/uuid";
 import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
 import type { FacturaElectronicaResumen } from "@/lib/facturacion/types";
 import { LockKeyhole } from "lucide-react";
+import { useTenant } from "@/app/providers/TenantProvider";
+import { Feature } from "@/lib/subscription";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -66,15 +68,22 @@ export default function ArregloDetailsPage() {
   const { confirm } = useModalMessage();
   const { success, error } = useToast();
   const { ultimo: ultimoUsado, registrar: registrarUltimoUsado } = useUltimoTipoEmpleado();
+  const { hasFeature } = useTenant();
+  const canUseBilling = hasFeature(Feature.Billing);
 
   const refreshFacturaElectronica = useCallback(async () => {
+    if (!canUseBilling) {
+      setFacturaElectronica(null);
+      setCanEmitFactura(false);
+      return;
+    }
     const response = await fetch(`/api/arreglos/${params.id}/factura`, { cache: "no-store" });
     if (!response.ok) return;
     const body = await response.json();
     const fiscal = body?.data;
     setFacturaElectronica(fiscal?.factura ?? null);
     setCanEmitFactura(!["AUTORIZADA", "ENVIANDO", "INCIERTA"].includes(fiscal?.factura?.estado));
-  }, [params.id]);
+  }, [canUseBilling, params.id]);
 
   const reload = useCallback(async (options?: { showPageLoading?: boolean }) => {
     const showPageLoading = options?.showPageLoading ?? false;
@@ -96,7 +105,7 @@ export default function ArregloDetailsPage() {
       }
       setData(fetchedData);
     } catch (err: unknown) {
-      console.error(err);
+      logger.error("Error cargando arreglo", err);
       setErrorState(err instanceof Error ? err.message : "Error cargando arreglo");
     } finally {
       if (showPageLoading) {
@@ -332,7 +341,7 @@ export default function ArregloDetailsPage() {
   }
 
   const arreglo = data.arreglo;
-  const fiscalReadOnly = facturaElectronica?.estado === "AUTORIZADA";
+  const fiscalReadOnly = canUseBilling && facturaElectronica?.estado === "AUTORIZADA";
   const detalles = Array.isArray(data.detalles) ? data.detalles : [];
   const repuestosLineas = flattenAsignacionesLineas(data);
 
@@ -410,9 +419,9 @@ export default function ArregloDetailsPage() {
           setData((prev) => (prev ? { ...prev, arreglo: { ...prev.arreglo, ...nuevoArreglo } } : prev));
           await reload();
         }}
-        canEmitFactura={canEmitFactura}
-        facturaElectronica={facturaElectronica}
-        onOpenFactura={() => setOpenFacturaModal(true)}
+        canEmitFactura={canUseBilling && canEmitFactura}
+        facturaElectronica={canUseBilling ? facturaElectronica : null}
+        onOpenFactura={canUseBilling ? () => setOpenFacturaModal(true) : undefined}
       />
 
       <div style={{ marginTop: 16 }}>
@@ -426,7 +435,7 @@ export default function ArregloDetailsPage() {
             </div>
           </div>
         </div>
-        {fiscalReadOnly ? (
+        {canUseBilling && fiscalReadOnly ? (
           <Card
             style={styles.fiscalLockNotice}
             onClick={() => router.push(`/facturacion/${facturaElectronica.id}`)}
@@ -559,17 +568,19 @@ export default function ArregloDetailsPage() {
           setCompraPendiente(null);
         }}
       />
-      <FacturaElectronicaModal
-        open={openFacturaModal}
-        arregloId={arreglo.id}
-        onClose={() => setOpenFacturaModal(false)}
-        onAuthorized={(factura) => {
-          setFacturaElectronica(factura);
-          setCanEmitFactura(false);
-          setCompraPendiente(null);
-          void refreshFacturaElectronica();
-        }}
-      />
+      {canUseBilling ? (
+        <FacturaElectronicaModal
+          open={openFacturaModal}
+          arregloId={arreglo.id}
+          onClose={() => setOpenFacturaModal(false)}
+          onAuthorized={(factura) => {
+            setFacturaElectronica(factura);
+            setCanEmitFactura(false);
+            setCompraPendiente(null);
+            void refreshFacturaElectronica();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

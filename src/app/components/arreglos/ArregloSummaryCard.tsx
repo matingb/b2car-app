@@ -28,6 +28,8 @@ import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { getEmpleadoColor } from "@/app/providers/EmpleadosProvider";
+import { useTenant } from "@/app/providers/TenantProvider";
+import { Feature } from "@/lib/subscription";
 
 import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
 import type { EstadoArreglo } from "@/model/types";
@@ -62,11 +64,13 @@ export default function ArregloSummaryCard({
   const { update, remove, loading } = useArreglos();
   const { confirm } = useModalMessage();
   const { success, error } = useToast();
+  const { hasFeature } = useTenant();
   const { handleOpenPrintableInvoice } = useArregloPrintableInvoice();
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
 
   const { categorias } = useCategoriasArreglo();
   const arreglo = data.arreglo;
+  const canUseBilling = hasFeature(Feature.Billing);
 
   const assignedEmpleados = useMemo(
     () => arreglo?.empleados ?? [],
@@ -149,19 +153,19 @@ export default function ArregloSummaryCard({
               size="md"
               totalCalculado={totalCalculado}
               facturaElectronica={facturaElectronica}
-              canEmitFactura={canEmitFactura}
+              canEmitFactura={canUseBilling && canEmitFactura}
               hidePagoTextOnMobile={true}
               onStateChange={handleEstadoChange}
               onPagoUpdated={onArregloChange}
               onFacturableChanged={(nextVal) => {
                 onArregloChange({ ...arreglo, es_facturable: nextVal });
               }}
-              onOpenFacturaModal={canEmitFactura && arreglo.estado !== "PRESUPUESTO" ? onOpenFactura : undefined}
+              onOpenFacturaModal={canUseBilling && canEmitFactura && arreglo.estado !== "PRESUPUESTO" ? onOpenFactura : undefined}
             />
           </div>
 
           <div style={styles.headerActions}>
-            {canEmitFactura && onOpenFactura && arreglo.es_facturable !== false && arreglo.estado !== "PRESUPUESTO" ? (
+            {canUseBilling && canEmitFactura && onOpenFactura && arreglo.es_facturable !== false && arreglo.estado !== "PRESUPUESTO" ? (
               <IconButton
                 icon={<ReceiptText />}
                 size={18}

@@ -147,6 +147,22 @@ describe("POST /api/arreglos", () => {
     );
   });
 
+  it("forwards the billable flag to the create RPC", async () => {
+    const req = new Request("http://localhost/api/arreglos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(createCreateArregloRequest({ es_facturable: true })),
+    });
+
+    const response = await POST(req);
+
+    expect(response.status).toBe(201);
+    expect(rpc).toHaveBeenCalledWith(
+      "rpc_crear_arreglo_completo",
+      expect.objectContaining({ p_es_facturable: true }),
+    );
+  });
+
   it("rechaza un nivel de combustible fuera del rango permitido", async () => {
     const req = new Request("http://localhost/api/arreglos", {
       method: "POST",

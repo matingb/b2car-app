@@ -1,5 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { featureForPath, hasFeature } from '@/lib/subscription'
+
+function copyCookies(source: NextResponse, target: NextResponse) {
+  source.cookies.getAll().forEach((cookie) => target.cookies.set(cookie))
+  return target
+}
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -59,6 +65,27 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
+  }
+
+  const feature = featureForPath(pathname)
+  if (user && feature) {
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims()
+    const claims = claimsData?.claims as Record<string, unknown> | undefined
+    const planSub = claimsError ? null : claims?.plan_sub
+
+    if (!hasFeature(planSub, feature)) {
+      if (pathname.startsWith('/api/')) {
+        return copyCookies(
+          supabaseResponse,
+          NextResponse.json({ error: 'FEATURE_NOT_AVAILABLE_FOR_PLAN' }, { status: 403 }),
+        )
+      }
+
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      url.search = ''
+      return copyCookies(supabaseResponse, NextResponse.redirect(url))
+    }
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.

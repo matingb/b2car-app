@@ -38,5 +38,6 @@ export const config = {
     '/api/tenant/:path*',
     '/api/facturacion/:path*',
     '/api/facturas/:path*',
+    '/api/fiscal/condicion-iva',
   ],
 }

@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getArregloModalFecha, normalizeArregloObservaciones, parseCombustibleLeido } from "./ArregloModal";
+import {
+  getArregloModalFecha,
+  normalizeArregloObservaciones,
+  parseCombustibleLeido,
+  resolveEsFacturableForCreate,
+} from "./ArregloModal";
 
 describe("getArregloModalFecha", () => {
   afterEach(() => {
@@ -37,5 +42,16 @@ describe("parseCombustibleLeido", () => {
 
   it("rechaza valores fuera del rango", () => {
     expect(parseCombustibleLeido("101")).toBeUndefined();
+  });
+});
+
+describe("resolveEsFacturableForCreate", () => {
+  it("forces false for BASE even when the form state is true", () => {
+    expect(resolveEsFacturableForCreate(false, true)).toBe(false);
+  });
+
+  it("preserves the selected value for PRO", () => {
+    expect(resolveEsFacturableForCreate(true, true)).toBe(true);
+    expect(resolveEsFacturableForCreate(true, false)).toBe(false);
   });
 });

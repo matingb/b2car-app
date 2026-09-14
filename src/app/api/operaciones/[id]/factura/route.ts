@@ -8,14 +8,14 @@ import { getFacturacionAmbiente } from "@/lib/facturacion/environment";
 import { FceMipymeRequiredError } from "@/lib/facturacion/fceMipyme";
 import {
   facturacionErrorResponse,
-  requireTenantActor,
+  requireTenantBillingActor,
 } from "@/lib/facturacion/serverAuth";
 
 export const runtime = "nodejs";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const actor = await requireTenantActor();
+    const actor = await requireTenantBillingActor();
     const { id } = await params;
     const result = await getVentaFacturaPreflight(actor, id, getFacturacionAmbiente());
     return Response.json({
@@ -35,7 +35,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const actor = await requireTenantActor();
+    const actor = await requireTenantBillingActor();
     const { id } = await params;
     const result = await issueVentaElectronica(actor, id, parseFacturaIssueInput(await request.json().catch(() => null)));
     return Response.json({ data: result.invoice, error: result.message ?? null }, { status: result.httpStatus });

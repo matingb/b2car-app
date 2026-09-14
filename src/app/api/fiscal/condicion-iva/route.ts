@@ -2,7 +2,8 @@ import {
   ArcaInscriptionLookupError,
   lookupArcaInscriptionVatCondition,
 } from "@/lib/arcaInscripcion/arcaInscripcionGateway";
-import { FacturacionHttpError, requireTenantActor } from "@/lib/facturacion/serverAuth";
+import { Feature } from "@/lib/subscription";
+import { facturacionErrorResponse, FacturacionHttpError, requireTenantFeature } from "@/lib/facturacion/serverAuth";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
@@ -19,7 +20,7 @@ function statusFor(error: ArcaInscriptionLookupError): number {
 
 export async function GET(request: Request) {
   try {
-    await requireTenantActor();
+    await requireTenantFeature(Feature.Billing);
     const cuit = new URL(request.url).searchParams.get("cuit") ?? "";
     const data = await lookupArcaInscriptionVatCondition(cuit);
     return Response.json(
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     if (error instanceof FacturacionHttpError) {
-      return Response.json({ error: error.message }, { status: error.status });
+      return facturacionErrorResponse(error);
     }
     if (error instanceof ArcaInscriptionLookupError) {
       return Response.json(

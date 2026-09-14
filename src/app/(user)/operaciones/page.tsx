@@ -39,6 +39,7 @@ import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { finanzasClient } from "@/clients/finanzasClient";
 import type { GastoFinanciero } from "@/model/finanzas";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
+import { Feature } from "@/lib/subscription";
 
 
 const tipoConfig: Record<
@@ -165,7 +166,11 @@ export default function OperacionesPage() {
         hasMore,
         loadMore,
     } = useOperaciones();
-    const { talleres } = useTenant();
+    const tenant = useTenant();
+    const { talleres } = tenant;
+    const canUseBilling = typeof tenant.hasFeature === "function"
+        ? tenant.hasFeature(Feature.Billing)
+        : true;
     const { getStockById } = useInventario();
     const { success, error } = useToast();
     const { confirm } = useModalMessage();
@@ -440,7 +445,7 @@ export default function OperacionesPage() {
                                     void handleDelete(operacion);
                                 }}
                                 onEdit={operacion.tipo === "GASTO" ? () => handleEditGasto(operacion) : undefined}
-                                onInvoice={operacion.tipo === "VENTA" ? () => setFacturaOperacionId(operacion.id) : undefined}
+                                onInvoice={canUseBilling && operacion.tipo === "VENTA" ? () => setFacturaOperacionId(operacion.id) : undefined}
                             />
                         );
                     })}
@@ -463,7 +468,7 @@ export default function OperacionesPage() {
                     }}
                 />
             ) : null}
-            {facturaOperacionId ? (
+            {canUseBilling && facturaOperacionId ? (
                 <FacturaElectronicaModal
                     open
                     operacionId={facturaOperacionId}

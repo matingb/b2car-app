@@ -62,6 +62,7 @@ type Props = {
   vehiculoId?: number | string;
   vehiculoOptions: AutocompleteOption[];
   isEdit: boolean;
+  showFacturable: boolean;
   submitting: boolean;
   tallerId: string | null;
   values: ArregloFormFieldsValues;
@@ -105,6 +106,7 @@ export default function ArregloFormFields({
   vehiculoId,
   vehiculoOptions,
   isEdit,
+  showFacturable,
   submitting,
   tallerId,
   values,
@@ -383,7 +385,7 @@ export default function ArregloFormFields({
         </div>
       </div>
 
-      {values.estado !== "PRESUPUESTO" && (
+      {showFacturable && values.estado !== "PRESUPUESTO" ? (
         <div css={styles.row}>
           <div style={styles.facturableBox}>
             <label style={styles.checkboxLabel}>
@@ -402,7 +404,7 @@ export default function ArregloFormFields({
             </span>
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 }

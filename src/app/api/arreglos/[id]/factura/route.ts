@@ -8,7 +8,7 @@ import { getFacturacionAmbiente } from "@/lib/facturacion/environment";
 import { FceMipymeRequiredError } from "@/lib/facturacion/fceMipyme";
 import {
   facturacionErrorResponse,
-  requireTenantActor,
+  requireTenantBillingActor,
 } from "@/lib/facturacion/serverAuth";
 import { logger } from "@/lib/logger";
 
@@ -19,7 +19,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const actor = await requireTenantActor();
+    const actor = await requireTenantBillingActor();
     const { id } = await params;
     const result = await getFacturaPreflight(actor, id, getFacturacionAmbiente());
     return Response.json({
@@ -45,7 +45,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const actor = await requireTenantActor();
+    const actor = await requireTenantBillingActor();
     const { id } = await params;
     const body = await request.json().catch(() => null);
     const input = parseFacturaIssueInput(body);

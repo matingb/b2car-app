@@ -33,6 +33,7 @@ import ArregloFormFields, {
 import { COLOR } from "@/theme/theme";
 import { isValidDate } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
+import { Feature } from "@/lib/subscription";
 
 type Props = {
   open: boolean;
@@ -58,11 +59,19 @@ export function parseCombustibleLeido(combustible: string): number | undefined {
   return Number.isInteger(value) && value >= 0 && value <= 100 ? value : undefined;
 }
 
+export function resolveEsFacturableForCreate(
+  canUseBilling: boolean,
+  requestedValue: boolean,
+): boolean {
+  return canUseBilling ? requestedValue : false;
+}
+
 export default function ArregloModal({ open, onClose, vehiculoId, initial, onSubmitSuccess }: Props) {
   const { vehiculos, fetchAll: fetchVehiculos } = useVehiculos();
   const { create, update, fetchById } = useArreglos();
   const { loading: isLoadingCuentas, createCuenta } = useCuentasFinancieras();
-  const { tallerSeleccionadoId } = useTenant();
+  const { tallerSeleccionadoId, hasFeature } = useTenant();
+  const canUseBilling = hasFeature(Feature.Billing);
   const { inventario, isLoading: isInventarioLoading } = useInventario(tallerSeleccionadoId ?? undefined);
   const { confirm } = useModalMessage();
   const { success, error: toastError } = useToast();
@@ -260,7 +269,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           precio_final: precioFinalCalculado,
           observaciones: normalizeArregloObservaciones(observaciones, false),
           esta_pago: !!estaPago,
-          es_facturable: esFacturable,
+          es_facturable: resolveEsFacturableForCreate(canUseBilling, esFacturable),
           ...(requiereCuentaFinanciera ? {
             cuenta_financiera_id: targetCuentaId,
             idempotency_key: generateUuidV4(),
@@ -370,6 +379,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           vehiculoId={vehiculoId}
           vehiculoOptions={vehiculoOptions}
           isEdit={isEdit}
+          showFacturable={canUseBilling}
           submitting={submitting}
           tallerId={tallerSeleccionadoId ?? null}
           values={fieldValues}

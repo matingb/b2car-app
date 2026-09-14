@@ -3,13 +3,13 @@ import {
   issueNotaFiscal,
   parseNotaInput,
 } from "@/lib/facturacion/facturacionService";
-import { facturacionErrorResponse, requireTenantActor } from "@/lib/facturacion/serverAuth";
+import { facturacionErrorResponse, requireTenantBillingActor } from "@/lib/facturacion/serverAuth";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const actor = await requireTenantActor();
+    const actor = await requireTenantBillingActor();
     const { id } = await params;
     const input = parseNotaInput(await request.json().catch(() => null));
     const result = await issueNotaFiscal(actor, id, input);

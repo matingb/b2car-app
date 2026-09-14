@@ -1,11 +1,11 @@
 import { listFacturas } from "@/lib/facturacion/facturacionService";
-import { facturacionErrorResponse, requireTenantActor } from "@/lib/facturacion/serverAuth";
+import { facturacionErrorResponse, requireTenantBillingActor } from "@/lib/facturacion/serverAuth";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    const actor = await requireTenantActor();
+    const actor = await requireTenantBillingActor();
     const params = new URL(request.url).searchParams;
     const result = await listFacturas(actor.tenantId, {
       page: Number(params.get("page") || 1),
