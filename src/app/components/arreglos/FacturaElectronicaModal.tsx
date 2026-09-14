@@ -335,7 +335,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
             </div>
           </section>
           <section style={styles.section}>
-            <div style={styles.sectionTitle}>Identificación del receptor</div>
+            <div style={styles.sectionTitle}>Datos de la factura</div>
             <div style={styles.recipientGrid}>
               <label style={styles.field}>Tipo de documento
                 <Dropdown
@@ -354,11 +354,11 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
                   style={styles.dropdown}
                   dataTestId="factura-tipo-documento"
                 />
-              {responsibleInscriptoDocumentInvalid ? (
-                <span style={styles.validationError} role="alert">
-                  Para un receptor Responsable Inscripto debe seleccionarse CUIT.
-                </span>
-              ) : null}
+                {responsibleInscriptoDocumentInvalid ? (
+                  <span style={styles.validationError} role="alert">
+                    Para un receptor Responsable Inscripto debe seleccionarse CUIT.
+                  </span>
+                ) : null}
               </label>
               <label style={styles.field}>Número de documento
                 <IconInput
@@ -371,20 +371,8 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
                   data-testid="factura-numero-documento"
                   onChange={(event) => setReceptor((previous) => ({ ...previous, numeroDocumento: event.target.value }))}
                 />
-                {receiverIdentificationError ? <span style={styles.validationError}>{receiverIdentificationError}</span> : null}
+
               </label>
-            </div>
-            <ArcaInscriptionInvoiceFeedback
-              lookup={arcaInscriptionLookup}
-              onRetry={arcaInscriptionLookup.retry}
-            />
-            <span style={styles.recipientReference}>
-              Cliente seleccionado: <strong style={styles.recipientName}>{preflight.receptor.nombre}</strong>. La consulta verifica la condición IVA para este comprobante y no modifica su ficha.
-            </span>
-          </section>
-          <section style={styles.section}>
-            <div style={styles.sectionTitle}>Condiciones de la factura</div>
-            <div style={styles.conditionsGrid}>
               <label style={styles.field}>Condición IVA
                 <Dropdown
                   id="factura-condicion-iva"
@@ -419,6 +407,19 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
                 />
               </label>
             </div>
+            <ArcaInscriptionInvoiceFeedback
+              lookup={arcaInscriptionLookup}
+              onRetry={arcaInscriptionLookup.retry}
+            />
+            <span style={styles.recipientReference}>
+              Cliente seleccionado: <strong style={styles.recipientName}>{preflight.receptor.nombre}</strong>. La consulta verifica la condición IVA para este comprobante y no modifica su ficha.
+            </span>
+            {receiverIdentificationError ? <span style={styles.validationError}>{receiverIdentificationError}</span> : null}
+            {preflight.advertenciaArcaReceptor ? (
+              <span style={styles.lookupError} role="status">
+                {preflight.advertenciaArcaReceptor}
+              </span>
+            ) : null}
           </section>
           <section style={styles.section}>
             <div style={styles.sectionTitle}>Fechas aplicables</div>
@@ -550,12 +551,7 @@ const styles = {
   muted: { color: COLOR.TEXT.SECONDARY, fontSize: 13, lineHeight: 1.4 },
   recipientGrid: {
     display: "grid",
-    gridTemplateColumns: "minmax(145px, 0.7fr) minmax(190px, 1fr)",
-    gap: 16,
-  },
-  conditionsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
     gap: 16,
   },
   dateGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16 },

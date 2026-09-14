@@ -134,6 +134,8 @@ export type FacturacionPreflight = {
   emisor?: Pick<FacturacionConfiguracionPublica,
     "razonSocial" | "cuit" | "puntoVenta" | "ambiente" | "condicionIvaEmisor">;
   receptor: PerfilFiscalCliente;
+  /** Advertencia informativa cuando ARCA no pudo verificar el documento. */
+  advertenciaArcaReceptor?: string;
   concepto: FacturaConcepto;
   documentoTipo: DocumentoFiscalClase;
   claseComprobante: FacturaClase;
