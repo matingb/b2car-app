@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 import { exportFacturasRows } from "@/lib/facturacion/facturacionService";
-import { facturacionErrorResponse, requireTenantActor } from "@/lib/facturacion/serverAuth";
+import { facturacionErrorResponse, requireTenantBillingActor } from "@/lib/facturacion/serverAuth";
 
 export const runtime = "nodejs";
 
@@ -11,7 +11,7 @@ function escapeCsv(value: unknown) {
 
 export async function GET(request: Request) {
   try {
-    const actor = await requireTenantActor();
+    const actor = await requireTenantBillingActor();
     const params = new URL(request.url).searchParams;
     const format = params.get("format") === "xlsx" ? "xlsx" : "csv";
     const rows = await exportFacturasRows(actor.tenantId, {

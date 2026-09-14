@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@/supabase/server";
 import { logger } from "@/lib/logger";
+import { Feature, hasFeature, type FeatureValue } from "@/lib/subscription";
 import { FacturacionValidationError } from "./arcaPayload";
 import { FceMipymeQueryError } from "./fceMipyme";
 
@@ -9,6 +10,7 @@ export class FacturacionHttpError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    public readonly code?: string,
   ) {
     super(message);
     this.name = "FacturacionHttpError";
@@ -20,7 +22,10 @@ export type TenantActor = {
   tenantId: string;
   role: string;
   claimedRole: string;
+  claimedPlan: unknown;
 };
+
+export const FEATURE_NOT_AVAILABLE_FOR_PLAN = "FEATURE_NOT_AVAILABLE_FOR_PLAN";
 
 const CUIT_CERTIFICATE_RELATION_MESSAGE = "El CUIT ingresado no está asociado al certificado configurado";
 
@@ -37,6 +42,7 @@ export async function requireTenantActor(): Promise<TenantActor> {
   const userId = typeof claims?.sub === "string" ? claims.sub : "";
   const tenantId = typeof claims?.tenant_id === "string" ? claims.tenant_id : "";
   const claimedRole = typeof claims?.user_role === "string" ? claims.user_role : "";
+  const claimedPlan = claims?.plan_sub;
   if (claimsError || !userId) {
     throw new FacturacionHttpError("Sesión requerida", 401);
   }
@@ -69,7 +75,32 @@ export async function requireTenantActor(): Promise<TenantActor> {
     tenantId: String(membership.tenant_id),
     role: String(membership.rol ?? ""),
     claimedRole,
+    claimedPlan,
   };
+}
+
+export async function requireTenantFeature(feature: FeatureValue): Promise<TenantActor> {
+  const actor = await requireTenantActor();
+  if (!hasFeature(actor.claimedPlan, feature)) {
+    throw new FacturacionHttpError(
+      "La funcionalidad no está disponible en el plan actual",
+      403,
+      FEATURE_NOT_AVAILABLE_FOR_PLAN,
+    );
+  }
+  return actor;
+}
+
+export async function requireTenantFeatureAdmin(feature: FeatureValue): Promise<TenantActor> {
+  const actor = await requireTenantFeature(feature);
+  if (actor.role !== "admin" || actor.claimedRole !== "admin") {
+    throw new FacturacionHttpError("Esta acción requiere un administrador del tenant", 403);
+  }
+  return actor;
+}
+
+export async function requireTenantBillingActor(): Promise<TenantActor> {
+  return requireTenantFeature(Feature.Billing);
 }
 
 export async function requireTenantAdmin(): Promise<TenantActor> {
@@ -82,7 +113,7 @@ export async function requireTenantAdmin(): Promise<TenantActor> {
 
 export function facturacionErrorResponse(error: unknown): Response {
   if (error instanceof FacturacionHttpError) {
-    return Response.json({ error: error.message }, { status: error.status });
+    return Response.json({ error: error.code ?? error.message }, { status: error.status });
   }
   if (error instanceof FacturacionValidationError) {
     return Response.json({ error: error.message }, { status: 422 });

@@ -25,11 +25,14 @@ vi.mock("@/supabase/server", () => ({
 }));
 
 import {
+  FEATURE_NOT_AVAILABLE_FOR_PLAN,
   FacturacionHttpError,
   facturacionErrorResponse,
   requireTenantActor,
   requireTenantAdmin,
+  requireTenantFeature,
 } from "./serverAuth";
+import { Feature } from "@/lib/subscription";
 
 beforeEach(() => {
   mocks.getClaims.mockReset();
@@ -40,6 +43,7 @@ beforeEach(() => {
         sub: "user-1",
         tenant_id: "tenant-1",
         user_role: "admin",
+        plan_sub: "PRO",
       },
     },
     error: null,
@@ -57,6 +61,7 @@ describe("autorización fiscal tenant-scoped", () => {
       tenantId: "tenant-1",
       role: "admin",
       claimedRole: "admin",
+      claimedPlan: "PRO",
     });
   });
 
@@ -76,6 +81,7 @@ describe("autorización fiscal tenant-scoped", () => {
       message: expect.stringContaining("configuración interna"),
     });
     expect(consoleSpy).toHaveBeenCalledWith(
+      "[ERROR]",
       "Error al validar membresía de tenant para facturación:",
       expect.objectContaining({ message: "query error" }),
     );
@@ -104,6 +110,34 @@ describe("autorización fiscal tenant-scoped", () => {
       tenantId: "tenant-2",
       role: "empleado",
       claimedRole: "empleado",
+      claimedPlan: undefined,
+    });
+  });
+
+  it("deniega features Pro para un plan BASE y expone un código estable", async () => {
+    mocks.getClaims.mockResolvedValue({
+      data: {
+        claims: {
+          sub: "user-1",
+          tenant_id: "tenant-1",
+          user_role: "admin",
+          plan_sub: "BASE",
+        },
+      },
+      error: null,
+    });
+
+    await expect(requireTenantFeature(Feature.Billing)).rejects.toMatchObject({
+      status: 403,
+      code: FEATURE_NOT_AVAILABLE_FOR_PLAN,
+    } satisfies Partial<FacturacionHttpError>);
+
+    const response = facturacionErrorResponse(
+      new FacturacionHttpError("No disponible", 403, FEATURE_NOT_AVAILABLE_FOR_PLAN),
+    );
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: FEATURE_NOT_AVAILABLE_FOR_PLAN,
     });
   });
 });

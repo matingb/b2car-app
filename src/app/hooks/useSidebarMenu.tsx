@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ROUTES } from "@/routing/routes";
+import { Feature } from "@/lib/subscription";
 import {
   Car,
   CalendarDays,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { logOut } from "@/app/login/actions";
 import { useRouter } from "next/navigation";
+import { useTenant } from "@/app/providers/TenantProvider";
 
 export enum SidebarMenuKey {
   Dashboard = "dashboard",
@@ -45,22 +47,10 @@ export type SidebarMenuItem = {
   isLoading?: boolean;
 };
 
-
 export function useSidebarMenu() {
-
-  const [tenantName, setTenantName] = useState("B2Car");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("tenant_name");
-      const next = stored?.trim();
-      if (next) setTenantName(next);
-    } catch {
-      // ignore (e.g. blocked storage)
-    }
-  }, []);
+  const { tenantName, hasFeature } = useTenant();
 
   const items: SidebarMenuItem[] = useMemo(() => {
     const handleLogout = async () => {
@@ -70,7 +60,6 @@ export function useSidebarMenu() {
         await logOut();
         router.push(ROUTES.login);
       } catch {
-        // if logout fails, allow retry
         setIsLoggingOut(false);
       }
     };
@@ -139,20 +128,20 @@ export function useSidebarMenu() {
         icon: <IdCard size={18} />,
         onClick: () => router.push(ROUTES.empleados),
       },
-      {
+      ...(hasFeature(Feature.Billing) ? [{
         key: SidebarMenuKey.Facturas,
         href: ROUTES.facturacion,
         label: "Facturas",
         icon: <ReceiptText size={18} />,
         onClick: () => router.push(ROUTES.facturacion),
-      },
-      {
+      }] : []),
+      ...(hasFeature(Feature.Settings) ? [{
         key: SidebarMenuKey.Configuracion,
         href: ROUTES.configuracion,
         label: "Configuración",
         icon: <Settings size={18} />,
         onClick: () => router.push(ROUTES.configuracion),
-      },
+      }] : []),
       {
         key: SidebarMenuKey.Logout,
         href: "",
@@ -163,8 +152,7 @@ export function useSidebarMenu() {
         isLoading: isLoggingOut,
       },
     ];
-  }, [isLoggingOut, router]);
+  }, [hasFeature, isLoggingOut, router]);
 
   return { tenantName, items, isLoggingOut } as const;
 }
-

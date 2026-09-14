@@ -325,6 +325,7 @@ export async function POST(req: Request) {
         p_cuenta_id: cuentaFinancieraId || null,
         p_fecha_cobro: fechaCobro ? toISODateTimeWithCurrentTime(fechaCobro) : null,
         p_idempotency_key: idempotencyKey || null,
+        p_es_facturable: insertPayload.es_facturable,
     };
 
     logger.debug("Llamando a rpc_crear_arreglo_completo con payload:", JSON.stringify(rpcPayload, null, 2));

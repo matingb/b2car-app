@@ -7,6 +7,7 @@ import { OperacionesProvider } from "@/app/providers/OperacionesProvider";
 const talleresMock: { id: string; nombre: string }[] = [];
 const getAllMock = vi.fn();
 const getStatsMock = vi.fn();
+const featureAccess = vi.hoisted(() => ({ pro: true }));
 
 vi.mock("@/app/providers/InventarioProvider", () => ({
   useInventario: () => ({
@@ -68,6 +69,7 @@ vi.mock("@/clients/operacionesClient", () => ({
 vi.mock("@/app/providers/TenantProvider", () => ({
   useTenant: () => ({
     talleres: talleresMock,
+    hasFeature: () => featureAccess.pro,
   }),
 }));
 
@@ -80,6 +82,7 @@ describe("OperacionesPage", () => {
     getAllMock.mockResolvedValue({ data: [], error: null });
     getStatsMock.mockReset();
     getStatsMock.mockResolvedValue({ data: null, error: null });
+    featureAccess.pro = true;
     vi.useFakeTimers();
     vi.spyOn(performance, "now").mockReturnValue(0);
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -191,6 +194,59 @@ describe("OperacionesPage", () => {
     await runPendingPromises();
 
     expect(screen.getByText("08/06/2026, 14:30")).toBeInTheDocument();
+  });
+
+  it("oculta la acciÃ³n de facturar una venta para BASE", async () => {
+    featureAccess.pro = false;
+    getAllMock.mockResolvedValue({
+      data: [{
+        id: "venta-base",
+        tipo: "VENTA",
+        taller_id: "taller-1",
+        fecha: "2026-06-08T14:30:00.000Z",
+        created_at: "2026-06-08T14:30:00.000Z",
+        lineas: [],
+      }],
+      pagination: { page: 1, pageSize: 50, total: 1 },
+      error: null,
+    });
+
+    render(
+      <OperacionesProvider>
+        <ToastProvider>
+          <OperacionesPage />
+        </ToastProvider>
+      </OperacionesProvider>
+    );
+    await runPendingPromises();
+
+    expect(screen.queryByTitle(/Facturar/)).not.toBeInTheDocument();
+  });
+
+  it("muestra la acciÃ³n de facturar una venta para PRO", async () => {
+    getAllMock.mockResolvedValue({
+      data: [{
+        id: "venta-pro",
+        tipo: "VENTA",
+        taller_id: "taller-1",
+        fecha: "2026-06-08T14:30:00.000Z",
+        created_at: "2026-06-08T14:30:00.000Z",
+        lineas: [],
+      }],
+      pagination: { page: 1, pageSize: 50, total: 1 },
+      error: null,
+    });
+
+    render(
+      <OperacionesProvider>
+        <ToastProvider>
+          <OperacionesPage />
+        </ToastProvider>
+      </OperacionesProvider>
+    );
+    await runPendingPromises();
+
+    expect(screen.getByTitle(/Facturar/)).toBeInTheDocument();
   });
 
   it("muestra la cuenta financiera asociada a compras y ventas", async () => {
