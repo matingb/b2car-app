@@ -74,8 +74,17 @@ type CanonicalSource = {
   fecha: string | null;
   total: number;
   receptor: PerfilFiscalCliente;
+  advertenciaArcaReceptor?: string;
   lineas: FacturaLinea[];
 };
+
+type ResolvedClientProfile = {
+  profile: PerfilFiscalCliente;
+  advertenciaArcaReceptor?: string;
+};
+
+const ARCA_RECEIVER_LOOKUP_UNAVAILABLE_MESSAGE =
+  "No se pudo obtener información desde ARCA para este documento. Verificá la condición IVA antes de emitir.";
 
 export type FacturaIssueInput = {
   idempotencyKey: string;
@@ -394,11 +403,13 @@ export async function testFacturacionConnection(
   };
 }
 
-async function getClientProfile(tenantId: string, clienteId: string | null): Promise<PerfilFiscalCliente> {
+async function getClientProfile(tenantId: string, clienteId: string | null): Promise<ResolvedClientProfile> {
   if (!clienteId) {
     return {
-      clienteId: null, nombre: "Consumidor final", domicilio: null,
-      tipoDocumento: 99, numeroDocumento: "0", condicionIvaReceptorId: 5,
+      profile: {
+        clienteId: null, nombre: "Consumidor final", domicilio: null,
+        tipoDocumento: 99, numeroDocumento: "0", condicionIvaReceptorId: 5,
+      },
     };
   }
   const supabase = await createClient();
@@ -422,12 +433,14 @@ async function getClientProfile(tenantId: string, clienteId: string | null): Pro
 
   if (!storedDocument) {
     return {
-      clienteId,
-      nombre,
-      domicilio,
-      tipoDocumento: 99,
-      numeroDocumento: "0",
-      condicionIvaReceptorId: 5,
+      profile: {
+        clienteId,
+        nombre,
+        domicilio,
+        tipoDocumento: 99,
+        numeroDocumento: "0",
+        condicionIvaReceptorId: 5,
+      },
     };
   }
 
@@ -445,19 +458,30 @@ async function getClientProfile(tenantId: string, clienteId: string | null): Pro
       ? vat.condition.condicionIvaReceptorId
       : null;
     return {
-      clienteId,
-      nombre: lookup.person.razonSocial ?? lookup.person.nombreCompleto ?? nombre,
-      domicilio: lookup.person.direccion ?? domicilio,
-      tipoDocumento: company || (condicionIvaReceptorId !== null && condicionIvaReceptorId !== 5) ? 80 : 86,
-      numeroDocumento: cuit,
-      condicionIvaReceptorId,
+      profile: {
+        clienteId,
+        nombre: lookup.person.razonSocial ?? lookup.person.nombreCompleto ?? nombre,
+        domicilio: lookup.person.direccion ?? domicilio,
+        tipoDocumento: company || (condicionIvaReceptorId !== null && condicionIvaReceptorId !== 5) ? 80 : 86,
+        numeroDocumento: cuit,
+        condicionIvaReceptorId,
+      },
     };
   } catch (cause) {
     if (cause instanceof FacturacionValidationError) throw cause;
     logger.error("No se pudo resolver el perfil fiscal vigente en ARCA", cause);
-    throw new FacturacionValidationError(
-      cause instanceof Error ? cause.message : "No se pudo consultar la información fiscal en ARCA",
-    );
+    return {
+      profile: {
+        clienteId,
+        nombre,
+        domicilio,
+        tipoDocumento: documentType,
+        numeroDocumento: storedDocument,
+        // No se infiere la condición IVA sin confirmación de ARCA.
+        condicionIvaReceptorId: null,
+      },
+      advertenciaArcaReceptor: ARCA_RECEIVER_LOOKUP_UNAVAILABLE_MESSAGE,
+    };
   }
 }
 
@@ -568,9 +592,13 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise
     const repuestos = await resolveStockLines(tenantId, (validOperations ?? []).map((row) => text(record(row).id)), "REPUESTO");
     repuestos.forEach((line) => lineas.push({ ...line, ordinal: lineas.length + 1 }));
   }
+  const clientProfile = await getClientProfile(tenantId, clienteId);
   return {
     id: text(repair.id), origenTipo: "ARREGLO", fecha: nullable(repair.fecha),
-    total: number(repair.precio_final), receptor: await getClientProfile(tenantId, clienteId), lineas,
+    total: number(repair.precio_final),
+    receptor: clientProfile.profile,
+    advertenciaArcaReceptor: clientProfile.advertenciaArcaReceptor,
+    lineas,
   };
 }
 
@@ -584,9 +612,12 @@ async function getCanonicalVenta(tenantId: string, operationId: string): Promise
   if (text(operation.tipo) !== "VENTA") throw new FacturacionValidationError("Sólo una venta puede facturarse desde Operaciones");
   const lineas = await resolveStockLines(tenantId, [operationId], "VENTA");
   const total = lineas.reduce((sum, line) => sum + line.subtotal, 0);
+  const clientProfile = await getClientProfile(tenantId, nullable(operation.cliente_id));
   return {
     id: text(operation.id), origenTipo: "VENTA", fecha: nullable(operation.fecha), total,
-    receptor: await getClientProfile(tenantId, nullable(operation.cliente_id)), lineas,
+    receptor: clientProfile.profile,
+    advertenciaArcaReceptor: clientProfile.advertenciaArcaReceptor,
+    lineas,
   };
 }
 
@@ -688,7 +719,9 @@ export async function getDocumentoPreflight(
         razonSocial: config.razonSocial, cuit: config.cuit, puntoVenta: config.puntoVenta,
         ambiente: config.ambiente, condicionIvaEmisor: config.condicionIvaEmisor,
       } : undefined,
-      receptor: source.receptor, concepto, documentoTipo: "FACTURA",
+      receptor: source.receptor,
+      advertenciaArcaReceptor: source.advertenciaArcaReceptor,
+      concepto, documentoTipo: "FACTURA",
       claseComprobante: voucher.clase, tipoComprobante: voucher.tipo,
       lineas, totales, total: totales.total, precioFinal: source.total,
       fechasDefault: defaultFechas(source, concepto),
