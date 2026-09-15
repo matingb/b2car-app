@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import ClienteFormModal from "@/app/components/clientes/ClienteFormModal";
 import ClienteItem from "@/app/components/clientes/ClienteItem";
@@ -8,11 +8,11 @@ import ClientesFiltersModal, { ClientesFilters } from "@/app/components/clientes
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
 import ScrollPage from "@/app/components/ui/ScrollPage";
+import ListSpinner from "@/app/components/ui/ListSpinner";
 import { PlusIcon, Filter, User, Building2, AlertCircle, CheckCircle2, Info } from "lucide-react";
 import Button from "@/app/components/ui/Button";
 import { useToast } from "@/app/providers/ToastProvider";
 import { TipoCliente } from "@/model/types";
-import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 
@@ -28,26 +28,42 @@ export default function ClientesPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [limit, setLimit] = useState(LIMIT_STEP);
+  const [searching, setSearching] = useState(false);
 
   const searchTrimmed = search.trim();
+  const queryKey = `${searchTrimmed}|${tipoClienteFilter}|${saldoFilter}`;
+
+  const appliedQueryRef = useRef<string | null>(null);
+  const latestQueryRef = useRef<string>(queryKey);
 
   useEffect(() => {
     setLimit(LIMIT_STEP);
   }, [searchTrimmed, tipoClienteFilter, saldoFilter]);
 
   useEffect(() => {
+    const isNewQuery = appliedQueryRef.current !== queryKey;
+    latestQueryRef.current = queryKey;
+
     const timeoutId = window.setTimeout(() => {
       if (typeof fetchAll !== "function") return;
-      void fetchAll({
-        limit,
-        search: searchTrimmed || undefined,
-        tipo: tipoClienteFilter || undefined,
-        saldo: saldoFilter || undefined,
+      if (isNewQuery) setSearching(true);
+
+      void Promise.resolve(
+        fetchAll({
+          limit,
+          search: searchTrimmed || undefined,
+          tipo: tipoClienteFilter || undefined,
+          saldo: saldoFilter || undefined,
+        })
+      ).finally(() => {
+        if (latestQueryRef.current !== queryKey) return;
+        appliedQueryRef.current = queryKey;
+        setSearching(false);
       });
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [fetchAll, limit, searchTrimmed, tipoClienteFilter, saldoFilter]);
+  }, [fetchAll, limit, queryKey, searchTrimmed, tipoClienteFilter, saldoFilter]);
 
   const handleApplyModalFilters = (filters: ClientesFilters) => {
     setTipoClienteFilter(filters.tipoCliente);
@@ -188,8 +204,8 @@ export default function ClientesPage() {
         </div>
       </div>
 
-      {loading && clientes.length === 0 ? (
-        <ListSkeleton />
+      {searching || (loading && clientes.length === 0) ? (
+        <ListSpinner dataTestId="clientes-search-loading" />
       ) : clientes.length === 0 ? (
         <div style={styles.emptyContainer} data-testid="clientes-empty-state">
           <p style={styles.emptyText}>No se encontraron clientes para los filtros aplicados.</p>

@@ -6,10 +6,12 @@ import {
   getLimitSentinel,
   sliceWithHasMore,
 } from "@/lib/pagination";
+import { logger } from "@/lib/logger";
 
 export type ClienteListRow = {
   id: string;
   tipo_cliente: TipoCliente;
+  fecha_creacion?: string | null;
   particular?: {
     nombre?: string;
     apellido?: string;
@@ -41,6 +43,27 @@ export type ClienteListPageResult = {
   hasMore: boolean;
 };
 
+const ID_FILTER_CHUNK_SIZE = 100;
+
+function chunkIds(ids: string[], size: number): string[][] {
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += size) {
+    chunks.push(ids.slice(i, i + size));
+  }
+  return chunks;
+}
+
+function fechaCreacionOrder(row: ClienteListRow): number {
+  const parsed = Date.parse(String(row.fecha_creacion ?? ""));
+  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+}
+
+function compareClientesDesc(a: ClienteListRow, b: ClienteListRow): number {
+  const fechaDiff = fechaCreacionOrder(b) - fechaCreacionOrder(a);
+  if (fechaDiff !== 0) return fechaDiff;
+  return String(b.id).localeCompare(String(a.id));
+}
+
 async function listClienteIdsBySearch(
   supabase: SupabaseClient,
   search: string
@@ -62,6 +85,13 @@ async function listClienteIdsBySearch(
         `nombre.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%,telefono.ilike.%${safeSearch}%,direccion.ilike.%${safeSearch}%,cuit.ilike.%${safeSearch}%`
       ),
   ]);
+
+  if (particularesRes.error) {
+    logger.error("Error buscando particulares por texto:", particularesRes.error);
+  }
+  if (empresasRes.error) {
+    logger.error("Error buscando empresas por texto:", empresasRes.error);
+  }
 
   const ids = new Set<string>();
   for (const row of (particularesRes.data ?? []) as Array<{ id: string }>) {
@@ -195,27 +225,44 @@ export const clienteService = {
       }
     }
 
-    let query = supabase
-      .from("clientes")
-      .select("*, particular:particulares(*), empresa:empresas(*)")
-      .order("fecha_creacion", { ascending: false })
-      .order("id", { ascending: false })
-      .limit(getLimitSentinel(limit));
+    const buildClientesQuery = (ids: string[] | null) => {
+      let query = supabase
+        .from("clientes")
+        .select("*, particular:particulares(*), empresa:empresas(*)")
+        .order("fecha_creacion", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(getLimitSentinel(limit));
 
-    if (safeTipo) {
-      query = query.eq("tipo_cliente", safeTipo);
+      if (safeTipo) {
+        query = query.eq("tipo_cliente", safeTipo);
+      }
+
+      if (ids !== null) {
+        query = query.in("id", ids);
+      }
+
+      return query;
+    };
+
+    // El filtro `in` viaja en la URL, así que una lista larga de ids la vuelve
+    // demasiado grande y el request falla (400). Se parte en chunks y se reordena
+    // el resultado combinado antes de paginar.
+    const idChunks = targetIds === null ? [null] : chunkIds(targetIds, ID_FILTER_CHUNK_SIZE);
+
+    const chunkResults = await Promise.all(idChunks.map((ids) => buildClientesQuery(ids)));
+
+    const rows: ClienteListRow[] = [];
+    for (const { data: chunkRows, error: chunkError } of chunkResults) {
+      if (chunkError) {
+        return { data: null, error: new Error(chunkError.message) };
+      }
+      rows.push(...((chunkRows ?? []) as ClienteListRow[]));
     }
 
-    if (targetIds !== null) {
-      query = query.in("id", targetIds);
+    if (idChunks.length > 1) {
+      rows.sort(compareClientesDesc);
     }
 
-    const { data: rawRows, error: clientesError } = await query;
-    if (clientesError) {
-      return { data: null, error: new Error(clientesError.message) };
-    }
-
-    const rows = (rawRows ?? []) as ClienteListRow[];
     const { items, hasMore } = sliceWithHasMore(rows, limit);
 
     const clientIds = items.map((c) => c.id);

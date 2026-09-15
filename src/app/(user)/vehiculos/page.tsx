@@ -1,5 +1,5 @@
 "use client";
-import ListSkeleton from "@/app/components/ui/ListSkeleton";
+import ListSpinner from "@/app/components/ui/ListSpinner";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
 import VehiculoCard from "@/app/components/vehiculos/VehiculoCard";
@@ -43,7 +43,7 @@ export default function VehiculosPage() {
         <Button icon={<PlusIcon size={20}/>} text="Crear vehiculo" onClick={() => setIsModalOpen(true)} style={styles.newButton} />
       </div>
       {loading ? (
-        <ListSkeleton />
+        <ListSpinner dataTestId="vehiculos-loading" />
       ) : (
         <div style={styles.vehiclesList}>
           {vehiculosFiltrados.map((vehiculo: Vehiculo) => (

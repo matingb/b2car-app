@@ -128,16 +128,16 @@ vi.mock("@/app/providers/ClientesProvider", () => ({
   },
 }));
 
-function renderAndFlush() {
+async function renderAndFlush() {
   render(<ClientesPage />);
-  act(() => {
+  await act(async () => {
     vi.advanceTimersByTime(300);
   });
 }
 
-function clickAndFlush(element: HTMLElement) {
+async function clickAndFlush(element: HTMLElement) {
   fireEvent.click(element);
-  act(() => {
+  await act(async () => {
     vi.advanceTimersByTime(300);
   });
 }
@@ -153,8 +153,8 @@ describe("ClientesPage Filtros", () => {
     vi.useRealTimers();
   });
 
-  it("renderiza todos los clientes por defecto", () => {
-    renderAndFlush();
+  it("renderiza todos los clientes por defecto", async () => {
+    await renderAndFlush();
 
     expect(screen.getByText("Juan Perez")).toBeInTheDocument();
     expect(screen.getByText("Maria Deuda")).toBeInTheDocument();
@@ -164,10 +164,10 @@ describe("ClientesPage Filtros", () => {
     expect(screen.getByTestId("clientes-open-filters")).toBeInTheDocument();
   });
 
-  it("filtra por particulares al presionar el chip 'Particulares'", () => {
-    renderAndFlush();
+  it("filtra por particulares al presionar el chip 'Particulares'", async () => {
+    await renderAndFlush();
 
-    clickAndFlush(screen.getByTestId("clientes-chip-particular"));
+    await clickAndFlush(screen.getByTestId("clientes-chip-particular"));
 
     expect(screen.getByText("Juan Perez")).toBeInTheDocument();
     expect(screen.getByText("Maria Deuda")).toBeInTheDocument();
@@ -175,10 +175,10 @@ describe("ClientesPage Filtros", () => {
     expect(screen.queryByText("Transportes Sur SRL")).not.toBeInTheDocument();
   });
 
-  it("filtra por empresas al presionar el chip 'Empresas'", () => {
-    renderAndFlush();
+  it("filtra por empresas al presionar el chip 'Empresas'", async () => {
+    await renderAndFlush();
 
-    clickAndFlush(screen.getByTestId("clientes-chip-empresa"));
+    await clickAndFlush(screen.getByTestId("clientes-chip-empresa"));
 
     expect(screen.queryByText("Juan Perez")).not.toBeInTheDocument();
     expect(screen.queryByText("Maria Deuda")).not.toBeInTheDocument();
@@ -186,10 +186,10 @@ describe("ClientesPage Filtros", () => {
     expect(screen.getByText("Transportes Sur SRL")).toBeInTheDocument();
   });
 
-  it("filtra por saldo pendiente al presionar el chip 'Saldo pendiente'", () => {
-    renderAndFlush();
+  it("filtra por saldo pendiente al presionar el chip 'Saldo pendiente'", async () => {
+    await renderAndFlush();
 
-    clickAndFlush(screen.getByTestId("clientes-chip-saldo-pendiente"));
+    await clickAndFlush(screen.getByTestId("clientes-chip-saldo-pendiente"));
 
     expect(screen.queryByText("Juan Perez")).not.toBeInTheDocument();
     expect(screen.getByText("Maria Deuda")).toBeInTheDocument();
@@ -197,10 +197,10 @@ describe("ClientesPage Filtros", () => {
     expect(screen.getByText("Transportes Sur SRL")).toBeInTheDocument();
   });
 
-  it("filtra por saldo al día al presionar el chip 'Saldo al día'", () => {
-    renderAndFlush();
+  it("filtra por saldo al día al presionar el chip 'Saldo al día'", async () => {
+    await renderAndFlush();
 
-    clickAndFlush(screen.getByTestId("clientes-chip-saldo-al-dia"));
+    await clickAndFlush(screen.getByTestId("clientes-chip-saldo-al-dia"));
 
     expect(screen.getByText("Juan Perez")).toBeInTheDocument();
     expect(screen.queryByText("Maria Deuda")).not.toBeInTheDocument();
@@ -209,10 +209,10 @@ describe("ClientesPage Filtros", () => {
     expect(screen.queryByText("Logística con Crédito SA")).not.toBeInTheDocument();
   });
 
-  it("filtra por saldo a favor sin mezclar clientes al día o con deuda", () => {
-    renderAndFlush();
+  it("filtra por saldo a favor sin mezclar clientes al día o con deuda", async () => {
+    await renderAndFlush();
 
-    clickAndFlush(screen.getByTestId("clientes-chip-saldo-a-favor"));
+    await clickAndFlush(screen.getByTestId("clientes-chip-saldo-a-favor"));
 
     expect(screen.getByText("Logística con Crédito SA")).toBeInTheDocument();
     expect(screen.queryByText("Juan Perez")).not.toBeInTheDocument();
@@ -220,11 +220,11 @@ describe("ClientesPage Filtros", () => {
     expect(screen.queryByText("Transportes Sur SRL")).not.toBeInTheDocument();
   });
 
-  it("combina filtros: Empresas con Saldo pendiente", () => {
-    renderAndFlush();
+  it("combina filtros: Empresas con Saldo pendiente", async () => {
+    await renderAndFlush();
 
-    clickAndFlush(screen.getByTestId("clientes-chip-empresa"));
-    clickAndFlush(screen.getByTestId("clientes-chip-saldo-pendiente"));
+    await clickAndFlush(screen.getByTestId("clientes-chip-empresa"));
+    await clickAndFlush(screen.getByTestId("clientes-chip-saldo-pendiente"));
 
     expect(screen.queryByText("Juan Perez")).not.toBeInTheDocument();
     expect(screen.queryByText("Maria Deuda")).not.toBeInTheDocument();
@@ -232,8 +232,8 @@ describe("ClientesPage Filtros", () => {
     expect(screen.getByText("Transportes Sur SRL")).toBeInTheDocument();
   });
 
-  it("permite abrir el modal con el botón 'Filtrar' y aplicar filtros", () => {
-    renderAndFlush();
+  it("permite abrir el modal con el botón 'Filtrar' y aplicar filtros", async () => {
+    await renderAndFlush();
 
     // Abrir modal con botón Filtrar
     fireEvent.click(screen.getByTestId("clientes-open-filters"));
@@ -247,7 +247,7 @@ describe("ClientesPage Filtros", () => {
       target: { value: "AL_DIA" },
     });
 
-    clickAndFlush(screen.getByRole("button", { name: "Aplicar filtros" }));
+    await clickAndFlush(screen.getByRole("button", { name: "Aplicar filtros" }));
 
     // Solo Juan Perez cumple ser Particular y Saldo al día
     expect(screen.getByText("Juan Perez")).toBeInTheDocument();
@@ -256,13 +256,50 @@ describe("ClientesPage Filtros", () => {
     expect(screen.queryByText("Transportes Sur SRL")).not.toBeInTheDocument();
   });
 
-  it("restablece los filtros al hacer clic en 'Limpiar filtros'", () => {
-    renderAndFlush();
+  it("oculta el listado y muestra un spinner mientras se ejecuta la búsqueda debounceada", async () => {
+    await renderAndFlush();
 
-    clickAndFlush(screen.getByTestId("clientes-chip-empresa"));
+    let resolveBusqueda: (() => void) | undefined;
+    mockFetchAll.mockImplementationOnce((filters) => {
+      return new Promise((resolve) => {
+        resolveBusqueda = () => {
+          mockClientesState = mockClientes.filter((c) =>
+            c.nombre.toLowerCase().includes((filters?.search ?? "").toLowerCase())
+          );
+          listeners.forEach((l) => l());
+          resolve(mockClientesState);
+        };
+      });
+    });
+
+    fireEvent.change(screen.getByTestId("clientes-search"), {
+      target: { value: "Juan" },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(screen.getByTestId("clientes-search-loading")).toBeInTheDocument();
+    expect(screen.queryByText("Juan Perez")).not.toBeInTheDocument();
+    expect(screen.queryByText("Maria Deuda")).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveBusqueda?.();
+    });
+
+    expect(screen.queryByTestId("clientes-search-loading")).not.toBeInTheDocument();
+    expect(screen.getByText("Juan Perez")).toBeInTheDocument();
+    expect(screen.queryByText("Maria Deuda")).not.toBeInTheDocument();
+  });
+
+  it("restablece los filtros al hacer clic en 'Limpiar filtros'", async () => {
+    await renderAndFlush();
+
+    await clickAndFlush(screen.getByTestId("clientes-chip-empresa"));
     expect(screen.getByTestId("clientes-clear-filters")).toBeInTheDocument();
 
-    clickAndFlush(screen.getByTestId("clientes-clear-filters"));
+    await clickAndFlush(screen.getByTestId("clientes-clear-filters"));
 
     expect(screen.getByText("Juan Perez")).toBeInTheDocument();
     expect(screen.getByText("Maria Deuda")).toBeInTheDocument();

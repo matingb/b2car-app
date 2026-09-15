@@ -1,7 +1,7 @@
 "use client";
 
 import type { Arreglo } from "@/model/types";
-import ListSkeleton from "@/app/components/ui/ListSkeleton";
+import ListSpinner from "@/app/components/ui/ListSpinner";
 import ArregloItem from "@/app/components/arreglos/ArregloItem";
 
 type Props = {
@@ -19,7 +19,7 @@ export default function ArreglosResults({
   showObservaciones,
   mostrarObservaciones,
 }: Props) {
-  if (loading) return <ListSkeleton rows={6} />;
+  if (loading) return <ListSpinner dataTestId="arreglos-loading" />;
 
   const shouldShowObs = showObservaciones ?? mostrarObservaciones;
 
