@@ -110,6 +110,10 @@ def es_cuit_de_empresa(identificacion: str | None) -> bool:
     )
 
 
+def es_dni_cuil_valido(identificacion: str | None) -> bool:
+    return bool(identificacion and len(identificacion) in {7, 8, 11})
+
+
 def separar_nombre_particular(nombre_completo: str) -> tuple[str, str]:
     parts = nombre_completo.rsplit(" ", maxsplit=1)
     nombre = parts[0]
@@ -138,6 +142,9 @@ def clasificar_cliente(row: ClienteCsv) -> ClienteImportable:
             mail=row.mail,
             telefono=row.telefono,
         )
+
+    if identificacion is not None and not es_dni_cuil_valido(identificacion):
+        raise ValueError("el DNI/CUIL debe tener 7 u 8 dígitos para DNI, u 11 para CUIL")
 
     nombre, apellido = separar_nombre_particular(row.nombre)
 
@@ -248,8 +255,8 @@ def execute_traced(phase: str, operation: Callable[[], T]) -> T:
 
 
 def create_supabase_client(request_timeout: int):
-    supabase_url = "https://izczuohetsocgrcjupgy.supabase.co"
-    service_role_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6Y3p1b2hldHNvY2dyY2p1cGd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg1NzgyNTYsImV4cCI6MjA3NDE1NDI1Nn0.YXBPIhfOAqJ4mLzUCC_CDD5ItlZKrRbuWPlBTSvbWDI"
+    supabase_url = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     if not supabase_url:
         raise RuntimeError("falta SUPABASE_URL o NEXT_PUBLIC_SUPABASE_URL en las variables de entorno")
     if not service_role_key:
@@ -276,20 +283,32 @@ def create_supabase_client(request_timeout: int):
 
 
 def cliente_ya_existe(supabase, tenant_id: str, cliente: ClienteImportable) -> bool:
-    if cliente.tipo_cliente != "empresa" or cliente.identificacion is None:
+    if cliente.identificacion is None:
         return False
 
-    response = execute_traced(
-        f"línea_{cliente.line_number}_consulta_duplicado",
-        lambda: (
-            supabase.table("empresas")
-            .select("id, clientes!inner(tenant_id)")
-            .eq("cuit", cliente.identificacion)
-            .eq("clientes.tenant_id", tenant_id)
-            .limit(1)
-            .execute()
-        ),
-    )
+    if cliente.tipo_cliente == "empresa":
+        response = execute_traced(
+            f"línea_{cliente.line_number}_consulta_duplicado",
+            lambda: (
+                supabase.table("empresas")
+                .select("id, clientes!inner(tenant_id)")
+                .eq("cuit", cliente.identificacion)
+                .eq("clientes.tenant_id", tenant_id)
+                .limit(1)
+                .execute()
+            ),
+        )
+    else:
+        response = execute_traced(
+            f"línea_{cliente.line_number}_consulta_duplicado",
+            lambda: (
+                supabase.table("particulares")
+                .select("id")
+                .eq("dni_cuil", cliente.identificacion)
+                .limit(1)
+                .execute()
+            ),
+        )
     return bool(response.data)
 
 
@@ -341,6 +360,7 @@ def insert_cliente(supabase, tenant_id: str, cliente: ClienteImportable) -> None
                     "id": cliente_id,
                     "nombre": cliente.nombre,
                     "apellido": cliente.apellido,
+                    "dni_cuil": cliente.identificacion,
                     "direccion": cliente.domicilio,
                     "email": cliente.mail,
                     "telefono": cliente.telefono,
@@ -431,14 +451,9 @@ def main() -> int:
                 continue
 
             assert supabase is not None
-            if cliente.tipo_cliente == "particular" and cliente.identificacion:
-                logging.warning(
-                    "línea %s: el DNI/CUIL se usa para clasificar, pero el esquema actual no tiene dónde guardarlo",
-                    row.line_number,
-                )
             if cliente_ya_existe(supabase, tenant_id, cliente):
                 skipped += 1
-                logging.warning("línea %s: omitida por CUIT empresarial ya existente", row.line_number)
+                logging.warning("línea %s: omitida por identificación ya existente", row.line_number)
                 continue
             insert_cliente(supabase, tenant_id, cliente)
             created += 1

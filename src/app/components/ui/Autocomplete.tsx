@@ -12,7 +12,7 @@ export interface AutocompleteOption {
   icon?: ReactNode;
 }
 
-interface AutocompleteProps {
+export interface AutocompleteProps {
   options: AutocompleteOption[];
   value: string;
   onChange: (value: string) => void;
@@ -25,6 +25,7 @@ interface AutocompleteProps {
   isLoading?: boolean;
   dataTestId?: string;
   hideClearButton?: boolean;
+  onSearchChange?: (term: string) => void;
 }
 
 export default function Autocomplete({
@@ -40,6 +41,7 @@ export default function Autocomplete({
   isLoading = false,
   dataTestId,
   hideClearButton = false,
+  onSearchChange,
 }: AutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -50,14 +52,22 @@ export default function Autocomplete({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Filtrar opciones basadas en el término de búsqueda
-  const filteredOptions = options.filter(
-    (option) =>
-      option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      option.secondaryLabel?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOptions = onSearchChange
+    ? options
+    : options.filter(
+        (option) =>
+          option.value.startsWith("__create_") ||
+          option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          option.secondaryLabel?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
 
   // Encontrar la opción seleccionada
   const selectedOption = options.find((opt) => opt.value === value);
+
+  const onSearchChangeRef = useRef(onSearchChange);
+  useEffect(() => {
+    onSearchChangeRef.current = onSearchChange;
+  });
 
   // Cerrar dropdown cuando se hace clic fuera
   useEffect(() => {
@@ -70,6 +80,7 @@ export default function Autocomplete({
         setIsOpen(false);
         if (!allowCustomValue) {
           setSearchTerm("");
+          onSearchChangeRef.current?.("");
         }
         setHighlightedIndex(-1);
       }
@@ -164,6 +175,7 @@ export default function Autocomplete({
         setIsOpen(false);
         if (!allowCustomValue) {
           setSearchTerm("");
+          onSearchChange?.("");
         }
         setHighlightedIndex(-1);
         inputRef.current?.blur();
@@ -181,6 +193,7 @@ export default function Autocomplete({
     onChange(option.value);
     setIsOpen(false);
     setSearchTerm("");
+    onSearchChange?.("");
     setHighlightedIndex(-1);
   };
 
@@ -188,6 +201,7 @@ export default function Autocomplete({
     e.stopPropagation();
     onChange("");
     setSearchTerm("");
+    onSearchChange?.("");
     setIsOpen(false);
     inputRef.current?.focus();
   };
@@ -195,6 +209,7 @@ export default function Autocomplete({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setSearchTerm(newValue);
+    onSearchChange?.(newValue);
     setIsOpen(true);
     setHighlightedIndex(-1);
   };

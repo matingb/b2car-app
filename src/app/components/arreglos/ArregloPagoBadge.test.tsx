@@ -51,12 +51,32 @@ describe("ArregloPagoBadge", () => {
 
   it("renderiza Pago pendiente cuando no está pago", () => {
     render(<ArregloPagoBadge estado="EN_PROGRESO" totalCobrado={0} precioFinal={10000} />);
-    expect(screen.getByTestId("arreglo-pago-badge")).toBeInTheDocument();
+    const badge = screen.getByTestId("arreglo-pago-badge");
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveTextContent("Pago pendiente");
   });
 
   it("renderiza Pagado cuando está pagado en su totalidad", () => {
     render(<ArregloPagoBadge estado="EN_PROGRESO" totalCobrado={10000} precioFinal={10000} />);
-    expect(screen.getByTestId("arreglo-pago-badge")).toBeInTheDocument();
+    const badge = screen.getByTestId("arreglo-pago-badge");
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveTextContent("Pagado");
+    expect(badge).not.toHaveTextContent("Cobrado");
+  });
+
+  it("mantiene consistencia con 'Pagado' en variante footer", () => {
+    render(
+      <ArregloPagoBadge
+        estado="EN_PROGRESO"
+        totalCobrado={10000}
+        precioFinal={10000}
+        variant="footer"
+      />
+    );
+    const badge = screen.getByTestId("arreglo-pago-badge");
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveTextContent("Pagado");
+    expect(badge).not.toHaveTextContent("Cobrado");
   });
 
   it("renderiza saldo pendiente en estado PARCIAL", () => {

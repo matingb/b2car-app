@@ -84,12 +84,12 @@ export default function ArregloBadges({
               estado={arreglo.estado}
               estaPago={arreglo.esta_pago}
               totalCobrado={arreglo.total_cobrado}
-              saldoPendiente={arreglo.saldo_pendiente}
-              precioFinal={arreglo.precio_final}
+              saldoPendiente={saldoPendienteCalculado}
+              precioFinal={precioFinalCalculado}
               arregloId={arreglo.id}
               onPagoUpdated={onPagoUpdated}
               size={size}
-              variant="footer"
+              hideTextOnMobile={hidePagoTextOnMobile}
             />
           </div>
         ) : null}

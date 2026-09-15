@@ -4,7 +4,7 @@ import { LoaderCircle } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { COLOR } from "@/theme/theme";
 
-const LOADING_MORE_SPINNER_MIN_MS = 750;
+const LOADING_MORE_SPINNER_MIN_MS = 1000;
 const OBSERVER_ROOT_MARGIN = "300px 0px";
 
 type Props = {

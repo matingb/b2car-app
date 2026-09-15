@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import ScrollPage from "./ScrollPage";
 
-const SPINNER_MIN_MS = 750;
+const SPINNER_MIN_MS = 1000;
 
 type IOCallback = (entries: Pick<IntersectionObserverEntry, "isIntersecting">[]) => void;
 
@@ -19,7 +19,17 @@ class IntersectionObserverMock {
 
 function setupIntersectionObserverMock() {
   observerCallback = null;
-  vi.stubGlobal("IntersectionObserver", IntersectionObserverMock);
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class MockIntersectionObserver {
+      constructor(cb: IOCallback) {
+        observerCallback = cb;
+      }
+      observe = vi.fn();
+      disconnect = vi.fn();
+      unobserve = vi.fn();
+    },
+  );
 }
 
 function triggerIntersection(isIntersecting = true) {

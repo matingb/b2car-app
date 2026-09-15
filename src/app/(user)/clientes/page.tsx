@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import ClienteFormModal from "@/app/components/clientes/ClienteFormModal";
 import ClienteItem from "@/app/components/clientes/ClienteItem";
 import ClientesFiltersModal, { ClientesFilters } from "@/app/components/clientes/ClientesFiltersModal";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
+import ScrollPage from "@/app/components/ui/ScrollPage";
 import { PlusIcon, Filter, User, Building2, AlertCircle, CheckCircle2, Info } from "lucide-react";
 import Button from "@/app/components/ui/Button";
 import { useToast } from "@/app/providers/ToastProvider";
@@ -15,8 +16,10 @@ import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 
+const LIMIT_STEP = 50;
+
 export default function ClientesPage() {
-  const { clientes, loading, createParticular, createEmpresa } = useClientes();
+  const { clientes, loading, hasMore = false, fetchAll, createParticular, createEmpresa } = useClientes();
   const toast = useToast();
 
   const [search, setSearch] = useState("");
@@ -24,39 +27,27 @@ export default function ClientesPage() {
   const [saldoFilter, setSaldoFilter] = useState<"" | "PENDIENTE" | "AL_DIA" | "A_FAVOR">("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [open, setOpen] = useState(false);
+  const [limit, setLimit] = useState(LIMIT_STEP);
 
-  const clientesFiltrados = useMemo(() => {
-    if (!clientes) return [];
-    const q = search.trim().toLowerCase();
-    return clientes
-      .filter((c) => {
-        if (!tipoClienteFilter) return true;
-        return c.tipo_cliente === tipoClienteFilter;
-      })
-      .filter((c) => {
-        if (!saldoFilter) return true;
-        const saldo = c.saldo_cuenta ?? 0;
-        if (saldoFilter === "PENDIENTE") {
-          return saldo > 0;
-        }
-        if (saldoFilter === "AL_DIA") {
-          return saldo === 0;
-        }
-        if (saldoFilter === "A_FAVOR") {
-          return saldo < 0;
-        }
-        return true;
-      })
-      .filter((c) =>
-        !q
-          ? true
-          : Object.values(c ?? {}).some((v) =>
-            String(v ?? "")
-              .toLowerCase()
-              .includes(q)
-          )
-      );
-  }, [clientes, search, tipoClienteFilter, saldoFilter]);
+  const searchTrimmed = search.trim();
+
+  useEffect(() => {
+    setLimit(LIMIT_STEP);
+  }, [searchTrimmed, tipoClienteFilter, saldoFilter]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (typeof fetchAll !== "function") return;
+      void fetchAll({
+        limit,
+        search: searchTrimmed || undefined,
+        tipo: tipoClienteFilter || undefined,
+        saldo: saldoFilter || undefined,
+      });
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchAll, limit, searchTrimmed, tipoClienteFilter, saldoFilter]);
 
   const handleApplyModalFilters = (filters: ClientesFilters) => {
     setTipoClienteFilter(filters.tipoCliente);
@@ -197,18 +188,25 @@ export default function ClientesPage() {
         </div>
       </div>
 
-      {loading ? (
+      {loading && clientes.length === 0 ? (
         <ListSkeleton />
-      ) : clientesFiltrados.length === 0 ? (
+      ) : clientes.length === 0 ? (
         <div style={styles.emptyContainer} data-testid="clientes-empty-state">
           <p style={styles.emptyText}>No se encontraron clientes para los filtros aplicados.</p>
         </div>
       ) : (
-        <div style={styles.list}>
-          {clientesFiltrados.map((cliente) => (
-            <ClienteItem key={cliente.id} cliente={cliente} />
-          ))}
-        </div>
+        <ScrollPage
+          loadingMore={loading && clientes.length > 0}
+          hasMore={hasMore}
+          onLoadMore={() => setLimit((current) => current + LIMIT_STEP)}
+          loadingMoreLabel="Cargando más clientes..."
+        >
+          <div style={styles.list}>
+            {clientes.map((cliente) => (
+              <ClienteItem key={cliente.id} cliente={cliente} />
+            ))}
+          </div>
+        </ScrollPage>
       )}
 
       <ClientesFiltersModal

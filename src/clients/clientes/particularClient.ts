@@ -76,6 +76,7 @@ export const particularClient = {
         telefono: particular.telefono,
         email: particular.email,
         direccion: particular.direccion,
+        dni_cuil: particular.dni_cuil,
       };
       
       return {
