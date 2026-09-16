@@ -17,6 +17,8 @@ import { formatTelephoneNumber } from "@/lib/telefono";
 import type { ClienteResumenFinanciero, Representante, TipoCliente } from "@/model/types";
 import { css } from "@emotion/react";
 import Card from "../ui/Card";
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 
 type Props = {
   tipo: TipoCliente;
@@ -92,31 +94,33 @@ export default function ClienteProfileCard({
         </div>
 
         {/* Right: Financial Balance & Badges */}
-        <div css={styles.financialSection}>
-          <div css={styles.balanceRow}>
-            <span
-              css={[
-                styles.balanceAmount,
-                tieneDeuda
-                  ? styles.balanceDanger
-                  : tieneSaldoAFavor
-                    ? styles.balanceFavor
-                    : styles.balanceClean,
-              ]}
-            >
-              {loadingFinanzas
-                ? "..."
-                : formatArs(saldoVisible, { maxDecimals: 0, minDecimals: 0 })}
-            </span>
-            {tieneDeuda ? (
-              <span css={styles.deudaBadge}>Deuda pendiente</span>
-            ) : tieneSaldoAFavor ? (
-              <span css={styles.saldoFavorBadge}>Saldo a favor</span>
-            ) : (
-              <span css={styles.alDiaBadge}>Al día</span>
-            )}
+        <Can permission={Permission.ClientesFinanzasView}>
+          <div css={styles.financialSection}>
+            <div css={styles.balanceRow}>
+              <span
+                css={[
+                  styles.balanceAmount,
+                  tieneDeuda
+                    ? styles.balanceDanger
+                    : tieneSaldoAFavor
+                      ? styles.balanceFavor
+                      : styles.balanceClean,
+                ]}
+              >
+                {loadingFinanzas
+                  ? "..."
+                  : formatArs(saldoVisible, { maxDecimals: 0, minDecimals: 0 })}
+              </span>
+              {tieneDeuda ? (
+                <span css={styles.deudaBadge}>Deuda pendiente</span>
+              ) : tieneSaldoAFavor ? (
+                <span css={styles.saldoFavorBadge}>Saldo a favor</span>
+              ) : (
+                <span css={styles.alDiaBadge}>Al día</span>
+              )}
+            </div>
           </div>
-        </div>
+        </Can>
       </div>
 
       {/* BODY 2 COLUMNS */}

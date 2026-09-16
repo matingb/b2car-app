@@ -20,6 +20,8 @@ import { useRepuestosDraft } from "@/app/components/arreglos/hooks/useRepuestosD
 import { useUltimoTipoEmpleado } from "@/app/components/arreglos/hooks/useUltimoTipoEmpleado";
 import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
 import ArregloPagoBadge from "@/app/components/arreglos/ArregloPagoBadge";
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 
 export type ArregloForm = {
   estado?: EstadoArreglo;
@@ -321,23 +323,25 @@ export default function ArregloFormFields({
           />
         </div>
         {values.estado !== "PRESUPUESTO" && (
-          <div css={styles.pagoField}>
-            <label style={styles.label}>¿Esta pago?</label>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                height: 44,
-              }}
-            >
-              <ArregloPagoBadge
-                estado={values.estado}
-                estaPago={values.estaPago}
-                onClick={isEdit ? undefined : () => onValuesChange({ estaPago: !values.estaPago })}
-                size="md"
-              />
+          <Can permission={[Permission.ArreglosCobrosRegister, Permission.ArreglosPreciosView]}>
+            <div css={styles.pagoField}>
+              <label style={styles.label}>¿Esta pago?</label>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  height: 44,
+                }}
+              >
+                <ArregloPagoBadge
+                  estado={values.estado}
+                  estaPago={values.estaPago}
+                  onClick={isEdit ? undefined : () => onValuesChange({ estaPago: !values.estaPago })}
+                  size="md"
+                />
+              </div>
             </div>
-          </div>
+          </Can>
         )}
       </div>
 
@@ -365,10 +369,12 @@ export default function ArregloFormFields({
             disabled={submitting}
           />
 
-          <div style={stylesModal.totalRow}>
-            <span style={stylesModal.totalLabel}>Total calculado</span>
-            <span style={stylesModal.totalValue}>{totalCalculadoLabel}</span>
-          </div>
+          <Can permission={Permission.ArreglosPreciosView}>
+            <div style={stylesModal.totalRow}>
+              <span style={stylesModal.totalLabel}>Total calculado</span>
+              <span style={stylesModal.totalValue}>{totalCalculadoLabel}</span>
+            </div>
+          </Can>
         </div>
       ) : null}
 

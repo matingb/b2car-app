@@ -4,15 +4,15 @@ import {
   FacturacionValidationError,
 } from "@/lib/facturacion/facturacionService";
 import { getFacturacionAmbiente } from "@/lib/facturacion/environment";
-import { Feature } from "@/lib/subscription";
-import { facturacionErrorResponse, requireTenantFeatureAdmin } from "@/lib/facturacion/serverAuth";
+import { Permission } from "@/lib/permissions";
+import { facturacionErrorResponse, requireTenantPlanPermissionAdmin } from "@/lib/facturacion/serverAuth";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const actor = await requireTenantFeatureAdmin(Feature.Settings);
+    const actor = await requireTenantPlanPermissionAdmin(Permission.ConfiguracionView);
     const config = await getFacturacionConfig(actor.tenantId, getFacturacionAmbiente());
     return Response.json({ data: config, error: null });
   } catch (error) {
@@ -22,7 +22,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const actor = await requireTenantFeatureAdmin(Feature.Settings);
+    const actor = await requireTenantPlanPermissionAdmin(Permission.ConfiguracionEdit);
     const formData = await request.formData().catch(() => null);
     if (!formData) throw new FacturacionValidationError("El formulario de configuración no es válido");
     const configValue = formData.get("config");

@@ -8,15 +8,6 @@ type IOCallback = (entries: Pick<IntersectionObserverEntry, "isIntersecting">[])
 
 let observerCallback: IOCallback | null = null;
 
-class IntersectionObserverMock {
-  observe = vi.fn();
-  disconnect = vi.fn();
-
-  constructor(callback: IOCallback) {
-    observerCallback = callback;
-  }
-}
-
 function setupIntersectionObserverMock() {
   observerCallback = null;
   vi.stubGlobal(

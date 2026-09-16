@@ -69,7 +69,15 @@ vi.mock("@/clients/operacionesClient", () => ({
 vi.mock("@/app/providers/TenantProvider", () => ({
   useTenant: () => ({
     talleres: talleresMock,
-    hasFeature: () => featureAccess.pro,
+    hasPermission: (p: string) => {
+      // FacturasView y ConfiguracionView requieren plan PRO
+      const BILLING_PERMISSIONS = ["facturas:view", "facturas:edit"];
+      const SETTINGS_PERMISSIONS = ["configuracion:view", "configuracion:edit"];
+      if (BILLING_PERMISSIONS.includes(p) && !featureAccess.pro) return false;
+      if (SETTINGS_PERMISSIONS.includes(p) && !featureAccess.pro) return false;
+      // Admin tiene todos los permisos
+      return true;
+    },
   }),
 }));
 

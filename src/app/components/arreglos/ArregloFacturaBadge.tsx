@@ -8,8 +8,8 @@ import { css } from "@emotion/react";
 import { COLOR } from "@/theme/theme";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import { useOptionalTenantFeature } from "@/app/providers/TenantFeatureContext";
-import { Feature } from "@/lib/subscription";
+import { useTenant } from "@/app/providers/TenantProvider";
+import { Permission } from "@/lib/permissions";
 
 export type FacturaBadgeData = {
   id?: string;
@@ -41,7 +41,7 @@ export default function ArregloFacturaBadge({
   const router = useRouter();
   const { update } = useArreglos();
   const { success, error } = useToast();
-  const hasTenantFeature = useOptionalTenantFeature();
+  const tenant = useTenant();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentEsFacturable, setCurrentEsFacturable] = useState(esFacturable);
@@ -165,7 +165,7 @@ export default function ArregloFacturaBadge({
 
   const isSmall = size === "sm";
 
-  if (hasTenantFeature && !hasTenantFeature(Feature.Billing)) return null;
+  if (!tenant.hasPermission(Permission.FacturasView)) return null;
 
   // 1. Factura Emitida
   if (isEmitida) {

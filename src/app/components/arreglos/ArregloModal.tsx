@@ -33,7 +33,8 @@ import ArregloFormFields, {
 import { COLOR } from "@/theme/theme";
 import { isValidDate } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
-import { Feature } from "@/lib/subscription";
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 
 type Props = {
   open: boolean;
@@ -70,8 +71,12 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const { vehiculos, fetchAll: fetchVehiculos } = useVehiculos();
   const { create, update, fetchById } = useArreglos();
   const { loading: isLoadingCuentas, createCuenta } = useCuentasFinancieras();
-  const { tallerSeleccionadoId, hasFeature } = useTenant();
-  const canUseBilling = hasFeature(Feature.Billing);
+  const { tallerSeleccionadoId, hasPermission } = useTenant();
+  const canViewFacturas = hasPermission(Permission.FacturasView);
+  const canCobros = hasPermission(Permission.ArreglosCobrosRegister);
+  const canEditPrices = hasPermission(Permission.ArreglosPreciosEdit);
+  const canCreateCuenta = hasPermission(Permission.FinanzasEdit);
+  const canUseBilling = canViewFacturas;
   const { inventario, isLoading: isInventarioLoading } = useInventario(tallerSeleccionadoId ?? undefined);
   const { confirm } = useModalMessage();
   const { success, error: toastError } = useToast();
@@ -158,8 +163,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     });
   }, [inventario, internal.repuestosDraft, isEdit]);
 
-  const requiereCuentaFinanciera = estaPago || requiereCompraAutomatica;
-  const isCreatingCuenta = cuentaFinancieraId === CREATE_CUENTA_VALUE;
+  const requiereCuentaFinanciera = (canCobros && estaPago) || requiereCompraAutomatica;
+  const isCreatingCuenta = canCreateCuenta && cuentaFinancieraId === CREATE_CUENTA_VALUE;
   const combustibleLeido = parseCombustibleLeido(combustible);
   const isCombustibleValid = !combustible.trim() || combustibleLeido !== undefined;
 
@@ -242,7 +247,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           combustible_leido: combustibleLeido ?? null,
           observaciones: normalizeArregloObservaciones(observaciones, isEdit),
           extra_data: extraData || undefined,
-          es_facturable: esFacturable,
+          es_facturable: resolveEsFacturableForCreate(canUseBilling, esFacturable),
         };
         response = await update(initial.id, payload);
       } else {
@@ -254,7 +259,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         const detalles = internal.serviciosDraft.map((s) => ({
           descripcion: String(s.descripcion ?? "").trim(),
           cantidad: Number(s.cantidad) || 0,
-          valor: Number(s.valor) || 0,
+          valor: canEditPrices ? Number(s.valor) || 0 : 0,
           categoria_arreglo_id: s.categoriaArregloId || null,
           empleado_id: s.empleadoId || null,
         }));
@@ -266,15 +271,15 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           fecha,
           kilometraje_leido: Number(km) || 0,
           combustible_leido: combustibleLeido,
-          precio_final: precioFinalCalculado,
+          precio_final: canEditPrices ? precioFinalCalculado : 0,
           observaciones: normalizeArregloObservaciones(observaciones, false),
-          esta_pago: !!estaPago,
+          esta_pago: canCobros ? !!estaPago : false,
           es_facturable: resolveEsFacturableForCreate(canUseBilling, esFacturable),
           ...(requiereCuentaFinanciera ? {
             cuenta_financiera_id: targetCuentaId,
             idempotency_key: generateUuidV4(),
           } : {}),
-          ...(estaPago ? { fecha_cobro: fechaCobro } : {}),
+          ...(canCobros && estaPago ? { fecha_cobro: fechaCobro } : {}),
           extra_data: extraData || undefined,
           detalles,
           repuestos: internal.repuestosDraft
@@ -359,7 +364,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       onSubmit={handleSubmit}
       submitText={isEdit ? "Guardar cambios" : "Crear"}
       submitting={submitting}
-      disabledSubmit={!isValid || !isCuentaValid || !isCombustibleValid || (estaPago && !isValidDate(fechaCobro))}
+      disabledSubmit={!isValid || !isCuentaValid || !isCombustibleValid || (canCobros && estaPago && !isValidDate(fechaCobro))}
       modalError={
         error
           ? {
@@ -390,10 +395,10 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         {!isEdit && requiereCuentaFinanciera ? (
           <div style={styles.finanzasBox}>
             <div style={styles.finanzasTitle}>
-              {estaPago ? "Cobro del arreglo" : "Compra automática de repuestos"}
+              {canCobros && estaPago ? "Cobro del arreglo" : "Compra automática de repuestos"}
             </div>
             <div style={styles.finanzasHelp}>
-              {estaPago
+              {canCobros && estaPago
                 ? "Seleccioná la cuenta y la fecha que se usarán para registrar el ingreso."
                 : "Este arreglo requiere una compra de repuestos; seleccioná la cuenta para registrar ese egreso."}
             </div>
@@ -404,33 +409,38 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
                   value={cuentaFinancieraId}
                   onChange={setCuentaFinancieraId}
                   disabled={isLoadingCuentas}
+                  allowCreate={canCreateCuenta}
                   hideClearButton
                   dataTestId="arreglo-cuenta-financiera"
                 />
               </label>
               {estaPago ? (
-                <label style={styles.finanzasField}>
-                  Fecha de cobro
-                  <input
-                    type="date"
-                    value={fechaCobro}
-                    onChange={(event) => setFechaCobro(event.target.value)}
-                    style={styles.finanzasInput}
-                    data-testid="arreglo-fecha-cobro"
-                  />
-                </label>
+                <Can permission={Permission.ArreglosCobrosRegister}>
+                  <label style={styles.finanzasField}>
+                    Fecha de cobro
+                    <input
+                      type="date"
+                      value={fechaCobro}
+                      onChange={(event) => setFechaCobro(event.target.value)}
+                      style={styles.finanzasInput}
+                      data-testid="arreglo-fecha-cobro"
+                    />
+                  </label>
+                </Can>
               ) : null}
             </div>
 
             {isCreatingCuenta && (
-              <CuentaFinancieraFormFields
-                values={cuentaDraft}
-                onChange={(patch) => setCuentaDraft((prev) => ({ ...prev, ...patch }))}
-                showSaldoInicial={false}
-                showActivo={false}
-                compact
-                dataTestIdPrefix="arreglo-cuenta"
-              />
+              <Can permission={Permission.FinanzasEdit}>
+                <CuentaFinancieraFormFields
+                  values={cuentaDraft}
+                  onChange={(patch) => setCuentaDraft((prev) => ({ ...prev, ...patch }))}
+                  showSaldoInicial={false}
+                  showActivo={false}
+                  compact
+                  dataTestIdPrefix="arreglo-cuenta"
+                />
+              </Can>
             )}
           </div>
         ) : null}

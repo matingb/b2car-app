@@ -7,6 +7,8 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Card from "../../../ui/Card";
 import { itemIconCircleStyle, styles } from "./lineaStyles";
 import { formatMoney, renderQtyXUnit } from "./lineaUtils";
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 
 type Kind = "servicios" | "repuestos";
 
@@ -53,12 +55,21 @@ export default function ReadOnlyLineaCard({
         </div>
         <div css={readStyles.subtitleRow}>
           {subtitle}
-          <span css={readStyles.qtyXUnit}>{qtyXUnit}</span>
+          <span css={readStyles.qtyXUnit}>
+            <Can
+              permission={Permission.ArreglosPreciosView}
+              fallback={<>Cantidad: {cantidad}</>}
+            >
+              {qtyXUnit}
+            </Can>
+          </span>
         </div>
       </div>
 
       <div css={readStyles.side}>
-        <div css={readStyles.total}>{formatMoney(total)}</div>
+        <Can permission={Permission.ArreglosPreciosView}>
+          <div css={readStyles.total}>{formatMoney(total)}</div>
+        </Can>
 
         {!readOnly ? <div css={readStyles.actions}>
           <button

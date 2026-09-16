@@ -6,6 +6,9 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import Autocomplete, { AutocompleteOption } from "../ui/Autocomplete";
 import { ESTADOS_ARREGLO } from "@/model/types";
+import { useTenant } from "@/app/providers/TenantProvider";
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 
 export type ArregloFilters = {
   fechaDesde: string;
@@ -24,6 +27,11 @@ type Props = {
 };
 
 export default function ArregloFiltersModal({ open, initial, onClose, onApply }: Props) {
+  const { hasPermission } = useTenant();
+  const canFilterPago = hasPermission
+    ? hasPermission(Permission.ArreglosPreciosView) || hasPermission(Permission.ArreglosCobrosRegister)
+    : true;
+
   const [fechaDesde, setFechaDesde] = useState(initial?.fechaDesde ?? "");
   const [fechaHasta, setFechaHasta] = useState(initial?.fechaHasta ?? "");
   const [patente, setPatente] = useState(initial?.patente ?? "");
@@ -51,7 +59,7 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
       patente: patente.trim(),
 
       estado: estado.trim(),
-      estadoPago: estadoPago.trim(),
+      estadoPago: canFilterPago ? estadoPago.trim() : "",
     });
     onClose();
   };
@@ -124,16 +132,18 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
               placeholder="EN PROGRESO, ESPERA..."
             />
           </div>
-          <div style={styles.field}>
-            <label style={styles.label}>Estado de pago</label>
-            <Autocomplete
-              dataTestId="arreglos-filter-estado-pago"
-              options={estadoPagoOptions}
-              value={estadoPago}
-              onChange={setEstadoPago}
-              placeholder="Pendiente, parcial o pagado"
-            />
-          </div>
+          <Can anyPermissions={[Permission.ArreglosPreciosView, Permission.ArreglosCobrosRegister]}>
+            <div style={styles.field}>
+              <label style={styles.label}>Estado de pago</label>
+              <Autocomplete
+                dataTestId="arreglos-filter-estado-pago"
+                options={estadoPagoOptions}
+                value={estadoPago}
+                onChange={setEstadoPago}
+                placeholder="Pendiente, parcial o pagado"
+              />
+            </div>
+          </Can>
         </div>
       </div>
     </Modal>

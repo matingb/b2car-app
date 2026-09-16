@@ -11,6 +11,8 @@ import { useInlineEditorContext } from "./InlineEditorContext";
 import Card from "../../../ui/Card";
 import IconInput from "../../../ui/IconInput";
 import LineaEditorActions from "./LineaEditorActions";
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 
 export type NewProductLineaDraft = {
   qty: string;
@@ -70,23 +72,27 @@ export default function NewProductLineaCard({
               aria-label="Precio compra"
             />
           </div>
-          <div css={fieldUnit}>
-            <IconInput
-              icon={<DollarSign size={14} />}
-              wrapperStyle={innerFillStyle}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={draft.saleUnit}
-              onChange={(e) => onDraftChange({ saleUnit: e.target.value.replace(/\D/g, "") })}
-              placeholder="Venta"
-              disabled={!interactionEnabled}
-              aria-label="Precio venta"
-            />
-          </div>
+          <Can permission={Permission.ArreglosPreciosEdit}>
+            <div css={fieldUnit}>
+              <IconInput
+                icon={<DollarSign size={14} />}
+                wrapperStyle={innerFillStyle}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={draft.saleUnit}
+                onChange={(e) => onDraftChange({ saleUnit: e.target.value.replace(/\D/g, "") })}
+                placeholder="Venta"
+                disabled={!interactionEnabled}
+                aria-label="Precio venta"
+              />
+            </div>
+          </Can>
         </div>
 
         <div css={styles.footer}>
-          <div style={lineaStyles.editorTotalText}>{totalText}</div>
+          <Can permission={Permission.ArreglosPreciosView}>
+            <div style={lineaStyles.editorTotalText}>{totalText}</div>
+          </Can>
           <LineaEditorActions variant="footer" />
         </div>
       </div>

@@ -3,13 +3,10 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { TipoCliente, Vehiculo, Representante, ClienteResumenFinanciero } from "@/model/types";
 import CreateVehiculoModal from "../vehiculos/CreateVehiculoModal";
-import VehiculosAsociadosCard from "../clientes/VehiculosAsociadosCard";
 import CreateRepresentanteModal from "../clientes/CreateRepresentanteModal";
 import ClienteFormModal from "../clientes/ClienteFormModal";
 import ClienteProfileCard from "../clientes/ClienteProfileCard";
-import ClienteTabsNav, { type ClienteTabKey } from "../clientes/ClienteTabsNav";
-import ClienteArreglosTab from "../clientes/ClienteArreglosTab";
-import ClienteCuentaCorrienteTab from "../clientes/ClienteCuentaCorrienteTab";
+import ClienteTabsSection from "../clientes/ClienteTabsSection";
 import { useToast } from "@/app/providers/ToastProvider";
 import type { UpdateEmpresaRequest } from "@/app/api/clientes/empresas/[id]/route";
 import { useParams } from "next/navigation";
@@ -18,8 +15,12 @@ import { useClientes } from "@/app/providers/ClientesProvider";
 import { logger } from "@/lib/logger";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { clientesClient } from "@/clients/clientes/clientesClient";
+import { useTenant } from "@/app/providers/TenantProvider";
+import { Permission } from "@/lib/permissions";
 
 export default function EmpresaDetails() {
+  const { hasPermission } = useTenant();
+  const canViewFinanzas = hasPermission(Permission.ClientesFinanzasView);
   const params = useParams();
   const clienteId = useMemo(() => params.id as string, [params]);
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
@@ -28,7 +29,6 @@ export default function EmpresaDetails() {
   const [openEditEmpresa, setOpenEditEmpresa] = useState(false);
   const [representantes, setRepresentantes] = useState<Representante[]>([]);
   const [openRepresentante, setOpenRepresentante] = useState(false);
-  const [activeTab, setActiveTab] = useState<ClienteTabKey>("vehiculos");
   const [resumenFinanciero, setResumenFinanciero] = useState<ClienteResumenFinanciero | null>(null);
   const [loadingFinanzas, setLoadingFinanzas] = useState(false);
 
@@ -37,7 +37,7 @@ export default function EmpresaDetails() {
   const { confirm } = useModalMessage();
 
   const loadFinanzas = useCallback(async () => {
-    if (!clienteId) return;
+    if (!clienteId || !canViewFinanzas) return;
     setLoadingFinanzas(true);
     try {
       const res = await clientesClient.getResumenFinanciero(clienteId);
@@ -47,7 +47,7 @@ export default function EmpresaDetails() {
     } finally {
       setLoadingFinanzas(false);
     }
-  }, [clienteId]);
+  }, [clienteId, canViewFinanzas]);
 
   useEffect(() => {
     async function load() {
@@ -59,9 +59,11 @@ export default function EmpresaDetails() {
     }
     if (clienteId) {
       load();
-      void loadFinanzas();
+      if (canViewFinanzas) {
+        void loadFinanzas();
+      }
     }
-  }, [clienteId, getEmpresaById, loadFinanzas]);
+  }, [clienteId, getEmpresaById, loadFinanzas, canViewFinanzas]);
 
   useEffect(() => {
     const loadRepresentantes = async () => {
@@ -146,32 +148,11 @@ export default function EmpresaDetails() {
         onDeleteRepresentante={handleDeleteRepresentante}
       />
 
-      {/* TABS DE NAVEGACIÓN */}
-      <ClienteTabsNav
-        activeTab={activeTab}
-        onChangeTab={setActiveTab}
-        vehiculosCount={vehiculos.length}
+      <ClienteTabsSection
+        clienteId={clienteId}
+        vehiculos={vehiculos}
+        onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
       />
-
-      {/* CONTENIDO SEGÚN TAB ACTIVA */}
-      {activeTab === "vehiculos" && (
-        <VehiculosAsociadosCard
-          vehiculos={vehiculos}
-          onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
-        />
-      )}
-
-      {activeTab === "arreglos" && (
-        <ClienteArreglosTab
-          clienteId={clienteId}
-        />
-      )}
-
-      {activeTab === "cuenta_corriente" && (
-        <ClienteCuentaCorrienteTab
-          clienteId={clienteId}
-        />
-      )}
 
       <ClienteFormModal
         open={openEditEmpresa}
@@ -222,7 +203,7 @@ export default function EmpresaDetails() {
               setRepresentantes(prev => [nuevo, ...prev]);
               toast.success("Representante creado", "El representante se agregó correctamente.");
             } catch (err) {
-              console.log(err)
+              logger.error("No se pudo crear el representante", err);
               const msg = err instanceof Error ? err.message : "No se pudo crear el representante";
               toast.error(msg);
             }

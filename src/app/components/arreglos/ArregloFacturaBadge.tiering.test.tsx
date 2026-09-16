@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { Permission } from "@/lib/permissions";
 
-const featureAccess = vi.hoisted(() => ({ billing: false }));
+const permissionsState = vi.hoisted(() => ({ hasBilling: false }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -15,14 +16,17 @@ vi.mock("@/app/providers/ToastProvider", () => ({
   useToast: () => ({ success: vi.fn(), error: vi.fn() }),
 }));
 
-vi.mock("@/app/providers/TenantFeatureContext", () => ({
-  useOptionalTenantFeature: () => (featureAccess.billing ? () => true : () => false),
+vi.mock("@/app/providers/TenantProvider", () => ({
+  useTenant: () => ({
+    hasPermission: (perm: string) =>
+      perm === Permission.FacturasView ? permissionsState.hasBilling : true,
+  }),
 }));
 
 import ArregloFacturaBadge from "./ArregloFacturaBadge";
 
 afterEach(() => {
-  featureAccess.billing = false;
+  permissionsState.hasBilling = false;
 });
 
 describe("ArregloFacturaBadge tiering", () => {
@@ -33,7 +37,7 @@ describe("ArregloFacturaBadge tiering", () => {
   });
 
   it("renders fiscal controls for PRO", () => {
-    featureAccess.billing = true;
+    permissionsState.hasBilling = true;
     render(<ArregloFacturaBadge arregloId="arr-1" />);
 
     expect(screen.getByTestId("arreglo-factura-badge")).toBeInTheDocument();

@@ -15,6 +15,8 @@ import CategoriaArregloSelect from "@/app/components/arreglos/lineas/shared/Cate
 import EmpleadoSelect from "@/app/components/arreglos/lineas/shared/EmpleadoSelect";
 import CategoriaChip from "@/app/components/arreglos/lineas/shared/CategoriaChip";
 import EmpleadoChip from "@/app/components/arreglos/lineas/shared/EmpleadoChip";
+import { useTenant } from "@/app/providers/TenantProvider";
+import { Permission } from "@/lib/permissions";
 
 export type ServicioLinea = {
   id: string;
@@ -66,6 +68,9 @@ export default function ServicioLineasEditableSection({
   onUpdate,
   onDelete,
 }: Props) {
+  const { hasPermission } = useTenant();
+  const canEditPrices = hasPermission(Permission.ArreglosPreciosEdit);
+
   const {
     editingId,
     adding,
@@ -96,11 +101,14 @@ export default function ServicioLineasEditableSection({
       categoriaArregloId: item.categoriaArregloId ?? null,
       empleadoId: item.empleadoId ?? null,
     }),
-    validate: (d) => {
+    validate: (d, ctx) => {
       const descripcion = d.descripcion.trim();
       const cantidad = safeInt(d.cantidad);
-      const valorRaw = d.valor.trim();
-      const valor = valorRaw.length === 0 ? 0 : safeNumber(valorRaw);
+
+      const valor = canEditPrices
+        ? safeNumber(d.valor)
+        : ctx.mode === "edit" ? safeNumber(ctx.item?.valor) : 0;
+
       if (!descripcion) return { ok: false as const, message: "Falta descripción" };
       if (!Number.isFinite(cantidad) || cantidad <= 0) return { ok: false as const, message: "Cantidad inválida" };
       if (!Number.isFinite(valor) || valor < 0) return { ok: false as const, message: "Valor inválido" };
@@ -110,7 +118,7 @@ export default function ServicioLineasEditableSection({
       };
     },
     onAdd,
-    onUpdate: (id, value) => onUpdate(id, value),
+    onUpdate,
     cancelWhen: readOnly,
   });
 

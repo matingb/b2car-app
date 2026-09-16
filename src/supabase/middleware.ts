@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { featureForPath, hasFeature } from '@/lib/subscription'
+import { canAccessPath, canPlanAccessPath, getLandingPathForRole } from '@/lib/permissions'
 
 function copyCookies(source: NextResponse, target: NextResponse) {
   source.cookies.getAll().forEach((cookie) => target.cookies.set(cookie))
@@ -67,39 +67,34 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  const feature = featureForPath(pathname)
-  if (user && feature) {
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims()
-    const claims = claimsData?.claims as Record<string, unknown> | undefined
-    const planSub = claimsError ? null : claims?.plan_sub
+  if (!user) return supabaseResponse
 
-    if (!hasFeature(planSub, feature)) {
-      if (pathname.startsWith('/api/')) {
-        return copyCookies(
-          supabaseResponse,
-          NextResponse.json({ error: 'FEATURE_NOT_AVAILABLE_FOR_PLAN' }, { status: 403 }),
-        )
-      }
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims()
+  const claims = claimsData?.claims as Record<string, unknown> | undefined
+  const userRole = claimsError ? null : claims?.user_role
+  const planSub  = claimsError ? null : claims?.plan_sub
 
-      const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
-      url.search = ''
-      return copyCookies(supabaseResponse, NextResponse.redirect(url))
-    }
+  if (pathname === '/') {
+    const url = request.nextUrl.clone()
+    url.pathname = getLandingPathForRole(userRole)
+    url.search = ''
+    return copyCookies(supabaseResponse, NextResponse.redirect(url))
   }
 
-  // IMPORTANT: You *must* return the supabaseResponse object as it is.
-  // If you're creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely!
+  function deny(errorCode: string) {
+    if (pathname.startsWith('/api/'))
+      return copyCookies(supabaseResponse, NextResponse.json({ error: errorCode }, { status: 403 }))
+    const url = request.nextUrl.clone()
+    url.pathname = getLandingPathForRole(userRole)
+    url.search = ''
+    return copyCookies(supabaseResponse, NextResponse.redirect(url))
+  }
+
+  if (!canAccessPath(userRole, pathname))
+    return deny('FORBIDDEN_INSUFFICIENT_PERMISSIONS')
+
+  if (!canPlanAccessPath(planSub, pathname))
+    return deny('FEATURE_NOT_AVAILABLE_FOR_PLAN')
 
   return supabaseResponse
 }

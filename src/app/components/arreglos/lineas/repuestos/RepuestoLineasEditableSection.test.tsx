@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import RepuestoLineasEditableSection from "./RepuestoLineasEditableSection";
 import type { RepuestoLinea } from "./RepuestoLineasEditableSection";
 import { useInventario } from "@/app/providers/InventarioProvider";
+import { TenantTestProvider } from "@/tests/testUtils";
+import { hasPermission, UserRole } from "@/lib/permissions";
 
 vi.mock("@/app/providers/InventarioProvider", () => ({
   useInventario: vi.fn(),
@@ -94,13 +96,15 @@ function setup(overrides: Partial<Parameters<typeof RepuestoLineasEditableSectio
   const onDelete = vi.fn();
 
   const result = render(
-    <RepuestoLineasEditableSection
-      tallerId="taller-1"
-      items={[]}
-      onUpsert={onUpsert}
-      onDelete={onDelete}
-      {...overrides}
-    />
+    <TenantTestProvider>
+      <RepuestoLineasEditableSection
+        tallerId="taller-1"
+        items={[]}
+        onUpsert={onUpsert}
+        onDelete={onDelete}
+        {...overrides}
+      />
+    </TenantTestProvider>
   );
 
   return { onUpsert, onDelete, ...result };
@@ -411,5 +415,96 @@ describe("RepuestoLineasEditableSection", () => {
       screen.getByText("El repuesto ya se encuentra en el arreglo")
     ).toBeInTheDocument();
     expect(screen.queryByText(/Se comprarán/)).not.toBeInTheDocument();
+  });
+
+  it("oculta precio de venta y subtotal para rol operativo al agregar repuesto", async () => {
+    vi.mocked(useInventario).mockReturnValue({
+      inventario,
+      isLoading: false,
+    } as unknown as ReturnType<typeof useInventario>);
+
+    const onUpsert = vi.fn();
+    render(
+      <TenantTestProvider
+        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+      >
+        <RepuestoLineasEditableSection
+          tallerId="taller-1"
+          items={[]}
+          onUpsert={onUpsert}
+          onDelete={vi.fn()}
+        />
+      </TenantTestProvider>
+    );
+
+    // Subtotal text should NOT be present
+    expect(screen.queryByText(/Subtotal/)).not.toBeInTheDocument();
+
+    selectStock("s1"); // In stock (10)
+
+    // Sale price input is hidden
+    expect(screen.queryByLabelText("Precio venta")).not.toBeInTheDocument();
+
+    // Confirm button
+    fireEvent.click(screen.getByRole("button", { name: "agregar repuesto" }));
+
+    await waitFor(() => {
+      expect(onUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stock_id: "s1",
+          cantidad: 1,
+          monto_unitario: 0,
+        })
+      );
+    });
+  });
+
+  it("permite a rol operativo estipular precio de compra si hay faltante sin ver precio de venta", async () => {
+    vi.mocked(useInventario).mockReturnValue({
+      inventario,
+      isLoading: false,
+    } as unknown as ReturnType<typeof useInventario>);
+
+    const onUpsert = vi.fn();
+    render(
+      <TenantTestProvider
+        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+      >
+        <RepuestoLineasEditableSection
+          tallerId="taller-1"
+          items={[]}
+          onUpsert={onUpsert}
+          onDelete={vi.fn()}
+        />
+      </TenantTestProvider>
+    );
+
+    selectStock("s2"); // stockActual: 2
+
+    // Request 5 units (faltante: 3)
+    fireEvent.change(screen.getByLabelText("Cantidad"), {
+      target: { value: "5" },
+    });
+
+    // Sale price hidden, but purchase price visible
+    expect(screen.queryByLabelText("Precio venta")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Precio compra")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Precio compra"), {
+      target: { value: "450" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "agregar repuesto" }));
+
+    await waitFor(() => {
+      expect(onUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stock_id: "s2",
+          cantidad: 5,
+          monto_unitario: 0,
+          precio_compra: 450,
+        })
+      );
+    });
   });
 });
