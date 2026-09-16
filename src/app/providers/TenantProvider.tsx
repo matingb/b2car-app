@@ -1,23 +1,29 @@
 "use client";
 
 import { tenantClient } from "@/clients/tenantClient";
-import { hasFeature as hasSubscriptionFeature, normalizeSubscriptionPlan, type FeatureValue, type SubscriptionPlanValue } from "@/lib/subscription";
+import { normalizeSubscriptionPlan, type SubscriptionPlanValue } from "@/lib/subscription";
+import {
+  hasPermission as checkPermission,
+  normalizeUserRole,
+  permissionForPath,
+  type PermissionValue,
+  type UserRoleValue,
+} from "@/lib/permissions";
 import { createClient } from "@/supabase/client";
-import { TenantFeatureProvider } from "@/app/providers/TenantFeatureContext";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Taller } from "@/model/types";
 
-type TenantContextValue = {
+export type TenantContextValue = {
   tenantName: string;
   talleres: Taller[];
   tallerSeleccionadoId: string;
   setTallerSeleccionadoId: (id: string) => void;
-  planSub: SubscriptionPlanValue | null;
   planLoading: boolean;
-  hasFeature: (feature: FeatureValue) => boolean;
+  hasPermission: (permission: PermissionValue) => boolean;
+  canAccessPath: (pathname: string) => boolean;
 };
 
-const TenantContext = createContext<TenantContextValue | null>(null);
+export const TenantContext = createContext<TenantContextValue | null>(null);
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenantName, setTenantName] = useState("B2Car");
@@ -25,6 +31,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [tallerSeleccionadoId, setTallerSeleccionadoId] = useState<string>("");
   const [planSub, setPlanSub] = useState<SubscriptionPlanValue | null>(null);
+  const [userRole, setUserRole] = useState<UserRoleValue | null>(null);
   const [planLoading, setPlanLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
@@ -52,7 +59,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   }, [talleres]);
 
   useEffect(() => {
-    void fetchAll();
+    fetchAll();
   }, [fetchAll]);
 
   useEffect(() => {
@@ -64,22 +71,24 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
     let active = true;
 
-    const loadPlan = async () => {
+    const loadClaims = async () => {
       const { data, error } = await supabase.auth.getClaims();
       if (!active) return;
       const claims = data?.claims as Record<string, unknown> | undefined;
       setPlanSub(error ? null : normalizeSubscriptionPlan(claims?.plan_sub));
+      setUserRole(error ? null : normalizeUserRole(claims?.user_role));
       setPlanLoading(false);
     };
 
-    void loadPlan();
+    void loadClaims();
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
         setPlanSub(null);
+        setUserRole(null);
         setPlanLoading(false);
         return;
       }
-      void loadPlan();
+      void loadClaims();
     });
 
     return () => {
@@ -88,9 +97,17 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const hasFeature = useCallback(
-    (feature: FeatureValue) => hasSubscriptionFeature(planSub, feature),
-    [planSub],
+  const hasPermission = useCallback(
+    (permission: PermissionValue): boolean => checkPermission(userRole, permission, planSub),
+    [userRole, planSub],
+  );
+
+  const canAccessPath = useCallback(
+    (pathname: string): boolean => {
+      const required = permissionForPath(pathname);
+      return !required || hasPermission(required);
+    },
+    [hasPermission]
   );
 
   const value = useMemo(
@@ -100,18 +117,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       talleres,
       tallerSeleccionadoId,
       setTallerSeleccionadoId,
-      planSub,
       planLoading,
-      hasFeature,
+      hasPermission,
+      canAccessPath,
     }),
-    [loading, tenantName, talleres, tallerSeleccionadoId, planSub, planLoading, hasFeature]
+    [loading, tenantName, talleres, tallerSeleccionadoId, planLoading, hasPermission, canAccessPath]
   );
 
-  return (
-    <TenantFeatureProvider hasFeature={hasFeature}>
-      <TenantContext.Provider value={value}>{children}</TenantContext.Provider>
-    </TenantFeatureProvider>
-  );
+  return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;
 }
 
 export function useTenant() {
@@ -119,4 +132,3 @@ export function useTenant() {
   if (!ctx) throw new Error("useTenant debe usarse dentro de TenantProvider");
   return ctx;
 }
-

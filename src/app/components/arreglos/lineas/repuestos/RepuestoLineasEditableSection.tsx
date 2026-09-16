@@ -30,6 +30,8 @@ import {
   getNewProductConflictMessage,
   validateRepuestoDraft,
 } from "@/app/components/arreglos/lineas/repuestos/repuestoValidator";
+import { useTenant } from "@/app/providers/TenantProvider";
+import { Permission } from "@/lib/permissions";
 
 export type RepuestoLinea = {
   id: string;
@@ -115,6 +117,8 @@ export default function RepuestoLineasEditableSection({
   onUpsert,
   onDelete,
 }: Props) {
+  const { hasPermission } = useTenant();
+  const canEditPrices = hasPermission(Permission.ArreglosPreciosEdit);
   const { inventario, isLoading } = useInventario(tallerId ?? undefined);
 
   const subtotalValue = useMemo(
@@ -195,7 +199,18 @@ export default function RepuestoLineasEditableSection({
         empleadoId: item.empleadoId ?? null,
       };
     },
-    validate: (d, ctx) => validateRepuestoDraft(d, ctx, { tallerId, items, inventario }),
+    validate: (d, ctx) => {
+      const res = validateRepuestoDraft(d, ctx, { tallerId, items, inventario });
+      if (!res.ok || canEditPrices) return res;
+
+      return {
+        ok: true,
+        value:
+          res.value.tipo === "nuevo"
+            ? { ...res.value, precio_venta: 0, monto_unitario: 0 }
+            : { ...res.value, monto_unitario: ctx.mode === "edit" ? safeNumber(ctx.item?.monto_unitario) : 0 },
+      };
+    },
     onAdd: (value) => onUpsert(value),
     onUpdate: (id, value) => onUpsert(value.tipo === "nuevo" ? { ...value, id } : value),
     cancelWhen: readOnly,

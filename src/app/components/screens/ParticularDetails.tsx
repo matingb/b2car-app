@@ -1,27 +1,27 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Particular, TipoCliente, Vehiculo, ClienteResumenFinanciero } from "@/model/types";
 import CreateVehiculoModal from "../vehiculos/CreateVehiculoModal";
-import VehiculosAsociadosCard from "../clientes/VehiculosAsociadosCard";
 import ClienteFormModal from "../clientes/ClienteFormModal";
 import ClienteProfileCard from "../clientes/ClienteProfileCard";
-import ClienteTabsNav, { type ClienteTabKey } from "../clientes/ClienteTabsNav";
-import ClienteArreglosTab from "../clientes/ClienteArreglosTab";
-import ClienteCuentaCorrienteTab from "../clientes/ClienteCuentaCorrienteTab";
+import ClienteTabsSection from "../clientes/ClienteTabsSection";
 import { useToast } from "@/app/providers/ToastProvider";
 import type { UpdateParticularRequest } from "@/app/api/clientes/particulares/[id]/route";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import { useParams } from "next/navigation";
 import { clientesClient } from "@/clients/clientes/clientesClient";
 import { logger } from "@/lib/logger";
+import { useTenant } from "@/app/providers/TenantProvider";
+import { Permission } from "@/lib/permissions";
 
 export default function ParticularDetails() {
+  const { hasPermission } = useTenant();
+  const canViewFinanzas = hasPermission(Permission.ClientesFinanzasView);
   const [openVehiculo, setOpenVehiculo] = useState(false);
   const [openEditCliente, setOpenEditCliente] = useState(false);
   const params = useParams();
   const clienteId = useMemo(() => params.id as string, [params]);
   const [particular, setParticular] = useState<Particular | null>(null);
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
-  const [activeTab, setActiveTab] = useState<ClienteTabKey>("vehiculos");
   const [resumenFinanciero, setResumenFinanciero] = useState<ClienteResumenFinanciero | null>(null);
   const [loadingFinanzas, setLoadingFinanzas] = useState(false);
 
@@ -29,7 +29,7 @@ export default function ParticularDetails() {
   const { getParticularById, updateParticular } = useClientes();
 
   const loadFinanzas = useCallback(async () => {
-    if (!clienteId) return;
+    if (!clienteId || !canViewFinanzas) return;
     setLoadingFinanzas(true);
     try {
       const res = await clientesClient.getResumenFinanciero(clienteId);
@@ -39,7 +39,7 @@ export default function ParticularDetails() {
     } finally {
       setLoadingFinanzas(false);
     }
-  }, [clienteId]);
+  }, [clienteId, canViewFinanzas]);
 
   useEffect(() => {
     async function load() {
@@ -51,9 +51,11 @@ export default function ParticularDetails() {
     }
     if (clienteId) {
       load();
-      void loadFinanzas();
+      if (canViewFinanzas) {
+        void loadFinanzas();
+      }
     }
-  }, [clienteId, getParticularById, loadFinanzas]);
+  }, [clienteId, getParticularById, loadFinanzas, canViewFinanzas]);
 
   const handleEditCliente = async (values: {
     nombre: string;
@@ -109,32 +111,11 @@ export default function ParticularDetails() {
         onEditCliente={() => setOpenEditCliente(true)}
       />
 
-      {/* TABS DE NAVEGACIÓN */}
-      <ClienteTabsNav
-        activeTab={activeTab}
-        onChangeTab={setActiveTab}
-        vehiculosCount={vehiculos.length}
+      <ClienteTabsSection
+        clienteId={clienteId}
+        vehiculos={vehiculos}
+        onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
       />
-
-      {/* CONTENIDO SEGÚN TAB ACTIVA */}
-      {activeTab === "vehiculos" && (
-        <VehiculosAsociadosCard 
-          vehiculos={vehiculos}
-          onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
-        />
-      )}
-
-      {activeTab === "arreglos" && (
-        <ClienteArreglosTab
-          clienteId={clienteId}
-        />
-      )}
-
-      {activeTab === "cuenta_corriente" && (
-        <ClienteCuentaCorrienteTab
-          clienteId={clienteId}
-        />
-      )}
 
       <ClienteFormModal
         open={openEditCliente}

@@ -4,6 +4,8 @@ import React, { useMemo, useState } from "react";
 import { COLOR } from "@/theme/theme";
 import IconLabel from "@/app/components/ui/IconLabel";
 import { ChevronDown } from "lucide-react";
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 
 type Props = {
   title: React.ReactNode;
@@ -36,11 +38,20 @@ export default function LineasSectionShell({
         <IconLabel icon={titleIcon} label={title} />
 
         <div style={styles.sectionRight}>
-          <div style={styles.subtotalInline}>
-            {subtotalBeforeLabel}
-            <span style={styles.subtotalLabel}>{subtotalLabel}</span>
-            <span style={styles.subtotalValue}>{subtotal}</span>
-          </div>
+          <Can
+            permission={Permission.ArreglosPreciosView}
+            fallback={
+              subtotalBeforeLabel ? (
+                <div style={styles.subtotalInline}>{subtotalBeforeLabel}</div>
+              ) : null
+            }
+          >
+            <div style={styles.subtotalInline}>
+              {subtotalBeforeLabel}
+              <span style={styles.subtotalLabel}>{subtotalLabel}</span>
+              <span style={styles.subtotalValue}>{subtotal}</span>
+            </div>
+          </Can>
 
           <button
             type="button"

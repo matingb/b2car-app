@@ -29,13 +29,18 @@ vi.mock("@/app/providers/SheetProvider", () => ({
   }),
 }));
 
-vi.mock("@/app/providers/TenantProvider", () => ({
-  useTenant: () => ({
+vi.mock("@/app/providers/TenantProvider", () => {
+  const mockTenant = {
     talleres: [{ id: "t1", nombre: "Taller 1", ubicacion: "X" }],
     tallerSeleccionadoId: "t1",
     setTallerSeleccionadoId: vi.fn(),
-  }),
-}));
+    hasPermission: () => true,
+  };
+  return {
+    useTenant: () => mockTenant,
+    useOptionalTenant: () => mockTenant,
+  };
+});
 
 vi.mock("@/app/components/arreglos/ArregloModal", () => ({
   __esModule: true,

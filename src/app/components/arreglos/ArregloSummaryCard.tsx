@@ -29,7 +29,9 @@ import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { getEmpleadoColor } from "@/app/providers/EmpleadosProvider";
 import { useTenant } from "@/app/providers/TenantProvider";
-import { Feature } from "@/lib/subscription";
+
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 
 import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
 import type { EstadoArreglo } from "@/model/types";
@@ -64,13 +66,13 @@ export default function ArregloSummaryCard({
   const { update, remove, loading } = useArreglos();
   const { confirm } = useModalMessage();
   const { success, error } = useToast();
-  const { hasFeature } = useTenant();
+  const { hasPermission } = useTenant();
   const { handleOpenPrintableInvoice } = useArregloPrintableInvoice();
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
 
   const { categorias } = useCategoriasArreglo();
   const arreglo = data.arreglo;
-  const canUseBilling = hasFeature(Feature.Billing);
+  const canViewBilling = hasPermission(Permission.FacturasView);
 
   const assignedEmpleados = useMemo(
     () => arreglo?.empleados ?? [],
@@ -153,28 +155,30 @@ export default function ArregloSummaryCard({
               size="md"
               totalCalculado={totalCalculado}
               facturaElectronica={facturaElectronica}
-              canEmitFactura={canUseBilling && canEmitFactura}
+              canEmitFactura={canViewBilling && canEmitFactura}
               hidePagoTextOnMobile={true}
               onStateChange={handleEstadoChange}
               onPagoUpdated={onArregloChange}
               onFacturableChanged={(nextVal) => {
                 onArregloChange({ ...arreglo, es_facturable: nextVal });
               }}
-              onOpenFacturaModal={canUseBilling && canEmitFactura && arreglo.estado !== "PRESUPUESTO" ? onOpenFactura : undefined}
+              onOpenFacturaModal={canViewBilling && canEmitFactura && arreglo.estado !== "PRESUPUESTO" ? onOpenFactura : undefined}
             />
           </div>
 
           <div style={styles.headerActions}>
-            {canUseBilling && canEmitFactura && onOpenFactura && arreglo.es_facturable !== false && arreglo.estado !== "PRESUPUESTO" ? (
-              <IconButton
-                icon={<ReceiptText />}
-                size={18}
-                onClick={onOpenFactura}
-                title={facturaElectronica?.estado === "RECHAZADA" ? "Reintentar factura electrónica" : "Facturar electrónicamente"}
-                ariaLabel={facturaElectronica?.estado === "RECHAZADA" ? "Reintentar factura electrónica" : "Facturar electrónicamente"}
-                hoverColor={COLOR.ACCENT.PRIMARY}
-              />
-            ) : null}
+            <Can permission={Permission.FacturasView}>
+              {canEmitFactura && onOpenFactura && arreglo.es_facturable !== false && arreglo.estado !== "PRESUPUESTO" ? (
+                <IconButton
+                  icon={<ReceiptText />}
+                  size={18}
+                  onClick={onOpenFactura}
+                  title={facturaElectronica?.estado === "RECHAZADA" ? "Reintentar factura electrónica" : "Facturar electrónicamente"}
+                  ariaLabel={facturaElectronica?.estado === "RECHAZADA" ? "Reintentar factura electrónica" : "Facturar electrónicamente"}
+                  hoverColor={COLOR.ACCENT.PRIMARY}
+                />
+              ) : null}
+            </Can>
             <IconButton
               icon={<Trash />}
               size={18}
@@ -183,14 +187,16 @@ export default function ArregloSummaryCard({
               ariaLabel="Eliminar arreglo"
               hoverColor={COLOR.SEMANTIC.DANGER}
             />
-            <IconButton
-              icon={<FileText />}
-              size={18}
-              onClick={handlePrintableInvoice}
-              title="Comprobante no fiscal"
-              ariaLabel="Comprobante no fiscal"
-              hoverColor={COLOR.ACCENT.PRIMARY}
-            />
+            <Can permission={Permission.ArreglosPreciosView}>
+              <IconButton
+                icon={<FileText />}
+                size={18}
+                onClick={handlePrintableInvoice}
+                title="Comprobante no fiscal"
+                ariaLabel="Comprobante no fiscal"
+                hoverColor={COLOR.ACCENT.PRIMARY}
+              />
+            </Can>
             <IconButton
               icon={<WhatsAppIcon size={18} />}
               size={18}
@@ -215,12 +221,14 @@ export default function ArregloSummaryCard({
           <div css={styles.gridContainer}>
             {/* Block 1: Amount, Date, Mileage */}
             <div style={styles.block1}>
-              <div>
-                <span style={styles.blockLabel}>Total Estimado</span>
-                <div style={styles.totalAmount}>
-                  {formatArs(totalCalculado, { maxDecimals: 0, minDecimals: 0 })}
+              <Can permission={Permission.ArreglosPreciosView}>
+                <div>
+                  <span style={styles.blockLabel}>Total Estimado</span>
+                  <div style={styles.totalAmount}>
+                    {formatArs(totalCalculado, { maxDecimals: 0, minDecimals: 0 })}
+                  </div>
                 </div>
-              </div>
+              </Can>
               {/* Vehículo info */}
               {arreglo.vehiculo ? (
                 <Card

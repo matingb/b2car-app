@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ROUTES } from "@/routing/routes";
-import { Feature } from "@/lib/subscription";
+import { Permission } from "@/lib/permissions";
 import {
   Car,
   CalendarDays,
@@ -50,7 +50,7 @@ export type SidebarMenuItem = {
 export function useSidebarMenu() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
-  const { tenantName, hasFeature } = useTenant();
+  const { tenantName, hasPermission } = useTenant();
 
   const items: SidebarMenuItem[] = useMemo(() => {
     const handleLogout = async () => {
@@ -65,77 +65,77 @@ export function useSidebarMenu() {
     };
 
     return [
-      {
+      ...(hasPermission(Permission.DashboardView) ? [{
         key: SidebarMenuKey.Dashboard,
         href: ROUTES.dashboard,
         label: "Dashboard",
         icon: <ChartNoAxesCombined size={18} />,
         onClick: () => router.push(ROUTES.dashboard),
-      },
-      {
+      }] : []),
+      ...(hasPermission(Permission.TurnosView) ? [{
         key: SidebarMenuKey.Turnos,
         href: ROUTES.turnos,
         label: "Turnos",
         icon: <CalendarDays size={18} />,
         onClick: () => router.push(ROUTES.turnos),
-      },
-      {
+      }] : []),
+      ...(hasPermission(Permission.ClientesView) ? [{
         key: SidebarMenuKey.Clientes,
         href: ROUTES.clientes,
         label: "Clientes",
         icon: <Users size={18} />,
         onClick: () => router.push(ROUTES.clientes),
-      },
-      {
+      }] : []),
+      ...(hasPermission(Permission.VehiculosView) ? [{
         key: SidebarMenuKey.Vehiculos,
         href: ROUTES.vehiculos,
         label: "Vehículos",
         icon: <Car size={18} />,
         onClick: () => router.push(ROUTES.vehiculos),
-      },
-      {
+      }] : []),
+      ...(hasPermission(Permission.ArreglosView) ? [{
         key: SidebarMenuKey.Arreglos,
         href: ROUTES.arreglos,
         label: "Arreglos",
         icon: <Wrench size={18} />,
         onClick: () => router.push(ROUTES.arreglos),
-      },
-      {
+      }] : []),
+      ...(hasPermission(Permission.ProductosView) ? [{
         key: SidebarMenuKey.Productos,
         href: ROUTES.productos,
         label: "Productos",
         icon: <Package size={18} />,
         onClick: () => router.push(ROUTES.productos),
-      },
-      {
+      }] : []),
+      ...(hasPermission(Permission.OperacionesView) ? [{
         key: SidebarMenuKey.Operaciones,
         href: ROUTES.operaciones,
         label: "Operaciones",
         icon: <ScrollText size={18} />,
         onClick: () => router.push(ROUTES.operaciones),
-      },
-      {
+      }] : []),
+      ...(hasPermission(Permission.FinanzasView) ? [{
         key: SidebarMenuKey.CuentasFinancieras,
         href: ROUTES.cuentasFinancieras,
         label: "Finanzas",
         icon: <WalletCards size={18} />,
         onClick: () => router.push(ROUTES.cuentasFinancieras),
-      },
-      {
+      }] : []),
+      ...(hasPermission(Permission.EmpleadosView) ? [{
         key: SidebarMenuKey.Empleados,
         href: ROUTES.empleados,
         label: "Empleados",
         icon: <IdCard size={18} />,
         onClick: () => router.push(ROUTES.empleados),
-      },
-      ...(hasFeature(Feature.Billing) ? [{
+      }] : []),
+      ...(hasPermission(Permission.FacturasView) ? [{
         key: SidebarMenuKey.Facturas,
         href: ROUTES.facturacion,
         label: "Facturas",
         icon: <ReceiptText size={18} />,
         onClick: () => router.push(ROUTES.facturacion),
       }] : []),
-      ...(hasFeature(Feature.Settings) ? [{
+      ...(hasPermission(Permission.ConfiguracionView) ? [{
         key: SidebarMenuKey.Configuracion,
         href: ROUTES.configuracion,
         label: "Configuración",
@@ -152,7 +152,7 @@ export function useSidebarMenu() {
         isLoading: isLoggingOut,
       },
     ];
-  }, [hasFeature, isLoggingOut, router]);
+  }, [hasPermission, isLoggingOut, router]);
 
   return { tenantName, items, isLoggingOut } as const;
 }

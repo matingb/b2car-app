@@ -7,6 +7,8 @@ import type { Arreglo, EstadoArreglo } from "@/model/types";
 import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
 import ArregloPagoBadge from "@/app/components/arreglos/ArregloPagoBadge";
 import ArregloFacturaBadge, { type FacturaBadgeData } from "@/app/components/arreglos/ArregloFacturaBadge";
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 
 export type ArregloBadgesData = {
   id: string;
@@ -71,26 +73,30 @@ export default function ArregloBadges({
         </div>
         {!isPresupuesto ? (
           <div css={styles.footerRight}>
-            <ArregloFacturaBadge
-              arregloId={arreglo.id}
-              esFacturable={arreglo.es_facturable !== false}
-              factura={resolvedFactura}
-              onFacturableChanged={onFacturableChanged}
-              onOpenFacturaModal={canEmitFactura ? onOpenFacturaModal : undefined}
-              onOpenChange={onOpenChange}
-              size={size}
-            />
-            <ArregloPagoBadge
-              estado={arreglo.estado}
-              estaPago={arreglo.esta_pago}
-              totalCobrado={arreglo.total_cobrado}
-              saldoPendiente={saldoPendienteCalculado}
-              precioFinal={precioFinalCalculado}
-              arregloId={arreglo.id}
-              onPagoUpdated={onPagoUpdated}
-              size={size}
-              hideTextOnMobile={hidePagoTextOnMobile}
-            />
+            <Can permission={Permission.FacturasView}>
+              <ArregloFacturaBadge
+                arregloId={arreglo.id}
+                esFacturable={arreglo.es_facturable !== false}
+                factura={resolvedFactura}
+                onFacturableChanged={onFacturableChanged}
+                onOpenFacturaModal={canEmitFactura ? onOpenFacturaModal : undefined}
+                onOpenChange={onOpenChange}
+                size={size}
+              />
+            </Can>
+            <Can anyPermissions={[Permission.ArreglosCobrosRegister, Permission.ArreglosPreciosView]}>
+              <ArregloPagoBadge
+                estado={arreglo.estado}
+                estaPago={arreglo.esta_pago}
+                totalCobrado={arreglo.total_cobrado}
+                saldoPendiente={saldoPendienteCalculado}
+                precioFinal={precioFinalCalculado}
+                arregloId={arreglo.id}
+                onPagoUpdated={onPagoUpdated}
+                size={size}
+                hideTextOnMobile={hidePagoTextOnMobile}
+              />
+            </Can>
           </div>
         ) : null}
       </div>
@@ -109,26 +115,30 @@ export default function ArregloBadges({
       />
       {!isPresupuesto ? (
         <>
-          <ArregloPagoBadge
-            estado={arreglo.estado}
-            estaPago={arreglo.esta_pago}
-            totalCobrado={arreglo.total_cobrado}
-            saldoPendiente={saldoPendienteCalculado}
-            precioFinal={precioFinalCalculado}
-            arregloId={arreglo.id}
-            onPagoUpdated={onPagoUpdated}
-            size={size}
-            hideTextOnMobile={hidePagoTextOnMobile}
-          />
-          <ArregloFacturaBadge
-            arregloId={arreglo.id}
-            esFacturable={arreglo.es_facturable !== false}
-            factura={resolvedFactura}
-            onFacturableChanged={onFacturableChanged}
-            onOpenFacturaModal={canEmitFactura ? onOpenFacturaModal : undefined}
-            onOpenChange={onOpenChange}
-            size={size}
-          />
+          <Can anyPermissions={[Permission.ArreglosCobrosRegister, Permission.ArreglosPreciosView]}>
+            <ArregloPagoBadge
+              estado={arreglo.estado}
+              estaPago={arreglo.esta_pago}
+              totalCobrado={arreglo.total_cobrado}
+              saldoPendiente={saldoPendienteCalculado}
+              precioFinal={precioFinalCalculado}
+              arregloId={arreglo.id}
+              onPagoUpdated={onPagoUpdated}
+              size={size}
+              hideTextOnMobile={hidePagoTextOnMobile}
+            />
+          </Can>
+          <Can permission={Permission.FacturasView}>
+            <ArregloFacturaBadge
+              arregloId={arreglo.id}
+              esFacturable={arreglo.es_facturable !== false}
+              factura={resolvedFactura}
+              onFacturableChanged={onFacturableChanged}
+              onOpenFacturaModal={canEmitFactura ? onOpenFacturaModal : undefined}
+              onOpenChange={onOpenChange}
+              size={size}
+            />
+          </Can>
         </>
       ) : null}
     </div>

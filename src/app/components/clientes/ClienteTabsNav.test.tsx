@@ -2,6 +2,8 @@ import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ClienteTabsNav from "./ClienteTabsNav";
+import { TenantTestProvider } from "@/app/providers/TenantProvider";
+import { hasPermission, UserRole } from "@/lib/permissions";
 
 describe("ClienteTabsNav", () => {
   it("renderiza todas las pestañas y destaca la activa", () => {
@@ -23,5 +25,25 @@ describe("ClienteTabsNav", () => {
 
     fireEvent.click(screen.getByText("Cuenta Corriente"));
     expect(onChangeTab).toHaveBeenCalledWith("cuenta_corriente");
+  });
+
+  it("oculta la pestaña Cuenta Corriente para un rol operativo", () => {
+    const onChangeTab = vi.fn();
+    render(
+      <TenantTestProvider
+        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+      >
+        <ClienteTabsNav
+          activeTab="vehiculos"
+          onChangeTab={onChangeTab}
+          vehiculosCount={4}
+          arreglosCount={12}
+        />
+      </TenantTestProvider>
+    );
+
+    expect(screen.getByText("Vehículos")).toBeInTheDocument();
+    expect(screen.getByText("Arreglos")).toBeInTheDocument();
+    expect(screen.queryByText("Cuenta Corriente")).not.toBeInTheDocument();
   });
 });

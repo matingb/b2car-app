@@ -11,6 +11,8 @@ import LineasSectionShell from "@/app/components/arreglos/lineas/shared/LineasSe
 import Card from "@/app/components/ui/Card";
 import Autocomplete from "@/app/components/ui/Autocomplete";
 import { styles as lineaStyles } from "@/app/components/arreglos/lineas/shared/lineaStyles";
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 
 type CustomFieldDef = {
   key: string;
@@ -595,15 +597,24 @@ export default function ServicioLineasCustomSection({
       }
       subtotal={
         isEditing ? (
-          <input
-            value={subtotal}
-            onChange={(e) => setFormCostoInput(e.target.value.replace(/\D/g, ""))}
-            disabled={disabled}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            aria-label="Costo total formulario custom"
-            style={customStyles.headerCostoInput}
-          />
+          <Can
+            permission={Permission.ArreglosPreciosEdit}
+            fallback={
+              <span style={customStyles.headerCostoValue}>
+                {formatArs(costoTotal, { maxDecimals: 0, minDecimals: 0 })}
+              </span>
+            }
+          >
+            <input
+              value={subtotal}
+              onChange={(e) => setFormCostoInput(e.target.value.replace(/\D/g, ""))}
+              disabled={disabled}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              aria-label="Costo total formulario custom"
+              style={customStyles.headerCostoInput}
+            />
+          </Can>
         ) : (
           <span style={customStyles.headerCostoValue}>
             {formatArs(costoTotal, { maxDecimals: 0, minDecimals: 0 })}

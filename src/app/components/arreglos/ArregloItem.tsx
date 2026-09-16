@@ -21,6 +21,8 @@ import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { useTenant } from "@/app/providers/TenantProvider";
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 import { getEmpleadoColor } from "@/app/providers/EmpleadosProvider";
 import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
 import ArregloCategoriasList from "@/app/components/arreglos/ArregloCategoriasList";
@@ -189,12 +191,14 @@ export default function ArregloItem({
 
           {/* Sección Derecha: Fecha, Precio y Taller */}
           <div css={styles.rightInfoSection}>
-            <div css={styles.priceValue}>
-              {formatArs(arreglo.precio_final, {
-                maxDecimals: 0,
-                minDecimals: 0,
-              })}
-            </div>
+            <Can permission={Permission.ArreglosPreciosView}>
+              <div css={styles.priceValue}>
+                {formatArs(arreglo.precio_final, {
+                  maxDecimals: 0,
+                  minDecimals: 0,
+                })}
+              </div>
+            </Can>
 
             <div css={styles.dateContainer}>
               <Calendar size={15} color={COLOR.ICON.MUTED} />

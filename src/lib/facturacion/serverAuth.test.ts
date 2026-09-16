@@ -30,9 +30,8 @@ import {
   facturacionErrorResponse,
   requireTenantActor,
   requireTenantAdmin,
-  requireTenantFeature,
+  requireTenantBillingActor,
 } from "./serverAuth";
-import { Feature } from "@/lib/subscription";
 
 beforeEach(() => {
   mocks.getClaims.mockReset();
@@ -127,7 +126,7 @@ describe("autorización fiscal tenant-scoped", () => {
       error: null,
     });
 
-    await expect(requireTenantFeature(Feature.Billing)).rejects.toMatchObject({
+    await expect(requireTenantBillingActor()).rejects.toMatchObject({
       status: 403,
       code: FEATURE_NOT_AVAILABLE_FOR_PLAN,
     } satisfies Partial<FacturacionHttpError>);

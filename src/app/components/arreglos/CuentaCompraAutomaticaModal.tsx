@@ -14,6 +14,9 @@ import CuentaFinancieraAutocomplete, {
 import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { COLOR } from "@/theme/theme";
+import { useTenant } from "@/app/providers/TenantProvider";
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 
 type Props = {
   open: boolean;
@@ -25,13 +28,15 @@ export { CREATE_CUENTA_VALUE };
 
 /** Se muestra antes de confirmar una compra de stock disparada desde un arreglo. */
 export default function CuentaCompraAutomaticaModal({ open, onClose, onConfirm }: Props) {
+  const { hasPermission } = useTenant();
+  const canCreateCuenta = hasPermission(Permission.FinanzasEdit);
   const { error, success } = useToast();
   const { loading, createCuenta, cuentaFavorita } = useCuentasFinancieras();
   const [cuentaId, setCuentaId] = useState("");
   const [cuentaDraft, setCuentaDraft] = useState<CuentaFinancieraDraft>(() => ({ ...EMPTY_CUENTA_FINANCIERA_DRAFT }));
   const [submitting, setSubmitting] = useState(false);
 
-  const isCreatingCuenta = cuentaId === CREATE_CUENTA_VALUE;
+  const isCreatingCuenta = canCreateCuenta && cuentaId === CREATE_CUENTA_VALUE;
 
   useEffect(() => {
     if (!open) return;
@@ -97,20 +102,23 @@ export default function CuentaCompraAutomaticaModal({ open, onClose, onConfirm }
             value={cuentaId}
             onChange={setCuentaId}
             disabled={loading}
+            allowCreate={canCreateCuenta}
             hideClearButton
             dataTestId="arreglo-compra-automatica-cuenta"
           />
         </label>
 
         {isCreatingCuenta && (
-          <CuentaFinancieraFormFields
-            values={cuentaDraft}
-            onChange={(patch) => setCuentaDraft((prev) => ({ ...prev, ...patch }))}
-            showSaldoInicial={false}
-            showActivo={false}
-            compact
-            dataTestIdPrefix="compra-automatica-cuenta"
-          />
+          <Can permission={Permission.FinanzasEdit}>
+            <CuentaFinancieraFormFields
+              values={cuentaDraft}
+              onChange={(patch) => setCuentaDraft((prev) => ({ ...prev, ...patch }))}
+              showSaldoInicial={false}
+              showActivo={false}
+              compact
+              dataTestIdPrefix="compra-automatica-cuenta"
+            />
+          </Can>
         )}
       </div>
     </Modal>

@@ -2,7 +2,7 @@ import "server-only";
 
 import { createClient } from "@/supabase/server";
 import { logger } from "@/lib/logger";
-import { Feature, hasFeature, type FeatureValue } from "@/lib/subscription";
+import { hasPlanPermission, Permission, type PermissionValue } from "@/lib/permissions";
 import { FacturacionValidationError } from "./arcaPayload";
 import { FceMipymeQueryError } from "./fceMipyme";
 
@@ -79,9 +79,9 @@ export async function requireTenantActor(): Promise<TenantActor> {
   };
 }
 
-export async function requireTenantFeature(feature: FeatureValue): Promise<TenantActor> {
+export async function requireTenantPlanPermission(permission: PermissionValue): Promise<TenantActor> {
   const actor = await requireTenantActor();
-  if (!hasFeature(actor.claimedPlan, feature)) {
+  if (!hasPlanPermission(actor.claimedPlan, permission)) {
     throw new FacturacionHttpError(
       "La funcionalidad no está disponible en el plan actual",
       403,
@@ -91,8 +91,8 @@ export async function requireTenantFeature(feature: FeatureValue): Promise<Tenan
   return actor;
 }
 
-export async function requireTenantFeatureAdmin(feature: FeatureValue): Promise<TenantActor> {
-  const actor = await requireTenantFeature(feature);
+export async function requireTenantPlanPermissionAdmin(permission: PermissionValue): Promise<TenantActor> {
+  const actor = await requireTenantPlanPermission(permission);
   if (actor.role !== "admin" || actor.claimedRole !== "admin") {
     throw new FacturacionHttpError("Esta acción requiere un administrador del tenant", 403);
   }
@@ -100,7 +100,7 @@ export async function requireTenantFeatureAdmin(feature: FeatureValue): Promise<
 }
 
 export async function requireTenantBillingActor(): Promise<TenantActor> {
-  return requireTenantFeature(Feature.Billing);
+  return requireTenantPlanPermission(Permission.FacturasView);
 }
 
 export async function requireTenantAdmin(): Promise<TenantActor> {

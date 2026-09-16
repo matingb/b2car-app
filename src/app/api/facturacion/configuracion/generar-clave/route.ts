@@ -1,13 +1,13 @@
 import { generateArcaCredentialArchive } from "@/lib/facturacion/arcaCredentialRequest";
 import { FacturacionValidationError } from "@/lib/facturacion/arcaPayload";
-import { Feature } from "@/lib/subscription";
-import { facturacionErrorResponse, requireTenantFeatureAdmin } from "@/lib/facturacion/serverAuth";
+import { Permission } from "@/lib/permissions";
+import { facturacionErrorResponse, requireTenantPlanPermissionAdmin } from "@/lib/facturacion/serverAuth";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    await requireTenantFeatureAdmin(Feature.Settings);
+    await requireTenantPlanPermissionAdmin(Permission.ConfiguracionEdit);
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       throw new FacturacionValidationError("Los datos para generar la clave no son válidos");

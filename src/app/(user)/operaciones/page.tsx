@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { TipoOperacion, TIPOS_OPERACIONES } from "@/model/types";
 import { useTenant } from "@/app/providers/TenantProvider";
+import { Permission } from "@/lib/permissions";
 import Color from "color";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 import LineDetalleOperacion from "@/app/components/operaciones/LineDetalleOperacion";
@@ -39,7 +40,6 @@ import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { finanzasClient } from "@/clients/finanzasClient";
 import type { GastoFinanciero } from "@/model/finanzas";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
-import { Feature } from "@/lib/subscription";
 
 
 const tipoConfig: Record<
@@ -168,9 +168,8 @@ export default function OperacionesPage() {
     } = useOperaciones();
     const tenant = useTenant();
     const { talleres } = tenant;
-    const canUseBilling = typeof tenant.hasFeature === "function"
-        ? tenant.hasFeature(Feature.Billing)
-        : true;
+    const { hasPermission } = tenant;
+    const canUseBilling = hasPermission(Permission.FacturasView);
     const { getStockById } = useInventario();
     const { success, error } = useToast();
     const { confirm } = useModalMessage();

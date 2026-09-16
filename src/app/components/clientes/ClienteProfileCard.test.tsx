@@ -3,6 +3,8 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ClienteProfileCard from "./ClienteProfileCard";
 import { TipoCliente } from "@/model/types";
+import { TenantTestProvider } from "@/app/providers/TenantProvider";
+import { hasPermission, UserRole } from "@/lib/permissions";
 
 describe("ClienteProfileCard", () => {
   const defaultProps = {
@@ -136,5 +138,20 @@ describe("ClienteProfileCard", () => {
     expect(screen.getByText("35123456")).toBeInTheDocument();
     expect(screen.queryByText("ESTADO DEL CLIENTE")).not.toBeInTheDocument();
     expect(screen.queryByText("REPRESENTANTES")).not.toBeInTheDocument();
+  });
+
+  it("oculta el saldo y estados financieros para un usuario operativo", () => {
+    render(
+      <TenantTestProvider
+        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+      >
+        <ClienteProfileCard {...defaultProps} />
+      </TenantTestProvider>
+    );
+
+    expect(screen.queryByText(/430\.000/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Deuda pendiente")).not.toBeInTheDocument();
+    expect(screen.queryByText("Al día")).not.toBeInTheDocument();
+    expect(screen.getByText("Logística Central S.A.")).toBeInTheDocument();
   });
 });

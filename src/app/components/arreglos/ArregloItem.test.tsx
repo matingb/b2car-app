@@ -2,8 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import ArregloItem from "@/app/components/arreglos/ArregloItem";
 import { createArreglo } from "@/tests/factories";
+import { hasPermission, UserRole } from "@/lib/permissions";
 
 let talleresMock: Array<{ id: string; nombre: string; ubicacion: string }> = [];
+let hasPermissionMock: (p: any) => boolean = () => true;
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -19,6 +21,13 @@ vi.mock("@/app/providers/TenantProvider", () => ({
     talleres: talleresMock,
     tallerSeleccionadoId: talleresMock[0]?.id ?? "",
     setTallerSeleccionadoId: vi.fn(),
+    hasPermission: (p: any) => hasPermissionMock(p),
+  }),
+  useOptionalTenant: () => ({
+    talleres: talleresMock,
+    tallerSeleccionadoId: talleresMock[0]?.id ?? "",
+    setTallerSeleccionadoId: vi.fn(),
+    hasPermission: (p: any) => hasPermissionMock(p),
   }),
 }));
 
@@ -263,6 +272,36 @@ describe("ArregloItem", () => {
     );
 
     expect(screen.queryByTestId("arreglo-factura-badge")).not.toBeInTheDocument();
+  });
+
+  it("muestra el precio para un usuario admin", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+    hasPermissionMock = (p) => hasPermission(UserRole.Admin, p);
+
+    render(
+      <ArregloItem
+        arreglo={createArreglo({
+          precio_final: 25000,
+        })}
+      />
+    );
+
+    expect(screen.getByText("$25.000")).toBeInTheDocument();
+  });
+
+  it("oculta el precio para un usuario operativo a través de Can", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+    hasPermissionMock = (p) => hasPermission(UserRole.Operativo, p);
+
+    render(
+      <ArregloItem
+        arreglo={createArreglo({
+          precio_final: 25000,
+        })}
+      />
+    );
+
+    expect(screen.queryByText("$25.000")).not.toBeInTheDocument();
   });
 });
 

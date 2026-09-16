@@ -18,12 +18,17 @@ vi.mock("@/clients/arreglosClient", () => ({
   },
 }));
 
-vi.mock("@/app/providers/TenantProvider", () => ({
-  useTenant: () => ({
+vi.mock("@/app/providers/TenantProvider", () => {
+  const mockTenant = {
     talleres: [{ id: "t1", nombre: "Taller Principal" }],
     tallerSeleccionadoId: "t1",
-  }),
-}));
+    hasPermission: () => true,
+  };
+  return {
+    useTenant: () => mockTenant,
+    useOptionalTenant: () => mockTenant,
+  };
+});
 
 vi.mock("@/app/providers/CategoriasArregloProvider", () => ({
   useCategoriasArreglo: () => ({

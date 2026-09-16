@@ -3,6 +3,8 @@
 import React from "react";
 import { css } from "@emotion/react";
 import { COLOR } from "@/theme/theme";
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 
 export type ClienteTabKey = "vehiculos" | "arreglos" | "cuenta_corriente";
 
@@ -19,32 +21,43 @@ export default function ClienteTabsNav({
   vehiculosCount,
   arreglosCount,
 }: Props) {
-  const tabs: Array<{ key: ClienteTabKey; label: string; count?: number }> = [
-    { key: "vehiculos", label: "Vehículos", count: vehiculosCount },
-    { key: "arreglos", label: "Arreglos", count: arreglosCount },
-    { key: "cuenta_corriente", label: "Cuenta Corriente" },
-  ];
-
   return (
     <nav css={styles.navContainer} aria-label="Secciones del cliente">
-      {tabs.map((tab) => {
-        const isActive = activeTab === tab.key;
-        return (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => onChangeTab(tab.key)}
-            css={[styles.tabButton, isActive && styles.tabButtonActive]}
-          >
-            <span>{tab.label}</span>
-            {tab.count != null && tab.count > 0 ? (
-              <span css={[styles.countBadge, isActive && styles.countBadgeActive]}>
-                {tab.count}
-              </span>
-            ) : null}
-          </button>
-        );
-      })}
+      <button
+        type="button"
+        onClick={() => onChangeTab("vehiculos")}
+        css={[styles.tabButton, activeTab === "vehiculos" && styles.tabButtonActive]}
+      >
+        <span>Vehículos</span>
+        {vehiculosCount != null && vehiculosCount > 0 ? (
+          <span css={[styles.countBadge, activeTab === "vehiculos" && styles.countBadgeActive]}>
+            {vehiculosCount}
+          </span>
+        ) : null}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onChangeTab("arreglos")}
+        css={[styles.tabButton, activeTab === "arreglos" && styles.tabButtonActive]}
+      >
+        <span>Arreglos</span>
+        {arreglosCount != null && arreglosCount > 0 ? (
+          <span css={[styles.countBadge, activeTab === "arreglos" && styles.countBadgeActive]}>
+            {arreglosCount}
+          </span>
+        ) : null}
+      </button>
+
+      <Can permission={Permission.ClientesFinanzasView}>
+        <button
+          type="button"
+          onClick={() => onChangeTab("cuenta_corriente")}
+          css={[styles.tabButton, activeTab === "cuenta_corriente" && styles.tabButtonActive]}
+        >
+          <span>Cuenta Corriente</span>
+        </button>
+      </Can>
     </nav>
   );
 }

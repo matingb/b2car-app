@@ -11,6 +11,8 @@ import { useInlineEditorContext } from "./InlineEditorContext";
 import Card from "../../../ui/Card";
 import IconInput from "../../../ui/IconInput";
 import LineaEditorActions from "./LineaEditorActions";
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 
 type Kind = "servicios" | "repuestos";
 
@@ -82,19 +84,21 @@ export default function EditableLineaCard({
                   />
                 </div>
               ) : null}
-              <div css={fieldUnit}>
-                <IconInput
-                  icon={<DollarSign size={14} />}
-                  wrapperStyle={innerFillStyle}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={draft.unit}
-                  onChange={(e) => onDraftChange({ unit: e.target.value.replace(/\D/g, "") })}
-                  placeholder={showPurchaseUnit ? "Venta" : "0.00"}
-                  disabled={!interactionEnabled}
-                  aria-label="Precio venta"
-                />
-              </div>
+              <Can permission={Permission.ArreglosPreciosEdit}>
+                <div css={fieldUnit}>
+                  <IconInput
+                    icon={<DollarSign size={14} />}
+                    wrapperStyle={innerFillStyle}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={draft.unit}
+                    onChange={(e) => onDraftChange({ unit: e.target.value.replace(/\D/g, "") })}
+                    placeholder={showPurchaseUnit ? "Venta" : "0.00"}
+                    disabled={!interactionEnabled}
+                    aria-label="Precio venta"
+                  />
+                </div>
+              </Can>
             </div>
           </div>
           
@@ -104,7 +108,9 @@ export default function EditableLineaCard({
         </div>
 
         <div css={footer}>
-          <div css={styles.totalText}>{totalText}</div>
+          <Can permission={Permission.ArreglosPreciosView}>
+            <div css={styles.totalText}>{totalText}</div>
+          </Can>
           <div css={styles.actionsWrap}>
              <LineaEditorActions variant="footer" />
           </div>

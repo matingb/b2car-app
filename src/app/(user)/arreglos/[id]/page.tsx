@@ -37,7 +37,8 @@ import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronic
 import type { FacturaElectronicaResumen } from "@/lib/facturacion/types";
 import { LockKeyhole } from "lucide-react";
 import { useTenant } from "@/app/providers/TenantProvider";
-import { Feature } from "@/lib/subscription";
+import Can from "@/app/components/auth/Can";
+import { Permission } from "@/lib/permissions";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -68,8 +69,8 @@ export default function ArregloDetailsPage() {
   const { confirm } = useModalMessage();
   const { success, error } = useToast();
   const { ultimo: ultimoUsado, registrar: registrarUltimoUsado } = useUltimoTipoEmpleado();
-  const { hasFeature } = useTenant();
-  const canUseBilling = hasFeature(Feature.Billing);
+  const { hasPermission } = useTenant();
+  const canUseBilling = hasPermission(Permission.FacturasView);
 
   const refreshFacturaElectronica = useCallback(async () => {
     if (!canUseBilling) {
@@ -522,17 +523,19 @@ export default function ArregloDetailsPage() {
           readOnly={fiscalReadOnly}
         />
 
-        <ArregloTotalsFooter
-          subtotalServicios={subtotalServicios + subtotalServiciosCustom}
-          subtotalRepuestos={subtotalRepuestos}
-          total={totalCalculado}
-          totalCobrado={arreglo.total_cobrado}
-          saldoPendiente={
-            arreglo.saldo_pendiente != null
-              ? arreglo.saldo_pendiente
-              : Math.max(0, totalCalculado - (arreglo.total_cobrado || 0))
-          }
-        />
+        <Can permission={Permission.ArreglosPreciosView}>
+          <ArregloTotalsFooter
+            subtotalServicios={subtotalServicios + subtotalServiciosCustom}
+            subtotalRepuestos={subtotalRepuestos}
+            total={totalCalculado}
+            totalCobrado={arreglo.total_cobrado}
+            saldoPendiente={
+              arreglo.saldo_pendiente != null
+                ? arreglo.saldo_pendiente
+                : Math.max(0, totalCalculado - (arreglo.total_cobrado || 0))
+            }
+          />
+        </Can>
       </div>
 
       {arreglo && arreglo.vehiculo && (
