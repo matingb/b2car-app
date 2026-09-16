@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import CuentaCompraAutomaticaModal from "./CuentaCompraAutomaticaModal";
-import { TenantTestProvider } from "@/app/providers/TenantProvider";
+import { TenantTestProvider } from "@/tests/testUtils";
 import { hasPermission, UserRole } from "@/lib/permissions";
 
 const mockCreateCuenta = vi.fn();

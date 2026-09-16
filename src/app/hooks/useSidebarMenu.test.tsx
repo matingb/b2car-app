@@ -1,7 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SidebarMenuKey, useSidebarMenu } from "./useSidebarMenu";
-import { hasPermission, Permission, UserRole, type UserRoleValue } from "@/lib/permissions";
+import { hasPermission, UserRole, type UserRoleValue } from "@/lib/permissions";
 import { SubscriptionPlan } from "@/lib/subscription";
 
 const state = vi.hoisted(() => ({

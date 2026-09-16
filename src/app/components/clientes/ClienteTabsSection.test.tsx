@@ -1,8 +1,8 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as render, TenantTestProvider } from "@/tests/testUtils";
 import ClienteTabsSection, { ClienteTabsContent } from "./ClienteTabsSection";
-import { TenantTestProvider } from "@/app/providers/TenantProvider";
 import { hasPermission, UserRole } from "@/lib/permissions";
 import { Vehiculo } from "@/model/types";
 

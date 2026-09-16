@@ -38,7 +38,6 @@ vi.mock("@/app/providers/TenantProvider", () => {
   };
   return {
     useTenant: () => mockTenant,
-    useOptionalTenant: () => mockTenant,
   };
 });
 

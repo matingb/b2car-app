@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import ArregloFormFields, { type ArregloFormFieldsValues } from "./ArregloFormFields";
-import { TenantTestProvider } from "@/app/providers/TenantProvider";
+import { TenantTestProvider } from "@/tests/testUtils";
 import { hasPermission, UserRole } from "@/lib/permissions";
 
 vi.mock("@/app/providers/CategoriasArregloProvider", () => ({

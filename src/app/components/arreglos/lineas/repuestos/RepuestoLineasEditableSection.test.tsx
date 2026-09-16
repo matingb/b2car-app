@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import RepuestoLineasEditableSection from "./RepuestoLineasEditableSection";
 import type { RepuestoLinea } from "./RepuestoLineasEditableSection";
 import { useInventario } from "@/app/providers/InventarioProvider";
-import { TenantTestProvider } from "@/app/providers/TenantProvider";
+import { TenantTestProvider } from "@/tests/testUtils";
 import { hasPermission, UserRole } from "@/lib/permissions";
 
 vi.mock("@/app/providers/InventarioProvider", () => ({

@@ -2,12 +2,24 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import Can from "./Can";
-import { TenantTestProvider } from "@/app/providers/TenantProvider";
+import { TenantTestProvider, renderWithProviders } from "@/tests/testUtils";
 import { Permission, UserRole, hasPermission } from "@/lib/permissions";
 
 describe("<Can /> Component", () => {
-  it("renders children when rendered outside TenantProvider (isolated unit tests)", () => {
-    render(
+  it("throws an error when rendered outside TenantProvider", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => {
+      render(
+        <Can permission={Permission.ArreglosPreciosView} fallback={<span>No access</span>}>
+          <span>Price Content</span>
+        </Can>
+      );
+    }).toThrow("useTenant debe usarse dentro de TenantProvider");
+    spy.mockRestore();
+  });
+
+  it("renders children with generic wrapper renderWithProviders", () => {
+    renderWithProviders(
       <Can permission={Permission.ArreglosPreciosView} fallback={<span>No access</span>}>
         <span>Price Content</span>
       </Can>

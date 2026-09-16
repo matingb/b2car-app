@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as render } from "@/tests/testUtils";
 import { describe, expect, it, vi } from "vitest";
 import ArregloBadges from "./ArregloBadges";
 import type { ArregloBadgesData } from "./ArregloBadges";

@@ -2,10 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import ArregloItem from "@/app/components/arreglos/ArregloItem";
 import { createArreglo } from "@/tests/factories";
-import { hasPermission, UserRole } from "@/lib/permissions";
+import { hasPermission, UserRole, type PermissionValue } from "@/lib/permissions";
 
 let talleresMock: Array<{ id: string; nombre: string; ubicacion: string }> = [];
-let hasPermissionMock: (p: any) => boolean = () => true;
+let hasPermissionMock: (p: PermissionValue) => boolean = () => true;
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -21,13 +21,7 @@ vi.mock("@/app/providers/TenantProvider", () => ({
     talleres: talleresMock,
     tallerSeleccionadoId: talleresMock[0]?.id ?? "",
     setTallerSeleccionadoId: vi.fn(),
-    hasPermission: (p: any) => hasPermissionMock(p),
-  }),
-  useOptionalTenant: () => ({
-    talleres: talleresMock,
-    tallerSeleccionadoId: talleresMock[0]?.id ?? "",
-    setTallerSeleccionadoId: vi.fn(),
-    hasPermission: (p: any) => hasPermissionMock(p),
+    hasPermission: (p: PermissionValue) => hasPermissionMock(p),
   }),
 }));
 

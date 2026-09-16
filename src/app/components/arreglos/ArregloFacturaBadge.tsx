@@ -165,7 +165,7 @@ export default function ArregloFacturaBadge({
 
   const isSmall = size === "sm";
 
-  if (tenant && !tenant.hasPermission(Permission.FacturasView)) return null;
+  if (!tenant.hasPermission(Permission.FacturasView)) return null;
 
   // 1. Factura Emitida
   if (isEmitida) {

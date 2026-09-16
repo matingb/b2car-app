@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useOptionalTenant } from "@/app/providers/TenantProvider";
+import { useTenant } from "@/app/providers/TenantProvider";
 import type { PermissionValue } from "@/lib/permissions";
 
 type CanProps = {
@@ -19,10 +19,7 @@ export default function Can({
   children,
   fallback = null,
 }: CanProps) {
-  const tenant = useOptionalTenant();
-  if (!tenant) {
-    return <>{children}</>;
-  }
+  const tenant = useTenant();
 
   let allowed = true;
   if (path) {
@@ -43,4 +40,3 @@ export default function Can({
 
   return allowed ? <>{children}</> : <>{fallback}</>;
 }
-

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithProviders as render } from "@/tests/testUtils";
 import { describe, expect, it, vi } from "vitest";
 import ArregloFacturaBadge from "./ArregloFacturaBadge";
 

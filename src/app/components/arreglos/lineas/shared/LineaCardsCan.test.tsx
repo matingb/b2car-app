@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 import ReadOnlyLineaCard from "./ReadOnlyLineaCard";
 import EditableLineaCard from "./EditableLineaCard";
 import { InlineEditorProvider } from "./InlineEditorContext";
-import { TenantTestProvider } from "@/app/providers/TenantProvider";
+import { TenantTestProvider } from "@/tests/testUtils";
 import { UserRole, hasPermission } from "@/lib/permissions";
 
 describe("Linea Cards authorization gating with <Can />", () => {
