@@ -42,7 +42,7 @@ export default function FacturasToolbar({
         <SearchBar
           value={search}
           onChange={onSearchChange}
-          placeholder="Buscar por receptor, documento o CAE..."
+          placeholder="Buscar por factura, receptor, documento o CAE..."
           inputTestId="facturas-search"
           style={styles.search}
         />

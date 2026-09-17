@@ -111,6 +111,11 @@ describe("FacturaElectronicaModal", () => {
     expect(screen.queryByTestId("modal-error")).not.toBeInTheDocument();
     expect(screen.getByTestId("modal-submit")).toBeEnabled();
 
+    fireEvent.click(screen.getByLabelText("Simplificar el detalle de la factura"));
+
+    expect(screen.getByText(/Arreglo.*1/)).toBeInTheDocument();
+    expect(screen.queryByText(/Servicio.*1/)).not.toBeInTheDocument();
+
     fireEvent.click(screen.getByTestId("modal-submit"));
 
     await waitFor(() => {
@@ -120,5 +125,8 @@ describe("FacturaElectronicaModal", () => {
       "/api/arreglos/arreglo-1/factura",
       expect.objectContaining({ method: "POST" }),
     );
+    expect(JSON.parse(String(fetchMock.mock.calls.at(-1)?.[1]?.body))).toMatchObject({
+      detalleSimplificado: true,
+    });
   });
 });

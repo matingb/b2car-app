@@ -3,6 +3,8 @@ import {
   checkArcaBillingConnection,
   FacturacionValidationError,
   isConfiguredSalesPoint,
+  parseFacturaNumberSearch,
+  parseFacturaIssueInput,
 } from "./facturacionService";
 
 vi.mock("server-only", () => ({}));
@@ -63,5 +65,30 @@ describe("prueba de conexion WSFE", () => {
   it("reconoce el campo Nro que devuelve FEParamGetPtosVenta", () => {
     expect(isConfiguredSalesPoint([{ Nro: "4" }], 4)).toBe(true);
     expect(isConfiguredSalesPoint([{ Nro: 2 }], 4)).toBe(false);
+  });
+
+  it("transporta la opción de detalle simplificado y la desactiva por defecto", () => {
+    const input = {
+      idempotencyKey: "0f4d1ffc-4f57-4aa3-9b8a-92ac56d55700",
+      condicionVenta: "CONTADO",
+      receptor: {
+        tipoDocumento: 99,
+        numeroDocumento: null,
+        condicionIvaReceptorId: 5,
+      },
+      fechas: { fechaComprobante: "2026-09-17" },
+    };
+
+    expect(parseFacturaIssueInput({ ...input, detalleSimplificado: true }).detalleSimplificado).toBe(true);
+    expect(parseFacturaIssueInput(input).detalleSimplificado).toBe(false);
+  });
+
+  it("reconoce el número de factura solo y con punto de venta", () => {
+    expect(parseFacturaNumberSearch("00001234")).toEqual({ numeroComprobante: 1234 });
+    expect(parseFacturaNumberSearch("00001-00001234")).toEqual({
+      puntoVenta: 1,
+      numeroComprobante: 1234,
+    });
+    expect(parseFacturaNumberSearch("CAE-1234")).toBeNull();
   });
 });

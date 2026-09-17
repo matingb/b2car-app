@@ -7,17 +7,20 @@ import Modal from "@/app/components/ui/Modal";
 import Button from "@/app/components/ui/Button";
 import Dropdown from "@/app/components/ui/Dropdown";
 import IconInput from "@/app/components/ui/IconInput";
+import Toggle from "@/app/components/ui/Toggle";
 import {
   normalizeArcaCuit,
   useArcaInscriptionLookup,
   type ArcaInscriptionLookupState,
 } from "@/app/hooks/useArcaInscriptionLookup";
 import { COLOR } from "@/theme/theme";
+import { formatArs } from "@/lib/format";
 import {
   CONDICIONES_IVA_RECEPTOR,
   TIPOS_DOCUMENTO_FISCAL,
   type FacturaElectronicaResumen,
   type FacturaFechaInput,
+  type FacturaLinea,
   type FacturacionPreflight,
   type PerfilFiscalCliente,
 } from "@/lib/facturacion/types";
@@ -107,6 +110,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const [receptor, setReceptor] = useState<FiscalDraft>({ tipoDocumento: "99", numeroDocumento: "", condicionIvaReceptorId: "5" });
   const [condicionVenta, setCondicionVenta] = useState("CONTADO");
   const [fechas, setFechas] = useState<FacturaFechaInput>({ fechaComprobante: "" });
+  const [detalleSimplificado, setDetalleSimplificado] = useState(false);
   const [automaticConditionCuit, setAutomaticConditionCuit] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -133,6 +137,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         setReceptor(defaultDraft(data.preflight.receptor));
         setAutomaticConditionCuit(null);
         setCondicionVenta("CONTADO");
+        setDetalleSimplificado(false);
         setFechas(data.preflight.fechasDefault);
       })
       .catch((cause) => {
@@ -240,6 +245,19 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
     return `${String(preflight?.emisor?.puntoVenta ?? 0).padStart(5, "0")}-${String(factura.numeroComprobante).padStart(8, "0")}`;
   }, [factura?.numeroComprobante, preflight?.emisor?.puntoVenta]);
 
+  const detailLines = useMemo<FacturaLinea[]>(() => {
+    if (!preflight) return [];
+    if (!detalleSimplificado) return preflight.lineas;
+    return [{
+      ordinal: 1,
+      origen: "SERVICIO" as const,
+      descripcion: "Servicio de reparación y mantenimiento automotor",
+      cantidad: 1,
+      importeUnitario: preflight.total,
+      subtotal: preflight.total,
+    }];
+  }, [detalleSimplificado, preflight]);
+
   const handleSubmit = async () => {
     if (needsConfiguration) {
       onClose();
@@ -256,6 +274,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         body: JSON.stringify({
           idempotencyKey,
           condicionVenta,
+          detalleSimplificado,
           receptor: {
             tipoDocumento: Number(receptor.tipoDocumento),
             numeroDocumento: receptor.numeroDocumento,
@@ -464,11 +483,21 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
               </> : null}
             </div>
           </section>
+          {arregloId && !operacionId ? (
+            <div style={styles.simplifiedDetail}>
+              <Toggle
+                  checked={detalleSimplificado}
+                  onChange={setDetalleSimplificado}
+                  label="Simplificar el detalle de la factura"
+              />
+              <span>Simplificar el detalle de la factura</span>
+            </div>
+          ) : null}
           <section style={styles.detail} aria-label="Detalle a facturar">
             <div style={styles.lines}>
-              {preflight.lineas.map((linea) => <div style={styles.line} key={`${linea.origen}-${linea.ordinal}`}><span>{linea.descripcion}{linea.codigo ? ` (${linea.codigo})` : ""} × {linea.cantidad}</span><strong>{linea.subtotal.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}</strong></div>)}
+              {detailLines.map((linea) => <div style={styles.line} key={`${linea.origen}-${linea.ordinal}`}><span>{linea.descripcion}{linea.codigo ? ` (${linea.codigo})` : ""} × {linea.cantidad}</span><strong>{formatArs(linea.subtotal, { minDecimals: 2 })}</strong></div>)}
             </div>
-            <div style={styles.total}><span>Total a facturar</span><strong style={styles.totalAmount}>{preflight.total.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}</strong></div>
+            <div style={styles.total}><span>Total a facturar</span><strong style={styles.totalAmount}>{formatArs(preflight.total, { minDecimals: 2 })}</strong></div>
           </section>
           {preflight.mensaje && factura?.estado !== "RECHAZADA" ? <div style={styles.warning}><CircleAlert size={16} /><span>{preflight.mensaje}</span></div> : null}
           {factura?.estado === "INCIERTA" ? <div style={styles.warning}><CircleAlert size={16} /><span>La emisión quedó incierta. No se asignará otro número hasta reconciliar el comprobante candidato.</span></div> : null}
@@ -546,6 +575,7 @@ const styles = {
     fontSize: 13,
     fontWeight: 600,
   },
+  simplifiedDetail: { display: "flex", alignItems: "center", gap: 8, color: COLOR.TEXT.SECONDARY, fontSize: 13 },
   recipientName: { color: COLOR.ACCENT.PRIMARY },
   label: { display: "block", fontSize: 11, color: COLOR.TEXT.TERTIARY, textTransform: "uppercase" as const, letterSpacing: "0.04em" },
   muted: { color: COLOR.TEXT.SECONDARY, fontSize: 13, lineHeight: 1.4 },

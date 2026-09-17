@@ -34,12 +34,14 @@ import {
   type DocumentoFiscalTipo,
   type FacturaElectronicaDetalle,
   type FacturaElectronicaResumen,
+  type FacturaConcepto,
   type FacturaFechaInput,
   type FacturaLinea,
   type FacturaOrigenTipo,
   type FacturacionAmbiente,
   type FacturacionConfiguracionPublica,
   type FacturacionPreflight,
+  type FacturaTotales,
   type FacturasPaginadas,
   type PerfilFiscalCliente,
 } from "./types";
@@ -90,6 +92,7 @@ export type FacturaIssueInput = {
   idempotencyKey: string;
   ambiente: FacturacionAmbiente;
   condicionVenta: string;
+  detalleSimplificado: boolean;
   receptor: {
     tipoDocumento: DocumentoFiscalTipo | null;
     numeroDocumento: string | null;
@@ -498,6 +501,46 @@ function appendLine(lineas: FacturaLinea[], input: Omit<FacturaLinea, "ordinal" 
   });
 }
 
+/**
+ * El detalle simplificado sólo cambia la presentación de la factura. Los
+ * importes fiscales se siguen calculando desde las líneas originales para no
+ * alterar el IVA ni los demás totales enviados a ARCA.
+ */
+function createSimplifiedArregloLine(
+  source: CanonicalSource,
+  fiscal: { lineas: FacturaLinea[]; totales: FacturaTotales },
+): FacturaLinea {
+  const firstLine = fiscal.lineas[0];
+  if (!firstLine) throw new FacturacionValidationError("El arreglo no tiene líneas facturables");
+
+  const sameTaxTreatment = fiscal.lineas.every(
+    (line) => line.tratamientoIva === firstLine.tratamientoIva
+      && line.ivaAlicuotaId === firstLine.ivaAlicuotaId,
+  );
+
+  return {
+    ordinal: 1,
+    // Conserva un origen válido para el historial fiscal, sin asociarlo a una
+    // línea particular del arreglo.
+    origen: firstLine.origen,
+    descripcion: "Servicio de reparación y mantenimiento automotor",
+    cantidad: 1,
+    importeUnitario: fiscal.totales.total,
+    subtotal: fiscal.totales.total,
+    tratamientoIva: sameTaxTreatment ? firstLine.tratamientoIva : "GRAVADO",
+    ivaAlicuotaId: sameTaxTreatment ? firstLine.ivaAlicuotaId : null,
+    ivaAlicuota: sameTaxTreatment ? firstLine.ivaAlicuota : 0,
+    importeNeto: fiscal.totales.netoGravado,
+    importeIva: fiscal.totales.iva,
+    importeTotal: fiscal.totales.total,
+    snapshot: {
+      detalleSimplificado: true,
+      importeOriginal: source.total,
+      totalesFiscales: fiscal.totales,
+    },
+  };
+}
+
 async function resolveStockLines(
   tenantId: string,
   operationIds: string[],
@@ -749,6 +792,7 @@ export function parseFacturaIssueInput(value: unknown): FacturaIssueInput {
     idempotencyKey: assertUuid(row.idempotencyKey, "La clave de idempotencia"),
     ambiente: getFacturacionAmbiente(),
     condicionVenta,
+    detalleSimplificado: row.detalleSimplificado === true,
     receptor: {
       tipoDocumento: parseDocumento(receiver.tipoDocumento),
       numeroDocumento: nullable(receiver.numeroDocumento),
@@ -851,6 +895,8 @@ type EmitDocumentInput = {
   dates: FacturaFechaInput;
   condition: string;
   lines: FacturaLinea[];
+  persistedLines?: FacturaLinea[];
+  concepto?: FacturaConcepto;
   associated?: DbRecord | null;
   retry?: DbRecord | null;
 };
@@ -858,7 +904,7 @@ type EmitDocumentInput = {
 async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResult> {
   const supabase = await createClient();
   if (!input.receiver.condicionIvaReceptorId) throw new FacturacionValidationError("La condición IVA es obligatoria");
-  const concept = deriveFacturaConcepto(input.lines);
+  const concept = input.concepto ?? deriveFacturaConcepto(input.lines);
   const dates = validateFechas(concept, input.dates);
   const fiscal = fiscalizeLineas(input.lines, input.config.condicionIvaEmisor);
   const voucher = determineVoucher(input.config.condicionIvaEmisor, input.receiver.condicionIvaReceptorId, input.documentType);
@@ -925,7 +971,7 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
       contenido_hash: contentHash,
       created_by: input.actor.userId,
     };
-    const dbLines = fiscal.lineas.map((line) => ({
+    const dbLines = (input.persistedLines ?? fiscal.lineas).map((line) => ({
       ordinal: line.ordinal, origen: line.origen, source_id: line.sourceId || null,
       descripcion: line.descripcion, codigo: line.codigo || null, cantidad: line.cantidad,
       importe_unitario: line.importeUnitario, subtotal: line.subtotal,
@@ -1002,9 +1048,14 @@ async function issueSourceFactura(
 ): Promise<FacturaIssueResult> {
   const config = await getStoredConfig(actor.tenantId, input.ambiente);
   if (!config?.configurada) throw new FacturacionValidationError("La facturación electrónica no está configurada");
+  if (input.detalleSimplificado && origenTipo !== "ARREGLO") {
+    throw new FacturacionValidationError("El detalle simplificado sólo está disponible para arreglos");
+  }
   const source = await getCanonicalSource(actor.tenantId, origenTipo, origenId);
   validateLineasYTotal(source.lineas, source.total);
-  validateFechas(deriveFacturaConcepto(source.lineas), input.fechas);
+  const concepto = deriveFacturaConcepto(source.lineas);
+  validateFechas(concepto, input.fechas);
+  const fiscal = fiscalizeLineas(source.lineas, config.condicionIvaEmisor);
   const receiver =
     source.receptor.clienteId && source.receptor.tipoDocumento !== 99
       ? {
@@ -1042,7 +1093,10 @@ async function issueSourceFactura(
   return emitDocument({
     actor, source, config, documentType: "FACTURA", idempotencyKey: input.idempotencyKey,
     receiver, dates: input.fechas, condition: input.condicionVenta,
-    lines: source.lineas, retry: existing,
+    lines: source.lineas,
+    persistedLines: input.detalleSimplificado ? [createSimplifiedArregloLine(source, fiscal)] : undefined,
+    concepto,
+    retry: existing,
   });
 }
 
@@ -1230,6 +1284,30 @@ function profileFromSnapshot(value: DbRecord): PerfilFiscalCliente {
   };
 }
 
+type FacturaNumberSearch = {
+  numeroComprobante: number;
+  puntoVenta?: number;
+};
+
+function positiveSafeInteger(value: string): number | null {
+  if (!/^\d+$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+/** Acepta el número solo o el formato visible punto de venta-número. */
+export function parseFacturaNumberSearch(value: string): FacturaNumberSearch | null {
+  const fullNumber = /^(\d+)\s*-\s*(\d+)$/.exec(value.trim());
+  if (fullNumber) {
+    const puntoVenta = positiveSafeInteger(fullNumber[1]);
+    const numeroComprobante = positiveSafeInteger(fullNumber[2]);
+    return puntoVenta && numeroComprobante ? { puntoVenta, numeroComprobante } : null;
+  }
+
+  const numeroComprobante = positiveSafeInteger(value.trim());
+  return numeroComprobante ? { numeroComprobante } : null;
+}
+
 export async function listFacturas(tenantId: string, filters: FacturasListFilters = {}): Promise<FacturasPaginadas> {
   const page = Math.max(1, Math.trunc(number(filters.page, 1)));
   const pageSize = Math.min(100, Math.max(10, Math.trunc(number(filters.pageSize, 25))));
@@ -1261,7 +1339,20 @@ export async function listFacturas(tenantId: string, filters: FacturasListFilter
   if (filters.search) {
     const search = filters.search.replace(/[%_,()]/g, "").trim();
     if (search.length > 100) throw new FacturacionValidationError("La búsqueda no puede superar los 100 caracteres");
-    if (search) query = query.or(`cae.ilike.%${search}%,receptor_snapshot->>nombre.ilike.%${search}%,receptor_snapshot->>numeroDocumento.ilike.%${search}%`);
+    if (search) {
+      const conditions = [
+        `cae.ilike.%${search}%`,
+        `receptor_snapshot->>nombre.ilike.%${search}%`,
+        `receptor_snapshot->>numeroDocumento.ilike.%${search}%`,
+      ];
+      const facturaNumber = parseFacturaNumberSearch(search);
+      if (facturaNumber?.puntoVenta) {
+        conditions.push(`and(punto_venta.eq.${facturaNumber.puntoVenta},numero_comprobante.eq.${facturaNumber.numeroComprobante})`);
+      } else if (facturaNumber) {
+        conditions.push(`numero_comprobante.eq.${facturaNumber.numeroComprobante}`);
+      }
+      query = query.or(conditions.join(","));
+    }
   }
   const { data, error, count } = await query;
   if (error) throw new Error("No se pudo listar los documentos fiscales");
