@@ -1,6 +1,8 @@
 import { createClient } from "@/supabase/server";
 import { logger } from "@/lib/logger";
-import { statsService, type DashboardStats } from "./dashboardStatsService"
+import { statsService, type DashboardStats } from "./dashboardStatsService";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 
 type DashboardStatsResponse = {
   data: DashboardStats | null;
@@ -8,15 +10,10 @@ type DashboardStatsResponse = {
 };
 
 export async function GET(request: Request) {
-  const supabase = await createClient();
+  const authError = await requirePermission(Permission.DashboardView);
+  if (authError) return authError;
 
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json(
-      { data: null, error: "Unauthorized" } satisfies DashboardStatsResponse,
-      { status: 401 }
-    );
-  }
+  const supabase = await createClient();
 
   try {
     const url = new URL(request.url);

@@ -1,9 +1,3 @@
-import {
-  normalizeSubscriptionPlan,
-  SubscriptionPlan,
-  type SubscriptionPlanValue,
-} from "@/lib/subscription";
-
 export const UserRole = {
   Admin: "admin",
   Operativo: "operativo",
@@ -51,57 +45,6 @@ export type PermissionValue = typeof Permission[keyof typeof Permission];
 
 export function normalizeUserRole(value: unknown): UserRoleValue | null {
   return value === UserRole.Admin || value === UserRole.Operativo ? value : null;
-}
-
-const ROLE_PERMISSIONS: Record<UserRoleValue, Set<PermissionValue>> = {
-  [UserRole.Admin]: new Set(Object.values(Permission) as PermissionValue[]),
-  [UserRole.Operativo]: new Set([
-    Permission.ArreglosView,
-    Permission.ArreglosEdit,
-    Permission.ArreglosRepuestosComprar,
-    Permission.ClientesView,
-    Permission.ClientesEdit,
-    Permission.VehiculosView,
-    Permission.VehiculosEdit,
-    Permission.TurnosView,
-    Permission.TurnosEdit,
-  ]),
-};
-
-export const PLAN_PERMISSIONS: Record<SubscriptionPlanValue, Set<PermissionValue>> = {
-  [SubscriptionPlan.Base]: new Set(
-    (Object.values(Permission) as PermissionValue[]).filter(
-      (p) =>
-        p !== Permission.FacturasView &&
-        p !== Permission.FacturasEdit &&
-        p !== Permission.ConfiguracionView &&
-        p !== Permission.ConfiguracionEdit
-    )
-  ),
-  [SubscriptionPlan.Pro]: new Set(Object.values(Permission) as PermissionValue[]),
-};
-
-export function hasPlanPermission(plan: unknown, permission: PermissionValue): boolean {
-  const normalizedPlan = normalizeSubscriptionPlan(plan);
-  return normalizedPlan ? PLAN_PERMISSIONS[normalizedPlan].has(permission) : false;
-}
-
-export function hasPermission(
-  role: unknown,
-  permission: PermissionValue,
-  plan?: unknown,
-): boolean {
-  const normalizedRole = normalizeUserRole(role);
-  if (!normalizedRole || !ROLE_PERMISSIONS[normalizedRole].has(permission)) {
-    return false;
-  }
-  if (plan !== undefined) {
-    const normalizedPlan = normalizeSubscriptionPlan(plan);
-    if (!normalizedPlan || !PLAN_PERMISSIONS[normalizedPlan].has(permission)) {
-      return false;
-    }
-  }
-  return true;
 }
 
 export type PathMatchStrategy = "prefix" | "exact" | "includes" | "endsWith";
@@ -171,18 +114,6 @@ function matchesRule(pathname: string, rule: RoutePermissionRule): boolean {
 export function permissionForPath(pathname: string): PermissionValue | null {
   const matchedRule = PATH_PERMISSIONS.find((rule) => matchesRule(pathname, rule));
   return matchedRule ? matchedRule.permission : null;
-}
-
-export function canPlanAccessPath(plan: unknown, pathname: string): boolean {
-  const requiredPermission = permissionForPath(pathname);
-  if (!requiredPermission) return true;
-  return hasPlanPermission(plan, requiredPermission);
-}
-
-export function canAccessPath(role: unknown, pathname: string, plan?: unknown): boolean {
-  const requiredPermission = permissionForPath(pathname);
-  if (!requiredPermission) return true;
-  return hasPermission(role, requiredPermission, plan);
 }
 
 export function getLandingPathForRole(role: unknown): string {

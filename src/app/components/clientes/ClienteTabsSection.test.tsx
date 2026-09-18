@@ -1,9 +1,9 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
-import { renderWithProviders as render, TenantTestProvider } from "@/tests/testUtils";
+import { renderWithProviders as render, TenantTestProvider, mockHasPermission } from "@/tests/testUtils";
 import ClienteTabsSection, { ClienteTabsContent } from "./ClienteTabsSection";
-import { hasPermission, UserRole } from "@/lib/permissions";
+import { UserRole } from "@/lib/permissions";
 import { Vehiculo } from "@/model/types";
 
 vi.mock("./VehiculosAsociadosCard", () => ({
@@ -92,7 +92,7 @@ describe("ClienteTabsSection", () => {
   it("oculta la pestaña y el contenido de Cuenta Corriente si el rol no tiene permisos", () => {
     render(
       <TenantTestProvider
-        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+        hasPermission={mockHasPermission(UserRole.Operativo)}
       >
         <ClienteTabsSection
           clienteId="cli-1"

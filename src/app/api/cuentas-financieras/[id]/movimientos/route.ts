@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
 import { createClient } from "@/supabase/server";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 import type { ListarMovimientosFinancierosResponse } from "@/model/finanzas";
 import {
   mapMovimiento,
@@ -12,11 +14,10 @@ import {
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, { params }: RouteContext) {
+  const authError = await requirePermission(Permission.FinanzasView);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json({ data: null, error: "Unauthorized" } satisfies ListarMovimientosFinancierosResponse, { status: 401 });
-  }
 
   const { id } = await params;
   const idError = validateUuid(id, "cuentaId");

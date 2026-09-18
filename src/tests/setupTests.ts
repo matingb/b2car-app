@@ -1,4 +1,7 @@
 import "@testing-library/jest-dom/vitest";
+import { vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 
 // Silence known JSDOM "Not implemented" noise.
 const originalConsoleError = console.error;

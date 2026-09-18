@@ -66,53 +66,29 @@ insert into public.plan_permissions (plan, permission, granted) values
 
 -- Plan: BASE — todas las funcionalidades operativas y administrativas generales,
 -- pero sin facturación electrónica ni configuración fiscal.
+-- Solo se insertan los permisos concedidos (allow-list puro).
 insert into public.plan_permissions (plan, permission, granted) values
-  ('BASE', 'dashboard:view',                true),
-  ('BASE', 'operaciones:view',              true),
-  ('BASE', 'operaciones:edit',              true),
-  ('BASE', 'finanzas:view',                 true),
-  ('BASE', 'finanzas:edit',                 true),
-  ('BASE', 'facturas:view',                 false),
-  ('BASE', 'facturas:edit',                 false),
-  ('BASE', 'empleados:view',                true),
-  ('BASE', 'empleados:edit',                true),
-  ('BASE', 'productos:view',                true),
-  ('BASE', 'productos:edit',                true),
-  ('BASE', 'configuracion:view',            false),
-  ('BASE', 'configuracion:edit',            false),
-  ('BASE', 'arreglos:view',                 true),
-  ('BASE', 'arreglos:edit',                 true),
-  ('BASE', 'arreglos:precios:view',         true),
-  ('BASE', 'arreglos:precios:edit',         true),
-  ('BASE', 'arreglos:cobros:register',      true),
-  ('BASE', 'arreglos:repuestos:comprar',    true),
-  ('BASE', 'clientes:view',                 true),
-  ('BASE', 'clientes:edit',                 true),
-  ('BASE', 'clientes:finanzas:view',        true),
-  ('BASE', 'vehiculos:view',                true),
-  ('BASE', 'vehiculos:edit',                true),
-  ('BASE', 'turnos:view',                   true),
-  ('BASE', 'turnos:edit',                   true);
+  ('BASE', 'dashboard:view',             true),
+  ('BASE', 'operaciones:view',           true),
+  ('BASE', 'operaciones:edit',           true),
+  ('BASE', 'finanzas:view',              true),
+  ('BASE', 'finanzas:edit',              true),
+  ('BASE', 'empleados:view',             true),
+  ('BASE', 'empleados:edit',             true),
+  ('BASE', 'productos:view',             true),
+  ('BASE', 'productos:edit',             true),
+  ('BASE', 'arreglos:view',              true),
+  ('BASE', 'arreglos:edit',              true),
+  ('BASE', 'arreglos:precios:view',      true),
+  ('BASE', 'arreglos:precios:edit',      true),
+  ('BASE', 'arreglos:cobros:register',   true),
+  ('BASE', 'arreglos:repuestos:comprar', true),
+  ('BASE', 'clientes:view',              true),
+  ('BASE', 'clientes:edit',              true),
+  ('BASE', 'clientes:finanzas:view',     true),
+  ('BASE', 'vehiculos:view',             true),
+  ('BASE', 'vehiculos:edit',             true),
+  ('BASE', 'turnos:view',                true),
+  ('BASE', 'turnos:edit',                true);
 
--- RPC: devuelve los permisos efectivos del usuario llamante.
--- Calcula la intersección entre los permisos del rol (role_permissions)
--- y los permisos del plan del tenant (plan_permissions).
--- Ambos claims ('user_role' y 'plan_sub') son inyectados en el JWT por public.custom_claims.
-create or replace function public.get_my_permissions()
-returns text[]
-language sql
-security definer
-stable
-set search_path = public
-as $$
-  select coalesce(array_agg(rp.permission), '{}'::text[])
-  from public.role_permissions rp
-  join public.plan_permissions pp
-    on pp.permission = rp.permission
-   and pp.plan::text = (auth.jwt() ->> 'plan_sub')
-   and pp.granted = true
-  where rp.role::text = (auth.jwt() ->> 'user_role')
-    and rp.granted = true;
-$$;
-
-grant execute on function public.get_my_permissions() to authenticated;
+drop function if exists public.get_my_permissions();

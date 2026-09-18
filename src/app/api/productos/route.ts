@@ -2,6 +2,8 @@ import { logger } from "@/lib/logger";
 import type { ProductoDTO, StockDTO } from "@/model/dtos";
 import type { CreateProductoRequest, CreateProductoResponse, GetProductosResponse } from "./contracts";
 import { createClient } from "@/supabase/server";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 import { productosService, type ProductoRow, type ProductoWithStocksRow } from "./productosService";
 import type { StockRow } from "../stocks/stocksService";
 import { ServiceError } from "../serviceError";
@@ -47,11 +49,10 @@ function mapProducto(row: ProductoWithStocksRow): ProductoDTO {
 }
 
 export async function GET() {
+  const authError = await requirePermission(Permission.ProductosView);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json({ data: null, error: "Unauthorized" } satisfies GetProductosResponse, { status: 401 });
-  }
 
   const { data, error } = await productosService.list(supabase);
   if (error) {
@@ -62,11 +63,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const authError = await requirePermission(Permission.ProductosEdit);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json({ data: null, error: "Unauthorized" } satisfies CreateProductoResponse, { status: 401 });
-  }
 
   const body: CreateProductoRequest | null = await req.json().catch(() => null);
   if (!body) return Response.json({ data: null, error: "JSON inválido" } satisfies CreateProductoResponse, { status: 400 });

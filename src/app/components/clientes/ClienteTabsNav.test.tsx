@@ -1,9 +1,9 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
-import { renderWithProviders as render, TenantTestProvider } from "@/tests/testUtils";
+import { renderWithProviders as render, TenantTestProvider, mockHasPermission } from "@/tests/testUtils";
 import ClienteTabsNav from "./ClienteTabsNav";
-import { hasPermission, UserRole } from "@/lib/permissions";
+import { UserRole } from "@/lib/permissions";
 
 describe("ClienteTabsNav", () => {
   it("renderiza todas las pestañas y destaca la activa", () => {
@@ -31,7 +31,7 @@ describe("ClienteTabsNav", () => {
     const onChangeTab = vi.fn();
     render(
       <TenantTestProvider
-        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+        hasPermission={mockHasPermission(UserRole.Operativo)}
       >
         <ClienteTabsNav
           activeTab="vehiculos"

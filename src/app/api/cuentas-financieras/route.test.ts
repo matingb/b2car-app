@@ -6,7 +6,12 @@ vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
+vi.mock("@/lib/requirePermission", () => ({
+  requirePermission: vi.fn().mockResolvedValue(null),
+}));
+
 import { createClient } from "@/supabase/server";
+import { requirePermission } from "@/lib/requirePermission";
 
 const ACCOUNT_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -24,10 +29,8 @@ function cuentaRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function mockSupabase(options: { session?: unknown; rpc?: ReturnType<typeof vi.fn> } = {}) {
-  const session = Object.prototype.hasOwnProperty.call(options, "session")
-    ? options.session
-    : { access_token: "token" };
+function mockSupabase(options: { rpc?: ReturnType<typeof vi.fn>; session?: unknown } = {}) {
+  const session = options.session === undefined ? { access_token: "token" } : options.session;
   return {
     auth: { getSession: vi.fn().mockResolvedValue({ data: { session } }) },
     rpc: options.rpc ?? vi.fn(),
@@ -37,10 +40,13 @@ function mockSupabase(options: { session?: unknown; rpc?: ReturnType<typeof vi.f
 describe("/api/cuentas-financieras", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(requirePermission).mockResolvedValue(null);
   });
 
   it("requiere una sesión para listar", async () => {
-    vi.mocked(createClient).mockResolvedValue(mockSupabase({ session: null }));
+    vi.mocked(requirePermission).mockResolvedValueOnce(
+      Response.json({ data: null, error: "Unauthorized" }, { status: 401 })
+    );
 
     const response = await GET();
 

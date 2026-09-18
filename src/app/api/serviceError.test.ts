@@ -5,6 +5,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
 describe("serviceError", () => {
 	it("mapea 55000 a MovimientoFinancieroInmutable", () => {
 		const err: PostgrestError = {
+			name: "PostgrestError",
 			code: "55000",
 			message: "Los movimientos financieros registrados no se pueden modificar ni eliminar.",
 			details: "",
@@ -15,6 +16,7 @@ describe("serviceError", () => {
 
 	it("mapea 55001 a ArregloFacturado", () => {
 		const err: PostgrestError = {
+			name: "PostgrestError",
 			code: "55001",
 			message: "El arreglo ya posee una factura electronica autorizada",
 			details: "",

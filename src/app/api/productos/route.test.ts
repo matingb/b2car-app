@@ -5,6 +5,10 @@ vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
+vi.mock("@/lib/requirePermission", () => ({
+  requirePermission: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock("./productosService", async () => {
   const actual = await vi.importActual<typeof import("./productosService")>("./productosService");
   return {

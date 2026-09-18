@@ -1,17 +1,15 @@
 import type { NextRequest } from "next/server";
 import { createClient } from "@/supabase/server";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 import { empleadosService } from "../../empleadosService";
 import type { GetSalarioHistorialResponse, SalarioHistorialDTO } from "../../contracts";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const authError = await requirePermission(Permission.EmpleadosView);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json(
-      { data: null, error: "Unauthorized" } satisfies GetSalarioHistorialResponse,
-      { status: 401 }
-    );
-  }
 
   const { id } = await params;
   if (!id) {

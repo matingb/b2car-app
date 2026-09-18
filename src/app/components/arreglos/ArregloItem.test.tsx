@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import ArregloItem from "@/app/components/arreglos/ArregloItem";
 import { createArreglo } from "@/tests/factories";
-import { hasPermission, UserRole, type PermissionValue } from "@/lib/permissions";
+import { UserRole, type PermissionValue } from "@/lib/permissions";
+import { mockHasPermission } from "@/tests/testUtils";
 
 let talleresMock: Array<{ id: string; nombre: string; ubicacion: string }> = [];
 let hasPermissionMock: (p: PermissionValue) => boolean = () => true;
@@ -270,7 +271,7 @@ describe("ArregloItem", () => {
 
   it("muestra el precio para un usuario admin", () => {
     talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
-    hasPermissionMock = (p) => hasPermission(UserRole.Admin, p);
+    hasPermissionMock = mockHasPermission(UserRole.Admin);
 
     render(
       <ArregloItem
@@ -285,7 +286,7 @@ describe("ArregloItem", () => {
 
   it("oculta el precio para un usuario operativo a través de Can", () => {
     talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
-    hasPermissionMock = (p) => hasPermission(UserRole.Operativo, p);
+    hasPermissionMock = mockHasPermission(UserRole.Operativo);
 
     render(
       <ArregloItem

@@ -4,15 +4,15 @@ import { render, screen } from "@testing-library/react";
 import ReadOnlyLineaCard from "./ReadOnlyLineaCard";
 import EditableLineaCard from "./EditableLineaCard";
 import { InlineEditorProvider } from "./InlineEditorContext";
-import { TenantTestProvider } from "@/tests/testUtils";
-import { UserRole, hasPermission } from "@/lib/permissions";
+import { TenantTestProvider, mockHasPermission } from "@/tests/testUtils";
+import { UserRole } from "@/lib/permissions";
 
 describe("Linea Cards authorization gating with <Can />", () => {
   describe("ReadOnlyLineaCard", () => {
     it("muestra precio unitario y total para un usuario admin", () => {
       render(
         <TenantTestProvider
-          hasPermission={(p) => hasPermission(UserRole.Admin, p)}
+          hasPermission={mockHasPermission(UserRole.Admin)}
         >
           <ReadOnlyLineaCard
             kind="servicios"
@@ -35,7 +35,7 @@ describe("Linea Cards authorization gating with <Can />", () => {
     it("oculta precio unitario y total para un usuario operativo a través del fallback de Can", () => {
       render(
         <TenantTestProvider
-          hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+          hasPermission={mockHasPermission(UserRole.Operativo)}
         >
           <ReadOnlyLineaCard
             kind="servicios"
@@ -61,7 +61,7 @@ describe("Linea Cards authorization gating with <Can />", () => {
     it("muestra campo de precio y total para admin", () => {
       render(
         <TenantTestProvider
-          hasPermission={(p) => hasPermission(UserRole.Admin, p)}
+          hasPermission={mockHasPermission(UserRole.Admin)}
         >
           <InlineEditorProvider
             kind="servicios"
@@ -88,7 +88,7 @@ describe("Linea Cards authorization gating with <Can />", () => {
     it("oculta campo de precio y total para operativo a través de Can", () => {
       render(
         <TenantTestProvider
-          hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+          hasPermission={mockHasPermission(UserRole.Operativo)}
         >
           <InlineEditorProvider
             kind="servicios"

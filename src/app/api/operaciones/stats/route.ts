@@ -1,6 +1,8 @@
 import { createClient } from "@/supabase/server";
 import { logger } from "@/lib/logger";
 import { operacionesService, type OperacionesStats } from "@/app/api/operaciones/operacionesService";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 
 type OperacionesStatsResponse = {
 	data: OperacionesStats | null;
@@ -8,6 +10,9 @@ type OperacionesStatsResponse = {
 };
 
 export async function GET(req: Request) {
+	const authError = await requirePermission(Permission.OperacionesView);
+	if (authError) return authError;
+
 	const supabase = await createClient();
 	const url = new URL(req.url);
 	const tipos = url.searchParams.getAll("tipo").filter(Boolean);

@@ -10,6 +10,8 @@ import {
 } from "@/app/api/operaciones/operacionesService";
 import { ServiceError } from "@/app/api/serviceError";
 import { isValidUuid } from "@/lib/uuid";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 
 export type UpdateOperacionRequest = UpdateOperacionInput;
 
@@ -53,6 +55,9 @@ export async function GET(
 	_req: NextRequest,
 	{ params }: { params: Promise<{ id: string }> }
 ) {
+	const authError = await requirePermission(Permission.OperacionesView);
+	if (authError) return authError;
+
 	const supabase = await createClient();
 	const { id } = await params;
 
@@ -70,6 +75,9 @@ export async function PUT(
 	req: NextRequest,
 	{ params }: { params: Promise<{ id: string }> }
 ) {
+	const authError = await requirePermission(Permission.OperacionesEdit);
+	if (authError) return authError;
+
 	const supabase = await createClient();
 	const { id } = await params;
 
@@ -113,6 +121,9 @@ export async function DELETE(
 	_req: NextRequest,
 	{ params }: { params: Promise<{ id: string }> }
 ) {
+	const authError = await requirePermission(Permission.OperacionesEdit);
+	if (authError) return authError;
+
 	try {
 		const supabase = await createClient();
 		const { id } = await params;

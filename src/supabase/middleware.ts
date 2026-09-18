@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { canAccessPath, canPlanAccessPath, getLandingPathForRole } from '@/lib/permissions'
+import { getLandingPathForRole } from '@/lib/permissions'
 
 function copyCookies(source: NextResponse, target: NextResponse) {
   source.cookies.getAll().forEach((cookie) => target.cookies.set(cookie))
@@ -72,7 +72,6 @@ export async function updateSession(request: NextRequest) {
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims()
   const claims = claimsData?.claims as Record<string, unknown> | undefined
   const userRole = claimsError ? null : claims?.user_role
-  const planSub  = claimsError ? null : claims?.plan_sub
 
   if (pathname === '/') {
     const url = request.nextUrl.clone()
@@ -81,20 +80,6 @@ export async function updateSession(request: NextRequest) {
     return copyCookies(supabaseResponse, NextResponse.redirect(url))
   }
 
-  function deny(errorCode: string) {
-    if (pathname.startsWith('/api/'))
-      return copyCookies(supabaseResponse, NextResponse.json({ error: errorCode }, { status: 403 }))
-    const url = request.nextUrl.clone()
-    url.pathname = getLandingPathForRole(userRole)
-    url.search = ''
-    return copyCookies(supabaseResponse, NextResponse.redirect(url))
-  }
-
-  if (!canAccessPath(userRole, pathname))
-    return deny('FORBIDDEN_INSUFFICIENT_PERMISSIONS')
-
-  if (!canPlanAccessPath(planSub, pathname))
-    return deny('FEATURE_NOT_AVAILABLE_FOR_PLAN')
-
   return supabaseResponse
 }
+

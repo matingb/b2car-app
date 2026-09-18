@@ -7,6 +7,8 @@ import type {
   UpdateEmpleadoResponse,
 } from "../contracts";
 import { createClient } from "@/supabase/server";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 import { empleadosService, type EmpleadoRow } from "../empleadosService";
 import { ServiceError } from "@/app/api/serviceError";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
@@ -37,14 +39,10 @@ function isValidIsoDate(value: string): boolean {
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const authError = await requirePermission(Permission.EmpleadosView);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json(
-      { data: null, error: "Unauthorized" } satisfies GetEmpleadoByIdResponse,
-      { status: 401 }
-    );
-  }
 
   const { id } = await params;
   if (!id) {
@@ -69,14 +67,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const authError = await requirePermission(Permission.EmpleadosEdit);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json(
-      { data: null, error: "Unauthorized" } satisfies UpdateEmpleadoResponse,
-      { status: 401 }
-    );
-  }
 
   const { id } = await params;
   if (!id) {
@@ -256,11 +250,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const authError = await requirePermission(Permission.EmpleadosEdit);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   const { id } = await params;
   if (!id) return Response.json({ error: "Falta id" }, { status: 400 });

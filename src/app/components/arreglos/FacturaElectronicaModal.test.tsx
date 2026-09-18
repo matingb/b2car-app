@@ -113,8 +113,8 @@ describe("FacturaElectronicaModal", () => {
 
     fireEvent.click(screen.getByLabelText("Simplificar el detalle de la factura"));
 
-    expect(screen.getByText(/Arreglo.*1/)).toBeInTheDocument();
-    expect(screen.queryByText(/Servicio.*1/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Servicio de reparación y mantenimiento automotor/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Servicio$/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("modal-submit"));
 

@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
 import { createClient } from "@/supabase/server";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 import type {
   ActualizarCuentaFinancieraResponse,
   EliminarFinanzasResponse,
@@ -20,11 +22,10 @@ function firstCuenta(data: unknown) {
 }
 
 export async function GET(_req: NextRequest, { params }: RouteContext) {
+  const authError = await requirePermission(Permission.FinanzasView);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json({ data: null, error: "Unauthorized" } satisfies ObtenerCuentaFinancieraResponse, { status: 401 });
-  }
 
   const { id } = await params;
   const idError = validateUuid(id);
@@ -44,11 +45,10 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
 }
 
 export async function PUT(req: NextRequest, { params }: RouteContext) {
+  const authError = await requirePermission(Permission.FinanzasEdit);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json({ data: null, error: "Unauthorized" } satisfies ActualizarCuentaFinancieraResponse, { status: 401 });
-  }
 
   const { id } = await params;
   const idError = validateUuid(id);
@@ -89,11 +89,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: RouteContext) {
+  const authError = await requirePermission(Permission.FinanzasEdit);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json({ error: "Unauthorized" } satisfies EliminarFinanzasResponse, { status: 401 });
-  }
 
   const { id } = await params;
   const idError = validateUuid(id);

@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import RepuestoLineasEditableSection from "./RepuestoLineasEditableSection";
 import type { RepuestoLinea } from "./RepuestoLineasEditableSection";
 import { useInventario } from "@/app/providers/InventarioProvider";
-import { TenantTestProvider } from "@/tests/testUtils";
-import { hasPermission, UserRole } from "@/lib/permissions";
+import { TenantTestProvider, mockHasPermission } from "@/tests/testUtils";
+import { UserRole } from "@/lib/permissions";
 
 vi.mock("@/app/providers/InventarioProvider", () => ({
   useInventario: vi.fn(),
@@ -426,7 +426,7 @@ describe("RepuestoLineasEditableSection", () => {
     const onUpsert = vi.fn();
     render(
       <TenantTestProvider
-        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+        hasPermission={mockHasPermission(UserRole.Operativo)}
       >
         <RepuestoLineasEditableSection
           tallerId="taller-1"
@@ -468,7 +468,7 @@ describe("RepuestoLineasEditableSection", () => {
     const onUpsert = vi.fn();
     render(
       <TenantTestProvider
-        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+        hasPermission={mockHasPermission(UserRole.Operativo)}
       >
         <RepuestoLineasEditableSection
           tallerId="taller-1"

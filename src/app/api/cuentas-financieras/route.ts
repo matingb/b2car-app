@@ -1,4 +1,6 @@
 import { createClient } from "@/supabase/server";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 import type {
   CrearCuentaFinancieraResponse,
   ListarCuentasFinancierasResponse,
@@ -21,9 +23,10 @@ function firstCuenta(data: unknown) {
 }
 
 export async function GET() {
+  const authError = await requirePermission(Permission.FinanzasView);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) return unauthorized<never>();
 
   const { data, error } = await supabase.rpc("rpc_finanzas_listar_cuentas");
   if (error) {
@@ -47,9 +50,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const authError = await requirePermission(Permission.FinanzasEdit);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) return unauthorized<never>();
 
   const parsed = validateCreateCuenta(await req.json().catch(() => null));
   if (parsed.error || !parsed.value) {

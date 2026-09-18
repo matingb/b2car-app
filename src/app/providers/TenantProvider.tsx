@@ -1,12 +1,9 @@
 "use client";
 
 import { tenantClient } from "@/clients/tenantClient";
-import type { SubscriptionPlanValue } from "@/lib/subscription";
 import {
-  hasPermission as checkPermission,
   permissionForPath,
   type PermissionValue,
-  type UserRoleValue,
 } from "@/lib/permissions";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Taller } from "@/model/types";
@@ -17,7 +14,6 @@ export type TenantContextValue = {
   talleres: Taller[];
   tallerSeleccionadoId: string;
   setTallerSeleccionadoId: (id: string) => void;
-  planLoading: boolean;
   hasPermission: (permission: PermissionValue) => boolean;
   canAccessPath: (pathname: string) => boolean;
 };
@@ -26,30 +22,20 @@ export const TenantContext = createContext<TenantContextValue | null>(null);
 
 export type TenantProviderProps = {
   children: React.ReactNode;
-  initialUserRole?: UserRoleValue | null;
-  initialPlanSub?: SubscriptionPlanValue | null;
+  initialPermissions?: PermissionValue[];
 };
 
 export function TenantProvider({
   children,
-  initialUserRole = null,
-  initialPlanSub = null,
+  initialPermissions = [],
 }: TenantProviderProps) {
   const [tenantName, setTenantName] = useState("B2Car");
   const [talleres, setTalleres] = useState<Taller[]>([]);
   const [loading, setLoading] = useState(false);
   const [tallerSeleccionadoId, setTallerSeleccionadoId] = useState<string>("");
-  const [planSub, setPlanSub] = useState<SubscriptionPlanValue | null>(initialPlanSub ?? null);
-  const [userRole, setUserRole] = useState<UserRoleValue | null>(initialUserRole ?? null);
-  const [planLoading] = useState(false);
-
-  useEffect(() => {
-    setUserRole(initialUserRole ?? null);
-  }, [initialUserRole]);
-
-  useEffect(() => {
-    setPlanSub(initialPlanSub ?? null);
-  }, [initialPlanSub]);
+  const [permissions] = useState<Set<PermissionValue>>(
+    () => new Set(initialPermissions),
+  );
 
   useEffect(() => {
     try {
@@ -80,8 +66,8 @@ export function TenantProvider({
   }, [fetchAll]);
 
   const hasPermission = useCallback(
-    (permission: PermissionValue): boolean => checkPermission(userRole, permission, planSub),
-    [userRole, planSub],
+    (permission: PermissionValue): boolean => permissions.has(permission),
+    [permissions],
   );
 
   const canAccessPath = useCallback(
@@ -89,7 +75,7 @@ export function TenantProvider({
       const required = permissionForPath(pathname);
       return !required || hasPermission(required);
     },
-    [hasPermission]
+    [hasPermission],
   );
 
   const value = useMemo(
@@ -99,11 +85,10 @@ export function TenantProvider({
       talleres,
       tallerSeleccionadoId,
       setTallerSeleccionadoId,
-      planLoading,
       hasPermission,
       canAccessPath,
     }),
-    [loading, tenantName, talleres, tallerSeleccionadoId, planLoading, hasPermission, canAccessPath]
+    [loading, tenantName, talleres, tallerSeleccionadoId, hasPermission, canAccessPath],
   );
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;

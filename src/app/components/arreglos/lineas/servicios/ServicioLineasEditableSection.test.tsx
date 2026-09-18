@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import ServicioLineasEditableSection from "./ServicioLineasEditableSection";
-import { TenantTestProvider } from "@/tests/testUtils";
-import { hasPermission, UserRole } from "@/lib/permissions";
+import { TenantTestProvider, mockHasPermission } from "@/tests/testUtils";
+import { UserRole } from "@/lib/permissions";
 
 vi.mock("@/app/providers/CategoriasArregloProvider", () => ({
   useCategoriasArreglo: () => ({ categorias: [], isLoading: false }),
@@ -42,7 +42,7 @@ describe("ServicioLineasEditableSection", () => {
     const onAdd = vi.fn();
     render(
       <TenantTestProvider
-        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+        hasPermission={mockHasPermission(UserRole.Operativo)}
       >
         <ServicioLineasEditableSection
           items={[{

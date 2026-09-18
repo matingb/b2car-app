@@ -7,6 +7,10 @@ vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
+vi.mock("@/lib/requirePermission", () => ({
+  requirePermission: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
   statsService: {
     onDataChanged: vi.fn(),

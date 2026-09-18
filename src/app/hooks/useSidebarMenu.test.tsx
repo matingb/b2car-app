@@ -1,8 +1,9 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SidebarMenuKey, useSidebarMenu } from "./useSidebarMenu";
-import { hasPermission, UserRole, type UserRoleValue } from "@/lib/permissions";
+import { UserRole, type UserRoleValue, type PermissionValue } from "@/lib/permissions";
 import { SubscriptionPlan } from "@/lib/subscription";
+import { mockHasPermission } from "@/tests/testUtils";
 
 const state = vi.hoisted(() => ({
   pro: true,
@@ -21,8 +22,8 @@ vi.mock("@/app/login/actions", () => ({
 vi.mock("@/app/providers/TenantProvider", () => ({
   useTenant: () => ({
     tenantName: "B2Car",
-    hasPermission: (p: Parameters<typeof hasPermission>[1]) => {
-      return hasPermission(state.role, p, state.pro ? SubscriptionPlan.Pro : SubscriptionPlan.Base);
+    hasPermission: (p: PermissionValue) => {
+      return mockHasPermission(state.role, state.pro ? SubscriptionPlan.Pro : SubscriptionPlan.Base)(p);
     },
     userRole: state.role,
   }),

@@ -7,6 +7,10 @@ vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
+vi.mock("@/lib/requirePermission", () => ({
+  requirePermission: vi.fn().mockResolvedValue(null),
+}));
+
 describe("GET /api/clientes/[id]/resumen-financiero", () => {
   beforeEach(() => {
     vi.clearAllMocks();

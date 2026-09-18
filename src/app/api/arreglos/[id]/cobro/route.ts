@@ -5,6 +5,8 @@ import type { Arreglo } from "@/model/types";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { isValidDate, toISODateTimeWithCurrentTime } from "@/lib/fechas";
 import { logger } from "@/lib/logger";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 
 
 import { arregloService } from "../../arregloService";
@@ -43,6 +45,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const authError = await requirePermission(Permission.ArreglosCobrosRegister);
+  if (authError) return authError;
+
   const supabase = await createClient();
   const { id } = await params;
   const body: CobroRequest | null = await req.json().catch(() => null);
@@ -146,6 +151,9 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const authError = await requirePermission(Permission.ArreglosCobrosRegister);
+  if (authError) return authError;
+
   const supabase = await createClient();
   const { id } = await params;
   const operacionIdHeader = req.headers.get("x-operacion-id")?.trim() || null;

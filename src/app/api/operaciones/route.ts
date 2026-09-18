@@ -5,6 +5,8 @@ import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { isValidUuid } from "@/lib/uuid";
 import { ServiceError } from "@/app/api/serviceError";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 import {
 	operacionesService,
 	OPERACIONES_PAGE_SIZE,
@@ -77,6 +79,9 @@ function mapOperacion(row: OperacionRow | OperacionListRow): Operacion {
 }
 
 export async function GET(req: Request) {
+	const authError = await requirePermission(Permission.OperacionesView);
+	if (authError) return authError;
+
 	const supabase = await createClient();
 	const { searchParams } = new URL(req.url);
 	const tipos = searchParams.getAll("tipo").filter(Boolean);
@@ -114,6 +119,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+	const authError = await requirePermission(Permission.OperacionesEdit);
+	if (authError) return authError;
+
 	const supabase = await createClient();
 
 	const body: CreateOperacionRequest | null = await req.json().catch(() => null);

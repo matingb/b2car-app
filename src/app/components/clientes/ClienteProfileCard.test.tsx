@@ -1,10 +1,10 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
-import { renderWithProviders as render, TenantTestProvider } from "@/tests/testUtils";
+import { renderWithProviders as render, TenantTestProvider, mockHasPermission } from "@/tests/testUtils";
 import ClienteProfileCard from "./ClienteProfileCard";
 import { TipoCliente } from "@/model/types";
-import { hasPermission, UserRole } from "@/lib/permissions";
+import { UserRole } from "@/lib/permissions";
 
 describe("ClienteProfileCard", () => {
   const defaultProps = {
@@ -143,7 +143,7 @@ describe("ClienteProfileCard", () => {
   it("oculta el saldo y estados financieros para un usuario operativo", () => {
     render(
       <TenantTestProvider
-        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+        hasPermission={mockHasPermission(UserRole.Operativo)}
       >
         <ClienteProfileCard {...defaultProps} />
       </TenantTestProvider>

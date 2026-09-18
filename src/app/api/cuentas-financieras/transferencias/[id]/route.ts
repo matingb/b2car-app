@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server";
 import { createClient } from "@/supabase/server";
 import { logger } from "@/lib/logger";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 import type {
   ActualizarTransferenciaFinancieraResponse,
   EliminarFinanzasResponse,
@@ -16,12 +18,10 @@ import {
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PUT(req: NextRequest, { params }: RouteContext) {
+  const authError = await requirePermission(Permission.FinanzasEdit);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    logger.warn("[PUT /api/cuentas-financieras/transferencias/[id]] No autenticado");
-    return Response.json({ data: null, error: "Unauthorized" } satisfies ActualizarTransferenciaFinancieraResponse, { status: 401 });
-  }
 
   const { id } = await params;
   const idError = validateUuid(id, "transferenciaId");
@@ -73,12 +73,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 }
 
 export async function DELETE(req: NextRequest, { params }: RouteContext) {
+  const authError = await requirePermission(Permission.FinanzasEdit);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    logger.warn("[DELETE /api/cuentas-financieras/transferencias/[id]] No autenticado");
-    return Response.json({ error: "Unauthorized" } satisfies EliminarFinanzasResponse, { status: 401 });
-  }
 
   const { id } = await params;
   const idError = validateUuid(id, "transferenciaId");

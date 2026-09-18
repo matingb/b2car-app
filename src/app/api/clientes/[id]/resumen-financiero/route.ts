@@ -2,6 +2,8 @@ import { createClient } from "@/supabase/server";
 import { NextRequest } from "next/server";
 import type { ClienteResumenFinanciero } from "@/model/types";
 import { clienteFinanzasService } from "../../clienteFinanzasService";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 
 export type GetClienteResumenFinancieroResponse = {
   data: ClienteResumenFinanciero | null;
@@ -12,6 +14,9 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authError = await requirePermission(Permission.ClientesFinanzasView);
+  if (authError) return authError;
+
   const supabase = await createClient();
   const { id } = await params;
 

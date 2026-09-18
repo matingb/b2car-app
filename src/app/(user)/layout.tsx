@@ -1,6 +1,7 @@
 import { createClient } from "@/supabase/server";
 import { normalizeSubscriptionPlan } from "@/lib/subscription";
-import { normalizeUserRole } from "@/lib/permissions";
+import { normalizeUserRole, type PermissionValue } from "@/lib/permissions";
+import { fetchEffectivePermissions } from "@/lib/permissions.server";
 import AppClientLayout from "./AppClientLayout";
 
 export default async function AppLayout({
@@ -8,27 +9,28 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  let initialUserRole = null;
-  let initialPlanSub = null;
+  let initialPermissions: PermissionValue[] = [];
 
   try {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.getClaims();
+
     if (!error && data?.claims) {
       const claims = data.claims as Record<string, unknown>;
-      initialUserRole = normalizeUserRole(claims?.user_role);
-      initialPlanSub = normalizeSubscriptionPlan(claims?.plan_sub);
+      const userRole = normalizeUserRole(claims?.user_role);
+      const planSub = normalizeSubscriptionPlan(claims?.plan_sub);
+
+      if (userRole && planSub) {
+        initialPermissions = await fetchEffectivePermissions(supabase, userRole, planSub);
+      }
     }
   } catch {
-    // If reading claims fails, pass null and let middleware handle redirection
   }
 
   return (
-    <AppClientLayout
-      initialUserRole={initialUserRole}
-      initialPlanSub={initialPlanSub}
-    >
+    <AppClientLayout initialPermissions={initialPermissions}>
       {children}
     </AppClientLayout>
   );
 }
+

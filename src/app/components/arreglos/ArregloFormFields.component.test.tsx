@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import ArregloFormFields, { type ArregloFormFieldsValues } from "./ArregloFormFields";
-import { TenantTestProvider } from "@/tests/testUtils";
-import { hasPermission, UserRole } from "@/lib/permissions";
+import { TenantTestProvider, mockHasPermission } from "@/tests/testUtils";
+import { UserRole } from "@/lib/permissions";
 
 vi.mock("@/app/providers/CategoriasArregloProvider", () => ({
   useCategoriasArreglo: () => ({ categorias: [], isLoading: false }),
@@ -32,7 +32,7 @@ describe("ArregloFormFields permissions", () => {
   it("muestra ¿Esta pago? y Total calculado para un rol admin", () => {
     render(
       <TenantTestProvider
-        hasPermission={(p) => hasPermission(UserRole.Admin, p)}
+        hasPermission={mockHasPermission(UserRole.Admin)}
       >
         <ArregloFormFields
           vehiculoId="veh-1"
@@ -54,7 +54,7 @@ describe("ArregloFormFields permissions", () => {
   it("oculta ¿Esta pago? y Total calculado para un rol operativo", () => {
     render(
       <TenantTestProvider
-        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+        hasPermission={mockHasPermission(UserRole.Operativo)}
       >
         <ArregloFormFields
           vehiculoId="veh-1"

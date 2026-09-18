@@ -1,4 +1,6 @@
 import { createClient } from "@/supabase/server";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 import type {
   CrearGastoFinancieroResponse,
   ListarGastosFinancierosResponse,
@@ -20,11 +22,10 @@ function firstGasto(data: unknown) {
 }
 
 export async function GET(req: Request) {
+  const authError = await requirePermission(Permission.FinanzasView);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json({ data: null, error: "Unauthorized" } satisfies ListarGastosFinancierosResponse, { status: 401 });
-  }
 
   const url = new URL(req.url);
   const filters = parseListFilters(url);
@@ -56,11 +57,10 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const authError = await requirePermission(Permission.FinanzasEdit);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json({ data: null, error: "Unauthorized" } satisfies CrearGastoFinancieroResponse, { status: 401 });
-  }
 
   const parsed = validateCreateGasto(await req.json().catch(() => null));
   if (parsed.error || !parsed.value) {

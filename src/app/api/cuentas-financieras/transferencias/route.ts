@@ -1,5 +1,7 @@
 import { createClient } from "@/supabase/server";
 import { logger } from "@/lib/logger";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 import type { CrearTransferenciaFinancieraResponse, TransferenciaFinanciera } from "@/model/finanzas";
 import {
   extractRpcId,
@@ -8,12 +10,10 @@ import {
 } from "../finanzasRouteUtils";
 
 export async function POST(req: Request) {
+  const authError = await requirePermission(Permission.FinanzasEdit);
+  if (authError) return authError;
+
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    logger.warn("[POST /api/cuentas-financieras/transferencias] Petición no autorizada: sin sesión activa");
-    return Response.json({ data: null, error: "Unauthorized" } satisfies CrearTransferenciaFinancieraResponse, { status: 401 });
-  }
 
   const rawBody = await req.json().catch(() => null);
   const parsed = validateCreateTransferencia(rawBody);

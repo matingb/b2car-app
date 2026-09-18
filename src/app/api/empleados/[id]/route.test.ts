@@ -7,6 +7,10 @@ vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
+vi.mock("@/lib/requirePermission", () => ({
+  requirePermission: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock("../empleadosService", async () => {
   const actual = await vi.importActual<typeof import("../empleadosService")>("../empleadosService");
   return {
@@ -29,6 +33,7 @@ vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
 }));
 
 import { createClient } from "@/supabase/server";
+import { requirePermission } from "@/lib/requirePermission";
 import { empleadosService, type EmpleadoRow } from "../empleadosService";
 import { ServiceError } from "@/app/api/serviceError";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
@@ -55,15 +60,16 @@ function createEmpleadoRow(overrides: Partial<EmpleadoRow> = {}): EmpleadoRow {
 describe("/api/empleados/[id]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(requirePermission).mockResolvedValue(null);
     vi.mocked(createClient).mockResolvedValue({
       auth: { getSession: async () => ({ data: { session: { access_token: "t" } } }) },
     } as unknown as SupabaseClient);
   });
 
   it("GET sin sesión devuelve 401", async () => {
-    vi.mocked(createClient).mockResolvedValue({
-      auth: { getSession: async () => ({ data: { session: null } }) },
-    } as unknown as SupabaseClient);
+    vi.mocked(requirePermission).mockResolvedValueOnce(
+      Response.json({ data: null, error: "Unauthorized" }, { status: 401 })
+    );
 
     const req = new NextRequest("http://localhost/api/empleados/e1");
     const res = await GET(req, { params: Promise.resolve({ id: "e1" }) });

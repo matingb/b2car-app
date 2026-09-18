@@ -1,9 +1,9 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import Can from "./Can";
-import { TenantTestProvider, renderWithProviders } from "@/tests/testUtils";
-import { Permission, UserRole, hasPermission } from "@/lib/permissions";
+import { TenantTestProvider, renderWithProviders, mockHasPermission } from "@/tests/testUtils";
+import { Permission, UserRole } from "@/lib/permissions";
 
 describe("<Can /> Component", () => {
   it("throws an error when rendered outside TenantProvider", () => {
@@ -31,7 +31,7 @@ describe("<Can /> Component", () => {
   it("renders children when user has the requested permission", () => {
     render(
       <TenantTestProvider
-        hasPermission={(p) => hasPermission(UserRole.Admin, p)}
+        hasPermission={mockHasPermission(UserRole.Admin)}
       >
         <Can permission={Permission.ArreglosPreciosView} fallback={<span>Blocked</span>}>
           <span>Admin Price Content</span>
@@ -45,7 +45,7 @@ describe("<Can /> Component", () => {
   it("renders fallback when user lacks the requested permission", () => {
     render(
       <TenantTestProvider
-        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+        hasPermission={mockHasPermission(UserRole.Operativo)}
       >
         <Can permission={Permission.ArreglosPreciosView} fallback={<span>Sin precio</span>}>
           <span>Secret Price</span>
@@ -59,7 +59,7 @@ describe("<Can /> Component", () => {
   it("evaluates multiple required permissions using array in permission", () => {
     render(
       <TenantTestProvider
-        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+        hasPermission={mockHasPermission(UserRole.Operativo)}
       >
         <Can
           permission={[Permission.ArreglosView, Permission.ArreglosPreciosView]}
@@ -76,7 +76,7 @@ describe("<Can /> Component", () => {
   it("evaluates anyPermissions when at least one matches", () => {
     render(
       <TenantTestProvider
-        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+        hasPermission={mockHasPermission(UserRole.Operativo)}
       >
         <Can
           anyPermissions={[Permission.ArreglosPreciosView, Permission.ArreglosView]}
@@ -92,7 +92,7 @@ describe("<Can /> Component", () => {
   it("evaluates path prop correctly", () => {
     render(
       <TenantTestProvider
-        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+        hasPermission={mockHasPermission(UserRole.Operativo)}
       >
         <Can path="/dashboard" fallback={<span>No Dashboard</span>}>
           <span>Dashboard Content</span>

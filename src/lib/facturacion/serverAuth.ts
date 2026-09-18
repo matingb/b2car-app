@@ -2,7 +2,8 @@ import "server-only";
 
 import { createClient } from "@/supabase/server";
 import { logger } from "@/lib/logger";
-import { hasPlanPermission, Permission, type PermissionValue } from "@/lib/permissions";
+import { Permission, type PermissionValue } from "@/lib/permissions";
+import { fetchEffectivePermissions } from "@/lib/permissions.server";
 import { FacturacionValidationError } from "./arcaPayload";
 import { FceMipymeQueryError } from "./fceMipyme";
 
@@ -81,7 +82,24 @@ export async function requireTenantActor(): Promise<TenantActor> {
 
 export async function requireTenantPlanPermission(permission: PermissionValue): Promise<TenantActor> {
   const actor = await requireTenantActor();
-  if (!hasPlanPermission(actor.claimedPlan, permission)) {
+  const supabase = await createClient();
+
+  let permissions: PermissionValue[];
+  try {
+    permissions = await fetchEffectivePermissions(
+      supabase,
+      actor.claimedRole,
+      String(actor.claimedPlan),
+    );
+  } catch (err) {
+    logger.error("Error al consultar permisos de rol/plan para facturación", err);
+    throw new FacturacionHttpError(
+      "No se pudieron verificar los permisos por un error interno",
+      500,
+    );
+  }
+
+  if (!permissions.includes(permission)) {
     throw new FacturacionHttpError(
       "La funcionalidad no está disponible en el plan actual",
       403,

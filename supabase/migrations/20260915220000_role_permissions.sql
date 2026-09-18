@@ -109,49 +109,16 @@ insert into public.role_permissions (role, permission, granted) values
   ('admin', 'turnos:view',                   true),
   ('admin', 'turnos:edit',                   true);
 
--- Rol: operativo — acceso restringido al taller
+-- Rol: operativo — acceso restringido al taller.
+-- Solo se insertan los permisos concedidos (allow-list puro; la ausencia de fila equivale a denegado).
 insert into public.role_permissions (role, permission, granted) values
-  ('operativo', 'dashboard:view',                false),
-  ('operativo', 'operaciones:view',              false),
-  ('operativo', 'operaciones:edit',              false),
-  ('operativo', 'finanzas:view',                 false),
-  ('operativo', 'finanzas:edit',                 false),
-  ('operativo', 'facturas:view',                 false),
-  ('operativo', 'facturas:edit',                 false),
-  ('operativo', 'empleados:view',                false),
-  ('operativo', 'empleados:edit',                false),
-  ('operativo', 'productos:view',                false),
-  ('operativo', 'productos:edit',                false),
-  ('operativo', 'configuracion:view',            false),
-  ('operativo', 'configuracion:edit',            false),
-  ('operativo', 'arreglos:view',                 true),
-  ('operativo', 'arreglos:edit',                 true),
-  ('operativo', 'arreglos:precios:view',         false),
-  ('operativo', 'arreglos:precios:edit',         false),
-  ('operativo', 'arreglos:cobros:register',      false),
-  ('operativo', 'arreglos:repuestos:comprar',    true),
-  ('operativo', 'clientes:view',                 true),
-  ('operativo', 'clientes:edit',                 true),
-  ('operativo', 'clientes:finanzas:view',        false),
-  ('operativo', 'vehiculos:view',                true),
-  ('operativo', 'vehiculos:edit',                true),
-  ('operativo', 'turnos:view',                   true),
-  ('operativo', 'turnos:edit',                   true);
+  ('operativo', 'arreglos:view',              true),
+  ('operativo', 'arreglos:edit',              true),
+  ('operativo', 'arreglos:repuestos:comprar', true),
+  ('operativo', 'clientes:view',              true),
+  ('operativo', 'clientes:edit',              true),
+  ('operativo', 'vehiculos:view',             true),
+  ('operativo', 'vehiculos:edit',             true),
+  ('operativo', 'turnos:view',                true),
+  ('operativo', 'turnos:edit',                true);
 
--- RPC: devuelve los permisos concedidos al rol del usuario llamante.
--- Usa security definer para acceder a la tabla sin exponer RLS al cliente.
--- El claim 'user_role' es inyectado por el JWT de Supabase Auth.
-create or replace function public.get_my_permissions()
-returns text[]
-language sql
-security definer
-stable
-set search_path = public
-as $$
-  select coalesce(array_agg(permission), '{}'::text[])
-  from public.role_permissions
-  where role::text = (auth.jwt() ->> 'user_role')
-    and granted = true;
-$$;
-
-grant execute on function public.get_my_permissions() to authenticated;

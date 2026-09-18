@@ -1,7 +1,46 @@
 import React, { type ReactElement, type ReactNode } from "react";
 import { act, render, type RenderOptions } from "@testing-library/react";
 import { TenantContext, type TenantContextValue } from "@/app/providers/TenantProvider";
-import { permissionForPath } from "@/lib/permissions";
+import {
+  Permission,
+  type PermissionValue,
+  UserRole,
+  type UserRoleValue,
+  permissionForPath,
+} from "@/lib/permissions";
+import { SubscriptionPlan, type SubscriptionPlanValue } from "@/lib/subscription";
+
+export const MOCK_ADMIN_PERMISSIONS: PermissionValue[] = Object.values(Permission);
+
+export const MOCK_OPERATIVO_PERMISSIONS: PermissionValue[] = [
+  Permission.ArreglosView,
+  Permission.ArreglosEdit,
+  Permission.ArreglosRepuestosComprar,
+  Permission.ClientesView,
+  Permission.ClientesEdit,
+  Permission.VehiculosView,
+  Permission.VehiculosEdit,
+  Permission.TurnosView,
+  Permission.TurnosEdit,
+];
+
+export function mockHasPermission(
+  role: UserRoleValue = UserRole.Admin,
+  plan?: SubscriptionPlanValue,
+): (permission: PermissionValue) => boolean {
+  let perms = role === UserRole.Admin ? MOCK_ADMIN_PERMISSIONS : MOCK_OPERATIVO_PERMISSIONS;
+  if (plan === SubscriptionPlan.Base) {
+    perms = perms.filter(
+      (p) =>
+        p !== Permission.FacturasView &&
+        p !== Permission.FacturasEdit &&
+        p !== Permission.ConfiguracionView &&
+        p !== Permission.ConfiguracionEdit,
+    );
+  }
+  const permSet = new Set(perms);
+  return (permission: PermissionValue) => permSet.has(permission);
+}
 
 /**
  * Útil para evitar `waitFor` cuando las actualizaciones son sincrónicas
@@ -19,7 +58,6 @@ export function TenantTestProvider({
   talleres = [],
   tallerSeleccionadoId = "",
   setTallerSeleccionadoId = () => {},
-  planLoading = false,
   loading = false,
   hasPermission = () => true,
   canAccessPath: customCanAccessPath,
@@ -35,7 +73,6 @@ export function TenantTestProvider({
     talleres,
     tallerSeleccionadoId,
     setTallerSeleccionadoId,
-    planLoading,
     hasPermission,
     canAccessPath: customCanAccessPath ?? defaultCanAccessPath,
   };

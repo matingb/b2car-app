@@ -6,6 +6,10 @@ vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
 }));
 
+vi.mock("@/lib/requirePermission", () => ({
+  requirePermission: vi.fn().mockResolvedValue(null),
+}));
+
 import { createClient } from "@/supabase/server";
 
 const ORIGEN_ID = "11111111-1111-4111-8111-111111111111";

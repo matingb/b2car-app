@@ -196,8 +196,7 @@ describe("supabaseArregloRepository", () => {
             monto_pendiente: 8000,
           },
         ],
-        error: null,
-      } as unknown as { data: unknown; error: null });
+      } as any);
 
       const result = await supabaseArregloRepository.arreglosResumen(
         supabase,

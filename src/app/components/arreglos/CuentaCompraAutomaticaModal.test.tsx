@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import CuentaCompraAutomaticaModal from "./CuentaCompraAutomaticaModal";
-import { TenantTestProvider } from "@/tests/testUtils";
-import { hasPermission, UserRole } from "@/lib/permissions";
+import { TenantTestProvider, mockHasPermission } from "@/tests/testUtils";
+import { UserRole } from "@/lib/permissions";
 
 const mockCreateCuenta = vi.fn();
 
@@ -72,7 +72,7 @@ describe("CuentaCompraAutomaticaModal", () => {
   it("deshabilita la creación de cuenta para un usuario operativo", async () => {
     render(
       <TenantTestProvider
-        hasPermission={(p) => hasPermission(UserRole.Operativo, p)}
+        hasPermission={mockHasPermission(UserRole.Operativo)}
       >
         <CuentaCompraAutomaticaModal
           open

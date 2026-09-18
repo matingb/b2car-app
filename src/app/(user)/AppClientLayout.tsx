@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import SidebarItem from "@/app/components/ui/SidebarItem";
 import { ModalMessageProvider } from "@/app/providers/ModalMessageProvider";
 import { SheetProvider } from "@/app/providers/SheetProvider";
-import { TenantProvider } from "@/app/providers/TenantProvider";
+import { TenantProvider, useTenant } from "@/app/providers/TenantProvider";
 import { CuentasFinancierasProvider } from "@/app/providers/CuentasFinancierasProvider";
 import Divider from "@/app/components/ui/Divider";
 import { PanelLeft } from "lucide-react";
@@ -12,22 +13,19 @@ import { COLOR, BREAKPOINTS } from "@/theme/theme";
 import { css } from "@emotion/react";
 import { SidebarMenuKey, useSidebarMenu } from "@/app/hooks/useSidebarMenu";
 import TenantNameText from "@/app/components/ui/TenantNameText";
-import type { UserRoleValue } from "@/lib/permissions";
-import type { SubscriptionPlanValue } from "@/lib/subscription";
+import type { PermissionValue } from "@/lib/permissions";
 
 export type AppClientLayoutProps = {
   children: React.ReactNode;
-  initialUserRole?: UserRoleValue | null;
-  initialPlanSub?: SubscriptionPlanValue | null;
+  initialPermissions?: PermissionValue[];
 };
 
 export default function AppClientLayout({
   children,
-  initialUserRole,
-  initialPlanSub,
+  initialPermissions,
 }: AppClientLayoutProps) {
   return (
-    <TenantProvider initialUserRole={initialUserRole} initialPlanSub={initialPlanSub}>
+    <TenantProvider initialPermissions={initialPermissions}>
       <CuentasFinancierasProvider>
         <ModalMessageProvider>
           <SheetProvider>
@@ -43,6 +41,18 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
 
   const { tenantName, items } = useSidebarMenu();
+  const { canAccessPath } = useTenant();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const isAllowed = !pathname || canAccessPath(pathname);
+
+  useEffect(() => {
+    if (!isAllowed) {
+      const fallback = canAccessPath("/dashboard") ? "/dashboard" : "/arreglos";
+      router.replace(fallback);
+    }
+  }, [isAllowed, canAccessPath, router]);
 
   const s = useMemo(() => {
     const width = collapsed ? "75px" : "14rem";
@@ -142,7 +152,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
         </aside>
 
         <main style={s.main}>
-          <div css={s.cardMain}>{children}</div>
+          <div css={s.cardMain}>{isAllowed ? children : null}</div>
         </main>
       </div>
     </div>
