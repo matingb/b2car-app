@@ -11,6 +11,7 @@ import type { StockItemRow, StockRow } from "@/app/api/stocks/stocksService";
 import type { Turno } from "@/model/types";
 import type { TurnoDto } from "@/model/dtos";
 import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
+import type { CreateEmpleadoRequest } from "@/app/api/empleados/contracts";
 
 /**
  * Factory para crear objetos Vehiculo de prueba
@@ -96,6 +97,22 @@ export const createCreateArregloRequest = (
     precio_final: 1000,
     esta_pago: false,
     extra_data: "",
+    ...overrides,
+  };
+};
+
+/**
+ * Factory para crear requests de creación de Empleado (API)
+ */
+export const createCreateEmpleadoRequest = (
+  overrides: Partial<CreateEmpleadoRequest> = {}
+): CreateEmpleadoRequest => {
+  return {
+    taller_id: "50000000-0000-0000-0000-000000000001",
+    nombre: "Juan",
+    apellido: "Pérez",
+    dni: "38123456",
+    salario: 0,
     ...overrides,
   };
 };

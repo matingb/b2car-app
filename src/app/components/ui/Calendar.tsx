@@ -2,8 +2,10 @@
 
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar as CalendarIcon } from "lucide-react";
 import { COLOR } from "@/theme/theme";
+
+export type CalendarView = "days" | "months" | "years";
 
 export interface CalendarProps {
   value: string;
@@ -27,6 +29,21 @@ const MESES = [
   "Octubre",
   "Noviembre",
   "Diciembre",
+];
+
+const MESES_CORTOS = [
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
 ];
 
 const DIAS_SEMANA_HEADERS = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"];
@@ -67,6 +84,8 @@ export default function Calendar({
 
   const [viewYear, setViewYear] = useState(initialParts.year);
   const [viewMonth, setViewMonth] = useState(initialParts.month);
+  const [viewMode, setViewMode] = useState<CalendarView>("days");
+  const [yearPageStart, setYearPageStart] = useState(() => Math.floor(initialParts.year / 12) * 12);
 
   // Cuando cambia el valor externo, sincronizar el mes visible
   useEffect(() => {
@@ -74,12 +93,16 @@ export default function Calendar({
     if (parsed) {
       setViewYear(parsed.year);
       setViewMonth(parsed.month);
+      setYearPageStart(Math.floor(parsed.year / 12) * 12);
     }
   }, [value]);
 
-  // Cerrar al hacer clic afuera
+  // Cerrar al hacer clic afuera y reiniciar modo de vista
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setViewMode("days");
+      return;
+    }
 
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -181,11 +204,15 @@ export default function Calendar({
     e.stopPropagation();
     const now = new Date();
     const todayIso = formatIso(now.getFullYear(), now.getMonth(), now.getDate());
+    setViewYear(now.getFullYear());
+    setViewMonth(now.getMonth());
+    setViewMode("days");
     onChange(todayIso);
     setIsOpen(false);
   };
 
   const handleSelectDay = (dayIso: string) => {
+    setViewMode("days");
     onChange(dayIso);
     setIsOpen(false);
   };
@@ -265,70 +292,326 @@ export default function Calendar({
       role="dialog"
       aria-label="Selector de fecha"
     >
-      {/* Encabezado: navegación de mes */}
+      {/* Encabezado: navegación y títulos de vista */}
       <div style={styles.header}>
-        <button
-          type="button"
-          onClick={handlePrevMonth}
-          style={styles.navButton}
-          aria-label="Mes anterior"
-          data-testid={dataTestId ? `${dataTestId}-prev-month` : "calendar-prev-month"}
-        >
-          <ChevronLeft size={18} color={COLOR.TEXT.PRIMARY} />
-        </button>
-
-        <span style={styles.monthTitle}>
-          {MESES[viewMonth]} {viewYear}
-        </span>
-
-        <button
-          type="button"
-          onClick={handleNextMonth}
-          style={styles.navButton}
-          aria-label="Mes siguiente"
-          data-testid={dataTestId ? `${dataTestId}-next-month` : "calendar-next-month"}
-        >
-          <ChevronRight size={18} color={COLOR.TEXT.PRIMARY} />
-        </button>
-      </div>
-
-      {/* Días de la semana */}
-      <div style={styles.weekHeadersRow}>
-        {DIAS_SEMANA_HEADERS.map((dh) => (
-          <div key={dh} style={styles.weekHeaderCell}>
-            {dh}
-          </div>
-        ))}
-      </div>
-
-      {/* Cuadrícula de días */}
-      <div style={styles.grid}>
-        {calendarDays.map((cd) => {
-          return (
+        {viewMode === "days" && (
+          <>
             <button
-              key={cd.iso}
               type="button"
-              onClick={() => handleSelectDay(cd.iso)}
-              style={{
-                ...styles.dayCell,
-                ...(!cd.isCurrentMonth ? styles.dayCellOutside : {}),
-                ...(cd.isToday && !cd.isSelected ? styles.dayCellToday : {}),
-                ...(cd.isSelected ? styles.dayCellSelected : {}),
+              onClick={handlePrevMonth}
+              style={styles.navButton}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = COLOR.BACKGROUND.SUBTLE;
               }}
-              data-testid={
-                dataTestId ? `${dataTestId}-day-${cd.iso}` : `calendar-day-${cd.iso}`
-              }
-              aria-label={`${cd.dayNum} de ${MESES[viewMonth]}`}
-              aria-pressed={cd.isSelected}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+              aria-label="Mes anterior"
+              data-testid={dataTestId ? `${dataTestId}-prev-month` : "calendar-prev-month"}
             >
-              {cd.dayNum}
+              <ChevronLeft size={18} color={COLOR.TEXT.PRIMARY} />
             </button>
-          );
-        })}
+
+            <span style={styles.monthTitle}>
+              <span style={styles.srOnly}>{MESES[viewMonth]} {viewYear}</span>
+              <button
+                type="button"
+                onClick={() => setViewMode("months")}
+                style={styles.headerSelectorBtn}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = COLOR.BACKGROUND.SUBTLE;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }}
+                aria-label="Seleccionar mes"
+                data-testid={dataTestId ? `${dataTestId}-select-month` : "calendar-select-month"}
+              >
+                <span>{MESES[viewMonth]}</span>
+                <ChevronDown size={13} color={COLOR.TEXT.SECONDARY} />
+              </button>
+              {" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setYearPageStart(Math.floor(viewYear / 12) * 12);
+                  setViewMode("years");
+                }}
+                style={styles.headerSelectorBtn}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = COLOR.BACKGROUND.SUBTLE;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }}
+                aria-label="Seleccionar año"
+                data-testid={dataTestId ? `${dataTestId}-select-year` : "calendar-select-year"}
+              >
+                <span>{viewYear}</span>
+                <ChevronDown size={13} color={COLOR.TEXT.SECONDARY} />
+              </button>
+            </span>
+
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              style={styles.navButton}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = COLOR.BACKGROUND.SUBTLE;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+              aria-label="Mes siguiente"
+              data-testid={dataTestId ? `${dataTestId}-next-month` : "calendar-next-month"}
+            >
+              <ChevronRight size={18} color={COLOR.TEXT.PRIMARY} />
+            </button>
+          </>
+        )}
+
+        {viewMode === "months" && (
+          <>
+            <button
+              type="button"
+              onClick={() => setViewYear((prev) => prev - 1)}
+              style={styles.navButton}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = COLOR.BACKGROUND.SUBTLE;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+              aria-label="Año anterior"
+              data-testid={dataTestId ? `${dataTestId}-prev-year` : "calendar-prev-year"}
+            >
+              <ChevronLeft size={18} color={COLOR.TEXT.PRIMARY} />
+            </button>
+
+            <span style={styles.monthTitle}>
+              <button
+                type="button"
+                onClick={() => {
+                  setYearPageStart(Math.floor(viewYear / 12) * 12);
+                  setViewMode("years");
+                }}
+                style={styles.headerSelectorBtn}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = COLOR.BACKGROUND.SUBTLE;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }}
+                aria-label="Seleccionar año"
+                data-testid={
+                  dataTestId
+                    ? `${dataTestId}-select-year-from-months`
+                    : "calendar-select-year-from-months"
+                }
+              >
+                <span>{viewYear}</span>
+                <ChevronDown size={13} color={COLOR.TEXT.SECONDARY} />
+              </button>
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setViewYear((prev) => prev + 1)}
+              style={styles.navButton}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = COLOR.BACKGROUND.SUBTLE;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+              aria-label="Año siguiente"
+              data-testid={dataTestId ? `${dataTestId}-next-year` : "calendar-next-year"}
+            >
+              <ChevronRight size={18} color={COLOR.TEXT.PRIMARY} />
+            </button>
+          </>
+        )}
+
+        {viewMode === "years" && (
+          <>
+            <button
+              type="button"
+              onClick={() => setYearPageStart((prev) => prev - 12)}
+              style={styles.navButton}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = COLOR.BACKGROUND.SUBTLE;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+              aria-label="Años anteriores"
+              data-testid={
+                dataTestId ? `${dataTestId}-prev-years-page` : "calendar-prev-years-page"
+              }
+            >
+              <ChevronLeft size={18} color={COLOR.TEXT.PRIMARY} />
+            </button>
+
+            <span style={styles.monthTitle}>
+              {yearPageStart} – {yearPageStart + 11}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setYearPageStart((prev) => prev + 12)}
+              style={styles.navButton}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = COLOR.BACKGROUND.SUBTLE;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+              aria-label="Años siguientes"
+              data-testid={
+                dataTestId ? `${dataTestId}-next-years-page` : "calendar-next-years-page"
+              }
+            >
+              <ChevronRight size={18} color={COLOR.TEXT.PRIMARY} />
+            </button>
+          </>
+        )}
       </div>
 
-      {/* Barra de acceso rápido: Hoy */}
-      <div style={styles.footer}>
+      {/* Vista de Días */}
+      {viewMode === "days" && (
+        <>
+          <div style={styles.weekHeadersRow}>
+            {DIAS_SEMANA_HEADERS.map((dh) => (
+              <div key={dh} style={styles.weekHeaderCell}>
+                {dh}
+              </div>
+            ))}
+          </div>
+
+          <div style={styles.grid}>
+            {calendarDays.map((cd) => {
+              return (
+                <button
+                  key={cd.iso}
+                  type="button"
+                  onClick={() => handleSelectDay(cd.iso)}
+                  style={{
+                    ...styles.dayCell,
+                    ...(!cd.isCurrentMonth ? styles.dayCellOutside : {}),
+                    ...(cd.isToday && !cd.isSelected ? styles.dayCellToday : {}),
+                    ...(cd.isSelected ? styles.dayCellSelected : {}),
+                  }}
+                  data-testid={
+                    dataTestId ? `${dataTestId}-day-${cd.iso}` : `calendar-day-${cd.iso}`
+                  }
+                  aria-label={`${cd.dayNum} de ${MESES[viewMonth]}`}
+                  aria-pressed={cd.isSelected}
+                >
+                  {cd.dayNum}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Vista de Meses */}
+      {viewMode === "months" && (
+        <div style={styles.optionsGrid}>
+          {MESES.map((mesNombre, idx) => {
+            const isSelected = idx === viewMonth;
+            const isCurrentMonthNow =
+              idx === new Date().getMonth() && viewYear === new Date().getFullYear();
+            return (
+              <button
+                key={mesNombre}
+                type="button"
+                onClick={() => {
+                  setViewMonth(idx);
+                  setViewMode("days");
+                }}
+                style={{
+                  ...styles.optionCell,
+                  ...(isCurrentMonthNow && !isSelected ? styles.optionCellCurrent : {}),
+                  ...(isSelected ? styles.optionCellSelected : {}),
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) e.currentTarget.style.backgroundColor = COLOR.BACKGROUND.SUBTLE;
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) e.currentTarget.style.backgroundColor = COLOR.BACKGROUND.PRIMARY;
+                }}
+                data-testid={
+                  dataTestId ? `${dataTestId}-month-${idx}` : `calendar-month-${idx}`
+                }
+                aria-label={mesNombre}
+                aria-pressed={isSelected}
+                title={mesNombre}
+              >
+                {MESES_CORTOS[idx]}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Vista de Años */}
+      {viewMode === "years" && (
+        <div style={styles.optionsGrid}>
+          {Array.from({ length: 12 }, (_, i) => yearPageStart + i).map((y) => {
+            const isSelected = y === viewYear;
+            const isCurrentYearNow = y === new Date().getFullYear();
+            return (
+              <button
+                key={y}
+                type="button"
+                onClick={() => {
+                  setViewYear(y);
+                  setViewMode("months");
+                }}
+                style={{
+                  ...styles.optionCell,
+                  ...(isCurrentYearNow && !isSelected ? styles.optionCellCurrent : {}),
+                  ...(isSelected ? styles.optionCellSelected : {}),
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) e.currentTarget.style.backgroundColor = COLOR.BACKGROUND.SUBTLE;
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) e.currentTarget.style.backgroundColor = COLOR.BACKGROUND.PRIMARY;
+                }}
+                data-testid={
+                  dataTestId ? `${dataTestId}-year-${y}` : `calendar-year-${y}`
+                }
+                aria-label={String(y)}
+                aria-pressed={isSelected}
+              >
+                {y}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Barra de acceso rápido */}
+      <div
+        style={{
+          ...styles.footer,
+          justifyContent: viewMode === "days" ? "flex-end" : "space-between",
+        }}
+      >
+        {viewMode !== "days" && (
+          <button
+            type="button"
+            onClick={() => setViewMode("days")}
+            style={styles.backButton}
+            data-testid={
+              dataTestId ? `${dataTestId}-back-to-days` : "calendar-back-to-days"
+            }
+          >
+            Volver a días
+          </button>
+        )}
         <button
           type="button"
           onClick={handleSelectToday}
@@ -365,8 +648,15 @@ export default function Calendar({
           }}
           data-testid={dataTestId}
         >
+          <span
+            style={{
+              ...styles.triggerText,
+              color: value ? COLOR.TEXT.PRIMARY : COLOR.TEXT.SECONDARY,
+            }}
+          >
+            {value || placeholder}
+          </span>
           <CalendarIcon size={16} color={COLOR.TEXT.SECONDARY} style={{ flexShrink: 0 }} />
-          <span style={styles.triggerText}>{value || placeholder}</span>
         </button>
       )}
       {isOpen && typeof document !== "undefined"
@@ -380,25 +670,28 @@ const styles = {
   container: {
     position: "relative" as const,
     display: "inline-flex",
+    width: "100%",
   },
   defaultTrigger: {
-    height: 38,
-    padding: "6px 12px",
+    width: "100%",
+    padding: "10px 12px",
     borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    backgroundColor: COLOR.INPUT.PRIMARY.BACKGROUND,
     color: COLOR.TEXT.PRIMARY,
     fontSize: 14,
     display: "flex",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: 8,
     cursor: "pointer",
     boxSizing: "border-box" as const,
     userSelect: "none" as const,
+    textAlign: "left" as const,
   },
   triggerText: {
     fontSize: 14,
-    color: COLOR.TEXT.PRIMARY,
+    flex: 1,
   },
   calendarCard: {
     position: "relative" as const,
@@ -421,6 +714,23 @@ const styles = {
     fontWeight: 600,
     color: COLOR.TEXT.PRIMARY,
     textTransform: "capitalize" as const,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+  },
+  headerSelectorBtn: {
+    border: "none",
+    backgroundColor: "transparent",
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    padding: "2px 6px",
+    borderRadius: 6,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 2,
+    transition: "background-color 0.15s ease",
   },
   navButton: {
     width: 28,
@@ -450,6 +760,39 @@ const styles = {
     display: "grid",
     gridTemplateColumns: "repeat(7, 1fr)",
     gap: 2,
+  },
+  optionsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 8,
+    padding: "4px 0",
+    minHeight: 232,
+    boxSizing: "border-box" as const,
+    alignContent: "center",
+  },
+  optionCell: {
+    height: 44,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 8,
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 13,
+    fontWeight: 500,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.15s ease",
+  },
+  optionCellCurrent: {
+    border: `1px solid ${COLOR.ACCENT.PRIMARY}`,
+    fontWeight: 600,
+  },
+  optionCellSelected: {
+    backgroundColor: COLOR.ACCENT.PRIMARY,
+    borderColor: COLOR.ACCENT.PRIMARY,
+    color: "#ffffff",
+    fontWeight: 600,
   },
   dayCell: {
     height: 32,
@@ -481,6 +824,7 @@ const styles = {
   footer: {
     display: "flex",
     justifyContent: "flex-end",
+    alignItems: "center",
     marginTop: 8,
     paddingTop: 6,
     borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
@@ -494,5 +838,27 @@ const styles = {
     cursor: "pointer",
     padding: "2px 6px",
     borderRadius: 4,
+  },
+  backButton: {
+    border: "none",
+    backgroundColor: "transparent",
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
+    fontWeight: 500,
+    cursor: "pointer",
+    padding: "2px 6px",
+    borderRadius: 4,
+    transition: "color 0.15s ease",
+  },
+  srOnly: {
+    position: "absolute" as const,
+    width: 1,
+    height: 1,
+    padding: 0,
+    margin: -1,
+    overflow: "hidden",
+    clip: "rect(0, 0, 0, 0)",
+    whiteSpace: "nowrap" as const,
+    border: 0,
   },
 } as const;

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { css } from "@emotion/react";
-import { COLOR } from "@/theme/theme";
+import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import Autocomplete from "@/app/components/ui/Autocomplete";
 import CuentaFinancieraFormFields from "@/app/components/finanzas/CuentaFinancieraFormFields";
 import CuentaFinancieraAutocomplete, {
@@ -62,7 +62,9 @@ export default function OperacionHeaderFields() {
         </div>
 
         <div style={styles.headerLeft}>
-          <label style={styles.label}>Cuenta financiera</label>
+          <label style={styles.label}>
+            Cuenta financiera <span aria-hidden="true" style={styles.required}>*</span>
+          </label>
           <CuentaFinancieraAutocomplete
             value={cuentaFinancieraId}
             onChange={setCuentaFinancieraId}
@@ -151,6 +153,11 @@ const styles = {
     fontSize: 13,
     color: COLOR.TEXT.SECONDARY,
     marginBottom: 6,
+  },
+  required: {
+    color: REQUIRED_ICON_COLOR,
+    fontWeight: 700,
+    marginLeft: 2,
   },
   dateInput: {
     height: 44,

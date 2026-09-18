@@ -116,7 +116,7 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    if (!body.salario_vigente_desde?.trim()) {
+    if (body.salario > 0 && !body.salario_vigente_desde?.trim() && !body.fecha_ingreso?.trim()) {
       return Response.json(
         { data: null, error: "Falta salario_vigente_desde cuando se especifica salario" } satisfies CreateEmpleadoResponse,
         { status: 400 }
@@ -163,13 +163,18 @@ export async function POST(req: Request) {
       );
     }
 
-    if (body.salario_vigente_desde) {
-      const vigenteDesdeMes = `${body.salario_vigente_desde.slice(0, 7)}-01`;
+    const vigenteDesdeMes = body.salario_vigente_desde
+      ? `${body.salario_vigente_desde.slice(0, 7)}-01`
+      : body.fecha_ingreso && body.salario !== undefined && body.salario !== null && body.salario > 0
+        ? `${body.fecha_ingreso.slice(0, 7)}-01`
+        : null;
+
+    if (vigenteDesdeMes && body.salario !== undefined && body.salario !== null) {
       const { error: salarioError } = await empleadosService.recordSalarioChange(
         supabase,
         created.id,
         created.taller_id,
-        body.salario!,
+        body.salario,
         vigenteDesdeMes
       );
       if (salarioError) {

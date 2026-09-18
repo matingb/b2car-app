@@ -47,17 +47,19 @@ export default function TurnoDateTimePicker({ fecha, horarios, onChange }: Props
         <div style={styles.calendarPickerRow}>
           <Clock size={20} color={COLOR.TEXT.SECONDARY} style={{ flexShrink: 0 }} />
 
-          <Calendar
-            value={fecha}
-            onChange={(f) => onChange({ fecha: f })}
-            dataTestId="turno-fecha-picker-desktop"
-          >
-            <div style={styles.datePillWrapper} title="Hacé clic para cambiar la fecha">
-              <span style={styles.datePillText}>
-                {formatFechaPill(fecha) || fecha}
-              </span>
-            </div>
-          </Calendar>
+          <div style={{ width: "200px" }}>
+            <Calendar
+              value={fecha}
+              onChange={(f) => onChange({ fecha: f })}
+              dataTestId="turno-fecha-picker-desktop"
+            >
+              <div style={styles.datePillWrapper} title="Hacé clic para cambiar la fecha">
+                <span style={styles.datePillText}>
+                  {formatFechaPill(fecha) || fecha}
+                </span>
+              </div>
+            </Calendar>
+          </div>
 
           {!isAllDay && (
             <>

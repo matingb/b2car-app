@@ -137,7 +137,11 @@ export function EmpleadosProvider({ children }: { children: React.ReactNode }) {
     async (input: CreateEmpleadoInput): Promise<CreateEmpleadoResult> => {
       setIsLoading(true);
       try {
-        const rawVigenteDesde = emptyToNull(input.salarioVigenteDesde);
+        const rawVigenteDesde =
+          emptyToNull(input.salarioVigenteDesde) ??
+          (input.fechaIngreso && input.salario !== null && input.salario !== undefined && input.salario > 0
+            ? input.fechaIngreso.slice(0, 7)
+            : null);
         const salarioVigenteDesde = rawVigenteDesde
           ? /^\d{4}-\d{2}$/.test(rawVigenteDesde)
             ? `${rawVigenteDesde}-01`

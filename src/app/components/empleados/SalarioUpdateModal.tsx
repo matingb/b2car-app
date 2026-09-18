@@ -3,9 +3,11 @@
 import React, { useEffect, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
 import NumberInput from "@/app/components/ui/NumberInput";
+import Calendar from "@/app/components/ui/Calendar";
 import { useEmpleados, type Empleado } from "@/app/providers/EmpleadosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { COLOR } from "@/theme/theme";
+import { toISODateLocal } from "@/lib/fechas";
 
 type Props = {
   open: boolean;
@@ -76,11 +78,18 @@ export default function SalarioUpdateModal({ open, empleado, onClose, onSaved }:
       </div>
       <div style={styles.field}>
         <label style={styles.label}>Vigente desde</label>
-        <input
-          type="month"
-          style={styles.input}
-          value={vigenteDesde}
-          onChange={(e) => setVigenteDesde(e.target.value)}
+        <Calendar
+          value={
+            vigenteDesde
+              ? /^\d{4}-\d{2}$/.test(vigenteDesde)
+                ? `${vigenteDesde}-01`
+                : vigenteDesde
+              : toISODateLocal(new Date()).slice(0, 8) + "01"
+          }
+          onChange={(fecha) =>
+            setVigenteDesde(fecha ? fecha.slice(0, 7) : "")
+          }
+          dataTestId="salario-vigente-desde"
         />
       </div>
     </Modal>
@@ -101,14 +110,5 @@ const styles = {
     fontSize: 13,
     marginBottom: 6,
     color: COLOR.TEXT.SECONDARY,
-  },
-  input: {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 8,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.INPUT.PRIMARY.BACKGROUND,
-    fontSize: 14,
-    outline: "none",
   },
 } as const;

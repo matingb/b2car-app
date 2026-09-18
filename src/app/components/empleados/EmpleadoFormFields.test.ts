@@ -52,13 +52,21 @@ describe("validateEmpleadoForm", () => {
     expect(validateEmpleadoForm(baseValues({ salario: 0, salarioVigenteDesde: "2026-08" }))).toBe(true);
   });
 
-  it("acepta salario positivo con vigencia", () => {
+  it("acepta salario 0 sin fecha de ingreso ni vigencia", () => {
+    expect(validateEmpleadoForm(baseValues({ salario: 0, salarioVigenteDesde: "", fechaIngreso: "" }))).toBe(true);
+  });
+
+  it("acepta salario positivo con vigente desde", () => {
     expect(validateEmpleadoForm(baseValues({ salario: 100000, salarioVigenteDesde: "2026-08" }))).toBe(true);
   });
 
-  it("rechaza salario si falta vigencia", () => {
-    expect(validateEmpleadoForm(baseValues({ salario: 100000, salarioVigenteDesde: "" }))).toBe(false);
-    expect(validateEmpleadoForm(baseValues({ salario: 100000, salarioVigenteDesde: "   " }))).toBe(false);
+  it("acepta salario positivo con fecha de ingreso", () => {
+    expect(validateEmpleadoForm(baseValues({ salario: 100000, fechaIngreso: "2026-08-15" }))).toBe(true);
+  });
+
+  it("rechaza salario positivo si faltan vigente desde y fecha de ingreso", () => {
+    expect(validateEmpleadoForm(baseValues({ salario: 100000, salarioVigenteDesde: "", fechaIngreso: "" }))).toBe(false);
+    expect(validateEmpleadoForm(baseValues({ salario: 100000, salarioVigenteDesde: "   ", fechaIngreso: "   " }))).toBe(false);
   });
 
   it("rechaza salario negativo", () => {

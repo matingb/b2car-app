@@ -99,4 +99,88 @@ describe("Calendar UI Component", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
+
+  it("permite cambiar de mes directamente desde la grilla de meses", async () => {
+    render(<Calendar value="2026-09-15" onChange={vi.fn()} />);
+
+    // Abrir popover
+    await userEvent.click(screen.getByRole("button", { name: /2026-09-15/i }));
+    expect(screen.getByText("Septiembre 2026")).toBeInTheDocument();
+
+    // Clic en el selector de mes
+    const monthSelectBtn = screen.getByRole("button", { name: "Seleccionar mes" });
+    await userEvent.click(monthSelectBtn);
+
+    // Debe mostrar la grilla de meses con los 12 meses
+    const mayoBtn = screen.getByRole("button", { name: "Mayo" });
+    expect(mayoBtn).toBeInTheDocument();
+
+    // Seleccionar Mayo
+    await userEvent.click(mayoBtn);
+
+    // Debe volver a la vista de días con Mayo 2026
+    expect(screen.getByText("Mayo 2026")).toBeInTheDocument();
+  });
+
+  it("permite cambiar de año navegando bloques de años y seleccionar una fecha completa", async () => {
+    const onChange = vi.fn();
+    render(<Calendar value="2026-09-15" onChange={onChange} />);
+
+    // Abrir popover
+    await userEvent.click(screen.getByRole("button", { name: /2026-09-15/i }));
+
+    // Clic en el selector de año
+    const yearSelectBtn = screen.getByRole("button", { name: "Seleccionar año" });
+    await userEvent.click(yearSelectBtn);
+
+    // Debe mostrar el rango de años
+    expect(screen.getByText("2016 – 2027")).toBeInTheDocument();
+
+    // Navegar a la página anterior de años (2004 – 2015)
+    const prevYearsBtn = screen.getByRole("button", { name: "Años anteriores" });
+    await userEvent.click(prevYearsBtn);
+    expect(screen.getByText("2004 – 2015")).toBeInTheDocument();
+
+    // Navegar una página más atrás (1992 – 2003)
+    await userEvent.click(prevYearsBtn);
+    expect(screen.getByText("1992 – 2003")).toBeInTheDocument();
+
+    // Seleccionar el año 1995
+    const year1995Btn = screen.getByRole("button", { name: "1995" });
+    await userEvent.click(year1995Btn);
+
+    // Pasa automáticamente a la vista de meses para 1995
+    const marzoBtn = screen.getByRole("button", { name: "Marzo" });
+    expect(marzoBtn).toBeInTheDocument();
+
+    // Seleccionar Marzo
+    await userEvent.click(marzoBtn);
+
+    // Vuelve a la vista de días de Marzo 1995
+    expect(screen.getByText("Marzo 1995")).toBeInTheDocument();
+
+    // Seleccionar el día 10 de Marzo
+    const day10Btn = screen.getByRole("button", { name: "10 de Marzo" });
+    await userEvent.click(day10Btn);
+
+    // Emite la fecha 1995-03-10
+    expect(onChange).toHaveBeenCalledWith("1995-03-10");
+  });
+
+  it("permite volver a la vista de días usando el botón 'Volver a días'", async () => {
+    render(<Calendar value="2026-09-15" onChange={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /2026-09-15/i }));
+
+    // Ir a la vista de meses
+    await userEvent.click(screen.getByRole("button", { name: "Seleccionar mes" }));
+    expect(screen.getByRole("button", { name: "Volver a días" })).toBeInTheDocument();
+
+    // Clic en 'Volver a días'
+    await userEvent.click(screen.getByRole("button", { name: "Volver a días" }));
+
+    // Comprobar que regresó a la vista de días
+    expect(screen.getByText("Septiembre 2026")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Volver a días" })).not.toBeInTheDocument();
+  });
 });

@@ -199,6 +199,68 @@ describe("/api/empleados", () => {
     expect(res.status).toBe(400);
   });
 
+  it("POST con salario 0 sin salario_vigente_desde ni fecha_ingreso devuelve 201 y no registra historial", async () => {
+    vi.mocked(empleadosService.create).mockResolvedValue({
+      data: createEmpleadoRow({ id: "EMP-0", salario: 0 }),
+      error: null,
+    });
+
+    const { res, body } = await postEmpleado({
+      salario: 0,
+    });
+
+    expect(res.status).toBe(201);
+    expect(body.data?.id).toBe("EMP-0");
+    expect(body.data?.salario).toBe(0);
+    expect(empleadosService.recordSalarioChange).not.toHaveBeenCalled();
+    expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "TEN-1");
+  });
+
+  it("POST con salario 0 con salario_vigente_desde devuelve 201 y registra historial con monto 0", async () => {
+    vi.mocked(empleadosService.create).mockResolvedValue({
+      data: createEmpleadoRow({ id: "EMP-0-VIG", salario: 0 }),
+      error: null,
+    });
+
+    const { res, body } = await postEmpleado({
+      salario: 0,
+      salario_vigente_desde: "2026-09-01",
+    });
+
+    expect(res.status).toBe(201);
+    expect(body.data?.id).toBe("EMP-0-VIG");
+    expect(body.data?.salario).toBe(0);
+    expect(empleadosService.recordSalarioChange).toHaveBeenCalledWith(
+      expect.anything(),
+      "EMP-0-VIG",
+      "TAL-1",
+      0,
+      "2026-09-01"
+    );
+  });
+
+  it("POST con salario positivo y fecha_ingreso sin salario_vigente_desde deriva vigencia del mes de ingreso", async () => {
+    vi.mocked(empleadosService.create).mockResolvedValue({
+      data: createEmpleadoRow({ id: "EMP-DERIVADO", salario: 500000, fecha_ingreso: "2026-04-15" }),
+      error: null,
+    });
+
+    const { res, body } = await postEmpleado({
+      salario: 500000,
+      fecha_ingreso: "2026-04-15",
+    });
+
+    expect(res.status).toBe(201);
+    expect(body.data?.id).toBe("EMP-DERIVADO");
+    expect(empleadosService.recordSalarioChange).toHaveBeenCalledWith(
+      expect.anything(),
+      "EMP-DERIVADO",
+      "TAL-1",
+      500000,
+      "2026-04-01"
+    );
+  });
+
   it("POST exitoso devuelve 201", async () => {
     vi.mocked(empleadosService.create).mockResolvedValue({
       data: createEmpleadoRow({ id: "EMP-1" }),

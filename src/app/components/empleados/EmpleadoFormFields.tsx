@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo } from "react";
+import Calendar from "@/app/components/ui/Calendar";
 import { BREAKPOINTS, COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import NumberInput from "@/app/components/ui/NumberInput";
 import type { Taller } from "@/model/types";
+import { toISODateLocal } from "@/lib/fechas";
 
 export type EmpleadoFormFieldsValues = {
   tallerId: string;
@@ -30,16 +32,17 @@ type Props = {
 export function validateEmpleadoForm(
   values: EmpleadoFormFieldsValues,
 ): boolean {
-  const hasValidSalario =
-    values.salario === null ||
-    (values.salario >= 0 && Boolean(values.salarioVigenteDesde?.trim()));
+  const hasSalario = values.salario !== null && values.salario > 0;
+  const hasVigencia = Boolean(values.salarioVigenteDesde?.trim()) || Boolean(values.fechaIngreso?.trim());
+  const hasVigenciaIfSalario = !hasSalario || hasVigencia;
 
   return Boolean(
     values.tallerId.trim() &&
     values.nombre.trim() &&
     values.apellido.trim() &&
     values.dni.trim() &&
-    hasValidSalario,
+    (values.salario === null || values.salario >= 0) &&
+    hasVigenciaIfSalario,
   );
 }
 
@@ -167,20 +170,25 @@ export default function EmpleadoFormFields({
       <div css={styles.row}>
         <div style={styles.field}>
           <label style={styles.label}>Fecha de nacimiento</label>
-          <input
-            type="date"
-            style={styles.input}
+          <Calendar
             value={values.cumpleanos}
-            onChange={(e) => onChange({ cumpleanos: e.target.value })}
+            onChange={(fecha) => onChange({ cumpleanos: fecha })}
+            dataTestId="empleado-form-cumpleanos"
           />
         </div>
         <div style={styles.field}>
           <label style={styles.label}>Fecha de ingreso</label>
-          <input
-            type="date"
-            style={styles.input}
+          <Calendar
             value={values.fechaIngreso}
-            onChange={(e) => onChange({ fechaIngreso: e.target.value })}
+            onChange={(fecha) => {
+              onChange({
+                fechaIngreso: fecha,
+                ...(fecha && !values.salarioVigenteDesde
+                  ? { salarioVigenteDesde: fecha.slice(0, 7) }
+                  : {}),
+              });
+            }}
+            dataTestId="empleado-form-fecha-ingreso"
           />
         </div>
       </div>
@@ -198,13 +206,18 @@ export default function EmpleadoFormFields({
           </div>
           <div style={styles.field}>
             <label style={styles.label}>Vigente desde</label>
-            <input
-              type="month"
-              style={styles.input}
-              value={values.salarioVigenteDesde ?? ""}
-              onChange={(e) =>
-                onChange({ salarioVigenteDesde: e.target.value })
+            <Calendar
+              value={
+                values.salarioVigenteDesde
+                  ? /^\d{4}-\d{2}$/.test(values.salarioVigenteDesde)
+                    ? `${values.salarioVigenteDesde}-01`
+                    : values.salarioVigenteDesde
+                  : toISODateLocal(new Date()).slice(0, 8) + "01"
               }
+              onChange={(fecha) =>
+                onChange({ salarioVigenteDesde: fecha ? fecha.slice(0, 7) : "" })
+              }
+              dataTestId="empleado-form-vigente-desde"
             />
           </div>
         </div>
