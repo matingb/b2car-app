@@ -6,8 +6,8 @@ import { Cliente, TipoCliente } from "@/model/types";
 
 import { PermissionValue } from "@/lib/permissions";
 
-let talleresMock: Array<{ id: string; nombre: string; ubicacion: string }> = [];
-let hasPermissionMock: (p: PermissionValue) => boolean = () => true;
+const talleresMock: Array<{ id: string; nombre: string; ubicacion: string }> = [];
+const hasPermissionMock: (p: PermissionValue) => boolean = () => true;
 vi.mock("@/app/providers/TenantProvider", () => ({
   useTenant: () => ({
     talleres: talleresMock,
