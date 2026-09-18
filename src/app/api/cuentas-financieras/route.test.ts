@@ -10,8 +10,13 @@ vi.mock("@/lib/requirePermission", () => ({
   requirePermission: vi.fn().mockResolvedValue(null),
 }));
 
+vi.mock("@/lib/permissions.server", () => ({
+  hasUserPermission: vi.fn().mockResolvedValue(true),
+}));
+
 import { createClient } from "@/supabase/server";
 import { requirePermission } from "@/lib/requirePermission";
+import { hasUserPermission } from "@/lib/permissions.server";
 
 const ACCOUNT_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -32,7 +37,13 @@ function cuentaRow(overrides: Record<string, unknown> = {}) {
 function mockSupabase(options: { rpc?: ReturnType<typeof vi.fn>; session?: unknown } = {}) {
   const session = options.session === undefined ? { access_token: "token" } : options.session;
   return {
-    auth: { getSession: vi.fn().mockResolvedValue({ data: { session } }) },
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session } }),
+      getClaims: vi.fn().mockResolvedValue({
+        data: session ? { claims: { user_role: "admin", plan_sub: "PRO" } } : null,
+        error: session ? null : new Error("No session"),
+      }),
+    },
     rpc: options.rpc ?? vi.fn(),
   } as unknown as SupabaseClient;
 }
@@ -41,12 +52,11 @@ describe("/api/cuentas-financieras", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requirePermission).mockResolvedValue(null);
+    vi.mocked(hasUserPermission).mockResolvedValue(true);
   });
 
   it("requiere una sesión para listar", async () => {
-    vi.mocked(requirePermission).mockResolvedValueOnce(
-      Response.json({ data: null, error: "Unauthorized" }, { status: 401 })
-    );
+    vi.mocked(createClient).mockResolvedValue(mockSupabase({ session: null }));
 
     const response = await GET();
 
@@ -54,7 +64,7 @@ describe("/api/cuentas-financieras", () => {
     expect(await response.json()).toMatchObject({ data: null, error: "Unauthorized" });
   });
 
-  it("lista las cuentas mapeando el resultado de la RPC", async () => {
+  it("lista las cuentas con saldos si tiene FinanzasView", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: [cuentaRow()], error: null });
     vi.mocked(createClient).mockResolvedValue(mockSupabase({ rpc }));
 
@@ -69,6 +79,25 @@ describe("/api/cuentas-financieras", () => {
         tipo: "EFECTIVO",
         saldoInicial: 2500.5,
         saldoActual: 2300.5,
+      }),
+    ]);
+  });
+
+  it("oculta saldos (0) si el usuario no tiene FinanzasView", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: [cuentaRow()], error: null });
+    vi.mocked(createClient).mockResolvedValue(mockSupabase({ rpc }));
+    vi.mocked(hasUserPermission).mockResolvedValueOnce(false);
+
+    const response = await GET();
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual([
+      expect.objectContaining({
+        id: ACCOUNT_ID,
+        tipo: "EFECTIVO",
+        saldoInicial: 0,
+        saldoActual: 0,
       }),
     ]);
   });

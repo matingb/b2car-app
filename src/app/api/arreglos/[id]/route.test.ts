@@ -1,15 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { PUT, DELETE } from "./route";
+import { GET, PUT, DELETE } from "./route";
 import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { arregloService } from "../arregloService";
 import { syncArregloDescripcion } from "../arregloDescripcionService";
+import { arregloCompletoService } from "../arregloCompletoService";
+import { hasUserPermission } from "@/lib/permissions.server";
 import { NextRequest } from "next/server";
+import { AuthError } from "@supabase/supabase-js";
 import { Arreglo } from "@/model/types";
 import { ServiceError } from "@/app/api/serviceError";
 
 vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
+}));
+
+vi.mock("@/lib/permissions.server", () => ({
+  hasUserPermission: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
@@ -30,11 +37,23 @@ vi.mock("../arregloDescripcionService", () => ({
   syncArregloDescripcion: vi.fn(),
 }));
 
+vi.mock("../arregloCompletoService", () => ({
+  arregloCompletoService: {
+    getArregloDetalleCompleto: vi.fn(),
+  },
+}));
+
 describe("Mutaciones /api/arreglos/[id]", () => {
   let detalleLookupResult: { data: unknown; error: unknown };
   let formularioLookupResult: { data: unknown; error: unknown };
 
   const mockSupabase = {
+    auth: {
+      getClaims: vi.fn().mockResolvedValue({
+        data: { claims: { user_role: "admin", plan_sub: "PRO" } },
+        error: null,
+      }),
+    },
     from: vi.fn((table: string) => {
       if (table === "detalle_form_custom") {
         return {
@@ -72,6 +91,7 @@ describe("Mutaciones /api/arreglos/[id]", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(hasUserPermission).mockResolvedValue(true);
 
     detalleLookupResult = { data: [], error: null };
     formularioLookupResult = { data: null, error: null };
@@ -91,6 +111,84 @@ describe("Mutaciones /api/arreglos/[id]", () => {
     vi.mocked(syncArregloDescripcion).mockResolvedValue({
       descripcion: "Service | Cambio aceite",
       error: null,
+    });
+  });
+
+  describe("GET /api/arreglos/[id]", () => {
+    const mockDetalleResponse = {
+      arreglo: {
+        id: "a1",
+        precio_final: 15000,
+        precio_sin_iva: 12396.69,
+        total_cobrado: 5000,
+        saldo_pendiente: 10000,
+        descripcion: "Frenos",
+      } as unknown as Arreglo,
+      detalles: [{ id: "d1", arreglo_id: "a1", descripcion: "Pastillas", cantidad: 1, valor: 5000, categoria_arreglo_id: null, empleado_id: null }],
+      asignaciones: [],
+      detalle_formulario: null,
+      cobros: [{ id: "c1", operacion_id: "op1", importe: 5000, cuenta_id: "cta1", cuenta_nombre: "Caja", fecha: "2026-03-01", created_at: "2026-03-01T00:00:00.000Z" }],
+    };
+
+    it("devuelve 401 si no hay sesión autenticada", async () => {
+      vi.mocked(mockSupabase.auth.getClaims).mockResolvedValueOnce({
+        data: null,
+        error: new AuthError("Unauthorized"),
+      });
+
+      const res = await GET(new NextRequest("http://localhost/api/arreglos/a1"), {
+        params: Promise.resolve({ id: "a1" }),
+      });
+      expect(res.status).toBe(401);
+    });
+
+    it("devuelve 404 si el arreglo no existe", async () => {
+      vi.mocked(arregloCompletoService.getArregloDetalleCompleto).mockResolvedValueOnce({
+        data: null,
+        error: ServiceError.NotFound,
+      });
+
+      const res = await GET(new NextRequest("http://localhost/api/arreglos/a1"), {
+        params: Promise.resolve({ id: "a1" }),
+      });
+      expect(res.status).toBe(404);
+    });
+
+    it("devuelve los precios completos si el usuario tiene ArreglosPreciosView", async () => {
+      vi.mocked(arregloCompletoService.getArregloDetalleCompleto).mockResolvedValueOnce({
+        data: mockDetalleResponse,
+        error: null,
+      });
+
+      const res = await GET(new NextRequest("http://localhost/api/arreglos/a1"), {
+        params: Promise.resolve({ id: "a1" }),
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.data.arreglo.precio_final).toBe(15000);
+      expect(body.data.detalles[0].valor).toBe(5000);
+      expect(body.data.cobros).toHaveLength(1);
+    });
+
+    it("redacta precios a 0 y oculta cobros si el usuario no tiene ArreglosPreciosView", async () => {
+      vi.mocked(arregloCompletoService.getArregloDetalleCompleto).mockResolvedValueOnce({
+        data: mockDetalleResponse,
+        error: null,
+      });
+      vi.mocked(hasUserPermission).mockResolvedValueOnce(false);
+
+      const res = await GET(new NextRequest("http://localhost/api/arreglos/a1"), {
+        params: Promise.resolve({ id: "a1" }),
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.data.arreglo.precio_final).toBe(0);
+      expect(body.data.arreglo.total_cobrado).toBe(0);
+      expect(body.data.detalles[0].valor).toBe(0);
+      expect(body.data.cobros).toEqual([]);
+      expect(body.data.arreglo.descripcion).toBe("Frenos");
     });
   });
 

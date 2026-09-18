@@ -15,24 +15,28 @@ import {
   validateUuid,
 } from "../finanzasRouteUtils";
 
+import { hasUserPermission } from "@/lib/permissions.server";
+
 type RouteContext = { params: Promise<{ id: string }> };
 
-function firstCuenta(data: unknown) {
-  return mapCuenta(asRows(data)[0]);
+function firstCuenta(data: unknown, options?: { hideBalances?: boolean }) {
+  return mapCuenta(asRows(data)[0], options);
 }
 
 export async function GET(_req: NextRequest, { params }: RouteContext) {
-  const authError = await requirePermission(Permission.FinanzasView);
-  if (authError) return authError;
-
   const supabase = await createClient();
+  const { data: auth, error: authError } = await supabase.auth.getClaims();
+  if (authError || !auth?.claims) {
+    return Response.json({ data: null, error: "Unauthorized" } satisfies ObtenerCuentaFinancieraResponse, { status: 401 });
+  }
 
   const { id } = await params;
   const idError = validateUuid(id);
   if (idError) return Response.json({ data: null, error: idError } satisfies ObtenerCuentaFinancieraResponse, { status: 400 });
 
   const { data, error } = await supabase.rpc("rpc_finanzas_obtener_cuenta", { p_cuenta_id: id });
-  const cuenta = firstCuenta(data);
+  const hasFinanzasView = await hasUserPermission(supabase, Permission.FinanzasView);
+  const cuenta = firstCuenta(data, { hideBalances: !hasFinanzasView });
   if (error || !cuenta) {
     const status = error ? rpcStatus(error) : 404;
     return Response.json(

@@ -4,6 +4,14 @@ import path from "path";
 import fs from "fs";
 import { testClient } from "./index";
 
+vi.mock("server-only", () => ({}));
+
+vi.mock("next/cache", () => ({
+  unstable_cache: vi.fn((fn: (...args: unknown[]) => unknown) => fn),
+  revalidateTag: vi.fn(),
+  revalidatePath: vi.fn(),
+}));
+
 const DEFAULT_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
 /**

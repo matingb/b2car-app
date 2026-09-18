@@ -7,6 +7,7 @@ import {
   normalizePaginationLimit,
   sliceWithHasMore,
 } from "@/lib/pagination";
+import { mapArreglo } from "./arregloMapper";
 
 export type ArregloListFilters = {
   tallerId?: string;
@@ -218,19 +219,7 @@ export const supabaseArregloRepository: ArregloRepository = {
 
     const rows = (data ?? []) as Array<Record<string, unknown>>;
     const { items, hasMore } = sliceWithHasMore(rows, limit);
-    const mappedRows = items.map((r) => {
-      const { empleados_detallados, facturas_electronicas, ...rest } = r;
-      const facturas = Array.isArray(facturas_electronicas)
-        ? (facturas_electronicas as Array<Record<string, unknown>>)
-        : [];
-      const factura = facturas.find((f) => f?.estado === "AUTORIZADA") || facturas[0] || null;
-      const mapped = {
-        ...rest,
-        empleados: empleados_detallados || [],
-        factura_electronica: factura,
-      };
-      return mapped;
-    }) as ArregloListPageRow[];
+    const mappedRows = items.map((r) => mapArreglo(r)) as unknown as ArregloListPageRow[];
 
     return {
       data: {
@@ -249,19 +238,7 @@ export const supabaseArregloRepository: ArregloRepository = {
       .single();
     if (error) return { data: null, error: toServiceError(error) };
 
-    const rawData = data as Record<string, unknown>;
-    const { empleados_detallados, facturas_electronicas, ...rest } = rawData;
-    const facturas = Array.isArray(facturas_electronicas)
-      ? (facturas_electronicas as Array<Record<string, unknown>>)
-      : [];
-    const factura = facturas.find((f) => f?.estado === "AUTORIZADA") || facturas[0] || null;
-    const mappedData = {
-      ...rest,
-      empleados: empleados_detallados || [],
-      factura_electronica: factura,
-    };
-
-    return { data: mappedData as unknown as Arreglo, error: null };
+    return { data: mapArreglo(data), error: null };
   },
 
   async create(supabase, payload) {
@@ -272,14 +249,7 @@ export const supabaseArregloRepository: ArregloRepository = {
       .single();
     if (error) return { data: null, error: toServiceError(error) };
     
-    const rawData = data as Record<string, unknown>;
-    const { empleados_detallados, ...rest } = rawData;
-    const mappedData = {
-      ...rest,
-      empleados: empleados_detallados || [],
-    };
-
-    return { data: mappedData as Arreglo, error: null };
+    return { data: mapArreglo(data), error: null };
   },
 
   async updateById(supabase, id, payload) {
@@ -291,14 +261,7 @@ export const supabaseArregloRepository: ArregloRepository = {
       .single();
     if (error) return { data: null, error: toServiceError(error) };
 
-    const rawData = data as Record<string, unknown>;
-    const { empleados_detallados, ...rest } = rawData;
-    const mappedData = {
-      ...rest,
-      empleados: empleados_detallados || [],
-    };
-
-    return { data: mappedData as Arreglo, error: null };
+    return { data: mapArreglo(data), error: null };
   },
 
   async listOperacionIdsByArregloId(supabase, id) {

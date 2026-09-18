@@ -196,7 +196,7 @@ describe("supabaseArregloRepository", () => {
             monto_pendiente: 8000,
           },
         ],
-      } as any);
+      } as unknown as import("@supabase/supabase-js").PostgrestSingleResponse<unknown>);
 
       const result = await supabaseArregloRepository.arreglosResumen(
         supabase,

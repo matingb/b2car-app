@@ -16,6 +16,9 @@ import {
 import { buildArregloDescripcion } from "@/lib/arreglos";
 import { isValidUuid } from "@/lib/uuid";
 import { toISODateTimeWithCurrentTime } from "@/lib/fechas";
+import { Permission } from "@/lib/permissions";
+import { hasUserPermission } from "@/lib/permissions.server";
+import { mapArreglo } from "./arregloMapper";
 
 export type GetArreglosResponse = {
     data: Arreglo[] | null;
@@ -26,7 +29,15 @@ export type GetArreglosResponse = {
 };
 
 export async function GET(req: NextRequest) {
-    const supabase = await createClient()
+    const supabase = await createClient();
+    const { data: auth, error: authError } = await supabase.auth.getClaims();
+    if (authError || !auth?.claims) {
+        return Response.json(
+            { data: [], page: { hasMore: false }, error: "Unauthorized" } satisfies GetArreglosResponse,
+            { status: 401 }
+        );
+    }
+
     const query = req.nextUrl.searchParams;
     const toUndef = (value: string | null) => {
         const trimmed = String(value ?? "").trim();
@@ -47,7 +58,7 @@ export async function GET(req: NextRequest) {
         limit,
     };
 
-    const { data, error } = await arregloService.getArreglo(supabase, filters)
+    const { data, error } = await arregloService.getArreglo(supabase, filters);
     if (error) {
         const status = error === ServiceError.NotFound ? 404 : 500;
         const message = status === 404 ? "Arreglos no encontrados" : "Error cargando arreglos";
@@ -55,18 +66,21 @@ export async function GET(req: NextRequest) {
             data: [],
             page: { hasMore: false },
             error: message
-        }, { status })
+        }, { status });
     }
 
     logger.debug("GET /api/arreglos - data:", data, "error:", error);
 
-    const arreglos: Arreglo[] = (data?.items ?? [])
+    const hasPreciosView = await hasUserPermission(supabase, Permission.ArreglosPreciosView);
+    const hidePrices = !hasPreciosView;
+
+    const arreglos: Arreglo[] = (data?.items ?? []).map((item) => mapArreglo(item, { hidePrices }));
     return Response.json({
         data: arreglos,
         page: {
             hasMore: data?.hasMore ?? false,
         },
-    })
+    });
 }
 
 export type CreateArregloResponse = {
@@ -363,6 +377,8 @@ export async function POST(req: Request) {
         supabase,
         (createdArreglo as { tenant_id?: string | null }).tenant_id
     );
-    return Response.json({ data: createdArreglo, error: null }, { status: 201 });
+
+    const hasPreciosView = await hasUserPermission(supabase, Permission.ArreglosPreciosView);
+    return Response.json({ data: mapArreglo(createdArreglo, { hidePrices: !hasPreciosView }), error: null }, { status: 201 });
 
 }

@@ -3,11 +3,18 @@ import { GET, POST } from "./route";
 import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { arregloService } from "@/app/api/arreglos/arregloService";
+import { hasUserPermission } from "@/lib/permissions.server";
 import { createCreateArregloRequest } from "@/tests/factories";
 import { NextRequest } from "next/server";
+import { AuthError } from "@supabase/supabase-js";
+import type { Arreglo } from "@/model/types";
 
 vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
+}));
+
+vi.mock("@/lib/permissions.server", () => ({
+  hasUserPermission: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
@@ -42,6 +49,12 @@ describe("POST /api/arreglos", () => {
   };
 
   const mockSupabase = {
+    auth: {
+      getClaims: vi.fn().mockResolvedValue({
+        data: { claims: { user_role: "admin", plan_sub: "PRO" } },
+        error: null,
+      }),
+    },
     rpc,
     from: vi.fn((table: string) => {
       if (table === "formularios") {
@@ -75,6 +88,7 @@ describe("POST /api/arreglos", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(hasUserPermission).mockResolvedValue(true);
 
     formularioLookupResult = { data: null, error: null };
     rpc.mockResolvedValue({ data: "a1", error: null });
@@ -84,6 +98,16 @@ describe("POST /api/arreglos", () => {
     });
 
     vi.mocked(createClient).mockResolvedValue(mockSupabase);
+  });
+
+  it("devuelve 401 si no hay sesión autenticada en GET", async () => {
+    vi.mocked(mockSupabase.auth.getClaims).mockResolvedValueOnce({
+      data: null,
+      error: new AuthError("Unauthorized"),
+    });
+
+    const response = await GET(new NextRequest("http://localhost/api/arreglos"));
+    expect(response.status).toBe(401);
   });
 
   it("recibe el filtro de estado de pago en el listado", async () => {
@@ -96,6 +120,41 @@ describe("POST /api/arreglos", () => {
       mockSupabase,
       expect.objectContaining({ tallerId: "t1", estadoPago: "PARCIAL" })
     );
+  });
+
+  it("conserva precios en GET si el usuario tiene ArreglosPreciosView", async () => {
+    vi.mocked(arregloService.getArreglo).mockResolvedValueOnce({
+      data: {
+        items: [{ ...createdArreglo, precio_final: 2500 } as unknown as Arreglo],
+        hasMore: false,
+      },
+      error: null,
+    });
+
+    const response = await GET(new NextRequest("http://localhost/api/arreglos"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0].precio_final).toBe(2500);
+  });
+
+  it("redacta precios a 0 en GET si el usuario no tiene ArreglosPreciosView", async () => {
+    vi.mocked(arregloService.getArreglo).mockResolvedValueOnce({
+      data: {
+        items: [{ ...createdArreglo, precio_final: 2500 } as unknown as Arreglo],
+        hasMore: false,
+      },
+      error: null,
+    });
+    vi.mocked(hasUserPermission).mockResolvedValueOnce(false);
+
+    const response = await GET(new NextRequest("http://localhost/api/arreglos"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0].precio_final).toBe(0);
+    expect(body.data[0].precio_sin_iva).toBe(0);
+    expect(body.data[0].descripcion).toBe("Cambio aceite");
   });
 
   it("si el insert es exitoso, registra cambios en los stats", async () => {

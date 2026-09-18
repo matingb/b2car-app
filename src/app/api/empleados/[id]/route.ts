@@ -13,7 +13,9 @@ import { empleadosService, type EmpleadoRow } from "../empleadosService";
 import { ServiceError } from "@/app/api/serviceError";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
-function mapEmpleado(row: EmpleadoRow): EmpleadoDTO {
+import { hasUserPermission } from "@/lib/permissions.server";
+
+function mapEmpleado(row: EmpleadoRow, options?: { hideSalaries?: boolean }): EmpleadoDTO {
   return {
     id: row.id,
     taller_id: row.taller_id,
@@ -23,7 +25,11 @@ function mapEmpleado(row: EmpleadoRow): EmpleadoDTO {
     email: row.email ?? null,
     telefono: row.telefono ?? null,
     cumpleanos: row.cumpleanos ?? null,
-    salario: row.salario === null || row.salario === undefined ? null : Number(row.salario),
+    salario: options?.hideSalaries
+      ? null
+      : row.salario === null || row.salario === undefined
+        ? null
+        : Number(row.salario),
     fecha_ingreso: row.fecha_ingreso ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -39,10 +45,11 @@ function isValidIsoDate(value: string): boolean {
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const authError = await requirePermission(Permission.EmpleadosView);
-  if (authError) return authError;
-
   const supabase = await createClient();
+  const { data: auth, error: authError } = await supabase.auth.getClaims();
+  if (authError || !auth?.claims) {
+    return Response.json({ data: null, error: "Unauthorized" } satisfies GetEmpleadoByIdResponse, { status: 401 });
+  }
 
   const { id } = await params;
   if (!id) {
@@ -60,8 +67,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     );
   }
 
+  const hasEmpleadosView = await hasUserPermission(supabase, Permission.EmpleadosView);
+  const hideSalaries = !hasEmpleadosView;
+
   return Response.json(
-    { data: mapEmpleado(data), error: null } satisfies GetEmpleadoByIdResponse,
+    { data: mapEmpleado(data, { hideSalaries }), error: null } satisfies GetEmpleadoByIdResponse,
     { status: 200 }
   );
 }

@@ -11,6 +11,10 @@ vi.mock("@/lib/requirePermission", () => ({
   requirePermission: vi.fn().mockResolvedValue(null),
 }));
 
+vi.mock("@/lib/permissions.server", () => ({
+  hasUserPermission: vi.fn().mockResolvedValue(true),
+}));
+
 vi.mock("../empleadosService", async () => {
   const actual = await vi.importActual<typeof import("../empleadosService")>("../empleadosService");
   return {
@@ -34,6 +38,7 @@ vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
 
 import { createClient } from "@/supabase/server";
 import { requirePermission } from "@/lib/requirePermission";
+import { hasUserPermission } from "@/lib/permissions.server";
 import { empleadosService, type EmpleadoRow } from "../empleadosService";
 import { ServiceError } from "@/app/api/serviceError";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
@@ -61,15 +66,22 @@ describe("/api/empleados/[id]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requirePermission).mockResolvedValue(null);
+    vi.mocked(hasUserPermission).mockResolvedValue(true);
     vi.mocked(createClient).mockResolvedValue({
-      auth: { getSession: async () => ({ data: { session: { access_token: "t" } } }) },
+      auth: {
+        getSession: async () => ({ data: { session: { access_token: "t" } } }),
+        getClaims: async () => ({ data: { claims: { user_role: "admin", plan_sub: "PRO" } } }),
+      },
     } as unknown as SupabaseClient);
   });
 
   it("GET sin sesión devuelve 401", async () => {
-    vi.mocked(requirePermission).mockResolvedValueOnce(
-      Response.json({ data: null, error: "Unauthorized" }, { status: 401 })
-    );
+    vi.mocked(createClient).mockResolvedValueOnce({
+      auth: {
+        getSession: async () => ({ data: { session: null } }),
+        getClaims: async () => ({ data: null, error: new Error("Unauthorized") }),
+      },
+    } as unknown as SupabaseClient);
 
     const req = new NextRequest("http://localhost/api/empleados/e1");
     const res = await GET(req, { params: Promise.resolve({ id: "e1" }) });
@@ -83,9 +95,9 @@ describe("/api/empleados/[id]", () => {
     expect(res.status).toBe(404);
   });
 
-  it("GET existente devuelve 200 con DTO", async () => {
+  it("GET existente devuelve 200 con DTO y salario si tiene EmpleadosView", async () => {
     vi.mocked(empleadosService.getById).mockResolvedValue({
-      data: createEmpleadoRow({ id: "EMP-1", nombre: "Juan" }),
+      data: createEmpleadoRow({ id: "EMP-1", nombre: "Juan", salario: 1500 }),
       error: null,
     });
     const req = new NextRequest("http://localhost/api/empleados/EMP-1");
@@ -93,6 +105,22 @@ describe("/api/empleados/[id]", () => {
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.data?.id).toBe("EMP-1");
+    expect(body.data?.salario).toBe(1500);
+  });
+
+  it("GET existente oculta salario (null) si el usuario no tiene EmpleadosView", async () => {
+    vi.mocked(empleadosService.getById).mockResolvedValue({
+      data: createEmpleadoRow({ id: "EMP-1", nombre: "Juan", salario: 1500 }),
+      error: null,
+    });
+    vi.mocked(hasUserPermission).mockResolvedValueOnce(false);
+
+    const req = new NextRequest("http://localhost/api/empleados/EMP-1");
+    const res = await GET(req, { params: Promise.resolve({ id: "EMP-1" }) });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.data?.id).toBe("EMP-1");
+    expect(body.data?.salario).toBeNull();
   });
 
   it("PUT actualiza y devuelve 200", async () => {

@@ -15,6 +15,10 @@ import {
 } from "../arregloCompletoService";
 import { arregloMutationService } from "../arregloMutationService";
 
+import { Permission } from "@/lib/permissions";
+import { hasUserPermission } from "@/lib/permissions.server";
+import { mapArreglo, mapArregloDetalleCompleto } from "../arregloMapper";
+
 export type {
   DetalleArreglo,
   AsignacionArregloProducto,
@@ -32,17 +36,25 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient();
+  const { data: auth, error: authError } = await supabase.auth.getClaims();
+  if (authError || !auth?.claims) {
+    return Response.json({ data: null, error: "Unauthorized" } satisfies GetArregloByIdResponse, { status: 401 });
+  }
+
   const { id } = await params;
 
   const { data, error } = await arregloCompletoService.getArregloDetalleCompleto(supabase, id);
 
-  if (error) {
-    const status = error === ServiceError.NotFound ? 404 : 500;
-    const message = error === ServiceError.NotFound ? "Arreglo no encontrado" : "Error cargando arreglo";
-    return Response.json({ data: null, error: message }, { status });
+  if (error || !data) {
+    const status = error === ServiceError.NotFound || !data ? 404 : 500;
+    const message = status === 404 ? "Arreglo no encontrado" : "Error cargando arreglo";
+    return Response.json({ data: null, error: message } satisfies GetArregloByIdResponse, { status });
   }
 
-  return Response.json({ data, error: null });
+  const hasPreciosView = await hasUserPermission(supabase, Permission.ArreglosPreciosView);
+  const mappedData = mapArregloDetalleCompleto(data, { hidePrices: !hasPreciosView });
+
+  return Response.json({ data: mappedData, error: null } satisfies GetArregloByIdResponse);
 }
 
 // PUT /api/arreglos/[id] -> actualizar arreglo (edición parcial)
@@ -58,8 +70,11 @@ export async function PUT(
 
   const result = await arregloMutationService.updateArregloCompleto(supabase, id, payload);
 
+  const hasPreciosView = await hasUserPermission(supabase, Permission.ArreglosPreciosView);
+  const mappedData = result.data ? mapArreglo(result.data, { hidePrices: !hasPreciosView }) : null;
+
   return Response.json(
-    { data: result.data, error: result.error },
+    { data: mappedData, error: result.error },
     { status: result.status }
   );
 }

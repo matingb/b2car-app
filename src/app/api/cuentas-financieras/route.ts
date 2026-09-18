@@ -1,5 +1,6 @@
 import { createClient } from "@/supabase/server";
 import { requirePermission } from "@/lib/requirePermission";
+import { hasUserPermission } from "@/lib/permissions.server";
 import { Permission } from "@/lib/permissions";
 import type {
   CrearCuentaFinancieraResponse,
@@ -23,10 +24,11 @@ function firstCuenta(data: unknown) {
 }
 
 export async function GET() {
-  const authError = await requirePermission(Permission.FinanzasView);
-  if (authError) return authError;
-
   const supabase = await createClient();
+  const { data: auth, error: authError } = await supabase.auth.getClaims();
+  if (authError || !auth?.claims) {
+    return unauthorized<never>();
+  }
 
   const { data, error } = await supabase.rpc("rpc_finanzas_listar_cuentas");
   if (error) {
@@ -36,7 +38,10 @@ export async function GET() {
     );
   }
 
-  const cuentas = mapRows(data, mapCuenta);
+  const hasFinanzasView = await hasUserPermission(supabase, Permission.FinanzasView);
+  const hideBalances = !hasFinanzasView;
+
+  const cuentas = mapRows(data, (row) => mapCuenta(row, { hideBalances }));
   if (!cuentas) {
     return Response.json(
       { data: [], error: "Respuesta inválida al listar cuentas financieras" } satisfies ListarCuentasFinancierasResponse,

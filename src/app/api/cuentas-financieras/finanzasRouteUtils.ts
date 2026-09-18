@@ -407,7 +407,7 @@ export function parseListFilters(url: URL): Validated<{ desde: string | null; ha
   };
 }
 
-export function mapCuenta(row: unknown): CuentaFinanciera | null {
+export function mapCuenta(row: unknown, options?: { hideBalances?: boolean }): CuentaFinanciera | null {
   const source = asRecord(row);
   if (!source) return null;
   const id = asText(pick(source, "id"));
@@ -422,7 +422,17 @@ export function mapCuenta(row: unknown): CuentaFinanciera | null {
   if (!id || !nombre || !isAccountType(tipo) || saldoActual === null || activo === null || !createdAt || !updatedAt) {
     return null;
   }
-  return { id, nombre, tipo, saldoInicial, saldoActual, activo, favorita, createdAt, updatedAt };
+  return {
+    id,
+    nombre,
+    tipo,
+    saldoInicial: options?.hideBalances ? 0 : saldoInicial,
+    saldoActual: options?.hideBalances ? 0 : saldoActual,
+    activo,
+    favorita,
+    createdAt,
+    updatedAt,
+  };
 }
 
 export function mapMovimiento(row: unknown): MovimientoFinanciero | null {

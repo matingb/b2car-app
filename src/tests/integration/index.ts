@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Constantes de entidades pre-existentes en el seed de prueba (supabase/seed.sql).
@@ -44,6 +44,8 @@ export interface TestClientOptions {
   userId?: string;
   tenantId?: string;
   userRole?: string;
+  planSub?: string;
+  tenantName?: string;
   url?: string;
   jwtSecret?: string;
 }
@@ -66,7 +68,8 @@ export function generateTestJwt(options?: TestClientOptions): string {
       aud: "authenticated",
       tenant_id: options?.tenantId || SEED.tenantId,
       user_role: options?.userRole || "admin",
-      tenant_name: "B2Car",
+      plan_sub: options?.planSub || "PRO",
+      tenant_name: options?.tenantName || "B2Car",
       iat: now,
       exp: now + 3600 * 24,
     })
@@ -89,12 +92,55 @@ export function createTestClient(options?: TestClientOptions): SupabaseClient {
 
   const token = generateTestJwt(options);
 
-  return createClient(url, token, {
+  const client = createClient(url, token, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
     },
   });
+
+  const now = Math.floor(Date.now() / 1000);
+  const claims = {
+    sub: options?.userId || SEED.userId,
+    role: "authenticated",
+    aud: "authenticated",
+    tenant_id: options?.tenantId || SEED.tenantId,
+    user_role: options?.userRole || "admin",
+    plan_sub: options?.planSub || "PRO",
+    tenant_name: options?.tenantName || "B2Car",
+    iat: now,
+    exp: now + 3600 * 24,
+  };
+
+  const session = {
+    access_token: token,
+    token_type: "bearer",
+    expires_in: 3600 * 24,
+    refresh_token: "refresh-token",
+    user: {
+      id: claims.sub,
+      app_metadata: {},
+      user_metadata: {},
+      aud: "authenticated",
+      created_at: new Date().toISOString(),
+    },
+  };
+
+  client.auth.getClaims = (async () => ({
+    data: {
+      claims,
+      header: { alg: "HS256", typ: "JWT" },
+      signature: new Uint8Array(),
+    },
+    error: null,
+  })) as unknown as typeof client.auth.getClaims;
+
+  client.auth.getSession = async () => ({
+    data: { session: session as unknown as Session },
+    error: null,
+  });
+
+  return client;
 }
 
 export function createAdminTestClient(): SupabaseClient {
@@ -106,12 +152,55 @@ export function createAdminTestClient(): SupabaseClient {
   const serviceRoleKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY || DEFAULT_SERVICE_ROLE_KEY;
 
-  return createClient(url, serviceRoleKey, {
+  const client = createClient(url, serviceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
     },
   });
+
+  const now = Math.floor(Date.now() / 1000);
+  const claims = {
+    sub: SEED.userId,
+    role: "service_role",
+    aud: "authenticated",
+    tenant_id: SEED.tenantId,
+    user_role: "admin",
+    plan_sub: "PRO",
+    tenant_name: "B2Car",
+    iat: now,
+    exp: now + 3600 * 24,
+  };
+
+  const session = {
+    access_token: serviceRoleKey,
+    token_type: "bearer",
+    expires_in: 3600 * 24,
+    refresh_token: "refresh-token",
+    user: {
+      id: claims.sub,
+      app_metadata: {},
+      user_metadata: {},
+      aud: "authenticated",
+      created_at: new Date().toISOString(),
+    },
+  };
+
+  client.auth.getClaims = (async () => ({
+    data: {
+      claims,
+      header: { alg: "HS256", typ: "JWT" },
+      signature: new Uint8Array(),
+    },
+    error: null,
+  })) as unknown as typeof client.auth.getClaims;
+
+  client.auth.getSession = async () => ({
+    data: { session: session as unknown as Session },
+    error: null,
+  });
+
+  return client;
 }
 
 /**

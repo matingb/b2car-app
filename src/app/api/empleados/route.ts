@@ -8,11 +8,12 @@ import type {
 } from "./contracts";
 import { createClient } from "@/supabase/server";
 import { requirePermission } from "@/lib/requirePermission";
+import { hasUserPermission } from "@/lib/permissions.server";
 import { Permission } from "@/lib/permissions";
 import { empleadosService, type EmpleadoRow } from "./empleadosService";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
-function mapEmpleado(row: EmpleadoRow): EmpleadoDTO {
+function mapEmpleado(row: EmpleadoRow, options?: { hideSalaries?: boolean }): EmpleadoDTO {
   return {
     id: row.id,
     taller_id: row.taller_id,
@@ -22,7 +23,11 @@ function mapEmpleado(row: EmpleadoRow): EmpleadoDTO {
     email: row.email ?? null,
     telefono: row.telefono ?? null,
     cumpleanos: row.cumpleanos ?? null,
-    salario: row.salario === null || row.salario === undefined ? null : Number(row.salario),
+    salario: options?.hideSalaries
+      ? null
+      : row.salario === null || row.salario === undefined
+        ? null
+        : Number(row.salario),
     fecha_ingreso: row.fecha_ingreso ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -38,10 +43,14 @@ function isValidIsoDate(value: string): boolean {
 }
 
 export async function GET(req: NextRequest) {
-  const authError = await requirePermission(Permission.EmpleadosView);
-  if (authError) return authError;
-
   const supabase = await createClient();
+  const { data: auth, error: authError } = await supabase.auth.getClaims();
+  if (authError || !auth?.claims) {
+    return Response.json(
+      { data: [], error: "Unauthorized" } satisfies GetEmpleadosResponse,
+      { status: 401 }
+    );
+  }
 
   const tallerId = req.nextUrl.searchParams.get("tallerId") ?? undefined;
 
@@ -53,8 +62,11 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const hasEmpleadosView = await hasUserPermission(supabase, Permission.EmpleadosView);
+  const hideSalaries = !hasEmpleadosView;
+
   return Response.json(
-    { data: (data ?? []).map(mapEmpleado), error: null } satisfies GetEmpleadosResponse,
+    { data: (data ?? []).map((row) => mapEmpleado(row, { hideSalaries })), error: null } satisfies GetEmpleadosResponse,
     { status: 200 }
   );
 }

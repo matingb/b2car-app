@@ -2,7 +2,8 @@ import "server-only";
 
 import { revalidateTag, unstable_cache } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PermissionValue } from "@/lib/permissions";
+import { normalizeUserRole, type PermissionValue } from "@/lib/permissions";
+import { normalizeSubscriptionPlan } from "@/lib/subscription";
 
 export const PERMISSIONS_CACHE_TAG = "permissions";
 
@@ -84,4 +85,24 @@ export async function fetchEffectivePermissions(
   );
 
   return await getCached();
+}
+
+/**
+ * Verifica si el usuario autenticado en la sesión tiene un permiso específico.
+ * Utiliza los claims del JWT y la caché de permisos de Next.js.
+ */
+export async function hasUserPermission(
+  supabase: SupabaseClient,
+  permission: PermissionValue,
+): Promise<boolean> {
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) return false;
+
+  const claims = data.claims as Record<string, unknown>;
+  const role = normalizeUserRole(claims.user_role);
+  const plan = normalizeSubscriptionPlan(claims.plan_sub);
+  if (!role || !plan) return false;
+
+  const perms = await fetchEffectivePermissions(supabase, role, plan);
+  return perms.includes(permission);
 }

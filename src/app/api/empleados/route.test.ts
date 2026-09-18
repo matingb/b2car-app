@@ -10,6 +10,10 @@ vi.mock("@/lib/requirePermission", () => ({
   requirePermission: vi.fn().mockResolvedValue(null),
 }));
 
+vi.mock("@/lib/permissions.server", () => ({
+  hasUserPermission: vi.fn().mockResolvedValue(true),
+}));
+
 vi.mock("./empleadosService", async () => {
   const actual = await vi.importActual<typeof import("./empleadosService")>("./empleadosService");
   return {
@@ -31,6 +35,7 @@ vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
 
 import { createClient } from "@/supabase/server";
 import { requirePermission } from "@/lib/requirePermission";
+import { hasUserPermission } from "@/lib/permissions.server";
 import { empleadosService, type EmpleadoRow } from "./empleadosService";
 import { SupabaseClient } from "@supabase/supabase-js";
 import type { CreateEmpleadoRequest } from "./contracts";
@@ -59,8 +64,12 @@ describe("/api/empleados", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requirePermission).mockResolvedValue(null);
+    vi.mocked(hasUserPermission).mockResolvedValue(true);
     vi.mocked(createClient).mockResolvedValue({
-      auth: { getSession: async () => ({ data: { session: { access_token: "t" } } }) },
+      auth: {
+        getSession: async () => ({ data: { session: { access_token: "t" } } }),
+        getClaims: async () => ({ data: { claims: { user_role: "admin", plan_sub: "PRO" } } }),
+      },
     } as unknown as SupabaseClient);
     vi.mocked(empleadosService.recordSalarioChange).mockResolvedValue({ error: null });
   });
@@ -86,18 +95,21 @@ describe("/api/empleados", () => {
   };
 
   it("GET sin sesión devuelve 401", async () => {
-    vi.mocked(requirePermission).mockResolvedValueOnce(
-      Response.json({ data: null, error: "Unauthorized" }, { status: 401 })
-    );
+    vi.mocked(createClient).mockResolvedValue({
+      auth: {
+        getSession: async () => ({ data: { session: null } }),
+        getClaims: async () => ({ data: null, error: new Error("No session") }),
+      },
+    } as unknown as SupabaseClient);
 
     const req = new NextRequest("http://localhost/api/empleados");
     const res = await GET(req);
     expect(res.status).toBe(401);
   });
 
-  it("GET devuelve lista mapeada", async () => {
+  it("GET devuelve lista mapeada con salarios si tiene EmpleadosView", async () => {
     vi.mocked(empleadosService.list).mockResolvedValue({
-      data: [createEmpleadoRow({ id: "EMP-1", nombre: "Juan", apellido: "Pérez" })],
+      data: [createEmpleadoRow({ id: "EMP-1", nombre: "Juan", apellido: "Pérez", salario: 75000 })],
       error: null,
     });
 
@@ -109,6 +121,23 @@ describe("/api/empleados", () => {
     expect(Array.isArray(body.data)).toBe(true);
     expect(body.data[0].id).toBe("EMP-1");
     expect(body.data[0].nombre).toBe("Juan");
+    expect(body.data[0].salario).toBe(75000);
+  });
+
+  it("GET oculta salarios (null) si el usuario no tiene EmpleadosView", async () => {
+    vi.mocked(hasUserPermission).mockResolvedValueOnce(false);
+    vi.mocked(empleadosService.list).mockResolvedValue({
+      data: [createEmpleadoRow({ id: "EMP-1", nombre: "Juan", apellido: "Pérez", salario: 75000 })],
+      error: null,
+    });
+
+    const req = new NextRequest("http://localhost/api/empleados");
+    const res = await GET(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data[0].id).toBe("EMP-1");
+    expect(body.data[0].salario).toBeNull();
   });
 
   it("GET con tallerId filtra por taller", async () => {

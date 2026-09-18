@@ -69,7 +69,7 @@ export const PATH_PERMISSIONS: readonly RoutePermissionRule[] = [
 
   // Finanzas / Cuentas Financieras / Gastos
   {
-    path: ["/cuentas-financieras", "/api/cuentas-financieras", "/gastos", "/api/gastos"],
+    path: ["/cuentas-financieras", "/gastos", "/api/gastos"],
     permission: Permission.FinanzasView,
   },
 
@@ -86,7 +86,7 @@ export const PATH_PERMISSIONS: readonly RoutePermissionRule[] = [
   },
 
   // Empleados
-  { path: ["/empleados", "/api/empleados"], permission: Permission.EmpleadosView },
+  { path: ["/empleados"], permission: Permission.EmpleadosView },
 
   // Productos
   { path: ["/productos", "/api/productos"], permission: Permission.ProductosView },
