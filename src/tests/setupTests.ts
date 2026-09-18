@@ -3,6 +3,12 @@ import { vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+vi.mock("next/cache", () => ({
+  unstable_cache: vi.fn((fn: (...args: unknown[]) => unknown) => fn),
+  revalidateTag: vi.fn(),
+  revalidatePath: vi.fn(),
+}));
+
 // Silence known JSDOM "Not implemented" noise.
 const originalConsoleError = console.error;
 console.error = (...args: unknown[]) => {
