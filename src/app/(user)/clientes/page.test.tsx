@@ -4,6 +4,19 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 import ClientesPage from "./page";
 import { Cliente, TipoCliente } from "@/model/types";
 
+import { PermissionValue } from "@/lib/permissions";
+
+let talleresMock: Array<{ id: string; nombre: string; ubicacion: string }> = [];
+let hasPermissionMock: (p: PermissionValue) => boolean = () => true;
+vi.mock("@/app/providers/TenantProvider", () => ({
+  useTenant: () => ({
+    talleres: talleresMock,
+    tallerSeleccionadoId: talleresMock[0]?.id ?? "",
+    setTallerSeleccionadoId: vi.fn(),
+    hasPermission: (p: PermissionValue) => hasPermissionMock(p),
+  }),
+}));
+
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),

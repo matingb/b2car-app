@@ -4,6 +4,18 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ClienteItem from "./ClienteItem";
 import { Cliente, TipoCliente } from "@/model/types";
 import { ROUTES } from "@/routing/routes";
+import { PermissionValue } from "@/lib/permissions";
+
+let talleresMock: Array<{ id: string; nombre: string; ubicacion: string }> = [];
+let hasPermissionMock: (p: PermissionValue) => boolean = () => true;
+vi.mock("@/app/providers/TenantProvider", () => ({
+  useTenant: () => ({
+    talleres: talleresMock,
+    tallerSeleccionadoId: talleresMock[0]?.id ?? "",
+    setTallerSeleccionadoId: vi.fn(),
+    hasPermission: (p: PermissionValue) => hasPermissionMock(p),
+  }),
+}));
 
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({

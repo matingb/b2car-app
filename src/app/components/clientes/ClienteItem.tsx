@@ -25,6 +25,8 @@ import { clientesClient } from "@/clients/clientes/clientesClient";
 import Card from "../ui/Card";
 import IconButton from "../ui/IconButton";
 import ExpandButton from "../ui/ExpandButton";
+import Can from "../auth/Can";
+import { Permission } from "@/lib/permissions";
 
 function DataCell({
   icon,
@@ -104,8 +106,8 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
   const vehiclesCount = Array.isArray(rawVehicles)
     ? rawVehicles.length
     : typeof rawVehicles === "number"
-    ? rawVehicles
-    : undefined;
+      ? rawVehicles
+      : undefined;
 
   const hasVehicles = vehiclesCount !== undefined && vehiclesCount > 0;
   const vehiclesText = hasVehicles
@@ -129,7 +131,7 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
             setSaldoLoaded(res.data.saldo_cuenta);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     return () => {
@@ -192,43 +194,45 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
 
         {/* Right: Client Status & Actions */}
         <div css={styles.statusSection}>
-          {hasDebt ? (
-            <div
-              css={styles.balanceBlock}
-              title={`Saldo pendiente a cobrar: $${debt.toLocaleString("es-AR")}`}
-            >
-              <div css={styles.debtAmount} data-testid="cliente-debt-amount">
-                {`$${debt.toLocaleString("es-AR")}`}
+          <Can permission={Permission.ClientesFinanzasView}>
+            {hasDebt ? (
+              <div
+                css={styles.balanceBlock}
+                title={`Saldo pendiente a cobrar: $${debt.toLocaleString("es-AR")}`}
+              >
+                <div css={styles.debtAmount} data-testid="cliente-debt-amount">
+                  {`$${debt.toLocaleString("es-AR")}`}
+                </div>
+                <div css={styles.debtBadge} data-testid="cliente-debt-badge">
+                  A Cobrar
+                </div>
               </div>
-              <div css={styles.debtBadge} data-testid="cliente-debt-badge">
-                A Cobrar
+            ) : hasCredit ? (
+              <div
+                css={styles.balanceBlock}
+                title={`Saldo a favor: $${credit.toLocaleString("es-AR")}`}
+              >
+                <div css={styles.creditAmount} data-testid="cliente-credit-amount">
+                  {`$${credit.toLocaleString("es-AR")}`}
+                </div>
+                <div css={styles.creditBadge} data-testid="cliente-credit-badge">
+                  Saldo a favor
+                </div>
               </div>
-            </div>
-          ) : hasCredit ? (
-            <div
-              css={styles.balanceBlock}
-              title={`Saldo a favor: $${credit.toLocaleString("es-AR")}`}
-            >
-              <div css={styles.creditAmount} data-testid="cliente-credit-amount">
-                {`$${credit.toLocaleString("es-AR")}`}
+            ) : (
+              <div
+                css={styles.balanceBlock}
+                title="Cuenta corriente al día ($0)"
+              >
+                <div css={styles.cleanAmount} data-testid="cliente-clean-amount">
+                  $0
+                </div>
+                <div css={styles.cleanBadge} data-testid="cliente-clean-badge">
+                  Al día
+                </div>
               </div>
-              <div css={styles.creditBadge} data-testid="cliente-credit-badge">
-                Saldo a favor
-              </div>
-            </div>
-          ) : (
-            <div
-              css={styles.balanceBlock}
-              title="Cuenta corriente al día ($0)"
-            >
-              <div css={styles.cleanAmount} data-testid="cliente-clean-amount">
-                $0
-              </div>
-              <div css={styles.cleanBadge} data-testid="cliente-clean-badge">
-                Al día
-              </div>
-            </div>
-          )}
+            )}
+          </Can>
 
           <div css={styles.deleteDivider}>
             <IconButton
@@ -282,7 +286,7 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
           isMissing={!hasVehicles}
         />
       </div>
-    </Card>
+    </Card >
   );
 }
 
