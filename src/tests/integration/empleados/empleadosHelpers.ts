@@ -6,7 +6,11 @@ import type {
   CreateEmpleadoRequest,
   CreateEmpleadoResponse,
 } from "@/app/api/empleados/contracts";
-import type { EmpleadoRow } from "@/app/api/empleados/empleadosService";
+import {
+  empleadosService,
+  type EmpleadoRow,
+  type SalarioHistorialRow,
+} from "@/app/api/empleados/empleadosService";
 
 // ─── Constantes de prueba ───────────────────────────────────────────────────
 
@@ -46,72 +50,79 @@ export async function postEmpleadoAndGetId(
   return body.data!.id;
 }
 
-// ─── DB Assertion Helpers ───────────────────────────────────────────────────
+// ─── DB Assertion Helpers (vía Servicios Reales) ────────────────────────────
 
 /**
- * Assertion: Verifica que el empleado exista en la base de datos con los campos indicados.
+ * Assertion: Verifica que el empleado exista en la base de datos con los campos indicados
+ * utilizando el servicio real de la aplicación (empleadosService.getById).
  */
 export async function expectEmpleadoEnDb(
   id: string,
   expected: Partial<EmpleadoRow> = {}
 ): Promise<EmpleadoRow> {
-  const { data: empleadoDb, error } = await testClient
-    .from("empleados")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const { data: empleadoDb, error } = await empleadosService.getById(testClient, id);
 
   expect(error).toBeNull();
   expect(empleadoDb).toBeDefined();
+  expect(empleadoDb).not.toBeNull();
 
   if (expected.nombre !== undefined) {
-    expect(empleadoDb.nombre).toBe(expected.nombre);
+    expect(empleadoDb!.nombre).toBe(expected.nombre);
   }
   if (expected.apellido !== undefined) {
-    expect(empleadoDb.apellido).toBe(expected.apellido);
+    expect(empleadoDb!.apellido).toBe(expected.apellido);
   }
   if (expected.dni !== undefined) {
-    expect(empleadoDb.dni).toBe(expected.dni);
+    expect(empleadoDb!.dni).toBe(expected.dni);
   }
   if (expected.salario !== undefined) {
-    expect(Number(empleadoDb.salario)).toBe(expected.salario);
+    expect(Number(empleadoDb!.salario)).toBe(expected.salario);
   }
   if (expected.taller_id !== undefined) {
-    expect(empleadoDb.taller_id).toBe(expected.taller_id);
+    expect(empleadoDb!.taller_id).toBe(expected.taller_id);
   }
   if (expected.fecha_ingreso !== undefined) {
-    expect(empleadoDb.fecha_ingreso).toBe(expected.fecha_ingreso);
+    expect(empleadoDb!.fecha_ingreso).toBe(expected.fecha_ingreso);
   }
   if (expected.email !== undefined) {
-    expect(empleadoDb.email).toBe(expected.email);
+    expect(empleadoDb!.email).toBe(expected.email);
   }
   if (expected.telefono !== undefined) {
-    expect(empleadoDb.telefono).toBe(expected.telefono);
+    expect(empleadoDb!.telefono).toBe(expected.telefono);
   }
 
-  return empleadoDb;
+  return empleadoDb!;
 }
 
 /**
- * Assertion: Verifica las filas de historial salarial en `empleado_salarios`.
+ * Assertion: Verifica las filas de historial salarial utilizando el servicio real
+ * de la aplicación (empleadosService.getSalarioHistory).
  */
 export async function expectHistorialSalarial(
   empleadoId: string,
   expected: Array<{ salario: number; vigente_desde: string }>
-): Promise<void> {
-  const { data: salariosDb, error } = await testClient
-    .from("empleado_salarios")
-    .select("*")
-    .eq("empleado_id", empleadoId)
-    .order("vigente_desde", { ascending: true });
+): Promise<SalarioHistorialRow[]> {
+  const { data: salariosDb, error } = await empleadosService.getSalarioHistory(
+    testClient,
+    empleadoId
+  );
 
   expect(error).toBeNull();
   expect(salariosDb).toHaveLength(expected.length);
 
-  expected.forEach((exp, idx) => {
-    expect(Number(salariosDb![idx].salario)).toBe(exp.salario);
-    expect(salariosDb![idx].vigente_desde).toBe(exp.vigente_desde);
+  const sortedActual = [...salariosDb].sort((a, b) =>
+    a.vigente_desde.localeCompare(b.vigente_desde)
+  );
+  const sortedExpected = [...expected].sort((a, b) =>
+    a.vigente_desde.localeCompare(b.vigente_desde)
+  );
+
+  sortedExpected.forEach((exp, idx) => {
+    expect(Number(sortedActual[idx].salario)).toBe(exp.salario);
+    expect(sortedActual[idx].vigente_desde).toBe(exp.vigente_desde);
   });
+
+  return salariosDb;
 }
 
 // ─── Taller Expenses Helpers ────────────────────────────────────────────────
