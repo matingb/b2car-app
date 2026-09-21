@@ -19,6 +19,10 @@ reutilizado.
 Las filas de clientes o vehiculos que no se puedan importar se escriben en
 ``errores.txt`` junto al CSV de vehiculos, o en la ruta indicada con
 ``--errores-path``.
+
+Las inserciones se envian a la Data API en lotes de hasta 250 filas. Cuando
+una fila de cliente no tiene CUIT/CUIL ni DNI validos se inserta como
+``particular`` con ``dni_cuil`` nulo, sin inventar un documento.
 """
 
 from __future__ import annotations
@@ -35,7 +39,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
 from typing import Any, Callable, Iterable, TypeVar
-from uuid import UUID
+from uuid import UUID, uuid4
 
 
 # Debe coincidir con el importador de clientes asociado a esta migracion.
@@ -45,6 +49,7 @@ TENANT_ID = "11111111-1111-1111-1111-111111111111"
 #TENANT_ID = "3b07dec7-0da6-42a3-9435-4190cc19eb8a"
 COMPANY_CUIT_PREFIXES = {"30", "33", "34"}
 PERSON_CUIL_PREFIXES = {"20", "23", "24", "27"}
+DEFAULT_BATCH_SIZE = 250
 T = TypeVar("T")
 
 CLIENT_REQUIRED_COLUMNS = {
@@ -87,8 +92,6 @@ ERROR_REPORT_FIELDS = (
     "patente",
     "datos_origen",
 )
-
-
 @dataclass(frozen=True)
 class ClienteCsv:
     line_number: int
@@ -117,7 +120,7 @@ class ClienteImportable:
     tipo_cliente: str
     nombre: str
     apellido: str | None
-    identificacion: str
+    identificacion: str | None
     direccion: str | None
     telefono: str | None
     email: str | None
@@ -165,6 +168,20 @@ class ErrorImportacion:
     vehiculo: VehiculoCsv | VehiculoImportable | None = None
 
 
+@dataclass
+class ClientePendiente:
+    cliente_id: str
+    cliente: ClienteImportable
+    source_rows: list[ClienteCsv]
+
+
+@dataclass(frozen=True)
+class VehiculoPendiente:
+    row: VehiculoCsv
+    vehiculo: VehiculoImportable
+    cliente_id: str
+
+
 def normalizar_texto(value: str | None) -> str | None:
     if value is None:
         return None
@@ -194,6 +211,13 @@ def normalizar_identificacion(value: str | None) -> str | None:
     if not digits:
         raise ValueError("el identificador no contiene digitos")
     return digits
+
+
+def normalizar_identificacion_opcional(value: str | None) -> str | None:
+    try:
+        return normalizar_identificacion(value)
+    except ValueError:
+        return None
 
 
 def normalizar_patente(value: str | None) -> str | None:
@@ -322,13 +346,11 @@ def classify_cliente(row: ClienteCsv) -> ClienteImportable:
     if razon_social is None:
         raise ValueError("la razon social es obligatoria")
 
-    tax_id = normalizar_identificacion(row.cuit)
-    document = normalizar_identificacion(row.nro_documento)
+    tax_id = normalizar_identificacion_opcional(row.cuit)
+    document = normalizar_identificacion_opcional(row.nro_documento)
     type_label = normalizar_encabezado(row.tipo_documento or "")
 
-    if tax_id is not None:
-        if len(tax_id) != 11 or not identificacion_11_es_valida(tax_id):
-            raise ValueError("el CUIT/CUIL debe tener 11 digitos y un digito verificador valido")
+    if tax_id is not None and len(tax_id) == 11 and identificacion_11_es_valida(tax_id):
         if tax_id[:2] in COMPANY_CUIT_PREFIXES:
             return ClienteImportable(
                 line_number=row.line_number,
@@ -355,17 +377,27 @@ def classify_cliente(row: ClienteCsv) -> ClienteImportable:
                 telefono=normalizar_texto(row.celular) or normalizar_texto(row.telefono_fijo),
                 email=normalizar_texto(row.email),
             )
-        raise ValueError("el CUIT/CUIL tiene un prefijo que no permite clasificarlo como empresa o particular")
 
-    if not is_dni(document):
-        raise ValueError("falta un CUIT/CUIL valido o un DNI de 7 u 8 digitos")
+    if is_dni(document):
+        return ClienteImportable(
+            line_number=row.line_number,
+            codigo=codigo,
+            tipo_cliente="particular",
+            nombre=razon_social,
+            apellido="",
+            identificacion=document,
+            direccion=build_address(row),
+            telefono=normalizar_texto(row.celular) or normalizar_texto(row.telefono_fijo),
+            email=normalizar_texto(row.email),
+        )
+
     return ClienteImportable(
         line_number=row.line_number,
         codigo=codigo,
         tipo_cliente="particular",
         nombre=razon_social,
         apellido="",
-        identificacion=document,
+        identificacion=None,
         direccion=build_address(row),
         telefono=normalizar_texto(row.celular) or normalizar_texto(row.telefono_fijo),
         email=normalizar_texto(row.email),
@@ -485,82 +517,149 @@ def relation_object(value: Any) -> dict[str, Any] | None:
     raise RuntimeError("Supabase devolvio una relacion de cliente inesperada")
 
 
-def find_existing_cliente(supabase: Any, tenant_id: str, cliente: ClienteImportable) -> str | None:
-    table = "empresas" if cliente.tipo_cliente == "empresa" else "particulares"
-    field = "cuit" if cliente.tipo_cliente == "empresa" else "dni_cuil"
-    response = execute_traced(
-        f"linea_{cliente.line_number}_buscar_cliente_existente",
-        lambda: supabase.table(table).select("id,clientes(tenant_id)").eq(field, cliente.identificacion).limit(2).execute(),
-    )
-    rows = response.data or []
-    if not rows:
-        return None
-    if len(rows) > 1:
-        raise RuntimeError("hay mas de un cliente existente con el mismo identificador")
-    client_id = rows[0].get("id")
-    base_client = relation_object(rows[0].get("clientes"))
-    if not isinstance(client_id, str) or base_client is None:
-        raise RuntimeError("el cliente existente no tiene una relacion base valida")
-    if base_client.get("tenant_id") != tenant_id:
-        raise ValueError("el identificador ya existe en otro tenant")
-    return client_id
+def chunked(values: list[T], size: int) -> Iterable[list[T]]:
+    for start in range(0, len(values), size):
+        yield values[start : start + size]
 
 
-def insert_cliente(supabase: Any, tenant_id: str, cliente: ClienteImportable) -> str:
-    response = execute_traced(
-        f"linea_{cliente.line_number}_insertar_cliente_base",
-        lambda: supabase.table("clientes")
-        .insert({"tenant_id": tenant_id, "tipo_cliente": cliente.tipo_cliente})
-        .select("id")
-        .execute(),
-    )
-    if not response.data or not isinstance(response.data[0].get("id"), str):
-        raise RuntimeError("Supabase no devolvio el id del cliente creado")
-    client_id = response.data[0]["id"]
+def load_clientes_existentes(
+    supabase: Any,
+    tipo_cliente: str,
+    identificaciones: set[str],
+    batch_size: int,
+) -> tuple[dict[str, tuple[str, str]], set[str]]:
+    if not identificaciones:
+        return {}, set()
+
+    table = "empresas" if tipo_cliente == "empresa" else "particulares"
+    field = "cuit" if tipo_cliente == "empresa" else "dni_cuil"
+    rows: list[dict[str, Any]] = []
+    for index, lote in enumerate(chunked(sorted(identificaciones), batch_size), start=1):
+        rows.extend(
+            fetch_paginated(
+                f"consulta_{table}_existentes_lote_{index}",
+                lambda lote=lote: supabase.table(table)
+                .select(f"id,{field},clientes(tenant_id)")
+                .in_(field, lote),
+            )
+        )
+
+    clientes: dict[str, tuple[str, str]] = {}
+    duplicados: set[str] = set()
+    for row in rows:
+        identificacion = row.get(field)
+        client_id = row.get("id")
+        base_client = relation_object(row.get("clientes"))
+        if not isinstance(identificacion, str) or not isinstance(client_id, str) or base_client is None:
+            raise RuntimeError("un cliente existente no tiene una relacion base valida")
+        tenant_id = base_client.get("tenant_id")
+        if not isinstance(tenant_id, str):
+            raise RuntimeError("un cliente existente no tiene tenant valido")
+        if identificacion in clientes:
+            duplicados.add(identificacion)
+        else:
+            clientes[identificacion] = (client_id, tenant_id)
+    return clientes, duplicados
+
+
+def insert_clientes_lote(supabase: Any, tenant_id: str, lote: list[ClientePendiente]) -> None:
+    client_ids = [pending.cliente_id for pending in lote]
+    base_inserted = False
     try:
-        if cliente.tipo_cliente == "empresa":
+        execute_traced(
+            f"insertar_clientes_lote_{lote[0].cliente.line_number}_{len(lote)}",
+            lambda: supabase.table("clientes")
+            .insert(
+                [
+                    {
+                        "id": pending.cliente_id,
+                        "tenant_id": tenant_id,
+                        "tipo_cliente": pending.cliente.tipo_cliente,
+                    }
+                    for pending in lote
+                ],
+                returning="minimal",
+            )
+            .execute(),
+        )
+        base_inserted = True
+
+        empresas = [pending for pending in lote if pending.cliente.tipo_cliente == "empresa"]
+        if empresas:
             execute_traced(
-                f"linea_{cliente.line_number}_insertar_empresa",
+                f"insertar_empresas_lote_{empresas[0].cliente.line_number}_{len(empresas)}",
                 lambda: supabase.table("empresas")
                 .insert(
-                    {
-                        "id": client_id,
-                        "nombre": cliente.nombre,
-                        "cuit": cliente.identificacion,
-                        "direccion": cliente.direccion,
-                        "email": cliente.email,
-                        "telefono": cliente.telefono,
-                    }
+                    [
+                        {
+                            "id": pending.cliente_id,
+                            "nombre": pending.cliente.nombre,
+                            "cuit": pending.cliente.identificacion,
+                            "direccion": pending.cliente.direccion,
+                            "email": pending.cliente.email,
+                            "telefono": pending.cliente.telefono,
+                        }
+                        for pending in empresas
+                    ],
+                    returning="minimal",
                 )
                 .execute(),
             )
-        else:
+
+        particulares = [pending for pending in lote if pending.cliente.tipo_cliente == "particular"]
+        if particulares:
             execute_traced(
-                f"linea_{cliente.line_number}_insertar_particular",
+                f"insertar_particulares_lote_{particulares[0].cliente.line_number}_{len(particulares)}",
                 lambda: supabase.table("particulares")
                 .insert(
-                    {
-                        "id": client_id,
-                        "nombre": cliente.nombre,
-                        "apellido": cliente.apellido,
-                        "dni_cuil": cliente.identificacion,
-                        "direccion": cliente.direccion,
-                        "email": cliente.email,
-                        "telefono": cliente.telefono,
-                    }
+                    [
+                        {
+                            "id": pending.cliente_id,
+                            "nombre": pending.cliente.nombre,
+                            "apellido": pending.cliente.apellido,
+                            "dni_cuil": pending.cliente.identificacion,
+                            "direccion": pending.cliente.direccion,
+                            "email": pending.cliente.email,
+                            "telefono": pending.cliente.telefono,
+                        }
+                        for pending in particulares
+                    ],
+                    returning="minimal",
                 )
                 .execute(),
             )
-        return client_id
     except Exception as insert_error:
-        try:
-            execute_traced(
-                f"linea_{cliente.line_number}_revertir_cliente_base",
-                lambda: supabase.table("clientes").delete().eq("id", client_id).execute(),
-            )
-        except Exception as rollback_error:
-            raise RuntimeError("fallo el detalle y no se pudo revertir el cliente base") from rollback_error
+        if base_inserted:
+            try:
+                execute_traced(
+                    f"revertir_clientes_lote_{lote[0].cliente.line_number}_{len(lote)}",
+                    lambda: supabase.table("clientes").delete().in_("id", client_ids).execute(),
+                )
+            except Exception as rollback_error:
+                raise RuntimeError("fallo un detalle del lote y no se pudieron revertir sus clientes base") from rollback_error
         raise insert_error
+
+
+def insert_clientes_con_aislamiento(
+    supabase: Any,
+    tenant_id: str,
+    lote: list[ClientePendiente],
+    errors: list[ErrorImportacion],
+) -> list[ClientePendiente]:
+    try:
+        insert_clientes_lote(supabase, tenant_id, lote)
+        return lote
+    except Exception as error:
+        if len(lote) > 1:
+            midpoint = len(lote) // 2
+            return insert_clientes_con_aislamiento(supabase, tenant_id, lote[:midpoint], errors) + insert_clientes_con_aislamiento(
+                supabase, tenant_id, lote[midpoint:], errors
+            )
+        pending = lote[0]
+        for row in pending.source_rows:
+            errors.append(ErrorImportacion("cliente", str(error), cliente=row))
+            logging.error("cliente linea %s: %s", row.line_number, error)
+        return []
 
 
 def verify_vehicle_columns(supabase: Any) -> None:
@@ -592,11 +691,40 @@ def vehicle_payload(vehiculo: VehiculoImportable, tenant_id: str, cliente_id: st
     }
 
 
-def insert_vehiculo(supabase: Any, vehiculo: VehiculoImportable, tenant_id: str, cliente_id: str) -> None:
+def insert_vehiculos_lote(supabase: Any, lote: list[VehiculoPendiente], tenant_id: str) -> None:
     execute_traced(
-        f"linea_{vehiculo.line_number}_insertar_vehiculo",
-        lambda: supabase.table("vehiculos").insert(vehicle_payload(vehiculo, tenant_id, cliente_id)).execute(),
+        f"insertar_vehiculos_lote_{lote[0].vehiculo.line_number}_{len(lote)}",
+        lambda: supabase.table("vehiculos")
+        .insert(
+            [
+                vehicle_payload(pending.vehiculo, tenant_id, pending.cliente_id)
+                for pending in lote
+            ],
+            returning="minimal",
+        )
+        .execute(),
     )
+
+
+def insert_vehiculos_con_aislamiento(
+    supabase: Any,
+    tenant_id: str,
+    lote: list[VehiculoPendiente],
+    errors: list[ErrorImportacion],
+) -> list[VehiculoPendiente]:
+    try:
+        insert_vehiculos_lote(supabase, lote, tenant_id)
+        return lote
+    except Exception as error:
+        if len(lote) > 1:
+            midpoint = len(lote) // 2
+            return insert_vehiculos_con_aislamiento(supabase, tenant_id, lote[:midpoint], errors) + insert_vehiculos_con_aislamiento(
+                supabase, tenant_id, lote[midpoint:], errors
+            )
+        pending = lote[0]
+        errors.append(ErrorImportacion("vehiculo", str(error), vehiculo=pending.row))
+        logging.error("vehiculo linea %s: %s", pending.row.line_number, error)
+        return []
 
 
 def source_summary(error: ErrorImportacion) -> str:
@@ -678,6 +806,7 @@ def process_clientes(
     rows: list[ClienteCsv],
     dry_run: bool,
     errors: list[ErrorImportacion],
+    batch_size: int,
 ) -> tuple[dict[str, ClienteResuelto], int, int]:
     rows_by_code: dict[str, list[ClienteCsv]] = defaultdict(list)
     for row in rows:
@@ -692,27 +821,88 @@ def process_clientes(
         for row in rows_by_code[code]:
             errors.append(ErrorImportacion("cliente", "el codigo se repite en el padron", cliente=row))
 
-    client_map: dict[str, ClienteResuelto] = {}
-    created = would_create = 0
+    candidatos: list[tuple[str, ClienteCsv, ClienteImportable]] = []
     for code, code_rows in rows_by_code.items():
         if code in duplicate_codes:
             continue
         row = code_rows[0]
         try:
-            cliente = classify_cliente(row)
-            existing_id = find_existing_cliente(supabase, tenant_id, cliente)
-            if existing_id is not None:
-                client_map[code] = ClienteResuelto(existing_id, row.line_number)
-                continue
-            if dry_run:
-                client_map[code] = ClienteResuelto(None, row.line_number)
-                would_create += 1
-                continue
-            client_map[code] = ClienteResuelto(insert_cliente(supabase, tenant_id, cliente), row.line_number)
-            created += 1
+            candidatos.append((code, row, classify_cliente(row)))
         except Exception as error:
             errors.append(ErrorImportacion("cliente", str(error), cliente=row))
             logging.error("cliente linea %s: %s", row.line_number, error)
+
+    empresas = {
+        cliente.identificacion
+        for _, _, cliente in candidatos
+        if cliente.tipo_cliente == "empresa" and cliente.identificacion is not None
+    }
+    particulares = {
+        cliente.identificacion
+        for _, _, cliente in candidatos
+        if cliente.tipo_cliente == "particular" and cliente.identificacion is not None
+    }
+    empresas_existentes, empresas_duplicadas = load_clientes_existentes(
+        supabase, "empresa", empresas, batch_size
+    )
+    particulares_existentes, particulares_duplicados = load_clientes_existentes(
+        supabase, "particular", particulares, batch_size
+    )
+
+    client_map: dict[str, ClienteResuelto] = {}
+    pendientes_por_identificacion: dict[tuple[str, str], ClientePendiente] = {}
+    for code, row, cliente in candidatos:
+        existentes = empresas_existentes if cliente.tipo_cliente == "empresa" else particulares_existentes
+        duplicados = empresas_duplicadas if cliente.tipo_cliente == "empresa" else particulares_duplicados
+        if cliente.identificacion is not None and cliente.identificacion in duplicados:
+            errors.append(
+                ErrorImportacion("cliente", "hay mas de un cliente existente con el mismo identificador", cliente=row)
+            )
+            logging.error("cliente linea %s: hay mas de un cliente existente con el mismo identificador", row.line_number)
+            continue
+        existing = existentes.get(cliente.identificacion) if cliente.identificacion is not None else None
+        if existing is not None:
+            existing_id, existing_tenant_id = existing
+            if existing_tenant_id != tenant_id:
+                errors.append(ErrorImportacion("cliente", "el identificador ya existe en otro tenant", cliente=row))
+                logging.error("cliente linea %s: el identificador ya existe en otro tenant", row.line_number)
+                continue
+            client_map[code] = ClienteResuelto(existing_id, row.line_number)
+            continue
+
+        key = (
+            cliente.tipo_cliente,
+            cliente.identificacion if cliente.identificacion is not None else f"sin-documento:{code}",
+        )
+        pending = pendientes_por_identificacion.get(key)
+        if pending is None:
+            pending = ClientePendiente(str(uuid4()), cliente, [row])
+            pendientes_por_identificacion[key] = pending
+        else:
+            pending.source_rows.append(row)
+
+    pendientes = list(pendientes_por_identificacion.values())
+    created = would_create = 0
+    exitosos: list[ClientePendiente] = []
+    logging.info(
+        "fase=clientes_lotes: nuevos=%s tamano_lote=%s%s",
+        len(pendientes),
+        batch_size,
+        " (dry-run)" if dry_run else "",
+    )
+    if dry_run:
+        exitosos = pendientes
+        would_create = len(pendientes)
+    else:
+        for lote in chunked(pendientes, batch_size):
+            exitosos.extend(insert_clientes_con_aislamiento(supabase, tenant_id, lote, errors))
+        created = len(exitosos)
+
+    for pending in exitosos:
+        for row in pending.source_rows:
+            code = normalizar_codigo(row.codigo)
+            assert code is not None
+            client_map[code] = ClienteResuelto(None if dry_run else pending.cliente_id, row.line_number)
     return client_map, created, would_create
 
 
@@ -725,8 +915,10 @@ def process_vehiculos(
     dry_run: bool,
     errors: list[ErrorImportacion],
     progress_every: int,
+    batch_size: int,
 ) -> tuple[int, int, int]:
     total = created = would_create = 0
+    pendientes: list[VehiculoPendiente] = []
     for row in rows:
         total += 1
         if total == 1 or total % progress_every == 0:
@@ -762,14 +954,17 @@ def process_vehiculos(
         if dry_run:
             would_create += 1
             continue
-        try:
-            if cliente.cliente_id is None:
-                raise RuntimeError("el cliente no tiene id para asignar el vehiculo")
-            insert_vehiculo(supabase, vehiculo, tenant_id, cliente.cliente_id)
-            created += 1
-        except Exception as error:
-            errors.append(ErrorImportacion("vehiculo", str(error), vehiculo=row))
-            logging.error("vehiculo linea %s: %s", vehiculo.line_number, error)
+        if cliente.cliente_id is None:
+            errors.append(ErrorImportacion("vehiculo", "el cliente no tiene id para asignar el vehiculo", vehiculo=row))
+            logging.error("vehiculo linea %s: el cliente no tiene id para asignar el vehiculo", vehiculo.line_number)
+            continue
+        pendientes.append(VehiculoPendiente(row, vehiculo, cliente.cliente_id))
+
+    if dry_run:
+        return total, created, would_create
+    logging.info("fase=vehiculos_lotes: nuevos=%s tamano_lote=%s", len(pendientes), batch_size)
+    for lote in chunked(pendientes, batch_size):
+        created += len(insert_vehiculos_con_aislamiento(supabase, tenant_id, lote, errors))
     return total, created, would_create
 
 
@@ -782,12 +977,19 @@ def main() -> int:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Valida y consulta referencias sin insertar datos; igualmente genera errores.txt",
+        help="Valida y consulta referencias sin insertar datos; genera errores.txt",
     )
     parser.add_argument(
         "--errores-path",
         type=Path,
         help="Ruta del reporte de errores (por defecto: errores.txt junto al CSV de vehiculos)",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=positive_integer,
+        default=DEFAULT_BATCH_SIZE,
+        metavar="N",
+        help="Cantidad maxima de filas por insert a Supabase (por defecto: 250)",
     )
     parser.add_argument(
         "--verbose",
@@ -835,7 +1037,7 @@ def main() -> int:
         verify_vehicle_columns(supabase)
         client_rows = list(read_clientes_csv(args.clientes_csv))
         client_map, created_clients, would_create_clients = process_clientes(
-            supabase, tenant_id, client_rows, args.dry_run, errors
+            supabase, tenant_id, client_rows, args.dry_run, errors, args.batch_size
         )
         known_patentes = load_patentes(supabase, tenant_id)
         total_vehicles, created_vehicles, would_create_vehicles = process_vehiculos(
@@ -847,6 +1049,7 @@ def main() -> int:
             args.dry_run,
             errors,
             args.progress_every,
+            args.batch_size,
         )
     except Exception as error:
         errors.append(ErrorImportacion("sistema", str(error)))
@@ -857,7 +1060,7 @@ def main() -> int:
     write_errors(error_path, errors)
     logging.info(
         "finalizado: clientes_creados=%s clientes_a_crear=%s vehiculos_procesados=%s "
-        "vehiculos_creados=%s vehiculos_a_crear=%s errores=%s reporte=%s%s",
+        "vehiculos_creados=%s vehiculos_a_crear=%s errores=%s reporte_errores=%s%s",
         created_clients,
         would_create_clients,
         total_vehicles,

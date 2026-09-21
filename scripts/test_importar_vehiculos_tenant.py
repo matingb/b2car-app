@@ -141,7 +141,7 @@ class ImportarVehiculosTenantTests(unittest.TestCase):
         self.assertEqual(rows[1]["id_cliente_origen"], "4")
         self.assertEqual(rows[1]["patente"], "AB123CD")
 
-    def test_processes_clients_before_vehicles_and_links_by_code(self) -> None:
+    def create_fake_supabase(self):
         class Response:
             def __init__(self, data):
                 self.data = data
@@ -151,11 +151,15 @@ class ImportarVehiculosTenantTests(unittest.TestCase):
                 self.supabase = supabase
                 self.table_name = table_name
                 self.payload = None
+                self.deleted = False
 
             def select(self, *_args):
                 return self
 
             def eq(self, *_args):
+                return self
+
+            def in_(self, *_args):
                 return self
 
             def limit(self, *_args):
@@ -164,33 +168,36 @@ class ImportarVehiculosTenantTests(unittest.TestCase):
             def range(self, *_args):
                 return self
 
-            def insert(self, payload):
+            def insert(self, payload, **_kwargs):
                 self.payload = payload
                 return self
 
             def delete(self):
+                self.deleted = True
                 return self
 
             def execute(self):
-                if self.table_name in {"empresas", "particulares"} and self.payload is None:
-                    return Response([])
-                if self.table_name == "clientes" and self.payload is not None:
-                    return Response([{"id": "cliente-creado"}])
                 if self.payload is not None:
                     self.supabase.inserts.append((self.table_name, self.payload))
+                if self.deleted:
+                    self.supabase.deleted_tables.append(self.table_name)
                 return Response([])
 
         class FakeSupabase:
             def __init__(self):
                 self.inserts = []
+                self.deleted_tables = []
 
             def table(self, table_name):
                 return Query(self, table_name)
 
-        supabase = FakeSupabase()
+        return FakeSupabase()
+
+    def test_processes_clients_before_vehicles_and_links_by_code(self) -> None:
+        supabase = self.create_fake_supabase()
         errors = []
         client_map, created_clients, _ = importer.process_clientes(
-            supabase, "tenant-id", [self.make_client_row()], False, errors
+            supabase, "tenant-id", [self.make_client_row()], False, errors, 250
         )
         vehicle_row = importer.VehiculoCsv(
             line_number=3,
@@ -205,15 +212,133 @@ class ImportarVehiculosTenantTests(unittest.TestCase):
             motor="M1",
         )
         _, created_vehicles, _ = importer.process_vehiculos(
-            supabase, "tenant-id", [vehicle_row], client_map, set(), False, errors, 100
+            supabase, "tenant-id", [vehicle_row], client_map, set(), False, errors, 100, 250
         )
 
         self.assertEqual(errors, [])
         self.assertEqual(created_clients, 1)
         self.assertEqual(created_vehicles, 1)
-        self.assertEqual(client_map["4"].cliente_id, "cliente-creado")
+        self.assertIsNotNone(client_map["4"].cliente_id)
         vehicle_insert = next(payload for table, payload in supabase.inserts if table == "vehiculos")
-        self.assertEqual(vehicle_insert["cliente_id"], "cliente-creado")
+        self.assertEqual(vehicle_insert[0]["cliente_id"], client_map["4"].cliente_id)
+
+    def test_inserts_clients_and_vehicles_in_batches_of_250(self) -> None:
+        supabase = self.create_fake_supabase()
+        client_rows = [
+            self.make_client_row(
+                line_number=index + 2,
+                codigo=str(index),
+                cuit=None,
+                nro_documento=f"{1_000_000 + index:07d}",
+                tipo_documento="DNI",
+            )
+            for index in range(251)
+        ]
+        errors = []
+        client_map, created_clients, _ = importer.process_clientes(
+            supabase, "tenant-id", client_rows, False, errors, 250
+        )
+        vehicle_rows = [
+            importer.VehiculoCsv(
+                line_number=index + 2,
+                patente=f"AA{index:03d}AA",
+                marca="Marca",
+                modelo="Modelo",
+                version=None,
+                anio="2020",
+                color="Rojo",
+                id_cliente=str(index),
+                chasis=f"CH{index}",
+                motor=f"MO{index}",
+            )
+            for index in range(251)
+        ]
+        _, created_vehicles, _ = importer.process_vehiculos(
+            supabase, "tenant-id", vehicle_rows, client_map, set(), False, errors, 100, 250
+        )
+
+        self.assertEqual(errors, [])
+        self.assertEqual(created_clients, 251)
+        self.assertEqual(created_vehicles, 251)
+        self.assertEqual(
+            [len(payload) for table, payload in supabase.inserts if table == "clientes"],
+            [250, 1],
+        )
+        self.assertEqual(
+            [len(payload) for table, payload in supabase.inserts if table == "particulares"],
+            [250, 1],
+        )
+        self.assertEqual(
+            [len(payload) for table, payload in supabase.inserts if table == "vehiculos"],
+            [250, 1],
+        )
+
+    def test_missing_or_invalid_identification_creates_separate_particulares_without_dni(self) -> None:
+        supabase = self.create_fake_supabase()
+        client_map, created, _ = importer.process_clientes(
+            supabase,
+            "tenant-id",
+            [
+                self.make_client_row(codigo="sin-documento", cuit=None, nro_documento=None),
+                self.make_client_row(codigo="documento-invalido", cuit="invalido", nro_documento="123"),
+            ],
+            False,
+            [],
+            250,
+        )
+
+        self.assertEqual(created, 2)
+        particular_payload = next(payload for table, payload in supabase.inserts if table == "particulares")
+        self.assertEqual([row["dni_cuil"] for row in particular_payload], [None, None])
+        self.assertNotEqual(
+            client_map["sin-documento"].cliente_id,
+            client_map["documento-invalido"].cliente_id,
+        )
+
+    def test_failed_detail_batch_reverts_the_base_clients(self) -> None:
+        class Response:
+            data = []
+
+        class Query:
+            def __init__(self, supabase, table_name):
+                self.supabase = supabase
+                self.table_name = table_name
+                self.payload = None
+                self.deleted = False
+
+            def insert(self, payload, **_kwargs):
+                self.payload = payload
+                return self
+
+            def delete(self):
+                self.deleted = True
+                return self
+
+            def in_(self, *_args):
+                return self
+
+            def execute(self):
+                if self.table_name == "particulares" and self.payload is not None:
+                    raise RuntimeError("detalle invalido")
+                if self.deleted:
+                    self.supabase.deleted_clients = True
+                return Response()
+
+        class FakeSupabase:
+            def __init__(self):
+                self.deleted_clients = False
+
+            def table(self, table_name):
+                return Query(self, table_name)
+
+        row = self.make_client_row(cuit=None, nro_documento="12345678", tipo_documento="DNI")
+        pending = importer.ClientePendiente("cliente-id", importer.classify_cliente(row), [row])
+        supabase = FakeSupabase()
+
+        with self.assertRaisesRegex(RuntimeError, "detalle invalido"):
+            importer.insert_clientes_lote(supabase, "tenant-id", [pending])
+
+        self.assertTrue(supabase.deleted_clients)
 
 
 if __name__ == "__main__":
