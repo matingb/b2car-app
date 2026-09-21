@@ -48,3 +48,5 @@ next-env.d.ts
 /secret
 /supabase/.schema
 /supabase/snippets
+
+/scripts/data

@@ -1,2 +1,6 @@
 # Cliente oficial de Supabase para la Data API HTTPS.
 supabase==2.31.0
+
+# realtime==2.31.0 importa websockets.asyncio, disponible desde websockets 13.
+# El rango transitivo de supabase-py permite v12, que falla al importar el cliente.
+websockets>=13,<16
