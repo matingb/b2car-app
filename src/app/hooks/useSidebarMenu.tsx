@@ -16,6 +16,7 @@ import {
   WalletCards,
   Settings,
   ReceiptText,
+  Building2,
 } from "lucide-react";
 import { logOut } from "@/app/login/actions";
 import { useRouter } from "next/navigation";
@@ -33,6 +34,7 @@ export enum SidebarMenuKey {
   CuentasFinancieras = "cuentas-financieras",
   Empleados = "empleados",
   Facturas = "facturas",
+  Talleres = "talleres",
   Configuracion = "configuracion",
   Logout = "logout",
 }
@@ -134,6 +136,13 @@ export function useSidebarMenu() {
         label: "Facturas",
         icon: <ReceiptText size={18} />,
         onClick: () => router.push(ROUTES.facturacion),
+      }] : []),
+      ...(hasPermission(Permission.ConfiguracionView) ? [{
+        key: SidebarMenuKey.Talleres,
+        href: ROUTES.talleres,
+        label: "Talleres",
+        icon: <Building2 size={18} />,
+        onClick: () => router.push(ROUTES.talleres),
       }] : []),
       ...(hasPermission(Permission.ConfiguracionView) ? [{
         key: SidebarMenuKey.Configuracion,

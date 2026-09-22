@@ -488,6 +488,7 @@ export default function ArregloDetailsPage() {
             categoriaArregloId: d.categoria_arreglo_id ?? null,
             empleadoId: d.empleado_id ?? null,
           }))}
+          tallerId={arreglo.taller_id ?? null}
           defaultCategoriaArregloId={ultimoUsado.categoriaArregloId}
           defaultEmpleadoId={ultimoUsado.empleadoId}
           onAdd={handleAddServicio}

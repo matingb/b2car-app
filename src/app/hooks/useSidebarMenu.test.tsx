@@ -37,12 +37,16 @@ afterEach(() => {
 });
 
 describe("useSidebarMenu", () => {
-  it("muestra Facturas y Configuración para admin con plan PRO", () => {
+  it("muestra Facturas, Talleres y Configuración para admin con plan PRO", () => {
     state.role = UserRole.Admin;
     state.pro = true;
     const { result } = renderHook(() => useSidebarMenu());
 
     expect(result.current.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: SidebarMenuKey.Talleres,
+        href: "/talleres",
+      }),
       expect.objectContaining({
         key: SidebarMenuKey.Configuracion,
         href: "/configuracion",
@@ -54,11 +58,14 @@ describe("useSidebarMenu", () => {
     ]));
   });
 
-  it("oculta Facturas y Configuración para BASE en admin", () => {
+  it("oculta Facturas, Talleres y Configuración para BASE en admin", () => {
     state.role = UserRole.Admin;
     state.pro = false;
     const { result } = renderHook(() => useSidebarMenu());
 
+    expect(result.current.items).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: SidebarMenuKey.Talleres }),
+    ]));
     expect(result.current.items).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ key: SidebarMenuKey.Configuracion }),
     ]));
@@ -88,6 +95,7 @@ describe("useSidebarMenu", () => {
     expect(keys).not.toContain(SidebarMenuKey.Facturas);
     expect(keys).not.toContain(SidebarMenuKey.Empleados);
     expect(keys).not.toContain(SidebarMenuKey.Productos);
+    expect(keys).not.toContain(SidebarMenuKey.Talleres);
     expect(keys).not.toContain(SidebarMenuKey.Configuracion);
   });
 });

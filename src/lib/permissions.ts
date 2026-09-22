@@ -79,6 +79,9 @@ export const PATH_PERMISSIONS: readonly RoutePermissionRule[] = [
     permission: Permission.ConfiguracionView,
   },
 
+  // Talleres
+  { path: ["/talleres", "/api/tenant/taller"], permission: Permission.ConfiguracionView },
+
   // Facturación y endpoints fiscales
   {
     path: ["/facturacion", "/api/facturas", "/api/fiscal"],

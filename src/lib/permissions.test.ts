@@ -42,6 +42,8 @@ describe("permissions", () => {
       ["/api/productos", Permission.ProductosView],
       ["/configuracion", Permission.ConfiguracionView],
       ["/api/facturacion/configuracion", Permission.ConfiguracionView],
+      ["/talleres", Permission.ConfiguracionView],
+      ["/api/tenant/taller", Permission.ConfiguracionView],
       ["/api/clientes/123/cuenta-corriente", Permission.ClientesFinanzasView],
       ["/api/arreglos/123/cobro", Permission.ArreglosCobrosRegister],
     ] as const)("mapea %s a %s", (pathname, expected) => {
