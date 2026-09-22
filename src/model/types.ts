@@ -173,6 +173,7 @@ export interface Taller {
   id: string;
   nombre: string;
   ubicacion: string;
+  valor_hora?: number;
 }
 
 export interface OperacionLinea {

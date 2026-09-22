@@ -1,12 +1,12 @@
 
 import { createClient } from "@/supabase/server"
-import { tenantService } from "../tenantService";
+import { tallerService } from "../tallerService";
 
 export async function GET() {
-    
+
     const supabase = await createClient();
-    const { data, error } = await tenantService.getTalleres(supabase);
-    
+    const { data, error } = await tallerService.getTalleres(supabase);
+
     if (error) {
         return new Response(JSON.stringify({ data: null, error }), { status: 500 });
     }

@@ -58,6 +58,7 @@ export function TenantTestProvider({
   talleres = [],
   tallerSeleccionadoId = "",
   setTallerSeleccionadoId = () => {},
+  updateTaller = async () => ({ data: null, error: null }),
   loading = false,
   hasPermission = () => true,
   canAccessPath: customCanAccessPath,
@@ -73,6 +74,7 @@ export function TenantTestProvider({
     talleres,
     tallerSeleccionadoId,
     setTallerSeleccionadoId,
+    updateTaller,
     hasPermission,
     canAccessPath: customCanAccessPath ?? defaultCanAccessPath,
   };

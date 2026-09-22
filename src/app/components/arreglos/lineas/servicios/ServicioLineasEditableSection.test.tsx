@@ -90,4 +90,37 @@ describe("ServicioLineasEditableSection", () => {
       });
     });
   });
+
+  it("precarga el precio con el valor_hora del taller activo al abrir el formulario", () => {
+    render(
+      <TenantTestProvider
+        talleres={[
+          {
+            id: "tal-1",
+            nombre: "Taller Norte",
+            ubicacion: "Av. Cabildo 100",
+            valor_hora: 16500,
+          },
+        ]}
+        tallerSeleccionadoId="tal-1"
+      >
+        <ServicioLineasEditableSection
+          items={[]}
+          onAdd={vi.fn()}
+          onUpdate={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      </TenantTestProvider>
+    );
+
+    // Al inicio no se edita nada
+    expect(screen.queryByLabelText("Precio venta")).not.toBeInTheDocument();
+
+    // Abrir formulario
+    fireEvent.click(screen.getByRole("button", { name: /agregar mano de obra/i }));
+
+    // El input de precio de venta debe tener precargado 16500
+    const priceInput = screen.getByLabelText("Precio venta");
+    expect(priceInput).toHaveValue("16500");
+  });
 });

@@ -32,16 +32,18 @@ vi.mock("../productos/productosService", async () => {
   };
 });
 
-vi.mock("../tenant/tenantService", async () => {
-  const actual = await vi.importActual<typeof import("../tenant/tenantService")>(
-    "../tenant/tenantService"
+vi.mock("../tenant/tallerService", async () => {
+  const actual = await vi.importActual<typeof import("../tenant/tallerService")>(
+    "../tenant/tallerService"
   );
+  const mockTenantService = {
+    ...actual.tenantService,
+    getTalleres: vi.fn(),
+  };
   return {
     ...actual,
-    tenantService: {
-      ...actual.tenantService,
-      getTalleres: vi.fn(),
-    },
+    tenantService: mockTenantService,
+    tallerService: mockTenantService,
   };
 });
 
@@ -49,7 +51,7 @@ import { GET, POST } from "./route";
 import { createClient } from "@/supabase/server";
 import { stocksService } from "./stocksService";
 import { productosService } from "../productos/productosService";
-import { tenantService } from "../tenant/tenantService";
+import { tenantService } from "../tenant/tallerService";
 import { createInventarioProductoRow, createStockItemRow, createStockRow } from "@/tests/factories";
 
 async function postStock(input: unknown) {
@@ -87,7 +89,7 @@ describe("/api/stocks", () => {
 
   it("GET si se invoca con tallerId como filtro, usa listForTaller en vez de listAll", async () => {
     const tallerId = "TAL-001";
-    
+
     vi.mocked(stocksService.listForTaller).mockResolvedValue({
       data: [createStockItemRow({ taller_id: tallerId })],
       error: null,

@@ -49,6 +49,7 @@ type Props = {
   items: ServicioLinea[];
   disabled?: boolean;
   readOnly?: boolean;
+  tallerId?: string | null;
   defaultCategoriaArregloId?: string | null;
   defaultEmpleadoId?: string | null;
   onAdd: (input: ServicioLineaValue) => void | Promise<void>;
@@ -62,14 +63,22 @@ export default function ServicioLineasEditableSection({
   items,
   disabled = false,
   readOnly = false,
+  tallerId = null,
   defaultCategoriaArregloId = null,
   defaultEmpleadoId = null,
   onAdd,
   onUpdate,
   onDelete,
 }: Props) {
-  const { hasPermission } = useTenant();
+  const { hasPermission, talleres = [], tallerSeleccionadoId } = useTenant();
   const canEditPrices = hasPermission(Permission.ArreglosPreciosEdit);
+
+  const activeTallerId = tallerId ?? tallerSeleccionadoId;
+  const activeTaller = (talleres ?? []).find((t) => t.id === activeTallerId) ?? (talleres ?? [])[0];
+  const defaultValorHora =
+    activeTaller?.valor_hora != null && activeTaller.valor_hora > 0
+      ? String(activeTaller.valor_hora)
+      : "";
 
   const {
     editingId,
@@ -90,7 +99,7 @@ export default function ServicioLineasEditableSection({
     initialDraft: {
       descripcion: "",
       cantidad: "1",
-      valor: "",
+      valor: defaultValorHora,
       categoriaArregloId: defaultCategoriaArregloId,
       empleadoId: defaultEmpleadoId,
     },

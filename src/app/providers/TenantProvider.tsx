@@ -1,6 +1,10 @@
 "use client";
 
-import { tenantClient } from "@/clients/tenantClient";
+import {
+  tenantClient,
+  type UpdateTallerPatch,
+  type UpdateTallerResponse,
+} from "@/clients/tenantClient";
 import {
   permissionForPath,
   type PermissionValue,
@@ -14,6 +18,7 @@ export type TenantContextValue = {
   talleres: Taller[];
   tallerSeleccionadoId: string;
   setTallerSeleccionadoId: (id: string) => void;
+  updateTaller: (id: string, patch: UpdateTallerPatch) => Promise<UpdateTallerResponse>;
   hasPermission: (permission: PermissionValue) => boolean;
   canAccessPath: (pathname: string) => boolean;
 };
@@ -78,6 +83,17 @@ export function TenantProvider({
     [hasPermission],
   );
 
+  const updateTaller = useCallback(
+    async (id: string, patch: UpdateTallerPatch): Promise<UpdateTallerResponse> => {
+      const res = await tenantClient.updateTaller(id, patch);
+      if (!res.error) {
+        await fetchAll();
+      }
+      return res;
+    },
+    [fetchAll]
+  );
+
   const value = useMemo(
     () => ({
       loading,
@@ -85,10 +101,11 @@ export function TenantProvider({
       talleres,
       tallerSeleccionadoId,
       setTallerSeleccionadoId,
+      updateTaller,
       hasPermission,
       canAccessPath,
     }),
-    [loading, tenantName, talleres, tallerSeleccionadoId, hasPermission, canAccessPath],
+    [loading, tenantName, talleres, tallerSeleccionadoId, updateTaller, hasPermission, canAccessPath],
   );
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;
