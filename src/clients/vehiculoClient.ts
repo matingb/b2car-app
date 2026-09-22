@@ -25,10 +25,12 @@ export type CreateVehiculoRequest = {
   fecha_patente: string;
   numero_chasis?: string;
   nro_interno?: string | null;
+  color?: string;
+  numero_motor?: string;
 };
 
 export type UpdateVehiculoRequest = Partial<
-  Pick<CreateVehiculoRequest, "patente" | "marca" | "modelo" | "fecha_patente" | "numero_chasis" | "nro_interno">
+  Pick<CreateVehiculoRequest, "patente" | "marca" | "modelo" | "fecha_patente" | "numero_chasis" | "nro_interno" | "color" | "numero_motor">
 >;
 
 export type UpdateVehiculoResponse = {

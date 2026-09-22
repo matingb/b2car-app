@@ -14,6 +14,8 @@ export type VehiculoFormFieldsValue = {
   fecha_patente: string; // YYYY
   numero_chasis: string;
   nro_interno: string;
+  color?: string;
+  numero_motor?: string;
 };
 
 export function validateVehiculoForm(
@@ -135,13 +137,13 @@ export default function VehiculoFormFields({
             />
           </div>
           <div style={styles.field}>
-            <label style={styles.label}>N° chasis</label>
+            <label style={styles.label}>Color</label>
             <input
-              data-testid="numero-chasis-input"
+              data-testid="color-input"
               style={styles.input}
-              placeholder="8AFZZZ54ZXJ123456"
-              value={value.numero_chasis}
-              onChange={(e) => onChange({ numero_chasis: e.target.value.toUpperCase() })}
+              placeholder="Gris"
+              value={value.color ?? ""}
+              onChange={(e) => onChange({ color: e.target.value })}
             />
           </div>
         </div>
@@ -165,7 +167,33 @@ export default function VehiculoFormFields({
               onChange={(e) => onChange({ modelo: e.target.value })}
             />
           </div>
-          {showNroInterno && (
+        </div>
+
+        <div style={styles.row}>
+          <div style={styles.field}>
+            <label style={styles.label}>N° chasis</label>
+            <input
+              data-testid="numero-chasis-input"
+              style={styles.input}
+              placeholder="8AFZZZ54ZXJ123456"
+              value={value.numero_chasis}
+              onChange={(e) => onChange({ numero_chasis: e.target.value.toUpperCase() })}
+            />
+          </div>
+          <div style={styles.field}>
+            <label style={styles.label}>N° motor</label>
+            <input
+              data-testid="numero-motor-input"
+              style={styles.input}
+              placeholder="1ZRFAE123456"
+              value={value.numero_motor ?? ""}
+              onChange={(e) => onChange({ numero_motor: e.target.value.toUpperCase() })}
+            />
+          </div>
+        </div>
+
+        {showNroInterno ? (
+          <div style={styles.row}>
             <div style={styles.field}>
               <label style={styles.label}>Nro interno</label>
               <input
@@ -175,8 +203,8 @@ export default function VehiculoFormFields({
                 onChange={(e) => onChange({ nro_interno: e.target.value })}
               />
             </div>
-          )}
-        </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

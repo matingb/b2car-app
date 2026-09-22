@@ -6,7 +6,7 @@ import IconLabel from "@/app/components/ui/IconLabel";
 import IconButton from "@/app/components/ui/IconButton";
 import { Vehiculo } from "@/model/types";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
-import { Calendar, Gauge, Hash, Pencil, Trash } from "lucide-react";
+import { Calendar, Gauge, Hash, Palette, Pencil, Trash } from "lucide-react";
 import { css } from "@emotion/react";
 
 type Props = {
@@ -32,6 +32,8 @@ export default function VehiculoInfoCard({
 }: Props) {
   const nroInterno = (vehiculo?.nro_interno ?? "").trim();
   const numeroChasis = (vehiculo?.numero_chasis ?? "").trim();
+  const color = (vehiculo?.color ?? "").trim();
+  const numeroMotor = (vehiculo?.numero_motor ?? "").trim();
 
   return (
     <div style={{ ...styles.container, ...style }}>
@@ -79,6 +81,24 @@ export default function VehiculoInfoCard({
               <IconLabel
                 icon={<Hash size={18} color={COLOR.ACCENT.PRIMARY} />}
                 label={numeroChasis}
+              />
+            </div>
+          )}
+          {color && (
+            <div>
+              <div style={styles.label}>Color</div>
+              <IconLabel
+                icon={<Palette size={18} color={COLOR.ACCENT.PRIMARY} />}
+                label={color}
+              />
+            </div>
+          )}
+          {numeroMotor && (
+            <div>
+              <div style={styles.label}>N° motor</div>
+              <IconLabel
+                icon={<Hash size={18} color={COLOR.ACCENT.PRIMARY} />}
+                label={numeroMotor}
               />
             </div>
           )}

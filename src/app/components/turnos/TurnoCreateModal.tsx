@@ -52,6 +52,8 @@ function createEmptyVehiculoDraft(): VehiculoFormFieldsValue {
 		fecha_patente: "",
 		nro_interno: "",
 		numero_chasis: "",
+		color: "",
+		numero_motor: "",
 	};
 }
 
@@ -214,6 +216,8 @@ export default function TurnoCreateModal({
 					fecha_patente: form.vehiculoDraft.fecha_patente.trim() || "",
 					numero_chasis: form.vehiculoDraft.numero_chasis.trim() || "",
 					nro_interno: form.vehiculoDraft.nro_interno.trim() || null,
+					color: form.vehiculoDraft.color?.trim() || "",
+					numero_motor: form.vehiculoDraft.numero_motor?.trim().toUpperCase() || "",
 				});
 
 				if (!createdVehiculoId) throw new Error("No se pudo crear el vehículo");

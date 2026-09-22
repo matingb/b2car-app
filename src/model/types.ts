@@ -54,6 +54,8 @@ export interface Vehiculo {
   fecha_patente: string;
   numero_chasis: string;
   nro_interno?: string | null;
+  color?: string;
+  numero_motor?: string;
 }
 
 export type EstadoArreglo =

@@ -45,8 +45,8 @@ from uuid import UUID, uuid4
 # Debe coincidir con el importador de clientes asociado a esta migracion.
 # No se recibe por argumento para evitar importar accidentalmente otro tenant.
 # ID del tenant: 11111111-1111-1111-1111-111111111111
-TENANT_ID = "11111111-1111-1111-1111-111111111111"
-#TENANT_ID = "3b07dec7-0da6-42a3-9435-4190cc19eb8a"
+#TENANT_ID = "11111111-1111-1111-1111-111111111111"
+TENANT_ID = "c511e72b-15d6-4a75-9015-55724778027a"
 COMPANY_CUIT_PREFIXES = {"30", "33", "34"}
 PERSON_CUIL_PREFIXES = {"20", "23", "24", "27"}
 DEFAULT_BATCH_SIZE = 250
@@ -505,18 +505,6 @@ def fetch_paginated(phase: str, make_query: Callable[[], Any], page_size: int = 
         offset += page_size
 
 
-def relation_object(value: Any) -> dict[str, Any] | None:
-    if isinstance(value, dict):
-        return value
-    if isinstance(value, list):
-        if len(value) > 1:
-            raise RuntimeError("un cliente tiene mas de un registro base asociado")
-        return value[0] if value else None
-    if value is None:
-        return None
-    raise RuntimeError("Supabase devolvio una relacion de cliente inesperada")
-
-
 def chunked(values: list[T], size: int) -> Iterable[list[T]]:
     for start in range(0, len(values), size):
         yield values[start : start + size]
@@ -524,10 +512,12 @@ def chunked(values: list[T], size: int) -> Iterable[list[T]]:
 
 def load_clientes_existentes(
     supabase: Any,
+    tenant_id: str,
     tipo_cliente: str,
     identificaciones: set[str],
     batch_size: int,
-) -> tuple[dict[str, tuple[str, str]], set[str]]:
+) -> tuple[dict[str, str], set[str]]:
+    """Carga identificadores existentes exclusivamente del tenant destino."""
     if not identificaciones:
         return {}, set()
 
@@ -539,26 +529,23 @@ def load_clientes_existentes(
             fetch_paginated(
                 f"consulta_{table}_existentes_lote_{index}",
                 lambda lote=lote: supabase.table(table)
-                .select(f"id,{field},clientes(tenant_id)")
-                .in_(field, lote),
+                .select(f"id,{field}")
+                .in_(field, lote)
+                .eq("tenant_id", tenant_id),
             )
         )
 
-    clientes: dict[str, tuple[str, str]] = {}
+    clientes: dict[str, str] = {}
     duplicados: set[str] = set()
     for row in rows:
         identificacion = row.get(field)
         client_id = row.get("id")
-        base_client = relation_object(row.get("clientes"))
-        if not isinstance(identificacion, str) or not isinstance(client_id, str) or base_client is None:
+        if not isinstance(identificacion, str) or not isinstance(client_id, str):
             raise RuntimeError("un cliente existente no tiene una relacion base valida")
-        tenant_id = base_client.get("tenant_id")
-        if not isinstance(tenant_id, str):
-            raise RuntimeError("un cliente existente no tiene tenant valido")
         if identificacion in clientes:
             duplicados.add(identificacion)
         else:
-            clientes[identificacion] = (client_id, tenant_id)
+            clientes[identificacion] = client_id
     return clientes, duplicados
 
 
@@ -843,10 +830,10 @@ def process_clientes(
         if cliente.tipo_cliente == "particular" and cliente.identificacion is not None
     }
     empresas_existentes, empresas_duplicadas = load_clientes_existentes(
-        supabase, "empresa", empresas, batch_size
+        supabase, tenant_id, "empresa", empresas, batch_size
     )
     particulares_existentes, particulares_duplicados = load_clientes_existentes(
-        supabase, "particular", particulares, batch_size
+        supabase, tenant_id, "particular", particulares, batch_size
     )
 
     client_map: dict[str, ClienteResuelto] = {}
@@ -862,12 +849,7 @@ def process_clientes(
             continue
         existing = existentes.get(cliente.identificacion) if cliente.identificacion is not None else None
         if existing is not None:
-            existing_id, existing_tenant_id = existing
-            if existing_tenant_id != tenant_id:
-                errors.append(ErrorImportacion("cliente", "el identificador ya existe en otro tenant", cliente=row))
-                logging.error("cliente linea %s: el identificador ya existe en otro tenant", row.line_number)
-                continue
-            client_map[code] = ClienteResuelto(existing_id, row.line_number)
+            client_map[code] = ClienteResuelto(existing, row.line_number)
             continue
 
         key = (

@@ -131,6 +131,8 @@ export const createVehiculoFormFieldsValue = (
     fecha_patente: "",
     numero_chasis: "",
     nro_interno: "",
+    color: "",
+    numero_motor: "",
     ...overrides,
   };
 };

@@ -46,10 +46,9 @@ export const empresaService = {
   async fetchByCuitAndTenantId(supabase: SupabaseClient, cuit: string, tenantId: string | null): Promise<EmpresaTenantResponse> {
     const { data, error } = await supabase
       .from('empresas')
-      .select('*, clientes(tenant_id)')
+      .select('*')
       .eq('cuit', cuit)
-      .eq('clientes.tenant_id', tenantId)
-      .not('clientes', 'is', null)
+      .eq('tenant_id', tenantId)
       .single();
     
     logger.debug(`Búsqueda de empresa por CUIT ${cuit} y Tenant ID ${tenantId}:`, data);

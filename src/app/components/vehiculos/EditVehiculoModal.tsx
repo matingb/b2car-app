@@ -26,6 +26,8 @@ export default function EditVehiculoModal({ open, onClose, vehiculo, tipoCliente
     fecha_patente: vehiculo.fecha_patente ?? "",
     numero_chasis: vehiculo.numero_chasis ?? "",
     nro_interno: vehiculo.nro_interno ?? "",
+    color: vehiculo.color ?? "",
+    numero_motor: vehiculo.numero_motor ?? "",
   });
   const [isValid, setIsValid] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -42,6 +44,8 @@ export default function EditVehiculoModal({ open, onClose, vehiculo, tipoCliente
       fecha_patente: vehiculo.fecha_patente ?? "",
       numero_chasis: vehiculo.numero_chasis ?? "",
       nro_interno: vehiculo.nro_interno ?? "",
+      color: vehiculo.color ?? "",
+      numero_motor: vehiculo.numero_motor ?? "",
     });
     setIsValid(false);
     setSubmitting(false);
@@ -59,6 +63,8 @@ export default function EditVehiculoModal({ open, onClose, vehiculo, tipoCliente
         fecha_patente: values.fecha_patente || "",
         numero_chasis: values.numero_chasis.trim() || "",
         nro_interno: values.nro_interno.trim() || "",
+        color: values.color?.trim() || "",
+        numero_motor: values.numero_motor?.trim().toUpperCase() || "",
       });
       success("Vehículo actualizado", `${values.patente} se actualizó correctamente.`);
       onClose(true);

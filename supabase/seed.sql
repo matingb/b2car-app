@@ -115,6 +115,14 @@ INSERT INTO public.clientes (id, tipo_cliente, puntaje, fecha_creacion, tenant_i
   ('10000000-0000-0000-0000-000000000110','empresa',   13, now() - interval '115 days','11111111-1111-1111-1111-111111111111');
 
 -- Particulares (10)
+-- El seed se ejecuta sin una sesion de Supabase. Se simula el claim que usan
+-- los defaults de tenant_id para que los detalles se creen en B2Car.
+SELECT set_config(
+  'request.jwt.claims',
+  '{"tenant_id":"11111111-1111-1111-1111-111111111111"}',
+  true
+);
+
 INSERT INTO public.particulares (id, nombre, apellido, telefono, email, created_at, direccion) VALUES
   ('10000000-0000-0000-0000-000000000001','Lucia',   'Gomez',  '341-555-1001','lucia.gomez@test.com',  now() - interval '150 days','San Martin 1200'),
   ('10000000-0000-0000-0000-000000000002','Diego',   'Perez',  '341-555-1002','diego.perez@test.com',  now() - interval '140 days','Maipu 350'),

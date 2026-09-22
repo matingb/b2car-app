@@ -51,6 +51,8 @@ describe("POST /api/vehiculos", () => {
       fecha_patente: "",
       numero_chasis: "",
       nro_interno: "",
+      color: "",
+      numero_motor: "",
     });
 
     expect(response.status).toBe(201);
@@ -58,6 +60,25 @@ describe("POST /api/vehiculos", () => {
 
     expect(vehiculoService.create).toHaveBeenCalledTimes(1);
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("envia color y numero de motor al crear un vehiculo", async () => {
+    vi.mocked(vehiculoService.create).mockResolvedValue({ data: { id: "123" }, error: null });
+
+    const req = new Request("http://localhost/api/vehiculos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        createCreateVehiculoRequest({ color: "Gris", numero_motor: "ab-123" })
+      ),
+    });
+
+    await POST(req);
+
+    expect(vehiculoService.create).toHaveBeenCalledWith(
+      mockSupabase,
+      expect.objectContaining({ color: "Gris", numero_motor: "AB-123" })
+    );
   });
 
   it("dado un JSON inválido debe devolver 400", async () => {

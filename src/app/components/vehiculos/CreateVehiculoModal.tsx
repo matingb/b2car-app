@@ -42,6 +42,8 @@ export default function CreateVehiculoModal({
     fecha_patente: "",
     numero_chasis: "",
     nro_interno: "",
+    color: "",
+    numero_motor: "",
   });
   const [isValid, setIsValid] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -56,6 +58,8 @@ export default function CreateVehiculoModal({
       fecha_patente: "",
       numero_chasis: "",
       nro_interno: "",
+      color: "",
+      numero_motor: "",
     });
     setIsValid(false);
     setSubmitting(false);
@@ -78,6 +82,8 @@ export default function CreateVehiculoModal({
         fecha_patente: values.fecha_patente || "",
         numero_chasis: values.numero_chasis.trim() || "",
         nro_interno: values.nro_interno.trim() || null,
+        color: values.color?.trim() || "",
+        numero_motor: values.numero_motor?.trim().toUpperCase() || "",
       });
 
       onClose({

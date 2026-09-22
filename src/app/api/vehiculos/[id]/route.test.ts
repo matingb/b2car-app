@@ -74,13 +74,18 @@ describe("Mutaciones /api/vehiculos/[id]", () => {
     const req = new NextRequest("http://localhost/api/vehiculos/v1", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ marca: "Ford" }),
+      body: JSON.stringify({ marca: "Ford", color: "Gris", numero_motor: "ab123" }),
     });
     const params = Promise.resolve({ id: "v1" });
 
     const response = await PUT(req, { params });
     expect(response.status).toBe(200);
     expect(vehiculoService.updateById).toHaveBeenCalledTimes(1);
+    expect(vehiculoService.updateById).toHaveBeenCalledWith(mockSupabase, "v1", {
+      marca: "Ford",
+      color: "Gris",
+      numero_motor: "AB123",
+    });
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
     expect(statsService.onDataChanged).toHaveBeenCalledWith(mockSupabase);
   });

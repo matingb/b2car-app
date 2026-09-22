@@ -291,9 +291,9 @@ def cliente_ya_existe(supabase, tenant_id: str, cliente: ClienteImportable) -> b
             f"línea_{cliente.line_number}_consulta_duplicado",
             lambda: (
                 supabase.table("empresas")
-                .select("id, clientes!inner(tenant_id)")
+                .select("id")
                 .eq("cuit", cliente.identificacion)
-                .eq("clientes.tenant_id", tenant_id)
+                .eq("tenant_id", tenant_id)
                 .limit(1)
                 .execute()
             ),
@@ -305,6 +305,7 @@ def cliente_ya_existe(supabase, tenant_id: str, cliente: ClienteImportable) -> b
                 supabase.table("particulares")
                 .select("id")
                 .eq("dni_cuil", cliente.identificacion)
+                .eq("tenant_id", tenant_id)
                 .limit(1)
                 .execute()
             ),

@@ -131,12 +131,13 @@ function mockSuccessfulFetch() {
   );
 }
 
-function setupDefaultData() {
+function setupDefaultData(vehiculoOverrides: Partial<ReturnType<typeof createVehiculo>> = {}) {
   const vehiculo = createVehiculo({
     id: "veh-1",
     patente: "AA123BB",
     marca: "Toyota",
     modelo: "Corolla",
+    ...vehiculoOverrides,
   });
   const cliente = createCliente({
     id: "cli-1",
@@ -201,6 +202,27 @@ beforeEach(() => {
 });
 
 describe("VehiculoDetailsPage integration", () => {
+  it("muestra color y numero de motor cuando el vehiculo los tiene configurados", async () => {
+    setupDefaultData({ color: "Azul", numero_motor: "MTR123" });
+
+    render(<TestShell />);
+
+    expect(await screen.findByText("Color")).toBeInTheDocument();
+    expect(screen.getByText("Azul")).toBeInTheDocument();
+    expect(screen.getByText("N° motor")).toBeInTheDocument();
+    expect(screen.getByText("MTR123")).toBeInTheDocument();
+  });
+
+  it("oculta color y numero de motor cuando no estan configurados", async () => {
+    setupDefaultData({ color: "  ", numero_motor: "" });
+
+    render(<TestShell />);
+
+    await screen.findAllByText("AA123BB - Toyota Corolla");
+    expect(screen.queryByText("Color")).not.toBeInTheDocument();
+    expect(screen.queryByText("N° motor")).not.toBeInTheDocument();
+  });
+
   it("permite crear un arreglo desde el detalle usando el layout real", async () => {
     setupDefaultData();
     const user = userEvent.setup();

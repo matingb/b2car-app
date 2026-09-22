@@ -157,6 +157,7 @@ class ImportarVehiculosTenantTests(unittest.TestCase):
                 return self
 
             def eq(self, *_args):
+                self.supabase.equals.append((self.table_name, *_args))
                 return self
 
             def in_(self, *_args):
@@ -187,11 +188,26 @@ class ImportarVehiculosTenantTests(unittest.TestCase):
             def __init__(self):
                 self.inserts = []
                 self.deleted_tables = []
+                self.equals = []
 
             def table(self, table_name):
                 return Query(self, table_name)
 
         return FakeSupabase()
+
+    def test_existing_client_lookup_is_scoped_to_the_target_tenant(self) -> None:
+        supabase = self.create_fake_supabase()
+
+        importer.process_clientes(
+            supabase,
+            "tenant-id",
+            [self.make_client_row()],
+            False,
+            [],
+            250,
+        )
+
+        self.assertIn(("empresas", "tenant_id", "tenant-id"), supabase.equals)
 
     def test_processes_clients_before_vehicles_and_links_by_code(self) -> None:
         supabase = self.create_fake_supabase()

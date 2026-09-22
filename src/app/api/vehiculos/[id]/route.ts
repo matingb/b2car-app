@@ -39,6 +39,8 @@ export async function PUT(
     fecha_patente?: string;
     numero_chasis?: string;
     nro_interno?: string | null;
+    color?: string;
+    numero_motor?: string;
   };
   try {
     body = await req.json();
@@ -53,6 +55,8 @@ export async function PUT(
   if (body.fecha_patente !== undefined) updateData.fecha_patente = body.fecha_patente;
   if (body.numero_chasis !== undefined) updateData.numero_chasis = (body.numero_chasis ?? "").toUpperCase();
   if (body.nro_interno !== undefined) updateData.nro_interno = body.nro_interno ? body.nro_interno : null;
+  if (body.color !== undefined) updateData.color = body.color ?? "";
+  if (body.numero_motor !== undefined) updateData.numero_motor = (body.numero_motor ?? "").toUpperCase();
 
   if (Object.keys(updateData).length === 0) {
     return Response.json({ error: "No hay campos para actualizar" }, { status: 400 });

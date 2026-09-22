@@ -37,6 +37,23 @@ describe("VehiculoFormFields", () => {
     expect(handleChange).toHaveBeenCalledWith({ numero_chasis: "ABC123XYZ" });
   });
 
+  it("normaliza el numero de motor al escribir", () => {
+    const handleChange = vi.fn();
+    const value = createVehiculoFormFieldsValue();
+    render(
+      <VehiculoFormFields
+        value={value}
+        onChange={handleChange}
+      />
+    );
+
+    fireEvent.change(screen.getByTestId("color-input"), { target: { value: "Gris" } });
+    fireEvent.change(screen.getByTestId("numero-motor-input"), { target: { value: "ab123" } });
+
+    expect(handleChange).toHaveBeenNthCalledWith(1, { color: "Gris" });
+    expect(handleChange).toHaveBeenNthCalledWith(2, { numero_motor: "AB123" });
+  });
+
   [
     { patente: "", expected: false },
     { patente: "   ", expected: false },
