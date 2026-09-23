@@ -604,7 +604,7 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise
   const clienteId = nullable(record(vehicle).cliente_id);
   if (!clienteId) throw new FacturacionValidationError("El vehículo no tiene un cliente asociado");
   const [{ data: services, error: serviceError }, { data: forms, error: formError }, assignments] = await Promise.all([
-    supabase.from("detalle_arreglo").select("id, descripcion, cantidad, valor, iva_alicuota_id, created_at")
+    supabase.from("detalle_arreglo").select("id, descripcion, cantidad, precio_hora_facturada, horas_facturadas, iva_alicuota_id, created_at")
       .eq("arreglo_id", arregloId).eq("tenant_id", tenantId).order("created_at"),
     supabase.from("detalle_form_custom").select("id, costo, metadata, config_id, created_at")
       .eq("arreglo_id", arregloId).eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(1),
@@ -614,9 +614,13 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise
   const lineas: FacturaLinea[] = [];
   for (const value of services ?? []) {
     const row = record(value);
+    const cant = number(row.cantidad, 1);
+    const horasFacturadas = number(row.horas_facturadas, 1);
+    const precioHora = number(row.precio_hora_facturada);
+    const effectiveQty = horasFacturadas !== 1 ? cant * horasFacturadas : cant;
     appendLine(lineas, {
       origen: "SERVICIO", sourceId: text(row.id), descripcion: text(row.descripcion),
-      cantidad: number(row.cantidad), importeUnitario: number(row.valor),
+      cantidad: effectiveQty, importeUnitario: precioHora,
       ivaAlicuotaId: number(row.iva_alicuota_id, 5), snapshot: row,
     });
   }

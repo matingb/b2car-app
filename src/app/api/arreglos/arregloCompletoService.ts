@@ -10,7 +10,9 @@ export type DetalleArreglo = {
   arreglo_id: string;
   descripcion: string;
   cantidad: number;
-  valor: number;
+  precio_hora_facturada: number;
+  horas_facturadas: number;
+  horas_trabajadas: number;
   categoria_arreglo_id: string | null;
   empleado_id: string | null;
   created_at?: string;

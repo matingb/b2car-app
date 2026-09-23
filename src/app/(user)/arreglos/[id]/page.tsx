@@ -14,6 +14,7 @@ import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { logger } from "@/lib/logger";
 import { safeNumber } from "@/lib/numbers";
+import { calcLineTotal } from "@/lib/calcLineTotal";
 import type {
   ArregloDetalleData,
   AsignacionArregloLinea,
@@ -186,7 +187,9 @@ export default function ArregloDetailsPage() {
   const handleAddServicio = async (input: {
     descripcion: string;
     cantidad: number;
-    valor: number;
+    precioHoraFacturada: number;
+    horasFacturadas: number;
+    horasTrabajadas: number;
     categoriaArregloId: string | null;
     empleadoId: string | null;
   }) => {
@@ -195,7 +198,9 @@ export default function ArregloDetailsPage() {
       await createDetalle(data.arreglo.id, {
         descripcion: input.descripcion,
         cantidad: input.cantidad,
-        valor: input.valor,
+        precio_hora_facturada: input.precioHoraFacturada,
+        horas_facturadas: input.horasFacturadas,
+        horas_trabajadas: input.horasTrabajadas,
         categoria_arreglo_id: input.categoriaArregloId,
         empleado_id: input.empleadoId,
       });
@@ -217,7 +222,9 @@ export default function ArregloDetailsPage() {
     patch: {
       descripcion: string;
       cantidad: number;
-      valor: number;
+      precioHoraFacturada: number;
+      horasFacturadas: number;
+      horasTrabajadas: number;
       categoriaArregloId: string | null;
       empleadoId: string | null;
     }
@@ -227,7 +234,9 @@ export default function ArregloDetailsPage() {
       await updateDetalle(data.arreglo.id, detalleId, {
         descripcion: patch.descripcion,
         cantidad: patch.cantidad,
-        valor: patch.valor,
+        precio_hora_facturada: patch.precioHoraFacturada,
+        horas_facturadas: patch.horasFacturadas,
+        horas_trabajadas: patch.horasTrabajadas,
         categoria_arreglo_id: patch.categoriaArregloId,
         empleado_id: patch.empleadoId,
       });
@@ -387,13 +396,25 @@ export default function ArregloDetailsPage() {
     : flattenAsignacionesLineas(data);
 
   const subtotalServicios = detalles.reduce(
-    (acc, d) => acc + safeNumber(d.valor) * safeNumber(d.cantidad),
+    (acc, d) =>
+      acc +
+      calcLineTotal({
+        cantidad: d.cantidad,
+        horas_facturadas: d.horas_facturadas,
+        precio_hora_facturada: d.precio_hora_facturada,
+      }),
     0
   );
   const subtotalServiciosCustom =
     customServiciosDraft.length > 0
       ? customServiciosDraft.reduce(
-        (acc, s) => acc + safeNumber(s.valor) * safeNumber(s.cantidad),
+        (acc, s) =>
+          acc +
+          calcLineTotal({
+            cantidad: s.cantidad,
+            horas_facturadas: s.horasFacturadas,
+            precio_hora_facturada: s.precioHoraFacturada,
+          }),
         0
       )
       : safeNumber(data.detalle_formulario?.costo);
@@ -524,7 +545,9 @@ export default function ArregloDetailsPage() {
             id: d.id,
             descripcion: d.descripcion,
             cantidad: safeNumber(d.cantidad),
-            valor: safeNumber(d.valor),
+            precioHoraFacturada: safeNumber(d.precio_hora_facturada),
+            horasFacturadas: safeNumber(d.horas_facturadas ?? 1),
+            horasTrabajadas: safeNumber(d.horas_trabajadas ?? 1),
             categoriaArregloId: d.categoria_arreglo_id ?? null,
             empleadoId: d.empleado_id ?? null,
           }))}

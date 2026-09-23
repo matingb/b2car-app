@@ -1,18 +1,11 @@
 "use client";
 
 import React from "react";
-import { css } from "@emotion/react";
-import { DollarSign } from "lucide-react";
 import { safeInt, safeNumber } from "@/lib/numbers";
 import { formatMoney } from "./lineaUtils";
-import { BREAKPOINTS } from "@/theme/theme";
-import { innerFillStyle, styles as lineaStyles } from "./lineaStyles";
 import { useInlineEditorContext } from "./InlineEditorContext";
-import Card from "../../../ui/Card";
-import IconInput from "../../../ui/IconInput";
-import LineaEditorActions from "./LineaEditorActions";
-import Can from "@/app/components/auth/Can";
-import { Permission } from "@/lib/permissions";
+import LineaCardShell from "./LineaCardShell";
+import RepuestoEditableFields from "../repuestos/RepuestoEditableFields";
 
 export type NewProductLineaDraft = {
   qty: string;
@@ -35,122 +28,49 @@ export default function NewProductLineaCard({
   onDraftChange,
   extra,
 }: Props) {
-  const { interactionEnabled } = useInlineEditorContext();
+  const { interactionEnabled, mode, submitting, onConfirm, onCancel, validation } =
+    useInlineEditorContext();
 
   const qty = safeInt(draft.qty);
   const saleUnit = safeNumber(draft.saleUnit);
   const totalText = formatMoney(qty * saleUnit);
 
+  const confirmEnabled = interactionEnabled && validation.ok && !submitting;
+  const cancelEnabled = interactionEnabled && !submitting;
+
   return (
-    <Card css={styles.card}>
-      {header ? <div css={styles.header}>{header}</div> : null}
-
-      <div css={styles.productFields}>{top}</div>
-
-      <div css={styles.pricingRow}>
-        <div css={styles.fieldsRow}>
-          <input
-            css={qtyInput}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={draft.qty}
-            onChange={(e) => onDraftChange({ qty: e.target.value.replace(/\D/g, "") })}
-            placeholder="1"
-            disabled={!interactionEnabled}
-            aria-label="Cantidad"
-          />
-          <div css={fieldUnit}>
-            <IconInput
-              icon={<DollarSign size={14} />}
-              wrapperStyle={innerFillStyle}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={draft.purchaseUnit}
-              onChange={(e) => onDraftChange({ purchaseUnit: e.target.value.replace(/\D/g, "") })}
-              placeholder="Compra"
-              disabled={!interactionEnabled}
-              aria-label="Precio compra"
-            />
-          </div>
-          <Can permission={Permission.ArreglosPreciosEdit}>
-            <div css={fieldUnit}>
-              <IconInput
-                icon={<DollarSign size={14} />}
-                wrapperStyle={innerFillStyle}
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={draft.saleUnit}
-                onChange={(e) => onDraftChange({ saleUnit: e.target.value.replace(/\D/g, "") })}
-                placeholder="Venta"
-                disabled={!interactionEnabled}
-                aria-label="Precio venta"
-              />
-            </div>
-          </Can>
-        </div>
-
-        <div css={styles.footer}>
-          <Can permission={Permission.ArreglosPreciosView}>
-            <div style={lineaStyles.editorTotalText}>{totalText}</div>
-          </Can>
-          <LineaEditorActions variant="footer" />
-        </div>
-      </div>
-
-      {extra}
-    </Card>
+    <LineaCardShell
+      kind="repuestos"
+      isEditing={true}
+      total={totalText}
+      submitting={submitting}
+      canConfirm={confirmEnabled}
+      canCancel={cancelEnabled}
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+      confirmAriaLabel={mode === "add" ? "agregar repuesto" : "guardar repuesto"}
+      confirmTitle={
+        !validation.ok && validation.message
+          ? validation.message
+          : mode === "add"
+          ? "Agregar"
+          : "Guardar"
+      }
+      cancelAriaLabel={mode === "add" ? "cancelar agregar repuesto" : "cancelar repuesto"}
+      selectors={header}
+      extra={extra}
+    >
+      <RepuestoEditableFields
+        searchSlot={top}
+        cantidad={draft.qty}
+        precioCompra={draft.purchaseUnit}
+        precioVenta={draft.saleUnit}
+        showPurchaseUnit={true}
+        canInteract={interactionEnabled}
+        onCantidadChange={(qty) => onDraftChange({ qty })}
+        onPrecioCompraChange={(purchaseUnit) => onDraftChange({ purchaseUnit })}
+        onPrecioVentaChange={(saleUnit) => onDraftChange({ saleUnit })}
+      />
+    </LineaCardShell>
   );
 }
-
-const qtyInput = css({ ...lineaStyles.editorInput, ...lineaStyles.editorQtyInput });
-const fieldUnit = css(lineaStyles.editorFieldUnit);
-
-const styles = {
-  card: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-  }),
-  header: css({
-    display: "flex",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 10,
-  }),
-  productFields: css({
-    width: "100%",
-  }),
-  pricingRow: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-    width: "100%",
-    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      flexDirection: "row",
-      alignItems: "center",
-    },
-  }),
-  fieldsRow: css({
-    display: "flex",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 10,
-    flex: 1,
-    minWidth: 0,
-  }),
-  footer: css({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 16,
-    borderTop: lineaStyles.editorFooter.borderTop,
-    paddingTop: 12,
-    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      justifyContent: "flex-end",
-      borderTop: "none",
-      paddingTop: 0,
-      marginLeft: "auto",
-      flexShrink: 0,
-    },
-  }),
-} as const;

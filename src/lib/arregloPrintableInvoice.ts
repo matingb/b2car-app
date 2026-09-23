@@ -6,6 +6,7 @@ import type { Cliente } from "@/model/types";
 import { APP_LOCALE, formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
 import { safeNumber } from "@/lib/numbers";
+import { calcLineTotal } from "@/lib/calcLineTotal";
 
 type InvoiceLine = {
   detail: string;
@@ -50,7 +51,13 @@ export function buildArregloPrintableInvoiceHtml({
   const serviceLines = buildServiceLines(data);
   const repuestoLines = buildRepuestoLines(data);
   const subtotalServicios = data.detalles.reduce(
-    (acc, d) => acc + safeNumber(d.valor) * safeNumber(d.cantidad),
+    (acc, d) =>
+      acc +
+      calcLineTotal({
+        cantidad: d.cantidad,
+        horas_facturadas: d.horas_facturadas,
+        precio_hora_facturada: d.precio_hora_facturada,
+      }),
     0
   );
   const subtotalCustom = safeNumber(data.detalle_formulario?.costo);
@@ -374,12 +381,19 @@ export function buildArregloPrintableInvoiceHtml({
 function buildServiceLines(data: ArregloDetalleData): InvoiceLine[] {
   const servicioLines: InvoiceLine[] = data.detalles.map((d) => {
     const quantity = safeNumber(d.cantidad);
-    const unitPrice = safeNumber(d.valor);
+    const horasFacturadas = safeNumber(d.horas_facturadas ?? 1);
+    const unitPrice = safeNumber(d.precio_hora_facturada);
+    const total = calcLineTotal({
+      cantidad: quantity,
+      horas_facturadas: horasFacturadas,
+      precio_hora_facturada: unitPrice,
+    });
+    const effectiveQty = horasFacturadas !== 1 ? quantity * horasFacturadas : quantity;
     return {
       detail: String(d.descripcion ?? "").trim() || "Servicio",
-      quantity,
+      quantity: effectiveQty,
       unitPrice,
-      total: quantity * unitPrice,
+      total,
     };
   });
 

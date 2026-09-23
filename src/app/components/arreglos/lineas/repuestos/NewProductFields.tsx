@@ -3,7 +3,7 @@
 import React from "react";
 import { css } from "@emotion/react";
 import { Package, Tag } from "lucide-react";
-import { BREAKPOINTS, COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
+import { BREAKPOINTS } from "@/theme/theme";
 import IconInput from "@/app/components/ui/IconInput";
 import ConflictWarning from "@/app/components/arreglos/lineas/shared/ConflictWarning";
 
@@ -28,30 +28,26 @@ export default function NewProductFields({
     <div css={styles.wrap}>
       <div css={styles.fields}>
         <div css={styles.codeField}>
-          <label css={styles.label}>
-            Código <span aria-hidden="true" css={styles.required}>*</span>
-          </label>
           <IconInput
             icon={<Tag size={14} />}
-            wrapperStyle={fullWidth}
+            wrapperStyle={inputWrapStyle}
             value={codigo}
             onChange={(e) => onCodigoChange(e.target.value)}
-            placeholder="Ej: FIL-123"
+            placeholder="Código *"
+            title="Código del repuesto (requerido)"
             disabled={disabled}
             aria-label="Código"
             required
           />
         </div>
         <div css={styles.nameField}>
-          <label css={styles.label}>
-            Nombre <span aria-hidden="true" css={styles.required}>*</span>
-          </label>
           <IconInput
             icon={<Package size={14} />}
-            wrapperStyle={fullWidth}
+            wrapperStyle={inputWrapStyle}
             value={nombre}
             onChange={(e) => onNombreChange(e.target.value)}
-            placeholder="Ej: Filtro de aceite premium"
+            placeholder="Nombre del producto *"
+            title="Nombre del repuesto (requerido)"
             disabled={disabled}
             aria-label="Nombre"
             required
@@ -63,7 +59,11 @@ export default function NewProductFields({
   );
 }
 
-const fullWidth: React.CSSProperties = { width: "100%" };
+const inputWrapStyle: React.CSSProperties = {
+  width: "100%",
+  height: 38,
+  boxSizing: "border-box",
+};
 
 const styles = {
   wrap: css({
@@ -75,31 +75,25 @@ const styles = {
   fields: css({
     display: "flex",
     gap: 8,
+    alignItems: "center",
     width: "100%",
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       flexDirection: "column",
     },
   }),
   codeField: css({
-    flex: "0 0 32%",
+    flex: "0 0 35%",
     minWidth: 0,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       flex: "1 1 auto",
+      width: "100%",
     },
   }),
   nameField: css({
     flex: 1,
     minWidth: 0,
-  }),
-  label: css({
-    display: "block",
-    marginBottom: 4,
-    color: COLOR.TEXT.SECONDARY,
-    fontSize: 12,
-    fontWeight: 700,
-  }),
-  required: css({
-    color: REQUIRED_ICON_COLOR,
-    fontWeight: 700,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      width: "100%",
+    },
   }),
 } as const;

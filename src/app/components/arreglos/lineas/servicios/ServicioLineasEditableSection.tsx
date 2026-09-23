@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Plus, Wrench } from "lucide-react";
 import { formatArs } from "@/lib/format";
 import { safeInt, safeNumber } from "@/lib/numbers";
@@ -8,40 +8,41 @@ import { COLOR } from "@/theme/theme";
 import LineasSectionShell from "@/app/components/arreglos/lineas/shared/LineasSectionShell";
 import { styles } from "@/app/components/arreglos/lineas/shared/lineaStyles";
 import { useInlineEditor } from "@/app/components/arreglos/lineas/shared/useInlineEditor";
-import { InlineEditorProvider } from "@/app/components/arreglos/lineas/shared/InlineEditorContext";
-import EditableLineaCard from "@/app/components/arreglos/lineas/shared/EditableLineaCard";
-import ReadOnlyLineaCard from "@/app/components/arreglos/lineas/shared/ReadOnlyLineaCard";
-import CategoriaArregloSelect from "@/app/components/arreglos/lineas/shared/CategoriaArregloSelect";
-import EmpleadoSelect from "@/app/components/arreglos/lineas/shared/EmpleadoSelect";
+import LineaCardShell from "@/app/components/arreglos/lineas/shared/LineaCardShell";
 import CategoriaChip from "@/app/components/arreglos/lineas/shared/CategoriaChip";
 import EmpleadoChip from "@/app/components/arreglos/lineas/shared/EmpleadoChip";
+import CategoriaArregloSelect from "@/app/components/arreglos/lineas/shared/CategoriaArregloSelect";
+import EmpleadoSelect from "@/app/components/arreglos/lineas/shared/EmpleadoSelect";
+import TimeDetailPopover from "./TimeDetailPopover";
+import ServicioEditableFields from "./ServicioEditableFields";
+import type { ServicioEditableCardDraft } from "./ServicioEditableCard";
 import { useTenant } from "@/app/providers/TenantProvider";
+import { useEmpleados } from "@/app/providers/EmpleadosProvider";
 import { Permission } from "@/lib/permissions";
+import { calcLineTotal } from "@/lib/calcLineTotal";
 
 export type ServicioLinea = {
   id: string;
   descripcion: string;
   cantidad: number;
-  valor: number;
+  precioHoraFacturada: number;
+  horasFacturadas: number;
+  horasTrabajadas: number;
   categoriaArregloId: string | null;
   empleadoId: string | null;
 };
 
-type ServicioLineaValue = {
+export type ServicioLineaValue = {
   descripcion: string;
   cantidad: number;
-  valor: number;
+  precioHoraFacturada: number;
+  horasFacturadas: number;
+  horasTrabajadas: number;
   categoriaArregloId: string | null;
   empleadoId: string | null;
 };
 
-type Draft = {
-  descripcion: string;
-  cantidad: string;
-  valor: string;
-  categoriaArregloId: string | null;
-  empleadoId: string | null;
-};
+type Draft = ServicioEditableCardDraft;
 
 type Props = {
   title?: string;
@@ -71,6 +72,7 @@ export default function ServicioLineasEditableSection({
   onDelete,
 }: Props) {
   const { hasPermission, talleres = [], tallerSeleccionadoId } = useTenant();
+  const { empleados = [] } = useEmpleados();
   const canEditPrices = hasPermission(Permission.ArreglosPreciosEdit);
 
   const activeTallerId = tallerId ?? tallerSeleccionadoId;
@@ -99,31 +101,47 @@ export default function ServicioLineasEditableSection({
     initialDraft: {
       descripcion: "",
       cantidad: "1",
-      valor: defaultValorHora,
+      horasFacturadas: "1",
+      horasTrabajadas: "1",
+      precioHoraFacturada: defaultValorHora,
       categoriaArregloId: defaultCategoriaArregloId,
       empleadoId: defaultEmpleadoId,
     },
     draftFromItem: (item) => ({
       descripcion: item.descripcion ?? "",
       cantidad: String(item.cantidad ?? 1),
-      valor: String(item.valor ?? ""),
+      horasFacturadas: String(item.horasFacturadas ?? 1),
+      horasTrabajadas: String(item.horasTrabajadas ?? 1),
+      precioHoraFacturada: String(item.precioHoraFacturada ?? 0),
       categoriaArregloId: item.categoriaArregloId ?? null,
       empleadoId: item.empleadoId ?? null,
     }),
     validate: (d, ctx) => {
       const descripcion = d.descripcion.trim();
       const cantidad = safeInt(d.cantidad);
+      const horasFacturadas = safeNumber(d.horasFacturadas);
+      const horasTrabajadas = safeNumber(d.horasTrabajadas);
 
-      const valor = canEditPrices
-        ? safeNumber(d.valor)
-        : ctx.mode === "edit" ? safeNumber(ctx.item?.valor) : 0;
+      const precioHoraFacturada = canEditPrices
+        ? safeNumber(d.precioHoraFacturada)
+        : ctx.mode === "edit" ? safeNumber(ctx.item?.precioHoraFacturada) : 0;
 
       if (!descripcion) return { ok: false as const, message: "Falta descripción" };
       if (!Number.isFinite(cantidad) || cantidad <= 0) return { ok: false as const, message: "Cantidad inválida" };
-      if (!Number.isFinite(valor) || valor < 0) return { ok: false as const, message: "Valor inválido" };
+      if (!Number.isFinite(horasFacturadas) || horasFacturadas < 0) return { ok: false as const, message: "Horas facturadas inválidas" };
+      if (!Number.isFinite(horasTrabajadas) || horasTrabajadas < 0) return { ok: false as const, message: "Horas trabajadas inválidas" };
+      if (!Number.isFinite(precioHoraFacturada) || precioHoraFacturada < 0) return { ok: false as const, message: "Precio hora inválido" };
       return {
         ok: true as const,
-        value: { descripcion, cantidad, valor, categoriaArregloId: d.categoriaArregloId, empleadoId: d.empleadoId },
+        value: {
+          descripcion,
+          cantidad,
+          horasFacturadas,
+          horasTrabajadas,
+          precioHoraFacturada,
+          categoriaArregloId: d.categoriaArregloId,
+          empleadoId: d.empleadoId,
+        },
       };
     },
     onAdd,
@@ -132,7 +150,17 @@ export default function ServicioLineasEditableSection({
   });
 
   const subtotalValue = useMemo(
-    () => items.reduce((acc, i) => acc + (Number(i.cantidad) || 0) * (Number(i.valor) || 0), 0),
+    () =>
+      items.reduce(
+        (acc, i) =>
+          acc +
+          calcLineTotal({
+            cantidad: i.cantidad,
+            horas_facturadas: i.horasFacturadas,
+            precio_hora_facturada: i.precioHoraFacturada,
+          }),
+        0
+      ),
     [items]
   );
   const subtotal = useMemo(
@@ -142,58 +170,132 @@ export default function ServicioLineasEditableSection({
 
   const canInteract = !disabled && !readOnly && !submitting;
 
-  const renderEditor = (mode: "add" | "edit") => {
-    const parsed = validateCurrent();
-    const validation = parsed.ok ? { ok: true as const } : { ok: false as const, message: parsed.message };
-    const descriptionStyle: React.CSSProperties = { ...styles.editorInput, width: "100%" };
-    return (
-      <InlineEditorProvider
-        kind="servicios"
+  const activeRate = activeTaller?.valor_hora ?? 0;
+  const [customLaborRate, setCustomLaborRate] = useState<number | null>(null);
+
+  const renderLineaCard = (item: ServicioLinea | null, mode: "add" | "edit") => {
+    const isAdding = mode === "add";
+    const validation = validateCurrent();
+    const confirmEnabled = canInteract && validation.ok && !submitting;
+    const cancelEnabled = canInteract && !submitting;
+    const currentDraftTotal = calcLineTotal({
+      cantidad: draft.cantidad,
+      horas_facturadas: draft.horasFacturadas,
+      precio_hora_facturada: draft.precioHoraFacturada,
+    });
+
+    const draftEmp = empleados.find((e) => e.id === draft.empleadoId);
+    const draftEmpBaseRate =
+      draftEmp?.salario != null && draftEmp.salario > 0 ? draftEmp.salario : activeRate;
+    const effectiveLaborRate = customLaborRate ?? draftEmpBaseRate;
+
+    const selectors = (
+      <>
+        <CategoriaArregloSelect
+          value={draft.categoriaArregloId}
+          onChange={(categoriaArregloId) => setDraft((p) => ({ ...p, categoriaArregloId }))}
+          disabled={!canInteract}
+        />
+        <EmpleadoSelect
+          value={draft.empleadoId}
+          onChange={(empleadoId) => {
+            setDraft((p) => ({ ...p, empleadoId }));
+            setCustomLaborRate(null);
+          }}
+          disabled={!canInteract}
+          showMontoHoras={true}
+          hourlyRate={effectiveLaborRate}
+          defaultHourlyRate={activeRate}
+          onChangeHourlyRate={(rate) => setCustomLaborRate(rate)}
+        />
+        <TimeDetailPopover
+          billedHours={draft.horasFacturadas}
+          actualHours={draft.horasTrabajadas}
+          unitPrice={draft.precioHoraFacturada}
+          quantity={draft.cantidad}
+          employeeHourlyRate={effectiveLaborRate}
+          disabled={!canInteract}
+          onChangeBilledHours={(h) => setDraft((p) => ({ ...p, horasFacturadas: h }))}
+          onChangeActualHours={(h) => setDraft((p) => ({ ...p, horasTrabajadas: h }))}
+        />
+      </>
+    );
+
+    const editableFields = (
+      <ServicioEditableFields
+        draft={draft}
+        onDraftChange={(patch) => setDraft((p) => ({ ...p, ...patch }))}
+        canInteract={canInteract}
         mode={mode}
+      />
+    );
+
+    if (isAdding) {
+      return (
+        <LineaCardShell
+          cardId="work-item-form-card"
+          kind="servicios"
+          isEditing={true}
+          total={currentDraftTotal}
+          submitting={submitting}
+          canConfirm={confirmEnabled}
+          canCancel={cancelEnabled}
+          onConfirm={save}
+          onCancel={cancel}
+          confirmAriaLabel="agregar servicio"
+          confirmTitle={!validation.ok && validation.message ? validation.message : "Agregar"}
+          cancelAriaLabel="cancelar servicio"
+          cancelTitle="Cancelar edición"
+          selectors={selectors}
+        >
+          {editableFields}
+        </LineaCardShell>
+      );
+    }
+
+    if (!item) return null;
+
+    const emp = empleados.find((e) => e.id === (editingId === item.id ? draft.empleadoId : item.empleadoId));
+    const empRate = emp?.salario != null && emp.salario > 0 ? emp.salario : activeRate;
+
+    return (
+      <LineaCardShell
+        key={item.id}
+        cardId={editingId === item.id ? "work-item-form-card" : undefined}
+        kind="servicios"
+        isEditing={editingId === item.id}
+        // Vista no editable
+        title={item.descripcion || "Sin nombre"}
+        subtitle={
+          <>
+            <CategoriaChip categoriaArregloId={item.categoriaArregloId} />
+            <EmpleadoChip empleadoId={item.empleadoId} showMontoHoras={true} rate={empRate} />
+          </>
+        }
+        cantidad={Number(item.cantidad) || 0}
+        unitario={Number(item.precioHoraFacturada) || 0}
+        horasFacturadas={item.horasFacturadas}
+        horasTrabajadas={item.horasTrabajadas}
+        valorHoraEmpleado={empRate}
+        onEdit={() => startEdit(item)}
+        onDelete={() => onDelete(item.id)}
+        canInteract={canInteract && !isEditing}
+        readOnly={readOnly}
+        // Vista editable
+        total={currentDraftTotal}
         submitting={submitting}
-        interactionEnabled={canInteract}
-        validation={validation}
+        canConfirm={confirmEnabled}
+        canCancel={cancelEnabled}
         onConfirm={save}
         onCancel={cancel}
+        confirmAriaLabel="guardar servicio"
+        confirmTitle={!validation.ok && validation.message ? validation.message : "Confirmar cambios"}
+        cancelAriaLabel="cancelar servicio"
+        cancelTitle="Cancelar edición"
+        selectors={selectors}
       >
-        <EditableLineaCard
-          top={
-            <input
-              style={descriptionStyle}
-              value={draft.descripcion}
-              onChange={(e) => setDraft((p) => ({ ...p, descripcion: e.target.value }))}
-              placeholder="Ej: Cambio de aceite"
-              disabled={!canInteract}
-            />
-          }
-          draft={{ qty: draft.cantidad, unit: draft.valor }}
-          onDraftChange={(patch) =>
-            setDraft((p) => ({
-              ...p,
-              ...(patch.qty !== undefined ? { cantidad: patch.qty } : {}),
-              ...(patch.unit !== undefined ? { valor: patch.unit } : {}),
-            }))
-          }
-          extra={
-            <div style={styles.tipoEmpleadoRow}>
-              <div style={styles.tipoEmpleadoField}>
-                <CategoriaArregloSelect
-                  value={draft.categoriaArregloId}
-                  onChange={(categoriaArregloId) => setDraft((p) => ({ ...p, categoriaArregloId }))}
-                  disabled={!canInteract}
-                />
-              </div>
-              <div style={styles.tipoEmpleadoField}>
-                <EmpleadoSelect
-                  value={draft.empleadoId}
-                  onChange={(empleadoId) => setDraft((p) => ({ ...p, empleadoId }))}
-                  disabled={!canInteract}
-                />
-              </div>
-            </div>
-          }
-        />
-      </InlineEditorProvider>
+        {editableFields}
+      </LineaCardShell>
     );
   };
 
@@ -215,28 +317,10 @@ export default function ServicioLineasEditableSection({
           <div style={styles.emptyState}>{emptyText}</div>
         ) : null}
 
-        {items.map((item) => {
-          if (editingId !== item.id) {
-            return (
-              <ReadOnlyLineaCard
-                key={item.id}
-                kind="servicios"
-                title={item.descripcion || "Sin nombre"}
-                subtitle={<><CategoriaChip categoriaArregloId={item.categoriaArregloId} /><EmpleadoChip empleadoId={item.empleadoId} /></>}
-                cantidad={Number(item.cantidad) || 0}
-                unitario={Number(item.valor) || 0}
-                onEdit={() => startEdit(item)}
-                onDelete={() => onDelete(item.id)}
-                canInteract={canInteract && !isEditing}
-                readOnly={readOnly}
-              />
-            );
-          }
-          return <div key={item.id}>{renderEditor("edit")}</div>;
-        })}
+        {items.map((item) => renderLineaCard(item, "edit"))}
 
         {adding ? (
-          renderEditor("add")
+          renderLineaCard(null, "add")
         ) : readOnly ? null : (
           <button
             type="button"

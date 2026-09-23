@@ -35,7 +35,7 @@ export type CustomServicioLineDef = {
   title?: string;
   descripcion: string;
   cantidad?: number;
-  valor?: number;
+  precio_hora_facturada?: number;
   fields: CustomFieldDef[];
 };
 
@@ -175,7 +175,7 @@ function parseAsNestedLines(metadata: unknown): CustomServicioLineDef[] {
       title: title || fallback,
       descripcion: title || fallback,
       cantidad: 1,
-      valor: 0,
+      precio_hora_facturada: 0,
       fields,
     });
   }
@@ -198,14 +198,14 @@ function parseAsObjectLines(metadata: unknown): CustomServicioLineDef[] {
     const fields = parseFields(inputs);
 
     const cantidadRaw = Number(row.cantidad ?? 1);
-    const valorRaw = Number(row.valor ?? 0);
+    const precioHoraFacturadaRaw = Number(row.precio_hora_facturada ?? 0);
 
     out.push({
       id: String(row.id ?? `custom_line_${i + 1}`),
       title,
       descripcion: title,
       cantidad: Number.isFinite(cantidadRaw) && cantidadRaw > 0 ? cantidadRaw : 1,
-      valor: Number.isFinite(valorRaw) && valorRaw >= 0 ? valorRaw : 0,
+      precio_hora_facturada: Number.isFinite(precioHoraFacturadaRaw) && precioHoraFacturadaRaw >= 0 ? precioHoraFacturadaRaw : 0,
       fields,
     });
   }
@@ -243,14 +243,14 @@ export function parseCustomServicioLineDefs(metadata: unknown): CustomServicioLi
     const fields = parseFields(row.fields ?? row.componentes);
 
     const cantidadRaw = Number(row.cantidad ?? 1);
-    const valorRaw = Number(row.valor ?? 0);
+    const precioHoraFacturadaRaw = Number(row.precio_hora_facturada ?? 0);
 
     out.push({
       id: id || `custom_line_${i + 1}`,
       title: title || undefined,
       descripcion: descripcion || `Servicio custom ${i + 1}`,
       cantidad: Number.isFinite(cantidadRaw) && cantidadRaw > 0 ? cantidadRaw : 1,
-      valor: Number.isFinite(valorRaw) && valorRaw >= 0 ? valorRaw : 0,
+      precio_hora_facturada: Number.isFinite(precioHoraFacturadaRaw) && precioHoraFacturadaRaw >= 0 ? precioHoraFacturadaRaw : 0,
       fields,
     });
   }
@@ -325,7 +325,7 @@ function buildServicioLinea(
   const parts: string[] = [];
 
   for (const field of line.fields) {
-    if (field.key === "cantidad" || field.key === "valor") continue;
+    if (field.key === "cantidad" || field.key === "precio_hora_facturada") continue;
     const rawValue = String(state.values[field.key] ?? "").trim();
     if (!rawValue) continue;
     const value =
@@ -341,13 +341,15 @@ function buildServicioLinea(
   }
 
   const cantidad = Math.max(1, Number(line.cantidad ?? 1) || 1);
-  const valor = Math.max(0, lineIndex === 0 ? costoTotal : 0);
+  const precioHoraFacturada = Math.max(0, lineIndex === 0 ? costoTotal : 0);
 
   return {
     id: line.id,
     descripcion: parts.length > 0 ? `${tituloBase} - ${parts.join(" | ")}` : tituloBase,
     cantidad,
-    valor,
+    precioHoraFacturada,
+    horasFacturadas: 1,
+    horasTrabajadas: 1,
     categoriaArregloId: null,
     empleadoId: null,
   };

@@ -2,14 +2,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { ServiceError, ServiceResult, toServiceError } from "@/app/api/serviceError";
 
 const DETALLE_ARREGLO_SELECT =
-  "id, arreglo_id, descripcion, cantidad, valor, categoria_arreglo_id, empleado_id, created_at, updated_at";
+  "id, arreglo_id, descripcion, cantidad, precio_hora_facturada, horas_facturadas, horas_trabajadas, categoria_arreglo_id, empleado_id, created_at, updated_at";
 
 export type DetalleArregloRow = {
   id: string;
   arreglo_id: string;
   descripcion: string;
   cantidad: number;
-  valor: number;
+  precio_hora_facturada: number;
+  horas_facturadas: number;
+  horas_trabajadas: number;
   categoria_arreglo_id: string | null;
   empleado_id: string | null;
   created_at: string;
@@ -50,7 +52,9 @@ export const detalleArregloService = {
       arreglo_id: string;
       descripcion: string;
       cantidad: number;
-      valor: number;
+      precio_hora_facturada: number;
+      horas_facturadas?: number;
+      horas_trabajadas?: number;
       categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }

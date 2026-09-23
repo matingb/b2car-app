@@ -255,29 +255,20 @@ export default function RepuestoLineasEditableSection({
       ) : undefined;
 
     const tipoEmpleadoSelectors = (
-      <div style={styles.tipoEmpleadoRow}>
-        <div style={styles.tipoEmpleadoField}>
-          <CategoriaArregloSelect
-            value={draft.categoriaArregloId}
-            onChange={(categoriaArregloId) => updateDraft({ categoriaArregloId })}
-            disabled={!canInteract}
-          />
-        </div>
-        <div style={styles.tipoEmpleadoField}>
-          <EmpleadoSelect
-            value={draft.empleadoId}
-            onChange={(empleadoId) => updateDraft({ empleadoId })}
-            disabled={!canInteract}
-          />
-        </div>
-      </div>
-    );
-    const extra = (
       <>
-        {tipoEmpleadoSelectors}
-        {extraHint}
+        <CategoriaArregloSelect
+          value={draft.categoriaArregloId}
+          onChange={(categoriaArregloId) => updateDraft({ categoriaArregloId })}
+          disabled={!canInteract}
+        />
+        <EmpleadoSelect
+          value={draft.empleadoId}
+          onChange={(empleadoId) => updateDraft({ empleadoId })}
+          disabled={!canInteract}
+        />
       </>
     );
+
     const newProductHeader = (
       <>
         <NewProductBadge
@@ -296,18 +287,16 @@ export default function RepuestoLineasEditableSection({
               : undefined
           }
         />
-        <div style={newProductStyles.selectors}>
-          <CategoriaArregloSelect
-            value={draft.categoriaArregloId}
-            onChange={(categoriaArregloId) => updateDraft({ categoriaArregloId })}
-            disabled={!canInteract}
-          />
-          <EmpleadoSelect
-            value={draft.empleadoId}
-            onChange={(empleadoId) => updateDraft({ empleadoId })}
-            disabled={!canInteract}
-          />
-        </div>
+        <CategoriaArregloSelect
+          value={draft.categoriaArregloId}
+          onChange={(categoriaArregloId) => updateDraft({ categoriaArregloId })}
+          disabled={!canInteract}
+        />
+        <EmpleadoSelect
+          value={draft.empleadoId}
+          onChange={(empleadoId) => updateDraft({ empleadoId })}
+          disabled={!canInteract}
+        />
       </>
     );
 
@@ -380,7 +369,8 @@ export default function RepuestoLineasEditableSection({
           updateDraft(next);
         }}
         showPurchaseUnit={stockState.showPurchaseField}
-        extra={extra}
+        selectors={tipoEmpleadoSelectors}
+        extra={extraHint}
       />
     );
 
@@ -466,13 +456,3 @@ export default function RepuestoLineasEditableSection({
     </LineasSectionShell>
   );
 }
-
-const newProductStyles = {
-  selectors: {
-    display: "flex",
-    alignItems: "center",
-    flexWrap: "wrap" as const,
-    gap: 10,
-    minWidth: 0,
-  },
-} as const;

@@ -124,7 +124,7 @@ describe("Mutaciones /api/arreglos/[id]", () => {
         saldo_pendiente: 10000,
         descripcion: "Frenos",
       } as unknown as Arreglo,
-      detalles: [{ id: "d1", arreglo_id: "a1", descripcion: "Pastillas", cantidad: 1, valor: 5000, categoria_arreglo_id: null, empleado_id: null }],
+      detalles: [{ id: "d1", arreglo_id: "a1", descripcion: "Pastillas", cantidad: 1, precio_hora_facturada: 5000, horas_facturadas: 1, horas_trabajadas: 1, categoria_arreglo_id: null, empleado_id: null }],
       asignaciones: [],
       detalle_formulario: null,
       cobros: [{ id: "c1", operacion_id: "op1", importe: 5000, cuenta_id: "cta1", cuenta_nombre: "Caja", fecha: "2026-03-01", created_at: "2026-03-01T00:00:00.000Z" }],
@@ -167,7 +167,7 @@ describe("Mutaciones /api/arreglos/[id]", () => {
 
       expect(res.status).toBe(200);
       expect(body.data.arreglo.precio_final).toBe(15000);
-      expect(body.data.detalles[0].valor).toBe(5000);
+      expect(body.data.detalles[0].precio_hora_facturada).toBe(5000);
       expect(body.data.cobros).toHaveLength(1);
     });
 
@@ -186,7 +186,7 @@ describe("Mutaciones /api/arreglos/[id]", () => {
       expect(res.status).toBe(200);
       expect(body.data.arreglo.precio_final).toBe(0);
       expect(body.data.arreglo.total_cobrado).toBe(0);
-      expect(body.data.detalles[0].valor).toBe(0);
+      expect(body.data.detalles[0].precio_hora_facturada).toBe(0);
       expect(body.data.cobros).toEqual([]);
       expect(body.data.arreglo.descripcion).toBe("Frenos");
     });

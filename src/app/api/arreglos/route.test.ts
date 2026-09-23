@@ -163,7 +163,7 @@ describe("POST /api/arreglos", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(
         createCreateArregloRequest({
-          detalles: [{ descripcion: "Cambio aceite", cantidad: 1, valor: 1000 }],
+          detalles: [{ descripcion: "Cambio aceite", cantidad: 1, precio_hora_facturada: 1000, horas_facturadas: 1, horas_trabajadas: 1 }],
         })
       ),
     });
@@ -179,7 +179,9 @@ describe("POST /api/arreglos", () => {
           {
             descripcion: "Cambio aceite",
             cantidad: 1,
-            valor: 1000,
+            precio_hora_facturada: 1000,
+            horas_facturadas: 1,
+            horas_trabajadas: 1,
             categoria_arreglo_id: null,
             empleado_id: null,
           },

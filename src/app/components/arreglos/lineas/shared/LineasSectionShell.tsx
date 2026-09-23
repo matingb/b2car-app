@@ -33,7 +33,7 @@ export default function LineasSectionShell({
   );
 
   return (
-    <div style={{ overflow: "clip" }}>
+    <div>
       <div style={styles.sectionTitle}>
         <IconLabel icon={titleIcon} label={title} />
 
@@ -76,7 +76,7 @@ export default function LineasSectionShell({
       </div>
 
       <div style={styles.collapseOuter(collapsed)}>
-        <div style={styles.collapseInner}>{children}</div>
+        <div style={styles.collapseInner(collapsed)}>{children}</div>
       </div>
     </div>
   );
@@ -120,11 +120,12 @@ const styles = {
     transition: "grid-template-rows 220ms ease, opacity 220ms ease",
     opacity: collapsed ? 0 : 1,
     pointerEvents: collapsed ? "none" : "auto",
+    overflow: collapsed ? "hidden" : "visible",
   }),
-  collapseInner: {
-    overflow: "hidden",
+  collapseInner: (collapsed: boolean): React.CSSProperties => ({
+    overflow: collapsed ? "hidden" : "visible",
     minHeight: 0,
-  } as const,
+  }),
   subtotalLabel: {
     color: COLOR.TEXT.SECONDARY,
     fontWeight: 600,

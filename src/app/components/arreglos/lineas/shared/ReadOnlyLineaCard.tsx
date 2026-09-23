@@ -1,14 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { css } from "@emotion/react";
-import { Pencil, Trash2, Package, Wrench } from "lucide-react";
+import { ChevronDown, Clock, Package, Pencil, Trash2, Wrench } from "lucide-react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Card from "../../../ui/Card";
 import { itemIconCircleStyle, styles } from "./lineaStyles";
 import { formatMoney, renderQtyXUnit } from "./lineaUtils";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
+import { calcLineTotal } from "@/lib/calcLineTotal";
 
 type Kind = "servicios" | "repuestos";
 
@@ -18,6 +19,10 @@ type Props = {
   subtitle?: React.ReactNode;
   cantidad: number;
   unitario: number;
+  horasFacturadas?: number;
+  horasTrabajadas?: number;
+  valorHoraEmpleado?: number | null;
+  icon?: React.ReactNode;
   onEdit: () => void;
   onDelete: () => void;
   canInteract: boolean;
@@ -30,76 +35,166 @@ export default function ReadOnlyLineaCard({
   subtitle,
   cantidad,
   unitario,
+  horasFacturadas,
+  horasTrabajadas,
+  valorHoraEmpleado,
+  icon,
   onEdit,
   onDelete,
   canInteract,
   readOnly = false,
 }: Props) {
-  const total = cantidad * unitario;
-  const qtyXUnit = renderQtyXUnit(cantidad, unitario);
+  const [showDetail, setShowDetail] = useState(false);
+
+  const total = calcLineTotal({
+    cantidad,
+    horas_facturadas: horasFacturadas,
+    precio_hora_facturada: unitario,
+  });
+
+  const qtyXUnit =
+    kind === "servicios" && horasFacturadas != null && horasFacturadas !== 1
+      ? `${cantidad > 1 ? `${cantidad} un · ` : ""}${horasFacturadas}h × ${formatMoney(unitario)}`
+      : renderQtyXUnit(cantidad, unitario);
+
   const kindLabel = kind === "servicios" ? "servicio" : "repuesto";
+
+  // Cálculos de margen
+  const rate = valorHoraEmpleado ?? 0;
+  const laborCost = (horasTrabajadas ?? 1) * rate;
+  const margin = total - laborCost;
 
   return (
     <Card css={readStyles.card}>
-      <div css={readStyles.icon(kind)}>
-        {kind === "servicios" ? (
-          <Wrench size={18} color={COLOR.ACCENT.PRIMARY} />
-        ) : (
-          <Package size={18} color={COLOR.SEMANTIC.SUCCESS} />
+      <div css={readStyles.topRow}>
+        <div css={readStyles.icon(kind)}>
+          {icon ?? (kind === "servicios" ? (
+            <Wrench size={18} color={COLOR.ACCENT.PRIMARY} />
+          ) : (
+            <Package size={18} color={COLOR.SEMANTIC.SUCCESS} />
+          ))}
+        </div>
+
+        <div css={readStyles.main}>
+          <div css={readStyles.title}>{title}</div>
+          <div css={readStyles.subtitleRow}>
+            {subtitle}
+            <span css={readStyles.qtyXUnit}>
+              <Can
+                permission={Permission.ArreglosPreciosView}
+                fallback={<>Cantidad: {cantidad}</>}
+              >
+                {qtyXUnit}
+              </Can>
+            </span>
+
+            {/* Tag de Horas Facturadas vs Horas Trabajadas */}
+            {kind === "servicios" && horasFacturadas != null && horasTrabajadas != null && (
+              <button
+                type="button"
+                onClick={() => setShowDetail((prev) => !prev)}
+                css={readStyles.hoursTag}
+                title="Ver precio y costo"
+                aria-label="ver detalle de horas"
+              >
+                <Clock size={12} color={COLOR.TEXT.SECONDARY} />
+                <span>
+                  Fact: <strong css={readStyles.hoursBold}>{horasFacturadas}h</strong> · Trab:{" "}
+                  <strong css={readStyles.hoursBold}>{horasTrabajadas}h</strong>
+                </span>
+                <ChevronDown
+                  size={12}
+                  color={COLOR.TEXT.SECONDARY}
+                  css={readStyles.chevron(showDetail)}
+                />
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div css={readStyles.side}>
+          <Can permission={Permission.ArreglosPreciosView}>
+            <div css={readStyles.total}>{formatMoney(total)}</div>
+          </Can>
+
+          {!readOnly ? (
+            <div css={readStyles.actions}>
+              <button
+                type="button"
+                css={readStyles.actionBtn}
+                aria-label={`editar ${kindLabel}`}
+                onClick={onEdit}
+                disabled={!canInteract}
+              >
+                <Pencil size={18} color={COLOR.ICON.MUTED} />
+              </button>
+
+              <button
+                type="button"
+                css={readStyles.actionBtn}
+                aria-label={`eliminar ${kindLabel}`}
+                onClick={onDelete}
+                disabled={!canInteract}
+              >
+                <Trash2 size={18} color={COLOR.ICON.DANGER} />
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Detalle simple de precio y costo expandible */}
+      <Can permission={Permission.ArreglosPreciosView}>
+        {showDetail && kind === "servicios" && (
+          <div css={readStyles.marginPanel}>
+            <div css={readStyles.marginGrid}>
+              <div css={readStyles.marginCard}>
+                <span css={readStyles.marginCardLabel}>Precio Facturado</span>
+                <span css={readStyles.marginCardMain}>{formatMoney(total)}</span>
+                <span css={readStyles.marginCardSub}>
+                  {horasFacturadas ?? 1}h fact. × {formatMoney(unitario)}
+                </span>
+              </div>
+
+              <div css={readStyles.marginCard}>
+                <span css={readStyles.marginCardLabel}>Costo Mano de Obra</span>
+                <span css={readStyles.marginCardMain}>{formatMoney(laborCost)}</span>
+                <span css={readStyles.marginCardSub}>
+                  {horasTrabajadas ?? 1}h trab. × {formatMoney(rate)}/h
+                </span>
+              </div>
+
+              <div css={readStyles.marginCard}>
+                <span css={readStyles.marginCardLabel}>Diferencia (Precio - Costo)</span>
+                <span css={readStyles.marginDifference(margin >= 0)}>
+                  {margin >= 0 ? "+" : ""}{formatMoney(margin)}
+                </span>
+                <span css={readStyles.marginCardSub}>
+                  {(horasFacturadas ?? 1) >= (horasTrabajadas ?? 1)
+                    ? `${Math.round(((horasFacturadas ?? 1) - (horasTrabajadas ?? 1)) * 100) / 100}h a favor`
+                    : `${Math.round(((horasTrabajadas ?? 1) - (horasFacturadas ?? 1)) * 100) / 100}h de más`}
+                </span>
+              </div>
+            </div>
+          </div>
         )}
-      </div>
-
-      <div css={readStyles.main}>
-        <div css={readStyles.title}>
-          {title}
-        </div>
-        <div css={readStyles.subtitleRow}>
-          {subtitle}
-          <span css={readStyles.qtyXUnit}>
-            <Can
-              permission={Permission.ArreglosPreciosView}
-              fallback={<>Cantidad: {cantidad}</>}
-            >
-              {qtyXUnit}
-            </Can>
-          </span>
-        </div>
-      </div>
-
-      <div css={readStyles.side}>
-        <Can permission={Permission.ArreglosPreciosView}>
-          <div css={readStyles.total}>{formatMoney(total)}</div>
-        </Can>
-
-        {!readOnly ? <div css={readStyles.actions}>
-          <button
-            type="button"
-            css={readStyles.actionBtn}
-            aria-label={`editar ${kindLabel}`}
-            onClick={onEdit}
-            disabled={!canInteract}
-          >
-            <Pencil size={18} color={COLOR.ICON.MUTED} />
-          </button>
-
-          <button
-            type="button"
-            css={readStyles.actionBtn}
-            aria-label={`eliminar ${kindLabel}`}
-            onClick={onDelete}
-            disabled={!canInteract}
-          >
-            <Trash2 size={18} color={COLOR.ICON.DANGER} />
-          </button>
-        </div> : null}
-      </div>
+      </Can>
     </Card>
   );
 }
 
 const readStyles = {
   card: css({
-    ...styles.itemCard,
+    display: "flex",
+    flexDirection: "column",
+    gap: 0,
+    overflow: "hidden",
+  }),
+  topRow: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+    width: "100%",
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       gap: 12,
     },
@@ -132,6 +227,32 @@ const readStyles = {
     fontSize: 13,
     fontWeight: 500,
   }),
+  hoursTag: css({
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    padding: "3px 8px",
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 500,
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    color: COLOR.TEXT.SECONDARY,
+    cursor: "pointer",
+    transition: "background-color 150ms ease",
+    "&:hover": {
+      backgroundColor: COLOR.BACKGROUND.PRIMARY,
+    },
+  }),
+  hoursBold: css({
+    color: COLOR.TEXT.PRIMARY,
+    fontWeight: 600,
+  }),
+  chevron: (open: boolean) =>
+    css({
+      transition: "transform 150ms ease",
+      transform: open ? "rotate(180deg)" : "rotate(0deg)",
+    }),
   side: css({
     minWidth: 96,
     display: "flex",
@@ -166,4 +287,49 @@ const readStyles = {
       opacity: 0.45,
     },
   }),
+  marginPanel: css({
+    marginTop: 12,
+    paddingTop: 12,
+    borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    width: "100%",
+  }),
+  marginGrid: css({
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 8,
+    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
+      gridTemplateColumns: "repeat(3, 1fr)",
+      gap: 12,
+    },
+  }),
+  marginCard: css({
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
+    padding: "8px 12px",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+  }),
+  marginCardLabel: css({
+    fontSize: 11,
+    color: COLOR.TEXT.SECONDARY,
+    fontWeight: 500,
+  }),
+  marginCardMain: css({
+    fontSize: 14,
+    fontWeight: 700,
+    color: COLOR.TEXT.PRIMARY,
+  }),
+  marginDifference: (positive: boolean) =>
+    css({
+      fontSize: 14,
+      fontWeight: 700,
+      color: positive ? COLOR.SEMANTIC.SUCCESS : COLOR.SEMANTIC.DANGER,
+    }),
+  marginCardSub: css({
+    fontSize: 10,
+    color: COLOR.TEXT.SECONDARY,
+  }),
 } as const;
+

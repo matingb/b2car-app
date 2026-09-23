@@ -46,7 +46,9 @@ describe("buildArregloWhatsappMessage", () => {
           arreglo_id: "a1",
           descripcion: "Mano de obra",
           cantidad: 2,
-          valor: 1500,
+          precio_hora_facturada: 1500,
+          horas_facturadas: 1,
+          horas_trabajadas: 1,
           categoria_arreglo_id: null,
           empleado_id: null,
         },
@@ -101,7 +103,9 @@ describe("buildArregloWhatsappMessage", () => {
           arreglo_id: "a1",
           descripcion: "Mano de obra",
           cantidad: 2,
-          valor: 1500,
+          precio_hora_facturada: 1500,
+          horas_facturadas: 1,
+          horas_trabajadas: 1,
           categoria_arreglo_id: null,
           empleado_id: null,
         },
@@ -164,7 +168,9 @@ describe("buildArregloWhatsappMessage", () => {
           arreglo_id: "a1",
           descripcion: "Cambio de correa y tensores",
           cantidad: 1,
-          valor: 20000,
+          precio_hora_facturada: 20000,
+          horas_facturadas: 1,
+          horas_trabajadas: 1,
           categoria_arreglo_id: null,
           empleado_id: null,
         },
@@ -222,7 +228,9 @@ describe("buildArregloWhatsappMessage", () => {
           arreglo_id: "a1",
           descripcion: "Alineación y balanceo",
           cantidad: 1,
-          valor: 10000,
+          precio_hora_facturada: 10000,
+          horas_facturadas: 1,
+          horas_trabajadas: 1,
           categoria_arreglo_id: null,
           empleado_id: null,
         },
@@ -277,7 +285,9 @@ describe("buildArregloWhatsappMessage", () => {
           arreglo_id: "a1",
           descripcion: "Mano de obra",
           cantidad: 1,
-          valor: 20000,
+          precio_hora_facturada: 20000,
+          horas_facturadas: 1,
+          horas_trabajadas: 1,
           categoria_arreglo_id: null,
           empleado_id: null,
         },
@@ -326,7 +336,9 @@ describe("buildArregloWhatsappMessage", () => {
           arreglo_id: "a1",
           descripcion: "Mano de obra",
           cantidad: 1,
-          valor: 20000,
+          precio_hora_facturada: 20000,
+          horas_facturadas: 1,
+          horas_trabajadas: 1,
           categoria_arreglo_id: null,
           empleado_id: null,
         },
@@ -345,6 +357,40 @@ describe("buildArregloWhatsappMessage", () => {
     expect(msg).not.toContain("• Mano de obra - $20.000");
     expect(msg).toContain("_Subtotal mano de obra: $20.000_");
     expect(msg).not.toContain("*Total arreglo");
+  });
+
+  it("cuando horas_facturadas !== 1, formatea cantidad × horas_facturadas hs y no expone horas_trabajadas", () => {
+    const data = createArregloDetalleData({
+      arreglo: createArreglo({
+        precio_final: 25000,
+        vehiculo: createVehiculo({ patente: "ABC123" }),
+      }),
+      detalles: [
+        {
+          id: "d1",
+          arreglo_id: "a1",
+          descripcion: "Alineación y rectificado",
+          cantidad: 1,
+          precio_hora_facturada: 10000,
+          horas_facturadas: 2.5,
+          horas_trabajadas: 4,
+          categoria_arreglo_id: null,
+          empleado_id: null,
+        },
+      ],
+    });
+
+    const msg = buildArregloWhatsappMessage(data, {
+      mostrarDetalleItems: true,
+      mostrarPreciosItems: true,
+      mostrarSubtotales: true,
+      mostrarTotal: true,
+    });
+
+    expect(msg).toContain("• Alineación y rectificado 1 × 2.5hs - $25.000");
+    expect(msg).not.toContain("4hs");
+    expect(msg).not.toContain("trabajadas");
+    expect(msg).toContain("*Total arreglo $25.000*");
   });
 });
 

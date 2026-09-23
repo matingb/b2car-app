@@ -8,6 +8,7 @@ import { BREAKPOINTS, COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import { isValidDate } from "@/lib/fechas";
 import { formatArs } from "@/lib/format";
+import { calcLineTotal } from "@/lib/calcLineTotal";
 import ServicioLineasEditableSection, {
   type ServicioLinea,
 } from "@/app/components/arreglos/lineas/servicios/ServicioLineasEditableSection";
@@ -191,10 +192,15 @@ export default function ArregloFormFields({
     () =>
       serviciosActivos.reduce(
         (acc, s) =>
-          acc + (Number(s.cantidad) || 0) * (Number(s.valor) || 0),
-        0,
+          acc +
+          calcLineTotal({
+            cantidad: s.cantidad,
+            horas_facturadas: s.horasFacturadas,
+            precio_hora_facturada: s.precioHoraFacturada,
+          }),
+        0
       ),
-    [serviciosActivos],
+    [serviciosActivos]
   );
   const subtotalRepuestos = useMemo(
     () =>
