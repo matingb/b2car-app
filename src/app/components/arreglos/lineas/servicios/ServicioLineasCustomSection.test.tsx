@@ -40,7 +40,7 @@ const lineDefs: CustomServicioLineDef[] = [
     title: "Frenos delanteros",
     descripcion: "Frenos delanteros",
     cantidad: 1,
-    valor: 0,
+    precio_hora_facturada: 0,
     fields: [
       {
         key: "estado",
@@ -232,7 +232,9 @@ describe("ServicioLineasCustomSection", () => {
             id: "frenos",
             descripcion: "Frenos delanteros - Estado: 50% | Rectificar: No | Nota: Revisar rotulas",
             cantidad: 1,
-            valor: 25000,
+            precioHoraFacturada: 25000,
+            horasFacturadas: 1,
+            horasTrabajadas: 1,
             categoriaArregloId: null,
             empleadoId: null,
           },

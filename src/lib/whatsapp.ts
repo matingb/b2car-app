@@ -3,6 +3,7 @@ import type { ArregloDetalleData, AsignacionArregloLinea } from "@/app/api/arreg
 import type { Turno } from "@/model/types";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { safeNumber } from "@/lib/numbers";
+import { calcLineTotal } from "@/lib/calcLineTotal";
 
 export interface ArregloWhatsappOptions {
 	tenantName?: string;
@@ -148,7 +149,13 @@ function calculateArregloTotals(
 	precioFinal: number
 ): { subtotalServicios: number; subtotalRepuestos: number; total: number } {
 	const subtotalServicios = (detalles ?? []).reduce(
-		(acc, d) => acc + safeNumber(d.valor) * safeNumber(d.cantidad),
+		(acc, d) =>
+			acc +
+			calcLineTotal({
+				cantidad: d.cantidad,
+				horas_facturadas: d.horas_facturadas,
+				precio_hora_facturada: d.precio_hora_facturada,
+			}),
 		0
 	);
 	const subtotalRepuestos = repuestosLineas.reduce(
@@ -197,10 +204,28 @@ function buildServiciosSectionLines(
 	const lines: string[] = ["👨‍🔧 *Servicios:*"];
 	detalles.forEach((d) => {
 		const cantidad = safeNumber(d.cantidad);
-		const valor = safeNumber(d.valor);
-		const total = cantidad * valor;
+		const horasFacturadas = safeNumber(d.horas_facturadas ?? 1);
+		const precioHora = safeNumber(d.precio_hora_facturada);
+		const total = calcLineTotal({
+			cantidad,
+			horas_facturadas: horasFacturadas,
+			precio_hora_facturada: precioHora,
+		});
 		const label = String(d.descripcion ?? "").trim() || "Servicio";
-		lines.push(buildItemLine(label, cantidad, showItemPrices ? total : undefined));
+
+		let qty = "";
+		if (horasFacturadas !== 1) {
+			qty = ` ${cantidad} × ${horasFacturadas}hs`;
+		} else if (cantidad) {
+			qty = ` x${cantidad}`;
+		}
+
+		const price =
+			showItemPrices && total != null
+				? ` - ${formatArs(total, { maxDecimals: 0, minDecimals: 0 })}`
+				: "";
+
+		lines.push(`• ${label}${qty}${price}`);
 	});
 	if (showSubtotal) {
 		lines.push(`_Subtotal mano de obra: ${formatArs(subtotal, { maxDecimals: 0, minDecimals: 0 })}_`);

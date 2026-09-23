@@ -163,21 +163,40 @@ export async function POST(req: Request) {
     const detallesArr = Array.isArray(detalles) ? detalles : [];
     const repuestosArr = Array.isArray(repuestos) ? repuestos : [];
     const repuestosNuevosArr = Array.isArray(repuestos_nuevos) ? repuestos_nuevos : [];
-    const normalizedDetalles = detallesArr.map((d) => ({
-        descripcion: String((d as { descripcion?: unknown }).descripcion ?? "").trim(),
-        cantidad: Number((d as { cantidad?: unknown }).cantidad),
-        valor: Number((d as { valor?: unknown }).valor),
-        categoria_arreglo_id: (d as { categoria_arreglo_id?: unknown }).categoria_arreglo_id || null,
-        empleado_id: (d as { empleado_id?: unknown }).empleado_id || null,
-    }));
+    const normalizedDetalles = detallesArr.map((d) => {
+        const item = d as {
+            descripcion?: unknown;
+            cantidad?: unknown;
+            precio_hora_facturada?: unknown;
+            horas_facturadas?: unknown;
+            horas_trabajadas?: unknown;
+            categoria_arreglo_id?: unknown;
+            empleado_id?: unknown;
+        };
+        return {
+            descripcion: String(item.descripcion ?? "").trim(),
+            cantidad: Number(item.cantidad),
+            precio_hora_facturada: Number(item.precio_hora_facturada),
+            horas_facturadas: item.horas_facturadas != null ? Number(item.horas_facturadas) : 1,
+            horas_trabajadas: item.horas_trabajadas != null ? Number(item.horas_trabajadas) : 1,
+            categoria_arreglo_id: (item.categoria_arreglo_id as string) || null,
+            empleado_id: (item.empleado_id as string) || null,
+        };
+    });
 
     for (const d of normalizedDetalles) {
         if (!d.descripcion) return Response.json({ error: "Falta descripción en servicios" }, { status: 400 });
         if (!Number.isFinite(d.cantidad) || d.cantidad <= 0) {
             return Response.json({ error: "Cantidad inválida en servicios" }, { status: 400 });
         }
-        if (!Number.isFinite(d.valor) || d.valor < 0) {
-            return Response.json({ error: "Valor inválido en servicios" }, { status: 400 });
+        if (!Number.isFinite(d.precio_hora_facturada) || d.precio_hora_facturada < 0) {
+            return Response.json({ error: "Precio hora facturada inválido en servicios" }, { status: 400 });
+        }
+        if (!Number.isFinite(d.horas_facturadas) || d.horas_facturadas < 0) {
+            return Response.json({ error: "Horas facturadas inválidas en servicios" }, { status: 400 });
+        }
+        if (!Number.isFinite(d.horas_trabajadas) || d.horas_trabajadas < 0) {
+            return Response.json({ error: "Horas trabajadas inválidas en servicios" }, { status: 400 });
         }
         if (d.categoria_arreglo_id != null && !isValidUuid(d.categoria_arreglo_id)) {
             return Response.json({ error: "categoria_arreglo_id inválido en servicios" }, { status: 400 });

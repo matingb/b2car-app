@@ -22,7 +22,9 @@ describe("ServicioLineasEditableSection", () => {
             id: "servicio-1",
             descripcion: "Cambio de aceite",
             cantidad: 1,
-            valor: 15000,
+            precioHoraFacturada: 15000,
+            horasFacturadas: 1,
+            horasTrabajadas: 1,
             categoriaArregloId: null,
             empleadoId: null,
           }]}
@@ -49,7 +51,9 @@ describe("ServicioLineasEditableSection", () => {
             id: "servicio-1",
             descripcion: "Cambio de aceite",
             cantidad: 2,
-            valor: 15000,
+            precioHoraFacturada: 15000,
+            horasFacturadas: 1,
+            horasTrabajadas: 1,
             categoriaArregloId: null,
             empleadoId: null,
           }]}
@@ -84,7 +88,9 @@ describe("ServicioLineasEditableSection", () => {
       expect(onAdd).toHaveBeenCalledWith({
         descripcion: "Alineación y balanceo",
         cantidad: 1,
-        valor: 0,
+        horasFacturadas: 1,
+        horasTrabajadas: 1,
+        precioHoraFacturada: 0,
         categoriaArregloId: null,
         empleadoId: null,
       });
@@ -121,6 +127,6 @@ describe("ServicioLineasEditableSection", () => {
 
     // El input de precio de venta debe tener precargado 16500
     const priceInput = screen.getByLabelText("Precio venta");
-    expect(priceInput).toHaveValue("16500");
+    expect(priceInput).toHaveValue(16500);
   });
 });

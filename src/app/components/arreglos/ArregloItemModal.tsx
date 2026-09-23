@@ -117,7 +117,9 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
         await createDetalle(arregloId, {
           descripcion: descripcion.trim(),
           cantidad: servicioCantidad,
-          valor: servicioValor,
+          precio_hora_facturada: servicioValor,
+          horas_facturadas: 1,
+          horas_trabajadas: 1,
         });
         success("Servicio agregado", "La mano de obra se agregó correctamente.");
       } else {

@@ -9,7 +9,9 @@ import { isValidUuid } from "@/lib/uuid";
 export type UpdateDetalleArregloRequest = Partial<{
   descripcion: string;
   cantidad: number;
-  valor: number;
+  precio_hora_facturada: number;
+  horas_facturadas: number;
+  horas_trabajadas: number;
   categoria_arreglo_id: string | null;
   empleado_id: string | null;
 }>;
@@ -19,7 +21,9 @@ export type DetalleArregloResponseRow = {
   arreglo_id: string;
   descripcion: string;
   cantidad: number;
-  valor: number;
+  precio_hora_facturada: number;
+  horas_facturadas: number;
+  horas_trabajadas: number;
   categoria_arreglo_id: string | null;
   empleado_id: string | null;
   created_at: string;
@@ -65,12 +69,28 @@ export async function PUT(
     patch.cantidad = cantidad;
   }
 
-  if (body.valor !== undefined) {
-    const valor = Number(body.valor);
-    if (!Number.isFinite(valor) || valor < 0) {
-      return Response.json({ data: null, error: "Valor inválido" } satisfies UpdateDetalleArregloResponse, { status: 400 });
+  if (body.precio_hora_facturada !== undefined) {
+    const precio = Number(body.precio_hora_facturada);
+    if (!Number.isFinite(precio) || precio < 0) {
+      return Response.json({ data: null, error: "Precio hora facturada inválido" } satisfies UpdateDetalleArregloResponse, { status: 400 });
     }
-    patch.valor = valor;
+    patch.precio_hora_facturada = precio;
+  }
+
+  if (body.horas_facturadas !== undefined) {
+    const horas = Number(body.horas_facturadas);
+    if (!Number.isFinite(horas) || horas < 0) {
+      return Response.json({ data: null, error: "Horas facturadas inválidas" } satisfies UpdateDetalleArregloResponse, { status: 400 });
+    }
+    patch.horas_facturadas = horas;
+  }
+
+  if (body.horas_trabajadas !== undefined) {
+    const horas = Number(body.horas_trabajadas);
+    if (!Number.isFinite(horas) || horas < 0) {
+      return Response.json({ data: null, error: "Horas trabajadas inválidas" } satisfies UpdateDetalleArregloResponse, { status: 400 });
+    }
+    patch.horas_trabajadas = horas;
   }
 
   if (body.categoria_arreglo_id !== undefined) {

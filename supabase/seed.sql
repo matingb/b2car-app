@@ -284,7 +284,7 @@ INSERT INTO public.arreglos (id, vehiculo_id, taller_id, estado, fecha, precio_f
 -- ===========================================================================
 -- DETALLE ARREGLO (Mano de obra con categoria_arreglo_id y empleado_id)
 -- ===========================================================================
-INSERT INTO public.detalle_arreglo (id, tenant_id, arreglo_id, descripcion, cantidad, valor, categoria_arreglo_id, empleado_id) VALUES
+INSERT INTO public.detalle_arreglo (id, tenant_id, arreglo_id, descripcion, cantidad, precio_hora_facturada, categoria_arreglo_id, empleado_id) VALUES
   -- Mes actual
   ('d0000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000001','Mano de obra cambio de aceite y filtros',1,45000,'b1000000-0000-0000-0000-000000000001','e1000000-0000-0000-0000-000000000001'),
   ('d0000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000001','Inspección general de fluidos y correas',1,67000,'b1000000-0000-0000-0000-000000000001','e1000000-0000-0000-0000-000000000002'),
@@ -626,7 +626,7 @@ BEGIN
     SELECT
       a.id,
       a.precio_final,
-      COALESCE((SELECT SUM(d.cantidad * d.valor) FROM public.detalle_arreglo AS d WHERE d.arreglo_id = a.id), 0)
+      COALESCE((SELECT SUM(d.cantidad * d.horas_facturadas * d.precio_hora_facturada) FROM public.detalle_arreglo AS d WHERE d.arreglo_id = a.id), 0)
       + COALESCE((
         SELECT SUM(ol.cantidad * ol.monto_unitario)
         FROM public.operaciones_asignacion_arreglo AS oaa

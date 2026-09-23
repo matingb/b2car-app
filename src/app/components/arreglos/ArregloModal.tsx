@@ -259,7 +259,9 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         const detalles = internal.serviciosDraft.map((s) => ({
           descripcion: String(s.descripcion ?? "").trim(),
           cantidad: Number(s.cantidad) || 0,
-          valor: canEditPrices ? Number(s.valor) || 0 : 0,
+          precio_hora_facturada: canEditPrices ? Number(s.precioHoraFacturada) || 0 : 0,
+          horas_facturadas: Number(s.horasFacturadas) || 1,
+          horas_trabajadas: Number(s.horasTrabajadas) || 1,
           categoria_arreglo_id: s.categoriaArregloId || null,
           empleado_id: s.empleadoId || null,
         }));

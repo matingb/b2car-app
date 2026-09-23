@@ -5,18 +5,28 @@ import { useEmpleados, getEmpleadoColor } from "@/app/providers/EmpleadosProvide
 import { getInitials } from "@/lib/initials";
 
 
+import { formatArs } from "@/lib/format";
+
 type Props = {
   empleadoId: string | null;
+  showMontoHoras?: boolean;
+  rate?: number | null;
 };
 
-export default function EmpleadoChip({ empleadoId }: Props) {
+export default function EmpleadoChip({ empleadoId, showMontoHoras = false, rate = null }: Props) {
   const { empleados } = useEmpleados();
 
   const empleado = empleados.find((e) => e.id === empleadoId);
-  const nombre = empleado ? `${empleado.nombre} ${empleado.apellido}`.trim() : undefined;
+  if (!empleado) return null;
+  const nombre = `${empleado.nombre} ${empleado.apellido}`.trim();
   if (!nombre) return null;
 
   const color = getEmpleadoColor(empleadoId);
+  const effectiveRate = rate ?? (empleado.salario != null && empleado.salario > 0 ? empleado.salario : null);
+  const displayText =
+    showMontoHoras && effectiveRate != null && effectiveRate > 0
+      ? `${nombre} · ${formatArs(effectiveRate, { maxDecimals: 0, minDecimals: 0 })}/h`
+      : nombre;
 
   return (
     <span style={{
@@ -32,7 +42,7 @@ export default function EmpleadoChip({ empleadoId }: Props) {
       }}>
         {getInitials(nombre)}
       </div>
-      {nombre}
+      {displayText}
     </span>
   );
 }

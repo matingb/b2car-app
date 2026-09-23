@@ -70,7 +70,9 @@ describe("arregloMapper", () => {
           arreglo_id: "a1",
           descripcion: "Cambio de pastillas",
           cantidad: 1,
-          valor: 4000,
+          precio_hora_facturada: 4000,
+          horas_facturadas: 1,
+          horas_trabajadas: 1,
           categoria_arreglo_id: null,
           empleado_id: "emp1",
         },
@@ -127,7 +129,7 @@ describe("arregloMapper", () => {
       const result = mapArregloDetalleCompleto(mockDetalleData, { hidePrices: false });
 
       expect(result.arreglo.precio_final).toBe(12000);
-      expect(result.detalles[0].valor).toBe(4000);
+      expect(result.detalles[0].precio_hora_facturada).toBe(4000);
       expect(result.asignaciones[0].lineas[0].monto_unitario).toBe(4000);
       expect(result.asignaciones[0].lineas[0].producto?.precio_unitario).toBe(4000);
       expect(result.asignaciones[0].lineas[0].producto?.costo_unitario).toBe(2500);
@@ -140,7 +142,7 @@ describe("arregloMapper", () => {
 
       expect(result.arreglo.precio_final).toBe(0);
       expect(result.arreglo.total_cobrado).toBe(0);
-      expect(result.detalles[0].valor).toBe(0);
+      expect(result.detalles[0].precio_hora_facturada).toBe(0);
       expect(result.asignaciones[0].lineas[0].monto_unitario).toBe(0);
       expect(result.asignaciones[0].lineas[0].producto?.precio_unitario).toBe(0);
       expect(result.asignaciones[0].lineas[0].producto?.costo_unitario).toBe(0);

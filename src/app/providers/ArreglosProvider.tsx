@@ -42,7 +42,9 @@ type ArreglosContextType = {
     input: {
       descripcion: string;
       cantidad: number;
-      valor: number;
+      precio_hora_facturada: number;
+      horas_facturadas?: number;
+      horas_trabajadas?: number;
       categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }
@@ -53,7 +55,9 @@ type ArreglosContextType = {
     patch: Partial<{
       descripcion: string;
       cantidad: number;
-      valor: number;
+      precio_hora_facturada: number;
+      horas_facturadas: number;
+      horas_trabajadas: number;
       categoria_arreglo_id: string | null;
       empleado_id: string | null;
     }>
@@ -173,7 +177,9 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     input: {
       descripcion: string;
       cantidad: number;
-      valor: number;
+      precio_hora_facturada: number;
+      horas_facturadas?: number;
+      horas_trabajadas?: number;
       categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }
@@ -194,7 +200,9 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     patch: Partial<{
       descripcion: string;
       cantidad: number;
-      valor: number;
+      precio_hora_facturada: number;
+      horas_facturadas: number;
+      horas_trabajadas: number;
       categoria_arreglo_id: string | null;
       empleado_id: string | null;
     }>

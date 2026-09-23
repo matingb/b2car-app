@@ -108,7 +108,7 @@ export function mapArregloDetalleCompleto(
 
   const detalles = (data.detalles ?? []).map((d) => ({
     ...d,
-    valor: 0,
+    precio_hora_facturada: 0,
   }));
 
   const asignaciones = (data.asignaciones ?? []).map((op) => ({

@@ -6,7 +6,9 @@ import type { ServicioLinea } from "@/app/components/arreglos/lineas/servicios/S
 type AddInput = {
   descripcion: string;
   cantidad: number;
-  valor: number;
+  precioHoraFacturada: number;
+  horasFacturadas: number;
+  horasTrabajadas: number;
   categoriaArregloId: string | null;
   empleadoId: string | null;
 };

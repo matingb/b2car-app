@@ -14,7 +14,7 @@ describe("arregloCompletoService", () => {
           { id: "e1", nombre: "Juan", apellido: "Perez" },
         ],
       },
-      detalles: [{ id: "d1", descripcion: "Mano de obra", valor: 1000 }],
+      detalles: [{ id: "d1", descripcion: "Mano de obra", precio_hora_facturada: 1000, horas_facturadas: 1, horas_trabajadas: 1 }],
       asignaciones: [{ id: "as1", tipo: "ASIGNACION", lineas: [] }],
       cobros: [{ id: "c1", importe: 500 }],
     };
