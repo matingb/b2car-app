@@ -282,6 +282,25 @@ describe("validateRepuestoDraft", () => {
       );
       expect(result.ok).toBe(true);
     });
+
+    it("conserva la intencion de compra pendiente aunque el stock ya alcance", () => {
+      const target = item({ id: "a", stock_id: "s1", cantidad: 5, precioCompra: 80 });
+      const env: RepuestoValidatorEnv = {
+        ...baseEnv,
+        deferred: true,
+        inventario: [stock({ id: "s1", stockActual: 10 })],
+        items: [target],
+      };
+      const result = validateRepuestoDraft(
+        { ...existingBase, cantidad: "5", precioCompra: "80" },
+        { mode: "edit", item: target },
+        env,
+      );
+      expect(result).toMatchObject({
+        ok: true,
+        value: { precio_compra: 80 },
+      });
+    });
   });
 });
 

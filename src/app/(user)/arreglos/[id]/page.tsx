@@ -39,6 +39,7 @@ import { LockKeyhole } from "lucide-react";
 import { useTenant } from "@/app/providers/TenantProvider";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
+import type { RepuestoPendiente } from "@/model/types";
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -159,10 +160,12 @@ export default function ArregloDetailsPage() {
 
   const handleDeleteRepuesto = async (lineaId: string) => {
     if (!data?.arreglo?.id) return;
+    const deleteMessage = Array.isArray(data.arreglo.repuestos_pendientes)
+      ? "¿Querés eliminar este repuesto pendiente del presupuesto? No se modificará el stock."
+      : "¿Querés eliminar este repuesto del arreglo? Esto devolverá el stock.";
     const confirmed = await confirm({
       title: "Eliminar repuesto",
-      message:
-        "¿Querés eliminar este repuesto del arreglo? Esto devolverá el stock.",
+      message: deleteMessage,
       acceptLabel: "Eliminar",
       cancelLabel: "Cancelar",
     });
@@ -248,9 +251,21 @@ export default function ArregloDetailsPage() {
     if (!data?.arreglo?.id) return;
     const tallerId = data.arreglo.taller_id ?? null;
     if (!tallerId) return;
+    const pendingLine = Array.isArray(data.arreglo.repuestos_pendientes)
+      ? data.arreglo.repuestos_pendientes.find((linea) =>
+          linea.id === (input.tipo === "nuevo" ? input.id : input.linea_id)
+        )
+      : undefined;
+    const pendingPurchase = pendingLine?.precio_compra == null
+      ? undefined
+      : Number(pendingLine.precio_compra);
+    const removingPurchase = input.tipo !== "nuevo" && input.precio_compra === null;
+    const purchaseChanged = input.precio_compra !== undefined && !removingPurchase &&
+      (pendingPurchase === undefined || Number(input.precio_compra) !== pendingPurchase);
+    const isPendingNewEdit = input.tipo === "nuevo" && pendingLine !== undefined;
     const requiereCompraAutomatica =
-      input.tipo === "nuevo" ||
-      input.precio_compra !== undefined;
+      (input.tipo === "nuevo" && !isPendingNewEdit) ||
+      purchaseChanged;
     if (requiereCompraAutomatica && !cuentaFinancieraId) {
       setCompraPendiente(input);
       return;
@@ -266,6 +281,7 @@ export default function ArregloDetailsPage() {
       if (input.tipo === "nuevo") {
         await upsertRepuestoLinea(data.arreglo.id, {
           tipo: "nuevo",
+          id: input.id,
           taller_id: tallerId,
           codigo: input.codigo,
           nombre: input.nombre,
@@ -279,6 +295,7 @@ export default function ArregloDetailsPage() {
       } else {
         await upsertRepuestoLinea(data.arreglo.id, {
           taller_id: tallerId,
+          linea_id: input.linea_id,
           stock_id: input.stock_id,
           cantidad: input.cantidad,
           monto_unitario: input.monto_unitario,
@@ -290,7 +307,9 @@ export default function ArregloDetailsPage() {
       }
       registrarUltimoUsado(input.categoria_arreglo_id ?? null, input.empleado_id ?? null);
       success("Repuesto actualizado", "El repuesto se actualizó correctamente.");
-      await loadInventarioByTaller(tallerId);
+      if (data.arreglo.repuestos_pendientes === null) {
+        await loadInventarioByTaller(tallerId);
+      }
       await reload();
     } catch (err: unknown) {
       logger.error("Error upserting repuesto:", err);
@@ -342,9 +361,30 @@ export default function ArregloDetailsPage() {
   }
 
   const arreglo = data.arreglo;
+  const isDeferredBudget = arreglo.estado === "PRESUPUESTO" && Array.isArray(arreglo.repuestos_pendientes);
   const fiscalReadOnly = canUseBilling && facturaElectronica?.estado === "AUTORIZADA";
   const detalles = Array.isArray(data.detalles) ? data.detalles : [];
-  const repuestosLineas = flattenAsignacionesLineas(data);
+  const repuestosLineas = isDeferredBudget
+    ? (arreglo.repuestos_pendientes ?? []).map((linea: RepuestoPendiente) => ({
+        id: linea.id,
+        stock_id: linea.stock_id ?? "",
+        cantidad: linea.cantidad,
+        monto_unitario: linea.monto_unitario,
+        precioCompra: linea.precio_compra == null ? undefined : Number(linea.precio_compra),
+        tipo: linea.tipo === "NUEVO" ? "nuevo" as const : "existente" as const,
+        nuevoProducto: linea.tipo === "NUEVO"
+          ? {
+              codigo: linea.codigo ?? "",
+              nombre: linea.nombre ?? "",
+              precioCompra: Number(linea.precio_compra ?? 0),
+              precioVenta: Number(linea.precio_venta ?? linea.monto_unitario ?? 0),
+            }
+          : undefined,
+        categoria_arreglo_id: linea.categoria_arreglo_id ?? null,
+        empleado_id: linea.empleado_id ?? null,
+        producto: null,
+      }))
+    : flattenAsignacionesLineas(data);
 
   const subtotalServicios = detalles.reduce(
     (acc, d) => acc + safeNumber(d.valor) * safeNumber(d.cantidad),
@@ -512,6 +552,8 @@ export default function ArregloDetailsPage() {
             stock_id: l.stock_id,
             cantidad: safeNumber(l.cantidad),
             monto_unitario: safeNumber(l.monto_unitario),
+            tipo: "tipo" in l ? l.tipo : undefined,
+            nuevoProducto: "nuevoProducto" in l ? l.nuevoProducto : undefined,
             producto: l.producto ? { nombre: l.producto.nombre, codigo: l.producto.codigo } : null,
             categoriaArregloId: l.categoria_arreglo_id ?? null,
             empleadoId: l.empleado_id ?? null,
@@ -522,6 +564,7 @@ export default function ArregloDetailsPage() {
           onDelete={handleDeleteRepuesto}
           disabled={providerLoading}
           readOnly={fiscalReadOnly}
+          deferred={isDeferredBudget}
         />
 
         <Can permission={Permission.ArreglosPreciosView}>

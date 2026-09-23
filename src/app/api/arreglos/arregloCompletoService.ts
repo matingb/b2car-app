@@ -102,6 +102,47 @@ export const arregloCompletoService = {
       cobros?: unknown;
     };
     const typedArreglo = mapArreglo(rpc.arreglo);
+    const pendientes = typedArreglo.repuestos_pendientes;
+    const stockIdsSinNombre = Array.isArray(pendientes)
+      ? [...new Set(
+          pendientes
+            .filter((linea) => linea.tipo === "EXISTENTE" && linea.stock_id && !linea.nombre)
+            .map((linea) => linea.stock_id as string)
+        )]
+      : [];
+
+    let arreglo = typedArreglo;
+    if (stockIdsSinNombre.length > 0) {
+      const { data: stocksData, error: stocksError } = await supabase
+        .from("stocks")
+        .select("id, productos(nombre, codigo)")
+        .in("id", stockIdsSinNombre)
+        .eq("taller_id", typedArreglo.taller_id);
+
+      if (stocksError) {
+        logger.warn("[getArregloDetalleCompleto] No se pudieron resolver los nombres de repuestos pendientes:", stocksError);
+      } else {
+        const stockLabels = new Map(
+          ((stocksData ?? []) as unknown as Array<{
+            id: string;
+            productos: { nombre?: string | null; codigo?: string | null } | null;
+          }>).map((stock) => [stock.id, stock.productos])
+        );
+
+        arreglo = {
+          ...typedArreglo,
+          repuestos_pendientes: pendientes?.map((linea) => {
+            if (linea.tipo !== "EXISTENTE" || !linea.stock_id || linea.nombre) return linea;
+            const producto = stockLabels.get(linea.stock_id);
+            return {
+              ...linea,
+              ...(producto?.nombre ? { nombre: producto.nombre } : {}),
+              ...(producto?.codigo ? { codigo: linea.codigo || producto.codigo } : {}),
+            };
+          }) ?? pendientes,
+        };
+      }
+    }
 
     const detalles = (Array.isArray(rpc.detalles) ? rpc.detalles : []) as DetalleArreglo[];
     const asignaciones = (Array.isArray(rpc.asignaciones) ? rpc.asignaciones : []) as AsignacionArregloOperacion[];
@@ -147,7 +188,7 @@ export const arregloCompletoService = {
       : null;
 
     const payload: ArregloDetalleData = {
-      arreglo: typedArreglo,
+      arreglo,
       detalles,
       asignaciones,
       detalle_formulario: detalleFormulario,

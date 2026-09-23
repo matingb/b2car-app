@@ -38,7 +38,7 @@ export type RepuestoLinea = {
   stock_id: string;
   cantidad: number;
   monto_unitario: number;
-  precioCompra?: number;
+  precioCompra?: number | null;
   tipo?: "existente" | "nuevo";
   producto?: { nombre?: string; codigo?: string | null } | null;
   nuevoProducto?: {
@@ -68,10 +68,11 @@ export type RepuestoDraft = {
 export type RepuestoUpsertInput =
   | {
       tipo?: "existente";
+      linea_id?: string;
       stock_id: string;
       cantidad: number;
       monto_unitario: number;
-      precio_compra?: number;
+      precio_compra?: number | null;
       cuenta_financiera_id?: string | null;
       idempotency_key?: string | null;
       categoria_arreglo_id?: string | null;
@@ -99,6 +100,7 @@ type Props = {
   items: RepuestoLinea[];
   disabled?: boolean;
   readOnly?: boolean;
+  deferred?: boolean;
   defaultCategoriaArregloId?: string | null;
   defaultEmpleadoId?: string | null;
   onUpsert: (input: RepuestoUpsertInput) => void | Promise<void>;
@@ -112,6 +114,7 @@ export default function RepuestoLineasEditableSection({
   items,
   disabled = false,
   readOnly = false,
+  deferred = false,
   defaultCategoriaArregloId = null,
   defaultEmpleadoId = null,
   onUpsert,
@@ -189,7 +192,9 @@ export default function RepuestoLineasEditableSection({
         nombre: item.nuevoProducto?.nombre ?? "",
         precioCompra: item.nuevoProducto?.precioCompra != null
           ? String(item.nuevoProducto.precioCompra)
-          : costoUnitarioPrefill,
+          : item.precioCompra != null
+            ? String(item.precioCompra)
+            : costoUnitarioPrefill,
         precioVenta: item.nuevoProducto?.precioVenta != null ? String(item.nuevoProducto.precioVenta) : "",
         precioVentaTouched: item.nuevoProducto
           ? Number(item.nuevoProducto.precioVenta ?? 0) !== Number(item.nuevoProducto.precioCompra ?? 0)
@@ -200,7 +205,7 @@ export default function RepuestoLineasEditableSection({
       };
     },
     validate: (d, ctx) => {
-      const res = validateRepuestoDraft(d, ctx, { tallerId, items, inventario });
+      const res = validateRepuestoDraft(d, ctx, { tallerId, items, inventario, deferred });
       if (!res.ok || canEditPrices) return res;
 
       return {
@@ -212,7 +217,7 @@ export default function RepuestoLineasEditableSection({
       };
     },
     onAdd: (value) => onUpsert(value),
-    onUpdate: (id, value) => onUpsert(value.tipo === "nuevo" ? { ...value, id } : value),
+    onUpdate: (id, value) => onUpsert(value.tipo === "nuevo" ? { ...value, id } : { ...value, linea_id: id }),
     cancelWhen: readOnly,
   });
 
@@ -223,7 +228,7 @@ export default function RepuestoLineasEditableSection({
   const updateDraft = (patch: Partial<RepuestoDraft>) => setDraft((p) => ({ ...p, ...patch }));
 
   const renderEditor = (item: RepuestoLinea | null) => {
-    const stockState = computeStockState(item, draft, items, inventario);
+    const stockState = computeStockState(item, draft, items, inventario, deferred);
     const validation = validateCurrent();
     const newProductConflict = stockState.isNewProduct
       ? conflictMessageFor(draft.codigo, item?.id)
@@ -238,12 +243,14 @@ export default function RepuestoLineasEditableSection({
           stockActual={stockState.stockActual}
           faltante={stockState.faltante}
           precioCompra={safeNumber(draft.precioCompra)}
+          deferred={deferred}
         />
       ) : stockState.isNewProduct && !newProductConflict && newProductQty > 0 ? (
         <StockPurchaseHint
           stockActual={0}
           faltante={newProductQty}
           precioCompra={safeNumber(draft.precioCompra)}
+          deferred={deferred}
         />
       ) : undefined;
 

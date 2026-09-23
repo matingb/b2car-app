@@ -42,17 +42,24 @@ export const arregloMutationService = {
       return { data, error: null };
     };
 
+    if (!currentArreglo && patchEstado !== "PRESUPUESTO" && patchEstado !== "TERMINADO") {
+      const fetchResult = await ensureCurrentArreglo();
+      if (fetchResult.error) {
+        return { currentArreglo: null, error: fetchResult.error, status: fetchResult.status ?? 500 };
+      }
+    }
+
     if (patchEstado === "PRESUPUESTO") {
       const fetchResult = await ensureCurrentArreglo();
       if (fetchResult.error) {
         return { currentArreglo: null, error: fetchResult.error, status: fetchResult.status ?? 500 };
       }
 
-      if (currentArreglo?.esta_pago || Number(currentArreglo?.total_cobrado ?? 0) > 0) {
+      if (currentArreglo?.estado !== "PRESUPUESTO") {
         return {
           currentArreglo,
-          error: "No se puede cambiar a presupuesto un arreglo que ya registra pagos",
-          status: 400,
+          error: "No se puede volver a PRESUPUESTO despues de activar el arreglo",
+          status: 409,
         };
       }
     }
@@ -126,8 +133,9 @@ export const arregloMutationService = {
       arregloPatch.estado = estado as EstadoArreglo;
     }
 
-    const patchEntries = Object.entries(arregloPatch).filter(([, value]) => value !== undefined);
     let currentArreglo: Arreglo | null = null;
+    let activateAfterPatch = false;
+    let activationTarget: EstadoArreglo | undefined;
 
     if (arregloPatch.estado) {
       const transitionResult = await this.validateEstadoTransition(
@@ -146,7 +154,17 @@ export const arregloMutationService = {
           status: transitionResult.status,
         };
       }
+      activateAfterPatch =
+        currentArreglo?.estado === "PRESUPUESTO" &&
+        arregloPatch.estado !== "PRESUPUESTO";
+      if (activateAfterPatch) activationTarget = arregloPatch.estado;
     }
+
+    if (activateAfterPatch) {
+      delete arregloPatch.estado;
+    }
+
+    const patchEntries = Object.entries(arregloPatch).filter(([, value]) => value !== undefined);
 
     let updatedArreglo: Arreglo | null = null;
     if (patchEntries.length > 0) {
@@ -196,6 +214,40 @@ export const arregloMutationService = {
           status: formUpsertResult.status ?? 500,
         };
       }
+    }
+
+    if (activateAfterPatch && activationTarget !== undefined) {
+      const { error: activationError } = await supabase.rpc("rpc_activar_presupuesto", {
+        p_arreglo_id: id,
+        p_nuevo_estado: activationTarget,
+      });
+
+      if (activationError) {
+        const raw = String(activationError.message ?? "");
+        const isConflict = raw.includes("STOCK_INSUFICIENTE") ||
+          raw.toLowerCase().includes("stock insuficiente") ||
+          raw.includes("ya fue activado") ||
+          raw.includes("activacion") ||
+          raw.includes("PRESUPUESTO");
+        const isInvalid = raw.includes("CUENTA_FINANCIERA_REQUERIDA") ||
+          raw.includes("PRECIO_COMPRA_REQUERIDO") ||
+          raw.includes("producto") ||
+          raw.includes("invalido") ||
+          raw.includes("stock_id");
+        return {
+          data: null,
+          error: isConflict ? "No se pudo activar el presupuesto por falta de stock o concurrencia" :
+            isInvalid ? "No se pudo validar la activacion del presupuesto" :
+              "No se pudo activar el presupuesto",
+          status: isConflict ? 409 : isInvalid ? 400 : 500,
+        };
+      }
+
+      const { data: activated, error: activatedError } = await arregloService.getByIdWithVehiculo(supabase, id);
+      if (activatedError || !activated) {
+        return { data: null, error: "El presupuesto se activo, pero no se pudo cargar", status: 500 };
+      }
+      updatedArreglo = activated;
     }
 
     await statsService.onDataChanged(

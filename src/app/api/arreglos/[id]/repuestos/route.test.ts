@@ -20,11 +20,49 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
   const CUENTA_ID = "11111111-1111-4111-8111-111111111111";
   const IDEMPOTENCY_KEY = "22222222-2222-4222-8222-222222222222";
   const rpc = vi.fn();
-  const mockSupabase = { rpc } as unknown as Awaited<ReturnType<typeof createClient>>;
+  const maybeSingle = vi.fn();
+  const eq = vi.fn(() => ({ maybeSingle }));
+  const select = vi.fn(() => ({ eq }));
+  const from = vi.fn(() => ({ select }));
+  const mockSupabase = { rpc, from } as unknown as Awaited<ReturnType<typeof createClient>>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    maybeSingle.mockResolvedValue({ data: null, error: null });
     vi.mocked(createClient).mockResolvedValue(mockSupabase);
+  });
+
+  it("edita una linea de producto pendiente sin agregar otra entrada", async () => {
+    maybeSingle.mockResolvedValue({
+      data: {
+        estado: "PRESUPUESTO",
+        repuestos_pendientes: [{ id: "33333333-3333-4333-8333-333333333333" }],
+      },
+      error: null,
+    });
+    rpc.mockResolvedValue({ data: { id: "33333333-3333-4333-8333-333333333333" }, error: null });
+
+    const req = new Request("http://localhost/api/arreglos/A-1/repuestos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tipo: "nuevo",
+        id: "33333333-3333-4333-8333-333333333333",
+        taller_id: "T-1",
+        codigo: "FILT-1",
+        nombre: "Filtro actualizado",
+        precio_compra: 100,
+        precio_venta: 180,
+        cantidad: 2,
+      }),
+    });
+
+    const res = await POST(req as never, { params: Promise.resolve({ id: "A-1" }) });
+
+    expect(res.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("rpc_upsert_repuesto_presupuesto", expect.objectContaining({
+      p_linea_id: "33333333-3333-4333-8333-333333333333",
+    }));
   });
 
   it("agrega o edita un repuesto existente sin invalidar stats", async () => {

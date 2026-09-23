@@ -387,6 +387,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           showFacturable={canUseBilling}
           submitting={submitting}
           tallerId={tallerSeleccionadoId ?? null}
+          persistedEstado={initial?.estado}
           values={fieldValues}
           onValuesChange={handleFieldsChange}
           onValidityChange={(next) => setIsValid(next)}

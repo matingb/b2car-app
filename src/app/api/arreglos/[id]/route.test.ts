@@ -375,8 +375,8 @@ describe("Mutaciones /api/arreglos/[id]", () => {
     const response = await PUT(req, { params: Promise.resolve({ id: "a1" }) });
     const body = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(body.error).toBe("No se puede cambiar a presupuesto un arreglo que ya registra pagos");
+    expect(response.status).toBe(409);
+    expect(body.error).toBe("No se puede volver a PRESUPUESTO despues de activar el arreglo");
     expect(arregloService.updateById).not.toHaveBeenCalled();
   });
 

@@ -9,19 +9,21 @@ type Props = {
   stockActual: number;
   faltante: number;
   precioCompra: number;
+  deferred?: boolean;
 };
 
 export default function StockPurchaseHint({
   stockActual,
   faltante,
   precioCompra,
+  deferred = false,
 }: Props) {
   return (
     <div style={styles.wrap}>
       <Info size={16} color={COLOR.SEMANTIC.INFO} />
       <span>
         Stock disponible: {stockActual} · Se comprarán {faltante} unidad{faltante === 1 ? "" : "es"}
-        {precioCompra > 0 ? ` a ${formatMoney(precioCompra)} c/u` : ""} al guardar
+        {precioCompra > 0 ? ` a ${formatMoney(precioCompra)} c/u` : ""} {deferred ? "al activar el arreglo" : "al guardar"}
       </span>
     </div>
   );

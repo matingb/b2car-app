@@ -312,6 +312,17 @@ export async function POST(req: Request) {
         );
     }
 
+    if (
+        estadoValue === "PRESUPUESTO" &&
+        normalizedRepuestos.some((repuesto) => repuesto.precio_compra != null) &&
+        !cuentaFinancieraId
+    ) {
+        return Response.json(
+            { error: "Seleccioná una cuenta financiera para registrar la compra al activar" },
+            { status: 400 }
+        );
+    }
+
     if (detalle_formulario) {
         const costo = Number(detalle_formulario.costo);
         if (!Number.isFinite(costo) || costo < 0) {

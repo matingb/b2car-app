@@ -67,6 +67,7 @@ type Props = {
   showFacturable: boolean;
   submitting: boolean;
   tallerId: string | null;
+  persistedEstado?: EstadoArreglo;
   values: ArregloFormFieldsValues;
   onValuesChange: (patch: Partial<ArregloFormFieldsValues>) => void;
   onValidityChange?: (isValid: boolean) => void;
@@ -111,6 +112,7 @@ export default function ArregloFormFields({
   showFacturable,
   submitting,
   tallerId,
+  persistedEstado,
   values,
   onValuesChange,
   onValidityChange,
@@ -129,6 +131,12 @@ export default function ArregloFormFields({
   const isValid = useMemo(
     () => baseIsValid && !blockCreateByCustomRequired,
     [baseIsValid, blockCreateByCustomRequired]
+  );
+  const availableEstadoOptions = useMemo(
+    () => isEdit && (persistedEstado ?? values.estado) !== "PRESUPUESTO"
+      ? estadoOptions.filter((option) => option.value !== "PRESUPUESTO")
+      : estadoOptions,
+    [isEdit, persistedEstado, values.estado]
   );
 
   const {
@@ -261,7 +269,7 @@ export default function ArregloFormFields({
         <div style={styles.field}>
           <label style={styles.label}>Estado</label>
           <Autocomplete
-            options={estadoOptions}
+            options={availableEstadoOptions}
             value={values.estado}
             onChange={(next) => {
               if ((ESTADOS_ARREGLO as string[]).includes(next)) {
@@ -367,6 +375,7 @@ export default function ArregloFormFields({
             onUpsert={handleRepuestosUpsert}
             onDelete={onRepuestosDelete}
             disabled={submitting}
+            deferred={values.estado === "PRESUPUESTO"}
           />
 
           <Can permission={Permission.ArreglosPreciosView}>

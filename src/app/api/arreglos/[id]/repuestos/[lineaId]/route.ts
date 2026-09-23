@@ -19,6 +19,15 @@ function isUnauthorizedSupabaseError(err: unknown): boolean {
   );
 }
 
+async function getArregloBudgetState(supabase: Awaited<ReturnType<typeof createClient>>, arregloId: string) {
+  if (typeof (supabase as { from?: unknown }).from !== "function") return null;
+  return supabase
+    .from("arreglos")
+    .select("estado, repuestos_pendientes, taller_id")
+    .eq("id", arregloId)
+    .maybeSingle();
+}
+
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string; lineaId: string }> }
@@ -31,6 +40,24 @@ export async function DELETE(
   }
   if (!lineaId) {
     return Response.json({ error: "Falta lineaId" } satisfies DeleteRepuestoLineaResponse, { status: 400 });
+  }
+
+  const budgetLookup = await getArregloBudgetState(supabase, arregloId);
+  const arreglo = budgetLookup?.data;
+  const arregloError = budgetLookup?.error;
+  if (!arregloError && arreglo?.estado === "PRESUPUESTO" && arreglo.repuestos_pendientes !== null) {
+    const { error } = await supabase.rpc("rpc_delete_repuesto_presupuesto", {
+      p_arreglo_id: arregloId,
+      p_taller_id: arreglo.taller_id,
+      p_linea_id: lineaId,
+    });
+    if (error) {
+      const raw = String(error.message ?? "");
+      return Response.json({ error: raw.includes("no encontrado") ? "Repuesto pendiente no encontrado." : "No se pudo eliminar el repuesto pendiente." } satisfies DeleteRepuestoLineaResponse, { status: raw.includes("no encontrado") ? 404 : 500 });
+    }
+    await syncArregloDescripcion(supabase, arregloId);
+    await statsService.onDataChanged(supabase);
+    return Response.json({ error: null } satisfies DeleteRepuestoLineaResponse, { status: 200 });
   }
 
   const { data: linea, error: lineaErr } =

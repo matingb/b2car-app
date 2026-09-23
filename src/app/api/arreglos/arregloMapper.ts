@@ -60,6 +60,18 @@ export function mapArreglo(
         : undefined;
 
   const cobros = hidePrices ? [] : (r.cobros as CobroArregloItem[] | undefined);
+  const pendientes = Array.isArray(r.repuestos_pendientes)
+    ? (r.repuestos_pendientes as Array<Record<string, unknown>>).map((linea) => ({
+        ...linea,
+        ...(hidePrices
+          ? { monto_unitario: 0, precio_compra: 0, precio_venta: 0 }
+          : {
+              monto_unitario: Number(linea.monto_unitario ?? 0),
+              ...(linea.precio_compra != null ? { precio_compra: Number(linea.precio_compra) } : {}),
+              ...(linea.precio_venta != null ? { precio_venta: Number(linea.precio_venta) } : {}),
+            }),
+      }))
+    : undefined;
 
   return {
     ...rest,
@@ -70,6 +82,7 @@ export function mapArreglo(
     ...(totalCobrado !== undefined ? { total_cobrado: totalCobrado } : {}),
     ...(saldoPendiente !== undefined ? { saldo_pendiente: saldoPendiente } : {}),
     ...(cobros !== undefined ? { cobros } : {}),
+    ...(pendientes !== undefined ? { repuestos_pendientes: pendientes } : {}),
   } as Arreglo;
 }
 

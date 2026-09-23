@@ -54,11 +54,7 @@ export function buildArregloPrintableInvoiceHtml({
     0
   );
   const subtotalCustom = safeNumber(data.detalle_formulario?.costo);
-  const repuestosLineas = flattenAsignacionesLineas(data);
-  const subtotalRepuestos = repuestosLineas.reduce(
-    (acc, l) => acc + safeNumber(l.monto_unitario) * safeNumber(l.cantidad),
-    0
-  );
+  const subtotalRepuestos = repuestoLines.reduce((acc, line) => acc + line.total, 0);
   const total = subtotalServicios + subtotalCustom + subtotalRepuestos;
   const invoiceNumber = shortInvoiceNumber(arreglo.id);
   const printedAt = new Date().toLocaleString(APP_LOCALE);
@@ -404,6 +400,25 @@ function buildServiceLines(data: ArregloDetalleData): InvoiceLine[] {
 }
 
 function buildRepuestoLines(data: ArregloDetalleData): InvoiceLine[] {
+  const pendientes =
+    data.arreglo.estado === "PRESUPUESTO" &&
+    Array.isArray(data.arreglo.repuestos_pendientes)
+      ? data.arreglo.repuestos_pendientes
+      : null;
+
+  if (pendientes) {
+    return pendientes.map((r) => {
+      const quantity = safeNumber(r.cantidad);
+      const unitPrice = safeNumber(r.monto_unitario);
+      return {
+        detail: r.nombre || r.codigo || "Repuesto",
+        quantity,
+        unitPrice,
+        total: quantity * unitPrice,
+      };
+    });
+  }
+
   return flattenAsignacionesLineas(data).map((r) => {
     const quantity = safeNumber(r.cantidad);
     const unitPrice = safeNumber(r.monto_unitario);
