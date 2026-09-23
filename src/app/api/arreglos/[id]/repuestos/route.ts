@@ -7,6 +7,7 @@ import { logger } from "@/lib/logger";
 
 export type UpsertRepuestoLineaRequest = {
   tipo?: "existente";
+  linea_id?: string;
   taller_id: string;
   stock_id: string;
   cantidad: number;
@@ -20,6 +21,7 @@ export type UpsertRepuestoLineaRequest = {
 
 export type CreateInlineProductoRepuestoRequest = {
   tipo: "nuevo";
+  id?: string;
   taller_id: string;
   codigo: string;
   nombre: string;
@@ -37,11 +39,77 @@ export type UpsertRepuestoRequest =
   | CreateInlineProductoRepuestoRequest;
 
 export type UpsertRepuestoLineaResponse = {
-  data: { operacion_id: string } | null;
+  data: { operacion_id?: string | null; linea_id?: string } | null;
   error?: string | null;
 };
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+async function isManagedBudget(supabase: SupabaseClient, arregloId: string): Promise<boolean> {
+  if (typeof (supabase as { from?: unknown }).from !== "function") return false;
+  const { data, error } = await supabase
+    .from("arreglos")
+    .select("estado, repuestos_pendientes")
+    .eq("id", arregloId)
+    .maybeSingle();
+  if (error || !data) return false;
+  return data.estado === "PRESUPUESTO" && data.repuestos_pendientes !== null;
+}
+
+async function upsertRepuestoPendiente(
+  supabase: SupabaseClient,
+  arregloId: string,
+  body: UpsertRepuestoRequest,
+) {
+  const lineaId = body.tipo === "nuevo" ? body.id ?? null : body.linea_id ?? null;
+  if (lineaId && !isValidUuid(lineaId)) {
+    return Response.json({ data: null, error: "linea_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
+  const cuentaId = body.cuenta_financiera_id?.trim() || null;
+  const idempotencyKey = body.idempotency_key?.trim() || null;
+  const linea = body.tipo === "nuevo"
+    ? {
+        tipo: "NUEVO",
+        codigo: body.codigo,
+        nombre: body.nombre,
+        precio_compra: body.precio_compra,
+        precio_venta: body.precio_venta,
+        monto_unitario: body.precio_venta,
+        cantidad: body.cantidad,
+        cuenta_id: cuentaId,
+        idempotency_key: idempotencyKey,
+        categoria_arreglo_id: body.categoria_arreglo_id ?? null,
+        empleado_id: body.empleado_id ?? null,
+      }
+    : {
+        tipo: "EXISTENTE",
+        stock_id: body.stock_id,
+        cantidad: body.cantidad,
+        monto_unitario: body.monto_unitario,
+        ...(body.precio_compra !== undefined ? { precio_compra: body.precio_compra } : {}),
+        cuenta_id: cuentaId,
+        idempotency_key: idempotencyKey,
+        categoria_arreglo_id: body.categoria_arreglo_id ?? null,
+        empleado_id: body.empleado_id ?? null,
+      };
+
+  const { data, error } = await supabase.rpc("rpc_upsert_repuesto_presupuesto", {
+    p_arreglo_id: arregloId,
+    p_taller_id: body.taller_id,
+    p_linea_id: lineaId,
+    p_linea: linea,
+  });
+  if (error || !data) {
+    const raw = String(error?.message ?? "");
+    const status = raw.includes("no encontrado") ? 404 : raw.includes("CUENTA") ? 400 : 500;
+    return Response.json({ data: null, error: raw.includes("CUENTA")
+      ? "Selecciona una cuenta financiera para registrar la compra al activar"
+      : "No se pudo guardar el repuesto pendiente" } satisfies UpsertRepuestoLineaResponse, { status });
+  }
+  await syncArregloDescripcion(supabase, arregloId);
+  await statsService.onDataChanged(supabase);
+  return Response.json({ data: { linea_id: String((data as { id?: unknown }).id ?? lineaId ?? "") }, error: null } satisfies UpsertRepuestoLineaResponse, { status: 200 });
+}
 
 function mapInlineRpcError(error: unknown): { status: number; message: string } {
   logger.error("Error rpc_crear_producto_inline_para_arreglo:", error);
@@ -258,6 +326,10 @@ export async function POST(
   const body: UpsertRepuestoRequest | null = await req.json().catch(() => null);
   if (!body) {
     return Response.json({ data: null, error: "JSON invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
+
+  if (await isManagedBudget(supabase, arregloId)) {
+    return upsertRepuestoPendiente(supabase, arregloId, body);
   }
 
   if (body.tipo === "nuevo") {

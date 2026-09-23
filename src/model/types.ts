@@ -119,7 +119,23 @@ export interface Arreglo {
   extra_data: string;
   categorias?: string[];
   empleados?: Array<{ id: string; nombre: string; apellido?: string }>;
+  /** Repuestos de un presupuesto nuevo, aun no materializados en stock. */
+  repuestos_pendientes?: RepuestoPendiente[] | null;
 }
+
+export type RepuestoPendiente = {
+  id: string;
+  tipo: "EXISTENTE" | "NUEVO";
+  stock_id?: string | null;
+  codigo?: string | null;
+  nombre?: string | null;
+  cantidad: number;
+  monto_unitario: number;
+  precio_compra?: number | null;
+  precio_venta?: number | null;
+  categoria_arreglo_id?: string | null;
+  empleado_id?: string | null;
+};
 
 export interface ClienteResumenFinanciero {
   saldo_cuenta: number;

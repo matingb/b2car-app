@@ -21,10 +21,14 @@ export async function syncArregloDescripcion(
     arreglo?: unknown;
     detalles?: unknown[];
     asignaciones?: unknown[];
+    repuestos_pendientes?: unknown[];
   };
 
   const detalles = Array.isArray(rpc.detalles) ? rpc.detalles : [];
   const asignaciones = Array.isArray(rpc.asignaciones) ? rpc.asignaciones : [];
+  const pendientes = Array.isArray((rpc.arreglo as { repuestos_pendientes?: unknown[] } | undefined)?.repuestos_pendientes)
+    ? ((rpc.arreglo as { repuestos_pendientes: unknown[] }).repuestos_pendientes)
+    : [];
 
   const categoriaIds = new Set<string>();
   const empleadoIds = new Set<string>();
@@ -41,6 +45,11 @@ export async function syncArregloDescripcion(
         if (typeof l.empleado_id === "string") empleadoIds.add(l.empleado_id);
       });
     }
+  });
+
+  (pendientes as Record<string, unknown>[]).forEach((linea) => {
+    if (typeof linea.categoria_arreglo_id === "string") categoriaIds.add(linea.categoria_arreglo_id);
+    if (typeof linea.empleado_id === "string") empleadoIds.add(linea.empleado_id);
   });
 
   const categoriasArray = Array.from(categoriaIds);

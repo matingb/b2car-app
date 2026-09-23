@@ -50,12 +50,12 @@ export function useArregloEstado(estado?: EstadoArreglo, customProgress?: number
 
   const options = useMemo(
     () =>
-      ESTADOS_ARREGLO.map((value) => ({
+      ESTADOS_ARREGLO.filter((value) => estado === "PRESUPUESTO" || value !== "PRESUPUESTO").map((value) => ({
         value,
         meta: getArregloEstadoMeta(value),
         progress: getArregloEstadoProgress(value),
       })),
-    []
+    [estado]
   );
 
   return { meta, progress, options };

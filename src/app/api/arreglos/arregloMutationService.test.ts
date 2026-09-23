@@ -48,8 +48,8 @@ describe("arregloMutationService", () => {
         "PRESUPUESTO"
       );
 
-      expect(result.error).toBe("No se puede cambiar a presupuesto un arreglo que ya registra pagos");
-      expect(result.status).toBe(400);
+      expect(result.error).toBe("No se puede volver a PRESUPUESTO despues de activar el arreglo");
+      expect(result.status).toBe(409);
     });
 
     it("permite transición a PRESUPUESTO si no tiene pagos", async () => {
@@ -64,8 +64,8 @@ describe("arregloMutationService", () => {
         "PRESUPUESTO"
       );
 
-      expect(result.error).toBeNull();
-      expect(result.status).toBe(200);
+      expect(result.error).toBe("No se puede volver a PRESUPUESTO despues de activar el arreglo");
+      expect(result.status).toBe(409);
     });
 
     it("valida campos obligatorios al transicionar a TERMINADO", async () => {

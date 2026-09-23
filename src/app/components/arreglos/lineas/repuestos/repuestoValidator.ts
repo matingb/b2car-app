@@ -39,6 +39,7 @@ export function computeStockState(
   draft: RepuestoDraft,
   items: RepuestoLinea[],
   inventario: ReadonlyArray<InventarioEntry>,
+  deferred = false,
 ): RepuestoStockState {
   const mode: "add" | "edit" = item ? "edit" : "add";
   const isNewProduct = item?.tipo === "nuevo" || draft.stockId === NEW_PRODUCT_VALUE;
@@ -47,7 +48,7 @@ export function computeStockState(
   const stock = !isNewProduct ? inventario.find((s) => s.id === stockId) ?? null : null;
   const stockActual = stock ? Number(stock.stockActual) || 0 : 0;
 
-  const baseQty = item ? Number(item.cantidad) || 0 : 0;
+  const baseQty = item && !deferred ? Number(item.cantidad) || 0 : 0;
   const faltanteRaw = stockFaltante(safeInt(draft.cantidad), baseQty, stockActual);
 
   const hasExistingRepuestoConflict =
@@ -55,7 +56,8 @@ export function computeStockState(
   const hasStockIssue =
     !isNewProduct && !!stock && !hasExistingRepuestoConflict && faltanteRaw > 0;
   const faltante = hasStockIssue ? faltanteRaw : 0;
-  const showPurchaseField = isNewProduct || hasStockIssue;
+  const hasPendingPurchase = deferred && item?.precioCompra != null;
+  const showPurchaseField = isNewProduct || hasStockIssue || hasPendingPurchase;
 
   return {
     mode,
@@ -117,6 +119,7 @@ export type RepuestoValidatorEnv = {
   tallerId: string | null;
   items: RepuestoLinea[];
   inventario: ReadonlyArray<InventarioEntry>;
+  deferred?: boolean;
 };
 
 export type RepuestoValidatorCtx = {
@@ -236,13 +239,34 @@ function validateExistingStock(
   const stock = env.inventario.find((s) => s.id === stockId) ?? null;
   if (!stock) return { ok: false, message: "Stock no encontrado" };
 
-  const baseQty = ctx.mode === "edit" && ctx.item ? Number(ctx.item.cantidad) || 0 : 0;
+  const baseQty = ctx.mode === "edit" && ctx.item && !env.deferred ? Number(ctx.item.cantidad) || 0 : 0;
   const faltante = stockFaltante(cantidad, baseQty, Number(stock.stockActual) || 0);
+  const hadPendingPurchase = env.deferred && ctx.mode === "edit" && ctx.item?.precioCompra != null;
 
   if (faltante > 0) {
     const precioCompra = safeNumber(draft.precioCompra);
     if (!Number.isFinite(precioCompra) || precioCompra <= 0) {
       return { ok: false, message: "Falta precio de compra para cubrir el faltante" };
+    }
+    return {
+      ok: true,
+      value: {
+        tipo: "existente",
+        stock_id: stockId,
+        cantidad,
+        monto_unitario: montoUnitario,
+        precio_compra: precioCompra,
+        categoria_arreglo_id: draft.categoriaArregloId || null,
+        empleado_id: draft.empleadoId || null,
+      },
+    };
+  }
+
+  if (hadPendingPurchase) {
+    const rawPrecioCompra = String(draft.precioCompra ?? "").trim();
+    const precioCompra = rawPrecioCompra === "" ? null : safeNumber(rawPrecioCompra);
+    if (precioCompra !== null && (!Number.isFinite(precioCompra) || precioCompra <= 0)) {
+      return { ok: false, message: "Precio de compra invÃ¡lido" };
     }
     return {
       ok: true,
