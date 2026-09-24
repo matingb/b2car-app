@@ -6,14 +6,17 @@ import { css } from "@emotion/react";
 import { Clock, ChevronDown } from "lucide-react";
 import { formatArs } from "@/lib/format";
 import { safeNumber } from "@/lib/numbers";
+import { calcLineTotal } from "@/lib/calcLineTotal";
 import { COLOR } from "@/theme/theme";
 
 interface TimeDetailPopoverProps {
-  billedHours: number | string;
-  actualHours: number | string;
+  billedHours: number | string | null;
+  actualHours: number | string | null;
   unitPrice: number | string;
   quantity: number | string;
   employeeHourlyRate?: number | string | null;
+  canViewEmployeeCost?: boolean;
+  canViewBilledPrice?: boolean;
   disabled?: boolean;
   onChangeBilledHours: (hours: string) => void;
   onChangeActualHours: (hours: string) => void;
@@ -25,6 +28,8 @@ export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
   unitPrice,
   quantity,
   employeeHourlyRate = 0,
+  canViewEmployeeCost = false,
+  canViewBilledPrice = false,
   disabled = false,
   onChangeBilledHours,
   onChangeActualHours,
@@ -34,11 +39,11 @@ export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
   const triggerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  const numBilled = safeNumber(billedHours);
-  const numActual = safeNumber(actualHours);
-  const numPrice = safeNumber(unitPrice);
-  const numQty = safeNumber(quantity) || 1;
-  const numRate = safeNumber(employeeHourlyRate);
+  const hasBilledHours = billedHours !== null && billedHours !== "";
+  const hasActualHours = actualHours !== null && actualHours !== "";
+  const numBilled = hasBilledHours ? safeNumber(billedHours) : 0;
+  const numActual = hasActualHours ? safeNumber(actualHours) : 0;
+  const numRate = employeeHourlyRate == null ? null : safeNumber(employeeHourlyRate);
 
   // Actualizar la posición flotante del popover usando portal para evitar clipping/stacking
   useEffect(() => {
@@ -103,8 +108,14 @@ export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
   }, [isOpen]);
 
   // Cálculos de precio y costo
-  const billedRevenue = numBilled * numPrice * numQty;
-  const laborCost = numActual * numRate;
+  const billedRevenue = calcLineTotal({
+    cantidad: quantity,
+    horas_facturadas: billedHours,
+    precio_hora_facturada: unitPrice,
+  });
+  const laborCost = canViewEmployeeCost && hasActualHours && numRate !== null
+    ? numActual * numRate
+    : null;
 
   return (
     <div
@@ -122,8 +133,9 @@ export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
       >
         <Clock size={13} color={COLOR.TEXT.SECONDARY} style={{ flexShrink: 0 }} />
         <span>
-          Fact: <strong css={styles.hoursBold}>{numBilled}h</strong> · Trab:{" "}
-          <strong css={styles.hoursBold}>{numActual}h</strong>
+          {hasBilledHours ? <>Fact: <strong css={styles.hoursBold}>{numBilled}h</strong></> : "Sin horas históricas"}
+          {hasBilledHours && hasActualHours ? " · " : null}
+          {hasActualHours ? <>Trab: <strong css={styles.hoursBold}>{numActual}h</strong></> : null}
         </span>
         <ChevronDown
           size={12}
@@ -151,16 +163,18 @@ export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
                 <span style={{ fontSize: 12, fontWeight: 600, color: COLOR.TEXT.PRIMARY }}>
                   Facturada
                 </span>
-                <span style={{ fontSize: 11, color: COLOR.TEXT.SECONDARY }}>
-                  ({formatArs(billedRevenue, { maxDecimals: 0, minDecimals: 0 })})
-                </span>
+                {canViewBilledPrice && (
+                  <span style={{ fontSize: 11, color: COLOR.TEXT.SECONDARY }}>
+                    ({formatArs(billedRevenue, { maxDecimals: 2, minDecimals: 0 })})
+                  </span>
+                )}
               </div>
               <div css={styles.inputWrap}>
                 <input
                   type="number"
                   min="0"
-                  step="0.25"
-                  value={billedHours === 0 || billedHours === "0" ? "" : billedHours}
+                  step="0.01"
+                  value={billedHours ?? ""}
                   onChange={(e) => onChangeBilledHours(e.target.value)}
                   css={styles.input}
                 />
@@ -174,16 +188,18 @@ export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
                 <span style={{ fontSize: 12, fontWeight: 600, color: COLOR.TEXT.PRIMARY }}>
                   Trabajada
                 </span>
-                <span style={{ fontSize: 11, color: COLOR.TEXT.SECONDARY }}>
-                  ({formatArs(laborCost, { maxDecimals: 0, minDecimals: 0 })})
-                </span>
+                {canViewEmployeeCost && (
+                  <span style={{ fontSize: 11, color: COLOR.TEXT.SECONDARY }}>
+                    ({laborCost == null ? "Costo sin registrar" : formatArs(laborCost, { maxDecimals: 2, minDecimals: 0 })})
+                  </span>
+                )}
               </div>
               <div css={styles.inputWrap}>
                 <input
                   type="number"
                   min="0"
-                  step="0.25"
-                  value={actualHours === 0 || actualHours === "0" ? "" : actualHours}
+                  step="0.01"
+                  value={actualHours ?? ""}
                   onChange={(e) => onChangeActualHours(e.target.value)}
                   css={styles.input}
                 />

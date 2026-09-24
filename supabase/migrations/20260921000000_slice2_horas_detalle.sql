@@ -1,16 +1,112 @@
 -- Migración: supabase/migrations/20260920_slice2_horas_detalle.sql
 
--- 1. Renombrar columna valor a precio_hora_facturada en detalle_arreglo
-ALTER TABLE public.detalle_arreglo RENAME COLUMN valor TO precio_hora_facturada;
+ALTER TABLE public.empleados
+  ADD COLUMN IF NOT EXISTS valor_hora numeric(12,2)
+    CHECK (valor_hora IS NULL OR valor_hora >= 0);
+
+ALTER TABLE public.detalle_arreglo
+  ADD COLUMN IF NOT EXISTS valor_hora_empleado numeric(12,2)
+    CHECK (valor_hora_empleado IS NULL OR valor_hora_empleado >= 0);
 
 -- 2. Agregar columnas de horas
 ALTER TABLE public.detalle_arreglo
-  ADD COLUMN IF NOT EXISTS horas_facturadas numeric(6,2) NOT NULL DEFAULT 1
+  ADD COLUMN IF NOT EXISTS horas_facturadas numeric(6,2)
     CHECK (horas_facturadas >= 0);
 
 ALTER TABLE public.detalle_arreglo
-  ADD COLUMN IF NOT EXISTS horas_trabajadas numeric(6,2) NOT NULL DEFAULT 1
+  ADD COLUMN IF NOT EXISTS horas_trabajadas numeric(6,2)
     CHECK (horas_trabajadas >= 0);
+
+ALTER TABLE public.detalle_arreglo
+  ALTER COLUMN horas_facturadas SET DEFAULT 1,
+  ALTER COLUMN horas_facturadas DROP NOT NULL,
+  ALTER COLUMN horas_trabajadas SET DEFAULT 1,
+  ALTER COLUMN horas_trabajadas DROP NOT NULL;
+
+-- Las columnas sin default quedan NULL en el historial sin actualizar detalles
+-- protegidos por los triggers de facturación. El default aplica a altas futuras.
+ALTER TABLE public.detalle_arreglo RENAME COLUMN valor TO precio_hora_facturada;
+
+ALTER TABLE public.detalle_arreglo
+  ALTER COLUMN precio_hora_facturada DROP DEFAULT;
+
+COMMENT ON COLUMN public.detalle_arreglo.horas_facturadas IS
+  'NULL identifica horas históricas desconocidas; las nuevas líneas reciben default 1.';
+
+CREATE OR REPLACE FUNCTION public._snapshot_detalle_arreglo_valores()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  v_tenant_id uuid;
+  v_taller_id uuid;
+  v_precio_hora numeric;
+  v_empleado_tenant_id uuid;
+  v_empleado_taller_id uuid;
+  v_empleado_valor_hora numeric;
+  v_resolver_precio boolean;
+  v_resolver_costo boolean;
+BEGIN
+  SELECT a.tenant_id, a.taller_id, t.valor_hora
+    INTO v_tenant_id, v_taller_id, v_precio_hora
+    FROM public.arreglos a
+    LEFT JOIN public.talleres t ON t.id = a.taller_id AND t.tenant_id = a.tenant_id
+   WHERE a.id = NEW.arreglo_id;
+
+  IF v_tenant_id IS NULL OR NEW.tenant_id IS DISTINCT FROM v_tenant_id THEN
+    RAISE EXCEPTION 'arreglo no encontrado para el tenant del detalle';
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    NEW.horas_facturadas := COALESCE(NEW.horas_facturadas, 1);
+    NEW.horas_trabajadas := COALESCE(NEW.horas_trabajadas, 1);
+    v_resolver_precio := NEW.precio_hora_facturada IS NULL;
+    v_resolver_costo := NEW.valor_hora_empleado IS NULL;
+  ELSE
+    v_resolver_precio := NEW.precio_hora_facturada IS NULL
+      AND NEW.precio_hora_facturada IS DISTINCT FROM OLD.precio_hora_facturada;
+    v_resolver_costo := NEW.valor_hora_empleado IS NULL
+      AND NEW.valor_hora_empleado IS DISTINCT FROM OLD.valor_hora_empleado;
+  END IF;
+
+  IF v_resolver_precio THEN
+    NEW.precio_hora_facturada := COALESCE(v_precio_hora, 0);
+  END IF;
+
+  IF NEW.empleado_id IS NOT NULL THEN
+    SELECT e.tenant_id, e.taller_id, e.valor_hora
+      INTO v_empleado_tenant_id, v_empleado_taller_id, v_empleado_valor_hora
+      FROM public.empleados e
+     WHERE e.id = NEW.empleado_id;
+
+    IF v_empleado_tenant_id IS NULL
+       OR v_empleado_tenant_id IS DISTINCT FROM v_tenant_id
+       OR v_empleado_taller_id IS DISTINCT FROM v_taller_id THEN
+      RAISE EXCEPTION 'empleado no pertenece al tenant y taller del arreglo';
+    END IF;
+
+    IF TG_OP = 'INSERT' OR NEW.empleado_id IS DISTINCT FROM OLD.empleado_id THEN
+      IF NEW.valor_hora_empleado IS NULL THEN
+        NEW.valor_hora_empleado := v_empleado_valor_hora;
+      END IF;
+    END IF;
+  ELSIF v_resolver_costo THEN
+    NEW.valor_hora_empleado := NULL;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public._snapshot_detalle_arreglo_valores()
+  FROM PUBLIC, anon, authenticated, service_role;
+
+DROP TRIGGER IF EXISTS detalle_arreglo_snapshot_valores ON public.detalle_arreglo;
+CREATE TRIGGER detalle_arreglo_snapshot_valores
+  BEFORE INSERT OR UPDATE ON public.detalle_arreglo
+  FOR EACH ROW EXECUTE FUNCTION public._snapshot_detalle_arreglo_valores();
 
 -- 3. Actualizar _insert_detalles_arreglo para usar precio_hora_facturada y horas
 CREATE OR REPLACE FUNCTION public._insert_detalles_arreglo(
@@ -34,13 +130,15 @@ BEGIN
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_detalles) LOOP
     INSERT INTO public.detalle_arreglo (
       tenant_id, arreglo_id, descripcion, cantidad, precio_hora_facturada,
-      horas_facturadas, horas_trabajadas, categoria_arreglo_id, empleado_id
+      horas_facturadas, horas_trabajadas, valor_hora_empleado,
+      categoria_arreglo_id, empleado_id
     ) VALUES (
       v_tenant_id, p_arreglo_id, trim(coalesce(v_item ->> 'descripcion', '')),
       COALESCE(NULLIF(v_item ->> 'cantidad', '')::numeric, 1),
-      COALESCE(NULLIF(v_item ->> 'precio_hora_facturada', '')::numeric, 0),
+      NULLIF(v_item ->> 'precio_hora_facturada', '')::numeric,
       COALESCE(NULLIF(v_item ->> 'horas_facturadas', '')::numeric, 1),
       COALESCE(NULLIF(v_item ->> 'horas_trabajadas', '')::numeric, 1),
+      NULLIF(v_item ->> 'valor_hora_empleado', '')::numeric,
       NULLIF(v_item ->> 'categoria_arreglo_id', '')::uuid,
       NULLIF(v_item ->> 'empleado_id', '')::uuid
     );
@@ -107,6 +205,7 @@ BEGIN
       'precio_hora_facturada', d.precio_hora_facturada,
       'horas_facturadas', d.horas_facturadas,
       'horas_trabajadas', d.horas_trabajadas,
+      'valor_hora_empleado', d.valor_hora_empleado,
       'categoria_arreglo_id', d.categoria_arreglo_id, 'empleado_id', d.empleado_id,
       'created_at', d.created_at, 'updated_at', d.updated_at
     ) ORDER BY d.created_at
@@ -181,8 +280,13 @@ DECLARE
   v_total_servicios numeric := 0;
   v_total_asignaciones numeric := 0;
 BEGIN
-  -- Suma de servicios (cantidad * horas_facturadas * precio_hora_facturada)
-  SELECT COALESCE(SUM(cantidad * horas_facturadas * precio_hora_facturada), 0)
+  -- NULL conserva el total previo de los detalles sin horas históricas conocidas.
+  SELECT COALESCE(SUM(
+    CASE WHEN horas_facturadas IS NULL
+      THEN cantidad * precio_hora_facturada
+      ELSE horas_facturadas * precio_hora_facturada
+    END
+  ), 0)
   INTO v_total_servicios
   FROM public.detalle_arreglo
   WHERE arreglo_id = p_arreglo_id;
@@ -207,7 +311,9 @@ RETURNS numeric
 LANGUAGE sql
 SET search_path TO public
 AS $$
-  SELECT COALESCE(SUM(d.cantidad * d.horas_facturadas * d.precio_hora_facturada), 0)::numeric
+  SELECT COALESCE(SUM(CASE WHEN d.horas_facturadas IS NULL
+    THEN d.cantidad * d.precio_hora_facturada
+    ELSE d.horas_facturadas * d.precio_hora_facturada END), 0)::numeric
   FROM public.arreglos a
   JOIN public.detalle_arreglo d ON d.arreglo_id = a.id
   WHERE a.fecha >= p_from
@@ -226,7 +332,9 @@ LANGUAGE sql
 SET search_path = public
 AS $$
   WITH lineas AS (
-    SELECT d.categoria_arreglo_id AS cat_id, (d.cantidad * d.horas_facturadas * d.precio_hora_facturada)::numeric AS monto
+    SELECT d.categoria_arreglo_id AS cat_id, (CASE WHEN d.horas_facturadas IS NULL
+      THEN d.cantidad * d.precio_hora_facturada
+      ELSE d.horas_facturadas * d.precio_hora_facturada END)::numeric AS monto
     FROM public.detalle_arreglo d
     JOIN public.arreglos a ON a.id = d.arreglo_id
     WHERE (p_from IS NULL OR a.fecha >= p_from)
@@ -288,7 +396,9 @@ LANGUAGE sql
 SET search_path = public
 AS $$
   WITH lineas AS (
-    SELECT d.empleado_id AS empleado_id, (d.cantidad * d.horas_facturadas * d.precio_hora_facturada)::numeric AS monto
+    SELECT d.empleado_id AS empleado_id, (CASE WHEN d.horas_facturadas IS NULL
+      THEN d.cantidad * d.precio_hora_facturada
+      ELSE d.horas_facturadas * d.precio_hora_facturada END)::numeric AS monto
     FROM public.detalle_arreglo d
     JOIN public.arreglos a ON a.id = d.arreglo_id
     WHERE (p_from IS NULL OR a.fecha >= p_from)

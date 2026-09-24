@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
+import Can from "@/app/components/auth/Can";
 import Autocomplete, { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
@@ -9,6 +10,8 @@ import { useInventario } from "@/app/providers/InventarioProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { AlertTriangle, Package, Wrench } from "lucide-react";
 import { safeNumber } from "@/lib/numbers";
+import { Permission } from "@/lib/permissions";
+import { useTenant } from "@/app/providers/TenantProvider";
 
 type Props = {
   open: boolean;
@@ -24,13 +27,21 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
   const { createDetalle, upsertRepuestoLinea, loading } = useArreglos();
   const { inventario, isLoading } = useInventario(tallerId ?? undefined);
   const { success, error } = useToast();
+  const { talleres = [], hasPermission } = useTenant();
+  const canEditPrices = hasPermission(Permission.ArreglosPreciosEdit);
 
   const [mode, setMode] = useState<Mode>("servicio");
 
   // servicio
   const [descripcion, setDescripcion] = useState("");
   const [cantidadServicio, setCantidadServicio] = useState("1");
-  const [valorServicio, setValorServicio] = useState("0");
+  const [valorServicio, setValorServicio] = useState("");
+  const tallerServicio = talleres.find((taller) => taller.id === tallerId);
+
+  useEffect(() => {
+    if (valorServicio.trim() !== "" || tallerServicio?.valor_hora == null) return;
+    setValorServicio(String(tallerServicio.valor_hora));
+  }, [tallerServicio?.valor_hora, valorServicio]);
 
   // repuesto
   const [stockId, setStockId] = useState("");
@@ -55,7 +66,7 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
   const submitting = loading;
 
   const servicioCantidad = safeNumber(cantidadServicio);
-  const servicioValor = safeNumber(valorServicio);
+  const servicioValor = valorServicio.trim() === "" ? null : safeNumber(valorServicio);
 
   const repuestoCantidad = safeNumber(cantidadRepuesto);
   const repuestoMontoUnitario = safeNumber(montoUnitario || selectedStockItem?.precioUnitario || 0);
@@ -71,8 +82,12 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
         descripcion.trim().length > 0 &&
         Number.isFinite(servicioCantidad) &&
         servicioCantidad > 0 &&
-        Number.isFinite(servicioValor) &&
-        servicioValor >= 0
+        (servicioValor === null || (
+          Number.isFinite(servicioValor) &&
+          servicioValor >= 0 &&
+          servicioValor <= 9_999_999_999.99 &&
+          Math.abs(servicioValor * 100 - Math.round(servicioValor * 100)) <= 1e-7
+        ))
       );
     }
 
@@ -100,7 +115,7 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
   const resetAndClose = () => {
     setDescripcion("");
     setCantidadServicio("1");
-    setValorServicio("0");
+    setValorServicio("");
     setStockId("");
     setCantidadRepuesto("1");
     setMontoUnitario("");
@@ -117,7 +132,7 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
         await createDetalle(arregloId, {
           descripcion: descripcion.trim(),
           cantidad: servicioCantidad,
-          precio_hora_facturada: servicioValor,
+          ...(canEditPrices && servicioValor !== null ? { precio_hora_facturada: servicioValor } : {}),
           horas_facturadas: 1,
           horas_trabajadas: 1,
         });
@@ -184,32 +199,23 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
             </div>
 
             <div style={styles.row}>
-              <div style={styles.field}>
-                <label style={styles.label}>
-                  Cantidad <span aria-hidden="true" style={styles.required}>*</span>
-                </label>
-                <input
-                  style={styles.input}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={cantidadServicio}
-                  onChange={(e) => setCantidadServicio(e.target.value.replace(/\D/g, ""))}
-                  placeholder="1"
-                />
-              </div>
-              <div style={styles.field}>
-                <label style={styles.label}>
-                  Valor unitario <span aria-hidden="true" style={styles.required}>*</span>
-                </label>
-                <input
-                  style={styles.input}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={valorServicio}
-                  onChange={(e) => setValorServicio(e.target.value.replace(/\D/g, ""))}
-                  placeholder="0"
-                />
-              </div>
+              <Can permission={Permission.ArreglosPreciosEdit}>
+                <div style={styles.field}>
+                  <label style={styles.label}>
+                    Precio por hora
+                  </label>
+                  <input
+                    style={styles.input}
+                    type="number"
+                    min="0"
+                    max="9999999999.99"
+                    step="0.01"
+                    value={valorServicio}
+                    onChange={(e) => setValorServicio(e.target.value)}
+                    placeholder="Usar precio del taller"
+                  />
+                </div>
+              </Can>
             </div>
           </div>
         ) : (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { Plus, Wrench } from "lucide-react";
 import { formatArs } from "@/lib/format";
 import { safeInt, safeNumber } from "@/lib/numbers";
@@ -17,17 +17,18 @@ import TimeDetailPopover from "./TimeDetailPopover";
 import ServicioEditableFields from "./ServicioEditableFields";
 import type { ServicioEditableCardDraft } from "./ServicioEditableCard";
 import { useTenant } from "@/app/providers/TenantProvider";
-import { useEmpleados } from "@/app/providers/EmpleadosProvider";
 import { Permission } from "@/lib/permissions";
 import { calcLineTotal } from "@/lib/calcLineTotal";
+import { hasAtMostDecimalPlaces } from "@/lib/numbers";
 
 export type ServicioLinea = {
   id: string;
   descripcion: string;
   cantidad: number;
   precioHoraFacturada: number;
-  horasFacturadas: number;
-  horasTrabajadas: number;
+  horasFacturadas: number | null;
+  horasTrabajadas: number | null;
+  valorHoraEmpleado: number | null;
   categoriaArregloId: string | null;
   empleadoId: string | null;
 };
@@ -36,8 +37,9 @@ export type ServicioLineaValue = {
   descripcion: string;
   cantidad: number;
   precioHoraFacturada: number;
-  horasFacturadas: number;
-  horasTrabajadas: number;
+  horasFacturadas: number | null;
+  horasTrabajadas: number | null;
+  valorHoraEmpleado?: number | null;
   categoriaArregloId: string | null;
   empleadoId: string | null;
 };
@@ -72,15 +74,17 @@ export default function ServicioLineasEditableSection({
   onDelete,
 }: Props) {
   const { hasPermission, talleres = [], tallerSeleccionadoId } = useTenant();
-  const { empleados = [] } = useEmpleados();
   const canEditPrices = hasPermission(Permission.ArreglosPreciosEdit);
+  const canViewPrices = hasPermission(Permission.ArreglosPreciosView);
 
   const activeTallerId = tallerId ?? tallerSeleccionadoId;
-  const activeTaller = (talleres ?? []).find((t) => t.id === activeTallerId) ?? (talleres ?? [])[0];
+  const activeTaller = (talleres ?? []).find((t) => t.id === activeTallerId);
   const defaultValorHora =
-    activeTaller?.valor_hora != null && activeTaller.valor_hora > 0
+    activeTaller?.valor_hora != null
       ? String(activeTaller.valor_hora)
       : "";
+  const canViewEmployeeCosts = hasPermission(Permission.EmpleadosView);
+  const canEditEmployeeCosts = hasPermission(Permission.EmpleadosEdit);
 
   const {
     editingId,
@@ -104,33 +108,45 @@ export default function ServicioLineasEditableSection({
       horasFacturadas: "1",
       horasTrabajadas: "1",
       precioHoraFacturada: defaultValorHora,
+      valorHoraEmpleado: "",
       categoriaArregloId: defaultCategoriaArregloId,
       empleadoId: defaultEmpleadoId,
     },
     draftFromItem: (item) => ({
       descripcion: item.descripcion ?? "",
       cantidad: String(item.cantidad ?? 1),
-      horasFacturadas: String(item.horasFacturadas ?? 1),
-      horasTrabajadas: String(item.horasTrabajadas ?? 1),
+      horasFacturadas: item.horasFacturadas == null ? "" : String(item.horasFacturadas),
+      horasTrabajadas: item.horasTrabajadas == null ? "" : String(item.horasTrabajadas),
       precioHoraFacturada: String(item.precioHoraFacturada ?? 0),
+      valorHoraEmpleado: item.valorHoraEmpleado == null ? "" : String(item.valorHoraEmpleado),
       categoriaArregloId: item.categoriaArregloId ?? null,
       empleadoId: item.empleadoId ?? null,
     }),
     validate: (d, ctx) => {
       const descripcion = d.descripcion.trim();
-      const cantidad = safeInt(d.cantidad);
-      const horasFacturadas = safeNumber(d.horasFacturadas);
-      const horasTrabajadas = safeNumber(d.horasTrabajadas);
+      const cantidad = ctx.mode === "edit" ? safeInt(ctx.item?.cantidad ?? 1) : 1;
+      const horasFacturadas = d.horasFacturadas === ""
+        ? ctx.mode === "edit" && ctx.item?.horasFacturadas == null ? null : Number.NaN
+        : safeNumber(d.horasFacturadas);
+      const horasTrabajadas = d.horasTrabajadas === ""
+        ? ctx.mode === "edit" && ctx.item?.horasTrabajadas == null ? null : Number.NaN
+        : safeNumber(d.horasTrabajadas);
 
       const precioHoraFacturada = canEditPrices
         ? safeNumber(d.precioHoraFacturada)
-        : ctx.mode === "edit" ? safeNumber(ctx.item?.precioHoraFacturada) : 0;
+        : ctx.mode === "edit" ? safeNumber(ctx.item?.precioHoraFacturada) : safeNumber(d.precioHoraFacturada);
+      const valorHoraEmpleado = d.valorHoraEmpleado.trim() === ""
+        ? null
+        : safeNumber(d.valorHoraEmpleado);
+      const oldValorHoraEmpleado = ctx.item?.valorHoraEmpleado ?? null;
+      const shouldUpdateEmployeeRate = ctx.mode === "add" || valorHoraEmpleado !== oldValorHoraEmpleado;
 
       if (!descripcion) return { ok: false as const, message: "Falta descripción" };
       if (!Number.isFinite(cantidad) || cantidad <= 0) return { ok: false as const, message: "Cantidad inválida" };
-      if (!Number.isFinite(horasFacturadas) || horasFacturadas < 0) return { ok: false as const, message: "Horas facturadas inválidas" };
-      if (!Number.isFinite(horasTrabajadas) || horasTrabajadas < 0) return { ok: false as const, message: "Horas trabajadas inválidas" };
-      if (!Number.isFinite(precioHoraFacturada) || precioHoraFacturada < 0) return { ok: false as const, message: "Precio hora inválido" };
+      if (horasFacturadas !== null && (!Number.isFinite(horasFacturadas) || horasFacturadas < 0 || horasFacturadas > 9999.99 || !hasAtMostDecimalPlaces(horasFacturadas))) return { ok: false as const, message: "Horas facturadas inválidas" };
+      if (horasTrabajadas !== null && (!Number.isFinite(horasTrabajadas) || horasTrabajadas < 0 || horasTrabajadas > 9999.99 || !hasAtMostDecimalPlaces(horasTrabajadas))) return { ok: false as const, message: "Horas trabajadas inválidas" };
+      if (!Number.isFinite(precioHoraFacturada) || precioHoraFacturada < 0 || precioHoraFacturada > 9_999_999_999.99 || !hasAtMostDecimalPlaces(precioHoraFacturada)) return { ok: false as const, message: "Precio hora inválido" };
+      if (valorHoraEmpleado !== null && (!Number.isFinite(valorHoraEmpleado) || valorHoraEmpleado < 0 || valorHoraEmpleado > 9_999_999_999.99 || !hasAtMostDecimalPlaces(valorHoraEmpleado))) return { ok: false as const, message: "Valor hora del empleado inválido" };
       return {
         ok: true as const,
         value: {
@@ -139,6 +155,7 @@ export default function ServicioLineasEditableSection({
           horasFacturadas,
           horasTrabajadas,
           precioHoraFacturada,
+          ...(shouldUpdateEmployeeRate ? { valorHoraEmpleado } : {}),
           categoriaArregloId: d.categoriaArregloId,
           empleadoId: d.empleadoId,
         },
@@ -164,14 +181,11 @@ export default function ServicioLineasEditableSection({
     [items]
   );
   const subtotal = useMemo(
-    () => formatArs(subtotalValue, { maxDecimals: 0, minDecimals: 0 }),
+    () => formatArs(subtotalValue, { maxDecimals: 2, minDecimals: 0 }),
     [subtotalValue]
   );
 
   const canInteract = !disabled && !readOnly && !submitting;
-
-  const activeRate = activeTaller?.valor_hora ?? 0;
-  const [customLaborRate, setCustomLaborRate] = useState<number | null>(null);
 
   const renderLineaCard = (item: ServicioLinea | null, mode: "add" | "edit") => {
     const isAdding = mode === "add";
@@ -184,10 +198,9 @@ export default function ServicioLineasEditableSection({
       precio_hora_facturada: draft.precioHoraFacturada,
     });
 
-    const draftEmp = empleados.find((e) => e.id === draft.empleadoId);
-    const draftEmpBaseRate =
-      draftEmp?.salario != null && draftEmp.salario > 0 ? draftEmp.salario : activeRate;
-    const effectiveLaborRate = customLaborRate ?? draftEmpBaseRate;
+    const effectiveLaborRate = draft.valorHoraEmpleado.trim() === ""
+      ? null
+      : safeNumber(draft.valorHoraEmpleado);
 
     const selectors = (
       <>
@@ -198,15 +211,16 @@ export default function ServicioLineasEditableSection({
         />
         <EmpleadoSelect
           value={draft.empleadoId}
+          tallerId={activeTallerId}
           onChange={(empleadoId) => {
             setDraft((p) => ({ ...p, empleadoId }));
-            setCustomLaborRate(null);
           }}
           disabled={!canInteract}
-          showMontoHoras={true}
+          showMontoHoras={canViewEmployeeCosts || canEditEmployeeCosts}
           hourlyRate={effectiveLaborRate}
-          defaultHourlyRate={activeRate}
-          onChangeHourlyRate={(rate) => setCustomLaborRate(rate)}
+          canViewHourlyRate={canViewEmployeeCosts}
+          canEditHourlyRate={canEditEmployeeCosts}
+          onChangeHourlyRate={(rate) => setDraft((p) => ({ ...p, valorHoraEmpleado: rate == null ? "" : String(rate) }))}
         />
         <TimeDetailPopover
           billedHours={draft.horasFacturadas}
@@ -214,6 +228,8 @@ export default function ServicioLineasEditableSection({
           unitPrice={draft.precioHoraFacturada}
           quantity={draft.cantidad}
           employeeHourlyRate={effectiveLaborRate}
+          canViewEmployeeCost={canViewEmployeeCosts}
+          canViewBilledPrice={canViewPrices}
           disabled={!canInteract}
           onChangeBilledHours={(h) => setDraft((p) => ({ ...p, horasFacturadas: h }))}
           onChangeActualHours={(h) => setDraft((p) => ({ ...p, horasTrabajadas: h }))}
@@ -255,9 +271,6 @@ export default function ServicioLineasEditableSection({
 
     if (!item) return null;
 
-    const emp = empleados.find((e) => e.id === (editingId === item.id ? draft.empleadoId : item.empleadoId));
-    const empRate = emp?.salario != null && emp.salario > 0 ? emp.salario : activeRate;
-
     return (
       <LineaCardShell
         key={item.id}
@@ -269,14 +282,14 @@ export default function ServicioLineasEditableSection({
         subtitle={
           <>
             <CategoriaChip categoriaArregloId={item.categoriaArregloId} />
-            <EmpleadoChip empleadoId={item.empleadoId} showMontoHoras={true} rate={empRate} />
+            <EmpleadoChip empleadoId={item.empleadoId} showMontoHoras={canViewEmployeeCosts} rate={item.valorHoraEmpleado} />
           </>
         }
         cantidad={Number(item.cantidad) || 0}
         unitario={Number(item.precioHoraFacturada) || 0}
         horasFacturadas={item.horasFacturadas}
         horasTrabajadas={item.horasTrabajadas}
-        valorHoraEmpleado={empRate}
+        valorHoraEmpleado={item.valorHoraEmpleado}
         onEdit={() => startEdit(item)}
         onDelete={() => onDelete(item.id)}
         canInteract={canInteract && !isEditing}

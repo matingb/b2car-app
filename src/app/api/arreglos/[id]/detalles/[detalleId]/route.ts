@@ -5,13 +5,17 @@ import { ServiceError } from "@/app/api/serviceError";
 import { syncArregloDescripcion } from "@/app/api/arreglos/arregloDescripcionService";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { isValidUuid } from "@/lib/uuid";
+import { hasUserPermission } from "@/lib/permissions.server";
+import { Permission } from "@/lib/permissions";
+import { hasAtMostDecimalPlaces } from "@/lib/numbers";
 
 export type UpdateDetalleArregloRequest = Partial<{
   descripcion: string;
   cantidad: number;
   precio_hora_facturada: number;
-  horas_facturadas: number;
-  horas_trabajadas: number;
+  horas_facturadas: number | null;
+  horas_trabajadas: number | null;
+  valor_hora_empleado?: number | null;
   categoria_arreglo_id: string | null;
   empleado_id: string | null;
 }>;
@@ -22,8 +26,8 @@ export type DetalleArregloResponseRow = {
   descripcion: string;
   cantidad: number;
   precio_hora_facturada: number;
-  horas_facturadas: number;
-  horas_trabajadas: number;
+  horas_facturadas: number | null;
+  horas_trabajadas: number | null;
   categoria_arreglo_id: string | null;
   empleado_id: string | null;
   created_at: string;
@@ -70,27 +74,42 @@ export async function PUT(
   }
 
   if (body.precio_hora_facturada !== undefined) {
+    if (!(await hasUserPermission(supabase, Permission.ArreglosPreciosEdit))) {
+      return Response.json({ data: null, error: "No tenés permiso para modificar precios" } satisfies UpdateDetalleArregloResponse, { status: 403 });
+    }
     const precio = Number(body.precio_hora_facturada);
-    if (!Number.isFinite(precio) || precio < 0) {
+    if (!Number.isFinite(precio) || precio < 0 || precio > 9_999_999_999.99 || !hasAtMostDecimalPlaces(precio)) {
       return Response.json({ data: null, error: "Precio hora facturada inválido" } satisfies UpdateDetalleArregloResponse, { status: 400 });
     }
     patch.precio_hora_facturada = precio;
   }
 
   if (body.horas_facturadas !== undefined) {
-    const horas = Number(body.horas_facturadas);
-    if (!Number.isFinite(horas) || horas < 0) {
+    const horas = body.horas_facturadas === null ? null : Number(body.horas_facturadas);
+    if (horas !== null && (!Number.isFinite(horas) || horas < 0 || horas > 9999.99 || !hasAtMostDecimalPlaces(horas))) {
       return Response.json({ data: null, error: "Horas facturadas inválidas" } satisfies UpdateDetalleArregloResponse, { status: 400 });
     }
     patch.horas_facturadas = horas;
   }
 
   if (body.horas_trabajadas !== undefined) {
-    const horas = Number(body.horas_trabajadas);
-    if (!Number.isFinite(horas) || horas < 0) {
+    const horas = body.horas_trabajadas === null ? null : Number(body.horas_trabajadas);
+    if (horas !== null && (!Number.isFinite(horas) || horas < 0 || horas > 9999.99 || !hasAtMostDecimalPlaces(horas))) {
       return Response.json({ data: null, error: "Horas trabajadas inválidas" } satisfies UpdateDetalleArregloResponse, { status: 400 });
     }
     patch.horas_trabajadas = horas;
+  }
+
+  if (body.valor_hora_empleado !== undefined) {
+    const canEditEmployeeCosts = await hasUserPermission(supabase, Permission.EmpleadosEdit);
+    if (!canEditEmployeeCosts) {
+      return Response.json({ data: null, error: "No tenés permiso para modificar costos de mano de obra" } satisfies UpdateDetalleArregloResponse, { status: 403 });
+    }
+    const valor = body.valor_hora_empleado === null ? null : Number(body.valor_hora_empleado);
+    if (valor !== null && (!Number.isFinite(valor) || valor < 0 || valor > 9_999_999_999.99 || !hasAtMostDecimalPlaces(valor))) {
+      return Response.json({ data: null, error: "Valor hora del empleado inválido" } satisfies UpdateDetalleArregloResponse, { status: 400 });
+    }
+    patch.valor_hora_empleado = valor;
   }
 
   if (body.categoria_arreglo_id !== undefined) {
@@ -120,6 +139,12 @@ export async function PUT(
   const { data, error } = await detalleArregloService.updateById(supabase, arregloId, detalleId, patch);
 
   if (error || !data) {
+    if (error === ServiceError.HorasFacturadasInmutables) {
+      return Response.json(
+        { data: null, error: "Las horas facturadas ya definidas no pueden volver a desconocidas" } satisfies UpdateDetalleArregloResponse,
+        { status: 400 }
+      );
+    }
     const status = error === ServiceError.NotFound ? 404 : 500;
     const message = status === 404 ? "Detalle no encontrado" : "Error actualizando detalle del arreglo";
     return Response.json({ data: null, error: message } satisfies UpdateDetalleArregloResponse, { status });

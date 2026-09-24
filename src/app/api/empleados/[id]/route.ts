@@ -15,7 +15,7 @@ import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
 import { hasUserPermission } from "@/lib/permissions.server";
 
-function mapEmpleado(row: EmpleadoRow, options?: { hideSalaries?: boolean }): EmpleadoDTO {
+function mapEmpleado(row: EmpleadoRow, options?: { hideSalaries?: boolean; valorHora?: number | null }): EmpleadoDTO {
   return {
     id: row.id,
     taller_id: row.taller_id,
@@ -30,6 +30,9 @@ function mapEmpleado(row: EmpleadoRow, options?: { hideSalaries?: boolean }): Em
       : row.salario === null || row.salario === undefined
         ? null
         : Number(row.salario),
+    valor_hora: options?.hideSalaries
+      ? null
+      : options?.valorHora ?? row.valor_hora ?? null,
     fecha_ingreso: row.fecha_ingreso ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -68,10 +71,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const hasEmpleadosView = await hasUserPermission(supabase, Permission.EmpleadosView);
-  const hideSalaries = !hasEmpleadosView;
+  const hourlyRates = hasEmpleadosView
+    ? await empleadosService.listHourlyRates(supabase, data.taller_id)
+    : { data: [], error: null };
+  if (hourlyRates.error) {
+    return Response.json({ data: null, error: "Error cargando valor hora" } satisfies GetEmpleadoByIdResponse, { status: 500 });
+  }
 
   return Response.json(
-    { data: mapEmpleado(data, { hideSalaries }), error: null } satisfies GetEmpleadoByIdResponse,
+    { data: mapEmpleado(data, { hideSalaries: !hasEmpleadosView, valorHora: hourlyRates.data.find((row) => row.empleado_id === id)?.valor_hora ?? null }), error: null } satisfies GetEmpleadoByIdResponse,
     { status: 200 }
   );
 }
@@ -130,6 +138,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
     }
   }
+  if (body.valor_hora !== undefined && body.valor_hora !== null) {
+    const rate = body.valor_hora;
+    const cents = rate * 100;
+    if (
+      typeof rate !== "number" || !Number.isFinite(rate) || rate < 0 ||
+      rate > 9_999_999_999.99 || Math.abs(cents - Math.round(cents)) > 1e-7
+    ) {
+      return Response.json(
+        { data: null, error: "El valor hora debe ser un nÃºmero >= 0 con hasta dos decimales" } satisfies UpdateEmpleadoResponse,
+        { status: 400 }
+      );
+    }
+  }
   if (body.salario_vigente_desde !== undefined && body.salario_vigente_desde !== null) {
     if (!isValidIsoDate(body.salario_vigente_desde)) {
       return Response.json(
@@ -163,6 +184,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.telefono !== undefined) patch.telefono = body.telefono?.trim() || null;
   if (body.cumpleanos !== undefined) patch.cumpleanos = body.cumpleanos || null;
   if (body.salario !== undefined && !hasSalarioHistoryChange) patch.salario = body.salario ?? null;
+  if (body.valor_hora !== undefined) patch.valor_hora = body.valor_hora ?? null;
   if (body.fecha_ingreso !== undefined) patch.fecha_ingreso = body.fecha_ingreso || null;
 
   try {
@@ -246,8 +268,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       [currentEmpleado.tenant_id, updated.tenant_id]
     );
 
+    const hasEmpleadosView = await hasUserPermission(supabase, Permission.EmpleadosView);
+    const hourlyRates = hasEmpleadosView
+      ? await empleadosService.listHourlyRates(supabase, updated.taller_id)
+      : { data: [], error: null };
+    if (hourlyRates.error) {
+      return Response.json({ data: null, error: "Error cargando valor hora" } satisfies UpdateEmpleadoResponse, { status: 500 });
+    }
+
     return Response.json(
-      { data: mapEmpleado(updated), error: null } satisfies UpdateEmpleadoResponse,
+      { data: mapEmpleado(updated, { hideSalaries: !hasEmpleadosView, valorHora: hourlyRates.data.find((row) => row.empleado_id === id)?.valor_hora ?? null }), error: null } satisfies UpdateEmpleadoResponse,
       { status: 200 }
     );
   } catch (error: unknown) {

@@ -14,6 +14,7 @@ function baseValues(overrides: Partial<EmpleadoFormFieldsValues> = {}): Empleado
     telefono: "",
     cumpleanos: "",
     salario: null,
+    valorHora: null,
     fechaIngreso: "",
     ...overrides,
   };
@@ -71,5 +72,16 @@ describe("validateEmpleadoForm", () => {
 
   it("rechaza salario negativo", () => {
     expect(validateEmpleadoForm(baseValues({ salario: -1, salarioVigenteDesde: "2026-08" }))).toBe(false);
+  });
+
+  it("acepta valor hora cero y decimales de centavos", () => {
+    expect(validateEmpleadoForm(baseValues({ valorHora: 0 }))).toBe(true);
+    expect(validateEmpleadoForm(baseValues({ valorHora: 123.45 }))).toBe(true);
+  });
+
+  it("rechaza valor hora negativo, con más de dos decimales o fuera de rango", () => {
+    expect(validateEmpleadoForm(baseValues({ valorHora: -0.01 }))).toBe(false);
+    expect(validateEmpleadoForm(baseValues({ valorHora: 123.456 }))).toBe(false);
+    expect(validateEmpleadoForm(baseValues({ valorHora: 10_000_000_000 }))).toBe(false);
   });
 });

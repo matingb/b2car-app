@@ -136,6 +136,7 @@ export type EmpleadoDTO = {
     telefono: string | null;
     cumpleanos: string | null;
     salario: number | null;
+    valor_hora: number | null;
     fecha_ingreso: string | null;
     created_at: string;
     updated_at: string;

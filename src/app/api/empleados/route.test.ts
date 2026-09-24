@@ -21,6 +21,7 @@ vi.mock("./empleadosService", async () => {
     empleadosService: {
       ...actual.empleadosService,
       list: vi.fn(),
+      listHourlyRates: vi.fn(),
       create: vi.fn(),
       recordSalarioChange: vi.fn(),
     },
@@ -53,6 +54,7 @@ function createEmpleadoRow(overrides: Partial<EmpleadoRow> = {}): EmpleadoRow {
     telefono: null,
     cumpleanos: null,
     salario: null,
+    valor_hora: null,
     fecha_ingreso: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -72,6 +74,7 @@ describe("/api/empleados", () => {
       },
     } as unknown as SupabaseClient);
     vi.mocked(empleadosService.recordSalarioChange).mockResolvedValue({ error: null });
+    vi.mocked(empleadosService.listHourlyRates).mockResolvedValue({ data: [], error: null });
   });
 
   const postEmpleado = async (payload: Partial<CreateEmpleadoRequest>) => {
@@ -122,6 +125,19 @@ describe("/api/empleados", () => {
     expect(body.data[0].id).toBe("EMP-1");
     expect(body.data[0].nombre).toBe("Juan");
     expect(body.data[0].salario).toBe(75000);
+  });
+
+  it("GET devuelve el valor hora maestro solo con permiso de empleados", async () => {
+    vi.mocked(empleadosService.list).mockResolvedValue({ data: [createEmpleadoRow()], error: null });
+    vi.mocked(empleadosService.listHourlyRates).mockResolvedValue({
+      data: [{ empleado_id: "EMP-1", valor_hora: 1250.5 }],
+      error: null,
+    });
+
+    const res = await GET(new NextRequest("http://localhost/api/empleados"));
+    const body = await res.json();
+
+    expect(body.data[0].valor_hora).toBe(1250.5);
   });
 
   it("GET oculta salarios (null) si el usuario no tiene EmpleadosView", async () => {
@@ -181,6 +197,11 @@ describe("/api/empleados", () => {
 
   it("POST con salario negativo devuelve 400", async () => {
     const { res } = await postEmpleado({ salario: -100 });
+    expect(res.status).toBe(400);
+  });
+
+  it("POST rechaza valor hora con más de dos decimales", async () => {
+    const { res } = await postEmpleado({ valor_hora: 123.456 });
     expect(res.status).toBe(400);
   });
 

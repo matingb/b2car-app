@@ -13,7 +13,7 @@ import { Permission } from "@/lib/permissions";
 import { empleadosService, type EmpleadoRow } from "./empleadosService";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
-function mapEmpleado(row: EmpleadoRow, options?: { hideSalaries?: boolean }): EmpleadoDTO {
+function mapEmpleado(row: EmpleadoRow, options?: { hideSalaries?: boolean; valorHora?: number | null }): EmpleadoDTO {
   return {
     id: row.id,
     taller_id: row.taller_id,
@@ -28,6 +28,9 @@ function mapEmpleado(row: EmpleadoRow, options?: { hideSalaries?: boolean }): Em
       : row.salario === null || row.salario === undefined
         ? null
         : Number(row.salario),
+    valor_hora: options?.hideSalaries
+      ? null
+      : options?.valorHora ?? row.valor_hora ?? null,
     fecha_ingreso: row.fecha_ingreso ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -64,9 +67,19 @@ export async function GET(req: NextRequest) {
 
   const hasEmpleadosView = await hasUserPermission(supabase, Permission.EmpleadosView);
   const hideSalaries = !hasEmpleadosView;
+  const hourlyRates = hasEmpleadosView
+    ? await empleadosService.listHourlyRates(supabase, tallerId)
+    : { data: [], error: null };
+  if (hourlyRates.error) {
+    return Response.json(
+      { data: [], error: "Error listando valores hora" } satisfies GetEmpleadosResponse,
+      { status: 500 }
+    );
+  }
+  const ratesByEmployeeId = new Map(hourlyRates.data.map((row) => [row.empleado_id, row.valor_hora]));
 
   return Response.json(
-    { data: (data ?? []).map((row) => mapEmpleado(row, { hideSalaries })), error: null } satisfies GetEmpleadosResponse,
+    { data: (data ?? []).map((row) => mapEmpleado(row, { hideSalaries, valorHora: ratesByEmployeeId.get(row.id) ?? null })), error: null } satisfies GetEmpleadosResponse,
     { status: 200 }
   );
 }
@@ -123,6 +136,19 @@ export async function POST(req: Request) {
       );
     }
   }
+  if (body.valor_hora !== undefined && body.valor_hora !== null) {
+    const rate = body.valor_hora;
+    const cents = rate * 100;
+    if (
+      typeof rate !== "number" || !Number.isFinite(rate) || rate < 0 ||
+      rate > 9_999_999_999.99 || Math.abs(cents - Math.round(cents)) > 1e-7
+    ) {
+      return Response.json(
+        { data: null, error: "El valor hora debe ser un nÃºmero >= 0 con hasta dos decimales" } satisfies CreateEmpleadoResponse,
+        { status: 400 }
+      );
+    }
+  }
   if (body.cumpleanos && !isValidIsoDate(body.cumpleanos)) {
     return Response.json(
       { data: null, error: "cumpleanos debe ser una fecha válida (YYYY-MM-DD)" } satisfies CreateEmpleadoResponse,
@@ -151,6 +177,7 @@ export async function POST(req: Request) {
     telefono: body.telefono?.trim() || null,
     cumpleanos: body.cumpleanos || null,
     salario: body.salario ?? null,
+    valor_hora: body.valor_hora ?? null,
     fecha_ingreso: body.fecha_ingreso || null,
   };
 
@@ -187,8 +214,9 @@ export async function POST(req: Request) {
     }
 
     await statsService.onDataChanged(supabase, created.tenant_id);
+    const hasEmpleadosView = await hasUserPermission(supabase, Permission.EmpleadosView);
     return Response.json(
-      { data: mapEmpleado(created), error: null } satisfies CreateEmpleadoResponse,
+      { data: mapEmpleado({ ...created, valor_hora: body.valor_hora ?? null }, { hideSalaries: !hasEmpleadosView }), error: null } satisfies CreateEmpleadoResponse,
       { status: 201 }
     );
   } catch (error: unknown) {

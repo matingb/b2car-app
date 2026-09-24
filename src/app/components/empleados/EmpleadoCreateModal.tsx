@@ -29,6 +29,7 @@ function buildInitialValues(defaultTallerId: string): EmpleadoFormFieldsValues {
     telefono: "",
     cumpleanos: "",
     salario: null,
+    valorHora: null,
     salarioVigenteDesde: currentMonthValue(),
     fechaIngreso: "",
   };
@@ -69,6 +70,7 @@ export default function EmpleadoCreateModal({ open, onClose }: Props) {
       telefono: values.telefono,
       cumpleanos: values.cumpleanos,
       salario: values.salario,
+      valorHora: values.valorHora,
       salarioVigenteDesde: values.salarioVigenteDesde,
       fechaIngreso: values.fechaIngreso,
     });

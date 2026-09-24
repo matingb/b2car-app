@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
 import { calcLineTotal } from "@/lib/calcLineTotal";
+import { Permission } from "@/lib/permissions";
 import { useTenant } from "@/app/providers/TenantProvider";
 import LineaCardShell from "@/app/components/arreglos/lineas/shared/LineaCardShell";
 import CategoriaArregloSelect from "@/app/components/arreglos/lineas/shared/CategoriaArregloSelect";
@@ -9,7 +9,6 @@ import EmpleadoSelect from "@/app/components/arreglos/lineas/shared/EmpleadoSele
 import TimeDetailPopover from "./TimeDetailPopover";
 import ServicioEditableFields from "./ServicioEditableFields";
 
-import { useEmpleados } from "@/app/providers/EmpleadosProvider";
 
 export type ServicioEditableCardDraft = {
   descripcion: string;
@@ -17,6 +16,7 @@ export type ServicioEditableCardDraft = {
   horasFacturadas: string;     // decimal, step 0.25, min 0
   horasTrabajadas: string;     // decimal, step 0.25, min 0
   precioHoraFacturada: string; // entero, min 0
+  valorHoraEmpleado: string;
   categoriaArregloId: string | null;
   empleadoId: string | null;
 };
@@ -44,17 +44,14 @@ export default function ServicioEditableCard({
   onConfirm,
   onCancel,
 }: Props) {
-  const { talleres = [], tallerSeleccionadoId } = useTenant();
-  const { empleados = [] } = useEmpleados();
-  const [customLaborRate, setCustomLaborRate] = React.useState<number | null>(null);
+  const { hasPermission } = useTenant();
+  const canViewEmployeeCosts = hasPermission(Permission.EmpleadosView);
+  const canEditEmployeeCosts = hasPermission(Permission.EmpleadosEdit);
+  const canViewPrices = hasPermission(Permission.ArreglosPreciosView);
 
-  const activeTaller = (talleres ?? []).find((t) => t.id === tallerSeleccionadoId) ?? (talleres ?? [])[0];
-  const tallerRate = activeTaller?.valor_hora ?? 0;
-
-  const draftEmp = empleados.find((e) => e.id === draft.empleadoId);
-  const draftEmpBaseRate =
-    draftEmp?.salario != null && draftEmp.salario > 0 ? draftEmp.salario : tallerRate;
-  const effectiveLaborRate = customLaborRate ?? draftEmpBaseRate;
+  const effectiveLaborRate = draft.valorHoraEmpleado.trim() === ""
+    ? null
+    : Number(draft.valorHoraEmpleado);
 
   const confirmEnabled = canInteract && validation.ok && !submitting;
   const cancelEnabled = canInteract && !submitting;
@@ -100,13 +97,13 @@ export default function ServicioEditableCard({
             value={draft.empleadoId}
             onChange={(empleadoId) => {
               onDraftChange({ empleadoId });
-              setCustomLaborRate(null);
             }}
             disabled={!canInteract}
-            showMontoHoras={true}
+            showMontoHoras={canViewEmployeeCosts || canEditEmployeeCosts}
             hourlyRate={effectiveLaborRate}
-            defaultHourlyRate={tallerRate}
-            onChangeHourlyRate={(rate) => setCustomLaborRate(rate)}
+            canViewHourlyRate={canViewEmployeeCosts}
+            canEditHourlyRate={canEditEmployeeCosts}
+            onChangeHourlyRate={(rate) => onDraftChange({ valorHoraEmpleado: rate == null ? "" : String(rate) })}
           />
 
           {/* Popover de Detalle de Horas */}
@@ -116,6 +113,8 @@ export default function ServicioEditableCard({
             unitPrice={draft.precioHoraFacturada}
             quantity={draft.cantidad}
             employeeHourlyRate={effectiveLaborRate}
+            canViewEmployeeCost={canViewEmployeeCosts}
+            canViewBilledPrice={canViewPrices}
             disabled={!canInteract}
             onChangeBilledHours={(h) => onDraftChange({ horasFacturadas: h })}
             onChangeActualHours={(h) => onDraftChange({ horasTrabajadas: h })}

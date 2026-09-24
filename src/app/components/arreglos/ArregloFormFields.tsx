@@ -214,7 +214,7 @@ export default function ArregloFormFields({
   );
   const totalCalculado = subtotalServicios + subtotalRepuestos;
   const totalCalculadoLabel = useMemo(
-    () => formatArs(totalCalculado, { maxDecimals: 0, minDecimals: 0 }),
+    () => formatArs(totalCalculado, { maxDecimals: 2, minDecimals: 0 }),
     [totalCalculado],
   );
 

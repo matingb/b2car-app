@@ -22,10 +22,10 @@ export default function EmpleadoChip({ empleadoId, showMontoHoras = false, rate 
   if (!nombre) return null;
 
   const color = getEmpleadoColor(empleadoId);
-  const effectiveRate = rate ?? (empleado.salario != null && empleado.salario > 0 ? empleado.salario : null);
+  const effectiveRate = rate;
   const displayText =
-    showMontoHoras && effectiveRate != null && effectiveRate > 0
-      ? `${nombre} · ${formatArs(effectiveRate, { maxDecimals: 0, minDecimals: 0 })}/h`
+    showMontoHoras && effectiveRate != null
+      ? `${nombre} · ${formatArs(effectiveRate, { maxDecimals: 2, minDecimals: 0 })}/h`
       : nombre;
 
   return (

@@ -5,6 +5,7 @@ import { useServiciosDraft } from "@/app/components/arreglos/hooks/useServiciosD
 const base = {
   horasFacturadas: 1,
   horasTrabajadas: 1,
+  valorHoraEmpleado: null,
   categoriaArregloId: null,
   empleadoId: null,
 };

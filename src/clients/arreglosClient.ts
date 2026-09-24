@@ -34,9 +34,10 @@ export type CreateArregloInput = {
   detalles?: Array<{
     descripcion: string;
     cantidad: number;
-    precio_hora_facturada: number;
-    horas_facturadas?: number;
-    horas_trabajadas?: number;
+    precio_hora_facturada?: number;
+    horas_facturadas?: number | null;
+    horas_trabajadas?: number | null;
+    valor_hora_empleado?: number | null;
     categoria_arreglo_id?: string | null;
     empleado_id?: string | null;
   }>;
@@ -243,9 +244,10 @@ export const arreglosClient = {
     input: {
       descripcion: string;
       cantidad: number;
-      precio_hora_facturada: number;
-      horas_facturadas?: number;
-      horas_trabajadas?: number;
+      precio_hora_facturada?: number;
+      horas_facturadas?: number | null;
+      horas_trabajadas?: number | null;
+      valor_hora_empleado?: number | null;
       categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }
@@ -273,9 +275,10 @@ export const arreglosClient = {
     patch: Partial<{
       descripcion: string;
       cantidad: number;
-      precio_hora_facturada: number;
-      horas_facturadas: number;
-      horas_trabajadas: number;
+      precio_hora_facturada?: number;
+      horas_facturadas: number | null;
+      horas_trabajadas: number | null;
+      valor_hora_empleado?: number | null;
       categoria_arreglo_id: string | null;
       empleado_id: string | null;
     }>

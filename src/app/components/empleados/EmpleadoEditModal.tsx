@@ -31,6 +31,7 @@ function buildInitialValues(empleado: Empleado): EmpleadoFormFieldsValues {
     telefono: empleado.telefono,
     cumpleanos: empleado.cumpleanos,
     salario: empleado.salario,
+    valorHora: empleado.valorHora,
     salarioVigenteDesde: currentMonthValue(),
     fechaIngreso: empleado.fechaIngreso,
   };
@@ -66,6 +67,7 @@ export default function EmpleadoEditModal({ open, empleado, onClose, onSaved }: 
       telefono: values.telefono,
       cumpleanos: values.cumpleanos,
       salario: values.salario,
+      valorHora: values.valorHora,
       ...(values.salarioVigenteDesde
         ? {
             salarioVigenteDesde: /^\d{4}-\d{2}$/.test(values.salarioVigenteDesde)

@@ -75,6 +75,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const canViewFacturas = hasPermission(Permission.FacturasView);
   const canCobros = hasPermission(Permission.ArreglosCobrosRegister);
   const canEditPrices = hasPermission(Permission.ArreglosPreciosEdit);
+  const canEditEmployeeCosts = hasPermission(Permission.EmpleadosEdit);
   const canCreateCuenta = hasPermission(Permission.FinanzasEdit);
   const canUseBilling = canViewFacturas;
   const { inventario, isLoading: isInventarioLoading } = useInventario(tallerSeleccionadoId ?? undefined);
@@ -255,13 +256,14 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           throw new Error("Ocurrió un error al crear el arreglo");
         }
         const finalVehiculoId = vehiculoId || selectedVehiculoId;
-        const precioFinalCalculado = Math.round(Number(internal.totalCalculado) || 0);
+        const precioFinalCalculado = Number(internal.totalCalculado) || 0;
         const detalles = internal.serviciosDraft.map((s) => ({
           descripcion: String(s.descripcion ?? "").trim(),
           cantidad: Number(s.cantidad) || 0,
-          precio_hora_facturada: canEditPrices ? Number(s.precioHoraFacturada) || 0 : 0,
-          horas_facturadas: Number(s.horasFacturadas) || 1,
-          horas_trabajadas: Number(s.horasTrabajadas) || 1,
+          ...(canEditPrices ? { precio_hora_facturada: Number(s.precioHoraFacturada) } : {}),
+          horas_facturadas: Number(s.horasFacturadas),
+          horas_trabajadas: Number(s.horasTrabajadas),
+          ...(canEditEmployeeCosts ? { valor_hora_empleado: s.valorHoraEmpleado } : {}),
           categoria_arreglo_id: s.categoriaArregloId || null,
           empleado_id: s.empleadoId || null,
         }));
@@ -273,7 +275,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           fecha,
           kilometraje_leido: Number(km) || 0,
           combustible_leido: combustibleLeido,
-          precio_final: canEditPrices ? precioFinalCalculado : 0,
+          precio_final: precioFinalCalculado,
           observaciones: normalizeArregloObservaciones(observaciones, false),
           esta_pago: canCobros ? !!estaPago : false,
           es_facturable: resolveEsFacturableForCreate(canUseBilling, esFacturable),

@@ -17,6 +17,7 @@ export type EmpleadoFormFieldsValues = {
   telefono: string;
   cumpleanos: string;
   salario: number | null;
+  valorHora: number | null;
   salarioVigenteDesde?: string;
   fechaIngreso: string;
 };
@@ -35,6 +36,12 @@ export function validateEmpleadoForm(
   const hasSalario = values.salario !== null && values.salario > 0;
   const hasVigencia = Boolean(values.salarioVigenteDesde?.trim()) || Boolean(values.fechaIngreso?.trim());
   const hasVigenciaIfSalario = !hasSalario || hasVigencia;
+  const valorHoraCents = (values.valorHora ?? 0) * 100;
+  const validValorHora = values.valorHora === null || (
+    Number.isFinite(values.valorHora) && values.valorHora >= 0 &&
+    values.valorHora <= 9_999_999_999.99 &&
+    Math.abs(valorHoraCents - Math.round(valorHoraCents)) <= 1e-7
+  );
 
   return Boolean(
     values.tallerId.trim() &&
@@ -42,6 +49,7 @@ export function validateEmpleadoForm(
     values.apellido.trim() &&
     values.dni.trim() &&
     (values.salario === null || values.salario >= 0) &&
+    validValorHora &&
     hasVigenciaIfSalario,
   );
 }
@@ -189,6 +197,23 @@ export default function EmpleadoFormFields({
               });
             }}
             dataTestId="empleado-form-fecha-ingreso"
+          />
+        </div>
+      </div>
+
+      <div css={styles.row}>
+        <div style={styles.field}>
+          <label style={styles.label}>Valor hora</label>
+          <input
+            type="number"
+            min="0"
+            max="9999999999.99"
+            step="0.01"
+            style={styles.input}
+            value={values.valorHora ?? ""}
+            onChange={(e) => onChange({ valorHora: e.target.value === "" ? null : Number(e.target.value) })}
+            placeholder="Sin configurar"
+            data-testid="empleado-form-valor-hora"
           />
         </div>
       </div>

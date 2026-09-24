@@ -19,8 +19,8 @@ type Props = {
   subtitle?: React.ReactNode;
   cantidad: number;
   unitario: number;
-  horasFacturadas?: number;
-  horasTrabajadas?: number;
+  horasFacturadas?: number | null;
+  horasTrabajadas?: number | null;
   valorHoraEmpleado?: number | null;
   icon?: React.ReactNode;
   onEdit: () => void;
@@ -46,23 +46,24 @@ export default function ReadOnlyLineaCard({
 }: Props) {
   const [showDetail, setShowDetail] = useState(false);
 
-  const total = calcLineTotal({
-    cantidad,
-    horas_facturadas: horasFacturadas,
-    precio_hora_facturada: unitario,
-  });
+  const total = kind === "servicios"
+    ? calcLineTotal({
+        cantidad,
+        horas_facturadas: horasFacturadas,
+        precio_hora_facturada: unitario,
+      })
+    : cantidad * unitario;
 
-  const qtyXUnit =
-    kind === "servicios" && horasFacturadas != null && horasFacturadas !== 1
-      ? `${cantidad > 1 ? `${cantidad} un · ` : ""}${horasFacturadas}h × ${formatMoney(unitario)}`
-      : renderQtyXUnit(cantidad, unitario);
+  const qtyXUnit = kind === "servicios" && horasFacturadas != null
+    ? `${horasFacturadas}h × ${formatMoney(unitario)}`
+    : renderQtyXUnit(cantidad, unitario);
 
   const kindLabel = kind === "servicios" ? "servicio" : "repuesto";
 
   // Cálculos de margen
-  const rate = valorHoraEmpleado ?? 0;
-  const laborCost = (horasTrabajadas ?? 1) * rate;
-  const margin = total - laborCost;
+  const rate = valorHoraEmpleado ?? null;
+  const laborCost = horasTrabajadas != null && rate != null ? horasTrabajadas * rate : null;
+  const margin = laborCost == null ? null : total - laborCost;
 
   return (
     <Card css={readStyles.card}>
@@ -82,14 +83,16 @@ export default function ReadOnlyLineaCard({
             <span css={readStyles.qtyXUnit}>
               <Can
                 permission={Permission.ArreglosPreciosView}
-                fallback={<>Cantidad: {cantidad}</>}
+                fallback={kind === "servicios" && horasFacturadas != null
+                  ? <>Horas facturadas: {horasFacturadas}</>
+                  : <>Cantidad: {cantidad}</>}
               >
                 {qtyXUnit}
               </Can>
             </span>
 
             {/* Tag de Horas Facturadas vs Horas Trabajadas */}
-            {kind === "servicios" && horasFacturadas != null && horasTrabajadas != null && (
+            {kind === "servicios" && (
               <button
                 type="button"
                 onClick={() => setShowDetail((prev) => !prev)}
@@ -99,8 +102,8 @@ export default function ReadOnlyLineaCard({
               >
                 <Clock size={12} color={COLOR.TEXT.SECONDARY} />
                 <span>
-                  Fact: <strong css={readStyles.hoursBold}>{horasFacturadas}h</strong> · Trab:{" "}
-                  <strong css={readStyles.hoursBold}>{horasTrabajadas}h</strong>
+                  Fact: <strong css={readStyles.hoursBold}>{horasFacturadas == null ? "sin dato" : `${horasFacturadas}h`}</strong> · Trab:{" "}
+                  <strong css={readStyles.hoursBold}>{horasTrabajadas == null ? "sin dato" : `${horasTrabajadas}h`}</strong>
                 </span>
                 <ChevronDown
                   size={12}
@@ -144,41 +147,50 @@ export default function ReadOnlyLineaCard({
       </div>
 
       {/* Detalle simple de precio y costo expandible */}
-      <Can permission={Permission.ArreglosPreciosView}>
-        {showDetail && kind === "servicios" && (
+      {showDetail && kind === "servicios" && (
           <div css={readStyles.marginPanel}>
             <div css={readStyles.marginGrid}>
-              <div css={readStyles.marginCard}>
-                <span css={readStyles.marginCardLabel}>Precio Facturado</span>
-                <span css={readStyles.marginCardMain}>{formatMoney(total)}</span>
-                <span css={readStyles.marginCardSub}>
-                  {horasFacturadas ?? 1}h fact. × {formatMoney(unitario)}
-                </span>
-              </div>
+              <Can permission={Permission.ArreglosPreciosView}>
+                <div css={readStyles.marginCard}>
+                  <span css={readStyles.marginCardLabel}>Precio Facturado</span>
+                  <span css={readStyles.marginCardMain}>{formatMoney(total)}</span>
+                  <span css={readStyles.marginCardSub}>
+                    {horasFacturadas == null
+                      ? `Total histórico: ${cantidad} × ${formatMoney(unitario)}`
+                      : `${horasFacturadas}h fact. × ${formatMoney(unitario)}`}
+                  </span>
+                </div>
+              </Can>
 
-              <div css={readStyles.marginCard}>
-                <span css={readStyles.marginCardLabel}>Costo Mano de Obra</span>
-                <span css={readStyles.marginCardMain}>{formatMoney(laborCost)}</span>
-                <span css={readStyles.marginCardSub}>
-                  {horasTrabajadas ?? 1}h trab. × {formatMoney(rate)}/h
-                </span>
-              </div>
-
-              <div css={readStyles.marginCard}>
-                <span css={readStyles.marginCardLabel}>Diferencia (Precio - Costo)</span>
-                <span css={readStyles.marginDifference(margin >= 0)}>
-                  {margin >= 0 ? "+" : ""}{formatMoney(margin)}
-                </span>
-                <span css={readStyles.marginCardSub}>
-                  {(horasFacturadas ?? 1) >= (horasTrabajadas ?? 1)
-                    ? `${Math.round(((horasFacturadas ?? 1) - (horasTrabajadas ?? 1)) * 100) / 100}h a favor`
-                    : `${Math.round(((horasTrabajadas ?? 1) - (horasFacturadas ?? 1)) * 100) / 100}h de más`}
-                </span>
-              </div>
+              <Can permission={Permission.EmpleadosView}>
+                {laborCost == null || margin == null ? (
+                  <div css={readStyles.marginCard}>
+                    <span css={readStyles.marginCardLabel}>Costo Mano de Obra</span>
+                    <span css={readStyles.marginCardMain}>Costo sin registrar</span>
+                  </div>
+                ) : (
+                  <>
+                    <div css={readStyles.marginCard}>
+                      <span css={readStyles.marginCardLabel}>Costo Mano de Obra</span>
+                      <span css={readStyles.marginCardMain}>{formatMoney(laborCost)}</span>
+                      <span css={readStyles.marginCardSub}>
+                        {horasTrabajadas}h trab. × {formatMoney(rate ?? 0)}/h
+                      </span>
+                    </div>
+                    <Can permission={Permission.ArreglosPreciosView}>
+                      <div css={readStyles.marginCard}>
+                        <span css={readStyles.marginCardLabel}>Diferencia (Precio - Costo)</span>
+                        <span css={readStyles.marginDifference(margin >= 0)}>
+                          {margin >= 0 ? "+" : ""}{formatMoney(margin)}
+                        </span>
+                      </div>
+                    </Can>
+                  </>
+                )}
+              </Can>
             </div>
           </div>
         )}
-      </Can>
     </Card>
   );
 }

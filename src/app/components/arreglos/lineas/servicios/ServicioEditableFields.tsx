@@ -27,6 +27,9 @@ export default function ServicioEditableFields({
       onDraftChange({ horasFacturadas: value });
     }
   };
+  const legacyHoursMissing = mode === "edit" && (
+    draft.horasFacturadas === "" || draft.horasTrabajadas === ""
+  );
 
   return (
     <div css={styles.container}>
@@ -45,6 +48,12 @@ export default function ServicioEditableFields({
         />
       </div>
 
+      {legacyHoursMissing && (
+        <div role="status" css={styles.legacyNotice}>
+          Este detalle no tiene horas históricas registradas. El total anterior se mantiene hasta que ingreses horas.
+        </div>
+      )}
+
       {/* Fila de inputs numéricos compactos */}
       <div css={styles.numRow}>
         {/* Campo Horas */}
@@ -54,28 +63,11 @@ export default function ServicioEditableFields({
             type="number"
             id="job-hours-input"
             aria-label="Horas facturadas"
-            min="0.25"
-            step="0.25"
-            value={draft.horasFacturadas === "0" ? "" : draft.horasFacturadas}
+            min="0"
+            step="0.01"
+            value={draft.horasFacturadas}
             onChange={(e) => handleHorasFacturadasChange(e.target.value)}
             title="Horas facturadas al cliente"
-            disabled={!canInteract}
-            css={styles.numInput}
-          />
-        </div>
-
-        {/* Campo Cantidad */}
-        <div css={styles.numField("64px")}>
-          <span css={styles.prefixLabel}>Cant</span>
-          <input
-            type="number"
-            id="job-quantity-input"
-            aria-label="Cantidad"
-            min="1"
-            step="1"
-            value={draft.cantidad === "0" ? "" : draft.cantidad}
-            onChange={(e) => onDraftChange({ cantidad: e.target.value })}
-            title="Cantidad"
             disabled={!canInteract}
             css={styles.numInput}
           />
@@ -90,8 +82,9 @@ export default function ServicioEditableFields({
               id="job-unit-price-input"
               aria-label="Precio venta"
               min="0"
-              step="500"
-              value={draft.precioHoraFacturada === "0" ? "" : draft.precioHoraFacturada}
+              step="0.01"
+              max="9999999999.99"
+              value={draft.precioHoraFacturada}
               onChange={(e) => onDraftChange({ precioHoraFacturada: e.target.value })}
               placeholder="0.00"
               title="Precio unitario por hora/servicio"
@@ -138,6 +131,13 @@ const styles = {
       backgroundColor: COLOR.BACKGROUND.SUBTLE,
       cursor: "not-allowed",
     },
+  }),
+  legacyNotice: css({
+    padding: "7px 10px",
+    borderRadius: 8,
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
   }),
   numRow: css({
     display: "flex",

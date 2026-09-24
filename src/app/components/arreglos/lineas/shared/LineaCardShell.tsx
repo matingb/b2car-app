@@ -21,8 +21,8 @@ export type LineaCardShellProps = {
   subtitle?: React.ReactNode;
   cantidad?: number;
   unitario?: number;
-  horasFacturadas?: number;
-  horasTrabajadas?: number;
+  horasFacturadas?: number | null;
+  horasTrabajadas?: number | null;
   valorHoraEmpleado?: number | null;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -115,7 +115,7 @@ export default function LineaCardShell({
 
   const formattedTotal =
     typeof total === "number"
-      ? formatArs(total, { maxDecimals: 0, minDecimals: 0 })
+      ? formatArs(total, { maxDecimals: 2, minDecimals: 0 })
       : total;
 
   return (

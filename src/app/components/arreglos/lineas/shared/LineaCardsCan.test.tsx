@@ -15,7 +15,7 @@ describe("Linea Cards authorization gating with <Can />", () => {
           hasPermission={mockHasPermission(UserRole.Admin)}
         >
           <ReadOnlyLineaCard
-            kind="servicios"
+            kind="repuestos"
             title="Cambio de aceite"
             cantidad={2}
             unitario={5000}
@@ -38,7 +38,7 @@ describe("Linea Cards authorization gating with <Can />", () => {
           hasPermission={mockHasPermission(UserRole.Operativo)}
         >
           <ReadOnlyLineaCard
-            kind="servicios"
+            kind="repuestos"
             title="Cambio de aceite"
             cantidad={2}
             unitario={5000}
@@ -64,7 +64,7 @@ describe("Linea Cards authorization gating with <Can />", () => {
           hasPermission={mockHasPermission(UserRole.Admin)}
         >
           <InlineEditorProvider
-            kind="servicios"
+            kind="repuestos"
             mode="add"
             submitting={false}
             interactionEnabled={true}
@@ -91,7 +91,7 @@ describe("Linea Cards authorization gating with <Can />", () => {
           hasPermission={mockHasPermission(UserRole.Operativo)}
         >
           <InlineEditorProvider
-            kind="servicios"
+            kind="repuestos"
             mode="add"
             submitting={false}
             interactionEnabled={true}

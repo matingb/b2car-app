@@ -18,6 +18,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { toISODateTimeWithCurrentTime } from "@/lib/fechas";
 import { Permission } from "@/lib/permissions";
 import { hasUserPermission } from "@/lib/permissions.server";
+import { hasAtMostDecimalPlaces } from "@/lib/numbers";
 import { mapArreglo } from "./arregloMapper";
 
 export type GetArreglosResponse = {
@@ -135,7 +136,10 @@ export async function POST(req: Request) {
         return Response.json({ error: "idempotency_key inválida" }, { status: 400 });
     }
 
-    const precioFinalNumber = Number(precio_final) || 0;
+    const precioFinalNumber = precio_final == null ? null : Number(precio_final);
+    if (precioFinalNumber !== null && (!Number.isFinite(precioFinalNumber) || precioFinalNumber < 0)) {
+        return Response.json({ error: "precio_final inválido" }, { status: 400 });
+    }
     const kmNumber = Number(kilometraje_leido) || 0;
     const combustibleLeido = combustible_leido == null || String(combustible_leido).trim() === ""
         ? null
@@ -170,15 +174,17 @@ export async function POST(req: Request) {
             precio_hora_facturada?: unknown;
             horas_facturadas?: unknown;
             horas_trabajadas?: unknown;
+            valor_hora_empleado?: unknown;
             categoria_arreglo_id?: unknown;
             empleado_id?: unknown;
         };
         return {
             descripcion: String(item.descripcion ?? "").trim(),
             cantidad: Number(item.cantidad),
-            precio_hora_facturada: Number(item.precio_hora_facturada),
+            precio_hora_facturada: item.precio_hora_facturada == null ? undefined : Number(item.precio_hora_facturada),
             horas_facturadas: item.horas_facturadas != null ? Number(item.horas_facturadas) : 1,
             horas_trabajadas: item.horas_trabajadas != null ? Number(item.horas_trabajadas) : 1,
+            valor_hora_empleado: item.valor_hora_empleado == null ? null : Number(item.valor_hora_empleado),
             categoria_arreglo_id: (item.categoria_arreglo_id as string) || null,
             empleado_id: (item.empleado_id as string) || null,
         };
@@ -189,20 +195,37 @@ export async function POST(req: Request) {
         if (!Number.isFinite(d.cantidad) || d.cantidad <= 0) {
             return Response.json({ error: "Cantidad inválida en servicios" }, { status: 400 });
         }
-        if (!Number.isFinite(d.precio_hora_facturada) || d.precio_hora_facturada < 0) {
+        if (d.precio_hora_facturada !== undefined && (!Number.isFinite(d.precio_hora_facturada) || d.precio_hora_facturada < 0 || d.precio_hora_facturada > 9_999_999_999.99 || !hasAtMostDecimalPlaces(d.precio_hora_facturada))) {
             return Response.json({ error: "Precio hora facturada inválido en servicios" }, { status: 400 });
         }
-        if (!Number.isFinite(d.horas_facturadas) || d.horas_facturadas < 0) {
+        if (!Number.isFinite(d.horas_facturadas) || d.horas_facturadas < 0 || d.horas_facturadas > 9999.99 || !hasAtMostDecimalPlaces(d.horas_facturadas)) {
             return Response.json({ error: "Horas facturadas inválidas en servicios" }, { status: 400 });
         }
-        if (!Number.isFinite(d.horas_trabajadas) || d.horas_trabajadas < 0) {
+        if (!Number.isFinite(d.horas_trabajadas) || d.horas_trabajadas < 0 || d.horas_trabajadas > 9999.99 || !hasAtMostDecimalPlaces(d.horas_trabajadas)) {
             return Response.json({ error: "Horas trabajadas inválidas en servicios" }, { status: 400 });
         }
         if (d.categoria_arreglo_id != null && !isValidUuid(d.categoria_arreglo_id)) {
             return Response.json({ error: "categoria_arreglo_id inválido en servicios" }, { status: 400 });
         }
+        if (d.valor_hora_empleado !== null && (!Number.isFinite(d.valor_hora_empleado) || d.valor_hora_empleado < 0 || d.valor_hora_empleado > 9_999_999_999.99 || !hasAtMostDecimalPlaces(d.valor_hora_empleado))) {
+            return Response.json({ error: "Valor hora del empleado invÃ¡lido en servicios" }, { status: 400 });
+        }
         if (d.empleado_id != null && !isValidUuid(d.empleado_id)) {
             return Response.json({ error: "empleado_id inválido en servicios" }, { status: 400 });
+        }
+    }
+
+    if (normalizedDetalles.some((d) => d.valor_hora_empleado !== null)) {
+        const canEditEmployeeCosts = await hasUserPermission(supabase, Permission.EmpleadosEdit);
+        if (!canEditEmployeeCosts) {
+            return Response.json({ error: "No tenés permiso para modificar costos de mano de obra" }, { status: 403 });
+        }
+    }
+
+    if (normalizedDetalles.some((d) => d.precio_hora_facturada !== undefined)) {
+        const canEditPrices = await hasUserPermission(supabase, Permission.ArreglosPreciosEdit);
+        if (!canEditPrices) {
+            return Response.json({ error: "No tenés permiso para modificar precios" }, { status: 403 });
         }
     }
 
@@ -234,8 +257,10 @@ export async function POST(req: Request) {
         }
     }
 
-    const ivaRate = IVA_RATE
-    const computedSinIva = Number((precioFinalNumber / (1 + ivaRate)).toFixed(2));
+    const ivaRate = IVA_RATE;
+    const computedSinIva = precioFinalNumber === null
+        ? null
+        : Number((precioFinalNumber / (1 + ivaRate)).toFixed(2));
 
     const insertPayload: CreateArregloInsertPayload = {
         vehiculo_id,
@@ -370,6 +395,7 @@ export async function POST(req: Request) {
         p_fecha_cobro: fechaCobro ? toISODateTimeWithCurrentTime(fechaCobro) : null,
         p_idempotency_key: idempotencyKey || null,
         p_es_facturable: insertPayload.es_facturable,
+        p_iva_rate: IVA_RATE,
     };
 
     logger.debug("Llamando a rpc_crear_arreglo_completo con payload:", JSON.stringify(rpcPayload, null, 2));

@@ -7,6 +7,7 @@ import type { ArregloDetalleData } from "./arregloCompletoService";
 
 export type MapArregloOptions = {
   hidePrices?: boolean;
+  hideEmployeeCosts?: boolean;
 };
 
 /**
@@ -99,7 +100,8 @@ export function mapArregloDetalleCompleto(
   const hidePrices = options?.hidePrices ?? false;
   const mappedArreglo = mapArreglo(data.arreglo, options);
 
-  if (!hidePrices) {
+  const hideEmployeeCosts = options?.hideEmployeeCosts ?? false;
+  if (!hidePrices && !hideEmployeeCosts) {
     return {
       ...data,
       arreglo: mappedArreglo,
@@ -108,10 +110,11 @@ export function mapArregloDetalleCompleto(
 
   const detalles = (data.detalles ?? []).map((d) => ({
     ...d,
-    precio_hora_facturada: 0,
+    ...(hidePrices ? { precio_hora_facturada: 0 } : {}),
+    ...(hideEmployeeCosts ? { valor_hora_empleado: null } : {}),
   }));
 
-  const asignaciones = (data.asignaciones ?? []).map((op) => ({
+  const asignaciones = hidePrices ? (data.asignaciones ?? []).map((op) => ({
     ...op,
     lineas: (op.lineas ?? []).map((l) => ({
       ...l,
@@ -124,12 +127,12 @@ export function mapArregloDetalleCompleto(
           }
         : l.producto,
     })),
-  }));
+  })) : data.asignaciones;
 
   const detalleFormulario = data.detalle_formulario
     ? {
         ...data.detalle_formulario,
-        costo: 0,
+        ...(hidePrices ? { costo: 0 } : {}),
       }
     : null;
 
@@ -139,6 +142,6 @@ export function mapArregloDetalleCompleto(
     detalles,
     asignaciones,
     detalle_formulario: detalleFormulario,
-    cobros: [],
+    ...(hidePrices ? { cobros: [] } : {}),
   };
 }

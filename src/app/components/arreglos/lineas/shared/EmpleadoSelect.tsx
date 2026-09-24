@@ -8,6 +8,7 @@ import { useEmpleados, getEmpleadoColor } from "@/app/providers/EmpleadosProvide
 import { COLOR } from "@/theme/theme";
 import { getInitials } from "@/lib/initials";
 import { formatArs } from "@/lib/format";
+import { useTenant } from "@/app/providers/TenantProvider";
 
 type Props = {
   value: string | null;
@@ -16,8 +17,10 @@ type Props = {
   placeholder?: string;
   showMontoHoras?: boolean;
   hourlyRate?: number | null;
-  defaultHourlyRate?: number | null;
-  onChangeHourlyRate?: (rate: number) => void;
+  canViewHourlyRate?: boolean;
+  canEditHourlyRate?: boolean;
+  onChangeHourlyRate?: (rate: number | null) => void;
+  tallerId?: string | null;
 };
 
 export default function EmpleadoSelect({
@@ -27,10 +30,14 @@ export default function EmpleadoSelect({
   placeholder = "+ Empleado",
   showMontoHoras = false,
   hourlyRate = null,
-  defaultHourlyRate = null,
+  canViewHourlyRate = false,
+  canEditHourlyRate = false,
   onChangeHourlyRate,
+  tallerId,
 }: Props) {
   const { empleados } = useEmpleados();
+  const { tallerSeleccionadoId } = useTenant();
+  const activeTallerId = tallerId ?? tallerSeleccionadoId;
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties | null>(null);
@@ -42,23 +49,19 @@ export default function EmpleadoSelect({
     ? `${selectedEmployee.nombre} ${selectedEmployee.apellido}`.trim()
     : "";
 
-  // Determinar la tasa por defecto para el empleado seleccionado o taller
-  const employeeBaseRate =
-    selectedEmployee && selectedEmployee.salario != null && selectedEmployee.salario > 0
-      ? selectedEmployee.salario
-      : defaultHourlyRate ?? 0;
-
-  const currentRate = hourlyRate ?? employeeBaseRate;
+  const currentRate = hourlyRate ?? (canViewHourlyRate ? selectedEmployee?.valorHora ?? null : null);
 
   // Estados temporales durante la edición en el popover
   const [tempSelectedId, setTempSelectedId] = useState<string | null>(value);
-  const [tempRate, setTempRate] = useState<number>(currentRate);
+  const [tempRate, setTempRate] = useState<string>(currentRate == null ? "" : String(currentRate));
+  const [rateEdited, setRateEdited] = useState(false);
 
   // Sincronizar estados temporales cuando se abre el desplegable
   useEffect(() => {
     if (isOpen) {
       setTempSelectedId(value);
-      setTempRate(currentRate);
+      setTempRate(currentRate == null ? "" : String(currentRate));
+      setRateEdited(false);
       setSearch("");
     }
   }, [isOpen, value, currentRate]);
@@ -127,35 +130,38 @@ export default function EmpleadoSelect({
 
   const handlePickEmployee = (empId: string | null) => {
     setTempSelectedId(empId);
-    if (empId) {
+    if (empId && hourlyRate === null) {
       const emp = empleados.find((e) => e.id === empId);
-      const rate = emp?.salario != null && emp.salario > 0 ? emp.salario : defaultHourlyRate ?? 0;
-      setTempRate(rate);
+      setTempRate(emp?.valorHora == null ? "" : String(emp.valorHora));
     }
   };
 
   const handleConfirm = () => {
     onChange(tempSelectedId);
-    if (showMontoHoras && onChangeHourlyRate) {
-      onChangeHourlyRate(tempRate);
+    if (showMontoHoras && canEditHourlyRate && rateEdited && onChangeHourlyRate) {
+      const rate = tempRate.trim() === "" ? null : Number(tempRate);
+      onChangeHourlyRate(rate !== null && Number.isFinite(rate) && rate >= 0 ? rate : null);
     }
     setIsOpen(false);
   };
 
   const handleCancel = () => {
     setTempSelectedId(value);
-    setTempRate(currentRate);
+    setTempRate(currentRate == null ? "" : String(currentRate));
     setIsOpen(false);
   };
 
   // Filtrado de empleados para la lista
   const filteredEmployees = useMemo(() => {
-    if (!search.trim()) return empleados;
+    const workshopEmployees = activeTallerId
+      ? empleados.filter((e) => e.tallerId === activeTallerId)
+      : empleados;
+    if (!search.trim()) return workshopEmployees;
     const query = search.toLowerCase();
-    return empleados.filter((e) =>
+    return workshopEmployees.filter((e) =>
       `${e.nombre} ${e.apellido}`.toLowerCase().includes(query)
     );
-  }, [empleados, search]);
+  }, [activeTallerId, empleados, search]);
 
   const isSelected = !!selectedEmployee;
   const initials = selectedName ? getInitials(selectedName) : "";
@@ -186,10 +192,10 @@ export default function EmpleadoSelect({
             </span>
             <span css={styles.nameText}>
               {selectedName}
-              {showMontoHoras && currentRate > 0 && (
+              {showMontoHoras && canViewHourlyRate && currentRate != null && (
                 <span css={styles.rateText}>
                   {" · "}
-                  {formatArs(currentRate, { maxDecimals: 0, minDecimals: 0 })}/h
+                  {formatArs(currentRate, { maxDecimals: 2, minDecimals: 0 })}/h
                 </span>
               )}
             </span>
@@ -219,7 +225,7 @@ export default function EmpleadoSelect({
             style={popoverStyle ?? {}}
           >
           {/* Header con edición de Valor Hora (exclusivo para Mano de Obra) */}
-          {showMontoHoras && (
+          {showMontoHoras && canViewHourlyRate && (
             <div css={styles.rateHeader}>
               <label htmlFor="employee-hourly-rate-input" css={styles.rateLabel}>
                 Valor hora ($/h):
@@ -230,10 +236,15 @@ export default function EmpleadoSelect({
                   type="number"
                   id="employee-hourly-rate-input"
                   min="0"
-                  step="500"
-                  value={tempRate === 0 ? "" : tempRate}
-                  onChange={(e) => setTempRate(Math.max(0, Number(e.target.value)))}
-                  placeholder="0"
+                  step="0.01"
+                  max="9999999999.99"
+                  value={tempRate}
+                  readOnly={!canEditHourlyRate}
+                  onChange={(e) => {
+                    setTempRate(e.target.value);
+                    setRateEdited(true);
+                  }}
+                  placeholder="Sin configurar"
                   css={styles.rateInput}
                 />
               </div>
@@ -276,8 +287,7 @@ export default function EmpleadoSelect({
               const fullName = `${emp.nombre} ${emp.apellido}`.trim();
               const isItemChosen = emp.id === tempSelectedId;
               const color = getEmpleadoColor(emp.id);
-              const empRate =
-                emp.salario != null && emp.salario > 0 ? emp.salario : defaultHourlyRate ?? 0;
+              const empRate = emp.valorHora;
 
               return (
                 <div
@@ -301,9 +311,9 @@ export default function EmpleadoSelect({
                   </div>
 
                   <div css={styles.itemRight}>
-                    {showMontoHoras && empRate > 0 && (
+                    {showMontoHoras && canViewHourlyRate && empRate != null && (
                       <span css={styles.itemRate}>
-                        {formatArs(empRate, { maxDecimals: 0, minDecimals: 0 })}/h
+                        {formatArs(empRate, { maxDecimals: 2, minDecimals: 0 })}/h
                       </span>
                     )}
                     {isItemChosen && (

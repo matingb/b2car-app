@@ -23,6 +23,7 @@ import { createArcaGateway, sanitizeFiscalPayload, type ArcaGateway } from "./af
 import { deleteCredentialPair, downloadCredentialPair, uploadCredentialPair } from "./credentialStorage";
 import { getFacturacionAmbiente } from "./environment";
 import { assertFceMipymeAllowed } from "./fceMipyme";
+import { createArregloServiceInvoiceLine } from "./arregloInvoiceLine";
 import { generateFiscalInvoicePdf, type FiscalPdfInvoice } from "./fiscalPdf";
 import { lookupArcaPadronPerson } from "@/lib/arcaPadron/arcaPadronGateway";
 import { lookupArcaInscriptionVatCondition } from "@/lib/arcaInscripcion/arcaInscripcionGateway";
@@ -615,14 +616,18 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise
   for (const value of services ?? []) {
     const row = record(value);
     const cant = number(row.cantidad, 1);
-    const horasFacturadas = number(row.horas_facturadas, 1);
-    const precioHora = number(row.precio_hora_facturada);
-    const effectiveQty = horasFacturadas !== 1 ? cant * horasFacturadas : cant;
-    appendLine(lineas, {
-      origen: "SERVICIO", sourceId: text(row.id), descripcion: text(row.descripcion),
-      cantidad: effectiveQty, importeUnitario: precioHora,
-      ivaAlicuotaId: number(row.iva_alicuota_id, 5), snapshot: row,
+    const horasRaw = row.horas_facturadas;
+    const horasFacturadas = horasRaw === null || horasRaw === undefined ? null : number(horasRaw, 1);
+    const line = createArregloServiceInvoiceLine({
+      sourceId: text(row.id),
+      descripcion: text(row.descripcion),
+      cantidad: cant,
+      horasFacturadas,
+      importeUnitario: number(row.precio_hora_facturada),
+      ivaAlicuotaId: number(row.iva_alicuota_id, 5),
+      snapshot: row,
     });
+    if (line) lineas.push({ ...line, ordinal: lineas.length + 1 });
   }
   const form = record(forms?.[0]);
   if (number(form.costo) > 0) {

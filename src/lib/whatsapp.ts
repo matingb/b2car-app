@@ -100,7 +100,7 @@ export function buildArregloWhatsappMessage(
 
 	// 5. Total final
 	if (mostrarTotal) {
-		lines.push(`*Total arreglo ${formatArs(totals.total, { maxDecimals: 0, minDecimals: 0 })}*`);
+		lines.push(`*Total arreglo ${formatArs(totals.total, { maxDecimals: 2, minDecimals: 0 })}*`);
 	} else {
 		// Quitar línea vacía sobrante si terminó con espacio
 		if (lines[lines.length - 1] === "") {
@@ -171,7 +171,7 @@ function calculateArregloTotals(
 function buildItemLine(label: string, cantidad: number, totalMonto?: number): string {
 	const qty = cantidad ? ` x${cantidad}` : "";
 	const price =
-		totalMonto != null ? ` - ${formatArs(totalMonto, { maxDecimals: 0, minDecimals: 0 })}` : "";
+		totalMonto != null ? ` - ${formatArs(totalMonto, { maxDecimals: 2, minDecimals: 0 })}` : "";
 	return `• ${label}${qty}${price}`;
 }
 
@@ -190,7 +190,7 @@ function buildRepuestosSectionLines(
 		lines.push(buildItemLine(producto, cantidad, showItemPrices ? total : undefined));
 	});
 	if (showSubtotal) {
-		lines.push(`_Subtotal repuestos: ${formatArs(subtotal, { maxDecimals: 0, minDecimals: 0 })}_`);
+		lines.push(`_Subtotal repuestos: ${formatArs(subtotal, { maxDecimals: 2, minDecimals: 0 })}_`);
 	}
 	return lines;
 }
@@ -204,7 +204,7 @@ function buildServiciosSectionLines(
 	const lines: string[] = ["👨‍🔧 *Servicios:*"];
 	detalles.forEach((d) => {
 		const cantidad = safeNumber(d.cantidad);
-		const horasFacturadas = safeNumber(d.horas_facturadas ?? 1);
+		const horasFacturadas = d.horas_facturadas == null ? null : safeNumber(d.horas_facturadas);
 		const precioHora = safeNumber(d.precio_hora_facturada);
 		const total = calcLineTotal({
 			cantidad,
@@ -214,21 +214,21 @@ function buildServiciosSectionLines(
 		const label = String(d.descripcion ?? "").trim() || "Servicio";
 
 		let qty = "";
-		if (horasFacturadas !== 1) {
-			qty = ` ${cantidad} × ${horasFacturadas}hs`;
-		} else if (cantidad) {
-			qty = ` x${cantidad}`;
+		if (horasFacturadas === null) {
+			if (cantidad) qty = ` x${cantidad}`;
+		} else {
+			qty = ` ${horasFacturadas}hs`;
 		}
 
 		const price =
 			showItemPrices && total != null
-				? ` - ${formatArs(total, { maxDecimals: 0, minDecimals: 0 })}`
+				? ` - ${formatArs(total, { maxDecimals: 2, minDecimals: 0 })}`
 				: "";
 
 		lines.push(`• ${label}${qty}${price}`);
 	});
 	if (showSubtotal) {
-		lines.push(`_Subtotal mano de obra: ${formatArs(subtotal, { maxDecimals: 0, minDecimals: 0 })}_`);
+		lines.push(`_Subtotal mano de obra: ${formatArs(subtotal, { maxDecimals: 2, minDecimals: 0 })}_`);
 	}
 	return lines;
 }
@@ -242,12 +242,12 @@ function buildSoloMontosSectionLines(
 	const lines: string[] = ["💰 *Resumen:*"];
 	if (hasRepuestos) {
 		lines.push(
-			`• Repuestos: ${formatArs(subtotalRepuestos, { maxDecimals: 0, minDecimals: 0 })}`
+			`• Repuestos: ${formatArs(subtotalRepuestos, { maxDecimals: 2, minDecimals: 0 })}`
 		);
 	}
 	if (hasServicios) {
 		lines.push(
-			`• Mano de obra: ${formatArs(subtotalServicios, { maxDecimals: 0, minDecimals: 0 })}`
+			`• Mano de obra: ${formatArs(subtotalServicios, { maxDecimals: 2, minDecimals: 0 })}`
 		);
 	}
 	return lines;
