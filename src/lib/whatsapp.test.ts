@@ -80,8 +80,8 @@ describe("buildArregloWhatsappMessage", () => {
     const msg = buildArregloWhatsappMessage(data, "Taller Demo");
 
     expect(msg).toContain("👨‍🔧 *Servicios:*");
-    expect(msg).toContain("• Mano de obra x2");
-    expect(msg).toContain("$3.000"); // 2 * 1500
+    expect(msg).toContain("• Mano de obra 1hs");
+    expect(msg).toContain("$1.500"); // 1 hora * 1500
 
     expect(msg).toContain("📦 *Repuestos:*");
     expect(msg).toContain("• Filtro x1");
@@ -146,11 +146,11 @@ describe("buildArregloWhatsappMessage", () => {
     expect(msg).not.toContain("• Filtro x1 - $5.000");
     expect(msg).toContain("_Subtotal repuestos: $5.000_");
 
-    expect(msg).toContain("• Mano de obra x2");
-    expect(msg).not.toContain("• Mano de obra x2 - $3.000");
-    expect(msg).toContain("_Subtotal mano de obra: $3.000_");
+    expect(msg).toContain("• Mano de obra 1hs");
+    expect(msg).not.toContain("• Mano de obra 1hs - $1.500");
+    expect(msg).toContain("_Subtotal mano de obra: $1.500_");
 
-    expect(msg).toContain("*Total arreglo $8.000*");
+    expect(msg).toContain("*Total arreglo $6.500*");
   });
 
   it("sin detalle de ítems: no muestra los detalles de ítems, solo subtotales y total", () => {
@@ -359,7 +359,7 @@ describe("buildArregloWhatsappMessage", () => {
     expect(msg).not.toContain("*Total arreglo");
   });
 
-  it("cuando horas_facturadas !== 1, formatea cantidad × horas_facturadas hs y no expone horas_trabajadas", () => {
+  it("cuando horas_facturadas !== 1, formatea horas facturadas y no expone horas_trabajadas", () => {
     const data = createArregloDetalleData({
       arreglo: createArreglo({
         precio_final: 25000,
@@ -387,7 +387,7 @@ describe("buildArregloWhatsappMessage", () => {
       mostrarTotal: true,
     });
 
-    expect(msg).toContain("• Alineación y rectificado 1 × 2.5hs - $25.000");
+    expect(msg).toContain("• Alineación y rectificado 2.5hs - $25.000");
     expect(msg).not.toContain("4hs");
     expect(msg).not.toContain("trabajadas");
     expect(msg).toContain("*Total arreglo $25.000*");

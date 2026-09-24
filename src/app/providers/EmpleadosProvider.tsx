@@ -35,6 +35,7 @@ export type Empleado = {
   telefono: string;
   cumpleanos: string;
   salario: number | null;
+  valorHora: number | null;
   fechaIngreso: string;
   createdAt: string;
   updatedAt: string;
@@ -49,6 +50,7 @@ export type CreateEmpleadoInput = {
   telefono?: string;
   cumpleanos?: string;
   salario?: number | null;
+  valorHora?: number | null;
   salarioVigenteDesde?: string;
   fechaIngreso?: string;
 };
@@ -90,6 +92,7 @@ function mapEmpleado(dto: EmpleadoDTO): Empleado {
     telefono: dto.telefono ?? "",
     cumpleanos: dto.cumpleanos ?? "",
     salario: dto.salario,
+    valorHora: dto.valor_hora,
     fechaIngreso: dto.fecha_ingreso ?? "",
     createdAt: dto.created_at,
     updatedAt: dto.updated_at,
@@ -156,6 +159,7 @@ export function EmpleadosProvider({ children }: { children: React.ReactNode }) {
           telefono: emptyToNull(input.telefono),
           cumpleanos: emptyToNull(input.cumpleanos),
           salario: input.salario ?? null,
+          valor_hora: input.valorHora ?? null,
           salario_vigente_desde: salarioVigenteDesde,
           fecha_ingreso: emptyToNull(input.fechaIngreso),
         });
@@ -184,6 +188,7 @@ export function EmpleadosProvider({ children }: { children: React.ReactNode }) {
           ...(input.telefono !== undefined ? { telefono: emptyToNull(input.telefono) ?? null } : {}),
           ...(input.cumpleanos !== undefined ? { cumpleanos: emptyToNull(input.cumpleanos) ?? null } : {}),
           ...(input.salario !== undefined ? { salario: input.salario ?? null } : {}),
+          ...(input.valorHora !== undefined ? { valor_hora: input.valorHora ?? null } : {}),
           ...(input.salarioVigenteDesde !== undefined ? { salario_vigente_desde: input.salarioVigenteDesde ?? null } : {}),
           ...(input.fechaIngreso !== undefined
             ? { fecha_ingreso: emptyToNull(input.fechaIngreso) ?? null }

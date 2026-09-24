@@ -13,6 +13,7 @@ function createEmpleado(overrides: Partial<Empleado> = {}): Empleado {
     telefono: "11-1234-5678",
     cumpleanos: "1985-04-12",
     salario: 850000,
+    valorHora: null,
     fechaIngreso: "2020-01-15",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",

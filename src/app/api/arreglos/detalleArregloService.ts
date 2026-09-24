@@ -10,8 +10,9 @@ export type DetalleArregloRow = {
   descripcion: string;
   cantidad: number;
   precio_hora_facturada: number;
-  horas_facturadas: number;
-  horas_trabajadas: number;
+  horas_facturadas: number | null;
+  horas_trabajadas: number | null;
+  valor_hora_empleado?: number | null;
   categoria_arreglo_id: string | null;
   empleado_id: string | null;
   created_at: string;
@@ -52,9 +53,10 @@ export const detalleArregloService = {
       arreglo_id: string;
       descripcion: string;
       cantidad: number;
-      precio_hora_facturada: number;
-      horas_facturadas?: number;
-      horas_trabajadas?: number;
+      precio_hora_facturada?: number;
+      horas_facturadas?: number | null;
+      horas_trabajadas?: number | null;
+      valor_hora_empleado?: number | null;
       categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }

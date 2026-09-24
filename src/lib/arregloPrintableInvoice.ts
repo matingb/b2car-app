@@ -381,14 +381,14 @@ export function buildArregloPrintableInvoiceHtml({
 function buildServiceLines(data: ArregloDetalleData): InvoiceLine[] {
   const servicioLines: InvoiceLine[] = data.detalles.map((d) => {
     const quantity = safeNumber(d.cantidad);
-    const horasFacturadas = safeNumber(d.horas_facturadas ?? 1);
+    const horasFacturadas = d.horas_facturadas == null ? null : safeNumber(d.horas_facturadas);
     const unitPrice = safeNumber(d.precio_hora_facturada);
     const total = calcLineTotal({
       cantidad: quantity,
       horas_facturadas: horasFacturadas,
       precio_hora_facturada: unitPrice,
     });
-    const effectiveQty = horasFacturadas !== 1 ? quantity * horasFacturadas : quantity;
+    const effectiveQty = horasFacturadas === null ? quantity : horasFacturadas;
     return {
       detail: String(d.descripcion ?? "").trim() || "Servicio",
       quantity: effectiveQty,
@@ -522,7 +522,7 @@ function formatDate(date: string | null | undefined): string {
 }
 
 function formatMoney(value: number): string {
-  return escapeHtml(formatArs(value, { maxDecimals: 0, minDecimals: 0 }));
+  return escapeHtml(formatArs(value, { maxDecimals: 2, minDecimals: 0 }));
 }
 
 function formatQuantity(value: number): string {

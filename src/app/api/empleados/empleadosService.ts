@@ -16,12 +16,16 @@ export type EmpleadoRow = {
   telefono: string | null;
   cumpleanos: string | null;
   salario: number | null;
+  valor_hora: number | null;
   fecha_ingreso: string | null;
   created_at: string;
   updated_at: string;
 };
 
 export type CreateEmpleadoInput = Omit<EmpleadoRow, "id" | "tenant_id" | "created_at" | "updated_at">;
+
+const EMPLEADO_COLUMNS =
+  "id, tenant_id, taller_id, nombre, apellido, dni, email, telefono, cumpleanos, salario, fecha_ingreso, created_at, updated_at";
 
 export type SalarioHistorialRow = {
   id: string;
@@ -38,7 +42,7 @@ export const empleadosService = {
   ): Promise<{ data: EmpleadoRow[]; error: ServiceError | null }> {
     let query = supabase
       .from("empleados")
-      .select("*")
+      .select(EMPLEADO_COLUMNS)
       .order("apellido", { ascending: true })
       .order("nombre", { ascending: true });
 
@@ -57,7 +61,7 @@ export const empleadosService = {
   ): Promise<{ data: EmpleadoRow | null; error: ServiceError | null }> {
     const { data, error } = await supabase
       .from("empleados")
-      .select("*")
+      .select(EMPLEADO_COLUMNS)
       .eq("id", id)
       .maybeSingle();
 
@@ -73,7 +77,7 @@ export const empleadosService = {
     const { data, error } = await supabase
       .from("empleados")
       .insert([payload])
-      .select("*")
+      .select(EMPLEADO_COLUMNS)
       .single();
 
     if (error) return { data: null, error: toServiceError(error) };
@@ -89,12 +93,29 @@ export const empleadosService = {
       .from("empleados")
       .update(patch)
       .eq("id", id)
-      .select("*")
+      .select(EMPLEADO_COLUMNS)
       .maybeSingle();
 
     if (error) return { data: null, error };
     if (!data) return { data: null, error: ServiceError.NotFound };
     return { data: data as EmpleadoRow, error: null };
+  },
+
+  async listHourlyRates(
+    supabase: SupabaseClient,
+    tallerId?: string
+  ): Promise<{ data: Array<{ empleado_id: string; valor_hora: number | null }>; error: ServiceError | null }> {
+    const { data, error } = await supabase.rpc("rpc_listar_empleados_valor_hora", {
+      p_taller_id: tallerId ?? null,
+    });
+    if (error) return { data: [], error: toServiceError(error) };
+    return {
+      data: (data ?? []).map((row: { empleado_id: string; valor_hora: number | string | null }) => ({
+        empleado_id: row.empleado_id,
+        valor_hora: row.valor_hora === null ? null : Number(row.valor_hora),
+      })),
+      error: null,
+    };
   },
 
   async deleteById(

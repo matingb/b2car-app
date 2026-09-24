@@ -27,6 +27,7 @@ export type CreateEmpleadoRequest = {
   telefono?: string | null;
   cumpleanos?: string | null;
   salario?: number | null;
+  valor_hora?: number | null;
   salario_vigente_desde?: string | null;
   fecha_ingreso?: string | null;
 };
@@ -50,6 +51,7 @@ export type UpdateEmpleadoRequest = Partial<{
   telefono: string | null;
   cumpleanos: string | null;
   salario: number | null;
+  valor_hora: number | null;
   salario_vigente_desde: string | null;
   fecha_ingreso: string | null;
 }>;

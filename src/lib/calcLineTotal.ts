@@ -7,9 +7,10 @@ export type LineaTotalInput = {
 };
 
 export function calcLineTotal(line: LineaTotalInput): number {
-  return (
-    safeNumber(line.cantidad) *
-    safeNumber(line.horas_facturadas ?? 1) *
-    safeNumber(line.precio_hora_facturada)
-  );
+  const price = safeNumber(line.precio_hora_facturada);
+  if (line.horas_facturadas === null || line.horas_facturadas === "") {
+    return safeNumber(line.cantidad) * price;
+  }
+
+  return safeNumber(line.horas_facturadas ?? 1) * price;
 }

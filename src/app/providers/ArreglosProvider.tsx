@@ -18,6 +18,7 @@ import {
 } from "@/clients/arreglosClient";
 import type { UpsertRepuestoRequest } from "@/app/api/arreglos/[id]/repuestos/route";
 import { useTenant } from "@/app/providers/TenantProvider";
+import { logger } from "@/lib/logger";
 
 type ArreglosContextType = {
   arreglos: Arreglo[];
@@ -42,9 +43,10 @@ type ArreglosContextType = {
     input: {
       descripcion: string;
       cantidad: number;
-      precio_hora_facturada: number;
-      horas_facturadas?: number;
-      horas_trabajadas?: number;
+      precio_hora_facturada?: number;
+      horas_facturadas?: number | null;
+      horas_trabajadas?: number | null;
+      valor_hora_empleado?: number | null;
       categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }
@@ -56,8 +58,9 @@ type ArreglosContextType = {
       descripcion: string;
       cantidad: number;
       precio_hora_facturada: number;
-      horas_facturadas: number;
-      horas_trabajadas: number;
+      horas_facturadas: number | null;
+      horas_trabajadas: number | null;
+      valor_hora_empleado?: number | null;
       categoria_arreglo_id: string | null;
       empleado_id: string | null;
     }>
@@ -98,7 +101,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       if (response.error) throw new Error(response.error);
       return response.data ?? null;
     } catch (err) {
-      console.error(err);
+      logger.error("Error cargando detalle de arreglo:", err);
       return null;
     }
   }, []);
@@ -177,9 +180,10 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     input: {
       descripcion: string;
       cantidad: number;
-      precio_hora_facturada: number;
-      horas_facturadas?: number;
-      horas_trabajadas?: number;
+      precio_hora_facturada?: number;
+      horas_facturadas?: number | null;
+      horas_trabajadas?: number | null;
+      valor_hora_empleado?: number | null;
       categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }
@@ -201,8 +205,8 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       descripcion: string;
       cantidad: number;
       precio_hora_facturada: number;
-      horas_facturadas: number;
-      horas_trabajadas: number;
+      horas_facturadas: number | null;
+      horas_trabajadas: number | null;
       categoria_arreglo_id: string | null;
       empleado_id: string | null;
     }>

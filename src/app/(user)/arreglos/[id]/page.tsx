@@ -73,6 +73,8 @@ export default function ArregloDetailsPage() {
   const { ultimo: ultimoUsado, registrar: registrarUltimoUsado } = useUltimoTipoEmpleado();
   const { hasPermission } = useTenant();
   const canUseBilling = hasPermission(Permission.FacturasView);
+  const canEditPrices = hasPermission(Permission.ArreglosPreciosEdit);
+  const canEditEmployeeCosts = hasPermission(Permission.EmpleadosEdit);
 
   const refreshFacturaElectronica = useCallback(async () => {
     if (!canUseBilling) {
@@ -188,8 +190,9 @@ export default function ArregloDetailsPage() {
     descripcion: string;
     cantidad: number;
     precioHoraFacturada: number;
-    horasFacturadas: number;
-    horasTrabajadas: number;
+    horasFacturadas: number | null;
+    horasTrabajadas: number | null;
+    valorHoraEmpleado?: number | null;
     categoriaArregloId: string | null;
     empleadoId: string | null;
   }) => {
@@ -198,9 +201,10 @@ export default function ArregloDetailsPage() {
       await createDetalle(data.arreglo.id, {
         descripcion: input.descripcion,
         cantidad: input.cantidad,
-        precio_hora_facturada: input.precioHoraFacturada,
+        ...(canEditPrices ? { precio_hora_facturada: input.precioHoraFacturada } : {}),
         horas_facturadas: input.horasFacturadas,
         horas_trabajadas: input.horasTrabajadas,
+        ...(canEditEmployeeCosts ? { valor_hora_empleado: input.valorHoraEmpleado } : {}),
         categoria_arreglo_id: input.categoriaArregloId,
         empleado_id: input.empleadoId,
       });
@@ -223,8 +227,9 @@ export default function ArregloDetailsPage() {
       descripcion: string;
       cantidad: number;
       precioHoraFacturada: number;
-      horasFacturadas: number;
-      horasTrabajadas: number;
+      horasFacturadas: number | null;
+      horasTrabajadas: number | null;
+      valorHoraEmpleado?: number | null;
       categoriaArregloId: string | null;
       empleadoId: string | null;
     }
@@ -234,9 +239,10 @@ export default function ArregloDetailsPage() {
       await updateDetalle(data.arreglo.id, detalleId, {
         descripcion: patch.descripcion,
         cantidad: patch.cantidad,
-        precio_hora_facturada: patch.precioHoraFacturada,
+        ...(canEditPrices ? { precio_hora_facturada: patch.precioHoraFacturada } : {}),
         horas_facturadas: patch.horasFacturadas,
         horas_trabajadas: patch.horasTrabajadas,
+        ...(canEditEmployeeCosts ? { valor_hora_empleado: patch.valorHoraEmpleado } : {}),
         categoria_arreglo_id: patch.categoriaArregloId,
         empleado_id: patch.empleadoId,
       });
@@ -546,8 +552,9 @@ export default function ArregloDetailsPage() {
             descripcion: d.descripcion,
             cantidad: safeNumber(d.cantidad),
             precioHoraFacturada: safeNumber(d.precio_hora_facturada),
-            horasFacturadas: safeNumber(d.horas_facturadas ?? 1),
-            horasTrabajadas: safeNumber(d.horas_trabajadas ?? 1),
+            horasFacturadas: d.horas_facturadas == null ? null : safeNumber(d.horas_facturadas),
+            horasTrabajadas: d.horas_trabajadas == null ? null : safeNumber(d.horas_trabajadas),
+            valorHoraEmpleado: d.valor_hora_empleado ?? null,
             categoriaArregloId: d.categoria_arreglo_id ?? null,
             empleadoId: d.empleado_id ?? null,
           }))}

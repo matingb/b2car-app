@@ -5,13 +5,17 @@ import { syncArregloDescripcion } from "@/app/api/arreglos/arregloDescripcionSer
 import { ServiceError } from "@/app/api/serviceError";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { isValidUuid } from "@/lib/uuid";
+import { hasUserPermission } from "@/lib/permissions.server";
+import { Permission } from "@/lib/permissions";
+import { hasAtMostDecimalPlaces } from "@/lib/numbers";
 
 export type CreateDetalleArregloRequest = {
   descripcion: string;
   cantidad: number;
-  precio_hora_facturada: number;
-  horas_facturadas?: number;
-  horas_trabajadas?: number;
+  precio_hora_facturada?: number | null;
+  horas_facturadas?: number | null;
+  horas_trabajadas?: number | null;
+  valor_hora_empleado?: number | null;
   categoria_arreglo_id?: string | null;
   empleado_id?: string | null;
 };
@@ -22,8 +26,9 @@ export type DetalleArregloResponseRow = {
   descripcion: string;
   cantidad: number;
   precio_hora_facturada: number;
-  horas_facturadas: number;
-  horas_trabajadas: number;
+  horas_facturadas: number | null;
+  horas_trabajadas: number | null;
+  valor_hora_empleado?: number | null;
   categoria_arreglo_id: string | null;
   empleado_id: string | null;
   created_at: string;
@@ -49,9 +54,12 @@ export async function POST(
 
   const descripcion = String(body.descripcion ?? "").trim();
   const cantidad = Number(body.cantidad);
-  const precioHoraFacturada = Number(body.precio_hora_facturada);
+  const precioHoraFacturada = body.precio_hora_facturada == null
+    ? undefined
+    : Number(body.precio_hora_facturada);
   const horasFacturadas = body.horas_facturadas != null ? Number(body.horas_facturadas) : 1;
   const horasTrabajadas = body.horas_trabajadas != null ? Number(body.horas_trabajadas) : 1;
+  const valorHoraEmpleado = body.valor_hora_empleado == null ? null : Number(body.valor_hora_empleado);
   const categoriaArregloIdRaw = body.categoria_arreglo_id;
   const empleadoIdRaw = body.empleado_id;
 
@@ -64,14 +72,23 @@ export async function POST(
   if (!Number.isFinite(cantidad) || cantidad <= 0) {
     return Response.json({ data: null, error: "Cantidad inválida" } satisfies CreateDetalleArregloResponse, { status: 400 });
   }
-  if (!Number.isFinite(precioHoraFacturada) || precioHoraFacturada < 0) {
+  if (precioHoraFacturada !== undefined && (!Number.isFinite(precioHoraFacturada) || precioHoraFacturada < 0 || precioHoraFacturada > 9_999_999_999.99 || !hasAtMostDecimalPlaces(precioHoraFacturada))) {
     return Response.json({ data: null, error: "Precio hora facturada inválido" } satisfies CreateDetalleArregloResponse, { status: 400 });
   }
-  if (!Number.isFinite(horasFacturadas) || horasFacturadas < 0) {
+  if (!Number.isFinite(horasFacturadas) || horasFacturadas < 0 || horasFacturadas > 9999.99 || !hasAtMostDecimalPlaces(horasFacturadas)) {
     return Response.json({ data: null, error: "Horas facturadas inválidas" } satisfies CreateDetalleArregloResponse, { status: 400 });
   }
-  if (!Number.isFinite(horasTrabajadas) || horasTrabajadas < 0) {
+  if (!Number.isFinite(horasTrabajadas) || horasTrabajadas < 0 || horasTrabajadas > 9999.99 || !hasAtMostDecimalPlaces(horasTrabajadas)) {
     return Response.json({ data: null, error: "Horas trabajadas inválidas" } satisfies CreateDetalleArregloResponse, { status: 400 });
+  }
+  if (precioHoraFacturada !== undefined && !(await hasUserPermission(supabase, Permission.ArreglosPreciosEdit))) {
+    return Response.json({ data: null, error: "No tenés permiso para modificar precios" } satisfies CreateDetalleArregloResponse, { status: 403 });
+  }
+  if (valorHoraEmpleado !== null && (!Number.isFinite(valorHoraEmpleado) || valorHoraEmpleado < 0 || valorHoraEmpleado > 9_999_999_999.99 || !hasAtMostDecimalPlaces(valorHoraEmpleado))) {
+    return Response.json({ data: null, error: "Valor hora del empleado invÃ¡lido" } satisfies CreateDetalleArregloResponse, { status: 400 });
+  }
+  if (body.valor_hora_empleado != null && !(await hasUserPermission(supabase, Permission.EmpleadosEdit))) {
+    return Response.json({ data: null, error: "No tenÃ©s permiso para modificar costos de mano de obra" } satisfies CreateDetalleArregloResponse, { status: 403 });
   }
   if (categoriaArregloIdRaw != null && !isValidUuid(categoriaArregloIdRaw)) {
     return Response.json({ data: null, error: "categoria_arreglo_id inválido" } satisfies CreateDetalleArregloResponse, { status: 400 });
@@ -84,9 +101,10 @@ export async function POST(
     arreglo_id: arregloId,
     descripcion,
     cantidad,
-    precio_hora_facturada: precioHoraFacturada,
+    ...(precioHoraFacturada === undefined ? {} : { precio_hora_facturada: precioHoraFacturada }),
     horas_facturadas: horasFacturadas,
     horas_trabajadas: horasTrabajadas,
+    valor_hora_empleado: valorHoraEmpleado,
     categoria_arreglo_id: categoriaArregloIdRaw ?? null,
     empleado_id: empleadoIdRaw ?? null,
   });

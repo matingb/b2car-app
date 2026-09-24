@@ -52,7 +52,11 @@ export async function GET(
   }
 
   const hasPreciosView = await hasUserPermission(supabase, Permission.ArreglosPreciosView);
-  const mappedData = mapArregloDetalleCompleto(data, { hidePrices: !hasPreciosView });
+  const hasEmployeeCostsView = await hasUserPermission(supabase, Permission.EmpleadosView);
+  const mappedData = mapArregloDetalleCompleto(data, {
+    hidePrices: !hasPreciosView,
+    hideEmployeeCosts: !hasEmployeeCostsView,
+  });
 
   return Response.json({ data: mappedData, error: null } satisfies GetArregloByIdResponse);
 }

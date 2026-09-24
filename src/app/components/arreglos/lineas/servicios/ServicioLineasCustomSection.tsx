@@ -350,6 +350,7 @@ function buildServicioLinea(
     precioHoraFacturada,
     horasFacturadas: 1,
     horasTrabajadas: 1,
+    valorHoraEmpleado: null,
     categoriaArregloId: null,
     empleadoId: null,
   };

@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import EmpleadoSelect from "./EmpleadoSelect";
 
 vi.mock("@/app/providers/EmpleadosProvider", () => ({
@@ -8,18 +8,22 @@ vi.mock("@/app/providers/EmpleadosProvider", () => ({
     empleados: [
       {
         id: "emp-1",
+        tallerId: "taller-1",
         nombre: "Juan",
         apellido: "Pérez",
         salario: 15000,
+        valorHora: 8500,
         email: "juan@example.com",
         tenant_id: "ten-1",
         rol: "MECANICO",
       },
       {
         id: "emp-2",
+        tallerId: "taller-1",
         nombre: "María",
         apellido: "Gómez",
         salario: 0,
+        valorHora: 0,
         email: "maria@example.com",
         tenant_id: "ten-1",
         rol: "MECANICO",
@@ -34,6 +38,10 @@ vi.mock("@/app/providers/EmpleadosProvider", () => ({
     avatarBg: "#0284c7",
     avatarText: "#ffffff",
   }),
+}));
+
+vi.mock("@/app/providers/TenantProvider", () => ({
+  useTenant: () => ({ tallerSeleccionadoId: null }),
 }));
 
 describe("EmpleadoSelect", () => {
@@ -52,26 +60,30 @@ describe("EmpleadoSelect", () => {
   });
 
   it("muestra nombre con monto de horas cuando showMontoHoras es true (modo Mano de obra)", () => {
-    render(<EmpleadoSelect value="emp-1" onChange={vi.fn()} showMontoHoras={true} />);
+    render(<EmpleadoSelect value="emp-1" onChange={vi.fn()} showMontoHoras={true} canViewHourlyRate hourlyRate={8500} />);
 
     expect(screen.getByText("Juan Pérez")).toBeInTheDocument();
-    expect(screen.getByText(/15\.000\/h/)).toBeInTheDocument();
+    expect(screen.getByText(/8\.500\/h/)).toBeInTheDocument();
     expect(screen.getByText("JP")).toBeInTheDocument();
   });
 
-  it("utiliza defaultHourlyRate cuando el empleado no tiene salario específico y showMontoHoras es true", () => {
+  it("muestra el valor hora maestro configurado, incluso si es cero", () => {
     render(
       <EmpleadoSelect
         value="emp-2"
         onChange={vi.fn()}
         showMontoHoras={true}
-        defaultHourlyRate={18000}
+        canViewHourlyRate
       />
     );
 
     expect(screen.getByText("María Gómez")).toBeInTheDocument();
-    expect(screen.getByText(/18\.000\/h/)).toBeInTheDocument();
-    expect(screen.getByText("MG")).toBeInTheDocument();
+    expect(screen.getByText(/0\/h/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /empleado María Gómez/i }));
+    expect(screen.getByLabelText("Valor hora ($/h):")).toHaveValue(0);
+    const popover = document.getElementById("employee-select-popover");
+    expect(popover).not.toBeNull();
+    expect(within(popover as HTMLElement).getByText("MG")).toBeInTheDocument();
   });
 
   it("abre el popover al hacer clic en el trigger", () => {
@@ -94,6 +106,8 @@ describe("EmpleadoSelect", () => {
         value="emp-1"
         onChange={onChange}
         showMontoHoras={true}
+        canViewHourlyRate
+        canEditHourlyRate
         onChangeHourlyRate={onChangeHourlyRate}
       />
     );
@@ -103,7 +117,7 @@ describe("EmpleadoSelect", () => {
 
     // Input de valor hora
     const rateInput = screen.getByLabelText("Valor hora ($/h):");
-    expect(rateInput).toHaveValue(15000);
+    expect(rateInput).toHaveValue(8500);
 
     // Seleccionar a María Gómez
     fireEvent.click(screen.getByText("María Gómez"));
@@ -119,6 +133,28 @@ describe("EmpleadoSelect", () => {
     expect(onChangeHourlyRate).toHaveBeenCalledWith(22000);
     // Popover cerrado
     expect(screen.queryByRole("button", { name: "Confirmar" })).not.toBeInTheDocument();
+  });
+
+  it("muestra el costo al usuario con permiso de lectura sin permitir editarlo ni guardar un snapshot solo por confirmar", () => {
+    const onChangeHourlyRate = vi.fn();
+
+    render(
+      <EmpleadoSelect
+        value="emp-1"
+        onChange={vi.fn()}
+        showMontoHoras
+        canViewHourlyRate
+        onChangeHourlyRate={onChangeHourlyRate}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /empleado Juan Pérez/i }));
+    const rateInput = screen.getByLabelText("Valor hora ($/h):");
+    expect(rateInput).toHaveValue(8500);
+    expect(rateInput).toHaveAttribute("readonly");
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    expect(onChangeHourlyRate).not.toHaveBeenCalled();
   });
 
   it("cancela cambios al hacer clic en Cancelar", () => {

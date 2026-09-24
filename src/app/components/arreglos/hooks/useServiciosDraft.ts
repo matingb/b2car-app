@@ -7,8 +7,9 @@ type AddInput = {
   descripcion: string;
   cantidad: number;
   precioHoraFacturada: number;
-  horasFacturadas: number;
-  horasTrabajadas: number;
+  horasFacturadas: number | null;
+  horasTrabajadas: number | null;
+  valorHoraEmpleado?: number | null;
   categoriaArregloId: string | null;
   empleadoId: string | null;
 };
@@ -25,7 +26,7 @@ export function useServiciosDraft() {
 
   const onAdd = useCallback(
     (input: AddInput) => {
-      setItems((prev) => [...prev, { id: newId(), ...input }]);
+      setItems((prev) => [...prev, { id: newId(), ...input, valorHoraEmpleado: input.valorHoraEmpleado ?? null }]);
     },
     [newId]
   );

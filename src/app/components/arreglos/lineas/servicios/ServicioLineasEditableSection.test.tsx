@@ -25,6 +25,7 @@ describe("ServicioLineasEditableSection", () => {
             precioHoraFacturada: 15000,
             horasFacturadas: 1,
             horasTrabajadas: 1,
+            valorHoraEmpleado: null,
             categoriaArregloId: null,
             empleadoId: null,
           }]}
@@ -54,6 +55,7 @@ describe("ServicioLineasEditableSection", () => {
             precioHoraFacturada: 15000,
             horasFacturadas: 1,
             horasTrabajadas: 1,
+            valorHoraEmpleado: null,
             categoriaArregloId: null,
             empleadoId: null,
           }]}
@@ -68,7 +70,7 @@ describe("ServicioLineasEditableSection", () => {
     expect(screen.queryByText(/Subtotal/)).not.toBeInTheDocument();
     expect(screen.queryByText(/15\.000/)).not.toBeInTheDocument();
     expect(screen.queryByText(/30\.000/)).not.toBeInTheDocument();
-    expect(screen.getByText("Cantidad: 2")).toBeInTheDocument();
+    expect(screen.getByText("Horas facturadas: 1")).toBeInTheDocument();
 
     // Click Agregar Mano de Obra
     fireEvent.click(screen.getByRole("button", { name: /agregar mano de obra/i }));
@@ -90,6 +92,7 @@ describe("ServicioLineasEditableSection", () => {
         cantidad: 1,
         horasFacturadas: 1,
         horasTrabajadas: 1,
+        valorHoraEmpleado: null,
         precioHoraFacturada: 0,
         categoriaArregloId: null,
         empleadoId: null,

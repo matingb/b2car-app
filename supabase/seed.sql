@@ -626,7 +626,7 @@ BEGIN
     SELECT
       a.id,
       a.precio_final,
-      COALESCE((SELECT SUM(d.cantidad * d.horas_facturadas * d.precio_hora_facturada) FROM public.detalle_arreglo AS d WHERE d.arreglo_id = a.id), 0)
+      COALESCE((SELECT SUM(CASE WHEN d.horas_facturadas IS NULL THEN d.cantidad * d.precio_hora_facturada ELSE d.horas_facturadas * d.precio_hora_facturada END) FROM public.detalle_arreglo AS d WHERE d.arreglo_id = a.id), 0)
       + COALESCE((
         SELECT SUM(ol.cantidad * ol.monto_unitario)
         FROM public.operaciones_asignacion_arreglo AS oaa

@@ -47,4 +47,11 @@ describe("EmpleadoChip", () => {
     expect(screen.getByText("Juan Pérez · $15.000/h")).toBeInTheDocument();
     expect(screen.getByText("JP")).toBeInTheDocument();
   });
+
+  it("no usa el salario del empleado como valor hora", () => {
+    render(<EmpleadoChip empleadoId="emp-1" showMontoHoras={true} />);
+
+    expect(screen.getByText("Juan Pérez")).toBeInTheDocument();
+    expect(screen.queryByText(/15\.000\/h/)).not.toBeInTheDocument();
+  });
 });

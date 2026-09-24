@@ -182,6 +182,7 @@ describe("POST /api/arreglos", () => {
             precio_hora_facturada: 1000,
             horas_facturadas: 1,
             horas_trabajadas: 1,
+            valor_hora_empleado: null,
             categoria_arreglo_id: null,
             empleado_id: null,
           },
@@ -190,6 +191,42 @@ describe("POST /api/arreglos", () => {
     );
     expect(statsService.onDataChanged).toHaveBeenCalledTimes(1);
     expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "TEN-1");
+  });
+
+  it("preserva la ausencia de precio final para que la RPC use los detalles guardados", async () => {
+    const payload = createCreateArregloRequest({
+      detalles: [{ descripcion: "Mano de obra", cantidad: 1, horas_facturadas: 1, horas_trabajadas: 1 }],
+    });
+    delete payload.precio_final;
+    const req = new Request("http://localhost/api/arreglos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const response = await POST(req);
+
+    expect(response.status).toBe(201);
+    expect(rpc).toHaveBeenCalledWith(
+      "rpc_crear_arreglo_completo",
+      expect.objectContaining({ p_precio_final: null, p_precio_sin_iva: null, p_iva_rate: expect.any(Number) })
+    );
+  });
+
+  it("requiere EmpleadosEdit para enviar un costo horario manual", async () => {
+    vi.mocked(hasUserPermission).mockResolvedValueOnce(false);
+    const req = new Request("http://localhost/api/arreglos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(createCreateArregloRequest({
+        detalles: [{ descripcion: "Mano de obra", cantidad: 1, valor_hora_empleado: 12500 }],
+      })),
+    });
+
+    const response = await POST(req);
+
+    expect(response.status).toBe(403);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("envía el nivel de combustible a la RPC", async () => {

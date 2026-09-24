@@ -22,6 +22,7 @@ vi.mock("../empleadosService", async () => {
     empleadosService: {
       ...actual.empleadosService,
       getById: vi.fn(),
+      listHourlyRates: vi.fn(),
       updateById: vi.fn(),
       deleteById: vi.fn(),
       recordSalarioChange: vi.fn(),
@@ -55,6 +56,7 @@ function createEmpleadoRow(overrides: Partial<EmpleadoRow> = {}): EmpleadoRow {
     telefono: null,
     cumpleanos: null,
     salario: null,
+    valor_hora: null,
     fecha_ingreso: null,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -67,6 +69,7 @@ describe("/api/empleados/[id]", () => {
     vi.clearAllMocks();
     vi.mocked(requirePermission).mockResolvedValue(null);
     vi.mocked(hasUserPermission).mockResolvedValue(true);
+    vi.mocked(empleadosService.listHourlyRates).mockResolvedValue({ data: [], error: null });
     vi.mocked(createClient).mockResolvedValue({
       auth: {
         getSession: async () => ({ data: { session: { access_token: "t" } } }),
@@ -106,6 +109,21 @@ describe("/api/empleados/[id]", () => {
     expect(res.status).toBe(200);
     expect(body.data?.id).toBe("EMP-1");
     expect(body.data?.salario).toBe(1500);
+  });
+
+  it("GET incluye el valor hora maestro con permiso", async () => {
+    vi.mocked(empleadosService.getById).mockResolvedValue({ data: createEmpleadoRow(), error: null });
+    vi.mocked(empleadosService.listHourlyRates).mockResolvedValue({
+      data: [{ empleado_id: "EMP-1", valor_hora: 999.5 }],
+      error: null,
+    });
+
+    const res = await GET(new NextRequest("http://localhost/api/empleados/EMP-1"), {
+      params: Promise.resolve({ id: "EMP-1" }),
+    });
+    const body = await res.json();
+
+    expect(body.data?.valor_hora).toBe(999.5);
   });
 
   it("GET existente oculta salario (null) si el usuario no tiene EmpleadosView", async () => {
