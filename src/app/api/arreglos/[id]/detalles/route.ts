@@ -69,7 +69,7 @@ export async function POST(
   if (!descripcion) {
     return Response.json({ data: null, error: "Falta descripción" } satisfies CreateDetalleArregloResponse, { status: 400 });
   }
-  if (!Number.isFinite(cantidad) || cantidad <= 0) {
+  if (!Number.isSafeInteger(cantidad) || cantidad <= 0 || cantidad > 2_147_483_647) {
     return Response.json({ data: null, error: "Cantidad inválida" } satisfies CreateDetalleArregloResponse, { status: 400 });
   }
   if (precioHoraFacturada !== undefined && (!Number.isFinite(precioHoraFacturada) || precioHoraFacturada < 0 || precioHoraFacturada > 9_999_999_999.99 || !hasAtMostDecimalPlaces(precioHoraFacturada))) {

@@ -388,7 +388,7 @@ function buildServiceLines(data: ArregloDetalleData): InvoiceLine[] {
       horas_facturadas: horasFacturadas,
       precio_hora_facturada: unitPrice,
     });
-    const effectiveQty = horasFacturadas === null ? quantity : horasFacturadas;
+    const effectiveQty = horasFacturadas === null ? quantity : horasFacturadas * quantity;
     return {
       detail: String(d.descripcion ?? "").trim() || "Servicio",
       quantity: effectiveQty,

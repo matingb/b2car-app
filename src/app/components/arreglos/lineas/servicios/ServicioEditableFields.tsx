@@ -48,12 +48,6 @@ export default function ServicioEditableFields({
         />
       </div>
 
-      {legacyHoursMissing && (
-        <div role="status" css={styles.legacyNotice}>
-          Este detalle no tiene horas históricas registradas. El total anterior se mantiene hasta que ingreses horas.
-        </div>
-      )}
-
       {/* Fila de inputs numéricos compactos */}
       <div css={styles.numRow}>
         {/* Campo Horas */}
@@ -68,6 +62,23 @@ export default function ServicioEditableFields({
             value={draft.horasFacturadas}
             onChange={(e) => handleHorasFacturadasChange(e.target.value)}
             title="Horas facturadas al cliente"
+            disabled={!canInteract}
+            css={styles.numInput}
+          />
+        </div>
+
+        {/* Campo Cantidad */}
+        <div css={styles.numField("64px")}>
+          <span css={styles.prefixLabel}>Cant</span>
+          <input
+            type="number"
+            id="job-quantity-input"
+            aria-label="Cantidad"
+            min="1"
+            step="1"
+            value={draft.cantidad}
+            onChange={(e) => onDraftChange({ cantidad: e.target.value })}
+            title="Cantidad de servicios"
             disabled={!canInteract}
             css={styles.numInput}
           />

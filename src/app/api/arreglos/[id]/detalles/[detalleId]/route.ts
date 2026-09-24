@@ -67,7 +67,7 @@ export async function PUT(
 
   if (body.cantidad !== undefined) {
     const cantidad = Number(body.cantidad);
-    if (!Number.isFinite(cantidad) || cantidad <= 0) {
+    if (!Number.isSafeInteger(cantidad) || cantidad <= 0 || cantidad > 2_147_483_647) {
       return Response.json({ data: null, error: "Cantidad inválida" } satisfies UpdateDetalleArregloResponse, { status: 400 });
     }
     patch.cantidad = cantidad;

@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import { Plus, Wrench } from "lucide-react";
 import { formatArs } from "@/lib/format";
-import { safeInt, safeNumber } from "@/lib/numbers";
+import { safeNumber } from "@/lib/numbers";
 import { COLOR } from "@/theme/theme";
 import LineasSectionShell from "@/app/components/arreglos/lineas/shared/LineasSectionShell";
 import { styles } from "@/app/components/arreglos/lineas/shared/lineaStyles";
@@ -124,7 +124,7 @@ export default function ServicioLineasEditableSection({
     }),
     validate: (d, ctx) => {
       const descripcion = d.descripcion.trim();
-      const cantidad = ctx.mode === "edit" ? safeInt(ctx.item?.cantidad ?? 1) : 1;
+      const cantidad = d.cantidad.trim() === "" ? Number.NaN : Number(d.cantidad);
       const horasFacturadas = d.horasFacturadas === ""
         ? ctx.mode === "edit" && ctx.item?.horasFacturadas == null ? null : Number.NaN
         : safeNumber(d.horasFacturadas);
@@ -142,7 +142,7 @@ export default function ServicioLineasEditableSection({
       const shouldUpdateEmployeeRate = ctx.mode === "add" || valorHoraEmpleado !== oldValorHoraEmpleado;
 
       if (!descripcion) return { ok: false as const, message: "Falta descripción" };
-      if (!Number.isFinite(cantidad) || cantidad <= 0) return { ok: false as const, message: "Cantidad inválida" };
+      if (!Number.isSafeInteger(cantidad) || cantidad <= 0 || cantidad > 2_147_483_647) return { ok: false as const, message: "Cantidad inválida" };
       if (horasFacturadas !== null && (!Number.isFinite(horasFacturadas) || horasFacturadas < 0 || horasFacturadas > 9999.99 || !hasAtMostDecimalPlaces(horasFacturadas))) return { ok: false as const, message: "Horas facturadas inválidas" };
       if (horasTrabajadas !== null && (!Number.isFinite(horasTrabajadas) || horasTrabajadas < 0 || horasTrabajadas > 9999.99 || !hasAtMostDecimalPlaces(horasTrabajadas))) return { ok: false as const, message: "Horas trabajadas inválidas" };
       if (!Number.isFinite(precioHoraFacturada) || precioHoraFacturada < 0 || precioHoraFacturada > 9_999_999_999.99 || !hasAtMostDecimalPlaces(precioHoraFacturada)) return { ok: false as const, message: "Precio hora inválido" };

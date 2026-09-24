@@ -192,7 +192,7 @@ export async function POST(req: Request) {
 
     for (const d of normalizedDetalles) {
         if (!d.descripcion) return Response.json({ error: "Falta descripción en servicios" }, { status: 400 });
-        if (!Number.isFinite(d.cantidad) || d.cantidad <= 0) {
+        if (!Number.isSafeInteger(d.cantidad) || d.cantidad <= 0 || d.cantidad > 2_147_483_647) {
             return Response.json({ error: "Cantidad inválida en servicios" }, { status: 400 });
         }
         if (d.precio_hora_facturada !== undefined && (!Number.isFinite(d.precio_hora_facturada) || d.precio_hora_facturada < 0 || d.precio_hora_facturada > 9_999_999_999.99 || !hasAtMostDecimalPlaces(d.precio_hora_facturada))) {

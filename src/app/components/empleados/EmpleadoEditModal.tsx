@@ -66,15 +66,7 @@ export default function EmpleadoEditModal({ open, empleado, onClose, onSaved }: 
       email: values.email,
       telefono: values.telefono,
       cumpleanos: values.cumpleanos,
-      salario: values.salario,
       valorHora: values.valorHora,
-      ...(values.salarioVigenteDesde
-        ? {
-            salarioVigenteDesde: /^\d{4}-\d{2}$/.test(values.salarioVigenteDesde)
-              ? `${values.salarioVigenteDesde}-01`
-              : values.salarioVigenteDesde,
-          }
-        : {}),
       fechaIngreso: values.fechaIngreso,
     });
 

@@ -217,7 +217,7 @@ function buildServiciosSectionLines(
 		if (horasFacturadas === null) {
 			if (cantidad) qty = ` x${cantidad}`;
 		} else {
-			qty = ` ${horasFacturadas}hs`;
+			qty = cantidad === 1 ? ` ${horasFacturadas}hs` : ` ${horasFacturadas}hs x${cantidad}`;
 		}
 
 		const price =
