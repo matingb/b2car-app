@@ -80,8 +80,8 @@ describe("buildArregloWhatsappMessage", () => {
     const msg = buildArregloWhatsappMessage(data, "Taller Demo");
 
     expect(msg).toContain("👨‍🔧 *Servicios:*");
-    expect(msg).toContain("• Mano de obra 1hs");
-    expect(msg).toContain("$1.500"); // 1 hora * 1500
+    expect(msg).toContain("• Mano de obra 1hs x2");
+    expect(msg).toContain("$3.000"); // 1 hora * 2 * 1500
 
     expect(msg).toContain("📦 *Repuestos:*");
     expect(msg).toContain("• Filtro x1");
@@ -146,11 +146,11 @@ describe("buildArregloWhatsappMessage", () => {
     expect(msg).not.toContain("• Filtro x1 - $5.000");
     expect(msg).toContain("_Subtotal repuestos: $5.000_");
 
-    expect(msg).toContain("• Mano de obra 1hs");
-    expect(msg).not.toContain("• Mano de obra 1hs - $1.500");
-    expect(msg).toContain("_Subtotal mano de obra: $1.500_");
+    expect(msg).toContain("• Mano de obra 1hs x2");
+    expect(msg).not.toContain("• Mano de obra 1hs x2 - $3.000");
+    expect(msg).toContain("_Subtotal mano de obra: $3.000_");
 
-    expect(msg).toContain("*Total arreglo $6.500*");
+    expect(msg).toContain("*Total arreglo $8.000*");
   });
 
   it("sin detalle de ítems: no muestra los detalles de ítems, solo subtotales y total", () => {

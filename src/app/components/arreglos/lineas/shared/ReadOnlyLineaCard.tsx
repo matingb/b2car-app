@@ -55,7 +55,7 @@ export default function ReadOnlyLineaCard({
     : cantidad * unitario;
 
   const qtyXUnit = kind === "servicios" && horasFacturadas != null
-    ? `${horasFacturadas}h × ${formatMoney(unitario)}`
+    ? `${horasFacturadas}h × ${cantidad} × ${formatMoney(unitario)}`
     : renderQtyXUnit(cantidad, unitario);
 
   const kindLabel = kind === "servicios" ? "servicio" : "repuesto";
@@ -84,7 +84,7 @@ export default function ReadOnlyLineaCard({
               <Can
                 permission={Permission.ArreglosPreciosView}
                 fallback={kind === "servicios" && horasFacturadas != null
-                  ? <>Horas facturadas: {horasFacturadas}</>
+                  ? <>Horas facturadas: {horasFacturadas}; cantidad: {cantidad}</>
                   : <>Cantidad: {cantidad}</>}
               >
                 {qtyXUnit}
@@ -157,7 +157,7 @@ export default function ReadOnlyLineaCard({
                   <span css={readStyles.marginCardSub}>
                     {horasFacturadas == null
                       ? `Total histórico: ${cantidad} × ${formatMoney(unitario)}`
-                      : `${horasFacturadas}h fact. × ${formatMoney(unitario)}`}
+                      : `${horasFacturadas}h fact. × ${cantidad} × ${formatMoney(unitario)}/h`}
                   </span>
                 </div>
               </Can>

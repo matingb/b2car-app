@@ -16,7 +16,7 @@ export function createArregloServiceInvoiceLine(
 ): Omit<FacturaLinea, "ordinal"> | null {
   const cantidad = input.horasFacturadas === null
     ? input.cantidad
-    : input.horasFacturadas;
+    : input.horasFacturadas * input.cantidad;
 
   // Una línea de mano de obra con cero horas no es facturable. Omitirla antes
   // de la validación genérica permite facturar otros conceptos del arreglo.

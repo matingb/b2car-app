@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { calcLineTotal } from "./calcLineTotal";
 
 describe("calcLineTotal", () => {
-  it("calcula horas facturadas × precio_hora y deja cantidad fuera de líneas nuevas", () => {
+  it("calcula horas facturadas × cantidad × precio_hora", () => {
     expect(
       calcLineTotal({
         cantidad: 1,
@@ -16,7 +16,7 @@ describe("calcLineTotal", () => {
         horas_facturadas: 1,
         precio_hora_facturada: 10000,
       })
-    ).toBe(10000);
+    ).toBe(20000);
   });
 
   it("calcula correctamente con horas decimales", () => {
@@ -34,17 +34,17 @@ describe("calcLineTotal", () => {
         horas_facturadas: 0.75,
         precio_hora_facturada: 10000,
       })
-    ).toBe(7500);
+    ).toBe(15000);
   });
 
-  it("ignora cantidad en líneas nuevas y devuelve 0 si precio es 0", () => {
+  it("multiplica por cantidad y devuelve 0 si precio es 0", () => {
     expect(
       calcLineTotal({
         cantidad: 0,
         horas_facturadas: 2,
         precio_hora_facturada: 15000,
       })
-    ).toBe(30000);
+    ).toBe(0);
 
     expect(
       calcLineTotal({
@@ -62,7 +62,7 @@ describe("calcLineTotal", () => {
         horas_facturadas: "2.5",
         precio_hora_facturada: "10000",
       })
-    ).toBe(25000);
+    ).toBe(50000);
   });
 
   it("conserva el total histórico por cantidad cuando las horas son desconocidas", () => {

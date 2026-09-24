@@ -19,8 +19,8 @@ export default function EmpleadoInfoPersonalCard({ empleado }: Props) {
       <Card style={styles.contentPanel}>
         <div css={styles.grid}>
           <DefinitionItem
-            label="Salario actual"
-            value={empleado.salario != null ? formatArs(empleado.salario, { maxDecimals: 0 }) : "-"}
+            label="Valor hora"
+            value={empleado.valorHora != null ? formatArs(empleado.valorHora, { maxDecimals: 2 }) : "-"}
           />
           <DefinitionItem
             label="Fecha de ingreso"
