@@ -15,6 +15,7 @@ import {
   type FacturasPaginadas,
 } from "@/lib/facturacion/types";
 import { COLOR } from "@/theme/theme";
+import { formatCalendarDateLabel } from "@/lib/fechas";
 
 const initialFilters: FacturasFilters = {
   estado: "", ambiente: "", documentoTipo: "", desde: "", hasta: "",
@@ -25,8 +26,7 @@ function isFilterKey(value: string): value is keyof FacturasFilters {
 }
 
 function formatDate(value: string) {
-  if (!value) return "-";
-  return new Intl.DateTimeFormat("es-AR").format(new Date(`${value}T12:00:00`));
+  return formatCalendarDateLabel(value, "-");
 }
 
 export default function FacturacionPage() {

@@ -15,11 +15,16 @@ import {
 } from "@/lib/arreglosCustomFormRequired";
 import { buildArregloDescripcion } from "@/lib/arreglos";
 import { isValidUuid } from "@/lib/uuid";
-import { toISODateTimeWithCurrentTime } from "@/lib/fechas";
+import {
+    isValidDate,
+    isValidISODateTimeWithTimezone,
+    toISODateTimeWithCurrentTime,
+} from "@/lib/fechas";
 import { Permission } from "@/lib/permissions";
 import { hasUserPermission } from "@/lib/permissions.server";
 import { hasAtMostDecimalPlaces } from "@/lib/numbers";
 import { mapArreglo } from "./arregloMapper";
+import { parseArregloDateRange } from "./arregloDateFilters";
 
 export type GetArreglosResponse = {
     data: Arreglo[] | null;
@@ -46,6 +51,10 @@ export async function GET(req: NextRequest) {
     };
 
     const limit = normalizePaginationLimit(query.get("limit"));
+    const dateRange = parseArregloDateRange(query);
+    if (!dateRange.ok) {
+        return Response.json({ data: [], page: { hasMore: false }, error: dateRange.error }, { status: 400 });
+    }
 
     const filters: ArregloListFilters = {
         tallerId: toUndef(query.get("taller_id")),
@@ -54,8 +63,7 @@ export async function GET(req: NextRequest) {
         patente: toUndef(query.get("patente")),
         estado: toUndef(query.get("estado")),
         estadoPago: toUndef(query.get("estado_pago")),
-        fechaDesde: toUndef(query.get("fecha_desde")),
-        fechaHasta: toUndef(query.get("fecha_hasta")),
+        ...dateRange.range,
         limit,
     };
 
@@ -129,7 +137,7 @@ export async function POST(req: Request) {
     if (cuentaFinancieraId && !isValidUuid(cuentaFinancieraId)) {
         return Response.json({ error: "cuenta_financiera_id inválida" }, { status: 400 });
     }
-    if (fechaCobro && Number.isNaN(new Date(`${fechaCobro}T00:00:00.000Z`).getTime())) {
+    if (fechaCobro && !isValidDate(fechaCobro) && !isValidISODateTimeWithTimezone(fechaCobro)) {
         return Response.json({ error: "fecha_cobro inválida" }, { status: 400 });
     }
     if ((estaPagoValue || cuentaFinancieraId) && !isValidUuid(idempotencyKey)) {

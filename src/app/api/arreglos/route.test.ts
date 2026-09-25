@@ -122,6 +122,30 @@ describe("POST /api/arreglos", () => {
     );
   });
 
+  it("envía los límites locales ISO al servicio con Hasta exclusivo", async () => {
+    const response = await GET(new NextRequest(
+      "http://localhost/api/arreglos?from=2026-09-01T03%3A00%3A00.000Z&to=2026-09-14T03%3A00%3A00.000Z",
+    ));
+
+    expect(response.status).toBe(200);
+    expect(arregloService.getArreglo).toHaveBeenCalledWith(
+      mockSupabase,
+      expect.objectContaining({
+        from: "2026-09-01T03:00:00.000Z",
+        to: "2026-09-14T03:00:00.000Z",
+      }),
+    );
+  });
+
+  it("rechaza fechas inválidas antes de consultar el servicio", async () => {
+    const response = await GET(new NextRequest(
+      "http://localhost/api/arreglos?from=2026-02-30T00%3A00%3A00.000Z",
+    ));
+
+    expect(response.status).toBe(400);
+    expect(arregloService.getArreglo).not.toHaveBeenCalled();
+  });
+
   it("conserva precios en GET si el usuario tiene ArreglosPreciosView", async () => {
     vi.mocked(arregloService.getArreglo).mockResolvedValueOnce({
       data: {
@@ -328,6 +352,37 @@ describe("POST /api/arreglos", () => {
     expect(response.status).toBe(400);
     expect(body.error).toBe("No se puede registrar como pago un arreglo en estado PRESUPUESTO");
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("accepts and preserves the local payment timestamp sent by the modal", async () => {
+    const cuentaId = "c0000000-0000-4000-8000-000000000001";
+    const idempotencyKey = "e0000000-0000-4000-8000-000000000001";
+    const fechaCobro = "2026-08-25T03:00:00.000Z";
+    const req = new Request("http://localhost/api/arreglos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        createCreateArregloRequest({
+          esta_pago: true,
+          cuenta_financiera_id: cuentaId,
+          fecha_cobro: fechaCobro,
+          idempotency_key: idempotencyKey,
+        })
+      ),
+    });
+
+    const response = await POST(req);
+
+    expect(response.status).toBe(201);
+    expect(rpc).toHaveBeenCalledWith(
+      "rpc_crear_arreglo_completo",
+      expect.objectContaining({
+        p_esta_pago: true,
+        p_cuenta_id: cuentaId,
+        p_fecha_cobro: fechaCobro,
+        p_idempotency_key: idempotencyKey,
+      })
+    );
   });
 
   it("bloquea creacion en TERMINADO cuando faltan required", async () => {

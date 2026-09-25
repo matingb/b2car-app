@@ -1,5 +1,21 @@
 import { describe, it, expect } from "vitest";
-import { formatDateLabel, formatDateTimeLabel, formatTimeAgo, isValidDate, toDateInputFormat, toISODateTimeWithCurrentTime } from "./fechas";
+import {
+  formatCalendarDateLabel,
+  formatDateLabel,
+  formatDateTimeLabel,
+  formatLocalDateLabel,
+  formatTimeAgo,
+  isValidDate,
+  localCalendarDateEndExclusiveISO,
+  localCalendarDateRangeISO,
+  localCalendarDateStartISO,
+  parseCalendarDate,
+  toDateInputFormat,
+  toISODateTimeWithCurrentTime,
+  toISODateTimeWithLocalCurrentTime,
+  toISODateLocal,
+  toLocalDateInputFormat,
+} from "./fechas";
 
 describe("isValidDate", () => {
   it("debería retornar true para una fecha válida en formato YYYY-MM-DD", () => {
@@ -20,6 +36,52 @@ describe("isValidDate", () => {
 
   it("debería retornar false para texto que no es fecha", () => {
     expect(isValidDate("abc")).toBe(false);
+  });
+});
+
+describe("fechas de calendario local", () => {
+  it("valida fechas Gregorianas sin interpretar YYYY-MM-DD como UTC", () => {
+    expect(parseCalendarDate("2024-02-29")).toEqual({ year: 2024, month: 2, day: 29 });
+    expect(isValidDate("2026-02-30")).toBe(false);
+  });
+
+  it("construye un rango local semiabierto usando medianoches de calendario", () => {
+    const start = localCalendarDateStartISO("2026-09-01");
+    const end = localCalendarDateEndExclusiveISO("2026-09-13");
+    const expectedStart = new Date(2026, 8, 1).toISOString();
+    const expectedEnd = new Date(2026, 8, 14).toISOString();
+    expect(start).toBe(expectedStart);
+    expect(end).toBe(expectedEnd);
+    expect(localCalendarDateRangeISO("2026-09-01", "2026-09-13")).toEqual({
+      from: expectedStart,
+      to: expectedEnd,
+    });
+    if (Intl.DateTimeFormat().resolvedOptions().timeZone === "America/Argentina/Buenos_Aires") {
+      expect(start).toBe("2026-09-01T03:00:00.000Z");
+      expect(end).toBe("2026-09-14T03:00:00.000Z");
+    }
+  });
+
+  it("usa el día calendario siguiente aun si el cambio horario hace que el día dure 23 horas", () => {
+    const start = localCalendarDateStartISO("2026-03-08");
+    const end = localCalendarDateEndExclusiveISO("2026-03-08");
+    expect(start).not.toBeNull();
+    expect(end).not.toBeNull();
+    if (Intl.DateTimeFormat().resolvedOptions().timeZone === "America/New_York") {
+      expect(Date.parse(end!) - Date.parse(start!)).toBe(23 * 60 * 60 * 1000);
+    }
+  });
+
+  it("combina el día elegido con la hora local actual y muestra el día local del timestamp", () => {
+    const now = new Date(2026, 8, 24, 21, 35, 12, 345);
+    const expected = new Date(2026, 8, 13, 21, 35, 12, 345).toISOString();
+    expect(toISODateTimeWithLocalCurrentTime("2026-09-13", now)).toBe(expected);
+    expect(toLocalDateInputFormat(expected)).toBe(toISODateLocal(new Date(expected)));
+    expect(formatCalendarDateLabel("2026-09-13")).toBe("13/09/2026");
+    if (Intl.DateTimeFormat().resolvedOptions().timeZone === "America/Argentina/Buenos_Aires") {
+      expect(formatLocalDateLabel("2026-09-14T00:00:00.000Z")).toBe("13/09/2026");
+      expect(formatDateTimeLabel("2026-09-14T00:00:00.000Z")).toBe("13/09/2026, 21:00");
+    }
   });
 });
 
@@ -79,7 +141,10 @@ describe("formatDateLabel", () => {
 
 describe("formatDateTimeLabel", () => {
   it("muestra fecha y hora en formato de 24 horas", () => {
-    expect(formatDateTimeLabel("2026-06-08T14:30:00.000Z")).toBe("08/06/2026, 14:30");
+    const expected = new Intl.DateTimeFormat("es-AR", {
+      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
+    }).format(new Date("2026-06-08T14:30:00.000Z"));
+    expect(formatDateTimeLabel("2026-06-08T14:30:00.000Z")).toBe(expected);
   });
 });
 

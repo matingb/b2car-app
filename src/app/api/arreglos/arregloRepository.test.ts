@@ -42,6 +42,20 @@ const pgError = (code = "XXXXX"): PostgrestError => ({
 });
 
 describe("supabaseArregloRepository", () => {
+  it("filtra timestamps desde el inicio inclusive hasta el límite exclusivo", async () => {
+    const supabase = makeSupabase({ arreglos: { data: [], error: null } });
+
+    await supabaseArregloRepository.getArreglo(supabase, {
+      limit: 10,
+      from: "2026-09-01T03:00:00.000Z",
+      to: "2026-09-14T03:00:00.000Z",
+    });
+
+    expect(supabase.__chains.arreglos.gte).toHaveBeenCalledWith("fecha", "2026-09-01T03:00:00.000Z");
+    expect(supabase.__chains.arreglos.lt).toHaveBeenCalledWith("fecha", "2026-09-14T03:00:00.000Z");
+    expect(supabase.__chains.arreglos.lte).not.toHaveBeenCalledWith("fecha", expect.anything());
+  });
+
   describe("getArreglo — filtro por patente", () => {
     it("si la búsqueda de patente no encuentra vehículos, retorna lista vacía ignorando los datos de arreglos", async () => {
       const supabase = makeSupabase({

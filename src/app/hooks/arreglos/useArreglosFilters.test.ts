@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ArregloFilters } from "@/app/components/arreglos/ArregloFiltersModal";
 import { filterArreglos } from "@/app/hooks/arreglos/useArreglosFilters";
 import { createArreglo, createVehiculo } from "@/tests/factories";
+import { localCalendarDateEndExclusiveISO, localCalendarDateStartISO } from "@/lib/fechas";
 
 const emptyFilters: ArregloFilters = {
   fechaDesde: "",
@@ -86,16 +87,27 @@ describe("filterArreglos", () => {
 
 
   it("el filtro por rango de fechas es inclusivo", () => {
+    const start = Date.parse(localCalendarDateStartISO("2025-01-10")!);
+    const end = Date.parse(localCalendarDateEndExclusiveISO("2025-01-31")!);
     const arreglos = [
-      createArreglo({ id: "1", fecha: "2025-01-01" }),
-      createArreglo({ id: "2", fecha: "2025-01-10" }),
-      createArreglo({ id: "3", fecha: "2025-01-31" }),
+      createArreglo({ id: "anterior", fecha: new Date(start - 1).toISOString() }),
+      createArreglo({ id: "inicio", fecha: new Date(start).toISOString() }),
+      createArreglo({ id: "fin", fecha: new Date(end - 1).toISOString() }),
+      createArreglo({ id: "siguiente", fecha: new Date(end).toISOString() }),
     ];
     const result = filterArreglos(arreglos, {
       search: "",
       filters: { ...emptyFilters, fechaDesde: "2025-01-10", fechaHasta: "2025-01-31" },
     });
-    expect(result.map((a) => a.id)).toEqual(["2", "3"]);
+    expect(result.map((a) => a.id)).toEqual(["inicio", "fin"]);
+  });
+
+  it("no interpreta un rango invertido como un filtro vacío", () => {
+    const result = filterArreglos([createArreglo({ id: "1" })], {
+      search: "",
+      filters: { ...emptyFilters, fechaDesde: "2025-01-31", fechaHasta: "2025-01-10" },
+    });
+    expect(result).toEqual([]);
   });
 
 });

@@ -83,6 +83,111 @@ export function toISODateTimeWithLocalCurrentTime(
   return date.toISOString();
 }
 
+export type CalendarDateParts = { year: number; month: number; day: number };
+
+/** Parse and validate a YYYY-MM-DD calendar date without interpreting it as UTC. */
+export function parseCalendarDate(value: string): CalendarDateParts | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const isLeapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, isLeapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+  if (year < 1 || month < 1 || month > 12 || day < 1 || day > daysInMonth[month - 1]) {
+    return null;
+  }
+  return { year, month, day };
+}
+
+const ISO_DATE_TIME_WITH_ZONE = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|([+-])(\d{2}):(\d{2}))$/;
+
+/** Validate a complete ISO date-time that explicitly includes its UTC offset. */
+export function isValidISODateTimeWithTimezone(value: string): boolean {
+  const match = ISO_DATE_TIME_WITH_ZONE.exec(value);
+  if (!match || !parseCalendarDate(match[1])) return false;
+  const hour = Number(match[2]);
+  const minute = Number(match[3]);
+  const second = Number(match[4]);
+  if (hour > 23 || minute > 59 || second > 59) return false;
+  if (match[6] !== "Z") {
+    const offsetHour = Number(match[8]);
+    const offsetMinute = Number(match[9]);
+    if (offsetHour > 14 || offsetMinute > 59 || (offsetHour === 14 && offsetMinute !== 0)) return false;
+  }
+  return Number.isFinite(Date.parse(value));
+}
+
+/** Turn legacy date-only API bounds into complete UTC days. */
+export function utcCalendarDateRangeISO(from?: string, through?: string): {
+  from: string | undefined;
+  to: string | undefined;
+} | null {
+  const fromParts = from ? parseCalendarDate(from) : null;
+  const throughParts = through ? parseCalendarDate(through) : null;
+  if ((from && !fromParts) || (through && !throughParts)) return null;
+
+  const start = fromParts ? `${from}T00:00:00.000Z` : undefined;
+  let end: string | undefined;
+  if (throughParts) {
+    const date = new Date(0);
+    date.setUTCFullYear(throughParts.year, throughParts.month - 1, throughParts.day + 1);
+    date.setUTCHours(0, 0, 0, 0);
+    end = date.toISOString();
+  }
+  if (start && end && Date.parse(start) >= Date.parse(end)) return null;
+  return { from: start ?? undefined, to: end ?? undefined };
+}
+
+function localMidnight({ year, month, day }: CalendarDateParts): Date {
+  const date = new Date(0);
+  date.setFullYear(year, month - 1, day);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+/** Convert a calendar date to its local midnight as an ISO timestamp. */
+export function localCalendarDateStartISO(value: string): string | null {
+  const parts = parseCalendarDate(value);
+  if (!parts) return null;
+  return localMidnight(parts).toISOString();
+}
+
+/** Convert a calendar date to the following local midnight as an exclusive bound. */
+export function localCalendarDateEndExclusiveISO(value: string): string | null {
+  const parts = parseCalendarDate(value);
+  if (!parts) return null;
+  const date = localMidnight(parts);
+  date.setDate(date.getDate() + 1);
+  return date.toISOString();
+}
+
+/** Build local timestamp bounds for an optional, inclusive calendar date range. */
+export function localCalendarDateRangeISO(from?: string, through?: string): {
+  from: string | undefined;
+  to: string | undefined;
+} | null {
+  const start = from ? localCalendarDateStartISO(from) : undefined;
+  const end = through ? localCalendarDateEndExclusiveISO(through) : undefined;
+  if ((from && !start) || (through && !end)) return null;
+  if (start && end && Date.parse(start) >= Date.parse(end)) return null;
+  return { from: start ?? undefined, to: end ?? undefined };
+}
+
+/** Keep a selected calendar day and combine it with the current local clock time. */
+export function toISODateTimeWithLocalCurrentTime(
+  dateInput: string,
+  now: Date = new Date(),
+): string | null {
+  const parts = parseCalendarDate(dateInput);
+  if (!parts || Number.isNaN(now.getTime())) return null;
+  const date = localMidnight(parts);
+  date.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+  return date.toISOString();
+}
+
 /**
  * Completa una fecha de calendario (YYYY-MM-DD) con la hora local actual para
  * enviarla como timestamp. Si el valor ya es un timestamp completo o un objeto Date,
@@ -153,11 +258,7 @@ export function getMonthGrid(date: Date) {
  * @returns true si es una fecha válida, false en caso contrario
  */
 export const isValidDate = (dateString: string): boolean => {
-  if (!dateString || dateString.trim().length === 0) return false;
-  const date = new Date(dateString);
-  return (
-    !isNaN(date.getTime()) && dateString === date.toISOString().split("T")[0]
-  );
+  return parseCalendarDate(dateString) !== null;
 };
 
 /**
@@ -183,6 +284,14 @@ export const toDateInputFormat = (dateString: string | undefined): string => {
 
   return `${year}-${month}-${day}`;
 };
+
+/** Convert a timestamp to the browser's displayed calendar day for editing. */
+export function toLocalDateInputFormat(dateString: string | undefined): string {
+  if (!dateString) return "";
+  if (parseCalendarDate(dateString)) return dateString;
+  const date = new Date(dateString.replace(" ", "T"));
+  return Number.isNaN(date.getTime()) ? "" : toISODateLocal(date);
+}
 
 /**
  * Formatea una fecha a DD/MM/YYYY (usado en UI), intentando normalizar strings con espacio.
@@ -223,6 +332,32 @@ export function formatLocalDateLabel(
   }).format(date);
 }
 
+/** Format a date-only YYYY-MM-DD value without converting it into an instant. */
+export function formatCalendarDateLabel(
+  dateString: string | null | undefined,
+  fallback = "",
+): string {
+  if (!dateString) return fallback;
+  const parts = parseCalendarDate(dateString);
+  if (!parts) return fallback;
+  return `${String(parts.day).padStart(2, "0")}/${String(parts.month).padStart(2, "0")}/${parts.year}`;
+}
+
+/** Format a timestamptz date in the browser's local timezone. */
+export function formatLocalDateLabel(
+  dateString: string | null | undefined,
+  fallback = "",
+): string {
+  if (!dateString) return fallback;
+  const date = new Date(dateString.replace(" ", "T"));
+  if (Number.isNaN(date.getTime())) return fallback;
+  return new Intl.DateTimeFormat(APP_LOCALE, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
 /**
  * Formatea una fecha a DD/MM/YYYY HH:mm (usado en UI), intentando normalizar strings con espacio.
  * Mantiene el comportamiento previo usado en TurnoItem.
@@ -248,7 +383,6 @@ export function formatDateTimeLabel(
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: "UTC",
   }).format(d);
 }
 

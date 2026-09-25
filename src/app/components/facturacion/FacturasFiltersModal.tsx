@@ -5,6 +5,8 @@ import { css } from "@emotion/react";
 import Modal from "@/app/components/ui/Modal";
 import { FACTURA_ESTADO_LABEL } from "@/lib/facturacion/types";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import Calendar from "@/app/components/ui/Calendar";
+import { formatCalendarDateLabel } from "@/lib/fechas";
 
 export type FacturasFilters = {
   estado: string;
@@ -41,6 +43,7 @@ export default function FacturasFiltersModal({ open, initial, onClose, onApply }
       onClose={onClose}
       onSubmit={(event) => {
         event.preventDefault();
+        if (filters.desde && filters.hasta && filters.desde > filters.hasta) return;
         onApply(filters);
         onClose();
       }}
@@ -64,12 +67,29 @@ export default function FacturasFiltersModal({ open, initial, onClose, onApply }
         </div>
         <div css={styles.row}>
           <Field label="Fecha desde">
-            <input data-testid="facturas-filter-desde" type="date" style={styles.input} value={filters.desde} onChange={(event) => update("desde", event.target.value)} />
+            <div style={styles.dateControl}>
+              <Calendar value={filters.desde} onChange={(value) => update("desde", value)} placeholder="Seleccionar fecha..." dataTestId="facturas-filter-desde">
+                <button type="button" data-testid="facturas-filter-desde" aria-label="Elegir fecha desde" style={styles.calendarTrigger}>
+                  {filters.desde ? formatCalendarDateLabel(filters.desde) : "Seleccionar fecha..."}
+                </button>
+              </Calendar>
+              {filters.desde ? <button type="button" aria-label="Limpiar fecha desde" style={styles.clearDate} onClick={() => update("desde", "")}>Limpiar</button> : null}
+            </div>
           </Field>
           <Field label="Fecha hasta">
-            <input data-testid="facturas-filter-hasta" type="date" style={styles.input} value={filters.hasta} onChange={(event) => update("hasta", event.target.value)} />
+            <div style={styles.dateControl}>
+              <Calendar value={filters.hasta} onChange={(value) => update("hasta", value)} placeholder="Seleccionar fecha..." dataTestId="facturas-filter-hasta">
+                <button type="button" data-testid="facturas-filter-hasta" aria-label="Elegir fecha hasta" style={styles.calendarTrigger}>
+                  {filters.hasta ? formatCalendarDateLabel(filters.hasta) : "Seleccionar fecha..."}
+                </button>
+              </Calendar>
+              {filters.hasta ? <button type="button" aria-label="Limpiar fecha hasta" style={styles.clearDate} onClick={() => update("hasta", "")}>Limpiar</button> : null}
+            </div>
           </Field>
         </div>
+        {filters.desde && filters.hasta && filters.desde > filters.hasta ? (
+          <div role="alert" style={styles.dateError}>La fecha desde debe ser anterior o igual a la fecha hasta.</div>
+        ) : null}
       </div>
     </Modal>
   );
@@ -99,4 +119,24 @@ const styles = {
     color: COLOR.TEXT.PRIMARY,
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
   },
+  dateControl: { display: "flex", alignItems: "center", gap: 8 },
+  calendarTrigger: {
+    width: "100%",
+    minHeight: 42,
+    textAlign: "left" as const,
+    padding: "0 12px",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    color: COLOR.TEXT.PRIMARY,
+    background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    cursor: "pointer",
+  },
+  clearDate: {
+    border: 0,
+    background: "transparent",
+    color: COLOR.TEXT.SECONDARY,
+    cursor: "pointer",
+    padding: "6px 0",
+  },
+  dateError: { color: COLOR.ICON.DANGER, fontSize: 12, marginTop: 8 },
 } as const;

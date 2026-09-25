@@ -77,6 +77,11 @@ export type GetArreglosInput = {
   patente?: string;
   estado?: string;
   estadoPago?: string;
+  /** Inclusive local start instant, serialized by the browser. */
+  from?: string;
+  /** Exclusive local midnight after the selected Hasta day. */
+  to?: string;
+  /** Legacy UTC calendar-date parameters retained for existing API consumers. */
   fechaDesde?: string;
   fechaHasta?: string;
   limit?: number;
@@ -92,8 +97,12 @@ export const arreglosClient = {
       if (params?.patente) searchParams.set("patente", params.patente);
       if (params?.estado) searchParams.set("estado", params.estado);
       if (params?.estadoPago) searchParams.set("estado_pago", params.estadoPago);
-      if (params?.fechaDesde) searchParams.set("fecha_desde", params.fechaDesde);
-      if (params?.fechaHasta) searchParams.set("fecha_hasta", params.fechaHasta);
+      if (params?.from) searchParams.set("from", params.from);
+      if (params?.to) searchParams.set("to", params.to);
+      if (!params?.from && !params?.to) {
+        if (params?.fechaDesde) searchParams.set("fecha_desde", params.fechaDesde);
+        if (params?.fechaHasta) searchParams.set("fecha_hasta", params.fechaHasta);
+      }
       if (typeof params?.limit === "number") searchParams.set("limit", String(params.limit));
       const query = searchParams.toString();
       const url = query ? `/api/arreglos?${query}` : "/api/arreglos";

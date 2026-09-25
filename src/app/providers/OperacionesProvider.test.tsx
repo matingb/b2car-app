@@ -83,5 +83,9 @@ describe("OperacionesProvider", () => {
 			expect.objectContaining({ from: expect.any(String), to: expect.any(String) }),
 			expect.objectContaining({ page: 2 })
 		);
+		expect(getStatsMock).toHaveBeenCalledWith(
+			getAllMock.mock.calls[0][0],
+			expect.anything(),
+		);
 	});
 });

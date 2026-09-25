@@ -11,6 +11,7 @@ import { useArreglosFilters } from "@/app/hooks/arreglos/useArreglosFilters";
 import { useEffect, useMemo, useState } from "react";
 import { useTenant } from "@/app/providers/TenantProvider";
 import TallerSelector from "@/app/components/ui/TallerSelector";
+import { localCalendarDateRangeISO } from "@/lib/fechas";
 
 const LIMIT_STEP = 50;
 
@@ -38,13 +39,25 @@ export default function ArreglosPage() {
   ]);
 
   const filterStrings = useMemo(
-    () => ({
+    () => {
+      const dateRange = localCalendarDateRangeISO(
+        state.filters.fechaDesde || undefined,
+        state.filters.fechaHasta || undefined,
+      );
+      return {
       patente: state.filters.patente || undefined,
       estado: state.filters.estado || undefined,
       estadoPago: state.filters.estadoPago || undefined,
-      fechaDesde: state.filters.fechaDesde || undefined,
-      fechaHasta: state.filters.fechaHasta || undefined,
-    }),
+      ...(dateRange
+        ? { from: dateRange.from, to: dateRange.to }
+        : state.filters.fechaDesde || state.filters.fechaHasta
+          ? {
+              fechaDesde: state.filters.fechaDesde || undefined,
+              fechaHasta: state.filters.fechaHasta || undefined,
+            }
+          : {}),
+      };
+    },
     [
       state.filters.patente,
       state.filters.estado,

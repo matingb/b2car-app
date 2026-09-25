@@ -4,6 +4,27 @@ import { turnosService } from "./turnosService";
 
 describe("turnosService", () => {
   describe("list", () => {
+    it("aplica ambos extremos inclusivos directamente al campo date", async () => {
+      const queryBuilder: Record<string, unknown> = {};
+      const gte = vi.fn().mockReturnValue(queryBuilder);
+      const lte = vi.fn().mockReturnValue(queryBuilder);
+      const order = vi.fn().mockReturnValue(queryBuilder);
+      Object.assign(queryBuilder, {
+        select: vi.fn().mockReturnValue(queryBuilder),
+        order,
+        eq: vi.fn().mockReturnValue(queryBuilder),
+        gte,
+        lte,
+        then: (resolve: (value: { data: unknown[]; error: null }) => void) => resolve({ data: [], error: null }),
+      });
+      const supabase = { from: vi.fn().mockReturnValue(queryBuilder) } as unknown as SupabaseClient;
+
+      await turnosService.list(supabase, { from: "2026-09-01", to: "2026-09-13" });
+
+      expect(gte).toHaveBeenCalledWith("fecha", "2026-09-01");
+      expect(lte).toHaveBeenCalledWith("fecha", "2026-09-13");
+    });
+
     it("filtra por taller_id y mapea correctamente cliente/vehículo nulos", async () => {
       const mockRows = [
         {

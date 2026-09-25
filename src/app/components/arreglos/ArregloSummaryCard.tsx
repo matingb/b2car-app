@@ -21,7 +21,7 @@ import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
 import ArregloBadges from "@/app/components/arreglos/ArregloBadges";
 import Avatar from "@/app/components/ui/Avatar";
 import { formatArs } from "@/lib/format";
-import { formatDateLabel } from "@/lib/fechas";
+import { formatLocalDateLabel } from "@/lib/fechas";
 import { ROUTES } from "@/routing/routes";
 import { logger } from "@/lib/logger";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
@@ -281,7 +281,7 @@ export default function ArregloSummaryCard({
                   <span style={styles.blockLabel}>Ingreso</span>
                   <div style={styles.detailValue}>
                     <Calendar size={16} color={COLOR.ICON.MUTED} />
-                    {arreglo.fecha ? formatDateLabel(arreglo.fecha) : "-"}
+                    {arreglo.fecha ? formatLocalDateLabel(arreglo.fecha) : "-"}
                   </div>
                 </div>
                 <div style={styles.detailBox}>
