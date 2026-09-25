@@ -9,6 +9,7 @@ import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
 import {
 	operacionesService,
+	validateOperacionesDateFilters,
 	OPERACIONES_PAGE_SIZE,
 	type CreateOperacionInput,
 	type OperacionesFilters,
@@ -93,6 +94,14 @@ export async function GET(req: Request) {
 		to: searchParams.get("to") || undefined,
 		tipo: tipos.length > 0 ? tipos : undefined,
 	};
+	const dateFilterError = validateOperacionesDateFilters(filters);
+	if (dateFilterError) {
+		return Response.json({
+			data: [],
+			pagination: { page, pageSize: OPERACIONES_PAGE_SIZE, total: 0 },
+			error: dateFilterError,
+		} satisfies GetOperacionesResponse, { status: 400 });
+	}
 
 	const { data, total, error } = await operacionesService.list(supabase, filters, {
 		page,

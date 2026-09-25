@@ -9,6 +9,8 @@ import { ESTADOS_ARREGLO } from "@/model/types";
 import { useTenant } from "@/app/providers/TenantProvider";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
+import Calendar from "@/app/components/ui/Calendar";
+import { formatCalendarDateLabel } from "@/lib/fechas";
 
 export type ArregloFilters = {
   fechaDesde: string;
@@ -53,6 +55,7 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (fechaDesde && fechaHasta && fechaDesde > fechaHasta) return;
     onApply({
       fechaDesde,
       fechaHasta,
@@ -87,26 +90,41 @@ export default function ArregloFiltersModal({ open, initial, onClose, onApply }:
       <div style={{ padding: "4px 0 12px" }}>
         <div css={styles.row}>
           <div style={styles.field}>
-            <label style={styles.label}>Fecha desde</label>
-            <input
-              data-testid="arreglos-filter-fecha-desde"
-              type="date"
-              style={styles.input}
-              value={fechaDesde}
-              onChange={(e) => setFechaDesde(e.target.value)}
-            />
+            <span style={styles.label}>Fecha desde</span>
+            <div style={styles.dateControl}>
+              <Calendar
+                value={fechaDesde}
+                onChange={setFechaDesde}
+                placeholder="Seleccionar fecha..."
+                dataTestId="arreglos-filter-fecha-desde"
+              >
+                <button type="button" data-testid="arreglos-filter-fecha-desde" aria-label="Elegir fecha desde" style={styles.calendarTrigger}>
+                  {fechaDesde ? formatCalendarDateLabel(fechaDesde) : "Seleccionar fecha..."}
+                </button>
+              </Calendar>
+              {fechaDesde ? <button type="button" aria-label="Limpiar fecha desde" style={styles.clearDate} onClick={() => setFechaDesde("")}>Limpiar</button> : null}
+            </div>
           </div>
           <div style={styles.field}>
-            <label style={styles.label}>Fecha hasta</label>
-            <input
-              data-testid="arreglos-filter-fecha-hasta"
-              type="date"
-              style={styles.input}
-              value={fechaHasta}
-              onChange={(e) => setFechaHasta(e.target.value)}
-            />
+            <span style={styles.label}>Fecha hasta</span>
+            <div style={styles.dateControl}>
+              <Calendar
+                value={fechaHasta}
+                onChange={setFechaHasta}
+                placeholder="Seleccionar fecha..."
+                dataTestId="arreglos-filter-fecha-hasta"
+              >
+                <button type="button" data-testid="arreglos-filter-fecha-hasta" aria-label="Elegir fecha hasta" style={styles.calendarTrigger}>
+                  {fechaHasta ? formatCalendarDateLabel(fechaHasta) : "Seleccionar fecha..."}
+                </button>
+              </Calendar>
+              {fechaHasta ? <button type="button" aria-label="Limpiar fecha hasta" style={styles.clearDate} onClick={() => setFechaHasta("")}>Limpiar</button> : null}
+            </div>
           </div>
         </div>
+        {fechaDesde && fechaHasta && fechaDesde > fechaHasta ? (
+          <div role="alert" style={styles.dateError}>La fecha desde debe ser anterior o igual a la fecha hasta.</div>
+        ) : null}
 
         <div css={styles.row}>
           <div style={styles.field}>
@@ -176,6 +194,26 @@ const styles = {
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
   },
+  dateControl: { display: "flex", alignItems: "center", gap: 8 },
+  calendarTrigger: {
+    width: "100%",
+    minHeight: 42,
+    textAlign: "left" as const,
+    padding: "0 12px",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    color: COLOR.TEXT.PRIMARY,
+    background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    cursor: "pointer",
+  },
+  clearDate: {
+    border: 0,
+    background: "transparent",
+    color: COLOR.TEXT.SECONDARY,
+    cursor: "pointer",
+    padding: "6px 0",
+  },
+  dateError: { color: COLOR.ICON.DANGER, fontSize: 12, marginTop: 8 },
   clearRow: {
     display: "flex",
     justifyContent: "flex-end",

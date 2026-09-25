@@ -1,6 +1,6 @@
 import { createClient } from "@/supabase/server";
 import { logger } from "@/lib/logger";
-import { operacionesService, type OperacionesStats } from "@/app/api/operaciones/operacionesService";
+import { operacionesService, type OperacionesStats, validateOperacionesDateFilters } from "@/app/api/operaciones/operacionesService";
 import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
 
@@ -22,6 +22,13 @@ export async function GET(req: Request) {
 		to: url.searchParams.get("to") || undefined,
 		tipo: tipos.length > 0 ? tipos : undefined,
 	};
+	const dateFilterError = validateOperacionesDateFilters(filters);
+	if (dateFilterError) {
+		return Response.json(
+			{ data: null, error: dateFilterError } satisfies OperacionesStatsResponse,
+			{ status: 400 }
+		);
+	}
 
 	const { data, error } = await operacionesService.stats(supabase, filters);
 	if (error) {

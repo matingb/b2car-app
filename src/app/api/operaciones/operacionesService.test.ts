@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { operacionesService } from "./operacionesService";
+import { operacionesService, validateOperacionesDateFilters } from "./operacionesService";
 import { ServiceError } from "../serviceError";
 
 describe("operacionesService.list", () => {
@@ -54,6 +54,25 @@ describe("operacionesService.list", () => {
 	});
 });
 
+describe("validateOperacionesDateFilters", () => {
+	it("acepta límites ISO con zona y fecha-only válida", () => {
+		expect(validateOperacionesDateFilters({
+			from: "2026-09-01T03:00:00.000Z",
+			to: "2026-09-14T03:00:00.000Z",
+		})).toBeNull();
+		expect(validateOperacionesDateFilters({ fecha: "2026-09-13" })).toBeNull();
+	});
+
+	it.each([
+		{ from: "2026-09-01T00:00:00", to: "2026-09-02T00:00:00.000Z" },
+		{ from: "2026-02-30" },
+		{ from: "2026-09-02T00:00:00.000Z", to: "2026-09-01T00:00:00.000Z" },
+		{ fecha: "2026-09-13", from: "2026-09-13" },
+	])("rechaza rangos inválidos: %o", (filters) => {
+		expect(validateOperacionesDateFilters(filters)).toBeTruthy();
+	});
+});
+
 describe("operacionesService.update", () => {
 	afterEach(() => vi.restoreAllMocks());
 
@@ -97,6 +116,22 @@ describe("operacionesService.update", () => {
 });
 
 describe("operacionesService.stats", () => {
+	it("reenvía los mismos límites ISO de período sin sumar otro día", async () => {
+		const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		await operacionesService.stats(supabase, {
+			from: "2026-09-01T03:00:00.000Z",
+			to: "2026-10-01T03:00:00.000Z",
+		});
+
+		expect(rpc).toHaveBeenCalledWith("rpc_operaciones_stats", {
+			p_from: "2026-09-01T03:00:00.000Z",
+			p_to: "2026-10-01T03:00:00.000Z",
+			p_tipos: null,
+		});
+	});
+
 	it("incluye los cobros de arreglos y trata las asignaciones como importe", async () => {
 		const rpc = vi.fn().mockResolvedValue({
 			data: [{ ventas: "100000", compras: "20000", asignaciones: "15000", cobros: "45000", gastos: "5000", neto: "120000" }],

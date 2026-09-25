@@ -6,11 +6,12 @@ import {
 	CreateTurnoInput
 } from "./turnosService";
 import { TurnoEstado } from "@/model/dtos";
+import { isValidDate } from "@/lib/fechas";
 
 const VALID_ESTADOS: readonly TurnoEstado[] = ["confirmado", "pendiente", "cancelado"] as const;
 
 function isIsoDate(value?: string | null): value is string {
-	return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+	return Boolean(value && isValidDate(value));
 }
 
 function isHourMinute(value?: string | null): value is string {
@@ -39,6 +40,12 @@ export async function GET(req: Request) {
 	}
 	if (to && !isIsoDate(to)) {
 		return Response.json({ data: [], error: "Query param 'to' inválido (YYYY-MM-DD)" }, { status: 400 });
+	}
+	if (fecha && (from || to)) {
+		return Response.json({ data: [], error: "Usá fecha o el rango from/to, no ambos." }, { status: 400 });
+	}
+	if (from && to && from > to) {
+		return Response.json({ data: [], error: "Query params 'from' y 'to' tienen un orden inválido." }, { status: 400 });
 	}
 	if (estado && !isTurnoEstado(estado)) {
 		return Response.json(

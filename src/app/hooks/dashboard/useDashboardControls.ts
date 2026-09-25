@@ -41,16 +41,18 @@ function loadGranularity(): Record<ActiveCard, Granularity> {
 export function useDashboardControls() {
     const { stats, loading, error, fetchStats } = useDashboard();
 
-    const [period, setPeriod] = useState<PeriodOption>(() => buildPeriodOptions(1)[0]);
+    const [period, setPeriod] = useState<PeriodOption>(() => buildPeriodOptions(1, new Date(), "UTC")[0]);
     const [granularity, setGranularity] = useState<Record<ActiveCard, Granularity>>(defaultGranularity);
     const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {
+        if (!hydrated) return;
         fetchStats({ from: period.from, to: period.to });
-    }, [fetchStats, period.from, period.to]);
+    }, [fetchStats, hydrated, period.from, period.to]);
 
     useEffect(() => {
         setGranularity(loadGranularity());
+        setPeriod(buildPeriodOptions(1, new Date(), "local")[0]);
         setHydrated(true);
     }, []);
 
@@ -62,9 +64,8 @@ export function useDashboardControls() {
     const handlePeriodChange = useCallback(
         (newPeriod: PeriodOption) => {
             setPeriod(newPeriod);
-            fetchStats({ from: newPeriod.from, to: newPeriod.to });
         },
-        [fetchStats]
+        [],
     );
 
     const arreglosData = useMemo(

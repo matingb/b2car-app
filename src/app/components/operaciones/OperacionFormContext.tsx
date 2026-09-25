@@ -6,8 +6,9 @@ import { useToast } from "@/app/providers/ToastProvider";
 import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import { finanzasClient } from "@/clients/finanzasClient";
-import { isValidDate, toISODateLocal, toISODateTimeWithCurrentTime } from "@/lib/fechas";
+import { isValidDate, toISODateLocal, toISODateTimeWithLocalCurrentTime, toLocalDateInputFormat } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
+import { logger } from "@/lib/logger";
 import type { TipoOperacion } from "@/model/types";
 import type { GastoFinanciero } from "@/model/finanzas";
 import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
@@ -113,7 +114,7 @@ export function OperacionFormProvider({
     gasto?.cuentaId ?? initialCuentaId ?? cuentaFavorita?.id ?? ""
   );
   const [cuentaDraft, setCuentaDraft] = useState<CuentaFinancieraDraft>(() => ({ ...EMPTY_CUENTA_FINANCIERA_DRAFT }));
-  const [fecha, setFecha] = useState<string>(() => (gasto?.fecha ? gasto.fecha.slice(0, 10) : toISODateLocal(new Date())));
+  const [fecha, setFecha] = useState<string>(() => (gasto?.fecha ? toLocalDateInputFormat(gasto.fecha) : toISODateLocal(new Date())));
   const [lineas, setLineas] = useState<OperacionLineaDraft[]>([createEmptyLinea(contextualStock?.stockId)]);
 
   const [categoriaGasto, setCategoriaGasto] = useState<string>(gasto?.categoria ?? "ALQUILER");
@@ -162,7 +163,7 @@ export function OperacionFormProvider({
 
     if (gasto) {
       setTipoState("GASTO");
-      setFecha(gasto.fecha ? gasto.fecha.slice(0, 10) : toISODateLocal(new Date()));
+      setFecha(gasto.fecha ? toLocalDateInputFormat(gasto.fecha) : toISODateLocal(new Date()));
       setLineas([createEmptyLinea()]);
       setTallerIdState(talleres[0]?.id ?? "");
       setCuentaFinancieraId(gasto.cuentaId || "");
@@ -328,6 +329,8 @@ export function OperacionFormProvider({
   const submitForm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit || !tipo) return;
+    const fechaTimestamp = toISODateTimeWithLocalCurrentTime(fecha);
+    if (!fechaTimestamp) return;
 
     let targetCuentaId = cuentaFinancieraId;
     if (isCreatingCuenta) {
@@ -347,7 +350,7 @@ export function OperacionFormProvider({
           cuentaId: targetCuentaId,
           categoria: categoriaGasto,
           importe: Number(montoGasto),
-          fecha: toISODateTimeWithCurrentTime(fecha),
+          fecha: fechaTimestamp,
           descripcion: descripcionGasto.trim() || null,
           idempotencyKey: generateUuidV4(),
         };
@@ -374,7 +377,7 @@ export function OperacionFormProvider({
       const payload = {
         tipo,
         taller_id: tallerId,
-        fecha: toISODateTimeWithCurrentTime(fecha),
+        fecha: fechaTimestamp,
         cuenta_financiera_id: targetCuentaId,
         idempotency_key: generateUuidV4(),
         lineas: lineas.map((l) => {
@@ -395,7 +398,7 @@ export function OperacionFormProvider({
         try {
           await Promise.all([refreshCuentas(), onSuccess?.()]);
         } catch (refreshError) {
-          console.error("No se pudieron refrescar los datos luego de crear la operación", refreshError);
+          logger.error("No se pudieron refrescar los datos luego de crear la operación", refreshError);
         }
         const tallerNombre = talleres.find((t) => t.id === tallerId)?.nombre ?? "el taller seleccionado";
         success(

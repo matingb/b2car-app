@@ -3,12 +3,12 @@
 import type { Arreglo } from "@/model/types";
 import { useMemo, useState } from "react";
 import type { ArregloFilters } from "@/app/components/arreglos/ArregloFiltersModal";
-import { formatDateLabel } from "@/lib/fechas";
+import { formatCalendarDateLabel, localCalendarDateRangeISO } from "@/lib/fechas";
 
 export type ChipKind = "fechaRange" | "fechaDesde" | "fechaHasta" | "patente" | "estado" | "estadoPago";
 export type Chip = { key: string; text: string; kind: ChipKind };
 
-type DateRange = { from: Date | null; to: Date | null };
+type DateRange = { from: number | null; to: number | null; valid: boolean };
 
 function createEmptyFilters(): ArregloFilters {
   return {
@@ -23,13 +23,15 @@ function createEmptyFilters(): ArregloFilters {
 
 function getDateRange(filters: ArregloFilters): DateRange {
   const hasDateFilter = filters.fechaDesde || filters.fechaHasta;
-  if (!hasDateFilter) return { from: null, to: null };
+  if (!hasDateFilter) return { from: null, to: null, valid: true };
 
-  const from = filters.fechaDesde ? new Date(filters.fechaDesde) : null;
-  const to = filters.fechaHasta ? new Date(filters.fechaHasta) : null;
-  if (from) from.setHours(0, 0, 0, 0);
-  if (to) to.setHours(23, 59, 59, 999);
-  return { from, to };
+  const bounds = localCalendarDateRangeISO(filters.fechaDesde || undefined, filters.fechaHasta || undefined);
+  if (!bounds) return { from: null, to: null, valid: false };
+  return {
+    from: bounds.from ? Date.parse(bounds.from) : null,
+    to: bounds.to ? Date.parse(bounds.to) : null,
+    valid: true,
+  };
 }
 
 function matchesSearch(arreglo: Arreglo, query: string) {
@@ -75,12 +77,13 @@ function matchesEstadoPagoFilter(arreglo: Arreglo, estadoPagoFilter: string) {
 }
 
 function matchesDateRange(arreglo: Arreglo, range: DateRange) {
+  if (!range.valid) return false;
   if (!range.from && !range.to) return true;
 
-  const fecha = new Date(arreglo.fecha);
-  if (Number.isNaN(fecha.getTime())) return false;
-  if (range.from && fecha < range.from) return false;
-  if (range.to && fecha > range.to) return false;
+  const fecha = Date.parse(arreglo.fecha);
+  if (Number.isNaN(fecha)) return false;
+  if (range.from !== null && fecha < range.from) return false;
+  if (range.to !== null && fecha >= range.to) return false;
   return true;
 }
 
@@ -119,8 +122,8 @@ export function useArreglosFilters(arreglos?: Arreglo[]) {
     const items: Chip[] = [];
 
     if (filters.fechaDesde || filters.fechaHasta) {
-      const desde = formatDateLabel(filters.fechaDesde);
-      const hasta = formatDateLabel(filters.fechaHasta);
+      const desde = formatCalendarDateLabel(filters.fechaDesde);
+      const hasta = formatCalendarDateLabel(filters.fechaHasta);
       if (filters.fechaDesde && filters.fechaHasta) {
         items.push({
           key: "fechaRange",

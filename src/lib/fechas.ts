@@ -27,6 +27,7 @@ export function toISODateLocal(date: Date = new Date()): string {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+
 export type CalendarDateParts = { year: number; month: number; day: number };
 
 /** Parse and validate a YYYY-MM-DD calendar date without interpreting it as UTC. */
@@ -64,11 +65,60 @@ export function isValidISODateTimeWithTimezone(value: string): boolean {
   return Number.isFinite(Date.parse(value));
 }
 
+/** Turn legacy date-only API bounds into complete UTC days. */
+export function utcCalendarDateRangeISO(from?: string, through?: string): {
+  from: string | undefined;
+  to: string | undefined;
+} | null {
+  const fromParts = from ? parseCalendarDate(from) : null;
+  const throughParts = through ? parseCalendarDate(through) : null;
+  if ((from && !fromParts) || (through && !throughParts)) return null;
+
+  const start = fromParts ? `${from}T00:00:00.000Z` : undefined;
+  let end: string | undefined;
+  if (throughParts) {
+    const date = new Date(0);
+    date.setUTCFullYear(throughParts.year, throughParts.month - 1, throughParts.day + 1);
+    date.setUTCHours(0, 0, 0, 0);
+    end = date.toISOString();
+  }
+  if (start && end && Date.parse(start) >= Date.parse(end)) return null;
+  return { from: start ?? undefined, to: end ?? undefined };
+}
+
 function localMidnight({ year, month, day }: CalendarDateParts): Date {
   const date = new Date(0);
   date.setFullYear(year, month - 1, day);
   date.setHours(0, 0, 0, 0);
   return date;
+}
+
+/** Convert a calendar date to its local midnight as an ISO timestamp. */
+export function localCalendarDateStartISO(value: string): string | null {
+  const parts = parseCalendarDate(value);
+  if (!parts) return null;
+  return localMidnight(parts).toISOString();
+}
+
+/** Convert a calendar date to the following local midnight as an exclusive bound. */
+export function localCalendarDateEndExclusiveISO(value: string): string | null {
+  const parts = parseCalendarDate(value);
+  if (!parts) return null;
+  const date = localMidnight(parts);
+  date.setDate(date.getDate() + 1);
+  return date.toISOString();
+}
+
+/** Build local timestamp bounds for an optional, inclusive calendar date range. */
+export function localCalendarDateRangeISO(from?: string, through?: string): {
+  from: string | undefined;
+  to: string | undefined;
+} | null {
+  const start = from ? localCalendarDateStartISO(from) : undefined;
+  const end = through ? localCalendarDateEndExclusiveISO(through) : undefined;
+  if ((from && !start) || (through && !end)) return null;
+  if (start && end && Date.parse(start) >= Date.parse(end)) return null;
+  return { from: start ?? undefined, to: end ?? undefined };
 }
 
 /** Keep a selected calendar day and combine it with the current local clock time. */
@@ -153,11 +203,7 @@ export function getMonthGrid(date: Date) {
  * @returns true si es una fecha válida, false en caso contrario
  */
 export const isValidDate = (dateString: string): boolean => {
-  if (!dateString || dateString.trim().length === 0) return false;
-  const date = new Date(dateString);
-  return (
-    !isNaN(date.getTime()) && dateString === date.toISOString().split("T")[0]
-  );
+  return parseCalendarDate(dateString) !== null;
 };
 
 /**
@@ -184,6 +230,14 @@ export const toDateInputFormat = (dateString: string | undefined): string => {
   return `${year}-${month}-${day}`;
 };
 
+/** Convert a timestamp to the browser's displayed calendar day for editing. */
+export function toLocalDateInputFormat(dateString: string | undefined): string {
+  if (!dateString) return "";
+  if (parseCalendarDate(dateString)) return dateString;
+  const date = new Date(dateString.replace(" ", "T"));
+  return Number.isNaN(date.getTime()) ? "" : toISODateLocal(date);
+}
+
 /**
  * Formatea una fecha a DD/MM/YYYY (usado en UI), intentando normalizar strings con espacio.
  * Mantiene el comportamiento previo usado en ArregloItem y useArreglosFilters.
@@ -208,6 +262,18 @@ export function formatDateLabel(
     timeZone: "UTC",
   }).format(d);
 }
+
+/** Format a date-only YYYY-MM-DD value without converting it into an instant. */
+export function formatCalendarDateLabel(
+  dateString: string | null | undefined,
+  fallback = "",
+): string {
+  if (!dateString) return fallback;
+  const parts = parseCalendarDate(dateString);
+  if (!parts) return fallback;
+  return `${String(parts.day).padStart(2, "0")}/${String(parts.month).padStart(2, "0")}/${parts.year}`;
+}
+
 /** Format a timestamptz date in the browser's local timezone. */
 export function formatLocalDateLabel(
   dateString: string | null | undefined,
@@ -248,7 +314,6 @@ export function formatDateTimeLabel(
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: "UTC",
   }).format(d);
 }
 

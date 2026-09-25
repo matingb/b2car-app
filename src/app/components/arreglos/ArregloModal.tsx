@@ -16,7 +16,7 @@ import CuentaFinancieraAutocomplete, {
   CREATE_CUENTA_VALUE,
 } from "@/app/components/finanzas/CuentaFinancieraAutocomplete";
 import { UpdateArregloInput } from "@/clients/arreglosClient";
-import { toDateInputFormat, toISODateLocal } from "@/lib/fechas";
+import { toLocalDateInputFormat, toISODateLocal, toISODateTimeWithLocalCurrentTime } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
@@ -45,7 +45,7 @@ type Props = {
 };
 
 export function getArregloModalFecha(initialFecha?: string): string {
-  return initialFecha ? toDateInputFormat(initialFecha) : toISODateLocal(new Date());
+  return initialFecha ? toLocalDateInputFormat(initialFecha) : toISODateLocal(new Date());
 }
 
 export function normalizeArregloObservaciones(observaciones: string, isEdit: boolean): string | undefined {
@@ -228,6 +228,11 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     setSubmitting(true);
     setError(null);
     try {
+      const fechaTimestamp = toISODateTimeWithLocalCurrentTime(fecha);
+      if (!fechaTimestamp) throw new Error("La fecha del arreglo no es válida");
+      const fechaCobroTimestamp = fechaCobro
+        ? toISODateTimeWithLocalCurrentTime(fechaCobro)
+        : null;
       let targetCuentaId = cuentaFinancieraId;
       if (requiereCuentaFinanciera && isCreatingCuenta) {
         const created = await createCuenta({
@@ -243,7 +248,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       if (isEdit && initial?.id) {
         const payload: UpdateArregloInput = {
           estado,
-          fecha,
+          fecha: fechaTimestamp,
           kilometraje_leido: Number(km) || 0,
           combustible_leido: combustibleLeido ?? null,
           observaciones: normalizeArregloObservaciones(observaciones, isEdit),
@@ -272,7 +277,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           vehiculo_id: finalVehiculoId!,
           taller_id: tallerSeleccionadoId,
           estado,
-          fecha,
+          fecha: fechaTimestamp,
           kilometraje_leido: Number(km) || 0,
           combustible_leido: combustibleLeido,
           precio_final: precioFinalCalculado,
@@ -283,7 +288,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
             cuenta_financiera_id: targetCuentaId,
             idempotency_key: generateUuidV4(),
           } : {}),
-          ...(canCobros && estaPago ? { fecha_cobro: fechaCobro } : {}),
+          ...(canCobros && estaPago && fechaCobroTimestamp ? { fecha_cobro: fechaCobroTimestamp } : {}),
           extra_data: extraData || undefined,
           detalles,
           repuestos: internal.repuestosDraft

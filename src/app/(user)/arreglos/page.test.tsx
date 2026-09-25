@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Arreglo } from "@/model/types";
 import { createArreglo, createVehiculo } from "@/tests/factories";
@@ -107,12 +107,8 @@ async function aplicarFiltros(params: {
     await userEvent.type(screen.getByTestId("arreglos-filter-patente"), params.patente);
   }
 
-  fireEvent.change(screen.getByTestId("arreglos-filter-fecha-desde"), {
-    target: { value: params.fechaDesde },
-  });
-  fireEvent.change(screen.getByTestId("arreglos-filter-fecha-hasta"), {
-    target: { value: params.fechaHasta },
-  });
+  if (params.fechaDesde) await selectCalendarDate("arreglos-filter-fecha-desde", params.fechaDesde);
+  if (params.fechaHasta) await selectCalendarDate("arreglos-filter-fecha-hasta", params.fechaHasta);
 
   if (params.estadoPago) {
     await userEvent.click(screen.getByTestId("arreglos-filter-estado-pago"));
@@ -122,6 +118,15 @@ async function aplicarFiltros(params: {
   await userEvent.click(screen.getByTestId("modal-submit"));
   await runPendingPromises();
   expect(screen.queryByTestId("modal-overlay")).not.toBeInTheDocument();
+}
+
+async function selectCalendarDate(testId: string, date: string) {
+  const [year, month] = date.split("-");
+  await userEvent.click(screen.getByTestId(testId));
+  await userEvent.click(screen.getByTestId(`${testId}-select-year`));
+  await userEvent.click(screen.getByTestId(`${testId}-year-${year}`));
+  await userEvent.click(screen.getByTestId(`${testId}-month-${Number(month) - 1}`));
+  await userEvent.click(screen.getByTestId(`${testId}-day-${date}`));
 }
 
 beforeAll(() => {

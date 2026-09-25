@@ -16,8 +16,9 @@ export type ArregloListFilters = {
   patente?: string;
   estado?: string;
   estadoPago?: string;
-  fechaDesde?: string;
-  fechaHasta?: string;
+  from?: string;
+  /** Exclusive upper bound for timestamp columns. */
+  to?: string;
   limit: number;
 };
 
@@ -176,8 +177,8 @@ export const supabaseArregloRepository: ArregloRepository = {
 
     if (filters.tallerId) query = query.eq("taller_id", filters.tallerId);
     if (filters.clienteId) query = query.eq("cliente_id", filters.clienteId);
-    if (filters.fechaDesde) query = query.gte("fecha", filters.fechaDesde);
-    if (filters.fechaHasta) query = query.lte("fecha", filters.fechaHasta);
+    if (filters.from) query = query.gte("fecha", filters.from);
+    if (filters.to) query = query.lt("fecha", filters.to);
     if (safeEstado) query = query.eq("estado", safeEstado);
     if (safeEstadoPago === "PAGADO") {
       query = query.eq("esta_pago", true);

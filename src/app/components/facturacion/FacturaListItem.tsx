@@ -12,6 +12,7 @@ import {
   type FacturaElectronicaResumen,
 } from "@/lib/facturacion/types";
 import { COLOR } from "@/theme/theme";
+import { formatCalendarDateLabel } from "@/lib/fechas";
 
 type Props = {
   invoice: FacturaElectronicaResumen;
@@ -40,8 +41,7 @@ function formatMoney(value: number) {
 }
 
 function formatDate(value: string) {
-  if (!value) return "-";
-  return new Intl.DateTimeFormat("es-AR").format(new Date(`${value}T12:00:00`));
+  return formatCalendarDateLabel(value, "-");
 }
 
 function voucherNumber(invoice: FacturaElectronicaResumen) {

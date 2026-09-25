@@ -36,8 +36,8 @@ type OperacionesContextType = {
 
 const OperacionesContext = createContext<OperacionesContextType | null>(null);
 
-function getCurrentMonthPeriod(): OperacionesPeriod {
-	return buildPeriodOptions(1)[0];
+function getCurrentMonthPeriod(timezone: "local" | "UTC" = "local"): OperacionesPeriod {
+	return buildPeriodOptions(1, new Date(), timezone)[0];
 }
 
 export function OperacionesProvider({ children }: { children: React.ReactNode }) {
@@ -45,7 +45,8 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 	const [stats, setStats] = useState<OperacionesStats | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [selectedTiposState, setSelectedTiposState] = useState<TipoOperacion[]>([]);
-	const [period, setPeriodState] = useState<OperacionesPeriod>(getCurrentMonthPeriod);
+	const [period, setPeriodState] = useState<OperacionesPeriod>(() => getCurrentMonthPeriod("UTC"));
+	const [periodReady, setPeriodReady] = useState(false);
 	const [page, setCurrentPage] = useState(1);
 	const [reloadVersion, setReloadVersion] = useState(0);
 	const [pagination, setPagination] = useState<OperacionesPagination>({
@@ -65,6 +66,11 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 		to: period.to,
 		...(selectedTiposState.length > 0 ? { tipo: selectedTiposState } : {}),
 	}), [period.from, period.to, selectedTiposState]);
+
+	useEffect(() => {
+		setPeriodState(getCurrentMonthPeriod());
+		setPeriodReady(true);
+	}, []);
 
 	const refreshCore = useCallback(async (
 		signal: AbortSignal,
@@ -115,8 +121,9 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 	});
 
 	useEffect(() => {
+		if (!periodReady) return;
 		refreshDebounced.runNow(activeFilters, page);
-	}, [activeFilters, page, refreshDebounced, reloadVersion]);
+	}, [activeFilters, page, periodReady, refreshDebounced, reloadVersion]);
 
 	const setSelectedTipos = useCallback<React.Dispatch<React.SetStateAction<TipoOperacion[]>>>((next) => {
 		setCurrentPage(1);

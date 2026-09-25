@@ -2,12 +2,12 @@ import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import type { OperacionDTO, OperacionLineaDTO } from "@/model/dtos";
 import { logger } from "@/lib/logger";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
-import { toISODateTimeWithCurrentTime } from "@/lib/fechas";
+import { isValidDate, isValidISODateTimeWithTimezone, toISODateTimeWithCurrentTime } from "@/lib/fechas";
 
 export type OperacionesFilters = {
-	fecha?: string; // YYYY-MM-DD
-	from?: string; // YYYY-MM-DD
-	to?: string; // YYYY-MM-DD
+	fecha?: string; // YYYY-MM-DD, a complete UTC calendar day for compatibility
+	from?: string; // ISO instant or legacy YYYY-MM-DD
+	to?: string; // exclusive ISO instant or legacy inclusive YYYY-MM-DD
 	tipo?: string[];
 };
 
@@ -108,6 +108,26 @@ function toTimestampEndExclusive(value: string) {
 	const date = new Date(`${value}T00:00:00.000Z`);
 	date.setUTCDate(date.getUTCDate() + 1);
 	return date.toISOString();
+}
+
+function isValidFilterDate(value: string): boolean {
+	return DATE_ONLY_PATTERN.test(value)
+		? isValidDate(value)
+		: isValidISODateTimeWithTimezone(value);
+}
+
+/** Validate date filter syntax and ordering before either list or stats RPC runs. */
+export function validateOperacionesDateFilters(filters: OperacionesFilters): string | null {
+	const hasRange = Boolean(filters.from || filters.to);
+	if (filters.fecha && hasRange) return "Usá fecha o from/to, no ambos formatos.";
+
+	if (filters.fecha && !isValidDate(filters.fecha)) return "fecha debe tener formato YYYY-MM-DD válido.";
+	if (filters.from && !isValidFilterDate(filters.from)) return "from debe ser una fecha válida con zona horaria o YYYY-MM-DD.";
+	if (filters.to && !isValidFilterDate(filters.to)) return "to debe ser una fecha válida con zona horaria o YYYY-MM-DD.";
+	if (filters.from && filters.to && Date.parse(toTimestampStart(filters.from)) >= Date.parse(toTimestampEndExclusive(filters.to))) {
+		return "from debe ser anterior a to.";
+	}
+	return null;
 }
 
 export const operacionesService = {
