@@ -42,6 +42,7 @@ import CategoriaChip from "@/app/components/arreglos/lineas/shared/CategoriaChip
 import { getArregloDeleteConfirmationMessage } from "@/app/components/arreglos/arregloDeleteConfirmation";
 import { css } from "@emotion/react";
 import type { FacturaElectronicaResumen } from "@/lib/facturacion/types";
+import type { FacturaBadgeData } from "@/app/components/arreglos/ArregloFacturaBadge";
 
 export interface ArregloSummaryCardProps {
   data: ArregloDetalleData;
@@ -87,6 +88,16 @@ export default function ArregloSummaryCard({
   );
 
   if (!arreglo) return null;
+
+  const facturaParaBadge: FacturaBadgeData | null = facturaElectronica
+    ? {
+        id: facturaElectronica.id,
+        estado: facturaElectronica.estado,
+        clase_comprobante: facturaElectronica.claseComprobante,
+        punto_venta: facturaElectronica.puntoVenta,
+        numero_comprobante: facturaElectronica.numeroComprobante ?? undefined,
+      }
+    : null;
 
   const categoriasMostradas = categoriasDelArreglo.slice(0, 3);
   const categoriasRestantes = categoriasDelArreglo.length - categoriasMostradas.length;
@@ -154,7 +165,7 @@ export default function ArregloSummaryCard({
               variant="inline"
               size="md"
               totalCalculado={totalCalculado}
-              facturaElectronica={facturaElectronica}
+              facturaElectronica={facturaParaBadge}
               canEmitFactura={canViewBilling && canEmitFactura}
               hidePagoTextOnMobile={true}
               onStateChange={handleEstadoChange}

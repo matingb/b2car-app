@@ -35,14 +35,50 @@ describe("ArregloFacturaBadge", () => {
         factura={{
           id: "fact-1",
           estado: "AUTORIZADA",
-          clase_comprobante: "FC B",
+          clase_comprobante: "A",
           punto_venta: 1,
-          numero_comprobante: 4511,
+          numero_comprobante: 2,
         }}
       />
     );
 
-    expect(screen.getByTestId("arreglo-factura-badge")).toHaveTextContent("FC B-0001-00004511");
+    expect(screen.getByTestId("arreglo-factura-badge")).toHaveTextContent("Factura emitida (A-0001-00000002)");
+  });
+
+  it("renderiza 'Factura emitida' sin número si numero_comprobante no existe", () => {
+    render(
+      <ArregloFacturaBadge
+        arregloId="arr-1"
+        factura={{
+          id: "fact-2",
+          estado: "AUTORIZADA",
+          clase_comprobante: "A",
+          punto_venta: 1,
+        }}
+      />
+    );
+
+    expect(screen.getByTestId("arreglo-factura-badge")).toHaveTextContent("Factura emitida");
+    expect(screen.getByTestId("arreglo-factura-badge")).not.toHaveTextContent("00000001");
+    expect(screen.getByTestId("arreglo-factura-badge")).not.toHaveTextContent("(");
+  });
+
+  it("renderiza 'Factura emitida' sin número si punto_venta o numero_comprobante son menores o iguales a cero", () => {
+    render(
+      <ArregloFacturaBadge
+        arregloId="arr-1"
+        factura={{
+          id: "fact-4",
+          estado: "AUTORIZADA",
+          clase_comprobante: "B",
+          punto_venta: 0,
+          numero_comprobante: -5,
+        }}
+      />
+    );
+
+    expect(screen.getByTestId("arreglo-factura-badge")).toHaveTextContent("Factura emitida");
+    expect(screen.getByTestId("arreglo-factura-badge")).not.toHaveTextContent("(");
   });
 
   it("renderiza el badge cuando no hay factura emitida", () => {

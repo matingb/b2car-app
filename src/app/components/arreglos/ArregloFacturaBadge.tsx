@@ -111,12 +111,12 @@ export default function ArregloFacturaBadge({
 
   const isEmitida = Boolean(factura && factura.estado === "AUTORIZADA");
 
-  const formatFacturaNumero = () => {
-    if (!factura) return "";
-    const clase = factura.clase_comprobante || "FC";
-    const pv = String(factura.punto_venta ?? 1).padStart(4, "0");
-    const num = String(factura.numero_comprobante ?? 1).padStart(8, "0");
-    return `${clase}-${pv}-${num}`;
+  const formatFacturaNumero = (): string => {
+    const clase = factura?.clase_comprobante?.trim();
+    const pv = factura?.punto_venta;
+    const num = factura?.numero_comprobante;
+    if (!clase || !pv || !num) return "";
+    return `${clase}-${String(pv).padStart(4, "0")}-${String(num).padStart(8, "0")}`;
   };
 
   const handleToggleFacturable = async (nextValue: boolean) => {
