@@ -83,7 +83,7 @@ const tipoConfig: Record<
         bg: Color(COLOR.SEMANTIC.WARNING).alpha(0.12).toString(),
     },
     INGRESO: {
-        label: "Ingreso",
+        label: "Ingreso manual",
         icon: <CircleDollarSign size={18} />,
         color: COLOR.SEMANTIC.SUCCESS,
         bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
@@ -273,6 +273,16 @@ export default function OperacionesPage() {
                     title: "Eliminar cobro",
                     message: "Al eliminar este cobro se revertira el ingreso de la cuenta y se actualizara el estado de pago del arreglo asociado.",
                     acceptLabel: "Eliminar cobro",
+                    cancelLabel: "Cancelar",
+                });
+                if (!accepted) return;
+            }
+            if (operacion.tipo === "INGRESO") {
+                const importe = formatArs(Math.abs(Number(operacion.monto) || 0));
+                const accepted = await confirm({
+                    title: "Eliminar ingreso manual",
+                    message: `Al eliminar este ingreso manual se registrará una reversión contable por ${importe} y el saldo de la cuenta disminuirá por ese importe.`,
+                    acceptLabel: "Eliminar ingreso",
                     cancelLabel: "Cancelar",
                 });
                 if (!accepted) return;

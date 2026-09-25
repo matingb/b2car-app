@@ -15,7 +15,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { formatArs } from "@/lib/format";
-import { formatDateLabel } from "@/lib/fechas";
+import { formatDateLabel, formatLocalDateLabel } from "@/lib/fechas";
 
 type Props = {
   movimiento: MovimientoFinanciero;
@@ -26,6 +26,7 @@ type Props = {
 const LABELS: Record<string, string> = {
   APERTURA_CUENTA: "Saldo inicial",
   GASTO: "Gasto",
+  INGRESO: "Ingreso manual",
   COBRO_ARREGLO: "Cobro de arreglo",
   COMPRA_STOCK: "Compra de stock",
   VENTA_STOCK: "Venta de stock",
@@ -120,7 +121,11 @@ export default function MovimientoFinancieroItem({
             {movimiento.descripcion || presentation.label}
           </div>
           <div style={styles.meta}>
-            <span>{formatDateLabel(movimiento.fecha)}</span>
+            <span>
+              {movimiento.tipo === "INGRESO"
+                ? formatLocalDateLabel(movimiento.fecha)
+                : formatDateLabel(movimiento.fecha)}
+            </span>
             <span style={styles.dot}>·</span>
             <span>{presentation.label}</span>
             {categoria ? (

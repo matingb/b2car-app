@@ -27,6 +27,61 @@ export function toISODateLocal(date: Date = new Date()): string {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+export type CalendarDateParts = { year: number; month: number; day: number };
+
+/** Parse and validate a YYYY-MM-DD calendar date without interpreting it as UTC. */
+export function parseCalendarDate(value: string): CalendarDateParts | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const isLeapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, isLeapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+  if (year < 1 || month < 1 || month > 12 || day < 1 || day > daysInMonth[month - 1]) {
+    return null;
+  }
+  return { year, month, day };
+}
+
+const ISO_DATE_TIME_WITH_ZONE = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|([+-])(\d{2}):(\d{2}))$/;
+
+/** Validate a complete ISO date-time that explicitly includes its UTC offset. */
+export function isValidISODateTimeWithTimezone(value: string): boolean {
+  const match = ISO_DATE_TIME_WITH_ZONE.exec(value);
+  if (!match || !parseCalendarDate(match[1])) return false;
+  const hour = Number(match[2]);
+  const minute = Number(match[3]);
+  const second = Number(match[4]);
+  if (hour > 23 || minute > 59 || second > 59) return false;
+  if (match[6] !== "Z") {
+    const offsetHour = Number(match[8]);
+    const offsetMinute = Number(match[9]);
+    if (offsetHour > 14 || offsetMinute > 59 || (offsetHour === 14 && offsetMinute !== 0)) return false;
+  }
+  return Number.isFinite(Date.parse(value));
+}
+
+function localMidnight({ year, month, day }: CalendarDateParts): Date {
+  const date = new Date(0);
+  date.setFullYear(year, month - 1, day);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+/** Keep a selected calendar day and combine it with the current local clock time. */
+export function toISODateTimeWithLocalCurrentTime(
+  dateInput: string,
+  now: Date = new Date(),
+): string | null {
+  const parts = parseCalendarDate(dateInput);
+  if (!parts || Number.isNaN(now.getTime())) return null;
+  const date = localMidnight(parts);
+  date.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+  return date.toISOString();
+}
 
 /**
  * Completa una fecha de calendario (YYYY-MM-DD) con la hora local actual para
@@ -152,6 +207,20 @@ export function formatDateLabel(
     day: "2-digit",
     timeZone: "UTC",
   }).format(d);
+}
+/** Format a timestamptz date in the browser's local timezone. */
+export function formatLocalDateLabel(
+  dateString: string | null | undefined,
+  fallback = "",
+): string {
+  if (!dateString) return fallback;
+  const date = new Date(dateString.replace(" ", "T"));
+  if (Number.isNaN(date.getTime())) return fallback;
+  return new Intl.DateTimeFormat(APP_LOCALE, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
 /**

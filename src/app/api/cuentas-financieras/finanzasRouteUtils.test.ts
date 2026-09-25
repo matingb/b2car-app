@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapCuenta, rpcErrorMessage, validateUpdateCuenta, validateUuid } from "./finanzasRouteUtils";
+import { mapCuenta, rpcErrorMessage, rpcStatus, validateCreateIngresoManual, validateUpdateCuenta, validateUuid } from "./finanzasRouteUtils";
 
 describe("validateUuid", () => {
   it("acepta UUIDs canónicos legacy para consultar registros existentes", () => {
@@ -48,5 +48,45 @@ describe("rpcErrorMessage", () => {
   it("devuelve el mensaje fallback cuando el error es desconocido o null", () => {
     expect(rpcErrorMessage(null, "Error por defecto")).toBe("Error por defecto");
     expect(rpcErrorMessage({ code: "UNKNOWN", message: "tech error" }, "Error por defecto")).toBe("Error por defecto");
+  });
+});
+
+describe("rpcStatus", () => {
+  it("traduce el rechazo de permisos de la base a 403", () => {
+    expect(rpcStatus({ code: "42501" })).toBe(403);
+  });
+});
+
+describe("validateCreateIngresoManual", () => {
+  const validInput = {
+    cuentaId: "11111111-1111-4111-8111-111111111111",
+    importe: 1250.5,
+    fecha: "2026-09-24T23:55:00-03:00",
+    descripcion: "  Aporte de capital  ",
+    idempotencyKey: "55555555-5555-4555-8555-555555555555",
+  };
+
+  it("valida los campos y conserva el timestamp ISO con su zona horaria", () => {
+    expect(validateCreateIngresoManual(validInput)).toEqual({
+      value: {
+        ...validInput,
+        descripcion: "Aporte de capital",
+      },
+    });
+  });
+
+  it.each([0, -1, 1.001, 1_000_000_000_000])("rechaza importe inválido: %s", (importe) => {
+    expect(validateCreateIngresoManual({ ...validInput, importe }).error).toBeTruthy();
+  });
+
+  it.each([undefined, "2026-09-24", "2026-02-30T12:00:00-03:00", "no-es-fecha"])(
+    "requiere una fecha ISO completa y válida (%s)",
+    (fecha) => {
+      expect(validateCreateIngresoManual({ ...validInput, fecha }).error).toContain("fecha");
+    }
+  );
+
+  it.each([undefined, "   ", "x".repeat(2_001)])("requiere un concepto válido", (descripcion) => {
+    expect(validateCreateIngresoManual({ ...validInput, descripcion }).error).toContain("descripcion");
   });
 });

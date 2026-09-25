@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { CuentaFinanciera } from "@/model/finanzas";
 
 const obtenerCuenta = vi.fn();
 const listarMovimientos = vi.fn();
 const listarCuentas = vi.fn();
+const crearIngresoManual = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "11111111-1111-4111-8111-111111111111" }),
@@ -32,6 +33,7 @@ vi.mock("@/clients/finanzasClient", () => ({
     actualizarCuenta: vi.fn(),
     eliminarCuenta: vi.fn(),
     crearTransferencia: vi.fn(),
+    crearIngresoManual: (...args: unknown[]) => crearIngresoManual(...args),
   },
 }));
 
@@ -55,6 +57,7 @@ describe("CuentaFinancieraDetailPage", () => {
     obtenerCuenta.mockReset();
     listarMovimientos.mockReset();
     listarCuentas.mockReset();
+    crearIngresoManual.mockReset();
     obtenerCuenta.mockResolvedValue({ data: cuenta, error: null });
     listarMovimientos.mockResolvedValue({ data: [], error: null });
     listarCuentas.mockResolvedValue({ data: [cuenta], error: null });
@@ -75,6 +78,43 @@ describe("CuentaFinancieraDetailPage", () => {
     await waitFor(() => {
       expect(obtenerCuenta).toHaveBeenCalledWith(cuenta.id);
       expect(listarMovimientos).toHaveBeenCalledWith(cuenta.id, { limit: 50, offset: 0 });
+    });
+  });
+
+  it("permite registrar un ingreso desde el detalle y actualiza saldo e historial", async () => {
+    crearIngresoManual.mockResolvedValue({
+      data: {
+        id: "33333333-3333-4333-8333-333333333333",
+        cuentaId: cuenta.id,
+        importe: 250,
+        fecha: "2026-09-24T12:00:00.000Z",
+        descripcion: "Aporte",
+        createdAt: "2026-09-24T12:00:00.000Z",
+      },
+      error: null,
+    });
+
+    render(
+      <CuentasFinancierasProvider>
+        <CuentaFinancieraDetailPage />
+      </CuentasFinancierasProvider>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Nuevo ingreso" }));
+    expect(await screen.findByTestId("ingreso-manual-cuenta")).toHaveTextContent("Caja principal");
+    fireEvent.change(screen.getByTestId("ingreso-manual-importe"), { target: { value: "250" } });
+    fireEvent.change(screen.getByTestId("ingreso-manual-descripcion"), { target: { value: "Aporte" } });
+    fireEvent.click(screen.getByTestId("modal-submit"));
+
+    await waitFor(() => expect(crearIngresoManual).toHaveBeenCalledTimes(1));
+    expect(crearIngresoManual.mock.calls[0][0]).toMatchObject({
+      cuentaId: cuenta.id,
+      importe: 250,
+      descripcion: "Aporte",
+    });
+    await waitFor(() => {
+      expect(obtenerCuenta).toHaveBeenCalledTimes(2);
+      expect(listarMovimientos).toHaveBeenCalledTimes(2);
     });
   });
 });
