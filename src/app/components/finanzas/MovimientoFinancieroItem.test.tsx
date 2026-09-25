@@ -54,6 +54,49 @@ describe("MovimientoFinancieroItem", () => {
     expect(screen.getByText(/\+ \$5\.000/)).toBeInTheDocument();
   });
 
+  it("identifica el ingreso manual y conserva visible el concepto", () => {
+    const movement: MovimientoFinanciero = {
+      ...sampleMovement,
+      tipo: "INGRESO",
+      importe: 2500,
+      descripcion: "Aporte de capital",
+      categoria: null,
+    };
+
+    render(<MovimientoFinancieroItem movimiento={movement} />);
+
+    expect(screen.getByText("Aporte de capital")).toBeInTheDocument();
+    expect(screen.getByText("Ingreso manual")).toBeInTheDocument();
+    expect(screen.getByText(/\+ \$2\.500/)).toBeInTheDocument();
+  });
+
+  it("muestra la fecha local elegida para un ingreso manual", () => {
+    const movement: MovimientoFinanciero = {
+      ...sampleMovement,
+      tipo: "INGRESO",
+      fecha: "2026-09-24T00:30:00.000Z",
+    };
+
+    render(<MovimientoFinancieroItem movimiento={movement} />);
+
+    expect(screen.getByText("23/09/2026")).toBeInTheDocument();
+  });
+
+  it.each(["GASTO", "TRANSFERENCIA"])(
+    "preserva el d\u00eda UTC hist\u00f3rico para %s",
+    (tipo) => {
+      const movement: MovimientoFinanciero = {
+        ...sampleMovement,
+        tipo,
+        fecha: "2026-09-24T00:30:00.000Z",
+      };
+
+      render(<MovimientoFinancieroItem movimiento={movement} />);
+
+      expect(screen.getByText("24/09/2026")).toBeInTheDocument();
+    },
+  );
+
   it("navega a la operación correspondiente al hacer click cuando tiene operacionId", () => {
     render(<MovimientoFinancieroItem movimiento={sampleMovement} isLast={false} />);
 

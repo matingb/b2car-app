@@ -1,11 +1,12 @@
 import { CATEGORIAS_GASTO_FINANCIERO, CUENTA_TIPOS } from "@/model/finanzas";
-import { toISODateTimeWithCurrentTime } from "@/lib/fechas";
+import { isValidISODateTimeWithTimezone, toISODateTimeWithCurrentTime } from "@/lib/fechas";
 import type {
   ActualizarCuentaFinancieraInput,
   ActualizarGastoFinancieroInput,
   ActualizarTransferenciaFinancieraInput,
   CrearCuentaFinancieraInput,
   CrearGastoFinancieroInput,
+  CrearIngresoManualInput,
   CrearTransferenciaFinancieraInput,
   CuentaFinanciera,
   GastoFinanciero,
@@ -24,6 +25,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_TEXT_LENGTH = 500;
 const MAX_DESCRIPTION_LENGTH = 2_000;
+const MAX_ACCOUNTING_AMOUNT = 999_999_999_999.99;
 
 export type Validated<T> = { value?: T; error?: string };
 
@@ -214,6 +216,41 @@ export function validateCreateTransferencia(body: unknown): Validated<CrearTrans
       importe,
       ...(fecha === undefined ? {} : { fecha: toISODateTimeWithCurrentTime(fecha) }),
       ...(descripcion === undefined ? {} : { descripcion }),
+      ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
+    },
+  };
+}
+
+export function validateCreateIngresoManual(body: unknown): Validated<CrearIngresoManualInput> {
+  if (!isRecord(body)) return { error: "JSON inválido" };
+
+  const cuentaId = stringValue(body, "cuentaId");
+  const importe = numberValue(body, "importe");
+  const fecha = stringValue(body, "fecha");
+  const descripcion = stringValue(body, "descripcion");
+  const idempotencyKey = own(body, "idempotencyKey") ? stringValue(body, "idempotencyKey") : undefined;
+
+  const cuentaError = validId(cuentaId, "cuentaId");
+  if (cuentaError) return { error: cuentaError };
+  if (importe === undefined || importe <= 0) return { error: "importe debe ser un número mayor a 0" };
+  if (importe > MAX_ACCOUNTING_AMOUNT) return { error: "importe supera el máximo permitido" };
+  if (Math.abs(importe * 100 - Math.round(importe * 100)) > 1e-7) {
+    return { error: "importe debe tener como máximo dos decimales" };
+  }
+  if (!fecha || !isValidISODateTimeWithTimezone(fecha)) {
+    return { error: "fecha debe ser una fecha y hora ISO válida con zona horaria" };
+  }
+  const descripcionError = textError(descripcion, "descripcion", MAX_DESCRIPTION_LENGTH);
+  if (descripcionError) return { error: descripcionError };
+  if (own(body, "idempotencyKey") && idempotencyKey === undefined) return { error: "idempotencyKey debe ser texto" };
+  if (idempotencyKey && !UUID_RE.test(idempotencyKey)) return { error: "idempotencyKey debe ser un UUID válido" };
+
+  return {
+    value: {
+      cuentaId: cuentaId!,
+      importe,
+      fecha,
+      descripcion: descripcion!,
       ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
     },
   };
@@ -540,6 +577,7 @@ export function rpcStatus(error: { code?: string | null } | null | undefined): 4
     case "22007":
     case "22P02":
       return 400;
+    case "42501":
     case "28000":
       return 403;
     default:

@@ -190,6 +190,23 @@ export type CrearTransferenciaFinancieraInput = {
   idempotencyKey?: string;
 };
 
+export type CrearIngresoManualInput = {
+  cuentaId: string;
+  importe: number;
+  fecha: string;
+  descripcion: string;
+  idempotencyKey?: string;
+};
+
+export type IngresoManualFinanciero = {
+  id: string;
+  cuentaId: string;
+  importe: number;
+  fecha: string;
+  descripcion: string;
+  createdAt: string;
+};
+
 export type ActualizarTransferenciaFinancieraInput = Partial<{
   cuentaOrigenId: string;
   cuentaDestinoId: string;
@@ -243,6 +260,7 @@ export type CrearCuentaFinancieraResponse = FinanzasResponse<CuentaFinanciera>;
 export type ActualizarCuentaFinancieraResponse = FinanzasResponse<CuentaFinanciera>;
 export type ListarMovimientosFinancierosResponse = FinanzasResponse<MovimientoFinanciero[]>;
 export type CrearTransferenciaFinancieraResponse = FinanzasResponse<TransferenciaFinanciera>;
+export type CrearIngresoManualResponse = FinanzasResponse<IngresoManualFinanciero>;
 export type ActualizarTransferenciaFinancieraResponse = FinanzasResponse<TransferenciaFinanciera>;
 export type ListarGastosFinancierosResponse = FinanzasResponse<GastoFinanciero[]>;
 export type ObtenerGastoFinancieroResponse = FinanzasResponse<GastoFinanciero>;

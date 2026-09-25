@@ -113,8 +113,8 @@ export function useOperacionDetalle({
     : isMovimientoFinanciero
     ? {
         icon: WalletCards,
-        labelDesktop: "Movimiento financiero",
-        labelMobile: "Movimiento",
+        labelDesktop: operacion.tipo === "INGRESO" ? "Ingreso manual" : "Movimiento financiero",
+        labelMobile: operacion.tipo === "INGRESO" ? "Ingreso manual" : "Movimiento",
       }
     : {
         icon: Package,

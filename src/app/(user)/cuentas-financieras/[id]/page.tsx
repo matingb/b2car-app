@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeftRight,
+  ArrowDownLeft,
   Pencil,
   ReceiptText,
   Trash2,
@@ -26,6 +27,7 @@ import CuentaFinancieraModal, {
 import TransferenciaFinancieraModal, {
   type TransferenciaFinancieraDraft,
 } from "@/app/components/finanzas/TransferenciaFinancieraModal";
+import IngresoManualFinancieroModal from "@/app/components/finanzas/IngresoManualFinancieroModal";
 import MovimientosFinancierosList from "@/app/components/finanzas/MovimientosFinancierosList";
 import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
@@ -44,6 +46,7 @@ export default function CuentaFinancieraDetailPage() {
     updateCuenta,
     deleteCuenta,
     createTransferencia,
+    createIngresoManual,
     getMovimientos,
   } = useCuentasFinancieras();
 
@@ -58,6 +61,7 @@ export default function CuentaFinancieraDetailPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [isIngresoOpen, setIsIngresoOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const loadMovimientos = useCallback(
@@ -140,6 +144,14 @@ export default function CuentaFinancieraDetailPage() {
       setCuenta(cuentaData);
     }
     void loadMovimientos(0);
+  };
+
+  const handleIngreso = async (input: Parameters<typeof createIngresoManual>[0]) => {
+    await createIngresoManual(input);
+    success("Ingreso manual registrado", "El movimiento aparece en el historial de la cuenta.");
+    const cuentaData = await getCuentaById(cuentaId);
+    if (cuentaData) setCuenta(cuentaData);
+    await loadMovimientos(0);
   };
 
   const handleDelete = async () => {
@@ -248,11 +260,26 @@ export default function CuentaFinancieraDetailPage() {
 
       {!cuenta.activo ? (
         <div style={styles.inactiveNotice} role="status">
-          Esta cuenta está inactiva. Podés consultar su historial, pero no registrar nuevos gastos ni transferencias.
+          Esta cuenta está inactiva. Podés consultar su historial, pero no registrar nuevos ingresos, gastos ni transferencias.
         </div>
       ) : null}
 
       <div css={styles.actionRow}>
+        {cuenta.activo ? (
+          <Button
+            outline
+            icon={<ArrowDownLeft size={18} />}
+            text="Nuevo ingreso"
+            onClick={() => setIsIngresoOpen(true)}
+            hideTextOnMobile={false}
+            css={styles.transferButton}
+          />
+        ) : (
+          <span style={{ ...styles.primaryLink, ...styles.disabledLink }} aria-disabled="true">
+            <ArrowDownLeft size={18} />
+            Nuevo ingreso
+          </span>
+        )}
         {cuenta.activo ? (
           <Link href={gastoUrl} style={styles.primaryLink} data-testid="cuenta-financiera-nuevo-gasto">
             <ReceiptText size={18} />
@@ -298,6 +325,13 @@ export default function CuentaFinancieraDetailPage() {
         cuentaOrigenId={cuenta.id}
         onClose={() => setIsTransferOpen(false)}
         onCreate={handleTransfer}
+      />
+      <IngresoManualFinancieroModal
+        open={isIngresoOpen}
+        cuentas={cuentas}
+        cuentaId={cuenta.id}
+        onClose={() => setIsIngresoOpen(false)}
+        onCreate={handleIngreso}
       />
     </div>
   );

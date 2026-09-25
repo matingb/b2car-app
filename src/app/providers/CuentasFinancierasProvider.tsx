@@ -10,11 +10,14 @@ import React, {
   useState,
 } from "react";
 import { finanzasClient } from "@/clients/finanzasClient";
+import { logger } from "@/lib/logger";
 import type {
   ActualizarCuentaFinancieraInput,
   CrearCuentaFinancieraInput,
+  CrearIngresoManualInput,
   CrearTransferenciaFinancieraInput,
   CuentaFinanciera,
+  IngresoManualFinanciero,
   ListarMovimientosFinancierosInput,
   MovimientoFinanciero,
   TransferenciaFinanciera,
@@ -40,6 +43,7 @@ export type CuentasFinancierasContextType = {
   createTransferencia: (
     input: CrearTransferenciaFinancieraInput
   ) => Promise<TransferenciaFinanciera>;
+  createIngresoManual: (input: CrearIngresoManualInput) => Promise<IngresoManualFinanciero>;
   getMovimientos: (
     cuentaId: string,
     filters?: ListarMovimientosFinancierosInput
@@ -200,20 +204,37 @@ export function CuentasFinancierasProvider({
     ): Promise<TransferenciaFinanciera> => {
       setLoading(true);
       try {
-        console.info("[CuentasFinancierasProvider] Creando transferencia con input:", input);
         const res = await finanzasClient.crearTransferencia(input);
         if (res.error || !res.data) {
           const errorMsg = res.error || "No se pudo registrar la transferencia.";
-          console.error("[CuentasFinancierasProvider] Falló crearTransferencia:", errorMsg, { input, res });
           throw new Error(errorMsg);
         }
         await loadCuentas();
         return res.data;
       } catch (err) {
-        console.error("[CuentasFinancierasProvider] Excepción en createTransferencia:", err);
+        logger.error("No se pudo registrar la transferencia", err);
         throw err;
       } finally {
         setLoading(false);
+      }
+    },
+    [loadCuentas]
+  );
+
+  const createIngresoManual = useCallback(
+    async (input: CrearIngresoManualInput): Promise<IngresoManualFinanciero> => {
+      try {
+        const res = await finanzasClient.crearIngresoManual(input);
+        if (res.error || !res.data) {
+          throw new Error(res.error || "No se pudo registrar el ingreso manual.");
+        }
+        const pendingLoad = inFlightPromiseRef.current;
+        if (pendingLoad) await pendingLoad;
+        await loadCuentas({ silent: true });
+        return res.data;
+      } catch (err) {
+        logger.error("No se pudo registrar el ingreso manual", err);
+        throw err;
       }
     },
     [loadCuentas]
@@ -251,6 +272,7 @@ export function CuentasFinancierasProvider({
       updateCuenta,
       deleteCuenta,
       createTransferencia,
+      createIngresoManual,
       getMovimientos,
     }),
     [
@@ -266,6 +288,7 @@ export function CuentasFinancierasProvider({
       updateCuenta,
       deleteCuenta,
       createTransferencia,
+      createIngresoManual,
       getMovimientos,
     ]
   );

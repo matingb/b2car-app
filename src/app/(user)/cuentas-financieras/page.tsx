@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, Plus, RefreshCw, WalletCards } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, Plus, RefreshCw, WalletCards } from "lucide-react";
 import { css } from "@emotion/react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
@@ -19,6 +19,7 @@ import CuentaFinancieraModal, {
 import TransferenciaFinancieraModal, {
   type TransferenciaFinancieraDraft,
 } from "@/app/components/finanzas/TransferenciaFinancieraModal";
+import IngresoManualFinancieroModal from "@/app/components/finanzas/IngresoManualFinancieroModal";
 import { formatArs } from "@/lib/format";
 
 type EstadoFilter = "todas" | "activas" | "inactivas";
@@ -36,12 +37,14 @@ export default function CuentasFinancierasPage() {
     createCuenta,
     updateCuenta,
     createTransferencia,
+    createIngresoManual,
   } = useCuentasFinancieras();
 
   const [search, setSearch] = useState("");
   const [estado, setEstado] = useState<EstadoFilter>("todas");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [isIngresoOpen, setIsIngresoOpen] = useState(false);
 
   const cuentasFiltradas = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -77,6 +80,11 @@ export default function CuentasFinancierasPage() {
     success("Transferencia registrada", "Los saldos de las cuentas fueron actualizados.");
   };
 
+  const handleIngreso = async (input: Parameters<typeof createIngresoManual>[0]) => {
+    await createIngresoManual(input);
+    success("Ingreso manual registrado", "El saldo de la cuenta fue actualizado.");
+  };
+
   const handleFavorite = async (cuentaId: string, cuentaNombre: string) => {
     try {
       await updateCuenta(cuentaId, { favorita: true });
@@ -91,28 +99,10 @@ export default function CuentasFinancierasPage() {
 
   return (
     <div>
-      <div css={styles.headerRow}>
-        <ScreenHeader
-          title="Cuentas financieras"
-          subtitle="Consultá tus saldos y registrá los movimientos de caja, bancos y billeteras."
-        />
-        <div css={styles.actions}>
-          <Button
-            outline
-            icon={<ArrowLeftRight size={18} />}
-            text="Transferir"
-            onClick={() => setIsTransferOpen(true)}
-            disabled={cuentasActivas.length < 2}
-            css={styles.actionButton}
-          />
-          <Button
-            icon={<Plus size={18} />}
-            text="Nueva cuenta"
-            onClick={() => setIsCreateOpen(true)}
-            css={styles.actionButton}
-          />
-        </div>
-      </div>
+      <ScreenHeader
+        title="Cuentas financieras"
+        subtitle="Consultá tus saldos y registrá los movimientos de caja, bancos y billeteras."
+      />
 
       <div css={styles.summaryGrid}>
         <Card style={styles.summaryCard}>
@@ -135,12 +125,37 @@ export default function CuentasFinancierasPage() {
       </div>
 
       <div css={styles.toolbar}>
-        <SearchBar
-          value={search}
-          onChange={setSearch}
-          placeholder="Buscar por nombre o tipo..."
-          style={{ width: "100%" }}
-        />
+        <div css={styles.searchRow}>
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar por nombre o tipo..."
+            style={styles.searchBar}
+          />
+          <div css={styles.actions}>
+            <Button
+              outline
+              icon={<ArrowDownLeft size={18} />}
+              text="Nuevo ingreso"
+              onClick={() => setIsIngresoOpen(true)}
+              style={styles.actionButton}
+            />
+            <Button
+              outline
+              icon={<ArrowLeftRight size={18} />}
+              text="Transferir"
+              onClick={() => setIsTransferOpen(true)}
+              disabled={cuentasActivas.length < 2}
+              style={styles.actionButton}
+            />
+            <Button
+              icon={<Plus size={18} />}
+              text="Nueva cuenta"
+              onClick={() => setIsCreateOpen(true)}
+              style={styles.actionButton}
+            />
+          </div>
+        </div>
         <div css={styles.filters} aria-label="Filtrar cuentas por estado">
           {(
             [
@@ -236,29 +251,29 @@ export default function CuentasFinancierasPage() {
         onClose={() => setIsTransferOpen(false)}
         onCreate={handleTransfer}
       />
+      <IngresoManualFinancieroModal
+        open={isIngresoOpen}
+        cuentas={cuentas}
+        onClose={() => setIsIngresoOpen(false)}
+        onCreate={handleIngreso}
+      />
     </div>
   );
 }
 
 const styles = {
-  headerRow: css({
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 16,
-    flexWrap: "wrap",
-  }),
   actions: css({
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 8,
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
+    flexShrink: 0,
   }),
-  actionButton: css({
+  actionButton: {
     minWidth: 0,
     height: 40,
-  }),
+  } as const,
   summaryGrid: css({
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
@@ -292,6 +307,16 @@ const styles = {
     gap: 10,
     marginTop: 16,
   }),
+  searchRow: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  }),
+  searchBar: {
+    flex: 1,
+    minWidth: 0,
+    height: 40,
+  },
   filters: css({
     display: "flex",
     flexWrap: "wrap",

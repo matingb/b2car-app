@@ -9,6 +9,8 @@ import type {
   CrearCuentaFinancieraResponse,
   CrearGastoFinancieroInput,
   CrearGastoFinancieroResponse,
+  CrearIngresoManualInput,
+  CrearIngresoManualResponse,
   CrearTransferenciaFinancieraInput,
   CrearTransferenciaFinancieraResponse,
   EliminarFinanzasResponse,
@@ -22,6 +24,7 @@ import type {
   ObtenerGastoFinancieroResponse,
 } from "@/model/finanzas";
 import { generateUuidV4 } from "@/lib/uuid";
+import { logger } from "@/lib/logger";
 
 async function request<T>(
   url: string,
@@ -33,15 +36,12 @@ async function request<T>(
     const body = (await response.json().catch(() => null)) as FinanzasResponse<T> | null;
     if (!response.ok || body?.error) {
       const errorMsg = body?.error || `Error ${response.status}`;
-      console.error(`[finanzasClient] Error en petición a ${url} (status ${response.status}):`, errorMsg, {
-        init,
-        body,
-      });
+      logger.error("Finanzas request failed", errorMsg);
       return { data: null, error: errorMsg };
     }
     return { data: body?.data ?? null, error: null };
   } catch (error: unknown) {
-    console.error(`[finanzasClient] Excepción de red en petición a ${url}:`, error, { init });
+    logger.error("Finanzas network request failed", error);
     return {
       data: null,
       error: error instanceof Error ? error.message : fallbackMessage,
@@ -62,12 +62,12 @@ async function remove(
     const body = (await response.json().catch(() => null)) as EliminarFinanzasResponse | null;
     if (!response.ok || body?.error) {
       const errorMsg = body?.error || `Error ${response.status}`;
-      console.error(`[finanzasClient] Error en DELETE a ${url} (status ${response.status}):`, errorMsg, { body });
+      logger.error("Finanzas delete request failed", errorMsg);
       return { error: errorMsg };
     }
     return { error: null };
   } catch (error: unknown) {
-    console.error(`[finanzasClient] Excepción de red en DELETE a ${url}:`, error);
+    logger.error("Finanzas delete network request failed", error);
     return { error: error instanceof Error ? error.message : fallbackMessage };
   }
 }
@@ -151,6 +151,14 @@ export const finanzasClient = {
       "/api/cuentas-financieras/transferencias",
       jsonRequest("POST", withIdempotencyKey(input)),
       "No se pudo registrar la transferencia"
+    );
+  },
+
+  async crearIngresoManual(input: CrearIngresoManualInput): Promise<CrearIngresoManualResponse> {
+    return request(
+      "/api/cuentas-financieras/ingresos",
+      jsonRequest("POST", withIdempotencyKey(input)),
+      "No se pudo registrar el ingreso manual"
     );
   },
 
