@@ -174,13 +174,13 @@ function printableRows(lines: FiscalPdfLine[], font: PDFFont): PrintableRow[] {
   return output;
 }
 
-function firstTableStart(invoice: FiscalPdfInvoice): number {
-  return invoice.concepto === 1 ? 493 : 462;
+function firstTableStart(invoice: FiscalPdfInvoice, receiverExtraHeight = 0): number {
+  return (invoice.concepto === 1 ? 493 : 462) - receiverExtraHeight;
 }
 
-function paginate(invoice: FiscalPdfInvoice, rows: PrintableRow[]): PrintablePage[] {
+function paginate(invoice: FiscalPdfInvoice, rows: PrintableRow[], firstTableY: number): PrintablePage[] {
   const pages: PrintablePage[] = [{ rows: [], continuation: false }];
-  let remaining = firstTableStart(invoice) - 55;
+  let remaining = firstTableY - 55;
   for (const row of rows) {
     if (row.height > remaining && pages[pages.length - 1].rows.length > 0) {
       pages.push({ rows: [], continuation: true });
@@ -191,7 +191,7 @@ function paginate(invoice: FiscalPdfInvoice, rows: PrintableRow[]): PrintablePag
   }
 
   const last = pages[pages.length - 1];
-  const lastCapacityWithFooter = (last.continuation ? 755 : firstTableStart(invoice)) - 245;
+  const lastCapacityWithFooter = (last.continuation ? 755 : firstTableY) - 245;
   const used = last.rows.reduce((sum, row) => sum + row.height, 0);
   if (used > lastCapacityWithFooter && last.rows.length > 0) {
     const moved: PrintableRow[] = [];
@@ -201,7 +201,7 @@ function paginate(invoice: FiscalPdfInvoice, rows: PrintableRow[]): PrintablePag
       if (moved.length > 0 && movedHeight + candidate.height > 510) break;
       moved.unshift(last.rows.pop() as PrintableRow);
       movedHeight += candidate.height;
-      if (used - movedHeight <= (last.continuation ? 700 : firstTableStart(invoice) - 55)) break;
+      if (used - movedHeight <= (last.continuation ? 700 : firstTableY - 55)) break;
     }
     pages.push({ rows: moved, continuation: true });
   }
@@ -243,20 +243,91 @@ function drawLabeledValue(
   valueX: number,
 ) {
   page.drawText(label, { x, y, font: fonts.bold, size: 8 });
-  page.drawText(value || "-", { x: valueX, y, font: fonts.regular, size: 8 });
+  const printableValue = value.trim() === "0" ? "" : value || "-";
+  if (printableValue) page.drawText(printableValue, { x: valueX, y, font: fonts.regular, size: 8 });
 }
 
-function drawFirstHeader(page: PDFPage, invoice: FiscalPdfInvoice, fonts: Fonts) {
+function drawLabeledWrappedValue(
+  page: PDFPage,
+  fonts: Fonts,
+  label: string,
+  value: string,
+  x: number,
+  y: number,
+  valueX: number,
+  maxWidth: number,
+): string[] {
+  page.drawText(label, { x, y, font: fonts.bold, size: 8 });
+  const lines = wrapText(value || "-", fonts.regular, 8, maxWidth);
+  lines.forEach((line, index) => {
+    page.drawText(line, { x: valueX, y: y - index * 10, font: fonts.regular, size: 8 });
+  });
+  return lines;
+}
+
+type FirstHeaderLayout = {
+  receiverNameLines: string[];
+  receiverNameExtraHeight: number;
+  receiverAddressLines: string[];
+  receiverExtraHeight: number;
+};
+
+function getFirstHeaderLayout(invoice: FiscalPdfInvoice, fonts: Fonts): FirstHeaderLayout {
+  const receiver = invoice.receptorSnapshot;
+  const nameLabel = "Apellido y Nombre / Razón Social:";
+  const nameValueX = 50 + fonts.bold.widthOfTextAtSize(nameLabel, 8) + 8;
+  const rightEdge = PAGE_WIDTH - MARGIN - 12;
+  const receiverNameLines = wrapText(
+    text(receiver.nombre) || "-",
+    fonts.regular,
+    8,
+    rightEdge - nameValueX,
+  );
+  const receiverAddressLines = wrapText(
+    text(receiver.domicilio) || "-",
+    fonts.regular,
+    8,
+    rightEdge - 352,
+  );
+  const receiverNameExtraHeight = Math.max(0, receiverNameLines.length - 1) * 10;
+  const receiverAddressExtraHeight = Math.max(0, receiverAddressLines.length - 1) * 10;
+  return {
+    receiverNameLines,
+    receiverNameExtraHeight,
+    receiverAddressLines,
+    receiverExtraHeight: receiverNameExtraHeight + receiverAddressExtraHeight,
+  };
+}
+
+function drawFirstHeader(
+  page: PDFPage,
+  invoice: FiscalPdfInvoice,
+  fonts: Fonts,
+  layout: FirstHeaderLayout,
+) {
   const emitter = invoice.emisorSnapshot;
   const receiver = invoice.receptorSnapshot;
   const topY = 588;
   page.drawRectangle({ x: MARGIN, y: topY, width: CONTENT_WIDTH, height: 210, color: WHITE, borderWidth: 0.8 });
   page.drawLine({ start: { x: 298, y: topY }, end: { x: 298, y: topY + 210 }, thickness: 0.8 });
 
-  drawCentered(page, text(emitter.nombreFantasia) || text(emitter.razonSocial), 168, 757, fonts.bold, 17);
-  drawLabeledValue(page, fonts, "Razón Social:", text(emitter.razonSocial), 54, 716, 115);
-  drawLabeledValue(page, fonts, "Domicilio Comercial:", text(emitter.domicilio), 54, 699, 139);
-  drawLabeledValue(page, fonts, "Condición IVA:", text(emitter.condicionIva) || "Monotributista", 54, 682, 119);
+  const issuerName = text(emitter.nombreFantasia) || text(emitter.razonSocial);
+  const issuerNameLines = wrapText(issuerName, fonts.bold, 14, 210);
+  issuerNameLines.forEach((line, index) => {
+    drawCentered(page, line, 168, 772 - index * 15, fonts.bold, 14);
+  });
+  const issuerInfoY = Math.min(716, 772 - (issuerNameLines.length - 1) * 15 - 22);
+  const razonSocialLines = drawLabeledWrappedValue(
+    page, fonts, "Razón Social:", text(emitter.razonSocial), 54, issuerInfoY, 115, 171,
+  );
+  let emitterInfoY = issuerInfoY - Math.max(17, razonSocialLines.length * 10 + 7);
+  const domicilioLines = drawLabeledWrappedValue(
+    page, fonts, "Domicilio Comercial:", text(emitter.domicilio), 54, emitterInfoY, 139, 147,
+  );
+  emitterInfoY -= Math.max(17, domicilioLines.length * 10 + 7);
+  drawLabeledWrappedValue(
+    page, fonts, "Condición IVA:", text(emitter.condicionIva) || "Monotributista", 54, emitterInfoY, 119, 167,
+  );
 
   page.drawRectangle({ x: 276, y: 744, width: 44, height: 54, color: WHITE, borderWidth: 0.8 });
   drawCentered(page, invoice.claseComprobante ?? "C", 298, 766, fonts.bold, 22);
@@ -281,15 +352,42 @@ function drawFirstHeader(page: PDFPage, invoice: FiscalPdfInvoice, fonts: Fonts)
     receiverTop = 527;
   }
 
-  const receiverBottom = receiverTop - 65;
-  page.drawRectangle({ x: MARGIN, y: receiverBottom, width: CONTENT_WIDTH, height: 65, color: WHITE, borderWidth: 0.8 });
-  const receiverDocumentLabel = TIPOS_DOCUMENTO_FISCAL.find((item) => item.id === number(receiver.tipoDocumento))?.label ?? "Documento";
+  const receiverHeight = 65 + layout.receiverExtraHeight;
+  const receiverBottom = receiverTop - receiverHeight;
+  page.drawRectangle({ x: MARGIN, y: receiverBottom, width: CONTENT_WIDTH, height: receiverHeight, color: WHITE, borderWidth: 0.8 });
+  const receiverDocumentType = number(receiver.tipoDocumento);
+  const receiverDocumentLabel = TIPOS_DOCUMENTO_FISCAL.find((item) => item.id === receiverDocumentType)?.label ?? "Documento";
   const ivaLabel = CONDICIONES_IVA_RECEPTOR.find((item) => item.id === number(receiver.condicionIvaReceptorId))?.label ?? "Consumidor final";
-  drawLabeledValue(page, fonts, `${receiverDocumentLabel}:`, text(receiver.numeroDocumento), 50, receiverTop - 19, 90);
-  drawLabeledValue(page, fonts, "Apellido y Nombre / Razón Social:", text(receiver.nombre), 298, receiverTop - 19, 438);
-  drawLabeledValue(page, fonts, "Condición IVA:", ivaLabel, 50, receiverTop - 38, 116);
-  drawLabeledValue(page, fonts, "Domicilio:", text(receiver.domicilio) || "-", 298, receiverTop - 38, 352);
-  drawLabeledValue(page, fonts, "Condición de Venta:", invoice.condicionVenta || "Contado", 50, receiverTop - 56, 141);
+  if (receiverDocumentType === 99) {
+    // ARCA uses DocNro 0 for an unidentified final consumer; it is not a buyer-provided document number.
+    page.drawText(receiverDocumentLabel, { x: 50, y: receiverTop - 19, font: fonts.bold, size: 8 });
+  } else {
+    drawLabeledValue(page, fonts, `${receiverDocumentLabel}:`, text(receiver.numeroDocumento), 50, receiverTop - 19, 90);
+  }
+  drawLabeledValue(page, fonts, "Condición IVA:", ivaLabel, 298, receiverTop - 19, 360);
+  const receiverNameY = receiverTop - 38;
+  const receiverNameLabel = "Apellido y Nombre / Razón Social:";
+  const receiverNameValueX = 50 + fonts.bold.widthOfTextAtSize(receiverNameLabel, 8) + 8;
+  page.drawText(receiverNameLabel, { x: 50, y: receiverNameY, font: fonts.bold, size: 8 });
+  layout.receiverNameLines.forEach((line, index) => {
+    page.drawText(line, {
+      x: receiverNameValueX,
+      y: receiverNameY - index * 10,
+      font: fonts.regular,
+      size: 8,
+    });
+  });
+  const receiverDetailsY = receiverTop - 56 - layout.receiverNameExtraHeight;
+  drawLabeledValue(page, fonts, "Condición de Venta:", invoice.condicionVenta || "Contado", 50, receiverDetailsY, 141);
+  page.drawText("Domicilio:", { x: 298, y: receiverDetailsY, font: fonts.bold, size: 8 });
+  layout.receiverAddressLines.forEach((line, index) => {
+    page.drawText(line, {
+      x: 352,
+      y: receiverDetailsY - index * 10,
+      font: fonts.regular,
+      size: 8,
+    });
+  });
 }
 
 function drawContinuationHeader(page: PDFPage, invoice: FiscalPdfInvoice, fonts: Fonts, pageNumber: number) {
@@ -374,7 +472,9 @@ export async function generateFiscalInvoicePdf(invoice: FiscalPdfInvoice): Promi
     regular: await pdf.embedFont(StandardFonts.Helvetica),
     bold: await pdf.embedFont(StandardFonts.HelveticaBold),
   };
-  const pages = paginate(invoice, printableRows(invoice.lineas, fonts.regular));
+  const headerLayout = getFirstHeaderLayout(invoice, fonts);
+  const firstTableY = firstTableStart(invoice, headerLayout.receiverExtraHeight);
+  const pages = paginate(invoice, printableRows(invoice.lineas, fonts.regular), firstTableY);
 
   for (let index = 0; index < pages.length; index += 1) {
     const printablePage = pages[index];
@@ -382,9 +482,9 @@ export async function generateFiscalInvoicePdf(invoice: FiscalPdfInvoice): Promi
     if (printablePage.continuation) {
       drawContinuationHeader(page, invoice, fonts, index + 1);
     } else {
-      drawFirstHeader(page, invoice, fonts);
+      drawFirstHeader(page, invoice, fonts, headerLayout);
     }
-    const tableStart = printablePage.continuation ? 755 : firstTableStart(invoice);
+    const tableStart = printablePage.continuation ? 755 : firstTableY;
     drawTableHeader(page, tableStart, fonts);
     drawRows(page, printablePage.rows, tableStart, fonts);
     if (index === pages.length - 1) await drawFooter(pdf, page, invoice, fonts);
