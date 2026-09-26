@@ -27,6 +27,13 @@ describe("Integration - Creación de arreglos", () => {
         fecha: "2026-09-05",
         observaciones: "Test de integración creación de arreglo",
         precio_final: precioFinal,
+        detalles: [{
+          descripcion: "Mano de obra",
+          cantidad: 1,
+          precio_hora_facturada: precioFinal,
+          horas_facturadas: 1,
+          horas_trabajadas: 1,
+        }],
         esta_pago: false,
       })
     );
