@@ -166,7 +166,7 @@ export default function ReadOnlyLineaCard({
                 {laborCost == null || margin == null ? (
                   <div css={readStyles.marginCard}>
                     <span css={readStyles.marginCardLabel}>Costo Mano de Obra</span>
-                    <span css={readStyles.marginCardMain}>Costo sin registrar</span>
+                    <span css={readStyles.marginCardMain}>Sin definir</span>
                   </div>
                 ) : (
                   <>

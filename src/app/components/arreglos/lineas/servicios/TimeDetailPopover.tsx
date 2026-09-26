@@ -133,7 +133,7 @@ export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
       >
         <Clock size={13} color={COLOR.TEXT.SECONDARY} style={{ flexShrink: 0 }} />
         <span>
-          {hasBilledHours ? <>Fact: <strong css={styles.hoursBold}>{numBilled}h</strong></> : "Sin horas históricas"}
+          {hasBilledHours ? <>Fact: <strong css={styles.hoursBold}>{numBilled}h</strong></> : ""}
           {hasBilledHours && hasActualHours ? " · " : null}
           {hasActualHours ? <>Trab: <strong css={styles.hoursBold}>{numActual}h</strong></> : null}
         </span>
@@ -174,7 +174,7 @@ export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
                   type="number"
                   min="0"
                   step="0.01"
-                  value={billedHours ?? ""}
+                  value={billedHours ?? "0"}
                   onChange={(e) => onChangeBilledHours(e.target.value)}
                   css={styles.input}
                 />
@@ -190,7 +190,7 @@ export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
                 </span>
                 {canViewEmployeeCost && (
                   <span style={{ fontSize: 11, color: COLOR.TEXT.SECONDARY }}>
-                    ({laborCost == null ? "Costo sin registrar" : formatArs(laborCost, { maxDecimals: 2, minDecimals: 0 })})
+                    ({laborCost == null ? "Sin definir" : formatArs(laborCost, { maxDecimals: 2, minDecimals: 0 })})
                   </span>
                 )}
               </div>

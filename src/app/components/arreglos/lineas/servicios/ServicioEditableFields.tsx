@@ -132,7 +132,8 @@ const styles = {
     border: `1px solid ${COLOR.BORDER.DEFAULT}`,
     backgroundColor: "#ffffff",
     color: COLOR.TEXT.PRIMARY,
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: 400,
     outline: "none",
     boxSizing: "border-box",
     "&:focus": {
@@ -192,7 +193,7 @@ const styles = {
     backgroundColor: "#ffffff",
     color: COLOR.TEXT.PRIMARY,
     fontSize: 13,
-    fontWeight: 600,
+    fontWeight: 400,
     textAlign: "right",
     outline: "none",
     boxSizing: "border-box",

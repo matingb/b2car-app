@@ -316,9 +316,6 @@ export default function EmpleadoSelect({
                         {formatArs(empRate, { maxDecimals: 2, minDecimals: 0 })}/h
                       </span>
                     )}
-                    {isItemChosen && (
-                      <Check size={14} color={COLOR.ACCENT.PRIMARY} />
-                    )}
                   </div>
                 </div>
               );

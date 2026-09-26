@@ -149,7 +149,7 @@ const styles = {
     backgroundColor: "#ffffff",
     color: COLOR.TEXT.PRIMARY,
     fontSize: 13,
-    fontWeight: 600,
+    fontWeight: 400,
     textAlign: "right",
     outline: "none",
     boxSizing: "border-box",
