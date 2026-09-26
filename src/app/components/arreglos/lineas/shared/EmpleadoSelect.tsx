@@ -9,6 +9,7 @@ import { COLOR } from "@/theme/theme";
 import { getInitials } from "@/lib/initials";
 import { formatArs } from "@/lib/format";
 import { useTenant } from "@/app/providers/TenantProvider";
+import NumberInput from "@/app/components/ui/NumberInput";
 
 type Props = {
   value: string | null;
@@ -53,14 +54,14 @@ export default function EmpleadoSelect({
 
   // Estados temporales durante la edición en el popover
   const [tempSelectedId, setTempSelectedId] = useState<string | null>(value);
-  const [tempRate, setTempRate] = useState<string>(currentRate == null ? "" : String(currentRate));
+  const [tempRate, setTempRate] = useState<number>(currentRate ?? 0);
   const [rateEdited, setRateEdited] = useState(false);
 
   // Sincronizar estados temporales cuando se abre el desplegable
   useEffect(() => {
     if (isOpen) {
       setTempSelectedId(value);
-      setTempRate(currentRate == null ? "" : String(currentRate));
+      setTempRate(currentRate ?? 0);
       setRateEdited(false);
       setSearch("");
     }
@@ -130,24 +131,31 @@ export default function EmpleadoSelect({
 
   const handlePickEmployee = (empId: string | null) => {
     setTempSelectedId(empId);
-    if (empId && hourlyRate === null) {
+    if (empId) {
       const emp = empleados.find((e) => e.id === empId);
-      setTempRate(emp?.valorHora == null ? "" : String(emp.valorHora));
+      setTempRate(emp?.valorHora ?? 0);
+    } else {
+      setTempRate(0);
     }
+    setRateEdited(true);
   };
 
   const handleConfirm = () => {
     onChange(tempSelectedId);
-    if (showMontoHoras && canEditHourlyRate && rateEdited && onChangeHourlyRate) {
-      const rate = tempRate.trim() === "" ? null : Number(tempRate);
-      onChangeHourlyRate(rate !== null && Number.isFinite(rate) && rate >= 0 ? rate : null);
+    if (showMontoHoras && canEditHourlyRate && (rateEdited || tempSelectedId !== value) && onChangeHourlyRate) {
+      if (tempSelectedId === null) {
+        onChangeHourlyRate(null);
+      } else {
+        const rate = Number.isFinite(tempRate) && tempRate >= 0 ? tempRate : 0;
+        onChangeHourlyRate(rate);
+      }
     }
     setIsOpen(false);
   };
 
   const handleCancel = () => {
     setTempSelectedId(value);
-    setTempRate(currentRate == null ? "" : String(currentRate));
+    setTempRate(currentRate ?? 0);
     setIsOpen(false);
   };
 
@@ -232,20 +240,18 @@ export default function EmpleadoSelect({
               </label>
               <div css={styles.rateInputWrap}>
                 <span css={styles.ratePrefix}>$</span>
-                <input
-                  type="number"
+                <NumberInput
                   id="employee-hourly-rate-input"
-                  min="0"
+                  minValue={0}
                   step="0.01"
-                  max="9999999999.99"
                   value={tempRate}
                   readOnly={!canEditHourlyRate}
-                  onChange={(e) => {
-                    setTempRate(e.target.value);
+                  onValueChange={(val) => {
+                    setTempRate(val);
                     setRateEdited(true);
                   }}
-                  placeholder="Sin configurar"
-                  css={styles.rateInput}
+                  placeholder="0"
+                  style={styles.rateNumberInput}
                 />
               </div>
             </div>
@@ -459,7 +465,7 @@ const styles = {
     color: COLOR.ICON.MUTED,
     pointerEvents: "none",
   }),
-  rateInput: css({
+  rateNumberInput: {
     width: "100%",
     paddingLeft: 20,
     paddingRight: 8,
@@ -470,14 +476,11 @@ const styles = {
     backgroundColor: "#ffffff",
     color: COLOR.TEXT.PRIMARY,
     fontSize: 12,
-    fontWeight: 700,
-    textAlign: "right",
+    fontWeight: 500,
+    textAlign: "right" as const,
     outline: "none",
-    boxSizing: "border-box",
-    "&:focus": {
-      borderColor: COLOR.ACCENT.PRIMARY,
-    },
-  }),
+    boxSizing: "border-box" as const,
+  },
   searchBox: css({
     display: "flex",
     alignItems: "center",

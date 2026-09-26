@@ -5,6 +5,7 @@ import { css } from "@emotion/react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
+import NumberInput from "@/app/components/ui/NumberInput";
 import type { ServicioEditableCardDraft } from "./ServicioEditableCard";
 
 type Props = {
@@ -20,16 +21,13 @@ export default function ServicioEditableFields({
   canInteract,
   mode,
 }: Props) {
-  const handleHorasFacturadasChange = (value: string) => {
-    if (mode === "add" && (draft.horasTrabajadas === draft.horasFacturadas || draft.horasTrabajadas === "1")) {
+  const handleHorasFacturadasChange = (value: number) => {
+    if (mode === "add" && (draft.horasTrabajadas === draft.horasFacturadas || draft.horasTrabajadas === 1)) {
       onDraftChange({ horasFacturadas: value, horasTrabajadas: value });
     } else {
       onDraftChange({ horasFacturadas: value });
     }
   };
-  const legacyHoursMissing = mode === "edit" && (
-    draft.horasFacturadas === "" || draft.horasTrabajadas === ""
-  );
 
   return (
     <div css={styles.container}>
@@ -51,56 +49,53 @@ export default function ServicioEditableFields({
       {/* Fila de inputs numéricos compactos */}
       <div css={styles.numRow}>
         {/* Campo Horas */}
-        <div css={styles.numField("72px")}>
+        <div css={styles.numField("64px")}>
           <span css={styles.prefixLabel}>Hrs</span>
-          <input
-            type="number"
+          <NumberInput
+            minValue={0}
+            allowDecimals
             id="job-hours-input"
             aria-label="Horas facturadas"
-            min="0"
-            step="0.01"
-            value={draft.horasFacturadas}
-            onChange={(e) => handleHorasFacturadasChange(e.target.value)}
             title="Horas facturadas al cliente"
             disabled={!canInteract}
-            css={styles.numInput}
+            value={draft.horasFacturadas}
+            onValueChange={handleHorasFacturadasChange}
+            style={styles.fieldNumberInput(canInteract)}
           />
         </div>
 
         {/* Campo Cantidad */}
-        <div css={styles.numField("64px")}>
+        <div css={styles.numField("68px")}>
           <span css={styles.prefixLabel}>Cant</span>
-          <input
-            type="number"
+          <NumberInput
             id="job-quantity-input"
             aria-label="Cantidad"
-            min="1"
-            step="1"
-            value={draft.cantidad}
-            onChange={(e) => onDraftChange({ cantidad: e.target.value })}
             title="Cantidad de servicios"
+            minValue={1}
+            allowDecimals={false}
             disabled={!canInteract}
-            css={styles.numInput}
+            value={Number(draft.cantidad) || 1}
+            onValueChange={(val) => onDraftChange({ cantidad: String(val) })}
+            style={styles.fieldNumberInput(canInteract)}
           />
         </div>
 
         {/* Campo Precio Unitario */}
         <Can permission={Permission.ArreglosPreciosEdit}>
-          <div css={styles.numField("92px")}>
+          <div css={styles.numField("94px")}>
             <span css={styles.prefixLabel}>$</span>
-            <input
-              type="number"
+            <NumberInput
               id="job-unit-price-input"
               aria-label="Precio venta"
-              min="0"
-              step="0.01"
-              max="9999999999.99"
-              value={draft.precioHoraFacturada}
-              onChange={(e) => onDraftChange({ precioHoraFacturada: e.target.value })}
-              placeholder="0.00"
               title="Precio unitario por hora/servicio"
+              minValue={0}
+              allowDecimals
+              step="0.01"
               disabled={!canInteract}
-              css={styles.numInput}
+              value={Number(draft.precioHoraFacturada) || 0}
+              onValueChange={(val) => onDraftChange({ precioHoraFacturada: String(val) })}
+              placeholder="0.00"
+              style={styles.fieldNumberInput(canInteract)}
             />
           </div>
         </Can>
@@ -157,7 +152,7 @@ const styles = {
     gap: 8,
     flexWrap: "wrap",
     justifyContent: "space-between",
-    [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
+    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
       flexWrap: "nowrap",
       justifyContent: "flex-end",
     },
@@ -166,8 +161,7 @@ const styles = {
     css({
       position: "relative",
       flex: 1,
-      minWidth: 64,
-      [`@media (min-width: ${BREAKPOINTS.sm}px)`]: {
+      [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
         flex: "none",
         width,
       },
@@ -178,9 +172,26 @@ const styles = {
     top: "50%",
     transform: "translateY(-50%)",
     fontSize: 11,
-    fontWeight: 600,
+    fontWeight: 500,
     color: COLOR.TEXT.SECONDARY,
     pointerEvents: "none",
+  }),
+  fieldNumberInput: (canInteract: boolean) => ({
+    width: "100%",
+    paddingLeft: 30,
+    paddingRight: 8,
+    paddingTop: 8,
+    paddingBottom: 8,
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
+    backgroundColor: canInteract ? "#ffffff" : COLOR.BACKGROUND.SUBTLE,
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 13,
+    fontWeight: 400,
+    textAlign: "right" as const,
+    boxSizing: "border-box" as const,
+    outline: "none",
+    cursor: canInteract ? "text" : "not-allowed",
   }),
   numInput: css({
     width: "100%",

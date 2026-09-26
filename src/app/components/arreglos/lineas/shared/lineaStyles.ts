@@ -42,7 +42,7 @@ export const styles = {
     justifyContent: "center",
   } as const,
   hideItemIconOnSm: {
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
       display: "none",
     },
   } as const,
@@ -79,6 +79,8 @@ export const styles = {
     fontWeight: 700,
     whiteSpace: "nowrap" as const,
     marginLeft: 8,
+    minWidth: 105,
+    textAlign: "right" as const,
   },
   actionBtn: {
     border: "none",

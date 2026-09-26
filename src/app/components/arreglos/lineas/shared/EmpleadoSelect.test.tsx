@@ -181,4 +181,96 @@ describe("EmpleadoSelect", () => {
 
     expect(onChange).toHaveBeenCalledWith(null);
   });
+
+  it("al seleccionar un empleado, setea su valor hora definido como costo hora", () => {
+    const onChange = vi.fn();
+    const onChangeHourlyRate = vi.fn();
+
+    render(
+      <EmpleadoSelect
+        value={null}
+        onChange={onChange}
+        showMontoHoras={true}
+        canViewHourlyRate
+        canEditHourlyRate
+        onChangeHourlyRate={onChangeHourlyRate}
+      />
+    );
+
+    // Abrir popover
+    fireEvent.click(screen.getByRole("button", { name: "+ Empleado" }));
+
+    // Input inicialmente en 0
+    const rateInput = screen.getByLabelText("Valor hora ($/h):");
+    expect(rateInput).toHaveValue(0);
+
+    // Seleccionar a Juan Pérez (valorHora = 8500)
+    fireEvent.click(screen.getByText("Juan Pérez"));
+
+    // El input debe haberse actualizado al valor definido para Juan Pérez
+    expect(rateInput).toHaveValue(8500);
+
+    // Confirmar
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    expect(onChange).toHaveBeenCalledWith("emp-1");
+    expect(onChangeHourlyRate).toHaveBeenCalledWith(8500);
+  });
+
+  it("al cambiar de empleado con una tarifa existente, setea el valor hora del nuevo empleado", () => {
+    const onChange = vi.fn();
+    const onChangeHourlyRate = vi.fn();
+
+    render(
+      <EmpleadoSelect
+        value="emp-1"
+        hourlyRate={8500}
+        onChange={onChange}
+        showMontoHoras={true}
+        canViewHourlyRate
+        canEditHourlyRate
+        onChangeHourlyRate={onChangeHourlyRate}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /empleado Juan Pérez/i }));
+
+    const rateInput = screen.getByLabelText("Valor hora ($/h):");
+    expect(rateInput).toHaveValue(8500);
+
+    // Seleccionar a María Gómez (valorHora = 0)
+    fireEvent.click(screen.getByText("María Gómez"));
+
+    // Debe actualizarse a 0 (el valor hora definido de María)
+    expect(rateInput).toHaveValue(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    expect(onChange).toHaveBeenCalledWith("emp-2");
+    expect(onChangeHourlyRate).toHaveBeenCalledWith(0);
+  });
+
+  it("al desasignar empleado con showMontoHoras, limpia el valor hora enviando null", () => {
+    const onChange = vi.fn();
+    const onChangeHourlyRate = vi.fn();
+
+    render(
+      <EmpleadoSelect
+        value="emp-1"
+        hourlyRate={8500}
+        onChange={onChange}
+        showMontoHoras={true}
+        canViewHourlyRate
+        canEditHourlyRate
+        onChangeHourlyRate={onChangeHourlyRate}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /empleado Juan Pérez/i }));
+    fireEvent.click(screen.getByText("Sin asignar"));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    expect(onChange).toHaveBeenCalledWith(null);
+    expect(onChangeHourlyRate).toHaveBeenCalledWith(null);
+  });
 });

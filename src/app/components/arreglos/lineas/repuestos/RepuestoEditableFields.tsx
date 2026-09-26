@@ -5,6 +5,7 @@ import { css } from "@emotion/react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
+import NumberInput from "@/app/components/ui/NumberInput";
 
 type Props = {
   searchSlot: React.ReactNode;
@@ -39,16 +40,16 @@ export default function RepuestoEditableFields({
         {/* Campo Cantidad */}
         <div css={styles.numField("64px")}>
           <span css={styles.prefixLabel}>Cant</span>
-          <input
+          <NumberInput
             id="repuesto-quantity-input"
             aria-label="Cantidad"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={cantidad}
-            onChange={(e) => onCantidadChange(e.target.value.replace(/\D/g, ""))}
+            minValue={1}
+            allowDecimals={false}
+            value={Number(cantidad) || 1}
+            onValueChange={(val) => onCantidadChange(String(val))}
             placeholder="1"
             disabled={!canInteract}
-            css={styles.numInput}
+            style={styles.fieldNumberInput(canInteract)}
           />
         </div>
 
@@ -56,16 +57,17 @@ export default function RepuestoEditableFields({
         {showPurchaseUnit && (
           <div css={styles.numField("92px")}>
             <span css={styles.prefixLabel}>$ C</span>
-            <input
+            <NumberInput
               id="repuesto-purchase-price-input"
               aria-label="Precio compra"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={precioCompra}
-              onChange={(e) => onPrecioCompraChange?.(e.target.value.replace(/\D/g, ""))}
-              placeholder="Compra"
+              minValue={0}
+              allowDecimals
+              step="0.01"
+              value={Number(precioCompra) || 0}
+              onValueChange={(val) => onPrecioCompraChange?.(String(val))}
+              placeholder="0.00"
               disabled={!canInteract}
-              css={styles.numInput}
+              style={styles.fieldNumberInput(canInteract)}
             />
           </div>
         )}
@@ -74,16 +76,18 @@ export default function RepuestoEditableFields({
         <Can permission={Permission.ArreglosPreciosEdit}>
           <div css={styles.numField("92px")}>
             <span css={styles.prefixLabel}>$</span>
-            <input
+            <NumberInput
               id="repuesto-unit-price-input"
               aria-label="Precio venta"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={precioVenta}
-              onChange={(e) => onPrecioVentaChange(e.target.value.replace(/\D/g, ""))}
+              minValue={0}
+              allowDecimals
+              step="0.01"
+              max={9999999999.99}
+              value={Number(precioVenta) || 0}
+              onValueChange={(val) => onPrecioVentaChange(String(val))}
               placeholder="0.00"
               disabled={!canInteract}
-              css={styles.numInput}
+              style={styles.fieldNumberInput(canInteract)}
             />
           </div>
         </Can>
@@ -138,6 +142,22 @@ const styles = {
     fontWeight: 600,
     color: COLOR.TEXT.SECONDARY,
     pointerEvents: "none",
+  }),
+  fieldNumberInput: (canInteract: boolean) => ({
+    width: "100%",
+    height: 38,
+    paddingLeft: 30,
+    paddingRight: 8,
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
+    backgroundColor: canInteract ? "#ffffff" : COLOR.BACKGROUND.SUBTLE,
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 13,
+    fontWeight: 400,
+    textAlign: "right" as const,
+    boxSizing: "border-box" as const,
+    outline: "none",
+    cursor: canInteract ? "text" : "not-allowed",
   }),
   numInput: css({
     width: "100%",

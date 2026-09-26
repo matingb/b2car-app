@@ -216,7 +216,7 @@ describe("RepuestoLineasEditableSection", () => {
     fireEvent.change(screen.getByLabelText("Precio compra"), {
       target: { value: "500" },
     });
-    expect(screen.getByLabelText("Precio venta")).toHaveValue("500");
+    expect(screen.getByLabelText("Precio venta")).toHaveValue(500);
 
     fireEvent.change(screen.getByLabelText("Precio venta"), {
       target: { value: "800" },
@@ -224,7 +224,7 @@ describe("RepuestoLineasEditableSection", () => {
     fireEvent.change(screen.getByLabelText("Precio compra"), {
       target: { value: "600" },
     });
-    expect(screen.getByLabelText("Precio venta")).toHaveValue("800");
+    expect(screen.getByLabelText("Precio venta")).toHaveValue(800);
   });
 
   it("muestra warning por código duplicado en inventario", () => {

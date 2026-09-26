@@ -105,8 +105,8 @@ export default function ServicioLineasEditableSection({
     initialDraft: {
       descripcion: "",
       cantidad: "1",
-      horasFacturadas: "1",
-      horasTrabajadas: "1",
+      horasFacturadas: 1,
+      horasTrabajadas: 1,
       precioHoraFacturada: defaultValorHora,
       valorHoraEmpleado: "",
       categoriaArregloId: defaultCategoriaArregloId,
@@ -115,8 +115,8 @@ export default function ServicioLineasEditableSection({
     draftFromItem: (item) => ({
       descripcion: item.descripcion ?? "",
       cantidad: String(item.cantidad ?? 1),
-      horasFacturadas: item.horasFacturadas == null ? "" : String(item.horasFacturadas),
-      horasTrabajadas: item.horasTrabajadas == null ? "" : String(item.horasTrabajadas),
+      horasFacturadas: item.horasFacturadas ?? 1,
+      horasTrabajadas: item.horasTrabajadas ?? 1,
       precioHoraFacturada: String(item.precioHoraFacturada ?? 0),
       valorHoraEmpleado: item.valorHoraEmpleado == null ? "" : String(item.valorHoraEmpleado),
       categoriaArregloId: item.categoriaArregloId ?? null,
@@ -125,12 +125,8 @@ export default function ServicioLineasEditableSection({
     validate: (d, ctx) => {
       const descripcion = d.descripcion.trim();
       const cantidad = d.cantidad.trim() === "" ? Number.NaN : Number(d.cantidad);
-      const horasFacturadas = d.horasFacturadas === ""
-        ? ctx.mode === "edit" && ctx.item?.horasFacturadas == null ? null : Number.NaN
-        : safeNumber(d.horasFacturadas);
-      const horasTrabajadas = d.horasTrabajadas === ""
-        ? ctx.mode === "edit" && ctx.item?.horasTrabajadas == null ? null : Number.NaN
-        : safeNumber(d.horasTrabajadas);
+      const horasFacturadas = d.horasFacturadas;
+      const horasTrabajadas = d.horasTrabajadas;
 
       const precioHoraFacturada = canEditPrices
         ? safeNumber(d.precioHoraFacturada)

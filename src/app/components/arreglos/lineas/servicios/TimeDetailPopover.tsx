@@ -8,23 +8,24 @@ import { formatArs } from "@/lib/format";
 import { safeNumber } from "@/lib/numbers";
 import { calcLineTotal } from "@/lib/calcLineTotal";
 import { COLOR } from "@/theme/theme";
+import NumberInput from "@/app/components/ui/NumberInput";
 
 interface TimeDetailPopoverProps {
-  billedHours: number | string | null;
-  actualHours: number | string | null;
+  billedHours?: number;
+  actualHours?: number;
   unitPrice: number | string;
   quantity: number | string;
   employeeHourlyRate?: number | string | null;
   canViewEmployeeCost?: boolean;
   canViewBilledPrice?: boolean;
   disabled?: boolean;
-  onChangeBilledHours: (hours: string) => void;
-  onChangeActualHours: (hours: string) => void;
+  onChangeBilledHours: (hours: number) => void;
+  onChangeActualHours: (hours: number) => void;
 }
 
 export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
-  billedHours,
-  actualHours,
+  billedHours = 1,
+  actualHours = 1,
   unitPrice,
   quantity,
   employeeHourlyRate = 0,
@@ -39,10 +40,8 @@ export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
   const triggerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  const hasBilledHours = billedHours !== null && billedHours !== "";
-  const hasActualHours = actualHours !== null && actualHours !== "";
-  const numBilled = hasBilledHours ? safeNumber(billedHours) : 0;
-  const numActual = hasActualHours ? safeNumber(actualHours) : 0;
+  const numBilled = billedHours;
+  const numActual = actualHours;
   const numRate = employeeHourlyRate == null ? null : safeNumber(employeeHourlyRate);
 
   // Actualizar la posición flotante del popover usando portal para evitar clipping/stacking
@@ -110,10 +109,10 @@ export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
   // Cálculos de precio y costo
   const billedRevenue = calcLineTotal({
     cantidad: quantity,
-    horas_facturadas: billedHours,
+    horas_facturadas: numBilled,
     precio_hora_facturada: unitPrice,
   });
-  const laborCost = canViewEmployeeCost && hasActualHours && numRate !== null
+  const laborCost = canViewEmployeeCost && numRate !== null
     ? numActual * numRate
     : null;
 
@@ -133,9 +132,9 @@ export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
       >
         <Clock size={13} color={COLOR.TEXT.SECONDARY} style={{ flexShrink: 0 }} />
         <span>
-          {hasBilledHours ? <>Fact: <strong css={styles.hoursBold}>{numBilled}h</strong></> : ""}
-          {hasBilledHours && hasActualHours ? " · " : null}
-          {hasActualHours ? <>Trab: <strong css={styles.hoursBold}>{numActual}h</strong></> : null}
+          Fact: <strong css={styles.hoursBold}>{numBilled}h</strong>
+          {" · "}
+          Trab: <strong css={styles.hoursBold}>{numActual}h</strong>
         </span>
         <ChevronDown
           size={12}
@@ -170,13 +169,14 @@ export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
                 )}
               </div>
               <div css={styles.inputWrap}>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={billedHours ?? "0"}
-                  onChange={(e) => onChangeBilledHours(e.target.value)}
-                  css={styles.input}
+                <NumberInput
+                  minValue={0}
+                  allowDecimals
+                  disabled={disabled}
+                  value={numBilled}
+                  onValueChange={onChangeBilledHours}
+                  style={styles.popoverNumberInput}
+                  aria-label="Horas facturadas"
                 />
                 <span css={styles.unitSuffix}>h</span>
               </div>
@@ -195,13 +195,14 @@ export const TimeDetailPopover: React.FC<TimeDetailPopoverProps> = ({
                 )}
               </div>
               <div css={styles.inputWrap}>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={actualHours ?? ""}
-                  onChange={(e) => onChangeActualHours(e.target.value)}
-                  css={styles.input}
+                <NumberInput
+                  minValue={0}
+                  allowDecimals
+                  disabled={disabled}
+                  value={numActual}
+                  onValueChange={onChangeActualHours}
+                  style={styles.popoverNumberInput}
+                  aria-label="Horas trabajadas"
                 />
                 <span css={styles.unitSuffix}>h</span>
               </div>
@@ -280,6 +281,21 @@ const styles = {
     width: 60,
     flexShrink: 0,
   }),
+  popoverNumberInput: {
+    width: "100%",
+    paddingLeft: 6,
+    paddingRight: 16,
+    paddingTop: 3,
+    paddingBottom: 3,
+    backgroundColor: "#ffffff",
+    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
+    borderRadius: 6,
+    fontSize: 12,
+    fontWeight: 500,
+    color: COLOR.TEXT.PRIMARY,
+    textAlign: "right" as const,
+    boxSizing: "border-box" as const,
+  },
   input: css({
     width: "100%",
     paddingLeft: 6,

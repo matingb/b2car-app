@@ -13,8 +13,8 @@ import ServicioEditableFields from "./ServicioEditableFields";
 export type ServicioEditableCardDraft = {
   descripcion: string;
   cantidad: string;            // entero, min 1
-  horasFacturadas: string;     // decimal, step 0.25, min 0
-  horasTrabajadas: string;     // decimal, step 0.25, min 0
+  horasFacturadas: number;     // decimal, step 0.25, min 0
+  horasTrabajadas: number;     // decimal, step 0.25, min 0
   precioHoraFacturada: string; // entero, min 0
   valorHoraEmpleado: string;
   categoriaArregloId: string | null;

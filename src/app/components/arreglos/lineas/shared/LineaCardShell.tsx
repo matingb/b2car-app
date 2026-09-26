@@ -251,7 +251,7 @@ const shellStyles = {
     },
   }),
   totalInline: css({
-    minWidth: 80,
+    minWidth: 105,
     textAlign: "right",
     paddingLeft: 4,
     flexShrink: 0,
