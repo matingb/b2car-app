@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import MovimientoFinancieroItem from "./MovimientoFinancieroItem";
 import type { MovimientoFinanciero } from "@/model/finanzas";
+import { formatLocalDateLabel } from "@/lib/fechas";
 
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -79,7 +80,7 @@ describe("MovimientoFinancieroItem", () => {
 
     render(<MovimientoFinancieroItem movimiento={movement} />);
 
-    expect(screen.getByText("23/09/2026")).toBeInTheDocument();
+    expect(screen.getByText(formatLocalDateLabel(movement.fecha))).toBeInTheDocument();
   });
 
   it.each(["GASTO", "TRANSFERENCIA"])(

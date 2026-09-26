@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { runPendingPromises } from "@/tests/testUtils";
 import type { TipoOperacion } from "@/model/types";
 import { OperacionesProvider } from "@/app/providers/OperacionesProvider";
+import { formatDateTimeLabel } from "@/lib/fechas";
 
 const talleresMock: { id: string; nombre: string }[] = [];
 const getAllMock = vi.fn();
@@ -201,7 +202,7 @@ describe("OperacionesPage", () => {
     );
     await runPendingPromises();
 
-    expect(screen.getByText("08/06/2026, 14:30")).toBeInTheDocument();
+    expect(screen.getByText(formatDateTimeLabel("2026-06-08T17:30:00.000Z"))).toBeInTheDocument();
   });
 
   it("oculta la acciÃ³n de facturar una venta para BASE", async () => {
