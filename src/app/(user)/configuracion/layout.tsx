@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, IdCard, ReceiptText } from "lucide-react";
+import { Building2, IdCard, ReceiptText, Tags } from "lucide-react";
 import { css } from "@emotion/react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import { useTenant } from "@/app/providers/TenantProvider";
@@ -37,6 +37,12 @@ export default function ConfiguracionLayout({
       href: ROUTES.configuracionEmpleados,
       permissions: [Permission.EmpleadosView],
       icon: <IdCard size={18} aria-hidden="true" />,
+    },
+    {
+      label: "Categorías de arreglos",
+      href: ROUTES.configuracionCategoriasArreglo,
+      permissions: [Permission.TallerView],
+      icon: <Tags size={18} aria-hidden="true" />,
     },
     {
       label: "Facturación",

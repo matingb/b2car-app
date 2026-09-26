@@ -212,20 +212,7 @@ function buildServiciosSectionLines(
 			precio_hora_facturada: precioHora,
 		});
 		const label = String(d.descripcion ?? "").trim() || "Servicio";
-
-		let qty = "";
-		if (horasFacturadas === null) {
-			if (cantidad) qty = ` x${cantidad}`;
-		} else {
-			qty = cantidad === 1 ? ` ${horasFacturadas}hs` : ` ${horasFacturadas}hs x${cantidad}`;
-		}
-
-		const price =
-			showItemPrices && total != null
-				? ` - ${formatArs(total, { maxDecimals: 2, minDecimals: 0 })}`
-				: "";
-
-		lines.push(`• ${label}${qty}${price}`);
+		lines.push(buildItemLine(label, cantidad, showItemPrices ? total : undefined));
 	});
 	if (showSubtotal) {
 		lines.push(`_Subtotal mano de obra: ${formatArs(subtotal, { maxDecimals: 2, minDecimals: 0 })}_`);

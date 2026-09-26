@@ -10,7 +10,6 @@ import {
   ReceiptText,
   Trash2,
   CalendarDays,
-  CircleDollarSign,
   WalletCards,
 } from "lucide-react";
 import { css } from "@emotion/react";

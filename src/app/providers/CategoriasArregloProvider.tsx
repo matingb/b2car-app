@@ -129,8 +129,16 @@ export function CategoriasArregloProvider({ children }: { children: React.ReactN
   return <CategoriasArregloContext.Provider value={value}>{children}</CategoriasArregloContext.Provider>;
 }
 
+const defaultCategoriasArregloContext: CategoriasArregloContextType = {
+  isLoading: false,
+  categorias: [],
+  loadCategorias: async () => {},
+  createCategoria: async () => ({ categoria: null, error: null }),
+  updateCategoria: async () => ({ categoria: null, error: null }),
+  deleteCategoria: async () => ({ error: null }),
+};
+
 export function useCategoriasArreglo() {
   const ctx = useContext(CategoriasArregloContext);
-  if (!ctx) throw new Error("useCategoriasArreglo debe usarse dentro de CategoriasArregloProvider");
-  return ctx;
+  return ctx ?? defaultCategoriasArregloContext;
 }

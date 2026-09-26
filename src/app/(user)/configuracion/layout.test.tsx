@@ -35,20 +35,26 @@ afterEach(() => {
 });
 
 describe("ConfiguracionLayout", () => {
-  it("muestra las tres pestañas a admin PRO y marca la activa", () => {
+  it("muestra las cuatro pestañas a admin PRO y marca la activa", () => {
     state.pathname = "/configuracion/facturacion";
     render(<ConfiguracionLayout>Contenido</ConfiguracionLayout>);
     const nav = screen.getByRole("navigation", { name: "Secciones de configuración" });
-    expect(within(nav).getAllByRole("link")).toHaveLength(3);
+    expect(within(nav).getAllByRole("link")).toHaveLength(4);
     expect(within(nav).getByRole("link", { name: "Facturación" })).toHaveAttribute("aria-current", "page");
+    expect(within(nav).getByRole("link", { name: "Categorías de arreglos" })).toHaveAttribute(
+      "href",
+      "/configuracion/categorias-arreglo"
+    );
   });
 
-  it("muestra Taller y Empleados a admin BASE sin Facturación", () => {
+  it("muestra Taller, Empleados y Categorías de arreglos a admin BASE sin Facturación", () => {
     state.plan = SubscriptionPlan.Base;
     render(<ConfiguracionLayout>Contenido</ConfiguracionLayout>);
     const nav = screen.getByRole("navigation", { name: "Secciones de configuración" });
+    expect(within(nav).getAllByRole("link")).toHaveLength(3);
     expect(within(nav).getByRole("link", { name: "Taller" })).toHaveAttribute("href", "/configuracion/taller");
     expect(within(nav).getByRole("link", { name: "Empleados" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Categorías de arreglos" })).toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Facturación" })).not.toBeInTheDocument();
   });
 

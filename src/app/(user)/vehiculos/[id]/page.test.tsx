@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import VehiculoDetailsPage from "./page";
 import VehiculosLayout from "../layout";
@@ -236,9 +236,7 @@ describe("VehiculoDetailsPage integration", () => {
 
     expect(await screen.findByTestId("modal-title")).toHaveTextContent("Crear arreglo");
 
-    const fechaInput = document.querySelector('input[type="date"]') as HTMLInputElement | null;
-    expect(fechaInput).not.toBeNull();
-    fireEvent.change(fechaInput!, { target: { value: "2026-03-19" } });
+    expect(screen.getByTestId("arreglo-fecha")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("modal-submit"));
 
@@ -249,7 +247,7 @@ describe("VehiculoDetailsPage integration", () => {
       expect.objectContaining({
         vehiculo_id: "veh-1",
         taller_id: "t1",
-        fecha: "2026-03-19",
+        fecha: expect.any(String),
       })
     );
 

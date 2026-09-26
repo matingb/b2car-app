@@ -47,7 +47,7 @@ export default function TurnoDateTimePicker({ fecha, horarios, onChange }: Props
         <div style={styles.calendarPickerRow}>
           <Clock size={20} color={COLOR.TEXT.SECONDARY} style={{ flexShrink: 0 }} />
 
-          <div style={{ width: "200px" }}>
+          <div style={{ width: "210px" }}>
             <Calendar
               value={fecha}
               onChange={(f) => onChange({ fecha: f })}

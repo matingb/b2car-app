@@ -2,6 +2,7 @@ import React from "react";
 import { TurnosProvider } from "@/app/providers/TurnosProvider";
 import { ClientesProvider } from "@/app/providers/ClientesProvider";
 import { VehiculosProvider } from "@/app/providers/VehiculosProvider";
+import { CategoriasArregloProvider } from "@/app/providers/CategoriasArregloProvider";
 
 export default function TurnosLayout({
   children,
@@ -9,13 +10,15 @@ export default function TurnosLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <VehiculosProvider>
-      <ClientesProvider>
-        <TurnosProvider>
-          {children}
-        </TurnosProvider>
-      </ClientesProvider>
-    </VehiculosProvider>
-  )
+    <CategoriasArregloProvider>
+      <VehiculosProvider>
+        <ClientesProvider>
+          <TurnosProvider>
+            {children}
+          </TurnosProvider>
+        </ClientesProvider>
+      </VehiculosProvider>
+    </CategoriasArregloProvider>
+  );
 }
 

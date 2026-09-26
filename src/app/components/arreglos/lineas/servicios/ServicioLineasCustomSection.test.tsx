@@ -235,6 +235,7 @@ describe("ServicioLineasCustomSection", () => {
             precioHoraFacturada: 25000,
             horasFacturadas: 1,
             horasTrabajadas: 1,
+            valorHoraEmpleado: null,
             categoriaArregloId: null,
             empleadoId: null,
           },

@@ -9,18 +9,10 @@ import { turnoFormStyles as styles } from "@/app/components/turnos/TurnoFormFiel
 import { useTurnoHorarios } from "@/app/components/turnos/hooks/useTurnoHorarios";
 import TurnoClienteVehiculoFields from "@/app/components/turnos/fields/TurnoClienteVehiculoFields";
 import TurnoDateTimePicker from "@/app/components/turnos/fields/TurnoDateTimePicker";
+import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
 
 export const CREATE_CLIENTE_VALUE = "__create_cliente__";
 export const CREATE_VEHICULO_VALUE = "__create_vehiculo__";
-
-const TIPOS_TURNO = [
-  "Mecánica",
-  "Eléctrica",
-  "Carrocería",
-  "Pintura",
-  "Neumáticos",
-  "Service",
-] as const;
 
 export type TurnoFormFieldsState = {
   titulo: string;
@@ -109,6 +101,12 @@ export default function TurnoFormFields(props: Props) {
 
   const [tituloManualmenteEditado, setTituloManualmenteEditado] = useState(false);
   const [ultimoTituloSugerido, setUltimoTituloSugerido] = useState("");
+
+  const { categorias } = useCategoriasArreglo();
+  const tipoOptions = useMemo(
+    () => categorias.map((c) => ({ value: c.nombre, label: c.nombre })),
+    [categorias]
+  );
 
   const horarios = useTurnoHorarios(state.hora, state.duracion);
 
@@ -202,7 +200,7 @@ export default function TurnoFormFields(props: Props) {
       <div>
         <label style={styles.label}>Tipo de servicio</label>
         <Autocomplete
-          options={TIPOS_TURNO.map((t) => ({ value: t, label: t }))}
+          options={tipoOptions}
           value={state.tipo}
           onChange={(v) => {
             const nuevoTitulo = sugerirTitulo({ tipo: v });

@@ -4,6 +4,22 @@ import userEvent from "@testing-library/user-event";
 import TurnoFormFields, { type TurnoFormFieldsModel } from "./TurnoFormFields";
 import { createEmptyClienteFormFieldsValue } from "@/app/components/clientes/ClienteFormFields";
 
+const mockCategorias = [
+  { id: "c1", nombre: "Chapa y pintura" },
+  { id: "c2", nombre: "Frenos" },
+];
+
+vi.mock("@/app/providers/CategoriasArregloProvider", () => ({
+  useCategoriasArreglo: () => ({
+    categorias: mockCategorias,
+    isLoading: false,
+    loadCategorias: vi.fn(),
+    createCategoria: vi.fn(),
+    updateCategoria: vi.fn(),
+    deleteCategoria: vi.fn(),
+  }),
+}));
+
 describe("TurnoFormFields - Componente UI", () => {
   const model: TurnoFormFieldsModel = {
     state: {
@@ -149,5 +165,23 @@ describe("TurnoFormFields - Componente UI", () => {
     expect(onChange).toHaveBeenCalledWith({
       fecha: "2026-09-15",
     });
+  });
+
+  it("muestra las categorías de arreglos configuradas como opciones del tipo de servicio", async () => {
+    const onChange = vi.fn();
+    render(<TurnoFormFields model={model} onChange={onChange} />);
+
+    const tipoInput = screen.getByPlaceholderText("Ej: Mecánica");
+    await userEvent.click(tipoInput);
+
+    expect(screen.getByText("Chapa y pintura")).toBeInTheDocument();
+    expect(screen.getByText("Frenos")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText("Chapa y pintura"));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipo: "Chapa y pintura",
+      })
+    );
   });
 });
