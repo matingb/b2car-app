@@ -65,7 +65,8 @@ describe("useWhatsAppMessage", () => {
     expect(openSpy).not.toHaveBeenCalled();
   });
 
-  it("en caso exitoso, abre window con el link de WhatsApp", async () => {
+  it("en caso exitoso, intenta abrir la app de WhatsApp y hace fallback a la web si no hay foco", async () => {
+    vi.useFakeTimers();
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => ({} as unknown as Window));
     const { result } = renderHook(() => useWhatsAppMessage());
 
@@ -74,15 +75,25 @@ describe("useWhatsAppMessage", () => {
     });
 
     expect(toast.error).not.toHaveBeenCalled();
+    // Antes del timeout, todavía no se llamó a window.open
+    expect(openSpy).not.toHaveBeenCalled();
+
+    // Al pasar el timeout de fallback, se abre WhatsApp Web
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
     expect(openSpy).toHaveBeenCalledTimes(1);
     const [url, target] = openSpy.mock.calls[0]!;
-    expect(String(url)).toContain("https://api.whatsapp.com/send/");
-    expect(String(url)).toContain("phone=5491112345678");
+    expect(String(url)).toContain("web.whatsapp.com/send?phone=5491112345678");
     expect(String(url)).toContain("text=hola");
     expect(target).toBe("_blank");
+
+    vi.useRealTimers();
   });
 
-  it("shareArreglo abre whatsapp con los datos del cliente y el arreglo", async () => {
+  it("shareArreglo abre whatsapp con los datos del cliente y el arreglo con fallback", async () => {
+    vi.useFakeTimers();
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => ({} as unknown as Window));
     mockFetchCliente.mockResolvedValueOnce({
       id: "cli1",
@@ -126,6 +137,12 @@ describe("useWhatsAppMessage", () => {
 
     expect(toast.error).not.toHaveBeenCalled();
     expect(mockFetchCliente).toHaveBeenCalledWith("veh1");
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
     expect(openSpy).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 });

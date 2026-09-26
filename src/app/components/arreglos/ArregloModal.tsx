@@ -83,6 +83,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const { success, error: toastError } = useToast();
   const [shareDetalle, setShareDetalle] = useState<ArregloDetalleData | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isFormClosed, setIsFormClosed] = useState(false);
   const { loadInventarioByTaller } = useInventario();
 
   const [cuentaDraft, setCuentaDraft] = useState<CuentaFinancieraDraft>(() => ({ ...EMPTY_CUENTA_FINANCIERA_DRAFT }));
@@ -133,7 +134,13 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   );
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setIsFormClosed(false);
+      setIsShareModalOpen(false);
+      setShareDetalle(null);
+      return;
+    }
+    setIsFormClosed(false);
     setError(null);
     setSubmitting(false);
     setEstado(initial?.estado ?? "SIN_INICIAR");
@@ -169,7 +176,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const combustibleLeido = parseCombustibleLeido(combustible);
   const isCombustibleValid = !combustible.trim() || combustibleLeido !== undefined;
 
-  if (!open) return null;
+  if (!open && !isShareModalOpen) return null;
 
   const fieldValues: ArregloFormFieldsValues = {
     estado,
@@ -212,12 +219,14 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       const detalle = await fetchById(arregloId);
       if (!detalle?.arreglo?.vehiculo?.id) {
         toastError("Error", "No se pudo identificar el vehículo");
+        onClose(true);
         return;
       }
       setShareDetalle(detalle);
       setIsShareModalOpen(true);
     } catch (err: unknown) {
       toastError("Error", err instanceof Error ? err.message : "No se pudo compartir el arreglo");
+      onClose(true);
     }
   };
 
@@ -325,9 +334,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         loadInventarioByTaller(tallerSeleccionadoId).catch(() => {});
       }
 
-      onClose();
-
       if (!isEdit) {
+        setIsFormClosed(true);
         setEstado("SIN_INICIAR");
         setFecha(getArregloModalFecha());
         setKm("");
@@ -346,8 +354,11 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         });
         if (confirmed) {
           await handleShareArreglo(response.id);
+        } else {
+          onClose(true);
         }
       } else {
+        onClose(true);
         success("Arreglo actualizado", "Los cambios del arreglo se guardaron correctamente.");
       }
     } catch (err: unknown) {
@@ -367,7 +378,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   return (
     <>
       <Modal
-      open={open}
+      open={open && !isFormClosed && !isShareModalOpen}
       title={isEdit ? "Editar arreglo" : "Crear arreglo"}
       onClose={() => onClose()}
       onSubmit={handleSubmit}
@@ -461,6 +472,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         onClose={() => {
           setIsShareModalOpen(false);
           setShareDetalle(null);
+          onClose(true);
         }}
         data={shareDetalle}
       />

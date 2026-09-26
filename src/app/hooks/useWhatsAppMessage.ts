@@ -6,8 +6,8 @@ import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import {
   assembleClientePhone,
   buildArregloWhatsappMessage,
-  buildWhatsappLink,
   normalizeWhatsappPhone,
+  openWhatsapp as openWhatsapp,
   type ArregloWhatsappOptions,
 } from "@/lib/whatsapp";
 import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
@@ -43,16 +43,10 @@ export function useWhatsAppMessage() {
         return;
       }
 
-      const url = buildWhatsappLink(cleanPhone, normalizedMessage);
       try {
-        const opened = window.open(url, "_blank");
-        if (!opened) {
-          toast.error("Error", ERRORS.open_failed);
-          return;
-        }
+        openWhatsapp(cleanPhone, normalizedMessage);
       } catch {
         toast.error("Error", ERRORS.open_failed);
-        return;
       }
     },
     [toast]

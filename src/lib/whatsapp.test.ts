@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   buildArregloWhatsappMessage,
   buildTurnoWhatsappMessage,
+  buildWhatsappAppLink,
+  buildWhatsappWebLink,
   normalizeWhatsappPhone,
+  openWhatsapp,
 } from "@/lib/whatsapp";
 import { createArreglo, createArregloDetalleData, createTurno, createVehiculo, createCliente } from "@/tests/factories";
 
@@ -441,9 +444,79 @@ describe("buildTurnoWhatsappMessage", () => {
 });
 
 describe("normalizeWhatsappPhone", () => {
-
   it("devuelve null si no hay digitos validos", () => {
     expect(normalizeWhatsappPhone("----")).toBeNull();
+  });
+});
+
+describe("buildWhatsappAppLink", () => {
+  it("construye el link con protocolo whatsapp://", () => {
+    const link = buildWhatsappAppLink("5491112345678", "Hola mundo!");
+    expect(link).toBe("whatsapp://send?phone=5491112345678&text=Hola%20mundo!");
+  });
+});
+
+describe("buildWhatsappWebLink", () => {
+  it("construye el link para WhatsApp Web en escritorio", () => {
+    const link = buildWhatsappWebLink("5491112345678", "Hola mundo!");
+    expect(link).toContain("web.whatsapp.com/send?phone=5491112345678");
+    expect(link).toContain("text=Hola%20mundo!");
+  });
+});
+
+describe("openWhatsappWithFallback", () => {
+  it("intenta abrir la app mediante link whatsapp:// y ejecuta fallback si la app no toma foco", () => {
+    vi.useFakeTimers();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => ({} as Window));
+    const onFallback = vi.fn();
+
+    const clickedHrefs: string[] = [];
+    const originalAppend = document.body.appendChild.bind(document.body);
+    vi.spyOn(document.body, "appendChild").mockImplementation((node) => {
+      if (node instanceof HTMLAnchorElement) {
+        clickedHrefs.push(node.href);
+      }
+      return originalAppend(node);
+    });
+
+    openWhatsapp("5491112345678", "Mensaje test", {
+      onFallback,
+      timeoutMs: 1000,
+    });
+
+    // Se intentó abrir la app
+    expect(clickedHrefs.some((h) => h.startsWith("whatsapp://send"))).toBe(true);
+    expect(openSpy).not.toHaveBeenCalled();
+    expect(onFallback).not.toHaveBeenCalled();
+
+    // Al pasar el tiempo sin blur, se ejecuta el fallback a la web
+    vi.advanceTimersByTime(1000);
+    expect(onFallback).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const [calledUrl] = openSpy.mock.calls[0]!;
+    expect(String(calledUrl)).toContain("web.whatsapp.com/send?phone=5491112345678");
+
+    vi.useRealTimers();
+  });
+
+  it("no ejecuta el fallback a la web si la app toma foco (blur de ventana)", () => {
+    vi.useFakeTimers();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => ({} as Window));
+    const onFallback = vi.fn();
+
+    openWhatsapp("5491112345678", "Mensaje test", {
+      onFallback,
+      timeoutMs: 1000,
+    });
+
+    // Simulamos que la ventana pierde foco (la app nativa se abrió)
+    window.dispatchEvent(new Event("blur"));
+
+    vi.advanceTimersByTime(1000);
+    expect(onFallback).not.toHaveBeenCalled();
+    expect(openSpy).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
   });
 });
 

@@ -6,8 +6,8 @@ import { useToast } from "@/app/providers/ToastProvider";
 import {
   assembleClientePhone,
   buildArregloWhatsappMessage,
-  buildWhatsappLink,
   normalizeWhatsappPhone,
+  openWhatsapp,
 } from "@/lib/whatsapp";
 import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 
@@ -72,7 +72,7 @@ export function useArregloWhatsAppModal({
           if (initialPhone == null) setPhone(assembleClientePhone(cliente));
           if (initialClienteNombre == null) setClienteNombre(cliente.nombre ?? "");
         })
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => {
           if (isMounted) setLoadingCliente(false);
         });
@@ -157,8 +157,8 @@ export function useArregloWhatsAppModal({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
     const textToSend = mensaje.trim();
     if (!textToSend) {
       toast.error("Error", "El mensaje no puede estar vacío");
@@ -171,13 +171,8 @@ export function useArregloWhatsAppModal({
       return;
     }
 
-    const url = buildWhatsappLink(cleanPhone, textToSend);
     try {
-      const opened = window.open(url, "_blank");
-      if (!opened) {
-        toast.error("Error", "El navegador bloqueó la apertura de WhatsApp");
-        return;
-      }
+      openWhatsapp(cleanPhone, textToSend);
       onClose();
     } catch {
       toast.error("Error", "No se pudo abrir WhatsApp");

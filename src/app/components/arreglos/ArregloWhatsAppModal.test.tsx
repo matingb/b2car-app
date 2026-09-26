@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   fetchCliente: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+  toastInfo: vi.fn(),
 }));
 
 vi.mock("@/app/providers/VehiculosProvider", () => ({
@@ -19,6 +20,7 @@ vi.mock("@/app/providers/ToastProvider", () => ({
   useToast: () => ({
     success: mocks.toastSuccess,
     error: mocks.toastError,
+    info: mocks.toastInfo,
   }),
 }));
 
@@ -79,6 +81,7 @@ describe("ArregloWhatsAppModal", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -279,9 +282,8 @@ describe("ArregloWhatsAppModal", () => {
     });
   });
 
-  it("envía por WhatsApp abriendo la ventana con la URL correspondiente", async () => {
+  it("envía por WhatsApp intentando abrir la app y haciendo fallback a la web si no hay foco", async () => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue({} as Window);
-
     const onClose = vi.fn();
 
     render(
@@ -298,14 +300,43 @@ describe("ArregloWhatsAppModal", () => {
       expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
     });
 
+    vi.useFakeTimers();
     const submitBtn = screen.getByRole("button", { name: "Abrir chat de WhatsApp" });
     fireEvent.click(submitBtn);
 
+    // Cierra el modal de inmediato para no retener la UI
+    expect(onClose).toHaveBeenCalled();
+
+    // Antes del timeout no se abrió web
+    expect(openSpy).not.toHaveBeenCalled();
+
+    // Al pasar el timeout de fallback se abre WhatsApp Web
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
     expect(openSpy).toHaveBeenCalled();
     const calledUrl = openSpy.mock.calls[0][0];
-    expect(calledUrl).toContain("https://api.whatsapp.com/send/");
-    expect(calledUrl).toContain("phone=5491199998888");
-    expect(onClose).toHaveBeenCalled();
+    expect(calledUrl).toContain("web.whatsapp.com/send?phone=5491199998888");
+
+    vi.useRealTimers();
+  });
+
+  it("muestra únicamente el botón principal de WhatsApp y no un botón secundario de WhatsApp Web", async () => {
+    render(
+      <ArregloWhatsAppModal
+        open
+        onClose={vi.fn()}
+        data={sampleData}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
+    });
+
+    expect(screen.getByRole("button", { name: "Abrir chat de WhatsApp" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Abrir en WhatsApp Web/i })).not.toBeInTheDocument();
   });
 
   it("aplica los formatos de whatsapp como negrita y cursiva en la burbuja de previsualización", async () => {

@@ -120,8 +120,8 @@ function buildHeaderLine(
 	const header = esTecnico
 		? "Detalle de Arreglo"
 		: isPagado
-		? "Detalle de Arreglo"
-		: "Presupuesto de Arreglo";
+			? "Detalle de Arreglo"
+			: "Presupuesto de Arreglo";
 	return `*${header}${normalizedTenant ? ` - ${normalizedTenant}` : ""}*`;
 }
 
@@ -273,9 +273,90 @@ export function buildTurnoWhatsappMessage(turno: Turno, tenantName?: string): st
 	return lines.join("\n");
 }
 
+export function buildWhatsappAppLink(phone: string, message: string): string {
+	const encodedMessage = encodeURIComponent(message);
+	return `whatsapp://send?phone=${phone}&text=${encodedMessage}`;
+}
+
+export function buildWhatsappWebLink(phone: string, message: string): string {
+	const encodedMessage = encodeURIComponent(message);
+	const isMobile =
+		typeof navigator !== "undefined" &&
+		/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+	if (isMobile) {
+		return `https://api.whatsapp.com/send/?phone=${phone}&text=${encodedMessage}`;
+	}
+	return `https://web.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`;
+}
+
 export function buildWhatsappLink(phone: string, message: string): string {
 	const encodedMessage = encodeURIComponent(message);
 	return `https://api.whatsapp.com/send/?phone=${phone}&text=${encodedMessage}&type=phone_number&app_absent=0`;
+}
+
+export interface OpenWhatsappOptions {
+	onFallback?: () => void;
+	timeoutMs?: number;
+}
+
+/**
+ * Intenta abrir la aplicación nativa de WhatsApp.
+ * Si el usuario no tiene la app instalada o la app no toma el foco tras timeoutMs,
+ * ejecuta el fallback para abrir WhatsApp Web en el navegador.
+ */
+export function openWhatsapp(
+	phone: string,
+	message: string,
+	options?: OpenWhatsappOptions
+): void {
+	if (typeof window === "undefined") return;
+
+	const cleanPhone = normalizeWhatsappPhone(phone);
+	if (!cleanPhone) return;
+
+	const appUrl = buildWhatsappAppLink(cleanPhone, message);
+	const webUrl = buildWhatsappWebLink(cleanPhone, message);
+
+	let appOpened = false;
+
+	const handleBlur = () => {
+		appOpened = true;
+	};
+
+	const handleVisibilityChange = () => {
+		if (document.hidden) {
+			appOpened = true;
+		}
+	};
+
+	window.addEventListener("blur", handleBlur, { once: true });
+	document.addEventListener("visibilitychange", handleVisibilityChange, { once: true });
+
+	// 1. Intentar abrir la app nativa mediante el protocolo whatsapp://
+	const link = document.createElement("a");
+	link.href = appUrl;
+	link.style.display = "none";
+	if (typeof process !== "undefined" && process.env.NODE_ENV === "test") {
+		link.onclick = (e) => e.preventDefault();
+	}
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+
+	// 2. Fallback a WhatsApp Web si no se detectó cambio de ventana/foco
+	const timeoutMs = options?.timeoutMs ?? 1500;
+	window.setTimeout(() => {
+		window.removeEventListener("blur", handleBlur);
+		document.removeEventListener("visibilitychange", handleVisibilityChange);
+
+		if (!appOpened) {
+			options?.onFallback?.();
+			const newWin = window.open(webUrl, "_blank", "noopener,noreferrer");
+			if (!newWin || newWin.closed || typeof newWin.closed === "undefined") {
+				window.location.href = webUrl;
+			}
+		}
+	}, timeoutMs);
 }
 
 /**
@@ -283,13 +364,13 @@ export function buildWhatsappLink(phone: string, message: string): string {
  * del modelo de cliente. Equivalente a pasar el número normalizado a normalizeWhatsappPhone.
  */
 export function assembleClientePhone(cliente: {
-  codigo_pais?: string | null;
-  telefono?: string | null;
+	codigo_pais?: string | null;
+	telefono?: string | null;
 }): string {
-  return [cliente.codigo_pais, cliente.telefono]
-    .map((s) => (s ?? "").replace(/\D/g, ""))
-    .filter(Boolean)
-    .join("");
+	return [cliente.codigo_pais, cliente.telefono]
+		.map((s) => (s ?? "").replace(/\D/g, ""))
+		.filter(Boolean)
+		.join("");
 }
 
 export function normalizeWhatsappPhone(rawPhone: string): string | null {
