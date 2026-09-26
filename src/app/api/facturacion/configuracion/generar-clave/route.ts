@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    await requireTenantPlanPermissionAdmin(Permission.ConfiguracionEdit);
+    await requireTenantPlanPermissionAdmin([Permission.ConfiguracionEdit, Permission.FacturasEdit]);
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       throw new FacturacionValidationError("Los datos para generar la clave no son válidos");

@@ -17,6 +17,7 @@ vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
 
 vi.mock("./operacionesService", () => ({
 	OPERACIONES_PAGE_SIZE: 50,
+	validateOperacionesDateFilters: vi.fn().mockReturnValue(null),
 	operacionesService: {
 		list: vi.fn(),
 		create: vi.fn(),
@@ -25,7 +26,7 @@ vi.mock("./operacionesService", () => ({
 
 import { createClient } from "@/supabase/server";
 import { ServiceError } from "@/app/api/serviceError";
-import { operacionesService } from "./operacionesService";
+import { operacionesService, validateOperacionesDateFilters } from "./operacionesService";
 import { GET, POST } from "./route";
 
 describe("GET /api/operaciones", () => {
@@ -107,6 +108,29 @@ describe("GET /api/operaciones", () => {
 			monto: 12500,
 			arreglo_id: "arreglo-1",
 		});
+	});
+
+	it("rechaza un rango inválido antes de consultar operaciones", async () => {
+		vi.mocked(validateOperacionesDateFilters).mockReturnValueOnce("from debe ser anterior a to.");
+
+		const response = await GET(new Request(
+			"http://localhost/api/operaciones?from=2026-09-25&to=2026-09-24&page=2"
+		));
+		const body = await response.json();
+
+		expect(validateOperacionesDateFilters).toHaveBeenCalledWith({
+			fecha: undefined,
+			from: "2026-09-25",
+			to: "2026-09-24",
+			tipo: undefined,
+		});
+		expect(response.status).toBe(400);
+		expect(body).toMatchObject({
+			data: [],
+			pagination: { page: 2, pageSize: 50, total: 0 },
+			error: "from debe ser anterior a to.",
+		});
+		expect(operacionesService.list).not.toHaveBeenCalled();
 	});
 });
 

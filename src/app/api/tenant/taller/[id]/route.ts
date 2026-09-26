@@ -9,7 +9,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
-  const authError = await requirePermission(Permission.ConfiguracionView);
+  const authError = await requirePermission(Permission.TallerView);
   if (authError) return authError;
 
   const { id } = await params;

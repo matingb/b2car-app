@@ -4,9 +4,10 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Autocomplete, {
   type AutocompleteOption,
 } from "@/app/components/ui/Autocomplete";
+import Calendar from "@/app/components/ui/Calendar";
 import { BREAKPOINTS, COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
-import { isValidDate } from "@/lib/fechas";
+import { formatCalendarDateLabel, isValidDate } from "@/lib/fechas";
 import { formatArs } from "@/lib/format";
 import { calcLineTotal } from "@/lib/calcLineTotal";
 import ServicioLineasEditableSection, {
@@ -329,12 +330,21 @@ export default function ArregloFormFields({
               *
             </span>
           </label>
-          <input
-            type="date"
-            style={styles.input}
+          <Calendar
             value={values.fecha}
-            onChange={(e) => onValuesChange({ fecha: e.target.value })}
-          />
+            onChange={(fecha) => onValuesChange({ fecha })}
+            placeholder="Seleccionar fecha..."
+            dataTestId="arreglo-fecha"
+          >
+            <button
+              type="button"
+              data-testid="arreglo-fecha"
+              aria-label="Elegir fecha del arreglo"
+              style={styles.calendarTrigger}
+            >
+              {values.fecha ? formatCalendarDateLabel(values.fecha) : "Seleccionar fecha..."}
+            </button>
+          </Calendar>
         </div>
         {values.estado !== "PRESUPUESTO" && (
           <Can permission={[Permission.ArreglosCobrosRegister, Permission.ArreglosPreciosView]}>
@@ -520,6 +530,17 @@ const styles = {
     borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
+  },
+  calendarTrigger: {
+    width: "100%",
+    minHeight: 42,
+    textAlign: "left" as const,
+    padding: "0 12px",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    color: COLOR.TEXT.PRIMARY,
+    background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    cursor: "pointer",
   },
   divider: {
     height: 1,

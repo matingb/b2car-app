@@ -24,7 +24,7 @@ export default function SidebarItem({
   onClick?: () => void;
 }) {
   const pathname = usePathname();
-  const isActive = pathname.includes(href) && href !== ''; 
+  const isActive = Boolean(href) && (pathname === href || pathname.startsWith(`${href}/`));
 
   const s = useMemo(() => {
     return {

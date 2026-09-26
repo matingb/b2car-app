@@ -5,14 +5,18 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeftRight,
-  ArrowDownLeft,
+  Plus,
   Pencil,
   ReceiptText,
   Trash2,
+  CalendarDays,
+  CircleDollarSign,
+  WalletCards,
 } from "lucide-react";
 import { css } from "@emotion/react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import Card from "@/app/components/ui/Card";
+import DefinitionItem from "@/app/components/ui/DefinitionItem";
 import Button from "@/app/components/ui/Button";
 import IconButton from "@/app/components/ui/IconButton";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
@@ -233,8 +237,10 @@ export default function CuentaFinancieraDetailPage() {
           <div>
             <div style={styles.type}>{getCuentaTipoLabel(cuenta.tipo)}</div>
             <div style={styles.balanceLabel}>Saldo actual</div>
-            <div style={{ ...styles.balanceValue, color: saldoActual < 0 ? COLOR.ICON.DANGER : COLOR.TEXT.PRIMARY }}>
-              {formatArs(saldoActual)}
+            <div style={styles.balanceValueRow}>
+              <div style={{ ...styles.balanceValue, color: saldoActual < 0 ? COLOR.ICON.DANGER : COLOR.TEXT.PRIMARY }}>
+                {formatArs(saldoActual)}
+              </div>
             </div>
           </div>
           <span
@@ -247,14 +253,16 @@ export default function CuentaFinancieraDetailPage() {
           </span>
         </div>
         <div css={styles.balanceMeta}>
-          <div style={styles.metaItem}>
-            <span style={styles.metaLabel}>Saldo inicial</span>
-            <strong>{formatArs(saldoInicial)}</strong>
-          </div>
-          <div style={styles.metaItem}>
-            <span style={styles.metaLabel}>Creada</span>
-            <strong>{formatDateLabel(cuenta.createdAt)}</strong>
-          </div>
+          <DefinitionItem
+            label="Saldo inicial"
+            value={formatArs(saldoInicial)}
+            icon={<WalletCards size={15} color={COLOR.TEXT.SECONDARY} />}
+          />
+          <DefinitionItem
+            label="Fecha de creación"
+            value={formatDateLabel(cuenta.createdAt)}
+            icon={<CalendarDays size={15} color={COLOR.TEXT.SECONDARY} />}
+          />
         </div>
       </Card>
 
@@ -267,8 +275,7 @@ export default function CuentaFinancieraDetailPage() {
       <div css={styles.actionRow}>
         {cuenta.activo ? (
           <Button
-            outline
-            icon={<ArrowDownLeft size={18} />}
+            icon={<Plus size={18} />}
             text="Nuevo ingreso"
             onClick={() => setIsIngresoOpen(true)}
             hideTextOnMobile={false}
@@ -276,7 +283,7 @@ export default function CuentaFinancieraDetailPage() {
           />
         ) : (
           <span style={{ ...styles.primaryLink, ...styles.disabledLink }} aria-disabled="true">
-            <ArrowDownLeft size={18} />
+            <Plus size={18} />
             Nuevo ingreso
           </span>
         )}
@@ -350,7 +357,7 @@ const styles = {
     gap: 2,
     flexShrink: 0,
   },
-  balanceCard: { background: COLOR.BACKGROUND.SECONDARY },
+  balanceCard: { background: COLOR.BACKGROUND.SUBTLE },
   balanceTop: css({
     display: "flex",
     justifyContent: "space-between",
@@ -359,7 +366,13 @@ const styles = {
   }),
   type: { color: COLOR.TEXT.SECONDARY, fontSize: 14, fontWeight: 600 },
   balanceLabel: { color: COLOR.TEXT.SECONDARY, fontSize: 13, marginTop: 16 },
-  balanceValue: { marginTop: 3, fontSize: 32, fontWeight: 800, lineHeight: 1.2 },
+  balanceValueRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 3,
+  },
+  balanceValue: { fontSize: 32, fontWeight: 700, lineHeight: 1.2 },
   status: {
     borderRadius: 999,
     padding: "5px 10px",
@@ -377,8 +390,6 @@ const styles = {
     paddingTop: 14,
     borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
   }),
-  metaItem: { display: "flex", flexDirection: "column" as const, gap: 3, fontSize: 14 },
-  metaLabel: { color: COLOR.TEXT.SECONDARY, fontSize: 12 },
   inactiveNotice: {
     color: COLOR.TEXT.SECONDARY,
     background: COLOR.BACKGROUND.WARNING_TINT,
@@ -406,7 +417,7 @@ const styles = {
     background: COLOR.ACCENT.PRIMARY,
     textDecoration: "none",
     fontSize: 16,
-    fontWeight: 500,
+    fontWeight: 400,
   },
   disabledLink: { opacity: 0.55, cursor: "default" },
   transferButton: css({ minWidth: 0, height: 40 }),

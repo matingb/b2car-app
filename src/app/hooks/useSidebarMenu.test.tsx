@@ -37,28 +37,27 @@ afterEach(() => {
 });
 
 describe("useSidebarMenu", () => {
-  it("muestra Facturas, Talleres y Configuración para admin con plan PRO", () => {
+  it("muestra Facturas y Configuración para admin con plan PRO", () => {
     state.role = UserRole.Admin;
     state.pro = true;
     const { result } = renderHook(() => useSidebarMenu());
 
     expect(result.current.items).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        key: SidebarMenuKey.Talleres,
-        href: "/talleres",
-      }),
-      expect.objectContaining({
         key: SidebarMenuKey.Configuracion,
         href: "/configuracion",
+        dividerBefore: false,
       }),
       expect.objectContaining({
         key: SidebarMenuKey.Facturas,
         href: "/facturacion",
+        dividerBefore: true,
       }),
     ]));
+    expect(result.current.items.map((item) => item.key)).not.toContain(SidebarMenuKey.Talleres);
   });
 
-  it("oculta Facturas, Talleres y Configuración para BASE en admin", () => {
+  it("muestra Configuración y oculta Facturas y Talleres para admin BASE", () => {
     state.role = UserRole.Admin;
     state.pro = false;
     const { result } = renderHook(() => useSidebarMenu());
@@ -66,8 +65,8 @@ describe("useSidebarMenu", () => {
     expect(result.current.items).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ key: SidebarMenuKey.Talleres }),
     ]));
-    expect(result.current.items).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({ key: SidebarMenuKey.Configuracion }),
+    expect(result.current.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: SidebarMenuKey.Configuracion, href: "/configuracion", dividerBefore: true }),
     ]));
     expect(result.current.items).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ key: SidebarMenuKey.Facturas }),

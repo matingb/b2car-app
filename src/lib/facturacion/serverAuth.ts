@@ -80,7 +80,7 @@ export async function requireTenantActor(): Promise<TenantActor> {
   };
 }
 
-export async function requireTenantPlanPermission(permission: PermissionValue): Promise<TenantActor> {
+export async function requireTenantPlanPermission(permission: PermissionValue | readonly PermissionValue[]): Promise<TenantActor> {
   const actor = await requireTenantActor();
   const supabase = await createClient();
 
@@ -99,7 +99,8 @@ export async function requireTenantPlanPermission(permission: PermissionValue): 
     );
   }
 
-  if (!permissions.includes(permission)) {
+  const requiredPermissions = Array.isArray(permission) ? permission : [permission];
+  if (!requiredPermissions.every((required) => permissions.includes(required))) {
     throw new FacturacionHttpError(
       "La funcionalidad no está disponible en el plan actual",
       403,
@@ -109,7 +110,7 @@ export async function requireTenantPlanPermission(permission: PermissionValue): 
   return actor;
 }
 
-export async function requireTenantPlanPermissionAdmin(permission: PermissionValue): Promise<TenantActor> {
+export async function requireTenantPlanPermissionAdmin(permission: PermissionValue | readonly PermissionValue[]): Promise<TenantActor> {
   const actor = await requireTenantPlanPermission(permission);
   if (actor.role !== "admin" || actor.claimedRole !== "admin") {
     throw new FacturacionHttpError("Esta acción requiere un administrador del tenant", 403);

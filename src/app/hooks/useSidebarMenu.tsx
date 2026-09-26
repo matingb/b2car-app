@@ -12,11 +12,9 @@ import {
   Users,
   Wrench,
   ScrollText,
-  IdCard,
   WalletCards,
   Settings,
   ReceiptText,
-  Building2,
 } from "lucide-react";
 import { logOut } from "@/app/login/actions";
 import { useRouter } from "next/navigation";
@@ -47,12 +45,16 @@ export type SidebarMenuItem = {
   onClick?: () => void;
   disabled?: boolean;
   isLoading?: boolean;
+  dividerBefore?: boolean;
 };
 
 export function useSidebarMenu() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
   const { tenantName, hasPermission } = useTenant();
+  const canViewConfiguration = hasPermission(Permission.TallerView);
+  const canViewEmployees = hasPermission(Permission.EmpleadosView);
+  const canViewInvoices = hasPermission(Permission.FacturasView);
 
   const items: SidebarMenuItem[] = useMemo(() => {
     const handleLogout = async () => {
@@ -123,33 +125,23 @@ export function useSidebarMenu() {
         icon: <WalletCards size={18} />,
         onClick: () => router.push(ROUTES.cuentasFinancieras),
       }] : []),
-      ...(hasPermission(Permission.EmpleadosView) ? [{
-        key: SidebarMenuKey.Empleados,
-        href: ROUTES.empleados,
-        label: "Empleados",
-        icon: <IdCard size={18} />,
-        onClick: () => router.push(ROUTES.empleados),
-      }] : []),
-      ...(hasPermission(Permission.FacturasView) ? [{
+      ...(canViewInvoices ? [{
         key: SidebarMenuKey.Facturas,
         href: ROUTES.facturacion,
         label: "Facturas",
         icon: <ReceiptText size={18} />,
+        dividerBefore: true,
         onClick: () => router.push(ROUTES.facturacion),
       }] : []),
-      ...(hasPermission(Permission.ConfiguracionView) ? [{
-        key: SidebarMenuKey.Talleres,
-        href: ROUTES.talleres,
-        label: "Talleres",
-        icon: <Building2 size={18} />,
-        onClick: () => router.push(ROUTES.talleres),
-      }] : []),
-      ...(hasPermission(Permission.ConfiguracionView) ? [{
+      ...(canViewConfiguration || canViewEmployees ? [{
         key: SidebarMenuKey.Configuracion,
-        href: ROUTES.configuracion,
+        href: canViewConfiguration ? ROUTES.configuracion : ROUTES.configuracionEmpleados,
         label: "Configuración",
         icon: <Settings size={18} />,
-        onClick: () => router.push(ROUTES.configuracion),
+        dividerBefore: !canViewInvoices,
+        onClick: () => router.push(
+          canViewConfiguration ? ROUTES.configuracion : ROUTES.configuracionEmpleados,
+        ),
       }] : []),
       {
         key: SidebarMenuKey.Logout,
@@ -161,7 +153,7 @@ export function useSidebarMenu() {
         isLoading: isLoggingOut,
       },
     ];
-  }, [hasPermission, isLoggingOut, router]);
+  }, [canViewConfiguration, canViewEmployees, canViewInvoices, hasPermission, isLoggingOut, router]);
 
   return { tenantName, items, isLoggingOut } as const;
 }

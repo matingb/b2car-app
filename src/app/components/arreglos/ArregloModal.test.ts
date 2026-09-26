@@ -21,6 +21,13 @@ describe("getArregloModalFecha", () => {
   it("respeta la fecha inicial cuando se edita un arreglo", () => {
     expect(getArregloModalFecha("2026-03-19T12:00:00.000Z")).toBe("2026-03-19");
   });
+
+  it.each(["2026-09-24T01:30:00.000Z", "2026-09-24T04:30:00.000Z"])(
+    "preserva el día calendario al editar fechas cercanas a medianoche UTC (%s)",
+    (fecha) => {
+      expect(getArregloModalFecha(fecha)).toBe("2026-09-24");
+    }
+  );
 });
 
 describe("normalizeArregloObservaciones", () => {

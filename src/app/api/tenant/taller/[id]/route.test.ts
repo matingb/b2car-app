@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PUT } from "./route";
 import { createClient } from "@/supabase/server";
 import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 import { tenantService } from "../../tallerService";
 import type { NextRequest } from "next/server";
 
@@ -41,6 +42,7 @@ describe("PUT /api/tenant/taller/[id]", () => {
 
     const res = await PUT(req, { params: Promise.resolve({ id: "tal-1" }) });
     expect(res.status).toBe(403);
+    expect(requirePermission).toHaveBeenCalledWith(Permission.TallerView);
   });
 
   it("retorna 400 si falta el id del taller", async () => {

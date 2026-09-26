@@ -121,10 +121,10 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <nav css={s.navList}>
               {items.map((item) => {
                 const showDivider =
+                  item.dividerBefore ||
                   item.key === SidebarMenuKey.Logout ||
                   item.key === SidebarMenuKey.Clientes ||
-                  item.key === SidebarMenuKey.Productos ||
-                  item.key === SidebarMenuKey.Empleados;
+                  item.key === SidebarMenuKey.Productos;
                 return (
                   <div key={item.key}>
                     {showDivider ? (

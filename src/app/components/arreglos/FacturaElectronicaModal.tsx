@@ -15,6 +15,7 @@ import {
 } from "@/app/hooks/useArcaInscriptionLookup";
 import { COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
+import { ROUTES } from "@/routing/routes";
 import {
   CONDICIONES_IVA_RECEPTOR,
   TIPOS_DOCUMENTO_FISCAL,
@@ -261,7 +262,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const handleSubmit = async () => {
     if (needsConfiguration) {
       onClose();
-      router.push("/configuracion");
+      router.push(ROUTES.configuracionFacturacion);
       return;
     }
     if (!preflight || !canSubmit) return;

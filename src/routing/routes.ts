@@ -14,6 +14,9 @@ export const ROUTES = {
 	empleados: "/empleados",
 	talleres: "/talleres",
 	configuracion: "/configuracion",
+	configuracionTaller: "/configuracion/taller",
+	configuracionEmpleados: "/configuracion/empleados",
+	configuracionFacturacion: "/configuracion/facturacion",
 	facturacion: "/facturacion",
 } as const;
 

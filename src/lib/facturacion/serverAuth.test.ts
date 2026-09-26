@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getClaims: vi.fn(),
   maybeSingle: vi.fn(),
+  fetchEffectivePermissions: vi.fn(),
 }));
 
 function serverClient() {
@@ -23,6 +24,11 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/supabase/server", () => ({
   createClient: async () => serverClient(),
 }));
+vi.mock("@/lib/permissions.server", () => ({
+  fetchEffectivePermissions: mocks.fetchEffectivePermissions,
+}));
+
+import { Permission } from "@/lib/permissions";
 
 import {
   FEATURE_NOT_AVAILABLE_FOR_PLAN,
@@ -31,11 +37,19 @@ import {
   requireTenantActor,
   requireTenantAdmin,
   requireTenantBillingActor,
+  requireTenantPlanPermissionAdmin,
 } from "./serverAuth";
 
 beforeEach(() => {
   mocks.getClaims.mockReset();
   mocks.maybeSingle.mockReset();
+  mocks.fetchEffectivePermissions.mockReset();
+  mocks.fetchEffectivePermissions.mockResolvedValue([
+    Permission.ConfiguracionView,
+    Permission.ConfiguracionEdit,
+    Permission.FacturasView,
+    Permission.FacturasEdit,
+  ]);
   mocks.getClaims.mockResolvedValue({
     data: {
       claims: {
@@ -114,6 +128,7 @@ describe("autorización fiscal tenant-scoped", () => {
   });
 
   it("deniega features Pro para un plan BASE y expone un código estable", async () => {
+    mocks.fetchEffectivePermissions.mockResolvedValue([Permission.TallerView]);
     mocks.getClaims.mockResolvedValue({
       data: {
         claims: {
@@ -138,6 +153,25 @@ describe("autorización fiscal tenant-scoped", () => {
     await expect(response.json()).resolves.toEqual({
       error: FEATURE_NOT_AVAILABLE_FOR_PLAN,
     });
+  });
+
+  it("deniega configuración fiscal a BASE aunque tenga acceso a Taller", async () => {
+    mocks.fetchEffectivePermissions.mockResolvedValue([Permission.TallerView]);
+    await expect(requireTenantPlanPermissionAdmin([
+      Permission.ConfiguracionView,
+      Permission.FacturasView,
+    ])).rejects.toMatchObject({ status: 403, code: FEATURE_NOT_AVAILABLE_FOR_PLAN });
+    await expect(requireTenantPlanPermissionAdmin([
+      Permission.ConfiguracionEdit,
+      Permission.FacturasEdit,
+    ])).rejects.toMatchObject({ status: 403, code: FEATURE_NOT_AVAILABLE_FOR_PLAN });
+  });
+
+  it("permite configuración fiscal al admin PRO con ambos permisos", async () => {
+    await expect(requireTenantPlanPermissionAdmin([
+      Permission.ConfiguracionView,
+      Permission.FacturasView,
+    ])).resolves.toMatchObject({ tenantId: "tenant-1", role: "admin" });
   });
 });
 

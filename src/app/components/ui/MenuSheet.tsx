@@ -27,6 +27,7 @@ export default function MenuSheet() {
       <nav css={styles.nav}>
         {items.map((item) => {
           const showDivider =
+            item.dividerBefore ||
             item.key === SidebarMenuKey.Logout ||
             item.key === SidebarMenuKey.Clientes ||
             item.key === SidebarMenuKey.Productos;

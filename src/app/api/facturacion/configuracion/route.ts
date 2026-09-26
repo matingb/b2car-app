@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const actor = await requireTenantPlanPermissionAdmin(Permission.ConfiguracionView);
+    const actor = await requireTenantPlanPermissionAdmin([Permission.ConfiguracionView, Permission.FacturasView]);
     const config = await getFacturacionConfig(actor.tenantId, getFacturacionAmbiente());
     return Response.json({ data: config, error: null });
   } catch (error) {
@@ -22,7 +22,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const actor = await requireTenantPlanPermissionAdmin(Permission.ConfiguracionEdit);
+    const actor = await requireTenantPlanPermissionAdmin([Permission.ConfiguracionEdit, Permission.FacturasEdit]);
     const formData = await request.formData().catch(() => null);
     if (!formData) throw new FacturacionValidationError("El formulario de configuración no es válido");
     const configValue = formData.get("config");

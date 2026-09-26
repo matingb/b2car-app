@@ -88,6 +88,17 @@ vi.mock("@/app/providers/ToastProvider", () => ({
 }));
 
 describe("ArregloItem", () => {
+  it.each(["2026-09-24T01:30:00.000Z", "2026-09-24T04:30:00.000Z"])(
+    "preserva el día calendario para fechas cercanas a medianoche UTC (%s)",
+    (fecha) => {
+      talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+
+      render(<ArregloItem arreglo={createArreglo({ fecha })} />);
+
+      expect(screen.getByText("24/09/2026")).toBeInTheDocument();
+    }
+  );
+
   it("si hay más de un taller, muestra el IconLabel de Taller", () => {
     talleresMock = [
       { id: "t1", nombre: "Taller 1", ubicacion: "A" },

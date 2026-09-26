@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 export async function POST() {
   try {
-    const actor = await requireTenantPlanPermissionAdmin(Permission.ConfiguracionEdit);
+    const actor = await requireTenantPlanPermissionAdmin([Permission.ConfiguracionEdit, Permission.FacturasEdit]);
     const result = await testFacturacionConnection(actor.tenantId, getFacturacionAmbiente());
     return Response.json({ data: result, error: null });
   } catch (error) {

@@ -135,13 +135,6 @@ export default function CuentasFinancierasPage() {
           <div css={styles.actions}>
             <Button
               outline
-              icon={<ArrowDownLeft size={18} />}
-              text="Nuevo ingreso"
-              onClick={() => setIsIngresoOpen(true)}
-              style={styles.actionButton}
-            />
-            <Button
-              outline
               icon={<ArrowLeftRight size={18} />}
               text="Transferir"
               onClick={() => setIsTransferOpen(true)}
@@ -287,7 +280,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 10,
-    background: COLOR.BACKGROUND.SECONDARY,
+    background: COLOR.BACKGROUND.SUBTLE,
   },
   summaryIcon: {
     display: "flex",

@@ -16,7 +16,7 @@ import CuentaFinancieraAutocomplete, {
   CREATE_CUENTA_VALUE,
 } from "@/app/components/finanzas/CuentaFinancieraAutocomplete";
 import { UpdateArregloInput } from "@/clients/arreglosClient";
-import { toLocalDateInputFormat, toISODateLocal, toISODateTimeWithLocalCurrentTime } from "@/lib/fechas";
+import { toDateInputFormat, toISODateLocal, toISODateTimeWithLocalCurrentTime } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
@@ -45,7 +45,7 @@ type Props = {
 };
 
 export function getArregloModalFecha(initialFecha?: string): string {
-  return initialFecha ? toLocalDateInputFormat(initialFecha) : toISODateLocal(new Date());
+  return initialFecha ? toDateInputFormat(initialFecha) : toISODateLocal(new Date());
 }
 
 export function normalizeArregloObservaciones(observaciones: string, isEdit: boolean): string | undefined {

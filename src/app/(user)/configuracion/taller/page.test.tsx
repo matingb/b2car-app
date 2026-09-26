@@ -10,13 +10,14 @@ const mockSetTallerSeleccionadoId = vi.fn();
 
 let mockTalleres: Taller[] = [];
 let mockLoading = false;
+let mockSelectedTallerId = "";
 
 vi.mock("@/app/providers/TenantProvider", () => ({
   useTenant: () => ({
     talleres: mockTalleres,
     loading: mockLoading,
     updateTaller: mockUpdateTaller,
-    tallerSeleccionadoId: mockTalleres[0]?.id ?? "",
+    tallerSeleccionadoId: mockSelectedTallerId || mockTalleres[0]?.id || "",
     setTallerSeleccionadoId: mockSetTallerSeleccionadoId,
   }),
 }));
@@ -59,6 +60,7 @@ describe("TalleresPage", () => {
     vi.clearAllMocks();
     mockTalleres = [];
     mockLoading = false;
+    mockSelectedTallerId = "";
   });
 
   it("muestra spinner mientras carga y no hay talleres", () => {
@@ -149,7 +151,7 @@ describe("TalleresPage", () => {
     ];
     mockUpdateTaller.mockResolvedValue({ data: null, error: null });
 
-    render(<TalleresPage />);
+    const { rerender } = render(<TalleresPage />);
 
     const selector = screen.getByTestId("taller-selector");
     expect(selector).toBeInTheDocument();
@@ -160,6 +162,9 @@ describe("TalleresPage", () => {
 
     // Switch to Taller 2
     fireEvent.change(selector, { target: { value: "tal-2" } });
+    expect(mockSetTallerSeleccionadoId).toHaveBeenCalledWith("tal-2");
+    mockSelectedTallerId = "tal-2";
+    rerender(<TalleresPage />);
 
     expect(screen.getByLabelText(/Nombre del taller/i)).toHaveValue("Taller 2");
     expect(screen.getByLabelText(/Precio Hora/i)).toHaveValue(20000);

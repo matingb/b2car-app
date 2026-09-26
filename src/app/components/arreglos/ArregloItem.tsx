@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 import { formatArs } from "@/lib/format";
-import { formatLocalDateLabel } from "@/lib/fechas";
+import { formatDateLabel } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { useTenant } from "@/app/providers/TenantProvider";
 import Can from "@/app/components/auth/Can";
@@ -202,7 +202,7 @@ export default function ArregloItem({
 
             <div css={styles.dateContainer}>
               <Calendar size={15} color={COLOR.ICON.MUTED} />
-              <span>{formatLocalDateLabel(arreglo.fecha)}</span>
+              <span>{formatDateLabel(arreglo.fecha)}</span>
             </div>
 
             {talleres.length > 1 && arreglo.taller ? (

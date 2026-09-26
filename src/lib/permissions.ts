@@ -20,6 +20,7 @@ export const Permission = {
   ProductosEdit: "productos:edit",
   ConfiguracionView: "configuracion:view",
   ConfiguracionEdit: "configuracion:edit",
+  TallerView: "configuracion:taller:view",
 
   // 2. Arreglos
   ArreglosView: "arreglos:view",
@@ -75,12 +76,20 @@ export const PATH_PERMISSIONS: readonly RoutePermissionRule[] = [
 
   // Configuración
   {
-    path: ["/configuracion", "/api/facturacion/configuracion"],
-    permission: Permission.ConfiguracionView,
+    path: ["/configuracion/empleados"],
+    permission: Permission.EmpleadosView,
+  },
+  {
+    path: ["/configuracion/facturacion", "/api/facturacion/configuracion"],
+    permission: Permission.FacturasView,
+  },
+  {
+    path: ["/configuracion"],
+    permission: Permission.TallerView,
   },
 
   // Talleres
-  { path: ["/talleres", "/api/tenant/taller"], permission: Permission.ConfiguracionView },
+  { path: ["/talleres", "/api/tenant/taller"], permission: Permission.TallerView },
 
   // Facturación y endpoints fiscales
   {
