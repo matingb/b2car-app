@@ -407,6 +407,37 @@ export async function testFacturacionConnection(
   };
 }
 
+type RegisteredClient = {
+  company: boolean;
+  nombre: string;
+  domicilio: string | null;
+  documento: string;
+};
+
+async function getRegisteredClient(tenantId: string, clienteId: string): Promise<RegisteredClient | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("clientes")
+    .select("id, tipo_cliente")
+    .eq("id", clienteId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (error || !data) return null;
+  const client = record(data);
+  const company = text(client.tipo_cliente) === "empresa";
+  const { data: identity } = company
+    ? await supabase.from("empresas").select("nombre, direccion, cuit").eq("id", clienteId).maybeSingle()
+    : await supabase.from("particulares").select("nombre, apellido, direccion, dni_cuil").eq("id", clienteId).maybeSingle();
+  const profile = record(identity);
+  return {
+    company,
+    nombre: company ? text(profile.nombre) || "Cliente"
+      : [text(profile.nombre), text(profile.apellido)].filter(Boolean).join(" ") || "Cliente",
+    domicilio: nullable(profile.direccion),
+    documento: normalizeDocumentNumber(text(company ? profile.cuit : profile.dni_cuil)),
+  };
+}
+
 async function getClientProfile(tenantId: string, clienteId: string | null): Promise<ResolvedClientProfile> {
   if (!clienteId) {
     return {
@@ -416,24 +447,9 @@ async function getClientProfile(tenantId: string, clienteId: string | null): Pro
       },
     };
   }
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("clientes")
-    .select("id, tipo_cliente")
-    .eq("id", clienteId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  if (error || !data) throw new FacturacionValidationError("Cliente no encontrado");
-  const client = record(data);
-  const company = text(client.tipo_cliente) === "empresa";
-  const { data: identity } = company
-    ? await supabase.from("empresas").select("nombre, direccion, cuit").eq("id", clienteId).maybeSingle()
-    : await supabase.from("particulares").select("nombre, apellido, direccion, dni_cuil").eq("id", clienteId).maybeSingle();
-  const profile = record(identity);
-  const nombre = company ? text(profile.nombre) || "Cliente"
-    : [text(profile.nombre), text(profile.apellido)].filter(Boolean).join(" ") || "Cliente";
-  const domicilio = nullable(profile.direccion);
-  const storedDocument = normalizeDocumentNumber(text(company ? profile.cuit : profile.dni_cuil));
+  const client = await getRegisteredClient(tenantId, clienteId);
+  if (!client) throw new FacturacionValidationError("Cliente no encontrado");
+  const { company, nombre, domicilio, documento: storedDocument } = client;
 
   if (!storedDocument) {
     return {
@@ -1439,24 +1455,63 @@ export async function exportFacturasRows(tenantId: string, filters: FacturasList
   }));
 }
 
-const PDF_TEMPLATE_VERSION = "fiscal-v2";
+// v3: el receptor con CUIT distinto al del cliente registrado se imprime con los datos del padrón ARCA.
+const PDF_TEMPLATE_VERSION = "fiscal-v3";
 const PDF_BUCKET = "facturacion-comprobantes";
+
+function isRegisteredClientDocument(invoiceDocument: string, clientDocument: string): boolean {
+  if (!invoiceDocument || !clientDocument) return false;
+  if (invoiceDocument === clientDocument) return true;
+  // La ficha puede guardar el DNI y la factura el CUIL que ARCA asoció a ese DNI.
+  return invoiceDocument.length === 11
+    && (clientDocument.length === 7 || clientDocument.length === 8)
+    && invoiceDocument.slice(2, 10) === clientDocument.padStart(8, "0");
+}
+
+/**
+ * Si el comprobante se emitió a un CUIT/CUIL distinto al del cliente registrado,
+ * el snapshot conserva nombre y domicilio de la ficha; se reemplazan por los del padrón.
+ */
+export async function resolvePdfReceiverSnapshot(tenantId: string, receiver: DbRecord): Promise<DbRecord> {
+  const tipoDocumento = parseDocumento(receiver.tipoDocumento);
+  if (tipoDocumento !== 80 && tipoDocumento !== 86) return receiver;
+  const documento = normalizeDocumentNumber(text(receiver.numeroDocumento));
+  const clienteId = nullable(receiver.clienteId);
+  const client = clienteId ? await getRegisteredClient(tenantId, clienteId) : null;
+  if (client && isRegisteredClientDocument(documento, client.documento)) return receiver;
+
+  try {
+    const lookup = await lookupArcaPadronPerson(tipoDocumento, documento);
+    if (lookup.status !== "FOUND") throw new Error("El padrón ARCA devolvió más de una persona para el CUIT");
+    return {
+      ...receiver,
+      nombre: lookup.person.nombreCompleto,
+      domicilio: lookup.person.direccion,
+    };
+  } catch (cause) {
+    logger.error("No se pudieron obtener del padrón ARCA los datos del receptor del PDF", cause);
+    throw new FacturacionValidationError(
+      "No se pudieron obtener desde ARCA la razón social y el domicilio del CUIT receptor. Reintentá en unos minutos.",
+    );
+  }
+}
 
 export async function buildFacturaPdf(tenantId: string, facturaId: string): Promise<{ bytes: Uint8Array; filename: string }> {
   const supabase = await createClient();
   const detail = await getFacturaDetalle(tenantId, facturaId);
   if (detail.estado !== "AUTORIZADA") throw new FacturacionValidationError("El PDF sólo está disponible para documentos autorizados");
   const { data: invoice } = await supabase.from("facturas_electronicas")
-    .select("pdf_storage_path").eq("id", facturaId).eq("tenant_id", tenantId).single();
+    .select("pdf_storage_path, pdf_template_version").eq("id", facturaId).eq("tenant_id", tenantId).single();
   const storedPath = nullable(record(invoice).pdf_storage_path);
-  if (storedPath) {
+  if (storedPath && text(record(invoice).pdf_template_version) === PDF_TEMPLATE_VERSION) {
     const downloaded = await supabase.storage.from(PDF_BUCKET).download(storedPath);
     if (!downloaded.error && downloaded.data) {
       return { bytes: new Uint8Array(await downloaded.data.arrayBuffer()), filename: pdfFilename(detail) };
     }
   }
   const fiscal: FiscalPdfInvoice = {
-    id: detail.id, emisorSnapshot: detail.emisorSnapshot, receptorSnapshot: detail.receptorSnapshot,
+    id: detail.id, emisorSnapshot: detail.emisorSnapshot,
+    receptorSnapshot: await resolvePdfReceiverSnapshot(tenantId, detail.receptorSnapshot),
     concepto: detail.concepto, fechaComprobante: detail.fechas.fechaComprobante,
     fechaServicioDesde: detail.fechas.fechaServicioDesde ?? null,
     fechaServicioHasta: detail.fechas.fechaServicioHasta ?? null,
