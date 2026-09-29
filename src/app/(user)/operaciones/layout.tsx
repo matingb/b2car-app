@@ -7,12 +7,10 @@ import { InventarioProvider } from "@/app/providers/InventarioProvider";
 export default function OperacionesLayout({ children }: { children: React.ReactNode }) {
     return (
         <OperacionesProvider>
-            <TenantProvider>
                 <ProductosProvider>
                     <InventarioProvider>
                         {children}
                     </InventarioProvider>
                 </ProductosProvider>
-            </TenantProvider>
         </OperacionesProvider>);
 }
