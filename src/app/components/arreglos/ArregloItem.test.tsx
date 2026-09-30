@@ -309,5 +309,53 @@ describe("ArregloItem", () => {
 
     expect(screen.queryByText("$25.000")).not.toBeInTheDocument();
   });
+
+  it("muestra el numero_orden autoincremental concatenado con ceros previos a la descripcion", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+
+    render(
+      <ArregloItem
+        arreglo={createArreglo({
+          numero_orden: 42,
+          descripcion: "Cambio de pastillas y rectificado",
+        })}
+      />
+    );
+
+    expect(
+      screen.getByText("#000042 - Cambio de pastillas y rectificado")
+    ).toBeInTheDocument();
+  });
+
+  it("muestra solo el numero_orden si no hay descripcion", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+
+    render(
+      <ArregloItem
+        arreglo={createArreglo({
+          numero_orden: 7,
+          descripcion: "",
+        })}
+      />
+    );
+
+    expect(screen.getByText("#000007")).toBeInTheDocument();
+  });
+
+  it("muestra la descripcion original si no posee numero_orden", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+
+    render(
+      <ArregloItem
+        arreglo={createArreglo({
+          numero_orden: undefined,
+          descripcion: "Revisión general",
+        })}
+      />
+    );
+
+    expect(screen.getByText("Revisión general")).toBeInTheDocument();
+  });
 });
+
 

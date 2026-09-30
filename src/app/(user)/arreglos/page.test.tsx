@@ -3,9 +3,52 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Arreglo } from "@/model/types";
 import { createArreglo, createVehiculo } from "@/tests/factories";
-import { runPendingPromises } from "@/tests/testUtils";
+import { act } from "@testing-library/react";
+const runPendingPromises = async () =>
+  act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  });
+
+import { filterArreglos } from "@/app/hooks/arreglos/useArreglosFilters";
+import React from "react";
 
 let arreglosMock: Arreglo[] = [];
+let currentArreglos: Arreglo[] = [];
+let listeners: Array<() => void> = [];
+
+const notify = () => {
+  listeners.forEach((l) => l());
+};
+
+const mockFetchAll = vi.fn(async (params?: {
+  tallerId?: string;
+  limit?: number;
+  search?: string;
+  patente?: string;
+  estado?: string;
+  estadoPago?: string;
+  from?: string;
+  to?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+}) => {
+  let list = [...arreglosMock];
+  if (params) {
+    list = filterArreglos(arreglosMock, {
+      search: params.search ?? "",
+      filters: {
+        patente: params.patente ?? "",
+        estado: params.estado ?? "",
+        estadoPago: params.estadoPago ?? "",
+        fechaDesde: params.from ? params.from.slice(0, 10) : (params.fechaDesde ?? ""),
+        fechaHasta: params.to ? params.to.slice(0, 10) : (params.fechaHasta ?? ""),
+      },
+    });
+  }
+  currentArreglos = list;
+  notify();
+  return list;
+});
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -17,10 +60,23 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/app/providers/ArreglosProvider", () => ({
-  useArreglos: () => ({
-    arreglos: arreglosMock,
-    loading: false,
-  }),
+  useArreglos: () => {
+    const [, forceUpdate] = React.useState(0);
+    React.useEffect(() => {
+      const listener = () => forceUpdate((n) => n + 1);
+      listeners.push(listener);
+      return () => {
+        listeners = listeners.filter((l) => l !== listener);
+      };
+    }, []);
+
+    return {
+      arreglos: currentArreglos,
+      loading: false,
+      hasMore: false,
+      fetchAll: mockFetchAll,
+    };
+  },
 }));
 
 vi.mock("@/app/providers/SheetProvider", () => ({
@@ -161,6 +217,7 @@ describe("ArreglosPage", () => {
         vehiculo: createVehiculo({ patente: "CCC333" }),
       }),
     ];
+    currentArreglos = [...arreglosMock];
 
     const user = userEvent.setup();
     render(<ArreglosPage />);
@@ -204,6 +261,7 @@ describe("ArreglosPage", () => {
       createArreglo({ id: "parcial", esta_pago: false, total_cobrado: 500 }),
       createArreglo({ id: "pagado", esta_pago: true, total_cobrado: 1000 }),
     ];
+    currentArreglos = [...arreglosMock];
 
     render(<ArreglosPage />);
 

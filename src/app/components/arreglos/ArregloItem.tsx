@@ -20,6 +20,7 @@ import {
 import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
+import { formatArregloTitulo } from "@/lib/arreglos";
 import { useTenant } from "@/app/providers/TenantProvider";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
@@ -90,7 +91,7 @@ export default function ArregloItem({
           <div css={styles.mainInfoSection}>
             <div css={styles.topRow}>
               <h4 css={styles.mainTitle}>
-                {arreglo.descripcion || "Arreglo sin descripción"}
+                {formatArregloTitulo(arreglo)}
               </h4>
             </div>
 
@@ -283,7 +284,7 @@ const styles = {
     },
   }),
   mainTitle: css({
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: 700,
     color: COLOR.TEXT.PRIMARY,
     margin: 0,
@@ -293,6 +294,7 @@ const styles = {
       overflow: "hidden",
       textOverflow: "ellipsis",
       whiteSpace: "nowrap",
+      fontSize: 14,
     },
   }),
   badgesGroup: {

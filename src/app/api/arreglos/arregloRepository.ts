@@ -102,6 +102,7 @@ export interface ArregloRepository {
   ): Promise<
     Array<{
       id?: unknown;
+      numero_orden?: unknown;
       descripcion?: unknown;
       updated_at?: unknown;
       precio_final?: unknown;
@@ -199,6 +200,11 @@ export const supabaseArregloRepository: ArregloRepository = {
         `descripcion.ilike.%${safeSearch}%`,
         `observaciones.ilike.%${safeSearch}%`,
       ];
+      const cleanedSearchNumber = safeSearch.replace(/^#/, "").trim();
+      const parsedSearchNumber = Number(cleanedSearchNumber);
+      if (/^\d+$/.test(cleanedSearchNumber) && Number.isInteger(parsedSearchNumber) && parsedSearchNumber > 0) {
+        searchConditions.push(`numero_orden.eq.${parsedSearchNumber}`);
+      }
       if (vehiculoIdsBySearch.length > 0) {
         searchConditions.push(`vehiculo_id.in.(${vehiculoIdsBySearch.join(",")})`);
       }
@@ -376,7 +382,7 @@ export const supabaseArregloRepository: ArregloRepository = {
   async listRecentActivities(supabase, limit, fromISO?, toISO?, tallerId?) {
     let query = supabase
       .from("arreglos")
-      .select("id, descripcion, updated_at, precio_final, vehiculo:vehiculos(patente)")
+      .select("id, numero_orden, descripcion, updated_at, precio_final, vehiculo:vehiculos(patente)")
       .or("estado.neq.PRESUPUESTO,estado.is.null")
       .order("updated_at", { ascending: false })
       .limit(limit);
@@ -387,6 +393,7 @@ export const supabaseArregloRepository: ArregloRepository = {
     if (error) throw new Error(error.message);
     return (data ?? []) as Array<{
       id: string;
+      numero_orden?: number | null;
       descripcion?: unknown;
       updated_at?: unknown;
       precio_final?: unknown;

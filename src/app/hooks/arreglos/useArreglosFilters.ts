@@ -4,6 +4,7 @@ import type { Arreglo } from "@/model/types";
 import { useMemo, useState } from "react";
 import type { ArregloFilters } from "@/app/components/arreglos/ArregloFiltersModal";
 import { formatCalendarDateLabel, localCalendarDateRangeISO } from "@/lib/fechas";
+import { formatArregloNumero, formatArregloTitulo } from "@/lib/arreglos";
 
 export type ChipKind = "fechaRange" | "fechaDesde" | "fechaHasta" | "patente" | "estado" | "estadoPago";
 export type Chip = { key: string; text: string; kind: ChipKind };
@@ -36,6 +37,12 @@ function getDateRange(filters: ArregloFilters): DateRange {
 
 function matchesSearch(arreglo: Arreglo, query: string) {
   if (!query) return true;
+  const titulo = formatArregloTitulo(arreglo).toLowerCase();
+  const numero = formatArregloNumero(arreglo.numero_orden).toLowerCase();
+  const rawNumero = arreglo.numero_orden != null ? String(arreglo.numero_orden) : "";
+  if (titulo.includes(query) || numero.includes(query) || rawNumero.includes(query)) {
+    return true;
+  }
   const inFlat = Object.values(arreglo ?? {}).some((v) =>
     String(v ?? "").toLowerCase().includes(query)
   );
@@ -115,6 +122,7 @@ export function useArreglosFilters(arreglos?: Arreglo[]) {
   const [filters, setFilters] = useState<ArregloFilters>(createEmptyFilters);
 
   const arreglosFiltrados = useMemo(() => {
+    if (!arreglos) return [];
     return filterArreglos(arreglos, { search, filters });
   }, [arreglos, search, filters]);
 

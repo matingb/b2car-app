@@ -22,6 +22,7 @@ import ArregloBadges from "@/app/components/arreglos/ArregloBadges";
 import Avatar from "@/app/components/ui/Avatar";
 import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
+import { formatArregloTitulo } from "@/lib/arreglos";
 import { ROUTES } from "@/routing/routes";
 import { logger } from "@/lib/logger";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
@@ -159,22 +160,27 @@ export default function ArregloSummaryCard({
         {/* Top Header */}
         <div css={styles.header}>
           <div style={styles.headerLeft}>
-            {/* Estado y Badges */}
-            <ArregloBadges
-              arreglo={arreglo}
-              variant="inline"
-              size="md"
-              totalCalculado={totalCalculado}
-              facturaElectronica={facturaParaBadge}
-              canEmitFactura={canViewBilling && canEmitFactura}
-              hidePagoTextOnMobile={true}
-              onStateChange={handleEstadoChange}
-              onPagoUpdated={onArregloChange}
-              onFacturableChanged={(nextVal) => {
-                onArregloChange({ ...arreglo, es_facturable: nextVal });
-              }}
-              onOpenFacturaModal={canViewBilling && canEmitFactura && arreglo.estado !== "PRESUPUESTO" ? onOpenFactura : undefined}
-            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <h2 css={styles.summaryTitle}>
+                {formatArregloTitulo(arreglo)}
+              </h2>
+              {/* Estado y Badges */}
+              <ArregloBadges
+                arreglo={arreglo}
+                variant="inline"
+                size="md"
+                totalCalculado={totalCalculado}
+                facturaElectronica={facturaParaBadge}
+                canEmitFactura={canViewBilling && canEmitFactura}
+                hidePagoTextOnMobile={true}
+                onStateChange={handleEstadoChange}
+                onPagoUpdated={onArregloChange}
+                onFacturableChanged={(nextVal) => {
+                  onArregloChange({ ...arreglo, es_facturable: nextVal });
+                }}
+                onOpenFacturaModal={canViewBilling && canEmitFactura && arreglo.estado !== "PRESUPUESTO" ? onOpenFactura : undefined}
+              />
+            </div>
           </div>
 
           <div style={styles.headerActions}>
@@ -415,6 +421,13 @@ const styles = {
     alignItems: "center",
     gap: 12,
   },
+  summaryTitle: css({
+    fontSize: 20,
+    fontWeight: 700,
+    color: COLOR.TEXT.PRIMARY,
+    margin: 0,
+    lineHeight: 1.3,
+  }),
   vehiculoCard: {
     display: "flex",
     flexWrap: "wrap" as const,

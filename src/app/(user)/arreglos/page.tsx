@@ -19,7 +19,7 @@ export default function ArreglosPage() {
   const router = useRouter();
   const { arreglos, loading, hasMore, fetchAll } = useArreglos();
   const { tallerSeleccionadoId } = useTenant();
-  const state = useArreglosFilters(arreglos);
+  const state = useArreglosFilters();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [limit, setLimit] = useState(LIMIT_STEP);
@@ -112,7 +112,7 @@ export default function ArreglosPage() {
       >
         <ArreglosResults
           loading={loadingInitial}
-          items={state.arreglosFiltrados}
+          items={arreglos}
           onSelect={(a) => router.push(`/arreglos/${a.id}`)}
           showObservaciones={false}
         />

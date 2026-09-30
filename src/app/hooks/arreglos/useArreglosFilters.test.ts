@@ -110,6 +110,21 @@ describe("filterArreglos", () => {
     expect(result).toEqual([]);
   });
 
+  it("filtra por numero_orden autoincremental buscando por numero o con prefijo #", () => {
+    const arreglos = [
+      createArreglo({ id: "1", numero_orden: 42, descripcion: "Cambio de aceite" }),
+      createArreglo({ id: "2", numero_orden: 105, descripcion: "Alineación y balanceo" }),
+    ];
+    expect(
+      filterArreglos(arreglos, { search: "#000042", filters: emptyFilters }).map((a) => a.id)
+    ).toEqual(["1"]);
+    expect(
+      filterArreglos(arreglos, { search: "000042", filters: emptyFilters }).map((a) => a.id)
+    ).toEqual(["1"]);
+    expect(
+      filterArreglos(arreglos, { search: "42", filters: emptyFilters }).map((a) => a.id)
+    ).toEqual(["1"]);
+  });
 });
 
 

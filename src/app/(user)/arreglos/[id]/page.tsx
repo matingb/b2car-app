@@ -15,6 +15,7 @@ import { useToast } from "@/app/providers/ToastProvider";
 import { logger } from "@/lib/logger";
 import { safeNumber } from "@/lib/numbers";
 import { calcLineTotal } from "@/lib/calcLineTotal";
+import { formatArregloNumero } from "@/lib/arreglos";
 import type {
   ArregloDetalleData,
   AsignacionArregloLinea,
@@ -473,7 +474,11 @@ export default function ArregloDetailsPage() {
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <ScreenHeader
           title="Arreglos"
-          breadcrumbs={["Detalle"]}
+          breadcrumbs={
+            arreglo?.numero_orden
+              ? ["Detalle", formatArregloNumero(arreglo.numero_orden)]
+              : ["Detalle"]
+          }
           hasBackButton
           style={{ width: "100%" }}
         />

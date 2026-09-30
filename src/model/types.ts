@@ -96,6 +96,7 @@ export interface FacturaElectronicaBadgeInfo {
 
 export interface Arreglo {
   id: UUID;
+  numero_orden?: number | null;
   vehiculo: Vehiculo;
   taller_id: UUID;
   taller: Taller;
