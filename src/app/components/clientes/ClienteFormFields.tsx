@@ -14,6 +14,7 @@ import type { ArcaPadronPerson } from "@/lib/arcaPadron/types";
 import Autocomplete from "../ui/Autocomplete";
 import { AutocompleteOption } from "../ui/Autocomplete";
 import PhoneInput from "../ui/PhoneInput";
+import { AlertTriangle } from "lucide-react";
 
 export type ClienteFormFieldsValue = {
   nombre: string;
@@ -151,10 +152,7 @@ function ArcaPadronFeedback({
   lookup: ArcaPadronLookupState;
   onSelectCandidate: (candidate: string) => void;
 }) {
-  if (lookup.status === "IDLE") return null;
-  if (lookup.status === "LOADING") {
-    return <span style={styles.lookupPending}>Consultando datos en ARCA...</span>;
-  }
+  if (lookup.status === "IDLE" || lookup.status === "LOADING") return null;
   if (lookup.status === "FOUND") {
     return (
       <div style={styles.lookupFound} role="status">
@@ -185,8 +183,16 @@ function ArcaPadronFeedback({
       </div>
     );
   }
+  if (lookup.status === "NOT_FOUND") {
+    return (
+      <div style={styles.lookupWarning} role="status">
+        <AlertTriangle size={14} color={COLOR.SEMANTIC.WARNING} style={{ flexShrink: 0 }} />
+        <span>{lookup.message.replace(/\.?$/, "")}. Completá los datos manualmente.</span>
+      </div>
+    );
+  }
   return (
-    <span style={lookup.status === "NOT_FOUND" ? styles.lookupPending : styles.lookupError}>
+    <span style={styles.lookupError}>
       {lookup.message}
     </span>
   );
@@ -282,49 +288,23 @@ export default function ClienteFormFields({
     <div style={styles.container}>
       <div style={styles.wrapper}>
         <div style={styles.row}>
-          <div style={styles.field}>
-            <label style={styles.label}>
-              Nombre{" "}
-              <span aria-hidden="true" style={styles.required}>
-                *
-              </span>
-            </label>
-            <input
-              style={styles.input}
-              placeholder={
-                value.tipo_cliente === TipoCliente.EMPRESA
-                  ? "Nombre de la empresa"
-                  : "Nombre del cliente"
-              }
-              value={value.nombre}
-              onChange={(e) => {
-                markFieldAsManual("nombre");
-                onChange({ nombre: e.target.value });
-              }}
-            />
-          </div>
-
-          {value.tipo_cliente === TipoCliente.PARTICULAR && (
+          {value.tipo_cliente === TipoCliente.PARTICULAR ? (
             <div style={styles.field}>
               <label style={styles.label}>
-                Apellido{" "}
-                <span aria-hidden="true" style={styles.required}>
-                  *
-                </span>
+                DNI / CUIL<span style={styles.optional}></span>
               </label>
               <input
                 style={styles.input}
-                placeholder="Apellido"
-                value={value.apellido}
+                inputMode="numeric"
+                placeholder="Ej: 12345678 o 20-12345678-6"
+                value={value.dniCuil}
                 onChange={(e) => {
-                  markFieldAsManual("apellido");
-                  onChange({ apellido: e.target.value });
+                  markFieldAsManual("dniCuil");
+                  onChange({ dniCuil: e.target.value });
                 }}
               />
             </div>
-          )}
-
-          {value.tipo_cliente === TipoCliente.EMPRESA && (
+          ) : (
             <div style={styles.field}>
               <label style={styles.label}>
                 CUIT{" "}
@@ -336,7 +316,10 @@ export default function ClienteFormFields({
                 style={styles.input}
                 placeholder="99-12345678-9"
                 value={value.cuit}
-                onChange={(e) => onChange({ cuit: e.target.value })}
+                onChange={(e) => {
+                  markFieldAsManual("cuit");
+                  onChange({ cuit: e.target.value });
+                }}
               />
             </div>
           )}
@@ -359,30 +342,70 @@ export default function ClienteFormFields({
           </div>
         </div>
 
-        
+        <ArcaPadronFeedback
+          lookup={lookup}
+          onSelectCandidate={(candidate) =>
+            value.tipo_cliente === TipoCliente.EMPRESA
+              ? onChange({ cuit: candidate })
+              : onChange({ dniCuil: candidate })
+          }
+        />
 
         <div style={styles.row}>
+          <div style={styles.field}>
+            <label style={styles.label}>
+              Nombre{" "}
+              <span aria-hidden="true" style={styles.required}>
+                *
+              </span>
+            </label>
+            <input
+              style={{
+                ...styles.input,
+                ...(lookup.status === "LOADING" ? styles.inputDisabled : {}),
+              }}
+              disabled={lookup.status === "LOADING"}
+              placeholder={
+                lookup.status === "LOADING"
+                  ? "Consultando en ARCA..."
+                  : value.tipo_cliente === TipoCliente.EMPRESA
+                    ? "Nombre de la empresa"
+                    : "Nombre del cliente"
+              }
+              value={value.nombre}
+              onChange={(e) => {
+                markFieldAsManual("nombre");
+                onChange({ nombre: e.target.value });
+              }}
+            />
+          </div>
+
           {value.tipo_cliente === TipoCliente.PARTICULAR && (
             <div style={styles.field}>
-              <label style={styles.label}>DNI / CUIL (Padron ARCA) <span style={styles.optional}></span></label>
+              <label style={styles.label}>
+                Apellido{" "}
+                <span aria-hidden="true" style={styles.required}>
+                  *
+                </span>
+              </label>
               <input
-                style={styles.input}
-                inputMode="numeric"
-                placeholder="Ej: 12345678 o 20-12345678-6"
-                value={value.dniCuil}
+                style={{
+                  ...styles.input,
+                  ...(lookup.status === "LOADING" ? styles.inputDisabled : {}),
+                }}
+                disabled={lookup.status === "LOADING"}
+                placeholder={lookup.status === "LOADING" ? "Consultando en ARCA..." : "Apellido"}
+                value={value.apellido}
                 onChange={(e) => {
-                  markFieldAsManual("dniCuil");
-                  onChange({ dniCuil: e.target.value });
+                  markFieldAsManual("apellido");
+                  onChange({ apellido: e.target.value });
                 }}
               />
-              {value.tipo_cliente === TipoCliente.PARTICULAR ? (
-          <ArcaPadronFeedback
-            lookup={lookup}
-            onSelectCandidate={(candidate) => onChange({ dniCuil: candidate })}
-          />
-        ) : null}
             </div>
           )}
+        </div>
+
+        <div style={styles.row}>
           <div style={styles.field}>
             <label style={styles.label}>Email</label>
             <input
@@ -400,8 +423,6 @@ export default function ClienteFormFields({
           onChange={onChange}
           inputStyle={styles.input}
         />
-
-        
 
         <div style={styles.row}>
           <div style={{ ...styles.field, flex: 1 }}>
@@ -463,6 +484,12 @@ const styles = {
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
     color: COLOR.TEXT.PRIMARY,
   },
+  inputDisabled: {
+    background: COLOR.BACKGROUND.SUBTLE,
+    color: COLOR.TEXT.TERTIARY,
+    cursor: "wait",
+    opacity: 0.7,
+  },
   codigoPaisInput: {
     width: "60px",
   },
@@ -470,21 +497,39 @@ const styles = {
     color: COLOR.TEXT.TERTIARY,
     fontSize: 12,
   },
+  lookupWarning: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "9px 12px",
+    borderRadius: 8,
+    background: COLOR.BACKGROUND.WARNING_TINT,
+    border: `1px solid ${COLOR.SEMANTIC.WARNING}33`,
+    color: COLOR.SEMANTIC.WARNING,
+    fontSize: 13,
+    lineHeight: 1.4,
+    width: "100%",
+    boxSizing: "border-box" as const,
+  },
   lookupError: {
     color: COLOR.SEMANTIC.DANGER,
     fontSize: 12,
     lineHeight: 1.4,
+    width: "100%",
+    boxSizing: "border-box" as const,
   },
   lookupFound: {
     display: "flex",
     flexDirection: "column" as const,
     gap: 3,
-    padding: "9px 10px",
-    borderRadius: 6,
+    padding: "9px 12px",
+    borderRadius: 8,
     background: COLOR.BACKGROUND.INFO_TINT,
     color: COLOR.TEXT.SECONDARY,
     fontSize: 12,
     lineHeight: 1.35,
+    width: "100%",
+    boxSizing: "border-box" as const,
   },
   lookupCandidateLabel: {
     display: "flex",
