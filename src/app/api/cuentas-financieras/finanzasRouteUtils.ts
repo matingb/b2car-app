@@ -1,5 +1,7 @@
 import { CATEGORIAS_GASTO_FINANCIERO, CUENTA_TIPOS } from "@/model/finanzas";
 import { mapDbError, type ApiErrorStatus, type DbError } from "../apiError";
+import type { Validated } from "../apiInput";
+export type { Validated } from "../apiInput";
 import { isValidISODateTimeWithTimezone, toISODateTimeWithCurrentTime } from "@/lib/fechas";
 import type {
   ActualizarCuentaFinancieraInput,
@@ -27,8 +29,6 @@ const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_TEXT_LENGTH = 500;
 const MAX_DESCRIPTION_LENGTH = 2_000;
 const MAX_ACCOUNTING_AMOUNT = 999_999_999_999.99;
-
-export type Validated<T> = { value?: T; error?: string };
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);

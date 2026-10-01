@@ -28,6 +28,8 @@ export type ApiErrorOptions = DbErrorOptions & {
   extra?: Record<string, unknown>;
   /** Preserve existing response fields during the gradual route migration. */
   body?: Record<string, unknown>;
+  errorId?: string;
+  mapError?: (error: unknown) => MappedApiError | null;
 };
 
 export type MappedApiError = {
@@ -152,10 +154,14 @@ function mapServiceError(error: unknown, opts: ApiErrorOptions): MappedApiError 
 }
 
 export function apiErrorResponse(error: unknown, opts: ApiErrorOptions): Response {
-  const { status, code, message } = error instanceof ApiError
+  const mapped = opts.mapError?.(error) ?? (error instanceof ApiError
     ? { status: error.status, code: error.code, message: error.status >= 500 ? opts.fallback : error.message }
-    : mapServiceError(error, opts) ?? mapDbError(error, opts);
-  const errorId = status >= 500 ? generateUuidV4().slice(0, 8) : undefined;
+    : mapServiceError(error, opts) ?? mapDbError(error, opts));
+  const { status, code } = mapped;
+  const message = status >= 500
+    ? code === "TIMEOUT" ? API_ERROR_MESSAGES.TIMEOUT : opts.fallback
+    : mapped.message;
+  const errorId = status >= 500 ? opts.errorId ?? generateUuidV4().slice(0, 8) : undefined;
   const dbError = error instanceof ApiError ? {} : dbErrorFields(error);
   const payload = {
     ...opts.extra,
@@ -179,33 +185,4 @@ export function apiErrorResponse(error: unknown, opts: ApiErrorOptions): Respons
   if (errorId) body.errorId = errorId;
   else delete body.errorId;
   return Response.json(body, { status });
-}
-
-export function withApiErrors<Args extends unknown[]>(
-  context: string,
-  handler: (...args: Args) => Promise<Response>,
-): (...args: Args) => Promise<Response> {
-  return async (...args) => {
-    try {
-      return await handler(...args);
-    } catch (error) {
-      return apiErrorResponse(error, { context, fallback: API_ERROR_MESSAGES.INTERNAL });
-    }
-  };
-}
-
-export function unauthorizedResponse(opts: Partial<ApiErrorOptions> = {}): Response {
-  return apiErrorResponse(new ApiError(401, API_ERROR_MESSAGES.UNAUTHORIZED, "UNAUTHORIZED"), {
-    ...opts,
-    context: opts.context ?? "API",
-    fallback: opts.fallback ?? API_ERROR_MESSAGES.UNAUTHORIZED,
-  });
-}
-
-export function forbiddenResponse(opts: Partial<ApiErrorOptions> = {}): Response {
-  return apiErrorResponse(new ApiError(403, API_ERROR_MESSAGES.FORBIDDEN, "FORBIDDEN"), {
-    ...opts,
-    context: opts.context ?? "API",
-    fallback: opts.fallback ?? API_ERROR_MESSAGES.FORBIDDEN,
-  });
 }

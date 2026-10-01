@@ -1,109 +1,73 @@
-import { createClient } from "@/supabase/server";
-import { requirePermission } from "@/lib/requirePermission";
-import { hasUserPermission } from "@/lib/permissions.server";
-import { Permission } from "@/lib/permissions";
-import type {
-  CrearCuentaFinancieraResponse,
-  ListarCuentasFinancierasResponse,
-} from "@/model/finanzas";
-import {
-  asRows,
-  extractRpcId,
-  mapCuenta,
-  mapRows,
-  rpcStatus,
-  validateCreateCuenta,
-} from "./finanzasRouteUtils";
-
-function unauthorized<T>() {
-  return Response.json({ data: null, error: "Unauthorized" } satisfies { data: T | null; error: string }, { status: 401 });
-}
+﻿import { Permission } from "@/lib/permissions";
+import type { CrearCuentaFinancieraResponse, ListarCuentasFinancierasResponse } from "@/model/finanzas";
+import { createApiHandler } from "../apiHandler";
+import { parseInput, readJsonBody } from "../apiInput";
+import { asRows, extractRpcId, mapCuenta, mapRows, validateCreateCuenta } from "./finanzasRouteUtils";
 
 function firstCuenta(data: unknown) {
   return mapCuenta(asRows(data)[0]);
 }
 
-export async function GET() {
-  const supabase = await createClient();
-  const { data: auth, error: authError } = await supabase.auth.getClaims();
-  if (authError || !auth?.claims) {
-    return unauthorized<never>();
-  }
+export const GET = createApiHandler(
+  {
+    route: "GET /api/cuentas-financieras",
+    fallback: "Error listando cuentas financieras",
+  },
+  async (ctx) => {
+    const { data, error } = await ctx.supabase.rpc("rpc_finanzas_listar_cuentas");
+    if (error) return ctx.fail(error);
 
-  const { data, error } = await supabase.rpc("rpc_finanzas_listar_cuentas");
-  if (error) {
-    return Response.json(
-      { data: [], error: "Error listando cuentas financieras" } satisfies ListarCuentasFinancierasResponse,
-      { status: rpcStatus(error) }
-    );
-  }
+    const cuentas = mapRows(data, (row) => mapCuenta(row, { hideBalances: !ctx.can(Permission.FinanzasView) }));
 
-  const hasFinanzasView = await hasUserPermission(supabase, Permission.FinanzasView);
-  const hideBalances = !hasFinanzasView;
+    if (!cuentas) {
+      return ctx.fail(new Error("Respuesta inválida al listar cuentas financieras"), {
+        fallback: "Respuesta inválida al listar cuentas financieras",
+      });
+    }
 
-  const cuentas = mapRows(data, (row) => mapCuenta(row, { hideBalances }));
-  if (!cuentas) {
-    return Response.json(
-      { data: [], error: "Respuesta inválida al listar cuentas financieras" } satisfies ListarCuentasFinancierasResponse,
-      { status: 500 }
-    );
-  }
-  return Response.json(
-    { data: cuentas, error: null } satisfies ListarCuentasFinancierasResponse,
-    { status: 200 }
-  );
-}
+    return Response.json({ data: cuentas, error: null } satisfies ListarCuentasFinancierasResponse);
+  },
+);
 
-export async function POST(req: Request) {
-  const authError = await requirePermission(Permission.FinanzasEdit);
-  if (authError) return authError;
+export const POST = createApiHandler(
+  {
+    route: "POST /api/cuentas-financieras",
+    fallback: "Error creando cuenta financiera",
+    permission: Permission.FinanzasEdit,
+  },
+  async (ctx) => {
+    const input = parseInput(validateCreateCuenta, await readJsonBody(ctx.req));
 
-  const supabase = await createClient();
+    const { data: created, error } = await ctx.supabase.rpc("rpc_finanzas_crear_cuenta", {
+      p_nombre: input.nombre,
+      p_tipo: input.tipo,
+      p_saldo_inicial: input.saldoInicial ?? 0,
+      p_fecha: input.fecha ?? null,
+      p_idempotency_key: input.idempotencyKey ?? null,
+    });
 
-  const parsed = validateCreateCuenta(await req.json().catch(() => null));
-  if (parsed.error || !parsed.value) {
-    return Response.json(
-      { data: null, error: parsed.error ?? "JSON inválido" } satisfies CrearCuentaFinancieraResponse,
-      { status: 400 }
-    );
-  }
+    if (error) return ctx.fail(error);
 
-  const input = parsed.value;
-  const { data: created, error: createError } = await supabase.rpc("rpc_finanzas_crear_cuenta", {
-    p_nombre: input.nombre,
-    p_tipo: input.tipo,
-    p_saldo_inicial: input.saldoInicial ?? 0,
-    p_fecha: input.fecha ?? null,
-    p_idempotency_key: input.idempotencyKey ?? null,
-  });
-  if (createError) {
-    return Response.json(
-      { data: null, error: "Error creando cuenta financiera" } satisfies CrearCuentaFinancieraResponse,
-      { status: rpcStatus(createError) }
-    );
-  }
+    const inlineCuenta = firstCuenta(created);
+    if (inlineCuenta) {
+      return Response.json({ data: inlineCuenta, error: null } satisfies CrearCuentaFinancieraResponse, { status: 201 });
+    }
 
-  const inlineCuenta = firstCuenta(created);
-  if (inlineCuenta) {
-    return Response.json({ data: inlineCuenta, error: null } satisfies CrearCuentaFinancieraResponse, { status: 201 });
-  }
+    const id = extractRpcId(created);
+    if (!id) return ctx.fail(new Error("Respuesta inválida al crear cuenta financiera"), {
+      fallback: "Respuesta inválida al crear cuenta financiera",
+    });
 
-  const id = extractRpcId(created);
-  if (!id) {
-    return Response.json(
-      { data: null, error: "Respuesta inválida al crear cuenta financiera" } satisfies CrearCuentaFinancieraResponse,
-      { status: 500 }
-    );
-  }
-  const { data: fetched, error: fetchError } = await supabase.rpc("rpc_finanzas_obtener_cuenta", {
-    p_cuenta_id: id,
-  });
-  const cuenta = firstCuenta(fetched);
-  if (fetchError || !cuenta) {
-    return Response.json(
-      { data: null, error: "No se pudo recuperar la cuenta creada" } satisfies CrearCuentaFinancieraResponse,
-      { status: fetchError ? rpcStatus(fetchError) : 500 }
-    );
-  }
-  return Response.json({ data: cuenta, error: null } satisfies CrearCuentaFinancieraResponse, { status: 201 });
-}
+    const { data: fetched, error: fetchError } = await ctx.supabase.rpc("rpc_finanzas_obtener_cuenta", { p_cuenta_id: id });
+
+    if (fetchError) return ctx.fail(fetchError, { fallback: "No se pudo recuperar la cuenta creada" });
+
+    const cuenta = firstCuenta(fetched);
+
+    if (!cuenta) return ctx.fail(new Error("No se pudo recuperar la cuenta creada"), {
+      fallback: "No se pudo recuperar la cuenta creada",
+    });
+    
+    return Response.json({ data: cuenta, error: null } satisfies CrearCuentaFinancieraResponse, { status: 201 });
+  },
+);

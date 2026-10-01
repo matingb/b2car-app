@@ -1,5 +1,5 @@
-import { logger } from "@/lib/logger";
-import { createClient } from "@/supabase/server";
+import { createApiHandler } from "../apiHandler";
+import { parseInput, readJsonBody, type Validated } from "../apiInput";
 import { categoriasArregloService, type CategoriaArregloRow } from "./categoriasArregloService";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 
@@ -33,67 +33,37 @@ function mapCategoriaArreglo(row: CategoriaArregloRow): CategoriaArregloDTO {
   };
 }
 
-export async function GET() {
-  const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json({ data: [], error: "Unauthorized" } satisfies GetCategoriasArregloResponse, { status: 401 });
-  }
-
-  const { data, error } = await categoriasArregloService.list(supabase);
-  if (error) {
-    return Response.json(
-      { data: [], error: "Error listando categorías de arreglo" } satisfies GetCategoriasArregloResponse,
-      { status: 500 }
-    );
-  }
-
-  return Response.json(
-    { data: data.map(mapCategoriaArreglo), error: null } satisfies GetCategoriasArregloResponse,
-    { status: 200 }
-  );
+function validateCreateCategoria(raw: unknown): Validated<CreateCategoriaArregloRequest> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { error: "JSON inválido" };
+  const nombre = String((raw as Record<string, unknown>).nombre ?? "").trim();
+  return nombre ? { value: { nombre } } : { error: "Falta nombre" };
 }
 
-export async function POST(req: Request) {
-  const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getSession();
-  if (!auth.session) {
-    return Response.json({ data: null, error: "Unauthorized" } satisfies CreateCategoriaArregloResponse, { status: 401 });
-  }
+export const GET = createApiHandler(
+  {
+    route: "GET /api/categorias-arreglo",
+    fallback: "Error listando categorías de arreglo"
+  },
+  async (ctx) => {
+    const { data, error, cause } = await categoriasArregloService.list(ctx.supabase);
+    if (error) return ctx.fail(cause ?? error);
+    return Response.json({ data: data.map(mapCategoriaArreglo), error: null } satisfies GetCategoriasArregloResponse);
+  },
+);
 
-  const body: CreateCategoriaArregloRequest | null = await req.json().catch(() => null);
-  if (!body) {
-    return Response.json({ data: null, error: "JSON inválido" } satisfies CreateCategoriaArregloResponse, { status: 400 });
-  }
-
-  const nombre = String(body.nombre ?? "").trim();
-  if (!nombre) {
-    return Response.json({ data: null, error: "Falta nombre" } satisfies CreateCategoriaArregloResponse, { status: 400 });
-  }
-
-  try {
-    const { data: created, error } = await categoriasArregloService.create(supabase, {
-      nombre,
+export const POST = createApiHandler(
+  {
+    route: "POST /api/categorias-arreglo",
+    fallback: "Error creando categoría de arreglo",
+  },
+  async (ctx) => {
+    const body = parseInput(validateCreateCategoria, await readJsonBody(ctx.req));
+    const { data: created, error } = await categoriasArregloService.create(ctx.supabase, body);
+    if (error) return ctx.fail(error, {
+      constraintMessages: { uq_categorias_arreglo_tenant_nombre_lower: "Ya existe una categoría de arreglo con ese nombre" },
     });
-
-    if (error) {
-      const raw = String((error as { message?: unknown } | null)?.message ?? "");
-      if (raw.includes("uq_categorias_arreglo_tenant_nombre_lower")) {
-        return Response.json(
-          { data: null, error: "Ya existe una categoría de arreglo con ese nombre" } satisfies CreateCategoriaArregloResponse,
-          { status: 409 }
-        );
-      }
-      return Response.json({ data: null, error: "Error creando categoría de arreglo" } satisfies CreateCategoriaArregloResponse, { status: 500 });
-    }
-    if (!created) {
-      return Response.json({ data: null, error: "Error creando categoría de arreglo" } satisfies CreateCategoriaArregloResponse, { status: 500 });
-    }
-
-    await statsService.onDataChanged(supabase);
+    if (!created) return ctx.fail(new Error("La creación no devolvió una categoría"));
+    await statsService.onDataChanged(ctx.supabase, ctx.actor.tenantId);
     return Response.json({ data: mapCategoriaArreglo(created), error: null } satisfies CreateCategoriaArregloResponse, { status: 201 });
-  } catch (error: unknown) {
-    logger.error("POST /api/categorias-arreglo error:", error);
-    return Response.json({ data: null, error: "Error creando categoría de arreglo" } satisfies CreateCategoriaArregloResponse, { status: 500 });
-  }
-}
+  },
+);

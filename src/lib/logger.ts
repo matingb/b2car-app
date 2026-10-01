@@ -38,3 +38,15 @@ export const logger = {
     if (shouldLog('error')) console.error('[ERROR]', ...args);
   },
 };
+
+export type ScopedLogger = typeof logger;
+
+export function createScopedLogger(scope: string): ScopedLogger {
+  const prefix = `[${scope}]`;
+  return {
+    debug: (...args) => logger.debug(prefix, ...args),
+    info: (...args) => logger.info(prefix, ...args),
+    warn: (...args) => logger.warn(prefix, ...args),
+    error: (...args) => logger.error(prefix, ...args),
+  };
+}

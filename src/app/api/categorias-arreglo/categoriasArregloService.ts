@@ -1,5 +1,5 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-import { ServiceError, toServiceError } from "@/app/api/serviceError";
+import { ServiceError, serviceFailure } from "@/app/api/serviceError";
 
 export type CategoriaArregloRow = {
   id: string;
@@ -18,11 +18,11 @@ export type CreateCategoriaArregloInput = {
 export const categoriasArregloService = {
   async list(
     supabase: SupabaseClient,
-  ): Promise<{ data: CategoriaArregloRow[]; error: ServiceError | null }> {
+  ): Promise<{ data: CategoriaArregloRow[]; error: ServiceError | null; cause?: PostgrestError }> {
     const query = supabase.from("categorias_arreglo").select("*").order("nombre", { ascending: true });
 
     const { data, error } = await query;
-    if (error) return { data: [], error: toServiceError(error) };
+    if (error) return { data: [], ...serviceFailure(error) };
     return { data: (data ?? []) as CategoriaArregloRow[], error: null };
   },
 

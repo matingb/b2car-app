@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { API_ERROR_MESSAGES, type ApiErrorBody, type ApiErrorCode } from "@/lib/apiErrorCodes";
 import { logger } from "@/lib/logger";
 import { generateUuidV4 } from "@/lib/uuid";
-import { ApiError, apiErrorResponse, forbiddenResponse, mapDbError, unauthorizedResponse, withApiErrors, type DbError } from "./apiError";
+import { ApiError, apiErrorResponse, mapDbError, type DbError } from "./apiError";
 import { ServiceError } from "./serviceError";
 
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
@@ -55,6 +55,43 @@ const databaseCases: MappingCase[] = [
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe("request references and domain mapping", () => {
+  it("uses the supplied reference on 5xx without generating another one", async () => {
+    const response = apiErrorResponse(new Error("private error"), { ...options, errorId: "req12345" });
+    expect(await response.json()).toMatchObject({ error: options.fallback, errorId: "req12345" });
+    expect(generateUuidV4).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("req12345"), expect.objectContaining({ errorId: "req12345" }), expect.any(Error));
+  });
+
+  it("never exposes a supplied reference in a 4xx body", async () => {
+    const response = apiErrorResponse(new ApiError(400, "Falta nombre", "VALIDATION"), { ...options, errorId: "req12345" });
+    expect(await response.json()).toEqual({ error: "Falta nombre", code: "VALIDATION" });
+  });
+
+  it("evaluates domain mappings before database, service and ApiError mappings", async () => {
+    const mapError = vi.fn(() => ({ status: 409 as const, code: "INMUTABLE" as const, message: "Regla del dominio" }));
+    for (const error of [{ code: "23505" }, ServiceError.NotFound, new ApiError(400, "Original", "VALIDATION")]) {
+      const response = apiErrorResponse(error, { ...options, mapError });
+      expect(response.status).toBe(409);
+      expect(await response.json()).toEqual({ error: "Regla del dominio", code: "INMUTABLE" });
+      expect(mapError).toHaveBeenCalledWith(error);
+    }
+  });
+
+  it("falls back to the common mapping when the domain mapping returns null", async () => {
+    const response = apiErrorResponse({ code: "23505" }, { ...options, mapError: () => null });
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("CONFLICT");
+  });
+
+  it("protects internal messages even when a domain mapper returns a raw 500", async () => {
+    const response = apiErrorResponse(new Error("private"), {
+      ...options, mapError: () => ({ status: 500, code: "INTERNAL", message: "private" }),
+    });
+    expect((await response.json()).error).toBe(options.fallback);
+  });
 });
 
 describe.each(databaseCases)("database error $name", ({ error, status, code, message }) => {
@@ -188,56 +225,5 @@ describe("apiErrorResponse", () => {
   it("hides even an explicit ApiError message on 5xx", async () => {
     const response = apiErrorResponse(new ApiError(500, technicalMessage, "INTERNAL"), options);
     expect(await response.json()).toEqual({ error: options.fallback, code: "INTERNAL", errorId: "1234abcd" });
-  });
-});
-
-describe("withApiErrors", () => {
-  it("forwards typed route arguments and returns the successful response unchanged", async () => {
-    const request = new Request("https://example.test/api/example");
-    const context = { params: Promise.resolve({ id: "record-1" }) };
-    const response = Response.json({ data: { id: "record-1" } });
-    const handler = vi.fn<(request: Request, routeContext: typeof context) => Promise<Response>>().mockResolvedValue(response);
-
-    expect(await withApiErrors(options.context, handler)(request, context)).toBe(response);
-    expect(handler).toHaveBeenCalledWith(request, context);
-    expect(logger.error).not.toHaveBeenCalled();
-    expect(logger.warn).not.toHaveBeenCalled();
-  });
-
-  it.each([new Error(technicalMessage), technicalMessage, null, 42])("returns JSON 500 for an unexpected rejection: %s", async (error) => {
-    const response = await withApiErrors(options.context, async () => { throw error; })();
-    expect(response.status).toBe(500);
-    expect(response.headers.get("content-type")).toContain("application/json");
-    expect(await response.json()).toEqual({ error: API_ERROR_MESSAGES.INTERNAL, code: "INTERNAL", errorId: "1234abcd" });
-    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining(options.context), expect.objectContaining({ errorId: "1234abcd" }), error);
-  });
-
-  it("also catches a synchronous throw", async () => {
-    const response = await withApiErrors(options.context, () => { throw new Error(technicalMessage); })();
-    expect(response.status).toBe(500);
-    expect((await response.json()).errorId).toBe("1234abcd");
-  });
-
-  it("keeps an explicit application error's status and message", async () => {
-    const response = await withApiErrors(options.context, async () => { throw new ApiError(400, "Concepto requerido", "VALIDATION"); })();
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "Concepto requerido", code: "VALIDATION" });
-  });
-});
-
-describe("access error shortcuts", () => {
-  it.each([
-    [unauthorizedResponse, 401, "UNAUTHORIZED", unauthorizedMessage],
-    [forbiddenResponse, 403, "FORBIDDEN", "No tenés permisos para realizar esta acción."],
-  ] as const)("returns a localized JSON access error", async (respond, status, code, error) => {
-    const response = respond({ context: "GET /api/example", body: { data: null } });
-    expect(response.status).toBe(status);
-    expect(await response.json()).toEqual({ data: null, error, code });
-    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("GET /api/example"), expect.objectContaining({ status, code }));
-  });
-
-  it("works without options", async () => {
-    expect((await unauthorizedResponse().json()).code).toBe("UNAUTHORIZED");
-    expect((await forbiddenResponse().json()).code).toBe("FORBIDDEN");
   });
 });

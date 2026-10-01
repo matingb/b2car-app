@@ -19,6 +19,7 @@ export function invalidatePermissionsCache(userRole?: string, planSub?: string):
   try {
     if (userRole && planSub) {
       revalidateTag(permissionsTag(userRole, planSub));
+      revalidateTag(planPermissionsTag(planSub));
     } else {
       revalidateTag(PERMISSIONS_CACHE_TAG);
     }
@@ -84,6 +85,36 @@ export async function fetchEffectivePermissions(
     },
   );
 
+  return await getCached();
+}
+
+/** Plan-only permissions, queried only to explain an access denial. */
+export async function queryPlanPermissions(
+  supabase: SupabaseClient,
+  planSub: string,
+): Promise<PermissionValue[]> {
+  const { data, error } = await supabase
+    .from("plan_permissions")
+    .select("permission")
+    .eq("plan", planSub)
+    .eq("granted", true);
+  if (error) throw new Error(`Error al obtener permisos del plan: ${error.message}`, { cause: error });
+  return (data ?? []).map((row) => row.permission as PermissionValue);
+}
+
+export function planPermissionsTag(planSub: string): string {
+  return `${PERMISSIONS_CACHE_TAG}:plan:${planSub}`;
+}
+
+export async function fetchPlanPermissions(
+  supabase: SupabaseClient,
+  planSub: string,
+): Promise<PermissionValue[]> {
+  const getCached = unstable_cache(
+    async () => queryPlanPermissions(supabase, planSub),
+    ["plan-permissions", planSub],
+    { revalidate: 3600, tags: [PERMISSIONS_CACHE_TAG, planPermissionsTag(planSub)] },
+  );
   return await getCached();
 }
 

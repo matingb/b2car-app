@@ -8,6 +8,8 @@ import {
   invalidatePermissionsCache,
   PERMISSIONS_CACHE_TAG,
   permissionsTag,
+  fetchPlanPermissions,
+  queryPlanPermissions,
 } from "./permissions.server";
 
 vi.mock("server-only", () => ({}));
@@ -128,6 +130,29 @@ describe("permissions.server", () => {
     it("invalida el tag específico cuando se especifican rol y plan", () => {
       invalidatePermissionsCache("admin", "PRO");
       expect(revalidateTag).toHaveBeenCalledWith("permissions:admin:PRO");
+      expect(revalidateTag).toHaveBeenCalledWith("permissions:plan:PRO");
+    });
+  });
+
+  describe("plan permissions", () => {
+    it("queries only the plan and caches it with global and plan invalidation tags", async () => {
+      const { supabase, fromMock } = createMockSupabase({ planPermissions: [Permission.FinanzasEdit] });
+      expect(await fetchPlanPermissions(supabase, "PRO")).toEqual([Permission.FinanzasEdit]);
+      expect(fromMock).toHaveBeenCalledExactlyOnceWith("plan_permissions");
+      expect(unstable_cache).toHaveBeenCalledWith(expect.any(Function), ["plan-permissions", "PRO"], {
+        revalidate: 3600, tags: ["permissions", "permissions:plan:PRO"],
+      });
+    });
+
+    it("propagates a query failure with its original cause", async () => {
+      const error = new Error("plan database failure");
+      const { supabase } = createMockSupabase({ planError: error });
+      await expect(queryPlanPermissions(supabase, "BASE")).rejects.toMatchObject({ cause: error });
+    });
+
+    it("returns an empty set for a plan without grants", async () => {
+      const { supabase } = createMockSupabase({ planPermissions: [] });
+      expect(await queryPlanPermissions(supabase, "BASE")).toEqual([]);
     });
   });
 });
