@@ -33,16 +33,28 @@ describe("cuenta favorita", () => {
 });
 
 describe("rpcErrorMessage", () => {
-  it("depura el error 55000 (ledger inmutable) devolviendo un mensaje claro de negocio al cliente", () => {
+  it("conserva el mensaje de negocio del error 55000 (ledger inmutable)", () => {
     const error = { code: "55000", message: "Los movimientos del ledger son inmutables." };
     const result = rpcErrorMessage(error, "Error por defecto");
-    expect(result).toBe("Los movimientos financieros registrados no se pueden modificar ni eliminar");
+    expect(result).toBe(error.message);
   });
 
-  it("depura el error 55001 (arreglo facturado)", () => {
+  it("conserva el mensaje de negocio del error 55001 (arreglo facturado)", () => {
     const error = { code: "55001", message: "protegido por factura" };
     const result = rpcErrorMessage(error, "Error por defecto");
-    expect(result).toBe("El arreglo ya posee una factura electrónica autorizada y sus datos fiscales no se pueden modificar");
+    expect(result).toBe(error.message);
+  });
+
+  it.each(["22023", "P0001", "P0002"])("conserva el mensaje de las excepciones de negocio %s", (code) => {
+    expect(rpcErrorMessage({ code, message: "Las cuentas de origen y destino deben ser distintas" }, "Error por defecto"))
+      .toBe("Las cuentas de origen y destino deben ser distintas");
+  });
+
+  it("traduce errores técnicos sin exponer mensajes de Postgres", () => {
+    expect(rpcErrorMessage({ code: "23505", message: 'duplicate key on table "accounts"' }, "Error por defecto"))
+      .toBe("Ya existe un registro con esos datos.");
+    expect(rpcErrorMessage({ code: "22P02", message: "invalid input syntax for uuid" }, "Error por defecto"))
+      .toBe("Algunos datos no tienen un formato válido.");
   });
 
   it("devuelve el mensaje fallback cuando el error es desconocido o null", () => {
@@ -54,6 +66,23 @@ describe("rpcErrorMessage", () => {
 describe("rpcStatus", () => {
   it("traduce el rechazo de permisos de la base a 403", () => {
     expect(rpcStatus({ code: "42501" })).toBe(403);
+  });
+
+  it.each(["28000", "PGRST301", "PGRST303"])("traduce el rechazo de autenticación %s a 401", (code) => {
+    expect(rpcStatus({ code })).toBe(401);
+  });
+
+  it.each([
+    [{ code: "P0001", message: "STOCK_INSUFICIENTE" }, 409],
+    [{ code: "P0001", message: "JWT sin tenant_id" }, 401],
+    [{ code: "P0001", message: "Arreglo no encontrado" }, 404],
+    [{ code: "P0001", message: "Concepto requerido" }, 400],
+    [{ code: "55001" }, 409],
+    [{ code: "P1791" }, 400],
+    [{ code: "57014" }, 503],
+    [null, 500],
+  ] as const)("usa el mapeo común para %j", (error, status) => {
+    expect(rpcStatus(error)).toBe(status);
   });
 });
 

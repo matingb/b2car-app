@@ -85,8 +85,11 @@ describe("POST /api/cuentas-financieras/ingresos", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("mapea cuenta inexistente o ajena al tenant como no encontrada", async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: null, error: { code: "P0002", message: "internal account details" } });
+  it.each([
+    { code: "P0002", message: "Cuenta financiera no encontrada", expected: "Cuenta financiera no encontrada" },
+    { code: "PGRST116", message: "internal account details", expected: "No se encontró el registro solicitado." },
+  ])("mapea una cuenta no encontrada ($code) con un mensaje seguro", async ({ code, message, expected }) => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: { code, message } });
     vi.mocked(createClient).mockResolvedValue(mockSupabase(rpc));
 
     const response = await POST(makeRequest({
@@ -99,6 +102,7 @@ describe("POST /api/cuentas-financieras/ingresos", () => {
     const body = await response.json();
 
     expect(response.status).toBe(404);
+    expect(body.error).toBe(expected);
     expect(body.error).not.toContain("internal account details");
   });
 

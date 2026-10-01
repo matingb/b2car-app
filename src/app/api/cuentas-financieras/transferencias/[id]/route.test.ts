@@ -70,7 +70,7 @@ describe("PUT /api/cuentas-financieras/transferencias/[id]", () => {
     });
   });
 
-  it("devuelve 409 y mensaje de negocio depurado cuando falla por error 55000", async () => {
+  it("devuelve 409 y conserva el mensaje de negocio cuando falla por error 55000", async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: null,
       error: { code: "55000", message: "Los movimientos del ledger son inmutables." },
@@ -86,7 +86,7 @@ describe("PUT /api/cuentas-financieras/transferencias/[id]", () => {
     const body = await response.json();
 
     expect(response.status).toBe(409);
-    expect(body.error).toBe("Los movimientos financieros registrados no se pueden modificar ni eliminar");
+    expect(body.error).toBe("Los movimientos del ledger son inmutables.");
   });
 });
 

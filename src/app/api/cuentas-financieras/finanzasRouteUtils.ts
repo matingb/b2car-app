@@ -1,4 +1,5 @@
 import { CATEGORIAS_GASTO_FINANCIERO, CUENTA_TIPOS } from "@/model/finanzas";
+import { mapDbError, type ApiErrorStatus, type DbError } from "../apiError";
 import { isValidISODateTimeWithTimezone, toISODateTimeWithCurrentTime } from "@/lib/fechas";
 import type {
   ActualizarCuentaFinancieraInput,
@@ -564,41 +565,14 @@ export function extractRpcId(value: unknown): string | null {
   return id && UUID_RE.test(id) ? id : null;
 }
 
-export function rpcStatus(error: { code?: string | null } | null | undefined): 400 | 403 | 404 | 409 | 500 {
-  switch (error?.code) {
-    case "PGRST116":
-    case "P0002":
-      return 404;
-    case "23505":
-    case "55000":
-      return 409;
-    case "22023":
-    case "22003":
-    case "22007":
-    case "22P02":
-      return 400;
-    case "42501":
-    case "28000":
-      return 403;
-    default:
-      return 500;
-  }
+export function rpcStatus(error: DbError | null | undefined): ApiErrorStatus {
+  return mapDbError(error).status;
 }
 
 export function rpcErrorMessage(
-  error: { code?: string | null; message?: string | null } | null | undefined,
+  error: DbError | null | undefined,
   fallbackMessage: string
 ): string {
-  if (!error) return fallbackMessage;
-  switch (error.code) {
-    case "55000":
-      return "Los movimientos financieros registrados no se pueden modificar ni eliminar";
-    case "55001":
-      return "El arreglo ya posee una factura electrónica autorizada y sus datos fiscales no se pueden modificar";
-    case "23505":
-      return "El registro ya existe o entra en conflicto con otro existente";
-    default:
-      return fallbackMessage;
-  }
+  return mapDbError(error, { fallback: fallbackMessage }).message;
 }
 
