@@ -30,7 +30,7 @@ export type ApiErrorOptions = DbErrorOptions & {
   body?: Record<string, unknown>;
 };
 
-export type MappedDbError = {
+export type MappedApiError = {
   status: ApiErrorStatus;
   code: ApiErrorCode;
   message: string;
@@ -66,7 +66,7 @@ function dbErrorFields(error: unknown): DbError {
 }
 
 /** Only application-authored SQL exceptions may expose their original message. */
-export function mapDbError(error: unknown, opts: DbErrorOptions = {}): MappedDbError {
+export function mapDbError(error: unknown, opts: DbErrorOptions = {}): MappedApiError {
   const { code, message, details, constraint } = dbErrorFields(error);
   const fallback = opts.fallback || API_ERROR_MESSAGES.INTERNAL;
   const businessMessage = message?.trim() ? message : fallback;
@@ -128,7 +128,7 @@ export function mapDbError(error: unknown, opts: DbErrorOptions = {}): MappedDbE
   }
 }
 
-function mapServiceError(error: unknown, opts: ApiErrorOptions): MappedDbError | null {
+function mapServiceError(error: unknown, opts: ApiErrorOptions): MappedApiError | null {
   switch (error) {
     case ServiceError.NotFound:
       return { status: 404, code: "NOT_FOUND", message: opts.notFoundMessage || NOT_FOUND_MESSAGE };
