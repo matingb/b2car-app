@@ -4,6 +4,18 @@ import { operacionesService, validateOperacionesDateFilters } from "./operacione
 import { ServiceError } from "../serviceError";
 
 describe("operacionesService.list", () => {
+	it("convierte el filtro por día a los límites de Buenos Aires", async () => {
+		const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		await operacionesService.list(supabase, { fecha: "2026-09-18" });
+
+		expect(rpc).toHaveBeenCalledWith("rpc_listar_operaciones_con_gastos", expect.objectContaining({
+			p_from: "2026-09-18T03:00:00.000Z",
+			p_to: "2026-09-19T03:00:00.000Z",
+		}));
+	});
+
 	it("pagina operaciones y gastos en una única RPC con total estable", async () => {
 		const rpc = vi.fn().mockResolvedValue({
 			data: [{ total_count: 123 }],
@@ -51,6 +63,34 @@ describe("operacionesService.list", () => {
 			expect.objectContaining({ id: "venta-facturada", factura_asociada: true }),
 			expect.objectContaining({ id: "venta-sin-factura", factura_asociada: false }),
 		]));
+	});
+});
+
+describe("operacionesService.create", () => {
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.restoreAllMocks();
+	});
+
+	it("interpreta una fecha sin hora en la zona de Buenos Aires antes de llamar a la RPC", async () => {
+		const operacionId = "11111111-1111-4111-8111-111111111111";
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-09-18T02:30:00.000Z"));
+		const rpc = vi.fn().mockResolvedValue({ data: operacionId, error: null });
+		const getById = vi.spyOn(operacionesService, "getById").mockResolvedValue({ data: null, error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		await operacionesService.create(supabase, {
+			tipo: "VENTA",
+			taller_id: "22222222-2222-4222-8222-222222222222",
+			fecha: "2026-09-17",
+			lineas: [],
+		});
+
+		expect(rpc).toHaveBeenCalledWith("rpc_crear_operacion_con_stock", expect.objectContaining({
+			p_fecha: "2026-09-18T02:30:00.000Z",
+		}));
+		expect(getById).toHaveBeenCalledWith(expect.any(Object), operacionId);
 	});
 });
 
@@ -116,6 +156,19 @@ describe("operacionesService.update", () => {
 });
 
 describe("operacionesService.stats", () => {
+	it("usa los mismos límites de Buenos Aires para una fecha sin hora", async () => {
+		const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		await operacionesService.stats(supabase, { fecha: "2026-09-18" });
+
+		expect(rpc).toHaveBeenCalledWith("rpc_operaciones_stats", {
+			p_from: "2026-09-18T03:00:00.000Z",
+			p_to: "2026-09-19T03:00:00.000Z",
+			p_tipos: null,
+		});
+	});
+
 	it("reenvía los mismos límites ISO de período sin sumar otro día", async () => {
 		const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
 		const supabase = { rpc } as unknown as SupabaseClient;

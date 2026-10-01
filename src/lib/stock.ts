@@ -9,7 +9,7 @@ export type StockLevels = {
 export function getStockStatus(levels: StockLevels): StockStatus {
   if (levels.stockActual === 0) return "critico";
   if (levels.stockActual < levels.stockMinimo) return "bajo";
-  if (levels.stockActual > levels.stockMaximo) return "alto";
+  if (levels.stockMaximo > 0 && levels.stockActual > levels.stockMaximo) return "alto";
   return "normal";
 }
 

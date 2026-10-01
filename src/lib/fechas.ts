@@ -29,6 +29,8 @@ export function toISODateLocal(date: Date = new Date()): string {
 }
 export type CalendarDateParts = { year: number; month: number; day: number };
 
+export const APP_TIME_ZONE = "America/Argentina/Buenos_Aires";
+
 /** Parse and validate a YYYY-MM-DD calendar date without interpreting it as UTC. */
 export function parseCalendarDate(value: string): CalendarDateParts | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -92,6 +94,86 @@ function localMidnight({ year, month, day }: CalendarDateParts): Date {
   return date;
 }
 
+function getTimeZoneParts(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return {
+    year: getPart("year"),
+    month: getPart("month"),
+    day: getPart("day"),
+    hour: getPart("hour"),
+    minute: getPart("minute"),
+    second: getPart("second"),
+  };
+}
+
+function zonedCalendarDateTimeISO(
+  date: CalendarDateParts,
+  time: Pick<ReturnType<typeof getTimeZoneParts>, "hour" | "minute" | "second"> & { millisecond?: number },
+  timeZone: string,
+): string {
+  const wallClockAsUtc = Date.UTC(
+    date.year,
+    date.month - 1,
+    date.day,
+    time.hour,
+    time.minute,
+    time.second,
+    time.millisecond ?? 0,
+  );
+  const guessedLocal = getTimeZoneParts(new Date(wallClockAsUtc), timeZone);
+  const guessedLocalAsUtc = Date.UTC(
+    guessedLocal.year,
+    guessedLocal.month - 1,
+    guessedLocal.day,
+    guessedLocal.hour,
+    guessedLocal.minute,
+    guessedLocal.second,
+    time.millisecond ?? 0,
+  );
+  const timeZoneOffset = guessedLocalAsUtc - wallClockAsUtc;
+  return new Date(wallClockAsUtc - timeZoneOffset).toISOString();
+}
+
+/** Convert an application calendar date to an exclusive Buenos Aires day range. */
+export function argentinaCalendarDateRangeISO(from?: string, through?: string): {
+  from: string | undefined;
+  to: string | undefined;
+} | null {
+  const fromParts = from ? parseCalendarDate(from) : null;
+  const throughParts = through ? parseCalendarDate(through) : null;
+  if ((from && !fromParts) || (through && !throughParts)) return null;
+
+  const start = fromParts
+    ? zonedCalendarDateTimeISO(fromParts, { hour: 0, minute: 0, second: 0 }, APP_TIME_ZONE)
+    : undefined;
+  let end: string | undefined;
+  if (throughParts) {
+    const nextDay = new Date(Date.UTC(throughParts.year, throughParts.month - 1, throughParts.day + 1));
+    end = zonedCalendarDateTimeISO(
+      {
+        year: nextDay.getUTCFullYear(),
+        month: nextDay.getUTCMonth() + 1,
+        day: nextDay.getUTCDate(),
+      },
+      { hour: 0, minute: 0, second: 0 },
+      APP_TIME_ZONE,
+    );
+  }
+  if (start && end && Date.parse(start) >= Date.parse(end)) return null;
+  return { from: start, to: end };
+}
+
 /** Convert a calendar date to its local midnight as an ISO timestamp. */
 export function localCalendarDateStartISO(value: string): string | null {
   const parts = parseCalendarDate(value);
@@ -146,11 +228,13 @@ export function toISODateTimeWithCurrentTime(
   }
   if (typeof dateInput !== "string" || !isValidDate(dateInput)) return String(dateInput);
 
-  const hours = String(now.getHours()).padStart(2, "0");
-  const minutes = String(now.getMinutes()).padStart(2, "0");
-  const seconds = String(now.getSeconds()).padStart(2, "0");
-  const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
-  return `${dateInput}T${hours}:${minutes}:${seconds}.${milliseconds}Z`;
+  const timeZoneParts = getTimeZoneParts(now, APP_TIME_ZONE);
+  const date = parseCalendarDate(dateInput)!;
+  return zonedCalendarDateTimeISO(
+    date,
+    { ...timeZoneParts, millisecond: now.getMilliseconds() },
+    APP_TIME_ZONE,
+  );
 }
 
 export function horaAMinutos(hora: string) {
@@ -273,6 +357,51 @@ export function formatLocalDateLabel(
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+  }).format(date);
+}
+
+function parseDateInAppTimeZone(dateString: string): Date {
+  const normalized = dateString.replace(" ", "T");
+  if (/(?:[zZ]|[+-]\d{2}(?::?\d{2})?)$/.test(normalized)) {
+    return new Date(normalized);
+  }
+
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?$/.exec(normalized);
+  if (!match) return new Date(normalized);
+
+  const calendarDate = parseCalendarDate(match[1]);
+  const hour = Number(match[2]);
+  const minute = Number(match[3]);
+  const second = Number(match[4] ?? 0);
+  const millisecond = Number(`${(match[5] ?? "").slice(0, 3).padEnd(3, "0")}`);
+  if (!calendarDate || hour > 23 || minute > 59 || second > 59) return new Date(Number.NaN);
+
+  return new Date(
+    zonedCalendarDateTimeISO(
+      calendarDate,
+      { hour, minute, second, millisecond },
+      APP_TIME_ZONE,
+    ),
+  );
+}
+
+/** Format a date or timestamp using the application's Buenos Aires timezone. */
+export function formatAppDateLabel(
+  dateString: string | null | undefined,
+  fallback = "",
+): string {
+  if (!dateString) return fallback;
+
+  if (parseCalendarDate(dateString)) return formatCalendarDateLabel(dateString, fallback);
+
+  const date = parseDateInAppTimeZone(dateString);
+  if (Number.isNaN(date.getTime())) return fallback;
+
+  return new Intl.DateTimeFormat(APP_LOCALE, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: APP_TIME_ZONE,
   }).format(date);
 }
 

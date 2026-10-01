@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeftRight,
@@ -21,7 +20,7 @@ import IconButton from "@/app/components/ui/IconButton";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
-import type { CuentaFinanciera, MovimientoFinanciero } from "@/model/finanzas";
+import type { CrearGastoFinancieroInput, CuentaFinanciera, MovimientoFinanciero } from "@/model/finanzas";
 import { ROUTES } from "@/routing/routes";
 import { COLOR } from "@/theme/theme";
 import CuentaFinancieraModal, {
@@ -31,10 +30,12 @@ import TransferenciaFinancieraModal, {
   type TransferenciaFinancieraDraft,
 } from "@/app/components/finanzas/TransferenciaFinancieraModal";
 import IngresoManualFinancieroModal from "@/app/components/finanzas/IngresoManualFinancieroModal";
+import GastoFinancieroModal from "@/app/components/finanzas/GastoFinancieroModal";
 import MovimientosFinancierosList from "@/app/components/finanzas/MovimientosFinancierosList";
 import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
 import { getCuentaTipoLabel } from "@/model/finanzas";
+import { finanzasClient } from "@/clients/finanzasClient";
 
 export default function CuentaFinancieraDetailPage() {
   const params = useParams<{ id: string }>();
@@ -46,11 +47,14 @@ export default function CuentaFinancieraDetailPage() {
   const {
     cuentas,
     getCuentaById,
+    getCuentaByIdResult,
     updateCuenta,
     deleteCuenta,
     createTransferencia,
     createIngresoManual,
+    createCuenta,
     getMovimientos,
+    refresh,
   } = useCuentasFinancieras();
 
   const PAGE = 50;
@@ -65,6 +69,7 @@ export default function CuentaFinancieraDetailPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [isIngresoOpen, setIsIngresoOpen] = useState(false);
+  const [isGastoOpen, setIsGastoOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const loadMovimientos = useCallback(
@@ -79,12 +84,14 @@ export default function CuentaFinancieraDetailPage() {
         setMovimientos((prev) => (offset === 0 ? page : [...prev, ...page]));
         setHasMore(page.length === PAGE);
         setMovimientosError(null);
+        return true;
       } catch (err) {
         setMovimientosError(
           err instanceof Error
             ? err.message
             : "No se pudieron cargar los movimientos"
         );
+        return false;
       } finally {
         if (offset === 0) {
           setMovimientosLoading(false);
@@ -157,6 +164,33 @@ export default function CuentaFinancieraDetailPage() {
     await loadMovimientos(0);
   };
 
+  const handleGasto = async (input: CrearGastoFinancieroInput) => {
+    const response = await finanzasClient.crearGasto(input);
+    if (response.error || !response.data) {
+      throw new Error(response.error || "No se pudo registrar el gasto.");
+    }
+
+    success("Gasto registrado", "El movimiento se guardó correctamente.");
+    const [cuentaResult, cuentasActualizadas, movimientosActualizados] = await Promise.all([
+      getCuentaByIdResult(cuentaId),
+      refresh(),
+      loadMovimientos(0),
+    ]);
+    if (cuentaResult.data) setCuenta(cuentaResult.data);
+
+    const reloadErrors = [
+      !cuentaResult.data ? (cuentaResult.error ?? "No se pudo actualizar el saldo de la cuenta.") : null,
+      !cuentasActualizadas ? "No se pudo actualizar la lista de cuentas." : null,
+      !movimientosActualizados ? "No se pudo actualizar el historial de movimientos." : null,
+    ].filter((message): message is string => Boolean(message));
+    if (reloadErrors.length > 0) {
+      errorToast(
+        "Gasto guardado, vista desactualizada",
+        `${reloadErrors.join(" ")} Recargá la pantalla para ver el saldo y el historial actualizados.`,
+      );
+    }
+  };
+
   const handleDelete = async () => {
     if (!cuenta || deleting) return;
     const accepted = await confirm({
@@ -202,7 +236,6 @@ export default function CuentaFinancieraDetailPage() {
   const saldoActual = Number(cuenta.saldoActual) || 0;
   const saldoInicial = Number(cuenta.saldoInicial) || 0;
   const hasTransferDestination = cuentas.filter((item) => item.activo && item.id !== cuenta.id).length > 0;
-  const gastoUrl = `${ROUTES.operaciones}?nuevo=gasto&cuenta_financiera_id=${encodeURIComponent(cuenta.id)}`;
 
   return (
     <div css={styles.page}>
@@ -287,10 +320,14 @@ export default function CuentaFinancieraDetailPage() {
           </span>
         )}
         {cuenta.activo ? (
-          <Link href={gastoUrl} style={styles.primaryLink} data-testid="cuenta-financiera-nuevo-gasto">
-            <ReceiptText size={18} />
-            Nuevo gasto
-          </Link>
+          <Button
+            icon={<ReceiptText size={18} />}
+            text="Nuevo gasto"
+            onClick={() => setIsGastoOpen(true)}
+            hideTextOnMobile={false}
+            style={{ ...styles.primaryLink, border: "none", minWidth: 0 }}
+            dataTestId="cuenta-financiera-nuevo-gasto"
+          />
         ) : (
           <span style={{ ...styles.primaryLink, ...styles.disabledLink }} aria-disabled="true">
             <ReceiptText size={18} />
@@ -338,6 +375,14 @@ export default function CuentaFinancieraDetailPage() {
         cuentaId={cuenta.id}
         onClose={() => setIsIngresoOpen(false)}
         onCreate={handleIngreso}
+      />
+      <GastoFinancieroModal
+        open={isGastoOpen}
+        cuentas={cuentas}
+        cuentaId={cuenta.id}
+        onClose={() => setIsGastoOpen(false)}
+        onCreate={handleGasto}
+        onCreateCuenta={createCuenta}
       />
     </div>
   );

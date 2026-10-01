@@ -30,10 +30,11 @@ export type CuentasFinancierasContextType = {
   saldoTotal: number;
   loading: boolean;
   loadError: string | null;
-  loadCuentas: () => Promise<void>;
+  loadCuentas: (opts?: { silent?: boolean }) => Promise<boolean>;
   /** Recarga las cuentas; alias público para las pantallas consumidoras. */
-  refresh: () => Promise<void>;
+  refresh: () => Promise<boolean>;
   getCuentaById: (id: string) => Promise<CuentaFinanciera | null>;
+  getCuentaByIdResult: (id: string) => Promise<CuentaLookupResult>;
   createCuenta: (input: CrearCuentaFinancieraInput) => Promise<CuentaFinanciera>;
   updateCuenta: (
     id: string,
@@ -50,6 +51,11 @@ export type CuentasFinancierasContextType = {
   ) => Promise<MovimientoFinanciero[]>;
 };
 
+export type CuentaLookupResult = {
+  data: CuentaFinanciera | null;
+  error: string | null;
+};
+
 const CuentasFinancierasContext =
   createContext<CuentasFinancierasContextType | null>(null);
 
@@ -61,7 +67,7 @@ export function CuentasFinancierasProvider({
   const [cuentas, setCuentas] = useState<CuentaFinanciera[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const inFlightPromiseRef = useRef<Promise<void> | null>(null);
+  const inFlightPromiseRef = useRef<Promise<boolean> | null>(null);
   const hasLoadedRef = useRef(false);
 
   const loadCuentas = useCallback(async (opts?: { silent?: boolean }) => {
@@ -77,10 +83,11 @@ export function CuentasFinancierasProvider({
         const res = await finanzasClient.listarCuentas();
         if (res.error) {
           setLoadError(res.error);
-          setCuentas([]);
+          return false;
         } else {
           setCuentas(res.data ?? []);
           hasLoadedRef.current = true;
+          return true;
         }
       } catch (err: unknown) {
         const msg =
@@ -88,7 +95,7 @@ export function CuentasFinancierasProvider({
             ? err.message
             : "No se pudieron cargar las cuentas financieras";
         setLoadError(msg);
-        setCuentas([]);
+        return false;
       } finally {
         setLoading(false);
         inFlightPromiseRef.current = null;
@@ -122,23 +129,34 @@ export function CuentasFinancierasProvider({
     [cuentasActivas]
   );
 
-  const getCuentaById = useCallback(
-    async (id: string): Promise<CuentaFinanciera | null> => {
+  const getCuentaByIdResult = useCallback(
+    async (id: string): Promise<CuentaLookupResult> => {
       try {
         const res = await finanzasClient.obtenerCuenta(id);
         if (res.error || !res.data) {
-          return null;
+          return { data: null, error: res.error || "No se encontró la cuenta solicitada." };
         }
         const updated = res.data;
         setCuentas((prev) =>
           prev.map((c) => (c.id === updated.id ? updated : c))
         );
-        return updated;
-      } catch {
-        return null;
+        return { data: updated, error: null };
+      } catch (err: unknown) {
+        return {
+          data: null,
+          error: err instanceof Error ? err.message : "No se pudo cargar la cuenta financiera",
+        };
       }
     },
     []
+  );
+
+  const getCuentaById = useCallback(
+    async (id: string): Promise<CuentaFinanciera | null> => {
+      const result = await getCuentaByIdResult(id);
+      return result.data;
+    },
+    [getCuentaByIdResult]
   );
 
   const createCuenta = useCallback(
@@ -268,6 +286,7 @@ export function CuentasFinancierasProvider({
       loadCuentas,
       refresh: loadCuentas,
       getCuentaById,
+      getCuentaByIdResult,
       createCuenta,
       updateCuenta,
       deleteCuenta,
@@ -284,6 +303,7 @@ export function CuentasFinancierasProvider({
       loadError,
       loadCuentas,
       getCuentaById,
+      getCuentaByIdResult,
       createCuenta,
       updateCuenta,
       deleteCuenta,

@@ -2,10 +2,15 @@ import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import type { OperacionDTO, OperacionLineaDTO } from "@/model/dtos";
 import { logger } from "@/lib/logger";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
-import { isValidDate, isValidISODateTimeWithTimezone, toISODateTimeWithCurrentTime } from "@/lib/fechas";
+import {
+	argentinaCalendarDateRangeISO,
+	isValidDate,
+	isValidISODateTimeWithTimezone,
+	toISODateTimeWithCurrentTime,
+} from "@/lib/fechas";
 
 export type OperacionesFilters = {
-	fecha?: string; // YYYY-MM-DD, a complete UTC calendar day for compatibility
+	fecha?: string; // YYYY-MM-DD, a calendar day in the application's Buenos Aires timezone
 	from?: string; // ISO instant or legacy YYYY-MM-DD
 	to?: string; // exclusive ISO instant or legacy inclusive YYYY-MM-DD
 	tipo?: string[];
@@ -99,15 +104,13 @@ type OperacionesStatsRow = {
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function toTimestampStart(value: string) {
-	return DATE_ONLY_PATTERN.test(value) ? `${value}T00:00:00.000Z` : value;
+	if (!DATE_ONLY_PATTERN.test(value)) return value;
+	return argentinaCalendarDateRangeISO(value, value)?.from ?? value;
 }
 
 function toTimestampEndExclusive(value: string) {
 	if (!DATE_ONLY_PATTERN.test(value)) return value;
-
-	const date = new Date(`${value}T00:00:00.000Z`);
-	date.setUTCDate(date.getUTCDate() + 1);
-	return date.toISOString();
+	return argentinaCalendarDateRangeISO(value, value)?.to ?? value;
 }
 
 function isValidFilterDate(value: string): boolean {

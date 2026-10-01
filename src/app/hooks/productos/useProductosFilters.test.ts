@@ -82,6 +82,20 @@ describe("filterProductos", () => {
 
     expect(result.map((p) => p.id)).toEqual(["sin-stock"]);
   });
+
+  it("no filtra como exceso el stock sin máximo configurado", () => {
+    const productos = [
+      createProducto({ id: "sin-maximo", stocks: [stock({ stockActual: 8, stockMinimo: 0, stockMaximo: 0 })] }),
+      createProducto({ id: "maximo-superado", stocks: [stock({ id: "STK-2", stockActual: 21, stockMaximo: 20 })] }),
+    ];
+
+    const result = filterProductos(productos, {
+      search: "",
+      filters: { categorias: [], estado: "alto", visibilidad: "inventario" },
+    });
+
+    expect(result.map((producto) => producto.id)).toEqual(["maximo-superado"]);
+  });
 });
 
 describe("getProductoStockSummary", () => {
@@ -98,5 +112,16 @@ describe("getProductoStockSummary", () => {
       talleresConStock: 2,
       worstStatus: "critico",
     });
+  });
+
+  it("ignora un stock sin máximo al calcular exceso entre talleres", () => {
+    const producto = createProducto({
+      stocks: [
+        stock({ id: "sin-maximo", stockActual: 25, stockMinimo: 0, stockMaximo: 0 }),
+        stock({ id: "configurado", tallerId: "TAL-2", stockActual: 8, stockMinimo: 2, stockMaximo: 10 }),
+      ],
+    });
+
+    expect(getProductoStockSummary(producto).worstStatus).toBe("normal");
   });
 });

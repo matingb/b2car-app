@@ -41,4 +41,15 @@ describe("useStockStats", () => {
       total: 1,
     });
   });
+
+  it("no cuenta como exceso el stock sin máximo configurado", () => {
+    const items = [
+      stockItem({ id: "sin-maximo", stockActual: 30, stockMinimo: 0, stockMaximo: 0 }),
+      stockItem({ id: "maximo-superado", stockActual: 30, stockMinimo: 0, stockMaximo: 20 }),
+    ];
+
+    const { result } = renderHook(() => useStockStats(items));
+
+    expect(result.current).toEqual({ criticos: 0, bajos: 0, altos: 1, normales: 1, total: 2 });
+  });
 });

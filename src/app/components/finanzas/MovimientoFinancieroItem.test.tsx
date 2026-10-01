@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import MovimientoFinancieroItem from "./MovimientoFinancieroItem";
 import type { MovimientoFinanciero } from "@/model/finanzas";
-import { formatLocalDateLabel } from "@/lib/fechas";
 
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -71,7 +70,7 @@ describe("MovimientoFinancieroItem", () => {
     expect(screen.getByText(/\+ \$2\.500/)).toBeInTheDocument();
   });
 
-  it("muestra la fecha local elegida para un ingreso manual", () => {
+  it("muestra los ingresos manuales en la zona horaria GMT-3", () => {
     const movement: MovimientoFinanciero = {
       ...sampleMovement,
       tipo: "INGRESO",
@@ -80,11 +79,11 @@ describe("MovimientoFinancieroItem", () => {
 
     render(<MovimientoFinancieroItem movimiento={movement} />);
 
-    expect(screen.getByText(formatLocalDateLabel(movement.fecha))).toBeInTheDocument();
+    expect(screen.getByText("23/09/2026")).toBeInTheDocument();
   });
 
   it.each(["GASTO", "TRANSFERENCIA"])(
-    "preserva el d\u00eda UTC hist\u00f3rico para %s",
+    "formatea los timestamps de %s en la zona horaria GMT-3",
     (tipo) => {
       const movement: MovimientoFinanciero = {
         ...sampleMovement,
@@ -94,7 +93,7 @@ describe("MovimientoFinancieroItem", () => {
 
       render(<MovimientoFinancieroItem movimiento={movement} />);
 
-      expect(screen.getByText("24/09/2026")).toBeInTheDocument();
+      expect(screen.getByText("23/09/2026")).toBeInTheDocument();
     },
   );
 

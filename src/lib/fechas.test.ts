@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  argentinaCalendarDateRangeISO,
   formatCalendarDateLabel,
   formatDateLabel,
   formatDateTimeLabel,
@@ -40,6 +41,13 @@ describe("isValidDate", () => {
 });
 
 describe("fechas de calendario local", () => {
+	it("construye rangos estables en la zona de Buenos Aires", () => {
+	  expect(argentinaCalendarDateRangeISO("2026-09-18", "2026-09-18")).toEqual({
+	    from: "2026-09-18T03:00:00.000Z",
+	    to: "2026-09-19T03:00:00.000Z",
+	  });
+	});
+
   it("valida fechas Gregorianas sin interpretar YYYY-MM-DD como UTC", () => {
     expect(parseCalendarDate("2024-02-29")).toEqual({ year: 2024, month: 2, day: 29 });
     expect(isValidDate("2026-02-30")).toBe(false);
@@ -150,9 +158,9 @@ describe("formatDateTimeLabel", () => {
 
 describe("toISODateTimeWithCurrentTime", () => {
   it("conserva el dia elegido y completa la hora actual", () => {
-    const now = new Date(2026, 7, 26, 14, 30, 45, 123);
+    const now = new Date("2026-08-26T17:30:45.123Z");
 
-    expect(toISODateTimeWithCurrentTime("2026-08-20", now)).toBe("2026-08-20T14:30:45.123Z");
+    expect(toISODateTimeWithCurrentTime("2026-08-20", now)).toBe("2026-08-20T17:30:45.123Z");
   });
 
   it("devuelve el string intacto si ya es un timestamp completo ISO (idempotencia)", () => {

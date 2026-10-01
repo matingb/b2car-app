@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { GET, POST } from "./route";
 
@@ -53,6 +53,10 @@ describe("/api/gastos", () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("registra un gasto sin descripción", async () => {
     const rpc = vi
       .fn()
@@ -84,6 +88,8 @@ describe("/api/gastos", () => {
   });
 
   it("registra un gasto con categoría y descripción requeridas", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-01T03:12:41.599Z"));
     const rpc = vi
       .fn()
       .mockResolvedValueOnce({ data: EXPENSE_ID, error: null })
@@ -110,7 +116,7 @@ describe("/api/gastos", () => {
       p_cuenta_id: ACCOUNT_ID,
       p_categoria_gasto: "ALQUILER",
       p_importe: 150000,
-      p_fecha: expect.stringMatching(/^2026-07-31T/),
+      p_fecha: "2026-07-31T03:12:41.599Z",
       p_descripcion: "Alquiler del taller",
       p_idempotency_key: null,
       p_arreglo_id: null,

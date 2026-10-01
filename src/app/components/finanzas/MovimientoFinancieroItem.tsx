@@ -15,7 +15,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { formatArs } from "@/lib/format";
-import { formatDateLabel, formatLocalDateLabel } from "@/lib/fechas";
+import { formatAppDateLabel } from "@/lib/fechas";
 
 type Props = {
   movimiento: MovimientoFinanciero;
@@ -122,9 +122,7 @@ export default function MovimientoFinancieroItem({
           </div>
           <div style={styles.meta}>
             <span>
-              {movimiento.tipo === "INGRESO"
-                ? formatLocalDateLabel(movimiento.fecha)
-                : formatDateLabel(movimiento.fecha)}
+              {formatAppDateLabel(movimiento.fecha)}
             </span>
             <span style={styles.dot}>·</span>
             <span>{presentation.label}</span>
