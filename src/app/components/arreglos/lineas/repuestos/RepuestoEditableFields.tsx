@@ -30,20 +30,13 @@ export default function RepuestoEditableFields({
   onPrecioCompraChange,
   onPrecioVentaChange,
 }: Props) {
-  const isZeroPurchaseCost =
-    showPurchaseUnit &&
-    String(precioCompra ?? "").trim() !== "" &&
-    Number(precioCompra) === 0;
 
   return (
     <div css={styles.container}>
-      {/* Slot de búsqueda / campos de producto */}
       <div css={styles.searchWrap}>{searchSlot}</div>
 
-      {/* Fila de campos numéricos unificados con el mismo diseño */}
       <div css={styles.numCol}>
         <div css={styles.numRow}>
-          {/* Campo Cantidad */}
           <div css={styles.numField("64px")}>
             <span css={styles.prefixLabel}>Cant</span>
             <NumberInput
@@ -59,7 +52,6 @@ export default function RepuestoEditableFields({
             />
           </div>
 
-          {/* Campo Precio Compra (si aplica) */}
           {showPurchaseUnit && (
             <div css={styles.numField("92px")}>
               <span css={styles.prefixLabel}>$ C</span>
@@ -78,7 +70,6 @@ export default function RepuestoEditableFields({
             </div>
           )}
 
-          {/* Campo Precio Venta */}
           <Can permission={Permission.ArreglosPreciosEdit}>
             <div css={styles.numField("92px")}>
               <span css={styles.prefixLabel}>$</span>
@@ -98,12 +89,6 @@ export default function RepuestoEditableFields({
             </div>
           </Can>
         </div>
-
-        {isZeroPurchaseCost && (
-          <div css={styles.zeroCostWarning} role="note" data-testid="zero-cost-warning">
-            ⚠ Se registrará como adquisición sin costo
-          </div>
-        )}
       </div>
     </div>
   );
