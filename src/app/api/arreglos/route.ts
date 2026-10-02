@@ -357,18 +357,22 @@ export async function POST(req: Request) {
         codigoSet.add(codigoKey);
     }
 
-    if (normalizedRepuestosNuevos.length > 0 && !cuentaFinancieraId) {
+    const tieneRepuestosNuevosConCosto = normalizedRepuestosNuevos.some(
+        (r) => Number(r.precio_compra) > 0
+    );
+    if (tieneRepuestosNuevosConCosto && !cuentaFinancieraId) {
         return Response.json(
             { error: "Seleccioná una cuenta financiera para registrar la compra automática" },
             { status: 400 }
         );
     }
 
-    if (
+    const tienePresupuestoConCosto =
         estadoValue === "PRESUPUESTO" &&
-        normalizedRepuestos.some((repuesto) => repuesto.precio_compra != null) &&
-        !cuentaFinancieraId
-    ) {
+        (normalizedRepuestos.some((r) => r.precio_compra != null && Number(r.precio_compra) > 0) ||
+         tieneRepuestosNuevosConCosto);
+
+    if (tienePresupuestoConCosto && !cuentaFinancieraId) {
         return Response.json(
             { error: "Seleccioná una cuenta financiera para registrar la compra al activar" },
             { status: 400 }

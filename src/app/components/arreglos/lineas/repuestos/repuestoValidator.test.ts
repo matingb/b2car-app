@@ -6,6 +6,7 @@ import {
   computeStockState,
   getNewProductConflictMessage,
   validateRepuestoDraft,
+  isFinancialPurchaseRequired,
   type RepuestoValidatorEnv,
   type InventarioEntry,
 } from "./repuestoValidator";
@@ -264,6 +265,46 @@ describe("validateRepuestoDraft", () => {
           categoria_arreglo_id: null,
           empleado_id: null,
         },
+      });
+    });
+
+    it("permite precio_compra 0 cuando el stock es insuficiente", () => {
+      const env: RepuestoValidatorEnv = {
+        ...baseEnv,
+        inventario: [stock({ id: "s1", stockActual: 1 })],
+      };
+      const result = validateRepuestoDraft(
+        { ...existingBase, cantidad: "3", precioCompra: "0" },
+        { mode: "add" },
+        env,
+      );
+      expect(result).toEqual({
+        ok: true,
+        value: {
+          tipo: "existente",
+          stock_id: "s1",
+          cantidad: 3,
+          monto_unitario: 100,
+          precio_compra: 0,
+          categoria_arreglo_id: null,
+          empleado_id: null,
+        },
+      });
+    });
+
+    it("rechaza precio_compra negativo cuando el stock es insuficiente", () => {
+      const env: RepuestoValidatorEnv = {
+        ...baseEnv,
+        inventario: [stock({ id: "s1", stockActual: 1 })],
+      };
+      const result = validateRepuestoDraft(
+        { ...existingBase, cantidad: "3", precioCompra: "-10" },
+        { mode: "add" },
+        env,
+      );
+      expect(result).toEqual({
+        ok: false,
+        message: "Precio de compra inválido",
       });
     });
 
@@ -534,4 +575,70 @@ describe("applyStockSelection", () => {
     });
   });
 });
+
+describe("isFinancialPurchaseRequired", () => {
+  it("retorna false si el costo de compra es 0", () => {
+    expect(
+      isFinancialPurchaseRequired({
+        tipo: "nuevo",
+        precioCompra: 0,
+      })
+    ).toBe(false);
+
+    expect(
+      isFinancialPurchaseRequired({
+        tipo: "existente",
+        precioCompra: "0",
+        purchaseChanged: true,
+      })
+    ).toBe(false);
+  });
+
+  it("retorna false si el costo es nulo o negativo", () => {
+    expect(
+      isFinancialPurchaseRequired({
+        tipo: "nuevo",
+        precioCompra: null,
+      })
+    ).toBe(false);
+
+    expect(
+      isFinancialPurchaseRequired({
+        tipo: "nuevo",
+        precioCompra: -500,
+      })
+    ).toBe(false);
+  });
+
+  it("retorna true para producto nuevo con costo > 0 que no es edicion diferida previa", () => {
+    expect(
+      isFinancialPurchaseRequired({
+        tipo: "nuevo",
+        precioCompra: 2500,
+        isPendingNewEdit: false,
+      })
+    ).toBe(true);
+  });
+
+  it("retorna true para repuesto existente con costo > 0 si purchaseChanged es true", () => {
+    expect(
+      isFinancialPurchaseRequired({
+        tipo: "existente",
+        precioCompra: 1200,
+        purchaseChanged: true,
+      })
+    ).toBe(true);
+  });
+
+  it("retorna false si purchaseChanged es false para repuesto existente con costo", () => {
+    expect(
+      isFinancialPurchaseRequired({
+        tipo: "existente",
+        precioCompra: 1200,
+        purchaseChanged: false,
+      })
+    ).toBe(false);
+  });
+});
+
 

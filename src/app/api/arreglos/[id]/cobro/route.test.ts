@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DELETE, POST } from "./route";
@@ -49,6 +49,12 @@ function mockSupabase(rpc: ReturnType<typeof vi.fn>) {
 describe("/api/arreglos/[id]/cobro", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-31T15:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("registra el cobro con cuenta, fecha e idempotencia y rehidrata el arreglo", async () => {

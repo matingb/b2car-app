@@ -476,6 +476,59 @@ describe("OperacionCreateModal", () => {
 
     expect(screen.getByTestId("modal-submit")).toBeInTheDocument();
   });
+
+  it("permite registrar una compra con importe 0 sin cuenta financiera", async () => {
+    vi.mocked(mockInventarioApi).inventario = [
+      {
+        id: "S-ZERO",
+        nombre: "Repuesto Sin Costo",
+        codigo: "RSC-01",
+        precioUnitario: 1000,
+        costoUnitario: 0,
+        stockActual: 0,
+      },
+    ];
+    mockCrearOperacion.mockResolvedValueOnce({
+      id: "OP-ZERO",
+      tenant_id: "T1",
+    });
+
+    const onClose = vi.fn();
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        initialTipo="COMPRA"
+        initialCuentaId=""
+        onClose={onClose}
+      />
+    );
+
+    await runPendingPromises();
+
+    // Seleccionar stock en la linea 0
+    await userEvent.type(screen.getByTestId("operaciones-line-0-stock"), "S-ZERO");
+
+    const submitBtn = screen.getByTestId("modal-submit");
+    expect(submitBtn).not.toBeDisabled();
+
+    await userEvent.click(submitBtn);
+    await runPendingPromises();
+
+    expect(mockCrearOperacion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipo: "COMPRA",
+        cuenta_financiera_id: null,
+        lineas: [
+          expect.objectContaining({
+            stock_id: "S-ZERO",
+            monto_unitario: 0,
+          }),
+        ],
+      })
+    );
+    expect(onClose).toHaveBeenCalled();
+  });
 });
 
 

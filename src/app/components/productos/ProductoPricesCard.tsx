@@ -31,7 +31,8 @@ export default function ProductoPricesCard({
   const baseCompra = isEditing ? draft.costoUnitario : costoUnitario;
   const baseVenta = isEditing ? draft.precioUnitario : precioUnitario;
 
-  const margen = useMemo(() => {
+  const margen = useMemo((): number | null => {
+    if (baseCompra === 0) return baseVenta > 0 ? null : 0;
     if (!baseCompra) return 0;
     return ((baseVenta - baseCompra) / baseCompra) * 100;
   }, [baseCompra, baseVenta]);
@@ -77,7 +78,9 @@ export default function ProductoPricesCard({
         <div style={styles.grid}>
           <div>
             <div style={styles.label}>Margen</div>
-            <div style={{ ...styles.value, color: "#15803d" }}>{margen.toFixed(1)}%</div>
+            <div style={{ ...styles.value, color: COLOR.SEMANTIC.SUCCESS }}>
+              {margen === null ? "N/A" : `${margen.toFixed(1)}%`}
+            </div>
           </div>
           <div>
             <div style={styles.label}>Valor en producto</div>

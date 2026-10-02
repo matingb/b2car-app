@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { POST } from "./route";
 
@@ -29,7 +29,13 @@ describe("POST /api/cuentas-financieras/transferencias", () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("registra la transferencia exitosamente", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-24T15:00:00.000Z"));
     const rpc = vi.fn().mockResolvedValue({ data: TRANSFERENCIA_ID, error: null });
     vi.mocked(createClient).mockResolvedValue(mockSupabase(rpc));
 

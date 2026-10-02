@@ -167,4 +167,32 @@ describe("getOperacionTitle", () => {
 
     expect(getOperacionTitle(operacion, "Compra", stocksByIdMock)).toBe("Compra");
   });
+
+  it("genera el titulo 'Adquisición sin cargo' para Compra con monto total 0", () => {
+    const operacion = {
+      id: "op-6",
+      tipo: "COMPRA",
+      taller_id: "taller-1",
+      fecha: "2026-08-26",
+      created_at: "2026-08-26",
+      lineas: [
+        {
+          id: "linea-1",
+          operacion_id: "op-6",
+          stock_id: "stock-1",
+          cantidad: 5,
+          monto_unitario: 0,
+          delta_cantidad: 5,
+          created_at: "2026-08-26",
+          nombre: "Aceite Castrol 10W40",
+          codigo: "OIL-1040",
+        },
+      ],
+    } as unknown as Operacion;
+
+    expect(getOperacionTitle(operacion, "Compra", stocksByIdMock)).toBe(
+      "Adquisición sin cargo · Aceite Castrol 10W40 (x5)"
+    );
+  });
 });
+

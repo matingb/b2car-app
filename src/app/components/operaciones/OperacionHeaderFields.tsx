@@ -27,6 +27,7 @@ export default function OperacionHeaderFields() {
     tipo,
     setTipo,
     isContextualStock,
+    requiresCuenta,
   } = useOperacionForm();
 
   const isCreatingCuenta = cuentaFinancieraId === CREATE_CUENTA_VALUE;
@@ -63,13 +64,13 @@ export default function OperacionHeaderFields() {
 
         <div style={styles.headerLeft}>
           <label style={styles.label}>
-            Cuenta financiera <span aria-hidden="true" style={styles.required}>*</span>
+            Cuenta financiera {requiresCuenta ? <span aria-hidden="true" style={styles.required}>*</span> : null}
           </label>
           <CuentaFinancieraAutocomplete
             value={cuentaFinancieraId}
             onChange={setCuentaFinancieraId}
             dataTestId="operaciones-create-cuenta-financiera"
-            hideClearButton
+            hideClearButton={requiresCuenta}
             style={{ height: 44, fontSize: 14 }}
           />
         </div>

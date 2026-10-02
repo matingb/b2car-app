@@ -225,6 +225,179 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  describe("Adquisición de repuestos en arreglo sin costo (costo $0) vs con costo", () => {
+    it("permite producto nuevo con costo 0 (bonificado) sin cuenta financiera ni idempotencia", async () => {
+      // Dado que el taller ingresa un nuevo repuesto provisto sin cargo (costo 0) para el arreglo
+      rpc.mockResolvedValue({ data: "OP-ZERO", error: null });
+
+      const req = new Request("http://localhost/api/arreglos/A-1/repuestos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: "nuevo",
+          taller_id: "T-1",
+          codigo: "FILT-ZERO",
+          nombre: "Filtro Bonificado",
+          precio_compra: 0,
+          precio_venta: 100,
+          cantidad: 1,
+        }),
+      });
+
+      // Cuando se solicita la creación inline sin cuenta ni idempotency_key
+      const res = await POST(req as never, {
+        params: Promise.resolve({ id: "A-1" }),
+      });
+
+      // Entonces responde 200 y delega al RPC con p_cuenta_id: null y p_idempotency_key: null
+      expect(res.status).toBe(200);
+      expect(rpc).toHaveBeenCalledWith("rpc_crear_producto_inline_para_arreglo", {
+        p_arreglo_id: "A-1",
+        p_taller_id: "T-1",
+        p_codigo: "FILT-ZERO",
+        p_nombre: "Filtro Bonificado",
+        p_precio_compra: 0,
+        p_precio_venta: 100,
+        p_cantidad: 1,
+        p_cuenta_id: null,
+        p_idempotency_key: null,
+        p_categoria_arreglo_id: null,
+        p_empleado_id: null,
+      });
+    });
+
+    it("rechaza producto nuevo con costo (> 0) si falta cuenta_financiera_id", async () => {
+      // Dado que se agrega un producto nuevo con costo comercial de compra (precio_compra > 0)
+      const req = new Request("http://localhost/api/arreglos/A-1/repuestos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: "nuevo",
+          taller_id: "T-1",
+          codigo: "FILT-COSTO",
+          nombre: "Filtro Oneroso",
+          precio_compra: 1500,
+          precio_venta: 3000,
+          cantidad: 1,
+          idempotency_key: "11111111-1111-4111-8111-111111111111",
+        }),
+      });
+
+      // Cuando se omite la cuenta financiera
+      const res = await POST(req as never, {
+        params: Promise.resolve({ id: "A-1" }),
+      });
+
+      // Entonces responde 400 con mensaje claro y no invoca al RPC
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({
+        data: null,
+        error: "Cuenta financiera requerida para crear el producto",
+      });
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("rechaza producto nuevo con costo (> 0) si falta idempotency_key", async () => {
+      // Dado que se agrega un producto nuevo que genera transacción monetaria (precio_compra > 0)
+      const req = new Request("http://localhost/api/arreglos/A-1/repuestos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: "nuevo",
+          taller_id: "T-1",
+          codigo: "FILT-COSTO",
+          nombre: "Filtro Oneroso",
+          precio_compra: 1500,
+          precio_venta: 3000,
+          cantidad: 1,
+          cuenta_financiera_id: "22222222-2222-4222-8222-222222222222",
+        }),
+      });
+
+      // Cuando se omite la clave de idempotencia
+      const res = await POST(req as never, {
+        params: Promise.resolve({ id: "A-1" }),
+      });
+
+      // Entonces responde 400 exigiendo la clave para prevenir duplicación financiera
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({
+        data: null,
+        error: "idempotency_key requerida para crear el producto",
+      });
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("permite asignar repuesto existente con reposición sin costo (precio_compra: 0) sin cuenta financiera", async () => {
+      // Dado un repuesto existente cuyo faltante de stock se repone sin cargo (garantía/bonificación a costo 0)
+      rpc.mockResolvedValue({ data: "OP-EXIST-ZERO", error: null });
+
+      const req = new Request("http://localhost/api/arreglos/A-1/repuestos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taller_id: "T-1",
+          stock_id: "S-1",
+          cantidad: 3,
+          monto_unitario: 1200,
+          precio_compra: 0,
+        }),
+      });
+
+      // Cuando se invoca la ruta de asignación sin cuenta financiera ni idempotency key
+      const res = await POST(req as never, {
+        params: Promise.resolve({ id: "A-1" }),
+      });
+
+      // Entonces responde 200 delegando p_precio_compra: 0 y p_cuenta_id: null al RPC
+      expect(res.status).toBe(200);
+      expect(rpc).toHaveBeenCalledWith("rpc_asignar_repuesto_existente_con_compra", {
+        p_arreglo_id: "A-1",
+        p_taller_id: "T-1",
+        p_stock_id: "S-1",
+        p_cantidad: 3,
+        p_monto_unitario: 1200,
+        p_precio_compra: 0,
+        p_cuenta_id: null,
+        p_idempotency_key: null,
+        p_categoria_arreglo_id: null,
+        p_empleado_id: null,
+      });
+    });
+
+    it("mapea CUENTA_FINANCIERA_REQUERIDA a 400 cuando se asigna repuesto existente con costo sin cuenta", async () => {
+      // Dado un repuesto con compra requerida donde la base de datos rechaza por falta de cuenta financiera
+      rpc.mockResolvedValue({
+        data: null,
+        error: { message: "CUENTA_FINANCIERA_REQUERIDA" },
+      });
+
+      const req = new Request("http://localhost/api/arreglos/A-1/repuestos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taller_id: "T-1",
+          stock_id: "S-1",
+          cantidad: 4,
+          monto_unitario: 2000,
+          precio_compra: 1500,
+        }),
+      });
+
+      // Cuando se ejecuta la asignación
+      const res = await POST(req as never, {
+        params: Promise.resolve({ id: "A-1" }),
+      });
+
+      // Entonces responde 400 con mensaje legible de negocio
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({
+        data: null,
+        error: "Seleccioná una cuenta financiera para registrar la compra",
+      });
+    });
+  });
+
   it("mapea PRECIO_COMPRA_REQUERIDO del RPC a 400", async () => {
     rpc.mockResolvedValue({
       data: null,

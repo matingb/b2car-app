@@ -17,7 +17,8 @@ type Props = {
 export default function StockPricesCard({ item, isEditing, draft, onChange }: Props) {
   const base = isEditing ? draft : item;
 
-  const margen = useMemo(() => {
+  const margen = useMemo((): number | null => {
+    if (base.costoUnitario === 0) return base.precioUnitario > 0 ? null : 0;
     if (!base.costoUnitario) return 0;
     return ((base.precioUnitario - base.costoUnitario) / base.costoUnitario) * 100;
   }, [base.costoUnitario, base.precioUnitario]);
@@ -63,7 +64,9 @@ export default function StockPricesCard({ item, isEditing, draft, onChange }: Pr
         <div style={styles.grid}>
           <div>
             <div style={styles.label}>Margen</div>
-            <div style={{ ...styles.value, color: "#15803d" }}>{margen.toFixed(1)}%</div>
+            <div style={{ ...styles.value, color: COLOR.SEMANTIC.SUCCESS }}>
+              {margen === null ? "N/A" : `${margen.toFixed(1)}%`}
+            </div>
           </div>
           <div>
             <div style={styles.label}>Valor en stock</div>

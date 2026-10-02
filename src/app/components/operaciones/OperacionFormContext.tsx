@@ -76,6 +76,8 @@ type OperacionFormContextValue = {
   canSubmit: boolean;
   isSubmitting: boolean;
   submitForm: (e: React.FormEvent) => Promise<void>;
+  requiresCuenta: boolean;
+  importeTotal: number;
 };
 
 const OperacionFormContext = createContext<OperacionFormContextValue | null>(null);
@@ -282,11 +284,21 @@ export function OperacionFormProvider({
 
   const isCreatingCuenta = cuentaFinancieraId === CREATE_CUENTA_VALUE;
 
+  const importeTotal = useMemo(() => {
+    if (tipo === "GASTO") return Number(montoGasto) || 0;
+    return lineas.reduce(
+      (sum, l) => sum + (Number(l.cantidad) || 0) * (Number(l.unitario) || 0),
+      0
+    );
+  }, [tipo, montoGasto, lineas]);
+
+  const requiresCuenta = tipo === "GASTO" || importeTotal > 0;
+
   const canSubmit = useMemo(() => {
     if (!open) return false;
     if (!tipo || !isTipoEnabled(tipo)) return false;
-    if (!cuentaFinancieraId) return false;
-    if (isCreatingCuenta && !validateCuentaFinancieraForm(cuentaDraft)) return false;
+    if (requiresCuenta && !cuentaFinancieraId) return false;
+    if (cuentaFinancieraId && isCreatingCuenta && !validateCuentaFinancieraForm(cuentaDraft)) return false;
     if (!isValidDate(fecha)) return false;
 
     if (tipo === "GASTO") {
@@ -312,6 +324,7 @@ export function OperacionFormProvider({
     open,
     tipo,
     isTipoEnabled,
+    requiresCuenta,
     cuentaFinancieraId,
     isCreatingCuenta,
     cuentaDraft,
@@ -332,8 +345,8 @@ export function OperacionFormProvider({
     const fechaTimestamp = toISODateTimeWithLocalCurrentTime(fecha);
     if (!fechaTimestamp) return;
 
-    let targetCuentaId = cuentaFinancieraId;
-    if (isCreatingCuenta) {
+    let targetCuentaId: string | null = cuentaFinancieraId || null;
+    if (cuentaFinancieraId && isCreatingCuenta) {
       const created = await createCuenta({
         nombre: cuentaDraft.nombre.trim(),
         tipo: cuentaDraft.tipo,
@@ -347,7 +360,7 @@ export function OperacionFormProvider({
       setIsSubmittingGasto(true);
       try {
         const payload = {
-          cuentaId: targetCuentaId,
+          cuentaId: targetCuentaId!,
           categoria: categoriaGasto,
           importe: Number(montoGasto),
           fecha: fechaTimestamp,
@@ -378,7 +391,7 @@ export function OperacionFormProvider({
         tipo,
         taller_id: tallerId,
         fecha: fechaTimestamp,
-        cuenta_financiera_id: targetCuentaId,
+        cuenta_financiera_id: targetCuentaId || null,
         idempotency_key: generateUuidV4(),
         lineas: lineas.map((l) => {
           const cantidad = Number(l.cantidad) || 0;
@@ -449,6 +462,8 @@ export function OperacionFormProvider({
     canSubmit,
     isSubmitting,
     submitForm,
+    requiresCuenta,
+    importeTotal,
   };
 
   return (

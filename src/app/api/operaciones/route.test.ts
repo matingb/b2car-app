@@ -165,4 +165,136 @@ describe("POST /api/operaciones", () => {
 		expect(response.status).toBe(409);
 		expect(await response.json()).toEqual({ data: null, error: "Stock insuficiente" });
 	});
+
+	describe("Adquisición de repuestos sin costo (costo $0) vs compras con desembolso", () => {
+		it("permite registrar una compra de repuestos sin cargo (costo 0) sin exigir cuenta financiera", async () => {
+			// Dado que el taller recibe repuestos bonificados o en garantía a costo $0
+			vi.mocked(operacionesService.create).mockResolvedValue({
+				data: { id: "op-zero", tenant_id: "tenant-1" },
+				error: null,
+			} as unknown as Awaited<ReturnType<typeof operacionesService.create>>);
+
+			// Cuando se registra la COMPRA con monto unitario 0 y sin cuenta financiera
+			const response = await POST(new Request("http://localhost/api/operaciones", {
+				method: "POST",
+				body: JSON.stringify({
+					tipo: "COMPRA",
+					taller_id: "11111111-1111-4111-8111-111111111111",
+					idempotency_key: "33333333-3333-4333-8333-333333333333",
+					lineas: [{
+						stock_id: "44444444-4444-4444-8444-444444444444",
+						cantidad: 2,
+						monto_unitario: 0,
+						delta_cantidad: 2,
+					}],
+				}),
+			}));
+
+			// Entonces la ruta responde 201 y delega al servicio de operaciones sin asociar cuenta financiera
+			expect(response.status).toBe(201);
+			expect(operacionesService.create).toHaveBeenCalledWith(
+				expect.anything(),
+				expect.objectContaining({ tipo: "COMPRA" })
+			);
+			expect(vi.mocked(operacionesService.create).mock.calls[0][1].cuenta_financiera_id).toBeUndefined();
+		});
+
+		it("rechaza una compra comercial (importe > 0) si no se selecciona cuenta financiera", async () => {
+			// Dado que el taller realiza una compra con desembolso económico (monto total > 0)
+			// Cuando no se proporciona una cuenta financiera para registrar la salida de dinero
+			const response = await POST(new Request("http://localhost/api/operaciones", {
+				method: "POST",
+				body: JSON.stringify({
+					tipo: "COMPRA",
+					taller_id: "11111111-1111-4111-8111-111111111111",
+					idempotency_key: "33333333-3333-4333-8333-333333333333",
+					lineas: [{
+						stock_id: "44444444-4444-4444-8444-444444444444",
+						cantidad: 2,
+						monto_unitario: 1500,
+						delta_cantidad: 2,
+					}],
+				}),
+			}));
+
+			// Entonces responde 400 exigiendo la cuenta de tesorería y no llama al servicio
+			expect(response.status).toBe(400);
+			expect(await response.json()).toEqual({ data: null, error: "Seleccioná una cuenta financiera" });
+			expect(operacionesService.create).not.toHaveBeenCalled();
+		});
+
+		it("permite una compra con múltiples líneas de repuestos todas bonificadas a costo 0 sin cuenta financiera", async () => {
+			// Dado un lote de repuestos varios todos recibidos sin costo comercial
+			vi.mocked(operacionesService.create).mockResolvedValue({
+				data: { id: "op-multi-zero", tenant_id: "tenant-1" },
+				error: null,
+			} as unknown as Awaited<ReturnType<typeof operacionesService.create>>);
+
+			// Cuando se envían múltiples líneas a costo $0
+			const response = await POST(new Request("http://localhost/api/operaciones", {
+				method: "POST",
+				body: JSON.stringify({
+					tipo: "COMPRA",
+					taller_id: "11111111-1111-4111-8111-111111111111",
+					idempotency_key: "33333333-3333-4333-8333-333333333333",
+					lineas: [
+						{ stock_id: "44444444-4444-4444-8444-444444444444", cantidad: 3, monto_unitario: 0, delta_cantidad: 3 },
+						{ stock_id: "55555555-5555-4555-8555-555555555555", cantidad: 1, monto_unitario: 0, delta_cantidad: 1 },
+					],
+				}),
+			}));
+
+			// Entonces se crea exitosamente delegando al servicio
+			expect(response.status).toBe(201);
+			expect(operacionesService.create).toHaveBeenCalledWith(
+				expect.anything(),
+				expect.objectContaining({ tipo: "COMPRA" })
+			);
+		});
+
+		it("rechaza compra mixta donde al menos una línea tiene importe > 0 si falta cuenta financiera", async () => {
+			// Dado un pedido que combina repuestos bonificados ($0) y repuestos con costo (> $0)
+			// Cuando no se especifica cuenta para cubrir la porción onerosa
+			const response = await POST(new Request("http://localhost/api/operaciones", {
+				method: "POST",
+				body: JSON.stringify({
+					tipo: "COMPRA",
+					taller_id: "11111111-1111-4111-8111-111111111111",
+					idempotency_key: "33333333-3333-4333-8333-333333333333",
+					lineas: [
+						{ stock_id: "44444444-4444-4444-8444-444444444444", cantidad: 2, monto_unitario: 0, delta_cantidad: 2 },
+						{ stock_id: "55555555-5555-4555-8555-555555555555", cantidad: 1, monto_unitario: 500, delta_cantidad: 1 },
+					],
+				}),
+			}));
+
+			// Entonces responde 400 exigiendo cuenta financiera
+			expect(response.status).toBe(400);
+			expect(await response.json()).toEqual({ data: null, error: "Seleccioná una cuenta financiera" });
+			expect(operacionesService.create).not.toHaveBeenCalled();
+		});
+
+		it("rechaza si se envía un cuenta_financiera_id con formato inválido aun con importe 0", async () => {
+			// Dado un intento de registrar compra a costo 0 pero con ID de cuenta malformado
+			const response = await POST(new Request("http://localhost/api/operaciones", {
+				method: "POST",
+				body: JSON.stringify({
+					tipo: "COMPRA",
+					taller_id: "11111111-1111-4111-8111-111111111111",
+					idempotency_key: "33333333-3333-4333-8333-333333333333",
+					cuenta_financiera_id: "cuenta-invalida-no-uuid",
+					lineas: [{
+						stock_id: "44444444-4444-4444-8444-444444444444",
+						cantidad: 1,
+						monto_unitario: 0,
+						delta_cantidad: 1,
+					}],
+				}),
+			}));
+
+			// Entonces la ruta valida la integridad del UUID y responde 400
+			expect(response.status).toBe(400);
+			expect(await response.json()).toEqual({ data: null, error: "cuenta_financiera_id inválida" });
+		});
+	});
 });

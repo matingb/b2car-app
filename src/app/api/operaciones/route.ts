@@ -139,7 +139,11 @@ export async function POST(req: Request) {
 	if (!body.tipo) return Response.json({ data: null, error: "Falta tipo" } satisfies CreateOperacionResponse, { status: 400 });
 	if (!body.taller_id)
 		return Response.json({ data: null, error: "Falta taller_id" } satisfies CreateOperacionResponse, { status: 400 });
-	if ((body.tipo === "COMPRA" || body.tipo === "VENTA") && !body.cuenta_financiera_id) {
+	const importeTotal = (body.lineas ?? []).reduce(
+		(sum, l) => sum + (Number(l.cantidad) || 0) * (Number(l.monto_unitario) || 0),
+		0
+	);
+	if ((body.tipo === "COMPRA" || body.tipo === "VENTA") && importeTotal > 0 && !body.cuenta_financiera_id) {
 		return Response.json({ data: null, error: "Seleccioná una cuenta financiera" } satisfies CreateOperacionResponse, { status: 400 });
 	}
 	if (body.cuenta_financiera_id && !isValidUuid(body.cuenta_financiera_id)) {

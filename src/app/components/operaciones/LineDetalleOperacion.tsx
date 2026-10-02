@@ -50,6 +50,7 @@ export default function LineDetalleOperacion({
     title,
     isGasto,
     isMovimientoFinanciero,
+    isSinCargo,
     totalMonto,
     metaBadge,
     accountOrWorkshop,
@@ -84,6 +85,7 @@ export default function LineDetalleOperacion({
             metaBadge={metaBadge}
             accountOrWorkshop={accountOrWorkshop}
             totalMonto={totalMonto}
+            isSinCargo={isSinCargo}
           />
           <OperacionActions
             isGasto={isGasto}
