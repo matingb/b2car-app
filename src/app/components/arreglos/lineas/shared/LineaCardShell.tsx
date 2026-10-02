@@ -121,7 +121,6 @@ export default function LineaCardShell({
   return (
     <Card css={shellStyles.card} id={cardId}>
       <div css={shellStyles.row}>
-        {/* Icono temático o personalizado */}
         <div css={shellStyles.leadingIcon(kind)}>
           {icon ?? (kind === "servicios" ? (
             <Wrench size={18} color={COLOR.ACCENT.PRIMARY} />
@@ -129,16 +128,12 @@ export default function LineaCardShell({
             <Package size={18} color={COLOR.SEMANTIC.SUCCESS} />
           ))}
         </div>
-
-        {/* Cuerpo principal */}
         <div css={shellStyles.body}>
-          {/* Fila Superior: Contenido editable + Total */}
           <div css={shellStyles.bodyTop}>
             <div css={shellStyles.inputsWrap}>
               {children}
             </div>
 
-            {/* Total unificado con control de permisos */}
             <Can permission={Permission.ArreglosPreciosView}>
               <div css={shellStyles.totalInline}>
                 <span css={shellStyles.totalText}>{formattedTotal}</span>
@@ -146,13 +141,11 @@ export default function LineaCardShell({
             </Can>
           </div>
 
-          {/* Fila Inferior: Selectores y Botones de Confirmar/Cancelar */}
           <div css={shellStyles.bodyBottom}>
             <div css={shellStyles.selectorsWrap}>
               {selectors}
             </div>
 
-            {/* Botones de acción unificados */}
             <div css={shellStyles.actionsWrap}>
               <button
                 type="button"
@@ -190,7 +183,6 @@ export default function LineaCardShell({
             </div>
           </div>
 
-          {/* Fila Extra: Alertas de stock / notas */}
           {extra ? <div css={shellStyles.extraRow}>{extra}</div> : null}
         </div>
       </div>
