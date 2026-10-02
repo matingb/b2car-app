@@ -520,6 +520,248 @@ describe("POST /api/arreglos", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  describe("Arreglos y Presupuestos con repuestos sin costo (costo $0) vs con costo", () => {
+    it("permite crear un arreglo con repuestos nuevos bonificados (costo 0) sin cuenta financiera", async () => {
+      // Dado que el taller crea un arreglo agregando un repuesto nuevo sin costo comercial (precio_compra = 0)
+      const req = new Request("http://localhost/api/arreglos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          createCreateArregloRequest({
+            repuestos_nuevos: [
+              {
+                codigo: "FILT-ZERO",
+                nombre: "Filtro Bonificado",
+                precio_compra: 0,
+                precio_venta: 180,
+                cantidad: 1,
+              },
+            ],
+          })
+        ),
+      });
+
+      // Cuando se envía la solicitud de creación sin cuenta financiera
+      const response = await POST(req);
+
+      // Entonces responde 201 y delega al RPC con p_cuenta_id: null
+      expect(response.status).toBe(201);
+      expect(rpc).toHaveBeenCalledWith(
+        "rpc_crear_arreglo_completo",
+        expect.objectContaining({
+          p_repuestos_nuevos: [
+            expect.objectContaining({
+              codigo: "FILT-ZERO",
+              precio_compra: 0,
+            }),
+          ],
+          p_cuenta_id: null,
+        })
+      );
+    });
+
+    it("rechaza crear un arreglo si hay repuestos nuevos con costo (> 0) y falta la cuenta financiera", async () => {
+      // Dado que el taller agrega un repuesto nuevo que requiere compra comercial (precio_compra > 0)
+      const req = new Request("http://localhost/api/arreglos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          createCreateArregloRequest({
+            repuestos_nuevos: [
+              {
+                codigo: "PAST-001",
+                nombre: "Pastillas de freno con costo",
+                precio_compra: 4500,
+                precio_venta: 8000,
+                cantidad: 1,
+              },
+            ],
+          })
+        ),
+      });
+
+      // Cuando se omite la cuenta financiera en la solicitud
+      const response = await POST(req);
+
+      // Entonces responde 400 exigiendo la cuenta para la compra automática y no invoca la RPC
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: "Seleccioná una cuenta financiera para registrar la compra automática",
+      });
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("rechaza crear un arreglo con mix de repuestos nuevos (uno con costo $0 y otro con costo > 0) sin cuenta financiera", async () => {
+      // Dado un arreglo con un repuesto bonificado ($0) y otro con costo económico ($3.000)
+      const req = new Request("http://localhost/api/arreglos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          createCreateArregloRequest({
+            repuestos_nuevos: [
+              {
+                codigo: "ARANDELA-FREE",
+                nombre: "Arandela Bonificada",
+                precio_compra: 0,
+                precio_venta: 50,
+                cantidad: 2,
+              },
+              {
+                codigo: "ACEITE-PREM",
+                nombre: "Aceite Sintético",
+                precio_compra: 3000,
+                precio_venta: 6000,
+                cantidad: 1,
+              },
+            ],
+          })
+        ),
+      });
+
+      // Cuando no se especifica cuenta financiera
+      const response = await POST(req);
+
+      // Entonces responde 400 porque la operación tiene desembolso económico
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: "Seleccioná una cuenta financiera para registrar la compra automática",
+      });
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("permite crear un presupuesto con repuestos existentes a costo 0 sin cuenta financiera", async () => {
+      // Dado un presupuesto que reserva repuestos existentes con reposición pactada sin cargo (costo 0)
+      const req = new Request("http://localhost/api/arreglos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          createCreateArregloRequest({
+            estado: "PRESUPUESTO",
+            repuestos: [
+              {
+                stock_id: "s1",
+                cantidad: 2,
+                monto_unitario: 1500,
+                precio_compra: 0,
+              },
+            ],
+          })
+        ),
+      });
+
+      // Cuando se crea el presupuesto diferido sin cuenta financiera
+      const response = await POST(req);
+
+      // Entonces la creación es exitosa (201) y pasa p_cuenta_id: null al RPC
+      expect(response.status).toBe(201);
+      expect(rpc).toHaveBeenCalledWith(
+        "rpc_crear_arreglo_completo",
+        expect.objectContaining({
+          p_estado: "PRESUPUESTO",
+          p_cuenta_id: null,
+        })
+      );
+    });
+
+    it("rechaza crear un presupuesto con repuestos existentes con costo (> 0) si falta la cuenta financiera", async () => {
+      // Dado un presupuesto con repuestos existentes cuya compra diferida requerirá fondos (precio_compra > 0)
+      const req = new Request("http://localhost/api/arreglos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          createCreateArregloRequest({
+            estado: "PRESUPUESTO",
+            repuestos: [
+              {
+                stock_id: "s1",
+                cantidad: 2,
+                monto_unitario: 1500,
+                precio_compra: 1200,
+              },
+            ],
+          })
+        ),
+      });
+
+      // Cuando se omite la cuenta financiera en el presupuesto
+      const response = await POST(req);
+
+      // Entonces responde 400 exigiendo la cuenta para cuando se active el presupuesto
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: "Seleccioná una cuenta financiera para registrar la compra al activar",
+      });
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("permite crear un presupuesto con repuestos nuevos a costo 0 sin cuenta financiera", async () => {
+      // Dado un presupuesto diferido que proyecta repuestos nuevos bonificados a costo 0
+      const req = new Request("http://localhost/api/arreglos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          createCreateArregloRequest({
+            estado: "PRESUPUESTO",
+            repuestos_nuevos: [
+              {
+                codigo: "CORREA-ZERO",
+                nombre: "Correa Bonificada",
+                precio_compra: 0,
+                precio_venta: 2500,
+                cantidad: 1,
+              },
+            ],
+          })
+        ),
+      });
+
+      // Cuando se crea el presupuesto sin cuenta
+      const response = await POST(req);
+
+      // Entonces se crea con 201 y delega con p_cuenta_id: null
+      expect(response.status).toBe(201);
+      expect(rpc).toHaveBeenCalledWith(
+        "rpc_crear_arreglo_completo",
+        expect.objectContaining({
+          p_estado: "PRESUPUESTO",
+          p_cuenta_id: null,
+        })
+      );
+    });
+
+    it("rechaza crear un presupuesto con repuestos nuevos con costo (> 0) si falta cuenta financiera", async () => {
+      // Dado un presupuesto diferido que incorpora repuestos nuevos con costo de compra comercial
+      const req = new Request("http://localhost/api/arreglos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          createCreateArregloRequest({
+            estado: "PRESUPUESTO",
+            repuestos_nuevos: [
+              {
+                codigo: "AMORT-001",
+                nombre: "Amortiguador Delantero",
+                precio_compra: 15000,
+                precio_venta: 28000,
+                cantidad: 2,
+              },
+            ],
+          })
+        ),
+      });
+
+      // Cuando se omite la cuenta financiera requerida para la compra al activar
+      const response = await POST(req);
+
+      // Entonces responde 400 con mensaje claro de negocio
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: "Seleccioná una cuenta financiera para registrar la compra automática",
+      });
+      expect(rpc).not.toHaveBeenCalled();
+    });
+  });
+
   it("permite creacion en TERMINADO sin detalle/config", async () => {
     const req = new Request("http://localhost/api/arreglos", {
       method: "POST",

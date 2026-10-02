@@ -284,11 +284,20 @@ async function createRepuestoConProductoNuevo(
 
   const cuentaId = body.cuenta_financiera_id?.trim() || null;
   const idempotencyKey = body.idempotency_key?.trim() || null;
-  if (!cuentaId || !isValidUuid(cuentaId)) {
-    return Response.json({ data: null, error: "Cuenta financiera requerida para crear el producto" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
-  }
-  if (!idempotencyKey || !isValidUuid(idempotencyKey)) {
-    return Response.json({ data: null, error: "idempotency_key requerida para crear el producto" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  if (precioCompra > 0) {
+    if (!cuentaId || !isValidUuid(cuentaId)) {
+      return Response.json({ data: null, error: "Cuenta financiera requerida para crear el producto" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+    }
+    if (!idempotencyKey || !isValidUuid(idempotencyKey)) {
+      return Response.json({ data: null, error: "idempotency_key requerida para crear el producto" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+    }
+  } else {
+    if (cuentaId && !isValidUuid(cuentaId)) {
+      return Response.json({ data: null, error: "cuenta_financiera_id invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+    }
+    if (idempotencyKey && !isValidUuid(idempotencyKey)) {
+      return Response.json({ data: null, error: "idempotency_key invalida" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+    }
   }
 
   const { data, error } = await supabase.rpc("rpc_crear_producto_inline_para_arreglo", {

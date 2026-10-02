@@ -35,6 +35,8 @@ import { isValidDate } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
+import type { RepuestoLinea } from "@/app/components/arreglos/lineas/repuestos/RepuestoLineasEditableSection";
+import type { InventarioEntry } from "@/app/components/arreglos/lineas/repuestos/repuestoValidator";
 
 type Props = {
   open: boolean;
@@ -65,6 +67,27 @@ export function resolveEsFacturableForCreate(
   requestedValue: boolean,
 ): boolean {
   return canUseBilling ? requestedValue : false;
+}
+
+export function requiresFinancialAccountForRepuestos(
+  repuestosDraft: RepuestoLinea[],
+  inventario: ReadonlyArray<InventarioEntry>,
+  isEdit = false,
+): boolean {
+  if (isEdit) return false;
+  return repuestosDraft.some((repuesto) => {
+    if (repuesto.tipo === "nuevo") {
+      const rawCosto = repuesto.nuevoProducto?.precioCompra ?? repuesto.precioCompra;
+      const costo = Number(rawCosto) || 0;
+      return costo > 0;
+    }
+    const stock = inventario.find((item) => item.id === repuesto.stock_id);
+    const hasShortage = Boolean(stock && Number(repuesto.cantidad) > Number(stock.stockActual));
+    if (!hasShortage) return false;
+    const rawCosto = repuesto.precioCompra != null ? repuesto.precioCompra : stock?.costoUnitario;
+    const costo = Number(rawCosto) || 0;
+    return costo > 0;
+  });
 }
 
 export default function ArregloModal({ open, onClose, vehiculoId, initial, onSubmitSuccess }: Props) {
@@ -163,12 +186,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   }, [open, initial, vehiculoId, isEdit]);
 
   const requiereCompraAutomatica = useMemo(() => {
-    if (isEdit) return false;
-    return internal.repuestosDraft.some((repuesto) => {
-      if (repuesto.tipo === "nuevo") return true;
-      const stock = inventario.find((item) => item.id === repuesto.stock_id);
-      return Boolean(stock && Number(repuesto.cantidad) > Number(stock.stockActual));
-    });
+    return requiresFinancialAccountForRepuestos(internal.repuestosDraft, inventario, isEdit);
   }, [inventario, internal.repuestosDraft, isEdit]);
 
   const requiereCuentaFinanciera = (canCobros && estaPago) || requiereCompraAutomatica;

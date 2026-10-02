@@ -38,14 +38,16 @@ export function getOperacionTitle(
 
   if (operacion.tipo === "COMPRA") {
     if (totalLineas === 0) return tipoLabel;
+    const isSinCargo = getTotals(operacion).totalMonto === 0;
+    const prefix = isSinCargo ? "Adquisición sin cargo" : "Compra";
     const firstLine = lineas[0];
     const stockInfo = stocksById?.[firstLine.stock_id];
     const productName = firstLine.nombre || stockInfo?.nombre || "Producto";
     const qtySuffix = firstLine.cantidad > 1 ? ` (x${firstLine.cantidad})` : "";
     if (totalLineas === 1) {
-      return `Compra · ${productName}${qtySuffix}`;
+      return `${prefix} · ${productName}${qtySuffix}`;
     }
-    return `Compra · ${productName}${qtySuffix} + ${totalLineas - 1} más`;
+    return `${prefix} · ${productName}${qtySuffix} + ${totalLineas - 1} más`;
   }
 
   if (operacion.tipo === "VENTA") {
@@ -102,6 +104,7 @@ export function useOperacionDetalle({
   );
 
   const { totalLineas, totalMonto } = getTotals(operacion);
+  const isSinCargo = operacion.tipo === "COMPRA" && totalLineas > 0 && totalMonto === 0;
   const title = getOperacionTitle(operacion, tipoLabel, stocksById);
 
   const metaBadge = isGasto
@@ -129,6 +132,12 @@ export function useOperacionDetalle({
         labelDesktop: operacion.cuenta_financiera_nombre ?? "Cuenta financiera",
         labelMobile: operacion.cuenta_financiera_nombre ?? "Cuenta",
       }
+      : isSinCargo
+      ? {
+        icon: Building2,
+        labelDesktop: tallerLabel,
+        labelMobile: tallerLabel,
+      }
       : null
     : {
         icon: Building2,
@@ -140,6 +149,7 @@ export function useOperacionDetalle({
     title,
     isGasto,
     isMovimientoFinanciero,
+    isSinCargo,
     totalLineas,
     totalMonto,
     metaBadge,

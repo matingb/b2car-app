@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
 import { POST as postCobroRoute, DELETE as deleteCobroRoute } from "@/app/api/arreglos/[id]/cobro/route";
 import { DELETE as deleteArregloRoute } from "@/app/api/arreglos/[id]/route";
-import { POST as postRepuestosRoute } from "@/app/api/arreglos/[id]/repuestos/route";
+import { POST as postRepuestosRoute, type UpsertRepuestoRequest } from "@/app/api/arreglos/[id]/repuestos/route";
 import { DELETE as deleteRepuestoLineaRoute } from "@/app/api/arreglos/[id]/repuestos/[lineaId]/route";
 import { POST as postEmpleadoRoute } from "@/app/api/empleados/route";
 import type { CreateEmpleadoRequest } from "@/app/api/empleados/contracts";
+import { POST as postOperacionesRoute, type CreateOperacionRequest } from "@/app/api/operaciones/route";
 
 export interface CobrarArregloPayload {
   cuenta_financiera_id: string;
@@ -14,14 +15,7 @@ export interface CobrarArregloPayload {
   idempotency_key?: string;
 }
 
-export interface AsignarRepuestoPayload {
-  stock_id: string;
-  cantidad: number;
-  monto_unitario: number;
-  tipo?: string;
-  taller_id?: string;
-  [key: string]: unknown;
-}
+export type AsignarRepuestoPayload = UpsertRepuestoRequest;
 
 /**
  * Driver: Invoca la API route POST /api/arreglos/[id]/cobro encapsulando la creación de NextRequest.
@@ -128,3 +122,17 @@ export async function crearEmpleadoViaRoute(
   return postEmpleadoRoute(req);
 }
 
+/**
+ * Driver: Invoca la API route POST /api/operaciones encapsulando el request.
+ */
+export async function crearOperacionViaRoute(
+  payload: Partial<CreateOperacionRequest>
+): Promise<Response> {
+  const req = new NextRequest("http://localhost:3000/api/operaciones", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  return postOperacionesRoute(req);
+}

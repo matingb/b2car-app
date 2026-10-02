@@ -4,7 +4,7 @@ import ClienteFormFields, { createEmptyClienteFormFieldsValue } from "./ClienteF
 import { TipoCliente } from "@/model/types";
 import type { ArcaPadronLookupState } from "@/app/hooks/useArcaPadronLookup";
 
-const mockLookup = vi.fn<[], ArcaPadronLookupState>(() => ({ status: "IDLE" }));
+const mockLookup = vi.fn<() => ArcaPadronLookupState>(() => ({ status: "IDLE" }));
 
 vi.mock("@/app/hooks/useArcaPadronLookup", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/app/hooks/useArcaPadronLookup")>();

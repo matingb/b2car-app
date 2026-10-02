@@ -244,9 +244,13 @@ function validateExistingStock(
   const hadPendingPurchase = env.deferred && ctx.mode === "edit" && ctx.item?.precioCompra != null;
 
   if (faltante > 0) {
-    const precioCompra = safeNumber(draft.precioCompra);
-    if (!Number.isFinite(precioCompra) || precioCompra <= 0) {
+    const rawPrecioCompra = draft.precioCompra;
+    if (rawPrecioCompra === "" || rawPrecioCompra == null) {
       return { ok: false, message: "Falta precio de compra para cubrir el faltante" };
+    }
+    const precioCompra = safeNumber(rawPrecioCompra);
+    if (!Number.isFinite(precioCompra) || precioCompra < 0) {
+      return { ok: false, message: "Precio de compra inválido" };
     }
     return {
       ok: true,
@@ -265,8 +269,8 @@ function validateExistingStock(
   if (hadPendingPurchase) {
     const rawPrecioCompra = String(draft.precioCompra ?? "").trim();
     const precioCompra = rawPrecioCompra === "" ? null : safeNumber(rawPrecioCompra);
-    if (precioCompra !== null && (!Number.isFinite(precioCompra) || precioCompra <= 0)) {
-      return { ok: false, message: "Precio de compra invÃ¡lido" };
+    if (precioCompra !== null && (!Number.isFinite(precioCompra) || precioCompra < 0)) {
+      return { ok: false, message: "Precio de compra inválido" };
     }
     return {
       ok: true,
@@ -294,3 +298,21 @@ function validateExistingStock(
     },
   };
 }
+
+/**
+ * Determina si una incorporación o edición de repuesto requiere asociar una cuenta financiera.
+ * Según la arquitectura desacoplada: solo se exige cuenta si el costo efectivo a pagar es mayor a cero.
+ */
+export function isFinancialPurchaseRequired(params: {
+  tipo?: "nuevo" | "existente" | null;
+  precioCompra: number | string | null | undefined;
+  isPendingNewEdit?: boolean;
+  purchaseChanged?: boolean;
+}): boolean {
+  const costo = Number(params.precioCompra) || 0;
+  if (costo <= 0) return false;
+  if (params.tipo === "nuevo" && !params.isPendingNewEdit) return true;
+  if (params.purchaseChanged) return true;
+  return false;
+}
+

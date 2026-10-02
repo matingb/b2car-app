@@ -23,7 +23,8 @@ export default function StockPurchaseHint({
       <Info size={16} color={COLOR.SEMANTIC.INFO} />
       <span>
         Stock disponible: {stockActual} · Se comprarán {faltante} unidad{faltante === 1 ? "" : "es"}
-        {precioCompra > 0 ? ` a ${formatMoney(precioCompra)} c/u` : ""} {deferred ? "al activar el arreglo" : "al guardar"}
+        {precioCompra > 0 ? ` a ${formatMoney(precioCompra)} c/u` : precioCompra === 0 ? " a costo $0 (sin cargo)" : ""}{" "}
+        {deferred ? "al activar el arreglo" : "al guardar"}
       </span>
     </div>
   );

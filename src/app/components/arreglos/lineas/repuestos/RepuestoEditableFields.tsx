@@ -30,67 +30,80 @@ export default function RepuestoEditableFields({
   onPrecioCompraChange,
   onPrecioVentaChange,
 }: Props) {
+  const isZeroPurchaseCost =
+    showPurchaseUnit &&
+    String(precioCompra ?? "").trim() !== "" &&
+    Number(precioCompra) === 0;
+
   return (
     <div css={styles.container}>
       {/* Slot de búsqueda / campos de producto */}
       <div css={styles.searchWrap}>{searchSlot}</div>
 
       {/* Fila de campos numéricos unificados con el mismo diseño */}
-      <div css={styles.numRow}>
-        {/* Campo Cantidad */}
-        <div css={styles.numField("64px")}>
-          <span css={styles.prefixLabel}>Cant</span>
-          <NumberInput
-            id="repuesto-quantity-input"
-            aria-label="Cantidad"
-            minValue={1}
-            allowDecimals={false}
-            value={Number(cantidad) || 1}
-            onValueChange={(val) => onCantidadChange(String(val))}
-            placeholder="1"
-            disabled={!canInteract}
-            style={styles.fieldNumberInput(canInteract)}
-          />
+      <div css={styles.numCol}>
+        <div css={styles.numRow}>
+          {/* Campo Cantidad */}
+          <div css={styles.numField("64px")}>
+            <span css={styles.prefixLabel}>Cant</span>
+            <NumberInput
+              id="repuesto-quantity-input"
+              aria-label="Cantidad"
+              minValue={1}
+              allowDecimals={false}
+              value={Number(cantidad) || 1}
+              onValueChange={(val) => onCantidadChange(String(val))}
+              placeholder="1"
+              disabled={!canInteract}
+              style={styles.fieldNumberInput(canInteract)}
+            />
+          </div>
+
+          {/* Campo Precio Compra (si aplica) */}
+          {showPurchaseUnit && (
+            <div css={styles.numField("92px")}>
+              <span css={styles.prefixLabel}>$ C</span>
+              <NumberInput
+                id="repuesto-purchase-price-input"
+                aria-label="Precio compra"
+                minValue={0}
+                allowDecimals
+                step="0.01"
+                value={Number(precioCompra) || 0}
+                onValueChange={(val) => onPrecioCompraChange?.(String(val))}
+                placeholder="0.00"
+                disabled={!canInteract}
+                style={styles.fieldNumberInput(canInteract)}
+              />
+            </div>
+          )}
+
+          {/* Campo Precio Venta */}
+          <Can permission={Permission.ArreglosPreciosEdit}>
+            <div css={styles.numField("92px")}>
+              <span css={styles.prefixLabel}>$</span>
+              <NumberInput
+                id="repuesto-unit-price-input"
+                aria-label="Precio venta"
+                minValue={0}
+                allowDecimals
+                step="0.01"
+                max={9999999999.99}
+                value={Number(precioVenta) || 0}
+                onValueChange={(val) => onPrecioVentaChange(String(val))}
+                placeholder="0.00"
+                disabled={!canInteract}
+                style={styles.fieldNumberInput(canInteract)}
+              />
+            </div>
+          </Can>
         </div>
 
-        {/* Campo Precio Compra (si aplica) */}
-        {showPurchaseUnit && (
-          <div css={styles.numField("92px")}>
-            <span css={styles.prefixLabel}>$ C</span>
-            <NumberInput
-              id="repuesto-purchase-price-input"
-              aria-label="Precio compra"
-              minValue={0}
-              allowDecimals
-              step="0.01"
-              value={Number(precioCompra) || 0}
-              onValueChange={(val) => onPrecioCompraChange?.(String(val))}
-              placeholder="0.00"
-              disabled={!canInteract}
-              style={styles.fieldNumberInput(canInteract)}
-            />
+        {isZeroPurchaseCost && (
+          <div css={styles.zeroCostWarning} role="note" data-testid="zero-cost-warning">
+            ⚠ Se registrará como adquisición sin costo
           </div>
         )}
-
-        {/* Campo Precio Venta */}
-        <Can permission={Permission.ArreglosPreciosEdit}>
-          <div css={styles.numField("92px")}>
-            <span css={styles.prefixLabel}>$</span>
-            <NumberInput
-              id="repuesto-unit-price-input"
-              aria-label="Precio venta"
-              minValue={0}
-              allowDecimals
-              step="0.01"
-              max={9999999999.99}
-              value={Number(precioVenta) || 0}
-              onValueChange={(val) => onPrecioVentaChange(String(val))}
-              placeholder="0.00"
-              disabled={!canInteract}
-              style={styles.fieldNumberInput(canInteract)}
-            />
-          </div>
-        </Can>
       </div>
     </div>
   );
@@ -111,6 +124,20 @@ const styles = {
   searchWrap: css({
     flex: 1,
     minWidth: 0,
+  }),
+  numCol: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+  }),
+  zeroCostWarning: css({
+    fontSize: 11,
+    fontWeight: 600,
+    color: COLOR.SEMANTIC.WARNING,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    textAlign: "right",
   }),
   numRow: css({
     display: "flex",

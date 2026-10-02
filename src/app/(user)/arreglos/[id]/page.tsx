@@ -42,6 +42,8 @@ import { useTenant } from "@/app/providers/TenantProvider";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
 import type { RepuestoPendiente } from "@/model/types";
+import { isFinancialPurchaseRequired } from "@/app/components/arreglos/lineas/repuestos/repuestoValidator";
+
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -279,9 +281,12 @@ export default function ArregloDetailsPage() {
     const purchaseChanged = input.precio_compra !== undefined && !removingPurchase &&
       (pendingPurchase === undefined || Number(input.precio_compra) !== pendingPurchase);
     const isPendingNewEdit = input.tipo === "nuevo" && pendingLine !== undefined;
-    const requiereCompraAutomatica =
-      (input.tipo === "nuevo" && !isPendingNewEdit) ||
-      purchaseChanged;
+    const requiereCompraAutomatica = isFinancialPurchaseRequired({
+      tipo: input.tipo,
+      precioCompra: input.precio_compra,
+      isPendingNewEdit,
+      purchaseChanged,
+    });
     if (requiereCompraAutomatica && !cuentaFinancieraId) {
       setCompraPendiente(input);
       return;
