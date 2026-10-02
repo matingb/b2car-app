@@ -76,3 +76,17 @@ Formatting utilities are centralized in `src/lib/`. Always check and reuse these
 
 Always use the theme colors defined in `src/app/theme/theme.css`.
 Don't use `!important` unless it is really necessary.
+
+## Database Context (Supabase)
+
+To understand the database structure (tables, columns, types, views, functions, policies, grants), do not read `supabase/migrations/`. Migrations are an incremental history, so reconstructing the current state from them is slow and error-prone.
+
+Use the Supabase declarative schema in `supabase/schemas/` instead, which reflects the current state of the database:
+
+- `supabase/schemas/public/tables/`: tables
+- `supabase/schemas/public/functions/`: functions
+- `supabase/schemas/public/views/`: views
+- `supabase/schemas/public/types/`: enums and custom types
+- `supabase/schemas/storage/`: storage objects
+
+Only open a migration when you need to know the history of a specific change (for example, when writing a new migration that must stay consistent with a previous one).
