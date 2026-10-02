@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { GET, POST } from "./route";
 import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
@@ -98,6 +98,10 @@ describe("POST /api/arreglos", () => {
     });
 
     vi.mocked(createClient).mockResolvedValue(mockSupabase);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("devuelve 401 si no hay sesión autenticada en GET", async () => {
@@ -300,6 +304,8 @@ describe("POST /api/arreglos", () => {
   });
 
   it("envía los datos de cobro incluidos en la firma de la RPC", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-02T02:19:56.640Z"));
     const cuentaId = "c0000000-0000-4000-8000-000000000001";
     const idempotencyKey = "e0000000-0000-4000-8000-000000000001";
     const fechaCobro = "2026-08-25";
@@ -324,7 +330,7 @@ describe("POST /api/arreglos", () => {
       expect.objectContaining({
         p_esta_pago: true,
         p_cuenta_id: cuentaId,
-        p_fecha_cobro: expect.stringMatching(/^2026-08-25T/),
+        p_fecha_cobro: "2026-08-26T02:19:56.640Z",
         p_idempotency_key: idempotencyKey,
       })
     );
