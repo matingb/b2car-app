@@ -43,6 +43,10 @@ ENCABEZADOS = {
     "IdClienteFactura;ImporteaFacturar",
     "tareasEnOT.csv": "IdTareaEnOT;IdOT;DescripcionTarea;GrupoTarea;IdOperario;CantHorasStd;CantHorasVenta;"
     "PrecioHoraVenta;ImporteHorasVenta;CantHorasCosto;PrecioHoraCosto;ImporteCosto;FechaRealizado_S;Kilometraje",
+    # Subconjunto del export real: incluye las columnas parecidas que no se usan
+    # (PrecioUnitario siempre en 0, *Presup, CodigoAlter).
+    "repuestosEnOT.csv": "IdOT;IdRenglon;IdRepuesto;Descripcion;Cantidad;Marca;Tipo;CostoReal;Estado;PrecioUnitario;"
+    "PrecioTotal;MargenGanancia;CostoTotal;PrecioUnitarioPresup;PrecioTotalPresup;Codigo;CodigoAlter",
 }
 
 
@@ -130,7 +134,8 @@ class FakeQuery:
 CASCADAS = {
     "clientes": (("particulares", "id"), ("empresas", "id"), ("vehiculos", "cliente_id")),
     "vehiculos": (("arreglos", "vehiculo_id"),),
-    "arreglos": (("detalle_arreglo", "arreglo_id"),),
+    "arreglos": (("detalle_arreglo", "arreglo_id"), ("operaciones_asignacion_arreglo", "arreglo_id")),
+    "operaciones": (("operaciones_asignacion_arreglo", "operacion_id"), ("operaciones_lineas", "operacion_id")),
 }
 
 
@@ -316,6 +321,28 @@ def tarea_row(**overrides):
     return migrador.TareaCsv(**values)
 
 
+def repuesto_row(**overrides):
+    values = {
+        "line_number": 2,
+        "id_ot": "1",
+        "id_renglon": "1",
+        "id_repuesto": "1472",
+        "descripcion": "Filtro de aceite Bosch",
+        "cantidad": "1.00",
+        "estado": "Utilizado",
+        "precio_total": "100.00",
+        "costo_real": "60.00",
+        "codigo": "0986BF0024",
+    }
+    values.update(overrides)
+    return migrador.RepuestoCsv(**values)
+
+
+def planificado(**overrides):
+    fila = repuesto_row(**overrides)
+    return migrador.planificar_repuesto(fila, fila.id_ot, fila.id_renglon)
+
+
 def mapa_vehiculos(**extra):
     mapa = migrador.MapaVehiculos(
         por_patente={"HUF763": migrador.VehiculoRef(VEHICULO, CLIENTE, preexistente=False)},
@@ -337,7 +364,7 @@ class BaseTest(unittest.TestCase):
         logging.disable(logging.CRITICAL)
         self.addCleanup(logging.disable, logging.NOTSET)
 
-    def contexto(self, supabase=None, *, dry_run=False, batch_size=250, estado=None):
+    def contexto(self, supabase=None, *, dry_run=False, batch_size=250, estado=None, modo_repuestos=migrador.MODO_REPUESTOS_PRODUCTOS):
         return migrador.Contexto(
             supabase=supabase if supabase is not None else FakeSupabase(),
             tenant_id=TENANT,
@@ -345,12 +372,15 @@ class BaseTest(unittest.TestCase):
             dry_run=dry_run,
             batch_size=batch_size,
             reporte=migrador.Reporte(),
-            estado=estado or migrador.EstadoMigracion(self.tmp / "estado.json", TENANT, TALLER, migrador.ORIGEN_MIGRACION),
+            estado=estado or migrador.EstadoMigracion(
+                self.tmp / "estado.json", TENANT, TALLER, migrador.ORIGEN_MIGRACION, modo_repuestos=modo_repuestos
+            ),
             ahora=AHORA,
+            modo_repuestos=modo_repuestos,
         )
 
-    def procesar(self, ordenes, tareas, *, clientes=None, vehiculos=None, operarios=None, categorias=None, supabase=None, dry_run=True, estado=None):
-        ctx = self.contexto(supabase, dry_run=dry_run, estado=estado)
+    def procesar(self, ordenes, tareas, *, repuestos=None, productos=None, clientes=None, vehiculos=None, operarios=None, categorias=None, supabase=None, dry_run=True, estado=None, modo_repuestos=migrador.MODO_REPUESTOS_PRODUCTOS):
+        ctx = self.contexto(supabase, dry_run=dry_run, estado=estado, modo_repuestos=modo_repuestos)
         planes = migrador.procesar_ordenes(
             ctx,
             ordenes,
@@ -359,6 +389,8 @@ class BaseTest(unittest.TestCase):
             vehiculos or mapa_vehiculos(),
             operarios or migrador.MapaOperarios(),
             categorias or {},
+            repuestos or [],
+            productos if productos is not None else {"codigo:0986bf0024": "s-filtro"},
         )
         return ctx, planes
 
@@ -376,7 +408,7 @@ class BaseTest(unittest.TestCase):
 
 
 class LecturaTests(BaseTest):
-    def test_lee_los_cinco_csv_con_los_encabezados_del_ticket(self) -> None:
+    def test_lee_los_seis_csv_con_los_encabezados_del_ticket(self) -> None:
         directorio = self.tmp / "csv"
         self.escribir_csvs(
             directorio,
@@ -391,6 +423,10 @@ class LecturaTests(BaseTest):
                     "1;7;3;HUF763;1;7;10;277;;8;2014-08-22 11:32:53.790;85000;Ruido;;;;;0.00;0;0;0;0.00"
                 ],
                 "tareasEnOT.csv": ["10;1;Cambio;Service;4;1;1;1000;1000;1;600;600;2014-08-22 12:00:00;85000"],
+                "repuestosEnOT.csv": [
+                    "12;1;31;ACEITE MOBIL 2000 10 W 40 (Suelto);4.00;6;Original;52.00;Utilizado;0.00;400.00;30.00;208.00;"
+                    "100.00;400.00;GULF 0104684;GULF 0104684",
+                ],
             },
         )
         # BOM y delimitador coma en uno de los archivos.
@@ -415,6 +451,11 @@ class LecturaTests(BaseTest):
         self.assertEqual(datos.ordenes[0].importe_a_facturar, "0.00")
         self.assertEqual(datos.tareas[0].fecha_realizado, "2014-08-22 12:00:00")
         self.assertEqual(datos.tareas[0].kilometraje, "85000")
+        repuesto = datos.repuestos[0]
+        self.assertEqual((repuesto.id_ot, repuesto.id_renglon, repuesto.id_repuesto), ("12", "1", "31"))
+        self.assertEqual((repuesto.cantidad, repuesto.estado), ("4.00", "Utilizado"))
+        # PrecioTotal y CostoReal, no PrecioTotalPresup ni CostoTotal.
+        self.assertEqual((repuesto.precio_total, repuesto.costo_real, repuesto.codigo), ("400.00", "52.00", "GULF 0104684"))
 
     def test_nombres_de_archivo_sin_distinguir_mayusculas(self) -> None:
         directorio = self.tmp / "csv"
@@ -916,29 +957,153 @@ class CategoriasTests(BaseTest):
 # --------------------------------------------------------------------------
 
 
+class ProductosTests(BaseTest):
+    def test_crea_productos_con_codigo_de_origen_o_generado_y_su_stock(self) -> None:
+        supabase = FakeSupabase()
+        ctx = self.contexto(supabase)
+        repuestos = [
+            planificado(id_ot="1", codigo="0986bf0024", descripcion="Filtro viejo", precio_total="100", costo_real="60"),
+            # Mas reciente: da nombre y precio; sin CostoReal, el costo es lo que se cobro.
+            planificado(id_ot="5", codigo="0986BF0024", precio_total="200", costo_real="0"),
+            planificado(id_ot="2", codigo=None, id_repuesto="31", descripcion="Aceite Castrol (suelto)", costo_real="52"),
+            planificado(id_ot="3", codigo=None, id_repuesto="31", descripcion="Aceite Helix", precio_total="80", costo_real="40"),
+            planificado(id_ot="4", id_renglon="2", codigo=None, id_repuesto="99", descripcion="ACEITE CASTROL (SUELTO)", costo_real="0"),
+            # Un codigo de origen igual al generado obliga a usar el sufijo.
+            planificado(id_ot="6", codigo="mig-31", descripcion="Otro"),
+        ]
+
+        stocks = migrador.procesar_productos(ctx, repuestos)
+
+        productos = {row["codigo"]: row for row in supabase.inserts("productos")}
+        self.assertEqual(set(productos), {"0986BF0024", "MIG-31", "MIG-31-2", "MIG-31-3"})
+        filtro = productos["0986BF0024"]
+        self.assertEqual(
+            {k: filtro[k] for k in ("tenant_id", "nombre", "precio_unitario", "costo_unitario", "show_in_stock", "categorias", "marca")},
+            {"tenant_id": TENANT, "nombre": "Filtro de aceite Bosch", "precio_unitario": 242.0, "costo_unitario": 242.0,
+             "show_in_stock": False, "categorias": [], "marca": None},
+        )
+        castrol = productos["MIG-31-2"]
+        self.assertEqual((castrol["nombre"], castrol["precio_unitario"], castrol["costo_unitario"]), ("ACEITE CASTROL (SUELTO)", 121.0, 121.0))
+        helix = productos["MIG-31-3"]
+        self.assertEqual((helix["nombre"], helix["precio_unitario"], helix["costo_unitario"]), ("Aceite Helix", 96.8, 40.0))
+
+        filas_stock = supabase.inserts("stocks")
+        self.assertEqual(len(filas_stock), 4)
+        self.assertTrue(
+            all(
+                (s["tenant_id"], s["taller_id"], s["cantidad"], s["stock_minimo"], s["stock_maximo"]) == (TENANT, TALLER, 0, 0, 0)
+                for s in filas_stock
+            )
+        )
+        stock_por_producto = {s["producto_id"]: s["id"] for s in filas_stock}
+        self.assertEqual(stocks["codigo:0986bf0024"], stock_por_producto[filtro["id"]])
+        self.assertEqual(stocks["descripcion:aceite castrol (suelto)"], stock_por_producto[castrol["id"]])
+        self.assertEqual(ctx.estado.productos["descripcion:aceite helix"], helix["id"])
+        contadores = ctx.reporte.contadores
+        self.assertEqual(
+            (contadores["productos_codigo_generado"], contadores["productos_costo_desde_precio"], contadores["stocks_creados"]),
+            (2, 2, 4),
+        )
+        stats = ctx.reporte.estadisticas["producto"]
+        self.assertEqual((stats.leidos, stats.creados), (4, 4))
+
+    def test_reutiliza_productos_y_stocks_del_tenant_sin_modificarlos(self) -> None:
+        supabase = FakeSupabase(
+            {
+                "productos": [
+                    {"id": "p-filtro", "tenant_id": TENANT, "codigo": " 0986bf0024"},
+                    {"id": "p-x1", "tenant_id": TENANT, "codigo": "X1"},
+                    {"id": "p-otro-tenant", "tenant_id": OTRO_TENANT, "codigo": "MIG-31"},
+                ],
+                "stocks": [
+                    {"id": "s-filtro", "tenant_id": TENANT, "taller_id": TALLER, "producto_id": "p-filtro"},
+                    {"id": "s-x1-otro-taller", "tenant_id": TENANT, "taller_id": OTRO_TALLER, "producto_id": "p-x1"},
+                ],
+            }
+        )
+        ctx = self.contexto(supabase)
+
+        stocks = migrador.procesar_productos(
+            ctx, [planificado(), planificado(codigo="x1"), planificado(codigo=None, id_repuesto="31", descripcion="Aceite")]
+        )
+
+        self.assertEqual([row["codigo"] for row in supabase.inserts("productos")], ["MIG-31"])
+        self.assertEqual(stocks["codigo:0986bf0024"], "s-filtro")
+        self.assertEqual(
+            sorted(row["producto_id"] for row in supabase.inserts("stocks")),
+            sorted(["p-x1", supabase.inserts("productos")[0]["id"]]),
+        )
+        self.assertFalse([call for call in supabase.calls if call[0] == "update"])
+        stats = ctx.reporte.estadisticas["producto"]
+        self.assertEqual((stats.reutilizados, stats.creados), (2, 1))
+        self.assertEqual(ctx.estado.productos["codigo:x1"], "p-x1")
+
+    def test_codigo_ambiguo_en_el_tenant_rechaza_el_producto_y_sus_ots(self) -> None:
+        supabase = FakeSupabase(
+            {
+                "productos": [
+                    {"id": "p-1", "tenant_id": TENANT, "codigo": "AB1"},
+                    {"id": "p-2", "tenant_id": TENANT, "codigo": "ab1"},
+                ]
+            }
+        )
+        ctx = self.contexto(supabase)
+        stocks = migrador.procesar_productos(ctx, [planificado(codigo="AB1")])
+
+        self.assertEqual(stocks, {})
+        self.assertEqual(codigos(ctx.reporte, "error"), ["PRODUCTO_AMBIGUO"])
+        self.assertEqual(ctx.reporte.incidencias[0].archivo, "repuestosEnOT.csv")
+
+        ctx_ot, planes = self.procesar([orden_row()], [tarea_row()], repuestos=[repuesto_row(codigo="AB1")], productos=stocks)
+        self.assertEqual(planes, [])
+        self.assertEqual(
+            codigos(ctx_ot.reporte, "error"), ["OT_REPUESTO_SIN_PRODUCTO", "TAREA_OT_NO_IMPORTADA", "REPUESTO_OT_NO_IMPORTADA"]
+        )
+
+    def test_dry_run_no_escribe_y_el_estado_evita_duplicar(self) -> None:
+        supabase = FakeSupabase({"productos": [{"id": "p-filtro", "tenant_id": TENANT, "codigo": "OTRO"}]})
+        dry = self.contexto(supabase, dry_run=True)
+        stocks = migrador.procesar_productos(dry, [planificado(), planificado(codigo="Z9")])
+        self.assertEqual(supabase.escrituras, [])
+        self.assertEqual(set(stocks), {"codigo:0986bf0024", "codigo:z9"})
+        self.assertEqual(dry.reporte.estadisticas["producto"].creados, 2)
+
+        # Corte entre productos y stocks: el producto ya esta en el estado y solo falta su stock.
+        estado = migrador.EstadoMigracion(
+            self.tmp / "estado.json", TENANT, TALLER, migrador.ORIGEN_MIGRACION, productos={"codigo:0986bf0024": "p-filtro"}
+        )
+        ctx = self.contexto(supabase, estado=estado)
+        stocks = migrador.procesar_productos(ctx, [planificado()])
+        self.assertEqual(supabase.inserts("productos"), [])
+        (stock,) = supabase.inserts("stocks")
+        self.assertEqual((stock["producto_id"], stocks["codigo:0986bf0024"]), ("p-filtro", stock["id"]))
+        self.assertEqual(ctx.reporte.estadisticas["producto"].ya_migrados, 1)
+
+
 class ImportesTests(BaseTest):
     def test_reglas_de_venta_y_costo(self) -> None:
         D = Decimal
+        # La venta se lleva a final (x 1,21); el costo queda como viene.
         casos = [
             # nombre, overrides, (horas, precio, horas_trab, valor_hora), codigos
             ("importe manda", {"cant_horas_venta": "2", "precio_hora_venta": "1000", "importe_horas_venta": "2500"},
-             (D("2"), D("1250.00"), D("1"), D("600.00")), ["TAREA_PRECIO_E_IMPORTE_DIFIEREN"]),
+             (D("2"), D("1512.50"), D("1"), D("600.00")), ["TAREA_PRECIO_E_IMPORTE_DIFIEREN"]),
             ("importe con 0 horas", {"cant_horas_venta": "0", "precio_hora_venta": "0", "importe_horas_venta": "3000"},
-             (D("1"), D("3000.00"), D("1"), D("600.00")), []),
+             (D("1"), D("3630.00"), D("1"), D("600.00")), []),
             ("precio por horas", {"cant_horas_venta": "1.5", "precio_hora_venta": "1000", "importe_horas_venta": "0"},
-             (D("1.5"), D("1000.00"), D("1"), D("600.00")), []),
+             (D("1.5"), D("1210.00"), D("1"), D("600.00")), []),
             ("todo en 0", {"cant_horas_venta": "0", "precio_hora_venta": "0", "importe_horas_venta": "0"},
              (D("0"), D("0"), D("1"), D("600.00")), ["TAREA_SIN_IMPORTE_VENTA"]),
             ("horas redondeadas", {"cant_horas_venta": "1.234", "importe_horas_venta": "1000", "precio_hora_venta": None},
-             (D("1.23"), D("813.01"), D("1"), D("600.00")), ["TAREA_HORAS_REDONDEADAS"]),
+             (D("1.23"), D("983.74"), D("1"), D("600.00")), ["TAREA_HORAS_REDONDEADAS"]),
             ("importe de costo manda", {"cant_horas_costo": "3", "precio_hora_costo": "250", "importe_costo": "900"},
-             (D("1"), D("1000.00"), D("3"), D("300.00")), []),
+             (D("1"), D("1210.00"), D("3"), D("300.00")), []),
             ("importe de costo sin horas", {"cant_horas_costo": "0", "importe_costo": "900"},
-             (D("1"), D("1000.00"), D("1"), D("900.00")), ["TAREA_COSTO_SIN_HORAS"]),
+             (D("1"), D("1210.00"), D("1"), D("900.00")), ["TAREA_COSTO_SIN_HORAS"]),
             ("precio de costo", {"cant_horas_costo": "2", "precio_hora_costo": "500", "importe_costo": "0"},
-             (D("1"), D("1000.00"), D("2"), D("500.00")), []),
+             (D("1"), D("1210.00"), D("2"), D("500.00")), []),
             ("costo desconocido", {"cant_horas_costo": "0", "precio_hora_costo": "0", "importe_costo": "NULL"},
-             (D("1"), D("1000.00"), D("0"), None), []),
+             (D("1"), D("1210.00"), D("0"), None), []),
         ]
         for nombre, overrides, esperado, esperados_codigos in casos:
             with self.subTest(nombre):
@@ -959,6 +1124,48 @@ class ImportesTests(BaseTest):
                 migrador.calcular_importes_tarea(tarea_row(**overrides))
             self.assertEqual(contexto.exception.codigo, "TAREA_VALOR_FUERA_DE_RANGO")
 
+    def test_reglas_de_repuestos(self) -> None:
+        D = Decimal
+        casos = [
+            # nombre, overrides, (cantidad, importe_venta, precio_unitario, costo_unitario), codigos
+            ("venta con IVA y costo como viene", {}, (D("1.00"), D("121.00"), D("121.00"), D("60.00")), []),
+            # El aviso de cantidad redondeada depende del modo: se informa al planificar la OT.
+            ("cantidad fraccionaria", {"cantidad": "3.50", "precio_total": "350", "costo_real": "52"},
+             (D("3.50"), D("423.50"), D("121.00"), D("52.00")), []),
+            ("sin importe", {"precio_total": "0.00"}, (D("1.00"), D("0.00"), D("0.00"), D("60.00")), ["REPUESTO_SIN_IMPORTE_VENTA"]),
+            ("sin costo", {"costo_real": "0.00"}, (D("1.00"), D("121.00"), D("121.00"), None), []),
+            ("redondeo", {"cantidad": "3", "precio_total": "0.10", "costo_real": None},
+             (D("3"), D("0.12"), D("0.04"), None), []),
+        ]
+        for nombre, overrides, esperado, esperados_codigos in casos:
+            with self.subTest(nombre):
+                valores, avisos = migrador.calcular_importes_repuesto(repuesto_row(**overrides))
+                self.assertEqual(
+                    (valores.cantidad, valores.importe_venta, valores.precio_unitario, valores.costo_unitario), esperado
+                )
+                self.assertEqual([a.codigo for a in avisos], esperados_codigos)
+
+        for overrides, codigo in (
+            ({"cantidad": "0"}, "REPUESTO_CANTIDAD_INVALIDA"),
+            ({"cantidad": "abc"}, "REPUESTO_CANTIDAD_INVALIDA"),
+            ({"precio_total": "-5"}, "REPUESTO_VALOR_FUERA_DE_RANGO"),
+            ({"precio_total": "99999999999"}, "REPUESTO_VALOR_FUERA_DE_RANGO"),
+            ({"codigo": "0", "descripcion": None}, "REPUESTO_SIN_PRODUCTO"),
+        ):
+            with self.subTest(overrides=overrides), self.assertRaises(migrador.RegistroInvalido) as contexto:
+                planificado(**overrides)
+            self.assertEqual(contexto.exception.codigo, codigo)
+
+    def test_identidad_del_producto(self) -> None:
+        self.assertEqual(planificado(codigo=" 0986bf0024 ").clave_producto, "codigo:0986bf0024")
+        self.assertEqual(planificado(codigo=" 0986bf0024 ").codigo, "0986BF0024")
+        sin_codigo = planificado(codigo="NULL", descripcion="Líquido  De Freno")
+        self.assertEqual((sin_codigo.clave_producto, sin_codigo.codigo), ("descripcion:liquido de freno", None))
+        self.assertEqual(sin_codigo.nombre, "Líquido De Freno")
+        sin_descripcion = planificado(descripcion=None)
+        self.assertEqual(sin_descripcion.nombre, "0986BF0024")
+        self.assertEqual([a.codigo for a in sin_descripcion.avisos], ["REPUESTO_SIN_DESCRIPCION"])
+
     def test_total_de_la_ot(self) -> None:
         D = Decimal
         tareas = [
@@ -966,10 +1173,11 @@ class ImportesTests(BaseTest):
             migrador.ValoresTarea(D("1"), D("333.33"), D("1"), None),
         ]  # suma 1833.33
         casos = [
-            ("mayor", D("2000"), D("166.67"), D("2000.00"), None),
+            ("mayor", D("2000"), D("166.67"), D("2000.00"), "OT_AJUSTE_TOTAL_GENERADO"),
             ("menor", D("1500"), None, D("1833.33"), "OT_TOTAL_MENOR_QUE_TAREAS"),
             ("igual", D("1833.33"), None, D("1833.33"), None),
             ("dentro de la tolerancia", D("1833.80"), None, D("1833.33"), None),
+            ("limite de la tolerancia", D("1833.83"), None, D("1833.33"), None),
             ("sin total", None, None, D("1833.33"), None),
         ]
         for nombre, total, diferencia, esperado, codigo in casos:
@@ -978,8 +1186,16 @@ class ImportesTests(BaseTest):
                 self.assertEqual(resultado[0], diferencia)
                 self.assertEqual(resultado[1], esperado)
                 self.assertEqual(resultado[2].codigo if resultado[2] else None, codigo)
-        self.assertEqual(migrador.planificar_total([], D("1000")), (D("1000.00"), D("1000.00"), None))
+        diferencia, esperado, aviso = migrador.planificar_total([], D("1000"))
+        self.assertEqual((diferencia, esperado), (D("1000.00"), D("1000.00")))
+        self.assertEqual(aviso.codigo, "OT_AJUSTE_TOTAL_GENERADO")
         self.assertEqual(migrador.planificar_total([], None), (None, D("0.00"), None))
+
+        lineas = [migrador.LineaRepuestoPlan("l-1", "s-1", 4, D("105.88"), AHORA)]  # 423.52
+        self.assertEqual(migrador.planificar_total(tareas, D("2256.85"), lineas), (None, D("2256.85"), None))
+        diferencia, esperado, aviso = migrador.planificar_total(tareas, D("3000"), lineas)
+        self.assertEqual((diferencia, esperado), (D("743.15"), D("3000.00")))
+        self.assertIn("la suma de las tareas y repuestos (2256.85)", aviso.motivo)
 
     def test_precio_sin_iva(self) -> None:
         self.assertEqual(migrador.calcular_precio_sin_iva(Decimal("1210.00")), Decimal("1000.00"))
@@ -1027,6 +1243,7 @@ class OrdenesTests(BaseTest):
                 "migracion": {
                     "origen": "sistema-externo",
                     "id_ot": "1",
+                    "modo_repuestos": "productos",
                     "id_cliente": "7",
                     "id_vehiculo": "3",
                     "patente": "HUF763",
@@ -1056,13 +1273,21 @@ class OrdenesTests(BaseTest):
         self.assertEqual(detalles[1]["categoria_arreglo_id"], "c-frenos")
         self.assertEqual(
             {k: detalles[2][k] for k in ("cantidad", "horas_facturadas", "horas_trabajadas", "precio_hora_facturada", "valor_hora_empleado", "empleado_id", "categoria_arreglo_id")},
-            {"cantidad": 1, "horas_facturadas": 1.0, "horas_trabajadas": 0.0, "precio_hora_facturada": 500.0, "valor_hora_empleado": None, "empleado_id": None, "categoria_arreglo_id": None},
+            {"cantidad": 1, "horas_facturadas": 1.0, "horas_trabajadas": 0.0, "precio_hora_facturada": 80.0, "valor_hora_empleado": None, "empleado_id": None, "categoria_arreglo_id": None},
         )
         self.assertGreater(detalles[2]["created_at"], detalles[1]["created_at"])
         self.assertEqual(detalles[0]["valor_hora_empleado"], 600.0)
         self.assertIn("TAREA_OPERARIO_NO_RESUELTO", codigos(ctx.reporte))
+        (ajuste,) = [i for i in ctx.reporte.incidencias if i.codigo == "OT_AJUSTE_TOTAL_GENERADO"]
+        self.assertEqual((ajuste.nivel, ajuste.entidad, ajuste.id_origen), ("warning", "orden", "1"))
+        self.assertEqual(
+            ajuste.motivo,
+            "la suma de las tareas y repuestos (2420.00) es menor que Total (2500.00); "
+            "se agrega una tarea de ajuste por 80.00 para saldar la diferencia",
+        )
         self.assertEqual(ctx.reporte.contadores["tareas_operario_no_resuelto"], 1)
         self.assertEqual(ctx.reporte.contadores["lineas_ajuste_total"], 1)
+        self.assertEqual(ctx.reporte.contadores["ots_total_menor_que_tareas"], 0)
         self.assertEqual(ctx.reporte.importe_total_migrado, Decimal("2500.00"))
         self.assertEqual(ctx.reporte.depositos, {"1"})
 
@@ -1190,7 +1415,7 @@ class OrdenesTests(BaseTest):
             ["Pedido", migrador.DESCRIPCION_ARREGLO_FALLBACK, "Frenos | " + migrador.DESCRIPCION_TAREA_FALLBACK],
         )
         self.assertEqual([len(p.detalles) for p in planes], [0, 0, 2])
-        self.assertEqual([p.precio_final for p in planes], [Decimal("0.00"), Decimal("0.00"), Decimal("2000.00")])
+        self.assertEqual([p.precio_final for p in planes], [Decimal("0.00"), Decimal("0.00"), Decimal("2420.00")])
 
     def test_tarea_invalida_hace_fallar_su_ot(self) -> None:
         ctx, planes = self.procesar(
@@ -1217,6 +1442,204 @@ class OrdenesTests(BaseTest):
             codigos(ctx.reporte),
             ["OT_ID_DUPLICADO", "OT_ID_DUPLICADO", "TAREA_OT_INEXISTENTE", "TAREA_OT_NO_IMPORTADA"],
         )
+
+
+class RepuestosEnOrdenesTests(BaseTest):
+    def test_agrupa_por_producto_redondea_cantidades_y_suma_al_total(self) -> None:
+        productos = {"codigo:a1": "s-a1", "descripcion:aceite 10 w 40 (suelto)": "s-aceite"}
+        # Neto: tarea 1000 + repuestos 100 + 350 + 50 = 1500; Total del sistema anterior = 1500 x 1,21.
+        ctx, planes = self.procesar(
+            [orden_row(total="1815.00")],
+            [tarea_row()],
+            repuestos=[
+                repuesto_row(id_renglon="3", line_number=4, codigo="a1", precio_total="50"),
+                repuesto_row(id_renglon="1", codigo="A1"),
+                repuesto_row(
+                    id_renglon="2", line_number=3, codigo=None, id_repuesto="31", descripcion="Aceite 10 W 40 (Suelto)",
+                    cantidad="3.50", precio_total="350", costo_real="0",
+                ),
+                repuesto_row(id_renglon="4", line_number=5, codigo="A1", estado="Requerido", precio_total="9999"),
+            ],
+            productos=productos,
+        )
+
+        (plan,) = planes
+        self.assertEqual(
+            [(l.stock_id, l.cantidad, l.monto_unitario) for l in plan.lineas_repuesto],
+            [("s-a1", 2, Decimal("90.75")), ("s-aceite", 4, Decimal("105.87"))],
+        )
+        # 1210 + 181.50 + 423.48: el precio unitario truncado deja 2 centavos, que
+        # se suman a la unica linea de cantidad u horas 1 para cerrar con Total.
+        self.assertEqual([d.valores.precio_hora_facturada for d in plan.detalles], [Decimal("1210.02")])
+        self.assertEqual(plan.precio_final, Decimal("1815.00"))
+        self.assertFalse(plan.tiene_ajuste)
+        self.assertEqual(len(plan.repuestos), 3)
+
+        operacion = migrador.operacion_payload(plan, TENANT, TALLER)
+        self.assertEqual(
+            operacion,
+            {
+                "id": migrador.operacion_id_de_arreglo(plan.arreglo_id),
+                "tenant_id": TENANT,
+                "tipo": "ASIGNACION_ARREGLO",
+                "taller_id": TALLER,
+                "fecha": "2014-08-22T11:32:53.790000-03:00",
+            },
+        )
+        lineas = [migrador.linea_repuesto_payload(l, plan.operacion_id) for l in plan.lineas_repuesto]
+        self.assertEqual(
+            {k: lineas[0][k] for k in ("operacion_id", "stock_id", "cantidad", "monto_unitario", "delta_cantidad", "categoria_arreglo_id", "empleado_id")},
+            {"operacion_id": plan.operacion_id, "stock_id": "s-a1", "cantidad": 2, "monto_unitario": 90.75, "delta_cantidad": -2, "categoria_arreglo_id": None, "empleado_id": None},
+        )
+        self.assertLess(lineas[0]["created_at"], lineas[1]["created_at"])
+
+        avisos = [(i.codigo, i.id_origen) for i in ctx.reporte.incidencias]
+        self.assertEqual(
+            avisos,
+            [("REPUESTO_NO_UTILIZADO", "1-4"), ("REPUESTO_AGRUPADO", "1-3"), ("REPUESTO_CANTIDAD_FRACCIONARIA", "1-2")],
+        )
+        contadores = ctx.reporte.contadores
+        self.assertEqual(
+            (contadores["repuestos_no_utilizados"], contadores["repuestos_agrupados"], contadores["repuestos_cantidad_fraccionaria"]),
+            (1, 1, 1),
+        )
+        self.assertEqual(contadores["ots_centavos_de_redondeo_absorbidos"], 1)
+        self.assertEqual(ctx.reporte.estadisticas["repuesto"].leidos, 4)
+        self.assertEqual(ctx.reporte.estadisticas["repuesto"].creados, 3)
+        self.assertEqual(ctx.reporte.importe_total_migrado, Decimal("1815.00"))
+
+    def test_centavos_de_redondeo_van_a_un_repuesto_de_cantidad_1(self) -> None:
+        # 3 x 33,333 neto: cada linea a final es 40.33 y la suma (120.99) no llega a Total (121.00).
+        _, planes = self.procesar(
+            [orden_row(total="121.00")],
+            [],
+            repuestos=[
+                repuesto_row(id_renglon=str(n), codigo=f"C{n}", precio_total="33.333")
+                for n in (1, 2, 3)
+            ],
+            productos={f"codigo:c{n}": f"s-{n}" for n in (1, 2, 3)},
+        )
+
+        (plan,) = planes
+        self.assertEqual([l.monto_unitario for l in plan.lineas_repuesto], [Decimal("40.34"), Decimal("40.33"), Decimal("40.33")])
+        self.assertEqual(plan.precio_final, Decimal("121.00"))
+        self.assertEqual(plan.detalles, [])
+
+    def test_precio_unitario_truncado_y_resto_en_el_ajuste(self) -> None:
+        # Gas cobrado por gramo: 4400 x 1,21 = 5324 por 800 g; 6.655 por gramo no entra en centavos.
+        _, planes = self.procesar(
+            [orden_row(total="5324.00")],
+            [],
+            repuestos=[repuesto_row(descripcion="Gas 134a x gramo", cantidad="800.00", precio_total="4400.00")],
+        )
+
+        (plan,) = planes
+        self.assertEqual([(l.cantidad, l.monto_unitario) for l in plan.lineas_repuesto], [(800, Decimal("6.65"))])
+        self.assertEqual([d.valores.precio_hora_facturada for d in plan.detalles], [Decimal("4.00")])
+        self.assertEqual(plan.precio_final, Decimal("5324.00"))
+
+    def test_modo_detalle_agrega_los_repuestos_como_mano_de_obra(self) -> None:
+        ctx, planes = self.procesar(
+            [orden_row(total="1815.00")],
+            [tarea_row()],
+            repuestos=[
+                repuesto_row(id_renglon="3", line_number=4, codigo="a1", precio_total="50"),
+                repuesto_row(id_renglon="1", codigo="A1"),
+                repuesto_row(
+                    id_renglon="2", line_number=3, codigo=None, id_repuesto="31", descripcion="Aceite 10 W 40 (Suelto)",
+                    cantidad="3.50", precio_total="350", costo_real="0",
+                ),
+                repuesto_row(id_renglon="4", line_number=5, codigo="A1", estado="Requerido", precio_total="9999"),
+            ],
+            # Sin productos: el modo detalle no los necesita.
+            productos={},
+            modo_repuestos=migrador.MODO_REPUESTOS_DETALLE,
+        )
+
+        (plan,) = planes
+        self.assertEqual(plan.lineas_repuesto, [])
+        detalles = [migrador.detalle_payload(d, TENANT, plan.arreglo_id) for d in plan.detalles]
+        self.assertEqual(
+            [
+                (d["descripcion"], d["cantidad"], d["horas_facturadas"], d["precio_hora_facturada"], d["horas_trabajadas"], d["valor_hora_empleado"])
+                for d in detalles
+            ],
+            [
+                ("Cambio de aceite", 1, 1.0, 1210.0, 1.0, 600.0),
+                # Una linea por fila, en orden de IdRenglon; la cantidad de origen va en la descripcion.
+                ("Filtro de aceite Bosch", 1, 1.0, 121.0, 1.0, 60.0),
+                ("Aceite 10 W 40 (Suelto) x 3,5", 1, 1.0, 423.5, 1.0, 423.5),
+                ("Filtro de aceite Bosch", 1, 1.0, 60.5, 1.0, 60.0),
+            ],
+        )
+        self.assertTrue(all(d["empleado_id"] is None and d["categoria_arreglo_id"] is None for d in detalles[1:]))
+        self.assertEqual(sorted(d["created_at"] for d in detalles), [d["created_at"] for d in detalles])
+        self.assertEqual(plan.precio_final, Decimal("1815.00"))
+        self.assertFalse(plan.tiene_ajuste)
+        self.assertEqual(plan.descripcion, "Cambio de aceite")
+        self.assertEqual(plan.extra_data["migracion"]["modo_repuestos"], "detalle")
+        self.assertEqual(codigos(ctx.reporte), ["REPUESTO_NO_UTILIZADO"])
+        contadores = ctx.reporte.contadores
+        self.assertEqual((contadores["repuestos_costo_desde_precio"], contadores["repuestos_agrupados"]), (1, 0))
+        self.assertEqual(ctx.reporte.estadisticas["repuesto"].creados, 3)
+
+    def test_modo_detalle_con_ajuste_y_cantidades_grandes(self) -> None:
+        _, planes = self.procesar(
+            [orden_row(total="6000.00")],
+            [],
+            repuestos=[repuesto_row(descripcion="Gas 134a x gramo", cantidad="800.00", precio_total="4400.00", costo_real=None)],
+            modo_repuestos=migrador.MODO_REPUESTOS_DETALLE,
+        )
+
+        (plan,) = planes
+        self.assertEqual(
+            [(d.descripcion, d.valores.precio_hora_facturada, d.es_ajuste) for d in plan.detalles],
+            [("Gas 134a x gramo x 800", Decimal("5324.00"), False), (migrador.DESCRIPCION_AJUSTE_TOTAL, Decimal("676.00"), True)],
+        )
+        self.assertTrue(plan.tiene_ajuste)
+        self.assertEqual(plan.precio_final, Decimal("6000.00"))
+
+    def test_ot_solo_con_repuestos_y_diferencia_con_el_total(self) -> None:
+        _, planes = self.procesar([orden_row(total="300")], [], repuestos=[repuesto_row()])
+
+        (plan,) = planes
+        self.assertEqual(plan.descripcion, migrador.DESCRIPCION_ARREGLO_FALLBACK)
+        self.assertEqual([d.valores.precio_hora_facturada for d in plan.detalles], [Decimal("179.00")])
+        self.assertEqual(plan.precio_final, Decimal("300.00"))
+
+    def test_repuesto_invalido_hace_fallar_su_ot(self) -> None:
+        ctx, planes = self.procesar(
+            [orden_row(id_ot="1"), orden_row(id_ot="2", line_number=3), orden_row(id_ot="3", line_number=4)],
+            [tarea_row(id_tarea="10", id_ot="1")],
+            repuestos=[
+                repuesto_row(id_ot="1", cantidad="0"),
+                repuesto_row(id_ot="2", line_number=3),
+                repuesto_row(id_ot="2", line_number=4),
+                repuesto_row(id_ot="3", line_number=5, id_renglon="1"),
+                repuesto_row(id_ot="3", line_number=6, id_renglon="2", codigo="SIN-STOCK"),
+                repuesto_row(id_ot="9", line_number=7),
+            ],
+        )
+
+        self.assertEqual(planes, [])
+        errores = [(i.entidad, i.codigo, i.id_origen) for i in ctx.reporte.incidencias if i.nivel == "error"]
+        self.assertEqual(
+            errores,
+            [
+                ("repuesto", "REPUESTO_OT_INEXISTENTE", "9-1"),
+                ("repuesto", "REPUESTO_CANTIDAD_INVALIDA", "1-1"),
+                ("orden", "OT_REPUESTO_INVALIDO", "1"),
+                ("tarea", "TAREA_OT_NO_IMPORTADA", "10"),
+                ("repuesto", "REPUESTO_ID_DUPLICADO", "2-1"),
+                ("repuesto", "REPUESTO_ID_DUPLICADO", "2-1"),
+                ("orden", "OT_REPUESTO_INVALIDO", "2"),
+                ("orden", "OT_REPUESTO_SIN_PRODUCTO", "3"),
+                ("repuesto", "REPUESTO_OT_NO_IMPORTADA", "3-1"),
+                ("repuesto", "REPUESTO_OT_NO_IMPORTADA", "3-2"),
+            ],
+        )
+        (falla_ot1,) = [i for i in ctx.reporte.incidencias if i.codigo == "OT_REPUESTO_INVALIDO" and i.id_origen == "1"]
+        self.assertIn("IdRenglon=1", falla_ot1.referencias)
 
 
 # --------------------------------------------------------------------------
@@ -1279,8 +1702,97 @@ class InsercionTests(BaseTest):
 
         supabase.execute = execute
 
-        with self.assertRaisesRegex(migrador.ErrorFatal, "eliminarlo manualmente"):
+        # La compensacion borra primero la operacion de repuestos del arreglo.
+        with self.assertRaisesRegex(migrador.ErrorFatal, "eliminarlas manualmente"):
             self.procesar([orden_row()], [tarea_row()], supabase=supabase, dry_run=False)
+
+    def test_inserta_operacion_vinculo_y_lineas_de_repuestos(self) -> None:
+        supabase = self.supabase_con_vehiculo()
+
+        ctx, planes = self.procesar(
+            [orden_row(total="1331")], [tarea_row()], repuestos=[repuesto_row()], supabase=supabase, dry_run=False
+        )
+
+        (plan,) = planes
+        tablas = [name for op, name, _ in supabase.calls if op == "insert"]
+        self.assertEqual(tablas, ["arreglos", "detalle_arreglo", "operaciones", "operaciones_asignacion_arreglo", "operaciones_lineas"])
+        (operacion,) = supabase.inserts("operaciones")
+        self.assertEqual((operacion["id"], operacion["tipo"]), (migrador.operacion_id_de_arreglo(plan.arreglo_id), "ASIGNACION_ARREGLO"))
+        self.assertEqual(supabase.inserts("operaciones_asignacion_arreglo"), [{"operacion_id": operacion["id"], "arreglo_id": plan.arreglo_id}])
+        (linea,) = supabase.inserts("operaciones_lineas")
+        self.assertEqual((linea["stock_id"], linea["cantidad"], linea["monto_unitario"]), ("s-filtro", 1, 121.0))
+        self.assertEqual(supabase.inserts("arreglos")[0]["total_cobrado"], 1331.0)
+        self.assertEqual(ctx.reporte.estadisticas["repuesto"].creados, 1)
+
+    def test_repuestos_fallidos_borran_operacion_y_arreglo_y_se_aislan_por_ot(self) -> None:
+        supabase = self.supabase_con_vehiculo()
+        supabase.fallar_insert = lambda table, rows: (
+            ErrorPostgrest("violates foreign key constraint")
+            if table == "operaciones_lineas" and any(row["stock_id"] == "s-malo" for row in rows)
+            else None
+        )
+        productos = {"codigo:0986bf0024": "s-filtro", "codigo:malo": "s-malo"}
+
+        ctx, planes = self.procesar(
+            [orden_row(id_ot="1"), orden_row(id_ot="2", line_number=3), orden_row(id_ot="3", line_number=4)],
+            [tarea_row(id_tarea="12", id_ot="2")],
+            repuestos=[
+                repuesto_row(id_ot="1"),
+                repuesto_row(id_ot="2", line_number=3, codigo="MALO"),
+                repuesto_row(id_ot="3", line_number=4),
+            ],
+            productos=productos,
+            supabase=supabase,
+            dry_run=False,
+        )
+
+        ids = {p.id_ot: p.arreglo_id for p in planes}
+        self.assertEqual({row["id"] for row in supabase.tablas["arreglos"]}, {ids["1"], ids["3"]})
+        self.assertEqual(
+            {row["id"] for row in supabase.tablas["operaciones"]},
+            {migrador.operacion_id_de_arreglo(ids["1"]), migrador.operacion_id_de_arreglo(ids["3"])},
+        )
+        self.assertEqual(len(supabase.tablas["operaciones_asignacion_arreglo"]), 2)
+        self.assertEqual(len(supabase.tablas["operaciones_lineas"]), 2)
+        self.assertEqual(supabase.tablas["detalle_arreglo"], [])
+        self.assertEqual(set(ctx.estado.ordenes), {"1", "3"})
+        errores = [(i.codigo, i.id_origen) for i in ctx.reporte.incidencias if i.nivel == "error"]
+        self.assertEqual(
+            errores, [("OT_REPUESTOS_FALLARON", "2"), ("TAREA_OT_NO_IMPORTADA", "12"), ("REPUESTO_OT_NO_IMPORTADA", "2-1")]
+        )
+
+    def test_arreglo_migrado_sin_repuestos_se_borra_y_se_recrea(self) -> None:
+        supabase = self.supabase_con_vehiculo()
+        supabase.tablas["arreglos"] = [
+            {"id": "a-1", "tenant_id": TENANT, "extra_data": None},
+            {"id": "a-2", "tenant_id": TENANT, "extra_data": None},
+        ]
+        supabase.tablas["detalle_arreglo"] = [
+            {"id": "d-1", "tenant_id": TENANT, "arreglo_id": "a-1"},
+            {"id": "d-2", "tenant_id": TENANT, "arreglo_id": "a-2"},
+        ]
+        operacion_a2 = migrador.operacion_id_de_arreglo("a-2")
+        supabase.tablas["operaciones"] = [{"id": operacion_a2, "tenant_id": TENANT}]
+        supabase.tablas["operaciones_asignacion_arreglo"] = [{"operacion_id": operacion_a2, "arreglo_id": "a-2"}]
+        estado = migrador.EstadoMigracion(
+            self.tmp / "estado.json", TENANT, TALLER, migrador.ORIGEN_MIGRACION, ordenes={"1": "a-1", "2": "a-2"}
+        )
+
+        ctx, planes = self.procesar(
+            [orden_row(id_ot="1"), orden_row(id_ot="2", line_number=3)],
+            [tarea_row(id_ot="1"), tarea_row(id_tarea="11", id_ot="2")],
+            repuestos=[repuesto_row(id_ot="1"), repuesto_row(id_ot="2", line_number=3)],
+            supabase=supabase,
+            dry_run=False,
+            estado=estado,
+        )
+
+        self.assertEqual([p.id_ot for p in planes], ["1"])
+        self.assertNotIn("a-1", {row["id"] for row in supabase.tablas["arreglos"]})
+        self.assertIn(("delete", "operaciones", []), supabase.calls)
+        self.assertIn("ESTADO_ARREGLO_SIN_DETALLES", codigos(ctx.reporte))
+        stats = ctx.reporte.estadisticas
+        self.assertEqual((stats["orden"].ya_migrados, stats["repuesto"].ya_migrados, stats["repuesto"].creados), (1, 1, 1))
 
     def test_valor_hora_modificado_por_el_trigger_aborta(self) -> None:
         supabase = self.supabase_con_vehiculo()
@@ -1354,7 +1866,9 @@ class InsercionTests(BaseTest):
 class EstadoTests(BaseTest):
     def test_ida_y_vuelta(self) -> None:
         path = self.tmp / "estado.json"
-        estado = migrador.EstadoMigracion(path, TENANT, TALLER, "sistema-externo", clientes={"7": CLIENTE}, vehiculos={"HUF763": VEHICULO})
+        estado = migrador.EstadoMigracion(
+            path, TENANT, TALLER, "sistema-externo", clientes={"7": CLIENTE}, vehiculos={"HUF763": VEHICULO}, modo_repuestos="productos"
+        )
         estado.guardar()
 
         cargado = migrador.EstadoMigracion.cargar(path, TENANT, TALLER, "sistema-externo")
@@ -1362,7 +1876,56 @@ class EstadoTests(BaseTest):
         self.assertEqual((cargado.clientes, cargado.vehiculos), ({"7": CLIENTE}, {"HUF763": VEHICULO}))
         data = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(data["version"], 1)
-        self.assertEqual(set(data), {"version", "tenant_id", "taller_id", "origen", "actualizado_at", *migrador.SECCIONES_ESTADO})
+        self.assertEqual(
+            set(data), {"version", "tenant_id", "taller_id", "origen", "modo_repuestos", "actualizado_at", *migrador.SECCIONES_ESTADO}
+        )
+        self.assertEqual(data["modo_repuestos"], "productos")
+
+    def test_no_se_mezclan_modos_de_repuestos(self) -> None:
+        path = self.tmp / "estado.json"
+        migrador.EstadoMigracion(path, TENANT, TALLER, "sistema-externo", modo_repuestos="detalle").guardar()
+
+        with self.assertRaisesRegex(migrador.ErrorFatal, "--repuestos detalle"):
+            migrador.EstadoMigracion.cargar(path, TENANT, TALLER, "sistema-externo", "productos")
+        self.assertEqual(migrador.EstadoMigracion.cargar(path, TENANT, TALLER, "sistema-externo", "detalle").modo_repuestos, "detalle")
+
+        # Un estado anterior a --repuestos no trae el modo: se acepta y el modo
+        # queda sin fijar hasta confirmarlo contra lo migrado.
+        data = json.loads(path.read_text(encoding="utf-8"))
+        del data["modo_repuestos"]
+        path.write_text(json.dumps(data), encoding="utf-8")
+        self.assertIsNone(migrador.EstadoMigracion.cargar(path, TENANT, TALLER, "sistema-externo", "productos").modo_repuestos)
+
+        # Arreglos con repuestos asignados (modo productos, aun sin marcador de
+        # modo) detienen el modo detalle antes de escribir, sin fijar el modo.
+        supabase = FakeSupabase(
+            {
+                "vehiculos": [{"id": VEHICULO, "tenant_id": TENANT, "patente": "HUF763", "cliente_id": CLIENTE}],
+                "arreglos": [{"id": "a-1", "tenant_id": TENANT, "extra_data": None}],
+                "operaciones_asignacion_arreglo": [{"operacion_id": "o-1", "arreglo_id": "a-1"}],
+            }
+        )
+        estado = migrador.EstadoMigracion.cargar(path, TENANT, TALLER, "sistema-externo", "detalle")
+        estado.ordenes["1"] = "a-1"
+        with self.assertRaisesRegex(migrador.ErrorFatal, "repuestos asignados como productos"):
+            self.procesar(
+                [orden_row()], [], repuestos=[repuesto_row()], supabase=supabase, dry_run=False, estado=estado,
+                modo_repuestos=migrador.MODO_REPUESTOS_DETALLE,
+            )
+        self.assertEqual(supabase.escrituras, [])
+        self.assertIsNone(estado.modo_repuestos)
+
+        # Sin estado, el marcador de un arreglo migrado con otro modo tambien detiene la migracion.
+        supabase = FakeSupabase(
+            {
+                "vehiculos": [{"id": VEHICULO, "tenant_id": TENANT, "patente": "HUF763", "cliente_id": CLIENTE}],
+                "arreglos": [
+                    {"id": "a-1", "tenant_id": TENANT, "extra_data": {"migracion": {"origen": "sistema-externo", "id_ot": "1", "modo_repuestos": "detalle"}}},
+                ],
+            }
+        )
+        with self.assertRaisesRegex(migrador.ErrorFatal, "no se pueden mezclar modos"):
+            self.procesar([orden_row()], [], supabase=supabase)
 
     def test_estado_de_otro_tenant_taller_u_origen_es_fatal(self) -> None:
         path = self.tmp / "estado.json"
@@ -1387,6 +1950,7 @@ class EstadoTests(BaseTest):
             self.tmp / "estado.json", TENANT, TALLER, "sistema-externo",
             clientes={"7": CLIENTE, "9": huerfano, "10": OTRO_CLIENTE},
             operarios={"4": "e-otro-taller"},
+            productos={"codigo:borrado": "p-borrado"},
         )
         ctx = self.contexto(supabase, estado=estado)
 
@@ -1394,10 +1958,11 @@ class EstadoTests(BaseTest):
 
         self.assertEqual(ctx.estado.clientes, {"7": CLIENTE})
         self.assertEqual(ctx.estado.operarios, {})
+        self.assertEqual(ctx.estado.productos, {})
         self.assertEqual([row["id"] for row in supabase.tablas["clientes"]], [CLIENTE])
         self.assertEqual(
             sorted(codigos(ctx.reporte)),
-            ["ESTADO_CLIENTE_HUERFANO", "ESTADO_ID_INEXISTENTE", "ESTADO_ID_INEXISTENTE"],
+            ["ESTADO_CLIENTE_HUERFANO", "ESTADO_ID_INEXISTENTE", "ESTADO_ID_INEXISTENTE", "ESTADO_ID_INEXISTENTE"],
         )
 
     def test_huerfano_con_vehiculos_es_fatal(self) -> None:
@@ -1433,15 +1998,22 @@ FIXTURES = {
         "4;Gustavo;Calle 1;1155;;12000.00;20000.00",
         "5;Juan Carlos Perez;;;;;",
     ],
+    # OT 1: (tareas 2000 + repuestos 200) x 1,21 = 2662, cierra sin ajuste.
+    # OT 2: Total menor que la tarea con IVA (968). OT 3: solo repuestos y ajuste.
     "ordenesTrabajo.csv": [
-        "1;1;3;2006;1;7;10;277;;8;2014-08-22 11:32:53.790;85000;Ruido;;;;;3000.00;0;0;0;0.00",
+        "1;1;3;2006;1;7;10;277;;8;2014-08-22 11:32:53.790;85000;Ruido;;;;;2662.00;0;0;0;0.00",
         "2;2;4;962KGF;2;7;10;277;;8;2015-01-10 09:00:00;0;;;;;;500.00;0;0;0;0.00",
-        "3;3;5;AB123CD;1;7;10;277;;8;2016-05-02;12000;;;;;;0;0;0;0;0.00",
+        "3;3;5;AB123CD;1;7;10;277;;8;2016-05-02;12000;;;;;;600.00;0;0;0;0.00",
     ],
     "tareasEnOT.csv": [
         "10;1;Cambio de aceite;Service;4;1;1;1000;1000;1;600;600;2014-08-22 12:00:00;85000",
         "11;1;Frenos;Frenos;5;2;2;500;1000;2;0;0;2014-08-22 13:00:00;85000",
         "12;2;Alineacion;Tren delantero;0;1;1;800;800;0;0;0;;",
+    ],
+    "repuestosEnOT.csv": [
+        "1;1;1472;Filtro de aceite Bosch;2.00;238;Generico;60.00;Utilizado;0.00;200.00;0.00;120.00;100.00;200.00;0986BF0024;0986BF0024",
+        "2;1;1473;Bomba de freno;1.00;0;Original;500.00;Requerido;0.00;700.00;0.00;500.00;700.00;700.00;;NULL",
+        "3;1;31;Aceite 10 W 40 (Suelto);3.50;;Generico;0.00;Utilizado;0.00;350.00;0.00;0.00;100.00;350.00;;NULL",
     ],
 }
 
@@ -1475,6 +2047,10 @@ class MainTests(BaseTest):
         self.assertEqual(supabase.escrituras, [])
         self.assertFalse((self.tmp / "csv" / f"migracion_estado_{TENANT}.json").exists())
         self.assertTrue((self.tmp / "csv" / "reporte_migracion_dry_run.csv").exists())
+        with (self.tmp / "csv" / "reporte_migracion_dry_run.csv").open(encoding="utf-8", newline="") as file:
+            ajustes = [row for row in csv.DictReader(file, delimiter=";") if row["codigo"] == "OT_AJUSTE_TOTAL_GENERADO"]
+        self.assertEqual(len(ajustes), 1)
+        self.assertEqual((ajustes[0]["nivel"], ajustes[0]["id_origen"]), ("warning", "3"))
 
     def test_ejecucion_real_reejecucion_y_reporte_sin_datos_personales(self) -> None:
         self.escribir_csvs(self.tmp / "csv", FIXTURES)
@@ -1488,24 +2064,41 @@ class MainTests(BaseTest):
         self.assertEqual(len(supabase.tablas["vehiculos"]), 3)
         self.assertEqual(len(supabase.tablas["empleados"]), 2)
         self.assertEqual(len(supabase.tablas["arreglos"]), 3)
-        # 2 tareas + ajuste en la OT 1, 1 tarea en la OT 2 (Total menor), OT 3 sin tareas.
+        # 2 tareas en la OT 1, 1 tarea en la OT 2 (Total menor) y el ajuste de la OT 3.
         self.assertEqual(len(supabase.tablas["detalle_arreglo"]), 4)
         self.assertEqual(
             sorted(row["nombre"] for row in supabase.tablas["categorias_arreglo"]),
             ["Frenos", "Service", "Tren delantero"],
         )
         arreglos = {row["extra_data"]["migracion"]["id_ot"]: row for row in supabase.tablas["arreglos"]}
-        self.assertEqual(arreglos["1"]["precio_final"], 3000.0)
-        self.assertEqual(arreglos["2"]["precio_final"], 800.0)
-        self.assertEqual(arreglos["3"]["precio_final"], 0.0)
+        self.assertEqual(arreglos["1"]["precio_final"], 2662.0)
+        self.assertEqual(arreglos["2"]["precio_final"], 968.0)
+        # Repuesto 4 x 105.87 (3,5 litros redondeados) + ajuste 176.52.
+        self.assertEqual(arreglos["3"]["precio_final"], 600.0)
         self.assertTrue(all(row["total_cobrado"] == row["precio_final"] for row in arreglos.values()))
+        productos = {row["codigo"]: row for row in supabase.tablas["productos"]}
+        self.assertEqual(set(productos), {"0986BF0024", "MIG-31"})
+        self.assertEqual((productos["0986BF0024"]["precio_unitario"], productos["0986BF0024"]["costo_unitario"]), (121.0, 60.0))
+        self.assertEqual((productos["MIG-31"]["precio_unitario"], productos["MIG-31"]["costo_unitario"]), (121.0, 121.0))
+        self.assertEqual(len(supabase.tablas["stocks"]), 2)
+        self.assertEqual(len(supabase.tablas["operaciones"]), 2)
+        lineas = sorted((row["cantidad"], row["monto_unitario"]) for row in supabase.tablas["operaciones_lineas"])
+        self.assertEqual(lineas, [(2, 121.0), (4, 105.87)])
         empleados = {row["nombre"]: row for row in supabase.tablas["empleados"]}
         self.assertEqual((empleados["Gustavo"]["apellido"], empleados["Gustavo"]["dni"]), (" ", "99000004"))
 
         with (self.tmp / "csv" / "reporte_migracion.csv").open(encoding="utf-8", newline="") as file:
             reader = csv.DictReader(file, delimiter=";")
             self.assertEqual(tuple(reader.fieldnames), migrador.REPORTE_CAMPOS)
-            contenido = " ".join(" ".join(row.values()) for row in reader)
+            incidencias = list(reader)
+            contenido = " ".join(" ".join(row.values()) for row in incidencias)
+        ajustes = [row for row in incidencias if row["codigo"] == "OT_AJUSTE_TOTAL_GENERADO"]
+        self.assertEqual(len(ajustes), 1)
+        self.assertEqual((ajustes[0]["nivel"], ajustes[0]["id_origen"]), ("warning", "3"))
+        self.assertEqual(ajustes[0]["archivo"], "ordenesTrabajo.csv")
+        self.assertEqual(ajustes[0]["linea_csv"], "4")
+        (no_utilizado,) = [row for row in incidencias if row["codigo"] == "REPUESTO_NO_UTILIZADO"]
+        self.assertEqual((no_utilizado["archivo"], no_utilizado["linea_csv"], no_utilizado["id_origen"]), ("repuestosEnOT.csv", "3", "2-1"))
         for dato_personal in ("PEREZ", "Gustavo", "juan@example.com", "12345678", "1162559377", "99000004"):
             self.assertNotIn(dato_personal, contenido)
 
@@ -1530,6 +2123,33 @@ class MainTests(BaseTest):
         self.assertEqual(len(supabase.tablas["clientes"]), 4)
         self.assertEqual(len(supabase.tablas["empleados"]), 2)
         self.assertEqual(len(supabase.tablas["arreglos"]), 3)
+        # Los productos se reutilizan por codigo, tambien el generado.
+        self.assertEqual(len(supabase.tablas["productos"]), 2)
+        self.assertEqual(len(supabase.tablas["stocks"]), 2)
+        self.assertEqual(len(supabase.tablas["operaciones"]), 2)
+
+    def test_modo_detalle_sin_productos_y_sin_mezclar_modos(self) -> None:
+        self.escribir_csvs(self.tmp / "csv", FIXTURES)
+        supabase = self.supabase_destino()
+
+        codigo = self.ejecutar_main(supabase, "--repuestos", "detalle")
+
+        self.assertEqual(codigo, 0)
+        for tabla in ("productos", "stocks", "operaciones", "operaciones_asignacion_arreglo", "operaciones_lineas"):
+            self.assertEqual(supabase.tablas[tabla], [], tabla)
+        # OT 1: 2 tareas + 1 repuesto. OT 2: 1 tarea. OT 3: 1 repuesto + ajuste.
+        self.assertEqual(len(supabase.tablas["detalle_arreglo"]), 6)
+        arreglos = {row["extra_data"]["migracion"]["id_ot"]: row for row in supabase.tablas["arreglos"]}
+        self.assertEqual([arreglos[ot]["precio_final"] for ot in ("1", "2", "3")], [2662.0, 968.0, 600.0])
+        descripciones = {row["descripcion"]: row for row in supabase.tablas["detalle_arreglo"]}
+        self.assertEqual(descripciones["Filtro de aceite Bosch x 2"]["precio_hora_facturada"], 242.0)
+        self.assertEqual(descripciones["Aceite 10 W 40 (Suelto) x 3,5"]["valor_hora_empleado"], 423.5)
+        estado = json.loads((self.tmp / "csv" / f"migracion_estado_{TENANT}.json").read_text(encoding="utf-8"))
+        self.assertEqual((estado["modo_repuestos"], estado["productos"]), ("detalle", {}))
+
+        escrituras = len(supabase.escrituras)
+        self.assertEqual(self.ejecutar_main(supabase, "--repuestos", "productos"), 1)
+        self.assertEqual(len(supabase.escrituras), escrituras)
 
     def test_codigo_de_salida_con_errores_por_registro(self) -> None:
         filas = dict(FIXTURES)
