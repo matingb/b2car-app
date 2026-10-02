@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Migra clientes, vehiculos, operarios, ordenes de trabajo y tareas desde los
-CSV exportados por un sistema externo hacia un tenant y un taller de B2Car.
+"""Migra clientes, vehiculos, operarios, ordenes de trabajo, tareas y repuestos
+desde los CSV exportados por un sistema externo hacia un tenant y un taller de
+B2Car.
 
 Uso:
     # PowerShell
@@ -9,11 +10,15 @@ Uso:
     python scripts/migrar_sistema_externo_tenant.py scripts/data/b2c188 --dry-run
     python scripts/migrar_sistema_externo_tenant.py scripts/data/b2c188
 
+    # Repuestos como lineas de mano de obra, sin crear productos:
+    python scripts/migrar_sistema_externo_tenant.py scripts/data/b2c188 --repuestos detalle
+
 Instalacion:
     python -m pip install -r scripts/requirements-importar-clientes.txt
 
 Archivos esperados en el directorio (sin distinguir mayusculas y minusculas):
-    clientes.csv, vehiculos.csv, operarios.csv, ordenesTrabajo.csv y tareasEnOT.csv
+    clientes.csv, vehiculos.csv, operarios.csv, ordenesTrabajo.csv, tareasEnOT.csv
+    y repuestosEnOT.csv
 
 Antes de ejecutar:
     1. Configurar TENANT_ID y TALLER_ID con UUIDs validos (los valores
@@ -42,13 +47,13 @@ import re
 import sys
 import unicodedata
 from collections import Counter, defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 from time import perf_counter
 from typing import Any, Callable, Iterable, NamedTuple, TypeVar
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5
 
 
 # No se reciben por argumento para evitar migrar accidentalmente otro tenant.
@@ -60,11 +65,15 @@ TALLER_ID = "50000000-0000-0000-0000-000000000001"
 ORIGEN_MIGRACION = "sistema-externo"
 
 ESTADO_VERSION = 1
-DEFAULT_BATCH_SIZE = 250
+DEFAULT_BATCH_SIZE = 500
 # UUIDs por filtro in_: mantiene las URLs de PostgREST por debajo del limite.
-LOOKUP_CHUNK_SIZE = 100
+LOOKUP_CHUNK_SIZE = 200
 # Igual al default de src/lib/ivaRate.ts; alinearlo si produccion define IVA_RATE.
 IVA_RATE = Decimal("0.21")
+# Los importes de tareas y repuestos del sistema anterior son netos y su Total
+# de la OT es (tareas + repuestos) x 1,21. En B2Car las lineas incluyen IVA, asi
+# que los importes de venta se llevan a final con esta alicuota.
+IVA_ORIGEN = Decimal("0.21")
 # Argentina no aplica horario de verano desde 2009. timezone fijo evita
 # depender de tzdata en Windows.
 ZONA_HORARIA_ORIGEN = timezone(timedelta(hours=-3))
@@ -74,6 +83,18 @@ DESCRIPCION_AJUSTE_TOTAL = "Diferencia con el total de la OT del sistema anterio
 DESCRIPCION_ARREGLO_FALLBACK = "Arreglo registrado sin detalle específico"
 DESCRIPCION_TAREA_FALLBACK = "Tarea sin descripción"
 MIGRACION_REQUERIDA = "20260930120000_b2c_188_snapshot_costo_service_role"
+# Solo los repuestos en este estado forman parte del Total de la OT.
+ESTADO_REPUESTO_IMPORTADO = "utilizado"
+# --repuestos: "productos" crea productos y stock y los asigna al arreglo;
+# "detalle" los agrega como lineas de mano de obra, sin crear productos.
+MODO_REPUESTOS_PRODUCTOS = "productos"
+MODO_REPUESTOS_DETALLE = "detalle"
+MODOS_REPUESTOS = (MODO_REPUESTOS_PRODUCTOS, MODO_REPUESTOS_DETALLE)
+# Codigo de los productos que el sistema anterior no codifico: MIG-<IdRepuesto>.
+PREFIJO_CODIGO_GENERADO = "MIG-"
+# La operacion de asignacion de cada arreglo deriva de su ID: una re-ejecucion
+# puede borrarla aunque el corte haya ocurrido antes de vincularla al arreglo.
+NAMESPACE_OPERACION_ARREGLO = UUID("5c1f0f5e-8f0b-4a51-9a3e-0b7d2f6c9a41")
 
 CENTAVOS = Decimal("0.01")
 MAX_HORAS = Decimal("9999.99")
@@ -113,11 +134,13 @@ ARCHIVOS = {
     "operario": "operarios.csv",
     "orden": "ordenesTrabajo.csv",
     "tarea": "tareasEnOT.csv",
+    "repuesto": "repuestosEnOT.csv",
 }
-ARCHIVO_POR_ENTIDAD = {**ARCHIVOS, "categoria": ARCHIVOS["tarea"]}
-ENTIDADES = ("cliente", "vehiculo", "operario", "categoria", "orden", "tarea")
+ARCHIVO_POR_ENTIDAD = {**ARCHIVOS, "categoria": ARCHIVOS["tarea"], "producto": ARCHIVOS["repuesto"]}
+ENTIDADES = ("cliente", "vehiculo", "operario", "categoria", "producto", "orden", "tarea", "repuesto")
 CONTADORES = (
     "lineas_ajuste_total",
+    "ots_centavos_de_redondeo_absorbidos",
     "ots_total_menor_que_tareas",
     "ots_vehiculo_por_id_vehiculo",
     "ots_vehiculo_preexistente",
@@ -127,6 +150,14 @@ CONTADORES = (
     "tareas_operario_no_resuelto",
     "tareas_sin_importe_venta",
     "tareas_costo_desconocido",
+    "repuestos_no_utilizados",
+    "repuestos_cantidad_fraccionaria",
+    "repuestos_sin_importe_venta",
+    "repuestos_agrupados",
+    "repuestos_costo_desde_precio",
+    "productos_codigo_generado",
+    "productos_costo_desde_precio",
+    "stocks_creados",
     "categorias_creadas",
     "vehiculos_sin_marca",
     "vehiculos_patente_no_estandar",
@@ -143,7 +174,7 @@ REPORTE_CAMPOS = (
     "referencias",
     "motivo",
 )
-SECCIONES_ESTADO = ("clientes", "vehiculos", "operarios", "categorias", "ordenes")
+SECCIONES_ESTADO = ("clientes", "vehiculos", "operarios", "categorias", "productos", "ordenes")
 
 # Encabezados ya normalizados con normalizar_encabezado().
 CLIENTES_REQUERIDAS = {
@@ -227,10 +258,26 @@ TAREAS_REQUERIDAS = {
 TAREAS_OPCIONALES = {
     "kilometraje": {"kilometraje"},
 }
+REPUESTOS_REQUERIDAS = {
+    "id_ot": {"idot", "id ot"},
+    "id_renglon": {"idrenglon", "id renglon"},
+    "id_repuesto": {"idrepuesto", "id repuesto"},
+    "descripcion": {"descripcion"},
+    "cantidad": {"cantidad"},
+    "estado": {"estado"},
+    "precio_total": {"preciototal", "precio total"},
+    "costo_real": {"costoreal", "costo real"},
+    "codigo": {"codigo"},
+}
 
 # Columnas que el script escribe o lee; se validan antes de migrar.
 COLUMNAS_VERIFICADAS = {
     "detalle_arreglo": "id,valor_hora_empleado,horas_facturadas,horas_trabajadas,precio_hora_facturada",
+    "productos": "id,codigo,nombre,precio_unitario,costo_unitario,show_in_stock",
+    "stocks": "id,taller_id,producto_id,cantidad,stock_minimo,stock_maximo",
+    "operaciones": "id,tipo,taller_id,fecha",
+    "operaciones_asignacion_arreglo": "operacion_id,arreglo_id",
+    "operaciones_lineas": "id,operacion_id,stock_id,cantidad,monto_unitario,delta_cantidad",
     "empleados": "id,valor_hora,dni,taller_id",
     "particulares": "id,tenant_id,dni_cuil",
     "empresas": "id,tenant_id,cuit",
@@ -351,6 +398,20 @@ class TareaCsv:
     kilometraje: str | None = None
 
 
+@dataclass(frozen=True)
+class RepuestoCsv:
+    line_number: int
+    id_ot: str | None
+    id_renglon: str | None
+    id_repuesto: str | None
+    descripcion: str | None
+    cantidad: str | None
+    estado: str | None
+    precio_total: str | None
+    costo_real: str | None
+    codigo: str | None
+
+
 @dataclass
 class DatosOrigen:
     clientes: list[ClienteCsv]
@@ -358,6 +419,7 @@ class DatosOrigen:
     operarios: list[OperarioCsv]
     ordenes: list[OrdenCsv]
     tareas: list[TareaCsv]
+    repuestos: list[RepuestoCsv]
 
 
 # --------------------------------------------------------------------------
@@ -469,7 +531,62 @@ class DetallePlan:
     empleado_id: str | None
     categoria_id: str | None
     created_at: datetime
+    # None en la tarea de ajuste y en los repuestos migrados como detalle.
     id_tarea: str | None
+    es_ajuste: bool = False
+
+
+@dataclass(frozen=True)
+class ValoresRepuesto:
+    cantidad: Decimal
+    # Importe de venta de la fila con IVA, redondeado a centavos.
+    importe_venta: Decimal
+    # Precio y costo por unidad de origen (litro, gramo, unidad), para el producto.
+    precio_unitario: Decimal
+    costo_unitario: Decimal | None
+    cantidad_fraccionaria: bool = False
+    sin_importe_venta: bool = False
+
+
+@dataclass
+class RepuestoPlanificado:
+    id_ot: str
+    id_renglon: str
+    fila: RepuestoCsv
+    # Codigo del sistema anterior o descripcion normalizada: identifica el producto.
+    clave_producto: str
+    codigo: str | None
+    nombre: str
+    valores: ValoresRepuesto
+    avisos: list[Aviso]
+
+    @property
+    def id_origen(self) -> str:
+        return f"{self.id_ot}-{self.id_renglon}"
+
+    @property
+    def orden(self) -> tuple[tuple[int, int, str], tuple[int, int, str]]:
+        return clave_orden_id(self.id_ot), clave_orden_id(self.id_renglon)
+
+
+@dataclass
+class ProductoPendiente:
+    producto_id: str
+    clave: str
+    codigo: str
+    nombre: str
+    precio_unitario: Decimal
+    costo_unitario: Decimal
+    referencia: RepuestoPlanificado
+
+
+@dataclass
+class LineaRepuestoPlan:
+    linea_id: str
+    stock_id: str
+    cantidad: int
+    monto_unitario: Decimal
+    created_at: datetime
 
 
 @dataclass
@@ -488,10 +605,16 @@ class ArregloPlan:
     extra_data: dict[str, Any]
     detalles: list[DetallePlan]
     tareas: list[TareaPlanificada]
+    lineas_repuesto: list[LineaRepuestoPlan] = field(default_factory=list)
+    repuestos: list[RepuestoPlanificado] = field(default_factory=list)
 
     @property
     def tiene_ajuste(self) -> bool:
-        return any(detalle.id_tarea is None for detalle in self.detalles)
+        return any(detalle.es_ajuste for detalle in self.detalles)
+
+    @property
+    def operacion_id(self) -> str:
+        return operacion_id_de_arreglo(self.arreglo_id)
 
 
 # --------------------------------------------------------------------------
@@ -708,6 +831,16 @@ def normalizar_patente(value: str | None) -> str | None:
     return normalized or None
 
 
+def normalizar_codigo_producto(value: str | None) -> str | None:
+    """Codigo de producto en mayusculas; ``0`` tambien significa ausencia."""
+    text = valor_presente(value)
+    return text.upper() if text is not None else None
+
+
+def operacion_id_de_arreglo(arreglo_id: str) -> str:
+    return str(uuid5(NAMESPACE_OPERACION_ARREGLO, arreglo_id))
+
+
 def patente_es_estandar(patente: str) -> bool:
     return any(formato.match(patente) for formato in PATENTE_FORMATOS)
 
@@ -751,6 +884,11 @@ def formatear_decimal(value: Decimal) -> str:
 
 def redondear(value: Decimal) -> Decimal:
     return value.quantize(CENTAVOS, ROUND_HALF_UP)
+
+
+def con_iva_origen(value: Decimal) -> Decimal:
+    """Importe neto del sistema anterior llevado a final (sin redondear)."""
+    return value * (1 + IVA_ORIGEN)
 
 
 def decimal_json(value: Decimal | None) -> float | None:
@@ -799,6 +937,7 @@ def leer_importe(
     avisos: list[Aviso],
     *,
     negativo_es_error: bool = False,
+    codigo_error: str = "TAREA_VALOR_FUERA_DE_RANGO",
 ) -> Decimal | None:
     """Importe, precio u horas positivos; cero y ausencia significan sin dato."""
     try:
@@ -810,7 +949,7 @@ def leer_importe(
         return None
     if number < 0:
         if negativo_es_error:
-            raise RegistroInvalido("TAREA_VALOR_FUERA_DE_RANGO", f"{campo} es negativo")
+            raise RegistroInvalido(codigo_error, f"{campo} es negativo")
         avisos.append(Aviso("VALOR_NUMERICO_INVALIDO", f"{campo} es negativo; se toma como sin dato"))
         return None
     return number
@@ -980,6 +1119,7 @@ def leer_archivos(archivos: dict[str, Path], encoding: str) -> DatosOrigen:
         operarios=leer("operario", OPERARIOS_REQUERIDAS, OPERARIOS_OPCIONALES, OperarioCsv),
         ordenes=leer("orden", ORDENES_REQUERIDAS, ORDENES_OPCIONALES, OrdenCsv),
         tareas=leer("tarea", TAREAS_REQUERIDAS, TAREAS_OPCIONALES, TareaCsv),
+        repuestos=leer("repuesto", REPUESTOS_REQUERIDAS, {}, RepuestoCsv),
     )
 
 
@@ -1103,6 +1243,7 @@ def consultar_por_valores(
     column: str,
     values: Iterable[str],
     filtros: Iterable[tuple[str, Any]],
+    orden: str = "id",
 ) -> list[dict[str, Any]]:
     filtros = list(filtros)
     rows: list[dict[str, Any]] = []
@@ -1112,7 +1253,8 @@ def consultar_por_valores(
             query = supabase.table(table).select(columns).in_(column, lote)
             for filtro_column, value in filtros:
                 query = query.eq(filtro_column, value)
-            return query.order("id")
+            # Orden estable para paginar; la tabla debe tener esa columna.
+            return query.order(orden)
 
         rows.extend(fetch_paginated(f"{phase}_lote_{index}", make_query))
     return rows
@@ -1156,7 +1298,11 @@ class EstadoMigracion:
     vehiculos: dict[str, str] = field(default_factory=dict)
     operarios: dict[str, str] = field(default_factory=dict)
     categorias: dict[str, str] = field(default_factory=dict)
+    productos: dict[str, str] = field(default_factory=dict)
     ordenes: dict[str, str] = field(default_factory=dict)
+    # Modo con el que se migraron los repuestos; no se mezclan modos en un tenant.
+    # None hasta confirmarlo contra lo migrado: un error previo no lo fija.
+    modo_repuestos: str | None = None
 
     def seccion(self, nombre: str) -> dict[str, str]:
         return getattr(self, nombre)
@@ -1167,6 +1313,7 @@ class EstadoMigracion:
             "tenant_id": self.tenant_id,
             "taller_id": self.taller_id,
             "origen": self.origen,
+            "modo_repuestos": self.modo_repuestos,
             "actualizado_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             **{nombre: dict(sorted(self.seccion(nombre).items(), key=lambda item: clave_orden_id(item[0]))) for nombre in SECCIONES_ESTADO},
         }
@@ -1182,7 +1329,9 @@ class EstadoMigracion:
                 temporary_path.unlink()
 
     @classmethod
-    def cargar(cls, path: Path, tenant_id: str, taller_id: str, origen: str) -> EstadoMigracion:
+    def cargar(
+        cls, path: Path, tenant_id: str, taller_id: str, origen: str, modo_repuestos: str = MODO_REPUESTOS_PRODUCTOS
+    ) -> EstadoMigracion:
         estado = cls(path=path, tenant_id=tenant_id, taller_id=taller_id, origen=origen)
         if not path.exists():
             return estado
@@ -1198,6 +1347,14 @@ class EstadoMigracion:
                     f"el archivo de estado {path} corresponde a otro {clave}; "
                     "usar el estado de esta migracion o indicar otro --estado-path"
                 )
+        # Un estado anterior a --repuestos no trae el modo y se acepta.
+        modo_guardado = data.get("modo_repuestos")
+        if modo_guardado is not None and modo_guardado != modo_repuestos:
+            raise ErrorFatal(
+                f"el archivo de estado {path} se genero con --repuestos {modo_guardado}; "
+                f"no se pueden mezclar modos. Usar --repuestos {modo_guardado} o limpiar lo migrado"
+            )
+        estado.modo_repuestos = modo_guardado
         for nombre in SECCIONES_ESTADO:
             seccion = data.get(nombre, {})
             if not isinstance(seccion, dict):
@@ -1222,6 +1379,7 @@ class Contexto:
     estado: EstadoMigracion
     ahora: datetime = field(default_factory=lambda: datetime.now(ZONA_HORARIA_ORIGEN))
     progress_every: int = 100
+    modo_repuestos: str = MODO_REPUESTOS_PRODUCTOS
 
     def guardar_estado(self) -> None:
         if not self.dry_run:
@@ -1242,6 +1400,7 @@ def validar_estado_en_base(ctx: Contexto) -> None:
         "vehiculos": ("vehiculos", ctx.filtro_tenant()),
         "operarios": ("empleados", ctx.filtro_tenant() + [("taller_id", ctx.taller_id)]),
         "categorias": ("categorias_arreglo", ctx.filtro_tenant()),
+        "productos": ("productos", ctx.filtro_tenant()),
         "ordenes": ("arreglos", ctx.filtro_tenant()),
     }
     for seccion, (tabla, filtros) in tablas.items():
@@ -2212,6 +2371,319 @@ def procesar_categorias(ctx: Contexto, tareas: Iterable[TareaCsv]) -> dict[str, 
 
 
 # --------------------------------------------------------------------------
+# Repuestos, productos y stock
+# --------------------------------------------------------------------------
+
+
+def es_repuesto_utilizado(fila: RepuestoCsv) -> bool:
+    return normalizar_clave(normalizar_texto(fila.estado) or "") == ESTADO_REPUESTO_IMPORTADO
+
+
+def calcular_importes_repuesto(fila: RepuestoCsv) -> tuple[ValoresRepuesto, list[Aviso]]:
+    """Venta: PrecioTotal llevado a final con IVA_ORIGEN. Costo: CostoReal por unidad, como viene."""
+    avisos: list[Aviso] = []
+    codigo_error = "REPUESTO_VALOR_FUERA_DE_RANGO"
+    try:
+        cantidad = parse_decimal(fila.cantidad)
+    except ValueError:
+        cantidad = None
+    if cantidad is None or cantidad <= 0:
+        raise RegistroInvalido("REPUESTO_CANTIDAD_INVALIDA", "Cantidad falta, no es un numero o no es mayor que cero")
+    if cantidad > MAX_ENTERO:
+        raise RegistroInvalido(codigo_error, f"Cantidad supera {MAX_ENTERO}")
+    fraccionaria = cantidad != cantidad.to_integral_value()
+
+    neto = leer_importe(fila.precio_total, "PrecioTotal", avisos, negativo_es_error=True, codigo_error=codigo_error)
+    costo = leer_importe(fila.costo_real, "CostoReal", avisos, negativo_es_error=True, codigo_error=codigo_error)
+    if neto is None:
+        avisos.append(Aviso("REPUESTO_SIN_IMPORTE_VENTA", "PrecioTotal es 0 o falta; se importa con subtotal 0"))
+        importe = precio_unitario = Decimal("0.00")
+    else:
+        importe = validar_precio(redondear(con_iva_origen(neto)), "PrecioTotal con IVA", codigo_error)
+        precio_unitario = redondear(con_iva_origen(neto) / cantidad)
+    costo_unitario = redondear(costo) if costo is not None else None
+    if costo_unitario is not None:
+        validar_precio(costo_unitario, "CostoReal", codigo_error)
+    return (
+        ValoresRepuesto(
+            cantidad=cantidad,
+            importe_venta=importe,
+            precio_unitario=precio_unitario,
+            costo_unitario=costo_unitario or None,
+            cantidad_fraccionaria=fraccionaria,
+            sin_importe_venta=neto is None,
+        ),
+        avisos,
+    )
+
+
+def planificar_repuesto(fila: RepuestoCsv, id_ot: str, id_renglon: str) -> RepuestoPlanificado:
+    """Calcula importes e identifica el producto: Codigo si viene; si no, la descripcion."""
+    valores, avisos = calcular_importes_repuesto(fila)
+    codigo = normalizar_codigo_producto(fila.codigo)
+    descripcion = normalizar_texto(fila.descripcion)
+    if codigo is not None:
+        clave = f"codigo:{codigo.casefold()}"
+        if descripcion is None:
+            avisos.append(Aviso("REPUESTO_SIN_DESCRIPCION", "Descripcion vacia; el producto se nombra con su Codigo"))
+    elif descripcion is not None:
+        clave = f"descripcion:{normalizar_clave(descripcion)}"
+    else:
+        raise RegistroInvalido("REPUESTO_SIN_PRODUCTO", "el repuesto no trae Codigo ni Descripcion para identificar el producto")
+    return RepuestoPlanificado(
+        id_ot=id_ot,
+        id_renglon=id_renglon,
+        fila=fila,
+        clave_producto=clave,
+        codigo=codigo,
+        nombre=descripcion or codigo or "",
+        valores=valores,
+        avisos=avisos,
+    )
+
+
+def repuestos_para_productos(repuestos: Iterable[RepuestoCsv], ots: set[str]) -> list[RepuestoPlanificado]:
+    """Repuestos utilizados y validos de OTs importables. Los errores se informan con su OT."""
+    planificados: list[RepuestoPlanificado] = []
+    for fila in repuestos:
+        id_ot = normalizar_id_origen(fila.id_ot)
+        id_renglon = normalizar_id_origen(fila.id_renglon)
+        if id_ot not in ots or id_renglon is None or not es_repuesto_utilizado(fila):
+            continue
+        try:
+            planificados.append(planificar_repuesto(fila, id_ot, id_renglon))
+        except RegistroInvalido:
+            continue
+    return planificados
+
+
+def clave_codigo(codigo: str | None) -> str:
+    return " ".join((codigo or "").split()).casefold()
+
+
+def elegir_referencia(grupo: list[RepuestoPlanificado]) -> RepuestoPlanificado:
+    """Aparicion mas reciente con precio o costo: precio y costo del mismo momento."""
+    con_importes = [r for r in grupo if not r.valores.sin_importe_venta or r.valores.costo_unitario is not None]
+    return (con_importes or grupo)[-1]
+
+
+def producto_payload(pending: ProductoPendiente, tenant_id: str) -> dict[str, Any]:
+    return {
+        "id": pending.producto_id,
+        "tenant_id": tenant_id,
+        "codigo": pending.codigo,
+        "nombre": pending.nombre,
+        "marca": None,
+        "modelo": None,
+        "descripcion": None,
+        "proveedor": None,
+        "precio_unitario": decimal_json(pending.precio_unitario),
+        "costo_unitario": decimal_json(pending.costo_unitario),
+        "categorias": [],
+        # Igual que un repuesto creado desde un arreglo: producto esporadico,
+        # fuera del listado principal de inventario.
+        "show_in_stock": False,
+    }
+
+
+def procesar_productos(ctx: Contexto, repuestos: list[RepuestoPlanificado]) -> dict[str, str]:
+    """Crea los productos que faltan y su stock en TALLER_ID. Devuelve clave de producto -> stocks.id."""
+    reporte = ctx.reporte
+    stats = reporte.estadisticas["producto"]
+
+    # Claves en orden de primera aparicion; cada grupo, de la mas antigua a la mas reciente.
+    por_clave: dict[str, list[RepuestoPlanificado]] = defaultdict(list)
+    for repuesto in sorted(repuestos, key=lambda r: r.orden):
+        por_clave[repuesto.clave_producto].append(repuesto)
+    stats.leidos = len(por_clave)
+
+    # Sin Codigo de origen: MIG-<IdRepuesto> de la primera aparicion, con sufijo
+    # -2, -3... si se repite. Es estable mientras el CSV solo sume OTs nuevas.
+    usados = {clave_codigo(grupo[0].codigo) for grupo in por_clave.values() if grupo[0].codigo is not None}
+    codigos: dict[str, str] = {}
+    for clave, grupo in por_clave.items():
+        if grupo[0].codigo is not None:
+            codigos[clave] = grupo[0].codigo
+            continue
+        base = f"{PREFIJO_CODIGO_GENERADO}{normalizar_id_origen(grupo[0].fila.id_repuesto) or '0'}"
+        codigo, sufijo = base, 2
+        while clave_codigo(codigo) in usados:
+            codigo, sufijo = f"{base}-{sufijo}", sufijo + 1
+        usados.add(clave_codigo(codigo))
+        codigos[clave] = codigo
+
+    existentes: dict[str, list[str]] = defaultdict(list)
+    for row in listar_tabla(ctx.supabase, "consulta_productos", "productos", "id,codigo", ctx.filtro_tenant()):
+        existentes[clave_codigo(row.get("codigo"))].append(row["id"])
+
+    contexto_reporte: dict[str, dict[str, Any]] = {}
+    producto_ids: dict[str, str] = {}
+    pendientes: list[ProductoPendiente] = []
+    for clave, grupo in por_clave.items():
+        codigo = codigos[clave]
+        referencia = elegir_referencia(grupo)
+        contexto_reporte[clave] = {
+            "linea": referencia.fila.line_number,
+            "id_origen": codigo,
+            "referencias": formatear_referencias(IdRepuesto=normalizar_id_origen(referencia.fila.id_repuesto)),
+        }
+        migrado = ctx.estado.productos.get(clave)
+        if migrado is not None:
+            producto_ids[clave] = migrado
+            stats.ya_migrados += 1
+            continue
+        coincidencias = existentes.get(clave_codigo(codigo), [])
+        if len(coincidencias) == 1:
+            producto_ids[clave] = ctx.estado.productos[clave] = coincidencias[0]
+            stats.reutilizados += 1
+            continue
+        if coincidencias:
+            reporte.rechazar(
+                "producto", "PRODUCTO_AMBIGUO",
+                "hay mas de un producto del tenant con el mismo codigo; las OTs con este repuesto no se importan",
+                **contexto_reporte[clave],
+            )
+            continue
+        costo = referencia.valores.costo_unitario
+        if costo is None:
+            # Sin CostoReal: el costo es lo que se cobro, para no inventar margen.
+            costo = referencia.valores.precio_unitario
+            reporte.contadores["productos_costo_desde_precio"] += 1
+        if grupo[0].codigo is None:
+            reporte.contadores["productos_codigo_generado"] += 1
+        pendientes.append(
+            ProductoPendiente(
+                producto_id=str(uuid4()),
+                clave=clave,
+                codigo=codigo,
+                # El nombre de la aparicion mas reciente.
+                nombre=grupo[-1].nombre,
+                precio_unitario=referencia.valores.precio_unitario,
+                costo_unitario=costo,
+                referencia=referencia,
+            )
+        )
+
+    logging.info("fase=productos: a_crear=%s%s", len(pendientes), " (dry-run)" if ctx.dry_run else "")
+
+    def registrar_exitosos(exitosos: list[ProductoPendiente]) -> None:
+        for pending in exitosos:
+            producto_ids[pending.clave] = pending.producto_id
+            stats.creados += 1
+
+    if ctx.dry_run:
+        registrar_exitosos(pendientes)
+    else:
+
+        def insertar(lote: list[ProductoPendiente]) -> None:
+            execute_traced(
+                f"insertar_productos_lote_{len(lote)}",
+                lambda: ctx.supabase.table("productos")
+                .insert([producto_payload(pending, ctx.tenant_id) for pending in lote], returning="minimal")
+                .execute(),
+            )
+
+        def al_fallar(pending: ProductoPendiente, error: Exception) -> None:
+            ctx.estado.productos.pop(pending.clave, None)
+            reporte.rechazar(
+                "producto", "PRODUCTO_INSERCION_FALLIDA", describir_error(error), **contexto_reporte[pending.clave]
+            )
+
+        for lote in chunked(pendientes, ctx.batch_size):
+            for pending in lote:
+                ctx.estado.productos[pending.clave] = pending.producto_id
+            ctx.guardar_estado()
+            registrar_exitosos(insertar_con_aislamiento(lote, insertar, al_fallar))
+            ctx.guardar_estado()
+
+    # Un producto recien creado no puede tener stock: solo se consultan los demas.
+    creados = {pending.clave for pending in pendientes}
+    return procesar_stocks(ctx, producto_ids, [c for c in producto_ids if c not in creados], contexto_reporte)
+
+
+def procesar_stocks(
+    ctx: Contexto,
+    producto_ids: dict[str, str],
+    claves_a_consultar: list[str],
+    contexto_reporte: dict[str, dict[str, Any]],
+) -> dict[str, str]:
+    """Stock de cada producto en TALLER_ID: cantidad, minimo y maximo en 0."""
+    reporte = ctx.reporte
+
+    def cargar(producto_ids_: Iterable[str]) -> dict[str, str]:
+        return {
+            row["producto_id"]: row["id"]
+            for row in consultar_por_valores(
+                ctx.supabase, "consulta_stocks", "stocks", "id,producto_id", "producto_id", producto_ids_,
+                ctx.filtro_tenant() + [("taller_id", ctx.taller_id)],
+            )
+        }
+
+    existentes = cargar(producto_ids[clave] for clave in claves_a_consultar)
+    stocks: dict[str, str] = {}
+    pendientes: list[tuple[str, str, str]] = []
+    for clave, producto_id in producto_ids.items():
+        if producto_id in existentes:
+            stocks[clave] = existentes[producto_id]
+        else:
+            pendientes.append((str(uuid4()), clave, producto_id))
+
+    def registrar_exitosos(exitosos: list[tuple[str, str, str]]) -> None:
+        for stock_id, clave, _ in exitosos:
+            stocks[clave] = stock_id
+            reporte.contadores["stocks_creados"] += 1
+
+    if ctx.dry_run:
+        registrar_exitosos(pendientes)
+        return stocks
+
+    fallidos: list[tuple[tuple[str, str, str], Exception]] = []
+
+    def insertar(lote: list[tuple[str, str, str]]) -> None:
+        execute_traced(
+            f"insertar_stocks_lote_{len(lote)}",
+            lambda: ctx.supabase.table("stocks")
+            .insert(
+                [
+                    {
+                        "id": stock_id,
+                        "tenant_id": ctx.tenant_id,
+                        "taller_id": ctx.taller_id,
+                        "producto_id": producto_id,
+                        "cantidad": 0,
+                        "stock_minimo": 0,
+                        "stock_maximo": 0,
+                    }
+                    for stock_id, _, producto_id in lote
+                ],
+                returning="minimal",
+            )
+            .execute(),
+        )
+
+    def al_fallar(pending: tuple[str, str, str], error: Exception) -> None:
+        fallidos.append((pending, error))
+
+    for lote in chunked(pendientes, ctx.batch_size):
+        registrar_exitosos(insertar_con_aislamiento(lote, insertar, al_fallar))
+
+    if fallidos:
+        # (taller_id, producto_id) es unico: una insercion concurrente se relee y se reutiliza.
+        releidos = cargar(producto_id for (_, _, producto_id), _ in fallidos)
+        for (_, clave, producto_id), error in fallidos:
+            if producto_id in releidos:
+                stocks[clave] = releidos[producto_id]
+            else:
+                reporte.rechazar(
+                    "producto", "STOCK_INSERCION_FALLIDA",
+                    f"no se pudo crear el stock del producto en el taller; las OTs con este repuesto no se importan: "
+                    f"{describir_error(error)}",
+                    **contexto_reporte[clave],
+                )
+    return stocks
+
+
+# --------------------------------------------------------------------------
 # Importes de tareas y total de la OT
 # --------------------------------------------------------------------------
 
@@ -2225,14 +2697,17 @@ def validar_horas(value: Decimal, campo: str, avisos: list[Aviso]) -> Decimal:
     return redondeado
 
 
-def validar_precio(value: Decimal, campo: str) -> Decimal:
+def validar_precio(value: Decimal, campo: str, codigo_error: str = "TAREA_VALOR_FUERA_DE_RANGO") -> Decimal:
     if value > MAX_PRECIO:
-        raise RegistroInvalido("TAREA_VALOR_FUERA_DE_RANGO", f"{campo} supera {MAX_PRECIO}")
+        raise RegistroInvalido(codigo_error, f"{campo} supera {MAX_PRECIO}")
     return value
 
 
 def calcular_importes_tarea(tarea: TareaCsv) -> tuple[ValoresTarea, list[Aviso]]:
-    """Aplica las reglas de venta y costo: la columna de total tiene prioridad."""
+    """Aplica las reglas de venta y costo: la columna de total tiene prioridad.
+
+    La venta se lleva a final con IVA_ORIGEN; el costo se conserva como viene.
+    """
     avisos: list[Aviso] = []
 
     def leer(value: str | None, campo: str) -> Decimal | None:
@@ -2250,7 +2725,7 @@ def calcular_importes_tarea(tarea: TareaCsv) -> tuple[ValoresTarea, list[Aviso]]
         horas = validar_horas(cant_venta, "CantHorasVenta", avisos) if cant_venta is not None else Decimal("1")
         if horas == 0:
             horas = Decimal("1")
-        precio = redondear(importe_venta / horas)
+        precio = redondear(con_iva_origen(importe_venta) / horas)
         if precio_venta is not None and abs(precio_venta * horas - importe_venta) > TOLERANCIA_REDONDEO:
             avisos.append(
                 Aviso(
@@ -2260,7 +2735,7 @@ def calcular_importes_tarea(tarea: TareaCsv) -> tuple[ValoresTarea, list[Aviso]]
             )
     elif precio_venta is not None and cant_venta is not None:
         horas = validar_horas(cant_venta, "CantHorasVenta", avisos)
-        precio = redondear(precio_venta)
+        precio = redondear(con_iva_origen(precio_venta))
     else:
         horas = validar_horas(cant_venta, "CantHorasVenta", avisos) if cant_venta is not None else Decimal("0")
         # Nunca NULL: el trigger aplicaria el valor hora actual del taller.
@@ -2300,10 +2775,11 @@ def calcular_importes_tarea(tarea: TareaCsv) -> tuple[ValoresTarea, list[Aviso]]
     )
 
 
-def calcular_precio_final(valores: Iterable[ValoresTarea]) -> Decimal:
-    """Replica calcular_precio_final_arreglo para lineas con cantidad 1."""
-    total = sum((valor.horas_facturadas * 1 * valor.precio_hora_facturada for valor in valores), Decimal("0"))
-    return redondear(total)
+def calcular_precio_final(valores: Iterable[ValoresTarea], lineas: Iterable[LineaRepuestoPlan] = ()) -> Decimal:
+    """Replica calcular_precio_final_arreglo: tareas con cantidad 1 mas repuestos."""
+    servicios = sum((valor.horas_facturadas * 1 * valor.precio_hora_facturada for valor in valores), Decimal("0"))
+    asignaciones = sum((linea.cantidad * linea.monto_unitario for linea in lineas), Decimal("0"))
+    return redondear(servicios + asignaciones)
 
 
 def valores_ajuste(diferencia: Decimal) -> ValoresTarea:
@@ -2316,26 +2792,63 @@ def valores_ajuste(diferencia: Decimal) -> ValoresTarea:
 
 
 def planificar_total(
-    valores: list[ValoresTarea], total: Decimal | None
+    valores: list[ValoresTarea], total: Decimal | None, lineas: list[LineaRepuestoPlan] | None = None
 ) -> tuple[Decimal | None, Decimal, Aviso | None]:
     """Devuelve (diferencia para la tarea de ajuste, precio_final esperado, aviso)."""
-    suma = calcular_precio_final(valores)
+    lineas = lineas or []
+    suma = calcular_precio_final(valores, lineas)
     if total is None:
         return None, suma, None
     total = redondear(total)
     if total - suma > TOLERANCIA_REDONDEO:
         diferencia = total - suma
-        return diferencia, calcular_precio_final([*valores, valores_ajuste(diferencia)]), None
+        return (
+            diferencia,
+            calcular_precio_final([*valores, valores_ajuste(diferencia)], lineas),
+            Aviso(
+                "OT_AJUSTE_TOTAL_GENERADO",
+                f"la suma de las tareas y repuestos ({formatear_decimal(suma)}) es menor que Total "
+                f"({formatear_decimal(total)}); se agrega una tarea de ajuste por "
+                f"{formatear_decimal(diferencia)} para saldar la diferencia",
+            ),
+        )
     if suma - total > TOLERANCIA_REDONDEO:
         return (
             None,
             suma,
             Aviso(
                 "OT_TOTAL_MENOR_QUE_TAREAS",
-                f"Total ({formatear_decimal(total)}) es menor que la suma de las tareas ({formatear_decimal(suma)}); se usa la suma",
+                f"Total ({formatear_decimal(total)}) es menor que la suma de las tareas y repuestos "
+                f"({formatear_decimal(suma)}); se usa la suma",
             ),
         )
     return None, suma, None
+
+
+def absorber_redondeo(
+    detalles: list[DetallePlan], lineas: list[LineaRepuestoPlan], total: Decimal | None
+) -> bool:
+    """Suma a una linea de cantidad u horas 1 los centavos que separan las lineas de Total.
+
+    Llevar cada linea a final y a precio unitario deja centavos de diferencia con
+    el Total de la OT. Dentro de la tolerancia, se corrigen en una linea para que
+    el arreglo cierre exacto; si no hay una linea que los admita, quedan.
+    """
+    if total is None:
+        return False
+    diferencia = redondear(total) - calcular_precio_final([d.valores for d in detalles], lineas)
+    if diferencia == 0 or abs(diferencia) > TOLERANCIA_REDONDEO:
+        return False
+    for linea in lineas:
+        if linea.cantidad == 1 and linea.monto_unitario + diferencia > 0:
+            linea.monto_unitario += diferencia
+            return True
+    for detalle in detalles:
+        valores = detalle.valores
+        if valores.horas_facturadas == 1 and valores.precio_hora_facturada + diferencia > 0:
+            detalle.valores = replace(valores, precio_hora_facturada=valores.precio_hora_facturada + diferencia)
+            return True
+    return False
 
 
 def calcular_precio_sin_iva(precio_final: Decimal) -> Decimal:
@@ -2365,11 +2878,14 @@ def construir_descripcion(descripciones_tareas: list[str], orden: OrdenCsv) -> s
     return normalizar_texto(orden.solicitud_cliente) or DESCRIPCION_ARREGLO_FALLBACK
 
 
-def construir_extra_data(orden: OrdenCsv, id_ot: str, migrado_at: datetime) -> dict[str, Any]:
+def construir_extra_data(
+    orden: OrdenCsv, id_ot: str, migrado_at: datetime, modo_repuestos: str = MODO_REPUESTOS_PRODUCTOS
+) -> dict[str, Any]:
     return {
         "migracion": {
             "origen": ORIGEN_MIGRACION,
             "id_ot": id_ot,
+            "modo_repuestos": modo_repuestos,
             "id_cliente": normalizar_id_origen(orden.id_cliente),
             "id_vehiculo": normalizar_id_origen(orden.id_vehiculo),
             "patente": normalizar_patente(orden.patente),
@@ -2452,6 +2968,103 @@ def resolver_vehiculo_ot(
     )
 
 
+def planificar_lineas_repuesto(
+    repuestos: list[RepuestoPlanificado],
+    productos: dict[str, str],
+    fecha: datetime,
+    avisos_repuestos: dict[str, list[Aviso]],
+    contadores: Counter[str],
+) -> list[LineaRepuestoPlan]:
+    """Modo productos: una linea de asignacion por producto, con cantidad entera."""
+    # B2Car admite una linea por producto en la asignacion del arreglo: las filas
+    # del mismo producto se suman.
+    grupos: dict[str, list[RepuestoPlanificado]] = {}
+    for repuesto in repuestos:
+        grupos.setdefault(repuesto.clave_producto, []).append(repuesto)
+        if repuesto.valores.cantidad_fraccionaria:
+            avisos_repuestos[repuesto.id_origen].append(
+                Aviso(
+                    "REPUESTO_CANTIDAD_FRACCIONARIA",
+                    f"Cantidad {repuesto.valores.cantidad} no es entera y B2Car solo admite enteros; la linea se "
+                    "importa con la cantidad redondeada (minimo 1) y el precio unitario se ajusta para conservar el importe",
+                )
+            )
+            contadores["repuestos_cantidad_fraccionaria"] += 1
+    lineas: list[LineaRepuestoPlan] = []
+    for posicion, (clave, grupo) in enumerate(grupos.items()):
+        stock_id = productos.get(clave)
+        if stock_id is None:
+            raise RegistroInvalido(
+                "OT_REPUESTO_SIN_PRODUCTO",
+                f"el producto del repuesto IdRenglon={grupo[0].id_renglon} no pudo crearse o es ambiguo "
+                "(ver repuestosEnOT.csv)",
+            )
+        for repetido in grupo[1:]:
+            avisos_repuestos[repetido.id_origen].append(
+                Aviso(
+                    "REPUESTO_AGRUPADO",
+                    f"el producto ya aparece en la OT (IdRenglon={grupo[0].id_renglon}) y B2Car admite una linea "
+                    "por producto; se suman cantidad e importe",
+                )
+            )
+            contadores["repuestos_agrupados"] += 1
+        cantidad_origen = sum((r.valores.cantidad for r in grupo), Decimal("0"))
+        cantidad = max(1, int(cantidad_origen.to_integral_value(ROUND_HALF_UP)))
+        if cantidad > MAX_ENTERO:
+            raise RegistroInvalido("REPUESTO_VALOR_FUERA_DE_RANGO", f"la cantidad de un repuesto supera {MAX_ENTERO}")
+        importe = sum((r.valores.importe_venta for r in grupo), Decimal("0"))
+        # Hacia abajo: cantidad x monto nunca supera lo cobrado. El resto (gas
+        # cobrado por gramo, por ejemplo) va a la tarea de ajuste si supera la tolerancia.
+        monto_unitario = (importe / cantidad).quantize(CENTAVOS, ROUND_DOWN)
+        lineas.append(
+            LineaRepuestoPlan(
+                linea_id=str(uuid4()),
+                stock_id=stock_id,
+                cantidad=cantidad,
+                monto_unitario=validar_precio(monto_unitario, "monto_unitario", "REPUESTO_VALOR_FUERA_DE_RANGO"),
+                created_at=fecha + timedelta(microseconds=posicion),
+            )
+        )
+    return lineas
+
+
+def formatear_cantidad(cantidad: Decimal) -> str:
+    """3.50 -> "3,5"; 450.00 -> "450"."""
+    return format(cantidad.normalize(), "f").replace(".", ",")
+
+
+def detalle_de_repuesto(repuesto: RepuestoPlanificado, created_at: datetime, contadores: Counter[str]) -> DetallePlan:
+    """Modo detalle: una linea de mano de obra de 1 hora por el importe de la fila.
+
+    La cantidad de origen (incluso fraccionaria) va en la descripcion y el costo
+    (CostoReal x Cantidad, o lo cobrado si no hay costo) en valor_hora_empleado.
+    """
+    valores = repuesto.valores
+    if valores.costo_unitario is not None:
+        costo = redondear(valores.costo_unitario * valores.cantidad)
+    else:
+        costo = valores.importe_venta
+        contadores["repuestos_costo_desde_precio"] += 1
+    descripcion = repuesto.nombre
+    if valores.cantidad != 1:
+        descripcion = f"{descripcion} x {formatear_cantidad(valores.cantidad)}"
+    return DetallePlan(
+        detalle_id=str(uuid4()),
+        descripcion=descripcion,
+        valores=ValoresTarea(
+            horas_facturadas=Decimal("1.00"),
+            precio_hora_facturada=valores.importe_venta,
+            horas_trabajadas=Decimal("1.00"),
+            valor_hora_empleado=validar_precio(costo, "CostoReal x Cantidad", "REPUESTO_VALOR_FUERA_DE_RANGO"),
+            sin_importe_venta=valores.sin_importe_venta,
+        ),
+        empleado_id=None,
+        categoria_id=None,
+        created_at=created_at,
+        id_tarea=None,
+    )
+
+
 def planificar_orden(
     ctx: Contexto,
     id_ot: str,
@@ -2463,11 +3076,14 @@ def planificar_orden(
     categorias: dict[str, str],
     patentes_por_id: dict[str, set[str]],
     ids_por_patente: dict[str, set[str]],
-) -> tuple[ArregloPlan, list[Aviso], dict[str, list[Aviso]]]:
-    """Construye el arreglo y sus detalles. Devuelve avisos de la OT y por tarea."""
+    repuestos: list[RepuestoPlanificado],
+    productos: dict[str, str],
+) -> tuple[ArregloPlan, list[Aviso], dict[str, list[Aviso]], dict[str, list[Aviso]]]:
+    """Construye el arreglo, sus detalles y sus repuestos. Devuelve avisos de la OT, por tarea y por repuesto."""
     reporte = ctx.reporte
     avisos: list[Aviso] = []
     avisos_tareas: dict[str, list[Aviso]] = {t.id_tarea: list(t.avisos) for t in tareas}
+    avisos_repuestos: dict[str, list[Aviso]] = {r.id_origen: list(r.avisos) for r in repuestos}
 
     id_vehiculo = normalizar_id_origen(orden.id_vehiculo)
     patente_origen = normalizar_patente(orden.patente)
@@ -2603,11 +3219,25 @@ def planificar_orden(
             )
         )
 
+    ordenados = sorted(repuestos, key=lambda r: r.orden)
+    contadores["repuestos_sin_importe_venta"] += sum(1 for r in ordenados if r.valores.sin_importe_venta)
+    lineas: list[LineaRepuestoPlan] = []
+    if ctx.modo_repuestos == MODO_REPUESTOS_DETALLE:
+        # Despues de las tareas y antes de la tarea de ajuste.
+        base = detalles[-1].created_at if detalles else fecha
+        for posicion, repuesto in enumerate(ordenados, start=1):
+            detalles.append(detalle_de_repuesto(repuesto, base + timedelta(microseconds=posicion), contadores))
+    else:
+        lineas = planificar_lineas_repuesto(ordenados, productos, fecha, avisos_repuestos, contadores)
+
     total = leer_importe(orden.total, "Total", avisos)
-    diferencia, esperado, aviso_total = planificar_total([t.valores for t in ordenadas], total)
+    if absorber_redondeo(detalles, lineas, total):
+        contadores["ots_centavos_de_redondeo_absorbidos"] += 1
+    diferencia, esperado, aviso_total = planificar_total([d.valores for d in detalles], total, lineas)
     if aviso_total is not None:
         avisos.append(aviso_total)
-        contadores["ots_total_menor_que_tareas"] += 1
+        if aviso_total.codigo == "OT_TOTAL_MENOR_QUE_TAREAS":
+            contadores["ots_total_menor_que_tareas"] += 1
     if diferencia is not None:
         validar_precio(diferencia, "la diferencia con Total")
         ultimo = detalles[-1].created_at if detalles else fecha
@@ -2620,6 +3250,7 @@ def planificar_orden(
                 categoria_id=None,
                 created_at=ultimo + timedelta(microseconds=1),
                 id_tarea=None,
+                es_ajuste=True,
             )
         )
 
@@ -2640,11 +3271,13 @@ def planificar_orden(
         descripcion=construir_descripcion(descripciones, orden),
         observaciones=construir_observaciones(orden),
         precio_final=esperado,
-        extra_data=construir_extra_data(orden, id_ot, ctx.ahora),
+        extra_data=construir_extra_data(orden, id_ot, ctx.ahora, ctx.modo_repuestos),
         detalles=detalles,
         tareas=tareas,
+        lineas_repuesto=lineas,
+        repuestos=repuestos,
     )
-    return plan, avisos, avisos_tareas
+    return plan, avisos, avisos_tareas, avisos_repuestos
 
 
 def arreglo_payload(plan: ArregloPlan, tenant_id: str, taller_id: str) -> dict[str, Any]:
@@ -2686,12 +3319,47 @@ def detalle_payload(detalle: DetallePlan, tenant_id: str, arreglo_id: str) -> di
     }
 
 
+def operacion_payload(plan: ArregloPlan, tenant_id: str, taller_id: str) -> dict[str, Any]:
+    # Igual que rpc_set_asignacion_arreglo_linea: una operacion por arreglo con su fecha.
+    return {
+        "id": plan.operacion_id,
+        "tenant_id": tenant_id,
+        "tipo": "ASIGNACION_ARREGLO",
+        "taller_id": taller_id,
+        "fecha": plan.fecha.isoformat(),
+    }
+
+
+def linea_repuesto_payload(linea: LineaRepuestoPlan, operacion_id: str) -> dict[str, Any]:
+    return {
+        "id": linea.linea_id,
+        "operacion_id": operacion_id,
+        "stock_id": linea.stock_id,
+        "cantidad": linea.cantidad,
+        "monto_unitario": decimal_json(linea.monto_unitario),
+        # Convencion de la app (la edicion calcula el movimiento de stock con este
+        # valor), aunque el stock migrado no se descuenta y queda en 0.
+        "delta_cantidad": -linea.cantidad,
+        "categoria_arreglo_id": None,
+        "empleado_id": None,
+        "created_at": linea.created_at.isoformat(),
+    }
+
+
 def rechazar_tareas(ctx: Contexto, tareas: Iterable[TareaPlanificada], id_ot: str, motivo: str) -> None:
     for tarea in tareas:
         id_tarea, fila = tarea.id_tarea, tarea.fila
         ctx.reporte.rechazar(
             "tarea", "TAREA_OT_NO_IMPORTADA", motivo,
             linea=fila.line_number, id_origen=id_tarea, referencias=formatear_referencias(IdOT=id_ot),
+        )
+
+
+def rechazar_repuestos(ctx: Contexto, repuestos: Iterable[RepuestoPlanificado], id_ot: str, motivo: str) -> None:
+    for repuesto in repuestos:
+        ctx.reporte.rechazar(
+            "repuesto", "REPUESTO_OT_NO_IMPORTADA", motivo,
+            linea=repuesto.fila.line_number, id_origen=repuesto.id_origen, referencias=formatear_referencias(IdOT=id_ot),
         )
 
 
@@ -2707,16 +3375,50 @@ def buscar_arreglos_migrados(ctx: Contexto, ids_ot: Iterable[str]) -> dict[str, 
         ctx.filtro_tenant() + [("extra_data->migracion->>origen", ORIGEN_MIGRACION)],
     )
     encontrados: dict[str, list[str]] = defaultdict(list)
+    otros_modos: set[str] = set()
     for fila in filas:
         extra_data = fila.get("extra_data")
         migracion = extra_data.get("migracion") if isinstance(extra_data, dict) else None
         if isinstance(migracion, dict) and migracion.get("origen") == ORIGEN_MIGRACION and migracion.get("id_ot"):
             encontrados[str(migracion["id_ot"])].append(fila["id"])
+            # Los arreglos de una version anterior no traen el modo.
+            modo = migracion.get("modo_repuestos")
+            if modo is not None and modo != ctx.modo_repuestos:
+                otros_modos.add(str(modo))
+    if otros_modos:
+        raise ErrorFatal(
+            f"hay arreglos migrados con --repuestos {', '.join(sorted(otros_modos))}; no se pueden mezclar modos. "
+            "Usar el mismo modo o limpiar lo migrado"
+        )
     return encontrados
 
 
+def borrar_operaciones(ctx: Contexto, operacion_ids: list[str], id_ot: str | None = None) -> None:
+    """Borra operaciones de asignacion de la migracion (vinculo y lineas caen en cascada)."""
+    try:
+        execute_traced(
+            f"revertir_operaciones_{len(operacion_ids)}",
+            lambda: ctx.supabase.table("operaciones")
+            .delete()
+            .in_("id", operacion_ids)
+            .eq("tenant_id", ctx.tenant_id)
+            .execute(),
+        )
+    except Exception as error:
+        ots = f" de la OT {id_ot}" if id_ot else ""
+        raise ErrorFatal(
+            f"no se pudieron borrar las operaciones de repuestos{ots} ({', '.join(operacion_ids)}); "
+            f"eliminarlas manualmente: {describir_error(error)}"
+        ) from error
+
+
 def compensar_arreglo(ctx: Contexto, arreglo_id: str, id_ot: str) -> None:
-    """Borra un arreglo creado por la migracion (sus detalles caen en cascada)."""
+    """Borra un arreglo creado por la migracion y su operacion de repuestos.
+
+    Los detalles caen en cascada con el arreglo, pero la operacion no: se borra
+    primero por su ID derivado, aunque el corte haya ocurrido antes de vincularla.
+    """
+    borrar_operaciones(ctx, [operacion_id_de_arreglo(arreglo_id)], id_ot)
     try:
         execute_traced(
             f"revertir_arreglo_ot_{id_ot}",
@@ -2734,17 +3436,19 @@ def compensar_arreglo(ctx: Contexto, arreglo_id: str, id_ot: str) -> None:
     ctx.estado.ordenes.pop(id_ot, None)
 
 
-def empaquetar_por_ot(planes: list[ArregloPlan], batch_size: int) -> list[list[ArregloPlan]]:
-    """Agrupa OTs completas por request; los detalles de una OT nunca se dividen."""
+def empaquetar_por_ot(
+    planes: list[ArregloPlan], batch_size: int, filas_de: Callable[[ArregloPlan], int] = lambda plan: len(plan.detalles)
+) -> list[list[ArregloPlan]]:
+    """Agrupa OTs completas por request; las lineas de una OT nunca se dividen."""
     paquetes: list[list[ArregloPlan]] = []
     actual: list[ArregloPlan] = []
     filas = 0
     for plan in planes:
-        if actual and filas + len(plan.detalles) > batch_size:
+        if actual and filas + filas_de(plan) > batch_size:
             paquetes.append(actual)
             actual, filas = [], 0
         actual.append(plan)
-        filas += len(plan.detalles)
+        filas += filas_de(plan)
     if actual:
         paquetes.append(actual)
     return paquetes
@@ -2770,9 +3474,60 @@ def insertar_detalles_por_ot(ctx: Contexto, planes: list[ArregloPlan]) -> list[A
             linea=plan.orden.line_number, id_origen=plan.id_ot, referencias=plan.referencias,
         )
         rechazar_tareas(ctx, plan.tareas, plan.id_ot, "fallo la insercion de las tareas de su OT")
+        rechazar_repuestos(ctx, plan.repuestos, plan.id_ot, "fallo la insercion de las tareas de su OT")
 
     exitosos: list[ArregloPlan] = []
     for paquete in empaquetar_por_ot(planes, ctx.batch_size):
+        exitosos.extend(insertar_con_aislamiento(paquete, insertar, al_fallar))
+    return exitosos
+
+
+def insertar_repuestos_por_ot(ctx: Contexto, planes: list[ArregloPlan]) -> list[ArregloPlan]:
+    """Operacion, vinculo y lineas de cada arreglo. Un paquete que falla se revierte antes de dividirse."""
+
+    def insertar(grupo: list[ArregloPlan]) -> None:
+        try:
+            execute_traced(
+                f"insertar_operaciones_lote_{len(grupo)}_ots",
+                lambda: ctx.supabase.table("operaciones")
+                .insert([operacion_payload(plan, ctx.tenant_id, ctx.taller_id) for plan in grupo], returning="minimal")
+                .execute(),
+            )
+            # El vinculo va antes que las lineas: sus triggers buscan el arreglo por el vinculo.
+            execute_traced(
+                f"insertar_asignaciones_lote_{len(grupo)}_ots",
+                lambda: ctx.supabase.table("operaciones_asignacion_arreglo")
+                .insert(
+                    [{"operacion_id": plan.operacion_id, "arreglo_id": plan.arreglo_id} for plan in grupo],
+                    returning="minimal",
+                )
+                .execute(),
+            )
+            execute_traced(
+                f"insertar_lineas_repuesto_lote_{len(grupo)}_ots",
+                lambda: ctx.supabase.table("operaciones_lineas")
+                .insert(
+                    [linea_repuesto_payload(linea, plan.operacion_id) for plan in grupo for linea in plan.lineas_repuesto],
+                    returning="minimal",
+                )
+                .execute(),
+            )
+        except Exception:
+            borrar_operaciones(ctx, [plan.operacion_id for plan in grupo])
+            raise
+
+    def al_fallar(plan: ArregloPlan, error: Exception) -> None:
+        compensar_arreglo(ctx, plan.arreglo_id, plan.id_ot)
+        ctx.reporte.rechazar(
+            "orden", "OT_REPUESTOS_FALLARON",
+            f"no se pudieron insertar los repuestos; se borro el arreglo: {describir_error(error)}",
+            linea=plan.orden.line_number, id_origen=plan.id_ot, referencias=plan.referencias,
+        )
+        rechazar_tareas(ctx, plan.tareas, plan.id_ot, "fallo la insercion de los repuestos de su OT")
+        rechazar_repuestos(ctx, plan.repuestos, plan.id_ot, "fallo la insercion de los repuestos de su OT")
+
+    exitosos: list[ArregloPlan] = []
+    for paquete in empaquetar_por_ot(planes, ctx.batch_size, lambda plan: len(plan.lineas_repuesto)):
         exitosos.extend(insertar_con_aislamiento(paquete, insertar, al_fallar))
     return exitosos
 
@@ -2818,6 +3573,11 @@ def verificar_lote(ctx: Contexto, planes: list[ArregloPlan]) -> None:
             )
             plan.precio_final = precio_final
 
+    verificar_detalles(ctx, planes)
+    verificar_lineas_repuesto(ctx, planes)
+
+
+def verificar_detalles(ctx: Contexto, planes: list[ArregloPlan]) -> None:
     enviados = {d.detalle_id: (plan, d) for plan in planes for d in plan.detalles}
     if not enviados:
         return
@@ -2848,15 +3608,45 @@ def verificar_lote(ctx: Contexto, planes: list[ArregloPlan]) -> None:
                 )
 
 
+def verificar_lineas_repuesto(ctx: Contexto, planes: list[ArregloPlan]) -> None:
+    enviadas = {linea.linea_id: (plan, linea) for plan in planes for linea in plan.lineas_repuesto}
+    if not enviadas:
+        return
+    filas = consultar_por_valores(
+        ctx.supabase,
+        "verificacion_lineas_repuesto",
+        "operaciones_lineas",
+        "id,stock_id,cantidad,monto_unitario",
+        "operacion_id",
+        [plan.operacion_id for plan in planes if plan.lineas_repuesto],
+        [],
+    )
+    encontradas = {fila["id"]: fila for fila in filas}
+    for linea_id, (plan, linea) in enviadas.items():
+        fila = encontradas.get(linea_id)
+        if fila is None:
+            raise ErrorFatal(f"la linea de repuesto {linea_id} de la OT {plan.id_ot} no se encontro despues de insertarla")
+        if (
+            fila.get("stock_id") != linea.stock_id
+            or fila.get("cantidad") != linea.cantidad
+            or decimal_desde_base(fila.get("monto_unitario")) != linea.monto_unitario
+        ):
+            raise ErrorFatal(
+                f"un trigger no contemplado modifico la linea de repuesto {linea_id} (OT {plan.id_ot})"
+            )
+
+
 def insertar_arreglos(ctx: Contexto, planes: list[ArregloPlan]) -> None:
     reporte = ctx.reporte
     stats_orden = reporte.estadisticas["orden"]
     stats_tarea = reporte.estadisticas["tarea"]
+    stats_repuesto = reporte.estadisticas["repuesto"]
 
     def registrar_confirmados(confirmados: list[ArregloPlan]) -> None:
         for plan in confirmados:
             stats_orden.creados += 1
             stats_tarea.creados += len(plan.tareas)
+            stats_repuesto.creados += len(plan.repuestos)
             if plan.tiene_ajuste:
                 reporte.contadores["lineas_ajuste_total"] += 1
             reporte.importe_total_migrado += plan.precio_final
@@ -2880,6 +3670,7 @@ def insertar_arreglos(ctx: Contexto, planes: list[ArregloPlan]) -> None:
             linea=plan.orden.line_number, id_origen=plan.id_ot, referencias=plan.referencias,
         )
         rechazar_tareas(ctx, plan.tareas, plan.id_ot, "fallo la insercion de su OT")
+        rechazar_repuestos(ctx, plan.repuestos, plan.id_ot, "fallo la insercion de su OT")
 
     procesadas = 0
     for lote in chunked(planes, ctx.batch_size):
@@ -2888,9 +3679,12 @@ def insertar_arreglos(ctx: Contexto, planes: list[ArregloPlan]) -> None:
         ctx.guardar_estado()
         creados = insertar_con_aislamiento(lote, insertar, al_fallar)
         con_detalles = [plan for plan in creados if plan.detalles]
-        exitosos = {plan.arreglo_id for plan in insertar_detalles_por_ot(ctx, con_detalles)}
+        detalles_ok = {plan.arreglo_id for plan in insertar_detalles_por_ot(ctx, con_detalles)}
+        sin_fallas = [plan for plan in creados if not plan.detalles or plan.arreglo_id in detalles_ok]
+        con_repuestos = [plan for plan in sin_fallas if plan.lineas_repuesto]
+        repuestos_ok = {plan.arreglo_id for plan in insertar_repuestos_por_ot(ctx, con_repuestos)}
         ctx.guardar_estado()
-        confirmados = [plan for plan in creados if not plan.detalles or plan.arreglo_id in exitosos]
+        confirmados = [plan for plan in sin_fallas if not plan.lineas_repuesto or plan.arreglo_id in repuestos_ok]
         try:
             verificar_lote(ctx, confirmados)
         finally:
@@ -2908,12 +3702,18 @@ def procesar_ordenes(
     vehiculos: MapaVehiculos,
     operarios: MapaOperarios,
     categorias: dict[str, str],
+    repuestos: list[RepuestoCsv] | None = None,
+    productos: dict[str, str] | None = None,
 ) -> list[ArregloPlan]:
+    repuestos = repuestos or []
+    productos = productos or {}
     reporte = ctx.reporte
     stats_orden = reporte.estadisticas["orden"]
     stats_tarea = reporte.estadisticas["tarea"]
+    stats_repuesto = reporte.estadisticas["repuesto"]
     stats_orden.leidos = len(ordenes)
     stats_tarea.leidos = len(tareas)
+    stats_repuesto.leidos = len(repuestos)
 
     ordenes_por_id: dict[str, list[OrdenCsv]] = defaultdict(list)
     for orden in ordenes:
@@ -2975,6 +3775,53 @@ def procesar_ordenes(
                 continue
             planificadas[id_ot].append(TareaPlanificada(id_tarea, tarea, valores, avisos))
 
+    # Repuestos: misma regla que las tareas; ademas, solo se importan los
+    # utilizados, que son los que suman al Total de la OT.
+    repuestos_de: dict[str, list[RepuestoCsv]] = defaultdict(list)
+    repuestos_planificados: dict[str, list[RepuestoPlanificado]] = defaultdict(list)
+    errores_repuestos_por_ot: dict[str, list[tuple[str | None, RepuestoCsv, RegistroInvalido]]] = defaultdict(list)
+    utilizados = [fila for fila in repuestos if es_repuesto_utilizado(fila)]
+    renglones = Counter(
+        (normalizar_id_origen(fila.id_ot), normalizar_id_origen(fila.id_renglon)) for fila in utilizados
+    )
+    for fila in repuestos:
+        id_ot = normalizar_id_origen(fila.id_ot)
+        id_renglon = normalizar_id_origen(fila.id_renglon)
+        id_origen = f"{id_ot}-{id_renglon}" if id_ot is not None and id_renglon is not None else None
+        refs = formatear_referencias(IdOT=id_ot, IdRepuesto=normalizar_id_origen(fila.id_repuesto))
+        if not es_repuesto_utilizado(fila):
+            reporte.warning(
+                "repuesto", "REPUESTO_NO_UTILIZADO",
+                f"Estado {normalizar_texto(fila.estado) or 'vacio'}; solo se importan los repuestos utilizados",
+                linea=fila.line_number, id_origen=id_origen, referencias=refs,
+            )
+            reporte.contadores["repuestos_no_utilizados"] += 1
+            continue
+        if id_ot is None or (id_ot not in validas and id_ot not in duplicadas):
+            reporte.rechazar(
+                "repuesto", "REPUESTO_OT_INEXISTENTE", "la OT del repuesto no existe en ordenesTrabajo.csv",
+                linea=fila.line_number, id_origen=id_origen, referencias=refs,
+            )
+            continue
+        if id_ot in duplicadas:
+            reporte.rechazar(
+                "repuesto", "REPUESTO_OT_NO_IMPORTADA", "la OT tiene IdOT duplicado y no se importa",
+                linea=fila.line_number, id_origen=id_origen, referencias=refs,
+            )
+            continue
+        repuestos_de[id_ot].append(fila)
+        if id_renglon is None:
+            errores_repuestos_por_ot[id_ot].append((None, fila, RegistroInvalido("REPUESTO_SIN_ID", "IdRenglon vacio o 0")))
+        elif renglones[(id_ot, id_renglon)] > 1:
+            errores_repuestos_por_ot[id_ot].append(
+                (id_origen, fila, RegistroInvalido("REPUESTO_ID_DUPLICADO", "IdOT e IdRenglon se repiten en repuestosEnOT.csv"))
+            )
+        else:
+            try:
+                repuestos_planificados[id_ot].append(planificar_repuesto(fila, id_ot, id_renglon))
+            except RegistroInvalido as error:
+                errores_repuestos_por_ot[id_ot].append((id_origen, fila, error))
+
     # OTs ya migradas: estado y, si falta, marcador en extra_data.
     migradas: dict[str, str] = {id_ot: ctx.estado.ordenes[id_ot] for id_ot in validas if id_ot in ctx.estado.ordenes}
     sin_estado = [id_ot for id_ot in validas if id_ot not in migradas]
@@ -2997,6 +3844,20 @@ def procesar_ordenes(
                 migradas.values(), ctx.filtro_tenant(),
             )
         }
+        con_repuestos = {
+            fila["arreglo_id"]
+            for fila in consultar_por_valores(
+                ctx.supabase, "consulta_repuestos_migrados", "operaciones_asignacion_arreglo", "operacion_id,arreglo_id",
+                "arreglo_id", migradas.values(), [], orden="operacion_id",
+            )
+        }
+        if ctx.modo_repuestos == MODO_REPUESTOS_DETALLE and con_repuestos:
+            # Arreglos migrados en modo productos, tambien por una version
+            # anterior del script que no guardaba el modo.
+            raise ErrorFatal(
+                f"hay {len(con_repuestos)} arreglos migrados con repuestos asignados como productos; no se pueden "
+                "mezclar modos. Usar --repuestos productos o limpiar lo migrado"
+            )
         for id_ot, arreglo_id in list(migradas.items()):
             orden = validas[id_ot]
             total = None
@@ -3004,21 +3865,36 @@ def procesar_ordenes(
                 total = parse_decimal(orden.total)
             except ValueError:
                 pass
-            esperaba_detalles = bool(tareas_de.get(id_ot)) or (total is not None and total > TOLERANCIA_REDONDEO)
-            if esperaba_detalles and arreglo_id not in con_detalles:
-                # Corte entre la insercion del arreglo y la de sus tareas.
+            tiene_detalles = arreglo_id in con_detalles
+            tiene_repuestos = arreglo_id in con_repuestos
+            if ctx.modo_repuestos == MODO_REPUESTOS_DETALLE:
+                # Los repuestos tambien son detalles.
+                faltan_lineas = bool(tareas_de.get(id_ot) or repuestos_de.get(id_ot)) and not tiene_detalles
+            else:
+                faltan_lineas = (bool(tareas_de.get(id_ot)) and not tiene_detalles) or (
+                    bool(repuestos_de.get(id_ot)) and not tiene_repuestos
+                )
+            incompleto = faltan_lineas or (
+                total is not None and total > TOLERANCIA_REDONDEO and not tiene_detalles and not tiene_repuestos
+            )
+            if incompleto:
+                # Corte entre la insercion del arreglo y la de sus tareas o repuestos.
                 if not ctx.dry_run:
                     compensar_arreglo(ctx, arreglo_id, id_ot)
                 ctx.estado.ordenes.pop(id_ot, None)
                 del migradas[id_ot]
                 reporte.warning(
                     "orden", "ESTADO_ARREGLO_SIN_DETALLES",
-                    "el arreglo migrado no tenia tareas (corte a mitad de insercion); se vuelve a crear",
+                    "al arreglo migrado le faltan sus tareas o repuestos (corte a mitad de insercion); se vuelve a crear",
                     linea=orden.line_number, id_origen=id_ot,
                 )
             else:
                 ctx.estado.ordenes[id_ot] = arreglo_id
         ctx.guardar_estado()
+
+    # Lo migrado es compatible con el modo: desde aca el estado lo fija.
+    ctx.estado.modo_repuestos = ctx.modo_repuestos
+    ctx.guardar_estado()
 
     patentes_por_id, ids_por_patente = alternativas_por_id_vehiculo(validas.values())
     planes: list[ArregloPlan] = []
@@ -3027,31 +3903,46 @@ def procesar_ordenes(
         if id_ot in migradas:
             stats_orden.ya_migrados += 1
             stats_tarea.ya_migrados += len(tareas_de.get(id_ot, []))
+            stats_repuesto.ya_migrados += len(repuestos_de.get(id_ot, []))
             continue
 
         errores = errores_por_ot.get(id_ot, [])
-        if errores:
+        errores_repuestos = errores_repuestos_por_ot.get(id_ot, [])
+        if errores or errores_repuestos:
             for id_tarea, tarea, error in errores:
                 reporte.rechazar(
                     "tarea", error.codigo, error.motivo,
                     linea=tarea.line_number, id_origen=id_tarea, referencias=formatear_referencias(IdOT=id_ot),
                 )
-            id_tarea_error, tarea_error, error = errores[0]
+            for id_repuesto_ot, fila, error in errores_repuestos:
+                reporte.rechazar(
+                    "repuesto", error.codigo, error.motivo,
+                    linea=fila.line_number, id_origen=id_repuesto_ot, referencias=formatear_referencias(IdOT=id_ot),
+                )
+            if errores:
+                id_tarea_error, tarea_error, error = errores[0]
+                codigo, entidad = "OT_TAREA_INVALIDA", "una tarea"
+                refs = formatear_referencias(IdOT=id_ot, IdTareaEnOT=id_tarea_error, linea_tarea=tarea_error.line_number)
+            else:
+                id_repuesto_error, repuesto_error, error = errores_repuestos[0]
+                codigo, entidad = "OT_REPUESTO_INVALIDO", "un repuesto"
+                refs = formatear_referencias(
+                    IdOT=id_ot, IdRenglon=normalizar_id_origen(repuesto_error.id_renglon), linea_repuesto=repuesto_error.line_number
+                )
             reporte.rechazar(
-                "orden", "OT_TAREA_INVALIDA",
-                f"una tarea de la OT tiene un error ({error.codigo}); la OT no se importa",
-                linea=orden.line_number, id_origen=id_ot,
-                referencias=formatear_referencias(
-                    IdOT=id_ot, IdTareaEnOT=id_tarea_error, linea_tarea=tarea_error.line_number
-                ),
+                "orden", codigo, f"{entidad} de la OT tiene un error ({error.codigo}); la OT no se importa",
+                linea=orden.line_number, id_origen=id_ot, referencias=refs,
             )
-            rechazar_tareas(ctx, planificadas.get(id_ot, []), id_ot, "otra tarea de su OT tiene un error")
+            rechazar_tareas(ctx, planificadas.get(id_ot, []), id_ot, "otra linea de su OT tiene un error")
+            rechazar_repuestos(ctx, repuestos_planificados.get(id_ot, []), id_ot, "otra linea de su OT tiene un error")
             continue
 
         tareas_ot = planificadas.get(id_ot, [])
+        repuestos_ot = repuestos_planificados.get(id_ot, [])
         try:
-            plan, avisos, avisos_tareas = planificar_orden(
+            plan, avisos, avisos_tareas, avisos_repuestos = planificar_orden(
                 ctx, id_ot, orden, tareas_ot, clientes, vehiculos, operarios, categorias, patentes_por_id, ids_por_patente,
+                repuestos_ot, productos,
             )
         except RegistroInvalido as error:
             refs = formatear_referencias(
@@ -3062,6 +3953,7 @@ def procesar_ordenes(
             )
             reporte.rechazar("orden", error.codigo, error.motivo, linea=orden.line_number, id_origen=id_ot, referencias=refs)
             rechazar_tareas(ctx, tareas_ot, id_ot, f"su OT no se importa ({error.codigo})")
+            rechazar_repuestos(ctx, repuestos_ot, id_ot, f"su OT no se importa ({error.codigo})")
             continue
 
         reporte.avisos("orden", avisos, linea=orden.line_number, id_origen=id_ot, referencias=plan.referencias)
@@ -3069,6 +3961,11 @@ def procesar_ordenes(
             reporte.avisos(
                 "tarea", avisos_tareas[tarea.id_tarea],
                 linea=tarea.fila.line_number, id_origen=tarea.id_tarea, referencias=formatear_referencias(IdOT=id_ot),
+            )
+        for repuesto in repuestos_ot:
+            reporte.avisos(
+                "repuesto", avisos_repuestos[repuesto.id_origen],
+                linea=repuesto.fila.line_number, id_origen=repuesto.id_origen, referencias=formatear_referencias(IdOT=id_ot),
             )
         planes.append(plan)
 
@@ -3094,19 +3991,34 @@ def ejecutar_migracion(ctx: Contexto, datos: DatosOrigen) -> None:
     operarios = procesar_operarios(ctx, datos.operarios)
     ots = ids_ot_validos(datos.ordenes)
     categorias = procesar_categorias(ctx, [t for t in datos.tareas if normalizar_id_origen(t.id_ot) in ots])
-    procesar_ordenes(ctx, datos.ordenes, datos.tareas, clientes, vehiculos, operarios, categorias)
+    productos: dict[str, str] = {}
+    if ctx.modo_repuestos == MODO_REPUESTOS_PRODUCTOS:
+        productos = procesar_productos(ctx, repuestos_para_productos(datos.repuestos, ots))
+    procesar_ordenes(
+        ctx, datos.ordenes, datos.tareas, clientes, vehiculos, operarios, categorias, datos.repuestos, productos
+    )
     ctx.guardar_estado()
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Migra clientes, vehiculos, operarios, OTs y tareas de un sistema externo a un tenant de B2Car."
+        description="Migra clientes, vehiculos, operarios, OTs, tareas y repuestos de un sistema externo a un tenant de B2Car."
     )
-    parser.add_argument("directorio_csv", type=Path, help="Directorio con los cinco CSV del sistema externo")
+    parser.add_argument("directorio_csv", type=Path, help="Directorio con los seis CSV del sistema externo")
     parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Valida, resuelve existentes y calcula importes sin escribir en la base ni en el estado",
+    )
+    parser.add_argument(
+        "--repuestos",
+        dest="modo_repuestos",
+        choices=MODOS_REPUESTOS,
+        default=MODO_REPUESTOS_PRODUCTOS,
+        help=(
+            "Como migrar repuestosEnOT.csv: 'productos' crea los productos con su stock en 0 y los asigna al arreglo; "
+            "'detalle' los agrega como lineas de mano de obra del arreglo, sin crear productos (por defecto: productos)"
+        ),
     )
     parser.add_argument(
         "--estado-path",
@@ -3164,7 +4076,7 @@ def main(argv: list[str] | None = None) -> int:
         "reporte_migracion_dry_run.csv" if args.dry_run else "reporte_migracion.csv"
     )
     reporte = Reporte()
-    logging.info("fase=inicio%s", " (dry-run)" if args.dry_run else "")
+    logging.info("fase=inicio repuestos=%s%s", args.modo_repuestos, " (dry-run)" if args.dry_run else "")
 
     fatal = False
     try:
@@ -3175,6 +4087,7 @@ def main(argv: list[str] | None = None) -> int:
             tenant_id,
             taller_id,
             ORIGEN_MIGRACION,
+            args.modo_repuestos,
         )
         supabase = create_supabase_client(args.request_timeout)
         validar_destino(supabase, tenant_id, taller_id)
@@ -3188,6 +4101,7 @@ def main(argv: list[str] | None = None) -> int:
             reporte=reporte,
             estado=estado,
             progress_every=args.progress_every,
+            modo_repuestos=args.modo_repuestos,
         )
         try:
             ejecutar_migracion(ctx, datos)

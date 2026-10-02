@@ -58,6 +58,8 @@ describe("/api/arreglos/[id]/cobro", () => {
   });
 
   it("registra el cobro con cuenta, fecha e idempotencia y rehidrata el arreglo", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-02T02:19:56.640Z"));
     const rpc = vi.fn().mockResolvedValue({ data: "evento-id", error: null });
     vi.mocked(createClient).mockResolvedValue(mockSupabase(rpc));
 
@@ -79,7 +81,7 @@ describe("/api/arreglos/[id]/cobro", () => {
       p_arreglo_id: ARREGLO_ID,
       p_cuenta_id: CUENTA_ID,
       p_monto: null,
-      p_fecha_cobro: expect.stringMatching(/^2026-07-31T/),
+      p_fecha_cobro: "2026-08-01T02:19:56.640Z",
       p_descripcion: null,
       p_idempotency_key: IDEMPOTENCY_KEY,
       p_pagos: null,
@@ -89,6 +91,8 @@ describe("/api/arreglos/[id]/cobro", () => {
   });
 
   it("registra cobro parcial con monto y descripcion", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-02T02:19:56.640Z"));
     const rpc = vi.fn().mockResolvedValue({ data: { operacion_id: "op-1" }, error: null });
     vi.mocked(createClient).mockResolvedValue(mockSupabase(rpc));
 
@@ -112,7 +116,7 @@ describe("/api/arreglos/[id]/cobro", () => {
       p_arreglo_id: ARREGLO_ID,
       p_cuenta_id: CUENTA_ID,
       p_monto: 10000,
-      p_fecha_cobro: expect.stringMatching(/^2026-07-31T/),
+      p_fecha_cobro: "2026-08-01T02:19:56.640Z",
       p_descripcion: "Seña inicial",
       p_idempotency_key: IDEMPOTENCY_KEY,
       p_pagos: null,
@@ -121,6 +125,8 @@ describe("/api/arreglos/[id]/cobro", () => {
 
   it("registra cobro dividido en múltiples cuentas", async () => {
     const CUENTA_2_ID = "55555555-5555-4555-8555-555555555555";
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-02T02:19:56.640Z"));
     const rpc = vi.fn().mockResolvedValue({ data: { operaciones_ids: ["op-1", "op-2"] }, error: null });
     vi.mocked(createClient).mockResolvedValue(mockSupabase(rpc));
 
@@ -145,7 +151,7 @@ describe("/api/arreglos/[id]/cobro", () => {
       p_arreglo_id: ARREGLO_ID,
       p_cuenta_id: null,
       p_monto: null,
-      p_fecha_cobro: expect.stringMatching(/^2026-07-31T/),
+      p_fecha_cobro: "2026-08-01T02:19:56.640Z",
       p_descripcion: null,
       p_idempotency_key: IDEMPOTENCY_KEY,
       p_pagos: [
