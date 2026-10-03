@@ -26,7 +26,7 @@ describe("buildApiContext", () => {
 
   it.each([
     null, {}, { sub: "" }, { sub: 2 }, { sub: "invalid" }, { tenant_id: " " }, { tenant_id: null }, { tenant_id: "invalid" },
-    { user_role: "owner" }, { user_role: undefined }, { plan_sub: "FREE" }, { plan_sub: undefined },
+    { user_role: "" }, { user_role: 123 }, { user_role: undefined }, { plan_sub: "FREE" }, { plan_sub: undefined },
   ])("rejects missing or invalid claims before fetching permissions: %j", async (overrides) => {
     const valid = mockApiSession().claims;
     mockApiSession({ claims: overrides === null || Object.keys(overrides).length === 0 ? overrides : { ...valid, ...overrides } });
@@ -38,6 +38,24 @@ describe("buildApiContext", () => {
     mockApiSession({ claimsError: new Error("Expired") });
     await expect(buildApiContext()).rejects.toMatchObject({ status: 401 });
     expect(fetchEffectivePermissions).not.toHaveBeenCalled();
+  });
+
+  it("loads a custom role's permissions without treating it as admin", async () => {
+    const { supabase } = mockApiSession({
+      role: "operativo_arturo", permissions: [Permission.ArreglosView, Permission.ProductosEdit],
+    });
+    const ctx = await buildApiContext();
+    expect(ctx.actor.role).toBe("operativo_arturo");
+    expect(fetchEffectivePermissions).toHaveBeenCalledWith(supabase, "operativo_arturo", "PRO");
+    expect(ctx.can(Permission.ProductosEdit)).toBe(true);
+    expect(ctx.can(Permission.DashboardView)).toBe(false);
+    expect(ctx.can(Permission.FacturasView)).toBe(false);
+  });
+
+  it("does not grant permissions to a role without grants", async () => {
+    mockApiSession({ role: "sin_permisos", permissions: [] });
+    const ctx = await buildApiContext();
+    expect(Object.values(Permission).some(ctx.can)).toBe(false);
   });
 
   it("propagates permission loading errors before a controller can mutate data", async () => {

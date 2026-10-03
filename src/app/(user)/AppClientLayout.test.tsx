@@ -73,4 +73,26 @@ describe("AppClientLayout visual route guard", () => {
     expect(screen.queryByTestId("protected-content")).toBeNull();
     expect(mockReplace).toHaveBeenCalledWith("/dashboard");
   });
+
+  it("redirige a productos si es el único módulo permitido", () => {
+    mockPathname = "/arreglos";
+    render(
+      <AppClientLayout initialPermissions={[Permission.ProductosView]}>
+        <div data-testid="protected-content">Contenido Arreglos</div>
+      </AppClientLayout>,
+    );
+    expect(screen.queryByTestId("protected-content")).toBeNull();
+    expect(mockReplace).toHaveBeenCalledWith("/productos");
+  });
+
+  it("bloquea el contenido y evita ciclos de redirección si no tiene permisos", () => {
+    mockPathname = "/arreglos";
+    render(
+      <AppClientLayout initialPermissions={[]}>
+        <div data-testid="protected-content">Contenido Arreglos</div>
+      </AppClientLayout>,
+    );
+    expect(screen.queryByTestId("protected-content")).toBeNull();
+    expect(mockReplace).toHaveBeenCalledWith("/login");
+  });
 });

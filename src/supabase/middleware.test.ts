@@ -50,26 +50,27 @@ describe("middleware session and landing redirects", () => {
     expect(response.status).toBe(200);
   });
 
-  it("redirects operativo from root / to /arreglos", async () => {
+  it("deja que la página raíz resuelva los permisos de un rol personalizado", async () => {
     mocks.getClaims.mockResolvedValue({
-      data: { claims: { plan_sub: "PRO", user_role: "operativo" } },
+      data: { claims: { plan_sub: "PRO", user_role: "operativo_arturo" } },
       error: null,
     });
 
     const response = await updateSession(new NextRequest("http://localhost/"));
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("http://localhost/arreglos");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(mocks.getClaims).not.toHaveBeenCalled();
   });
 
-  it("redirects admin from root / to /dashboard", async () => {
+  it("deja que la página raíz elija el destino del admin según sus permisos", async () => {
     mocks.getClaims.mockResolvedValue({
       data: { claims: { plan_sub: "PRO", user_role: "admin" } },
       error: null,
     });
 
     const response = await updateSession(new NextRequest("http://localhost/"));
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("http://localhost/dashboard");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
   });
 
   it("permite el paso de requests autenticadas (la protección visual es de AppClientLayout y de APIs es por route handler)", async () => {

@@ -92,6 +92,20 @@ describe("permissions.server", () => {
         queryEffectivePermissions(supabase, "admin", "PRO"),
       ).rejects.toThrow("DB connection error");
     });
+
+    it("limita los permisos de un rol personalizado por su plan", async () => {
+      const { supabase } = createMockSupabase({
+        rolePermissions: [Permission.ArreglosView, Permission.ProductosEdit, Permission.FacturasView],
+        planPermissions: [Permission.ArreglosView, Permission.ProductosEdit],
+      });
+      expect(await queryEffectivePermissions(supabase, "operativo_arturo", "BASE"))
+        .toEqual([Permission.ArreglosView, Permission.ProductosEdit]);
+    });
+
+    it("no otorga permisos si el rol no tiene grants", async () => {
+      const { supabase } = createMockSupabase({ rolePermissions: [] });
+      expect(await queryEffectivePermissions(supabase, "no_existe", "PRO")).toEqual([]);
+    });
   });
 
   describe("tags", () => {

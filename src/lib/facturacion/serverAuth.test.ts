@@ -173,6 +173,16 @@ describe("autorización fiscal tenant-scoped", () => {
       Permission.FacturasView,
     ])).resolves.toMatchObject({ tenantId: "tenant-1", role: "admin" });
   });
+
+  it("bloquea la facturación de operativo_arturo sin permiso fiscal", async () => {
+    mocks.getClaims.mockResolvedValue({
+      data: { claims: { sub: "user-1", tenant_id: "tenant-1", user_role: "operativo_arturo", plan_sub: "PRO" } },
+      error: null,
+    });
+    mocks.maybeSingle.mockResolvedValue({ data: { tenant_id: "tenant-1", rol: "operativo_arturo" }, error: null });
+    mocks.fetchEffectivePermissions.mockResolvedValue([Permission.ArreglosView, Permission.ProductosEdit]);
+    await expect(requireTenantBillingActor()).rejects.toMatchObject({ status: 403 });
+  });
 });
 
 describe("respuestas de errores fiscales", () => {

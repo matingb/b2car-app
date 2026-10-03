@@ -1,11 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { getLandingPathForRole } from '@/lib/permissions'
-
-function copyCookies(source: NextResponse, target: NextResponse) {
-  source.cookies.getAll().forEach((cookie) => target.cookies.set(cookie))
-  return target
-}
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -67,19 +61,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (!user) return supabaseResponse
-
-  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims()
-  const claims = claimsData?.claims as Record<string, unknown> | undefined
-  const userRole = claimsError ? null : claims?.user_role
-
-  if (pathname === '/') {
-    const url = request.nextUrl.clone()
-    url.pathname = getLandingPathForRole(userRole)
-    url.search = ''
-    return copyCookies(supabaseResponse, NextResponse.redirect(url))
-  }
-
+  // La página raíz elige el destino con los permisos efectivos del rol y plan.
   return supabaseResponse
 }
 

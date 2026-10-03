@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   Permission,
   UserRole,
-  getLandingPathForRole,
+  getLandingPathForPermissions,
   normalizeUserRole,
   permissionForPath,
   PATH_PERMISSIONS,
@@ -15,11 +15,18 @@ describe("permissions", () => {
       expect(normalizeUserRole("operativo")).toBe(UserRole.Operativo);
     });
 
-    it("retorna null para valores inválidos, vacíos o desconocidos", () => {
+    it("acepta roles personalizados sin agregarlos a UserRole", () => {
+      expect(normalizeUserRole("operativo_arturo")).toBe("operativo_arturo");
+      expect(normalizeUserRole("recepcion_tenant_nuevo")).toBe("recepcion_tenant_nuevo");
+    });
+
+    it("retorna null para identificadores inválidos o vacíos", () => {
       expect(normalizeUserRole(null)).toBeNull();
       expect(normalizeUserRole(undefined)).toBeNull();
       expect(normalizeUserRole("")).toBeNull();
-      expect(normalizeUserRole("otro")).toBeNull();
+      expect(normalizeUserRole(" ")).toBeNull();
+      expect(normalizeUserRole(" admin ")).toBeNull();
+      expect(normalizeUserRole("x".repeat(51))).toBeNull();
       expect(normalizeUserRole(123)).toBeNull();
     });
   });
@@ -50,19 +57,23 @@ describe("permissions", () => {
       ["/api/tenant/taller", Permission.TallerView],
       ["/api/clientes/123/cuenta-corriente", Permission.ClientesFinanzasView],
       ["/api/arreglos/123/cobro", Permission.ArreglosCobrosRegister],
+      ["/arreglos", Permission.ArreglosView],
+      ["/arreglos/123", Permission.ArreglosView],
+      ["/api/arreglos", Permission.ArreglosView],
+      ["/api/arreglos/123/repuestos", Permission.ArreglosView],
+      ["/clientes", Permission.ClientesView],
+      ["/vehiculos", Permission.VehiculosView],
+      ["/turnos", Permission.TurnosView],
+      ["/stock", Permission.ProductosView],
     ] as const)("mapea %s a %s", (pathname, expected) => {
       expect(permissionForPath(pathname)).toBe(expected);
     });
 
     it.each([
-      "/arreglos",
-      "/arreglos/123",
-      "/api/arreglos",
-      "/api/arreglos/123/repuestos",
-      "/clientes",
-      "/vehiculos",
-      "/turnos",
-    ])("retorna null para rutas libres u operativas: %s", (pathname) => {
+      "/login",
+      "/auth/callback",
+      "/ruta-desconocida",
+    ])("retorna null para rutas sin regla: %s", (pathname) => {
       expect(permissionForPath(pathname)).toBeNull();
     });
   });
@@ -84,15 +95,30 @@ describe("permissions", () => {
     });
   });
 
-  describe("getLandingPathForRole", () => {
-    it("retorna /arreglos para operativo", () => {
-      expect(getLandingPathForRole(UserRole.Operativo)).toBe("/arreglos");
+  describe("getLandingPathForPermissions", () => {
+    it("lleva a Arturo a trabajos sin conceder acceso al dashboard", () => {
+      expect(getLandingPathForPermissions([
+        Permission.ArreglosView, Permission.ArreglosEdit,
+        Permission.ArreglosPreciosEdit, Permission.ProductosView,
+      ])).toBe("/arreglos");
     });
 
-    it("retorna /dashboard para admin o por defecto", () => {
-      expect(getLandingPathForRole(UserRole.Admin)).toBe("/dashboard");
-      expect(getLandingPathForRole(null)).toBe("/dashboard");
-      expect(getLandingPathForRole(undefined)).toBe("/dashboard");
+    it("prioriza el dashboard únicamente si tiene permiso", () => {
+      expect(getLandingPathForPermissions([Permission.ArreglosView, Permission.DashboardView])).toBe("/dashboard");
+    });
+
+    it.each([
+      [Permission.ProductosView, "/productos"],
+      [Permission.TurnosView, "/turnos"],
+      [Permission.ClientesView, "/clientes"],
+      [Permission.EmpleadosView, "/configuracion/empleados"],
+    ] as const)("elige una pantalla accesible para %s", (permission, path) => {
+      expect(getLandingPathForPermissions([permission])).toBe(path);
+    });
+
+    it("no redirige a una pantalla protegida si no tiene permisos de lectura", () => {
+      expect(getLandingPathForPermissions([])).toBe("/login");
+      expect(getLandingPathForPermissions([Permission.ProductosEdit])).toBe("/login");
     });
   });
 });

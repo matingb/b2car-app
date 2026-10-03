@@ -13,7 +13,7 @@ import { COLOR, BREAKPOINTS } from "@/theme/theme";
 import { css } from "@emotion/react";
 import { SidebarMenuKey, useSidebarMenu } from "@/app/hooks/useSidebarMenu";
 import TenantNameText from "@/app/components/ui/TenantNameText";
-import type { PermissionValue } from "@/lib/permissions";
+import { getLandingPathForPermissions, Permission, type PermissionValue } from "@/lib/permissions";
 
 export type AppClientLayoutProps = {
   children: React.ReactNode;
@@ -41,7 +41,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
 
   const { tenantName, items } = useSidebarMenu();
-  const { canAccessPath } = useTenant();
+  const { canAccessPath, hasPermission } = useTenant();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -49,10 +49,10 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isAllowed) {
-      const fallback = canAccessPath("/dashboard") ? "/dashboard" : "/arreglos";
+      const fallback = getLandingPathForPermissions(Object.values(Permission).filter(hasPermission));
       router.replace(fallback);
     }
-  }, [isAllowed, canAccessPath, router]);
+  }, [isAllowed, hasPermission, router]);
 
   const s = useMemo(() => {
     const width = collapsed ? "75px" : "14rem";

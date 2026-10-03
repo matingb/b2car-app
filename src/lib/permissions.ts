@@ -1,9 +1,11 @@
 export const UserRole = {
   Admin: "admin",
   Operativo: "operativo",
+  OperativoArturo: "operativo_arturo",
 } as const;
 
-export type UserRoleValue = typeof UserRole[keyof typeof UserRole];
+// Los identificadores de roles se definen en la BD, no en esta lista de constantes.
+export type UserRoleValue = string;
 
 export const Permission = {
   // 1. Módulos y Navegación
@@ -45,7 +47,11 @@ export const Permission = {
 export type PermissionValue = typeof Permission[keyof typeof Permission];
 
 export function normalizeUserRole(value: unknown): UserRoleValue | null {
-  return value === UserRole.Admin || value === UserRole.Operativo ? value : null;
+  // Valida el identificador del claim; la autorización depende de role_permissions.
+  return typeof value === "string" &&
+    value.length > 0 && value.length <= 50 && value === value.trim()
+    ? value
+    : null;
 }
 
 export type PathMatchStrategy = "prefix" | "exact" | "includes" | "endsWith";
@@ -102,6 +108,13 @@ export const PATH_PERMISSIONS: readonly RoutePermissionRule[] = [
 
   // Productos
   { path: ["/productos", "/api/productos"], permission: Permission.ProductosView },
+  { path: ["/stock", "/api/stocks"], permission: Permission.ProductosView },
+
+  // Módulos operativos: un rol personalizado puede no tener acceso a todos ellos.
+  { path: ["/arreglos", "/api/arreglos"], permission: Permission.ArreglosView },
+  { path: ["/clientes", "/api/clientes"], permission: Permission.ClientesView },
+  { path: ["/vehiculos", "/api/vehiculos"], permission: Permission.VehiculosView },
+  { path: ["/turnos", "/api/turnos"], permission: Permission.TurnosView },
 ];
 
 function matchesRule(pathname: string, rule: RoutePermissionRule): boolean {
@@ -128,10 +141,20 @@ export function permissionForPath(pathname: string): PermissionValue | null {
   return matchedRule ? matchedRule.permission : null;
 }
 
-export function getLandingPathForRole(role: unknown): string {
-  const normalizedRole = normalizeUserRole(role);
-  if (normalizedRole === UserRole.Operativo) {
-    return "/arreglos";
-  }
-  return "/dashboard";
+export function getLandingPathForPermissions(permissions: readonly PermissionValue[]): string {
+  const granted = new Set(permissions);
+  const destinations: readonly [PermissionValue, string][] = [
+    [Permission.DashboardView, "/dashboard"],
+    [Permission.ArreglosView, "/arreglos"],
+    [Permission.TurnosView, "/turnos"],
+    [Permission.ClientesView, "/clientes"],
+    [Permission.VehiculosView, "/vehiculos"],
+    [Permission.ProductosView, "/productos"],
+    [Permission.OperacionesView, "/operaciones"],
+    [Permission.FinanzasView, "/cuentas-financieras"],
+    [Permission.FacturasView, "/facturacion"],
+    [Permission.TallerView, "/configuracion"],
+    [Permission.EmpleadosView, "/configuracion/empleados"],
+  ];
+  return destinations.find(([permission]) => granted.has(permission))?.[1] ?? "/login";
 }

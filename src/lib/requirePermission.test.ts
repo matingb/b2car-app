@@ -48,7 +48,7 @@ describe("requirePermission", () => {
 
   it("retorna 401 si el rol o el plan no son válidos", async () => {
     mocks.getClaims.mockResolvedValue({
-      data: { claims: { user_role: "invalid", plan_sub: SubscriptionPlan.Pro } },
+      data: { claims: { user_role: "", plan_sub: SubscriptionPlan.Pro } },
       error: null,
     });
 
@@ -94,5 +94,20 @@ describe("requirePermission", () => {
 
     const response = await requirePermission(Permission.DashboardView);
     expect(response).toBeNull();
+  });
+
+  it("permite productos y precios a un rol personalizado, y bloquea dashboard y facturación", async () => {
+    mocks.getClaims.mockResolvedValue({
+      data: { claims: { user_role: "operativo_arturo", plan_sub: SubscriptionPlan.Pro } },
+      error: null,
+    });
+    mocks.fetchEffectivePermissions.mockResolvedValue([
+      Permission.ProductosEdit, Permission.ArreglosPreciosEdit,
+    ]);
+    expect(await requirePermission(Permission.ProductosEdit)).toBeNull();
+    expect(await requirePermission(Permission.ArreglosPreciosEdit)).toBeNull();
+    expect((await requirePermission(Permission.DashboardView))?.status).toBe(403);
+    expect((await requirePermission(Permission.FacturasView))?.status).toBe(403);
+    expect(mocks.fetchEffectivePermissions).toHaveBeenCalledWith(expect.anything(), "operativo_arturo", "PRO");
   });
 });
