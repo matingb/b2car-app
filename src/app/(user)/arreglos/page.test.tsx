@@ -1,13 +1,8 @@
-import { describe, expect, it, beforeAll, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, beforeAll, beforeEach, afterEach, vi } from "vitest";
+import { act, cleanup, configure, getConfig, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Arreglo } from "@/model/types";
 import { createArreglo, createVehiculo } from "@/tests/factories";
-import { act } from "@testing-library/react";
-const runPendingPromises = async () =>
-  act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  });
 
 import { filterArreglos } from "@/app/hooks/arreglos/useArreglosFilters";
 import React from "react";
@@ -15,6 +10,14 @@ import React from "react";
 let arreglosMock: Arreglo[] = [];
 let currentArreglos: Arreglo[] = [];
 let listeners: Array<() => void> = [];
+let user: ReturnType<typeof userEvent.setup>;
+const originalAsyncWrapper = getConfig().asyncWrapper;
+
+async function advanceSearchDebounce() {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(250);
+  });
+}
 
 const notify = () => {
   listeners.forEach((l) => l());
@@ -155,34 +158,34 @@ async function aplicarFiltros(params: {
   fechaHasta: string;
   estadoPago?: string;
 }) {
-  await userEvent.click(screen.getByTestId("arreglos-open-filters"));
+  await user.click(screen.getByTestId("arreglos-open-filters"));
   expect(screen.getByTestId("modal-overlay")).toBeInTheDocument();
 
-  await userEvent.clear(screen.getByTestId("arreglos-filter-patente"));
+  await user.clear(screen.getByTestId("arreglos-filter-patente"));
   if (params.patente) {
-    await userEvent.type(screen.getByTestId("arreglos-filter-patente"), params.patente);
+    await user.type(screen.getByTestId("arreglos-filter-patente"), params.patente);
   }
 
   if (params.fechaDesde) await selectCalendarDate("arreglos-filter-fecha-desde", params.fechaDesde);
   if (params.fechaHasta) await selectCalendarDate("arreglos-filter-fecha-hasta", params.fechaHasta);
 
   if (params.estadoPago) {
-    await userEvent.click(screen.getByTestId("arreglos-filter-estado-pago"));
-    await userEvent.click(await screen.findByText(params.estadoPago));
+    await user.click(screen.getByTestId("arreglos-filter-estado-pago"));
+    await user.click(screen.getByText(params.estadoPago));
   }
 
-  await userEvent.click(screen.getByTestId("modal-submit"));
-  await runPendingPromises();
+  await user.click(screen.getByTestId("modal-submit"));
+  await advanceSearchDebounce();
   expect(screen.queryByTestId("modal-overlay")).not.toBeInTheDocument();
 }
 
 async function selectCalendarDate(testId: string, date: string) {
   const [year, month] = date.split("-");
-  await userEvent.click(screen.getByTestId(testId));
-  await userEvent.click(screen.getByTestId(`${testId}-select-year`));
-  await userEvent.click(screen.getByTestId(`${testId}-year-${year}`));
-  await userEvent.click(screen.getByTestId(`${testId}-month-${Number(month) - 1}`));
-  await userEvent.click(screen.getByTestId(`${testId}-day-${date}`));
+  await user.click(screen.getByTestId(testId));
+  await user.click(screen.getByTestId(`${testId}-select-year`));
+  await user.click(screen.getByTestId(`${testId}-year-${year}`));
+  await user.click(screen.getByTestId(`${testId}-month-${Number(month) - 1}`));
+  await user.click(screen.getByTestId(`${testId}-day-${date}`));
 }
 
 beforeAll(() => {
@@ -190,6 +193,32 @@ beforeAll(() => {
     value: vi.fn(),
     writable: true,
   });
+});
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  // Testing Library's default wrapper drains promises with a real timer and
+  // only auto-advances Jest timers. Use act for this suite's Vitest clock.
+  configure({
+    asyncWrapper: async (callback) => {
+      let result: unknown;
+      await act(async () => { result = await callback(); });
+      return result;
+    },
+  });
+  // user-event also uses timers; synchronize its delays with the fake clock.
+  user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  arreglosMock = [];
+  currentArreglos = [];
+  listeners = [];
+  mockFetchAll.mockClear();
+});
+
+afterEach(() => {
+  cleanup();
+  vi.clearAllTimers();
+  vi.useRealTimers();
+  configure({ asyncWrapper: originalAsyncWrapper });
 });
 
 describe("ArreglosPage", () => {
@@ -219,29 +248,31 @@ describe("ArreglosPage", () => {
     ];
     currentArreglos = [...arreglosMock];
 
-    const user = userEvent.setup();
     render(<ArreglosPage />);
+    await advanceSearchDebounce();
 
     expect(screen.getByTestId("arreglo-item-1")).toBeInTheDocument();
     expect(screen.getByTestId("arreglo-item-2")).toBeInTheDocument();
     expect(screen.getByTestId("arreglo-item-3")).toBeInTheDocument();
 
     const searchInput = screen.getByTestId("arreglos-search");
+    mockFetchAll.mockClear();
     await user.type(searchInput, "frenos");
 
-    await runPendingPromises();
+    expect(mockFetchAll).not.toHaveBeenCalled();
+    await advanceSearchDebounce();
+    expect(mockFetchAll).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ search: "frenos" }));
     expect(screen.queryByTestId("arreglo-item-1")).not.toBeInTheDocument();
     expect(screen.getByTestId("arreglo-item-2")).toBeInTheDocument();
     expect(screen.queryByTestId("arreglo-item-3")).not.toBeInTheDocument();
 
-    await userEvent.clear(searchInput);
+    await user.clear(searchInput);
     await aplicarFiltros({
       patente: "CCC",
       fechaDesde: "2025-01-01",
       fechaHasta: "2025-01-31",
     });
 
-    await runPendingPromises();
     expect(screen.queryByTestId("arreglo-item-1")).not.toBeInTheDocument();
     expect(screen.queryByTestId("arreglo-item-2")).not.toBeInTheDocument();
     expect(screen.getByTestId("arreglo-item-3")).toBeInTheDocument();
@@ -249,7 +280,7 @@ describe("ArreglosPage", () => {
     expect(screen.getByTestId("arreglos-active-filters")).toBeInTheDocument();
     await user.click(screen.getByTestId("arreglos-clear-filters"));
 
-    await runPendingPromises();
+    await advanceSearchDebounce();
     expect(screen.getByTestId("arreglo-item-1")).toBeInTheDocument();
     expect(screen.getByTestId("arreglo-item-2")).toBeInTheDocument();
     expect(screen.getByTestId("arreglo-item-3")).toBeInTheDocument();
@@ -264,6 +295,7 @@ describe("ArreglosPage", () => {
     currentArreglos = [...arreglosMock];
 
     render(<ArreglosPage />);
+    await advanceSearchDebounce();
 
     await aplicarFiltros({
       patente: "",
