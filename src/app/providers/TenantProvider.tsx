@@ -42,16 +42,6 @@ export function TenantProvider({
     () => new Set(initialPermissions),
   );
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("tenant_name");
-      const next = stored?.trim();
-      if (next) setTenantName(next);
-    } catch {
-      // ignore
-    }
-  }, []);
-
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {

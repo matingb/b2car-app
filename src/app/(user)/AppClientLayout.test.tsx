@@ -29,9 +29,36 @@ vi.mock("@/app/login/actions", () => ({
   logOut: vi.fn(),
 }));
 
+vi.mock("@datadog/browser-rum", () => ({
+  datadogRum: {
+    setUser: vi.fn(),
+  },
+}));
+
 describe("AppClientLayout visual route guard", () => {
   beforeEach(() => {
     mockReplace.mockClear();
+    vi.clearAllMocks();
+  });
+
+  it("asocia el tenant_id, tenant_name y plan a Datadog RUM", async () => {
+    const { datadogRum } = await import("@datadog/browser-rum");
+    render(
+      <AppClientLayout
+        initialPermissions={[Permission.ArreglosView]}
+        tenantId="t-123"
+        tenantName="Taller Demo"
+        plan="BASE"
+      >
+        <div>contenido</div>
+      </AppClientLayout>
+    );
+
+    expect(datadogRum.setUser).toHaveBeenCalledWith({
+      id: "t-123",
+      name: "Taller Demo",
+      plan_sub: "BASE",
+    });
   });
 
   it("permite el acceso y renderiza los hijos cuando el pathname es permitido", () => {

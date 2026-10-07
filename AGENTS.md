@@ -90,3 +90,5 @@ Use the Supabase declarative schema in `supabase/schemas/` instead, which reflec
 - `supabase/schemas/storage/`: storage objects
 
 Only open a migration when you need to know the history of a specific change (for example, when writing a new migration that must stay consistent with a previous one).
+
+Do not make changes to the schema manually. After creating and appling a new migration, regenerate the schema and validate that the expected changes are reflected in the schema.

@@ -19,6 +19,7 @@ import {
 import { logOut } from "@/app/login/actions";
 import { useRouter } from "next/navigation";
 import { useTenant } from "@/app/providers/TenantProvider";
+import { datadogRum } from "@datadog/browser-rum";
 
 export enum SidebarMenuKey {
   Dashboard = "dashboard",
@@ -61,6 +62,7 @@ export function useSidebarMenu() {
       if (isLoggingOut) return;
       setIsLoggingOut(true);
       try {
+        datadogRum.clearUser();
         await logOut();
         router.push(ROUTES.login);
       } catch {

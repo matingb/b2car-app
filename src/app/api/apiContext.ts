@@ -7,6 +7,7 @@ import { normalizeUserRole, type UserRoleValue, type PermissionValue } from "@/l
 import { normalizeSubscriptionPlan, type SubscriptionPlanValue } from "@/lib/subscription";
 import { fetchEffectivePermissions } from "@/lib/permissions.server";
 import { isValidUuid } from "@/lib/uuid";
+import { tagDatadogTenant } from "@/lib/datadogTrace";
 import { ApiError } from "./apiError";
 
 export type ApiActor = {
@@ -31,10 +32,13 @@ export async function buildApiContext(): Promise<ApiContext> {
   const plan = normalizeSubscriptionPlan(claims?.plan_sub);
   const userId = claims?.sub;
   const tenantId = claims?.tenant_id;
+  const tenantName = typeof claims?.tenant_name === "string" ? claims.tenant_name : undefined;
 
   if (error || !role || !plan || !isValidUuid(userId) || !isValidUuid(tenantId)) {
     throw new ApiError(401, API_ERROR_MESSAGES.UNAUTHORIZED, "UNAUTHORIZED");
   }
+
+  tagDatadogTenant(tenantId, tenantName, plan);
 
   const permissions = await fetchEffectivePermissions(supabase, role, plan);
   const permissionSet = new Set(permissions);

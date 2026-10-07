@@ -14,16 +14,33 @@ import { css } from "@emotion/react";
 import { SidebarMenuKey, useSidebarMenu } from "@/app/hooks/useSidebarMenu";
 import TenantNameText from "@/app/components/ui/TenantNameText";
 import { getLandingPathForPermissions, Permission, type PermissionValue } from "@/lib/permissions";
+import { datadogRum } from "@datadog/browser-rum";
 
 export type AppClientLayoutProps = {
   children: React.ReactNode;
   initialPermissions?: PermissionValue[];
+  tenantId?: string;
+  tenantName?: string;
+  plan?: string;
 };
 
 export default function AppClientLayout({
   children,
   initialPermissions,
+  tenantId,
+  tenantName,
+  plan,
 }: AppClientLayoutProps) {
+  useEffect(() => {
+    if (tenantId) {
+      datadogRum.setUser({
+        id: tenantId,
+        name: tenantName,
+        plan_sub: plan,
+      });
+    }
+  }, [tenantId, tenantName, plan]);
+
   return (
     <TenantProvider initialPermissions={initialPermissions}>
       <CuentasFinancierasProvider>

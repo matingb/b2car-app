@@ -7,11 +7,21 @@ export async function register() {
       return;
     }
 
+    const apiKey = process.env.DD_API_KEY;
+    if (!apiKey) {
+      return;
+    }
+
+    process.env.DD_AGENTLESS_ENABLED = "true";
+    process.env.DD_SITE = "datadoghq.com";
+    process.env.DD_API_KEY = apiKey;
+
     const tracer = (await import("dd-trace")).default;
     tracer.init({
       service: "b2car-backend",
-      env: process.env.NEXT_PUBLIC_DATADOG_ENV || process.env.NODE_ENV || "production",
+      env: process.env.NEXT_PUBLIC_DATADOG_ENV || "production",
       version: process.env.NEXT_PUBLIC_APP_VERSION,
+      site: "datadoghq.com",
       logInjection: true,
     });
   }

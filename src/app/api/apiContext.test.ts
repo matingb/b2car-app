@@ -3,10 +3,12 @@ import { createClient } from "@/supabase/server";
 import { fetchEffectivePermissions } from "@/lib/permissions.server";
 import { Permission } from "@/lib/permissions";
 import { mockApiSession } from "@/tests/apiRoute";
+import { tagDatadogTenant } from "@/lib/datadogTrace";
 import { buildApiContext } from "./apiContext";
 
 vi.mock("@/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/permissions.server", () => ({ fetchEffectivePermissions: vi.fn(), fetchPlanPermissions: vi.fn() }));
+vi.mock("@/lib/datadogTrace", () => ({ tagDatadogTenant: vi.fn() }));
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -21,6 +23,7 @@ describe("buildApiContext", () => {
     expect(ctx.can(Permission.ArreglosView)).toBe(true);
     expect(createClient).toHaveBeenCalledTimes(1);
     expect(getClaims).toHaveBeenCalledTimes(1);
+    expect(tagDatadogTenant).toHaveBeenCalledWith("22222222-2222-4222-8222-222222222222", undefined, "BASE");
     expect(fetchEffectivePermissions).toHaveBeenCalledExactlyOnceWith(supabase, "operativo", "BASE");
   });
 

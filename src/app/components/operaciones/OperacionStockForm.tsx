@@ -21,9 +21,12 @@ export default function OperacionStockForm() {
     isInventarioLoading,
     getDefaultUnitarioForStockId,
     isContextualStock,
+    observaciones,
+    setObservaciones,
   } = useOperacionForm();
 
   const isEnabled = Boolean(tipo && isTipoEnabled(tipo));
+  const isAllowedTipo = tipo === "VENTA" || tipo === "COMPRA";
 
   const totalOperacion = lineas.reduce(
     (acc, l) => acc + (Number(l.total) || 0),
@@ -86,6 +89,20 @@ export default function OperacionStockForm() {
           </div>
         </div>
       </div>
+
+      {isAllowedTipo && (
+        <div style={styles.observacionesContainer}>
+          <label style={styles.observacionesLabel}>Observaciones (opcional)</label>
+          <textarea
+            value={observaciones}
+            onChange={(e) => setObservaciones(e.target.value)}
+            placeholder="Observaciones adicionales sobre la operación..."
+            rows={2}
+            data-testid="operaciones-stock-observaciones"
+            style={styles.textarea}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -153,5 +170,30 @@ const styles = {
     fontSize: 22,
     fontWeight: 600,
     color: COLOR.TEXT.PRIMARY,
+  } as const,
+  observacionesContainer: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 6,
+    marginTop: 16,
+  },
+  observacionesLabel: {
+    display: "block",
+    fontSize: 13,
+    color: COLOR.TEXT.SECONDARY,
+  },
+  textarea: {
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 8,
+    padding: "10px 12px",
+    fontSize: 14,
+    color: COLOR.TEXT.PRIMARY,
+    backgroundColor: COLOR.INPUT.PRIMARY.BACKGROUND,
+    outline: "none",
+    boxSizing: "border-box" as const,
+    fontFamily: "inherit",
+    resize: "vertical" as const,
+    lineHeight: "1.5",
+    width: "100%",
   } as const,
 } as const;
