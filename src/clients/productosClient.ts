@@ -91,6 +91,35 @@ export const productosClient = {
       return { error: message };
     }
   },
+
+  async exportStockExcel(): Promise<{ error?: string | null }> {
+    try {
+      const res = await fetch("/api/productos/export");
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        return { error: body?.error || `Error ${res.status} al descargar el archivo` };
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition");
+      let filename = `inventario_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      if (disposition && disposition.includes("filename=")) {
+        const match = disposition.match(/filename="?([^";]+)"?/);
+        if (match?.[1]) filename = match[1];
+      }
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      return { error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Error al descargar el archivo Excel";
+      return { error: message };
+    }
+  },
 };
 
 export function mapProductoToInventario(dto: ProductoDTO): Producto {
