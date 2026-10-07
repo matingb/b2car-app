@@ -16,9 +16,9 @@ export interface ExcelSheetDef<T = Record<string, unknown>> {
   autoFilter?: boolean;
 }
 
-export interface ExcelWorkbookOptions {
+export interface ExcelWorkbookOptions<T = Record<string, unknown>> {
   creator?: string;
-  sheets: ExcelSheetDef[];
+  sheets: ExcelSheetDef<T>[];
 }
 
 export function sanitizeSheetName(name: string, index: number, usedNames: Set<string>): string {
@@ -41,13 +41,15 @@ export function sanitizeSheetName(name: string, index: number, usedNames: Set<st
   return uniqueName;
 }
 
-export function buildMultiSheetWorkbook(options: ExcelWorkbookOptions): ExcelJS.Workbook {
+export function buildMultiSheetWorkbook<T = Record<string, unknown>>(
+  options: ExcelWorkbookOptions<T>
+): ExcelJS.Workbook {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = options.creator ?? "B2Car";
   workbook.created = new Date();
 
   const usedNames = new Set<string>();
-  const sheetsToCreate = options.sheets.length > 0 ? options.sheets : [
+  const sheetsToCreate: ExcelSheetDef<T>[] = options.sheets.length > 0 ? options.sheets : [
     {
       name: "Hoja 1",
       columns: [{ header: "Sin datos", key: "vacio", width: 20 }],
@@ -73,7 +75,9 @@ export function buildMultiSheetWorkbook(options: ExcelWorkbookOptions): ExcelJS.
     for (const row of sheetDef.rows) {
       const rowData: Record<string, unknown> = {};
       for (const col of sheetDef.columns) {
-        rowData[col.key] = col.value ? col.value(row) : (row as Record<string, unknown>)[col.key];
+        rowData[col.key] = col.value
+          ? col.value(row)
+          : (row as unknown as Record<string, unknown>)[col.key];
       }
       worksheet.addRow(rowData);
     }
@@ -117,10 +121,15 @@ export async function buildExcelResponse(
   content: ExcelJS.Workbook | ArrayBuffer | Uint8Array,
   filename: string
 ): Promise<Response> {
-  const body =
-    content instanceof ExcelJS.Workbook
-      ? await writeWorkbookBuffer(content)
-      : content;
+  let body: ArrayBuffer;
+  if (content instanceof ExcelJS.Workbook) {
+    body = await writeWorkbookBuffer(content);
+  } else if (content instanceof Uint8Array) {
+    body = new ArrayBuffer(content.byteLength);
+    new Uint8Array(body).set(content);
+  } else {
+    body = content;
+  }
 
   const normalizedFilename = filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`;
 

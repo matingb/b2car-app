@@ -33,8 +33,8 @@ TRUNCATE TABLE
 RESTART IDENTITY CASCADE;
 
 -- Tenants (solo uno)
-INSERT INTO public.tenants (id, nombre, estado, fecha_creacion, updated_at) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'B2Car', 'activo', now() - interval '180 days', now() - interval '1 day');
+INSERT INTO public.tenants (id, nombre, plan_sub, estado, fecha_creacion, updated_at) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'B2Car', 'PRO', 'activo', now() - interval '180 days', now() - interval '1 day');
 
 -- Cuentas Financieras (2 cuentas bancarias)
 INSERT INTO public.cuentas_financieras (id, tenant_id, nombre, tipo, saldo, activo, created_at, updated_at) VALUES

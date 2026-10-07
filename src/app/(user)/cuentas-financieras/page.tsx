@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDownLeft, ArrowLeftRight, Plus, RefreshCw, WalletCards } from "lucide-react";
+import { ArrowLeftRight, Plus, RefreshCw, WalletCards } from "lucide-react";
 import { css } from "@emotion/react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
