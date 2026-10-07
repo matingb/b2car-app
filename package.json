@@ -17,6 +17,8 @@
   "dependencies": {
     "@afipsdk/afip.js": "1.2.3",
     "@arcasdk/core": "2.0.2",
+    "@datadog/browser-rum": "^7.15.0",
+    "@datadog/browser-rum-react": "^7.15.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -27,6 +29,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "color": "^5.0.3",
+    "dd-trace": "^6.19.0",
     "exceljs": "^3.4.0",
     "lucide-react": "^0.571.0",
     "next": "^15.5.25",
