@@ -19,6 +19,8 @@ export const ROUTES = {
 	configuracionFacturacion: "/configuracion/facturacion",
 	configuracionCategoriasArreglo: "/configuracion/categorias-arreglo",
 	facturacion: "/facturacion",
+	remitos: "/remitos",
+	remitosNuevo: "/remitos/nuevo",
 } as const;
 
 export const API_ROUTES = {

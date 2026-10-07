@@ -47,6 +47,7 @@ export default function MenuSheet() {
                 icon={item.icon}
                 disabled={item.disabled}
                 isLoading={item.isLoading}
+                activePaths={item.activePaths}
                 onClick={() => {
                   item.onClick?.();
                   closeSheet();

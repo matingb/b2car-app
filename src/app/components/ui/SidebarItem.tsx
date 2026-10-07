@@ -13,6 +13,7 @@ export default function SidebarItem({
   collapsed = false,
   disabled = false,
   isLoading = false,
+  activePaths = [],
   onClick = () => {},
 }: {
   href: string;
@@ -21,10 +22,12 @@ export default function SidebarItem({
   collapsed?: boolean;
   disabled?: boolean;
   isLoading?: boolean;
+  /** Rutas adicionales que también marcan el ítem como activo. */
+  activePaths?: readonly string[];
   onClick?: () => void;
 }) {
   const pathname = usePathname();
-  const isActive = Boolean(href) && (pathname === href || pathname.startsWith(`${href}/`));
+  const isActive = [href, ...activePaths].some((path) => Boolean(path) && (pathname === path || pathname.startsWith(`${path}/`)));
 
   const s = useMemo(() => {
     return {

@@ -34,6 +34,13 @@ describe("FacturasFiltersModal", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("oculta el estado fiscal cuando se listan solo remitos", () => {
+    render(<FacturasFiltersModal open initial={{ ...initial, documentoTipo: "REMITO" }} hideEstado onApply={vi.fn()} onClose={vi.fn()} />);
+
+    expect(screen.queryByTestId("facturas-filter-estado")).not.toBeInTheDocument();
+    expect(screen.getByTestId("facturas-filter-ambiente")).toBeInTheDocument();
+  });
+
   it("permite limpiar un extremo del período", async () => {
     const user = userEvent.setup();
     const onApply = vi.fn();

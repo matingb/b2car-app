@@ -13,7 +13,7 @@ export type FacturaFilterChip = {
   text: string;
 };
 
-export type FacturaDocumentoTipoFilter = "" | "FACTURA" | "NOTA_CREDITO" | "NOTA_DEBITO";
+export type FacturaDocumentoTipoFilter = "" | "FACTURA" | "NOTA_CREDITO" | "NOTA_DEBITO" | "REMITO";
 
 type Props = {
   search: string;
@@ -24,6 +24,8 @@ type Props = {
   chips: FacturaFilterChip[];
   onRemoveChip: (key: string) => void;
   onClearFilters: () => void;
+  /** Filtros adicionales que dependen del tipo elegido (por ejemplo, los de remitos). */
+  children?: React.ReactNode;
 };
 
 export default function FacturasToolbar({
@@ -35,6 +37,7 @@ export default function FacturasToolbar({
   chips,
   onRemoveChip,
   onClearFilters,
+  children,
 }: Props) {
   return (
     <div style={styles.container}>
@@ -42,7 +45,7 @@ export default function FacturasToolbar({
         <SearchBar
           value={search}
           onChange={onSearchChange}
-          placeholder="Buscar por factura, receptor, documento o CAE..."
+          placeholder="Buscar por número, receptor, documento o CAE..."
           inputTestId="facturas-search"
           style={styles.search}
         />
@@ -62,6 +65,7 @@ export default function FacturasToolbar({
           ["FACTURA", "Facturas"],
           ["NOTA_CREDITO", "Notas de crédito"],
           ["NOTA_DEBITO", "Notas de débito"],
+          ["REMITO", "Remitos"],
         ] as const).map(([value, label]) => (
           <FilterChip
             key={value}
@@ -71,6 +75,8 @@ export default function FacturasToolbar({
           />
         ))}
       </div>
+
+      {children}
 
       {chips.length ? (
         <div css={styles.chipsContainer} aria-label="Filtros aplicados" data-testid="facturas-active-filters">

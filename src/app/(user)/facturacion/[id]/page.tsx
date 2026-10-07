@@ -9,6 +9,7 @@ import Card from "@/app/components/ui/Card";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import FacturaListItem from "@/app/components/facturacion/FacturaListItem";
 import FacturaSummaryCard from "@/app/components/facturacion/FacturaSummaryCard";
+import FacturaRemitosSection from "@/app/components/remitos/FacturaRemitosSection";
 import {
   type FacturaElectronicaDetalle,
 } from "@/lib/facturacion/types";
@@ -117,16 +118,16 @@ export default function FacturaDetailPage() {
   };
 
   if (loading) {
-    return <><ScreenHeader title="Facturas" breadcrumbs={["Detalle"]} hasBackButton /><ListSkeleton rows={7} /></>;
+    return <><ScreenHeader title="Documentación" breadcrumbs={["Detalle"]} hasBackButton /><ListSkeleton rows={7} /></>;
   }
 
   if (!invoice) {
-    return <><ScreenHeader title="Facturas" breadcrumbs={["Detalle"]} hasBackButton />{error ? <div style={styles.error}>{error}</div> : null}</>;
+    return <><ScreenHeader title="Documentación" breadcrumbs={["Detalle"]} hasBackButton />{error ? <div style={styles.error}>{error}</div> : null}</>;
   }
 
   return (
     <div>
-      <ScreenHeader title="Facturas" breadcrumbs={["Detalle"]} hasBackButton />
+      <ScreenHeader title="Documentación" breadcrumbs={["Detalle"]} hasBackButton />
       <FacturaSummaryCard
         invoice={invoice}
         working={working}
@@ -174,6 +175,10 @@ export default function FacturaDetailPage() {
           </div>
         </Card>
       </section>
+
+      {invoice.documentoTipo === "FACTURA" && invoice.estado === "AUTORIZADA" ? (
+        <FacturaRemitosSection facturaId={invoice.id} />
+      ) : null}
 
       <section style={styles.section}>
         <SectionHeading title="Datos fiscales" description="Información registrada al momento de emitir el comprobante." />

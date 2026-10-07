@@ -707,7 +707,7 @@ function defaultFechas(source: CanonicalSource, concepto: 1 | 2 | 3): FacturaFec
   };
 }
 
-function mapSummary(value: unknown): FacturaElectronicaResumen {
+export function mapSummary(value: unknown): FacturaElectronicaResumen {
   const row = record(value);
   const receiver = record(row.receptor_snapshot);
   const origenTipo: FacturaOrigenTipo = text(row.origen_tipo) === "VENTA" ? "VENTA" : "ARREGLO";
@@ -1320,6 +1320,27 @@ function positiveSafeInteger(value: string): number | null {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+/** Columnas que necesita `mapSummary` para el resumen de un comprobante. */
+export const FACTURA_RESUMEN_COLUMNS = "id, estado, ambiente, origen_tipo, arreglo_id, operacion_id, documento_tipo, "
+  + "clase_comprobante, tipo_comprobante, punto_venta, numero_comprobante, cae, cae_vencimiento, total, concepto, "
+  + "fecha_comprobante, receptor_snapshot, created_at, error_codigo, error_mensaje";
+
+/** Condiciones PostgREST `or` de la búsqueda libre de comprobantes (texto ya saneado). */
+export function facturaSearchConditions(search: string): string[] {
+  const conditions = [
+    `cae.ilike.%${search}%`,
+    `receptor_snapshot->>nombre.ilike.%${search}%`,
+    `receptor_snapshot->>numeroDocumento.ilike.%${search}%`,
+  ];
+  const facturaNumber = parseFacturaNumberSearch(search);
+  if (facturaNumber?.puntoVenta) {
+    conditions.push(`and(punto_venta.eq.${facturaNumber.puntoVenta},numero_comprobante.eq.${facturaNumber.numeroComprobante})`);
+  } else if (facturaNumber) {
+    conditions.push(`numero_comprobante.eq.${facturaNumber.numeroComprobante}`);
+  }
+  return conditions;
+}
+
 /** Acepta el número solo o el formato visible punto de venta-número. */
 export function parseFacturaNumberSearch(value: string): FacturaNumberSearch | null {
   const fullNumber = /^(\d+)\s*-\s*(\d+)$/.exec(value.trim());
@@ -1364,20 +1385,7 @@ export async function listFacturas(tenantId: string, filters: FacturasListFilter
   if (filters.search) {
     const search = filters.search.replace(/[%_,()]/g, "").trim();
     if (search.length > 100) throw new FacturacionValidationError("La búsqueda no puede superar los 100 caracteres");
-    if (search) {
-      const conditions = [
-        `cae.ilike.%${search}%`,
-        `receptor_snapshot->>nombre.ilike.%${search}%`,
-        `receptor_snapshot->>numeroDocumento.ilike.%${search}%`,
-      ];
-      const facturaNumber = parseFacturaNumberSearch(search);
-      if (facturaNumber?.puntoVenta) {
-        conditions.push(`and(punto_venta.eq.${facturaNumber.puntoVenta},numero_comprobante.eq.${facturaNumber.numeroComprobante})`);
-      } else if (facturaNumber) {
-        conditions.push(`numero_comprobante.eq.${facturaNumber.numeroComprobante}`);
-      }
-      query = query.or(conditions.join(","));
-    }
+    if (search) query = query.or(facturaSearchConditions(search).join(","));
   }
   const { data, error, count } = await query;
   if (error) throw new Error("No se pudo listar los documentos fiscales");

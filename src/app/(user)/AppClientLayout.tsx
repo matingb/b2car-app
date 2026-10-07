@@ -141,6 +141,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
                       icon={item.icon}
                       disabled={item.disabled}
                       isLoading={item.isLoading}
+                      activePaths={item.activePaths}
                       collapsed={collapsed}
                       onClick={item.onClick}
                     />

@@ -56,5 +56,17 @@ describe("SidebarItem", () => {
     render(<SidebarItem href="/facturacion" label="Facturas" />);
     expect(screen.getByRole("link", { name: "Facturas" })).toHaveClass("active");
   });
+
+  it("marca Documentación también en las rutas adicionales de remitos", () => {
+    state.pathname = "/remitos/remito-1";
+    render(<SidebarItem href="/facturacion" label="Documentación" activePaths={["/remitos"]} />);
+    expect(screen.getByRole("link", { name: "Documentación" })).toHaveClass("active");
+  });
+
+  it("no marca rutas que solo comparten el prefijo", () => {
+    state.pathname = "/remitosx";
+    render(<SidebarItem href="/facturacion" label="Documentación" activePaths={["/remitos"]} />);
+    expect(screen.getByRole("link", { name: "Documentación" })).not.toHaveClass("active");
+  });
 });
 

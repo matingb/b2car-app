@@ -37,7 +37,7 @@ afterEach(() => {
 });
 
 describe("useSidebarMenu", () => {
-  it("muestra Facturas y Configuración para admin con plan PRO", () => {
+  it("muestra Documentación y Configuración para admin con plan PRO", () => {
     state.role = UserRole.Admin;
     state.pro = true;
     const { result } = renderHook(() => useSidebarMenu());
@@ -49,7 +49,7 @@ describe("useSidebarMenu", () => {
         dividerBefore: false,
       }),
       expect.objectContaining({
-        key: SidebarMenuKey.Facturas,
+        key: SidebarMenuKey.Documentacion,
         href: "/facturacion",
         dividerBefore: true,
       }),
@@ -57,7 +57,22 @@ describe("useSidebarMenu", () => {
     expect(result.current.items.map((item) => item.key)).not.toContain(SidebarMenuKey.Talleres);
   });
 
-  it("muestra Configuración y oculta Facturas y Talleres para admin BASE", () => {
+  it("unifica facturas y remitos en un único ítem Documentación, activo también en /remitos", () => {
+    state.role = UserRole.Admin;
+    state.pro = true;
+    const { result } = renderHook(() => useSidebarMenu());
+    const documentacion = result.current.items.filter((item) => item.label === "Documentación");
+
+    expect(documentacion).toHaveLength(1);
+    expect(documentacion[0]).toMatchObject({
+      key: SidebarMenuKey.Documentacion,
+      href: "/facturacion",
+      activePaths: ["/remitos"],
+    });
+    expect(result.current.items.map((item) => item.label)).not.toEqual(expect.arrayContaining(["Facturas", "Remitos"]));
+  });
+
+  it("muestra Configuración y oculta Documentación y Talleres para admin BASE", () => {
     state.role = UserRole.Admin;
     state.pro = false;
     const { result } = renderHook(() => useSidebarMenu());
@@ -69,7 +84,7 @@ describe("useSidebarMenu", () => {
       expect.objectContaining({ key: SidebarMenuKey.Configuracion, href: "/configuracion", dividerBefore: true }),
     ]));
     expect(result.current.items).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({ key: SidebarMenuKey.Facturas }),
+      expect.objectContaining({ key: SidebarMenuKey.Documentacion }),
     ]));
   });
 
@@ -91,7 +106,7 @@ describe("useSidebarMenu", () => {
     expect(keys).not.toContain(SidebarMenuKey.Dashboard);
     expect(keys).not.toContain(SidebarMenuKey.Operaciones);
     expect(keys).not.toContain(SidebarMenuKey.CuentasFinancieras);
-    expect(keys).not.toContain(SidebarMenuKey.Facturas);
+    expect(keys).not.toContain(SidebarMenuKey.Documentacion);
     expect(keys).not.toContain(SidebarMenuKey.Empleados);
     expect(keys).not.toContain(SidebarMenuKey.Productos);
     expect(keys).not.toContain(SidebarMenuKey.Talleres);
