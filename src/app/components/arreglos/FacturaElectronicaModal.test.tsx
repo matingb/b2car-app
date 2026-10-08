@@ -71,27 +71,33 @@ describe("FacturaElectronicaModal", () => {
       }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: { preflight: { fcePosible: false, fceObligatoria: false, fceFechaConsulta: "2026-09-13", fceTotalConsultado: 100 } }, error: null }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        data: {
-          id: "factura-1",
-          estado: "AUTORIZADA",
-          ambiente: "HOMOLOGACION",
-          origenTipo: "ARREGLO",
-          origenId: "arreglo-1",
-          documentoTipo: "FACTURA",
-          claseComprobante: "C",
-          tipoComprobante: 11,
-          puntoVenta: 1,
-          numeroComprobante: 1,
-          cae: "12345678901234",
-          caeVencimiento: "2026-09-23",
-          total: 100,
-          concepto: 1,
-          fechaComprobante: "2026-09-13",
-          receptorNombre: "Cliente prueba",
-          receptorDocumento: "12345678",
-        },
-        error: null,
-      }), { status: 200 }));
+        code: "FCE_DATA_REQUIRED",
+        error: "ARCA determinó que corresponde una FCE",
+        fce: { cbuConfigurado: true, sistema: "ADC" },
+      }), { status: 422 }));
+
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+      data: {
+        id: "factura-1",
+        estado: "AUTORIZADA",
+        ambiente: "HOMOLOGACION",
+        origenTipo: "ARREGLO",
+        origenId: "arreglo-1",
+        documentoTipo: "FACTURA",
+        claseComprobante: "C",
+        tipoComprobante: 211,
+        puntoVenta: 1,
+        numeroComprobante: 1,
+        cae: "12345678901234",
+        caeVencimiento: "2026-09-23",
+        total: 100,
+        concepto: 1,
+        fechaComprobante: "2026-09-13",
+        receptorNombre: "Cliente prueba",
+        receptorDocumento: "12345678",
+      },
+      error: null,
+    }), { status: 200 }));
 
     const onAuthorized = vi.fn();
 
@@ -120,6 +126,10 @@ describe("FacturaElectronicaModal", () => {
     expect(screen.queryByText(/^Servicio$/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("modal-submit"));
+    await waitFor(() => expect(screen.getByText(/ARCA confirmó que esta operación requiere FCE/)).toBeInTheDocument());
+    expect(JSON.parse(String(fetchMock.mock.calls.at(-1)?.[1]?.body))).toMatchObject({ fcePreflightConfirmada: false });
+    const originalIntentKey = JSON.parse(String(fetchMock.mock.calls.at(-1)?.[1]?.body)).idempotencyKey;
+    fireEvent.click(screen.getByTestId("modal-submit"));
 
     await waitFor(() => {
       expect(onAuthorized).toHaveBeenCalledWith(expect.objectContaining({ id: "factura-1" }));
@@ -130,6 +140,8 @@ describe("FacturaElectronicaModal", () => {
     );
     expect(JSON.parse(String(fetchMock.mock.calls.at(-1)?.[1]?.body))).toMatchObject({
       detalleSimplificado: true,
+      fcePreflightConfirmada: true,
+      idempotencyKey: originalIntentKey,
     });
   });
 });

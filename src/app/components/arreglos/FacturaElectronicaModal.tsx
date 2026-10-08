@@ -315,6 +315,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
           },
           fechas,
           fceSistema,
+          fcePreflightConfirmada: preflight.fceObligatoria === true,
         }),
       });
       const body = await response.json();

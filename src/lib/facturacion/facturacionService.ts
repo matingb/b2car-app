@@ -104,6 +104,7 @@ export type FacturaIssueInput = {
   };
   fechas: FacturaFechaInput;
   fceSistema: "SCA" | "ADC" | null;
+  fcePreflightConfirmada: boolean;
 };
 
 export class FceDataRequiredError extends FacturacionValidationError {
@@ -111,6 +112,16 @@ export class FceDataRequiredError extends FacturacionValidationError {
   constructor(readonly requiredData: { cbuConfigurado: boolean; sistema: "SCA" | "ADC" | null }) {
     super("ARCA determinó que corresponde una FCE; completá los datos fiscales requeridos y reintentá la misma emisión.");
     this.name = "FceDataRequiredError";
+  }
+}
+
+export function assertFcePreflightConfirmed(
+  isFce: boolean,
+  confirmed: boolean,
+  config: { fceCbu: string | null; fceSistema: "SCA" | "ADC" | null },
+) {
+  if (isFce && !confirmed) {
+    throw new FceDataRequiredError({ cbuConfigurado: Boolean(config.fceCbu), sistema: config.fceSistema });
   }
 }
 
@@ -878,6 +889,7 @@ export function parseFacturaIssueInput(value: unknown): FacturaIssueInput {
       fechaVencimientoPago: nullable(dates.fechaVencimientoPago),
     },
     fceSistema: text(row.fceSistema) === "SCA" || text(row.fceSistema) === "ADC" ? text(row.fceSistema) as "SCA" | "ADC" : null,
+    fcePreflightConfirmada: row.fcePreflightConfirmada === true,
   };
 }
 
@@ -968,6 +980,7 @@ type EmitDocumentInput = {
   receiver: PerfilFiscalCliente;
   dates: FacturaFechaInput;
   fceSistema: "SCA" | "ADC" | null;
+  fcePreflightConfirmada?: boolean;
   condition: string;
   lines: FacturaLinea[];
   persistedLines?: FacturaLinea[];
@@ -993,6 +1006,7 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
   if (input.documentType !== "FACTURA" && [201, 206, 211].includes(number(input.associated?.tipo_comprobante))) {
     throw new FacturacionValidationError("No se emiten notas de crédito o débito sobre FCE desde esta aplicación");
   }
+  assertFcePreflightConfirmed(isFce, Boolean(input.fcePreflightConfirmada), input.config);
   if (isFce && (!input.config.fceCbu || !input.config.fceSistema || input.fceSistema !== input.config.fceSistema)) throw new FceDataRequiredError({ cbuConfigurado: Boolean(input.config.fceCbu), sistema: input.config.fceSistema });
   const dates = validateFechas(concept, input.dates, new Date(), isFce);
   const voucher = determineVoucher(input.config.condicionIvaEmisor, input.receiver.condicionIvaReceptorId, input.documentType, isFce);
@@ -1207,6 +1221,7 @@ async function issueSourceFactura(
     actor, source, config, documentType: "FACTURA", idempotencyKey: input.idempotencyKey,
     receiver, dates: input.fechas, condition: input.condicionVenta,
     lines: source.lineas, fceSistema: config.fceSistema,
+    fcePreflightConfirmada: input.fcePreflightConfirmada,
     persistedLines: input.detalleSimplificado ? [createSimplifiedArregloLine(source, fiscal)] : undefined,
     concepto,
     retry: existing, intentHash,
@@ -1619,13 +1634,13 @@ export async function buildFacturaPdf(tenantId: string, facturaId: string): Prom
   const bytes = await generateFiscalInvoicePdf(fiscal);
   const path = `${tenantId}/${detail.ambiente.toLowerCase()}/${detail.id}/${PDF_TEMPLATE_VERSION}.pdf`;
   const uploaded = await supabase.storage.from(PDF_BUCKET).upload(path, bytes, { contentType: "application/pdf", upsert: true });
-  if (!uploaded.error) {
-    await supabase.from("facturas_electronicas").update({
-      pdf_storage_path: path,
-      pdf_sha256: createHash("sha256").update(bytes).digest("hex"),
-      pdf_template_version: PDF_TEMPLATE_VERSION,
-    }).eq("id", facturaId).eq("tenant_id", tenantId);
-  }
+  if (uploaded.error) throw new Error("No se pudo guardar el PDF fiscal generado");
+  const { error: metadataError } = await supabase.from("facturas_electronicas").update({
+    pdf_storage_path: path,
+    pdf_sha256: createHash("sha256").update(bytes).digest("hex"),
+    pdf_template_version: PDF_TEMPLATE_VERSION,
+  }).eq("id", facturaId).eq("tenant_id", tenantId);
+  if (metadataError) throw new Error("No se pudo guardar la versión y la huella del PDF fiscal");
   return { bytes, filename: pdfFilename(detail) };
 }
 

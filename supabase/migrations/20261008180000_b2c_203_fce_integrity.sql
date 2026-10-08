@@ -13,6 +13,7 @@ CREATE OR REPLACE FUNCTION public.facturacion_bloquear_snapshot_autorizado()
 RETURNS trigger LANGUAGE plpgsql SET search_path TO 'public' AS $function$
 DECLARE
   v_manual_changed boolean;
+  v_pdf_changed boolean;
 BEGIN
   IF TG_TABLE_NAME <> 'facturas_electronicas' THEN
     IF EXISTS (SELECT 1 FROM public.facturas_electronicas f WHERE f.id = COALESCE(NEW.factura_id, OLD.factura_id) AND f.estado = 'AUTORIZADA') THEN
@@ -26,6 +27,11 @@ BEGIN
   END IF;
   v_manual_changed := ROW(OLD.fce_estado_manual, OLD.fce_estado_manual_actualizado_at, OLD.fce_estado_manual_actualizado_by)
     IS DISTINCT FROM ROW(NEW.fce_estado_manual, NEW.fce_estado_manual_actualizado_at, NEW.fce_estado_manual_actualizado_by);
+  v_pdf_changed := ROW(OLD.pdf_storage_path, OLD.pdf_sha256, OLD.pdf_template_version)
+    IS DISTINCT FROM ROW(NEW.pdf_storage_path, NEW.pdf_sha256, NEW.pdf_template_version);
+  IF OLD.estado = 'AUTORIZADA' AND v_pdf_changed AND (auth.role() IS DISTINCT FROM 'authenticated' AND auth.role() IS DISTINCT FROM 'service_role') THEN
+    RAISE EXCEPTION 'No autorizado para actualizar metadatos del PDF';
+  END IF;
   IF v_manual_changed THEN
     IF OLD.estado <> 'AUTORIZADA' AND NEW.estado = 'AUTORIZADA'
        AND NEW.tipo_comprobante IN (201,206,211)
@@ -38,8 +44,8 @@ BEGIN
        AND auth.jwt() ->> 'user_role' = 'admin'
        AND public._b2c179_tiene_permiso('facturas:edit')
        AND NEW.fce_estado_manual IN ('PENDIENTE','ACEPTADA','RECHAZADA','CANCELADA','PAGADA','ANULADA')
-       AND (to_jsonb(OLD) - ARRAY['fce_estado_manual','fce_estado_manual_actualizado_at','fce_estado_manual_actualizado_by','updated_at'])
-         = (to_jsonb(NEW) - ARRAY['fce_estado_manual','fce_estado_manual_actualizado_at','fce_estado_manual_actualizado_by','updated_at']) THEN
+       AND (to_jsonb(OLD) - ARRAY['fce_estado_manual','fce_estado_manual_actualizado_at','fce_estado_manual_actualizado_by','updated_at','pdf_storage_path','pdf_sha256','pdf_template_version'])
+         = (to_jsonb(NEW) - ARRAY['fce_estado_manual','fce_estado_manual_actualizado_at','fce_estado_manual_actualizado_by','updated_at','pdf_storage_path','pdf_sha256','pdf_template_version']) THEN
       NEW.fce_estado_manual_actualizado_at := now();
       NEW.fce_estado_manual_actualizado_by := auth.uid();
     ELSE
@@ -47,9 +53,9 @@ BEGIN
     END IF;
   END IF;
   IF OLD.estado = 'AUTORIZADA' AND
-    (to_jsonb(OLD) - ARRAY['fce_estado_manual','fce_estado_manual_actualizado_at','fce_estado_manual_actualizado_by','updated_at'])
+    (to_jsonb(OLD) - ARRAY['fce_estado_manual','fce_estado_manual_actualizado_at','fce_estado_manual_actualizado_by','updated_at','pdf_storage_path','pdf_sha256','pdf_template_version'])
       IS DISTINCT FROM
-    (to_jsonb(NEW) - ARRAY['fce_estado_manual','fce_estado_manual_actualizado_at','fce_estado_manual_actualizado_by','updated_at']) THEN
+    (to_jsonb(NEW) - ARRAY['fce_estado_manual','fce_estado_manual_actualizado_at','fce_estado_manual_actualizado_by','updated_at','pdf_storage_path','pdf_sha256','pdf_template_version']) THEN
     RAISE EXCEPTION 'El documento fiscal autorizado es inmutable';
   END IF;
   RETURN NEW;
