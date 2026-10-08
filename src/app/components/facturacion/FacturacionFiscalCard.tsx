@@ -2,7 +2,7 @@
 
 import React from "react";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
-import type { CondicionIvaEmisor } from "@/lib/facturacion/types";
+import type { CondicionIvaEmisor, FceSistemaCirculacion } from "@/lib/facturacion/types";
 import Dropdown from "@/app/components/ui/Dropdown";
 
 interface FacturacionFiscalCardProps {
@@ -11,12 +11,16 @@ interface FacturacionFiscalCardProps {
   condicionIvaEmisor: CondicionIvaEmisor;
   ingresosBrutos: string | null;
   puntoVenta: number;
+  fceCbu: string | null;
+  fceSistema: FceSistemaCirculacion | null;
   onChange: (patch: {
     cuit?: string;
     inicioActividades?: string;
     condicionIvaEmisor?: CondicionIvaEmisor;
     ingresosBrutos?: string | null;
     puntoVenta?: number;
+    fceCbu?: string | null;
+    fceSistema?: FceSistemaCirculacion | null;
   }) => void;
   disabled?: boolean;
 }
@@ -32,6 +36,8 @@ export default function FacturacionFiscalCard({
   condicionIvaEmisor,
   ingresosBrutos,
   puntoVenta,
+  fceCbu,
+  fceSistema,
   onChange,
   disabled = false,
 }: FacturacionFiscalCardProps) {
@@ -131,6 +137,52 @@ export default function FacturacionFiscalCard({
             />
           </div>
         </div>
+
+        <div style={styles.fceSection}>
+          <div style={styles.fceHeading}>
+            <h4 style={styles.fceTitle}>Factura de Crédito Electrónica MiPyME</h4>
+            <p style={styles.fceDescription}>
+              CBU fiscal y sistema de circulación del emisor por ambiente. No se utiliza la cuenta de cobros.
+            </p>
+          </div>
+          <div style={styles.fceGrid}>
+            <div style={styles.field}>
+              <label style={styles.label} htmlFor="facturacion-fce-cbu">
+                CBU fiscal (22 dígitos)
+              </label>
+              <input
+                id="facturacion-fce-cbu"
+                inputMode="numeric"
+                maxLength={22}
+                disabled={disabled}
+                value={fceCbu ?? ""}
+                onChange={(event) => onChange({ fceCbu: event.target.value.replace(/\D/g, "") || null })}
+                placeholder="22 dígitos"
+                style={styles.input}
+              />
+            </div>
+            <div style={styles.field}>
+              <label style={styles.label} htmlFor="facturacion-fce-sistema">
+                Sistema de circulación
+              </label>
+              <select
+                id="facturacion-fce-sistema"
+                disabled={disabled}
+                value={fceSistema ?? ""}
+                onChange={(event) => onChange({
+                  fceSistema: event.target.value === "SCA" || event.target.value === "ADC"
+                    ? event.target.value
+                    : null,
+                })}
+                style={styles.input}
+              >
+                <option value="">Seleccioná una opción explícita</option>
+                <option value="SCA">SCA — Sistema de Circulación Abierta</option>
+                <option value="ADC">ADC — Agente de Depósito Colectivo</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -175,6 +227,33 @@ const styles = {
     display: "flex",
     flexDirection: "column" as const,
     gap: 6,
+  },
+  fceSection: {
+    marginTop: 20,
+    paddingTop: 18,
+    borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    display: "grid",
+    gap: 14,
+  },
+  fceHeading: {
+    display: "grid",
+    gap: 4,
+  },
+  fceTitle: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: COLOR.TEXT.PRIMARY,
+    margin: 0,
+  },
+  fceDescription: {
+    fontSize: 13,
+    color: COLOR.TEXT.SECONDARY,
+    margin: 0,
+  },
+  fceGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: 16,
   },
   label: {
     fontSize: 13,

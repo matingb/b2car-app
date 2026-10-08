@@ -197,25 +197,13 @@ export default function ConfiguracionPage() {
                 condicionIvaEmisor={config.condicionIvaEmisor}
                 ingresosBrutos={config.ingresosBrutos}
                 puntoVenta={config.puntoVenta}
+                fceCbu={config.fceCbu}
+                fceSistema={config.fceSistema}
                 disabled={saving || testing}
                 onChange={(patch) => {
                   setConfig((prev) => ({ ...prev, ...patch }));
                 }}
               />
-
-              <section style={{ border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 12, padding: 20, display: "grid", gap: 8 }}>
-                <h3 style={{ margin: 0 }}>Factura de Crédito Electrónica MiPyME</h3>
-                <p style={{ margin: 0, color: COLOR.TEXT.SECONDARY }}>CBU fiscal y sistema SCA/ADC del emisor por ambiente. No se utiliza la cuenta de cobros.</p>
-                <label style={{ display: "grid", gap: 6 }}>CBU fiscal (22 dígitos)
-                  <input inputMode="numeric" maxLength={22} value={config.fceCbu ?? ""} disabled={saving || testing}
-                    onChange={(event) => setConfig((previous) => ({ ...previous, fceCbu: event.target.value.replace(/\D/g, "") || null }))} />
-                </label>
-                <label style={{ display: "grid", gap: 6 }}>Sistema de circulación
-                  <select value={config.fceSistema ?? ""} disabled={saving || testing} onChange={(event) => setConfig((previous) => ({ ...previous, fceSistema: event.target.value === "SCA" || event.target.value === "ADC" ? event.target.value : null }))}>
-                    <option value="">Seleccioná una opción explícita</option><option value="SCA">SCA — Sistema de Circulación Abierta</option><option value="ADC">ADC — Agente de Depósito Colectivo</option>
-                  </select>
-                </label>
-              </section>
 
               {/* Card 3: Certificado y Clave Privada */}
               <FacturacionCertificadosCard
