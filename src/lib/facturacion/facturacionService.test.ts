@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -8,6 +9,7 @@ import { createClient } from "@/supabase/server";
 import { lookupArcaPadronPerson } from "@/lib/arcaPadron/arcaPadronGateway";
 import {
   exportFacturasRows,
+  isVerifiedFiscalPdfCache,
   FacturacionValidationError,
   listFacturas,
   resolvePdfReceiverSnapshot,
@@ -165,5 +167,21 @@ describe("configuración explícita del sistema FCE", () => {
 
   it("rechaza una modalidad no permitida en lugar de convertirla a SCA", () => {
     expect(() => validateConfigurationInput({ ...config, fceSistema: "OTRA" })).toThrow("El sistema de circulación FCE debe ser SCA o ADC");
+  });
+});
+
+
+describe("integridad de caché PDF fiscal", () => {
+  const bytes = new TextEncoder().encode("PDF fiscal autorizado");
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  const path = "tenant-1/homologacion/factura-1/fiscal-v4.pdf";
+
+  it("permite redescargar la caché legítima cuando ruta, versión e hash coinciden", () => {
+    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v4", expectedPath: path, storedSha256: sha256, bytes })).toBe(true);
+  });
+
+  it("rechaza metadatos apuntados a otro objeto o bytes reemplazados", () => {
+    expect(isVerifiedFiscalPdfCache({ storedPath: "tenant-1/otro.pdf", storedVersion: "fiscal-v4", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);
+    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v4", expectedPath: path, storedSha256: "0".repeat(64), bytes })).toBe(false);
   });
 });

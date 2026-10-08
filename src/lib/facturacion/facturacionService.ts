@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";
 import { createClient } from "@/supabase/server";
+import { createAdminClient } from "@/supabase/admin";
 
 import {
   amountToCents,
@@ -1564,6 +1565,16 @@ export async function exportFacturasRows(tenantId: string, filters: FacturasList
 // v3: el receptor con CUIT distinto al del cliente registrado se imprime con los datos del padrón ARCA.
 const PDF_TEMPLATE_VERSION = "fiscal-v4";
 const PDF_BUCKET = "facturacion-comprobantes";
+export function isVerifiedFiscalPdfCache(input: {
+  storedPath: string | null;
+  storedVersion: string;
+  expectedPath: string;
+  storedSha256: string;
+  bytes: Uint8Array;
+}): boolean {
+  if (input.storedPath !== input.expectedPath || input.storedVersion !== PDF_TEMPLATE_VERSION || !/^[a-f0-9]{64}$/.test(input.storedSha256)) return false;
+  return createHash("sha256").update(input.bytes).digest("hex") === input.storedSha256;
+}
 
 function isRegisteredClientDocument(invoiceDocument: string, clientDocument: string): boolean {
   if (!invoiceDocument || !clientDocument) return false;
@@ -1606,13 +1617,21 @@ export async function buildFacturaPdf(tenantId: string, facturaId: string): Prom
   const supabase = await createClient();
   const detail = await getFacturaDetalle(tenantId, facturaId);
   if (detail.estado !== "AUTORIZADA") throw new FacturacionValidationError("El PDF sólo está disponible para documentos autorizados");
-  const { data: invoice } = await supabase.from("facturas_electronicas")
-    .select("pdf_storage_path, pdf_template_version").eq("id", facturaId).eq("tenant_id", tenantId).single();
-  const storedPath = nullable(record(invoice).pdf_storage_path);
-  if (storedPath && text(record(invoice).pdf_template_version) === PDF_TEMPLATE_VERSION) {
-    const downloaded = await supabase.storage.from(PDF_BUCKET).download(storedPath);
+  const { data: invoice, error: invoiceError } = await supabase.from("facturas_electronicas")
+    .select("pdf_storage_path, pdf_sha256, pdf_template_version").eq("id", facturaId).eq("tenant_id", tenantId).single();
+  if (invoiceError || !invoice) throw new FacturacionValidationError("No se pudo verificar la caché del PDF fiscal");
+  const invoiceRecord = record(invoice);
+  const canonicalPath = `${tenantId}/${detail.ambiente.toLowerCase()}/${detail.id}/${PDF_TEMPLATE_VERSION}.pdf`;
+  const storedPath = nullable(invoiceRecord.pdf_storage_path);
+  const expectedHash = text(invoiceRecord.pdf_sha256);
+  if (storedPath === canonicalPath && text(invoiceRecord.pdf_template_version) === PDF_TEMPLATE_VERSION && /^[a-f0-9]{64}$/.test(expectedHash)) {
+    const downloaded = await supabase.storage.from(PDF_BUCKET).download(canonicalPath);
     if (!downloaded.error && downloaded.data) {
-      return { bytes: new Uint8Array(await downloaded.data.arrayBuffer()), filename: pdfFilename(detail) };
+      const cachedBytes = new Uint8Array(await downloaded.data.arrayBuffer());
+      if (isVerifiedFiscalPdfCache({
+        storedPath, storedVersion: text(invoiceRecord.pdf_template_version), expectedPath: canonicalPath,
+        storedSha256: expectedHash, bytes: cachedBytes,
+      })) return { bytes: cachedBytes, filename: pdfFilename(detail) };
     }
   }
   const fiscal: FiscalPdfInvoice = {
@@ -1633,9 +1652,12 @@ export async function buildFacturaPdf(tenantId: string, facturaId: string): Prom
   };
   const bytes = await generateFiscalInvoicePdf(fiscal);
   const path = `${tenantId}/${detail.ambiente.toLowerCase()}/${detail.id}/${PDF_TEMPLATE_VERSION}.pdf`;
-  const uploaded = await supabase.storage.from(PDF_BUCKET).upload(path, bytes, { contentType: "application/pdf", upsert: true });
+  // Cache writes bypass the authenticated user's broad tenant RLS only after the
+  // cookie-authenticated invoice/detail authorization above has succeeded.
+  const admin = createAdminClient();
+  const uploaded = await admin.storage.from(PDF_BUCKET).upload(path, bytes, { contentType: "application/pdf", upsert: true });
   if (uploaded.error) throw new Error("No se pudo guardar el PDF fiscal generado");
-  const { error: metadataError } = await supabase.from("facturas_electronicas").update({
+  const { error: metadataError } = await admin.from("facturas_electronicas").update({
     pdf_storage_path: path,
     pdf_sha256: createHash("sha256").update(bytes).digest("hex"),
     pdf_template_version: PDF_TEMPLATE_VERSION,
