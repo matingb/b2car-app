@@ -139,7 +139,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         setReceptor(defaultDraft(data.preflight.receptor));
         setAutomaticConditionCuit(null);
         setCondicionVenta("CONTADO");
-        setFceSistema("");
+        setFceSistema(data.preflight.fceSistemaConfigurado);
         setDetalleSimplificado(false);
         setFechas(data.preflight.fechasDefault);
       })
@@ -229,6 +229,26 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       return cause instanceof Error ? cause.message : "La identificación del receptor no es válida";
     }
   }, [preflight, receptor.tipoDocumento, receptor.numeroDocumento, receptorCondition, voucherPreview]);
+  const hasPreflight = Boolean(preflight);
+  useEffect(() => {
+    if (!open || !hasPreflight) return;
+    const params = new URLSearchParams({ fechaComprobante: fechas.fechaComprobante });
+    if (receptor.tipoDocumento === "80") {
+      params.set("tipoDocumento", "80");
+      params.set("numeroDocumento", receptor.numeroDocumento);
+    }
+    const timer = window.setTimeout(() => {
+      fetch(`${endpoint}?${params.toString()}`, { cache: "no-store" })
+        .then(async (response) => {
+          const body = await response.json();
+          if (!response.ok) throw new Error(body.error || "No se pudo actualizar la consulta de obligación FCE");
+          setPreflight((current) => current ? { ...current, fcePosible: body.data.preflight.fcePosible, fceObligatoria: body.data.preflight.fceObligatoria, fceFechaConsulta: body.data.preflight.fceFechaConsulta, fceTotalConsultado: body.data.preflight.fceTotalConsultado } : current);
+        })
+        .catch((cause) => setError(cause instanceof Error ? cause.message : "No se pudo consultar la obligación FCE"));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [open, hasPreflight, endpoint, fechas.fechaComprobante, receptor.tipoDocumento, receptor.numeroDocumento]);
+
   const canSubmit = Boolean(
     !needsConfiguration
     && preflight
@@ -289,7 +309,13 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       });
       const body = await response.json();
       if (body.data) setFactura(body.data as FacturaElectronicaResumen);
-      if (!response.ok) throw new Error(body.error || "La emisión fiscal no fue autorizada");
+      if (!response.ok) {
+        if (body.code === "FCE_DATA_REQUIRED" && body.fce) {
+          setPreflight((current) => current ? { ...current, fcePosible: true, fceObligatoria: true, fceCbuConfigurado: body.fce.cbuConfigurado, fceSistemaConfigurado: body.fce.sistema } : current);
+          setFceSistema(body.fce.sistema);
+        }
+        throw new Error(body.error || "La emisión fiscal no fue autorizada");
+      }
       const issued = body.data as FacturaElectronicaResumen;
       setFactura(issued);
       onAuthorized(issued);
@@ -446,8 +472,8 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
           </section>
           {preflight.fcePosible ? <section style={styles.section}>
             <div style={styles.sectionTitle}>Factura de Crédito Electrónica MiPyME</div>
-            <p style={styles.summaryDetail}>Si ARCA determina que corresponde FCE, se seleccionará automáticamente el tipo A/B/C. Elegí el sistema a consignar en el comprobante. El estado posterior se gestiona en el Registro FCE de ARCA.</p>
-            <Dropdown id="fce-sistema-circulacion" options={[{ value: "", label: "Seleccioná el sistema para una eventual FCE" }, { value: "SCA", label: "SCA — Sistema de Circulación Abierta" }, { value: "ADC", label: "ADC — Agente de Depósito Colectivo" }]} value={fceSistema} onChange={(value) => setFceSistema(value as "SCA" | "ADC" | "")} style={styles.dropdown} />
+            <p style={styles.summaryDetail}>ARCA confirmó que esta operación requiere FCE. Se seleccionará automáticamente el tipo A/B/C. Se usará el sistema configurado para la empresa. El estado posterior se gestiona en el Registro FCE de ARCA.</p>
+            <strong>{fceSistema === "ADC" ? "ADC — Agente de Depósito Colectivo" : "SCA — Sistema de Circulación Abierta"}</strong>
             {!preflight.fceCbuConfigurado ? <span style={styles.validationError}>Configurá el CBU fiscal del emisor antes de emitir FCE.</span> : null}
           </section> : null}
           <section style={styles.section}>

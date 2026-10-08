@@ -340,7 +340,7 @@ function drawFirstHeader(
   page.drawText(documentLabel, { x: 330, y: 758, font: fonts.bold, size: [201,206,211].includes(invoice.tipoComprobante) ? 8 : invoice.documentoTipo === "FACTURA" ? 18 : 12 });
   if ([201,206,211].includes(invoice.tipoComprobante)) {
     page.drawText(`MiPyME · Sistema ${invoice.fceSistema ?? "-"}`, { x: 330, y: 743, font: fonts.bold, size: 9 });
-    page.drawText(`CBU: ${invoice.fceCbu ?? "-"}`, { x: 330, y: 728, font: fonts.regular, size: 8 });
+    page.drawText(`CBU: ${invoice.fceCbu ?? "-"}`, { x: 330, y: 630, font: fonts.regular, size: 8 });
   }
   drawLabeledValue(page, fonts, "Punto de Venta:", String(invoice.puntoVenta).padStart(5, "0"), 330, 731, 414);
   drawLabeledValue(page, fonts, "Comp. Nro:", String(invoice.numeroComprobante).padStart(8, "0"), 330, 714, 414);
@@ -350,11 +350,13 @@ function drawFirstHeader(
   drawLabeledValue(page, fonts, "Inicio de Act.:", formatDate(text(emitter.inicioActividades)), 330, 646, 414);
 
   let receiverTop = 574;
-  if (invoice.concepto !== 1) {
+  if (invoice.concepto !== 1 || [201,206,211].includes(invoice.tipoComprobante)) {
     page.drawRectangle({ x: MARGIN, y: 542, width: CONTENT_WIDTH, height: 31, color: WHITE, borderWidth: 0.8 });
-    drawLabeledValue(page, fonts, "Período Facturado Desde:", formatDate(invoice.fechaServicioDesde), 50, 554, 164);
-    drawLabeledValue(page, fonts, "Hasta:", formatDate(invoice.fechaServicioHasta), 252, 554, 284);
-    drawLabeledValue(page, fonts, "Fecha de Vto. para el pago:", formatDate(invoice.fechaVencimientoPago), 365, 554, 488);
+    if (invoice.concepto !== 1) {
+      drawLabeledValue(page, fonts, "Período Facturado Desde:", formatDate(invoice.fechaServicioDesde), 50, 554, 164);
+      drawLabeledValue(page, fonts, "Hasta:", formatDate(invoice.fechaServicioHasta), 252, 554, 284);
+    }
+    drawLabeledValue(page, fonts, "Fecha de Vto. para el pago:", formatDate(invoice.fechaVencimientoPago), invoice.concepto === 1 ? 50 : 365, 554, invoice.concepto === 1 ? 173 : 488);
     receiverTop = 527;
   }
 

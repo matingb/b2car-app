@@ -20,6 +20,7 @@ CREATE TABLE "public"."facturacion_configuracion_ambiente" (
   "credenciales_updated_by" uuid,
   "fce_monto_minimo"        numeric(14,2),
   "fce_cbu"                 text,
+  "fce_sistema"             text NOT NULL DEFAULT 'SCA'::text,
   "created_at"              timestamp with time zone NOT NULL DEFAULT now(),
   "updated_at"              timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT "facturacion_config_ambiente_credenciales_completas"
@@ -31,6 +32,7 @@ CREATE TABLE "public"."facturacion_configuracion_ambiente" (
   CONSTRAINT "facturacion_configuracion_ambiente_ambiente_check" CHECK ((ambiente = ANY (ARRAY['HOMOLOGACION'::text, 'PRODUCCION'::text]))),
   CONSTRAINT "facturacion_configuracion_ambiente_condicion_iva_emisor_check" CHECK ((condicion_iva_emisor = ANY (ARRAY['MONOTRIBUTISTA'::text, 'RESPONSABLE_INSCRIPTO'::text]))),
   CONSTRAINT "facturacion_configuracion_ambiente_cuit_check" CHECK ((cuit ~ '^[0-9]{11}$'::text)),
+  CONSTRAINT "facturacion_configuracion_ambiente_fce_sistema_check" CHECK ((fce_sistema = ANY (ARRAY['SCA'::text, 'ADC'::text]))),
   CONSTRAINT "facturacion_configuracion_ambiente_fce_cbu_check" CHECK ((fce_cbu IS NULL OR fce_cbu ~ '^[0-9]{22}$'::text)),
   CONSTRAINT "facturacion_configuracion_ambiente_fce_monto_minimo_check" CHECK (((fce_monto_minimo IS NULL) OR (fce_monto_minimo > (0)::numeric))),
   CONSTRAINT "facturacion_configuracion_ambiente_pkey" PRIMARY KEY (tenant_id, ambiente),

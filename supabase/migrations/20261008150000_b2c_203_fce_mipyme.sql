@@ -1,5 +1,7 @@
 ALTER TABLE public.facturacion_configuracion_ambiente
   ADD COLUMN fce_cbu text,
+  ADD COLUMN fce_sistema text NOT NULL DEFAULT 'SCA',
+  ADD CONSTRAINT facturacion_configuracion_ambiente_fce_sistema_check CHECK (fce_sistema IN ('SCA','ADC')),
   ADD CONSTRAINT facturacion_configuracion_ambiente_fce_cbu_check CHECK (fce_cbu IS NULL OR fce_cbu ~ '^[0-9]{22}$');
 
 ALTER TABLE public.facturas_electronicas
@@ -7,7 +9,8 @@ ALTER TABLE public.facturas_electronicas
   ADD COLUMN fce_cbu text,
   ADD COLUMN fce_estado_manual text,
   ADD COLUMN fce_estado_manual_actualizado_at timestamptz,
-  ADD COLUMN fce_estado_manual_actualizado_by uuid;
+  ADD COLUMN fce_estado_manual_actualizado_by uuid,
+  ADD COLUMN intencion_hash text;
 ALTER TABLE public.facturas_electronicas DROP CONSTRAINT facturas_electronicas_tipo_comprobante_check;
 ALTER TABLE public.facturas_electronicas ADD CONSTRAINT facturas_electronicas_tipo_comprobante_check CHECK (tipo_comprobante = ANY (ARRAY[1,2,3,6,7,8,11,12,13,51,52,53,201,206,211]));
 ALTER TABLE public.facturas_electronicas ADD CONSTRAINT facturas_electronicas_fce_estado_check CHECK (fce_estado_manual IS NULL OR fce_estado_manual IN ('PENDIENTE','ACEPTADA','RECHAZADA','CANCELADA','PAGADA','ANULADA'));
@@ -140,7 +143,7 @@ BEGIN
       origen_tipo = p_encabezado->>'origen_tipo',
       documento_tipo = p_encabezado->>'documento_tipo',
       documento_asociado_id = NULLIF(p_encabezado->>'documento_asociado_id','')::uuid,
-      idempotency_key = (p_encabezado->>'idempotency_key')::uuid,
+      -- Preserve the original key; a retry is a new attempt, not a reassignment of historical intent.
       estado = 'ENVIANDO', ambiente = p_encabezado->>'ambiente',
       emisor_snapshot = p_encabezado->'emisor_snapshot',
       receptor_snapshot = p_encabezado->'receptor_snapshot',
@@ -165,6 +168,7 @@ BEGIN
       importe_tributos = (p_encabezado->>'importe_tributos')::numeric,
       otros_impuestos_nacionales = (p_encabezado->>'otros_impuestos_nacionales')::numeric,
       contenido_hash = p_encabezado->>'contenido_hash',
+      intencion_hash = p_encabezado->>'intencion_hash',
       cae = NULL, cae_vencimiento = NULL, autorizada_at = NULL,
       error_codigo = NULL, error_mensaje = NULL
     WHERE id = v_id;
@@ -177,7 +181,7 @@ BEGIN
       moneda, total, punto_venta, tipo_comprobante, clase_comprobante,
       numero_comprobante, condicion_venta, importe_neto_gravado,
       importe_no_gravado, importe_exento, importe_iva, importe_tributos,
-      otros_impuestos_nacionales, contenido_hash, created_by, fce_sistema, fce_cbu, fce_estado_manual
+      otros_impuestos_nacionales, contenido_hash, intencion_hash, created_by, fce_sistema, fce_cbu, fce_estado_manual
     ) VALUES (
       v_id, v_current_tenant,
       NULLIF(p_encabezado->>'arreglo_id','')::uuid,
@@ -203,7 +207,7 @@ BEGIN
       (p_encabezado->>'importe_iva')::numeric,
       (p_encabezado->>'importe_tributos')::numeric,
       (p_encabezado->>'otros_impuestos_nacionales')::numeric,
-      p_encabezado->>'contenido_hash', NULLIF(p_encabezado->>'created_by','')::uuid,
+      p_encabezado->>'contenido_hash', p_encabezado->>'intencion_hash', NULLIF(p_encabezado->>'created_by','')::uuid,
       p_encabezado->>'fce_sistema', p_encabezado->>'fce_cbu', p_encabezado->>'fce_estado_manual'
     );
   END IF;

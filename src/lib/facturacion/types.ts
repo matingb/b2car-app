@@ -81,6 +81,7 @@ export type FacturaElectronicaResumen = {
   createdAt?: string;
   fceSistema?: FceSistemaCirculacion | null;
   fceCbu?: string | null;
+  fechaVencimientoPago?: string | null;
   fceEstadoManual?: "PENDIENTE" | "ACEPTADA" | "RECHAZADA" | "CANCELADA" | "PAGADA" | "ANULADA" | null;
   fceEstadoManualActualizadoAt?: string | null;
   errorCodigo?: string | null;
@@ -120,6 +121,7 @@ export type FacturacionConfiguracionPublica = {
   inicioActividades: string;
   puntoVenta: number;
   fceCbu: string | null;
+  fceSistema: FceSistemaCirculacion;
   ambiente: FacturacionAmbiente;
   credenciales: {
     configuradas: boolean;
@@ -152,7 +154,11 @@ export type FacturacionPreflight = {
   precioFinal: number;
   fechasDefault: FacturaFechaInput;
   fcePosible: boolean;
+  fceObligatoria: boolean;
+  fceSistemaConfigurado: FceSistemaCirculacion;
   fceCbuConfigurado: boolean;
+  fceFechaConsulta: string;
+  fceTotalConsultado: number;
 };
 
 export type FacturasPaginadas = {

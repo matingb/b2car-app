@@ -152,6 +152,8 @@ export default function FacturaDetailPage() {
           <h2 style={styles.cardTitle}>Factura de Crédito Electrónica MiPyME</h2>
           <p style={styles.muted}>El estado siguiente es manual e informativo; no envía operaciones a ARCA. La aceptación, rechazo, cancelación y circulación oficiales se consultan y gestionan en el Registro FCE de ARCA.</p>
           <Info label="Sistema indicado al emitir" value={invoice.fceSistema ?? "-"} />
+          <Info label="CBU fiscal del snapshot" value={invoice.fceCbu ?? "-"} />
+          <Info label="Vencimiento de pago" value={invoice.fechaVencimientoPago ?? "-"} />
           <Info label="Estado manual" value={invoice.fceEstadoManual ?? "PENDIENTE"} />
           {canManage && invoice.estado === "AUTORIZADA" ? <div style={styles.actions}>
             <select aria-label="Estado manual FCE" value={fceStatus || invoice.fceEstadoManual || "PENDIENTE"} onChange={(event) => setFceStatus(event.target.value)} style={styles.input}>

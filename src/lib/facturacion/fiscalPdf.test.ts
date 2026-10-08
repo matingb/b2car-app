@@ -95,6 +95,22 @@ describe("PDF fiscal propio", () => {
     drawRectangle.mockRestore();
   });
 
+  it("muestra vencimiento FCE de productos y separa CBU del punto de venta", async () => {
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    const bytes = await generateFiscalInvoicePdf(invoice({
+      concepto: 1, tipoComprobante: 201, fceSistema: "SCA", fceCbu: "1234567890123456789012",
+      fechaVencimientoPago: "2026-09-15",
+    }));
+    expect(Buffer.from(bytes).subarray(0, 5).toString("ascii")).toBe("%PDF-");
+    const calls = drawText.mock.calls;
+    expect(calls.some(([text]) => String(text).includes("Fecha de Vto. para el pago:"))).toBe(true);
+    const cbu = calls.find(([text]) => String(text).startsWith("CBU:"));
+    const puntoVenta = calls.find(([text]) => String(text).includes("Punto de Venta:"));
+    expect(cbu?.[1]?.y).toBeLessThan(puntoVenta?.[1]?.y ?? 0);
+    expect(cbu?.[1]?.y).toBeLessThan(646);
+    drawText.mockRestore();
+  });
+
   it("genera un PDF válido a partir del snapshot", async () => {
     const bytes = await generateFiscalInvoicePdf(invoice());
     expect(Buffer.from(bytes).subarray(0, 5).toString("ascii")).toBe("%PDF-");

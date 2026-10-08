@@ -247,7 +247,8 @@ export function validateFechas(
   }
   if (concepto === 1 && !fceMipyme) return { fechaComprobante: fechas.fechaComprobante, fechaServicioDesde: "", fechaServicioHasta: "", fechaVencimientoPago: "" };
   const vencimiento = parseIsoDate(fechas.fechaVencimientoPago, "La fecha de vencimiento de pago");
-  if (vencimiento < comprobante) throw new FacturacionValidationError("El vencimiento no puede ser anterior al comprobante");
+  const limiteVencimiento = fceMipyme && comprobante < hoy ? hoy : comprobante;
+  if (vencimiento < limiteVencimiento) throw new FacturacionValidationError("El vencimiento FCE no puede ser anterior a la fecha de emisión ni a la fecha actual");
   if (concepto === 1) return { fechaComprobante: fechas.fechaComprobante, fechaServicioDesde: "", fechaServicioHasta: "", fechaVencimientoPago: fechas.fechaVencimientoPago! };
   const desde = parseIsoDate(fechas.fechaServicioDesde, "La fecha de servicio desde");
   const hasta = parseIsoDate(fechas.fechaServicioHasta, "La fecha de servicio hasta");

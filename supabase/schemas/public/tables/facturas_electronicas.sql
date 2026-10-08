@@ -37,6 +37,7 @@ CREATE TABLE "public"."facturas_electronicas" (
   "importe_tributos"           numeric(14,2)            NOT NULL DEFAULT 0,
   "otros_impuestos_nacionales" numeric(14,2)            NOT NULL DEFAULT 0,
   "contenido_hash"             text,
+  "intencion_hash"             text,
   "autorizada_at"              timestamp with time zone,
   "origen_externo"             boolean                  NOT NULL DEFAULT false,
   "pdf_storage_path"           text,
@@ -137,3 +138,12 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 REVOKE ALL ON TABLE "public"."facturas_electronicas" FROM "postgres";
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE "public"."facturas_electronicas" TO "postgres";
+-- FCE snapshot integrity (NULL-safe PostgreSQL CHECK semantics).
+ALTER TABLE public.facturas_electronicas DROP CONSTRAINT facturas_electronicas_fce_data_check;
+ALTER TABLE public.facturas_electronicas ADD CONSTRAINT facturas_electronicas_fce_data_check CHECK (
+  (tipo_comprobante IN (201,206,211) AND fce_sistema IS NOT NULL AND fce_sistema IN ('SCA','ADC')
+   AND fce_cbu IS NOT NULL AND fce_cbu ~ '^[0-9]{22}$'
+   AND (fce_estado_manual IS NULL OR fce_estado_manual IN ('PENDIENTE','ACEPTADA','RECHAZADA','CANCELADA','PAGADA','ANULADA'))
+   AND (estado <> 'AUTORIZADA' OR fce_estado_manual IS NOT NULL)) IS TRUE
+  OR (tipo_comprobante NOT IN (201,206,211) AND fce_sistema IS NULL AND fce_cbu IS NULL AND fce_estado_manual IS NULL) IS TRUE
+);

@@ -218,3 +218,11 @@ describe("facturación ARCA: matriz A/B/C e IVA", () => {
       .toThrow("5 días");
   });
 });
+
+
+describe("fecha de vencimiento FCE", () => {
+  it("exige la fecha posterior entre emisión y hoy para una factura retroactiva", () => {
+    expect(() => validateFechas(1, { fechaComprobante: "2026-08-27", fechaVencimientoPago: "2026-08-27" }, new Date("2026-08-28T12:00:00Z"), true)).toThrow("fecha actual");
+    expect(validateFechas(1, { fechaComprobante: "2026-08-27", fechaVencimientoPago: "2026-08-28" }, new Date("2026-08-28T12:00:00Z"), true).fechaVencimientoPago).toBe("2026-08-28");
+  });
+});
