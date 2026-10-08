@@ -31,7 +31,7 @@ export enum SidebarMenuKey {
   Operaciones = "operaciones",
   CuentasFinancieras = "cuentas-financieras",
   Empleados = "empleados",
-  Facturas = "facturas",
+  Documentacion = "documentacion",
   Talleres = "talleres",
   Configuracion = "configuracion",
   Logout = "logout",
@@ -46,6 +46,8 @@ export type SidebarMenuItem = {
   disabled?: boolean;
   isLoading?: boolean;
   dividerBefore?: boolean;
+  /** Rutas adicionales que marcan el ítem como activo. */
+  activePaths?: readonly string[];
 };
 
 export function useSidebarMenu() {
@@ -126,11 +128,13 @@ export function useSidebarMenu() {
         onClick: () => router.push(ROUTES.cuentasFinancieras),
       }] : []),
       ...(canViewInvoices ? [{
-        key: SidebarMenuKey.Facturas,
+        // Facturas, notas y remitos comparten un único listado.
+        key: SidebarMenuKey.Documentacion,
         href: ROUTES.facturacion,
-        label: "Facturas",
+        label: "Documentos",
         icon: <ReceiptText size={18} />,
         dividerBefore: true,
+        activePaths: [ROUTES.remitos],
         onClick: () => router.push(ROUTES.facturacion),
       }] : []),
       ...(canViewConfiguration || canViewEmployees ? [{

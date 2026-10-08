@@ -9,6 +9,7 @@ import Card from "@/app/components/ui/Card";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import FacturaListItem from "@/app/components/facturacion/FacturaListItem";
 import FacturaSummaryCard from "@/app/components/facturacion/FacturaSummaryCard";
+import FacturaRemitosSection from "@/app/components/remitos/FacturaRemitosSection";
 import {
   type FacturaElectronicaDetalle,
 } from "@/lib/facturacion/types";
@@ -117,16 +118,16 @@ export default function FacturaDetailPage() {
   };
 
   if (loading) {
-    return <><ScreenHeader title="Facturas" breadcrumbs={["Detalle"]} hasBackButton /><ListSkeleton rows={7} /></>;
+    return <><ScreenHeader title="Documentos" breadcrumbs={["Detalle"]} hasBackButton /><ListSkeleton rows={7} /></>;
   }
 
   if (!invoice) {
-    return <><ScreenHeader title="Facturas" breadcrumbs={["Detalle"]} hasBackButton />{error ? <div style={styles.error}>{error}</div> : null}</>;
+    return <><ScreenHeader title="Documentos" breadcrumbs={["Detalle"]} hasBackButton />{error ? <div style={styles.error}>{error}</div> : null}</>;
   }
 
   return (
     <div>
-      <ScreenHeader title="Facturas" breadcrumbs={["Detalle"]} hasBackButton />
+      <ScreenHeader title="Documentos" breadcrumbs={["Detalle"]} hasBackButton />
       <FacturaSummaryCard
         invoice={invoice}
         working={working}
@@ -174,6 +175,10 @@ export default function FacturaDetailPage() {
           </div>
         </Card>
       </section>
+
+      {invoice.documentoTipo === "FACTURA" && invoice.estado === "AUTORIZADA" ? (
+        <FacturaRemitosSection facturaId={invoice.id} />
+      ) : null}
 
       <section style={styles.section}>
         <SectionHeading title="Datos fiscales" description="Información registrada al momento de emitir el comprobante." />
@@ -264,7 +269,7 @@ const styles = {
   sectionHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 12, flexWrap: "wrap" as const },
   sectionTitle: { fontSize: 20, fontWeight: 600, margin: 0 },
   sectionCard: { background: COLOR.BACKGROUND.SECONDARY },
-  twoColumns: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 },
+  twoColumns: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 16 },
   cardTitle: { margin: "0 0 12px", fontSize: 18 },
   cardHeader: { display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" as const },
   actions: { display: "flex", gap: 8, flexWrap: "wrap" as const },

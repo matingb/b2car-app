@@ -14,6 +14,7 @@ import {
   toDateInputFormat,
   toISODateTimeWithCurrentTime,
   toISODateTimeWithLocalCurrentTime,
+  toISODateAppTimeZone,
   toISODateLocal,
   toLocalDateInputFormat,
 } from "./fechas";
@@ -41,6 +42,11 @@ describe("isValidDate", () => {
 });
 
 describe("fechas de calendario local", () => {
+	it("obtiene la fecha calendario de Buenos Aires para un instante UTC", () => {
+	  expect(toISODateAppTimeZone(new Date("2026-10-07T02:59:59Z"))).toBe("2026-10-06");
+	  expect(toISODateAppTimeZone(new Date("2026-10-07T03:00:00Z"))).toBe("2026-10-07");
+	});
+
 	it("construye rangos estables en la zona de Buenos Aires", () => {
 	  expect(argentinaCalendarDateRangeISO("2026-09-18", "2026-09-18")).toEqual({
 	    from: "2026-09-18T03:00:00.000Z",

@@ -2,6 +2,7 @@ import "server-only";
 
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import QRCode from "qrcode";
+import { drawCentered, drawRight, formatDate, text, wrapText } from "@/lib/pdf/pdfText";
 import {
   CONDICIONES_IVA_RECEPTOR,
   TIPOS_DOCUMENTO_FISCAL,
@@ -81,21 +82,9 @@ type Fonts = {
   bold: PDFFont;
 };
 
-function text(value: unknown): string {
-  return typeof value === "string" ? value.trim() : value == null ? "" : String(value).trim();
-}
-
 function number(value: unknown): number {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function formatDate(value: string | null | undefined): string {
-  const iso = text(value);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
-    return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
-  }
-  return iso || "-";
 }
 
 function formatAmount(value: number): string {
@@ -105,52 +94,6 @@ function formatAmount(value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
-}
-
-function drawRight(page: PDFPage, value: string, right: number, y: number, font: PDFFont, size: number) {
-  page.drawText(value, { x: right - font.widthOfTextAtSize(value, size), y, font, size });
-}
-
-function drawCentered(page: PDFPage, value: string, center: number, y: number, font: PDFFont, size: number) {
-  page.drawText(value, { x: center - font.widthOfTextAtSize(value, size) / 2, y, font, size });
-}
-
-function wrapText(value: string, font: PDFFont, size: number, maxWidth: number): string[] {
-  const paragraphs = value.replace(/\r/g, "").split("\n");
-  const lines: string[] = [];
-  for (const paragraph of paragraphs) {
-    const words = paragraph.trim().split(/\s+/).filter(Boolean);
-    if (words.length === 0) {
-      lines.push("");
-      continue;
-    }
-    let current = "";
-    for (const word of words) {
-      const candidate = current ? `${current} ${word}` : word;
-      if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
-        current = candidate;
-        continue;
-      }
-      if (current) lines.push(current);
-      if (font.widthOfTextAtSize(word, size) <= maxWidth) {
-        current = word;
-        continue;
-      }
-      let fragment = "";
-      for (const character of word) {
-        const next = `${fragment}${character}`;
-        if (fragment && font.widthOfTextAtSize(next, size) > maxWidth) {
-          lines.push(fragment);
-          fragment = character;
-        } else {
-          fragment = next;
-        }
-      }
-      current = fragment;
-    }
-    if (current) lines.push(current);
-  }
-  return lines.length > 0 ? lines : ["-"];
 }
 
 function printableRows(lines: FiscalPdfLine[], font: PDFFont): PrintableRow[] {

@@ -241,9 +241,6 @@ export default function VehiculoDetailsPage() {
               : undefined
           }
           onClose={handleCloseModal}
-          onSubmitSuccess={async () => {
-            await handleCloseModal(true);
-          }}
         />
       )}
       {vehiculo && (

@@ -25,4 +25,43 @@ describe("FacturasToolbar", () => {
 
     expect(onDocumentoTipoChange).toHaveBeenCalledWith("NOTA_CREDITO");
   });
+
+  it("incluye remitos como tipo de documento y muestra sus filtros adicionales", async () => {
+    const user = userEvent.setup();
+    const onDocumentoTipoChange = vi.fn();
+    const { rerender } = render(
+      <FacturasToolbar
+        search=""
+        onSearchChange={vi.fn()}
+        onOpenFilters={vi.fn()}
+        documentoTipo=""
+        onDocumentoTipoChange={onDocumentoTipoChange}
+        chips={[]}
+        onRemoveChip={vi.fn()}
+        onClearFilters={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Remitos" }));
+    expect(onDocumentoTipoChange).toHaveBeenCalledWith("REMITO");
+
+    rerender(
+      <FacturasToolbar
+        search=""
+        onSearchChange={vi.fn()}
+        onOpenFilters={vi.fn()}
+        documentoTipo="REMITO"
+        onDocumentoTipoChange={onDocumentoTipoChange}
+        chips={[]}
+        onRemoveChip={vi.fn()}
+        onClearFilters={vi.fn()}
+      >
+        <span>Filtros de remitos</span>
+      </FacturasToolbar>,
+    );
+    expect(screen.getByText("Filtros de remitos")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Remitos" }));
+    expect(onDocumentoTipoChange).toHaveBeenLastCalledWith("");
+  });
 });

@@ -18,6 +18,8 @@ export interface DropdownOption {
     dataTestId?: string;
     disabled?: boolean;
     id?: string;
+    ariaLabel?: string;
+    placeholder?: string;
   }
 
 export default function Dropdown({
@@ -29,6 +31,8 @@ export default function Dropdown({
     dataTestId,
     disabled = false,
     id,
+    ariaLabel,
+    placeholder,
 }: DropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -125,6 +129,7 @@ export default function Dropdown({
         <div ref={containerRef} style={{ ...styles.container, ...style }}>
             <button
                 id={id}
+                aria-label={ariaLabel}
                 type="button"
                 role="button"
                 aria-haspopup="listbox"
@@ -147,7 +152,9 @@ export default function Dropdown({
                 }}
                 data-testid={dataTestId}
             >
-                <span style={styles.label}>{selectedOption?.selectedLabel ?? selectedOption?.label}</span>
+                <span style={{ ...styles.label, ...(selectedOption ? {} : styles.placeholderLabel) }}>
+                    {selectedOption?.selectedLabel ?? selectedOption?.label ?? placeholder}
+                </span>
                 <ChevronDown
                     size={16}
                     color={COLOR.TEXT.SECONDARY}
@@ -245,6 +252,9 @@ const styles = {
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap" as const,
+    },
+    placeholderLabel: {
+        color: COLOR.TEXT.TERTIARY,
     },
     optionLabel: {
         fontSize: 13,

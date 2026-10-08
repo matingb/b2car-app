@@ -182,6 +182,37 @@ describe("ArregloWhatsAppModal", () => {
     expect(textarea.value).not.toContain("*Total arreglo");
   });
 
+  it("muestra los repuestos pendientes del presupuesto en la previsualización", async () => {
+    const pendingData = createArregloDetalleData({
+      arreglo: createArreglo({
+        estado: "PRESUPUESTO",
+        precio_final: 0,
+        repuestos_pendientes: [
+          { id: "existing", tipo: "EXISTENTE", nombre: "Filtro", cantidad: 2, monto_unitario: 5000 },
+          { id: "new", tipo: "NUEVO", codigo: "ACE-01", nombre: "Aceite", cantidad: 1, monto_unitario: 6000 },
+        ],
+      }),
+      detalles: [],
+      asignaciones: [],
+    });
+
+    render(
+      <ArregloWhatsAppModal
+        open
+        onClose={vi.fn()}
+        data={pendingData}
+        initialPhone="5491199998888"
+        clienteNombre="Carlos Gómez"
+      />
+    );
+
+    const textarea = screen.getByPlaceholderText("El mensaje de WhatsApp aparecerá aquí...") as HTMLTextAreaElement;
+    expect(textarea.value).toContain("Filtro x2");
+    expect(textarea.value).toContain("Aceite x1");
+    expect(textarea.value).toContain("_Subtotal repuestos: $16.000_");
+    expect(textarea.value).not.toContain("Pastillas de freno");
+  });
+
   it("permite alternar el toggle de kilometraje", async () => {
     render(
       <ArregloWhatsAppModal
@@ -282,8 +313,8 @@ describe("ArregloWhatsAppModal", () => {
     });
   });
 
-  it("envía por WhatsApp intentando abrir la app y haciendo fallback a la web si no hay foco", async () => {
-    const openSpy = vi.spyOn(window, "open").mockReturnValue({} as Window);
+  it("abre WhatsApp de inmediato y cierra el editor después de solicitar el enlace", async () => {
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
     const onClose = vi.fn();
 
     render(
@@ -300,26 +331,16 @@ describe("ArregloWhatsAppModal", () => {
       expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
     });
 
-    vi.useFakeTimers();
     const submitBtn = screen.getByRole("button", { name: "Abrir chat de WhatsApp" });
     fireEvent.click(submitBtn);
 
-    // Cierra el modal de inmediato para no retener la UI
     expect(onClose).toHaveBeenCalled();
-
-    // Antes del timeout no se abrió web
-    expect(openSpy).not.toHaveBeenCalled();
-
-    // Al pasar el timeout de fallback se abre WhatsApp Web
-    act(() => {
-      vi.advanceTimersByTime(1500);
-    });
-
-    expect(openSpy).toHaveBeenCalled();
-    const calledUrl = openSpy.mock.calls[0][0];
-    expect(calledUrl).toContain("web.whatsapp.com/send?phone=5491199998888");
-
-    vi.useRealTimers();
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining("https://wa.me/5491199998888?text="),
+      "_blank",
+      "noopener,noreferrer"
+    );
   });
 
   it("muestra únicamente el botón principal de WhatsApp y no un botón secundario de WhatsApp Web", async () => {
