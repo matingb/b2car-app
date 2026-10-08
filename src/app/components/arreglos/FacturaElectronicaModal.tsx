@@ -110,6 +110,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const [factura, setFactura] = useState<FacturaElectronicaResumen | null>(null);
   const [receptor, setReceptor] = useState<FiscalDraft>({ tipoDocumento: "99", numeroDocumento: "", condicionIvaReceptorId: "5" });
   const [condicionVenta, setCondicionVenta] = useState("CONTADO");
+  const [fceSistema, setFceSistema] = useState<"SCA" | "ADC" | "">("");
   const [fechas, setFechas] = useState<FacturaFechaInput>({ fechaComprobante: "" });
   const [detalleSimplificado, setDetalleSimplificado] = useState(false);
   const [automaticConditionCuit, setAutomaticConditionCuit] = useState<string | null>(null);
@@ -138,6 +139,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         setReceptor(defaultDraft(data.preflight.receptor));
         setAutomaticConditionCuit(null);
         setCondicionVenta("CONTADO");
+        setFceSistema("");
         setDetalleSimplificado(false);
         setFechas(data.preflight.fechasDefault);
       })
@@ -282,6 +284,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
             condicionIvaReceptorId: Number(receptor.condicionIvaReceptorId),
           },
           fechas,
+          fceSistema,
         }),
       });
       const body = await response.json();
@@ -332,7 +335,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         <div style={styles.content}>
           {factura?.estado === "AUTORIZADA" ? (
             <div style={styles.authorized}>
-              <strong>Factura {factura.claseComprobante} autorizada: {invoiceLabel}</strong>
+              <strong>{[201,206,211].includes(factura.tipoComprobante) ? "Factura de Crédito Electrónica MiPyME" : `Factura ${factura.claseComprobante}`} autorizada: {invoiceLabel}</strong>
               <span>CAE {factura.cae ?? "-"} · vence {factura.caeVencimiento ?? "-"}</span>
               <Button icon={<Download size={16} />} text="Descargar PDF" onClick={downloadPdf} hideTextOnMobile={false} />
             </div>
@@ -441,9 +444,19 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
               </span>
             ) : null}
           </section>
+          {preflight.fcePosible ? <section style={styles.section}>
+            <div style={styles.sectionTitle}>Factura de Crédito Electrónica MiPyME</div>
+            <p style={styles.summaryDetail}>Si ARCA determina que corresponde FCE, se seleccionará automáticamente el tipo A/B/C. Elegí el sistema a consignar en el comprobante. El estado posterior se gestiona en el Registro FCE de ARCA.</p>
+            <Dropdown id="fce-sistema-circulacion" options={[{ value: "", label: "Seleccioná el sistema para una eventual FCE" }, { value: "SCA", label: "SCA — Sistema de Circulación Abierta" }, { value: "ADC", label: "ADC — Agente de Depósito Colectivo" }]} value={fceSistema} onChange={(value) => setFceSistema(value as "SCA" | "ADC" | "")} style={styles.dropdown} />
+            {!preflight.fceCbuConfigurado ? <span style={styles.validationError}>Configurá el CBU fiscal del emisor antes de emitir FCE.</span> : null}
+          </section> : null}
           <section style={styles.section}>
             <div style={styles.sectionTitle}>Fechas aplicables</div>
             <div style={styles.dateGrid}>
+              <label style={styles.field}>Vencimiento de pago
+                <IconInput icon={null} type="date" value={fechas.fechaVencimientoPago ?? ""} wrapperStyle={styles.inputWrapper}
+                  onChange={(event) => setFechas((previous) => ({ ...previous, fechaVencimientoPago: event.target.value }))} />
+              </label>
               <label style={styles.field}>Comprobante
                 <IconInput
                   icon={null}
@@ -454,15 +467,6 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
                 />
               </label>
               {isServiceConcept ? <>
-                <label style={styles.field}>Vencimiento
-                  <IconInput
-                    icon={null}
-                    type="date"
-                    value={fechas.fechaVencimientoPago ?? ""}
-                    wrapperStyle={styles.inputWrapper}
-                    onChange={(event) => setFechas((previous) => ({ ...previous, fechaVencimientoPago: event.target.value }))}
-                  />
-                </label>
                 <label style={styles.field}>Servicio desde
                   <IconInput
                     icon={null}

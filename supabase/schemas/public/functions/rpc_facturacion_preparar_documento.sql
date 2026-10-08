@@ -75,6 +75,9 @@ BEGIN
       fecha_servicio_desde = NULLIF(p_encabezado->>'fecha_servicio_desde','')::date,
       fecha_servicio_hasta = NULLIF(p_encabezado->>'fecha_servicio_hasta','')::date,
       fecha_vencimiento_pago = NULLIF(p_encabezado->>'fecha_vencimiento_pago','')::date,
+      fce_sistema = p_encabezado->>'fce_sistema',
+      fce_cbu = p_encabezado->>'fce_cbu',
+      fce_estado_manual = p_encabezado->>'fce_estado_manual',
       total = (p_encabezado->>'total')::numeric,
       punto_venta = (p_encabezado->>'punto_venta')::integer,
       tipo_comprobante = (p_encabezado->>'tipo_comprobante')::smallint,
@@ -100,7 +103,7 @@ BEGIN
       moneda, total, punto_venta, tipo_comprobante, clase_comprobante,
       numero_comprobante, condicion_venta, importe_neto_gravado,
       importe_no_gravado, importe_exento, importe_iva, importe_tributos,
-      otros_impuestos_nacionales, contenido_hash, created_by
+      otros_impuestos_nacionales, contenido_hash, created_by, fce_sistema, fce_cbu, fce_estado_manual
     ) VALUES (
       v_id, v_current_tenant,
       NULLIF(p_encabezado->>'arreglo_id','')::uuid,
@@ -126,7 +129,8 @@ BEGIN
       (p_encabezado->>'importe_iva')::numeric,
       (p_encabezado->>'importe_tributos')::numeric,
       (p_encabezado->>'otros_impuestos_nacionales')::numeric,
-      p_encabezado->>'contenido_hash', NULLIF(p_encabezado->>'created_by','')::uuid
+      p_encabezado->>'contenido_hash', NULLIF(p_encabezado->>'created_by','')::uuid,
+      p_encabezado->>'fce_sistema', p_encabezado->>'fce_cbu', p_encabezado->>'fce_estado_manual'
     );
   END IF;
   INSERT INTO public.facturas_electronicas_lineas (

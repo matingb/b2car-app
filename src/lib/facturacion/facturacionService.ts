@@ -22,7 +22,7 @@ import {
 import { createArcaGateway, sanitizeFiscalPayload, type ArcaGateway } from "./afipGateway";
 import { deleteCredentialPair, downloadCredentialPair, uploadCredentialPair } from "./credentialStorage";
 import { getFacturacionAmbiente } from "./environment";
-import { assertFceMipymeAllowed } from "./fceMipyme";
+import { fceMipymeRequired } from "./fceMipyme";
 import { createArregloServiceInvoiceLine } from "./arregloInvoiceLine";
 import { generateFiscalInvoicePdf, type FiscalPdfInvoice } from "./fiscalPdf";
 import { lookupArcaPadronPerson } from "@/lib/arcaPadron/arcaPadronGateway";
@@ -69,6 +69,7 @@ type StoredConfig = {
   fingerprintSha256: string | null;
   certificateExpiresAt: string | null;
   credentialsUpdatedAt: string | null;
+  fceCbu: string | null;
 };
 
 type CanonicalSource = {
@@ -100,6 +101,7 @@ export type FacturaIssueInput = {
     condicionIvaReceptorId: CondicionIvaReceptorId | null;
   };
   fechas: FacturaFechaInput;
+  fceSistema: "SCA" | "ADC" | null;
 };
 
 export type FacturaIssueResult = {
@@ -206,6 +208,7 @@ function mapConfig(value: unknown): StoredConfig | null {
     fingerprintSha256: nullable(row.cert_fingerprint_sha256),
     certificateExpiresAt,
     credentialsUpdatedAt: nullable(row.credenciales_updated_at),
+    fceCbu: nullable(row.fce_cbu),
   };
 }
 
@@ -220,6 +223,7 @@ function publicConfig(config: StoredConfig): FacturacionConfiguracionPublica {
     ingresosBrutos: config.ingresosBrutos,
     inicioActividades: config.inicioActividades,
     puntoVenta: config.puntoVenta,
+    fceCbu: config.fceCbu,
     ambiente: config.ambiente,
     credenciales: {
       configuradas: configured,
@@ -244,6 +248,7 @@ export function validateConfigurationInput(value: unknown): FacturacionConfigura
     ingresosBrutos: nullable(row.ingresosBrutos),
     inicioActividades: text(row.inicioActividades),
     puntoVenta: number(row.puntoVenta),
+    fceCbu: nullable(row.fceCbu),
     ambiente: getFacturacionAmbiente(),
     credenciales: {
       configuradas: false, certificadoNombre: null, clavePrivadaNombre: null,
@@ -256,6 +261,7 @@ export function validateConfigurationInput(value: unknown): FacturacionConfigura
   if (!isIsoDate(config.inicioActividades)) {
     throw new FacturacionValidationError("El inicio de actividades debe ser una fecha válida con formato AAAA-MM-DD");
   }
+  if (config.fceCbu && !/^\d{22}$/.test(config.fceCbu)) throw new FacturacionValidationError("El CBU fiscal debe tener 22 dígitos");
   if (!Number.isInteger(config.puntoVenta) || config.puntoVenta <= 0) {
     throw new FacturacionValidationError("El punto de venta debe ser un entero positivo");
   }
@@ -314,6 +320,7 @@ export async function saveFacturacionConfig(
       ingresos_brutos: config.ingresosBrutos,
       inicio_actividades: config.inicioActividades,
       punto_venta: config.puntoVenta,
+      fce_cbu: config.fceCbu,
       ...(uploaded ? {
         cert_storage_path: uploaded.certificatePath,
         key_storage_path: uploaded.privateKeyPath,
@@ -701,7 +708,7 @@ function sourceDate(value: string | null) {
 
 function defaultFechas(source: CanonicalSource, concepto: 1 | 2 | 3): FacturaFechaInput {
   const today = toIsoDate(new Date());
-  return concepto === 1 ? { fechaComprobante: today } : {
+  return concepto === 1 ? { fechaComprobante: today, fechaVencimientoPago: today } : {
     fechaComprobante: today, fechaServicioDesde: sourceDate(source.fecha),
     fechaServicioHasta: today, fechaVencimientoPago: today,
   };
@@ -728,6 +735,9 @@ function mapSummary(value: unknown): FacturaElectronicaResumen {
     receptorNombre: text(receiver.nombre) || "Consumidor final",
     receptorDocumento: nullable(receiver.numeroDocumento),
     createdAt: nullable(row.created_at) ?? undefined,
+    fceSistema: nullable(row.fce_sistema) as "SCA" | "ADC" | null,
+    fceEstadoManual: nullable(row.fce_estado_manual) as FacturaElectronicaResumen["fceEstadoManual"],
+    fceEstadoManualActualizadoAt: nullable(row.fce_estado_manual_actualizado_at),
     errorCodigo: nullable(row.error_codigo), errorMensaje: nullable(row.error_mensaje),
   };
 }
@@ -793,6 +803,8 @@ export async function getDocumentoPreflight(
       claseComprobante: voucher.clase, tipoComprobante: voucher.tipo,
       lineas, totales, total: totales.total, precioFinal: source.total,
       fechasDefault: defaultFechas(source, concepto),
+      fcePosible: Boolean(config),
+      fceCbuConfigurado: Boolean(config?.fceCbu),
     },
   };
 }
@@ -829,6 +841,7 @@ export function parseFacturaIssueInput(value: unknown): FacturaIssueInput {
       fechaServicioHasta: nullable(dates.fechaServicioHasta),
       fechaVencimientoPago: nullable(dates.fechaVencimientoPago),
     },
+    fceSistema: text(row.fceSistema) === "SCA" || text(row.fceSistema) === "ADC" ? text(row.fceSistema) as "SCA" | "ADC" : null,
   };
 }
 
@@ -918,6 +931,7 @@ type EmitDocumentInput = {
   idempotencyKey: string;
   receiver: PerfilFiscalCliente;
   dates: FacturaFechaInput;
+  fceSistema: "SCA" | "ADC" | null;
   condition: string;
   lines: FacturaLinea[];
   persistedLines?: FacturaLinea[];
@@ -930,18 +944,21 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
   const supabase = await createClient();
   if (!input.receiver.condicionIvaReceptorId) throw new FacturacionValidationError("La condición IVA es obligatoria");
   const concept = input.concepto ?? deriveFacturaConcepto(input.lines);
-  const dates = validateFechas(concept, input.dates);
   const fiscal = fiscalizeLineas(input.lines, input.config.condicionIvaEmisor);
-  const voucher = determineVoucher(input.config.condicionIvaEmisor, input.receiver.condicionIvaReceptorId, input.documentType);
-  const receiverDocument = validateReceiverIdentification(input.receiver, voucher.clase);
+  const ordinaryVoucher = determineVoucher(input.config.condicionIvaEmisor, input.receiver.condicionIvaReceptorId, input.documentType);
+  const receiverDocument = validateReceiverIdentification(input.receiver, ordinaryVoucher.clase);
   const gateway = await createGateway(input.config);
+  let isFce = false;
   if (input.documentType === "FACTURA" && receiverDocument.tipoDocumento === 80) {
-    const requirement = await gateway.getFceMipymeRequirement(
-      receiverDocument.numeroDocumento,
-      dates.fechaComprobante,
-    );
-    assertFceMipymeAllowed(requirement, fiscal.totales.total);
+    const requirement = await gateway.getFceMipymeRequirement(receiverDocument.numeroDocumento, input.dates.fechaComprobante);
+    isFce = fceMipymeRequired(requirement, fiscal.totales.total);
   }
+  if (input.documentType !== "FACTURA" && [201, 206, 211].includes(number(input.associated?.tipo_comprobante))) {
+    throw new FacturacionValidationError("No se emiten notas de crédito o débito sobre FCE desde esta aplicación");
+  }
+  if (isFce && (!input.config.fceCbu || !input.fceSistema)) throw new FacturacionValidationError("La emisión requiere CBU fiscal configurado y seleccionar SCA o ADC");
+  const dates = validateFechas(concept, input.dates, new Date(), isFce);
+  const voucher = determineVoucher(input.config.condicionIvaEmisor, input.receiver.condicionIvaReceptorId, input.documentType, isFce);
   const token = randomUUID();
   if (!(await lease(input.config, voucher.tipo, token, true))) {
     throw new FacturacionValidationError("Hay otra emisión en curso para el punto de venta");
@@ -952,7 +969,8 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
       voucherNumber: candidateNumber, puntoVenta: input.config.puntoVenta,
       tipoComprobante: voucher.tipo, claseComprobante: voucher.clase,
       concepto: concept, receptor: input.receiver, fechas: dates,
-      totales: fiscal.totales, lineas: fiscal.lineas,
+      totales: fiscal.totales, lineas: fiscal.lineas, fceMipyme: isFce,
+      fceCbu: input.config.fceCbu, fceSistema: input.fceSistema,
       asociado: input.associated ? {
         tipo: number(input.associated.tipo_comprobante),
         puntoVenta: number(input.associated.punto_venta),
@@ -964,6 +982,7 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
     const contentHash = createHash("sha256").update(JSON.stringify({
       source: input.source.id, documentType: input.documentType, emitter, receiver,
       dates, condition: input.condition, lines: fiscal.lineas, totals: fiscal.totales,
+      fce: isFce ? { cbu: input.config.fceCbu, sistema: input.fceSistema } : null,
     })).digest("hex");
     const header = {
       tenant_id: input.actor.tenantId,
@@ -980,7 +999,10 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
       fecha_comprobante: dates.fechaComprobante,
       fecha_servicio_desde: concept === 1 ? null : dates.fechaServicioDesde,
       fecha_servicio_hasta: concept === 1 ? null : dates.fechaServicioHasta,
-      fecha_vencimiento_pago: concept === 1 ? null : dates.fechaVencimientoPago,
+      fecha_vencimiento_pago: concept === 1 && !isFce ? null : dates.fechaVencimientoPago,
+      fce_sistema: isFce ? input.fceSistema : null,
+      fce_cbu: isFce ? input.config.fceCbu : null,
+      fce_estado_manual: null,
       total: fiscal.totales.total,
       punto_venta: input.config.puntoVenta,
       tipo_comprobante: voucher.tipo,
@@ -1027,7 +1049,7 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
         throw new Error("ARCA no devolvió un CAE válido y el comprobante debe reconciliarse");
       }
       const { data, error } = await supabase.from("facturas_electronicas").update({
-        estado: "AUTORIZADA", cae, cae_vencimiento: expiration,
+        estado: "AUTORIZADA", cae, cae_vencimiento: expiration, fce_estado_manual: isFce ? "PENDIENTE" : null,
         autorizada_at: new Date().toISOString(), error_codigo: null, error_mensaje: null,
       }).eq("id", invoiceId).select("*").single();
       if (error || !data) throw new Error("ARCA autorizó el documento pero no se pudo persistir");
@@ -1061,7 +1083,7 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
       return { invoice: mapSummary(data), httpStatus: state === "RECHAZADA" ? 422 : 409, message: detail.message };
     }
   } finally {
-    await lease(input.config, determineVoucher(input.config.condicionIvaEmisor, input.receiver.condicionIvaReceptorId, input.documentType).tipo, token, false);
+    await lease(input.config, voucher.tipo, token, false);
   }
 }
 
@@ -1105,7 +1127,13 @@ async function issueSourceFactura(
     .eq("tenant_id", actor.tenantId).eq("idempotency_key", input.idempotencyKey).maybeSingle();
   if (idempotent) {
     const summary = mapSummary(idempotent);
-    return { invoice: summary, httpStatus: summary.estado === "AUTORIZADA" ? 200 : 409 };
+    if (summary.estado !== "RECHAZADA") {
+      return { invoice: summary, httpStatus: summary.estado === "AUTORIZADA" ? 200 : 409 };
+    }
+    const expectedSourceId = origenTipo === "ARREGLO" ? text(idempotent.arreglo_id) : text(idempotent.operacion_id);
+    if (expectedSourceId !== origenId || text(idempotent.documento_tipo) !== "FACTURA") {
+      throw new FacturacionValidationError("La clave de idempotencia ya pertenece a otro documento fiscal");
+    }
   }
   const existing = await latestSourceInvoice(actor.tenantId, origenTipo, origenId, input.ambiente);
   if (existing && text(existing.estado) !== "RECHAZADA") {
@@ -1118,7 +1146,7 @@ async function issueSourceFactura(
   return emitDocument({
     actor, source, config, documentType: "FACTURA", idempotencyKey: input.idempotencyKey,
     receiver, dates: input.fechas, condition: input.condicionVenta,
-    lines: source.lineas,
+    lines: source.lineas, fceSistema: input.fceSistema,
     persistedLines: input.detalleSimplificado ? [createSimplifiedArregloLine(source, fiscal)] : undefined,
     concepto,
     retry: existing,
@@ -1161,7 +1189,7 @@ export async function reconcileFactura(actor: TenantActor, facturaId: string): P
     throw new FacturacionValidationError("ARCA devolvió el comprobante sin un CAE vigente válido");
   }
   const { data: updated, error: updateError } = await supabase.from("facturas_electronicas").update({
-    estado: "AUTORIZADA", cae,
+    estado: "AUTORIZADA", cae, fce_estado_manual: [201, 206, 211].includes(number(invoice.tipo_comprobante)) ? "PENDIENTE" : null,
     cae_vencimiento: expiration,
     autorizada_at: new Date().toISOString(), error_codigo: null, error_mensaje: null,
   }).eq("id", facturaId).select("*").single();
@@ -1222,6 +1250,7 @@ export async function issueNotaFiscal(
   if (text(original.estado) !== "AUTORIZADA" || text(original.documento_tipo) !== "FACTURA") {
     throw new FacturacionValidationError("La nota debe asociarse a una factura autorizada");
   }
+  if ([201, 206, 211].includes(number(original.tipo_comprobante))) throw new FacturacionValidationError("Las notas de crédito o débito para FCE no están habilitadas");
   const { data: idempotent, error: idempotencyError } = await supabase.from("facturas_electronicas")
     .select("*").eq("tenant_id", actor.tenantId).eq("idempotency_key", input.idempotencyKey).maybeSingle();
   if (idempotencyError) throw new Error("No se pudo verificar la idempotencia de la nota");
@@ -1283,7 +1312,7 @@ export async function issueNotaFiscal(
   return emitDocument({
     actor, source, config, documentType: input.tipo, idempotencyKey: input.idempotencyKey,
     receiver: source.receptor, dates, condition: text(original.condicion_venta) || "CONTADO",
-    lines: source.lineas, associated: original, retry,
+    lines: source.lineas, fceSistema: null, associated: original, retry,
   });
 }
 
@@ -1405,6 +1434,7 @@ export async function getFacturaDetalle(tenantId: string, facturaId: string): Pr
   }
   return {
     ...mapSummary(invoice),
+    fceCbu: nullable(invoice.fce_cbu),
     emisorSnapshot: record(invoice.emisor_snapshot), receptorSnapshot: record(invoice.receptor_snapshot),
     fechas: {
       fechaComprobante: text(invoice.fecha_comprobante),
@@ -1448,7 +1478,7 @@ export async function exportFacturasRows(tenantId: string, filters: FacturasList
   } while (items.length < total);
 
   return items.map((item) => ({
-    fecha: item.fechaComprobante, comprobante: `${item.claseComprobante} ${item.puntoVenta}-${item.numeroComprobante ?? ""}`,
+    fecha: item.fechaComprobante, comprobante: `${[201,206,211].includes(item.tipoComprobante) ? "FCE MiPyME " : ""}${item.claseComprobante} ${item.puntoVenta}-${item.numeroComprobante ?? ""}`,
     tipo: item.documentoTipo, ambiente: item.ambiente, estado: item.estado,
     receptor: item.receptorNombre, documento: item.receptorDocumento ?? "",
     total: item.total, cae: item.cae ?? "", origen: item.origenTipo, origenId: item.origenId,
@@ -1456,7 +1486,7 @@ export async function exportFacturasRows(tenantId: string, filters: FacturasList
 }
 
 // v3: el receptor con CUIT distinto al del cliente registrado se imprime con los datos del padrón ARCA.
-const PDF_TEMPLATE_VERSION = "fiscal-v3";
+const PDF_TEMPLATE_VERSION = "fiscal-v4";
 const PDF_BUCKET = "facturacion-comprobantes";
 
 function isRegisteredClientDocument(invoiceDocument: string, clientDocument: string): boolean {
@@ -1517,7 +1547,7 @@ export async function buildFacturaPdf(tenantId: string, facturaId: string): Prom
     fechaServicioHasta: detail.fechas.fechaServicioHasta ?? null,
     fechaVencimientoPago: detail.fechas.fechaVencimientoPago ?? null,
     total: detail.total, puntoVenta: detail.puntoVenta, tipoComprobante: detail.tipoComprobante,
-    claseComprobante: detail.claseComprobante, documentoTipo: detail.documentoTipo,
+    claseComprobante: detail.claseComprobante, documentoTipo: detail.documentoTipo, fceSistema: detail.fceSistema, fceCbu: detail.fceCbu,
     condicionVenta: detail.condicionVenta, totales: detail.totales,
     numeroComprobante: detail.numeroComprobante!, cae: detail.cae!, caeVencimiento: detail.caeVencimiento!,
     lineas: detail.lineas.map((line) => ({
@@ -1545,3 +1575,16 @@ function pdfFilename(invoice: FacturaElectronicaResumen) {
 }
 
 export { FacturacionValidationError, normalizeDocumentNumber };
+
+export async function updateFceManualStatus(actor: TenantActor, invoiceId: string, status: unknown) {
+  const allowed = ["PENDIENTE", "ACEPTADA", "RECHAZADA", "CANCELADA", "PAGADA", "ANULADA"];
+  const normalized = text(status);
+  if (!allowed.includes(normalized)) throw new FacturacionValidationError("El estado manual FCE no es válido");
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("facturas_electronicas").update({
+    fce_estado_manual: normalized, fce_estado_manual_actualizado_at: new Date().toISOString(),
+    fce_estado_manual_actualizado_by: actor.userId,
+  }).eq("id", invoiceId).eq("tenant_id", actor.tenantId).in("tipo_comprobante", [201,206,211]).eq("estado", "AUTORIZADA").select("*").maybeSingle();
+  if (error || !data) throw new FacturacionValidationError("No se pudo actualizar el estado manual de la FCE autorizada");
+  return mapSummary(data);
+}

@@ -88,7 +88,7 @@ export default function FacturaSummaryCard({ invoice, working, canManage, onDown
             <div style={styles.detailsGrid}>
               <MetaItem label="Fecha de comprobante" icon={<Calendar size={16} />} value={date(invoice.fechaComprobante)} />
               <MetaItem label="CAE" icon={<ShieldCheck size={16} />} value={invoice.cae ?? "Pendiente"} mono />
-              <Party label="Factura" icon={<ReceiptText size={14} />} name={comprobanteLabel(invoice.documentoTipo, invoice.claseComprobante)} detail={invoiceNumber(invoice)} />
+              <Party label="Factura" icon={<ReceiptText size={14} />} name={[201, 206, 211].includes(invoice.tipoComprobante) ? `Factura de Crédito Electrónica MiPyME ${invoice.claseComprobante}` : comprobanteLabel(invoice.documentoTipo, invoice.claseComprobante)} detail={invoiceNumber(invoice)} />
               <Party label="Receptor" icon={<UserRound size={14} />} name={invoice.receptorNombre} detail={invoice.receptorDocumento ?? "Consumidor final"} />
             </div>
           </div>

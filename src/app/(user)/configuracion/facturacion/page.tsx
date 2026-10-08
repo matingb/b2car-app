@@ -19,6 +19,7 @@ const emptyConfig: FacturacionConfiguracionPublica = {
   ingresosBrutos: null,
   inicioActividades: "",
   puntoVenta: 1,
+  fceCbu: null,
   ambiente: "HOMOLOGACION",
   credenciales: {
     configuradas: false,
@@ -200,6 +201,15 @@ export default function ConfiguracionPage() {
                   setConfig((prev) => ({ ...prev, ...patch }));
                 }}
               />
+
+              <section style={{ border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 12, padding: 20, display: "grid", gap: 8 }}>
+                <h3 style={{ margin: 0 }}>Factura de Crédito Electrónica MiPyME</h3>
+                <p style={{ margin: 0, color: COLOR.TEXT.SECONDARY }}>CBU fiscal del emisor requerido para emitir FCE. No se utiliza la cuenta de cobros.</p>
+                <label style={{ display: "grid", gap: 6 }}>CBU fiscal (22 dígitos)
+                  <input inputMode="numeric" maxLength={22} value={config.fceCbu ?? ""} disabled={saving || testing}
+                    onChange={(event) => setConfig((previous) => ({ ...previous, fceCbu: event.target.value.replace(/\D/g, "") || null }))} />
+                </label>
+              </section>
 
               {/* Card 3: Certificado y Clave Privada */}
               <FacturacionCertificadosCard

@@ -39,6 +39,8 @@ export type FiscalPdfInvoice = {
   total: number;
   puntoVenta: number;
   tipoComprobante: number;
+  fceSistema?: "SCA" | "ADC" | null;
+  fceCbu?: string | null;
   claseComprobante?: FacturaClase;
   documentoTipo?: DocumentoFiscalClase;
   condicionVenta?: string;
@@ -333,9 +335,13 @@ function drawFirstHeader(
   drawCentered(page, invoice.claseComprobante ?? "C", 298, 766, fonts.bold, 22);
   drawCentered(page, `COD. ${String(invoice.tipoComprobante).padStart(3, "0")}`, 298, 751, fonts.bold, 6.5);
 
-  const documentLabel = invoice.documentoTipo === "FACTURA"
+  const documentLabel = [201,206,211].includes(invoice.tipoComprobante) ? "FACTURA DE CRÉDITO ELECTRÓNICA MiPyME" : invoice.documentoTipo === "FACTURA"
     ? "FACTURA" : invoice.documentoTipo === "NOTA_CREDITO" ? "NOTA DE CRÉDITO" : "NOTA DE DÉBITO";
-  page.drawText(documentLabel, { x: 330, y: 758, font: fonts.bold, size: invoice.documentoTipo === "FACTURA" ? 18 : 12 });
+  page.drawText(documentLabel, { x: 330, y: 758, font: fonts.bold, size: [201,206,211].includes(invoice.tipoComprobante) ? 8 : invoice.documentoTipo === "FACTURA" ? 18 : 12 });
+  if ([201,206,211].includes(invoice.tipoComprobante)) {
+    page.drawText(`MiPyME · Sistema ${invoice.fceSistema ?? "-"}`, { x: 330, y: 743, font: fonts.bold, size: 9 });
+    page.drawText(`CBU: ${invoice.fceCbu ?? "-"}`, { x: 330, y: 728, font: fonts.regular, size: 8 });
+  }
   drawLabeledValue(page, fonts, "Punto de Venta:", String(invoice.puntoVenta).padStart(5, "0"), 330, 731, 414);
   drawLabeledValue(page, fonts, "Comp. Nro:", String(invoice.numeroComprobante).padStart(8, "0"), 330, 714, 414);
   drawLabeledValue(page, fonts, "Fecha de Emisión:", formatDate(invoice.fechaComprobante), 330, 697, 414);
@@ -393,7 +399,7 @@ function drawFirstHeader(
 function drawContinuationHeader(page: PDFPage, invoice: FiscalPdfInvoice, fonts: Fonts, pageNumber: number) {
   const emitter = invoice.emisorSnapshot;
   page.drawText(text(emitter.nombreFantasia) || text(emitter.razonSocial), { x: MARGIN, y: 798, font: fonts.bold, size: 14 });
-  const kind = invoice.documentoTipo === "FACTURA" ? "FACTURA"
+  const kind = [201,206,211].includes(invoice.tipoComprobante) ? "FCE MiPyME" : invoice.documentoTipo === "FACTURA" ? "FACTURA"
     : invoice.documentoTipo === "NOTA_CREDITO" ? "NC" : "ND";
   const label = `${kind} ${invoice.claseComprobante ?? "C"} ${String(invoice.puntoVenta).padStart(5, "0")}-${String(invoice.numeroComprobante).padStart(8, "0")}`;
   drawRight(page, label, PAGE_WIDTH - MARGIN, 798, fonts.bold, 11);

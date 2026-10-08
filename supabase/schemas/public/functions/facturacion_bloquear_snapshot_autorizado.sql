@@ -11,6 +11,9 @@ BEGIN
       IF TG_OP = 'DELETE' THEN
         RAISE EXCEPTION 'El documento fiscal autorizado es inmutable';
       END IF;
+      IF ROW(OLD.fce_estado_manual, OLD.fce_estado_manual_actualizado_at, OLD.fce_estado_manual_actualizado_by) IS DISTINCT FROM ROW(NEW.fce_estado_manual, NEW.fce_estado_manual_actualizado_at, NEW.fce_estado_manual_actualizado_by) THEN
+        IF auth.jwt() ->> 'user_role' IS DISTINCT FROM 'admin' OR OLD.estado <> 'AUTORIZADA' OR OLD.tipo_comprobante NOT IN (201,206,211) OR ROW(OLD.tenant_id, OLD.arreglo_id, OLD.operacion_id, OLD.origen_tipo, OLD.documento_tipo, OLD.documento_asociado_id, OLD.idempotency_key, OLD.estado, OLD.ambiente, OLD.emisor_snapshot, OLD.receptor_snapshot, OLD.concepto, OLD.fecha_comprobante, OLD.fecha_servicio_desde, OLD.fecha_servicio_hasta, OLD.fecha_vencimiento_pago, OLD.moneda, OLD.total, OLD.punto_venta, OLD.tipo_comprobante, OLD.numero_comprobante, OLD.cae, OLD.cae_vencimiento, OLD.clase_comprobante, OLD.condicion_venta, OLD.importe_neto_gravado, OLD.importe_no_gravado, OLD.importe_exento, OLD.importe_iva, OLD.importe_tributos, OLD.otros_impuestos_nacionales, OLD.fce_sistema, OLD.fce_cbu) IS DISTINCT FROM ROW(NEW.tenant_id, NEW.arreglo_id, NEW.operacion_id, NEW.origen_tipo, NEW.documento_tipo, NEW.documento_asociado_id, NEW.idempotency_key, NEW.estado, NEW.ambiente, NEW.emisor_snapshot, NEW.receptor_snapshot, NEW.concepto, NEW.fecha_comprobante, NEW.fecha_servicio_desde, NEW.fecha_servicio_hasta, NEW.fecha_vencimiento_pago, NEW.moneda, NEW.total, NEW.punto_venta, NEW.tipo_comprobante, NEW.numero_comprobante, NEW.cae, NEW.cae_vencimiento, NEW.clase_comprobante, NEW.condicion_venta, NEW.importe_neto_gravado, NEW.importe_no_gravado, NEW.importe_exento, NEW.importe_iva, NEW.importe_tributos, NEW.otros_impuestos_nacionales, NEW.fce_sistema, NEW.fce_cbu) THEN RAISE EXCEPTION 'No tiene permiso para actualizar el estado manual FCE'; END IF;
+      END IF;
       IF ROW(OLD.tenant_id, OLD.arreglo_id, OLD.operacion_id, OLD.origen_tipo,
           OLD.documento_tipo, OLD.documento_asociado_id, OLD.idempotency_key,
           OLD.estado, OLD.ambiente, OLD.emisor_snapshot, OLD.receptor_snapshot,
@@ -19,7 +22,7 @@ BEGIN
           OLD.total, OLD.punto_venta, OLD.tipo_comprobante, OLD.numero_comprobante,
           OLD.cae, OLD.cae_vencimiento, OLD.clase_comprobante, OLD.condicion_venta,
           OLD.importe_neto_gravado, OLD.importe_no_gravado, OLD.importe_exento,
-          OLD.importe_iva, OLD.importe_tributos, OLD.otros_impuestos_nacionales)
+          OLD.importe_iva, OLD.importe_tributos, OLD.otros_impuestos_nacionales, OLD.fce_sistema, OLD.fce_cbu)
         IS DISTINCT FROM
         ROW(NEW.tenant_id, NEW.arreglo_id, NEW.operacion_id, NEW.origen_tipo,
           NEW.documento_tipo, NEW.documento_asociado_id, NEW.idempotency_key,
@@ -29,7 +32,7 @@ BEGIN
           NEW.total, NEW.punto_venta, NEW.tipo_comprobante, NEW.numero_comprobante,
           NEW.cae, NEW.cae_vencimiento, NEW.clase_comprobante, NEW.condicion_venta,
           NEW.importe_neto_gravado, NEW.importe_no_gravado, NEW.importe_exento,
-          NEW.importe_iva, NEW.importe_tributos, NEW.otros_impuestos_nacionales) THEN
+          NEW.importe_iva, NEW.importe_tributos, NEW.otros_impuestos_nacionales, NEW.fce_sistema, NEW.fce_cbu) THEN
         RAISE EXCEPTION 'El documento fiscal autorizado es inmutable';
       END IF;
     END IF;

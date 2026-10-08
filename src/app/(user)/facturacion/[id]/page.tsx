@@ -39,6 +39,7 @@ export default function FacturaDetailPage() {
   const [noteAmount, setNoteAmount] = useState("");
   const [noteReason, setNoteReason] = useState("");
   const [noteIdempotencyKey, setNoteIdempotencyKey] = useState<string | null>(null);
+  const [fceStatus, setFceStatus] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,6 +104,16 @@ export default function FacturaDetailPage() {
     }
   };
 
+  const updateFceStatus = async () => {
+    setWorking(true); setError(null);
+    try {
+      const response = await fetch(`/api/facturas/${params.id}/fce-estado-manual`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado: fceStatus }) });
+      const body = await response.json(); if (!response.ok) throw new Error(body.error || "No se pudo actualizar el estado manual");
+      await load();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo actualizar el estado manual"); }
+    finally { setWorking(false); }
+  };
+
   const openNote = (type: "NOTA_CREDITO" | "NOTA_DEBITO") => {
     setNoteOpen(type);
     setNoteIdempotencyKey(crypto.randomUUID());
@@ -136,6 +147,20 @@ export default function FacturaDetailPage() {
       />
 
       {error ? <div role="alert" style={styles.error}>{error}</div> : null}
+      {[201,206,211].includes(invoice.tipoComprobante) ? <section style={styles.section}>
+        <Card style={styles.sectionCard}>
+          <h2 style={styles.cardTitle}>Factura de Crédito Electrónica MiPyME</h2>
+          <p style={styles.muted}>El estado siguiente es manual e informativo; no envía operaciones a ARCA. La aceptación, rechazo, cancelación y circulación oficiales se consultan y gestionan en el Registro FCE de ARCA.</p>
+          <Info label="Sistema indicado al emitir" value={invoice.fceSistema ?? "-"} />
+          <Info label="Estado manual" value={invoice.fceEstadoManual ?? "PENDIENTE"} />
+          {canManage && invoice.estado === "AUTORIZADA" ? <div style={styles.actions}>
+            <select aria-label="Estado manual FCE" value={fceStatus || invoice.fceEstadoManual || "PENDIENTE"} onChange={(event) => setFceStatus(event.target.value)} style={styles.input}>
+              {[["PENDIENTE","Pendiente"],["ACEPTADA","Aceptada"],["RECHAZADA","Rechazada"],["CANCELADA","Cancelada"],["PAGADA","Pagada"],["ANULADA","Anulada"]].map(([value,label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            <Button text="Guardar estado manual" outline disabled={working} onClick={updateFceStatus} hideTextOnMobile={false} />
+          </div> : null}
+        </Card>
+      </section> : null}
 
       <section style={styles.section}>
         <SectionHeading title="Detalle del comprobante" description="Conceptos y totales incluidos en la emisión." />
@@ -207,7 +232,7 @@ export default function FacturaDetailPage() {
         </section>
       ) : null}
 
-      {canManage && invoice.estado === "AUTORIZADA" && invoice.documentoTipo === "FACTURA" ? (
+      {canManage && invoice.estado === "AUTORIZADA" && invoice.documentoTipo === "FACTURA" && ![201,206,211].includes(invoice.tipoComprobante) ? (
         <section style={styles.section}>
           <Card style={styles.sectionCard}>
             <div style={styles.cardHeader}>
