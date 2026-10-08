@@ -63,7 +63,8 @@ export async function POST(
     if (error instanceof FacturacionValidationError) {
       return Response.json({
         error: error.message,
-        code: error instanceof FceMipymeRequiredError ? error.code : null,
+        code: error instanceof FceDataRequiredError || error instanceof FceMipymeRequiredError ? error.code : null,
+        ...(error instanceof FceDataRequiredError ? { fce: error.requiredData } : {}),
       }, { status: 422 });
     }
     return facturacionErrorResponse(error);

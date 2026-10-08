@@ -20,7 +20,7 @@ CREATE TABLE "public"."facturacion_configuracion_ambiente" (
   "credenciales_updated_by" uuid,
   "fce_monto_minimo"        numeric(14,2),
   "fce_cbu"                 text,
-  "fce_sistema"             text NOT NULL DEFAULT 'SCA'::text,
+  "fce_sistema"             text,
   "created_at"              timestamp with time zone NOT NULL DEFAULT now(),
   "updated_at"              timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT "facturacion_config_ambiente_credenciales_completas"

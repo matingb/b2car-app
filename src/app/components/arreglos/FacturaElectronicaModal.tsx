@@ -115,6 +115,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const [detalleSimplificado, setDetalleSimplificado] = useState(false);
   const [automaticConditionCuit, setAutomaticConditionCuit] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [preflightRefresh, setPreflightRefresh] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [idempotencyKey] = useState(() => crypto.randomUUID());
@@ -139,7 +140,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         setReceptor(defaultDraft(data.preflight.receptor));
         setAutomaticConditionCuit(null);
         setCondicionVenta("CONTADO");
-        setFceSistema(data.preflight.fceSistemaConfigurado);
+        setFceSistema(data.preflight.fceSistemaConfigurado ?? "");
         setDetalleSimplificado(false);
         setFechas(data.preflight.fechasDefault);
       })
@@ -232,25 +233,34 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const hasPreflight = Boolean(preflight);
   useEffect(() => {
     if (!open || !hasPreflight) return;
-    const params = new URLSearchParams({ fechaComprobante: fechas.fechaComprobante });
-    if (receptor.tipoDocumento === "80") {
-      params.set("tipoDocumento", "80");
-      params.set("numeroDocumento", receptor.numeroDocumento);
-    }
+    const params = new URLSearchParams({ fechaComprobante: fechas.fechaComprobante, tipoDocumento: receptor.tipoDocumento });
+    params.set("numeroDocumento", receptor.tipoDocumento === "80" ? receptor.numeroDocumento : "");
+    let active = true;
+    const controller = new AbortController();
+    setPreflightRefresh("loading");
     const timer = window.setTimeout(() => {
-      fetch(`${endpoint}?${params.toString()}`, { cache: "no-store" })
+      fetch(`${endpoint}?${params.toString()}`, { cache: "no-store", signal: controller.signal })
         .then(async (response) => {
           const body = await response.json();
           if (!response.ok) throw new Error(body.error || "No se pudo actualizar la consulta de obligación FCE");
+          if (!active) return;
           setPreflight((current) => current ? { ...current, fcePosible: body.data.preflight.fcePosible, fceObligatoria: body.data.preflight.fceObligatoria, fceFechaConsulta: body.data.preflight.fceFechaConsulta, fceTotalConsultado: body.data.preflight.fceTotalConsultado } : current);
+          setPreflightRefresh("ready");
         })
-        .catch((cause) => setError(cause instanceof Error ? cause.message : "No se pudo consultar la obligación FCE"));
+        .catch((cause) => {
+          if (!active || (cause instanceof DOMException && cause.name === "AbortError")) return;
+          setPreflightRefresh("error");
+          setError(cause instanceof Error ? cause.message : "No se pudo consultar la obligación FCE");
+        });
     }, 250);
-    return () => window.clearTimeout(timer);
+    return () => { active = false; controller.abort(); window.clearTimeout(timer); };
   }, [open, hasPreflight, endpoint, fechas.fechaComprobante, receptor.tipoDocumento, receptor.numeroDocumento]);
 
+  const fceConfigurationMissing = Boolean(preflight?.fceObligatoria && (!preflight.fceCbuConfigurado || !preflight.fceSistemaConfigurado));
   const canSubmit = Boolean(
     !needsConfiguration
+    && !fceConfigurationMissing
+    && preflightRefresh === "ready"
     && preflight
     && receptorCondition !== null
     && !receiverIdentificationError
@@ -312,7 +322,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       if (!response.ok) {
         if (body.code === "FCE_DATA_REQUIRED" && body.fce) {
           setPreflight((current) => current ? { ...current, fcePosible: true, fceObligatoria: true, fceCbuConfigurado: body.fce.cbuConfigurado, fceSistemaConfigurado: body.fce.sistema } : current);
-          setFceSistema(body.fce.sistema);
+          setFceSistema(body.fce.sistema ?? "");
         }
         throw new Error(body.error || "La emisión fiscal no fue autorizada");
       }
@@ -473,8 +483,8 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
           {preflight.fcePosible ? <section style={styles.section}>
             <div style={styles.sectionTitle}>Factura de Crédito Electrónica MiPyME</div>
             <p style={styles.summaryDetail}>ARCA confirmó que esta operación requiere FCE. Se seleccionará automáticamente el tipo A/B/C. Se usará el sistema configurado para la empresa. El estado posterior se gestiona en el Registro FCE de ARCA.</p>
-            <strong>{fceSistema === "ADC" ? "ADC — Agente de Depósito Colectivo" : "SCA — Sistema de Circulación Abierta"}</strong>
-            {!preflight.fceCbuConfigurado ? <span style={styles.validationError}>Configurá el CBU fiscal del emisor antes de emitir FCE.</span> : null}
+            <strong>{fceSistema === "ADC" ? "ADC — Agente de Depósito Colectivo" : fceSistema === "SCA" ? "SCA — Sistema de Circulación Abierta" : "Elegí el sistema de circulación en Configuración de facturación"}</strong>
+            {!preflight.fceCbuConfigurado || !preflight.fceSistemaConfigurado ? <span style={styles.validationError}>Configurá el CBU fiscal y elegí el sistema SCA/ADC en Configuración antes de emitir FCE.</span> : null}
           </section> : null}
           <section style={styles.section}>
             <div style={styles.sectionTitle}>Fechas aplicables</div>

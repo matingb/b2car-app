@@ -121,7 +121,7 @@ export type FacturacionConfiguracionPublica = {
   inicioActividades: string;
   puntoVenta: number;
   fceCbu: string | null;
-  fceSistema: FceSistemaCirculacion;
+  fceSistema: FceSistemaCirculacion | null;
   ambiente: FacturacionAmbiente;
   credenciales: {
     configuradas: boolean;
@@ -155,7 +155,7 @@ export type FacturacionPreflight = {
   fechasDefault: FacturaFechaInput;
   fcePosible: boolean;
   fceObligatoria: boolean;
-  fceSistemaConfigurado: FceSistemaCirculacion;
+  fceSistemaConfigurado: FceSistemaCirculacion | null;
   fceCbuConfigurado: boolean;
   fceFechaConsulta: string;
   fceTotalConsultado: number;

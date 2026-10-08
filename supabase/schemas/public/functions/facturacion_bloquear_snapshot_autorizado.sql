@@ -1,49 +1,47 @@
 CREATE OR REPLACE FUNCTION public.facturacion_bloquear_snapshot_autorizado()
-  RETURNS TRIGGER
-  LANGUAGE plpgsql
-  SET search_path TO 'public'
-  AS $function$
+RETURNS trigger LANGUAGE plpgsql SET search_path TO 'public' AS $function$
 DECLARE
-  v_factura_id uuid;
+  v_manual_changed boolean;
 BEGIN
-  IF TG_TABLE_NAME = 'facturas_electronicas' THEN
-    IF OLD.estado = 'AUTORIZADA' THEN
-      IF TG_OP = 'DELETE' THEN
-        RAISE EXCEPTION 'El documento fiscal autorizado es inmutable';
-      END IF;
-      IF ROW(OLD.fce_estado_manual, OLD.fce_estado_manual_actualizado_at, OLD.fce_estado_manual_actualizado_by) IS DISTINCT FROM ROW(NEW.fce_estado_manual, NEW.fce_estado_manual_actualizado_at, NEW.fce_estado_manual_actualizado_by) THEN
-        IF auth.jwt() ->> 'user_role' IS DISTINCT FROM 'admin' OR OLD.estado <> 'AUTORIZADA' OR OLD.tipo_comprobante NOT IN (201,206,211) OR ROW(OLD.tenant_id, OLD.arreglo_id, OLD.operacion_id, OLD.origen_tipo, OLD.documento_tipo, OLD.documento_asociado_id, OLD.idempotency_key, OLD.estado, OLD.ambiente, OLD.emisor_snapshot, OLD.receptor_snapshot, OLD.concepto, OLD.fecha_comprobante, OLD.fecha_servicio_desde, OLD.fecha_servicio_hasta, OLD.fecha_vencimiento_pago, OLD.moneda, OLD.total, OLD.punto_venta, OLD.tipo_comprobante, OLD.numero_comprobante, OLD.cae, OLD.cae_vencimiento, OLD.clase_comprobante, OLD.condicion_venta, OLD.importe_neto_gravado, OLD.importe_no_gravado, OLD.importe_exento, OLD.importe_iva, OLD.importe_tributos, OLD.otros_impuestos_nacionales, OLD.fce_sistema, OLD.fce_cbu) IS DISTINCT FROM ROW(NEW.tenant_id, NEW.arreglo_id, NEW.operacion_id, NEW.origen_tipo, NEW.documento_tipo, NEW.documento_asociado_id, NEW.idempotency_key, NEW.estado, NEW.ambiente, NEW.emisor_snapshot, NEW.receptor_snapshot, NEW.concepto, NEW.fecha_comprobante, NEW.fecha_servicio_desde, NEW.fecha_servicio_hasta, NEW.fecha_vencimiento_pago, NEW.moneda, NEW.total, NEW.punto_venta, NEW.tipo_comprobante, NEW.numero_comprobante, NEW.cae, NEW.cae_vencimiento, NEW.clase_comprobante, NEW.condicion_venta, NEW.importe_neto_gravado, NEW.importe_no_gravado, NEW.importe_exento, NEW.importe_iva, NEW.importe_tributos, NEW.otros_impuestos_nacionales, NEW.fce_sistema, NEW.fce_cbu) THEN RAISE EXCEPTION 'No tiene permiso para actualizar el estado manual FCE'; END IF;
-      END IF;
-      IF ROW(OLD.tenant_id, OLD.arreglo_id, OLD.operacion_id, OLD.origen_tipo,
-          OLD.documento_tipo, OLD.documento_asociado_id, OLD.idempotency_key,
-          OLD.estado, OLD.ambiente, OLD.emisor_snapshot, OLD.receptor_snapshot,
-          OLD.concepto, OLD.fecha_comprobante, OLD.fecha_servicio_desde,
-          OLD.fecha_servicio_hasta, OLD.fecha_vencimiento_pago, OLD.moneda,
-          OLD.total, OLD.punto_venta, OLD.tipo_comprobante, OLD.numero_comprobante,
-          OLD.cae, OLD.cae_vencimiento, OLD.clase_comprobante, OLD.condicion_venta,
-          OLD.importe_neto_gravado, OLD.importe_no_gravado, OLD.importe_exento,
-          OLD.importe_iva, OLD.importe_tributos, OLD.otros_impuestos_nacionales, OLD.fce_sistema, OLD.fce_cbu)
-        IS DISTINCT FROM
-        ROW(NEW.tenant_id, NEW.arreglo_id, NEW.operacion_id, NEW.origen_tipo,
-          NEW.documento_tipo, NEW.documento_asociado_id, NEW.idempotency_key,
-          NEW.estado, NEW.ambiente, NEW.emisor_snapshot, NEW.receptor_snapshot,
-          NEW.concepto, NEW.fecha_comprobante, NEW.fecha_servicio_desde,
-          NEW.fecha_servicio_hasta, NEW.fecha_vencimiento_pago, NEW.moneda,
-          NEW.total, NEW.punto_venta, NEW.tipo_comprobante, NEW.numero_comprobante,
-          NEW.cae, NEW.cae_vencimiento, NEW.clase_comprobante, NEW.condicion_venta,
-          NEW.importe_neto_gravado, NEW.importe_no_gravado, NEW.importe_exento,
-          NEW.importe_iva, NEW.importe_tributos, NEW.otros_impuestos_nacionales, NEW.fce_sistema, NEW.fce_cbu) THEN
-        RAISE EXCEPTION 'El documento fiscal autorizado es inmutable';
-      END IF;
+  IF TG_TABLE_NAME <> 'facturas_electronicas' THEN
+    IF EXISTS (SELECT 1 FROM public.facturas_electronicas f WHERE f.id = COALESCE(NEW.factura_id, OLD.factura_id) AND f.estado = 'AUTORIZADA') THEN
+      RAISE EXCEPTION 'Las líneas de un documento fiscal autorizado son inmutables';
     END IF;
-    RETURN NEW;
+    RETURN COALESCE(NEW, OLD);
   END IF;
-  v_factura_id := COALESCE(NEW.factura_id, OLD.factura_id);
-  IF EXISTS (SELECT 1 FROM public.facturas_electronicas f
-             WHERE f.id = v_factura_id AND f.estado = 'AUTORIZADA') THEN
-    RAISE EXCEPTION 'Las líneas de un documento fiscal autorizado son inmutables';
+  IF TG_OP = 'DELETE' THEN
+    IF OLD.estado = 'AUTORIZADA' THEN RAISE EXCEPTION 'El documento fiscal autorizado es inmutable'; END IF;
+    RETURN OLD;
   END IF;
-  RETURN COALESCE(NEW, OLD);
+  v_manual_changed := ROW(OLD.fce_estado_manual, OLD.fce_estado_manual_actualizado_at, OLD.fce_estado_manual_actualizado_by)
+    IS DISTINCT FROM ROW(NEW.fce_estado_manual, NEW.fce_estado_manual_actualizado_at, NEW.fce_estado_manual_actualizado_by);
+  IF v_manual_changed THEN
+    IF OLD.estado <> 'AUTORIZADA' AND NEW.estado = 'AUTORIZADA'
+       AND NEW.tipo_comprobante IN (201,206,211)
+       AND NEW.fce_estado_manual = 'PENDIENTE'
+       AND NEW.fce_estado_manual_actualizado_at IS NULL
+       AND NEW.fce_estado_manual_actualizado_by IS NULL THEN
+      NULL; -- initial state set atomically when ARCA authorization is persisted
+    ELSIF OLD.estado = 'AUTORIZADA' AND NEW.estado = 'AUTORIZADA'
+       AND OLD.tipo_comprobante IN (201,206,211) AND NEW.tipo_comprobante = OLD.tipo_comprobante
+       AND auth.jwt() ->> 'user_role' = 'admin'
+       AND public._b2c179_tiene_permiso('facturas:edit')
+       AND NEW.fce_estado_manual IN ('PENDIENTE','ACEPTADA','RECHAZADA','CANCELADA','PAGADA','ANULADA')
+       AND (to_jsonb(OLD) - ARRAY['fce_estado_manual','fce_estado_manual_actualizado_at','fce_estado_manual_actualizado_by','updated_at'])
+         = (to_jsonb(NEW) - ARRAY['fce_estado_manual','fce_estado_manual_actualizado_at','fce_estado_manual_actualizado_by','updated_at']) THEN
+      NEW.fce_estado_manual_actualizado_at := now();
+      NEW.fce_estado_manual_actualizado_by := auth.uid();
+    ELSE
+      RAISE EXCEPTION 'Sólo un administrador autorizado puede actualizar el estado manual de una FCE autorizada';
+    END IF;
+  END IF;
+  IF OLD.estado = 'AUTORIZADA' AND
+    (to_jsonb(OLD) - ARRAY['fce_estado_manual','fce_estado_manual_actualizado_at','fce_estado_manual_actualizado_by','updated_at'])
+      IS DISTINCT FROM
+    (to_jsonb(NEW) - ARRAY['fce_estado_manual','fce_estado_manual_actualizado_at','fce_estado_manual_actualizado_by','updated_at']) THEN
+    RAISE EXCEPTION 'El documento fiscal autorizado es inmutable';
+  END IF;
+  RETURN NEW;
 END;
 $function$;
 

@@ -20,7 +20,7 @@ const emptyConfig: FacturacionConfiguracionPublica = {
   inicioActividades: "",
   puntoVenta: 1,
   fceCbu: null,
-  fceSistema: "SCA",
+  fceSistema: null,
   ambiente: "HOMOLOGACION",
   credenciales: {
     configuradas: false,
@@ -211,8 +211,8 @@ export default function ConfiguracionPage() {
                     onChange={(event) => setConfig((previous) => ({ ...previous, fceCbu: event.target.value.replace(/\D/g, "") || null }))} />
                 </label>
                 <label style={{ display: "grid", gap: 6 }}>Sistema de circulación
-                  <select value={config.fceSistema} disabled={saving || testing} onChange={(event) => setConfig((previous) => ({ ...previous, fceSistema: event.target.value as "SCA" | "ADC" }))}>
-                    <option value="SCA">SCA — Sistema de Circulación Abierta</option><option value="ADC">ADC — Agente de Depósito Colectivo</option>
+                  <select value={config.fceSistema ?? ""} disabled={saving || testing} onChange={(event) => setConfig((previous) => ({ ...previous, fceSistema: event.target.value === "SCA" || event.target.value === "ADC" ? event.target.value : null }))}>
+                    <option value="">Seleccioná una opción explícita</option><option value="SCA">SCA — Sistema de Circulación Abierta</option><option value="ADC">ADC — Agente de Depósito Colectivo</option>
                   </select>
                 </label>
               </section>

@@ -11,6 +11,7 @@ import {
   FacturacionValidationError,
   listFacturas,
   resolvePdfReceiverSnapshot,
+  validateConfigurationInput,
 } from "./facturacionService";
 
 function createQueryChain() {
@@ -148,5 +149,21 @@ describe("receptor del PDF fiscal", () => {
     vi.mocked(lookupArcaPadronPerson).mockRejectedValue(new Error("ARCA no disponible"));
 
     await expect(resolvePdfReceiverSnapshot("tenant-1", snapshot)).rejects.toBeInstanceOf(FacturacionValidationError);
+  });
+});
+
+
+describe("configuración explícita del sistema FCE", () => {
+  const config = {
+    razonSocial: "Taller", cuit: "20123456786", condicionIvaEmisor: "MONOTRIBUTISTA",
+    domicilio: "Calle 1", inicioActividades: "2020-01-01", puntoVenta: 1, fceCbu: null,
+  };
+
+  it("conserva modalidad sin elegir como null y no infiere SCA", () => {
+    expect(validateConfigurationInput(config).fceSistema).toBeNull();
+  });
+
+  it("rechaza una modalidad no permitida en lugar de convertirla a SCA", () => {
+    expect(() => validateConfigurationInput({ ...config, fceSistema: "OTRA" })).toThrow("El sistema de circulación FCE debe ser SCA o ADC");
   });
 });

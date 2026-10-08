@@ -1,6 +1,6 @@
 ALTER TABLE public.facturacion_configuracion_ambiente
   ADD COLUMN fce_cbu text,
-  ADD COLUMN fce_sistema text NOT NULL DEFAULT 'SCA',
+  ADD COLUMN fce_sistema text,
   ADD CONSTRAINT facturacion_configuracion_ambiente_fce_sistema_check CHECK (fce_sistema IN ('SCA','ADC')),
   ADD CONSTRAINT facturacion_configuracion_ambiente_fce_cbu_check CHECK (fce_cbu IS NULL OR fce_cbu ~ '^[0-9]{22}$');
 
@@ -296,4 +296,3 @@ GRANT EXECUTE ON FUNCTION "public"."facturacion_bloquear_snapshot_autorizado"() 
 REVOKE ALL ON FUNCTION "public"."facturacion_bloquear_snapshot_autorizado"() FROM "postgres";
 
 GRANT EXECUTE ON FUNCTION "public"."facturacion_bloquear_snapshot_autorizado"() TO "postgres";
-

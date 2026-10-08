@@ -71,7 +71,7 @@ type StoredConfig = {
   certificateExpiresAt: string | null;
   credentialsUpdatedAt: string | null;
   fceCbu: string | null;
-  fceSistema: "SCA" | "ADC";
+  fceSistema: "SCA" | "ADC" | null;
 };
 
 type CanonicalSource = {
@@ -108,7 +108,7 @@ export type FacturaIssueInput = {
 
 export class FceDataRequiredError extends FacturacionValidationError {
   readonly code = "FCE_DATA_REQUIRED";
-  constructor(readonly requiredData: { cbuConfigurado: boolean; sistema: "SCA" | "ADC" }) {
+  constructor(readonly requiredData: { cbuConfigurado: boolean; sistema: "SCA" | "ADC" | null }) {
     super("ARCA determinó que corresponde una FCE; completá los datos fiscales requeridos y reintentá la misma emisión.");
     this.name = "FceDataRequiredError";
   }
@@ -219,7 +219,7 @@ function mapConfig(value: unknown): StoredConfig | null {
     certificateExpiresAt,
     credentialsUpdatedAt: nullable(row.credenciales_updated_at),
     fceCbu: nullable(row.fce_cbu),
-    fceSistema: text(row.fce_sistema) === "ADC" ? "ADC" : "SCA",
+    fceSistema: text(row.fce_sistema) === "ADC" || text(row.fce_sistema) === "SCA" ? text(row.fce_sistema) as "SCA" | "ADC" : null,
   };
 }
 
@@ -250,6 +250,10 @@ function publicConfig(config: StoredConfig): FacturacionConfiguracionPublica {
 
 export function validateConfigurationInput(value: unknown): FacturacionConfiguracionPublica {
   const row = record(value);
+  const rawFceSistema = row.fceSistema;
+  if (rawFceSistema != null && rawFceSistema !== "" && rawFceSistema !== "SCA" && rawFceSistema !== "ADC") {
+    throw new FacturacionValidationError("El sistema de circulación FCE debe ser SCA o ADC");
+  }
   const config: FacturacionConfiguracionPublica = {
     razonSocial: text(row.razonSocial),
     nombreFantasia: nullable(row.nombreFantasia),
@@ -261,7 +265,7 @@ export function validateConfigurationInput(value: unknown): FacturacionConfigura
     inicioActividades: text(row.inicioActividades),
     puntoVenta: number(row.puntoVenta),
     fceCbu: nullable(row.fceCbu),
-    fceSistema: text(row.fceSistema) === "ADC" ? "ADC" : "SCA",
+    fceSistema: text(row.fceSistema) === "ADC" || text(row.fceSistema) === "SCA" ? text(row.fceSistema) as "SCA" | "ADC" : null,
     ambiente: getFacturacionAmbiente(),
     credenciales: {
       configuradas: false, certificadoNombre: null, clavePrivadaNombre: null,
@@ -801,8 +805,8 @@ export async function getDocumentoPreflight(
   }
   const voucher = determineVoucher(config?.condicionIvaEmisor ?? "MONOTRIBUTISTA", source.receptor.condicionIvaReceptorId ?? 5);
   const factura = existing ? mapSummary(existing) : null;
-  const receiverDocument = effective?.tipoDocumento === 80
-    ? normalizeDocumentNumber(text(effective.numeroDocumento))
+  const receiverDocument = effective?.tipoDocumento != null
+    ? effective.tipoDocumento === 80 ? normalizeDocumentNumber(text(effective.numeroDocumento)) : ""
     : normalizeDocumentNumber(source.receptor.numeroDocumento ?? "");
   const fechaConsulta = effective?.fechaComprobante && isIsoDate(effective.fechaComprobante)
     ? effective.fechaComprobante : defaultFechas(source, concepto).fechaComprobante;
@@ -812,12 +816,13 @@ export async function getDocumentoPreflight(
     fceObligatoria = fceMipymeRequired(requirement, totales.total);
   }
   if (!mensaje && !config?.configurada) mensaje = "La facturación electrónica no está configurada";
+  if (!mensaje && fceObligatoria && (!config?.fceCbu || !config.fceSistema)) mensaje = "Configurá el CBU fiscal y elegí el sistema SCA/ADC antes de emitir FCE";
   if (!mensaje && factura?.estado === "AUTORIZADA") mensaje = "El origen ya posee una factura autorizada";
   if (!mensaje && (factura?.estado === "ENVIANDO" || factura?.estado === "INCIERTA")) mensaje = "Existe una emisión pendiente de reconciliación";
   return {
     factura,
     preflight: {
-      puedeEmitir: Boolean(config?.configurada) && !diferenciasTotal && (!factura || factura.estado === "RECHAZADA"),
+      puedeEmitir: Boolean(config?.configurada) && !diferenciasTotal && !(fceObligatoria && (!config?.fceCbu || !config.fceSistema)) && (!factura || factura.estado === "RECHAZADA"),
       configuracionCompleta: Boolean(config?.configurada), origenListo: !diferenciasTotal,
       diferenciasTotal, mensaje,
       emisor: config ? {
@@ -832,7 +837,7 @@ export async function getDocumentoPreflight(
       fechasDefault: defaultFechas(source, concepto),
       fcePosible: fceObligatoria,
       fceObligatoria,
-      fceSistemaConfigurado: config?.fceSistema ?? "SCA",
+      fceSistemaConfigurado: config?.fceSistema ?? null,
       fceFechaConsulta: fechaConsulta,
       fceTotalConsultado: totales.total,
       fceCbuConfigurado: Boolean(config?.fceCbu),
@@ -988,7 +993,7 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
   if (input.documentType !== "FACTURA" && [201, 206, 211].includes(number(input.associated?.tipo_comprobante))) {
     throw new FacturacionValidationError("No se emiten notas de crédito o débito sobre FCE desde esta aplicación");
   }
-  if (isFce && (!input.config.fceCbu || !input.fceSistema)) throw new FceDataRequiredError({ cbuConfigurado: Boolean(input.config.fceCbu), sistema: input.config.fceSistema });
+  if (isFce && (!input.config.fceCbu || !input.config.fceSistema || input.fceSistema !== input.config.fceSistema)) throw new FceDataRequiredError({ cbuConfigurado: Boolean(input.config.fceCbu), sistema: input.config.fceSistema });
   const dates = validateFechas(concept, input.dates, new Date(), isFce);
   const voucher = determineVoucher(input.config.condicionIvaEmisor, input.receiver.condicionIvaReceptorId, input.documentType, isFce);
   const token = randomUUID();

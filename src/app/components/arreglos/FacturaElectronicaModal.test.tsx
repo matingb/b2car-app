@@ -69,6 +69,7 @@ describe("FacturaElectronicaModal", () => {
         },
         error: null,
       }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { preflight: { fcePosible: false, fceObligatoria: false, fceFechaConsulta: "2026-09-13", fceTotalConsultado: 100 } }, error: null }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         data: {
           id: "factura-1",
@@ -106,10 +107,12 @@ describe("FacturaElectronicaModal", () => {
     await waitFor(() => {
       expect(screen.getByTestId("factura-numero-documento")).toHaveValue("12345678");
     });
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes("tipoDocumento=96"))).toBe(true));
+    expect(String(fetchMock.mock.calls.find(([url]) => String(url).includes("tipoDocumento=96"))?.[0])).not.toContain("numeroDocumento=20123456786");
 
     expect(screen.getByText("No se pudo obtener información desde ARCA para este documento.")).toBeInTheDocument();
     expect(screen.queryByTestId("modal-error")).not.toBeInTheDocument();
-    expect(screen.getByTestId("modal-submit")).toBeEnabled();
+    await waitFor(() => expect(screen.getByTestId("modal-submit")).toBeEnabled());
 
     fireEvent.click(screen.getByLabelText("Simplificar el detalle de la factura"));
 
