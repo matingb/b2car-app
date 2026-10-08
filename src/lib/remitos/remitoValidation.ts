@@ -238,7 +238,6 @@ export function parseRemitosConfiguracionInput(raw: unknown): Validated<RemitosC
     const r = record(body?.remitoR);
     const x = record(body?.remitoX);
     if (!body || !r || !x) fail("Datos inválidos");
-    const imprenta = record(r.imprenta) ?? {};
 
     const cai = optionalText(r.cai, "El CAI", 20);
     if (cai && !/^\d{14}$/.test(cai)) fail("El CAI debe tener 14 dígitos");
@@ -247,7 +246,6 @@ export function parseRemitosConfiguracionInput(raw: unknown): Validated<RemitosC
     if (numeroDesde !== null && numeroHasta !== null && numeroDesde > numeroHasta) {
       fail("El número desde no puede ser mayor al número hasta");
     }
-    if (r.autoimpresor !== undefined && typeof r.autoimpresor !== "boolean") fail("La modalidad de impresión no es válida");
 
     return {
       remitoR: {
@@ -258,12 +256,12 @@ export function parseRemitosConfiguracionInput(raw: unknown): Validated<RemitosC
         numeroHasta,
         proximoNumero: requiredInteger(r.proximoNumero, "El próximo número del Remito R", 1, REMITO_NUMERO_MAXIMO),
         inicioActividades: optionalDate(r.inicioActividades, "El inicio de actividades del establecimiento"),
-        autoimpresor: r.autoimpresor === true,
+        autoimpresor: true,
         imprenta: {
-          razonSocial: optionalText(imprenta.razonSocial, "La razón social de la imprenta", 200),
-          cuit: optionalCuit(imprenta.cuit, "El CUIT de la imprenta"),
-          fechaImpresion: optionalDate(imprenta.fechaImpresion, "La fecha de impresión"),
-          habilitacion: optionalText(imprenta.habilitacion, "El N° de habilitación de la imprenta", 50),
+          razonSocial: null,
+          cuit: null,
+          fechaImpresion: null,
+          habilitacion: null,
         },
       },
       remitoX: {
@@ -294,12 +292,6 @@ export function evaluarRemitoR(config: RemitoRConfiguracion, hoyISO: string = ho
     motivos.push(`El CAI está vencido (venció el ${day}/${month}/${year}).`);
   }
   if (!config.puntoEmision) motivos.push("Falta el punto de emisión.");
-  if (!config.autoimpresor) {
-    const { razonSocial, cuit, fechaImpresion, habilitacion } = config.imprenta;
-    if (!razonSocial || !cuit || !fechaImpresion || !habilitacion) {
-      motivos.push("Faltan los datos del establecimiento impresor.");
-    }
-  }
   const proximo = config.proximoNumero;
   if ((config.numeroDesde !== null && proximo < config.numeroDesde)
     || (config.numeroHasta !== null && proximo > config.numeroHasta)) {

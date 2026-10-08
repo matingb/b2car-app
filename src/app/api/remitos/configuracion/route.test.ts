@@ -21,7 +21,7 @@ const put = (body: unknown) => new NextRequest("http://localhost/api/remitos/con
 const input = {
   remitoR: {
     cai: null, caiVencimiento: null, puntoEmision: null, numeroDesde: null, numeroHasta: null, proximoNumero: 1,
-    inicioActividades: null, autoimpresor: false,
+    inicioActividades: null, autoimpresor: true,
     imprenta: { razonSocial: null, cuit: null, fechaImpresion: null, habilitacion: null },
   },
   remitoX: { puntoEmision: 1, proximoNumero: 1 },

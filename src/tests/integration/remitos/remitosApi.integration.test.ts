@@ -68,7 +68,7 @@ describe("Integration: API de remitos de punta a punta (B2C-202)", () => {
     // Configuración
     const guardada = await json(await putConfigRoute(request("/api/remitos/configuracion", { method: "PUT", body: configuracion }), segment()));
     expect(guardada.status).toBe(200);
-    expect(guardada.body.data).toMatchObject({ ambiente: "HOMOLOGACION", remitoR: { puntoEmision: 2, autoimpresor: false } });
+    expect(guardada.body.data).toMatchObject({ ambiente: "HOMOLOGACION", remitoR: { puntoEmision: 2, autoimpresor: true } });
     const leida = await json(await getConfigRoute(request("/api/remitos/configuracion"), segment()));
     expect(leida.body.data.ultimoEmitido).toEqual({ R: null, X: null });
 

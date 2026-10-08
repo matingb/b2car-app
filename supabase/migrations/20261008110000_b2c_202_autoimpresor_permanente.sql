@@ -1,4 +1,42 @@
-CREATE OR REPLACE FUNCTION public.rpc_remitos_emitir(p_idempotency_key uuid, p_ambiente text, p_clase text, p_arreglo_id uuid, p_factura_id uuid, p_destinatario jsonb, p_transportista jsonb, p_observaciones text, p_lineas jsonb)
+-- B2C-202: el taller siempre emite Remitos R como autoimpresor.
+-- Normalizamos configuraciones anteriores sin alterar snapshots de remitos ya emitidos.
+-- El UPDATE no modifica numeración; el trigger de numeración puede rechazar filas
+-- legadas cuyo próximo número ya era inconsistente. Este bloque es atómico: ante
+-- cualquier error se revierten tanto el UPDATE como el cambio de estado del trigger.
+DO $migration$
+BEGIN
+  EXECUTE 'ALTER TABLE public.remitos_configuracion DISABLE TRIGGER remitos_configuracion_validar_numeracion';
+
+  UPDATE public.remitos_configuracion
+  SET r_autoimpresor = true,
+      r_imprenta_razon_social = NULL,
+      r_imprenta_cuit = NULL,
+      r_imprenta_fecha_impresion = NULL,
+      r_imprenta_habilitacion = NULL
+  WHERE NOT r_autoimpresor
+     OR r_imprenta_razon_social IS NOT NULL
+     OR r_imprenta_cuit IS NOT NULL
+     OR r_imprenta_fecha_impresion IS NOT NULL
+     OR r_imprenta_habilitacion IS NOT NULL;
+
+  EXECUTE 'ALTER TABLE public.remitos_configuracion ENABLE TRIGGER remitos_configuracion_validar_numeracion';
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_trigger
+    WHERE tgrelid = 'public.remitos_configuracion'::regclass
+      AND tgname = 'remitos_configuracion_validar_numeracion'
+      AND tgenabled = 'O'
+  ) THEN
+    RAISE EXCEPTION 'El trigger de numeración de remitos no quedó habilitado';
+  END IF;
+END;
+$migration$;
+
+ALTER TABLE public.remitos_configuracion
+  ALTER COLUMN r_autoimpresor SET DEFAULT true,
+  ADD CONSTRAINT remitos_configuracion_r_autoimpresor_check CHECK (r_autoimpresor);
+
+CREATE OR REPLACE FUNCTION public.rpc_remitos_emitir(p_idempotency_key uuid, p_ambiente text, p_clase text, p_factura_id uuid, p_destinatario jsonb, p_transportista jsonb, p_observaciones text, p_lineas jsonb)
  RETURNS uuid
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -10,6 +48,7 @@ DECLARE
   v_fiscal public.facturacion_configuracion_ambiente%ROWTYPE;
   v_config public.remitos_configuracion%ROWTYPE;
   v_factura public.facturas_electronicas%ROWTYPE;
+  v_factura_linea public.facturas_electronicas_lineas%ROWTYPE;
   v_existente public.remitos%ROWTYPE;
   v_remito_id uuid;
   v_numero integer;
@@ -38,11 +77,10 @@ DECLARE
   v_codigo text;
   v_descripcion text;
   v_item_observaciones text;
-  v_codigo_txt text;
-  v_descripcion_txt text;
   v_factura_linea_txt text;
   v_factura_linea_id uuid;
-  v_exceso record;
+  v_lineas_usadas uuid[] := ARRAY[]::uuid[];
+  v_remitido numeric;
   v_items jsonb := '[]'::jsonb;
 BEGIN
   IF v_tenant IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id'; END IF;
@@ -56,9 +94,6 @@ BEGIN
   END IF;
   IF p_clase IS NULL OR p_clase NOT IN ('R', 'X') THEN
     RAISE EXCEPTION 'Seleccioná el tipo de remito (R o X)';
-  END IF;
-  IF p_arreglo_id IS NOT NULL AND p_factura_id IS NOT NULL THEN
-    RAISE EXCEPTION 'Iniciá el remito desde un arreglo o desde una factura, no desde ambos';
   END IF;
   IF p_lineas IS NULL OR jsonb_typeof(p_lineas) <> 'array' OR jsonb_array_length(p_lineas) = 0 THEN
     RAISE EXCEPTION 'El remito debe tener al menos un ítem';
@@ -199,19 +234,10 @@ BEGIN
   IF FOUND THEN
     IF v_existente.clase <> p_clase
        OR v_existente.ambiente <> p_ambiente
-       OR v_existente.arreglo_id IS DISTINCT FROM p_arreglo_id
        OR v_existente.factura_id IS DISTINCT FROM p_factura_id THEN
       RAISE EXCEPTION 'La clave de idempotencia ya pertenece a otro remito';
     END IF;
     RETURN v_existente.id;
-  END IF;
-
-  IF p_arreglo_id IS NOT NULL THEN
-    PERFORM 1
-    FROM public.arreglos a
-    WHERE a.id = p_arreglo_id AND a.tenant_id = v_tenant
-    FOR KEY SHARE;
-    IF NOT FOUND THEN RAISE EXCEPTION 'Arreglo no encontrado'; END IF;
   END IF;
 
   IF p_factura_id IS NOT NULL THEN
@@ -261,31 +287,43 @@ BEGIN
         RAISE EXCEPTION 'Cada ítem del remito debe corresponder a una línea de la factura';
       END IF;
       v_factura_linea_id := v_factura_linea_txt::uuid;
-      PERFORM 1
+      SELECT * INTO v_factura_linea
       FROM public.facturas_electronicas_lineas fl
       WHERE fl.id = v_factura_linea_id AND fl.factura_id = p_factura_id;
       IF NOT FOUND THEN
         RAISE EXCEPTION 'El ítem % no corresponde a una línea de la factura', v_item.ordinal;
       END IF;
+      IF v_factura_linea_id = ANY (v_lineas_usadas) THEN
+        RAISE EXCEPTION 'La línea "%" está repetida en el remito', v_factura_linea.descripcion;
+      END IF;
+      v_lineas_usadas := v_lineas_usadas || v_factura_linea_id;
+
+      SELECT coalesce(sum(rl.cantidad), 0) INTO v_remitido
+      FROM public.remitos_lineas rl
+      WHERE rl.factura_linea_id = v_factura_linea_id;
+      IF v_remitido + v_cantidad > v_factura_linea.cantidad THEN
+        RAISE EXCEPTION 'La cantidad a remitir de "%" supera la cantidad facturada disponible (%)',
+          v_factura_linea.descripcion, trim_scale(greatest(v_factura_linea.cantidad - v_remitido, 0));
+      END IF;
+
+      v_codigo := left(NULLIF(btrim(coalesce(v_factura_linea.codigo, '')), ''), 100);
+      v_descripcion := left(btrim(v_factura_linea.descripcion), 500);
     ELSE
       IF v_factura_linea_txt IS NOT NULL THEN
         RAISE EXCEPTION 'Los ítems de un remito sin factura no pueden referenciar líneas de factura';
       END IF;
+      v_codigo := NULLIF(btrim(coalesce(v_item.item ->> 'codigo', '')), '');
+      IF char_length(v_codigo) > 100 THEN
+        RAISE EXCEPTION 'El código del ítem % no puede superar los 100 caracteres', v_item.ordinal;
+      END IF;
+      v_descripcion := NULLIF(btrim(coalesce(v_item.item ->> 'descripcion', '')), '');
+      IF v_descripcion IS NULL THEN
+        RAISE EXCEPTION 'La descripción del ítem % es obligatoria', v_item.ordinal;
+      END IF;
+      IF char_length(v_descripcion) > 500 THEN
+        RAISE EXCEPTION 'La descripción del ítem % no puede superar los 500 caracteres', v_item.ordinal;
+      END IF;
     END IF;
-
-    v_codigo_txt := NULLIF(btrim(coalesce(v_item.item ->> 'codigo', '')), '');
-    IF char_length(v_codigo_txt) > 100 THEN
-      RAISE EXCEPTION 'El código del ítem % no puede superar los 100 caracteres', v_item.ordinal;
-    END IF;
-    v_descripcion_txt := NULLIF(btrim(coalesce(v_item.item ->> 'descripcion', '')), '');
-    IF v_descripcion_txt IS NULL THEN
-      RAISE EXCEPTION 'La descripción del ítem % es obligatoria', v_item.ordinal;
-    END IF;
-    IF char_length(v_descripcion_txt) > 500 THEN
-      RAISE EXCEPTION 'La descripción del ítem % no puede superar los 500 caracteres', v_item.ordinal;
-    END IF;
-    v_codigo := v_codigo_txt;
-    v_descripcion := v_descripcion_txt;
 
     v_items := v_items || jsonb_build_array(jsonb_build_object(
       'ordinal', v_item.ordinal,
@@ -296,29 +334,6 @@ BEGIN
       'factura_linea_id', v_factura_linea_id
     ));
   END LOOP;
-
-  IF p_factura_id IS NOT NULL THEN
-    SELECT fl.descripcion, fl.cantidad, coalesce(previo.total, 0) AS remitido, nuevo.total AS nuevo
-    INTO v_exceso
-    FROM (
-      SELECT i.factura_linea_id, sum(i.cantidad) AS total
-      FROM jsonb_to_recordset(v_items) AS i(factura_linea_id uuid, cantidad numeric)
-      GROUP BY i.factura_linea_id
-    ) nuevo
-    JOIN public.facturas_electronicas_lineas fl ON fl.id = nuevo.factura_linea_id
-    LEFT JOIN LATERAL (
-      SELECT sum(rl.cantidad) AS total
-      FROM public.remitos_lineas rl
-      WHERE rl.factura_linea_id = fl.id
-    ) previo ON true
-    WHERE coalesce(previo.total, 0) + nuevo.total > fl.cantidad
-    ORDER BY fl.ordinal
-    LIMIT 1;
-    IF FOUND THEN
-      RAISE EXCEPTION 'La cantidad a remitir de "%" supera la cantidad facturada disponible (%)',
-        v_exceso.descripcion, trim_scale(greatest(v_exceso.cantidad - v_exceso.remitido, 0));
-    END IF;
-  END IF;
 
   -- Numeración y reglas propias de cada clase
   IF p_clase = 'R' THEN
@@ -377,12 +392,12 @@ BEGIN
 
   INSERT INTO public.remitos (
     tenant_id, ambiente, clase, tipo_comprobante, punto_emision, numero, fecha_emision,
-     idempotency_key, arreglo_id, factura_id, factura_asociada_at, factura_asociada_by,
+    idempotency_key, factura_id, factura_asociada_at, factura_asociada_by,
     emisor_snapshot, destinatario_snapshot, transportista_snapshot,
     cai, cai_vencimiento, impresion_snapshot, observaciones, created_by
   ) VALUES (
     v_tenant, p_ambiente, p_clase, v_tipo, v_punto, v_numero, v_hoy,
-     p_idempotency_key, p_arreglo_id, p_factura_id,
+    p_idempotency_key, p_factura_id,
     CASE WHEN p_factura_id IS NULL THEN NULL ELSE now() END,
     CASE WHEN p_factura_id IS NULL THEN NULL ELSE auth.uid() END,
     v_emisor, v_destinatario, v_transportista,
@@ -403,6 +418,6 @@ END;
 $function$
 ;
 
-REVOKE ALL ON FUNCTION "public"."rpc_remitos_emitir"(uuid, text, text, uuid, uuid, jsonb, jsonb, text, jsonb) FROM PUBLIC, "anon";
+REVOKE ALL ON FUNCTION "public"."rpc_remitos_emitir"(uuid, text, text, uuid, jsonb, jsonb, text, jsonb) FROM PUBLIC, "anon";
 
-GRANT EXECUTE ON FUNCTION "public"."rpc_remitos_emitir"(uuid, text, text, uuid, uuid, jsonb, jsonb, text, jsonb) TO "authenticated", "service_role";
+GRANT EXECUTE ON FUNCTION "public"."rpc_remitos_emitir"(uuid, text, text, uuid, jsonb, jsonb, text, jsonb) TO "authenticated", "service_role";

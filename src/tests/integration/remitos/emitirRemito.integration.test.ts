@@ -71,7 +71,7 @@ describe("Integration: emisión de remitos R y X (B2C-202)", () => {
     expect(config).toMatchObject({ r_proximo_numero: 3, x_proximo_numero: 3 });
   });
 
-  it("guarda CAI, código 091 y datos de impresión en el remito R", async () => {
+  it("guarda CAI, código 091 y autoimpresión en el remito R", async () => {
     await dadaUnaConfiguracionFiscal();
     await dadaUnaConfiguracionRemitos(configuracionRValida({
       r_punto_emision: 3,
@@ -79,11 +79,6 @@ describe("Integration: emisión de remitos R y X (B2C-202)", () => {
       r_numero_desde: 1,
       r_numero_hasta: 100,
       r_inicio_actividades: "2021-05-01",
-      r_autoimpresor: false,
-      r_imprenta_razon_social: "Imprenta Sur SA",
-      r_imprenta_cuit: "30712345678",
-      r_imprenta_fecha_impresion: "2026-01-15",
-      r_imprenta_habilitacion: "1234",
     }));
 
     const remito = await leerRemito(await dadoUnRemitoEmitido({ clase: "R" }));
@@ -96,16 +91,11 @@ describe("Integration: emisión de remitos R y X (B2C-202)", () => {
       cai: "71234567890123",
       cai_vencimiento: fechaArgentina(30),
       impresion_snapshot: {
-        autoimpresor: false,
+        autoimpresor: true,
         numeroDesde: 1,
         numeroHasta: 100,
         inicioActividades: "2021-05-01",
-        imprenta: {
-          razonSocial: "Imprenta Sur SA",
-          cuit: "30712345678",
-          fechaImpresion: "2026-01-15",
-          habilitacion: "1234",
-        },
+        imprenta: null,
       },
     });
   });
@@ -123,11 +113,6 @@ describe("Integration: emisión de remitos R y X (B2C-202)", () => {
       caso: "por debajo del rango autorizado",
       config: { r_numero_desde: 10, r_numero_hasta: 20, r_proximo_numero: 5 },
       mensaje: "fuera del rango autorizado",
-    },
-    {
-      caso: "sin datos de imprenta y no autoimpresor",
-      config: { r_autoimpresor: false },
-      mensaje: "establecimiento impresor",
     },
   ])("rechaza el remito R $caso sin consumir numeración", async ({ config, mensaje }) => {
     await dadaUnaConfiguracionFiscal();

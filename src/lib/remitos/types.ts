@@ -130,6 +130,7 @@ export type RemitoRConfiguracion = {
   numeroHasta: number | null;
   proximoNumero: number;
   inicioActividades: string | null;
+  /** Campos conservados por compatibilidad de API; la configuración vigente siempre usa autoimpresión. */
   autoimpresor: boolean;
   imprenta: {
     razonSocial: string | null;

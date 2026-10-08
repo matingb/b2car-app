@@ -54,8 +54,7 @@ const DETALLE_COLUMNS = "id, clase, tipo_comprobante, punto_emision, numero, fec
 const REMITO_LINEA_COLUMNS = "id, ordinal, codigo, descripcion, observaciones, cantidad, factura_linea_id";
 const FACTURA_LINEA_COLUMNS = "id, ordinal, origen, codigo, descripcion, cantidad";
 const CONFIG_COLUMNS = "r_cai, r_cai_vencimiento, r_punto_emision, r_numero_desde, r_numero_hasta, r_proximo_numero, "
-  + "r_inicio_actividades, r_autoimpresor, r_imprenta_razon_social, r_imprenta_cuit, r_imprenta_fecha_impresion, "
-  + "r_imprenta_habilitacion, x_punto_emision, x_proximo_numero, updated_at";
+  + "r_inicio_actividades, x_punto_emision, x_proximo_numero, updated_at";
 
 function record(value: unknown): DbRecord {
   return value && typeof value === "object" && !Array.isArray(value) ? value as DbRecord : {};
@@ -303,12 +302,12 @@ export async function getRemitosConfiguracion(
       numeroHasta: nullableNumber(row.r_numero_hasta),
       proximoNumero: nullableNumber(row.r_proximo_numero) ?? 1,
       inicioActividades: nullable(row.r_inicio_actividades),
-      autoimpresor: row.r_autoimpresor === true,
+      autoimpresor: true,
       imprenta: {
-        razonSocial: nullable(row.r_imprenta_razon_social),
-        cuit: nullable(row.r_imprenta_cuit),
-        fechaImpresion: nullable(row.r_imprenta_fecha_impresion),
-        habilitacion: nullable(row.r_imprenta_habilitacion),
+        razonSocial: null,
+        cuit: null,
+        fechaImpresion: null,
+        habilitacion: null,
       },
     },
     remitoX: {
@@ -338,11 +337,11 @@ export async function saveRemitosConfiguracion(
     r_numero_hasta: remitoR.numeroHasta,
     r_proximo_numero: remitoR.proximoNumero,
     r_inicio_actividades: remitoR.inicioActividades,
-    r_autoimpresor: remitoR.autoimpresor,
-    r_imprenta_razon_social: remitoR.imprenta.razonSocial,
-    r_imprenta_cuit: remitoR.imprenta.cuit,
-    r_imprenta_fecha_impresion: remitoR.imprenta.fechaImpresion,
-    r_imprenta_habilitacion: remitoR.imprenta.habilitacion,
+    r_autoimpresor: true,
+    r_imprenta_razon_social: null,
+    r_imprenta_cuit: null,
+    r_imprenta_fecha_impresion: null,
+    r_imprenta_habilitacion: null,
     x_punto_emision: remitoX.puntoEmision,
     x_proximo_numero: remitoX.proximoNumero,
     updated_by: userId,

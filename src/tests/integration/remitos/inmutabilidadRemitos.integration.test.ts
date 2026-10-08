@@ -55,7 +55,7 @@ describe("Integration: inmutabilidad de remitos (B2C-202)", () => {
     const antes = await leerRemito(remitoId);
 
     await dadaUnaConfiguracionFiscal({ razon_social: "Nueva Razón Social SA", cuit: "30712345678", domicilio: "Otra calle 9" });
-    await dadaUnaConfiguracionRemitos({ r_cai: "79999999999999", r_autoimpresor: false });
+    await dadaUnaConfiguracionRemitos({ r_cai: "79999999999999" });
 
     expect(await leerRemito(remitoId)).toEqual(antes);
     expect(antes).toMatchObject({

@@ -193,8 +193,8 @@ describe("parseRemitosConfiguracionInput", () => {
         numeroHasta: 100,
         proximoNumero: 5,
         inicioActividades: null,
-        autoimpresor: false,
-        imprenta: { razonSocial: "Imprenta Sur", cuit: "30712345671", fechaImpresion: "2026-01-10", habilitacion: "123" },
+        autoimpresor: true,
+        imprenta: { razonSocial: null, cuit: null, fechaImpresion: null, habilitacion: null },
       },
       remitoX: { puntoEmision: 1, proximoNumero: 1 },
     });
@@ -205,7 +205,6 @@ describe("parseRemitosConfiguracionInput", () => {
     [{ remitoR: { ...body.remitoR, numeroDesde: 10, numeroHasta: 5 } }, "desde no puede ser mayor"],
     [{ remitoR: { ...body.remitoR, caiVencimiento: "2026-02-30" } }, "fecha válida"],
     [{ remitoR: { ...body.remitoR, proximoNumero: 0 } }, "próximo número del Remito R"],
-    [{ remitoR: { ...body.remitoR, imprenta: { cuit: "30712345670" } } }, "CUIT de la imprenta"],
     [{ remitoX: { puntoEmision: 100000, proximoNumero: 1 } }, "punto de emisión del Remito X"],
   ])("rechaza %o", (overrides, message) => {
     expect(parseRemitosConfiguracionInput({ ...body, ...overrides }).error).toContain(message);
@@ -231,17 +230,15 @@ describe("evaluarRemitoR", () => {
     [{ numeroDesde: 1, numeroHasta: 3, proximoNumero: 4 }, "R 00001-00000004 está fuera del rango autorizado (00000001 a 00000003)"],
     [{ numeroDesde: 10, proximoNumero: 2 }, "fuera del rango autorizado (00000010 a sin máximo)"],
     [{ proximoNumero: 99_999_999 }, "Se agotó la numeración"],
-    [{ autoimpresor: false }, "establecimiento impresor"],
   ])("no es emitible con %o", (overrides, motivo) => {
     const evaluacion = evaluarRemitoR(configR(overrides), hoy);
     expect(evaluacion.emitible).toBe(false);
     expect(evaluacion.motivos.join(" ")).toContain(motivo);
   });
 
-  it("acepta no autoimpresor con datos de imprenta completos", () => {
+  it("no requiere datos de imprenta de configuraciones anteriores", () => {
     expect(evaluarRemitoR(configR({
       autoimpresor: false,
-      imprenta: { razonSocial: "Imprenta", cuit: "30712345678", fechaImpresion: "2026-01-01", habilitacion: "1" },
     }), hoy).emitible).toBe(true);
   });
 });

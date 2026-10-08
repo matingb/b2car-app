@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, AlertTriangle, CheckCircle2, Save } from "lucide-react";
 import Button from "@/app/components/ui/Button";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
-import Toggle from "@/app/components/ui/Toggle";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { remitosClient } from "@/clients/remitosClient";
 import { Permission } from "@/lib/permissions";
@@ -21,11 +20,6 @@ type ConfigForm = {
   rNumeroHasta: string;
   rProximoNumero: string;
   rInicioActividades: string;
-  rAutoimpresor: boolean;
-  rImprentaRazonSocial: string;
-  rImprentaCuit: string;
-  rImprentaFechaImpresion: string;
-  rImprentaHabilitacion: string;
   xPuntoEmision: string;
   xProximoNumero: string;
 };
@@ -44,11 +38,6 @@ function toForm(config: RemitosConfiguracion): ConfigForm {
     rNumeroHasta: str(remitoR.numeroHasta),
     rProximoNumero: str(remitoR.proximoNumero),
     rInicioActividades: str(remitoR.inicioActividades),
-    rAutoimpresor: remitoR.autoimpresor,
-    rImprentaRazonSocial: str(remitoR.imprenta.razonSocial),
-    rImprentaCuit: str(remitoR.imprenta.cuit),
-    rImprentaFechaImpresion: str(remitoR.imprenta.fechaImpresion),
-    rImprentaHabilitacion: str(remitoR.imprenta.habilitacion),
     xPuntoEmision: str(remitoX.puntoEmision),
     xProximoNumero: str(remitoX.proximoNumero),
   };
@@ -72,12 +61,12 @@ function toInput(form: ConfigForm): RemitosConfiguracionInput {
       numeroHasta: numberOrNull(form.rNumeroHasta),
       proximoNumero: Number(form.rProximoNumero),
       inicioActividades: textOrNull(form.rInicioActividades),
-      autoimpresor: form.rAutoimpresor,
+      autoimpresor: true,
       imprenta: {
-        razonSocial: textOrNull(form.rImprentaRazonSocial),
-        cuit: textOrNull(form.rImprentaCuit),
-        fechaImpresion: textOrNull(form.rImprentaFechaImpresion),
-        habilitacion: textOrNull(form.rImprentaHabilitacion),
+        razonSocial: null,
+        cuit: null,
+        fechaImpresion: null,
+        habilitacion: null,
       },
     },
     remitoX: {
@@ -193,31 +182,6 @@ export default function RemitosConfiguracionCard() {
                   onChange={(event) => patch({ rInicioActividades: event.target.value })} style={remitoFormStyles.input} />
               </Field>
             </div>
-            <label style={styles.toggleRow}>
-              <Toggle checked={form.rAutoimpresor} disabled={disabled} label="Opera como autoimpresor"
-                onChange={(rAutoimpresor) => patch({ rAutoimpresor })} />
-              <span>Opera como autoimpresor</span>
-            </label>
-            {!form.rAutoimpresor ? (
-              <div style={remitoFormStyles.grid}>
-                <Field id="remitos-imprenta-razon" label="Imprenta: razón social">
-                  <input id="remitos-imprenta-razon" maxLength={200} disabled={disabled} value={form.rImprentaRazonSocial}
-                    onChange={(event) => patch({ rImprentaRazonSocial: event.target.value })} style={remitoFormStyles.input} />
-                </Field>
-                <Field id="remitos-imprenta-cuit" label="Imprenta: CUIT">
-                  <input id="remitos-imprenta-cuit" inputMode="numeric" maxLength={13} disabled={disabled} value={form.rImprentaCuit}
-                    onChange={(event) => patch({ rImprentaCuit: event.target.value })} style={remitoFormStyles.input} />
-                </Field>
-                <Field id="remitos-imprenta-fecha" label="Fecha de impresión">
-                  <input id="remitos-imprenta-fecha" type="date" disabled={disabled} value={form.rImprentaFechaImpresion}
-                    onChange={(event) => patch({ rImprentaFechaImpresion: event.target.value })} style={remitoFormStyles.input} />
-                </Field>
-                <Field id="remitos-imprenta-habilitacion" label="N° de habilitación">
-                  <input id="remitos-imprenta-habilitacion" maxLength={50} disabled={disabled} value={form.rImprentaHabilitacion}
-                    onChange={(event) => patch({ rImprentaHabilitacion: event.target.value })} style={remitoFormStyles.input} />
-                </Field>
-              </div>
-            ) : null}
           </div>
 
           <div style={styles.subsection}>
@@ -305,7 +269,6 @@ const styles = {
   subsectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" as const },
   subtitle: { margin: 0, fontSize: 15, fontWeight: 600, color: COLOR.TEXT.PRIMARY },
   last: { fontSize: 12, color: COLOR.TEXT.SECONDARY, fontFamily: "monospace" },
-  toggleRow: { display: "inline-flex", alignItems: "center", gap: 10, fontSize: 14, color: COLOR.TEXT.PRIMARY },
   alert: { display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 12px", borderRadius: 8, fontSize: 13 },
   actions: { display: "flex", justifyContent: "flex-end", paddingTop: 12, borderTop: `1px solid ${COLOR.BORDER.SUBTLE}` },
 } as const;
