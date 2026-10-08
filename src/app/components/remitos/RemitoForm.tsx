@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, AlertTriangle, PackageCheck, ReceiptText, Send } from "lucide-react";
+import { AlertCircle, AlertTriangle, ReceiptText, Send } from "lucide-react";
 import Button from "@/app/components/ui/Button";
-import Card from "@/app/components/ui/Card";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import ModalMessage from "@/app/components/ui/ModalMessage";
 import { useTenant } from "@/app/providers/TenantProvider";
@@ -14,7 +13,7 @@ import { formatCalendarDateLabel } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
 import type { RemitoClase, RemitoPreflight } from "@/lib/remitos/types";
 import { ROUTES } from "@/routing/routes";
-import { COLOR } from "@/theme/theme";
+import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import RemitoTipoSelector from "./RemitoTipoSelector";
 import RemitoDestinatarioFields, {
   DESTINATARIO_VACIO,
@@ -40,9 +39,10 @@ type Props = {
   arregloId?: string | null;
   onEmitted: (remitoId: string) => void;
   onCancel?: () => void;
+  onSubmittingChange?: (submitting: boolean) => void;
 };
 
-export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onCancel }: Props) {
+export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onCancel, onSubmittingChange }: Props) {
   const { hasPermission } = useTenant();
   const [preflight, setPreflight] = useState<RemitoPreflight | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,7 +51,7 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
   const [destinatario, setDestinatario] = useState<DestinatarioForm>(DESTINATARIO_VACIO);
   const [transportista, setTransportista] = useState<TransportistaForm>(TRANSPORTISTA_VACIO);
   const [observaciones, setObservaciones] = useState("");
-  const [lineasLibres, setLineasLibres] = useState<LineaLibreForm[]>(() => [nuevaLineaLibre()]);
+  const [lineasLibres, setLineasLibres] = useState<LineaLibreForm[]>([]);
   // Se genera al montar, se reutiliza en reintentos y se renueva solo tras una emisión exitosa.
   const [idempotencyKey, setIdempotencyKey] = useState(() => generateUuidV4());
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -69,6 +69,7 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
         setLineasLibres(seleccionInicial(data.factura.lineas));
       } else if (data.arreglo) {
         setDestinatario(destinatarioFormDesde(data.arreglo.destinatario));
+        setObservaciones(data.arreglo.facturaNumero ? `Factura asociada: ${data.arreglo.facturaNumero}` : "");
         setLineasLibres(data.arreglo.lineas.map((linea) => nuevaLineaLibre({
           codigo: linea.codigo ?? "",
           descripcion: linea.descripcion,
@@ -98,6 +99,9 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
       return `El Remito ${clase} no se puede emitir con la configuración actual.`;
     }
     if (!destinatario.nombre.trim()) return "Completá el nombre del destinatario.";
+    if (destinatario.numeroDocumento.trim() && !destinatario.tipoDocumento) {
+      return "Ingresá un DNI de 7 u 8 dígitos o un CUIT/CUIL de 11 dígitos.";
+    }
     if (destinatario.tipoDocumento && !destinatario.numeroDocumento.trim()) {
       return "Completá el número de documento del destinatario.";
     }
@@ -114,6 +118,7 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
     if (!clase || blockingReason) return;
     setConfirmOpen(false);
     setSubmitting(true);
+    onSubmittingChange?.(true);
     setError(null);
     try {
       const id = await remitosClient.emitir({
@@ -132,6 +137,7 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
       setError(cause instanceof Error ? cause.message : "No se pudo emitir el remito");
     } finally {
       setSubmitting(false);
+      onSubmittingChange?.(false);
     }
   };
 
@@ -164,27 +170,20 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
       ) : null}
 
       {factura ? (
-        <Card style={styles.facturaBanner}>
+        <div style={styles.facturaReference}>
           <ReceiptText size={18} color={COLOR.ACCENT.PRIMARY} />
           <span>
             Remito generado desde <Link href={`/facturacion/${factura.id}`} style={styles.link}>{factura.label}</Link>
             {factura.fechaComprobante ? ` del ${formatCalendarDateLabel(factura.fechaComprobante)}` : ""}
           </span>
-        </Card>
+        </div>
       ) : null}
 
-      {arreglo ? (
-        <Card style={styles.facturaBanner}>
-          <PackageCheck size={18} color={COLOR.ACCENT.PRIMARY} />
-          <span>
-            Remito iniciado desde <Link href={`/arreglos/${arreglo.id}`} style={styles.link}>{arreglo.label}</Link>.
-            {" "}Podés editar este detalle sin modificar el arreglo.
-          </span>
-        </Card>
-      ) : null}
-
-      <Section title="Tipo de remito" description="Elegí libremente R o X. La sugerencia normativa es solo orientativa.">
-        <RemitoTipoSelector value={clase} onChange={setClase} tipos={preflight.tipos} />
+      <div style={styles.fieldGroup}>
+        <label htmlFor="remito-tipo" style={styles.label}>
+          Tipo de remito <span style={styles.required}>*</span>
+        </label>
+        <RemitoTipoSelector value={clase} onChange={setClase} />
         {clase === "R" && !preflight.tipos.R.emitible ? (
           <div role="alert" style={styles.warningAlert} data-testid="remito-r-motivos">
             <AlertTriangle size={18} style={{ flexShrink: 0 }} />
@@ -197,46 +196,37 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
             </div>
           </div>
         ) : null}
-      </Section>
+      </div>
 
-      <Section title="Destinatario" description="Datos de quien recibe los bienes.">
+      <div style={styles.fieldGroup}>
+        <h3 style={styles.groupTitle}>Destinatario</h3>
         <RemitoDestinatarioFields value={destinatario} onChange={setDestinatario} disabled={submitting} />
-      </Section>
+      </div>
 
-      <Section title="Transportista" description="Completalo solo si un tercero realiza el traslado.">
-        <RemitoTransportistaFields value={transportista} onChange={setTransportista} disabled={submitting} />
-      </Section>
+      <RemitoTransportistaFields value={transportista} onChange={setTransportista} disabled={submitting} />
 
-      <Section
-        title="Detalle del remito"
-        description={factura
-          ? "Editá los bienes que se entregan. Cada ítem conserva una referencia a la factura para controlar las cantidades disponibles."
-          : arreglo
-            ? "Los bienes del arreglo se precargaron como referencia. Podés agregarlos, quitarlos o modificarlos; el remito guarda su propio detalle."
-            : "Agregá los bienes y cantidades trasladados. El remito no lleva precios."}
-      >
-        {factura ? (
-          <RemitoFacturaLineasSelector lineas={factura.lineas} value={lineasLibres} onChange={setLineasLibres} disabled={submitting} />
-        ) : (
-          <RemitoLineasEditor value={lineasLibres} onChange={setLineasLibres} disabled={submitting} />
-        )}
-      </Section>
+      {factura ? (
+        <RemitoFacturaLineasSelector lineas={factura.lineas} value={lineasLibres} onChange={setLineasLibres} disabled={submitting} />
+      ) : (
+        <RemitoLineasEditor value={lineasLibres} onChange={setLineasLibres} disabled={submitting} />
+      )}
 
-      <Section title="Observaciones generales">
+      <label style={styles.fieldGroup}>
+        <span style={styles.label}>Observaciones</span>
         <textarea
-          aria-label="Observaciones generales"
+          aria-label="Observaciones"
           maxLength={1000}
           value={observaciones}
           disabled={submitting}
           onChange={(event) => setObservaciones(event.target.value)}
+          placeholder="Observaciones"
           style={remitoFormStyles.textarea}
         />
-      </Section>
+      </label>
 
       {error ? <div role="alert" style={styles.errorAlert}><AlertCircle size={18} style={{ flexShrink: 0 }} />{error}</div> : null}
 
       <div style={styles.actions}>
-        {blockingReason && !submitting ? <span style={styles.blockingReason} data-testid="remito-blocking-reason">{blockingReason}</span> : null}
         {onCancel ? <Button type="button" text="Cancelar" outline onClick={onCancel} disabled={submitting} hideTextOnMobile={false} /> : null}
         <Button
           type="submit"
@@ -261,38 +251,13 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
   );
 }
 
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
-  return (
-    <section style={styles.section}>
-      <div style={styles.sectionHeader}>
-        <h3 style={styles.sectionTitle}>{title}</h3>
-        {description ? <p style={styles.sectionDescription}>{description}</p> : null}
-      </div>
-      <div style={styles.sectionBody}>{children}</div>
-    </section>
-  );
-}
-
 const styles = {
   form: { display: "flex", flexDirection: "column" as const, gap: 20, marginTop: 16 },
-  section: {
-    background: COLOR.BACKGROUND.SECONDARY,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 12,
-    overflow: "hidden" as const,
-  },
-  sectionHeader: {
-    padding: "14px 20px",
-    background: COLOR.BACKGROUND.SUBTLE,
-    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 4,
-  },
-  sectionTitle: { margin: 0, fontSize: 16, fontWeight: 600, color: COLOR.TEXT.PRIMARY },
-  sectionDescription: { margin: 0, fontSize: 13, color: COLOR.TEXT.SECONDARY },
-  sectionBody: { padding: 20, display: "flex", flexDirection: "column" as const, gap: 12 },
-  facturaBanner: { display: "flex", alignItems: "center", gap: 10, background: COLOR.BACKGROUND.INFO_TINT },
+  fieldGroup: { display: "flex", flexDirection: "column" as const, gap: 10 },
+  groupTitle: { margin: 0, fontSize: 16, fontWeight: 600, color: COLOR.TEXT.PRIMARY },
+  label: { fontSize: 13, fontWeight: 500, color: COLOR.TEXT.SECONDARY },
+  required: { color: REQUIRED_ICON_COLOR, fontWeight: 700 },
+  facturaReference: { display: "flex", alignItems: "center", gap: 10, color: COLOR.TEXT.SECONDARY, fontSize: 13 },
   link: { color: COLOR.ACCENT.PRIMARY, fontWeight: 600 },
   list: { margin: "6px 0", paddingLeft: 18 },
   errorAlert: {
@@ -325,5 +290,4 @@ const styles = {
     paddingTop: 16,
     borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
   },
-  blockingReason: { color: COLOR.TEXT.SECONDARY, fontSize: 13 },
 } as const;

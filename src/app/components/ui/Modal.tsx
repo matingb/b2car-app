@@ -23,6 +23,8 @@ type Props = {
   hideHeader?: boolean;
   hideFooter?: boolean;
   showCloseButton?: boolean;
+  /** Evita un <form> envolvente cuando el contenido ya trae su propio formulario y acciones. */
+  wrapInForm?: boolean;
   footerStyle?: React.CSSProperties;
   submitButtonStyle?: React.CSSProperties;
 };
@@ -42,6 +44,7 @@ export default function Modal({
   hideHeader = false,
   hideFooter = false,
   showCloseButton = false,
+  wrapInForm = true,
   footerStyle,
   submitButtonStyle,
 }: Props) {
@@ -144,38 +147,40 @@ export default function Modal({
             </div>
           ) : null}
 
-          <form onSubmit={handleFormSubmit}>
-            {children}
-            {modalError ? (
-              <div style={styles.errorBox} role="alert" aria-live="polite" data-testid="modal-error">
-                <div style={styles.errorTitle}>{modalError.titulo}</div>
-                {modalError.descripcion ? (
-                  <div style={styles.errorText}>{modalError.descripcion}</div>
-                ) : null}
-              </div>
-            ) : null}
-            {!hideFooter ? (
-              <div style={{ ...styles.footer, ...footerStyle }}>
-                <button
-                  type="button"
-                  style={styles.cancel}
-                  onClick={onClose}
-                  disabled={submitting}
-                  data-testid="modal-cancel"
-                >
-                  Cancelar
-                </button>
-                <Button
-                  type="submit"
-                  text={submitting ? submittingText : submitText}
-                  disabled={isSubmitDisabled}
-                  dataTestId="modal-submit"
-                  hideTextOnMobile={false}
-                  style={submitButtonStyle}
-                />
-              </div>
-            ) : null}
-          </form>
+          {wrapInForm ? (
+            <form onSubmit={handleFormSubmit}>
+              {children}
+              {modalError ? (
+                <div style={styles.errorBox} role="alert" aria-live="polite" data-testid="modal-error">
+                  <div style={styles.errorTitle}>{modalError.titulo}</div>
+                  {modalError.descripcion ? (
+                    <div style={styles.errorText}>{modalError.descripcion}</div>
+                  ) : null}
+                </div>
+              ) : null}
+              {!hideFooter ? (
+                <div style={{ ...styles.footer, ...footerStyle }}>
+                  <button
+                    type="button"
+                    style={styles.cancel}
+                    onClick={onClose}
+                    disabled={submitting}
+                    data-testid="modal-cancel"
+                  >
+                    Cancelar
+                  </button>
+                  <Button
+                    type="submit"
+                    text={submitting ? submittingText : submitText}
+                    disabled={isSubmitDisabled}
+                    dataTestId="modal-submit"
+                    hideTextOnMobile={false}
+                    style={submitButtonStyle}
+                  />
+                </div>
+              ) : null}
+            </form>
+          ) : children}
         </Card>
     </div>
   );

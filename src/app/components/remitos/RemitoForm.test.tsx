@@ -34,9 +34,17 @@ function renderForm(onEmitted = vi.fn()) {
 }
 
 async function completarRemitoX() {
-  fireEvent.click(await screen.findByTestId("remito-tipo-X"));
+  await seleccionarTipo("X");
   fireEvent.change(screen.getByLabelText(/Apellido y nombre/), { target: { value: "Juan Pérez" } });
+  if (!screen.queryByLabelText("Descripción del ítem 1")) {
+    fireEvent.click(screen.getByText("Agregar ítem"));
+  }
   fireEvent.change(screen.getByLabelText("Descripción del ítem 1"), { target: { value: "Neumático" } });
+}
+
+async function seleccionarTipo(clase: "R" | "X") {
+  fireEvent.click(await screen.findByTestId("remito-tipo"));
+  fireEvent.click(await screen.findByTestId(`remito-tipo-option-${clase}`));
 }
 
 async function confirmarEmision() {
@@ -51,21 +59,27 @@ describe("RemitoForm", () => {
     fetchMock.mockResolvedValueOnce(respuesta(preflight));
     renderForm();
 
-    const r = await screen.findByTestId("remito-tipo-R");
-    expect(r).toHaveAttribute("aria-checked", "false");
-    expect(screen.getByTestId("remito-tipo-X")).toHaveAttribute("aria-checked", "false");
+    const selector = await screen.findByTestId("remito-tipo");
+    expect(selector).toHaveTextContent("Seleccioná un tipo");
+    fireEvent.click(selector);
+    const opcionR = screen.getByTestId("remito-tipo-option-R");
+    const opcionX = screen.getByTestId("remito-tipo-option-X");
+    expect(opcionR).toHaveAttribute("aria-selected", "false");
+    expect(opcionX).toHaveAttribute("aria-selected", "false");
     expect(screen.getByTestId("remito-emitir")).toBeDisabled();
-    expect(screen.getByTestId("remito-blocking-reason")).toHaveTextContent("Seleccioná el tipo de remito.");
+    expect(screen.queryByTestId("remito-blocking-reason")).not.toBeInTheDocument();
 
-    fireEvent.click(r);
+    fireEvent.click(opcionR);
     fireEvent.change(screen.getByLabelText(/Apellido y nombre/), { target: { value: "Juan" } });
+    fireEvent.click(screen.getByText("Agregar ítem"));
     fireEvent.change(screen.getByLabelText("Descripción del ítem 1"), { target: { value: "Rueda" } });
 
     expect(screen.getByTestId("remito-r-motivos")).toHaveTextContent("Falta configurar el CAI.");
     expect(screen.getByTestId("remito-r-motivos")).toHaveTextContent("Falta el punto de emisión.");
-    expect(screen.getByTestId("remito-tipo-R")).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByTestId("remito-tipo-R")).toBeEnabled();
-    expect(screen.getByTestId("remito-tipo-X")).toBeEnabled();
+    expect(selector).toHaveTextContent("Remito R");
+    fireEvent.click(selector);
+    expect(screen.getByTestId("remito-tipo-option-R")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("remito-tipo-option-X")).toHaveAttribute("aria-selected", "false");
     expect(screen.getByTestId("remito-emitir")).toBeDisabled();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -140,7 +154,7 @@ describe("RemitoForm", () => {
     expect(screen.getByLabelText("Descripción del ítem 1")).toHaveValue("Filtro");
     expect(screen.getByLabelText("Cantidad del ítem 1")).toHaveValue(2);
     fireEvent.change(screen.getByLabelText("Descripción del ítem 1"), { target: { value: "Caja de repuestos entregados" } });
-    fireEvent.click(screen.getByTestId("remito-tipo-X"));
+    await seleccionarTipo("X");
     await confirmarEmision();
     const payload = JSON.parse(String(fetchMock.mock.calls[1][1].body));
     expect(payload.lineas).toEqual([{
@@ -157,6 +171,7 @@ describe("RemitoForm", () => {
         arreglo: {
           id: "55555555-5555-4555-8555-555555555555",
           label: "Arreglo N° 42",
+          facturaNumero: "00001-00000123",
           destinatario: { clienteId: null, nombre: "Cliente del arreglo", domicilio: "Calle 2", tipoDocumento: null, numeroDocumento: null, condicionIvaReceptorId: null },
           lineas: [{ codigo: "REP-1", descripcion: "Pastillas de freno", cantidad: 3 }],
         },
@@ -165,14 +180,19 @@ describe("RemitoForm", () => {
     const onEmitted = vi.fn();
     renderWithProviders(<RemitoForm facturaId={null} arregloId="55555555-5555-4555-8555-555555555555" onEmitted={onEmitted} />);
 
-    expect(await screen.findByText("Arreglo N° 42")).toBeInTheDocument();
+    expect(await screen.findByLabelText(/Apellido y nombre/)).toHaveValue("Cliente del arreglo");
+    expect(screen.getByLabelText("Domicilio de entrega")).toHaveValue("Calle 2");
+    expect(screen.getByLabelText("Observaciones")).toHaveValue("Factura asociada: 00001-00000123");
+    expect(screen.queryByTestId("remito-destinatario-cliente")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Remito iniciado desde/)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Descripción del ítem 1")).toHaveValue("Pastillas de freno");
-    fireEvent.click(screen.getByTestId("remito-tipo-X"));
+    await seleccionarTipo("X");
     await confirmarEmision();
 
     expect(fetchMock.mock.calls[0][0]).toBe("/api/remitos/preflight?arregloId=55555555-5555-4555-8555-555555555555");
     const payload = JSON.parse(String(fetchMock.mock.calls[1][1].body));
     expect(payload).toMatchObject({ arregloId: "55555555-5555-4555-8555-555555555555", facturaId: null });
+    expect(payload.observaciones).toBe("Factura asociada: 00001-00000123");
     expect(payload.lineas).toEqual([{ facturaLineaId: null, codigo: "REP-1", descripcion: "Pastillas de freno", observaciones: null, cantidad: 3 }]);
     await waitFor(() => expect(onEmitted).toHaveBeenCalledWith(REMITO_ID));
   });

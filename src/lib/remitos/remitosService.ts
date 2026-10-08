@@ -388,6 +388,7 @@ async function facturaRemitible(
 async function getArregloRemitible(
   supabase: SupabaseClient,
   tenantId: string,
+  ambiente: FacturacionAmbiente,
   arregloId: string,
 ): Promise<RemitoArregloOrigen> {
   const [sourceResult, detalleResult] = await Promise.all([
@@ -403,10 +404,26 @@ async function getArregloRemitible(
   if (detalleResult.error) throw detalleResult.error;
   if (!sourceResult.data || !detalleResult.data) throw new ApiError(404, "Arreglo no encontrado", "NOT_FOUND");
 
+  // Evita precargar números de otro ambiente o de una factura aún no autorizada.
+  const facturaResult = await supabase
+    .from("facturas_electronicas")
+    .select("punto_venta, numero_comprobante")
+    .eq("tenant_id", tenantId)
+    .eq("ambiente", ambiente)
+    .eq("arreglo_id", arregloId)
+    .eq("documento_tipo", "FACTURA")
+    .eq("estado", "AUTORIZADA")
+    .maybeSingle();
+  if (facturaResult.error) throw facturaResult.error;
+
   const source = record(sourceResult.data);
   const detalle = record(detalleResult.data);
   const arreglo = record(detalle.arreglo);
   const vehiculo = record(arreglo.vehiculo);
+  const facturaAsociada = record(facturaResult.data);
+  const facturaNumero = facturaResult.data && facturaAsociada.numero_comprobante != null
+    ? `${pad(number(facturaAsociada.punto_venta), 5)}-${pad(number(facturaAsociada.numero_comprobante), 8)}`
+    : null;
   const clienteId = isValidUuid(source.cliente_id) ? source.cliente_id : null;
   let nombre = text(vehiculo.nombre_cliente);
   let domicilio: string | null = null;
@@ -487,6 +504,7 @@ async function getArregloRemitible(
   return {
     id: arregloId,
     label: source.numero_orden == null ? "Arreglo" : `Arreglo N° ${number(source.numero_orden)}`,
+    facturaNumero,
     destinatario: {
       clienteId,
       nombre: nombre || "Cliente",
@@ -519,7 +537,7 @@ export async function getRemitoPreflight(
       .maybeSingle(),
     getRemitosConfiguracion(supabase, tenantId, ambiente),
     facturaId ? facturaRemitible(supabase, tenantId, ambiente, facturaId) : Promise.resolve(null),
-    arregloId ? getArregloRemitible(supabase, tenantId, arregloId) : Promise.resolve(null),
+    arregloId ? getArregloRemitible(supabase, tenantId, ambiente, arregloId) : Promise.resolve(null),
   ]);
   if (fiscal.error) throw fiscal.error;
   const emisor = fiscal.data ? record(fiscal.data) : null;

@@ -13,6 +13,7 @@ import FacturaListItem from "@/app/components/facturacion/FacturaListItem";
 import FacturasFiltersModal, { type FacturasFilters } from "@/app/components/facturacion/FacturasFiltersModal";
 import FacturasToolbar, { type FacturaDocumentoTipoFilter, type FacturaFilterChip } from "@/app/components/facturacion/FacturasToolbar";
 import RemitoListItem from "@/app/components/remitos/RemitoListItem";
+import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { documentosClient } from "@/clients/documentosClient";
 import type { DocumentosPaginados } from "@/lib/documentos/types";
@@ -68,6 +69,7 @@ function DocumentacionContent() {
   const [clase, setClase] = useState<ClaseFiltro>("");
   const [facturaAsociada, setFacturaAsociada] = useState<FacturaAsociadaFiltro>("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [createRemitoOpen, setCreateRemitoOpen] = useState(false);
   const [result, setResult] = useState<DocumentosPaginados>({ items: [], page: 1, pageSize: 25, total: 0 });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -210,7 +212,7 @@ function DocumentacionContent() {
             <Button
               text="Nuevo remito"
               icon={<Plus size={16} />}
-              onClick={() => router.push(ROUTES.remitosNuevo)}
+              onClick={() => setCreateRemitoOpen(true)}
               style={styles.newButton}
               hideTextOnMobile={false}
               dataTestId="documentos-nuevo-remito"
@@ -252,6 +254,11 @@ function DocumentacionContent() {
         hideEstado={soloRemitos}
         onClose={() => setFiltersOpen(false)}
         onApply={applyFilters}
+      />
+      <RemitoCreateModal
+        open={createRemitoOpen}
+        onClose={() => setCreateRemitoOpen(false)}
+        onEmitted={(remitoId) => router.push(`${ROUTES.remitos}/${remitoId}`)}
       />
     </div>
   );

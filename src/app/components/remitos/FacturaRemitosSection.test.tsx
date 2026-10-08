@@ -48,7 +48,8 @@ describe("FacturaRemitosSection", () => {
     const boton = screen.getByTestId("factura-generar-remito");
     expect(boton).toBeEnabled();
     fireEvent.click(boton);
-    expect(push).toHaveBeenCalledWith(`/remitos/nuevo?facturaId=${FACTURA_ID}`);
+    expect(await screen.findByTestId("modal-title")).toHaveTextContent("Crear remito");
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("muestra el estado vacío y deshabilita la generación cuando no queda nada por remitir", async () => {

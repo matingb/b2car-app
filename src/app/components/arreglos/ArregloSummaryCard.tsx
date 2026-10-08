@@ -45,6 +45,7 @@ import { getArregloDeleteConfirmationMessage } from "@/app/components/arreglos/a
 import { css } from "@emotion/react";
 import type { FacturaElectronicaResumen } from "@/lib/facturacion/types";
 import type { FacturaBadgeData } from "@/app/components/arreglos/ArregloFacturaBadge";
+import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
 
 export interface ArregloSummaryCardProps {
   data: ArregloDetalleData;
@@ -72,6 +73,7 @@ export default function ArregloSummaryCard({
   const { hasPermission } = useTenant();
   const { handleOpenPrintableInvoice } = useArregloPrintableInvoice();
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [isRemitoModalOpen, setIsRemitoModalOpen] = useState(false);
 
   const { categorias } = useCategoriasArreglo();
   const arreglo = data.arreglo;
@@ -219,7 +221,7 @@ export default function ArregloSummaryCard({
               <IconButton
                 icon={<PackageCheck />}
                 size={18}
-                onClick={() => router.push(`/remitos/nuevo?arregloId=${encodeURIComponent(arreglo.id)}`)}
+                onClick={() => setIsRemitoModalOpen(true)}
                 title="Generar remito"
                 ariaLabel="Generar remito"
                 hoverColor={COLOR.ACCENT.PRIMARY}
@@ -400,6 +402,12 @@ export default function ArregloSummaryCard({
         open={isWhatsAppModalOpen}
         onClose={() => setIsWhatsAppModalOpen(false)}
         data={data}
+      />
+      <RemitoCreateModal
+        open={isRemitoModalOpen}
+        arregloId={arreglo.id}
+        onClose={() => setIsRemitoModalOpen(false)}
+        onEmitted={(remitoId) => router.push(`${ROUTES.remitos}/${remitoId}`)}
       />
     </section>
   );

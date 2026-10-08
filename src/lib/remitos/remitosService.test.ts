@@ -166,12 +166,13 @@ describe("remitosService", () => {
     expect(createArcaGateway).not.toHaveBeenCalled();
   });
 
-  it("precarga bienes pendientes y asignados desde el arreglo sin exponer importes", async () => {
+  it("precarga bienes y el número de factura asociada desde el arreglo sin exponer importes", async () => {
     const { supabase, calls } = supabaseMock({
       facturacion_configuracion_ambiente: [{ data: null, error: null }],
       remitos_configuracion: [{ data: null, error: null }],
       remitos: [{ data: [], error: null }, { data: [], error: null }],
       arreglos: [{ data: { id: ARREGLO_ID, numero_orden: 42, cliente_id: null }, error: null }],
+      facturas_electronicas: [{ data: { punto_venta: 1, numero_comprobante: 123 }, error: null }],
     });
     vi.mocked(supabase.rpc).mockResolvedValueOnce({
       data: {
@@ -196,6 +197,7 @@ describe("remitosService", () => {
     expect(preflight.arreglo).toEqual({
       id: ARREGLO_ID,
       label: "Arreglo N° 42",
+      facturaNumero: "00001-00000123",
       destinatario: {
         clienteId: null,
         nombre: "Cliente del arreglo",

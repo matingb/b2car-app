@@ -13,6 +13,7 @@ import type { FacturaRemitos } from "@/lib/remitos/types";
 import { ROUTES } from "@/routing/routes";
 import { COLOR } from "@/theme/theme";
 import RemitoListItem from "./RemitoListItem";
+import RemitoCreateModal from "./RemitoCreateModal";
 
 type Props = {
   facturaId: string;
@@ -25,6 +26,7 @@ export default function FacturaRemitosSection({ facturaId }: Props) {
   const [data, setData] = useState<FacturaRemitos | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [createRemitoOpen, setCreateRemitoOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,7 +63,7 @@ export default function FacturaRemitosSection({ facturaId }: Props) {
               hideTextOnMobile={false}
               disabled={loading || !quedaDisponible}
               title={!loading && !quedaDisponible ? "Todas las cantidades facturadas ya fueron remitidas" : undefined}
-              onClick={() => router.push(`${ROUTES.remitosNuevo}?facturaId=${facturaId}`)}
+              onClick={() => setCreateRemitoOpen(true)}
               dataTestId="factura-generar-remito"
             />
           ) : null}
@@ -77,6 +79,12 @@ export default function FacturaRemitosSection({ facturaId }: Props) {
           </div>
         ) : null}
       </Card>
+      <RemitoCreateModal
+        open={createRemitoOpen}
+        facturaId={facturaId}
+        onClose={() => setCreateRemitoOpen(false)}
+        onEmitted={(remitoId) => router.push(`${ROUTES.remitos}/${remitoId}`)}
+      />
     </section>
   );
 }

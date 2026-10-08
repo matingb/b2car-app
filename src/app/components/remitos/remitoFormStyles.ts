@@ -32,6 +32,5 @@ export const remitoFormStyles = {
     boxSizing: "border-box" as const,
     fontFamily: "inherit",
   },
-  dropdown: { width: "100%", height: 42 },
   hint: { margin: 0, fontSize: 12, color: COLOR.TEXT.TERTIARY },
 } as const;

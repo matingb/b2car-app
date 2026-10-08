@@ -1,10 +1,11 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
-import Button from "@/app/components/ui/Button";
+import { Package, Plus, Trash2 } from "lucide-react";
 import Dropdown from "@/app/components/ui/Dropdown";
 import IconButton from "@/app/components/ui/IconButton";
 import NumberInput from "@/app/components/ui/NumberInput";
+import LineasSectionShell from "@/app/components/arreglos/lineas/shared/LineasSectionShell";
+import { styles as lineaStyles } from "@/app/components/arreglos/lineas/shared/lineaStyles";
 import { generateUuidV4 } from "@/lib/uuid";
 import { formatRemitoCantidad, REMITO_MAX_LINEAS, type RemitoFacturaLineaDisponible } from "@/lib/remitos/types";
 import { COLOR } from "@/theme/theme";
@@ -40,7 +41,7 @@ type Props = {
   disabled?: boolean;
 };
 
-/** Detalle propio del remito; las referencias a factura solo controlan cantidades y nunca importes. */
+/** Editor propio del remito: solo código, descripción, observaciones y cantidad. */
 export default function RemitoLineasEditor({ value, onChange, lineasFactura, disabled = false }: Props) {
   const update = (key: string, changes: Partial<LineaLibreForm>) =>
     onChange(value.map((linea) => (linea.key === key ? { ...linea, ...changes } : linea)));
@@ -55,128 +56,135 @@ export default function RemitoLineasEditor({ value, onChange, lineasFactura, dis
   ];
 
   return (
-    <div style={styles.container}>
-      {value.map((linea, index) => (
-        <div key={linea.key} style={styles.row} data-testid="remito-linea-libre">
-          <span style={styles.ordinal}>{index + 1}</span>
-          <div style={styles.fields}>
-            {lineasFactura ? (
-              <label style={{ ...remitoFormStyles.field, flex: "1 1 100%" }}>
-                <span style={remitoFormStyles.label}>
-                  Referencia de factura <span style={remitoFormStyles.required}>*</span>
-                </span>
-                <Dropdown
-                  options={opcionesFactura}
-                  value={linea.facturaLineaId ?? ""}
-                  disabled={disabled || lineasFacturaDisponibles.length === 0}
-                  onChange={(facturaLineaId) => {
-                    const referencia = lineasFacturaDisponibles.find((item) => item.id === facturaLineaId);
-                    update(linea.key, referencia ? {
-                      facturaLineaId,
-                      codigo: referencia.codigo ?? "",
-                      descripcion: referencia.descripcion,
-                      cantidad: Math.min(linea.cantidad, referencia.cantidadDisponible),
-                    } : { facturaLineaId: null });
-                  }}
-                  style={{ width: "100%", height: 42, fontSize: 13 }}
-                  dataTestId={`remito-linea-factura-${index + 1}`}
-                />
-                {linea.facturaLineaId ? (
-                  <span style={styles.referenceHelp}>
-                    Facturada {formatRemitoCantidad(lineasFactura.find((item) => item.id === linea.facturaLineaId)?.cantidadFacturada ?? 0)}
-                    {" · "}Disponible {formatRemitoCantidad(lineasFactura.find((item) => item.id === linea.facturaLineaId)?.cantidadDisponible ?? 0)}
+    <LineasSectionShell
+      title="Detalle del remito"
+      titleIcon={<Package size={18} />}
+      collapseDisabled={disabled}
+    >
+      <div style={styles.list}>
+        {value.length === 0 ? (
+          <div style={lineaStyles.emptyState}>Sin ítems agregados.</div>
+        ) : null}
+        {value.map((linea, index) => (
+          <div key={linea.key} style={styles.row} data-testid="remito-linea-libre">
+            <span style={styles.ordinal}>{index + 1}.</span>
+            <div style={styles.fields}>
+              {lineasFactura ? (
+                <label style={{ ...remitoFormStyles.field, flex: "1 1 100%" }}>
+                  <span style={remitoFormStyles.label}>
+                    Referencia de factura <span style={remitoFormStyles.required}>*</span>
                   </span>
-                ) : null}
+                  <Dropdown
+                    options={opcionesFactura}
+                    value={linea.facturaLineaId ?? ""}
+                    disabled={disabled || lineasFacturaDisponibles.length === 0}
+                    onChange={(facturaLineaId) => {
+                      const referencia = lineasFacturaDisponibles.find((item) => item.id === facturaLineaId);
+                      update(linea.key, referencia ? {
+                        facturaLineaId,
+                        codigo: referencia.codigo ?? "",
+                        descripcion: referencia.descripcion,
+                        cantidad: Math.min(linea.cantidad, referencia.cantidadDisponible),
+                      } : { facturaLineaId: null });
+                    }}
+                    style={{ width: "100%", height: 42, fontSize: 14 }}
+                    dataTestId={`remito-linea-factura-${index + 1}`}
+                  />
+                  {linea.facturaLineaId ? (
+                    <span style={styles.referenceHelp}>
+                      Facturada {formatRemitoCantidad(lineasFactura.find((item) => item.id === linea.facturaLineaId)?.cantidadFacturada ?? 0)}
+                      {" · "}Disponible {formatRemitoCantidad(lineasFactura.find((item) => item.id === linea.facturaLineaId)?.cantidadDisponible ?? 0)}
+                    </span>
+                  ) : null}
+                </label>
+              ) : null}
+              <label style={{ ...remitoFormStyles.field, flex: "0 1 140px" }}>
+                <span style={remitoFormStyles.label}>Código</span>
+                <input
+                  aria-label={`Código del ítem ${index + 1}`}
+                  maxLength={100}
+                  disabled={disabled}
+                  value={linea.codigo}
+                  onChange={(event) => update(linea.key, { codigo: event.target.value })}
+                  style={remitoFormStyles.input}
+                />
               </label>
-            ) : null}
-            <label style={{ ...remitoFormStyles.field, flex: "0 1 140px" }}>
-              <span style={remitoFormStyles.label}>Código</span>
-              <input
-                aria-label={`Código del ítem ${index + 1}`}
-                maxLength={100}
-                disabled={disabled}
-                value={linea.codigo}
-                onChange={(event) => update(linea.key, { codigo: event.target.value })}
-                style={remitoFormStyles.input}
-              />
-            </label>
-            <label style={{ ...remitoFormStyles.field, flex: "2 1 220px" }}>
-              <span style={remitoFormStyles.label}>
-                Artículo / descripción <span style={remitoFormStyles.required}>*</span>
-              </span>
-              <input
-                aria-label={`Descripción del ítem ${index + 1}`}
-                required
-                maxLength={500}
-                disabled={disabled}
-                value={linea.descripcion}
-                onChange={(event) => update(linea.key, { descripcion: event.target.value })}
-                style={remitoFormStyles.input}
-              />
-            </label>
-            <label style={{ ...remitoFormStyles.field, flex: "1 1 180px" }}>
-              <span style={remitoFormStyles.label}>Observaciones</span>
-              <input
-                aria-label={`Observaciones del ítem ${index + 1}`}
-                maxLength={500}
-                disabled={disabled}
-                value={linea.observaciones}
-                onChange={(event) => update(linea.key, { observaciones: event.target.value })}
-                style={remitoFormStyles.input}
-              />
-            </label>
-            <label style={{ ...remitoFormStyles.field, flex: "0 1 110px" }}>
-              <span style={remitoFormStyles.label}>
-                Cantidad <span style={remitoFormStyles.required}>*</span>
-              </span>
-              <NumberInput
-                aria-label={`Cantidad del ítem ${index + 1}`}
-                value={linea.cantidad}
-                minValue={0}
-                step="0.0001"
-                disabled={disabled}
-                onValueChange={(cantidad) => update(linea.key, { cantidad })}
-                style={{ height: 42 }}
-              />
-            </label>
+              <label style={{ ...remitoFormStyles.field, flex: "2 1 220px" }}>
+                <span style={remitoFormStyles.label}>
+                  Artículo / descripción <span style={remitoFormStyles.required}>*</span>
+                </span>
+                <input
+                  aria-label={`Descripción del ítem ${index + 1}`}
+                  required
+                  maxLength={500}
+                  disabled={disabled}
+                  value={linea.descripcion}
+                  onChange={(event) => update(linea.key, { descripcion: event.target.value })}
+                  style={remitoFormStyles.input}
+                />
+              </label>
+              <label style={{ ...remitoFormStyles.field, flex: "1 1 180px" }}>
+                <span style={remitoFormStyles.label}>Observaciones</span>
+                <input
+                  aria-label={`Observaciones del ítem ${index + 1}`}
+                  maxLength={500}
+                  disabled={disabled}
+                  value={linea.observaciones}
+                  onChange={(event) => update(linea.key, { observaciones: event.target.value })}
+                  style={remitoFormStyles.input}
+                />
+              </label>
+              <label style={{ ...remitoFormStyles.field, flex: "0 1 110px" }}>
+                <span style={remitoFormStyles.label}>
+                  Cantidad <span style={remitoFormStyles.required}>*</span>
+                </span>
+                <NumberInput
+                  aria-label={`Cantidad del ítem ${index + 1}`}
+                  value={linea.cantidad}
+                  minValue={0}
+                  step="0.0001"
+                  disabled={disabled}
+                  onValueChange={(cantidad) => update(linea.key, { cantidad })}
+                  style={{ height: 42 }}
+                />
+              </label>
+            </div>
+            <IconButton
+              icon={<Trash2 />}
+              size={18}
+              title="Quitar ítem"
+              ariaLabel={`Quitar ítem ${index + 1}`}
+              hoverColor={COLOR.SEMANTIC.DANGER}
+              disabled={disabled}
+              onClick={() => onChange(value.filter((item) => item.key !== linea.key))}
+            />
           </div>
-          <IconButton
-            icon={<Trash2 />}
-            size={18}
-            title="Quitar ítem"
-            ariaLabel={`Quitar ítem ${index + 1}`}
-            hoverColor={COLOR.SEMANTIC.DANGER}
-            disabled={disabled || value.length <= 1}
-            onClick={() => onChange(value.filter((item) => item.key !== linea.key))}
-          />
-        </div>
-      ))}
-      <Button
-        type="button"
-        text="Agregar ítem"
-        icon={<Plus size={16} />}
-        outline
-        hideTextOnMobile={false}
-        disabled={disabled || value.length >= REMITO_MAX_LINEAS}
-        onClick={() => onChange([...value, nuevaLineaLibre()])}
-      />
-    </div>
+        ))}
+        <button
+          type="button"
+          style={{ ...lineaStyles.addRowBtn, ...(disabled ? styles.disabledAddButton : {}) }}
+          disabled={disabled || value.length >= REMITO_MAX_LINEAS}
+          onClick={() => onChange([...value, nuevaLineaLibre()])}
+        >
+          <Plus size={18} />
+          Agregar ítem
+        </button>
+      </div>
+    </LineasSectionShell>
   );
 }
 
 const styles = {
-  container: { display: "flex", flexDirection: "column" as const, gap: 12 },
+  list: { ...lineaStyles.list, gap: 10 },
   row: {
     display: "flex",
     alignItems: "flex-end",
     gap: 10,
-    padding: 12,
-    borderRadius: 8,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.PRIMARY,
+    padding: "12px 0",
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
   },
   ordinal: {
-    minWidth: 24,
+    minWidth: 20,
     height: 42,
     display: "flex",
     alignItems: "center",
@@ -186,4 +194,5 @@ const styles = {
   },
   fields: { display: "flex", flexWrap: "wrap" as const, gap: 10, flex: 1, minWidth: 0 },
   referenceHelp: { color: COLOR.TEXT.SECONDARY, fontSize: 12 },
+  disabledAddButton: { opacity: 0.6, cursor: "not-allowed" },
 } as const;
