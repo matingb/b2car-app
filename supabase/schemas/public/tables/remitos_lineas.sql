@@ -21,7 +21,7 @@ CREATE TABLE "public"."remitos_lineas" (
 ALTER TABLE "public"."remitos_lineas"
   ENABLE ROW LEVEL SECURITY;
 
-CREATE UNIQUE INDEX remitos_lineas_factura_linea_unica ON public.remitos_lineas USING btree (factura_linea_id, remito_id)
+CREATE INDEX remitos_lineas_factura_linea_idx ON public.remitos_lineas USING btree (factura_linea_id, remito_id)
   WHERE (factura_linea_id IS NOT NULL);
 
 CREATE TRIGGER remitos_lineas_inmutables

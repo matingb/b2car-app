@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import type { RemitoFacturaLineaDisponible } from "@/lib/remitos/types";
 import RemitoFacturaLineasSelector, {
   lineasFacturaPayload,
@@ -15,68 +15,51 @@ const lineas: RemitoFacturaLineaDisponible[] = [
   { id: "agotada", ordinal: 3, origen: "VENTA", codigo: "BAT", descripcion: "Batería", cantidadFacturada: 1, cantidadRemitida: 1, cantidadDisponible: 0 },
 ];
 
-function Harness({ onChange }: { onChange?: (value: SeleccionLineasFactura) => void }) {
+function Harness() {
   const [value, setValue] = useState(() => seleccionInicial(lineas));
-  return (
-    <RemitoFacturaLineasSelector
-      lineas={lineas}
-      value={value}
-      onChange={(next) => {
-        setValue(next);
-        onChange?.(next);
-      }}
-    />
-  );
+  return <RemitoFacturaLineasSelector lineas={lineas} value={value} onChange={setValue} />;
 }
 
 describe("RemitoFacturaLineasSelector", () => {
-  it("preselecciona solo bienes con disponible y deja servicios seleccionables", () => {
-    expect(seleccionInicial(lineas)).toEqual({
-      rep: { seleccionada: true, cantidad: 3, observaciones: "" },
-      srv: { seleccionada: false, cantidad: 1, observaciones: "" },
-      agotada: { seleccionada: false, cantidad: 0, observaciones: "" },
-    });
+  it("precarga bienes disponibles como detalle editable del remito", () => {
+    expect(seleccionInicial(lineas).map(({ facturaLineaId, codigo, descripcion, cantidad }) => ({
+      facturaLineaId, codigo, descripcion, cantidad,
+    }))).toEqual([{ facturaLineaId: "rep", codigo: "FIL", descripcion: "Filtro", cantidad: 3 }]);
 
     render(<Harness />);
-    const servicio = within(screen.getByTestId("remito-factura-linea-srv")).getByRole("checkbox");
-    expect(servicio).not.toBeChecked();
-    expect(servicio).toBeEnabled();
+    expect(screen.getByLabelText("Descripción del ítem 1")).toHaveValue("Filtro");
+    expect(screen.getByLabelText("Código del ítem 1")).toHaveValue("FIL");
+    expect(screen.getByText("Facturada 5 · Disponible 3")).toBeInTheDocument();
   });
 
-  it("deshabilita líneas totalmente remitidas", () => {
+  it("permite agregar una línea propia referenciada a un concepto de factura", () => {
     render(<Harness />);
-    const fila = screen.getByTestId("remito-factura-linea-agotada");
-    expect(within(fila).getByRole("checkbox")).toBeDisabled();
-    expect(within(fila).getByText("Totalmente remitida")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Agregar ítem" }));
+    fireEvent.click(screen.getByTestId("remito-linea-factura-2"));
+    fireEvent.click(screen.getByTestId("remito-linea-factura-2-option-srv"));
+
+    expect(screen.getByLabelText("Descripción del ítem 2")).toHaveValue("Mano de obra");
+    expect(screen.getByLabelText("Cantidad del ítem 2")).toHaveValue(1);
   });
 
-  it("limita la cantidad a remitir al disponible", () => {
-    const onChange = vi.fn();
-    render(<Harness onChange={onChange} />);
-    const input = screen.getByLabelText("Cantidad a remitir de Filtro");
+  it("valida el total acumulado por referencia y conserva el detalle propio en el payload", () => {
+    const inicial = seleccionInicial(lineas);
+    expect(validarSeleccionFactura(lineas, inicial)).toBeNull();
+    expect(lineasFacturaPayload(inicial)).toEqual([{
+      facturaLineaId: "rep",
+      codigo: "FIL",
+      descripcion: "Filtro",
+      observaciones: null,
+      cantidad: 3,
+    }]);
 
-    fireEvent.change(input, { target: { value: "10" } });
-
-    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({
-      rep: expect.objectContaining({ cantidad: 3 }),
-    }));
-  });
-
-  it("muestra cantidades sin precios ni importes", () => {
-    const { container } = render(<Harness />);
-    expect(container.textContent).not.toMatch(/\$|precio|subtotal|importe/i);
-    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
-      "", "Código", "Descripción", "Facturada", "Remitida", "Disponible", "A remitir", "Observaciones",
-    ]);
-  });
-
-  it("valida y arma el payload de las líneas elegidas", () => {
-    const seleccion = seleccionInicial(lineas);
-    expect(validarSeleccionFactura(lineas, seleccion)).toBeNull();
-    expect(lineasFacturaPayload(lineas, seleccion)).toEqual([{ facturaLineaId: "rep", observaciones: null, cantidad: 3 }]);
-    expect(validarSeleccionFactura(lineas, { ...seleccion, rep: { ...seleccion.rep, seleccionada: false } }))
-      .toBe("Seleccioná al menos una línea de la factura.");
-    expect(validarSeleccionFactura(lineas, { ...seleccion, rep: { ...seleccion.rep, cantidad: 0 } }))
-      .toContain('La cantidad de "Filtro"');
+    const dosCajas: SeleccionLineasFactura = [
+      { ...inicial[0], descripcion: "Caja 1", cantidad: 2 },
+      { ...inicial[0], key: "segunda", descripcion: "Caja 2", cantidad: 1 },
+    ];
+    expect(validarSeleccionFactura(lineas, dosCajas)).toBeNull();
+    expect(validarSeleccionFactura(lineas, dosCajas.map((linea) => ({ ...linea, cantidad: 2 }))))
+      .toContain("no puede superar 3");
+    expect(document.body.textContent).not.toMatch(/\$|precio|importe/i);
   });
 });

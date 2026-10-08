@@ -52,6 +52,7 @@ describe("parseEmitirRemitoInput", () => {
       value: {
         idempotencyKey: KEY,
         clase: "X",
+        arregloId: null,
         facturaId: null,
         destinatario: {
           clienteId: null,
@@ -104,23 +105,34 @@ describe("parseEmitirRemitoInput", () => {
     expect(parsed.error).toContain(message);
   });
 
-  it("exige líneas de factura únicas cuando el remito sale de una factura", () => {
+  it("conserva líneas editadas y permite varias filas con la misma referencia a factura", () => {
     const valido = parseEmitirRemitoInput(emitirBody({
       facturaId: FACTURA_ID,
-      lineas: [{ facturaLineaId: LINEA_ID, cantidad: "1.5", observaciones: "Caja 1" }],
+      lineas: [
+        { facturaLineaId: LINEA_ID, codigo: "CAJA-1", descripcion: "Caja 1", cantidad: "1.5", observaciones: "Caja sellada" },
+        { facturaLineaId: LINEA_ID, codigo: "CAJA-2", descripcion: "Caja 2", cantidad: 1 },
+      ],
     }));
     expect(valido.value?.lineas).toEqual([
-      { facturaLineaId: LINEA_ID, codigo: null, descripcion: "", observaciones: "Caja 1", cantidad: 1.5 },
+      { facturaLineaId: LINEA_ID, codigo: "CAJA-1", descripcion: "Caja 1", observaciones: "Caja sellada", cantidad: 1.5 },
+      { facturaLineaId: LINEA_ID, codigo: "CAJA-2", descripcion: "Caja 2", observaciones: null, cantidad: 1 },
     ]);
 
     expect(parseEmitirRemitoInput(emitirBody({
       facturaId: FACTURA_ID,
-      lineas: [{ descripcion: "Libre", cantidad: 1 }],
+      lineas: [{ descripcion: "Caja", cantidad: 1 }],
     })).error).toContain("debe corresponder a una línea de la factura");
     expect(parseEmitirRemitoInput(emitirBody({
       facturaId: FACTURA_ID,
-      lineas: [{ facturaLineaId: LINEA_ID, cantidad: 1 }, { facturaLineaId: LINEA_ID, cantidad: 1 }],
-    })).error).toContain("repetida");
+      lineas: [{ facturaLineaId: LINEA_ID, cantidad: 1 }],
+    })).error).toContain("descripción del ítem 1 es obligatoria");
+  });
+
+  it("rechaza un origen de arreglo y factura simultáneos", () => {
+    expect(parseEmitirRemitoInput(emitirBody({
+      arregloId: FACTURA_ID,
+      facturaId: LINEA_ID,
+    })).error).toContain("desde un arreglo o desde una factura");
   });
 
   it("acepta un transportista vacío como ausente y valida uno completo", () => {

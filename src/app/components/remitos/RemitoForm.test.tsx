@@ -20,6 +20,7 @@ const preflight = {
     X: { emitible: true, motivos: [], proximoNumeroVisible: "X 00001-00000001" },
   },
   factura: null,
+  arreglo: null,
 };
 
 afterEach(() => {
@@ -94,13 +95,14 @@ describe("RemitoForm", () => {
     expect(primero).toEqual({
       idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/),
       clase: "X",
+      arregloId: null,
       facturaId: null,
       destinatario: {
         clienteId: null, nombre: "Juan Pérez", domicilio: null, tipoDocumento: null, numeroDocumento: null, condicionIvaReceptorId: null,
       },
       transportista: null,
       observaciones: null,
-      lineas: [{ codigo: null, descripcion: "Neumático", observaciones: null, cantidad: 1 }],
+      lineas: [{ facturaLineaId: null, codigo: null, descripcion: "Neumático", observaciones: null, cantidad: 1 }],
     });
     expect(segundo.idempotencyKey).toBe(primero.idempotencyKey);
   });
@@ -115,24 +117,63 @@ describe("RemitoForm", () => {
     expect(screen.getByTestId("remito-emitir")).toBeDisabled();
   });
 
-  it("precarga destinatario y líneas cuando el remito sale de una factura", async () => {
+  it("precarga un detalle editable con referencia cuando el remito sale de una factura", async () => {
     vi.stubGlobal("fetch", fetchMock);
-    fetchMock.mockResolvedValueOnce(respuesta({
-      ...preflight,
-      factura: {
-        id: "44444444-4444-4444-8444-444444444444",
-        label: "Factura C 00001-00000123",
-        fechaComprobante: "2026-10-01",
-        destinatario: { clienteId: null, nombre: "Cliente Factura", domicilio: "Calle 1", tipoDocumento: 96, numeroDocumento: "30111222", condicionIvaReceptorId: 5 },
-        lineas: [{ id: "l1", ordinal: 1, origen: "REPUESTO", codigo: "FIL", descripcion: "Filtro", cantidadFacturada: 2, cantidadRemitida: 0, cantidadDisponible: 2 }],
-      },
-    }));
+    fetchMock
+      .mockResolvedValueOnce(respuesta({
+        ...preflight,
+        factura: {
+          id: "44444444-4444-4444-8444-444444444444",
+          label: "Factura C 00001-00000123",
+          fechaComprobante: "2026-10-01",
+          destinatario: { clienteId: null, nombre: "Cliente Factura", domicilio: "Calle 1", tipoDocumento: 96, numeroDocumento: "30111222", condicionIvaReceptorId: 5 },
+          lineas: [{ id: "l1", ordinal: 1, origen: "REPUESTO", codigo: "FIL", descripcion: "Filtro", cantidadFacturada: 2, cantidadRemitida: 0, cantidadDisponible: 2 }],
+        },
+        arreglo: null,
+      }))
+      .mockResolvedValueOnce(respuesta({ id: REMITO_ID }));
     renderWithProviders(<RemitoForm facturaId="44444444-4444-4444-8444-444444444444" onEmitted={vi.fn()} />);
 
     expect(await screen.findByText("Factura C 00001-00000123")).toBeInTheDocument();
     expect(fetchMock.mock.calls[0][0]).toBe("/api/remitos/preflight?facturaId=44444444-4444-4444-8444-444444444444");
     expect(screen.getByLabelText(/Apellido y nombre/)).toHaveValue("Cliente Factura");
-    expect(screen.getByLabelText("Cantidad a remitir de Filtro")).toHaveValue(2);
+    expect(screen.getByLabelText("Descripción del ítem 1")).toHaveValue("Filtro");
+    expect(screen.getByLabelText("Cantidad del ítem 1")).toHaveValue(2);
+    fireEvent.change(screen.getByLabelText("Descripción del ítem 1"), { target: { value: "Caja de repuestos entregados" } });
+    fireEvent.click(screen.getByTestId("remito-tipo-X"));
+    await confirmarEmision();
+    const payload = JSON.parse(String(fetchMock.mock.calls[1][1].body));
+    expect(payload.lineas).toEqual([{
+      facturaLineaId: "l1", codigo: "FIL", descripcion: "Caja de repuestos entregados", observaciones: null, cantidad: 2,
+    }]);
     expect(document.body.textContent).not.toMatch(/\$|precio|importe/i);
+  });
+
+  it("precarga bienes desde un arreglo y emite conservando el origen y el detalle propio", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock
+      .mockResolvedValueOnce(respuesta({
+        ...preflight,
+        arreglo: {
+          id: "55555555-5555-4555-8555-555555555555",
+          label: "Arreglo N° 42",
+          destinatario: { clienteId: null, nombre: "Cliente del arreglo", domicilio: "Calle 2", tipoDocumento: null, numeroDocumento: null, condicionIvaReceptorId: null },
+          lineas: [{ codigo: "REP-1", descripcion: "Pastillas de freno", cantidad: 3 }],
+        },
+      }))
+      .mockResolvedValueOnce(respuesta({ id: REMITO_ID }));
+    const onEmitted = vi.fn();
+    renderWithProviders(<RemitoForm facturaId={null} arregloId="55555555-5555-4555-8555-555555555555" onEmitted={onEmitted} />);
+
+    expect(await screen.findByText("Arreglo N° 42")).toBeInTheDocument();
+    expect(screen.getByLabelText("Descripción del ítem 1")).toHaveValue("Pastillas de freno");
+    fireEvent.click(screen.getByTestId("remito-tipo-X"));
+    await confirmarEmision();
+
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/remitos/preflight?arregloId=55555555-5555-4555-8555-555555555555");
+    const payload = JSON.parse(String(fetchMock.mock.calls[1][1].body));
+    expect(payload).toMatchObject({ arregloId: "55555555-5555-4555-8555-555555555555", facturaId: null });
+    expect(payload.lineas).toEqual([{ facturaLineaId: null, codigo: "REP-1", descripcion: "Pastillas de freno", observaciones: null, cantidad: 3 }]);
+    await waitFor(() => expect(onEmitted).toHaveBeenCalledWith(REMITO_ID));
   });
 });

@@ -13,6 +13,7 @@ import {
   ReceiptText,
   CarFront,
   Users,
+  PackageCheck,
 } from "lucide-react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Card from "@/app/components/ui/Card";
@@ -211,6 +212,16 @@ export default function ArregloSummaryCard({
                 onClick={handlePrintableInvoice}
                 title="Comprobante no fiscal"
                 ariaLabel="Comprobante no fiscal"
+                hoverColor={COLOR.ACCENT.PRIMARY}
+              />
+            </Can>
+            <Can permission={Permission.FacturasEdit}>
+              <IconButton
+                icon={<PackageCheck />}
+                size={18}
+                onClick={() => router.push(`/remitos/nuevo?arregloId=${encodeURIComponent(arreglo.id)}`)}
+                title="Generar remito"
+                ariaLabel="Generar remito"
                 hoverColor={COLOR.ACCENT.PRIMARY}
               />
             </Can>

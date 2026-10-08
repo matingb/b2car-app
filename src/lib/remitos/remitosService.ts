@@ -23,6 +23,7 @@ import {
   type EmitirRemitoInput,
   type FacturaRemitos,
   type RemitoClase,
+  type RemitoArregloOrigen,
   type RemitoDestinatario,
   type RemitoDetalle,
   type RemitoFacturaLineaDisponible,
@@ -45,10 +46,10 @@ import {
 type DbRecord = Record<string, unknown>;
 
 const FACTURA_REF_COLUMNS = "id, documento_tipo, clase_comprobante, punto_venta, numero_comprobante";
-export const REMITO_RESUMEN_COLUMNS = "id, clase, punto_emision, numero, fecha_emision, ambiente, destinatario_snapshot, factura_id, created_at, "
+export const REMITO_RESUMEN_COLUMNS = "id, clase, punto_emision, numero, fecha_emision, ambiente, destinatario_snapshot, arreglo_id, factura_id, created_at, "
   + `factura:facturas_electronicas(${FACTURA_REF_COLUMNS})`;
 const DETALLE_COLUMNS = "id, clase, tipo_comprobante, punto_emision, numero, fecha_emision, ambiente, emisor_snapshot, "
-  + "destinatario_snapshot, transportista_snapshot, cai, cai_vencimiento, impresion_snapshot, observaciones, factura_id, "
+  + "destinatario_snapshot, transportista_snapshot, cai, cai_vencimiento, impresion_snapshot, observaciones, arreglo_id, factura_id, "
   + `factura_asociada_at, created_at, factura:facturas_electronicas(${FACTURA_REF_COLUMNS}, fecha_comprobante, receptor_snapshot)`;
 const REMITO_LINEA_COLUMNS = "id, ordinal, codigo, descripcion, observaciones, cantidad, factura_linea_id";
 const FACTURA_LINEA_COLUMNS = "id, ordinal, origen, codigo, descripcion, cantidad";
@@ -136,6 +137,7 @@ export function mapResumen(value: unknown): RemitoResumen {
     ambiente: parseAmbiente(row.ambiente),
     destinatarioNombre: destinatario.nombre,
     destinatarioDocumento: formatRemitoDocumento(destinatario),
+    arregloId: nullable(row.arreglo_id),
     factura: row.factura_id ? { id: text(row.factura_id), label: facturaLabel(row.factura) } : null,
   };
 }
@@ -198,6 +200,7 @@ function mapDetalle(value: unknown, lineas: unknown[]): RemitoDetalle {
     caiVencimiento: nullable(row.cai_vencimiento),
     impresion: mapImpresion(row.impresion_snapshot),
     observaciones: nullable(row.observaciones),
+    arregloId: nullable(row.arreglo_id),
     lineas: lineas.map((item) => {
       const linea = record(item);
       return {
@@ -383,14 +386,132 @@ async function facturaRemitible(
   };
 }
 
+async function getArregloRemitible(
+  supabase: SupabaseClient,
+  tenantId: string,
+  arregloId: string,
+): Promise<RemitoArregloOrigen> {
+  const [sourceResult, detalleResult] = await Promise.all([
+    supabase
+      .from("arreglos")
+      .select("id, numero_orden, cliente_id")
+      .eq("id", arregloId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle(),
+    supabase.rpc("rpc_get_arreglo_detalle", { p_arreglo_id: arregloId }),
+  ]);
+  if (sourceResult.error) throw sourceResult.error;
+  if (detalleResult.error) throw detalleResult.error;
+  if (!sourceResult.data || !detalleResult.data) throw new ApiError(404, "Arreglo no encontrado", "NOT_FOUND");
+
+  const source = record(sourceResult.data);
+  const detalle = record(detalleResult.data);
+  const arreglo = record(detalle.arreglo);
+  const vehiculo = record(arreglo.vehiculo);
+  const clienteId = isValidUuid(source.cliente_id) ? source.cliente_id : null;
+  let nombre = text(vehiculo.nombre_cliente);
+  let domicilio: string | null = null;
+  let tipoDocumento: RemitoDestinatario["tipoDocumento"] = null;
+  let numeroDocumento: string | null = null;
+
+  if (clienteId) {
+    const { data: cliente, error: clienteError } = await supabase
+      .from("clientes")
+      .select("id, tipo_cliente")
+      .eq("id", clienteId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (clienteError) throw clienteError;
+
+    if (cliente?.tipo_cliente === "empresa") {
+      const { data: empresa, error: empresaError } = await supabase
+        .from("empresas")
+        .select("nombre, direccion, cuit")
+        .eq("id", clienteId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (empresaError) throw empresaError;
+      if (empresa) {
+        nombre = text(empresa.nombre) || nombre;
+        domicilio = nullable(empresa.direccion);
+        const cuit = text(empresa.cuit).replace(/\D/g, "");
+        if (cuit) {
+          tipoDocumento = 80;
+          numeroDocumento = cuit;
+        }
+      }
+    } else if (cliente?.tipo_cliente === "particular") {
+      const { data: particular, error: particularError } = await supabase
+        .from("particulares")
+        .select("nombre, apellido, direccion, dni_cuil")
+        .eq("id", clienteId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (particularError) throw particularError;
+      if (particular) {
+        nombre = [text(particular.nombre), text(particular.apellido)].filter(Boolean).join(" ") || nombre;
+        domicilio = nullable(particular.direccion);
+        const documento = text(particular.dni_cuil).replace(/\D/g, "");
+        if (documento) {
+          tipoDocumento = documento.length === 11 ? 86 : 96;
+          numeroDocumento = documento;
+        }
+      }
+    }
+  }
+
+  const repuestosPendientes = Array.isArray(arreglo.repuestos_pendientes)
+    ? arreglo.repuestos_pendientes.map((value) => {
+        const linea = record(value);
+        return {
+          codigo: nullable(linea.codigo),
+          descripcion: text(linea.nombre) || text(linea.descripcion) || "Repuesto",
+          cantidad: number(linea.cantidad),
+        };
+      })
+    : [];
+  const lineasAsignadas = (Array.isArray(detalle.asignaciones) ? detalle.asignaciones : []).flatMap((value) => {
+    const operacion = record(value);
+    return (Array.isArray(operacion.lineas) ? operacion.lineas : []).map((lineValue) => {
+      const linea = record(lineValue);
+      const producto = record(linea.producto);
+      return {
+        codigo: nullable(producto.codigo),
+        descripcion: text(producto.nombre) || "Repuesto",
+        cantidad: number(linea.cantidad),
+      };
+    });
+  });
+  const lineas = [...repuestosPendientes, ...lineasAsignadas]
+    .filter((linea) => linea.cantidad > 0 && linea.descripcion.trim());
+
+  return {
+    id: arregloId,
+    label: source.numero_orden == null ? "Arreglo" : `Arreglo N° ${number(source.numero_orden)}`,
+    destinatario: {
+      clienteId,
+      nombre: nombre || "Cliente",
+      domicilio,
+      tipoDocumento,
+      numeroDocumento,
+      condicionIvaReceptorId: null,
+    },
+    lineas: lineas.slice(0, 200),
+  };
+}
+
 /** Estado previo a emitir: emisor, emitibilidad de R/X y, si corresponde, la factura de origen. No consulta ARCA. */
 export async function getRemitoPreflight(
   supabase: SupabaseClient,
   tenantId: string,
   ambiente: FacturacionAmbiente,
   facturaId: string | null,
+  arregloId: string | null = null,
 ): Promise<RemitoPreflight> {
-  const [fiscal, config, factura] = await Promise.all([
+  if (facturaId && arregloId) {
+    throw new ApiError(400, "Iniciá el remito desde un arreglo o desde una factura, no desde ambos", "VALIDATION");
+  }
+  const [fiscal, config, factura, arreglo] = await Promise.all([
     supabase
       .from("facturacion_configuracion_ambiente")
       .select("razon_social, cuit, domicilio, inicio_actividades")
@@ -399,6 +520,7 @@ export async function getRemitoPreflight(
       .maybeSingle(),
     getRemitosConfiguracion(supabase, tenantId, ambiente),
     facturaId ? facturaRemitible(supabase, tenantId, ambiente, facturaId) : Promise.resolve(null),
+    arregloId ? getArregloRemitible(supabase, tenantId, arregloId) : Promise.resolve(null),
   ]);
   if (fiscal.error) throw fiscal.error;
   const emisor = fiscal.data ? record(fiscal.data) : null;
@@ -425,6 +547,7 @@ export async function getRemitoPreflight(
       },
     },
     factura,
+    arreglo,
   };
 }
 
@@ -437,6 +560,7 @@ export async function emitirRemito(
     p_idempotency_key: input.idempotencyKey,
     p_ambiente: ambiente,
     p_clase: input.clase,
+    p_arreglo_id: input.arregloId,
     p_factura_id: input.facturaId,
     p_destinatario: input.destinatario,
     p_transportista: input.transportista,

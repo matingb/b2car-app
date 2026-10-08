@@ -162,7 +162,6 @@ function parseTransportista(value: unknown): RemitoTransportista | null {
 function parseLineas(value: unknown, conFactura: boolean): EmitirRemitoLineaInput[] {
   if (!Array.isArray(value) || value.length === 0) fail("El remito debe tener al menos un ítem");
   if (value.length > REMITO_MAX_LINEAS) fail(`El remito admite hasta ${REMITO_MAX_LINEAS} ítems`);
-  const usadas = new Set<string>();
   return value.map((item, index) => {
     const ordinal = index + 1;
     const raw = record(item);
@@ -170,19 +169,17 @@ function parseLineas(value: unknown, conFactura: boolean): EmitirRemitoLineaInpu
     const cantidad = parseCantidad(raw.cantidad, ordinal);
     const observaciones = optionalText(raw.observaciones, `Las observaciones del ítem ${ordinal}`, 500);
     const facturaLineaId = optionalUuid(raw.facturaLineaId, `La línea de factura del ítem ${ordinal}`);
+    const codigo = optionalText(raw.codigo, `El código del ítem ${ordinal}`, 100);
+    const descripcion = optionalText(raw.descripcion, `La descripción del ítem ${ordinal}`, 500);
     if (conFactura) {
       if (!facturaLineaId) fail("Cada ítem del remito debe corresponder a una línea de la factura");
-      if (usadas.has(facturaLineaId)) fail(`La línea de factura del ítem ${ordinal} está repetida`);
-      usadas.add(facturaLineaId);
-      // Código y descripción se copian de la factura en la base.
-      return { facturaLineaId, codigo: null, descripcion: "", observaciones, cantidad };
+    } else if (facturaLineaId) {
+      fail("Los ítems de un remito sin factura no pueden referenciar líneas de factura");
     }
-    if (facturaLineaId) fail("Los ítems de un remito sin factura no pueden referenciar líneas de factura");
-    const descripcion = optionalText(raw.descripcion, `La descripción del ítem ${ordinal}`, 500);
     if (!descripcion) fail(`La descripción del ítem ${ordinal} es obligatoria`);
     return {
-      facturaLineaId: null,
-      codigo: optionalText(raw.codigo, `El código del ítem ${ordinal}`, 100),
+      facturaLineaId,
+      codigo,
       descripcion,
       observaciones,
       cantidad,
@@ -196,10 +193,13 @@ export function parseEmitirRemitoInput(raw: unknown): Validated<EmitirRemitoInpu
     if (!body) fail("Datos inválidos");
     if (!isValidUuid(body.idempotencyKey)) fail("La clave de idempotencia debe ser un UUID válido");
     if (body.clase !== "R" && body.clase !== "X") fail("Seleccioná el tipo de remito (R o X)");
+    const arregloId = optionalUuid(body.arregloId, "El arreglo de origen");
     const facturaId = optionalUuid(body.facturaId, "La factura");
+    if (arregloId && facturaId) fail("Iniciá el remito desde un arreglo o desde una factura, no desde ambos");
     return {
       idempotencyKey: body.idempotencyKey,
       clase: body.clase,
+      arregloId,
       facturaId,
       destinatario: parseDestinatario(body.destinatario),
       transportista: parseTransportista(body.transportista),

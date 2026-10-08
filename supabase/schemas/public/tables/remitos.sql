@@ -8,6 +8,7 @@ CREATE TABLE "public"."remitos" (
   "numero"                 integer                  NOT NULL,
   "fecha_emision"          date                     NOT NULL,
   "idempotency_key"        uuid                     NOT NULL,
+  "arreglo_id"             uuid,
   "factura_id"             uuid,
   "factura_asociada_at"    timestamp with time zone,
   "factura_asociada_by"    uuid,
@@ -27,6 +28,7 @@ CREATE TABLE "public"."remitos" (
     (impresion_snapshot IS NOT NULL)) OR ((clase = 'X'::text) AND (cai IS NULL) AND (cai_vencimiento IS NULL) AND (impresion_snapshot IS NULL)))),
   CONSTRAINT "remitos_clase_check" CHECK ((clase = ANY (ARRAY['R'::text, 'X'::text]))),
   CONSTRAINT "remitos_factura_asociada_check" CHECK (((factura_id IS NULL) = (factura_asociada_at IS NULL))),
+  CONSTRAINT "remitos_arreglo_id_fkey" FOREIGN KEY (arreglo_id) REFERENCES public.arreglos(id) ON DELETE RESTRICT,
   CONSTRAINT "remitos_factura_id_fkey" FOREIGN KEY (factura_id) REFERENCES public.facturas_electronicas(id) ON DELETE RESTRICT,
   CONSTRAINT "remitos_idempotencia_unica" UNIQUE (tenant_id, idempotency_key),
   CONSTRAINT "remitos_numero_check" CHECK (((numero >= 1) AND (numero <= 99999999))),
@@ -48,6 +50,9 @@ ALTER TABLE "public"."remitos"
 
 CREATE INDEX remitos_factura_idx ON public.remitos USING btree (tenant_id, factura_id)
   WHERE (factura_id IS NOT NULL);
+
+CREATE INDEX remitos_arreglo_idx ON public.remitos USING btree (tenant_id, arreglo_id)
+  WHERE (arreglo_id IS NOT NULL);
 
 CREATE INDEX remitos_tenant_fecha_idx ON public.remitos USING btree (tenant_id, ambiente, fecha_emision DESC, created_at DESC);
 

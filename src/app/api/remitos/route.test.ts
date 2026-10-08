@@ -88,6 +88,7 @@ describe("POST /api/remitos", () => {
     expect(emitirRemito).toHaveBeenCalledWith(supabase, "HOMOLOGACION", expect.objectContaining({
       idempotencyKey: KEY,
       clase: "X",
+      arregloId: null,
       facturaId: null,
       lineas: [{ facturaLineaId: null, codigo: null, descripcion: "Rueda", observaciones: null, cantidad: 2 }],
     }));

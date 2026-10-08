@@ -15,6 +15,12 @@ export interface ArregloWhatsappOptions {
 	incluirObservaciones?: boolean;
 }
 
+type WhatsappRepuestoLinea = {
+	label: string;
+	cantidad: number;
+	monto_unitario: number;
+};
+
 export function buildArregloWhatsappMessage(
 	data: ArregloDetalleData,
 	tenantNameOrOptions?: string | ArregloWhatsappOptions
@@ -38,7 +44,7 @@ export function buildArregloWhatsappMessage(
 
 	const arreglo = data.arreglo;
 	const detalles = Array.isArray(data.detalles) ? data.detalles : [];
-	const repuestosLineas = flattenAsignacionesLineas(data);
+	const repuestosLineas = getRepuestosWhatsappLines(data);
 
 	const isPagado =
 		(arreglo.total_cobrado || 0) >= (arreglo.precio_final || 0) && (arreglo.precio_final || 0) > 0;
@@ -145,7 +151,7 @@ function buildVehiculoInfoLines(
 
 function calculateArregloTotals(
 	detalles: ArregloDetalleData["detalles"],
-	repuestosLineas: AsignacionArregloLinea[],
+	repuestosLineas: WhatsappRepuestoLinea[],
 	precioFinal: number
 ): { subtotalServicios: number; subtotalRepuestos: number; total: number } {
 	const subtotalServicios = (detalles ?? []).reduce(
@@ -176,7 +182,7 @@ function buildItemLine(label: string, cantidad: number, totalMonto?: number): st
 }
 
 function buildRepuestosSectionLines(
-	repuestosLineas: AsignacionArregloLinea[],
+	repuestosLineas: WhatsappRepuestoLinea[],
 	showItemPrices: boolean,
 	showSubtotal: boolean,
 	subtotal: number
@@ -186,8 +192,7 @@ function buildRepuestosSectionLines(
 		const cantidad = safeNumber(r.cantidad);
 		const monto = safeNumber(r.monto_unitario);
 		const total = cantidad * monto;
-		const producto = r.producto?.nombre || r.producto?.codigo || "Repuesto";
-		lines.push(buildItemLine(producto, cantidad, showItemPrices ? total : undefined));
+		lines.push(buildItemLine(r.label, cantidad, showItemPrices ? total : undefined));
 	});
 	if (showSubtotal) {
 		lines.push(`_Subtotal repuestos: ${formatArs(subtotal, { maxDecimals: 2, minDecimals: 0 })}_`);
@@ -291,72 +296,19 @@ export function buildWhatsappWebLink(phone: string, message: string): string {
 
 export function buildWhatsappLink(phone: string, message: string): string {
 	const encodedMessage = encodeURIComponent(message);
-	return `https://api.whatsapp.com/send/?phone=${phone}&text=${encodedMessage}&type=phone_number&app_absent=0`;
+	return `https://wa.me/${phone}?text=${encodedMessage}`;
 }
 
-export interface OpenWhatsappOptions {
-	onFallback?: () => void;
-	timeoutMs?: number;
-}
-
-/**
- * Intenta abrir la aplicación nativa de WhatsApp.
- * Si el usuario no tiene la app instalada o la app no toma el foco tras timeoutMs,
- * ejecuta el fallback para abrir WhatsApp Web en el navegador.
- */
 export function openWhatsapp(
 	phone: string,
-	message: string,
-	options?: OpenWhatsappOptions
+	message: string
 ): void {
 	if (typeof window === "undefined") return;
 
 	const cleanPhone = normalizeWhatsappPhone(phone);
 	if (!cleanPhone) return;
 
-	const appUrl = buildWhatsappAppLink(cleanPhone, message);
-	const webUrl = buildWhatsappWebLink(cleanPhone, message);
-
-	let appOpened = false;
-
-	const handleBlur = () => {
-		appOpened = true;
-	};
-
-	const handleVisibilityChange = () => {
-		if (document.hidden) {
-			appOpened = true;
-		}
-	};
-
-	window.addEventListener("blur", handleBlur, { once: true });
-	document.addEventListener("visibilitychange", handleVisibilityChange, { once: true });
-
-	// 1. Intentar abrir la app nativa mediante el protocolo whatsapp://
-	const link = document.createElement("a");
-	link.href = appUrl;
-	link.style.display = "none";
-	if (typeof process !== "undefined" && process.env.NODE_ENV === "test") {
-		link.onclick = (e) => e.preventDefault();
-	}
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
-
-	// 2. Fallback a WhatsApp Web si no se detectó cambio de ventana/foco
-	const timeoutMs = options?.timeoutMs ?? 1500;
-	window.setTimeout(() => {
-		window.removeEventListener("blur", handleBlur);
-		document.removeEventListener("visibilitychange", handleVisibilityChange);
-
-		if (!appOpened) {
-			options?.onFallback?.();
-			const newWin = window.open(webUrl, "_blank", "noopener,noreferrer");
-			if (!newWin || newWin.closed || typeof newWin.closed === "undefined") {
-				window.location.href = webUrl;
-			}
-		}
-	}, timeoutMs);
+	window.open(buildWhatsappLink(cleanPhone, message), "_blank", "noopener,noreferrer");
 }
 
 /**
@@ -392,4 +344,21 @@ function flattenAsignacionesLineas(
 		}
 	}
 	return out;
+}
+
+function getRepuestosWhatsappLines(data: ArregloDetalleData): WhatsappRepuestoLinea[] {
+	const pendientes = data.arreglo.repuestos_pendientes;
+	if (data.arreglo.estado === "PRESUPUESTO" && Array.isArray(pendientes)) {
+		return pendientes.map((linea) => ({
+			label: linea.nombre || linea.codigo || "Repuesto",
+			cantidad: linea.cantidad,
+			monto_unitario: linea.monto_unitario,
+		}));
+	}
+
+	return flattenAsignacionesLineas(data).map((linea) => ({
+		label: linea.producto?.nombre || linea.producto?.codigo || "Repuesto",
+		cantidad: linea.cantidad,
+		monto_unitario: linea.monto_unitario,
+	}));
 }

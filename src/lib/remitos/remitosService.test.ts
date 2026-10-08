@@ -19,6 +19,7 @@ import {
 const TENANT = "11111111-1111-4111-8111-111111111111";
 const FACTURA_ID = "22222222-2222-4222-8222-222222222222";
 const REMITO_ID = "33333333-3333-4333-8333-333333333333";
+const ARREGLO_ID = "55555555-5555-4555-8555-555555555555";
 
 /** Claves de importe prohibidas en cualquier respuesta de remitos. */
 function amountKeys(value: unknown, path = "$"): string[] {
@@ -163,6 +164,73 @@ describe("remitosService", () => {
     expect(selectedColumns(calls.facturas_electronicas)[0]).not.toMatch(/\*|total|importe/);
     expect(lookupArcaPadronPerson).not.toHaveBeenCalled();
     expect(createArcaGateway).not.toHaveBeenCalled();
+  });
+
+  it("precarga bienes pendientes y asignados desde el arreglo sin exponer importes", async () => {
+    const { supabase, calls } = supabaseMock({
+      facturacion_configuracion_ambiente: [{ data: null, error: null }],
+      remitos_configuracion: [{ data: null, error: null }],
+      remitos: [{ data: [], error: null }, { data: [], error: null }],
+      arreglos: [{ data: { id: ARREGLO_ID, numero_orden: 42, cliente_id: null }, error: null }],
+    });
+    vi.mocked(supabase.rpc).mockResolvedValueOnce({
+      data: {
+        arreglo: {
+          vehiculo: { nombre_cliente: "Cliente del arreglo" },
+          repuestos_pendientes: [{ codigo: "REP-P", nombre: "Filtro pendiente", cantidad: 1, precio_venta: 500 }],
+        },
+        detalles: [{ descripcion: "Mano de obra", cantidad: 3 }],
+        asignaciones: [{
+          lineas: [{
+            cantidad: 2,
+            monto_unitario: 700,
+            producto: { codigo: "REP-1", nombre: "Pastillas de freno", precio_unitario: 1000 },
+          }],
+        }],
+      },
+      error: null,
+    } as never);
+
+    const preflight = await getRemitoPreflight(supabase, TENANT, "HOMOLOGACION", null, ARREGLO_ID);
+
+    expect(preflight.arreglo).toEqual({
+      id: ARREGLO_ID,
+      label: "Arreglo N° 42",
+      destinatario: {
+        clienteId: null,
+        nombre: "Cliente del arreglo",
+        domicilio: null,
+        tipoDocumento: null,
+        numeroDocumento: null,
+        condicionIvaReceptorId: null,
+      },
+      lineas: [
+        { codigo: "REP-P", descripcion: "Filtro pendiente", cantidad: 1 },
+        { codigo: "REP-1", descripcion: "Pastillas de freno", cantidad: 2 },
+      ],
+    });
+    expect(amountKeys(preflight)).toEqual([]);
+    expect(selectedColumns(calls.arreglos)).toEqual(["id, numero_orden, cliente_id"]);
+    expect(calls.arreglos).toEqual(expect.arrayContaining([
+      { method: "eq", args: ["tenant_id", TENANT] },
+    ]));
+    expect(supabase.rpc).toHaveBeenCalledWith("rpc_get_arreglo_detalle", { p_arreglo_id: ARREGLO_ID });
+  });
+
+  it("no permite precargar un arreglo que no pertenece al tenant", async () => {
+    const { supabase, calls } = supabaseMock({
+      facturacion_configuracion_ambiente: [{ data: null, error: null }],
+      remitos_configuracion: [{ data: null, error: null }],
+      remitos: [{ data: [], error: null }, { data: [], error: null }],
+      arreglos: [{ data: null, error: null }],
+    });
+    vi.mocked(supabase.rpc).mockResolvedValueOnce({ data: null, error: null } as never);
+
+    await expect(getRemitoPreflight(supabase, TENANT, "HOMOLOGACION", null, ARREGLO_ID))
+      .rejects.toMatchObject({ status: 404, message: "Arreglo no encontrado" });
+    expect(calls.arreglos).toEqual(expect.arrayContaining([
+      { method: "eq", args: ["tenant_id", TENANT] },
+    ]));
   });
 
   it.each([

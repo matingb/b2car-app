@@ -1,15 +1,17 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SheetProvider } from "@/app/providers/SheetProvider";
 import { renderWithProviders } from "@/tests/testUtils";
+import { COLOR } from "@/theme/theme";
 import RemitoDetailPage from "./page";
 
 const REMITO_ID = "33333333-3333-4333-8333-333333333333";
 const fetchMock = vi.fn();
+const navigation = vi.hoisted(() => ({ push: vi.fn(), back: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: REMITO_ID }),
-  useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
+  useRouter: () => navigation,
 }));
 
 const detalle = {
@@ -19,7 +21,8 @@ const detalle = {
   numero: 8,
   numeroVisible: "R 00001-00000008",
   fechaEmision: "2026-10-06",
-  ambiente: "PRODUCCION",
+  ambiente: "HOMOLOGACION",
+  arregloId: "a1",
   destinatarioNombre: "Juan Pérez",
   destinatarioDocumento: "DNI 30111222",
   tipoComprobante: 91,
@@ -46,6 +49,7 @@ const detalle = {
 afterEach(() => {
   vi.unstubAllGlobals();
   fetchMock.mockReset();
+  navigation.push.mockReset();
 });
 
 function renderPage(canManage: boolean, overrides: Record<string, unknown> = {}) {
@@ -55,7 +59,7 @@ function renderPage(canManage: boolean, overrides: Record<string, unknown> = {})
 }
 
 describe("RemitoDetailPage", () => {
-  it("muestra snapshots, ítems y CAI sin importes, con acceso a la factura", async () => {
+  it("muestra snapshots, ítems y CAI sin importes, con paneles navegables para los documentos", async () => {
     renderPage(true);
 
     expect(await screen.findByText("REMITO R")).toBeInTheDocument();
@@ -65,7 +69,20 @@ describe("RemitoDetailPage", () => {
     expect(screen.getByText("1,5")).toBeInTheDocument();
     expect(screen.getAllByText("71234567890123").length).toBeGreaterThan(0);
     expect(screen.getByText("00001-00000001 al 00001-00000100")).toBeInTheDocument();
-    expect(screen.getByTestId("remito-ver-factura")).toHaveAttribute("href", "/facturacion/f1");
+    const arregloCard = screen.getByTestId("remito-ver-arreglo");
+    expect(arregloCard).toHaveAttribute("role", "link");
+    expect(arregloCard).toHaveAttribute("tabindex", "0");
+    fireEvent.keyDown(arregloCard, { key: "Enter" });
+    expect(navigation.push).toHaveBeenCalledWith("/arreglos/a1");
+
+    const facturaCard = screen.getByTestId("remito-ver-factura");
+    expect(facturaCard).toHaveAttribute("role", "link");
+    fireEvent.click(facturaCard);
+    expect(navigation.push).toHaveBeenCalledWith("/facturacion/f1");
+    expect(screen.queryByText("Homologación")).not.toBeInTheDocument();
+
+    const emisorCard = screen.getByRole("heading", { name: "Emisor" }).parentElement;
+    expect(emisorCard).toHaveStyle({ background: COLOR.BACKGROUND.SUBTLE });
     expect(screen.queryByTestId("remito-asociar-factura")).not.toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/\$|99\.?999|importe|subtotal/i);
   });

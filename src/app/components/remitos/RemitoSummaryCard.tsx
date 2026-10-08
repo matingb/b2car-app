@@ -1,8 +1,8 @@
 "use client";
 
 import { css } from "@emotion/react";
-import Link from "next/link";
-import { Calendar, Download, Link2, ReceiptText, ShieldCheck, UserRound } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Calendar, ChevronRight, Download, Link2, ReceiptText, ShieldCheck, UserRound, Wrench } from "lucide-react";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import IconButton from "@/app/components/ui/IconButton";
@@ -19,6 +19,8 @@ type Props = {
 };
 
 export default function RemitoSummaryCard({ remito, canManage, onDownloadPdf, onAsociar }: Props) {
+  const router = useRouter();
+
   return (
     <section style={styles.container}>
       <Card style={styles.card}>
@@ -29,7 +31,6 @@ export default function RemitoSummaryCard({ remito, canManage, onDownloadPdf, on
               <strong style={styles.remitoLabel}>REMITO {remito.clase}</strong>
               <span style={styles.leyenda}>{REMITO_LEYENDA}</span>
             </div>
-            {remito.ambiente === "HOMOLOGACION" ? <span style={styles.ambiente}>Homologación</span> : null}
           </div>
           <div style={styles.headerActions}>
             <IconButton
@@ -63,19 +64,75 @@ export default function RemitoSummaryCard({ remito, canManage, onDownloadPdf, on
           {remito.clase === "R" ? (
             <MetaItem label="CAI" icon={<ShieldCheck size={16} />} value={remito.cai ?? "-"} mono />
           ) : null}
-          <div style={styles.metaItem}>
-            <span style={styles.label}>Factura</span>
-            {remito.factura ? (
-              <Link href={`/facturacion/${remito.factura.id}`} style={styles.link} data-testid="remito-ver-factura">
-                Ver factura · {remito.factura.label}
-              </Link>
-            ) : (
+          {remito.arregloId ? (
+            <RelatedDocumentCard
+              href={`/arreglos/${remito.arregloId}`}
+              icon={<Wrench size={18} />}
+              label="Arreglo de origen"
+              value="Ver arreglo"
+              testId="remito-ver-arreglo"
+              onNavigate={(href) => router.push(href)}
+            />
+          ) : null}
+          {remito.factura ? (
+            <RelatedDocumentCard
+              href={`/facturacion/${remito.factura.id}`}
+              icon={<ReceiptText size={18} />}
+              label="Factura"
+              value={`Ver factura · ${remito.factura.label}`}
+              testId="remito-ver-factura"
+              onNavigate={(href) => router.push(href)}
+            />
+          ) : (
+            <div style={styles.metaItem}>
+              <span style={styles.label}>Factura</span>
               <span style={styles.metaValue}>Sin factura asociada</span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </Card>
     </section>
+  );
+}
+
+function RelatedDocumentCard({
+  href,
+  icon,
+  label,
+  value,
+  testId,
+  onNavigate,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  testId: string;
+  onNavigate: (href: string) => void;
+}) {
+  const navigate = () => onNavigate(href);
+
+  return (
+    <Card
+      style={styles.relatedCard}
+      onClick={navigate}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          navigate();
+        }
+      }}
+      role="link"
+      tabIndex={0}
+      data-testid={testId}
+    >
+      <span style={styles.relatedIcon} aria-hidden="true">{icon}</span>
+      <span style={styles.relatedContent}>
+        <span style={styles.label}>{label}</span>
+        <span style={styles.relatedValue}>{value}</span>
+      </span>
+      <ChevronRight size={18} color={COLOR.ICON.MUTED} aria-hidden="true" />
+    </Card>
   );
 }
 
@@ -104,14 +161,6 @@ const styles = {
   title: { display: "flex", flexDirection: "column" as const, gap: 2 },
   remitoLabel: { fontSize: 22, letterSpacing: "0.02em", color: COLOR.TEXT.PRIMARY },
   leyenda: { fontSize: 11, fontWeight: 700, color: COLOR.TEXT.SECONDARY, letterSpacing: "0.04em" },
-  ambiente: {
-    borderRadius: 8,
-    padding: "5px 9px",
-    fontSize: 12,
-    fontWeight: 600,
-    color: COLOR.SEMANTIC.WARNING,
-    background: COLOR.BACKGROUND.WARNING_TINT,
-  },
   headerActions: { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" as const },
   grid: css({
     padding: 24,
@@ -147,5 +196,18 @@ const styles = {
     overflowWrap: "anywhere" as const,
   },
   mono: { fontFamily: "monospace" },
-  link: { color: COLOR.ACCENT.PRIMARY, fontWeight: 600, fontSize: 14 },
+  relatedCard: { display: "flex", alignItems: "center", gap: 12, padding: "8px 12px", minWidth: 0, cursor: "pointer" },
+  relatedIcon: {
+    width: 36,
+    height: 36,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: "0 0 auto",
+    color: COLOR.ICON.MUTED,
+    background: COLOR.BACKGROUND.PRIMARY,
+    borderRadius: 8,
+  },
+  relatedContent: { display: "flex", flexDirection: "column" as const, flex: 1, minWidth: 0 },
+  relatedValue: { color: COLOR.ACCENT.PRIMARY, fontSize: 14, fontWeight: 600, overflowWrap: "anywhere" as const },
 } as const;

@@ -86,6 +86,7 @@ export type RemitoResumen = {
   ambiente: FacturacionAmbiente;
   destinatarioNombre: string;
   destinatarioDocumento: string | null;
+  arregloId: string | null;
   factura: { id: string; label: string } | null;
 };
 
@@ -177,6 +178,20 @@ export type RemitoFacturaLineaDisponible = {
   cantidadDisponible: number;
 };
 
+/** Bien precargado desde un arreglo. Solo contiene descripción, código y cantidad. */
+export type RemitoArregloLinea = {
+  codigo: string | null;
+  descripcion: string;
+  cantidad: number;
+};
+
+export type RemitoArregloOrigen = {
+  id: string;
+  label: string;
+  destinatario: RemitoDestinatario;
+  lineas: RemitoArregloLinea[];
+};
+
 export type RemitoPreflight = {
   ambiente: FacturacionAmbiente;
   emisor: EvaluacionEmisor;
@@ -188,6 +203,7 @@ export type RemitoPreflight = {
     destinatario: RemitoDestinatario;
     lineas: RemitoFacturaLineaDisponible[];
   } | null;
+  arreglo: RemitoArregloOrigen | null;
 };
 
 export type FacturaRemitos = {
@@ -206,6 +222,7 @@ export type EmitirRemitoLineaInput = {
 export type EmitirRemitoInput = {
   idempotencyKey: string;
   clase: RemitoClase;
+  arregloId: string | null;
   facturaId: string | null;
   destinatario: Omit<RemitoDestinatario, "condicionIva">;
   transportista: RemitoTransportista | null;

@@ -32,7 +32,7 @@ describe("RemitoLineasEditor", () => {
     fireEvent.change(screen.getByLabelText("Cantidad del ítem 1"), { target: { value: "2.5" } });
 
     expect(lineasLibresPayload(ultimo)).toEqual([
-      { codigo: "A-1", descripcion: "Neumático", observaciones: "Con llanta", cantidad: 2.5 },
+      { facturaLineaId: null, codigo: "A-1", descripcion: "Neumático", observaciones: "Con llanta", cantidad: 2.5 },
     ]);
     expect(container.textContent).not.toMatch(/\$|precio|importe/i);
   });

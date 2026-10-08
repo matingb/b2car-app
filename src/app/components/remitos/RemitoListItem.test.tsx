@@ -14,6 +14,7 @@ const remito: RemitoResumen = {
   numeroVisible: "R 00001-00000008",
   fechaEmision: "2026-10-06",
   ambiente: "HOMOLOGACION",
+  arregloId: null,
   destinatarioNombre: "Juan Pérez",
   destinatarioDocumento: "DNI 30111222",
   factura: { id: "factura-1", label: "Factura C 00001-00000123" },

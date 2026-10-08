@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, AlertTriangle, ReceiptText, Send } from "lucide-react";
+import { AlertCircle, AlertTriangle, PackageCheck, ReceiptText, Send } from "lucide-react";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
@@ -32,17 +32,17 @@ import RemitoFacturaLineasSelector, {
   lineasFacturaPayload,
   seleccionInicial,
   validarSeleccionFactura,
-  type SeleccionLineasFactura,
 } from "./RemitoFacturaLineasSelector";
 import { remitoFormStyles } from "./remitoFormStyles";
 
 type Props = {
   facturaId: string | null;
+  arregloId?: string | null;
   onEmitted: (remitoId: string) => void;
   onCancel?: () => void;
 };
 
-export default function RemitoForm({ facturaId, onEmitted, onCancel }: Props) {
+export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onCancel }: Props) {
   const { hasPermission } = useTenant();
   const [preflight, setPreflight] = useState<RemitoPreflight | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,7 +52,6 @@ export default function RemitoForm({ facturaId, onEmitted, onCancel }: Props) {
   const [transportista, setTransportista] = useState<TransportistaForm>(TRANSPORTISTA_VACIO);
   const [observaciones, setObservaciones] = useState("");
   const [lineasLibres, setLineasLibres] = useState<LineaLibreForm[]>(() => [nuevaLineaLibre()]);
-  const [seleccion, setSeleccion] = useState<SeleccionLineasFactura>({});
   // Se genera al montar, se reutiliza en reintentos y se renueva solo tras una emisión exitosa.
   const [idempotencyKey, setIdempotencyKey] = useState(() => generateUuidV4());
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -63,24 +62,32 @@ export default function RemitoForm({ facturaId, onEmitted, onCancel }: Props) {
     setLoading(true);
     setLoadError(null);
     try {
-      const data = await remitosClient.preflight(facturaId);
+      const data = await remitosClient.preflight(facturaId, arregloId);
       setPreflight(data);
       if (data.factura) {
         setDestinatario(destinatarioFormDesde(data.factura.destinatario));
-        setSeleccion(seleccionInicial(data.factura.lineas));
+        setLineasLibres(seleccionInicial(data.factura.lineas));
+      } else if (data.arreglo) {
+        setDestinatario(destinatarioFormDesde(data.arreglo.destinatario));
+        setLineasLibres(data.arreglo.lineas.map((linea) => nuevaLineaLibre({
+          codigo: linea.codigo ?? "",
+          descripcion: linea.descripcion,
+          cantidad: linea.cantidad,
+        })));
       }
     } catch (cause) {
       setLoadError(cause instanceof Error ? cause.message : "No se pudo preparar el remito");
     } finally {
       setLoading(false);
     }
-  }, [facturaId]);
+  }, [facturaId, arregloId]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   const factura = preflight?.factura ?? null;
+  const arreglo = preflight?.arreglo ?? null;
   const tipoSeleccionado = clase && preflight ? preflight.tipos[clase] : null;
 
   const blockingReason = useMemo(() => {
@@ -94,13 +101,14 @@ export default function RemitoForm({ facturaId, onEmitted, onCancel }: Props) {
     if (destinatario.tipoDocumento && !destinatario.numeroDocumento.trim()) {
       return "Completá el número de documento del destinatario.";
     }
-    if (factura) return validarSeleccionFactura(factura.lineas, seleccion);
+    if (factura) return validarSeleccionFactura(factura.lineas, lineasLibres);
+    if (lineasLibres.length === 0) return "Agregá al menos un ítem al detalle del remito.";
     const sinDescripcion = lineasLibres.findIndex((linea) => !linea.descripcion.trim());
     if (sinDescripcion >= 0) return `Completá la descripción del ítem ${sinDescripcion + 1}.`;
     const sinCantidad = lineasLibres.findIndex((linea) => !(linea.cantidad > 0));
     if (sinCantidad >= 0) return `La cantidad del ítem ${sinCantidad + 1} debe ser mayor a 0.`;
     return null;
-  }, [preflight, clase, tipoSeleccionado, destinatario, factura, seleccion, lineasLibres]);
+  }, [preflight, clase, tipoSeleccionado, destinatario, factura, lineasLibres]);
 
   const emitir = async () => {
     if (!clase || blockingReason) return;
@@ -111,11 +119,12 @@ export default function RemitoForm({ facturaId, onEmitted, onCancel }: Props) {
       const id = await remitosClient.emitir({
         idempotencyKey,
         clase,
+        arregloId: arreglo?.id ?? null,
         facturaId: factura?.id ?? null,
         destinatario: destinatarioPayload(destinatario),
         transportista: transportistaPayload(transportista),
         observaciones: observaciones.trim() || null,
-        lineas: factura ? lineasFacturaPayload(factura.lineas, seleccion) : lineasLibresPayload(lineasLibres),
+        lineas: factura ? lineasFacturaPayload(lineasLibres) : lineasLibresPayload(lineasLibres),
       });
       setIdempotencyKey(generateUuidV4());
       onEmitted(id);
@@ -164,6 +173,16 @@ export default function RemitoForm({ facturaId, onEmitted, onCancel }: Props) {
         </Card>
       ) : null}
 
+      {arreglo ? (
+        <Card style={styles.facturaBanner}>
+          <PackageCheck size={18} color={COLOR.ACCENT.PRIMARY} />
+          <span>
+            Remito iniciado desde <Link href={`/arreglos/${arreglo.id}`} style={styles.link}>{arreglo.label}</Link>.
+            {" "}Podés editar este detalle sin modificar el arreglo.
+          </span>
+        </Card>
+      ) : null}
+
       <Section title="Tipo de remito" description="Elegí libremente R o X. La sugerencia normativa es solo orientativa.">
         <RemitoTipoSelector value={clase} onChange={setClase} tipos={preflight.tipos} />
         {clase === "R" && !preflight.tipos.R.emitible ? (
@@ -189,13 +208,15 @@ export default function RemitoForm({ facturaId, onEmitted, onCancel }: Props) {
       </Section>
 
       <Section
-        title="Ítems"
+        title="Detalle del remito"
         description={factura
-          ? "Elegí qué líneas de la factura se entregan y en qué cantidad. Se admiten entregas parciales."
-          : "Bienes y cantidades trasladados. El remito no lleva precios."}
+          ? "Editá los bienes que se entregan. Cada ítem conserva una referencia a la factura para controlar las cantidades disponibles."
+          : arreglo
+            ? "Los bienes del arreglo se precargaron como referencia. Podés agregarlos, quitarlos o modificarlos; el remito guarda su propio detalle."
+            : "Agregá los bienes y cantidades trasladados. El remito no lleva precios."}
       >
         {factura ? (
-          <RemitoFacturaLineasSelector lineas={factura.lineas} value={seleccion} onChange={setSeleccion} disabled={submitting} />
+          <RemitoFacturaLineasSelector lineas={factura.lineas} value={lineasLibres} onChange={setLineasLibres} disabled={submitting} />
         ) : (
           <RemitoLineasEditor value={lineasLibres} onChange={setLineasLibres} disabled={submitting} />
         )}

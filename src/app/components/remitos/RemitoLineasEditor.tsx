@@ -2,27 +2,30 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import Button from "@/app/components/ui/Button";
+import Dropdown from "@/app/components/ui/Dropdown";
 import IconButton from "@/app/components/ui/IconButton";
 import NumberInput from "@/app/components/ui/NumberInput";
 import { generateUuidV4 } from "@/lib/uuid";
-import { REMITO_MAX_LINEAS } from "@/lib/remitos/types";
+import { formatRemitoCantidad, REMITO_MAX_LINEAS, type RemitoFacturaLineaDisponible } from "@/lib/remitos/types";
 import { COLOR } from "@/theme/theme";
 import { remitoFormStyles } from "./remitoFormStyles";
 
 export type LineaLibreForm = {
   key: string;
+  facturaLineaId: string | null;
   codigo: string;
   descripcion: string;
   observaciones: string;
   cantidad: number;
 };
 
-export function nuevaLineaLibre(): LineaLibreForm {
-  return { key: generateUuidV4(), codigo: "", descripcion: "", observaciones: "", cantidad: 1 };
+export function nuevaLineaLibre(values: Partial<Omit<LineaLibreForm, "key">> = {}): LineaLibreForm {
+  return { key: generateUuidV4(), facturaLineaId: null, codigo: "", descripcion: "", observaciones: "", cantidad: 1, ...values };
 }
 
 export function lineasLibresPayload(lineas: LineaLibreForm[]) {
   return lineas.map((linea) => ({
+    facturaLineaId: linea.facturaLineaId,
     codigo: linea.codigo.trim() || null,
     descripcion: linea.descripcion.trim(),
     observaciones: linea.observaciones.trim() || null,
@@ -33,13 +36,23 @@ export function lineasLibresPayload(lineas: LineaLibreForm[]) {
 type Props = {
   value: LineaLibreForm[];
   onChange: (next: LineaLibreForm[]) => void;
+  lineasFactura?: RemitoFacturaLineaDisponible[];
   disabled?: boolean;
 };
 
-/** Ítems libres de un remito sin factura: código opcional, descripción, observaciones y cantidad. Sin precios. */
-export default function RemitoLineasEditor({ value, onChange, disabled = false }: Props) {
+/** Detalle propio del remito; las referencias a factura solo controlan cantidades y nunca importes. */
+export default function RemitoLineasEditor({ value, onChange, lineasFactura, disabled = false }: Props) {
   const update = (key: string, changes: Partial<LineaLibreForm>) =>
     onChange(value.map((linea) => (linea.key === key ? { ...linea, ...changes } : linea)));
+  const lineasFacturaDisponibles = lineasFactura?.filter((linea) => linea.cantidadDisponible > 0) ?? [];
+  const opcionesFactura = [
+    { value: "", label: "Elegí una línea de factura" },
+    ...lineasFacturaDisponibles.map((linea) => ({
+      value: linea.id,
+      label: `${linea.descripcion} · disponible ${formatRemitoCantidad(linea.cantidadDisponible)}`,
+      selectedLabel: `${linea.descripcion} · disp. ${formatRemitoCantidad(linea.cantidadDisponible)}`,
+    })),
+  ];
 
   return (
     <div style={styles.container}>
@@ -47,6 +60,35 @@ export default function RemitoLineasEditor({ value, onChange, disabled = false }
         <div key={linea.key} style={styles.row} data-testid="remito-linea-libre">
           <span style={styles.ordinal}>{index + 1}</span>
           <div style={styles.fields}>
+            {lineasFactura ? (
+              <label style={{ ...remitoFormStyles.field, flex: "1 1 100%" }}>
+                <span style={remitoFormStyles.label}>
+                  Referencia de factura <span style={remitoFormStyles.required}>*</span>
+                </span>
+                <Dropdown
+                  options={opcionesFactura}
+                  value={linea.facturaLineaId ?? ""}
+                  disabled={disabled || lineasFacturaDisponibles.length === 0}
+                  onChange={(facturaLineaId) => {
+                    const referencia = lineasFacturaDisponibles.find((item) => item.id === facturaLineaId);
+                    update(linea.key, referencia ? {
+                      facturaLineaId,
+                      codigo: referencia.codigo ?? "",
+                      descripcion: referencia.descripcion,
+                      cantidad: Math.min(linea.cantidad, referencia.cantidadDisponible),
+                    } : { facturaLineaId: null });
+                  }}
+                  style={{ width: "100%", height: 42, fontSize: 13 }}
+                  dataTestId={`remito-linea-factura-${index + 1}`}
+                />
+                {linea.facturaLineaId ? (
+                  <span style={styles.referenceHelp}>
+                    Facturada {formatRemitoCantidad(lineasFactura.find((item) => item.id === linea.facturaLineaId)?.cantidadFacturada ?? 0)}
+                    {" · "}Disponible {formatRemitoCantidad(lineasFactura.find((item) => item.id === linea.facturaLineaId)?.cantidadDisponible ?? 0)}
+                  </span>
+                ) : null}
+              </label>
+            ) : null}
             <label style={{ ...remitoFormStyles.field, flex: "0 1 140px" }}>
               <span style={remitoFormStyles.label}>Código</span>
               <input
@@ -143,4 +185,5 @@ const styles = {
     fontSize: 13,
   },
   fields: { display: "flex", flexWrap: "wrap" as const, gap: 10, flex: 1, minWidth: 0 },
+  referenceHelp: { color: COLOR.TEXT.SECONDARY, fontSize: 12 },
 } as const;

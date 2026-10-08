@@ -30,6 +30,7 @@ function jsonInit(method: string, payload: unknown): RequestInit {
 export type EmitirRemitoPayload = {
   idempotencyKey: string;
   clase: "R" | "X";
+  arregloId: string | null;
   facturaId: string | null;
   destinatario: Record<string, unknown>;
   transportista: Record<string, unknown> | null;
@@ -43,8 +44,12 @@ export const remitosClient = {
     return { remito: body.data, canManage: body.canManage === true };
   },
 
-  async preflight(facturaId?: string | null): Promise<RemitoPreflight> {
-    const query = facturaId ? `?facturaId=${encodeURIComponent(facturaId)}` : "";
+  async preflight(facturaId?: string | null, arregloId?: string | null): Promise<RemitoPreflight> {
+    const params = new URLSearchParams();
+    if (facturaId) params.set("facturaId", facturaId);
+    if (arregloId) params.set("arregloId", arregloId);
+    const queryString = params.toString();
+    const query = queryString ? `?${queryString}` : "";
     return (await request<RemitoPreflight>(`/api/remitos/preflight${query}`, undefined, "No se pudo preparar el remito")).data;
   },
 

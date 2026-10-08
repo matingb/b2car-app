@@ -46,7 +46,7 @@ function formatDate(value: string) {
   return formatCalendarDateLabel(value, "-");
 }
 
-/** Documentación: listado unificado de facturas, notas de crédito/débito y remitos. */
+/** Documentos: listado unificado de facturas, notas de crédito/débito y remitos. */
 export default function DocumentacionPage() {
   return (
     <Suspense>
@@ -154,7 +154,7 @@ function DocumentacionContent() {
   return (
     <div>
       <ScreenHeader
-        title="Documentación"
+        title="Documentos"
         subtitle="Facturas, notas de crédito y débito y remitos: consultá su estado y el detalle que quedó registrado."
       />
 
@@ -197,7 +197,6 @@ function DocumentacionContent() {
 
       <div style={styles.toolbar}>
         <div>
-          <h2 style={styles.heading}>Documentos</h2>
           <span style={styles.count}>{result.total} documento{result.total === 1 ? "" : "s"}</span>
         </div>
         <div style={styles.actions}>
@@ -260,7 +259,7 @@ function DocumentacionContent() {
 
 const styles = {
   toolbar: { display: "flex", justifyContent: "space-between", alignItems: "end", gap: 12, margin: "24px 0 12px", flexWrap: "wrap" as const },
-  heading: { margin: 0, fontSize: 20 }, count: { color: COLOR.TEXT.SECONDARY, fontSize: 13 },
+  count: { color: COLOR.TEXT.SECONDARY, fontSize: 13 },
   actions: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" as const },
   exportLink: { display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", color: COLOR.TEXT.PRIMARY, border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 8, padding: "8px 11px", fontSize: 13, fontWeight: 600 },
   newButton: { height: 36, fontSize: 14 },

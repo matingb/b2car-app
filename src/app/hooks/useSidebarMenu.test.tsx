@@ -37,7 +37,7 @@ afterEach(() => {
 });
 
 describe("useSidebarMenu", () => {
-  it("muestra Documentación y Configuración para admin con plan PRO", () => {
+  it("muestra Documentos y Configuración para admin con plan PRO", () => {
     state.role = UserRole.Admin;
     state.pro = true;
     const { result } = renderHook(() => useSidebarMenu());
@@ -57,11 +57,11 @@ describe("useSidebarMenu", () => {
     expect(result.current.items.map((item) => item.key)).not.toContain(SidebarMenuKey.Talleres);
   });
 
-  it("unifica facturas y remitos en un único ítem Documentación, activo también en /remitos", () => {
+  it("unifica facturas y remitos en un único ítem Documentos, activo también en /remitos", () => {
     state.role = UserRole.Admin;
     state.pro = true;
     const { result } = renderHook(() => useSidebarMenu());
-    const documentacion = result.current.items.filter((item) => item.label === "Documentación");
+    const documentacion = result.current.items.filter((item) => item.label === "Documentos");
 
     expect(documentacion).toHaveLength(1);
     expect(documentacion[0]).toMatchObject({
@@ -72,7 +72,7 @@ describe("useSidebarMenu", () => {
     expect(result.current.items.map((item) => item.label)).not.toEqual(expect.arrayContaining(["Facturas", "Remitos"]));
   });
 
-  it("muestra Configuración y oculta Documentación y Talleres para admin BASE", () => {
+  it("muestra Configuración y oculta Documentos y Talleres para admin BASE", () => {
     state.role = UserRole.Admin;
     state.pro = false;
     const { result } = renderHook(() => useSidebarMenu());

@@ -43,13 +43,13 @@ export default function RemitoDetailPage() {
   }, [load]);
 
   if (loading) {
-    return <><ScreenHeader title="Documentación" breadcrumbs={["Detalle"]} hasBackButton /><ListSkeleton rows={7} /></>;
+    return <><ScreenHeader title="Documentos" breadcrumbs={["Detalle"]} hasBackButton /><ListSkeleton rows={7} /></>;
   }
 
   if (!remito) {
     return (
       <>
-        <ScreenHeader title="Documentación" breadcrumbs={["Detalle"]} hasBackButton />
+        <ScreenHeader title="Documentos" breadcrumbs={["Detalle"]} hasBackButton />
         {error ? <div role="alert" style={styles.error}>{error}</div> : null}
       </>
     );
@@ -62,7 +62,7 @@ export default function RemitoDetailPage() {
 
   return (
     <div>
-      <ScreenHeader title="Documentación" breadcrumbs={["Detalle"]} hasBackButton />
+      <ScreenHeader title="Documentos" breadcrumbs={["Detalle"]} hasBackButton />
       <RemitoSummaryCard
         remito={remito}
         canManage={canManage}
@@ -73,56 +73,13 @@ export default function RemitoDetailPage() {
       {error ? <div role="alert" style={styles.error}>{error}</div> : null}
 
       <section style={styles.section}>
-        <div style={styles.twoColumns}>
-          <Card style={styles.sectionCard}>
-            <h3 style={styles.cardTitle}>Emisor</h3>
-            <Info label="Razón social" value={remito.emisor.razonSocial} />
-            <Info label="CUIT" value={remito.emisor.cuit} />
-            <Info label="Condición IVA" value={remito.emisor.condicionIva || "-"} />
-            <Info label="Domicilio comercial" value={remito.emisor.domicilio} />
-            <Info label="Ingresos brutos" value={remito.emisor.ingresosBrutos ?? "-"} />
-            <Info
-              label="Inicio de actividades"
-              value={formatCalendarDateLabel(remito.impresion?.inicioActividades ?? remito.emisor.inicioActividades, "-")}
-            />
-          </Card>
-          <Card style={styles.sectionCard}>
-            <h3 style={styles.cardTitle}>Destinatario</h3>
-            <Info label="Nombre / razón social" value={remito.destinatario.nombre} />
-            <Info label="Documento" value={formatRemitoDocumento(remito.destinatario) ?? "Sin documento"} />
-            <Info label="Condición IVA" value={remito.destinatario.condicionIva ?? "-"} />
-            <Info label="Domicilio" value={remito.destinatario.domicilio ?? "-"} />
-          </Card>
-          {remito.transportista ? (
-            <Card style={styles.sectionCard}>
-              <h3 style={styles.cardTitle}>Transportista</h3>
-              <Info label="Nombre / razón social" value={remito.transportista.nombre} />
-              <Info label="CUIT" value={remito.transportista.cuit ?? "-"} />
-              <Info label="Domicilio" value={remito.transportista.domicilio ?? "-"} />
-            </Card>
-          ) : null}
-          {remito.clase === "R" ? (
-            <Card style={styles.sectionCard}>
-              <h3 style={styles.cardTitle}>CAI e impresión</h3>
-              <Info label="CAI" value={remito.cai ?? "-"} />
-              <Info label="Vencimiento del CAI" value={formatCalendarDateLabel(remito.caiVencimiento, "-")} />
-              <Info label="Numeración autorizada" value={rango ?? "Sin rango configurado"} />
-              <Info label="Modalidad" value={remito.impresion?.autoimpresor ? "Autoimpresor" : "Imprenta"} />
-              {imprenta ? (
-                <>
-                  <Info label="Imprenta" value={`${imprenta.razonSocial} · CUIT ${imprenta.cuit}`} />
-                  <Info label="Habilitación" value={imprenta.habilitacion} />
-                  <Info label="Fecha de impresión" value={formatCalendarDateLabel(imprenta.fechaImpresion, "-")} />
-                </>
-              ) : null}
-            </Card>
-          ) : null}
+        <div style={styles.sectionHeader}>
+          <div>
+            <h2 style={styles.sectionTitle}>Detalle del remito</h2>
+            <p style={styles.muted}>Bienes y cantidades guardados en este documento.</p>
+          </div>
         </div>
-      </section>
-
-      <section style={styles.section}>
-        <Card style={styles.sectionCard}>
-          <h3 style={styles.cardTitle}>Ítems</h3>
+        <Card>
           <div style={styles.tableWrap}>
             <table style={styles.table}>
               <thead>
@@ -148,9 +105,63 @@ export default function RemitoDetailPage() {
         </Card>
       </section>
 
+      <section style={styles.section}>
+        <div style={styles.sectionHeader}>
+          <div>
+            <h2 style={styles.sectionTitle}>Datos fiscales</h2>
+            <p style={styles.muted}>Información registrada al momento de emitir el remito.</p>
+          </div>
+        </div>
+        <div style={styles.twoColumns}>
+          <Card>
+            <h3 style={styles.cardTitle}>Emisor</h3>
+            <Info label="Razón social" value={remito.emisor.razonSocial} />
+            <Info label="CUIT" value={remito.emisor.cuit} />
+            <Info label="Condición IVA" value={remito.emisor.condicionIva || "-"} />
+            <Info label="Domicilio comercial" value={remito.emisor.domicilio} />
+            <Info label="Ingresos brutos" value={remito.emisor.ingresosBrutos ?? "-"} />
+            <Info
+              label="Inicio de actividades"
+              value={formatCalendarDateLabel(remito.impresion?.inicioActividades ?? remito.emisor.inicioActividades, "-")}
+            />
+          </Card>
+          <Card>
+            <h3 style={styles.cardTitle}>Destinatario</h3>
+            <Info label="Nombre / razón social" value={remito.destinatario.nombre} />
+            <Info label="Documento" value={formatRemitoDocumento(remito.destinatario) ?? "Sin documento"} />
+            <Info label="Condición IVA" value={remito.destinatario.condicionIva ?? "-"} />
+            <Info label="Domicilio" value={remito.destinatario.domicilio ?? "-"} />
+          </Card>
+          {remito.transportista ? (
+            <Card>
+              <h3 style={styles.cardTitle}>Transportista</h3>
+              <Info label="Nombre / razón social" value={remito.transportista.nombre} />
+              <Info label="CUIT" value={remito.transportista.cuit ?? "-"} />
+              <Info label="Domicilio" value={remito.transportista.domicilio ?? "-"} />
+            </Card>
+          ) : null}
+          {remito.clase === "R" ? (
+            <Card>
+              <h3 style={styles.cardTitle}>CAI e impresión</h3>
+              <Info label="CAI" value={remito.cai ?? "-"} />
+              <Info label="Vencimiento del CAI" value={formatCalendarDateLabel(remito.caiVencimiento, "-")} />
+              <Info label="Numeración autorizada" value={rango ?? "Sin rango configurado"} />
+              <Info label="Modalidad" value={remito.impresion?.autoimpresor ? "Autoimpresor" : "Imprenta"} />
+              {imprenta ? (
+                <>
+                  <Info label="Imprenta" value={`${imprenta.razonSocial} · CUIT ${imprenta.cuit}`} />
+                  <Info label="Habilitación" value={imprenta.habilitacion} />
+                  <Info label="Fecha de impresión" value={formatCalendarDateLabel(imprenta.fechaImpresion, "-")} />
+                </>
+              ) : null}
+            </Card>
+          ) : null}
+        </div>
+      </section>
+
       {remito.observaciones ? (
         <section style={styles.section}>
-          <Card style={styles.sectionCard}>
+          <Card>
             <h3 style={styles.cardTitle}>Observaciones</h3>
             <p style={styles.observaciones}>{remito.observaciones}</p>
           </Card>
@@ -176,8 +187,10 @@ function Info({ label, value }: { label: string; value: string }) {
 
 const styles = {
   section: { marginTop: 24 },
-  sectionCard: { background: COLOR.BACKGROUND.SECONDARY },
-  twoColumns: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 },
+  sectionHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 12, flexWrap: "wrap" as const },
+  sectionTitle: { fontSize: 20, fontWeight: 600, margin: 0 },
+  muted: { color: COLOR.TEXT.SECONDARY, margin: "2px 0 0", fontSize: 13 },
+  twoColumns: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 16 },
   cardTitle: { margin: "0 0 12px", fontSize: 18 },
   info: {
     display: "flex",

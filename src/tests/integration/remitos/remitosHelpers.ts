@@ -22,6 +22,7 @@ export interface LineaRemitoInput {
 export interface EmitirRemitoArgs {
   clase: "R" | "X";
   lineas?: LineaRemitoInput[];
+  arregloId?: string | null;
   facturaId?: string | null;
   destinatario?: Record<string, unknown>;
   transportista?: Record<string, unknown> | null;
@@ -219,10 +220,28 @@ export async function cuandoSeEmiteUnRemito(
   args: EmitirRemitoArgs,
   client: SupabaseClient = testClient,
 ) {
+  const lineas = args.lineas ?? [lineaLibre()];
+  const facturaLineaIds = [...new Set(lineas.flatMap((linea) => linea.factura_linea_id ? [linea.factura_linea_id] : []))];
+  const referenciasResult = facturaLineaIds.length
+    ? await adminClient.from("facturas_electronicas_lineas").select("id, codigo, descripcion").in("id", facturaLineaIds)
+    : null;
+  if (referenciasResult?.error) {
+    throw new Error(`cuandoSeEmiteUnRemito no pudo leer líneas de factura: ${referenciasResult.error.message}`);
+  }
+  const porId = new Map((referenciasResult?.data ?? []).map((linea) => [linea.id, linea]));
+  const lineasPayload = lineas.map((linea) => {
+    const referencia = linea.factura_linea_id ? porId.get(linea.factura_linea_id) : null;
+    return {
+      ...linea,
+      codigo: linea.codigo ?? referencia?.codigo ?? null,
+      descripcion: linea.descripcion ?? referencia?.descripcion ?? "",
+    };
+  });
   return client.rpc("rpc_remitos_emitir", {
     p_idempotency_key: args.idempotencyKey ?? randomUUID(),
     p_ambiente: args.ambiente ?? AMBIENTE,
     p_clase: args.clase,
+    p_arreglo_id: args.arregloId ?? null,
     p_factura_id: args.facturaId ?? null,
     p_destinatario: args.destinatario ?? {
       nombre: "Juan Pérez",
@@ -233,7 +252,7 @@ export async function cuandoSeEmiteUnRemito(
     },
     p_transportista: args.transportista ?? null,
     p_observaciones: args.observaciones ?? null,
-    p_lineas: args.lineas ?? [lineaLibre()],
+    p_lineas: lineasPayload,
   });
 }
 

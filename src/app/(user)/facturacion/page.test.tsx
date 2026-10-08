@@ -64,11 +64,11 @@ afterEach(() => {
 });
 
 describe("DocumentacionPage", () => {
-  it("lista facturas y remitos juntos en Documentación", async () => {
+  it("lista facturas y remitos juntos en Documentos", async () => {
     responder([{ tipo: "REMITO", id: "r1", fecha: "2026-10-06", remito }, { tipo: "FISCAL", id: "f1", fecha: "2026-10-05", factura }]);
     renderPage();
 
-    expect(screen.getByRole("heading", { name: "Documentación" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Documentos" })).toBeInTheDocument();
     expect(await screen.findByText("R 00001-00000008")).toBeInTheDocument();
     expect(screen.getByText("Factura C")).toBeInTheDocument();
     expect(screen.getByText("2 documentos")).toBeInTheDocument();

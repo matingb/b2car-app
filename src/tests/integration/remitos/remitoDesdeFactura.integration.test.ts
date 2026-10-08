@@ -1,18 +1,40 @@
 import { randomUUID } from "crypto";
 import { describe, expect, it } from "vitest";
 import { createTestClient } from "@/tests/integration";
+import { dadoUnArregloConRepuesto } from "@/tests/integration/helpers/integrationFixtures";
 import {
   cuandoSeEmiteUnRemito,
   dadaUnaConfiguracionFiscal,
   dadaUnaFacturaAutorizadaConLineas,
   dadoOtroTenantConConfiguracionFiscal,
   dadoUnRemitoEmitido,
+  cuandoSeAsociaUnaFactura,
   expectErrorDeNegocio,
+  lineaLibre,
   leerLineasRemito,
   leerRemito,
 } from "./remitosHelpers";
 
-describe("Integration: remitos emitidos desde una factura (B2C-202)", () => {
+describe("Integration: remitos emitidos desde un arreglo o una factura (B2C-202)", () => {
+  it("emite desde un arreglo y persiste el origen sin crear una factura", async () => {
+    await dadaUnaConfiguracionFiscal();
+    const { arreglo } = await dadoUnArregloConRepuesto({ cantidadAsignada: 2 });
+
+    const remitoId = await dadoUnRemitoEmitido({
+      clase: "X",
+      arregloId: arreglo.id,
+      lineas: [lineaLibre({ codigo: "REP-1", descripcion: "Pastillas de freno", cantidad: 2 })],
+    });
+
+    expect(await leerRemito(remitoId)).toMatchObject({
+      arreglo_id: arreglo.id,
+      factura_id: null,
+    });
+    expect(await leerLineasRemito(remitoId)).toMatchObject([
+      { codigo: "REP-1", descripcion: "Pastillas de freno", cantidad: 2 },
+    ]);
+  });
+
   it("admite entregas parciales y sucesivas hasta la cantidad facturada", async () => {
     await dadaUnaConfiguracionFiscal();
     const { facturaId, lineas: [linea] } = await dadaUnaFacturaAutorizadaConLineas([{ cantidad: 5, descripcion: "Filtro de aceite" }]);
@@ -36,7 +58,7 @@ describe("Integration: remitos emitidos desde una factura (B2C-202)", () => {
     expect(Number(lineaRemito.cantidad)).toBe(3);
   });
 
-  it("copia código y descripción desde la factura e ignora los enviados por el usuario", async () => {
+  it("persiste código y descripción propios del remito sin modificar la factura", async () => {
     await dadaUnaConfiguracionFiscal();
     const { facturaId, lineas: [linea] } = await dadaUnaFacturaAutorizadaConLineas([{ cantidad: 2, codigo: "BAT-1", descripcion: "Batería 12V" }]);
 
@@ -47,25 +69,46 @@ describe("Integration: remitos emitidos desde una factura (B2C-202)", () => {
     });
 
     const [lineaRemito] = await leerLineasRemito(remitoId);
-    expect(lineaRemito).toMatchObject({ codigo: "BAT-1", descripcion: "Batería 12V", observaciones: "Caja sellada" });
+    expect(lineaRemito).toMatchObject({ codigo: "OTRO", descripcion: "Otro texto", observaciones: "Caja sellada" });
   });
 
-  it("rechaza líneas ajenas a la factura, repetidas o sin referencia", async () => {
+  it("rechaza líneas ajenas a la factura o sin referencia", async () => {
     await dadaUnaConfiguracionFiscal();
-    const { facturaId, lineas: [linea] } = await dadaUnaFacturaAutorizadaConLineas([{ cantidad: 5 }]);
+    const { facturaId } = await dadaUnaFacturaAutorizadaConLineas([{ cantidad: 5 }]);
     const { lineas: [ajena] } = await dadaUnaFacturaAutorizadaConLineas([{ cantidad: 5 }]);
 
     const lineaAjena = await cuandoSeEmiteUnRemito({ clase: "X", facturaId, lineas: [{ factura_linea_id: ajena.id, cantidad: 1 }] });
-    const repetida = await cuandoSeEmiteUnRemito({
-      clase: "X",
-      facturaId,
-      lineas: [{ factura_linea_id: linea.id, cantidad: 1 }, { factura_linea_id: linea.id, cantidad: 1 }],
-    });
     const sinReferencia = await cuandoSeEmiteUnRemito({ clase: "X", facturaId, lineas: [{ descripcion: "Libre", cantidad: 1 }] });
 
     expectErrorDeNegocio(lineaAjena.error, "no corresponde a una línea de la factura");
-    expectErrorDeNegocio(repetida.error, "está repetida en el remito");
     expectErrorDeNegocio(sinReferencia.error, "debe corresponder a una línea de la factura");
+  });
+
+  it("permite separar varios ítems y asociarlos a una misma línea sin superar el acumulado", async () => {
+    await dadaUnaConfiguracionFiscal();
+    const { facturaId, lineas: [linea] } = await dadaUnaFacturaAutorizadaConLineas([{ cantidad: 3, descripcion: "Repuestos" }]);
+    const remitoId = await dadoUnRemitoEmitido({
+      clase: "X",
+      lineas: [
+        lineaLibre({ codigo: "CAJA-1", descripcion: "Caja 1", cantidad: 2 }),
+        lineaLibre({ codigo: "CAJA-2", descripcion: "Caja 2", cantidad: 1 }),
+      ],
+    });
+    const lineasRemito = await leerLineasRemito(remitoId);
+
+    const asociado = await cuandoSeAsociaUnaFactura(remitoId, facturaId, lineasRemito.map((item) => ({
+      remito_linea_id: String(item.id),
+      factura_linea_id: linea.id,
+    })));
+    expect(asociado.error).toBeNull();
+    expect((await leerLineasRemito(remitoId)).map((item) => item.factura_linea_id)).toEqual([linea.id, linea.id]);
+
+    const excedido = await cuandoSeEmiteUnRemito({
+      clase: "X",
+      facturaId,
+      lineas: [{ factura_linea_id: linea.id, cantidad: 0.1 }],
+    });
+    expectErrorDeNegocio(excedido.error, 'La cantidad a remitir de "Repuestos" supera la cantidad facturada disponible (0)');
   });
 
   it("rechaza facturas no autorizadas, notas de crédito y facturas de otro ambiente", async () => {

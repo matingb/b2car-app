@@ -13,6 +13,7 @@ const WHITE = rgb(1, 1, 1);
 const MUTED = rgb(0.35, 0.35, 0.35);
 const HEADER_TOP = 798;
 const HEADER_BOTTOM = 600;
+const EMISOR_TEXT_RIGHT = 286;
 const CONTINUATION_TABLE_TOP = 755;
 const TABLE_HEADER_HEIGHT = 21;
 const PAGE_BOTTOM_LIMIT = 48;
@@ -207,7 +208,8 @@ function paginate(rows: PrintableRow[], firstTableTop: number, footerTop: number
   let y = firstTableTop - TABLE_HEADER_HEIGHT;
   for (const row of rows) {
     const current = pages[pages.length - 1];
-    if (y - row.height < PAGE_BOTTOM_LIMIT && current.rows.length > 0) {
+    if (y - row.height < PAGE_BOTTOM_LIMIT && (current.rows.length > 0 || pages.length === 1)) {
+      if (current.rows.length === 0) current.tableTop = null;
       pages.push({ rows: [], tableTop: CONTINUATION_TABLE_TOP, continuation: true });
       y = CONTINUATION_TABLE_TOP - TABLE_HEADER_HEIGHT;
     }
@@ -237,12 +239,26 @@ function paginate(rows: PrintableRow[], firstTableTop: number, footerTop: number
   return pages;
 }
 
-function drawFirstHeader(page: PDFPage, remito: RemitoDetalle, fonts: Fonts) {
+function firstHeaderBottom(remito: RemitoDetalle, fonts: Fonts): number {
   const emisor = remito.emisor;
+  const issuerName = text(emisor.nombreFantasia) || text(emisor.razonSocial);
+  const issuerNameLines = wrapText(issuerName, fonts.bold, 14, 210).slice(0, 3);
+  let leftY = Math.min(716, 772 - (issuerNameLines.length - 1) * 15 - 24);
+  const razonSocialLines = wrappedLineCount(fonts, "Razón Social:", text(emisor.razonSocial), 54, EMISOR_TEXT_RIGHT);
+  leftY -= Math.max(17, razonSocialLines * 10 + 7);
+  const domicilioLines = wrappedLineCount(fonts, "Domicilio Comercial:", text(emisor.domicilio), 54, EMISOR_TEXT_RIGHT);
+  leftY -= Math.max(17, domicilioLines * 10 + 7);
+  const condicionLines = wrappedLineCount(fonts, "Condición IVA:", text(emisor.condicionIva) || "-", 54, EMISOR_TEXT_RIGHT);
+  return Math.min(HEADER_BOTTOM, leftY - (condicionLines - 1) * 10 - 12);
+}
+
+function drawFirstHeader(page: PDFPage, remito: RemitoDetalle, fonts: Fonts): void {
+  const emisor = remito.emisor;
+  const headerBottom = firstHeaderBottom(remito, fonts);
   page.drawRectangle({
-    x: MARGIN, y: HEADER_BOTTOM, width: CONTENT_WIDTH, height: HEADER_TOP - HEADER_BOTTOM, color: WHITE, borderWidth: 0.8,
+    x: MARGIN, y: headerBottom, width: CONTENT_WIDTH, height: HEADER_TOP - headerBottom, color: WHITE, borderWidth: 0.8,
   });
-  page.drawLine({ start: { x: 298, y: HEADER_BOTTOM }, end: { x: 298, y: HEADER_TOP }, thickness: 0.8 });
+  page.drawLine({ start: { x: 298, y: headerBottom }, end: { x: 298, y: HEADER_TOP }, thickness: 0.8 });
 
   const issuerName = text(emisor.nombreFantasia) || text(emisor.razonSocial);
   const issuerNameLines = wrapText(issuerName, fonts.bold, 14, 210).slice(0, 3);
@@ -250,11 +266,11 @@ function drawFirstHeader(page: PDFPage, remito: RemitoDetalle, fonts: Fonts) {
     drawCentered(page, line, 168, 772 - index * 15, fonts.bold, 14);
   });
   let leftY = Math.min(716, 772 - (issuerNameLines.length - 1) * 15 - 24);
-  const razonSocialLines = drawLabeledWrappedValue(page, fonts, "Razón Social:", text(emisor.razonSocial), 54, leftY, 286);
+  const razonSocialLines = drawLabeledWrappedValue(page, fonts, "Razón Social:", text(emisor.razonSocial), 54, leftY, EMISOR_TEXT_RIGHT);
   leftY -= Math.max(17, razonSocialLines * 10 + 7);
-  const domicilioLines = drawLabeledWrappedValue(page, fonts, "Domicilio Comercial:", text(emisor.domicilio), 54, leftY, 286);
+  const domicilioLines = drawLabeledWrappedValue(page, fonts, "Domicilio Comercial:", text(emisor.domicilio), 54, leftY, EMISOR_TEXT_RIGHT);
   leftY -= Math.max(17, domicilioLines * 10 + 7);
-  drawLabeledWrappedValue(page, fonts, "Condición IVA:", text(emisor.condicionIva) || "-", 54, leftY, 286);
+  drawLabeledWrappedValue(page, fonts, "Condición IVA:", text(emisor.condicionIva) || "-", 54, leftY, EMISOR_TEXT_RIGHT);
 
   page.drawRectangle({ x: 276, y: 744, width: 44, height: 54, color: WHITE, borderWidth: 0.8 });
   drawCentered(page, remito.clase, 298, 766, fonts.bold, 22);
@@ -387,7 +403,8 @@ export async function generateRemitoPdf(detalle: RemitoDetalle): Promise<Uint8Ar
   };
   const remito = sanitizeRemito(detalle, fonts.regular);
 
-  let firstTableTop = HEADER_BOTTOM - 14;
+  const headerBottom = firstHeaderBottom(remito, fonts);
+  let firstTableTop = headerBottom - 14;
   const facturaY = firstTableTop;
   if (remito.factura) firstTableTop -= 18;
   const destinatarioTop = firstTableTop;

@@ -13,6 +13,7 @@ vi.mock("@/lib/remitos/remitosService", () => ({ getRemitoPreflight: vi.fn() }))
 
 const TENANT = "22222222-2222-4222-8222-222222222222";
 const FACTURA_ID = "44444444-4444-4444-8444-444444444444";
+const ARREGLO_ID = "55555555-5555-4555-8555-555555555555";
 const segment = () => ({ params: Promise.resolve({}) });
 const req = (query = "") => new NextRequest(`http://localhost/api/remitos/preflight${query}`);
 
@@ -27,16 +28,18 @@ describe("GET /api/remitos/preflight", () => {
     expect((await GET(req(), segment())).status).toBe(403);
   });
 
-  it("valida facturaId", async () => {
+  it("valida los identificadores de origen", async () => {
     mockApiSession();
     expect((await GET(req("?facturaId=abc"), segment())).status).toBe(400);
+    expect((await GET(req("?arregloId=abc"), segment())).status).toBe(400);
     expect(getRemitoPreflight).not.toHaveBeenCalled();
   });
 
   it.each([
-    ["", null],
-    [`?facturaId=${FACTURA_ID}`, FACTURA_ID],
-  ])("prepara la emisión (%s)", async (query, facturaId) => {
+    ["", null, null],
+    [`?facturaId=${FACTURA_ID}`, FACTURA_ID, null],
+    [`?arregloId=${ARREGLO_ID}`, null, ARREGLO_ID],
+  ])("prepara la emisión (%s)", async (query, facturaId, arregloId) => {
     const { supabase } = mockApiSession();
     const preflight = { ambiente: "HOMOLOGACION" } as RemitoPreflight;
     vi.mocked(getRemitoPreflight).mockResolvedValueOnce(preflight);
@@ -44,6 +47,6 @@ describe("GET /api/remitos/preflight", () => {
     const response = await GET(req(query), segment());
 
     expect(await response.json()).toEqual({ data: preflight, error: null });
-    expect(getRemitoPreflight).toHaveBeenCalledWith(supabase, TENANT, "HOMOLOGACION", facturaId);
+    expect(getRemitoPreflight).toHaveBeenCalledWith(supabase, TENANT, "HOMOLOGACION", facturaId, arregloId);
   });
 });

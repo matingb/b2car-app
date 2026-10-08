@@ -23,13 +23,16 @@ function NuevoRemitoContent() {
   const { hasPermission } = useTenant();
   const facturaParam = searchParams.get("facturaId");
   const facturaId = isValidUuid(facturaParam) ? facturaParam : null;
+  const arregloParam = searchParams.get("arregloId");
+  const arregloId = isValidUuid(arregloParam) ? arregloParam : null;
 
   return (
     <div>
-      <ScreenHeader title="Documentación" breadcrumbs={["Nuevo remito"]} hasBackButton />
+      <ScreenHeader title="Documentos" breadcrumbs={["Nuevo remito"]} hasBackButton />
       {hasPermission(Permission.FacturasEdit) ? (
         <RemitoForm
           facturaId={facturaId}
+          arregloId={arregloId}
           onEmitted={(id) => router.replace(`/remitos/${id}`)}
           onCancel={() => router.back()}
         />

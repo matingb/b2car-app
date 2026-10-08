@@ -15,6 +15,7 @@ function remito(overrides: Partial<RemitoDetalle> = {}): RemitoDetalle {
     numeroVisible: "X 00001-00000008",
     fechaEmision: "2026-10-06",
     ambiente: "HOMOLOGACION",
+    arregloId: null,
     destinatarioNombre: "Juan Pérez",
     destinatarioDocumento: "DNI 30111222",
     tipoComprobante: null,
@@ -143,6 +144,37 @@ describe("PDF de remito", () => {
     expect(conDatos.textos).toEqual(expect.arrayContaining([
       "TRANSPORTISTA", "Fletes del Sur", "Ruta 3 km 10", "Factura asociada:", "Factura C 00001-00000123",
     ]));
+  });
+
+  it("mantiene dentro del recuadro los textos del emisor que envuelven cerca del borde", async () => {
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    const drawRectangle = vi.spyOn(PDFPage.prototype, "drawRectangle");
+    await generateRemitoPdf(remito({
+      emisor: {
+        ...remito().emisor,
+        razonSocial: "Razón social comercial extensa ".repeat(6).slice(0, 200),
+        domicilio: "Avenida comercial de prueba ".repeat(12).slice(0, 300),
+      },
+    }));
+
+    const calls = drawText.mock.calls.map(([value, options], index) => ({
+      value: String(value),
+      y: Number(options?.y),
+      page: drawText.mock.contexts[index],
+    }));
+    const condicion = calls.find((call) => call.value === "Condición IVA:");
+    const destinatario = calls.find((call) => call.value === "DESTINATARIO");
+    const domicilioLabelIndex = calls.findIndex((call) => call.value === "Domicilio Comercial:");
+    const condicionIndex = calls.findIndex((call) => call.value === "Condición IVA:");
+    const domicilioLines = calls.slice(domicilioLabelIndex + 1, condicionIndex);
+    const headerBottom = Number(drawRectangle.mock.calls[0]?.[0]?.y);
+
+    expect(condicion).toBeDefined();
+    expect(destinatario).toBeDefined();
+    expect(condicion!.page).toBe(destinatario!.page);
+    expect(condicion!.y).toBeGreaterThan(destinatario!.y);
+    expect(domicilioLines.length).toBeGreaterThan(1);
+    expect(Math.min(...domicilioLines.map((line) => line.y))).toBeGreaterThanOrEqual(headerBottom);
   });
 
   it("pagina 200 ítems con descripciones largas y numera todas las páginas", async () => {

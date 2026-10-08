@@ -118,16 +118,16 @@ export default function FacturaDetailPage() {
   };
 
   if (loading) {
-    return <><ScreenHeader title="Documentación" breadcrumbs={["Detalle"]} hasBackButton /><ListSkeleton rows={7} /></>;
+    return <><ScreenHeader title="Documentos" breadcrumbs={["Detalle"]} hasBackButton /><ListSkeleton rows={7} /></>;
   }
 
   if (!invoice) {
-    return <><ScreenHeader title="Documentación" breadcrumbs={["Detalle"]} hasBackButton />{error ? <div style={styles.error}>{error}</div> : null}</>;
+    return <><ScreenHeader title="Documentos" breadcrumbs={["Detalle"]} hasBackButton />{error ? <div style={styles.error}>{error}</div> : null}</>;
   }
 
   return (
     <div>
-      <ScreenHeader title="Documentación" breadcrumbs={["Detalle"]} hasBackButton />
+      <ScreenHeader title="Documentos" breadcrumbs={["Detalle"]} hasBackButton />
       <FacturaSummaryCard
         invoice={invoice}
         working={working}
@@ -269,7 +269,7 @@ const styles = {
   sectionHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 12, flexWrap: "wrap" as const },
   sectionTitle: { fontSize: 20, fontWeight: 600, margin: 0 },
   sectionCard: { background: COLOR.BACKGROUND.SECONDARY },
-  twoColumns: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 },
+  twoColumns: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 16 },
   cardTitle: { margin: "0 0 12px", fontSize: 18 },
   cardHeader: { display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" as const },
   actions: { display: "flex", gap: 8, flexWrap: "wrap" as const },
