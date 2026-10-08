@@ -38,6 +38,7 @@ import {
   type DocumentoFiscalTipo,
   type FacturaElectronicaDetalle,
   type FacturaElectronicaResumen,
+  type DevolucionStockDisponible,
   type FacturaConcepto,
   type FacturaFechaInput,
   type FacturaLinea,
@@ -988,6 +989,7 @@ type EmitDocumentInput = {
   associated?: DbRecord | null;
   retry?: DbRecord | null;
   intentHash: string;
+  devoluciones?: Array<{ operacionLineaId: string; cantidad: number }>;
 };
 
 async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResult> {
@@ -1034,7 +1036,11 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
       source: input.source.id, documentType: input.documentType, emitter, receiver,
       dates, condition: input.condition, lines: fiscal.lineas, totals: fiscal.totales,
       fce: isFce ? { cbu: input.config.fceCbu, sistema: input.fceSistema } : null,
+      devoluciones: input.devoluciones ?? [],
     })).digest("hex");
+    if (input.retry && text(input.retry.contenido_hash) && text(input.retry.contenido_hash) !== contentHash) {
+      throw new FacturacionValidationError("La clave de idempotencia ya se usó con otro importe, motivo o cantidad devuelta; cerrá y abrí una nota nueva");
+    }
     const header = {
       tenant_id: input.actor.tenantId,
       arreglo_id: input.source.origenTipo === "ARREGLO" ? input.source.id : null,
@@ -1090,6 +1096,19 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
       factura_id: invoiceId, contenido_hash: input.intentHash,
     }, { onConflict: "tenant_id,idempotency_key", ignoreDuplicates: true });
     if (intentSaveError) throw new Error("No se pudo conservar la intención de idempotencia");
+    if (input.documentType === "NOTA_CREDITO" && input.source.origenTipo === "VENTA") {
+      const { error: reservationError } = await supabase.rpc("rpc_facturacion_reservar_devoluciones", {
+        p_nota_id: invoiceId,
+        p_devoluciones: input.devoluciones ?? [],
+      });
+      if (reservationError) {
+        await supabase.from("facturas_electronicas").update({
+          estado: "RECHAZADA", error_codigo: "DEVOLUCION_INVALIDA",
+          error_mensaje: "Las cantidades a devolver ya no están disponibles",
+        }).eq("id", invoiceId);
+        throw new FacturacionValidationError("No se pudo reservar la devolución porque las cantidades disponibles cambiaron; cerrá y volvé a abrir la nota para cargar la disponibilidad actualizada");
+      }
+    }
     const { count } = await supabase.from("facturacion_emision_intentos")
       .select("id", { count: "exact", head: true }).eq("factura_id", invoiceId);
     const { data: attempt, error: attemptError } = await supabase.from("facturacion_emision_intentos")
@@ -1097,7 +1116,13 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
         factura_id: invoiceId, numero_intento: (count ?? 0) + 1, estado: "ENVIADO",
         candidato: { numero: candidateNumber, ...payload }, request_sanitizado: sanitizeFiscalPayload(payload),
       }).select("id").single();
-    if (attemptError || !attempt) throw new Error("No se pudo registrar el intento fiscal");
+    if (attemptError || !attempt) {
+      await supabase.from("facturas_electronicas").update({
+        estado: "RECHAZADA", error_codigo: "INTENTO_NO_REGISTRADO",
+        error_mensaje: "No se pudo registrar el intento fiscal antes de enviarlo",
+      }).eq("id", invoiceId);
+      throw new Error("No se pudo registrar el intento fiscal; la emisión no fue enviada a ARCA");
+    }
 
     const authorize = async (response: DbRecord, recovered = false) => {
       const cae = nullable(response.CAE) ?? nullable(response.CodAutorizacion);
@@ -1105,11 +1130,17 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
       if (!cae || !/^\d{14}$/.test(cae) || !expiration || !isIsoDate(expiration)) {
         throw new Error("ARCA no devolvió un CAE válido y el comprobante debe reconciliarse");
       }
-      const { data, error } = await supabase.from("facturas_electronicas").update({
-        estado: "AUTORIZADA", cae, cae_vencimiento: expiration, fce_estado_manual: isFce ? "PENDIENTE" : null,
-        autorizada_at: new Date().toISOString(), error_codigo: null, error_mensaje: null,
-      }).eq("id", invoiceId).select("*").single();
-      if (error || !data) throw new Error("ARCA autorizó el documento pero no se pudo persistir");
+      const authorization = input.documentType === "NOTA_CREDITO"
+        ? await createAdminClient().rpc("rpc_facturacion_finalizar_nc", {
+          p_tenant_id: input.actor.tenantId, p_nota_id: invoiceId, p_cae: cae, p_cae_vencimiento: expiration,
+        })
+        : await supabase.from("facturas_electronicas").update({
+          estado: "AUTORIZADA", cae, cae_vencimiento: expiration,
+          fce_estado_manual: isFce ? "PENDIENTE" : null,
+          autorizada_at: new Date().toISOString(), error_codigo: null, error_mensaje: null,
+        }).eq("id", invoiceId).select("id").single();
+      const { data, error } = await supabase.from("facturas_electronicas").select("*").eq("id", invoiceId).single();
+      if (authorization.error || error || !data) throw new Error("ARCA autorizó el documento pero no se pudo persistir junto con el ajuste de stock");
       await supabase.from("facturacion_emision_intentos").update({
         estado: "AUTORIZADO", response_sanitizada: sanitizeFiscalPayload(response),
         completed_at: new Date().toISOString(),
@@ -1263,12 +1294,18 @@ export async function reconcileFactura(actor: TenantActor, facturaId: string): P
   if (!cae || !/^\d{14}$/.test(cae) || !expiration || !isIsoDate(expiration)) {
     throw new FacturacionValidationError("ARCA devolvió el comprobante sin un CAE vigente válido");
   }
-  const { data: updated, error: updateError } = await supabase.from("facturas_electronicas").update({
-    estado: "AUTORIZADA", cae, fce_estado_manual: [201, 206, 211].includes(number(invoice.tipo_comprobante)) ? "PENDIENTE" : null,
-    cae_vencimiento: expiration,
-    autorizada_at: new Date().toISOString(), error_codigo: null, error_mensaje: null,
-  }).eq("id", facturaId).select("*").single();
-  if (updateError || !updated) throw new Error("No se pudo reconciliar el documento localmente");
+  const isCredit = text(invoice.documento_tipo) === "NOTA_CREDITO";
+  const { error: finalizeError } = isCredit
+    ? await createAdminClient().rpc("rpc_facturacion_finalizar_nc", {
+      p_tenant_id: actor.tenantId, p_nota_id: facturaId, p_cae: cae, p_cae_vencimiento: expiration,
+    })
+    : await supabase.from("facturas_electronicas").update({
+      estado: "AUTORIZADA", cae, cae_vencimiento: expiration,
+      fce_estado_manual: [201, 206, 211].includes(number(invoice.tipo_comprobante)) ? "PENDIENTE" : null,
+      autorizada_at: new Date().toISOString(), error_codigo: null, error_mensaje: null,
+    }).eq("id", facturaId);
+  const { data: updated, error: updateError } = await supabase.from("facturas_electronicas").select("*").eq("id", facturaId).single();
+  if (finalizeError || updateError || !updated) throw new Error("No se pudo reconciliar el documento localmente junto con el ajuste de stock");
   const { count } = await supabase.from("facturacion_emision_intentos")
     .select("id", { count: "exact", head: true }).eq("factura_id", facturaId);
   await supabase.from("facturacion_emision_intentos").insert({
@@ -1287,9 +1324,25 @@ export function parseNotaInput(value: unknown) {
   if (importe <= 0) throw new FacturacionValidationError("El importe de la nota debe ser positivo");
   const motivo = text(row.motivo) || (tipo === "NOTA_CREDITO" ? "Anulación / ajuste" : "Ajuste de débito");
   if (motivo.length > 200) throw new FacturacionValidationError("El motivo no puede superar los 200 caracteres");
+  const rawReturns = row.devoluciones ?? [];
+  if (!Array.isArray(rawReturns)) throw new FacturacionValidationError("La lista de devoluciones no es válida");
+  const devoluciones = rawReturns.map((value) => {
+    const item = record(value);
+    const operacionLineaId = assertUuid(item.operacionLineaId, "El identificador de línea de venta");
+    const cantidad = Number(item.cantidad);
+    if (!Number.isSafeInteger(cantidad) || cantidad < 0) {
+      throw new FacturacionValidationError("Cada devolución debe tener una línea válida y una cantidad entera no negativa");
+    }
+    return { operacionLineaId, cantidad };
+  });
+  if (new Set(devoluciones.map((item) => item.operacionLineaId)).size !== devoluciones.length) {
+    throw new FacturacionValidationError("No se puede repetir una línea en las devoluciones");
+  }
+  if (tipo === "NOTA_DEBITO" && devoluciones.length) throw new FacturacionValidationError("Las notas de débito no modifican el stock");
   return {
     tipo: tipo as "NOTA_CREDITO" | "NOTA_DEBITO", importe,
     motivo,
+    devoluciones,
     idempotencyKey: assertUuid(row.idempotencyKey, "La clave de idempotencia"),
   };
 }
@@ -1384,11 +1437,76 @@ export async function issueNotaFiscal(
     fechaServicioHasta: nullable(original.fecha_servicio_hasta) ?? today,
     fechaVencimientoPago: today,
   };
+  const devoluciones = input.tipo === "NOTA_CREDITO" && source.origenTipo === "VENTA" ? input.devoluciones : [];
+  const intentHash = createHash("sha256").update(JSON.stringify({
+    source: source.id, tipo: input.tipo, receiver: source.receptor, dates,
+    condition: text(original.condicion_venta) || "CONTADO", lines: source.lineas, devoluciones,
+  })).digest("hex");
   return emitDocument({
     actor, source, config, documentType: input.tipo, idempotencyKey: input.idempotencyKey,
     receiver: source.receptor, dates, condition: text(original.condicion_venta) || "CONTADO",
-    lines: source.lineas, fceSistema: null, associated: original, retry,
-    intentHash: createHash("sha256").update(JSON.stringify({ source: source.id, tipo: input.tipo, receiver: source.receptor, dates, condition: text(original.condicion_venta) || "CONTADO", lines: source.lineas })).digest("hex"),
+    lines: source.lineas, fceSistema: null, associated: original, retry, intentHash, devoluciones,
+  });
+}
+
+export async function getDevolucionesDisponibles(tenantId: string, facturaId: string): Promise<DevolucionStockDisponible[]> {
+  const supabase = await createClient();
+  const { data: factura, error: facturaError } = await supabase.from("facturas_electronicas")
+    .select("id,origen_tipo,operacion_id,estado,documento_tipo").eq("id", facturaId).eq("tenant_id", tenantId).maybeSingle();
+  if (facturaError) throw new Error("No se pudo verificar la factura original para devolver stock");
+  if (!factura || factura.documento_tipo !== "FACTURA" || factura.origen_tipo !== "VENTA" || factura.estado !== "AUTORIZADA") return [];
+  const { data: invoiceLines, error: linesError } = await supabase.from("facturas_electronicas_lineas")
+    .select("source_id,descripcion,codigo,cantidad,origen").eq("factura_id", facturaId).eq("origen", "VENTA");
+  if (linesError) throw new Error("No se pudieron cargar los productos de la factura para devolver stock");
+  if (!invoiceLines?.length) return [];
+  const soldLines = invoiceLines.filter((line) => typeof line.source_id === "string");
+  if (!soldLines.length) return [];
+  const lineIds = soldLines.map((line) => String(line.source_id));
+  const { data: operationLines, error: operationLineError } = await supabase.from("operaciones_lineas")
+    .select("id,stock_id").in("id", lineIds);
+  if (operationLineError) throw new Error("No se pudo verificar el origen de las líneas de venta");
+  if (!operationLines?.length) return [];
+  const stockIds = [...new Set(operationLines.map((line) => String(line.stock_id)))];
+  const { data: stockRows, error: stockError } = await supabase.from("stocks").select("id,producto_id").in("id", stockIds);
+  if (stockError) throw new Error("No se pudo verificar el stock de la venta original");
+  const productIds = [...new Set((stockRows ?? []).map((stock) => String(stock.producto_id)))];
+  const { data: products, error: productError } = productIds.length
+    ? await supabase.from("productos").select("id,nombre,codigo").in("id", productIds)
+    : { data: [] };
+  if (productError) throw new Error("No se pudieron cargar los productos de la venta original");
+  const { data: reservations, error: reservationError } = await supabase.from("facturacion_nc_devoluciones")
+    .select("nota_credito_id,operacion_linea_id,cantidad").eq("factura_original_id", facturaId);
+  if (reservationError) throw new Error("No se pudo consultar la disponibilidad actual de devoluciones");
+  const noteIds = [...new Set((reservations ?? []).map((row) => String(row.nota_credito_id)))];
+  const { data: notes, error: notesError } = noteIds.length
+    ? await supabase.from("facturas_electronicas").select("id,estado").in("id", noteIds)
+    : { data: [] };
+  if (notesError) throw new Error("No se pudo consultar el estado de notas de crédito previas");
+  const stateByNote = new Map((notes ?? []).map((note) => [String(note.id), String(note.estado)]));
+  const returnedByLine = new Map<string, number>();
+  const reservedByLine = new Map<string, number>();
+  for (const reservation of reservations ?? []) {
+    const state = stateByNote.get(String(reservation.nota_credito_id));
+    const id = String(reservation.operacion_linea_id);
+    if (state === "AUTORIZADA") returnedByLine.set(id, (returnedByLine.get(id) ?? 0) + number(reservation.cantidad));
+    if (state === "ENVIANDO" || state === "INCIERTA") reservedByLine.set(id, (reservedByLine.get(id) ?? 0) + number(reservation.cantidad));
+  }
+  const stockById = new Map((stockRows ?? []).map((stock) => [String(stock.id), String(stock.producto_id)]));
+  const productById = new Map((products ?? []).map((product) => [String(product.id), record(product)]));
+  const operationLineById = new Map((operationLines ?? []).map((line) => [String(line.id), String(line.stock_id)]));
+  return soldLines.map((line) => {
+    const id = String(line.source_id);
+    const stockId = operationLineById.get(id);
+    const product = record(productById.get(stockById.get(stockId ?? "") ?? ""));
+    const vendido = number(line.cantidad);
+    const devuelto = returnedByLine.get(id) ?? 0;
+    const reservado = reservedByLine.get(id) ?? 0;
+    return {
+      operacionLineaId: id,
+      nombre: text(product.nombre) || text(line.descripcion),
+      codigo: nullable(product.codigo) ?? nullable(line.codigo),
+      vendido, devuelto, reservado, restante: Math.max(0, vendido - devuelto - reservado),
+    };
   });
 }
 

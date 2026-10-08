@@ -109,6 +109,16 @@ export type FacturaElectronicaDetalle = FacturaElectronicaResumen & {
   pdfDisponible: boolean;
 };
 
+export type DevolucionStockDisponible = {
+  operacionLineaId: string;
+  nombre: string;
+  codigo: string | null;
+  vendido: number;
+  devuelto: number;
+  reservado: number;
+  restante: number;
+};
+
 export type FacturacionConfiguracionPublica = {
   razonSocial: string;
   nombreFantasia: string | null;
