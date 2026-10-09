@@ -82,8 +82,6 @@ export type FacturaElectronicaResumen = {
   fceSistema?: FceSistemaCirculacion | null;
   fceCbu?: string | null;
   fechaVencimientoPago?: string | null;
-  fceEstadoManual?: "PENDIENTE" | "ACEPTADA" | "RECHAZADA" | "CANCELADA" | "PAGADA" | "ANULADA" | null;
-  fceEstadoManualActualizadoAt?: string | null;
   errorCodigo?: string | null;
   errorMensaje?: string | null;
 };

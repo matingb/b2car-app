@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CircleAlert, Download, ReceiptText, Settings2 } from "lucide-react";
+import { CircleAlert, ReceiptText, Settings2 } from "lucide-react";
 import Modal from "@/app/components/ui/Modal";
-import Button from "@/app/components/ui/Button";
+import ModalMessage from "@/app/components/ui/ModalMessage";
 import Dropdown from "@/app/components/ui/Dropdown";
 import IconInput from "@/app/components/ui/IconInput";
 import Toggle from "@/app/components/ui/Toggle";
@@ -275,8 +275,8 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
 
   const invoiceLabel = useMemo(() => {
     if (!factura?.numeroComprobante) return "";
-    return `${String(preflight?.emisor?.puntoVenta ?? 0).padStart(5, "0")}-${String(factura.numeroComprobante).padStart(8, "0")}`;
-  }, [factura?.numeroComprobante, preflight?.emisor?.puntoVenta]);
+    return `${String(factura.puntoVenta).padStart(5, "0")}-${String(factura.numeroComprobante).padStart(8, "0")}`;
+  }, [factura?.numeroComprobante, factura?.puntoVenta]);
 
   const detailLines = useMemo<FacturaLinea[]>(() => {
     if (!preflight) return [];
@@ -297,7 +297,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       router.push(ROUTES.configuracionFacturacion);
       return;
     }
-    if (!preflight || !canSubmit) return;
+    if (!preflight || !canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -329,7 +329,9 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       }
       const issued = body.data as FacturaElectronicaResumen;
       setFactura(issued);
-      onAuthorized(issued);
+      if (issued.estado === "AUTORIZADA") {
+        onAuthorized(issued);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "La emisión fiscal no fue autorizada");
     } finally {
@@ -339,12 +341,19 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
 
   const downloadPdf = () => {
     if (!factura?.id) return;
-    window.location.assign(`/api/facturas/${factura.id}/pdf`);
+    const anchor = document.createElement("a");
+    anchor.href = `/api/facturas/${factura.id}/pdf`;
+    anchor.download = "";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    onClose();
   };
 
   return (
+    <>
     <Modal
-      open={open}
+      open={open && factura?.estado !== "AUTORIZADA"}
       title={needsConfiguration ? "Facturación electrónica sin configurar" : "Facturación electrónica"}
       onClose={onClose}
       onSubmit={handleSubmit}
@@ -370,13 +379,6 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       ) : null}
       {!loading && preflight && !needsConfiguration ? (
         <div style={styles.content}>
-          {factura?.estado === "AUTORIZADA" ? (
-            <div style={styles.authorized}>
-              <strong>{[201,206,211].includes(factura.tipoComprobante) ? "Factura de Crédito Electrónica MiPyME" : `Factura ${factura.claseComprobante}`} autorizada: {invoiceLabel}</strong>
-              <span>CAE {factura.cae ?? "-"} · vence {factura.caeVencimiento ?? "-"}</span>
-              <Button icon={<Download size={16} />} text="Descargar PDF" onClick={downloadPdf} hideTextOnMobile={false} />
-            </div>
-          ) : null}
           <section style={styles.summary} aria-label="Resumen fiscal">
             <div style={styles.summaryItem}>
               <div style={styles.summaryIcon}><ReceiptText size={17} /></div>
@@ -547,6 +549,22 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         </div>
       ) : null}
     </Modal>
+    <ModalMessage
+      open={open && factura?.estado === "AUTORIZADA"}
+      title="Factura creada"
+      message={
+        <div style={styles.createdMessage}>
+          <p style={{ margin: 0 }}>La factura se creó satisfactoriamente.</p>
+          <strong>{factura && [201, 206, 211].includes(factura.tipoComprobante) ? "Factura de Crédito Electrónica MiPyME" : `Factura ${factura?.claseComprobante ?? ""}`} {invoiceLabel}</strong>
+          <p style={{ margin: 0 }}>¿Querés descargar el PDF de la factura?</p>
+        </div>
+      }
+      acceptLabel="Descargar PDF"
+      cancelLabel="Ahora no"
+      onAccept={downloadPdf}
+      onCancel={onClose}
+    />
+    </>
   );
 }
 
@@ -683,5 +701,5 @@ const styles = {
   warning: { display: "flex", alignItems: "flex-start", gap: 8, background: COLOR.BACKGROUND.ALERT_TINT, border: `1px solid ${COLOR.SEMANTIC.ALERT}`, color: COLOR.SEMANTIC.WARNING, borderRadius: 8, padding: 12, fontSize: 13, lineHeight: 1.4 },
   immutability: { display: "flex", alignItems: "flex-start", gap: 8, background: COLOR.BACKGROUND.ALERT_TINT, border: `1px solid ${COLOR.SEMANTIC.ALERT}`, color: COLOR.SEMANTIC.WARNING, borderRadius: 8, padding: 12, fontSize: 13, lineHeight: 1.4 },
   footer: { margin: "20px -18px 0", padding: "16px 18px 18px", borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`, gap: 12 },
-  authorized: { display: "flex", flexDirection: "column" as const, alignItems: "flex-start", gap: 8, background: COLOR.BACKGROUND.SUCCESS_TINT, color: COLOR.SEMANTIC.SUCCESS, padding: 14, borderRadius: 8 },
+  createdMessage: { display: "flex", flexDirection: "column" as const, gap: 12, color: COLOR.TEXT.PRIMARY },
 } as const;

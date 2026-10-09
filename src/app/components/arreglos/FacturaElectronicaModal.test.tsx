@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import FacturaElectronicaModal from "./FacturaElectronicaModal";
 
@@ -14,7 +15,7 @@ afterEach(() => {
 });
 
 describe("FacturaElectronicaModal", () => {
-  it("mantiene el documento y permite emitir cuando ARCA no pudo verificarlo", async () => {
+  it.each(["Ahora no", "Descargar PDF"])("mantiene el documento, reemplaza el formulario por la confirmación y permite %s", async (accion) => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock
       .mockResolvedValueOnce(new Response(JSON.stringify({
@@ -100,15 +101,20 @@ describe("FacturaElectronicaModal", () => {
     }), { status: 200 }));
 
     const onAuthorized = vi.fn();
+    const onClose = vi.fn();
+    const downloadClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
-    render(
-      <FacturaElectronicaModal
-        open
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return <FacturaElectronicaModal
+        open={open}
         arregloId="arreglo-1"
-        onClose={vi.fn()}
+        onClose={() => { onClose(); setOpen(false); }}
         onAuthorized={onAuthorized}
-      />,
-    );
+      />;
+    }
+
+    render(<Harness />);
 
     await waitFor(() => {
       expect(screen.getByTestId("factura-numero-documento")).toHaveValue("12345678");
@@ -143,5 +149,26 @@ describe("FacturaElectronicaModal", () => {
       fcePreflightConfirmada: true,
       idempotencyKey: originalIntentKey,
     });
+    expect(onAuthorized).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("factura-numero-documento")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Facturación electrónica" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(screen.getByText("Factura creada")).toBeInTheDocument();
+    expect(screen.getByText("La factura se creó satisfactoriamente.")).toBeInTheDocument();
+    expect(screen.getByText("Factura de Crédito Electrónica MiPyME 00001-00000001")).toBeInTheDocument();
+    expect(screen.getByText("¿Querés descargar el PDF de la factura?")).toBeInTheDocument();
+    expect(downloadClick).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: accion }));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    if (accion === "Descargar PDF") {
+      expect(downloadClick).toHaveBeenCalledOnce();
+      expect(downloadClick.mock.instances[0]).toHaveAttribute("href", "/api/facturas/factura-1/pdf");
+      expect(downloadClick.mock.instances[0]).toHaveAttribute("download", "");
+    } else {
+      expect(downloadClick).not.toHaveBeenCalled();
+    }
   });
 });

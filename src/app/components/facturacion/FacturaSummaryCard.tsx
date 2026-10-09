@@ -99,11 +99,11 @@ export default function FacturaSummaryCard({ invoice, working, canManage, onDown
 }
 
 function MetaItem({ label, icon, value: content, mono = false }: { label: string; icon: React.ReactNode; value: string; mono?: boolean }) {
-  return <div style={styles.metaItem}><span style={styles.label}>{label}</span><div style={{ ...styles.metaValue, ...(mono ? styles.mono : {}) }}>{icon}{content}</div></div>;
+  return <Card style={styles.metaItem}><span style={styles.label}>{label}</span><div style={{ ...styles.metaValue, ...(mono ? styles.mono : {}) }}>{icon}{content}</div></Card>;
 }
 
 function Party({ label, icon, name, detail }: { label: string; icon: React.ReactNode; name: string; detail: string }) {
-  return <div style={styles.metaItem}><span style={styles.labelWithIcon}>{icon}{label}</span><div style={styles.partyValue}><strong>{name}</strong><span>{detail}</span></div></div>;
+  return <Card style={styles.metaItem}><span style={styles.labelWithIcon}>{icon}{label}</span><div style={styles.partyValue}><strong>{name}</strong><span>{detail}</span></div></Card>;
 }
 
 function SourceHeader({ invoice }: { invoice: FacturaElectronicaDetalle }) {
@@ -140,10 +140,10 @@ function SourceHeader({ invoice }: { invoice: FacturaElectronicaDetalle }) {
 
 const styles = {
   container: { marginTop: 16, fontFamily: "var(--font-geist-sans), sans-serif" },
-  card: { padding: 0, overflow: "hidden", backgroundColor: COLOR.BACKGROUND.SECONDARY },
-  header: css({ backgroundColor: COLOR.BACKGROUND.PRIMARY, borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`, padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16, [`@media (min-width: ${BREAKPOINTS.md}px)`]: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" } }),
+  card: { padding: 0, overflow: "hidden" },
+  header: css({ backgroundColor: COLOR.BACKGROUND.SUBTLE, borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`, padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16, [`@media (min-width: ${BREAKPOINTS.md}px)`]: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" } }),
   headerLeft: { display: "flex", flexWrap: "wrap" as const, alignItems: "center", gap: 12 },
-  sourceCard: { display: "flex", alignItems: "center", gap: 10, padding: "7px 12px", backgroundColor: COLOR.BACKGROUND.SECONDARY },
+  sourceCard: { display: "flex", alignItems: "center", gap: 10, padding: "7px 12px" },
   sourceName: { display: "flex", alignItems: "center", gap: 6, color: COLOR.TEXT.SECONDARY, fontSize: 14, fontWeight: 500 },
   sourceDivider: { width: 1, height: 16, backgroundColor: COLOR.BORDER.DEFAULT },
   sourceId: { color: COLOR.TEXT.PRIMARY, fontFamily: "monospace", fontSize: 13 },
@@ -159,7 +159,7 @@ const styles = {
   label: { fontSize: 10, textTransform: "uppercase" as const, fontWeight: 700, color: COLOR.TEXT.TERTIARY, letterSpacing: "0.05em", marginBottom: 4, display: "block" },
   total: { display: "block", fontSize: 36, fontWeight: 700, color: COLOR.TEXT.PRIMARY, letterSpacing: "-0.025em" },
   detailsGrid: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 },
-  metaItem: { backgroundColor: COLOR.BACKGROUND.PRIMARY, border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 8, padding: 12 },
+  metaItem: { padding: 12 },
   metaValue: { display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 500, color: COLOR.TEXT.PRIMARY, marginTop: 4, whiteSpace: "nowrap" as const },
   mono: { fontFamily: "monospace" },
   labelWithIcon: { fontSize: 10, textTransform: "uppercase" as const, fontWeight: 700, color: COLOR.TEXT.TERTIARY, letterSpacing: "0.05em", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 },

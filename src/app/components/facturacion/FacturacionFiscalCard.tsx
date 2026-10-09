@@ -30,6 +30,12 @@ const CONDICION_IVA_OPTIONS: Array<{ value: CondicionIvaEmisor; label: string }>
   { value: "RESPONSABLE_INSCRIPTO", label: "Responsable Inscripto" },
 ];
 
+const FCE_SISTEMA_OPTIONS = [
+  { value: "", label: "Seleccioná una opción explícita" },
+  { value: "SCA", label: "SCA — Sistema de Circulación Abierta" },
+  { value: "ADC", label: "ADC — Agente de Depósito Colectivo" },
+];
+
 export default function FacturacionFiscalCard({
   cuit,
   inicioActividades,
@@ -104,7 +110,7 @@ export default function FacturacionFiscalCard({
 
           <div style={styles.field}>
             <label style={styles.label} htmlFor="facturacion-iibb">
-              N° de inscripción IIBB
+              Nro. Insc. IIBB
             </label>
             <input
               id="facturacion-iibb"
@@ -113,7 +119,7 @@ export default function FacturacionFiscalCard({
               onChange={(e) =>
                 onChange({ ingresosBrutos: e.target.value || null })
               }
-              placeholder="Ej: 30712345678910"
+              placeholder="N° local / Convenio Multilateral / Exento / No contribuyente"
               style={styles.input}
             />
           </div>
@@ -165,21 +171,19 @@ export default function FacturacionFiscalCard({
               <label style={styles.label} htmlFor="facturacion-fce-sistema">
                 Sistema de circulación
               </label>
-              <select
+              <Dropdown
                 id="facturacion-fce-sistema"
                 disabled={disabled}
                 value={fceSistema ?? ""}
-                onChange={(event) => onChange({
-                  fceSistema: event.target.value === "SCA" || event.target.value === "ADC"
-                    ? event.target.value
+                options={FCE_SISTEMA_OPTIONS}
+                onChange={(value) => onChange({
+                  fceSistema: value === "SCA" || value === "ADC"
+                    ? value
                     : null,
                 })}
-                style={styles.input}
-              >
-                <option value="">Seleccioná una opción explícita</option>
-                <option value="SCA">SCA — Sistema de Circulación Abierta</option>
-                <option value="ADC">ADC — Agente de Depósito Colectivo</option>
-              </select>
+                style={styles.dropdown}
+                dataTestId="facturacion-fce-sistema"
+              />
             </div>
           </div>
         </div>

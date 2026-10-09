@@ -83,8 +83,8 @@ export default function FacturaListItem({ invoice }: Props) {
             <div style={{ ...styles.icon, color: presentation.color, background: presentation.background }}>{presentation.icon}</div>
             <div style={styles.identity}>
               <div style={styles.title}>
-                <strong>{[201,206,211].includes(invoice.tipoComprobante) ? `Factura de Crédito Electrónica MiPyME ${invoice.claseComprobante}` : comprobanteLabel(invoice.documentoTipo, invoice.claseComprobante)}</strong>
-                <span style={statusStyle(invoice.estado)}>{FACTURA_ESTADO_LABEL[invoice.estado]}</span>{invoice.fceEstadoManual ? <span style={statusStyle("AUTORIZADA")}>Manual: {invoice.fceEstadoManual}</span> : null}
+                <strong>{[201,206,211].includes(invoice.tipoComprobante) ? `FCE MiPyME ${invoice.claseComprobante}` : comprobanteLabel(invoice.documentoTipo, invoice.claseComprobante)}</strong>
+                <span style={statusStyle(invoice.estado)}>{FACTURA_ESTADO_LABEL[invoice.estado]}</span>
               </div>
             </div>
           </div>

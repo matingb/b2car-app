@@ -27,6 +27,7 @@ import { fceMipymeRequired } from "./fceMipyme";
 import { assertIdempotencyReplay } from "./idempotency";
 import { createArregloServiceInvoiceLine } from "./arregloInvoiceLine";
 import { generateFiscalInvoicePdf, type FiscalPdfInvoice } from "./fiscalPdf";
+import { hasFiscalIibb, isFceInvoice } from "./fiscalPresentation";
 import { lookupArcaPadronPerson } from "@/lib/arcaPadron/arcaPadronGateway";
 import { lookupArcaInscriptionVatCondition } from "@/lib/arcaInscripcion/arcaInscripcionGateway";
 import {
@@ -768,8 +769,6 @@ function mapSummary(value: unknown): FacturaElectronicaResumen {
     fceSistema: nullable(row.fce_sistema) as "SCA" | "ADC" | null,
     fceCbu: nullable(row.fce_cbu),
     fechaVencimientoPago: nullable(row.fecha_vencimiento_pago),
-    fceEstadoManual: nullable(row.fce_estado_manual) as FacturaElectronicaResumen["fceEstadoManual"],
-    fceEstadoManualActualizadoAt: nullable(row.fce_estado_manual_actualizado_at),
     errorCodigo: nullable(row.error_codigo), errorMensaje: nullable(row.error_mensaje),
   };
 }
@@ -1562,8 +1561,8 @@ export async function exportFacturasRows(tenantId: string, filters: FacturasList
   }));
 }
 
-// v3: el receptor con CUIT distinto al del cliente registrado se imprime con los datos del padrón ARCA.
-const PDF_TEMPLATE_VERSION = "fiscal-v4";
+// v6: importe en letras, leyenda FCE, denominaciones fiscales y presentación de clase C.
+const PDF_TEMPLATE_VERSION = "fiscal-v6";
 const PDF_BUCKET = "facturacion-comprobantes";
 export function isVerifiedFiscalPdfCache(input: {
   storedPath: string | null;
@@ -1613,6 +1612,16 @@ export async function resolvePdfReceiverSnapshot(tenantId: string, receiver: DbR
   }
 }
 
+/** Completes a missing PDF-only field; never updates the authorized invoice snapshot. */
+export async function resolvePdfEmitterSnapshot(
+  tenantId: string, ambiente: FacturacionAmbiente, emitter: DbRecord, tipoComprobante: number,
+): Promise<DbRecord> {
+  if (!isFceInvoice(tipoComprobante) || hasFiscalIibb(emitter.ingresosBrutos)) return emitter;
+  const config = await getFacturacionConfig(tenantId, ambiente);
+  if (!config || normalizeDocumentNumber(config.cuit) !== normalizeDocumentNumber(text(emitter.cuit)) || !hasFiscalIibb(config.ingresosBrutos)) return emitter;
+  return { ...emitter, ingresosBrutos: config.ingresosBrutos };
+}
+
 export async function buildFacturaPdf(tenantId: string, facturaId: string): Promise<{ bytes: Uint8Array; filename: string }> {
   const supabase = await createClient();
   const detail = await getFacturaDetalle(tenantId, facturaId);
@@ -1634,9 +1643,13 @@ export async function buildFacturaPdf(tenantId: string, facturaId: string): Prom
       })) return { bytes: cachedBytes, filename: pdfFilename(detail) };
     }
   }
+  const [emisorSnapshot, receptorSnapshot] = await Promise.all([
+    resolvePdfEmitterSnapshot(tenantId, detail.ambiente, detail.emisorSnapshot, detail.tipoComprobante),
+    resolvePdfReceiverSnapshot(tenantId, detail.receptorSnapshot),
+  ]);
   const fiscal: FiscalPdfInvoice = {
-    id: detail.id, emisorSnapshot: detail.emisorSnapshot,
-    receptorSnapshot: await resolvePdfReceiverSnapshot(tenantId, detail.receptorSnapshot),
+    id: detail.id, emisorSnapshot,
+    receptorSnapshot,
     concepto: detail.concepto, fechaComprobante: detail.fechas.fechaComprobante,
     fechaServicioDesde: detail.fechas.fechaServicioDesde ?? null,
     fechaServicioHasta: detail.fechas.fechaServicioHasta ?? null,
@@ -1673,16 +1686,3 @@ function pdfFilename(invoice: FacturaElectronicaResumen) {
 }
 
 export { FacturacionValidationError, normalizeDocumentNumber };
-
-export async function updateFceManualStatus(actor: TenantActor, invoiceId: string, status: unknown) {
-  const allowed = ["PENDIENTE", "ACEPTADA", "RECHAZADA", "CANCELADA", "PAGADA", "ANULADA"];
-  const normalized = text(status);
-  if (!allowed.includes(normalized)) throw new FacturacionValidationError("El estado manual FCE no es válido");
-  const supabase = await createClient();
-  const { data, error } = await supabase.from("facturas_electronicas").update({
-    fce_estado_manual: normalized, fce_estado_manual_actualizado_at: new Date().toISOString(),
-    fce_estado_manual_actualizado_by: actor.userId,
-  }).eq("id", invoiceId).eq("tenant_id", actor.tenantId).in("tipo_comprobante", [201,206,211]).eq("estado", "AUTORIZADA").select("*").maybeSingle();
-  if (error || !data) throw new FacturacionValidationError("No se pudo actualizar el estado manual de la FCE autorizada");
-  return mapSummary(data);
-}
