@@ -76,6 +76,15 @@ export async function initHoneycombServer(): Promise<void> {
 
     sdk.start();
     serverInitialized = true;
+    console.log(`[Honeycomb] Backend OpenTelemetry inicializado (service: ${serviceName}, env: ${environment})`);
+
+    const shutdown = async () => {
+      try {
+        await sdk.shutdown();
+      } catch {}
+    };
+    process.once("SIGTERM", shutdown);
+    process.once("SIGINT", shutdown);
   } catch (error) {
     console.error("[Honeycomb/OpenTelemetry] Error al inicializar NodeSDK:", error);
   }

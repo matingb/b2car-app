@@ -6,8 +6,12 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     "@afipsdk/afip.js",
     "dd-trace",
+    "@opentelemetry/api",
     "@opentelemetry/sdk-node",
     "@opentelemetry/auto-instrumentations-node",
+    "@opentelemetry/exporter-trace-otlp-http",
+    "@opentelemetry/resources",
+    "@opentelemetry/semantic-conventions",
   ],
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,
