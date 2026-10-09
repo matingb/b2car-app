@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -8,9 +9,12 @@ import { createClient } from "@/supabase/server";
 import { lookupArcaPadronPerson } from "@/lib/arcaPadron/arcaPadronGateway";
 import {
   exportFacturasRows,
+  isVerifiedFiscalPdfCache,
   FacturacionValidationError,
   listFacturas,
   resolvePdfReceiverSnapshot,
+  resolvePdfEmitterSnapshot,
+  validateConfigurationInput,
 } from "./facturacionService";
 
 function createQueryChain() {
@@ -148,5 +152,74 @@ describe("receptor del PDF fiscal", () => {
     vi.mocked(lookupArcaPadronPerson).mockRejectedValue(new Error("ARCA no disponible"));
 
     await expect(resolvePdfReceiverSnapshot("tenant-1", snapshot)).rejects.toBeInstanceOf(FacturacionValidationError);
+  });
+});
+
+
+describe("configuración explícita del sistema FCE", () => {
+  const config = {
+    razonSocial: "Taller", cuit: "20123456786", condicionIvaEmisor: "MONOTRIBUTISTA",
+    domicilio: "Calle 1", inicioActividades: "2020-01-01", puntoVenta: 1, fceCbu: null,
+  };
+
+  it("conserva modalidad sin elegir como null y no infiere SCA", () => {
+    expect(validateConfigurationInput(config).fceSistema).toBeNull();
+  });
+
+  it("rechaza una modalidad no permitida en lugar de convertirla a SCA", () => {
+    expect(() => validateConfigurationInput({ ...config, fceSistema: "OTRA" })).toThrow("El sistema de circulación FCE debe ser SCA o ADC");
+  });
+});
+
+
+describe("datos del emisor para el PDF FCE", () => {
+  const emitter = { cuit: "20123456786", domicilio: "Calle 1", ingresosBrutos: "-" };
+  function mockConfig(cuit: string, ingresosBrutos: string | null) {
+    const chain = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn().mockResolvedValue({ data: { cuit, ingresos_brutos: ingresosBrutos }, error: null }) };
+    chain.select.mockReturnValue(chain);
+    chain.eq.mockReturnValue(chain);
+    const from = vi.fn().mockReturnValue(chain);
+    vi.mocked(createClient).mockResolvedValue({ from } as never);
+    return { chain, from };
+  }
+  it("completa únicamente IIBB faltante con configuración del mismo CUIT, tenant y ambiente", async () => {
+    const { chain, from } = mockConfig("20-12345678-6", "Convenio Multilateral 901-123456-7");
+    const result = await resolvePdfEmitterSnapshot("tenant-1", "HOMOLOGACION", emitter, 211);
+    expect(result).toEqual({ ...emitter, ingresosBrutos: "Convenio Multilateral 901-123456-7" });
+    expect(emitter.ingresosBrutos).toBe("-");
+    expect(from).toHaveBeenCalledWith("facturacion_configuracion_ambiente");
+    expect(chain.eq).toHaveBeenCalledWith("tenant_id", "tenant-1");
+    expect(chain.eq).toHaveBeenCalledWith("ambiente", "HOMOLOGACION");
+  });
+  it("no toma IIBB de otro CUIT ni inventa información ausente", async () => {
+    mockConfig("30712345671", "EXENTO");
+    expect(await resolvePdfEmitterSnapshot("tenant-1", "PRODUCCION", emitter, 211)).toBe(emitter);
+    mockConfig(emitter.cuit, null);
+    expect(await resolvePdfEmitterSnapshot("tenant-1", "PRODUCCION", emitter, 211)).toBe(emitter);
+  });
+  it("conserva IIBB del snapshot y no consulta configuración para facturas convencionales", async () => {
+    const { from } = mockConfig(emitter.cuit, "EXENTO");
+    const complete = { ...emitter, ingresosBrutos: "LOCAL 123456" };
+    expect(await resolvePdfEmitterSnapshot("tenant-1", "PRODUCCION", complete, 211)).toBe(complete);
+    expect(await resolvePdfEmitterSnapshot("tenant-1", "PRODUCCION", emitter, 11)).toBe(emitter);
+    expect(from).not.toHaveBeenCalled();
+  });
+});
+
+describe("integridad de caché PDF fiscal", () => {
+  const bytes = new TextEncoder().encode("PDF fiscal autorizado");
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  const path = "tenant-1/homologacion/factura-1/fiscal-v6.pdf";
+
+  it("permite redescargar la caché legítima cuando ruta, versión e hash coinciden", () => {
+    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v6", expectedPath: path, storedSha256: sha256, bytes })).toBe(true);
+  });
+
+  it("rechaza metadatos apuntados a otro objeto o bytes reemplazados", () => {
+    expect(isVerifiedFiscalPdfCache({ storedPath: "tenant-1/otro.pdf", storedVersion: "fiscal-v6", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);
+    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v6", expectedPath: path, storedSha256: "0".repeat(64), bytes })).toBe(false);
+  });
+  it("invalida la versión anterior aunque el hash coincida", () => {
+    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v4", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);
   });
 });

@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CircleAlert, Download, ReceiptText, Settings2 } from "lucide-react";
+import { CircleAlert, ReceiptText, Settings2 } from "lucide-react";
 import Modal from "@/app/components/ui/Modal";
-import Button from "@/app/components/ui/Button";
+import ModalMessage from "@/app/components/ui/ModalMessage";
 import Dropdown from "@/app/components/ui/Dropdown";
 import IconInput from "@/app/components/ui/IconInput";
 import Toggle from "@/app/components/ui/Toggle";
@@ -110,10 +110,12 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const [factura, setFactura] = useState<FacturaElectronicaResumen | null>(null);
   const [receptor, setReceptor] = useState<FiscalDraft>({ tipoDocumento: "99", numeroDocumento: "", condicionIvaReceptorId: "5" });
   const [condicionVenta, setCondicionVenta] = useState("CONTADO");
+  const [fceSistema, setFceSistema] = useState<"SCA" | "ADC" | "">("");
   const [fechas, setFechas] = useState<FacturaFechaInput>({ fechaComprobante: "" });
   const [detalleSimplificado, setDetalleSimplificado] = useState(false);
   const [automaticConditionCuit, setAutomaticConditionCuit] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [preflightRefresh, setPreflightRefresh] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [idempotencyKey] = useState(() => crypto.randomUUID());
@@ -138,6 +140,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         setReceptor(defaultDraft(data.preflight.receptor));
         setAutomaticConditionCuit(null);
         setCondicionVenta("CONTADO");
+        setFceSistema(data.preflight.fceSistemaConfigurado ?? "");
         setDetalleSimplificado(false);
         setFechas(data.preflight.fechasDefault);
       })
@@ -227,8 +230,37 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       return cause instanceof Error ? cause.message : "La identificación del receptor no es válida";
     }
   }, [preflight, receptor.tipoDocumento, receptor.numeroDocumento, receptorCondition, voucherPreview]);
+  const hasPreflight = Boolean(preflight);
+  useEffect(() => {
+    if (!open || !hasPreflight) return;
+    const params = new URLSearchParams({ fechaComprobante: fechas.fechaComprobante, tipoDocumento: receptor.tipoDocumento });
+    params.set("numeroDocumento", receptor.tipoDocumento === "80" ? receptor.numeroDocumento : "");
+    let active = true;
+    const controller = new AbortController();
+    setPreflightRefresh("loading");
+    const timer = window.setTimeout(() => {
+      fetch(`${endpoint}?${params.toString()}`, { cache: "no-store", signal: controller.signal })
+        .then(async (response) => {
+          const body = await response.json();
+          if (!response.ok) throw new Error(body.error || "No se pudo actualizar la consulta de obligación FCE");
+          if (!active) return;
+          setPreflight((current) => current ? { ...current, fcePosible: body.data.preflight.fcePosible, fceObligatoria: body.data.preflight.fceObligatoria, fceFechaConsulta: body.data.preflight.fceFechaConsulta, fceTotalConsultado: body.data.preflight.fceTotalConsultado } : current);
+          setPreflightRefresh("ready");
+        })
+        .catch((cause) => {
+          if (!active || (cause instanceof DOMException && cause.name === "AbortError")) return;
+          setPreflightRefresh("error");
+          setError(cause instanceof Error ? cause.message : "No se pudo consultar la obligación FCE");
+        });
+    }, 250);
+    return () => { active = false; controller.abort(); window.clearTimeout(timer); };
+  }, [open, hasPreflight, endpoint, fechas.fechaComprobante, receptor.tipoDocumento, receptor.numeroDocumento]);
+
+  const fceConfigurationMissing = Boolean(preflight?.fceObligatoria && (!preflight.fceCbuConfigurado || !preflight.fceSistemaConfigurado));
   const canSubmit = Boolean(
     !needsConfiguration
+    && !fceConfigurationMissing
+    && preflightRefresh === "ready"
     && preflight
     && receptorCondition !== null
     && !receiverIdentificationError
@@ -243,8 +275,8 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
 
   const invoiceLabel = useMemo(() => {
     if (!factura?.numeroComprobante) return "";
-    return `${String(preflight?.emisor?.puntoVenta ?? 0).padStart(5, "0")}-${String(factura.numeroComprobante).padStart(8, "0")}`;
-  }, [factura?.numeroComprobante, preflight?.emisor?.puntoVenta]);
+    return `${String(factura.puntoVenta).padStart(5, "0")}-${String(factura.numeroComprobante).padStart(8, "0")}`;
+  }, [factura?.numeroComprobante, factura?.puntoVenta]);
 
   const detailLines = useMemo<FacturaLinea[]>(() => {
     if (!preflight) return [];
@@ -265,7 +297,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       router.push(ROUTES.configuracionFacturacion);
       return;
     }
-    if (!preflight || !canSubmit) return;
+    if (!preflight || !canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -282,14 +314,24 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
             condicionIvaReceptorId: Number(receptor.condicionIvaReceptorId),
           },
           fechas,
+          fceSistema,
+          fcePreflightConfirmada: preflight.fceObligatoria === true,
         }),
       });
       const body = await response.json();
       if (body.data) setFactura(body.data as FacturaElectronicaResumen);
-      if (!response.ok) throw new Error(body.error || "La emisión fiscal no fue autorizada");
+      if (!response.ok) {
+        if (body.code === "FCE_DATA_REQUIRED" && body.fce) {
+          setPreflight((current) => current ? { ...current, fcePosible: true, fceObligatoria: true, fceCbuConfigurado: body.fce.cbuConfigurado, fceSistemaConfigurado: body.fce.sistema } : current);
+          setFceSistema(body.fce.sistema ?? "");
+        }
+        throw new Error(body.error || "La emisión fiscal no fue autorizada");
+      }
       const issued = body.data as FacturaElectronicaResumen;
       setFactura(issued);
-      onAuthorized(issued);
+      if (issued.estado === "AUTORIZADA") {
+        onAuthorized(issued);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "La emisión fiscal no fue autorizada");
     } finally {
@@ -299,12 +341,19 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
 
   const downloadPdf = () => {
     if (!factura?.id) return;
-    window.location.assign(`/api/facturas/${factura.id}/pdf`);
+    const anchor = document.createElement("a");
+    anchor.href = `/api/facturas/${factura.id}/pdf`;
+    anchor.download = "";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    onClose();
   };
 
   return (
+    <>
     <Modal
-      open={open}
+      open={open && factura?.estado !== "AUTORIZADA"}
       title={needsConfiguration ? "Facturación electrónica sin configurar" : "Facturación electrónica"}
       onClose={onClose}
       onSubmit={handleSubmit}
@@ -330,13 +379,6 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       ) : null}
       {!loading && preflight && !needsConfiguration ? (
         <div style={styles.content}>
-          {factura?.estado === "AUTORIZADA" ? (
-            <div style={styles.authorized}>
-              <strong>Factura {factura.claseComprobante} autorizada: {invoiceLabel}</strong>
-              <span>CAE {factura.cae ?? "-"} · vence {factura.caeVencimiento ?? "-"}</span>
-              <Button icon={<Download size={16} />} text="Descargar PDF" onClick={downloadPdf} hideTextOnMobile={false} />
-            </div>
-          ) : null}
           <section style={styles.summary} aria-label="Resumen fiscal">
             <div style={styles.summaryItem}>
               <div style={styles.summaryIcon}><ReceiptText size={17} /></div>
@@ -441,9 +483,19 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
               </span>
             ) : null}
           </section>
+          {preflight.fcePosible ? <section style={styles.section}>
+            <div style={styles.sectionTitle}>Factura de Crédito Electrónica MiPyME</div>
+            <p style={styles.summaryDetail}>ARCA confirmó que esta operación requiere FCE. Se seleccionará automáticamente el tipo A/B/C. Se usará el sistema configurado para la empresa. El estado posterior se gestiona en el Registro FCE de ARCA.</p>
+            <strong>{fceSistema === "ADC" ? "ADC — Agente de Depósito Colectivo" : fceSistema === "SCA" ? "SCA — Sistema de Circulación Abierta" : "Elegí el sistema de circulación en Configuración de facturación"}</strong>
+            {!preflight.fceCbuConfigurado || !preflight.fceSistemaConfigurado ? <span style={styles.validationError}>Configurá el CBU fiscal y elegí el sistema SCA/ADC en Configuración antes de emitir FCE.</span> : null}
+          </section> : null}
           <section style={styles.section}>
             <div style={styles.sectionTitle}>Fechas aplicables</div>
             <div style={styles.dateGrid}>
+              <label style={styles.field}>Vencimiento de pago
+                <IconInput icon={null} type="date" value={fechas.fechaVencimientoPago ?? ""} wrapperStyle={styles.inputWrapper}
+                  onChange={(event) => setFechas((previous) => ({ ...previous, fechaVencimientoPago: event.target.value }))} />
+              </label>
               <label style={styles.field}>Comprobante
                 <IconInput
                   icon={null}
@@ -454,15 +506,6 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
                 />
               </label>
               {isServiceConcept ? <>
-                <label style={styles.field}>Vencimiento
-                  <IconInput
-                    icon={null}
-                    type="date"
-                    value={fechas.fechaVencimientoPago ?? ""}
-                    wrapperStyle={styles.inputWrapper}
-                    onChange={(event) => setFechas((previous) => ({ ...previous, fechaVencimientoPago: event.target.value }))}
-                  />
-                </label>
                 <label style={styles.field}>Servicio desde
                   <IconInput
                     icon={null}
@@ -506,6 +549,22 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         </div>
       ) : null}
     </Modal>
+    <ModalMessage
+      open={open && factura?.estado === "AUTORIZADA"}
+      title="Factura creada"
+      message={
+        <div style={styles.createdMessage}>
+          <p style={{ margin: 0 }}>La factura se creó satisfactoriamente.</p>
+          <strong>{factura && [201, 206, 211].includes(factura.tipoComprobante) ? "Factura de Crédito Electrónica MiPyME" : `Factura ${factura?.claseComprobante ?? ""}`} {invoiceLabel}</strong>
+          <p style={{ margin: 0 }}>¿Querés descargar el PDF de la factura?</p>
+        </div>
+      }
+      acceptLabel="Descargar PDF"
+      cancelLabel="Ahora no"
+      onAccept={downloadPdf}
+      onCancel={onClose}
+    />
+    </>
   );
 }
 
@@ -642,5 +701,5 @@ const styles = {
   warning: { display: "flex", alignItems: "flex-start", gap: 8, background: COLOR.BACKGROUND.ALERT_TINT, border: `1px solid ${COLOR.SEMANTIC.ALERT}`, color: COLOR.SEMANTIC.WARNING, borderRadius: 8, padding: 12, fontSize: 13, lineHeight: 1.4 },
   immutability: { display: "flex", alignItems: "flex-start", gap: 8, background: COLOR.BACKGROUND.ALERT_TINT, border: `1px solid ${COLOR.SEMANTIC.ALERT}`, color: COLOR.SEMANTIC.WARNING, borderRadius: 8, padding: 12, fontSize: 13, lineHeight: 1.4 },
   footer: { margin: "20px -18px 0", padding: "16px 18px 18px", borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`, gap: 12 },
-  authorized: { display: "flex", flexDirection: "column" as const, alignItems: "flex-start", gap: 8, background: COLOR.BACKGROUND.SUCCESS_TINT, color: COLOR.SEMANTIC.SUCCESS, padding: 14, borderRadius: 8 },
+  createdMessage: { display: "flex", flexDirection: "column" as const, gap: 12, color: COLOR.TEXT.PRIMARY },
 } as const;

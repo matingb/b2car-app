@@ -1,3 +1,7 @@
+-- Only the trusted server-side PDF cache flow may write fiscal PDF objects/metadata.
+DROP POLICY IF EXISTS "facturacion_comprobantes_tenant_insert" ON storage.objects;
+DROP POLICY IF EXISTS "facturacion_comprobantes_tenant_update" ON storage.objects;
+
 CREATE OR REPLACE FUNCTION public.facturacion_bloquear_snapshot_autorizado()
 RETURNS trigger LANGUAGE plpgsql SET search_path TO 'public' AS $function$
 DECLARE
@@ -50,11 +54,3 @@ BEGIN
   RETURN NEW;
 END;
 $function$;
-
-GRANT EXECUTE ON FUNCTION "public"."facturacion_bloquear_snapshot_autorizado"() TO PUBLIC, "anon", "authenticated";
-
-GRANT EXECUTE ON FUNCTION "public"."facturacion_bloquear_snapshot_autorizado"() TO "service_role";
-
-REVOKE ALL ON FUNCTION "public"."facturacion_bloquear_snapshot_autorizado"() FROM "postgres";
-
-GRANT EXECUTE ON FUNCTION "public"."facturacion_bloquear_snapshot_autorizado"() TO "postgres";

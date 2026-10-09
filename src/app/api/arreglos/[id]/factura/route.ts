@@ -1,5 +1,6 @@
 import {
   FacturacionValidationError,
+  FceDataRequiredError,
   getFacturaPreflight,
   issueFacturaElectronica,
   parseFacturaIssueInput,
@@ -15,13 +16,18 @@ import { logger } from "@/lib/logger";
 export const runtime = "nodejs";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const actor = await requireTenantBillingActor();
     const { id } = await params;
-    const result = await getFacturaPreflight(actor, id, getFacturacionAmbiente());
+    const searchParams = new URL(request.url).searchParams;
+    const result = await getFacturaPreflight(actor, id, getFacturacionAmbiente(), {
+      fechaComprobante: searchParams.get("fechaComprobante"),
+      tipoDocumento: searchParams.get("tipoDocumento") ? Number(searchParams.get("tipoDocumento")) : null,
+      numeroDocumento: searchParams.get("numeroDocumento"),
+    });
     return Response.json({
       data: {
         ...result,
@@ -33,7 +39,8 @@ export async function GET(
     if (error instanceof FacturacionValidationError) {
       return Response.json({
         error: error.message,
-        code: error instanceof FceMipymeRequiredError ? error.code : null,
+        code: error instanceof FceDataRequiredError || error instanceof FceMipymeRequiredError ? error.code : null,
+        ...(error instanceof FceDataRequiredError ? { fce: error.requiredData } : {}),
       }, { status: 422 });
     }
     return facturacionErrorResponse(error);
@@ -56,7 +63,8 @@ export async function POST(
     if (error instanceof FacturacionValidationError) {
       return Response.json({
         error: error.message,
-        code: error instanceof FceMipymeRequiredError ? error.code : null,
+        code: error instanceof FceDataRequiredError || error instanceof FceMipymeRequiredError ? error.code : null,
+        ...(error instanceof FceDataRequiredError ? { fce: error.requiredData } : {}),
       }, { status: 422 });
     }
     return facturacionErrorResponse(error);

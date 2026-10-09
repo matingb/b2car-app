@@ -118,6 +118,7 @@ export function determineVoucher(
   condicionEmisor: CondicionIvaEmisor,
   condicionReceptor: PerfilFiscalCliente["condicionIvaReceptorId"],
   documentoTipo: DocumentoFiscalClase = "FACTURA",
+  fceMipyme = false,
 ): { clase: FacturaClase; tipo: number } {
   if (!condicionReceptor) throw new FacturacionValidationError("La condición IVA del receptor es obligatoria");
   const receptorRecibeA = [1, 6, 13, 16].includes(condicionReceptor);
@@ -130,6 +131,10 @@ export function determineVoucher(
     C: { FACTURA: 11, NOTA_DEBITO: 12, NOTA_CREDITO: 13 },
     M: { FACTURA: 51, NOTA_DEBITO: 52, NOTA_CREDITO: 53 },
   } as const;
+  if (fceMipyme) {
+    if (documentoTipo !== "FACTURA") throw new FacturacionValidationError("Las notas de crédito o débito FCE no están habilitadas");
+    return { clase, tipo: ({ A: 201, B: 206, C: 211, M: 201 } as const)[clase] };
+  }
   return { clase, tipo: tipos[clase][documentoTipo] };
 }
 
@@ -228,6 +233,7 @@ export function validateFechas(
   concepto: FacturaConcepto,
   fechas: FacturaFechaInput,
   today = new Date(),
+  fceMipyme = false,
 ): Required<FacturaFechaInput> {
   const comprobante = parseIsoDate(fechas.fechaComprobante, "La fecha de comprobante");
   const hoy = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
@@ -239,12 +245,14 @@ export function validateFechas(
       || comprobante.getUTCMonth() !== hoy.getUTCMonth())) {
     throw new FacturacionValidationError("Los comprobantes de productos deben pertenecer al mes actual");
   }
-  if (concepto === 1) return { fechaComprobante: fechas.fechaComprobante, fechaServicioDesde: "", fechaServicioHasta: "", fechaVencimientoPago: "" };
+  if (concepto === 1 && !fceMipyme) return { fechaComprobante: fechas.fechaComprobante, fechaServicioDesde: "", fechaServicioHasta: "", fechaVencimientoPago: "" };
+  const vencimiento = parseIsoDate(fechas.fechaVencimientoPago, "La fecha de vencimiento de pago");
+  const limiteVencimiento = fceMipyme && comprobante < hoy ? hoy : comprobante;
+  if (vencimiento < limiteVencimiento) throw new FacturacionValidationError("El vencimiento FCE no puede ser anterior a la fecha de emisión ni a la fecha actual");
+  if (concepto === 1) return { fechaComprobante: fechas.fechaComprobante, fechaServicioDesde: "", fechaServicioHasta: "", fechaVencimientoPago: fechas.fechaVencimientoPago! };
   const desde = parseIsoDate(fechas.fechaServicioDesde, "La fecha de servicio desde");
   const hasta = parseIsoDate(fechas.fechaServicioHasta, "La fecha de servicio hasta");
-  const vencimiento = parseIsoDate(fechas.fechaVencimientoPago, "La fecha de vencimiento de pago");
   if (desde > hasta) throw new FacturacionValidationError("La fecha desde no puede ser posterior a la fecha hasta");
-  if (vencimiento < comprobante) throw new FacturacionValidationError("El vencimiento no puede ser anterior al comprobante");
   return { fechaComprobante: fechas.fechaComprobante, fechaServicioDesde: fechas.fechaServicioDesde!, fechaServicioHasta: fechas.fechaServicioHasta!, fechaVencimientoPago: fechas.fechaVencimientoPago! };
 }
 
@@ -261,11 +269,16 @@ export function buildComprobantePayload(input: {
   totales: FacturaTotales;
   lineas: FacturaLinea[];
   asociado?: ComprobanteAsociado | null;
+  fceMipyme?: boolean;
+  fceCbu?: string | null;
+  fceSistema?: "SCA" | "ADC" | null;
 }): Record<string, unknown> {
   if (!Number.isInteger(input.voucherNumber) || input.voucherNumber <= 0) throw new FacturacionValidationError("Número candidato inválido");
   if (!Number.isInteger(input.puntoVenta) || input.puntoVenta <= 0) throw new FacturacionValidationError("Punto de venta inválido");
   const doc = validateReceiverIdentification(input.receptor, input.claseComprobante);
-  const fechas = validateFechas(input.concepto, input.fechas);
+  const fce = input.fceMipyme === true;
+  const fechas = validateFechas(input.concepto, input.fechas, new Date(), fce);
+  if (fce && (!input.fceCbu || !/^\d{22}$/.test(input.fceCbu) || !input.fceSistema)) throw new FacturacionValidationError("La emisión FCE requiere un CBU fiscal de 22 dígitos y seleccionar SCA o ADC");
   const payload: Record<string, unknown> = {
     CantReg: 1, PtoVta: input.puntoVenta, CbteTipo: input.tipoComprobante,
     Concepto: input.concepto, DocTipo: doc.tipoDocumento, DocNro: Number(doc.numeroDocumento),
@@ -280,7 +293,10 @@ export function buildComprobantePayload(input: {
     payload.FchServDesde = arcaDate(fechas.fechaServicioDesde!);
     payload.FchServHasta = arcaDate(fechas.fechaServicioHasta!);
     payload.FchVtoPago = arcaDate(fechas.fechaVencimientoPago!);
+  } else if (fce) {
+    payload.FchVtoPago = arcaDate(fechas.fechaVencimientoPago!);
   }
+  if (fce) payload.Opcionales = [{ Id: 2101, Valor: input.fceCbu }, { Id: 27, Valor: input.fceSistema }];
   if (input.claseComprobante !== "C") {
     const grouped = new Map<number, { BaseImp: number; Importe: number }>();
     input.lineas.forEach((line) => {

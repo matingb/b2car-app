@@ -136,10 +136,18 @@ export default function FacturaDetailPage() {
       />
 
       {error ? <div role="alert" style={styles.error}>{error}</div> : null}
+      {[201,206,211].includes(invoice.tipoComprobante) ? <section style={styles.section}>
+        <Card>
+          <h2 style={styles.cardTitle}>Factura de Crédito Electrónica MiPyME</h2>
+          <Info label="Sistema indicado al emitir" value={invoice.fceSistema ?? "-"} />
+          <Info label="CBU fiscal del snapshot" value={invoice.fceCbu ?? "-"} />
+          <Info label="Vencimiento de pago" value={invoice.fechaVencimientoPago ?? "-"} />
+        </Card>
+      </section> : null}
 
       <section style={styles.section}>
         <SectionHeading title="Detalle del comprobante" description="Conceptos y totales incluidos en la emisión." />
-        <Card style={styles.sectionCard}>
+        <Card>
           <div style={styles.tableWrap}>
             <table style={styles.table}>
               <thead>
@@ -182,14 +190,14 @@ export default function FacturaDetailPage() {
       <section style={styles.section}>
         <SectionHeading title="Datos fiscales" description="Información registrada al momento de emitir el comprobante." />
         <div style={styles.twoColumns}>
-          <Card style={styles.sectionCard}>
+          <Card>
             <h3 style={styles.cardTitle}>Emisor</h3>
             <Info label="Razón social" value={value(invoice.emisorSnapshot, "razonSocial")} />
             <Info label="CUIT" value={value(invoice.emisorSnapshot, "cuit")} />
             <Info label="Condición IVA" value={value(invoice.emisorSnapshot, "condicionIva")} />
             <Info label="Domicilio" value={value(invoice.emisorSnapshot, "domicilio")} />
           </Card>
-          <Card style={styles.sectionCard}>
+          <Card>
             <h3 style={styles.cardTitle}>Receptor</h3>
             <Info label="Nombre / razón social" value={invoice.receptorNombre} />
             <Info label="Documento" value={invoice.receptorDocumento ?? "Sin identificar"} />
@@ -201,7 +209,7 @@ export default function FacturaDetailPage() {
 
       {invoice.documentoAsociado || invoice.documentosAjuste.length ? (
         <section style={styles.section}>
-          <Card style={styles.sectionCard}>
+          <Card>
             <h2 style={styles.cardTitle}>Documentos asociados</h2>
             <div style={styles.associatedDocuments}>
               {invoice.documentoAsociado ? <FacturaListItem invoice={invoice.documentoAsociado} /> : null}
@@ -211,9 +219,9 @@ export default function FacturaDetailPage() {
         </section>
       ) : null}
 
-      {canManage && invoice.estado === "AUTORIZADA" && invoice.documentoTipo === "FACTURA" ? (
+      {canManage && invoice.estado === "AUTORIZADA" && invoice.documentoTipo === "FACTURA" && ![201,206,211].includes(invoice.tipoComprobante) ? (
         <section style={styles.section}>
-          <Card style={styles.sectionCard}>
+          <Card>
             <div style={styles.cardHeader}>
               <div>
                 <h2 style={styles.cardTitle}>Ajustes fiscales</h2>
@@ -237,7 +245,7 @@ export default function FacturaDetailPage() {
       ) : null}
 
       <section style={styles.section}>
-        <Card style={styles.sectionCard}>
+        <Card>
           <h2 style={styles.cardTitle}>Trazabilidad de emisión</h2>
           {invoice.intentos.length ? (
             <div style={styles.timeline}>
@@ -267,8 +275,7 @@ const styles = {
   section: { marginTop: 24 },
   sectionHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 12, flexWrap: "wrap" as const },
   sectionTitle: { fontSize: 20, fontWeight: 600, margin: 0 },
-  sectionCard: { background: COLOR.BACKGROUND.SECONDARY },
-  twoColumns: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 16 },
+  twoColumns: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 },
   cardTitle: { margin: "0 0 12px", fontSize: 18 },
   cardHeader: { display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" as const },
   actions: { display: "flex", gap: 8, flexWrap: "wrap" as const },

@@ -84,12 +84,14 @@ export function parseFceMipymeRequirement(response: unknown): FceMipymeRequireme
   return { obligado: true, montoDesde };
 }
 
-export function assertFceMipymeAllowed(requirement: FceMipymeRequirement, totalFactura: number): void {
-  if (!requirement.obligado) return;
+export function fceMipymeRequired(requirement: FceMipymeRequirement, totalFactura: number): boolean {
+  if (!requirement.obligado) return false;
   if (requirement.montoDesde == null) {
     throw new FceMipymeQueryError("ARCA no informó el monto desde el cual el receptor está obligado a recibir Factura de Crédito Electrónica MiPyME. Reintentá la emisión.");
   }
-  if (amountToCents(totalFactura) >= amountToCents(requirement.montoDesde)) {
-    throw new FceMipymeRequiredError(requirement.montoDesde);
-  }
+  return amountToCents(totalFactura) >= amountToCents(requirement.montoDesde);
+}
+
+export function assertFceMipymeAllowed(requirement: FceMipymeRequirement, totalFactura: number): void {
+  if (fceMipymeRequired(requirement, totalFactura)) throw new FceMipymeRequiredError(requirement.montoDesde!);
 }

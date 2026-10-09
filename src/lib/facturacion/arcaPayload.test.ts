@@ -197,8 +197,32 @@ describe("facturación ARCA: matriz A/B/C e IVA", () => {
     })).toThrow("requieren CUIT");
   });
 
+  it("emite payload FCE MiPyME con vencimiento y opcionales 2101/27", () => {
+    const fiscal = fiscalizeLineas([{ ...partLine, subtotal: 121, importeUnitario: 121 }], "RESPONSABLE_INSCRIPTO");
+    const today = new Date();
+    const issuedOn = today.toISOString().slice(0, 10);
+    const dueOn = new Date(today.getTime() + 86_400_000).toISOString().slice(0, 10);
+    const previousDay = new Date(today.getTime() - 86_400_000).toISOString().slice(0, 10);
+    const payload = buildComprobantePayload({
+      voucherNumber: 5, puntoVenta: 2, tipoComprobante: 201, claseComprobante: "A", concepto: 1,
+      receptor: { clienteId: null, nombre: "Emisor", domicilio: null, tipoDocumento: 80, numeroDocumento: "20123456786", condicionIvaReceptorId: 1 },
+      fechas: { fechaComprobante: issuedOn, fechaVencimientoPago: dueOn },
+      totales: fiscal.totales, lineas: fiscal.lineas, fceMipyme: true, fceCbu: "1234567890123456789012", fceSistema: "SCA",
+    });
+    expect(payload).toMatchObject({ CbteTipo: 201, FchVtoPago: dueOn.replaceAll("-", ""), Opcionales: [{ Id: 2101, Valor: "1234567890123456789012" }, { Id: 27, Valor: "SCA" }] });
+    expect(() => validateFechas(1, { fechaComprobante: issuedOn, fechaVencimientoPago: previousDay }, today, true)).toThrow("no puede ser anterior");
+  });
+
   it("aplica la ventana de cinco días para productos", () => {
     expect(() => validateFechas(1, { fechaComprobante: "2026-08-25" }, new Date("2026-09-01T12:00:00Z")))
       .toThrow("5 días");
+  });
+});
+
+
+describe("fecha de vencimiento FCE", () => {
+  it("exige la fecha posterior entre emisión y hoy para una factura retroactiva", () => {
+    expect(() => validateFechas(1, { fechaComprobante: "2026-08-27", fechaVencimientoPago: "2026-08-27" }, new Date("2026-08-28T12:00:00Z"), true)).toThrow("fecha actual");
+    expect(validateFechas(1, { fechaComprobante: "2026-08-27", fechaVencimientoPago: "2026-08-28" }, new Date("2026-08-28T12:00:00Z"), true).fechaVencimientoPago).toBe("2026-08-28");
   });
 });

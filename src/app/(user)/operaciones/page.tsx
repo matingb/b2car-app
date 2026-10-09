@@ -483,8 +483,7 @@ export default function OperacionesPage() {
                     operacionId={facturaOperacionId}
                     onClose={() => setFacturaOperacionId(null)}
                     onAuthorized={() => {
-                        success("Factura autorizada", "La venta quedó vinculada al comprobante fiscal.");
-                        setFacturaOperacionId(null);
+                        void refresh();
                     }}
                 />
             ) : null}

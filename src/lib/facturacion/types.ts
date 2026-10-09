@@ -6,6 +6,7 @@ export type CondicionIvaReceptorId =
 export type FacturacionAmbiente = "HOMOLOGACION" | "PRODUCCION";
 export type CondicionIvaEmisor = "MONOTRIBUTISTA" | "RESPONSABLE_INSCRIPTO";
 export type FacturaClase = "A" | "B" | "C" | "M";
+export type FceSistemaCirculacion = "SCA" | "ADC";
 export type DocumentoFiscalClase = "FACTURA" | "NOTA_CREDITO" | "NOTA_DEBITO";
 export type FacturaOrigenTipo = "ARREGLO" | "VENTA";
 export type TratamientoIva = "GRAVADO" | "EXENTO" | "NO_GRAVADO";
@@ -78,6 +79,9 @@ export type FacturaElectronicaResumen = {
   receptorNombre: string;
   receptorDocumento: string | null;
   createdAt?: string;
+  fceSistema?: FceSistemaCirculacion | null;
+  fceCbu?: string | null;
+  fechaVencimientoPago?: string | null;
   errorCodigo?: string | null;
   errorMensaje?: string | null;
 };
@@ -114,6 +118,8 @@ export type FacturacionConfiguracionPublica = {
   ingresosBrutos: string | null;
   inicioActividades: string;
   puntoVenta: number;
+  fceCbu: string | null;
+  fceSistema: FceSistemaCirculacion | null;
   ambiente: FacturacionAmbiente;
   credenciales: {
     configuradas: boolean;
@@ -145,6 +151,12 @@ export type FacturacionPreflight = {
   total: number;
   precioFinal: number;
   fechasDefault: FacturaFechaInput;
+  fcePosible: boolean;
+  fceObligatoria: boolean;
+  fceSistemaConfigurado: FceSistemaCirculacion | null;
+  fceCbuConfigurado: boolean;
+  fceFechaConsulta: string;
+  fceTotalConsultado: number;
 };
 
 export type FacturasPaginadas = {

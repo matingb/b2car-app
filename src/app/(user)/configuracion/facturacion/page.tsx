@@ -19,6 +19,8 @@ const emptyConfig: FacturacionConfiguracionPublica = {
   ingresosBrutos: null,
   inicioActividades: "",
   puntoVenta: 1,
+  fceCbu: null,
+  fceSistema: null,
   ambiente: "HOMOLOGACION",
   credenciales: {
     configuradas: false,
@@ -195,6 +197,8 @@ export default function ConfiguracionPage() {
                 condicionIvaEmisor={config.condicionIvaEmisor}
                 ingresosBrutos={config.ingresosBrutos}
                 puntoVenta={config.puntoVenta}
+                fceCbu={config.fceCbu}
+                fceSistema={config.fceSistema}
                 disabled={saving || testing}
                 onChange={(patch) => {
                   setConfig((prev) => ({ ...prev, ...patch }));

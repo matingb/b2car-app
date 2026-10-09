@@ -66,7 +66,7 @@ export default function FacturacionEmpresaCard({
 
           <div style={{ ...styles.field, ...styles.fullWidth }}>
             <label style={styles.label} htmlFor="facturacion-domicilio">
-              Domicilio <span style={styles.required}>*</span>
+              Domicilio comercial (calle, altura, localidad y provincia) <span style={styles.required}>*</span>
             </label>
             <input
               id="facturacion-domicilio"
@@ -74,7 +74,7 @@ export default function FacturacionEmpresaCard({
               disabled={disabled}
               value={domicilio}
               onChange={(e) => onChange({ domicilio: e.target.value })}
-              placeholder="Ej: Av. San Martín 1234, CABA"
+              placeholder="Ej: Av. San Martín 1234, San Martín, Buenos Aires"
               style={styles.input}
             />
           </div>

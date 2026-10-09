@@ -37,11 +37,17 @@ CREATE TABLE "public"."facturas_electronicas" (
   "importe_tributos"           numeric(14,2)            NOT NULL DEFAULT 0,
   "otros_impuestos_nacionales" numeric(14,2)            NOT NULL DEFAULT 0,
   "contenido_hash"             text,
+  "intencion_hash"             text,
   "autorizada_at"              timestamp with time zone,
   "origen_externo"             boolean                  NOT NULL DEFAULT false,
   "pdf_storage_path"           text,
   "pdf_sha256"                 text,
   "pdf_template_version"       text,
+  "fce_sistema"                text,
+  "fce_cbu"                     text,
+  "fce_estado_manual"          text,
+  "fce_estado_manual_actualizado_at" timestamp with time zone,
+  "fce_estado_manual_actualizado_by" uuid,
   CONSTRAINT "facturas_electronicas_ambiente_check" CHECK ((ambiente = ANY (ARRAY['HOMOLOGACION'::text, 'PRODUCCION'::text]))),
   CONSTRAINT "facturas_electronicas_arreglo_id_fkey" FOREIGN KEY (arreglo_id) REFERENCES public.arreglos(id) ON DELETE RESTRICT,
   CONSTRAINT "facturas_electronicas_asociacion_check"
@@ -61,7 +67,9 @@ CREATE TABLE "public"."facturas_electronicas" (
   CONSTRAINT "facturas_electronicas_pkey" PRIMARY KEY (id),
   CONSTRAINT "facturas_electronicas_documento_asociado_id_fkey" FOREIGN KEY (documento_asociado_id) REFERENCES public.facturas_electronicas(id) ON DELETE RESTRICT,
   CONSTRAINT "facturas_electronicas_punto_venta_check" CHECK ((punto_venta > 0)),
-  CONSTRAINT "facturas_electronicas_tipo_comprobante_check" CHECK ((tipo_comprobante = ANY (ARRAY[1, 2, 3, 6, 7, 8, 11, 12, 13, 51, 52, 53]))),
+  CONSTRAINT "facturas_electronicas_tipo_comprobante_check" CHECK ((tipo_comprobante = ANY (ARRAY[1, 2, 3, 6, 7, 8, 11, 12, 13, 51, 52, 53, 201, 206, 211]))),
+  CONSTRAINT "facturas_electronicas_fce_data_check" CHECK (((tipo_comprobante IN (201,206,211) AND fce_sistema IN ('SCA','ADC') AND fce_cbu ~ '^[0-9]{22}$' AND (fce_estado_manual IS NULL OR fce_estado_manual IN ('PENDIENTE','ACEPTADA','RECHAZADA','CANCELADA','PAGADA','ANULADA'))) OR (tipo_comprobante NOT IN (201,206,211) AND fce_sistema IS NULL AND fce_cbu IS NULL AND fce_estado_manual IS NULL))),
+  CONSTRAINT "facturas_electronicas_fce_estado_check" CHECK ((fce_estado_manual IS NULL OR fce_estado_manual IN ('PENDIENTE','ACEPTADA','RECHAZADA','CANCELADA','PAGADA','ANULADA'))),
   CONSTRAINT "facturas_electronicas_total_check" CHECK ((total > (0)::numeric)),
   CONSTRAINT "facturas_electronicas_totales_no_negativos"
     CHECK
@@ -130,3 +138,12 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 REVOKE ALL ON TABLE "public"."facturas_electronicas" FROM "postgres";
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE "public"."facturas_electronicas" TO "postgres";
+-- FCE snapshot integrity (NULL-safe PostgreSQL CHECK semantics).
+ALTER TABLE public.facturas_electronicas DROP CONSTRAINT facturas_electronicas_fce_data_check;
+ALTER TABLE public.facturas_electronicas ADD CONSTRAINT facturas_electronicas_fce_data_check CHECK (
+  (tipo_comprobante IN (201,206,211) AND fce_sistema IS NOT NULL AND fce_sistema IN ('SCA','ADC')
+   AND fce_cbu IS NOT NULL AND fce_cbu ~ '^[0-9]{22}$'
+   AND (fce_estado_manual IS NULL OR fce_estado_manual IN ('PENDIENTE','ACEPTADA','RECHAZADA','CANCELADA','PAGADA','ANULADA'))
+   AND (estado <> 'AUTORIZADA' OR fce_estado_manual IS NOT NULL)) IS TRUE
+  OR (tipo_comprobante NOT IN (201,206,211) AND fce_sistema IS NULL AND fce_cbu IS NULL AND fce_estado_manual IS NULL) IS TRUE
+);

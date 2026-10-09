@@ -14,7 +14,7 @@ DECLARE
   v_current_tenant uuid := public.current_tenant_id();
 BEGIN
   IF p_emisor_cuit !~ '^[0-9]{11}$' OR p_punto_venta IS NULL OR p_punto_venta <= 0
-     OR p_tipo_comprobante NOT IN (1, 2, 3, 6, 7, 8, 11, 12, 13, 51, 52, 53)
+     OR p_tipo_comprobante NOT IN (1, 2, 3, 6, 7, 8, 11, 12, 13, 51, 52, 53, 201, 206, 211)
      OR p_lease_token IS NULL THEN
     RAISE EXCEPTION 'Parametros de lease fiscal invalidos';
   END IF;
