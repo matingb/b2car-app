@@ -121,18 +121,25 @@ describe("parseEmitirRemitoInput", () => {
     expect(parseEmitirRemitoInput(emitirBody({
       facturaId: FACTURA_ID,
       lineas: [{ descripcion: "Caja", cantidad: 1 }],
-    })).error).toContain("debe corresponder a una línea de la factura");
+    })).value?.lineas).toEqual([{ facturaLineaId: null, codigo: null, descripcion: "Caja", observaciones: null, cantidad: 1 }]);
     expect(parseEmitirRemitoInput(emitirBody({
       facturaId: FACTURA_ID,
       lineas: [{ facturaLineaId: LINEA_ID, cantidad: 1 }],
     })).error).toContain("descripción del ítem 1 es obligatoria");
   });
 
-  it("rechaza un origen de arreglo y factura simultáneos", () => {
+  it("acepta el arreglo de origen junto a su factura y permite ítems libres", () => {
+    const result = parseEmitirRemitoInput(emitirBody({
+      arregloId: FACTURA_ID,
+      facturaId: LINEA_ID,
+      lineas: [{ facturaLineaId: LINEA_ID_2, descripcion: "Filtro", cantidad: 1 }],
+    }));
+    expect(result.error).toBeUndefined();
+    expect(result.value).toMatchObject({ arregloId: FACTURA_ID, facturaId: LINEA_ID });
     expect(parseEmitirRemitoInput(emitirBody({
       arregloId: FACTURA_ID,
       facturaId: LINEA_ID,
-    })).error).toContain("desde un arreglo o desde una factura");
+    })).error).toBeUndefined();
   });
 
   it("acepta un transportista vacío como ausente y valida uno completo", () => {

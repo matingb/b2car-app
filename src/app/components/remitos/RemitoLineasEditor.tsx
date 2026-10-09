@@ -1,7 +1,7 @@
 "use client";
 
 import { Package, Plus, Trash2 } from "lucide-react";
-import Dropdown from "@/app/components/ui/Dropdown";
+import Autocomplete from "@/app/components/ui/Autocomplete";
 import IconButton from "@/app/components/ui/IconButton";
 import NumberInput from "@/app/components/ui/NumberInput";
 import LineasSectionShell from "@/app/components/arreglos/lineas/shared/LineasSectionShell";
@@ -45,15 +45,11 @@ type Props = {
 export default function RemitoLineasEditor({ value, onChange, lineasFactura, disabled = false }: Props) {
   const update = (key: string, changes: Partial<LineaLibreForm>) =>
     onChange(value.map((linea) => (linea.key === key ? { ...linea, ...changes } : linea)));
-  const lineasFacturaDisponibles = lineasFactura?.filter((linea) => linea.cantidadDisponible > 0) ?? [];
-  const opcionesFactura = [
-    { value: "", label: "Elegí una línea de factura" },
-    ...lineasFacturaDisponibles.map((linea) => ({
-      value: linea.id,
-      label: `${linea.descripcion} · disponible ${formatRemitoCantidad(linea.cantidadDisponible)}`,
-      selectedLabel: `${linea.descripcion} · disp. ${formatRemitoCantidad(linea.cantidadDisponible)}`,
-    })),
-  ];
+  const opcionesFactura = (lineasFactura ?? []).map((linea) => ({
+    value: linea.id,
+    label: linea.descripcion,
+    secondaryLabel: `${linea.codigo ? `${linea.codigo} · ` : ""}Disponible ${formatRemitoCantidad(linea.cantidadDisponible)}`,
+  }));
 
   return (
     <LineasSectionShell
@@ -69,35 +65,6 @@ export default function RemitoLineasEditor({ value, onChange, lineasFactura, dis
           <div key={linea.key} style={styles.row} data-testid="remito-linea-libre">
             <span style={styles.ordinal}>{index + 1}.</span>
             <div style={styles.fields}>
-              {lineasFactura ? (
-                <label style={{ ...remitoFormStyles.field, flex: "1 1 100%" }}>
-                  <span style={remitoFormStyles.label}>
-                    Referencia de factura <span style={remitoFormStyles.required}>*</span>
-                  </span>
-                  <Dropdown
-                    options={opcionesFactura}
-                    value={linea.facturaLineaId ?? ""}
-                    disabled={disabled || lineasFacturaDisponibles.length === 0}
-                    onChange={(facturaLineaId) => {
-                      const referencia = lineasFacturaDisponibles.find((item) => item.id === facturaLineaId);
-                      update(linea.key, referencia ? {
-                        facturaLineaId,
-                        codigo: referencia.codigo ?? "",
-                        descripcion: referencia.descripcion,
-                        cantidad: Math.min(linea.cantidad, referencia.cantidadDisponible),
-                      } : { facturaLineaId: null });
-                    }}
-                    style={{ width: "100%", height: 42, fontSize: 14 }}
-                    dataTestId={`remito-linea-factura-${index + 1}`}
-                  />
-                  {linea.facturaLineaId ? (
-                    <span style={styles.referenceHelp}>
-                      Facturada {formatRemitoCantidad(lineasFactura.find((item) => item.id === linea.facturaLineaId)?.cantidadFacturada ?? 0)}
-                      {" · "}Disponible {formatRemitoCantidad(lineasFactura.find((item) => item.id === linea.facturaLineaId)?.cantidadDisponible ?? 0)}
-                    </span>
-                  ) : null}
-                </label>
-              ) : null}
               <label style={{ ...remitoFormStyles.field, flex: "0 1 140px" }}>
                 <span style={remitoFormStyles.label}>Código</span>
                 <input
@@ -113,15 +80,44 @@ export default function RemitoLineasEditor({ value, onChange, lineasFactura, dis
                 <span style={remitoFormStyles.label}>
                   Artículo / descripción <span style={remitoFormStyles.required}>*</span>
                 </span>
-                <input
-                  aria-label={`Descripción del ítem ${index + 1}`}
-                  required
-                  maxLength={500}
-                  disabled={disabled}
-                  value={linea.descripcion}
-                  onChange={(event) => update(linea.key, { descripcion: event.target.value })}
-                  style={remitoFormStyles.input}
-                />
+                {lineasFactura ? (
+                  <Autocomplete
+                    aria-label={`Descripción del ítem ${index + 1}`}
+                    options={opcionesFactura}
+                    value={linea.facturaLineaId ?? linea.descripcion}
+                    allowCustomValue
+                    maxLength={500}
+                    disabled={disabled}
+                    placeholder="Elegí un concepto o escribí una descripción"
+                    onInputChange={(descripcion) => update(linea.key, { facturaLineaId: null, descripcion })}
+                    onChange={(seleccion) => {
+                      const referencia = lineasFactura.find((item) => item.id === seleccion);
+                      update(linea.key, referencia ? {
+                        facturaLineaId: referencia.id,
+                        codigo: referencia.codigo ?? "",
+                        descripcion: referencia.descripcion,
+                      } : { facturaLineaId: null, descripcion: seleccion });
+                    }}
+                    inputStyle={{ ...remitoFormStyles.input, paddingRight: 48 }}
+                    dataTestId={`remito-linea-descripcion-${index + 1}`}
+                  />
+                ) : (
+                  <input
+                    aria-label={`Descripción del ítem ${index + 1}`}
+                    required
+                    maxLength={500}
+                    disabled={disabled}
+                    value={linea.descripcion}
+                    onChange={(event) => update(linea.key, { descripcion: event.target.value })}
+                    style={remitoFormStyles.input}
+                  />
+                )}
+                {linea.facturaLineaId ? (
+                  <span style={styles.referenceHelp}>
+                    Facturada {formatRemitoCantidad(lineasFactura?.find((item) => item.id === linea.facturaLineaId)?.cantidadFacturada ?? 0)}
+                    {" · "}Disponible {formatRemitoCantidad(lineasFactura?.find((item) => item.id === linea.facturaLineaId)?.cantidadDisponible ?? 0)}
+                  </span>
+                ) : null}
               </label>
               <label style={{ ...remitoFormStyles.field, flex: "1 1 180px" }}>
                 <span style={remitoFormStyles.label}>Observaciones</span>

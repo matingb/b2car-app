@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import Card from "@/app/components/ui/Card";
-import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import RemitoSummaryCard from "@/app/components/remitos/RemitoSummaryCard";
 import AsociarFacturaModal from "@/app/components/remitos/AsociarFacturaModal";
 import { remitosClient } from "@/clients/remitosClient";
@@ -43,7 +42,7 @@ export default function RemitoDetailPage() {
   }, [load]);
 
   if (loading) {
-    return <><ScreenHeader title="Documentos" breadcrumbs={["Detalle"]} hasBackButton /><ListSkeleton rows={7} /></>;
+    return <><ScreenHeader title="Documentos" breadcrumbs={["Detalle"]} hasBackButton /><p role="status" style={{ color: COLOR.TEXT.SECONDARY, padding: "24px 0" }}>Cargando documento…</p></>;
   }
 
   if (!remito) {

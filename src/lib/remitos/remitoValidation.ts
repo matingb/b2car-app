@@ -171,9 +171,7 @@ function parseLineas(value: unknown, conFactura: boolean): EmitirRemitoLineaInpu
     const facturaLineaId = optionalUuid(raw.facturaLineaId, `La línea de factura del ítem ${ordinal}`);
     const codigo = optionalText(raw.codigo, `El código del ítem ${ordinal}`, 100);
     const descripcion = optionalText(raw.descripcion, `La descripción del ítem ${ordinal}`, 500);
-    if (conFactura) {
-      if (!facturaLineaId) fail("Cada ítem del remito debe corresponder a una línea de la factura");
-    } else if (facturaLineaId) {
+    if (!conFactura && facturaLineaId) {
       fail("Los ítems de un remito sin factura no pueden referenciar líneas de factura");
     }
     if (!descripcion) fail(`La descripción del ítem ${ordinal} es obligatoria`);
@@ -195,7 +193,6 @@ export function parseEmitirRemitoInput(raw: unknown): Validated<EmitirRemitoInpu
     if (body.clase !== "R" && body.clase !== "X") fail("Seleccioná el tipo de remito (R o X)");
     const arregloId = optionalUuid(body.arregloId, "El arreglo de origen");
     const facturaId = optionalUuid(body.facturaId, "La factura");
-    if (arregloId && facturaId) fail("Iniciá el remito desde un arreglo o desde una factura, no desde ambos");
     return {
       idempotencyKey: body.idempotencyKey,
       clase: body.clase,

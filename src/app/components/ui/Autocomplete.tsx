@@ -26,6 +26,9 @@ export interface AutocompleteProps {
   dataTestId?: string;
   hideClearButton?: boolean;
   onSearchChange?: (term: string) => void;
+  onInputChange?: (text: string) => void;
+  "aria-label"?: string;
+  maxLength?: number;
 }
 
 export default function Autocomplete({
@@ -42,6 +45,9 @@ export default function Autocomplete({
   dataTestId,
   hideClearButton = false,
   onSearchChange,
+  onInputChange,
+  "aria-label": ariaLabel,
+  maxLength,
 }: AutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -209,6 +215,7 @@ export default function Autocomplete({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setSearchTerm(newValue);
+    onInputChange?.(newValue);
     onSearchChange?.(newValue);
     setIsOpen(true);
     setHighlightedIndex(-1);
@@ -238,6 +245,8 @@ export default function Autocomplete({
         <input
           ref={inputRef}
           type="text"
+          aria-label={ariaLabel}
+          maxLength={maxLength}
           data-testid={dataTestId}
           style={{
             ...styles.input,

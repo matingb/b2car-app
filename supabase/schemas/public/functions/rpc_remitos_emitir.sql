@@ -10,6 +10,7 @@ DECLARE
   v_fiscal public.facturacion_configuracion_ambiente%ROWTYPE;
   v_config public.remitos_configuracion%ROWTYPE;
   v_factura public.facturas_electronicas%ROWTYPE;
+  v_factura_id uuid := p_factura_id;
   v_existente public.remitos%ROWTYPE;
   v_remito_id uuid;
   v_numero integer;
@@ -56,9 +57,6 @@ BEGIN
   END IF;
   IF p_clase IS NULL OR p_clase NOT IN ('R', 'X') THEN
     RAISE EXCEPTION 'Seleccioná el tipo de remito (R o X)';
-  END IF;
-  IF p_arreglo_id IS NOT NULL AND p_factura_id IS NOT NULL THEN
-    RAISE EXCEPTION 'Iniciá el remito desde un arreglo o desde una factura, no desde ambos';
   END IF;
   IF p_lineas IS NULL OR jsonb_typeof(p_lineas) <> 'array' OR jsonb_array_length(p_lineas) = 0 THEN
     RAISE EXCEPTION 'El remito debe tener al menos un ítem';
@@ -200,7 +198,8 @@ BEGIN
     IF v_existente.clase <> p_clase
        OR v_existente.ambiente <> p_ambiente
        OR v_existente.arreglo_id IS DISTINCT FROM p_arreglo_id
-       OR v_existente.factura_id IS DISTINCT FROM p_factura_id THEN
+       OR ((p_arreglo_id IS NULL OR p_factura_id IS NOT NULL)
+           AND v_existente.factura_id IS DISTINCT FROM p_factura_id) THEN
       RAISE EXCEPTION 'La clave de idempotencia ya pertenece a otro remito';
     END IF;
     RETURN v_existente.id;
@@ -212,20 +211,30 @@ BEGIN
     WHERE a.id = p_arreglo_id AND a.tenant_id = v_tenant
     FOR KEY SHARE;
     IF NOT FOUND THEN RAISE EXCEPTION 'Arreglo no encontrado'; END IF;
+    IF v_factura_id IS NULL THEN
+      SELECT f.id INTO v_factura_id
+      FROM public.facturas_electronicas f
+      WHERE f.arreglo_id = p_arreglo_id AND f.tenant_id = v_tenant
+        AND f.ambiente = p_ambiente AND f.documento_tipo = 'FACTURA'
+        AND f.estado = 'AUTORIZADA';
+    END IF;
   END IF;
 
-  IF p_factura_id IS NOT NULL THEN
+  IF v_factura_id IS NOT NULL THEN
     -- Serializa los controles de cantidades por factura sin bloquear la fila fiscal.
-    PERFORM pg_advisory_xact_lock(hashtextextended('remitos_factura_' || p_factura_id::text, 0));
+    PERFORM pg_advisory_xact_lock(hashtextextended('remitos_factura_' || v_factura_id::text, 0));
     SELECT * INTO v_factura
     FROM public.facturas_electronicas f
-    WHERE f.id = p_factura_id AND f.tenant_id = v_tenant;
+    WHERE f.id = v_factura_id AND f.tenant_id = v_tenant;
     IF NOT FOUND THEN RAISE EXCEPTION 'Factura no encontrada'; END IF;
     IF v_factura.documento_tipo <> 'FACTURA' OR v_factura.estado <> 'AUTORIZADA' THEN
       RAISE EXCEPTION 'Solo se pueden generar remitos desde facturas autorizadas';
     END IF;
     IF v_factura.ambiente <> p_ambiente THEN
       RAISE EXCEPTION 'La factura pertenece a otro ambiente fiscal';
+    END IF;
+    IF p_arreglo_id IS NOT NULL AND v_factura.arreglo_id IS DISTINCT FROM p_arreglo_id THEN
+      RAISE EXCEPTION 'La factura no corresponde al arreglo de origen';
     END IF;
   END IF;
 
@@ -255,21 +264,19 @@ BEGIN
     v_factura_linea_txt := NULLIF(btrim(coalesce(v_item.item ->> 'factura_linea_id', '')), '');
     v_factura_linea_id := NULL;
 
-    IF p_factura_id IS NOT NULL THEN
-      IF v_factura_linea_txt IS NULL
-         OR v_factura_linea_txt !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
-        RAISE EXCEPTION 'Cada ítem del remito debe corresponder a una línea de la factura';
+    IF v_factura_linea_txt IS NOT NULL THEN
+      IF v_factura_id IS NULL THEN
+        RAISE EXCEPTION 'Los ítems de un remito sin factura no pueden referenciar líneas de factura';
+      END IF;
+      IF v_factura_linea_txt !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+        RAISE EXCEPTION 'La referencia de factura del ítem % no es válida', v_item.ordinal;
       END IF;
       v_factura_linea_id := v_factura_linea_txt::uuid;
       PERFORM 1
       FROM public.facturas_electronicas_lineas fl
-      WHERE fl.id = v_factura_linea_id AND fl.factura_id = p_factura_id;
+      WHERE fl.id = v_factura_linea_id AND fl.factura_id = v_factura_id;
       IF NOT FOUND THEN
         RAISE EXCEPTION 'El ítem % no corresponde a una línea de la factura', v_item.ordinal;
-      END IF;
-    ELSE
-      IF v_factura_linea_txt IS NOT NULL THEN
-        RAISE EXCEPTION 'Los ítems de un remito sin factura no pueden referenciar líneas de factura';
       END IF;
     END IF;
 
@@ -297,12 +304,13 @@ BEGIN
     ));
   END LOOP;
 
-  IF p_factura_id IS NOT NULL THEN
+  IF v_factura_id IS NOT NULL THEN
     SELECT fl.descripcion, fl.cantidad, coalesce(previo.total, 0) AS remitido, nuevo.total AS nuevo
     INTO v_exceso
     FROM (
       SELECT i.factura_linea_id, sum(i.cantidad) AS total
       FROM jsonb_to_recordset(v_items) AS i(factura_linea_id uuid, cantidad numeric)
+      WHERE i.factura_linea_id IS NOT NULL
       GROUP BY i.factura_linea_id
     ) nuevo
     JOIN public.facturas_electronicas_lineas fl ON fl.id = nuevo.factura_linea_id
@@ -323,7 +331,7 @@ BEGIN
   -- Numeración y reglas propias de cada clase
   IF p_clase = 'R' THEN
     IF v_config.r_cai IS NULL THEN
-      RAISE EXCEPTION 'Para emitir un Remito R configurá el CAI en Configuración > Facturación';
+      RAISE EXCEPTION 'Para emitir un Remito R configurá el CAI en Configuración > Remitos';
     END IF;
     IF v_config.r_cai_vencimiento IS NULL THEN
       RAISE EXCEPTION 'El CAI del Remito R no tiene fecha de vencimiento configurada';
@@ -332,7 +340,7 @@ BEGIN
       RAISE EXCEPTION 'El CAI del Remito R está vencido (venció el %)', to_char(v_config.r_cai_vencimiento, 'DD/MM/YYYY');
     END IF;
     IF v_config.r_punto_emision IS NULL THEN
-      RAISE EXCEPTION 'Configurá el punto de emisión del Remito R en Configuración > Facturación';
+      RAISE EXCEPTION 'Configurá el punto de emisión del Remito R en Configuración > Remitos';
     END IF;
     v_punto := v_config.r_punto_emision;
     v_numero := v_config.r_proximo_numero;
@@ -382,9 +390,9 @@ BEGIN
     cai, cai_vencimiento, impresion_snapshot, observaciones, created_by
   ) VALUES (
     v_tenant, p_ambiente, p_clase, v_tipo, v_punto, v_numero, v_hoy,
-     p_idempotency_key, p_arreglo_id, p_factura_id,
-    CASE WHEN p_factura_id IS NULL THEN NULL ELSE now() END,
-    CASE WHEN p_factura_id IS NULL THEN NULL ELSE auth.uid() END,
+     p_idempotency_key, p_arreglo_id, v_factura_id,
+    CASE WHEN v_factura_id IS NULL THEN NULL ELSE now() END,
+    CASE WHEN v_factura_id IS NULL THEN NULL ELSE auth.uid() END,
     v_emisor, v_destinatario, v_transportista,
     v_cai, v_cai_vencimiento, v_impresion, v_observaciones, auth.uid()
   )

@@ -6,7 +6,6 @@ import { RotateCcw, TrendingUp } from "lucide-react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
-import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import FacturaListItem from "@/app/components/facturacion/FacturaListItem";
 import FacturaSummaryCard from "@/app/components/facturacion/FacturaSummaryCard";
 import FacturaRemitosSection from "@/app/components/remitos/FacturaRemitosSection";
@@ -118,7 +117,7 @@ export default function FacturaDetailPage() {
   };
 
   if (loading) {
-    return <><ScreenHeader title="Documentos" breadcrumbs={["Detalle"]} hasBackButton /><ListSkeleton rows={7} /></>;
+    return <><ScreenHeader title="Documentos" breadcrumbs={["Detalle"]} hasBackButton /><p role="status" style={{ color: COLOR.TEXT.SECONDARY, padding: "24px 0" }}>Cargando documento…</p></>;
   }
 
   if (!invoice) {

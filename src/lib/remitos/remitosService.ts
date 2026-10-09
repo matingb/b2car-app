@@ -407,7 +407,7 @@ async function getArregloRemitible(
   // Evita precargar números de otro ambiente o de una factura aún no autorizada.
   const facturaResult = await supabase
     .from("facturas_electronicas")
-    .select("punto_venta, numero_comprobante")
+    .select("id, punto_venta, numero_comprobante")
     .eq("tenant_id", tenantId)
     .eq("ambiente", ambiente)
     .eq("arreglo_id", arregloId)
@@ -504,6 +504,7 @@ async function getArregloRemitible(
   return {
     id: arregloId,
     label: source.numero_orden == null ? "Arreglo" : `Arreglo N° ${number(source.numero_orden)}`,
+    facturaId: nullable(facturaAsociada.id),
     facturaNumero,
     destinatario: {
       clienteId,
@@ -528,7 +529,7 @@ export async function getRemitoPreflight(
   if (facturaId && arregloId) {
     throw new ApiError(400, "Iniciá el remito desde un arreglo o desde una factura, no desde ambos", "VALIDATION");
   }
-  const [fiscal, config, factura, arreglo] = await Promise.all([
+  const [fiscal, config, facturaOrigen, arreglo] = await Promise.all([
     supabase
       .from("facturacion_configuracion_ambiente")
       .select("razon_social, cuit, domicilio, inicio_actividades")
@@ -540,6 +541,9 @@ export async function getRemitoPreflight(
     arregloId ? getArregloRemitible(supabase, tenantId, ambiente, arregloId) : Promise.resolve(null),
   ]);
   if (fiscal.error) throw fiscal.error;
+  const factura = arreglo?.facturaId
+    ? await facturaRemitible(supabase, tenantId, ambiente, arreglo.facturaId)
+    : facturaOrigen;
   const emisor = fiscal.data ? record(fiscal.data) : null;
   const evaluacionR = evaluarRemitoR(config.remitoR, hoyArgentinaISO());
   return {

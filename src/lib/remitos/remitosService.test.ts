@@ -172,7 +172,12 @@ describe("remitosService", () => {
       remitos_configuracion: [{ data: null, error: null }],
       remitos: [{ data: [], error: null }, { data: [], error: null }],
       arreglos: [{ data: { id: ARREGLO_ID, numero_orden: 42, cliente_id: null }, error: null }],
-      facturas_electronicas: [{ data: { punto_venta: 1, numero_comprobante: 123 }, error: null }],
+      facturas_electronicas: [
+        { data: { id: FACTURA_ID, punto_venta: 1, numero_comprobante: 123 }, error: null },
+        { data: facturaConImportes, error: null },
+      ],
+      facturas_electronicas_lineas: [{ data: lineasFacturaConImportes, error: null }],
+      remitos_lineas: [{ data: [{ factura_linea_id: "l1", cantidad: 2 }], error: null }],
     });
     vi.mocked(supabase.rpc).mockResolvedValueOnce({
       data: {
@@ -197,6 +202,7 @@ describe("remitosService", () => {
     expect(preflight.arreglo).toEqual({
       id: ARREGLO_ID,
       label: "Arreglo N° 42",
+      facturaId: FACTURA_ID,
       facturaNumero: "00001-00000123",
       destinatario: {
         clienteId: null,
@@ -210,6 +216,10 @@ describe("remitosService", () => {
         { codigo: "REP-P", descripcion: "Filtro pendiente", cantidad: 1 },
         { codigo: "REP-1", descripcion: "Pastillas de freno", cantidad: 2 },
       ],
+    });
+    expect(preflight.factura).toMatchObject({
+      id: FACTURA_ID,
+      lineas: [{ id: "l1", cantidadDisponible: 3 }, { id: "l2", cantidadDisponible: 1 }],
     });
     expect(amountKeys(preflight)).toEqual([]);
     expect(selectedColumns(calls.arreglos)).toEqual(["id, numero_orden, cliente_id"]);

@@ -7,7 +7,6 @@ import FacturacionEmpresaCard from "@/app/components/facturacion/FacturacionEmpr
 import FacturacionFiscalCard from "@/app/components/facturacion/FacturacionFiscalCard";
 import FacturacionCertificadosCard from "@/app/components/facturacion/FacturacionCertificadosCard";
 import GenerarClaveModal from "@/app/components/facturacion/GenerarClaveModal";
-import RemitosConfiguracionCard from "@/app/components/remitos/RemitosConfiguracionCard";
 import { COLOR } from "@/theme/theme";
 import type { FacturacionConfiguracionPublica } from "@/lib/facturacion/types";
 
@@ -259,8 +258,6 @@ export default function ConfiguracionPage() {
                 </div>
               </div>
               </form>
-              {/* Remitos: formulario propio, separado de la configuración fiscal */}
-              <RemitosConfiguracionCard />
               <GenerarClaveModal
                 open={generateKeyOpen}
                 razonSocial={config.razonSocial}

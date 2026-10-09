@@ -60,6 +60,7 @@ describe("permissions", () => {
       ["/configuracion/empleados", Permission.EmpleadosView],
       ["/configuracion/empleados/123", Permission.EmpleadosView],
       ["/configuracion/facturacion", Permission.FacturasView],
+      ["/configuracion/remitos", Permission.FacturasView],
       ["/api/facturacion/configuracion", Permission.FacturasView],
       ["/talleres", Permission.TallerView],
       ["/api/tenant/taller", Permission.TallerView],

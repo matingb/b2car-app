@@ -189,6 +189,7 @@ export type RemitoArregloLinea = {
 export type RemitoArregloOrigen = {
   id: string;
   label: string;
+  facturaId: string | null;
   facturaNumero: string | null;
   destinatario: RemitoDestinatario;
   lineas: RemitoArregloLinea[];

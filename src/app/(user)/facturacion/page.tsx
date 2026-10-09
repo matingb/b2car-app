@@ -8,7 +8,6 @@ import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import FilterChip from "@/app/components/ui/FilterChip";
-import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import FacturaListItem from "@/app/components/facturacion/FacturaListItem";
 import FacturasFiltersModal, { type FacturasFilters } from "@/app/components/facturacion/FacturasFiltersModal";
 import FacturasToolbar, { type FacturaDocumentoTipoFilter, type FacturaFilterChip } from "@/app/components/facturacion/FacturasToolbar";
@@ -222,7 +221,7 @@ function DocumentacionContent() {
       </div>
 
       {error ? <div role="alert" style={styles.error}>{error}</div> : null}
-      {loading ? <ListSkeleton rows={7} /> : null}
+      {loading ? <p role="status" style={{ color: COLOR.TEXT.SECONDARY, padding: "24px 0" }}>Cargando documentos…</p> : null}
       {!loading && !error && result.items.length === 0 ? (
         <Card style={styles.empty}>
           <ReceiptText size={34} color={COLOR.TEXT.TERTIARY} />

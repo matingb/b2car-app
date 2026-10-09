@@ -4,8 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, AlertTriangle, ReceiptText, Send } from "lucide-react";
 import Button from "@/app/components/ui/Button";
-import ListSkeleton from "@/app/components/ui/ListSkeleton";
-import ModalMessage from "@/app/components/ui/ModalMessage";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { remitosClient } from "@/clients/remitosClient";
 import { Permission } from "@/lib/permissions";
@@ -54,7 +52,6 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
   const [lineasLibres, setLineasLibres] = useState<LineaLibreForm[]>([]);
   // Se genera al montar, se reutiliza en reintentos y se renueva solo tras una emisión exitosa.
   const [idempotencyKey, setIdempotencyKey] = useState(() => generateUuidV4());
-  const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,17 +61,17 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
     try {
       const data = await remitosClient.preflight(facturaId, arregloId);
       setPreflight(data);
-      if (data.factura) {
-        setDestinatario(destinatarioFormDesde(data.factura.destinatario));
-        setLineasLibres(seleccionInicial(data.factura.lineas));
-      } else if (data.arreglo) {
+      if (data.arreglo) {
         setDestinatario(destinatarioFormDesde(data.arreglo.destinatario));
         setObservaciones(data.arreglo.facturaNumero ? `Factura asociada: ${data.arreglo.facturaNumero}` : "");
-        setLineasLibres(data.arreglo.lineas.map((linea) => nuevaLineaLibre({
+        setLineasLibres(data.factura ? seleccionInicial(data.factura.lineas) : data.arreglo.lineas.map((linea) => nuevaLineaLibre({
           codigo: linea.codigo ?? "",
           descripcion: linea.descripcion,
           cantidad: linea.cantidad,
         })));
+      } else if (data.factura) {
+        setDestinatario(destinatarioFormDesde(data.factura.destinatario));
+        setLineasLibres(seleccionInicial(data.factura.lineas));
       }
     } catch (cause) {
       setLoadError(cause instanceof Error ? cause.message : "No se pudo preparar el remito");
@@ -115,8 +112,7 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
   }, [preflight, clase, tipoSeleccionado, destinatario, factura, lineasLibres]);
 
   const emitir = async () => {
-    if (!clase || blockingReason) return;
-    setConfirmOpen(false);
+    if (!clase || blockingReason || submitting) return;
     setSubmitting(true);
     onSubmittingChange?.(true);
     setError(null);
@@ -141,14 +137,23 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
     }
   };
 
-  if (loading) return <ListSkeleton rows={6} />;
+  if (loading) {
+    return (
+      <p role="status" style={{ color: COLOR.TEXT.SECONDARY, padding: "24px 0" }}>
+        Cargando remito…
+      </p>
+    );
+  }
   if (!preflight) {
     return <div role="alert" style={styles.errorAlert}><AlertCircle size={18} />{loadError ?? "No se pudo preparar el remito"}</div>;
   }
 
   const canConfigure = hasPermission(Permission.ConfiguracionView);
-  const configLink = canConfigure ? (
+  const fiscalConfigLink = canConfigure ? (
     <Link href={ROUTES.configuracionFacturacion} style={styles.link}>Ir a Configuración &gt; Facturación</Link>
+  ) : null;
+  const remitosConfigLink = canConfigure ? (
+    <Link href={ROUTES.configuracionRemitos} style={styles.link}>Ir a Configuración &gt; Remitos</Link>
   ) : null;
 
   return (
@@ -156,7 +161,7 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
       style={styles.form}
       onSubmit={(event) => {
         event.preventDefault();
-        if (!blockingReason) setConfirmOpen(true);
+        void emitir();
       }}
     >
       {!preflight.emisor.completo ? (
@@ -164,7 +169,7 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
           <AlertCircle size={18} style={{ flexShrink: 0 }} />
           <div>
             <strong>Faltan datos fiscales del emisor.</strong> Completá: {preflight.emisor.faltantes.join(", ")}.{" "}
-            {configLink}
+            {fiscalConfigLink}
           </div>
         </div>
       ) : null}
@@ -192,7 +197,7 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
               <ul style={styles.list}>
                 {preflight.tipos.R.motivos.map((motivo) => <li key={motivo}>{motivo}</li>)}
               </ul>
-              {configLink}
+              {remitosConfigLink}
             </div>
           </div>
         ) : null}
@@ -239,14 +244,6 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
         />
       </div>
 
-      <ModalMessage
-        open={confirmOpen}
-        title={clase ? `Emitir Remito ${clase}` : "Emitir remito"}
-        message="Los remitos emitidos no se pueden modificar. ¿Confirmás la emisión?"
-        acceptLabel="Emitir"
-        onAccept={() => void emitir()}
-        onCancel={() => setConfirmOpen(false)}
-      />
     </form>
   );
 }

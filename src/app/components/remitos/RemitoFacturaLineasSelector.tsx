@@ -23,7 +23,7 @@ export function lineasFacturaPayload(lineas: SeleccionLineasFactura) {
   return lineasLibresPayload(lineas);
 }
 
-/** `null` si el detalle propio conserva vínculos y cantidades válidas para la factura. */
+/** Controla cantidades de los conceptos vinculados; los ítems libres solo requieren descripción y cantidad positiva. */
 export function validarSeleccionFactura(
   referencias: RemitoFacturaLineaDisponible[],
   lineas: SeleccionLineasFactura,
@@ -33,11 +33,12 @@ export function validarSeleccionFactura(
   const porId = new Map(referencias.map((linea) => [linea.id, linea]));
   const cantidades = new Map<string, number>();
   for (const [index, linea] of lineas.entries()) {
-    if (!linea.facturaLineaId || !porId.has(linea.facturaLineaId)) {
-      return `Elegí la línea de factura de referencia para el ítem ${index + 1}.`;
-    }
     if (!linea.descripcion.trim()) return `Completá la descripción del ítem ${index + 1}.`;
     if (!(linea.cantidad > 0)) return `La cantidad del ítem ${index + 1} debe ser mayor a 0.`;
+    if (!linea.facturaLineaId) continue;
+    if (!porId.has(linea.facturaLineaId)) {
+      return `El concepto de factura del ítem ${index + 1} no es válido.`;
+    }
     cantidades.set(linea.facturaLineaId, (cantidades.get(linea.facturaLineaId) ?? 0) + linea.cantidad);
   }
 
