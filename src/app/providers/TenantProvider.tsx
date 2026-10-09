@@ -28,13 +28,15 @@ export const TenantContext = createContext<TenantContextValue | null>(null);
 export type TenantProviderProps = {
   children: React.ReactNode;
   initialPermissions?: PermissionValue[];
+  initialTenantName?: string;
 };
 
 export function TenantProvider({
   children,
   initialPermissions = [],
+  initialTenantName = "",
 }: TenantProviderProps) {
-  const [tenantName, setTenantName] = useState("B2Car");
+  const [tenantName] = useState(initialTenantName);
   const [talleres, setTalleres] = useState<Taller[]>([]);
   const [loading, setLoading] = useState(false);
   const [tallerSeleccionadoId, setTallerSeleccionadoId] = useState<string>("");

@@ -14,7 +14,7 @@ import { css } from "@emotion/react";
 import { SidebarMenuKey, useSidebarMenu } from "@/app/hooks/useSidebarMenu";
 import TenantNameText from "@/app/components/ui/TenantNameText";
 import { getLandingPathForPermissions, Permission, type PermissionValue } from "@/lib/permissions";
-import { datadogRum } from "@datadog/browser-rum";
+import { telemetry, type TelemetryIdentity } from "@/lib/telemetry";
 
 export type AppClientLayoutProps = {
   children: React.ReactNode;
@@ -22,6 +22,7 @@ export type AppClientLayoutProps = {
   tenantId?: string;
   tenantName?: string;
   plan?: string;
+  identity?: TelemetryIdentity | null;
 };
 
 export default function AppClientLayout({
@@ -30,19 +31,25 @@ export default function AppClientLayout({
   tenantId,
   tenantName,
   plan,
+  identity,
 }: AppClientLayoutProps) {
   useEffect(() => {
-    if (tenantId) {
-      datadogRum.setUser({
+    if (identity) {
+      telemetry.identify(identity);
+    } else if (tenantId) {
+      telemetry.setUser({
         id: tenantId,
         name: tenantName,
         plan_sub: plan,
       });
     }
-  }, [tenantId, tenantName, plan]);
+  }, [identity, tenantId, tenantName, plan]);
 
   return (
-    <TenantProvider initialPermissions={initialPermissions}>
+    <TenantProvider
+      initialPermissions={initialPermissions}
+      initialTenantName={tenantName}
+    >
       <CuentasFinancierasProvider>
         <ModalMessageProvider>
           <SheetProvider>

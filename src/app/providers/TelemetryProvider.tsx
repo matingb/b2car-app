@@ -1,16 +1,13 @@
 'use client';
 
-import { type ReactNode } from 'react';
-import { DatadogProvider } from './DatadogProvider';
-import { HoneycombProvider } from './HoneycombProvider';
-
+import { useEffect, type ReactNode } from 'react';
+import { telemetry } from '@/lib/telemetry';
 
 export function TelemetryProvider({ children }: { children?: ReactNode }) {
-  return (
-    <DatadogProvider>
-      <HoneycombProvider>
-        {children}
-      </HoneycombProvider>
-    </DatadogProvider>
-  );
+  useEffect(() => {
+    telemetry.initClient();
+  }, []);
+
+  return <>{children}</>;
 }
+

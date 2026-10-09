@@ -32,6 +32,7 @@ vi.mock("@/app/login/actions", () => ({
 vi.mock("@datadog/browser-rum", () => ({
   datadogRum: {
     setUser: vi.fn(),
+    setAccount: vi.fn(),
   },
 }));
 
@@ -58,6 +59,31 @@ describe("AppClientLayout visual route guard", () => {
       id: "t-123",
       name: "Taller Demo",
       plan_sub: "BASE",
+    });
+  });
+
+  it("asocia identity con user y account a Datadog RUM si se pasa identity", async () => {
+    const { datadogRum } = await import("@datadog/browser-rum");
+    render(
+      <AppClientLayout
+        initialPermissions={[Permission.ArreglosView]}
+        identity={{
+          user: { id: "u-456", email: "test@user.com" },
+          account: { id: "t-123", name: "Taller Demo", plan: "PRO" },
+        }}
+      >
+        <div>contenido</div>
+      </AppClientLayout>
+    );
+
+    expect(datadogRum.setUser).toHaveBeenCalledWith({
+      id: "u-456",
+      email: "test@user.com",
+    });
+    expect(datadogRum.setAccount).toHaveBeenCalledWith({
+      id: "t-123",
+      name: "Taller Demo",
+      plan: "PRO",
     });
   });
 

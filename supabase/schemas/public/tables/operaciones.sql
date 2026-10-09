@@ -18,6 +18,9 @@ ALTER TABLE "public"."operaciones"
   ADD COLUMN "tipo" public.tipo_operacion NOT NULL;
 
 ALTER TABLE "public"."operaciones"
+  ADD COLUMN "observaciones" text;
+
+ALTER TABLE "public"."operaciones"
   ADD CONSTRAINT "operaciones_taller_requerido" CHECK (((taller_id IS NOT NULL) OR ((tipo)::text = 'MOVIMIENTO_CUENTA'::text)));
 
 CREATE INDEX idx_operaciones_fecha ON public.operaciones USING btree (fecha);

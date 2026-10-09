@@ -19,7 +19,8 @@ CREATE OR REPLACE FUNCTION public.rpc_listar_operaciones_con_gastos (
     cuenta_financiera_nombre text,
     monto                    numeric,
     arreglo_id               uuid,
-    total_count              bigint
+    total_count              bigint,
+    observaciones            text
   )
   LANGUAGE sql
   STABLE
@@ -59,7 +60,8 @@ CREATE OR REPLACE FUNCTION public.rpc_listar_operaciones_con_gastos (
         abs(mf.importe),
         (SELECT SUM(l.cantidad * l.monto_unitario) FROM public.operaciones_lineas AS l WHERE l.operacion_id = o.id)
       )::numeric AS monto,
-      COALESCE(oca.arreglo_id, oaa.arreglo_id) AS arreglo_id
+      COALESCE(oca.arreglo_id, oaa.arreglo_id) AS arreglo_id,
+      o.observaciones
     FROM public.operaciones AS o
     LEFT JOIN public.operaciones_movimiento_cuenta AS omc ON omc.operacion_id = o.id
     LEFT JOIN LATERAL (
@@ -80,7 +82,7 @@ CREATE OR REPLACE FUNCTION public.rpc_listar_operaciones_con_gastos (
       AND (p_from IS NULL OR o.fecha >= p_from)
       AND (p_to IS NULL OR o.fecha < p_to)
   )
-  SELECT r.*, COUNT(*) OVER() AS total_count
+  SELECT r.id, r.tipo, r.taller_id, r.fecha, r.created_at, r.lineas, r.gasto_id, r.descripcion, r.categoria_gasto, r.cuenta_financiera_id, r.cuenta_financiera_nombre, r.monto, r.arreglo_id, COUNT(*) OVER() AS total_count, r.observaciones
   FROM rows AS r
   WHERE COALESCE(cardinality(p_tipos), 0) = 0 OR r.tipo = ANY(p_tipos)
   ORDER BY r.fecha DESC, r.created_at DESC, r.id DESC
@@ -88,12 +90,12 @@ CREATE OR REPLACE FUNCTION public.rpc_listar_operaciones_con_gastos (
   OFFSET (GREATEST(COALESCE(p_page, 1), 1) - 1) * LEAST(GREATEST(COALESCE(p_page_size, 50), 1), 200);
 $function$;
 
-GRANT EXECUTE ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp WITH time zone, timestamp WITH time zone, text[], integer, integer) TO "anon", "authenticated";
+GRANT EXECUTE ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp with time zone, timestamp with time zone, text[], integer, integer) TO "anon", "authenticated";
 
-GRANT EXECUTE ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp WITH time zone, timestamp WITH time zone, text[], integer, integer) TO "service_role";
+GRANT EXECUTE ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp with time zone, timestamp with time zone, text[], integer, integer) TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp WITH time zone, timestamp WITH time zone, text[], integer, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp with time zone, timestamp with time zone, text[], integer, integer) FROM PUBLIC;
 
-REVOKE ALL ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp WITH time zone, timestamp WITH time zone, text[], integer, integer) FROM "postgres";
+REVOKE ALL ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp with time zone, timestamp with time zone, text[], integer, integer) FROM "postgres";
 
-GRANT EXECUTE ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp WITH time zone, timestamp WITH time zone, text[], integer, integer) TO "postgres";
+GRANT EXECUTE ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp with time zone, timestamp with time zone, text[], integer, integer) TO "postgres";

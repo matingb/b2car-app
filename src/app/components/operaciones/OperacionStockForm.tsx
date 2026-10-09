@@ -92,7 +92,7 @@ export default function OperacionStockForm() {
 
       {isAllowedTipo && (
         <div style={styles.observacionesContainer}>
-          <label style={styles.observacionesLabel}>Observaciones (opcional)</label>
+          <label style={styles.observacionesLabel}>Observaciones</label>
           <textarea
             value={observaciones}
             onChange={(e) => setObservaciones(e.target.value)}
