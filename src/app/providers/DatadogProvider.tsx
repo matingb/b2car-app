@@ -17,12 +17,13 @@ export function DatadogProvider({ children }: { children?: ReactNode }) {
       version: process.env.NEXT_PUBLIC_APP_VERSION,
       sessionSampleRate: 100,
       sessionReplaySampleRate: 100,
+      traceSampleRate: 100,
       trackResources: true,
       trackUserInteractions: true,
       trackLongTasks: true,
       allowedTracingUrls: [
         {
-          match: (url: string) => url.startsWith(window.location.origin),
+          match: (url: string) => url.startsWith(`${window.location.origin}/api`),
           propagatorTypes: ['datadog', 'tracecontext'],
         },
       ],

@@ -80,6 +80,7 @@ describe("PUT /api/gastos/[id]", () => {
       p_descripcion: "Alquiler renegociado",
       p_fecha: "2026-07-31T00:00:00.000Z",
       p_idempotency_key: IDEMPOTENCY_KEY,
+      p_observaciones: null,
     });
     expect(body.data).toMatchObject({ id: ORIGINAL_ID, descripcion: "Alquiler renegociado" });
     expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything());

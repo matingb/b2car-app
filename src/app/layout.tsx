@@ -1,6 +1,6 @@
 import "../globals.css";
 import { ServiceWorkerRegister } from "./providers/ServiceWorkerRegister";
-import { DatadogProvider } from "./providers/DatadogProvider";
+import { TelemetryProvider } from "./providers/TelemetryProvider";
 import ToastProvider from "./providers/ToastProvider";
 import { BreakpointProvider } from "./providers/BreakpointProvider";
 import { Metadata } from "next";
@@ -20,14 +20,14 @@ export default function RootLayout({
       <head>
       </head>
       <body suppressHydrationWarning>
-        <DatadogProvider>
+        <TelemetryProvider>
           <ToastProvider>
             <BreakpointProvider>
               <ServiceWorkerRegister />
               {children}
             </BreakpointProvider>
           </ToastProvider>
-        </DatadogProvider>
+        </TelemetryProvider>
       </body>
     </html>
   );

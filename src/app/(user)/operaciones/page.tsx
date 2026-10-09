@@ -253,6 +253,7 @@ export default function OperacionesPage() {
                 return [
                     o.tipo,
                     o.descripcion,
+                    o.observaciones,
                     o.categoria_gasto,
                     o.cuenta_financiera_nombre,
                     talleres.find(t => t.id === o.taller_id)?.nombre || shortId(o.taller_id),
@@ -312,6 +313,7 @@ export default function OperacionesPage() {
             importe: Number(operacion.monto) || 0,
             fecha: operacion.fecha,
             descripcion: operacion.descripcion ?? "",
+            observaciones: operacion.observaciones ?? null,
             arregloId: null,
             operacionId: null,
             createdAt: operacion.created_at,

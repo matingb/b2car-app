@@ -12,6 +12,8 @@ export default function OperacionGastoForm() {
     setMontoGasto,
     descripcionGasto,
     setDescripcionGasto,
+    observaciones,
+    setObservaciones,
   } = useOperacionForm();
 
   return (
@@ -22,6 +24,8 @@ export default function OperacionGastoForm() {
       setMontoGasto={setMontoGasto}
       descripcionGasto={descripcionGasto}
       setDescripcionGasto={setDescripcionGasto}
+      observacionesGasto={observaciones}
+      setObservacionesGasto={setObservaciones}
     />
   );
 }

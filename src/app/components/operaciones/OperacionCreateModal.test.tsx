@@ -529,6 +529,86 @@ describe("OperacionCreateModal", () => {
     );
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("permite registrar una venta con observaciones", async () => {
+    mockInventarioApi.inventario = [{
+      id: "S-VENTA",
+      nombre: "Filtro de Aceite",
+      codigo: "FA-01",
+      precioUnitario: 3500,
+      costoUnitario: 2000,
+      stockActual: 10,
+    }];
+    const onClose = vi.fn();
+    mockCrearOperacion.mockResolvedValue({ id: "OP-1", tipo: "VENTA" });
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        initialCuentaId="C1"
+        contextualStock={{ stockId: "S-VENTA", tallerId: "T1" }}
+        onClose={onClose}
+      />
+    );
+
+    await runPendingPromises();
+
+    await userEvent.type(screen.getByTestId("operaciones-stock-observaciones"), "Cliente solicita factura luego");
+
+    const submitBtn = screen.getByTestId("modal-submit");
+    expect(submitBtn).not.toBeDisabled();
+
+    await userEvent.click(submitBtn);
+    await runPendingPromises();
+
+    expect(mockCrearOperacion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipo: "VENTA",
+        observaciones: "Cliente solicita factura luego",
+      })
+    );
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("permite registrar un gasto con observaciones", async () => {
+    const onClose = vi.fn();
+    mockCrearGasto.mockResolvedValue({
+      data: { id: "G1", cuentaId: "C1", categoria: "ALQUILER", importe: 10000 },
+      error: null,
+    });
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        onClose={onClose}
+      />
+    );
+
+    await runPendingPromises();
+
+    await userEvent.click(screen.getByTestId("operaciones-create-tipo-GASTO"));
+    await runPendingPromises();
+
+    await userEvent.type(screen.getByTestId("operaciones-create-cuenta-financiera"), "C1");
+    await userEvent.type(screen.getByTestId("gasto-importe"), "10000");
+    await userEvent.type(screen.getByTestId("gasto-observaciones"), "Se abonó con recargo por mora");
+
+    await userEvent.click(screen.getByTestId("modal-submit"));
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(mockCrearGasto).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cuentaId: "C1",
+          importe: 10000,
+          observaciones: "Se abonó con recargo por mora",
+        })
+      );
+    });
+    expect(onClose).toHaveBeenCalled();
+  });
 });
 
 

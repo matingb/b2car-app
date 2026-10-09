@@ -76,6 +76,7 @@ export async function POST(req: Request) {
     p_fecha: input.fecha ?? null,
     p_idempotency_key: input.idempotencyKey ?? null,
     p_arreglo_id: input.arregloId ?? null,
+    p_observaciones: input.observaciones ?? null,
   });
   if (createError) {
     logger.error("Error registrando gasto", createError);
@@ -120,6 +121,7 @@ export async function POST(req: Request) {
           importe: input.importe,
           fecha: input.fecha ?? new Date().toISOString(),
           descripcion: input.descripcion ?? null,
+          observaciones: input.observaciones ?? null,
           reversaMovimientoId: null,
           createdAt: new Date().toISOString(),
         },

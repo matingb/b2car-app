@@ -108,6 +108,7 @@ export type OperacionDTO = {
     taller_id: string | null;
     fecha: string;
     created_at: string;
+    observaciones?: string | null;
 };
 
 export type OperacionLineaDTO = {

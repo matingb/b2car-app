@@ -18,7 +18,7 @@ export interface ExcelSheetDef<T = Record<string, unknown>> {
 
 export interface ExcelWorkbookOptions {
   creator?: string;
-  sheets: ExcelSheetDef[];
+  sheets: ExcelSheetDef<any>[];
 }
 
 export function sanitizeSheetName(name: string, index: number, usedNames: Set<string>): string {
@@ -124,7 +124,7 @@ export async function buildExcelResponse(
 
   const normalizedFilename = filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`;
 
-  return new Response(body, {
+  return new Response(body as BodyInit, {
     headers: {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

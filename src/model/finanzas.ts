@@ -158,6 +158,7 @@ export type GastoFinanciero = {
   importe: number;
   fecha: string;
   descripcion: string | null;
+  observaciones?: string | null;
   reversaMovimientoId?: string | null;
   createdAt: string;
   /** Metadata supplied by operation contexts; the current gasto read RPC does not return it. */
@@ -221,6 +222,7 @@ export type CrearGastoFinancieroInput = {
   categoria: string;
   importe: number;
   descripcion?: string | null;
+  observaciones?: string | null;
   fecha?: string;
   arregloId?: string | null;
   operacionId?: string | null;
@@ -233,6 +235,7 @@ export type ActualizarGastoFinancieroInput = Partial<{
   importe: number;
   fecha: string;
   descripcion: string | null;
+  observaciones: string | null;
   idempotencyKey: string;
 }>;
 

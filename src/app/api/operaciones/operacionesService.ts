@@ -48,6 +48,7 @@ export type CreateOperacionInput = {
 	arreglo_id?: string | null;
 	cuenta_financiera_id?: string | null;
 	idempotency_key?: string | null;
+	observaciones?: string | null;
 };
 
 export type UpdateOperacionLineaInput = {
@@ -65,6 +66,7 @@ export type UpdateOperacionInput = {
 	lineas?: UpdateOperacionLineaInput[];
 	cuenta_financiera_id?: string | null;
 	idempotency_key?: string | null;
+	observaciones?: string | null;
 };
 
 type OperacionRow = OperacionDTO & { operaciones_lineas?: OperacionLineaDTO[] | null };
@@ -90,6 +92,7 @@ export type OperacionListRow = {
 	arreglo_id: string | null;
 	factura_asociada?: boolean;
 	total_count: number | string | null;
+	observaciones?: string | null;
 };
 
 type OperacionesStatsRow = {
@@ -223,6 +226,7 @@ export const operacionesService = {
 			p_fecha: input.fecha ? toISODateTimeWithCurrentTime(input.fecha) : null,
 			p_cuenta_id: input.cuenta_financiera_id ?? null,
 			p_idempotency_key: input.idempotency_key ?? null,
+			p_observaciones: input.observaciones ?? null,
 		});
 
 		if (rpcError || !operacionId) {
@@ -285,6 +289,7 @@ export const operacionesService = {
 			p_fecha: fecha,
 			p_cuenta_id: cuentaFinancieraId,
 			p_idempotency_key: input.idempotency_key ?? null,
+			p_observaciones: input.observaciones !== undefined ? input.observaciones : null,
 		});
 		if (rpcError || !updatedId) {
 			logger.error("[operacionesService.update] Error en rpc_actualizar_operacion_con_stock:", rpcError);

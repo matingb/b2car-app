@@ -246,6 +246,7 @@ export interface Operacion {
   arreglo_id?: UUID;
   /** Indica si la venta ya tiene un comprobante fiscal asociado. */
   factura_asociada?: boolean;
+  observaciones?: string;
 }
 
 export type OperacionesFilters = {
