@@ -44,7 +44,7 @@ export async function initDatadogClient(): Promise<void> {
       applicationId: "710f917a-0f76-4db2-bf1b-6d330eefea25",
       clientToken: "pub239a3b2d8685687e70b1d432f2826018",
       site: "datadoghq.com",
-      service: "b2car-frontend",
+      service: process.env.NEXT_PUBLIC_TELEMETRY_FRONTEND_SERVICE_NAME!,
       env: process.env.NEXT_PUBLIC_DATADOG_ENV || "production",
       version: process.env.NEXT_PUBLIC_APP_VERSION,
       sessionSampleRate: 100,
@@ -74,17 +74,16 @@ export async function initDatadogServer(): Promise<DatadogTracerLike | null> {
   if (process.env.NEXT_RUNTIME !== "nodejs") return null;
   if (process.env.DD_TRACE_ENABLED === "false") return null;
 
-  const apiKey = process.env.DD_API_KEY;
+  const apiKey = process.env.DATADOG_API_KEY;
   if (!apiKey) return null;
 
   try {
     process.env.DD_AGENTLESS_ENABLED = "true";
     process.env.DD_SITE = "datadoghq.com";
-    process.env.DD_API_KEY = apiKey;
 
     const tracerModule = (await import("dd-trace")).default;
     tracerModule.init({
-      service: process.env.OTEL_SERVICE_NAME,
+      service: process.env.TELEMETRY_BACKEND_SERVICE_NAME || "b2car-backend",
       env: process.env.NEXT_PUBLIC_DATADOG_ENV || "production",
       version: process.env.NEXT_PUBLIC_APP_VERSION,
       site: "datadoghq.com",

@@ -5,7 +5,7 @@ export interface ExcelColumnDef<T = Record<string, unknown>> {
   key: string;
   width?: number;
   numFmt?: string;
-  value?: (row: T) => unknown;
+  value?(row: T): unknown;
 }
 
 export interface ExcelSheetDef<T = Record<string, unknown>> {
@@ -18,7 +18,7 @@ export interface ExcelSheetDef<T = Record<string, unknown>> {
 
 export interface ExcelWorkbookOptions {
   creator?: string;
-  sheets: ExcelSheetDef<any>[];
+  sheets: ExcelSheetDef<unknown>[];
 }
 
 export function sanitizeSheetName(name: string, index: number, usedNames: Set<string>): string {

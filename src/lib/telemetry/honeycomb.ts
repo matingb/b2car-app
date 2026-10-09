@@ -17,7 +17,7 @@ export async function initHoneycombClient(): Promise<void> {
     const { HoneycombWebSDK } = await import("@honeycombio/opentelemetry-web");
     const sdk = new HoneycombWebSDK({
       apiKey,
-      serviceName: process.env.NEXT_PUBLIC_HONEYCOMB_SERVICE_NAME || "b2car-frontend",
+      serviceName: process.env.NEXT_PUBLIC_TELEMETRY_FRONTEND_SERVICE_NAME!,
     });
 
     sdk.start();
@@ -33,7 +33,7 @@ export async function initHoneycombClient(): Promise<void> {
 export async function initHoneycombServer(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== "nodejs" || serverInitialized) return;
 
-  const apiKey = process.env.HONEYCOMB_API_KEY || process.env.HONEYCOMB_TEAM;
+  const apiKey = process.env.NEXT_PUBLIC_HONEYCOMB_API_KEY;
   if (!apiKey && !process.env.OTEL_EXPORTER_OTLP_ENDPOINT) return;
 
   try {
@@ -44,7 +44,7 @@ export async function initHoneycombServer(): Promise<void> {
     const { ATTR_SERVICE_VERSION } = await import("@opentelemetry/semantic-conventions");
 
     const endpoint = "https://api.honeycomb.io/v1/traces";
-    const serviceName = process.env.OTEL_SERVICE_NAME;
+    const serviceName = process.env.TELEMETRY_BACKEND_SERVICE_NAME || "b2car-backend";
     const appVersion = process.env.NEXT_PUBLIC_APP_VERSION;
     const environment = process.env.NEXT_PUBLIC_DATADOG_ENV || process.env.NODE_ENV || "production";
 
