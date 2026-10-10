@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { type EstadoArreglo } from "@/model/types";
 import { COLOR } from "@/theme/theme";
@@ -80,7 +81,8 @@ const getStyles = (
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 12,
     boxShadow: "0 8px 24px rgba(0, 0, 0, 0.12)",
-    overflow: "hidden",
+    overflowY: "auto",
+    overflowX: "hidden",
     zIndex: 50,
   } as React.CSSProperties,
   option: (isSelected: boolean) => ({
@@ -115,36 +117,147 @@ export default function ArregloEstadoBadge({
   const [isOpen, setIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const listboxRef = useRef<HTMLDivElement>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const focusFirstOnOpen = useRef(false);
+  const [listboxPosition, setListboxPosition] = useState<React.CSSProperties | null>(null);
+
+  const closeMenu = useCallback((restoreFocus = false) => {
+    setIsOpen(false);
+    setListboxPosition(null);
+    onOpenChange?.(false);
+    if (restoreFocus) {
+      containerRef.current?.querySelector("button")?.focus();
+    }
+  }, [onOpenChange]);
+
+  const getAdjacentFocusable = (backwards: boolean) => {
+    const trigger = containerRef.current?.querySelector("button");
+    if (!trigger) return null;
+    const focusables = Array.from(document.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter((element) => {
+      if (listboxRef.current?.contains(element) || element.tabIndex < 0) return false;
+      if (element.closest("[hidden], [inert], [aria-hidden=\"true\"]")) return false;
+
+      for (let ancestor: HTMLElement | null = element; ancestor && ancestor !== document.body; ancestor = ancestor.parentElement) {
+        const style = window.getComputedStyle(ancestor);
+        if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse") {
+          return false;
+        }
+      }
+      return true;
+    });
+    const index = focusables.indexOf(trigger);
+    return focusables[index + (backwards ? -1 : 1)] ?? null;
+  };
 
   useEffect(() => {
     if (!isInteractive || !isOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
-        onOpenChange?.(false);
+      if (
+        !containerRef.current?.contains(event.target as Node) &&
+        !listboxRef.current?.contains(event.target as Node)
+      ) {
+        closeMenu();
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isInteractive, isOpen, onOpenChange]);
+  }, [isInteractive, isOpen, closeMenu]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const updatePosition = () => {
+      const trigger = containerRef.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - 8);
+      const spaceAbove = Math.max(0, rect.top - 8);
+      const menuHeight = listboxRef.current?.scrollHeight ?? options.length * (token.height + 1) + 2;
+      const placeAbove = spaceBelow < menuHeight && spaceAbove > spaceBelow;
+      const maxHeight = Math.max(0, placeAbove ? spaceAbove : spaceBelow);
+      const width = Math.max(rect.width, 150);
+      const left = Math.min(rect.left, Math.max(8, window.innerWidth - width - 8));
+
+      setListboxPosition({
+        position: "fixed",
+        top: placeAbove ? "auto" : rect.bottom + 6,
+        bottom: placeAbove ? window.innerHeight - rect.top + 6 : "auto",
+        left,
+        width,
+        minWidth: rect.width,
+        maxHeight,
+        zIndex: 2000,
+      });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isOpen, options.length, token.height]);
+
+  useEffect(() => {
+    if (isOpen && listboxPosition && focusFirstOnOpen.current) {
+      optionRefs.current[0]?.focus();
+      focusFirstOnOpen.current = false;
+    }
+  }, [isOpen, listboxPosition]);
 
   const styles = getStyles(token, meta, isHovered, isInteractive, loading, isOpen);
 
-  const handleToggle = (e?: React.SyntheticEvent) => {
+  const handleToggle = (e?: React.SyntheticEvent, focusFirst = false) => {
     e?.stopPropagation();
     e?.preventDefault();
     const next = !isOpen;
+    if (next) {
+      setListboxPosition(null);
+      focusFirstOnOpen.current = focusFirst;
+    }
     setIsOpen(next);
     onOpenChange?.(next);
+  };
+
+  const handleOptionKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const direction = event.key === "ArrowDown" ? 1 : -1;
+      const nextIndex = (index + direction + options.length) % options.length;
+      optionRefs.current[nextIndex]?.focus();
+      optionRefs.current[nextIndex]?.scrollIntoView?.({ block: "nearest" });
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeMenu(true);
+      return;
+    }
+    if (event.key === "Tab") {
+      event.preventDefault();
+      const nextIndex = index + (event.shiftKey ? -1 : 1);
+      if (nextIndex >= 0 && nextIndex < options.length) {
+        optionRefs.current[nextIndex]?.focus();
+      } else {
+        const target = event.shiftKey
+          ? containerRef.current?.querySelector("button")
+          : getAdjacentFocusable(false);
+        closeMenu(false);
+        target?.focus();
+      }
+    }
   };
 
   const handleSelect = async (e: React.MouseEvent, next: EstadoArreglo) => {
     e.stopPropagation();
     e.preventDefault();
-    setIsOpen(false);
-    onOpenChange?.(false);
+    closeMenu(true);
     if (onStateChange) {
       onStateChange(next);
       return;
@@ -166,9 +279,28 @@ export default function ArregloEstadoBadge({
       handleToggle();
       return;
     }
-
-    if (event.key === "Escape") {
-      setIsOpen(false);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (isOpen) {
+        optionRefs.current[event.key === "ArrowDown" ? 0 : options.length - 1]?.focus();
+      } else {
+        handleToggle(event, true);
+      }
+      return;
+    }
+    if (event.key === "Tab" && isOpen) {
+      event.preventDefault();
+      if (event.shiftKey) {
+        closeMenu(false);
+        getAdjacentFocusable(true)?.focus();
+      } else {
+        optionRefs.current[0]?.focus();
+      }
+      return;
+    }
+    if (event.key === "Escape" && isOpen) {
+      event.preventDefault();
+      closeMenu(true);
     }
   };
 
@@ -206,18 +338,20 @@ export default function ArregloEstadoBadge({
         <ChevronDown size={token.icon} color={COLOR.TEXT.PRIMARY} style={styles.chevron} />
       </button>
 
-      {isOpen ? (
-        <div role="listbox" aria-label="Opciones de estado de arreglo" style={styles.listbox}>
+      {isOpen && listboxPosition && typeof document !== "undefined" ? createPortal(
+        <div ref={listboxRef} role="listbox" aria-label="Opciones de estado de arreglo" style={{ ...styles.listbox, ...listboxPosition }}>
           <style>{`
             .arreglo-estado-option:hover {
               filter: brightness(0.98);
             }
           `}</style>
-          {options.map((option) => {
+          {options.map((option, index) => {
             const isSelected = option.value === safeEstado;
 
             return (
               <button
+                ref={(element) => { optionRefs.current[index] = element; }}
+                onKeyDown={(event) => handleOptionKeyDown(event, index)}
                 className="arreglo-estado-option"
                 key={option.value}
                 data-testid={`arreglo-estado-option-${option.value}`}
@@ -237,7 +371,8 @@ export default function ArregloEstadoBadge({
               </button>
             );
           })}
-        </div>
+        </div>,
+        document.body
       ) : null}
     </div>
   );
