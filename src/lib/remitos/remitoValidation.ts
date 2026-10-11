@@ -192,11 +192,14 @@ export function parseEmitirRemitoInput(raw: unknown): Validated<EmitirRemitoInpu
     if (!isValidUuid(body.idempotencyKey)) fail("La clave de idempotencia debe ser un UUID válido");
     if (body.clase !== "R" && body.clase !== "X") fail("Seleccioná el tipo de remito (R o X)");
     const arregloId = optionalUuid(body.arregloId, "El arreglo de origen");
+    const operacionId = optionalUuid(body.operacionId, "La venta de origen");
+    if (arregloId && operacionId) fail("Iniciá el remito desde un arreglo o desde una venta, no desde ambos");
     const facturaId = optionalUuid(body.facturaId, "La factura");
     return {
       idempotencyKey: body.idempotencyKey,
       clase: body.clase,
       arregloId,
+      operacionId,
       facturaId,
       destinatario: parseDestinatario(body.destinatario),
       transportista: parseTransportista(body.transportista),

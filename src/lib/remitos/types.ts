@@ -87,6 +87,7 @@ export type RemitoResumen = {
   destinatarioNombre: string;
   destinatarioDocumento: string | null;
   arregloId: string | null;
+  operacionId: string | null;
   factura: { id: string; label: string } | null;
 };
 
@@ -195,6 +196,9 @@ export type RemitoArregloOrigen = {
   lineas: RemitoArregloLinea[];
 };
 
+/** Venta de origen: misma forma que el arreglo (destinatario, bienes y factura autorizada si existe). */
+export type RemitoOperacionOrigen = RemitoArregloOrigen;
+
 export type RemitoPreflight = {
   ambiente: FacturacionAmbiente;
   emisor: EvaluacionEmisor;
@@ -207,6 +211,7 @@ export type RemitoPreflight = {
     lineas: RemitoFacturaLineaDisponible[];
   } | null;
   arreglo: RemitoArregloOrigen | null;
+  operacion: RemitoOperacionOrigen | null;
 };
 
 export type FacturaRemitos = {
@@ -226,6 +231,7 @@ export type EmitirRemitoInput = {
   idempotencyKey: string;
   clase: RemitoClase;
   arregloId: string | null;
+  operacionId: string | null;
   facturaId: string | null;
   destinatario: Omit<RemitoDestinatario, "condicionIva">;
   transportista: RemitoTransportista | null;

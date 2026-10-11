@@ -16,6 +16,7 @@ function remito(overrides: Partial<RemitoDetalle> = {}): RemitoDetalle {
     fechaEmision: "2026-10-06",
     ambiente: "HOMOLOGACION",
     arregloId: null,
+    operacionId: null,
     destinatarioNombre: "Juan Pérez",
     destinatarioDocumento: "DNI 30111222",
     tipoComprobante: null,

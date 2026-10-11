@@ -8,7 +8,7 @@ vi.mock("@/lib/facturacion/afipGateway", () => ({ createArcaGateway: vi.fn(), sa
 
 import { ApiError } from "@/app/api/apiError";
 import { supabaseQueryMock } from "@/tests/supabaseQueryMock";
-import { listDocumentos } from "./documentosService";
+import { listDocumentos, listDocumentosAsociados } from "./documentosService";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
 
@@ -140,5 +140,52 @@ describe("listDocumentos", () => {
     expect(error).toMatchObject({ status: 400 });
     expect(error.message).toContain(message);
     expect(mock.from).not.toHaveBeenCalled();
+  });
+});
+
+describe("listDocumentosAsociados", () => {
+  const OPERACION_ID = "66666666-6666-4666-8666-666666666666";
+  const FACTURA_ID = "44444444-4444-4444-8444-444444444444";
+
+  it("combina comprobantes y remitos de la venta, incluidos los remitos emitidos desde su factura", async () => {
+    const mock = supabaseQueryMock({
+      facturas_electronicas: [{ data: [factura(FACTURA_ID, "2026-10-05", "2026-10-05T10:00:00+00:00")], error: null }],
+      remitos: [{
+        data: [
+          remito("r2", "2026-10-06", "2026-10-06T18:00:00+00:00"),
+          remito("r1", "2026-10-04", "2026-10-04T09:00:00+00:00"),
+        ],
+        error: null,
+      }],
+    });
+
+    const result = await listDocumentosAsociados(mock.supabase, TENANT, "HOMOLOGACION", { tipo: "VENTA", id: OPERACION_ID });
+
+    expect(result.map((item) => `${item.tipo}:${item.id}`)).toEqual(["REMITO:r2", `FISCAL:${FACTURA_ID}`, "REMITO:r1"]);
+    expect(calls(mock, "facturas_electronicas")).toEqual(expect.arrayContaining([
+      ["eq", "tenant_id", TENANT],
+      ["eq", "ambiente", "HOMOLOGACION"],
+      ["eq", "operacion_id", OPERACION_ID],
+    ]));
+    expect(calls(mock, "remitos")).toEqual(expect.arrayContaining([
+      ["eq", "tenant_id", TENANT],
+      ["eq", "ambiente", "HOMOLOGACION"],
+      ["or", `operacion_id.eq.${OPERACION_ID},factura_id.in.(${FACTURA_ID})`],
+    ]));
+  });
+
+  it("sin comprobantes busca los remitos solo por el origen", async () => {
+    const ARREGLO_ID = "55555555-5555-4555-8555-555555555555";
+    const mock = supabaseQueryMock({
+      facturas_electronicas: [{ data: [], error: null }],
+      remitos: [{ data: [], error: null }],
+    });
+
+    const result = await listDocumentosAsociados(mock.supabase, TENANT, "PRODUCCION", { tipo: "ARREGLO", id: ARREGLO_ID });
+
+    expect(result).toEqual([]);
+    expect(calls(mock, "facturas_electronicas")).toEqual(expect.arrayContaining([["eq", "arreglo_id", ARREGLO_ID]]));
+    expect(calls(mock, "remitos")).toEqual(expect.arrayContaining([["eq", "arreglo_id", ARREGLO_ID]]));
+    expect(calls(mock, "remitos").some(([method]) => method === "or")).toBe(false);
   });
 });

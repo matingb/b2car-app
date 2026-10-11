@@ -157,6 +157,10 @@ export async function DELETE(
 					status = 409;
 					message = "Los movimientos financieros registrados no se pueden modificar ni eliminar";
 					break;
+				case ServiceError.EnUso:
+					status = 409;
+					message = "La operación tiene documentos asociados (por ejemplo, remitos) y no se puede eliminar";
+					break;
 				default:
 					break;
 			}

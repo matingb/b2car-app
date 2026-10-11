@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
-import Card from "@/app/components/ui/Card";
 import { COLOR } from "@/theme/theme";
 import { Skeleton, Theme } from "@radix-ui/themes";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
@@ -36,8 +35,8 @@ import { useEmpleados } from "@/app/providers/EmpleadosProvider";
 import CuentaCompraAutomaticaModal from "@/app/components/arreglos/CuentaCompraAutomaticaModal";
 import { generateUuidV4 } from "@/lib/uuid";
 import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
+import ArregloDocumentosAsociados from "@/app/components/arreglos/ArregloDocumentosAsociados";
 import type { FacturaElectronicaResumen } from "@/lib/facturacion/types";
-import { LockKeyhole } from "lucide-react";
 import { useTenant } from "@/app/providers/TenantProvider";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
@@ -47,7 +46,6 @@ import { isFinancialPurchaseRequired } from "@/app/components/arreglos/lineas/re
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
-  const router = useRouter();
   const [data, setData] = useState<ArregloDetalleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorState, setErrorState] = useState<string | null>(null);
@@ -501,6 +499,8 @@ export default function ArregloDetailsPage() {
         onOpenFactura={canUseBilling ? () => setOpenFacturaModal(true) : undefined}
       />
 
+      {canUseBilling ? <ArregloDocumentosAsociados arregloId={arreglo.id} /> : null}
+
       <div style={{ marginTop: 16 }}>
         <div style={styles.detalleHeader}>
           <div>
@@ -512,32 +512,6 @@ export default function ArregloDetailsPage() {
             </div>
           </div>
         </div>
-        {canUseBilling && fiscalReadOnly ? (
-          <Card
-            style={styles.fiscalLockNotice}
-            onClick={() => router.push(`/facturacion/${facturaElectronica.id}`)}
-            role="button"
-            tabIndex={0}
-            title="Ver detalle de la factura"
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                router.push(`/facturacion/${facturaElectronica.id}`);
-              }
-            }}
-          >
-            <LockKeyhole size={20} color={COLOR.SEMANTIC.SUCCESS} />
-            <div>
-              <div style={styles.fiscalInvoiceTitle}>
-                <strong>Factura {facturaElectronica.claseComprobante} N° {String(facturaElectronica.numeroComprobante ?? 0).padStart(8, "0")} autorizada</strong>
-                <span>CAE {facturaElectronica.cae ?? "-"}{facturaElectronica.caeVencimiento ? ` · vence ${facturaElectronica.caeVencimiento}` : ""}</span>
-              </div>
-              <div style={styles.fiscalLockText}>
-                Las líneas de mano de obra, formulario y repuestos coinciden con un comprobante fiscal y ya no pueden modificarse.
-              </div>
-            </div>
-          </Card>
-        ) : null}
         {isCustomTipoSelected ? (
           <>
             <ServicioLineasCustomSection
@@ -726,27 +700,6 @@ const styles = {
     justifyContent: "space-between",
     gap: 16,
     flexWrap: "wrap" as const,
-  },
-  fiscalLockNotice: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 10,
-    margin: "14px 0",
-    padding: 14,
-    background: COLOR.BACKGROUND.SUCCESS_TINT,
-    color: COLOR.TEXT.PRIMARY,
-  },
-  fiscalInvoiceTitle: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap" as const,
-    color: COLOR.SEMANTIC.SUCCESS,
-  },
-  fiscalLockText: {
-    color: COLOR.TEXT.SECONDARY,
-    marginTop: 3,
-    lineHeight: 1.4,
   },
   loadingContainer: {
     flex: 1,

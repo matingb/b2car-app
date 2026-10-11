@@ -35,12 +35,20 @@ import { remitoFormStyles } from "./remitoFormStyles";
 type Props = {
   facturaId: string | null;
   arregloId?: string | null;
+  operacionId?: string | null;
   onEmitted: (remitoId: string) => void;
   onCancel?: () => void;
   onSubmittingChange?: (submitting: boolean) => void;
 };
 
-export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onCancel, onSubmittingChange }: Props) {
+export default function RemitoForm({
+  facturaId,
+  arregloId = null,
+  operacionId = null,
+  onEmitted,
+  onCancel,
+  onSubmittingChange,
+}: Props) {
   const { hasPermission } = useTenant();
   const [preflight, setPreflight] = useState<RemitoPreflight | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,12 +67,13 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
     setLoading(true);
     setLoadError(null);
     try {
-      const data = await remitosClient.preflight(facturaId, arregloId);
+      const data = await remitosClient.preflight(facturaId, arregloId, operacionId);
       setPreflight(data);
-      if (data.arreglo) {
-        setDestinatario(destinatarioFormDesde(data.arreglo.destinatario));
-        setObservaciones(data.arreglo.facturaNumero ? `Factura asociada: ${data.arreglo.facturaNumero}` : "");
-        setLineasLibres(data.factura ? seleccionInicial(data.factura.lineas) : data.arreglo.lineas.map((linea) => nuevaLineaLibre({
+      const origen = data.arreglo ?? data.operacion;
+      if (origen) {
+        setDestinatario(destinatarioFormDesde(origen.destinatario));
+        setObservaciones(origen.facturaNumero ? `Factura asociada: ${origen.facturaNumero}` : "");
+        setLineasLibres(data.factura ? seleccionInicial(data.factura.lineas) : origen.lineas.map((linea) => nuevaLineaLibre({
           codigo: linea.codigo ?? "",
           descripcion: linea.descripcion,
           cantidad: linea.cantidad,
@@ -78,7 +87,7 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
     } finally {
       setLoading(false);
     }
-  }, [facturaId, arregloId]);
+  }, [facturaId, arregloId, operacionId]);
 
   useEffect(() => {
     void load();
@@ -121,6 +130,7 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
         idempotencyKey,
         clase,
         arregloId: arreglo?.id ?? null,
+        operacionId: preflight?.operacion?.id ?? null,
         facturaId: factura?.id ?? null,
         destinatario: destinatarioPayload(destinatario),
         transportista: transportistaPayload(transportista),

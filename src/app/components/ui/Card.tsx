@@ -14,7 +14,10 @@ export default function Card({ children, onClick, style, ...rest }: CardProps) {
   const handleMouseOver = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isClickable) return;
     const target = e.target as HTMLElement | null;
-    const isIsolated = Boolean(target?.closest?.('[data-isolate-hover="true"]'));
+    const isolated = target?.closest?.('[data-isolate-hover="true"]');
+    // Un elemento aislado dentro de la tarjeta (por ejemplo, una Card anidada) no activa este hover;
+    // la tarjeta marcada conserva el suyo.
+    const isIsolated = Boolean(isolated && isolated !== e.currentTarget && e.currentTarget.contains(isolated));
     if (isIsolated) {
       setIsHovered(false);
     } else {

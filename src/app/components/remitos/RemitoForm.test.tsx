@@ -111,6 +111,7 @@ describe("RemitoForm", () => {
       idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/),
       clase: "X",
       arregloId: null,
+      operacionId: null,
       facturaId: null,
       destinatario: {
         clienteId: null, nombre: "Juan Pérez", domicilio: null, tipoDocumento: null, numeroDocumento: null, condicionIvaReceptorId: null,
@@ -251,6 +252,42 @@ describe("RemitoForm", () => {
       facturaLineaId: null,
       codigo: "REP-1", descripcion: "Pastillas entregadas", observaciones: null, cantidad: facturado ? 2 : 3,
     }]);
+    await waitFor(() => expect(onEmitted).toHaveBeenCalledWith(REMITO_ID));
+  });
+
+  it("precarga cliente y productos desde una venta y emite con la venta de origen", async () => {
+    const OPERACION_ID = "66666666-6666-4666-8666-666666666666";
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock
+      .mockResolvedValueOnce(respuesta({
+        ...preflight,
+        factura: null,
+        arreglo: null,
+        operacion: {
+          id: OPERACION_ID,
+          label: "Venta",
+          facturaId: null,
+          facturaNumero: null,
+          destinatario: { clienteId: null, nombre: "Consumidor final", domicilio: null, tipoDocumento: null, numeroDocumento: null, condicionIvaReceptorId: null },
+          lineas: [{ codigo: "REP-1", descripcion: "Pastillas de freno", cantidad: 2 }],
+        },
+      }))
+      .mockResolvedValueOnce(respuesta({ id: REMITO_ID }));
+    const onEmitted = vi.fn();
+    renderWithProviders(<RemitoForm facturaId={null} operacionId={OPERACION_ID} onEmitted={onEmitted} />);
+
+    expect(await screen.findByLabelText(/Apellido y nombre/)).toHaveValue("Consumidor final");
+    expect(screen.getByLabelText("Descripción del ítem 1")).toHaveValue("Pastillas de freno");
+    expect(screen.getByLabelText("Cantidad del ítem 1")).toHaveValue(2);
+    await seleccionarTipo("X");
+    await emitirRemito();
+
+    expect(fetchMock.mock.calls[0][0]).toBe(`/api/remitos/preflight?operacionId=${OPERACION_ID}`);
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1].body))).toMatchObject({
+      arregloId: null,
+      operacionId: OPERACION_ID,
+      facturaId: null,
+    });
     await waitFor(() => expect(onEmitted).toHaveBeenCalledWith(REMITO_ID));
   });
 });

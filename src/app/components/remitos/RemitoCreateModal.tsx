@@ -8,12 +8,20 @@ type Props = {
   open: boolean;
   facturaId?: string | null;
   arregloId?: string | null;
+  operacionId?: string | null;
   onClose: () => void;
   onEmitted: (remitoId: string) => void;
 };
 
 /** Modal de emisión con el mismo formato amplio del formulario de creación de arreglos. */
-export default function RemitoCreateModal({ open, facturaId = null, arregloId = null, onClose, onEmitted }: Props) {
+export default function RemitoCreateModal({
+  open,
+  facturaId = null,
+  arregloId = null,
+  operacionId = null,
+  onClose,
+  onEmitted,
+}: Props) {
   const [submitting, setSubmitting] = useState(false);
 
   if (!open) return null;
@@ -41,6 +49,7 @@ export default function RemitoCreateModal({ open, facturaId = null, arregloId = 
       <RemitoForm
         facturaId={facturaId}
         arregloId={arregloId}
+        operacionId={operacionId}
         onEmitted={onEmitted}
         onCancel={handleClose}
         onSubmittingChange={setSubmitting}

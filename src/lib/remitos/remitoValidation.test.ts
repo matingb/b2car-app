@@ -53,6 +53,7 @@ describe("parseEmitirRemitoInput", () => {
         idempotencyKey: KEY,
         clase: "X",
         arregloId: null,
+        operacionId: null,
         facturaId: null,
         destinatario: {
           clienteId: null,
@@ -140,6 +141,14 @@ describe("parseEmitirRemitoInput", () => {
       arregloId: FACTURA_ID,
       facturaId: LINEA_ID,
     })).error).toBeUndefined();
+  });
+
+  it("acepta la venta de origen y rechaza combinarla con un arreglo", () => {
+    expect(parseEmitirRemitoInput(emitirBody({ operacionId: FACTURA_ID })).value)
+      .toMatchObject({ arregloId: null, operacionId: FACTURA_ID });
+    expect(parseEmitirRemitoInput(emitirBody({ operacionId: "x" })).error).toContain("La venta de origen");
+    expect(parseEmitirRemitoInput(emitirBody({ arregloId: FACTURA_ID, operacionId: LINEA_ID })).error)
+      .toContain("no desde ambos");
   });
 
   it("acepta un transportista vacío como ausente y valida uno completo", () => {

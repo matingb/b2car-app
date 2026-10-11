@@ -7,12 +7,15 @@ import {
   facturaSearchConditions,
   mapSummary,
 } from "@/lib/facturacion/facturacionService";
+import type { FacturacionAmbiente } from "@/lib/facturacion/types";
 import { parseCalendarDate } from "@/lib/fechas";
+import { isValidUuid } from "@/lib/uuid";
 import { REMITO_RESUMEN_COLUMNS, mapResumen, remitoSearchConditions } from "@/lib/remitos/remitosService";
 import {
   DOCUMENTOS_MAX_RESULTADOS,
   type DocumentoListado,
   type DocumentosFiltros,
+  type DocumentosOrigen,
   type DocumentosPaginados,
 } from "./types";
 
@@ -126,28 +129,7 @@ export async function listDocumentos(
   };
 
   const [fiscal, remito] = await Promise.all([fiscales(), remitos()]);
-
-  const entradas: Entrada[] = [
-    ...fiscal.rows.map((row): Entrada => {
-      const factura = mapSummary(row);
-      return {
-        fecha: factura.fechaComprobante,
-        createdAt: timestamp(factura.createdAt),
-        item: { tipo: "FISCAL", id: factura.id, fecha: factura.fechaComprobante, factura },
-      };
-    }),
-    ...remito.rows.map((row): Entrada => {
-      const resumen = mapResumen(row);
-      return {
-        fecha: resumen.fechaEmision,
-        createdAt: timestamp((row as Record<string, unknown>).created_at),
-        item: { tipo: "REMITO", id: resumen.id, fecha: resumen.fechaEmision, remito: resumen },
-      };
-    }),
-  ];
-  entradas.sort((a, b) => (
-    b.fecha.localeCompare(a.fecha) || b.createdAt - a.createdAt || b.item.id.localeCompare(a.item.id)
-  ));
+  const entradas = ordenarEntradas(fiscal.rows, remito.rows);
 
   const desde = (page - 1) * pageSize;
   return {
@@ -156,4 +138,71 @@ export async function listDocumentos(
     pageSize,
     total: fiscal.count + remito.count,
   };
+}
+
+/** Intercala comprobantes fiscales y remitos del más reciente al más antiguo. */
+function ordenarEntradas(fiscalRows: unknown[], remitoRows: unknown[]): Entrada[] {
+  const entradas: Entrada[] = [
+    ...fiscalRows.map((row): Entrada => {
+      const factura = mapSummary(row);
+      return {
+        fecha: factura.fechaComprobante,
+        createdAt: timestamp(factura.createdAt),
+        item: { tipo: "FISCAL", id: factura.id, fecha: factura.fechaComprobante, factura },
+      };
+    }),
+    ...remitoRows.map((row): Entrada => {
+      const resumen = mapResumen(row);
+      return {
+        fecha: resumen.fechaEmision,
+        createdAt: timestamp((row as Record<string, unknown>).created_at),
+        item: { tipo: "REMITO", id: resumen.id, fecha: resumen.fechaEmision, remito: resumen },
+      };
+    }),
+  ];
+  return entradas.sort((a, b) => (
+    b.fecha.localeCompare(a.fecha) || b.createdAt - a.createdAt || b.item.id.localeCompare(a.item.id)
+  ));
+}
+
+const COLUMNA_ORIGEN: Record<DocumentosOrigen["tipo"], "arreglo_id" | "operacion_id"> = {
+  ARREGLO: "arreglo_id",
+  VENTA: "operacion_id",
+};
+
+/**
+ * Documentos de un arreglo o una venta en el ambiente actual: sus comprobantes fiscales y sus remitos.
+ * Incluye los remitos generados desde esos comprobantes aunque no guarden el origen (por ejemplo,
+ * los emitidos desde el detalle de la factura).
+ */
+export async function listDocumentosAsociados(
+  supabase: SupabaseClient,
+  tenantId: string,
+  ambiente: FacturacionAmbiente,
+  origen: DocumentosOrigen,
+): Promise<DocumentoListado[]> {
+  const columna = COLUMNA_ORIGEN[origen.tipo];
+  const { data: fiscales, error: fiscalesError } = await supabase
+    .from("facturas_electronicas")
+    .select(FACTURA_RESUMEN_COLUMNS)
+    .eq("tenant_id", tenantId)
+    .eq("ambiente", ambiente)
+    .eq(columna, origen.id);
+  if (fiscalesError) throw fiscalesError;
+
+  const facturaIds = ((fiscales ?? []) as unknown[])
+    .map((row) => (row as Record<string, unknown>).id)
+    .filter((id): id is string => isValidUuid(id));
+  let remitosQuery = supabase
+    .from("remitos")
+    .select(REMITO_RESUMEN_COLUMNS)
+    .eq("tenant_id", tenantId)
+    .eq("ambiente", ambiente);
+  remitosQuery = facturaIds.length
+    ? remitosQuery.or(`${columna}.eq.${origen.id},factura_id.in.(${facturaIds.join(",")})`)
+    : remitosQuery.eq(columna, origen.id);
+  const { data: remitos, error: remitosError } = await remitosQuery;
+  if (remitosError) throw remitosError;
+
+  return ordenarEntradas((fiscales ?? []) as unknown[], (remitos ?? []) as unknown[]).map((entrada) => entrada.item);
 }
