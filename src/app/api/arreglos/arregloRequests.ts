@@ -43,6 +43,7 @@ export type CreateArregloRequest = {
   extra_data?: string;
   cliente_id?: string | null;
   es_facturable?: boolean;
+  precios_incluyen_iva?: boolean;
 
   // opcional: creación "completa" desde el modal (1 POST)
   detalles?: Array<{
@@ -82,6 +83,7 @@ export type CreateArregloInsertPayload = {
   extra_data: string | null;
   cliente_id?: string | null;
   es_facturable?: boolean;
+  precios_incluyen_iva?: boolean;
 };
 
 export type UpdateArregloRequest = {

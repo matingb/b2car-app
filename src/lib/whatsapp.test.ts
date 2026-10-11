@@ -495,6 +495,71 @@ describe("repuestos pendientes en buildArregloWhatsappMessage", () => {
   });
 });
 
+describe("precios sin IVA en buildArregloWhatsappMessage", () => {
+  const buildData = (arregloOverrides: Parameters<typeof createArreglo>[0]) =>
+    createArregloDetalleData({
+      arreglo: createArreglo({
+        estado: "PRESUPUESTO",
+        precio_final: 0,
+        repuestos_pendientes: [
+          { id: "pending", tipo: "NUEVO", nombre: "Aceite", cantidad: 2, monto_unitario: 4000 },
+        ],
+        ...arregloOverrides,
+      }),
+      detalles: [
+        {
+          id: "d1",
+          arreglo_id: "a1",
+          descripcion: "Mano de obra",
+          cantidad: 1,
+          precio_hora_facturada: 10000,
+          horas_facturadas: 1,
+          horas_trabajadas: 1,
+          categoria_arreglo_id: null,
+          empleado_id: null,
+        },
+      ],
+    });
+
+  it("muestra ítems y subtotales con IVA incluido cuando los precios se cargaron sin IVA", () => {
+    const data = buildData({ precios_incluyen_iva: false, tasa_iva: 0.21, precio_final: 21780 });
+
+    const message = buildArregloWhatsappMessage(data, {
+      mostrarPreciosItems: true,
+      mostrarSubtotales: true,
+    });
+
+    expect(message).toContain("Aceite x2 - $9.680");
+    expect(message).toContain("Mano de obra x1 - $12.100");
+    expect(message).toContain("_Subtotal repuestos: $9.680_");
+    expect(message).toContain("_Subtotal mano de obra: $12.100_");
+    expect(message).toContain("*Total arreglo $21.780*");
+  });
+
+  it("usa la tasa de IVA del arreglo y suma el IVA al total calculado", () => {
+    const data = buildData({ precios_incluyen_iva: false, tasa_iva: 0.105 });
+
+    const message = buildArregloWhatsappMessage(data, {
+      mostrarDetalleItems: false,
+      mostrarSubtotales: true,
+    });
+
+    expect(message).toContain("Repuestos: $8.840");
+    expect(message).toContain("Mano de obra: $11.050");
+    expect(message).toContain("*Total arreglo $19.890*");
+  });
+
+  it("no modifica los importes cuando los precios ya incluyen IVA", () => {
+    const data = buildData({ precios_incluyen_iva: true, tasa_iva: 0.21 });
+
+    const message = buildArregloWhatsappMessage(data, { mostrarPreciosItems: true });
+
+    expect(message).toContain("Aceite x2 - $8.000");
+    expect(message).toContain("Mano de obra x1 - $10.000");
+    expect(message).toContain("*Total arreglo $18.000*");
+  });
+});
+
 describe("buildTurnoWhatsappMessage", () => {
   it("no renderiza líneas opcionales si faltan datos", () => {
     const turno = createTurno({

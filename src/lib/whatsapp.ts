@@ -4,6 +4,7 @@ import type { Turno } from "@/model/types";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { safeNumber } from "@/lib/numbers";
 import { calcLineTotal } from "@/lib/calcLineTotal";
+import { importeComercial } from "@/lib/ivaComercial";
 
 export interface ArregloWhatsappOptions {
 	tenantName?: string;
@@ -20,6 +21,8 @@ type WhatsappRepuestoLinea = {
 	cantidad: number;
 	monto_unitario: number;
 };
+
+type ImporteCliente = (importe: number) => number;
 
 export function buildArregloWhatsappMessage(
 	data: ArregloDetalleData,
@@ -45,6 +48,7 @@ export function buildArregloWhatsappMessage(
 	const arreglo = data.arreglo;
 	const detalles = Array.isArray(data.detalles) ? data.detalles : [];
 	const repuestosLineas = getRepuestosWhatsappLines(data);
+	const importeCliente = buildImporteCliente(arreglo);
 
 	const isPagado =
 		(arreglo.total_cobrado || 0) >= (arreglo.precio_final || 0) && (arreglo.precio_final || 0) > 0;
@@ -61,7 +65,12 @@ export function buildArregloWhatsappMessage(
 	lines.push("");
 
 	// 3. Totales calculados
-	const totals = calculateArregloTotals(detalles, repuestosLineas, arreglo.precio_final);
+	const totals = calculateArregloTotals(
+		detalles,
+		repuestosLineas,
+		arreglo.precio_final,
+		importeCliente
+	);
 
 	// 4. Secciones
 	if (mostrarDetalleItems) {
@@ -70,6 +79,7 @@ export function buildArregloWhatsappMessage(
 			lines.push(
 				...buildRepuestosSectionLines(
 					repuestosLineas,
+					importeCliente,
 					mostrarPreciosItems,
 					mostrarSubtotales,
 					totals.subtotalRepuestos
@@ -83,6 +93,7 @@ export function buildArregloWhatsappMessage(
 			lines.push(
 				...buildServiciosSectionLines(
 					detalles,
+					importeCliente,
 					mostrarPreciosItems,
 					mostrarSubtotales,
 					totals.subtotalServicios
@@ -149,23 +160,33 @@ function buildVehiculoInfoLines(
 	return lines;
 }
 
+/** El cliente siempre ve importes finales, con el IVA comercial incluido. */
+function buildImporteCliente(arreglo: ArregloDetalleData["arreglo"]): ImporteCliente {
+	const incluyeIva = arreglo.precios_incluyen_iva !== false;
+	const tasa = arreglo.tasa_iva ?? 0.21;
+	return (importe) => importeComercial(importe, incluyeIva, tasa);
+}
+
 function calculateArregloTotals(
 	detalles: ArregloDetalleData["detalles"],
 	repuestosLineas: WhatsappRepuestoLinea[],
-	precioFinal: number
+	precioFinal: number,
+	importeCliente: ImporteCliente
 ): { subtotalServicios: number; subtotalRepuestos: number; total: number } {
 	const subtotalServicios = (detalles ?? []).reduce(
 		(acc, d) =>
 			acc +
-			calcLineTotal({
-				cantidad: d.cantidad,
-				horas_facturadas: d.horas_facturadas,
-				precio_hora_facturada: d.precio_hora_facturada,
-			}),
+			importeCliente(
+				calcLineTotal({
+					cantidad: d.cantidad,
+					horas_facturadas: d.horas_facturadas,
+					precio_hora_facturada: d.precio_hora_facturada,
+				})
+			),
 		0
 	);
 	const subtotalRepuestos = repuestosLineas.reduce(
-		(acc, l) => acc + safeNumber(l.monto_unitario) * safeNumber(l.cantidad),
+		(acc, l) => acc + importeCliente(safeNumber(l.monto_unitario) * safeNumber(l.cantidad)),
 		0
 	);
 	const totalCalculado = subtotalServicios + subtotalRepuestos;
@@ -183,6 +204,7 @@ function buildItemLine(label: string, cantidad: number, totalMonto?: number): st
 
 function buildRepuestosSectionLines(
 	repuestosLineas: WhatsappRepuestoLinea[],
+	importeCliente: ImporteCliente,
 	showItemPrices: boolean,
 	showSubtotal: boolean,
 	subtotal: number
@@ -191,7 +213,7 @@ function buildRepuestosSectionLines(
 	repuestosLineas.forEach((r) => {
 		const cantidad = safeNumber(r.cantidad);
 		const monto = safeNumber(r.monto_unitario);
-		const total = cantidad * monto;
+		const total = importeCliente(cantidad * monto);
 		lines.push(buildItemLine(r.label, cantidad, showItemPrices ? total : undefined));
 	});
 	if (showSubtotal) {
@@ -202,6 +224,7 @@ function buildRepuestosSectionLines(
 
 function buildServiciosSectionLines(
 	detalles: NonNullable<ArregloDetalleData["detalles"]>,
+	importeCliente: ImporteCliente,
 	showItemPrices: boolean,
 	showSubtotal: boolean,
 	subtotal: number
@@ -211,11 +234,13 @@ function buildServiciosSectionLines(
 		const cantidad = safeNumber(d.cantidad);
 		const horasFacturadas = d.horas_facturadas == null ? null : safeNumber(d.horas_facturadas);
 		const precioHora = safeNumber(d.precio_hora_facturada);
-		const total = calcLineTotal({
-			cantidad,
-			horas_facturadas: horasFacturadas,
-			precio_hora_facturada: precioHora,
-		});
+		const total = importeCliente(
+			calcLineTotal({
+				cantidad,
+				horas_facturadas: horasFacturadas,
+				precio_hora_facturada: precioHora,
+			})
+		);
 		const label = String(d.descripcion ?? "").trim() || "Servicio";
 		lines.push(buildItemLine(label, cantidad, showItemPrices ? total : undefined));
 	});

@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
-import Checkbox from "@/app/components/ui/Checkbox";
 import Modal from "@/app/components/ui/Modal";
 import { Arreglo, Vehiculo } from "@/model/types";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
@@ -132,6 +131,11 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const [estaPago, setEstaPago] = useState<boolean>(!!initial?.esta_pago);
   const [preciosIncluyenIva, setPreciosIncluyenIva] = useState(initial?.precios_incluyen_iva ?? true);
   const ivaBlockedByPayment = Number(initial?.total_cobrado ?? 0) > 0 || !!initial?.esta_pago;
+  const preciosSinIvaBloqueo = !canEditPrices
+    ? "Necesitás permiso para editar precios."
+    : isEdit && ivaBlockedByPayment
+      ? "No se puede cambiar mientras existan cobros vigentes."
+      : null;
   const [esFacturable, setEsFacturable] = useState<boolean>(initial?.es_facturable !== false);
   const [cuentaFinancieraId, setCuentaFinancieraId] = useState("");
   const [fechaCobro, setFechaCobro] = useState(() => toISODateLocal(new Date()));
@@ -210,6 +214,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     extraData,
     selectedVehiculoId,
     esFacturable,
+    preciosIncluyenIva,
   };
 
   const handleFieldsChange = (patch: Partial<ArregloFormFieldsValues>) => {
@@ -226,6 +231,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       observaciones: (value) => setObservaciones(String(value ?? "")),
       estaPago: (value) => setEstaPago(Boolean(value)),
       esFacturable: (value) => setEsFacturable(Boolean(value)),
+      preciosIncluyenIva: (value) => setPreciosIncluyenIva(Boolean(value)),
       extraData: (value) => setExtraData(String(value ?? "")),
       selectedVehiculoId: (value) => setSelectedVehiculoId(String(value ?? "")),
     };
@@ -316,6 +322,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           observaciones: normalizeArregloObservaciones(observaciones, false),
           esta_pago: canCobros ? !!estaPago : false,
           es_facturable: resolveEsFacturableForCreate(canUseBilling, esFacturable),
+          ...(canEditPrices && !preciosIncluyenIva ? { precios_incluyen_iva: false } : {}),
           ...(requiereCuentaFinanciera ? {
             cuenta_financiera_id: targetCuentaId,
             idempotency_key: generateUuidV4(),
@@ -428,6 +435,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           vehiculoOptions={vehiculoOptions}
           isEdit={isEdit}
           showFacturable={canUseBilling}
+          showPreciosSinIva={isEdit || canEditPrices}
+          preciosSinIvaBloqueo={preciosSinIvaBloqueo}
           submitting={submitting}
           tallerId={tallerSeleccionadoId ?? null}
           persistedEstado={initial?.estado}
@@ -436,17 +445,6 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           onValidityChange={(next) => setIsValid(next)}
           onChange={(next) => setInternal(next)}
         />
-        {isEdit && (
-          <div style={styles.finanzasBox}>
-            <Checkbox label="Precios incluyen IVA" checked={preciosIncluyenIva}
-              onChange={setPreciosIncluyenIva} disabled={submitting || !canEditPrices || ivaBlockedByPayment} />
-            <div style={styles.finanzasHelp}>
-              {ivaBlockedByPayment ? "No se puede cambiar mientras existan cobros vigentes."
-                : !canEditPrices ? "Necesitás permiso para editar precios."
-                  : "Desmarcado: se agrega el IVA comercial al total. Los precios ingresados no se modifican."}
-            </div>
-          </div>
-        )}
         {!isEdit && requiereCuentaFinanciera ? (
           <div style={styles.finanzasBox}>
             <div style={styles.finanzasTitle}>

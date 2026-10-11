@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import { drawCentered, drawRight, formatDate, text, wrapText } from "@/lib/pdf/pdfText";
 import { formatArs, formatNumberAr } from "../format";
 import { FacturacionValidationError } from "./arcaPayload";
+import { precioUnitarioMostrado } from "./lineaImporte";
 import {
   amountInPesosWords, emitterCommercialAddress, emitterFiscalIvaLabel,
   fceLegalLegend, hasFiscalIibb, isFceInvoice, receiverFiscalIvaLabel,
@@ -108,14 +109,7 @@ function formatAmount(value: number): string {
 }
 
 export function fiscalPdfUnitPrice(line: FiscalPdfLine): { value: number; maxDecimals: number } {
-  const total = line.importeTotal ?? line.subtotal;
-  const unitExtension = Math.round(line.importeUnitario * line.cantidad * 100);
-  const totalCents = Math.round(total * 100);
-  const needsEffectivePrice = line.cantidad > 0 && unitExtension !== totalCents;
-  return {
-    value: needsEffectivePrice ? total / line.cantidad : line.importeUnitario,
-    maxDecimals: needsEffectivePrice ? 6 : 2,
-  };
+  return precioUnitarioMostrado(line, line.importeTotal ?? line.subtotal);
 }
 
 function printableRows(lines: FiscalPdfLine[], font: PDFFont): PrintableRow[] {

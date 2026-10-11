@@ -27,6 +27,7 @@ import { fceMipymeRequired } from "./fceMipyme";
 import { assertIdempotencyReplay } from "./idempotency";
 import { createArregloServiceInvoiceLine } from "./arregloInvoiceLine";
 import { generateFiscalInvoicePdf, type FiscalPdfInvoice } from "./fiscalPdf";
+import { importeLineaMostrado } from "./lineaImporte";
 import { hasFiscalIibb, isFceInvoice } from "./fiscalPresentation";
 import { lookupArcaPadronPerson } from "@/lib/arcaPadron/arcaPadronGateway";
 import { lookupArcaInscriptionVatCondition } from "@/lib/arcaInscripcion/arcaInscripcionGateway";
@@ -1632,8 +1633,8 @@ export async function exportFacturasRows(tenantId: string, filters: FacturasList
   }));
 }
 
-// v7: importes finales desde snapshot para líneas ingresadas sin IVA.
-const PDF_TEMPLATE_VERSION = "fiscal-v7";
+// v8: líneas cargadas sin IVA muestran el neto; el IVA queda en los totales.
+const PDF_TEMPLATE_VERSION = "fiscal-v8";
 const PDF_BUCKET = "facturacion-comprobantes";
 export function isVerifiedFiscalPdfCache(input: {
   storedPath: string | null;
@@ -1732,7 +1733,7 @@ export async function buildFacturaPdf(tenantId: string, facturaId: string): Prom
     lineas: detail.lineas.map((line) => ({
       codigo: line.codigo ?? null, descripcion: line.descripcion, cantidad: line.cantidad,
       importeUnitario: line.importeUnitario, subtotal: line.subtotal,
-      importeTotal: line.importeTotal,
+      importeTotal: importeLineaMostrado(line),
     })),
   };
   const bytes = await generateFiscalInvoicePdf(fiscal);

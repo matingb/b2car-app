@@ -289,6 +289,65 @@ describe("POST /api/arreglos", () => {
     );
   });
 
+  it("envía precios sin IVA a la RPC de creación", async () => {
+    const req = new Request("http://localhost/api/arreglos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(createCreateArregloRequest({ precios_incluyen_iva: false })),
+    });
+
+    const response = await POST(req);
+
+    expect(response.status).toBe(201);
+    expect(rpc).toHaveBeenCalledWith(
+      "rpc_crear_arreglo_completo",
+      expect.objectContaining({ p_precios_incluyen_iva: false }),
+    );
+  });
+
+  it("crea con precios con IVA por defecto", async () => {
+    const req = new Request("http://localhost/api/arreglos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(createCreateArregloRequest()),
+    });
+
+    const response = await POST(req);
+
+    expect(response.status).toBe(201);
+    expect(rpc).toHaveBeenCalledWith(
+      "rpc_crear_arreglo_completo",
+      expect.objectContaining({ p_precios_incluyen_iva: true }),
+    );
+  });
+
+  it("requiere permiso de precios para crear con precios sin IVA", async () => {
+    vi.mocked(hasUserPermission).mockResolvedValueOnce(false);
+    const req = new Request("http://localhost/api/arreglos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(createCreateArregloRequest({ precios_incluyen_iva: false })),
+    });
+
+    const response = await POST(req);
+
+    expect(response.status).toBe(403);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("rechaza precios_incluyen_iva no booleano", async () => {
+    const req = new Request("http://localhost/api/arreglos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...createCreateArregloRequest(), precios_incluyen_iva: "no" }),
+    });
+
+    const response = await POST(req);
+
+    expect(response.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("rechaza un nivel de combustible fuera del rango permitido", async () => {
     const req = new Request("http://localhost/api/arreglos", {
       method: "POST",

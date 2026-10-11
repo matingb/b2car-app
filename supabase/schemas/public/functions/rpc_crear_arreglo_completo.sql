@@ -19,7 +19,8 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_arreglo_completo (
   p_idempotency_key    uuid                     DEFAULT NULL::uuid,
   p_combustible_leido  integer                  DEFAULT NULL::integer,
   p_es_facturable      boolean                  DEFAULT false,
-  p_iva_rate           numeric                  DEFAULT 0.21
+  p_iva_rate           numeric                  DEFAULT 0.21,
+  p_precios_incluyen_iva boolean                DEFAULT true
 )
   RETURNS uuid
   LANGUAGE plpgsql
@@ -31,6 +32,7 @@ DECLARE
   v_pendientes jsonb;
   v_precio_final numeric;
   v_precio_sin_iva numeric;
+  v_incluye_iva boolean := coalesce(p_precios_incluyen_iva, true);
 BEGIN
   IF p_vehiculo_id IS NULL OR p_taller_id IS NULL OR p_fecha IS NULL THEN
     RAISE EXCEPTION 'vehiculo_id, taller_id y fecha son requeridos' USING ERRCODE = '22023';
@@ -65,6 +67,14 @@ BEGIN
     p_vehiculo_id, p_taller_id, p_estado, p_descripcion, p_kilometraje_leido,
     p_fecha, p_observaciones, p_precio_final, p_precio_sin_iva, false, p_extra_data
   );
+  -- Fijar el modo IVA antes de insertar líneas: b2c197_guardar_iva valida el permiso
+  -- de precios y los recálculos posteriores ya suman el IVA comercial por línea.
+  IF NOT v_incluye_iva THEN
+    UPDATE public.arreglos
+    SET precios_incluyen_iva = false,
+        tasa_iva = p_iva_rate
+    WHERE id = v_arreglo_id;
+  END IF;
   PERFORM public._insert_detalles_arreglo(v_arreglo_id, p_detalles);
   PERFORM public._insert_detalle_form_custom(v_arreglo_id, p_detalle_formulario);
   -- p_precio_final is only the client preview; triggers may resolve a different
@@ -80,7 +90,9 @@ BEGIN
         updated_at = now()
     WHERE id = v_arreglo_id;
     v_precio_final := public.calcular_precio_final_arreglo(v_arreglo_id);
-    v_precio_sin_iva := round(v_precio_final / (1 + p_iva_rate), 2);
+    v_precio_sin_iva := CASE WHEN v_incluye_iva
+      THEN round(v_precio_final / (1 + p_iva_rate), 2)
+      ELSE public._b2c197_total_entradas(v_arreglo_id, false, 0, v_pendientes, true) END;
     UPDATE public.arreglos
     SET precio_final = v_precio_final,
         precio_sin_iva = v_precio_sin_iva
@@ -90,7 +102,9 @@ BEGIN
   PERFORM public._asignar_repuestos_existentes_a_arreglo(v_arreglo_id, p_taller_id, p_repuestos, p_cuenta_id, p_idempotency_key);
   PERFORM public._crear_repuestos_nuevos_para_arreglo(v_arreglo_id, p_taller_id, p_repuestos_nuevos, p_cuenta_id);
   v_precio_final := public.calcular_precio_final_arreglo(v_arreglo_id);
-  v_precio_sin_iva := round(v_precio_final / (1 + p_iva_rate), 2);
+  v_precio_sin_iva := CASE WHEN v_incluye_iva
+    THEN round(v_precio_final / (1 + p_iva_rate), 2)
+    ELSE public._b2c197_total_entradas(v_arreglo_id, false, 0, NULL, true) END;
   UPDATE public.arreglos
   SET combustible_leido = p_combustible_leido,
       precio_final = v_precio_final,
@@ -110,25 +124,25 @@ $function$;
 
 GRANT EXECUTE
   ON FUNCTION "public"."rpc_crear_arreglo_completo"(uuid, uuid, public.estado_arreglo, text, integer, timestamp
-    WITH time zone, text, numeric, numeric, boolean, jsonb, jsonb, jsonb, jsonb, jsonb, uuid, timestamp WITH time zone, uuid, integer, boolean, numeric)
+    WITH time zone, text, numeric, numeric, boolean, jsonb, jsonb, jsonb, jsonb, jsonb, uuid, timestamp WITH time zone, uuid, integer, boolean, numeric, boolean)
   TO "anon", "authenticated";
 
 GRANT EXECUTE
   ON FUNCTION "public"."rpc_crear_arreglo_completo"(uuid, uuid, public.estado_arreglo, text, integer, timestamp
-    WITH time zone, text, numeric, numeric, boolean, jsonb, jsonb, jsonb, jsonb, jsonb, uuid, timestamp WITH time zone, uuid, integer, boolean, numeric)
+    WITH time zone, text, numeric, numeric, boolean, jsonb, jsonb, jsonb, jsonb, jsonb, uuid, timestamp WITH time zone, uuid, integer, boolean, numeric, boolean)
   TO "service_role";
 
 REVOKE ALL
   ON FUNCTION "public"."rpc_crear_arreglo_completo"(uuid, uuid, public.estado_arreglo, text, integer, timestamp
-    WITH time zone, text, numeric, numeric, boolean, jsonb, jsonb, jsonb, jsonb, jsonb, uuid, timestamp WITH time zone, uuid, integer, boolean, numeric)
+    WITH time zone, text, numeric, numeric, boolean, jsonb, jsonb, jsonb, jsonb, jsonb, uuid, timestamp WITH time zone, uuid, integer, boolean, numeric, boolean)
   FROM PUBLIC;
 
 REVOKE ALL
   ON FUNCTION "public"."rpc_crear_arreglo_completo"(uuid, uuid, public.estado_arreglo, text, integer, timestamp
-    WITH time zone, text, numeric, numeric, boolean, jsonb, jsonb, jsonb, jsonb, jsonb, uuid, timestamp WITH time zone, uuid, integer, boolean, numeric)
+    WITH time zone, text, numeric, numeric, boolean, jsonb, jsonb, jsonb, jsonb, jsonb, uuid, timestamp WITH time zone, uuid, integer, boolean, numeric, boolean)
   FROM "postgres";
 
 GRANT EXECUTE
   ON FUNCTION "public"."rpc_crear_arreglo_completo"(uuid, uuid, public.estado_arreglo, text, integer, timestamp
-    WITH time zone, text, numeric, numeric, boolean, jsonb, jsonb, jsonb, jsonb, jsonb, uuid, timestamp WITH time zone, uuid, integer, boolean, numeric)
+    WITH time zone, text, numeric, numeric, boolean, jsonb, jsonb, jsonb, jsonb, jsonb, uuid, timestamp WITH time zone, uuid, integer, boolean, numeric, boolean)
   TO "postgres";
