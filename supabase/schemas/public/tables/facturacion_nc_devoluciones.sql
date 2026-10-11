@@ -13,6 +13,7 @@ CREATE TABLE public.facturacion_nc_devoluciones (
 
 ALTER TABLE public.facturacion_nc_devoluciones ENABLE ROW LEVEL SECURITY;
 CREATE INDEX facturacion_nc_devoluciones_original_idx ON public.facturacion_nc_devoluciones (factura_original_id);
+CREATE INDEX facturacion_nc_devoluciones_linea_idx ON public.facturacion_nc_devoluciones (operacion_linea_id);
 CREATE INDEX facturacion_nc_devoluciones_stock_idx ON public.facturacion_nc_devoluciones (stock_id);
 CREATE POLICY facturacion_nc_devoluciones_read_tenant ON public.facturacion_nc_devoluciones
   FOR SELECT TO authenticated USING (tenant_id = public.current_tenant_id());

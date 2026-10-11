@@ -9,8 +9,11 @@ import Card from "@/app/components/ui/Card";
 import FacturaListItem from "@/app/components/facturacion/FacturaListItem";
 import FacturaSummaryCard from "@/app/components/facturacion/FacturaSummaryCard";
 import FacturaRemitosSection from "@/app/components/remitos/FacturaRemitosSection";
+import ReadOnlyLineaCard from "@/app/components/arreglos/lineas/shared/ReadOnlyLineaCard";
+import NumberInput from "@/app/components/ui/NumberInput";
 import {
   type DevolucionStockDisponible,
+  type DevolucionesDisponiblesResult,
   type FacturaElectronicaDetalle,
 } from "@/lib/facturacion/types";
 import { COLOR } from "@/theme/theme";
@@ -41,6 +44,7 @@ export default function FacturaDetailPage() {
   const [noteReason, setNoteReason] = useState("");
   const [noteIdempotencyKey, setNoteIdempotencyKey] = useState<string | null>(null);
   const [stockReturns, setStockReturns] = useState<DevolucionStockDisponible[]>([]);
+  const [stockReturnsWarning, setStockReturnsWarning] = useState<string | null>(null);
   const [returnQuantities, setReturnQuantities] = useState<Record<string, string>>({});
   const [stockReturnsLoading, setStockReturnsLoading] = useState(false);
   const [stockReturnsFailed, setStockReturnsFailed] = useState(false);
@@ -117,6 +121,7 @@ export default function FacturaDetailPage() {
     setError(null);
     setNoteAmount(type === "NOTA_CREDITO" ? String(invoice?.total ?? "") : "");
     setStockReturns([]);
+    setStockReturnsWarning(null);
     setReturnQuantities({});
     setStockReturnsFailed(false);
     if (type === "NOTA_CREDITO") {
@@ -125,9 +130,10 @@ export default function FacturaDetailPage() {
         const response = await fetch(`/api/facturas/${params.id}/devoluciones`, { cache: "no-store" });
         const body = await response.json();
         if (!response.ok) throw new Error(body.error || "No se pudo consultar el stock retornable");
-        const available = body.data as DevolucionStockDisponible[];
-        setStockReturns(available);
-        setReturnQuantities(Object.fromEntries(available.map((line) => [line.operacionLineaId, String(line.restante)])));
+        const available = body.data as DevolucionesDisponiblesResult;
+        setStockReturns(available.items);
+        setStockReturnsWarning(available.advertencia);
+        setReturnQuantities(Object.fromEntries(available.items.map((line) => [line.operacionLineaId, String(line.restante)])));
       } catch (cause) {
         setStockReturnsFailed(true);
         setError(cause instanceof Error ? cause.message : "No se pudo consultar el stock retornable");
@@ -143,6 +149,7 @@ export default function FacturaDetailPage() {
     setNoteReason("");
     setNoteIdempotencyKey(null);
     setStockReturns([]);
+    setStockReturnsWarning(null);
     setReturnQuantities({});
     setStockReturnsFailed(false);
   };
@@ -269,21 +276,63 @@ export default function FacturaDetailPage() {
                   <label style={styles.field}>{noteOpen === "NOTA_CREDITO" ? "Importe total de Nota de Crédito" : "Importe de Nota de Débito"}<input required type="number" min="0.01" step="0.01" style={styles.input} value={noteAmount} onChange={(event) => setNoteAmount(event.target.value)} /></label>
                   <label style={{ ...styles.field, flex: "1 1 260px" }}>Motivo<input required maxLength={200} style={styles.input} value={noteReason} onChange={(event) => setNoteReason(event.target.value)} /></label>
                 </div>
-                {noteOpen === "NOTA_CREDITO" && stockReturns.length ? (
-                  <div style={styles.returnsSection}>
-                    <h3 style={styles.cardTitle}>Productos que vuelven al stock</h3>
-                    <p style={styles.muted}>El importe fiscal y las unidades que regresan al inventario se eligen por separado.</p>
-                    <div style={styles.returnsList}>
-                      {stockReturns.map((line) => (
-                        <div key={line.operacionLineaId} style={styles.returnRow}>
-                          <div><strong>{line.nombre}</strong>{line.codigo ? <div style={styles.muted}>Código: {line.codigo}</div> : null}</div>
-                          <span style={styles.muted}>Vendido {line.vendido} · Devuelto {line.devuelto} · Reservado {line.reservado} · Restante {line.restante}</span>
-                          <label style={styles.field}>A devolver<input aria-label={`Cantidad a devolver: ${line.nombre}`} type="number" min="0" max={line.restante} step="1" required style={styles.quantityInput} value={returnQuantities[line.operacionLineaId] ?? line.restante} onChange={(event) => setReturnQuantities((current) => ({ ...current, [line.operacionLineaId]: event.target.value }))} /></label>
-                        </div>
-                      ))}
+                {noteOpen === "NOTA_CREDITO" && !stockReturnsLoading && (stockReturns.length > 0 || stockReturnsWarning) ? (
+                  <Card aria-label="Productos que vuelven al stock">
+                    <div style={styles.returnsSection}>
+                      <h3 style={styles.cardTitle}>Productos que vuelven al stock</h3>
+                      <p style={styles.muted}>El importe fiscal y las unidades que regresan al inventario se eligen por separado.</p>
+                      {stockReturnsWarning ? <p role="status" style={styles.warning}>{stockReturnsWarning}</p> : null}
+                      {stockReturns.length ? (
+                        <>
+                          <div style={styles.returnsList}>
+                            {stockReturns.map((line) => (
+                              <ReadOnlyLineaCard
+                                key={line.operacionLineaId}
+                                kind="repuestos"
+                                allowTitleWrap
+                                title={
+                                  <div style={styles.returnTitle}>
+                                    <span>{line.nombre}</span>
+                                    {line.codigo ? <span style={styles.returnCode}>{line.codigo}</span> : null}
+                                  </div>
+                                }
+                                detailContent={
+                                  <span style={styles.returnStats}>
+                                    <span><strong>{line.origenLinea === "REPUESTO" ? "Asignado originalmente" : "Vendido"}</strong> {line.cantidadOriginal}</span>
+                                    <span>Devuelto <strong>{line.devuelto}</strong></span>
+                                    <span>Reservado <strong>{line.reservado}</strong></span>
+                                    <span>Disponible <strong>{line.restante}</strong></span>
+                                  </span>
+                                }
+                                sideContent={
+                                  <label style={styles.returnQuantityField}>
+                                    <span>A devolver</span>
+                                    <NumberInput
+                                      aria-label={`Cantidad a devolver: ${line.nombre}`}
+                                      minValue={0}
+                                      max={line.restante}
+                                      step="1"
+                                      allowDecimals={false}
+                                      value={Math.max(0, Number(returnQuantities[line.operacionLineaId] ?? line.restante) || 0)}
+                                      onValueChange={(quantity) => setReturnQuantities((current) => ({ ...current, [line.operacionLineaId]: String(quantity) }))}
+                                      style={styles.quantityInput}
+                                    />
+                                  </label>
+                                }
+                                cantidad={line.cantidadOriginal}
+                                unitario={0}
+                                onEdit={() => undefined}
+                                onDelete={() => undefined}
+                                canInteract={false}
+                                readOnly
+                              />
+                            ))}
+                          </div>
+                          <p style={styles.muted}>Resumen: {stockReturns.reduce((sum, line) => sum + Number(returnQuantities[line.operacionLineaId] ?? line.restante), 0)} unidades volverían al stock al autorizarse la nota.</p>
+                        </>
+                      ) : <p style={styles.muted}>No hay líneas físicas verificadas para devolver en esta factura.</p>}
                     </div>
-                    <p style={styles.muted}>Resumen: {stockReturns.reduce((sum, line) => sum + Number(returnQuantities[line.operacionLineaId] ?? line.restante), 0)} unidades volverían al stock al autorizarse la nota.</p>
-                  </div>
+                  </Card>
                 ) : null}
                 {noteOpen === "NOTA_CREDITO" && stockReturnsLoading ? <p style={styles.muted}>Consultando cantidades retornables…</p> : null}
                 <div style={styles.noteActions}>
@@ -347,9 +396,13 @@ const styles = {
   noteForm: { display: "flex", flexDirection: "column" as const, alignItems: "stretch", gap: 14, borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`, marginTop: 14, paddingTop: 14 },
   noteFields: { display: "flex", alignItems: "flex-end", gap: 10, flexWrap: "wrap" as const },
   noteActions: { display: "flex", gap: 8, flexWrap: "wrap" as const },
-  returnsSection: { border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 8, padding: 12 },
-  returnsList: { display: "flex", flexDirection: "column" as const, gap: 8, margin: "12px 0" },
-  returnRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" as const, borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`, padding: "8px 0" },
+  returnsSection: { display: "flex", flexDirection: "column" as const, gap: 8 },
+  warning: { color: COLOR.ICON.DANGER, background: COLOR.BACKGROUND.DANGER_TINT, padding: 12, borderRadius: 8, fontSize: 13 },
+  returnsList: { display: "flex", flexDirection: "column" as const, gap: 10, margin: "12px 0" },
+  returnTitle: { display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" as const },
+  returnCode: { marginLeft: 4, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500 },
+  returnStats: { display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const },
+  returnQuantityField: { display: "flex", flexDirection: "column" as const, alignItems: "flex-end", gap: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500 },
   quantityInput: { width: 86, height: 38, borderRadius: 8, border: `1px solid ${COLOR.BORDER.SUBTLE}`, padding: "0 10px", background: COLOR.INPUT.PRIMARY.BACKGROUND, color: COLOR.TEXT.PRIMARY, fontSize: 14 },
   field: { display: "flex", flexDirection: "column" as const, gap: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500 },
   input: { height: 42, borderRadius: 8, border: `1px solid ${COLOR.BORDER.SUBTLE}`, padding: "0 12px", background: COLOR.INPUT.PRIMARY.BACKGROUND, color: COLOR.TEXT.PRIMARY, fontSize: 14 },

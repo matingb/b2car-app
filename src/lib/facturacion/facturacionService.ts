@@ -38,7 +38,8 @@ import {
   type DocumentoFiscalTipo,
   type FacturaElectronicaDetalle,
   type FacturaElectronicaResumen,
-  type DevolucionStockDisponible,
+  type DevolucionesDisponiblesResult,
+  type FacturaStockOrigen,
   type FacturaConcepto,
   type FacturaFechaInput,
   type FacturaLinea,
@@ -85,7 +86,26 @@ type CanonicalSource = {
   receptor: PerfilFiscalCliente;
   advertenciaArcaReceptor?: string;
   lineas: FacturaLinea[];
+  stockOrigins: FacturaStockOrigen[];
 };
+
+function canonicalStockOrigins(origins: FacturaStockOrigen[]): FacturaStockOrigen[] {
+  return origins.map((origin) => ({
+    operacion_linea_id: text(origin.operacion_linea_id),
+    operacion_origen_id: text(origin.operacion_origen_id),
+    stock_id: text(origin.stock_id),
+    taller_id: text(origin.taller_id),
+    producto_id: text(origin.producto_id),
+    origen_linea: origin.origen_linea,
+    cantidad_original: number(origin.cantidad_original),
+    nombre_snapshot: text(origin.nombre_snapshot),
+    codigo_snapshot: nullable(origin.codigo_snapshot),
+  })).sort((a, b) => a.operacion_linea_id.localeCompare(b.operacion_linea_id));
+}
+
+function stockOriginsHash(origins: FacturaStockOrigen[]): string {
+  return createHash("sha256").update(JSON.stringify(canonicalStockOrigins(origins))).digest("hex");
+}
 
 type ResolvedClientProfile = {
   profile: PerfilFiscalCliente;
@@ -601,24 +621,24 @@ async function resolveStockLines(
   tenantId: string,
   operationIds: string[],
   origen: "REPUESTO" | "VENTA",
-): Promise<FacturaLinea[]> {
-  if (!operationIds.length) return [];
+): Promise<{ lineas: FacturaLinea[]; stockOrigins: FacturaStockOrigen[] }> {
+  if (!operationIds.length) return { lineas: [], stockOrigins: [] };
   const supabase = await createClient();
   const { data: rows, error } = await supabase
     .from("operaciones_lineas")
-    .select("id, operacion_id, stock_id, cantidad, monto_unitario, iva_alicuota_id, created_at")
+    .select("id, operacion_id, stock_id, cantidad, delta_cantidad, monto_unitario, iva_alicuota_id, created_at")
     .in("operacion_id", operationIds)
     .order("created_at", { ascending: true });
   if (error) throw new Error("No se pudieron cargar las líneas de productos");
-  const stockIds = (rows ?? []).map((row) => text(record(row).stock_id)).filter(Boolean);
+  const stockIds = [...new Set((rows ?? []).map((row) => text(record(row).stock_id)).filter(Boolean))];
   const stockMap = new Map<string, DbRecord>();
   if (stockIds.length) {
     const { data: stocks, error: stockError } = await supabase
-      .from("stocks").select("id, producto_id").in("id", stockIds).eq("tenant_id", tenantId);
+      .from("stocks").select("id, producto_id, taller_id").in("id", stockIds).eq("tenant_id", tenantId);
     if (stockError) throw new Error("No se pudo resolver el stock");
     (stocks ?? []).forEach((item) => stockMap.set(text(record(item).id), record(item)));
   }
-  const productIds = Array.from(stockMap.values()).map((row) => text(row.producto_id)).filter(Boolean);
+  const productIds = [...new Set(Array.from(stockMap.values()).map((row) => text(row.producto_id)).filter(Boolean))];
   const products = new Map<string, DbRecord>();
   if (productIds.length) {
     const { data, error: productError } = await supabase
@@ -628,24 +648,47 @@ async function resolveStockLines(
     (data ?? []).forEach((item) => products.set(text(record(item).id), record(item)));
   }
   const lineas: FacturaLinea[] = [];
+  const stockOrigins: FacturaStockOrigen[] = [];
   for (const value of rows ?? []) {
     const row = record(value);
-    const stock = stockMap.get(text(row.stock_id)) ?? {};
-    const product = products.get(text(stock.producto_id)) ?? {};
+    const stockId = text(row.stock_id);
+    const stock = stockMap.get(stockId);
+    if (!stock) throw new FacturacionValidationError("No se pudo verificar el stock de origen de la factura");
+    const product = products.get(text(stock.producto_id));
+    if (!product) throw new FacturacionValidationError("No se pudo verificar el producto del stock de origen");
+    const operationLineId = text(row.id);
+    const delta = number(row.delta_cantidad);
+    const cantidad = number(row.cantidad);
+    if (delta >= 0) continue;
+    const cantidadOriginal = Math.abs(delta);
+    if (!Number.isSafeInteger(cantidadOriginal) || cantidadOriginal <= 0
+      || !Number.isSafeInteger(cantidad) || cantidad !== cantidadOriginal) {
+      throw new FacturacionValidationError("La cantidad física de origen no es coherente con la salida de stock");
+    }
+    stockOrigins.push({
+      operacion_linea_id: operationLineId,
+      operacion_origen_id: text(row.operacion_id),
+      stock_id: stockId,
+      taller_id: text(stock.taller_id),
+      producto_id: text(stock.producto_id),
+      origen_linea: origen,
+      cantidad_original: cantidadOriginal,
+      nombre_snapshot: text(product.nombre) || (origen === "VENTA" ? "Producto" : "Repuesto"),
+      codigo_snapshot: nullable(product.codigo),
+    });
     appendLine(lineas, {
       origen,
-      sourceId: text(row.id),
+      sourceId: operationLineId,
       descripcion: text(product.nombre) || (origen === "VENTA" ? "Producto" : "Repuesto"),
       codigo: nullable(product.codigo),
-      cantidad: number(row.cantidad),
+      cantidad,
       importeUnitario: number(row.monto_unitario),
       ivaAlicuotaId: number(row.iva_alicuota_id ?? product.iva_alicuota_id, 5),
       snapshot: { ...row, producto: product },
     });
   }
-  return lineas;
+  return { lineas, stockOrigins: canonicalStockOrigins(stockOrigins) };
 }
-
 async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise<CanonicalSource> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -668,6 +711,7 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise
   ]);
   if (serviceError || formError || assignments.error) throw new Error("No se pudo cargar el detalle del arreglo");
   const lineas: FacturaLinea[] = [];
+  const stockOrigins: FacturaStockOrigen[] = [];
   for (const value of services ?? []) {
     const row = record(value);
     const cant = number(row.cantidad, 1);
@@ -697,7 +741,8 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise
       .from("operaciones").select("id").in("id", assignedIds).eq("tenant_id", tenantId).eq("tipo", "ASIGNACION_ARREGLO");
     if (operationError) throw new Error("No se pudieron validar las asignaciones");
     const repuestos = await resolveStockLines(tenantId, (validOperations ?? []).map((row) => text(record(row).id)), "REPUESTO");
-    repuestos.forEach((line) => lineas.push({ ...line, ordinal: lineas.length + 1 }));
+    repuestos.lineas.forEach((line) => lineas.push({ ...line, ordinal: lineas.length + 1 }));
+    stockOrigins.push(...repuestos.stockOrigins);
   }
   const clientProfile = await getClientProfile(tenantId, clienteId);
   return {
@@ -705,7 +750,7 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise
     total: number(repair.precio_final),
     receptor: clientProfile.profile,
     advertenciaArcaReceptor: clientProfile.advertenciaArcaReceptor,
-    lineas,
+    lineas, stockOrigins: canonicalStockOrigins(stockOrigins),
   };
 }
 
@@ -717,14 +762,14 @@ async function getCanonicalVenta(tenantId: string, operationId: string): Promise
   if (error || !data) throw new FacturacionValidationError("Venta no encontrada");
   const operation = record(data);
   if (text(operation.tipo) !== "VENTA") throw new FacturacionValidationError("Sólo una venta puede facturarse desde Operaciones");
-  const lineas = await resolveStockLines(tenantId, [operationId], "VENTA");
-  const total = lineas.reduce((sum, line) => sum + line.subtotal, 0);
+  const resolved = await resolveStockLines(tenantId, [operationId], "VENTA");
+  const total = resolved.lineas.reduce((sum, line) => sum + line.subtotal, 0);
   const clientProfile = await getClientProfile(tenantId, nullable(operation.cliente_id));
   return {
     id: text(operation.id), origenTipo: "VENTA", fecha: nullable(operation.fecha), total,
     receptor: clientProfile.profile,
     advertenciaArcaReceptor: clientProfile.advertenciaArcaReceptor,
-    lineas,
+    lineas: resolved.lineas, stockOrigins: resolved.stockOrigins,
   };
 }
 
@@ -988,6 +1033,8 @@ type EmitDocumentInput = {
   concepto?: FacturaConcepto;
   associated?: DbRecord | null;
   retry?: DbRecord | null;
+  allowLegacyRetry?: boolean;
+  stockOrigins: FacturaStockOrigen[];
   intentHash: string;
   devoluciones?: Array<{ operacionLineaId: string; cantidad: number }>;
 };
@@ -1032,13 +1079,16 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
     });
     const emitter = emitterSnapshot(input.config);
     const receiver = receiverSnapshot(input.receiver);
+    const canonicalOrigins = canonicalStockOrigins(input.stockOrigins);
+    const origenesHash = stockOriginsHash(canonicalOrigins);
     const contentHash = createHash("sha256").update(JSON.stringify({
       source: input.source.id, documentType: input.documentType, emitter, receiver,
       dates, condition: input.condition, lines: fiscal.lineas, totals: fiscal.totales,
+      stockOrigins: canonicalOrigins,
       fce: isFce ? { cbu: input.config.fceCbu, sistema: input.fceSistema } : null,
       devoluciones: input.devoluciones ?? [],
     })).digest("hex");
-    if (input.retry && text(input.retry.contenido_hash) && text(input.retry.contenido_hash) !== contentHash) {
+    if (input.retry && text(input.retry.contenido_hash) && text(input.retry.contenido_hash) !== contentHash && !input.allowLegacyRetry) {
       throw new FacturacionValidationError("La clave de idempotencia ya se usó con otro importe, motivo o cantidad devuelta; cerrá y abrí una nota nueva");
     }
     const header = {
@@ -1073,6 +1123,8 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
       importe_tributos: fiscal.totales.tributos,
       otros_impuestos_nacionales: fiscal.totales.otrosImpuestosNacionales,
       contenido_hash: contentHash,
+      stock_origenes: input.documentType === "FACTURA" ? canonicalOrigins : [],
+      stock_origenes_hash: input.documentType === "FACTURA" ? origenesHash : null,
       intencion_hash: input.intentHash,
       created_by: input.actor.userId,
     };
@@ -1094,9 +1146,9 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
     const { error: intentSaveError } = await supabase.from("facturacion_idempotencia_intenciones").upsert({
       tenant_id: input.actor.tenantId, idempotency_key: input.idempotencyKey,
       factura_id: invoiceId, contenido_hash: input.intentHash,
-    }, { onConflict: "tenant_id,idempotency_key", ignoreDuplicates: true });
+    }, { onConflict: "tenant_id,idempotency_key" });
     if (intentSaveError) throw new Error("No se pudo conservar la intención de idempotencia");
-    if (input.documentType === "NOTA_CREDITO" && input.source.origenTipo === "VENTA") {
+    if (input.documentType === "NOTA_CREDITO") {
       const { error: reservationError } = await supabase.rpc("rpc_facturacion_reservar_devoluciones", {
         p_nota_id: invoiceId,
         p_devoluciones: input.devoluciones ?? [],
@@ -1215,6 +1267,7 @@ async function issueSourceFactura(
     receptor: receiverSnapshot(receiver), fechas: input.fechas, condicionVenta: input.condicionVenta,
     detalleSimplificado: input.detalleSimplificado, lineas: source.lineas, total: source.total,
     fceSistema: config.fceSistema, fceCbu: config.fceCbu,
+    stockOrigins: canonicalStockOrigins(source.stockOrigins),
   })).digest("hex");
   const supabase = await createClient();
   const { data: priorIntent, error: intentLookupError } = await supabase.from("facturacion_idempotencia_intenciones")
@@ -1251,7 +1304,7 @@ async function issueSourceFactura(
   return emitDocument({
     actor, source, config, documentType: "FACTURA", idempotencyKey: input.idempotencyKey,
     receiver, dates: input.fechas, condition: input.condicionVenta,
-    lines: source.lineas, fceSistema: config.fceSistema,
+    lines: source.lineas, fceSistema: config.fceSistema, stockOrigins: source.stockOrigins,
     fcePreflightConfirmada: input.fcePreflightConfirmada,
     persistedLines: input.detalleSimplificado ? [createSimplifiedArregloLine(source, fiscal)] : undefined,
     concepto,
@@ -1328,7 +1381,7 @@ export function parseNotaInput(value: unknown) {
   if (!Array.isArray(rawReturns)) throw new FacturacionValidationError("La lista de devoluciones no es válida");
   const devoluciones = rawReturns.map((value) => {
     const item = record(value);
-    const operacionLineaId = assertUuid(item.operacionLineaId, "El identificador de línea de venta");
+    const operacionLineaId = assertUuid(item.operacionLineaId, "El identificador de línea de stock");
     const cantidad = Number(item.cantidad);
     if (!Number.isSafeInteger(cantidad) || cantidad < 0) {
       throw new FacturacionValidationError("Cada devolución debe tener una línea válida y una cantidad entera no negativa");
@@ -1382,28 +1435,19 @@ export async function issueNotaFiscal(
   const { data: idempotent, error: idempotencyError } = await supabase.from("facturas_electronicas")
     .select("*").eq("tenant_id", actor.tenantId).eq("idempotency_key", input.idempotencyKey).maybeSingle();
   if (idempotencyError) throw new Error("No se pudo verificar la idempotencia de la nota");
-  let retry: DbRecord | null = null;
-  if (idempotent) {
-    const previous = record(idempotent);
-    if (text(previous.documento_asociado_id) !== facturaId || text(previous.documento_tipo) !== input.tipo) {
-      throw new FacturacionValidationError("La clave de idempotencia ya pertenece a otro documento fiscal");
-    }
-    const summary = mapSummary(previous);
-    if (summary.estado !== "RECHAZADA") {
-      return {
-        invoice: summary,
-        httpStatus: summary.estado === "AUTORIZADA" ? 200 : 409,
-        message: summary.estado === "AUTORIZADA" ? undefined : "La nota debe reconciliarse antes de reintentar",
-      };
-    }
-    retry = previous;
+  const priorInvoiceByKey = idempotent ? record(idempotent) : null;
+  if (priorInvoiceByKey && (text(priorInvoiceByKey.documento_asociado_id) !== facturaId || text(priorInvoiceByKey.documento_tipo) !== input.tipo)) {
+    throw new FacturacionValidationError("La clave de idempotencia ya pertenece a otro documento fiscal");
   }
+  let retry: DbRecord | null = null;
+  let allowLegacyRetry = false;
   const { data: adjustments } = await supabase.from("facturas_electronicas")
-    .select("documento_tipo,total").eq("documento_asociado_id", facturaId)
+    .select("id,documento_tipo,total").eq("documento_asociado_id", facturaId)
     .eq("tenant_id", actor.tenantId).eq("estado", "AUTORIZADA");
-  const credit = (adjustments ?? []).filter((row) => text(record(row).documento_tipo) === "NOTA_CREDITO")
+  const isPriorNote = (row: unknown) => text(record(row).id) === text(priorInvoiceByKey?.id);
+  const credit = (adjustments ?? []).filter((row) => !isPriorNote(row) && text(record(row).documento_tipo) === "NOTA_CREDITO")
     .reduce((sum, row) => sum + number(record(row).total), 0);
-  const debit = (adjustments ?? []).filter((row) => text(record(row).documento_tipo) === "NOTA_DEBITO")
+  const debit = (adjustments ?? []).filter((row) => !isPriorNote(row) && text(record(row).documento_tipo) === "NOTA_DEBITO")
     .reduce((sum, row) => sum + number(record(row).total), 0);
   if (input.tipo === "NOTA_CREDITO" && input.importe > number(original.total) + debit - credit + 0.001) {
     throw new FacturacionValidationError("La nota de crédito supera el saldo fiscal disponible");
@@ -1418,12 +1462,28 @@ export async function issueNotaFiscal(
     .select("*").eq("factura_id", facturaId).order("ordinal");
   if (lineError || !rawLines?.length) throw new Error("No se pudo cargar el detalle de la factura original");
   const originalLines = rawLines.map(mapLine);
+  const { data: originRows, error: originsError } = await supabase.from("facturacion_factura_stock_origenes")
+    .select("operacion_linea_id,operacion_origen_id,stock_id,taller_id,producto_id,origen_linea,cantidad_original,nombre_snapshot,codigo_snapshot")
+    .eq("tenant_id", actor.tenantId).eq("factura_id", facturaId).order("operacion_linea_id");
+  if (originsError) throw new Error("No se pudo consultar la procedencia física de la factura");
+  const stockOrigins = nullable(original.stock_origenes_hash)
+    ? canonicalStockOrigins((originRows ?? []).map((row) => ({
+      operacion_linea_id: text(record(row).operacion_linea_id),
+      operacion_origen_id: text(record(row).operacion_origen_id),
+      stock_id: text(record(row).stock_id), taller_id: text(record(row).taller_id),
+      producto_id: text(record(row).producto_id),
+      origen_linea: text(record(row).origen_linea) as FacturaStockOrigen["origen_linea"],
+      cantidad_original: number(record(row).cantidad_original),
+      nombre_snapshot: text(record(row).nombre_snapshot), codigo_snapshot: nullable(record(row).codigo_snapshot),
+    })))
+    : [];
   const source: CanonicalSource = {
     id: text(original.origen_tipo) === "VENTA" ? text(original.operacion_id) : text(original.arreglo_id),
     origenTipo: text(original.origen_tipo) === "VENTA" ? "VENTA" : "ARREGLO",
     fecha: text(original.fecha_comprobante), total: input.importe,
     receptor: profileFromSnapshot(record(original.receptor_snapshot)),
     lineas: proportionalLines(originalLines, input.importe, input.motivo),
+    stockOrigins,
   };
   const noteVoucher = determineVoucher(config.condicionIvaEmisor, source.receptor.condicionIvaReceptorId, input.tipo);
   if (noteVoucher.clase !== text(original.clase_comprobante)) {
@@ -1437,49 +1497,115 @@ export async function issueNotaFiscal(
     fechaServicioHasta: nullable(original.fecha_servicio_hasta) ?? today,
     fechaVencimientoPago: today,
   };
-  const devoluciones = input.tipo === "NOTA_CREDITO" && source.origenTipo === "VENTA" ? input.devoluciones : [];
+  const devoluciones = input.tipo === "NOTA_CREDITO"
+    ? [...input.devoluciones].sort((a, b) => a.operacionLineaId.localeCompare(b.operacionLineaId)) : [];
+  const condition = text(original.condicion_venta) || "CONTADO";
   const intentHash = createHash("sha256").update(JSON.stringify({
     source: source.id, tipo: input.tipo, receiver: source.receptor, dates,
-    condition: text(original.condicion_venta) || "CONTADO", lines: source.lineas, devoluciones,
+    condition, lines: source.lineas, stockOrigins: canonicalStockOrigins(stockOrigins), devoluciones,
   })).digest("hex");
+  const legacyIntentHash = createHash("sha256").update(JSON.stringify({
+    source: source.id, tipo: input.tipo, receiver: source.receptor, dates, condition, lines: source.lineas,
+  })).digest("hex");
+  const noteFiscal = fiscalizeLineas(source.lineas, config.condicionIvaEmisor);
+  const legacyContentHash = createHash("sha256").update(JSON.stringify({
+    source: source.id, documentType: input.tipo, emitter: emitterSnapshot(config), receiver: receiverSnapshot(source.receptor),
+    dates, condition, lines: noteFiscal.lineas, totals: noteFiscal.totales, devoluciones,
+  })).digest("hex");
+  const { data: priorIntent, error: priorIntentError } = await supabase.from("facturacion_idempotencia_intenciones")
+    .select("factura_id,contenido_hash").eq("tenant_id", actor.tenantId).eq("idempotency_key", input.idempotencyKey).maybeSingle();
+  if (priorIntentError) throw new Error("No se pudo verificar la intención idempotente de la nota");
+  let priorInvoice = priorInvoiceByKey;
+  if (!priorInvoice && priorIntent) {
+    const { data: storedInvoice, error: storedInvoiceError } = await supabase.from("facturas_electronicas").select("*")
+      .eq("id", priorIntent.factura_id).eq("tenant_id", actor.tenantId).maybeSingle();
+    if (storedInvoiceError || !storedInvoice) throw new FacturacionValidationError("No se encontró el documento de la intención original");
+    priorInvoice = record(storedInvoice);
+  }
+  if (priorInvoice) {
+    if (text(priorInvoice.documento_asociado_id) !== facturaId || text(priorInvoice.documento_tipo) !== input.tipo) {
+      throw new FacturacionValidationError("La clave de idempotencia ya pertenece a otro documento fiscal");
+    }
+    const storedIntent = text(priorIntent?.contenido_hash);
+    const storedInvoiceIntent = text(priorInvoice.intencion_hash);
+    const matchesCurrent = storedInvoiceIntent === intentHash && (!storedIntent || storedIntent === intentHash);
+    const matchesLegacyIntent = storedInvoiceIntent === legacyIntentHash
+      && (!storedIntent || storedIntent === legacyIntentHash);
+    const matchesLegacyContent = !storedInvoiceIntent && !storedIntent
+      && text(priorInvoice.contenido_hash) === legacyContentHash;
+    const matchesLegacy = matchesLegacyIntent || matchesLegacyContent;
+    if (!matchesCurrent && !matchesLegacy) {
+      throw new FacturacionValidationError("La clave de idempotencia ya se usó con otro importe, motivo, origen o cantidad devuelta");
+    }
+    if (matchesLegacy) {
+      const { data: priorReturns, error: priorReturnsError } = await supabase.from("facturacion_nc_devoluciones")
+        .select("operacion_linea_id,cantidad").eq("nota_credito_id", priorInvoice.id);
+      if (priorReturnsError) throw new Error("No se pudieron verificar las cantidades de la nota original");
+      const normalized = (rows: Array<{ operacion_linea_id: unknown; cantidad: unknown }>) => rows
+        .map((row) => ({ operacionLineaId: text(row.operacion_linea_id), cantidad: number(row.cantidad) }))
+        .filter((row) => row.cantidad > 0).sort((a, b) => a.operacionLineaId.localeCompare(b.operacionLineaId));
+      const actualReturns = normalized((priorReturns ?? []) as Array<{ operacion_linea_id: unknown; cantidad: unknown }>);
+      const requestedReturns = devoluciones.filter((row) => row.cantidad > 0);
+      if (JSON.stringify(actualReturns) !== JSON.stringify(requestedReturns)) {
+        throw new FacturacionValidationError("La clave de idempotencia ya se usó con otras cantidades devueltas");
+      }
+      allowLegacyRetry = true;
+    }
+    const previousSummary = mapSummary(priorInvoice);
+    if (previousSummary.estado !== "RECHAZADA") {
+      return { invoice: previousSummary, httpStatus: previousSummary.estado === "AUTORIZADA" ? 200 : 409,
+        message: previousSummary.estado === "AUTORIZADA" ? undefined : "La nota debe reconciliarse antes de reintentar" };
+    }
+    retry = priorInvoice;
+  }
   return emitDocument({
     actor, source, config, documentType: input.tipo, idempotencyKey: input.idempotencyKey,
-    receiver: source.receptor, dates, condition: text(original.condicion_venta) || "CONTADO",
-    lines: source.lineas, fceSistema: null, associated: original, retry, intentHash, devoluciones,
+    receiver: source.receptor, dates, condition,
+    lines: source.lineas, fceSistema: null, associated: original, retry, intentHash, devoluciones, stockOrigins, allowLegacyRetry,
   });
 }
 
-export async function getDevolucionesDisponibles(tenantId: string, facturaId: string): Promise<DevolucionStockDisponible[]> {
+export async function getDevolucionesDisponibles(tenantId: string, facturaId: string): Promise<DevolucionesDisponiblesResult> {
   const supabase = await createClient();
   const { data: factura, error: facturaError } = await supabase.from("facturas_electronicas")
-    .select("id,origen_tipo,operacion_id,estado,documento_tipo").eq("id", facturaId).eq("tenant_id", tenantId).maybeSingle();
+    .select("id,origen_tipo,operacion_id,arreglo_id,estado,documento_tipo,stock_origenes_hash")
+    .eq("id", facturaId).eq("tenant_id", tenantId).maybeSingle();
   if (facturaError) throw new Error("No se pudo verificar la factura original para devolver stock");
-  if (!factura || factura.documento_tipo !== "FACTURA" || factura.origen_tipo !== "VENTA" || factura.estado !== "AUTORIZADA") return [];
-  const { data: invoiceLines, error: linesError } = await supabase.from("facturas_electronicas_lineas")
-    .select("source_id,descripcion,codigo,cantidad,origen").eq("factura_id", facturaId).eq("origen", "VENTA");
-  if (linesError) throw new Error("No se pudieron cargar los productos de la factura para devolver stock");
-  if (!invoiceLines?.length) return [];
-  const soldLines = invoiceLines.filter((line) => typeof line.source_id === "string");
-  if (!soldLines.length) return [];
-  const lineIds = soldLines.map((line) => String(line.source_id));
-  const { data: operationLines, error: operationLineError } = await supabase.from("operaciones_lineas")
-    .select("id,stock_id").in("id", lineIds);
-  if (operationLineError) throw new Error("No se pudo verificar el origen de las líneas de venta");
-  if (!operationLines?.length) return [];
-  const stockIds = [...new Set(operationLines.map((line) => String(line.stock_id)))];
-  const { data: stockRows, error: stockError } = await supabase.from("stocks").select("id,producto_id").in("id", stockIds);
-  if (stockError) throw new Error("No se pudo verificar el stock de la venta original");
-  const productIds = [...new Set((stockRows ?? []).map((stock) => String(stock.producto_id)))];
-  const { data: products, error: productError } = productIds.length
-    ? await supabase.from("productos").select("id,nombre,codigo").in("id", productIds)
-    : { data: [] };
-  if (productError) throw new Error("No se pudieron cargar los productos de la venta original");
+  if (!factura) throw new FacturacionValidationError("Factura original no encontrada");
+  const origenTipo: FacturaOrigenTipo = text(record(factura).origen_tipo) === "VENTA" ? "VENTA" : "ARREGLO";
+  if (factura.documento_tipo !== "FACTURA" || factura.estado !== "AUTORIZADA") {
+    return { origenTipo, procedenciaVerificada: false, advertencia: null, items: [] };
+  }
+  const { data: origins, error: originsError } = await supabase.from("facturacion_factura_stock_origenes")
+    .select("operacion_linea_id,operacion_origen_id,stock_id,taller_id,producto_id,origen_linea,cantidad_original,nombre_snapshot,codigo_snapshot")
+    .eq("tenant_id", tenantId).eq("factura_id", facturaId).order("operacion_linea_id");
+  if (originsError) throw new Error("No se pudo consultar la procedencia física de la factura");
+  const normalizedOrigins = canonicalStockOrigins((origins ?? []).map((row) => ({
+    operacion_linea_id: text(record(row).operacion_linea_id),
+    operacion_origen_id: text(record(row).operacion_origen_id),
+    stock_id: text(record(row).stock_id), taller_id: text(record(row).taller_id),
+    producto_id: text(record(row).producto_id),
+    origen_linea: text(record(row).origen_linea) as FacturaStockOrigen["origen_linea"],
+    cantidad_original: number(record(row).cantidad_original),
+    nombre_snapshot: text(record(row).nombre_snapshot), codigo_snapshot: nullable(record(row).codigo_snapshot),
+  })));
+  const hasMarker = Boolean(nullable(factura.stock_origenes_hash));
+  const procedenciaVerificada = hasMarker;
+  if (!procedenciaVerificada) {
+    return {
+      origenTipo, procedenciaVerificada: false,
+      advertencia: "Esta factura histórica no conserva una procedencia física verificable. La NC puede ser fiscal, pero no se puede devolver stock automáticamente.",
+      items: [],
+    };
+  }
+  if (!normalizedOrigins.length) return { origenTipo, procedenciaVerificada: true, advertencia: null, items: [] };
+  const lineIds = normalizedOrigins.map((origin) => origin.operacion_linea_id);
   const { data: reservations, error: reservationError } = await supabase.from("facturacion_nc_devoluciones")
-    .select("nota_credito_id,operacion_linea_id,cantidad").eq("factura_original_id", facturaId);
+    .select("nota_credito_id,operacion_linea_id,cantidad").in("operacion_linea_id", lineIds);
   if (reservationError) throw new Error("No se pudo consultar la disponibilidad actual de devoluciones");
   const noteIds = [...new Set((reservations ?? []).map((row) => String(row.nota_credito_id)))];
   const { data: notes, error: notesError } = noteIds.length
-    ? await supabase.from("facturas_electronicas").select("id,estado").in("id", noteIds)
+    ? await supabase.from("facturas_electronicas").select("id,estado").eq("tenant_id", tenantId).in("id", noteIds)
     : { data: [] };
   if (notesError) throw new Error("No se pudo consultar el estado de notas de crédito previas");
   const stateByNote = new Map((notes ?? []).map((note) => [String(note.id), String(note.estado)]));
@@ -1491,25 +1617,24 @@ export async function getDevolucionesDisponibles(tenantId: string, facturaId: st
     if (state === "AUTORIZADA") returnedByLine.set(id, (returnedByLine.get(id) ?? 0) + number(reservation.cantidad));
     if (state === "ENVIANDO" || state === "INCIERTA") reservedByLine.set(id, (reservedByLine.get(id) ?? 0) + number(reservation.cantidad));
   }
-  const stockById = new Map((stockRows ?? []).map((stock) => [String(stock.id), String(stock.producto_id)]));
-  const productById = new Map((products ?? []).map((product) => [String(product.id), record(product)]));
-  const operationLineById = new Map((operationLines ?? []).map((line) => [String(line.id), String(line.stock_id)]));
-  return soldLines.map((line) => {
-    const id = String(line.source_id);
-    const stockId = operationLineById.get(id);
-    const product = record(productById.get(stockById.get(stockId ?? "") ?? ""));
-    const vendido = number(line.cantidad);
-    const devuelto = returnedByLine.get(id) ?? 0;
-    const reservado = reservedByLine.get(id) ?? 0;
+  const items = normalizedOrigins.map((origin) => {
+    const devuelto = returnedByLine.get(origin.operacion_linea_id) ?? 0;
+    const reservado = reservedByLine.get(origin.operacion_linea_id) ?? 0;
     return {
-      operacionLineaId: id,
-      nombre: text(product.nombre) || text(line.descripcion),
-      codigo: nullable(product.codigo) ?? nullable(line.codigo),
-      vendido, devuelto, reservado, restante: Math.max(0, vendido - devuelto - reservado),
+      operacionLineaId: origin.operacion_linea_id,
+      nombre: origin.nombre_snapshot,
+      codigo: origin.codigo_snapshot,
+      origenLinea: origin.origen_linea,
+      tallerId: origin.taller_id,
+      cantidadOriginal: origin.cantidad_original,
+      vendido: origin.cantidad_original,
+      devuelto,
+      reservado,
+      restante: Math.max(0, origin.cantidad_original - devuelto - reservado),
     };
   });
+  return { origenTipo, procedenciaVerificada: true, advertencia: null, items };
 }
-
 function mapLine(value: unknown): FacturaLinea {
   const row = record(value);
   return {
