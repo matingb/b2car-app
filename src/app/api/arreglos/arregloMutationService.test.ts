@@ -22,6 +22,10 @@ vi.mock("./arregloFormularioService", () => ({
   },
 }));
 
+vi.mock("@/lib/permissions.server", () => ({
+  hasUserPermission: vi.fn().mockResolvedValue(true),
+}));
+
 vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
   statsService: {
     onDataChanged: vi.fn(),
@@ -160,6 +164,31 @@ describe("arregloMutationService", () => {
         observaciones: "Observación actualizada",
       });
       expect(arregloFormularioService.upsertDetalleFormulario).toHaveBeenCalled();
+      expect(statsService.onDataChanged).toHaveBeenCalledWith(supabase, "ten-1");
+    });
+  });
+
+  describe("updateArregloCompleto con modo IVA", () => {
+    it("invalida las stats del dashboard al cambiar precios_incluyen_iva", async () => {
+      vi.mocked(arregloService.getByIdWithVehiculo).mockResolvedValue({
+        data: { id: "a1", tenant_id: "ten-1", estado: "EN_PROGRESO", precios_incluyen_iva: true, total_cobrado: 0 } as unknown as Arreglo,
+        error: null,
+      });
+      vi.mocked(arregloService.updateById).mockResolvedValue({
+        data: { id: "a1", tenant_id: "ten-1", precios_incluyen_iva: false, precio_final: 121 } as unknown as Arreglo,
+        error: null,
+      });
+
+      const result = await arregloMutationService.updateArregloCompleto(supabase, "a1", {
+        precios_incluyen_iva: false,
+      });
+
+      expect(result.status).toBe(200);
+      expect(arregloService.updateById).toHaveBeenCalledWith(
+        supabase,
+        "a1",
+        expect.objectContaining({ precios_incluyen_iva: false, tasa_iva: expect.any(Number) }),
+      );
       expect(statsService.onDataChanged).toHaveBeenCalledWith(supabase, "ten-1");
     });
   });
