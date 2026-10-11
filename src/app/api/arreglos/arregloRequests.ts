@@ -85,6 +85,8 @@ export type CreateArregloInsertPayload = {
 };
 
 export type UpdateArregloRequest = {
+  precios_incluyen_iva?: boolean;
+  extra_data?: string;
   estado?: EstadoArreglo;
   descripcion?: string;
   kilometraje_leido?: number;

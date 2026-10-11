@@ -118,7 +118,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const [preflightRefresh, setPreflightRefresh] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const endpoint = operacionId ? `/api/operaciones/${operacionId}/factura` : `/api/arreglos/${arregloId}/factura`;
   const entidadCerrada = operacionId ? "la venta quedará cerrada" : "el arreglo quedará cerrado";
 
@@ -129,6 +129,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
     setError(null);
     setPreflight(null);
     setFactura(null);
+    setIdempotencyKey(crypto.randomUUID());
     fetch(endpoint, { cache: "no-store" })
       .then(async (response) => {
         const body = await response.json();
@@ -319,7 +320,10 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         }),
       });
       const body = await response.json();
-      if (body.data) setFactura(body.data as FacturaElectronicaResumen);
+      if (body.data) {
+        setFactura(body.data as FacturaElectronicaResumen);
+        if (body.data.estado === "RECHAZADA") setIdempotencyKey(crypto.randomUUID());
+      }
       if (!response.ok) {
         if (body.code === "FCE_DATA_REQUIRED" && body.fce) {
           setPreflight((current) => current ? { ...current, fcePosible: true, fceObligatoria: true, fceCbuConfigurado: body.fce.cbuConfigurado, fceSistemaConfigurado: body.fce.sistema } : current);
@@ -538,8 +542,9 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
             </div>
           ) : null}
           <section style={styles.detail} aria-label="Detalle a facturar">
+            {arregloId && !operacionId ? <span>Precios del arreglo: {preflight.preciosIncluyenIva === false ? "sin IVA incluido" : "con IVA incluido"}. Se modifica desde Editar arreglo.</span> : null}
             <div style={styles.lines}>
-              {detailLines.map((linea) => <div style={styles.line} key={`${linea.origen}-${linea.ordinal}`}><span>{linea.descripcion}{linea.codigo ? ` (${linea.codigo})` : ""} × {linea.cantidad}</span><strong>{formatArs(linea.subtotal, { minDecimals: 2 })}</strong></div>)}
+              {detailLines.map((linea) => <div style={styles.line} key={`${linea.origen}-${linea.ordinal}`}><span>{linea.descripcion}{linea.codigo ? ` (${linea.codigo})` : ""} × {linea.cantidad}</span><strong>{formatArs(linea.importeTotal ?? linea.subtotal, { minDecimals: 2 })}</strong></div>)}
             </div>
             <div style={styles.total}><span>Total a facturar</span><strong style={styles.totalAmount}>{formatArs(preflight.total, { minDecimals: 2 })}</strong></div>
           </section>

@@ -53,7 +53,7 @@ export type CreateArregloInput = {
   detalle_formulario?: CreateArregloDetalleFormularioInput;
 };
 
-export type UpdateArregloInput = Partial<Omit<CreateArregloInput, "vehiculo_id" | "taller_id">>;
+export type UpdateArregloInput = Partial<Omit<CreateArregloInput, "vehiculo_id" | "taller_id">> & { precios_incluyen_iva?: boolean };
 
 export type CobroPagoItemInput = {
   cuenta_financiera_id: string;

@@ -13,6 +13,7 @@ DECLARE
   v_estado text;
   v_tenant_id uuid;
   v_current_tenant uuid := public.current_tenant_id();
+  v_arreglo public.arreglos;
 BEGIN
   IF v_current_tenant IS NULL THEN
     RAISE EXCEPTION 'Sesion sin tenant activo';
@@ -27,11 +28,23 @@ BEGIN
   END IF;
   -- Validar que entidades asociadas pertenezcan al mismo tenant
   IF NULLIF(p_encabezado->>'arreglo_id', '') IS NOT NULL THEN
-    IF NOT EXISTS (
-      SELECT 1 FROM public.arreglos
-      WHERE id = (p_encabezado->>'arreglo_id')::uuid AND tenant_id = v_current_tenant
-    ) THEN
+    -- Always lock source before document, matching collections and mode updates.
+    SELECT * INTO v_arreglo FROM public.arreglos
+    WHERE id = (p_encabezado->>'arreglo_id')::uuid AND tenant_id = v_current_tenant
+    FOR UPDATE;
+    IF NOT FOUND THEN
       RAISE EXCEPTION 'El arreglo no pertenece al tenant activo';
+    END IF;
+    -- New pricing snapshots must be echoed by the server after canonical loading.
+    -- Reject a candidate prepared before a concurrent toggle (including equal totals).
+    IF p_encabezado->>'documento_tipo' = 'FACTURA' AND
+       (v_arreglo.tasa_iva IS NOT NULL OR p_encabezado ? 'precios_incluyen_iva') THEN
+      IF (p_encabezado->>'precios_incluyen_iva')::boolean IS DISTINCT FROM v_arreglo.precios_incluyen_iva
+         OR (p_encabezado->>'tasa_iva')::numeric IS DISTINCT FROM v_arreglo.tasa_iva
+         OR (p_encabezado->>'total')::numeric IS DISTINCT FROM v_arreglo.precio_final THEN
+        RAISE EXCEPTION 'El precio/modo IVA del arreglo cambio; volver a preparar factura'
+          USING ERRCODE = '40001';
+      END IF;
     END IF;
   END IF;
   IF NULLIF(p_encabezado->>'operacion_id', '') IS NOT NULL THEN

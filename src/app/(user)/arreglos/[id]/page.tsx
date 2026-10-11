@@ -434,7 +434,7 @@ export default function ArregloDetailsPage() {
     (acc, l) => acc + safeNumber(l.monto_unitario) * safeNumber(l.cantidad),
     0
   );
-  const totalCalculado = subtotalServicios + subtotalServiciosCustom + subtotalRepuestos;
+  const totalCalculado = Number(arreglo.precio_final ?? 0);
 
   const handleConfirmCustomEdit = async ({
     costo,
@@ -445,11 +445,10 @@ export default function ArregloDetailsPage() {
   }) => {
     if (!data?.arreglo?.id) return;
 
-    const nextPrecioFinal = subtotalServicios + costo + subtotalRepuestos;
+
 
     try {
       await update(data.arreglo.id, {
-        precio_final: nextPrecioFinal,
         detalle_formulario: {
           formulario_id: selectedCustomFormulario?.id,
           costo,
@@ -612,6 +611,8 @@ export default function ArregloDetailsPage() {
             subtotalServicios={subtotalServicios + subtotalServiciosCustom}
             subtotalRepuestos={subtotalRepuestos}
             total={totalCalculado}
+            preciosIncluyenIva={arreglo.precios_incluyen_iva ?? true}
+            precioSinIva={arreglo.precio_sin_iva}
             totalCobrado={arreglo.total_cobrado}
             saldoPendiente={
               arreglo.saldo_pendiente != null
@@ -638,6 +639,9 @@ export default function ArregloDetailsPage() {
             kilometraje_leido: arreglo.kilometraje_leido,
             combustible_leido: arreglo.combustible_leido,
             precio_final: arreglo.precio_final,
+            precios_incluyen_iva: arreglo.precios_incluyen_iva,
+            total_cobrado: arreglo.total_cobrado,
+            es_facturable: arreglo.es_facturable,
             observaciones: arreglo.observaciones,
             descripcion: arreglo.descripcion,
             esta_pago: arreglo.esta_pago,

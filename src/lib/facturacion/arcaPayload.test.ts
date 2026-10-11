@@ -226,3 +226,45 @@ describe("fecha de vencimiento FCE", () => {
     expect(validateFechas(1, { fechaComprobante: "2026-08-27", fechaVencimientoPago: "2026-08-28" }, new Date("2026-08-28T12:00:00Z"), true).fechaVencimientoPago).toBe("2026-08-28");
   });
 });
+
+describe("B2C-197: precios persistidos sin IVA", () => {
+  const line = (amount: number, ivaAlicuotaId = 5): FacturaLinea => ({
+    ...serviceLine, cantidad: 1, importeUnitario: amount, subtotal: amount, ivaAlicuotaId,
+  });
+
+  it("conserva default incluido y suma IVA una sola vez desde netos", () => {
+    expect(fiscalizeLineas([line(121)], "RESPONSABLE_INSCRIPTO").totales).toMatchObject({ netoGravado: 100, iva: 21, total: 121 });
+    const fiscal = fiscalizeLineas([line(100)], "RESPONSABLE_INSCRIPTO", false, 0.21);
+    expect(fiscal.totales).toMatchObject({ netoGravado: 100, iva: 21, total: 121 });
+    expect(fiscal.lineas[0]).toMatchObject({ importeUnitario: 100, subtotal: 100, importeTotal: 121 });
+  });
+
+  it("preserva tasas legales mixtas, exentos, no gravados y cero", () => {
+    const fiscal = fiscalizeLineas([
+      line(100), line(100, 4), { ...line(50), tratamientoIva: "EXENTO" },
+      { ...line(10), tratamientoIva: "NO_GRAVADO" }, line(10, 3),
+    ], "RESPONSABLE_INSCRIPTO", true);
+    expect(fiscal.totales).toMatchObject({ netoGravado: 183.14, iva: 26.86, exento: 50, noGravado: 10, total: 270 });
+  });
+
+  it("redondea el IVA sobre subtotal, no por unidad", () => {
+    const fiscal = fiscalizeLineas([{ ...line(0.01), cantidad: 3, subtotal: 0.03 }], "RESPONSABLE_INSCRIPTO", false, 0.21);
+    expect(fiscal.totales).toMatchObject({ netoGravado: 0.03, iva: 0.01, total: 0.04 });
+    expect(fiscal.lineas[0]).toMatchObject({ importeUnitario: 0.01, subtotal: 0.03, importeTotal: 0.04 });
+  });
+
+  it("revierte alícuota legal sobre gross comercial cuando no coincide", () => {
+    expect(fiscalizeLineas([line(100, 4)], "RESPONSABLE_INSCRIPTO", false, 0.21).totales).toMatchObject({ netoGravado: 109.5, iva: 11.5, total: 121 });
+    expect(fiscalizeLineas([line(100)], "RESPONSABLE_INSCRIPTO", false, 0.10).totales).toMatchObject({ netoGravado: 90.91, iva: 19.09, total: 110 });
+  });
+
+  it("factura C conserva el gross comercial sin volver a sumar IVA; incluido no duplica", () => {
+    expect(fiscalizeLineas([line(100)], "MONOTRIBUTISTA", false, 0.21).totales).toMatchObject({ netoGravado: 121, iva: 0, total: 121 });
+    expect(fiscalizeLineas([line(121)], "RESPONSABLE_INSCRIPTO", true, 0.21).totales).toMatchObject({ netoGravado: 100, iva: 21, total: 121 });
+  });
+
+  it("preserva toda la precisión de la tasa comercial decimal", () => {
+    expect(fiscalizeLineas([line(1000)], "MONOTRIBUTISTA", false, 0.12345).totales)
+      .toMatchObject({ netoGravado: 1123.45, iva: 0, total: 1123.45 });
+  });
+});

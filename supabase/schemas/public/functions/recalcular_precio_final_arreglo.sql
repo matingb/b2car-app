@@ -13,7 +13,7 @@ BEGIN
   ELSE
     v_rec := to_jsonb(NEW);
   END IF;
-  IF TG_TABLE_NAME = 'detalle_arreglo' THEN
+  IF TG_TABLE_NAME IN ('detalle_arreglo', 'detalle_form_custom') THEN
     v_arreglo_id := (v_rec ->> 'arreglo_id')::uuid;
   ELSIF TG_TABLE_NAME = 'operaciones_asignacion_arreglo' THEN
     v_arreglo_id := (v_rec ->> 'arreglo_id')::uuid;
@@ -27,6 +27,8 @@ BEGIN
     END IF;
   END IF;
   IF v_arreglo_id IS NOT NULL THEN
+    -- Lock before reading inputs, not after computing a stale total.
+    PERFORM 1 FROM public.arreglos WHERE id = v_arreglo_id FOR UPDATE;
     UPDATE public.arreglos
     SET precio_final = public.calcular_precio_final_arreglo(v_arreglo_id)
     WHERE id = v_arreglo_id;

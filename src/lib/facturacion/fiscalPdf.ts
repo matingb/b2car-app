@@ -35,6 +35,7 @@ export type FiscalPdfLine = {
   cantidad: number;
   importeUnitario: number;
   subtotal: number;
+  importeTotal?: number;
 };
 
 export type FiscalPdfInvoice = {
@@ -84,6 +85,7 @@ type PrintableRow = FiscalPdfLine & {
   continuation: boolean;
   height: number;
   fullWidth?: boolean;
+  unitarioMaxDecimales?: number;
 };
 
 type PrintablePage = {
@@ -105,9 +107,21 @@ function formatAmount(value: number): string {
   return formatArs(value, { minDecimals: 2, maxDecimals: 2 });
 }
 
+export function fiscalPdfUnitPrice(line: FiscalPdfLine): { value: number; maxDecimals: number } {
+  const total = line.importeTotal ?? line.subtotal;
+  const unitExtension = Math.round(line.importeUnitario * line.cantidad * 100);
+  const totalCents = Math.round(total * 100);
+  const needsEffectivePrice = line.cantidad > 0 && unitExtension !== totalCents;
+  return {
+    value: needsEffectivePrice ? total / line.cantidad : line.importeUnitario,
+    maxDecimals: needsEffectivePrice ? 6 : 2,
+  };
+}
+
 function printableRows(lines: FiscalPdfLine[], font: PDFFont): PrintableRow[] {
   const output: PrintableRow[] = [];
   for (const line of lines) {
+    const unitPrice = fiscalPdfUnitPrice(line);
     const wrapped = wrapText(line.descripcion || "-", font, 8, 230);
     for (let offset = 0; offset < wrapped.length; offset += 28) {
       const descriptionLines = wrapped.slice(offset, offset + 28);
@@ -115,8 +129,9 @@ function printableRows(lines: FiscalPdfLine[], font: PDFFont): PrintableRow[] {
         ...line,
         codigo: offset === 0 ? line.codigo : null,
         cantidad: offset === 0 ? line.cantidad : 0,
-        importeUnitario: offset === 0 ? line.importeUnitario : 0,
-        subtotal: offset === 0 ? line.subtotal : 0,
+        importeUnitario: offset === 0 ? unitPrice.value : 0,
+        unitarioMaxDecimales: offset === 0 ? unitPrice.maxDecimals : 2,
+        subtotal: offset === 0 ? (line.importeTotal ?? line.subtotal) : 0,
         descriptionLines,
         continuation: offset > 0,
         height: Math.max(28, descriptionLines.length * 10 + 10),
@@ -387,7 +402,7 @@ function drawRows(page: PDFPage, rows: PrintableRow[], startY: number, fonts: Fo
     if (!row.continuation) {
       page.drawText(row.codigo || "-", { x: 46, y: textY, font: fonts.regular, size: 8 });
       drawCentered(page, formatNumber(row.cantidad), 383, textY, fonts.regular, 8);
-      drawRight(page, formatAmount(row.importeUnitario), 482, textY, fonts.regular, 8);
+      drawRight(page, formatArs(row.importeUnitario, { minDecimals: 2, maxDecimals: row.unitarioMaxDecimales ?? 2 }), 482, textY, fonts.regular, 8);
       drawRight(page, formatAmount(row.subtotal), 550, textY, fonts.regular, 8);
     }
     row.descriptionLines.forEach((line, index) => {

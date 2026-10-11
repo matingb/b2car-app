@@ -26,6 +26,8 @@ import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
 
 export type ArregloForm = {
+  precios_incluyen_iva?: boolean;
+  total_cobrado?: number;
   estado?: EstadoArreglo;
   fecha: string;
   kilometraje_leido: number | string;

@@ -8,6 +8,8 @@ export interface ArregloTotalsFooterProps {
   subtotalServicios: number;
   subtotalRepuestos: number;
   total: number;
+  preciosIncluyenIva?: boolean;
+  precioSinIva?: number;
   totalCobrado?: number;
   saldoPendiente?: number;
 }
@@ -16,6 +18,8 @@ export default function ArregloTotalsFooter({
   subtotalServicios,
   subtotalRepuestos,
   total,
+  preciosIncluyenIva = true,
+  precioSinIva,
   totalCobrado,
   saldoPendiente,
 }: ArregloTotalsFooterProps) {
@@ -29,7 +33,7 @@ export default function ArregloTotalsFooter({
         <div style={styles.totalsLeft}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={styles.dotBlue} />
-            <span style={{ color: COLOR.TEXT.SECONDARY }}>Servicios:</span>
+            <span style={{ color: COLOR.TEXT.SECONDARY }}>Servicios{preciosIncluyenIva ? "" : " (sin IVA)"}:</span>
             <span style={{ fontWeight: 600 }}>
               {formatArs(subtotalServicios, {
                 maxDecimals: 0,
@@ -39,7 +43,7 @@ export default function ArregloTotalsFooter({
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={styles.dotGreen} />
-            <span style={{ color: COLOR.TEXT.SECONDARY }}>Productos:</span>
+            <span style={{ color: COLOR.TEXT.SECONDARY }}>Productos{preciosIncluyenIva ? "" : " (sin IVA)"}:</span>
             <span style={{ fontWeight: 600 }}>
               {formatArs(subtotalRepuestos, {
                 maxDecimals: 0,
@@ -50,6 +54,7 @@ export default function ArregloTotalsFooter({
         </div>
 
         <div style={{ textAlign: "right" }}>
+          {!preciosIncluyenIva && precioSinIva != null && <div style={{ color: COLOR.TEXT.SECONDARY }}>IVA: {formatArs(total - precioSinIva)}</div>}
           <div style={{ color: COLOR.TEXT.SECONDARY }}>Total del arreglo</div>
           <div style={styles.totalBig}>
             {formatArs(total, {

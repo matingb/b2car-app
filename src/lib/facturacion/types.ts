@@ -132,6 +132,9 @@ export type FacturacionConfiguracionPublica = {
 };
 
 export type FacturacionPreflight = {
+  /** Modo persistido; ausente en respuestas históricas implica incluido. */
+  preciosIncluyenIva?: boolean;
+  tasaIvaComercial?: number | null;
   puedeEmitir: boolean;
   configuracionCompleta: boolean;
   origenListo: boolean;

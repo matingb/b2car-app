@@ -136,6 +136,10 @@ describe("arregloMutationService", () => {
         data: { id: "a1", tenant_id: "ten-1", estado: "EN_PROGRESO" } as unknown as Arreglo,
         error: null,
       });
+      vi.mocked(arregloService.getByIdWithVehiculo).mockResolvedValue({
+        data: { id: "a1", tenant_id: "ten-1", estado: "EN_PROGRESO" } as unknown as Arreglo,
+        error: null,
+      });
       vi.mocked(arregloFormularioService.upsertDetalleFormulario).mockResolvedValue({
         error: null,
       });
