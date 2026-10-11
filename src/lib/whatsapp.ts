@@ -14,6 +14,8 @@ export interface ArregloWhatsappOptions {
 	mostrarTotal?: boolean;
 	incluirKm?: boolean;
 	incluirObservaciones?: boolean;
+	/** Solo aplica a arreglos con precios sin IVA: en false los montos van netos y el IVA se discrimina. */
+	preciosConIva?: boolean;
 }
 
 type WhatsappRepuestoLinea = {
@@ -43,12 +45,15 @@ export function buildArregloWhatsappMessage(
 		mostrarTotal = true,
 		incluirKm = true,
 		incluirObservaciones = true,
+		preciosConIva = true,
 	} = options;
 
 	const arreglo = data.arreglo;
 	const detalles = Array.isArray(data.detalles) ? data.detalles : [];
 	const repuestosLineas = getRepuestosWhatsappLines(data);
-	const importeCliente = buildImporteCliente(arreglo);
+	const importeConIva = buildImporteCliente(arreglo);
+	const discriminarIva = arreglo.precios_incluyen_iva === false && !preciosConIva;
+	const importeCliente: ImporteCliente = discriminarIva ? (importe) => importe : importeConIva;
 
 	const isPagado =
 		(arreglo.total_cobrado || 0) >= (arreglo.precio_final || 0) && (arreglo.precio_final || 0) > 0;
@@ -64,13 +69,16 @@ export function buildArregloWhatsappMessage(
 	lines.push(...vehiculoLines);
 	lines.push("");
 
-	// 3. Totales calculados
+	// 3. Totales calculados: el total siempre es el importe final; los subtotales siguen el modo IVA elegido.
 	const totals = calculateArregloTotals(
 		detalles,
 		repuestosLineas,
 		arreglo.precio_final,
-		importeCliente
+		importeConIva
 	);
+	const subtotales = discriminarIva
+		? calculateArregloTotals(detalles, repuestosLineas, arreglo.precio_final, importeCliente)
+		: totals;
 
 	// 4. Secciones
 	if (mostrarDetalleItems) {
@@ -82,7 +90,7 @@ export function buildArregloWhatsappMessage(
 					importeCliente,
 					mostrarPreciosItems,
 					mostrarSubtotales,
-					totals.subtotalRepuestos
+					subtotales.subtotalRepuestos
 				)
 			);
 			lines.push("");
@@ -96,7 +104,7 @@ export function buildArregloWhatsappMessage(
 					importeCliente,
 					mostrarPreciosItems,
 					mostrarSubtotales,
-					totals.subtotalServicios
+					subtotales.subtotalServicios
 				)
 			);
 			lines.push("");
@@ -104,8 +112,8 @@ export function buildArregloWhatsappMessage(
 	} else if (mostrarSubtotales) {
 		// Modo sin detalle pero con subtotales agrupados
 		const montosLines = buildSoloMontosSectionLines(
-			totals.subtotalRepuestos,
-			totals.subtotalServicios,
+			subtotales.subtotalRepuestos,
+			subtotales.subtotalServicios,
 			repuestosLineas.length > 0,
 			detalles.length > 0
 		);
@@ -117,6 +125,9 @@ export function buildArregloWhatsappMessage(
 
 	// 5. Total final
 	if (mostrarTotal) {
+		if (discriminarIva) {
+			lines.push(...buildIvaDiscriminadoLines(arreglo, totals.total, subtotales));
+		}
 		lines.push(`*Total arreglo ${formatArs(totals.total, { maxDecimals: 2, minDecimals: 0 })}*`);
 	} else {
 		// Quitar línea vacía sobrante si terminó con espacio
@@ -193,6 +204,24 @@ function calculateArregloTotals(
 	const total = precioFinal > 0 ? precioFinal : totalCalculado;
 
 	return { subtotalServicios, subtotalRepuestos, total };
+}
+
+function buildIvaDiscriminadoLines(
+	arreglo: ArregloDetalleData["arreglo"],
+	total: number,
+	subtotales: { subtotalServicios: number; subtotalRepuestos: number }
+): string[] {
+	// precio_sin_iva persistido incluye todas las entradas del arreglo (también el formulario custom).
+	const neto =
+		arreglo.precio_final > 0 && arreglo.precio_sin_iva != null
+			? safeNumber(arreglo.precio_sin_iva)
+			: subtotales.subtotalServicios + subtotales.subtotalRepuestos;
+	const iva = Math.round((total - neto) * 100) / 100;
+	const tasa = String(Math.round(safeNumber(arreglo.tasa_iva ?? 0.21) * 10000) / 100).replace(".", ",");
+	return [
+		`_Subtotal sin IVA: ${formatArs(neto, { maxDecimals: 2, minDecimals: 0 })}_`,
+		`_IVA ${tasa}%: ${formatArs(iva, { maxDecimals: 2, minDecimals: 0 })}_`,
+	];
 }
 
 function buildItemLine(label: string, cantidad: number, totalMonto?: number): string {
