@@ -12,15 +12,19 @@ function Harness() {
 }
 
 describe("RemitoLineasEditor", () => {
-  it("permite agregar y quitar ítems manteniendo al menos uno", () => {
+  it("permite agregar y quitar ítems, incluso el último (el mínimo se valida al enviar)", () => {
     render(<Harness />);
-    expect(screen.getByRole("button", { name: "Quitar ítem 1" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Quitar ítem 1" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Agregar ítem" }));
     expect(screen.getAllByTestId("remito-linea-libre")).toHaveLength(2);
 
     fireEvent.click(screen.getByRole("button", { name: "Quitar ítem 2" }));
     expect(screen.getAllByTestId("remito-linea-libre")).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Quitar ítem 1" }));
+    expect(screen.queryAllByTestId("remito-linea-libre")).toHaveLength(0);
+    expect(screen.getByText("Sin ítems agregados.")).toBeInTheDocument();
   });
 
   it("edita código, descripción, observaciones y cantidad sin precios", () => {
