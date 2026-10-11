@@ -7,7 +7,9 @@ vi.mock("@/lib/arcaPadron/arcaPadronGateway", () => ({ lookupArcaPadronPerson: v
 
 import { createClient } from "@/supabase/server";
 import { lookupArcaPadronPerson } from "@/lib/arcaPadron/arcaPadronGateway";
+import { assertIdempotencyReplay } from "./idempotency";
 import {
+  normalizedFacturaIntent,
   exportFacturasRows,
   isVerifiedFiscalPdfCache,
   FacturacionValidationError,
@@ -209,17 +211,108 @@ describe("datos del emisor para el PDF FCE", () => {
 describe("integridad de caché PDF fiscal", () => {
   const bytes = new TextEncoder().encode("PDF fiscal autorizado");
   const sha256 = createHash("sha256").update(bytes).digest("hex");
-  const path = "tenant-1/homologacion/factura-1/fiscal-v6.pdf";
+  const path = "tenant-1/homologacion/factura-1/fiscal-v8.pdf";
 
   it("permite redescargar la caché legítima cuando ruta, versión e hash coinciden", () => {
-    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v6", expectedPath: path, storedSha256: sha256, bytes })).toBe(true);
+    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v8", expectedPath: path, storedSha256: sha256, bytes })).toBe(true);
   });
 
   it("rechaza metadatos apuntados a otro objeto o bytes reemplazados", () => {
-    expect(isVerifiedFiscalPdfCache({ storedPath: "tenant-1/otro.pdf", storedVersion: "fiscal-v6", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);
-    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v6", expectedPath: path, storedSha256: "0".repeat(64), bytes })).toBe(false);
+    expect(isVerifiedFiscalPdfCache({ storedPath: "tenant-1/otro.pdf", storedVersion: "fiscal-v8", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);
+    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v8", expectedPath: path, storedSha256: "0".repeat(64), bytes })).toBe(false);
   });
   it("invalida la versión anterior aunque el hash coincida", () => {
     expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v4", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);
+  });
+});
+
+describe("B2C-197: notas desde snapshots netos", () => {
+  it("pondera importes finales y fiscaliza la nota como incluida", async () => {
+    const { proportionalLines } = await import("./facturacionService");
+    const { fiscalizeLineas } = await import("./arcaPayload");
+    const lines = [5, 4].map((ivaAlicuotaId, index) => ({
+      ordinal: index + 1, origen: "SERVICIO" as const, descripcion: "Servicio",
+      cantidad: 1, importeUnitario: 100, subtotal: 100, ivaAlicuotaId,
+    }));
+    const original = fiscalizeLineas(lines, "RESPONSABLE_INSCRIPTO", false, 0.21);
+    const full = fiscalizeLineas(proportionalLines(original.lineas, original.totales.total, "Devolución"), "RESPONSABLE_INSCRIPTO");
+    expect(full.totales).toEqual(original.totales);
+    const partial = fiscalizeLineas(proportionalLines(original.lineas, original.totales.total / 2, "Devolución"), "RESPONSABLE_INSCRIPTO");
+    expect(partial.totales.total).toBe(original.totales.total / 2);
+    const simplified = { ...original.lineas[0], subtotal: original.totales.total, importeTotal: original.totales.total, snapshot: { lineasOriginales: original.lineas } };
+    expect(proportionalLines([simplified], original.totales.total / 2, "Devolución")).toEqual(proportionalLines(original.lineas, original.totales.total / 2, "Devolución"));
+  });
+});
+
+describe("B2C-197: replay fiscal preparado", () => {
+  it("devuelve snapshot autorizado antes de consultar arreglo o configuración actual", async () => {
+    const replayInput = { idempotencyKey: "key", ambiente: "HOMOLOGACION" } as never;
+    const intentHash = createHash("sha256").update(JSON.stringify(normalizedFacturaIntent("ARREGLO", "repair", replayInput))).digest("hex");
+    const from = vi.fn((table: string) => {
+      const chain: Record<string, unknown> = {};
+      for (const method of ["select", "eq"]) chain[method] = vi.fn().mockReturnValue(chain);
+      chain.maybeSingle = vi.fn().mockResolvedValue({ data: table === "facturacion_idempotencia_intenciones"
+        ? { factura_id: "invoice", contenido_hash: intentHash }
+        : { id: "invoice", estado: "AUTORIZADA", intencion_hash: intentHash, arreglo_id: "repair", origen_tipo: "ARREGLO", documento_tipo: "FACTURA", ambiente: "HOMOLOGACION", total: 121 }, error: null });
+      return chain;
+    });
+    vi.mocked(createClient).mockResolvedValue({ from } as never);
+    const { issueFacturaElectronica } = await import("./facturacionService");
+    const result = await issueFacturaElectronica({ tenantId: "tenant", userId: "user" } as never, "repair", replayInput);
+    expect(result).toMatchObject({ httpStatus: 200, invoice: { id: "invoice", total: 121 } });
+    expect(from.mock.calls.map(([table]) => table)).toEqual(["facturacion_idempotencia_intenciones", "facturas_electronicas"]);
+  });
+});
+
+describe("B2C-197: idempotencia vincula el contenido del pedido", () => {
+  const base = {
+    idempotencyKey: "same-key", ambiente: "HOMOLOGACION", condicionVenta: "CONTADO", detalleSimplificado: false,
+    receptor: { tipoDocumento: 80, numeroDocumento: "20123456786", condicionIvaReceptorId: 1 },
+    fechas: { fechaComprobante: "2026-10-10", fechaServicioDesde: "2026-10-10", fechaServicioHasta: "2026-10-10", fechaVencimientoPago: "2026-10-10" },
+  };
+  it.each([
+    ["date", { ...base, fechas: { ...base.fechas, fechaComprobante: "2026-10-11" } }],
+    ["receiver document", { ...base, receptor: { ...base.receptor, numeroDocumento: "20123456787" } }],
+    ["condition", { ...base, condicionVenta: "CREDITO" }],
+    ["detail", { ...base, detalleSimplificado: true }],
+  ])("rejects replay with changed %s", (_field, changed) => {
+    const original = createHash("sha256").update(JSON.stringify(normalizedFacturaIntent("ARREGLO", "repair", base as never))).digest("hex");
+    const requested = createHash("sha256").update(JSON.stringify(normalizedFacturaIntent("ARREGLO", "repair", changed as never))).digest("hex");
+    expect(requested).not.toBe(original);
+    expect(() => assertIdempotencyReplay(original, original, requested)).toThrow("contenido diferente");
+  });
+});
+
+describe("B2C-197: replay cuando falta el índice de intención", () => {
+  it("rechaza una solicitud distinta comparando el hash duradero antes de cargar fuente/configuración", async () => {
+    vi.clearAllMocks();
+    const originalInput = {
+      idempotencyKey: "same-key", ambiente: "HOMOLOGACION", condicionVenta: "CONTADO", detalleSimplificado: false,
+      receptor: { tipoDocumento: 80, numeroDocumento: "20123456786", condicionIvaReceptorId: 1 },
+      fechas: { fechaComprobante: "2026-10-10", fechaServicioDesde: "2026-10-10", fechaServicioHasta: "2026-10-10", fechaVencimientoPago: "2026-10-10" },
+    };
+    const changedInput = { ...originalInput, condicionVenta: "CREDITO" };
+    const oldHash = createHash("sha256").update(JSON.stringify(normalizedFacturaIntent("ARREGLO", "repair", originalInput as never))).digest("hex");
+    const from = vi.fn((table: string) => {
+      const chain: Record<string, unknown> = {};
+      for (const method of ["select", "eq"]) chain[method] = vi.fn().mockReturnValue(chain);
+      chain.maybeSingle = vi.fn().mockResolvedValue({
+        data: table === "facturacion_idempotencia_intenciones" ? null : {
+          id: "invoice", estado: "AUTORIZADA", intencion_hash: oldHash,
+          arreglo_id: "repair", operacion_id: null, origen_tipo: "ARREGLO",
+          documento_tipo: "FACTURA", ambiente: "HOMOLOGACION", total: 121,
+        },
+        error: null,
+      });
+      return chain;
+    });
+    vi.mocked(createClient).mockResolvedValue({ from } as never);
+    const { issueFacturaElectronica } = await import("./facturacionService");
+
+    await expect(issueFacturaElectronica({ tenantId: "tenant", userId: "user" } as never, "repair", changedInput as never))
+      .rejects.toThrow("contenido diferente");
+    expect(from.mock.calls.map(([table]) => table)).toEqual([
+      "facturacion_idempotencia_intenciones", "facturas_electronicas",
+    ]);
   });
 });

@@ -151,7 +151,7 @@ export default function RemitoLineasEditor({ value, onChange, lineasFactura, dis
               title="Quitar ítem"
               ariaLabel={`Quitar ítem ${index + 1}`}
               hoverColor={COLOR.SEMANTIC.DANGER}
-              disabled={disabled}
+              disabled={disabled || value.length <= 1}
               onClick={() => onChange(value.filter((item) => item.key !== linea.key))}
             />
           </div>

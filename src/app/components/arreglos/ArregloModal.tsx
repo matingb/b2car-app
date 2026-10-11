@@ -129,6 +129,13 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const [combustible, setCombustible] = useState<string>(initial?.combustible_leido != null ? String(initial.combustible_leido) : "");
   const [observaciones, setObservaciones] = useState(initial?.observaciones ?? "");
   const [estaPago, setEstaPago] = useState<boolean>(!!initial?.esta_pago);
+  const [preciosIncluyenIva, setPreciosIncluyenIva] = useState(initial?.precios_incluyen_iva ?? true);
+  const ivaBlockedByPayment = Number(initial?.total_cobrado ?? 0) > 0 || !!initial?.esta_pago;
+  const preciosSinIvaBloqueo = !canEditPrices
+    ? "Necesitás permiso para editar precios."
+    : isEdit && ivaBlockedByPayment
+      ? "No se puede cambiar mientras existan cobros vigentes."
+      : null;
   const [esFacturable, setEsFacturable] = useState<boolean>(initial?.es_facturable !== false);
   const [cuentaFinancieraId, setCuentaFinancieraId] = useState("");
   const [fechaCobro, setFechaCobro] = useState(() => toISODateLocal(new Date()));
@@ -172,6 +179,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     setCombustible(initial?.combustible_leido != null ? String(initial.combustible_leido) : "");
     setObservaciones(initial?.observaciones ?? "");
     setEstaPago(!!initial?.esta_pago);
+    setPreciosIncluyenIva(initial?.precios_incluyen_iva ?? true);
     setEsFacturable(initial?.es_facturable !== false);
     setCuentaFinancieraId("");
     setCuentaDraft({ ...EMPTY_CUENTA_FINANCIERA_DRAFT });
@@ -206,6 +214,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     extraData,
     selectedVehiculoId,
     esFacturable,
+    preciosIncluyenIva,
   };
 
   const handleFieldsChange = (patch: Partial<ArregloFormFieldsValues>) => {
@@ -222,6 +231,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       observaciones: (value) => setObservaciones(String(value ?? "")),
       estaPago: (value) => setEstaPago(Boolean(value)),
       esFacturable: (value) => setEsFacturable(Boolean(value)),
+      preciosIncluyenIva: (value) => setPreciosIncluyenIva(Boolean(value)),
       extraData: (value) => setExtraData(String(value ?? "")),
       selectedVehiculoId: (value) => setSelectedVehiculoId(String(value ?? "")),
     };
@@ -282,6 +292,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           extra_data: extraData || undefined,
           es_facturable: resolveEsFacturableForCreate(canUseBilling, esFacturable),
         };
+        if (canEditPrices) payload.precios_incluyen_iva = preciosIncluyenIva;
         response = await update(initial.id, payload);
       } else {
         if (!tallerSeleccionadoId) {
@@ -311,6 +322,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           observaciones: normalizeArregloObservaciones(observaciones, false),
           esta_pago: canCobros ? !!estaPago : false,
           es_facturable: resolveEsFacturableForCreate(canUseBilling, esFacturable),
+          ...(canEditPrices && !preciosIncluyenIva ? { precios_incluyen_iva: false } : {}),
           ...(requiereCuentaFinanciera ? {
             cuenta_financiera_id: targetCuentaId,
             idempotency_key: generateUuidV4(),
@@ -423,6 +435,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           vehiculoOptions={vehiculoOptions}
           isEdit={isEdit}
           showFacturable={canUseBilling}
+          showPreciosSinIva={isEdit || canEditPrices}
+          preciosSinIvaBloqueo={preciosSinIvaBloqueo}
           submitting={submitting}
           tallerId={tallerSeleccionadoId ?? null}
           persistedEstado={initial?.estado}

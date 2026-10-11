@@ -6,6 +6,7 @@ vi.mock("server-only", () => ({}));
 import {
   buildArcaQrPayload,
   buildArcaQrUrl,
+  fiscalPdfUnitPrice,
   generateFiscalInvoicePdf,
   type FiscalPdfInvoice,
 } from "./fiscalPdf";
@@ -76,6 +77,24 @@ describe("QR fiscal ARCA", () => {
     expect(url.startsWith(prefix)).toBe(true);
     const decoded = JSON.parse(Buffer.from(url.slice(prefix.length), "base64").toString("utf8"));
     expect(decoded).toEqual(buildArcaQrPayload(invoice()));
+  });
+});
+
+describe("precio unitario fiscal con redondeo comercial", () => {
+  it("usa unitario bruto con precisión suficiente cuando el total extendido redondea distinto", () => {
+    const unit = fiscalPdfUnitPrice({
+      codigo: null, descripcion: "Repuesto", cantidad: 3, importeUnitario: 0.01,
+      subtotal: 0.03, importeTotal: 0.04,
+    });
+    expect(unit.value).toBeCloseTo(0.04 / 3, 8);
+    expect(unit.maxDecimals).toBe(6);
+    expect(Math.round(unit.value * 3 * 100)).toBe(4);
+  });
+
+  it("mantiene el unitario normal cuando coincide con la extensión", () => {
+    expect(fiscalPdfUnitPrice({
+      codigo: null, descripcion: "Servicio", cantidad: 3, importeUnitario: 10, subtotal: 30, importeTotal: 30,
+    })).toEqual({ value: 10, maxDecimals: 2 });
   });
 });
 

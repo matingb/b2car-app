@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Arreglo } from "@/model/types";
 import type { CreateArregloInsertPayload, UpdateArregloRequest } from "./arregloRequests";
-import { type ServiceResult, toServiceError } from "@/app/api/serviceError";
+import { type ServiceResult, toServiceError, serviceFailure } from "@/app/api/serviceError";
 import {
   getLimitSentinel,
   normalizePaginationLimit,
@@ -266,7 +266,7 @@ export const supabaseArregloRepository: ArregloRepository = {
       .eq("id", id)
       .select("*, vehiculo:vehiculos(*), empleados_detallados:arreglos_empleados_detallados")
       .single();
-    if (error) return { data: null, error: toServiceError(error) };
+    if (error) return { data: null, ...serviceFailure(error) };
 
     return { data: mapArreglo(data), error: null };
   },

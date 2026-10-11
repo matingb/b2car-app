@@ -11,6 +11,7 @@ import {
   List,
   Pencil,
   PenTool,
+  Percent,
   RotateCcw,
   Send,
   Tag,
@@ -207,6 +208,15 @@ export default function ArregloWhatsAppModal({
       },
     ];
 
+    if (data?.arreglo?.precios_incluyen_iva === false) {
+      items.push({
+        key: "preciosConIva",
+        title: "Precios con IVA",
+        description: "IVA incluido en cada precio; si no, se discrimina al final",
+        icon: <Percent size={18} />,
+      });
+    }
+
     if (data?.arreglo?.kilometraje_leido) {
       items.push({
         key: "incluirKm",
@@ -226,7 +236,7 @@ export default function ArregloWhatsAppModal({
     }
 
     return items;
-  }, [data?.arreglo?.kilometraje_leido, data?.arreglo?.observaciones]);
+  }, [data?.arreglo?.precios_incluyen_iva, data?.arreglo?.kilometraje_leido, data?.arreglo?.observaciones]);
 
   return (
     <Modal

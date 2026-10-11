@@ -12,10 +12,11 @@ import FacturaRemitosSection from "@/app/components/remitos/FacturaRemitosSectio
 import {
   type FacturaElectronicaDetalle,
 } from "@/lib/facturacion/types";
+import { importeLineaMostrado, precioUnitarioMostrado } from "@/lib/facturacion/lineaImporte";
 import { COLOR } from "@/theme/theme";
 
-function money(value: number) {
-  return value.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
+function money(value: number, maxDecimals = 2) {
+  return value.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: maxDecimals });
 }
 
 function date(value?: string | null) {
@@ -161,16 +162,20 @@ export default function FacturaDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {invoice.lineas.map((line) => (
-                  <tr key={`${line.ordinal}-${line.descripcion}`}>
-                    <td style={styles.td}>{line.codigo ?? "-"}</td>
-                    <td style={styles.td}>{line.descripcion}</td>
-                    <td style={styles.tdRight}>{line.cantidad}</td>
-                    <td style={styles.tdRight}>{money(line.importeUnitario)}</td>
-                    <td style={styles.tdRight}>{line.ivaAlicuota ? `${line.ivaAlicuota}%` : "-"}</td>
-                    <td style={styles.tdRight}><strong>{money(line.subtotal)}</strong></td>
-                  </tr>
-                ))}
+                {invoice.lineas.map((line) => {
+                  const importe = importeLineaMostrado(line);
+                  const unitario = precioUnitarioMostrado(line, importe);
+                  return (
+                    <tr key={`${line.ordinal}-${line.descripcion}`}>
+                      <td style={styles.td}>{line.codigo ?? "-"}</td>
+                      <td style={styles.td}>{line.descripcion}</td>
+                      <td style={styles.tdRight}>{line.cantidad}</td>
+                      <td style={styles.tdRight}>{money(unitario.value, unitario.maxDecimals)}</td>
+                      <td style={styles.tdRight}>{line.ivaAlicuota ? `${line.ivaAlicuota}%` : "-"}</td>
+                      <td style={styles.tdRight}><strong>{money(importe)}</strong></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

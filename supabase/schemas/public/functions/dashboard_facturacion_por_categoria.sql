@@ -13,9 +13,9 @@ CREATE OR REPLACE FUNCTION public.dashboard_facturacion_por_categoria (
   SET search_path TO 'public'
   AS $function$
   WITH lineas AS (
-    SELECT d.categoria_arreglo_id AS cat_id, (CASE WHEN d.horas_facturadas IS NULL
+    SELECT d.categoria_arreglo_id AS cat_id, public.importe_comercial_arreglo((CASE WHEN d.horas_facturadas IS NULL
       THEN d.cantidad * d.precio_hora_facturada
-      ELSE d.horas_facturadas * d.cantidad * d.precio_hora_facturada END)::numeric AS monto
+      ELSE d.horas_facturadas * d.cantidad * d.precio_hora_facturada END), a.precios_incluyen_iva, a.tasa_iva)::numeric AS monto
     FROM public.detalle_arreglo d
     JOIN public.arreglos a ON a.id = d.arreglo_id
     WHERE (p_from IS NULL OR a.fecha >= p_from)
@@ -23,13 +23,26 @@ CREATE OR REPLACE FUNCTION public.dashboard_facturacion_por_categoria (
       AND (p_taller_id IS NULL OR a.taller_id = p_taller_id)
       AND (a.estado IS NULL OR a.estado <> 'PRESUPUESTO')
     UNION ALL
-    SELECT ol.categoria_arreglo_id AS cat_id, (ol.cantidad * ol.monto_unitario)::numeric AS monto
+    SELECT ol.categoria_arreglo_id AS cat_id, public.importe_comercial_arreglo(ol.cantidad * ol.monto_unitario, a.precios_incluyen_iva, a.tasa_iva)::numeric AS monto
     FROM public.operaciones_lineas ol
     JOIN public.operaciones o ON o.id = ol.operacion_id AND o.tipo = 'ASIGNACION_ARREGLO'
     JOIN public.operaciones_asignacion_arreglo oa ON oa.operacion_id = o.id
     JOIN public.arreglos a ON a.id = oa.arreglo_id
     WHERE (p_from IS NULL OR a.fecha >= p_from)
       AND (p_to   IS NULL OR a.fecha <  p_to)
+      AND (p_taller_id IS NULL OR a.taller_id = p_taller_id)
+      AND (a.estado IS NULL OR a.estado <> 'PRESUPUESTO')
+    UNION ALL
+    SELECT NULL::uuid AS cat_id,
+      public.importe_comercial_arreglo(c.costo, a.precios_incluyen_iva, a.tasa_iva) AS monto
+    FROM public.arreglos a
+    CROSS JOIN LATERAL (
+      SELECT costo FROM public.detalle_form_custom WHERE arreglo_id = a.id
+      ORDER BY created_at DESC, id DESC LIMIT 1
+    ) c
+    WHERE a.tasa_iva IS NOT NULL
+      AND (p_from IS NULL OR a.fecha >= p_from)
+      AND (p_to IS NULL OR a.fecha < p_to)
       AND (p_taller_id IS NULL OR a.taller_id = p_taller_id)
       AND (a.estado IS NULL OR a.estado <> 'PRESUPUESTO')
   ),

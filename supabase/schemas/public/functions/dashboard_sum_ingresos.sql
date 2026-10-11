@@ -6,9 +6,9 @@ CREATE OR REPLACE FUNCTION public.dashboard_sum_ingresos (
   LANGUAGE sql
   SET search_path TO 'public'
   AS $function$
-  SELECT COALESCE(SUM(CASE WHEN d.horas_facturadas IS NULL
+  SELECT COALESCE(SUM(public.importe_comercial_arreglo(CASE WHEN d.horas_facturadas IS NULL
     THEN d.cantidad * d.precio_hora_facturada
-    ELSE d.horas_facturadas * d.cantidad * d.precio_hora_facturada END), 0)::numeric
+    ELSE d.horas_facturadas * d.cantidad * d.precio_hora_facturada END, a.precios_incluyen_iva, a.tasa_iva)), 0)::numeric
   FROM public.arreglos a
   JOIN public.detalle_arreglo d ON d.arreglo_id = a.id
   WHERE a.fecha >= p_from

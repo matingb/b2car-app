@@ -15,6 +15,7 @@ import {
 } from "@/app/hooks/useArcaInscriptionLookup";
 import { COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
+import { importeLineaMostrado } from "@/lib/facturacion/lineaImporte";
 import { ROUTES } from "@/routing/routes";
 import {
   CONDICIONES_IVA_RECEPTOR,
@@ -118,7 +119,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const [preflightRefresh, setPreflightRefresh] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const endpoint = operacionId ? `/api/operaciones/${operacionId}/factura` : `/api/arreglos/${arregloId}/factura`;
   const entidadCerrada = operacionId ? "la venta quedará cerrada" : "el arreglo quedará cerrado";
 
@@ -129,6 +130,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
     setError(null);
     setPreflight(null);
     setFactura(null);
+    setIdempotencyKey(crypto.randomUUID());
     fetch(endpoint, { cache: "no-store" })
       .then(async (response) => {
         const body = await response.json();
@@ -288,8 +290,13 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       cantidad: 1,
       importeUnitario: preflight.total,
       subtotal: preflight.total,
+      importeIva: preflight.totales?.iva,
+      snapshot: { preciosIncluyenIva: preflight.preciosIncluyenIva },
     }];
   }, [detalleSimplificado, preflight]);
+  // Con precios cargados sin IVA las líneas muestran el neto y el IVA se suma en el resumen.
+  const ivaTotal = preflight?.totales?.iva ?? 0;
+  const preciosSinIva = preflight?.preciosIncluyenIva === false && ivaTotal > 0;
 
   const handleSubmit = async () => {
     if (needsConfiguration) {
@@ -319,7 +326,10 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         }),
       });
       const body = await response.json();
-      if (body.data) setFactura(body.data as FacturaElectronicaResumen);
+      if (body.data) {
+        setFactura(body.data as FacturaElectronicaResumen);
+        if (body.data.estado === "RECHAZADA") setIdempotencyKey(crypto.randomUUID());
+      }
       if (!response.ok) {
         if (body.code === "FCE_DATA_REQUIRED" && body.fce) {
           setPreflight((current) => current ? { ...current, fcePosible: true, fceObligatoria: true, fceCbuConfigurado: body.fce.cbuConfigurado, fceSistemaConfigurado: body.fce.sistema } : current);
@@ -538,9 +548,16 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
             </div>
           ) : null}
           <section style={styles.detail} aria-label="Detalle a facturar">
+            {arregloId && !operacionId ? <span>Precios del arreglo: {preflight.preciosIncluyenIva === false ? "sin IVA incluido" : "con IVA incluido"}. Se modifica desde Editar arreglo.</span> : null}
             <div style={styles.lines}>
-              {detailLines.map((linea) => <div style={styles.line} key={`${linea.origen}-${linea.ordinal}`}><span>{linea.descripcion}{linea.codigo ? ` (${linea.codigo})` : ""} × {linea.cantidad}</span><strong>{formatArs(linea.subtotal, { minDecimals: 2 })}</strong></div>)}
+              {detailLines.map((linea) => <div style={styles.line} key={`${linea.origen}-${linea.ordinal}`}><span>{linea.descripcion}{linea.codigo ? ` (${linea.codigo})` : ""} × {linea.cantidad}</span><strong>{formatArs(importeLineaMostrado(linea), { minDecimals: 2 })}</strong></div>)}
             </div>
+            {preciosSinIva ? (
+              <>
+                <div style={styles.subtotal}><span>Subtotal sin IVA</span><span>{formatArs(preflight.total - ivaTotal, { minDecimals: 2 })}</span></div>
+                <div style={styles.subtotal}><span>IVA</span><span>{formatArs(ivaTotal, { minDecimals: 2 })}</span></div>
+              </>
+            ) : null}
             <div style={styles.total}><span>Total a facturar</span><strong style={styles.totalAmount}>{formatArs(preflight.total, { minDecimals: 2 })}</strong></div>
           </section>
           {preflight.mensaje && factura?.estado !== "RECHAZADA" ? <div style={styles.warning}><CircleAlert size={16} /><span>{preflight.mensaje}</span></div> : null}
@@ -696,6 +713,7 @@ const styles = {
   detail: { border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 8, padding: 14, background: COLOR.BACKGROUND.SUBTLE },
   lines: { display: "flex", flexDirection: "column" as const, gap: 8 },
   line: { display: "flex", justifyContent: "space-between", gap: 12, color: COLOR.TEXT.SECONDARY, fontSize: 13 },
+  subtotal: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, color: COLOR.TEXT.SECONDARY, fontSize: 13 },
   total: { display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`, marginTop: 12, paddingTop: 12, color: COLOR.TEXT.PRIMARY, fontSize: 14 },
   totalAmount: { color: COLOR.ACCENT.PRIMARY, fontSize: 18 },
   warning: { display: "flex", alignItems: "flex-start", gap: 8, background: COLOR.BACKGROUND.ALERT_TINT, border: `1px solid ${COLOR.SEMANTIC.ALERT}`, color: COLOR.SEMANTIC.WARNING, borderRadius: 8, padding: 12, fontSize: 13, lineHeight: 1.4 },

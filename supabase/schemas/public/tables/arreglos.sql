@@ -6,6 +6,10 @@ CREATE TABLE "public"."arreglos" (
   "observaciones"            text,
   "precio_final"             numeric(14,2),
   "precio_sin_iva"           numeric(14,2),
+  "precios_incluyen_iva"     boolean NOT NULL DEFAULT true,
+  "tasa_iva"                 numeric,
+  CONSTRAINT "arreglos_tasa_iva_check" CHECK (tasa_iva >= 0 AND tasa_iva < 'Infinity'::numeric),
+  CONSTRAINT "arreglos_iva_snapshot_check" CHECK (precios_incluyen_iva OR tasa_iva IS NOT NULL),
   "esta_pago"                boolean                  DEFAULT false,
   "extra_data"               jsonb,
   "created_at"               timestamp with time zone DEFAULT now(),
@@ -111,3 +115,8 @@ COMMENT ON COLUMN "public"."arreglos"."repuestos_pendientes" IS 'B2C-152: NULL =
 REVOKE ALL ON TABLE "public"."arreglos" FROM "postgres";
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE "public"."arreglos" TO "postgres";
+
+-- Before fiscal protection and payment-state triggers (alphabetical order).
+CREATE TRIGGER b2c197_guardar_iva
+  BEFORE INSERT OR UPDATE ON public.arreglos
+  FOR EACH ROW EXECUTE FUNCTION public._b2c197_guardar_iva();
