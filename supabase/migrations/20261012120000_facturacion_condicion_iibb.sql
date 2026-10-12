@@ -15,7 +15,8 @@ ALTER TABLE public.facturacion_configuracion_ambiente
     CHECK (ingresos_brutos_condicion IS DISTINCT FROM 'INSCRIPTO'::text OR NULLIF(btrim(ingresos_brutos), ''::text) IS NOT NULL);
 
 -- El snapshot del emisor de los remitos informa la condición cuando no hay número.
-CREATE OR REPLACE FUNCTION public.rpc_remitos_emitir(p_idempotency_key uuid, p_ambiente text, p_clase text, p_arreglo_id uuid, p_factura_id uuid, p_destinatario jsonb, p_transportista jsonb, p_observaciones text, p_lineas jsonb)
+-- Parte de la firma con p_operacion_id definida en 20261011130000_remitos_operacion_origen.
+CREATE OR REPLACE FUNCTION public.rpc_remitos_emitir(p_idempotency_key uuid, p_ambiente text, p_clase text, p_arreglo_id uuid, p_factura_id uuid, p_destinatario jsonb, p_transportista jsonb, p_observaciones text, p_lineas jsonb, p_operacion_id uuid DEFAULT NULL::uuid)
  RETURNS uuid
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -62,6 +63,7 @@ DECLARE
   v_factura_linea_id uuid;
   v_exceso record;
   v_items jsonb := '[]'::jsonb;
+  v_operacion_tipo text;
 BEGIN
   IF v_tenant IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id'; END IF;
   IF NOT public._b2c179_tiene_permiso('facturas:edit') THEN
@@ -83,6 +85,9 @@ BEGIN
   END IF;
   IF char_length(v_observaciones) > 1000 THEN
     RAISE EXCEPTION 'Las observaciones del remito no pueden superar los 1000 caracteres';
+  END IF;
+  IF p_arreglo_id IS NOT NULL AND p_operacion_id IS NOT NULL THEN
+    RAISE EXCEPTION 'Iniciá el remito desde un arreglo o desde una venta, no desde ambos';
   END IF;
 
   -- Destinatario
@@ -219,7 +224,8 @@ BEGIN
     IF v_existente.clase <> p_clase
        OR v_existente.ambiente <> p_ambiente
        OR v_existente.arreglo_id IS DISTINCT FROM p_arreglo_id
-       OR ((p_arreglo_id IS NULL OR p_factura_id IS NOT NULL)
+       OR v_existente.operacion_id IS DISTINCT FROM p_operacion_id
+       OR (((p_arreglo_id IS NULL AND p_operacion_id IS NULL) OR p_factura_id IS NOT NULL)
            AND v_existente.factura_id IS DISTINCT FROM p_factura_id) THEN
       RAISE EXCEPTION 'La clave de idempotencia ya pertenece a otro remito';
     END IF;
@@ -241,6 +247,24 @@ BEGIN
     END IF;
   END IF;
 
+  IF p_operacion_id IS NOT NULL THEN
+    SELECT o.tipo::text INTO v_operacion_tipo
+    FROM public.operaciones o
+    WHERE o.id = p_operacion_id AND o.tenant_id = v_tenant
+    FOR KEY SHARE;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Operación no encontrada'; END IF;
+    IF v_operacion_tipo <> 'VENTA' THEN
+      RAISE EXCEPTION 'Solo se pueden generar remitos desde operaciones de venta';
+    END IF;
+    IF v_factura_id IS NULL THEN
+      SELECT f.id INTO v_factura_id
+      FROM public.facturas_electronicas f
+      WHERE f.operacion_id = p_operacion_id AND f.tenant_id = v_tenant
+        AND f.ambiente = p_ambiente AND f.documento_tipo = 'FACTURA'
+        AND f.estado = 'AUTORIZADA';
+    END IF;
+  END IF;
+
   IF v_factura_id IS NOT NULL THEN
     -- Serializa los controles de cantidades por factura sin bloquear la fila fiscal.
     PERFORM pg_advisory_xact_lock(hashtextextended('remitos_factura_' || v_factura_id::text, 0));
@@ -256,6 +280,9 @@ BEGIN
     END IF;
     IF p_arreglo_id IS NOT NULL AND v_factura.arreglo_id IS DISTINCT FROM p_arreglo_id THEN
       RAISE EXCEPTION 'La factura no corresponde al arreglo de origen';
+    END IF;
+    IF p_operacion_id IS NOT NULL AND v_factura.operacion_id IS DISTINCT FROM p_operacion_id THEN
+      RAISE EXCEPTION 'La factura no corresponde a la venta de origen';
     END IF;
   END IF;
 
@@ -406,12 +433,12 @@ BEGIN
 
   INSERT INTO public.remitos (
     tenant_id, ambiente, clase, tipo_comprobante, punto_emision, numero, fecha_emision,
-     idempotency_key, arreglo_id, factura_id, factura_asociada_at, factura_asociada_by,
+     idempotency_key, arreglo_id, operacion_id, factura_id, factura_asociada_at, factura_asociada_by,
     emisor_snapshot, destinatario_snapshot, transportista_snapshot,
     cai, cai_vencimiento, impresion_snapshot, observaciones, created_by
   ) VALUES (
     v_tenant, p_ambiente, p_clase, v_tipo, v_punto, v_numero, v_hoy,
-     p_idempotency_key, p_arreglo_id, v_factura_id,
+     p_idempotency_key, p_arreglo_id, p_operacion_id, v_factura_id,
     CASE WHEN v_factura_id IS NULL THEN NULL ELSE now() END,
     CASE WHEN v_factura_id IS NULL THEN NULL ELSE auth.uid() END,
     v_emisor, v_destinatario, v_transportista,
@@ -432,6 +459,6 @@ END;
 $function$
 ;
 
-REVOKE ALL ON FUNCTION "public"."rpc_remitos_emitir"(uuid, text, text, uuid, uuid, jsonb, jsonb, text, jsonb) FROM PUBLIC, "anon";
+REVOKE ALL ON FUNCTION "public"."rpc_remitos_emitir"(uuid, text, text, uuid, uuid, jsonb, jsonb, text, jsonb, uuid) FROM PUBLIC, "anon";
 
-GRANT EXECUTE ON FUNCTION "public"."rpc_remitos_emitir"(uuid, text, text, uuid, uuid, jsonb, jsonb, text, jsonb) TO "authenticated", "service_role";
+GRANT EXECUTE ON FUNCTION "public"."rpc_remitos_emitir"(uuid, text, text, uuid, uuid, jsonb, jsonb, text, jsonb, uuid) TO "authenticated", "service_role";
