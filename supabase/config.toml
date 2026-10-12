@@ -201,7 +201,7 @@ otp_expiry = 3600
 
 [auth.email.template.recovery]
 subject = "Reset Your Password - B2Car"
-content_path = "./supabase/email-templates/reset-password.html"
+#content_path = "./supabase/email-templates/reset-password.html"
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
@@ -316,7 +316,7 @@ enabled = true
 # `oneshot` — fallback mode if hot reload causes issues (e.g. in large repos or with symlinks).
 policy = "per_worker"
 # Port to attach the Chrome inspector for debugging edge functions.
-inspector_port = 8083
+inspector_port = 8093
 # The Deno major version to use.
 deno_version = 2
 
@@ -333,6 +333,7 @@ backend = "postgres"
 
 # Experimental features may be deprecated any time
 [experimental]
+#stack = true
 # Configures Postgres storage engine to use OrioleDB (S3)
 orioledb_version = ""
 # Configures S3 bucket URL, eg. <bucket_name>.s3-<region>.amazonaws.com

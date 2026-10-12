@@ -4,6 +4,7 @@ import type { Turno } from "@/model/types";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { safeNumber } from "@/lib/numbers";
 import { calcLineTotal } from "@/lib/calcLineTotal";
+import { importeComercial } from "@/lib/ivaComercial";
 
 export interface ArregloWhatsappOptions {
 	tenantName?: string;
@@ -13,7 +14,17 @@ export interface ArregloWhatsappOptions {
 	mostrarTotal?: boolean;
 	incluirKm?: boolean;
 	incluirObservaciones?: boolean;
+	/** Solo aplica a arreglos con precios sin IVA: en false los montos van netos y el IVA se discrimina. */
+	preciosConIva?: boolean;
 }
+
+type WhatsappRepuestoLinea = {
+	label: string;
+	cantidad: number;
+	monto_unitario: number;
+};
+
+type ImporteCliente = (importe: number) => number;
 
 export function buildArregloWhatsappMessage(
 	data: ArregloDetalleData,
@@ -34,11 +45,15 @@ export function buildArregloWhatsappMessage(
 		mostrarTotal = true,
 		incluirKm = true,
 		incluirObservaciones = true,
+		preciosConIva = true,
 	} = options;
 
 	const arreglo = data.arreglo;
 	const detalles = Array.isArray(data.detalles) ? data.detalles : [];
-	const repuestosLineas = flattenAsignacionesLineas(data);
+	const repuestosLineas = getRepuestosWhatsappLines(data);
+	const importeConIva = buildImporteCliente(arreglo);
+	const discriminarIva = arreglo.precios_incluyen_iva === false && !preciosConIva;
+	const importeCliente: ImporteCliente = discriminarIva ? (importe) => importe : importeConIva;
 
 	const isPagado =
 		(arreglo.total_cobrado || 0) >= (arreglo.precio_final || 0) && (arreglo.precio_final || 0) > 0;
@@ -54,8 +69,16 @@ export function buildArregloWhatsappMessage(
 	lines.push(...vehiculoLines);
 	lines.push("");
 
-	// 3. Totales calculados
-	const totals = calculateArregloTotals(detalles, repuestosLineas, arreglo.precio_final);
+	// 3. Totales calculados: el total siempre es el importe final; los subtotales siguen el modo IVA elegido.
+	const totals = calculateArregloTotals(
+		detalles,
+		repuestosLineas,
+		arreglo.precio_final,
+		importeConIva
+	);
+	const subtotales = discriminarIva
+		? calculateArregloTotals(detalles, repuestosLineas, arreglo.precio_final, importeCliente)
+		: totals;
 
 	// 4. Secciones
 	if (mostrarDetalleItems) {
@@ -64,9 +87,10 @@ export function buildArregloWhatsappMessage(
 			lines.push(
 				...buildRepuestosSectionLines(
 					repuestosLineas,
+					importeCliente,
 					mostrarPreciosItems,
 					mostrarSubtotales,
-					totals.subtotalRepuestos
+					subtotales.subtotalRepuestos
 				)
 			);
 			lines.push("");
@@ -77,9 +101,10 @@ export function buildArregloWhatsappMessage(
 			lines.push(
 				...buildServiciosSectionLines(
 					detalles,
+					importeCliente,
 					mostrarPreciosItems,
 					mostrarSubtotales,
-					totals.subtotalServicios
+					subtotales.subtotalServicios
 				)
 			);
 			lines.push("");
@@ -87,8 +112,8 @@ export function buildArregloWhatsappMessage(
 	} else if (mostrarSubtotales) {
 		// Modo sin detalle pero con subtotales agrupados
 		const montosLines = buildSoloMontosSectionLines(
-			totals.subtotalRepuestos,
-			totals.subtotalServicios,
+			subtotales.subtotalRepuestos,
+			subtotales.subtotalServicios,
 			repuestosLineas.length > 0,
 			detalles.length > 0
 		);
@@ -100,6 +125,9 @@ export function buildArregloWhatsappMessage(
 
 	// 5. Total final
 	if (mostrarTotal) {
+		if (discriminarIva) {
+			lines.push(...buildIvaDiscriminadoLines(arreglo, totals.total, subtotales));
+		}
 		lines.push(`*Total arreglo ${formatArs(totals.total, { maxDecimals: 2, minDecimals: 0 })}*`);
 	} else {
 		// Quitar línea vacía sobrante si terminó con espacio
@@ -143,29 +171,57 @@ function buildVehiculoInfoLines(
 	return lines;
 }
 
+/** El cliente siempre ve importes finales, con el IVA comercial incluido. */
+function buildImporteCliente(arreglo: ArregloDetalleData["arreglo"]): ImporteCliente {
+	const incluyeIva = arreglo.precios_incluyen_iva !== false;
+	const tasa = arreglo.tasa_iva ?? 0.21;
+	return (importe) => importeComercial(importe, incluyeIva, tasa);
+}
+
 function calculateArregloTotals(
 	detalles: ArregloDetalleData["detalles"],
-	repuestosLineas: AsignacionArregloLinea[],
-	precioFinal: number
+	repuestosLineas: WhatsappRepuestoLinea[],
+	precioFinal: number,
+	importeCliente: ImporteCliente
 ): { subtotalServicios: number; subtotalRepuestos: number; total: number } {
 	const subtotalServicios = (detalles ?? []).reduce(
 		(acc, d) =>
 			acc +
-			calcLineTotal({
-				cantidad: d.cantidad,
-				horas_facturadas: d.horas_facturadas,
-				precio_hora_facturada: d.precio_hora_facturada,
-			}),
+			importeCliente(
+				calcLineTotal({
+					cantidad: d.cantidad,
+					horas_facturadas: d.horas_facturadas,
+					precio_hora_facturada: d.precio_hora_facturada,
+				})
+			),
 		0
 	);
 	const subtotalRepuestos = repuestosLineas.reduce(
-		(acc, l) => acc + safeNumber(l.monto_unitario) * safeNumber(l.cantidad),
+		(acc, l) => acc + importeCliente(safeNumber(l.monto_unitario) * safeNumber(l.cantidad)),
 		0
 	);
 	const totalCalculado = subtotalServicios + subtotalRepuestos;
 	const total = precioFinal > 0 ? precioFinal : totalCalculado;
 
 	return { subtotalServicios, subtotalRepuestos, total };
+}
+
+function buildIvaDiscriminadoLines(
+	arreglo: ArregloDetalleData["arreglo"],
+	total: number,
+	subtotales: { subtotalServicios: number; subtotalRepuestos: number }
+): string[] {
+	// precio_sin_iva persistido incluye todas las entradas del arreglo (también el formulario custom).
+	const neto =
+		arreglo.precio_final > 0 && arreglo.precio_sin_iva != null
+			? safeNumber(arreglo.precio_sin_iva)
+			: subtotales.subtotalServicios + subtotales.subtotalRepuestos;
+	const iva = Math.round((total - neto) * 100) / 100;
+	const tasa = String(Math.round(safeNumber(arreglo.tasa_iva ?? 0.21) * 10000) / 100).replace(".", ",");
+	return [
+		`_Subtotal sin IVA: ${formatArs(neto, { maxDecimals: 2, minDecimals: 0 })}_`,
+		`_IVA ${tasa}%: ${formatArs(iva, { maxDecimals: 2, minDecimals: 0 })}_`,
+	];
 }
 
 function buildItemLine(label: string, cantidad: number, totalMonto?: number): string {
@@ -176,7 +232,8 @@ function buildItemLine(label: string, cantidad: number, totalMonto?: number): st
 }
 
 function buildRepuestosSectionLines(
-	repuestosLineas: AsignacionArregloLinea[],
+	repuestosLineas: WhatsappRepuestoLinea[],
+	importeCliente: ImporteCliente,
 	showItemPrices: boolean,
 	showSubtotal: boolean,
 	subtotal: number
@@ -185,9 +242,8 @@ function buildRepuestosSectionLines(
 	repuestosLineas.forEach((r) => {
 		const cantidad = safeNumber(r.cantidad);
 		const monto = safeNumber(r.monto_unitario);
-		const total = cantidad * monto;
-		const producto = r.producto?.nombre || r.producto?.codigo || "Repuesto";
-		lines.push(buildItemLine(producto, cantidad, showItemPrices ? total : undefined));
+		const total = importeCliente(cantidad * monto);
+		lines.push(buildItemLine(r.label, cantidad, showItemPrices ? total : undefined));
 	});
 	if (showSubtotal) {
 		lines.push(`_Subtotal repuestos: ${formatArs(subtotal, { maxDecimals: 2, minDecimals: 0 })}_`);
@@ -197,6 +253,7 @@ function buildRepuestosSectionLines(
 
 function buildServiciosSectionLines(
 	detalles: NonNullable<ArregloDetalleData["detalles"]>,
+	importeCliente: ImporteCliente,
 	showItemPrices: boolean,
 	showSubtotal: boolean,
 	subtotal: number
@@ -206,11 +263,13 @@ function buildServiciosSectionLines(
 		const cantidad = safeNumber(d.cantidad);
 		const horasFacturadas = d.horas_facturadas == null ? null : safeNumber(d.horas_facturadas);
 		const precioHora = safeNumber(d.precio_hora_facturada);
-		const total = calcLineTotal({
-			cantidad,
-			horas_facturadas: horasFacturadas,
-			precio_hora_facturada: precioHora,
-		});
+		const total = importeCliente(
+			calcLineTotal({
+				cantidad,
+				horas_facturadas: horasFacturadas,
+				precio_hora_facturada: precioHora,
+			})
+		);
 		const label = String(d.descripcion ?? "").trim() || "Servicio";
 		lines.push(buildItemLine(label, cantidad, showItemPrices ? total : undefined));
 	});
@@ -291,72 +350,19 @@ export function buildWhatsappWebLink(phone: string, message: string): string {
 
 export function buildWhatsappLink(phone: string, message: string): string {
 	const encodedMessage = encodeURIComponent(message);
-	return `https://api.whatsapp.com/send/?phone=${phone}&text=${encodedMessage}&type=phone_number&app_absent=0`;
+	return `https://wa.me/${phone}?text=${encodedMessage}`;
 }
 
-export interface OpenWhatsappOptions {
-	onFallback?: () => void;
-	timeoutMs?: number;
-}
-
-/**
- * Intenta abrir la aplicación nativa de WhatsApp.
- * Si el usuario no tiene la app instalada o la app no toma el foco tras timeoutMs,
- * ejecuta el fallback para abrir WhatsApp Web en el navegador.
- */
 export function openWhatsapp(
 	phone: string,
-	message: string,
-	options?: OpenWhatsappOptions
+	message: string
 ): void {
 	if (typeof window === "undefined") return;
 
 	const cleanPhone = normalizeWhatsappPhone(phone);
 	if (!cleanPhone) return;
 
-	const appUrl = buildWhatsappAppLink(cleanPhone, message);
-	const webUrl = buildWhatsappWebLink(cleanPhone, message);
-
-	let appOpened = false;
-
-	const handleBlur = () => {
-		appOpened = true;
-	};
-
-	const handleVisibilityChange = () => {
-		if (document.hidden) {
-			appOpened = true;
-		}
-	};
-
-	window.addEventListener("blur", handleBlur, { once: true });
-	document.addEventListener("visibilitychange", handleVisibilityChange, { once: true });
-
-	// 1. Intentar abrir la app nativa mediante el protocolo whatsapp://
-	const link = document.createElement("a");
-	link.href = appUrl;
-	link.style.display = "none";
-	if (typeof process !== "undefined" && process.env.NODE_ENV === "test") {
-		link.onclick = (e) => e.preventDefault();
-	}
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
-
-	// 2. Fallback a WhatsApp Web si no se detectó cambio de ventana/foco
-	const timeoutMs = options?.timeoutMs ?? 1500;
-	window.setTimeout(() => {
-		window.removeEventListener("blur", handleBlur);
-		document.removeEventListener("visibilitychange", handleVisibilityChange);
-
-		if (!appOpened) {
-			options?.onFallback?.();
-			const newWin = window.open(webUrl, "_blank", "noopener,noreferrer");
-			if (!newWin || newWin.closed || typeof newWin.closed === "undefined") {
-				window.location.href = webUrl;
-			}
-		}
-	}, timeoutMs);
+	window.open(buildWhatsappLink(cleanPhone, message), "_blank", "noopener,noreferrer");
 }
 
 /**
@@ -392,4 +398,21 @@ function flattenAsignacionesLineas(
 		}
 	}
 	return out;
+}
+
+function getRepuestosWhatsappLines(data: ArregloDetalleData): WhatsappRepuestoLinea[] {
+	const pendientes = data.arreglo.repuestos_pendientes;
+	if (data.arreglo.estado === "PRESUPUESTO" && Array.isArray(pendientes)) {
+		return pendientes.map((linea) => ({
+			label: linea.nombre || linea.codigo || "Repuesto",
+			cantidad: linea.cantidad,
+			monto_unitario: linea.monto_unitario,
+		}));
+	}
+
+	return flattenAsignacionesLineas(data).map((linea) => ({
+		label: linea.producto?.nombre || linea.producto?.codigo || "Repuesto",
+		cantidad: linea.cantidad,
+		monto_unitario: linea.monto_unitario,
+	}));
 }

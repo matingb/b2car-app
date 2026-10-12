@@ -182,6 +182,37 @@ describe("ArregloWhatsAppModal", () => {
     expect(textarea.value).not.toContain("*Total arreglo");
   });
 
+  it("muestra los repuestos pendientes del presupuesto en la previsualización", async () => {
+    const pendingData = createArregloDetalleData({
+      arreglo: createArreglo({
+        estado: "PRESUPUESTO",
+        precio_final: 0,
+        repuestos_pendientes: [
+          { id: "existing", tipo: "EXISTENTE", nombre: "Filtro", cantidad: 2, monto_unitario: 5000 },
+          { id: "new", tipo: "NUEVO", codigo: "ACE-01", nombre: "Aceite", cantidad: 1, monto_unitario: 6000 },
+        ],
+      }),
+      detalles: [],
+      asignaciones: [],
+    });
+
+    render(
+      <ArregloWhatsAppModal
+        open
+        onClose={vi.fn()}
+        data={pendingData}
+        initialPhone="5491199998888"
+        clienteNombre="Carlos Gómez"
+      />
+    );
+
+    const textarea = screen.getByPlaceholderText("El mensaje de WhatsApp aparecerá aquí...") as HTMLTextAreaElement;
+    expect(textarea.value).toContain("Filtro x2");
+    expect(textarea.value).toContain("Aceite x1");
+    expect(textarea.value).toContain("_Subtotal repuestos: $16.000_");
+    expect(textarea.value).not.toContain("Pastillas de freno");
+  });
+
   it("permite alternar el toggle de kilometraje", async () => {
     render(
       <ArregloWhatsAppModal
@@ -202,6 +233,42 @@ describe("ArregloWhatsAppModal", () => {
     fireEvent.click(toggleKm);
 
     expect(textarea.value).not.toContain("⏱️ KM actual");
+  });
+
+  it("solo ofrece Precios con IVA cuando el arreglo tiene precios sin IVA", async () => {
+    const { rerender } = render(<ArregloWhatsAppModal open onClose={vi.fn()} data={sampleData} />);
+    expect(screen.queryByRole("checkbox", { name: "Precios con IVA" })).not.toBeInTheDocument();
+
+    const sinIvaData = createArregloDetalleData({
+      arreglo: createArreglo({
+        id: "a2",
+        precio_final: 12100,
+        precio_sin_iva: 10000,
+        precios_incluyen_iva: false,
+        tasa_iva: 0.21,
+        vehiculo: createVehiculo({ id: "v1", patente: "ABC123" }),
+      }),
+      detalles: [{
+        id: "d1", arreglo_id: "a2", descripcion: "Mano de obra", cantidad: 1,
+        precio_hora_facturada: 10000, horas_facturadas: 1, horas_trabajadas: 1,
+        categoria_arreglo_id: null, empleado_id: null,
+      }],
+      asignaciones: [],
+    });
+    rerender(<ArregloWhatsAppModal open onClose={vi.fn()} data={sinIvaData} />);
+
+    const toggleIva = screen.getByRole("checkbox", { name: "Precios con IVA" });
+    const textarea = screen.getByPlaceholderText("El mensaje de WhatsApp aparecerá aquí...") as HTMLTextAreaElement;
+    expect(toggleIva).toHaveAttribute("aria-checked", "false");
+    expect(textarea.value).toContain("_Subtotal mano de obra: $10.000_");
+    expect(textarea.value).toContain("_Subtotal sin IVA: $10.000_");
+    expect(textarea.value).toContain("_IVA 21%: $2.100_");
+    expect(textarea.value).toContain("*Total arreglo $12.100*");
+
+    fireEvent.click(toggleIva);
+
+    expect(textarea.value).toContain("_Subtotal mano de obra: $12.100_");
+    expect(textarea.value).not.toContain("IVA 21%");
   });
 
   it("permite alternar el toggle de observaciones", async () => {
@@ -282,8 +349,8 @@ describe("ArregloWhatsAppModal", () => {
     });
   });
 
-  it("envía por WhatsApp intentando abrir la app y haciendo fallback a la web si no hay foco", async () => {
-    const openSpy = vi.spyOn(window, "open").mockReturnValue({} as Window);
+  it("abre WhatsApp de inmediato y cierra el editor después de solicitar el enlace", async () => {
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
     const onClose = vi.fn();
 
     render(
@@ -300,26 +367,16 @@ describe("ArregloWhatsAppModal", () => {
       expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
     });
 
-    vi.useFakeTimers();
     const submitBtn = screen.getByRole("button", { name: "Abrir chat de WhatsApp" });
     fireEvent.click(submitBtn);
 
-    // Cierra el modal de inmediato para no retener la UI
     expect(onClose).toHaveBeenCalled();
-
-    // Antes del timeout no se abrió web
-    expect(openSpy).not.toHaveBeenCalled();
-
-    // Al pasar el timeout de fallback se abre WhatsApp Web
-    act(() => {
-      vi.advanceTimersByTime(1500);
-    });
-
-    expect(openSpy).toHaveBeenCalled();
-    const calledUrl = openSpy.mock.calls[0][0];
-    expect(calledUrl).toContain("web.whatsapp.com/send?phone=5491199998888");
-
-    vi.useRealTimers();
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining("https://wa.me/5491199998888?text="),
+      "_blank",
+      "noopener,noreferrer"
+    );
   });
 
   it("muestra únicamente el botón principal de WhatsApp y no un botón secundario de WhatsApp Web", async () => {

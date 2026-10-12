@@ -8,7 +8,6 @@ export async function middleware(request: NextRequest) {
     logger.info('Request: ', {
       method: request.method,
       url: request.nextUrl.href,
-      body: await request.text(),
     });
   }
   return await updateSession(request)
@@ -27,6 +26,7 @@ export const config = {
     '/operaciones/:path*',
     '/configuracion/:path*',
     '/facturacion/:path*',
+    '/remitos/:path*',
     '/api/clientes/:path*',
     '/api/vehiculos/:path*',
     '/api/arreglos/:path*',
@@ -38,6 +38,8 @@ export const config = {
     '/api/tenant/:path*',
     '/api/facturacion/:path*',
     '/api/facturas/:path*',
+    '/api/remitos/:path*',
+    '/api/documentos/:path*',
     '/api/fiscal/condicion-iva',
   ],
 }

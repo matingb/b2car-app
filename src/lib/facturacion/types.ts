@@ -6,6 +6,7 @@ export type CondicionIvaReceptorId =
 export type FacturacionAmbiente = "HOMOLOGACION" | "PRODUCCION";
 export type CondicionIvaEmisor = "MONOTRIBUTISTA" | "RESPONSABLE_INSCRIPTO";
 export type FacturaClase = "A" | "B" | "C" | "M";
+export type FceSistemaCirculacion = "SCA" | "ADC";
 export type DocumentoFiscalClase = "FACTURA" | "NOTA_CREDITO" | "NOTA_DEBITO";
 export type FacturaOrigenTipo = "ARREGLO" | "VENTA";
 export type TratamientoIva = "GRAVADO" | "EXENTO" | "NO_GRAVADO";
@@ -78,6 +79,9 @@ export type FacturaElectronicaResumen = {
   receptorNombre: string;
   receptorDocumento: string | null;
   createdAt?: string;
+  fceSistema?: FceSistemaCirculacion | null;
+  fceCbu?: string | null;
+  fechaVencimientoPago?: string | null;
   errorCodigo?: string | null;
   errorMensaje?: string | null;
 };
@@ -105,15 +109,60 @@ export type FacturaElectronicaDetalle = FacturaElectronicaResumen & {
   pdfDisponible: boolean;
 };
 
+export type FacturaStockOrigen = {
+  operacion_linea_id: string;
+  operacion_origen_id: string;
+  stock_id: string;
+  taller_id: string;
+  producto_id: string;
+  origen_linea: "VENTA" | "REPUESTO";
+  cantidad_original: number;
+  nombre_snapshot: string;
+  codigo_snapshot: string | null;
+};
+
+export type DevolucionStockDisponible = {
+  operacionLineaId: string;
+  nombre: string;
+  codigo: string | null;
+  origenLinea: "VENTA" | "REPUESTO";
+  tallerId: string;
+  cantidadOriginal: number;
+  /** Kept for existing VENTA consumers; equals cantidadOriginal. */
+  vendido: number;
+  devuelto: number;
+  reservado: number;
+  restante: number;
+};
+
+export type DevolucionesDisponiblesResult = {
+  origenTipo: FacturaOrigenTipo;
+  procedenciaVerificada: boolean;
+  advertencia: string | null;
+  items: DevolucionStockDisponible[];
+};
+
+export type CondicionIngresosBrutos = "INSCRIPTO" | "EXENTO" | "NO_CONTRIBUYENTE";
+
+export const CONDICIONES_INGRESOS_BRUTOS: Array<{ value: CondicionIngresosBrutos; label: string }> = [
+  { value: "INSCRIPTO", label: "Inscripto" },
+  { value: "EXENTO", label: "Exento" },
+  { value: "NO_CONTRIBUYENTE", label: "No contribuyente" },
+];
+
 export type FacturacionConfiguracionPublica = {
   razonSocial: string;
   nombreFantasia: string | null;
   cuit: string;
   condicionIvaEmisor: CondicionIvaEmisor;
   domicilio: string;
+  ingresosBrutosCondicion: CondicionIngresosBrutos | null;
+  /** Número de inscripción; sólo aplica a la condición Inscripto. */
   ingresosBrutos: string | null;
   inicioActividades: string;
   puntoVenta: number;
+  fceCbu: string | null;
+  fceSistema: FceSistemaCirculacion | null;
   ambiente: FacturacionAmbiente;
   credenciales: {
     configuradas: boolean;
@@ -126,6 +175,9 @@ export type FacturacionConfiguracionPublica = {
 };
 
 export type FacturacionPreflight = {
+  /** Modo persistido; ausente en respuestas históricas implica incluido. */
+  preciosIncluyenIva?: boolean;
+  tasaIvaComercial?: number | null;
   puedeEmitir: boolean;
   configuracionCompleta: boolean;
   origenListo: boolean;
@@ -145,6 +197,12 @@ export type FacturacionPreflight = {
   total: number;
   precioFinal: number;
   fechasDefault: FacturaFechaInput;
+  fcePosible: boolean;
+  fceObligatoria: boolean;
+  fceSistemaConfigurado: FceSistemaCirculacion | null;
+  fceCbuConfigurado: boolean;
+  fceFechaConsulta: string;
+  fceTotalConsultado: number;
 };
 
 export type FacturasPaginadas = {

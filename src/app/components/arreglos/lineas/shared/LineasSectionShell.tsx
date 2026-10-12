@@ -10,7 +10,7 @@ import { Permission } from "@/lib/permissions";
 type Props = {
   title: React.ReactNode;
   titleIcon: React.ReactNode;
-  subtotal: React.ReactNode;
+  subtotal?: React.ReactNode;
   subtotalLabel?: React.ReactNode;
   subtotalBeforeLabel?: React.ReactNode;
   children: React.ReactNode;
@@ -38,20 +38,22 @@ export default function LineasSectionShell({
         <IconLabel icon={titleIcon} label={title} />
 
         <div style={styles.sectionRight}>
-          <Can
-            permission={Permission.ArreglosPreciosView}
-            fallback={
-              subtotalBeforeLabel ? (
-                <div style={styles.subtotalInline}>{subtotalBeforeLabel}</div>
-              ) : null
-            }
-          >
-            <div style={styles.subtotalInline}>
-              {subtotalBeforeLabel}
-              <span style={styles.subtotalLabel}>{subtotalLabel}</span>
-              <span style={styles.subtotalValue}>{subtotal}</span>
-            </div>
-          </Can>
+          {subtotal !== undefined && subtotal !== null ? (
+            <Can
+              permission={Permission.ArreglosPreciosView}
+              fallback={
+                subtotalBeforeLabel ? (
+                  <div style={styles.subtotalInline}>{subtotalBeforeLabel}</div>
+                ) : null
+              }
+            >
+              <div style={styles.subtotalInline}>
+                {subtotalBeforeLabel}
+                <span style={styles.subtotalLabel}>{subtotalLabel}</span>
+                <span style={styles.subtotalValue}>{subtotal}</span>
+              </div>
+            </Can>
+          ) : null}
 
           <button
             type="button"

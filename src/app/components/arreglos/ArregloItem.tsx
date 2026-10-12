@@ -74,8 +74,9 @@ export default function ArregloItem({
   const resolvedEmpleados = empleadosProp || arreglo.empleados || [];
 
   return (
-    <div 
-      style={styles.wrapper(isBadgeOpen || isHovered)}
+    <div
+      data-testid="arreglo-item-wrapper"
+      style={styles.wrapper(isBadgeOpen, isHovered)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -237,9 +238,9 @@ export default function ArregloItem({
 }
 
 const styles = {
-  wrapper: (isHoveredOrBadgeOpen: boolean) => ({
+  wrapper: (isBadgeOpen: boolean, isHovered: boolean) => ({
     position: "relative" as const,
-    zIndex: isHoveredOrBadgeOpen ? 50 : 1,
+    zIndex: isBadgeOpen ? 100 : isHovered ? 1 : 0,
   }),
   card: {
     cursor: "pointer",

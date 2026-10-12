@@ -21,9 +21,11 @@ type Props = {
   initial: FacturasFilters;
   onClose: () => void;
   onApply: (filters: FacturasFilters) => void;
+  /** Oculta el estado fiscal cuando el listado muestra solo remitos. */
+  hideEstado?: boolean;
 };
 
-export default function FacturasFiltersModal({ open, initial, onClose, onApply }: Props) {
+export default function FacturasFiltersModal({ open, initial, onClose, onApply, hideEstado = false }: Props) {
   const [filters, setFilters] = useState<FacturasFilters>(initial);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export default function FacturasFiltersModal({ open, initial, onClose, onApply }
   return (
     <Modal
       open={open}
-      title="Filtrar comprobantes"
+      title="Filtrar documentos"
       onClose={onClose}
       onSubmit={(event) => {
         event.preventDefault();
@@ -51,12 +53,14 @@ export default function FacturasFiltersModal({ open, initial, onClose, onApply }
     >
       <div style={styles.content}>
         <div css={styles.row}>
-          <Field label="Estado">
-            <select data-testid="facturas-filter-estado" style={styles.input} value={filters.estado} onChange={(event) => update("estado", event.target.value)}>
-              <option value="">Todos los estados</option>
-              {Object.entries(FACTURA_ESTADO_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </Field>
+          {hideEstado ? null : (
+            <Field label="Estado fiscal">
+              <select data-testid="facturas-filter-estado" style={styles.input} value={filters.estado} onChange={(event) => update("estado", event.target.value)}>
+                <option value="">Todos los estados</option>
+                {Object.entries(FACTURA_ESTADO_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </Field>
+          )}
           <Field label="Ambiente">
             <select data-testid="facturas-filter-ambiente" style={styles.input} value={filters.ambiente} onChange={(event) => update("ambiente", event.target.value)}>
               <option value="">Todos los ambientes</option>

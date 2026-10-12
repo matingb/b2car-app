@@ -145,6 +145,12 @@ function zonedCalendarDateTimeISO(
   return new Date(wallClockAsUtc - timeZoneOffset).toISOString();
 }
 
+/** Calendar date (YYYY-MM-DD) of an instant in the application time zone. */
+export function toISODateAppTimeZone(date: Date = new Date()): string {
+  const { year, month, day } = getTimeZoneParts(date, APP_TIME_ZONE);
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 /** Convert an application calendar date to an exclusive Buenos Aires day range. */
 export function argentinaCalendarDateRangeISO(from?: string, through?: string): {
   from: string | undefined;

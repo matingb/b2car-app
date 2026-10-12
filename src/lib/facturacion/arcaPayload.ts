@@ -10,6 +10,7 @@ import {
   type FacturaTotales,
   type PerfilFiscalCliente,
 } from "./types";
+import { toISODateAppTimeZone } from "@/lib/fechas";
 
 export class FacturacionValidationError extends Error {
   constructor(message: string) {
@@ -118,6 +119,7 @@ export function determineVoucher(
   condicionEmisor: CondicionIvaEmisor,
   condicionReceptor: PerfilFiscalCliente["condicionIvaReceptorId"],
   documentoTipo: DocumentoFiscalClase = "FACTURA",
+  fceMipyme = false,
 ): { clase: FacturaClase; tipo: number } {
   if (!condicionReceptor) throw new FacturacionValidationError("La condición IVA del receptor es obligatoria");
   const receptorRecibeA = [1, 6, 13, 16].includes(condicionReceptor);
@@ -130,12 +132,18 @@ export function determineVoucher(
     C: { FACTURA: 11, NOTA_DEBITO: 12, NOTA_CREDITO: 13 },
     M: { FACTURA: 51, NOTA_DEBITO: 52, NOTA_CREDITO: 53 },
   } as const;
+  if (fceMipyme) {
+    if (documentoTipo !== "FACTURA") throw new FacturacionValidationError("Las notas de crédito o débito FCE no están habilitadas");
+    return { clase, tipo: ({ A: 201, B: 206, C: 211, M: 201 } as const)[clase] };
+  }
   return { clase, tipo: tipos[clase][documentoTipo] };
 }
 
 export function fiscalizeLineas(
   lineas: FacturaLinea[],
   condicionEmisor: CondicionIvaEmisor,
+  preciosIncluyenIva = true,
+  tasaIvaComercial = 0.21,
 ): { lineas: FacturaLinea[]; totales: FacturaTotales } {
   if (!lineas.length) throw new FacturacionValidationError("El origen no tiene líneas facturables");
   let neto = 0;
@@ -148,9 +156,12 @@ export function fiscalizeLineas(
     if (!Number.isFinite(source.cantidad) || source.cantidad <= 0) {
       throw new FacturacionValidationError("La cantidad de una línea no es válida");
     }
-    const subtotal = amountToCents(source.subtotal);
-    const unitario = amountToCents(source.importeUnitario);
-    if (Math.round(source.cantidad * unitario) !== subtotal) {
+    const sourceSubtotal = amountToCents(source.subtotal);
+    if (!Number.isFinite(tasaIvaComercial) || tasaIvaComercial < 0) throw new FacturacionValidationError("La tasa IVA comercial no es válida");
+    // tasa_iva is a decimal fraction (e.g. .21), matching PostgreSQL numeric math.
+    const subtotalComercial = !preciosIncluyenIva ? Math.round(sourceSubtotal * (1 + tasaIvaComercial)) : sourceSubtotal;
+    const unitarioFuente = amountToCents(source.importeUnitario);
+    if (Math.round(source.cantidad * unitarioFuente) !== sourceSubtotal) {
       throw new FacturacionValidationError("El subtotal no coincide con cantidad por precio unitario");
     }
     const tratamiento = source.tratamientoIva ?? "GRAVADO";
@@ -161,33 +172,38 @@ export function fiscalizeLineas(
       porcentaje = 0;
     }
     if (porcentaje == null) throw new FacturacionValidationError("La alícuota IVA no es válida");
-    let importeNeto = subtotal;
+    let importeNeto = subtotalComercial;
     let importeIva = 0;
     if (condicionEmisor === "RESPONSABLE_INSCRIPTO" && tratamiento === "GRAVADO") {
-      importeNeto = Math.round((subtotal * 10000) / (10000 + Math.round(porcentaje * 100)));
-      importeIva = subtotal - importeNeto;
+      // The commercial subtotal is already gross. Split it using the legal ARCA rate,
+      // regardless of the commercial rate that produced the gross. Never add tax on top again.
+      importeNeto = Math.round((subtotalComercial * 10000) / (10000 + Math.round(porcentaje * 100)));
+      importeIva = subtotalComercial - importeNeto;
       neto += importeNeto;
       iva += importeIva;
     } else if (tratamiento === "EXENTO") {
-      exento += subtotal;
+      exento += subtotalComercial;
     } else if (tratamiento === "NO_GRAVADO") {
-      noGravado += subtotal;
+      noGravado += subtotalComercial;
     } else {
-      neto += subtotal;
+      neto += subtotalComercial;
       if (condicionEmisor === "MONOTRIBUTISTA") {
         alicuotaId = null;
         porcentaje = 0;
       }
     }
-    total += subtotal;
+    const importeTotal = importeNeto + importeIva;
+    total += importeTotal;
     return {
       ...source,
+      importeUnitario: centsToAmount(unitarioFuente),
+      subtotal: centsToAmount(sourceSubtotal),
       tratamientoIva: tratamiento,
       ivaAlicuotaId: alicuotaId,
       ivaAlicuota: porcentaje,
       importeNeto: centsToAmount(importeNeto),
       importeIva: centsToAmount(importeIva),
-      importeTotal: centsToAmount(subtotal),
+      importeTotal: centsToAmount(importeTotal),
     };
   });
   return {
@@ -228,9 +244,10 @@ export function validateFechas(
   concepto: FacturaConcepto,
   fechas: FacturaFechaInput,
   today = new Date(),
+  fceMipyme = false,
 ): Required<FacturaFechaInput> {
   const comprobante = parseIsoDate(fechas.fechaComprobante, "La fecha de comprobante");
-  const hoy = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const hoy = parseIsoDate(toIsoDate(today), "La fecha de hoy");
   const maxDays = concepto === 1 ? 5 : 10;
   if (Math.abs(distance(comprobante, hoy)) > maxDays) {
     throw new FacturacionValidationError(`La fecha debe estar dentro de los ${maxDays} días de hoy`);
@@ -239,12 +256,14 @@ export function validateFechas(
       || comprobante.getUTCMonth() !== hoy.getUTCMonth())) {
     throw new FacturacionValidationError("Los comprobantes de productos deben pertenecer al mes actual");
   }
-  if (concepto === 1) return { fechaComprobante: fechas.fechaComprobante, fechaServicioDesde: "", fechaServicioHasta: "", fechaVencimientoPago: "" };
+  if (concepto === 1 && !fceMipyme) return { fechaComprobante: fechas.fechaComprobante, fechaServicioDesde: "", fechaServicioHasta: "", fechaVencimientoPago: "" };
+  const vencimiento = parseIsoDate(fechas.fechaVencimientoPago, "La fecha de vencimiento de pago");
+  const limiteVencimiento = fceMipyme && comprobante < hoy ? hoy : comprobante;
+  if (vencimiento < limiteVencimiento) throw new FacturacionValidationError("El vencimiento FCE no puede ser anterior a la fecha de emisión ni a la fecha actual");
+  if (concepto === 1) return { fechaComprobante: fechas.fechaComprobante, fechaServicioDesde: "", fechaServicioHasta: "", fechaVencimientoPago: fechas.fechaVencimientoPago! };
   const desde = parseIsoDate(fechas.fechaServicioDesde, "La fecha de servicio desde");
   const hasta = parseIsoDate(fechas.fechaServicioHasta, "La fecha de servicio hasta");
-  const vencimiento = parseIsoDate(fechas.fechaVencimientoPago, "La fecha de vencimiento de pago");
   if (desde > hasta) throw new FacturacionValidationError("La fecha desde no puede ser posterior a la fecha hasta");
-  if (vencimiento < comprobante) throw new FacturacionValidationError("El vencimiento no puede ser anterior al comprobante");
   return { fechaComprobante: fechas.fechaComprobante, fechaServicioDesde: fechas.fechaServicioDesde!, fechaServicioHasta: fechas.fechaServicioHasta!, fechaVencimientoPago: fechas.fechaVencimientoPago! };
 }
 
@@ -261,11 +280,16 @@ export function buildComprobantePayload(input: {
   totales: FacturaTotales;
   lineas: FacturaLinea[];
   asociado?: ComprobanteAsociado | null;
+  fceMipyme?: boolean;
+  fceCbu?: string | null;
+  fceSistema?: "SCA" | "ADC" | null;
 }): Record<string, unknown> {
   if (!Number.isInteger(input.voucherNumber) || input.voucherNumber <= 0) throw new FacturacionValidationError("Número candidato inválido");
   if (!Number.isInteger(input.puntoVenta) || input.puntoVenta <= 0) throw new FacturacionValidationError("Punto de venta inválido");
   const doc = validateReceiverIdentification(input.receptor, input.claseComprobante);
-  const fechas = validateFechas(input.concepto, input.fechas);
+  const fce = input.fceMipyme === true;
+  const fechas = validateFechas(input.concepto, input.fechas, new Date(), fce);
+  if (fce && (!input.fceCbu || !/^\d{22}$/.test(input.fceCbu) || !input.fceSistema)) throw new FacturacionValidationError("La emisión FCE requiere un CBU fiscal de 22 dígitos y seleccionar SCA o ADC");
   const payload: Record<string, unknown> = {
     CantReg: 1, PtoVta: input.puntoVenta, CbteTipo: input.tipoComprobante,
     Concepto: input.concepto, DocTipo: doc.tipoDocumento, DocNro: Number(doc.numeroDocumento),
@@ -280,7 +304,10 @@ export function buildComprobantePayload(input: {
     payload.FchServDesde = arcaDate(fechas.fechaServicioDesde!);
     payload.FchServHasta = arcaDate(fechas.fechaServicioHasta!);
     payload.FchVtoPago = arcaDate(fechas.fechaVencimientoPago!);
+  } else if (fce) {
+    payload.FchVtoPago = arcaDate(fechas.fechaVencimientoPago!);
   }
+  if (fce) payload.Opcionales = [{ Id: 2101, Valor: input.fceCbu }, { Id: 27, Valor: input.fceSistema }];
   if (input.claseComprobante !== "C") {
     const grouped = new Map<number, { BaseImp: number; Importe: number }>();
     input.lineas.forEach((line) => {
@@ -310,4 +337,5 @@ export function buildFacturaCPayload(input: {
   });
 }
 
-export function toIsoDate(value: Date): string { return value.toISOString().slice(0, 10); }
+/** Fecha calendario en Argentina (GMT-3): en UTC, desde las 21 h ya sería el día siguiente. */
+export function toIsoDate(value: Date): string { return toISODateAppTimeZone(value); }

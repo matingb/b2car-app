@@ -65,9 +65,8 @@ describe("useWhatsAppMessage", () => {
     expect(openSpy).not.toHaveBeenCalled();
   });
 
-  it("en caso exitoso, intenta abrir la app de WhatsApp y hace fallback a la web si no hay foco", async () => {
-    vi.useFakeTimers();
-    const openSpy = vi.spyOn(window, "open").mockImplementation(() => ({} as unknown as Window));
+  it("abre WhatsApp de inmediato con el teléfono normalizado", async () => {
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
     const { result } = renderHook(() => useWhatsAppMessage());
 
     await act(async () => {
@@ -75,26 +74,16 @@ describe("useWhatsAppMessage", () => {
     });
 
     expect(toast.error).not.toHaveBeenCalled();
-    // Antes del timeout, todavía no se llamó a window.open
-    expect(openSpy).not.toHaveBeenCalled();
-
-    // Al pasar el timeout de fallback, se abre WhatsApp Web
-    act(() => {
-      vi.advanceTimersByTime(1500);
-    });
-
     expect(openSpy).toHaveBeenCalledTimes(1);
-    const [url, target] = openSpy.mock.calls[0]!;
-    expect(String(url)).toContain("web.whatsapp.com/send?phone=5491112345678");
-    expect(String(url)).toContain("text=hola");
-    expect(target).toBe("_blank");
-
-    vi.useRealTimers();
+    expect(openSpy).toHaveBeenCalledWith(
+      "https://wa.me/5491112345678?text=hola",
+      "_blank",
+      "noopener,noreferrer"
+    );
   });
 
-  it("shareArreglo abre whatsapp con los datos del cliente y el arreglo con fallback", async () => {
-    vi.useFakeTimers();
-    const openSpy = vi.spyOn(window, "open").mockImplementation(() => ({} as unknown as Window));
+  it("shareArreglo abre el mensaje generado con el teléfono del cliente", async () => {
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
     mockFetchCliente.mockResolvedValueOnce({
       id: "cli1",
       nombre: "Juan",
@@ -137,12 +126,11 @@ describe("useWhatsAppMessage", () => {
 
     expect(toast.error).not.toHaveBeenCalled();
     expect(mockFetchCliente).toHaveBeenCalledWith("veh1");
-
-    act(() => {
-      vi.advanceTimersByTime(1500);
-    });
-
     expect(openSpy).toHaveBeenCalledTimes(1);
-    vi.useRealTimers();
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining("https://wa.me/1155554444?text="),
+      "_blank",
+      "noopener,noreferrer"
+    );
   });
 });

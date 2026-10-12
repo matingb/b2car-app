@@ -15,7 +15,9 @@ BEGIN
   END IF;
   IF TG_TABLE_NAME = 'arreglos' THEN
     v_arreglo_id := (v_rec ->> 'id')::uuid;
-    v_protegido := public.facturacion_arreglo_autorizado(v_arreglo_id);
+    SELECT EXISTS (SELECT 1 FROM public.facturas_electronicas f
+      WHERE f.arreglo_id = v_arreglo_id AND f.estado IN ('AUTORIZADA', 'ENVIANDO', 'INCIERTA'))
+      INTO v_protegido;
     IF NOT v_protegido THEN
       IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
     END IF;
@@ -23,6 +25,8 @@ BEGIN
        OR OLD.vehiculo_id IS DISTINCT FROM NEW.vehiculo_id
        OR OLD.taller_id IS DISTINCT FROM NEW.taller_id
        OR OLD.fecha IS DISTINCT FROM NEW.fecha
+       OR OLD.precios_incluyen_iva IS DISTINCT FROM NEW.precios_incluyen_iva
+       OR OLD.tasa_iva IS DISTINCT FROM NEW.tasa_iva
        OR OLD.precio_final IS DISTINCT FROM NEW.precio_final
        OR OLD.precio_sin_iva IS DISTINCT FROM NEW.precio_sin_iva
        OR OLD.estado IS DISTINCT FROM NEW.estado THEN
@@ -58,7 +62,14 @@ BEGIN
   ELSE
     v_arreglo_id := (v_rec ->> 'arreglo_id')::uuid;
   END IF;
-  IF v_arreglo_id IS NOT NULL AND public.facturacion_arreglo_autorizado(v_arreglo_id) THEN
+  -- Same source row lock as mode changes, collection and fiscal preparation.
+  IF v_arreglo_id IS NOT NULL THEN
+    PERFORM 1 FROM public.arreglos WHERE id = v_arreglo_id FOR UPDATE;
+  END IF;
+  IF v_arreglo_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public.facturas_electronicas f
+    WHERE f.arreglo_id = v_arreglo_id AND f.estado IN ('AUTORIZADA', 'ENVIANDO', 'INCIERTA')
+  ) THEN
     RAISE EXCEPTION 'No se pueden modificar lineas de un arreglo con factura electronica autorizada'
       USING ERRCODE = '55001';
   END IF;

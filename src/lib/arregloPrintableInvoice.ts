@@ -53,16 +53,23 @@ export function buildArregloPrintableInvoiceHtml({
   const subtotalServicios = data.detalles.reduce(
     (acc, d) =>
       acc +
-      calcLineTotal({
+      roundCurrency(calcLineTotal({
         cantidad: d.cantidad,
         horas_facturadas: d.horas_facturadas,
         precio_hora_facturada: d.precio_hora_facturada,
-      }),
+      })),
     0
   );
-  const subtotalCustom = safeNumber(data.detalle_formulario?.costo);
-  const subtotalRepuestos = repuestoLines.reduce((acc, line) => acc + line.total, 0);
-  const total = subtotalServicios + subtotalCustom + subtotalRepuestos;
+  const subtotalCustom = roundCurrency(safeNumber(data.detalle_formulario?.costo));
+  const subtotalRepuestos = repuestoLines.reduce((acc, line) => acc + roundCurrency(line.total), 0);
+  // The persisted price_final is the commercial amount payable (including any commercial IVA).
+  const calculatedTotal = subtotalServicios + subtotalCustom + subtotalRepuestos;
+  const total = arreglo.precio_final == null ? calculatedTotal : safeNumber(arreglo.precio_final);
+  const preciosIncluyenIva = arreglo.precios_incluyen_iva !== false;
+  const subtotalIngresado = !preciosIncluyenIva && arreglo.precio_sin_iva != null
+    ? safeNumber(arreglo.precio_sin_iva)
+    : calculatedTotal;
+  const ivaComercial = !preciosIncluyenIva ? total - subtotalIngresado : null;
   const invoiceNumber = shortInvoiceNumber(arreglo.id);
   const printedAt = new Date().toLocaleString(APP_LOCALE);
 
@@ -370,6 +377,8 @@ export function buildArregloPrintableInvoiceHtml({
     </section>
 
     <div class="bottom-totals">
+      ${ivaComercial === null ? "" : `<div class="total-box"><span>Subtotal sin IVA</span><span class="money">${formatMoney(subtotalIngresado)}</span></div>
+      <div class="total-box"><span>IVA</span><span class="money">${formatMoney(ivaComercial)}</span></div>`}
       <div class="total-box"><span>Total Gral.</span><span class="money">${formatMoney(total)}</span></div>
     </div>
     <div class="note">Documento sin validez fiscal. Generado por sistema B2Car. Fecha de impresion: ${escapeHtml(printedAt)}</div>
@@ -523,6 +532,11 @@ function formatDate(date: string | null | undefined): string {
 
 function formatMoney(value: number): string {
   return escapeHtml(formatArs(value, { maxDecimals: 2, minDecimals: 0 }));
+}
+
+function roundCurrency(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 function formatQuantity(value: number): string {

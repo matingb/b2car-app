@@ -16,6 +16,7 @@ export enum ServiceError {
   ArregloFacturado = "ArregloFacturado",
   MovimientoFinancieroInmutable = "MovimientoFinancieroInmutable",
   HorasFacturadasInmutables = "HorasFacturadasInmutables",
+  EnUso = "EnUso",
 }
 export type ServiceResult<T> = {
   data: T | null;
@@ -32,6 +33,7 @@ export function toServiceError(err: PostgrestError): ServiceError {
   const code = err.code;
   if (code == "PGRST116" || code == "P0002") return ServiceError.NotFound;
   if (code == "23505") return ServiceError.Conflict;
+  if (code == "23503") return ServiceError.EnUso;
   if (code == "55000") return ServiceError.MovimientoFinancieroInmutable;
   if (code == "55001") return ServiceError.ArregloFacturado;
   if (code == "P0001" && err.message?.includes("STOCK_INSUFICIENTE")) return ServiceError.StockInsuficiente;

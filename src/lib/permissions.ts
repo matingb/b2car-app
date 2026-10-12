@@ -86,7 +86,7 @@ export const PATH_PERMISSIONS: readonly RoutePermissionRule[] = [
     permission: Permission.EmpleadosView,
   },
   {
-    path: ["/configuracion/facturacion", "/api/facturacion/configuracion"],
+    path: ["/configuracion/facturacion", "/configuracion/remitos", "/api/facturacion/configuracion"],
     permission: Permission.FacturasView,
   },
   {
@@ -97,9 +97,9 @@ export const PATH_PERMISSIONS: readonly RoutePermissionRule[] = [
   // Talleres
   { path: ["/talleres", "/api/tenant/taller"], permission: Permission.TallerView },
 
-  // Facturación y endpoints fiscales
+  // Facturación, remitos y endpoints fiscales
   {
-    path: ["/facturacion", "/api/facturas", "/api/fiscal"],
+    path: ["/facturacion", "/api/facturas", "/api/fiscal", "/remitos", "/api/remitos", "/api/documentos"],
     permission: Permission.FacturasView,
   },
 

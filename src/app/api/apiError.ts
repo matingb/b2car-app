@@ -146,6 +146,8 @@ function mapServiceError(error: unknown, opts: ApiErrorOptions): MappedApiError 
       return { status: 409, code: "INMUTABLE", message: IMMUTABLE_MOVEMENT_MESSAGE };
     case ServiceError.HorasFacturadasInmutables:
       return { status: 400, code: "VALIDATION", message: IMMUTABLE_HOURS_MESSAGE };
+    case ServiceError.EnUso:
+      return { status: 409, code: "IN_USE", message: API_ERROR_MESSAGES.IN_USE };
     case ServiceError.Unknown:
       return { status: 500, code: "INTERNAL", message: opts.fallback };
     default:

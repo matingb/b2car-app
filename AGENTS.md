@@ -91,4 +91,8 @@ Use the Supabase declarative schema in `supabase/schemas/` instead, which reflec
 
 Only open a migration when you need to know the history of a specific change (for example, when writing a new migration that must stay consistent with a previous one).
 
-Do not make changes to the schema manually. After creating and appling a new migration, regenerate the schema and validate that the expected changes are reflected in the schema.
+### Schema changes go in migrations only
+
+`supabase/schemas/` is read-only for agents. It is regenerated from the database with Supabase commands, so never create, edit, or delete files there, and do not try to keep it in sync by hand after writing a migration.
+
+Every database change (tables, columns, functions, policies, grants, data backfills) must be written as a migration in `supabase/migrations/`. If a schema file looks outdated or inconsistent with the migrations, leave it as is: it is fixed by regenerating the schema, not by editing it.

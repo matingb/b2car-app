@@ -1,3 +1,6 @@
+import { IVA_RATE } from "@/lib/ivaRate";
+import { Permission } from "@/lib/permissions";
+import { hasUserPermission } from "@/lib/permissions.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Arreglo, EstadoArreglo } from "@/model/types";
 import { ESTADOS_ARREGLO } from "@/model/types";
@@ -98,6 +101,11 @@ export const arregloMutationService = {
     id: string,
     payload: UpdateArregloRequest
   ): Promise<MutationResult<Arreglo>> {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return { data: null, error: "JSON inválido", status: 400 };
+    if (["tasa_iva", "precio_final", "precio_sin_iva", "total_cobrado", "saldo_pendiente"].some(key => Object.prototype.hasOwnProperty.call(payload, key))) return { data: null, error: "Los importes y la tasa IVA se calculan en el servidor", status: 400 };
+    const hasIva = Object.prototype.hasOwnProperty.call(payload, "precios_incluyen_iva");
+    if (hasIva && typeof payload.precios_incluyen_iva !== "boolean") return { data: null, error: "precios_incluyen_iva debe ser boolean", status: 400 };
+    if (hasIva && !await hasUserPermission(supabase, Permission.ArreglosPreciosEdit)) return { data: null, error: "Sin permiso para editar precios", status: 403 };
     if (Object.prototype.hasOwnProperty.call(payload, "esta_pago")) {
       return {
         data: null,
@@ -122,7 +130,10 @@ export const arregloMutationService = {
     }
 
     const { detalle_formulario, ...restPayload } = payload;
-    const arregloPatch: UpdateArregloRequest = { ...restPayload };
+    const arregloPatch: UpdateArregloRequest & { tasa_iva?: number } = {};
+    for (const key of ["estado", "kilometraje_leido", "combustible_leido", "fecha", "observaciones", "es_facturable", "cliente_id", "extra_data", "precios_incluyen_iva"] as const) {
+      if (Object.prototype.hasOwnProperty.call(restPayload, key)) Object.assign(arregloPatch, { [key]: restPayload[key] });
+    }
     delete (arregloPatch as { descripcion?: unknown }).descripcion;
 
     if (arregloPatch.estado !== undefined) {
@@ -134,6 +145,16 @@ export const arregloMutationService = {
     }
 
     let currentArreglo: Arreglo | null = null;
+    if (hasIva) {
+      const current = await arregloService.getByIdWithVehiculo(supabase, id);
+      if (current.error || !current.data) return { data: null, error: "Arreglo no encontrado", status: current.error === ServiceError.NotFound || !current.data ? 404 : 500 };
+      currentArreglo = current.data;
+      if (payload.precios_incluyen_iva !== (currentArreglo.precios_incluyen_iva ?? true)) {
+        if (Number(currentArreglo.total_cobrado ?? 0) > 0 || currentArreglo.esta_pago) return { data: null, error: "No se puede cambiar IVA con cobros vigentes", status: 409 };
+        // DB rechecks guards and computes totals atomically under the arreglo lock.
+        arregloPatch.tasa_iva = IVA_RATE;
+      }
+    }
     let activateAfterPatch = false;
     let activationTarget: EstadoArreglo | undefined;
 
@@ -168,16 +189,17 @@ export const arregloMutationService = {
 
     let updatedArreglo: Arreglo | null = null;
     if (patchEntries.length > 0) {
-      const { data, error } = await arregloService.updateById(
+      const { data, error, cause } = await arregloService.updateById(
         supabase,
         id,
         arregloPatch
       );
 
       if (error) {
-        const status = error === ServiceError.NotFound ? 404 : 500;
-        const message = status === 404 ? "Arreglo no encontrado" : "Error actualizando arreglo";
-        return { data: null, error: message, status };
+        const forbidden = cause?.code === "42501";
+        const conflict = error === ServiceError.ArregloFacturado || error === ServiceError.MovimientoFinancieroInmutable || error === ServiceError.Conflict || cause?.code === "P1971" || cause?.code === "P1972";
+        const status = forbidden ? 403 : conflict ? 409 : error === ServiceError.NotFound ? 404 : 500;
+        return { data: null, error: forbidden ? "Sin permiso para editar precios" : conflict ? "No se puede cambiar IVA: cobros o documentación fiscal protegida" : status === 404 ? "Arreglo no encontrado" : "Error actualizando arreglo", status };
       }
 
       updatedArreglo = data;
@@ -214,6 +236,12 @@ export const arregloMutationService = {
           status: formUpsertResult.status ?? 500,
         };
       }
+    }
+
+    if (detalle_formulario) {
+      const refreshed = await arregloService.getByIdWithVehiculo(supabase, id);
+      if (refreshed.error) return { data: null, error: "No se pudo recargar el arreglo", status: 500 };
+      updatedArreglo = refreshed.data;
     }
 
     if (activateAfterPatch && activationTarget !== undefined) {

@@ -26,7 +26,7 @@ BEGIN
   ),
   ra AS (
     SELECT date_trunc(b.trunc_name, a.fecha) AS slot_start,
-           COALESCE(SUM(ol.cantidad * ol.monto_unitario), 0)::numeric AS rep
+           COALESCE(SUM(public.importe_comercial_arreglo(ol.cantidad * ol.monto_unitario, a.precios_incluyen_iva, a.tasa_iva)), 0)::numeric AS rep
     FROM public.arreglos a
     JOIN public.operaciones_asignacion_arreglo oa ON oa.arreglo_id = a.id
     JOIN public.operaciones o  ON o.id = oa.operacion_id AND o.tipo = 'ASIGNACION_ARREGLO'

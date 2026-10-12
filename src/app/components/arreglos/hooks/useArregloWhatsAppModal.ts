@@ -18,6 +18,7 @@ export interface WhatsAppContentConfig {
   mostrarTotal: boolean;
   incluirKm: boolean;
   incluirObservaciones: boolean;
+  preciosConIva: boolean;
 }
 
 export const DEFAULT_WHATSAPP_CONFIG: WhatsAppContentConfig = {
@@ -27,6 +28,8 @@ export const DEFAULT_WHATSAPP_CONFIG: WhatsAppContentConfig = {
   mostrarTotal: true,
   incluirKm: true,
   incluirObservaciones: true,
+  // Solo se ofrece en arreglos con precios sin IVA; ahí arranca discriminando el IVA.
+  preciosConIva: false,
 };
 
 interface Params {

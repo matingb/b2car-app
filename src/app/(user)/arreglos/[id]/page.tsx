@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
-import Card from "@/app/components/ui/Card";
 import { COLOR } from "@/theme/theme";
 import { Skeleton, Theme } from "@radix-ui/themes";
 import ArregloModal from "@/app/components/arreglos/ArregloModal";
@@ -36,8 +35,8 @@ import { useEmpleados } from "@/app/providers/EmpleadosProvider";
 import CuentaCompraAutomaticaModal from "@/app/components/arreglos/CuentaCompraAutomaticaModal";
 import { generateUuidV4 } from "@/lib/uuid";
 import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
+import ArregloDocumentosAsociados from "@/app/components/arreglos/ArregloDocumentosAsociados";
 import type { FacturaElectronicaResumen } from "@/lib/facturacion/types";
-import { LockKeyhole } from "lucide-react";
 import { useTenant } from "@/app/providers/TenantProvider";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
@@ -47,7 +46,6 @@ import { isFinancialPurchaseRequired } from "@/app/components/arreglos/lineas/re
 
 export default function ArregloDetailsPage() {
   const params = useParams<{ id: string }>();
-  const router = useRouter();
   const [data, setData] = useState<ArregloDetalleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorState, setErrorState] = useState<string | null>(null);
@@ -85,7 +83,7 @@ export default function ArregloDetailsPage() {
       setCanEmitFactura(false);
       return;
     }
-    const response = await fetch(`/api/arreglos/${params.id}/factura`, { cache: "no-store" });
+    const response = await fetch(`/api/arreglos/${params.id}/factura/estado`, { cache: "no-store" });
     if (!response.ok) return;
     const body = await response.json();
     const fiscal = body?.data;
@@ -434,7 +432,7 @@ export default function ArregloDetailsPage() {
     (acc, l) => acc + safeNumber(l.monto_unitario) * safeNumber(l.cantidad),
     0
   );
-  const totalCalculado = subtotalServicios + subtotalServiciosCustom + subtotalRepuestos;
+  const totalCalculado = Number(arreglo.precio_final ?? 0);
 
   const handleConfirmCustomEdit = async ({
     costo,
@@ -445,11 +443,10 @@ export default function ArregloDetailsPage() {
   }) => {
     if (!data?.arreglo?.id) return;
 
-    const nextPrecioFinal = subtotalServicios + costo + subtotalRepuestos;
+
 
     try {
       await update(data.arreglo.id, {
-        precio_final: nextPrecioFinal,
         detalle_formulario: {
           formulario_id: selectedCustomFormulario?.id,
           costo,
@@ -502,6 +499,8 @@ export default function ArregloDetailsPage() {
         onOpenFactura={canUseBilling ? () => setOpenFacturaModal(true) : undefined}
       />
 
+      {canUseBilling ? <ArregloDocumentosAsociados arregloId={arreglo.id} /> : null}
+
       <div style={{ marginTop: 16 }}>
         <div style={styles.detalleHeader}>
           <div>
@@ -513,32 +512,6 @@ export default function ArregloDetailsPage() {
             </div>
           </div>
         </div>
-        {canUseBilling && fiscalReadOnly ? (
-          <Card
-            style={styles.fiscalLockNotice}
-            onClick={() => router.push(`/facturacion/${facturaElectronica.id}`)}
-            role="button"
-            tabIndex={0}
-            title="Ver detalle de la factura"
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                router.push(`/facturacion/${facturaElectronica.id}`);
-              }
-            }}
-          >
-            <LockKeyhole size={20} color={COLOR.SEMANTIC.SUCCESS} />
-            <div>
-              <div style={styles.fiscalInvoiceTitle}>
-                <strong>Factura {facturaElectronica.claseComprobante} N° {String(facturaElectronica.numeroComprobante ?? 0).padStart(8, "0")} autorizada</strong>
-                <span>CAE {facturaElectronica.cae ?? "-"}{facturaElectronica.caeVencimiento ? ` · vence ${facturaElectronica.caeVencimiento}` : ""}</span>
-              </div>
-              <div style={styles.fiscalLockText}>
-                Las líneas de mano de obra, formulario y repuestos coinciden con un comprobante fiscal y ya no pueden modificarse.
-              </div>
-            </div>
-          </Card>
-        ) : null}
         {isCustomTipoSelected ? (
           <>
             <ServicioLineasCustomSection
@@ -612,6 +585,8 @@ export default function ArregloDetailsPage() {
             subtotalServicios={subtotalServicios + subtotalServiciosCustom}
             subtotalRepuestos={subtotalRepuestos}
             total={totalCalculado}
+            preciosIncluyenIva={arreglo.precios_incluyen_iva ?? true}
+            precioSinIva={arreglo.precio_sin_iva}
             totalCobrado={arreglo.total_cobrado}
             saldoPendiente={
               arreglo.saldo_pendiente != null
@@ -638,6 +613,9 @@ export default function ArregloDetailsPage() {
             kilometraje_leido: arreglo.kilometraje_leido,
             combustible_leido: arreglo.combustible_leido,
             precio_final: arreglo.precio_final,
+            precios_incluyen_iva: arreglo.precios_incluyen_iva,
+            total_cobrado: arreglo.total_cobrado,
+            es_facturable: arreglo.es_facturable,
             observaciones: arreglo.observaciones,
             descripcion: arreglo.descripcion,
             esta_pago: arreglo.esta_pago,
@@ -722,27 +700,6 @@ const styles = {
     justifyContent: "space-between",
     gap: 16,
     flexWrap: "wrap" as const,
-  },
-  fiscalLockNotice: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 10,
-    margin: "14px 0",
-    padding: 14,
-    background: COLOR.BACKGROUND.SUCCESS_TINT,
-    color: COLOR.TEXT.PRIMARY,
-  },
-  fiscalInvoiceTitle: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap" as const,
-    color: COLOR.SEMANTIC.SUCCESS,
-  },
-  fiscalLockText: {
-    color: COLOR.TEXT.SECONDARY,
-    marginTop: 3,
-    lineHeight: 1.4,
   },
   loadingContainer: {
     flex: 1,

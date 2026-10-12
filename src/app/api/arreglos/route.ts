@@ -121,6 +121,7 @@ export async function POST(req: Request) {
         repuestos,
         repuestos_nuevos,
         detalle_formulario,
+        precios_incluyen_iva,
     } = body as CreateArregloRequest
 
     if (!vehiculo_id) return Response.json({ error: "Falta vehiculo_id" }, { status: 400 });
@@ -237,6 +238,14 @@ export async function POST(req: Request) {
         }
     }
 
+    if (precios_incluyen_iva !== undefined && typeof precios_incluyen_iva !== "boolean") {
+        return Response.json({ error: "precios_incluyen_iva debe ser boolean" }, { status: 400 });
+    }
+    const preciosIncluyenIva = precios_incluyen_iva !== false;
+    if (!preciosIncluyenIva && !await hasUserPermission(supabase, Permission.ArreglosPreciosEdit)) {
+        return Response.json({ error: "No tenés permiso para modificar precios" }, { status: 403 });
+    }
+
     if (estadoValue === "TERMINADO" && detalleFormularioConfigId) {
         const { data: formularioRow, error: formularioError } = await supabase
             .from("formularios")
@@ -288,6 +297,7 @@ export async function POST(req: Request) {
         extra_data: extra_data ?? null,
         cliente_id: (body as CreateArregloRequest).cliente_id ? String((body as CreateArregloRequest).cliente_id).trim() : null,
         es_facturable: typeof (body as CreateArregloRequest).es_facturable === "boolean" ? (body as CreateArregloRequest).es_facturable : true,
+        precios_incluyen_iva: preciosIncluyenIva,
     };
 
     // Opcional: crear líneas (servicios + repuestos) en el mismo POST.
@@ -408,6 +418,7 @@ export async function POST(req: Request) {
         p_idempotency_key: idempotencyKey || null,
         p_es_facturable: insertPayload.es_facturable,
         p_iva_rate: IVA_RATE,
+        p_precios_incluyen_iva: preciosIncluyenIva,
     };
 
     logger.debug("Llamando a rpc_crear_arreglo_completo con payload:", JSON.stringify(rpcPayload, null, 2));

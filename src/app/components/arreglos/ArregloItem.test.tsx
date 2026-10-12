@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import ArregloItem from "@/app/components/arreglos/ArregloItem";
 import { createArreglo } from "@/tests/factories";
 import { UserRole, type PermissionValue } from "@/lib/permissions";
@@ -144,6 +144,23 @@ describe("ArregloItem", () => {
     );
 
     expect(screen.getByTestId("arreglo-estado-badge")).toBeInTheDocument();
+  });
+
+  it("eleva la tarjeta al abrir el menú de estado y la devuelve al cerrarlo", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+    render(<ArregloItem arreglo={createArreglo({ estado: "EN_PROGRESO" })} />);
+    const wrapper = screen.getByTestId("arreglo-item-wrapper");
+    const trigger = screen.getByTestId("arreglo-estado-badge");
+    fireEvent.click(trigger);
+    expect(wrapper).toHaveStyle({ zIndex: "100" });
+    fireEvent.click(trigger);
+    expect(wrapper).toHaveStyle({ zIndex: "0" });
+
+    fireEvent.click(trigger);
+    expect(wrapper).toHaveStyle({ zIndex: "100" });
+    fireEvent.keyDown(trigger, { key: "Escape" });
+    expect(wrapper).toHaveStyle({ zIndex: "0" });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 
   it("muestra u oculta las observaciones según la prop showObservaciones", () => {

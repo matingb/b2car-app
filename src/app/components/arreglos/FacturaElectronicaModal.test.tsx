@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import FacturaElectronicaModal from "./FacturaElectronicaModal";
 
@@ -14,7 +15,7 @@ afterEach(() => {
 });
 
 describe("FacturaElectronicaModal", () => {
-  it("mantiene el documento y permite emitir cuando ARCA no pudo verificarlo", async () => {
+  it.each(["Ahora no", "Descargar PDF"])("mantiene el documento, reemplaza el formulario por la confirmación y permite %s", async (accion) => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock
       .mockResolvedValueOnce(new Response(JSON.stringify({
@@ -69,53 +70,71 @@ describe("FacturaElectronicaModal", () => {
         },
         error: null,
       }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { preflight: { fcePosible: false, fceObligatoria: false, fceFechaConsulta: "2026-09-13", fceTotalConsultado: 100 } }, error: null }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        data: {
-          id: "factura-1",
-          estado: "AUTORIZADA",
-          ambiente: "HOMOLOGACION",
-          origenTipo: "ARREGLO",
-          origenId: "arreglo-1",
-          documentoTipo: "FACTURA",
-          claseComprobante: "C",
-          tipoComprobante: 11,
-          puntoVenta: 1,
-          numeroComprobante: 1,
-          cae: "12345678901234",
-          caeVencimiento: "2026-09-23",
-          total: 100,
-          concepto: 1,
-          fechaComprobante: "2026-09-13",
-          receptorNombre: "Cliente prueba",
-          receptorDocumento: "12345678",
-        },
-        error: null,
-      }), { status: 200 }));
+        code: "FCE_DATA_REQUIRED",
+        error: "ARCA determinó que corresponde una FCE",
+        fce: { cbuConfigurado: true, sistema: "ADC" },
+      }), { status: 422 }));
+
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+      data: {
+        id: "factura-1",
+        estado: "AUTORIZADA",
+        ambiente: "HOMOLOGACION",
+        origenTipo: "ARREGLO",
+        origenId: "arreglo-1",
+        documentoTipo: "FACTURA",
+        claseComprobante: "C",
+        tipoComprobante: 211,
+        puntoVenta: 1,
+        numeroComprobante: 1,
+        cae: "12345678901234",
+        caeVencimiento: "2026-09-23",
+        total: 100,
+        concepto: 1,
+        fechaComprobante: "2026-09-13",
+        receptorNombre: "Cliente prueba",
+        receptorDocumento: "12345678",
+      },
+      error: null,
+    }), { status: 200 }));
 
     const onAuthorized = vi.fn();
+    const onClose = vi.fn();
+    const downloadClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
-    render(
-      <FacturaElectronicaModal
-        open
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return <FacturaElectronicaModal
+        open={open}
         arregloId="arreglo-1"
-        onClose={vi.fn()}
+        onClose={() => { onClose(); setOpen(false); }}
         onAuthorized={onAuthorized}
-      />,
-    );
+      />;
+    }
+
+    render(<Harness />);
 
     await waitFor(() => {
       expect(screen.getByTestId("factura-numero-documento")).toHaveValue("12345678");
     });
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes("tipoDocumento=96"))).toBe(true));
+    expect(String(fetchMock.mock.calls.find(([url]) => String(url).includes("tipoDocumento=96"))?.[0])).not.toContain("numeroDocumento=20123456786");
 
     expect(screen.getByText("No se pudo obtener información desde ARCA para este documento.")).toBeInTheDocument();
     expect(screen.queryByTestId("modal-error")).not.toBeInTheDocument();
-    expect(screen.getByTestId("modal-submit")).toBeEnabled();
+    await waitFor(() => expect(screen.getByTestId("modal-submit")).toBeEnabled());
 
     fireEvent.click(screen.getByLabelText("Simplificar el detalle de la factura"));
 
     expect(screen.getByText(/Servicio de reparación y mantenimiento automotor/)).toBeInTheDocument();
     expect(screen.queryByText(/^Servicio$/)).not.toBeInTheDocument();
 
+    fireEvent.click(screen.getByTestId("modal-submit"));
+    await waitFor(() => expect(screen.getByText(/ARCA confirmó que esta operación requiere FCE/)).toBeInTheDocument());
+    expect(JSON.parse(String(fetchMock.mock.calls.at(-1)?.[1]?.body))).toMatchObject({ fcePreflightConfirmada: false });
+    const originalIntentKey = JSON.parse(String(fetchMock.mock.calls.at(-1)?.[1]?.body)).idempotencyKey;
     fireEvent.click(screen.getByTestId("modal-submit"));
 
     await waitFor(() => {
@@ -127,6 +146,29 @@ describe("FacturaElectronicaModal", () => {
     );
     expect(JSON.parse(String(fetchMock.mock.calls.at(-1)?.[1]?.body))).toMatchObject({
       detalleSimplificado: true,
+      fcePreflightConfirmada: true,
+      idempotencyKey: originalIntentKey,
     });
+    expect(onAuthorized).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("factura-numero-documento")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Facturación electrónica" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(screen.getByText("Factura creada")).toBeInTheDocument();
+    expect(screen.getByText("La factura se creó satisfactoriamente.")).toBeInTheDocument();
+    expect(screen.getByText("Factura de Crédito Electrónica MiPyME 00001-00000001")).toBeInTheDocument();
+    expect(screen.getByText("¿Querés descargar el PDF de la factura?")).toBeInTheDocument();
+    expect(downloadClick).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: accion }));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    if (accion === "Descargar PDF") {
+      expect(downloadClick).toHaveBeenCalledOnce();
+      expect(downloadClick.mock.instances[0]).toHaveAttribute("href", "/api/facturas/factura-1/pdf");
+      expect(downloadClick.mock.instances[0]).toHaveAttribute("download", "");
+    } else {
+      expect(downloadClick).not.toHaveBeenCalled();
+    }
   });
 });

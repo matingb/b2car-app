@@ -7,6 +7,7 @@ import {
   determineVoucher,
   FacturacionValidationError,
   fiscalizeLineas,
+  toIsoDate,
   validateDocument,
   validateReceiverIdentification,
   validateFechas,
@@ -138,6 +139,15 @@ describe("facturación ARCA: receptor y Factura C", () => {
     expect(validateFechas(1, { fechaComprobante: "2026-08-28" }, new Date("2026-08-28T12:00:00Z")))
       .toMatchObject({ fechaComprobante: "2026-08-28" });
   });
+
+  it("toma la fecha de hoy en Argentina aunque en UTC ya sea el día siguiente", () => {
+    // 22:30 del 11/10 en Argentina son las 01:30 del 12/10 en UTC.
+    expect(toIsoDate(new Date("2026-10-12T01:30:00Z"))).toBe("2026-10-11");
+    expect(toIsoDate(new Date("2026-10-11T03:00:00Z"))).toBe("2026-10-11");
+    // 23:30 del 31/08 en Argentina: el comprobante del 31/08 sigue en el mes en curso.
+    expect(validateFechas(1, { fechaComprobante: "2026-08-31" }, new Date("2026-09-01T02:30:00Z")))
+      .toMatchObject({ fechaComprobante: "2026-08-31" });
+  });
 });
 
 describe("facturación ARCA: matriz A/B/C e IVA", () => {
@@ -197,8 +207,74 @@ describe("facturación ARCA: matriz A/B/C e IVA", () => {
     })).toThrow("requieren CUIT");
   });
 
+  it("emite payload FCE MiPyME con vencimiento y opcionales 2101/27", () => {
+    const fiscal = fiscalizeLineas([{ ...partLine, subtotal: 121, importeUnitario: 121 }], "RESPONSABLE_INSCRIPTO");
+    const today = new Date();
+    const issuedOn = today.toISOString().slice(0, 10);
+    const dueOn = new Date(today.getTime() + 86_400_000).toISOString().slice(0, 10);
+    const previousDay = new Date(today.getTime() - 86_400_000).toISOString().slice(0, 10);
+    const payload = buildComprobantePayload({
+      voucherNumber: 5, puntoVenta: 2, tipoComprobante: 201, claseComprobante: "A", concepto: 1,
+      receptor: { clienteId: null, nombre: "Emisor", domicilio: null, tipoDocumento: 80, numeroDocumento: "20123456786", condicionIvaReceptorId: 1 },
+      fechas: { fechaComprobante: issuedOn, fechaVencimientoPago: dueOn },
+      totales: fiscal.totales, lineas: fiscal.lineas, fceMipyme: true, fceCbu: "1234567890123456789012", fceSistema: "SCA",
+    });
+    expect(payload).toMatchObject({ CbteTipo: 201, FchVtoPago: dueOn.replaceAll("-", ""), Opcionales: [{ Id: 2101, Valor: "1234567890123456789012" }, { Id: 27, Valor: "SCA" }] });
+    expect(() => validateFechas(1, { fechaComprobante: issuedOn, fechaVencimientoPago: previousDay }, today, true)).toThrow("no puede ser anterior");
+  });
+
   it("aplica la ventana de cinco días para productos", () => {
     expect(() => validateFechas(1, { fechaComprobante: "2026-08-25" }, new Date("2026-09-01T12:00:00Z")))
       .toThrow("5 días");
+  });
+});
+
+
+describe("fecha de vencimiento FCE", () => {
+  it("exige la fecha posterior entre emisión y hoy para una factura retroactiva", () => {
+    expect(() => validateFechas(1, { fechaComprobante: "2026-08-27", fechaVencimientoPago: "2026-08-27" }, new Date("2026-08-28T12:00:00Z"), true)).toThrow("fecha actual");
+    expect(validateFechas(1, { fechaComprobante: "2026-08-27", fechaVencimientoPago: "2026-08-28" }, new Date("2026-08-28T12:00:00Z"), true).fechaVencimientoPago).toBe("2026-08-28");
+  });
+});
+
+describe("B2C-197: precios persistidos sin IVA", () => {
+  const line = (amount: number, ivaAlicuotaId = 5): FacturaLinea => ({
+    ...serviceLine, cantidad: 1, importeUnitario: amount, subtotal: amount, ivaAlicuotaId,
+  });
+
+  it("conserva default incluido y suma IVA una sola vez desde netos", () => {
+    expect(fiscalizeLineas([line(121)], "RESPONSABLE_INSCRIPTO").totales).toMatchObject({ netoGravado: 100, iva: 21, total: 121 });
+    const fiscal = fiscalizeLineas([line(100)], "RESPONSABLE_INSCRIPTO", false, 0.21);
+    expect(fiscal.totales).toMatchObject({ netoGravado: 100, iva: 21, total: 121 });
+    expect(fiscal.lineas[0]).toMatchObject({ importeUnitario: 100, subtotal: 100, importeTotal: 121 });
+  });
+
+  it("preserva tasas legales mixtas, exentos, no gravados y cero", () => {
+    const fiscal = fiscalizeLineas([
+      line(100), line(100, 4), { ...line(50), tratamientoIva: "EXENTO" },
+      { ...line(10), tratamientoIva: "NO_GRAVADO" }, line(10, 3),
+    ], "RESPONSABLE_INSCRIPTO", true);
+    expect(fiscal.totales).toMatchObject({ netoGravado: 183.14, iva: 26.86, exento: 50, noGravado: 10, total: 270 });
+  });
+
+  it("redondea el IVA sobre subtotal, no por unidad", () => {
+    const fiscal = fiscalizeLineas([{ ...line(0.01), cantidad: 3, subtotal: 0.03 }], "RESPONSABLE_INSCRIPTO", false, 0.21);
+    expect(fiscal.totales).toMatchObject({ netoGravado: 0.03, iva: 0.01, total: 0.04 });
+    expect(fiscal.lineas[0]).toMatchObject({ importeUnitario: 0.01, subtotal: 0.03, importeTotal: 0.04 });
+  });
+
+  it("revierte alícuota legal sobre gross comercial cuando no coincide", () => {
+    expect(fiscalizeLineas([line(100, 4)], "RESPONSABLE_INSCRIPTO", false, 0.21).totales).toMatchObject({ netoGravado: 109.5, iva: 11.5, total: 121 });
+    expect(fiscalizeLineas([line(100)], "RESPONSABLE_INSCRIPTO", false, 0.10).totales).toMatchObject({ netoGravado: 90.91, iva: 19.09, total: 110 });
+  });
+
+  it("factura C conserva el gross comercial sin volver a sumar IVA; incluido no duplica", () => {
+    expect(fiscalizeLineas([line(100)], "MONOTRIBUTISTA", false, 0.21).totales).toMatchObject({ netoGravado: 121, iva: 0, total: 121 });
+    expect(fiscalizeLineas([line(121)], "RESPONSABLE_INSCRIPTO", true, 0.21).totales).toMatchObject({ netoGravado: 100, iva: 21, total: 121 });
+  });
+
+  it("preserva toda la precisión de la tasa comercial decimal", () => {
+    expect(fiscalizeLineas([line(1000)], "MONOTRIBUTISTA", false, 0.12345).totales)
+      .toMatchObject({ netoGravado: 1123.45, iva: 0, total: 1123.45 });
   });
 });

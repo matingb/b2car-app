@@ -2,21 +2,32 @@
 
 import React from "react";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
-import type { CondicionIvaEmisor } from "@/lib/facturacion/types";
+import {
+  CONDICIONES_INGRESOS_BRUTOS,
+  type CondicionIngresosBrutos,
+  type CondicionIvaEmisor,
+  type FceSistemaCirculacion,
+} from "@/lib/facturacion/types";
 import Dropdown from "@/app/components/ui/Dropdown";
 
 interface FacturacionFiscalCardProps {
   cuit: string;
   inicioActividades: string;
   condicionIvaEmisor: CondicionIvaEmisor;
+  ingresosBrutosCondicion: CondicionIngresosBrutos | null;
   ingresosBrutos: string | null;
   puntoVenta: number;
+  fceCbu: string | null;
+  fceSistema: FceSistemaCirculacion | null;
   onChange: (patch: {
     cuit?: string;
     inicioActividades?: string;
     condicionIvaEmisor?: CondicionIvaEmisor;
+    ingresosBrutosCondicion?: CondicionIngresosBrutos | null;
     ingresosBrutos?: string | null;
     puntoVenta?: number;
+    fceCbu?: string | null;
+    fceSistema?: FceSistemaCirculacion | null;
   }) => void;
   disabled?: boolean;
 }
@@ -26,12 +37,26 @@ const CONDICION_IVA_OPTIONS: Array<{ value: CondicionIvaEmisor; label: string }>
   { value: "RESPONSABLE_INSCRIPTO", label: "Responsable Inscripto" },
 ];
 
+const CONDICION_IIBB_OPTIONS = [
+  { value: "", label: "Seleccioná una opción" },
+  ...CONDICIONES_INGRESOS_BRUTOS,
+];
+
+const FCE_SISTEMA_OPTIONS = [
+  { value: "", label: "Seleccioná una opción explícita" },
+  { value: "SCA", label: "SCA — Sistema de Circulación Abierta" },
+  { value: "ADC", label: "ADC — Agente de Depósito Colectivo" },
+];
+
 export default function FacturacionFiscalCard({
   cuit,
   inicioActividades,
   condicionIvaEmisor,
+  ingresosBrutosCondicion,
   ingresosBrutos,
   puntoVenta,
+  fceCbu,
+  fceSistema,
   onChange,
   disabled = false,
 }: FacturacionFiscalCardProps) {
@@ -97,20 +122,40 @@ export default function FacturacionFiscalCard({
           </div>
 
           <div style={styles.field}>
-            <label style={styles.label} htmlFor="facturacion-iibb">
-              N° de inscripción IIBB
+            <label style={styles.label} htmlFor="facturacion-iibb-condicion">
+              Condición IIBB <span style={styles.required}>*</span>
             </label>
-            <input
-              id="facturacion-iibb"
+            <Dropdown
+              id="facturacion-iibb-condicion"
               disabled={disabled}
-              value={ingresosBrutos ?? ""}
-              onChange={(e) =>
-                onChange({ ingresosBrutos: e.target.value || null })
-              }
-              placeholder="Ej: 30712345678910"
-              style={styles.input}
+              value={ingresosBrutosCondicion ?? ""}
+              options={CONDICION_IIBB_OPTIONS}
+              onChange={(value) => onChange({
+                ingresosBrutosCondicion: CONDICIONES_INGRESOS_BRUTOS.find((item) => item.value === value)?.value ?? null,
+              })}
+              style={styles.dropdown}
+              dataTestId="facturacion-iibb-condicion"
             />
           </div>
+
+          {ingresosBrutosCondicion === "INSCRIPTO" ? (
+            <div style={styles.field}>
+              <label style={styles.label} htmlFor="facturacion-iibb">
+                Nro. Insc. IIBB <span style={styles.required}>*</span>
+              </label>
+              <input
+                id="facturacion-iibb"
+                required
+                disabled={disabled}
+                value={ingresosBrutos ?? ""}
+                onChange={(e) =>
+                  onChange({ ingresosBrutos: e.target.value || null })
+                }
+                placeholder="N° local / Convenio Multilateral"
+                style={styles.input}
+              />
+            </div>
+          ) : null}
 
           <div style={styles.field}>
             <label style={styles.label} htmlFor="facturacion-punto-venta">
@@ -129,6 +174,50 @@ export default function FacturacionFiscalCard({
               placeholder="Ej: 1"
               style={styles.input}
             />
+          </div>
+        </div>
+
+        <div style={styles.fceSection}>
+          <div style={styles.fceHeading}>
+            <h4 style={styles.fceTitle}>Factura de Crédito Electrónica MiPyME</h4>
+            <p style={styles.fceDescription}>
+              CBU fiscal y sistema de circulación del emisor por ambiente. No se utiliza la cuenta de cobros.
+            </p>
+          </div>
+          <div style={styles.fceGrid}>
+            <div style={styles.field}>
+              <label style={styles.label} htmlFor="facturacion-fce-cbu">
+                CBU fiscal (22 dígitos)
+              </label>
+              <input
+                id="facturacion-fce-cbu"
+                inputMode="numeric"
+                maxLength={22}
+                disabled={disabled}
+                value={fceCbu ?? ""}
+                onChange={(event) => onChange({ fceCbu: event.target.value.replace(/\D/g, "") || null })}
+                placeholder="22 dígitos"
+                style={styles.input}
+              />
+            </div>
+            <div style={styles.field}>
+              <label style={styles.label} htmlFor="facturacion-fce-sistema">
+                Sistema de circulación
+              </label>
+              <Dropdown
+                id="facturacion-fce-sistema"
+                disabled={disabled}
+                value={fceSistema ?? ""}
+                options={FCE_SISTEMA_OPTIONS}
+                onChange={(value) => onChange({
+                  fceSistema: value === "SCA" || value === "ADC"
+                    ? value
+                    : null,
+                })}
+                style={styles.dropdown}
+                dataTestId="facturacion-fce-sistema"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -175,6 +264,33 @@ const styles = {
     display: "flex",
     flexDirection: "column" as const,
     gap: 6,
+  },
+  fceSection: {
+    marginTop: 20,
+    paddingTop: 18,
+    borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    display: "grid",
+    gap: 14,
+  },
+  fceHeading: {
+    display: "grid",
+    gap: 4,
+  },
+  fceTitle: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: COLOR.TEXT.PRIMARY,
+    margin: 0,
+  },
+  fceDescription: {
+    fontSize: 13,
+    color: COLOR.TEXT.SECONDARY,
+    margin: 0,
+  },
+  fceGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: 16,
   },
   label: {
     fontSize: 13,

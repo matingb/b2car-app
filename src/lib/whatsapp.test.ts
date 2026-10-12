@@ -3,6 +3,7 @@ import {
   buildArregloWhatsappMessage,
   buildTurnoWhatsappMessage,
   buildWhatsappAppLink,
+  buildWhatsappLink,
   buildWhatsappWebLink,
   normalizeWhatsappPhone,
   openWhatsapp,
@@ -397,6 +398,208 @@ describe("buildArregloWhatsappMessage", () => {
   });
 });
 
+describe("repuestos pendientes en buildArregloWhatsappMessage", () => {
+  it("usa los pendientes del presupuesto como única fuente de líneas y totales", () => {
+    const data = createArregloDetalleData({
+      arreglo: createArreglo({
+        estado: "PRESUPUESTO",
+        precio_final: 0,
+        repuestos_pendientes: [
+          {
+            id: "pending-existing",
+            tipo: "EXISTENTE",
+            stock_id: "stock-1",
+            nombre: "Filtro pendiente",
+            cantidad: 2,
+            monto_unitario: 5000,
+          },
+          {
+            id: "pending-new",
+            tipo: "NUEVO",
+            codigo: "ACE-01",
+            nombre: "Aceite pendiente",
+            cantidad: 1,
+            monto_unitario: 6000,
+          },
+        ],
+      }),
+      detalles: [],
+    });
+
+    const message = buildArregloWhatsappMessage(data, {
+      mostrarPreciosItems: true,
+      mostrarSubtotales: true,
+    });
+
+    expect(message).toContain("Filtro pendiente x2 - $10.000");
+    expect(message).toContain("Aceite pendiente x1 - $6.000");
+    expect(message).toContain("_Subtotal repuestos: $16.000_");
+    expect(message).toContain("*Total arreglo $16.000*");
+    expect(message).not.toContain("Filtro x1");
+  });
+
+  it("usa los pendientes en el resumen y conserva un precio final ajustado", () => {
+    const data = createArregloDetalleData({
+      arreglo: createArreglo({
+        estado: "PRESUPUESTO",
+        precio_final: 15000,
+        repuestos_pendientes: [
+          { id: "pending", tipo: "NUEVO", nombre: "Aceite", cantidad: 2, monto_unitario: 4000 },
+        ],
+      }),
+      detalles: [],
+    });
+
+    const message = buildArregloWhatsappMessage(data, {
+      mostrarDetalleItems: false,
+      mostrarSubtotales: true,
+    });
+
+    expect(message).toContain("Repuestos: $8.000");
+    expect(message).toContain("*Total arreglo $15.000*");
+    expect(message).not.toContain("Filtro");
+  });
+
+  it("mantiene las asignaciones para presupuestos históricos y arreglos operativos", () => {
+    const historicBudget = createArregloDetalleData({
+      arreglo: createArreglo({ estado: "PRESUPUESTO", repuestos_pendientes: null }),
+      detalles: [],
+    });
+    const operationalRepair = createArregloDetalleData({
+      arreglo: createArreglo({
+        estado: "EN_PROGRESO",
+        repuestos_pendientes: [
+          { id: "pending", tipo: "NUEVO", nombre: "Not materialized", cantidad: 1, monto_unitario: 9000 },
+        ],
+      }),
+      detalles: [],
+    });
+
+    expect(buildArregloWhatsappMessage(historicBudget)).toContain("Filtro x1");
+    const operationalMessage = buildArregloWhatsappMessage(operationalRepair);
+    expect(operationalMessage).toContain("Filtro x1");
+    expect(operationalMessage).not.toContain("Not materialized");
+  });
+
+  it("no vuelve a asignaciones cuando un presupuesto tiene pendientes vacíos", () => {
+    const data = createArregloDetalleData({
+      arreglo: createArreglo({ estado: "PRESUPUESTO", precio_final: 0, repuestos_pendientes: [] }),
+      detalles: [],
+    });
+
+    const message = buildArregloWhatsappMessage(data);
+
+    expect(message).not.toContain("Filtro");
+    expect(message).not.toContain("*Repuestos:*");
+    expect(message).toContain("*Total arreglo $0*");
+  });
+});
+
+describe("precios sin IVA en buildArregloWhatsappMessage", () => {
+  const buildData = (arregloOverrides: Parameters<typeof createArreglo>[0]) =>
+    createArregloDetalleData({
+      arreglo: createArreglo({
+        estado: "PRESUPUESTO",
+        precio_final: 0,
+        repuestos_pendientes: [
+          { id: "pending", tipo: "NUEVO", nombre: "Aceite", cantidad: 2, monto_unitario: 4000 },
+        ],
+        ...arregloOverrides,
+      }),
+      detalles: [
+        {
+          id: "d1",
+          arreglo_id: "a1",
+          descripcion: "Mano de obra",
+          cantidad: 1,
+          precio_hora_facturada: 10000,
+          horas_facturadas: 1,
+          horas_trabajadas: 1,
+          categoria_arreglo_id: null,
+          empleado_id: null,
+        },
+      ],
+    });
+
+  it("muestra ítems y subtotales con IVA incluido cuando los precios se cargaron sin IVA", () => {
+    const data = buildData({ precios_incluyen_iva: false, tasa_iva: 0.21, precio_final: 21780 });
+
+    const message = buildArregloWhatsappMessage(data, {
+      mostrarPreciosItems: true,
+      mostrarSubtotales: true,
+    });
+
+    expect(message).toContain("Aceite x2 - $9.680");
+    expect(message).toContain("Mano de obra x1 - $12.100");
+    expect(message).toContain("_Subtotal repuestos: $9.680_");
+    expect(message).toContain("_Subtotal mano de obra: $12.100_");
+    expect(message).toContain("*Total arreglo $21.780*");
+  });
+
+  it("usa la tasa de IVA del arreglo y suma el IVA al total calculado", () => {
+    const data = buildData({ precios_incluyen_iva: false, tasa_iva: 0.105 });
+
+    const message = buildArregloWhatsappMessage(data, {
+      mostrarDetalleItems: false,
+      mostrarSubtotales: true,
+    });
+
+    expect(message).toContain("Repuestos: $8.840");
+    expect(message).toContain("Mano de obra: $11.050");
+    expect(message).toContain("*Total arreglo $19.890*");
+  });
+
+  it("con preciosConIva en false muestra montos netos y discrimina el IVA antes del total", () => {
+    const data = buildData({
+      precios_incluyen_iva: false,
+      tasa_iva: 0.21,
+      precio_final: 21780,
+      precio_sin_iva: 18000,
+    });
+
+    const message = buildArregloWhatsappMessage(data, {
+      mostrarPreciosItems: true,
+      mostrarSubtotales: true,
+      preciosConIva: false,
+    });
+
+    expect(message).toContain("Aceite x2 - $8.000");
+    expect(message).toContain("Mano de obra x1 - $10.000");
+    expect(message).toContain("_Subtotal repuestos: $8.000_");
+    expect(message).toContain("_Subtotal mano de obra: $10.000_");
+    expect(message).toContain("_Subtotal sin IVA: $18.000_\n_IVA 21%: $3.780_\n*Total arreglo $21.780*");
+  });
+
+  it("discrimina el IVA con la tasa del arreglo aunque el total se calcule de las líneas", () => {
+    const data = buildData({ precios_incluyen_iva: false, tasa_iva: 0.105 });
+
+    const message = buildArregloWhatsappMessage(data, { mostrarDetalleItems: false, preciosConIva: false });
+
+    expect(message).toContain("_Subtotal sin IVA: $18.000_");
+    expect(message).toContain("_IVA 10,5%: $1.890_");
+    expect(message).toContain("*Total arreglo $19.890*");
+  });
+
+  it("ignora preciosConIva cuando los precios ya incluyen IVA", () => {
+    const data = buildData({ precios_incluyen_iva: true, tasa_iva: 0.21 });
+
+    const message = buildArregloWhatsappMessage(data, { preciosConIva: false });
+
+    expect(message).not.toContain("Subtotal sin IVA");
+    expect(message).toContain("*Total arreglo $18.000*");
+  });
+
+  it("no modifica los importes cuando los precios ya incluyen IVA", () => {
+    const data = buildData({ precios_incluyen_iva: true, tasa_iva: 0.21 });
+
+    const message = buildArregloWhatsappMessage(data, { mostrarPreciosItems: true });
+
+    expect(message).toContain("Aceite x2 - $8.000");
+    expect(message).toContain("Mano de obra x1 - $10.000");
+    expect(message).toContain("*Total arreglo $18.000*");
+  });
+});
+
 describe("buildTurnoWhatsappMessage", () => {
   it("no renderiza líneas opcionales si faltan datos", () => {
     const turno = createTurno({
@@ -464,59 +667,50 @@ describe("buildWhatsappWebLink", () => {
   });
 });
 
-describe("openWhatsappWithFallback", () => {
-  it("intenta abrir la app mediante link whatsapp:// y ejecuta fallback si la app no toma foco", () => {
-    vi.useFakeTimers();
-    const openSpy = vi.spyOn(window, "open").mockImplementation(() => ({} as Window));
-    const onFallback = vi.fn();
-
-    const clickedHrefs: string[] = [];
-    const originalAppend = document.body.appendChild.bind(document.body);
-    vi.spyOn(document.body, "appendChild").mockImplementation((node) => {
-      if (node instanceof HTMLAnchorElement) {
-        clickedHrefs.push(node.href);
-      }
-      return originalAppend(node);
-    });
-
-    openWhatsapp("5491112345678", "Mensaje test", {
-      onFallback,
-      timeoutMs: 1000,
-    });
-
-    // Se intentó abrir la app
-    expect(clickedHrefs.some((h) => h.startsWith("whatsapp://send"))).toBe(true);
-    expect(openSpy).not.toHaveBeenCalled();
-    expect(onFallback).not.toHaveBeenCalled();
-
-    // Al pasar el tiempo sin blur, se ejecuta el fallback a la web
-    vi.advanceTimersByTime(1000);
-    expect(onFallback).toHaveBeenCalledTimes(1);
-    expect(openSpy).toHaveBeenCalledTimes(1);
-    const [calledUrl] = openSpy.mock.calls[0]!;
-    expect(String(calledUrl)).toContain("web.whatsapp.com/send?phone=5491112345678");
-
-    vi.useRealTimers();
-  });
-
-  it("no ejecuta el fallback a la web si la app toma foco (blur de ventana)", () => {
-    vi.useFakeTimers();
-    const openSpy = vi.spyOn(window, "open").mockImplementation(() => ({} as Window));
-    const onFallback = vi.fn();
-
-    openWhatsapp("5491112345678", "Mensaje test", {
-      onFallback,
-      timeoutMs: 1000,
-    });
-
-    // Simulamos que la ventana pierde foco (la app nativa se abrió)
-    window.dispatchEvent(new Event("blur"));
-
-    vi.advanceTimersByTime(1000);
-    expect(onFallback).not.toHaveBeenCalled();
-    expect(openSpy).not.toHaveBeenCalled();
-
-    vi.useRealTimers();
+describe("buildWhatsappLink", () => {
+  it("construye el enlace oficial de WhatsApp con el texto codificado", () => {
+    expect(buildWhatsappLink("5491112345678", "Hola ñ 🚗 & chau?")).toBe(
+      "https://wa.me/5491112345678?text=Hola%20%C3%B1%20%F0%9F%9A%97%20%26%20chau%3F"
+    );
   });
 });
 
+describe("openWhatsapp", () => {
+  it("abre el enlace oficial de inmediato sin depender del foco ni del retorno nulo", () => {
+    vi.useFakeTimers();
+    const originalLocation = window.location.href;
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+
+    openWhatsapp("+54 (9) 11-1234-5678", "Mensaje & detalle");
+    window.dispatchEvent(new Event("blur"));
+    window.dispatchEvent(new Event("focus"));
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).toHaveBeenCalledWith(
+      "https://wa.me/5491112345678?text=Mensaje%20%26%20detalle",
+      "_blank",
+      "noopener,noreferrer"
+    );
+    expect(window.location.href).toBe(originalLocation);
+    expect(vi.getTimerCount()).toBe(0);
+
+    vi.useRealTimers();
+  });
+
+  it("no abre una ventana si el teléfono no contiene dígitos", () => {
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+
+    openWhatsapp("---", "Mensaje");
+
+    expect(openSpy).not.toHaveBeenCalled();
+  });
+
+  it("no hace nada cuando se llama sin un contexto de navegador", () => {
+    vi.stubGlobal("window", undefined);
+
+    expect(() => openWhatsapp("5491112345678", "Mensaje")).not.toThrow();
+
+    vi.unstubAllGlobals();
+  });
+});

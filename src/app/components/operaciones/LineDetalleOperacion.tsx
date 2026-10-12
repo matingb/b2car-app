@@ -14,6 +14,8 @@ import {
 import OperacionMeta from "./OperacionMeta";
 import OperacionActions from "./OperacionActions";
 import OperacionExpandedDetail from "./OperacionExpandedDetail";
+import DocumentosAsociadosList from "@/app/components/documentos/DocumentosAsociadosList";
+import { useDocumentosAsociados } from "@/app/components/documentos/useDocumentosAsociados";
 
 export { getOperacionTitle };
 
@@ -30,6 +32,9 @@ type Props = {
   onDelete?: () => void;
   onEdit?: () => void;
   onInvoice?: () => void;
+  onRemito?: () => void;
+  /** Muestra las facturas y remitos de la venta al expandir la línea. */
+  showDocumentos?: boolean;
 };
 
 export default function LineDetalleOperacion({
@@ -45,6 +50,8 @@ export default function LineDetalleOperacion({
   onDelete,
   onEdit,
   onInvoice,
+  onRemito,
+  showDocumentos = false,
 }: Props) {
   const {
     title,
@@ -61,6 +68,10 @@ export default function LineDetalleOperacion({
     tallerLabel,
     stocksById,
   });
+  // Se consulta al expandir para reflejar facturas o remitos emitidos desde la lista.
+  const { documentos, cargando: cargandoDocumentos } = useDocumentosAsociados(
+    showDocumentos && expanded ? { tipo: "VENTA", id: operacion.id } : null,
+  );
 
   return (
     <Card style={styles.card} onClick={onToggle}>
@@ -92,6 +103,7 @@ export default function LineDetalleOperacion({
             deleteTitle={deleteTitle}
             onEdit={onEdit}
             onInvoice={onInvoice}
+            onRemito={onRemito}
             onDelete={onDelete}
           />
         </div>
@@ -116,6 +128,12 @@ export default function LineDetalleOperacion({
             stocksById={stocksById}
             isMovimientoFinanciero={isMovimientoFinanciero}
           />
+          {showDocumentos && (cargandoDocumentos || documentos.length > 0) ? (
+            <section style={styles.documentos} aria-label="Documentos asociados">
+              <div style={styles.expandedTitle}>Documentos asociados</div>
+              <DocumentosAsociadosList documentos={documentos} cargando={cargandoDocumentos} />
+            </section>
+          ) : null}
         </div>
       </div>
     </Card>
@@ -205,7 +223,7 @@ const styles = {
     transformOrigin: "top",
   },
   expandedPanelOpen: {
-    maxHeight: 600,
+    maxHeight: 1000,
     opacity: 1,
     transform: "translateY(0)",
   },
@@ -220,6 +238,14 @@ const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
+  },
+  documentos: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 8,
+    marginTop: 8,
+    paddingTop: 12,
+    borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
   },
   expandedTitle: {
     fontSize: 13,
