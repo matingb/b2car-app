@@ -83,7 +83,7 @@ export default function ArregloDetailsPage() {
       setCanEmitFactura(false);
       return;
     }
-    const response = await fetch(`/api/arreglos/${params.id}/factura`, { cache: "no-store" });
+    const response = await fetch(`/api/arreglos/${params.id}/factura/estado`, { cache: "no-store" });
     if (!response.ok) return;
     const body = await response.json();
     const fiscal = body?.data;

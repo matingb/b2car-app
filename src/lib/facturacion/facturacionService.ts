@@ -933,6 +933,21 @@ export async function getDocumentoPreflight(
   };
 }
 
+/**
+ * Estado fiscal del origen leído sólo desde la base. A diferencia de la
+ * preflight, no consulta ARCA, así que no depende de la disponibilidad del
+ * padrón ni de WSFECRED.
+ */
+export async function getDocumentoResumen(
+  actor: TenantActor,
+  origenTipo: FacturaOrigenTipo,
+  origenId: string,
+  ambiente: FacturacionAmbiente = getFacturacionAmbiente(),
+): Promise<FacturaElectronicaResumen | null> {
+  const existing = await latestSourceInvoice(actor.tenantId, origenTipo, origenId, ambiente);
+  return existing ? mapSummary(existing) : null;
+}
+
 export function getFacturaPreflight(actor: TenantActor, id: string, ambiente?: FacturacionAmbiente, effective?: { fechaComprobante?: string | null; tipoDocumento?: number | null; numeroDocumento?: string | null }) {
   return getDocumentoPreflight(actor, "ARREGLO", id, ambiente, effective);
 }
