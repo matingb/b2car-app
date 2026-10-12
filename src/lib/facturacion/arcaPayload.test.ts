@@ -7,6 +7,7 @@ import {
   determineVoucher,
   FacturacionValidationError,
   fiscalizeLineas,
+  toIsoDate,
   validateDocument,
   validateReceiverIdentification,
   validateFechas,
@@ -137,6 +138,15 @@ describe("facturación ARCA: receptor y Factura C", () => {
 
     expect(validateFechas(1, { fechaComprobante: "2026-08-28" }, new Date("2026-08-28T12:00:00Z")))
       .toMatchObject({ fechaComprobante: "2026-08-28" });
+  });
+
+  it("toma la fecha de hoy en Argentina aunque en UTC ya sea el día siguiente", () => {
+    // 22:30 del 11/10 en Argentina son las 01:30 del 12/10 en UTC.
+    expect(toIsoDate(new Date("2026-10-12T01:30:00Z"))).toBe("2026-10-11");
+    expect(toIsoDate(new Date("2026-10-11T03:00:00Z"))).toBe("2026-10-11");
+    // 23:30 del 31/08 en Argentina: el comprobante del 31/08 sigue en el mes en curso.
+    expect(validateFechas(1, { fechaComprobante: "2026-08-31" }, new Date("2026-09-01T02:30:00Z")))
+      .toMatchObject({ fechaComprobante: "2026-08-31" });
   });
 });
 

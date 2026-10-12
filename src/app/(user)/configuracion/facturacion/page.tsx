@@ -16,6 +16,7 @@ const emptyConfig: FacturacionConfiguracionPublica = {
   cuit: "",
   condicionIvaEmisor: "MONOTRIBUTISTA",
   domicilio: "",
+  ingresosBrutosCondicion: null,
   ingresosBrutos: null,
   inicioActividades: "",
   puntoVenta: 1,
@@ -195,6 +196,7 @@ export default function ConfiguracionPage() {
                 cuit={config.cuit}
                 inicioActividades={config.inicioActividades}
                 condicionIvaEmisor={config.condicionIvaEmisor}
+                ingresosBrutosCondicion={config.ingresosBrutosCondicion}
                 ingresosBrutos={config.ingresosBrutos}
                 puntoVenta={config.puntoVenta}
                 fceCbu={config.fceCbu}

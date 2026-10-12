@@ -10,6 +10,7 @@ import {
   type FacturaTotales,
   type PerfilFiscalCliente,
 } from "./types";
+import { toISODateAppTimeZone } from "@/lib/fechas";
 
 export class FacturacionValidationError extends Error {
   constructor(message: string) {
@@ -246,7 +247,7 @@ export function validateFechas(
   fceMipyme = false,
 ): Required<FacturaFechaInput> {
   const comprobante = parseIsoDate(fechas.fechaComprobante, "La fecha de comprobante");
-  const hoy = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const hoy = parseIsoDate(toIsoDate(today), "La fecha de hoy");
   const maxDays = concepto === 1 ? 5 : 10;
   if (Math.abs(distance(comprobante, hoy)) > maxDays) {
     throw new FacturacionValidationError(`La fecha debe estar dentro de los ${maxDays} días de hoy`);
@@ -336,4 +337,5 @@ export function buildFacturaCPayload(input: {
   });
 }
 
-export function toIsoDate(value: Date): string { return value.toISOString().slice(0, 10); }
+/** Fecha calendario en Argentina (GMT-3): en UTC, desde las 21 h ya sería el día siguiente. */
+export function toIsoDate(value: Date): string { return toISODateAppTimeZone(value); }

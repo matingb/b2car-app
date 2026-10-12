@@ -22,6 +22,9 @@ type Props = {
   horasFacturadas?: number | null;
   horasTrabajadas?: number | null;
   valorHoraEmpleado?: number | null;
+  detailContent?: React.ReactNode;
+  sideContent?: React.ReactNode;
+  allowTitleWrap?: boolean;
   icon?: React.ReactNode;
   onEdit: () => void;
   onDelete: () => void;
@@ -37,6 +40,9 @@ export default function ReadOnlyLineaCard({
   unitario,
   horasFacturadas,
   horasTrabajadas,
+  detailContent,
+  sideContent,
+  allowTitleWrap = false,
   icon,
   onEdit,
   onDelete,
@@ -69,18 +75,20 @@ export default function ReadOnlyLineaCard({
         </div>
 
         <div css={readStyles.main}>
-          <div css={readStyles.title}>{title}</div>
+          <div css={readStyles.title(allowTitleWrap)}>{title}</div>
           <div css={readStyles.subtitleRow}>
             {subtitle}
             <span css={readStyles.qtyXUnit}>
-              <Can
-                permission={Permission.ArreglosPreciosView}
-                fallback={kind === "servicios" && horasFacturadas != null
-                  ? <>Horas facturadas: {horasFacturadas}; cantidad: {cantidad}</>
-                  : <>Cantidad: {cantidad}</>}
-              >
-                {qtyXUnit}
-              </Can>
+              {detailContent ?? (
+                <Can
+                  permission={Permission.ArreglosPreciosView}
+                  fallback={kind === "servicios" && horasFacturadas != null
+                    ? <>Horas facturadas: {horasFacturadas}; cantidad: {cantidad}</>
+                    : <>Cantidad: {cantidad}</>}
+                >
+                  {qtyXUnit}
+                </Can>
+              )}
             </span>
 
             {/* Tag de Horas Facturadas vs Horas Trabajadas */}
@@ -100,33 +108,37 @@ export default function ReadOnlyLineaCard({
         </div>
 
         <div css={readStyles.side}>
-          <Can permission={Permission.ArreglosPreciosView}>
-            <div css={readStyles.total}>{formatMoney(total)}</div>
-          </Can>
+          {sideContent ?? (
+            <>
+              <Can permission={Permission.ArreglosPreciosView}>
+                <div css={readStyles.total}>{formatMoney(total)}</div>
+              </Can>
 
-          {!readOnly ? (
-            <div css={readStyles.actions}>
-              <button
-                type="button"
-                css={readStyles.actionBtn}
-                aria-label={`editar ${kindLabel}`}
-                onClick={onEdit}
-                disabled={!canInteract}
-              >
-                <Pencil size={18} color={COLOR.ICON.MUTED} />
-              </button>
+              {!readOnly ? (
+                <div css={readStyles.actions}>
+                  <button
+                    type="button"
+                    css={readStyles.actionBtn}
+                    aria-label={`editar ${kindLabel}`}
+                    onClick={onEdit}
+                    disabled={!canInteract}
+                  >
+                    <Pencil size={18} color={COLOR.ICON.MUTED} />
+                  </button>
 
-              <button
-                type="button"
-                css={readStyles.actionBtn}
-                aria-label={`eliminar ${kindLabel}`}
-                onClick={onDelete}
-                disabled={!canInteract}
-              >
-                <Trash2 size={18} color={COLOR.ICON.DANGER} />
-              </button>
-            </div>
-          ) : null}
+                  <button
+                    type="button"
+                    css={readStyles.actionBtn}
+                    aria-label={`eliminar ${kindLabel}`}
+                    onClick={onDelete}
+                    disabled={!canInteract}
+                  >
+                    <Trash2 size={18} color={COLOR.ICON.DANGER} />
+                  </button>
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
     </Card>
@@ -163,8 +175,9 @@ const readStyles = {
     gap: 4,
     height: "100%",
   }),
-  title: css({
+  title: (allowWrap: boolean) => css({
     ...styles.itemTitle,
+    ...(allowWrap && { height: "auto", whiteSpace: "normal", overflow: "visible", textOverflow: "clip" }),
   }),
   subtitleRow: css({
     display: "flex",

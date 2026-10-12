@@ -109,12 +109,55 @@ export type FacturaElectronicaDetalle = FacturaElectronicaResumen & {
   pdfDisponible: boolean;
 };
 
+export type FacturaStockOrigen = {
+  operacion_linea_id: string;
+  operacion_origen_id: string;
+  stock_id: string;
+  taller_id: string;
+  producto_id: string;
+  origen_linea: "VENTA" | "REPUESTO";
+  cantidad_original: number;
+  nombre_snapshot: string;
+  codigo_snapshot: string | null;
+};
+
+export type DevolucionStockDisponible = {
+  operacionLineaId: string;
+  nombre: string;
+  codigo: string | null;
+  origenLinea: "VENTA" | "REPUESTO";
+  tallerId: string;
+  cantidadOriginal: number;
+  /** Kept for existing VENTA consumers; equals cantidadOriginal. */
+  vendido: number;
+  devuelto: number;
+  reservado: number;
+  restante: number;
+};
+
+export type DevolucionesDisponiblesResult = {
+  origenTipo: FacturaOrigenTipo;
+  procedenciaVerificada: boolean;
+  advertencia: string | null;
+  items: DevolucionStockDisponible[];
+};
+
+export type CondicionIngresosBrutos = "INSCRIPTO" | "EXENTO" | "NO_CONTRIBUYENTE";
+
+export const CONDICIONES_INGRESOS_BRUTOS: Array<{ value: CondicionIngresosBrutos; label: string }> = [
+  { value: "INSCRIPTO", label: "Inscripto" },
+  { value: "EXENTO", label: "Exento" },
+  { value: "NO_CONTRIBUYENTE", label: "No contribuyente" },
+];
+
 export type FacturacionConfiguracionPublica = {
   razonSocial: string;
   nombreFantasia: string | null;
   cuit: string;
   condicionIvaEmisor: CondicionIvaEmisor;
   domicilio: string;
+  ingresosBrutosCondicion: CondicionIngresosBrutos | null;
+  /** Número de inscripción; sólo aplica a la condición Inscripto. */
   ingresosBrutos: string | null;
   inicioActividades: string;
   puntoVenta: number;

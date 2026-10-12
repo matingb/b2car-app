@@ -33,6 +33,10 @@ CREATE TRIGGER facturacion_proteger_lineas_venta_facturada
   FOR EACH ROW
   EXECUTE FUNCTION public.facturacion_bloquear_mutacion_operacion_facturada();
 
+CREATE TRIGGER facturacion_proteger_lineas_ajuste_devolucion_nc
+  BEFORE INSERT OR DELETE OR UPDATE ON public.operaciones_lineas
+  FOR EACH ROW EXECUTE FUNCTION public.facturacion_bloquear_mutacion_devolucion_nc();
+
 CREATE TRIGGER facturacion_proteger_operaciones_lineas
   BEFORE INSERT OR DELETE OR UPDATE ON public.operaciones_lineas
   FOR EACH ROW

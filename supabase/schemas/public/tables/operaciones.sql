@@ -32,6 +32,10 @@ CREATE TRIGGER facturacion_proteger_venta_facturada
   FOR EACH ROW
   EXECUTE FUNCTION public.facturacion_bloquear_mutacion_operacion_facturada();
 
+CREATE TRIGGER facturacion_proteger_ajuste_devolucion_nc
+  BEFORE DELETE OR UPDATE ON public.operaciones
+  FOR EACH ROW EXECUTE FUNCTION public.facturacion_bloquear_mutacion_devolucion_nc();
+
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE "public"."operaciones" TO "anon", "authenticated";
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE "public"."operaciones" TO "service_role";
