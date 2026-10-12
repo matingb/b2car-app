@@ -137,6 +137,23 @@ describe("PDF fiscal propio", () => {
     expect(document.getPageCount()).toBeGreaterThan(1);
   });
 
+  it("deja los conceptos en la primera hoja y pasa el pie arriba de la segunda si no entra", async () => {
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    const lineas = Array.from({ length: 15 }, (_, index) => ({ codigo: null, descripcion: `Servicio ${index + 1}`, cantidad: 1, importeUnitario: 100, subtotal: 100 }));
+    const bytes = await generateFiscalInvoicePdf(invoice({ concepto: 1, lineas, total: 1500 }));
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(2);
+    const calls = drawText.mock.calls.map(([value, options], index) => ({ value, y: options?.y ?? 0, page: drawText.mock.contexts[index] }));
+    const firstPage = calls.find(({ value }) => value === "CÓDIGO")!.page;
+    const rows = lineas.map(({ descripcion }) => calls.find(({ value }) => value === descripcion)!);
+    expect(rows.every(({ page }) => page === firstPage)).toBe(true);
+    expect(rows[0].y - rows[1].y).toBe(20);
+    expect(calls.filter(({ value }) => value === "CÓDIGO")).toHaveLength(1);
+    const total = calls.find(({ value }) => value === "Importe Total:")!;
+    expect(total.page).not.toBe(firstPage);
+    expect(total.y).toBeGreaterThan(600);
+    drawText.mockRestore();
+  });
+
   it("incluye letras y leyenda sólo en FCE C, sin discriminar IVA", async () => {
     const drawText = vi.spyOn(PDFPage.prototype, "drawText");
     const input = invoice({ tipoComprobante: 211, claseComprobante: "C", fechaComprobante: "2026-10-09", total: 6101500 });
@@ -180,6 +197,67 @@ describe("PDF fiscal propio", () => {
     const values = drawText.mock.calls.map(([value]) => value).join(" ");
     expect(values).toContain("Remitos asociados: R 00001-00000012; X 00002-00000034");
     expect(values.match(/R 00001-00000012/g)).toHaveLength(1);
+  });
+
+  it("referencia la factura asociada en notas de crédito y débito, sin pisar el detalle", async () => {
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    const comprobanteAsociado = { tipoComprobante: 6, clase: "B" as const, puntoVenta: 3, numero: 125, fecha: "2026-10-01" };
+    for (const [documentoTipo, tipoComprobante] of [["NOTA_CREDITO", 8], ["NOTA_DEBITO", 7]] as const) {
+      drawText.mockClear();
+      await generateFiscalInvoicePdf(invoice({ documentoTipo, tipoComprobante, claseComprobante: "B", comprobanteAsociado }));
+      const calls = drawText.mock.calls;
+      const label = calls.find(([value]) => value === "Comprobante asociado:");
+      const reference = calls.find(([value]) => value === "Factura B 00003-00000125 del 01/10/2026");
+      const condicionVenta = calls.find(([value]) => value === "Condición de Venta:");
+      const tableHeader = calls.find(([value]) => value === "CÓDIGO");
+      expect(reference?.[1]?.y).toBe(label?.[1]?.y);
+      expect(label?.[1]?.y).toBeLessThan(condicionVenta?.[1]?.y ?? 0);
+      expect(tableHeader?.[1]?.y).toBeLessThan(label?.[1]?.y ?? 0);
+    }
+    drawText.mockClear();
+    await generateFiscalInvoicePdf(invoice({ comprobanteAsociado }));
+    expect(drawText.mock.calls.map(([value]) => value)).not.toContain("Comprobante asociado:");
+    drawText.mockRestore();
+  });
+
+  describe("Transparencia Fiscal al Consumidor (RG 5614)", () => {
+    const title = "Régimen de Transparencia Fiscal al Consumidor (Ley 27.743)";
+    const totales = { netoGravado: 1000, noGravado: 0, exento: 0, iva: 210, tributos: 15, otrosImpuestosNacionales: 0, total: 1225 };
+
+    it.each([
+      ["FACTURA", 6], ["NOTA_CREDITO", 8], ["NOTA_DEBITO", 7],
+    ] as const)("informa el IVA contenido ya calculado en %s B, sin usar Otros Tributos", async (documentoTipo, tipoComprobante) => {
+      const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+      await generateFiscalInvoicePdf(invoice({ documentoTipo, tipoComprobante, claseComprobante: "B", total: 1225, totales }));
+      const calls = drawText.mock.calls;
+      const heading = calls.find(([value]) => value === title);
+      const iva = calls.find(([value]) => value === "IVA Contenido:");
+      const otros = calls.find(([value]) => value === "Otros Impuestos Nacionales Indirectos:");
+      const totalsLabel = calls.find(([value]) => value === "Importe Neto:");
+      expect(heading?.[1]).toMatchObject({ x: 46 });
+      expect(calls.some(([value, options]) => value === "$210,00" && options?.y === iva?.[1]?.y)).toBe(true);
+      expect(calls.some(([value, options]) => value === "$0,00" && options?.y === otros?.[1]?.y)).toBe(true);
+      // A la izquierda de los totales y por encima del separador del QR/CAE.
+      expect(heading?.[1]?.y).toBe(totalsLabel?.[1]?.y);
+      expect(otros?.[1]?.y).toBeGreaterThan(150);
+      drawText.mockRestore();
+    });
+
+    it.each([[1, "A"], [11, "C"]] as const)("no se agrega en comprobantes clase %s", async (tipoComprobante, claseComprobante) => {
+      const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+      await generateFiscalInvoicePdf(invoice({ tipoComprobante, claseComprobante, totales }));
+      expect(drawText.mock.calls.map(([value]) => value)).not.toContain(title);
+      drawText.mockRestore();
+    });
+
+    it("aparece una sola vez, en la última página, en comprobantes B largos", async () => {
+      const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+      const lineas = Array.from({ length: 30 }, (_, index) => ({ codigo: null, descripcion: `Repuesto ${index + 1}`, cantidad: 1, importeUnitario: 10, subtotal: 10 }));
+      const bytes = await generateFiscalInvoicePdf(invoice({ tipoComprobante: 6, claseComprobante: "B", lineas, total: 1225, totales }));
+      expect((await PDFDocument.load(bytes)).getPageCount()).toBeGreaterThan(1);
+      expect(drawText.mock.calls.filter(([value]) => value === title)).toHaveLength(1);
+      drawText.mockRestore();
+    });
   });
 
   it("incluye conceptos exentos y no gravados en el subtotal C y conserva tributos", async () => {

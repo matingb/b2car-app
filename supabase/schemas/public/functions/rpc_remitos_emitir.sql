@@ -168,7 +168,11 @@ BEGIN
     'nombreFantasia', NULLIF(btrim(coalesce(v_fiscal.nombre_fantasia, '')), ''),
     'cuit', v_fiscal.cuit,
     'domicilio', btrim(v_fiscal.domicilio),
-    'ingresosBrutos', NULLIF(btrim(coalesce(v_fiscal.ingresos_brutos, '')), ''),
+    'ingresosBrutos', CASE v_fiscal.ingresos_brutos_condicion
+      WHEN 'EXENTO' THEN 'Exento'
+      WHEN 'NO_CONTRIBUYENTE' THEN 'No contribuyente'
+      ELSE NULLIF(btrim(coalesce(v_fiscal.ingresos_brutos, '')), '') END,
+    'ingresosBrutosCondicion', v_fiscal.ingresos_brutos_condicion,
     'inicioActividades', v_fiscal.inicio_actividades,
     'condicionIvaEmisor', v_fiscal.condicion_iva_emisor,
     'condicionIva', CASE WHEN v_fiscal.condicion_iva_emisor = 'RESPONSABLE_INSCRIPTO'

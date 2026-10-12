@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RotateCcw, TrendingUp } from "lucide-react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import Button from "@/app/components/ui/Button";
@@ -11,6 +11,15 @@ import FacturaSummaryCard from "@/app/components/facturacion/FacturaSummaryCard"
 import FacturaRemitosSection from "@/app/components/remitos/FacturaRemitosSection";
 import ReadOnlyLineaCard from "@/app/components/arreglos/lineas/shared/ReadOnlyLineaCard";
 import NumberInput from "@/app/components/ui/NumberInput";
+import NotaConceptosSection from "@/app/components/facturacion/NotaConceptosSection";
+import {
+  buildConceptosCatalogo,
+  conceptosError,
+  fromCents,
+  sumCents,
+  toConceptosPayload,
+  type ConceptoNota,
+} from "@/lib/facturacion/notaCreditoConceptos";
 import {
   type DevolucionStockDisponible,
   type DevolucionesDisponiblesResult,
@@ -40,14 +49,13 @@ export default function FacturaDetailPage() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [noteOpen, setNoteOpen] = useState<"NOTA_CREDITO" | "NOTA_DEBITO" | null>(null);
-  const [noteAmount, setNoteAmount] = useState("");
-  const [noteReason, setNoteReason] = useState("");
   const [noteIdempotencyKey, setNoteIdempotencyKey] = useState<string | null>(null);
   const [stockReturns, setStockReturns] = useState<DevolucionStockDisponible[]>([]);
   const [stockReturnsWarning, setStockReturnsWarning] = useState<string | null>(null);
   const [returnQuantities, setReturnQuantities] = useState<Record<string, string>>({});
   const [stockReturnsLoading, setStockReturnsLoading] = useState(false);
   const [stockReturnsFailed, setStockReturnsFailed] = useState(false);
+  const [noteItems, setNoteItems] = useState<ConceptoNota[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,6 +92,32 @@ export default function FacturaDetailPage() {
     }
   };
 
+  const creditCatalog = useMemo(
+    () => buildConceptosCatalogo(invoice?.lineas ?? [], stockReturns),
+    [invoice?.lineas, stockReturns],
+  );
+  // Facturas con detalle simplificado no tienen una línea fiscal por producto: su stock se devuelve aparte.
+  const unlinkedStockReturns = useMemo(
+    () => stockReturns.filter((line) => !(invoice?.lineas ?? []).some((fiscal) => fiscal.sourceId === line.operacionLineaId)),
+    [invoice?.lineas, stockReturns],
+  );
+  const noteValidation = noteOpen ? conceptosError(noteItems) : null;
+
+  const creditReturns = () => {
+    const linked = new Set(creditCatalog.filter((line) => line.stockRestante !== null).map((line) => line.ordinal));
+    const fiscalSource = new Map((invoice?.lineas ?? []).map((line) => [line.ordinal, line.sourceId]));
+    return [
+      ...noteItems
+        .filter((item) => item.tipo === "FACTURA" && item.ordinal !== null && linked.has(item.ordinal) && item.cantidad > 0)
+        .map((item) => ({ operacionLineaId: String(fiscalSource.get(item.ordinal as number)), cantidad: item.cantidad })),
+      ...unlinkedStockReturns.map((line) => ({
+        operacionLineaId: line.operacionLineaId,
+        cantidad: Number(returnQuantities[line.operacionLineaId] ?? line.restante),
+      })),
+    ];
+  };
+
+
   const issueNote = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!noteOpen || !noteIdempotencyKey) return;
@@ -96,12 +130,10 @@ export default function FacturaDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tipo: noteOpen,
-          importe: Number(noteAmount),
-          motivo: noteReason,
+          importe: fromCents(sumCents(noteItems)),
           idempotencyKey: noteIdempotencyKey,
-          devoluciones: noteOpen === "NOTA_CREDITO"
-            ? stockReturns.map((line) => ({ operacionLineaId: line.operacionLineaId, cantidad: Number(returnQuantities[line.operacionLineaId] ?? line.restante) }))
-            : [],
+          conceptos: toConceptosPayload(noteItems),
+          devoluciones: noteOpen === "NOTA_CREDITO" ? creditReturns() : [],
         }),
       });
       const body = await response.json();
@@ -119,7 +151,7 @@ export default function FacturaDetailPage() {
     setNoteOpen(type);
     setNoteIdempotencyKey(crypto.randomUUID());
     setError(null);
-    setNoteAmount(type === "NOTA_CREDITO" ? String(invoice?.total ?? "") : "");
+    setNoteItems([]);
     setStockReturns([]);
     setStockReturnsWarning(null);
     setReturnQuantities({});
@@ -145,9 +177,8 @@ export default function FacturaDetailPage() {
 
   const closeNote = () => {
     setNoteOpen(null);
-    setNoteAmount("");
-    setNoteReason("");
     setNoteIdempotencyKey(null);
+    setNoteItems([]);
     setStockReturns([]);
     setStockReturnsWarning(null);
     setReturnQuantities({});
@@ -272,20 +303,27 @@ export default function FacturaDetailPage() {
             </div>
             {noteOpen ? (
               <form onSubmit={issueNote} style={styles.noteForm}>
-                <div style={styles.noteFields}>
-                  <label style={styles.field}>{noteOpen === "NOTA_CREDITO" ? "Importe total de Nota de Crédito" : "Importe de Nota de Débito"}<input required type="number" min="0.01" step="0.01" style={styles.input} value={noteAmount} onChange={(event) => setNoteAmount(event.target.value)} /></label>
-                  <label style={{ ...styles.field, flex: "1 1 260px" }}>Motivo<input required maxLength={200} style={styles.input} value={noteReason} onChange={(event) => setNoteReason(event.target.value)} /></label>
-                </div>
-                {noteOpen === "NOTA_CREDITO" && !stockReturnsLoading && (stockReturns.length > 0 || stockReturnsWarning) ? (
+                {!stockReturnsLoading ? (
+                  <>
+                    {noteOpen === "NOTA_CREDITO" && stockReturnsWarning ? <p role="status" style={styles.warning}>{stockReturnsWarning}</p> : null}
+                    <NotaConceptosSection
+                      tipo={noteOpen}
+                      catalog={noteOpen === "NOTA_CREDITO" ? creditCatalog : []}
+                      items={noteItems}
+                      onItemsChange={setNoteItems}
+                      disabled={working}
+                    />
+                  </>
+                ) : null}
+                {noteOpen === "NOTA_CREDITO" && !stockReturnsLoading && unlinkedStockReturns.length > 0 ? (
                   <Card aria-label="Productos que vuelven al stock">
                     <div style={styles.returnsSection}>
                       <h3 style={styles.cardTitle}>Productos que vuelven al stock</h3>
-                      <p style={styles.muted}>El importe fiscal y las unidades que regresan al inventario se eligen por separado.</p>
-                      {stockReturnsWarning ? <p role="status" style={styles.warning}>{stockReturnsWarning}</p> : null}
-                      {stockReturns.length ? (
+                      <p style={styles.muted}>La factura se emitió con detalle simplificado: las unidades que regresan al inventario se eligen por separado del importe.</p>
+                      {unlinkedStockReturns.length ? (
                         <>
                           <div style={styles.returnsList}>
-                            {stockReturns.map((line) => (
+                            {unlinkedStockReturns.map((line) => (
                               <ReadOnlyLineaCard
                                 key={line.operacionLineaId}
                                 kind="repuestos"
@@ -300,7 +338,7 @@ export default function FacturaDetailPage() {
                                   <span style={styles.returnStats}>
                                     <span><strong>{line.origenLinea === "REPUESTO" ? "Asignado originalmente" : "Vendido"}</strong> {line.cantidadOriginal}</span>
                                     <span>Devuelto <strong>{line.devuelto}</strong></span>
-                                    <span>Reservado <strong>{line.reservado}</strong></span>
+                                    {line.reservado > 0 ? <span>Reservado <strong>{line.reservado}</strong></span> : null}
                                     <span>Disponible <strong>{line.restante}</strong></span>
                                   </span>
                                 }
@@ -328,15 +366,16 @@ export default function FacturaDetailPage() {
                               />
                             ))}
                           </div>
-                          <p style={styles.muted}>Resumen: {stockReturns.reduce((sum, line) => sum + Number(returnQuantities[line.operacionLineaId] ?? line.restante), 0)} unidades volverían al stock al autorizarse la nota.</p>
+                          <p style={styles.muted}>Resumen: {unlinkedStockReturns.reduce((sum, line) => sum + Number(returnQuantities[line.operacionLineaId] ?? line.restante), 0)} unidades volverían al stock al autorizarse la nota.</p>
                         </>
-                      ) : <p style={styles.muted}>No hay líneas físicas verificadas para devolver en esta factura.</p>}
+                      ) : null}
                     </div>
                   </Card>
                 ) : null}
                 {noteOpen === "NOTA_CREDITO" && stockReturnsLoading ? <p style={styles.muted}>Consultando cantidades retornables…</p> : null}
+                {noteValidation && noteItems.length ? <p role="status" style={styles.muted}>{noteValidation}</p> : null}
                 <div style={styles.noteActions}>
-                  <Button type="submit" text={working ? "Emitiendo…" : "Emitir nota"} disabled={working || stockReturnsLoading || stockReturnsFailed} hideTextOnMobile={false} />
+                  <Button type="submit" text={working ? "Emitiendo…" : "Emitir nota"} disabled={working || stockReturnsLoading || stockReturnsFailed || Boolean(noteValidation)} hideTextOnMobile={false} />
                   <Button type="button" text="Cancelar" outline onClick={closeNote} hideTextOnMobile={false} />
                 </div>
               </form>
@@ -394,7 +433,6 @@ const styles = {
   muted: { color: COLOR.TEXT.SECONDARY, margin: 0, fontSize: 13 },
   associatedDocuments: { display: "flex", flexDirection: "column" as const, gap: 9 },
   noteForm: { display: "flex", flexDirection: "column" as const, alignItems: "stretch", gap: 14, borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`, marginTop: 14, paddingTop: 14 },
-  noteFields: { display: "flex", alignItems: "flex-end", gap: 10, flexWrap: "wrap" as const },
   noteActions: { display: "flex", gap: 8, flexWrap: "wrap" as const },
   returnsSection: { display: "flex", flexDirection: "column" as const, gap: 8 },
   warning: { color: COLOR.ICON.DANGER, background: COLOR.BACKGROUND.DANGER_TINT, padding: 12, borderRadius: 8, fontSize: 13 },
@@ -404,7 +442,5 @@ const styles = {
   returnStats: { display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const },
   returnQuantityField: { display: "flex", flexDirection: "column" as const, alignItems: "flex-end", gap: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500 },
   quantityInput: { width: 86, height: 38, borderRadius: 8, border: `1px solid ${COLOR.BORDER.SUBTLE}`, padding: "0 10px", background: COLOR.INPUT.PRIMARY.BACKGROUND, color: COLOR.TEXT.PRIMARY, fontSize: 14 },
-  field: { display: "flex", flexDirection: "column" as const, gap: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500 },
-  input: { height: 42, borderRadius: 8, border: `1px solid ${COLOR.BORDER.SUBTLE}`, padding: "0 12px", background: COLOR.INPUT.PRIMARY.BACKGROUND, color: COLOR.TEXT.PRIMARY, fontSize: 14 },
   error: { color: COLOR.ICON.DANGER, background: COLOR.BACKGROUND.DANGER_TINT, padding: 12, borderRadius: 8, marginTop: 12 },
 } as const;

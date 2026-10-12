@@ -174,7 +174,7 @@ const styles = {
   list: { ...lineaStyles.list, gap: 10 },
   row: {
     display: "flex",
-    alignItems: "flex-end",
+    alignItems: "center",
     gap: 10,
     padding: "12px 0",
     borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,

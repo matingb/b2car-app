@@ -142,12 +142,22 @@ export type DevolucionesDisponiblesResult = {
   items: DevolucionStockDisponible[];
 };
 
+export type CondicionIngresosBrutos = "INSCRIPTO" | "EXENTO" | "NO_CONTRIBUYENTE";
+
+export const CONDICIONES_INGRESOS_BRUTOS: Array<{ value: CondicionIngresosBrutos; label: string }> = [
+  { value: "INSCRIPTO", label: "Inscripto" },
+  { value: "EXENTO", label: "Exento" },
+  { value: "NO_CONTRIBUYENTE", label: "No contribuyente" },
+];
+
 export type FacturacionConfiguracionPublica = {
   razonSocial: string;
   nombreFantasia: string | null;
   cuit: string;
   condicionIvaEmisor: CondicionIvaEmisor;
   domicilio: string;
+  ingresosBrutosCondicion: CondicionIngresosBrutos | null;
+  /** Número de inscripción; sólo aplica a la condición Inscripto. */
   ingresosBrutos: string | null;
   inicioActividades: string;
   puntoVenta: number;

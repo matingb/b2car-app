@@ -113,13 +113,16 @@ BEGIN
 
       INSERT INTO public.operaciones_lineas(operacion_id, stock_id, cantidad, monto_unitario, delta_cantidad)
       VALUES (v_operacion, v_item.stock_id, v_item.cantidad, 0, v_item.cantidad);
-
-      UPDATE public.facturacion_nc_devoluciones
-      SET operacion_ajuste_id = v_operacion
-      WHERE nota_credito_id = p_nota_id AND stock_id = v_item.stock_id AND operacion_ajuste_id IS NULL;
-      GET DIAGNOSTICS v_rows = ROW_COUNT;
-      IF v_rows < 1 THEN RAISE EXCEPTION 'No se pudo registrar la trazabilidad del ajuste de stock'; END IF;
     END LOOP;
+
+    -- Link returns only after every line exists: once linked, the adjustment is immutable.
+    UPDATE public.facturacion_nc_devoluciones d
+    SET operacion_ajuste_id = v_operacion
+    FROM public.operaciones_lineas ol
+    WHERE d.nota_credito_id = p_nota_id AND d.cantidad > 0 AND d.operacion_ajuste_id IS NULL
+      AND ol.operacion_id = v_operacion AND ol.stock_id = d.stock_id;
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+    IF v_rows < 1 THEN RAISE EXCEPTION 'No se pudo registrar la trazabilidad del ajuste de stock'; END IF;
   END LOOP;
 
   UPDATE public.facturas_electronicas

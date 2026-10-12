@@ -8,7 +8,9 @@ vi.mock("@/lib/arcaPadron/arcaPadronGateway", () => ({ lookupArcaPadronPerson: v
 import { createClient } from "@/supabase/server";
 import { lookupArcaPadronPerson } from "@/lib/arcaPadron/arcaPadronGateway";
 import {
+  noteConceptLines,
   exportFacturasRows,
+  ingresosBrutosEmisor,
   isVerifiedFiscalPdfCache,
   FacturacionValidationError,
   getDevolucionesDisponibles,
@@ -163,7 +165,23 @@ describe("configuración explícita del sistema FCE", () => {
   const config = {
     razonSocial: "Taller", cuit: "20123456786", condicionIvaEmisor: "MONOTRIBUTISTA",
     domicilio: "Calle 1", inicioActividades: "2020-01-01", puntoVenta: 1, fceCbu: null,
+    ingresosBrutosCondicion: "EXENTO",
   };
+
+  it("exige la condición IIBB y el número sólo para inscriptos", () => {
+    expect(() => validateConfigurationInput({ ...config, ingresosBrutosCondicion: null })).toThrow("Elegí la condición frente a Ingresos Brutos");
+    expect(() => validateConfigurationInput({ ...config, ingresosBrutosCondicion: "INSCRIPTO", ingresosBrutos: " " })).toThrow("Completá el número de inscripción");
+    expect(validateConfigurationInput({ ...config, ingresosBrutosCondicion: "INSCRIPTO", ingresosBrutos: "901-123456-7" }))
+      .toMatchObject({ ingresosBrutosCondicion: "INSCRIPTO", ingresosBrutos: "901-123456-7" });
+    expect(validateConfigurationInput({ ...config, ingresosBrutosCondicion: "NO_CONTRIBUYENTE", ingresosBrutos: "901-123456-7" }))
+      .toMatchObject({ ingresosBrutosCondicion: "NO_CONTRIBUYENTE", ingresosBrutos: null });
+  });
+
+  it("informa en el comprobante el número de inscripción o la condición IIBB", () => {
+    expect(ingresosBrutosEmisor({ ingresosBrutosCondicion: "INSCRIPTO", ingresosBrutos: "901-123456-7" })).toBe("901-123456-7");
+    expect(ingresosBrutosEmisor({ ingresosBrutosCondicion: "EXENTO", ingresosBrutos: null })).toBe("Exento");
+    expect(ingresosBrutosEmisor({ ingresosBrutosCondicion: "NO_CONTRIBUYENTE", ingresosBrutos: null })).toBe("No contribuyente");
+  });
 
   it("conserva modalidad sin elegir como null y no infiere SCA", () => {
     expect(validateConfigurationInput(config).fceSistema).toBeNull();
@@ -176,8 +194,8 @@ describe("configuración explícita del sistema FCE", () => {
 
 describe("datos del emisor para el PDF FCE", () => {
   const emitter = { cuit: "20123456786", domicilio: "Calle 1", ingresosBrutos: "-" };
-  function mockConfig(cuit: string, ingresosBrutos: string | null) {
-    const chain = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn().mockResolvedValue({ data: { cuit, ingresos_brutos: ingresosBrutos }, error: null }) };
+  function mockConfig(cuit: string, ingresosBrutos: string | null, condicion: string | null = ingresosBrutos ? "INSCRIPTO" : null) {
+    const chain = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn().mockResolvedValue({ data: { cuit, ingresos_brutos: ingresosBrutos, ingresos_brutos_condicion: condicion }, error: null }) };
     chain.select.mockReturnValue(chain);
     chain.eq.mockReturnValue(chain);
     const from = vi.fn().mockReturnValue(chain);
@@ -187,14 +205,19 @@ describe("datos del emisor para el PDF FCE", () => {
   it("completa únicamente IIBB faltante con configuración del mismo CUIT, tenant y ambiente", async () => {
     const { chain, from } = mockConfig("20-12345678-6", "Convenio Multilateral 901-123456-7");
     const result = await resolvePdfEmitterSnapshot("tenant-1", "HOMOLOGACION", emitter, 211);
-    expect(result).toEqual({ ...emitter, ingresosBrutos: "Convenio Multilateral 901-123456-7" });
+    expect(result).toEqual({ ...emitter, ingresosBrutos: "Convenio Multilateral 901-123456-7", ingresosBrutosCondicion: "INSCRIPTO" });
     expect(emitter.ingresosBrutos).toBe("-");
     expect(from).toHaveBeenCalledWith("facturacion_configuracion_ambiente");
     expect(chain.eq).toHaveBeenCalledWith("tenant_id", "tenant-1");
     expect(chain.eq).toHaveBeenCalledWith("ambiente", "HOMOLOGACION");
   });
+  it("completa la condición exento cuando el emisor no tiene número de inscripción", async () => {
+    mockConfig(emitter.cuit, null, "EXENTO");
+    expect(await resolvePdfEmitterSnapshot("tenant-1", "PRODUCCION", emitter, 211))
+      .toEqual({ ...emitter, ingresosBrutos: "Exento", ingresosBrutosCondicion: "EXENTO" });
+  });
   it("no toma IIBB de otro CUIT ni inventa información ausente", async () => {
-    mockConfig("30712345671", "EXENTO");
+    mockConfig("30712345671", null, "EXENTO");
     expect(await resolvePdfEmitterSnapshot("tenant-1", "PRODUCCION", emitter, 211)).toBe(emitter);
     mockConfig(emitter.cuit, null);
     expect(await resolvePdfEmitterSnapshot("tenant-1", "PRODUCCION", emitter, 211)).toBe(emitter);
@@ -211,15 +234,15 @@ describe("datos del emisor para el PDF FCE", () => {
 describe("integridad de caché PDF fiscal", () => {
   const bytes = new TextEncoder().encode("PDF fiscal autorizado");
   const sha256 = createHash("sha256").update(bytes).digest("hex");
-  const path = "tenant-1/homologacion/factura-1/fiscal-v6.pdf";
+  const path = "tenant-1/homologacion/factura-1/fiscal-v9.pdf";
 
   it("permite redescargar la caché legítima cuando ruta, versión e hash coinciden", () => {
-    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v6", expectedPath: path, storedSha256: sha256, bytes })).toBe(true);
+    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v9", expectedPath: path, storedSha256: sha256, bytes })).toBe(true);
   });
 
   it("rechaza metadatos apuntados a otro objeto o bytes reemplazados", () => {
-    expect(isVerifiedFiscalPdfCache({ storedPath: "tenant-1/otro.pdf", storedVersion: "fiscal-v6", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);
-    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v6", expectedPath: path, storedSha256: "0".repeat(64), bytes })).toBe(false);
+    expect(isVerifiedFiscalPdfCache({ storedPath: "tenant-1/otro.pdf", storedVersion: "fiscal-v9", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);
+    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v9", expectedPath: path, storedSha256: "0".repeat(64), bytes })).toBe(false);
   });
   it("invalida la versión anterior aunque el hash coincida", () => {
     expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v4", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);
@@ -231,12 +254,34 @@ describe("devolución de stock por nota de crédito", () => {
   const line2 = "22222222-2222-4222-8222-222222222222";
   const noteKey = "33333333-3333-4333-8333-333333333333";
 
-  it("parsea cantidades enteras no negativas sin acoplarlas al importe fiscal", () => {
+  const conceptos = [
+    { ordinal: 1, importe: 20 },
+    // La alícuota del cliente se ignora: los conceptos nuevos usan el IVA configurado por ambiente.
+    { descripcion: "Bonificación comercial", ivaAlicuotaId: 4, importe: 5.5 },
+  ];
+  const parsedConceptos = [
+    { ordinal: 1, descripcion: null, ivaAlicuotaId: null, importe: 20 },
+    { ordinal: null, descripcion: "Bonificación comercial", ivaAlicuotaId: 5, importe: 5.5 },
+  ];
+  const fromInvoice = (ordinal: number, importe: number) => ({ ordinal, descripcion: null, ivaAlicuotaId: null, importe });
+
+  it("aplica a los conceptos nuevos la alícuota del IVA configurado por ambiente", () => {
+    const parse = () => parseNotaInput({
+      tipo: "NOTA_CREDITO", importe: 10, idempotencyKey: noteKey, conceptos: [{ descripcion: "Bonificación", importe: 10 }],
+    }).conceptos[0].ivaAlicuotaId;
+    vi.stubEnv("IVA_RATE", "0.105");
+    expect(parse()).toBe(4);
+    vi.stubEnv("IVA_RATE", "0.19");
+    expect(parse).toThrow("no corresponde a una alícuota de ARCA");
+    vi.unstubAllEnvs();
+  });
+
+  it("parsea conceptos de la factura, conceptos nuevos y cantidades enteras no negativas", () => {
     expect(parseNotaInput({
-      tipo: "NOTA_CREDITO", importe: 25.5, motivo: "Devolución parcial",
+      tipo: "NOTA_CREDITO", importe: 25.5, conceptos,
       idempotencyKey: noteKey, devoluciones: [{ operacionLineaId: line1, cantidad: 2 }],
     })).toEqual({
-      tipo: "NOTA_CREDITO", importe: 25.5, motivo: "Devolución parcial",
+      tipo: "NOTA_CREDITO", importe: 25.5, conceptos: parsedConceptos,
       idempotencyKey: noteKey, devoluciones: [{ operacionLineaId: line1, cantidad: 2 }],
     });
   });
@@ -247,13 +292,82 @@ describe("devolución de stock por nota de crédito", () => {
     [[{ operacionLineaId: line1, cantidad: 1 }, { operacionLineaId: line1, cantidad: 1 }]],
   ])("rechaza cantidades inválidas o líneas duplicadas: %j", (devoluciones) => {
     expect(() => parseNotaInput({
-      tipo: "NOTA_CREDITO", importe: 25, idempotencyKey: noteKey, devoluciones,
+      tipo: "NOTA_CREDITO", importe: 25, idempotencyKey: noteKey, devoluciones, conceptos: [{ ordinal: 1, importe: 25 }],
     })).toThrow(FacturacionValidationError);
+  });
+
+  it.each([
+    ["sin conceptos", [], "Agregá al menos un concepto"],
+    ["suma distinta al total", [{ ordinal: 1, importe: 20 }], "La suma de los conceptos no coincide"],
+    ["línea de la factura repetida", [{ ordinal: 1, importe: 12.75 }, { ordinal: 1, importe: 12.75 }], "No se puede repetir una línea de la factura"],
+    ["monto con más de dos decimales", [{ ordinal: 1, importe: 25.499 }, { ordinal: 2, importe: 0.001 }], "monto positivo"],
+    ["monto en cero", [{ ordinal: 1, importe: 25.5 }, { ordinal: 2, importe: 0 }], "monto positivo"],
+    ["concepto nuevo sin descripción", [{ descripcion: "  ", importe: 25.5 }], "descripción de hasta 200"],
+  ])("rechaza conceptos inválidos: %s", (_case, invalid, message) => {
+    expect(() => parseNotaInput({
+      tipo: "NOTA_CREDITO", importe: 25.5, idempotencyKey: noteKey, conceptos: invalid,
+    })).toThrow(message);
+  });
+
+  it("una nota de débito sólo admite conceptos nuevos, que suman su importe", () => {
+    expect(parseNotaInput({
+      tipo: "NOTA_DEBITO", importe: 25, idempotencyKey: noteKey, conceptos: [{ descripcion: "Recargo por mora", importe: 25 }],
+    })).toEqual({
+      tipo: "NOTA_DEBITO", importe: 25, idempotencyKey: noteKey, devoluciones: [],
+      conceptos: [{ ordinal: null, descripcion: "Recargo por mora", ivaAlicuotaId: 5, importe: 25 }],
+    });
+    expect(() => parseNotaInput({
+      tipo: "NOTA_DEBITO", importe: 25, idempotencyKey: noteKey, conceptos: [{ ordinal: 1, importe: 25 }],
+    })).toThrow("Las notas de débito sólo admiten conceptos nuevos");
+    expect(() => parseNotaInput({ tipo: "NOTA_DEBITO", importe: 25, idempotencyKey: noteKey, conceptos: [] }))
+      .toThrow("Agregá al menos un concepto");
+  });
+
+  describe("líneas de la nota de crédito por concepto", () => {
+    const original = [
+      { ordinal: 1, origen: "VENTA" as const, sourceId: line1, descripcion: "Batería 55Ah", codigo: "BAT-55", cantidad: 5, importeUnitario: 1000, subtotal: 5000, ivaAlicuotaId: 5 },
+      { ordinal: 2, origen: "SERVICIO" as const, sourceId: null, descripcion: "Mano de obra", cantidad: 1, importeUnitario: 3000, subtotal: 3000, ivaAlicuotaId: 5 },
+      { ordinal: 3, origen: "VENTA" as const, sourceId: line2, descripcion: "Aceite 5W30", codigo: "ACE", cantidad: 3, importeUnitario: 500, subtotal: 1500, ivaAlicuotaId: 4 },
+    ];
+
+    it("detalla los conceptos elegidos y los nuevos, con su monto y la cantidad devuelta", () => {
+      const lines = noteConceptLines(
+        original,
+        [fromInvoice(1, 2000), fromInvoice(2, 499.99), { ordinal: null, descripcion: "Bonificación", ivaAlicuotaId: 4, importe: 150 }],
+        [{ operacionLineaId: line1, cantidad: 2 }],
+      );
+      expect(lines).toEqual([
+        expect.objectContaining({ ordinal: 1, origen: "AJUSTE", sourceId: null, descripcion: "Batería 55Ah", codigo: "BAT-55", cantidad: 2, importeUnitario: 1000, subtotal: 2000, ivaAlicuotaId: 5, snapshot: { lineaOriginal: {}, ordinalOriginal: 1 } }),
+        expect.objectContaining({ ordinal: 2, origen: "AJUSTE", descripcion: "Mano de obra", cantidad: 1, importeUnitario: 499.99, subtotal: 499.99 }),
+        { ordinal: 3, origen: "AJUSTE", sourceId: null, descripcion: "Bonificación", codigo: null, cantidad: 1, importeUnitario: 150, subtotal: 150, tratamientoIva: "GRAVADO", ivaAlicuotaId: 4, snapshot: { conceptoPropio: true } },
+      ]);
+    });
+
+    it("usa una unidad cuando el monto no se divide en centavos exactos por la cantidad", () => {
+      const [line] = noteConceptLines(original, [fromInvoice(1, 1000)], [{ operacionLineaId: line1, cantidad: 3 }]);
+      expect(line).toEqual(expect.objectContaining({ cantidad: 1, importeUnitario: 1000, subtotal: 1000 }));
+    });
+
+    it("rechaza un concepto que supera lo facturado en su línea", () => {
+      expect(() => noteConceptLines(original, [fromInvoice(3, 1500.01)], []))
+        .toThrow("supera lo facturado en esa línea");
+    });
+
+    it("rechaza un concepto que no pertenece a la factura", () => {
+      expect(() => noteConceptLines(original, [fromInvoice(9, 10)], []))
+        .toThrow("Uno de los conceptos no pertenece a la factura original");
+    });
+
+    it("exige agregar como concepto el producto cuyo stock se devuelve", () => {
+      expect(() => noteConceptLines(original, [fromInvoice(2, 100)], [{ operacionLineaId: line2, cantidad: 1 }]))
+        .toThrow("Para devolver stock de un producto, agregalo como concepto de la nota");
+      expect(noteConceptLines(original, [fromInvoice(2, 100)], [{ operacionLineaId: line2, cantidad: 0 }])).toHaveLength(1);
+    });
   });
 
   it("rechaza devoluciones en una nota de débito", () => {
     expect(() => parseNotaInput({
-      tipo: "NOTA_DEBITO", importe: 25, idempotencyKey: noteKey,
+      tipo: "NOTA_DEBITO", importe: 25, idempotencyKey: noteKey, conceptos: [{ descripcion: "Recargo", importe: 25 }],
       devoluciones: [{ operacionLineaId: line1, cantidad: 1 }],
     })).toThrow("Las notas de débito no modifican el stock");
   });

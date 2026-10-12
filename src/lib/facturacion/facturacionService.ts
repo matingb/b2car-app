@@ -31,7 +31,10 @@ import { hasFiscalIibb, isFceInvoice } from "./fiscalPresentation";
 import { lookupArcaPadronPerson } from "@/lib/arcaPadron/arcaPadronGateway";
 import { lookupArcaInscriptionVatCondition } from "@/lib/arcaInscripcion/arcaInscripcionGateway";
 import {
+  ALICUOTAS_IVA_ARCA,
+  CONDICIONES_INGRESOS_BRUTOS,
   CONDICIONES_IVA_RECEPTOR,
+  type CondicionIngresosBrutos,
   type CondicionIvaEmisor,
   type CondicionIvaReceptorId,
   type DocumentoFiscalClase,
@@ -53,6 +56,7 @@ import {
 } from "./types";
 import type { TenantActor } from "./serverAuth";
 import { logger } from "../logger";
+import { getIvaRate } from "../ivaRate";
 
 type DbRecord = Record<string, unknown>;
 
@@ -63,6 +67,7 @@ type StoredConfig = {
   cuit: string;
   condicionIvaEmisor: CondicionIvaEmisor;
   domicilio: string;
+  ingresosBrutosCondicion: CondicionIngresosBrutos | null;
   ingresosBrutos: string | null;
   inicioActividades: string;
   puntoVenta: number;
@@ -241,6 +246,7 @@ function mapConfig(value: unknown): StoredConfig | null {
     condicionIvaEmisor: text(row.condicion_iva_emisor) === "RESPONSABLE_INSCRIPTO"
       ? "RESPONSABLE_INSCRIPTO" : "MONOTRIBUTISTA",
     domicilio: text(row.domicilio),
+    ingresosBrutosCondicion: parseCondicionIngresosBrutos(row.ingresos_brutos_condicion),
     ingresosBrutos: nullable(row.ingresos_brutos),
     inicioActividades: text(row.inicio_actividades),
     puntoVenta: number(row.punto_venta),
@@ -265,6 +271,7 @@ function publicConfig(config: StoredConfig): FacturacionConfiguracionPublica {
     cuit: config.cuit,
     condicionIvaEmisor: config.condicionIvaEmisor,
     domicilio: config.domicilio,
+    ingresosBrutosCondicion: config.ingresosBrutosCondicion,
     ingresosBrutos: config.ingresosBrutos,
     inicioActividades: config.inicioActividades,
     puntoVenta: config.puntoVenta,
@@ -295,6 +302,7 @@ export function validateConfigurationInput(value: unknown): FacturacionConfigura
     condicionIvaEmisor: text(row.condicionIvaEmisor) === "RESPONSABLE_INSCRIPTO"
       ? "RESPONSABLE_INSCRIPTO" : "MONOTRIBUTISTA",
     domicilio: text(row.domicilio),
+    ingresosBrutosCondicion: parseCondicionIngresosBrutos(row.ingresosBrutosCondicion),
     ingresosBrutos: nullable(row.ingresosBrutos),
     inicioActividades: text(row.inicioActividades),
     puntoVenta: number(row.puntoVenta),
@@ -311,6 +319,13 @@ export function validateConfigurationInput(value: unknown): FacturacionConfigura
   }
   if (!isIsoDate(config.inicioActividades)) {
     throw new FacturacionValidationError("El inicio de actividades debe ser una fecha válida con formato AAAA-MM-DD");
+  }
+  if (!config.ingresosBrutosCondicion) {
+    throw new FacturacionValidationError("Elegí la condición frente a Ingresos Brutos");
+  }
+  if (config.ingresosBrutosCondicion !== "INSCRIPTO") config.ingresosBrutos = null;
+  else if (!config.ingresosBrutos) {
+    throw new FacturacionValidationError("Completá el número de inscripción en Ingresos Brutos");
   }
   if (config.fceCbu && !/^\d{22}$/.test(config.fceCbu)) throw new FacturacionValidationError("El CBU fiscal debe tener 22 dígitos");
   if (!Number.isInteger(config.puntoVenta) || config.puntoVenta <= 0) {
@@ -368,6 +383,7 @@ export async function saveFacturacionConfig(
       cuit: config.cuit,
       condicion_iva_emisor: config.condicionIvaEmisor,
       domicilio: config.domicilio,
+      ingresos_brutos_condicion: config.ingresosBrutosCondicion,
       ingresos_brutos: config.ingresosBrutos,
       inicio_actividades: config.inicioActividades,
       punto_venta: config.puntoVenta,
@@ -939,10 +955,23 @@ export function parseFacturaIssueInput(value: unknown): FacturaIssueInput {
   };
 }
 
+function parseCondicionIngresosBrutos(value: unknown): CondicionIngresosBrutos | null {
+  return CONDICIONES_INGRESOS_BRUTOS.find((item) => item.value === text(value))?.value ?? null;
+}
+
+/** Lo que el comprobante informa en "Ingresos Brutos": el número si es inscripto, o la condición. */
+export function ingresosBrutosEmisor(config: { ingresosBrutosCondicion: CondicionIngresosBrutos | null; ingresosBrutos: string | null }): string | null {
+  if (config.ingresosBrutosCondicion === "EXENTO" || config.ingresosBrutosCondicion === "NO_CONTRIBUYENTE") {
+    return CONDICIONES_INGRESOS_BRUTOS.find((item) => item.value === config.ingresosBrutosCondicion)!.label;
+  }
+  return config.ingresosBrutos;
+}
+
 function emitterSnapshot(config: StoredConfig) {
   return {
     razonSocial: config.razonSocial, nombreFantasia: config.nombreFantasia,
-    cuit: config.cuit, domicilio: config.domicilio, ingresosBrutos: config.ingresosBrutos,
+    cuit: config.cuit, domicilio: config.domicilio,
+    ingresosBrutos: ingresosBrutosEmisor(config), ingresosBrutosCondicion: config.ingresosBrutosCondicion,
     inicioActividades: config.inicioActividades, condicionIvaEmisor: config.condicionIvaEmisor,
     condicionIva: config.condicionIvaEmisor === "RESPONSABLE_INSCRIPTO"
       ? "Responsable inscripto" : "Monotributista",
@@ -1089,7 +1118,7 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
       devoluciones: input.devoluciones ?? [],
     })).digest("hex");
     if (input.retry && text(input.retry.contenido_hash) && text(input.retry.contenido_hash) !== contentHash && !input.allowLegacyRetry) {
-      throw new FacturacionValidationError("La clave de idempotencia ya se usó con otro importe, motivo o cantidad devuelta; cerrá y abrí una nota nueva");
+      throw new FacturacionValidationError("La clave de idempotencia ya se usó con otros conceptos o cantidades devueltas; cerrá y abrí una nota nueva");
     }
     const header = {
       tenant_id: input.actor.tenantId,
@@ -1192,7 +1221,10 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
           autorizada_at: new Date().toISOString(), error_codigo: null, error_mensaje: null,
         }).eq("id", invoiceId).select("id").single();
       const { data, error } = await supabase.from("facturas_electronicas").select("*").eq("id", invoiceId).single();
-      if (authorization.error || error || !data) throw new Error("ARCA autorizó el documento pero no se pudo persistir junto con el ajuste de stock");
+      if (authorization.error || error || !data) {
+        logger.error("No se pudo persistir la autorización fiscal", authorization.error ?? error);
+        throw new Error("ARCA autorizó el documento pero no se pudo persistir junto con el ajuste de stock");
+      }
       await supabase.from("facturacion_emision_intentos").update({
         estado: "AUTORIZADO", response_sanitizada: sanitizeFiscalPayload(response),
         completed_at: new Date().toISOString(),
@@ -1358,7 +1390,10 @@ export async function reconcileFactura(actor: TenantActor, facturaId: string): P
       autorizada_at: new Date().toISOString(), error_codigo: null, error_mensaje: null,
     }).eq("id", facturaId);
   const { data: updated, error: updateError } = await supabase.from("facturas_electronicas").select("*").eq("id", facturaId).single();
-  if (finalizeError || updateError || !updated) throw new Error("No se pudo reconciliar el documento localmente junto con el ajuste de stock");
+  if (finalizeError || updateError || !updated) {
+    logger.error("No se pudo persistir la reconciliación fiscal", finalizeError ?? updateError);
+    throw new Error("No se pudo reconciliar el documento localmente junto con el ajuste de stock");
+  }
   const { count } = await supabase.from("facturacion_emision_intentos")
     .select("id", { count: "exact", head: true }).eq("factura_id", facturaId);
   await supabase.from("facturacion_emision_intentos").insert({
@@ -1375,8 +1410,6 @@ export function parseNotaInput(value: unknown) {
   if (tipo !== "NOTA_CREDITO" && tipo !== "NOTA_DEBITO") throw new FacturacionValidationError("Tipo de nota inválido");
   const importe = number(row.importe);
   if (importe <= 0) throw new FacturacionValidationError("El importe de la nota debe ser positivo");
-  const motivo = text(row.motivo) || (tipo === "NOTA_CREDITO" ? "Anulación / ajuste" : "Ajuste de débito");
-  if (motivo.length > 200) throw new FacturacionValidationError("El motivo no puede superar los 200 caracteres");
   const rawReturns = row.devoluciones ?? [];
   if (!Array.isArray(rawReturns)) throw new FacturacionValidationError("La lista de devoluciones no es válida");
   const devoluciones = rawReturns.map((value) => {
@@ -1392,30 +1425,107 @@ export function parseNotaInput(value: unknown) {
     throw new FacturacionValidationError("No se puede repetir una línea en las devoluciones");
   }
   if (tipo === "NOTA_DEBITO" && devoluciones.length) throw new FacturacionValidationError("Las notas de débito no modifican el stock");
+  const rawConcepts = row.conceptos ?? [];
+  if (!Array.isArray(rawConcepts)) throw new FacturacionValidationError("La lista de conceptos no es válida");
+  const conceptos: ConceptoNotaInput[] = rawConcepts.map((value) => {
+    const item = record(value);
+    const conceptAmount = Number(item.importe);
+    if (!Number.isFinite(conceptAmount) || conceptAmount <= 0
+      || Math.abs(conceptAmount * 100 - Math.round(conceptAmount * 100)) > 1e-6) {
+      throw new FacturacionValidationError("Cada concepto debe tener un monto positivo con hasta dos decimales");
+    }
+    if (item.ordinal !== undefined && item.ordinal !== null) {
+      const ordinal = Number(item.ordinal);
+      if (!Number.isSafeInteger(ordinal) || ordinal <= 0) throw new FacturacionValidationError("El concepto no indica una línea válida de la factura");
+      return { ordinal, descripcion: null, ivaAlicuotaId: null, importe: conceptAmount };
+    }
+    const descripcion = text(item.descripcion).trim();
+    if (!descripcion || descripcion.length > 200) {
+      throw new FacturacionValidationError("Cada concepto nuevo debe tener una descripción de hasta 200 caracteres");
+    }
+    return { ordinal: null, descripcion, ivaAlicuotaId: configuredIvaAlicuotaId(), importe: conceptAmount };
+  });
+  const linkedOrdinals = conceptos.flatMap((item) => item.ordinal === null ? [] : [item.ordinal]);
+  if (new Set(linkedOrdinals).size !== linkedOrdinals.length) {
+    throw new FacturacionValidationError("No se puede repetir una línea de la factura en la nota");
+  }
+  if (tipo === "NOTA_DEBITO" && linkedOrdinals.length) {
+    throw new FacturacionValidationError("Las notas de débito sólo admiten conceptos nuevos");
+  }
+  if (!conceptos.length) throw new FacturacionValidationError("Agregá al menos un concepto a la nota");
+  const conceptsTotal = conceptos.reduce((sum, item) => sum + amountToCents(item.importe), 0);
+  if (conceptsTotal !== amountToCents(importe)) {
+    throw new FacturacionValidationError("La suma de los conceptos no coincide con el importe de la nota");
+  }
   return {
     tipo: tipo as "NOTA_CREDITO" | "NOTA_DEBITO", importe,
-    motivo,
     devoluciones,
+    conceptos,
     idempotencyKey: assertUuid(row.idempotencyKey, "La clave de idempotencia"),
   };
 }
 
-function proportionalLines(lines: FacturaLinea[], amount: number, reason: string): FacturaLinea[] {
-  const target = amountToCents(amount);
-  const sourceTotal = lines.reduce((sum, line) => sum + amountToCents(line.subtotal), 0);
-  let assigned = 0;
-  return lines.map((line, index) => {
-    const cents = index === lines.length - 1
-      ? target - assigned
-      : Math.round(target * amountToCents(line.subtotal) / sourceTotal);
-    assigned += cents;
-    const value = centsToAmount(cents);
+/** Alícuota ARCA de los conceptos propios de una nota, según el IVA configurado por ambiente. */
+function configuredIvaAlicuotaId(): number {
+  const percent = Math.round(getIvaRate() * 10000) / 100;
+  const alicuota = ALICUOTAS_IVA_ARCA.find((item) => item.porcentaje === percent);
+  if (!alicuota) throw new Error(`El IVA configurado (${percent}%) no corresponde a una alícuota de ARCA`);
+  return alicuota.id;
+}
+
+type ConceptoNotaInput = {
+  /** Línea de la factura original; null para un concepto propio de la nota. */
+  ordinal: number | null;
+  descripcion: string | null;
+  ivaAlicuotaId: number | null;
+  importe: number;
+};
+
+/**
+ * Una nota detalla sólo sus conceptos: líneas de la factura original (sólo NC),
+ * con tope en lo facturado en esa línea, o conceptos propios que no se relacionan
+ * con el stock. La cantidad devuelta se muestra cuando divide el monto en
+ * centavos exactos; si no, el concepto va como una unidad.
+ */
+export function noteConceptLines(
+  lines: FacturaLinea[],
+  conceptos: ConceptoNotaInput[],
+  devoluciones: { operacionLineaId: string; cantidad: number }[],
+): FacturaLinea[] {
+  const byOrdinal = new Map(lines.map((line) => [line.ordinal, line]));
+  const returnedBySource = new Map(devoluciones.map((item) => [item.operacionLineaId, item.cantidad]));
+  const selectedSources = new Set<string>();
+  const result = conceptos.map((concepto, index): FacturaLinea => {
+    const cents = amountToCents(concepto.importe);
+    if (concepto.ordinal === null) {
+      return {
+        ordinal: index + 1, origen: "AJUSTE", sourceId: null, descripcion: concepto.descripcion ?? "", codigo: null,
+        cantidad: 1, importeUnitario: centsToAmount(cents), subtotal: centsToAmount(cents),
+        tratamientoIva: "GRAVADO", ivaAlicuotaId: concepto.ivaAlicuotaId ?? 5,
+        snapshot: { conceptoPropio: true },
+      };
+    }
+    const line = byOrdinal.get(concepto.ordinal);
+    if (!line) throw new FacturacionValidationError("Uno de los conceptos no pertenece a la factura original");
+    if (cents > amountToCents(line.subtotal)) {
+      throw new FacturacionValidationError(`El monto de "${line.descripcion}" supera lo facturado en esa línea`);
+    }
+    if (line.sourceId) selectedSources.add(line.sourceId);
+    const returned = line.sourceId ? returnedBySource.get(line.sourceId) ?? 0 : 0;
+    const cantidad = returned > 0 && cents % returned === 0 ? returned : 1;
     return {
-      ...line, ordinal: index + 1, origen: "AJUSTE" as const, sourceId: null,
-      descripcion: `${reason}: ${line.descripcion}`, cantidad: 1,
-      importeUnitario: value, subtotal: value, snapshot: { lineaOriginal: line.snapshot ?? {} },
+      ...line, ordinal: index + 1, origen: "AJUSTE", sourceId: null, cantidad,
+      importeUnitario: centsToAmount(cents / cantidad), subtotal: centsToAmount(cents),
+      snapshot: { lineaOriginal: line.snapshot ?? {}, ordinalOriginal: line.ordinal },
     };
-  }).filter((line) => line.subtotal > 0);
+  });
+  const invoicedSources = new Set(lines.map((line) => line.sourceId).filter(Boolean));
+  for (const item of devoluciones) {
+    if (item.cantidad > 0 && invoicedSources.has(item.operacionLineaId) && !selectedSources.has(item.operacionLineaId)) {
+      throw new FacturacionValidationError("Para devolver stock de un producto, agregalo como concepto de la nota");
+    }
+  }
+  return result;
 }
 
 export async function issueNotaFiscal(
@@ -1482,7 +1592,7 @@ export async function issueNotaFiscal(
     origenTipo: text(original.origen_tipo) === "VENTA" ? "VENTA" : "ARREGLO",
     fecha: text(original.fecha_comprobante), total: input.importe,
     receptor: profileFromSnapshot(record(original.receptor_snapshot)),
-    lineas: proportionalLines(originalLines, input.importe, input.motivo),
+    lineas: noteConceptLines(originalLines, input.conceptos, input.devoluciones),
     stockOrigins,
   };
   const noteVoucher = determineVoucher(config.condicionIvaEmisor, source.receptor.condicionIvaReceptorId, input.tipo);
@@ -1535,7 +1645,7 @@ export async function issueNotaFiscal(
       && text(priorInvoice.contenido_hash) === legacyContentHash;
     const matchesLegacy = matchesLegacyIntent || matchesLegacyContent;
     if (!matchesCurrent && !matchesLegacy) {
-      throw new FacturacionValidationError("La clave de idempotencia ya se usó con otro importe, motivo, origen o cantidad devuelta");
+      throw new FacturacionValidationError("La clave de idempotencia ya se usó con otros conceptos, origen o cantidades devueltas");
     }
     if (matchesLegacy) {
       const { data: priorReturns, error: priorReturnsError } = await supabase.from("facturacion_nc_devoluciones")
@@ -1813,7 +1923,10 @@ export async function exportFacturasRows(tenantId: string, filters: FacturasList
 }
 
 // v6: importe en letras, leyenda FCE, denominaciones fiscales y presentación de clase C.
-const PDF_TEMPLATE_VERSION = "fiscal-v6";
+// v7: referencia a la factura asociada en notas de crédito y débito.
+// v8: bloque de Transparencia Fiscal al Consumidor (RG 5614) en comprobantes clase B.
+// v9: filas más bajas; el pie que no entra pasa arriba de una hoja nueva sin mover conceptos.
+const PDF_TEMPLATE_VERSION = "fiscal-v9";
 const PDF_BUCKET = "facturacion-comprobantes";
 export function isVerifiedFiscalPdfCache(input: {
   storedPath: string | null;
@@ -1869,8 +1982,9 @@ export async function resolvePdfEmitterSnapshot(
 ): Promise<DbRecord> {
   if (!isFceInvoice(tipoComprobante) || hasFiscalIibb(emitter.ingresosBrutos)) return emitter;
   const config = await getFacturacionConfig(tenantId, ambiente);
-  if (!config || normalizeDocumentNumber(config.cuit) !== normalizeDocumentNumber(text(emitter.cuit)) || !hasFiscalIibb(config.ingresosBrutos)) return emitter;
-  return { ...emitter, ingresosBrutos: config.ingresosBrutos };
+  const ingresosBrutos = config ? ingresosBrutosEmisor(config) : null;
+  if (!config || normalizeDocumentNumber(config.cuit) !== normalizeDocumentNumber(text(emitter.cuit)) || !hasFiscalIibb(ingresosBrutos)) return emitter;
+  return { ...emitter, ingresosBrutos, ingresosBrutosCondicion: config.ingresosBrutosCondicion };
 }
 
 export async function buildFacturaPdf(tenantId: string, facturaId: string): Promise<{ bytes: Uint8Array; filename: string }> {
@@ -1913,6 +2027,15 @@ export async function buildFacturaPdf(tenantId: string, facturaId: string): Prom
       codigo: line.codigo ?? null, descripcion: line.descripcion, cantidad: line.cantidad,
       importeUnitario: line.importeUnitario, subtotal: line.subtotal,
     })),
+    comprobanteAsociado: detail.documentoTipo !== "FACTURA" && detail.documentoAsociado?.numeroComprobante
+      ? {
+        tipoComprobante: detail.documentoAsociado.tipoComprobante,
+        clase: detail.documentoAsociado.claseComprobante,
+        puntoVenta: detail.documentoAsociado.puntoVenta,
+        numero: detail.documentoAsociado.numeroComprobante,
+        fecha: detail.documentoAsociado.fechaComprobante,
+      }
+      : null,
   };
   const bytes = await generateFiscalInvoicePdf(fiscal);
   const path = `${tenantId}/${detail.ambiente.toLowerCase()}/${detail.id}/${PDF_TEMPLATE_VERSION}.pdf`;
