@@ -3,6 +3,7 @@ import { ServiceWorkerRegister } from "./providers/ServiceWorkerRegister";
 import ToastProvider from "./providers/ToastProvider";
 import { BreakpointProvider } from "./providers/BreakpointProvider";
 import { Metadata } from "next";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
@@ -25,6 +26,7 @@ export default function RootLayout({
             {children}
           </BreakpointProvider>
         </ToastProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
