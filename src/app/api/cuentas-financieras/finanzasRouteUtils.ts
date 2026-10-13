@@ -310,6 +310,7 @@ export function validateCreateGasto(body: unknown): Validated<CrearGastoFinancie
   const categoria = stringValue(body, "categoria");
   const importe = numberValue(body, "importe");
   const descripcion = own(body, "descripcion") ? nullableStringValue(body, "descripcion") : undefined;
+  const observaciones = own(body, "observaciones") ? nullableStringValue(body, "observaciones") : undefined;
   const fecha = own(body, "fecha") ? stringValue(body, "fecha") : undefined;
   const arregloId = own(body, "arregloId") ? nullableUuidValue(body, "arregloId") : undefined;
   const operacionId = own(body, "operacionId") ? nullableUuidValue(body, "operacionId") : undefined;
@@ -324,6 +325,10 @@ export function validateCreateGasto(body: unknown): Validated<CrearGastoFinancie
   if (own(body, "descripcion") && descripcion === undefined) return { error: "descripcion debe ser texto o null" };
   if (descripcion !== undefined && descripcion !== null && descripcion.length > MAX_DESCRIPTION_LENGTH) {
     return { error: `descripcion supera el máximo de ${MAX_DESCRIPTION_LENGTH} caracteres` };
+  }
+  if (own(body, "observaciones") && observaciones === undefined) return { error: "observaciones debe ser texto o null" };
+  if (observaciones !== undefined && observaciones !== null && observaciones.length > MAX_DESCRIPTION_LENGTH) {
+    return { error: `observaciones supera el máximo de ${MAX_DESCRIPTION_LENGTH} caracteres` };
   }
   if (own(body, "fecha") && fecha === undefined) return { error: "fecha debe ser texto" };
   const fechaError = validOptionalTimestamp(fecha);
@@ -343,6 +348,7 @@ export function validateCreateGasto(body: unknown): Validated<CrearGastoFinancie
       categoria: categoria!,
       importe,
       descripcion: descripcion ?? null,
+      observaciones: observaciones ?? null,
       ...(fecha === undefined ? {} : { fecha: toISODateTimeWithCurrentTime(fecha) }),
       ...(arregloId === undefined ? {} : { arregloId }),
       ...(operacionId === undefined ? {} : { operacionId }),
@@ -385,6 +391,14 @@ export function validateUpdateGasto(body: unknown): Validated<ActualizarGastoFin
       return { error: `descripcion supera el máximo de ${MAX_DESCRIPTION_LENGTH} caracteres` };
     }
     patch.descripcion = descripcion;
+  }
+  if (own(body, "observaciones")) {
+    const observaciones = nullableStringValue(body, "observaciones");
+    if (observaciones === undefined) return { error: "observaciones debe ser texto o null" };
+    if (observaciones !== null && observaciones.length > MAX_DESCRIPTION_LENGTH) {
+      return { error: `observaciones supera el máximo de ${MAX_DESCRIPTION_LENGTH} caracteres` };
+    }
+    patch.observaciones = observaciones;
   }
   if (Object.keys(patch).length === 0) return { error: "No hay campos para actualizar" };
   if (own(body, "idempotencyKey")) {
@@ -534,6 +548,7 @@ export function mapGasto(row: unknown): GastoFinanciero | null {
   const importe = asNumber(pick(source, "importe", "monto"));
   const fecha = asTimestamp(pick(source, "fecha"));
   const descripcion = asNullableText(pick(source, "descripcion"));
+  const observaciones = asNullableText(pick(source, "observaciones"));
   const createdAt = asTimestamp(pick(source, "created_at", "createdAt"));
   if (!id || !cuentaId || !categoria || importe === null || !fecha || !createdAt) return null;
   return {
@@ -544,6 +559,7 @@ export function mapGasto(row: unknown): GastoFinanciero | null {
     importe: Math.abs(importe), // el ledger almacena negativo, mostrar positivo
     fecha,
     descripcion,
+    observaciones,
     reversaMovimientoId: null, // deprecated en nueva arquitectura
     createdAt,
   };

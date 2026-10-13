@@ -1,5 +1,6 @@
 import "../globals.css";
 import { ServiceWorkerRegister } from "./providers/ServiceWorkerRegister";
+import { TelemetryProvider } from "./providers/TelemetryProvider";
 import ToastProvider from "./providers/ToastProvider";
 import { BreakpointProvider } from "./providers/BreakpointProvider";
 import { Metadata } from "next";
@@ -19,12 +20,14 @@ export default function RootLayout({
       <head>
       </head>
       <body suppressHydrationWarning>
-        <ToastProvider>
-          <BreakpointProvider>
-            <ServiceWorkerRegister />
-            {children}
-          </BreakpointProvider>
-        </ToastProvider>
+        <TelemetryProvider>
+          <ToastProvider>
+            <BreakpointProvider>
+              <ServiceWorkerRegister />
+              {children}
+            </BreakpointProvider>
+          </ToastProvider>
+        </TelemetryProvider>
       </body>
     </html>
   );

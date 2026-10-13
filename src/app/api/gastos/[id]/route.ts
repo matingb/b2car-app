@@ -85,6 +85,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     p_descripcion: input.descripcion ?? current.descripcion,
     p_fecha: input.fecha ?? current.fecha,
     p_idempotency_key: input.idempotencyKey ?? null,
+    p_observaciones: input.observaciones !== undefined ? input.observaciones : null,
   });
   if (updateError) {
     const status = rpcStatus(updateError);
@@ -103,6 +104,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     categoria: input.categoria ?? current.categoria,
     importe: input.importe ?? current.importe,
     descripcion: input.descripcion ?? current.descripcion,
+    observaciones: input.observaciones !== undefined ? input.observaciones : current.observaciones,
     fecha: input.fecha ?? current.fecha,
   };
   return Response.json({ data: resultGasto, error: null } satisfies ActualizarGastoFinancieroResponse, { status: 200 });

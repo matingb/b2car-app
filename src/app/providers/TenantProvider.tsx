@@ -28,29 +28,21 @@ export const TenantContext = createContext<TenantContextValue | null>(null);
 export type TenantProviderProps = {
   children: React.ReactNode;
   initialPermissions?: PermissionValue[];
+  initialTenantName?: string;
 };
 
 export function TenantProvider({
   children,
   initialPermissions = [],
+  initialTenantName = "",
 }: TenantProviderProps) {
-  const [tenantName, setTenantName] = useState("B2Car");
+  const [tenantName] = useState(initialTenantName);
   const [talleres, setTalleres] = useState<Taller[]>([]);
   const [loading, setLoading] = useState(false);
   const [tallerSeleccionadoId, setTallerSeleccionadoId] = useState<string>("");
   const [permissions] = useState<Set<PermissionValue>>(
     () => new Set(initialPermissions),
   );
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("tenant_name");
-      const next = stored?.trim();
-      if (next) setTenantName(next);
-    } catch {
-      // ignore
-    }
-  }, []);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);

@@ -19,6 +19,7 @@ import {
 import { logOut } from "@/app/login/actions";
 import { useRouter } from "next/navigation";
 import { useTenant } from "@/app/providers/TenantProvider";
+import { telemetry } from "@/lib/telemetry";
 
 export enum SidebarMenuKey {
   Dashboard = "dashboard",
@@ -63,6 +64,7 @@ export function useSidebarMenu() {
       if (isLoggingOut) return;
       setIsLoggingOut(true);
       try {
+        telemetry.clearUser();
         await logOut();
         router.push(ROUTES.login);
       } catch {

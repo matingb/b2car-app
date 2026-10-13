@@ -8,7 +8,8 @@ CREATE OR REPLACE FUNCTION public.rpc_actualizar_movimiento_cuenta (
   p_cuenta_destino_id uuid                     DEFAULT NULL::uuid,
   p_fecha             timestamp with time zone DEFAULT NULL::timestamp WITH time zone,
   p_idempotency_key   uuid                     DEFAULT NULL::uuid,
-  p_arreglo_id        uuid                     DEFAULT NULL::uuid
+  p_arreglo_id        uuid                     DEFAULT NULL::uuid,
+  p_observaciones     text                     DEFAULT NULL::text
 )
   RETURNS uuid
   LANGUAGE plpgsql
@@ -32,8 +33,11 @@ BEGIN
   JOIN public.operaciones AS o ON o.id = omc.operacion_id
   WHERE omc.operacion_id = p_operacion_id AND omc.tenant_id = v_tenant_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Movimiento no encontrado: %', p_operacion_id USING ERRCODE = 'P0002'; END IF;
-  IF p_fecha IS NOT NULL THEN
-    UPDATE public.operaciones SET fecha = p_fecha WHERE id = p_operacion_id;
+  IF p_fecha IS NOT NULL OR p_observaciones IS NOT NULL THEN
+    UPDATE public.operaciones
+    SET fecha = COALESCE(p_fecha, fecha),
+        observaciones = CASE WHEN p_observaciones IS NOT NULL THEN NULLIF(btrim(p_observaciones), '') ELSE observaciones END
+    WHERE id = p_operacion_id;
   END IF;
   UPDATE public.operaciones_movimiento_cuenta SET
     importe           = CASE WHEN p_importe IS NOT NULL THEN
@@ -47,14 +51,15 @@ BEGIN
     idempotency_key   = COALESCE(p_idempotency_key, idempotency_key)
   WHERE operacion_id = p_operacion_id;
   RETURN p_operacion_id;
-END; $function$;
+END;
+$function$;
 
-GRANT EXECUTE ON FUNCTION "public"."rpc_actualizar_movimiento_cuenta"(uuid, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid) TO "anon", "authenticated";
+GRANT EXECUTE ON FUNCTION "public"."rpc_actualizar_movimiento_cuenta"(uuid, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid, text) TO "anon", "authenticated";
 
-GRANT EXECUTE ON FUNCTION "public"."rpc_actualizar_movimiento_cuenta"(uuid, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION "public"."rpc_actualizar_movimiento_cuenta"(uuid, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid, text) TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."rpc_actualizar_movimiento_cuenta"(uuid, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."rpc_actualizar_movimiento_cuenta"(uuid, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid, text) FROM PUBLIC;
 
-REVOKE ALL ON FUNCTION "public"."rpc_actualizar_movimiento_cuenta"(uuid, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid) FROM "postgres";
+REVOKE ALL ON FUNCTION "public"."rpc_actualizar_movimiento_cuenta"(uuid, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid, text) FROM "postgres";
 
-GRANT EXECUTE ON FUNCTION "public"."rpc_actualizar_movimiento_cuenta"(uuid, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid) TO "postgres";
+GRANT EXECUTE ON FUNCTION "public"."rpc_actualizar_movimiento_cuenta"(uuid, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid, text) TO "postgres";

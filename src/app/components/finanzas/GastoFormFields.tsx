@@ -13,6 +13,8 @@ type Props = {
   setMontoGasto: (monto: string) => void;
   descripcionGasto: string;
   setDescripcionGasto: (descripcion: string) => void;
+  observacionesGasto?: string;
+  setObservacionesGasto?: (observaciones: string) => void;
 };
 
 export default function GastoFormFields({
@@ -22,6 +24,8 @@ export default function GastoFormFields({
   setMontoGasto,
   descripcionGasto,
   setDescripcionGasto,
+  observacionesGasto,
+  setObservacionesGasto,
 }: Props) {
   return (
     <div css={styles.container}>
@@ -65,6 +69,20 @@ export default function GastoFormFields({
           style={styles.textarea}
         />
       </div>
+
+      {setObservacionesGasto !== undefined && (
+        <div style={styles.field}>
+          <label style={styles.label}>Observaciones</label>
+          <textarea
+            value={observacionesGasto ?? ""}
+            onChange={(event) => setObservacionesGasto(event.target.value)}
+            placeholder="Observaciones adicionales sobre la operación..."
+            rows={2}
+            data-testid="gasto-observaciones"
+            style={styles.textarea}
+          />
+        </div>
+      )}
     </div>
   );
 }
