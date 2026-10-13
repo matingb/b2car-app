@@ -71,8 +71,13 @@ export default function RemitoForm({
       setPreflight(data);
       const origen = data.arreglo ?? data.operacion;
       if (origen) {
-        setDestinatario(destinatarioFormDesde(origen.destinatario));
-        setObservaciones(origen.facturaNumero ? `Factura asociada: ${origen.facturaNumero}` : "");
+        // El cliente no guarda la condición IVA (la confirma ARCA al facturar): se toma de la factura asociada.
+        setDestinatario(destinatarioFormDesde({
+          ...origen.destinatario,
+          condicionIvaReceptorId: origen.destinatario.condicionIvaReceptorId
+            ?? data.factura?.destinatario.condicionIvaReceptorId
+            ?? null,
+        }));
         setLineasLibres(data.factura ? seleccionInicial(data.factura.lineas) : origen.lineas.map((linea) => nuevaLineaLibre({
           codigo: linea.codigo ?? "",
           descripcion: linea.descripcion,
@@ -110,6 +115,9 @@ export default function RemitoForm({
     }
     if (destinatario.tipoDocumento && !destinatario.numeroDocumento.trim()) {
       return "Completá el número de documento del destinatario.";
+    }
+    if (clase === "R" && !destinatario.condicionIvaReceptorId) {
+      return "Seleccioná la condición frente al IVA del destinatario.";
     }
     if (factura) return validarSeleccionFactura(factura.lineas, lineasLibres);
     if (lineasLibres.length === 0) return "Agregá al menos un ítem al detalle del remito.";
@@ -215,7 +223,12 @@ export default function RemitoForm({
 
       <div style={styles.fieldGroup}>
         <h3 style={styles.groupTitle}>Destinatario</h3>
-        <RemitoDestinatarioFields value={destinatario} onChange={setDestinatario} disabled={submitting} />
+        <RemitoDestinatarioFields
+          value={destinatario}
+          onChange={setDestinatario}
+          pedirCondicionIva={clase === "R"}
+          disabled={submitting}
+        />
       </div>
 
       <RemitoTransportistaFields value={transportista} onChange={setTransportista} disabled={submitting} />

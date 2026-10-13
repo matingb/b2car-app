@@ -88,16 +88,29 @@ vi.mock("@/app/providers/ToastProvider", () => ({
 }));
 
 describe("ArregloItem", () => {
-  it.each(["2026-09-24T01:30:00.000Z", "2026-09-24T04:30:00.000Z"])(
-    "preserva el día calendario para fechas cercanas a medianoche UTC (%s)",
-    (fecha) => {
+  it.each([
+    ["2026-09-24T01:30:00.000Z", "23/09/2026"],
+    ["2026-09-24T02:59:59.999Z", "23/09/2026"],
+    ["2026-09-24T03:00:00.000Z", "24/09/2026"],
+    ["2026-09-24T04:30:00.000Z", "24/09/2026"],
+  ])(
+    "muestra el día calendario de GMT-3 para fechas cercanas a medianoche UTC (%s)",
+    (fecha, esperado) => {
       talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
 
       render(<ArregloItem arreglo={createArreglo({ fecha })} />);
 
-      expect(screen.getByText("24/09/2026")).toBeInTheDocument();
+      expect(screen.getByText(esperado)).toBeInTheDocument();
     }
   );
+
+  it("un arreglo creado hoy de noche (22:30 en GMT-3) no aparece como de mañana", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+
+    render(<ArregloItem arreglo={createArreglo({ fecha: "2026-10-13T01:30:00.000Z" })} />);
+
+    expect(screen.getByText("12/10/2026")).toBeInTheDocument();
+  });
 
   it("si hay más de un taller, muestra el IconLabel de Taller", () => {
     talleresMock = [

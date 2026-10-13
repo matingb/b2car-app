@@ -16,7 +16,7 @@ import CuentaFinancieraAutocomplete, {
   CREATE_CUENTA_VALUE,
 } from "@/app/components/finanzas/CuentaFinancieraAutocomplete";
 import { UpdateArregloInput } from "@/clients/arreglosClient";
-import { toDateInputFormat, toISODateLocal, toISODateTimeWithLocalCurrentTime } from "@/lib/fechas";
+import { toDateInputFormat, toISODateAppTimeZone, toISODateTimeWithCurrentTime } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
@@ -47,7 +47,7 @@ type Props = {
 };
 
 export function getArregloModalFecha(initialFecha?: string): string {
-  return initialFecha ? toDateInputFormat(initialFecha) : toISODateLocal(new Date());
+  return initialFecha ? toDateInputFormat(initialFecha) : toISODateAppTimeZone();
 }
 
 export function normalizeArregloObservaciones(observaciones: string, isEdit: boolean): string | undefined {
@@ -138,7 +138,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       : null;
   const [esFacturable, setEsFacturable] = useState<boolean>(initial?.es_facturable !== false);
   const [cuentaFinancieraId, setCuentaFinancieraId] = useState("");
-  const [fechaCobro, setFechaCobro] = useState(() => toISODateLocal(new Date()));
+  const [fechaCobro, setFechaCobro] = useState(() => toISODateAppTimeZone());
   const [extraData, setExtraData] = useState(initial?.extra_data ?? "");
   const [selectedVehiculoId, setSelectedVehiculoId] = useState<string>(vehiculoId ? String(vehiculoId) : "");
   const [submitting, setSubmitting] = useState(false);
@@ -183,7 +183,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     setEsFacturable(initial?.es_facturable !== false);
     setCuentaFinancieraId("");
     setCuentaDraft({ ...EMPTY_CUENTA_FINANCIERA_DRAFT });
-    setFechaCobro(toISODateLocal(new Date()));
+    setFechaCobro(toISODateAppTimeZone());
     setExtraData(initial?.extra_data ?? "");
     setSelectedVehiculoId(vehiculoId ? String(vehiculoId) : "");
     setIsValid(false);
@@ -265,10 +265,10 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     setSubmitting(true);
     setError(null);
     try {
-      const fechaTimestamp = toISODateTimeWithLocalCurrentTime(fecha);
-      if (!fechaTimestamp) throw new Error("La fecha del arreglo no es válida");
-      const fechaCobroTimestamp = fechaCobro
-        ? toISODateTimeWithLocalCurrentTime(fechaCobro)
+      if (!isValidDate(fecha)) throw new Error("La fecha del arreglo no es válida");
+      const fechaTimestamp = toISODateTimeWithCurrentTime(fecha);
+      const fechaCobroTimestamp = isValidDate(fechaCobro)
+        ? toISODateTimeWithCurrentTime(fechaCobro)
         : null;
       let targetCuentaId = cuentaFinancieraId;
       if (requiereCuentaFinanciera && isCreatingCuenta) {

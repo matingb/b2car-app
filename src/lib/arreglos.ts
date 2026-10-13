@@ -1,4 +1,32 @@
+import type { Arreglo } from "@/model/types";
+
 export const ARREGLO_DESCRIPCION_FALLBACK = "Arreglo registrado sin detalle específico";
+
+const ARREGLO_PAGO_FIELDS = [
+  "esta_pago",
+  "total_cobrado",
+  "saldo_pendiente",
+  "cobros",
+  "fecha_cobro",
+  "movimiento_financiero_id",
+] as const satisfies ReadonlyArray<keyof Arreglo>;
+
+/**
+ * Aplica sobre un arreglo ya cargado (por ejemplo una fila de un listado) solo los campos de
+ * cobro del arreglo actualizado que devuelve el endpoint de cobros.
+ *
+ * No se reemplaza el objeto completo porque esa respuesta trae el vehículo sin los datos del
+ * cliente y no incluye el taller, que sí tienen las filas de los listados.
+ */
+export function applyArregloPago<T extends Arreglo>(arreglo: T, updated: Arreglo): T {
+  const next: T = { ...arreglo };
+  for (const field of ARREGLO_PAGO_FIELDS) {
+    if (updated[field] !== undefined) {
+      (next as Arreglo)[field] = updated[field] as never;
+    }
+  }
+  return next;
+}
 
 type ArregloDescripcionDetalle = {
   descripcion?: unknown;

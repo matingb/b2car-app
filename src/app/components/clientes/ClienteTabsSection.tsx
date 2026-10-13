@@ -14,6 +14,8 @@ export type ClienteTabsContentProps = {
   clienteId: string;
   vehiculos: Vehiculo[];
   onAddVehiculo?: () => void;
+  /** Se invoca al cobrar o anular un cobro desde el tab de arreglos. */
+  onArregloPagoUpdated?: () => void;
 };
 
 export function ClienteTabsContent({
@@ -21,6 +23,7 @@ export function ClienteTabsContent({
   clienteId,
   vehiculos,
   onAddVehiculo,
+  onArregloPagoUpdated,
 }: ClienteTabsContentProps) {
   return (
     <>
@@ -34,6 +37,7 @@ export function ClienteTabsContent({
       {activeTab === "arreglos" && (
         <ClienteArreglosTab
           clienteId={clienteId}
+          onPagoUpdated={onArregloPagoUpdated}
         />
       )}
 
@@ -56,6 +60,7 @@ export type ClienteTabsSectionProps = {
   onChangeTab?: (tab: ClienteTabKey) => void;
   defaultTab?: ClienteTabKey;
   arreglosCount?: number;
+  onArregloPagoUpdated?: () => void;
 };
 
 export default function ClienteTabsSection({
@@ -66,6 +71,7 @@ export default function ClienteTabsSection({
   onChangeTab: controlledOnChangeTab,
   defaultTab = "vehiculos",
   arreglosCount,
+  onArregloPagoUpdated,
 }: ClienteTabsSectionProps) {
   const [internalActiveTab, setInternalActiveTab] = useState<ClienteTabKey>(defaultTab);
 
@@ -86,6 +92,7 @@ export default function ClienteTabsSection({
         clienteId={clienteId}
         vehiculos={vehiculos}
         onAddVehiculo={onAddVehiculo}
+        onArregloPagoUpdated={onArregloPagoUpdated}
       />
     </>
   );

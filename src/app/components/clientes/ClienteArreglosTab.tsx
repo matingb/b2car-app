@@ -12,13 +12,16 @@ import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import type { Arreglo } from "@/model/types";
 import { arreglosClient } from "@/clients/arreglosClient";
+import { applyArregloPago } from "@/lib/arreglos";
 
 type Props = {
   clienteId: string;
   onNewArreglo?: () => void;
+  /** Se invoca tras registrar o anular un cobro, para que la pantalla refresque datos derivados (ej. resumen financiero). */
+  onPagoUpdated?: (arreglo: Arreglo) => void;
 };
 
-export default function ClienteArreglosTab({ clienteId, onNewArreglo }: Props) {
+export default function ClienteArreglosTab({ clienteId, onNewArreglo, onPagoUpdated }: Props) {
   const router = useRouter();
   const [arreglos, setArreglos] = useState<Arreglo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +44,16 @@ export default function ClienteArreglosTab({ clienteId, onNewArreglo }: Props) {
   useEffect(() => {
     if (clienteId) void load();
   }, [clienteId, load]);
+
+  const handlePagoUpdated = useCallback(
+    (updated: Arreglo) => {
+      setArreglos((prev) =>
+        prev.map((item) => (item.id === updated.id ? applyArregloPago(item, updated) : item))
+      );
+      onPagoUpdated?.(updated);
+    },
+    [onPagoUpdated]
+  );
 
   if (loading) return <ListSkeleton rows={4} />;
   if (error) return <div css={styles.errorBox}>{error}</div>;
@@ -87,6 +100,7 @@ export default function ClienteArreglosTab({ clienteId, onNewArreglo }: Props) {
             arreglo={a}
             onClick={(arr) => router.push(`${ROUTES.arreglos}/${arr.id}`)}
             showObservaciones={true}
+            onPagoUpdated={handlePagoUpdated}
           />
         ))}
       </div>

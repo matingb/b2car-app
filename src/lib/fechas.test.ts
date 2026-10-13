@@ -11,6 +11,7 @@ import {
   localCalendarDateRangeISO,
   localCalendarDateStartISO,
   parseCalendarDate,
+  toAppCalendarDate,
   toDateInputFormat,
   toISODateTimeWithCurrentTime,
   toISODateTimeWithLocalCurrentTime,
@@ -137,6 +138,49 @@ describe("formatTimeAgo", () => {
   });
 });
 
+describe("toAppCalendarDate", () => {
+  it("devuelve tal cual una fecha sin hora", () => {
+    expect(toAppCalendarDate("2026-10-12")).toBe("2026-10-12");
+  });
+
+  it("convierte un timestamp a GMT-3 en lugar de tomar el día UTC", () => {
+    // 22:30 del 12/10 en Buenos Aires ya es el 13/10 en UTC.
+    expect(toAppCalendarDate("2026-10-13T01:30:00.000Z")).toBe("2026-10-12");
+    expect(toAppCalendarDate("2026-10-13T02:59:59.999Z")).toBe("2026-10-12");
+    expect(toAppCalendarDate("2026-10-13T03:00:00.000Z")).toBe("2026-10-13");
+  });
+
+  it("acepta los formatos de timestamp que devuelve Supabase (espacio y offset corto)", () => {
+    expect(toAppCalendarDate("2026-10-13 01:30:00+00")).toBe("2026-10-12");
+    expect(toAppCalendarDate("2026-10-13T01:30:00.123456+00:00")).toBe("2026-10-12");
+  });
+
+  it("interpreta un timestamp sin zona como hora de Buenos Aires", () => {
+    expect(toAppCalendarDate("2026-10-12 22:30:00")).toBe("2026-10-12");
+  });
+
+  it("respeta otros offsets al convertir a GMT-3", () => {
+    expect(toAppCalendarDate("2026-10-13T00:30:00-03:00")).toBe("2026-10-13");
+    expect(toAppCalendarDate("2026-10-13T02:30:00+02:00")).toBe("2026-10-12");
+  });
+
+  it("conserva el día de los registros viejos guardados sin hora (medianoche UTC)", () => {
+    expect(toAppCalendarDate("2026-06-08T00:00:00.000Z")).toBe("2026-06-08");
+    expect(toAppCalendarDate("2026-06-08T00:00:00+00:00")).toBe("2026-06-08");
+    expect(toAppCalendarDate("2026-06-08 00:00:00+00")).toBe("2026-06-08");
+  });
+
+  it("no trata como fecha sin hora a un instante que no es medianoche UTC exacta", () => {
+    expect(toAppCalendarDate("2026-06-08T00:00:00.001Z")).toBe("2026-06-07");
+  });
+
+  it("devuelve null para valores vacíos o inválidos", () => {
+    expect(toAppCalendarDate("")).toBeNull();
+    expect(toAppCalendarDate(null)).toBeNull();
+    expect(toAppCalendarDate("no-es-fecha")).toBeNull();
+  });
+});
+
 describe("toDateInputFormat", () => {
   it("preserva el dia de calendario cuando la fecha viene a medianoche UTC", () => {
     expect(toDateInputFormat("2026-06-08T00:00:00.000Z")).toBe("2026-06-08");
@@ -145,20 +189,51 @@ describe("toDateInputFormat", () => {
   it("preserva el dia de calendario cuando Supabase devuelve fecha con espacio y timezone", () => {
     expect(toDateInputFormat("2026-06-08 00:00:00+00")).toBe("2026-06-08");
   });
+
+  it("usa el día de Buenos Aires para un timestamp con hora", () => {
+    expect(toDateInputFormat("2026-10-13T01:30:00.000Z")).toBe("2026-10-12");
+    expect(toDateInputFormat("2026-10-13T03:00:00.000Z")).toBe("2026-10-13");
+  });
+
+  it("devuelve vacío si no hay fecha o es inválida", () => {
+    expect(toDateInputFormat(undefined)).toBe("");
+    expect(toDateInputFormat("no-es-fecha")).toBe("");
+  });
 });
 
 describe("formatDateLabel", () => {
   it("muestra el dia correcto para una fecha guardada a medianoche UTC", () => {
     expect(formatDateLabel("2026-06-08T00:00:00.000Z")).toBe("08/06/2026");
   });
+
+  it("muestra el día de hoy para un arreglo creado de noche en GMT-3", () => {
+    // Creado el 12/10 a las 22:30 (GMT-3), guardado como 2026-10-13T01:30Z.
+    expect(formatDateLabel("2026-10-13T01:30:00.000Z")).toBe("12/10/2026");
+    expect(formatDateLabel("2026-10-13 01:30:00+00")).toBe("12/10/2026");
+  });
+
+  it("cambia de día a la medianoche de Buenos Aires", () => {
+    expect(formatDateLabel("2026-10-13T02:59:59.999Z")).toBe("12/10/2026");
+    expect(formatDateLabel("2026-10-13T03:00:00.000Z")).toBe("13/10/2026");
+  });
+
+  it("no corre un día una fecha sin hora (ej: cumpleaños)", () => {
+    expect(formatDateLabel("1990-05-10")).toBe("10/05/1990");
+  });
+
+  it("devuelve el fallback cuando no hay fecha", () => {
+    expect(formatDateLabel(null, "-")).toBe("-");
+    expect(formatDateLabel(undefined)).toBe("");
+  });
 });
 
 describe("formatDateTimeLabel", () => {
-  it("muestra fecha y hora en formato de 24 horas", () => {
-    const expected = new Intl.DateTimeFormat("es-AR", {
-      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
-    }).format(new Date("2026-06-08T14:30:00.000Z"));
-    expect(formatDateTimeLabel("2026-06-08T14:30:00.000Z")).toBe(expected);
+  it("muestra fecha y hora en formato de 24 horas en GMT-3", () => {
+    expect(formatDateTimeLabel("2026-06-08T14:30:00.000Z")).toBe("08/06/2026, 11:30");
+  });
+
+  it("no depende del día UTC cuando el instante cruza la medianoche UTC", () => {
+    expect(formatDateTimeLabel("2026-10-13T01:30:00.000Z")).toBe("12/10/2026, 22:30");
   });
 });
 

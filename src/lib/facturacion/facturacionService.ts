@@ -2004,7 +2004,7 @@ export async function exportFacturasRows(tenantId: string, filters: FacturasList
 // v9: referencia a la factura asociada en NC/ND, Transparencia Fiscal (RG 5614) en clase B,
 //     filas más bajas y pie en hoja nueva cuando no entra.
 // v10: unifica las plantillas v8 y v9, desarrolladas en ramas paralelas.
-const PDF_TEMPLATE_VERSION = "fiscal-v10";
+const PDF_TEMPLATE_VERSION = "fiscal-v11";
 const PDF_BUCKET = "facturacion-comprobantes";
 export function isVerifiedFiscalPdfCache(input: {
   storedPath: string | null;
@@ -2105,6 +2105,7 @@ export async function buildFacturaPdf(tenantId: string, facturaId: string): Prom
       codigo: line.codigo ?? null, descripcion: line.descripcion, cantidad: line.cantidad,
       importeUnitario: line.importeUnitario, subtotal: line.subtotal,
       importeTotal: importeLineaMostrado(line),
+      tratamientoIva: line.tratamientoIva, ivaAlicuota: line.ivaAlicuota,
     })),
     comprobanteAsociado: detail.documentoTipo !== "FACTURA" && detail.documentoAsociado?.numeroComprobante
       ? {

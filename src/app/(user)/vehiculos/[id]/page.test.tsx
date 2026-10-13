@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import VehiculoDetailsPage from "./page";
 import VehiculosLayout from "../layout";
@@ -12,9 +12,11 @@ import { EmpleadosProvider } from "@/app/providers/EmpleadosProvider";
 import { BreakpointProvider } from "@/app/providers/BreakpointProvider";
 import { createArreglo, createArregloDetalleData, createCliente, createVehiculo } from "@/tests/factories";
 import { ROUTES } from "@/routing/routes";
-import { TipoCliente } from "@/model/types";
+import { TipoCliente, type Arreglo } from "@/model/types";
+import { Permission, type PermissionValue } from "@/lib/permissions";
 
 const pushMock = vi.fn();
+let cobroPagadoMock: Partial<Arreglo> = {};
 const getByIdMock = vi.fn();
 const getClienteForVehiculoMock = vi.fn();
 const getAllVehiculosMock = vi.fn();
@@ -83,11 +85,37 @@ vi.mock("@/app/hooks/useWhatsAppMessage", () => ({
   }),
 }));
 
+// El modal real tiene su propio test; acá solo simula que el cobro se registró.
+// Como el Modal real, frena la propagación para no disparar el click de la card.
+vi.mock("@/app/components/arreglos/CobroArregloModal", () => ({
+  default: ({
+    open,
+    arregloId,
+    onPaid,
+  }: {
+    open: boolean;
+    arregloId: string;
+    onPaid?: (arreglo: Arreglo) => void;
+  }) =>
+    open ? (
+      <button
+        type="button"
+        data-testid="simular-cobro"
+        onClick={(e) => {
+          e.stopPropagation();
+          onPaid?.({ id: arregloId, ...cobroPagadoMock } as Arreglo);
+        }}
+      >
+        Simular cobro
+      </button>
+    ) : null,
+}));
+
 import { CuentasFinancierasProvider } from "@/app/providers/CuentasFinancierasProvider";
 
-function TestShell() {
+function TestShell({ initialPermissions }: { initialPermissions?: PermissionValue[] }) {
   return (
-    <TenantProvider>
+    <TenantProvider initialPermissions={initialPermissions}>
       <CuentasFinancierasProvider>
         <BreakpointProvider>
           <CategoriasArregloProvider>
@@ -352,6 +380,42 @@ describe("VehiculoDetailsPage integration", () => {
     await user.click(screen.getByText("Frenos delanteros"));
 
     expect(pushMock).toHaveBeenCalledWith("/arreglos/arr-2");
+  });
+
+  it("actualiza el badge de pago del listado al registrar un cobro, sin recargar la página", async () => {
+    const { vehiculo } = setupDefaultData();
+    getByIdMock.mockResolvedValue({
+      data: vehiculo,
+      arreglos: [
+        createArreglo({
+          id: "arr-1",
+          descripcion: "Cambio de aceite",
+          vehiculo,
+          estado: "TERMINADO",
+          precio_final: 15000,
+          esta_pago: false,
+          total_cobrado: 0,
+          saldo_pendiente: 15000,
+        }),
+      ],
+      error: null,
+    });
+    cobroPagadoMock = { esta_pago: true, total_cobrado: 15000, saldo_pendiente: 0 };
+    const user = userEvent.setup();
+
+    render(<TestShell initialPermissions={[Permission.ArreglosCobrosRegister]} />);
+
+    const item = await screen.findByTestId("arreglo-item-arr-1");
+    expect(within(item).getByTestId("arreglo-pago-badge")).toHaveTextContent("Pago pendiente");
+
+    await user.click(within(item).getByTestId("arreglo-pago-badge"));
+    await user.click(await screen.findByTestId("simular-cobro"));
+
+    await waitFor(() => {
+      expect(within(item).getByTestId("arreglo-pago-badge")).toHaveTextContent("Pagado");
+    });
+    expect(getByIdMock).toHaveBeenCalledTimes(1);
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
   it("permite navegar al propietario con la UI real", async () => {

@@ -19,6 +19,7 @@ import {
 import type { UpsertRepuestoRequest } from "@/app/api/arreglos/[id]/repuestos/route";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { logger } from "@/lib/logger";
+import { applyArregloPago } from "@/lib/arreglos";
 
 type ArreglosContextType = {
   arreglos: Arreglo[];
@@ -137,6 +138,15 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     [fetchAll, tallerSeleccionadoId]
   );
 
+  // Actualiza el cobro en la fila ya cargada en vez de volver a pedir el listado: un fetchAll
+  // sin los filtros, búsqueda y límite de la pantalla pisaría lo que el usuario está viendo.
+  const syncPagoEnListado = useCallback((updated: Arreglo | null | undefined) => {
+    if (!updated) return;
+    setArreglos((prev) =>
+      prev.map((item) => (item.id === updated.id ? applyArregloPago(item, updated) : item))
+    );
+  }, []);
+
   const cobrar = useCallback(async (
     id: string | number,
     input: CobrarArregloInput,
@@ -145,24 +155,24 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await arreglosClient.cobrar(id, input);
       if (error) throw new Error(error);
-      void fetchAll({ tallerId: tallerSeleccionadoId });
+      syncPagoEnListado(data);
       return data ?? null;
     } finally {
       setLoading(false);
     }
-  }, [fetchAll, tallerSeleccionadoId]);
+  }, [syncPagoEnListado]);
 
   const anularCobro = useCallback(async (id: string | number, operacionId?: string | null) => {
     setLoading(true);
     try {
       const { data, error } = await arreglosClient.anularCobro(id, operacionId);
       if (error) throw new Error(error);
-      void fetchAll({ tallerId: tallerSeleccionadoId });
+      syncPagoEnListado(data);
       return data ?? null;
     } finally {
       setLoading(false);
     }
-  }, [fetchAll, tallerSeleccionadoId]);
+  }, [syncPagoEnListado]);
 
   const remove = useCallback(async (id: string | number) => {
     setLoading(true);

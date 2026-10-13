@@ -41,6 +41,8 @@ type Props = {
   showObservaciones?: boolean;
   mostrarObservaciones?: boolean;
   empleados?: EmpleadoInfo[];
+  /** Se invoca al registrar o anular un cobro desde el badge de pago. */
+  onPagoUpdated?: (updatedArreglo: Arreglo) => void;
 };
 
 function getFullName(emp: EmpleadoInfo | string): string {
@@ -54,6 +56,7 @@ export default function ArregloItem({
   showObservaciones,
   mostrarObservaciones,
   empleados: empleadosProp,
+  onPagoUpdated,
 }: Props) {
   const { talleres } = useTenant();
 
@@ -227,6 +230,7 @@ export default function ArregloItem({
             variant="footer"
             size="sm"
             onOpenChange={setIsBadgeOpen}
+            onPagoUpdated={onPagoUpdated}
             onFacturableChanged={(val) => {
               arreglo.es_facturable = val;
             }}

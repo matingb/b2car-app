@@ -205,6 +205,56 @@ describe("PDF fiscal propio", () => {
     expect(values).toContain("Otros Tributos:");
   });
 
+  describe("rótulo del IVA discriminado en clase A", () => {
+    const linea = (ivaAlicuota: number, tratamientoIva: "GRAVADO" | "EXENTO" = "GRAVADO") => ({
+      codigo: null, descripcion: `Línea ${ivaAlicuota}`, cantidad: 1, importeUnitario: 100, subtotal: 100, tratamientoIva, ivaAlicuota,
+    });
+    const labelsDe = async (overrides: Partial<FiscalPdfInvoice>) => {
+      const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+      drawText.mockClear();
+      await generateFiscalInvoicePdf(invoice(overrides));
+      const values = drawText.mock.calls.map(([value]) => String(value));
+      drawText.mockRestore();
+      return values.filter((value) => value.startsWith("Importe IVA"));
+    };
+
+    it.each([[1, "A"], [201, "A"]] as const)("muestra el porcentaje cuando todas las líneas gravadas son al 21%% (%s)", async (tipoComprobante, claseComprobante) => {
+      expect(await labelsDe({ tipoComprobante, claseComprobante, lineas: [linea(21), linea(21)] })).toEqual(["Importe IVA 21%:"]);
+    });
+
+    it("usa el formato argentino para alícuotas con decimales", async () => {
+      expect(await labelsDe({ tipoComprobante: 1, claseComprobante: "A", lineas: [linea(10.5)] })).toEqual(["Importe IVA 10,5%:"]);
+    });
+
+    it("ignora las líneas no gravadas al determinar la alícuota", async () => {
+      expect(await labelsDe({ tipoComprobante: 1, claseComprobante: "A", lineas: [linea(21), linea(0, "EXENTO")] })).toEqual(["Importe IVA 21%:"]);
+    });
+
+    it("no inventa un porcentaje cuando hay alícuotas distintas", async () => {
+      expect(await labelsDe({ tipoComprobante: 1, claseComprobante: "A", lineas: [linea(21), linea(10.5)] })).toEqual(["Importe IVA:"]);
+    });
+
+    it("conserva el rótulo genérico si las líneas no informan alícuota", async () => {
+      expect(await labelsDe({ tipoComprobante: 1, claseComprobante: "A" })).toEqual(["Importe IVA:"]);
+    });
+
+    it("no cambia el rótulo en clase B", async () => {
+      expect(await labelsDe({ tipoComprobante: 6, claseComprobante: "B", lineas: [linea(21)] })).toEqual(["Importe IVA:"]);
+    });
+
+    it("mantiene el importe en la misma fila que el rótulo", async () => {
+      const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+      drawText.mockClear();
+      const totales = { netoGravado: 1000, noGravado: 0, exento: 0, iva: 210, tributos: 0, otrosImpuestosNacionales: 0, total: 1210 };
+      await generateFiscalInvoicePdf(invoice({ tipoComprobante: 1, claseComprobante: "A", total: 1210, totales, lineas: [linea(21)] }));
+      const calls = drawText.mock.calls;
+      const label = calls.find(([value]) => value === "Importe IVA 21%:");
+      expect(label?.[1]?.x).toBe(330);
+      expect(calls.some(([value, options]) => value === "$210,00" && options?.y === label?.[1]?.y)).toBe(true);
+      drawText.mockRestore();
+    });
+  });
+
   it.each([null, "", "-", " — "])("rechaza una FCE con IIBB ausente (%s)", async (ingresosBrutos) => {
     await expect(generateFiscalInvoicePdf(invoice({ tipoComprobante: 211, emisorSnapshot: { ...invoice().emisorSnapshot, ingresosBrutos } }))).rejects.toThrow("Completá la inscripción o condición");
   });

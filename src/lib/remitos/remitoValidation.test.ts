@@ -70,6 +70,15 @@ describe("parseEmitirRemitoInput", () => {
     });
   });
 
+  it("acepta un remito R con la condición frente al IVA del destinatario", () => {
+    const parsed = parseEmitirRemitoInput(emitirBody({
+      clase: "R",
+      destinatario: { nombre: "Juan Pérez", tipoDocumento: 96, numeroDocumento: "30111222", condicionIvaReceptorId: 5 },
+    }));
+    expect(parsed.error).toBeUndefined();
+    expect(parsed.value?.destinatario.condicionIvaReceptorId).toBe(5);
+  });
+
   it("trata el documento 99 como destinatario sin documento y redondea cantidades flotantes", () => {
     const parsed = parseEmitirRemitoInput(emitirBody({
       destinatario: { nombre: "Consumidor final", tipoDocumento: 99, numeroDocumento: "0" },
@@ -97,6 +106,7 @@ describe("parseEmitirRemitoInput", () => {
     [{ destinatario: { nombre: "Ana", tipoDocumento: 96, numeroDocumento: "123" } }, "DNI del destinatario"],
     [{ destinatario: { nombre: "Ana", tipoDocumento: 96 } }, "Completá el número de documento"],
     [{ destinatario: { nombre: "Ana", condicionIvaReceptorId: 99 } }, "condición IVA"],
+    [{ clase: "R" }, "condición frente al IVA del destinatario"],
     [{ transportista: { nombre: "", cuit: "20123456786" } }, "nombre del transportista es obligatorio"],
     [{ transportista: { nombre: "Fletes SA", cuit: "20123456789" } }, "CUIT del transportista no es un CUIT válido"],
     [{ observaciones: "x".repeat(1001) }, "1000 caracteres"],

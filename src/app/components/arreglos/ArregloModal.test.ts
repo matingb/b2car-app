@@ -12,23 +12,40 @@ describe("getArregloModalFecha", () => {
     vi.useRealTimers();
   });
 
-  it("usa la fecha local de hoy cuando se crea un arreglo", () => {
+  it("usa la fecha de hoy en GMT-3 cuando se crea un arreglo", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 4, 16, 10, 30, 0));
+    vi.setSystemTime(new Date("2026-05-16T13:30:00.000Z"));
 
     expect(getArregloModalFecha()).toBe("2026-05-16");
+  });
+
+  it("de noche en GMT-3 sigue proponiendo hoy aunque en UTC ya sea mañana", () => {
+    vi.useFakeTimers();
+    // 22:30 del 12/10 en Buenos Aires.
+    vi.setSystemTime(new Date("2026-10-13T01:30:00.000Z"));
+
+    expect(getArregloModalFecha()).toBe("2026-10-12");
   });
 
   it("respeta la fecha inicial cuando se edita un arreglo", () => {
     expect(getArregloModalFecha("2026-03-19T12:00:00.000Z")).toBe("2026-03-19");
   });
 
-  it.each(["2026-09-24T01:30:00.000Z", "2026-09-24T04:30:00.000Z"])(
-    "preserva el día calendario al editar fechas cercanas a medianoche UTC (%s)",
-    (fecha) => {
-      expect(getArregloModalFecha(fecha)).toBe("2026-09-24");
+  it.each([
+    ["2026-09-24T01:30:00.000Z", "2026-09-23"],
+    ["2026-09-24T02:59:59.999Z", "2026-09-23"],
+    ["2026-09-24T03:00:00.000Z", "2026-09-24"],
+    ["2026-09-24T04:30:00.000Z", "2026-09-24"],
+  ])(
+    "al editar muestra el día calendario de GMT-3 para fechas cercanas a medianoche UTC (%s)",
+    (fecha, esperado) => {
+      expect(getArregloModalFecha(fecha)).toBe(esperado);
     }
   );
+
+  it("conserva el día de un arreglo viejo guardado a medianoche UTC", () => {
+    expect(getArregloModalFecha("2026-06-08T00:00:00.000Z")).toBe("2026-06-08");
+  });
 });
 
 describe("normalizeArregloObservaciones", () => {

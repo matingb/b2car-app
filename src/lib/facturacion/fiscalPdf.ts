@@ -11,10 +11,12 @@ import {
   fceLegalLegend, hasFiscalIibb, isFceInvoice, receiverFiscalIvaLabel,
 } from "./fiscalPresentation";
 import {
+  ALICUOTAS_IVA_ARCA,
   TIPOS_DOCUMENTO_FISCAL,
   type DocumentoFiscalClase,
   type FacturaClase,
   type FacturaTotales,
+  type TratamientoIva,
 } from "./types";
 
 const ARCA_QR_URL = "https://www.arca.gob.ar/fe/qr/?p=";
@@ -47,6 +49,9 @@ export type FiscalPdfLine = {
   importeUnitario: number;
   subtotal: number;
   importeTotal?: number;
+  /** Tratamiento y alícuota de IVA de la línea: permiten rotular el IVA del pie con su porcentaje. */
+  tratamientoIva?: TratamientoIva;
+  ivaAlicuota?: number;
 };
 
 export type FiscalPdfInvoice = {
@@ -460,6 +465,25 @@ function getFooterLayout(invoice: FiscalPdfInvoice, fonts: Fonts): FooterLayout 
   return { top, words, legend };
 }
 
+/**
+ * Rótulo del IVA discriminado del pie. En clase A lleva el porcentaje ("Importe IVA 21%:")
+ * cuando todas las líneas gravadas comparten una misma alícuota; si hay varias, o no se
+ * conoce, queda sin porcentaje porque el total mezcla alícuotas distintas.
+ */
+function ivaTotalLabel(invoice: FiscalPdfInvoice): string {
+  const generic = "Importe IVA:";
+  if (invoice.claseComprobante !== "A") return generic;
+  const rates = new Set(
+    invoice.lineas
+      .filter((line) => line.tratamientoIva === "GRAVADO" && line.ivaAlicuota != null)
+      .map((line) => line.ivaAlicuota as number),
+  );
+  if (rates.size !== 1) return generic;
+  const [rate] = rates;
+  const label = ALICUOTAS_IVA_ARCA.find((item) => item.porcentaje === rate)?.label ?? `${formatNumberAr(rate, { maxDecimals: 2 })}%`;
+  return `Importe IVA ${label}:`;
+}
+
 function remitoRows(invoice: FiscalPdfInvoice, font: PDFFont): PrintableRow[] {
   if (!invoice.remitosAsociados?.length) return [];
   const references = [...new Set(invoice.remitosAsociados.map(({ clase, puntoEmision, numero }) => {
@@ -526,7 +550,7 @@ async function drawFooter(
     : invoice.total;
   const totals = [
     [claseC ? "Subtotal:" : "Importe Neto:", claseC ? subtotal : invoice.totales?.netoGravado ?? invoice.total],
-    ...(!claseC ? [["Importe IVA:", invoice.totales?.iva ?? 0]] : []),
+    ...(!claseC ? [[ivaTotalLabel(invoice), invoice.totales?.iva ?? 0]] : []),
     ["Otros Tributos:", invoice.totales?.tributos ?? 0],
   ] as [string, number][];
   for (const [label, value] of totals) {

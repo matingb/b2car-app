@@ -236,15 +236,15 @@ describe("datos del emisor para el PDF FCE", () => {
 describe("integridad de caché PDF fiscal", () => {
   const bytes = new TextEncoder().encode("PDF fiscal autorizado");
   const sha256 = createHash("sha256").update(bytes).digest("hex");
-  const path = "tenant-1/homologacion/factura-1/fiscal-v10.pdf";
+  const path = "tenant-1/homologacion/factura-1/fiscal-v11.pdf";
 
   it("permite redescargar la caché legítima cuando ruta, versión e hash coinciden", () => {
-    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v10", expectedPath: path, storedSha256: sha256, bytes })).toBe(true);
+    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v11", expectedPath: path, storedSha256: sha256, bytes })).toBe(true);
   });
 
   it("rechaza metadatos apuntados a otro objeto o bytes reemplazados", () => {
-    expect(isVerifiedFiscalPdfCache({ storedPath: "tenant-1/otro.pdf", storedVersion: "fiscal-v10", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);
-    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v10", expectedPath: path, storedSha256: "0".repeat(64), bytes })).toBe(false);
+    expect(isVerifiedFiscalPdfCache({ storedPath: "tenant-1/otro.pdf", storedVersion: "fiscal-v11", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);
+    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v11", expectedPath: path, storedSha256: "0".repeat(64), bytes })).toBe(false);
   });
   it("invalida la versión anterior aunque el hash coincida", () => {
     expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v4", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);

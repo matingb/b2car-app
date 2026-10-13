@@ -296,28 +296,51 @@ export const isValidDate = (dateString: string): boolean => {
 };
 
 /**
+ * Registros viejos guardaron fechas sin hora (YYYY-MM-DD) que la base convirtió a medianoche UTC.
+ * Esos valores representan un día de calendario, no un instante: convertirlos a GMT-3 los
+ * mostraría un día antes.
+ */
+const UTC_MIDNIGHT_DATE_ONLY = /^(\d{4}-\d{2}-\d{2})[T ]00:00(?::00(?:\.0+)?)?(?:Z|\+00(?::?00)?)$/;
+
+/**
+ * Normaliza un timestamp para que `Date` pueda parsearlo: separa fecha y hora con "T" y
+ * completa los offsets cortos que devuelve Postgres (ej: "+00" -> "+00:00").
+ */
+function normalizeTimestamp(value: string): string {
+  return value
+    .trim()
+    .replace(" ", "T")
+    .replace(/(T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?[+-]\d{2})$/, "$1:00");
+}
+
+/**
+ * Día calendario (YYYY-MM-DD) que una fecha o timestamp representa para la app, siempre en
+ * GMT-3 (America/Argentina/Buenos_Aires), sin depender de la zona horaria del navegador:
+ * - "YYYY-MM-DD" se devuelve tal cual.
+ * - Un timestamp con hora se convierte a Buenos Aires (21:30 del 12/10 es el 12/10 aunque en
+ *   UTC ya sea el 13/10). Si no trae zona horaria se interpreta como hora de Buenos Aires.
+ * - Excepción: los registros viejos guardados sin hora (medianoche UTC exacta) conservan su día.
+ * Devuelve null si el valor no es una fecha válida.
+ */
+export function toAppCalendarDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (parseCalendarDate(value)) return value;
+
+  const legacy = UTC_MIDNIGHT_DATE_ONLY.exec(value.trim());
+  if (legacy && parseCalendarDate(legacy[1])) return legacy[1];
+
+  const date = parseDateInAppTimeZone(value);
+  return Number.isNaN(date.getTime()) ? null : toISODateAppTimeZone(date);
+}
+
+/**
  * Convierte una fecha en formato ISO completo (con hora y timezone) al formato yyyy-MM-dd
- * requerido por inputs HTML de tipo date, respetando el timezone local
+ * requerido por inputs HTML de tipo date, usando el día calendario en GMT-3.
  * @param dateString - La cadena de fecha en formato ISO (ej: "2025-11-17T00:00:00+00:00")
  * @returns La fecha en formato yyyy-MM-dd (ej: "2025-11-17"), o string vacío si no hay fecha
  */
-export const toDateInputFormat = (dateString: string | undefined): string => {
-  if (!dateString) return "";
-
-  const calendarDateMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (calendarDateMatch) return calendarDateMatch[0];
-
-  // Crear objeto Date desde el string ISO
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) return "";
-
-  // Obtener año, mes y día en el timezone local
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-};
+export const toDateInputFormat = (dateString: string | undefined): string =>
+  toAppCalendarDate(dateString) ?? "";
 
 /** Convert a timestamp to the browser's displayed calendar day for editing. */
 export function toLocalDateInputFormat(dateString: string | undefined): string {
@@ -328,28 +351,21 @@ export function toLocalDateInputFormat(dateString: string | undefined): string {
 }
 
 /**
- * Formatea una fecha a DD/MM/YYYY (usado en UI), intentando normalizar strings con espacio.
- * Mantiene el comportamiento previo usado en ArregloItem y useArreglosFilters.
+ * Formatea una fecha a DD/MM/YYYY (usado en UI) con el día calendario en GMT-3
+ * (ver `toAppCalendarDate`), intentando normalizar strings con espacio.
  */
 export function formatDateLabel(
   dateString: string | null | undefined,
   fallback = ""
 ): string {
   if (!dateString) return fallback;
-  const normalized = dateString.replace(" ", "T");
-  const d = new Date(normalized);
-  if (Number.isNaN(d.getTime())) {
-    const base = dateString.slice(0, 10);
-    const [y, m, da] = base.split("-");
-    if (y && m && da) return `${da}/${m}/${y}`;
-    return base || fallback;
-  }
-  return new Intl.DateTimeFormat(APP_LOCALE, {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    timeZone: "UTC",
-  }).format(d);
+  const calendarDate = toAppCalendarDate(dateString);
+  if (calendarDate) return formatCalendarDateLabel(calendarDate, fallback);
+
+  const base = dateString.slice(0, 10);
+  const [y, m, da] = base.split("-");
+  if (y && m && da) return `${da}/${m}/${y}`;
+  return base || fallback;
 }
 /** Format a timestamptz date in the browser's local timezone. */
 export function formatLocalDateLabel(
@@ -367,7 +383,7 @@ export function formatLocalDateLabel(
 }
 
 function parseDateInAppTimeZone(dateString: string): Date {
-  const normalized = dateString.replace(" ", "T");
+  const normalized = normalizeTimestamp(dateString);
   if (/(?:[zZ]|[+-]\d{2}(?::?\d{2})?)$/.test(normalized)) {
     return new Date(normalized);
   }
@@ -423,7 +439,7 @@ export function formatCalendarDateLabel(
 }
 
 /**
- * Formatea una fecha a DD/MM/YYYY HH:mm (usado en UI), intentando normalizar strings con espacio.
+ * Formatea una fecha a DD/MM/YYYY HH:mm (usado en UI) en GMT-3, intentando normalizar strings con espacio.
  * Mantiene el comportamiento previo usado en TurnoItem.
  */
 export function formatDateTimeLabel(
@@ -431,8 +447,7 @@ export function formatDateTimeLabel(
   fallback = ""
 ): string {
   if (!dateString) return fallback;
-  const normalized = dateString.replace(" ", "T");
-  const d = new Date(normalized);
+  const d = parseDateInAppTimeZone(dateString);
   if (Number.isNaN(d.getTime())) {
     const base = dateString.slice(0, 10);
     const [y, m, da] = base.split("-");
@@ -447,6 +462,7 @@ export function formatDateTimeLabel(
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    timeZone: APP_TIME_ZONE,
   }).format(d);
 }
 

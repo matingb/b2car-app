@@ -1,9 +1,57 @@
 import {
   ARREGLO_DESCRIPCION_FALLBACK,
+  applyArregloPago,
   buildArregloDescripcion,
   formatArregloNumero,
   formatArregloTitulo,
 } from "./arreglos";
+import { createArreglo, createVehiculo } from "@/tests/factories";
+
+describe("applyArregloPago", () => {
+  it("copia solo los campos de cobro y conserva el resto de la fila", () => {
+    const fila = createArreglo({
+      id: "arr-1",
+      vehiculo: createVehiculo({ nombre_cliente: "Cliente Uno" }),
+      esta_pago: false,
+      total_cobrado: 0,
+      saldo_pendiente: 1000,
+    });
+    const actualizado = createArreglo({
+      id: "arr-1",
+      // La respuesta del endpoint de cobros trae el vehículo sin datos del cliente.
+      vehiculo: createVehiculo({ nombre_cliente: undefined }),
+      descripcion: "Otra descripción",
+      esta_pago: true,
+      total_cobrado: 1000,
+      saldo_pendiente: 0,
+      fecha_cobro: "2026-10-12",
+    });
+
+    const result = applyArregloPago(fila, actualizado);
+
+    expect(result).toMatchObject({
+      esta_pago: true,
+      total_cobrado: 1000,
+      saldo_pendiente: 0,
+      fecha_cobro: "2026-10-12",
+    });
+    expect(result.vehiculo.nombre_cliente).toBe("Cliente Uno");
+    expect(result.descripcion).toBe(fila.descripcion);
+    expect(result.taller).toBe(fila.taller);
+    expect(fila.esta_pago).toBe(false);
+  });
+
+  it("no pisa con undefined los campos que la respuesta no trae", () => {
+    const fila = createArreglo({ total_cobrado: 500, cobros: [] });
+    const actualizado = createArreglo({ esta_pago: false, total_cobrado: undefined });
+
+    const result = applyArregloPago(fila, actualizado);
+
+    expect(result.esta_pago).toBe(false);
+    expect(result.total_cobrado).toBe(500);
+    expect(result.cobros).toEqual([]);
+  });
+});
 
 describe("buildArregloDescripcion", () => {
   it("concatena detalles cuando existe detalle_formulario", () => {
