@@ -81,6 +81,9 @@ ON CONFLICT (factura_id, operacion_linea_id) DO NOTHING;
 -- A detailed historical invoice is marked verified only if every physical source line
 -- and every physical fiscal line has an exact snapshot. Hidden/zero-price or simplified
 -- lines therefore remain fiscal-only until separately audited.
+-- The authorized-invoice immutability trigger does not allow stock_origenes_hash, so it is
+-- disabled only for this backfill (same transaction: a failure never leaves it disabled).
+ALTER TABLE public.facturas_electronicas DISABLE TRIGGER facturacion_snapshot_factura_inmutable;
 WITH expected AS (
   SELECT f.id AS factura_id, f.tenant_id, ol.id AS operacion_linea_id, o.id AS operacion_origen_id,
     ol.stock_id, s.taller_id, s.producto_id, 'VENTA'::text AS origen_linea, abs(ol.delta_cantidad)::integer AS cantidad_original
@@ -127,6 +130,7 @@ SET stock_origenes_hash = 'backfill-v1:' || md5(COALESCE((
   FROM public.facturacion_factura_stock_origenes sfo WHERE sfo.factura_id=f.id
 ), 'empty'))
 WHERE f.id IN (SELECT factura_id FROM eligible);
+ALTER TABLE public.facturas_electronicas ENABLE TRIGGER facturacion_snapshot_factura_inmutable;
 
 CREATE TRIGGER facturacion_stock_origenes_inmutables BEFORE INSERT OR UPDATE OR DELETE ON public.facturacion_factura_stock_origenes
 FOR EACH ROW EXECUTE FUNCTION public.facturacion_bloquear_mutacion_stock_origenes();
