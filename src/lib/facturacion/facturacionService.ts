@@ -712,7 +712,7 @@ async function resolveStockLines(
   }
   return { lineas, stockOrigins: canonicalStockOrigins(stockOrigins) };
 }
-async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise<CanonicalSource> {
+async function getCanonicalArreglo(tenantId: string, arregloId: string, unidentifiedReceiver = false): Promise<CanonicalSource> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("arreglos").select("id, vehiculo_id, fecha, precio_final, precios_incluyen_iva, tasa_iva, estado")
@@ -767,7 +767,7 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise
     repuestos.lineas.forEach((line) => lineas.push({ ...line, ordinal: lineas.length + 1 }));
     stockOrigins.push(...repuestos.stockOrigins);
   }
-  const clientProfile = await getClientProfile(tenantId, clienteId);
+  const clientProfile = await getClientProfile(tenantId, unidentifiedReceiver ? null : clienteId);
   return {
     id: text(repair.id), origenTipo: "ARREGLO", fecha: nullable(repair.fecha),
     total: number(repair.precio_final),
@@ -783,7 +783,7 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string): Promise
   };
 }
 
-async function getCanonicalVenta(tenantId: string, operationId: string): Promise<CanonicalSource> {
+async function getCanonicalVenta(tenantId: string, operationId: string, unidentifiedReceiver = false): Promise<CanonicalSource> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("operaciones").select("id, tipo, fecha, cliente_id")
@@ -793,7 +793,7 @@ async function getCanonicalVenta(tenantId: string, operationId: string): Promise
   if (text(operation.tipo) !== "VENTA") throw new FacturacionValidationError("Sólo una venta puede facturarse desde Operaciones");
   const resolved = await resolveStockLines(tenantId, [operationId], "VENTA");
   const total = resolved.lineas.reduce((sum, line) => sum + line.subtotal, 0);
-  const clientProfile = await getClientProfile(tenantId, nullable(operation.cliente_id));
+  const clientProfile = await getClientProfile(tenantId, unidentifiedReceiver ? null : nullable(operation.cliente_id));
   return {
     id: text(operation.id), origenTipo: "VENTA", fecha: nullable(operation.fecha), total,
     receptor: clientProfile.profile,
@@ -802,8 +802,10 @@ async function getCanonicalVenta(tenantId: string, operationId: string): Promise
   };
 }
 
-async function getCanonicalSource(tenantId: string, tipo: FacturaOrigenTipo, id: string) {
-  return tipo === "ARREGLO" ? getCanonicalArreglo(tenantId, id) : getCanonicalVenta(tenantId, id);
+async function getCanonicalSource(tenantId: string, tipo: FacturaOrigenTipo, id: string, unidentifiedReceiver = false) {
+  return tipo === "ARREGLO"
+    ? getCanonicalArreglo(tenantId, id, unidentifiedReceiver)
+    : getCanonicalVenta(tenantId, id, unidentifiedReceiver);
 }
 
 function sourceDate(value: string | null) {
@@ -1350,7 +1352,8 @@ async function issueSourceFactura(
   if (input.detalleSimplificado && origenTipo !== "ARREGLO") {
     throw new FacturacionValidationError("El detalle simplificado sólo está disponible para arreglos");
   }
-  const source = await getCanonicalSource(actor.tenantId, origenTipo, origenId);
+  // La elección explícita de documento 99 no hereda datos del cliente asociado.
+  const source = await getCanonicalSource(actor.tenantId, origenTipo, origenId, input.receptor.tipoDocumento === 99);
   const concepto = deriveFacturaConcepto(source.lineas);
   validateFechas(concepto, input.fechas);
   const fiscal = fiscalizeLineas(source.lineas, config.condicionIvaEmisor, source.preciosIncluyenIva, source.tasaIvaComercial ?? 0.21);
