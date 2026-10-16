@@ -261,7 +261,7 @@ describe("ArregloWhatsAppModal", () => {
     const textarea = screen.getByPlaceholderText("El mensaje de WhatsApp aparecerá aquí...") as HTMLTextAreaElement;
     expect(toggleIva).toHaveAttribute("aria-checked", "false");
     expect(textarea.value).toContain("_Subtotal mano de obra: $10.000_");
-    expect(textarea.value).toContain("_Subtotal sin IVA: $10.000_");
+    expect(textarea.value).toContain("_Subtotal: $10.000_");
     expect(textarea.value).toContain("_IVA 21%: $2.100_");
     expect(textarea.value).toContain("*Total arreglo $12.100*");
 

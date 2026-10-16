@@ -554,7 +554,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
             </div>
             {preciosSinIva ? (
               <>
-                <div style={styles.subtotal}><span>Subtotal sin IVA</span><span>{formatArs(preflight.total - ivaTotal, { minDecimals: 2 })}</span></div>
+                <div style={styles.subtotal}><span>Subtotal</span><span>{formatArs(preflight.total - ivaTotal, { minDecimals: 2 })}</span></div>
                 <div style={styles.subtotal}><span>IVA</span><span>{formatArs(ivaTotal, { minDecimals: 2 })}</span></div>
               </>
             ) : null}

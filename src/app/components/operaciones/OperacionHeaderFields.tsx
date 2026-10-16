@@ -3,6 +3,7 @@
 import React from "react";
 import { css } from "@emotion/react";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
+import Tooltip from "@/app/components/ui/Tooltip";
 import Autocomplete from "@/app/components/ui/Autocomplete";
 import CuentaFinancieraFormFields from "@/app/components/finanzas/CuentaFinancieraFormFields";
 import CuentaFinancieraAutocomplete, {
@@ -82,7 +83,11 @@ export default function OperacionHeaderFields() {
               const isSelected = tipo === t.tipo;
               const isDisabled = Boolean(t.disabled);
               return (
-                <span key={t.tipo} css={styles.tooltipWrap}>
+                <Tooltip
+                  key={t.tipo}
+                  content={isDisabled ? "En construcción" : undefined}
+                  placement="top"
+                >
                   <button
                     type="button"
                     onClick={() => !isDisabled && setTipo(t.tipo)}
@@ -99,15 +104,7 @@ export default function OperacionHeaderFields() {
                     ) : null}
                     <span>{t.label}</span>
                   </button>
-                  {isDisabled ? (
-                    <span
-                      css={styles.tooltip}
-                      className="operaciones-tooltip"
-                    >
-                      En construcción
-                    </span>
-                  ) : null}
-                </span>
+                </Tooltip>
               );
             })}
           </div>
@@ -180,38 +177,7 @@ const styles = {
     flexWrap: "nowrap",
     paddingBottom: 2,
   }),
-  tooltipWrap: css({
-    position: "relative",
-    display: "inline-flex",
-    "&:hover .operaciones-tooltip, &:focus-within .operaciones-tooltip": {
-      opacity: 1,
-    },
-  }),
-  tooltip: css({
-    position: "absolute",
-    left: "50%",
-    transform: "translateX(-50%)",
-    bottom: "calc(100% + 8px)",
-    backgroundColor: "rgba(20, 20, 20, 0.95)",
-    color: "white",
-    padding: "6px 8px",
-    borderRadius: 8,
-    fontSize: 12,
-    whiteSpace: "nowrap",
-    opacity: 0,
-    pointerEvents: "none",
-    transition: "opacity 120ms ease",
-    zIndex: 10,
-    "::after": {
-      content: '""',
-      position: "absolute",
-      top: "100%",
-      left: "50%",
-      transform: "translateX(-50%)",
-      border: "6px solid transparent",
-      borderTopColor: "rgba(20, 20, 20, 0.95)",
-    },
-  }),
+
   tipoChip: css({
     display: "inline-flex",
     alignItems: "center",

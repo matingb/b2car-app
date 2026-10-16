@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ArregloEstadoBadge from "./ArregloEstadoBadge";
 import { getArregloEstadoMeta, getArregloEstadoProgress } from "./hooks/useArregloEstado";
@@ -188,5 +188,134 @@ describe("ArregloEstadoBadge", () => {
     expect(
       screen.queryByRole("listbox", { name: "Opciones de estado de arreglo" })
     ).not.toBeInTheDocument();
+  });
+
+  it("soporta variant='field' con ancho completo y altura de campo de formulario", () => {
+    render(<ArregloEstadoBadge estado="SIN_INICIAR" variant="field" onStateChange={vi.fn()} />);
+
+    const trigger = screen.getByTestId("arreglo-estado-badge");
+    expect(trigger).toHaveStyle({ width: "100%", height: "42px" });
+    expect(screen.getByText("Sin iniciar")).toBeInTheDocument();
+  });
+
+  it("permite seleccionar PRESUPUESTO cuando allowPresupuesto es true", () => {
+    render(<ArregloEstadoBadge estado="SIN_INICIAR" allowPresupuesto={true} onStateChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByTestId("arreglo-estado-badge"));
+
+    expect(screen.getByTestId("arreglo-estado-option-PRESUPUESTO")).toBeInTheDocument();
+  });
+
+  it("excluye PRESUPUESTO cuando allowPresupuesto es false", () => {
+    render(<ArregloEstadoBadge estado="PRESUPUESTO" allowPresupuesto={false} onStateChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByTestId("arreglo-estado-badge"));
+
+    expect(screen.queryByTestId("arreglo-estado-option-PRESUPUESTO")).not.toBeInTheDocument();
+  });
+
+  it("deshabilita el botón cuando disabled es true", () => {
+    render(<ArregloEstadoBadge estado="EN_PROGRESO" disabled={true} onStateChange={vi.fn()} />);
+
+    expect(screen.getByTestId("arreglo-estado-badge")).toBeDisabled();
+  });
+
+  it("aplica tonalidad más clara para el seleccionado y más oscura para el enfocado sin outline", () => {
+    render(<ArregloEstadoBadge estado="SIN_INICIAR" onStateChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByTestId("arreglo-estado-badge"));
+
+    const sinIniciarOption = screen.getByTestId("arreglo-estado-option-SIN_INICIAR");
+    const enProgresoOption = screen.getByTestId("arreglo-estado-option-EN_PROGRESO");
+
+    // Seleccionado sin foco -> tonalidad clara
+    expect(sinIniciarOption).toHaveStyle({ background: "#f1f5f9", outline: "none" });
+
+    // Foco en enProgresoOption -> tonalidad más oscura
+    fireEvent.focus(enProgresoOption);
+    expect(enProgresoOption).toHaveStyle({ background: "#e2e8f0", outline: "none" });
+  });
+
+  describe("icono de info y tooltip en PRESUPUESTO", () => {
+    const tooltipText =
+      "Los repuestos asignados no se descontarán del stock mientras el arreglo se encuentre como presupuesto.";
+
+    it("renderiza el icono de info solo en la opción de PRESUPUESTO", () => {
+      render(
+        <ArregloEstadoBadge estado="SIN_INICIAR" allowPresupuesto={true} onStateChange={vi.fn()} />
+      );
+
+      fireEvent.click(screen.getByTestId("arreglo-estado-badge"));
+
+      const presupuestoOption = screen.getByTestId("arreglo-estado-option-PRESUPUESTO");
+      const infoTrigger = screen.getByTestId("arreglo-presupuesto-info-trigger");
+      expect(presupuestoOption).toContainElement(infoTrigger);
+
+      const sinIniciarOption = screen.getByTestId("arreglo-estado-option-SIN_INICIAR");
+      expect(sinIniciarOption.querySelector("[data-testid='arreglo-presupuesto-info-trigger']")).toBeNull();
+    });
+
+    it("muestra el tooltip al hacer hover en el icono de info y lo oculta al salir", () => {
+      vi.useFakeTimers();
+      render(
+        <ArregloEstadoBadge estado="SIN_INICIAR" allowPresupuesto={true} onStateChange={vi.fn()} />
+      );
+
+      fireEvent.click(screen.getByTestId("arreglo-estado-badge"));
+      const infoTrigger = screen.getByTestId("arreglo-presupuesto-info-trigger");
+
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+      fireEvent.mouseEnter(infoTrigger);
+      expect(screen.getByRole("tooltip")).toBeInTheDocument();
+      expect(screen.getByText(tooltipText)).toBeInTheDocument();
+
+      fireEvent.mouseLeave(infoTrigger);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+      vi.useRealTimers();
+    });
+
+    it("abre el tooltip al hacer clic en el icono sin seleccionar el estado ni cerrar el menú", () => {
+      const onStateChange = vi.fn();
+      render(
+        <ArregloEstadoBadge estado="SIN_INICIAR" allowPresupuesto={true} onStateChange={onStateChange} />
+      );
+
+      fireEvent.click(screen.getByTestId("arreglo-estado-badge"));
+      const infoTrigger = screen.getByTestId("arreglo-presupuesto-info-trigger");
+
+      fireEvent.click(infoTrigger);
+
+      // Tooltip visible y contiene el texto exacto
+      expect(screen.getByRole("tooltip")).toBeInTheDocument();
+      expect(screen.getByText(tooltipText)).toBeInTheDocument();
+
+      // No dispara cambio de estado ni cierra el listbox
+      expect(onStateChange).not.toHaveBeenCalled();
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+      // Clic nuevamente en el icono de info cierra el tooltip
+      fireEvent.click(infoTrigger);
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
+
+    it("cierra el tooltip abierto por clic si se hace clic fuera del icono", () => {
+      render(
+        <ArregloEstadoBadge estado="SIN_INICIAR" allowPresupuesto={true} onStateChange={vi.fn()} />
+      );
+
+      fireEvent.click(screen.getByTestId("arreglo-estado-badge"));
+      const infoTrigger = screen.getByTestId("arreglo-presupuesto-info-trigger");
+
+      fireEvent.click(infoTrigger);
+      expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+      fireEvent.mouseDown(document.body);
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
   });
 });

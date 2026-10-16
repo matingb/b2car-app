@@ -567,7 +567,7 @@ describe("precios sin IVA en buildArregloWhatsappMessage", () => {
     expect(message).toContain("Mano de obra x1 - $10.000");
     expect(message).toContain("_Subtotal repuestos: $8.000_");
     expect(message).toContain("_Subtotal mano de obra: $10.000_");
-    expect(message).toContain("_Subtotal sin IVA: $18.000_\n_IVA 21%: $3.780_\n*Total arreglo $21.780*");
+    expect(message).toContain("_Subtotal: $18.000_\n_IVA 21%: $3.780_\n*Total arreglo $21.780*");
   });
 
   it("discrimina el IVA con la tasa del arreglo aunque el total se calcule de las líneas", () => {
@@ -575,7 +575,7 @@ describe("precios sin IVA en buildArregloWhatsappMessage", () => {
 
     const message = buildArregloWhatsappMessage(data, { mostrarDetalleItems: false, preciosConIva: false });
 
-    expect(message).toContain("_Subtotal sin IVA: $18.000_");
+    expect(message).toContain("_Subtotal: $18.000_");
     expect(message).toContain("_IVA 10,5%: $1.890_");
     expect(message).toContain("*Total arreglo $19.890*");
   });
@@ -585,7 +585,7 @@ describe("precios sin IVA en buildArregloWhatsappMessage", () => {
 
     const message = buildArregloWhatsappMessage(data, { preciosConIva: false });
 
-    expect(message).not.toContain("Subtotal sin IVA");
+    expect(message).not.toContain("Subtotal");
     expect(message).toContain("*Total arreglo $18.000*");
   });
 

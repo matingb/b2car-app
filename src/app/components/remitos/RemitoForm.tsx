@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, AlertTriangle, ReceiptText, Send } from "lucide-react";
 import Button from "@/app/components/ui/Button";
+import Tooltip from "@/app/components/ui/Tooltip";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { remitosClient } from "@/clients/remitosClient";
 import { Permission } from "@/lib/permissions";
@@ -256,15 +257,17 @@ export default function RemitoForm({
 
       <div style={styles.actions}>
         {onCancel ? <Button type="button" text="Cancelar" outline onClick={onCancel} disabled={submitting} hideTextOnMobile={false} /> : null}
-        <Button
-          type="submit"
-          text={submitting ? "Emitiendo…" : "Emitir remito"}
-          icon={<Send size={16} />}
-          disabled={submitting || Boolean(blockingReason)}
-          title={blockingReason ?? undefined}
-          hideTextOnMobile={false}
-          dataTestId="remito-emitir"
-        />
+        <Tooltip content={blockingReason} placement="top">
+          <Button
+            type="submit"
+            text={submitting ? "Emitiendo…" : "Emitir remito"}
+            icon={<Send size={16} />}
+            disabled={submitting || Boolean(blockingReason)}
+            title={blockingReason ?? undefined}
+            hideTextOnMobile={false}
+            dataTestId="remito-emitir"
+          />
+        </Tooltip>
       </div>
 
     </form>

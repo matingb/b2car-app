@@ -13,6 +13,7 @@ import { calcLineTotal } from "@/lib/calcLineTotal";
 import { importeComercial } from "@/lib/ivaComercial";
 import { IVA_RATE } from "@/lib/ivaRate";
 import Toggle from "@/app/components/ui/Toggle";
+import Tooltip from "@/app/components/ui/Tooltip";
 import ServicioLineasEditableSection, {
   type ServicioLinea,
 } from "@/app/components/arreglos/lineas/servicios/ServicioLineasEditableSection";
@@ -23,7 +24,8 @@ import type { CreateArregloDetalleFormularioInput } from "@/app/api/arreglos/arr
 import { useServiciosDraft } from "@/app/components/arreglos/hooks/useServiciosDraft";
 import { useRepuestosDraft } from "@/app/components/arreglos/hooks/useRepuestosDraft";
 import { useUltimoTipoEmpleado } from "@/app/components/arreglos/hooks/useUltimoTipoEmpleado";
-import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
+import { EstadoArreglo } from "@/model/types";
+import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
 import ArregloPagoBadge from "@/app/components/arreglos/ArregloPagoBadge";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
@@ -87,11 +89,6 @@ type Props = {
 
 
 
-const estadoOptions: AutocompleteOption[] = ESTADOS_ARREGLO.map((estado) => ({
-  value: estado,
-  label: estado.replaceAll("_", " "),
-}));
-
 export function validateArregloForm(
   values: ArregloFormFieldsValues,
   vehiculoId?: number | string,
@@ -144,12 +141,6 @@ export default function ArregloFormFields({
   const isValid = useMemo(
     () => baseIsValid && !blockCreateByCustomRequired,
     [baseIsValid, blockCreateByCustomRequired]
-  );
-  const availableEstadoOptions = useMemo(
-    () => isEdit && (persistedEstado ?? values.estado) !== "PRESUPUESTO"
-      ? estadoOptions.filter((option) => option.value !== "PRESUPUESTO")
-      : estadoOptions,
-    [isEdit, persistedEstado, values.estado]
   );
 
   const {
@@ -296,20 +287,17 @@ export default function ArregloFormFields({
 
         <div style={styles.field}>
           <label style={styles.label}>Estado</label>
-          <Autocomplete
-            options={availableEstadoOptions}
-            value={values.estado}
-            onChange={(next) => {
-              if ((ESTADOS_ARREGLO as string[]).includes(next)) {
-                const nextEstado = next as EstadoArreglo;
-                onValuesChange({
-                  estado: nextEstado,
-                  ...(nextEstado === "PRESUPUESTO" ? { estaPago: false } : {}),
-                });
-              }
+          <ArregloEstadoBadge
+            estado={values.estado}
+            variant="field"
+            allowPresupuesto={!isEdit || (persistedEstado ?? values.estado) === "PRESUPUESTO"}
+            disabled={submitting}
+            onStateChange={(next) => {
+              onValuesChange({
+                estado: next,
+                ...(next === "PRESUPUESTO" ? { estaPago: false } : {}),
+              });
             }}
-            placeholder="Seleccionar estado"
-            hideClearButton={true}
           />
         </div>
       </div>
@@ -457,19 +445,21 @@ export default function ArregloFormFields({
               </label>
             ) : null}
             {showPreciosSinIva ? (
-              <label style={styles.switchLabel} title={preciosSinIvaBloqueo ?? undefined}>
-                <Toggle
-                  checked={!preciosIncluyenIva}
-                  onChange={(checked) => onValuesChange({ preciosIncluyenIva: !checked })}
-                  label="Sumar IVA"
-                  disabled={submitting || !!preciosSinIvaBloqueo}
-                  data-testid="toggle-iva"
-                />
-                <span style={styles.switchText}>
-                  <span style={styles.switchTitle}>Sumar IVA</span>
-                  <span style={styles.switchHelp}>Se agregará el 21% sobre el total ingresado en los detalles del arreglo.</span>
-                </span>
-              </label>
+              <Tooltip content={preciosSinIvaBloqueo} placement="top">
+                <label style={styles.switchLabel} title={preciosSinIvaBloqueo ?? undefined}>
+                  <Toggle
+                    checked={!preciosIncluyenIva}
+                    onChange={(checked) => onValuesChange({ preciosIncluyenIva: !checked })}
+                    label="Sumar IVA"
+                    disabled={submitting || !!preciosSinIvaBloqueo}
+                    data-testid="toggle-iva"
+                  />
+                  <span style={styles.switchText}>
+                    <span style={styles.switchTitle}>Sumar IVA</span>
+                    <span style={styles.switchHelp}>Se agregará el 21% sobre el total ingresado en los detalles del arreglo.</span>
+                  </span>
+                </label>
+              </Tooltip>
             ) : null}
           </div>
         </div>

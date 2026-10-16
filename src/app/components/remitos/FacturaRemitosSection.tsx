@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Truck } from "lucide-react";
 import Button from "@/app/components/ui/Button";
+import Tooltip from "@/app/components/ui/Tooltip";
 import Card from "@/app/components/ui/Card";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import { useTenant } from "@/app/providers/TenantProvider";
@@ -56,16 +57,21 @@ export default function FacturaRemitosSection({ facturaId }: Props) {
             <p style={styles.muted}>Entregas documentadas para esta factura. Un remito no modifica la factura.</p>
           </div>
           {canEmit ? (
-            <Button
-              text="Generar remito"
-              icon={<Truck size={16} />}
-              outline
-              hideTextOnMobile={false}
-              disabled={loading || !quedaDisponible}
-              title={!loading && !quedaDisponible ? "Todas las cantidades facturadas ya fueron remitidas" : undefined}
-              onClick={() => setCreateRemitoOpen(true)}
-              dataTestId="factura-generar-remito"
-            />
+            <Tooltip
+              content={!loading && !quedaDisponible ? "Todas las cantidades facturadas ya fueron remitidas" : undefined}
+              placement="top"
+            >
+              <Button
+                text="Generar remito"
+                icon={<Truck size={16} />}
+                outline
+                hideTextOnMobile={false}
+                disabled={loading || !quedaDisponible}
+                title={!loading && !quedaDisponible ? "Todas las cantidades facturadas ya fueron remitidas" : undefined}
+                onClick={() => setCreateRemitoOpen(true)}
+                dataTestId="factura-generar-remito"
+              />
+            </Tooltip>
           ) : null}
         </div>
         {loading ? <ListSkeleton rows={2} /> : null}

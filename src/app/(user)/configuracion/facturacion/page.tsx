@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { ShieldCheck, AlertCircle, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import Button from "@/app/components/ui/Button";
+import Tooltip from "@/app/components/ui/Tooltip";
 import FacturacionEmpresaCard from "@/app/components/facturacion/FacturacionEmpresaCard";
 import FacturacionFiscalCard from "@/app/components/facturacion/FacturacionFiscalCard";
 import FacturacionCertificadosCard from "@/app/components/facturacion/FacturacionCertificadosCard";
@@ -244,15 +245,17 @@ export default function ConfiguracionPage() {
               {/* Acciones */}
               <div style={styles.actionsBar}>
                 <div style={styles.actionButtons}>
-                  <Button
-                    type="button"
-                    text={testing ? "Probando conexión…" : "Probar conexión"}
-                    outline
-                    disabled={testing || saving || !canTestConnection}
-                    title={testConnectionDisabledReason}
-                    onClick={testConnection}
-                    hideTextOnMobile={false}
-                  />
+                  <Tooltip content={testConnectionDisabledReason} placement="top">
+                    <Button
+                      type="button"
+                      text={testing ? "Probando conexión…" : "Probar conexión"}
+                      outline
+                      disabled={testing || saving || !canTestConnection}
+                      title={testConnectionDisabledReason}
+                      onClick={testConnection}
+                      hideTextOnMobile={false}
+                    />
+                  </Tooltip>
 
                   <Button
                     type="submit"

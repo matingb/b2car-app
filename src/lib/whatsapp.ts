@@ -219,7 +219,7 @@ function buildIvaDiscriminadoLines(
 	const iva = Math.round((total - neto) * 100) / 100;
 	const tasa = String(Math.round(safeNumber(arreglo.tasa_iva ?? 0.21) * 10000) / 100).replace(".", ",");
 	return [
-		`_Subtotal sin IVA: ${formatArs(neto, { maxDecimals: 2, minDecimals: 0 })}_`,
+		`_Subtotal: ${formatArs(neto, { maxDecimals: 2, minDecimals: 0 })}_`,
 		`_IVA ${tasa}%: ${formatArs(iva, { maxDecimals: 2, minDecimals: 0 })}_`,
 	];
 }

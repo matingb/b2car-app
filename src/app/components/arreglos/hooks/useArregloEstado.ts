@@ -40,7 +40,11 @@ export function getArregloEstadoProgress(estado: EstadoArreglo | undefined): num
   }
 }
 
-export function useArregloEstado(estado?: EstadoArreglo, customProgress?: number) {
+export function useArregloEstado(
+  estado?: EstadoArreglo,
+  customProgress?: number,
+  optionsConfig?: { allowPresupuesto?: boolean }
+) {
   const meta = useMemo(() => getArregloEstadoMeta(estado), [estado]);
 
   const progress = useMemo(() => {
@@ -48,14 +52,16 @@ export function useArregloEstado(estado?: EstadoArreglo, customProgress?: number
     return Math.max(0, Math.min(100, raw));
   }, [estado, customProgress]);
 
+  const allowPresupuesto = optionsConfig?.allowPresupuesto ?? (estado === "PRESUPUESTO");
+
   const options = useMemo(
     () =>
-      ESTADOS_ARREGLO.filter((value) => estado === "PRESUPUESTO" || value !== "PRESUPUESTO").map((value) => ({
+      ESTADOS_ARREGLO.filter((value) => allowPresupuesto || value !== "PRESUPUESTO").map((value) => ({
         value,
         meta: getArregloEstadoMeta(value),
         progress: getArregloEstadoProgress(value),
       })),
-    [estado]
+    [allowPresupuesto]
   );
 
   return { meta, progress, options };

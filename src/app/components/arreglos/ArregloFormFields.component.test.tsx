@@ -16,6 +16,14 @@ vi.mock("@/app/providers/InventarioProvider", () => ({
   useInventario: () => ({ inventario: [], isLoading: false }),
 }));
 
+vi.mock("@/app/providers/ArreglosProvider", () => ({
+  useArreglos: () => ({ update: vi.fn(), loading: false }),
+}));
+
+vi.mock("@/app/providers/ToastProvider", () => ({
+  useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }),
+}));
+
 const baseValues: ArregloFormFieldsValues = {
   estado: "SIN_INICIAR",
   fecha: "2026-05-16",
@@ -123,5 +131,84 @@ describe("ArregloFormFields switches", () => {
     renderFields({ values: { ...baseValues, preciosIncluyenIva: false } });
 
     expect(screen.getByText("Total calculado (IVA incluido)")).toBeInTheDocument();
+  });
+});
+
+describe("ArregloFormFields selector de estado", () => {
+  it("renderiza ArregloEstadoBadge y actualiza el estado al seleccionar una opción", () => {
+    const onValuesChange = vi.fn();
+    render(
+      <TenantTestProvider hasPermission={mockHasPermission(UserRole.Admin)}>
+        <ArregloFormFields
+          vehiculoId="veh-1"
+          vehiculoOptions={[]}
+          isEdit={false}
+          showFacturable={true}
+          submitting={false}
+          tallerId="taller-1"
+          values={baseValues}
+          onValuesChange={onValuesChange}
+        />
+      </TenantTestProvider>
+    );
+
+    const estadoTrigger = screen.getByTestId("arreglo-estado-badge");
+    expect(estadoTrigger).toBeInTheDocument();
+    expect(screen.getByText("Sin iniciar")).toBeInTheDocument();
+
+    fireEvent.click(estadoTrigger);
+
+    const terminadoOption = screen.getByTestId("arreglo-estado-option-TERMINADO");
+    fireEvent.click(terminadoOption);
+
+    expect(onValuesChange).toHaveBeenCalledWith({ estado: "TERMINADO" });
+  });
+
+  it("si se selecciona PRESUPUESTO, resetea estaPago a false", () => {
+    const onValuesChange = vi.fn();
+    render(
+      <TenantTestProvider hasPermission={mockHasPermission(UserRole.Admin)}>
+        <ArregloFormFields
+          vehiculoId="veh-1"
+          vehiculoOptions={[]}
+          isEdit={false}
+          showFacturable={true}
+          submitting={false}
+          tallerId="taller-1"
+          values={{ ...baseValues, estaPago: true }}
+          onValuesChange={onValuesChange}
+        />
+      </TenantTestProvider>
+    );
+
+    fireEvent.click(screen.getByTestId("arreglo-estado-badge"));
+    fireEvent.click(screen.getByTestId("arreglo-estado-option-PRESUPUESTO"));
+
+    expect(onValuesChange).toHaveBeenCalledWith({
+      estado: "PRESUPUESTO",
+      estaPago: false,
+    });
+  });
+
+  it("en edición sin estado previo presupuesto, no muestra opción PRESUPUESTO", () => {
+    render(
+      <TenantTestProvider hasPermission={mockHasPermission(UserRole.Admin)}>
+        <ArregloFormFields
+          vehiculoId="veh-1"
+          vehiculoOptions={[]}
+          isEdit={true}
+          persistedEstado="EN_PROGRESO"
+          showFacturable={true}
+          submitting={false}
+          tallerId="taller-1"
+          values={{ ...baseValues, estado: "EN_PROGRESO" }}
+          onValuesChange={vi.fn()}
+        />
+      </TenantTestProvider>
+    );
+
+    fireEvent.click(screen.getByTestId("arreglo-estado-badge"));
+
+    expect(screen.queryByTestId("arreglo-estado-option-PRESUPUESTO")).not.toBeInTheDocument();
   });
 });

@@ -6,6 +6,7 @@ import type { Arreglo, EstadoArreglo } from "@/model/types";
 import { ESTADOS_ARREGLO } from "@/model/types";
 import { ServiceError } from "@/app/api/serviceError";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { logger } from "@/lib/logger";
 import { arregloService } from "./arregloService";
 import { arregloFormularioService } from "./arregloFormularioService";
 import type {
@@ -18,6 +19,74 @@ export type MutationResult<T> = {
   error: string | null;
   status: number;
 };
+
+export function mapActivacionPresupuestoError(error: unknown): { status: number; message: string } {
+  const raw = String((error as { message?: unknown } | null)?.message ?? "");
+  const code = String((error as { code?: unknown } | null)?.code ?? "");
+  const lower = raw.toLowerCase();
+
+  if (raw.includes("PRECIO_COMPRA_REQUERIDO")) {
+    const faltante = /faltante=(\d+)/.exec(raw)?.[1];
+    const unidades = faltante ? `${faltante} ${faltante === "1" ? "unidad" : "unidades"}` : "unidades";
+    return {
+      status: 400,
+      message: `No hay stock suficiente de un repuesto del presupuesto (faltan ${unidades}). ` +
+        "Cargale un precio de compra y una cuenta financiera para registrar la compra automática, o ajustá el stock antes de activar.",
+    };
+  }
+  if (raw.includes("CUENTA_FINANCIERA_REQUERIDA") || lower.includes("cuenta financiera requerida") || lower.includes("cuenta_id requerido")) {
+    return {
+      status: 400,
+      message: "Un repuesto del presupuesto requiere una compra automática. Editalo y seleccioná una cuenta financiera para registrarla.",
+    };
+  }
+  if (raw.includes("IDEMPOTENCY_KEY_REQUERIDA")) {
+    return {
+      status: 400,
+      message: "Un repuesto del presupuesto requiere una compra automática sin datos de compra completos. Volvé a guardarlo con su precio de compra y cuenta financiera.",
+    };
+  }
+  if (raw.includes("STOCK_INSUFICIENTE") || lower.includes("stock insuficiente")) {
+    return {
+      status: 409,
+      message: "No hay stock suficiente para los repuestos del presupuesto. Revisá las cantidades o el stock disponible.",
+    };
+  }
+  if (raw.includes("stock_id no pertenece al taller") || lower.includes("stock no encontrado")) {
+    return {
+      status: 400,
+      message: "Un repuesto del presupuesto ya no existe en el inventario del taller.",
+    };
+  }
+  if (raw.includes("PRODUCTO_CODIGO_DUPLICADO") || raw.includes("uq_productos_tenant_codigo")) {
+    return {
+      status: 409,
+      message: "Un repuesto nuevo del presupuesto usa un código que ya existe. Reemplazalo por el producto existente desde el listado.",
+    };
+  }
+  if (raw.includes("ya fue activado")) {
+    return { status: 409, message: "El presupuesto ya fue activado con otro estado. Recargá la página." };
+  }
+  if (raw.includes("Estado de activacion invalido")) {
+    return { status: 400, message: "El estado elegido no es válido para activar el presupuesto." };
+  }
+  if (lower.includes("arreglo no encontrado")) {
+    return { status: 404, message: "Arreglo no encontrado" };
+  }
+  if (raw.includes("JWT sin tenant_id") || code === "28000") {
+    return { status: 401, message: "Tu sesión expiró. Volvé a iniciar sesión." };
+  }
+  if (code === "42501" || lower.includes("permission denied")) {
+    return { status: 403, message: "No tenés permisos para realizar esta acción." };
+  }
+  if (code === "22023" || /inv[aá]lid[oa]/i.test(raw)) {
+    return {
+      status: 400,
+      message: "Hay un repuesto del presupuesto con datos inválidos (cantidad, precio o código). Revisalo antes de activar.",
+    };
+  }
+  return { status: 500, message: "No se pudo activar el presupuesto. Intentá nuevamente." };
+}
 
 export const arregloMutationService = {
   async validateEstadoTransition(
@@ -251,24 +320,12 @@ export const arregloMutationService = {
       });
 
       if (activationError) {
-        const raw = String(activationError.message ?? "");
-        const isConflict = raw.includes("STOCK_INSUFICIENTE") ||
-          raw.toLowerCase().includes("stock insuficiente") ||
-          raw.includes("ya fue activado") ||
-          raw.includes("activacion") ||
-          raw.includes("PRESUPUESTO");
-        const isInvalid = raw.includes("CUENTA_FINANCIERA_REQUERIDA") ||
-          raw.includes("PRECIO_COMPRA_REQUERIDO") ||
-          raw.includes("producto") ||
-          raw.includes("invalido") ||
-          raw.includes("stock_id");
-        return {
-          data: null,
-          error: isConflict ? "No se pudo activar el presupuesto por falta de stock o concurrencia" :
-            isInvalid ? "No se pudo validar la activacion del presupuesto" :
-              "No se pudo activar el presupuesto",
-          status: isConflict ? 409 : isInvalid ? 400 : 500,
-        };
+        logger.error("Error rpc_activar_presupuesto:", activationError, {
+          arreglo_id: id,
+          nuevo_estado: activationTarget,
+        });
+        const mapped = mapActivacionPresupuestoError(activationError);
+        return { data: null, error: mapped.message, status: mapped.status };
       }
 
       const { data: activated, error: activatedError } = await arregloService.getByIdWithVehiculo(supabase, id);

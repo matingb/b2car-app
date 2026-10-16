@@ -370,7 +370,7 @@ export function buildArregloPrintableInvoiceHtml({
     </section>
 
     <div class="bottom-totals">
-      ${ivaComercial === null ? "" : `<div class="total-box"><span>Subtotal sin IVA</span><span class="money">${formatMoney(subtotalIngresado)}</span></div>
+      ${ivaComercial === null ? "" : `<div class="total-box"><span>Subtotal</span><span class="money">${formatMoney(subtotalIngresado)}</span></div>
       <div class="total-box"><span>IVA</span><span class="money">${formatMoney(ivaComercial)}</span></div>`}
       <div class="total-box"><span>Total Gral.</span><span class="money">${formatMoney(total)}</span></div>
     </div>

@@ -28,7 +28,7 @@ describe("buildArregloPrintableInvoiceHtml commercial total", () => {
   it("prints the persisted gross and the commercial IVA breakdown when prices exclude it", () => {
     const html = render(false, 121);
 
-    expect(html).toContain("Subtotal sin IVA");
+    expect(html).toContain("Subtotal");
     expect(html).toContain("<span>IVA</span>");
     expect(html).toContain(formatArs(100, { maxDecimals: 2, minDecimals: 0 }));
     expect(html).toContain(formatArs(21, { maxDecimals: 2, minDecimals: 0 }));
@@ -38,7 +38,8 @@ describe("buildArregloPrintableInvoiceHtml commercial total", () => {
   it("does not add an IVA row when prices already include IVA", () => {
     const html = render(true, 100);
 
-    expect(html).not.toContain("Subtotal sin IVA");
+    expect(html).toContain("Subtotal");
+    expect(html).not.toContain("IVA");
     expect(html).toContain(formatArs(100, { maxDecimals: 2, minDecimals: 0 }));
   });
 });
@@ -65,7 +66,7 @@ describe("buildArregloPrintableInvoiceHtml line rounding", () => {
     const html = renderFractionalServices();
     const summary = html.slice(html.indexOf("bottom-totals"));
 
-    expect(summary).toContain("Subtotal sin IVA");
+    expect(summary).toContain("Subtotal");
     expect(summary).toContain(formatArs(0.02, { maxDecimals: 2, minDecimals: 0 }));
     expect(summary).toContain("<span>IVA</span>");
     expect(summary).toContain(formatArs(0, { maxDecimals: 2, minDecimals: 0 }));
