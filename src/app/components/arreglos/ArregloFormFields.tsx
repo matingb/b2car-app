@@ -461,12 +461,13 @@ export default function ArregloFormFields({
                 <Toggle
                   checked={!preciosIncluyenIva}
                   onChange={(checked) => onValuesChange({ preciosIncluyenIva: !checked })}
-                  label="Precios sin IVA"
+                  label="Sumar IVA"
                   disabled={submitting || !!preciosSinIvaBloqueo}
+                  data-testid="toggle-iva"
                 />
                 <span style={styles.switchText}>
-                  <span style={styles.switchTitle}>Precios sin IVA</span>
-                  <span style={styles.switchHelp}>Se agrega el IVA al total del arreglo.</span>
+                  <span style={styles.switchTitle}>Sumar IVA</span>
+                  <span style={styles.switchHelp}>Se agregará el 21% sobre el total ingresado en los detalles del arreglo.</span>
                 </span>
               </label>
             ) : null}

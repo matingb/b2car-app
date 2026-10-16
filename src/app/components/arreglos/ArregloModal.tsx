@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import Modal from "@/app/components/ui/Modal";
 import { Arreglo, Vehiculo } from "@/model/types";
@@ -41,7 +41,7 @@ import type { InventarioEntry } from "@/app/components/arreglos/lineas/repuestos
 type Props = {
   open: boolean;
   vehiculoId?: number | string;
-  initial?: Partial<ArregloForm> & { id?: string };
+  initial?: Arreglo | null;
   onClose: (updated?: boolean) => void;
   onSubmitSuccess?: (arreglo: Arreglo) => void;
 };
@@ -163,33 +163,52 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     [vehiculos]
   );
 
+  const prevOpenRef = useRef(false);
+  const prevInitialIdRef = useRef<string | undefined>(undefined);
+  const prevVehiculoIdRef = useRef(vehiculoId);
+
   useEffect(() => {
     if (!open) {
+      prevOpenRef.current = false;
       setIsFormClosed(false);
       setIsShareModalOpen(false);
       setShareDetalle(null);
       return;
     }
-    setIsFormClosed(false);
-    setError(null);
-    setSubmitting(false);
-    setEstado(initial?.estado ?? "SIN_INICIAR");
-    setFecha(getArregloModalFecha(initial?.fecha));
-    setKm(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
-    setCombustible(initial?.combustible_leido != null ? String(initial.combustible_leido) : "");
-    setObservaciones(initial?.observaciones ?? "");
-    setEstaPago(!!initial?.esta_pago);
-    setPreciosIncluyenIva(initial?.precios_incluyen_iva ?? true);
-    setEsFacturable(initial?.es_facturable !== false);
-    setCuentaFinancieraId("");
-    setCuentaDraft({ ...EMPTY_CUENTA_FINANCIERA_DRAFT });
-    setFechaCobro(toISODateAppTimeZone());
-    setExtraData(initial?.extra_data ?? "");
-    setSelectedVehiculoId(vehiculoId ? String(vehiculoId) : "");
-    setIsValid(false);
 
-    if (!isEdit) {
-      setInternal(createEmptyInternal());
+    const wasOpen = prevOpenRef.current;
+    const currentId = initial?.id;
+    const idChanged = currentId !== prevInitialIdRef.current;
+    const vehiculoChanged = vehiculoId !== prevVehiculoIdRef.current;
+
+    prevOpenRef.current = true;
+    prevInitialIdRef.current = currentId;
+    prevVehiculoIdRef.current = vehiculoId;
+
+    if (!wasOpen || idChanged) {
+      setIsFormClosed(false);
+      setError(null);
+      setSubmitting(false);
+      setEstado(initial?.estado ?? "SIN_INICIAR");
+      setFecha(getArregloModalFecha(initial?.fecha));
+      setKm(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
+      setCombustible(initial?.combustible_leido != null ? String(initial.combustible_leido) : "");
+      setObservaciones(initial?.observaciones ?? "");
+      setEstaPago(!!initial?.esta_pago);
+      setPreciosIncluyenIva(initial?.precios_incluyen_iva ?? true);
+      setEsFacturable(initial?.es_facturable !== false);
+      setCuentaFinancieraId("");
+      setCuentaDraft({ ...EMPTY_CUENTA_FINANCIERA_DRAFT });
+      setFechaCobro(toISODateAppTimeZone());
+      setExtraData(initial?.extra_data ?? "");
+      setSelectedVehiculoId(vehiculoId ? String(vehiculoId) : "");
+      setIsValid(false);
+
+      if (!isEdit) {
+        setInternal(createEmptyInternal());
+      }
+    } else if (vehiculoChanged) {
+      setSelectedVehiculoId(vehiculoId ? String(vehiculoId) : "");
     }
   }, [open, initial, vehiculoId, isEdit]);
 
@@ -372,6 +391,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         setCombustible("");
         setObservaciones("");
         setEstaPago(false);
+        setPreciosIncluyenIva(true);
         setExtraData("");
         setInternal(createEmptyInternal());
         success("Arreglo creado", "El arreglo se registró correctamente.");

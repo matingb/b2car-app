@@ -606,21 +606,7 @@ export default function ArregloDetailsPage() {
             await reload();
           }}
           vehiculoId={arreglo.vehiculo.id}
-          initial={{
-            id: arreglo.id,
-            estado: arreglo.estado,
-            fecha: arreglo.fecha,
-            kilometraje_leido: arreglo.kilometraje_leido,
-            combustible_leido: arreglo.combustible_leido,
-            precio_final: arreglo.precio_final,
-            precios_incluyen_iva: arreglo.precios_incluyen_iva,
-            total_cobrado: arreglo.total_cobrado,
-            es_facturable: arreglo.es_facturable,
-            observaciones: arreglo.observaciones,
-            descripcion: arreglo.descripcion,
-            esta_pago: arreglo.esta_pago,
-            extra_data: arreglo.extra_data,
-          }}
+          initial={arreglo}
         />
       )}
       <CuentaCompraAutomaticaModal

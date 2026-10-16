@@ -96,27 +96,27 @@ describe("ArregloFormFields switches", () => {
     return { onValuesChange };
   };
 
-  it("muestra facturable y precios sin IVA como switches con una descripción corta", () => {
+  it("muestra facturable y toggle de IVA como switches con una descripción corta", () => {
     renderFields();
 
     expect(screen.getByRole("switch", { name: "Arreglo facturable" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("switch", { name: "Precios sin IVA" })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByTestId("toggle-iva")).toHaveAttribute("aria-checked", "false");
     expect(screen.getByText("Suma al saldo a facturar del cliente.")).toBeInTheDocument();
-    expect(screen.getByText("Se agrega el IVA al total del arreglo.")).toBeInTheDocument();
+    expect(screen.getByText("Se agregará el 21% sobre el total ingresado en los detalles del arreglo.")).toBeInTheDocument();
   });
 
-  it("al activar precios sin IVA marca que los precios no incluyen IVA", () => {
+  it("al activar el toggle de IVA marca que los precios no incluyen IVA", () => {
     const { onValuesChange } = renderFields();
 
-    fireEvent.click(screen.getByRole("switch", { name: "Precios sin IVA" }));
+    fireEvent.click(screen.getByTestId("toggle-iva"));
 
     expect(onValuesChange).toHaveBeenCalledWith({ preciosIncluyenIva: false });
   });
 
-  it("deshabilita precios sin IVA cuando hay un bloqueo", () => {
+  it("deshabilita el toggle de IVA cuando hay un bloqueo", () => {
     renderFields({ preciosSinIvaBloqueo: "Necesitás permiso para editar precios." });
 
-    expect(screen.getByRole("switch", { name: "Precios sin IVA" })).toBeDisabled();
+    expect(screen.getByTestId("toggle-iva")).toBeDisabled();
   });
 
   it("indica que el total calculado incluye IVA cuando los precios son sin IVA", () => {

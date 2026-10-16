@@ -233,24 +233,7 @@ export default function VehiculoDetailsPage() {
         <ArregloModal
           open={openModal}
           vehiculoId={vehiculo.id}
-          initial={
-            editArreglo
-              ? {
-                id: editArreglo.id,
-                fecha: editArreglo.fecha,
-                kilometraje_leido: editArreglo.kilometraje_leido,
-                combustible_leido: editArreglo.combustible_leido,
-                precio_final: editArreglo.precio_final,
-            precios_incluyen_iva: editArreglo.precios_incluyen_iva,
-            total_cobrado: editArreglo.total_cobrado,
-            es_facturable: editArreglo.es_facturable,
-                observaciones: editArreglo.observaciones,
-                descripcion: editArreglo.descripcion,
-                esta_pago: editArreglo.esta_pago,
-                extra_data: editArreglo.extra_data,
-              }
-              : undefined
-          }
+          initial={editArreglo}
           onClose={handleCloseModal}
         />
       )}
