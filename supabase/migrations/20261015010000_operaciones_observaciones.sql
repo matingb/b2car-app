@@ -47,9 +47,6 @@ BEGIN
   IF p_taller_id IS NULL THEN
     RAISE EXCEPTION 'taller_id es requerido para operaciones de stock' USING ERRCODE = '22023';
   END IF;
-  IF v_tipo IN ('COMPRA', 'VENTA') AND p_cuenta_id IS NULL THEN
-    RAISE EXCEPTION 'cuenta financiera requerida para compras y ventas' USING ERRCODE = '22023';
-  END IF;
   IF p_cuenta_id IS NOT NULL THEN
     PERFORM public._finanzas_exigir_cuenta(p_cuenta_id, v_tenant_id, true);
   END IF;
@@ -102,6 +99,10 @@ BEGIN
     );
     v_importe := v_importe + (v_cantidad * v_monto_unitario);
   END LOOP;
+  IF v_tipo IN ('COMPRA', 'VENTA') AND v_importe > 0 AND p_cuenta_id IS NULL THEN
+    RAISE EXCEPTION 'CUENTA_FINANCIERA_REQUERIDA: cuenta financiera requerida para compras y ventas con importe > 0'
+      USING ERRCODE = '22023';
+  END IF;
   IF p_cuenta_id IS NOT NULL AND v_importe <> 0 AND v_tipo IN ('COMPRA', 'VENTA') THEN
     PERFORM public._ledger_insertar(
       v_operacion_id,
@@ -115,11 +116,8 @@ BEGIN
 END;
 $function$;
 
-GRANT EXECUTE ON FUNCTION public.rpc_crear_operacion_con_stock(text, uuid, jsonb, uuid, timestamp with time zone, uuid, uuid, text) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rpc_crear_operacion_con_stock(text, uuid, jsonb, uuid, timestamp with time zone, uuid, uuid, text) TO service_role;
-REVOKE ALL ON FUNCTION public.rpc_crear_operacion_con_stock(text, uuid, jsonb, uuid, timestamp with time zone, uuid, uuid, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.rpc_crear_operacion_con_stock(text, uuid, jsonb, uuid, timestamp with time zone, uuid, uuid, text) FROM postgres;
-GRANT EXECUTE ON FUNCTION public.rpc_crear_operacion_con_stock(text, uuid, jsonb, uuid, timestamp with time zone, uuid, uuid, text) TO postgres;
+REVOKE ALL ON FUNCTION public.rpc_crear_operacion_con_stock(text, uuid, jsonb, uuid, timestamp with time zone, uuid, uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.rpc_crear_operacion_con_stock(text, uuid, jsonb, uuid, timestamp with time zone, uuid, uuid, text) TO authenticated, service_role;
 
 -- 4. Actualizar rpc_actualizar_operacion_con_stock
 CREATE OR REPLACE FUNCTION public.rpc_actualizar_operacion_con_stock (
@@ -156,11 +154,8 @@ BEGIN
 END;
 $function$;
 
-GRANT EXECUTE ON FUNCTION public.rpc_actualizar_operacion_con_stock(uuid, text, uuid, jsonb, timestamp with time zone, uuid, uuid, text) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rpc_actualizar_operacion_con_stock(uuid, text, uuid, jsonb, timestamp with time zone, uuid, uuid, text) TO service_role;
-REVOKE ALL ON FUNCTION public.rpc_actualizar_operacion_con_stock(uuid, text, uuid, jsonb, timestamp with time zone, uuid, uuid, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.rpc_actualizar_operacion_con_stock(uuid, text, uuid, jsonb, timestamp with time zone, uuid, uuid, text) FROM postgres;
-GRANT EXECUTE ON FUNCTION public.rpc_actualizar_operacion_con_stock(uuid, text, uuid, jsonb, timestamp with time zone, uuid, uuid, text) TO postgres;
+REVOKE ALL ON FUNCTION public.rpc_actualizar_operacion_con_stock(uuid, text, uuid, jsonb, timestamp with time zone, uuid, uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.rpc_actualizar_operacion_con_stock(uuid, text, uuid, jsonb, timestamp with time zone, uuid, uuid, text) TO authenticated, service_role;
 
 -- 5. Actualizar rpc_crear_movimiento_cuenta
 CREATE OR REPLACE FUNCTION public.rpc_crear_movimiento_cuenta (
@@ -247,11 +242,8 @@ BEGIN
 END;
 $function$;
 
-GRANT EXECUTE ON FUNCTION public.rpc_crear_movimiento_cuenta(text, numeric, text, text, uuid, uuid, uuid, timestamp with time zone, uuid, uuid, text) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rpc_crear_movimiento_cuenta(text, numeric, text, text, uuid, uuid, uuid, timestamp with time zone, uuid, uuid, text) TO service_role;
-REVOKE ALL ON FUNCTION public.rpc_crear_movimiento_cuenta(text, numeric, text, text, uuid, uuid, uuid, timestamp with time zone, uuid, uuid, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.rpc_crear_movimiento_cuenta(text, numeric, text, text, uuid, uuid, uuid, timestamp with time zone, uuid, uuid, text) FROM postgres;
-GRANT EXECUTE ON FUNCTION public.rpc_crear_movimiento_cuenta(text, numeric, text, text, uuid, uuid, uuid, timestamp with time zone, uuid, uuid, text) TO postgres;
+REVOKE ALL ON FUNCTION public.rpc_crear_movimiento_cuenta(text, numeric, text, text, uuid, uuid, uuid, timestamp with time zone, uuid, uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.rpc_crear_movimiento_cuenta(text, numeric, text, text, uuid, uuid, uuid, timestamp with time zone, uuid, uuid, text) TO authenticated, service_role;
 
 -- 6. Actualizar rpc_actualizar_movimiento_cuenta
 CREATE OR REPLACE FUNCTION public.rpc_actualizar_movimiento_cuenta (
@@ -310,11 +302,8 @@ BEGIN
 END;
 $function$;
 
-GRANT EXECUTE ON FUNCTION public.rpc_actualizar_movimiento_cuenta(uuid, numeric, text, text, uuid, uuid, uuid, timestamp with time zone, uuid, uuid, text) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rpc_actualizar_movimiento_cuenta(uuid, numeric, text, text, uuid, uuid, uuid, timestamp with time zone, uuid, uuid, text) TO service_role;
-REVOKE ALL ON FUNCTION public.rpc_actualizar_movimiento_cuenta(uuid, numeric, text, text, uuid, uuid, uuid, timestamp with time zone, uuid, uuid, text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.rpc_actualizar_movimiento_cuenta(uuid, numeric, text, text, uuid, uuid, uuid, timestamp with time zone, uuid, uuid, text) FROM postgres;
-GRANT EXECUTE ON FUNCTION public.rpc_actualizar_movimiento_cuenta(uuid, numeric, text, text, uuid, uuid, uuid, timestamp with time zone, uuid, uuid, text) TO postgres;
+REVOKE ALL ON FUNCTION public.rpc_actualizar_movimiento_cuenta(uuid, numeric, text, text, uuid, uuid, uuid, timestamp with time zone, uuid, uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.rpc_actualizar_movimiento_cuenta(uuid, numeric, text, text, uuid, uuid, uuid, timestamp with time zone, uuid, uuid, text) TO authenticated, service_role;
 
 -- 7. Actualizar rpc_listar_operaciones_con_gastos
 CREATE OR REPLACE FUNCTION public.rpc_listar_operaciones_con_gastos (

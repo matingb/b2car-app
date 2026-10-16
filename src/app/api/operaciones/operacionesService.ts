@@ -289,7 +289,8 @@ export const operacionesService = {
 			p_fecha: fecha,
 			p_cuenta_id: cuentaFinancieraId,
 			p_idempotency_key: input.idempotency_key ?? null,
-			p_observaciones: input.observaciones !== undefined ? input.observaciones : null,
+			// La RPC conserva la observación con NULL y la borra con texto vacío.
+			p_observaciones: input.observaciones === undefined ? null : input.observaciones ?? "",
 		});
 		if (rpcError || !updatedId) {
 			logger.error("[operacionesService.update] Error en rpc_actualizar_operacion_con_stock:", rpcError);
