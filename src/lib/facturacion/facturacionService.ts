@@ -1358,21 +1358,9 @@ async function issueSourceFactura(
   validateFechas(concepto, input.fechas);
   const fiscal = fiscalizeLineas(source.lineas, config.condicionIvaEmisor, source.preciosIncluyenIva, source.tasaIvaComercial ?? 0.21);
   validateLineasYTotal(fiscal.lineas.map((line) => ({ ...line, subtotal: line.importeTotal! })), source.total);
-  const receiver =
-    source.receptor.clienteId && source.receptor.tipoDocumento !== 99
-      ? {
-          ...source.receptor,
-          // Si ARCA no pudo determinar la condición vigente, se admite la
-          // selección puntual del usuario para este comprobante; no se guarda
-          // en la ficha del cliente.
-          ...(source.receptor.condicionIvaReceptorId === null
-            ? {
-                condicionIvaReceptorId:
-                  input.receptor.condicionIvaReceptorId,
-              }
-            : {}),
-        }
-      : { ...source.receptor, ...input.receptor };
+  // La ficha precarga el formulario; la identificación fiscal elegida para
+  // este comprobante prevalece y se valida sin modificar al cliente asociado.
+  const receiver = { ...source.receptor, ...input.receptor };
   const document = validateDocument(receiver.tipoDocumento, receiver.numeroDocumento);
   if (document.tipoDocumento === 99 && fiscal.totales.total >= await identificationThreshold(input.fechas.fechaComprobante)) {
     throw new FacturacionValidationError("Por el monto del comprobante debe identificar al consumidor final");

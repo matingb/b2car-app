@@ -72,7 +72,7 @@ function mockBillingDatabase(threshold = 1000) {
     return { data: true, error: null };
   });
   vi.mocked(createClient).mockResolvedValue({ from, rpc } as never);
-  return { invoices, from, rpc };
+  return { invoices, from, rpc, tables };
 }
 
 describe("emisión a consumidor final sin identificar", () => {
@@ -83,7 +83,7 @@ describe("emisión a consumidor final sin identificar", () => {
     getVoucherTypes: vi.fn().mockResolvedValue([]),
     getSalesPoints: vi.fn().mockResolvedValue([]),
     getServerStatus: vi.fn().mockResolvedValue({}),
-    getFceMipymeRequirement: vi.fn(),
+    getFceMipymeRequirement: vi.fn().mockResolvedValue({ obligado: false, montoDesde: null }),
   };
   let input: FacturaIssueInput;
 
@@ -137,7 +137,7 @@ describe("emisión a consumidor final sin identificar", () => {
 
   it.each(["ARREGLO", "VENTA"] as const)("%s: conserva el perfil fiscal del cliente al emitir identificado", async (origin) => {
     const { invoices } = mockBillingDatabase();
-    input.receptor = { tipoDocumento: 96, numeroDocumento: "12345678", condicionIvaReceptorId: 5 };
+    input.receptor = { tipoDocumento: 86, numeroDocumento: "20123456786", condicionIvaReceptorId: 5 };
     vi.mocked(lookupArcaPadronPerson).mockResolvedValue({
       status: "FOUND",
       person: {
@@ -159,5 +159,60 @@ describe("emisión a consumidor final sin identificar", () => {
     });
     expect(lookupArcaPadronPerson).toHaveBeenCalledWith(96, "12345678");
     expect(gateway.createVoucher).toHaveBeenCalledWith(expect.objectContaining({ DocTipo: 86, DocNro: 20123456786 }));
+  });
+
+  it.each(["ARREGLO", "VENTA"] as const)("%s: emite y persiste el CUIT y la condición IVA ingresados aunque difieran del cliente", async (origin) => {
+    const { invoices, from, tables } = mockBillingDatabase();
+    tables.facturacion_configuracion_ambiente[0].condicion_iva_emisor = "RESPONSABLE_INSCRIPTO";
+    input.receptor = { tipoDocumento: 80, numeroDocumento: "30-71234567-1", condicionIvaReceptorId: 1 };
+    vi.mocked(lookupArcaPadronPerson).mockResolvedValue({
+      status: "FOUND",
+      person: {
+        cuit: "20123456786", tipoPersona: "FISICA", estadoClave: "ACTIVO",
+        nombre: "Juan", apellido: "Pérez", razonSocial: null,
+        nombreCompleto: "Juan Pérez", direccion: "Domicilio fiscal",
+      },
+    });
+    vi.mocked(lookupArcaInscriptionVatCondition).mockResolvedValue({
+      status: "FOUND", condition: { cuit: "20123456786", condicionIvaReceptorId: 5, condicionIvaLabel: "Consumidor final" },
+    });
+
+    const result = await issue[origin](actor, "source", input);
+
+    expect(result).toMatchObject({ httpStatus: 201, invoice: { receptorDocumento: "30712345671", claseComprobante: "A" } });
+    expect(invoices[0].receptor_snapshot).toMatchObject({
+      clienteId: "client", tipoDocumento: 80, numeroDocumento: "30712345671", condicionIvaReceptorId: 1,
+    });
+    expect(gateway.createVoucher).toHaveBeenCalledWith(expect.objectContaining({
+      DocTipo: 80, DocNro: 30712345671, CondicionIVAReceptorId: 1, CbteTipo: 1,
+    }));
+    expect(gateway.getFceMipymeRequirement).toHaveBeenCalledWith("30712345671", input.fechas.fechaComprobante);
+    for (const [index, [table]] of from.mock.calls.entries()) {
+      if (table === "clientes" || table === "particulares") {
+        const query = from.mock.results[index].value;
+        expect(query.update).not.toHaveBeenCalled();
+      }
+    }
+  });
+
+  it.each(["ARREGLO", "VENTA"] as const)("%s: rechaza el CUIT ingresado inválido sin reemplazarlo por el del cliente", async (origin) => {
+    const { rpc } = mockBillingDatabase();
+    input.receptor = { tipoDocumento: 80, numeroDocumento: "30712345670", condicionIvaReceptorId: 1 };
+    vi.mocked(lookupArcaPadronPerson).mockResolvedValue({
+      status: "FOUND",
+      person: {
+        cuit: "20123456786", tipoPersona: "FISICA", estadoClave: "ACTIVO",
+        nombre: "Juan", apellido: "Pérez", razonSocial: null,
+        nombreCompleto: "Juan Pérez", direccion: "Domicilio fiscal",
+      },
+    });
+    vi.mocked(lookupArcaInscriptionVatCondition).mockResolvedValue({
+      status: "FOUND", condition: { cuit: "20123456786", condicionIvaReceptorId: 5, condicionIvaLabel: "Consumidor final" },
+    });
+
+    await expect(issue[origin](actor, "source", input)).rejects.toThrow("El CUIT o CUIL no es válido");
+
+    expect(rpc).not.toHaveBeenCalled();
+    expect(gateway.createVoucher).not.toHaveBeenCalled();
   });
 });
