@@ -261,27 +261,21 @@ export function buildArregloPrintableInvoiceHtml({
       font-weight: 800;
       padding: 2px 0;
     }
-    .parts-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      min-height: 190px;
-      border-bottom: 2px solid #222;
-    }
-    .parts-grid > div:first-child {
-      border-right: 2px solid #222;
+    .parts-block {
+      border-bottom: 1px solid #222;
     }
     .parts-table .desc { width: auto; }
-    .parts-table .qty { width: 44px; text-align: right; }
+    .parts-table .qty { width: 56px; text-align: right; }
     .parts-table .unit,
-    .parts-table .subtotal { width: 76px; text-align: right; }
+    .parts-table .subtotal { width: 96px; text-align: right; }
     .parts-subtotal {
       display: grid;
-      grid-template-columns: 1fr 90px;
+      grid-template-columns: 1fr 96px;
       border-bottom: 2px solid #222;
       font-weight: 800;
     }
     .parts-subtotal div {
-      padding: 3px 6px;
+      padding: 2px 4px;
       text-align: right;
       border-right: 1px solid #222;
     }
@@ -361,19 +355,18 @@ export function buildArregloPrintableInvoiceHtml({
       </div>
 
       <div class="parts-title">Repuestos</div>
-      <div class="parts-grid">
-        <div>${renderPartsTable(repuestoLines.slice(0, Math.ceil(repuestoLines.length / 2)))}</div>
-        <div>${renderPartsTable(repuestoLines.slice(Math.ceil(repuestoLines.length / 2)))}</div>
+      <div class="parts-block">
+        ${renderPartsTable(repuestoLines)}
       </div>
       <div class="parts-subtotal">
         <div>Subtotal</div>
         <div class="money">${formatMoney(subtotalRepuestos)}</div>
       </div>
 
-      <div class="observations-row">
-        <div class="observations-label">Observaciones: ${escapeHtml(cliente?.nombre || "")}</div>
-        <div class="observations-text">${escapeHtml(arreglo.observaciones || "")}</div>
-      </div>
+      ${arreglo.observaciones ? `<div class="observations-row">
+        <div class="observations-label">Observaciones:</div>
+        <div class="observations-text">${escapeHtml(arreglo.observaciones)}</div>
+      </div>` : ""}
     </section>
 
     <div class="bottom-totals">
@@ -477,7 +470,7 @@ function renderWorkTable(lines: InvoiceLine[], subtotal: number): string {
   );
 
   while (rows.length < 7) {
-    rows.push(`<tr><td class="desc">&nbsp;</td><td class="hours"></td><td class="subtotal">${formatMoney(0)}</td></tr>`);
+    rows.push(`<tr><td class="desc">&nbsp;</td><td class="hours"></td><td class="subtotal"></td></tr>`);
   }
 
   return `<table class="work-table">
@@ -509,7 +502,7 @@ function renderPartsTable(lines: InvoiceLine[]): string {
   );
 
   while (rows.length < minRows) {
-    rows.push(`<tr><td class="desc">&nbsp;</td><td class="qty"></td><td class="unit">$</td><td class="subtotal">-</td></tr>`);
+    rows.push(`<tr><td class="desc">&nbsp;</td><td class="qty"></td><td class="unit"></td><td class="subtotal"></td></tr>`);
   }
 
   return `<table class="parts-table">
