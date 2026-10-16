@@ -369,6 +369,15 @@ CREATE OR REPLACE FUNCTION public.rpc_listar_operaciones_con_gastos (
       CASE
         WHEN o.tipo = 'ASIGNACION_ARREGLO' AND v.id IS NOT NULL THEN
           'Asignación · ' || TRIM(v.marca || ' ' || v.modelo) || ' (' || v.patente || ')'
+        WHEN EXISTS (SELECT 1 FROM public.facturacion_nc_devoluciones d WHERE d.operacion_ajuste_id = o.id) THEN
+          'Devolución por NC · ' || COALESCE((
+            SELECT 'NC ' || COALESCE(n.numero_comprobante::text, n.id::text)
+              || ' · Factura ' || COALESCE(f.numero_comprobante::text, f.id::text)
+            FROM public.facturacion_nc_devoluciones d
+            JOIN public.facturas_electronicas n ON n.id = d.nota_credito_id
+            JOIN public.facturas_electronicas f ON f.id = n.documento_asociado_id
+            WHERE d.operacion_ajuste_id = o.id LIMIT 1
+          ), '')
         ELSE omc.descripcion
       END AS descripcion,
       omc.categoria_gasto,
