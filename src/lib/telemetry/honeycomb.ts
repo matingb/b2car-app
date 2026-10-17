@@ -1,8 +1,78 @@
-import { trace, SpanStatusCode } from "@opentelemetry/api";
-import type { TelemetryProvider, TelemetryIdentity, TelemetryUser, TelemetryContext } from "./types";
+import { trace, SpanStatusCode, type Context } from "@opentelemetry/api";
+import type { SpanProcessor, ReadableSpan, Span } from "@opentelemetry/sdk-trace-base";
+import type {
+  TelemetryProvider,
+  TelemetryIdentity,
+  TelemetryUser,
+  TelemetryContext,
+  TelemetryAttributes,
+} from "./types";
+import { traceAttributeStore, TraceAttributeStore } from "./store";
+
+export { traceAttributeStore, TraceAttributeStore };
 
 let clientInitialized = false;
 let serverInitialized = false;
+
+export class RootEnrichmentSpanProcessor implements SpanProcessor {
+  constructor(private store: TraceAttributeStore = traceAttributeStore) {}
+
+  onStart(span: Span, _parentContext: Context): void {
+    const traceId = span.spanContext().traceId;
+    const attrs = this.store.get(traceId);
+    if (attrs) {
+      for (const [k, v] of Object.entries(attrs)) {
+        span.setAttribute(k, v);
+      }
+    }
+  }
+
+  onEnd(span: ReadableSpan): void {
+    const traceId = span.spanContext().traceId;
+    const attrs = this.store.get(traceId);
+    if (!attrs) return;
+
+    const isRoot = !span.parentSpanContext || (span.parentSpanContext as { isRemote?: boolean }).isRemote;
+    if (isRoot) {
+      const mutableSpan = span as unknown as { attributes: Record<string, unknown> };
+      if (mutableSpan.attributes) {
+        for (const [k, v] of Object.entries(attrs)) {
+          if (mutableSpan.attributes[k] === undefined) {
+            mutableSpan.attributes[k] = v;
+          }
+        }
+      }
+      this.store.delete(traceId);
+    }
+  }
+
+  shutdown(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  forceFlush(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+/**
+ * Genera el mapa de atributos estándar a partir de una identidad.
+ */
+function buildTelemetryAttributes(identity: TelemetryIdentity): TelemetryAttributes {
+  const attrs: TelemetryAttributes = {
+    "user.id": identity.user.id,
+  };
+  if (identity.user.email) attrs["user.email"] = String(identity.user.email);
+  if (identity.user.role) attrs["user.role"] = String(identity.user.role);
+  if (identity.user.name) attrs["user.name"] = String(identity.user.name);
+
+  if (identity.account) {
+    attrs["tenant.id"] = String(identity.account.id);
+    if (identity.account.name) attrs["tenant.name"] = String(identity.account.name);
+    if (identity.account.plan) attrs["tenant.plan"] = String(identity.account.plan);
+  }
+  return attrs;
+}
 
 /**
  * Inicializa Honeycomb Web SDK en el navegador (Frontend).
@@ -58,6 +128,8 @@ export async function initHoneycombServer(): Promise<void> {
         : undefined,
     });
 
+    const rootProcessor = new RootEnrichmentSpanProcessor(traceAttributeStore);
+
     const sdk = new NodeSDK({
       serviceName,
       resource: resourceFromAttributes({
@@ -65,10 +137,24 @@ export async function initHoneycombServer(): Promise<void> {
         "deployment.environment": environment,
       }),
       traceExporter,
+      spanProcessors: [rootProcessor],
       instrumentations: [
         getNodeAutoInstrumentations({
           "@opentelemetry/instrumentation-fs": {
             enabled: false,
+          },
+          "@opentelemetry/instrumentation-http": {
+            requestHook: (span, request) => {
+              try {
+                const incomingReq = request as import("http").IncomingMessage;
+                const url = incomingReq.url || "";
+                if (url.startsWith("/api/")) {
+                  span.setAttribute("api.route", url.split("?")[0]);
+                }
+              } catch {
+                // Silencioso
+              }
+            },
           },
         }),
       ],
@@ -121,25 +207,17 @@ export const honeycombProvider: TelemetryProvider = {
   initClient: initHoneycombClient,
   initServer: initHoneycombServer,
 
-  identify({ user, account }: TelemetryIdentity): void {
+  identify(identity: TelemetryIdentity, attributes?: TelemetryAttributes): void {
     try {
+      const attrs = attributes ?? buildTelemetryAttributes(identity);
       const span = trace.getActiveSpan();
       if (span) {
-        span.setAttribute("user.id", user.id);
-        if (user.role) span.setAttribute("user.role", String(user.role));
-        if (user.email) span.setAttribute("user.email", String(user.email));
-
-        if (account) {
-          span.setAttribute("account.id", account.id);
-          span.setAttribute("tenant_id", account.id);
-          if (account.name) {
-            span.setAttribute("account.name", String(account.name));
-            span.setAttribute("tenant_name", String(account.name));
-          }
-          if (account.plan) {
-            span.setAttribute("account.plan", String(account.plan));
-            span.setAttribute("plan_sub", String(account.plan));
-          }
+        const traceId = span.spanContext?.()?.traceId;
+        if (traceId) {
+          traceAttributeStore.set(traceId, attrs);
+        }
+        for (const [key, value] of Object.entries(attrs)) {
+          span.setAttribute(key, value);
         }
       }
     } catch {}

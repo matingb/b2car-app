@@ -1,5 +1,5 @@
 import { datadogRum } from "@datadog/browser-rum";
-import type { TelemetryProvider, TelemetryIdentity, TelemetryUser, TelemetryContext } from "./types";
+import type { TelemetryProvider, TelemetryIdentity, TelemetryUser, TelemetryContext, TelemetryAttributes } from "./types";
 import { compact } from "./identity";
 
 interface DatadogSpanLike {
@@ -107,7 +107,7 @@ export const datadogProvider: TelemetryProvider = {
   initClient: initDatadogClient,
   initServer: initDatadogServer,
 
-  identify({ user, account }: TelemetryIdentity): void {
+  identify({ user, account }: TelemetryIdentity, attributes?: TelemetryAttributes): void {
     if (typeof window !== "undefined") {
       try {
         datadogRum.setUser(compact(user));

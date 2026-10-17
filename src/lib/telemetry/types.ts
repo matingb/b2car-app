@@ -24,6 +24,8 @@ export interface TelemetryUser {
   [key: string]: unknown;
 }
 
+export type TelemetryAttributes = Record<string, string | number | boolean>;
+
 export interface TelemetryContext {
   [key: string]: unknown;
 }
@@ -32,7 +34,7 @@ export interface TelemetryProvider {
   readonly name: string;
   initClient?: () => unknown | Promise<unknown>;
   initServer?: () => unknown | Promise<unknown>;
-  identify?: (identity: TelemetryIdentity) => void;
+  identify?: (identity: TelemetryIdentity, attributes?: TelemetryAttributes) => void;
   setUser?: (user: TelemetryUser) => void;
 
   /**

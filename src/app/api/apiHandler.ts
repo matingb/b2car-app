@@ -8,6 +8,7 @@ import { generateUuidV4 } from "@/lib/uuid";
 import { buildApiContext, type ApiContext } from "./apiContext";
 import { assertPermission } from "./apiAccess";
 import { apiErrorResponse, type DbErrorOptions, type MappedApiError } from "./apiError";
+import { telemetry } from "@/lib/telemetry";
 
 export type ApiHandlerOptions = {
   route: string;
@@ -54,10 +55,15 @@ export function createApiHandler(
 
     try {
       context = await buildApiContext();
+      telemetry.identify({
+        user: { id: context.actor.userId, role: context.actor.role },
+        account: { id: context.actor.tenantId, plan: context.actor.plan },
+      });
       if (options.permission) await assertPermission(context, options.permission);
       const params = await segment.params;
       response = await controller({ ...context, req, params, requestId, log, fail });
     } catch (error) {
+      telemetry.recordException(error, { route: options.route, requestId });
       response = fail(error);
     } finally {
       log.debug("Request completado", {

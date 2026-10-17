@@ -83,7 +83,7 @@ describe("telemetry unified wrapper", () => {
   });
 
   describe("setUser", () => {
-    it("mapea los datos a Datadog RUM y Honeycomb/OTel active span", () => {
+    it("dado un operador, al iniciar sesión, se asocian todas las trazas y métricas al taller y a su plan comercial", () => {
       const mockSpan = {
         setAttribute: vi.fn(),
         setAttributes: vi.fn(),
@@ -109,13 +109,13 @@ describe("telemetry unified wrapper", () => {
 
       // Honeycomb / OTel Span
       expect(mockSpan.setAttribute).toHaveBeenCalledWith("user.id", "usr-123");
-      expect(mockSpan.setAttribute).toHaveBeenCalledWith("tenant_id", "tenant-456");
-      expect(mockSpan.setAttribute).toHaveBeenCalledWith("tenant_name", "Taller Matias");
-      expect(mockSpan.setAttribute).toHaveBeenCalledWith("plan_sub", "PRO");
       expect(mockSpan.setAttribute).toHaveBeenCalledWith("user.email", "matias@example.com");
+      expect(mockSpan.setAttribute).toHaveBeenCalledWith("tenant.id", "tenant-456");
+      expect(mockSpan.setAttribute).toHaveBeenCalledWith("tenant.name", "Taller Matias");
+      expect(mockSpan.setAttribute).toHaveBeenCalledWith("tenant.plan", "PRO");
     });
 
-    it("no hace nada si user es nulo o no tiene id", () => {
+    it("dado un usuario anónimo o sin identificador, no asocia datos de taller ni usuario", () => {
       // @ts-expect-error testing invalid payload
       telemetry.setUser(null);
       expect(datadogRum.setUser).not.toHaveBeenCalled();
@@ -123,7 +123,7 @@ describe("telemetry unified wrapper", () => {
   });
 
   describe("identify", () => {
-    it("asocia user y account en Datadog RUM y OpenTelemetry", () => {
+    it("dado un operador con rol y taller definido, al identificarse, asocia el contexto completo del taller a la traza activa", () => {
       const mockSpan = {
         setAttribute: vi.fn(),
       };
@@ -148,16 +148,14 @@ describe("telemetry unified wrapper", () => {
       expect(mockSpan.setAttribute).toHaveBeenCalledWith("user.id", "u-1");
       expect(mockSpan.setAttribute).toHaveBeenCalledWith("user.role", "admin");
       expect(mockSpan.setAttribute).toHaveBeenCalledWith("user.email", "admin@test.com");
-      expect(mockSpan.setAttribute).toHaveBeenCalledWith("account.id", "t-1");
-      expect(mockSpan.setAttribute).toHaveBeenCalledWith("tenant_id", "t-1");
-      expect(mockSpan.setAttribute).toHaveBeenCalledWith("account.name", "Taller Alfa");
-      expect(mockSpan.setAttribute).toHaveBeenCalledWith("tenant_name", "Taller Alfa");
-      expect(mockSpan.setAttribute).toHaveBeenCalledWith("account.plan", "PRO");
+      expect(mockSpan.setAttribute).toHaveBeenCalledWith("tenant.id", "t-1");
+      expect(mockSpan.setAttribute).toHaveBeenCalledWith("tenant.name", "Taller Alfa");
+      expect(mockSpan.setAttribute).toHaveBeenCalledWith("tenant.plan", "PRO");
     });
   });
 
   describe("identityFromClaims", () => {
-    it("extrae identidad estructurada separando user y account", async () => {
+    it("dadas las credenciales en el token de sesión, extrae el rol del operador y los datos del taller", async () => {
       const { identityFromClaims } = await import("./telemetry");
       const identity = identityFromClaims({
         sub: "user-uuid",
@@ -182,7 +180,7 @@ describe("telemetry unified wrapper", () => {
       });
     });
 
-    it("retorna null si claims no tiene sub", async () => {
+    it("dadas credenciales sin usuario, no genera contexto de identidad", async () => {
       const { identityFromClaims } = await import("./telemetry");
       expect(identityFromClaims(null)).toBeNull();
       expect(identityFromClaims({})).toBeNull();
@@ -190,7 +188,7 @@ describe("telemetry unified wrapper", () => {
   });
 
   describe("clearUser", () => {
-    it("limpia el usuario y la cuenta en Datadog RUM", () => {
+    it("dado un operador, al cerrar sesión, se desvincula al usuario y al taller", () => {
       telemetry.clearUser();
       expect(datadogRum.clearUser).toHaveBeenCalled();
       expect(datadogRum.clearAccount).toHaveBeenCalled();
@@ -198,7 +196,7 @@ describe("telemetry unified wrapper", () => {
   });
 
   describe("trackAction", () => {
-    it("envía la acción a Datadog RUM y como evento al span de OpenTelemetry", () => {
+    it("dada una acción comercial como emitir una factura, registra el evento con su contexto en la traza activa", () => {
       const mockSpan = {
         addEvent: vi.fn(),
       };
@@ -212,7 +210,7 @@ describe("telemetry unified wrapper", () => {
   });
 
   describe("recordException", () => {
-    it("registra la excepción en Datadog RUM y OpenTelemetry con status ERROR", () => {
+    it("dada una falla en una operación del taller, reporta el incidente marcando la traza con error y su contexto", () => {
       const mockSpan = {
         recordException: vi.fn(),
         setStatus: vi.fn(),
@@ -234,7 +232,7 @@ describe("telemetry unified wrapper", () => {
   });
 
   describe("logger integration", () => {
-    it("logger.error reenvía automáticamente el error y contexto a telemetry", () => {
+    it("dado un error registrado en el log del sistema, lo propaga automáticamente a telemetría", () => {
       const mockSpan = {
         recordException: vi.fn(),
         setStatus: vi.fn(),
@@ -251,6 +249,79 @@ describe("telemetry unified wrapper", () => {
         code: SpanStatusCode.ERROR,
         message: "DB Connection Timeout",
       });
+    });
+  });
+
+  describe("Generic Trace Attribute Store and Root Enrichment", () => {
+    it("dado un operador identificado en el sistema, registra automáticamente el taller y usuario en el contexto de la traza activa", async () => {
+      const { traceAttributeStore } = await import("./telemetry/store");
+      const mockSpan = {
+        spanContext: () => ({ traceId: "trace-identify-1", spanId: "span-id-1" }),
+        setAttribute: vi.fn(),
+      };
+      vi.mocked(trace.getActiveSpan).mockReturnValue(mockSpan as unknown as ReturnType<typeof trace.getActiveSpan>);
+
+      telemetry.identify({
+        user: { id: "u-active", email: "active@b2car.com" },
+        account: { id: "t-active", name: "Taller Activo", plan: "PRO" },
+      });
+
+      expect(traceAttributeStore.get("trace-identify-1")).toEqual({
+        "user.id": "u-active",
+        "user.email": "active@b2car.com",
+        "tenant.id": "t-active",
+        "tenant.name": "Taller Activo",
+        "tenant.plan": "PRO",
+      });
+
+      traceAttributeStore.delete("trace-identify-1");
+    });
+
+    it("dada una operación en la plataforma, al finalizar la solicitud, asegura que la traza principal contenga el taller y el plan para permitir análisis y filtros globales", async () => {
+      const { TraceAttributeStore, RootEnrichmentSpanProcessor } = await import("./telemetry/honeycomb");
+      const store = new TraceAttributeStore(60_000);
+      const processor = new RootEnrichmentSpanProcessor(store);
+
+      store.set("trace-root-1", {
+        "tenant.id": "t-100",
+        "tenant.name": "Taller Central",
+        "tenant.plan": "PRO",
+      });
+
+      const rootSpan = {
+        spanContext: () => ({ traceId: "trace-root-1", spanId: "span-1" }),
+        parentSpanContext: undefined,
+        attributes: { "http.method": "GET" } as Record<string, unknown>,
+      };
+
+      // @ts-expect-error readable span mock
+      processor.onEnd(rootSpan);
+
+      expect(rootSpan.attributes["tenant.id"]).toBe("t-100");
+      expect(rootSpan.attributes["tenant.name"]).toBe("Taller Central");
+      expect(rootSpan.attributes["tenant.plan"]).toBe("PRO");
+      expect(rootSpan.attributes["http.method"]).toBe("GET");
+
+      // La memoria del trace se libera tras finalizar el root
+      expect(store.get("trace-root-1")).toBeUndefined();
+    });
+
+    it("dada una operación en curso, cuando se inician tareas secundarias, propaga el contexto a todas las subtareas", async () => {
+      const { TraceAttributeStore, RootEnrichmentSpanProcessor } = await import("./telemetry/honeycomb");
+      const store = new TraceAttributeStore(60_000);
+      const processor = new RootEnrichmentSpanProcessor(store);
+
+      store.set("trace-child-1", { "tenant.id": "t-child" });
+
+      const childSpan = {
+        spanContext: () => ({ traceId: "trace-child-1", spanId: "child-span-1" }),
+        setAttribute: vi.fn(),
+      };
+
+      // @ts-expect-error span mock
+      processor.onStart(childSpan, {} as never);
+
+      expect(childSpan.setAttribute).toHaveBeenCalledWith("tenant.id", "t-child");
     });
   });
 });
