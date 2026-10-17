@@ -31,13 +31,18 @@ export function applyGranularity<T extends { label: string }>(
     return groupByCalendarWeek(data, periodFrom, merge);
 }
 
+function getPeriodYearMonth(periodFrom: string): { year: number; month: number } {
+    const mid = new Date(new Date(periodFrom).getTime() + 15 * 86400000);
+    return { year: mid.getUTCFullYear(), month: mid.getUTCMonth() };
+}
+
 function groupByMonth<T extends { label: string }>(
     data: T[],
     periodFrom: string,
     merge: (label: string, items: T[]) => T,
 ): T[] {
-    const from = new Date(periodFrom);
-    const label = `${MONTH_NAMES_SHORT_ES[from.getUTCMonth()]} ${from.getUTCFullYear()}`;
+    const { year, month } = getPeriodYearMonth(periodFrom);
+    const label = `${MONTH_NAMES_SHORT_ES[month]} ${year}`;
     return [merge(label, data)];
 }
 
@@ -46,7 +51,7 @@ function groupByCalendarWeek<T extends { label: string }>(
     periodFrom: string,
     merge: (label: string, items: T[]) => T,
 ): T[] {
-    const from = new Date(periodFrom);
+    const { year, month } = getPeriodYearMonth(periodFrom);
 
     type Bucket = { weekStart: Date; label: string; items: T[] };
     const buckets = new Map<string, Bucket>();
@@ -55,7 +60,7 @@ function groupByCalendarWeek<T extends { label: string }>(
         const day = parseInt(item.label, 10);
         if (isNaN(day)) continue;
 
-        const date = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), day));
+        const date = new Date(Date.UTC(year, month, day));
         const dow = date.getUTCDay();
         const toMonday = dow === 0 ? -6 : 1 - dow;
         const monday = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + toMonday));

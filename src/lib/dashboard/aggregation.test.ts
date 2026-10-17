@@ -34,4 +34,19 @@ describe("applyGranularity", () => {
             { label: "Jun 2026", cantidad: 10 },
         ]);
     });
+
+    it("dado un período que inicia a las 23:00 del mes previo por huso horario, al agrupar con GMT-3, resuelve en el mes siguiente", () => {
+        const octFrom = "2026-09-30T23:00:00.000Z";
+        const octData: Point[] = [
+            { label: "01", cantidad: 3 },
+            { label: "15", cantidad: 4 },
+        ];
+        expect(applyGranularity(octData, "month", octFrom, sumCantidad)).toEqual([
+            { label: "Oct 2026", cantidad: 7 },
+        ]);
+        expect(applyGranularity(octData, "week", octFrom, sumCantidad)).toEqual([
+            { label: "28/09 - 04/10", cantidad: 3 },
+            { label: "12/10 - 18/10", cantidad: 4 },
+        ]);
+    });
 });
