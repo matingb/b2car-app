@@ -15,10 +15,12 @@ type InvoiceLine = {
   total: number;
 };
 
-type BuildInvoiceOptions = {
+export type BuildInvoiceOptions = {
   data: ArregloDetalleData;
   tenantName?: string;
   cliente?: Cliente | null;
+  showPrices?: boolean;
+  showObservations?: boolean;
 };
 
 export function openArregloPrintableInvoice(
@@ -44,6 +46,8 @@ export function buildArregloPrintableInvoiceHtml({
   data,
   tenantName,
   cliente,
+  showPrices = true,
+  showObservations = true,
 }: BuildInvoiceOptions): string {
   const arreglo = data.arreglo;
   const vehiculo = arreglo.vehiculo;
@@ -70,7 +74,7 @@ export function buildArregloPrintableInvoiceHtml({
     ? safeNumber(arreglo.precio_sin_iva)
     : calculatedTotal;
   const ivaComercial = !preciosIncluyenIva ? total - subtotalIngresado : null;
-  const invoiceNumber = shortInvoiceNumber(arreglo.id);
+  const invoiceNumber = formatInvoiceNumber(arreglo);
   const printedAt = new Date().toLocaleString(APP_LOCALE);
 
   return `<!doctype html>
@@ -96,6 +100,9 @@ export function buildArregloPrintableInvoiceHtml({
     }
     .sheet {
       border: 2px solid #222;
+    }
+    .sheet > *:last-child {
+      border-bottom: 0 !important;
     }
     .header {
       display: grid;
@@ -248,6 +255,9 @@ export function buildArregloPrintableInvoiceHtml({
       border-top: 1px solid #222;
       font-weight: 800;
     }
+    .block-subtotal.no-prices {
+      grid-template-columns: 1fr 56px;
+    }
     .block-subtotal div {
       padding: 2px 4px;
       border-right: 1px solid #222;
@@ -263,6 +273,9 @@ export function buildArregloPrintableInvoiceHtml({
     }
     .parts-block {
       border-bottom: 1px solid #222;
+    }
+    .parts-block.no-prices {
+      border-bottom: 2px solid #222;
     }
     .parts-table .desc { width: auto; }
     .parts-table .qty { width: 56px; text-align: right; }
@@ -280,19 +293,16 @@ export function buildArregloPrintableInvoiceHtml({
       border-right: 1px solid #222;
     }
     .parts-subtotal div:last-child { border-right: 0; }
-    .observations-row {
-      border-bottom: 2px solid #222;
-      min-height: 48px;
-      display: grid;
-      grid-template-rows: 20px 1fr;
-    }
     .observations-label {
       border-bottom: 1px solid #222;
-      padding: 3px 6px;
+      padding: 4px 6px;
       font-weight: 800;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
     .observations-text {
-      padding: 4px 6px;
+      font-weight: 400;
+      white-space: pre-wrap;
     }
     .bottom-totals {
       padding: 8px 0 0;
@@ -351,29 +361,26 @@ export function buildArregloPrintableInvoiceHtml({
 
       <div class="section-title">Detalle de los trabajos</div>
       <div class="work-block">
-        ${renderWorkTable(serviceLines, subtotalServicios + subtotalCustom)}
+        ${renderWorkTable(serviceLines, subtotalServicios + subtotalCustom, showPrices)}
       </div>
 
       <div class="parts-title">Repuestos</div>
-      <div class="parts-block">
-        ${renderPartsTable(repuestoLines)}
+      <div class="parts-block${showPrices ? "" : " no-prices"}">
+        ${renderPartsTable(repuestoLines, showPrices)}
       </div>
-      <div class="parts-subtotal">
+      ${showPrices ? `<div class="parts-subtotal">
         <div>Subtotal</div>
         <div class="money">${formatMoney(subtotalRepuestos)}</div>
-      </div>
-
-      ${arreglo.observaciones ? `<div class="observations-row">
-        <div class="observations-label">Observaciones:</div>
-        <div class="observations-text">${escapeHtml(arreglo.observaciones)}</div>
       </div>` : ""}
+
+      ${showObservations && arreglo.observaciones ? `<div class="observations-label">Observaciones: <span class="observations-text">${escapeHtml(arreglo.observaciones)}</span></div>` : ""}
     </section>
 
-    <div class="bottom-totals">
+    ${showPrices ? `<div class="bottom-totals">
       ${ivaComercial === null ? "" : `<div class="total-box"><span>Subtotal</span><span class="money">${formatMoney(subtotalIngresado)}</span></div>
       <div class="total-box"><span>IVA</span><span class="money">${formatMoney(ivaComercial)}</span></div>`}
       <div class="total-box"><span>Total Gral.</span><span class="money">${formatMoney(total)}</span></div>
-    </div>
+    </div>` : ""}
     <div class="note">Documento sin validez fiscal. Generado por sistema B2Car. Fecha de impresion: ${escapeHtml(printedAt)}</div>
   </main>
 </body>
@@ -460,17 +467,25 @@ function renderField(value: string, label: string): string {
   </div>`;
 }
 
-function renderWorkTable(lines: InvoiceLine[], subtotal: number): string {
+function renderWorkTable(
+  lines: InvoiceLine[],
+  subtotal: number,
+  showPrices: boolean = true
+): string {
   const rows = lines.map(
     (line) => `<tr>
       <td class="desc">${escapeHtml(line.detail)}</td>
       <td class="hours">${escapeHtml(formatQuantity(line.quantity))}</td>
-      <td class="subtotal">${formatMoney(line.total)}</td>
+      ${showPrices ? `<td class="subtotal">${formatMoney(line.total)}</td>` : ""}
     </tr>`
   );
 
   while (rows.length < 7) {
-    rows.push(`<tr><td class="desc">&nbsp;</td><td class="hours"></td><td class="subtotal"></td></tr>`);
+    rows.push(
+      `<tr><td class="desc">&nbsp;</td><td class="hours"></td>${
+        showPrices ? `<td class="subtotal"></td>` : ""
+      }</tr>`
+    );
   }
 
   return `<table class="work-table">
@@ -478,31 +493,42 @@ function renderWorkTable(lines: InvoiceLine[], subtotal: number): string {
       <tr>
         <th class="desc">Descripción</th>
         <th class="hours">Cant.</th>
-        <th class="subtotal">Subtotal</th>
+        ${showPrices ? `<th class="subtotal">Subtotal</th>` : ""}
       </tr>
     </thead>
     <tbody>${rows.join("")}</tbody>
   </table>
-  <div class="block-subtotal">
+  <div class="block-subtotal${showPrices ? "" : " no-prices"}">
     <div>Subtotal</div>
     <div>${escapeHtml(formatQuantity(lines.reduce((acc, line) => acc + line.quantity, 0)))}</div>
-    <div>${formatMoney(subtotal)}</div>
+    ${showPrices ? `<div>${formatMoney(subtotal)}</div>` : ""}
   </div>`;
 }
 
-function renderPartsTable(lines: InvoiceLine[]): string {
+function renderPartsTable(
+  lines: InvoiceLine[],
+  showPrices: boolean = true
+): string {
   const minRows = 10;
   const rows = lines.map(
     (line) => `<tr>
       <td class="desc">${escapeHtml(line.detail)}</td>
       <td class="qty">${escapeHtml(formatQuantity(line.quantity))}</td>
-      <td class="unit">${formatMoney(line.unitPrice)}</td>
-      <td class="subtotal">${formatMoney(line.total)}</td>
+      ${
+        showPrices
+          ? `<td class="unit">${formatMoney(line.unitPrice)}</td>
+      <td class="subtotal">${formatMoney(line.total)}</td>`
+          : ""
+      }
     </tr>`
   );
 
   while (rows.length < minRows) {
-    rows.push(`<tr><td class="desc">&nbsp;</td><td class="qty"></td><td class="unit"></td><td class="subtotal"></td></tr>`);
+    rows.push(
+      `<tr><td class="desc">&nbsp;</td><td class="qty"></td>${
+        showPrices ? `<td class="unit"></td><td class="subtotal"></td>` : ""
+      }</tr>`
+    );
   }
 
   return `<table class="parts-table">
@@ -510,8 +536,12 @@ function renderPartsTable(lines: InvoiceLine[]): string {
       <tr>
         <th class="desc">Descripción</th>
         <th class="qty">Cant.</th>
-        <th class="unit">$ Unidad</th>
-        <th class="subtotal">$Subtotal</th>
+        ${
+          showPrices
+            ? `<th class="unit">$ Unidad</th>
+        <th class="subtotal">$Subtotal</th>`
+            : ""
+        }
       </tr>
     </thead>
     <tbody>${rows.join("")}</tbody>
@@ -534,10 +564,23 @@ function roundCurrency(value: number): number {
 
 function formatQuantity(value: number): string {
   if (!Number.isFinite(value)) return "0";
-  return Number.isInteger(value) ? String(value) : String(value);
+  return Number.isInteger(value) ? String(value) : String(Math.round((value + Number.EPSILON) * 100) / 100);
 }
 
-function shortInvoiceNumber(id: string): string {
+export function formatInvoiceNumber(
+  arreglo?: { id?: string; numero_orden?: number | null } | null
+): string {
+  if (
+    arreglo?.numero_orden != null &&
+    Number.isFinite(arreglo.numero_orden) &&
+    arreglo.numero_orden > 0
+  ) {
+    return String(arreglo.numero_orden).padStart(8, "0");
+  }
+  return shortInvoiceNumber(arreglo?.id ?? "");
+}
+
+export function shortInvoiceNumber(id: string): string {
   const normalized = String(id ?? "").replace(/\D/g, "");
   if (normalized) return normalized.slice(-8).padStart(8, "0");
   return String(id ?? "").slice(0, 8).padStart(8, "0");
