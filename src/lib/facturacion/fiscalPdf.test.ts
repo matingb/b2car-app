@@ -113,6 +113,15 @@ describe("PDF fiscal propio", () => {
     drawText.mockRestore();
   });
 
+  it("incluye la observación del arreglo y la envuelve en varias líneas", async () => {
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    await generateFiscalInvoicePdf(invoice({ observacionArreglo: "Revisar el vehículo al próximo service. ".repeat(20) }));
+    const calls = drawText.mock.calls;
+    expect(calls.some(([value]) => value === "Observación del arreglo:")).toBe(true);
+    expect(calls.filter(([value]) => String(value).includes("Revisar") || String(value).includes("service.")).length).toBeGreaterThan(1);
+    drawText.mockRestore();
+  });
+
   it("genera un PDF válido a partir del snapshot", async () => {
     const bytes = await generateFiscalInvoicePdf(invoice());
     expect(Buffer.from(bytes).subarray(0, 5).toString("ascii")).toBe("%PDF-");

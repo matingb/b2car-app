@@ -54,6 +54,7 @@ export type FiscalPdfInvoice = {
   claseComprobante?: FacturaClase;
   documentoTipo?: DocumentoFiscalClase;
   condicionVenta?: string;
+  observacionArreglo?: string | null;
   totales?: FacturaTotales;
   numeroComprobante: number;
   cae: string;
@@ -224,6 +225,8 @@ type FirstHeaderLayout = {
   receiverExtraHeight: number;
   receiverIvaLines: string[];
   receiverIvaExtraHeight: number;
+  observationLines: string[];
+  observationExtraHeight: number;
 };
 
 function getFirstHeaderLayout(invoice: FiscalPdfInvoice, fonts: Fonts): FirstHeaderLayout {
@@ -247,13 +250,18 @@ function getFirstHeaderLayout(invoice: FiscalPdfInvoice, fonts: Fonts): FirstHea
   const receiverAddressExtraHeight = Math.max(0, receiverAddressLines.length - 1) * 10;
   const receiverIvaLines = wrapText(receiverFiscalIvaLabel(number(receiver.condicionIvaReceptorId)), fonts.regular, 8, rightEdge - 360);
   const receiverIvaExtraHeight = Math.max(0, receiverIvaLines.length - 1) * 10;
+  const observation = text(invoice.observacionArreglo);
+  const observationLines = observation ? wrapText(observation, fonts.regular, 8, CONTENT_WIDTH - 24) : [];
+  const observationExtraHeight = observationLines.length ? (observationLines.length + 1) * 10 : 0;
   return {
     receiverNameLines,
     receiverNameExtraHeight,
     receiverAddressLines,
-    receiverExtraHeight: receiverNameExtraHeight + receiverAddressExtraHeight + receiverIvaExtraHeight,
+    receiverExtraHeight: receiverNameExtraHeight + receiverAddressExtraHeight + receiverIvaExtraHeight + observationExtraHeight,
     receiverIvaLines,
     receiverIvaExtraHeight,
+    observationLines,
+    observationExtraHeight,
   };
 }
 
@@ -355,6 +363,13 @@ function drawFirstHeader(
       size: 8,
     });
   });
+  if (layout.observationLines.length) {
+    const observationY = receiverDetailsY - Math.max(layout.receiverAddressLines.length, 1) * 10 - 4;
+    page.drawText("Observación del arreglo:", { x: 50, y: observationY, font: fonts.bold, size: 8 });
+    layout.observationLines.forEach((line, index) => {
+      page.drawText(line || " ", { x: 50, y: observationY - 10 - index * 10, font: fonts.regular, size: 8 });
+    });
+  }
 }
 
 function drawContinuationHeader(page: PDFPage, invoice: FiscalPdfInvoice, fonts: Fonts, pageNumber: number) {
