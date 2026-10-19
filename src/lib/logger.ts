@@ -1,8 +1,8 @@
-import { telemetry, type TelemetryContext } from "./telemetry";
+import { telemetry, type TelemetryContext, sanitizeLogArgs } from "./telemetry";
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'none';
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'none';
 
-const LEVEL_ORDER: Record<LogLevel, number> = {
+export const LEVEL_ORDER: Record<LogLevel, number> = {
   debug: 50,
   info: 40,
   warn: 30,
@@ -10,56 +10,64 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
   none: 10,
 };
 
-function getLogLevel(): LogLevel {
+export function getLogLevel(): LogLevel {
   const envLevel =
     process.env.LOG_LEVEL ??
     process.env['NEXT_PUBLIC_LOG_LEVEL'] ??
     'info';
 
-  const normalized = envLevel.toLowerCase() as LogLevel;
-  return LEVEL_ORDER[normalized] ? normalized : 'info';
+  const normalized = envLevel.trim().toLowerCase() as LogLevel;
+  return LEVEL_ORDER[normalized] !== undefined ? normalized : 'info';
 }
 
-const CURRENT_LEVEL = getLogLevel();
-
-function shouldLog(level: LogLevel) {
-  return LEVEL_ORDER[level] <= LEVEL_ORDER[CURRENT_LEVEL];
+export function shouldLog(level: LogLevel): boolean {
+  return LEVEL_ORDER[level] <= LEVEL_ORDER[getLogLevel()];
 }
 
-function parseLogArgs(args: unknown[]): { error: Error; context: TelemetryContext } {
+function parseLogArgs(args: unknown[]): { error: Error; context: TelemetryContext; message: string } {
   const message = args.filter((a): a is string => typeof a === "string").join(" ");
   const errorArg = args.find((a): a is Error => a instanceof Error);
   const context: TelemetryContext = {};
 
-  args.forEach((arg, idx) => {
+  args.forEach((arg) => {
     if (arg instanceof Error || typeof arg === "string") return;
     if (arg && typeof arg === "object") Object.assign(context, arg);
-    else context[`arg_${idx}`] = arg;
   });
 
-  if (errorArg && message) context.log_message = message;
+  return {
+    error: errorArg ?? new Error(message || "Logger Error"),
+    context,
+    message: message || (errorArg ? errorArg.message : ""),
+  };
+}
 
-  return { error: errorArg ?? new Error(message || "Logger Error"), context };
+type ActiveLogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+function emitLog(level: ActiveLogLevel, ...args: unknown[]): void {
+  if (!shouldLog(level)) return;
+
+  const sanitized = sanitizeLogArgs(args);
+  const prefix = `[${level.toUpperCase()}]`;
+
+  if (level === 'info') console.log(prefix, ...sanitized);
+  else if (level === 'debug') console.debug(prefix, ...sanitized);
+  else if (level === 'warn') console.warn(prefix, ...sanitized);
+  else if (level === 'error') console.error(prefix, ...sanitized);
+
+  try {
+    const { error, context, message } = parseLogArgs(sanitized);
+    if (level === 'error') {
+      telemetry.recordException(error, context);
+    }
+    telemetry.log(level, message, context);
+  } catch {}
 }
 
 export const logger = {
-  debug: (...args: unknown[]) => {
-    if (shouldLog('debug')) console.debug('[DEBUG]', ...args);
-  },
-  info: (...args: unknown[]) => {
-    if (shouldLog('info')) console.log('[INFO]', ...args);
-  },
-  warn: (...args: unknown[]) => {
-    if (shouldLog('warn')) console.warn('[WARN]', ...args);
-  },
-  error: (...args: unknown[]) => {
-    if (shouldLog('error')) console.error('[ERROR]', ...args);
-    try {
-      const { error, context } = parseLogArgs(args);
-      telemetry.recordException(error, context);
-    } catch {
-    }
-  },
+  debug: (...args: unknown[]) => emitLog('debug', ...args),
+  info: (...args: unknown[]) => emitLog('info', ...args),
+  warn: (...args: unknown[]) => emitLog('warn', ...args),
+  error: (...args: unknown[]) => emitLog('error', ...args),
 };
 
 export type ScopedLogger = typeof logger;

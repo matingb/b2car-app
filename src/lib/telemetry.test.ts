@@ -231,6 +231,24 @@ describe("telemetry unified wrapper", () => {
     });
   });
 
+  describe("log", () => {
+    it("dado un log estructurado, lo propaga como evento a Honeycomb y acción a Datadog", () => {
+      const mockSpan = {
+        addEvent: vi.fn(),
+      };
+      vi.mocked(trace.getActiveSpan).mockReturnValue(mockSpan as unknown as ReturnType<typeof trace.getActiveSpan>);
+
+      telemetry.log("warn", "Consumo alto de recursos", { memoriaMb: 512 });
+
+      expect(datadogRum.addAction).toHaveBeenCalledWith("Consumo alto de recursos", {
+        memoriaMb: 512,
+      });
+      expect(mockSpan.addEvent).toHaveBeenCalledWith("Consumo alto de recursos", {
+        memoriaMb: 512,
+      });
+    });
+  });
+
   describe("logger integration", () => {
     it("dado un error registrado en el log del sistema, lo propaga automáticamente a telemetría", () => {
       const mockSpan = {

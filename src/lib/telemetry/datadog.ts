@@ -1,5 +1,5 @@
 import { datadogRum } from "@datadog/browser-rum";
-import type { TelemetryProvider, TelemetryIdentity, TelemetryUser, TelemetryContext, TelemetryAttributes } from "./types";
+import type { TelemetryProvider, TelemetryIdentity, TelemetryUser, TelemetryContext, TelemetryLogLevel } from "./types";
 import { compact } from "./identity";
 
 interface DatadogSpanLike {
@@ -107,7 +107,7 @@ export const datadogProvider: TelemetryProvider = {
   initClient: initDatadogClient,
   initServer: initDatadogServer,
 
-  identify({ user, account }: TelemetryIdentity, attributes?: TelemetryAttributes): void {
+  identify({ user, account }: TelemetryIdentity): void {
     if (typeof window !== "undefined") {
       try {
         datadogRum.setUser(compact(user));
@@ -217,6 +217,30 @@ export const datadogProvider: TelemetryProvider = {
         }
       } catch {
       }
+    }
+  },
+
+  log(level: TelemetryLogLevel, message: string, context?: TelemetryContext): void {
+    if (typeof window !== "undefined") {
+      try {
+        datadogRum.addAction?.(message || `log_${level}`, context);
+      } catch {}
+      return;
+    }
+
+    if (serverTracerInstance) {
+      try {
+        const span = serverTracerInstance.scope().active();
+        if (span) {
+          if (message) span.setTag("log.message", message);
+          span.setTag("log.level", level);
+          if (context) {
+            for (const [k, v] of Object.entries(context)) {
+              span.setTag(k, typeof v === "object" ? JSON.stringify(v) : v);
+            }
+          }
+        }
+      } catch {}
     }
   },
 };

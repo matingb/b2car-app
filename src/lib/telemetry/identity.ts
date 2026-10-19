@@ -1,10 +1,26 @@
 import { normalizeSubscriptionPlan } from "@/lib/subscription";
-import type { TelemetryIdentity } from "./types";
+import type { TelemetryIdentity, TelemetryAttributes } from "./types";
 
 export function compact<T extends object>(obj: T): T {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined && v !== null && v !== "")
   ) as T;
+}
+
+export function buildTelemetryAttributes(identity: TelemetryIdentity): TelemetryAttributes {
+  const attrs: TelemetryAttributes = {
+    "user.id": identity.user.id,
+  };
+  if (identity.user.email) attrs["user.email"] = String(identity.user.email);
+  if (identity.user.role) attrs["user.role"] = String(identity.user.role);
+  if (identity.user.name) attrs["user.name"] = String(identity.user.name);
+
+  if (identity.account) {
+    attrs["tenant.id"] = String(identity.account.id);
+    if (identity.account.name) attrs["tenant.name"] = String(identity.account.name);
+    if (identity.account.plan) attrs["tenant.plan"] = String(identity.account.plan);
+  }
+  return attrs;
 }
 
 export function identityFromClaims(claims?: Record<string, unknown> | null): TelemetryIdentity | null {
@@ -24,3 +40,4 @@ export function identityFromClaims(claims?: Record<string, unknown> | null): Tel
 
   return { user, account };
 }
+

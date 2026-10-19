@@ -1,4 +1,4 @@
-import { trace, SpanStatusCode, type Context } from "@opentelemetry/api";
+import { trace, SpanStatusCode } from "@opentelemetry/api";
 import type { SpanProcessor, ReadableSpan, Span } from "@opentelemetry/sdk-trace-base";
 import type {
   TelemetryProvider,
@@ -6,8 +6,10 @@ import type {
   TelemetryUser,
   TelemetryContext,
   TelemetryAttributes,
+  TelemetryLogLevel,
 } from "./types";
 import { traceAttributeStore, TraceAttributeStore } from "./store";
+import { buildTelemetryAttributes } from "./identity";
 
 export { traceAttributeStore, TraceAttributeStore };
 
@@ -17,7 +19,7 @@ let serverInitialized = false;
 export class RootEnrichmentSpanProcessor implements SpanProcessor {
   constructor(private store: TraceAttributeStore = traceAttributeStore) {}
 
-  onStart(span: Span, _parentContext: Context): void {
+  onStart(span: Span): void {
     const traceId = span.spanContext().traceId;
     const attrs = this.store.get(traceId);
     if (attrs) {
@@ -55,24 +57,6 @@ export class RootEnrichmentSpanProcessor implements SpanProcessor {
   }
 }
 
-/**
- * Genera el mapa de atributos estándar a partir de una identidad.
- */
-function buildTelemetryAttributes(identity: TelemetryIdentity): TelemetryAttributes {
-  const attrs: TelemetryAttributes = {
-    "user.id": identity.user.id,
-  };
-  if (identity.user.email) attrs["user.email"] = String(identity.user.email);
-  if (identity.user.role) attrs["user.role"] = String(identity.user.role);
-  if (identity.user.name) attrs["user.name"] = String(identity.user.name);
-
-  if (identity.account) {
-    attrs["tenant.id"] = String(identity.account.id);
-    if (identity.account.name) attrs["tenant.name"] = String(identity.account.name);
-    if (identity.account.plan) attrs["tenant.plan"] = String(identity.account.plan);
-  }
-  return attrs;
-}
 
 /**
  * Inicializa Honeycomb Web SDK en el navegador (Frontend).
@@ -180,22 +164,22 @@ export async function initHoneycombServer(): Promise<void> {
 }
 
 /**
- * Sanitiza atributos para eventos de OpenTelemetry (deben ser string, number o boolean).
+ * Formatea atributos de contexto para eventos o spans de OpenTelemetry (deben ser string, number o boolean).
  */
-function sanitizeEventAttributes(
+function toOtelAttributes(
   context?: TelemetryContext,
 ): Record<string, string | number | boolean> {
   if (!context) return {};
-  const sanitized: Record<string, string | number | boolean> = {};
+  const formatted: Record<string, string | number | boolean> = {};
   for (const [key, value] of Object.entries(context)) {
     if (value === undefined || value === null) continue;
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-      sanitized[key] = value;
+      formatted[key] = value;
     } else {
-      sanitized[key] = JSON.stringify(value);
+      formatted[key] = JSON.stringify(value);
     }
   }
-  return sanitized;
+  return formatted;
 }
 
 /**
@@ -242,7 +226,7 @@ export const honeycombProvider: TelemetryProvider = {
     try {
       const span = trace.getActiveSpan();
       if (span) {
-        span.addEvent(name, sanitizeEventAttributes(context));
+        span.addEvent(name, toOtelAttributes(context));
       }
     } catch {
       // Silencioso
@@ -264,6 +248,37 @@ export const honeycombProvider: TelemetryProvider = {
               );
             }
           }
+        }
+      }
+    } catch {
+      // Silencioso
+    }
+  },
+
+  log(level: TelemetryLogLevel, message: string, context?: TelemetryContext): void {
+    try {
+      const eventName = message || `log_${level}`;
+      const span = trace.getActiveSpan();
+      if (span) {
+        if (typeof span.addEvent === "function") {
+          span.addEvent(eventName, toOtelAttributes(context));
+        }
+        return;
+      }
+
+      const tracer = trace.getTracer("b2car-app");
+      if (typeof tracer?.startSpan === "function") {
+        const ephemeralSpan = tracer.startSpan(eventName);
+        if (context && typeof ephemeralSpan.setAttribute === "function") {
+          for (const [k, v] of Object.entries(toOtelAttributes(context))) {
+            ephemeralSpan.setAttribute(k, v);
+          }
+        }
+        if (level === "error" && typeof ephemeralSpan.setStatus === "function") {
+          ephemeralSpan.setStatus({ code: SpanStatusCode.ERROR, message });
+        }
+        if (typeof ephemeralSpan.end === "function") {
+          ephemeralSpan.end();
         }
       }
     } catch {
