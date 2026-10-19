@@ -98,7 +98,7 @@ describe("B2C-198: observación al generar el PDF", () => {
     invoice.pdf_sha256 = createHash("sha256").update(cachedBytes).digest("hex");
     for (const value of ["Observación vieja", "Observación nueva"]) {
       observation = value;
-      expect((await buildFacturaPdf("tenant-1", "invoice-1")).bytes).toEqual(cachedBytes);
+      expect(Buffer.from((await buildFacturaPdf("tenant-1", "invoice-1")).bytes)).toEqual(Buffer.from(cachedBytes));
     }
     expect(repairQueries).toHaveLength(0);
     expect(generateFiscalInvoicePdf).not.toHaveBeenCalled();
