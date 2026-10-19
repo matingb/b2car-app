@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, AlertTriangle, ReceiptText, Send } from "lucide-react";
 import Button from "@/app/components/ui/Button";
+import Tooltip from "@/app/components/ui/Tooltip";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { remitosClient } from "@/clients/remitosClient";
 import { Permission } from "@/lib/permissions";
@@ -35,12 +36,20 @@ import { remitoFormStyles } from "./remitoFormStyles";
 type Props = {
   facturaId: string | null;
   arregloId?: string | null;
+  operacionId?: string | null;
   onEmitted: (remitoId: string) => void;
   onCancel?: () => void;
   onSubmittingChange?: (submitting: boolean) => void;
 };
 
-export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onCancel, onSubmittingChange }: Props) {
+export default function RemitoForm({
+  facturaId,
+  arregloId = null,
+  operacionId = null,
+  onEmitted,
+  onCancel,
+  onSubmittingChange,
+}: Props) {
   const { hasPermission } = useTenant();
   const [preflight, setPreflight] = useState<RemitoPreflight | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,12 +68,18 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
     setLoading(true);
     setLoadError(null);
     try {
-      const data = await remitosClient.preflight(facturaId, arregloId);
+      const data = await remitosClient.preflight(facturaId, arregloId, operacionId);
       setPreflight(data);
-      if (data.arreglo) {
-        setDestinatario(destinatarioFormDesde(data.arreglo.destinatario));
-        setObservaciones(data.arreglo.facturaNumero ? `Factura asociada: ${data.arreglo.facturaNumero}` : "");
-        setLineasLibres(data.factura ? seleccionInicial(data.factura.lineas) : data.arreglo.lineas.map((linea) => nuevaLineaLibre({
+      const origen = data.arreglo ?? data.operacion;
+      if (origen) {
+        // El cliente no guarda la condición IVA (la confirma ARCA al facturar): se toma de la factura asociada.
+        setDestinatario(destinatarioFormDesde({
+          ...origen.destinatario,
+          condicionIvaReceptorId: origen.destinatario.condicionIvaReceptorId
+            ?? data.factura?.destinatario.condicionIvaReceptorId
+            ?? null,
+        }));
+        setLineasLibres(data.factura ? seleccionInicial(data.factura.lineas) : origen.lineas.map((linea) => nuevaLineaLibre({
           codigo: linea.codigo ?? "",
           descripcion: linea.descripcion,
           cantidad: linea.cantidad,
@@ -78,7 +93,7 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
     } finally {
       setLoading(false);
     }
-  }, [facturaId, arregloId]);
+  }, [facturaId, arregloId, operacionId]);
 
   useEffect(() => {
     void load();
@@ -102,6 +117,9 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
     if (destinatario.tipoDocumento && !destinatario.numeroDocumento.trim()) {
       return "Completá el número de documento del destinatario.";
     }
+    if (clase === "R" && !destinatario.condicionIvaReceptorId) {
+      return "Seleccioná la condición frente al IVA del destinatario.";
+    }
     if (factura) return validarSeleccionFactura(factura.lineas, lineasLibres);
     if (lineasLibres.length === 0) return "Agregá al menos un ítem al detalle del remito.";
     const sinDescripcion = lineasLibres.findIndex((linea) => !linea.descripcion.trim());
@@ -121,6 +139,7 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
         idempotencyKey,
         clase,
         arregloId: arreglo?.id ?? null,
+        operacionId: preflight?.operacion?.id ?? null,
         facturaId: factura?.id ?? null,
         destinatario: destinatarioPayload(destinatario),
         transportista: transportistaPayload(transportista),
@@ -205,7 +224,12 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
 
       <div style={styles.fieldGroup}>
         <h3 style={styles.groupTitle}>Destinatario</h3>
-        <RemitoDestinatarioFields value={destinatario} onChange={setDestinatario} disabled={submitting} />
+        <RemitoDestinatarioFields
+          value={destinatario}
+          onChange={setDestinatario}
+          pedirCondicionIva={clase === "R"}
+          disabled={submitting}
+        />
       </div>
 
       <RemitoTransportistaFields value={transportista} onChange={setTransportista} disabled={submitting} />
@@ -233,15 +257,17 @@ export default function RemitoForm({ facturaId, arregloId = null, onEmitted, onC
 
       <div style={styles.actions}>
         {onCancel ? <Button type="button" text="Cancelar" outline onClick={onCancel} disabled={submitting} hideTextOnMobile={false} /> : null}
-        <Button
-          type="submit"
-          text={submitting ? "Emitiendo…" : "Emitir remito"}
-          icon={<Send size={16} />}
-          disabled={submitting || Boolean(blockingReason)}
-          title={blockingReason ?? undefined}
-          hideTextOnMobile={false}
-          dataTestId="remito-emitir"
-        />
+        <Tooltip content={blockingReason} placement="top">
+          <Button
+            type="submit"
+            text={submitting ? "Emitiendo…" : "Emitir remito"}
+            icon={<Send size={16} />}
+            disabled={submitting || Boolean(blockingReason)}
+            title={blockingReason ?? undefined}
+            hideTextOnMobile={false}
+            dataTestId="remito-emitir"
+          />
+        </Tooltip>
       </div>
 
     </form>

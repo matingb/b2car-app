@@ -270,6 +270,44 @@ describe("RepuestoLineasEditableSection", () => {
     ).toBeInTheDocument();
   });
 
+  it("permite editar un producto nuevo pendiente de un presupuesto sin stock_id", async () => {
+    const pendingNewItem: RepuestoLinea = {
+      id: "pending-1",
+      stock_id: "",
+      tipo: "nuevo",
+      cantidad: 1,
+      monto_unitario: 100,
+      nuevoProducto: {
+        codigo: "NEW-001",
+        nombre: "Producto pendiente",
+        precioCompra: 50,
+        precioVenta: 100,
+      },
+      categoriaArregloId: null,
+      empleadoId: null,
+    };
+    const { onUpsert } = setup({ items: [pendingNewItem], deferred: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "editar repuesto" }));
+    fireEvent.change(screen.getByLabelText("Cantidad"), { target: { value: "2" } });
+
+    const guardar = screen.getByRole("button", { name: "guardar repuesto" });
+    expect(guardar).toBeEnabled();
+    fireEvent.click(guardar);
+
+    await waitFor(() => {
+      expect(onUpsert).toHaveBeenCalledWith(expect.objectContaining({
+        tipo: "nuevo",
+        id: "pending-1",
+        codigo: "NEW-001",
+        nombre: "Producto pendiente",
+        cantidad: 2,
+        precio_compra: 50,
+        precio_venta: 100,
+      }));
+    });
+  });
+
   it("muestra hint de compra cuando el stock es insuficiente", () => {
     setup();
     selectStock("s2");

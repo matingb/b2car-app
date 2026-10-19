@@ -95,7 +95,7 @@ describe("Integration: API de remitos de punta a punta (B2C-202)", () => {
         facturaId,
         destinatario: preflight.body.data.factura.destinatario,
         transportista: { nombre: "Fletes SA", cuit: "20123456786" },
-        lineas: [{ facturaLineaId: repuesto.id, cantidad: 2, observaciones: "Caja 1" }],
+        lineas: [{ facturaLineaId: repuesto.id, codigo: "FIL", descripcion: "Filtro", cantidad: 2, observaciones: "Caja 1" }],
       },
     }), segment()));
     expect(remitoR.status).toBe(201);
@@ -132,7 +132,7 @@ describe("Integration: API de remitos de punta a punta (B2C-202)", () => {
 
     const excedido = await json(await emitirRoute(request("/api/remitos", {
       method: "POST",
-      body: { idempotencyKey: randomUUID(), clase: "X", facturaId, destinatario: { nombre: "Juan" }, lineas: [{ facturaLineaId: repuesto.id, cantidad: 1 }] },
+      body: { idempotencyKey: randomUUID(), clase: "X", facturaId, destinatario: { nombre: "Juan" }, lineas: [{ facturaLineaId: repuesto.id, codigo: "FIL", descripcion: "Filtro", cantidad: 1 }] },
     }), segment()));
     expect(excedido).toEqual({
       status: 400,

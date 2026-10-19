@@ -41,6 +41,8 @@ type Props = {
   showObservaciones?: boolean;
   mostrarObservaciones?: boolean;
   empleados?: EmpleadoInfo[];
+  /** Se invoca al registrar o anular un cobro desde el badge de pago. */
+  onPagoUpdated?: (updatedArreglo: Arreglo) => void;
 };
 
 function getFullName(emp: EmpleadoInfo | string): string {
@@ -54,6 +56,7 @@ export default function ArregloItem({
   showObservaciones,
   mostrarObservaciones,
   empleados: empleadosProp,
+  onPagoUpdated,
 }: Props) {
   const { talleres } = useTenant();
 
@@ -74,8 +77,9 @@ export default function ArregloItem({
   const resolvedEmpleados = empleadosProp || arreglo.empleados || [];
 
   return (
-    <div 
-      style={styles.wrapper(isBadgeOpen || isHovered)}
+    <div
+      data-testid="arreglo-item-wrapper"
+      style={styles.wrapper(isBadgeOpen, isHovered)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -226,6 +230,7 @@ export default function ArregloItem({
             variant="footer"
             size="sm"
             onOpenChange={setIsBadgeOpen}
+            onPagoUpdated={onPagoUpdated}
             onFacturableChanged={(val) => {
               arreglo.es_facturable = val;
             }}
@@ -237,9 +242,9 @@ export default function ArregloItem({
 }
 
 const styles = {
-  wrapper: (isHoveredOrBadgeOpen: boolean) => ({
+  wrapper: (isBadgeOpen: boolean, isHovered: boolean) => ({
     position: "relative" as const,
-    zIndex: isHoveredOrBadgeOpen ? 50 : 1,
+    zIndex: isBadgeOpen ? 100 : isHovered ? 1 : 0,
   }),
   card: {
     cursor: "pointer",

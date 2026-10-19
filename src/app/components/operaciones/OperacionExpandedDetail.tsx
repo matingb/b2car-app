@@ -22,6 +22,10 @@ export default function OperacionExpandedDetail({
   stocksById,
   isMovimientoFinanciero,
 }: Props) {
+  const isAllowedTipo =
+    operacion.tipo === "COMPRA" || operacion.tipo === "VENTA" || operacion.tipo === "GASTO";
+  const hasObservaciones = isAllowedTipo && Boolean(operacion.observaciones?.trim());
+
   if (isMovimientoFinanciero) {
     return (
       <div style={styles.expandedExpense}>
@@ -33,6 +37,12 @@ export default function OperacionExpandedDetail({
             .filter(Boolean)
             .join(" · ")}
         </div>
+        {hasObservaciones && (
+          <div style={styles.observacionesSection} data-testid="operacion-expanded-observaciones">
+            <div style={styles.observacionesTitle}>Observaciones</div>
+            <div style={styles.observacionesContent}>{operacion.observaciones}</div>
+          </div>
+        )}
       </div>
     );
   }
@@ -66,6 +76,12 @@ export default function OperacionExpandedDetail({
           </div>
         );
       })}
+      {hasObservaciones && (
+        <div style={styles.observacionesSection} data-testid="operacion-expanded-observaciones">
+          <div style={styles.observacionesTitle}>Observaciones</div>
+          <div style={styles.observacionesContent}>{operacion.observaciones}</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -133,5 +149,23 @@ const styles = {
   expandedTotal: {
     fontSize: 13,
     fontWeight: 700,
+  },
+  observacionesSection: {
+    marginTop: 8,
+    display: "flex",
+    flexDirection: "column" as const,
+  },
+  observacionesTitle: {
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.04em",
+    color: COLOR.TEXT.SECONDARY,
+  },
+  observacionesContent: {
+    fontSize: 13,
+    color: COLOR.TEXT.PRIMARY,
+    whiteSpace: "pre-wrap" as const,
+    lineHeight: 1.5,
   },
 } as const;

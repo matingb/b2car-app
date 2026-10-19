@@ -3,6 +3,7 @@
 import React from "react";
 import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
+import Tooltip from "@/app/components/ui/Tooltip";
 import IconButton from "@/app/components/ui/IconButton";
 import Pill from "@/app/components/turnos/Pill";
 import { APP_LOCALE } from "@/lib/format";
@@ -189,16 +190,21 @@ export default function TurnoDetailsModal({
           </div>
 
           <div style={styles.footer}>
-            <Button
-              text="Compartir"
-              outline
-              hideTextOnMobile={false}
-              icon={<WhatsAppIcon size={16} color={turno.cliente?.telefono ? "#25D366" : COLOR.TEXT.TERTIARY} />}
-              onClick={() => onShare?.(turno)}
-              disabled={!turno.cliente?.telefono}
-              title={turno.cliente?.telefono ? "Compartir por WhatsApp" : "El cliente no tiene teléfono registrado"}
-              style={{ minWidth: 0 }}
-            />
+            <Tooltip
+              content={turno.cliente?.telefono ? undefined : "El cliente no tiene teléfono registrado"}
+              placement="top"
+            >
+              <Button
+                text="Compartir"
+                outline
+                hideTextOnMobile={false}
+                icon={<WhatsAppIcon size={16} color={turno.cliente?.telefono ? "#25D366" : COLOR.TEXT.TERTIARY} />}
+                onClick={() => onShare?.(turno)}
+                disabled={!turno.cliente?.telefono}
+                title={turno.cliente?.telefono ? "Compartir por WhatsApp" : "El cliente no tiene teléfono registrado"}
+                style={{ minWidth: 0 }}
+              />
+            </Tooltip>
             <Button
               text="Editar"
               outline

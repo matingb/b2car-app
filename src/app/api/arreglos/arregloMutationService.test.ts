@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { arregloMutationService } from "./arregloMutationService";
+import { arregloMutationService, mapActivacionPresupuestoError } from "./arregloMutationService";
 import { arregloService } from "./arregloService";
 import { arregloFormularioService } from "./arregloFormularioService";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
@@ -20,6 +20,10 @@ vi.mock("./arregloFormularioService", () => ({
     validateTerminadoRequiredFields: vi.fn(),
     upsertDetalleFormulario: vi.fn(),
   },
+}));
+
+vi.mock("@/lib/permissions.server", () => ({
+  hasUserPermission: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
@@ -136,6 +140,10 @@ describe("arregloMutationService", () => {
         data: { id: "a1", tenant_id: "ten-1", estado: "EN_PROGRESO" } as unknown as Arreglo,
         error: null,
       });
+      vi.mocked(arregloService.getByIdWithVehiculo).mockResolvedValue({
+        data: { id: "a1", tenant_id: "ten-1", estado: "EN_PROGRESO" } as unknown as Arreglo,
+        error: null,
+      });
       vi.mocked(arregloFormularioService.upsertDetalleFormulario).mockResolvedValue({
         error: null,
       });
@@ -156,6 +164,31 @@ describe("arregloMutationService", () => {
         observaciones: "Observación actualizada",
       });
       expect(arregloFormularioService.upsertDetalleFormulario).toHaveBeenCalled();
+      expect(statsService.onDataChanged).toHaveBeenCalledWith(supabase, "ten-1");
+    });
+  });
+
+  describe("updateArregloCompleto con modo IVA", () => {
+    it("invalida las stats del dashboard al cambiar precios_incluyen_iva", async () => {
+      vi.mocked(arregloService.getByIdWithVehiculo).mockResolvedValue({
+        data: { id: "a1", tenant_id: "ten-1", estado: "EN_PROGRESO", precios_incluyen_iva: true, total_cobrado: 0 } as unknown as Arreglo,
+        error: null,
+      });
+      vi.mocked(arregloService.updateById).mockResolvedValue({
+        data: { id: "a1", tenant_id: "ten-1", precios_incluyen_iva: false, precio_final: 121 } as unknown as Arreglo,
+        error: null,
+      });
+
+      const result = await arregloMutationService.updateArregloCompleto(supabase, "a1", {
+        precios_incluyen_iva: false,
+      });
+
+      expect(result.status).toBe(200);
+      expect(arregloService.updateById).toHaveBeenCalledWith(
+        supabase,
+        "a1",
+        expect.objectContaining({ precios_incluyen_iva: false, tasa_iva: expect.any(Number) }),
+      );
       expect(statsService.onDataChanged).toHaveBeenCalledWith(supabase, "ten-1");
     });
   });
@@ -192,5 +225,34 @@ describe("arregloMutationService", () => {
       expect(result.status).toBe(409);
       expect(result.error).toBe(errorMessage);
     });
+  });
+});
+
+describe("mapActivacionPresupuestoError", () => {
+  it.each([
+    [{ code: "P0001", message: "PRECIO_COMPRA_REQUERIDO faltante=3" }, 400, /faltan 3 unidades/],
+    [{ code: "P0001", message: "PRECIO_COMPRA_REQUERIDO faltante=1" }, 400, /faltan 1 unidad\)/],
+    [{ code: "P0001", message: "CUENTA_FINANCIERA_REQUERIDA" }, 400, /cuenta financiera/],
+    [{ code: "P0001", message: "IDEMPOTENCY_KEY_REQUERIDA" }, 400, /datos de compra/],
+    [{ code: "P0001", message: "STOCK_INSUFICIENTE (stock x)" }, 409, /stock suficiente/],
+    [{ code: "P0001", message: "stock_id no pertenece al taller" }, 400, /ya no existe en el inventario/],
+    [{ code: "P0001", message: "stock no encontrado (x)" }, 400, /ya no existe en el inventario/],
+    [{ code: "P0001", message: "PRODUCTO_CODIGO_DUPLICADO (ABC)" }, 409, /código que ya existe/],
+    [{ code: "P0001", message: "El arreglo ya fue activado y no admite esta transicion" }, 409, /ya fue activado/],
+    [{ code: "22023", message: "Estado de activacion invalido" }, 400, /estado elegido/],
+    [{ code: "P0002", message: "arreglo no encontrado" }, 404, /Arreglo no encontrado/],
+    [{ code: "P0001", message: "JWT sin tenant_id" }, 401, /sesión/],
+    [{ code: "42501", message: "permission denied for table stocks" }, 403, /permisos/],
+    [{ code: "22023", message: "producto nuevo pendiente invalido" }, 400, /datos inválidos/],
+    [{ code: "XX000", message: "boom" }, 500, /No se pudo activar/],
+  ])("mapea %o", (error, status, message) => {
+    const mapped = mapActivacionPresupuestoError(error);
+    expect(mapped.status).toBe(status);
+    expect(mapped.message).toMatch(message);
+  });
+
+  it("no expone el mensaje crudo de Postgres", () => {
+    expect(mapActivacionPresupuestoError({ message: "relation \"foo\" does not exist" }).message)
+      .not.toContain("foo");
   });
 });

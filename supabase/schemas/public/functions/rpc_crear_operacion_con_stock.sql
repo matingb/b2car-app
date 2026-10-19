@@ -5,7 +5,8 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_operacion_con_stock (
   p_arreglo_id      uuid                     DEFAULT NULL::uuid,
   p_fecha           timestamp with time zone DEFAULT now(),
   p_cuenta_id       uuid                     DEFAULT NULL::uuid,
-  p_idempotency_key uuid                     DEFAULT NULL::uuid
+  p_idempotency_key uuid                     DEFAULT NULL::uuid,
+  p_observaciones   text                     DEFAULT NULL::text
 )
   RETURNS uuid
   LANGUAGE plpgsql
@@ -40,8 +41,8 @@ BEGIN
   IF p_cuenta_id IS NOT NULL THEN
     PERFORM public._finanzas_exigir_cuenta(p_cuenta_id, v_tenant_id, true);
   END IF;
-  INSERT INTO public.operaciones (tenant_id, tipo, taller_id, fecha)
-  VALUES (v_tenant_id, v_tipo, p_taller_id, COALESCE(p_fecha, now()))
+  INSERT INTO public.operaciones (tenant_id, tipo, taller_id, fecha, observaciones)
+  VALUES (v_tenant_id, v_tipo, p_taller_id, COALESCE(p_fecha, now()), NULLIF(btrim(p_observaciones), ''))
   RETURNING id INTO v_operacion_id;
   IF p_arreglo_id IS NOT NULL AND v_tipo = 'ASIGNACION_ARREGLO' THEN
     INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, arreglo_id)
@@ -102,12 +103,12 @@ BEGIN
 END;
 $function$;
 
-GRANT EXECUTE ON FUNCTION "public"."rpc_crear_operacion_con_stock"(text, uuid, jsonb, uuid, timestamp WITH time zone, uuid, uuid) TO "anon", "authenticated";
+GRANT EXECUTE ON FUNCTION "public"."rpc_crear_operacion_con_stock"(text, uuid, jsonb, uuid, timestamp WITH time zone, uuid, uuid, text) TO "anon", "authenticated";
 
-GRANT EXECUTE ON FUNCTION "public"."rpc_crear_operacion_con_stock"(text, uuid, jsonb, uuid, timestamp WITH time zone, uuid, uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION "public"."rpc_crear_operacion_con_stock"(text, uuid, jsonb, uuid, timestamp WITH time zone, uuid, uuid, text) TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."rpc_crear_operacion_con_stock"(text, uuid, jsonb, uuid, timestamp WITH time zone, uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."rpc_crear_operacion_con_stock"(text, uuid, jsonb, uuid, timestamp WITH time zone, uuid, uuid, text) FROM PUBLIC;
 
-REVOKE ALL ON FUNCTION "public"."rpc_crear_operacion_con_stock"(text, uuid, jsonb, uuid, timestamp WITH time zone, uuid, uuid) FROM "postgres";
+REVOKE ALL ON FUNCTION "public"."rpc_crear_operacion_con_stock"(text, uuid, jsonb, uuid, timestamp WITH time zone, uuid, uuid, text) FROM "postgres";
 
-GRANT EXECUTE ON FUNCTION "public"."rpc_crear_operacion_con_stock"(text, uuid, jsonb, uuid, timestamp WITH time zone, uuid, uuid) TO "postgres";
+GRANT EXECUTE ON FUNCTION "public"."rpc_crear_operacion_con_stock"(text, uuid, jsonb, uuid, timestamp WITH time zone, uuid, uuid, text) TO "postgres";

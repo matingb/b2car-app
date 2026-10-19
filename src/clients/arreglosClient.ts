@@ -29,6 +29,7 @@ export type CreateArregloInput = {
   extra_data?: string;
   cliente_id?: string | null;
   es_facturable?: boolean;
+  precios_incluyen_iva?: boolean;
 
   // opcional: creación completa (servicios + repuestos) en 1 POST
   detalles?: Array<{

@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RotateCcw, TrendingUp } from "lucide-react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import Button from "@/app/components/ui/Button";
@@ -9,13 +9,28 @@ import Card from "@/app/components/ui/Card";
 import FacturaListItem from "@/app/components/facturacion/FacturaListItem";
 import FacturaSummaryCard from "@/app/components/facturacion/FacturaSummaryCard";
 import FacturaRemitosSection from "@/app/components/remitos/FacturaRemitosSection";
+import ReadOnlyLineaCard from "@/app/components/arreglos/lineas/shared/ReadOnlyLineaCard";
+import NumberInput from "@/app/components/ui/NumberInput";
+import NotaConceptosSection from "@/app/components/facturacion/NotaConceptosSection";
 import {
+  buildConceptosCatalogo,
+  conceptosError,
+  expandirLineasOriginales,
+  fromCents,
+  sumCents,
+  toConceptosPayload,
+  type ConceptoNota,
+} from "@/lib/facturacion/notaCreditoConceptos";
+import {
+  type DevolucionStockDisponible,
+  type DevolucionesDisponiblesResult,
   type FacturaElectronicaDetalle,
 } from "@/lib/facturacion/types";
+import { importeLineaMostrado, precioUnitarioMostrado } from "@/lib/facturacion/lineaImporte";
 import { COLOR } from "@/theme/theme";
 
-function money(value: number) {
-  return value.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
+function money(value: number, maxDecimals = 2) {
+  return value.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: maxDecimals });
 }
 
 function date(value?: string | null) {
@@ -36,9 +51,13 @@ export default function FacturaDetailPage() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [noteOpen, setNoteOpen] = useState<"NOTA_CREDITO" | "NOTA_DEBITO" | null>(null);
-  const [noteAmount, setNoteAmount] = useState("");
-  const [noteReason, setNoteReason] = useState("");
   const [noteIdempotencyKey, setNoteIdempotencyKey] = useState<string | null>(null);
+  const [stockReturns, setStockReturns] = useState<DevolucionStockDisponible[]>([]);
+  const [stockReturnsWarning, setStockReturnsWarning] = useState<string | null>(null);
+  const [returnQuantities, setReturnQuantities] = useState<Record<string, string>>({});
+  const [stockReturnsLoading, setStockReturnsLoading] = useState(false);
+  const [stockReturnsFailed, setStockReturnsFailed] = useState(false);
+  const [noteItems, setNoteItems] = useState<ConceptoNota[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,6 +94,32 @@ export default function FacturaDetailPage() {
     }
   };
 
+  const creditCatalog = useMemo(
+    () => buildConceptosCatalogo(invoice?.lineas ?? [], stockReturns),
+    [invoice?.lineas, stockReturns],
+  );
+  // Facturas simplificadas anteriores, sin líneas originales en el snapshot: su stock se devuelve aparte.
+  const unlinkedStockReturns = useMemo(
+    () => stockReturns.filter((line) => !expandirLineasOriginales(invoice?.lineas ?? []).some((fiscal) => fiscal.sourceId === line.operacionLineaId)),
+    [invoice?.lineas, stockReturns],
+  );
+  const noteValidation = noteOpen ? conceptosError(noteItems) : null;
+
+  const creditReturns = () => {
+    const linked = new Set(creditCatalog.filter((line) => line.stockRestante !== null).map((line) => line.ordinal));
+    const fiscalSource = new Map(expandirLineasOriginales(invoice?.lineas ?? []).map((line) => [line.ordinal, line.sourceId]));
+    return [
+      ...noteItems
+        .filter((item) => item.tipo === "FACTURA" && item.ordinal !== null && linked.has(item.ordinal) && item.cantidad > 0)
+        .map((item) => ({ operacionLineaId: String(fiscalSource.get(item.ordinal as number)), cantidad: item.cantidad })),
+      ...unlinkedStockReturns.map((line) => ({
+        operacionLineaId: line.operacionLineaId,
+        cantidad: Number(returnQuantities[line.operacionLineaId] ?? line.restante),
+      })),
+    ];
+  };
+
+
   const issueNote = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!noteOpen || !noteIdempotencyKey) return;
@@ -87,9 +132,10 @@ export default function FacturaDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tipo: noteOpen,
-          importe: Number(noteAmount),
-          motivo: noteReason,
+          importe: fromCents(sumCents(noteItems)),
           idempotencyKey: noteIdempotencyKey,
+          conceptos: toConceptosPayload(noteItems),
+          devoluciones: noteOpen === "NOTA_CREDITO" ? creditReturns() : [],
         }),
       });
       const body = await response.json();
@@ -103,17 +149,42 @@ export default function FacturaDetailPage() {
     }
   };
 
-  const openNote = (type: "NOTA_CREDITO" | "NOTA_DEBITO") => {
+  const openNote = async (type: "NOTA_CREDITO" | "NOTA_DEBITO") => {
     setNoteOpen(type);
     setNoteIdempotencyKey(crypto.randomUUID());
     setError(null);
+    setNoteItems([]);
+    setStockReturns([]);
+    setStockReturnsWarning(null);
+    setReturnQuantities({});
+    setStockReturnsFailed(false);
+    if (type === "NOTA_CREDITO") {
+      setStockReturnsLoading(true);
+      try {
+        const response = await fetch(`/api/facturas/${params.id}/devoluciones`, { cache: "no-store" });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || "No se pudo consultar el stock retornable");
+        const available = body.data as DevolucionesDisponiblesResult;
+        setStockReturns(available.items);
+        setStockReturnsWarning(available.advertencia);
+        setReturnQuantities(Object.fromEntries(available.items.map((line) => [line.operacionLineaId, String(line.restante)])));
+      } catch (cause) {
+        setStockReturnsFailed(true);
+        setError(cause instanceof Error ? cause.message : "No se pudo consultar el stock retornable");
+      } finally {
+        setStockReturnsLoading(false);
+      }
+    }
   };
 
   const closeNote = () => {
     setNoteOpen(null);
-    setNoteAmount("");
-    setNoteReason("");
     setNoteIdempotencyKey(null);
+    setNoteItems([]);
+    setStockReturns([]);
+    setStockReturnsWarning(null);
+    setReturnQuantities({});
+    setStockReturnsFailed(false);
   };
 
   if (loading) {
@@ -161,16 +232,20 @@ export default function FacturaDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {invoice.lineas.map((line) => (
-                  <tr key={`${line.ordinal}-${line.descripcion}`}>
-                    <td style={styles.td}>{line.codigo ?? "-"}</td>
-                    <td style={styles.td}>{line.descripcion}</td>
-                    <td style={styles.tdRight}>{line.cantidad}</td>
-                    <td style={styles.tdRight}>{money(line.importeUnitario)}</td>
-                    <td style={styles.tdRight}>{line.ivaAlicuota ? `${line.ivaAlicuota}%` : "-"}</td>
-                    <td style={styles.tdRight}><strong>{money(line.subtotal)}</strong></td>
-                  </tr>
-                ))}
+                {invoice.lineas.map((line) => {
+                  const importe = importeLineaMostrado(line);
+                  const unitario = precioUnitarioMostrado(line, importe);
+                  return (
+                    <tr key={`${line.ordinal}-${line.descripcion}`}>
+                      <td style={styles.td}>{line.codigo ?? "-"}</td>
+                      <td style={styles.td}>{line.descripcion}</td>
+                      <td style={styles.tdRight}>{line.cantidad}</td>
+                      <td style={styles.tdRight}>{money(unitario.value, unitario.maxDecimals)}</td>
+                      <td style={styles.tdRight}>{line.ivaAlicuota ? `${line.ivaAlicuota}%` : "-"}</td>
+                      <td style={styles.tdRight}><strong>{money(importe)}</strong></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -234,10 +309,81 @@ export default function FacturaDetailPage() {
             </div>
             {noteOpen ? (
               <form onSubmit={issueNote} style={styles.noteForm}>
-                <label style={styles.field}>Importe<input required type="number" min="0.01" step="0.01" style={styles.input} value={noteAmount} onChange={(event) => setNoteAmount(event.target.value)} /></label>
-                <label style={{ ...styles.field, flex: "1 1 260px" }}>Motivo<input required maxLength={200} style={styles.input} value={noteReason} onChange={(event) => setNoteReason(event.target.value)} /></label>
-                <Button type="submit" text={working ? "Emitiendo…" : "Emitir nota"} disabled={working} hideTextOnMobile={false} />
-                <Button type="button" text="Cancelar" outline onClick={closeNote} hideTextOnMobile={false} />
+                {!stockReturnsLoading ? (
+                  <>
+                    {noteOpen === "NOTA_CREDITO" && stockReturnsWarning ? <p role="status" style={styles.warning}>{stockReturnsWarning}</p> : null}
+                    <NotaConceptosSection
+                      tipo={noteOpen}
+                      catalog={noteOpen === "NOTA_CREDITO" ? creditCatalog : []}
+                      items={noteItems}
+                      onItemsChange={setNoteItems}
+                      disabled={working}
+                    />
+                  </>
+                ) : null}
+                {noteOpen === "NOTA_CREDITO" && !stockReturnsLoading && unlinkedStockReturns.length > 0 ? (
+                  <Card aria-label="Productos que vuelven al stock">
+                    <div style={styles.returnsSection}>
+                      <h3 style={styles.cardTitle}>Productos que vuelven al stock</h3>
+                      <p style={styles.muted}>La factura se emitió con detalle simplificado: las unidades que regresan al inventario se eligen por separado del importe.</p>
+                      {unlinkedStockReturns.length ? (
+                        <>
+                          <div style={styles.returnsList}>
+                            {unlinkedStockReturns.map((line) => (
+                              <ReadOnlyLineaCard
+                                key={line.operacionLineaId}
+                                kind="repuestos"
+                                allowTitleWrap
+                                title={
+                                  <div style={styles.returnTitle}>
+                                    <span>{line.nombre}</span>
+                                    {line.codigo ? <span style={styles.returnCode}>{line.codigo}</span> : null}
+                                  </div>
+                                }
+                                detailContent={
+                                  <span style={styles.returnStats}>
+                                    <span><strong>{line.origenLinea === "REPUESTO" ? "Asignado originalmente" : "Vendido"}</strong> {line.cantidadOriginal}</span>
+                                    <span>Devuelto <strong>{line.devuelto}</strong></span>
+                                    {line.reservado > 0 ? <span>Reservado <strong>{line.reservado}</strong></span> : null}
+                                    <span>Disponible <strong>{line.restante}</strong></span>
+                                  </span>
+                                }
+                                sideContent={
+                                  <label style={styles.returnQuantityField}>
+                                    <span>A devolver</span>
+                                    <NumberInput
+                                      aria-label={`Cantidad a devolver: ${line.nombre}`}
+                                      minValue={0}
+                                      max={line.restante}
+                                      step="1"
+                                      allowDecimals={false}
+                                      value={Math.max(0, Number(returnQuantities[line.operacionLineaId] ?? line.restante) || 0)}
+                                      onValueChange={(quantity) => setReturnQuantities((current) => ({ ...current, [line.operacionLineaId]: String(quantity) }))}
+                                      style={styles.quantityInput}
+                                    />
+                                  </label>
+                                }
+                                cantidad={line.cantidadOriginal}
+                                unitario={0}
+                                onEdit={() => undefined}
+                                onDelete={() => undefined}
+                                canInteract={false}
+                                readOnly
+                              />
+                            ))}
+                          </div>
+                          <p style={styles.muted}>Resumen: {unlinkedStockReturns.reduce((sum, line) => sum + Number(returnQuantities[line.operacionLineaId] ?? line.restante), 0)} unidades volverían al stock al autorizarse la nota.</p>
+                        </>
+                      ) : null}
+                    </div>
+                  </Card>
+                ) : null}
+                {noteOpen === "NOTA_CREDITO" && stockReturnsLoading ? <p style={styles.muted}>Consultando cantidades retornables…</p> : null}
+                {noteValidation && noteItems.length ? <p role="status" style={styles.muted}>{noteValidation}</p> : null}
+                <div style={styles.noteActions}>
+                  <Button type="submit" text={working ? "Emitiendo…" : "Emitir nota"} disabled={working || stockReturnsLoading || stockReturnsFailed || Boolean(noteValidation)} hideTextOnMobile={false} />
+                  <Button type="button" text="Cancelar" outline onClick={closeNote} hideTextOnMobile={false} />
+                </div>
               </form>
             ) : null}
           </Card>
@@ -292,8 +438,15 @@ const styles = {
   attemptNumber: { background: COLOR.BACKGROUND.SUBTLE, borderRadius: 8, padding: "5px 8px", fontFamily: "monospace", fontSize: 12 },
   muted: { color: COLOR.TEXT.SECONDARY, margin: 0, fontSize: 13 },
   associatedDocuments: { display: "flex", flexDirection: "column" as const, gap: 9 },
-  noteForm: { display: "flex", alignItems: "flex-end", gap: 10, flexWrap: "wrap" as const, borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`, marginTop: 14, paddingTop: 14 },
-  field: { display: "flex", flexDirection: "column" as const, gap: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500 },
-  input: { height: 42, borderRadius: 8, border: `1px solid ${COLOR.BORDER.SUBTLE}`, padding: "0 12px", background: COLOR.INPUT.PRIMARY.BACKGROUND, color: COLOR.TEXT.PRIMARY, fontSize: 14 },
+  noteForm: { display: "flex", flexDirection: "column" as const, alignItems: "stretch", gap: 14, borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`, marginTop: 14, paddingTop: 14 },
+  noteActions: { display: "flex", gap: 8, flexWrap: "wrap" as const },
+  returnsSection: { display: "flex", flexDirection: "column" as const, gap: 8 },
+  warning: { color: COLOR.ICON.DANGER, background: COLOR.BACKGROUND.DANGER_TINT, padding: 12, borderRadius: 8, fontSize: 13 },
+  returnsList: { display: "flex", flexDirection: "column" as const, gap: 10, margin: "12px 0" },
+  returnTitle: { display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" as const },
+  returnCode: { marginLeft: 4, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500 },
+  returnStats: { display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const },
+  returnQuantityField: { display: "flex", flexDirection: "column" as const, alignItems: "flex-end", gap: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500 },
+  quantityInput: { width: 86, height: 38, borderRadius: 8, border: `1px solid ${COLOR.BORDER.SUBTLE}`, padding: "0 10px", background: COLOR.INPUT.PRIMARY.BACKGROUND, color: COLOR.TEXT.PRIMARY, fontSize: 14 },
   error: { color: COLOR.ICON.DANGER, background: COLOR.BACKGROUND.DANGER_TINT, padding: 12, borderRadius: 8, marginTop: 12 },
 } as const;

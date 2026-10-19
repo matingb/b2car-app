@@ -2,7 +2,7 @@
 
 import React from "react";
 import { css } from "@emotion/react";
-import { Pencil, ReceiptText, Trash } from "lucide-react";
+import { FileBox, Pencil, ReceiptText, Trash } from "lucide-react";
 import IconButton from "@/app/components/ui/IconButton";
 import { COLOR } from "@/theme/theme";
 
@@ -11,6 +11,7 @@ type Props = {
   deleteTitle: string;
   onEdit?: () => void;
   onInvoice?: () => void;
+  onRemito?: () => void;
   onDelete?: () => void;
 };
 
@@ -19,9 +20,10 @@ export default function OperacionActions({
   deleteTitle,
   onEdit,
   onInvoice,
+  onRemito,
   onDelete,
 }: Props) {
-  if (!onEdit && !onInvoice && !onDelete) return null;
+  if (!onEdit && !onInvoice && !onRemito && !onDelete) return null;
 
   return (
     <div css={styles.metaActions}>
@@ -45,6 +47,18 @@ export default function OperacionActions({
           onClick={(e) => {
             e.stopPropagation();
             onInvoice();
+          }}
+        />
+      ) : null}
+      {onRemito ? (
+        <IconButton
+          icon={<FileBox />}
+          title="Generar remito"
+          ariaLabel="Generar remito"
+          hoverColor={COLOR.ACCENT.PRIMARY}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemito();
           }}
         />
       ) : null}

@@ -24,6 +24,7 @@ BEGIN
     'estado', a.estado, 'descripcion', a.descripcion, 'kilometraje_leido', a.kilometraje_leido,
     'combustible_leido', a.combustible_leido, 'fecha', a.fecha, 'observaciones', a.observaciones,
     'precio_final', a.precio_final, 'precio_sin_iva', a.precio_sin_iva, 'esta_pago', a.esta_pago,
+    'precios_incluyen_iva', a.precios_incluyen_iva, 'tasa_iva', a.tasa_iva,
     'total_cobrado', a.total_cobrado,
     'saldo_pendiente', greatest(0, coalesce(a.precio_final, 0) - coalesce(a.total_cobrado, 0)),
     'extra_data', a.extra_data, 'cliente_id', a.cliente_id, 'es_facturable', a.es_facturable,

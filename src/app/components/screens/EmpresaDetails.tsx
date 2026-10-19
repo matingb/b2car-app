@@ -152,6 +152,7 @@ export default function EmpresaDetails() {
         clienteId={clienteId}
         vehiculos={vehiculos}
         onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
+        onArregloPagoUpdated={() => void loadFinanzas()}
       />
 
       <ClienteFormModal

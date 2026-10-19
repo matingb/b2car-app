@@ -108,6 +108,8 @@ export interface Arreglo {
   observaciones: string;
   precio_final: number;
   precio_sin_iva: number;
+  precios_incluyen_iva?: boolean;
+  tasa_iva?: number;
   esta_pago: boolean;
   total_cobrado?: number;
   saldo_pendiente?: number;
@@ -246,6 +248,7 @@ export interface Operacion {
   arreglo_id?: UUID;
   /** Indica si la venta ya tiene un comprobante fiscal asociado. */
   factura_asociada?: boolean;
+  observaciones?: string;
 }
 
 export type OperacionesFilters = {

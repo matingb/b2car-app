@@ -80,6 +80,8 @@ export function mapArreglo(
     factura_electronica: factura as FacturaElectronicaBadgeInfo | null,
     precio_final: precioFinal,
     precio_sin_iva: precioSinIva,
+    precios_incluyen_iva: r.precios_incluyen_iva !== false,
+    tasa_iva: Number(r.tasa_iva ?? 0.21),
     ...(totalCobrado !== undefined ? { total_cobrado: totalCobrado } : {}),
     ...(saldoPendiente !== undefined ? { saldo_pendiente: saldoPendiente } : {}),
     ...(cobros !== undefined ? { cobros } : {}),

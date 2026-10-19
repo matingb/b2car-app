@@ -153,6 +153,36 @@ describe("operacionesService.update", () => {
 		expect(result.error).toBeNull();
 		expect(getById).toHaveBeenCalledTimes(2);
 	});
+
+	it.each([
+		{ input: {}, expected: null },
+		{ input: { observaciones: null }, expected: "" },
+		{ input: { observaciones: "Entrega por la tarde" }, expected: "Entrega por la tarde" },
+	])("traduce $input a p_observaciones=$expected (NULL conserva, vacío borra)", async ({ input, expected }) => {
+		const operacionId = "11111111-1111-4111-8111-111111111111";
+		const current = {
+			id: operacionId,
+			tenant_id: "55555555-5555-4555-8555-555555555555",
+			tipo: "COMPRA" as const,
+			taller_id: "66666666-6666-4666-8666-666666666666",
+			fecha: "2026-07-31T00:00:00.000Z",
+			created_at: "2026-07-31T00:00:00.000Z",
+			observaciones: "Observación anterior",
+			operaciones_lineas: [],
+		};
+		vi.spyOn(operacionesService, "getById")
+			.mockResolvedValueOnce({ data: current, error: null })
+			.mockResolvedValueOnce({ data: current, error: null });
+		const rpc = vi.fn().mockResolvedValue({ data: operacionId, error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		await operacionesService.update(supabase, operacionId, { cuenta_financiera_id: null, ...input });
+
+		expect(rpc).toHaveBeenCalledWith("rpc_actualizar_operacion_con_stock", expect.objectContaining({
+			p_operacion_id: operacionId,
+			p_observaciones: expected,
+		}));
+	});
 });
 
 describe("operacionesService.stats", () => {

@@ -65,6 +65,8 @@ export interface DadoUnArregloConRepuestoOptions {
   cantidadAsignada?: number;
   precioUnitario?: number;
   stockOverrides?: Partial<Stock>;
+  fecha?: string;
+  precioFinal?: number;
 }
 
 export interface DadoUnArregloConRepuestoResult {
@@ -221,8 +223,10 @@ export async function dadoUnArregloConRepuesto(
     stock: { cantidad: stockInicial, taller_id: SEED.tallerId, ...options.stockOverrides },
   });
 
+  const precioFinal = options.precioFinal ?? cantidadAsignada * precioUnitario;
   const arreglo = await dadoUnArreglo({
-    precio_final: cantidadAsignada * precioUnitario,
+    precio_final: precioFinal,
+    fecha: options.fecha,
     estado: "EN_PROGRESO",
   });
 

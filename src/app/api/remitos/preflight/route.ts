@@ -3,7 +3,7 @@ import { Permission } from "@/lib/permissions";
 import { getRemitoPreflight } from "@/lib/remitos/remitosService";
 import { createApiHandler } from "../../apiHandler";
 import { parseInput } from "../../apiInput";
-import { parseOptionalArregloId, parseOptionalFacturaId } from "../remitosRouteUtils";
+import { parseOptionalArregloId, parseOptionalFacturaId, parseOptionalOperacionId } from "../remitosRouteUtils";
 
 export const GET = createApiHandler(
   {
@@ -14,7 +14,15 @@ export const GET = createApiHandler(
   async (ctx) => {
     const facturaId = parseInput(parseOptionalFacturaId, ctx.req.nextUrl.searchParams.get("facturaId"));
     const arregloId = parseInput(parseOptionalArregloId, ctx.req.nextUrl.searchParams.get("arregloId"));
-    const data = await getRemitoPreflight(ctx.supabase, ctx.actor.tenantId, getFacturacionAmbiente(), facturaId, arregloId);
+    const operacionId = parseInput(parseOptionalOperacionId, ctx.req.nextUrl.searchParams.get("operacionId"));
+    const data = await getRemitoPreflight(
+      ctx.supabase,
+      ctx.actor.tenantId,
+      getFacturacionAmbiente(),
+      facturaId,
+      arregloId,
+      operacionId,
+    );
     return Response.json({ data, error: null });
   },
 );

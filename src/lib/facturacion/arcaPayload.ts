@@ -10,6 +10,7 @@ import {
   type FacturaTotales,
   type PerfilFiscalCliente,
 } from "./types";
+import { toISODateAppTimeZone } from "@/lib/fechas";
 
 export class FacturacionValidationError extends Error {
   constructor(message: string) {
@@ -141,6 +142,8 @@ export function determineVoucher(
 export function fiscalizeLineas(
   lineas: FacturaLinea[],
   condicionEmisor: CondicionIvaEmisor,
+  preciosIncluyenIva = true,
+  tasaIvaComercial = 0.21,
 ): { lineas: FacturaLinea[]; totales: FacturaTotales } {
   if (!lineas.length) throw new FacturacionValidationError("El origen no tiene líneas facturables");
   let neto = 0;
@@ -153,9 +156,12 @@ export function fiscalizeLineas(
     if (!Number.isFinite(source.cantidad) || source.cantidad <= 0) {
       throw new FacturacionValidationError("La cantidad de una línea no es válida");
     }
-    const subtotal = amountToCents(source.subtotal);
-    const unitario = amountToCents(source.importeUnitario);
-    if (Math.round(source.cantidad * unitario) !== subtotal) {
+    const sourceSubtotal = amountToCents(source.subtotal);
+    if (!Number.isFinite(tasaIvaComercial) || tasaIvaComercial < 0) throw new FacturacionValidationError("La tasa IVA comercial no es válida");
+    // tasa_iva is a decimal fraction (e.g. .21), matching PostgreSQL numeric math.
+    const subtotalComercial = !preciosIncluyenIva ? Math.round(sourceSubtotal * (1 + tasaIvaComercial)) : sourceSubtotal;
+    const unitarioFuente = amountToCents(source.importeUnitario);
+    if (Math.round(source.cantidad * unitarioFuente) !== sourceSubtotal) {
       throw new FacturacionValidationError("El subtotal no coincide con cantidad por precio unitario");
     }
     const tratamiento = source.tratamientoIva ?? "GRAVADO";
@@ -166,33 +172,38 @@ export function fiscalizeLineas(
       porcentaje = 0;
     }
     if (porcentaje == null) throw new FacturacionValidationError("La alícuota IVA no es válida");
-    let importeNeto = subtotal;
+    let importeNeto = subtotalComercial;
     let importeIva = 0;
     if (condicionEmisor === "RESPONSABLE_INSCRIPTO" && tratamiento === "GRAVADO") {
-      importeNeto = Math.round((subtotal * 10000) / (10000 + Math.round(porcentaje * 100)));
-      importeIva = subtotal - importeNeto;
+      // The commercial subtotal is already gross. Split it using the legal ARCA rate,
+      // regardless of the commercial rate that produced the gross. Never add tax on top again.
+      importeNeto = Math.round((subtotalComercial * 10000) / (10000 + Math.round(porcentaje * 100)));
+      importeIva = subtotalComercial - importeNeto;
       neto += importeNeto;
       iva += importeIva;
     } else if (tratamiento === "EXENTO") {
-      exento += subtotal;
+      exento += subtotalComercial;
     } else if (tratamiento === "NO_GRAVADO") {
-      noGravado += subtotal;
+      noGravado += subtotalComercial;
     } else {
-      neto += subtotal;
+      neto += subtotalComercial;
       if (condicionEmisor === "MONOTRIBUTISTA") {
         alicuotaId = null;
         porcentaje = 0;
       }
     }
-    total += subtotal;
+    const importeTotal = importeNeto + importeIva;
+    total += importeTotal;
     return {
       ...source,
+      importeUnitario: centsToAmount(unitarioFuente),
+      subtotal: centsToAmount(sourceSubtotal),
       tratamientoIva: tratamiento,
       ivaAlicuotaId: alicuotaId,
       ivaAlicuota: porcentaje,
       importeNeto: centsToAmount(importeNeto),
       importeIva: centsToAmount(importeIva),
-      importeTotal: centsToAmount(subtotal),
+      importeTotal: centsToAmount(importeTotal),
     };
   });
   return {
@@ -236,7 +247,7 @@ export function validateFechas(
   fceMipyme = false,
 ): Required<FacturaFechaInput> {
   const comprobante = parseIsoDate(fechas.fechaComprobante, "La fecha de comprobante");
-  const hoy = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const hoy = parseIsoDate(toIsoDate(today), "La fecha de hoy");
   const maxDays = concepto === 1 ? 5 : 10;
   if (Math.abs(distance(comprobante, hoy)) > maxDays) {
     throw new FacturacionValidationError(`La fecha debe estar dentro de los ${maxDays} días de hoy`);
@@ -326,4 +337,5 @@ export function buildFacturaCPayload(input: {
   });
 }
 
-export function toIsoDate(value: Date): string { return value.toISOString().slice(0, 10); }
+/** Fecha calendario en Argentina (GMT-3): en UTC, desde las 21 h ya sería el día siguiente. */
+export function toIsoDate(value: Date): string { return toISODateAppTimeZone(value); }

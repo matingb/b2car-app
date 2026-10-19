@@ -18,6 +18,9 @@ ALTER TABLE "public"."operaciones"
   ADD COLUMN "tipo" public.tipo_operacion NOT NULL;
 
 ALTER TABLE "public"."operaciones"
+  ADD COLUMN "observaciones" text;
+
+ALTER TABLE "public"."operaciones"
   ADD CONSTRAINT "operaciones_taller_requerido" CHECK (((taller_id IS NOT NULL) OR ((tipo)::text = 'MOVIMIENTO_CUENTA'::text)));
 
 CREATE INDEX idx_operaciones_fecha ON public.operaciones USING btree (fecha);
@@ -31,6 +34,10 @@ CREATE TRIGGER facturacion_proteger_venta_facturada
   BEFORE DELETE OR UPDATE ON public.operaciones
   FOR EACH ROW
   EXECUTE FUNCTION public.facturacion_bloquear_mutacion_operacion_facturada();
+
+CREATE TRIGGER facturacion_proteger_ajuste_devolucion_nc
+  BEFORE DELETE OR UPDATE ON public.operaciones
+  FOR EACH ROW EXECUTE FUNCTION public.facturacion_bloquear_mutacion_devolucion_nc();
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE "public"."operaciones" TO "anon", "authenticated";
 

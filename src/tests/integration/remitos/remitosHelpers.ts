@@ -23,6 +23,7 @@ export interface EmitirRemitoArgs {
   clase: "R" | "X";
   lineas?: LineaRemitoInput[];
   arregloId?: string | null;
+  operacionId?: string | null;
   facturaId?: string | null;
   destinatario?: Record<string, unknown>;
   transportista?: Record<string, unknown> | null;
@@ -118,19 +119,23 @@ export async function dadaUnaFacturaAutorizadaConLineas(
     documentoTipo?: "FACTURA" | "NOTA_CREDITO";
     documentoAsociadoId?: string;
     arregloId?: string;
+    /** Factura de una operación de venta en lugar de un arreglo. */
+    operacionId?: string;
   } = {},
 ): Promise<FacturaFixture> {
-  const arregloId = options.arregloId ?? (await dadoUnArreglo()).id;
+  const operacionId = options.operacionId ?? null;
+  const arregloId = operacionId ? null : options.arregloId ?? (await dadoUnArreglo()).id;
   const documentoTipo = options.documentoTipo ?? "FACTURA";
   const { data: factura, error } = await adminClient
     .from("facturas_electronicas")
     .insert({
       tenant_id: SEED.tenantId,
       arreglo_id: arregloId,
+      operacion_id: operacionId,
       idempotency_key: randomUUID(),
       estado: "ENVIANDO",
       ambiente: options.ambiente ?? AMBIENTE,
-      origen_tipo: "ARREGLO",
+      origen_tipo: operacionId ? "VENTA" : "ARREGLO",
       documento_tipo: documentoTipo,
       documento_asociado_id: options.documentoAsociadoId ?? null,
       clase_comprobante: "C",
@@ -201,6 +206,17 @@ export async function dadaUnaFacturaAutorizadaConLineas(
   };
 }
 
+/** Fixture: operación del tenant de prueba (por defecto, una venta sin líneas). */
+export async function dadaUnaOperacion(tipo: "VENTA" | "COMPRA" = "VENTA"): Promise<string> {
+  const { data, error } = await adminClient
+    .from("operaciones")
+    .insert({ tenant_id: SEED.tenantId, taller_id: SEED.tallerId, cliente_id: SEED.clienteId, tipo })
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(`dadaUnaOperacion falló: ${error?.message ?? "sin respuesta"}`);
+  return data.id;
+}
+
 /** Fixture: segundo tenant con su propia configuración fiscal, para pruebas de aislamiento. */
 export async function dadoOtroTenantConConfiguracionFiscal(): Promise<string> {
   const tenantId = randomUUID();
@@ -253,6 +269,7 @@ export async function cuandoSeEmiteUnRemito(
     p_transportista: args.transportista ?? null,
     p_observaciones: args.observaciones ?? null,
     p_lineas: lineasPayload,
+    p_operacion_id: args.operacionId ?? null,
   });
 }
 

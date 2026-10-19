@@ -2,13 +2,19 @@
 
 import React from "react";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
-import type { CondicionIvaEmisor, FceSistemaCirculacion } from "@/lib/facturacion/types";
+import {
+  CONDICIONES_INGRESOS_BRUTOS,
+  type CondicionIngresosBrutos,
+  type CondicionIvaEmisor,
+  type FceSistemaCirculacion,
+} from "@/lib/facturacion/types";
 import Dropdown from "@/app/components/ui/Dropdown";
 
 interface FacturacionFiscalCardProps {
   cuit: string;
   inicioActividades: string;
   condicionIvaEmisor: CondicionIvaEmisor;
+  ingresosBrutosCondicion: CondicionIngresosBrutos | null;
   ingresosBrutos: string | null;
   puntoVenta: number;
   fceCbu: string | null;
@@ -17,6 +23,7 @@ interface FacturacionFiscalCardProps {
     cuit?: string;
     inicioActividades?: string;
     condicionIvaEmisor?: CondicionIvaEmisor;
+    ingresosBrutosCondicion?: CondicionIngresosBrutos | null;
     ingresosBrutos?: string | null;
     puntoVenta?: number;
     fceCbu?: string | null;
@@ -30,6 +37,11 @@ const CONDICION_IVA_OPTIONS: Array<{ value: CondicionIvaEmisor; label: string }>
   { value: "RESPONSABLE_INSCRIPTO", label: "Responsable Inscripto" },
 ];
 
+const CONDICION_IIBB_OPTIONS = [
+  { value: "", label: "Seleccioná una opción" },
+  ...CONDICIONES_INGRESOS_BRUTOS,
+];
+
 const FCE_SISTEMA_OPTIONS = [
   { value: "", label: "Seleccioná una opción explícita" },
   { value: "SCA", label: "SCA — Sistema de Circulación Abierta" },
@@ -40,6 +52,7 @@ export default function FacturacionFiscalCard({
   cuit,
   inicioActividades,
   condicionIvaEmisor,
+  ingresosBrutosCondicion,
   ingresosBrutos,
   puntoVenta,
   fceCbu,
@@ -109,20 +122,40 @@ export default function FacturacionFiscalCard({
           </div>
 
           <div style={styles.field}>
-            <label style={styles.label} htmlFor="facturacion-iibb">
-              Nro. Insc. IIBB
+            <label style={styles.label} htmlFor="facturacion-iibb-condicion">
+              Condición IIBB <span style={styles.required}>*</span>
             </label>
-            <input
-              id="facturacion-iibb"
+            <Dropdown
+              id="facturacion-iibb-condicion"
               disabled={disabled}
-              value={ingresosBrutos ?? ""}
-              onChange={(e) =>
-                onChange({ ingresosBrutos: e.target.value || null })
-              }
-              placeholder="N° local / Convenio Multilateral / Exento / No contribuyente"
-              style={styles.input}
+              value={ingresosBrutosCondicion ?? ""}
+              options={CONDICION_IIBB_OPTIONS}
+              onChange={(value) => onChange({
+                ingresosBrutosCondicion: CONDICIONES_INGRESOS_BRUTOS.find((item) => item.value === value)?.value ?? null,
+              })}
+              style={styles.dropdown}
+              dataTestId="facturacion-iibb-condicion"
             />
           </div>
+
+          {ingresosBrutosCondicion === "INSCRIPTO" ? (
+            <div style={styles.field}>
+              <label style={styles.label} htmlFor="facturacion-iibb">
+                Nro. Insc. IIBB <span style={styles.required}>*</span>
+              </label>
+              <input
+                id="facturacion-iibb"
+                required
+                disabled={disabled}
+                value={ingresosBrutos ?? ""}
+                onChange={(e) =>
+                  onChange({ ingresosBrutos: e.target.value || null })
+                }
+                placeholder="N° local / Convenio Multilateral"
+                style={styles.input}
+              />
+            </div>
+          ) : null}
 
           <div style={styles.field}>
             <label style={styles.label} htmlFor="facturacion-punto-venta">

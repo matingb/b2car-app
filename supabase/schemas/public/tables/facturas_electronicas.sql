@@ -37,6 +37,7 @@ CREATE TABLE "public"."facturas_electronicas" (
   "importe_tributos"           numeric(14,2)            NOT NULL DEFAULT 0,
   "otros_impuestos_nacionales" numeric(14,2)            NOT NULL DEFAULT 0,
   "contenido_hash"             text,
+  "stock_origenes_hash"        text,
   "intencion_hash"             text,
   "autorizada_at"              timestamp with time zone,
   "origen_externo"             boolean                  NOT NULL DEFAULT false,

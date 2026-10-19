@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import Modal from "@/app/components/ui/Modal";
 import { Arreglo, Vehiculo } from "@/model/types";
@@ -16,7 +16,7 @@ import CuentaFinancieraAutocomplete, {
   CREATE_CUENTA_VALUE,
 } from "@/app/components/finanzas/CuentaFinancieraAutocomplete";
 import { UpdateArregloInput } from "@/clients/arreglosClient";
-import { toDateInputFormat, toISODateLocal, toISODateTimeWithLocalCurrentTime } from "@/lib/fechas";
+import { toDateInputFormat, toISODateAppTimeZone, toISODateTimeWithCurrentTime } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
@@ -41,13 +41,13 @@ import type { InventarioEntry } from "@/app/components/arreglos/lineas/repuestos
 type Props = {
   open: boolean;
   vehiculoId?: number | string;
-  initial?: Partial<ArregloForm> & { id?: string };
+  initial?: Arreglo | null;
   onClose: (updated?: boolean) => void;
   onSubmitSuccess?: (arreglo: Arreglo) => void;
 };
 
 export function getArregloModalFecha(initialFecha?: string): string {
-  return initialFecha ? toDateInputFormat(initialFecha) : toISODateLocal(new Date());
+  return initialFecha ? toDateInputFormat(initialFecha) : toISODateAppTimeZone();
 }
 
 export function normalizeArregloObservaciones(observaciones: string, isEdit: boolean): string | undefined {
@@ -129,9 +129,16 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
   const [combustible, setCombustible] = useState<string>(initial?.combustible_leido != null ? String(initial.combustible_leido) : "");
   const [observaciones, setObservaciones] = useState(initial?.observaciones ?? "");
   const [estaPago, setEstaPago] = useState<boolean>(!!initial?.esta_pago);
+  const [preciosIncluyenIva, setPreciosIncluyenIva] = useState(initial?.precios_incluyen_iva ?? true);
+  const ivaBlockedByPayment = Number(initial?.total_cobrado ?? 0) > 0 || !!initial?.esta_pago;
+  const preciosSinIvaBloqueo = !canEditPrices
+    ? "Necesitás permiso para editar precios."
+    : isEdit && ivaBlockedByPayment
+      ? "No se puede cambiar mientras existan cobros vigentes."
+      : null;
   const [esFacturable, setEsFacturable] = useState<boolean>(initial?.es_facturable !== false);
   const [cuentaFinancieraId, setCuentaFinancieraId] = useState("");
-  const [fechaCobro, setFechaCobro] = useState(() => toISODateLocal(new Date()));
+  const [fechaCobro, setFechaCobro] = useState(() => toISODateAppTimeZone());
   const [extraData, setExtraData] = useState(initial?.extra_data ?? "");
   const [selectedVehiculoId, setSelectedVehiculoId] = useState<string>(vehiculoId ? String(vehiculoId) : "");
   const [submitting, setSubmitting] = useState(false);
@@ -156,32 +163,52 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     [vehiculos]
   );
 
+  const prevOpenRef = useRef(false);
+  const prevInitialIdRef = useRef<string | undefined>(undefined);
+  const prevVehiculoIdRef = useRef(vehiculoId);
+
   useEffect(() => {
     if (!open) {
+      prevOpenRef.current = false;
       setIsFormClosed(false);
       setIsShareModalOpen(false);
       setShareDetalle(null);
       return;
     }
-    setIsFormClosed(false);
-    setError(null);
-    setSubmitting(false);
-    setEstado(initial?.estado ?? "SIN_INICIAR");
-    setFecha(getArregloModalFecha(initial?.fecha));
-    setKm(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
-    setCombustible(initial?.combustible_leido != null ? String(initial.combustible_leido) : "");
-    setObservaciones(initial?.observaciones ?? "");
-    setEstaPago(!!initial?.esta_pago);
-    setEsFacturable(initial?.es_facturable !== false);
-    setCuentaFinancieraId("");
-    setCuentaDraft({ ...EMPTY_CUENTA_FINANCIERA_DRAFT });
-    setFechaCobro(toISODateLocal(new Date()));
-    setExtraData(initial?.extra_data ?? "");
-    setSelectedVehiculoId(vehiculoId ? String(vehiculoId) : "");
-    setIsValid(false);
 
-    if (!isEdit) {
-      setInternal(createEmptyInternal());
+    const wasOpen = prevOpenRef.current;
+    const currentId = initial?.id;
+    const idChanged = currentId !== prevInitialIdRef.current;
+    const vehiculoChanged = vehiculoId !== prevVehiculoIdRef.current;
+
+    prevOpenRef.current = true;
+    prevInitialIdRef.current = currentId;
+    prevVehiculoIdRef.current = vehiculoId;
+
+    if (!wasOpen || idChanged) {
+      setIsFormClosed(false);
+      setError(null);
+      setSubmitting(false);
+      setEstado(initial?.estado ?? "SIN_INICIAR");
+      setFecha(getArregloModalFecha(initial?.fecha));
+      setKm(initial?.kilometraje_leido != null ? String(initial.kilometraje_leido) : "");
+      setCombustible(initial?.combustible_leido != null ? String(initial.combustible_leido) : "");
+      setObservaciones(initial?.observaciones ?? "");
+      setEstaPago(!!initial?.esta_pago);
+      setPreciosIncluyenIva(initial?.precios_incluyen_iva ?? true);
+      setEsFacturable(initial?.es_facturable !== false);
+      setCuentaFinancieraId("");
+      setCuentaDraft({ ...EMPTY_CUENTA_FINANCIERA_DRAFT });
+      setFechaCobro(toISODateAppTimeZone());
+      setExtraData(initial?.extra_data ?? "");
+      setSelectedVehiculoId(vehiculoId ? String(vehiculoId) : "");
+      setIsValid(false);
+
+      if (!isEdit) {
+        setInternal(createEmptyInternal());
+      }
+    } else if (vehiculoChanged) {
+      setSelectedVehiculoId(vehiculoId ? String(vehiculoId) : "");
     }
   }, [open, initial, vehiculoId, isEdit]);
 
@@ -206,6 +233,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     extraData,
     selectedVehiculoId,
     esFacturable,
+    preciosIncluyenIva,
   };
 
   const handleFieldsChange = (patch: Partial<ArregloFormFieldsValues>) => {
@@ -222,6 +250,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
       observaciones: (value) => setObservaciones(String(value ?? "")),
       estaPago: (value) => setEstaPago(Boolean(value)),
       esFacturable: (value) => setEsFacturable(Boolean(value)),
+      preciosIncluyenIva: (value) => setPreciosIncluyenIva(Boolean(value)),
       extraData: (value) => setExtraData(String(value ?? "")),
       selectedVehiculoId: (value) => setSelectedVehiculoId(String(value ?? "")),
     };
@@ -255,10 +284,10 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     setSubmitting(true);
     setError(null);
     try {
-      const fechaTimestamp = toISODateTimeWithLocalCurrentTime(fecha);
-      if (!fechaTimestamp) throw new Error("La fecha del arreglo no es válida");
-      const fechaCobroTimestamp = fechaCobro
-        ? toISODateTimeWithLocalCurrentTime(fechaCobro)
+      if (!isValidDate(fecha)) throw new Error("La fecha del arreglo no es válida");
+      const fechaTimestamp = toISODateTimeWithCurrentTime(fecha);
+      const fechaCobroTimestamp = isValidDate(fechaCobro)
+        ? toISODateTimeWithCurrentTime(fechaCobro)
         : null;
       let targetCuentaId = cuentaFinancieraId;
       if (requiereCuentaFinanciera && isCreatingCuenta) {
@@ -282,6 +311,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           extra_data: extraData || undefined,
           es_facturable: resolveEsFacturableForCreate(canUseBilling, esFacturable),
         };
+        if (canEditPrices) payload.precios_incluyen_iva = preciosIncluyenIva;
         response = await update(initial.id, payload);
       } else {
         if (!tallerSeleccionadoId) {
@@ -311,6 +341,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           observaciones: normalizeArregloObservaciones(observaciones, false),
           esta_pago: canCobros ? !!estaPago : false,
           es_facturable: resolveEsFacturableForCreate(canUseBilling, esFacturable),
+          ...(canEditPrices && !preciosIncluyenIva ? { precios_incluyen_iva: false } : {}),
           ...(requiereCuentaFinanciera ? {
             cuenta_financiera_id: targetCuentaId,
             idempotency_key: generateUuidV4(),
@@ -360,6 +391,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
         setCombustible("");
         setObservaciones("");
         setEstaPago(false);
+        setPreciosIncluyenIva(true);
         setExtraData("");
         setInternal(createEmptyInternal());
         success("Arreglo creado", "El arreglo se registró correctamente.");
@@ -423,6 +455,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           vehiculoOptions={vehiculoOptions}
           isEdit={isEdit}
           showFacturable={canUseBilling}
+          showPreciosSinIva={isEdit || canEditPrices}
+          preciosSinIvaBloqueo={preciosSinIvaBloqueo}
           submitting={submitting}
           tallerId={tallerSeleccionadoId ?? null}
           persistedEstado={initial?.estado}

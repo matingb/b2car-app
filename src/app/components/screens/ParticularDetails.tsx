@@ -115,6 +115,7 @@ export default function ParticularDetails() {
         clienteId={clienteId}
         vehiculos={vehiculos}
         onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
+        onArregloPagoUpdated={() => void loadFinanzas()}
       />
 
       <ClienteFormModal

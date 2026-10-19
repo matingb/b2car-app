@@ -19,11 +19,13 @@ import { generateRemitoPdf, remitoPdfFilename } from "./remitoPdf";
 import {
   formatRemitoDocumento,
   formatRemitoNumero,
+  REMITO_MAX_LINEAS,
   type AsociarFacturaInput,
   type EmitirRemitoInput,
   type FacturaRemitos,
   type RemitoClase,
   type RemitoArregloOrigen,
+  type RemitoOperacionOrigen,
   type RemitoDestinatario,
   type RemitoDetalle,
   type RemitoFacturaLineaDisponible,
@@ -46,10 +48,10 @@ import {
 type DbRecord = Record<string, unknown>;
 
 const FACTURA_REF_COLUMNS = "id, documento_tipo, clase_comprobante, punto_venta, numero_comprobante";
-export const REMITO_RESUMEN_COLUMNS = "id, clase, punto_emision, numero, fecha_emision, ambiente, destinatario_snapshot, arreglo_id, factura_id, created_at, "
+export const REMITO_RESUMEN_COLUMNS = "id, clase, punto_emision, numero, fecha_emision, ambiente, destinatario_snapshot, arreglo_id, operacion_id, factura_id, created_at, "
   + `factura:facturas_electronicas(${FACTURA_REF_COLUMNS})`;
 const DETALLE_COLUMNS = "id, clase, tipo_comprobante, punto_emision, numero, fecha_emision, ambiente, emisor_snapshot, "
-  + "destinatario_snapshot, transportista_snapshot, cai, cai_vencimiento, impresion_snapshot, observaciones, arreglo_id, factura_id, "
+  + "destinatario_snapshot, transportista_snapshot, cai, cai_vencimiento, impresion_snapshot, observaciones, arreglo_id, operacion_id, factura_id, "
   + `factura_asociada_at, created_at, factura:facturas_electronicas(${FACTURA_REF_COLUMNS}, fecha_comprobante, receptor_snapshot)`;
 const REMITO_LINEA_COLUMNS = "id, ordinal, codigo, descripcion, observaciones, cantidad, factura_linea_id";
 const FACTURA_LINEA_COLUMNS = "id, ordinal, origen, codigo, descripcion, cantidad";
@@ -137,6 +139,7 @@ export function mapResumen(value: unknown): RemitoResumen {
     destinatarioNombre: destinatario.nombre,
     destinatarioDocumento: formatRemitoDocumento(destinatario),
     arregloId: nullable(row.arreglo_id),
+    operacionId: nullable(row.operacion_id),
     factura: row.factura_id ? { id: text(row.factura_id), label: facturaLabel(row.factura) } : null,
   };
 }
@@ -200,6 +203,7 @@ function mapDetalle(value: unknown, lineas: unknown[]): RemitoDetalle {
     impresion: mapImpresion(row.impresion_snapshot),
     observaciones: nullable(row.observaciones),
     arregloId: nullable(row.arreglo_id),
+    operacionId: nullable(row.operacion_id),
     lineas: lineas.map((item) => {
       const linea = record(item);
       return {
@@ -385,47 +389,44 @@ async function facturaRemitible(
   };
 }
 
-async function getArregloRemitible(
+type FacturaAsociada = { facturaId: string | null; facturaNumero: string | null };
+
+/** Factura autorizada del origen en el ambiente actual. Evita precargar números de otro ambiente o de una factura aún no autorizada. */
+async function facturaAutorizadaDelOrigen(
   supabase: SupabaseClient,
   tenantId: string,
   ambiente: FacturacionAmbiente,
-  arregloId: string,
-): Promise<RemitoArregloOrigen> {
-  const [sourceResult, detalleResult] = await Promise.all([
-    supabase
-      .from("arreglos")
-      .select("id, numero_orden, cliente_id")
-      .eq("id", arregloId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle(),
-    supabase.rpc("rpc_get_arreglo_detalle", { p_arreglo_id: arregloId }),
-  ]);
-  if (sourceResult.error) throw sourceResult.error;
-  if (detalleResult.error) throw detalleResult.error;
-  if (!sourceResult.data || !detalleResult.data) throw new ApiError(404, "Arreglo no encontrado", "NOT_FOUND");
-
-  // Evita precargar números de otro ambiente o de una factura aún no autorizada.
-  const facturaResult = await supabase
+  columna: "arreglo_id" | "operacion_id",
+  origenId: string,
+): Promise<FacturaAsociada> {
+  const { data, error } = await supabase
     .from("facturas_electronicas")
     .select("id, punto_venta, numero_comprobante")
     .eq("tenant_id", tenantId)
     .eq("ambiente", ambiente)
-    .eq("arreglo_id", arregloId)
+    .eq(columna, origenId)
     .eq("documento_tipo", "FACTURA")
     .eq("estado", "AUTORIZADA")
     .maybeSingle();
-  if (facturaResult.error) throw facturaResult.error;
+  if (error) throw error;
+  const factura = record(data);
+  return {
+    facturaId: nullable(factura.id),
+    facturaNumero: data && factura.numero_comprobante != null
+      ? `${pad(number(factura.punto_venta), 5)}-${pad(number(factura.numero_comprobante), 8)}`
+      : null,
+  };
+}
 
-  const source = record(sourceResult.data);
-  const detalle = record(detalleResult.data);
-  const arreglo = record(detalle.arreglo);
-  const vehiculo = record(arreglo.vehiculo);
-  const facturaAsociada = record(facturaResult.data);
-  const facturaNumero = facturaResult.data && facturaAsociada.numero_comprobante != null
-    ? `${pad(number(facturaAsociada.punto_venta), 5)}-${pad(number(facturaAsociada.numero_comprobante), 8)}`
-    : null;
-  const clienteId = isValidUuid(source.cliente_id) ? source.cliente_id : null;
-  let nombre = text(vehiculo.nombre_cliente);
+/** Destinatario precargado desde el cliente (empresa o particular); sin cliente usa el nombre de respaldo. */
+async function destinatarioDesdeCliente(
+  supabase: SupabaseClient,
+  tenantId: string,
+  clienteIdRaw: unknown,
+  nombreRespaldo: string,
+): Promise<RemitoDestinatario> {
+  const clienteId = isValidUuid(clienteIdRaw) ? clienteIdRaw : null;
+  let nombre = nombreRespaldo;
   let domicilio: string | null = null;
   let tipoDocumento: RemitoDestinatario["tipoDocumento"] = null;
   let numeroDocumento: string | null = null;
@@ -476,6 +477,43 @@ async function getArregloRemitible(
     }
   }
 
+  return {
+    clienteId,
+    nombre,
+    domicilio,
+    tipoDocumento,
+    numeroDocumento,
+    condicionIvaReceptorId: null,
+  };
+}
+
+async function getArregloRemitible(
+  supabase: SupabaseClient,
+  tenantId: string,
+  ambiente: FacturacionAmbiente,
+  arregloId: string,
+): Promise<RemitoArregloOrigen> {
+  const [sourceResult, detalleResult] = await Promise.all([
+    supabase
+      .from("arreglos")
+      .select("id, numero_orden, cliente_id")
+      .eq("id", arregloId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle(),
+    supabase.rpc("rpc_get_arreglo_detalle", { p_arreglo_id: arregloId }),
+  ]);
+  if (sourceResult.error) throw sourceResult.error;
+  if (detalleResult.error) throw detalleResult.error;
+  if (!sourceResult.data || !detalleResult.data) throw new ApiError(404, "Arreglo no encontrado", "NOT_FOUND");
+
+  const { facturaId, facturaNumero } = await facturaAutorizadaDelOrigen(supabase, tenantId, ambiente, "arreglo_id", arregloId);
+
+  const source = record(sourceResult.data);
+  const detalle = record(detalleResult.data);
+  const arreglo = record(detalle.arreglo);
+  const vehiculo = record(arreglo.vehiculo);
+  const destinatario = await destinatarioDesdeCliente(supabase, tenantId, source.cliente_id, text(vehiculo.nombre_cliente));
+
   const repuestosPendientes = Array.isArray(arreglo.repuestos_pendientes)
     ? arreglo.repuestos_pendientes.map((value) => {
         const linea = record(value);
@@ -504,17 +542,65 @@ async function getArregloRemitible(
   return {
     id: arregloId,
     label: source.numero_orden == null ? "Arreglo" : `Arreglo N° ${number(source.numero_orden)}`,
-    facturaId: nullable(facturaAsociada.id),
+    facturaId,
     facturaNumero,
-    destinatario: {
-      clienteId,
-      nombre: nombre || "Cliente",
-      domicilio,
-      tipoDocumento,
-      numeroDocumento,
-      condicionIvaReceptorId: null,
-    },
-    lineas: lineas.slice(0, 200),
+    destinatario: { ...destinatario, nombre: destinatario.nombre || "Cliente" },
+    lineas: lineas.slice(0, REMITO_MAX_LINEAS),
+  };
+}
+
+/** Bienes y destinatario precargados desde una operación de venta. Solo lee cantidades, código y nombre del producto. */
+async function getOperacionRemitible(
+  supabase: SupabaseClient,
+  tenantId: string,
+  ambiente: FacturacionAmbiente,
+  operacionId: string,
+): Promise<RemitoOperacionOrigen> {
+  const [operacionResult, lineasResult] = await Promise.all([
+    supabase
+      .from("operaciones")
+      .select("id, tipo, cliente_id")
+      .eq("id", operacionId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle(),
+    supabase
+      .from("operaciones_lineas")
+      .select("cantidad, stock:stocks(producto:productos(codigo, nombre))")
+      .eq("operacion_id", operacionId)
+      .order("created_at", { ascending: true }),
+  ]);
+  if (operacionResult.error) throw operacionResult.error;
+  if (lineasResult.error) throw lineasResult.error;
+  if (!operacionResult.data) throw new ApiError(404, "Operación no encontrada", "NOT_FOUND");
+  const operacion = record(operacionResult.data);
+  if (operacion.tipo !== "VENTA") {
+    throw new ApiError(400, "Solo se pueden generar remitos desde operaciones de venta", "VALIDATION");
+  }
+
+  const [{ facturaId, facturaNumero }, destinatario] = await Promise.all([
+    facturaAutorizadaDelOrigen(supabase, tenantId, ambiente, "operacion_id", operacionId),
+    destinatarioDesdeCliente(supabase, tenantId, operacion.cliente_id, ""),
+  ]);
+
+  const lineas = (lineasResult.data ?? [])
+    .map((value) => {
+      const linea = record(value);
+      const producto = record(record(linea.stock).producto);
+      return {
+        codigo: nullable(producto.codigo),
+        descripcion: text(producto.nombre) || "Producto",
+        cantidad: number(linea.cantidad),
+      };
+    })
+    .filter((linea) => linea.cantidad > 0);
+
+  return {
+    id: operacionId,
+    label: "Venta",
+    facturaId,
+    facturaNumero,
+    destinatario: { ...destinatario, nombre: destinatario.nombre || "Consumidor final" },
+    lineas: lineas.slice(0, REMITO_MAX_LINEAS),
   };
 }
 
@@ -525,11 +611,12 @@ export async function getRemitoPreflight(
   ambiente: FacturacionAmbiente,
   facturaId: string | null,
   arregloId: string | null = null,
+  operacionId: string | null = null,
 ): Promise<RemitoPreflight> {
-  if (facturaId && arregloId) {
-    throw new ApiError(400, "Iniciá el remito desde un arreglo o desde una factura, no desde ambos", "VALIDATION");
+  if ([facturaId, arregloId, operacionId].filter(Boolean).length > 1) {
+    throw new ApiError(400, "Iniciá el remito desde un único origen: una factura, un arreglo o una venta", "VALIDATION");
   }
-  const [fiscal, config, facturaOrigen, arreglo] = await Promise.all([
+  const [fiscal, config, facturaOrigen, arreglo, operacion] = await Promise.all([
     supabase
       .from("facturacion_configuracion_ambiente")
       .select("razon_social, cuit, domicilio, inicio_actividades")
@@ -539,10 +626,12 @@ export async function getRemitoPreflight(
     getRemitosConfiguracion(supabase, tenantId, ambiente),
     facturaId ? facturaRemitible(supabase, tenantId, ambiente, facturaId) : Promise.resolve(null),
     arregloId ? getArregloRemitible(supabase, tenantId, ambiente, arregloId) : Promise.resolve(null),
+    operacionId ? getOperacionRemitible(supabase, tenantId, ambiente, operacionId) : Promise.resolve(null),
   ]);
   if (fiscal.error) throw fiscal.error;
-  const factura = arreglo?.facturaId
-    ? await facturaRemitible(supabase, tenantId, ambiente, arreglo.facturaId)
+  const facturaAsociadaId = arreglo?.facturaId ?? operacion?.facturaId ?? null;
+  const factura = facturaAsociadaId
+    ? await facturaRemitible(supabase, tenantId, ambiente, facturaAsociadaId)
     : facturaOrigen;
   const emisor = fiscal.data ? record(fiscal.data) : null;
   const evaluacionR = evaluarRemitoR(config.remitoR, hoyArgentinaISO());
@@ -569,6 +658,7 @@ export async function getRemitoPreflight(
     },
     factura,
     arreglo,
+    operacion,
   };
 }
 
@@ -582,6 +672,7 @@ export async function emitirRemito(
     p_ambiente: ambiente,
     p_clase: input.clase,
     p_arreglo_id: input.arregloId,
+    p_operacion_id: input.operacionId,
     p_factura_id: input.facturaId,
     p_destinatario: input.destinatario,
     p_transportista: input.transportista,

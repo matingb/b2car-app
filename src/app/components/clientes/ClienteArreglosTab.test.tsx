@@ -1,10 +1,38 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import ClienteArreglosTab from "./ClienteArreglosTab";
 import { createArreglo } from "@/tests/factories";
+import type { Arreglo } from "@/model/types";
 
 const mockGetAll = vi.fn();
 const mockPush = vi.fn();
+
+// El modal real tiene su propio test; acá solo simula que el cobro se registró.
+// Como el Modal real, frena la propagación para no disparar el click de la card.
+vi.mock("@/app/components/arreglos/CobroArregloModal", () => ({
+  default: ({
+    open,
+    arregloId,
+    onPaid,
+  }: {
+    open: boolean;
+    arregloId: string;
+    onPaid?: (arreglo: Arreglo) => void;
+  }) =>
+    open ? (
+      <button
+        type="button"
+        data-testid="simular-cobro"
+        onClick={(e) => {
+          e.stopPropagation();
+          onPaid?.({ id: arregloId, esta_pago: true, total_cobrado: 40000, saldo_pendiente: 0 } as Arreglo);
+        }}
+      >
+        Simular cobro
+      </button>
+    ) : null,
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -121,5 +149,40 @@ describe("ClienteArreglosTab", () => {
     expect(screen.getAllByTestId("arreglo-pago-badge")).toHaveLength(2);
     expect(screen.getAllByTestId("arreglo-estado-badge")).toHaveLength(2);
     expect(screen.getAllByTestId("arreglo-factura-badge")[0]).toHaveTextContent("FC B-0001-00004511");
+  });
+
+  it("actualiza el badge de pago y avisa a la pantalla al registrar un cobro, sin recargar el listado", async () => {
+    mockGetAll.mockClear();
+    mockGetAll.mockResolvedValueOnce({
+      data: [
+        createArreglo({
+          id: "arr-1",
+          descripcion: "Cambio pastillas de freno",
+          precio_final: 40000,
+          esta_pago: false,
+          total_cobrado: 0,
+          saldo_pendiente: 40000,
+          estado: "TERMINADO",
+        }),
+      ],
+      error: null,
+    });
+    const onPagoUpdated = vi.fn();
+    const user = userEvent.setup();
+
+    render(<ClienteArreglosTab clienteId="cli-1" onPagoUpdated={onPagoUpdated} />);
+
+    const badge = await screen.findByTestId("arreglo-pago-badge");
+    expect(badge).toHaveTextContent("Pago pendiente");
+
+    await user.click(badge);
+    await user.click(await screen.findByTestId("simular-cobro"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("arreglo-pago-badge")).toHaveTextContent("Pagado");
+    });
+    expect(onPagoUpdated).toHaveBeenCalledWith(expect.objectContaining({ id: "arr-1", esta_pago: true }));
+    expect(mockGetAll).toHaveBeenCalledTimes(1);
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });

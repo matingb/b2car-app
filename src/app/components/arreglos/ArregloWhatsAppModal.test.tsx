@@ -235,6 +235,42 @@ describe("ArregloWhatsAppModal", () => {
     expect(textarea.value).not.toContain("⏱️ KM actual");
   });
 
+  it("solo ofrece Precios con IVA cuando el arreglo tiene precios sin IVA", async () => {
+    const { rerender } = render(<ArregloWhatsAppModal open onClose={vi.fn()} data={sampleData} />);
+    expect(screen.queryByRole("checkbox", { name: "Precios con IVA" })).not.toBeInTheDocument();
+
+    const sinIvaData = createArregloDetalleData({
+      arreglo: createArreglo({
+        id: "a2",
+        precio_final: 12100,
+        precio_sin_iva: 10000,
+        precios_incluyen_iva: false,
+        tasa_iva: 0.21,
+        vehiculo: createVehiculo({ id: "v1", patente: "ABC123" }),
+      }),
+      detalles: [{
+        id: "d1", arreglo_id: "a2", descripcion: "Mano de obra", cantidad: 1,
+        precio_hora_facturada: 10000, horas_facturadas: 1, horas_trabajadas: 1,
+        categoria_arreglo_id: null, empleado_id: null,
+      }],
+      asignaciones: [],
+    });
+    rerender(<ArregloWhatsAppModal open onClose={vi.fn()} data={sinIvaData} />);
+
+    const toggleIva = screen.getByRole("checkbox", { name: "Precios con IVA" });
+    const textarea = screen.getByPlaceholderText("El mensaje de WhatsApp aparecerá aquí...") as HTMLTextAreaElement;
+    expect(toggleIva).toHaveAttribute("aria-checked", "false");
+    expect(textarea.value).toContain("_Subtotal mano de obra: $10.000_");
+    expect(textarea.value).toContain("_Subtotal: $10.000_");
+    expect(textarea.value).toContain("_IVA 21%: $2.100_");
+    expect(textarea.value).toContain("*Total arreglo $12.100*");
+
+    fireEvent.click(toggleIva);
+
+    expect(textarea.value).toContain("_Subtotal mano de obra: $12.100_");
+    expect(textarea.value).not.toContain("IVA 21%");
+  });
+
   it("permite alternar el toggle de observaciones", async () => {
     render(
       <ArregloWhatsAppModal

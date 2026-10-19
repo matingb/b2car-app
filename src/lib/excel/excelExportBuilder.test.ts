@@ -4,6 +4,7 @@ import {
   sanitizeSheetName,
   buildMultiSheetWorkbook,
   buildExcelResponse,
+  type ExcelSheetDef,
 } from "./excelExportBuilder";
 
 describe("excelExportBuilder", () => {
@@ -74,6 +75,36 @@ describe("excelExportBuilder", () => {
 
       expect(loadedWs!.columns?.length).toBe(3);
       expect(loadedWs!.actualColumnCount).toBe(3);
+    });
+
+    it("soporta hojas tipadas con formateadores de valor personalizados", () => {
+      interface ItemPrueba {
+        sku: string;
+        precio: number;
+      }
+
+      const sheet: ExcelSheetDef<ItemPrueba> = {
+        name: "Precios",
+        columns: [
+          { header: "SKU", key: "sku" },
+          {
+            header: "Precio con IVA",
+            key: "precio",
+            value: (row) => `$${row.precio * 1.21}`,
+          },
+        ],
+        rows: [{ sku: "ABC", precio: 100 }],
+      };
+
+      const workbook = buildMultiSheetWorkbook({
+        sheets: [sheet],
+      });
+
+      const ws = workbook.getWorksheet("Precios");
+      expect(ws).toBeDefined();
+      const row2 = ws!.getRow(2);
+      expect(row2.getCell(1).value).toBe("ABC");
+      expect(row2.getCell(2).value).toBe("$121");
     });
   });
 

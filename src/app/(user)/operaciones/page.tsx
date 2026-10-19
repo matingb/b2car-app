@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import PeriodSelector from "@/app/components/dashboard/PeriodSelector";
 import SearchBar from "@/app/components/ui/SearchBar";
@@ -14,6 +15,7 @@ import type { StockItem } from "@/model/stock";
 import { formatDateLabel } from "@/lib/fechas";
 import { formatArs } from "@/lib/format";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { ROUTES } from "@/routing/routes";
 import { css } from "@emotion/react";
 import {
     ArrowDownRight,
@@ -34,6 +36,7 @@ import Color from "color";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 import LineDetalleOperacion from "@/app/components/operaciones/LineDetalleOperacion";
 import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
+import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
 import Button from "@/app/components/ui/Button";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
@@ -166,10 +169,12 @@ export default function OperacionesPage() {
         hasMore,
         loadMore,
     } = useOperaciones();
+    const router = useRouter();
     const tenant = useTenant();
     const { talleres } = tenant;
     const { hasPermission } = tenant;
     const canUseBilling = hasPermission(Permission.FacturasView);
+    const canEmitRemitos = hasPermission(Permission.FacturasEdit);
     const { getStockById } = useInventario();
     const { success, error } = useToast();
     const { confirm } = useModalMessage();
@@ -180,6 +185,7 @@ export default function OperacionesPage() {
     const [gastoEdit, setGastoEdit] = useState<GastoFinanciero | null>(null);
     const [expandedOperacionId, setExpandedOperacionId] = useState<string | null>(null);
     const [facturaOperacionId, setFacturaOperacionId] = useState<string | null>(null);
+    const [remitoOperacionId, setRemitoOperacionId] = useState<string | null>(null);
     const [stocksById, setStocksById] = useState<Record<string, StockItem>>({});
     const loadedStockIdsRef = useRef<Set<string>>(new Set());
     const loadingInitial = loading && operaciones.length === 0;
@@ -253,6 +259,7 @@ export default function OperacionesPage() {
                 return [
                     o.tipo,
                     o.descripcion,
+                    o.observaciones,
                     o.categoria_gasto,
                     o.cuenta_financiera_nombre,
                     talleres.find(t => t.id === o.taller_id)?.nombre || shortId(o.taller_id),
@@ -312,6 +319,7 @@ export default function OperacionesPage() {
             importe: Number(operacion.monto) || 0,
             fecha: operacion.fecha,
             descripcion: operacion.descripcion ?? "",
+            observaciones: operacion.observaciones ?? null,
             arregloId: null,
             operacionId: null,
             createdAt: operacion.created_at,
@@ -455,6 +463,8 @@ export default function OperacionesPage() {
                                 }}
                                 onEdit={operacion.tipo === "GASTO" ? () => handleEditGasto(operacion) : undefined}
                                 onInvoice={canUseBilling && operacion.tipo === "VENTA" ? () => setFacturaOperacionId(operacion.id) : undefined}
+                                onRemito={canEmitRemitos && operacion.tipo === "VENTA" ? () => setRemitoOperacionId(operacion.id) : undefined}
+                                showDocumentos={canUseBilling && operacion.tipo === "VENTA"}
                             />
                         );
                     })}
@@ -485,6 +495,14 @@ export default function OperacionesPage() {
                     onAuthorized={() => {
                         void refresh();
                     }}
+                />
+            ) : null}
+            {canEmitRemitos ? (
+                <RemitoCreateModal
+                    open={Boolean(remitoOperacionId)}
+                    operacionId={remitoOperacionId}
+                    onClose={() => setRemitoOperacionId(null)}
+                    onEmitted={(remitoId) => router.push(`${ROUTES.remitos}/${remitoId}`)}
                 />
             ) : null}
         </div>

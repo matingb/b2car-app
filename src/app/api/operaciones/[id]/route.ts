@@ -47,6 +47,7 @@ function mapOperacion(row: OperacionRow): Operacion {
 		taller_id: row.taller_id,
 		fecha: row.fecha,
 		created_at: row.created_at,
+		observaciones: row.observaciones ? String(row.observaciones) : undefined,
 		lineas: lineas.map(mapLinea),
 	};
 }
@@ -156,6 +157,10 @@ export async function DELETE(
 				case ServiceError.MovimientoFinancieroInmutable:
 					status = 409;
 					message = "Los movimientos financieros registrados no se pueden modificar ni eliminar";
+					break;
+				case ServiceError.EnUso:
+					status = 409;
+					message = "La operación tiene documentos asociados (por ejemplo, remitos) y no se puede eliminar";
 					break;
 				default:
 					break;

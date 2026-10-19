@@ -13,6 +13,9 @@ DECLARE
   v_estado text;
   v_tenant_id uuid;
   v_current_tenant uuid := public.current_tenant_id();
+  v_arreglo public.arreglos;
+  v_stock_origenes jsonb := '[]'::jsonb;
+  v_stock_origenes_hash text;
 BEGIN
   IF v_current_tenant IS NULL THEN
     RAISE EXCEPTION 'Sesion sin tenant activo';
@@ -27,11 +30,23 @@ BEGIN
   END IF;
   -- Validar que entidades asociadas pertenezcan al mismo tenant
   IF NULLIF(p_encabezado->>'arreglo_id', '') IS NOT NULL THEN
-    IF NOT EXISTS (
-      SELECT 1 FROM public.arreglos
-      WHERE id = (p_encabezado->>'arreglo_id')::uuid AND tenant_id = v_current_tenant
-    ) THEN
+    -- Always lock source before document, matching collections and mode updates.
+    SELECT * INTO v_arreglo FROM public.arreglos
+    WHERE id = (p_encabezado->>'arreglo_id')::uuid AND tenant_id = v_current_tenant
+    FOR UPDATE;
+    IF NOT FOUND THEN
       RAISE EXCEPTION 'El arreglo no pertenece al tenant activo';
+    END IF;
+    -- New pricing snapshots must be echoed by the server after canonical loading.
+    -- Reject a candidate prepared before a concurrent toggle (including equal totals).
+    IF p_encabezado->>'documento_tipo' = 'FACTURA' AND
+       (v_arreglo.tasa_iva IS NOT NULL OR p_encabezado ? 'precios_incluyen_iva') THEN
+      IF (p_encabezado->>'precios_incluyen_iva')::boolean IS DISTINCT FROM v_arreglo.precios_incluyen_iva
+         OR (p_encabezado->>'tasa_iva')::numeric IS DISTINCT FROM v_arreglo.tasa_iva
+         OR (p_encabezado->>'total')::numeric IS DISTINCT FROM v_arreglo.precio_final THEN
+        RAISE EXCEPTION 'El precio/modo IVA del arreglo cambio; volver a preparar factura'
+          USING ERRCODE = '40001';
+      END IF;
     END IF;
   END IF;
   IF NULLIF(p_encabezado->>'operacion_id', '') IS NOT NULL THEN
@@ -50,6 +65,95 @@ BEGIN
       RAISE EXCEPTION 'El documento asociado no pertenece al tenant activo';
     END IF;
   END IF;
+  IF p_encabezado->>'documento_tipo' = 'FACTURA' THEN
+    IF p_encabezado->>'origen_tipo' = 'VENTA' THEN
+      IF NULLIF(p_encabezado->>'operacion_id','') IS NULL OR NULLIF(p_encabezado->>'arreglo_id','') IS NOT NULL THEN
+        RAISE EXCEPTION 'Origen de venta inválido';
+      END IF;
+      IF EXISTS (
+        SELECT 1 FROM public.operaciones o
+        JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
+        WHERE o.id = (p_encabezado->>'operacion_id')::uuid AND o.tenant_id = v_current_tenant
+          AND o.tipo = 'VENTA' AND ol.delta_cantidad < 0 AND ol.cantidad <> abs(ol.delta_cantidad)
+      ) THEN RAISE EXCEPTION 'La salida de stock de la venta no coincide con la cantidad de la línea'; END IF;
+      PERFORM 1
+      FROM public.operaciones o
+      JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
+      JOIN public.stocks s ON s.id = ol.stock_id AND s.tenant_id = v_current_tenant AND s.taller_id = o.taller_id
+      WHERE o.id = (p_encabezado->>'operacion_id')::uuid
+        AND o.tenant_id = v_current_tenant AND o.tipo = 'VENTA' AND ol.delta_cantidad < 0
+      ORDER BY ol.id FOR UPDATE OF o, ol, s;
+      SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'operacion_linea_id', ol.id,
+        'operacion_origen_id', o.id,
+        'stock_id', s.id,
+        'taller_id', s.taller_id,
+        'producto_id', s.producto_id,
+        'origen_linea', 'VENTA',
+        'cantidad_original', abs(ol.delta_cantidad),
+        'nombre_snapshot', p.nombre,
+        'codigo_snapshot', p.codigo
+      ) ORDER BY ol.id), '[]'::jsonb)
+      INTO v_stock_origenes
+      FROM public.operaciones o
+      JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
+      JOIN public.stocks s ON s.id = ol.stock_id AND s.tenant_id = v_current_tenant AND s.taller_id = o.taller_id
+      JOIN public.productos p ON p.id = s.producto_id AND p.tenant_id = v_current_tenant
+      WHERE o.id = (p_encabezado->>'operacion_id')::uuid
+        AND o.tenant_id = v_current_tenant AND o.tipo = 'VENTA' AND ol.delta_cantidad < 0;
+    ELSIF p_encabezado->>'origen_tipo' = 'ARREGLO' THEN
+      IF NULLIF(p_encabezado->>'arreglo_id','') IS NULL OR NULLIF(p_encabezado->>'operacion_id','') IS NOT NULL THEN
+        RAISE EXCEPTION 'Origen de arreglo inválido';
+      END IF;
+      IF EXISTS (
+        SELECT 1 FROM public.operaciones_asignacion_arreglo oa
+        JOIN public.operaciones o ON o.id = oa.operacion_id AND o.tenant_id = v_current_tenant AND o.tipo = 'ASIGNACION_ARREGLO'
+        JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
+        WHERE oa.arreglo_id = (p_encabezado->>'arreglo_id')::uuid AND ol.delta_cantidad < 0
+          AND ol.cantidad <> abs(ol.delta_cantidad)
+      ) THEN RAISE EXCEPTION 'La salida de stock del arreglo no coincide con la cantidad de la línea'; END IF;
+      PERFORM 1
+      FROM public.operaciones_asignacion_arreglo oa
+      JOIN public.operaciones o ON o.id = oa.operacion_id AND o.tenant_id = v_current_tenant AND o.tipo = 'ASIGNACION_ARREGLO'
+      JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
+      JOIN public.stocks s ON s.id = ol.stock_id AND s.tenant_id = v_current_tenant AND s.taller_id = o.taller_id
+      WHERE oa.arreglo_id = (p_encabezado->>'arreglo_id')::uuid AND ol.delta_cantidad < 0
+      ORDER BY ol.id FOR UPDATE OF o, ol, s;
+      SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'operacion_linea_id', ol.id,
+        'operacion_origen_id', o.id,
+        'stock_id', s.id,
+        'taller_id', s.taller_id,
+        'producto_id', s.producto_id,
+        'origen_linea', 'REPUESTO',
+        'cantidad_original', abs(ol.delta_cantidad),
+        'nombre_snapshot', p.nombre,
+        'codigo_snapshot', p.codigo
+      ) ORDER BY ol.id), '[]'::jsonb)
+      INTO v_stock_origenes
+      FROM public.operaciones_asignacion_arreglo oa
+      JOIN public.operaciones o ON o.id = oa.operacion_id AND o.tenant_id = v_current_tenant AND o.tipo = 'ASIGNACION_ARREGLO'
+      JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
+      JOIN public.stocks s ON s.id = ol.stock_id AND s.tenant_id = v_current_tenant AND s.taller_id = o.taller_id
+      JOIN public.productos p ON p.id = s.producto_id AND p.tenant_id = v_current_tenant
+      WHERE oa.arreglo_id = (p_encabezado->>'arreglo_id')::uuid AND ol.delta_cantidad < 0;
+    ELSE
+      RAISE EXCEPTION 'Origen físico de factura no soportado';
+    END IF;
+    IF jsonb_typeof(p_encabezado->'stock_origenes') <> 'array'
+       OR p_encabezado->'stock_origenes' IS DISTINCT FROM v_stock_origenes THEN
+      RAISE EXCEPTION 'La procedencia física enviada no coincide con el origen registrado';
+    END IF;
+    v_stock_origenes_hash := p_encabezado->>'stock_origenes_hash';
+    IF v_stock_origenes_hash IS NULL OR v_stock_origenes_hash !~ '^[0-9a-f]{64}$' THEN
+      RAISE EXCEPTION 'La huella de procedencia física es inválida';
+    END IF;
+  ELSE
+    IF jsonb_typeof(COALESCE(p_encabezado->'stock_origenes', '[]'::jsonb)) <> 'array'
+       OR COALESCE(p_encabezado->'stock_origenes', '[]'::jsonb) <> '[]'::jsonb THEN
+      RAISE EXCEPTION 'Un ajuste fiscal no puede introducir procedencia de stock';
+    END IF;
+  END IF;
   IF p_factura_id IS NOT NULL THEN
     SELECT estado, tenant_id INTO v_estado, v_tenant_id FROM public.facturas_electronicas
     WHERE id = p_factura_id FOR UPDATE;
@@ -59,6 +163,7 @@ BEGIN
     IF v_estado IS DISTINCT FROM 'RECHAZADA' THEN
       RAISE EXCEPTION 'Solo puede reintentarse un documento rechazado';
     END IF;
+    DELETE FROM public.facturacion_factura_stock_origenes WHERE factura_id = v_id;
     DELETE FROM public.facturas_electronicas_lineas WHERE factura_id = v_id;
     UPDATE public.facturas_electronicas SET
       arreglo_id = NULLIF(p_encabezado->>'arreglo_id','')::uuid,
@@ -90,6 +195,7 @@ BEGIN
       importe_tributos = (p_encabezado->>'importe_tributos')::numeric,
       otros_impuestos_nacionales = (p_encabezado->>'otros_impuestos_nacionales')::numeric,
       contenido_hash = p_encabezado->>'contenido_hash',
+      stock_origenes_hash = v_stock_origenes_hash,
       intencion_hash = p_encabezado->>'intencion_hash',
       cae = NULL, cae_vencimiento = NULL, autorizada_at = NULL,
       error_codigo = NULL, error_mensaje = NULL
@@ -103,7 +209,7 @@ BEGIN
       moneda, total, punto_venta, tipo_comprobante, clase_comprobante,
       numero_comprobante, condicion_venta, importe_neto_gravado,
       importe_no_gravado, importe_exento, importe_iva, importe_tributos,
-      otros_impuestos_nacionales, contenido_hash, intencion_hash, created_by, fce_sistema, fce_cbu, fce_estado_manual
+      otros_impuestos_nacionales, contenido_hash, stock_origenes_hash, intencion_hash, created_by, fce_sistema, fce_cbu, fce_estado_manual
     ) VALUES (
       v_id, v_current_tenant,
       NULLIF(p_encabezado->>'arreglo_id','')::uuid,
@@ -129,10 +235,20 @@ BEGIN
       (p_encabezado->>'importe_iva')::numeric,
       (p_encabezado->>'importe_tributos')::numeric,
       (p_encabezado->>'otros_impuestos_nacionales')::numeric,
-      p_encabezado->>'contenido_hash', p_encabezado->>'intencion_hash', NULLIF(p_encabezado->>'created_by','')::uuid,
+      p_encabezado->>'contenido_hash', v_stock_origenes_hash, p_encabezado->>'intencion_hash', NULLIF(p_encabezado->>'created_by','')::uuid,
       p_encabezado->>'fce_sistema', p_encabezado->>'fce_cbu', p_encabezado->>'fce_estado_manual'
     );
   END IF;
+  INSERT INTO public.facturacion_factura_stock_origenes (
+    tenant_id, factura_id, operacion_linea_id, operacion_origen_id, stock_id, taller_id, producto_id,
+    origen_linea, cantidad_original, nombre_snapshot, codigo_snapshot
+  )
+  SELECT v_current_tenant, v_id, x.operacion_linea_id, x.operacion_origen_id, x.stock_id, x.taller_id, x.producto_id,
+    x.origen_linea, x.cantidad_original, x.nombre_snapshot, x.codigo_snapshot
+  FROM jsonb_to_recordset(v_stock_origenes) AS x(
+    operacion_linea_id uuid, operacion_origen_id uuid, stock_id uuid, taller_id uuid, producto_id uuid,
+    origen_linea text, cantidad_original integer, nombre_snapshot text, codigo_snapshot text
+  );
   INSERT INTO public.facturas_electronicas_lineas (
     factura_id, ordinal, origen, source_id, descripcion, codigo, cantidad,
     importe_unitario, subtotal, tratamiento_iva, iva_alicuota_id,

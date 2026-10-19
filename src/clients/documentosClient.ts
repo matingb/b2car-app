@@ -1,4 +1,9 @@
-import type { DocumentoTipoFiltro, DocumentosPaginados } from "@/lib/documentos/types";
+import type {
+  DocumentoListado,
+  DocumentoTipoFiltro,
+  DocumentosOrigen,
+  DocumentosPaginados,
+} from "@/lib/documentos/types";
 
 export type ListarDocumentosParams = {
   page?: number;
@@ -28,6 +33,17 @@ export const documentosClient = {
     const body = (await response.json().catch(() => null)) as { data?: DocumentosPaginados; error?: string | null } | null;
     if (!response.ok || !body?.data || body.error) {
       throw new Error(body?.error || "No se pudieron cargar los documentos");
+    }
+    return body.data;
+  },
+
+  /** Facturas, notas y remitos asociados a un arreglo o a una venta. */
+  async asociados(origen: DocumentosOrigen): Promise<DocumentoListado[]> {
+    const ruta = origen.tipo === "ARREGLO" ? "arreglos" : "operaciones";
+    const response = await fetch(`/api/${ruta}/${origen.id}/documentos`, { cache: "no-store" });
+    const body = (await response.json().catch(() => null)) as { data?: DocumentoListado[]; error?: string | null } | null;
+    if (!response.ok || !body?.data || body.error) {
+      throw new Error(body?.error || "No se pudieron cargar los documentos asociados");
     }
     return body.data;
   },

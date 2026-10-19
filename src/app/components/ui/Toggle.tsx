@@ -8,15 +8,23 @@ type Props = {
   onChange: (checked: boolean) => void;
   label?: string;
   disabled?: boolean;
+  "data-testid"?: string;
 };
 
-export default function Toggle({ checked, onChange, label, disabled }: Props) {
+export default function Toggle({
+  checked,
+  onChange,
+  label,
+  disabled,
+  "data-testid": testId,
+}: Props) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      data-testid={testId}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       style={{

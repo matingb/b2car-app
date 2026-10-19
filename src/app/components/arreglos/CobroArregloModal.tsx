@@ -21,7 +21,7 @@ import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvide
 import type { Arreglo, CobroArregloItem } from "@/model/types";
 import { COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
-import { isValidDate, toISODateLocal } from "@/lib/fechas";
+import { isValidDate, toISODateAppTimeZone } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
 
 type Props = {
@@ -90,7 +90,7 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
       id: generateUuidV4(),
       cuentaId: "",
       monto: "",
-      fecha: toISODateLocal(new Date()),
+      fecha: toISODateAppTimeZone(),
       descripcion: "",
     },
   ]);
@@ -119,7 +119,7 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
             id: generateUuidV4(),
             cuentaId: cuentaFavoritaId ?? "",
             monto: saldo > 0 ? String(saldo) : "",
-            fecha: toISODateLocal(new Date()),
+            fecha: toISODateAppTimeZone(),
             descripcion: "",
           },
         ]);
@@ -181,7 +181,7 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
         id: generateUuidV4(),
         cuentaId: "",
         monto: restante > 0 ? String(restante) : "",
-        fecha: toISODateLocal(new Date()),
+        fecha: toISODateAppTimeZone(),
         descripcion: "",
       },
     ]);
@@ -221,7 +221,7 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
         id: generateUuidV4(),
         cuentaId: cuentaFavoritaId,
         monto: saldoPendiente > 0 ? String(saldoPendiente) : "",
-        fecha: toISODateLocal(new Date()),
+        fecha: toISODateAppTimeZone(),
         descripcion: "",
       },
     ]);

@@ -192,13 +192,21 @@ export function parseEmitirRemitoInput(raw: unknown): Validated<EmitirRemitoInpu
     if (!isValidUuid(body.idempotencyKey)) fail("La clave de idempotencia debe ser un UUID válido");
     if (body.clase !== "R" && body.clase !== "X") fail("Seleccioná el tipo de remito (R o X)");
     const arregloId = optionalUuid(body.arregloId, "El arreglo de origen");
+    const operacionId = optionalUuid(body.operacionId, "La venta de origen");
+    if (arregloId && operacionId) fail("Iniciá el remito desde un arreglo o desde una venta, no desde ambos");
     const facturaId = optionalUuid(body.facturaId, "La factura");
+    const destinatario = parseDestinatario(body.destinatario);
+    // RG 1415, Anexo V: el remito R identifica la condición frente al IVA del destinatario.
+    if (body.clase === "R" && !destinatario.condicionIvaReceptorId) {
+      fail("Seleccioná la condición frente al IVA del destinatario");
+    }
     return {
       idempotencyKey: body.idempotencyKey,
       clase: body.clase,
       arregloId,
+      operacionId,
       facturaId,
-      destinatario: parseDestinatario(body.destinatario),
+      destinatario,
       transportista: parseTransportista(body.transportista),
       observaciones: optionalText(body.observaciones, "Las observaciones del remito", 1000),
       lineas: parseLineas(body.lineas, Boolean(facturaId)),

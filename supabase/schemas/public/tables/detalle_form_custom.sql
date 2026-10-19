@@ -45,3 +45,7 @@ CREATE POLICY "tenant_access" ON "public"."detalle_form_custom"
 REVOKE ALL ON TABLE "public"."detalle_form_custom" FROM "postgres";
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE "public"."detalle_form_custom" TO "postgres";
+
+CREATE TRIGGER trg_b2c197_recalcular_formulario
+  AFTER INSERT OR DELETE OR UPDATE OF costo ON public.detalle_form_custom
+  FOR EACH ROW EXECUTE FUNCTION public.recalcular_precio_final_arreglo();

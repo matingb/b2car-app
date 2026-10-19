@@ -53,6 +53,7 @@ describe("parseEmitirRemitoInput", () => {
         idempotencyKey: KEY,
         clase: "X",
         arregloId: null,
+        operacionId: null,
         facturaId: null,
         destinatario: {
           clienteId: null,
@@ -67,6 +68,15 @@ describe("parseEmitirRemitoInput", () => {
         lineas: [{ facturaLineaId: null, codigo: "A-1", descripcion: "Rueda", observaciones: null, cantidad: 2 }],
       },
     });
+  });
+
+  it("acepta un remito R con la condición frente al IVA del destinatario", () => {
+    const parsed = parseEmitirRemitoInput(emitirBody({
+      clase: "R",
+      destinatario: { nombre: "Juan Pérez", tipoDocumento: 96, numeroDocumento: "30111222", condicionIvaReceptorId: 5 },
+    }));
+    expect(parsed.error).toBeUndefined();
+    expect(parsed.value?.destinatario.condicionIvaReceptorId).toBe(5);
   });
 
   it("trata el documento 99 como destinatario sin documento y redondea cantidades flotantes", () => {
@@ -96,6 +106,7 @@ describe("parseEmitirRemitoInput", () => {
     [{ destinatario: { nombre: "Ana", tipoDocumento: 96, numeroDocumento: "123" } }, "DNI del destinatario"],
     [{ destinatario: { nombre: "Ana", tipoDocumento: 96 } }, "Completá el número de documento"],
     [{ destinatario: { nombre: "Ana", condicionIvaReceptorId: 99 } }, "condición IVA"],
+    [{ clase: "R" }, "condición frente al IVA del destinatario"],
     [{ transportista: { nombre: "", cuit: "20123456786" } }, "nombre del transportista es obligatorio"],
     [{ transportista: { nombre: "Fletes SA", cuit: "20123456789" } }, "CUIT del transportista no es un CUIT válido"],
     [{ observaciones: "x".repeat(1001) }, "1000 caracteres"],
@@ -140,6 +151,14 @@ describe("parseEmitirRemitoInput", () => {
       arregloId: FACTURA_ID,
       facturaId: LINEA_ID,
     })).error).toBeUndefined();
+  });
+
+  it("acepta la venta de origen y rechaza combinarla con un arreglo", () => {
+    expect(parseEmitirRemitoInput(emitirBody({ operacionId: FACTURA_ID })).value)
+      .toMatchObject({ arregloId: null, operacionId: FACTURA_ID });
+    expect(parseEmitirRemitoInput(emitirBody({ operacionId: "x" })).error).toContain("La venta de origen");
+    expect(parseEmitirRemitoInput(emitirBody({ arregloId: FACTURA_ID, operacionId: LINEA_ID })).error)
+      .toContain("no desde ambos");
   });
 
   it("acepta un transportista vacío como ausente y valida uno completo", () => {

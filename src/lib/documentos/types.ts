@@ -12,6 +12,9 @@ export type DocumentoListado =
   | { tipo: "FISCAL"; id: string; fecha: string; factura: FacturaElectronicaResumen }
   | { tipo: "REMITO"; id: string; fecha: string; remito: RemitoResumen };
 
+/** Origen comercial de los documentos asociados: un arreglo o una operación de venta. */
+export type DocumentosOrigen = { tipo: "ARREGLO" | "VENTA"; id: string };
+
 export type DocumentosPaginados = {
   items: DocumentoListado[];
   page: number;

@@ -19,6 +19,7 @@ import ArregloFiltersModal from "@/app/components/arreglos/ArregloFiltersModal";
 import ArreglosToolbar from "@/app/components/arreglos/ArreglosToolbar";
 import ArreglosResults from "@/app/components/arreglos/ArreglosResults";
 import { useArreglosFilters } from "@/app/hooks/arreglos/useArreglosFilters";
+import { applyArregloPago } from "@/lib/arreglos";
 
 export default function VehiculoDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -81,6 +82,12 @@ export default function VehiculoDetailsPage() {
     setEditArreglo(null);
     setOpenModal(true);
   };
+
+  const handlePagoUpdated = useCallback((updated: Arreglo) => {
+    setArreglos((prev) =>
+      prev.map((item) => (item.id === updated.id ? applyArregloPago(item, updated) : item))
+    );
+  }, []);
 
   const handleCloseModal = (updated?: boolean) => {
     setOpenModal(false);
@@ -213,6 +220,7 @@ export default function VehiculoDetailsPage() {
           items={arreglosFilters.arreglosFiltrados}
           onSelect={(a) => router.push(`/arreglos/${a.id}`)}
           showObservaciones={true}
+          onPagoUpdated={handlePagoUpdated}
         />
       </div>
       <ArregloFiltersModal
@@ -225,21 +233,7 @@ export default function VehiculoDetailsPage() {
         <ArregloModal
           open={openModal}
           vehiculoId={vehiculo.id}
-          initial={
-            editArreglo
-              ? {
-                id: editArreglo.id,
-                fecha: editArreglo.fecha,
-                kilometraje_leido: editArreglo.kilometraje_leido,
-                combustible_leido: editArreglo.combustible_leido,
-                precio_final: editArreglo.precio_final,
-                observaciones: editArreglo.observaciones,
-                descripcion: editArreglo.descripcion,
-                esta_pago: editArreglo.esta_pago,
-                extra_data: editArreglo.extra_data,
-              }
-              : undefined
-          }
+          initial={editArreglo}
           onClose={handleCloseModal}
         />
       )}

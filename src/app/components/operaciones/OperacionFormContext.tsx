@@ -61,6 +61,8 @@ type OperacionFormContextValue = {
   setMontoGasto: (monto: string) => void;
   descripcionGasto: string;
   setDescripcionGasto: (desc: string) => void;
+  observaciones: string;
+  setObservaciones: (obs: string) => void;
 
   // Stock
   lineas: OperacionLineaDraft[];
@@ -122,6 +124,7 @@ export function OperacionFormProvider({
   const [categoriaGasto, setCategoriaGasto] = useState<string>(gasto?.categoria ?? "ALQUILER");
   const [montoGasto, setMontoGasto] = useState<string>(gasto ? String(gasto.importe) : "");
   const [descripcionGasto, setDescripcionGasto] = useState<string>(gasto?.descripcion ?? "");
+  const [observaciones, setObservaciones] = useState<string>(gasto?.observaciones ?? "");
   const [isSubmittingGasto, setIsSubmittingGasto] = useState(false);
 
   const { inventario, isLoading: isInventarioLoading } = useInventario(tallerId || undefined);
@@ -172,6 +175,7 @@ export function OperacionFormProvider({
       setCategoriaGasto(gasto.categoria || "ALQUILER");
       setMontoGasto(String(gasto.importe || ""));
       setDescripcionGasto(gasto.descripcion || "");
+      setObservaciones(gasto.observaciones || "");
       return;
     }
 
@@ -183,6 +187,7 @@ export function OperacionFormProvider({
     setCategoriaGasto("ALQUILER");
     setMontoGasto("");
     setDescripcionGasto("");
+    setObservaciones("");
   }, [open, talleres, initialTipo, initialCuentaId, gasto, contextualStock, cuentaFavorita]);
 
   useEffect(() => {
@@ -365,6 +370,7 @@ export function OperacionFormProvider({
           importe: Number(montoGasto),
           fecha: fechaTimestamp,
           descripcion: descripcionGasto.trim() || null,
+          observaciones: observaciones.trim() || null,
           idempotencyKey: generateUuidV4(),
         };
         const response = gasto
@@ -392,6 +398,7 @@ export function OperacionFormProvider({
         taller_id: tallerId,
         fecha: fechaTimestamp,
         cuenta_financiera_id: targetCuentaId || null,
+        observaciones: observaciones.trim() || null,
         idempotency_key: generateUuidV4(),
         lineas: lineas.map((l) => {
           const cantidad = Number(l.cantidad) || 0;
@@ -451,6 +458,8 @@ export function OperacionFormProvider({
     setMontoGasto,
     descripcionGasto,
     setDescripcionGasto,
+    observaciones,
+    setObservaciones,
     lineas,
     addLinea,
     removeLinea,

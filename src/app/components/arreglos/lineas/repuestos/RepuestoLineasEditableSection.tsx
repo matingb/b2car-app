@@ -185,7 +185,8 @@ export default function RepuestoLineasEditableSection({
       const stockMatch = item.tipo !== "nuevo" ? inventario.find((s) => s.id === item.stock_id) ?? null : null;
       const costoUnitarioPrefill = stockMatch ? String(Number(stockMatch.costoUnitario) || 0) : "";
       return {
-        stockId: item.stock_id,
+        // Los productos nuevos pendientes de un presupuesto no tienen stock_id todavía.
+        stockId: item.tipo === "nuevo" ? NEW_PRODUCT_VALUE : item.stock_id,
         cantidad: String(item.cantidad ?? 1),
         montoUnitario: String(item.monto_unitario ?? ""),
         codigo: item.nuevoProducto?.codigo ?? "",

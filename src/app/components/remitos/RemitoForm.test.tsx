@@ -111,6 +111,7 @@ describe("RemitoForm", () => {
       idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/),
       clase: "X",
       arregloId: null,
+      operacionId: null,
       facturaId: null,
       destinatario: {
         clienteId: null, nombre: "Juan Pérez", domicilio: null, tipoDocumento: null, numeroDocumento: null, condicionIvaReceptorId: null,
@@ -209,7 +210,7 @@ describe("RemitoForm", () => {
           id: "44444444-4444-4444-8444-444444444444",
           label: "Factura C 00001-00000123",
           fechaComprobante: "2026-10-01",
-          destinatario: { clienteId: null, nombre: "Cliente Factura", domicilio: "Calle fiscal", tipoDocumento: null, numeroDocumento: null, condicionIvaReceptorId: null },
+          destinatario: { clienteId: null, nombre: "Cliente Factura", domicilio: "Calle fiscal", tipoDocumento: null, numeroDocumento: null, condicionIvaReceptorId: 6 },
           lineas: [
             { id: "l1", ordinal: 1, origen: "REPUESTO", codigo: "REP-1", descripcion: "Pastillas de freno", cantidadFacturada: 3, cantidadRemitida: 1, cantidadDisponible: 2 },
             { id: "l2", ordinal: 2, origen: "SERVICIO", codigo: null, descripcion: "Mano de obra", cantidadFacturada: 1, cantidadRemitida: 0, cantidadDisponible: 1 },
@@ -230,7 +231,9 @@ describe("RemitoForm", () => {
 
     expect(await screen.findByLabelText(/Apellido y nombre/)).toHaveValue("Cliente del arreglo");
     expect(screen.getByLabelText("Domicilio de entrega")).toHaveValue("Calle 2");
-    expect(screen.getByLabelText("Observaciones", { selector: "textarea" })).toHaveValue(facturado ? "Factura asociada: 00001-00000123" : "");
+    // La factura asociada se muestra en la referencia superior, no en las observaciones.
+    expect(screen.queryByRole("link", { name: "Factura C 00001-00000123" }) !== null).toBe(facturado);
+    expect(screen.getByLabelText("Observaciones", { selector: "textarea" })).toHaveValue("");
     expect(screen.queryByTestId("remito-destinatario-cliente")).not.toBeInTheDocument();
     expect(screen.queryByText(/Remito iniciado desde/)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Descripción del ítem 1")).toHaveValue("Pastillas de freno");
@@ -245,12 +248,144 @@ describe("RemitoForm", () => {
     expect(payload).toMatchObject({
       arregloId: "55555555-5555-4555-8555-555555555555",
       facturaId: facturado ? "44444444-4444-4444-8444-444444444444" : null,
+      destinatario: {
+        nombre: "Cliente del arreglo",
+        domicilio: "Calle 2",
+        condicionIvaReceptorId: facturado ? 6 : null,
+      },
     });
-    expect(payload.observaciones).toBe(facturado ? "Factura asociada: 00001-00000123" : null);
+    expect(payload.observaciones).toBeNull();
     expect(payload.lineas).toEqual([{
       facturaLineaId: null,
       codigo: "REP-1", descripcion: "Pastillas entregadas", observaciones: null, cantidad: facturado ? 2 : 3,
     }]);
     await waitFor(() => expect(onEmitted).toHaveBeenCalledWith(REMITO_ID));
+  });
+
+  it("precarga cliente y productos desde una venta y emite con la venta de origen", async () => {
+    const OPERACION_ID = "66666666-6666-4666-8666-666666666666";
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock
+      .mockResolvedValueOnce(respuesta({
+        ...preflight,
+        factura: null,
+        arreglo: null,
+        operacion: {
+          id: OPERACION_ID,
+          label: "Venta",
+          facturaId: null,
+          facturaNumero: null,
+          destinatario: { clienteId: null, nombre: "Consumidor final", domicilio: null, tipoDocumento: null, numeroDocumento: null, condicionIvaReceptorId: null },
+          lineas: [{ codigo: "REP-1", descripcion: "Pastillas de freno", cantidad: 2 }],
+        },
+      }))
+      .mockResolvedValueOnce(respuesta({ id: REMITO_ID }));
+    const onEmitted = vi.fn();
+    renderWithProviders(<RemitoForm facturaId={null} operacionId={OPERACION_ID} onEmitted={onEmitted} />);
+
+    expect(await screen.findByLabelText(/Apellido y nombre/)).toHaveValue("Consumidor final");
+    expect(screen.getByLabelText("Descripción del ítem 1")).toHaveValue("Pastillas de freno");
+    expect(screen.getByLabelText("Cantidad del ítem 1")).toHaveValue(2);
+    await seleccionarTipo("X");
+    await emitirRemito();
+
+    expect(fetchMock.mock.calls[0][0]).toBe(`/api/remitos/preflight?operacionId=${OPERACION_ID}`);
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1].body))).toMatchObject({
+      arregloId: null,
+      operacionId: OPERACION_ID,
+      facturaId: null,
+    });
+    await waitFor(() => expect(onEmitted).toHaveBeenCalledWith(REMITO_ID));
+  });
+
+  describe("condición frente al IVA del Remito R", () => {
+    const preflightR = {
+      ...preflight,
+      tipos: { ...preflight.tipos, R: { emitible: true, motivos: [], proximoNumeroVisible: "R 00001-00000001" } },
+    };
+
+    function rutearFetch(arca: Record<string, unknown>) {
+      vi.stubGlobal("fetch", fetchMock);
+      fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+        const path = String(input).split("?")[0];
+        if (path === "/api/remitos/preflight") return respuesta(preflightR);
+        if (path === "/api/remitos") return respuesta({ id: REMITO_ID });
+        if (path in arca) return respuesta(arca[path]);
+        throw new Error(`fetch inesperado: ${String(input)}`);
+      });
+    }
+
+    async function completarRemitoR(documento: string) {
+      await seleccionarTipo("R");
+      fireEvent.change(screen.getByLabelText(/Apellido y nombre/), { target: { value: "Juan Pérez" } });
+      fireEvent.change(screen.getByLabelText("Número de documento"), { target: { value: documento } });
+      fireEvent.click(screen.getByText("Agregar ítem"));
+      fireEvent.change(screen.getByLabelText("Descripción del ítem 1"), { target: { value: "Neumático" } });
+    }
+
+    function destinatarioEmitido() {
+      const emision = fetchMock.mock.calls.find(([url]) => url === "/api/remitos");
+      return JSON.parse(String(emision?.[1].body)).destinatario;
+    }
+
+    it("resuelve el CUIL del DNI en el padrón, completa la condición desde ARCA y la emite", async () => {
+      rutearFetch({
+        "/api/fiscal/persona": {
+          status: "FOUND",
+          person: {
+            cuit: "20301112220", tipoPersona: "FISICA", estadoClave: "ACTIVO", nombre: "Juan", apellido: "Pérez",
+            razonSocial: null, nombreCompleto: "Juan Pérez", direccion: null,
+          },
+        },
+        "/api/fiscal/condicion-iva": {
+          status: "FOUND",
+          condition: { cuit: "20301112220", condicionIvaReceptorId: 6, condicionIvaLabel: "Monotributista" },
+        },
+      });
+      renderForm();
+      await completarRemitoR("30111222");
+
+      expect(await screen.findByText(/Verificada en ARCA: Monotributista/)).toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledWith("/api/fiscal/condicion-iva?cuit=20301112220", expect.anything());
+      await waitFor(() => expect(screen.getByTestId("remito-condicion-iva")).toHaveTextContent("Monotributista"));
+      await emitirRemito();
+      expect(destinatarioEmitido()).toMatchObject({ tipoDocumento: 96, numeroDocumento: "30111222", condicionIvaReceptorId: 6 });
+    });
+
+    it("si ARCA no determina la condición, bloquea la emisión hasta elegirla manualmente", async () => {
+      rutearFetch({
+        "/api/fiscal/condicion-iva": {
+          status: "UNDETERMINED",
+          cuit: "20123456786",
+          message: "ARCA no devolvió información suficiente para determinar la condición IVA. Seleccionala manualmente o reintentá la consulta.",
+        },
+      });
+      renderForm();
+      await completarRemitoR("20123456786");
+
+      expect(await screen.findByText(/ARCA no devolvió información suficiente/)).toBeInTheDocument();
+      expect(screen.getByTestId("remito-emitir")).toBeDisabled();
+      fireEvent.click(screen.getByTestId("remito-condicion-iva"));
+      fireEvent.click(screen.getByTestId("remito-condicion-iva-option-5"));
+      await emitirRemito();
+      expect(destinatarioEmitido()).toMatchObject({ tipoDocumento: 86, numeroDocumento: "20123456786", condicionIvaReceptorId: 5 });
+    });
+
+    it("descarta la condición verificada si cambia el documento", async () => {
+      rutearFetch({
+        "/api/fiscal/condicion-iva": {
+          status: "FOUND",
+          condition: { cuit: "20123456786", condicionIvaReceptorId: 1, condicionIvaLabel: "Responsable inscripto" },
+        },
+      });
+      renderForm();
+      await completarRemitoR("20123456786");
+      expect(await screen.findByText(/Verificada en ARCA: Responsable inscripto/)).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByTestId("remito-condicion-iva")).toHaveTextContent("Responsable inscripto"));
+
+      fireEvent.change(screen.getByLabelText("Número de documento"), { target: { value: "2012345678" } });
+      await waitFor(() => expect(screen.getByTestId("remito-condicion-iva")).toHaveTextContent("Seleccioná la condición"));
+      expect(screen.getByTestId("remito-emitir")).toBeDisabled();
+    });
   });
 });

@@ -1,6 +1,8 @@
 "use client";
 
+import type { Dispatch, SetStateAction } from "react";
 import { type RemitoDestinatario } from "@/lib/remitos/types";
+import RemitoCondicionIvaField from "./RemitoCondicionIvaField";
 import { remitoFormStyles as styles } from "./remitoFormStyles";
 
 export type DestinatarioForm = {
@@ -63,12 +65,14 @@ export function destinatarioPayload(form: DestinatarioForm) {
 
 type Props = {
   value: DestinatarioForm;
-  onChange: (next: DestinatarioForm) => void;
+  onChange: Dispatch<SetStateAction<DestinatarioForm>>;
+  /** Remito R: la condición IVA del destinatario es obligatoria. */
+  pedirCondicionIva?: boolean;
   disabled?: boolean;
 };
 
-export default function RemitoDestinatarioFields({ value, onChange, disabled = false }: Props) {
-  const patch = (changes: Partial<DestinatarioForm>) => onChange({ ...value, ...changes });
+export default function RemitoDestinatarioFields({ value, onChange, pedirCondicionIva = false, disabled = false }: Props) {
+  const patch = (changes: Partial<DestinatarioForm>) => onChange((previous) => ({ ...previous, ...changes }));
 
   return (
     <div style={styles.grid}>
@@ -113,6 +117,7 @@ export default function RemitoDestinatarioFields({ value, onChange, disabled = f
           style={styles.input}
         />
       </label>
+      {pedirCondicionIva ? <RemitoCondicionIvaField value={value} onChange={onChange} disabled={disabled} /> : null}
     </div>
   );
 }

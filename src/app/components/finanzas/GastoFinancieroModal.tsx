@@ -50,6 +50,7 @@ export default function GastoFinancieroModal({
   const [montoGasto, setMontoGasto] = useState("");
   const [fecha, setFecha] = useState(toISODateLocal());
   const [descripcionGasto, setDescripcionGasto] = useState("");
+  const [observacionesGasto, setObservacionesGasto] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const idempotencyKeyRef = useRef(generateUuidV4());
@@ -63,6 +64,7 @@ export default function GastoFinancieroModal({
     setMontoGasto("");
     setFecha(toISODateLocal());
     setDescripcionGasto("");
+    setObservacionesGasto("");
     setSubmitting(false);
     setSubmitError(null);
     idempotencyKeyRef.current = generateUuidV4();
@@ -103,6 +105,7 @@ export default function GastoFinancieroModal({
         importe: Number(montoGasto),
         fecha,
         descripcion: descripcionGasto.trim() || null,
+        observaciones: observacionesGasto.trim() || null,
       });
       const previousAttempt = attemptedGastoRef.current;
       let payload = previousAttempt?.signature === signature ? previousAttempt.payload : null;
@@ -119,6 +122,7 @@ export default function GastoFinancieroModal({
           importe: Number(montoGasto),
           fecha: fechaCompleta,
           descripcion: descripcionGasto.trim() || null,
+          observaciones: observacionesGasto.trim() || null,
           idempotencyKey: idempotencyKeyRef.current,
         };
         attemptedGastoRef.current = { signature, payload };
@@ -178,6 +182,8 @@ export default function GastoFinancieroModal({
           setMontoGasto={setMontoGasto}
           descripcionGasto={descripcionGasto}
           setDescripcionGasto={setDescripcionGasto}
+          observacionesGasto={observacionesGasto}
+          setObservacionesGasto={setObservacionesGasto}
         />
         <div style={styles.field}>
           <label style={styles.label} htmlFor="gasto-fecha">Fecha</label>

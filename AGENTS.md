@@ -61,11 +61,14 @@ Formatting utilities are centralized in `src/lib/`. Always check and reuse these
   - `formatArs(value, options)`: Formats amounts in Argentine Pesos with `$` prefix (e.g., `$1.250,00`).
   - `formatNumberAr(value, options)`: Formats numbers using Argentine locale conventions (thousands dot `.`, decimals comma `,`).
   - `APP_LOCALE`: Locale constant `"es-AR"`.
-- **Dates & Times (`@/lib/fechas`)**:
-  - `formatDateLabel(date)`: Human-readable date label.
-  - `formatDateTimeLabel(date)`: Formatted date and time.
+- **Dates & Times (`@/lib/fechas`)**: all dates and timestamps are shown and converted in GMT-3 (`APP_TIME_ZONE`, America/Argentina/Buenos_Aires), never in UTC or the browser's timezone. A timestamp saved as `2026-10-13T01:30:00Z` is the 12th for the user, not the 13th.
+  - `formatDateLabel(date)`: Human-readable `DD/MM/YYYY` label for the GMT-3 calendar day.
+  - `formatDateTimeLabel(date)`: Formatted date and time in GMT-3.
+  - `toAppCalendarDate(value)` / `toDateInputFormat(value)`: GMT-3 calendar day (`YYYY-MM-DD`) of a date or timestamp, e.g. to fill a date input when editing.
+  - `toISODateAppTimeZone(date)`: Today's (or the given instant's) `YYYY-MM-DD` in GMT-3; use it for "today" defaults.
+  - `toISODateTimeWithCurrentTime(date)`: Combines a chosen `YYYY-MM-DD` with the current GMT-3 time to send a timestamp.
   - `formatTimeAgo(date)`: Relative elapsed time (e.g., "hace 5 minutos").
-  - `toISODateLocal(date)`: Formats a Date to `YYYY-MM-DD` in the local timezone.
+  - `toISODateLocal(date)`: Formats a Date to `YYYY-MM-DD` in the browser's timezone (only for calendar grids built from `Date` objects).
 - **Vehicles & License Plates (`@/lib/vehiculos`)**:
   - `formatPatente(patente)`: Formats Argentine license plates.
   - `formatPatenteConMarcaYModelo(vehiculo)`: Formats license plate alongside brand and model.
@@ -90,3 +93,9 @@ Use the Supabase declarative schema in `supabase/schemas/` instead, which reflec
 - `supabase/schemas/storage/`: storage objects
 
 Only open a migration when you need to know the history of a specific change (for example, when writing a new migration that must stay consistent with a previous one).
+
+### Schema changes go in migrations only
+
+`supabase/schemas/` is read-only for agents. It is regenerated from the database with Supabase commands, so never create, edit, or delete files there, and do not try to keep it in sync by hand after writing a migration.
+
+Every database change (tables, columns, functions, policies, grants, data backfills) must be written as a migration in `supabase/migrations/`. If a schema file looks outdated or inconsistent with the migrations, leave it as is: it is fixed by regenerating the schema, not by editing it.

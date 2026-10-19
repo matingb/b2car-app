@@ -13,7 +13,7 @@ import {
   ReceiptText,
   CarFront,
   Users,
-  PackageCheck,
+  FileBox,
 } from "lucide-react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Card from "@/app/components/ui/Card";
@@ -199,14 +199,6 @@ export default function ArregloSummaryCard({
                 />
               ) : null}
             </Can>
-            <IconButton
-              icon={<Trash />}
-              size={18}
-              onClick={handleDeleteArreglo}
-              title="Eliminar arreglo"
-              ariaLabel="Eliminar arreglo"
-              hoverColor={COLOR.SEMANTIC.DANGER}
-            />
             <Can permission={Permission.ArreglosPreciosView}>
               <IconButton
                 icon={<FileText />}
@@ -219,7 +211,7 @@ export default function ArregloSummaryCard({
             </Can>
             <Can permission={Permission.FacturasEdit}>
               <IconButton
-                icon={<PackageCheck />}
+                icon={<FileBox />}
                 size={18}
                 onClick={() => setIsRemitoModalOpen(true)}
                 title="Generar remito"
@@ -234,6 +226,14 @@ export default function ArregloSummaryCard({
               title="Enviar WhatsApp"
               ariaLabel="Enviar WhatsApp"
               hoverColor={COLOR.SEMANTIC.SUCCESS}
+            />
+            <IconButton
+              icon={<Trash />}
+              size={18}
+              onClick={handleDeleteArreglo}
+              title="Eliminar arreglo"
+              ariaLabel="Eliminar arreglo"
+              hoverColor={COLOR.SEMANTIC.DANGER}
             />
             <IconButton
               icon={<Pencil />}

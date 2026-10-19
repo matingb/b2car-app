@@ -10,6 +10,7 @@ type Props = {
   onSelect: (arreglo: Arreglo) => void;
   showObservaciones?: boolean;
   mostrarObservaciones?: boolean;
+  onPagoUpdated?: (arreglo: Arreglo) => void;
 };
 
 export default function ArreglosResults({
@@ -18,6 +19,7 @@ export default function ArreglosResults({
   onSelect,
   showObservaciones,
   mostrarObservaciones,
+  onPagoUpdated,
 }: Props) {
   if (loading) return <ListSpinner dataTestId="arreglos-loading" />;
 
@@ -31,6 +33,7 @@ export default function ArreglosResults({
             arreglo={arreglo}
             onClick={onSelect}
             showObservaciones={shouldShowObs}
+            onPagoUpdated={onPagoUpdated}
           />
         </div>
       ))}

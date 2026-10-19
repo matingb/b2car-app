@@ -8,7 +8,8 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_movimiento_cuenta (
   p_cuenta_destino_id uuid                     DEFAULT NULL::uuid,
   p_fecha             timestamp with time zone DEFAULT now(),
   p_idempotency_key   uuid                     DEFAULT NULL::uuid,
-  p_arreglo_id        uuid                     DEFAULT NULL::uuid
+  p_arreglo_id        uuid                     DEFAULT NULL::uuid,
+  p_observaciones     text                     DEFAULT NULL::text
 )
   RETURNS uuid
   LANGUAGE plpgsql
@@ -65,8 +66,8 @@ BEGIN
     END IF;
   END IF;
   v_importe_omc := CASE WHEN v_subtipo = 'GASTO' THEN -p_importe ELSE p_importe END;
-  INSERT INTO public.operaciones (tenant_id, tipo, taller_id, fecha)
-  VALUES (v_tenant_id, 'MOVIMIENTO_CUENTA', NULL, COALESCE(p_fecha, now())) RETURNING id INTO v_op_id;
+  INSERT INTO public.operaciones (tenant_id, tipo, taller_id, fecha, observaciones)
+  VALUES (v_tenant_id, 'MOVIMIENTO_CUENTA', NULL, COALESCE(p_fecha, now()), NULLIF(btrim(p_observaciones), '')) RETURNING id INTO v_op_id;
   INSERT INTO public.operaciones_movimiento_cuenta (
     operacion_id, tenant_id, subtipo, cuenta_id, importe,
     cuenta_origen_id, cuenta_destino_id, categoria_gasto,
@@ -78,14 +79,15 @@ BEGIN
     nullif(btrim(p_descripcion), ''), p_idempotency_key, auth.uid()
   );
   RETURN v_op_id;
-END; $function$;
+END;
+$function$;
 
-GRANT EXECUTE ON FUNCTION "public"."rpc_crear_movimiento_cuenta"(text, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid) TO "anon", "authenticated";
+GRANT EXECUTE ON FUNCTION "public"."rpc_crear_movimiento_cuenta"(text, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid, text) TO "anon", "authenticated";
 
-GRANT EXECUTE ON FUNCTION "public"."rpc_crear_movimiento_cuenta"(text, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION "public"."rpc_crear_movimiento_cuenta"(text, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid, text) TO "service_role";
 
-REVOKE ALL ON FUNCTION "public"."rpc_crear_movimiento_cuenta"(text, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION "public"."rpc_crear_movimiento_cuenta"(text, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid, text) FROM PUBLIC;
 
-REVOKE ALL ON FUNCTION "public"."rpc_crear_movimiento_cuenta"(text, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid) FROM "postgres";
+REVOKE ALL ON FUNCTION "public"."rpc_crear_movimiento_cuenta"(text, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid, text) FROM "postgres";
 
-GRANT EXECUTE ON FUNCTION "public"."rpc_crear_movimiento_cuenta"(text, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid) TO "postgres";
+GRANT EXECUTE ON FUNCTION "public"."rpc_crear_movimiento_cuenta"(text, numeric, text, text, uuid, uuid, uuid, timestamp WITH time zone, uuid, uuid, text) TO "postgres";

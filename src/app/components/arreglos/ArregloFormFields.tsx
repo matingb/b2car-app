@@ -10,6 +10,10 @@ import { css } from "@emotion/react";
 import { formatCalendarDateLabel, isValidDate } from "@/lib/fechas";
 import { formatArs } from "@/lib/format";
 import { calcLineTotal } from "@/lib/calcLineTotal";
+import { importeComercial } from "@/lib/ivaComercial";
+import { IVA_RATE } from "@/lib/ivaRate";
+import Toggle from "@/app/components/ui/Toggle";
+import Tooltip from "@/app/components/ui/Tooltip";
 import ServicioLineasEditableSection, {
   type ServicioLinea,
 } from "@/app/components/arreglos/lineas/servicios/ServicioLineasEditableSection";
@@ -20,12 +24,15 @@ import type { CreateArregloDetalleFormularioInput } from "@/app/api/arreglos/arr
 import { useServiciosDraft } from "@/app/components/arreglos/hooks/useServiciosDraft";
 import { useRepuestosDraft } from "@/app/components/arreglos/hooks/useRepuestosDraft";
 import { useUltimoTipoEmpleado } from "@/app/components/arreglos/hooks/useUltimoTipoEmpleado";
-import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
+import { EstadoArreglo } from "@/model/types";
+import ArregloEstadoBadge from "@/app/components/arreglos/ArregloEstadoBadge";
 import ArregloPagoBadge from "@/app/components/arreglos/ArregloPagoBadge";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
 
 export type ArregloForm = {
+  precios_incluyen_iva?: boolean;
+  total_cobrado?: number;
   estado?: EstadoArreglo;
   fecha: string;
   kilometraje_leido: number | string;
@@ -50,6 +57,7 @@ export type ArregloFormFieldsValues = {
   extraData: string;
   selectedVehiculoId: string;
   esFacturable?: boolean;
+  preciosIncluyenIva?: boolean;
 };
 
 export type ArregloFormFieldsInternal = {
@@ -67,6 +75,9 @@ type Props = {
   vehiculoOptions: AutocompleteOption[];
   isEdit: boolean;
   showFacturable: boolean;
+  showPreciosSinIva?: boolean;
+  /** Motivo por el que no se puede cambiar el modo IVA; se muestra como tooltip. */
+  preciosSinIvaBloqueo?: string | null;
   submitting: boolean;
   tallerId: string | null;
   persistedEstado?: EstadoArreglo;
@@ -77,11 +88,6 @@ type Props = {
 };
 
 
-
-const estadoOptions: AutocompleteOption[] = ESTADOS_ARREGLO.map((estado) => ({
-  value: estado,
-  label: estado.replaceAll("_", " "),
-}));
 
 export function validateArregloForm(
   values: ArregloFormFieldsValues,
@@ -112,6 +118,8 @@ export default function ArregloFormFields({
   vehiculoOptions,
   isEdit,
   showFacturable,
+  showPreciosSinIva = false,
+  preciosSinIvaBloqueo = null,
   submitting,
   tallerId,
   persistedEstado,
@@ -133,12 +141,6 @@ export default function ArregloFormFields({
   const isValid = useMemo(
     () => baseIsValid && !blockCreateByCustomRequired,
     [baseIsValid, blockCreateByCustomRequired]
-  );
-  const availableEstadoOptions = useMemo(
-    () => isEdit && (persistedEstado ?? values.estado) !== "PRESUPUESTO"
-      ? estadoOptions.filter((option) => option.value !== "PRESUPUESTO")
-      : estadoOptions,
-    [isEdit, persistedEstado, values.estado]
   );
 
   const {
@@ -189,29 +191,39 @@ export default function ArregloFormFields({
   );
 
 
+  const preciosIncluyenIva = values.preciosIncluyenIva !== false;
+  const showFacturableSwitch = showFacturable && values.estado !== "PRESUPUESTO";
   const subtotalServicios = useMemo(
     () =>
       serviciosActivos.reduce(
         (acc, s) =>
           acc +
-          calcLineTotal({
-            cantidad: s.cantidad,
-            horas_facturadas: s.horasFacturadas,
-            precio_hora_facturada: s.precioHoraFacturada,
-          }),
+          importeComercial(
+            calcLineTotal({
+              cantidad: s.cantidad,
+              horas_facturadas: s.horasFacturadas,
+              precio_hora_facturada: s.precioHoraFacturada,
+            }),
+            preciosIncluyenIva,
+            IVA_RATE,
+          ),
         0
       ),
-    [serviciosActivos]
+    [serviciosActivos, preciosIncluyenIva]
   );
   const subtotalRepuestos = useMemo(
     () =>
       repuestosDraft.reduce(
         (acc, r) =>
           acc +
-          (Number(r.cantidad) || 0) * (Number(r.monto_unitario) || 0),
+          importeComercial(
+            (Number(r.cantidad) || 0) * (Number(r.monto_unitario) || 0),
+            preciosIncluyenIva,
+            IVA_RATE,
+          ),
         0,
       ),
-    [repuestosDraft],
+    [repuestosDraft, preciosIncluyenIva],
   );
   const totalCalculado = subtotalServicios + subtotalRepuestos;
   const totalCalculadoLabel = useMemo(
@@ -275,20 +287,17 @@ export default function ArregloFormFields({
 
         <div style={styles.field}>
           <label style={styles.label}>Estado</label>
-          <Autocomplete
-            options={availableEstadoOptions}
-            value={values.estado}
-            onChange={(next) => {
-              if ((ESTADOS_ARREGLO as string[]).includes(next)) {
-                const nextEstado = next as EstadoArreglo;
-                onValuesChange({
-                  estado: nextEstado,
-                  ...(nextEstado === "PRESUPUESTO" ? { estaPago: false } : {}),
-                });
-              }
+          <ArregloEstadoBadge
+            estado={values.estado}
+            variant="field"
+            allowPresupuesto={!isEdit || (persistedEstado ?? values.estado) === "PRESUPUESTO"}
+            disabled={submitting}
+            onStateChange={(next) => {
+              onValuesChange({
+                estado: next,
+                ...(next === "PRESUPUESTO" ? { estaPago: false } : {}),
+              });
             }}
-            placeholder="Seleccionar estado"
-            hideClearButton={true}
           />
         </div>
       </div>
@@ -396,7 +405,9 @@ export default function ArregloFormFields({
 
           <Can permission={Permission.ArreglosPreciosView}>
             <div style={stylesModal.totalRow}>
-              <span style={stylesModal.totalLabel}>Total calculado</span>
+              <span style={stylesModal.totalLabel}>
+                {preciosIncluyenIva ? "Total calculado" : "Total calculado (IVA incluido)"}
+              </span>
               <span style={stylesModal.totalValue}>{totalCalculadoLabel}</span>
             </div>
           </Can>
@@ -416,23 +427,40 @@ export default function ArregloFormFields({
         </div>
       </div>
 
-      {showFacturable && values.estado !== "PRESUPUESTO" ? (
+      {showFacturableSwitch || showPreciosSinIva ? (
         <div css={styles.row}>
-          <div style={styles.facturableBox}>
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={values.esFacturable !== false}
-                onChange={(e) => onValuesChange({ esFacturable: e.target.checked })}
-                style={styles.checkbox}
-              />
-              <span style={styles.checkboxTitle}>Arreglo facturable</span>
-            </label>
-            <span style={styles.helpText}>
-              {values.esFacturable !== false
-                ? "Este trabajo computa en el saldo a facturar del cliente hasta que se emita su comprobante oficial."
-                : "Trabajo no facturable. Queda eximido del saldo a facturar del cliente."}
-            </span>
+          <div css={styles.switchesBox}>
+            {showFacturableSwitch ? (
+              <label style={styles.switchLabel}>
+                <Toggle
+                  checked={values.esFacturable !== false}
+                  onChange={(checked) => onValuesChange({ esFacturable: checked })}
+                  label="Arreglo facturable"
+                  disabled={submitting}
+                />
+                <span style={styles.switchText}>
+                  <span style={styles.switchTitle}>Arreglo facturable</span>
+                  <span style={styles.switchHelp}>Suma al saldo a facturar del cliente.</span>
+                </span>
+              </label>
+            ) : null}
+            {showPreciosSinIva ? (
+              <Tooltip content={preciosSinIvaBloqueo} placement="top">
+                <label style={styles.switchLabel} title={preciosSinIvaBloqueo ?? undefined}>
+                  <Toggle
+                    checked={!preciosIncluyenIva}
+                    onChange={(checked) => onValuesChange({ preciosIncluyenIva: !checked })}
+                    label="Sumar IVA"
+                    disabled={submitting || !!preciosSinIvaBloqueo}
+                    data-testid="toggle-iva"
+                  />
+                  <span style={styles.switchText}>
+                    <span style={styles.switchTitle}>Sumar IVA</span>
+                    <span style={styles.switchHelp}>Se agregará el 21% sobre el total ingresado en los detalles del arreglo.</span>
+                  </span>
+                </label>
+              </Tooltip>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -441,38 +469,37 @@ export default function ArregloFormFields({
 }
 
 const styles = {
-  facturableBox: {
+  switchesBox: css({
     display: "flex",
-    flexDirection: "column" as const,
-    gap: 4,
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: "10px 32px",
     padding: "10px 14px",
     borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     background: "var(--color-background-subtle, rgba(0,0,0,0.02))",
     width: "100%",
-  },
-  checkboxLabel: {
+  }),
+  switchLabel: {
     display: "inline-flex",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     cursor: "pointer",
     userSelect: "none" as const,
   },
-  checkbox: {
-    width: 16,
-    height: 16,
-    cursor: "pointer",
-    accentColor: COLOR.ACCENT.PRIMARY,
+  switchText: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 2,
   },
-  checkboxTitle: {
+  switchTitle: {
     fontSize: 14,
     fontWeight: 600,
     color: COLOR.TEXT.PRIMARY,
   },
-  helpText: {
+  switchHelp: {
     fontSize: 12,
     color: COLOR.TEXT.SECONDARY,
-    marginLeft: 24,
   },
   row: css({
     display: "flex",

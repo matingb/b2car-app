@@ -74,7 +74,7 @@ actualización. Los campos históricos de base de datos se conservan por
 compatibilidad con sus restricciones de autorización; no se exponen como estado
 de la FCE ni se ofrecen acciones para editarlos en la aplicación.
 
-La versión pasa de `fiscal-v4` a `fiscal-v6`: la siguiente descarga regenera
+La versión pasa de `fiscal-v3` a `fiscal-v4`: la siguiente descarga regenera
 el documento con la nueva representación sin reemitirlo ni cambiar CAE/QR.
 Las letras usan la conversión fiscal existente a centavos y rechazan valores
 con más de dos decimales en lugar de redondear un importe autorizado distinto.

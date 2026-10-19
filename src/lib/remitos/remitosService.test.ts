@@ -20,6 +20,8 @@ const TENANT = "11111111-1111-4111-8111-111111111111";
 const FACTURA_ID = "22222222-2222-4222-8222-222222222222";
 const REMITO_ID = "33333333-3333-4333-8333-333333333333";
 const ARREGLO_ID = "55555555-5555-4555-8555-555555555555";
+const OPERACION_ID = "66666666-6666-4666-8666-666666666666";
+const CLIENTE_ID = "77777777-7777-4777-8777-777777777777";
 
 /** Claves de importe prohibidas en cualquier respuesta de remitos. */
 function amountKeys(value: unknown, path = "$"): string[] {
@@ -243,6 +245,80 @@ describe("remitosService", () => {
     expect(calls.arreglos).toEqual(expect.arrayContaining([
       { method: "eq", args: ["tenant_id", TENANT] },
     ]));
+  });
+
+  it("precarga cliente, productos y factura autorizada desde una venta sin exponer importes", async () => {
+    const { supabase, calls } = supabaseMock({
+      facturacion_configuracion_ambiente: [{ data: null, error: null }],
+      remitos_configuracion: [{ data: null, error: null }],
+      remitos: [{ data: [], error: null }, { data: [], error: null }],
+      operaciones: [{ data: { id: OPERACION_ID, tipo: "VENTA", cliente_id: CLIENTE_ID }, error: null }],
+      operaciones_lineas: [{
+        data: [
+          { cantidad: 2, monto_unitario: 700, stock: { producto: { codigo: "REP-1", nombre: "Pastillas de freno" } } },
+          { cantidad: 0, stock: { producto: { codigo: "REP-0", nombre: "Sin cantidad" } } },
+        ],
+        error: null,
+      }],
+      clientes: [{ data: { id: CLIENTE_ID, tipo_cliente: "empresa" }, error: null }],
+      empresas: [{ data: { nombre: "Transportes SA", direccion: "Ruta 3 km 10", cuit: "30-71234567-8" }, error: null }],
+      facturas_electronicas: [
+        { data: { id: FACTURA_ID, punto_venta: 1, numero_comprobante: 123 }, error: null },
+        { data: facturaConImportes, error: null },
+      ],
+      facturas_electronicas_lineas: [{ data: lineasFacturaConImportes, error: null }],
+      remitos_lineas: [{ data: [], error: null }],
+    });
+
+    const preflight = await getRemitoPreflight(supabase, TENANT, "HOMOLOGACION", null, null, OPERACION_ID);
+
+    expect(preflight.arreglo).toBeNull();
+    expect(preflight.operacion).toEqual({
+      id: OPERACION_ID,
+      label: "Venta",
+      facturaId: FACTURA_ID,
+      facturaNumero: "00001-00000123",
+      destinatario: {
+        clienteId: CLIENTE_ID,
+        nombre: "Transportes SA",
+        domicilio: "Ruta 3 km 10",
+        tipoDocumento: 80,
+        numeroDocumento: "30712345678",
+        condicionIvaReceptorId: null,
+      },
+      lineas: [{ codigo: "REP-1", descripcion: "Pastillas de freno", cantidad: 2 }],
+    });
+    expect(preflight.factura).toMatchObject({ id: FACTURA_ID });
+    expect(amountKeys(preflight)).toEqual([]);
+    expect(selectedColumns(calls.operaciones_lineas)[0]).not.toMatch(/\*|monto|precio/);
+    expect(calls.operaciones).toEqual(expect.arrayContaining([
+      { method: "eq", args: ["tenant_id", TENANT] },
+    ]));
+    expect(calls.facturas_electronicas).toEqual(expect.arrayContaining([
+      { method: "eq", args: ["operacion_id", OPERACION_ID] },
+    ]));
+  });
+
+  it.each([
+    [null, 404, "Operación no encontrada"],
+    [{ id: OPERACION_ID, tipo: "COMPRA", cliente_id: null }, 400, "Solo se pueden generar remitos desde operaciones de venta"],
+  ])("rechaza en el preflight operaciones no remitibles", async (operacion, status, message) => {
+    const { supabase } = supabaseMock({
+      facturacion_configuracion_ambiente: [{ data: null, error: null }],
+      remitos_configuracion: [{ data: null, error: null }],
+      remitos: [{ data: [], error: null }, { data: [], error: null }],
+      operaciones: [{ data: operacion, error: null }],
+      operaciones_lineas: [{ data: [], error: null }],
+    });
+
+    await expect(getRemitoPreflight(supabase, TENANT, "HOMOLOGACION", null, null, OPERACION_ID))
+      .rejects.toMatchObject({ status, message });
+  });
+
+  it("no permite combinar orígenes en el preflight", async () => {
+    const { supabase } = supabaseMock({});
+    await expect(getRemitoPreflight(supabase, TENANT, "HOMOLOGACION", null, ARREGLO_ID, OPERACION_ID))
+      .rejects.toMatchObject({ status: 400 });
   });
 
   it.each([

@@ -2,18 +2,21 @@ import "server-only";
 
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import QRCode from "qrcode";
-import { drawCentered, drawRight, formatDate, text, wrapText } from "@/lib/pdf/pdfText";
+import { drawCentered, drawRight, formatDate, sanitizeForFont, text, wrapText } from "@/lib/pdf/pdfText";
 import { formatArs, formatNumberAr } from "../format";
 import { FacturacionValidationError } from "./arcaPayload";
+import { precioUnitarioMostrado } from "./lineaImporte";
 import {
   amountInPesosWords, emitterCommercialAddress, emitterFiscalIvaLabel,
   fceLegalLegend, hasFiscalIibb, isFceInvoice, receiverFiscalIvaLabel,
 } from "./fiscalPresentation";
 import {
+  ALICUOTAS_IVA_ARCA,
   TIPOS_DOCUMENTO_FISCAL,
   type DocumentoFiscalClase,
   type FacturaClase,
   type FacturaTotales,
+  type TratamientoIva,
 } from "./types";
 
 const ARCA_QR_URL = "https://www.arca.gob.ar/fe/qr/?p=";
@@ -23,9 +26,19 @@ const MARGIN = 38;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const WHITE = rgb(1, 1, 1);
 const FOOTER_SEPARATOR_Y = 150;
+const CONTINUATION_TABLE_TOP = 755;
+/** Tope del pie cuando no entra debajo de la última fila y pasa a la parte superior de una hoja nueva. */
+const FOOTER_TOP_ON_OWN_PAGE = 763;
+const ROW_TEXT_OFFSET = 13;
+
+function rowHeight(lines: number): number {
+  return Math.max(20, lines * 10 + 10);
+}
 const FCE_LEGEND_FONT_SIZE = 7;
 const FCE_LEGEND_LINE_HEIGHT = 9;
 const FCE_LEGEND_BOTTOM_GAP = 10;
+const ASSOCIATED_LABEL = "Comprobante asociado:";
+const TRANSPARENCY_TITLE = "Régimen de Transparencia Fiscal al Consumidor (Ley 27.743)";
 
 type FiscalRecord = Record<string, unknown>;
 
@@ -35,6 +48,10 @@ export type FiscalPdfLine = {
   cantidad: number;
   importeUnitario: number;
   subtotal: number;
+  importeTotal?: number;
+  /** Tratamiento y alícuota de IVA de la línea: permiten rotular el IVA del pie con su porcentaje. */
+  tratamientoIva?: TratamientoIva;
+  ivaAlicuota?: number;
 };
 
 export type FiscalPdfInvoice = {
@@ -62,6 +79,8 @@ export type FiscalPdfInvoice = {
   lineas: FiscalPdfLine[];
   /** Actual linked documents only; this branch does not yet have a remitos data source. */
   remitosAsociados?: { clase: "R" | "X"; puntoEmision: number; numero: number }[];
+  /** Factura a la que refiere una nota de crédito o débito (CbtesAsoc). */
+  comprobanteAsociado?: { tipoComprobante: number; clase: FacturaClase; puntoVenta: number; numero: number; fecha: string } | null;
 };
 
 export type ArcaQrPayload = {
@@ -85,11 +104,14 @@ type PrintableRow = FiscalPdfLine & {
   continuation: boolean;
   height: number;
   fullWidth?: boolean;
+  unitarioMaxDecimales?: number;
 };
 
 type PrintablePage = {
   rows: PrintableRow[];
   continuation: boolean;
+  /** Sólo la última hoja lleva el pie: abajo si entra después de las filas, o arriba en una hoja propia. */
+  footer: "bottom" | "top" | null;
 };
 
 type Fonts = {
@@ -106,9 +128,14 @@ function formatAmount(value: number): string {
   return formatArs(value, { minDecimals: 2, maxDecimals: 2 });
 }
 
+export function fiscalPdfUnitPrice(line: FiscalPdfLine): { value: number; maxDecimals: number } {
+  return precioUnitarioMostrado(line, line.importeTotal ?? line.subtotal);
+}
+
 function printableRows(lines: FiscalPdfLine[], font: PDFFont): PrintableRow[] {
   const output: PrintableRow[] = [];
   for (const line of lines) {
+    const unitPrice = fiscalPdfUnitPrice(line);
     const wrapped = wrapText(line.descripcion || "-", font, 8, 230);
     for (let offset = 0; offset < wrapped.length; offset += 28) {
       const descriptionLines = wrapped.slice(offset, offset + 28);
@@ -116,11 +143,12 @@ function printableRows(lines: FiscalPdfLine[], font: PDFFont): PrintableRow[] {
         ...line,
         codigo: offset === 0 ? line.codigo : null,
         cantidad: offset === 0 ? line.cantidad : 0,
-        importeUnitario: offset === 0 ? line.importeUnitario : 0,
-        subtotal: offset === 0 ? line.subtotal : 0,
+        importeUnitario: offset === 0 ? unitPrice.value : 0,
+        unitarioMaxDecimales: offset === 0 ? unitPrice.maxDecimals : 2,
+        subtotal: offset === 0 ? (line.importeTotal ?? line.subtotal) : 0,
         descriptionLines,
         continuation: offset > 0,
-        height: Math.max(28, descriptionLines.length * 10 + 10),
+        height: rowHeight(descriptionLines.length),
       });
     }
   }
@@ -132,31 +160,26 @@ function firstTableStart(invoice: FiscalPdfInvoice, receiverExtraHeight = 0): nu
 }
 
 function paginate(rows: PrintableRow[], firstTableY: number, footerTop: number): PrintablePage[] {
-  const pages: PrintablePage[] = [{ rows: [], continuation: false }];
+  const pages: PrintablePage[] = [{ rows: [], continuation: false, footer: null }];
   let remaining = firstTableY - 21 - 38;
   for (const row of rows) {
     if (row.height > remaining) {
-      pages.push({ rows: [], continuation: true });
-      remaining = 755 - 21 - 38;
+      pages.push({ rows: [], continuation: true, footer: null });
+      remaining = CONTINUATION_TABLE_TOP - 21 - 38;
     }
     pages[pages.length - 1].rows.push(row);
     remaining -= row.height;
   }
 
+  // Las filas nunca se mueven para hacerle lugar al pie: si no entra debajo de la
+  // última fila, el pie (totales, QR y CAE) sigue arriba de una hoja nueva.
   const last = pages[pages.length - 1];
-  const lastCapacityWithFooter = (last.continuation ? 755 : firstTableY) - 21 - footerTop - 15;
   const used = last.rows.reduce((sum, row) => sum + row.height, 0);
-  if (used > lastCapacityWithFooter && last.rows.length > 0) {
-    const moved: PrintableRow[] = [];
-    let movedHeight = 0;
-    const finalPageCapacity = 755 - 21 - footerTop - 15;
-    while (last.rows.length > 0) {
-      const candidate = last.rows[last.rows.length - 1];
-      if (movedHeight + candidate.height > finalPageCapacity) break;
-      moved.unshift(last.rows.pop() as PrintableRow);
-      movedHeight += candidate.height;
-    }
-    pages.push({ rows: moved, continuation: true });
+  const tableTop = last.continuation ? CONTINUATION_TABLE_TOP : firstTableY;
+  if (tableTop - 21 - used - 15 >= footerTop) {
+    last.footer = "bottom";
+  } else {
+    pages.push({ rows: [], continuation: true, footer: "top" });
   }
   return pages;
 }
@@ -225,9 +248,17 @@ type FirstHeaderLayout = {
   receiverExtraHeight: number;
   receiverIvaLines: string[];
   receiverIvaExtraHeight: number;
-  observationLines: string[];
-  observationExtraHeight: number;
+  associatedLines: string[];
+  associatedValueX: number;
 };
+
+function associatedReference(invoice: FiscalPdfInvoice): string | null {
+  const associated = invoice.comprobanteAsociado;
+  if (!associated || (invoice.documentoTipo ?? "FACTURA") === "FACTURA") return null;
+  const kind = isFceInvoice(associated.tipoComprobante) ? "Factura de Crédito Electrónica MiPyME" : "Factura";
+  const number = `${String(associated.puntoVenta).padStart(5, "0")}-${String(associated.numero).padStart(8, "0")}`;
+  return `${kind} ${associated.clase} ${number} del ${formatDate(associated.fecha)}`;
+}
 
 function getFirstHeaderLayout(invoice: FiscalPdfInvoice, fonts: Fonts): FirstHeaderLayout {
   const receiver = invoice.receptorSnapshot;
@@ -250,18 +281,19 @@ function getFirstHeaderLayout(invoice: FiscalPdfInvoice, fonts: Fonts): FirstHea
   const receiverAddressExtraHeight = Math.max(0, receiverAddressLines.length - 1) * 10;
   const receiverIvaLines = wrapText(receiverFiscalIvaLabel(number(receiver.condicionIvaReceptorId)), fonts.regular, 8, rightEdge - 360);
   const receiverIvaExtraHeight = Math.max(0, receiverIvaLines.length - 1) * 10;
-  const observation = text(invoice.observacionArreglo);
-  const observationLines = observation ? wrapText(observation, fonts.regular, 8, CONTENT_WIDTH - 24) : [];
-  const observationExtraHeight = observationLines.length ? (observationLines.length + 1) * 10 : 0;
+  const reference = associatedReference(invoice);
+  const associatedValueX = 50 + fonts.bold.widthOfTextAtSize(ASSOCIATED_LABEL, 8) + 8;
+  const associatedLines = reference ? wrapText(reference, fonts.regular, 8, rightEdge - associatedValueX) : [];
+  const associatedExtraHeight = associatedLines.length ? 8 + associatedLines.length * 10 : 0;
   return {
     receiverNameLines,
     receiverNameExtraHeight,
     receiverAddressLines,
-    receiverExtraHeight: receiverNameExtraHeight + receiverAddressExtraHeight + receiverIvaExtraHeight + observationExtraHeight,
+    receiverExtraHeight: receiverNameExtraHeight + receiverAddressExtraHeight + receiverIvaExtraHeight + associatedExtraHeight,
     receiverIvaLines,
     receiverIvaExtraHeight,
-    observationLines,
-    observationExtraHeight,
+    associatedLines,
+    associatedValueX,
   };
 }
 
@@ -363,11 +395,11 @@ function drawFirstHeader(
       size: 8,
     });
   });
-  if (layout.observationLines.length) {
-    const observationY = receiverDetailsY - Math.max(layout.receiverAddressLines.length, 1) * 10 - 4;
-    page.drawText("Observación del arreglo:", { x: 50, y: observationY, font: fonts.bold, size: 8 });
-    layout.observationLines.forEach((line, index) => {
-      page.drawText(line || " ", { x: 50, y: observationY - 10 - index * 10, font: fonts.regular, size: 8 });
+  if (layout.associatedLines.length) {
+    const associatedY = receiverDetailsY - layout.receiverAddressLines.length * 10 - 8;
+    page.drawText(ASSOCIATED_LABEL, { x: 50, y: associatedY, font: fonts.bold, size: 8 });
+    layout.associatedLines.forEach((line, index) => {
+      page.drawText(line, { x: layout.associatedValueX, y: associatedY - index * 10, font: fonts.regular, size: 8 });
     });
   }
 }
@@ -398,11 +430,11 @@ function drawTableHeader(page: PDFPage, y: number, fonts: Fonts) {
 function drawRows(page: PDFPage, rows: PrintableRow[], startY: number, fonts: Fonts): number {
   let y = startY - 21;
   for (const row of rows) {
-    const textY = y - 15;
+    const textY = y - ROW_TEXT_OFFSET;
     if (!row.continuation) {
       page.drawText(row.codigo || "-", { x: 46, y: textY, font: fonts.regular, size: 8 });
       drawCentered(page, formatNumber(row.cantidad), 383, textY, fonts.regular, 8);
-      drawRight(page, formatAmount(row.importeUnitario), 482, textY, fonts.regular, 8);
+      drawRight(page, formatArs(row.importeUnitario, { minDecimals: 2, maxDecimals: row.unitarioMaxDecimales ?? 2 }), 482, textY, fonts.regular, 8);
       drawRight(page, formatAmount(row.subtotal), 550, textY, fonts.regular, 8);
     }
     row.descriptionLines.forEach((line, index) => {
@@ -434,6 +466,25 @@ function getFooterLayout(invoice: FiscalPdfInvoice, fonts: Fonts): FooterLayout 
   return { top, words, legend };
 }
 
+/**
+ * Rótulo del IVA discriminado del pie. En clase A lleva el porcentaje ("Importe IVA 21%:")
+ * cuando todas las líneas gravadas comparten una misma alícuota; si hay varias, o no se
+ * conoce, queda sin porcentaje porque el total mezcla alícuotas distintas.
+ */
+function ivaTotalLabel(invoice: FiscalPdfInvoice): string {
+  const generic = "Importe IVA:";
+  if (invoice.claseComprobante !== "A") return generic;
+  const rates = new Set(
+    invoice.lineas
+      .filter((line) => line.tratamientoIva === "GRAVADO" && line.ivaAlicuota != null)
+      .map((line) => line.ivaAlicuota as number),
+  );
+  if (rates.size !== 1) return generic;
+  const [rate] = rates;
+  const label = ALICUOTAS_IVA_ARCA.find((item) => item.porcentaje === rate)?.label ?? `${formatNumberAr(rate, { maxDecimals: 2 })}%`;
+  return `Importe IVA ${label}:`;
+}
+
 function remitoRows(invoice: FiscalPdfInvoice, font: PDFFont): PrintableRow[] {
   if (!invoice.remitosAsociados?.length) return [];
   const references = [...new Set(invoice.remitosAsociados.map(({ clase, puntoEmision, numero }) => {
@@ -446,9 +497,40 @@ function remitoRows(invoice: FiscalPdfInvoice, font: PDFFont): PrintableRow[] {
   const rows: PrintableRow[] = [];
   for (let offset = 0; offset < lines.length; offset += 28) {
     const descriptionLines = lines.slice(offset, offset + 28);
-    rows.push({ codigo: null, descripcion: "", cantidad: 0, importeUnitario: 0, subtotal: 0, continuation: true, fullWidth: true, descriptionLines, height: Math.max(28, descriptionLines.length * 10 + 10) });
+    rows.push({ codigo: null, descripcion: "", cantidad: 0, importeUnitario: 0, subtotal: 0, continuation: true, fullWidth: true, descriptionLines, height: rowHeight(descriptionLines.length) });
   }
   return rows;
+}
+
+/**
+ * RG 5614/2024 (RG 1415, Anexo II, ap. B, inc. g): los comprobantes clase B de un
+ * responsable inscripto informan, abajo a la izquierda, el IVA contenido y los otros
+ * impuestos nacionales indirectos (impuestos internos), no los "Otros Tributos".
+ * Clase A discrimina IVA para un receptor inscripto y clase C (monotributo) no
+ * discrimina IVA, así que ninguna de las dos lleva el bloque.
+ */
+function transparencyRows(invoice: FiscalPdfInvoice): [string, number][] | null {
+  if (invoice.claseComprobante !== "B" || !invoice.totales) return null;
+  return [
+    ["IVA Contenido:", invoice.totales.iva],
+    ["Otros Impuestos Nacionales Indirectos:", invoice.totales.otrosImpuestosNacionales],
+  ];
+}
+
+function drawTransparencyBlock(page: PDFPage, invoice: FiscalPdfInvoice, fonts: Fonts, top: number) {
+  const rows = transparencyRows(invoice);
+  if (!rows) return;
+  let y = top;
+  for (const line of wrapText(TRANSPARENCY_TITLE, fonts.bold, 8, 270)) {
+    page.drawText(line, { x: 46, y, font: fonts.bold, size: 8 });
+    y -= 11;
+  }
+  y -= 3;
+  for (const [label, value] of rows) {
+    page.drawText(label, { x: 46, y, font: fonts.regular, size: 8 });
+    drawRight(page, formatAmount(value), 310, y, fonts.regular, 8);
+    y -= 13;
+  }
 }
 
 async function drawFooter(
@@ -457,15 +539,19 @@ async function drawFooter(
   invoice: FiscalPdfInvoice,
   fonts: Fonts,
   layout: FooterLayout,
+  /** Desplazamiento vertical: 0 al pie de la hoja, o lo necesario para dibujarlo arriba de una hoja propia. */
+  shift = 0,
 ) {
-  let y = layout.top - 8;
+  let y = layout.top - 8 + shift;
+  // Ocupa la columna izquierda a la altura de los totales: no compite con ellos ni con el QR y el CAE.
+  drawTransparencyBlock(page, invoice, fonts, y);
   const claseC = (invoice.claseComprobante ?? "C") === "C";
   const subtotal = invoice.totales
     ? invoice.totales.netoGravado + invoice.totales.noGravado + invoice.totales.exento
     : invoice.total;
   const totals = [
     [claseC ? "Subtotal:" : "Importe Neto:", claseC ? subtotal : invoice.totales?.netoGravado ?? invoice.total],
-    ...(!claseC ? [["Importe IVA:", invoice.totales?.iva ?? 0]] : []),
+    ...(!claseC ? [[ivaTotalLabel(invoice), invoice.totales?.iva ?? 0]] : []),
     ["Otros Tributos:", invoice.totales?.tributos ?? 0],
   ] as [string, number][];
   for (const [label, value] of totals) {
@@ -485,7 +571,8 @@ async function drawFooter(
     y -= 12;
     layout.legend.forEach((line) => { page.drawText(line, { x: 46, y, font: fonts.regular, size: FCE_LEGEND_FONT_SIZE }); y -= FCE_LEGEND_LINE_HEIGHT; });
   }
-  page.drawLine({ start: { x: MARGIN, y: FOOTER_SEPARATOR_Y }, end: { x: PAGE_WIDTH - MARGIN, y: FOOTER_SEPARATOR_Y }, thickness: 0.35, color: rgb(0.75, 0.75, 0.75) });
+  const separatorY = FOOTER_SEPARATOR_Y + shift;
+  page.drawLine({ start: { x: MARGIN, y: separatorY }, end: { x: PAGE_WIDTH - MARGIN, y: separatorY }, thickness: 0.35, color: rgb(0.75, 0.75, 0.75) });
 
   const qrBytes = await QRCode.toBuffer(buildArcaQrUrl(invoice), {
     type: "png",
@@ -494,11 +581,28 @@ async function drawFooter(
     width: 300,
   });
   const qr = await pdf.embedPng(Uint8Array.from(qrBytes));
-  page.drawImage(qr, { x: 42, y: 28, width: 112, height: 112 });
-  drawRight(page, `CAE N°: ${invoice.cae}`, 557, 91, fonts.bold, 10);
-  drawRight(page, `Fecha de Vto. de CAE: ${formatDate(invoice.caeVencimiento)}`, 557, 73, fonts.bold, 9);
-  drawRight(page, "Comprobante autorizado por ARCA", 557, 52, fonts.regular, 8);
-  drawRight(page, "Generado por B2Car", 557, 38, fonts.regular, 7);
+  page.drawImage(qr, { x: 42, y: 28 + shift, width: 112, height: 112 });
+  drawRight(page, `CAE N°: ${invoice.cae}`, 557, 91 + shift, fonts.bold, 10);
+  drawRight(page, `Fecha de Vto. de CAE: ${formatDate(invoice.caeVencimiento)}`, 557, 73 + shift, fonts.bold, 9);
+  drawRight(page, "Comprobante autorizado por ARCA", 557, 52 + shift, fonts.regular, 8);
+  drawRight(page, "Generado por B2Car", 557, 38 + shift, fonts.regular, 7);
+}
+
+// Las observaciones son informativas: se paginan sin importes y no forman parte
+// de las líneas fiscales ni del cálculo del QR/totales.
+function observationRows(invoice: FiscalPdfInvoice, font: PDFFont): PrintableRow[] {
+  const observation = text(invoice.observacionArreglo);
+  if (!observation) return [];
+  const lines = ["Observación del arreglo:", ...wrapText(sanitizeForFont(observation, font), font, 8, CONTENT_WIDTH - 16)];
+  const rows: PrintableRow[] = [];
+  for (let offset = 0; offset < lines.length; offset += 28) {
+    const descriptionLines = lines.slice(offset, offset + 28);
+    rows.push({
+      codigo: null, descripcion: "", cantidad: 0, importeUnitario: 0, subtotal: 0,
+      continuation: true, fullWidth: true, descriptionLines, height: rowHeight(descriptionLines.length),
+    });
+  }
+  return rows;
 }
 
 export async function generateFiscalInvoicePdf(invoice: FiscalPdfInvoice): Promise<Uint8Array> {
@@ -515,7 +619,7 @@ export async function generateFiscalInvoicePdf(invoice: FiscalPdfInvoice): Promi
   const headerLayout = getFirstHeaderLayout(invoice, fonts);
   const firstTableY = firstTableStart(invoice, headerLayout.receiverExtraHeight);
   const footerLayout = getFooterLayout(invoice, fonts);
-  const rows = [...printableRows(invoice.lineas, fonts.regular), ...remitoRows(invoice, fonts.regular)];
+  const rows = [...observationRows(invoice, fonts.regular), ...printableRows(invoice.lineas, fonts.regular), ...remitoRows(invoice, fonts.regular)];
   const pages = paginate(rows, firstTableY, footerLayout.top);
 
   for (let index = 0; index < pages.length; index += 1) {
@@ -526,10 +630,14 @@ export async function generateFiscalInvoicePdf(invoice: FiscalPdfInvoice): Promi
     } else {
       drawFirstHeader(page, invoice, fonts, headerLayout);
     }
-    const tableStart = printablePage.continuation ? 755 : firstTableY;
-    drawTableHeader(page, tableStart, fonts);
-    drawRows(page, printablePage.rows, tableStart, fonts);
-    if (index === pages.length - 1) await drawFooter(pdf, page, invoice, fonts, footerLayout);
+    const tableStart = printablePage.continuation ? CONTINUATION_TABLE_TOP : firstTableY;
+    // Una hoja que sólo continúa el pie no repite el encabezado de la tabla.
+    if (printablePage.rows.length || !printablePage.continuation) {
+      drawTableHeader(page, tableStart, fonts);
+      drawRows(page, printablePage.rows, tableStart, fonts);
+    }
+    if (printablePage.footer === "bottom") await drawFooter(pdf, page, invoice, fonts, footerLayout);
+    if (printablePage.footer === "top") await drawFooter(pdf, page, invoice, fonts, footerLayout, FOOTER_TOP_ON_OWN_PAGE - footerLayout.top);
   }
 
   return pdf.save({ useObjectStreams: false });

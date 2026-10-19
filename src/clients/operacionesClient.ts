@@ -19,6 +19,7 @@ export type CreateOperacionInput = {
 	cuenta_financiera_id?: string | null;
 	/** Protege reintentos del navegador contra asientos duplicados. */
 	idempotency_key?: string | null;
+	observaciones?: string | null;
 };
 
 export type UpdateOperacionInput = Partial<Omit<CreateOperacionInput, "arreglo_id">>;

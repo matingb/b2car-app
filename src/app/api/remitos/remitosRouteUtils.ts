@@ -18,3 +18,8 @@ export function parseOptionalArregloId(raw: string | null): Validated<string | n
   if (!raw) return { value: null };
   return isValidUuid(raw) ? { value: raw } : { error: "El parámetro arregloId debe ser un UUID válido" };
 }
+
+export function parseOptionalOperacionId(raw: string | null): Validated<string | null> {
+  if (!raw) return { value: null };
+  return isValidUuid(raw) ? { value: raw } : { error: "El parámetro operacionId debe ser un UUID válido" };
+}

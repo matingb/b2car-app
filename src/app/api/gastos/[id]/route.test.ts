@@ -80,9 +80,37 @@ describe("PUT /api/gastos/[id]", () => {
       p_descripcion: "Alquiler renegociado",
       p_fecha: "2026-07-31T00:00:00.000Z",
       p_idempotency_key: IDEMPOTENCY_KEY,
+      p_observaciones: null,
     });
     expect(body.data).toMatchObject({ id: ORIGINAL_ID, descripcion: "Alquiler renegociado" });
     expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything());
+  });
+
+  it.each([
+    { observaciones: null, expected: "" },
+    { observaciones: "Pagado con recargo", expected: "Pagado con recargo" },
+  ])("envía observaciones=$observaciones como $expected para que la RPC la borre o reemplace", async ({ observaciones, expected }) => {
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({ data: [{ ...gastoRow(), observaciones: "Observación anterior" }], error: null })
+      .mockResolvedValueOnce({ data: ORIGINAL_ID, error: null })
+      .mockResolvedValueOnce({ data: [{ ...gastoRow(), observaciones: expected || null }], error: null });
+    vi.mocked(createClient).mockResolvedValue(mockSupabase(rpc));
+
+    const request = new NextRequest(`http://localhost/api/gastos/${ORIGINAL_ID}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ observaciones, idempotencyKey: IDEMPOTENCY_KEY }),
+    });
+    const response = await PUT(request, { params: Promise.resolve({ id: ORIGINAL_ID }) });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenNthCalledWith(2, "rpc_actualizar_movimiento_cuenta", expect.objectContaining({
+      p_operacion_id: ORIGINAL_ID,
+      p_observaciones: expected,
+    }));
+    expect(body.data.observaciones).toBe(expected || null);
   });
 
   it("elimina el gasto via rpc_eliminar_movimiento_cuenta", async () => {
