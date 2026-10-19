@@ -100,3 +100,91 @@ describe("buildArregloPrintableInvoiceHtml precios sin IVA", () => {
     expect(summary).toContain(formatArs(121, { maxDecimals: 2, minDecimals: 0 }));
   });
 });
+
+describe("buildArregloPrintableInvoiceHtml showPrices y showObservations options", () => {
+  const baseData = {
+    arreglo: {
+      id: "arreglo-options",
+      estado: "TERMINADO",
+      fecha: "2026-10-10",
+      precio_final: 200,
+      precio_sin_iva: 200,
+      precios_incluyen_iva: true,
+      tasa_iva: null,
+      vehiculo: { marca: "Ford", modelo: "Fiesta", patente: "AB123CD" },
+      taller: null,
+      observaciones: "Cambio urgente de pastillas de freno",
+    },
+    detalles: [
+      {
+        id: "d1",
+        arreglo_id: "arreglo-options",
+        descripcion: "Mano de obra frenos",
+        cantidad: 1,
+        horas_facturadas: 2,
+        precio_hora_facturada: 50,
+        horas_trabajadas: null,
+        categoria_arreglo_id: null,
+        empleado_id: null,
+      },
+    ],
+    asignaciones: [],
+    detalle_formulario: null,
+  } as unknown as ArregloDetalleData;
+
+  it("oculta precios y totales cuando showPrices es false", () => {
+    const html = buildArregloPrintableInvoiceHtml({
+      data: baseData,
+      showPrices: false,
+    });
+
+    expect(html).toContain("Mano de obra frenos");
+    expect(html).not.toContain('<div class="bottom-totals">');
+    expect(html).not.toContain("$ Unidad");
+    expect(html).not.toContain("$Subtotal");
+    expect(html).not.toContain(formatArs(200, { maxDecimals: 2, minDecimals: 0 }));
+  });
+
+  it("oculta la seccion de observaciones cuando showObservations es false", () => {
+    const htmlWithObs = buildArregloPrintableInvoiceHtml({
+      data: baseData,
+      showObservations: true,
+    });
+    expect(htmlWithObs).toContain('class="observations-label"');
+    expect(htmlWithObs).toContain("Cambio urgente de pastillas de freno");
+
+    const htmlWithoutObs = buildArregloPrintableInvoiceHtml({
+      data: baseData,
+      showObservations: false,
+    });
+    expect(htmlWithoutObs).not.toContain('class="observations-label"');
+    expect(htmlWithoutObs).not.toContain("Cambio urgente de pastillas de freno");
+  });
+
+  it("prioriza numero_orden para el número de orden en el encabezado HTML", () => {
+    const dataConNumero = {
+      ...baseData,
+      arreglo: {
+        ...baseData.arreglo,
+        numero_orden: 99,
+      },
+    } as unknown as ArregloDetalleData;
+
+    const html = buildArregloPrintableInvoiceHtml({ data: dataConNumero });
+    expect(html).toContain("00000099");
+  });
+});
+
+describe("formatInvoiceNumber", () => {
+  it("prioriza numero_orden con padding de 8 ceros", async () => {
+    const { formatInvoiceNumber } = await import("./arregloPrintableInvoice");
+    expect(formatInvoiceNumber({ id: "uuid-12345", numero_orden: 42 })).toBe("00000042");
+    expect(formatInvoiceNumber({ id: "uuid-12345", numero_orden: 1 })).toBe("00000001");
+  });
+
+  it("utiliza shortInvoiceNumber como fallback si numero_orden es nulo", async () => {
+    const { formatInvoiceNumber } = await import("./arregloPrintableInvoice");
+    expect(formatInvoiceNumber({ id: "a1-12345678", numero_orden: null })).toBe("12345678");
+  });
+});
+

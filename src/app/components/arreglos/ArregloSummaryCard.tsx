@@ -39,6 +39,7 @@ import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider"
 import type { EstadoArreglo } from "@/model/types";
 import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 import { useArregloPrintableInvoice } from "@/app/components/arreglos/hooks/useArregloPrintableInvoice";
+import ArregloPrintableInvoiceModal from "@/app/components/arreglos/ArregloPrintableInvoiceModal";
 import ArregloWhatsAppModal from "@/app/components/arreglos/ArregloWhatsAppModal";
 import CategoriaChip from "@/app/components/arreglos/lineas/shared/CategoriaChip";
 import { getArregloDeleteConfirmationMessage } from "@/app/components/arreglos/arregloDeleteConfirmation";
@@ -71,7 +72,11 @@ export default function ArregloSummaryCard({
   const { confirm } = useModalMessage();
   const { success, error } = useToast();
   const { hasPermission } = useTenant();
-  const { handleOpenPrintableInvoice } = useArregloPrintableInvoice();
+  const {
+    isInvoiceModalOpen,
+    handleOpenPrintableInvoice,
+    handleClosePrintableInvoice,
+  } = useArregloPrintableInvoice();
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isRemitoModalOpen, setIsRemitoModalOpen] = useState(false);
 
@@ -408,6 +413,11 @@ export default function ArregloSummaryCard({
         arregloId={arreglo.id}
         onClose={() => setIsRemitoModalOpen(false)}
         onEmitted={(remitoId) => router.push(`${ROUTES.remitos}/${remitoId}`)}
+      />
+      <ArregloPrintableInvoiceModal
+        open={isInvoiceModalOpen}
+        onClose={handleClosePrintableInvoice}
+        data={data}
       />
     </section>
   );
