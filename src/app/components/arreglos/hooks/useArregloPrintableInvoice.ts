@@ -1,55 +1,40 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
-import { openArregloPrintableInvoice } from "@/lib/arregloPrintableInvoice";
-import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 
 export function useArregloPrintableInvoice() {
-  const { fetchCliente } = useVehiculos();
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const { error } = useToast();
 
-  const handleOpenPrintableInvoice = useCallback(
-    async (data: ArregloDetalleData | null) => {
-      if (!data?.arreglo) {
-        error("Error", "No se pudo generar el comprobante");
-        return;
-      }
+  const handleOpenPrintableInvoice = useCallback((data?: ArregloDetalleData | null) => {
+    if (!data?.arreglo) {
+      error("Error", "No se pudo generar el comprobante");
+      return;
+    }
 
-      const printWindow = window.open("", "_blank", "width=900,height=1200");
-      if (!printWindow) {
-        error("Error", "El navegador bloqueó la ventana de impresión");
-        return;
-      }
+    const vehiculo = data.arreglo.vehiculo;
+    const hasCliente = Boolean(
+      vehiculo?.nombre_cliente?.trim() ||
+      vehiculo?.cliente_id ||
+      data.arreglo.cliente_id
+    );
+    if (!hasCliente) {
+      error("Datos incompletos", "El arreglo no tiene un cliente asignado.");
+      return;
+    }
 
-      printWindow.document.write(
-        "<!doctype html><title>Generando PDF</title><p>Generando comprobante...</p>"
-      );
+    setIsInvoiceModalOpen(true);
+  }, [error]);
 
-      const cliente = data.arreglo.vehiculo?.id
-        ? await fetchCliente(data.arreglo.vehiculo.id).catch(() => null)
-        : null;
-
-      const tenantName = localStorage.getItem("tenant_name") || undefined;
-
-      const opened = openArregloPrintableInvoice(
-        {
-          data,
-          tenantName,
-          cliente,
-        },
-        printWindow
-      );
-
-      if (!opened) {
-        error("Error", "El navegador bloqueó la ventana de impresión");
-      }
-    },
-    [fetchCliente, error]
-  );
+  const handleClosePrintableInvoice = useCallback(() => {
+    setIsInvoiceModalOpen(false);
+  }, []);
 
   return {
+    isInvoiceModalOpen,
     handleOpenPrintableInvoice,
+    handleClosePrintableInvoice,
   };
 }
