@@ -235,15 +235,22 @@ describe("telemetry unified wrapper", () => {
     it("dado un log estructurado, lo propaga como evento a Honeycomb y acción a Datadog", () => {
       const mockSpan = {
         addEvent: vi.fn(),
+        setAttributes: vi.fn(),
       };
       vi.mocked(trace.getActiveSpan).mockReturnValue(mockSpan as unknown as ReturnType<typeof trace.getActiveSpan>);
 
       telemetry.log("warn", "Consumo alto de recursos", { memoriaMb: 512 });
 
       expect(datadogRum.addAction).toHaveBeenCalledWith("Consumo alto de recursos", {
+        severity: "warn",
+        memoriaMb: 512,
+      });
+      expect(mockSpan.setAttributes).toHaveBeenCalledWith({
+        severity: "warn",
         memoriaMb: 512,
       });
       expect(mockSpan.addEvent).toHaveBeenCalledWith("Consumo alto de recursos", {
+        severity: "warn",
         memoriaMb: 512,
       });
     });
@@ -255,6 +262,8 @@ describe("telemetry unified wrapper", () => {
         recordException: vi.fn(),
         setStatus: vi.fn(),
         setAttribute: vi.fn(),
+        setAttributes: vi.fn(),
+        addEvent: vi.fn(),
       };
       vi.mocked(trace.getActiveSpan).mockReturnValue(mockSpan as unknown as ReturnType<typeof trace.getActiveSpan>);
 

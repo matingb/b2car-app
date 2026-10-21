@@ -8,7 +8,7 @@ export * from "./telemetry/types";
 export * from "./telemetry/store";
 export * from "./telemetry/sanitizer";
 export { datadogProvider } from "./telemetry/datadog";
-export { honeycombProvider } from "./telemetry/honeycomb";
+export { honeycombProvider, logs, SeverityNumber } from "./telemetry/honeycomb";
 
 import { buildTelemetryAttributes } from "./telemetry/identity";
 export * from "./telemetry/identity";

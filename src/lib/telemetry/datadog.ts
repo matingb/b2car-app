@@ -223,7 +223,7 @@ export const datadogProvider: TelemetryProvider = {
   log(level: TelemetryLogLevel, message: string, context?: TelemetryContext): void {
     if (typeof window !== "undefined") {
       try {
-        datadogRum.addAction?.(message || `log_${level}`, context);
+        datadogRum.addAction?.(message || `log_${level}`, { severity: level, ...context });
       } catch {}
       return;
     }
@@ -234,6 +234,7 @@ export const datadogProvider: TelemetryProvider = {
         if (span) {
           if (message) span.setTag("log.message", message);
           span.setTag("log.level", level);
+          span.setTag("severity", level);
           if (context) {
             for (const [k, v] of Object.entries(context)) {
               span.setTag(k, typeof v === "object" ? JSON.stringify(v) : v);

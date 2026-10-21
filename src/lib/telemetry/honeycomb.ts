@@ -1,4 +1,5 @@
 import { trace, SpanStatusCode } from "@opentelemetry/api";
+import { logs, SeverityNumber } from "@opentelemetry/api-logs";
 import type { SpanProcessor, ReadableSpan, Span } from "@opentelemetry/sdk-trace-base";
 import type {
   TelemetryProvider,
@@ -11,7 +12,7 @@ import type {
 import { traceAttributeStore, TraceAttributeStore } from "./store";
 import { buildTelemetryAttributes } from "./identity";
 
-export { traceAttributeStore, TraceAttributeStore };
+export { traceAttributeStore, TraceAttributeStore, logs, SeverityNumber };
 
 let clientInitialized = false;
 let serverInitialized = false;
@@ -34,16 +35,17 @@ export class RootEnrichmentSpanProcessor implements SpanProcessor {
     const attrs = this.store.get(traceId);
     if (!attrs) return;
 
-    const isRoot = !span.parentSpanContext || (span.parentSpanContext as { isRemote?: boolean }).isRemote;
-    if (isRoot) {
-      const mutableSpan = span as unknown as { attributes: Record<string, unknown> };
-      if (mutableSpan.attributes) {
-        for (const [k, v] of Object.entries(attrs)) {
-          if (mutableSpan.attributes[k] === undefined) {
-            mutableSpan.attributes[k] = v;
-          }
+    const mutableSpan = span as unknown as { attributes: Record<string, unknown> };
+    if (mutableSpan.attributes) {
+      for (const [k, v] of Object.entries(attrs)) {
+        if (mutableSpan.attributes[k] === undefined) {
+          mutableSpan.attributes[k] = v;
         }
       }
+    }
+
+    const isRoot = !span.parentSpanContext || (span.parentSpanContext as { isRemote?: boolean }).isRemote;
+    if (isRoot) {
       this.store.delete(traceId);
     }
   }
@@ -94,25 +96,38 @@ export async function initHoneycombServer(): Promise<void> {
     const { NodeSDK } = await import("@opentelemetry/sdk-node");
     const { getNodeAutoInstrumentations } = await import("@opentelemetry/auto-instrumentations-node");
     const { OTLPTraceExporter } = await import("@opentelemetry/exporter-trace-otlp-http");
+    const { OTLPLogExporter } = await import("@opentelemetry/exporter-logs-otlp-http");
+    const { BatchSpanProcessor } = await import("@opentelemetry/sdk-trace-base");
+    const { BatchLogRecordProcessor } = await import("@opentelemetry/sdk-logs");
     const { resourceFromAttributes } = await import("@opentelemetry/resources");
     const { ATTR_SERVICE_VERSION } = await import("@opentelemetry/semantic-conventions");
 
     const endpoint = "https://api.honeycomb.io/v1/traces";
+    const logsEndpoint = "https://api.honeycomb.io/v1/logs";
     const serviceName = process.env.TELEMETRY_BACKEND_SERVICE_NAME || "b2car-backend";
     const appVersion = process.env.NEXT_PUBLIC_APP_VERSION;
     const environment = process.env.NEXT_PUBLIC_DATADOG_ENV || process.env.NODE_ENV || "production";
 
+    const headers = apiKey
+      ? {
+          "x-honeycomb-team": apiKey,
+          ...(process.env.HONEYCOMB_DATASET ? { "x-honeycomb-dataset": process.env.HONEYCOMB_DATASET } : {}),
+        }
+      : undefined;
+
     const traceExporter = new OTLPTraceExporter({
       url: endpoint,
-      headers: apiKey
-        ? {
-            "x-honeycomb-team": apiKey,
-            ...(process.env.HONEYCOMB_DATASET ? { "x-honeycomb-dataset": process.env.HONEYCOMB_DATASET } : {}),
-          }
-        : undefined,
+      headers,
+    });
+
+    const logExporter = new OTLPLogExporter({
+      url: logsEndpoint,
+      headers,
     });
 
     const rootProcessor = new RootEnrichmentSpanProcessor(traceAttributeStore);
+    const traceProcessor = new BatchSpanProcessor(traceExporter);
+    const logProcessor = new BatchLogRecordProcessor({ exporter: logExporter });
 
     const sdk = new NodeSDK({
       serviceName,
@@ -120,8 +135,8 @@ export async function initHoneycombServer(): Promise<void> {
         [ATTR_SERVICE_VERSION]: appVersion,
         "deployment.environment": environment,
       }),
-      traceExporter,
-      spanProcessors: [rootProcessor],
+      spanProcessors: [rootProcessor, traceProcessor],
+      logRecordProcessors: [logProcessor],
       instrumentations: [
         getNodeAutoInstrumentations({
           "@opentelemetry/instrumentation-fs": {
@@ -258,29 +273,32 @@ export const honeycombProvider: TelemetryProvider = {
   log(level: TelemetryLogLevel, message: string, context?: TelemetryContext): void {
     try {
       const eventName = message || `log_${level}`;
+      const attributes = toOtelAttributes({
+        severity: level,
+        ...context,
+      });
+
       const span = trace.getActiveSpan();
       if (span) {
-        if (typeof span.addEvent === "function") {
-          span.addEvent(eventName, toOtelAttributes(context));
-        }
-        return;
+        span.setAttributes(attributes);
+        span.addEvent(eventName, attributes);
       }
 
-      const tracer = trace.getTracer("b2car-app");
-      if (typeof tracer?.startSpan === "function") {
-        const ephemeralSpan = tracer.startSpan(eventName);
-        if (context && typeof ephemeralSpan.setAttribute === "function") {
-          for (const [k, v] of Object.entries(toOtelAttributes(context))) {
-            ephemeralSpan.setAttribute(k, v);
-          }
-        }
-        if (level === "error" && typeof ephemeralSpan.setStatus === "function") {
-          ephemeralSpan.setStatus({ code: SpanStatusCode.ERROR, message });
-        }
-        if (typeof ephemeralSpan.end === "function") {
-          ephemeralSpan.end();
-        }
-      }
+      const severityMap: Record<TelemetryLogLevel, { number: SeverityNumber; text: string }> = {
+        debug: { number: SeverityNumber.DEBUG, text: "DEBUG" },
+        info: { number: SeverityNumber.INFO, text: "INFO" },
+        warn: { number: SeverityNumber.WARN, text: "WARN" },
+        error: { number: SeverityNumber.ERROR, text: "ERROR" },
+      };
+
+      const sev = severityMap[level] ?? { number: SeverityNumber.INFO, text: "INFO" };
+      const otelLogger = logs.getLogger("b2car-app");
+      otelLogger.emit({
+        severityNumber: sev.number,
+        severityText: sev.text,
+        body: eventName,
+        attributes,
+      });
     } catch {
       // Silencioso
     }
