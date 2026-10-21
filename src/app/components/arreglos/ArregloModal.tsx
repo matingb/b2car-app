@@ -26,7 +26,6 @@ import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import { ESTADOS_ARREGLO, EstadoArreglo } from "@/model/types";
 import ArregloFormFields, {
-  type ArregloForm,
   type ArregloFormFieldsInternal,
   type ArregloFormFieldsValues,
 } from "@/app/components/arreglos/ArregloFormFields";
