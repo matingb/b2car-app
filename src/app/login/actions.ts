@@ -6,6 +6,7 @@ import { createClient } from '@/supabase/server'
 import { AuthActionError, type LoginResult, type LogoutResult } from './authTypes'
 import { decodeJwtPayload } from '@/lib/jwt'
 import { logger } from '@/lib/logger'
+import { telemetry, identityFromClaims } from '@/lib/telemetry'
 
 const INVALID_LOGIN_CREDENTIALS_ERROR = 'invalid login credentials'
 const TENANT_INACTIVE_ERROR = 'tenant_inactive'
@@ -121,6 +122,11 @@ export async function login(email: string, password: string) {
     })
   }
 
+  const identity = identityFromClaims(jwt)
+  if (identity) {
+    telemetry.identify(identity)
+  }
+
   logger.info('User logged in', { email, userId })
 
   revalidatePath('/', 'layout')
@@ -130,6 +136,8 @@ export async function login(email: string, password: string) {
 
 export async function logOut() {
   const supabase = await createClient()
+
+  telemetry.clearUser()
 
   const { error } = await supabase.auth.signOut()
 
