@@ -55,13 +55,15 @@ export function createApiHandler(
 
     try {
       context = await buildApiContext();
-      telemetry.identify({
+      const identity = {
         user: { id: context.actor.userId, role: context.actor.role },
         account: { id: context.actor.tenantId, plan: context.actor.plan },
-      });
+      };
+      telemetry.identify(identity);
       if (options.permission) await assertPermission(context, options.permission);
       const params = await segment.params;
-      response = await controller({ ...context, req, params, requestId, log, fail });
+      const ctx = { ...context, req, params, requestId, log, fail };
+      response = await telemetry.withIdentity(identity, () => controller(ctx));
     } catch (error) {
       telemetry.recordException(error, { route: options.route, requestId });
       response = fail(error);

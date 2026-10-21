@@ -63,4 +63,9 @@ export interface TelemetryProvider {
    * Envuelve una función en una traza/span activo.
    */
   trace?: <T>(name: string, fn: () => Promise<T> | T) => Promise<T>;
+
+  /**
+   * Ejecuta una función dentro del contexto de identidad (Baggage y atributos propagados en todos los spans hijos).
+   */
+  withIdentity?: <T>(identity: TelemetryIdentity, fn: () => Promise<T> | T) => Promise<T>;
 }
