@@ -55,6 +55,7 @@ export async function login(email: string, password: string) {
 
   if (error) {
     if (isNoTenantError(error.message)) {
+      logger.warn('auth.login_failed', { reason: 'no_tenant', email })
       return {
         ok: false,
         error: AuthActionError.UNKNOWN,
@@ -63,6 +64,7 @@ export async function login(email: string, password: string) {
     }
 
     if (isTenantInactiveError(error.message)) {
+      logger.warn('auth.login_failed', { reason: 'tenant_inactive', email })
       return {
         ok: false,
         error: AuthActionError.TENANT_INACTIVE,
@@ -71,11 +73,13 @@ export async function login(email: string, password: string) {
     }
 
     if (isInvalidCredentialsError(error.message)) {
+      logger.warn('auth.login_failed', { reason: 'invalid_credentials', email })
       return {
         ok: false,
         error: AuthActionError.INVALID_CREDENTIALS,
       } satisfies LoginResult
     }
+    logger.warn('auth.login_failed', { reason: error.message || 'unknown', email })
     return {
       ok: false,
       error: AuthActionError.UNKNOWN,
@@ -84,6 +88,7 @@ export async function login(email: string, password: string) {
   }
 
   if (!session?.session) {
+    logger.warn('auth.login_failed', { reason: 'no_session', email })
     return {
       ok: false,
       error: AuthActionError.UNKNOWN,
@@ -96,8 +101,8 @@ export async function login(email: string, password: string) {
   const tenantId = jwt?.tenant_id as string | undefined
   const tenantName = (jwt?.tenant_name as string | undefined) ?? 'B2Car'
 
-  
   if (jwt?.error === 'NO_TENANT') {
+    logger.warn('auth.login_failed', { reason: 'no_tenant', email, userId })
     return buildTenantAccessError({
       supabase,
       jwt,
@@ -107,6 +112,7 @@ export async function login(email: string, password: string) {
   }
 
   if (jwt?.error === 'TENANT_INACTIVE' || !tenantId) {
+    logger.warn('auth.login_failed', { reason: 'tenant_inactive', email, userId })
     return buildTenantAccessError({
       supabase,
       jwt,

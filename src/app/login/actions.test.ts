@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthActionError } from "./authTypes";
+import { logger } from "@/lib/logger";
 
 const { createClientMock, decodeJwtPayloadMock, revalidatePathMock } = vi.hoisted(() => ({
   createClientMock: vi.fn(),
@@ -58,6 +59,10 @@ describe("login action", () => {
       error: AuthActionError.INVALID_CREDENTIALS,
     });
     expect(signOutMock).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith("auth.login_failed", {
+      reason: "invalid_credentials",
+      email: "test@example.com",
+    });
   });
 
   it("devuelve UNKNOWN cuando Supabase informa NO_TENANT durante el sign in", async () => {
@@ -74,6 +79,10 @@ describe("login action", () => {
       message: "Tu usuario no tiene un tenant asignado.",
     });
     expect(signOutMock).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith("auth.login_failed", {
+      reason: "no_tenant",
+      email: "test@example.com",
+    });
   });
 
   it("devuelve TENANT_INACTIVE cuando Supabase informa tenant inactivo en sign in", async () => {
@@ -90,6 +99,10 @@ describe("login action", () => {
       message: "Tu organización está inactiva o no tiene acceso.",
     });
     expect(signOutMock).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith("auth.login_failed", {
+      reason: "tenant_inactive",
+      email: "test@example.com",
+    });
   });
 
   it("limpia sesión y devuelve UNKNOWN cuando el JWT trae NO_TENANT", async () => {
@@ -111,6 +124,11 @@ describe("login action", () => {
       error: AuthActionError.UNKNOWN,
       message: "Sin tenant",
     });
+    expect(logger.warn).toHaveBeenCalledWith("auth.login_failed", {
+      reason: "no_tenant",
+      email: "test@example.com",
+      userId: "u1",
+    });
   });
 
   it("limpia sesión y devuelve TENANT_INACTIVE cuando falta tenant_id en JWT", async () => {
@@ -131,6 +149,11 @@ describe("login action", () => {
       error: AuthActionError.TENANT_INACTIVE,
       message: "Tu organización está inactiva o no tiene acceso.",
     });
+    expect(logger.warn).toHaveBeenCalledWith("auth.login_failed", {
+      reason: "tenant_inactive",
+      email: "test@example.com",
+      userId: "u1",
+    });
   });
 
   it("devuelve ok=true y tenant_name cuando el JWT es válido", async () => {
@@ -149,5 +172,10 @@ describe("login action", () => {
     expect(result).toEqual({ ok: true, tenant_name: "Tenant Demo" });
     expect(signOutMock).not.toHaveBeenCalled();
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "layout");
+    expect(logger.info).toHaveBeenCalledWith("User logged in", {
+      email: "test@example.com",
+      userId: "u1",
+    });
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 });

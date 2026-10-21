@@ -30,6 +30,8 @@ export interface TelemetryContext {
   [key: string]: unknown;
 }
 
+export type TelemetryLogLevel = "debug" | "info" | "warn" | "error";
+
 export interface TelemetryProvider {
   readonly name: string;
   initClient?: () => unknown | Promise<unknown>;
@@ -51,6 +53,11 @@ export interface TelemetryProvider {
    * Registra una excepción o error capturado.
    */
   recordException?: (error: Error, context?: TelemetryContext) => void;
+
+  /**
+   * Registra un log con severidad, mensaje y contexto estructurado.
+   */
+  log?: (level: TelemetryLogLevel, message: string, context?: TelemetryContext) => void;
 
   /**
    * Envuelve una función en una traza/span activo.

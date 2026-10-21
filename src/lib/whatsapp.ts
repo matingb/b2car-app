@@ -353,16 +353,34 @@ export function buildWhatsappLink(phone: string, message: string): string {
 	return `https://wa.me/${phone}?text=${encodedMessage}`;
 }
 
-export function openWhatsapp(
-	phone: string,
-	message: string
-): void {
+export function openWhatsapp(phone: string, message: string): void {
 	if (typeof window === "undefined") return;
 
 	const cleanPhone = normalizeWhatsappPhone(phone);
 	if (!cleanPhone) return;
 
-	window.open(buildWhatsappLink(cleanPhone, message), "_blank", "noopener,noreferrer");
+	let appOpened = false;
+	const onBlur = () => {
+		appOpened = true;
+	};
+
+	window.addEventListener("blur", onBlur, { once: true });
+
+	// 1. Intentar abrir la app nativa mediante el protocolo whatsapp://
+	const link = document.createElement("a");
+	link.href = buildWhatsappAppLink(cleanPhone, message);
+	if (typeof process !== "undefined" && process.env.NODE_ENV === "test") {
+		link.onclick = (e) => e.preventDefault();
+	}
+	link.click();
+
+	// 2. Fallback a WhatsApp Web tras 1.5s si la app no tomó foco
+	window.setTimeout(() => {
+		window.removeEventListener("blur", onBlur);
+		if (!appOpened) {
+			window.open(buildWhatsappWebLink(cleanPhone, message), "_blank", "noopener,noreferrer");
+		}
+	}, 1500);
 }
 
 /**
