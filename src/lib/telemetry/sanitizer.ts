@@ -1,28 +1,19 @@
 export const SENSITIVE_ATTRIBUTES = [
-  // Contraseñas
   "password",
   "confirm_password",
-
-  // Tokens y autorización
   "token",
   "access_token",
   "refresh_token",
   "authorization",
   "api_key",
-
-  // Certificados y firmas fiscales
   "cert",
   "key",
   "sign",
-
-  // PII en B2Car
   "dni",
   "dni_cuil",
   "telefono",
   "direccion",
   "email",
-
-  // CBU fiscal en facturación electrónica
   "fce_cbu",
 ] as const;
 
@@ -36,7 +27,6 @@ export function isSensitiveAttribute(name: string): boolean {
   return SENSITIVE_NORMALIZED.has(normalized);
 }
 
-// Patrones en strings (para proteger errores de conexión con credenciales o headers)
 const URI_CREDENTIALS_REGEX = /(:\/\/[^:]+:)([^@]+)(@)/g;
 const BEARER_AUTH_REGEX = /((?:Bearer|Basic)\s+)[A-Za-z0-9._~+/-]+=*/gi;
 const JWT_REGEX = /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\b/g;
@@ -67,23 +57,20 @@ function sanitizeError(error: Error, seen: WeakSet<object>, depth = 0): Error {
     }
   }
 
+  const errorRecord = error as unknown as Record<string, unknown>;
   for (const key of Object.keys(error)) {
     if (key === "name" || key === "message" || key === "stack") continue;
-    const val = (error as Record<string, unknown>)[key];
+    const val = errorRecord[key];
     if (isSensitiveAttribute(key)) {
-      (error as Record<string, unknown>)[key] = "[REDACTED]";
+      errorRecord[key] = "[REDACTED]";
     } else {
-      (error as Record<string, unknown>)[key] = sanitizeValue(val, seen, depth + 1);
+      errorRecord[key] = sanitizeValue(val, seen, depth + 1);
     }
   }
 
   return error;
 }
 
-/**
- * Sanitiza recursivamente el contenido de los atributos sensibles que utiliza B2Car.
- * No agrega atributos adicionales; mantiene exactamente la misma estructura de claves.
- */
 export function sanitizeValue<T>(
   value: T,
   seen: WeakSet<object> = new WeakSet(),
