@@ -383,7 +383,7 @@ describe("ArregloWhatsAppModal", () => {
 
     expect(openSpy).toHaveBeenCalledTimes(1);
     expect(openSpy).toHaveBeenCalledWith(
-      expect.stringContaining("web.whatsapp.com/send?phone=5491199998888"),
+      expect.stringContaining("web.whatsapp.com/send/?phone=5491199998888"),
       "_blank",
       "noopener,noreferrer"
     );

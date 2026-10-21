@@ -662,7 +662,7 @@ describe("buildWhatsappAppLink", () => {
 describe("buildWhatsappWebLink", () => {
   it("construye el link para WhatsApp Web en escritorio", () => {
     const link = buildWhatsappWebLink("5491112345678", "Hola mundo!");
-    expect(link).toContain("web.whatsapp.com/send?phone=5491112345678");
+    expect(link).toContain("web.whatsapp.com/send/?phone=5491112345678");
     expect(link).toContain("text=Hola%20mundo!");
   });
 });
@@ -698,7 +698,7 @@ describe("openWhatsapp", () => {
     vi.advanceTimersByTime(1500);
     expect(openSpy).toHaveBeenCalledTimes(1);
     const [calledUrl] = openSpy.mock.calls[0]!;
-    expect(String(calledUrl)).toContain("web.whatsapp.com/send?phone=5491112345678");
+    expect(String(calledUrl)).toContain("web.whatsapp.com/send/?phone=5491112345678");
 
     vi.useRealTimers();
   });

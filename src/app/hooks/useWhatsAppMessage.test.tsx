@@ -85,7 +85,7 @@ describe("useWhatsAppMessage", () => {
 
     expect(openSpy).toHaveBeenCalledTimes(1);
     const [url, target] = openSpy.mock.calls[0]!;
-    expect(String(url)).toContain("web.whatsapp.com/send?phone=5491112345678");
+    expect(String(url)).toContain("web.whatsapp.com/send/?phone=5491112345678");
     expect(String(url)).toContain("text=hola");
     expect(target).toBe("_blank");
 
@@ -145,7 +145,7 @@ describe("useWhatsAppMessage", () => {
 
     expect(openSpy).toHaveBeenCalledTimes(1);
     const [url] = openSpy.mock.calls[0]!;
-    expect(String(url)).toContain("web.whatsapp.com/send?phone=1155554444");
+    expect(String(url)).toContain("web.whatsapp.com/send/?phone=1155554444");
 
     vi.useRealTimers();
   });

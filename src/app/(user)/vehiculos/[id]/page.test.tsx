@@ -314,7 +314,7 @@ describe("VehiculoDetailsPage integration", () => {
       { timeout: 2500 }
     );
     expect(openSpy).toHaveBeenCalledWith(
-      expect.stringContaining("web.whatsapp.com/send?phone=5491123456789"),
+      expect.stringContaining("web.whatsapp.com/send/?phone=5491123456789"),
       "_blank",
       "noopener,noreferrer"
     );
