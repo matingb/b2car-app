@@ -32,10 +32,12 @@ export const Permission = {
   ArreglosCobrosRegister: "arreglos:cobros:register",
   ArreglosRepuestosComprar: "arreglos:repuestos:comprar",
 
-  // 3. Clientes
+  // 3. Clientes y Proveedores
   ClientesView: "clientes:view",
   ClientesEdit: "clientes:edit",
   ClientesFinanzasView: "clientes:finanzas:view",
+  ProveedoresView: "proveedores:view",
+  ProveedoresEdit: "proveedores:edit",
 
   // 4. Vehículos y Turnos
   VehiculosView: "vehiculos:view",
@@ -113,6 +115,7 @@ export const PATH_PERMISSIONS: readonly RoutePermissionRule[] = [
   // Módulos operativos: un rol personalizado puede no tener acceso a todos ellos.
   { path: ["/arreglos", "/api/arreglos"], permission: Permission.ArreglosView },
   { path: ["/clientes", "/api/clientes"], permission: Permission.ClientesView },
+  { path: ["/proveedores", "/api/proveedores"], permission: Permission.ProveedoresView },
   { path: ["/vehiculos", "/api/vehiculos"], permission: Permission.VehiculosView },
   { path: ["/turnos", "/api/turnos"], permission: Permission.TurnosView },
 ];
@@ -148,6 +151,7 @@ export function getLandingPathForPermissions(permissions: readonly PermissionVal
     [Permission.ArreglosView, "/arreglos"],
     [Permission.TurnosView, "/turnos"],
     [Permission.ClientesView, "/clientes"],
+    [Permission.ProveedoresView, "/proveedores"],
     [Permission.VehiculosView, "/vehiculos"],
     [Permission.ProductosView, "/productos"],
     [Permission.OperacionesView, "/operaciones"],

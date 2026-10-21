@@ -18,6 +18,8 @@ export const MOCK_OPERATIVO_PERMISSIONS: PermissionValue[] = [
   Permission.ArreglosRepuestosComprar,
   Permission.ClientesView,
   Permission.ClientesEdit,
+  Permission.ProveedoresView,
+  Permission.ProveedoresEdit,
   Permission.VehiculosView,
   Permission.VehiculosEdit,
   Permission.TurnosView,

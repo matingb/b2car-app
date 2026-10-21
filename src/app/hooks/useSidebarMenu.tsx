@@ -15,6 +15,7 @@ import {
   WalletCards,
   Settings,
   ReceiptText,
+  Truck,
 } from "lucide-react";
 import { logOut } from "@/app/login/actions";
 import { useRouter } from "next/navigation";
@@ -25,6 +26,7 @@ export enum SidebarMenuKey {
   Dashboard = "dashboard",
   Turnos = "turnos",
   Clientes = "clientes",
+  Proveedores = "proveedores",
   Vehiculos = "vehiculos",
   Arreglos = "arreglos",
   Stock = "stock",
@@ -93,6 +95,13 @@ export function useSidebarMenu() {
         label: "Clientes",
         icon: <Users size={18} />,
         onClick: () => router.push(ROUTES.clientes),
+      }] : []),
+      ...(hasPermission(Permission.ProveedoresView) ? [{
+        key: SidebarMenuKey.Proveedores,
+        href: ROUTES.proveedores,
+        label: "Proveedores",
+        icon: <Truck size={18} />,
+        onClick: () => router.push(ROUTES.proveedores),
       }] : []),
       ...(hasPermission(Permission.VehiculosView) ? [{
         key: SidebarMenuKey.Vehiculos,

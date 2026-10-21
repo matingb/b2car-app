@@ -44,6 +44,17 @@ export interface Cliente {
   vehiculos_count?: number
 }
 
+export interface Proveedor {
+  id: UUID;
+  nombre: string;
+  cuit?: string | null;
+  telefono?: string | null;
+  email?: string | null;
+  direccion?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Vehiculo {
   id: UUID;
   cliente_id?: UUID | null;

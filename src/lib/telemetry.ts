@@ -1,4 +1,3 @@
-import { trace } from "@opentelemetry/api";
 import { datadogProvider } from "./telemetry/datadog";
 import { honeycombProvider } from "./telemetry/honeycomb";
 import type { TelemetryProvider, TelemetryIdentity, TelemetryUser, TelemetryContext, TelemetryLogLevel } from "./telemetry/types";
