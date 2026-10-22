@@ -112,6 +112,8 @@ type PrintablePage = {
   continuation: boolean;
   /** Sólo la última hoja lleva el pie: abajo si entra después de las filas, o arriba en una hoja propia. */
   footer: "bottom" | "top" | null;
+  observationLines?: string[];
+  observationOnly?: boolean;
 };
 
 type Fonts = {
@@ -159,7 +161,7 @@ function firstTableStart(invoice: FiscalPdfInvoice, receiverExtraHeight = 0): nu
   return (invoice.concepto === 1 && !isFceInvoice(invoice.tipoComprobante) ? 493 : 462) - receiverExtraHeight;
 }
 
-function paginate(rows: PrintableRow[], firstTableY: number, footerTop: number): PrintablePage[] {
+function paginate(rows: PrintableRow[], firstTableY: number, footerTop: number, bottomOnly = false): PrintablePage[] {
   const pages: PrintablePage[] = [{ rows: [], continuation: false, footer: null }];
   let remaining = firstTableY - 21 - 38;
   for (const row of rows) {
@@ -179,7 +181,7 @@ function paginate(rows: PrintableRow[], firstTableY: number, footerTop: number):
   if (tableTop - 21 - used - 15 >= footerTop) {
     last.footer = "bottom";
   } else {
-    pages.push({ rows: [], continuation: true, footer: "top" });
+    pages.push({ rows: [], continuation: true, footer: bottomOnly ? "bottom" : "top" });
   }
   return pages;
 }
@@ -571,6 +573,10 @@ async function drawFooter(
     y -= 12;
     layout.legend.forEach((line) => { page.drawText(line, { x: 46, y, font: fonts.regular, size: FCE_LEGEND_FONT_SIZE }); y -= FCE_LEGEND_LINE_HEIGHT; });
   }
+  await drawAuthorization(pdf, page, invoice, fonts, shift);
+}
+
+async function drawAuthorization(pdf: PDFDocument, page: PDFPage, invoice: FiscalPdfInvoice, fonts: Fonts, shift = 0) {
   const separatorY = FOOTER_SEPARATOR_Y + shift;
   page.drawLine({ start: { x: MARGIN, y: separatorY }, end: { x: PAGE_WIDTH - MARGIN, y: separatorY }, thickness: 0.35, color: rgb(0.75, 0.75, 0.75) });
 
@@ -588,21 +594,25 @@ async function drawFooter(
   drawRight(page, "Generado por B2Car", 557, 38 + shift, fonts.regular, 7);
 }
 
-// Las observaciones son informativas: se paginan sin importes y no forman parte
-// de las líneas fiscales ni del cálculo del QR/totales.
-function observationRows(invoice: FiscalPdfInvoice, font: PDFFont): PrintableRow[] {
-  const observation = text(invoice.observacionArreglo);
-  if (!observation) return [];
-  const lines = ["Observación del arreglo:", ...wrapText(sanitizeForFont(observation, font), font, 8, CONTENT_WIDTH - 16)];
-  const rows: PrintableRow[] = [];
-  for (let offset = 0; offset < lines.length; offset += 28) {
-    const descriptionLines = lines.slice(offset, offset + 28);
-    rows.push({
-      codigo: null, descripcion: "", cantidad: 0, importeUnitario: 0, subtotal: 0,
-      continuation: true, fullWidth: true, descriptionLines, height: rowHeight(descriptionLines.length),
-    });
-  }
-  return rows;
+// Bloque informativo separado de las líneas fiscales, siempre sobre el separador
+// del QR. Las observaciones extensas continúan en hojas identificadas del mismo
+// comprobante: repiten autorización, pero los totales y la leyenda FCE sólo al final.
+const OBSERVATION_LINE_HEIGHT = 10;
+const OBSERVATION_BOTTOM = FOOTER_SEPARATOR_Y + 10;
+
+function observationHeight(lines: string[]): number {
+  return lines.length ? (lines.length + 1) * OBSERVATION_LINE_HEIGHT + 10 : 0;
+}
+
+function drawObservation(page: PDFPage, lines: string[], fonts: Fonts) {
+  if (!lines.length) return;
+  page.drawText("Observación del arreglo:", {
+    x: 46, y: OBSERVATION_BOTTOM + lines.length * OBSERVATION_LINE_HEIGHT, font: fonts.bold, size: 8,
+  });
+  lines.forEach((line, index) => page.drawText(line || " ", {
+    x: 46, y: OBSERVATION_BOTTOM + (lines.length - 1 - index) * OBSERVATION_LINE_HEIGHT,
+    font: fonts.regular, size: 8,
+  }));
 }
 
 export async function generateFiscalInvoicePdf(invoice: FiscalPdfInvoice): Promise<Uint8Array> {
@@ -618,9 +628,34 @@ export async function generateFiscalInvoicePdf(invoice: FiscalPdfInvoice): Promi
   };
   const headerLayout = getFirstHeaderLayout(invoice, fonts);
   const firstTableY = firstTableStart(invoice, headerLayout.receiverExtraHeight);
-  const footerLayout = getFooterLayout(invoice, fonts);
-  const rows = [...observationRows(invoice, fonts.regular), ...printableRows(invoice.lineas, fonts.regular), ...remitoRows(invoice, fonts.regular)];
-  const pages = paginate(rows, firstTableY, footerLayout.top);
+  const baseFooterLayout = getFooterLayout(invoice, fonts);
+  const observation = text(invoice.observacionArreglo);
+  const observationLines = observation
+    ? wrapText(sanitizeForFont(observation, fonts.regular), fonts.regular, 8, CONTENT_WIDTH - 16)
+    : [];
+  // Reservar también totales y leyenda en cada fragmento permite que el último
+  // siempre entre completo; nunca cortar líneas ni reducir la tipografía.
+  const chunkSize = Math.max(1, Math.floor((FOOTER_TOP_ON_OWN_PAGE - baseFooterLayout.top - 20) / OBSERVATION_LINE_HEIGHT));
+  const chunks: string[][] = [];
+  for (let offset = 0; offset < observationLines.length; offset += chunkSize) {
+    chunks.push(observationLines.slice(offset, offset + chunkSize));
+  }
+  const finalObservation = chunks.at(-1) ?? [];
+  const footerLayout = { ...baseFooterLayout, top: baseFooterLayout.top + observationHeight(finalObservation) };
+  const rows = [...printableRows(invoice.lineas, fonts.regular), ...remitoRows(invoice, fonts.regular)];
+  const pages = paginate(rows, firstTableY, footerLayout.top, observationLines.length > 0);
+  if (chunks.length > 1) {
+    // Las hojas con conceptos preceden a todas las continuaciones informativas.
+    // Reutilizar una hoja vacía que paginate ya hubiera reservado para el pie.
+    if (!pages.at(-1)!.rows.length && pages.at(-1)!.continuation) pages.pop();
+    pages.at(-1)!.footer = null;
+    chunks.forEach((lines, index) => pages.push({
+      rows: [], continuation: true, footer: "bottom", observationLines: lines,
+      observationOnly: index < chunks.length - 1,
+    }));
+  } else {
+    pages.at(-1)!.observationLines = finalObservation;
+  }
 
   for (let index = 0; index < pages.length; index += 1) {
     const printablePage = pages[index];
@@ -636,7 +671,9 @@ export async function generateFiscalInvoicePdf(invoice: FiscalPdfInvoice): Promi
       drawTableHeader(page, tableStart, fonts);
       drawRows(page, printablePage.rows, tableStart, fonts);
     }
-    if (printablePage.footer === "bottom") await drawFooter(pdf, page, invoice, fonts, footerLayout);
+    drawObservation(page, printablePage.observationLines ?? [], fonts);
+    if (printablePage.observationOnly) await drawAuthorization(pdf, page, invoice, fonts);
+    else if (printablePage.footer === "bottom") await drawFooter(pdf, page, invoice, fonts, footerLayout);
     if (printablePage.footer === "top") await drawFooter(pdf, page, invoice, fonts, footerLayout, FOOTER_TOP_ON_OWN_PAGE - footerLayout.top);
   }
 

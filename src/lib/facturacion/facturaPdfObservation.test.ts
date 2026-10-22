@@ -75,7 +75,7 @@ describe("B2C-198: observación al generar el PDF", () => {
     expect(repairQueries[0].select).toHaveBeenCalledWith("observaciones");
     expect(repairQueries[0].eq).toHaveBeenCalledWith("id", "repair-1");
     expect(repairQueries[0].eq).toHaveBeenCalledWith("tenant_id", "tenant-1");
-    expect(upload).toHaveBeenCalledWith("tenant-1/homologacion/invoice-1/fiscal-v5.pdf", generatedBytes, expect.anything());
+    expect(upload).toHaveBeenCalledWith("tenant-1/homologacion/invoice-1/fiscal-v6.pdf", generatedBytes, expect.anything());
   });
 
   it.each([null, "", "  \n  "])("omite observación vacía (%s)", async (value) => {
@@ -92,9 +92,9 @@ describe("B2C-198: observación al generar el PDF", () => {
     expect(generateFiscalInvoicePdf).toHaveBeenCalledWith(expect.objectContaining({ observacionArreglo: null }));
   });
 
-  it("conserva bytes previos aunque cambie la observación y no vuelve a generar", async () => {
-    invoice.pdf_storage_path = "tenant-1/homologacion/invoice-1/fiscal-v4.pdf";
-    invoice.pdf_template_version = "fiscal-v4";
+  it.each(["fiscal-v4", "fiscal-v5"])("conserva bytes previos %s aunque cambie la observación y no vuelve a generar", async (version) => {
+    invoice.pdf_storage_path = `tenant-1/homologacion/invoice-1/${version}.pdf`;
+    invoice.pdf_template_version = version;
     invoice.pdf_sha256 = createHash("sha256").update(cachedBytes).digest("hex");
     for (const value of ["Observación vieja", "Observación nueva"]) {
       observation = value;
