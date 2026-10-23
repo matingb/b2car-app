@@ -8,6 +8,7 @@ import {
   sliceWithHasMore,
 } from "@/lib/pagination";
 import { mapArreglo } from "./arregloMapper";
+import type { ArreglosResumen, DashboardPeriodo } from "@/lib/dashboard/types";
 
 export type ArregloListFilters = {
   tallerId?: string;
@@ -33,18 +34,6 @@ export type ArregloListPageResult = {
 
 export type DesgloseLinea = { label: string; cantidad: number; monto: number };
 
-export type ArreglosResumen = {
-  total: number;
-  cobrados: number;
-  pendientes: number;
-  parciales: number;
-  montoIngresos: number;
-  montoCobradoTotal: number;
-  montoCobradoParcial: number;
-  montoPendienteParcial: number;
-  montoPendiente: number;
-};
-
 export interface ArregloRepository {
   getArreglo(supabase: SupabaseClient, filters: ArregloListFilters): Promise<ServiceResult<ArregloListPageResult>>;
   getByIdWithVehiculo(supabase: SupabaseClient, id: string): Promise<ServiceResult<Arreglo>>;
@@ -63,12 +52,13 @@ export interface ArregloRepository {
     supabase: SupabaseClient,
     id: string
   ): Promise<{ error: ReturnType<typeof toServiceError> | null; message?: string | null }>;
-  arreglosResumen(
+  /** Resumen de cobro y series diarias del período, en una sola consulta (mismo snapshot). */
+  dashboardPeriodo(
     supabase: SupabaseClient,
-    fromISO?: string,
-    toISO?: string,
+    fromISO: string,
+    toISO: string,
     tallerId?: string
-  ): Promise<ArreglosResumen>;
+  ): Promise<DashboardPeriodo>;
   facturacionPorTipo(
     supabase: SupabaseClient,
     fromISO?: string,
@@ -109,24 +99,6 @@ export interface ArregloRepository {
       vehiculo?: { patente?: unknown } | null;
     }>
   >;
-  arreglosPorPeriodo(
-    supabase: SupabaseClient,
-    fromISO: string,
-    toISO: string,
-    tallerId?: string
-  ): Promise<Array<{ label: string; cantidad: number }>>;
-  ingresosPorPeriodo(
-    supabase: SupabaseClient,
-    fromISO: string,
-    toISO: string,
-    tallerId?: string
-  ): Promise<Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>>;
-  gastosPorPeriodo(
-    supabase: SupabaseClient,
-    fromISO: string,
-    toISO: string,
-    tallerId?: string
-  ): Promise<Array<{ label: string; repuestos: number; sueldos: number; eventuales: number }>>;
 }
 
 function mapDesgloseRows(data: unknown): DesgloseLinea[] {
@@ -135,6 +107,51 @@ function mapDesgloseRows(data: unknown): DesgloseLinea[] {
     cantidad: Number(r.cantidad ?? 0) || 0,
     monto: Number(Number(r.monto ?? 0).toFixed(2)) || 0,
   }));
+}
+
+type RawRow = Record<string, unknown>;
+
+function asRows(value: unknown): RawRow[] {
+  return Array.isArray(value) ? (value as RawRow[]) : [];
+}
+
+function mapArreglosResumen(row: RawRow | null | undefined): ArreglosResumen {
+  return {
+    total: Number(row?.total ?? 0),
+    cobrados: Number(row?.cobrados ?? 0),
+    pendientes: Number(row?.pendientes ?? 0),
+    parciales: Number(row?.parciales ?? 0),
+    montoIngresos: Number(row?.monto_ingresos ?? 0),
+    montoCobradoTotal: Number(row?.monto_cobrado_total ?? 0),
+    montoCobradoParcial: Number(row?.monto_cobrado_parcial ?? 0),
+    montoPendienteParcial: Number(row?.monto_pendiente_parcial ?? 0),
+    montoPendiente: Number(row?.monto_pendiente ?? 0),
+  };
+}
+
+function mapDashboardPeriodo(data: unknown): DashboardPeriodo {
+  const raw = (data && typeof data === "object" ? data : {}) as RawRow;
+  return {
+    resumen: mapArreglosResumen(raw.resumen as RawRow | null | undefined),
+    series: {
+      arreglos: asRows(raw.arreglos).map((r) => ({
+        fecha: String(r.fecha ?? ""),
+        cantidad: Number(r.cantidad ?? 0),
+      })),
+      ingresos: asRows(raw.ingresos).map((r) => ({
+        fecha: String(r.fecha ?? ""),
+        mano_de_obra: Number(r.mano_de_obra ?? 0),
+        repuestos: Number(r.repuestos ?? 0),
+        ventas: Number(r.ventas ?? 0),
+      })),
+      gastos: asRows(raw.gastos).map((r) => ({
+        fecha: String(r.fecha ?? ""),
+        repuestos: Number(r.repuestos ?? 0),
+        sueldos: Number(r.sueldos ?? 0),
+        eventuales: Number(r.eventuales ?? 0),
+      })),
+    },
+  };
 }
 
 async function listVehiculoIdsByPatente(supabase: SupabaseClient, patenteRaw?: string) {
@@ -301,38 +318,14 @@ export const supabaseArregloRepository: ArregloRepository = {
     };
   },
 
-  async arreglosResumen(supabase, fromISO?, toISO?, tallerId?) {
-    const { data, error } = await supabase.rpc("dashboard_arreglos_resumen", {
-      p_from: fromISO ?? null,
-      p_to: toISO ?? null,
+  async dashboardPeriodo(supabase, fromISO, toISO, tallerId?) {
+    const { data, error } = await supabase.rpc("dashboard_periodo", {
+      p_from: fromISO,
+      p_to: toISO,
       p_taller_id: tallerId ?? null,
     });
     if (error) throw new Error(error.message);
-    const row = (Array.isArray(data) ? data[0] : data) as
-      | {
-          total?: unknown;
-          cobrados?: unknown;
-          pendientes?: unknown;
-          parciales?: unknown;
-          monto_ingresos?: unknown;
-          monto_cobrado_total?: unknown;
-          monto_cobrado_parcial?: unknown;
-          monto_pendiente_parcial?: unknown;
-          monto_pendiente?: unknown;
-        }
-      | null
-      | undefined;
-    return {
-      total: Number(row?.total ?? 0),
-      cobrados: Number(row?.cobrados ?? 0),
-      pendientes: Number(row?.pendientes ?? 0),
-      parciales: Number(row?.parciales ?? 0),
-      montoIngresos: Number(row?.monto_ingresos ?? 0),
-      montoCobradoTotal: Number(row?.monto_cobrado_total ?? 0),
-      montoCobradoParcial: Number(row?.monto_cobrado_parcial ?? 0),
-      montoPendienteParcial: Number(row?.monto_pendiente_parcial ?? 0),
-      montoPendiente: Number(row?.monto_pendiente ?? 0),
-    };
+    return mapDashboardPeriodo(data);
   },
 
   async facturacionPorTipo(supabase, fromISO?, toISO?, tallerId?) {
@@ -399,48 +392,5 @@ export const supabaseArregloRepository: ArregloRepository = {
       precio_final?: unknown;
       vehiculo?: { patente?: unknown } | null;
     }>;
-  },
-
-  async arreglosPorPeriodo(supabase, fromISO, toISO, tallerId?) {
-    const { data, error } = await supabase.rpc("dashboard_arreglos_por_periodo", {
-      p_from: fromISO,
-      p_to: toISO,
-      p_taller_id: tallerId ?? null,
-    });
-    if (error) throw new Error(error.message);
-    return (data ?? []).map((r: { label?: unknown; cantidad?: unknown }) => ({
-      label: String(r.label ?? ""),
-      cantidad: Number(r.cantidad ?? 0),
-    }));
-  },
-
-  async ingresosPorPeriodo(supabase, fromISO, toISO, tallerId?) {
-    const { data, error } = await supabase.rpc("dashboard_ingresos_por_periodo", {
-      p_from: fromISO,
-      p_to: toISO,
-      p_taller_id: tallerId ?? null,
-    });
-    if (error) throw new Error(error.message);
-    return (data ?? []).map((r: { label?: unknown; mano_de_obra?: unknown; repuestos?: unknown; ventas?: unknown }) => ({
-      label: String(r.label ?? ""),
-      mano_de_obra: Number(r.mano_de_obra ?? 0),
-      repuestos: Number(r.repuestos ?? 0),
-      ventas: Number(r.ventas ?? 0),
-    }));
-  },
-
-  async gastosPorPeriodo(supabase, fromISO, toISO, tallerId?) {
-    const { data, error } = await supabase.rpc("dashboard_gastos_por_periodo", {
-      p_from: fromISO,
-      p_to: toISO,
-      p_taller_id: tallerId ?? null,
-    });
-    if (error) throw new Error(error.message);
-    return (data ?? []).map((r: { label?: unknown; repuestos?: unknown; sueldos?: unknown; eventuales?: unknown }) => ({
-      label: String(r.label ?? ""),
-      repuestos: Number(r.repuestos ?? 0),
-      sueldos: Number(r.sueldos ?? 0),
-      eventuales: Number(r.eventuales ?? 0),
-    }));
   },
 };

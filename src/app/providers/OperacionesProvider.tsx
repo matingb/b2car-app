@@ -11,7 +11,7 @@ import {
 } from "@/clients/operacionesClient";
 import type { Operacion, OperacionesFilters, TipoOperacion } from "@/model/types";
 import { useDebouncedAbortableAsync } from "@/app/hooks/useDebouncedAbortableAsync";
-import { buildPeriodOptions, type PeriodOption } from "@/app/components/dashboard/PeriodSelector";
+import { buildPeriodOptions, type PeriodOption } from "@/lib/dashboard/periods";
 
 export type OperacionesPeriod = PeriodOption;
 

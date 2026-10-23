@@ -1,4 +1,6 @@
 import { statsService, type DashboardStats } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { arregloService } from "@/app/api/arreglos/arregloService";
+import type { DashboardPeriodo } from "@/lib/dashboard/types";
 import { argentinaCalendarDateRangeISO } from "@/lib/fechas";
 import { SEED, createAdminTestClient, testClient } from "@/tests/integration";
 import {
@@ -6,9 +8,6 @@ import {
   dadoUnClienteParticularConVehiculo,
 } from "../helpers/integrationFixtures";
 import { crearOperacionViaRoute } from "../helpers/routeDrivers";
-
-export type IngresoDia = NonNullable<DashboardStats["ingresosPorPeriodo"]>[number];
-export type GastoDia = NonNullable<DashboardStats["gastosPorPeriodo"]>[number];
 
 // ─── Given ───────────────────────────────────────────────────────────────────
 
@@ -121,10 +120,26 @@ export function cuandoSeConsultaElDashboard(): Promise<DashboardStats> {
   return statsService.getStats(testClient, MARZO_2020.from, MARZO_2020.to, SEED.tenantId);
 }
 
+/** Consulta un período a comparar, con días calendario de Buenos Aires inclusivos. */
+export function cuandoSeConsultaElPeriodo(desde: string, hasta: string): Promise<DashboardPeriodo> {
+  const rango = argentinaCalendarDateRangeISO(desde, hasta)!;
+  return arregloService.dashboardPeriodo(testClient, rango.from!, rango.to!);
+}
+
 // ─── Then (helpers) ──────────────────────────────────────────────────────────
 
 export const suma = <T>(items: T[], valor: (item: T) => number) =>
   items.reduce((total, item) => total + valor(item), 0);
+
+/** Días de una serie diaria que tienen datos: { fecha: valor }. Ignora los días en cero. */
+export function fechasConDatos<T extends { fecha: string }>(
+  filas: T[],
+  valor: (fila: T) => number
+): Record<string, number> {
+  return Object.fromEntries(
+    filas.filter((fila) => valor(fila) > 0).map((fila) => [fila.fecha, valor(fila)])
+  );
+}
 
 /** Días del gráfico que tienen datos: { label: valor }. Ignora los slots en cero. */
 export function diasConDatos<T extends { label: string }>(

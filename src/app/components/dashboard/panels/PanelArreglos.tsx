@@ -4,25 +4,40 @@
 import React from "react";
 
 import GraficoArreglos from "@/app/components/graficos/GraficoArreglos";
+import GraficoComparacion from "@/app/components/graficos/GraficoComparacion";
 import VolumenDeTrabajo from "@/app/components/graficos/VolumenDeTrabajo";
 import EstadoCobroArreglos from "@/app/components/graficos/EstadoCobroArreglos";
 import DashboardSectionCard from "@/app/components/dashboard/DashboardSectionCard";
+import PeriodComparison from "@/app/components/dashboard/comparacion/PeriodComparison";
 import { TYPOGRAPHY } from "@/theme/theme";
 import type { DashboardStats } from "@/app/providers/DashboardProvider";
+import type { CardChartPeriods, DashboardComparison } from "@/app/hooks/dashboard/useDashboardControls";
 import type { Granularity } from "@/lib/dashboard/aggregation";
+import { CARD_CHART, COMPARISON_COLUMNS } from "@/lib/dashboard/cards";
 
 type Props = {
-    arreglosData: Array<{ label: string; cantidad: number }>;
+    periods: CardChartPeriods["arreglos"];
     granularity: Granularity;
     stats: DashboardStats | null;
+    comparison: DashboardComparison;
     headerAction?: React.ReactNode;
 };
 
-export default function PanelArreglos({ arreglosData, granularity, stats, headerAction }: Props) {
+export default function PanelArreglos({ periods, granularity, stats, comparison, headerAction }: Props) {
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <DashboardSectionCard title="Arreglos realizados" headerAction={headerAction}>
-                <GraficoArreglos id="arreglos-principal" data={arreglosData} granularity={granularity} />
+                {periods.length > 1 ? (
+                    <GraficoComparacion
+                        id="arreglos-comparacion"
+                        periods={periods}
+                        granularity={granularity}
+                        chart={CARD_CHART.arreglos}
+                    />
+                ) : (
+                    <GraficoArreglos id="arreglos-principal" data={periods[0]?.buckets ?? []} granularity={granularity} />
+                )}
+                <PeriodComparison comparison={comparison} columns={COMPARISON_COLUMNS.arreglos} />
             </DashboardSectionCard>
 
             <DashboardSectionCard>

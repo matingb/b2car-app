@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { statsService, type DashboardStats } from "./dashboardStatsService";
 import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
+import { parseDashboardRange } from "@/lib/dashboard/range";
 
 type DashboardStatsResponse = {
   data: DashboardStats | null;
@@ -13,13 +14,18 @@ export async function GET(request: Request) {
   const authError = await requirePermission(Permission.DashboardView);
   if (authError) return authError;
 
+  const parsed = parseDashboardRange(new URL(request.url).searchParams);
+  if (!parsed.ok) {
+    return Response.json(
+      { data: null, error: parsed.error } satisfies DashboardStatsResponse,
+      { status: 400, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
   const supabase = await createClient();
 
   try {
-    const url = new URL(request.url);
-    const periodFrom = url.searchParams.get("from") ?? undefined;
-    const periodTo = url.searchParams.get("to") ?? undefined;
-    const stats = await statsService.getStats(supabase, periodFrom, periodTo);
+    const stats = await statsService.getStats(supabase, parsed.range.from, parsed.range.to);
     return Response.json(
       { data: stats, error: null } satisfies DashboardStatsResponse,
       {
