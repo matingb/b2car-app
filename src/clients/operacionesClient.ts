@@ -1,4 +1,4 @@
-import type { Operacion, OperacionesFilters, TipoOperacion } from "@/model/types";
+import type { EstadoPagoOperacion, Operacion, OperacionesFilters, TipoOperacion } from "@/model/types";
 import { generateUuidV4 } from "@/lib/uuid";
 
 export type CreateOperacionLineaInput = {
@@ -20,6 +20,10 @@ export type CreateOperacionInput = {
 	/** Protege reintentos del navegador contra asientos duplicados. */
 	idempotency_key?: string | null;
 	observaciones?: string | null;
+	estado_pago?: EstadoPagoOperacion | null;
+	monto_inicial?: number | null;
+	mover_stock?: boolean | null;
+	proveedor_id?: string | null;
 };
 
 export type UpdateOperacionInput = Partial<Omit<CreateOperacionInput, "arreglo_id">>;
@@ -65,6 +69,17 @@ export type OperacionesStats = {
 export type GetOperacionesStatsResponse = {
 	data: OperacionesStats | null;
 	error?: string | null;
+};
+
+export type ConfirmarStockLineaInput = {
+	lineaId?: string;
+	stockId?: string;
+	cantidad: number;
+};
+
+export type ConfirmarStockPayload = {
+	fecha?: string;
+	lineas?: ConfirmarStockLineaInput[];
 };
 
 function mapOperacionFromApi(value: unknown): Operacion | null {
@@ -227,6 +242,64 @@ export const operacionesClient = {
 				return { data: null, error: null };
 			}
 			const message = err instanceof Error ? err.message : "Error cargando estadísticas";
+			return { data: null, error: message };
+		}
+	},
+
+	async confirmarStock(
+		id: string,
+		payload?: string | ConfirmarStockPayload
+	): Promise<{ data: unknown; error: string | null }> {
+		try {
+			const bodyPayload = typeof payload === "string"
+				? { fecha: payload }
+				: { fecha: payload?.fecha, lineas: payload?.lineas };
+
+			const res = await fetch(`/api/operaciones/${id}/confirmar-stock`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(bodyPayload),
+			});
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok || body?.error) {
+				return { data: null, error: body?.error || `Error ${res.status}` };
+			}
+			return { data: body.data, error: null };
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : "No se pudo confirmar el stock";
+			return { data: null, error: message };
+		}
+	},
+
+	async registrarPago(
+		id: string,
+		payload: {
+			cuentaId: string;
+			monto: number;
+			fecha?: string;
+			descripcion?: string;
+			idempotencyKey?: string;
+		}
+	): Promise<{ data: unknown; error: string | null }> {
+		try {
+			const res = await fetch(`/api/operaciones/${id}/pagos`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					cuenta_id: payload.cuentaId,
+					monto: payload.monto,
+					fecha: payload.fecha,
+					descripcion: payload.descripcion,
+					idempotency_key: payload.idempotencyKey ?? generateUuidV4(),
+				}),
+			});
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok || body?.error) {
+				return { data: null, error: body?.error || `Error ${res.status}` };
+			}
+			return { data: body.data, error: null };
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : "No se pudo registrar el pago";
 			return { data: null, error: message };
 		}
 	},

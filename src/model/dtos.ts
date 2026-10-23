@@ -87,6 +87,9 @@ export type StockDTO = {
     tallerId: string;
     productoId: string;
     cantidad: number;
+    cantidad_reservada?: number;
+    cantidad_pendiente?: number;
+    cantidad_disponible?: number;
     stock_minimo: number;
     stock_maximo: number;
     created_at: string;
@@ -108,7 +111,52 @@ export type OperacionDTO = {
     taller_id: string | null;
     fecha: string;
     created_at: string;
+    monto_total?: number;
+    total_pagado?: number;
+    saldo_pendiente?: number;
+    esta_pago?: boolean;
+    estado_pago?: string;
+    estado_stock?: string;
     observaciones?: string | null;
+    proveedor_id?: string | null;
+    proveedor_nombre?: string;
+};
+
+export type MovimientoStockDTO = {
+    id: string;
+    tenant_id: string;
+    taller_id: string;
+    taller_nombre?: string;
+    producto_id: string;
+    producto_nombre?: string;
+    producto_codigo?: string;
+    stock_id: string;
+    operacion_id?: string | null;
+    operacion_tipo?: string | null;
+    tipo_movimiento: string;
+    cantidad: number;
+    saldo_anterior: number;
+    saldo_posterior: number;
+    fecha: string;
+    motivo?: string | null;
+    created_by?: string | null;
+    created_at: string;
+};
+
+export type ProductoProveedorDTO = {
+    id: string;
+    tenant_id?: string;
+    producto_id: string;
+    proveedor_id: string;
+    proveedor_nombre?: string;
+    proveedor_cuit?: string;
+    producto_nombre?: string;
+    producto_codigo?: string;
+    codigo_proveedor?: string | null;
+    costo_referencia: number;
+    es_predeterminado: boolean;
+    created_at?: string;
+    updated_at?: string;
 };
 
 export type OperacionLineaDTO = {
@@ -116,11 +164,24 @@ export type OperacionLineaDTO = {
     operacion_id: string;
     stock_id: string;
     cantidad: number;
+    cantidad_cumplida?: number;
     monto_unitario: number;
     delta_cantidad: number;
     created_at: string;
     nombre?: string;
     codigo?: string;
+};
+
+export type OperacionPagoDTO = {
+    id: string;
+    tenant_id?: string;
+    operacion_id: string;
+    cuenta_financiera_id: string;
+    monto: number;
+    fecha: string;
+    descripcion?: string | null;
+    created_at: string;
+    cuenta_financiera_nombre?: string;
 };
 
 export type OperacionAsignacionArregloDTO = {

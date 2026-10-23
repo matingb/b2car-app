@@ -10,7 +10,9 @@ import IconButton from "@/app/components/ui/IconButton";
 import Card from "@/app/components/ui/Card";
 import NumberInput from "@/app/components/ui/NumberInput";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
-import { Building2, Layers3, Package, Pencil, Save, Trash, TrendingUp, X } from "lucide-react";
+import { Building2, History, Layers3, Package, Pencil, Save, Trash, TrendingUp, X } from "lucide-react";
+import Button from "@/app/components/ui/Button";
+import ProductoKardexModal from "@/app/components/productos/ProductoKardexModal";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import ProductoStockMatrix from "@/app/components/productos/ProductoStockMatrix";
@@ -65,6 +67,7 @@ export default function ProductoDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [contextualStock, setContextualStock] = useState<{ stockId: string; tallerId: string } | null>(null);
+  const [kardexModalOpen, setKardexModalOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -299,6 +302,12 @@ export default function ProductoDetailsPage() {
           ) : (
             <>
               <IconButton
+                icon={<History />}
+                onClick={() => setKardexModalOpen(true)}
+                title="Ver Movimientos"
+                ariaLabel="Ver Movimientos"
+              />
+              <IconButton
                 icon={<Trash />}
                 onClick={handleDelete}
                 title="Eliminar"
@@ -446,8 +455,18 @@ export default function ProductoDetailsPage() {
       </Card>
 
       <div style={styles.stockSection}>
-        <h3 style={styles.sectionTitle}>Stock por taller</h3>
-        <p style={styles.sectionDescription}>Configuración y niveles de inventario por cada taller.</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
+          <div>
+            <h3 style={styles.sectionTitle}>Stock por taller</h3>
+            <p style={styles.sectionDescription}>Configuración y niveles de inventario por cada taller.</p>
+          </div>
+          <Button
+            icon={<History size={16} />}
+            text="Ver Movimientos de Stock"
+            onClick={() => setKardexModalOpen(true)}
+            outline
+          />
+        </div>
         <ProductoStockMatrix
           productoId={producto.id}
           talleres={talleres}
@@ -474,6 +493,17 @@ export default function ProductoDetailsPage() {
             />
           </InventarioProvider>
         </OperacionesProvider>
+      ) : null}
+
+      {kardexModalOpen && producto ? (
+        <ProductoKardexModal
+          open={kardexModalOpen}
+          onClose={() => setKardexModalOpen(false)}
+          productoId={producto.id}
+          productoNombre={producto.nombre}
+          productoCodigo={producto.codigo}
+          talleres={talleres}
+        />
       ) : null}
     </div>
   );

@@ -18,6 +18,12 @@ CREATE OR REPLACE FUNCTION public.rpc_listar_operaciones_con_gastos (
     cuenta_financiera_id     uuid,
     cuenta_financiera_nombre text,
     monto                    numeric,
+    monto_total              numeric,
+    total_pagado             numeric,
+    saldo_pendiente          numeric,
+    esta_pago                boolean,
+    estado_pago              text,
+    estado_stock             text,
     arreglo_id               uuid,
     total_count              bigint,
     observaciones            text
@@ -25,7 +31,7 @@ CREATE OR REPLACE FUNCTION public.rpc_listar_operaciones_con_gastos (
   LANGUAGE sql
   STABLE
   SET search_path TO ''
-  AS $function$
+AS $function$
   WITH rows AS (
     SELECT
       o.id,
@@ -37,9 +43,9 @@ CREATE OR REPLACE FUNCTION public.rpc_listar_operaciones_con_gastos (
       COALESCE((
         SELECT jsonb_agg(jsonb_build_object(
           'id', l.id, 'operacion_id', l.operacion_id, 'stock_id', l.stock_id,
-          'cantidad', l.cantidad, 'monto_unitario', l.monto_unitario,
-          'delta_cantidad', l.delta_cantidad, 'created_at', l.created_at,
-          'nombre', p.nombre, 'codigo', p.codigo
+          'cantidad', l.cantidad, 'cantidad_cumplida', l.cantidad_cumplida,
+          'monto_unitario', l.monto_unitario, 'delta_cantidad', l.delta_cantidad,
+          'created_at', l.created_at, 'nombre', p.nombre, 'codigo', p.codigo
         ) ORDER BY l.created_at, l.id)
         FROM public.operaciones_lineas AS l
         LEFT JOIN public.stocks AS s ON s.id = l.stock_id
@@ -67,8 +73,15 @@ CREATE OR REPLACE FUNCTION public.rpc_listar_operaciones_con_gastos (
       COALESCE(
         abs(omc.importe),
         abs(mf.importe),
+        o.monto_total,
         (SELECT SUM(l.cantidad * l.monto_unitario) FROM public.operaciones_lineas AS l WHERE l.operacion_id = o.id)
       )::numeric AS monto,
+      o.monto_total,
+      o.total_pagado,
+      GREATEST(0, COALESCE(o.monto_total, 0) - COALESCE(o.total_pagado, 0))::numeric AS saldo_pendiente,
+      COALESCE(o.esta_pago, false) AS esta_pago,
+      o.estado_pago::text AS estado_pago,
+      o.estado_stock::text AS estado_stock,
       COALESCE(oca.arreglo_id, oaa.arreglo_id) AS arreglo_id,
       o.observaciones
     FROM public.operaciones AS o
@@ -91,7 +104,11 @@ CREATE OR REPLACE FUNCTION public.rpc_listar_operaciones_con_gastos (
       AND (p_from IS NULL OR o.fecha >= p_from)
       AND (p_to IS NULL OR o.fecha < p_to)
   )
-  SELECT r.id, r.tipo, r.taller_id, r.fecha, r.created_at, r.lineas, r.gasto_id, r.descripcion, r.categoria_gasto, r.cuenta_financiera_id, r.cuenta_financiera_nombre, r.monto, r.arreglo_id, COUNT(*) OVER() AS total_count, r.observaciones
+  SELECT
+    r.id, r.tipo, r.taller_id, r.fecha, r.created_at, r.lineas, r.gasto_id, r.descripcion, r.categoria_gasto,
+    r.cuenta_financiera_id, r.cuenta_financiera_nombre, r.monto,
+    r.monto_total, r.total_pagado, r.saldo_pendiente, r.esta_pago, r.estado_pago, r.estado_stock,
+    r.arreglo_id, COUNT(*) OVER() AS total_count, r.observaciones
   FROM rows AS r
   WHERE COALESCE(cardinality(p_tipos), 0) = 0 OR r.tipo = ANY(p_tipos)
   ORDER BY r.fecha DESC, r.created_at DESC, r.id DESC
@@ -100,11 +117,7 @@ CREATE OR REPLACE FUNCTION public.rpc_listar_operaciones_con_gastos (
 $function$;
 
 GRANT EXECUTE ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp with time zone, timestamp with time zone, text[], integer, integer) TO "anon", "authenticated";
-
 GRANT EXECUTE ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp with time zone, timestamp with time zone, text[], integer, integer) TO "service_role";
-
 REVOKE ALL ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp with time zone, timestamp with time zone, text[], integer, integer) FROM PUBLIC;
-
 REVOKE ALL ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp with time zone, timestamp with time zone, text[], integer, integer) FROM "postgres";
-
 GRANT EXECUTE ON FUNCTION "public"."rpc_listar_operaciones_con_gastos"(timestamp with time zone, timestamp with time zone, text[], integer, integer) TO "postgres";

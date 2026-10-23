@@ -17,6 +17,7 @@ export enum ServiceError {
   MovimientoFinancieroInmutable = "MovimientoFinancieroInmutable",
   HorasFacturadasInmutables = "HorasFacturadasInmutables",
   EnUso = "EnUso",
+  Validation = "Validation",
 }
 export type ServiceResult<T> = {
   data: T | null;

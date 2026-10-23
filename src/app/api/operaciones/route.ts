@@ -47,9 +47,15 @@ function mapLineaFromUnknown(row: unknown): OperacionLinea | null {
 		operacion_id: operacionId,
 		stock_id: stockId,
 		cantidad: Number(source.cantidad) || 0,
+		cantidad_cumplida:
+			source.cantidad_cumplida !== undefined && source.cantidad_cumplida !== null
+				? Number(source.cantidad_cumplida)
+				: undefined,
 		monto_unitario: Number(source.monto_unitario) || 0,
 		delta_cantidad: Number(source.delta_cantidad) || 0,
 		created_at: String(source.created_at ?? ""),
+		nombre: source.nombre ? String(source.nombre) : undefined,
+		codigo: source.codigo ? String(source.codigo) : undefined,
 	};
 }
 
@@ -68,6 +74,14 @@ function mapOperacion(row: OperacionRow | OperacionListRow): Operacion {
 		lineas,
 		factura_asociada: "factura_asociada" in row && row.factura_asociada === true,
 		observaciones: row.observaciones ? String(row.observaciones) : undefined,
+		monto_total: row.monto_total !== undefined && row.monto_total !== null ? Number(row.monto_total) : undefined,
+		total_pagado: row.total_pagado !== undefined && row.total_pagado !== null ? Number(row.total_pagado) : undefined,
+		saldo_pendiente: row.saldo_pendiente !== undefined && row.saldo_pendiente !== null ? Number(row.saldo_pendiente) : undefined,
+		esta_pago: row.esta_pago !== undefined ? Boolean(row.esta_pago) : undefined,
+		estado_pago: (row.estado_pago as Operacion["estado_pago"]) ?? undefined,
+		estado_stock: (row.estado_stock as Operacion["estado_stock"]) ?? undefined,
+		proveedor_id: "proveedor_id" in row && row.proveedor_id ? String(row.proveedor_id) : undefined,
+		proveedor_nombre: "proveedor_nombre" in row && row.proveedor_nombre ? String(row.proveedor_nombre) : undefined,
 		...(movimiento ? {
 			gasto_id: movimiento.gasto_id ?? undefined,
 			descripcion: movimiento.descripcion ?? undefined,
@@ -138,14 +152,28 @@ export async function POST(req: Request) {
 	if (!body) return Response.json({ data: null, error: "JSON inválido" } satisfies CreateOperacionResponse, { status: 400 });
 
 	if (!body.tipo) return Response.json({ data: null, error: "Falta tipo" } satisfies CreateOperacionResponse, { status: 400 });
-	if (!body.taller_id)
+	if (!body.taller_id) {
 		return Response.json({ data: null, error: "Falta taller_id" } satisfies CreateOperacionResponse, { status: 400 });
+	}
 	const importeTotal = (body.lineas ?? []).reduce(
 		(sum, l) => sum + (Number(l.cantidad) || 0) * (Number(l.monto_unitario) || 0),
 		0
 	);
-	if ((body.tipo === "COMPRA" || body.tipo === "VENTA") && importeTotal > 0 && !body.cuenta_financiera_id) {
+	const esOperacionComercial = body.tipo === "COMPRA" || body.tipo === "VENTA";
+	const estadoPago = body.estado_pago ?? "PAGADO";
+	const requiereCuentaFinanciera = esOperacionComercial && importeTotal > 0 && estadoPago !== "PENDIENTE";
+
+	if (requiereCuentaFinanciera && !body.cuenta_financiera_id) {
 		return Response.json({ data: null, error: "Seleccioná una cuenta financiera" } satisfies CreateOperacionResponse, { status: 400 });
+	}
+	if (esOperacionComercial && estadoPago === "PARCIAL") {
+		const montoInicial = Number(body.monto_inicial);
+		if (!Number.isFinite(montoInicial) || montoInicial <= 0) {
+			return Response.json({ data: null, error: "El monto inicial debe ser mayor a 0 para pagos parciales" } satisfies CreateOperacionResponse, { status: 400 });
+		}
+		if (montoInicial >= importeTotal) {
+			return Response.json({ data: null, error: "El monto parcial debe ser menor al importe total" } satisfies CreateOperacionResponse, { status: 400 });
+		}
 	}
 	if (body.cuenta_financiera_id && !isValidUuid(body.cuenta_financiera_id)) {
 		return Response.json({ data: null, error: "cuenta_financiera_id inválida" } satisfies CreateOperacionResponse, { status: 400 });

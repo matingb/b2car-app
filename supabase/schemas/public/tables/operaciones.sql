@@ -21,9 +21,31 @@ ALTER TABLE "public"."operaciones"
   ADD COLUMN "observaciones" text;
 
 ALTER TABLE "public"."operaciones"
+  ADD COLUMN "monto_total" numeric(14,2) NOT NULL DEFAULT 0.00;
+
+ALTER TABLE "public"."operaciones"
+  ADD COLUMN "total_pagado" numeric(14,2) NOT NULL DEFAULT 0.00;
+
+ALTER TABLE "public"."operaciones"
+  ADD COLUMN "esta_pago" boolean NOT NULL DEFAULT false;
+
+ALTER TABLE "public"."operaciones"
+  ADD COLUMN "estado_pago" public.estado_pago_operacion NOT NULL DEFAULT 'PAGADO'::public.estado_pago_operacion;
+
+ALTER TABLE "public"."operaciones"
+  ADD COLUMN "estado_stock" public.estado_stock_operacion NOT NULL DEFAULT 'ENTREGADO'::public.estado_stock_operacion;
+
+ALTER TABLE "public"."operaciones"
+  ADD COLUMN "proveedor_id" uuid;
+
+ALTER TABLE "public"."operaciones"
+  ADD CONSTRAINT "operaciones_proveedor_id_fkey" FOREIGN KEY (proveedor_id) REFERENCES public.proveedores(id) ON DELETE SET NULL;
+
+ALTER TABLE "public"."operaciones"
   ADD CONSTRAINT "operaciones_taller_requerido" CHECK (((taller_id IS NOT NULL) OR ((tipo)::text = 'MOVIMIENTO_CUENTA'::text)));
 
 CREATE INDEX idx_operaciones_fecha ON public.operaciones USING btree (fecha);
+CREATE INDEX idx_operaciones_proveedor_id ON public.operaciones USING btree (proveedor_id) WHERE (proveedor_id IS NOT NULL);
 
 CREATE TRIGGER facturacion_proteger_operaciones
   BEFORE DELETE ON public.operaciones

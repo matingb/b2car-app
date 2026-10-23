@@ -296,5 +296,85 @@ describe("POST /api/operaciones", () => {
 			expect(response.status).toBe(400);
 			expect(await response.json()).toEqual({ data: null, error: "cuenta_financiera_id inválida" });
 		});
+
+		it("permite una compra con importe > 0 sin cuenta financiera si el estado de pago es PENDIENTE", async () => {
+			vi.mocked(operacionesService.create).mockResolvedValue({
+				data: { id: "op-diferida", tenant_id: "tenant-1", estado_pago: "PENDIENTE" },
+				error: null,
+			} as unknown as Awaited<ReturnType<typeof operacionesService.create>>);
+
+			const response = await POST(new Request("http://localhost/api/operaciones", {
+				method: "POST",
+				body: JSON.stringify({
+					tipo: "COMPRA",
+					taller_id: "11111111-1111-4111-8111-111111111111",
+					idempotency_key: "33333333-3333-4333-8333-333333333333",
+					estado_pago: "PENDIENTE",
+					mover_stock: false,
+					lineas: [{
+						stock_id: "44444444-4444-4444-8444-444444444444",
+						cantidad: 2,
+						monto_unitario: 1500,
+						delta_cantidad: 2,
+					}],
+				}),
+			}));
+
+			expect(response.status).toBe(201);
+			expect(operacionesService.create).toHaveBeenCalledWith(
+				expect.anything(),
+				expect.objectContaining({
+					tipo: "COMPRA",
+					estado_pago: "PENDIENTE",
+					mover_stock: false,
+				})
+			);
+		});
+
+		it("rechaza pago PARCIAL si falta el monto inicial o es menor o igual a 0", async () => {
+			const response = await POST(new Request("http://localhost/api/operaciones", {
+				method: "POST",
+				body: JSON.stringify({
+					tipo: "COMPRA",
+					taller_id: "11111111-1111-4111-8111-111111111111",
+					idempotency_key: "33333333-3333-4333-8333-333333333333",
+					cuenta_financiera_id: "22222222-2222-4222-8222-222222222222",
+					estado_pago: "PARCIAL",
+					monto_inicial: 0,
+					lineas: [{
+						stock_id: "44444444-4444-4444-8444-444444444444",
+						cantidad: 2,
+						monto_unitario: 1500,
+						delta_cantidad: 2,
+					}],
+				}),
+			}));
+
+			expect(response.status).toBe(400);
+			expect(await response.json()).toEqual({ data: null, error: "El monto inicial debe ser mayor a 0 para pagos parciales" });
+		});
+
+		it("rechaza pago PARCIAL si el monto inicial es mayor o igual al total", async () => {
+			const response = await POST(new Request("http://localhost/api/operaciones", {
+				method: "POST",
+				body: JSON.stringify({
+					tipo: "COMPRA",
+					taller_id: "11111111-1111-4111-8111-111111111111",
+					idempotency_key: "33333333-3333-4333-8333-333333333333",
+					cuenta_financiera_id: "22222222-2222-4222-8222-222222222222",
+					estado_pago: "PARCIAL",
+					monto_inicial: 3000,
+					lineas: [{
+						stock_id: "44444444-4444-4444-8444-444444444444",
+						cantidad: 2,
+						monto_unitario: 1500,
+						delta_cantidad: 2,
+					}],
+				}),
+			}));
+
+			expect(response.status).toBe(400);
+			expect(await response.json()).toEqual({ data: null, error: "El monto parcial debe ser menor al importe total" });
+		});
 	});
 });

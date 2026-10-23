@@ -24,6 +24,9 @@ export type StockRegistro = {
   productoId: string;
   tallerId: string;
   stockActual: number;
+  stockReservado?: number;
+  stockDisponible?: number;
+  stockPendiente?: number;
   stockMinimo: number;
   stockMaximo: number;
   ultimaActualizacion: string;

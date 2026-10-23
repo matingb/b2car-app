@@ -1,4 +1,5 @@
 import type { Proveedor } from "@/model/types";
+import type { ProductoProveedorDTO } from "@/model/dtos";
 import { API_ROUTES } from "@/routing/routes";
 
 export type GetProveedoresInput = {
@@ -130,6 +131,107 @@ export const proveedoresClient = {
       return {
         data: null,
         error: err instanceof Error ? err.message : "Error de red al eliminar proveedor",
+      };
+    }
+  },
+
+  async getProductos(proveedorId: string): Promise<ProveedoresClientResponse<ProductoProveedorDTO[]>> {
+    try {
+      const res = await fetch(`${API_ROUTES.proveedores}/${proveedorId}/productos`);
+      const body = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        return { data: null, error: body?.error || `Error ${res.status}` };
+      }
+
+      return { data: body?.data ?? [], error: null };
+    } catch (err: unknown) {
+      return {
+        data: null,
+        error: err instanceof Error ? err.message : "Error de red al obtener productos del proveedor",
+      };
+    }
+  },
+
+  async asociarProducto(
+    proveedorId: string,
+    data: {
+      producto_id: string;
+      codigo_proveedor?: string | null;
+      costo_referencia?: number;
+      es_predeterminado?: boolean;
+    }
+  ): Promise<ProveedoresClientResponse<ProductoProveedorDTO>> {
+    try {
+      const res = await fetch(`${API_ROUTES.proveedores}/${proveedorId}/productos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const body = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        return { data: null, error: body?.error || `Error ${res.status}` };
+      }
+
+      return { data: body?.data ?? null, error: null };
+    } catch (err: unknown) {
+      return {
+        data: null,
+        error: err instanceof Error ? err.message : "Error de red al asociar producto",
+      };
+    }
+  },
+
+  async desvincularProducto(
+    proveedorId: string,
+    productoId: string
+  ): Promise<ProveedoresClientResponse<boolean>> {
+    try {
+      const res = await fetch(`${API_ROUTES.proveedores}/${proveedorId}/productos/${productoId}`, {
+        method: "DELETE",
+      });
+      const body = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        return { data: null, error: body?.error || `Error ${res.status}` };
+      }
+
+      return { data: true, error: null };
+    } catch (err: unknown) {
+      return {
+        data: null,
+        error: err instanceof Error ? err.message : "Error de red al desvincular producto",
+      };
+    }
+  },
+
+  async actualizarProductoVinculado(
+    proveedorId: string,
+    productoId: string,
+    data: {
+      codigo_proveedor?: string | null;
+      costo_referencia?: number;
+      es_predeterminado?: boolean;
+    }
+  ): Promise<ProveedoresClientResponse<ProductoProveedorDTO>> {
+    try {
+      const res = await fetch(`${API_ROUTES.proveedores}/${proveedorId}/productos/${productoId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const body = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        return { data: null, error: body?.error || `Error ${res.status}` };
+      }
+
+      return { data: body?.data ?? null, error: null };
+    } catch (err: unknown) {
+      return {
+        data: null,
+        error: err instanceof Error ? err.message : "Error de red al actualizar producto vinculado",
       };
     }
   },

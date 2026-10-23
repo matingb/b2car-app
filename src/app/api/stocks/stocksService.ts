@@ -9,6 +9,9 @@ export type StockRow = {
   taller_id: string;
   producto_id: string;
   cantidad: number;
+  cantidad_reservada?: number;
+  cantidad_pendiente?: number;
+  cantidad_disponible?: number;
   stock_minimo: number;
   stock_maximo: number;
   created_at: string;

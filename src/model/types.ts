@@ -206,11 +206,29 @@ export interface Taller {
   valor_hora?: number;
 }
 
+export type EstadoPagoOperacion = "PAGADO" | "PARCIAL" | "PENDIENTE";
+export type EstadoStockOperacion = "ENTREGADO" | "PARCIAL" | "PENDIENTE" | "NO_APLICA";
+
+export interface OperacionPago {
+  id: UUID;
+  tenant_id?: UUID;
+  operacion_id: UUID;
+  operacion_pago_id?: UUID | null;
+  cuenta_financiera_id: UUID;
+  cuenta_financiera_nombre?: string;
+  monto: number;
+  fecha: string;
+  descripcion?: string | null;
+  created_at: string;
+  created_by?: UUID | null;
+}
+
 export interface OperacionLinea {
   id: UUID;
   operacion_id: UUID;
   stock_id: UUID;
   cantidad: number;
+  cantidad_cumplida?: number;
   monto_unitario: number;
   delta_cantidad: number;
   created_at: string;
@@ -243,23 +261,75 @@ export const TIPOS_OPERACIONES: TipoOperacion[] = [
 export interface Operacion {
   id: UUID;
   tipo: TipoOperacion;
-  /** Los gastos son globales del tenant y no pertenecen a un taller. */
   taller_id: UUID | null;
   fecha: string;
   created_at: string;
   lineas: OperacionLinea[];
-  /** Los gastos se proyectan en Operaciones, pero no son operaciones de stock. */
   gasto_id?: UUID;
   descripcion?: string;
   categoria_gasto?: string;
   cuenta_financiera_id?: UUID;
   cuenta_financiera_nombre?: string;
   monto?: number;
-  /** Arreglo asociado cuando la operación corresponde a uno de sus cobros. */
+  monto_total?: number;
+  total_pagado?: number;
+  saldo_pendiente?: number;
+  esta_pago?: boolean;
+  estado_pago?: EstadoPagoOperacion;
+  estado_stock?: EstadoStockOperacion;
+  pagos?: OperacionPago[];
   arreglo_id?: UUID;
-  /** Indica si la venta ya tiene un comprobante fiscal asociado. */
   factura_asociada?: boolean;
   observaciones?: string;
+  proveedor_id?: UUID | null;
+  proveedor_nombre?: string;
+}
+
+export type TipoMovimientoStock =
+  | "COMPRA"
+  | "VENTA"
+  | "ASIGNACION_ARREGLO"
+  | "AJUSTE"
+  | "REVERSION"
+  | "INICIAL"
+  | "DEVOLUCION_NC";
+
+export interface MovimientoStock {
+  id: UUID;
+  tenant_id: UUID;
+  taller_id: UUID;
+  taller_nombre?: string;
+  producto_id: UUID;
+  producto_nombre?: string;
+  producto_codigo?: string;
+  stock_id: UUID;
+  operacion_id?: UUID | null;
+  operacion_tipo?: string | null;
+  detalle_arreglo_id?: UUID | null;
+  tipo_movimiento: TipoMovimientoStock;
+  cantidad: number;
+  saldo_anterior: number;
+  saldo_posterior: number;
+  fecha: string;
+  motivo?: string | null;
+  created_by?: UUID | null;
+  created_at: string;
+}
+
+export interface ProductoProveedor {
+  id: UUID;
+  tenant_id?: UUID;
+  producto_id: UUID;
+  proveedor_id: UUID;
+  proveedor_nombre?: string;
+  proveedor_cuit?: string;
+  producto_nombre?: string;
+  producto_codigo?: string;
+  codigo_proveedor?: string | null;
+  costo_referencia: number;
+  es_predeterminado: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export type OperacionesFilters = {

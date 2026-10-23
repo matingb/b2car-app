@@ -1,6 +1,6 @@
 import { logger } from "@/lib/logger";
-import type { Operacion, OperacionLinea } from "@/model/types";
-import type { OperacionDTO, OperacionLineaDTO } from "@/model/dtos";
+import type { Operacion, OperacionLinea, OperacionPago } from "@/model/types";
+import type { OperacionDTO, OperacionLineaDTO, OperacionPagoDTO } from "@/model/dtos";
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
@@ -25,7 +25,10 @@ export type UpdateOperacionResponse = {
 	error?: string | null;
 };
 
-type OperacionRow = OperacionDTO & { operaciones_lineas?: OperacionLineaDTO[] | null };
+type OperacionRow = OperacionDTO & {
+	operaciones_lineas?: OperacionLineaDTO[] | null;
+	operaciones_pagos?: OperacionPagoDTO[] | null;
+};
 
 function mapLinea(row: OperacionLineaDTO): OperacionLinea {
 	return {
@@ -33,14 +36,35 @@ function mapLinea(row: OperacionLineaDTO): OperacionLinea {
 		operacion_id: row.operacion_id,
 		stock_id: row.stock_id,
 		cantidad: Number(row.cantidad) || 0,
+		cantidad_cumplida:
+			row.cantidad_cumplida !== undefined && row.cantidad_cumplida !== null
+				? Number(row.cantidad_cumplida)
+				: undefined,
 		monto_unitario: Number(row.monto_unitario) || 0,
 		delta_cantidad: Number(row.delta_cantidad) || 0,
 		created_at: row.created_at,
+		nombre: row.nombre ? String(row.nombre) : undefined,
+		codigo: row.codigo ? String(row.codigo) : undefined,
+	};
+}
+
+function mapPago(row: OperacionPagoDTO): OperacionPago {
+	return {
+		id: row.id,
+		tenant_id: row.tenant_id,
+		operacion_id: row.operacion_id,
+		cuenta_financiera_id: row.cuenta_financiera_id,
+		monto: Number(row.monto) || 0,
+		fecha: row.fecha,
+		descripcion: row.descripcion ?? undefined,
+		created_at: row.created_at,
+		cuenta_financiera_nombre: row.cuenta_financiera_nombre ?? undefined,
 	};
 }
 
 function mapOperacion(row: OperacionRow): Operacion {
 	const lineas = Array.isArray(row.operaciones_lineas) ? row.operaciones_lineas : [];
+	const pagos = Array.isArray(row.operaciones_pagos) ? row.operaciones_pagos : [];
 	return {
 		id: row.id,
 		tipo: row.tipo,
@@ -48,7 +72,16 @@ function mapOperacion(row: OperacionRow): Operacion {
 		fecha: row.fecha,
 		created_at: row.created_at,
 		observaciones: row.observaciones ? String(row.observaciones) : undefined,
+		monto_total: row.monto_total !== undefined && row.monto_total !== null ? Number(row.monto_total) : undefined,
+		total_pagado: row.total_pagado !== undefined && row.total_pagado !== null ? Number(row.total_pagado) : undefined,
+		saldo_pendiente: row.saldo_pendiente !== undefined && row.saldo_pendiente !== null ? Number(row.saldo_pendiente) : undefined,
+		esta_pago: row.esta_pago !== undefined ? Boolean(row.esta_pago) : undefined,
+		estado_pago: (row.estado_pago as Operacion["estado_pago"]) ?? undefined,
+		estado_stock: (row.estado_stock as Operacion["estado_stock"]) ?? undefined,
+		proveedor_id: row.proveedor_id ?? undefined,
+		proveedor_nombre: row.proveedor_nombre ?? undefined,
 		lineas: lineas.map(mapLinea),
+		pagos: pagos.map(mapPago),
 	};
 }
 

@@ -49,6 +49,10 @@ export type CreateOperacionInput = {
 	cuenta_financiera_id?: string | null;
 	idempotency_key?: string | null;
 	observaciones?: string | null;
+	estado_pago?: string | null;
+	monto_inicial?: number | null;
+	mover_stock?: boolean | null;
+	proveedor_id?: string | null;
 };
 
 export type UpdateOperacionLineaInput = {
@@ -89,6 +93,12 @@ export type OperacionListRow = {
 	cuenta_financiera_id: string | null;
 	cuenta_financiera_nombre: string | null;
 	monto: number | string | null;
+	monto_total?: number | string | null;
+	total_pagado?: number | string | null;
+	saldo_pendiente?: number | string | null;
+	esta_pago?: boolean;
+	estado_pago?: string;
+	estado_stock?: string;
 	arreglo_id: string | null;
 	factura_asociada?: boolean;
 	total_count: number | string | null;
@@ -196,7 +206,7 @@ export const operacionesService = {
 	{
 		const { data, error } = await supabase
 			.from("operaciones")
-			.select("*, operaciones_lineas(*)")
+			.select("*, operaciones_lineas(*), operaciones_pagos(*)")
 			.eq("id", id)
 			.single();
 
@@ -227,6 +237,10 @@ export const operacionesService = {
 			p_cuenta_id: input.cuenta_financiera_id ?? null,
 			p_idempotency_key: input.idempotency_key ?? null,
 			p_observaciones: input.observaciones ?? null,
+			p_estado_pago: input.estado_pago ?? null,
+			p_monto_inicial: input.monto_inicial ?? null,
+			p_mover_stock: input.mover_stock ?? true,
+			p_proveedor_id: input.proveedor_id ?? null,
 		});
 
 		if (rpcError || !operacionId) {
@@ -235,6 +249,62 @@ export const operacionesService = {
 		}
 
 		return this.getById(supabase, operacionId as string);
+	},
+
+	async confirmarStock(
+		supabase: SupabaseClient,
+		operacionId: string,
+		fecha?: string,
+		lineas?: { lineaId?: string; stockId?: string; cantidad: number }[]
+	): Promise<{ data: unknown; error: ServiceError | null }> {
+		const lineasPayload = Array.isArray(lineas) && lineas.length > 0
+			? lineas.map((l) => ({
+					linea_id: l.lineaId ?? null,
+					stock_id: l.stockId ?? null,
+					cantidad: l.cantidad,
+			  }))
+			: null;
+
+		const { data, error } = await supabase.rpc("rpc_confirmar_stock_operacion", {
+			p_operacion_id: operacionId,
+			p_fecha: fecha ? toISODateTimeWithCurrentTime(fecha) : new Date().toISOString(),
+			p_lineas: lineasPayload,
+		});
+
+		if (error) {
+			logger.error("[operacionesService.confirmarStock] Error:", error);
+			return { data: null, error: toServiceError(error) };
+		}
+
+		return { data, error: null };
+	},
+
+	async registrarPago(
+		supabase: SupabaseClient,
+		operacionId: string,
+		payload: {
+			cuentaId: string;
+			monto: number;
+			fecha?: string;
+			descripcion?: string;
+			idempotencyKey?: string;
+		}
+	): Promise<{ data: unknown; error: ServiceError | null }> {
+		const { data, error } = await supabase.rpc("rpc_registrar_pago_operacion", {
+			p_operacion_id: operacionId,
+			p_cuenta_id: payload.cuentaId,
+			p_monto: payload.monto,
+			p_fecha: payload.fecha ? toISODateTimeWithCurrentTime(payload.fecha) : new Date().toISOString(),
+			p_descripcion: payload.descripcion ?? null,
+			p_idempotency_key: payload.idempotencyKey ?? null,
+		});
+
+		if (error) {
+			logger.error("[operacionesService.registrarPago] Error:", error);
+			return { data: null, error: toServiceError(error) };
+		}
+
+		return { data, error: null };
 	},
 
 	async update(
