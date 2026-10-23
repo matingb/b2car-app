@@ -1,82 +1,133 @@
-import { trace, SpanStatusCode, type Context } from "@opentelemetry/api";
-import type { SpanProcessor, ReadableSpan, Span } from "@opentelemetry/sdk-trace-base";
+import { trace, context, propagation, SpanStatusCode, type Span, type Context } from "@opentelemetry/api";
+import { logs, SeverityNumber } from "@opentelemetry/api-logs";
+import type { SpanProcessor, ReadableSpan } from "@opentelemetry/sdk-trace-base";
 import type {
   TelemetryProvider,
   TelemetryIdentity,
   TelemetryUser,
   TelemetryContext,
   TelemetryAttributes,
+  TelemetryLogLevel,
 } from "./types";
-import { traceAttributeStore, TraceAttributeStore } from "./store";
+import { buildTelemetryAttributes, identityFromClaims } from "./identity";
+import { decodeJwtPayload } from "@/lib/jwt";
 
-export { traceAttributeStore, TraceAttributeStore };
+export { logs, SeverityNumber };
 
 let clientInitialized = false;
 let serverInitialized = false;
 
-export class RootEnrichmentSpanProcessor implements SpanProcessor {
-  constructor(private store: TraceAttributeStore = traceAttributeStore) {}
+export const ALLOWED_BAGGAGE_KEYS = new Set([
+  "user.id",
+  "user.email",
+  "user.role",
+  "user.name",
+  "tenant.id",
+  "tenant.name",
+  "tenant.plan",
+]);
 
-  onStart(span: Span, _parentContext: Context): void {
-    const traceId = span.spanContext().traceId;
-    const attrs = this.store.get(traceId);
-    if (attrs) {
-      for (const [k, v] of Object.entries(attrs)) {
-        span.setAttribute(k, v);
-      }
+let clientIdentityAttributes: TelemetryAttributes | null = null;
+type AsyncLocalStorageType = import("node:async_hooks").AsyncLocalStorage<TelemetryAttributes>;
+let serverIdentityStorage: AsyncLocalStorageType | null = null;
+
+if (typeof window === "undefined") {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const asyncHooks = require("node:async_hooks") as typeof import("node:async_hooks");
+    serverIdentityStorage = new asyncHooks.AsyncLocalStorage<TelemetryAttributes>();
+  } catch {}
+}
+
+export function getActiveIdentityAttributes(): TelemetryAttributes | null {
+  if (typeof window !== "undefined") {
+    return clientIdentityAttributes;
+  }
+  return serverIdentityStorage?.getStore() ?? clientIdentityAttributes;
+}
+
+function createIdentityBaggage(attrs: TelemetryAttributes, parentContext = context.active()) {
+  let baggage = propagation.getBaggage(parentContext) || propagation.createBaggage();
+  for (const [k, v] of Object.entries(attrs)) {
+    if (ALLOWED_BAGGAGE_KEYS.has(k)) {
+      baggage = baggage.setEntry(k, { value: String(v) });
     }
   }
+  return baggage;
+}
 
-  onEnd(span: ReadableSpan): void {
-    const traceId = span.spanContext().traceId;
-    const attrs = this.store.get(traceId);
-    if (!attrs) return;
+export function setActiveIdentity(attrs: TelemetryAttributes | null): void {
+  clientIdentityAttributes = attrs;
+  if (serverIdentityStorage && attrs) {
+    serverIdentityStorage.enterWith(attrs);
+  }
+  if (attrs) {
+    try {
+      propagation.setBaggage(context.active(), createIdentityBaggage(attrs));
+    } catch {}
+  }
+}
 
-    const isRoot = !span.parentSpanContext || (span.parentSpanContext as { isRemote?: boolean }).isRemote;
-    if (isRoot) {
-      const mutableSpan = span as unknown as { attributes: Record<string, unknown> };
-      if (mutableSpan.attributes) {
-        for (const [k, v] of Object.entries(attrs)) {
-          if (mutableSpan.attributes[k] === undefined) {
-            mutableSpan.attributes[k] = v;
+export function clearActiveIdentity(): void {
+  clientIdentityAttributes = null;
+  if (serverIdentityStorage) {
+    serverIdentityStorage.enterWith({});
+  }
+  try {
+    propagation.setBaggage(context.active(), propagation.createBaggage());
+  } catch {}
+}
+
+export function enrichSpan(span?: Span | null, attrs?: TelemetryAttributes | null): void {
+  if (!span || !attrs) return;
+  try {
+    for (const [key, value] of Object.entries(attrs)) {
+      span.setAttribute(key, value);
+    }
+  } catch {}
+}
+
+export class HoneycombNativeSpanProcessor implements SpanProcessor {
+  onStart(span: Span, parentContext: Context): void {
+    try {
+      const baggage = propagation.getBaggage(parentContext);
+      if (baggage) {
+        for (const [key, entry] of baggage.getAllEntries()) {
+          if (ALLOWED_BAGGAGE_KEYS.has(key)) {
+            span.setAttribute(key, entry.value);
           }
         }
       }
-      this.store.delete(traceId);
-    }
+    } catch {}
+
+    enrichSpan(span, getActiveIdentityAttributes());
   }
 
-  shutdown(): Promise<void> {
-    return Promise.resolve();
+  onEnd(span: ReadableSpan): void {
+    const activeAttrs = getActiveIdentityAttributes();
+    if (!activeAttrs) return;
+
+    try {
+      const attributes = (span as unknown as { attributes?: Record<string, unknown> }).attributes;
+      if (attributes) {
+        for (const [key, value] of Object.entries(activeAttrs)) {
+          if (attributes[key] === undefined) {
+            attributes[key] = value;
+          }
+        }
+      }
+    } catch {}
   }
 
   forceFlush(): Promise<void> {
     return Promise.resolve();
   }
-}
 
-/**
- * Genera el mapa de atributos estándar a partir de una identidad.
- */
-function buildTelemetryAttributes(identity: TelemetryIdentity): TelemetryAttributes {
-  const attrs: TelemetryAttributes = {
-    "user.id": identity.user.id,
-  };
-  if (identity.user.email) attrs["user.email"] = String(identity.user.email);
-  if (identity.user.role) attrs["user.role"] = String(identity.user.role);
-  if (identity.user.name) attrs["user.name"] = String(identity.user.name);
-
-  if (identity.account) {
-    attrs["tenant.id"] = String(identity.account.id);
-    if (identity.account.name) attrs["tenant.name"] = String(identity.account.name);
-    if (identity.account.plan) attrs["tenant.plan"] = String(identity.account.plan);
+  shutdown(): Promise<void> {
+    return Promise.resolve();
   }
-  return attrs;
 }
 
-/**
- * Inicializa Honeycomb Web SDK en el navegador (Frontend).
- */
 export async function initHoneycombClient(): Promise<void> {
   if (typeof window === "undefined" || clientInitialized) return;
 
@@ -85,9 +136,15 @@ export async function initHoneycombClient(): Promise<void> {
 
   try {
     const { HoneycombWebSDK } = await import("@honeycombio/opentelemetry-web");
+    const { CompositePropagator, W3CBaggagePropagator, W3CTraceContextPropagator } = await import("@opentelemetry/core");
+
     const sdk = new HoneycombWebSDK({
       apiKey,
       serviceName: process.env.NEXT_PUBLIC_TELEMETRY_FRONTEND_SERVICE_NAME!,
+      textMapPropagator: new CompositePropagator({
+        propagators: [new W3CTraceContextPropagator(), new W3CBaggagePropagator()],
+      }),
+      spanProcessors: [new HoneycombNativeSpanProcessor()],
     });
 
     sdk.start();
@@ -97,9 +154,38 @@ export async function initHoneycombClient(): Promise<void> {
   }
 }
 
-/**
- * Inicializa Honeycomb OpenTelemetry NodeSDK en Node.js (Backend).
- */
+export function extractClaimsFromCookieHeader(cookieHeader?: string): Record<string, unknown> | null {
+  if (!cookieHeader) return null;
+
+  try {
+    const tokenChunks = cookieHeader
+      .split(";")
+      .map((part) => part.trim())
+      .filter((part) => part.startsWith("sb-") && part.includes("-auth-token"))
+      .sort()
+      .map((part) => part.slice(part.indexOf("=") + 1));
+
+    if (tokenChunks.length === 0) return null;
+
+    let raw = decodeURIComponent(tokenChunks.join(""));
+    if (raw.startsWith("base64-")) {
+      raw = Buffer.from(raw.slice(7), "base64url").toString("utf8");
+    }
+
+    let token: string | null = null;
+    try {
+      const parsed = JSON.parse(raw);
+      token = parsed?.access_token || (Array.isArray(parsed) ? parsed[0] : null);
+    } catch {
+      token = raw.includes(".") ? raw : null;
+    }
+
+    return token ? decodeJwtPayload(token) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function initHoneycombServer(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== "nodejs" || serverInitialized) return;
 
@@ -110,25 +196,34 @@ export async function initHoneycombServer(): Promise<void> {
     const { NodeSDK } = await import("@opentelemetry/sdk-node");
     const { getNodeAutoInstrumentations } = await import("@opentelemetry/auto-instrumentations-node");
     const { OTLPTraceExporter } = await import("@opentelemetry/exporter-trace-otlp-http");
+    const { OTLPLogExporter } = await import("@opentelemetry/exporter-logs-otlp-http");
+    const { BatchSpanProcessor } = await import("@opentelemetry/sdk-trace-base");
+    const { BatchLogRecordProcessor } = await import("@opentelemetry/sdk-logs");
     const { resourceFromAttributes } = await import("@opentelemetry/resources");
     const { ATTR_SERVICE_VERSION } = await import("@opentelemetry/semantic-conventions");
 
     const endpoint = "https://api.honeycomb.io/v1/traces";
+    const logsEndpoint = "https://api.honeycomb.io/v1/logs";
     const serviceName = process.env.TELEMETRY_BACKEND_SERVICE_NAME || "b2car-backend";
     const appVersion = process.env.NEXT_PUBLIC_APP_VERSION;
     const environment = process.env.NEXT_PUBLIC_DATADOG_ENV || process.env.NODE_ENV || "production";
 
+    const headers = apiKey
+      ? {
+          "x-honeycomb-team": apiKey,
+          ...(process.env.HONEYCOMB_DATASET ? { "x-honeycomb-dataset": process.env.HONEYCOMB_DATASET } : {}),
+        }
+      : undefined;
+
     const traceExporter = new OTLPTraceExporter({
       url: endpoint,
-      headers: apiKey
-        ? {
-            "x-honeycomb-team": apiKey,
-            ...(process.env.HONEYCOMB_DATASET ? { "x-honeycomb-dataset": process.env.HONEYCOMB_DATASET } : {}),
-          }
-        : undefined,
+      headers,
     });
 
-    const rootProcessor = new RootEnrichmentSpanProcessor(traceAttributeStore);
+    const logExporter = new OTLPLogExporter({
+      url: logsEndpoint,
+      headers,
+    });
 
     const sdk = new NodeSDK({
       serviceName,
@@ -136,8 +231,11 @@ export async function initHoneycombServer(): Promise<void> {
         [ATTR_SERVICE_VERSION]: appVersion,
         "deployment.environment": environment,
       }),
-      traceExporter,
-      spanProcessors: [rootProcessor],
+      spanProcessors: [
+        new HoneycombNativeSpanProcessor(),
+        new BatchSpanProcessor(traceExporter),
+      ],
+      logRecordProcessors: [new BatchLogRecordProcessor({ exporter: logExporter })],
       instrumentations: [
         getNodeAutoInstrumentations({
           "@opentelemetry/instrumentation-fs": {
@@ -146,14 +244,24 @@ export async function initHoneycombServer(): Promise<void> {
           "@opentelemetry/instrumentation-http": {
             requestHook: (span, request) => {
               try {
-                const incomingReq = request as import("http").IncomingMessage;
-                const url = incomingReq.url || "";
-                if (url.startsWith("/api/")) {
-                  span.setAttribute("api.route", url.split("?")[0]);
+                const req = request as import("http").IncomingMessage;
+                if (req.url?.startsWith("/api/")) {
+                  span.setAttribute("api.route", req.url.split("?")[0]);
                 }
-              } catch {
-                // Silencioso
-              }
+
+                const claims = extractClaimsFromCookieHeader(req.headers?.cookie);
+                if (claims) {
+                  const identity = identityFromClaims(claims);
+                  if (identity) {
+                    setActiveIdentity(buildTelemetryAttributes(identity));
+                  }
+                }
+
+                enrichSpan(span, getActiveIdentityAttributes());
+              } catch {}
+            },
+            responseHook: (span) => {
+              enrichSpan(span, getActiveIdentityAttributes());
             },
           },
         }),
@@ -179,28 +287,22 @@ export async function initHoneycombServer(): Promise<void> {
   }
 }
 
-/**
- * Sanitiza atributos para eventos de OpenTelemetry (deben ser string, number o boolean).
- */
-function sanitizeEventAttributes(
+function toOtelAttributes(
   context?: TelemetryContext,
 ): Record<string, string | number | boolean> {
   if (!context) return {};
-  const sanitized: Record<string, string | number | boolean> = {};
+  const formatted: Record<string, string | number | boolean> = {};
   for (const [key, value] of Object.entries(context)) {
     if (value === undefined || value === null) continue;
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-      sanitized[key] = value;
+      formatted[key] = value;
     } else {
-      sanitized[key] = JSON.stringify(value);
+      formatted[key] = JSON.stringify(value);
     }
   }
-  return sanitized;
+  return formatted;
 }
 
-/**
- * Provider de Honeycomb que implementa la interfaz TelemetryProvider.
- */
 export const honeycombProvider: TelemetryProvider = {
   name: "honeycomb",
 
@@ -208,19 +310,9 @@ export const honeycombProvider: TelemetryProvider = {
   initServer: initHoneycombServer,
 
   identify(identity: TelemetryIdentity, attributes?: TelemetryAttributes): void {
-    try {
-      const attrs = attributes ?? buildTelemetryAttributes(identity);
-      const span = trace.getActiveSpan();
-      if (span) {
-        const traceId = span.spanContext?.()?.traceId;
-        if (traceId) {
-          traceAttributeStore.set(traceId, attrs);
-        }
-        for (const [key, value] of Object.entries(attrs)) {
-          span.setAttribute(key, value);
-        }
-      }
-    } catch {}
+    const attrs = attributes ?? buildTelemetryAttributes(identity);
+    setActiveIdentity(attrs);
+    enrichSpan(trace.getActiveSpan() as Span, attrs);
   },
 
   setUser(user: TelemetryUser): void {
@@ -235,28 +327,45 @@ export const honeycombProvider: TelemetryProvider = {
   },
 
   clearUser(): void {
-    // Los spans de OpenTelemetry son efímeros y contextuales
+    clearActiveIdentity();
   },
 
-  trackAction(name: string, context?: TelemetryContext): void {
+  async withIdentity<T>(identity: TelemetryIdentity, fn: () => Promise<T> | T): Promise<T> {
+    const attrs = buildTelemetryAttributes(identity);
+    setActiveIdentity(attrs);
+
+    let newContext = context.active();
     try {
-      const span = trace.getActiveSpan();
-      if (span) {
-        span.addEvent(name, sanitizeEventAttributes(context));
-      }
-    } catch {
-      // Silencioso
+      newContext = propagation.setBaggage(context.active(), createIdentityBaggage(attrs));
+    } catch {}
+
+    const runInContext = () => context.with(newContext, fn);
+
+    if (serverIdentityStorage) {
+      return serverIdentityStorage.run(attrs, runInContext);
     }
+    return runInContext();
   },
 
-  recordException(error: Error, context?: TelemetryContext): void {
+  trackAction(name: string, contextData?: TelemetryContext): void {
     try {
       const span = trace.getActiveSpan();
       if (span) {
+        const activeIdentityAttrs = getActiveIdentityAttributes();
+        span.addEvent(name, toOtelAttributes({ ...activeIdentityAttrs, ...contextData }));
+      }
+    } catch {}
+  },
+
+  recordException(error: Error, contextData?: TelemetryContext): void {
+    try {
+      const span = trace.getActiveSpan();
+      if (span) {
+        enrichSpan(span as Span, getActiveIdentityAttributes());
         span.recordException(error);
         span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
-        if (context) {
-          for (const [k, v] of Object.entries(context)) {
+        if (contextData) {
+          for (const [k, v] of Object.entries(contextData)) {
             if (v !== undefined && v !== null) {
               span.setAttribute(
                 `error.context.${k}`,
@@ -266,9 +375,41 @@ export const honeycombProvider: TelemetryProvider = {
           }
         }
       }
-    } catch {
-      // Silencioso
-    }
+    } catch {}
+  },
+
+  log(level: TelemetryLogLevel, message: string, contextData?: TelemetryContext): void {
+    try {
+      const activeIdentityAttrs = getActiveIdentityAttributes();
+      const eventName = message || `log_${level}`;
+      const attributes = toOtelAttributes({
+        severity: level,
+        ...activeIdentityAttrs,
+        ...contextData,
+      });
+
+      const span = trace.getActiveSpan();
+      if (span) {
+        span.setAttributes(attributes);
+        span.addEvent(eventName, attributes);
+      }
+
+      const severityMap: Record<TelemetryLogLevel, { number: SeverityNumber; text: string }> = {
+        debug: { number: SeverityNumber.DEBUG, text: "DEBUG" },
+        info: { number: SeverityNumber.INFO, text: "INFO" },
+        warn: { number: SeverityNumber.WARN, text: "WARN" },
+        error: { number: SeverityNumber.ERROR, text: "ERROR" },
+      };
+
+      const sev = severityMap[level] ?? { number: SeverityNumber.INFO, text: "INFO" };
+      const otelLogger = logs.getLogger("b2car-app");
+      otelLogger.emit({
+        severityNumber: sev.number,
+        severityText: sev.text,
+        body: eventName,
+        attributes,
+      });
+    } catch {}
   },
 
   async trace<T>(name: string, fn: () => Promise<T> | T): Promise<T> {

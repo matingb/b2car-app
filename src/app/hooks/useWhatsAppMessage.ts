@@ -7,7 +7,7 @@ import {
   assembleClientePhone,
   buildArregloWhatsappMessage,
   normalizeWhatsappPhone,
-  openWhatsapp as openWhatsapp,
+  openWhatsapp,
   type ArregloWhatsappOptions,
 } from "@/lib/whatsapp";
 import type { ArregloDetalleData } from "@/app/api/arreglos/[id]/route";
@@ -53,7 +53,10 @@ export function useWhatsAppMessage() {
   );
 
   const shareArreglo = useCallback(
-    async (data: ArregloDetalleData | null, options?: ArregloWhatsappOptions): Promise<void> => {
+    async (
+      data: ArregloDetalleData | null,
+      options?: ArregloWhatsappOptions
+    ): Promise<void> => {
       if (!data?.arreglo?.vehiculo?.id) {
         toast.error("Error", ERRORS.vehiculo_missing);
         return;

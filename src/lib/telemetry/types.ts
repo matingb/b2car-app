@@ -30,6 +30,8 @@ export interface TelemetryContext {
   [key: string]: unknown;
 }
 
+export type TelemetryLogLevel = "debug" | "info" | "warn" | "error";
+
 export interface TelemetryProvider {
   readonly name: string;
   initClient?: () => unknown | Promise<unknown>;
@@ -53,7 +55,17 @@ export interface TelemetryProvider {
   recordException?: (error: Error, context?: TelemetryContext) => void;
 
   /**
+   * Registra un log con severidad, mensaje y contexto estructurado.
+   */
+  log?: (level: TelemetryLogLevel, message: string, context?: TelemetryContext) => void;
+
+  /**
    * Envuelve una función en una traza/span activo.
    */
   trace?: <T>(name: string, fn: () => Promise<T> | T) => Promise<T>;
+
+  /**
+   * Ejecuta una función dentro del contexto de identidad (Baggage y atributos propagados en todos los spans hijos).
+   */
+  withIdentity?: <T>(identity: TelemetryIdentity, fn: () => Promise<T> | T) => Promise<T>;
 }

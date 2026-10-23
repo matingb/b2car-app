@@ -307,9 +307,14 @@ describe("VehiculoDetailsPage integration", () => {
 
     await user.click(screen.getByRole("button", { name: "Abrir chat de WhatsApp" }));
 
-    expect(openSpy).toHaveBeenCalledTimes(1);
+    await waitFor(
+      () => {
+        expect(openSpy).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 2500 }
+    );
     expect(openSpy).toHaveBeenCalledWith(
-      expect.stringContaining("https://wa.me/5491123456789?text="),
+      expect.stringContaining("web.whatsapp.com/send/?phone=5491123456789"),
       "_blank",
       "noopener,noreferrer"
     );

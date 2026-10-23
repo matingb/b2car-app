@@ -367,16 +367,27 @@ describe("ArregloWhatsAppModal", () => {
       expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
     });
 
+    vi.useFakeTimers();
     const submitBtn = screen.getByRole("button", { name: "Abrir chat de WhatsApp" });
     fireEvent.click(submitBtn);
 
+    // Cierra el modal de inmediato
     expect(onClose).toHaveBeenCalled();
+    // Antes del timeout no se abrió web
+    expect(openSpy).not.toHaveBeenCalled();
+
+    // Al pasar el timeout de fallback se abre WhatsApp Web
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
     expect(openSpy).toHaveBeenCalledTimes(1);
     expect(openSpy).toHaveBeenCalledWith(
-      expect.stringContaining("https://wa.me/5491199998888?text="),
+      expect.stringContaining("web.whatsapp.com/send/?phone=5491199998888"),
       "_blank",
       "noopener,noreferrer"
     );
+    vi.useRealTimers();
   });
 
   it("muestra únicamente el botón principal de WhatsApp y no un botón secundario de WhatsApp Web", async () => {
