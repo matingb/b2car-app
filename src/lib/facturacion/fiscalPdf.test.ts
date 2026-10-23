@@ -159,6 +159,17 @@ describe("PDF fiscal propio", () => {
     const footerIndex = calls.findIndex(([value]) => value === "Importe Total:");
     const footerPage = drawText.mock.contexts[footerIndex];
     const totalY = calls[footerIndex][1]!.y!;
+    const titles = calls.flatMap(([value, options], index) => value === "Observación del arreglo:" ? [{ y: options!.y!, page: drawText.mock.contexts[index] }] : []);
+    expect(titles.length).toBeGreaterThan(1);
+    titles.slice(0, -1).forEach(({ y }) => expect(y).toBe(755));
+    const subtotal = calls.find(([value]) => value === (claseComprobante === "C" ? "Subtotal:" : "Importe Neto:"))!;
+    expect(subtotal[1]!.y).toBe(755);
+    for (const title of titles) {
+      const authorizationIndex = calls.findIndex(([value], index) => value.startsWith("CAE N°:") && drawText.mock.contexts[index] === title.page);
+      expect(authorizationIndex).toBeGreaterThanOrEqual(0);
+      const lastLineY = Math.min(...calls.flatMap(([value, options], index) => drawText.mock.contexts[index] === title.page && (value.startsWith("Revisar") || value === "FIN-OBSERVACION") ? [options!.y!] : []));
+      expect(lastLineY - calls[authorizationIndex][1]!.y!).toBe(69);
+    }
     expect(calls.filter(([value]) => value === "Importe Total:")).toHaveLength(1);
     expect(calls.filter(([value]) => value === "Revisar frenos y suspensión.")).toHaveLength(170);
     expect(calls.filter(([value]) => value === "FIN-OBSERVACION")).toHaveLength(1);
@@ -197,17 +208,23 @@ describe("PDF fiscal propio", () => {
     drawText.mockRestore();
   });
 
-  it("ancla observación y QR abajo cuando el detalle obliga a usar una hoja propia", async () => {
+  it.each([[1, "A"], [6, "B"], [11, "C"], [201, "A"], [206, "B"], [211, "C"]] as const)("traslada todo el cierre arriba en hoja propia con observación (%s)", async (tipoComprobante, claseComprobante) => {
     const drawText = vi.spyOn(PDFPage.prototype, "drawText");
     const lineas = Array.from({ length: 15 }, (_, index) => ({ codigo: null, descripcion: `Servicio ${index + 1}`, cantidad: 1, importeUnitario: 100, subtotal: 100 }));
-    const bytes = await generateFiscalInvoicePdf(invoice({ concepto: 1, lineas, total: 1500, observacionArreglo: "OBSERVACION-FINAL" }));
+    const bytes = await generateFiscalInvoicePdf(invoice({ tipoComprobante, claseComprobante, concepto: 1, lineas, total: 1500, observacionArreglo: "OBSERVACION-FINAL" }));
     expect((await PDFDocument.load(bytes)).getPageCount()).toBe(2);
     const calls = drawText.mock.calls.map(([value, options], index) => ({ value, y: options!.y!, page: drawText.mock.contexts[index] }));
     const observation = calls.find(({ value }) => value === "OBSERVACION-FINAL")!;
     const total = calls.find(({ value }) => value === "Importe Total:")!;
-    expect(observation.y).toBe(160);
+    const subtotal = calls.find(({ value }) => value === (claseComprobante === "C" ? "Subtotal:" : "Importe Neto:"))!;
+    const authorization = calls.find(({ value }) => value.startsWith("CAE N°:"))!;
+    expect(subtotal.y).toBe(755);
+    expect(total.y).toBeGreaterThan(600);
+    expect(observation.y).toBeGreaterThan(160);
+    expect(observation.y).toBeLessThan(total.y - 15);
+    expect(observation.y - authorization.y).toBe(69);
+    expect(observation.page).toBe(authorization.page);
     expect(observation.page).toBe(total.page);
-    expect(total.y).toBeLessThan(300);
     expect(observation.page).not.toBe(calls.find(({ value }) => value === "Servicio 15")!.page);
     drawText.mockRestore();
   });

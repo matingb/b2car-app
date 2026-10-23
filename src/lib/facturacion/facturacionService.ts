@@ -1992,7 +1992,7 @@ export async function exportFacturasRows(tenantId: string, filters: FacturasList
 }
 
 // v6: observación al pie, sobre el QR; conserva PDFs previos verificados.
-const PDF_TEMPLATE_VERSION = "fiscal-v6";
+const PDF_TEMPLATE_VERSION = "fiscal-v7";
 const PDF_BUCKET = "facturacion-comprobantes";
 export function isVerifiedFiscalPdfCache(input: {
   storedPath: string | null;

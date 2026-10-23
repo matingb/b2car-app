@@ -75,7 +75,7 @@ describe("B2C-198: observación al generar el PDF", () => {
     expect(repairQueries[0].select).toHaveBeenCalledWith("observaciones");
     expect(repairQueries[0].eq).toHaveBeenCalledWith("id", "repair-1");
     expect(repairQueries[0].eq).toHaveBeenCalledWith("tenant_id", "tenant-1");
-    expect(upload).toHaveBeenCalledWith("tenant-1/homologacion/invoice-1/fiscal-v6.pdf", generatedBytes, expect.anything());
+    expect(upload).toHaveBeenCalledWith("tenant-1/homologacion/invoice-1/fiscal-v7.pdf", generatedBytes, expect.anything());
   });
 
   it.each([null, "", "  \n  "])("omite observación vacía (%s)", async (value) => {
