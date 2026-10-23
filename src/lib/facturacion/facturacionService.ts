@@ -1991,11 +1991,8 @@ export async function exportFacturasRows(tenantId: string, filters: FacturasList
   }));
 }
 
-// v8: líneas cargadas sin IVA muestran el neto; el IVA queda en los totales.
-// v9: referencia a la factura asociada en NC/ND, Transparencia Fiscal (RG 5614) en clase B,
-//     filas más bajas y pie en hoja nueva cuando no entra.
-// v10: unifica las plantillas v8 y v9, desarrolladas en ramas paralelas.
-const PDF_TEMPLATE_VERSION = "fiscal-v4";
+// v6: observación al pie, sobre el QR; conserva PDFs previos verificados.
+const PDF_TEMPLATE_VERSION = "fiscal-v7";
 const PDF_BUCKET = "facturacion-comprobantes";
 export function isVerifiedFiscalPdfCache(input: {
   storedPath: string | null;
@@ -2004,7 +2001,10 @@ export function isVerifiedFiscalPdfCache(input: {
   storedSha256: string;
   bytes: Uint8Array;
 }): boolean {
-  if (input.storedPath !== input.expectedPath || input.storedVersion !== PDF_TEMPLATE_VERSION || !/^[a-f0-9]{64}$/.test(input.storedSha256)) return false;
+  const directory = input.expectedPath.slice(0, input.expectedPath.lastIndexOf("/") + 1);
+  const filenameVersion = input.storedPath?.match(/\/([^/]+)\.pdf$/)?.[1];
+  if (input.storedPath !== `${directory}${filenameVersion}.pdf` || !/^fiscal-v\d+$/.test(filenameVersion ?? "")
+    || input.storedVersion !== filenameVersion || !/^[a-f0-9]{64}$/.test(input.storedSha256)) return false;
   return createHash("sha256").update(input.bytes).digest("hex") === input.storedSha256;
 }
 
@@ -2067,8 +2067,10 @@ export async function buildFacturaPdf(tenantId: string, facturaId: string): Prom
   const canonicalPath = `${tenantId}/${detail.ambiente.toLowerCase()}/${detail.id}/${PDF_TEMPLATE_VERSION}.pdf`;
   const storedPath = nullable(invoiceRecord.pdf_storage_path);
   const expectedHash = text(invoiceRecord.pdf_sha256);
-  if (storedPath === canonicalPath && text(invoiceRecord.pdf_template_version) === PDF_TEMPLATE_VERSION && /^[a-f0-9]{64}$/.test(expectedHash)) {
-    const downloaded = await supabase.storage.from(PDF_BUCKET).download(canonicalPath);
+  const storedVersion = text(invoiceRecord.pdf_template_version);
+  const storedCanonicalPath = `${tenantId}/${detail.ambiente.toLowerCase()}/${detail.id}/${storedVersion}.pdf`;
+  if (/^fiscal-v\d+$/.test(storedVersion) && storedPath === storedCanonicalPath && /^[a-f0-9]{64}$/.test(expectedHash)) {
+    const downloaded = await supabase.storage.from(PDF_BUCKET).download(storedPath);
     if (!downloaded.error && downloaded.data) {
       const cachedBytes = new Uint8Array(await downloaded.data.arrayBuffer());
       if (isVerifiedFiscalPdfCache({
@@ -2081,8 +2083,16 @@ export async function buildFacturaPdf(tenantId: string, facturaId: string): Prom
     resolvePdfEmitterSnapshot(tenantId, detail.ambiente, detail.emisorSnapshot, detail.tipoComprobante),
     resolvePdfReceiverSnapshot(tenantId, detail.receptorSnapshot),
   ]);
+  let observacionArreglo: string | null = null;
+  if (detail.origenTipo === "ARREGLO") {
+    const { data: arreglo, error: arregloError } = await supabase.from("arreglos")
+      .select("observaciones").eq("id", detail.origenId).eq("tenant_id", tenantId).maybeSingle();
+    if (arregloError || !arreglo) throw new FacturacionValidationError("No se pudo cargar la observación del arreglo");
+    observacionArreglo = nullable(record(arreglo).observaciones);
+  }
   const fiscal: FiscalPdfInvoice = {
     id: detail.id, emisorSnapshot,
+    observacionArreglo,
     receptorSnapshot,
     concepto: detail.concepto, fechaComprobante: detail.fechas.fechaComprobante,
     fechaServicioDesde: detail.fechas.fechaServicioDesde ?? null,
