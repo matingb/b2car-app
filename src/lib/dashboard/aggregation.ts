@@ -11,74 +11,67 @@ const MONTH_NAMES_SHORT_ES = [
     "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
 ];
 
+/** Punto agrupado: `key` es el primer día del bucket (YYYY-MM-DD), ordenable como texto. */
+export type Bucket<V> = V & { key: string; label: string };
+
 /**
- * Re-agrupa datos diarios (label="DD") segun la granularidad pedida.
+ * Agrupa una serie diaria ({ fecha: "YYYY-MM-DD" }) por día, semana calendario (lunes a domingo) o
+ * mes calendario, en orden cronológico. Las semanas y meses que el período corta solo suman los días
+ * incluidos; la etiqueta sigue siendo la de la semana o el mes completo.
  *
- * @param data Array de puntos diarios con { label: "DD", ...valores numericos }
- * @param granularity "day" | "week" | "month"
- * @param periodFrom ISO string del inicio del periodo (e.g. "2026-05-01T00:00:00.000Z")
- * @param merge Funcion que recibe (label, items) y devuelve un item sumado
+ * @param merge Recibe los días de un bucket y devuelve sus valores sumados.
  */
-export function applyGranularity<T extends { label: string }>(
+export function applyGranularity<T extends { fecha: string }, V extends object>(
     data: T[],
     granularity: Granularity,
-    periodFrom: string,
-    merge: (label: string, items: T[]) => T,
-): T[] {
-    if (!data.length) return data;
-    if (granularity === "day") return data;
-    if (granularity === "month") return groupByMonth(data, periodFrom, merge);
-    return groupByCalendarWeek(data, periodFrom, merge);
-}
-
-function getPeriodYearMonth(periodFrom: string): { year: number; month: number } {
-    const mid = new Date(new Date(periodFrom).getTime() + 15 * 86400000);
-    return { year: mid.getUTCFullYear(), month: mid.getUTCMonth() };
-}
-
-function groupByMonth<T extends { label: string }>(
-    data: T[],
-    periodFrom: string,
-    merge: (label: string, items: T[]) => T,
-): T[] {
-    const { year, month } = getPeriodYearMonth(periodFrom);
-    const label = `${MONTH_NAMES_SHORT_ES[month]} ${year}`;
-    return [merge(label, data)];
-}
-
-function groupByCalendarWeek<T extends { label: string }>(
-    data: T[],
-    periodFrom: string,
-    merge: (label: string, items: T[]) => T,
-): T[] {
-    const { year, month } = getPeriodYearMonth(periodFrom);
-
-    type Bucket = { weekStart: Date; label: string; items: T[] };
-    const buckets = new Map<string, Bucket>();
+    merge: (items: T[]) => V,
+): Array<Bucket<V>> {
+    const buckets = new Map<string, { label: string; items: T[] }>();
 
     for (const item of data) {
-        const day = parseInt(item.label, 10);
-        if (isNaN(day)) continue;
+        const date = parseFecha(item.fecha);
+        if (!date) continue;
 
-        const date = new Date(Date.UTC(year, month, day));
-        const dow = date.getUTCDay();
-        const toMonday = dow === 0 ? -6 : 1 - dow;
-        const monday = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + toMonday));
-
-        const key = monday.toISOString();
-
-        if (!buckets.has(key)) {
-            const sunday = new Date(Date.UTC(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate() + 6));
-            const label = `${pad(monday.getUTCDate())}/${pad(monday.getUTCMonth() + 1)} - ${pad(sunday.getUTCDate())}/${pad(sunday.getUTCMonth() + 1)}`;
-            buckets.set(key, { weekStart: monday, label, items: [] });
-        }
-
-        buckets.get(key)!.items.push(item);
+        const { key, label } = bucketOf(date, granularity);
+        const bucket = buckets.get(key);
+        if (bucket) bucket.items.push(item);
+        else buckets.set(key, { label, items: [item] });
     }
 
-    return Array.from(buckets.values())
-        .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime())
-        .map((b) => merge(b.label, b.items));
+    return Array.from(buckets.entries())
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([key, { label, items }]) => ({ ...merge(items), key, label }));
+}
+
+function parseFecha(fecha: string): Date | null {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fecha);
+    if (!match) return null;
+    return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+}
+
+function bucketOf(date: Date, granularity: Granularity): { key: string; label: string } {
+    if (granularity === "month") {
+        const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+        return {
+            key: isoDate(start),
+            label: `${MONTH_NAMES_SHORT_ES[start.getUTCMonth()]} ${start.getUTCFullYear()}`,
+        };
+    }
+    if (granularity === "week") {
+        const toMonday = (date.getUTCDay() + 6) % 7;
+        const monday = new Date(date.getTime() - toMonday * 86_400_000);
+        const sunday = new Date(monday.getTime() + 6 * 86_400_000);
+        return { key: isoDate(monday), label: `${dayMonth(monday)} - ${dayMonth(sunday)}` };
+    }
+    return { key: isoDate(date), label: dayMonth(date) };
+}
+
+function isoDate(date: Date): string {
+    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+}
+
+function dayMonth(date: Date): string {
+    return `${pad(date.getUTCDate())}/${pad(date.getUTCMonth() + 1)}`;
 }
 
 function pad(n: number): string {

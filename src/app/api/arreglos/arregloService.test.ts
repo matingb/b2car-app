@@ -15,9 +15,8 @@ function makeRepo(overrides: Partial<ArregloRepository> = {}): ArregloRepository
     listOperacionIdsByArregloId: vi.fn().mockResolvedValue({ data: [], error: null }),
     deleteOperacionesConStockLista: vi.fn().mockResolvedValue({ error: null }),
     deleteById: vi.fn().mockResolvedValue({ error: null }),
-    arreglosResumen: vi
-      .fn()
-      .mockResolvedValue({
+    dashboardPeriodo: vi.fn().mockResolvedValue({
+      resumen: {
         total: 0,
         cobrados: 0,
         parciales: 0,
@@ -27,38 +26,55 @@ function makeRepo(overrides: Partial<ArregloRepository> = {}): ArregloRepository
         montoCobradoParcial: 0,
         montoPendienteParcial: 0,
         montoPendiente: 0,
-      }),
+      },
+      series: { arreglos: [], ingresos: [], gastos: [] },
+    }),
     facturacionPorTipo: vi.fn().mockResolvedValue([]),
     facturacionPorEmpleado: vi.fn().mockResolvedValue([]),
     costoPorTipo: vi.fn().mockResolvedValue([]),
     costoPorEmpleado: vi.fn().mockResolvedValue([]),
     listRecentActivities: vi.fn().mockResolvedValue([]),
-    arreglosPorPeriodo: vi.fn().mockResolvedValue([]),
-    ingresosPorPeriodo: vi.fn().mockResolvedValue([]),
-    gastosPorPeriodo: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
 }
 
 describe("arregloService", () => {
-  describe("arreglosResumen", () => {
-    it("preserva las cantidades e importes de los cobros parciales", async () => {
-      const resumen = {
-        total: 5,
-        cobrados: 2,
-        parciales: 1,
-        pendientes: 2,
-        montoIngresos: 25000,
-        montoCobradoTotal: 12000,
-        montoCobradoParcial: 3000,
-        montoPendienteParcial: 2000,
-        montoPendiente: 8000,
+  describe("dashboardPeriodo", () => {
+    it("preserva el resumen de cobros parciales y las series diarias del repositorio", async () => {
+      const periodo = {
+        resumen: {
+          total: 5,
+          cobrados: 2,
+          parciales: 1,
+          pendientes: 2,
+          montoIngresos: 25000,
+          montoCobradoTotal: 12000,
+          montoCobradoParcial: 3000,
+          montoPendienteParcial: 2000,
+          montoPendiente: 8000,
+        },
+        series: {
+          arreglos: [{ fecha: "2026-08-01", cantidad: 5 }],
+          ingresos: [{ fecha: "2026-08-01", mano_de_obra: 15000, repuestos: 10000, ventas: 0 }],
+          gastos: [{ fecha: "2026-08-01", repuestos: 0, sueldos: 9000, eventuales: 0 }],
+        },
       };
-      const repo = makeRepo({ arreglosResumen: vi.fn().mockResolvedValue(resumen) });
+      const dashboardPeriodo = vi.fn().mockResolvedValue(periodo);
+      const repo = makeRepo({ dashboardPeriodo });
 
-      const result = await createArregloService(repo).arreglosResumen(mockSupabase);
+      const result = await createArregloService(repo).dashboardPeriodo(
+        mockSupabase,
+        "2026-08-01T03:00:00.000Z",
+        "2026-09-01T03:00:00.000Z"
+      );
 
-      expect(result).toEqual(resumen);
+      expect(dashboardPeriodo).toHaveBeenCalledWith(
+        mockSupabase,
+        "2026-08-01T03:00:00.000Z",
+        "2026-09-01T03:00:00.000Z",
+        undefined
+      );
+      expect(result).toEqual(periodo);
     });
   });
 

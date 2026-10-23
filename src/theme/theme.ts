@@ -101,6 +101,10 @@ const GRAPHICS_DANGER_OCTONARY = mixHexColors(RED_DANGER, GRAPHICS_GRAY_TARGET, 
 const GRAPHICS_DANGER_NONARY = mixHexColors(RED_DANGER, GRAPHICS_GRAY_TARGET, 8 / 9);
 const GRAPHICS_DANGER_DENARY = GRAPHICS_GRAY_TARGET;
 
+// Un color por período comparado en el dashboard (hasta 4 a la vez). Validados como paleta
+// categórica sobre fondo claro: contraste >= 3:1 y distinguibles entre sí con daltonismo.
+const GRAPHICS_PERIODOS = ["#007f9e", "#eb6834", "#6250d6", "#8a5a00"] as const;
+
 export const COLOR = {
     BACKGROUND: {
         PRIMARY: BACKGROUND_PRIMARY,
@@ -169,6 +173,7 @@ export const COLOR = {
         NONARY: GRAPHICS_DANGER_NONARY,
         DENARY: GRAPHICS_DANGER_DENARY,
     },
+    GRAPHICS_PERIODOS,
     SEMANTIC: {
         DANGER: RED_DANGER,
         WARNING : "#FF8C00",

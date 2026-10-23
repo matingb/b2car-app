@@ -3,24 +3,39 @@
 import React from "react";
 import { css } from "@emotion/react";
 import GraficoIngresos from "@/app/components/graficos/GraficoIngresos";
+import GraficoComparacion from "@/app/components/graficos/GraficoComparacion";
 import DesglosePieChart from "@/app/components/graficos/DesglosePieChart";
 import DashboardSectionCard from "@/app/components/dashboard/DashboardSectionCard";
+import PeriodComparison from "@/app/components/dashboard/comparacion/PeriodComparison";
 import { BREAKPOINTS, TYPOGRAPHY } from "@/theme/theme";
 import type { DashboardStats } from "@/app/providers/DashboardProvider";
+import type { CardChartPeriods, DashboardComparison } from "@/app/hooks/dashboard/useDashboardControls";
 import type { Granularity } from "@/lib/dashboard/aggregation";
+import { CARD_CHART, COMPARISON_COLUMNS } from "@/lib/dashboard/cards";
 
 type Props = {
-    ingresosData: Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>;
+    periods: CardChartPeriods["facturacion"];
     granularity: Granularity;
     stats: DashboardStats | null;
+    comparison: DashboardComparison;
     headerAction?: React.ReactNode;
 };
 
-export default function PanelFacturacion({ ingresosData, granularity, stats, headerAction }: Props) {
+export default function PanelFacturacion({ periods, granularity, stats, comparison, headerAction }: Props) {
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <DashboardSectionCard title="Facturación" headerAction={headerAction}>
-                <GraficoIngresos id="facturacion-principal" data={ingresosData} granularity={granularity} />
+                {periods.length > 1 ? (
+                    <GraficoComparacion
+                        id="facturacion-comparacion"
+                        periods={periods}
+                        granularity={granularity}
+                        chart={CARD_CHART.facturacion}
+                    />
+                ) : (
+                    <GraficoIngresos id="facturacion-principal" data={periods[0]?.buckets ?? []} granularity={granularity} />
+                )}
+                <PeriodComparison comparison={comparison} columns={COMPARISON_COLUMNS.facturacion} />
             </DashboardSectionCard>
 
             <DashboardSectionCard>

@@ -3,9 +3,13 @@ import { arregloService } from "@/app/api/arreglos/arregloService";
 import { clienteService } from "@/app/api/clientes/clienteService";
 import { vehiculoService } from "@/app/api/vehiculos/vehiculoService";
 import { decodeJwtPayload } from "@/lib/jwt";
+import { computePeriodoTotals } from "@/lib/dashboard/totals";
+import type { DashboardPeriodo, DashboardStats } from "@/lib/dashboard/types";
 import { revalidateTag, unstable_cache } from "next/cache";
 
 const DASHBOARD_STATS_TAG_PREFIX = "dashboard-stats";
+// Cambiarla cuando cambia la forma de la respuesta: evita servir entradas cacheadas por la versión anterior.
+const DASHBOARD_STATS_CACHE_VERSION = "v2";
 
 function dashboardStatsTag(tenantId: string) {
   const normalized = String(tenantId).trim();
@@ -37,49 +41,7 @@ async function getSessionTenantId(supabase: SupabaseClient): Promise<string | nu
   return typeof tenantId === "string" && tenantId.trim() ? tenantId : null;
 }
 
-export type DashboardStats = {
-  totals?: {
-    clientes?: number;
-    vehiculos?: number;
-    arreglos?: number;
-    montoIngresos?: number;
-    arreglosEsteMes?: number;
-    gastos?: number;
-    balance?: number;
-  };
-  recentActivities?: Array<{
-    id: string;
-    titulo: string;
-    vehiculo: string;
-    fechaUltimaActualizacion: string;
-    monto: number;
-  }>;
-  arreglos?: {
-    total?: number;
-    cobrados?: number;
-    parciales?: number;
-    pendientes?: number;
-    montoCobradoTotal?: number;
-    montoCobradoParcial?: number;
-    montoPendienteParcial?: number;
-    montoPendiente?: number;
-  };
-  clientes?: {
-    nuevosEsteMes?: {
-      dias: string[];
-      valor: number[];
-    };
-  };
-  arreglosPorPeriodo?: Array<{ label: string; cantidad: number }>;
-  ingresosPorPeriodo?: Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>;
-  gastosPorPeriodo?: Array<{ label: string; repuestos: number; sueldos: number; eventuales: number }>;
-  facturacionPorTipo?: Array<{ label: string; cantidad: number; monto: number }>;
-  facturacionPorEmpleado?: Array<{ label: string; cantidad: number; monto: number }>;
-  costoPorTipo?: Array<{ label: string; cantidad: number; monto: number }>;
-  costoPorEmpleado?: Array<{ label: string; cantidad: number; monto: number }>;
-  lastUpdatedAt?: string;
-  [key: string]: unknown;
-};
+export type { DashboardStats, DashboardPeriodo } from "@/lib/dashboard/types";
 
 function startOfUtcMonth(d: Date) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0));
@@ -102,12 +64,9 @@ async function getStats(
   const [
     clientesTotal,
     vehiculosTotal,
-    resumen,
+    periodo,
     recentActivities,
     nuevosEsteMes,
-    arreglosPorPeriodo,
-    ingresosPorPeriodo,
-    gastosPorPeriodo,
     facturacionPorTipo,
     facturacionPorEmpleado,
     costoPorTipo,
@@ -115,31 +74,27 @@ async function getStats(
   ] = await Promise.all([
     clienteService.countAll(supabase),
     vehiculoService.countAll(supabase),
-    arregloService.arreglosResumen(supabase, from, to),
+    arregloService.dashboardPeriodo(supabase, from, to),
     arregloService.listRecentActivities(supabase, recentLimit, from, to),
     clienteService.nuevosPorDia(supabase, from, to),
-    arregloService.arreglosPorPeriodo(supabase, from, to),
-    arregloService.ingresosPorPeriodo(supabase, from, to),
-    arregloService.gastosPorPeriodo(supabase, from, to),
     arregloService.facturacionPorTipo(supabase, from, to),
     arregloService.facturacionPorEmpleado(supabase, from, to),
     arregloService.costoPorTipo(supabase, from, to),
     arregloService.costoPorEmpleado(supabase, from, to),
   ]);
 
-  const arreglosEsteMes = arreglosPorPeriodo.reduce((sum, d) => sum + d.cantidad, 0);
-  const gastos = gastosPorPeriodo.reduce((sum, d) => sum + d.repuestos + d.sueldos + d.eventuales, 0);
-  const balance = resumen.montoIngresos - gastos;
+  const { resumen } = periodo;
+  const totals = computePeriodoTotals(periodo);
 
   return {
     totals: {
       clientes: clientesTotal,
       vehiculos: vehiculosTotal,
       arreglos: resumen.total,
-      montoIngresos: resumen.montoIngresos,
-      arreglosEsteMes,
-      gastos,
-      balance,
+      montoIngresos: totals.facturacion,
+      arreglosEsteMes: totals.arreglos,
+      gastos: totals.gastos,
+      balance: totals.balance,
     },
     recentActivities,
     arreglos: {
@@ -155,9 +110,7 @@ async function getStats(
     clientes: {
       nuevosEsteMes,
     },
-    arreglosPorPeriodo,
-    ingresosPorPeriodo,
-    gastosPorPeriodo,
+    periodo,
     facturacionPorTipo,
     facturacionPorEmpleado,
     costoPorTipo,
@@ -180,10 +133,30 @@ export const statsService = {
       async () => getStats(supabase, periodFrom, periodTo),
       [
         DASHBOARD_STATS_TAG_PREFIX,
+        DASHBOARD_STATS_CACHE_VERSION,
         periodFrom ?? "current",
         periodTo ?? "current",
         resolvedTenantId,
       ],
+      { revalidate: 3600, tags: [dashboardStatsTag(resolvedTenantId)] }
+    );
+
+    return await getCached();
+  },
+
+  /** Resumen y series diarias de un período a comparar; comparte la invalidación por tenant. */
+  async getPeriodo(
+    supabase: SupabaseClient,
+    periodFrom: string,
+    periodTo: string,
+    tenantId?: string
+  ): Promise<DashboardPeriodo> {
+    const resolvedTenantId = tenantId ?? (await getSessionTenantId(supabase));
+    if (!resolvedTenantId) throw new Error("JWT sin tenant_id");
+
+    const getCached = unstable_cache(
+      async () => arregloService.dashboardPeriodo(supabase, periodFrom, periodTo),
+      [DASHBOARD_STATS_TAG_PREFIX, DASHBOARD_STATS_CACHE_VERSION, "periodo", periodFrom, periodTo, resolvedTenantId],
       { revalidate: 3600, tags: [dashboardStatsTag(resolvedTenantId)] }
     );
 

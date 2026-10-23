@@ -2,45 +2,7 @@
 
 import React from "react";
 import Dropdown from "../ui/Dropdown";
-import { localCalendarDateStartISO, toISODateLocal } from "@/lib/fechas";
-
-export type PeriodOption = {
-    label: string;
-    from: string;
-    to: string;
-};
-
-const MONTH_NAMES_ES = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-];
-
-export function buildPeriodOptions(
-    count = 12,
-    now: Date = new Date(),
-    timezone: "local" | "UTC" = "local",
-): PeriodOption[] {
-    const options: PeriodOption[] = [];
-    for (let i = 0; i < count; i++) {
-        const d = timezone === "UTC"
-            ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1))
-            : new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const nextMonth = timezone === "UTC"
-            ? new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1))
-            : new Date(d.getFullYear(), d.getMonth() + 1, 1);
-        const from = timezone === "UTC"
-            ? d.toISOString()
-            : localCalendarDateStartISO(toISODateLocal(d)) ?? d.toISOString();
-        const to = timezone === "UTC"
-            ? nextMonth.toISOString()
-            : localCalendarDateStartISO(toISODateLocal(nextMonth)) ?? nextMonth.toISOString();
-        const year = timezone === "UTC" ? d.getUTCFullYear() : d.getFullYear();
-        const month = timezone === "UTC" ? d.getUTCMonth() : d.getMonth();
-        const label = `${MONTH_NAMES_ES[month]} ${year}`;
-        options.push({ label, from, to });
-    }
-    return options;
-}
+import { buildPeriodOptions, type PeriodOption } from "@/lib/dashboard/periods";
 
 type Props = {
     value: PeriodOption;

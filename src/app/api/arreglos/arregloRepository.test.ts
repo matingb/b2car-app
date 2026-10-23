@@ -193,12 +193,12 @@ describe("supabaseArregloRepository", () => {
     });
   });
 
-  describe("arreglosResumen", () => {
-    it("mapea los importes de cada estado de cobro que devuelve la RPC", async () => {
+  describe("dashboardPeriodo", () => {
+    it("mapea el resumen de cobro y las series diarias que devuelve la RPC", async () => {
       const supabase = makeSupabase({});
       vi.mocked(supabase.rpc).mockResolvedValue({
-        data: [
-          {
+        data: {
+          resumen: {
             total: 5,
             cobrados: 2,
             parciales: 1,
@@ -209,31 +209,54 @@ describe("supabaseArregloRepository", () => {
             monto_pendiente_parcial: 2000,
             monto_pendiente: 8000,
           },
-        ],
+          arreglos: [{ fecha: "2026-08-31", cantidad: 2 }, { fecha: "2026-09-01", cantidad: 3 }],
+          ingresos: [{ fecha: "2026-08-31", mano_de_obra: "1500.50", repuestos: 800, ventas: 0 }],
+          gastos: [{ fecha: "2026-09-01", repuestos: 300, sueldos: 9000, eventuales: 120 }],
+        },
+        error: null,
       } as unknown as import("@supabase/supabase-js").PostgrestSingleResponse<unknown>);
 
-      const result = await supabaseArregloRepository.arreglosResumen(
+      const result = await supabaseArregloRepository.dashboardPeriodo(
         supabase,
-        "2026-08-01T00:00:00.000Z",
-        "2026-09-01T00:00:00.000Z"
+        "2026-08-15T03:00:00.000Z",
+        "2026-09-15T03:00:00.000Z"
       );
 
-      expect(supabase.rpc).toHaveBeenCalledWith("dashboard_arreglos_resumen", {
-        p_from: "2026-08-01T00:00:00.000Z",
-        p_to: "2026-09-01T00:00:00.000Z",
+      expect(supabase.rpc).toHaveBeenCalledWith("dashboard_periodo", {
+        p_from: "2026-08-15T03:00:00.000Z",
+        p_to: "2026-09-15T03:00:00.000Z",
         p_taller_id: null,
       });
       expect(result).toEqual({
-        total: 5,
-        cobrados: 2,
-        parciales: 1,
-        pendientes: 2,
-        montoIngresos: 25000,
-        montoCobradoTotal: 12000,
-        montoCobradoParcial: 3000,
-        montoPendienteParcial: 2000,
-        montoPendiente: 8000,
+        resumen: {
+          total: 5,
+          cobrados: 2,
+          parciales: 1,
+          pendientes: 2,
+          montoIngresos: 25000,
+          montoCobradoTotal: 12000,
+          montoCobradoParcial: 3000,
+          montoPendienteParcial: 2000,
+          montoPendiente: 8000,
+        },
+        series: {
+          arreglos: [{ fecha: "2026-08-31", cantidad: 2 }, { fecha: "2026-09-01", cantidad: 3 }],
+          ingresos: [{ fecha: "2026-08-31", mano_de_obra: 1500.5, repuestos: 800, ventas: 0 }],
+          gastos: [{ fecha: "2026-09-01", repuestos: 300, sueldos: 9000, eventuales: 120 }],
+        },
       });
+    });
+
+    it("propaga el error de la RPC", async () => {
+      const supabase = makeSupabase({});
+      vi.mocked(supabase.rpc).mockResolvedValue({
+        data: null,
+        error: { message: "Rango de fechas inválido" },
+      } as unknown as import("@supabase/supabase-js").PostgrestSingleResponse<unknown>);
+
+      await expect(
+        supabaseArregloRepository.dashboardPeriodo(supabase, "2026-09-01T03:00:00.000Z", "2026-08-01T03:00:00.000Z")
+      ).rejects.toThrow("Rango de fechas inválido");
     });
   });
 

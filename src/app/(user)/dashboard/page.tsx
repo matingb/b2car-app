@@ -21,9 +21,8 @@ export default function DashboardPage() {
         stats, loading, error,
         period, handlePeriodChange,
         granularity, setGranularity,
-        arreglosData, ingresosData, gastosData,
-        ingresosBalanceData, gastosBalanceData,
         balanceValue, balanceColor,
+        comparison, chartPeriods,
     } = useDashboardControls();
 
     const [activeCard, setActiveCard] = useState<ActiveCard>("facturacion");
@@ -96,30 +95,33 @@ export default function DashboardPage() {
                             <div style={{ color: COLOR.ICON.DANGER, fontSize: 13 }}>{error}</div>
                         ) : card === "arreglos" ? (
                             <PanelArreglos
-                                arreglosData={arreglosData}
+                                periods={chartPeriods.arreglos}
                                 granularity={granularity.arreglos}
                                 stats={stats}
+                                comparison={comparison}
                                 headerAction={makeGranularitySelector(card)}
                             />
                         ) : card === "facturacion" ? (
                             <PanelFacturacion
-                                ingresosData={ingresosData}
+                                periods={chartPeriods.facturacion}
                                 granularity={granularity.facturacion}
                                 stats={stats}
+                                comparison={comparison}
                                 headerAction={makeGranularitySelector(card)}
                             />
                         ) : card === "gastos" ? (
                             <PanelGastos
-                                gastosData={gastosData}
+                                periods={chartPeriods.gastos}
                                 granularity={granularity.gastos}
                                 stats={stats}
+                                comparison={comparison}
                                 headerAction={makeGranularitySelector(card)}
                             />
                         ) : (
                             <PanelBalance
-                                ingresosBalanceData={ingresosBalanceData}
-                                gastosBalanceData={gastosBalanceData}
+                                periods={chartPeriods.balance}
                                 granularity={granularity.balance}
+                                comparison={comparison}
                                 headerAction={makeGranularitySelector(card)}
                             />
                         )}

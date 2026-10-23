@@ -16,7 +16,7 @@ import {
 
 export const SEED_SUCURSAL_OESTE_ID = "50000000-0000-0000-0000-000000000002";
 
-/** Período de 6 meses por defecto (abril a septiembre 2026) que produce buckets mensuales 'MM/YY' */
+/** Período de 6 meses por defecto (abril a septiembre 2026); los sueldos se agrupan por mes 'MM/YY' */
 export const PERIODO_TEST_GASTOS = {
   from: "2026-04-01T00:00:00Z",
   to: "2026-10-01T00:00:00Z",
@@ -128,28 +128,20 @@ export async function expectHistorialSalarial(
 // ─── Taller Expenses Helpers ────────────────────────────────────────────────
 
 /**
- * Consulta los gastos por período del taller y retorna los sueldos indexados por etiqueta (ej. { "05/26": 785000 }).
+ * Consulta los gastos diarios del taller (los del dashboard) y retorna los sueldos sumados por mes
+ * (ej. { "05/26": 785000 }).
  */
 export async function obtenerSueldosTaller(
   tallerId: string = SEED.tallerId,
   fromISO: string = PERIODO_TEST_GASTOS.from,
   toISO: string = PERIODO_TEST_GASTOS.to
 ): Promise<Record<string, number>> {
-  const data = await arregloService.gastosPorPeriodo(testClient, fromISO, toISO, tallerId);
+  const { series } = await arregloService.dashboardPeriodo(testClient, fromISO, toISO, tallerId);
   const map: Record<string, number> = {};
-  for (const row of data) {
-    map[row.label] = row.sueldos;
+  for (const row of series.gastos) {
+    const [anio, mes] = row.fecha.split("-");
+    const label = `${mes}/${anio.slice(-2)}`;
+    map[label] = (map[label] ?? 0) + row.sueldos;
   }
   return map;
-}
-
-/**
- * Consulta la lista completa de gastos por período para el taller.
- */
-export async function obtenerGastosTaller(
-  tallerId: string = SEED.tallerId,
-  fromISO: string = PERIODO_TEST_GASTOS.from,
-  toISO: string = PERIODO_TEST_GASTOS.to
-) {
-  return arregloService.gastosPorPeriodo(testClient, fromISO, toISO, tallerId);
 }

@@ -4,11 +4,11 @@ import type { CreateArregloInsertPayload, UpdateArregloRequest } from "./arreglo
 import { ServiceError, ServiceResult } from "@/app/api/serviceError";
 import {
   type ArregloListFilters,
-  type ArreglosResumen,
   type ArregloRepository,
   type DesgloseLinea,
   supabaseArregloRepository,
 } from "./arregloRepository";
+import type { DashboardPeriodo } from "@/lib/dashboard/types";
 
 export type RecentActivity = {
   id: string;
@@ -64,13 +64,13 @@ export function createArregloService(repository: ArregloRepository) {
       return { error: null };
     },
 
-    async arreglosResumen(
+    async dashboardPeriodo(
       supabase: SupabaseClient,
-      fromISO?: string,
-      toISO?: string,
+      fromISO: string,
+      toISO: string,
       tallerId?: string
-    ): Promise<ArreglosResumen> {
-      return repository.arreglosResumen(supabase, fromISO, toISO, tallerId);
+    ): Promise<DashboardPeriodo> {
+      return repository.dashboardPeriodo(supabase, fromISO, toISO, tallerId);
     },
 
     async facturacionPorTipo(
@@ -126,33 +126,6 @@ export function createArregloService(repository: ArregloRepository) {
           monto: Number(r.precio_final ?? 0) || 0,
         }))
         .filter((a) => a.id);
-    },
-
-    async arreglosPorPeriodo(
-      supabase: SupabaseClient,
-      fromISO: string,
-      toISO: string,
-      tallerId?: string
-    ): Promise<Array<{ label: string; cantidad: number }>> {
-      return repository.arreglosPorPeriodo(supabase, fromISO, toISO, tallerId);
-    },
-
-    async ingresosPorPeriodo(
-      supabase: SupabaseClient,
-      fromISO: string,
-      toISO: string,
-      tallerId?: string
-    ): Promise<Array<{ label: string; mano_de_obra: number; repuestos: number; ventas: number }>> {
-      return repository.ingresosPorPeriodo(supabase, fromISO, toISO, tallerId);
-    },
-
-    async gastosPorPeriodo(
-      supabase: SupabaseClient,
-      fromISO: string,
-      toISO: string,
-      tallerId?: string
-    ): Promise<Array<{ label: string; repuestos: number; sueldos: number; eventuales: number }>> {
-      return repository.gastosPorPeriodo(supabase, fromISO, toISO, tallerId);
     },
   };
 }

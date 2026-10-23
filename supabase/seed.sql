@@ -34,12 +34,12 @@ RESTART IDENTITY CASCADE;
 
 -- Tenants (solo uno)
 INSERT INTO public.tenants (id, nombre, plan_sub, estado, fecha_creacion, updated_at) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'B2Car', 'PRO', 'activo', now() - interval '180 days', now() - interval '1 day');
+  ('11111111-1111-1111-1111-111111111111', 'B2Car', 'PRO', 'activo', now() - interval '19 months', now() - interval '1 day');
 
 -- Cuentas Financieras (2 cuentas bancarias)
 INSERT INTO public.cuentas_financieras (id, tenant_id, nombre, tipo, saldo, activo, created_at, updated_at) VALUES
-  ('c0000000-0000-4000-8000-000000000001','11111111-1111-1111-1111-111111111111','Banco Galicia',  'CUENTA_BANCARIA',0,true,now() - interval '180 days',now() - interval '180 days'),
-  ('c0000000-0000-4000-8000-000000000002','11111111-1111-1111-1111-111111111111','Banco Santander','CUENTA_BANCARIA',0,true,now() - interval '180 days',now() - interval '180 days');
+  ('c0000000-0000-4000-8000-000000000001','11111111-1111-1111-1111-111111111111','Banco Galicia',  'CUENTA_BANCARIA',0,true,now() - interval '19 months',now() - interval '19 months'),
+  ('c0000000-0000-4000-8000-000000000002','11111111-1111-1111-1111-111111111111','Banco Santander','CUENTA_BANCARIA',0,true,now() - interval '19 months',now() - interval '19 months');
 
 -- Categorías de Arreglo por defecto
 INSERT INTO public.categorias_arreglo (id, tenant_id, nombre) VALUES
@@ -176,9 +176,9 @@ INSERT INTO public.vehiculos (id, cliente_id, patente, marca, modelo, created_at
 
 -- Talleres (3) con tarifa horaria por taller
 INSERT INTO public.talleres (id, tenant_id, nombre, ubicacion, valor_hora, created_at, updated_at) VALUES
-  ('50000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Sede Central',   'Av. Colon 120', 45000, now() - interval '180 days',now() - interval '1 day'),
-  ('50000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','Sucursal Oeste', 'Mitre 450',     50000, now() - interval '160 days',now() - interval '2 days'),
-  ('50000000-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','Sucursal Sur',   'San Juan 99',   48000, now() - interval '150 days',now() - interval '3 days');
+  ('50000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Sede Central',   'Av. Colon 120', 45000, now() - interval '19 months',now() - interval '1 day'),
+  ('50000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','Sucursal Oeste', 'Mitre 450',     50000, now() - interval '19 months',now() - interval '2 days'),
+  ('50000000-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','Sucursal Sur',   'San Juan 99',   48000, now() - interval '19 months',now() - interval '3 days');
 
 -- Empleados (4): cada taller tiene al menos un empleado; salarios y tarifas en pesos argentinos
 INSERT INTO public.empleados (id, tenant_id, taller_id, nombre, apellido, dni, salario, valor_hora, fecha_ingreso) VALUES
@@ -220,7 +220,8 @@ INSERT INTO public.stocks (id, tenant_id, taller_id, producto_id, cantidad, stoc
   ('70000000-0000-0000-0000-000000000010','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000003','60000000-0000-0000-0000-000000000010',120, 4,160,now() - interval '115 days',now() - interval '5 days');
 
 -- ===========================================================================
--- ARREGLOS: 6 meses de historia (mes -5 a mes actual)
+-- ARREGLOS: 6 meses de historia (mes -5 a mes actual). Los meses -17 a -6 y
+-- +1 a +6 se generan más abajo, en "HISTORIA EXTENDIDA PARA EL DASHBOARD".
 -- Usamos date_trunc('month', now() - N * interval '1 month') + D días
 -- Para el mes actual: hasta hoy (18 días del mes)
 -- ===========================================================================
@@ -407,64 +408,12 @@ INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha) VALUES
 
 -- APERTURA_CUENTA operaciones - Saldo inicial para cuentas bancarias
 INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha) VALUES
-  ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','MOVIMIENTO_CUENTA',NULL,now() - interval '180 days'),
-  ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','MOVIMIENTO_CUENTA',NULL,now() - interval '180 days');
+  ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','MOVIMIENTO_CUENTA',NULL,now() - interval '19 months'),
+  ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','MOVIMIENTO_CUENTA',NULL,now() - interval '19 months');
 
 INSERT INTO public.operaciones_movimiento_cuenta (operacion_id, tenant_id, subtipo, cuenta_id, importe, created_by, created_at) VALUES
-  ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','APERTURA_CUENTA','c0000000-0000-4000-8000-000000000001',2500000,'7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '180 days'),
-  ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','APERTURA_CUENTA','c0000000-0000-4000-8000-000000000002',1800000,'7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '180 days');
-
--- Pagos de arreglos: la migración de pagos parciales recalcula esta_pago desde
--- total_cobrado. El seed deja un caso parcial, dos pendientes y el resto cobrado.
-UPDATE public.arreglos
-SET total_cobrado = CASE id
-  WHEN '80000000-0000-0000-0000-000000000007' THEN 50000
-  WHEN '80000000-0000-0000-0000-000000000009' THEN 0
-  WHEN '80000000-0000-0000-0000-000000000010' THEN 0
-  ELSE precio_final
-END
-WHERE tenant_id = '11111111-1111-1111-1111-111111111111';
-
--- Cada cobro tiene una operación, su movimiento de cuenta y el vínculo al
--- arreglo. Los IDs se derivan del arreglo y son UUID v4 válidos y estables.
-INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha)
-SELECT
-  ('f0000000-0000-4000-8000-' || right(a.id::text, 12))::uuid,
-  a.tenant_id,
-  'MOVIMIENTO_CUENTA',
-  NULL,
-  a.fecha + interval '1 day'
-FROM public.arreglos AS a
-WHERE a.tenant_id = '11111111-1111-1111-1111-111111111111'
-  AND a.total_cobrado > 0;
-
-INSERT INTO public.operaciones_movimiento_cuenta (
-  operacion_id, tenant_id, subtipo, cuenta_id, importe, descripcion, created_by, created_at
-)
-SELECT
-  ('f0000000-0000-4000-8000-' || right(a.id::text, 12))::uuid,
-  a.tenant_id,
-  'INGRESO',
-  CASE WHEN right(a.id::text, 1)::integer % 2 = 0
-    THEN 'c0000000-0000-4000-8000-000000000001'::uuid
-    ELSE 'c0000000-0000-4000-8000-000000000002'::uuid
-  END,
-  a.total_cobrado,
-  'Cobro de arreglo: ' || a.descripcion,
-  '7ff568f8-4d46-463b-969c-9e68157fa769'::uuid,
-  a.fecha + interval '1 day'
-FROM public.arreglos AS a
-WHERE a.tenant_id = '11111111-1111-1111-1111-111111111111'
-  AND a.total_cobrado > 0;
-
-INSERT INTO public.operaciones_cobro_arreglo (operacion_id, arreglo_id, tenant_id)
-SELECT
-  ('f0000000-0000-4000-8000-' || right(a.id::text, 12))::uuid,
-  a.id,
-  a.tenant_id
-FROM public.arreglos AS a
-WHERE a.tenant_id = '11111111-1111-1111-1111-111111111111'
-  AND a.total_cobrado > 0;
+  ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','APERTURA_CUENTA','c0000000-0000-4000-8000-000000000001',2500000,'7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '19 months'),
+  ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','APERTURA_CUENTA','c0000000-0000-4000-8000-000000000002',1800000,'7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '19 months');
 
 -- ===========================================================================
 -- OPERACIONES_LINEAS
@@ -568,6 +517,60 @@ INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, arreglo_id) VAL
   ('90000000-0000-0000-0000-000000000022','80000000-0000-0000-0000-000000000037'),
   ('90000000-0000-0000-0000-000000000023','80000000-0000-0000-0000-000000000038');
 
+-- Pagos de arreglos: la migración de pagos parciales recalcula esta_pago desde
+-- total_cobrado. El seed deja un caso parcial, dos pendientes y el resto cobrado.
+-- Va después de vincular los repuestos: recién ahí precio_final incluye las
+-- líneas, y si no los arreglos con repuestos quedarían cobrados parcialmente.
+UPDATE public.arreglos
+SET total_cobrado = CASE id
+  WHEN '80000000-0000-0000-0000-000000000007' THEN 50000
+  WHEN '80000000-0000-0000-0000-000000000009' THEN 0
+  WHEN '80000000-0000-0000-0000-000000000010' THEN 0
+  ELSE precio_final
+END
+WHERE tenant_id = '11111111-1111-1111-1111-111111111111';
+
+-- Cada cobro tiene una operación, su movimiento de cuenta y el vínculo al
+-- arreglo. Los IDs se derivan del arreglo y son UUID v4 válidos y estables.
+INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha)
+SELECT
+  ('f0000000-0000-4000-8000-' || right(a.id::text, 12))::uuid,
+  a.tenant_id,
+  'MOVIMIENTO_CUENTA',
+  NULL,
+  a.fecha + interval '1 day'
+FROM public.arreglos AS a
+WHERE a.tenant_id = '11111111-1111-1111-1111-111111111111'
+  AND a.total_cobrado > 0;
+
+INSERT INTO public.operaciones_movimiento_cuenta (
+  operacion_id, tenant_id, subtipo, cuenta_id, importe, descripcion, created_by, created_at
+)
+SELECT
+  ('f0000000-0000-4000-8000-' || right(a.id::text, 12))::uuid,
+  a.tenant_id,
+  'INGRESO',
+  CASE WHEN right(a.id::text, 1)::integer % 2 = 0
+    THEN 'c0000000-0000-4000-8000-000000000001'::uuid
+    ELSE 'c0000000-0000-4000-8000-000000000002'::uuid
+  END,
+  a.total_cobrado,
+  'Cobro de arreglo: ' || a.descripcion,
+  '7ff568f8-4d46-463b-969c-9e68157fa769'::uuid,
+  a.fecha + interval '1 day'
+FROM public.arreglos AS a
+WHERE a.tenant_id = '11111111-1111-1111-1111-111111111111'
+  AND a.total_cobrado > 0;
+
+INSERT INTO public.operaciones_cobro_arreglo (operacion_id, arreglo_id, tenant_id)
+SELECT
+  ('f0000000-0000-4000-8000-' || right(a.id::text, 12))::uuid,
+  a.id,
+  a.tenant_id
+FROM public.arreglos AS a
+WHERE a.tenant_id = '11111111-1111-1111-1111-111111111111'
+  AND a.total_cobrado > 0;
+
 -- Turnos (10)
 INSERT INTO public.turnos (id, titulo, fecha, hora, duracion, vehiculo_id, cliente_id, tenant_id, taller_id, tipo, estado, descripcion, created_at, updated_at) VALUES
   ('a0000000-0000-0000-0000-000000000001','Service programado',current_date-3,'09:00',60,'40000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000001','Service',   'finalizado','Service programado',now()-interval '4 days',now()-interval '3 days'),
@@ -580,6 +583,333 @@ INSERT INTO public.turnos (id, titulo, fecha, hora, duracion, vehiculo_id, clien
   ('a0000000-0000-0000-0000-000000000008','Alineación',current_date+4,'10:00',30,'40000000-0000-0000-0000-000000000008','10000000-0000-0000-0000-000000000008','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000001','Alineación','pendiente', 'Alineación',         now()-interval '1 day', now()-interval '1 day'),
   ('a0000000-0000-0000-0000-000000000009','Service rápido',current_date+5,'15:00',60,'40000000-0000-0000-0000-000000000009','10000000-0000-0000-0000-000000000009','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000001','Service',   'pendiente', 'Service rápido',     now()-interval '1 day', now()-interval '1 day'),
   ('a0000000-0000-0000-0000-000000000010','Service programado',current_date+6,'09:00',45,'40000000-0000-0000-0000-000000000010','10000000-0000-0000-0000-000000000010','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000001','Service',   'pendiente', 'Service programado', now()-interval '1 day', now()-interval '1 day');
+
+-- ===========================================================================
+-- HISTORIA EXTENDIDA PARA EL DASHBOARD
+-- Agrega arreglos de los meses -17 a +6 respecto de la fecha del seed (en los
+-- meses -5 a 0 completa los de arriba), compras y ventas en los meses nuevos,
+-- gastos eventuales en todo el rango y aumentos de sueldo.
+-- Así se puede comparar contra el mismo mes del año anterior y el dashboard
+-- sigue teniendo datos durante los meses siguientes a crear la base.
+--
+-- Es determinístico (sin random()): cada reset genera exactamente lo mismo.
+-- Los tests de integración resetean con este seed, así que respeta:
+--   - Nada en 2020: los tests del dashboard esperan marzo 2020 vacío.
+--   - Sin cambios de sueldo ni empleados nuevos en Sucursal Oeste (tests de
+--     sueldos por taller).
+--   - Los inserts directos en operaciones_lineas no mueven stock: los stocks
+--     quedan igual.
+--   - detalle_arreglo.cantidad = 1 (lo asume el chequeo de precios del final).
+-- Las fechas caen a las 10:00 o más tarde en GMT-3 para no cambiar de día al
+-- pasar de UTC.
+-- ===========================================================================
+
+CREATE TEMP TABLE _seed_meses ON COMMIT DROP AS
+SELECT
+  m AS offset_mes,
+  date_trunc('month', now() + m * interval '1 month') AS inicio,
+  extract(month FROM now() + m * interval '1 month')::int AS mes_del_anio,
+  -- Ajuste de precios aproximado por inflación: -17 meses ≈ 0,66 y +6 ≈ 1,12
+  round(1 + 0.02 * m, 2) AS factor_precio
+FROM generate_series(-17, 6) AS m;
+
+-- Tipos de trabajo: mano de obra base y el repuesto que usa en cada taller
+-- (Central: stocks 001-003, Oeste: 004-007, Sur: 008-010).
+CREATE TEMP TABLE _seed_plantillas (
+  n                 int PRIMARY KEY,
+  categoria_id      uuid NOT NULL,
+  descripcion       text NOT NULL,
+  detalle           text NOT NULL,
+  mano_obra         numeric NOT NULL,
+  stock_central     uuid,
+  stock_oeste       uuid,
+  stock_sur         uuid,
+  cantidad_repuesto int NOT NULL
+) ON COMMIT DROP;
+
+INSERT INTO _seed_plantillas VALUES
+  (0,'b1000000-0000-0000-0000-000000000001','Service completo', 'Mano de obra service completo',    190000,'70000000-0000-0000-0000-000000000001','70000000-0000-0000-0000-000000000004','70000000-0000-0000-0000-000000000010',4),
+  (1,'b1000000-0000-0000-0000-000000000002','Revisión frenos',  'Cambio de pastillas de freno',     140000,NULL,                                  '70000000-0000-0000-0000-000000000006',NULL,                                  1),
+  (2,'b1000000-0000-0000-0000-000000000003','Diagnóstico',      'Diagnóstico computarizado',         60000,NULL,                                  NULL,                                  NULL,                                  0),
+  (3,'b1000000-0000-0000-0000-000000000004','Aceite y filtro',  'Cambio de aceite y filtro',         60000,'70000000-0000-0000-0000-000000000002','70000000-0000-0000-0000-000000000004','70000000-0000-0000-0000-000000000010',1),
+  (4,'b1000000-0000-0000-0000-000000000005','Cambio batería',   'Colocación y prueba de batería',    45000,'70000000-0000-0000-0000-000000000003',NULL,                                  '70000000-0000-0000-0000-000000000008',1),
+  (5,'b1000000-0000-0000-0000-000000000006','Luces delanteras', 'Regulación y cambio de ópticas',    50000,NULL,                                  '70000000-0000-0000-0000-000000000007',NULL,                                  1),
+  (6,'b1000000-0000-0000-0000-000000000007','Alineación',       'Alineación y balanceo',             70000,NULL,                                  NULL,                                  NULL,                                  0),
+  (7,'b1000000-0000-0000-0000-000000000008','Suspensión',       'Cambio de amortiguadores',         220000,NULL,                                  NULL,                                  NULL,                                  0),
+  (8,'b1000000-0000-0000-0000-000000000009','Motor',            'Ajuste de motor y bujías',         260000,NULL,                                  '70000000-0000-0000-0000-000000000005','70000000-0000-0000-0000-000000000009',4),
+  (9,'b1000000-0000-0000-0000-000000000010','Electricidad',     'Revisión del sistema eléctrico',    80000,NULL,                                  NULL,                                  '70000000-0000-0000-0000-000000000008',1);
+
+CREATE TEMP TABLE _seed_arreglos ON COMMIT DROP AS
+WITH slots AS (
+  SELECT
+    me.offset_mes,
+    me.inicio,
+    me.factor_precio,
+    i,
+    row_number() OVER (ORDER BY me.offset_mes, i) AS n
+  FROM _seed_meses AS me
+  -- Arreglos por mes: estacionalidad (enero y julio flojos, marzo y diciembre
+  -- fuertes) y crecimiento de un arreglo cada 6 meses. En los meses -5 a 0 se
+  -- descuentan los que ya están arriba (4, 5, 6, 7, 8 y 10), con un mínimo de 2.
+  CROSS JOIN LATERAL generate_series(1, greatest(2, least(14,
+    10 + (ARRAY[-3,-2,2,1,0,0,-2,1,1,2,2,3])[me.mes_del_anio] + floor(me.offset_mes / 6.0)::int
+    - coalesce((ARRAY[4,5,6,7,8,10])[me.offset_mes + 6], 0)
+  ))) AS i
+),
+candidatos AS (
+  SELECT
+    s.*,
+    s.inicio
+      + (((s.i * 11 + s.offset_mes * 3) % 26 + 26) % 26) * interval '1 day'
+      + interval '13 hours' + (s.i % 6) * interval '1 hour' AS fecha,
+    ('40000000-0000-0000-0000-' || lpad((((s.i * 7 + s.offset_mes * 3) % 10 + 10) % 10 + 1)::text, 12, '0'))::uuid AS vehiculo_id,
+    (ARRAY[1,2,1,3,2])[((s.i + s.offset_mes) % 5 + 5) % 5 + 1] AS taller_n,
+    -- Service y aceite son los trabajos más frecuentes.
+    (ARRAY[0,0,3,1,2,0,4,6,3,5,1,7,8,0,9,3,6,1])[((s.i * 7 + s.offset_mes * 5) % 18 + 18) % 18 + 1] AS plantilla,
+    0.85 + (((s.i * 13 + s.offset_mes * 7) % 31 + 31) % 31) / 100.0 AS variacion
+  FROM slots AS s
+),
+con_empleado AS (
+  SELECT
+    c.*,
+    CASE c.taller_n
+      WHEN 1 THEN CASE WHEN c.i % 2 = 0 THEN 'e1000000-0000-0000-0000-000000000002' ELSE 'e1000000-0000-0000-0000-000000000001' END
+      WHEN 2 THEN 'e1000000-0000-0000-0000-000000000003'
+      ELSE 'e1000000-0000-0000-0000-000000000004'
+    END::uuid AS empleado_candidato
+  FROM candidatos AS c
+),
+asignados AS (
+  -- Antes de que ingrese el empleado de una sucursal, el trabajo lo hace Juan en Sede Central.
+  SELECT
+    ce.*,
+    CASE WHEN e.fecha_ingreso <= ce.fecha::date
+      THEN ('50000000-0000-0000-0000-' || lpad(ce.taller_n::text, 12, '0'))::uuid
+      ELSE '50000000-0000-0000-0000-000000000001'::uuid
+    END AS taller_id,
+    CASE WHEN e.fecha_ingreso <= ce.fecha::date
+      THEN ce.empleado_candidato
+      ELSE 'e1000000-0000-0000-0000-000000000001'::uuid
+    END AS empleado_id
+  FROM con_empleado AS ce
+  JOIN public.empleados AS e ON e.id = ce.empleado_candidato
+)
+SELECT
+  ('8a000000-0000-4000-8000-' || lpad(a.n::text, 12, '0'))::uuid AS id,
+  a.n,
+  a.i,
+  a.offset_mes,
+  a.fecha,
+  a.vehiculo_id,
+  a.taller_id,
+  a.empleado_id,
+  p.categoria_id,
+  p.descripcion,
+  p.detalle,
+  round(p.mano_obra * a.factor_precio * a.variacion / 500) * 500 AS mano_obra,
+  st.id AS stock_id,
+  CASE WHEN st.id IS NULL THEN 0 ELSE p.cantidad_repuesto END AS cantidad_repuesto,
+  pr.precio_unitario AS precio_repuesto,
+  CASE WHEN a.offset_mes >= 0 AND a.i % 4 = 0 THEN 'EN_PROGRESO' ELSE 'TERMINADO' END::public.estado_arreglo AS estado,
+  -- Lo pasado está casi todo cobrado; el mes actual y lo futuro tienen pendientes y parciales.
+  CASE
+    WHEN a.offset_mes >= 0 AND a.i % 3 = 0 THEN 0
+    WHEN a.offset_mes >= 0 AND a.i % 5 = 0 THEN 0.5
+    WHEN a.offset_mes < 0 AND a.n % 11 = 0 THEN 0.5
+    ELSE 1
+  END AS fraccion_cobrada
+FROM asignados AS a
+JOIN _seed_plantillas AS p ON p.n = a.plantilla
+LEFT JOIN public.stocks AS st ON st.id = CASE a.taller_id
+  WHEN '50000000-0000-0000-0000-000000000001' THEN p.stock_central
+  WHEN '50000000-0000-0000-0000-000000000002' THEN p.stock_oeste
+  ELSE p.stock_sur
+END
+LEFT JOIN public.productos AS pr ON pr.id = st.producto_id;
+
+INSERT INTO public.arreglos (id, vehiculo_id, taller_id, estado, fecha, precio_final, esta_pago, descripcion, tenant_id, created_at, updated_at, observaciones)
+SELECT
+  id, vehiculo_id, taller_id, estado, fecha,
+  mano_obra + cantidad_repuesto * coalesce(precio_repuesto, 0),
+  false, descripcion, '11111111-1111-1111-1111-111111111111',
+  fecha, fecha + interval '1 day', detalle
+FROM _seed_arreglos;
+
+INSERT INTO public.detalle_arreglo (id, tenant_id, arreglo_id, descripcion, cantidad, precio_hora_facturada, categoria_arreglo_id, empleado_id)
+SELECT
+  ('da000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+  '11111111-1111-1111-1111-111111111111', id, detalle, 1, mano_obra, categoria_id, empleado_id
+FROM _seed_arreglos;
+
+-- Repuestos usados: una ASIGNACION_ARREGLO por arreglo, con la misma fecha.
+INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha)
+SELECT ('9a000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, '11111111-1111-1111-1111-111111111111', 'ASIGNACION_ARREGLO', taller_id, fecha
+FROM _seed_arreglos
+WHERE cantidad_repuesto > 0;
+
+INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, monto_unitario, delta_cantidad, categoria_arreglo_id, empleado_id)
+SELECT
+  ('9b000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+  ('9a000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+  stock_id, cantidad_repuesto, precio_repuesto, -cantidad_repuesto, categoria_id, empleado_id
+FROM _seed_arreglos
+WHERE cantidad_repuesto > 0;
+
+INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, arreglo_id)
+SELECT ('9a000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, id
+FROM _seed_arreglos
+WHERE cantidad_repuesto > 0;
+
+-- Cobros: se calculan sobre el precio final ya recalculado con los repuestos.
+UPDATE public.arreglos AS a
+SET total_cobrado = CASE s.fraccion_cobrada
+  WHEN 1 THEN a.precio_final
+  WHEN 0 THEN 0
+  ELSE floor(a.precio_final * s.fraccion_cobrada / 100) * 100
+END
+FROM _seed_arreglos AS s
+WHERE a.id = s.id;
+
+INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha)
+SELECT ('fa000000-0000-4000-8000-' || lpad(s.n::text, 12, '0'))::uuid, a.tenant_id, 'MOVIMIENTO_CUENTA', NULL, a.fecha + interval '1 day'
+FROM public.arreglos AS a
+JOIN _seed_arreglos AS s ON s.id = a.id
+WHERE a.total_cobrado > 0;
+
+INSERT INTO public.operaciones_movimiento_cuenta (operacion_id, tenant_id, subtipo, cuenta_id, importe, descripcion, created_by, created_at)
+SELECT
+  ('fa000000-0000-4000-8000-' || lpad(s.n::text, 12, '0'))::uuid,
+  a.tenant_id,
+  'INGRESO',
+  CASE WHEN s.n % 2 = 0 THEN 'c0000000-0000-4000-8000-000000000001' ELSE 'c0000000-0000-4000-8000-000000000002' END::uuid,
+  a.total_cobrado,
+  'Cobro de arreglo: ' || a.descripcion,
+  '7ff568f8-4d46-463b-969c-9e68157fa769'::uuid,
+  a.fecha + interval '1 day'
+FROM public.arreglos AS a
+JOIN _seed_arreglos AS s ON s.id = a.id
+WHERE a.total_cobrado > 0;
+
+INSERT INTO public.operaciones_cobro_arreglo (operacion_id, arreglo_id, tenant_id)
+SELECT ('fa000000-0000-4000-8000-' || lpad(s.n::text, 12, '0'))::uuid, a.id, a.tenant_id
+FROM public.arreglos AS a
+JOIN _seed_arreglos AS s ON s.id = a.id
+WHERE a.total_cobrado > 0;
+
+-- Compras de reposición (2 o 3 por mes) y ventas de mostrador (1 a 3 por mes)
+-- en los meses generados. Las cantidades no se descuentan del stock.
+CREATE TEMP TABLE _seed_stock_ops ON COMMIT DROP AS
+WITH compras AS (
+  SELECT me.offset_mes, me.inicio, k, 'COMPRA'::text AS tipo
+  FROM _seed_meses AS me
+  CROSS JOIN LATERAL generate_series(1, 2 + (me.offset_mes % 2 + 2) % 2) AS k
+  WHERE me.offset_mes NOT BETWEEN -5 AND 0
+),
+ventas AS (
+  SELECT me.offset_mes, me.inicio, k, 'VENTA'::text AS tipo
+  FROM _seed_meses AS me
+  CROSS JOIN LATERAL generate_series(1, 1 + (me.offset_mes % 3 + 3) % 3) AS k
+  WHERE me.offset_mes NOT BETWEEN -5 AND 0
+),
+todas AS (
+  SELECT *, row_number() OVER (ORDER BY tipo, offset_mes, k) AS n
+  FROM (SELECT * FROM compras UNION ALL SELECT * FROM ventas) AS u
+)
+SELECT
+  t.n,
+  t.tipo,
+  t.inicio
+    + (CASE WHEN t.tipo = 'COMPRA' THEN 2 + (t.k - 1) * 9 ELSE 6 + (t.k - 1) * 8 END) * interval '1 day'
+    + interval '15 hours' AS fecha,
+  st.id AS stock_id,
+  st.taller_id,
+  CASE
+    WHEN t.tipo = 'VENTA' THEN 1 + (t.n % 4)::int
+    WHEN pr.costo_unitario > 20000 THEN 2 + (t.n % 3)::int
+    ELSE 10 + ((t.n * 7) % 21)::int
+  END AS cantidad,
+  CASE WHEN t.tipo = 'COMPRA' THEN pr.costo_unitario ELSE pr.precio_unitario END AS monto_unitario
+FROM todas AS t
+JOIN public.stocks AS st ON st.id = ('70000000-0000-0000-0000-' || lpad(
+  (ARRAY[1,4,10,2,6,9,5,1,4,3,7,8])[(((t.n * 5 + t.offset_mes) % 12 + 12) % 12 + 1)::int]::text, 12, '0'))::uuid
+JOIN public.productos AS pr ON pr.id = st.producto_id;
+
+INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha)
+SELECT
+  ((CASE WHEN tipo = 'COMPRA' THEN '9c' ELSE '9e' END) || '000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+  '11111111-1111-1111-1111-111111111111', tipo::public.tipo_operacion, taller_id, fecha
+FROM _seed_stock_ops;
+
+INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, monto_unitario, delta_cantidad)
+SELECT
+  ((CASE WHEN tipo = 'COMPRA' THEN '9d' ELSE '9f' END) || '000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+  ((CASE WHEN tipo = 'COMPRA' THEN '9c' ELSE '9e' END) || '000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+  stock_id, cantidad, monto_unitario,
+  CASE WHEN tipo = 'COMPRA' THEN cantidad ELSE -cantidad END
+FROM _seed_stock_ops;
+
+-- Gastos eventuales en todo el rango (también en los meses -5 a 0): alquiler y
+-- servicios todos los meses, y otros gastos cada 2, 3 o 4 meses.
+CREATE TEMP TABLE _seed_gastos ON COMMIT DROP AS
+SELECT
+  row_number() OVER (ORDER BY me.offset_mes, g.orden) AS n,
+  me.inicio + g.dia * interval '1 day' + interval '14 hours' AS fecha,
+  g.categoria,
+  g.descripcion,
+  CASE
+    WHEN g.categoria = 'ALQUILER' THEN round(g.importe * me.factor_precio / 1000) * 1000
+    ELSE round(g.importe * me.factor_precio * (0.9 + ((me.offset_mes * 7 + g.orden * 3) % 21 + 21) % 21 / 100.0) / 500) * 500
+  END AS importe
+FROM _seed_meses AS me
+JOIN (VALUES
+  (1, 4,  'ALQUILER',                  'Alquiler del local',          180000, 1),
+  (2, 9,  'SERVICIOS',                 'Luz, gas e internet',          55000, 1),
+  (3, 14, 'IMPUESTOS',                 'Tasas municipales',            30000, 2),
+  (4, 18, 'MANTENIMIENTO',             'Mantenimiento de elevadores',  40000, 3),
+  (5, 22, 'HERRAMIENTAS_EQUIPAMIENTO', 'Compra de herramientas',       85000, 4)
+) AS g(orden, dia, categoria, descripcion, importe, cada_meses)
+  ON (me.offset_mes % g.cada_meses + g.cada_meses) % g.cada_meses = 0;
+
+INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha)
+SELECT ('ea000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, '11111111-1111-1111-1111-111111111111', 'MOVIMIENTO_CUENTA', NULL, fecha
+FROM _seed_gastos;
+
+INSERT INTO public.operaciones_movimiento_cuenta (operacion_id, tenant_id, subtipo, cuenta_id, importe, categoria_gasto, descripcion, created_by, created_at)
+SELECT
+  ('ea000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+  '11111111-1111-1111-1111-111111111111',
+  'GASTO',
+  CASE WHEN n % 2 = 0 THEN 'c0000000-0000-4000-8000-000000000001' ELSE 'c0000000-0000-4000-8000-000000000002' END::uuid,
+  -importe,
+  categoria,
+  descripcion,
+  '7ff568f8-4d46-463b-969c-9e68157fa769'::uuid,
+  fecha
+FROM _seed_gastos;
+
+-- Aumentos de sueldo (hace 10 meses, hace 4 meses y dentro de 2) para Sede
+-- Central y Sucursal Sur. Sucursal Oeste queda sin cambios a propósito.
+INSERT INTO public.empleado_salarios (empleado_id, tenant_id, taller_id, salario, vigente_desde)
+SELECT e.id, e.tenant_id, e.taller_id, round(e.salario * r.factor / 1000) * 1000, date_trunc('month', now() + r.offset_mes * interval '1 month')::date
+FROM public.empleados AS e
+CROSS JOIN (VALUES (-10, 1.12), (-4, 1.25), (2, 1.35)) AS r(offset_mes, factor)
+WHERE e.id IN (
+  'e1000000-0000-0000-0000-000000000001',
+  'e1000000-0000-0000-0000-000000000002',
+  'e1000000-0000-0000-0000-000000000004'
+);
+
+-- El salario de la ficha es el vigente hoy.
+UPDATE public.empleados AS e
+SET salario = vigente.salario
+FROM (
+  SELECT DISTINCT ON (es.empleado_id) es.empleado_id, es.salario
+  FROM public.empleado_salarios AS es
+  WHERE es.vigente_desde <= current_date
+  ORDER BY es.empleado_id, es.vigente_desde DESC
+) AS vigente
+WHERE vigente.empleado_id = e.id
+  AND e.salario <> vigente.salario;
 
 -- Sincronizar listas derivadas materializadas (tipos y empleados en arreglos)
 DO $$
