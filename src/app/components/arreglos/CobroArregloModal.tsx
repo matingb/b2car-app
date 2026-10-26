@@ -2,11 +2,12 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { css } from "@emotion/react";
-import { CheckCircle2, ChevronDown, WalletCards } from "lucide-react";
-import RegistrarPagoSection, {
+import { CheckCircle2 } from "lucide-react";
+import {
   type PagoDraftItem,
   CREATE_CUENTA_VALUE,
 } from "@/app/components/arreglos/RegistrarPagoSection";
+import PagoCondicionSection from "@/app/components/finanzas/PagoCondicionSection";
 import CobroArregloHistorial from "@/app/components/arreglos/CobroArregloHistorial";
 import {
   type CuentaFinancieraDraft,
@@ -377,42 +378,22 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
           </div>
         ) : null}
 
-        {cuentaFavorita && !showAdvanced ? (
-          <div css={styles.simplePayment} data-testid="cobro-simple">
-            <div css={styles.simpleAccountIcon}>
-              <WalletCards size={20} />
-            </div>
-            <div css={styles.simpleAccountText}>
-              <span css={styles.simpleAccountLabel}>El cobro se acreditara en la cuenta favorita</span>
-              <strong css={styles.simpleAccountName}>{cuentaFavorita.nombre}</strong>
-              <span css={styles.simpleAccountAmount}>
-                Importe: {formatArs(totalSumDraft, { maxDecimals: 0 })}
-              </span>
-            </div>
-          </div>
-        ) : (
-          <RegistrarPagoSection
-            pagos={pagosDraft}
-            loadingCuentas={loadingCuentas}
-            onAddPago={handleAddPagoRow}
-            onRemovePago={handleRemovePagoRow}
-            onUpdatePago={handleUpdatePagoRow}
-            onUpdatePagoCuentaDraft={handleUpdatePagoCuentaDraft}
-          />
-        )}
-
-        {cuentaFavorita ? (
-          <button
-            type="button"
-            css={styles.advancedToggle}
-            onClick={handleToggleAdvanced}
-            aria-expanded={showAdvanced}
-            data-testid="cobro-advanced-toggle"
-          >
-            <span>{showAdvanced ? "Usar cobro simplificado" : "Elegir otra cuenta o dividir el pago"}</span>
-            <ChevronDown size={17} css={showAdvanced ? styles.chevronOpen : undefined} />
-          </button>
-        ) : null}
+        <PagoCondicionSection
+          tipo="ARREGLO"
+          totalOperacion={totalSumDraft}
+          cuentaFavorita={cuentaFavorita}
+          pagos={pagosDraft}
+          onAddPago={handleAddPagoRow}
+          onRemovePago={handleRemovePagoRow}
+          onUpdatePago={handleUpdatePagoRow}
+          onUpdatePagoCuentaDraft={handleUpdatePagoCuentaDraft}
+          allowNoPagar={false}
+          loadingCuentas={loadingCuentas}
+          showAdvanced={showAdvanced}
+          onToggleAdvanced={handleToggleAdvanced}
+          dataTestIdSimple="cobro-simple"
+          dataTestIdToggle="cobro-advanced-toggle"
+        />
 
         <CobroArregloHistorial
           cobros={cobros}
@@ -472,8 +453,8 @@ const styles = {
     gap: 10,
     padding: "10px 14px",
     borderRadius: 8,
-    backgroundColor: "rgba(22, 163, 74, 0.08)",
-    border: "1px solid rgba(22, 163, 74, 0.25)",
+    backgroundColor: COLOR.STATUS.SUCCESS.BG_SUBTLE,
+    border: `1px solid ${COLOR.STATUS.SUCCESS.BORDER}`,
     fontSize: 13,
     color: COLOR.TEXT.PRIMARY,
     lineHeight: 1.4,

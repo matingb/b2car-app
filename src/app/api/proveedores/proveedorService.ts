@@ -96,6 +96,13 @@ export function createProveedorService(repository: ProveedorRepository) {
     ): Promise<{ error: ServiceError | PostgrestError | null }> {
       return repository.deleteById(supabase, id);
     },
+
+    async getCuentaCorriente(
+      supabase: SupabaseClient,
+      proveedorId: string
+    ) {
+      return repository.getCuentaCorriente(supabase, proveedorId);
+    },
   };
 }
 

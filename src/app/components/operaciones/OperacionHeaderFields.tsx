@@ -3,14 +3,12 @@
 import React from "react";
 import { css } from "@emotion/react";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
-import Tooltip from "@/app/components/ui/Tooltip";
 import Autocomplete from "@/app/components/ui/Autocomplete";
 import Calendar from "@/app/components/ui/Calendar";
 import CuentaFinancieraFormFields from "@/app/components/finanzas/CuentaFinancieraFormFields";
 import CuentaFinancieraAutocomplete, {
   CREATE_CUENTA_VALUE,
 } from "@/app/components/finanzas/CuentaFinancieraAutocomplete";
-import { TIPOS_UI } from "./operacionModalTypes";
 import { useOperacionForm } from "./OperacionFormContext";
 
 export { CREATE_CUENTA_VALUE };
@@ -27,9 +25,17 @@ export default function OperacionHeaderFields() {
     cuentaDraft,
     setCuentaDraft,
     tipo,
-    setTipo,
     isContextualStock,
     requiresCuenta,
+    proveedorId,
+    setProveedorId,
+    disabledProveedor,
+    proveedores,
+    clienteId,
+    setClienteId,
+    disabledCliente,
+    clientes,
+    pagosDraft,
   } = useOperacionForm();
 
   const isCreatingCuenta = cuentaFinancieraId === CREATE_CUENTA_VALUE;
@@ -39,7 +45,7 @@ export default function OperacionHeaderFields() {
     <>
       <div css={styles.headerRow} data-testid="operaciones-datos-principales">
         {tipo !== "GASTO" && hasManyTalleres && !isContextualStock ? (
-          <div style={styles.headerLeft}>
+          <div style={styles.headerCol}>
             <label style={styles.label}>Taller</label>
             <Autocomplete
               value={tallerId || ""}
@@ -47,13 +53,13 @@ export default function OperacionHeaderFields() {
               options={talleres.map((t) => ({ value: t.id, label: t.nombre }))}
               placeholder="Seleccionar taller"
               dataTestId="operaciones-create-taller"
-              style={{ height: 44, fontSize: 14 }}
+              style={{ height: 38, fontSize: 14 }}
               hideClearButton
             />
           </div>
         ) : null}
 
-        <div style={styles.headerLeft}>
+        <div style={styles.headerCol}>
           <label style={styles.label} htmlFor="operaciones-create-fecha">Fecha</label>
           <Calendar
             id="operaciones-create-fecha"
@@ -64,55 +70,69 @@ export default function OperacionHeaderFields() {
           />
         </div>
 
-        <div style={styles.headerLeft}>
-          <label style={styles.label}>
-            Cuenta financiera {requiresCuenta ? <span aria-hidden="true" style={styles.required}>*</span> : null}
-          </label>
-          <CuentaFinancieraAutocomplete
-            value={cuentaFinancieraId}
-            onChange={setCuentaFinancieraId}
-            dataTestId="operaciones-create-cuenta-financiera"
-            hideClearButton={requiresCuenta}
-            style={{ height: 44, fontSize: 14 }}
-          />
-        </div>
-
-        <div style={styles.headerRight}>
-          <label style={styles.label}>Tipo de operación</label>
-          <div css={styles.tipoRow}>
-            {(isContextualStock ? TIPOS_UI.filter((t) => t.tipo === "VENTA" || t.tipo === "COMPRA") : TIPOS_UI).map((t) => {
-              const isSelected = tipo === t.tipo;
-              const isDisabled = Boolean(t.disabled);
-              return (
-                <Tooltip
-                  key={t.tipo}
-                  content={isDisabled ? "En construcción" : undefined}
-                  placement="top"
-                >
-                  <button
-                    type="button"
-                    onClick={() => !isDisabled && setTipo(t.tipo)}
-                    disabled={isDisabled}
-                    data-testid={`operaciones-create-tipo-${t.tipo}`}
-                    css={[
-                      styles.tipoChip,
-                      isSelected && styles.tipoChipSelected,
-                      isDisabled && styles.tipoChipDisabled,
-                    ]}
-                  >
-                    {t.icon ? (
-                      <span style={{ display: "flex" }}>{t.icon}</span>
-                    ) : null}
-                    <span>{t.label}</span>
-                  </button>
-                </Tooltip>
-              );
-            })}
+        {tipo === "VENTA" && (
+          <div style={styles.headerCol}>
+            <label style={styles.label}>Cliente</label>
+            <Autocomplete
+              value={clienteId || ""}
+              onChange={setClienteId}
+              options={clientes.map((c) => ({
+                value: c.id,
+                label: c.nombre + (c.dni_cuil || c.cuit ? ` (${c.dni_cuil || c.cuit})` : ""),
+              }))}
+              placeholder="Seleccionar cliente"
+              dataTestId="operaciones-create-cliente"
+              disabled={disabledCliente}
+              style={{ height: 38, fontSize: 14 }}
+            />
           </div>
-        </div>
+        )}
+
+        {(tipo === "COMPRA" || tipo === "GASTO") && (
+          <div style={styles.headerCol}>
+            <label style={styles.label}>Proveedor</label>
+            <Autocomplete
+              value={proveedorId || ""}
+              onChange={setProveedorId}
+              options={proveedores.map((p) => ({
+                value: p.id,
+                label: p.nombre + (p.cuit ? ` (${p.cuit})` : ""),
+              }))}
+              placeholder="Seleccionar proveedor"
+              dataTestId="operaciones-create-proveedor"
+              disabled={disabledProveedor}
+              style={{ height: 38, fontSize: 14 }}
+            />
+          </div>
+        )}
+
+        {tipo === "GASTO" && (
+          <div style={styles.headerCol}>
+            <label style={styles.label}>
+              Cuenta financiera {requiresCuenta ? <span aria-hidden="true" style={styles.required}>*</span> : null}
+            </label>
+            <CuentaFinancieraAutocomplete
+              value={cuentaFinancieraId}
+              onChange={setCuentaFinancieraId}
+              dataTestId="operaciones-create-cuenta-financiera"
+              hideClearButton={requiresCuenta}
+              placeholder="Seleccionar cuenta"
+              style={{ height: 38, fontSize: 14 }}
+            />
+          </div>
+        )}
+
+        {tipo !== "GASTO" && (
+          <input
+            type="hidden"
+            data-testid="operaciones-create-cuenta-financiera"
+            value={pagosDraft[0]?.cuentaId ?? cuentaFinancieraId}
+            readOnly
+          />
+        )}
       </div>
 
-      {isCreatingCuenta && (
+      {tipo === "GASTO" && isCreatingCuenta && (
         <CuentaFinancieraFormFields
           values={cuentaDraft}
           onChange={(patch) => setCuentaDraft({ ...cuentaDraft, ...patch })}
@@ -132,24 +152,20 @@ const styles = {
     gap: 12,
     alignItems: "flex-end",
     flexWrap: "wrap",
-    marginBottom: 12,
+    marginBottom: 16,
     "@media (max-width: 680px)": {
       flexDirection: "column",
       alignItems: "stretch",
     },
   }),
-  headerLeft: {
+  headerCol: {
     flex: "1 1 0",
-    minWidth: 0,
-  } as const,
-  headerRight: {
-    flex: "1 0 100%",
-    display: "flex",
-    flexDirection: "column",
+    minWidth: 160,
   } as const,
   label: {
     display: "block",
     fontSize: 13,
+    fontWeight: 600,
     color: COLOR.TEXT.SECONDARY,
     marginBottom: 6,
   },
@@ -159,49 +175,6 @@ const styles = {
     marginLeft: 2,
   },
   dateInput: {
-    height: 44,
+    height: 38,
   } as const,
-  tipoRow: css({
-    display: "flex",
-    alignItems: "stretch",
-    gap: 8,
-    flexWrap: "nowrap",
-    paddingBottom: 2,
-  }),
-
-  tipoChip: css({
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    padding: "8px 12px",
-    borderRadius: 999,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    backgroundColor: COLOR.BACKGROUND.SUBTLE,
-    color: COLOR.TEXT.PRIMARY,
-    cursor: "pointer",
-    fontWeight: 600,
-    fontSize: 13,
-    whiteSpace: "nowrap",
-    transition: "all 120ms ease",
-    ":hover": {
-      borderColor: COLOR.ACCENT.PRIMARY,
-    },
-  }),
-  tipoChipSelected: css({
-    backgroundColor: COLOR.ACCENT.PRIMARY,
-    color: COLOR.TEXT.CONTRAST,
-    borderColor: COLOR.ACCENT.PRIMARY,
-    boxShadow: "0 0 0 2px rgba(0, 121, 149, 0.18)",
-  }),
-  tipoChipDisabled: css({
-    opacity: 0.6,
-    cursor: "default",
-  }),
-  inlineForm: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-    width: "100%",
-    marginBottom: 12,
-  }),
 } as const;

@@ -17,6 +17,8 @@ TRUNCATE TABLE
   movimientos_financieros,
   operaciones_movimiento_cuenta,
   cuentas_financieras,
+  operaciones_venta,
+  operaciones_compra,
   operaciones,
   arreglos,
   turnos,

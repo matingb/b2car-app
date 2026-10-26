@@ -4,8 +4,17 @@ import { generateUuidV4 } from "@/lib/uuid";
 export type CreateOperacionLineaInput = {
 	stock_id: string;
 	cantidad: number;
+	cantidad_cumplida?: number;
 	monto_unitario: number;
 	delta_cantidad: number;
+};
+
+export type CreateOperacionPagoInput = {
+	cuenta_id?: string;
+	cuenta_financiera_id?: string;
+	monto: number;
+	fecha?: string;
+	descripcion?: string | null;
 };
 
 export type CreateOperacionInput = {
@@ -15,15 +24,15 @@ export type CreateOperacionInput = {
 	created_at?: string;
 	lineas?: CreateOperacionLineaInput[];
 	arreglo_id?: string | null;
-	/** Cuenta que registra el ingreso (venta) o el egreso (compra). */
 	cuenta_financiera_id?: string | null;
-	/** Protege reintentos del navegador contra asientos duplicados. */
+	pagos?: CreateOperacionPagoInput[] | null;
 	idempotency_key?: string | null;
 	observaciones?: string | null;
 	estado_pago?: EstadoPagoOperacion | null;
 	monto_inicial?: number | null;
 	mover_stock?: boolean | null;
 	proveedor_id?: string | null;
+	cliente_id?: string | null;
 };
 
 export type UpdateOperacionInput = Partial<Omit<CreateOperacionInput, "arreglo_id">>;

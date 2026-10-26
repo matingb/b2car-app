@@ -16,6 +16,7 @@ import ProductoKardexModal from "@/app/components/productos/ProductoKardexModal"
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import ProductoStockMatrix from "@/app/components/productos/ProductoStockMatrix";
+import ProductoProveedoresSection from "@/app/components/productos/ProductoProveedoresSection";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 import { OperacionesProvider } from "@/app/providers/OperacionesProvider";
 import { InventarioProvider } from "@/app/providers/InventarioProvider";
@@ -453,6 +454,15 @@ export default function ProductoDetailsPage() {
           </section>
         </div>
       </Card>
+
+      <div style={{ marginTop: 16 }}>
+        <ProductoProveedoresSection
+          productoId={producto.id}
+          productoNombre={producto.nombre}
+          productoCodigo={producto.codigo}
+          costoUnitario={producto.costoUnitario}
+        />
+      </div>
 
       <div style={styles.stockSection}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>

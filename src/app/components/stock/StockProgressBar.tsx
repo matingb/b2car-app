@@ -16,12 +16,12 @@ export default function StockProgressBar({ levels, height = 8, showMinLine = tru
 
   const fill =
     status === "critico"
-      ? COLOR.ICON.DANGER
+      ? COLOR.STATUS.DANGER.SOLID_BG
       : status === "bajo"
-        ? "#b45309"
+        ? COLOR.STATUS.WARNING.SOLID_BG
         : status === "alto"
-          ? COLOR.ACCENT.PRIMARY
-          : "#15803d";
+          ? COLOR.STATUS.INFO.SOLID_BG
+          : COLOR.STATUS.SUCCESS.SOLID_BG;
 
   const minPct =
     levels.stockMaximo > 0

@@ -197,7 +197,7 @@ const styles = {
     transition: "all 0.15s",
     "&:hover": {
       color: COLOR.SEMANTIC.DANGER,
-      background: "rgba(239, 68, 68, 0.1)",
+      background: COLOR.STATUS.DANGER.BG_SUBTLE,
     },
   }),
 } as const;

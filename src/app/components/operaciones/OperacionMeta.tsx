@@ -3,10 +3,11 @@
 import React from "react";
 import { css } from "@emotion/react";
 import Color from "color";
-import { Coins, type LucideIcon } from "lucide-react";
+import { Coins, Truck, User, type LucideIcon } from "lucide-react";
 import IconLabel from "@/app/components/ui/IconLabel";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
+import type { EstadoPagoOperacion, EstadoStockOperacion, TipoOperacion } from "@/model/types";
 
 type MetaItemConfig = {
   icon: LucideIcon;
@@ -19,6 +20,12 @@ type Props = {
   accountOrWorkshop: MetaItemConfig | null;
   totalMonto: number;
   isSinCargo?: boolean;
+  estadoPago?: EstadoPagoOperacion;
+  estadoStock?: EstadoStockOperacion;
+  saldoPendiente?: number;
+  tipo?: TipoOperacion;
+  clienteNombre?: string;
+  proveedorNombre?: string;
 };
 
 export default function OperacionMeta({
@@ -26,9 +33,17 @@ export default function OperacionMeta({
   accountOrWorkshop,
   totalMonto,
   isSinCargo,
+  estadoPago,
+  estadoStock,
+  saldoPendiente,
+  tipo,
+  clienteNombre,
+  proveedorNombre,
 }: Props) {
   const BadgeIcon = metaBadge.icon;
   const OriginIcon = accountOrWorkshop?.icon;
+
+  const isComercial = tipo === "VENTA" || tipo === "COMPRA";
 
   const renderGroup = (isMobile: boolean) => (
     <div
@@ -56,6 +71,66 @@ export default function OperacionMeta({
           label={isMobile ? accountOrWorkshop.labelMobile : accountOrWorkshop.labelDesktop}
           style={styles.metaTaller}
         />
+      ) : null}
+
+      {isComercial && tipo === "VENTA" && clienteNombre ? (
+        <IconLabel
+          icon={<User size={isMobile ? 14 : 16} color={COLOR.ICON.MUTED} />}
+          label={clienteNombre}
+          style={styles.metaTaller}
+        />
+      ) : null}
+
+      {isComercial && tipo === "COMPRA" && proveedorNombre ? (
+        <IconLabel
+          icon={<Truck size={isMobile ? 14 : 16} color={COLOR.ICON.MUTED} />}
+          label={proveedorNombre}
+          style={styles.metaTaller}
+        />
+      ) : null}
+
+      {isComercial && estadoPago ? (
+        <span
+          css={[
+            styles.statusChip,
+            estadoPago === "PAGADO"
+              ? styles.chipSuccess
+              : estadoPago === "PARCIAL"
+                ? styles.chipWarning
+                : styles.chipDanger,
+          ]}
+          data-testid="operacion-estado-pago-badge"
+        >
+          {estadoPago === "PAGADO"
+            ? (tipo === "VENTA" ? "Cobrado" : "Pagado")
+            : estadoPago === "PARCIAL"
+              ? (tipo === "VENTA"
+                  ? `Cobro parcial (Resta ${formatArs(saldoPendiente ?? 0)})`
+                  : `Pago parcial (Resta ${formatArs(saldoPendiente ?? 0)})`)
+              : (tipo === "VENTA"
+                  ? `Por cobrar (${formatArs(saldoPendiente ?? totalMonto)})`
+                  : `Por pagar (${formatArs(saldoPendiente ?? totalMonto)})`)}
+        </span>
+      ) : null}
+
+      {isComercial && estadoStock && estadoStock !== "NO_APLICA" ? (
+        <span
+          css={[
+            styles.statusChip,
+            estadoStock === "ENTREGADO"
+              ? styles.chipSuccess
+              : estadoStock === "PARCIAL"
+                ? styles.chipWarning
+                : styles.chipInfo,
+          ]}
+          data-testid="operacion-estado-stock-badge"
+        >
+          {estadoStock === "ENTREGADO"
+            ? (tipo === "VENTA" ? "Entregado" : "Recibido")
+            : estadoStock === "PARCIAL"
+              ? (tipo === "VENTA" ? "Entrega parcial" : "Recepción parcial")
+              : (tipo === "VENTA" ? "Mercadería reservada" : "En camino")}
+        </span>
       ) : null}
     </div>
   );
@@ -97,6 +172,35 @@ const styles = {
     borderRadius: 6,
     fontSize: 13,
     fontWeight: 700,
+    color: COLOR.SEMANTIC.INFO,
+    backgroundColor: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
+    border: `1px solid ${Color(COLOR.SEMANTIC.INFO).alpha(0.25).toString()}`,
+  }),
+  statusChip: css({
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "3px 8px",
+    borderRadius: 6,
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: "0.02em",
+  }),
+  chipSuccess: css({
+    color: COLOR.SEMANTIC.SUCCESS,
+    backgroundColor: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
+    border: `1px solid ${Color(COLOR.SEMANTIC.SUCCESS).alpha(0.25).toString()}`,
+  }),
+  chipWarning: css({
+    color: COLOR.SEMANTIC.WARNING,
+    backgroundColor: Color(COLOR.SEMANTIC.WARNING).alpha(0.12).toString(),
+    border: `1px solid ${Color(COLOR.SEMANTIC.WARNING).alpha(0.25).toString()}`,
+  }),
+  chipDanger: css({
+    color: COLOR.SEMANTIC.DANGER,
+    backgroundColor: Color(COLOR.SEMANTIC.DANGER).alpha(0.12).toString(),
+    border: `1px solid ${Color(COLOR.SEMANTIC.DANGER).alpha(0.25).toString()}`,
+  }),
+  chipInfo: css({
     color: COLOR.SEMANTIC.INFO,
     backgroundColor: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
     border: `1px solid ${Color(COLOR.SEMANTIC.INFO).alpha(0.25).toString()}`,

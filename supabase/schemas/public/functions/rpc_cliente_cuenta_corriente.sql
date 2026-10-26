@@ -66,6 +66,50 @@ CREATE OR REPLACE FUNCTION public.rpc_cliente_cuenta_corriente (
     LEFT JOIN public.vehiculos v ON v.id = a.vehiculo_id
     WHERE oca.tenant_id = (SELECT public.current_tenant_id())
       AND a.cliente_id = p_cliente_id
+
+    UNION ALL
+
+    -- CARGOS: Ventas de productos al cliente
+    SELECT
+      o.id                                                        AS id,
+      o.fecha                                                     AS fecha,
+      o.created_at                                                AS created_at,
+      'CARGO_VENTA'::text                                         AS tipo_movimiento,
+      COALESCE(NULLIF(btrim(o.observaciones), ''), 'Venta de productos #' || substr(o.id::text, 1, 8)) AS concepto,
+      NULL::text                                                  AS comprobante,
+      COALESCE(o.monto_total, 0)::numeric                         AS debito,
+      0::numeric                                                  AS credito,
+      NULL::uuid                                                  AS arreglo_id,
+      o.id                                                        AS operacion_id,
+      NULL::text                                                  AS cuenta_nombre
+    FROM public.operaciones_venta ov
+    JOIN public.operaciones o ON o.id = ov.operacion_id
+    WHERE ov.tenant_id = (SELECT public.current_tenant_id())
+      AND ov.cliente_id = p_cliente_id
+      AND o.tipo = 'VENTA'
+
+    UNION ALL
+
+    -- CRÉDITOS: Pagos registrados sobre ventas del cliente
+    SELECT
+      op.id                                                       AS id,
+      op.fecha                                                    AS fecha,
+      op.created_at                                               AS created_at,
+      'COBRO'::text                                               AS tipo_movimiento,
+      COALESCE(NULLIF(btrim(op.descripcion), ''), 'Cobro de venta #' || substr(o.id::text, 1, 8)) AS concepto,
+      NULL::text                                                  AS comprobante,
+      0::numeric                                                  AS debito,
+      COALESCE(op.monto, 0)::numeric                              AS credito,
+      NULL::uuid                                                  AS arreglo_id,
+      o.id                                                        AS operacion_id,
+      cf.nombre                                                   AS cuenta_nombre
+    FROM public.operaciones_pagos op
+    JOIN public.operaciones_venta ov ON ov.operacion_id = op.operacion_id
+    JOIN public.operaciones o ON o.id = op.operacion_id
+    LEFT JOIN public.cuentas_financieras cf ON cf.id = op.cuenta_financiera_id
+    WHERE ov.tenant_id = (SELECT public.current_tenant_id())
+      AND ov.cliente_id = p_cliente_id
+      AND o.tipo = 'VENTA'
   )
   SELECT
     m.id,

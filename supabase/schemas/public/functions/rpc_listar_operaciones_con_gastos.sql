@@ -26,7 +26,11 @@ CREATE OR REPLACE FUNCTION public.rpc_listar_operaciones_con_gastos (
     estado_stock             text,
     arreglo_id               uuid,
     total_count              bigint,
-    observaciones            text
+    observaciones            text,
+    proveedor_id             uuid,
+    proveedor_nombre         text,
+    cliente_id               uuid,
+    cliente_nombre           text
   )
   LANGUAGE sql
   STABLE
@@ -83,7 +87,11 @@ AS $function$
       o.estado_pago::text AS estado_pago,
       o.estado_stock::text AS estado_stock,
       COALESCE(oca.arreglo_id, oaa.arreglo_id) AS arreglo_id,
-      o.observaciones
+      o.observaciones,
+      oc.proveedor_id,
+      prov.nombre AS proveedor_nombre,
+      ov.cliente_id,
+      COALESCE(NULLIF(TRIM(concat(part.nombre, ' ', COALESCE(part.apellido, ''))), ''), emp.nombre) AS cliente_nombre
     FROM public.operaciones AS o
     LEFT JOIN public.operaciones_movimiento_cuenta AS omc ON omc.operacion_id = o.id
     LEFT JOIN LATERAL (
@@ -95,6 +103,11 @@ AS $function$
     ) AS mf ON true
     LEFT JOIN public.operaciones_cobro_arreglo AS oca ON oca.operacion_id = o.id
     LEFT JOIN public.operaciones_asignacion_arreglo AS oaa ON oaa.operacion_id = o.id
+    LEFT JOIN public.operaciones_venta AS ov ON ov.operacion_id = o.id
+    LEFT JOIN public.particulares AS part ON part.id = ov.cliente_id
+    LEFT JOIN public.empresas AS emp ON emp.id = ov.cliente_id
+    LEFT JOIN public.operaciones_compra AS oc ON oc.operacion_id = o.id
+    LEFT JOIN public.proveedores AS prov ON prov.id = oc.proveedor_id
     LEFT JOIN public.arreglos AS a ON a.id = COALESCE(oca.arreglo_id, oaa.arreglo_id)
     LEFT JOIN public.vehiculos AS v ON v.id = a.vehiculo_id
     LEFT JOIN public.cuentas_financieras AS cf_s ON cf_s.id = omc.cuenta_id
@@ -108,7 +121,8 @@ AS $function$
     r.id, r.tipo, r.taller_id, r.fecha, r.created_at, r.lineas, r.gasto_id, r.descripcion, r.categoria_gasto,
     r.cuenta_financiera_id, r.cuenta_financiera_nombre, r.monto,
     r.monto_total, r.total_pagado, r.saldo_pendiente, r.esta_pago, r.estado_pago, r.estado_stock,
-    r.arreglo_id, COUNT(*) OVER() AS total_count, r.observaciones
+    r.arreglo_id, COUNT(*) OVER() AS total_count, r.observaciones,
+    r.proveedor_id, r.proveedor_nombre, r.cliente_id, r.cliente_nombre
   FROM rows AS r
   WHERE COALESCE(cardinality(p_tipos), 0) = 0 OR r.tipo = ANY(p_tipos)
   ORDER BY r.fecha DESC, r.created_at DESC, r.id DESC

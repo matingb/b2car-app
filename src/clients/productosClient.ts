@@ -2,6 +2,8 @@ import type {
   ProductoDTO,
   ProductoDetailDTO,
   StockDTO,
+  MovimientoStockDTO,
+  ProductoProveedorDTO,
 } from "@/model/dtos";
 import type {
   CreateProductoRequest,
@@ -14,9 +16,12 @@ import type {
 import type { Producto, StockRegistro } from "@/app/providers/ProductosProvider";
 
 export const productosClient = {
-  async getAll(): Promise<GetProductosResponse> {
+  async getAll(filters?: { proveedorId?: string }): Promise<GetProductosResponse> {
     try {
-      const res = await fetch(`/api/productos`);
+      const params = new URLSearchParams();
+      if (filters?.proveedorId) params.set("proveedorId", filters.proveedorId);
+      const qs = params.toString();
+      const res = await fetch(`/api/productos${qs ? `?${qs}` : ""}`);
       const body: GetProductosResponse = await res.json();
       if (!res.ok) {
         return { data: null, error: body?.error || `Error ${res.status}` };
@@ -118,6 +123,44 @@ export const productosClient = {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Error al descargar el archivo Excel";
       return { error: message };
+    }
+  },
+
+  async getMovimientosStock(
+    id: string,
+    params?: { tallerId?: string; limit?: number; offset?: number }
+  ): Promise<{ data: MovimientoStockDTO[] | null; error: string | null }> {
+    try {
+      const sp = new URLSearchParams();
+      if (params?.tallerId) sp.set("tallerId", params.tallerId);
+      if (params?.limit) sp.set("limit", String(params.limit));
+      if (params?.offset) sp.set("offset", String(params.offset));
+      const qs = sp.toString();
+      const res = await fetch(`/api/productos/${id}/movimientos${qs ? `?${qs}` : ""}`);
+      const body = await res.json();
+      if (!res.ok) {
+        return { data: null, error: body?.error || `Error ${res.status}` };
+      }
+      return { data: body.data || [], error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Error cargando movimientos de stock";
+      return { data: null, error: message };
+    }
+  },
+
+  async getProveedores(
+    id: string
+  ): Promise<{ data: ProductoProveedorDTO[] | null; error: string | null }> {
+    try {
+      const res = await fetch(`/api/productos/${id}/proveedores`);
+      const body = await res.json();
+      if (!res.ok) {
+        return { data: null, error: body?.error || `Error ${res.status}` };
+      }
+      return { data: body.data || [], error: null };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Error cargando proveedores del producto";
+      return { data: null, error: message };
     }
   },
 };

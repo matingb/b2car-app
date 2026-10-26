@@ -24,3 +24,81 @@ export function sliceWithHasMore<T>(rows: T[], limit: number): PaginatedSlice<T>
   const items = hasMore ? rows.slice(0, normalizedLimit) : rows;
   return { items, hasMore };
 }
+
+export type PaginationInput = {
+  page?: unknown;
+  pageSize?: unknown;
+};
+
+export type NormalizedPagination = {
+  page: number;
+  pageSize: number;
+};
+
+export type PaginationRange = {
+  offset: number;
+  from: number;
+  to: number;
+};
+
+export type PaginationMeta = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
+export function normalizePage(page: unknown, defaultPage = 1): number {
+  const parsed = Number(page);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : defaultPage;
+}
+
+export function normalizePageSize(
+  pageSize: unknown,
+  defaultSize = 50,
+  maxSize = 100,
+  minSize = 1
+): number {
+  const parsed = Number(pageSize);
+  if (!Number.isFinite(parsed) || parsed < minSize) return defaultSize;
+  return Math.min(maxSize, Math.trunc(parsed));
+}
+
+export function normalizePagination(
+  input?: PaginationInput,
+  options?: {
+    defaultPage?: number;
+    defaultPageSize?: number;
+    maxPageSize?: number;
+    minPageSize?: number;
+  }
+): NormalizedPagination {
+  return {
+    page: normalizePage(input?.page, options?.defaultPage ?? 1),
+    pageSize: normalizePageSize(
+      input?.pageSize,
+      options?.defaultPageSize ?? 50,
+      options?.maxPageSize ?? 100,
+      options?.minPageSize ?? 1
+    ),
+  };
+}
+
+export function calculatePaginationRange(page: number, pageSize: number): PaginationRange {
+  const offset = (page - 1) * pageSize;
+  return {
+    offset,
+    from: offset,
+    to: offset + pageSize - 1,
+  };
+}
+
+export function buildPaginationMeta(page: number, pageSize: number, total: number): PaginationMeta {
+  return {
+    page,
+    pageSize,
+    total,
+    totalPages: pageSize > 0 ? Math.ceil(Math.max(0, total) / pageSize) : 0,
+  };
+}
+

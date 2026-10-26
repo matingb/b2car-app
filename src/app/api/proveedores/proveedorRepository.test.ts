@@ -185,4 +185,35 @@ describe("supabaseProveedorRepository", () => {
       expect(res.error).toBe(ServiceError.NotFound);
     });
   });
+
+  describe("getCuentaCorriente", () => {
+    it("obtiene operaciones y calcula acumulados", async () => {
+      const mockOperaciones = [
+        {
+          id: "op-1",
+          tipo: "COMPRA",
+          fecha: "2026-10-21T00:00:00Z",
+          created_at: "2026-10-21T00:00:00Z",
+          monto_total: 10000,
+          total_pagado: 4000,
+          estado_pago: "PARCIAL",
+          estado_stock: "ENTREGADO",
+          observaciones: "Compra 1",
+          taller_id: "t-1",
+          talleres: { nombre: "Taller A" },
+        },
+      ];
+
+      const supabase = makeSupabase({ data: mockOperaciones, error: null });
+
+      const res = await supabaseProveedorRepository.getCuentaCorriente(supabase, "prov-1");
+
+      expect(supabase.from).toHaveBeenCalledWith("operaciones_compra");
+      expect(res.error).toBeNull();
+      expect(res.data?.totalComprado).toBe(10000);
+      expect(res.data?.totalPagado).toBe(4000);
+      expect(res.data?.saldoAdeudado).toBe(6000);
+      expect(res.data?.operaciones[0].taller_nombre).toBe("Taller A");
+    });
+  });
 });

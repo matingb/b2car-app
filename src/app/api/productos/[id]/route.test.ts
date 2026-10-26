@@ -18,7 +18,9 @@ vi.mock("../productosService", async () => {
     productosService: {
       ...actual.productosService,
       getById: vi.fn(),
+      getWithStocksById: vi.fn(),
       updateById: vi.fn(),
+      updateWithStocksById: vi.fn(),
       deleteById: vi.fn(),
     },
   };
@@ -33,23 +35,18 @@ describe("/api/productos/[id]", () => {
     vi.clearAllMocks();
     vi.mocked(createClient).mockResolvedValue({
       auth: { getSession: async () => ({ data: { session: { access_token: "t" } } }) },
-      from: () => ({
-        select: () => ({
-          eq: async () => ({ data: [] }),
-        }),
-      }),
     } as unknown as SupabaseClient);
   });
 
   it("GET not found devuelve 404", async () => {
-    vi.mocked(productosService.getById).mockResolvedValue({ data: null, error: ServiceError.NotFound });
+    vi.mocked(productosService.getWithStocksById).mockResolvedValue({ data: null, error: ServiceError.NotFound });
     const req = new NextRequest("http://localhost/api/productos/p1");
     const res = await GET(req, { params: Promise.resolve({ id: "p1" }) });
     expect(res.status).toBe(404);
   });
 
   it("PUT actualiza y devuelve 200", async () => {
-    vi.mocked(productosService.updateById).mockResolvedValue({
+    vi.mocked(productosService.updateWithStocksById).mockResolvedValue({
       data: {
         id: "PROD-1",
         tenantId: "TEN-1",
@@ -63,6 +60,8 @@ describe("/api/productos/[id]", () => {
         proveedor: "Prov",
         categorias: ["A"],
         show_in_stock: true,
+        talleresConStock: 0,
+        stocks: [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },

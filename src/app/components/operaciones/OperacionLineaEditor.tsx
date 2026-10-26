@@ -11,14 +11,13 @@ export type OperacionLineaDraft = {
   id?: string;
   stockId: string;
   cantidad: number;
+  cantidadEntregar?: number;
   unitario: number;
   total: number;
 };
 
-
-
 export const OPERACION_LINE_GRID_TEMPLATE =
-  "minmax(290px, 1fr) 78px 140px 140px 44px";
+  "minmax(240px, 1fr) 70px 76px 115px 115px 40px";
 
 type Props = {
   index: number;
@@ -73,7 +72,16 @@ export default function OperacionLineaEditor({
   };
 
   const onCantidadChange = (cantidad: number) => {
-    onChange(recomputeFromUnit({ ...linea, cantidad }));
+    const prevCantidad = Number(linea.cantidad) || 0;
+    const prevEntregar = linea.cantidadEntregar !== undefined ? linea.cantidadEntregar : prevCantidad;
+    const cantidadEntregar = prevEntregar === prevCantidad ? cantidad : Math.min(prevEntregar, cantidad);
+    onChange(recomputeFromUnit({ ...linea, cantidad, cantidadEntregar }));
+  };
+
+  const onCantidadEntregarChange = (val: number) => {
+    const cantidad = Number(linea.cantidad) || 0;
+    const cantidadEntregar = Math.max(0, Math.min(cantidad, Math.round(val)));
+    onChange({ ...linea, cantidadEntregar });
   };
 
   const onUnitarioChange = (unitario: number) => {
@@ -109,6 +117,19 @@ export default function OperacionLineaEditor({
           style={{ ...styles.controlInput, ...styles.qtyInput }}
           data-testid={`operaciones-line-${index}-cantidad`}
           aria-label="Cantidad"
+        />
+      </div>
+
+      <div>
+        <NumberInput
+          minValue={0}
+          allowDecimals={false}
+          disabled={disabled}
+          value={linea.cantidadEntregar !== undefined ? linea.cantidadEntregar : linea.cantidad}
+          onValueChange={onCantidadEntregarChange}
+          style={{ ...styles.controlInput, ...styles.qtyInput }}
+          data-testid={`operaciones-line-${index}-cantidad-entregar`}
+          aria-label="Cantidad a entregar o recibir"
         />
       </div>
 

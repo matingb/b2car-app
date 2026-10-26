@@ -157,4 +157,47 @@ describe("OperacionExpandedDetail", () => {
 
     expect(screen.queryByTestId("operacion-expanded-observaciones")).not.toBeInTheDocument();
   });
+
+  it("muestra botones para registrar cobro y confirmar entrega cuando la venta tiene saldo y stock pendiente", () => {
+    const operacion: Operacion = {
+      id: "op-venta-diferida",
+      tipo: "VENTA",
+      taller_id: "taller-1",
+      fecha: "2026-10-07T12:00:00Z",
+      created_at: "2026-10-07T12:00:00Z",
+      monto_total: 10000,
+      total_pagado: 0,
+      saldo_pendiente: 10000,
+      esta_pago: false,
+      estado_pago: "PENDIENTE",
+      estado_stock: "PENDIENTE",
+      lineas: [
+        {
+          id: "linea-1",
+          operacion_id: "op-venta-diferida",
+          stock_id: "stock-1",
+          cantidad: 5,
+          cantidad_cumplida: 0,
+          monto_unitario: 2000,
+          delta_cantidad: 0,
+          created_at: "2026-10-07T12:00:00Z",
+          nombre: "Bujía Bosch",
+        },
+      ],
+    };
+
+    render(
+      <OperacionExpandedDetail
+        operacion={operacion}
+        stocksById={{}}
+        isMovimientoFinanciero={false}
+      />
+    );
+
+    expect(screen.getByTestId("operacion-registrar-pago-btn")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Registrar Cobro/i })).toBeInTheDocument();
+    expect(screen.getByTestId("operacion-confirmar-stock-btn")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Confirmar Entrega/i })).toBeInTheDocument();
+    expect(screen.getByText(/0 de 5 unidades entregadas/i)).toBeInTheDocument();
+  });
 });

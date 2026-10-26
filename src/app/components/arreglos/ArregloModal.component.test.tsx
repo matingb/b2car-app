@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import ArregloModal from "./ArregloModal";
+import type { Arreglo } from "@/model/types";
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
@@ -98,11 +99,13 @@ describe("ArregloModal - toggle de IVA", () => {
 
     const onClose = vi.fn();
 
+    const initialArreglo = initial as unknown as Arreglo;
+
     const { rerender } = render(
       <ArregloModal
         open={true}
         vehiculoId="veh-1"
-        initial={{ ...initial }}
+        initial={{ ...initialArreglo }}
         onClose={onClose}
       />
     );
@@ -119,7 +122,7 @@ describe("ArregloModal - toggle de IVA", () => {
       <ArregloModal
         open={true}
         vehiculoId="veh-1"
-        initial={{ ...initial }}
+        initial={{ ...initialArreglo }}
         onClose={onClose}
       />
     );
@@ -148,7 +151,7 @@ describe("ArregloModal - toggle de IVA", () => {
       <ArregloModal
         open={true}
         vehiculoId="veh-1"
-        initial={{ ...initial }}
+        initial={{ ...initialArreglo }}
         onClose={onClose}
       />
     );

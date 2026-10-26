@@ -210,10 +210,17 @@ export async function dadaUnaFacturaAutorizadaConLineas(
 export async function dadaUnaOperacion(tipo: "VENTA" | "COMPRA" = "VENTA"): Promise<string> {
   const { data, error } = await adminClient
     .from("operaciones")
-    .insert({ tenant_id: SEED.tenantId, taller_id: SEED.tallerId, cliente_id: SEED.clienteId, tipo })
+    .insert({ tenant_id: SEED.tenantId, taller_id: SEED.tallerId, tipo })
     .select("id")
     .single();
   if (error || !data) throw new Error(`dadaUnaOperacion falló: ${error?.message ?? "sin respuesta"}`);
+  if (tipo === "VENTA") {
+    await adminClient.from("operaciones_venta").insert({
+      tenant_id: SEED.tenantId,
+      operacion_id: data.id,
+      cliente_id: SEED.clienteId,
+    });
+  }
   return data.id;
 }
 

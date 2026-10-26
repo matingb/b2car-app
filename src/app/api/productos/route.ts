@@ -51,13 +51,16 @@ function mapProducto(row: ProductoWithStocksRow): ProductoDTO {
   };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const authError = await requirePermission(Permission.ProductosView);
   if (authError) return authError;
 
+  const url = new URL(req.url);
+  const proveedorId = url.searchParams.get("proveedorId") || url.searchParams.get("proveedor_id") || undefined;
+
   const supabase = await createClient();
 
-  const { data, error } = await productosService.list(supabase);
+  const { data, error } = await productosService.list(supabase, { proveedorId });
   if (error) {
     return Response.json({ data: [], error: "Error listando productos" } satisfies GetProductosResponse, { status: 500 });
   }

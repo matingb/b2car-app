@@ -315,7 +315,7 @@ const styles = {
     transition: "all 0.15s ease",
     "&:hover:not(:disabled)": {
       color: COLOR.SEMANTIC.DANGER,
-      backgroundColor: "rgba(239, 68, 68, 0.08)",
+      backgroundColor: COLOR.STATUS.DANGER.BG_SUBTLE,
     },
     "&:disabled": {
       opacity: 0.35,

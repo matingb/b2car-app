@@ -910,14 +910,16 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string, receptor
 async function getCanonicalVenta(tenantId: string, operationId: string, receptor: ReceptorResolution = "PERFIL"): Promise<CanonicalSource> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("operaciones").select("id, tipo, fecha, cliente_id")
+    .from("operaciones").select("id, tipo, fecha, operaciones_venta(cliente_id)")
     .eq("id", operationId).eq("tenant_id", tenantId).maybeSingle();
   if (error || !data) throw new FacturacionValidationError("Venta no encontrada");
   const operation = record(data);
   if (text(operation.tipo) !== "VENTA") throw new FacturacionValidationError("Sólo una venta puede facturarse desde Operaciones");
   const resolved = await resolveStockLines(tenantId, [operationId], "VENTA");
   const total = resolved.lineas.reduce((sum, line) => sum + line.subtotal, 0);
-  const clienteId = nullable(operation.cliente_id);
+  const rawVenta = operation.operaciones_venta;
+  const venta = Array.isArray(rawVenta) ? rawVenta[0] : (rawVenta as Record<string, unknown> | null | undefined);
+  const clienteId = nullable(venta?.cliente_id) ?? nullable(operation.cliente_id);
   const resolvedReceiver = await resolveSourceReceiver(tenantId, clienteId, receptor);
   return {
     id: text(operation.id), origenTipo: "VENTA", fecha: nullable(operation.fecha), total,

@@ -373,7 +373,7 @@ export const arregloMutationService = {
       }
 
       const status = error === ServiceError.NotFound ? 404 : 500;
-      const errorMessage = status === 404 ? "Arreglo no encontrado" : "Error eliminando arreglo";
+      const errorMessage = status === 404 ? "Arreglo no encontrado" : (message || "Error eliminando arreglo");
       return { error: errorMessage, status };
     }
 

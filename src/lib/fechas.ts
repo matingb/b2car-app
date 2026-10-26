@@ -503,4 +503,103 @@ export function formatTimeAgo(
   return capitalizeFirst(rtf.format(diffYear, "year"));
 }
 
+export type DateRangeFilters = {
+  fecha?: string | null;
+  from?: string | null;
+  to?: string | null;
+  desde?: string | null;
+  hasta?: string | null;
+  fecha_desde?: string | null;
+  fecha_hasta?: string | null;
+};
+
+export type ResolvedDateBounds = {
+  from: string | null;
+  to: string | null;
+};
+
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Normaliza un valor de inicio a timestamp ISO en Buenos Aires si es solo fecha (YYYY-MM-DD),
+ * o conserva el timestamp/cadena intacta si ya incluye hora/zona.
+ */
+export function toTimestampStart(value: string): string {
+  if (!DATE_ONLY_PATTERN.test(value)) return value;
+  return argentinaCalendarDateRangeISO(value, value)?.from ?? value;
+}
+
+/**
+ * Normaliza un valor de fin a timestamp ISO de inicio del día siguiente (exclusivo) en Buenos Aires
+ * si es solo fecha (YYYY-MM-DD), o conserva el timestamp/cadena intacta si ya incluye hora/zona.
+ */
+export function toTimestampEndExclusive(value: string): string {
+  if (!DATE_ONLY_PATTERN.test(value)) return value;
+  return argentinaCalendarDateRangeISO(value, value)?.to ?? value;
+}
+
+/**
+ * Valida si una fecha de filtro es una fecha calendario YYYY-MM-DD válida o un ISO instant con timezone.
+ */
+export function isValidFilterDate(value: string): boolean {
+  return DATE_ONLY_PATTERN.test(value)
+    ? isValidDate(value)
+    : isValidISODateTimeWithTimezone(value);
+}
+
+/**
+ * Valida la sintaxis y coherencia cronológica de los filtros de fecha.
+ * Admite tanto un día puntual (`fecha`) como un rango (`from`/`to`, `desde`/`hasta`, `fecha_desde`/`fecha_hasta`).
+ */
+export function validateDateRangeFilters(filters: DateRangeFilters): string | null {
+  const from = filters.from || filters.desde || filters.fecha_desde;
+  const to = filters.to || filters.hasta || filters.fecha_hasta;
+  const hasRange = Boolean(from || to);
+
+  if (filters.fecha && hasRange) {
+    return "Usá fecha o from/to, no ambos formatos.";
+  }
+
+  if (filters.fecha && !isValidDate(filters.fecha)) {
+    return "fecha debe tener formato YYYY-MM-DD válido.";
+  }
+
+  if (from && !isValidFilterDate(from)) {
+    return "from debe ser una fecha válida con zona horaria o YYYY-MM-DD.";
+  }
+
+  if (to && !isValidFilterDate(to)) {
+    return "to debe ser una fecha válida con zona horaria o YYYY-MM-DD.";
+  }
+
+  if (from && to && Date.parse(toTimestampStart(from)) >= Date.parse(toTimestampEndExclusive(to))) {
+    return "from debe ser anterior a to.";
+  }
+
+  return null;
+}
+
+/**
+ * Resuelve los límites inferior y superior inclusivo/exclusivo en el huso de Buenos Aires (GMT-3).
+ * Si se especifica `fecha`, resuelve el día completo [inicio, inicioDelDíaSiguiente).
+ * Si se especifica un rango, normaliza cada extremo manteniendo límites abiertos (`null`) si no se envían.
+ */
+export function resolveDateRangeBounds(filters: DateRangeFilters): ResolvedDateBounds {
+  if (filters.fecha) {
+    return {
+      from: toTimestampStart(filters.fecha),
+      to: toTimestampEndExclusive(filters.fecha),
+    };
+  }
+
+  const from = filters.from || filters.desde || filters.fecha_desde;
+  const to = filters.to || filters.hasta || filters.fecha_hasta;
+
+  return {
+    from: from ? toTimestampStart(from) : null,
+    to: to ? toTimestampEndExclusive(to) : null,
+  };
+}
+
+
 

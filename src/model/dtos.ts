@@ -120,6 +120,24 @@ export type OperacionDTO = {
     observaciones?: string | null;
     proveedor_id?: string | null;
     proveedor_nombre?: string;
+    cliente_id?: string | null;
+    cliente_nombre?: string;
+};
+
+export type OperacionVentaDTO = {
+    operacion_id: string;
+    tenant_id: string;
+    cliente_id: string;
+    cliente_nombre?: string;
+    created_at: string;
+};
+
+export type OperacionCompraDTO = {
+    operacion_id: string;
+    tenant_id: string;
+    proveedor_id: string;
+    proveedor_nombre?: string;
+    created_at: string;
 };
 
 export type MovimientoStockDTO = {
@@ -152,11 +170,35 @@ export type ProductoProveedorDTO = {
     proveedor_cuit?: string;
     producto_nombre?: string;
     producto_codigo?: string;
+    producto_categoria?: string;
+    producto_precio_venta?: number;
     codigo_proveedor?: string | null;
     costo_referencia: number;
     es_predeterminado: boolean;
     created_at?: string;
     updated_at?: string;
+};
+
+export type ProveedorOperacionItemDTO = {
+    id: string;
+    tipo: string;
+    fecha: string;
+    created_at: string;
+    monto_total: number;
+    total_pagado: number;
+    saldo_pendiente: number;
+    estado_pago: string;
+    estado_stock: string;
+    observaciones: string | null;
+    taller_id: string | null;
+    taller_nombre: string | null;
+};
+
+export type ProveedorCuentaCorrienteResumen = {
+    totalComprado: number;
+    totalPagado: number;
+    saldoAdeudado: number;
+    operaciones: ProveedorOperacionItemDTO[];
 };
 
 export type OperacionLineaDTO = {

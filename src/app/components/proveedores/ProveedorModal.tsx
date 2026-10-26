@@ -221,9 +221,9 @@ const styles = {
   errorBanner: {
     padding: "10px 14px",
     borderRadius: 8,
-    background: "rgba(239, 68, 68, 0.12)",
-    border: `1px solid ${COLOR.SEMANTIC.DANGER}`,
-    color: COLOR.SEMANTIC.DANGER,
+    background: COLOR.STATUS.DANGER.BG_SUBTLE,
+    border: `1px solid ${COLOR.STATUS.DANGER.BORDER}`,
+    color: COLOR.STATUS.DANGER.TEXT,
     fontSize: 13,
     fontWeight: 500,
   },

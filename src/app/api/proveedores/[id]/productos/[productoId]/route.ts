@@ -2,7 +2,10 @@ import type { NextRequest } from "next/server";
 import { createClient } from "@/supabase/server";
 import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
-import { productosProveedoresService } from "@/app/api/proveedores/productosProveedoresService";
+import {
+	productosProveedoresService,
+	type ActualizarProductoVinculadoInput,
+} from "@/app/api/proveedores/productosProveedoresService";
 import { ServiceError } from "@/app/api/serviceError";
 
 export async function DELETE(
@@ -45,7 +48,7 @@ export async function PATCH(
 		return Response.json({ data: null, error: "Cuerpo JSON inválido" }, { status: 400 });
 	}
 
-	const b = body as Record<string, unknown>;
+	const b = body as ActualizarProductoVinculadoInput;
 	const supabase = await createClient();
 
 	const { data, error } = await productosProveedoresService.actualizar(
@@ -53,9 +56,9 @@ export async function PATCH(
 		proveedorId,
 		productoId,
 		{
-			codigo_proveedor: b.codigo_proveedor !== undefined ? String(b.codigo_proveedor) : undefined,
-			costo_referencia: b.costo_referencia !== undefined ? Number(b.costo_referencia) : undefined,
-			es_predeterminado: b.es_predeterminado !== undefined ? Boolean(b.es_predeterminado) : undefined,
+			codigo_proveedor: b.codigo_proveedor,
+			costo_referencia: b.costo_referencia,
+			es_predeterminado: b.es_predeterminado,
 		}
 	);
 

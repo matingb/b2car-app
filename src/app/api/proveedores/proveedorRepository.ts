@@ -1,5 +1,6 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { ServiceError, serviceFailure, toServiceError } from "@/app/api/serviceError";
+import type { ProveedorCuentaCorrienteResumen, ProveedorOperacionItemDTO } from "@/model/dtos";
 
 export type ProveedorRow = {
   id: string;
@@ -60,6 +61,11 @@ export interface ProveedorRepository {
     supabase: SupabaseClient,
     id: string
   ): Promise<{ error: ServiceError | PostgrestError | null }>;
+
+  getCuentaCorriente(
+    supabase: SupabaseClient,
+    proveedorId: string
+  ): Promise<{ data: ProveedorCuentaCorrienteResumen | null; error: ServiceError | PostgrestError | null }>;
 }
 
 export const supabaseProveedorRepository: ProveedorRepository = {
@@ -138,5 +144,61 @@ export const supabaseProveedorRepository: ProveedorRepository = {
     if (error) return { error };
     if (!count) return { error: ServiceError.NotFound };
     return { error: null };
+  },
+
+  async getCuentaCorriente(supabase: SupabaseClient, proveedorId: string) {
+    const { data, error } = await supabase
+      .from("operaciones_compra")
+      .select("operaciones!inner(id, tipo, fecha, created_at, monto_total, total_pagado, estado_pago, estado_stock, observaciones, taller_id, talleres(nombre))")
+      .eq("proveedor_id", proveedorId)
+      .order("created_at", { ascending: false });
+
+    if (error) return { data: null, error: toServiceError(error) ?? error };
+
+    let totalComprado = 0;
+    let totalPagado = 0;
+    let saldoAdeudado = 0;
+
+    const items: ProveedorOperacionItemDTO[] = Array.isArray(data)
+      ? data.map((item: Record<string, unknown>) => {
+          const row = (item.operaciones ?? item.operacion ?? item) as Record<string, unknown>;
+          const montoTotal = Number(row.monto_total) || 0;
+          const totalPagadoItem = Number(row.total_pagado) || 0;
+          const saldoPendiente = Math.max(0, montoTotal - totalPagadoItem);
+
+          totalComprado += montoTotal;
+          totalPagado += totalPagadoItem;
+          saldoAdeudado += saldoPendiente;
+
+          const tallerObj = row.talleres && typeof row.talleres === "object"
+            ? (row.talleres as Record<string, unknown>)
+            : null;
+
+          return {
+            id: String(row.id),
+            tipo: String(row.tipo),
+            fecha: String(row.fecha),
+            created_at: String(row.created_at),
+            monto_total: montoTotal,
+            total_pagado: totalPagadoItem,
+            saldo_pendiente: saldoPendiente,
+            estado_pago: String(row.estado_pago ?? "PAGADO"),
+            estado_stock: String(row.estado_stock ?? "ENTREGADO"),
+            observaciones: row.observaciones ? String(row.observaciones) : null,
+            taller_id: row.taller_id ? String(row.taller_id) : null,
+            taller_nombre: tallerObj?.nombre ? String(tallerObj.nombre) : null,
+          };
+        })
+      : [];
+
+    return {
+      data: {
+        totalComprado,
+        totalPagado,
+        saldoAdeudado,
+        operaciones: items,
+      },
+      error: null,
+    };
   },
 };

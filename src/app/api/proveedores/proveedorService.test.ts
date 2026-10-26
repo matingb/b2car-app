@@ -12,6 +12,7 @@ function makeMockRepository(overrides: Partial<ProveedorRepository> = {}): Prove
     create: vi.fn().mockResolvedValue({ data: null, error: null }),
     updateById: vi.fn().mockResolvedValue({ data: null, error: null }),
     deleteById: vi.fn().mockResolvedValue({ error: null }),
+    getCuentaCorriente: vi.fn().mockResolvedValue({ data: null, error: null }),
     ...overrides,
   };
 }
@@ -89,5 +90,20 @@ describe("proveedorService", () => {
     await service.deleteById(mockSupabase, "p-1");
 
     expect(mockRepo.deleteById).toHaveBeenCalledWith(mockSupabase, "p-1");
+  });
+
+  it("delega getCuentaCorriente directamente al repositorio", async () => {
+    const mockRepo = makeMockRepository({
+      getCuentaCorriente: vi.fn().mockResolvedValue({
+        data: { totalComprado: 100, totalPagado: 50, saldoAdeudado: 50, operaciones: [] },
+        error: null,
+      }),
+    });
+    const service = createProveedorService(mockRepo);
+
+    const res = await service.getCuentaCorriente(mockSupabase, "p-1");
+
+    expect(mockRepo.getCuentaCorriente).toHaveBeenCalledWith(mockSupabase, "p-1");
+    expect(res.data?.saldoAdeudado).toBe(50);
   });
 });

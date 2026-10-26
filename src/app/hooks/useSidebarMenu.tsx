@@ -96,13 +96,6 @@ export function useSidebarMenu() {
         icon: <Users size={18} />,
         onClick: () => router.push(ROUTES.clientes),
       }] : []),
-      ...(hasPermission(Permission.ProveedoresView) ? [{
-        key: SidebarMenuKey.Proveedores,
-        href: ROUTES.proveedores,
-        label: "Proveedores",
-        icon: <Truck size={18} />,
-        onClick: () => router.push(ROUTES.proveedores),
-      }] : []),
       ...(hasPermission(Permission.VehiculosView) ? [{
         key: SidebarMenuKey.Vehiculos,
         href: ROUTES.vehiculos,
@@ -122,6 +115,7 @@ export function useSidebarMenu() {
         href: ROUTES.productos,
         label: "Productos",
         icon: <Package size={18} />,
+        activePaths: [ROUTES.proveedores, "/proveedores"],
         onClick: () => router.push(ROUTES.productos),
       }] : []),
       ...(hasPermission(Permission.OperacionesView) ? [{

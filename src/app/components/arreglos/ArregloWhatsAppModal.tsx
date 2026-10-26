@@ -482,7 +482,7 @@ export default function ArregloWhatsAppModal({
                   title="Copiar texto al portapapeles"
                   aria-label="Copiar texto al portapapeles"
                 >
-                  {copied ? <Check size={13} color="#16a34a" /> : <Copy size={13} />}
+                  {copied ? <Check size={13} color={COLOR.STATUS.SUCCESS.TEXT} /> : <Copy size={13} />}
                   <span>{copied ? "¡Copiado!" : "Copiar"}</span>
                 </button>
               </div>
@@ -547,7 +547,7 @@ export default function ArregloWhatsAppModal({
                     title="Copiar texto al portapapeles"
                     aria-label="Copiar texto al portapapeles"
                   >
-                    {copied ? <Check size={13} color="#16a34a" /> : <Copy size={13} />}
+                    {copied ? <Check size={13} color={COLOR.STATUS.SUCCESS.TEXT} /> : <Copy size={13} />}
                     <span>{copied ? "¡Copiado!" : "Copiar"}</span>
                   </button>
                 </div>

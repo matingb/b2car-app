@@ -1,5 +1,5 @@
 import type { Proveedor } from "@/model/types";
-import type { ProductoProveedorDTO } from "@/model/dtos";
+import type { ProductoProveedorDTO, ProveedorCuentaCorrienteResumen, ProveedorOperacionItemDTO } from "@/model/dtos";
 import { API_ROUTES } from "@/routing/routes";
 
 export type GetProveedoresInput = {
@@ -232,6 +232,26 @@ export const proveedoresClient = {
       return {
         data: null,
         error: err instanceof Error ? err.message : "Error de red al actualizar producto vinculado",
+      };
+    }
+  },
+
+  async getOperaciones(
+    proveedorId: string
+  ): Promise<ProveedoresClientResponse<ProveedorCuentaCorrienteResumen>> {
+    try {
+      const res = await fetch(`${API_ROUTES.proveedores}/${proveedorId}/operaciones`);
+      const body = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        return { data: null, error: body?.error || `Error ${res.status}` };
+      }
+
+      return { data: body?.data ?? null, error: null };
+    } catch (err: unknown) {
+      return {
+        data: null,
+        error: err instanceof Error ? err.message : "Error de red al obtener operaciones del proveedor",
       };
     }
   },

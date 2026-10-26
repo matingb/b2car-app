@@ -41,6 +41,30 @@ const mockCuentasApi = {
   createCuenta: vi.fn(),
 };
 
+const mockGetProductos = vi.fn();
+const mockGetProveedorProductos = vi.fn();
+const mockGetProveedores = vi.fn();
+
+vi.mock("@/clients/productosClient", () => ({
+  productosClient: {
+    getAll: (...args: unknown[]) => mockGetProductos(...args),
+  },
+}));
+
+vi.mock("@/clients/proveedores/proveedoresClient", () => ({
+  proveedoresClient: {
+    getAll: (...args: unknown[]) => mockGetProveedores(...args),
+    getProductos: (...args: unknown[]) => mockGetProveedorProductos(...args),
+  },
+}));
+
+const mockGetClientes = vi.fn();
+vi.mock("@/clients/clientes/clientesClient", () => ({
+  clientesClient: {
+    getAll: (...args: unknown[]) => mockGetClientes(...args),
+  },
+}));
+
 vi.mock("@/clients/finanzasClient", () => ({
   finanzasClient: {
     crearGasto: (...args: unknown[]) => mockCrearGasto(...args),
@@ -55,12 +79,14 @@ vi.mock("@/app/providers/InventarioProvider", () => ({
 vi.mock("@/app/components/ui/Autocomplete", () => ({
   __esModule: true,
   default: ({
+    options,
     value,
     onChange,
     dataTestId,
     disabled,
     placeholder,
   }: {
+    options?: { value: string; label: string }[];
     value: string;
     onChange: (v: string) => void;
     dataTestId?: string;
@@ -73,6 +99,7 @@ vi.mock("@/app/components/ui/Autocomplete", () => ({
       disabled={disabled}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
+      data-options={JSON.stringify(options ?? [])}
     />
   ),
 }));
@@ -102,6 +129,10 @@ describe("OperacionCreateModal", () => {
     vi.clearAllMocks();
     mockInventarioApi.inventario = [];
     mockCuentasApi.cuentaFavorita = null;
+    mockGetProductos.mockResolvedValue({ data: [], error: null });
+    mockGetProveedorProductos.mockResolvedValue({ data: [], error: null });
+    mockGetProveedores.mockResolvedValue({ data: [], error: null });
+    mockGetClientes.mockResolvedValue({ data: [], error: null });
     mockCrearGasto.mockResolvedValue({
       data: { id: "G1", cuentaId: "C1", categoria: "ALQUILER", importe: 5000 },
       error: null,
@@ -346,12 +377,14 @@ describe("OperacionCreateModal", () => {
         tipo: "VENTA",
         taller_id: "T-2",
         cuenta_financiera_id: "C-1",
-        lineas: [{
-          stock_id: "S-CONTEXTO",
-          cantidad: 1,
-          monto_unitario: 3500,
-          delta_cantidad: -1,
-        }],
+        lineas: [
+          expect.objectContaining({
+            stock_id: "S-CONTEXTO",
+            cantidad: 1,
+            monto_unitario: 3500,
+            delta_cantidad: -1,
+          }),
+        ],
       }));
     });
 
@@ -609,6 +642,253 @@ describe("OperacionCreateModal", () => {
     });
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("al comprar con disabledProveedor, filtra los productos para mostrar solo los de ese proveedor y aplica su costo de referencia", async () => {
+    mockInventarioApi.inventario = [
+      {
+        id: "S1",
+        productoId: "PROD-1",
+        nombre: "Aceite Total 10W40",
+        codigo: "AC-10",
+        precioUnitario: 5000,
+        costoUnitario: 3000,
+        stockActual: 5,
+      },
+      {
+        id: "S2",
+        productoId: "PROD-2",
+        nombre: "Filtro Bosch",
+        codigo: "FB-01",
+        precioUnitario: 4000,
+        costoUnitario: 2200,
+        stockActual: 10,
+      },
+    ];
+
+    mockGetProveedores.mockResolvedValue({
+      data: [{ id: "PROV-1", nombre: "Distribuidora Total" }],
+      error: null,
+    });
+    mockGetProductos.mockResolvedValue({
+      data: [{ id: "PROD-1", nombre: "Aceite Total 10W40", codigo: "AC-10" }],
+      error: null,
+    });
+    mockGetProveedorProductos.mockResolvedValue({
+      data: [
+        {
+          id: "PP1",
+          producto_id: "PROD-1",
+          proveedor_id: "PROV-1",
+          codigo_proveedor: "SKU-TOTAL-01",
+          costo_referencia: 2750,
+          es_predeterminado: true,
+        },
+      ],
+      error: null,
+    });
+
+    const onClose = vi.fn();
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        initialTipo="COMPRA"
+        initialCuentaId="C1"
+        initialProveedorId="PROV-1"
+        disabledProveedor
+        onClose={onClose}
+      />
+    );
+
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(mockGetProductos).toHaveBeenCalledWith({ proveedorId: "PROV-1" });
+      expect(mockGetProveedorProductos).toHaveBeenCalledWith("PROV-1");
+    });
+
+    // Validar que en el selector de productos solo figure el producto del proveedor (S1)
+    const stockInput = screen.getByTestId("operaciones-line-0-stock");
+    await waitFor(() => {
+      const options = JSON.parse(stockInput.getAttribute("data-options") || "[]");
+      expect(options).toHaveLength(1);
+      expect(options[0].value).toBe("S1");
+      expect(options[0].label).toBe("Aceite Total 10W40");
+      expect(options[0].secondaryLabel).toContain("SKU Prov: SKU-TOTAL-01");
+    });
+
+    // Seleccionar el item S1 y verificar que tome el costo_referencia (2750)
+    await userEvent.clear(stockInput);
+    await userEvent.type(stockInput, "S1");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("operaciones-line-0-unitario")).toHaveValue(2750);
+    });
+
+    // Confirmar la compra
+    await userEvent.click(screen.getByTestId("modal-submit"));
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(mockCrearOperacion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tipo: "COMPRA",
+          proveedor_id: "PROV-1",
+          lineas: [
+            expect.objectContaining({
+              stock_id: "S1",
+              monto_unitario: 2750,
+              delta_cantidad: 1,
+            }),
+          ],
+        })
+      );
+    });
+  });
+
+  it("si el proveedor no tiene productos asociados en el taller, muestra aviso informativo", async () => {
+    mockInventarioApi.inventario = [
+      {
+        id: "S1",
+        productoId: "PROD-1",
+        nombre: "Aceite Total 10W40",
+        codigo: "AC-10",
+        precioUnitario: 5000,
+        costoUnitario: 3000,
+        stockActual: 5,
+      },
+    ];
+
+    mockGetProveedores.mockResolvedValue({
+      data: [{ id: "PROV-VACIO", nombre: "Proveedor Nuevo" }],
+      error: null,
+    });
+    mockGetProductos.mockResolvedValue({ data: [], error: null });
+    mockGetProveedorProductos.mockResolvedValue({ data: [], error: null });
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        initialTipo="COMPRA"
+        initialCuentaId="C1"
+        initialProveedorId="PROV-VACIO"
+        disabledProveedor
+        onClose={vi.fn()}
+      />
+    );
+
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("operacion-empty-proveedor-prods")).toBeInTheDocument();
+      expect(screen.getByText(/No hay productos de Proveedor Nuevo registrados en el inventario/i)).toBeInTheDocument();
+    });
+  });
+
+  it("al crear una venta permite seleccionar un cliente y envía cliente_id en el payload", async () => {
+    mockInventarioApi.inventario = [{
+      id: "S-VENTA",
+      productoId: "P-VENTA",
+      nombre: "Filtro Aire",
+      codigo: "FA-01",
+      precioUnitario: 3500,
+      costoUnitario: 2000,
+      stockActual: 10,
+    }];
+    mockGetClientes.mockResolvedValue({
+      data: [{ id: "CLI-1", nombre: "Juan Perez", dni_cuil: "20123456789" }],
+      error: null,
+    });
+    const onClose = vi.fn();
+    mockCrearOperacion.mockResolvedValue({ id: "OP-1", tipo: "VENTA" });
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        initialCuentaId="C1"
+        initialTipo="VENTA"
+        onClose={onClose}
+      />
+    );
+
+    await runPendingPromises();
+
+    // Seleccionar cliente
+    const clienteInput = screen.getByTestId("operaciones-create-cliente");
+    expect(clienteInput).toBeInTheDocument();
+    await userEvent.clear(clienteInput);
+    await userEvent.type(clienteInput, "CLI-1");
+
+    // Seleccionar item
+    const stockInput = screen.getByTestId("operaciones-line-0-stock");
+    await userEvent.type(stockInput, "S-VENTA");
+
+    const submitBtn = screen.getByTestId("modal-submit");
+    expect(submitBtn).not.toBeDisabled();
+
+    await userEvent.click(submitBtn);
+    await runPendingPromises();
+
+    expect(mockCrearOperacion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipo: "VENTA",
+        cliente_id: "CLI-1",
+      })
+    );
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("al vender con disabledCliente, preselecciona el cliente y lo desactiva en el selector", async () => {
+    mockInventarioApi.inventario = [{
+      id: "S-VENTA",
+      productoId: "P-VENTA",
+      nombre: "Filtro Aire",
+      codigo: "FA-01",
+      precioUnitario: 3500,
+      costoUnitario: 2000,
+      stockActual: 10,
+    }];
+    mockGetClientes.mockResolvedValue({
+      data: [{ id: "CLI-LOCKED", nombre: "María Gomez" }],
+      error: null,
+    });
+    const onClose = vi.fn();
+    mockCrearOperacion.mockResolvedValue({ id: "OP-1", tipo: "VENTA" });
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        initialCuentaId="C1"
+        initialTipo="VENTA"
+        initialClienteId="CLI-LOCKED"
+        disabledCliente
+        onClose={onClose}
+      />
+    );
+
+    await runPendingPromises();
+
+    expect(screen.getByTestId("operaciones-create-cliente")).toBeDisabled();
+    expect(screen.getByTestId("operaciones-create-cliente")).toHaveValue("CLI-LOCKED");
+
+    const stockInput = screen.getByTestId("operaciones-line-0-stock");
+    await userEvent.type(stockInput, "S-VENTA");
+
+    await userEvent.click(screen.getByTestId("modal-submit"));
+    await runPendingPromises();
+
+    expect(mockCrearOperacion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipo: "VENTA",
+        cliente_id: "CLI-LOCKED",
+      })
+    );
+  });
 });
+
+
 
 

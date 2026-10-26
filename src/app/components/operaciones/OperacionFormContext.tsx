@@ -9,7 +9,10 @@ import { finanzasClient } from "@/clients/finanzasClient";
 import { isValidDate, toISODateLocal, toISODateTimeWithLocalCurrentTime, toLocalDateInputFormat } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
-import type { TipoOperacion } from "@/model/types";
+import type { EstadoPagoOperacion, Proveedor, Cliente, TipoOperacion } from "@/model/types";
+import { proveedoresClient } from "@/clients/proveedores/proveedoresClient";
+import { clientesClient } from "@/clients/clientes/clientesClient";
+import { productosClient } from "@/clients/productosClient";
 import type { GastoFinanciero } from "@/model/finanzas";
 import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import {
@@ -17,6 +20,7 @@ import {
   EMPTY_CUENTA_FINANCIERA_DRAFT,
   validateCuentaFinancieraForm,
 } from "@/app/components/finanzas/CuentaFinancieraFormFields";
+import { type PagoDraftItem } from "@/app/components/arreglos/RegistrarPagoSection";
 import type { OperacionLineaDraft } from "./OperacionLineaEditor";
 import {
   type OperacionModalProps,
@@ -32,7 +36,7 @@ import {
 
 export const CREATE_CUENTA_VALUE = "__create_cuenta__";
 
-type StockItemWithActual = ProductoLite & { stockActual: number };
+type StockItemWithActual = ProductoLite & { stockActual: number; productoId: string };
 
 type OperacionFormContextValue = {
   open: boolean;
@@ -54,6 +58,22 @@ type OperacionFormContextValue = {
   tipoConfigById: Map<TipoOperacion, TipoOperacionConfig>;
   isTipoEnabled: (value: TipoOperacion | null) => boolean;
 
+  // Proveedor
+  proveedorId: string;
+  setProveedorId: (id: string) => void;
+  disabledProveedor: boolean;
+  proveedores: Proveedor[];
+  isProveedoresLoading: boolean;
+  isProveedorProductosLoading: boolean;
+  isProveedorProductosEmpty: boolean;
+
+  // Cliente
+  clienteId: string;
+  setClienteId: (id: string) => void;
+  disabledCliente: boolean;
+  clientes: Cliente[];
+  isClientesLoading: boolean;
+
   // Gasto
   categoriaGasto: string;
   setCategoriaGasto: (cat: string) => void;
@@ -73,6 +93,22 @@ type OperacionFormContextValue = {
   stockById: Map<string, StockItemWithActual>;
   isInventarioLoading: boolean;
   getDefaultUnitarioForStockId: (stockId: string) => number | null;
+  stockDeliveryPercentage: number;
+  stockDeliveryStatus: string;
+
+  // Pagos y Cuentas
+  cuentaFavorita: { id: string; nombre: string } | null;
+  pagosDraft: PagoDraftItem[];
+  setPagosDraft: React.Dispatch<React.SetStateAction<PagoDraftItem[]>>;
+  showAdvanced: boolean;
+  setShowAdvanced: React.Dispatch<React.SetStateAction<boolean>>;
+  noPagar: boolean;
+  setNoPagar: (noPagar: boolean) => void;
+  handleAddPagoRow: () => void;
+  handleRemovePagoRow: (id: string) => void;
+  handleUpdatePagoRow: (id: string, field: keyof PagoDraftItem, val: string) => void;
+  handleUpdatePagoCuentaDraft: (id: string, patch: Partial<CuentaFinancieraDraft>) => void;
+  handleToggleAdvanced: () => void;
 
   // Submit & Validation
   canSubmit: boolean;
@@ -80,6 +116,14 @@ type OperacionFormContextValue = {
   submitForm: (e: React.FormEvent) => Promise<void>;
   requiresCuenta: boolean;
   importeTotal: number;
+
+  // Condición comercial y stock diferido
+  estadoPago: EstadoPagoOperacion;
+  setEstadoPago: (estado: EstadoPagoOperacion) => void;
+  montoInicial: string;
+  setMontoInicial: (monto: string) => void;
+  moverStock: boolean;
+  setMoverStock: (mover: boolean) => void;
 };
 
 const OperacionFormContext = createContext<OperacionFormContextValue | null>(null);
@@ -98,6 +142,10 @@ export function OperacionFormProvider({
   onClose,
   initialTipo,
   initialCuentaId,
+  initialProveedorId,
+  disabledProveedor = false,
+  initialClienteId,
+  disabledCliente = false,
   gasto,
   contextualStock,
   onSuccess,
@@ -110,6 +158,7 @@ export function OperacionFormProvider({
     refresh: refreshCuentas,
     createCuenta,
     cuentaFavorita,
+    cuentasActivas,
   } = useCuentasFinancieras();
 
   const [tipo, setTipoState] = useState<TipoOperacion | null>(gasto ? "GASTO" : contextualStock ? "VENTA" : initialTipo ?? "VENTA");
@@ -126,6 +175,76 @@ export function OperacionFormProvider({
   const [descripcionGasto, setDescripcionGasto] = useState<string>(gasto?.descripcion ?? "");
   const [observaciones, setObservaciones] = useState<string>(gasto?.observaciones ?? "");
   const [isSubmittingGasto, setIsSubmittingGasto] = useState(false);
+
+  const [montoInicial, setMontoInicial] = useState<string>("");
+  const [moverStock, setMoverStock] = useState<boolean>(true);
+
+  const setEstadoPago = useCallback((nuevo: EstadoPagoOperacion) => {
+    if (nuevo === "PENDIENTE") {
+      setNoPagar(true);
+    } else {
+      setNoPagar(false);
+    }
+  }, []);
+
+  // Pagos y Cuentas (reutilizable)
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  const [noPagar, setNoPagar] = useState<boolean>(false);
+  const [pagosDraft, setPagosDraft] = useState<PagoDraftItem[]>(() => [
+    {
+      id: generateUuidV4(),
+      cuentaId: initialCuentaId ?? cuentaFavorita?.id ?? "",
+      monto: "",
+      fecha: gasto?.fecha ? toLocalDateInputFormat(gasto.fecha) : toISODateLocal(new Date()),
+      descripcion: "",
+    },
+  ]);
+
+  // Proveedor
+  const [proveedorId, setProveedorId] = useState<string>(
+    initialProveedorId ?? ""
+  );
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const [isProveedoresLoading, setIsProveedoresLoading] = useState<boolean>(false);
+
+  // Cliente
+  const [clienteId, setClienteId] = useState<string>(
+    initialClienteId ?? ""
+  );
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [isClientesLoading, setIsClientesLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (initialProveedorId !== undefined) {
+      setProveedorId(initialProveedorId ?? "");
+    }
+  }, [initialProveedorId]);
+
+  useEffect(() => {
+    if (initialClienteId !== undefined) {
+      setClienteId(initialClienteId ?? "");
+    }
+  }, [initialClienteId]);
+
+  useEffect(() => {
+    if (tipo === "COMPRA" || tipo === "GASTO") {
+      setIsProveedoresLoading(true);
+      Promise.resolve(proveedoresClient?.getAll?.())
+        .then((res) => {
+          if (res?.data) setProveedores(res.data);
+        })
+        .catch(() => {})
+        .finally(() => setIsProveedoresLoading(false));
+    } else if (tipo === "VENTA") {
+      setIsClientesLoading(true);
+      Promise.resolve(clientesClient?.getAll?.())
+        .then((res) => {
+          if (res?.data) setClientes(res.data);
+        })
+        .catch(() => {})
+        .finally(() => setIsClientesLoading(false));
+    }
+  }, [tipo]);
 
   const { inventario, isLoading: isInventarioLoading } = useInventario(tallerId || undefined);
   const didInitRef = useRef(false);
@@ -166,6 +285,8 @@ export function OperacionFormProvider({
     if (didInitRef.current) return;
     didInitRef.current = true;
 
+    const initialAcc = initialCuentaId ?? cuentaFavorita?.id ?? "";
+
     if (gasto) {
       setTipoState("GASTO");
       setFecha(gasto.fecha ? toLocalDateInputFormat(gasto.fecha) : toISODateLocal(new Date()));
@@ -176,6 +297,17 @@ export function OperacionFormProvider({
       setMontoGasto(String(gasto.importe || ""));
       setDescripcionGasto(gasto.descripcion || "");
       setObservaciones(gasto.observaciones || "");
+      setPagosDraft([
+        {
+          id: generateUuidV4(),
+          cuentaId: gasto.cuentaId || initialAcc,
+          monto: String(gasto.importe || ""),
+          fecha: gasto.fecha ? toLocalDateInputFormat(gasto.fecha) : toISODateLocal(new Date()),
+          descripcion: "",
+        },
+      ]);
+      setShowAdvanced(false);
+      setNoPagar(false);
       return;
     }
 
@@ -183,12 +315,29 @@ export function OperacionFormProvider({
     setFecha(toISODateLocal(new Date()));
     setLineas([createEmptyLinea(contextualStock?.stockId)]);
     setTallerIdState(contextualStock?.tallerId ?? talleres[0]?.id ?? "");
-    setCuentaFinancieraId(initialCuentaId ?? cuentaFavorita?.id ?? "");
+    setCuentaFinancieraId(initialAcc);
     setCategoriaGasto("ALQUILER");
     setMontoGasto("");
     setDescripcionGasto("");
     setObservaciones("");
-  }, [open, talleres, initialTipo, initialCuentaId, gasto, contextualStock, cuentaFavorita]);
+    setMontoInicial("");
+    setMoverStock(true);
+    setShowAdvanced(false);
+    setNoPagar(false);
+    setProveedorId(initialProveedorId ?? "");
+    setClienteId(initialClienteId ?? "");
+    setPagosDraft([
+      {
+        id: generateUuidV4(),
+        cuentaId: initialAcc,
+        monto: "",
+        fecha: toISODateLocal(new Date()),
+        descripcion: "",
+      },
+    ]);
+    setShowAdvanced(false);
+    setNoPagar(false);
+  }, [open, talleres, initialTipo, initialCuentaId, gasto, contextualStock, cuentaFavorita, initialProveedorId, initialClienteId]);
 
   useEffect(() => {
     if (!open) return;
@@ -213,12 +362,19 @@ export function OperacionFormProvider({
     }
 
     setCuentaFinancieraId(cuentaFavorita.id);
+    setPagosDraft((prev) => {
+      if (prev.length > 0 && !prev[0].cuentaId) {
+        return prev.map((p, i) => (i === 0 ? { ...p, cuentaId: cuentaFavorita.id } : p));
+      }
+      return prev;
+    });
   }, [open, gasto, initialCuentaId, cuentaFinancieraId, cuentaFavorita]);
 
   const stockItems = useMemo<StockItemWithActual[]>(
     () =>
       (inventario ?? []).map((s) => ({
         id: s.id,
+        productoId: s.productoId ?? s.id,
         nombre: s.nombre,
         codigo: s.codigo,
         precio_unitario: Number(s.precioUnitario) || 0,
@@ -228,7 +384,80 @@ export function OperacionFormProvider({
     [inventario]
   );
 
-  // Recalcular unitario desde stock/producto y total al cambiar tipo (VENTA / COMPRA)
+  const [proveedorProductoIds, setProveedorProductoIds] = useState<Set<string> | null>(null);
+  const [isProveedorProductosLoading, setIsProveedorProductosLoading] = useState(false);
+  const [proveedorCatalogoMap, setProveedorCatalogoMap] = useState<
+    Map<string, { codigoProveedor?: string | null; costoReferencia?: number }>
+  >(new Map());
+
+  useEffect(() => {
+    if (!open || tipo !== "COMPRA" || !proveedorId) {
+      setProveedorProductoIds(null);
+      setProveedorCatalogoMap(new Map());
+      setIsProveedorProductosLoading(false);
+      return;
+    }
+
+    let active = true;
+    setIsProveedorProductosLoading(true);
+
+    Promise.all([
+      productosClient.getAll({ proveedorId }),
+      proveedoresClient.getProductos(proveedorId),
+    ])
+      .then(([prodsRes, provProdsRes]) => {
+        if (!active) return;
+        const ids = new Set<string>();
+        if (prodsRes?.data) {
+          for (const p of prodsRes.data) {
+            ids.add(p.id);
+          }
+        }
+        const catMap = new Map<string, { codigoProveedor?: string | null; costoReferencia?: number }>();
+        if (provProdsRes?.data) {
+          for (const pp of provProdsRes.data) {
+            ids.add(pp.producto_id);
+            catMap.set(pp.producto_id, {
+              codigoProveedor: pp.codigo_proveedor,
+              costoReferencia: Number(pp.costo_referencia) || 0,
+            });
+          }
+        }
+        setProveedorProductoIds(ids);
+        setProveedorCatalogoMap(catMap);
+      })
+      .catch((err) => {
+        logger.error("Error cargando productos del proveedor", err);
+      })
+      .finally(() => {
+        if (active) {
+          setIsProveedorProductosLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [open, tipo, proveedorId]);
+
+  const stockById = useMemo(() => new Map(stockItems.map((s) => [s.id, s])), [stockItems]);
+
+  // Si se cambia de proveedor o se filtran productos, desasociar líneas que no correspondan
+  useEffect(() => {
+    if (!open || tipo !== "COMPRA" || !proveedorProductoIds) return;
+    setLineas((prev) =>
+      prev.map((l) => {
+        if (!l.stockId) return l;
+        const item = stockById.get(l.stockId);
+        if (!item || !proveedorProductoIds.has(item.productoId)) {
+          return { ...l, stockId: "", unitario: 0, total: 0 };
+        }
+        return l;
+      })
+    );
+  }, [open, tipo, proveedorProductoIds, stockById]);
+
+  // Recalcular unitario desde stock/producto y total al cambiar tipo (VENTA / COMPRA) o catálogo de proveedor
   useEffect(() => {
     if (!open) return;
     if (!tipo) return;
@@ -240,23 +469,51 @@ export function OperacionFormProvider({
         if (!linea.stockId) return linea;
         const item = stockItems.find((s) => s.id === linea.stockId);
         if (!item) return linea;
-        const unitario = getDefaultUnitario(item, tipo);
+        let unitario = getDefaultUnitario(item, tipo);
+        if (tipo === "COMPRA") {
+          const catInfo = proveedorCatalogoMap.get(item.productoId);
+          if (catInfo && typeof catInfo.costoReferencia === "number" && catInfo.costoReferencia > 0) {
+            unitario = catInfo.costoReferencia;
+          }
+        }
         const total = round2((Number(linea.cantidad) || 0) * unitario);
         return { ...linea, unitario, total };
       }),
     );
-  }, [tipo, stockItems, open, isTipoEnabled]);
-
-  const stockById = useMemo(() => new Map(stockItems.map((s) => [s.id, s])), [stockItems]);
+  }, [tipo, stockItems, open, isTipoEnabled, proveedorCatalogoMap]);
 
   const stockOptions = useMemo<AutocompleteOption[]>(
+    () => {
+      let filtered = stockItems;
+      if (tipo === "COMPRA" && proveedorId && proveedorProductoIds !== null) {
+        filtered = stockItems.filter((s) => proveedorProductoIds.has(s.productoId));
+      }
+
+      return filtered.map((s) => {
+        const catInfo = proveedorCatalogoMap.get(s.productoId);
+        const skuInfo = catInfo?.codigoProveedor ? `SKU Prov: ${catInfo.codigoProveedor} · ` : "";
+        const stockActual = Number(s.stockActual) || 0;
+        const cod = s.codigo ? `${s.codigo} · ` : "";
+        return {
+          value: s.id,
+          label: s.nombre,
+          secondaryLabel: `${skuInfo}${cod}Stock actual: ${stockActual}`,
+        };
+      });
+    },
+    [stockItems, tipo, proveedorId, proveedorProductoIds, proveedorCatalogoMap],
+  );
+
+  const isProveedorProductosEmpty = useMemo(
     () =>
-      stockItems.map((s) => ({
-        value: s.id,
-        label: s.nombre,
-        secondaryLabel: `${s.codigo || ""}${s.codigo ? " · " : ""}Stock: ${Number(s.stockActual) || 0}`,
-      })),
-    [stockItems],
+      Boolean(
+        tipo === "COMPRA" &&
+          proveedorId &&
+          !isProveedorProductosLoading &&
+          proveedorProductoIds !== null &&
+          (proveedorProductoIds.size === 0 || stockOptions.length === 0)
+      ),
+    [tipo, proveedorId, isProveedorProductosLoading, proveedorProductoIds, stockOptions.length]
   );
 
   const getDefaultUnitarioForStockId = useCallback(
@@ -264,9 +521,15 @@ export function OperacionFormProvider({
       if (!tipo || !isTipoEnabled(tipo) || tipo === "GASTO") return null;
       const item = stockById.get(stockId);
       if (!item) return null;
+      if (tipo === "COMPRA") {
+        const catInfo = proveedorCatalogoMap.get(item.productoId);
+        if (catInfo && typeof catInfo.costoReferencia === "number" && catInfo.costoReferencia > 0) {
+          return catInfo.costoReferencia;
+        }
+      }
       return getDefaultUnitario(item, tipo);
     },
-    [tipo, isTipoEnabled, stockById],
+    [tipo, isTipoEnabled, stockById, proveedorCatalogoMap],
   );
 
   const setLineaAt = useCallback((idx: number, nextLinea: OperacionLineaDraft) => {
@@ -297,17 +560,131 @@ export function OperacionFormProvider({
     );
   }, [tipo, montoGasto, lineas]);
 
-  const requiresCuenta = tipo === "GASTO" || importeTotal > 0;
+  // Si no está expandido y no es modo diferido, sincronizar pagosDraft[0].monto con importeTotal
+  useEffect(() => {
+    if (!showAdvanced && !noPagar && tipo !== "GASTO") {
+      const activeAccount = cuentaFavorita?.id ?? initialCuentaId ?? cuentaFinancieraId ?? "";
+      setPagosDraft((prev) => {
+        if (
+          prev.length === 1 &&
+          prev[0].monto === String(importeTotal) &&
+          (prev[0].cuentaId === activeAccount || !activeAccount)
+        ) {
+          return prev;
+        }
+        return [
+          {
+            id: prev[0]?.id || generateUuidV4(),
+            cuentaId: prev[0]?.cuentaId || activeAccount,
+            monto: String(importeTotal || 0),
+            fecha: prev[0]?.fecha || toISODateLocal(new Date()),
+            descripcion: prev[0]?.descripcion || "",
+          },
+        ];
+      });
+    }
+  }, [showAdvanced, noPagar, importeTotal, cuentaFavorita?.id, initialCuentaId, cuentaFinancieraId, tipo]);
+
+  // Porcentaje y estado de entrega de stock
+  const stockDeliveryPercentage = useMemo(() => {
+    const totalCantidad = lineas.reduce((acc, l) => acc + (Number(l.cantidad) || 0), 0);
+    if (totalCantidad <= 0) return 100;
+    const totalEntregar = lineas.reduce((acc, l) => {
+      const cant = Number(l.cantidad) || 0;
+      const ent = l.cantidadEntregar !== undefined ? Number(l.cantidadEntregar) : cant;
+      return acc + Math.min(cant, Math.max(0, ent));
+    }, 0);
+    return Math.round((totalEntregar / totalCantidad) * 100);
+  }, [lineas]);
+
+  const stockDeliveryStatus = useMemo(() => {
+    const verb = tipo === "COMPRA" ? "recibido" : "entregado";
+    if (stockDeliveryPercentage === 100) return `100% ${verb}`;
+    if (stockDeliveryPercentage === 0) return "Pendiente";
+    return `${stockDeliveryPercentage}% ${verb}`;
+  }, [stockDeliveryPercentage, tipo]);
+
+  // Handlers para pagos múltiples
+  const handleAddPagoRow = useCallback(() => {
+    const nextCuentaId = cuentasActivas?.[0]?.id ?? "";
+    setPagosDraft((prev) => [
+      ...prev,
+      {
+        id: generateUuidV4(),
+        cuentaId: nextCuentaId,
+        monto: "",
+        fecha: toISODateLocal(new Date()),
+        descripcion: "",
+      },
+    ]);
+  }, [cuentasActivas]);
+
+  const handleRemovePagoRow = useCallback((id: string) => {
+    setPagosDraft((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((p) => p.id !== id);
+    });
+  }, []);
+
+  const handleUpdatePagoRow = useCallback((id: string, field: keyof PagoDraftItem, val: string) => {
+    setPagosDraft((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, [field]: val } : p))
+    );
+  }, []);
+
+  const handleUpdatePagoCuentaDraft = useCallback((id: string, patch: Partial<CuentaFinancieraDraft>) => {
+    setPagosDraft((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, cuentaDraft: { ...(p.cuentaDraft || EMPTY_CUENTA_FINANCIERA_DRAFT), ...patch } }
+          : p
+      )
+    );
+  }, []);
+
+  const handleToggleAdvanced = useCallback(() => {
+    setShowAdvanced((prev) => {
+      const next = !prev;
+      if (!next && cuentaFavorita) {
+        setNoPagar(false);
+        setPagosDraft([
+          {
+            id: generateUuidV4(),
+            cuentaId: cuentaFavorita.id,
+            monto: String(importeTotal || 0),
+            fecha: toISODateLocal(new Date()),
+            descripcion: "",
+          },
+        ]);
+      }
+      return next;
+    });
+  }, [cuentaFavorita, importeTotal]);
+
+  const totalPagado = useMemo(() => {
+    if (noPagar) return 0;
+    return pagosDraft.reduce((acc, p) => acc + (Number(p.monto) || 0), 0);
+  }, [noPagar, pagosDraft]);
+
+  const computedEstadoPago: EstadoPagoOperacion = useMemo(() => {
+    if (noPagar) return "PENDIENTE";
+    if (importeTotal <= 0) return "PAGADO";
+    if (totalPagado >= importeTotal) return "PAGADO";
+    if (totalPagado > 0) return "PARCIAL";
+    return "PENDIENTE";
+  }, [noPagar, importeTotal, totalPagado]);
+
+  const requiresCuenta = tipo === "GASTO" || (importeTotal > 0 && computedEstadoPago !== "PENDIENTE");
 
   const canSubmit = useMemo(() => {
     if (!open) return false;
     if (!tipo || !isTipoEnabled(tipo)) return false;
-    if (requiresCuenta && !cuentaFinancieraId) return false;
-    if (cuentaFinancieraId && isCreatingCuenta && !validateCuentaFinancieraForm(cuentaDraft)) return false;
     if (!isValidDate(fecha)) return false;
 
     if (tipo === "GASTO") {
       const importeNum = Number(montoGasto);
+      if (requiresCuenta && !cuentaFinancieraId) return false;
+      if (cuentaFinancieraId && isCreatingCuenta && !validateCuentaFinancieraForm(cuentaDraft)) return false;
       return (
         Boolean(categoriaGasto) &&
         Number.isFinite(importeNum) &&
@@ -319,27 +696,41 @@ export function OperacionFormProvider({
 
     if (!tallerId) return false;
     if (lineas.length === 0) return false;
-    return lineas.every(
+
+    const allLinesValid = lineas.every(
       (l) =>
         Boolean(l.stockId) &&
         Number(l.cantidad) > 0 &&
-        Number.isFinite(l.unitario),
+        Number.isFinite(l.unitario) &&
+        (l.cantidadEntregar === undefined || (Number(l.cantidadEntregar) >= 0 && Number(l.cantidadEntregar) <= Number(l.cantidad)))
     );
+    if (!allLinesValid) return false;
+
+    // Si requiere cuenta y no está en modo diferido
+    if (!noPagar && importeTotal > 0) {
+      const hasAccount = Boolean(cuentaFinancieraId) || pagosDraft.some((p) => Boolean(p.cuentaId));
+      if (!hasAccount) return false;
+    }
+
+    return true;
   }, [
     open,
     tipo,
     isTipoEnabled,
+    fecha,
+    montoGasto,
     requiresCuenta,
     cuentaFinancieraId,
     isCreatingCuenta,
     cuentaDraft,
-    fecha,
-    montoGasto,
     categoriaGasto,
     isLoadingCuentas,
     isSubmittingGasto,
     tallerId,
     lineas,
+    noPagar,
+    importeTotal,
+    pagosDraft,
   ]);
 
   const isSubmitting = isOperacionesLoading || isSubmittingGasto;
@@ -393,20 +784,65 @@ export function OperacionFormProvider({
     }
 
     try {
+      const pagosPayload: {
+        cuenta_id: string;
+        cuenta_financiera_id: string;
+        monto: number;
+        fecha: string;
+        descripcion: string | null;
+      }[] = [];
+
+      if (!noPagar && importeTotal > 0) {
+        for (const p of pagosDraft) {
+          const montoNum = Number(p.monto) || 0;
+          if (montoNum <= 0) continue;
+          let accId = p.cuentaId;
+          if (accId === CREATE_CUENTA_VALUE && p.cuentaDraft) {
+            const created = await createCuenta({
+              nombre: p.cuentaDraft.nombre.trim(),
+              tipo: p.cuentaDraft.tipo,
+              saldoInicial: 0,
+            });
+            accId = created.id;
+          }
+          if (accId) {
+            pagosPayload.push({
+              cuenta_id: accId,
+              cuenta_financiera_id: accId,
+              monto: montoNum,
+              fecha: toISODateTimeWithLocalCurrentTime(p.fecha || fecha) || fechaTimestamp,
+              descripcion: p.descripcion.trim() || null,
+            });
+          }
+        }
+      }
+
+      const primaryCuentaId = pagosPayload.length > 0
+        ? pagosPayload[0].cuenta_financiera_id
+        : (computedEstadoPago === "PENDIENTE" ? null : (targetCuentaId || null));
+
       const payload = {
         tipo,
         taller_id: tallerId,
         fecha: fechaTimestamp,
-        cuenta_financiera_id: targetCuentaId || null,
+        cuenta_financiera_id: primaryCuentaId,
         observaciones: observaciones.trim() || null,
         idempotency_key: generateUuidV4(),
+        estado_pago: computedEstadoPago,
+        monto_inicial: computedEstadoPago === "PARCIAL" ? totalPagado : null,
+        mover_stock: moverStock,
+        proveedor_id: tipo === "COMPRA" && proveedorId ? proveedorId : null,
+        cliente_id: tipo === "VENTA" && clienteId ? clienteId : null,
+        pagos: pagosPayload.length > 0 ? pagosPayload : undefined,
         lineas: lineas.map((l) => {
           const cantidad = Number(l.cantidad) || 0;
+          const cantidadCumplida = l.cantidadEntregar !== undefined ? Number(l.cantidadEntregar) : cantidad;
           const unitario = Number(l.unitario) || 0;
           const delta = tipo === "VENTA" ? -cantidad : cantidad;
           return {
             stock_id: l.stockId,
             cantidad,
+            cantidad_cumplida: cantidadCumplida,
             monto_unitario: unitario,
             delta_cantidad: delta,
           };
@@ -452,6 +888,18 @@ export function OperacionFormProvider({
     gasto,
     tipoConfigById,
     isTipoEnabled,
+    proveedorId,
+    setProveedorId,
+    disabledProveedor: Boolean(disabledProveedor),
+    proveedores,
+    isProveedoresLoading,
+    isProveedorProductosLoading,
+    isProveedorProductosEmpty,
+    clienteId,
+    setClienteId,
+    disabledCliente: Boolean(disabledCliente),
+    clientes,
+    isClientesLoading,
     categoriaGasto,
     setCategoriaGasto,
     montoGasto,
@@ -468,11 +916,31 @@ export function OperacionFormProvider({
     stockById,
     isInventarioLoading,
     getDefaultUnitarioForStockId,
+    stockDeliveryPercentage,
+    stockDeliveryStatus,
+    cuentaFavorita: cuentaFavorita ?? null,
+    pagosDraft,
+    setPagosDraft,
+    showAdvanced,
+    setShowAdvanced,
+    noPagar,
+    setNoPagar,
+    handleAddPagoRow,
+    handleRemovePagoRow,
+    handleUpdatePagoRow,
+    handleUpdatePagoCuentaDraft,
+    handleToggleAdvanced,
     canSubmit,
     isSubmitting,
     submitForm,
     requiresCuenta,
     importeTotal,
+    estadoPago: computedEstadoPago,
+    setEstadoPago,
+    montoInicial,
+    setMontoInicial,
+    moverStock,
+    setMoverStock,
   };
 
   return (

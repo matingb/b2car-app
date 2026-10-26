@@ -18,6 +18,8 @@ import {
   toISODateAppTimeZone,
   toISODateLocal,
   toLocalDateInputFormat,
+  resolveDateRangeBounds,
+  validateDateRangeFilters,
 } from "./fechas";
 
 describe("isValidDate", () => {
@@ -257,5 +259,64 @@ describe("toISODateTimeWithCurrentTime", () => {
     expect(toISODateTimeWithCurrentTime(dateObj)).toBe("2026-08-20T10:15:00.000Z");
   });
 });
+
+describe("validateDateRangeFilters", () => {
+  it("acepta límites ISO con zona horaria o fecha de calendario válida", () => {
+    expect(validateDateRangeFilters({
+      from: "2026-09-01T03:00:00.000Z",
+      to: "2026-09-14T03:00:00.000Z",
+    })).toBeNull();
+    expect(validateDateRangeFilters({ fecha: "2026-09-13" })).toBeNull();
+    expect(validateDateRangeFilters({ desde: "2026-09-01", hasta: "2026-09-13" })).toBeNull();
+  });
+
+  it.each([
+    { from: "2026-09-01T00:00:00", to: "2026-09-02T00:00:00.000Z" },
+    { from: "2026-02-30" },
+    { from: "2026-09-02T00:00:00.000Z", to: "2026-09-01T00:00:00.000Z" },
+    { fecha: "2026-09-13", from: "2026-09-13" },
+    { fecha: "2026-09-13", hasta: "2026-09-14" },
+  ])("rechaza rangos inválidos o ambiguos: %o", (filters) => {
+    expect(validateDateRangeFilters(filters)).toBeTruthy();
+  });
+});
+
+describe("resolveDateRangeBounds", () => {
+  it("resuelve día calendario en Buenos Aires cuando se provee fecha", () => {
+    expect(resolveDateRangeBounds({ fecha: "2026-09-18" })).toEqual({
+      from: "2026-09-18T03:00:00.000Z",
+      to: "2026-09-19T03:00:00.000Z",
+    });
+  });
+
+  it("resuelve rango con fechas calendario", () => {
+    expect(resolveDateRangeBounds({ from: "2026-09-01", to: "2026-09-05" })).toEqual({
+      from: "2026-09-01T03:00:00.000Z",
+      to: "2026-09-06T03:00:00.000Z",
+    });
+  });
+
+  it("preserva timestamps ISO intactos", () => {
+    expect(resolveDateRangeBounds({
+      from: "2026-09-01T00:00:00.000Z",
+      to: "2026-09-02T00:00:00.000Z",
+    })).toEqual({
+      from: "2026-09-01T00:00:00.000Z",
+      to: "2026-09-02T00:00:00.000Z",
+    });
+  });
+
+  it("admite límites abiertos", () => {
+    expect(resolveDateRangeBounds({})).toEqual({
+      from: null,
+      to: null,
+    });
+    expect(resolveDateRangeBounds({ from: "2026-09-01" })).toEqual({
+      from: "2026-09-01T03:00:00.000Z",
+      to: null,
+    });
+  });
+});
+
 
 

@@ -1,104 +1,116 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
 import type { StockRow } from "../stocks/stocksService";
+import {
+  type ProductoRow,
+  type ProductoWithStocksRow,
+  type CreateProductoInput,
+  type ProductoRepository,
+  type ListProductosFilters,
+  supabaseProductoRepository,
+} from "./productoRepository";
 
-export type ListProductosFilters = {
-  search?: string;
-  categorias?: string[];
+export type {
+  ProductoRow,
+  ProductoWithStocksRow,
+  CreateProductoInput,
+  ProductoRepository,
+  ListProductosFilters,
 };
 
-export type ProductoRow = {
-  id: string;
-  tenantId: string;
-  codigo: string;
-  nombre: string;
-  marca: string | null;
-  modelo: string | null;
-  descripcion: string | null;
-  precio_unitario: number;
-  costo_unitario: number;
-  proveedor: string | null;
-  categorias: string[] | null;
-  show_in_stock: boolean;
-  created_at: string;
-  updated_at: string;
-};
+export function createProductosService(repo: ProductoRepository = supabaseProductoRepository) {
+  return {
+    async list(
+      supabase: SupabaseClient,
+      filters?: ListProductosFilters
+    ): Promise<{ data: ProductoWithStocksRow[]; error: ServiceError | null }> {
+      const { data, error } = await repo.list(supabase, filters);
+      if (error) return { data: [], error: toServiceError(error) };
+      return { data, error: null };
+    },
 
-export type ProductoWithStocksRow = ProductoRow & {
-  talleresConStock: number;
-  stocks: StockRow[];
-};
+    async getById(
+      supabase: SupabaseClient,
+      id: string
+    ): Promise<{ data: ProductoRow | null; error: ServiceError | null }> {
+      const { data, error } = await repo.getById(supabase, id);
+      if (error) return { data: null, error: toServiceError(error) };
+      if (!data) return { data: null, error: ServiceError.NotFound };
+      return { data, error: null };
+    },
 
-export type CreateProductoInput = Omit<ProductoRow, "id" | "tenantId" | "created_at" | "updated_at">;
+    async getWithStocksById(
+      supabase: SupabaseClient,
+      id: string
+    ): Promise<{ data: ProductoWithStocksRow | null; error: ServiceError | null }> {
+      const { data: producto, error: prodError } = await repo.getById(supabase, id);
+      if (prodError) return { data: null, error: toServiceError(prodError) };
+      if (!producto) return { data: null, error: ServiceError.NotFound };
 
-export const productosService = {
-  async list(supabase: SupabaseClient): Promise<{ data: ProductoWithStocksRow[]; error: ServiceError | null }> {
-    const query = supabase.from("productos").select("*, stocks(*)").order("nombre", { ascending: true });
-    const { data, error } = await query;
-    if (error) return { data: [], error: toServiceError(error) };
-    const mapped: ProductoWithStocksRow[] = data.map((row) => ({
-      ...row,
-      stocks: Array.isArray(row.stocks) ? row.stocks : [],
-      talleresConStock: Array.isArray(row.stocks) ? row.stocks.length : 0,
-    }));
-    return { data: mapped, error: null };
-  },
+      const { data: stocks, error: stocksError } = await repo.getStocksByProductoId(supabase, id);
+      if (stocksError) return { data: null, error: toServiceError(stocksError) };
 
-  async getById(
-    supabase: SupabaseClient,
-    id: string
-  ): Promise<{ data: ProductoRow | null; error: ServiceError | null }> {
-    const { data, error } = await supabase
-      .from("productos")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+      return {
+        data: {
+          ...producto,
+          stocks: stocks ?? [],
+          talleresConStock: (stocks ?? []).length,
+        },
+        error: null,
+      };
+    },
 
-    if (error) return { data: null, error: toServiceError(error) };
-    if (!data) return { data: null, error: ServiceError.NotFound };
-    return { data: data as ProductoRow, error: null };
-  },
+    async create(
+      supabase: SupabaseClient,
+      payload: CreateProductoInput
+    ): Promise<{ data: ProductoRow | null; error: ServiceError | null }> {
+      const { data, error } = await repo.create(supabase, payload);
+      if (error) return { data: null, error: toServiceError(error) };
+      return { data, error: null };
+    },
 
-  async create(
-    supabase: SupabaseClient,
-    payload: CreateProductoInput
-  ): Promise<{ data: ProductoRow | null; error: ServiceError | null }> {
-    const { data, error } = await supabase
-      .from("productos")
-      .insert([payload])
-      .select("*")
-      .single();
+    async updateById(
+      supabase: SupabaseClient,
+      id: string,
+      patch: Partial<ProductoRow>
+    ): Promise<{ data: ProductoRow | null; error: ServiceError | PostgrestError | null }> {
+      const { data, error } = await repo.updateById(supabase, id, patch);
+      if (error) return { data: null, error };
+      if (!data) return { data: null, error: ServiceError.NotFound };
+      return { data, error: null };
+    },
 
-    if (error) return { data: null, error: toServiceError(error) };
-    return { data: (data ?? null) as ProductoRow | null, error };
-  },
+    async updateWithStocksById(
+      supabase: SupabaseClient,
+      id: string,
+      patch: Partial<ProductoRow>
+    ): Promise<{ data: ProductoWithStocksRow | null; error: ServiceError | PostgrestError | null }> {
+      const { data: updated, error: updateError } = await repo.updateById(supabase, id, patch);
+      if (updateError) return { data: null, error: updateError };
+      if (!updated) return { data: null, error: ServiceError.NotFound };
 
-  async updateById(
-    supabase: SupabaseClient,
-    id: string,
-    patch: Partial<ProductoRow>
-  ): Promise<{ data: ProductoRow | null; error: ServiceError | PostgrestError | null }> {
-    const { data, error } = await supabase
-      .from("productos")
-      .update(patch)
-      .eq("id", id)
-      .select("*")
-      .maybeSingle();
+      const { data: stocks, error: stocksError } = await repo.getStocksByProductoId(supabase, id);
+      if (stocksError) return { data: null, error: stocksError };
 
-    if (error) return { data: null, error };
-    if (!data) return { data: null, error: ServiceError.NotFound };
-    return { data: data as ProductoRow, error: null };
-  },
+      return {
+        data: {
+          ...updated,
+          stocks: stocks ?? [],
+          talleresConStock: (stocks ?? []).length,
+        },
+        error: null,
+      };
+    },
 
-  async deleteById(
-    supabase: SupabaseClient,
-    id: string
-  ): Promise<{ error: ServiceError | PostgrestError | null }> {
-    await supabase.from("stocks").delete().eq("producto_id", id);
+    async deleteById(
+      supabase: SupabaseClient,
+      id: string
+    ): Promise<{ error: ServiceError | PostgrestError | null }> {
+      const { error } = await repo.deleteById(supabase, id);
+      if (error) return { error };
+      return { error: null };
+    },
+  };
+}
 
-    const { error } = await supabase.from("productos").delete().eq("id", id);
-    if (error) return { error };
-    return { error: null };
-  },
-};
-
+export const productosService = createProductosService();

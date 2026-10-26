@@ -45,4 +45,32 @@ describe("OperacionMeta", () => {
     expect(chips[0]).toHaveTextContent("Adquisición sin cargo");
     expect(screen.queryByText("$ 0,00")).not.toBeInTheDocument();
   });
+
+  it("renderiza el nombre del cliente para operaciones de venta", () => {
+    render(
+      <OperacionMeta
+        metaBadge={metaBadge}
+        accountOrWorkshop={accountOrWorkshop}
+        totalMonto={25000}
+        tipo="VENTA"
+        clienteNombre="Juan Pérez"
+      />
+    );
+
+    expect(screen.getAllByText("Juan Pérez").length).toBeGreaterThan(0);
+  });
+
+  it("renderiza el nombre del proveedor para operaciones de compra", () => {
+    render(
+      <OperacionMeta
+        metaBadge={metaBadge}
+        accountOrWorkshop={accountOrWorkshop}
+        totalMonto={40000}
+        tipo="COMPRA"
+        proveedorNombre="Distribuidora Warnes"
+      />
+    );
+
+    expect(screen.getAllByText("Distribuidora Warnes").length).toBeGreaterThan(0);
+  });
 });

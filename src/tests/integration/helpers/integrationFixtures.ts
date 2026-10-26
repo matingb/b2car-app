@@ -15,6 +15,11 @@ import {
   asignarRepuestoViaRoute,
   type CobrarArregloPayload,
 } from "./routeDrivers";
+import {
+  proveedorService,
+  type CreateProveedorInput,
+  type ProveedorRow,
+} from "@/app/api/proveedores/proveedorService";
 
 const adminClient = createAdminTestClient();
 
@@ -354,6 +359,25 @@ export async function dadoUnaFacturaAutorizadaParaArreglo(arregloId: string): Pr
   return data;
 }
 
+export async function dadoUnProveedor(
+  overrides?: Partial<CreateProveedorInput>
+): Promise<ProveedorRow> {
+  const stamp = `${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  const { data, error } = await proveedorService.create(testClient, {
+    nombre: overrides?.nombre ?? `Proveedor Test ${stamp}`,
+    cuit: overrides?.cuit ?? `30-${Math.floor(10000000 + Math.random() * 90000000)}-9`,
+    telefono: overrides?.telefono ?? "1144556677",
+    email: overrides?.email ?? `proveedor-${stamp}@test.ar`,
+    direccion: overrides?.direccion ?? "Av. Warnes 1234",
+  });
+
+  if (error || !data) {
+    throw new Error(`dadoUnProveedor falló: ${JSON.stringify(error) ?? "sin respuesta"}`);
+  }
+
+  return data;
+}
+
 // ─── Assertions ───────────────────────────────────────────────────────────────
 
 /**
@@ -373,3 +397,25 @@ export async function expectCantidadDeStock(stockId: string, cantidadEsperada: n
   expect(error).toBeNull();
   expect(data?.cantidad).toBe(cantidadEsperada);
 }
+
+
+export async function expectStockDetallado(
+  stockId: string,
+  expected: { cantidad?: number; cantidad_reservada?: number; cantidad_pendiente?: number; cantidad_disponible?: number }
+): Promise<void> {
+  const { data, error } = await stocksService.getById(testClient, stockId);
+  expect(error).toBeNull();
+  if (expected.cantidad !== undefined) {
+    expect(data?.cantidad).toBe(expected.cantidad);
+  }
+  if (expected.cantidad_reservada !== undefined) {
+    expect(data?.cantidad_reservada).toBe(expected.cantidad_reservada);
+  }
+  if (expected.cantidad_pendiente !== undefined) {
+    expect(data?.cantidad_pendiente).toBe(expected.cantidad_pendiente);
+  }
+  if (expected.cantidad_disponible !== undefined) {
+    expect(data?.cantidad_disponible).toBe(expected.cantidad_disponible);
+  }
+}
+

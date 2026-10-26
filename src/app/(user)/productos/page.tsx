@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useProductosFilters } from "@/app/hooks/productos/useProductosFilters";
 import ProductosToolbar from "@/app/components/productos/ProductosToolbar";
 import ProductoCreateModal from "@/app/components/productos/ProductoCreateModal";
@@ -11,9 +11,12 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import ProductoItemCard from "@/app/components/productos/ProductoItemCard";
 import { LoaderCircle } from "lucide-react";
 import { useProductos } from "@/app/providers/ProductosProvider";
+import { useProveedores } from "@/app/providers/ProveedoresProvider";
 import { css } from "@emotion/react";
 import StockStats from "@/app/components/stock/StockStats";
 import TallerSelector from "@/app/components/ui/TallerSelector";
+import ProductosTabsNav, { type ProductosTabKey } from "@/app/components/productos/ProductosTabsNav";
+import ProveedoresTabContent from "@/app/components/proveedores/ProveedoresTabContent";
 
 export default function ProductosPage() {
   return <ProductosPageContent />;
@@ -21,7 +24,24 @@ export default function ProductosPage() {
 
 function ProductosPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { productos, categoriasDisponibles, isLoading } = useProductos();
+  const { proveedores } = useProveedores();
+
+  const tabParam = searchParams.get("tab") === "proveedores" ? "proveedores" : "productos";
+  const [activeTab, setActiveTab] = useState<ProductosTabKey>(tabParam);
+
+  useEffect(() => {
+    const currentParam = searchParams.get("tab") === "proveedores" ? "proveedores" : "productos";
+    setActiveTab(currentParam);
+  }, [searchParams]);
+
+  const handleTabChange = (newTab: ProductosTabKey) => {
+    setActiveTab(newTab);
+    const url = newTab === "proveedores" ? "/productos?tab=proveedores" : "/productos";
+    router.push(url);
+  };
+
   const [selectedTallerId, setSelectedTallerId] = useState("");
   const state = useProductosFilters(productos, selectedTallerId);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -29,83 +49,100 @@ function ProductosPageContent() {
   return (
     <div>
       <ScreenHeader
-        title="Productos"
-        subtitle="Definí qué productos existen en el sistema y sus características"
+        title={activeTab === "proveedores" ? "Proveedores" : "Productos"}
+        subtitle={
+          activeTab === "proveedores"
+            ? "Gestioná los datos fiscales y de contacto de tus proveedores"
+            : "Definí qué productos existen en el sistema y sus características"
+        }
       />
 
-      <TallerSelector
-        allOption="Vista general"
-        value={selectedTallerId}
-        onChange={setSelectedTallerId}
+      <ProductosTabsNav
+        activeTab={activeTab}
+        onChangeTab={handleTabChange}
+        productosCount={productos.length}
+        proveedoresCount={proveedores.length}
       />
-      <div style={{ marginTop: 12 }}>
-        <StockStats
-          stats={state.stats}
-          selectedEstado={state.filters.estado}
-          onSelectEstado={(estado) =>
-            state.applyFilters({ ...state.filters, estado })
-          }
-        />
-      </div>
 
-      <div style={{ marginTop: 12 }}>
-        <ProductosToolbar
-          search={state.search}
-          onSearchChange={state.setSearch}
-          categoriasDisponibles={categoriasDisponibles}
-          categorias={state.filters.categorias}
-          onCategoriasChange={(categorias) =>
-            state.applyFilters({ ...state.filters, categorias })
-          }
-          showEsporadicos={state.filters.visibilidad === "todos"}
-          onShowEsporadicosChange={(checked) =>
-            state.applyFilters({
-              ...state.filters,
-              visibilidad: checked ? "todos" : "inventario",
-            })
-          }
-          onNewProductClick={() => setIsCreateOpen(true)}
-        />
-      </div>
-
-      <div style={{ marginTop: 12 }}>
-        <div style={styles.resultsHeader}>
-          <div style={styles.resultsTitle}><h2>Listado</h2></div>
-          <div style={styles.resultsCount}>
-            {state.productosFiltrados.length} de {productos.length} productos
+      {activeTab === "proveedores" ? (
+        <ProveedoresTabContent />
+      ) : (
+        <>
+          <TallerSelector
+            allOption="Vista general"
+            value={selectedTallerId}
+            onChange={setSelectedTallerId}
+          />
+          <div style={{ marginTop: 12 }}>
+            <StockStats
+              stats={state.stats}
+              selectedEstado={state.filters.estado}
+              onSelectEstado={(estado) =>
+                state.applyFilters({ ...state.filters, estado })
+              }
+            />
           </div>
-        </div>
 
-        {!isLoading && state.productosFiltrados.length === 0 ? (
-          <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
-            <div style={styles.empty}>
-              <div style={styles.emptyTitle}>No se encontraron productos</div>
-              <div style={styles.emptySub}>Probá ajustando búsqueda o filtros.</div>
+          <div style={{ marginTop: 12 }}>
+            <ProductosToolbar
+              search={state.search}
+              onSearchChange={state.setSearch}
+              categoriasDisponibles={categoriasDisponibles}
+              categorias={state.filters.categorias}
+              onCategoriasChange={(categorias) =>
+                state.applyFilters({ ...state.filters, categorias })
+              }
+              showEsporadicos={state.filters.visibilidad === "todos"}
+              onShowEsporadicosChange={(checked) =>
+                state.applyFilters({
+                  ...state.filters,
+                  visibilidad: checked ? "todos" : "inventario",
+                })
+              }
+              onNewProductClick={() => setIsCreateOpen(true)}
+            />
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <div style={styles.resultsHeader}>
+              <div style={styles.resultsTitle}><h2>Listado</h2></div>
+              <div style={styles.resultsCount}>
+                {state.productosFiltrados.length} de {productos.length} productos
+              </div>
             </div>
-          </Card>
-        ) : isLoading ? (
-          <div style={styles.loading} data-testid="productos-loading">
-            <LoaderCircle className="animate-spin" size={28} color={COLOR.ACCENT.PRIMARY} />
-          </div>
-        ) : (
-          <div css={styles.list}>
-            {state.productosFiltrados.map((p) => (
-              <ProductoItemCard
-                key={p.id}
-                producto={p}
-                tallerId={selectedTallerId}
-                onClick={() => router.push(`/productos/${p.id}`)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
 
-      <ProductoCreateModal
-        open={isCreateOpen}
-        categoriasDisponibles={categoriasDisponibles}
-        onClose={() => setIsCreateOpen(false)}
-      />
+            {!isLoading && state.productosFiltrados.length === 0 ? (
+              <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
+                <div style={styles.empty}>
+                  <div style={styles.emptyTitle}>No se encontraron productos</div>
+                  <div style={styles.emptySub}>Probá ajustando búsqueda o filtros.</div>
+                </div>
+              </Card>
+            ) : isLoading ? (
+              <div style={styles.loading} data-testid="productos-loading">
+                <LoaderCircle className="animate-spin" size={28} color={COLOR.ACCENT.PRIMARY} />
+              </div>
+            ) : (
+              <div css={styles.list}>
+                {state.productosFiltrados.map((p) => (
+                  <ProductoItemCard
+                    key={p.id}
+                    producto={p}
+                    tallerId={selectedTallerId}
+                    onClick={() => router.push(`/productos/${p.id}`)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <ProductoCreateModal
+            open={isCreateOpen}
+            categoriasDisponibles={categoriasDisponibles}
+            onClose={() => setIsCreateOpen(false)}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -146,4 +183,3 @@ const styles = {
   emptyTitle: { fontWeight: 700 },
   emptySub: { color: COLOR.TEXT.SECONDARY, fontSize: 13 },
 } as const;
-

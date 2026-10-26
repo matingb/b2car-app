@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import SearchBar from "@/app/components/ui/SearchBar";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
@@ -17,7 +16,7 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import type { Proveedor } from "@/model/types";
 import { css } from "@emotion/react";
 
-export default function ProveedoresPage() {
+export default function ProveedoresTabContent() {
   const { proveedores, loading, createProveedor, updateProveedor } = useProveedores();
   const toast = useToast();
 
@@ -70,11 +69,6 @@ export default function ProveedoresPage() {
 
   return (
     <div>
-      <ScreenHeader
-        title="Proveedores"
-        subtitle="Gestioná los datos fiscales y de contacto de tus proveedores"
-      />
-
       <div css={styles.toolbar}>
         <div style={styles.searchWrapper}>
           <SearchBar
@@ -212,7 +206,7 @@ const styles = {
     width: 64,
     height: 64,
     borderRadius: 16,
-    background: "rgba(59, 130, 246, 0.1)",
+    background: COLOR.STATUS.INFO.BG_SUBTLE,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

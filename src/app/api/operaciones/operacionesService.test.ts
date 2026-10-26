@@ -92,7 +92,94 @@ describe("operacionesService.create", () => {
 		}));
 		expect(getById).toHaveBeenCalledWith(expect.any(Object), operacionId);
 	});
+
+	it("reenvía cliente_id y proveedor_id a rpc_crear_operacion_con_stock", async () => {
+		const operacionId = "11111111-1111-4111-8111-111111111111";
+		const rpc = vi.fn().mockResolvedValue({ data: operacionId, error: null });
+		vi.spyOn(operacionesService, "getById").mockResolvedValue({ data: null, error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		await operacionesService.create(supabase, {
+			tipo: "VENTA",
+			taller_id: "22222222-2222-4222-8222-222222222222",
+			cliente_id: "33333333-3333-4333-8333-333333333333",
+			proveedor_id: null,
+			lineas: [],
+		});
+
+		expect(rpc).toHaveBeenCalledWith("rpc_crear_operacion_con_stock", expect.objectContaining({
+			p_cliente_id: "33333333-3333-4333-8333-333333333333",
+			p_proveedor_id: null,
+		}));
+	});
 });
+
+describe("operacionesService.getById", () => {
+	it("enriquece los datos con cliente_id y cliente_nombre desde operaciones_venta", async () => {
+		const operacionId = "11111111-1111-4111-8111-111111111111";
+		const clienteId = "22222222-2222-4222-8222-222222222222";
+		const single = vi.fn().mockResolvedValue({
+			data: {
+				id: operacionId,
+				tipo: "VENTA",
+				operaciones_lineas: [],
+				operaciones_pagos: [],
+				operaciones_venta: {
+					cliente_id: clienteId,
+					clientes: { nombre: "Carlos", apellido: "García" },
+				},
+				operaciones_compra: null,
+			},
+			error: null,
+		});
+		const eq = vi.fn().mockReturnValue({ single });
+		const select = vi.fn().mockReturnValue({ eq });
+		const from = vi.fn().mockReturnValue({ select });
+		const supabase = { from } as unknown as SupabaseClient;
+
+		const result = await operacionesService.getById(supabase, operacionId);
+
+		expect(from).toHaveBeenCalledWith("operaciones");
+		expect(result.data).toEqual(expect.objectContaining({
+			id: operacionId,
+			cliente_id: clienteId,
+			cliente_nombre: "Carlos García",
+		}));
+	});
+
+	it("enriquece los datos con proveedor_id y proveedor_nombre desde operaciones_compra", async () => {
+		const operacionId = "11111111-1111-4111-8111-111111111111";
+		const proveedorId = "33333333-3333-4333-8333-333333333333";
+		const single = vi.fn().mockResolvedValue({
+			data: {
+				id: operacionId,
+				tipo: "COMPRA",
+				operaciones_lineas: [],
+				operaciones_pagos: [],
+				operaciones_venta: null,
+				operaciones_compra: {
+					proveedor_id: proveedorId,
+					proveedores: { nombre: "Distribuidora Repuestos" },
+				},
+			},
+			error: null,
+		});
+		const eq = vi.fn().mockReturnValue({ single });
+		const select = vi.fn().mockReturnValue({ eq });
+		const from = vi.fn().mockReturnValue({ select });
+		const supabase = { from } as unknown as SupabaseClient;
+
+		const result = await operacionesService.getById(supabase, operacionId);
+
+		expect(from).toHaveBeenCalledWith("operaciones");
+		expect(result.data).toEqual(expect.objectContaining({
+			id: operacionId,
+			proveedor_id: proveedorId,
+			proveedor_nombre: "Distribuidora Repuestos",
+		}));
+	});
+});
+
 
 describe("validateOperacionesDateFilters", () => {
 	it("acepta límites ISO con zona y fecha-only válida", () => {

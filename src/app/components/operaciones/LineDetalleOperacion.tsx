@@ -1,9 +1,9 @@
-"use client";
-
-import React from "react";
+import React, { useMemo } from "react";
+import Link from "next/link";
 import { css } from "@emotion/react";
 import Card from "@/app/components/ui/Card";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import { ROUTES } from "@/routing/routes";
 import type { Operacion } from "@/model/types";
 import type { StockItem } from "@/model/stock";
 import { formatDateTimeLabel } from "@/lib/fechas";
@@ -73,6 +73,17 @@ export default function LineDetalleOperacion({
     showDocumentos && expanded ? { tipo: "VENTA", id: operacion.id } : null,
   );
 
+  const detalleHref = useMemo(() => {
+    if (operacion.tipo === "ASIGNACION_ARREGLO" || operacion.tipo === "COBRO_ARREGLO") {
+      const arregloId = (operacion as unknown as { arreglo_id?: string }).arreglo_id;
+      return arregloId ? `${ROUTES.arreglos}/${arregloId}` : null;
+    }
+    if (operacion.tipo === "TRANSFERENCIA" || operacion.tipo === "INGRESO" || operacion.tipo === "APERTURA_CUENTA") {
+      return operacion.cuenta_financiera_id ? `${ROUTES.cuentasFinancieras}/${operacion.cuenta_financiera_id}` : null;
+    }
+    return `${ROUTES.operaciones}/${operacion.id}`;
+  }, [operacion]);
+
   return (
     <Card style={styles.card} onClick={onToggle}>
       <div css={styles.container}>
@@ -97,6 +108,12 @@ export default function LineDetalleOperacion({
             accountOrWorkshop={accountOrWorkshop}
             totalMonto={totalMonto}
             isSinCargo={isSinCargo}
+            estadoPago={operacion.estado_pago}
+            estadoStock={operacion.estado_stock}
+            saldoPendiente={operacion.saldo_pendiente}
+            tipo={operacion.tipo}
+            clienteNombre={operacion.cliente_nombre}
+            proveedorNombre={operacion.proveedor_nombre}
           />
           <OperacionActions
             isGasto={isGasto}
@@ -122,6 +139,20 @@ export default function LineDetalleOperacion({
                 ? "Detalle del movimiento"
                 : "Productos"}
             </div>
+            {detalleHref && (
+              <Link
+                href={detalleHref}
+                onClick={(e) => e.stopPropagation()}
+                style={styles.detailLink}
+                data-testid={`operacion-detail-link-${operacion.id}`}
+              >
+                {operacion.tipo === "ASIGNACION_ARREGLO" || operacion.tipo === "COBRO_ARREGLO"
+                  ? "Ver Arreglo ➔"
+                  : operacion.tipo === "TRANSFERENCIA" || operacion.tipo === "INGRESO"
+                    ? "Ver Cuenta ➔"
+                    : "Ver detalle completo ➔"}
+              </Link>
+            )}
           </div>
           <OperacionExpandedDetail
             operacion={operacion}
@@ -253,5 +284,12 @@ const styles = {
     color: COLOR.TEXT.SECONDARY,
     textTransform: "uppercase" as const,
     letterSpacing: "0.04em",
+  },
+  detailLink: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: COLOR.BUTTON.PRIMARY.BACKGROUND,
+    textDecoration: "none",
+    cursor: "pointer",
   },
 } as const;

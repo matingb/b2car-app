@@ -283,6 +283,24 @@ export interface Operacion {
   observaciones?: string;
   proveedor_id?: UUID | null;
   proveedor_nombre?: string;
+  cliente_id?: UUID | null;
+  cliente_nombre?: string;
+}
+
+export interface OperacionVenta {
+  operacion_id: UUID;
+  tenant_id: UUID;
+  cliente_id: UUID;
+  cliente_nombre?: string;
+  created_at: string;
+}
+
+export interface OperacionCompra {
+  operacion_id: UUID;
+  tenant_id: UUID;
+  proveedor_id: UUID;
+  proveedor_nombre?: string;
+  created_at: string;
 }
 
 export type TipoMovimientoStock =

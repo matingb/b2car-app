@@ -49,15 +49,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   if (!id) return Response.json({ data: null, error: "Falta id" } satisfies GetProductoByIdResponse, { status: 400 });
 
-  const productoRes = await productosService.getById(supabase, id);
+  const productoRes = await productosService.getWithStocksById(supabase, id);
   if (productoRes.error === ServiceError.NotFound || !productoRes.data) {
     return Response.json({ data: null, error: "Producto no encontrado" } satisfies GetProductoByIdResponse, { status: 404 });
   }
 
-  const { data: stocks } = await supabase.from("stocks").select("*").eq("producto_id", id);
-
   return Response.json(
-    { data: { ...mapProducto(productoRes.data), stocks: (stocks ?? []).map((s) => mapStock(s as StockRow)) }, error: null } satisfies GetProductoByIdResponse,
+    { data: { ...mapProducto(productoRes.data), stocks: (productoRes.data.stocks ?? []).map((s) => mapStock(s as StockRow)) }, error: null } satisfies GetProductoByIdResponse,
     { status: 200 }
   );
 }
@@ -98,15 +96,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.show_in_stock !== undefined) patch.show_in_stock = body.show_in_stock;
 
   try {
-    const { data: updated, error } = await productosService.updateById(supabase, id, patch);
+    const { data: updated, error } = await productosService.updateWithStocksById(supabase, id, patch);
     if (error === ServiceError.NotFound || !updated) {
       return Response.json({ data: null, error: "Producto no encontrado" } satisfies UpdateProductoResponse, { status: 404 });
     }
 
-    const { data: stocks } = await supabase.from("stocks").select("*").eq("producto_id", id);
-
     return Response.json(
-      { data: { ...mapProducto(updated), stocks: (stocks ?? []).map((s) => mapStock(s as StockRow)) }, error: null } satisfies UpdateProductoResponse,
+      { data: { ...mapProducto(updated), stocks: (updated.stocks ?? []).map((s) => mapStock(s as StockRow)) }, error: null } satisfies UpdateProductoResponse,
       { status: 200 }
     );
   } catch (error: unknown) {

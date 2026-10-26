@@ -64,13 +64,13 @@ export default function ArregloTotalsFooter({
           </div>
           {hasCobros ? (
             <div style={{ fontSize: 13, marginTop: 4, display: "flex", justifyContent: "flex-end", gap: 8, alignItems: "center" }}>
-              <span style={{ color: "#16a34a", fontWeight: 600 }}>
+              <span style={{ color: COLOR.STATUS.SUCCESS.TEXT, fontWeight: 600 }}>
                 Cobrado: {formatArs(totalCobrado, { maxDecimals: 0 })}
               </span>
               {!isFullyPaid && effectiveSaldo > 0 ? (
                 <>
                   <span style={{ color: COLOR.TEXT.TERTIARY }}>•</span>
-                  <span style={{ color: "#d97706", fontWeight: 600 }}>
+                  <span style={{ color: COLOR.STATUS.WARNING.TEXT, fontWeight: 600 }}>
                     Pendiente: {formatArs(effectiveSaldo, { maxDecimals: 0 })}
                   </span>
                 </>
@@ -112,7 +112,7 @@ const styles = {
     width: 12,
     height: 12,
     borderRadius: 999,
-    background: "#16a34a",
+    background: COLOR.STATUS.SUCCESS.SOLID_BG,
     display: "inline-block",
   },
   totalBig: {

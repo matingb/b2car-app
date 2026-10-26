@@ -607,8 +607,8 @@ export const styles = {
     border: `1px solid rgba(0, 128, 162, 0.25)`,
   },
   copyFloatingButtonCopied: {
-    borderColor: "#16a34a",
-    color: "#16a34a",
+    borderColor: COLOR.STATUS.SUCCESS.BORDER,
+    color: COLOR.STATUS.SUCCESS.TEXT,
   },
   editedHint: {
     fontSize: 10.5,

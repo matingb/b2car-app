@@ -35,8 +35,8 @@ export default function MovementsCard({
           <div style={styles.list}>
             {movimientos.map((mov, idx) => {
               const isEntrada = mov.tipo === "entrada";
-              const color = isEntrada ? "#15803d" : COLOR.ICON.DANGER;
-              const bg = isEntrada ? "rgba(21,128,61,0.10)" : "rgba(139,0,0,0.10)";
+              const color = isEntrada ? COLOR.STATUS.SUCCESS.TEXT : COLOR.STATUS.DANGER.TEXT;
+              const bg = isEntrada ? COLOR.STATUS.SUCCESS.BG_SUBTLE : COLOR.STATUS.DANGER.BG_SUBTLE;
               return (
                 <div key={`${mov.fecha}-${idx}-${mov.motivo}`} style={styles.row}>
                   <div style={styles.left}>

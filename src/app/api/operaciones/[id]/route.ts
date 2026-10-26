@@ -80,6 +80,8 @@ function mapOperacion(row: OperacionRow): Operacion {
 		estado_stock: (row.estado_stock as Operacion["estado_stock"]) ?? undefined,
 		proveedor_id: row.proveedor_id ?? undefined,
 		proveedor_nombre: row.proveedor_nombre ?? undefined,
+		cliente_id: row.cliente_id ?? undefined,
+		cliente_nombre: row.cliente_nombre ?? undefined,
 		lineas: lineas.map(mapLinea),
 		pagos: pagos.map(mapPago),
 	};

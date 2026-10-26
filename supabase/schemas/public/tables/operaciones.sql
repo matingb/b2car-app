@@ -3,8 +3,6 @@ CREATE TABLE "public"."operaciones" (
   "taller_id"  uuid,
   "created_at" timestamp with time zone NOT NULL DEFAULT now(),
   "fecha"      timestamp with time zone NOT NULL DEFAULT now(),
-  "cliente_id" uuid,
-  CONSTRAINT "operaciones_cliente_id_fkey" FOREIGN KEY (cliente_id) REFERENCES public.clientes(id) ON DELETE RESTRICT,
   CONSTRAINT "operaciones_pkey" PRIMARY KEY (id),
   CONSTRAINT "operaciones_taller_id_fkey" FOREIGN KEY (taller_id) REFERENCES public.talleres(id) ON DELETE CASCADE,
   "tenant_id"  uuid                     NOT NULL DEFAULT ((auth.jwt() ->> 'tenant_id'::text))::uuid,
@@ -36,16 +34,9 @@ ALTER TABLE "public"."operaciones"
   ADD COLUMN "estado_stock" public.estado_stock_operacion NOT NULL DEFAULT 'ENTREGADO'::public.estado_stock_operacion;
 
 ALTER TABLE "public"."operaciones"
-  ADD COLUMN "proveedor_id" uuid;
-
-ALTER TABLE "public"."operaciones"
-  ADD CONSTRAINT "operaciones_proveedor_id_fkey" FOREIGN KEY (proveedor_id) REFERENCES public.proveedores(id) ON DELETE SET NULL;
-
-ALTER TABLE "public"."operaciones"
   ADD CONSTRAINT "operaciones_taller_requerido" CHECK (((taller_id IS NOT NULL) OR ((tipo)::text = 'MOVIMIENTO_CUENTA'::text)));
 
 CREATE INDEX idx_operaciones_fecha ON public.operaciones USING btree (fecha);
-CREATE INDEX idx_operaciones_proveedor_id ON public.operaciones USING btree (proveedor_id) WHERE (proveedor_id IS NOT NULL);
 
 CREATE TRIGGER facturacion_proteger_operaciones
   BEFORE DELETE ON public.operaciones
@@ -72,9 +63,6 @@ CREATE INDEX idx_operaciones_tenant_taller ON public.operaciones USING btree (te
 CREATE INDEX idx_operaciones_tenant_tipo_created ON public.operaciones USING btree (tenant_id, tipo, created_at DESC);
 
 CREATE INDEX idx_operaciones_tenant ON public.operaciones USING btree (tenant_id);
-
-CREATE INDEX operaciones_cliente_idx ON public.operaciones USING btree (tenant_id, cliente_id)
-  WHERE (cliente_id IS NOT NULL);
 
 CREATE POLICY "tenant_access" ON "public"."operaciones"
   FOR ALL

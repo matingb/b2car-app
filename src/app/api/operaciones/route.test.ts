@@ -376,5 +376,50 @@ describe("POST /api/operaciones", () => {
 			expect(response.status).toBe(400);
 			expect(await response.json()).toEqual({ data: null, error: "El monto parcial debe ser menor al importe total" });
 		});
+
+		it("rechaza la creación si cliente_id no es un UUID válido", async () => {
+			const response = await POST(new Request("http://localhost/api/operaciones", {
+				method: "POST",
+				body: JSON.stringify({
+					tipo: "VENTA",
+					taller_id: "11111111-1111-4111-8111-111111111111",
+					idempotency_key: "33333333-3333-4333-8333-333333333333",
+					cuenta_financiera_id: "22222222-2222-4222-8222-222222222222",
+					cliente_id: "cliente-invalido",
+					lineas: [{
+						stock_id: "44444444-4444-4444-8444-444444444444",
+						cantidad: 1,
+						monto_unitario: 1000,
+						delta_cantidad: -1,
+					}],
+				}),
+			}));
+
+			expect(response.status).toBe(400);
+			expect(await response.json()).toEqual({ data: null, error: "cliente_id inválida" });
+		});
+
+		it("rechaza la creación si proveedor_id no es un UUID válido", async () => {
+			const response = await POST(new Request("http://localhost/api/operaciones", {
+				method: "POST",
+				body: JSON.stringify({
+					tipo: "COMPRA",
+					taller_id: "11111111-1111-4111-8111-111111111111",
+					idempotency_key: "33333333-3333-4333-8333-333333333333",
+					cuenta_financiera_id: "22222222-2222-4222-8222-222222222222",
+					proveedor_id: "proveedor-invalido",
+					lineas: [{
+						stock_id: "44444444-4444-4444-8444-444444444444",
+						cantidad: 1,
+						monto_unitario: 1000,
+						delta_cantidad: 1,
+					}],
+				}),
+			}));
+
+			expect(response.status).toBe(400);
+			expect(await response.json()).toEqual({ data: null, error: "proveedor_id inválida" });
+		});
 	});
 });
+

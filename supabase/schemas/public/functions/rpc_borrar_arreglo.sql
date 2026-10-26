@@ -50,8 +50,7 @@ BEGIN
       AND o.tenant_id = v_tenant_id
   LOOP
     PERFORM public.rpc_borrar_operacion_con_stock(
-      v_asignacion.operacion_id,
-      NULL
+      v_asignacion.operacion_id
     );
   END LOOP;
   DELETE FROM public.arreglos AS a

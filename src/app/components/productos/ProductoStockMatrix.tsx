@@ -153,7 +153,7 @@ function StockRow({
         <div css={styles.stockReadRow}>
           <TallerIdentity taller={taller} configured status={status} />
           <div css={styles.readDetails}>
-            {renderValues(levels)}
+            {renderValues(levels, stock)}
             {renderProgress(levels, stock)}
           </div>
           <div css={styles.actions}>
@@ -272,10 +272,25 @@ function renderFields(draft: Draft, setDraft: React.Dispatch<React.SetStateActio
   );
 }
 
-function renderValues(levels: Draft) {
+function renderValues(levels: Draft, stock?: StockRegistro) {
+  const tieneComprometido = Boolean(
+    stock && ((stock.stockReservado ?? 0) > 0 || (stock.stockPendiente ?? 0) > 0)
+  );
+
   return (
     <div css={styles.valuesGrid}>
-      <StockValue label="Actual" value={`${levels.stockActual} uds.`} />
+      <StockValue label="Físico" value={`${levels.stockActual} uds.`} />
+      {tieneComprometido ? (
+        <>
+          <StockValue label="Disponible" value={`${stock?.stockDisponible ?? levels.stockActual} uds.`} />
+          {(stock?.stockReservado ?? 0) > 0 ? (
+            <StockValue label="Reservado" value={`${stock?.stockReservado} uds.`} />
+          ) : null}
+          {(stock?.stockPendiente ?? 0) > 0 ? (
+            <StockValue label="En camino" value={`${stock?.stockPendiente} uds.`} />
+          ) : null}
+        </>
+      ) : null}
       <StockValue label="Mínimo" value={`${levels.stockMinimo} uds.`} />
       <StockValue label="Máximo" value={levels.stockMaximo > 0 ? `${levels.stockMaximo} uds.` : "Sin máximo"} />
     </div>

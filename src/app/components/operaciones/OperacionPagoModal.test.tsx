@@ -1,0 +1,145 @@
+import React from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { runPendingPromises } from "@/tests/testUtils";
+import OperacionPagoModal from "./OperacionPagoModal";
+import type { Operacion } from "@/model/types";
+
+const mockRegistrarPago = vi.fn();
+const mockToastSuccess = vi.fn();
+const mockToastError = vi.fn();
+
+vi.mock("@/app/providers/OperacionesProvider", () => ({
+  useOperaciones: () => ({
+    registrarPago: mockRegistrarPago,
+  }),
+}));
+
+vi.mock("@/app/providers/ToastProvider", () => ({
+  useToast: () => ({
+    success: mockToastSuccess,
+    error: mockToastError,
+  }),
+}));
+
+vi.mock("@/app/providers/CuentasFinancierasProvider", () => ({
+  useCuentasFinancieras: () => ({
+    cuentas: [],
+    cuentasActivas: [{ id: "cuenta-fav-1", nombre: "Caja Chica", tipo: "EFECTIVO", saldoActual: 10000, activo: true }],
+    cuentaFavorita: { id: "cuenta-fav-1", nombre: "Caja Chica", tipo: "EFECTIVO", saldoActual: 10000, activo: true, favorita: true },
+    loading: false,
+    createCuenta: vi.fn(),
+  }),
+}));
+
+vi.mock("@/app/components/finanzas/CuentaFinancieraAutocomplete", () => ({
+  __esModule: true,
+  default: ({
+    value,
+    onChange,
+    dataTestId,
+  }: {
+    value: string;
+    onChange: (val: string) => void;
+    dataTestId?: string;
+  }) => (
+    <input
+      data-testid={dataTestId}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  ),
+  CREATE_CUENTA_VALUE: "__create_cuenta__",
+}));
+
+describe("OperacionPagoModal", () => {
+  const operacion: Operacion = {
+    id: "op-1",
+    tipo: "VENTA",
+    taller_id: "taller-1",
+    fecha: "2026-10-21T12:00:00Z",
+    created_at: "2026-10-21T12:00:00Z",
+    monto_total: 10000,
+    total_pagado: 4000,
+    saldo_pendiente: 6000,
+    esta_pago: false,
+    estado_pago: "PARCIAL",
+    estado_stock: "ENTREGADO",
+    lineas: [],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renderiza el saldo pendiente y preselecciona la cuenta favorita", async () => {
+    render(
+      <OperacionPagoModal
+        open={true}
+        operacion={operacion}
+        onClose={vi.fn()}
+      />
+    );
+
+    await runPendingPromises();
+
+    expect(screen.getByText("Registrar Cobro")).toBeInTheDocument();
+    expect(screen.getByText("$6.000")).toBeInTheDocument();
+    const inputMonto = screen.getByTestId("operacion-pago-modal-monto") as HTMLInputElement;
+    expect(inputMonto.value).toBe("6000");
+  });
+
+  it("permite registrar un cobro por el saldo y llama a registrarPago", async () => {
+    mockRegistrarPago.mockResolvedValue(true);
+    const onClose = vi.fn();
+
+    render(
+      <OperacionPagoModal
+        open={true}
+        operacion={operacion}
+        onClose={onClose}
+      />
+    );
+
+    await runPendingPromises();
+
+    const submitBtn = screen.getByTestId("modal-submit");
+    expect(submitBtn).toBeEnabled();
+
+    await userEvent.click(submitBtn);
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(mockRegistrarPago).toHaveBeenCalledWith("op-1", expect.objectContaining({
+        cuentaId: "cuenta-fav-1",
+        monto: 6000,
+      }));
+      expect(mockToastSuccess).toHaveBeenCalledWith("Cobro registrado", expect.any(String));
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  it("deshabilita el botón si el monto es 0 o excede el saldo pendiente", async () => {
+    render(
+      <OperacionPagoModal
+        open={true}
+        operacion={operacion}
+        onClose={vi.fn()}
+      />
+    );
+
+    await runPendingPromises();
+
+    const inputMonto = screen.getByTestId("operacion-pago-modal-monto");
+    await userEvent.clear(inputMonto);
+    await userEvent.type(inputMonto, "0");
+
+    expect(screen.getByTestId("modal-submit")).toBeDisabled();
+
+    await userEvent.clear(inputMonto);
+    await userEvent.type(inputMonto, "7000");
+
+    expect(screen.getByTestId("modal-submit")).toBeDisabled();
+  });
+});

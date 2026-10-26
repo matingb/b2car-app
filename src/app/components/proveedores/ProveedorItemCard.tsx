@@ -37,7 +37,7 @@ export default function ProveedorItemCard({ proveedor, onEdit }: Props) {
   const { deleteProveedor } = useProveedores();
 
   const handleCardClick = () => {
-    router.push(`${ROUTES.proveedores}/${proveedor.id}`);
+    router.push(ROUTES.proveedorDetalle(proveedor.id));
   };
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -168,7 +168,7 @@ const styles = {
     width: 44,
     height: 44,
     borderRadius: 10,
-    background: "rgba(59, 130, 246, 0.12)",
+    background: COLOR.STATUS.INFO.BG_SUBTLE,
     color: COLOR.ACCENT.PRIMARY,
     display: "flex",
     alignItems: "center",

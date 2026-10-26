@@ -7,6 +7,7 @@ import {
 	type UpdateOperacionInput,
 	type OperacionesPagination,
 	type OperacionesStats,
+	type ConfirmarStockPayload,
 	OPERACIONES_PAGE_SIZE,
 } from "@/clients/operacionesClient";
 import type { Operacion, OperacionesFilters, TipoOperacion } from "@/model/types";
@@ -32,6 +33,8 @@ type OperacionesContextType = {
 	create: (input: CreateOperacionInput) => Promise<Operacion | null>;
 	update: (id: string | number, input: UpdateOperacionInput) => Promise<Operacion | null>;
 	remove: (id: string | number) => Promise<void>;
+	confirmarStock: (id: string, payload?: string | ConfirmarStockPayload) => Promise<boolean>;
+	registrarPago: (id: string, payload: { cuentaId: string; monto: number; fecha?: string; descripcion?: string }) => Promise<boolean>;
 };
 
 const OperacionesContext = createContext<OperacionesContextType | null>(null);
@@ -195,6 +198,38 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 		}
 	}, [refresh]);
 
+	const confirmarStock = useCallback(async (id: string, payload?: string | ConfirmarStockPayload) => {
+		setLoading(true);
+		try {
+			const response = await operacionesClient.confirmarStock(id, payload);
+			if (response.error) throw new Error(response.error);
+			try { await refresh(); } catch { /* ignore */ }
+			return true;
+		} finally {
+			setLoading(false);
+		}
+	}, [refresh]);
+
+	const registrarPago = useCallback(async (
+		id: string,
+		payload: {
+			cuentaId: string;
+			monto: number;
+			fecha?: string;
+			descripcion?: string;
+		}
+	) => {
+		setLoading(true);
+		try {
+			const response = await operacionesClient.registrarPago(id, payload);
+			if (response.error) throw new Error(response.error);
+			try { await refresh(); } catch { /* ignore */ }
+			return true;
+		} finally {
+			setLoading(false);
+		}
+	}, [refresh]);
+
 	const value = useMemo(
 		() => ({
 			operaciones,
@@ -212,6 +247,8 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 			create,
 			update,
 			remove,
+			confirmarStock,
+			registrarPago,
 		}),
 		[
 			operaciones,
@@ -229,10 +266,16 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 			create,
 			update,
 			remove,
+			confirmarStock,
+			registrarPago,
 		]
 	);
 
 	return <OperacionesContext.Provider value={value}>{children}</OperacionesContext.Provider>;
+}
+
+export function useSafeOperaciones() {
+	return useContext(OperacionesContext);
 }
 
 export function useOperaciones() {

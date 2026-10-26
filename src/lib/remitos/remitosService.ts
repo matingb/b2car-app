@@ -559,7 +559,7 @@ async function getOperacionRemitible(
   const [operacionResult, lineasResult] = await Promise.all([
     supabase
       .from("operaciones")
-      .select("id, tipo, cliente_id")
+      .select("id, tipo, operaciones_venta(cliente_id)")
       .eq("id", operacionId)
       .eq("tenant_id", tenantId)
       .maybeSingle(),
@@ -577,9 +577,13 @@ async function getOperacionRemitible(
     throw new ApiError(400, "Solo se pueden generar remitos desde operaciones de venta", "VALIDATION");
   }
 
+  const rawVenta = operacion.operaciones_venta;
+  const venta = Array.isArray(rawVenta) ? rawVenta[0] : (rawVenta as Record<string, unknown> | null | undefined);
+  const clienteId = nullable(venta?.cliente_id) ?? nullable(operacion.cliente_id);
+
   const [{ facturaId, facturaNumero }, destinatario] = await Promise.all([
     facturaAutorizadaDelOrigen(supabase, tenantId, ambiente, "operacion_id", operacionId),
-    destinatarioDesdeCliente(supabase, tenantId, operacion.cliente_id, ""),
+    destinatarioDesdeCliente(supabase, tenantId, clienteId, ""),
   ]);
 
   const lineas = (lineasResult.data ?? [])

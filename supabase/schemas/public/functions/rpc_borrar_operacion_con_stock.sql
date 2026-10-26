@@ -2,7 +2,8 @@ DROP FUNCTION IF EXISTS public.rpc_borrar_operacion_con_stock(uuid, uuid);
 DROP FUNCTION IF EXISTS public.rpc_borrar_operacion_con_stock(uuid);
 
 CREATE OR REPLACE FUNCTION public.rpc_borrar_operacion_con_stock (
-  p_operacion_id uuid
+  p_operacion_id uuid,
+  p_unused       uuid DEFAULT NULL
 )
   RETURNS void
   LANGUAGE plpgsql
@@ -145,7 +146,15 @@ BEGIN
   DELETE FROM public.operaciones_pagos WHERE operacion_id = p_operacion_id;
   DELETE FROM public.operaciones_lineas WHERE operacion_id = p_operacion_id;
   DELETE FROM public.operaciones_asignacion_arreglo WHERE operacion_id = p_operacion_id;
+  DELETE FROM public.operaciones_venta WHERE operacion_id = p_operacion_id;
+  -- Permitir que las foreign keys ON DELETE SET NULL en auditoría (movimientos_stock, movimientos_financieros) se actualicen
+  PERFORM set_config('app.stock_tenant_cleanup', 'on', true);
+  PERFORM set_config('app.finanzas_tenant_cleanup', 'on', true);
+
   DELETE FROM public.operaciones WHERE id = p_operacion_id;
+
+  PERFORM set_config('app.stock_tenant_cleanup', 'off', true);
+  PERFORM set_config('app.finanzas_tenant_cleanup', 'off', true);
 END;
 $function$;
 

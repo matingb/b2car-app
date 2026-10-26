@@ -1,12 +1,20 @@
 import { describe, it, expect } from "vitest";
-import { testClient } from "@/tests/integration";
+import { testClient, SEED } from "@/tests/integration";
 import { clienteFinanzasService } from "@/app/api/clientes/clienteFinanzasService";
 import {
   dadoUnClienteParticularConVehiculo,
   dadoUnArreglo,
   dadoUnaCuentaFinanciera,
   cuandoSeCobraUnArreglo,
+  expectSaldoCuenta,
+  expectStockDetallado,
 } from "../helpers/integrationFixtures";
+import { dadoQueExisteUnProductoConStock } from "../helpers/stockHelpers";
+import {
+  crearOperacionViaRoute as crearOperacion,
+  getClienteCuentaCorrienteViaRoute,
+  getClienteResumenFinancieroViaRoute,
+} from "../helpers/routeDrivers";
 
 describe("Integration: Cuenta Corriente del Cliente", () => {
   it("construye el libro mayor con cargos (débitos) y cobros (créditos) respetando saldo acumulado", async () => {
@@ -102,4 +110,135 @@ describe("Integration: Cuenta Corriente del Cliente", () => {
     expect(movimientosRango).toHaveLength(1);
     expect(Number(movimientosRango?.[0].debito)).toBe(45000);
   });
+
+  it("al realizar una venta con cobro y entrega parcial, el resultado afecta a la cuenta del taller y al stock", async () => {
+    const saldoInicial = 100000;
+    const pagoVenta = 30000;
+    const { cliente } = await dadoUnClienteParticularConVehiculo();
+    const cuentaTaller = await dadoUnaCuentaFinanciera({
+      nombre: "Banco Santander Taller",
+      tipo: "CUENTA_BANCARIA",
+      saldoInicial,
+    });
+    const { stockId } = await dadoQueExisteUnProductoConStock({
+      stock: { cantidad: 15, taller_id: SEED.tallerId },
+      producto: { precio_unitario: 10000 },
+    });
+
+    const res = await crearOperacion({
+      tipo: "VENTA",
+      taller_id: SEED.tallerId,
+      cliente_id: cliente.id,
+      observaciones: "Venta parcial a cliente",
+      lineas: [
+        {
+          stock_id: stockId,
+          cantidad: 8,
+          cantidad_cumplida: 5,
+          monto_unitario: 10000,
+          delta_cantidad: -8,
+        },
+      ],
+      pagos: [
+        {
+          cuenta_id: cuentaTaller.id,
+          monto: pagoVenta,
+          descripcion: "Anticipo venta",
+        },
+      ],
+    });
+
+    const { data: operacion } = await res.json();
+    expect(operacion.tipo).toBe("VENTA");
+    expect(operacion.cliente_id).toBe(cliente.id);
+    expect(operacion.monto_total).toBe(80000);
+    expect(operacion.total_pagado).toBe(pagoVenta);
+    expect(operacion.saldo_pendiente).toBe(80000 - pagoVenta);
+    expect(operacion.estado_pago).toBe("PARCIAL");
+    expect(operacion.estado_stock).toBe("PARCIAL");
+
+    // 1. Afectación en cuenta financiera del taller
+    await expectSaldoCuenta(cuentaTaller.id, saldoInicial + pagoVenta);
+
+    // 2. Modificación parcial del stock
+    await expectStockDetallado(stockId, {
+      cantidad: 10,
+      cantidad_reservada: 3,
+      cantidad_pendiente: 0,
+    });
+  });
+
+  it("al realizar una venta con cobro parcial, el resultado afecta a la cuenta corriente del cliente y a su resumen financiero", async () => {
+    const pagoVenta = 30000;
+    const { cliente } = await dadoUnClienteParticularConVehiculo();
+    const cuentaTaller = await dadoUnaCuentaFinanciera({
+      nombre: "Banco Santander Taller",
+      tipo: "CUENTA_BANCARIA",
+      saldoInicial: 50000,
+    });
+    const { stockId } = await dadoQueExisteUnProductoConStock({
+      stock: { cantidad: 10, taller_id: SEED.tallerId },
+      producto: { precio_unitario: 10000 },
+    });
+
+    const res = await crearOperacion({
+      tipo: "VENTA",
+      taller_id: SEED.tallerId,
+      cliente_id: cliente.id,
+      observaciones: "Venta con cobro parcial",
+      lineas: [
+        {
+          stock_id: stockId,
+          cantidad: 8,
+          cantidad_cumplida: 5,
+          monto_unitario: 10000,
+          delta_cantidad: -8,
+        },
+      ],
+      pagos: [
+        {
+          cuenta_id: cuentaTaller.id,
+          monto: pagoVenta,
+          descripcion: "Anticipo venta",
+        },
+      ],
+    });
+
+    const { data: operacion } = await res.json();
+
+    // 1. Cuenta Corriente del Cliente (cargos y cobros)
+    const resCc = await getClienteCuentaCorrienteViaRoute(cliente.id);
+    expect(resCc.status).toBe(200);
+    const { data: movimientos } = await resCc.json();
+    expect(movimientos).toBeDefined();
+
+    const movCargo = movimientos.find(
+      (m: { tipo_movimiento: string; operacion_id: string }) =>
+        m.tipo_movimiento === "CARGO_VENTA" && m.operacion_id === operacion.id
+    );
+    expect(movCargo).toBeDefined();
+    expect(Number(movCargo.debito)).toBe(80000);
+    expect(Number(movCargo.credito)).toBe(0);
+
+    const movCobro = movimientos.find(
+      (m: { tipo_movimiento: string; operacion_id: string }) =>
+        m.tipo_movimiento === "COBRO" && m.operacion_id === operacion.id
+    );
+    expect(movCobro).toBeDefined();
+    expect(Number(movCobro.debito)).toBe(0);
+    expect(Number(movCobro.credito)).toBe(30000);
+
+    const totalDebito = movimientos.reduce((acc: number, m: { debito: number }) => acc + Number(m.debito), 0);
+    const totalCredito = movimientos.reduce((acc: number, m: { credito: number }) => acc + Number(m.credito), 0);
+    expect(totalDebito - totalCredito).toBe(50000);
+
+    // 2. Resumen financiero del cliente refleja la deuda
+    const resResumen = await getClienteResumenFinancieroViaRoute(cliente.id);
+    const { data: resumen } = await resResumen.json();
+    expect(resumen.saldo_cuenta).toBe(50000);
+    expect(resumen.total_historico_trabajos).toBe(80000);
+    expect(resumen.total_historico_cobrado).toBe(30000);
+    expect(resumen.cantidad_arreglos_pendientes_pago).toBe(1);
+  });
 });
+

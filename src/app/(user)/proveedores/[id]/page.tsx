@@ -1,46 +1,66 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
 import ProveedorModal from "@/app/components/proveedores/ProveedorModal";
-import Can from "@/app/components/auth/Can";
-import { Permission } from "@/lib/permissions";
-import { ROUTES } from "@/routing/routes";
-import { BREAKPOINTS, COLOR } from "@/theme/theme";
+import ProveedorProfileCard from "@/app/components/proveedores/ProveedorProfileCard";
+import ProveedorTabsNav, { type ProveedorTabKey } from "@/app/components/proveedores/ProveedorTabsNav";
+import ProveedorProductosTab from "@/app/components/proveedores/ProveedorProductosTab";
+import ProveedorCuentaCorrienteTab from "@/app/components/proveedores/ProveedorCuentaCorrienteTab";
+import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
+import { OperacionesProvider } from "@/app/providers/OperacionesProvider";
+import { InventarioProvider } from "@/app/providers/InventarioProvider";
 import { useProveedores } from "@/app/providers/ProveedoresProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useToast } from "@/app/providers/ToastProvider";
+import { useTenant } from "@/app/providers/TenantProvider";
 import { proveedoresClient } from "@/clients/proveedores/proveedoresClient";
-import { openWhatsapp } from "@/lib/whatsapp";
-import { formatDateLabel } from "@/lib/fechas";
+import { ROUTES } from "@/routing/routes";
+import { COLOR } from "@/theme/theme";
+import { Permission } from "@/lib/permissions";
 import type { Proveedor } from "@/model/types";
-import {
-  Building2,
-  Calendar,
-  Mail,
-  MapPin,
-  MessageCircle,
-  Pencil,
-  Phone,
-  Trash2,
-  TrendingUp,
-} from "lucide-react";
-import { css } from "@emotion/react";
+import type { ProveedorCuentaCorrienteResumen } from "@/model/dtos";
 
 export default function ProveedorDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const modal = useModalMessage();
   const toast = useToast();
+  const { talleres, hasPermission } = useTenant();
   const { updateProveedor, deleteProveedor } = useProveedores();
+
+  const canViewFinanzas = hasPermission(Permission.OperacionesView);
 
   const [proveedor, setProveedor] = useState<Proveedor | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [compraModalOpen, setCompraModalOpen] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<ProveedorTabKey>("productos");
+  const [productosCount, setProductosCount] = useState<number | undefined>(undefined);
+  const [operacionesCount, setOperacionesCount] = useState<number | undefined>(undefined);
+
+  const [cuentaCorrienteResumen, setCuentaCorrienteResumen] =
+    useState<ProveedorCuentaCorrienteResumen | null>(null);
+  const [loadingFinanzas, setLoadingFinanzas] = useState(false);
+
+  const loadFinanzas = useCallback(async () => {
+    if (!params.id || !canViewFinanzas) return;
+    setLoadingFinanzas(true);
+    try {
+      const res = await proveedoresClient.getOperaciones(params.id);
+      if (res.data) {
+        setCuentaCorrienteResumen(res.data);
+        setOperacionesCount(res.data.operaciones?.length ?? 0);
+      }
+    } catch {} finally {
+      setLoadingFinanzas(false);
+    }
+  }, [params.id, canViewFinanzas]);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +84,12 @@ export default function ProveedorDetailPage() {
       cancelled = true;
     };
   }, [params.id]);
+
+  useEffect(() => {
+    if (params.id && canViewFinanzas) {
+      void loadFinanzas();
+    }
+  }, [params.id, canViewFinanzas, loadFinanzas]);
 
   const handleDelete = async () => {
     if (!proveedor) return;
@@ -103,7 +129,7 @@ export default function ProveedorDetailPage() {
   if (loading) {
     return (
       <div>
-        <ScreenHeader title="Proveedor" breadcrumbs={["Detalle"]} hasBackButton />
+        <ScreenHeader title="Proveedores" breadcrumbs={["Detalle"]} hasBackButton />
         <div style={styles.loadingContainer}>Cargando datos del proveedor...</div>
       </div>
     );
@@ -112,7 +138,7 @@ export default function ProveedorDetailPage() {
   if (error || !proveedor) {
     return (
       <div>
-        <ScreenHeader title="Proveedor" breadcrumbs={["Detalle"]} hasBackButton />
+        <ScreenHeader title="Proveedores" breadcrumbs={["Detalle"]} hasBackButton />
         <Card style={styles.errorCard}>
           <div style={styles.errorTitle}>Proveedor no encontrado</div>
           <div style={styles.errorSub}>
@@ -132,160 +158,42 @@ export default function ProveedorDetailPage() {
   return (
     <div>
       <ScreenHeader
-        title={proveedor.nombre}
-        breadcrumbs={["Proveedores", "Detalle"]}
+        title="Proveedores"
+        breadcrumbs={["Detalle"]}
         hasBackButton
       />
 
-      <div css={styles.topActionsRow}>
-        <div style={styles.badgeRow}>
-          {proveedor.cuit ? (
-            <span style={styles.cuitBadge}>CUIT: {proveedor.cuit}</span>
-          ) : (
-            <span style={styles.noCuitBadge}>Sin CUIT registrado</span>
-          )}
-        </div>
+      <ProveedorProfileCard
+        proveedor={proveedor}
+        resumenCuentaCorriente={cuentaCorrienteResumen}
+        loadingFinanzas={loadingFinanzas}
+        onEditProveedor={() => setEditModalOpen(true)}
+        onDeleteProveedor={handleDelete}
+      />
 
-        <div style={styles.actionButtons}>
-          {proveedor.telefono && (
-            <Button
-              icon={<MessageCircle size={18} color="#25D366" />}
-              text="WhatsApp"
-              onClick={() =>
-                openWhatsapp(
-                  proveedor.telefono!,
-                  `Hola ${proveedor.nombre}, me comunico desde el taller.`
-                )
-              }
-              outline
-              dataTestId="proveedor-detail-whatsapp"
-            />
-          )}
+      <ProveedorTabsNav
+        activeTab={activeTab}
+        onChangeTab={setActiveTab}
+        productosCount={productosCount}
+        operacionesCount={operacionesCount}
+      />
 
-          <Can permission={Permission.ProveedoresEdit}>
-            <Button
-              icon={<Pencil size={18} />}
-              text="Editar"
-              onClick={() => setEditModalOpen(true)}
-              outline
-              dataTestId="proveedor-detail-edit"
-            />
-            <Button
-              icon={<Trash2 size={18} color={COLOR.SEMANTIC.DANGER} />}
-              text="Eliminar"
-              onClick={handleDelete}
-              outline
-              style={{ color: COLOR.SEMANTIC.DANGER, borderColor: COLOR.SEMANTIC.DANGER }}
-              dataTestId="proveedor-detail-delete"
-            />
-          </Can>
-        </div>
-      </div>
+      {activeTab === "productos" && (
+        <ProveedorProductosTab
+          proveedorId={proveedor.id}
+          proveedorNombre={proveedor.nombre}
+          onComprarProducto={() => setCompraModalOpen(true)}
+          onCountChange={setProductosCount}
+        />
+      )}
 
-      <div css={styles.grid}>
-        {/* Ficha de datos fiscales y de contacto */}
-        <Card style={styles.detailCard}>
-          <div style={styles.cardHeader}>
-            <Building2 size={20} color={COLOR.ACCENT.PRIMARY} />
-            <h3 style={styles.cardTitle}>Datos del Proveedor</h3>
-          </div>
-
-          <div style={styles.dataGrid}>
-            <div style={styles.dataItem}>
-              <span style={styles.dataLabel}>Razón Social / Nombre</span>
-              <strong style={styles.dataValue}>{proveedor.nombre}</strong>
-            </div>
-
-            <div style={styles.dataItem}>
-              <span style={styles.dataLabel}>CUIT</span>
-              <span style={styles.dataValue}>{proveedor.cuit || "—"}</span>
-            </div>
-
-            <div style={styles.dataItem}>
-              <span style={styles.dataLabel}>Teléfono</span>
-              {proveedor.telefono ? (
-                <a
-                  href={`tel:${proveedor.telefono}`}
-                  style={{ ...styles.dataValue, color: COLOR.ACCENT.PRIMARY, textDecoration: "none" }}
-                >
-                  <Phone size={14} style={{ display: "inline", marginRight: 6 }} />
-                  {proveedor.telefono}
-                </a>
-              ) : (
-                <span style={styles.dataValue}>—</span>
-              )}
-            </div>
-
-            <div style={styles.dataItem}>
-              <span style={styles.dataLabel}>Correo Electrónico</span>
-              {proveedor.email ? (
-                <a
-                  href={`mailto:${proveedor.email}`}
-                  style={{ ...styles.dataValue, color: COLOR.ACCENT.PRIMARY, textDecoration: "none" }}
-                >
-                  <Mail size={14} style={{ display: "inline", marginRight: 6 }} />
-                  {proveedor.email}
-                </a>
-              ) : (
-                <span style={styles.dataValue}>—</span>
-              )}
-            </div>
-
-            <div style={{ ...styles.dataItem, gridColumn: "1 / -1" }}>
-              <span style={styles.dataLabel}>Dirección</span>
-              <span style={styles.dataValue}>
-                {proveedor.direccion ? (
-                  <>
-                    <MapPin size={14} style={{ display: "inline", marginRight: 6 }} />
-                    {proveedor.direccion}
-                  </>
-                ) : (
-                  "—"
-                )}
-              </span>
-            </div>
-
-            {proveedor.created_at && (
-              <div style={{ ...styles.dataItem, gridColumn: "1 / -1" }}>
-                <span style={styles.dataLabel}>Fecha de registro</span>
-                <span style={styles.dataValueMuted}>
-                  <Calendar size={14} style={{ display: "inline", marginRight: 6 }} />
-                  {formatDateLabel(proveedor.created_at)}
-                </span>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* Card informativo de Próxima Etapa: Historial y Cuenta Corriente */}
-        <Card style={styles.infoCard}>
-          <div style={styles.cardHeader}>
-            <TrendingUp size={20} color={COLOR.ACCENT.PRIMARY} />
-            <h3 style={styles.cardTitle}>Cuenta Corriente & Operaciones</h3>
-          </div>
-
-          <div style={styles.infoCardBody}>
-            <div style={styles.infoCallout}>
-              <p style={styles.infoText}>
-                <strong>Próximamente disponible:</strong> En las siguientes etapas podrás vincular
-                operaciones de compra a este proveedor, visualizar su saldo deudor en cuenta corriente
-                y liquidar pagos directamente desde las cuentas financieras.
-              </p>
-            </div>
-
-            <div style={styles.statPreviewRow}>
-              <div style={styles.statPreview}>
-                <span style={styles.statLabel}>Saldo Adeudado</span>
-                <strong style={styles.statNumber}>$ 0,00</strong>
-              </div>
-              <div style={styles.statPreview}>
-                <span style={styles.statLabel}>Total Comprado</span>
-                <strong style={styles.statNumber}>$ 0,00</strong>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
+      {activeTab === "cuenta_corriente" && (
+        <ProveedorCuentaCorrienteTab
+          proveedorId={proveedor.id}
+          onCountChange={setOperacionesCount}
+          onNuevaCompra={() => setCompraModalOpen(true)}
+        />
+      )}
 
       <ProveedorModal
         open={editModalOpen}
@@ -293,6 +201,26 @@ export default function ProveedorDetailPage() {
         onSubmit={handleEditSubmit}
         initialValues={proveedor}
       />
+
+      {compraModalOpen ? (
+        <OperacionesProvider>
+          <InventarioProvider>
+            <OperacionCreateModal
+              open={compraModalOpen}
+              talleres={talleres}
+              initialTipo="COMPRA"
+              initialProveedorId={proveedor.id}
+              disabledProveedor
+              onSuccess={async () => {
+                setCompraModalOpen(false);
+                toast.success("Compra registrada", `Se registró la compra para ${proveedor.nombre}.`);
+                void loadFinanzas();
+              }}
+              onClose={() => setCompraModalOpen(false)}
+            />
+          </InventarioProvider>
+        </OperacionesProvider>
+      ) : null}
     </div>
   );
 }
@@ -317,137 +245,5 @@ const styles = {
   errorSub: {
     fontSize: 14,
     color: COLOR.TEXT.SECONDARY,
-  },
-  topActionsRow: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-    flexWrap: "wrap",
-    gap: 12,
-  }),
-  badgeRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-  },
-  cuitBadge: {
-    fontSize: 13,
-    fontWeight: 600,
-    padding: "4px 10px",
-    borderRadius: 8,
-    background: "rgba(59, 130, 246, 0.12)",
-    color: COLOR.ACCENT.PRIMARY,
-    border: `1px solid rgba(59, 130, 246, 0.25)`,
-  },
-  noCuitBadge: {
-    fontSize: 13,
-    fontWeight: 500,
-    padding: "4px 10px",
-    borderRadius: 8,
-    background: COLOR.BACKGROUND.SUBTLE,
-    color: COLOR.TEXT.SECONDARY,
-  },
-  actionButtons: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    flexWrap: "wrap" as const,
-  },
-  grid: css({
-    display: "grid",
-    gridTemplateColumns: "1.2fr 1fr",
-    gap: 20,
-    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-      gridTemplateColumns: "1fr",
-    },
-  }),
-  detailCard: {
-    padding: 24,
-  },
-  cardHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 20,
-    paddingBottom: 14,
-    borderBottom: `1px solid ${COLOR.BORDER.DEFAULT}`,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 600,
-    color: COLOR.TEXT.PRIMARY,
-    margin: 0,
-  },
-  dataGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "16px 20px",
-  },
-  dataItem: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 4,
-  },
-  dataLabel: {
-    fontSize: 12,
-    fontWeight: 500,
-    color: COLOR.TEXT.SECONDARY,
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.5px",
-  },
-  dataValue: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: COLOR.TEXT.PRIMARY,
-  },
-  dataValueMuted: {
-    fontSize: 13,
-    color: COLOR.TEXT.SECONDARY,
-  },
-  infoCard: {
-    padding: 24,
-    background: COLOR.BACKGROUND.SECONDARY,
-  },
-  infoCardBody: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 16,
-  },
-  infoCallout: {
-    padding: "12px 14px",
-    borderRadius: 8,
-    background: COLOR.BACKGROUND.PRIMARY,
-    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
-  },
-  infoText: {
-    fontSize: 13,
-    color: COLOR.TEXT.SECONDARY,
-    lineHeight: 1.5,
-    margin: 0,
-  },
-  statPreviewRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 12,
-  },
-  statPreview: {
-    padding: 16,
-    borderRadius: 10,
-    background: COLOR.BACKGROUND.PRIMARY,
-    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: COLOR.TEXT.SECONDARY,
-    fontWeight: 500,
-  },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: 700,
-    color: COLOR.TEXT.PRIMARY,
   },
 };

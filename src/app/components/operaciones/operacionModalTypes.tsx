@@ -24,6 +24,10 @@ export type OperacionModalProps = {
   onClose: () => void;
   initialTipo?: TipoOperacion;
   initialCuentaId?: string | null;
+  initialProveedorId?: string | null;
+  disabledProveedor?: boolean;
+  initialClienteId?: string | null;
+  disabledCliente?: boolean;
   gasto?: GastoFinanciero | null;
   /**
    * Restringe el modal a una operación de stock ya existente. Se usa desde el
@@ -66,6 +70,7 @@ export function createEmptyLinea(stockId = ""): OperacionLineaDraft {
     id: generateUuidV4(),
     stockId,
     cantidad: 1,
+    cantidadEntregar: 1,
     unitario: 0,
     total: 0,
   };

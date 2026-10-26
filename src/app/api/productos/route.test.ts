@@ -76,7 +76,8 @@ describe("/api/productos", () => {
       ],
       error: null,
     });
-    const res = await GET();
+    const req = new Request("http://localhost/api/productos");
+    const res = await GET(req);
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -85,6 +86,20 @@ describe("/api/productos", () => {
     expect(typeof body.data[0].talleresConStock).toBe("number");
     expect(body.data[0].talleresConStock).toBe(2);
     expect(body.data[0].stocks).toHaveLength(2);
+  });
+
+  it("GET con filtro proveedorId pasa el filtro al servicio", async () => {
+    vi.mocked(productosService.list).mockResolvedValue({
+      data: [],
+      error: null,
+    });
+    const req = new Request("http://localhost/api/productos?proveedorId=prov-123");
+    const res = await GET(req);
+
+    expect(res.status).toBe(200);
+    expect(productosService.list).toHaveBeenCalledWith(expect.anything(), {
+      proveedorId: "prov-123",
+    });
   });
 
   it("POST con JSON inválido devuelve 400", async () => {

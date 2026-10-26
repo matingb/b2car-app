@@ -7,6 +7,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { ServiceError } from "@/app/api/serviceError";
 import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
+import { normalizePage } from "@/lib/pagination";
 import {
 	operacionesService,
 	validateOperacionesDateFilters,
@@ -65,6 +66,12 @@ function mapOperacion(row: OperacionRow | OperacionListRow): Operacion {
 		? rawLineas.map(mapLineaFromUnknown).filter((linea): linea is OperacionLinea => Boolean(linea))
 		: [];
 	const movimiento = "gasto_id" in row ? row : null;
+	const montoTotal = row.monto_total !== undefined && row.monto_total !== null ? Number(row.monto_total) : undefined;
+	const totalPagado = row.total_pagado !== undefined && row.total_pagado !== null ? Number(row.total_pagado) : undefined;
+	const saldoPendiente = row.saldo_pendiente !== undefined && row.saldo_pendiente !== null
+		? Number(row.saldo_pendiente)
+		: (montoTotal !== undefined && totalPagado !== undefined ? Math.max(0, montoTotal - totalPagado) : undefined);
+
 	return {
 		id: String(row.id),
 		tipo: row.tipo as Operacion["tipo"],
@@ -74,14 +81,16 @@ function mapOperacion(row: OperacionRow | OperacionListRow): Operacion {
 		lineas,
 		factura_asociada: "factura_asociada" in row && row.factura_asociada === true,
 		observaciones: row.observaciones ? String(row.observaciones) : undefined,
-		monto_total: row.monto_total !== undefined && row.monto_total !== null ? Number(row.monto_total) : undefined,
-		total_pagado: row.total_pagado !== undefined && row.total_pagado !== null ? Number(row.total_pagado) : undefined,
-		saldo_pendiente: row.saldo_pendiente !== undefined && row.saldo_pendiente !== null ? Number(row.saldo_pendiente) : undefined,
+		monto_total: montoTotal,
+		total_pagado: totalPagado,
+		saldo_pendiente: saldoPendiente,
 		esta_pago: row.esta_pago !== undefined ? Boolean(row.esta_pago) : undefined,
 		estado_pago: (row.estado_pago as Operacion["estado_pago"]) ?? undefined,
 		estado_stock: (row.estado_stock as Operacion["estado_stock"]) ?? undefined,
 		proveedor_id: "proveedor_id" in row && row.proveedor_id ? String(row.proveedor_id) : undefined,
 		proveedor_nombre: "proveedor_nombre" in row && row.proveedor_nombre ? String(row.proveedor_nombre) : undefined,
+		cliente_id: "cliente_id" in row && row.cliente_id ? String(row.cliente_id) : undefined,
+		cliente_nombre: "cliente_nombre" in row && row.cliente_nombre ? String(row.cliente_nombre) : undefined,
 		...(movimiento ? {
 			gasto_id: movimiento.gasto_id ?? undefined,
 			descripcion: movimiento.descripcion ?? undefined,
@@ -101,8 +110,7 @@ export async function GET(req: Request) {
 	const supabase = await createClient();
 	const { searchParams } = new URL(req.url);
 	const tipos = searchParams.getAll("tipo").filter(Boolean);
-	const requestedPage = Number.parseInt(searchParams.get("page") ?? "1", 10);
-	const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+	const page = normalizePage(searchParams.get("page"));
 	const filters: OperacionesFilters = {
 		fecha: searchParams.get("fecha") || undefined,
 		from: searchParams.get("from") || undefined,
@@ -161,12 +169,23 @@ export async function POST(req: Request) {
 	);
 	const esOperacionComercial = body.tipo === "COMPRA" || body.tipo === "VENTA";
 	const estadoPago = body.estado_pago ?? "PAGADO";
-	const requiereCuentaFinanciera = esOperacionComercial && importeTotal > 0 && estadoPago !== "PENDIENTE";
+	const tienePagos = Array.isArray(body.pagos) && body.pagos.length > 0;
+	const requiereCuentaFinanciera = esOperacionComercial && importeTotal > 0 && estadoPago !== "PENDIENTE" && !tienePagos;
 
 	if (requiereCuentaFinanciera && !body.cuenta_financiera_id) {
 		return Response.json({ data: null, error: "Seleccioná una cuenta financiera" } satisfies CreateOperacionResponse, { status: 400 });
 	}
-	if (esOperacionComercial && estadoPago === "PARCIAL") {
+	if (tienePagos) {
+		for (const p of body.pagos!) {
+			if (!p.cuenta_id || !isValidUuid(p.cuenta_id)) {
+				return Response.json({ data: null, error: "cuenta_financiera_id inválida en pagos" } satisfies CreateOperacionResponse, { status: 400 });
+			}
+			if (typeof p.monto !== "number" || p.monto <= 0) {
+				return Response.json({ data: null, error: "monto inválido en pagos" } satisfies CreateOperacionResponse, { status: 400 });
+			}
+		}
+	}
+	if (esOperacionComercial && estadoPago === "PARCIAL" && !tienePagos) {
 		const montoInicial = Number(body.monto_inicial);
 		if (!Number.isFinite(montoInicial) || montoInicial <= 0) {
 			return Response.json({ data: null, error: "El monto inicial debe ser mayor a 0 para pagos parciales" } satisfies CreateOperacionResponse, { status: 400 });
@@ -177,6 +196,12 @@ export async function POST(req: Request) {
 	}
 	if (body.cuenta_financiera_id && !isValidUuid(body.cuenta_financiera_id)) {
 		return Response.json({ data: null, error: "cuenta_financiera_id inválida" } satisfies CreateOperacionResponse, { status: 400 });
+	}
+	if (body.cliente_id && !isValidUuid(body.cliente_id)) {
+		return Response.json({ data: null, error: "cliente_id inválida" } satisfies CreateOperacionResponse, { status: 400 });
+	}
+	if (body.proveedor_id && !isValidUuid(body.proveedor_id)) {
+		return Response.json({ data: null, error: "proveedor_id inválida" } satisfies CreateOperacionResponse, { status: 400 });
 	}
 	if (!body.idempotency_key || !isValidUuid(body.idempotency_key)) {
 		return Response.json({ data: null, error: "idempotency_key inválida" } satisfies CreateOperacionResponse, { status: 400 });

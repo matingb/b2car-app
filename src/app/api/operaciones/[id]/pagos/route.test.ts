@@ -25,7 +25,7 @@ vi.mock("@/app/api/operaciones/operacionesService", () => ({
 
 import { createClient } from "@/supabase/server";
 import { ServiceError } from "@/app/api/serviceError";
-import { operacionesService } from "@/app/api/operaciones/operacionesService";
+import { operacionesService, type OperacionRow } from "@/app/api/operaciones/operacionesService";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
 import { POST } from "./route";
 
@@ -78,7 +78,7 @@ describe("POST /api/operaciones/[id]/pagos", () => {
 			error: null,
 		});
 		vi.mocked(operacionesService.getById).mockResolvedValue({
-			data: { id: opId, tenant_id: "tenant-1" } as any,
+			data: { id: opId, tenant_id: "tenant-1" } as OperacionRow,
 			error: null,
 		});
 
