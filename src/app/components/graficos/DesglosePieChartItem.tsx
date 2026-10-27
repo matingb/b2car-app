@@ -9,7 +9,13 @@ export type DesglosePieChartItemProps = {
     fill: string;
     maxMonto: number;
     isSubItem?: boolean;
+    isCompact?: boolean;
     isMobile?: boolean;
+    valueFormatter?: (value: number) => string;
+    percentageFormatter?: (value: number) => string;
+    barScale?: "maximum" | "percentageOfTotal";
+    itemKey?: string;
+    wrapLabels?: boolean;
 };
 
 export default function DesglosePieChartItem({
@@ -19,28 +25,40 @@ export default function DesglosePieChartItem({
     fill,
     maxMonto,
     isSubItem = false,
+    isCompact = false,
     isMobile = false,
+    valueFormatter = (value) => `$${formatNumberAr(value, { maxDecimals: 0 })}`,
+    percentageFormatter = (value) => `${value.toFixed(1)}%`,
+    barScale = "maximum",
+    itemKey,
+    wrapLabels = false,
 }: DesglosePieChartItemProps) {
-    const styles = useMemo(() => getStyles(isMobile), [isMobile]);
-    const barWidth = maxMonto > 0 ? (monto / maxMonto) * 100 : 0;
+    const styles = useMemo(
+        () => getStyles(isCompact, { isMobile, wrapLabels }),
+        [isCompact, isMobile, wrapLabels]
+    );
+    const barWidth = barScale === "percentageOfTotal"
+        ? porcentaje
+        : maxMonto > 0 ? (monto / maxMonto) * 100 : 0;
 
     return (
-        <div style={styles.itemContainer}>
+        <div style={styles.itemContainer} data-testid="desglose-row" data-chart-key={itemKey}>
             <div style={styles.itemHeader}>
                 <span style={isSubItem ? styles.itemLabelSecondary : styles.itemLabelPrimary}>
                     {label}
                 </span>
                 <div style={styles.itemValues}>
                     <span style={styles.itemMonto}>
-                        ${formatNumberAr(monto, { maxDecimals: 0 })}
+                        {valueFormatter(monto)}
                     </span>
                     <span style={styles.itemPorcentaje}>
-                        {porcentaje.toFixed(1)}%
+                        {percentageFormatter(porcentaje)}
                     </span>
                 </div>
             </div>
             <div style={styles.barBackground}>
                 <div
+                    data-testid="desglose-bar"
                     style={{
                         ...styles.barForeground,
                         width: `${barWidth}%`,

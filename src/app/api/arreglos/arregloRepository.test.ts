@@ -260,6 +260,86 @@ describe("supabaseArregloRepository", () => {
     });
   });
 
+  describe("horasTrabajadasPorEmpleado", () => {
+    it("mapea horas decimales de texto y mantiene identidades homónimas y sin empleado", async () => {
+      const supabase = makeSupabase({});
+      vi.mocked(supabase.rpc).mockResolvedValue({
+        data: {
+          total_horas: "5.00",
+          empleados: [
+            { empleado_id: "emp-b", label: "Empleado Igual", horas_trabajadas: "2.50" },
+            { empleado_id: "emp-a", label: "Empleado Igual", horas_trabajadas: "2.00" },
+            { empleado_id: null, label: "Sin empleado", horas_trabajadas: "0.50" },
+          ],
+        },
+        error: null,
+      } as unknown as import("@supabase/supabase-js").PostgrestSingleResponse<unknown>);
+
+      const result = await supabaseArregloRepository.horasTrabajadasPorEmpleado(
+        supabase,
+        "2026-08-01T03:00:00.000Z",
+        "2026-09-01T03:00:00.000Z",
+        "taller-1"
+      );
+
+      expect(supabase.rpc).toHaveBeenCalledWith("dashboard_horas_trabajadas_por_empleado", {
+        p_from: "2026-08-01T03:00:00.000Z",
+        p_to: "2026-09-01T03:00:00.000Z",
+        p_taller_id: "taller-1",
+      });
+      expect(result).toEqual({
+        totalHoras: 5,
+        empleados: [
+          { empleadoId: "emp-b", label: "Empleado Igual", horasTrabajadas: 2.5 },
+          { empleadoId: "emp-a", label: "Empleado Igual", horasTrabajadas: 2 },
+          { empleadoId: null, label: "Sin empleado", horasTrabajadas: 0.5 },
+        ],
+      });
+    });
+
+    it("acepta una respuesta sin horas", async () => {
+      const supabase = makeSupabase({});
+      vi.mocked(supabase.rpc).mockResolvedValue({
+        data: { total_horas: 0, empleados: [] },
+        error: null,
+      } as unknown as import("@supabase/supabase-js").PostgrestSingleResponse<unknown>);
+
+      await expect(
+        supabaseArregloRepository.horasTrabajadasPorEmpleado(supabase, "2026-08-01", "2026-09-01")
+      ).resolves.toEqual({ totalHoras: 0, empleados: [] });
+    });
+
+    it("propaga errores de RPC y rechaza payloads inconsistentes", async () => {
+      const supabase = makeSupabase({});
+      vi.mocked(supabase.rpc).mockResolvedValue({
+        data: null,
+        error: { message: "RPC unavailable" },
+      } as unknown as import("@supabase/supabase-js").PostgrestSingleResponse<unknown>);
+      await expect(
+        supabaseArregloRepository.horasTrabajadasPorEmpleado(supabase, "2026-08-01", "2026-09-01")
+      ).rejects.toThrow("RPC unavailable");
+
+      vi.mocked(supabase.rpc).mockResolvedValue({
+        data: { total_horas: "", empleados: [] },
+        error: null,
+      } as unknown as import("@supabase/supabase-js").PostgrestSingleResponse<unknown>);
+      await expect(
+        supabaseArregloRepository.horasTrabajadasPorEmpleado(supabase, "2026-08-01", "2026-09-01")
+      ).rejects.toThrow("total_horas debe ser un número no negativo");
+
+      vi.mocked(supabase.rpc).mockResolvedValue({
+        data: {
+          total_horas: "1.00",
+          empleados: [{ empleado_id: "emp-a", label: "A", horas_trabajadas: "0.50" }],
+        },
+        error: null,
+      } as unknown as import("@supabase/supabase-js").PostgrestSingleResponse<unknown>);
+      await expect(
+        supabaseArregloRepository.horasTrabajadasPorEmpleado(supabase, "2026-08-01", "2026-09-01")
+      ).rejects.toThrow("no coincide con total_horas");
+    });
+  });
+
   describe("listRecentActivities", () => {
     it("aplica filtro para excluir arreglos en estado PRESUPUESTO y ordena por updated_at descendente", async () => {
       const supabase = makeSupabase({

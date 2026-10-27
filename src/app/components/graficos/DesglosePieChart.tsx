@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { COLOR } from "@/theme/theme";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import {
     ChartContainer,
     ChartTooltip,
@@ -19,6 +19,8 @@ export type DesgloseItem = {
     cantidad: number;
     monto: number;
     fill?: string;
+    /** Identidad estable para separar filas con etiquetas iguales, como empleados homónimos. */
+    identityKey?: string;
 };
 
 export type DesglosePieChartSubItem = DesgloseItem & {
@@ -37,6 +39,24 @@ type Props = {
     montoLabel?: string;
     variant?: "default" | "danger";
     maxItems?: number;
+    groupRest?: boolean;
+    showCountInTooltip?: boolean;
+    percentageDecimals?: 0 | 1;
+    valueFormatter?: (value: number) => string;
+    percentageFormatter?: (value: number) => string;
+    percentageTotal?: number;
+    centerTotal?: number;
+    centerLabel?: string;
+    barScale?: "maximum" | "percentageOfTotal";
+    showListOnMobileInitially?: boolean;
+    maxListHeight?: number;
+    listAccessibleLabel?: string;
+    sortLabelOnTies?: boolean;
+    emptyText?: string;
+    adaptivePaddingAngle?: boolean;
+    allowTooltipEscape?: boolean;
+    wrapLabels?: boolean;
+    containerResponsiveLayout?: boolean;
 };
 
 const DEFAULT_COLORS = [
@@ -74,64 +94,139 @@ function getDistributedColor(idx: number, totalItems: number, palette: string[])
     const mappedIdx = Math.round((idx / (totalItems - 1)) * (palette.length - 1));
     return palette[mappedIdx];
 }
-export default function DesglosePieChart({ id = "desglose-pie", items, montoLabel = "Monto", variant = "default", maxItems = 5 }: Props) {
-    const [showListOnMobile, setShowListOnMobile] = useState(false);
+
+function compareText(a: string, b: string) {
+    return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function defaultValueFormatter(value: number) {
+    return `$${formatNumberAr(value, { maxDecimals: 0 })}`;
+}
+
+function defaultPercentageFormatter(value: number) {
+    return `${value.toFixed(1)}%`;
+}
+
+export default function DesglosePieChart({
+    id = "desglose-pie",
+    items,
+    montoLabel = "Monto",
+    variant = "default",
+    maxItems = 5,
+    groupRest = true,
+    showCountInTooltip = true,
+    percentageDecimals = 0,
+    valueFormatter = defaultValueFormatter,
+    percentageFormatter = defaultPercentageFormatter,
+    percentageTotal,
+    centerTotal,
+    centerLabel,
+    barScale = "maximum",
+    showListOnMobileInitially = false,
+    maxListHeight,
+    listAccessibleLabel,
+    sortLabelOnTies = false,
+    emptyText = "Sin datos",
+    adaptivePaddingAngle = false,
+    allowTooltipEscape = false,
+    wrapLabels = false,
+    containerResponsiveLayout = false,
+}: Props) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [showListOnMobile, setShowListOnMobile] = useState(showListOnMobileInitially);
     const [expandedOtros, setExpandedOtros] = useState(false);
+    const [isCompact, setIsCompact] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 640);
+        const checkMobile = () => {
+            const mobile = window.innerWidth < 640;
+            setIsMobile(mobile);
+            if (!containerResponsiveLayout) setIsCompact(mobile);
+        };
         checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
+        window.addEventListener("resize", checkMobile);
+        return () => window.removeEventListener("resize", checkMobile);
+    }, [containerResponsiveLayout]);
 
-    const styles = useMemo(() => getStyles(isMobile), [isMobile]);
+    useEffect(() => {
+        if (!containerResponsiveLayout) return;
+        const container = containerRef.current;
+        if (!container) return;
+
+        const updateCompactLayout = () => {
+            setIsCompact(container.getBoundingClientRect().width < BREAKPOINTS.md);
+        };
+        updateCompactLayout();
+
+        if (typeof ResizeObserver !== "undefined") {
+            const observer = new ResizeObserver(updateCompactLayout);
+            observer.observe(container);
+            return () => observer.disconnect();
+        }
+
+        window.addEventListener("resize", updateCompactLayout);
+        return () => window.removeEventListener("resize", updateCompactLayout);
+    }, [containerResponsiveLayout]);
+
+    const styles = useMemo(
+        () => getStyles(isCompact, { hasCenterOverlay: centerTotal !== undefined, isMobile, wrapLabels }),
+        [isCompact, isMobile, centerTotal, wrapLabels]
+    );
     const effectivelyExpanded = expandedOtros || isMobile;
 
-    const extraRows = useMemo(
-        () => [
-            {
+    const extraRows = useMemo(() => {
+        const rows = [];
+        if (showCountInTooltip) {
+            rows.push({
                 key: "cantidad",
                 label: "Cantidad",
-                formatter: (v: unknown) => formatNumberAr(Number(v ?? 0), { maxDecimals: 0, minDecimals: 0 }),
-            },
+                formatter: (value: unknown) => formatNumberAr(Number(value ?? 0), { maxDecimals: 0, minDecimals: 0 }),
+            });
+        }
+        rows.push(
             {
                 key: "monto",
                 label: montoLabel,
-                formatter: (v: unknown) => `$${formatNumberAr(Number(v ?? 0), { maxDecimals: 0, minDecimals: 0 })}`,
+                formatter: (value: unknown) => valueFormatter(Number(value ?? 0)),
             },
             {
                 key: "porcentaje",
                 label: "Porcentaje",
-                formatter: (v: unknown) => `${formatNumberAr(Number(v ?? 0), { maxDecimals: 1, minDecimals: 0 })}%`,
+                formatter: (value: unknown) => `${formatNumberAr(Number(value ?? 0), {
+                    maxDecimals: 1,
+                    minDecimals: percentageDecimals,
+                })}%`,
             },
-        ],
-        [montoLabel]
-    );
+        );
+        return rows;
+    }, [montoLabel, showCountInTooltip, valueFormatter, percentageDecimals]);
 
     const series = useMemo(() => {
-        const safeItems = (items ?? []).filter((i) => i && typeof i.label === "string");
+        const safeItems = (items ?? []).filter((item) => item && typeof item.label === "string");
         const colors = variant === "danger" ? DANGER_COLORS : DEFAULT_COLORS;
+        const processedItems = [...safeItems].sort((a, b) => {
+            const byValue = b.monto - a.monto;
+            if (byValue !== 0 || !sortLabelOnTies) return byValue;
+            return compareText(a.label, b.label) || compareText(a.identityKey ?? "", b.identityKey ?? "");
+        });
+        const total = percentageTotal ?? processedItems.reduce((sum, item) => sum + Number(item.monto ?? 0), 0);
 
-        const processedItems = [...safeItems].sort((a, b) => b.monto - a.monto);
-        const total = processedItems.reduce((acc, item) => acc + Number(item?.monto ?? 0), 0);
-
-        const itemsWithColor: DesglosePieChartSubItem[] = processedItems.map((item, idx) => ({
+        const itemsWithColor: DesglosePieChartSubItem[] = processedItems.map((item, index) => ({
             ...item,
-            key: `linea_${idx}`,
+            key: item.identityKey
+                ? `item_${item.identityKey.replace(/[^a-zA-Z0-9_-]/g, "_")}`
+                : `linea_${index}`,
             porcentaje: total > 0 ? (item.monto / total) * 100 : 0,
-            fill: getDistributedColor(idx, processedItems.length, colors)
+            fill: getDistributedColor(index, processedItems.length, colors),
         }));
 
         let pieDataItems: DesglosePieChartDataItem[] = [...itemsWithColor];
-
-        if (pieDataItems.length > maxItems + 1) {
+        if (groupRest && pieDataItems.length > maxItems + 1) {
             const top = pieDataItems.slice(0, maxItems);
             const rest = pieDataItems.slice(maxItems);
-
-            const restMonto = rest.reduce((acc, i) => acc + i.monto, 0);
-            const restCantidad = rest.reduce((acc, i) => acc + i.cantidad, 0);
+            const restMonto = rest.reduce((sum, item) => sum + item.monto, 0);
+            const restCantidad = rest.reduce((sum, item) => sum + item.cantidad, 0);
 
             pieDataItems = [
                 ...top,
@@ -142,67 +237,59 @@ export default function DesglosePieChart({ id = "desglose-pie", items, montoLabe
                     cantidad: restCantidad,
                     porcentaje: total > 0 ? (restMonto / total) * 100 : 0,
                     subItems: rest,
-                    fill: "#94a3b8", // Static gray for the "Otros" group slice
+                    fill: "#94a3b8", // Preserve the existing gray for the monetary "Otros" segment.
                 },
             ];
         }
 
-        const keys = pieDataItems.map((_, idx) => `linea_${idx}`);
-
-        const data: DesglosePieChartDataItem[] = keys.map((key, idx) => {
-            const item = pieDataItems[idx];
-            return {
-                key,
-                label: item.label ?? key,
-                cantidad: Number(item.cantidad ?? 0),
-                monto: item.monto,
-                porcentaje: item.porcentaje,
-                fill: item.fill,
-                subItems: item.subItems,
-            };
-        });
-
+        const data = pieDataItems.map((item) => ({ ...item }));
         const config: ChartConfig = {};
-        keys.forEach((key, idx) => {
-            config[key] = {
-                label: pieDataItems[idx]?.label ?? key,
-                color: pieDataItems[idx]?.fill ?? colors[0],
+        data.forEach((item) => {
+            config[item.key] = {
+                label: item.label,
+                color: item.fill,
             };
         });
 
-        return { config, data, total };
-    }, [items, variant, maxItems]);
+        return { config, data };
+    }, [items, variant, maxItems, groupRest, percentageTotal, sortLabelOnTies]);
 
-    const maxMonto = useMemo(() => {
-        return Math.max(0, ...series.data.map(d => d.monto));
-    }, [series.data]);
+    const maxMonto = useMemo(
+        () => Math.max(0, ...series.data.map((item) => item.monto)),
+        [series.data]
+    );
 
     if (!series.data.length) {
-        return (
-            <div style={styles.emptyState}>
-                Sin datos
-            </div>
-        );
+        return <div style={styles.emptyState}>{emptyText}</div>;
     }
 
-    const hasOtros = series.data.some(item => item.subItems && item.subItems.length > 0);
-    const topItems = series.data.filter(item => !item.subItems || item.subItems.length === 0);
-    const otrosItem = series.data.find(item => item.subItems && item.subItems.length > 0);
-
-    const pieChartData = effectivelyExpanded && otrosItem && otrosItem.subItems
-        ? [
-            ...topItems,
-            ...otrosItem.subItems
-        ]
+    const hasOtros = series.data.some((item) => item.subItems && item.subItems.length > 0);
+    const topItems = series.data.filter((item) => !item.subItems || item.subItems.length === 0);
+    const otrosItem = series.data.find((item) => item.subItems && item.subItems.length > 0);
+    const pieChartData = effectivelyExpanded && otrosItem?.subItems
+        ? [...topItems, ...otrosItem.subItems]
         : series.data;
+    const formattedCenterTotal = centerTotal === undefined ? null : valueFormatter(centerTotal);
+    const centerFontSize = formattedCenterTotal
+        ? Math.max(10, 22 - Math.max(0, formattedCenterTotal.length - 7) * 1.45)
+        : undefined;
 
     return (
-        <div style={styles.container}>
-            <div style={styles.row}>
+        <div ref={containerRef} style={styles.container}>
+            <div data-testid="desglose-chart-row" style={styles.row}>
                 <div style={styles.chartWrapper}>
-                    <ChartContainer id={id} config={series.config} style={styles.chartContainer}>
+                    <ChartContainer
+                        id={id}
+                        config={series.config}
+                        style={{ ...styles.chartContainer, ...(allowTooltipEscape ? { overflow: "visible" } : {}) }}
+                    >
                         <PieChart>
-                            <ChartTooltip cursor={false} content={<GraficoTooltip titleKey="label" extraRows={extraRows} />} />
+                            <ChartTooltip
+                                cursor={false}
+                                content={<GraficoTooltip titleKey="label" extraRows={extraRows} />}
+                                allowEscapeViewBox={allowTooltipEscape ? { x: true, y: true } : undefined}
+                                wrapperStyle={allowTooltipEscape ? { zIndex: 10000, overflow: "visible" } : undefined}
+                            />
                             <Pie
                                 data={pieChartData}
                                 dataKey="monto"
@@ -211,27 +298,44 @@ export default function DesglosePieChart({ id = "desglose-pie", items, montoLabe
                                 cy="50%"
                                 isAnimationActive={true}
                                 animationDuration={600}
-                                innerRadius={40}
+                                innerRadius={centerTotal === undefined ? 40 : 58}
                                 outerRadius={90}
-                                paddingAngle={2}
+                                paddingAngle={adaptivePaddingAngle ? Math.min(2, 180 / pieChartData.length) : 2}
                                 stroke="none"
                             >
-                                {pieChartData.map((entry) => (
-                                    <Cell key={entry.key} fill={entry.fill} />
+                                {pieChartData.map((item) => (
+                                    <Cell key={item.key} fill={item.fill} />
                                 ))}
                             </Pie>
                         </PieChart>
                     </ChartContainer>
+                    {formattedCenterTotal !== null && (
+                        <div
+                            role="img"
+                            style={styles.centerOverlay}
+                            aria-label={`${centerLabel ?? "Total"}: ${formattedCenterTotal}`}
+                        >
+                            <span style={{ ...styles.centerValue, fontSize: centerFontSize }}>{formattedCenterTotal}</span>
+                            {centerLabel && <span style={styles.centerLabel}>{centerLabel}</span>}
+                        </div>
+                    )}
                 </div>
 
                 <DesglosePieChartList
                     topItems={topItems}
                     otrosItem={otrosItem}
                     maxMonto={maxMonto}
+                    isCompact={isCompact}
                     isMobile={isMobile}
                     showListOnMobile={showListOnMobile}
                     setShowListOnMobile={setShowListOnMobile}
                     effectivelyExpanded={effectivelyExpanded}
+                    valueFormatter={valueFormatter}
+                    percentageFormatter={percentageFormatter}
+                    barScale={barScale}
+                    maxListHeight={maxListHeight}
+                    listAccessibleLabel={listAccessibleLabel}
+                    wrapLabels={wrapLabels}
                 />
             </div>
 
@@ -242,6 +346,7 @@ export default function DesglosePieChart({ id = "desglose-pie", items, montoLabe
                         <button
                             onClick={() => setExpandedOtros(!expandedOtros)}
                             style={styles.otrosToggleButton}
+                            aria-label={expandedOtros ? "Contraer otros" : "Expandir otros"}
                         >
                             <ChevronDown
                                 style={{

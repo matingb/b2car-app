@@ -29,6 +29,7 @@ function makeRepo(overrides: Partial<ArregloRepository> = {}): ArregloRepository
       },
       series: { arreglos: [], ingresos: [], gastos: [] },
     }),
+    horasTrabajadasPorEmpleado: vi.fn().mockResolvedValue({ totalHoras: 0, empleados: [] }),
     facturacionPorTipo: vi.fn().mockResolvedValue([]),
     facturacionPorEmpleado: vi.fn().mockResolvedValue([]),
     costoPorTipo: vi.fn().mockResolvedValue([]),
@@ -75,6 +76,32 @@ describe("arregloService", () => {
         undefined
       );
       expect(result).toEqual(periodo);
+    });
+  });
+
+  describe("horasTrabajadasPorEmpleado", () => {
+    it("delega rango y taller en el repositorio", async () => {
+      const desglose = {
+        totalHoras: 2.5,
+        empleados: [{ empleadoId: "emp-1", label: "Ana", horasTrabajadas: 2.5 }],
+      };
+      const horasTrabajadasPorEmpleado = vi.fn().mockResolvedValue(desglose);
+      const repo = makeRepo({ horasTrabajadasPorEmpleado });
+
+      const result = await createArregloService(repo).horasTrabajadasPorEmpleado(
+        mockSupabase,
+        "2026-08-01T03:00:00.000Z",
+        "2026-09-01T03:00:00.000Z",
+        "taller-1"
+      );
+
+      expect(horasTrabajadasPorEmpleado).toHaveBeenCalledWith(
+        mockSupabase,
+        "2026-08-01T03:00:00.000Z",
+        "2026-09-01T03:00:00.000Z",
+        "taller-1"
+      );
+      expect(result).toEqual(desglose);
     });
   });
 

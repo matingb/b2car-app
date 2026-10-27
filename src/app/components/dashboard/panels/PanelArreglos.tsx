@@ -7,6 +7,7 @@ import GraficoArreglos from "@/app/components/graficos/GraficoArreglos";
 import GraficoComparacion from "@/app/components/graficos/GraficoComparacion";
 import VolumenDeTrabajo from "@/app/components/graficos/VolumenDeTrabajo";
 import EstadoCobroArreglos from "@/app/components/graficos/EstadoCobroArreglos";
+import HorasTrabajadasPorEmpleado from "@/app/components/graficos/HorasTrabajadasPorEmpleado";
 import DashboardSectionCard from "@/app/components/dashboard/DashboardSectionCard";
 import PeriodComparison from "@/app/components/dashboard/comparacion/PeriodComparison";
 import { TYPOGRAPHY } from "@/theme/theme";
@@ -38,6 +39,10 @@ export default function PanelArreglos({ periods, granularity, stats, comparison,
                     <GraficoArreglos id="arreglos-principal" data={periods[0]?.buckets ?? []} granularity={granularity} />
                 )}
                 <PeriodComparison comparison={comparison} columns={COMPARISON_COLUMNS.arreglos} />
+            </DashboardSectionCard>
+
+            <DashboardSectionCard title="Horas trabajadas por empleado">
+                <HorasTrabajadasPorEmpleado data={stats?.horasTrabajadasPorEmpleado} />
             </DashboardSectionCard>
 
             <DashboardSectionCard>

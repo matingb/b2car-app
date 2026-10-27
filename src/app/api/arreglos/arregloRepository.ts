@@ -8,7 +8,11 @@ import {
   sliceWithHasMore,
 } from "@/lib/pagination";
 import { mapArreglo } from "./arregloMapper";
-import type { ArreglosResumen, DashboardPeriodo } from "@/lib/dashboard/types";
+import type {
+  ArreglosResumen,
+  DashboardHorasTrabajadasPorEmpleado,
+  DashboardPeriodo,
+} from "@/lib/dashboard/types";
 
 export type ArregloListFilters = {
   tallerId?: string;
@@ -59,6 +63,12 @@ export interface ArregloRepository {
     toISO: string,
     tallerId?: string
   ): Promise<DashboardPeriodo>;
+  horasTrabajadasPorEmpleado(
+    supabase: SupabaseClient,
+    fromISO: string,
+    toISO: string,
+    tallerId?: string
+  ): Promise<DashboardHorasTrabajadasPorEmpleado>;
   facturacionPorTipo(
     supabase: SupabaseClient,
     fromISO?: string,
@@ -152,6 +162,77 @@ function mapDashboardPeriodo(data: unknown): DashboardPeriodo {
       })),
     },
   };
+}
+
+function mapNonNegativeHours(value: unknown, field: string): number {
+  const parsed = typeof value === "number"
+    ? value
+    : typeof value === "string" && value.trim()
+      ? Number(value)
+      : Number.NaN;
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Respuesta inválida de dashboard_horas_trabajadas_por_empleado: ${field} debe ser un número no negativo`);
+  }
+
+  const centesimas = Math.round(parsed * 100);
+  if (Math.abs(parsed * 100 - centesimas) > 1e-7) {
+    throw new Error(`Respuesta inválida de dashboard_horas_trabajadas_por_empleado: ${field} excede dos decimales`);
+  }
+  return centesimas / 100;
+}
+
+function mapHorasTrabajadasPorEmpleado(data: unknown): DashboardHorasTrabajadasPorEmpleado {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("Respuesta inválida de dashboard_horas_trabajadas_por_empleado: se esperaba un objeto");
+  }
+
+  const raw = data as RawRow;
+  if (!Array.isArray(raw.empleados)) {
+    throw new Error("Respuesta inválida de dashboard_horas_trabajadas_por_empleado: empleados debe ser un array");
+  }
+
+  const totalHoras = mapNonNegativeHours(raw.total_horas, "total_horas");
+  const seenIds = new Set<string>();
+  let totalCentesimas = 0;
+  const empleados = raw.empleados.map((value, index) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error(`Respuesta inválida de dashboard_horas_trabajadas_por_empleado: empleados[${index}] debe ser un objeto`);
+    }
+
+    const row = value as RawRow;
+    const empleadoId = row.empleado_id;
+    if (empleadoId !== null && (typeof empleadoId !== "string" || !empleadoId.trim())) {
+      throw new Error(`Respuesta inválida de dashboard_horas_trabajadas_por_empleado: empleados[${index}].empleado_id inválido`);
+    }
+    if (typeof row.label !== "string" || !row.label.trim()) {
+      throw new Error(`Respuesta inválida de dashboard_horas_trabajadas_por_empleado: empleados[${index}].label inválido`);
+    }
+
+    const id = empleadoId as string | null;
+    const identity = id ?? "__sin_empleado__";
+    if (seenIds.has(identity)) {
+      throw new Error(`Respuesta inválida de dashboard_horas_trabajadas_por_empleado: identidad duplicada en empleados[${index}]`);
+    }
+    seenIds.add(identity);
+
+    const horasTrabajadas = mapNonNegativeHours(row.horas_trabajadas, `empleados[${index}].horas_trabajadas`);
+    if (horasTrabajadas <= 0) {
+      throw new Error(`Respuesta inválida de dashboard_horas_trabajadas_por_empleado: empleados[${index}] debe tener horas positivas`);
+    }
+    totalCentesimas += Math.round(horasTrabajadas * 100);
+
+    return {
+      empleadoId: id,
+      label: row.label.trim(),
+      horasTrabajadas,
+    };
+  });
+
+  if (totalCentesimas !== Math.round(totalHoras * 100)) {
+    throw new Error("Respuesta inválida de dashboard_horas_trabajadas_por_empleado: la suma de empleados no coincide con total_horas");
+  }
+
+  return { totalHoras, empleados };
 }
 
 async function listVehiculoIdsByPatente(supabase: SupabaseClient, patenteRaw?: string) {
@@ -326,6 +407,16 @@ export const supabaseArregloRepository: ArregloRepository = {
     });
     if (error) throw new Error(error.message);
     return mapDashboardPeriodo(data);
+  },
+
+  async horasTrabajadasPorEmpleado(supabase, fromISO, toISO, tallerId?) {
+    const { data, error } = await supabase.rpc("dashboard_horas_trabajadas_por_empleado", {
+      p_from: fromISO,
+      p_to: toISO,
+      p_taller_id: tallerId ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return mapHorasTrabajadasPorEmpleado(data);
   },
 
   async facturacionPorTipo(supabase, fromISO?, toISO?, tallerId?) {

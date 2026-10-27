@@ -604,6 +604,11 @@ INSERT INTO public.turnos (id, titulo, fecha, hora, duracion, vehiculo_id, clien
 -- pasar de UTC.
 -- ===========================================================================
 
+-- Supabase CLI envía el seed como un batch con caché de sentencias y puede
+-- preparar consultas antes de que existan tablas temporales del mismo batch.
+-- El bloque DO las planifica al ejecutarlas, después de crear sus dependencias.
+DO $b2car_seed_arreglos$
+BEGIN
 CREATE TEMP TABLE _seed_meses ON COMMIT DROP AS
 SELECT
   m AS offset_mes,
@@ -886,6 +891,9 @@ SELECT
   '7ff568f8-4d46-463b-969c-9e68157fa769'::uuid,
   fecha
 FROM _seed_gastos;
+
+END;
+$b2car_seed_arreglos$;
 
 -- Aumentos de sueldo (hace 10 meses, hace 4 meses y dentro de 2) para Sede
 -- Central y Sucursal Sur. Sucursal Oeste queda sin cambios a propósito.

@@ -1,6 +1,16 @@
 import React from "react";
+import { COLOR } from "@/theme/theme";
 
-export const getStyles = (isMobile: boolean): Record<string, React.CSSProperties> => ({
+type StyleOptions = {
+    hasCenterOverlay?: boolean;
+    wrapLabels?: boolean;
+    isMobile?: boolean;
+};
+
+export const getStyles = (
+    isCompact: boolean,
+    { hasCenterOverlay = false, wrapLabels = false, isMobile = isCompact }: StyleOptions = {}
+): Record<string, React.CSSProperties> => ({
     container: {
         width: "100%",
         marginTop: "1rem",
@@ -9,21 +19,48 @@ export const getStyles = (isMobile: boolean): Record<string, React.CSSProperties
     },
     row: {
         display: "flex",
-        flexDirection: isMobile ? "column" : "row",
+        flexDirection: isCompact ? "column" : "row",
         alignItems: "stretch",
         gap: "1rem",
         width: "100%",
     },
     chartWrapper: {
+        ...(hasCenterOverlay ? { position: "relative" as const } : {}),
         height: "12rem",
         width: "12rem",
         flexShrink: 0,
-        margin: isMobile ? "0 auto" : "0",
+        margin: isCompact ? "0 auto" : "0",
     },
     chartContainer: {
         width: "100%",
         height: "100%",
         aspectRatio: "1 / 1",
+    },
+    centerOverlay: {
+        position: "absolute",
+        inset: 0,
+        zIndex: 1,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        pointerEvents: "none",
+        padding: "0 2.25rem",
+    },
+    centerValue: {
+        maxWidth: "100%",
+        color: COLOR.TEXT.PRIMARY,
+        fontWeight: 700,
+        lineHeight: 1.1,
+        whiteSpace: "nowrap",
+        fontVariantNumeric: "tabular-nums",
+    },
+    centerLabel: {
+        marginTop: "0.25rem",
+        color: COLOR.TEXT.SECONDARY,
+        fontSize: "0.65rem",
+        lineHeight: 1.15,
     },
     listWrapper: {
         flex: 1,
@@ -84,15 +121,18 @@ export const getStyles = (isMobile: boolean): Record<string, React.CSSProperties
         marginBottom: "0.375rem", // mb-1.5
     },
     itemLabelPrimary: {
+        ...(wrapLabels ? { flex: 1, minWidth: 0, marginRight: "0.5rem", overflowWrap: "anywhere" as const } : {}),
         fontWeight: 500, // font-medium
         color: "#334155", // slate-700
     },
     itemLabelSecondary: {
+        ...(wrapLabels ? { flex: 1, minWidth: 0, marginRight: "0.5rem", overflowWrap: "anywhere" as const } : {}),
         fontWeight: 500, // font-medium
         color: "#475569", // slate-600
     },
     itemValues: {
         textAlign: "right",
+        ...(wrapLabels ? { flexShrink: 0 } : {}),
     },
     itemMonto: {
         fontWeight: 700, // font-bold
