@@ -126,7 +126,7 @@ export default function ProveedorProductosTab({
 						type="text"
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						placeholder="Buscar producto, código SKU..."
+						placeholder="Buscar producto, código..."
 						style={styles.searchInput}
 						data-testid="proveedor-productos-search"
 					/>
@@ -160,7 +160,7 @@ export default function ProveedorProductosTab({
 					<table style={styles.table}>
 						<thead>
 							<tr style={styles.theadRow}>
-								<th style={styles.th}>PRODUCTO & SKU</th>
+								<th style={styles.th}>PRODUCTO</th>
 								<th style={styles.th}>STOCK ACTUAL</th>
 								<th style={styles.th}>PRECIO COSTO</th>
 								<th style={styles.th}>VENTA SUGERIDA</th>
@@ -176,11 +176,10 @@ export default function ProveedorProductosTab({
 									: null;
 								const cleanProdCodigo = item.producto_codigo?.trim() || null;
 								const cleanProvCodigo = item.codigo_proveedor?.trim() || null;
-								const skuDisplay = cleanProdCodigo || cleanProvCodigo || "—";
+								const codigoDisplay = cleanProdCodigo || cleanProvCodigo || "—";
 
 								return (
 									<tr key={item.id} style={styles.tr}>
-										{/* Producto & SKU */}
 										<td style={styles.td}>
 											<div style={{ display: "flex", alignItems: "center", gap: 12 }}>
 												<div css={styles.productIconWrapper}>
@@ -194,7 +193,7 @@ export default function ProveedorProductosTab({
 														{item.producto_nombre || "Producto"}
 													</Link>
 													<span style={styles.productCode}>
-														{skuDisplay}
+														{codigoDisplay}
 													</span>
 												</div>
 											</div>

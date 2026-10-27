@@ -20,6 +20,10 @@ import { OperacionesProvider } from "@/app/providers/OperacionesProvider";
 export type ProveedorOperacionesTabProps = {
   proveedorId: string;
   proveedorNombre: string;
+  resumen?: ProveedorCuentaCorrienteResumen | null;
+  loading?: boolean;
+  error?: string | null;
+  onReload?: () => void;
   onCountChange?: (count: number) => void;
   onNuevaCompra?: () => void;
   onOperacionUpdated?: () => void;
@@ -61,36 +65,58 @@ function mapToOperacion(op: ProveedorOperacionItemDTO, proveedorNombre: string):
 export default function ProveedorOperacionesTab({
   proveedorId,
   proveedorNombre,
+  resumen: controlledResumen,
+  loading: controlledLoading,
+  error: controlledError,
+  onReload,
   onCountChange,
   onNuevaCompra,
   onOperacionUpdated,
 }: ProveedorOperacionesTabProps) {
-  const [data, setData] = useState<ProveedorCuentaCorrienteResumen | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const isControlled = controlledResumen !== undefined;
+
+  const [internalData, setInternalData] = useState<ProveedorCuentaCorrienteResumen | null>(null);
+  const [internalLoading, setInternalLoading] = useState(true);
+  const [internalError, setInternalError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [filterEstado, setFilterEstado] = useState<FilterEstado>("todos");
   const [expandedOperacionId, setExpandedOperacionId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    if (isControlled) {
+      onReload?.();
+      return;
+    }
+    setInternalLoading(true);
+    setInternalError(null);
     try {
       const res = await proveedoresClient.getOperaciones(proveedorId);
       if (res.error) throw new Error(res.error);
-      setData(res.data);
+      setInternalData(res.data);
       onCountChange?.(res.data?.operaciones.length ?? 0);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Error cargando operaciones del proveedor");
+      setInternalError(err instanceof Error ? err.message : "Error cargando operaciones del proveedor");
     } finally {
-      setLoading(false);
+      setInternalLoading(false);
     }
-  }, [proveedorId, onCountChange]);
+  }, [isControlled, onReload, proveedorId, onCountChange]);
 
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
+    if (!isControlled) {
+      void loadData();
+    }
+  }, [isControlled, loadData]);
+
+  const data = isControlled ? controlledResumen : internalData;
+  const loading = isControlled ? (controlledLoading ?? false) : internalLoading;
+  const error = isControlled ? (controlledError ?? null) : internalError;
+
+  useEffect(() => {
+    if (isControlled && data) {
+      onCountChange?.(data.operaciones.length);
+    }
+  }, [isControlled, data, onCountChange]);
 
   const rawOperaciones = useMemo(() => data?.operaciones ?? [], [data]);
 
@@ -151,20 +177,24 @@ export default function ProveedorOperacionesTab({
   }, [operaciones, search, filterEstado]);
 
   const handleOperacionSuccess = () => {
-    void loadData();
+    if (isControlled && onReload) {
+      onReload();
+    } else {
+      void loadData();
+    }
     onOperacionUpdated?.();
   };
 
-  if (loading) {
+  if (loading && !data) {
     return <div style={styles.loadingContainer}>Cargando operaciones del proveedor...</div>;
   }
 
-  if (error) {
+  if (error && !data) {
     return (
       <Card style={styles.errorCard}>
         <div style={{ color: COLOR.SEMANTIC.DANGER, fontWeight: 600 }}>{error}</div>
         <div style={{ marginTop: 12 }}>
-          <Button text="Reintentar" onClick={loadData} outline />
+          <Button text="Reintentar" onClick={isControlled && onReload ? onReload : loadData} outline />
         </div>
       </Card>
     );

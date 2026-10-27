@@ -347,7 +347,7 @@ function ProductoAsociarProveedorModal({
             style={modalStyles.input}
             value={codigoProveedor}
             onChange={(e) => setCodigoProveedor(e.target.value)}
-            placeholder="Ej: BR-1049, SKU-99"
+            placeholder="Ej: BR-1049, COD-99"
           />
           <span style={modalStyles.hint}>El código que figura en el catálogo o factura del proveedor</span>
         </div>

@@ -146,7 +146,7 @@ export default function ProveedorProductoModal({
 				</div>
 
 				<div>
-					<label style={styles.label}>Código / SKU del Proveedor</label>
+					<label style={styles.label}>Código del Proveedor</label>
 					<input
 						type="text"
 						value={codigoProveedor}

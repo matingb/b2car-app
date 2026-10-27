@@ -18,6 +18,7 @@ function makeRepo(overrides: Partial<ClienteFinanzasRepository> = {}): ClienteFi
   return {
     getResumenFinanciero: vi.fn().mockResolvedValue({ data: null, error: null }),
     getCuentaCorriente: vi.fn().mockResolvedValue({ data: null, error: null }),
+    getSaldos: vi.fn().mockResolvedValue({ data: [], error: null }),
     ...overrides,
   };
 }

@@ -90,7 +90,7 @@ describe("ProveedorProductosTab", () => {
     });
 
     // Columnas
-    expect(screen.getByText("PRODUCTO & SKU")).toBeInTheDocument();
+    expect(screen.getByText("PRODUCTO")).toBeInTheDocument();
     expect(screen.getByText("STOCK ACTUAL")).toBeInTheDocument();
     expect(screen.getByText("PRECIO COSTO")).toBeInTheDocument();
     expect(screen.getByText("VENTA SUGERIDA")).toBeInTheDocument();

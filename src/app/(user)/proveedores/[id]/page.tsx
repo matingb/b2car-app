@@ -48,16 +48,22 @@ export default function ProveedorDetailPage() {
   const [cuentaCorrienteResumen, setCuentaCorrienteResumen] =
     useState<ProveedorCuentaCorrienteResumen | null>(null);
   const [loadingFinanzas, setLoadingFinanzas] = useState(false);
+  const [errorFinanzas, setErrorFinanzas] = useState<string | null>(null);
 
   const loadFinanzas = useCallback(async () => {
     if (!params.id || !canViewFinanzas) return;
     setLoadingFinanzas(true);
+    setErrorFinanzas(null);
     try {
       const res = await proveedoresClient.getOperaciones(params.id);
-      if (res.data) {
+      if (res.error) {
+        setErrorFinanzas(res.error);
+      } else if (res.data) {
         setCuentaCorrienteResumen(res.data);
       }
-    } catch {} finally {
+    } catch (err: unknown) {
+      setErrorFinanzas(err instanceof Error ? err.message : "Error cargando finanzas");
+    } finally {
       setLoadingFinanzas(false);
     }
   }, [params.id, canViewFinanzas]);
@@ -193,6 +199,10 @@ export default function ProveedorDetailPage() {
         <ProveedorOperacionesTab
           proveedorId={proveedor.id}
           proveedorNombre={proveedor.nombre}
+          resumen={cuentaCorrienteResumen}
+          loading={loadingFinanzas}
+          error={errorFinanzas}
+          onReload={() => void loadFinanzas()}
           onNuevaCompra={() => {
             setCompraProductoId(null);
             setCompraModalOpen(true);
@@ -204,6 +214,10 @@ export default function ProveedorDetailPage() {
       {activeTab === "cuenta_corriente" && (
         <ProveedorCuentaCorrienteTab
           proveedorId={proveedor.id}
+          resumen={cuentaCorrienteResumen}
+          loading={loadingFinanzas}
+          error={errorFinanzas}
+          onReload={() => void loadFinanzas()}
           onNuevaCompra={() => {
             setCompraProductoId(null);
             setCompraModalOpen(true);

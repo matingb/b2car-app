@@ -57,7 +57,40 @@ vi.mock("@/app/components/proveedores/ProveedorProductosTab", () => ({
 }));
 
 vi.mock("@/app/components/proveedores/ProveedorOperacionesTab", () => ({
-  default: () => <div data-testid="mock-operaciones-tab">Pestaña Operaciones</div>,
+  default: ({
+    resumen,
+    onNuevaCompra,
+  }: {
+    resumen?: { operaciones: Array<{ id: string }> } | null;
+    onNuevaCompra?: () => void;
+  }) => (
+    <div
+      data-testid="mock-operaciones-tab"
+      data-operaciones-count={resumen?.operaciones.length ?? 0}
+    >
+      Pestaña Operaciones
+      <button data-testid="btn-nueva-compra" onClick={onNuevaCompra}>
+        Nueva Compra
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("@/app/components/operaciones/OperacionCreateModal", () => ({
+  default: ({
+    open,
+    onSuccess,
+  }: {
+    open: boolean;
+    onSuccess?: () => void;
+  }) =>
+    open ? (
+      <div data-testid="mock-operacion-create-modal">
+        <button data-testid="mock-confirm-compra" onClick={onSuccess}>
+          Confirmar Compra
+        </button>
+      </div>
+    ) : null,
 }));
 
 vi.mock("@/app/components/proveedores/ProveedorCuentaCorrienteTab", () => ({
@@ -147,5 +180,66 @@ describe("ProveedorDetailPage", () => {
     fireEvent.click(tabCuentaCorriente);
     expect(screen.getByTestId("mock-cuentacorriente-tab")).toBeInTheDocument();
     expect(screen.queryByTestId("mock-operaciones-tab")).not.toBeInTheDocument();
+  });
+
+  it("actualiza la lista de operaciones al realizar una compra mediante el resumen compartido", async () => {
+    vi.mocked(proveedoresClient.getById).mockResolvedValue({
+      data: mockProveedor,
+      error: null,
+    });
+    vi.mocked(proveedoresClient.getOperaciones).mockResolvedValueOnce({
+      data: mockCuentaCorriente,
+      error: null,
+    });
+
+    render(<ProveedorDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("B2CAR")).toBeInTheDocument();
+    });
+
+    const tabOperaciones = screen.getByTestId("proveedor-tab-operaciones");
+    fireEvent.click(tabOperaciones);
+
+    const operacionesTab = screen.getByTestId("mock-operaciones-tab");
+    expect(operacionesTab).toHaveAttribute("data-operaciones-count", "1");
+
+    // Simulamos que tras la compra la API retorna 2 operaciones
+    vi.mocked(proveedoresClient.getOperaciones).mockResolvedValueOnce({
+      data: {
+        ...mockCuentaCorriente,
+        operaciones: [
+          ...mockCuentaCorriente.operaciones,
+          {
+            id: "op-2",
+            tipo: "COMPRA",
+            fecha: "2026-10-22",
+            created_at: "2026-10-22T10:00:00Z",
+            monto_total: 50000,
+            total_pagado: 0,
+            saldo_pendiente: 50000,
+            estado_pago: "PENDIENTE",
+            estado_stock: "PENDIENTE",
+            observaciones: null,
+            taller_id: "taller-1",
+            taller_nombre: "Taller Central",
+          },
+        ],
+      },
+      error: null,
+    });
+
+    // Abrir modal de nueva compra desde la pestaña de operaciones
+    fireEvent.click(screen.getByTestId("btn-nueva-compra"));
+    expect(screen.getByTestId("mock-operacion-create-modal")).toBeInTheDocument();
+
+    // Confirmar compra
+    fireEvent.click(screen.getByTestId("mock-confirm-compra"));
+
+    // El modal se cierra y la lista de operaciones recibe el nuevo resumen actualizado directamente
+    await waitFor(() => {
+      expect(screen.queryByTestId("mock-operacion-create-modal")).not.toBeInTheDocument();
+      expect(screen.getByTestId("mock-operaciones-tab")).toHaveAttribute("data-operaciones-count", "2");
+    });
   });
 });

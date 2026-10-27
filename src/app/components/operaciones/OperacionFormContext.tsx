@@ -493,13 +493,18 @@ export function OperacionFormProvider({
 
       return filtered.map((s) => {
         const catInfo = proveedorCatalogoMap.get(s.productoId);
-        const skuInfo = catInfo?.codigoProveedor ? `SKU Prov: ${catInfo.codigoProveedor} · ` : "";
+        const provCod = catInfo?.codigoProveedor ? `${catInfo.codigoProveedor} · ` : "";
         const stockActual = Number(s.stockActual) || 0;
-        const cod = s.codigo ? `${s.codigo} · ` : "";
+        const cod =
+          s.codigo && s.codigo !== catInfo?.codigoProveedor
+            ? `${s.codigo} · `
+            : !catInfo?.codigoProveedor && s.codigo
+            ? `${s.codigo} · `
+            : "";
         return {
           value: s.id,
           label: s.nombre,
-          secondaryLabel: `${skuInfo}${cod}Stock actual: ${stockActual}`,
+          secondaryLabel: `${provCod}${cod}Stock actual: ${stockActual}`,
         };
       });
     },

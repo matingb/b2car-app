@@ -714,7 +714,8 @@ describe("OperacionCreateModal", () => {
       expect(options).toHaveLength(1);
       expect(options[0].value).toBe("S1");
       expect(options[0].label).toBe("Aceite Total 10W40");
-      expect(options[0].secondaryLabel).toContain("SKU Prov: SKU-TOTAL-01");
+      expect(options[0].secondaryLabel).toContain("SKU-TOTAL-01");
+      expect(options[0].secondaryLabel).not.toContain("SKU Prov:");
     });
 
     // Seleccionar el item S1 y verificar que tome el costo_referencia (2750)

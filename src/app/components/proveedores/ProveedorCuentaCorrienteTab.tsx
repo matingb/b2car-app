@@ -14,48 +14,74 @@ import Link from "next/link";
 
 export type ProveedorCuentaCorrienteTabProps = {
 	proveedorId: string;
+	resumen?: ProveedorCuentaCorrienteResumen | null;
+	loading?: boolean;
+	error?: string | null;
+	onReload?: () => void;
 	onCountChange?: (count: number) => void;
 	onNuevaCompra?: () => void;
 };
 
 export default function ProveedorCuentaCorrienteTab({
 	proveedorId,
+	resumen: controlledResumen,
+	loading: controlledLoading,
+	error: controlledError,
+	onReload,
 	onCountChange,
 	onNuevaCompra,
 }: ProveedorCuentaCorrienteTabProps) {
-	const [data, setData] = useState<ProveedorCuentaCorrienteResumen | null>(null);
-	const [loading, setLoading] = useState<boolean>(true);
-	const [error, setError] = useState<string | null>(null);
+	const isControlled = controlledResumen !== undefined;
+
+	const [internalData, setInternalData] = useState<ProveedorCuentaCorrienteResumen | null>(null);
+	const [internalLoading, setInternalLoading] = useState<boolean>(true);
+	const [internalError, setInternalError] = useState<string | null>(null);
 
 	const loadData = useCallback(async () => {
-		setLoading(true);
-		setError(null);
+		if (isControlled) {
+			onReload?.();
+			return;
+		}
+		setInternalLoading(true);
+		setInternalError(null);
 		try {
 			const res = await proveedoresClient.getOperaciones(proveedorId);
 			if (res.error) throw new Error(res.error);
-			setData(res.data);
+			setInternalData(res.data);
 			onCountChange?.(res.data?.operaciones.length ?? 0);
 		} catch (err: unknown) {
-			setError(err instanceof Error ? err.message : "Error cargando cuenta corriente");
+			setInternalError(err instanceof Error ? err.message : "Error cargando cuenta corriente");
 		} finally {
-			setLoading(false);
+			setInternalLoading(false);
 		}
-	}, [proveedorId, onCountChange]);
+	}, [isControlled, onReload, proveedorId, onCountChange]);
 
 	useEffect(() => {
-		void loadData();
-	}, [loadData]);
+		if (!isControlled) {
+			void loadData();
+		}
+	}, [isControlled, loadData]);
 
-	if (loading) {
+	const data = isControlled ? controlledResumen : internalData;
+	const loading = isControlled ? (controlledLoading ?? false) : internalLoading;
+	const error = isControlled ? (controlledError ?? null) : internalError;
+
+	useEffect(() => {
+		if (isControlled && data) {
+			onCountChange?.(data.operaciones.length);
+		}
+	}, [isControlled, data, onCountChange]);
+
+	if (loading && !data) {
 		return <div style={styles.loadingContainer}>Cargando operaciones y cuenta corriente...</div>;
 	}
 
-	if (error) {
+	if (error && !data) {
 		return (
 			<Card style={styles.errorCard}>
 				<div style={{ color: COLOR.SEMANTIC.DANGER, fontWeight: 600 }}>{error}</div>
 				<div style={{ marginTop: 12 }}>
-					<Button text="Reintentar" onClick={loadData} outline />
+					<Button text="Reintentar" onClick={isControlled && onReload ? onReload : loadData} outline />
 				</div>
 			</Card>
 		);

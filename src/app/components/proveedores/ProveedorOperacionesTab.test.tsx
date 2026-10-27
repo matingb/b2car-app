@@ -230,4 +230,37 @@ describe("ProveedorOperacionesTab", () => {
 
     expect(onNuevaCompra).toHaveBeenCalled();
   });
+
+  it("renderiza y actualiza directamente cuando se pasa resumen controlado desde el padre", async () => {
+    const { rerender } = render(
+      <ProveedorOperacionesTab
+        proveedorId="prov-1"
+        proveedorNombre="Repuestos Warnes"
+        resumen={{
+          totalComprado: 0,
+          totalPagado: 0,
+          saldoAdeudado: 0,
+          operaciones: [],
+        }}
+        loading={false}
+      />
+    );
+
+    // No debe llamar a la API redundante porque los datos vienen del padre
+    expect(proveedoresClient.getOperaciones).not.toHaveBeenCalled();
+    expect(screen.getByText("Sin operaciones comerciales")).toBeInTheDocument();
+
+    // Cuando el padre actualiza el resumen (por ejemplo tras registrar una compra):
+    rerender(
+      <ProveedorOperacionesTab
+        proveedorId="prov-1"
+        proveedorNombre="Repuestos Warnes"
+        resumen={mockOperacionesData}
+        loading={false}
+      />
+    );
+
+    expect(screen.getByTestId("proveedor-operacion-card-op-compra-1")).toBeInTheDocument();
+    expect(screen.getByTestId("proveedor-operacion-card-op-compra-2")).toBeInTheDocument();
+  });
 });
