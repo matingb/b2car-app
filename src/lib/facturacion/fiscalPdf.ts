@@ -2,7 +2,7 @@ import "server-only";
 
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import QRCode from "qrcode";
-import { drawCentered, drawRight, formatDate, text, wrapText } from "@/lib/pdf/pdfText";
+import { drawCentered, drawRight, formatDate, sanitizeForFont, text, wrapText } from "@/lib/pdf/pdfText";
 import { formatArs, formatNumberAr } from "../format";
 import { FacturacionValidationError } from "./arcaPayload";
 import { precioUnitarioMostrado } from "./lineaImporte";
@@ -71,6 +71,7 @@ export type FiscalPdfInvoice = {
   claseComprobante?: FacturaClase;
   documentoTipo?: DocumentoFiscalClase;
   condicionVenta?: string;
+  observacionArreglo?: string | null;
   totales?: FacturaTotales;
   numeroComprobante: number;
   cae: string;
@@ -111,6 +112,8 @@ type PrintablePage = {
   continuation: boolean;
   /** Sólo la última hoja lleva el pie: abajo si entra después de las filas, o arriba en una hoja propia. */
   footer: "bottom" | "top" | null;
+  observationLines?: string[];
+  observationOnly?: boolean;
 };
 
 type Fonts = {
@@ -570,6 +573,10 @@ async function drawFooter(
     y -= 12;
     layout.legend.forEach((line) => { page.drawText(line, { x: 46, y, font: fonts.regular, size: FCE_LEGEND_FONT_SIZE }); y -= FCE_LEGEND_LINE_HEIGHT; });
   }
+  await drawAuthorization(pdf, page, invoice, fonts, shift);
+}
+
+async function drawAuthorization(pdf: PDFDocument, page: PDFPage, invoice: FiscalPdfInvoice, fonts: Fonts, shift = 0) {
   const separatorY = FOOTER_SEPARATOR_Y + shift;
   page.drawLine({ start: { x: MARGIN, y: separatorY }, end: { x: PAGE_WIDTH - MARGIN, y: separatorY }, thickness: 0.35, color: rgb(0.75, 0.75, 0.75) });
 
@@ -587,6 +594,27 @@ async function drawFooter(
   drawRight(page, "Generado por B2Car", 557, 38 + shift, fonts.regular, 7);
 }
 
+// Bloque informativo separado de las líneas fiscales, siempre sobre el separador
+// del QR. Las observaciones extensas continúan en hojas identificadas del mismo
+// comprobante: repiten autorización, pero los totales y la leyenda FCE sólo al final.
+const OBSERVATION_LINE_HEIGHT = 10;
+const OBSERVATION_BOTTOM = FOOTER_SEPARATOR_Y + 10;
+
+function observationHeight(lines: string[]): number {
+  return lines.length ? (lines.length + 1) * OBSERVATION_LINE_HEIGHT + 10 : 0;
+}
+
+function drawObservation(page: PDFPage, lines: string[], fonts: Fonts, shift = 0) {
+  if (!lines.length) return;
+  page.drawText("Observación del arreglo:", {
+    x: 46, y: OBSERVATION_BOTTOM + lines.length * OBSERVATION_LINE_HEIGHT + shift, font: fonts.bold, size: 8,
+  });
+  lines.forEach((line, index) => page.drawText(line || " ", {
+    x: 46, y: OBSERVATION_BOTTOM + (lines.length - 1 - index) * OBSERVATION_LINE_HEIGHT + shift,
+    font: fonts.regular, size: 8,
+  }));
+}
+
 export async function generateFiscalInvoicePdf(invoice: FiscalPdfInvoice): Promise<Uint8Array> {
   if (isFceInvoice(invoice.tipoComprobante) && !hasFiscalIibb(invoice.emisorSnapshot.ingresosBrutos)) {
     throw new FacturacionValidationError("Completá la inscripción o condición en Ingresos Brutos en Configuración > Facturación para generar el PDF de la FCE");
@@ -600,9 +628,34 @@ export async function generateFiscalInvoicePdf(invoice: FiscalPdfInvoice): Promi
   };
   const headerLayout = getFirstHeaderLayout(invoice, fonts);
   const firstTableY = firstTableStart(invoice, headerLayout.receiverExtraHeight);
-  const footerLayout = getFooterLayout(invoice, fonts);
+  const baseFooterLayout = getFooterLayout(invoice, fonts);
+  const observation = text(invoice.observacionArreglo);
+  const observationLines = observation
+    ? wrapText(sanitizeForFont(observation, fonts.regular), fonts.regular, 8, CONTENT_WIDTH - 16)
+    : [];
+  // Reservar también totales y leyenda en cada fragmento permite que el último
+  // siempre entre completo; nunca cortar líneas ni reducir la tipografía.
+  const chunkSize = Math.max(1, Math.floor((FOOTER_TOP_ON_OWN_PAGE - baseFooterLayout.top - 20) / OBSERVATION_LINE_HEIGHT));
+  const chunks: string[][] = [];
+  for (let offset = 0; offset < observationLines.length; offset += chunkSize) {
+    chunks.push(observationLines.slice(offset, offset + chunkSize));
+  }
+  const finalObservation = chunks.at(-1) ?? [];
+  const footerLayout = { ...baseFooterLayout, top: baseFooterLayout.top + observationHeight(finalObservation) };
   const rows = [...printableRows(invoice.lineas, fonts.regular), ...remitoRows(invoice, fonts.regular)];
   const pages = paginate(rows, firstTableY, footerLayout.top);
+  if (chunks.length > 1) {
+    // Las hojas con conceptos preceden a todas las continuaciones informativas.
+    // Reutilizar una hoja vacía que paginate ya hubiera reservado para el pie.
+    if (!pages.at(-1)!.rows.length && pages.at(-1)!.continuation) pages.pop();
+    pages.at(-1)!.footer = null;
+    chunks.forEach((lines, index) => pages.push({
+      rows: [], continuation: true, footer: "top", observationLines: lines,
+      observationOnly: index < chunks.length - 1,
+    }));
+  } else {
+    pages.at(-1)!.observationLines = finalObservation;
+  }
 
   for (let index = 0; index < pages.length; index += 1) {
     const printablePage = pages[index];
@@ -618,8 +671,16 @@ export async function generateFiscalInvoicePdf(invoice: FiscalPdfInvoice): Promi
       drawTableHeader(page, tableStart, fonts);
       drawRows(page, printablePage.rows, tableStart, fonts);
     }
-    if (printablePage.footer === "bottom") await drawFooter(pdf, page, invoice, fonts, footerLayout);
-    if (printablePage.footer === "top") await drawFooter(pdf, page, invoice, fonts, footerLayout, FOOTER_TOP_ON_OWN_PAGE - footerLayout.top);
+    const lines = printablePage.observationLines ?? [];
+    // En una hoja propia todo el cierre se traslada junto, incluida la observación.
+    // Las continuaciones sin totales empiezan directamente con su título.
+    const blockTop = printablePage.observationOnly
+      ? OBSERVATION_BOTTOM + lines.length * OBSERVATION_LINE_HEIGHT + 8
+      : footerLayout.top;
+    const shift = printablePage.footer === "top" ? FOOTER_TOP_ON_OWN_PAGE - blockTop : 0;
+    drawObservation(page, lines, fonts, shift);
+    if (printablePage.observationOnly) await drawAuthorization(pdf, page, invoice, fonts, shift);
+    else if (printablePage.footer) await drawFooter(pdf, page, invoice, fonts, footerLayout, shift);
   }
 
   return pdf.save({ useObjectStreams: false });

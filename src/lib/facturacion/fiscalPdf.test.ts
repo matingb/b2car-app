@@ -132,6 +132,114 @@ describe("PDF fiscal propio", () => {
     drawText.mockRestore();
   });
 
+  it("incluye la observación del arreglo y la envuelve en varias líneas", async () => {
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    await generateFiscalInvoicePdf(invoice({ observacionArreglo: "Revisar el vehículo al próximo service. ".repeat(20) }));
+    const calls = drawText.mock.calls;
+    expect(calls.some(([value]) => value === "Observación del arreglo:")).toBe(true);
+    expect(calls.filter(([value]) => String(value).includes("Revisar") || String(value).includes("service.")).length).toBeGreaterThan(1);
+    drawText.mockRestore();
+  });
+
+  it.each([[1, "A"], [6, "B"], [11, "C"], [201, "A"], [206, "B"], [211, "C"]] as const)("observaciones extensas paginadas sin alterar QR ni totales (%s)", async (tipoComprobante, claseComprobante) => {
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    const observacionArreglo = `${"Revisar frenos y suspensión.\n".repeat(170)}FIN-OBSERVACION`;
+    const input = invoice({ tipoComprobante, claseComprobante, observacionArreglo });
+    const before = structuredClone(input);
+    const qr = buildArcaQrPayload(input);
+    const bytes = await generateFiscalInvoicePdf(input);
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBeGreaterThan(2);
+    const calls = drawText.mock.calls;
+    expect(calls.some(([value]) => value === "FIN-OBSERVACION")).toBe(true);
+    expect(calls.some(([value]) => value === "Mantenimiento de ópticas y luces")).toBe(true);
+    for (const [value, options] of calls) {
+      expect(options!.y!).toBeGreaterThan(20);
+      expect(options!.x! + options!.font!.widthOfTextAtSize(value, options!.size!)).toBeLessThanOrEqual(558);
+    }
+    const footerIndex = calls.findIndex(([value]) => value === "Importe Total:");
+    const footerPage = drawText.mock.contexts[footerIndex];
+    const totalY = calls[footerIndex][1]!.y!;
+    const titles = calls.flatMap(([value, options], index) => value === "Observación del arreglo:" ? [{ y: options!.y!, page: drawText.mock.contexts[index] }] : []);
+    expect(titles.length).toBeGreaterThan(1);
+    titles.slice(0, -1).forEach(({ y }) => expect(y).toBe(755));
+    const subtotal = calls.find(([value]) => value === (claseComprobante === "C" ? "Subtotal:" : "Importe Neto:"))!;
+    expect(subtotal[1]!.y).toBe(755);
+    for (const title of titles) {
+      const authorizationIndex = calls.findIndex(([value], index) => value.startsWith("CAE N°:") && drawText.mock.contexts[index] === title.page);
+      expect(authorizationIndex).toBeGreaterThanOrEqual(0);
+      const lastLineY = Math.min(...calls.flatMap(([value, options], index) => drawText.mock.contexts[index] === title.page && (value.startsWith("Revisar") || value === "FIN-OBSERVACION") ? [options!.y!] : []));
+      expect(lastLineY - calls[authorizationIndex][1]!.y!).toBe(69);
+    }
+    expect(calls.filter(([value]) => value === "Importe Total:")).toHaveLength(1);
+    expect(calls.filter(([value]) => value === "Revisar frenos y suspensión.")).toHaveLength(170);
+    expect(calls.filter(([value]) => value === "FIN-OBSERVACION")).toHaveLength(1);
+    for (const [value, options] of calls) {
+      if (value.startsWith("Revisar") || value === "FIN-OBSERVACION" || value === "Observación del arreglo:") {
+        expect(options!.y!).toBeGreaterThanOrEqual(160);
+        expect(options!.y!).toBeLessThan(763);
+      }
+    }
+    calls.forEach(([value, options], index) => {
+      if (drawText.mock.contexts[index] === footerPage && (value.startsWith("Revisar") || value === "FIN-OBSERVACION")) {
+        expect(options!.y!).toBeGreaterThan(150);
+        expect(options!.y!).toBeLessThan(totalY - 15);
+      }
+    });
+    expect(input).toEqual(before);
+    expect(buildArcaQrPayload(input)).toEqual(qr);
+    drawText.mockRestore();
+  });
+
+  it.each([[1, "A"], [6, "B"], [11, "C"], [201, "A"], [206, "B"], [211, "C"]] as const)("ubica observación debajo de totales/leyenda e inmediatamente sobre el QR (%s)", async (tipoComprobante, claseComprobante) => {
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    const drawLine = vi.spyOn(PDFPage.prototype, "drawLine");
+    const bytes = await generateFiscalInvoicePdf(invoice({ tipoComprobante, claseComprobante, observacionArreglo: "Cambio aceite y filtros" }));
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
+    const calls = drawText.mock.calls.map(([value, options], index) => ({ value, y: options!.y!, page: drawText.mock.contexts[index] }));
+    const observation = calls.find(({ value }) => value === "Cambio aceite y filtros")!;
+    expect(observation.y).toBe(160);
+    const title = calls.find(({ value }) => value === "Observación del arreglo:")!;
+    expect(title.y).toBe(170);
+    expect(calls.find(({ value }) => value === "Importe Total:")!.y).toBeGreaterThan(title.y + 15);
+    const fiscalLegend = calls.filter(({ value }) => value.includes("Régimen FCE") || value.includes("21 días"));
+    fiscalLegend.forEach(({ y }) => expect(y).toBeGreaterThan(title.y + 10));
+    expect(drawLine.mock.calls.some(([options], index) => options.start.y === 150 && options.end.y === 150 && drawLine.mock.contexts[index] === observation.page)).toBe(true);
+    drawLine.mockRestore();
+    drawText.mockRestore();
+  });
+
+  it.each([[1, "A"], [6, "B"], [11, "C"], [201, "A"], [206, "B"], [211, "C"]] as const)("traslada todo el cierre arriba en hoja propia con observación (%s)", async (tipoComprobante, claseComprobante) => {
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    const lineas = Array.from({ length: 15 }, (_, index) => ({ codigo: null, descripcion: `Servicio ${index + 1}`, cantidad: 1, importeUnitario: 100, subtotal: 100 }));
+    const bytes = await generateFiscalInvoicePdf(invoice({ tipoComprobante, claseComprobante, concepto: 1, lineas, total: 1500, observacionArreglo: "OBSERVACION-FINAL" }));
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(2);
+    const calls = drawText.mock.calls.map(([value, options], index) => ({ value, y: options!.y!, page: drawText.mock.contexts[index] }));
+    const observation = calls.find(({ value }) => value === "OBSERVACION-FINAL")!;
+    const total = calls.find(({ value }) => value === "Importe Total:")!;
+    const subtotal = calls.find(({ value }) => value === (claseComprobante === "C" ? "Subtotal:" : "Importe Neto:"))!;
+    const authorization = calls.find(({ value }) => value.startsWith("CAE N°:"))!;
+    expect(subtotal.y).toBe(755);
+    expect(total.y).toBeGreaterThan(600);
+    expect(observation.y).toBeGreaterThan(160);
+    expect(observation.y).toBeLessThan(total.y - 15);
+    expect(observation.y - authorization.y).toBe(69);
+    expect(observation.page).toBe(authorization.page);
+    expect(observation.page).toBe(total.page);
+    expect(observation.page).not.toBe(calls.find(({ value }) => value === "Servicio 15")!.page);
+    drawText.mockRestore();
+  });
+
+  it.each([null, "", "  \n  "])("no agrega sección para observación vacía (%s)", async (observacionArreglo) => {
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    await generateFiscalInvoicePdf(invoice({ observacionArreglo }));
+    expect(drawText.mock.calls.some(([value]) => value === "Observación del arreglo:")).toBe(false);
+    drawText.mockRestore();
+  });
+
+  it("tolera emojis en observaciones usando la fuente fiscal existente", async () => {
+    await expect(generateFiscalInvoicePdf(invoice({ observacionArreglo: "Revisar frenos 🔧" }))).resolves.toBeInstanceOf(Uint8Array);
+  });
+
   it("genera un PDF válido a partir del snapshot", async () => {
     const bytes = await generateFiscalInvoicePdf(invoice());
     expect(Buffer.from(bytes).subarray(0, 5).toString("ascii")).toBe("%PDF-");

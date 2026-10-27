@@ -246,7 +246,21 @@ describe("integridad de caché PDF fiscal", () => {
     expect(isVerifiedFiscalPdfCache({ storedPath: "tenant-1/otro.pdf", storedVersion: "fiscal-v4", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);
     expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v4", expectedPath: path, storedSha256: "0".repeat(64), bytes })).toBe(false);
   });
-  it("invalida la versión anterior aunque el hash coincida", () => {
+  it("preserva bytes de versiones anteriores de la misma factura", () => {
+    expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v4", expectedPath: "tenant-1/homologacion/factura-1/fiscal-v5.pdf", storedSha256: sha256, bytes })).toBe(true);
+  });
+
+  it.each([
+    "tenant-2/homologacion/factura-1/fiscal-v4.pdf",
+    "tenant-1/produccion/factura-1/fiscal-v4.pdf",
+    "tenant-1/homologacion/factura-2/fiscal-v4.pdf",
+    "tenant-1/homologacion/factura-1/extra/fiscal-v4.pdf",
+    "tenant-1/homologacion/factura-1/../factura-2/fiscal-v4.pdf",
+  ])("rechaza rutas fuera del documento canónico: %s", (storedPath) => {
+    expect(isVerifiedFiscalPdfCache({ storedPath, storedVersion: "fiscal-v4", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);
+  });
+
+  it("rechaza versiones que no coinciden con el archivo aunque el hash coincida", () => {
     expect(isVerifiedFiscalPdfCache({ storedPath: path, storedVersion: "fiscal-v3", expectedPath: path, storedSha256: sha256, bytes })).toBe(false);
   });
 });
