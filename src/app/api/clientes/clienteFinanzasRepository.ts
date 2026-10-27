@@ -19,6 +19,11 @@ export type MovimientoCuentaCorrienteRow = {
   cuenta_nombre?: unknown;
 };
 
+export type ClienteSaldoRow = {
+  cliente_id: string;
+  saldo: number;
+};
+
 export interface ClienteFinanzasRepository {
   getResumenFinanciero(
     db: SupabaseClient,
@@ -30,6 +35,11 @@ export interface ClienteFinanzasRepository {
     clienteId: string,
     filters?: CuentaCorrienteFilters
   ): Promise<{ data: MovimientoCuentaCorrienteRow[] | null; error: PostgrestError | Error | null }>;
+
+  getSaldos(
+    db: SupabaseClient,
+    clienteIds?: string[] | null
+  ): Promise<{ data: ClienteSaldoRow[] | null; error: PostgrestError | Error | null }>;
 }
 
 export const clienteFinanzasRepository: ClienteFinanzasRepository = {
@@ -47,6 +57,13 @@ export const clienteFinanzasRepository: ClienteFinanzasRepository = {
       p_to: filters?.to ?? null,
     });
     return { data: (data as MovimientoCuentaCorrienteRow[] | null) ?? null, error };
+  },
+
+  async getSaldos(db, clienteIds) {
+    const { data, error } = await db.rpc("rpc_clientes_saldos", {
+      p_cliente_ids: clienteIds && clienteIds.length > 0 ? clienteIds : null,
+    });
+    return { data: (data as ClienteSaldoRow[] | null) ?? null, error };
   },
 };
 

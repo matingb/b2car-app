@@ -13,14 +13,12 @@ type Props = {
   activeTab: ProveedorTabKey;
   onChangeTab: (tab: ProveedorTabKey) => void;
   productosCount?: number;
-  operacionesCount?: number;
 };
 
 export default function ProveedorTabsNav({
   activeTab,
   onChangeTab,
   productosCount,
-  operacionesCount,
 }: Props) {
   return (
     <nav css={styles.navContainer} aria-label="Secciones del proveedor">
@@ -48,11 +46,6 @@ export default function ProveedorTabsNav({
         >
           <ScrollText size={17} />
           <span>Operaciones</span>
-          {operacionesCount != null && operacionesCount > 0 ? (
-            <span css={[styles.countBadge, activeTab === "operaciones" && styles.countBadgeActive]}>
-              {operacionesCount}
-            </span>
-          ) : null}
         </button>
       </Can>
 

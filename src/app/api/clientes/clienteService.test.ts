@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { clienteService } from "./clienteService";
+import { clienteService, calculateClientesSaldoMap } from "./clienteService";
 import { TipoCliente } from "@/model/types";
 
 vi.mock("@/lib/logger", () => ({
@@ -11,7 +11,8 @@ type QueryResult = { data: unknown[] | null; error: { message: string } | null }
 type BuilderState = { table: string; inIds: string[] | null };
 
 function createSupabaseFake(
-  resolveTable: (state: BuilderState) => QueryResult
+  resolveTable: (state: BuilderState) => QueryResult,
+  resolveRpc?: (fn: string, params: unknown) => Promise<{ data: unknown; error: unknown }> | { data: unknown; error: unknown }
 ): { supabase: SupabaseClient; clientesInCalls: Array<string[] | null> } {
   const clientesInCalls: Array<string[] | null> = [];
 
@@ -43,7 +44,14 @@ function createSupabaseFake(
     return builder;
   };
 
-  return { supabase: { from } as unknown as SupabaseClient, clientesInCalls };
+  const rpc = (fn: string, params: unknown) => {
+    if (resolveRpc) {
+      return Promise.resolve(resolveRpc(fn, params));
+    }
+    return Promise.resolve({ data: null, error: null });
+  };
+
+  return { supabase: { from, rpc } as unknown as SupabaseClient, clientesInCalls };
 }
 
 function buildParticularIds(count: number): string[] {
@@ -140,3 +148,74 @@ describe("clienteService.getClientes", () => {
     expect(error?.message).toBe("Bad Request");
   });
 });
+
+describe("calculateClientesSaldoMap", () => {
+  it("invoca la RPC rpc_clientes_saldos con los IDs pasados y mapea los resultados", async () => {
+    let calledFn = "";
+    let calledParams: unknown = null;
+
+    const { supabase } = createSupabaseFake(
+      () => ({ data: [], error: null }),
+      (fn, params) => {
+        calledFn = fn;
+        calledParams = params;
+        return {
+          data: [
+            { cliente_id: "cliente-1", saldo: 1900 },
+            { cliente_id: "cliente-2", saldo: -100 },
+          ],
+          error: null,
+        };
+      }
+    );
+
+    const saldoMap = await calculateClientesSaldoMap(supabase, ["cliente-1", "cliente-2", "cliente-3"]);
+
+    expect(calledFn).toBe("rpc_clientes_saldos");
+    expect(calledParams).toEqual({ p_cliente_ids: ["cliente-1", "cliente-2", "cliente-3"] });
+
+    expect(saldoMap.get("cliente-1")).toBe(1900);
+    expect(saldoMap.get("cliente-2")).toBe(-100);
+    expect(saldoMap.get("cliente-3")).toBe(0);
+  });
+
+  it("retorna mapa vacío si clientIds provisto es array vacío", async () => {
+    const { supabase } = createSupabaseFake(() => ({ data: [], error: null }));
+    const saldoMap = await calculateClientesSaldoMap(supabase, []);
+    expect(saldoMap.size).toBe(0);
+  });
+
+  it("pasa null como p_cliente_ids cuando no se pasan clientIds", async () => {
+    let calledParams: unknown = null;
+
+    const { supabase } = createSupabaseFake(
+      () => ({ data: [], error: null }),
+      (_fn, params) => {
+        calledParams = params;
+        return {
+          data: [
+            { cliente_id: "c-1", saldo: 200 },
+            { cliente_id: "c-2", saldo: 0 },
+          ],
+          error: null,
+        };
+      }
+    );
+
+    const saldoMap = await calculateClientesSaldoMap(supabase);
+    expect(calledParams).toEqual({ p_cliente_ids: null });
+    expect(saldoMap.get("c-1")).toBe(200);
+    expect(saldoMap.get("c-2")).toBe(0);
+  });
+
+  it("retorna mapa con ceros y loguea si la RPC falla", async () => {
+    const { supabase } = createSupabaseFake(
+      () => ({ data: [], error: null }),
+      () => ({ data: null, error: { message: "RPC error" } })
+    );
+
+    const saldoMap = await calculateClientesSaldoMap(supabase, ["c-1"]);
+    expect(saldoMap.get("c-1")).toBe(0);
+  });
+});
+

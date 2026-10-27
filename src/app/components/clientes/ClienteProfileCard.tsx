@@ -12,8 +12,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
-import { formatArs } from "@/lib/format";
 import { formatTelephoneNumber } from "@/lib/telefono";
+import { resolveClienteSaldo } from "@/lib/clienteSaldo";
 import type { ClienteResumenFinanciero, Representante, TipoCliente } from "@/model/types";
 import { css } from "@emotion/react";
 import Card from "../ui/Card";
@@ -61,10 +61,9 @@ export default function ClienteProfileCard({
   onDeleteRepresentante,
 }: Props) {
   const isEmpresa = tipo === "empresa";
-  const saldoCuenta = resumenFinanciero?.saldo_cuenta ?? 0;
-  const tieneDeuda = saldoCuenta > 0;
-  const tieneSaldoAFavor = saldoCuenta < 0;
-  const saldoVisible = Math.abs(saldoCuenta);
+  const { tieneDeuda, tieneSaldoAFavor, formattedMonto } = resolveClienteSaldo(
+    resumenFinanciero?.saldo_cuenta
+  );
 
   return (
     <Card css={styles.cardContainer}>
@@ -107,9 +106,7 @@ export default function ClienteProfileCard({
                       : styles.balanceClean,
                 ]}
               >
-                {loadingFinanzas
-                  ? "..."
-                  : formatArs(saldoVisible, { maxDecimals: 0, minDecimals: 0 })}
+                {loadingFinanzas ? "..." : formattedMonto}
               </span>
               {tieneDeuda ? (
                 <span css={styles.deudaBadge}>Deuda pendiente</span>

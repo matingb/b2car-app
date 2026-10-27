@@ -22,6 +22,7 @@ import { formatTelephoneNumber } from "@/lib/telefono";
 import { getInitials } from "@/lib/initials";
 import { css } from "@emotion/react";
 import { clientesClient } from "@/clients/clientes/clientesClient";
+import { resolveClienteSaldo } from "@/lib/clienteSaldo";
 import Card from "../ui/Card";
 import IconButton from "../ui/IconButton";
 import ExpandButton from "../ui/ExpandButton";
@@ -141,10 +142,7 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
 
   // saldo_cuenta es neto: positivo = deuda, negativo = saldo a favor.
   const currentSaldo = saldoLoaded ?? cliente.saldo_cuenta ?? 0;
-  const debt = currentSaldo > 0 ? currentSaldo : 0;
-  const credit = currentSaldo < 0 ? Math.abs(currentSaldo) : 0;
-  const hasDebt = debt > 0;
-  const hasCredit = credit > 0;
+  const { tieneDeuda, tieneSaldoAFavor, formattedMonto } = resolveClienteSaldo(currentSaldo);
 
   const [isExpanded, setIsExpanded] = React.useState(false);
 
@@ -195,25 +193,25 @@ export default function ClienteItem({ cliente }: { cliente: Cliente }) {
         {/* Right: Client Status & Actions */}
         <div css={styles.statusSection}>
           <Can permission={Permission.ClientesFinanzasView}>
-            {hasDebt ? (
+            {tieneDeuda ? (
               <div
                 css={styles.balanceBlock}
-                title={`Saldo pendiente a cobrar: $${debt.toLocaleString("es-AR")}`}
+                title={`Saldo pendiente a cobrar: ${formattedMonto}`}
               >
                 <div css={styles.debtAmount} data-testid="cliente-debt-amount">
-                  {`$${debt.toLocaleString("es-AR")}`}
+                  {formattedMonto}
                 </div>
                 <div css={styles.debtBadge} data-testid="cliente-debt-badge">
                   A Cobrar
                 </div>
               </div>
-            ) : hasCredit ? (
+            ) : tieneSaldoAFavor ? (
               <div
                 css={styles.balanceBlock}
-                title={`Saldo a favor: $${credit.toLocaleString("es-AR")}`}
+                title={`Saldo a favor: ${formattedMonto}`}
               >
                 <div css={styles.creditAmount} data-testid="cliente-credit-amount">
-                  {`$${credit.toLocaleString("es-AR")}`}
+                  {formattedMonto}
                 </div>
                 <div css={styles.creditBadge} data-testid="cliente-credit-badge">
                   Saldo a favor

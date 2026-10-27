@@ -44,7 +44,6 @@ export default function ProveedorDetailPage() {
 
   const [activeTab, setActiveTab] = useState<ProveedorTabKey>("productos");
   const [productosCount, setProductosCount] = useState<number | undefined>(undefined);
-  const [operacionesCount, setOperacionesCount] = useState<number | undefined>(undefined);
 
   const [cuentaCorrienteResumen, setCuentaCorrienteResumen] =
     useState<ProveedorCuentaCorrienteResumen | null>(null);
@@ -57,7 +56,6 @@ export default function ProveedorDetailPage() {
       const res = await proveedoresClient.getOperaciones(params.id);
       if (res.data) {
         setCuentaCorrienteResumen(res.data);
-        setOperacionesCount(res.data.operaciones?.length ?? 0);
       }
     } catch {} finally {
       setLoadingFinanzas(false);
@@ -177,7 +175,6 @@ export default function ProveedorDetailPage() {
         activeTab={activeTab}
         onChangeTab={setActiveTab}
         productosCount={productosCount}
-        operacionesCount={operacionesCount}
       />
 
       {activeTab === "productos" && (
@@ -196,7 +193,6 @@ export default function ProveedorDetailPage() {
         <ProveedorOperacionesTab
           proveedorId={proveedor.id}
           proveedorNombre={proveedor.nombre}
-          onCountChange={setOperacionesCount}
           onNuevaCompra={() => {
             setCompraProductoId(null);
             setCompraModalOpen(true);
@@ -208,7 +204,6 @@ export default function ProveedorDetailPage() {
       {activeTab === "cuenta_corriente" && (
         <ProveedorCuentaCorrienteTab
           proveedorId={proveedor.id}
-          onCountChange={setOperacionesCount}
           onNuevaCompra={() => {
             setCompraProductoId(null);
             setCompraModalOpen(true);

@@ -7,6 +7,10 @@ import {
   sliceWithHasMore,
 } from "@/lib/pagination";
 import { logger } from "@/lib/logger";
+import {
+  type ClienteFinanzasRepository,
+  clienteFinanzasRepository,
+} from "./clienteFinanzasRepository";
 
 export type ClienteListRow = {
   id: string;
@@ -104,48 +108,44 @@ async function listClienteIdsBySearch(
   return Array.from(ids);
 }
 
+export async function calculateClientesSaldoMap(
+  supabase: SupabaseClient,
+  clientIds?: string[],
+  finanzasRepository: ClienteFinanzasRepository = clienteFinanzasRepository
+): Promise<Map<string, number>> {
+  const saldoMap = new Map<string, number>();
+
+  if (clientIds && clientIds.length === 0) {
+    return saldoMap;
+  }
+
+  if (clientIds) {
+    for (const id of clientIds) {
+      saldoMap.set(id, 0);
+    }
+  }
+
+  const { data, error } = await finanzasRepository.getSaldos(supabase, clientIds);
+
+  if (error) {
+    logger.error("Error al calcular saldos de clientes:", error);
+    return saldoMap;
+  }
+
+  for (const row of data ?? []) {
+    if (row?.cliente_id) {
+      saldoMap.set(row.cliente_id, Number(row.saldo ?? 0));
+    }
+  }
+
+  return saldoMap;
+}
+
 async function listClienteIdsBySaldo(
   supabase: SupabaseClient,
   saldoFilter: "PENDIENTE" | "AL_DIA" | "A_FAVOR"
 ): Promise<string[]> {
-  const [vehiculosRes, arreglosRes, allClientesRes] = await Promise.all([
-    supabase.from("vehiculos").select("id, cliente_id"),
-    supabase
-      .from("arreglos")
-      .select("id, precio_final, total_cobrado, esta_pago, cliente_id, vehiculo_id, estado")
-      .neq("estado", "PRESUPUESTO"),
-    supabase.from("clientes").select("id"),
-  ]);
-
-  const vehiculoToCliente = new Map<string, string>();
-  for (const v of (vehiculosRes.data ?? []) as Array<{ id: string; cliente_id: string | null }>) {
-    if (v.cliente_id) {
-      vehiculoToCliente.set(v.id, v.cliente_id);
-    }
-  }
-
-  const saldoMap = new Map<string, number>();
-  for (const c of (allClientesRes.data ?? []) as Array<{ id: string }>) {
-    saldoMap.set(c.id, 0);
-  }
-
-  for (const a of (arreglosRes.data ?? []) as Array<{
-    id: string;
-    precio_final?: number | null;
-    total_cobrado?: number | null;
-    cliente_id?: string | null;
-    vehiculo_id?: string | null;
-    estado?: string;
-  }>) {
-    const targetClienteId =
-      a.cliente_id || (a.vehiculo_id ? vehiculoToCliente.get(a.vehiculo_id) : null);
-    if (targetClienteId) {
-      const precio = Number(a.precio_final ?? 0);
-      const cobrado = Number(a.total_cobrado ?? 0);
-      const saldoNeto = precio - cobrado;
-      saldoMap.set(targetClienteId, (saldoMap.get(targetClienteId) ?? 0) + saldoNeto);
-    }
-  }
+  const saldoMap = await calculateClientesSaldoMap(supabase);
 
   const matchingIds: string[] = [];
   for (const [clienteId, saldo] of saldoMap.entries()) {
@@ -266,9 +266,7 @@ export const clienteService = {
     const { items, hasMore } = sliceWithHasMore(rows, limit);
 
     const clientIds = items.map((c) => c.id);
-    const vehiculoToCliente = new Map<string, string>();
     const vehiculosCountMap = new Map<string, number>();
-    const saldoCuentaMap = new Map<string, number>();
 
     if (clientIds.length > 0) {
       const { data: vehiculosData } = await supabase
@@ -276,51 +274,17 @@ export const clienteService = {
         .select("id, cliente_id")
         .in("cliente_id", clientIds);
 
-      const vehiculoIds: string[] = [];
       for (const v of (vehiculosData ?? []) as Array<{ id: string; cliente_id: string | null }>) {
         if (v.cliente_id) {
-          vehiculoToCliente.set(v.id, v.cliente_id);
           vehiculosCountMap.set(v.cliente_id, (vehiculosCountMap.get(v.cliente_id) ?? 0) + 1);
-          vehiculoIds.push(v.id);
-        }
-      }
-
-      let arreglosQuery = supabase
-        .from("arreglos")
-        .select("id, precio_final, total_cobrado, esta_pago, cliente_id, vehiculo_id, estado")
-        .neq("estado", "PRESUPUESTO");
-
-      if (vehiculoIds.length > 0) {
-        arreglosQuery = arreglosQuery.or(
-          `cliente_id.in.(${clientIds.join(",")}),vehiculo_id.in.(${vehiculoIds.join(",")})`
-        );
-      } else {
-        arreglosQuery = arreglosQuery.in("cliente_id", clientIds);
-      }
-
-      const { data: arreglosData } = await arreglosQuery;
-
-      for (const a of (arreglosData ?? []) as Array<{
-        id: string;
-        precio_final?: number | null;
-        total_cobrado?: number | null;
-        cliente_id?: string | null;
-        vehiculo_id?: string | null;
-        estado?: string;
-      }>) {
-        const targetClienteId =
-          a.cliente_id || (a.vehiculo_id ? vehiculoToCliente.get(a.vehiculo_id) : null);
-        if (targetClienteId && clientIds.includes(targetClienteId)) {
-          const precio = Number(a.precio_final ?? 0);
-          const cobrado = Number(a.total_cobrado ?? 0);
-          const saldoNetoArreglo = precio - cobrado;
-          saldoCuentaMap.set(
-            targetClienteId,
-            (saldoCuentaMap.get(targetClienteId) ?? 0) + saldoNetoArreglo
-          );
         }
       }
     }
+
+    const saldoCuentaMap =
+      clientIds.length > 0
+        ? await calculateClientesSaldoMap(supabase, clientIds)
+        : new Map<string, number>();
 
     const clientes: Cliente[] = items.map((cliente) => {
       const saldo_cuenta = saldoCuentaMap.get(cliente.id) ?? 0;

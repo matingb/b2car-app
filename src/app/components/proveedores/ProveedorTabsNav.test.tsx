@@ -13,14 +13,12 @@ describe("ProveedorTabsNav", () => {
         activeTab="productos"
         onChangeTab={onChangeTab}
         productosCount={5}
-        operacionesCount={2}
       />
     );
 
     expect(screen.getByText("Productos")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
     expect(screen.getByText("Operaciones")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.getByText("Cuenta Corriente")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Operaciones"));
@@ -38,7 +36,6 @@ describe("ProveedorTabsNav", () => {
           activeTab="productos"
           onChangeTab={onChangeTab}
           productosCount={3}
-          operacionesCount={1}
         />
       </TenantTestProvider>
     );
