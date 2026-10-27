@@ -8,6 +8,7 @@ import GraficoComparacion from "@/app/components/graficos/GraficoComparacion";
 import VolumenDeTrabajo from "@/app/components/graficos/VolumenDeTrabajo";
 import EstadoCobroArreglos from "@/app/components/graficos/EstadoCobroArreglos";
 import HorasTrabajadasPorEmpleado from "@/app/components/graficos/HorasTrabajadasPorEmpleado";
+import HorasFacturadasPorEmpleado from "@/app/components/graficos/HorasFacturadasPorEmpleado";
 import DashboardSectionCard from "@/app/components/dashboard/DashboardSectionCard";
 import PeriodComparison from "@/app/components/dashboard/comparacion/PeriodComparison";
 import { TYPOGRAPHY } from "@/theme/theme";
@@ -41,9 +42,18 @@ export default function PanelArreglos({ periods, granularity, stats, comparison,
                 <PeriodComparison comparison={comparison} columns={COMPARISON_COLUMNS.arreglos} />
             </DashboardSectionCard>
 
-            <DashboardSectionCard title="Horas trabajadas por empleado">
-                <HorasTrabajadasPorEmpleado data={stats?.horasTrabajadasPorEmpleado} />
-            </DashboardSectionCard>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+                <div style={{ flex: "1 1 360px", minWidth: 0, display: "flex" }}>
+                    <DashboardSectionCard title="Horas trabajadas por empleado" style={{ flex: 1, minWidth: 0 }}>
+                        <HorasTrabajadasPorEmpleado data={stats?.horasTrabajadasPorEmpleado} />
+                    </DashboardSectionCard>
+                </div>
+                <div style={{ flex: "1 1 360px", minWidth: 0, display: "flex" }}>
+                    <DashboardSectionCard title="Horas facturadas por empleado" style={{ flex: 1, minWidth: 0 }}>
+                        <HorasFacturadasPorEmpleado data={stats?.horasFacturadasPorEmpleado} />
+                    </DashboardSectionCard>
+                </div>
+            </div>
 
             <DashboardSectionCard>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 8 }}>

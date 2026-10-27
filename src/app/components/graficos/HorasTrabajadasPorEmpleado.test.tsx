@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import HorasTrabajadasPorEmpleado, { buildHorasTrabajadasChartItems } from "./HorasTrabajadasPorEmpleado";
 import type { DashboardHorasTrabajadasPorEmpleado } from "@/lib/dashboard/types";
 
@@ -61,7 +61,7 @@ describe("HorasTrabajadasPorEmpleado", () => {
         expect(screen.queryByTestId("pie-series")).toBeNull();
     });
 
-    it("mantiene homónimos separados, muestra todas las filas y usa horas y porcentaje del total", () => {
+    it("mantiene homónimos separados, agrupa el resto y permite desplegarlo", () => {
         const empleados = [
             { empleadoId: "employee-b", label: "Empleado compartido", horasTrabajadas: 2.5 },
             { empleadoId: "employee-a", label: "Empleado compartido", horasTrabajadas: 2 },
@@ -81,7 +81,8 @@ describe("HorasTrabajadasPorEmpleado", () => {
         expect(screen.getByText("49,5%")).toBeTruthy();
         expect(screen.getByText("Sin empleado")).toBeTruthy();
         expect(screen.queryByText("Cantidad:")).toBeNull();
-        expect(screen.queryByText("Otros")).toBeNull();
+        expect(screen.getByText("Otros")).toBeTruthy();
+        expect(screen.getByRole("button", { name: "Expandir otros" })).toBeTruthy();
         expect(container.textContent).not.toContain("$");
 
         const series = JSON.parse(container.querySelector("[data-testid='pie-series']")?.getAttribute("data-items") ?? "[]") as Array<{
@@ -93,7 +94,12 @@ describe("HorasTrabajadasPorEmpleado", () => {
         const homonyms = series.filter((item) => item.label === "Empleado compartido");
         expect(homonyms).toHaveLength(2);
         expect(new Set(homonyms.map((item) => item.key)).size).toBe(2);
-        expect(series.map((item) => item.label)).toHaveLength(8);
+        expect(series.map((item) => item.label)).toHaveLength(6);
+
+        fireEvent.click(screen.getByRole("button", { name: "Expandir otros" }));
+        expect(screen.getByRole("button", { name: "Contraer otros" })).toBeTruthy();
+        const expandedSeries = JSON.parse(container.querySelector("[data-testid='pie-series']")?.getAttribute("data-items") ?? "[]") as typeof series;
+        expect(expandedSeries.map((item) => item.label)).toHaveLength(8);
 
         const rowColors = new Map(
             Array.from(container.querySelectorAll<HTMLElement>("[data-testid='desglose-row']")).map((row) => [
@@ -101,7 +107,7 @@ describe("HorasTrabajadasPorEmpleado", () => {
                 row.querySelector<HTMLElement>("[data-testid='desglose-bar']")?.style.backgroundColor,
             ])
         );
-        for (const item of series) {
+        for (const item of expandedSeries) {
             const expectedColor = document.createElement("div");
             expectedColor.style.backgroundColor = item.fill;
             expect(rowColors.get(item.key)).toBe(expectedColor.style.backgroundColor);

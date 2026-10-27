@@ -39,6 +39,17 @@ export type DashboardHorasTrabajadasPorEmpleado = {
   empleados: HorasTrabajadasEmpleado[];
 };
 
+export type HorasFacturadasEmpleado = {
+  empleadoId: string | null;
+  label: string;
+  horasFacturadas: number;
+};
+
+export type DashboardHorasFacturadasPorEmpleado = {
+  totalHorasFacturadas: number;
+  empleados: HorasFacturadasEmpleado[];
+};
+
 export type DashboardStats = {
   totals?: {
     clientes?: number;
@@ -76,6 +87,7 @@ export type DashboardStats = {
   facturacionPorTipo?: Array<{ label: string; cantidad: number; monto: number }>;
   facturacionPorEmpleado?: Array<{ label: string; cantidad: number; monto: number }>;
   horasTrabajadasPorEmpleado?: DashboardHorasTrabajadasPorEmpleado;
+  horasFacturadasPorEmpleado?: DashboardHorasFacturadasPorEmpleado;
   costoPorTipo?: Array<{ label: string; cantidad: number; monto: number }>;
   costoPorEmpleado?: Array<{ label: string; cantidad: number; monto: number }>;
   lastUpdatedAt?: string;

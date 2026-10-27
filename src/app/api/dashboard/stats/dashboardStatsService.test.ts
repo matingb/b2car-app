@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   facturacionPorTipo: vi.fn(),
   facturacionPorEmpleado: vi.fn(),
   horasTrabajadasPorEmpleado: vi.fn(),
+  horasFacturadasPorEmpleado: vi.fn(),
   costoPorTipo: vi.fn(),
   costoPorEmpleado: vi.fn(),
   clientesCount: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock("@/app/api/arreglos/arregloService", () => ({
     facturacionPorTipo: mocks.facturacionPorTipo,
     facturacionPorEmpleado: mocks.facturacionPorEmpleado,
     horasTrabajadasPorEmpleado: mocks.horasTrabajadasPorEmpleado,
+    horasFacturadasPorEmpleado: mocks.horasFacturadasPorEmpleado,
     costoPorTipo: mocks.costoPorTipo,
     costoPorEmpleado: mocks.costoPorEmpleado,
   },
@@ -75,6 +77,7 @@ beforeEach(() => {
     totalHoras: 2.5,
     empleados: [{ empleadoId: "empleado-1", label: "Ana", horasTrabajadas: 2.5 }],
   });
+  mocks.horasFacturadasPorEmpleado.mockResolvedValue({ totalHorasFacturadas: 0, empleados: [] });
   mocks.costoPorTipo.mockResolvedValue([]);
   mocks.costoPorEmpleado.mockResolvedValue([]);
   mocks.clientesCount.mockResolvedValue(0);
@@ -93,7 +96,7 @@ describe("statsService.getStats", () => {
     });
     expect(mocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
-      ["dashboard-stats", "v3", from, to, "tenant-1"],
+      ["dashboard-stats", "v4", from, to, "tenant-1"],
       { revalidate: 3600, tags: ["dashboard-stats:tenant:tenant-1"] }
     );
   });

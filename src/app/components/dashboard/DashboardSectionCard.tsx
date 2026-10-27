@@ -7,11 +7,12 @@ type Props = {
     title?: React.ReactNode;
     headerAction?: React.ReactNode;
     children: React.ReactNode;
+    style?: React.CSSProperties;
 };
 
-export default function DashboardSectionCard({ title, headerAction, children }: Props) {
+export default function DashboardSectionCard({ title, headerAction, children, style }: Props) {
     return (
-        <div style={styles.card}>
+        <div style={{ ...styles.card, ...style }}>
             {(title || headerAction) && (
                 <div style={styles.header}>
                     {title ? (typeof title === "string" ? <h4 style={styles.title}>{title}</h4> : title) : <div />}

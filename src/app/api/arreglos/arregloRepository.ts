@@ -10,6 +10,7 @@ import {
 import { mapArreglo } from "./arregloMapper";
 import type {
   ArreglosResumen,
+  DashboardHorasFacturadasPorEmpleado,
   DashboardHorasTrabajadasPorEmpleado,
   DashboardPeriodo,
 } from "@/lib/dashboard/types";
@@ -69,6 +70,12 @@ export interface ArregloRepository {
     toISO: string,
     tallerId?: string
   ): Promise<DashboardHorasTrabajadasPorEmpleado>;
+  horasFacturadasPorEmpleado(
+    supabase: SupabaseClient,
+    fromISO: string,
+    toISO: string,
+    tallerId?: string
+  ): Promise<DashboardHorasFacturadasPorEmpleado>;
   facturacionPorTipo(
     supabase: SupabaseClient,
     fromISO?: string,
@@ -233,6 +240,43 @@ function mapHorasTrabajadasPorEmpleado(data: unknown): DashboardHorasTrabajadasP
   }
 
   return { totalHoras, empleados };
+}
+
+function mapHorasFacturadasPorEmpleado(data: unknown): DashboardHorasFacturadasPorEmpleado {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("Respuesta invalida de dashboard_horas_facturadas_por_empleado: se esperaba un objeto");
+  }
+
+  const raw = data as RawRow;
+  if (!Array.isArray(raw.empleados)) {
+    throw new Error("Respuesta invalida de dashboard_horas_facturadas_por_empleado: empleados debe ser un array");
+  }
+
+  let mapped: DashboardHorasTrabajadasPorEmpleado;
+  try {
+    mapped = mapHorasTrabajadasPorEmpleado({
+      total_horas: raw.total_horas_facturadas,
+      empleados: raw.empleados.map((value) => {
+        if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+        const row = value as RawRow;
+        return { ...row, horas_trabajadas: row.horas_facturadas };
+      }),
+    });
+  } catch (error) {
+    if (!(error instanceof Error)) throw error;
+    throw new Error(error.message
+      .replace("dashboard_horas_trabajadas_por_empleado", "dashboard_horas_facturadas_por_empleado")
+      .replaceAll("horas_trabajadas", "horas_facturadas")
+      .replace("total_horas", "total_horas_facturadas"));
+  }
+
+  return {
+    totalHorasFacturadas: mapped.totalHoras,
+    empleados: mapped.empleados.map(({ horasTrabajadas, ...empleado }) => ({
+      ...empleado,
+      horasFacturadas: horasTrabajadas,
+    })),
+  };
 }
 
 async function listVehiculoIdsByPatente(supabase: SupabaseClient, patenteRaw?: string) {
@@ -417,6 +461,16 @@ export const supabaseArregloRepository: ArregloRepository = {
     });
     if (error) throw new Error(error.message);
     return mapHorasTrabajadasPorEmpleado(data);
+  },
+
+  async horasFacturadasPorEmpleado(supabase, fromISO, toISO, tallerId?) {
+    const { data, error } = await supabase.rpc("dashboard_horas_facturadas_por_empleado", {
+      p_from: fromISO,
+      p_to: toISO,
+      p_taller_id: tallerId ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return mapHorasFacturadasPorEmpleado(data);
   },
 
   async facturacionPorTipo(supabase, fromISO?, toISO?, tallerId?) {

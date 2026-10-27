@@ -8,7 +8,11 @@ import {
   type DesgloseLinea,
   supabaseArregloRepository,
 } from "./arregloRepository";
-import type { DashboardHorasTrabajadasPorEmpleado, DashboardPeriodo } from "@/lib/dashboard/types";
+import type {
+  DashboardHorasFacturadasPorEmpleado,
+  DashboardHorasTrabajadasPorEmpleado,
+  DashboardPeriodo,
+} from "@/lib/dashboard/types";
 
 export type RecentActivity = {
   id: string;
@@ -80,6 +84,15 @@ export function createArregloService(repository: ArregloRepository) {
       tallerId?: string
     ): Promise<DashboardHorasTrabajadasPorEmpleado> {
       return repository.horasTrabajadasPorEmpleado(supabase, fromISO, toISO, tallerId);
+    },
+
+    async horasFacturadasPorEmpleado(
+      supabase: SupabaseClient,
+      fromISO: string,
+      toISO: string,
+      tallerId?: string
+    ): Promise<DashboardHorasFacturadasPorEmpleado> {
+      return repository.horasFacturadasPorEmpleado(supabase, fromISO, toISO, tallerId);
     },
 
     async facturacionPorTipo(

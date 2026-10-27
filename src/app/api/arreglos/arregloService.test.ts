@@ -30,6 +30,7 @@ function makeRepo(overrides: Partial<ArregloRepository> = {}): ArregloRepository
       series: { arreglos: [], ingresos: [], gastos: [] },
     }),
     horasTrabajadasPorEmpleado: vi.fn().mockResolvedValue({ totalHoras: 0, empleados: [] }),
+    horasFacturadasPorEmpleado: vi.fn().mockResolvedValue({ totalHorasFacturadas: 0, empleados: [] }),
     facturacionPorTipo: vi.fn().mockResolvedValue([]),
     facturacionPorEmpleado: vi.fn().mockResolvedValue([]),
     costoPorTipo: vi.fn().mockResolvedValue([]),

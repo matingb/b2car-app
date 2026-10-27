@@ -9,7 +9,7 @@ import { revalidateTag, unstable_cache } from "next/cache";
 
 const DASHBOARD_STATS_TAG_PREFIX = "dashboard-stats";
 // Cambiarla cuando cambia la forma de la respuesta: evita servir entradas cacheadas por la versión anterior.
-const DASHBOARD_STATS_CACHE_VERSION = "v3";
+const DASHBOARD_STATS_CACHE_VERSION = "v4";
 
 function dashboardStatsTag(tenantId: string) {
   const normalized = String(tenantId).trim();
@@ -70,6 +70,7 @@ async function getStats(
     facturacionPorTipo,
     facturacionPorEmpleado,
     horasTrabajadasPorEmpleado,
+    horasFacturadasPorEmpleado,
     costoPorTipo,
     costoPorEmpleado,
   ] = await Promise.all([
@@ -81,6 +82,7 @@ async function getStats(
     arregloService.facturacionPorTipo(supabase, from, to),
     arregloService.facturacionPorEmpleado(supabase, from, to),
     arregloService.horasTrabajadasPorEmpleado(supabase, from, to),
+    arregloService.horasFacturadasPorEmpleado(supabase, from, to),
     arregloService.costoPorTipo(supabase, from, to),
     arregloService.costoPorEmpleado(supabase, from, to),
   ]);
@@ -116,6 +118,7 @@ async function getStats(
     facturacionPorTipo,
     facturacionPorEmpleado,
     horasTrabajadasPorEmpleado,
+    horasFacturadasPorEmpleado,
     costoPorTipo,
     costoPorEmpleado,
     lastUpdatedAt: new Date().toISOString(),

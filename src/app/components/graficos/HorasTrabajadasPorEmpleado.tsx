@@ -63,7 +63,6 @@ export default function HorasTrabajadasPorEmpleado({ data }: Props) {
             id="horas-trabajadas-empleado"
             items={items}
             montoLabel="Horas trabajadas"
-            groupRest={false}
             showCountInTooltip={false}
             percentageDecimals={1}
             valueFormatter={formatHoras}
@@ -74,7 +73,6 @@ export default function HorasTrabajadasPorEmpleado({ data }: Props) {
             barScale="percentageOfTotal"
             adaptivePaddingAngle
             allowTooltipEscape
-            containerResponsiveLayout
             wrapLabels
             showListOnMobileInitially
             maxListHeight={360}
