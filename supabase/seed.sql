@@ -41,9 +41,9 @@ INSERT INTO public.tenants (id, nombre, plan_sub, estado, fecha_creacion, update
   ('11111111-1111-1111-1111-111111111111', 'B2Car', 'PRO', 'activo', now() - interval '19 months', now() - interval '1 day');
 
 -- Cuentas Financieras (2 cuentas bancarias)
-INSERT INTO public.cuentas_financieras (id, tenant_id, nombre, tipo, saldo, activo, created_at, updated_at) VALUES
-  ('c0000000-0000-4000-8000-000000000001','11111111-1111-1111-1111-111111111111','Banco Galicia',  'CUENTA_BANCARIA',0,true,now() - interval '19 months',now() - interval '19 months'),
-  ('c0000000-0000-4000-8000-000000000002','11111111-1111-1111-1111-111111111111','Banco Santander','CUENTA_BANCARIA',0,true,now() - interval '19 months',now() - interval '19 months');
+INSERT INTO public.cuentas_financieras (id, tenant_id, nombre, tipo, saldo, activo, favorita, created_at, updated_at) VALUES
+  ('c0000000-0000-4000-8000-000000000001','11111111-1111-1111-1111-111111111111','Banco Galicia',  'CUENTA_BANCARIA',0,true,true,now() - interval '19 months',now() - interval '19 months'),
+  ('c0000000-0000-4000-8000-000000000002','11111111-1111-1111-1111-111111111111','Banco Santander','CUENTA_BANCARIA',0,true,false,now() - interval '19 months',now() - interval '19 months');
 
 -- Categorías de Arreglo por defecto
 INSERT INTO public.categorias_arreglo (id, tenant_id, nombre) VALUES
