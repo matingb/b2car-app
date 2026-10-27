@@ -33,7 +33,7 @@ export type OperacionMovimientoStockJoin = {
 	producto?: { nombre?: string; codigo?: string } | { nombre?: string; codigo?: string }[] | null;
 };
 
-export type OperacionDetalleRawRow = OperacionDTO & {
+export type OperacionDetalleRawRow = Omit<OperacionDTO, "movimientos_stock"> & {
 	operaciones_lineas?: OperacionLineaDTO[] | null;
 	operaciones_pagos?: unknown[] | null;
 	operaciones_venta?: OperacionVentaJoin | OperacionVentaJoin[] | null;
