@@ -201,4 +201,117 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
       expect(screen.getByRole("button", { name: "Volver a Operaciones" })).toBeInTheDocument();
     });
   });
+
+  it("renderiza el historial de entregas de una venta cuando tiene movimientos_stock", async () => {
+    const ventaConEntregas: Operacion = {
+      ...operacionVenta,
+      movimientos_stock: [
+        {
+          id: "mov-entrega-1",
+          fecha: "2026-10-21T14:30:00Z",
+          cantidad: -7,
+          saldo_anterior: 20,
+          saldo_posterior: 13,
+          motivo: "Entrega inicial al cliente",
+          created_at: "2026-10-21T14:30:00Z",
+          producto_id: "prod-1",
+          stock_id: "stock-1",
+          producto_nombre: "Bujía Bosch",
+          producto_codigo: "BB-01",
+        },
+      ],
+    };
+
+    mockGetById.mockResolvedValue({ data: ventaConEntregas, error: null });
+
+    render(<OperacionDetailPage />);
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Historial de Entregas \(1\)/)).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("operacion-stock-history-table")).toBeInTheDocument();
+    expect(screen.getByText("-7 un.")).toBeInTheDocument();
+    expect(screen.getByText("Entrega inicial al cliente")).toBeInTheDocument();
+    expect(screen.getByText("13 un.")).toBeInTheDocument();
+  });
+
+  it("renderiza el historial de recepciones de una compra cuando tiene movimientos_stock", async () => {
+    const operacionCompra: Operacion = {
+      id: "22222222-2222-4222-8222-222222222222",
+      tipo: "COMPRA",
+      taller_id: "taller-1",
+      fecha: "2026-10-22T10:00:00Z",
+      created_at: "2026-10-22T10:00:00Z",
+      monto_total: 50000,
+      total_pagado: 50000,
+      saldo_pendiente: 0,
+      esta_pago: true,
+      estado_pago: "PAGADO",
+      estado_stock: "ENTREGADO",
+      lineas: [
+        {
+          id: "linea-c-1",
+          operacion_id: "22222222-2222-4222-8222-222222222222",
+          stock_id: "stock-1",
+          nombre: "Bujía Bosch",
+          codigo: "BB-01",
+          cantidad: 15,
+          cantidad_cumplida: 15,
+          monto_unitario: 800,
+          delta_cantidad: 15,
+          created_at: "2026-10-22T10:00:00Z",
+        },
+      ],
+      movimientos_stock: [
+        {
+          id: "mov-compra-1",
+          fecha: "2026-10-22T11:00:00Z",
+          cantidad: 15,
+          saldo_anterior: 5,
+          saldo_posterior: 20,
+          motivo: "Recepción de proveedor",
+          created_at: "2026-10-22T11:00:00Z",
+          producto_id: "prod-1",
+          stock_id: "stock-1",
+          producto_nombre: "Bujía Bosch",
+          producto_codigo: "BB-01",
+        },
+      ],
+    };
+
+    mockGetById.mockResolvedValue({ data: operacionCompra, error: null });
+
+    render(<OperacionDetailPage />);
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Historial de Recepciones \(1\)/)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("+15 un.")).toBeInTheDocument();
+    expect(screen.getByText("Recepción de proveedor")).toBeInTheDocument();
+    expect(screen.getByText("20 un.")).toBeInTheDocument();
+  });
+
+  it("muestra estado vacío informativo cuando una venta no tiene entregas registradas", async () => {
+    const ventaSinEntregas: Operacion = {
+      ...operacionVenta,
+      estado_stock: "PENDIENTE",
+      movimientos_stock: [],
+    };
+
+    mockGetById.mockResolvedValue({ data: ventaSinEntregas, error: null });
+
+    render(<OperacionDetailPage />);
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("operacion-stock-history-empty")).toBeInTheDocument();
+      expect(
+        screen.getByText("Aún no se han registrado entregas físicas de mercadería para esta venta.")
+      ).toBeInTheDocument();
+    });
+  });
 });

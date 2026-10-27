@@ -48,7 +48,7 @@ export default function OperacionStockBadge({
         ? "Entrega parcial"
         : "Recepción parcial"
       : isVenta
-        ? "Mercadería reservada"
+        ? "Reservada"
         : "En camino";
 
   // Es interactivo si hay saldo pendiente por confirmar o si se proveyó un onClick explícito

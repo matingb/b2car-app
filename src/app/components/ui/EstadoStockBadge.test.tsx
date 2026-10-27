@@ -36,7 +36,7 @@ describe("getEstadoStockLabel", () => {
     ).toBe("Entrega parcial");
     expect(
       getEstadoStockLabel({ estado: "PENDIENTE", tipo: "VENTA", compact: false })
-    ).toBe("Mercadería reservada");
+    ).toBe("Reservada");
   });
 });
 

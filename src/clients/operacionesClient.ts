@@ -98,6 +98,9 @@ function mapOperacionFromApi(value: unknown): Operacion | null {
 		...(o as unknown as Operacion),
 		tipo: (o.tipo as TipoOperacion) ?? "AJUSTE",
 		lineas: Array.isArray(o.lineas) ? (o.lineas as Operacion["lineas"]) : [],
+		movimientos_stock: Array.isArray(o.movimientos_stock)
+			? (o.movimientos_stock as Operacion["movimientos_stock"])
+			: undefined,
 	};
 }
 

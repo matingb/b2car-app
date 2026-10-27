@@ -221,7 +221,21 @@ export interface OperacionPago {
   fecha: string;
   descripcion?: string | null;
   created_at: string;
+}
+
+export interface OperacionMovimientoStock {
+  id: UUID;
+  fecha: string;
+  cantidad: number;
+  saldo_anterior: number;
+  saldo_posterior: number;
+  motivo?: string | null;
+  created_at: string;
   created_by?: UUID | null;
+  producto_id: UUID;
+  stock_id: UUID;
+  producto_nombre?: string;
+  producto_codigo?: string;
 }
 
 export interface OperacionLinea {
@@ -286,6 +300,7 @@ export interface Operacion {
   proveedor_nombre?: string;
   cliente_id?: UUID | null;
   cliente_nombre?: string;
+  movimientos_stock?: OperacionMovimientoStock[];
 }
 
 export interface OperacionVenta {

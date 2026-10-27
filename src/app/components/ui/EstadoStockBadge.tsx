@@ -36,7 +36,7 @@ export function getEstadoStockLabel({
       return isVenta ? "Entrega parcial" : "Recepción parcial";
     case "PENDIENTE":
       if (compact) return "Pendiente";
-      return isVenta ? "Mercadería reservada" : "En camino";
+      return isVenta ? "Reservada" : "En camino";
     case "NO_APLICA":
     default:
       return "N/A";

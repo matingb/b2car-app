@@ -1,6 +1,6 @@
 import { logger } from "@/lib/logger";
-import type { Operacion, OperacionLinea, OperacionPago } from "@/model/types";
-import type { OperacionDTO, OperacionLineaDTO, OperacionPagoDTO } from "@/model/dtos";
+import type { Operacion, OperacionLinea, OperacionMovimientoStock, OperacionPago } from "@/model/types";
+import type { OperacionDTO, OperacionLineaDTO, OperacionMovimientoStockDTO, OperacionPagoDTO } from "@/model/dtos";
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
@@ -28,6 +28,7 @@ export type UpdateOperacionResponse = {
 type OperacionRow = OperacionDTO & {
 	operaciones_lineas?: OperacionLineaDTO[] | null;
 	operaciones_pagos?: OperacionPagoDTO[] | null;
+	movimientos_stock?: OperacionMovimientoStockDTO[] | null;
 };
 
 function mapLinea(row: OperacionLineaDTO): OperacionLinea {
@@ -59,6 +60,23 @@ function mapPago(row: OperacionPagoDTO): OperacionPago {
 		descripcion: row.descripcion ?? undefined,
 		created_at: row.created_at,
 		cuenta_financiera_nombre: row.cuenta_financiera_nombre ?? undefined,
+	};
+}
+
+function mapMovimientoStock(row: OperacionMovimientoStockDTO): OperacionMovimientoStock {
+	return {
+		id: row.id,
+		fecha: row.fecha,
+		cantidad: Number(row.cantidad) || 0,
+		saldo_anterior: Number(row.saldo_anterior) || 0,
+		saldo_posterior: Number(row.saldo_posterior) || 0,
+		motivo: row.motivo ?? undefined,
+		created_at: row.created_at,
+		created_by: row.created_by ?? undefined,
+		producto_id: row.producto_id,
+		stock_id: row.stock_id,
+		producto_nombre: row.producto_nombre ?? undefined,
+		producto_codigo: row.producto_codigo ?? undefined,
 	};
 }
 
@@ -104,6 +122,9 @@ function mapOperacion(row: OperacionRow): Operacion {
 		cliente_nombre: row.cliente_nombre ?? undefined,
 		lineas: lineasMapped,
 		pagos: pagos.map(mapPago),
+		movimientos_stock: Array.isArray(row.movimientos_stock)
+			? row.movimientos_stock.map(mapMovimientoStock)
+			: undefined,
 	};
 }
 

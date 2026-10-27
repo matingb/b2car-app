@@ -1,5 +1,5 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-import type { OperacionDTO, OperacionLineaDTO } from "@/model/dtos";
+import type { OperacionDTO, OperacionLineaDTO, OperacionMovimientoStockDTO } from "@/model/dtos";
 
 export type ClienteJoin = {
 	tipo_cliente?: string;
@@ -19,14 +19,33 @@ export type OperacionCompraJoin = {
 	proveedores?: { nombre: string } | { nombre: string }[] | null;
 };
 
+export type OperacionMovimientoStockJoin = {
+	id: string;
+	fecha: string;
+	cantidad: number;
+	saldo_anterior: number;
+	saldo_posterior: number;
+	motivo?: string | null;
+	created_at: string;
+	created_by?: string | null;
+	producto_id: string;
+	stock_id: string;
+	producto?: { nombre?: string; codigo?: string } | { nombre?: string; codigo?: string }[] | null;
+};
+
 export type OperacionDetalleRawRow = OperacionDTO & {
 	operaciones_lineas?: OperacionLineaDTO[] | null;
 	operaciones_pagos?: unknown[] | null;
 	operaciones_venta?: OperacionVentaJoin | OperacionVentaJoin[] | null;
 	operaciones_compra?: OperacionCompraJoin | OperacionCompraJoin[] | null;
+	movimientos_stock?: OperacionMovimientoStockJoin[] | null;
 };
 
-export type OperacionRow = OperacionDTO & { operaciones_lineas?: OperacionLineaDTO[] | null };
+export type OperacionRow = OperacionDTO & {
+	operaciones_lineas?: OperacionLineaDTO[] | null;
+	operaciones_pagos?: unknown[] | null;
+	movimientos_stock?: OperacionMovimientoStockDTO[] | null;
+};
 
 export type FacturaOperacionRow = {
 	operacion_id: string;
@@ -185,7 +204,7 @@ export const operacionRepository: OperacionRepository = {
 		const { data, error } = await supabase
 			.from("operaciones")
 			.select(
-				"*, operaciones_lineas(*), operaciones_pagos:operaciones_pagos!operaciones_pagos_operacion_id_fkey(*), operaciones_venta(cliente_id, clientes(tipo_cliente, particulares(nombre, apellido), empresas(nombre))), operaciones_compra(proveedor_id, proveedores(nombre))"
+				"*, operaciones_lineas(*), operaciones_pagos:operaciones_pagos!operaciones_pagos_operacion_id_fkey(*), operaciones_venta(cliente_id, clientes(tipo_cliente, particulares(nombre, apellido), empresas(nombre))), operaciones_compra(proveedor_id, proveedores(nombre)), movimientos_stock:movimientos_stock!movimientos_stock_operacion_id_fkey(id, fecha, cantidad, saldo_anterior, saldo_posterior, motivo, created_at, created_by, producto_id, stock_id, producto:productos(nombre, codigo))"
 			)
 			.eq("id", id)
 			.single();
@@ -198,12 +217,38 @@ export const operacionRepository: OperacionRepository = {
 		const venta = firstOrOnly(raw.operaciones_venta);
 		const compra = firstOrOnly(raw.operaciones_compra);
 
+		const movimientosStockRaw = Array.isArray(raw.movimientos_stock) ? raw.movimientos_stock : [];
+		const movimientosStock: OperacionMovimientoStockDTO[] = movimientosStockRaw
+			.map((ms) => {
+				const prod = firstOrOnly(ms.producto);
+				return {
+					id: String(ms.id),
+					fecha: String(ms.fecha),
+					cantidad: Number(ms.cantidad) || 0,
+					saldo_anterior: Number(ms.saldo_anterior) || 0,
+					saldo_posterior: Number(ms.saldo_posterior) || 0,
+					motivo: ms.motivo ? String(ms.motivo) : null,
+					created_at: String(ms.created_at),
+					created_by: ms.created_by ? String(ms.created_by) : null,
+					producto_id: String(ms.producto_id),
+					stock_id: String(ms.stock_id),
+					producto_nombre: prod?.nombre,
+					producto_codigo: prod?.codigo,
+				};
+			})
+			.sort((a, b) => {
+				const timeA = new Date(a.fecha || a.created_at).getTime();
+				const timeB = new Date(b.fecha || b.created_at).getTime();
+				return timeB - timeA;
+			});
+
 		const mapped: OperacionRow = {
 			...raw,
 			cliente_id: venta?.cliente_id ? String(venta.cliente_id) : null,
 			cliente_nombre: resolveClienteNombre(venta?.clientes),
 			proveedor_id: compra?.proveedor_id ? String(compra.proveedor_id) : null,
 			proveedor_nombre: firstOrOnly(compra?.proveedores)?.nombre,
+			movimientos_stock: movimientosStock,
 		};
 
 		return { data: mapped, error: null };

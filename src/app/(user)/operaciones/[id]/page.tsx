@@ -104,11 +104,14 @@ export default function OperacionDetailPage() {
     void loadOperacion();
   }, [loadOperacion]);
 
-  // Cargar información de stocks de las líneas
+  // Cargar información de stocks de las líneas y movimientos
+  const opLineas = operacion?.lineas;
+  const opMovimientos = operacion?.movimientos_stock;
   useEffect(() => {
-    if (!operacion?.lineas) return;
-    const missingIds = operacion.lineas
-      .map((l) => l.stock_id)
+    const lineasStockIds = (opLineas ?? []).map((l) => l.stock_id);
+    const movsStockIds = (opMovimientos ?? []).map((m) => m.stock_id);
+    const allStockIds = Array.from(new Set([...lineasStockIds, ...movsStockIds]));
+    const missingIds = allStockIds
       .filter((id): id is string => Boolean(id) && !stocksById[id]);
 
     if (missingIds.length === 0) return;
@@ -133,7 +136,7 @@ export default function OperacionDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [operacion?.lineas, getStockById, stocksById]);
+  }, [opLineas, opMovimientos, getStockById, stocksById]);
 
   const isVenta = operacion?.tipo === "VENTA";
   const isCompra = operacion?.tipo === "COMPRA";
@@ -521,6 +524,98 @@ export default function OperacionDetailPage() {
             </table>
           </div>
         </Card>
+      )}
+
+      {/* Historial de Entregas / Recepciones de Stock */}
+      {isComercial && (
+        operacion.movimientos_stock && operacion.movimientos_stock.length > 0 ? (
+          <Card style={{ padding: 0, overflow: "hidden" }} data-testid="operacion-stock-history-card">
+            <div style={styles.tableTitleRow}>
+              <h3 style={{ margin: 0, fontSize: 16, color: COLOR.TEXT.PRIMARY }}>
+                {isVenta ? "Historial de Entregas" : "Historial de Recepciones"} ({operacion.movimientos_stock.length})
+              </h3>
+            </div>
+
+            <div style={{ overflowX: "auto" }}>
+              <table style={styles.table} data-testid="operacion-stock-history-table">
+                <thead>
+                  <tr style={styles.thRow}>
+                    <th style={styles.th}>Fecha</th>
+                    <th style={styles.th}>Producto</th>
+                    <th style={{ ...styles.th, textAlign: "center" }}>Cantidad</th>
+                    <th style={styles.th}>Detalle / Motivo</th>
+                    <th style={{ ...styles.th, textAlign: "center" }}>Stock Taller</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {operacion.movimientos_stock.map((mov) => {
+                    const stock = stocksById[mov.stock_id];
+                    const prodNombre =
+                      mov.producto_nombre || stock?.nombre || `Ítem #${mov.producto_id.slice(0, 6)}`;
+                    const prodCodigo = mov.producto_codigo || stock?.codigo;
+                    const unidades = Math.abs(mov.cantidad);
+
+                    return (
+                      <tr key={mov.id} style={styles.tr}>
+                        <td style={styles.td}>
+                          <span style={{ fontWeight: 500 }}>
+                            {formatDateLabel(mov.fecha || mov.created_at)}
+                          </span>
+                        </td>
+                        <td style={styles.td}>
+                          <div style={{ fontWeight: 600, color: COLOR.TEXT.PRIMARY }}>{prodNombre}</div>
+                          {prodCodigo && (
+                            <div style={{ fontSize: 12, color: COLOR.TEXT.SECONDARY }}>{prodCodigo}</div>
+                          )}
+                        </td>
+                        <td style={{ ...styles.td, textAlign: "center" }}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              padding: "2px 8px",
+                              borderRadius: 12,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              backgroundColor: isVenta
+                                ? Color(COLOR.STATUS.info.solidBg).alpha(0.12).toString()
+                                : Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
+                              color: isVenta ? COLOR.STATUS.info.solidBg : COLOR.SEMANTIC.SUCCESS,
+                            }}
+                          >
+                            {isVenta ? `-${unidades} un.` : `+${unidades} un.`}
+                          </span>
+                        </td>
+                        <td style={styles.td}>
+                          <div style={{ color: COLOR.TEXT.PRIMARY, fontSize: 13 }}>
+                            {mov.motivo || (isVenta ? "Entrega de mercadería" : "Ingreso al taller")}
+                          </div>
+                        </td>
+                        <td style={{ ...styles.td, textAlign: "center" }}>
+                          <span style={{ fontSize: 13, color: COLOR.TEXT.SECONDARY, fontWeight: 500 }}>
+                            {mov.saldo_posterior} un.
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        ) : (
+          <Card style={{ padding: "16px 20px" }} data-testid="operacion-stock-history-empty">
+            <div style={styles.cardHeader}>
+              <span style={styles.cardTitle}>
+                {isVenta ? "Historial de Entregas" : "Historial de Recepciones"}
+              </span>
+            </div>
+            <p style={{ margin: "6px 0 0", fontSize: 13, color: COLOR.TEXT.SECONDARY }}>
+              {isVenta
+                ? "Aún no se han registrado entregas físicas de mercadería para esta venta."
+                : "Aún no se han recibido unidades en el taller para esta compra."}
+            </p>
+          </Card>
+        )
       )}
 
       {/* Historial de Pagos / Cobros */}

@@ -122,6 +122,7 @@ export type OperacionDTO = {
     proveedor_nombre?: string;
     cliente_id?: string | null;
     cliente_nombre?: string;
+    movimientos_stock?: OperacionMovimientoStockDTO[];
 };
 
 export type OperacionVentaDTO = {
@@ -226,6 +227,21 @@ export type OperacionPagoDTO = {
     descripcion?: string | null;
     created_at: string;
     cuenta_financiera_nombre?: string;
+};
+
+export type OperacionMovimientoStockDTO = {
+    id: string;
+    fecha: string;
+    cantidad: number;
+    saldo_anterior: number;
+    saldo_posterior: number;
+    motivo?: string | null;
+    created_at: string;
+    created_by?: string | null;
+    producto_id: string;
+    stock_id: string;
+    producto_nombre?: string;
+    producto_codigo?: string;
 };
 
 export type OperacionAsignacionArregloDTO = {
