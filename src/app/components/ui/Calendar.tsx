@@ -758,6 +758,7 @@ export default function Calendar({
           <span
             style={{
               ...styles.triggerText,
+              ...(style?.fontSize ? { fontSize: style.fontSize } : {}),
               color: hasValue ? COLOR.TEXT.PRIMARY : COLOR.TEXT.SECONDARY,
             }}
           >

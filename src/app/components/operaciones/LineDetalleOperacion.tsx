@@ -120,6 +120,7 @@ export default function LineDetalleOperacion({
             clienteNombre={operacion.cliente_nombre}
             proveedorNombre={operacion.proveedor_nombre}
             onPagoUpdated={onPagoSuccess}
+            onStockUpdated={onStockSuccess}
           />
           <OperacionActions
             isGasto={isGasto}

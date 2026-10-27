@@ -17,7 +17,6 @@ import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvide
 import { useOperaciones } from "@/app/providers/OperacionesProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import type { Operacion } from "@/model/types";
-import { COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
 import { isValidDate, toISODateAppTimeZone, toISODateTimeWithLocalCurrentTime } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
@@ -42,7 +41,18 @@ export default function OperacionPagoModal({
   const cuentaFavoritaId = cuentaFavorita?.id ?? null;
   const hasCuentaFavorita = cuentaFavoritaId !== null;
 
-  const saldoPendiente = operacion?.saldo_pendiente ?? 0;
+  const totalMonto =
+    operacion?.monto_total ??
+    (operacion?.lineas ?? []).reduce(
+      (acc, l) => acc + (l.cantidad || 0) * (l.monto_unitario || 0),
+      0
+    );
+  const totalPagado =
+    operacion?.total_pagado ??
+    (operacion?.esta_pago ? totalMonto : 0);
+  const saldoPendiente =
+    operacion?.saldo_pendiente ??
+    Math.max(0, totalMonto - totalPagado);
   const isVenta = operacion?.tipo === "VENTA";
 
   const [pagosDraft, setPagosDraft] = useState<PagoDraftItem[]>([
@@ -239,8 +249,8 @@ export default function OperacionPagoModal({
       <div style={styles.container}>
         <PagoSummaryBox
           tipo={isVenta ? "VENTA" : "COMPRA"}
-          total={operacion.monto_total ?? 0}
-          totalPagado={operacion.total_pagado ?? 0}
+          total={totalMonto}
+          totalPagado={totalPagado}
           saldoPendiente={saldoPendiente}
           isReady={true}
         />

@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react";
 import { css } from "@emotion/react";
-import { Calendar as CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import Calendar from "@/app/components/ui/Calendar";
 import CuentaFinancieraAutocomplete, {
   CREATE_CUENTA_VALUE,
@@ -14,7 +14,6 @@ import CuentaFinancieraFormFields, {
 } from "@/app/components/finanzas/CuentaFinancieraFormFields";
 import { COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
-import { formatCalendarDateLabel } from "@/lib/fechas";
 import NumberInput from "@/app/components/ui/NumberInput";
 
 export { CREATE_CUENTA_VALUE };
@@ -98,23 +97,14 @@ export default function RegistrarPagoSection({
                   />
                 </div>
 
-                <Calendar
-                  value={pago.fecha}
-                  onChange={(fecha) => onUpdatePago(pago.id, "fecha", fecha)}
-                  dataTestId={`pago-fecha-${index}`}
-                >
-                  <button
-                    type="button"
-                    css={styles.dateWrapper}
-                    data-testid={`pago-fecha-${index}`}
-                    aria-label="Elegir fecha del pago"
-                  >
-                    <CalendarIcon size={14} color={COLOR.TEXT.SECONDARY} />
-                    <span css={styles.dateInput}>
-                      {formatCalendarDateLabel(pago.fecha, "Seleccionar fecha...")}
-                    </span>
-                  </button>
-                </Calendar>
+                <div css={styles.dateWrapper}>
+                  <Calendar
+                    value={pago.fecha}
+                    onChange={(val) => onUpdatePago(pago.id, "fecha", val)}
+                    dataTestId={`pago-fecha-${index}`}
+                    style={styles.calendarTrigger}
+                  />
+                </div>
 
                 <button
                   type="button"
@@ -274,31 +264,17 @@ const styles = {
     padding: 0,
   },
   dateWrapper: css({
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    width: "100%",
+    minWidth: 0,
+  }),
+  calendarTrigger: {
     height: 38,
     padding: "0 10px",
+    fontSize: 13,
     backgroundColor: "#ffffff",
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 8,
-    boxSizing: "border-box",
-    cursor: "pointer",
-    fontFamily: "inherit",
-    transition: "border-color 0.15s ease",
-    "&:focus-visible": {
-      outline: "none",
-      borderColor: "#0080a2",
-    },
-  }),
-  dateInput: css({
-    flex: 1,
-    textAlign: "left",
-    fontSize: 13,
-    fontWeight: 500,
     color: COLOR.TEXT.PRIMARY,
-  }),
+  },
   btnRemove: css({
     display: "flex",
     alignItems: "center",

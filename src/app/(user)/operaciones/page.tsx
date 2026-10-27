@@ -468,6 +468,9 @@ export default function OperacionesPage() {
                                 onPagoSuccess={() => {
                                     void refresh();
                                 }}
+                                onStockSuccess={() => {
+                                    void refresh();
+                                }}
                             />
                         );
                     })}

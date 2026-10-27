@@ -1,7 +1,6 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { runPendingPromises } from "@/tests/testUtils";
 import OperacionDetailPage from "./page";
 import type { Operacion } from "@/model/types";
@@ -146,9 +145,11 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
     // Observaciones
     expect(screen.getByText("Entregar embalado")).toBeInTheDocument();
 
-    // Botones de acción
-    expect(screen.getByTestId("operacion-detail-pago-btn")).toBeInTheDocument();
-    expect(screen.getByTestId("operacion-detail-stock-btn")).toBeInTheDocument();
+    // Badges interactivos (formato unificado como en detalle de arreglo)
+    expect(screen.getAllByTestId("operacion-pago-badge").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByTestId("operacion-estado-stock-badge").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByTestId("operacion-detail-pago-btn")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("operacion-detail-stock-btn")).not.toBeInTheDocument();
   });
 
   it("redirige automáticamente a /arreglos/[id] cuando la operación es COBRO_ARREGLO", async () => {

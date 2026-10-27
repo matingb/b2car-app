@@ -8,15 +8,17 @@ vi.mock("./OperacionPagoModal", () => ({
   __esModule: true,
   default: ({
     open,
+    operacion,
     onClose,
     onSuccess,
   }: {
     open: boolean;
+    operacion?: Operacion | null;
     onClose: () => void;
     onSuccess?: () => void;
   }) =>
     open ? (
-      <div data-testid="mock-operacion-pago-modal">
+      <div data-testid="mock-operacion-pago-modal" data-saldo={operacion?.saldo_pendiente}>
         <button type="button" onClick={onClose} data-testid="mock-modal-close">
           Cerrar
         </button>
@@ -167,5 +169,24 @@ describe("OperacionPagoBadge", () => {
 
     expect(onCardClick).not.toHaveBeenCalled();
     expect(customClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("pasa el saldo_pendiente calculado a OperacionPagoModal cuando la operación no lo tiene explícito", () => {
+    const opSinSaldo: Operacion = {
+      ...baseVenta,
+      estado_pago: "PARCIAL",
+      monto_total: 20000,
+      total_pagado: 5000,
+      saldo_pendiente: undefined,
+    };
+
+    render(<OperacionPagoBadge operacion={opSinSaldo} />);
+
+    const badge = screen.getByRole("button", { name: /Pendiente: \$15\.000/i });
+    fireEvent.click(badge);
+
+    const modal = screen.getByTestId("mock-operacion-pago-modal");
+    expect(modal).toBeInTheDocument();
+    expect(modal).toHaveAttribute("data-saldo", "15000");
   });
 });

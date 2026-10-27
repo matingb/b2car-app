@@ -65,6 +65,26 @@ function mapPago(row: OperacionPagoDTO): OperacionPago {
 function mapOperacion(row: OperacionRow): Operacion {
 	const lineas = Array.isArray(row.operaciones_lineas) ? row.operaciones_lineas : [];
 	const pagos = Array.isArray(row.operaciones_pagos) ? row.operaciones_pagos : [];
+	const lineasMapped = lineas.map(mapLinea);
+	const lineasTotal = lineasMapped.reduce(
+		(acc, l) => acc + (l.cantidad || 0) * (l.monto_unitario || 0),
+		0
+	);
+	const montoTotal =
+		row.monto_total !== undefined && row.monto_total !== null
+			? Number(row.monto_total)
+			: (lineasMapped.length > 0 ? lineasTotal : undefined);
+	const totalPagado =
+		row.total_pagado !== undefined && row.total_pagado !== null
+			? Number(row.total_pagado)
+			: (row.esta_pago && montoTotal !== undefined ? montoTotal : 0);
+	const saldoPendiente =
+		row.saldo_pendiente !== undefined && row.saldo_pendiente !== null
+			? Number(row.saldo_pendiente)
+			: (montoTotal !== undefined && totalPagado !== undefined
+				? Math.max(0, montoTotal - totalPagado)
+				: undefined);
+
 	return {
 		id: row.id,
 		tipo: row.tipo,
@@ -72,9 +92,9 @@ function mapOperacion(row: OperacionRow): Operacion {
 		fecha: row.fecha,
 		created_at: row.created_at,
 		observaciones: row.observaciones ? String(row.observaciones) : undefined,
-		monto_total: row.monto_total !== undefined && row.monto_total !== null ? Number(row.monto_total) : undefined,
-		total_pagado: row.total_pagado !== undefined && row.total_pagado !== null ? Number(row.total_pagado) : undefined,
-		saldo_pendiente: row.saldo_pendiente !== undefined && row.saldo_pendiente !== null ? Number(row.saldo_pendiente) : undefined,
+		monto_total: montoTotal,
+		total_pagado: totalPagado,
+		saldo_pendiente: saldoPendiente,
 		esta_pago: row.esta_pago !== undefined ? Boolean(row.esta_pago) : undefined,
 		estado_pago: (row.estado_pago as Operacion["estado_pago"]) ?? undefined,
 		estado_stock: (row.estado_stock as Operacion["estado_stock"]) ?? undefined,
@@ -82,7 +102,7 @@ function mapOperacion(row: OperacionRow): Operacion {
 		proveedor_nombre: row.proveedor_nombre ?? undefined,
 		cliente_id: row.cliente_id ?? undefined,
 		cliente_nombre: row.cliente_nombre ?? undefined,
-		lineas: lineas.map(mapLinea),
+		lineas: lineasMapped,
 		pagos: pagos.map(mapPago),
 	};
 }

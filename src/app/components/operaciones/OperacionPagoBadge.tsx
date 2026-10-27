@@ -122,7 +122,12 @@ export default function OperacionPagoBadge({
       {operacion && modalOpen ? (
         <OperacionPagoModal
           open={modalOpen}
-          operacion={operacion}
+          operacion={{
+            ...operacion,
+            monto_total: effectiveMontoTotal,
+            total_pagado: effectiveTotalPagado,
+            saldo_pendiente: effectiveSaldoPendiente,
+          }}
           onClose={() => setModalOpen(false)}
           onSuccess={() => {
             setModalOpen(false);

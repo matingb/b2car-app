@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { PUT, DELETE } from "./route";
+import { GET, PUT, DELETE } from "./route";
 import { ServiceError } from "@/app/api/serviceError";
 
 vi.mock("@/supabase/server", () => ({
@@ -143,5 +143,35 @@ describe("/api/operaciones/[id]", () => {
 
 		expect(res.status).toBe(409);
 		expect(body.error).toBe("Stock insuficiente");
+	});
+
+	it("GET devuelve operacion con saldo_pendiente calculado cuando falta en el row", async () => {
+		vi.mocked(operacionesService.getById).mockResolvedValue({
+			data: {
+				id: "op-1",
+				tenant_id: "TEN-1",
+				tipo: "VENTA",
+				taller_id: "t1",
+				fecha: new Date().toISOString(),
+				created_at: new Date().toISOString(),
+				monto_total: 10000,
+				total_pagado: 4000,
+				saldo_pendiente: undefined,
+				operaciones_lineas: [],
+			},
+			error: null,
+		});
+
+		const req = new NextRequest("http://localhost/api/operaciones/op-1", {
+			method: "GET",
+		});
+
+		const res = await GET(req, { params: Promise.resolve({ id: "op-1" }) });
+		const body = await res.json();
+
+		expect(res.status).toBe(200);
+		expect(body.data.saldo_pendiente).toBe(6000);
+		expect(body.data.monto_total).toBe(10000);
+		expect(body.data.total_pagado).toBe(4000);
 	});
 });

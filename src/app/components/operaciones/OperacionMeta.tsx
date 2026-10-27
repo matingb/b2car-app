@@ -8,6 +8,7 @@ import IconLabel from "@/app/components/ui/IconLabel";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
 import OperacionPagoBadge from "./OperacionPagoBadge";
+import OperacionStockBadge from "./OperacionStockBadge";
 import type { EstadoPagoOperacion, EstadoStockOperacion, Operacion, TipoOperacion } from "@/model/types";
 
 type MetaItemConfig = {
@@ -29,6 +30,7 @@ type Props = {
   proveedorNombre?: string;
   operacion?: Operacion;
   onPagoUpdated?: () => void;
+  onStockUpdated?: () => void;
 };
 
 export default function OperacionMeta({
@@ -44,6 +46,7 @@ export default function OperacionMeta({
   proveedorNombre,
   operacion,
   onPagoUpdated,
+  onStockUpdated,
 }: Props) {
   const BadgeIcon = metaBadge.icon;
   const OriginIcon = accountOrWorkshop?.icon;
@@ -108,25 +111,15 @@ export default function OperacionMeta({
         />
       )}
 
-      {isComercial && estadoStock && estadoStock !== "NO_APLICA" ? (
-        <span
-          css={[
-            styles.statusChip,
-            estadoStock === "ENTREGADO"
-              ? styles.chipSuccess
-              : estadoStock === "PARCIAL"
-                ? styles.chipWarning
-                : styles.chipInfo,
-          ]}
-          data-testid="operacion-estado-stock-badge"
-        >
-          {estadoStock === "ENTREGADO"
-            ? (tipo === "VENTA" ? "Entregado" : "Recibido")
-            : estadoStock === "PARCIAL"
-              ? (tipo === "VENTA" ? "Entrega parcial" : "Recepción parcial")
-              : (tipo === "VENTA" ? "Mercadería reservada" : "En camino")}
-        </span>
-      ) : null}
+      {isComercial && (
+        <OperacionStockBadge
+          operacion={operacion}
+          estadoStock={estadoStock}
+          tipo={tipo}
+          onStockUpdated={onStockUpdated}
+          dataTestId="operacion-estado-stock-badge"
+        />
+      )}
     </div>
   );
 

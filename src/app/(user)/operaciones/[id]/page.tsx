@@ -25,17 +25,15 @@ import Color from "color";
 import { css } from "@emotion/react";
 import {
   ArrowLeft,
-  CircleDollarSign,
   FileText,
-  PackageCheck,
   Pencil,
   Receipt,
   Trash2,
   AlertCircle,
 } from "lucide-react";
 
-import OperacionPagoModal from "@/app/components/operaciones/OperacionPagoModal";
-import OperacionStockConfirmModal from "@/app/components/operaciones/OperacionStockConfirmModal";
+import OperacionPagoBadge from "@/app/components/operaciones/OperacionPagoBadge";
+import OperacionStockBadge from "@/app/components/operaciones/OperacionStockBadge";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
 import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
@@ -63,8 +61,6 @@ export default function OperacionDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [stocksById, setStocksById] = useState<Record<string, StockItem>>({});
-  const [isPagoModalOpen, setIsPagoModalOpen] = useState(false);
-  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [isEditGastoOpen, setIsEditGastoOpen] = useState(false);
   const [isFacturaOpen, setIsFacturaOpen] = useState(false);
   const [isRemitoOpen, setIsRemitoOpen] = useState(false);
@@ -160,9 +156,10 @@ export default function OperacionDetailPage() {
   const totalMonto = operacion?.monto_total ?? (isGasto ? Number(operacion?.monto) || 0 : totalCalculado);
   const totalPagado = operacion?.total_pagado ?? (operacion?.esta_pago ? totalMonto : 0);
   const saldoPendiente = operacion?.saldo_pendiente ?? Math.max(0, totalMonto - totalPagado);
-
-  const tieneSaldoPendiente = saldoPendiente > 0 || operacion?.estado_pago === "PENDIENTE" || operacion?.estado_pago === "PARCIAL";
-  const tieneStockPendiente = operacion?.estado_stock === "PENDIENTE" || operacion?.estado_stock === "PARCIAL";
+  const isSinCargo =
+    operacion?.tipo === "COMPRA" &&
+    totalMonto === 0 &&
+    !operacion?.total_pagado;
 
   const handleDelete = async () => {
     if (!operacion) return;
@@ -246,33 +243,49 @@ export default function OperacionDetailPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Cabecera */}
       <div css={styles.headerRow}>
-        <ScreenHeader
-          title={opTitle}
-          subtitle={subtitleParts.join(" · ")}
-          hasBackButton={true}
-        />
+        <div css={styles.headerMain}>
+          <ScreenHeader
+            title={opTitle}
+            subtitle={subtitleParts.join(" · ")}
+            hasBackButton={true}
+          />
+
+          {isComercial && (
+            <div css={styles.badgesRow}>
+              {isSinCargo ? (
+                <span
+                  css={styles.sinCargoChip}
+                  data-testid="chip-adquisicion-sin-cargo"
+                >
+                  Adquisición sin cargo
+                </span>
+              ) : (
+                <OperacionPagoBadge
+                  operacion={operacion}
+                  saldoPendiente={saldoPendiente}
+                  montoTotal={totalMonto}
+                  totalPagado={totalPagado}
+                  onPagoUpdated={() => {
+                    void loadOperacion();
+                    void refresh();
+                  }}
+                  size="md"
+                />
+              )}
+              <OperacionStockBadge
+                operacion={operacion}
+                size="md"
+                onStockUpdated={() => {
+                  void loadOperacion();
+                  void refresh();
+                }}
+              />
+            </div>
+          )}
+        </div>
 
         {/* Acciones principales */}
         <div css={styles.headerActions}>
-          {tieneSaldoPendiente && (
-            <Button
-              text={isVenta ? "Registrar Cobro" : "Registrar Pago"}
-              icon={<CircleDollarSign size={16} />}
-              onClick={() => setIsPagoModalOpen(true)}
-              dataTestId="operacion-detail-pago-btn"
-            />
-          )}
-
-          {isComercial && tieneStockPendiente && (
-            <Button
-              text={isVenta ? "Confirmar Entrega" : "Confirmar Recepción"}
-              icon={<PackageCheck size={16} />}
-              onClick={() => setIsStockModalOpen(true)}
-              dataTestId="operacion-detail-stock-btn"
-              outline
-            />
-          )}
-
           {isVenta && canUseBilling && (
             <Button
               text="Factura AFIP"
@@ -316,23 +329,25 @@ export default function OperacionDetailPage() {
           <div style={styles.cardHeader}>
             <span style={styles.cardTitle}>Estado Financiero</span>
             <div style={styles.badgeGroup}>
-              {operacion.estado_pago && (
+              {isSinCargo ? (
                 <span
-                  css={[
-                    styles.statusBadge,
-                    operacion.estado_pago === "PAGADO"
-                      ? styles.badgeSuccess
-                      : operacion.estado_pago === "PARCIAL"
-                        ? styles.badgeWarning
-                        : styles.badgeDanger,
-                  ]}
+                  css={styles.sinCargoChip}
+                  data-testid="chip-adquisicion-sin-cargo"
                 >
-                  {operacion.estado_pago === "PAGADO"
-                    ? (isVenta ? "Cobrado" : "Pagado")
-                    : operacion.estado_pago === "PARCIAL"
-                      ? "Pago parcial"
-                      : (isVenta ? "Por cobrar" : "Por pagar")}
+                  Adquisición sin cargo
                 </span>
+              ) : (
+                <OperacionPagoBadge
+                  operacion={operacion}
+                  saldoPendiente={saldoPendiente}
+                  montoTotal={totalMonto}
+                  totalPagado={totalPagado}
+                  onPagoUpdated={() => {
+                    void loadOperacion();
+                    void refresh();
+                  }}
+                  size="sm"
+                />
               )}
             </div>
           </div>
@@ -368,24 +383,13 @@ export default function OperacionDetailPage() {
           <Card style={styles.card}>
             <div style={styles.cardHeader}>
               <span style={styles.cardTitle}>Estado de Mercadería / Stock</span>
-              {operacion.estado_stock && operacion.estado_stock !== "NO_APLICA" && (
-                <span
-                  css={[
-                    styles.statusBadge,
-                    operacion.estado_stock === "ENTREGADO"
-                      ? styles.badgeSuccess
-                      : operacion.estado_stock === "PARCIAL"
-                        ? styles.badgeWarning
-                        : styles.badgeInfo,
-                  ]}
-                >
-                  {operacion.estado_stock === "ENTREGADO"
-                    ? (isVenta ? "Entregado" : "Recibido")
-                    : operacion.estado_stock === "PARCIAL"
-                      ? (isVenta ? "Entrega parcial" : "Recepción parcial")
-                      : (isVenta ? "Mercadería reservada" : "En camino")}
-                </span>
-              )}
+              <OperacionStockBadge
+                operacion={operacion}
+                onStockUpdated={() => {
+                  void loadOperacion();
+                  void refresh();
+                }}
+              />
             </div>
 
             <div style={styles.stockSummaryContainer}>
@@ -560,30 +564,7 @@ export default function OperacionDetailPage() {
         </Card>
       )}
 
-      {/* Modales de acción */}
-      {isPagoModalOpen && (
-        <OperacionPagoModal
-          open={isPagoModalOpen}
-          operacion={operacion}
-          onClose={() => setIsPagoModalOpen(false)}
-          onSuccess={() => {
-            void loadOperacion();
-            void refresh();
-          }}
-        />
-      )}
 
-      {isStockModalOpen && (
-        <OperacionStockConfirmModal
-          open={isStockModalOpen}
-          operacion={operacion}
-          onClose={() => setIsStockModalOpen(false)}
-          onSuccess={() => {
-            void loadOperacion();
-            void refresh();
-          }}
-        />
-      )}
 
       {isFacturaOpen && (
         <FacturaElectronicaModal
@@ -643,6 +624,19 @@ const styles = {
     flexWrap: "wrap",
     gap: 12,
   }),
+  headerMain: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    flex: 1,
+    minWidth: 260,
+  }),
+  badgesRow: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  }),
   headerActions: css({
     display: "flex",
     gap: 8,
@@ -677,29 +671,16 @@ const styles = {
     display: "flex",
     gap: 6,
   },
-  statusBadge: css({
+  sinCargoChip: css({
     display: "inline-flex",
     alignItems: "center",
-    padding: "3px 10px",
-    borderRadius: 14,
+    padding: "2px 8px",
+    borderRadius: 6,
     fontSize: 12,
-    fontWeight: 600,
-  }),
-  badgeSuccess: css({
-    backgroundColor: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
-    color: COLOR.SEMANTIC.SUCCESS,
-  }),
-  badgeWarning: css({
-    backgroundColor: Color(COLOR.SEMANTIC.WARNING).alpha(0.12).toString(),
-    color: COLOR.SEMANTIC.WARNING,
-  }),
-  badgeDanger: css({
-    backgroundColor: Color(COLOR.SEMANTIC.DANGER).alpha(0.12).toString(),
-    color: COLOR.SEMANTIC.DANGER,
-  }),
-  badgeInfo: css({
-    backgroundColor: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
+    fontWeight: 700,
     color: COLOR.SEMANTIC.INFO,
+    backgroundColor: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
+    border: `1px solid ${Color(COLOR.SEMANTIC.INFO).alpha(0.25).toString()}`,
   }),
   badgeInfoSimple: {
     fontSize: 12,

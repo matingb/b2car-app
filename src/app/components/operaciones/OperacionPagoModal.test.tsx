@@ -155,5 +155,29 @@ describe("OperacionPagoModal", () => {
     expect(screen.getByTestId("modal-submit")).toBeEnabled();
     expect(screen.getByTestId("modal-submit")).toHaveTextContent("Cobrar $3.000");
   });
+
+  it("calcula y renderiza el saldo pendiente si la operacion no trae saldo_pendiente explícito", async () => {
+    const opSinSaldo: Operacion = {
+      ...operacion,
+      saldo_pendiente: undefined,
+      monto_total: 15000,
+      total_pagado: 5000,
+    };
+
+    render(
+      <OperacionPagoModal
+        open={true}
+        operacion={opSinSaldo}
+        onClose={vi.fn()}
+      />
+    );
+
+    await runPendingPromises();
+
+    expect(screen.getByText("Registrar Cobro")).toBeInTheDocument();
+    expect(screen.getByText("$10.000")).toBeInTheDocument();
+    expect(screen.getByText("Importe: $10.000")).toBeInTheDocument();
+    expect(screen.getByTestId("modal-submit")).toHaveTextContent("Cobrar $10.000");
+  });
 });
 

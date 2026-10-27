@@ -144,6 +144,14 @@ describe("RegistrarPagoSection", () => {
     await user.type(descInput, "A");
 
     expect(handleUpdate).toHaveBeenCalledWith("pago-2", "descripcion", "A");
+
+    const fechaBtn = screen.getByTestId("pago-fecha-0");
+    await user.click(fechaBtn);
+
+    const dayBtn = screen.getByRole("button", { name: "20 de Agosto" });
+    await user.click(dayBtn);
+
+    expect(handleUpdate).toHaveBeenCalledWith("pago-1", "fecha", "2026-08-20");
   });
 
   it("muestra el formulario inline de cuenta cuando cuentaId es __create_cuenta__", async () => {
