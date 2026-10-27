@@ -2,12 +2,12 @@
 
 import React from "react";
 import { css } from "@emotion/react";
-import { CreditCard, Package } from "lucide-react";
+import { CreditCard, Package, ScrollText } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
 
-export type ProveedorTabKey = "productos" | "cuenta_corriente" | "informacion";
+export type ProveedorTabKey = "productos" | "operaciones" | "cuenta_corriente" | "informacion";
 
 type Props = {
   activeTab: ProveedorTabKey;
@@ -42,17 +42,29 @@ export default function ProveedorTabsNav({
       <Can permission={Permission.OperacionesView}>
         <button
           type="button"
+          onClick={() => onChangeTab("operaciones")}
+          css={[styles.tabButton, activeTab === "operaciones" && styles.tabButtonActive]}
+          data-testid="proveedor-tab-operaciones"
+        >
+          <ScrollText size={17} />
+          <span>Operaciones</span>
+          {operacionesCount != null && operacionesCount > 0 ? (
+            <span css={[styles.countBadge, activeTab === "operaciones" && styles.countBadgeActive]}>
+              {operacionesCount}
+            </span>
+          ) : null}
+        </button>
+      </Can>
+
+      <Can permission={Permission.OperacionesView}>
+        <button
+          type="button"
           onClick={() => onChangeTab("cuenta_corriente")}
           css={[styles.tabButton, activeTab === "cuenta_corriente" && styles.tabButtonActive]}
           data-testid="proveedor-tab-cuentacorriente"
         >
           <CreditCard size={17} />
           <span>Cuenta Corriente</span>
-          {operacionesCount != null && operacionesCount > 0 ? (
-            <span css={[styles.countBadge, activeTab === "cuenta_corriente" && styles.countBadgeActive]}>
-              {operacionesCount}
-            </span>
-          ) : null}
         </button>
       </Can>
     </nav>

@@ -1,6 +1,86 @@
-import { Building2, Package, Tag, WalletCards } from "lucide-react";
-import type { Operacion } from "@/model/types";
+import React from "react";
+import Color from "color";
+import {
+  ArrowLeftRight,
+  Building2,
+  CircleDollarSign,
+  Package,
+  Receipt,
+  SlidersHorizontal,
+  Tag,
+  Truck,
+  WalletCards,
+  Wrench,
+} from "lucide-react";
+import { COLOR } from "@/theme/theme";
+import type { Operacion, TipoOperacion } from "@/model/types";
 import type { StockItem } from "@/model/stock";
+
+export const tipoConfig: Record<
+  TipoOperacion,
+  { label: string; icon: React.ReactNode; color: string; bg: string }
+> = {
+  COMPRA: {
+    label: "Compra",
+    icon: <Truck size={18} />,
+    color: COLOR.SEMANTIC.DANGER,
+    bg: Color(COLOR.SEMANTIC.DANGER).alpha(0.12).toString(),
+  },
+  VENTA: {
+    label: "Venta",
+    icon: <Receipt size={18} />,
+    color: COLOR.SEMANTIC.SUCCESS,
+    bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
+  },
+  GASTO: {
+    label: "Gasto",
+    icon: <WalletCards size={18} />,
+    color: COLOR.SEMANTIC.DANGER,
+    bg: Color(COLOR.SEMANTIC.DANGER).alpha(0.12).toString(),
+  },
+  ASIGNACION_ARREGLO: {
+    label: "Asignación",
+    icon: <Wrench size={18} />,
+    color: COLOR.SEMANTIC.INFO,
+    bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
+  },
+  COBRO_ARREGLO: {
+    label: "Cobro de arreglo",
+    icon: <CircleDollarSign size={18} />,
+    color: COLOR.SEMANTIC.SUCCESS,
+    bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
+  },
+  AJUSTE: {
+    label: "Ajuste",
+    icon: <SlidersHorizontal size={18} />,
+    color: COLOR.SEMANTIC.WARNING,
+    bg: Color(COLOR.SEMANTIC.WARNING).alpha(0.12).toString(),
+  },
+  INGRESO: {
+    label: "Ingreso manual",
+    icon: <CircleDollarSign size={18} />,
+    color: COLOR.SEMANTIC.SUCCESS,
+    bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
+  },
+  APERTURA_CUENTA: {
+    label: "Apertura de cuenta",
+    icon: <WalletCards size={18} />,
+    color: COLOR.SEMANTIC.INFO,
+    bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
+  },
+  TRANSFERENCIA: {
+    label: "Transferencia",
+    icon: <ArrowLeftRight size={18} />,
+    color: COLOR.ACCENT.PRIMARY,
+    bg: Color(COLOR.ACCENT.PRIMARY).alpha(0.12).toString(),
+  },
+  MOVIMIENTO_CUENTA: {
+    label: "Movimiento",
+    icon: <WalletCards size={18} />,
+    color: COLOR.SEMANTIC.INFO,
+    bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
+  },
+};
 
 export function getTotals(operacion: Operacion) {
   if (

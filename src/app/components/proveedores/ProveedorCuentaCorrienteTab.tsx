@@ -5,14 +5,12 @@ import { css } from "@emotion/react";
 import { COLOR, BREAKPOINTS } from "@/theme/theme";
 import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
-import { CheckCircle2, Clock, ShoppingCart, TrendingUp } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
 import { proveedoresClient } from "@/clients/proveedores/proveedoresClient";
 import type { ProveedorCuentaCorrienteResumen } from "@/model/dtos";
 import Link from "next/link";
-import PagoBadge from "@/app/components/ui/PagoBadge";
-import EstadoStockBadge from "@/app/components/ui/EstadoStockBadge";
 
 export type ProveedorCuentaCorrienteTabProps = {
 	proveedorId: string;
@@ -96,8 +94,6 @@ export default function ProveedorCuentaCorrienteTab({
 								<th style={styles.th}>Fecha</th>
 								<th style={styles.th}>Operación</th>
 								<th style={styles.th}>Taller</th>
-								<th style={styles.th}>Pago</th>
-								<th style={styles.th}>Recepción Stock</th>
 								<th style={{ ...styles.th, textAlign: "right" }}>Total</th>
 								<th style={{ ...styles.th, textAlign: "right" }}>Pagado</th>
 								<th style={{ ...styles.th, textAlign: "right" }}>Saldo</th>
@@ -133,14 +129,6 @@ export default function ProveedorCuentaCorrienteTab({
 									</td>
 
 									<td style={styles.td}>{op.taller_nombre || "—"}</td>
-
-									<td style={styles.td}>
-										<PagoBadge estado={op.estado_pago} size="sm" />
-									</td>
-
-									<td style={styles.td}>
-										<EstadoStockBadge estado={op.estado_stock} size="sm" />
-									</td>
 
 									<td style={{ ...styles.td, textAlign: "right", fontWeight: 600 }}>
 										{formatArs(op.monto_total)}

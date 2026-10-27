@@ -169,7 +169,7 @@ export default function TransferenciaFinancieraModal({
               id="transferencia-fecha"
               value={fecha}
               onChange={setFecha}
-              triggerStyle={styles.dateTrigger}
+              style={styles.dateTrigger}
               dataTestId="transferencia-fecha"
             />
           </div>

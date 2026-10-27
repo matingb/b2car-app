@@ -107,6 +107,45 @@ describe("POST /api/operaciones/[id]/pagos", () => {
 		expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "tenant-1");
 	});
 
+	it("registra múltiples pagos exitosamente cuando se envía un array pagos", async () => {
+		const opId = "11111111-1111-4111-8111-111111111111";
+		const cuentaId1 = "22222222-2222-4222-8222-222222222222";
+		const cuentaId2 = "33333333-3333-4333-8333-333333333333";
+		vi.mocked(operacionesService.registrarPago).mockResolvedValue({
+			data: { ok: true, total_pagado: 1000, saldo_pendiente: 0, esta_pago: true, estado_pago: "PAGADO" },
+			error: null,
+		});
+		vi.mocked(operacionesService.getById).mockResolvedValue({
+			data: { id: opId, tenant_id: "tenant-1" } as OperacionRow,
+			error: null,
+		});
+
+		const req = new Request(`http://localhost/api/operaciones/${opId}/pagos`, {
+			method: "POST",
+			body: JSON.stringify({
+				pagos: [
+					{ cuenta_id: cuentaId1, monto: 600, descripcion: "Parte 1" },
+					{ cuenta_id: cuentaId2, monto: 400, descripcion: "Parte 2" },
+				],
+			}),
+		}) as unknown as NextRequest;
+
+		const response = await POST(req, { params: Promise.resolve({ id: opId }) });
+		expect(response.status).toBe(201);
+		const json = await response.json();
+		expect(json.data.ok).toBe(true);
+		expect(operacionesService.registrarPago).toHaveBeenCalledWith(
+			expect.anything(),
+			opId,
+			expect.objectContaining({
+				pagos: [
+					expect.objectContaining({ cuentaId: cuentaId1, monto: 600, descripcion: "Parte 1" }),
+					expect.objectContaining({ cuentaId: cuentaId2, monto: 400, descripcion: "Parte 2" }),
+				],
+			})
+		);
+	});
+
 	it("devuelve 404 si la operación no existe", async () => {
 		const opId = "11111111-1111-4111-8111-111111111111";
 		vi.mocked(operacionesService.registrarPago).mockResolvedValue({

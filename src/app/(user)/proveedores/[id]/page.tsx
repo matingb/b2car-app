@@ -9,6 +9,7 @@ import ProveedorModal from "@/app/components/proveedores/ProveedorModal";
 import ProveedorProfileCard from "@/app/components/proveedores/ProveedorProfileCard";
 import ProveedorTabsNav, { type ProveedorTabKey } from "@/app/components/proveedores/ProveedorTabsNav";
 import ProveedorProductosTab from "@/app/components/proveedores/ProveedorProductosTab";
+import ProveedorOperacionesTab from "@/app/components/proveedores/ProveedorOperacionesTab";
 import ProveedorCuentaCorrienteTab from "@/app/components/proveedores/ProveedorCuentaCorrienteTab";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 import { OperacionesProvider } from "@/app/providers/OperacionesProvider";
@@ -39,6 +40,7 @@ export default function ProveedorDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [compraModalOpen, setCompraModalOpen] = useState(false);
+  const [compraProductoId, setCompraProductoId] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<ProveedorTabKey>("productos");
   const [productosCount, setProductosCount] = useState<number | undefined>(undefined);
@@ -182,8 +184,24 @@ export default function ProveedorDetailPage() {
         <ProveedorProductosTab
           proveedorId={proveedor.id}
           proveedorNombre={proveedor.nombre}
-          onComprarProducto={() => setCompraModalOpen(true)}
+          onComprarProducto={(productoId) => {
+            setCompraProductoId(productoId);
+            setCompraModalOpen(true);
+          }}
           onCountChange={setProductosCount}
+        />
+      )}
+
+      {activeTab === "operaciones" && (
+        <ProveedorOperacionesTab
+          proveedorId={proveedor.id}
+          proveedorNombre={proveedor.nombre}
+          onCountChange={setOperacionesCount}
+          onNuevaCompra={() => {
+            setCompraProductoId(null);
+            setCompraModalOpen(true);
+          }}
+          onOperacionUpdated={() => void loadFinanzas()}
         />
       )}
 
@@ -191,7 +209,10 @@ export default function ProveedorDetailPage() {
         <ProveedorCuentaCorrienteTab
           proveedorId={proveedor.id}
           onCountChange={setOperacionesCount}
-          onNuevaCompra={() => setCompraModalOpen(true)}
+          onNuevaCompra={() => {
+            setCompraProductoId(null);
+            setCompraModalOpen(true);
+          }}
         />
       )}
 
@@ -210,13 +231,18 @@ export default function ProveedorDetailPage() {
               talleres={talleres}
               initialTipo="COMPRA"
               initialProveedorId={proveedor.id}
+              initialProductoId={compraProductoId}
               disabledProveedor
               onSuccess={async () => {
                 setCompraModalOpen(false);
+                setCompraProductoId(null);
                 toast.success("Compra registrada", `Se registró la compra para ${proveedor.nombre}.`);
                 void loadFinanzas();
               }}
-              onClose={() => setCompraModalOpen(false)}
+              onClose={() => {
+                setCompraModalOpen(false);
+                setCompraProductoId(null);
+              }}
             />
           </InventarioProvider>
         </OperacionesProvider>

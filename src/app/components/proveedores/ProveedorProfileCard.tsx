@@ -4,7 +4,6 @@ import React from "react";
 import { css } from "@emotion/react";
 import {
   Building2,
-  CheckCircle2,
   Mail,
   MapPin,
   MessageCircle,
@@ -93,10 +92,7 @@ export default function ProveedorProfileCard({
             ) : tieneSaldoAFavor ? (
               <span css={styles.saldoFavorBadge}>Saldo a favor</span>
             ) : (
-              <span css={styles.alDiaBadge}>
-                <CheckCircle2 size={13} style={{ marginRight: 4 }} />
-                Al día
-              </span>
+              <span css={styles.alDiaBadge}>Al día</span>
             )}
           </div>
         </div>
@@ -275,7 +271,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-end",
-    gap: 4,
+    gap: 8,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       alignItems: "flex-start",
       width: "100%",
@@ -284,12 +280,12 @@ const styles = {
   }),
   balanceRow: css({
     display: "flex",
-    alignItems: "center",
-    gap: 12,
+    alignItems: "flex-end",
+    gap: 10,
     flexWrap: "wrap",
   }),
   balanceAmount: css({
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 700,
     lineHeight: 1,
     letterSpacing: "-0.02em",
@@ -303,45 +299,38 @@ const styles = {
   balanceFavor: css({
     color: COLOR.SEMANTIC.INFO,
   }),
-  balanceLabel: css({
-    fontSize: 11,
+  deudaBadge: css({
+    display: "inline-flex",
+    alignItems: "center",
+    fontSize: 12,
     fontWeight: 600,
-    letterSpacing: "0.06em",
-    color: COLOR.TEXT.SECONDARY,
-    textTransform: "uppercase",
+    color: COLOR.SEMANTIC.DANGER,
+    backgroundColor: COLOR.BACKGROUND.DANGER_TINT,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 9999,
+    padding: "4px 12px",
   }),
   alDiaBadge: css({
     display: "inline-flex",
     alignItems: "center",
     fontSize: 12,
     fontWeight: 600,
-    color: COLOR.STATUS.SUCCESS.TEXT,
-    backgroundColor: COLOR.STATUS.SUCCESS.BG_SUBTLE,
-    border: `1px solid ${COLOR.STATUS.SUCCESS.BORDER}`,
+    color: COLOR.SEMANTIC.SUCCESS,
+    backgroundColor: COLOR.BACKGROUND.SUCCESS_TINT,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 9999,
-    padding: "4px 10px",
-  }),
-  deudaBadge: css({
-    display: "inline-flex",
-    alignItems: "center",
-    fontSize: 12,
-    fontWeight: 600,
-    color: COLOR.STATUS.DANGER.TEXT,
-    backgroundColor: COLOR.STATUS.DANGER.BG_SUBTLE,
-    border: `1px solid ${COLOR.STATUS.DANGER.BORDER}`,
-    borderRadius: 9999,
-    padding: "4px 10px",
+    padding: "4px 12px",
   }),
   saldoFavorBadge: css({
     display: "inline-flex",
     alignItems: "center",
     fontSize: 12,
     fontWeight: 600,
-    color: COLOR.STATUS.INFO.TEXT,
-    backgroundColor: COLOR.STATUS.INFO.BG_SUBTLE,
-    border: `1px solid ${COLOR.STATUS.INFO.BORDER}`,
+    color: COLOR.SEMANTIC.INFO,
+    backgroundColor: COLOR.BACKGROUND.INFO_TINT,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 9999,
-    padding: "4px 10px",
+    padding: "4px 12px",
   }),
   detailsSection: css({
     marginTop: 18,

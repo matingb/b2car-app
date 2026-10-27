@@ -160,7 +160,7 @@ export default function RemitosConfiguracionCard() {
               </Field>
               <Field id="remitos-r-vencimiento" label="Vencimiento del CAI">
                 <Calendar id="remitos-r-vencimiento" dataTestId="remitos-r-vencimiento" clearable disabled={disabled} value={form.rCaiVencimiento}
-                  onChange={(fecha) => patch({ rCaiVencimiento: fecha })} triggerStyle={dateTriggerStyle} />
+                  onChange={(fecha) => patch({ rCaiVencimiento: fecha })} style={dateTriggerStyle} />
               </Field>
               <Field id="remitos-r-punto" label="Punto de emisión">
                 <input id="remitos-r-punto" type="number" min={1} max={99999} disabled={disabled} value={form.rPuntoEmision}
@@ -180,7 +180,7 @@ export default function RemitosConfiguracionCard() {
               </Field>
               <Field id="remitos-r-inicio" label="Inicio de actividades del establecimiento">
                 <Calendar id="remitos-r-inicio" dataTestId="remitos-r-inicio" clearable disabled={disabled} value={form.rInicioActividades}
-                  onChange={(fecha) => patch({ rInicioActividades: fecha })} triggerStyle={dateTriggerStyle} />
+                  onChange={(fecha) => patch({ rInicioActividades: fecha })} style={dateTriggerStyle} />
               </Field>
             </div>
           </div>

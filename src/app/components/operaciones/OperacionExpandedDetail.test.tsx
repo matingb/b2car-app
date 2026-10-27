@@ -158,7 +158,7 @@ describe("OperacionExpandedDetail", () => {
     expect(screen.queryByTestId("operacion-expanded-observaciones")).not.toBeInTheDocument();
   });
 
-  it("muestra botones para registrar cobro y confirmar entrega cuando la venta tiene saldo y stock pendiente", () => {
+  it("muestra productos y cumplimiento de entrega sin banner desglosado ni botones de acción", () => {
     const operacion: Operacion = {
       id: "op-venta-diferida",
       tipo: "VENTA",
@@ -194,10 +194,11 @@ describe("OperacionExpandedDetail", () => {
       />
     );
 
-    expect(screen.getByTestId("operacion-registrar-pago-btn")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Registrar Cobro/i })).toBeInTheDocument();
-    expect(screen.getByTestId("operacion-confirmar-stock-btn")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Confirmar Entrega/i })).toBeInTheDocument();
+    expect(screen.queryByTestId("operacion-registrar-pago-btn")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("operacion-confirmar-stock-btn")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("operacion-expanded-cliente")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("operacion-expanded-proveedor")).not.toBeInTheDocument();
+    expect(screen.getByText("Bujía Bosch")).toBeInTheDocument();
     expect(screen.getByText(/0 de 5 unidades entregadas/i)).toBeInTheDocument();
   });
 });

@@ -134,7 +134,7 @@ export default function AddPeriodForm({ onAdd }: Props) {
                                 setError(null);
                             }}
                             placeholder="Elegí desde y hasta"
-                            triggerStyle={styles.dateTrigger}
+                            style={styles.dateTrigger}
                             dataTestId="comparar-rango"
                         />
                     </div>

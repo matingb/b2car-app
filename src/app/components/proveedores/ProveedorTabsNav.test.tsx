@@ -6,7 +6,7 @@ import ProveedorTabsNav from "./ProveedorTabsNav";
 import { UserRole } from "@/lib/permissions";
 
 describe("ProveedorTabsNav", () => {
-  it("renderiza las pestañas de Productos y Cuenta Corriente y cambia al hacer click", () => {
+  it("renderiza las pestañas de Productos, Operaciones y Cuenta Corriente y cambia al hacer click", () => {
     const onChangeTab = vi.fn();
     render(
       <ProveedorTabsNav
@@ -19,14 +19,18 @@ describe("ProveedorTabsNav", () => {
 
     expect(screen.getByText("Productos")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
-    expect(screen.getByText("Cuenta Corriente")).toBeInTheDocument();
+    expect(screen.getByText("Operaciones")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("Cuenta Corriente")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Operaciones"));
+    expect(onChangeTab).toHaveBeenCalledWith("operaciones");
 
     fireEvent.click(screen.getByText("Cuenta Corriente"));
     expect(onChangeTab).toHaveBeenCalledWith("cuenta_corriente");
   });
 
-  it("oculta pestaña de Cuenta Corriente si el rol no tiene OperacionesView", () => {
+  it("oculta pestañas de Operaciones y Cuenta Corriente si el rol no tiene OperacionesView", () => {
     const onChangeTab = vi.fn();
     render(
       <TenantTestProvider hasPermission={mockHasPermission(UserRole.Operativo)}>
@@ -40,6 +44,7 @@ describe("ProveedorTabsNav", () => {
     );
 
     expect(screen.getByText("Productos")).toBeInTheDocument();
+    expect(screen.queryByText("Operaciones")).not.toBeInTheDocument();
     expect(screen.queryByText("Cuenta Corriente")).not.toBeInTheDocument();
   });
 });

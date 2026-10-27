@@ -152,7 +152,7 @@ export default function IngresoManualFinancieroModal({ open, cuentas, cuentaId, 
                 idempotencyKeyRef.current = generateUuidV4();
                 setFecha(next);
               }}
-              triggerStyle={styles.dateTrigger}
+              style={styles.dateTrigger}
               dataTestId="ingreso-manual-fecha"
             />
           </div>

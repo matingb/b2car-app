@@ -54,6 +54,10 @@ function mapRowToDTO(row: Record<string, unknown>): ProductoProveedorDTO {
 		? (row.proveedores as Record<string, unknown>)
 		: null;
 
+	const stocks = Array.isArray(prod?.stocks) ? (prod.stocks as Record<string, unknown>[]) : [];
+	const computedStock = stocks.reduce((acc, s) => acc + (Number(s.cantidad) || 0), 0);
+	const stockActual = row.stock_actual !== undefined ? Number(row.stock_actual) : computedStock;
+
 	return {
 		id: String(row.id),
 		tenant_id: String(row.tenant_id ?? ""),
@@ -74,6 +78,7 @@ function mapRowToDTO(row: Record<string, unknown>): ProductoProveedorDTO {
 		codigo_proveedor: row.codigo_proveedor ? String(row.codigo_proveedor) : null,
 		costo_referencia: Number(row.costo_referencia) || 0,
 		es_predeterminado: Boolean(row.es_predeterminado),
+		stock_actual: stockActual,
 		created_at: String(row.created_at),
 		updated_at: String(row.updated_at),
 	};
@@ -83,7 +88,7 @@ export const supabaseProductosProveedoresRepository: ProductosProveedoresReposit
 	async listarPorProveedor(supabase: SupabaseClient, proveedorId: string) {
 		const { data, error } = await supabase
 			.from("productos_proveedores")
-			.select("*, productos(id, codigo, nombre, marca, modelo, precio_unitario, costo_unitario, categorias)")
+			.select("*, productos(id, codigo, nombre, marca, modelo, precio_unitario, costo_unitario, categorias, stocks(cantidad))")
 			.eq("proveedor_id", proveedorId)
 			.order("created_at", { ascending: false });
 

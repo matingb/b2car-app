@@ -7,7 +7,8 @@ import { Coins, Truck, User, type LucideIcon } from "lucide-react";
 import IconLabel from "@/app/components/ui/IconLabel";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
-import type { EstadoPagoOperacion, EstadoStockOperacion, TipoOperacion } from "@/model/types";
+import OperacionPagoBadge from "./OperacionPagoBadge";
+import type { EstadoPagoOperacion, EstadoStockOperacion, Operacion, TipoOperacion } from "@/model/types";
 
 type MetaItemConfig = {
   icon: LucideIcon;
@@ -26,6 +27,8 @@ type Props = {
   tipo?: TipoOperacion;
   clienteNombre?: string;
   proveedorNombre?: string;
+  operacion?: Operacion;
+  onPagoUpdated?: () => void;
 };
 
 export default function OperacionMeta({
@@ -39,6 +42,8 @@ export default function OperacionMeta({
   tipo,
   clienteNombre,
   proveedorNombre,
+  operacion,
+  onPagoUpdated,
 }: Props) {
   const BadgeIcon = metaBadge.icon;
   const OriginIcon = accountOrWorkshop?.icon;
@@ -89,29 +94,19 @@ export default function OperacionMeta({
         />
       ) : null}
 
-      {isComercial && estadoPago ? (
-        <span
-          css={[
-            styles.statusChip,
-            estadoPago === "PAGADO"
-              ? styles.chipSuccess
-              : estadoPago === "PARCIAL"
-                ? styles.chipWarning
-                : styles.chipDanger,
-          ]}
-          data-testid="operacion-estado-pago-badge"
-        >
-          {estadoPago === "PAGADO"
-            ? (tipo === "VENTA" ? "Cobrado" : "Pagado")
-            : estadoPago === "PARCIAL"
-              ? (tipo === "VENTA"
-                  ? `Cobro parcial (Resta ${formatArs(saldoPendiente ?? 0)})`
-                  : `Pago parcial (Resta ${formatArs(saldoPendiente ?? 0)})`)
-              : (tipo === "VENTA"
-                  ? `Por cobrar (${formatArs(saldoPendiente ?? totalMonto)})`
-                  : `Por pagar (${formatArs(saldoPendiente ?? totalMonto)})`)}
-        </span>
-      ) : null}
+      {isComercial && !isSinCargo && (
+        <OperacionPagoBadge
+          operacion={operacion}
+          estado={estadoPago}
+          saldoPendiente={saldoPendiente}
+          montoTotal={totalMonto}
+          tipo={tipo}
+          size="sm"
+          hideTextOnMobile={isMobile}
+          onPagoUpdated={onPagoUpdated}
+          dataTestId="operacion-pago-badge"
+        />
+      )}
 
       {isComercial && estadoStock && estadoStock !== "NO_APLICA" ? (
         <span

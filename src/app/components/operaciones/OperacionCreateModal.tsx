@@ -23,7 +23,6 @@ function OperacionCreateModalContent({ onClose }: { onClose: () => void }) {
     isSubmitting,
     submitForm,
     importeTotal,
-    stockDeliveryStatus,
   } = useOperacionForm();
 
   const title = isEditingGasto ? "Editar gasto" : "Nueva operación";
@@ -79,23 +78,11 @@ function OperacionCreateModalContent({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        {/* Campos principales (3 columnas: Taller, Fecha, Cliente/Proveedor) */}
         <OperacionHeaderFields />
 
-        {/* Detalle según tipo */}
         {tipo === "GASTO" ? <OperacionGastoForm /> : <OperacionStockForm />}
 
-        {/* Footer integrado */}
         <div css={styles.modalFooter}>
-          <div css={styles.footerLeft}>
-            {tipo !== "GASTO" && (
-              <div css={styles.stockStatus}>
-                <span css={styles.stockStatusLabel}>Stock: </span>
-                <span css={styles.stockStatusValue}>{stockDeliveryStatus}</span>
-              </div>
-            )}
-          </div>
-
           <div css={styles.footerRight}>
             <button
               type="button"
@@ -116,7 +103,7 @@ function OperacionCreateModalContent({ onClose }: { onClose: () => void }) {
                 ? "Guardando..."
                 : isEditingGasto
                 ? "Guardar cambios"
-                : "Confirmar Operación →"}
+                : "Confirmar"}
             </button>
           </div>
         </div>

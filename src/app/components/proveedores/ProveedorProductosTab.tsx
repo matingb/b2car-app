@@ -202,7 +202,9 @@ export default function ProveedorProductosTab({
 
 										{/* Stock actual */}
 										<td style={styles.td}>
-											<span css={styles.stockBadge}>14 un</span>
+											<span css={styles.stockBadge} data-testid={`stock-actual-${item.producto_id}`}>
+												{typeof item.stock_actual === "number" ? `${item.stock_actual} un` : "0 un"}
+											</span>
 										</td>
 
 										{/* Precio Costo */}

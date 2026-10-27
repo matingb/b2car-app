@@ -56,6 +56,10 @@ vi.mock("@/app/components/proveedores/ProveedorProductosTab", () => ({
   ),
 }));
 
+vi.mock("@/app/components/proveedores/ProveedorOperacionesTab", () => ({
+  default: () => <div data-testid="mock-operaciones-tab">Pestaña Operaciones</div>,
+}));
+
 vi.mock("@/app/components/proveedores/ProveedorCuentaCorrienteTab", () => ({
   default: () => <div data-testid="mock-cuentacorriente-tab">Pestaña Cuenta Corriente</div>,
 }));
@@ -122,18 +126,26 @@ describe("ProveedorDetailPage", () => {
 
     // Tabs en la parte inferior
     const tabProductos = screen.getByTestId("proveedor-tab-productos");
+    const tabOperaciones = screen.getByTestId("proveedor-tab-operaciones");
     const tabCuentaCorriente = screen.getByTestId("proveedor-tab-cuentacorriente");
 
     expect(tabProductos).toBeInTheDocument();
+    expect(tabOperaciones).toBeInTheDocument();
     expect(tabCuentaCorriente).toBeInTheDocument();
 
     // Por defecto muestra la pestaña de productos
     expect(screen.getByTestId("mock-productos-tab")).toBeInTheDocument();
+    expect(screen.queryByTestId("mock-operaciones-tab")).not.toBeInTheDocument();
     expect(screen.queryByTestId("mock-cuentacorriente-tab")).not.toBeInTheDocument();
+
+    // Al hacer click en Operaciones, cambia la vista
+    fireEvent.click(tabOperaciones);
+    expect(screen.getByTestId("mock-operaciones-tab")).toBeInTheDocument();
+    expect(screen.queryByTestId("mock-productos-tab")).not.toBeInTheDocument();
 
     // Al hacer click en Cuenta Corriente, cambia la vista
     fireEvent.click(tabCuentaCorriente);
     expect(screen.getByTestId("mock-cuentacorriente-tab")).toBeInTheDocument();
-    expect(screen.queryByTestId("mock-productos-tab")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("mock-operaciones-tab")).not.toBeInTheDocument();
   });
 });

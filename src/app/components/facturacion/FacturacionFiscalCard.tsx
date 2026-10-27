@@ -97,7 +97,7 @@ export default function FacturacionFiscalCard({
               disabled={disabled}
               value={inicioActividades}
               onChange={(fecha) => onChange({ inicioActividades: fecha })}
-              triggerStyle={styles.dateTrigger}
+              style={styles.dateTrigger}
               dataTestId="facturacion-inicio-actividades"
             />
           </div>

@@ -23,6 +23,8 @@ export default function OperacionStockForm() {
     isProveedorProductosEmpty,
     proveedorId,
     proveedores,
+    clienteId,
+    clientes,
     getDefaultUnitarioForStockId,
     isContextualStock,
     observaciones,
@@ -46,18 +48,14 @@ export default function OperacionStockForm() {
   const isEnabled = Boolean(tipo && isTipoEnabled(tipo));
   const isAllowedTipo = tipo === "VENTA" || tipo === "COMPRA";
   const selectedProveedor = proveedores.find((p) => p.id === proveedorId);
+  const selectedCliente = clientes.find((c) => c.id === clienteId);
+  const contraparteNombre = tipo === "VENTA" ? selectedCliente?.nombre : selectedProveedor?.nombre;
 
   return (
     <div style={{ marginTop: 12 }}>
       <div style={styles.sectionHeaderRow}>
         <div style={styles.linesTitle}>Detalle de Productos</div>
       </div>
-
-      {tipo === "COMPRA" && Boolean(proveedorId) && isProveedorProductosLoading && (
-        <div style={styles.loadingSupplierNotice} data-testid="operacion-loading-proveedor-prods">
-          <span>Filtrando catálogo del proveedor...</span>
-        </div>
-      )}
 
       {isProveedorProductosEmpty && (
         <div style={styles.emptySupplierNotice} data-testid="operacion-empty-proveedor-prods">
@@ -122,6 +120,7 @@ export default function OperacionStockForm() {
           tipo={tipo as "VENTA" | "COMPRA"}
           totalOperacion={importeTotal}
           cuentaFavorita={cuentaFavorita}
+          contraparteNombre={contraparteNombre}
           pagos={pagosDraft}
           onAddPago={handleAddPagoRow}
           onRemovePago={handleRemovePagoRow}
@@ -144,11 +143,7 @@ export default function OperacionStockForm() {
             css={styles.observacionesToggle}
             data-testid="operaciones-observaciones-toggle"
           >
-            <span>
-              {showObservaciones || Boolean(observaciones)
-                ? "− Observaciones adicionales"
-                : "+ Observaciones adicionales"}
-            </span>
+            <span>Observaciones adicionales</span>
             <ChevronDown
               size={15}
               style={{
@@ -191,14 +186,6 @@ const styles = {
   linesSubtitle: {
     fontSize: 12,
     color: COLOR.TEXT.SECONDARY,
-  } as const,
-  loadingSupplierNotice: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    fontSize: 13,
-    color: COLOR.TEXT.SECONDARY,
-    marginBottom: 12,
   } as const,
   emptySupplierNotice: {
     display: "flex",

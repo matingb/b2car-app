@@ -193,7 +193,7 @@ export default function GastoFinancieroModal({
             value={fecha}
             onChange={setFecha}
             dataTestId="gasto-fecha"
-            triggerStyle={styles.dateInput}
+            style={styles.dateInput}
           />
         </div>
       </div>

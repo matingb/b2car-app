@@ -214,6 +214,61 @@ describe("supabaseProveedorRepository", () => {
       expect(res.data?.totalPagado).toBe(4000);
       expect(res.data?.saldoAdeudado).toBe(6000);
       expect(res.data?.operaciones[0].taller_nombre).toBe("Taller A");
+      expect(res.data?.operaciones[0].lineas).toEqual([]);
+    });
+
+    it("mapea operaciones_lineas enriquecidas con productos de stock", async () => {
+      const mockOperaciones = [
+        {
+          id: "op-2",
+          tipo: "COMPRA",
+          fecha: "2026-10-22T00:00:00Z",
+          created_at: "2026-10-22T00:00:00Z",
+          monto_total: 5000,
+          total_pagado: 5000,
+          estado_pago: "PAGADO",
+          estado_stock: "ENTREGADO",
+          observaciones: null,
+          taller_id: "t-1",
+          talleres: { nombre: "Taller A" },
+          operaciones_lineas: [
+            {
+              id: "lin-1",
+              stock_id: "stk-1",
+              cantidad: 2,
+              cantidad_cumplida: 2,
+              monto_unitario: 2500,
+              delta_cantidad: 2,
+              created_at: "2026-10-22T00:00:00Z",
+              stocks: {
+                producto_id: "prod-1",
+                productos: {
+                  nombre: "Filtro de Aceite",
+                  codigo: "FLT-001",
+                },
+              },
+            },
+          ],
+        },
+      ];
+
+      const supabase = makeSupabase({ data: mockOperaciones, error: null });
+      const res = await supabaseProveedorRepository.getCuentaCorriente(supabase, "prov-1");
+
+      expect(res.data?.operaciones[0].lineas).toEqual([
+        {
+          id: "lin-1",
+          operacion_id: "op-2",
+          stock_id: "stk-1",
+          cantidad: 2,
+          cantidad_cumplida: 2,
+          monto_unitario: 2500,
+          delta_cantidad: 2,
+          created_at: "2026-10-22T00:00:00Z",
+          nombre: "Filtro de Aceite",
+          codigo: "FLT-001",
+        },
+      ]);
     });
   });
 });

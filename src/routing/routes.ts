@@ -12,6 +12,7 @@ export const ROUTES = {
 	stock: "/stock",
 	productos: "/productos",
 	operaciones: "/operaciones",
+	operacionDetalle: (id: string | number) => `/operaciones/${id}`,
 	cuentasFinancieras: "/cuentas-financieras",
 	empleados: "/empleados",
 	talleres: "/talleres",

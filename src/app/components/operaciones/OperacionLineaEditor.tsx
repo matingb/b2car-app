@@ -99,7 +99,7 @@ export default function OperacionLineaEditor({
           options={stockOptions}
           value={linea.stockId}
           onChange={onStockChange}
-          placeholder={loadingStocks ? "Cargando inventario..." : "Buscar item..."}
+          placeholder={loadingStocks ? "Cargando..." : "Buscar item..."}
           disabled={disabled || stockSelectionDisabled || loadingStocks}
           dataTestId={`operaciones-line-${index}-stock`}
           style={styles.autocompleteCompact}

@@ -147,6 +147,7 @@ export function OperacionFormProvider({
   disabledProveedor = false,
   initialClienteId,
   disabledCliente = false,
+  initialProductoId,
   gasto,
   contextualStock,
   onSuccess,
@@ -180,7 +181,6 @@ export function OperacionFormProvider({
   const [montoInicial, setMontoInicial] = useState<string>("");
   const [moverStock, setMoverStock] = useState<boolean>(true);
 
-  // Pagos y Cuentas (reutilizable)
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
   const [pagosDraft, setPagosDraft] = useState<PagoDraftItem[]>(() => [
     {
@@ -192,14 +192,12 @@ export function OperacionFormProvider({
     },
   ]);
 
-  // Proveedor
   const [proveedorId, setProveedorId] = useState<string>(
     initialProveedorId ?? ""
   );
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [isProveedoresLoading, setIsProveedoresLoading] = useState<boolean>(false);
 
-  // Cliente
   const [clienteId, setClienteId] = useState<string>(
     initialClienteId ?? ""
   );
@@ -445,6 +443,21 @@ export function OperacionFormProvider({
       })
     );
   }, [open, tipo, proveedorProductoIds, stockById]);
+
+  // Pre-seleccionar producto inicial si fue provisto
+  useEffect(() => {
+    if (!open || !initialProductoId || !stockItems.length) return;
+    setLineas((prev) => {
+      if (prev.length === 1 && !prev[0].stockId) {
+        const match = stockItems.find((s) => s.productoId === initialProductoId);
+        if (match) {
+          const unitario = getDefaultUnitario(match, tipo || "COMPRA");
+          return [{ ...prev[0], stockId: match.id, unitario, total: round2(unitario * (Number(prev[0].cantidad) || 0)) }];
+        }
+      }
+      return prev;
+    });
+  }, [open, initialProductoId, stockItems, tipo]);
 
   // Recalcular unitario desde stock/producto y total al cambiar tipo (VENTA / COMPRA) o catálogo de proveedor
   useEffect(() => {

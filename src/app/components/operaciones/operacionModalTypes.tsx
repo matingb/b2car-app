@@ -28,6 +28,7 @@ export type OperacionModalProps = {
   disabledProveedor?: boolean;
   initialClienteId?: string | null;
   disabledCliente?: boolean;
+  initialProductoId?: string | null;
   gasto?: GastoFinanciero | null;
   /**
    * Restringe el modal a una operación de stock ya existente. Se usa desde el

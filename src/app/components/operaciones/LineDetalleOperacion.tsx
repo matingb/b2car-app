@@ -35,6 +35,8 @@ type Props = {
   onRemito?: () => void;
   /** Muestra las facturas y remitos de la venta al expandir la línea. */
   showDocumentos?: boolean;
+  onPagoSuccess?: () => void;
+  onStockSuccess?: () => void;
 };
 
 export default function LineDetalleOperacion({
@@ -52,6 +54,8 @@ export default function LineDetalleOperacion({
   onInvoice,
   onRemito,
   showDocumentos = false,
+  onPagoSuccess,
+  onStockSuccess,
 }: Props) {
   const {
     title,
@@ -104,6 +108,7 @@ export default function LineDetalleOperacion({
 
         <div css={[styles.metaRow, !expanded && styles.metaRowCollapsed]}>
           <OperacionMeta
+            operacion={operacion}
             metaBadge={metaBadge}
             accountOrWorkshop={accountOrWorkshop}
             totalMonto={totalMonto}
@@ -114,6 +119,7 @@ export default function LineDetalleOperacion({
             tipo={operacion.tipo}
             clienteNombre={operacion.cliente_nombre}
             proveedorNombre={operacion.proveedor_nombre}
+            onPagoUpdated={onPagoSuccess}
           />
           <OperacionActions
             isGasto={isGasto}

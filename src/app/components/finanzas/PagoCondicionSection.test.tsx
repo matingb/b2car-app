@@ -92,6 +92,7 @@ describe("PagoCondicionSection", () => {
         tipo="COMPRA"
         totalOperacion={52000}
         cuentaFavorita={mockCuentaFavorita}
+        contraparteNombre="Distribuidora Norte"
         pagos={[]}
         onAddPago={vi.fn()}
         onRemovePago={vi.fn()}
@@ -102,8 +103,14 @@ describe("PagoCondicionSection", () => {
     );
 
     expect(screen.getByTestId("pago-empty-notice")).toBeInTheDocument();
+    expect(screen.getByText("Operación a Cuenta Corriente")).toBeInTheDocument();
     expect(screen.getByText("Sin pago inmediato")).toBeInTheDocument();
-    expect(screen.getByTestId("cobro-advanced-toggle")).toHaveTextContent("Usar cuenta favorita (Banco Galicia)");
+    expect(
+      screen.getByText(/se imputará como saldo pendiente en la cuenta corriente de/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText("Distribuidora Norte")).toBeInTheDocument();
+    expect(screen.getByText("$ 52.000")).toBeInTheDocument();
+    expect(screen.queryByTestId("cobro-advanced-toggle")).not.toBeInTheDocument();
   });
 
   it("permite restaurar la cuenta favorita o registrar un pago desde el aviso diferido", async () => {
@@ -127,6 +134,7 @@ describe("PagoCondicionSection", () => {
     );
 
     expect(screen.getByText("Sin cobro inmediato")).toBeInTheDocument();
+    expect(screen.getByText("cliente")).toBeInTheDocument();
 
     const btnRestore = screen.getByTestId("btn-restore-favorita");
     expect(btnRestore).toHaveTextContent("Usar Banco Galicia");
@@ -137,10 +145,5 @@ describe("PagoCondicionSection", () => {
     expect(btnAdd).toHaveTextContent("Registrar un cobro");
     await user.click(btnAdd);
     expect(handleAdd).toHaveBeenCalledTimes(1);
-
-    // Al hacer click en el toggle inferior en modo diferido también debe invocar restore
-    const toggleBtn = screen.getByTestId("cobro-advanced-toggle");
-    await user.click(toggleBtn);
-    expect(handleRestore).toHaveBeenCalledTimes(2);
   });
 });

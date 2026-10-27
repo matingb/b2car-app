@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
-import CuentaFinancieraAutocomplete, {
+import PagoCondicionSection from "@/app/components/finanzas/PagoCondicionSection";
+import PagoSummaryBox from "@/app/components/finanzas/PagoSummaryBox";
+import {
+  type PagoDraftItem,
   CREATE_CUENTA_VALUE,
-} from "@/app/components/finanzas/CuentaFinancieraAutocomplete";
-import CuentaFinancieraFormFields, {
+} from "@/app/components/arreglos/RegistrarPagoSection";
+import {
   type CuentaFinancieraDraft,
   EMPTY_CUENTA_FINANCIERA_DRAFT,
   validateCuentaFinancieraForm,
@@ -14,9 +17,10 @@ import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvide
 import { useOperaciones } from "@/app/providers/OperacionesProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import type { Operacion } from "@/model/types";
-import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
+import { COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
-import { toISODateLocal, toISODateTimeWithLocalCurrentTime } from "@/lib/fechas";
+import { isValidDate, toISODateAppTimeZone, toISODateTimeWithLocalCurrentTime } from "@/lib/fechas";
+import { generateUuidV4 } from "@/lib/uuid";
 
 interface Props {
   open: boolean;
@@ -32,68 +36,175 @@ export default function OperacionPagoModal({
   onSuccess,
 }: Props) {
   const { registrarPago } = useOperaciones();
-  const { cuentaFavorita, createCuenta } = useCuentasFinancieras();
+  const { loading: loadingCuentas, cuentaFavorita, createCuenta } = useCuentasFinancieras();
   const { success, error } = useToast();
 
-  const [cuentaId, setCuentaId] = useState("");
-  const [cuentaDraft, setCuentaDraft] = useState<CuentaFinancieraDraft>(() => ({ ...EMPTY_CUENTA_FINANCIERA_DRAFT }));
-  const [monto, setMonto] = useState("");
-  const [fecha, setFecha] = useState(() => toISODateLocal(new Date()));
-  const [descripcion, setDescripcion] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const cuentaFavoritaId = cuentaFavorita?.id ?? null;
+  const hasCuentaFavorita = cuentaFavoritaId !== null;
 
   const saldoPendiente = operacion?.saldo_pendiente ?? 0;
   const isVenta = operacion?.tipo === "VENTA";
-  const isCreatingCuenta = cuentaId === CREATE_CUENTA_VALUE;
 
-  const cuentaFavoritaId = cuentaFavorita?.id;
-  const operacionId = operacion?.id;
+  const [pagosDraft, setPagosDraft] = useState<PagoDraftItem[]>([
+    {
+      id: generateUuidV4(),
+      cuentaId: "",
+      monto: "",
+      fecha: toISODateAppTimeZone(),
+      descripcion: "",
+    },
+  ]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open || !operacion) return;
-    setCuentaId(cuentaFavoritaId ?? "");
-    setMonto(saldoPendiente > 0 ? String(saldoPendiente) : "");
-    setFecha(toISODateLocal(new Date()));
-    setDescripcion("");
-    setCuentaDraft({ ...EMPTY_CUENTA_FINANCIERA_DRAFT });
-  }, [open, operacionId, saldoPendiente, cuentaFavoritaId]);
+    setShowAdvanced(!hasCuentaFavorita);
+    setPagosDraft([
+      {
+        id: generateUuidV4(),
+        cuentaId: cuentaFavoritaId ?? "",
+        monto: saldoPendiente > 0 ? String(saldoPendiente) : "",
+        fecha: toISODateAppTimeZone(),
+        descripcion: "",
+      },
+    ]);
+  }, [open, operacion?.id, saldoPendiente, cuentaFavoritaId, hasCuentaFavorita]);
 
-  const montoNum = Number(monto);
-  const isValid =
-    Boolean(cuentaId) &&
-    (!isCreatingCuenta || validateCuentaFinancieraForm(cuentaDraft)) &&
-    Number.isFinite(montoNum) &&
-    montoNum > 0 &&
-    (saldoPendiente <= 0 || montoNum <= saldoPendiente);
+  const totalSumDraft = useMemo(() => {
+    return pagosDraft.reduce((acc, row) => acc + (Number(row.monto) || 0), 0);
+  }, [pagosDraft]);
+
+  const handleAddPagoRow = () => {
+    const restante = Math.max(0, saldoPendiente - totalSumDraft);
+    setPagosDraft((prev) => [
+      ...prev,
+      {
+        id: generateUuidV4(),
+        cuentaId: "",
+        monto: restante > 0 ? String(restante) : "",
+        fecha: toISODateAppTimeZone(),
+        descripcion: "",
+      },
+    ]);
+  };
+
+  const handleRemovePagoRow = (id: string) => {
+    if (pagosDraft.length <= 1) return;
+    setPagosDraft((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handleUpdatePagoRow = (id: string, field: keyof PagoDraftItem, value: string) => {
+    setPagosDraft((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
+    );
+  };
+
+  const handleUpdatePagoCuentaDraft = (id: string, patch: Partial<CuentaFinancieraDraft>) => {
+    setPagosDraft((prev) =>
+      prev.map((row) =>
+        row.id === id
+          ? {
+              ...row,
+              cuentaDraft: {
+                ...(row.cuentaDraft || EMPTY_CUENTA_FINANCIERA_DRAFT),
+                ...patch,
+              },
+            }
+          : row
+      )
+    );
+  };
+
+  const resetSimplePayment = useCallback(() => {
+    if (!cuentaFavoritaId) return;
+    setPagosDraft([
+      {
+        id: generateUuidV4(),
+        cuentaId: cuentaFavoritaId,
+        monto: saldoPendiente > 0 ? String(saldoPendiente) : "",
+        fecha: toISODateAppTimeZone(),
+        descripcion: "",
+      },
+    ]);
+  }, [cuentaFavoritaId, saldoPendiente]);
+
+  const handleToggleAdvanced = () => {
+    if (showAdvanced && cuentaFavorita) {
+      resetSimplePayment();
+    }
+    setShowAdvanced((current) => !current);
+  };
+
+  const handleRestoreFavorita = () => {
+    resetSimplePayment();
+    setShowAdvanced(false);
+  };
+
+  const canSubmit = useMemo(() => {
+    if (loadingCuentas || submitting) return false;
+    if (pagosDraft.length === 0) return false;
+
+    const allValid = pagosDraft.every((p) => {
+      const isCreating = p.cuentaId === CREATE_CUENTA_VALUE;
+      const hasValidCuenta = isCreating
+        ? validateCuentaFinancieraForm(p.cuentaDraft)
+        : Boolean(p.cuentaId);
+      const montoNum = Number(p.monto);
+      return (
+        hasValidCuenta &&
+        Number.isFinite(montoNum) &&
+        montoNum > 0 &&
+        isValidDate(p.fecha)
+      );
+    });
+
+    if (!allValid) return false;
+    if (saldoPendiente > 0 && totalSumDraft > saldoPendiente) return false;
+
+    return true;
+  }, [loadingCuentas, submitting, pagosDraft, saldoPendiente, totalSumDraft]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid || !operacion) return;
+    if (!canSubmit || !operacion) return;
 
     setSubmitting(true);
     try {
-      let finalCuentaId = cuentaId;
-      if (isCreatingCuenta) {
-        const created = await createCuenta({
-          nombre: cuentaDraft.nombre.trim(),
-          tipo: cuentaDraft.tipo,
-          saldoInicial: 0,
-        });
-        finalCuentaId = created.id;
-      }
+      const resolvedPagos = await Promise.all(
+        pagosDraft.map(async (p) => {
+          let finalCuentaId = p.cuentaId;
+          if (p.cuentaId === CREATE_CUENTA_VALUE && p.cuentaDraft) {
+            const created = await createCuenta({
+              nombre: p.cuentaDraft.nombre.trim(),
+              tipo: p.cuentaDraft.tipo,
+              saldoInicial: 0,
+            });
+            finalCuentaId = created.id;
+          }
+          const fechaIso = toISODateTimeWithLocalCurrentTime(p.fecha) ?? new Date().toISOString();
+          return {
+            cuentaId: finalCuentaId,
+            monto: Number(p.monto),
+            fecha: fechaIso,
+            descripcion: p.descripcion.trim() || undefined,
+          };
+        })
+      );
 
-      const fechaIso = toISODateTimeWithLocalCurrentTime(fecha) ?? new Date().toISOString();
-      const ok = await registrarPago(operacion.id, {
-        cuentaId: finalCuentaId,
-        monto: montoNum,
-        fecha: fechaIso,
-        descripcion: descripcion.trim() || undefined,
-      });
+      let ok = false;
+      if (resolvedPagos.length === 1) {
+        ok = await registrarPago(operacion.id, resolvedPagos[0]);
+      } else {
+        ok = await registrarPago(operacion.id, {
+          pagos: resolvedPagos,
+        });
+      }
 
       if (ok) {
         success(
           isVenta ? "Cobro registrado" : "Pago registrado",
-          `Se registró exitosamente el ${isVenta ? "cobro" : "pago"} de ${formatArs(montoNum)}.`
+          `Se registró exitosamente el ${isVenta ? "cobro" : "pago"} de ${formatArs(totalSumDraft)}.`
         );
         onSuccess?.();
         onClose();
@@ -114,95 +225,43 @@ export default function OperacionPagoModal({
       title={isVenta ? "Registrar Cobro" : "Registrar Pago"}
       onClose={onClose}
       onSubmit={handleSubmit}
-      submitText={isVenta ? "Confirmar Cobro" : "Confirmar Pago"}
+      submitText={
+        totalSumDraft > 0
+          ? `${isVenta ? "Cobrar" : "Pagar"} ${formatArs(totalSumDraft)}`
+          : isVenta
+          ? "Confirmar Cobro"
+          : "Confirmar Pago"
+      }
       submitting={submitting}
-      disabledSubmit={!isValid}
-      modalStyle={{ width: "min(520px, 96vw)" }}
+      disabledSubmit={!canSubmit}
+      modalStyle={{ width: "min(640px, 96vw)" }}
     >
       <div style={styles.container}>
-        {/* Resumen de saldo */}
-        <div style={styles.summaryCard}>
-          <div style={styles.summaryRow}>
-            <span style={styles.summaryLabel}>Total acordado:</span>
-            <strong style={styles.summaryValue}>{formatArs(operacion.monto_total ?? 0)}</strong>
-          </div>
-          <div style={styles.summaryRow}>
-            <span style={styles.summaryLabel}>{isVenta ? "Total cobrado:" : "Total pagado:"}</span>
-            <span style={styles.summaryValue}>{formatArs(operacion.total_pagado ?? 0)}</span>
-          </div>
-          <div style={styles.summaryRowHighlight}>
-            <span style={styles.summaryLabelHighlight}>Saldo pendiente:</span>
-            <strong style={styles.summaryValueHighlight}>{formatArs(saldoPendiente)}</strong>
-          </div>
-        </div>
+        <PagoSummaryBox
+          tipo={isVenta ? "VENTA" : "COMPRA"}
+          total={operacion.monto_total ?? 0}
+          totalPagado={operacion.total_pagado ?? 0}
+          saldoPendiente={saldoPendiente}
+          isReady={true}
+        />
 
-        {/* Cuenta financiera */}
-        <div style={styles.fieldGroup}>
-          <label style={styles.label}>
-            Cuenta financiera <span style={styles.required}>*</span>
-          </label>
-          <CuentaFinancieraAutocomplete
-            value={cuentaId}
-            onChange={setCuentaId}
-            dataTestId="operacion-pago-modal-cuenta"
-            style={{ height: 44, fontSize: 14 }}
-          />
-        </div>
-
-        {isCreatingCuenta && (
-          <CuentaFinancieraFormFields
-            values={cuentaDraft}
-            onChange={(patch) => setCuentaDraft({ ...cuentaDraft, ...patch })}
-            showSaldoInicial={false}
-            showActivo={false}
-            compact
-            dataTestIdPrefix="operacion-pago-cuenta"
-          />
-        )}
-
-        {/* Monto y Fecha */}
-        <div style={styles.twoCols}>
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>
-              Monto a {isVenta ? "cobrar" : "pagar"} ($) <span style={styles.required}>*</span>
-            </label>
-            <input
-              type="number"
-              min="0.01"
-              max={saldoPendiente > 0 ? saldoPendiente : undefined}
-              step="any"
-              value={monto}
-              onChange={(e) => setMonto(e.target.value)}
-              placeholder="0.00"
-              style={styles.input}
-              data-testid="operacion-pago-modal-monto"
-            />
-          </div>
-
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Fecha</label>
-            <input
-              type="date"
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-              style={styles.input}
-              data-testid="operacion-pago-modal-fecha"
-            />
-          </div>
-        </div>
-
-        {/* Descripción / Observación */}
-        <div style={styles.fieldGroup}>
-          <label style={styles.label}>Detalle / Referencia (opcional)</label>
-          <input
-            type="text"
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
-            placeholder="Ej: Transferencia bancaria #4819"
-            style={styles.input}
-            data-testid="operacion-pago-modal-descripcion"
-          />
-        </div>
+        <PagoCondicionSection
+          tipo={isVenta ? "VENTA" : "COMPRA"}
+          totalOperacion={totalSumDraft}
+          cuentaFavorita={cuentaFavorita}
+          pagos={pagosDraft}
+          onAddPago={handleAddPagoRow}
+          onRemovePago={handleRemovePagoRow}
+          onUpdatePago={handleUpdatePagoRow}
+          onUpdatePagoCuentaDraft={handleUpdatePagoCuentaDraft}
+          onRestoreFavorita={handleRestoreFavorita}
+          allowNoPagar={false}
+          loadingCuentas={loadingCuentas}
+          showAdvanced={showAdvanced}
+          onToggleAdvanced={handleToggleAdvanced}
+          dataTestIdSimple="operacion-pago-simple"
+          dataTestIdToggle="operacion-pago-advanced-toggle"
+        />
       </div>
     </Modal>
   );
@@ -215,71 +274,5 @@ const styles = {
     gap: 16,
     padding: "8px 0",
   },
-  summaryCard: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 6,
-    padding: "12px 14px",
-    borderRadius: 8,
-    backgroundColor: COLOR.BACKGROUND.SUBTLE,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-  },
-  summaryRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: 13,
-    color: COLOR.TEXT.SECONDARY,
-  },
-  summaryLabel: {
-    color: COLOR.TEXT.SECONDARY,
-  },
-  summaryValue: {
-    color: COLOR.TEXT.PRIMARY,
-  },
-  summaryRowHighlight: {
-    display: "flex",
-    justifyContent: "space-between",
-    fontSize: 14,
-    fontWeight: 600,
-    marginTop: 4,
-    paddingTop: 6,
-    borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
-  },
-  summaryLabelHighlight: {
-    color: COLOR.TEXT.PRIMARY,
-  },
-  summaryValueHighlight: {
-    color: COLOR.SEMANTIC.WARNING,
-  },
-  fieldGroup: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 6,
-    width: "100%",
-  },
-  twoCols: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 12,
-  },
-  label: {
-    fontSize: 13,
-    color: COLOR.TEXT.SECONDARY,
-  },
-  required: {
-    color: REQUIRED_ICON_COLOR,
-    fontWeight: 700,
-  },
-  input: {
-    height: 44,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 8,
-    padding: "10px 12px",
-    fontSize: 14,
-    color: COLOR.TEXT.PRIMARY,
-    backgroundColor: COLOR.INPUT.PRIMARY.BACKGROUND,
-    outline: "none",
-    width: "100%",
-    boxSizing: "border-box" as const,
-  },
 };
+

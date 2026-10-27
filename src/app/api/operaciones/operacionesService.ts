@@ -286,17 +286,44 @@ export function createOperacionesService(
 			supabase: SupabaseClient,
 			operacionId: string,
 			payload: {
-				cuentaId: string;
-				monto: number;
+				cuentaId?: string;
+				monto?: number;
 				fecha?: string;
 				descripcion?: string;
 				idempotencyKey?: string;
+				pagos?: Array<{
+					cuentaId: string;
+					monto: number;
+					fecha?: string;
+					descripcion?: string;
+					idempotencyKey?: string;
+				}>;
 			}
 		): Promise<{ data: unknown; error: ServiceError | null }> {
+			if (Array.isArray(payload.pagos) && payload.pagos.length > 0) {
+				let lastData: unknown = null;
+				for (const p of payload.pagos) {
+					const { data, error } = await repository.registrarPago(supabase, {
+						p_operacion_id: operacionId,
+						p_cuenta_id: p.cuentaId,
+						p_monto: p.monto,
+						p_fecha: p.fecha ? toISODateTimeWithCurrentTime(p.fecha) : new Date().toISOString(),
+						p_descripcion: p.descripcion ?? null,
+						p_idempotency_key: p.idempotencyKey ?? null,
+					});
+					if (error) {
+						logger.error("[operacionesService.registrarPago] Error:", error);
+						return { data: null, error: toServiceError(error) };
+					}
+					lastData = data;
+				}
+				return { data: lastData, error: null };
+			}
+
 			const { data, error } = await repository.registrarPago(supabase, {
 				p_operacion_id: operacionId,
-				p_cuenta_id: payload.cuentaId,
-				p_monto: payload.monto,
+				p_cuenta_id: payload.cuentaId!,
+				p_monto: payload.monto!,
 				p_fecha: payload.fecha ? toISODateTimeWithCurrentTime(payload.fecha) : new Date().toISOString(),
 				p_descripcion: payload.descripcion ?? null,
 				p_idempotency_key: payload.idempotencyKey ?? null,

@@ -25,54 +25,14 @@ import { formatArs } from "@/lib/format";
 import { isValidDate, toISODateAppTimeZone } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
 
+import PagoSummaryBox from "@/app/components/finanzas/PagoSummaryBox";
+
 type Props = {
   open: boolean;
   arregloId: string | number;
   onClose: () => void;
   onPaid?: (arreglo: Arreglo) => void;
 };
-
-function useAnimatedCounter(target: number, isReady: boolean, duration = 450) {
-  const [current, setCurrent] = useState<number | null>(null);
-  const prevRef = useRef<number>(0);
-  const rafRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!isReady) {
-      setCurrent(null);
-      prevRef.current = 0;
-      return;
-    }
-
-    const from = prevRef.current;
-    const to = target;
-    const start = performance.now();
-
-    const tick = (now: number) => {
-      const elapsed = now - start;
-      const progress = Math.min(elapsed / duration, 1);
-      const ease = 1 - Math.pow(1 - progress, 3);
-      const val = from + (to - from) * ease;
-      setCurrent(val);
-
-      if (progress < 1) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
-        prevRef.current = to;
-      }
-    };
-
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    };
-  }, [target, isReady, duration]);
-
-  return isReady && current !== null ? Math.round(current) : null;
-}
 
 export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: Props) {
   const { cobrar, anularCobro, fetchById } = useArreglos();
@@ -147,9 +107,6 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
   const saldoPendiente = Math.max(0, precioFinal - totalCobrado);
 
   const isReady = open && !loadingData && arreglo !== null;
-  const animatedPrecioFinal = useAnimatedCounter(precioFinal, isReady, 450);
-  const animatedTotalCobrado = useAnimatedCounter(totalCobrado, isReady, 450);
-  const animatedSaldoPendiente = useAnimatedCounter(saldoPendiente, isReady, 450);
 
   const totalSumDraft = useMemo(() => {
     return pagosDraft.reduce((acc, row) => acc + (Number(row.monto) || 0), 0);
@@ -337,39 +294,13 @@ export default function CobroArregloModal({ open, arregloId, onClose, onPaid }: 
       modalStyle={{ width: "min(640px, 96vw)" }}
     >
       <div css={styles.form}>
-        <div css={styles.summaryBox}>
-          <div css={styles.summaryItem}>
-            <span css={styles.summaryLabel}>Total Arreglo</span>
-            <span css={styles.summaryValue} data-testid="summary-total">
-              {animatedPrecioFinal !== null
-                ? formatArs(animatedPrecioFinal, { maxDecimals: 0 })
-                : "-"}
-            </span>
-          </div>
-          <div css={styles.summaryItem}>
-            <span css={styles.summaryLabel}>Cobrado</span>
-            <span css={styles.summaryValueSuccess} data-testid="summary-cobrado">
-              {animatedTotalCobrado !== null
-                ? formatArs(animatedTotalCobrado, { maxDecimals: 0 })
-                : "-"}
-            </span>
-          </div>
-          <div css={styles.summaryItem}>
-            <span css={styles.summaryLabel}>Saldo Pendiente</span>
-            <span
-              css={
-                animatedSaldoPendiente !== null && animatedSaldoPendiente > 0
-                  ? styles.summaryValueDanger
-                  : styles.summaryValueSuccess
-              }
-              data-testid="summary-saldo"
-            >
-              {animatedSaldoPendiente !== null
-                ? formatArs(animatedSaldoPendiente, { maxDecimals: 0 })
-                : "-"}
-            </span>
-          </div>
-        </div>
+        <PagoSummaryBox
+          tipo="ARREGLO"
+          total={precioFinal}
+          totalPagado={totalCobrado}
+          saldoPendiente={saldoPendiente}
+          isReady={isReady}
+        />
 
         {saldoPendiente <= 0 && precioFinal > 0 ? (
           <div css={styles.alertSuccess}>
@@ -411,41 +342,6 @@ const styles = {
     flexDirection: "column",
     gap: 16,
     paddingTop: 4,
-  }),
-  summaryBox: css({
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
-    gap: 12,
-    padding: "12px 16px",
-    backgroundColor: COLOR.BACKGROUND.PRIMARY,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 10,
-  }),
-  summaryItem: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: 2,
-  }),
-  summaryLabel: css({
-    fontSize: 11,
-    textTransform: "uppercase",
-    fontWeight: 600,
-    color: COLOR.TEXT.TERTIARY,
-  }),
-  summaryValue: css({
-    fontSize: 16,
-    fontWeight: 700,
-    color: COLOR.TEXT.PRIMARY,
-  }),
-  summaryValueSuccess: css({
-    fontSize: 16,
-    fontWeight: 700,
-    color: COLOR.SEMANTIC.SUCCESS,
-  }),
-  summaryValueDanger: css({
-    fontSize: 16,
-    fontWeight: 700,
-    color: COLOR.SEMANTIC.DANGER,
   }),
   alertSuccess: css({
     display: "flex",

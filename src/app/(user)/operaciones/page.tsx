@@ -465,6 +465,9 @@ export default function OperacionesPage() {
                                 onInvoice={canUseBilling && operacion.tipo === "VENTA" ? () => setFacturaOperacionId(operacion.id) : undefined}
                                 onRemito={canEmitRemitos && operacion.tipo === "VENTA" ? () => setRemitoOperacionId(operacion.id) : undefined}
                                 showDocumentos={canUseBilling && operacion.tipo === "VENTA"}
+                                onPagoSuccess={() => {
+                                    void refresh();
+                                }}
                             />
                         );
                     })}

@@ -37,7 +37,8 @@ export type CalendarProps = CalendarValueProps & {
   ariaLabel?: string;
   ariaDescribedBy?: string;
   invalid?: boolean;
-  triggerStyle?: React.CSSProperties;
+  style?: React.CSSProperties;
+  formatLabel?: (value: string) => string;
 };
 
 const MESES = [
@@ -106,7 +107,8 @@ export default function Calendar({
   ariaLabel,
   ariaDescribedBy,
   invalid = false,
-  triggerStyle,
+  style,
+  formatLabel,
 }: CalendarProps) {
   const isOutOfRange = (iso: string) => Boolean((min && iso < min) || (max && iso > max));
 
@@ -727,6 +729,7 @@ export default function Calendar({
       style={{
         ...styles.container,
         ...(disabled ? { cursor: "not-allowed" } : {}),
+        ...(style?.width ? { width: style.width } : {}),
       }}
       onClick={() => {
         if (!disabled && !isOpen) {
@@ -743,8 +746,8 @@ export default function Calendar({
           style={{
             ...styles.defaultTrigger,
             ...(invalid ? { borderColor: COLOR.SEMANTIC.DANGER } : {}),
-            ...triggerStyle,
             ...(disabled ? { opacity: 0.6, cursor: "not-allowed" } : {}),
+            ...style,
           }}
           aria-label={ariaLabel}
           aria-describedby={ariaDescribedBy}
@@ -758,7 +761,7 @@ export default function Calendar({
               color: hasValue ? COLOR.TEXT.PRIMARY : COLOR.TEXT.SECONDARY,
             }}
           >
-            {hasValue ? triggerLabel : placeholder}
+            {hasValue ? (formatLabel && value ? formatLabel(value) : triggerLabel) : placeholder}
           </span>
           {clearable && hasValue && !disabled ? (
             <span style={styles.clearSlot} aria-hidden="true" />

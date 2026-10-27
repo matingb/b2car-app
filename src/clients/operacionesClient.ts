@@ -283,24 +283,44 @@ export const operacionesClient = {
 	async registrarPago(
 		id: string,
 		payload: {
-			cuentaId: string;
-			monto: number;
+			cuentaId?: string;
+			monto?: number;
 			fecha?: string;
 			descripcion?: string;
 			idempotencyKey?: string;
+			pagos?: Array<{
+				cuentaId: string;
+				monto: number;
+				fecha?: string;
+				descripcion?: string;
+				idempotencyKey?: string;
+			}>;
 		}
 	): Promise<{ data: unknown; error: string | null }> {
 		try {
-			const res = await fetch(`/api/operaciones/${id}/pagos`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
+			const bodyPayload = payload.pagos && payload.pagos.length > 0
+				? {
+					pagos: payload.pagos.map((p) => ({
+						cuenta_id: p.cuentaId,
+						monto: p.monto,
+						fecha: p.fecha,
+						descripcion: p.descripcion,
+						idempotency_key: p.idempotencyKey ?? generateUuidV4(),
+					})),
+					idempotency_key: payload.idempotencyKey ?? generateUuidV4(),
+				  }
+				: {
 					cuenta_id: payload.cuentaId,
 					monto: payload.monto,
 					fecha: payload.fecha,
 					descripcion: payload.descripcion,
 					idempotency_key: payload.idempotencyKey ?? generateUuidV4(),
-				}),
+				  };
+
+			const res = await fetch(`/api/operaciones/${id}/pagos`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(bodyPayload),
 			});
 			const body = await res.json().catch(() => ({}));
 			if (!res.ok || body?.error) {

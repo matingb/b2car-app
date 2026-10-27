@@ -73,7 +73,7 @@ describe("OperacionPagoModal", () => {
     vi.clearAllMocks();
   });
 
-  it("renderiza el saldo pendiente y preselecciona la cuenta favorita", async () => {
+  it("renderiza el saldo pendiente y preselecciona la cuenta favorita en vista simple", async () => {
     render(
       <OperacionPagoModal
         open={true}
@@ -86,8 +86,9 @@ describe("OperacionPagoModal", () => {
 
     expect(screen.getByText("Registrar Cobro")).toBeInTheDocument();
     expect(screen.getByText("$6.000")).toBeInTheDocument();
-    const inputMonto = screen.getByTestId("operacion-pago-modal-monto") as HTMLInputElement;
-    expect(inputMonto.value).toBe("6000");
+    expect(screen.getByTestId("operacion-pago-simple")).toBeInTheDocument();
+    expect(screen.getByText("Caja Chica")).toBeInTheDocument();
+    expect(screen.getByText("Importe: $6.000")).toBeInTheDocument();
   });
 
   it("permite registrar un cobro por el saldo y llama a registrarPago", async () => {
@@ -106,6 +107,7 @@ describe("OperacionPagoModal", () => {
 
     const submitBtn = screen.getByTestId("modal-submit");
     expect(submitBtn).toBeEnabled();
+    expect(submitBtn).toHaveTextContent("Cobrar $6.000");
 
     await userEvent.click(submitBtn);
     await runPendingPromises();
@@ -120,7 +122,7 @@ describe("OperacionPagoModal", () => {
     });
   });
 
-  it("deshabilita el botón si el monto es 0 o excede el saldo pendiente", async () => {
+  it("permite alternar a modo avanzado, editar monto y valida el saldo", async () => {
     render(
       <OperacionPagoModal
         open={true}
@@ -131,7 +133,12 @@ describe("OperacionPagoModal", () => {
 
     await runPendingPromises();
 
-    const inputMonto = screen.getByTestId("operacion-pago-modal-monto");
+    // Alternar a avanzado
+    const toggleBtn = screen.getByTestId("operacion-pago-advanced-toggle");
+    await userEvent.click(toggleBtn);
+    await runPendingPromises();
+
+    const inputMonto = screen.getByTestId("pago-monto-0");
     await userEvent.clear(inputMonto);
     await userEvent.type(inputMonto, "0");
 
@@ -141,5 +148,12 @@ describe("OperacionPagoModal", () => {
     await userEvent.type(inputMonto, "7000");
 
     expect(screen.getByTestId("modal-submit")).toBeDisabled();
+
+    await userEvent.clear(inputMonto);
+    await userEvent.type(inputMonto, "3000");
+
+    expect(screen.getByTestId("modal-submit")).toBeEnabled();
+    expect(screen.getByTestId("modal-submit")).toHaveTextContent("Cobrar $3.000");
   });
 });
+

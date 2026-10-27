@@ -42,6 +42,7 @@ const mockProductos = [
     costo_referencia: 2200,
     producto_precio_venta: 3800,
     es_predeterminado: true,
+    stock_actual: 22,
     created_at: "2026-10-21T12:00:00Z",
   },
   {
@@ -55,6 +56,7 @@ const mockProductos = [
     costo_referencia: 34000,
     producto_precio_venta: 52000,
     es_predeterminado: false,
+    stock_actual: 0,
     created_at: "2026-10-05T10:00:00Z",
   },
 ];
@@ -98,6 +100,8 @@ describe("ProveedorProductosTab", () => {
 
     // Valores calculados
     expect(screen.getByText(/\+73% margen/)).toBeInTheDocument();
+    expect(screen.getByText("22 un")).toBeInTheDocument();
+    expect(screen.getByText("0 un")).toBeInTheDocument();
 
     // Acción Pedir
     const pedirButtons = screen.getAllByRole("button", { name: /pedir/i });

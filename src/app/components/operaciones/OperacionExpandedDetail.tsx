@@ -1,15 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
-import { css } from "@emotion/react";
-import { Check, Coins, PackageCheck } from "lucide-react";
-import Button from "@/app/components/ui/Button";
+import React from "react";
 import { COLOR } from "@/theme/theme";
 import type { Operacion } from "@/model/types";
 import type { StockItem } from "@/model/stock";
 import { formatArs } from "@/lib/format";
-import OperacionPagoModal from "./OperacionPagoModal";
-import OperacionStockConfirmModal from "./OperacionStockConfirmModal";
 
 type Props = {
   operacion: Operacion;
@@ -27,19 +22,10 @@ export default function OperacionExpandedDetail({
   stocksById,
   isMovimientoFinanciero,
 }: Props) {
-  const [isPagoModalOpen, setIsPagoModalOpen] = useState(false);
-  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
-
   const isAllowedTipo =
     operacion.tipo === "COMPRA" || operacion.tipo === "VENTA" || operacion.tipo === "GASTO";
   const hasObservaciones = isAllowedTipo && Boolean(operacion.observaciones?.trim());
-
   const isVenta = operacion.tipo === "VENTA";
-  const isCompra = operacion.tipo === "COMPRA";
-  const isComercial = isVenta || isCompra;
-
-  const tieneSaldoPendiente = (operacion.saldo_pendiente ?? 0) > 0 || operacion.estado_pago === "PENDIENTE" || operacion.estado_pago === "PARCIAL";
-  const tieneStockPendiente = operacion.estado_stock === "PENDIENTE" || operacion.estado_stock === "PARCIAL";
 
   if (isMovimientoFinanciero) {
     return (
@@ -62,72 +48,8 @@ export default function OperacionExpandedDetail({
     );
   }
 
-  const totalCalculado = (operacion.lineas ?? []).reduce(
-    (acc, l) => acc + (l.cantidad || 0) * (l.monto_unitario || 0),
-    0
-  );
-  const totalMonto = operacion.monto_total ?? totalCalculado;
-  const totalPagado = operacion.total_pagado ?? (operacion.esta_pago ? totalMonto : 0);
-  const saldoPendiente = operacion.saldo_pendiente ?? Math.max(0, totalMonto - totalPagado);
-
   return (
     <div style={styles.expandedList}>
-      {/* Banner de estado comercial para Compras y Ventas */}
-      {isComercial && (
-        <div style={styles.commercialSummaryCard}>
-          <div style={styles.financialCol}>
-            <div style={styles.summaryItem}>
-              <span style={styles.summaryItemLabel}>Total pactado</span>
-              <strong style={styles.summaryItemValue}>{formatArs(totalMonto)}</strong>
-            </div>
-            <div style={styles.summaryItem}>
-              <span style={styles.summaryItemLabel}>{isVenta ? "Cobrado" : "Pagado"}</span>
-              <span style={styles.summaryItemValue}>{formatArs(totalPagado)}</span>
-            </div>
-            <div style={styles.summaryItem}>
-              <span style={styles.summaryItemLabel}>Saldo pendiente</span>
-              <strong style={{ ...styles.summaryItemValue, color: saldoPendiente > 0 ? COLOR.SEMANTIC.WARNING : COLOR.SEMANTIC.SUCCESS }}>
-                {formatArs(saldoPendiente)}
-              </strong>
-            </div>
-            {isVenta && operacion.cliente_nombre && (
-              <div style={styles.summaryItem} data-testid="operacion-expanded-cliente">
-                <span style={styles.summaryItemLabel}>Cliente</span>
-                <span style={styles.summaryItemValue}>{operacion.cliente_nombre}</span>
-              </div>
-            )}
-            {isCompra && operacion.proveedor_nombre && (
-              <div style={styles.summaryItem} data-testid="operacion-expanded-proveedor">
-                <span style={styles.summaryItemLabel}>Proveedor</span>
-                <span style={styles.summaryItemValue}>{operacion.proveedor_nombre}</span>
-              </div>
-            )}
-          </div>
-
-          <div style={styles.actionsCol}>
-            {tieneSaldoPendiente && (
-              <Button
-                text={isVenta ? "Registrar Cobro" : "Registrar Pago"}
-                icon={<Coins size={15} />}
-                onClick={() => setIsPagoModalOpen(true)}
-                dataTestId="operacion-registrar-pago-btn"
-                style={styles.actionBtn}
-              />
-            )}
-            {tieneStockPendiente && (
-              <Button
-                text={isVenta ? "Confirmar Entrega" : "Confirmar Recepción"}
-                icon={<PackageCheck size={15} />}
-                onClick={() => setIsStockModalOpen(true)}
-                dataTestId="operacion-confirmar-stock-btn"
-                outline
-                style={styles.actionBtn}
-              />
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Lista de productos / líneas */}
       {(operacion.lineas ?? []).map((linea) => {
         const stockInfo = stocksById[linea.stock_id];
@@ -173,22 +95,6 @@ export default function OperacionExpandedDetail({
           <div style={styles.observacionesContent}>{operacion.observaciones}</div>
         </div>
       )}
-
-      {isPagoModalOpen && (
-        <OperacionPagoModal
-          open={isPagoModalOpen}
-          operacion={operacion}
-          onClose={() => setIsPagoModalOpen(false)}
-        />
-      )}
-
-      {isStockModalOpen && (
-        <OperacionStockConfirmModal
-          open={isStockModalOpen}
-          operacion={operacion}
-          onClose={() => setIsStockModalOpen(false)}
-        />
-      )}
     </div>
   );
 }
@@ -198,50 +104,6 @@ const styles = {
     display: "flex",
     flexDirection: "column" as const,
     gap: 10,
-  },
-  commercialSummaryCard: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap" as const,
-    gap: 12,
-    padding: "10px 14px",
-    borderRadius: 8,
-    backgroundColor: COLOR.BACKGROUND.SUBTLE,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    marginBottom: 4,
-  },
-  financialCol: {
-    display: "flex",
-    gap: 20,
-    flexWrap: "wrap" as const,
-  },
-  summaryItem: {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 2,
-  },
-  summaryItemLabel: {
-    fontSize: 11,
-    color: COLOR.TEXT.SECONDARY,
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.03em",
-    fontWeight: 600,
-  },
-  summaryItemValue: {
-    fontSize: 14,
-    color: COLOR.TEXT.PRIMARY,
-    fontWeight: 600,
-  },
-  actionsCol: {
-    display: "flex",
-    gap: 8,
-    alignItems: "center",
-  },
-  actionBtn: {
-    height: 34,
-    fontSize: 13,
-    padding: "0 12px",
   },
   cumplimientoMeta: {
     fontSize: 11,

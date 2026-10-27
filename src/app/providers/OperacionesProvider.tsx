@@ -34,7 +34,7 @@ type OperacionesContextType = {
 	update: (id: string | number, input: UpdateOperacionInput) => Promise<Operacion | null>;
 	remove: (id: string | number) => Promise<void>;
 	confirmarStock: (id: string, payload?: string | ConfirmarStockPayload) => Promise<boolean>;
-	registrarPago: (id: string, payload: { cuentaId: string; monto: number; fecha?: string; descripcion?: string }) => Promise<boolean>;
+	registrarPago: (id: string, payload: Parameters<typeof operacionesClient.registrarPago>[1]) => Promise<boolean>;
 };
 
 const OperacionesContext = createContext<OperacionesContextType | null>(null);
@@ -212,12 +212,7 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 
 	const registrarPago = useCallback(async (
 		id: string,
-		payload: {
-			cuentaId: string;
-			monto: number;
-			fecha?: string;
-			descripcion?: string;
-		}
+		payload: Parameters<typeof operacionesClient.registrarPago>[1]
 	) => {
 		setLoading(true);
 		try {

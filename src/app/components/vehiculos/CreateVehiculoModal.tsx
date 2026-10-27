@@ -112,7 +112,7 @@ export default function CreateVehiculoModal({
     <Modal
       open={open}
       title="Crear vehículo"
-      submitText="Guardar"
+      submitText="Crear"
       onClose={() => onClose()}
       onSubmit={handleSubmit}
       submitting={submitting}

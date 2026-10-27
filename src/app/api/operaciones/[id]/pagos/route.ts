@@ -25,6 +25,46 @@ export async function POST(
 		return Response.json({ data: null, error: "JSON inválido" }, { status: 400 });
 	}
 
+	if (Array.isArray(body.pagos) && body.pagos.length > 0) {
+		for (const p of body.pagos) {
+			if (!p.cuenta_id || !isValidUuid(p.cuenta_id)) {
+				return Response.json({ data: null, error: "Seleccioná una cuenta financiera válida" }, { status: 400 });
+			}
+			const monto = Number(p.monto);
+			if (!Number.isFinite(monto) || monto <= 0) {
+				return Response.json({ data: null, error: "El monto debe ser mayor a 0" }, { status: 400 });
+			}
+		}
+
+		const supabase = await createClient();
+
+		const { data, error } = await operacionesService.registrarPago(supabase, id, {
+			pagos: body.pagos.map((p: { cuenta_id: string; monto: number; fecha?: string; descripcion?: string; idempotency_key?: string }) => ({
+				cuentaId: p.cuenta_id,
+				monto: Number(p.monto),
+				fecha: p.fecha,
+				descripcion: p.descripcion,
+				idempotencyKey: p.idempotency_key,
+			})),
+			idempotencyKey: body.idempotency_key,
+		});
+
+		if (error) {
+			logger.error("POST /api/operaciones/[id]/pagos - error:", error);
+			if (error === ServiceError.NotFound) {
+				return Response.json({ data: null, error: "Operación no encontrada" }, { status: 404 });
+			}
+			return Response.json({ data: null, error: error.toString() }, { status: 500 });
+		}
+
+		const { data: opData } = await operacionesService.getById(supabase, id);
+		if (opData?.tenant_id) {
+			await statsService.onDataChanged(supabase, opData.tenant_id);
+		}
+
+		return Response.json({ data, error: null }, { status: 201 });
+	}
+
 	if (!body.cuenta_id || !isValidUuid(body.cuenta_id)) {
 		return Response.json({ data: null, error: "Seleccioná una cuenta financiera válida" }, { status: 400 });
 	}

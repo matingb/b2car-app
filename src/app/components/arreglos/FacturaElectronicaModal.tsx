@@ -537,7 +537,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       ariaDescribedBy: describedBy(key),
       disabled: revisando,
       clearable: true,
-      triggerStyle: styles.dateTrigger,
+      style: styles.dateTrigger,
     };
   };
 

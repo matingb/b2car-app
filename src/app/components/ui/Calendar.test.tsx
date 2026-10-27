@@ -288,4 +288,27 @@ describe("Calendar UI Component", () => {
       expect(onRangeChange).toHaveBeenCalledWith({ desde: "", hasta: "" });
     });
   });
+  it("permite formatear la fecha mostrada mediante formatLabel", () => {
+    const customFormat = (val: string) => {
+      const [y, m, d] = val.split("-");
+      return `${d}/${m}/${y}`;
+    };
+    render(<Calendar value="2026-09-15" onChange={vi.fn()} formatLabel={customFormat} />);
+
+    expect(screen.getByText("15/09/2026")).toBeInTheDocument();
+  });
+
+  it("aplica style al botón trigger por defecto", () => {
+    render(
+      <Calendar
+        value="2026-09-15"
+        onChange={vi.fn()}
+        dataTestId="styled-cal"
+        style={{ height: "38px" }}
+      />
+    );
+
+    const trigger = screen.getByTestId("styled-cal");
+    expect(trigger).toHaveStyle({ height: "38px" });
+  });
 });

@@ -31,10 +31,12 @@ export default function OperacionHeaderFields() {
     setProveedorId,
     disabledProveedor,
     proveedores,
+    isProveedoresLoading,
     clienteId,
     setClienteId,
     disabledCliente,
     clientes,
+    isClientesLoading,
     pagosDraft,
   } = useOperacionForm();
 
@@ -60,13 +62,12 @@ export default function OperacionHeaderFields() {
         ) : null}
 
         <div style={styles.headerCol}>
-          <label style={styles.label} htmlFor="operaciones-create-fecha">Fecha</label>
+          <label style={styles.label}>Fecha</label>
           <Calendar
-            id="operaciones-create-fecha"
             value={fecha}
             onChange={setFecha}
             dataTestId="operaciones-create-fecha"
-            triggerStyle={styles.dateInput}
+            style={{ height: 38 }}
           />
         </div>
 
@@ -80,9 +81,9 @@ export default function OperacionHeaderFields() {
                 value: c.id,
                 label: c.nombre + (c.dni_cuil || c.cuit ? ` (${c.dni_cuil || c.cuit})` : ""),
               }))}
-              placeholder="Seleccionar cliente"
+              placeholder={isClientesLoading ? "Cargando..." : "Seleccionar cliente"}
               dataTestId="operaciones-create-cliente"
-              disabled={disabledCliente}
+              disabled={disabledCliente || isClientesLoading}
               style={{ height: 38, fontSize: 14 }}
             />
           </div>
@@ -98,9 +99,9 @@ export default function OperacionHeaderFields() {
                 value: p.id,
                 label: p.nombre + (p.cuit ? ` (${p.cuit})` : ""),
               }))}
-              placeholder="Seleccionar proveedor"
+              placeholder={isProveedoresLoading ? "Cargando..." : "Seleccionar proveedor"}
               dataTestId="operaciones-create-proveedor"
-              disabled={disabledProveedor}
+              disabled={disabledProveedor || isProveedoresLoading}
               style={{ height: 38, fontSize: 14 }}
             />
           </div>
@@ -174,7 +175,4 @@ const styles = {
     fontWeight: 700,
     marginLeft: 2,
   },
-  dateInput: {
-    height: 38,
-  } as const,
 } as const;

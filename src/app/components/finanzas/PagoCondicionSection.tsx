@@ -2,18 +2,19 @@
 
 import React from "react";
 import { css } from "@emotion/react";
-import { ChevronDown, Clock, Plus, RotateCcw, WalletCards } from "lucide-react";
+import { ChevronDown, FileText, Plus, RotateCcw, WalletCards } from "lucide-react";
 import RegistrarPagoSection, {
   type PagoDraftItem,
 } from "@/app/components/arreglos/RegistrarPagoSection";
 import type { CuentaFinancieraDraft } from "@/app/components/finanzas/CuentaFinancieraFormFields";
 import { COLOR } from "@/theme/theme";
-import { formatArs } from "@/lib/format";
+import { formatArs, formatNumberAr } from "@/lib/format";
 
 export interface PagoCondicionSectionProps {
   tipo: "VENTA" | "COMPRA" | "GASTO" | "ARREGLO";
   totalOperacion: number;
   cuentaFavorita: { id: string; nombre: string } | null;
+  contraparteNombre?: string;
   pagos: PagoDraftItem[];
   onAddPago: () => void;
   onRemovePago: (id: string) => void;
@@ -34,6 +35,7 @@ export default function PagoCondicionSection({
   tipo,
   totalOperacion,
   cuentaFavorita,
+  contraparteNombre,
   pagos,
   onAddPago,
   onRemovePago,
@@ -55,10 +57,13 @@ export default function PagoCondicionSection({
     : "El pago se debitará de la cuenta favorita";
 
   const isDiferido = pagos.length === 0;
+  const contraparte = contraparteNombre?.trim() || (isVenta ? "cliente" : "proveedor");
+  const formattedImporte = formatNumberAr(totalOperacion > 0 ? totalOperacion : 0, {
+    maxDecimals: 0,
+  });
 
   return (
     <div css={styles.container}>
-      {/* Vista simple con cuenta favorita si no está expandido y hay cuentas registradas */}
       {cuentaFavorita && !showAdvanced && !isDiferido ? (
         <div css={styles.simplePayment} data-testid={dataTestIdSimple}>
           <div css={styles.simpleAccountIcon}>
@@ -77,20 +82,26 @@ export default function PagoCondicionSection({
       {(showAdvanced || !cuentaFavorita || isDiferido) && (
         <div css={styles.advancedContainer}>
           {isDiferido ? (
-            <div css={styles.emptyContainer}>
-              <div css={styles.emptyNotice} data-testid="pago-empty-notice">
-                <div css={styles.emptyNoticeIcon}>
-                  <Clock size={20} />
+            <div css={styles.emptyCard} data-testid="pago-empty-notice">
+              <div css={styles.emptyCardTop}>
+                <div css={styles.emptyDocIconBox}>
+                  <FileText size={20} strokeWidth={1.8} />
                 </div>
                 <div css={styles.emptyNoticeContent}>
-                  <span css={styles.emptyNoticeTitle}>
-                    {isVenta ? "Sin cobro inmediato" : "Sin pago inmediato"}
-                  </span>
-                  <span css={styles.emptyNoticeText}>
-                    {isVenta
-                      ? "No se acreditará ninguna cuenta hoy. La operación quedará pendiente de cobro y podrás registrar el pago luego."
-                      : "No se debitará ninguna cuenta hoy. La operación quedará pendiente de pago y podrás liquidarla luego."}
-                  </span>
+                  <div css={styles.emptyNoticeHeader}>
+                    <strong css={styles.emptyNoticeTitle}>
+                      Operación a Cuenta Corriente
+                    </strong>
+                    <span css={styles.emptyNoticeBadge}>
+                      {isVenta ? "Sin cobro inmediato" : "Sin pago inmediato"}
+                    </span>
+                  </div>
+                  <p css={styles.emptyNoticeText}>
+                    El importe de <strong>$ {formattedImporte}</strong> se imputará
+                    como saldo pendiente en la cuenta corriente de{" "}
+                    <strong>{contraparte}</strong>. No se registrará ningún
+                    movimiento financiero en esta fecha.
+                  </p>
                 </div>
               </div>
 
@@ -131,17 +142,16 @@ export default function PagoCondicionSection({
         </div>
       )}
 
-      {/* Botón desplegable / toggle */}
-      {cuentaFavorita && (
+      {cuentaFavorita && !isDiferido && (
         <button
           type="button"
           css={styles.advancedToggle}
-          onClick={isDiferido && onRestoreFavorita ? onRestoreFavorita : onToggleAdvanced}
+          onClick={onToggleAdvanced}
           aria-expanded={showAdvanced}
           data-testid={dataTestIdToggle}
         >
           <span>
-            {showAdvanced || isDiferido
+            {showAdvanced
               ? `Usar cuenta favorita (${cuentaFavorita.nombre})`
               : isVenta
               ? "Elegir otra cuenta, dividir o diferir el cobro"
@@ -149,7 +159,7 @@ export default function PagoCondicionSection({
           </span>
           <ChevronDown
             size={17}
-            css={showAdvanced || isDiferido ? styles.chevronOpen : undefined}
+            css={showAdvanced ? styles.chevronOpen : undefined}
           />
         </button>
       )}
@@ -162,7 +172,6 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 10,
-    marginTop: 12,
   }),
   simplePayment: css({
     display: "flex",
@@ -230,43 +239,75 @@ const styles = {
     flexDirection: "column",
     gap: 12,
   }),
-  emptyContainer: css({
+  emptyCard: css({
     display: "flex",
     flexDirection: "column",
-    gap: 10,
+    gap: 16,
+    padding: "16px 20px",
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 14,
   }),
-  emptyNotice: css({
+  emptyCardTop: css({
     display: "flex",
     alignItems: "flex-start",
-    gap: 12,
-    padding: "12px 14px",
-    backgroundColor: "#fffbeb",
-    border: "1px solid #fef3c7",
-    borderRadius: 10,
+    gap: 14,
   }),
-  emptyNoticeIcon: css({
-    color: "#d97706",
+  emptyDocIconBox: css({
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     flexShrink: 0,
-    marginTop: 2,
+    color: "#64748b",
   }),
   emptyNoticeContent: css({
+    minWidth: 0,
     display: "flex",
     flexDirection: "column",
-    gap: 2,
+    gap: 4,
+  }),
+  emptyNoticeHeader: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
   }),
   emptyNoticeTitle: css({
-    fontSize: 13,
-    fontWeight: 600,
-    color: "#92400e",
+    fontSize: 15,
+    fontWeight: 700,
+    color: COLOR.TEXT.PRIMARY,
+    lineHeight: 1.3,
+  }),
+  emptyNoticeBadge: css({
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "2px 8px",
+    borderRadius: 9999,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: 500,
+    lineHeight: 1.2,
   }),
   emptyNoticeText: css({
-    fontSize: 12,
-    color: "#b45309",
-    lineHeight: 1.4,
+    margin: 0,
+    fontSize: 13,
+    color: COLOR.TEXT.SECONDARY,
+    lineHeight: 1.5,
+    "& strong": {
+      fontWeight: 600,
+      color: COLOR.TEXT.PRIMARY,
+    },
   }),
   emptyActionsRow: css({
     display: "flex",
-    gap: 8,
+    gap: 12,
     alignItems: "center",
   }),
   btnAddAccount: css({
@@ -277,36 +318,37 @@ const styles = {
     flex: 1,
     padding: "10px 14px",
     borderRadius: 10,
-    border: "1.5px dashed rgba(0, 128, 162, 0.4)",
-    backgroundColor: "rgba(0, 128, 162, 0.02)",
+    border: "1.5px dashed rgba(0, 128, 162, 0.45)",
+    backgroundColor: "transparent",
     color: "#0080a2",
     fontSize: 13,
     fontWeight: 600,
     cursor: "pointer",
     transition: "all 0.15s ease-in-out",
     "&:hover": {
-      backgroundColor: "rgba(0, 128, 162, 0.08)",
+      backgroundColor: "rgba(0, 128, 162, 0.06)",
       borderColor: "#0080a2",
     },
   }),
   btnRestore: css({
-    display: "inline-flex",
+    display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
+    flex: 1,
     padding: "10px 14px",
     borderRadius: 10,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     backgroundColor: "#ffffff",
     color: COLOR.TEXT.PRIMARY,
     fontSize: 13,
-    fontWeight: 500,
+    fontWeight: 600,
     cursor: "pointer",
     whiteSpace: "nowrap",
     transition: "all 0.15s ease",
     "&:hover": {
       backgroundColor: COLOR.BACKGROUND.SECONDARY,
-      borderColor: COLOR.BORDER.STRONG,
+      borderColor: COLOR.BORDER.DEFAULT,
     },
   }),
 } as const;

@@ -175,6 +175,7 @@ export type ProductoProveedorDTO = {
     codigo_proveedor?: string | null;
     costo_referencia: number;
     es_predeterminado: boolean;
+    stock_actual?: number;
     created_at?: string;
     updated_at?: string;
 };
@@ -192,6 +193,7 @@ export type ProveedorOperacionItemDTO = {
     observaciones: string | null;
     taller_id: string | null;
     taller_nombre: string | null;
+    lineas?: OperacionLineaDTO[];
 };
 
 export type ProveedorCuentaCorrienteResumen = {

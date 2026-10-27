@@ -494,7 +494,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
                     <Calendar
                       value={fechaCobro}
                       onChange={setFechaCobro}
-                      triggerStyle={styles.finanzasInput}
+                      style={styles.finanzasInput}
                       dataTestId="arreglo-fecha-cobro"
                     />
                   </label>
