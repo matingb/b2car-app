@@ -966,6 +966,140 @@ describe("OperacionCreateModal", () => {
     );
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("actualiza por defecto el monto del pago hacia el total si no fue modificado, y no lo sobreescribe si fue modificado", async () => {
+    mockCuentasApi.cuentaFavorita = null;
+    mockInventarioApi.inventario = [{
+      id: "S-1",
+      productoId: "P-1",
+      nombre: "Filtro de Aceite",
+      codigo: "FLT-1",
+      precioUnitario: 15000,
+      costoUnitario: 8000,
+      stockActual: 10,
+    }];
+    const onClose = vi.fn();
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        initialTipo="VENTA"
+        onClose={onClose}
+      />
+    );
+
+    await runPendingPromises();
+
+    // Sin cuenta favorita, Registrar Pago se muestra de inmediato
+    const montoInput = screen.getByTestId("pago-monto-0");
+    const badge = screen.getByTestId("total-ingresado-badge");
+
+    // Inicialmente total es 0
+    expect(montoInput).toHaveValue(0);
+    expect(badge).toHaveTextContent("Total ingresado: $0");
+
+    // Seleccionar producto
+    const stockInput = screen.getByTestId("operaciones-line-0-stock");
+    await userEvent.type(stockInput, "S-1");
+    await runPendingPromises();
+
+    // El monto del pago se actualiza automáticamente al total (15000)
+    expect(montoInput).toHaveValue(15000);
+    expect(badge).toHaveTextContent("Total ingresado: $15.000");
+
+    // Cambiar cantidad a 2 (total = 30000)
+    const cantInput = screen.getByTestId("operaciones-line-0-cantidad");
+    await userEvent.clear(cantInput);
+    await userEvent.type(cantInput, "2");
+    await runPendingPromises();
+
+    // Se actualiza hacia el nuevo total
+    expect(montoInput).toHaveValue(30000);
+    expect(badge).toHaveTextContent("Total ingresado: $30.000");
+
+    // Ahora el usuario modifica manualmente el monto a 20000
+    await userEvent.clear(montoInput);
+    await userEvent.type(montoInput, "20000");
+    await runPendingPromises();
+
+    expect(montoInput).toHaveValue(20000);
+    expect(badge).toHaveTextContent("Total ingresado: $20.000");
+
+    // Cambiar cantidad a 3 (total = 45000)
+    const cantInputRefetched = screen.getByTestId("operaciones-line-0-cantidad");
+    await userEvent.clear(cantInputRefetched);
+    await userEvent.type(cantInputRefetched, "3");
+    await runPendingPromises();
+
+    // Como fue modificado manualmente, NO debe sobreescribirse
+    expect(montoInput).toHaveValue(20000);
+    expect(badge).toHaveTextContent("Total ingresado: $20.000");
+  });
+
+  it("en vista avanzada con cuenta favorita, sincroniza hacia el total y permite restaurar favorita tras modificar monto", async () => {
+    mockCuentasApi.cuentaFavorita = {
+      id: "C-FAV",
+      nombre: "Banco Galicia",
+      tipo: "BANCO",
+      saldoActual: 50000,
+      activo: true,
+      favorita: true,
+    };
+    mockInventarioApi.inventario = [{
+      id: "S-1",
+      productoId: "P-1",
+      nombre: "Aceite Motor",
+      codigo: "OIL-1",
+      precioUnitario: 10000,
+      costoUnitario: 6000,
+      stockActual: 20,
+    }];
+    const onClose = vi.fn();
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        initialTipo="VENTA"
+        onClose={onClose}
+      />
+    );
+
+    await runPendingPromises();
+
+    // Desplegar vista avanzada
+    const toggleBtn = screen.getByTestId("cobro-advanced-toggle");
+    await userEvent.click(toggleBtn);
+    await runPendingPromises();
+
+    const montoInput = screen.getByTestId("pago-monto-0");
+    const badge = screen.getByTestId("total-ingresado-badge");
+
+    // Seleccionar producto
+    const stockInput = screen.getByTestId("operaciones-line-0-stock");
+    await userEvent.type(stockInput, "S-1");
+    await runPendingPromises();
+
+    // En vista avanzada se actualiza por defecto hacia el total (10000)
+    expect(montoInput).toHaveValue(10000);
+    expect(badge).toHaveTextContent("Total ingresado: $10.000");
+
+    // Modificar monto manualmente
+    await userEvent.clear(montoInput);
+    await userEvent.type(montoInput, "5000");
+    await runPendingPromises();
+    expect(montoInput).toHaveValue(5000);
+
+    // Colapsar a favorita y volver a desplegar: debe restaurar el total
+    await userEvent.click(screen.getByTestId("cobro-advanced-toggle"));
+    await runPendingPromises();
+    await userEvent.click(screen.getByTestId("cobro-advanced-toggle"));
+    await runPendingPromises();
+
+    const restoredMontoInput = screen.getByTestId("pago-monto-0");
+    expect(restoredMontoInput).toHaveValue(10000);
+  });
 });
 
 

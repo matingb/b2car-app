@@ -110,6 +110,8 @@ type OperacionFormContextValue = {
   handleUpdatePagoRow: (id: string, field: keyof PagoDraftItem, val: string) => void;
   handleUpdatePagoCuentaDraft: (id: string, patch: Partial<CuentaFinancieraDraft>) => void;
   handleToggleAdvanced: () => void;
+  isPagoModificado: boolean;
+  setIsPagoModificado: (modificado: boolean) => void;
 
   // Submit & Validation
   canSubmit: boolean;
@@ -182,6 +184,7 @@ export function OperacionFormProvider({
   const [moverStock, setMoverStock] = useState<boolean>(true);
 
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  const [isPagoModificado, setIsPagoModificado] = useState<boolean>(false);
   const [pagosDraft, setPagosDraft] = useState<PagoDraftItem[]>(() => [
     {
       id: generateUuidV4(),
@@ -270,10 +273,12 @@ export function OperacionFormProvider({
   useEffect(() => {
     if (!open) {
       didInitRef.current = false;
+      setIsPagoModificado(false);
       return;
     }
     if (didInitRef.current) return;
     didInitRef.current = true;
+    setIsPagoModificado(false);
 
     const initialAcc = initialCuentaId ?? cuentaFavorita?.id ?? "";
 
@@ -571,8 +576,10 @@ export function OperacionFormProvider({
 
   const setEstadoPago = useCallback((nuevo: EstadoPagoOperacion) => {
     if (nuevo === "PENDIENTE") {
+      setIsPagoModificado(true);
       setPagosDraft([]);
     } else {
+      setIsPagoModificado(false);
       setPagosDraft((prev) => {
         if (prev.length > 0) return prev;
         const activeAcc = cuentaFavorita?.id ?? initialCuentaId ?? cuentaFinancieraId ?? "";
@@ -591,8 +598,10 @@ export function OperacionFormProvider({
 
   const setNoPagar = useCallback((val: boolean) => {
     if (val) {
+      setIsPagoModificado(true);
       setPagosDraft([]);
     } else {
+      setIsPagoModificado(false);
       setPagosDraft((prev) => {
         if (prev.length > 0) return prev;
         const activeAcc = cuentaFavorita?.id ?? initialCuentaId ?? cuentaFinancieraId ?? "";
@@ -609,41 +618,49 @@ export function OperacionFormProvider({
     }
   }, [cuentaFavorita?.id, initialCuentaId, cuentaFinancieraId, importeTotal]);
 
-  // Si no está expandido y hay una cuenta activa, sincronizar pagosDraft[0].monto con importeTotal
+  // Si no fue modificado manualmente, mantener pagosDraft[0].monto sincronizado con importeTotal
   useEffect(() => {
-    if (!showAdvanced && tipo !== "GASTO") {
-      const activeAccount = cuentaFavorita?.id ?? initialCuentaId ?? cuentaFinancieraId ?? "";
-      if (!activeAccount) return;
+    if (tipo === "GASTO") return;
+    if (isPagoModificado) return;
 
-      setPagosDraft((prev) => {
-        if (prev.length === 0) {
-          return prev;
-        }
+    const activeAccount = cuentaFavorita?.id ?? initialCuentaId ?? cuentaFinancieraId ?? "";
+    const targetMontoStr = String(importeTotal || 0);
 
-        if (
-          prev.length === 1 &&
-          prev[0].monto === String(importeTotal) &&
-          prev[0].cuentaId === activeAccount
-        ) {
-          return prev;
-        }
-
-        if (prev.length === 1) {
-          return [
-            {
-              id: prev[0].id,
-              cuentaId: prev[0].cuentaId || activeAccount,
-              monto: String(importeTotal || 0),
-              fecha: prev[0].fecha || toISODateLocal(new Date()),
-              descripcion: prev[0].descripcion || "",
-            },
-          ];
-        }
-
+    setPagosDraft((prev) => {
+      if (prev.length !== 1) {
         return prev;
-      });
-    }
-  }, [showAdvanced, importeTotal, cuentaFavorita?.id, initialCuentaId, cuentaFinancieraId, tipo]);
+      }
+
+      const currentMontoNum = Number(prev[0].monto) || 0;
+      const targetMontoNum = importeTotal;
+      const targetCuentaId = prev[0].cuentaId || activeAccount;
+
+      if (
+        currentMontoNum === targetMontoNum &&
+        (prev[0].monto === targetMontoStr || (targetMontoNum === 0 && prev[0].monto === "")) &&
+        prev[0].cuentaId === targetCuentaId
+      ) {
+        return prev;
+      }
+
+      return [
+        {
+          id: prev[0].id,
+          cuentaId: targetCuentaId,
+          monto: targetMontoStr,
+          fecha: prev[0].fecha || toISODateLocal(new Date()),
+          descripcion: prev[0].descripcion || "",
+        },
+      ];
+    });
+  }, [
+    isPagoModificado,
+    importeTotal,
+    cuentaFavorita?.id,
+    initialCuentaId,
+    cuentaFinancieraId,
+    tipo,
+  ]);
 
   // Porcentaje y estado de entrega de stock
   const stockDeliveryPercentage = useMemo(() => {
@@ -669,24 +686,33 @@ export function OperacionFormProvider({
     const nextCuentaId = cuentaFavorita?.id ?? cuentasActivas?.[0]?.id ?? "";
     const totalActual = pagosDraft.reduce((acc, p) => acc + (Number(p.monto) || 0), 0);
     const restante = Math.max(0, importeTotal - totalActual);
-    setPagosDraft((prev) => [
-      ...prev,
-      {
-        id: generateUuidV4(),
-        cuentaId: nextCuentaId,
-        monto: restante > 0 ? String(restante) : "",
-        fecha: toISODateLocal(new Date()),
-        descripcion: "",
-      },
-    ]);
+    setPagosDraft((prev) => {
+      if (prev.length === 0) {
+        setIsPagoModificado(false);
+      } else {
+        setIsPagoModificado(true);
+      }
+      return [
+        ...prev,
+        {
+          id: generateUuidV4(),
+          cuentaId: nextCuentaId,
+          monto: restante > 0 ? String(restante) : (importeTotal > 0 ? String(importeTotal) : ""),
+          fecha: toISODateLocal(new Date()),
+          descripcion: "",
+        },
+      ];
+    });
   }, [cuentasActivas, cuentaFavorita, pagosDraft, importeTotal]);
 
   const handleRemovePagoRow = useCallback((id: string) => {
+    setIsPagoModificado(true);
     setPagosDraft((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
   const handleRestoreFavorita = useCallback(() => {
     if (!cuentaFavorita) return;
+    setIsPagoModificado(false);
     setPagosDraft([
       {
         id: generateUuidV4(),
@@ -699,6 +725,9 @@ export function OperacionFormProvider({
   }, [cuentaFavorita, importeTotal]);
 
   const handleUpdatePagoRow = useCallback((id: string, field: keyof PagoDraftItem, val: string) => {
+    if (field === "monto") {
+      setIsPagoModificado(true);
+    }
     setPagosDraft((prev) =>
       prev.map((p) => (p.id === id ? { ...p, [field]: val } : p))
     );
@@ -718,6 +747,7 @@ export function OperacionFormProvider({
     setShowAdvanced((prev) => {
       const next = !prev;
       if (!next && cuentaFavorita) {
+        setIsPagoModificado(false);
         setPagosDraft([
           {
             id: generateUuidV4(),
@@ -1004,6 +1034,8 @@ export function OperacionFormProvider({
     handleUpdatePagoRow,
     handleUpdatePagoCuentaDraft,
     handleToggleAdvanced,
+    isPagoModificado,
+    setIsPagoModificado,
     canSubmit,
     isSubmitting,
     submitForm,

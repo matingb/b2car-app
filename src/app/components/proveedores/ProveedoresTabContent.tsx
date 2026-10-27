@@ -176,11 +176,6 @@ export default function ProveedoresTabContent() {
 
       <div style={styles.resultsHeader}>
         <h2 style={styles.resultsTitle}>Listado</h2>
-        <span style={styles.resultsCount}>
-          {hasActiveFilters && proveedores.length !== filteredProveedores.length
-            ? `${filteredProveedores.length} de ${proveedores.length} proveedores`
-            : `${filteredProveedores.length} ${filteredProveedores.length === 1 ? "proveedor" : "proveedores"}`}
-        </span>
       </div>
 
       {loading ? (
@@ -395,9 +390,6 @@ const styles = {
     },
   }),
   resultsHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "baseline",
     marginBottom: 12,
   },
   resultsTitle: {

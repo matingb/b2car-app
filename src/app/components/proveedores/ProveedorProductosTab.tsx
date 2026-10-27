@@ -2,10 +2,11 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { css } from "@emotion/react";
-import { COLOR } from "@/theme/theme";
+import { COLOR, BREAKPOINTS } from "@/theme/theme";
 import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
-import { Edit2, Package, Plus, Search, ShoppingCart, Trash2 } from "lucide-react";
+import SearchBar from "@/app/components/ui/SearchBar";
+import { Edit2, Package, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { formatArs } from "@/lib/format";
 import { proveedoresClient } from "@/clients/proveedores/proveedoresClient";
 import type { ProductoProveedorDTO } from "@/model/dtos";
@@ -121,14 +122,11 @@ export default function ProveedorProductosTab({
 		<div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 			<div css={styles.toolbar}>
 				<div style={styles.searchWrapper}>
-					<Search size={16} color={COLOR.TEXT.SECONDARY} style={styles.searchIcon} />
-					<input
-						type="text"
+					<SearchBar
 						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
+						onChange={setSearchQuery}
 						placeholder="Buscar producto, código..."
-						style={styles.searchInput}
-						data-testid="proveedor-productos-search"
+						inputTestId="proveedor-productos-search"
 					/>
 				</div>
 
@@ -296,29 +294,14 @@ const styles = {
 		justifyContent: "space-between",
 		alignItems: "center",
 		gap: 12,
-		flexWrap: "wrap",
-		marginBottom: 4,
+		[`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+			flexDirection: "column",
+			alignItems: "stretch",
+		},
 	}),
 	searchWrapper: {
-		position: "relative" as const,
-		flex: "1 1 320px",
-		maxWidth: 420,
-	},
-	searchIcon: {
-		position: "absolute" as const,
-		left: 12,
-		top: "50%",
-		transform: "translateY(-50%)",
-		pointerEvents: "none" as const,
-	},
-	searchInput: {
-		width: "100%",
-		padding: "9px 12px 9px 36px",
-		borderRadius: 8,
-		border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-		background: COLOR.INPUT.PRIMARY.BACKGROUND,
-		fontSize: 13,
-		color: COLOR.TEXT.PRIMARY,
+		flex: 1,
+		minWidth: 0,
 	},
 	tableCard: css({
 		backgroundColor: COLOR.BACKGROUND.PRIMARY,

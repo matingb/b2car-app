@@ -60,86 +60,66 @@ vi.mock("@/app/providers/ToastProvider", () => ({
   }),
 }));
 
+const assertVisibleProveedores = (nombresVisibles: string[]) => {
+  mockProveedores.forEach((p) => {
+    if (nombresVisibles.includes(p.nombre)) {
+      expect(screen.getByText(p.nombre)).toBeInTheDocument();
+    } else {
+      expect(screen.queryByText(p.nombre)).not.toBeInTheDocument();
+    }
+  });
+};
+
+const allNombres = mockProveedores.map((p) => p.nombre);
+
 describe("ProveedoresTabContent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renderiza todos los proveedores por defecto", () => {
+  it.each([
+    {
+      filtro: "Saldo pendiente (> 0)",
+      chipTestId: "proveedores-chip-saldo-pendiente",
+      visibles: ["Distribuidora Norte"],
+    },
+    {
+      filtro: "Saldo al día (=== 0)",
+      chipTestId: "proveedores-chip-saldo-al-dia",
+      visibles: ["Autopartes Sur"],
+    },
+    {
+      filtro: "Saldo a favor (< 0)",
+      chipTestId: "proveedores-chip-saldo-a-favor",
+      visibles: ["Frenos Centro"],
+    },
+  ])("filtra por chip de $filtro", ({ chipTestId, visibles }) => {
     render(<ProveedoresTabContent />);
-
-    expect(screen.getByText("Distribuidora Norte")).toBeInTheDocument();
-    expect(screen.getByText("Autopartes Sur")).toBeInTheDocument();
-    expect(screen.getByText("Frenos Centro")).toBeInTheDocument();
-    expect(screen.getByText("3 proveedores")).toBeInTheDocument();
-  });
-
-  it("filtra por chip de 'Saldo pendiente' mostrando solo proveedores con saldo > 0", () => {
-    render(<ProveedoresTabContent />);
-
-    const chipPendiente = screen.getByTestId("proveedores-chip-saldo-pendiente");
-    fireEvent.click(chipPendiente);
-
-    expect(screen.getByText("Distribuidora Norte")).toBeInTheDocument();
-    expect(screen.queryByText("Autopartes Sur")).not.toBeInTheDocument();
-    expect(screen.queryByText("Frenos Centro")).not.toBeInTheDocument();
-    expect(screen.getByText("1 de 3 proveedores")).toBeInTheDocument();
-  });
-
-  it("filtra por chip de 'Saldo al día' mostrando solo proveedores con saldo === 0", () => {
-    render(<ProveedoresTabContent />);
-
-    const chipAlDia = screen.getByTestId("proveedores-chip-saldo-al-dia");
-    fireEvent.click(chipAlDia);
-
-    expect(screen.queryByText("Distribuidora Norte")).not.toBeInTheDocument();
-    expect(screen.getByText("Autopartes Sur")).toBeInTheDocument();
-    expect(screen.queryByText("Frenos Centro")).not.toBeInTheDocument();
-    expect(screen.getByText("1 de 3 proveedores")).toBeInTheDocument();
-  });
-
-  it("filtra por chip de 'Saldo a favor' mostrando solo proveedores con saldo < 0", () => {
-    render(<ProveedoresTabContent />);
-
-    const chipAFavor = screen.getByTestId("proveedores-chip-saldo-a-favor");
-    fireEvent.click(chipAFavor);
-
-    expect(screen.queryByText("Distribuidora Norte")).not.toBeInTheDocument();
-    expect(screen.queryByText("Autopartes Sur")).not.toBeInTheDocument();
-    expect(screen.getByText("Frenos Centro")).toBeInTheDocument();
-    expect(screen.getByText("1 de 3 proveedores")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId(chipTestId));
+    assertVisibleProveedores(visibles);
   });
 
   it("permite limpiar los filtros con el botón 'Limpiar filtros'", () => {
     render(<ProveedoresTabContent />);
 
-    const chipPendiente = screen.getByTestId("proveedores-chip-saldo-pendiente");
-    fireEvent.click(chipPendiente);
-    expect(screen.queryByText("Autopartes Sur")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("proveedores-chip-saldo-pendiente"));
+    assertVisibleProveedores(["Distribuidora Norte"]);
 
-    const clearBtn = screen.getByTestId("proveedores-clear-filters");
-    fireEvent.click(clearBtn);
+    fireEvent.click(screen.getByTestId("proveedores-clear-filters"));
 
-    expect(screen.getByText("Distribuidora Norte")).toBeInTheDocument();
-    expect(screen.getByText("Autopartes Sur")).toBeInTheDocument();
-    expect(screen.getByText("Frenos Centro")).toBeInTheDocument();
+    assertVisibleProveedores(allNombres);
     expect(screen.queryByTestId("proveedores-clear-filters")).not.toBeInTheDocument();
   });
 
   it("combina el buscador de texto con los chips de saldo", () => {
     render(<ProveedoresTabContent />);
 
-    const searchInput = screen.getByTestId("proveedores-search");
-    fireEvent.change(searchInput, { target: { value: "Norte" } });
+    fireEvent.change(screen.getByTestId("proveedores-search"), { target: { value: "Norte" } });
+    assertVisibleProveedores(["Distribuidora Norte"]);
 
-    expect(screen.getByText("Distribuidora Norte")).toBeInTheDocument();
-    expect(screen.queryByText("Autopartes Sur")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("proveedores-chip-saldo-al-dia"));
 
-    const chipAlDia = screen.getByTestId("proveedores-chip-saldo-al-dia");
-    fireEvent.click(chipAlDia);
-
-    // Norte no está al día, por lo que el resultado queda vacío
-    expect(screen.queryByText("Distribuidora Norte")).not.toBeInTheDocument();
+    assertVisibleProveedores([]);
     expect(screen.getByText("No se encontraron proveedores")).toBeInTheDocument();
   });
 });

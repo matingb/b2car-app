@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
+  FileText,
   Mail,
   MapPin,
   MessageCircle,
@@ -110,6 +111,11 @@ export default function ProveedorItemCard({ proveedor, onEdit }: Props) {
   };
 
   const initials = getInitials(proveedor.nombre);
+  const formattedCuit = proveedor.cuit?.trim()
+    ? (proveedor.cuit.trim().toUpperCase().startsWith("CUIT")
+        ? proveedor.cuit.trim()
+        : `CUIT: ${proveedor.cuit.trim()}`)
+    : null;
 
   return (
     <Card onClick={handleCardClick} data-testid={`proveedor-card-${proveedor.id}`} css={styles.card}>
@@ -126,11 +132,6 @@ export default function ProveedorItemCard({ proveedor, onEdit }: Props) {
                 {proveedor.nombre}
               </h3>
             </div>
-            {proveedor.cuit && (
-              <span css={styles.cuitBadge} title="CUIT">
-                CUIT: {proveedor.cuit}
-              </span>
-            )}
           </div>
         </div>
 
@@ -238,25 +239,52 @@ export default function ProveedorItemCard({ proveedor, onEdit }: Props) {
         ]}
       >
         <div css={styles.contactDetails}>
+          {formattedCuit && (
+            <div
+              css={styles.contactItem}
+              title={formattedCuit}
+              data-testid={`proveedor-cuit-${proveedor.id}`}
+            >
+              <div css={styles.contactIcon}>
+                <FileText size={14} />
+              </div>
+              <span css={styles.contactText}>{formattedCuit}</span>
+            </div>
+          )}
           {proveedor.telefono && (
-            <div css={styles.contactItem} title="Teléfono">
-              <Phone size={14} color={COLOR.ICON.MUTED} />
-              <span>{proveedor.telefono}</span>
+            <div
+              css={styles.contactItem}
+              title={`Teléfono: ${proveedor.telefono}`}
+            >
+              <div css={styles.contactIcon}>
+                <Phone size={14} />
+              </div>
+              <span css={styles.contactText}>{proveedor.telefono}</span>
             </div>
           )}
           {proveedor.email && (
-            <div css={styles.contactItem} title="Email">
-              <Mail size={14} color={COLOR.ICON.MUTED} />
-              <span css={styles.truncateText}>{proveedor.email}</span>
+            <div
+              css={styles.contactItem}
+              title={`Email: ${proveedor.email}`}
+            >
+              <div css={styles.contactIcon}>
+                <Mail size={14} />
+              </div>
+              <span css={styles.contactText}>{proveedor.email}</span>
             </div>
           )}
           {proveedor.direccion && (
-            <div css={styles.contactItem} title="Dirección">
-              <MapPin size={14} color={COLOR.ICON.MUTED} />
-              <span css={styles.truncateText}>{proveedor.direccion}</span>
+            <div
+              css={styles.contactItem}
+              title={`Dirección: ${proveedor.direccion}`}
+            >
+              <div css={styles.contactIcon}>
+                <MapPin size={14} />
+              </div>
+              <span css={styles.contactText}>{proveedor.direccion}</span>
             </div>
           )}
-          {!proveedor.telefono && !proveedor.email && !proveedor.direccion && (
+          {!formattedCuit && !proveedor.telefono && !proveedor.email && !proveedor.direccion && (
             <div css={styles.noContactText}>Sin datos de contacto adicionales</div>
           )}
         </div>
@@ -386,18 +414,6 @@ const styles = {
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
       fontSize: 15,
     },
-  }),
-  cuitBadge: css({
-    fontSize: 11,
-    fontWeight: 500,
-    padding: "2px 6px",
-    borderRadius: 6,
-    background: COLOR.BACKGROUND.SUBTLE,
-    color: COLOR.TEXT.SECONDARY,
-    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
-    display: "inline-block",
-    width: "fit-content",
-    whiteSpace: "nowrap",
   }),
   statusSection: css({
     display: "flex",
@@ -536,13 +552,14 @@ const styles = {
     },
   }),
   contactDetails: css({
-    display: "flex",
-    alignItems: "center",
-    gap: 16,
-    flexWrap: "wrap",
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    columnGap: 20,
+    rowGap: 8,
     minWidth: 0,
     flex: 1,
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      display: "flex",
       flexDirection: "column",
       alignItems: "flex-start",
       gap: 8,
@@ -551,26 +568,29 @@ const styles = {
   contactItem: css({
     display: "flex",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
     fontSize: 13,
     color: COLOR.TEXT.SECONDARY,
     minWidth: 0,
   }),
-  truncateText: css({
-    maxWidth: 240,
+  contactIcon: css({
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    color: COLOR.ICON.MUTED,
+  }),
+  contactText: css({
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
-    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
-      maxWidth: "100%",
-      whiteSpace: "normal",
-      wordBreak: "break-word",
-    },
+    minWidth: 0,
+    flex: 1,
   }),
   noContactText: css({
     fontSize: 13,
     color: COLOR.TEXT.SECONDARY,
     fontStyle: "italic",
+    gridColumn: "1 / -1",
   }),
   mobileActions: css({
     display: "none",

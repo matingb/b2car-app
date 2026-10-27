@@ -2,6 +2,7 @@
 
 import { COLOR } from "@/theme/theme";
 import React from "react";
+import { Search } from "lucide-react";
 
 interface SearchBarProps {
   value: string;
@@ -26,6 +27,13 @@ export default function SearchBar({
 }: SearchBarProps) {
   return (
     <div style={{ ...styles.container, ...(style ?? {}) }} className={className}>
+      <Search
+        size={18}
+        color={COLOR.TEXT.SECONDARY}
+        style={styles.icon}
+        aria-hidden="true"
+        data-testid="search-bar-icon"
+      />
       <input
         type="text"
         value={value}
@@ -44,14 +52,21 @@ const styles = {
   container: {
     width: "100%",
     height: "100%",
+    position: "relative" as const,
     display: "flex",
     justifyContent: "flex-start",
     alignItems: "center",
   },
+  icon: {
+    position: "absolute" as const,
+    left: "0.75rem",
+    pointerEvents: "none" as const,
+    flexShrink: 0,
+  },
   input: {
     height: "100%",
     width: "100%",
-    padding: "0.5rem 0.75rem",
+    padding: "0.5rem 0.75rem 0.5rem 2.375rem",
     border: "1px solid " + COLOR.INPUT.PRIMARY.BORDER,
     borderRadius: "0.375rem",
     fontSize: "1rem",

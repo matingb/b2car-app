@@ -1,6 +1,6 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { runPendingPromises } from "@/tests/testUtils";
 import OperacionDetailPage from "./page";
 import type { Operacion } from "@/model/types";
@@ -150,6 +150,11 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
     expect(screen.getAllByTestId("operacion-estado-stock-badge").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByTestId("operacion-detail-pago-btn")).not.toBeInTheDocument();
     expect(screen.queryByTestId("operacion-detail-stock-btn")).not.toBeInTheDocument();
+
+    // Acciones principales en el header estilo detalle de arreglo (IconButton)
+    expect(screen.getByRole("button", { name: "Facturar electrónicamente" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generar remito" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Eliminar venta" })).toBeInTheDocument();
   });
 
   it("redirige automáticamente a /arreglos/[id] cuando la operación es COBRO_ARREGLO", async () => {
@@ -313,5 +318,79 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
         screen.getByText("Aún no se han registrado entregas físicas de mercadería para esta venta.")
       ).toBeInTheDocument();
     });
+  });
+
+  it("permite colapsar y desplegar el historial de entregas mostrando badge y subtítulo resumen", async () => {
+    const ventaConEntregas: Operacion = {
+      ...operacionVenta,
+      movimientos_stock: [
+        {
+          id: "mov-entrega-1",
+          fecha: "2026-10-27T10:00:00Z",
+          cantidad: -1,
+          saldo_anterior: 5,
+          saldo_posterior: 4,
+          motivo: "Entrega al cliente",
+          created_at: "2026-10-27T10:00:00Z",
+          producto_id: "prod-1",
+          stock_id: "stock-1",
+          producto_nombre: "Bujía Bosch",
+          producto_codigo: "BB-01",
+        },
+      ],
+    };
+
+    mockGetById.mockResolvedValue({ data: ventaConEntregas, error: null });
+
+    render(<OperacionDetailPage />);
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("operacion-stock-history-toggle")).toBeInTheDocument();
+    });
+
+    const toggleBtn = screen.getByTestId("operacion-stock-history-toggle");
+    expect(toggleBtn).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("1 registrada(s)")).toBeInTheDocument();
+    expect(screen.getByText(/Última entrega: 27\/10\/2026 \(-1 un\.\)/)).toBeInTheDocument();
+
+    // Desplegar historial
+    await act(async () => {
+      fireEvent.click(toggleBtn);
+    });
+    expect(toggleBtn).toHaveAttribute("aria-expanded", "true");
+
+    // Colapsar historial
+    await act(async () => {
+      fireEvent.click(toggleBtn);
+    });
+    expect(toggleBtn).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("permite colapsar y desplegar el historial de pagos mostrando badge con el total", async () => {
+    mockGetById.mockResolvedValue({ data: operacionVenta, error: null });
+
+    render(<OperacionDetailPage />);
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("operacion-pagos-history-toggle")).toBeInTheDocument();
+    });
+
+    const toggleBtn = screen.getByTestId("operacion-pagos-history-toggle");
+    expect(toggleBtn).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("Total: $4.000")).toBeInTheDocument();
+
+    // Desplegar historial
+    await act(async () => {
+      fireEvent.click(toggleBtn);
+    });
+    expect(toggleBtn).toHaveAttribute("aria-expanded", "true");
+
+    // Colapsar historial
+    await act(async () => {
+      fireEvent.click(toggleBtn);
+    });
+    expect(toggleBtn).toHaveAttribute("aria-expanded", "false");
   });
 });

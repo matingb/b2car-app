@@ -72,6 +72,12 @@ describe("ProveedorItemCard", () => {
     expect(mockPush).toHaveBeenCalledWith("/proveedores/prov-123");
   });
 
+  it("no muestra el CUIT si no está definido", () => {
+    render(<ProveedorItemCard proveedor={{ ...mockProveedor, cuit: null }} />);
+
+    expect(screen.queryByTestId(`proveedor-cuit-${mockProveedor.id}`)).not.toBeInTheDocument();
+  });
+
   it("muestra el saldo 'Al día' cuando el saldo_pendiente es 0", () => {
     render(<ProveedorItemCard proveedor={{ ...mockProveedor, saldo_pendiente: 0 }} />);
 

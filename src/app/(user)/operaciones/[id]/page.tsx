@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
 import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
+import IconButton from "@/app/components/ui/IconButton";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import { useOperaciones } from "@/app/providers/OperacionesProvider";
 import { useInventario } from "@/app/providers/InventarioProvider";
@@ -24,12 +25,13 @@ import { COLOR } from "@/theme/theme";
 import Color from "color";
 import { css } from "@emotion/react";
 import {
-  ArrowLeft,
-  FileText,
-  Pencil,
-  Receipt,
-  Trash2,
   AlertCircle,
+  ArrowLeft,
+  ChevronDown,
+  FileBox,
+  Pencil,
+  ReceiptText,
+  Trash,
 } from "lucide-react";
 
 import OperacionPagoBadge from "@/app/components/operaciones/OperacionPagoBadge";
@@ -64,6 +66,8 @@ export default function OperacionDetailPage() {
   const [isEditGastoOpen, setIsEditGastoOpen] = useState(false);
   const [isFacturaOpen, setIsFacturaOpen] = useState(false);
   const [isRemitoOpen, setIsRemitoOpen] = useState(false);
+  const [isStockHistoryOpen, setIsStockHistoryOpen] = useState(false);
+  const [isPagosHistoryOpen, setIsPagosHistoryOpen] = useState(false);
 
   const loadOperacion = useCallback(async () => {
     if (!params.id) return;
@@ -163,6 +167,18 @@ export default function OperacionDetailPage() {
     operacion?.tipo === "COMPRA" &&
     totalMonto === 0 &&
     !operacion?.total_pagado;
+
+  const ultimoMov = operacion?.movimientos_stock?.[0];
+  const ultimoMovSubtitle = ultimoMov
+    ? `· ${isVenta ? "Última entrega" : "Última recepción"}: ${formatDateLabel(ultimoMov.fecha || ultimoMov.created_at)} (${isVenta ? "-" : "+"}${Math.abs(ultimoMov.cantidad)} un.)`
+    : null;
+  const deleteTitle = isGasto
+    ? "Eliminar gasto"
+    : isVenta
+      ? "Eliminar venta"
+      : isCompra
+        ? "Eliminar compra"
+        : "Eliminar operación";
 
   const handleDelete = async () => {
     if (!operacion) return;
@@ -290,38 +306,45 @@ export default function OperacionDetailPage() {
         {/* Acciones principales */}
         <div css={styles.headerActions}>
           {isVenta && canUseBilling && (
-            <Button
-              text="Factura AFIP"
-              icon={<Receipt size={16} />}
+            <IconButton
+              icon={<ReceiptText />}
+              size={18}
               onClick={() => setIsFacturaOpen(true)}
-              outline
+              title="Facturar electrónicamente"
+              ariaLabel="Facturar electrónicamente"
+              hoverColor={COLOR.ACCENT.PRIMARY}
             />
           )}
 
           {isVenta && canEmitRemitos && (
-            <Button
-              text="Remito"
-              icon={<FileText size={16} />}
+            <IconButton
+              icon={<FileBox />}
+              size={18}
               onClick={() => setIsRemitoOpen(true)}
-              outline
+              title="Generar remito"
+              ariaLabel="Generar remito"
+              hoverColor={COLOR.ACCENT.PRIMARY}
             />
           )}
 
           {isGasto && (
-            <Button
-              text="Editar gasto"
-              icon={<Pencil size={16} />}
+            <IconButton
+              icon={<Pencil />}
+              size={18}
               onClick={() => setIsEditGastoOpen(true)}
-              outline
+              title="Editar gasto"
+              ariaLabel="Editar gasto"
+              hoverColor={COLOR.ACCENT.PRIMARY}
             />
           )}
 
-          <Button
-            text="Eliminar"
-            icon={<Trash2 size={16} />}
+          <IconButton
+            icon={<Trash />}
+            size={18}
             onClick={handleDelete}
-            outline
-            style={{ borderColor: COLOR.SEMANTIC.DANGER, color: COLOR.SEMANTIC.DANGER }}
+            title={deleteTitle}
+            ariaLabel={deleteTitle}
+            hoverColor={COLOR.SEMANTIC.DANGER}
           />
         </div>
       </div>
@@ -530,76 +553,108 @@ export default function OperacionDetailPage() {
       {isComercial && (
         operacion.movimientos_stock && operacion.movimientos_stock.length > 0 ? (
           <Card style={{ padding: 0, overflow: "hidden" }} data-testid="operacion-stock-history-card">
-            <div style={styles.tableTitleRow}>
-              <h3 style={{ margin: 0, fontSize: 16, color: COLOR.TEXT.PRIMARY }}>
-                {isVenta ? "Historial de Entregas" : "Historial de Recepciones"} ({operacion.movimientos_stock.length})
-              </h3>
-            </div>
+            <button
+              type="button"
+              css={[
+                styles.accordionHeaderButton,
+                isStockHistoryOpen && styles.accordionHeaderButtonExpanded,
+              ]}
+              onClick={() => setIsStockHistoryOpen((prev) => !prev)}
+              aria-expanded={isStockHistoryOpen}
+              aria-controls="operacion-stock-history-collapse"
+              data-testid="operacion-stock-history-toggle"
+            >
+              <div css={styles.accordionHeaderLeft}>
+                <span css={styles.accordionTitle}>
+                  {isVenta ? "Historial de Entregas" : "Historial de Recepciones"} ({operacion.movimientos_stock.length})
+                </span>
+                {ultimoMovSubtitle && (
+                  <span css={styles.accordionSubtitle}>
+                    {ultimoMovSubtitle}
+                  </span>
+                )}
+              </div>
 
-            <div style={{ overflowX: "auto" }}>
-              <table style={styles.table} data-testid="operacion-stock-history-table">
-                <thead>
-                  <tr style={styles.thRow}>
-                    <th style={styles.th}>Fecha</th>
-                    <th style={styles.th}>Producto</th>
-                    <th style={{ ...styles.th, textAlign: "center" }}>Cantidad</th>
-                    <th style={styles.th}>Detalle / Motivo</th>
-                    <th style={{ ...styles.th, textAlign: "center" }}>Stock Taller</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {operacion.movimientos_stock.map((mov) => {
-                    const stock = stocksById[mov.stock_id];
-                    const prodNombre =
-                      mov.producto_nombre || stock?.nombre || `Ítem #${mov.producto_id.slice(0, 6)}`;
-                    const prodCodigo = mov.producto_codigo || stock?.codigo;
-                    const unidades = Math.abs(mov.cantidad);
+              <div css={styles.accordionHeaderRight}>
+                <span css={styles.badgeStockHistory}>
+                  {operacion.movimientos_stock.length} registrada(s)
+                </span>
+                <ChevronDown
+                  size={18}
+                  css={styles.chevronIcon(isStockHistoryOpen)}
+                />
+              </div>
+            </button>
 
-                    return (
-                      <tr key={mov.id} style={styles.tr}>
-                        <td style={styles.td}>
-                          <span style={{ fontWeight: 500 }}>
-                            {formatDateLabel(mov.fecha || mov.created_at)}
-                          </span>
-                        </td>
-                        <td style={styles.td}>
-                          <div style={{ fontWeight: 600, color: COLOR.TEXT.PRIMARY }}>{prodNombre}</div>
-                          {prodCodigo && (
-                            <div style={{ fontSize: 12, color: COLOR.TEXT.SECONDARY }}>{prodCodigo}</div>
-                          )}
-                        </td>
-                        <td style={{ ...styles.td, textAlign: "center" }}>
-                          <span
-                            style={{
-                              display: "inline-block",
-                              padding: "2px 8px",
-                              borderRadius: 12,
-                              fontSize: 12,
-                              fontWeight: 600,
-                              backgroundColor: isVenta
-                                ? Color(COLOR.STATUS.info.solidBg).alpha(0.12).toString()
-                                : Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
-                              color: isVenta ? COLOR.STATUS.info.solidBg : COLOR.SEMANTIC.SUCCESS,
-                            }}
-                          >
-                            {isVenta ? `-${unidades} un.` : `+${unidades} un.`}
-                          </span>
-                        </td>
-                        <td style={styles.td}>
-                          <div style={{ color: COLOR.TEXT.PRIMARY, fontSize: 13 }}>
-                            {mov.motivo || (isVenta ? "Entrega de mercadería" : "Ingreso al taller")}
-                          </div>
-                        </td>
-                        <td style={{ ...styles.td, textAlign: "center" }}>
-                          <span style={{ fontSize: 13, color: COLOR.TEXT.SECONDARY, fontWeight: 500 }}>
-                            {mov.saldo_posterior} un.
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div
+              id="operacion-stock-history-collapse"
+              css={styles.collapseOuter(isStockHistoryOpen)}
+            >
+              <div css={styles.collapseInner}>
+                <table style={styles.table} data-testid="operacion-stock-history-table">
+                  <thead>
+                    <tr style={styles.thRow}>
+                      <th style={styles.th}>Fecha</th>
+                      <th style={styles.th}>Producto</th>
+                      <th style={{ ...styles.th, textAlign: "center" }}>Cantidad</th>
+                      <th style={styles.th}>Detalle / Motivo</th>
+                      <th style={{ ...styles.th, textAlign: "center" }}>Stock Taller</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {operacion.movimientos_stock.map((mov) => {
+                      const stock = stocksById[mov.stock_id];
+                      const prodNombre =
+                        mov.producto_nombre || stock?.nombre || `Ítem #${mov.producto_id.slice(0, 6)}`;
+                      const prodCodigo = mov.producto_codigo || stock?.codigo;
+                      const unidades = Math.abs(mov.cantidad);
+
+                      return (
+                        <tr key={mov.id} style={styles.tr}>
+                          <td style={styles.td}>
+                            <span style={{ fontWeight: 500 }}>
+                              {formatDateLabel(mov.fecha || mov.created_at)}
+                            </span>
+                          </td>
+                          <td style={styles.td}>
+                            <div style={{ fontWeight: 600, color: COLOR.TEXT.PRIMARY }}>{prodNombre}</div>
+                            {prodCodigo && (
+                              <div style={{ fontSize: 12, color: COLOR.TEXT.SECONDARY }}>{prodCodigo}</div>
+                            )}
+                          </td>
+                          <td style={{ ...styles.td, textAlign: "center" }}>
+                            <span
+                              style={{
+                                display: "inline-block",
+                                padding: "2px 8px",
+                                borderRadius: 12,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                backgroundColor: isVenta
+                                  ? Color(COLOR.STATUS.info.solidBg).alpha(0.12).toString()
+                                  : Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
+                                color: isVenta ? COLOR.STATUS.info.solidBg : COLOR.SEMANTIC.SUCCESS,
+                              }}
+                            >
+                              {isVenta ? `-${unidades} un.` : `+${unidades} un.`}
+                            </span>
+                          </td>
+                          <td style={styles.td}>
+                            <div style={{ color: COLOR.TEXT.PRIMARY, fontSize: 13 }}>
+                              {mov.motivo || (isVenta ? "Entrega de mercadería" : "Ingreso al taller")}
+                            </div>
+                          </td>
+                          <td style={{ ...styles.td, textAlign: "center" }}>
+                            <span style={{ fontSize: 13, color: COLOR.TEXT.SECONDARY, fontWeight: 500 }}>
+                              {mov.saldo_posterior} un.
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </Card>
         ) : (
@@ -620,41 +675,68 @@ export default function OperacionDetailPage() {
 
       {/* Historial de Pagos / Cobros */}
       {operacion.pagos && operacion.pagos.length > 0 && (
-        <Card style={{ padding: 0, overflow: "hidden" }}>
-          <div style={styles.tableTitleRow}>
-            <h3 style={{ margin: 0, fontSize: 16, color: COLOR.TEXT.PRIMARY }}>
-              Historial de Pagos y Cobros ({operacion.pagos.length})
-            </h3>
-          </div>
+        <Card style={{ padding: 0, overflow: "hidden" }} data-testid="operacion-pagos-history-card">
+          <button
+            type="button"
+            css={[
+              styles.accordionHeaderButton,
+              isPagosHistoryOpen && styles.accordionHeaderButtonExpanded,
+            ]}
+            onClick={() => setIsPagosHistoryOpen((prev) => !prev)}
+            aria-expanded={isPagosHistoryOpen}
+            aria-controls="operacion-pagos-history-collapse"
+            data-testid="operacion-pagos-history-toggle"
+          >
+            <div css={styles.accordionHeaderLeft}>
+              <span css={styles.accordionTitle}>
+                Historial de Pagos y Cobros ({operacion.pagos.length})
+              </span>
+            </div>
 
-          <div style={{ overflowX: "auto" }}>
-            <table style={styles.table}>
-              <thead>
-                <tr style={styles.thRow}>
-                  <th style={styles.th}>Fecha</th>
-                  <th style={styles.th}>Detalle / Referencia</th>
-                  <th style={{ ...styles.th, textAlign: "right" }}>Importe</th>
-                </tr>
-              </thead>
-              <tbody>
-                {operacion.pagos.map((pago) => (
-                  <tr key={pago.id} style={styles.tr}>
-                    <td style={styles.td}>{formatDateLabel(pago.fecha || pago.created_at)}</td>
-                    <td style={styles.td}>
-                      {pago.descripcion || "Pago registrado"}
-                      {pago.cuenta_financiera_nombre && (
-                        <div style={{ fontSize: 12, color: COLOR.TEXT.SECONDARY }}>
-                          Cuenta: {pago.cuenta_financiera_nombre}
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ ...styles.td, textAlign: "right", fontWeight: 600, color: COLOR.SEMANTIC.SUCCESS }}>
-                      {formatArs(pago.monto)}
-                    </td>
+            <div css={styles.accordionHeaderRight}>
+              <span css={styles.badgePagosHistory}>
+                Total: {formatArs(totalPagado)}
+              </span>
+              <ChevronDown
+                size={18}
+                css={styles.chevronIcon(isPagosHistoryOpen)}
+              />
+            </div>
+          </button>
+
+          <div
+            id="operacion-pagos-history-collapse"
+            css={styles.collapseOuter(isPagosHistoryOpen)}
+          >
+            <div css={styles.collapseInner}>
+              <table style={styles.table} data-testid="operacion-pagos-history-table">
+                <thead>
+                  <tr style={styles.thRow}>
+                    <th style={styles.th}>Fecha</th>
+                    <th style={styles.th}>Detalle / Referencia</th>
+                    <th style={{ ...styles.th, textAlign: "right" }}>Importe</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {operacion.pagos.map((pago) => (
+                    <tr key={pago.id} style={styles.tr}>
+                      <td style={styles.td}>{formatDateLabel(pago.fecha || pago.created_at)}</td>
+                      <td style={styles.td}>
+                        {pago.descripcion || "Pago registrado"}
+                        {pago.cuenta_financiera_nombre && (
+                          <div style={{ fontSize: 12, color: COLOR.TEXT.SECONDARY }}>
+                            Cuenta: {pago.cuenta_financiera_nombre}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ ...styles.td, textAlign: "right", fontWeight: 600, color: COLOR.SEMANTIC.SUCCESS }}>
+                        {formatArs(pago.monto)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </Card>
       )}
@@ -734,9 +816,8 @@ const styles = {
   }),
   headerActions: css({
     display: "flex",
-    gap: 8,
-    flexWrap: "wrap",
     alignItems: "center",
+    gap: 4,
   }),
   cardsGrid: css({
     display: "grid",
@@ -835,4 +916,93 @@ const styles = {
     padding: "12px 14px",
     color: COLOR.TEXT.PRIMARY,
   },
+  accordionHeaderButton: css({
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: "16px 20px",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    textAlign: "left",
+    transition: "background-color 0.15s ease",
+    "&:hover": {
+      backgroundColor: "rgba(0, 0, 0, 0.025)",
+    },
+  }),
+  accordionHeaderButtonExpanded: css({
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+  }),
+  accordionHeaderLeft: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+    minWidth: 0,
+  }),
+  accordionTitle: css({
+    fontSize: 15,
+    fontWeight: 700,
+    color: COLOR.TEXT.PRIMARY,
+    lineHeight: 1.3,
+  }),
+  accordionSubtitle: css({
+    fontSize: 13,
+    color: COLOR.TEXT.SECONDARY,
+    fontWeight: 400,
+    lineHeight: 1.3,
+  }),
+  accordionHeaderRight: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    flexShrink: 0,
+  }),
+  badgeStockHistory: css({
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "3px 12px",
+    borderRadius: 9999,
+    fontSize: 12,
+    fontWeight: 600,
+    color: COLOR.SEMANTIC.INFO,
+    backgroundColor: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
+    border: `1px solid ${Color(COLOR.SEMANTIC.INFO).alpha(0.2).toString()}`,
+    whiteSpace: "nowrap",
+  }),
+  badgePagosHistory: css({
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "3px 12px",
+    borderRadius: 9999,
+    fontSize: 12,
+    fontWeight: 700,
+    color: COLOR.SEMANTIC.SUCCESS,
+    backgroundColor: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
+    border: `1px solid ${Color(COLOR.SEMANTIC.SUCCESS).alpha(0.2).toString()}`,
+    whiteSpace: "nowrap",
+  }),
+  chevronIcon: (isOpen: boolean) =>
+    css({
+      color: COLOR.ICON.MUTED,
+      transition: "transform 220ms ease",
+      transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    }),
+  collapseOuter: (isOpen: boolean) =>
+    css({
+      display: "grid",
+      gridTemplateRows: isOpen ? "1fr" : "0fr",
+      transition: "grid-template-rows 240ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease",
+      opacity: isOpen ? 1 : 0,
+      overflow: "hidden",
+    }),
+  collapseInner: css({
+    minHeight: 0,
+    overflowX: "auto",
+  }),
 };

@@ -235,7 +235,7 @@ export default function ProveedorOperacionesTab({
               css={[styles.chip, filterEstado === "todos" && styles.chipActive]}
               data-testid="filtro-todos"
             >
-              Todas ({operaciones.length})
+              Todas
             </button>
             <button
               type="button"
@@ -243,8 +243,7 @@ export default function ProveedorOperacionesTab({
               css={[styles.chip, filterEstado === "pendientes_pago" && styles.chipActive]}
               data-testid="filtro-pendientes-pago"
             >
-              Pendientes de pago (
-              {operaciones.filter((o) => (o.saldo_pendiente ?? 0) > 0).length})
+              Pendientes de pago
             </button>
             <button
               type="button"
@@ -252,8 +251,7 @@ export default function ProveedorOperacionesTab({
               css={[styles.chip, filterEstado === "pendientes_stock" && styles.chipActive]}
               data-testid="filtro-pendientes-stock"
             >
-              Pendientes de entrega (
-              {operaciones.filter((o) => o.estado_stock === "PENDIENTE" || o.estado_stock === "PARCIAL").length})
+              Pendientes de entrega
             </button>
             <button
               type="button"
@@ -261,8 +259,7 @@ export default function ProveedorOperacionesTab({
               css={[styles.chip, filterEstado === "pagadas" && styles.chipActive]}
               data-testid="filtro-pagadas"
             >
-              Pagadas (
-              {operaciones.filter((o) => (o.saldo_pendiente ?? 0) === 0).length})
+              Pagadas
             </button>
           </div>
         )}

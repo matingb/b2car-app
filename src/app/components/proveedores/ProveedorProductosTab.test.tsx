@@ -112,4 +112,33 @@ describe("ProveedorProductosTab", () => {
 
     expect(onCountChange).toHaveBeenCalledWith(2);
   });
+
+  it("filtra productos al escribir en la barra de búsqueda unificada", async () => {
+    vi.mocked(proveedoresClient.getProductos).mockResolvedValue({
+      data: mockProductos,
+      error: null,
+    });
+
+    render(
+      <ProveedorProductosTab
+        proveedorId="prov-1"
+        proveedorNombre="B2CAR"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Filtro de Aceite Blindado PH6017A")).toBeInTheDocument();
+      expect(screen.getByText("Kit Correa de Distribución")).toBeInTheDocument();
+    });
+
+    const searchInput = screen.getByTestId("proveedor-productos-search");
+    fireEvent.change(searchInput, { target: { value: "correa" } });
+
+    expect(screen.getByText("Kit Correa de Distribución")).toBeInTheDocument();
+    expect(screen.queryByText("Filtro de Aceite Blindado PH6017A")).not.toBeInTheDocument();
+
+    fireEvent.change(searchInput, { target: { value: "FLT-6017" } });
+    expect(screen.getByText("Filtro de Aceite Blindado PH6017A")).toBeInTheDocument();
+    expect(screen.queryByText("Kit Correa de Distribución")).not.toBeInTheDocument();
+  });
 });
