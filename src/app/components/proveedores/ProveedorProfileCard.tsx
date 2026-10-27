@@ -1,24 +1,11 @@
 "use client";
 
 import React from "react";
-import { css } from "@emotion/react";
-import {
-  Building2,
-  Mail,
-  MapPin,
-  MessageCircle,
-  Pencil,
-  Phone,
-  Trash2,
-} from "lucide-react";
-import { BREAKPOINTS, COLOR } from "@/theme/theme";
-import { formatArs } from "@/lib/format";
-import { formatTelephoneNumber } from "@/lib/telefono";
-import { openWhatsapp } from "@/lib/whatsapp";
+import { Building2 } from "lucide-react";
+import { COLOR } from "@/theme/theme";
 import type { Proveedor } from "@/model/types";
 import type { ProveedorCuentaCorrienteResumen } from "@/model/dtos";
-import Card from "@/app/components/ui/Card";
-import Can from "@/app/components/auth/Can";
+import EntityProfileCard from "@/app/components/ui/EntityProfileCard";
 import { Permission } from "@/lib/permissions";
 
 export type ProveedorProfileCardProps = {
@@ -31,13 +18,6 @@ export type ProveedorProfileCardProps = {
   condicionPago?: string | null;
 };
 
-function getInitials(name: string): string {
-  if (!name) return "PR";
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
 export default function ProveedorProfileCard({
   proveedor,
   resumenCuentaCorriente,
@@ -45,406 +25,28 @@ export default function ProveedorProfileCard({
   onEditProveedor,
   onDeleteProveedor,
 }: ProveedorProfileCardProps) {
-  const saldoAdeudado = resumenCuentaCorriente?.saldoAdeudado ?? 0;
-  const tieneDeuda = saldoAdeudado > 0;
-  const tieneSaldoAFavor = saldoAdeudado < 0;
-  const saldoVisible = Math.abs(saldoAdeudado);
-  const initials = getInitials(proveedor.nombre);
-
   return (
-    <Card css={styles.cardContainer}>
-      <div css={styles.headerRow}>
-        <div css={styles.identitySection}>
-          <div css={styles.avatarSquircle}>{initials}</div>
-
-          <div css={styles.titlesSection}>
-            <div css={styles.nameRow}>
-              <Building2 size={20} color={COLOR.ACCENT.PRIMARY} />
-              <h1 css={styles.supplierName}>{proveedor.nombre}</h1>
-            </div>
-
-            <div css={styles.addressRow}>
-              <MapPin size={15} color={COLOR.TEXT.SECONDARY} />
-              <span>{proveedor.direccion || "Sin dirección registrada"}</span>
-            </div>
-          </div>
-        </div>
-
-        <div css={styles.financialSection}>
-          <div css={styles.balanceRow}>
-            <span
-              css={[
-                styles.balanceAmount,
-                tieneDeuda
-                  ? styles.balanceDanger
-                  : tieneSaldoAFavor
-                    ? styles.balanceFavor
-                    : styles.balanceClean,
-              ]}
-            >
-              {loadingFinanzas
-                ? "..."
-                : formatArs(saldoVisible, { maxDecimals: 0, minDecimals: 0 })}
-            </span>
-
-            {tieneDeuda ? (
-              <span css={styles.deudaBadge}>Deuda pendiente</span>
-            ) : tieneSaldoAFavor ? (
-              <span css={styles.saldoFavorBadge}>Saldo a favor</span>
-            ) : (
-              <span css={styles.alDiaBadge}>Al día</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* FILA INFERIOR: Datos de Contacto y Fiscales */}
-      <div css={styles.detailsSection}>
-        <div css={styles.detailsHeader}>
-          <span css={styles.detailsTitle}>DATOS DE CONTACTO Y FISCALES</span>
-
-          <div css={styles.actionsGroup}>
-            {proveedor.telefono && (
-              <button
-                type="button"
-                onClick={() =>
-                  openWhatsapp(
-                    proveedor.telefono!,
-                    `Hola ${proveedor.nombre}, me comunico desde el taller.`
-                  )
-                }
-                css={styles.whatsappActionButton}
-                title="Contactar por WhatsApp"
-              >
-                <MessageCircle size={14} color={COLOR.SEMANTIC.SUCCESS} />
-                <span>WhatsApp</span>
-              </button>
-            )}
-
-            <Can permission={Permission.ProveedoresEdit}>
-              <button
-                type="button"
-                onClick={onEditProveedor}
-                css={styles.textActionButton}
-                data-testid="proveedor-detail-edit"
-              >
-                <Pencil size={14} />
-                <span>Editar</span>
-              </button>
-
-              {onDeleteProveedor && (
-                <button
-                  type="button"
-                  onClick={onDeleteProveedor}
-                  css={styles.deleteActionButton}
-                  data-testid="proveedor-detail-delete"
-                >
-                  <Trash2 size={14} />
-                  <span>Eliminar</span>
-                </button>
-              )}
-            </Can>
-          </div>
-        </div>
-
-        <div css={styles.contactList}>
-          {/* Email */}
-          <div css={styles.contactItem}>
-            <Mail size={16} color={COLOR.TEXT.SECONDARY} />
-            {proveedor.email ? (
-              <a
-                href={`mailto:${proveedor.email}`}
-                css={styles.contactLink}
-                title="Enviar correo"
-              >
-                {proveedor.email}
-              </a>
-            ) : (
-              <span css={styles.mutedText}>—</span>
-            )}
-          </div>
-
-          {/* Teléfono */}
-          <div css={styles.contactItem}>
-            <Phone size={16} color={COLOR.TEXT.SECONDARY} />
-            {proveedor.telefono ? (
-              <a
-                href={`tel:${proveedor.telefono}`}
-                css={styles.contactLink}
-                title="Llamar"
-              >
-                {formatTelephoneNumber(undefined, proveedor.telefono)}
-              </a>
-            ) : (
-              <span css={styles.mutedText}>—</span>
-            )}
-          </div>
-
-          {/* CUIT */}
-          <div css={styles.contactItem}>
-            <span css={styles.fieldLabel}>CUIT:</span>
-            <span>{proveedor.cuit || "—"}</span>
-          </div>
-        </div>
-      </div>
-    </Card>
+    <EntityProfileCard
+      title={proveedor.nombre}
+      icon={<Building2 size={20} color={COLOR.ACCENT.PRIMARY} />}
+      address={proveedor.direccion}
+      saldo={resumenCuentaCorriente?.saldoAdeudado}
+      loadingFinanzas={loadingFinanzas}
+      finanzasPermission={Permission.OperacionesView}
+      email={proveedor.email}
+      telefono={proveedor.telefono}
+      documentoLabel="CUIT"
+      documentoValor={proveedor.cuit}
+      showEmptyDocumento
+      whatsappPhone={proveedor.telefono}
+      whatsappMessage={`Hola ${proveedor.nombre}, me comunico desde el taller.`}
+      onEdit={onEditProveedor}
+      editTestId="proveedor-detail-edit"
+      editPermission={Permission.ProveedoresEdit}
+      onDelete={onDeleteProveedor}
+      deleteTestId="proveedor-detail-delete"
+      deletePermission={Permission.ProveedoresEdit}
+      detailsTitle="DATOS DE CONTACTO Y FISCALES"
+    />
   );
 }
-
-const styles = {
-  cardContainer: css({
-    marginTop: 20,
-    marginBottom: 24,
-    borderRadius: 16,
-    padding: "24px 28px",
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    backgroundColor: COLOR.BACKGROUND.PRIMARY,
-    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.04)",
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      padding: "16px 16px",
-    },
-  }),
-  headerRow: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    flexWrap: "wrap",
-    gap: 16,
-    paddingBottom: 20,
-    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
-  }),
-  identitySection: css({
-    display: "flex",
-    alignItems: "center",
-    gap: 16,
-    minWidth: 260,
-  }),
-  avatarSquircle: css({
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: COLOR.ACCENT.PRIMARY,
-    color: "#FFFFFF",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 22,
-    fontWeight: 700,
-    letterSpacing: "0.04em",
-    flexShrink: 0,
-  }),
-  titlesSection: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-  }),
-  nameRow: css({
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    flexWrap: "wrap",
-  }),
-  supplierName: css({
-    margin: 0,
-    fontSize: 22,
-    fontWeight: 700,
-    color: COLOR.TEXT.PRIMARY,
-    lineHeight: 1.2,
-  }),
-  rubroBadge: css({
-    fontSize: 12,
-    fontWeight: 500,
-    padding: "2px 10px",
-    borderRadius: 9999,
-    backgroundColor: COLOR.BACKGROUND.SUBTLE,
-    color: COLOR.TEXT.SECONDARY,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-  }),
-  addressRow: css({
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    fontSize: 13,
-    color: COLOR.TEXT.SECONDARY,
-  }),
-  financialSection: css({
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-end",
-    gap: 8,
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      alignItems: "flex-start",
-      width: "100%",
-      marginTop: 8,
-    },
-  }),
-  balanceRow: css({
-    display: "flex",
-    alignItems: "flex-end",
-    gap: 10,
-    flexWrap: "wrap",
-  }),
-  balanceAmount: css({
-    fontSize: 32,
-    fontWeight: 700,
-    lineHeight: 1,
-    letterSpacing: "-0.02em",
-  }),
-  balanceDanger: css({
-    color: COLOR.SEMANTIC.DANGER,
-  }),
-  balanceClean: css({
-    color: COLOR.SEMANTIC.SUCCESS,
-  }),
-  balanceFavor: css({
-    color: COLOR.SEMANTIC.INFO,
-  }),
-  deudaBadge: css({
-    display: "inline-flex",
-    alignItems: "center",
-    fontSize: 12,
-    fontWeight: 600,
-    color: COLOR.SEMANTIC.DANGER,
-    backgroundColor: COLOR.BACKGROUND.DANGER_TINT,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 9999,
-    padding: "4px 12px",
-  }),
-  alDiaBadge: css({
-    display: "inline-flex",
-    alignItems: "center",
-    fontSize: 12,
-    fontWeight: 600,
-    color: COLOR.SEMANTIC.SUCCESS,
-    backgroundColor: COLOR.BACKGROUND.SUCCESS_TINT,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 9999,
-    padding: "4px 12px",
-  }),
-  saldoFavorBadge: css({
-    display: "inline-flex",
-    alignItems: "center",
-    fontSize: 12,
-    fontWeight: 600,
-    color: COLOR.SEMANTIC.INFO,
-    backgroundColor: COLOR.BACKGROUND.INFO_TINT,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 9999,
-    padding: "4px 12px",
-  }),
-  detailsSection: css({
-    marginTop: 18,
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  }),
-  detailsHeader: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
-  }),
-  detailsTitle: css({
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: "0.05em",
-    color: COLOR.TEXT.PRIMARY,
-    textTransform: "uppercase",
-  }),
-  actionsGroup: css({
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-  }),
-  textActionButton: css({
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 5,
-    background: "transparent",
-    border: "none",
-    color: COLOR.ACCENT.PRIMARY,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-    padding: "4px 8px",
-    borderRadius: 6,
-    transition: "background 150ms ease",
-    "&:hover": {
-      backgroundColor: "rgba(15, 118, 110, 0.08)",
-    },
-  }),
-  whatsappActionButton: css({
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 5,
-    background: "transparent",
-    border: "none",
-    color: COLOR.SEMANTIC.SUCCESS,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-    padding: "4px 8px",
-    borderRadius: 6,
-    transition: "background 150ms ease",
-    "&:hover": {
-      backgroundColor: COLOR.STATUS.SUCCESS.BG_SUBTLE,
-    },
-  }),
-  deleteActionButton: css({
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 5,
-    background: "transparent",
-    border: "none",
-    color: COLOR.SEMANTIC.DANGER,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-    padding: "4px 8px",
-    borderRadius: 6,
-    transition: "background 150ms ease",
-    "&:hover": {
-      backgroundColor: COLOR.STATUS.DANGER.BG_SUBTLE,
-    },
-  }),
-  contactList: css({
-    display: "flex",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: "12px 32px",
-    fontSize: 13,
-    color: COLOR.TEXT.PRIMARY,
-  }),
-  contactItem: css({
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-  }),
-  contactLink: css({
-    color: COLOR.TEXT.PRIMARY,
-    textDecoration: "none",
-    transition: "color 150ms ease",
-    "&:hover": {
-      color: COLOR.ACCENT.PRIMARY,
-      textDecoration: "underline",
-    },
-  }),
-  fieldLabel: css({
-    fontWeight: 700,
-    fontSize: 12,
-    letterSpacing: "0.04em",
-    color: COLOR.TEXT.PRIMARY,
-    textTransform: "uppercase",
-  }),
-  conditionText: css({
-    color: COLOR.TEXT.SECONDARY,
-    maxWidth: 280,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  }),
-  mutedText: css({
-    color: COLOR.TEXT.SECONDARY,
-  }),
-};

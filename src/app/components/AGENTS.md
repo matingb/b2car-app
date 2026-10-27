@@ -9,7 +9,7 @@ Reusable UI components are located in `src/app/components/ui/` (import alias: `@
 Always check this directory before creating new UI elements to maintain visual and functional consistency across the application. Available components include:
 - **Inputs & Selection**: `Button`, `IconButton`, `IconInput`, `NumberInput`, `PhoneInput`, `Checkbox`, `Toggle`, `Dropdown`, `DropdownMultiSelect`, `Autocomplete`, `SearchBar`, `FilterChip`
 - **Modals & Overlays**: `Modal`, `ModalMessage`, `MenuSheet`, `sheet`
-- **Layout & Display**: `Card`, `ScreenHeader`, `ScrollPage`, `Divider`, `DefinitionItem`, `ListSkeleton`, `Avatar`, `Calendar`
+- **Layout & Display**: `Card`, `EntityProfileCard`, `ScreenHeader`, `ScrollPage`, `Divider`, `DefinitionItem`, `ListSkeleton`, `Avatar`, `Calendar`
 - **Domain UI**: `TallerSelector`, `TenantNameText`, `ContactRow`, `WhatsAppIcon`
 
 ### Client selection

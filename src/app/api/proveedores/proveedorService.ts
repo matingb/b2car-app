@@ -39,7 +39,27 @@ export function createProveedorService(repository: ProveedorRepository) {
       supabase: SupabaseClient,
       filters?: ListProveedoresFilters
     ): Promise<{ data: ProveedorRow[]; error: ServiceError | null; cause?: PostgrestError }> {
-      return repository.list(supabase, filters);
+      const res = await repository.list(supabase, filters);
+      if (res.error || !res.data || res.data.length === 0 || typeof repository.getSaldos !== "function") {
+        return res;
+      }
+
+      try {
+        const saldosRes = await repository.getSaldos(
+          supabase,
+          res.data.map((p) => p.id)
+        );
+        const saldosMap = saldosRes.data;
+        if (!saldosMap) return res;
+
+        const enriched = res.data.map((p) => ({
+          ...p,
+          saldo_pendiente: saldosMap.get(p.id)?.saldoPendiente ?? 0,
+        }));
+        return { data: enriched, error: null };
+      } catch {
+        return res;
+      }
     },
 
     async getById(

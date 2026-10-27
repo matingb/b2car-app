@@ -12,15 +12,11 @@ export type ProductosTabKey = "productos" | "proveedores";
 type Props = {
   activeTab: ProductosTabKey;
   onChangeTab: (tab: ProductosTabKey) => void;
-  productosCount?: number;
-  proveedoresCount?: number;
 };
 
 export default function ProductosTabsNav({
   activeTab,
   onChangeTab,
-  productosCount,
-  proveedoresCount,
 }: Props) {
   return (
     <nav css={styles.navContainer} aria-label="Secciones de productos y abastecimiento">
@@ -32,11 +28,6 @@ export default function ProductosTabsNav({
       >
         <Package size={17} />
         <span>Catálogo de Productos</span>
-        {productosCount != null && productosCount > 0 ? (
-          <span css={[styles.countBadge, activeTab === "productos" && styles.countBadgeActive]}>
-            {productosCount}
-          </span>
-        ) : null}
       </button>
 
       <Can permission={Permission.ProveedoresView}>
@@ -48,11 +39,6 @@ export default function ProductosTabsNav({
         >
           <Truck size={17} />
           <span>Proveedores</span>
-          {proveedoresCount != null && proveedoresCount > 0 ? (
-            <span css={[styles.countBadge, activeTab === "proveedores" && styles.countBadgeActive]}>
-              {proveedoresCount}
-            </span>
-          ) : null}
         </button>
       </Can>
     </nav>

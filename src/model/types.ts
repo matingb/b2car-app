@@ -53,6 +53,7 @@ export interface Proveedor {
   direccion?: string | null;
   created_at?: string;
   updated_at?: string;
+  saldo_pendiente?: number;
 }
 
 export interface Vehiculo {

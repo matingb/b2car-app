@@ -49,9 +49,12 @@ describe("GET /api/proveedores", () => {
     expect(proveedorService.list).not.toHaveBeenCalled();
   });
 
-  it("devuelve la lista de proveedores", async () => {
+  it("devuelve la lista de proveedores con saldo_pendiente mapeado", async () => {
     const { supabase } = mockApiSession({ permissions: [Permission.ProveedoresView] });
-    vi.mocked(proveedorService.list).mockResolvedValueOnce({ data: [row], error: null });
+    vi.mocked(proveedorService.list).mockResolvedValueOnce({
+      data: [{ ...row, saldo_pendiente: 45000 }],
+      error: null,
+    });
 
     const req = new NextRequest("http://localhost/api/proveedores?search=distribuidora");
     const res = await GET(req, segment());
@@ -60,10 +63,30 @@ describe("GET /api/proveedores", () => {
     const body = await res.json();
     expect(body.data).toHaveLength(1);
     expect(body.data[0].nombre).toBe("Distribuidora Repuestos SA");
+    expect(body.data[0].saldo_pendiente).toBe(45000);
     expect(proveedorService.list).toHaveBeenCalledWith(supabase, {
       search: "distribuidora",
       limit: undefined,
     });
+  });
+
+  it("filtra por saldo en el query param", async () => {
+    mockApiSession({ permissions: [Permission.ProveedoresView] });
+    vi.mocked(proveedorService.list).mockResolvedValueOnce({
+      data: [
+        { ...row, id: "p-1", saldo_pendiente: 50000 },
+        { ...row, id: "p-2", saldo_pendiente: 0 },
+      ],
+      error: null,
+    });
+
+    const req = new NextRequest("http://localhost/api/proveedores?saldo=PENDIENTE");
+    const res = await GET(req, segment());
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].id).toBe("p-1");
   });
 });
 

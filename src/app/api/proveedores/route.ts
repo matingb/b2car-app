@@ -33,6 +33,7 @@ function mapProveedor(row: ProveedorRow): Proveedor {
     direccion: row.direccion,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    saldo_pendiente: row.saldo_pendiente ?? 0,
   };
 }
 
@@ -67,6 +68,11 @@ export const GET = createApiHandler(
     const search = ctx.req.nextUrl.searchParams.get("search") ?? undefined;
     const limitParam = ctx.req.nextUrl.searchParams.get("limit");
     const limit = limitParam ? Number(limitParam) : undefined;
+    const rawSaldo = ctx.req.nextUrl.searchParams.get("saldo")?.toUpperCase();
+    const saldoFilter =
+      rawSaldo === "PENDIENTE" || rawSaldo === "AL_DIA" || rawSaldo === "A_FAVOR"
+        ? rawSaldo
+        : undefined;
 
     const { data, error, cause } = await proveedorService.list(ctx.supabase, {
       search,
@@ -75,8 +81,17 @@ export const GET = createApiHandler(
 
     if (error) return ctx.fail(cause ?? error);
 
+    let result = data.map(mapProveedor);
+    if (saldoFilter === "PENDIENTE") {
+      result = result.filter((p) => (p.saldo_pendiente ?? 0) > 0);
+    } else if (saldoFilter === "AL_DIA") {
+      result = result.filter((p) => (p.saldo_pendiente ?? 0) === 0);
+    } else if (saldoFilter === "A_FAVOR") {
+      result = result.filter((p) => (p.saldo_pendiente ?? 0) < 0);
+    }
+
     return Response.json({
-      data: data.map(mapProveedor),
+      data: result,
       error: null,
     } satisfies GetProveedoresResponse);
   }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getOperacionTitle } from "./LineDetalleOperacion";
+import { useOperacionDetalle } from "./useOperacionDetalle";
 import type { Operacion } from "@/model/types";
 import type { StockItem } from "@/model/stock";
 
@@ -193,6 +194,97 @@ describe("getOperacionTitle", () => {
     expect(getOperacionTitle(operacion, "Compra", stocksByIdMock)).toBe(
       "Adquisición sin cargo · Aceite Castrol 10W40 (x5)"
     );
+  });
+});
+
+describe("useOperacionDetalle", () => {
+  it("muestra '1 producto' en singular cuando la operación tiene 1 sola línea", () => {
+    const operacion = {
+      id: "op-1",
+      tipo: "COMPRA",
+      taller_id: "taller-1",
+      fecha: "2026-10-27",
+      created_at: "2026-10-27",
+      lineas: [
+        {
+          id: "linea-1",
+          operacion_id: "op-1",
+          stock_id: "stock-1",
+          cantidad: 1,
+          monto_unitario: 2500,
+          delta_cantidad: 1,
+          created_at: "2026-10-27",
+        },
+      ],
+    } as unknown as Operacion;
+
+    const result = useOperacionDetalle({
+      operacion,
+      tipoLabel: "Compra",
+      tallerLabel: "Taller Central",
+    });
+
+    expect(result.metaBadge.labelDesktop).toBe("1 producto");
+    expect(result.metaBadge.labelMobile).toBe("1");
+  });
+
+  it("muestra 'N productos' en plural cuando la operación tiene múltiples líneas", () => {
+    const operacion = {
+      id: "op-2",
+      tipo: "VENTA",
+      taller_id: "taller-1",
+      fecha: "2026-10-27",
+      created_at: "2026-10-27",
+      lineas: [
+        {
+          id: "linea-1",
+          operacion_id: "op-2",
+          stock_id: "stock-1",
+          cantidad: 1,
+          monto_unitario: 5000,
+          delta_cantidad: -1,
+          created_at: "2026-10-27",
+        },
+        {
+          id: "linea-2",
+          operacion_id: "op-2",
+          stock_id: "stock-2",
+          cantidad: 2,
+          monto_unitario: 3000,
+          delta_cantidad: -2,
+          created_at: "2026-10-27",
+        },
+      ],
+    } as unknown as Operacion;
+
+    const result = useOperacionDetalle({
+      operacion,
+      tipoLabel: "Venta",
+      tallerLabel: "Taller Central",
+    });
+
+    expect(result.metaBadge.labelDesktop).toBe("2 productos");
+    expect(result.metaBadge.labelMobile).toBe("2");
+  });
+
+  it("muestra '0 productos' cuando la operación no tiene líneas", () => {
+    const operacion = {
+      id: "op-3",
+      tipo: "COMPRA",
+      taller_id: "taller-1",
+      fecha: "2026-10-27",
+      created_at: "2026-10-27",
+      lineas: [],
+    } as unknown as Operacion;
+
+    const result = useOperacionDetalle({
+      operacion,
+      tipoLabel: "Compra",
+      tallerLabel: "Taller Central",
+    });
+
+    expect(result.metaBadge.labelDesktop).toBe("0 productos");
+    expect(result.metaBadge.labelMobile).toBe("0");
   });
 });
 

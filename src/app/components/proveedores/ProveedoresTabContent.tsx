@@ -5,7 +5,7 @@ import SearchBar from "@/app/components/ui/SearchBar";
 import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
-import { PlusIcon, Building2 } from "lucide-react";
+import { PlusIcon, Building2, AlertCircle, CheckCircle2, Info } from "lucide-react";
 import { useProveedores } from "@/app/providers/ProveedoresProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import ProveedorItemCard from "@/app/components/proveedores/ProveedorItemCard";
@@ -16,25 +16,39 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import type { Proveedor } from "@/model/types";
 import { css } from "@emotion/react";
 
+type SaldoFilter = "" | "PENDIENTE" | "AL_DIA" | "A_FAVOR";
+
 export default function ProveedoresTabContent() {
   const { proveedores, loading, createProveedor, updateProveedor } = useProveedores();
   const toast = useToast();
 
   const [search, setSearch] = useState("");
+  const [saldoFilter, setSaldoFilter] = useState<SaldoFilter>("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProveedor, setEditingProveedor] = useState<Proveedor | null>(null);
 
   const filteredProveedores = useMemo(() => {
+    let list = proveedores;
+
+    if (saldoFilter === "PENDIENTE") {
+      list = list.filter((p) => (p.saldo_pendiente ?? 0) > 0);
+    } else if (saldoFilter === "AL_DIA") {
+      list = list.filter((p) => (p.saldo_pendiente ?? 0) === 0);
+    } else if (saldoFilter === "A_FAVOR") {
+      list = list.filter((p) => (p.saldo_pendiente ?? 0) < 0);
+    }
+
     const q = search.trim().toLowerCase();
-    if (!q) return proveedores;
-    return proveedores.filter(
+    if (!q) return list;
+
+    return list.filter(
       (p) =>
         p.nombre.toLowerCase().includes(q) ||
         (p.cuit && p.cuit.includes(q)) ||
         (p.email && p.email.toLowerCase().includes(q)) ||
         (p.telefono && p.telefono.includes(q))
     );
-  }, [proveedores, search]);
+  }, [proveedores, search, saldoFilter]);
 
   const handleOpenCreate = () => {
     setEditingProveedor(null);
@@ -50,6 +64,13 @@ export default function ProveedoresTabContent() {
     setModalOpen(false);
     setEditingProveedor(null);
   };
+
+  const handleClearFilters = () => {
+    setSaldoFilter("");
+    setSearch("");
+  };
+
+  const hasActiveFilters = saldoFilter !== "" || search.trim() !== "";
 
   const handleSubmitModal = async (values: {
     nombre: string;
@@ -91,10 +112,74 @@ export default function ProveedoresTabContent() {
         </Can>
       </div>
 
+      {/* Filter Chips by Payment / Balance Status */}
+      <div css={styles.chipsContainer} aria-label="Filtrar por estado de pago">
+        <div css={styles.chipsGroup}>
+          <button
+            type="button"
+            data-testid="proveedores-chip-saldo-pendiente"
+            onClick={() =>
+              setSaldoFilter((prev) => (prev === "PENDIENTE" ? "" : "PENDIENTE"))
+            }
+            css={[
+              styles.chipBase,
+              saldoFilter === "PENDIENTE" && styles.chipSelectedDanger,
+              styles.chipResponsive,
+            ]}
+          >
+            <AlertCircle size={14} />
+            <span>Saldo pendiente</span>
+          </button>
+          <button
+            type="button"
+            data-testid="proveedores-chip-saldo-al-dia"
+            onClick={() =>
+              setSaldoFilter((prev) => (prev === "AL_DIA" ? "" : "AL_DIA"))
+            }
+            css={[
+              styles.chipBase,
+              saldoFilter === "AL_DIA" && styles.chipSelectedSuccess,
+              styles.chipResponsive,
+            ]}
+          >
+            <CheckCircle2 size={14} />
+            <span>Saldo al día</span>
+          </button>
+          <button
+            type="button"
+            data-testid="proveedores-chip-saldo-a-favor"
+            onClick={() =>
+              setSaldoFilter((prev) => (prev === "A_FAVOR" ? "" : "A_FAVOR"))
+            }
+            css={[
+              styles.chipBase,
+              saldoFilter === "A_FAVOR" && styles.chipSelectedInfo,
+              styles.chipResponsive,
+            ]}
+          >
+            <Info size={14} />
+            <span>Saldo a favor</span>
+          </button>
+        </div>
+
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={handleClearFilters}
+            css={styles.clearButton}
+            data-testid="proveedores-clear-filters"
+          >
+            Limpiar filtros
+          </button>
+        )}
+      </div>
+
       <div style={styles.resultsHeader}>
         <h2 style={styles.resultsTitle}>Listado</h2>
         <span style={styles.resultsCount}>
-          {filteredProveedores.length} {filteredProveedores.length === 1 ? "proveedor" : "proveedores"}
+          {hasActiveFilters && proveedores.length !== filteredProveedores.length
+            ? `${filteredProveedores.length} de ${proveedores.length} proveedores`
+            : `${filteredProveedores.length} ${filteredProveedores.length === 1 ? "proveedor" : "proveedores"}`}
         </span>
       </div>
 
@@ -107,14 +192,25 @@ export default function ProveedoresTabContent() {
               <Building2 size={36} color={COLOR.ACCENT.PRIMARY} />
             </div>
             <div style={styles.emptyTitle}>
-              {search.trim() ? "No se encontraron proveedores" : "No tenés proveedores registrados"}
+              {hasActiveFilters
+                ? "No se encontraron proveedores"
+                : "No tenés proveedores registrados"}
             </div>
             <div style={styles.emptySub}>
-              {search.trim()
-                ? "Probá ajustando los términos de búsqueda."
+              {hasActiveFilters
+                ? "Probá ajustando la búsqueda o los filtros de estado de pago."
                 : "Agregá tu primer proveedor con el botón '+ Nuevo Proveedor'."}
             </div>
-            {!search.trim() && (
+            {hasActiveFilters ? (
+              <div style={{ marginTop: 16 }}>
+                <Button
+                  text="Limpiar filtros"
+                  outline
+                  onClick={handleClearFilters}
+                  dataTestId="proveedores-empty-clear-btn"
+                />
+              </div>
+            ) : (
               <Can permission={Permission.ProveedoresEdit}>
                 <div style={{ marginTop: 16 }}>
                   <Button
@@ -155,7 +251,7 @@ const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 12,
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       flexDirection: "column",
       alignItems: "stretch",
@@ -171,6 +267,133 @@ const styles = {
   newButton: {
     whiteSpace: "nowrap" as const,
   },
+  chipsContainer: css({
+    display: "flex",
+    gap: "8px",
+    alignItems: "center",
+    width: "100%",
+    overflowX: "auto",
+    flexWrap: "nowrap",
+    WebkitOverflowScrolling: "touch",
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    "&::-webkit-scrollbar": {
+      display: "none",
+    },
+    paddingBottom: 4,
+    paddingTop: 2,
+    marginBottom: 16,
+    [`@media (min-width: ${BREAKPOINTS.lg}px)`]: {
+      flexWrap: "wrap",
+      overflowX: "visible",
+    },
+  }),
+  chipsGroup: css({
+    display: "flex",
+    gap: "8px",
+    alignItems: "center",
+    flexShrink: 0,
+  }),
+  chipBase: css({
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "6px 14px",
+    height: "34px",
+    borderRadius: "999px",
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SECONDARY,
+    color: COLOR.TEXT.PRIMARY,
+    cursor: "pointer",
+    fontWeight: 500,
+    fontSize: "13px",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+    boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)",
+    transition:
+      "transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, background-color 150ms ease, color 150ms ease",
+    "&:hover": {
+      borderColor: COLOR.ACCENT.PRIMARY,
+      transform: "translateY(-1px)",
+      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)",
+    },
+    "&:active": {
+      transform: "scale(0.97)",
+    },
+    "& svg": {
+      flexShrink: 0,
+      color: COLOR.ICON.MUTED,
+      transition: "color 150ms ease",
+    },
+  }),
+  chipSelectedDanger: css({
+    background: COLOR.BACKGROUND.DANGER_TINT,
+    borderColor: COLOR.SEMANTIC.DANGER,
+    color: COLOR.SEMANTIC.DANGER,
+    boxShadow: "none",
+    fontWeight: 600,
+    "& svg": {
+      color: COLOR.SEMANTIC.DANGER,
+    },
+    "&:hover": {
+      borderColor: COLOR.SEMANTIC.DANGER,
+      background: COLOR.BACKGROUND.DANGER_TINT,
+    },
+  }),
+  chipSelectedSuccess: css({
+    background: COLOR.BACKGROUND.SUCCESS_TINT,
+    borderColor: COLOR.SEMANTIC.SUCCESS,
+    color: COLOR.SEMANTIC.SUCCESS,
+    boxShadow: "none",
+    fontWeight: 600,
+    "& svg": {
+      color: COLOR.SEMANTIC.SUCCESS,
+    },
+    "&:hover": {
+      borderColor: COLOR.SEMANTIC.SUCCESS,
+      background: COLOR.BACKGROUND.SUCCESS_TINT,
+    },
+  }),
+  chipSelectedInfo: css({
+    background: COLOR.BACKGROUND.INFO_TINT,
+    borderColor: COLOR.SEMANTIC.INFO,
+    color: COLOR.SEMANTIC.INFO,
+    boxShadow: "none",
+    fontWeight: 600,
+    "& svg": {
+      color: COLOR.SEMANTIC.INFO,
+    },
+    "&:hover": {
+      borderColor: COLOR.SEMANTIC.INFO,
+      background: COLOR.BACKGROUND.INFO_TINT,
+    },
+  }),
+  chipResponsive: css({
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      fontSize: "12px",
+      padding: "5px 11px",
+      height: "32px",
+    },
+  }),
+  clearButton: css({
+    background: "transparent",
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    color: COLOR.TEXT.SECONDARY,
+    padding: "5px 12px",
+    height: "32px",
+    borderRadius: "999px",
+    cursor: "pointer",
+    fontSize: "12px",
+    fontWeight: 500,
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+    transition: "border-color 150ms ease, color 150ms ease, background-color 150ms ease",
+    "&:hover": {
+      borderColor: COLOR.BORDER.DEFAULT,
+      color: COLOR.TEXT.PRIMARY,
+      backgroundColor: COLOR.BACKGROUND.SUBTLE,
+    },
+  }),
   resultsHeader: {
     display: "flex",
     justifyContent: "space-between",

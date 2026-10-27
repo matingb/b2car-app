@@ -11,6 +11,7 @@ function createQueryChain(resolvedValue: { data: unknown; error: unknown; count?
     "limit",
     "or",
     "eq",
+    "in",
     "insert",
     "update",
     "delete",
@@ -269,6 +270,34 @@ describe("supabaseProveedorRepository", () => {
           codigo: "FLT-001",
         },
       ]);
+    });
+  });
+
+  describe("getSaldos", () => {
+    it("calcula saldos pendientes agrupados por proveedor", async () => {
+      const mockCompras = [
+        {
+          proveedor_id: "prov-1",
+          operaciones: { id: "op-1", monto_total: 100000, total_pagado: 40000 },
+        },
+        {
+          proveedor_id: "prov-1",
+          operaciones: { id: "op-2", monto_total: 50000, total_pagado: 50000 },
+        },
+        {
+          proveedor_id: "prov-2",
+          operaciones: { id: "op-3", monto_total: 80000, total_pagado: 80000 },
+        },
+      ];
+
+      const supabase = makeSupabase({ data: mockCompras, error: null });
+      const res = await supabaseProveedorRepository.getSaldos(supabase, ["prov-1", "prov-2"]);
+
+      expect(supabase.from).toHaveBeenCalledWith("operaciones_compra");
+      expect(supabase.__chain.in).toHaveBeenCalledWith("proveedor_id", ["prov-1", "prov-2"]);
+      expect(res.data.get("prov-1")?.saldoPendiente).toBe(60000);
+      expect(res.data.get("prov-2")?.saldoPendiente).toBe(0);
+      expect(res.error).toBeNull();
     });
   });
 });

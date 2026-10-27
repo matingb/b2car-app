@@ -154,4 +154,22 @@ describe("ClienteProfileCard", () => {
     expect(screen.queryByText("Al día")).not.toBeInTheDocument();
     expect(screen.getByText("Logística Central S.A.")).toBeInTheDocument();
   });
+
+  it("renderiza botón de WhatsApp y llama a openWhatsapp al hacer click", async () => {
+    const whatsappLib = await import("@/lib/whatsapp");
+    const openWhatsappSpy = vi.spyOn(whatsappLib, "openWhatsapp").mockImplementation(() => {});
+
+    render(<ClienteProfileCard {...defaultProps} />);
+
+    const whatsappBtn = screen.getByRole("button", { name: "WhatsApp" });
+    expect(whatsappBtn).toBeInTheDocument();
+    fireEvent.click(whatsappBtn);
+
+    expect(openWhatsappSpy).toHaveBeenCalledWith(
+      defaultProps.telefono,
+      `Hola ${defaultProps.nombre}, me comunico desde el taller.`
+    );
+
+    openWhatsappSpy.mockRestore();
+  });
 });

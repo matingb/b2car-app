@@ -3,12 +3,11 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { css } from "@emotion/react";
-import { Wrench, Plus } from "lucide-react";
+import { Wrench } from "lucide-react";
 import { ROUTES } from "@/routing/routes";
 import { COLOR } from "@/theme/theme";
 import ArregloItem from "@/app/components/arreglos/ArregloItem";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
-import Button from "@/app/components/ui/Button";
 import Card from "@/app/components/ui/Card";
 import type { Arreglo } from "@/model/types";
 import { arreglosClient } from "@/clients/arreglosClient";
@@ -16,12 +15,10 @@ import { applyArregloPago } from "@/lib/arreglos";
 
 type Props = {
   clienteId: string;
-  onNewArreglo?: () => void;
-  /** Se invoca tras registrar o anular un cobro, para que la pantalla refresque datos derivados (ej. resumen financiero). */
   onPagoUpdated?: (arreglo: Arreglo) => void;
 };
 
-export default function ClienteArreglosTab({ clienteId, onNewArreglo, onPagoUpdated }: Props) {
+export default function ClienteArreglosTab({ clienteId, onPagoUpdated }: Props) {
   const router = useRouter();
   const [arreglos, setArreglos] = useState<Arreglo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,65 +63,26 @@ export default function ClienteArreglosTab({ clienteId, onNewArreglo, onPagoUpda
         <span style={styles.emptySubtitle}>
           Cuando ingreses un vehículo del cliente a taller, sus órdenes aparecerán acá.
         </span>
-        {onNewArreglo ? (
-          <Button
-            icon={<Plus size={16} />}
-            text="Crear trabajo"
-            onClick={onNewArreglo}
-            style={{ marginTop: 12 }}
-          />
-        ) : null}
       </Card>
     );
   }
 
   return (
-    <div css={styles.container}>
-      <div css={styles.toolbar}>
-        <span css={styles.totalText}>
-          {arreglos.length} arreglo{arreglos.length === 1 ? "" : "s"} registrado{arreglos.length === 1 ? "" : "s"}
-        </span>
-        {onNewArreglo ? (
-          <Button
-            icon={<Plus size={16} />}
-            text="Nuevo trabajo"
-            onClick={onNewArreglo}
-          />
-        ) : null}
-      </div>
-
-      <div css={styles.list}>
-        {arreglos.map((a) => (
-          <ArregloItem
-            key={a.id}
-            arreglo={a}
-            onClick={(arr) => router.push(`${ROUTES.arreglos}/${arr.id}`)}
-            showObservaciones={true}
-            onPagoUpdated={handlePagoUpdated}
-          />
-        ))}
-      </div>
+    <div css={styles.list}>
+      {arreglos.map((a) => (
+        <ArregloItem
+          key={a.id}
+          arreglo={a}
+          onClick={(arr) => router.push(`${ROUTES.arreglos}/${arr.id}`)}
+          showObservaciones={true}
+          onPagoUpdated={handlePagoUpdated}
+        />
+      ))}
     </div>
   );
 }
 
 const styles = {
-  container: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  }),
-  toolbar: css({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
-  }),
-  totalText: css({
-    fontSize: 14,
-    color: COLOR.TEXT.SECONDARY,
-    fontWeight: 500,
-  }),
   list: css({
     display: "flex",
     flexDirection: "column",

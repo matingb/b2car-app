@@ -12,6 +12,13 @@ export type ProveedorRow = {
   direccion: string | null;
   created_at: string;
   updated_at: string;
+  saldo_pendiente?: number;
+};
+
+export type ProveedorSaldoInfo = {
+  saldoPendiente: number;
+  totalComprado: number;
+  totalPagado: number;
 };
 
 export type ListProveedoresFilters = {
@@ -66,6 +73,11 @@ export interface ProveedorRepository {
     supabase: SupabaseClient,
     proveedorId: string
   ): Promise<{ data: ProveedorCuentaCorrienteResumen | null; error: ServiceError | PostgrestError | null }>;
+
+  getSaldos(
+    supabase: SupabaseClient,
+    proveedorIds?: string[]
+  ): Promise<{ data: Map<string, ProveedorSaldoInfo>; error: ServiceError | PostgrestError | null }>;
 }
 
 export const supabaseProveedorRepository: ProveedorRepository = {
@@ -221,5 +233,51 @@ export const supabaseProveedorRepository: ProveedorRepository = {
       },
       error: null,
     };
+  },
+
+  async getSaldos(supabase: SupabaseClient, proveedorIds?: string[]) {
+    let query = supabase
+      .from("operaciones_compra")
+      .select("proveedor_id, operaciones!inner(id, monto_total, total_pagado)");
+
+    if (proveedorIds && proveedorIds.length > 0) {
+      query = query.in("proveedor_id", proveedorIds);
+    }
+
+    const { data, error } = await query;
+    if (error) return { data: new Map(), error: toServiceError(error) ?? error };
+
+    const map = new Map<string, ProveedorSaldoInfo>();
+    if (Array.isArray(data)) {
+      for (const item of data as unknown[]) {
+        const raw = item as Record<string, unknown>;
+        const provId = String(raw.proveedor_id ?? "");
+        const rawOp = raw.operaciones ?? raw.operacion ?? raw;
+        const op = (Array.isArray(rawOp) ? rawOp[0] : rawOp) as Record<string, unknown> | undefined;
+        const monto = Number(op?.monto_total) || 0;
+        const pagado = Number(op?.total_pagado) || 0;
+        const saldo = Math.max(0, monto - pagado);
+
+        const current = map.get(provId) ?? {
+          saldoPendiente: 0,
+          totalComprado: 0,
+          totalPagado: 0,
+        };
+
+        current.totalComprado += monto;
+        current.totalPagado += pagado;
+        current.saldoPendiente += saldo;
+
+        map.set(provId, current);
+      }
+
+      for (const [, current] of map.entries()) {
+        if (current.totalPagado > current.totalComprado) {
+          current.saldoPendiente = current.totalComprado - current.totalPagado;
+        }
+      }
+    }
+
+    return { data: map, error: null };
   },
 };

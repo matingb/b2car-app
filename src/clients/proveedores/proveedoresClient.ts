@@ -1,10 +1,11 @@
 import type { Proveedor } from "@/model/types";
-import type { ProductoProveedorDTO, ProveedorCuentaCorrienteResumen, ProveedorOperacionItemDTO } from "@/model/dtos";
+import type { ProductoProveedorDTO, ProveedorCuentaCorrienteResumen } from "@/model/dtos";
 import { API_ROUTES } from "@/routing/routes";
 
 export type GetProveedoresInput = {
   search?: string;
   limit?: number;
+  saldo?: "PENDIENTE" | "AL_DIA" | "A_FAVOR" | "";
 };
 
 export type ProveedoresClientResponse<T> = {
@@ -18,6 +19,7 @@ export const proveedoresClient = {
       const searchParams = new URLSearchParams();
       if (params?.search) searchParams.set("search", params.search);
       if (params?.limit) searchParams.set("limit", String(params.limit));
+      if (params?.saldo) searchParams.set("saldo", params.saldo);
 
       const query = searchParams.toString();
       const url = query ? `${API_ROUTES.proveedores}?${query}` : API_ROUTES.proveedores;

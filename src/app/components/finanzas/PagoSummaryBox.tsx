@@ -9,23 +9,11 @@ export interface PagoSummaryBoxProps {
   total: number;
   totalPagado: number;
   saldoPendiente: number;
-  tipo?: "VENTA" | "COMPRA" | "ARREGLO" | "GASTO";
-  totalLabel?: string;
-  pagadoLabel?: string;
-  saldoLabel?: string;
+  tipo?: "VENTA" | "COMPRA" | "ARREGLO";
   isReady?: boolean;
-  animate?: boolean;
-  dataTestIdTotal?: string;
-  dataTestIdPagado?: string;
-  dataTestIdSaldo?: string;
 }
 
-function useAnimatedCounter(
-  target: number,
-  isReady: boolean,
-  animate = true,
-  duration = 450
-) {
+function useAnimatedCounter(target: number, isReady: boolean) {
   const [current, setCurrent] = useState<number | null>(null);
   const prevRef = useRef<number>(0);
   const rafRef = useRef<number | null>(null);
@@ -38,7 +26,6 @@ function useAnimatedCounter(
     }
 
     if (
-      !animate ||
       typeof window === "undefined" ||
       typeof window.requestAnimationFrame !== "function"
     ) {
@@ -50,6 +37,7 @@ function useAnimatedCounter(
     const from = prevRef.current;
     const to = target;
     const start = performance.now();
+    const duration = 450;
 
     const tick = (now: number) => {
       const elapsed = now - start;
@@ -72,7 +60,7 @@ function useAnimatedCounter(
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [target, isReady, animate, duration]);
+  }, [target, isReady]);
 
   return isReady && current !== null
     ? Math.round(current)
@@ -86,58 +74,42 @@ export default function PagoSummaryBox({
   totalPagado,
   saldoPendiente,
   tipo = "ARREGLO",
-  totalLabel,
-  pagadoLabel,
-  saldoLabel = "Saldo Pendiente",
   isReady = true,
-  animate = true,
-  dataTestIdTotal = "summary-total",
-  dataTestIdPagado = "summary-cobrado",
-  dataTestIdSaldo = "summary-saldo",
 }: PagoSummaryBoxProps) {
-  const animatedTotal = useAnimatedCounter(total, isReady, animate);
-  const animatedPagado = useAnimatedCounter(totalPagado, isReady, animate);
-  const animatedSaldo = useAnimatedCounter(saldoPendiente, isReady, animate);
+  const animatedTotal = useAnimatedCounter(total, isReady);
+  const animatedPagado = useAnimatedCounter(totalPagado, isReady);
+  const animatedSaldo = useAnimatedCounter(saldoPendiente, isReady);
 
-  const defaultTotalLabel =
-    totalLabel ??
-    (tipo === "ARREGLO"
-      ? "Total Arreglo"
-      : tipo === "VENTA"
-      ? "Total Acordado"
-      : "Total Acordado");
-
-  const defaultPagadoLabel =
-    pagadoLabel ??
-    (tipo === "VENTA" || tipo === "ARREGLO" ? "Cobrado" : "Pagado");
+  const totalLabel = tipo === "ARREGLO" ? "Total Arreglo" : "Total Acordado";
+  const pagadoLabel = tipo === "COMPRA" ? "Pagado" : "Cobrado";
 
   return (
     <div css={styles.summaryBox}>
       <div css={styles.summaryItem}>
-        <span css={styles.summaryLabel}>{defaultTotalLabel}</span>
-        <span css={styles.summaryValue} data-testid={dataTestIdTotal}>
+        <span css={styles.summaryLabel}>{totalLabel}</span>
+        <span css={styles.summaryValue} data-testid="summary-total">
           {animatedTotal !== null
             ? formatArs(animatedTotal, { maxDecimals: 0 })
             : "-"}
         </span>
       </div>
       <div css={styles.summaryItem}>
-        <span css={styles.summaryLabel}>{defaultPagadoLabel}</span>
-        <span css={styles.summaryValueSuccess} data-testid={dataTestIdPagado}>
+        <span css={styles.summaryLabel}>{pagadoLabel}</span>
+        <span css={styles.summaryValueSuccess} data-testid="summary-cobrado">
           {animatedPagado !== null
             ? formatArs(animatedPagado, { maxDecimals: 0 })
             : "-"}
         </span>
       </div>
       <div css={styles.summaryItem}>
-        <span css={styles.summaryLabel}>{saldoLabel}</span>
+        <span css={styles.summaryLabel}>Saldo Pendiente</span>
         <span
           css={
             animatedSaldo !== null && animatedSaldo > 0
               ? styles.summaryValueDanger
               : styles.summaryValueSuccess
           }
-          data-testid={dataTestIdSaldo}
+          data-testid="summary-saldo"
         >
           {animatedSaldo !== null
             ? formatArs(animatedSaldo, { maxDecimals: 0 })

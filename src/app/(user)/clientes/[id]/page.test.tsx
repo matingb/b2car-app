@@ -6,6 +6,7 @@ const getClienteById = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "cliente-1" }),
+  useRouter: () => ({ push: vi.fn() }),
 }));
 
 vi.mock("@/app/providers/ClientesProvider", () => ({

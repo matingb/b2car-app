@@ -201,7 +201,7 @@ export function useOperacionDetalle({
       }
     : {
         icon: Package,
-        labelDesktop: `${totalLineas} productos`,
+        labelDesktop: `${totalLineas} ${totalLineas === 1 ? "producto" : "productos"}`,
         labelMobile: `${totalLineas}`,
       };
 

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { css } from "@emotion/react";
+import { Car, CreditCard, Wrench } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
@@ -27,7 +28,9 @@ export default function ClienteTabsNav({
         type="button"
         onClick={() => onChangeTab("vehiculos")}
         css={[styles.tabButton, activeTab === "vehiculos" && styles.tabButtonActive]}
+        data-testid="cliente-tab-vehiculos"
       >
+        <Car size={17} />
         <span>Vehículos</span>
         {vehiculosCount != null && vehiculosCount > 0 ? (
           <span css={[styles.countBadge, activeTab === "vehiculos" && styles.countBadgeActive]}>
@@ -40,7 +43,9 @@ export default function ClienteTabsNav({
         type="button"
         onClick={() => onChangeTab("arreglos")}
         css={[styles.tabButton, activeTab === "arreglos" && styles.tabButtonActive]}
+        data-testid="cliente-tab-arreglos"
       >
+        <Wrench size={17} />
         <span>Arreglos</span>
         {arreglosCount != null && arreglosCount > 0 ? (
           <span css={[styles.countBadge, activeTab === "arreglos" && styles.countBadgeActive]}>
@@ -54,7 +59,9 @@ export default function ClienteTabsNav({
           type="button"
           onClick={() => onChangeTab("cuenta_corriente")}
           css={[styles.tabButton, activeTab === "cuenta_corriente" && styles.tabButtonActive]}
+          data-testid="cliente-tab-cuentacorriente"
         >
+          <CreditCard size={17} />
           <span>Cuenta Corriente</span>
         </button>
       </Can>
@@ -65,7 +72,7 @@ export default function ClienteTabsNav({
 const styles = {
   navContainer: css({
     display: "flex",
-    gap: 28,
+    gap: 32,
     borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
     marginBottom: 20,
     overflowX: "auto",
@@ -103,15 +110,15 @@ const styles = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 700,
-    padding: "2px 7px",
-    borderRadius: 10,
+    padding: "2px 8px",
+    borderRadius: 9999,
     backgroundColor: COLOR.BACKGROUND.SUBTLE,
     color: COLOR.TEXT.SECONDARY,
   }),
   countBadgeActive: css({
-    backgroundColor: COLOR.BACKGROUND.INFO_TINT,
+    backgroundColor: "rgba(15, 118, 110, 0.12)",
     color: COLOR.ACCENT.PRIMARY,
   }),
 };

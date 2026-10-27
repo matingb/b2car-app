@@ -13,11 +13,57 @@ function makeMockRepository(overrides: Partial<ProveedorRepository> = {}): Prove
     updateById: vi.fn().mockResolvedValue({ data: null, error: null }),
     deleteById: vi.fn().mockResolvedValue({ error: null }),
     getCuentaCorriente: vi.fn().mockResolvedValue({ data: null, error: null }),
+    getSaldos: vi.fn().mockResolvedValue({ data: new Map(), error: null }),
     ...overrides,
   };
 }
 
 describe("proveedorService", () => {
+  it("enriquece los proveedores listados con su saldo_pendiente", async () => {
+    const mockList: ProveedorRow[] = [
+      {
+        id: "p-1",
+        tenant_id: "t-1",
+        nombre: "Distribuidora A",
+        cuit: null,
+        telefono: null,
+        email: null,
+        direccion: null,
+        created_at: "2026-10-21T00:00:00Z",
+        updated_at: "2026-10-21T00:00:00Z",
+      },
+      {
+        id: "p-2",
+        tenant_id: "t-1",
+        nombre: "Distribuidora B",
+        cuit: null,
+        telefono: null,
+        email: null,
+        direccion: null,
+        created_at: "2026-10-21T00:00:00Z",
+        updated_at: "2026-10-21T00:00:00Z",
+      },
+    ];
+
+    const saldosMap = new Map([
+      ["p-1", { saldoPendiente: 75000, totalComprado: 100000, totalPagado: 25000 }],
+      ["p-2", { saldoPendiente: 0, totalComprado: 50000, totalPagado: 50000 }],
+    ]);
+
+    const mockRepo = makeMockRepository({
+      list: vi.fn().mockResolvedValue({ data: mockList, error: null }),
+      getSaldos: vi.fn().mockResolvedValue({ data: saldosMap, error: null }),
+    });
+
+    const service = createProveedorService(mockRepo);
+    const res = await service.list(mockSupabase);
+
+    expect(mockRepo.list).toHaveBeenCalledWith(mockSupabase, undefined);
+    expect(mockRepo.getSaldos).toHaveBeenCalledWith(mockSupabase, ["p-1", "p-2"]);
+    expect(res.data[0].saldo_pendiente).toBe(75000);
+    expect(res.data[1].saldo_pendiente).toBe(0);
+  });
+
   it("crea un proveedor limpiando strings vacíos a null y recortando espacios en nombre", async () => {
     const mockCreated: ProveedorRow = {
       id: "p-1",

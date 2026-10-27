@@ -155,11 +155,11 @@ export default function PagoBadge({
 
       case "PENDIENTE":
       default:
-        activeColor = COLOR.STATUS.DANGER.TEXT;
+        activeColor = COLOR.SEMANTIC.DANGER;
         tooltipText = "Registrar pago";
         content = (
           <>
-            <XCircle size={badgeSize} color={COLOR.STATUS.DANGER.TEXT} />
+            <XCircle size={badgeSize} color={COLOR.SEMANTIC.DANGER} />
             <span css={textStyles}>Pago pendiente</span>
           </>
         );

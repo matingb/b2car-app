@@ -60,8 +60,6 @@ function ProductosPageContent() {
       <ProductosTabsNav
         activeTab={activeTab}
         onChangeTab={handleTabChange}
-        productosCount={productos.length}
-        proveedoresCount={proveedores.length}
       />
 
       {activeTab === "proveedores" ? (

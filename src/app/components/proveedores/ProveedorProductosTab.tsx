@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { css } from "@emotion/react";
-import { COLOR, BREAKPOINTS } from "@/theme/theme";
+import { COLOR } from "@/theme/theme";
 import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
 import { Edit2, Package, Plus, Search, ShoppingCart, Trash2 } from "lucide-react";
