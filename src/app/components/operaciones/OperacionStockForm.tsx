@@ -34,6 +34,7 @@ export default function OperacionStockForm() {
     setNoPagar,
     handleAddPagoRow,
     handleRemovePagoRow,
+    handleRestoreFavorita,
     handleUpdatePagoRow,
     handleUpdatePagoCuentaDraft,
     handleToggleAdvanced,
@@ -50,7 +51,6 @@ export default function OperacionStockForm() {
     <div style={{ marginTop: 12 }}>
       <div style={styles.sectionHeaderRow}>
         <div style={styles.linesTitle}>Detalle de Productos</div>
-        <div style={styles.linesSubtitle}>Define cantidad total y entrega parcial por ítem</div>
       </div>
 
       {tipo === "COMPRA" && Boolean(proveedorId) && isProveedorProductosLoading && (
@@ -74,7 +74,7 @@ export default function OperacionStockForm() {
         <div css={styles.columnsHeader} aria-hidden="true">
           <div>PRODUCTO</div>
           <div style={{ textAlign: "center" }}>CANT.</div>
-          <div style={{ textAlign: "center", color: "#007991" }}>
+          <div style={{ textAlign: "center" }}>
             {tipo === "VENTA" ? "ENTREGAR" : "RECIBIR"}
           </div>
           <div style={{ textAlign: "right" }}>UNITARIO</div>
@@ -125,6 +125,7 @@ export default function OperacionStockForm() {
           pagos={pagosDraft}
           onAddPago={handleAddPagoRow}
           onRemovePago={handleRemovePagoRow}
+          onRestoreFavorita={handleRestoreFavorita}
           onUpdatePago={handleUpdatePagoRow}
           onUpdatePagoCuentaDraft={handleUpdatePagoCuentaDraft}
           noPagar={noPagar}

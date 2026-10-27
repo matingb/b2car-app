@@ -28,7 +28,7 @@ export interface PagoDraftItem {
   cuentaDraft?: CuentaFinancieraDraft;
 }
 
-interface RegistrarPagoSectionProps {
+export interface RegistrarPagoSectionProps {
   pagos: PagoDraftItem[];
   opcionesCuentas?: AutocompleteOption[];
   loadingCuentas?: boolean;
@@ -121,14 +121,13 @@ export default function RegistrarPagoSection({
                   css={styles.btnRemove}
                   onClick={() => onRemovePago(pago.id)}
                   title="Eliminar esta cuenta"
-                  disabled={pagos.length <= 1}
                   data-testid={`pago-remove-${index}`}
                 >
                   <Trash2 size={16} />
                 </button>
               </div>
 
-              {isCreating && (   
+              {isCreating && (
                 <CuentaFinancieraFormFields
                   values={pago.cuentaDraft || EMPTY_CUENTA_FINANCIERA_DRAFT}
                   onChange={(patch) => onUpdatePagoCuentaDraft?.(pago.id, patch)}
@@ -154,7 +153,6 @@ export default function RegistrarPagoSection({
         })}
       </div>
 
-      {/* Botón de añadir otra cuenta con borde punteado */}
       <button
         type="button"
         css={styles.btnAddAccount}

@@ -887,6 +887,84 @@ describe("OperacionCreateModal", () => {
       })
     );
   });
+
+  it("permite registrar una venta diferida eliminando la cuenta de pago, guardando con saldo pendiente", async () => {
+    mockCuentasApi.cuentaFavorita = {
+      id: "C-FAV",
+      nombre: "Banco Galicia",
+      tipo: "BANCO",
+      saldoActual: 50000,
+      activo: true,
+      favorita: true,
+    };
+
+    mockInventarioApi.inventario = [{
+      id: "S-VENTA",
+      productoId: "P-VENTA",
+      nombre: "Batería 12V",
+      codigo: "BAT-12",
+      precioUnitario: 52000,
+      costoUnitario: 30000,
+      stockActual: 5,
+    }];
+    mockCrearOperacion.mockResolvedValue({ id: "OP-DIF", tipo: "VENTA" });
+    const onClose = vi.fn();
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        initialTipo="VENTA"
+        onClose={onClose}
+      />
+    );
+
+    await runPendingPromises();
+
+    // Seleccionar item
+    const stockInput = screen.getByTestId("operaciones-line-0-stock");
+    await userEvent.type(stockInput, "S-VENTA");
+
+    // Desplegar vista avanzada para ver la tarjeta de pago
+    const toggleBtn = screen.getByTestId("cobro-advanced-toggle");
+    await userEvent.click(toggleBtn);
+    await runPendingPromises();
+
+    // Eliminar la cuenta de pago
+    const removeBtn = screen.getByTestId("pago-remove-0");
+    await userEvent.click(removeBtn);
+    await runPendingPromises();
+
+    // Verificar que se muestre el aviso de sin cobro inmediato
+    expect(screen.getByTestId("pago-empty-notice")).toBeInTheDocument();
+
+    // El botón submit debe estar habilitado
+    const submitBtn = screen.getByTestId("modal-submit");
+    expect(submitBtn).not.toBeDisabled();
+
+    await userEvent.click(submitBtn);
+    await runPendingPromises();
+
+    // Verificar que se envíe con estado_pago: PENDIENTE y sin cuenta_financiera_id
+    expect(mockCrearOperacion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tipo: "VENTA",
+        taller_id: "T1",
+        cuenta_financiera_id: null,
+        estado_pago: "PENDIENTE",
+        monto_inicial: null,
+        pagos: undefined,
+        lineas: [
+          expect.objectContaining({
+            stock_id: "S-VENTA",
+            cantidad: 1,
+            monto_unitario: 52000,
+          }),
+        ],
+      })
+    );
+    expect(onClose).toHaveBeenCalled();
+  });
 });
 
 

@@ -6,6 +6,8 @@ import ProveedorProfileCard from "./ProveedorProfileCard";
 import type { Proveedor } from "@/model/types";
 import type { ProveedorCuentaCorrienteResumen } from "@/model/dtos";
 
+import * as whatsappLib from "@/lib/whatsapp";
+
 const mockProveedor: Proveedor = {
   id: "prov-123",
   nombre: "B2CAR",
@@ -80,5 +82,28 @@ describe("ProveedorProfileCard", () => {
 
     expect(screen.getByText("Deuda pendiente")).toBeInTheDocument();
     expect(screen.getByText(/\$\s*60\.000/)).toBeInTheDocument();
+  });
+
+  it("renderiza botón de WhatsApp y llama a openWhatsapp al hacer click", () => {
+    const openWhatsappSpy = vi.spyOn(whatsappLib, "openWhatsapp").mockImplementation(() => {});
+
+    render(
+      <ProveedorProfileCard
+        proveedor={mockProveedor}
+        resumenCuentaCorriente={mockResumenAlDia}
+        onEditProveedor={vi.fn()}
+      />
+    );
+
+    const whatsappBtn = screen.getByRole("button", { name: "WhatsApp" });
+    expect(whatsappBtn).toBeInTheDocument();
+    fireEvent.click(whatsappBtn);
+
+    expect(openWhatsappSpy).toHaveBeenCalledWith(
+      mockProveedor.telefono,
+      `Hola ${mockProveedor.nombre}, me comunico desde el taller.`
+    );
+
+    openWhatsappSpy.mockRestore();
   });
 });

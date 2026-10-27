@@ -105,19 +105,25 @@ describe("RegistrarPagoSection", () => {
     expect(handleRemove).toHaveBeenCalledWith("pago-1");
   });
 
-  it("deshabilita el botón de eliminar cuando sólo hay una fila", () => {
+  it("permite eliminar una fila incluso si es la única en la lista", async () => {
+    const user = userEvent.setup();
+    const handleRemove = vi.fn();
+
     render(
       <RegistrarPagoSection
         pagos={[mockPagos[0]]}
         opcionesCuentas={mockOptions}
         onAddPago={vi.fn()}
-        onRemovePago={vi.fn()}
+        onRemovePago={handleRemove}
         onUpdatePago={vi.fn()}
       />
     );
 
     const btnRemove0 = screen.getByTestId("pago-remove-0");
-    expect(btnRemove0).toBeDisabled();
+    expect(btnRemove0).not.toBeDisabled();
+
+    await user.click(btnRemove0);
+    expect(handleRemove).toHaveBeenCalledWith("pago-1");
   });
 
   it("llama a onUpdatePago al editar monto, fecha o descripción", async () => {

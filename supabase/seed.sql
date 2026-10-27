@@ -23,7 +23,9 @@ TRUNCATE TABLE
   arreglos,
   turnos,
   stocks,
+  productos_proveedores,
   productos,
+  proveedores,
   talleres,
   vehiculos,
   representantes,
@@ -195,6 +197,10 @@ INSERT INTO public.empleado_salarios (empleado_id, tenant_id, taller_id, salario
   ('e1000000-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000002',140000,'2025-05-01'),
   ('e1000000-0000-0000-0000-000000000004','11111111-1111-1111-1111-111111111111','50000000-0000-0000-0000-000000000003',145000,'2025-06-01');
 
+-- Proveedores (1)
+INSERT INTO public.proveedores (id, tenant_id, nombre, cuit, telefono, email, direccion, created_at, updated_at) VALUES
+  ('d2000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Distribuidora Norte','30-71234567-8','11-4567-8900','ventas@distribuidoranorte.com','Av. Warnes 1540, CABA',now() - interval '180 days',now() - interval '1 day');
+
 -- Productos (10)
 INSERT INTO public.productos (id, tenant_id, codigo, nombre, marca, modelo, descripcion, precio_unitario, costo_unitario, proveedor, categorias, created_at, updated_at) VALUES
   ('60000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','ACE-5W30', 'Aceite 5W30',     'Shell',   'Helix', 'Aceite sintético 1L',    6500, 4200,'Distribuidora Norte',ARRAY['Aceites y Lubricantes'],now() - interval '160 days',now() - interval '1 day'),
@@ -207,6 +213,13 @@ INSERT INTO public.productos (id, tenant_id, codigo, nombre, marca, modelo, desc
   ('60000000-0000-0000-0000-000000000008','11111111-1111-1111-1111-111111111111','CAB-NEG',  'Cable negativo',  'ACME',    'CB-01', 'Cable batería',           2100, 1200,'ACME',               ARRAY['Eléctrico'],now() - interval '125 days',now() - interval '8 days'),
   ('60000000-0000-0000-0000-000000000009','11111111-1111-1111-1111-111111111111','REF-COOL', 'Refrigerante',    'Prestone','RX',    'Refrigerante 1L',         4300, 2600,'Prestone SA',        ARRAY['Motor'],    now() - interval '120 days',now() - interval '9 days'),
   ('60000000-0000-0000-0000-000000000010','11111111-1111-1111-1111-111111111111','ACE-0W20', 'Aceite 0W20',     'Mobil',   '1',     'Aceite sintético 1L',     7000, 4800,'Mobil SA',           ARRAY['Aceites y Lubricantes'],now() - interval '115 days',now() - interval '10 days');
+
+-- Catálogo Productos - Proveedores
+INSERT INTO public.productos_proveedores (id, tenant_id, producto_id, proveedor_id, codigo_proveedor, costo_referencia, es_predeterminado, created_at, updated_at) VALUES
+  ('d3000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','60000000-0000-0000-0000-000000000001','d2000000-0000-0000-0000-000000000001','DN-ACE-5W30', 4200,true,now() - interval '160 days',now() - interval '1 day'),
+  ('d3000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','60000000-0000-0000-0000-000000000002','d2000000-0000-0000-0000-000000000001','DN-FIL-AIR',  2500,true,now() - interval '155 days',now() - interval '2 days'),
+  ('d3000000-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','60000000-0000-0000-0000-000000000004','d2000000-0000-0000-0000-000000000001','DN-ACE-10W40',3500,true,now() - interval '145 days',now() - interval '4 days'),
+  ('d3000000-0000-0000-0000-000000000004','11111111-1111-1111-1111-111111111111','60000000-0000-0000-0000-000000000006','d2000000-0000-0000-0000-000000000001','DN-FRE-PAD',  6400,true,now() - interval '135 days',now() - interval '6 days');
 
 -- Stocks (10) - cantidades altas para que los deltas no rompan
 INSERT INTO public.stocks (id, tenant_id, taller_id, producto_id, cantidad, stock_minimo, stock_maximo, created_at, updated_at) VALUES
@@ -416,6 +429,21 @@ INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha) VALUES
 INSERT INTO public.operaciones_movimiento_cuenta (operacion_id, tenant_id, subtipo, cuenta_id, importe, created_by, created_at) VALUES
   ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','APERTURA_CUENTA','c0000000-0000-4000-8000-000000000001',2500000,'7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '19 months'),
   ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','APERTURA_CUENTA','c0000000-0000-4000-8000-000000000002',1800000,'7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '19 months');
+
+-- Operaciones Compra vinculadas al proveedor
+INSERT INTO public.operaciones_compra (operacion_id, tenant_id, proveedor_id) VALUES
+  ('90000000-0000-0000-0000-000000000100','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000101','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000102','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000103','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000104','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000105','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000106','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000107','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000108','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000109','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000110','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000111','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001');
 
 -- ===========================================================================
 -- OPERACIONES_LINEAS

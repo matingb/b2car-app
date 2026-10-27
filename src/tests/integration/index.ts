@@ -13,6 +13,7 @@ export const SEED = {
   userId: "7ff568f8-4d46-463b-969c-9e68157fa769", // local@user.ar
   cuentaId: "c0000000-0000-4000-8000-000000000001", // Banco Galicia
   categoriaServiceId: "b1000000-0000-0000-0000-000000000001", // Service
+  proveedorId: "d2000000-0000-0000-0000-000000000001", // Distribuidora Norte
   stockAceite: {
     id: "70000000-0000-0000-0000-000000000001",
     productoId: "60000000-0000-0000-0000-000000000001",
@@ -31,6 +32,7 @@ export const TEST_CLIENTE_ID = SEED.clienteId;
 export const TEST_USER_ID = SEED.userId;
 export const TEST_CUENTA_ID = SEED.cuentaId;
 export const TEST_CATEGORIA_SERVICE_ID = SEED.categoriaServiceId;
+export const TEST_PROVEEDOR_ID = SEED.proveedorId;
 export const TEST_STOCK_ACEITE = SEED.stockAceite;
 
 // --- Configuración y JWT Supabase ---

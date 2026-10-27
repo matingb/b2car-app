@@ -106,6 +106,7 @@ type OperacionFormContextValue = {
   setNoPagar: (noPagar: boolean) => void;
   handleAddPagoRow: () => void;
   handleRemovePagoRow: (id: string) => void;
+  handleRestoreFavorita: () => void;
   handleUpdatePagoRow: (id: string, field: keyof PagoDraftItem, val: string) => void;
   handleUpdatePagoCuentaDraft: (id: string, patch: Partial<CuentaFinancieraDraft>) => void;
   handleToggleAdvanced: () => void;
@@ -179,17 +180,8 @@ export function OperacionFormProvider({
   const [montoInicial, setMontoInicial] = useState<string>("");
   const [moverStock, setMoverStock] = useState<boolean>(true);
 
-  const setEstadoPago = useCallback((nuevo: EstadoPagoOperacion) => {
-    if (nuevo === "PENDIENTE") {
-      setNoPagar(true);
-    } else {
-      setNoPagar(false);
-    }
-  }, []);
-
   // Pagos y Cuentas (reutilizable)
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
-  const [noPagar, setNoPagar] = useState<boolean>(false);
   const [pagosDraft, setPagosDraft] = useState<PagoDraftItem[]>(() => [
     {
       id: generateUuidV4(),
@@ -307,7 +299,6 @@ export function OperacionFormProvider({
         },
       ]);
       setShowAdvanced(false);
-      setNoPagar(false);
       return;
     }
 
@@ -323,7 +314,6 @@ export function OperacionFormProvider({
     setMontoInicial("");
     setMoverStock(true);
     setShowAdvanced(false);
-    setNoPagar(false);
     setProveedorId(initialProveedorId ?? "");
     setClienteId(initialClienteId ?? "");
     setPagosDraft([
@@ -336,7 +326,6 @@ export function OperacionFormProvider({
       },
     ]);
     setShowAdvanced(false);
-    setNoPagar(false);
   }, [open, talleres, initialTipo, initialCuentaId, gasto, contextualStock, cuentaFavorita, initialProveedorId, initialClienteId]);
 
   useEffect(() => {
@@ -560,30 +549,83 @@ export function OperacionFormProvider({
     );
   }, [tipo, montoGasto, lineas]);
 
-  // Si no está expandido y no es modo diferido, sincronizar pagosDraft[0].monto con importeTotal
-  useEffect(() => {
-    if (!showAdvanced && !noPagar && tipo !== "GASTO") {
-      const activeAccount = cuentaFavorita?.id ?? initialCuentaId ?? cuentaFinancieraId ?? "";
+  const noPagar = pagosDraft.length === 0;
+
+  const setEstadoPago = useCallback((nuevo: EstadoPagoOperacion) => {
+    if (nuevo === "PENDIENTE") {
+      setPagosDraft([]);
+    } else {
       setPagosDraft((prev) => {
-        if (
-          prev.length === 1 &&
-          prev[0].monto === String(importeTotal) &&
-          (prev[0].cuentaId === activeAccount || !activeAccount)
-        ) {
-          return prev;
-        }
+        if (prev.length > 0) return prev;
+        const activeAcc = cuentaFavorita?.id ?? initialCuentaId ?? cuentaFinancieraId ?? "";
         return [
           {
-            id: prev[0]?.id || generateUuidV4(),
-            cuentaId: prev[0]?.cuentaId || activeAccount,
+            id: generateUuidV4(),
+            cuentaId: activeAcc,
             monto: String(importeTotal || 0),
-            fecha: prev[0]?.fecha || toISODateLocal(new Date()),
-            descripcion: prev[0]?.descripcion || "",
+            fecha: toISODateLocal(new Date()),
+            descripcion: "",
           },
         ];
       });
     }
-  }, [showAdvanced, noPagar, importeTotal, cuentaFavorita?.id, initialCuentaId, cuentaFinancieraId, tipo]);
+  }, [cuentaFavorita?.id, initialCuentaId, cuentaFinancieraId, importeTotal]);
+
+  const setNoPagar = useCallback((val: boolean) => {
+    if (val) {
+      setPagosDraft([]);
+    } else {
+      setPagosDraft((prev) => {
+        if (prev.length > 0) return prev;
+        const activeAcc = cuentaFavorita?.id ?? initialCuentaId ?? cuentaFinancieraId ?? "";
+        return [
+          {
+            id: generateUuidV4(),
+            cuentaId: activeAcc,
+            monto: String(importeTotal || 0),
+            fecha: toISODateLocal(new Date()),
+            descripcion: "",
+          },
+        ];
+      });
+    }
+  }, [cuentaFavorita?.id, initialCuentaId, cuentaFinancieraId, importeTotal]);
+
+  // Si no está expandido y hay una cuenta activa, sincronizar pagosDraft[0].monto con importeTotal
+  useEffect(() => {
+    if (!showAdvanced && tipo !== "GASTO") {
+      const activeAccount = cuentaFavorita?.id ?? initialCuentaId ?? cuentaFinancieraId ?? "";
+      if (!activeAccount) return;
+
+      setPagosDraft((prev) => {
+        if (prev.length === 0) {
+          return prev;
+        }
+
+        if (
+          prev.length === 1 &&
+          prev[0].monto === String(importeTotal) &&
+          prev[0].cuentaId === activeAccount
+        ) {
+          return prev;
+        }
+
+        if (prev.length === 1) {
+          return [
+            {
+              id: prev[0].id,
+              cuentaId: prev[0].cuentaId || activeAccount,
+              monto: String(importeTotal || 0),
+              fecha: prev[0].fecha || toISODateLocal(new Date()),
+              descripcion: prev[0].descripcion || "",
+            },
+          ];
+        }
+
+        return prev;
+      });
+    }
+  }, [showAdvanced, importeTotal, cuentaFavorita?.id, initialCuentaId, cuentaFinancieraId, tipo]);
 
   // Porcentaje y estado de entrega de stock
   const stockDeliveryPercentage = useMemo(() => {
@@ -606,25 +648,37 @@ export function OperacionFormProvider({
 
   // Handlers para pagos múltiples
   const handleAddPagoRow = useCallback(() => {
-    const nextCuentaId = cuentasActivas?.[0]?.id ?? "";
+    const nextCuentaId = cuentaFavorita?.id ?? cuentasActivas?.[0]?.id ?? "";
+    const totalActual = pagosDraft.reduce((acc, p) => acc + (Number(p.monto) || 0), 0);
+    const restante = Math.max(0, importeTotal - totalActual);
     setPagosDraft((prev) => [
       ...prev,
       {
         id: generateUuidV4(),
         cuentaId: nextCuentaId,
-        monto: "",
+        monto: restante > 0 ? String(restante) : "",
         fecha: toISODateLocal(new Date()),
         descripcion: "",
       },
     ]);
-  }, [cuentasActivas]);
+  }, [cuentasActivas, cuentaFavorita, pagosDraft, importeTotal]);
 
   const handleRemovePagoRow = useCallback((id: string) => {
-    setPagosDraft((prev) => {
-      if (prev.length <= 1) return prev;
-      return prev.filter((p) => p.id !== id);
-    });
+    setPagosDraft((prev) => prev.filter((p) => p.id !== id));
   }, []);
+
+  const handleRestoreFavorita = useCallback(() => {
+    if (!cuentaFavorita) return;
+    setPagosDraft([
+      {
+        id: generateUuidV4(),
+        cuentaId: cuentaFavorita.id,
+        monto: String(importeTotal || 0),
+        fecha: toISODateLocal(new Date()),
+        descripcion: "",
+      },
+    ]);
+  }, [cuentaFavorita, importeTotal]);
 
   const handleUpdatePagoRow = useCallback((id: string, field: keyof PagoDraftItem, val: string) => {
     setPagosDraft((prev) =>
@@ -646,7 +700,6 @@ export function OperacionFormProvider({
     setShowAdvanced((prev) => {
       const next = !prev;
       if (!next && cuentaFavorita) {
-        setNoPagar(false);
         setPagosDraft([
           {
             id: generateUuidV4(),
@@ -662,17 +715,16 @@ export function OperacionFormProvider({
   }, [cuentaFavorita, importeTotal]);
 
   const totalPagado = useMemo(() => {
-    if (noPagar) return 0;
     return pagosDraft.reduce((acc, p) => acc + (Number(p.monto) || 0), 0);
-  }, [noPagar, pagosDraft]);
+  }, [pagosDraft]);
 
   const computedEstadoPago: EstadoPagoOperacion = useMemo(() => {
-    if (noPagar) return "PENDIENTE";
     if (importeTotal <= 0) return "PAGADO";
+    if (pagosDraft.length === 0) return "PENDIENTE";
     if (totalPagado >= importeTotal) return "PAGADO";
     if (totalPagado > 0) return "PARCIAL";
     return "PENDIENTE";
-  }, [noPagar, importeTotal, totalPagado]);
+  }, [importeTotal, pagosDraft.length, totalPagado]);
 
   const requiresCuenta = tipo === "GASTO" || (importeTotal > 0 && computedEstadoPago !== "PENDIENTE");
 
@@ -706,10 +758,14 @@ export function OperacionFormProvider({
     );
     if (!allLinesValid) return false;
 
-    // Si requiere cuenta y no está en modo diferido
-    if (!noPagar && importeTotal > 0) {
-      const hasAccount = Boolean(cuentaFinancieraId) || pagosDraft.some((p) => Boolean(p.cuentaId));
-      if (!hasAccount) return false;
+    if (importeTotal > 0 && pagosDraft.length > 0) {
+      const allPagosValid = pagosDraft.every((p) => {
+        if (p.cuentaId === CREATE_CUENTA_VALUE) {
+          return validateCuentaFinancieraForm(p.cuentaDraft);
+        }
+        return Boolean(p.cuentaId);
+      });
+      if (!allPagosValid) return false;
     }
 
     return true;
@@ -728,7 +784,6 @@ export function OperacionFormProvider({
     isSubmittingGasto,
     tallerId,
     lineas,
-    noPagar,
     importeTotal,
     pagosDraft,
   ]);
@@ -792,7 +847,7 @@ export function OperacionFormProvider({
         descripcion: string | null;
       }[] = [];
 
-      if (!noPagar && importeTotal > 0) {
+      if (importeTotal > 0 && pagosDraft.length > 0) {
         for (const p of pagosDraft) {
           const montoNum = Number(p.monto) || 0;
           if (montoNum <= 0) continue;
@@ -927,6 +982,7 @@ export function OperacionFormProvider({
     setNoPagar,
     handleAddPagoRow,
     handleRemovePagoRow,
+    handleRestoreFavorita,
     handleUpdatePagoRow,
     handleUpdatePagoCuentaDraft,
     handleToggleAdvanced,

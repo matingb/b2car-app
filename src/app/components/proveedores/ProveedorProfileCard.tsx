@@ -120,7 +120,7 @@ export default function ProveedorProfileCard({
                 css={styles.whatsappActionButton}
                 title="Contactar por WhatsApp"
               >
-                <MessageCircle size={14} color="#25D366" />
+                <MessageCircle size={14} color={COLOR.SEMANTIC.SUCCESS} />
                 <span>WhatsApp</span>
               </button>
             )}
@@ -391,7 +391,7 @@ const styles = {
     gap: 5,
     background: "transparent",
     border: "none",
-    color: "#25D366",
+    color: COLOR.SEMANTIC.SUCCESS,
     fontSize: 13,
     fontWeight: 600,
     cursor: "pointer",
@@ -399,7 +399,7 @@ const styles = {
     borderRadius: 6,
     transition: "background 150ms ease",
     "&:hover": {
-      backgroundColor: "rgba(37, 211, 102, 0.1)",
+      backgroundColor: COLOR.STATUS.SUCCESS.BG_SUBTLE,
     },
   }),
   deleteActionButton: css({

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { css } from "@emotion/react";
-import { ChevronDown, Clock, WalletCards } from "lucide-react";
+import { ChevronDown, Clock, Plus, RotateCcw, WalletCards } from "lucide-react";
 import RegistrarPagoSection, {
   type PagoDraftItem,
 } from "@/app/components/arreglos/RegistrarPagoSection";
@@ -19,6 +19,7 @@ export interface PagoCondicionSectionProps {
   onRemovePago: (id: string) => void;
   onUpdatePago: (id: string, field: keyof PagoDraftItem, value: string) => void;
   onUpdatePagoCuentaDraft?: (id: string, patch: Partial<CuentaFinancieraDraft>) => void;
+  onRestoreFavorita?: () => void;
   noPagar?: boolean;
   onNoPagarChange?: (noPagar: boolean) => void;
   allowNoPagar?: boolean;
@@ -38,9 +39,10 @@ export default function PagoCondicionSection({
   onRemovePago,
   onUpdatePago,
   onUpdatePagoCuentaDraft,
-  noPagar = false,
-  onNoPagarChange,
-  allowNoPagar = true,
+  onRestoreFavorita,
+  noPagar: _noPagar,
+  onNoPagarChange: _onNoPagarChange,
+  allowNoPagar: _allowNoPagar = true,
   loadingCuentas = false,
   showAdvanced,
   onToggleAdvanced,
@@ -49,16 +51,15 @@ export default function PagoCondicionSection({
 }: PagoCondicionSectionProps) {
   const isVenta = tipo === "VENTA" || tipo === "ARREGLO";
   const simpleLabel = isVenta
-    ? "El cobro se acreditara en la cuenta favorita"
-    : "El pago se debitara de la cuenta favorita";
+    ? "El cobro se acreditará en la cuenta favorita"
+    : "El pago se debitará de la cuenta favorita";
 
-  const totalIngresado = pagos.reduce((acc, p) => acc + (Number(p.monto) || 0), 0);
-  const saldoPendiente = Math.max(0, totalOperacion - totalIngresado);
+  const isDiferido = pagos.length === 0;
 
   return (
     <div css={styles.container}>
-      {/* Vista simple con cuenta favorita si no está expandido y no está en modo diferido */}
-      {cuentaFavorita && !showAdvanced && !noPagar ? (
+      {/* Vista simple con cuenta favorita si no está expandido y hay cuentas registradas */}
+      {cuentaFavorita && !showAdvanced && !isDiferido ? (
         <div css={styles.simplePayment} data-testid={dataTestIdSimple}>
           <div css={styles.simpleAccountIcon}>
             <WalletCards size={20} />
@@ -73,67 +74,59 @@ export default function PagoCondicionSection({
         </div>
       ) : null}
 
-      {/* Vista avanzada / repartida */}
-      {(showAdvanced || !cuentaFavorita || noPagar) && (
+      {(showAdvanced || !cuentaFavorita || isDiferido) && (
         <div css={styles.advancedContainer}>
-          {allowNoPagar && onNoPagarChange && (
-            <div css={styles.noPagarRow}>
-              <label css={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={noPagar}
-                  onChange={(e) => onNoPagarChange(e.target.checked)}
-                  data-testid="pago-no-pagar-checkbox"
-                  style={{ width: 16, height: 16, cursor: "pointer" }}
-                />
-                <span css={styles.checkboxText}>
-                  {isVenta
-                    ? "No registrar cobro ahora (a cobrar diferido)"
-                    : "No registrar pago ahora (a pagar diferido)"}
-                </span>
-              </label>
-
-              {noPagar && (
-                <div css={styles.diferidoNotice} data-testid="pago-diferido-notice">
-                  <Clock size={15} color={COLOR.TEXT.SECONDARY} />
-                  <span>
-                    La operación se guardará con saldo pendiente de{" "}
-                    <strong>{formatArs(totalOperacion, { maxDecimals: 0 })}</strong> y no se debitará ni acreditará ninguna cuenta hoy.
+          {isDiferido ? (
+            <div css={styles.emptyContainer}>
+              <div css={styles.emptyNotice} data-testid="pago-empty-notice">
+                <div css={styles.emptyNoticeIcon}>
+                  <Clock size={20} />
+                </div>
+                <div css={styles.emptyNoticeContent}>
+                  <span css={styles.emptyNoticeTitle}>
+                    {isVenta ? "Sin cobro inmediato" : "Sin pago inmediato"}
+                  </span>
+                  <span css={styles.emptyNoticeText}>
+                    {isVenta
+                      ? "No se acreditará ninguna cuenta hoy. La operación quedará pendiente de cobro y podrás registrar el pago luego."
+                      : "No se debitará ninguna cuenta hoy. La operación quedará pendiente de pago y podrás liquidarla luego."}
                   </span>
                 </div>
-              )}
+              </div>
+
+              <div css={styles.emptyActionsRow}>
+                <button
+                  type="button"
+                  css={styles.btnAddAccount}
+                  onClick={onAddPago}
+                  data-testid="btn-add-account"
+                >
+                  <Plus size={15} />
+                  <span>{isVenta ? "Registrar un cobro" : "Registrar un pago"}</span>
+                </button>
+
+                {cuentaFavorita && onRestoreFavorita && (
+                  <button
+                    type="button"
+                    css={styles.btnRestore}
+                    onClick={onRestoreFavorita}
+                    data-testid="btn-restore-favorita"
+                  >
+                    <RotateCcw size={14} />
+                    <span>Usar {cuentaFavorita.nombre}</span>
+                  </button>
+                )}
+              </div>
             </div>
-          )}
-
-          {!noPagar && (
-            <>
-              <RegistrarPagoSection
-                pagos={pagos}
-                loadingCuentas={loadingCuentas}
-                onAddPago={onAddPago}
-                onRemovePago={onRemovePago}
-                onUpdatePago={onUpdatePago}
-                onUpdatePagoCuentaDraft={onUpdatePagoCuentaDraft}
-              />
-
-              {totalOperacion > 0 && (
-                <div css={styles.saldoResumenRow}>
-                  {saldoPendiente > 0 ? (
-                    <span css={styles.saldoPendienteText}>
-                      Saldo pendiente por liquidar: <strong>{formatArs(saldoPendiente, { maxDecimals: 0 })}</strong>
-                    </span>
-                  ) : totalIngresado === totalOperacion ? (
-                    <span css={styles.saldoCompletoText}>
-                      ✓ Pago total cubierto
-                    </span>
-                  ) : (
-                    <span css={styles.saldoExcedenteText}>
-                      Atención: El importe ingresado supera el total de la operación por {formatArs(totalIngresado - totalOperacion, { maxDecimals: 0 })}
-                    </span>
-                  )}
-                </div>
-              )}
-            </>
+          ) : (
+            <RegistrarPagoSection
+              pagos={pagos}
+              loadingCuentas={loadingCuentas}
+              onAddPago={onAddPago}
+              onRemovePago={onRemovePago}
+              onUpdatePago={onUpdatePago}
+              onUpdatePagoCuentaDraft={onUpdatePagoCuentaDraft}
+            />
           )}
         </div>
       )}
@@ -143,18 +136,20 @@ export default function PagoCondicionSection({
         <button
           type="button"
           css={styles.advancedToggle}
-          onClick={onToggleAdvanced}
+          onClick={isDiferido && onRestoreFavorita ? onRestoreFavorita : onToggleAdvanced}
           aria-expanded={showAdvanced}
           data-testid={dataTestIdToggle}
         >
           <span>
-            {showAdvanced || noPagar
-              ? "Usar cuenta favorita"
-              : "Elegir otra cuenta o dividir el pago"}
+            {showAdvanced || isDiferido
+              ? `Usar cuenta favorita (${cuentaFavorita.nombre})`
+              : isVenta
+              ? "Elegir otra cuenta, dividir o diferir el cobro"
+              : "Elegir otra cuenta, dividir o diferir el pago"}
           </span>
           <ChevronDown
             size={17}
-            css={showAdvanced || noPagar ? styles.chevronOpen : undefined}
+            css={showAdvanced || isDiferido ? styles.chevronOpen : undefined}
           />
         </button>
       )}
@@ -235,50 +230,83 @@ const styles = {
     flexDirection: "column",
     gap: 12,
   }),
-  noPagarRow: css({
+  emptyContainer: css({
     display: "flex",
     flexDirection: "column",
-    gap: 8,
-    padding: "10px 14px",
-    borderRadius: 8,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    backgroundColor: COLOR.BACKGROUND.PRIMARY,
+    gap: 10,
   }),
-  checkboxLabel: css({
+  emptyNotice: css({
     display: "flex",
-    alignItems: "center",
-    gap: 8,
-    cursor: "pointer",
-    userSelect: "none",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: "12px 14px",
+    backgroundColor: "#fffbeb",
+    border: "1px solid #fef3c7",
+    borderRadius: 10,
   }),
-  checkboxText: css({
+  emptyNoticeIcon: css({
+    color: "#d97706",
+    flexShrink: 0,
+    marginTop: 2,
+  }),
+  emptyNoticeContent: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+  }),
+  emptyNoticeTitle: css({
     fontSize: 13,
     fontWeight: 600,
-    color: COLOR.TEXT.PRIMARY,
+    color: "#92400e",
   }),
-  diferidoNotice: css({
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
+  emptyNoticeText: css({
     fontSize: 12,
-    color: COLOR.TEXT.SECONDARY,
-    paddingLeft: 24,
+    color: "#b45309",
+    lineHeight: 1.4,
   }),
-  saldoResumenRow: css({
+  emptyActionsRow: css({
     display: "flex",
-    justifyContent: "flex-end",
-    padding: "4px 8px",
+    gap: 8,
+    alignItems: "center",
+  }),
+  btnAddAccount: css({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    flex: 1,
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "1.5px dashed rgba(0, 128, 162, 0.4)",
+    backgroundColor: "rgba(0, 128, 162, 0.02)",
+    color: "#0080a2",
     fontSize: 13,
-  }),
-  saldoPendienteText: css({
-    color: COLOR.SEMANTIC.WARNING,
-  }),
-  saldoCompletoText: css({
-    color: COLOR.SEMANTIC.SUCCESS,
     fontWeight: 600,
+    cursor: "pointer",
+    transition: "all 0.15s ease-in-out",
+    "&:hover": {
+      backgroundColor: "rgba(0, 128, 162, 0.08)",
+      borderColor: "#0080a2",
+    },
   }),
-  saldoExcedenteText: css({
-    color: COLOR.SEMANTIC.DANGER,
-    fontWeight: 600,
+  btnRestore: css({
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    backgroundColor: "#ffffff",
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 13,
+    fontWeight: 500,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    transition: "all 0.15s ease",
+    "&:hover": {
+      backgroundColor: COLOR.BACKGROUND.SECONDARY,
+      borderColor: COLOR.BORDER.STRONG,
+    },
   }),
 } as const;
