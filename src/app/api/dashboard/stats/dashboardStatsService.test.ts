@@ -85,6 +85,27 @@ beforeEach(() => {
 });
 
 describe("statsService.getStats", () => {
+  it("conserva los importes desglosados por grupo sin sustituirlos por el total global", async () => {
+    const facturacionPorTipo = [
+      { label: "Mecánica", cantidad: 1, monto: 35000 },
+      { label: "Electricidad", cantidad: 1, monto: 9000 },
+    ];
+    const facturacionPorEmpleado = [
+      { label: "Ana", cantidad: 1, monto: 35000 },
+      { label: "Bruno", cantidad: 1, monto: 9000 },
+    ];
+    mocks.facturacionPorTipo.mockResolvedValue(facturacionPorTipo);
+    mocks.facturacionPorEmpleado.mockResolvedValue(facturacionPorEmpleado);
+
+    const result = await statsService.getStats(supabase, from, to, "tenant-1");
+
+    expect(mocks.facturacionPorTipo).toHaveBeenCalledWith(supabase, from, to);
+    expect(mocks.facturacionPorEmpleado).toHaveBeenCalledWith(supabase, from, to);
+    expect(result.facturacionPorTipo).toEqual(facturacionPorTipo);
+    expect(result.facturacionPorEmpleado).toEqual(facturacionPorEmpleado);
+    expect(result.totals?.montoIngresos).toBe(100);
+  });
+
   it("incluye horas trabajadas con el mismo rango global y versiona la caché", async () => {
     const result = await statsService.getStats(supabase, from, to, "tenant-1");
 
@@ -96,7 +117,7 @@ describe("statsService.getStats", () => {
     });
     expect(mocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
-      ["dashboard-stats", "v4", from, to, "tenant-1"],
+      ["dashboard-stats", "v6", from, to, "tenant-1"],
       { revalidate: 3600, tags: ["dashboard-stats:tenant:tenant-1"] }
     );
   });

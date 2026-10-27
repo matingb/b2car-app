@@ -8,8 +8,8 @@ import type { DashboardPeriodo, DashboardStats } from "@/lib/dashboard/types";
 import { revalidateTag, unstable_cache } from "next/cache";
 
 const DASHBOARD_STATS_TAG_PREFIX = "dashboard-stats";
-// Cambiarla cuando cambia la forma de la respuesta: evita servir entradas cacheadas por la versión anterior.
-const DASHBOARD_STATS_CACHE_VERSION = "v4";
+// Cambiarla cuando cambia el contenido o la semántica calculada: evita servir entradas cacheadas por la versión anterior.
+const DASHBOARD_STATS_CACHE_VERSION = "v6";
 
 function dashboardStatsTag(tenantId: string) {
   const normalized = String(tenantId).trim();

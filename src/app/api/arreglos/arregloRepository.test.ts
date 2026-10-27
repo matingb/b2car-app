@@ -42,6 +42,48 @@ const pgError = (code = "XXXXX"): PostgrestError => ({
 });
 
 describe("supabaseArregloRepository", () => {
+  describe("facturación por categoría y empleado", () => {
+    it.each([
+      {
+        metodo: "facturacionPorTipo",
+        rpc: "dashboard_facturacion_por_categoria",
+        cantidades: [1, 1],
+      },
+      {
+        metodo: "facturacionPorEmpleado",
+        rpc: "dashboard_facturacion_por_empleado",
+        cantidades: [1, 1],
+      },
+    ] as const)("$metodo conserva el importe por grupo y convierte montos numéricos", async ({ metodo, rpc, cantidades }) => {
+      const supabase = makeSupabase({});
+      vi.mocked(supabase.rpc).mockResolvedValue({
+        data: [
+          { label: "Mecánica", cantidad: String(cantidades[0]), monto: "35000.00" },
+          { label: "Electricidad", cantidad: String(cantidades[1]), monto: "9000.00" },
+        ],
+        error: null,
+      } as never);
+
+      const result = await supabaseArregloRepository[metodo](
+        supabase,
+        "2042-03-01T03:00:00.000Z",
+        "2042-04-01T03:00:00.000Z",
+        "taller-1"
+      );
+
+      expect(supabase.rpc).toHaveBeenCalledWith(rpc, {
+        top: 100,
+        p_from: "2042-03-01T03:00:00.000Z",
+        p_to: "2042-04-01T03:00:00.000Z",
+        p_taller_id: "taller-1",
+      });
+      expect(result).toEqual([
+        { label: "Mecánica", cantidad: cantidades[0], monto: 35000 },
+        { label: "Electricidad", cantidad: cantidades[1], monto: 9000 },
+      ]);
+    });
+  });
+
   it("filtra timestamps desde el inicio inclusive hasta el límite exclusivo", async () => {
     const supabase = makeSupabase({ arreglos: { data: [], error: null } });
 

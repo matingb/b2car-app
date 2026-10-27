@@ -81,6 +81,6 @@ const styles = {
         flex: 1,
         display: "flex",
         flexDirection: "column" as const,
-        justifyContent: "center",
+        justifyContent: "flex-start",
     },
 } as const;
