@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import TurnoCreateModal from "./TurnoCreateModal";
-import { createCliente, createTurnoDto } from "@/tests/factories";
+import { createCliente, createTurno, createTurnoDto } from "@/tests/factories";
 
 const mockCreateTurno = vi.fn();
 const mockUpdateTurno = vi.fn();
@@ -24,24 +24,30 @@ vi.mock("@/app/providers/TenantProvider", () => ({
 const mockCreateParticular = vi.fn();
 const mockCreateEmpresa = vi.fn();
 const mockGetClienteById = vi.fn();
+const mockSearchClientes = vi.fn();
+const mockClientes = [
+  {
+    id: "C-1",
+    nombre: "Juan",
+    tipo_cliente: "particular",
+    dni_cuil: "35123456",
+    telefono: "11",
+    email: "a@a.com",
+    direccion: "x",
+  },
+];
 vi.mock("@/app/providers/ClientesProvider", () => ({
   useClientes: () => ({
-    clientes: [
-      {
-        id: "C-1",
-        nombre: "Juan",
-        tipo_cliente: "particular",
-        dni_cuil: "35123456",
-        telefono: "11",
-        email: "a@a.com",
-        direccion: "x",
-      },
-    ],
+    clientes: mockClientes,
+    loading: false,
+    searchClientes: mockSearchClientes,
     createParticular: mockCreateParticular,
     createEmpresa: mockCreateEmpresa,
     getClienteById: mockGetClienteById,
   }),
 }));
+
+const clienteRemoto = createCliente({ id: "R-1", nombre: "Ana Remota", dni_cuil: "40111222", telefono: "1188888888" });
 
 const mockCreateVehiculo = vi.fn();
 vi.mock("@/app/providers/VehiculosProvider", () => ({
@@ -88,6 +94,8 @@ vi.mock("@/app/providers/ModalMessageProvider", () => ({
 describe("TurnoCreateModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSearchClientes.mockResolvedValue([]);
+    mockGetClienteById.mockResolvedValue(null);
   });
 
   it("habilita el botón Guardar cuando el usuario ingresa un título", async () => {
@@ -185,5 +193,68 @@ describe("TurnoCreateModal", () => {
     expect(screen.getByText("Juan")).toBeInTheDocument();
     expect(screen.getByText("DNI: 35123456")).toBeInTheDocument();
     expect(screen.queryByText("a@a.com")).not.toBeInTheDocument();
+  });
+
+  it("crea un turno con un cliente encontrado en el servidor fuera de la carga inicial", async () => {
+    mockSearchClientes.mockResolvedValue([clienteRemoto]);
+    mockCreateTurno.mockResolvedValueOnce(
+      createTurnoDto({ titulo: "Mecánica - Ana Remota", cliente_id: "R-1", vehiculo_id: null })
+    );
+
+    render(
+      <TurnoCreateModal
+        open
+        onClose={vi.fn()}
+        defaultFecha={new Date(2026, 2, 1)}
+        defaultHora="09:00"
+      />
+    );
+
+    await userEvent.type(screen.getByPlaceholderText("Buscar cliente"), "40111");
+    await userEvent.click(await screen.findByText("Ana Remota"));
+
+    expect(mockSearchClientes).toHaveBeenCalledWith("40111", { tipo: undefined, limit: 25 });
+    expect(screen.getByPlaceholderText(/Ej: Service/i)).toHaveValue("Mecánica - Ana Remota");
+    expect(screen.getByPlaceholderText("No hay vehículos registrados")).toHaveValue("");
+
+    const submit = screen.getByTestId("modal-submit");
+    await waitFor(() => expect(submit).not.toBeDisabled());
+    await userEvent.click(submit);
+
+    await waitFor(() =>
+      expect(mockCreateTurno).toHaveBeenCalledWith(
+        expect.objectContaining({ cliente_id: "R-1", vehiculo_id: null, titulo: "Mecánica - Ana Remota" })
+      )
+    );
+  });
+
+  it("edita un turno cuyo cliente no está en la carga inicial sin perder el cliente ni el título", async () => {
+    mockGetClienteById.mockResolvedValue(clienteRemoto);
+    mockUpdateTurno.mockResolvedValueOnce(createTurnoDto({ id: "T-1", cliente_id: "R-1", vehiculo_id: null }));
+    const turno = createTurno({
+      id: "T-1",
+      titulo: "Turno guardado",
+      fecha: "2026-03-01",
+      hora: "09:00",
+      cliente: clienteRemoto,
+      vehiculo: null,
+    });
+
+    render(<TurnoCreateModal open onClose={vi.fn()} turnoToEdit={turno} />);
+
+    await waitFor(() => expect(screen.getByPlaceholderText("Buscar cliente")).toHaveValue("Ana Remota"));
+    expect(mockGetClienteById).toHaveBeenCalledWith("R-1");
+    expect(screen.getByPlaceholderText(/Ej: Service/i)).toHaveValue("Turno guardado");
+
+    const submit = screen.getByTestId("modal-submit");
+    await waitFor(() => expect(submit).not.toBeDisabled());
+    await userEvent.click(submit);
+
+    await waitFor(() =>
+      expect(mockUpdateTurno).toHaveBeenCalledWith(
+        "T-1",
+        expect.objectContaining({ cliente_id: "R-1", titulo: "Turno guardado" })
+      )
+    );
   });
 });

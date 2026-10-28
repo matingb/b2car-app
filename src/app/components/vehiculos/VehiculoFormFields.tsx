@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import Autocomplete, { AutocompleteOption } from "../ui/Autocomplete";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { useClientes } from "@/app/providers/ClientesProvider";
-import { formatClienteDocumento } from "@/lib/documentos";
+import ClienteAutocomplete from "@/app/components/clientes/ClienteAutocomplete";
+import type { Cliente } from "@/model/types";
 
 export type VehiculoFormFieldsValue = {
   cliente_id?: string;
@@ -46,13 +46,18 @@ export default function VehiculoFormFields({
   onValidityChange,
 }: Props) {
   const { clientes } = useClientes();
-  const [clientesOptions, setClientesOptions] = useState<AutocompleteOption[]>([]);
+  // Cliente elegido en el selector; puede venir de una búsqueda remota fuera del listado.
+  const [pickedCliente, setPickedCliente] = useState<Cliente | null>(null);
   const selectedClienteId = value.cliente_id ?? "";
 
   const selectedCliente = useMemo(() => {
     if (!selectedClienteId) return undefined;
-    return clientes.find((c) => String(c.id) === selectedClienteId);
-  }, [clientes, selectedClienteId]);
+    const fromList = clientes.find((c) => String(c.id) === selectedClienteId);
+    if (fromList) return fromList;
+    return pickedCliente && String(pickedCliente.id) === selectedClienteId
+      ? pickedCliente
+      : undefined;
+  }, [clientes, selectedClienteId, pickedCliente]);
 
   const isValid = useMemo(
     () =>
@@ -67,20 +72,6 @@ export default function VehiculoFormFields({
     onValidityChange?.(isValid);
   }, [isValid, onValidityChange]);
 
-  useEffect(() => {
-    if (!showClienteInput) return;
-    const opts = clientes.map((c) => ({
-      value: String(c.id),
-      label: String(
-        tipoCliente === "empresa"
-          ? c.nombre
-          : `${c.nombre} ${"apellido" in c && c.apellido ? c.apellido : ""}`.trim()
-      ),
-      secondaryLabel: formatClienteDocumento(c) || "",
-    }));
-    setClientesOptions(opts);
-  }, [showClienteInput, clientes, tipoCliente]);
-
   const showNroInterno =
     selectedCliente?.tipo_cliente === "empresa" ||
     tipoCliente === "empresa" ||
@@ -93,10 +84,13 @@ export default function VehiculoFormFields({
           <label style={styles.label}>
             Cliente <span aria-hidden="true" style={styles.required}>*</span>
           </label>
-          <Autocomplete
-            options={clientesOptions}
+          <ClienteAutocomplete
             value={selectedClienteId}
-            onChange={(v) => onChange({ cliente_id: v })}
+            onChange={(clienteId, cliente) => {
+              setPickedCliente(cliente ?? null);
+              onChange({ cliente_id: clienteId });
+            }}
+            tipoCliente={tipoCliente}
             placeholder="Buscar cliente..."
           />
         </div>

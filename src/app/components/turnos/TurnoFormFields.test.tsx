@@ -1,8 +1,31 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { useState } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import TurnoFormFields, { type TurnoFormFieldsModel } from "./TurnoFormFields";
+import TurnoFormFields, {
+  CREATE_CLIENTE_VALUE,
+  type TurnoFormFieldsContext,
+  type TurnoFormFieldsModel,
+  type TurnoFormFieldsPatch,
+  type TurnoFormFieldsState,
+} from "./TurnoFormFields";
 import { createEmptyClienteFormFieldsValue } from "@/app/components/clientes/ClienteFormFields";
+import { createCliente, createVehiculo } from "@/tests/factories";
+import { TipoCliente } from "@/model/types";
+
+const mocks = vi.hoisted(() => ({
+  searchClientes: vi.fn(),
+  getClienteById: vi.fn(),
+}));
+
+vi.mock("@/app/providers/ClientesProvider", () => ({
+  useClientes: () => ({
+    clientes: [],
+    loading: false,
+    searchClientes: mocks.searchClientes,
+    getClienteById: mocks.getClienteById,
+  }),
+}));
 
 const mockCategorias = [
   { id: "c1", nombre: "Chapa y pintura" },
@@ -183,5 +206,243 @@ describe("TurnoFormFields - Componente UI", () => {
         tipo: "Chapa y pintura",
       })
     );
+  });
+});
+
+describe("TurnoFormFields - selector de clientes con búsqueda remota", () => {
+  const clienteInicial = createCliente({ id: "C-1", nombre: "Juan Inicial", dni_cuil: "11111111" });
+  const particularRemoto = createCliente({ id: "R-1", nombre: "Ana Remota", dni_cuil: "40111222" });
+  const empresaRemota = createCliente({
+    id: "E-1",
+    nombre: "Remota SA",
+    tipo_cliente: TipoCliente.EMPRESA,
+    cuit: "30-99999999-9",
+  });
+
+  const vehiculoInicial = createVehiculo({
+    id: "V-1",
+    cliente_id: "C-1",
+    nombre_cliente: "Juan Inicial",
+    patente: "REW164",
+    marca: "",
+    modelo: "",
+  });
+  const vehiculoRemoto = createVehiculo({
+    id: "V-9",
+    cliente_id: "R-1",
+    nombre_cliente: "Ana Remota",
+    patente: "AB123CD",
+    marca: "",
+    modelo: "",
+  });
+  const otroVehiculoRemoto = createVehiculo({
+    id: "V-10",
+    cliente_id: "R-1",
+    nombre_cliente: "Ana Remota",
+    patente: "AC456EF",
+    marca: "",
+    modelo: "",
+  });
+
+  const baseState: TurnoFormFieldsState = {
+    titulo: "",
+    clienteId: "",
+    vehiculoId: "",
+    fecha: "2026-09-09",
+    hora: "09:00",
+    duracion: 60,
+    tipo: "Mecánica",
+    descripcion: "",
+    observaciones: "",
+    clienteDraft: createEmptyClienteFormFieldsValue(),
+    clienteInlineIsValid: false,
+    vehiculoDraft: {
+      cliente_id: "",
+      patente: "",
+      marca: "",
+      modelo: "",
+      fecha_patente: "",
+      numero_chasis: "",
+      nro_interno: "",
+    },
+    vehiculoInlineIsValid: false,
+  };
+
+  function TurnoHarness({
+    initialState = baseState,
+    context,
+    onChange,
+    onValidityChange,
+  }: {
+    initialState?: TurnoFormFieldsState;
+    context: TurnoFormFieldsContext;
+    onChange?: (patch: TurnoFormFieldsPatch) => void;
+    onValidityChange?: (isValid: boolean) => void;
+  }) {
+    const [state, setState] = useState(initialState);
+    return (
+      <TurnoFormFields
+        model={{ state, context }}
+        onValidityChange={onValidityChange}
+        onChange={(patch) => {
+          onChange?.(patch);
+          setState((prev) => {
+            const { clienteDraft, vehiculoDraft, ...rest } = patch;
+            return {
+              ...prev,
+              ...rest,
+              clienteDraft: { ...prev.clienteDraft, ...(clienteDraft ?? {}) },
+              vehiculoDraft: { ...prev.vehiculoDraft, ...(vehiculoDraft ?? {}) },
+            };
+          });
+        }}
+      />
+    );
+  }
+
+  beforeEach(() => {
+    mocks.searchClientes.mockResolvedValue([]);
+    mocks.getClienteById.mockResolvedValue(null);
+  });
+
+  it("selecciona un cliente remoto, sugiere el título y autoselecciona su único vehículo", async () => {
+    mocks.searchClientes.mockResolvedValue([particularRemoto]);
+    const context = { clientes: [clienteInicial], vehiculos: [vehiculoInicial, vehiculoRemoto] };
+    const onChange = vi.fn();
+    render(<TurnoHarness context={context} onChange={onChange} />);
+
+    const clienteInput = screen.getByPlaceholderText("Buscar cliente");
+    await userEvent.type(clienteInput, "40111");
+    await userEvent.click(await screen.findByText("Ana Remota"));
+
+    expect(mocks.searchClientes).toHaveBeenCalledWith("40111", { tipo: undefined, limit: 25 });
+    expect(onChange).toHaveBeenCalledWith({
+      clienteId: "R-1",
+      vehiculoId: "V-9",
+      titulo: "Mecánica - AB123CD - Ana Remota",
+    });
+    expect(clienteInput).toHaveValue("Ana Remota");
+    expect(screen.getByPlaceholderText("Buscar o crear vehículo...")).toHaveValue("AB123CD");
+    expect(mocks.getClienteById).not.toHaveBeenCalled();
+  });
+
+  it("al cambiar a un cliente remoto con varios vehículos limpia el vehículo del propietario anterior y filtra los suyos", async () => {
+    mocks.searchClientes.mockResolvedValue([particularRemoto]);
+    const context = {
+      clientes: [clienteInicial],
+      vehiculos: [vehiculoInicial, vehiculoRemoto, otroVehiculoRemoto],
+    };
+    const onChange = vi.fn();
+    render(
+      <TurnoHarness
+        initialState={{ ...baseState, clienteId: "C-1", vehiculoId: "V-1", titulo: "Mecánica - REW164 - Juan Inicial" }}
+        context={context}
+        onChange={onChange}
+      />
+    );
+
+    await userEvent.type(screen.getByPlaceholderText("Buscar cliente"), "Ana");
+    await userEvent.click(await screen.findByText("Ana Remota"));
+
+    expect(onChange).toHaveBeenCalledWith({
+      clienteId: "R-1",
+      vehiculoId: "",
+      titulo: "Mecánica - Ana Remota",
+    });
+
+    await userEvent.click(screen.getByPlaceholderText("Buscar o crear vehículo..."));
+    expect(screen.getByText("AB123CD")).toBeInTheDocument();
+    expect(screen.getByText("AC456EF")).toBeInTheDocument();
+    expect(screen.queryByText("REW164")).not.toBeInTheDocument();
+  });
+
+  it("resuelve por ID un cliente precargado fuera del listado sin emitir cambios ni pisar el título", async () => {
+    mocks.getClienteById.mockResolvedValue(particularRemoto);
+    const context = { clientes: [clienteInicial], vehiculos: [vehiculoInicial, vehiculoRemoto] };
+    const onChange = vi.fn();
+    render(
+      <TurnoHarness
+        initialState={{ ...baseState, clienteId: "R-1", vehiculoId: "V-9", titulo: "Turno guardado" }}
+        context={context}
+        onChange={onChange}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByPlaceholderText("Buscar cliente")).toHaveValue("Ana Remota"));
+    expect(mocks.getClienteById).toHaveBeenCalledWith("R-1");
+    expect(screen.getByPlaceholderText(/Ej: Service/i)).toHaveValue("Turno guardado");
+    expect(onChange).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByPlaceholderText("Buscar o crear vehículo..."));
+    expect(screen.queryByText("REW164")).not.toBeInTheDocument();
+  });
+
+  it("al elegir primero un vehículo cuyo dueño no está en el listado asigna y resuelve ese cliente", async () => {
+    mocks.getClienteById.mockResolvedValue(particularRemoto);
+    const context = { clientes: [clienteInicial], vehiculos: [vehiculoInicial, vehiculoRemoto] };
+    const onChange = vi.fn();
+    render(<TurnoHarness context={context} onChange={onChange} />);
+
+    await userEvent.click(screen.getByPlaceholderText("Buscar o crear vehículo..."));
+    await userEvent.click(screen.getByText("AB123CD"));
+
+    expect(onChange).toHaveBeenCalledWith({
+      vehiculoId: "V-9",
+      clienteId: "R-1",
+      titulo: "Mecánica - AB123CD - Ana Remota",
+    });
+    await waitFor(() => expect(screen.getByPlaceholderText("Buscar cliente")).toHaveValue("Ana Remota"));
+  });
+
+  it("una empresa remota sin vehículos permite crear el vehículo inline con Nro interno", async () => {
+    mocks.searchClientes.mockResolvedValue([empresaRemota]);
+    const context = { clientes: [clienteInicial], vehiculos: [vehiculoInicial] };
+    render(<TurnoHarness context={context} />);
+
+    await userEvent.type(screen.getByPlaceholderText("Buscar cliente"), "Remota");
+    await userEvent.click(await screen.findByText("Remota SA"));
+
+    await userEvent.click(screen.getByPlaceholderText("No hay vehículos registrados"));
+    expect(screen.queryByText("REW164")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByText("+ Crear vehículo"));
+
+    expect(screen.getByText("Nro interno")).toBeInTheDocument();
+  });
+
+  it("mantiene la opción + Crear cliente con los formularios inline de cliente y vehículo", async () => {
+    const context = { clientes: [clienteInicial], vehiculos: [vehiculoInicial] };
+    const onChange = vi.fn();
+    render(<TurnoHarness context={context} onChange={onChange} />);
+
+    await userEvent.click(screen.getByPlaceholderText("Buscar cliente"));
+    await userEvent.click(screen.getByText("+ Crear cliente"));
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ clienteId: CREATE_CLIENTE_VALUE }));
+    expect(screen.queryByPlaceholderText("Buscar o crear vehículo...")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("AAA000 ~ AA000AA")).toBeInTheDocument();
+  });
+
+  it("limpiar el cliente no lo vuelve obligatorio", async () => {
+    mocks.searchClientes.mockResolvedValue([particularRemoto]);
+    const context = { clientes: [clienteInicial], vehiculos: [] };
+    const onValidityChange = vi.fn();
+    const onChange = vi.fn();
+    render(
+      <TurnoHarness
+        initialState={{ ...baseState, titulo: "Revisión" }}
+        context={context}
+        onChange={onChange}
+        onValidityChange={onValidityChange}
+      />
+    );
+
+    await userEvent.type(screen.getByPlaceholderText("Buscar cliente"), "Ana");
+    await userEvent.click(await screen.findByText("Ana Remota"));
+    // El primer botón de limpiar corresponde al selector de cliente.
+    await userEvent.click(screen.getAllByTestId("autocomplete-clear-button")[0]);
+
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ clienteId: "" }));
+    expect(screen.getByPlaceholderText("Buscar cliente")).toHaveValue("");
+    expect(onValidityChange).toHaveBeenLastCalledWith(true);
   });
 });

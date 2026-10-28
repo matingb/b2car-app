@@ -10,6 +10,7 @@ import {
   type TurnoFormFieldsState,
 } from "./TurnoFormFields";
 import { TipoCliente, type Cliente, type Vehiculo } from "@/model/types";
+import { CREATE_CLIENTE_VALUE as CLIENTE_AUTOCOMPLETE_CREATE_VALUE } from "@/app/components/clientes/ClienteAutocomplete";
 
 const emptyVehiculoDraft: VehiculoFormFieldsValue = {
   cliente_id: "",
@@ -43,6 +44,11 @@ describe("getTurnoInlineFlags", () => {
       isCreatingCliente: true,
       isCreatingVehiculo: true,
     });
+  });
+
+  it("usa el mismo valor de crear cliente que el selector compartido", () => {
+    expect(CREATE_CLIENTE_VALUE).toBe(CLIENTE_AUTOCOMPLETE_CREATE_VALUE);
+    expect(getTurnoInlineFlags({ clienteId: CLIENTE_AUTOCOMPLETE_CREATE_VALUE, vehiculoId: "" }).isCreatingCliente).toBe(true);
   });
 
   it("detecta modo crear vehículo", () => {

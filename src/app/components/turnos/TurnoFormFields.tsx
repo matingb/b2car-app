@@ -10,8 +10,10 @@ import { useTurnoHorarios } from "@/app/components/turnos/hooks/useTurnoHorarios
 import TurnoClienteVehiculoFields from "@/app/components/turnos/fields/TurnoClienteVehiculoFields";
 import TurnoDateTimePicker from "@/app/components/turnos/fields/TurnoDateTimePicker";
 import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
+import { useClientes } from "@/app/providers/ClientesProvider";
+import { CREATE_CLIENTE_VALUE } from "@/app/components/clientes/ClienteAutocomplete";
 
-export const CREATE_CLIENTE_VALUE = "__create_cliente__";
+export { CREATE_CLIENTE_VALUE };
 export const CREATE_VEHICULO_VALUE = "__create_vehiculo__";
 
 export type TurnoFormFieldsState = {
@@ -78,7 +80,7 @@ export function validateTurnoForm(input: {
 export function buildSuggestedTurnoTitle(params: {
   tipo?: string;
   vehiculo?: Vehiculo;
-  cliente?: Cliente;
+  cliente?: Pick<Cliente, "nombre">;
 }): string {
   const parts: string[] = [];
   if (params.tipo) parts.push(params.tipo);
@@ -110,13 +112,33 @@ export default function TurnoFormFields(props: Props) {
 
   const horarios = useTurnoHorarios(state.hora, state.duracion);
 
-  const selectedCliente = useMemo(
-    () =>
-      !state.clienteId || isCreatingCliente
-        ? undefined
-        : context.clientes.find((c) => String(c.id) === state.clienteId),
-    [context.clientes, state.clienteId, isCreatingCliente]
-  );
+  const { getClienteById } = useClientes();
+  // Cliente elegido o resuelto por ID que puede no estar en el listado inicial.
+  const [knownCliente, setKnownCliente] = useState<Cliente | null>(null);
+  const selectedClienteId = !state.clienteId || isCreatingCliente ? "" : state.clienteId;
+
+  const selectedCliente = useMemo(() => {
+    if (!selectedClienteId) return undefined;
+    const fromList = context.clientes.find((c) => String(c.id) === selectedClienteId);
+    if (fromList) return fromList;
+    return knownCliente && String(knownCliente.id) === selectedClienteId ? knownCliente : undefined;
+  }, [context.clientes, selectedClienteId, knownCliente]);
+
+  // Precarga, edición o dueño inferido desde un vehículo: resolver el cliente sin emitir cambios.
+  useEffect(() => {
+    if (!selectedClienteId || selectedCliente) return;
+
+    let isActive = true;
+    void getClienteById(selectedClienteId).then((cliente) => {
+      if (isActive && cliente && String(cliente.id) === selectedClienteId) {
+        setKnownCliente(cliente);
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedClienteId, selectedCliente, getClienteById]);
 
   const selectedVehiculo = useMemo(
     () =>
@@ -162,6 +184,7 @@ export default function TurnoFormFields(props: Props) {
         onChange={onChange}
         selectedCliente={selectedCliente}
         selectedVehiculo={selectedVehiculo}
+        onClienteSelected={(cliente) => setKnownCliente(cliente ?? null)}
       />
 
       <div>

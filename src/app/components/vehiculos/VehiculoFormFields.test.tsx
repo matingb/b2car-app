@@ -1,29 +1,115 @@
-import React from "react";
-import { describe, it, expect, vi } from "vitest";
+import React, { useState } from "react";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import VehiculoFormFields, { validateVehiculoForm } from "./VehiculoFormFields";
-import { createVehiculoFormFieldsValue } from "@/tests/factories";
+import userEvent from "@testing-library/user-event";
+import VehiculoFormFields, { validateVehiculoForm, type VehiculoFormFieldsValue } from "./VehiculoFormFields";
+import { createCliente, createVehiculoFormFieldsValue } from "@/tests/factories";
+import { TipoCliente } from "@/model/types";
 
-const mockClientes = vi.hoisted(() => ([]));
+const mocks = vi.hoisted(() => ({
+  searchClientes: vi.fn(),
+  getClienteById: vi.fn(),
+}));
+
+const mockClientes = [createCliente({ id: "C-1", nombre: "Juan Inicial", dni_cuil: "11111111" })];
+const empresaRemota = createCliente({
+  id: "E-900",
+  nombre: "Transportes Lejanos SA",
+  tipo_cliente: TipoCliente.EMPRESA,
+  cuit: "30-99999999-9",
+});
+const particularRemoto = createCliente({ id: "P-900", nombre: "Ana Remota", dni_cuil: "40111222" });
 
 vi.mock("@/app/providers/ClientesProvider", () => ({
-  useClientes: () => ({ clientes: mockClientes }),
+  useClientes: () => ({
+    clientes: mockClientes,
+    loading: false,
+    searchClientes: mocks.searchClientes,
+    getClienteById: mocks.getClienteById,
+  }),
 }));
 
-vi.mock("../ui/Autocomplete", () => ({
-  __esModule: true,
-  default: ({ placeholder, value }: { placeholder?: string; value?: string }) => (
-    <input data-testid="autocomplete" placeholder={placeholder} value={value ?? ""} readOnly />
-  ),
-}));
+function ControlledVehiculoFormFields({
+  onChange,
+  tipoCliente,
+}: {
+  onChange?: (patch: Partial<VehiculoFormFieldsValue>) => void;
+  tipoCliente?: "particular" | "empresa";
+}) {
+  const [value, setValue] = useState(createVehiculoFormFieldsValue());
+  return (
+    <VehiculoFormFields
+      value={value}
+      onChange={(patch) => {
+        setValue((prev) => ({ ...prev, ...patch }));
+        onChange?.(patch);
+      }}
+      showClienteInput
+      tipoCliente={tipoCliente}
+    />
+  );
+}
 
 describe("VehiculoFormFields", () => {
+  beforeEach(() => {
+    mocks.searchClientes.mockResolvedValue([]);
+    mocks.getClienteById.mockResolvedValue(null);
+  });
+
   it("muestra el input de cliente cuando showClienteInput=true", () => {
     const value = createVehiculoFormFieldsValue();
 
     render(<VehiculoFormFields value={value} onChange={() => {}} showClienteInput />);
 
     expect(screen.getByPlaceholderText("Buscar cliente...")).toBeInTheDocument();
+  });
+
+  it("no monta el selector de cliente ni busca clientes cuando showClienteInput=false", () => {
+    render(<VehiculoFormFields value={createVehiculoFormFieldsValue()} onChange={() => {}} />);
+
+    expect(screen.queryByPlaceholderText("Buscar cliente...")).not.toBeInTheDocument();
+    expect(mocks.searchClientes).not.toHaveBeenCalled();
+  });
+
+  it("busca clientes en el servidor y selecciona uno fuera de la carga inicial", async () => {
+    mocks.searchClientes.mockResolvedValue([particularRemoto]);
+    const handleChange = vi.fn();
+    render(<ControlledVehiculoFormFields onChange={handleChange} />);
+
+    const input = screen.getByPlaceholderText("Buscar cliente...");
+    await userEvent.type(input, "ana@remota.com");
+    await userEvent.click(await screen.findByText("Ana Remota"));
+
+    expect(mocks.searchClientes).toHaveBeenCalledWith("ana@remota.com", { tipo: undefined, limit: 25 });
+    expect(handleChange).toHaveBeenCalledWith({ cliente_id: "P-900" });
+    expect(input).toHaveValue("Ana Remota");
+    expect(screen.queryByText("Nro interno")).not.toBeInTheDocument();
+  });
+
+  it("muestra Nro interno al seleccionar una empresa remota y lo oculta al limpiar el cliente", async () => {
+    mocks.searchClientes.mockResolvedValue([empresaRemota]);
+    const handleChange = vi.fn();
+    render(<ControlledVehiculoFormFields onChange={handleChange} />);
+
+    await userEvent.type(screen.getByPlaceholderText("Buscar cliente..."), "Lejanos");
+    await userEvent.click(await screen.findByText("Transportes Lejanos SA"));
+
+    expect(screen.getByText("Nro interno")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("autocomplete-clear-button"));
+
+    expect(handleChange).toHaveBeenLastCalledWith({ cliente_id: "" });
+    expect(screen.queryByText("Nro interno")).not.toBeInTheDocument();
+  });
+
+  it("restringe la búsqueda al tipo de cliente indicado", async () => {
+    render(<ControlledVehiculoFormFields tipoCliente="empresa" />);
+
+    await userEvent.type(screen.getByPlaceholderText("Buscar cliente..."), "Lejanos");
+
+    await vi.waitFor(() =>
+      expect(mocks.searchClientes).toHaveBeenCalledWith("Lejanos", { tipo: "empresa", limit: 25 })
+    );
   });
 
   it("convierte el número de chasis a mayúsculas al escribir", () => {

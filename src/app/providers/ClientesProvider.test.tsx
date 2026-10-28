@@ -26,6 +26,8 @@ vi.mock("@/clients/clientes/empresaClient", () => ({
 }));
 
 import { ClientesProvider, useClientes } from "./ClientesProvider";
+import ClienteAutocomplete from "@/app/components/clientes/ClienteAutocomplete";
+import userEvent from "@testing-library/user-event";
 
 function TestProbe() {
   const { getClienteById } = useClientes();
@@ -116,5 +118,63 @@ describe("ClientesProvider getClienteById", () => {
         cuit: "30-12345678-9",
       });
     });
+  });
+});
+
+describe("ClientesProvider searchClientes desde ClienteAutocomplete", () => {
+  const clienteInicial: Cliente = {
+    id: "C-1",
+    nombre: "Juan Inicial",
+    tipo_cliente: TipoCliente.PARTICULAR,
+    telefono: "",
+    email: "",
+    direccion: "",
+  };
+  const empresaRemota: Cliente = {
+    id: "E-900",
+    nombre: "Remota SA",
+    tipo_cliente: TipoCliente.EMPRESA,
+    cuit: "30-99999999-9",
+    telefono: "",
+    email: "",
+    direccion: "",
+  };
+
+  function ListadoProbe() {
+    const { clientes } = useClientes();
+    return <output data-testid="listado">{clientes.map((c) => c.id).join(",")}</output>;
+  }
+
+  beforeEach(() => {
+    mocks.getAll.mockReset();
+    mocks.getParticularById.mockReset();
+    mocks.getEmpresaById.mockReset();
+    mocks.getAll.mockImplementation(async (filters?: { search?: string }) =>
+      filters?.search
+        ? { data: [empresaRemota], page: { hasMore: false }, error: null }
+        : { data: [clienteInicial], page: { hasMore: true }, error: null }
+    );
+  });
+
+  it("consulta GET /api/clientes con search, tipo y límite acotado sin reemplazar el listado compartido", async () => {
+    const handleChange = vi.fn();
+    render(
+      <ClientesProvider>
+        <ListadoProbe />
+        <ClienteAutocomplete value="" onChange={handleChange} tipoCliente="empresa" />
+      </ClientesProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("listado")).toHaveTextContent("C-1"));
+    expect(mocks.getAll).toHaveBeenCalledWith({ limit: 50 });
+
+    await userEvent.type(screen.getByPlaceholderText("Buscar o seleccionar cliente..."), " 30-9999 ");
+    await userEvent.click(await screen.findByText("Remota SA"));
+
+    expect(mocks.getAll).toHaveBeenCalledWith({ search: "30-9999", tipo: "empresa", limit: 25 });
+    expect(handleChange).toHaveBeenCalledWith("E-900", expect.objectContaining({ nombre: "Remota SA" }));
+    expect(screen.getByTestId("listado")).toHaveTextContent(/^C-1$/);
+    expect(mocks.getParticularById).not.toHaveBeenCalled();
+    expect(mocks.getEmpresaById).not.toHaveBeenCalled();
   });
 });

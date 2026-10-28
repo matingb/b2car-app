@@ -2,6 +2,7 @@
 
 import React from "react";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
+import ClienteAutocomplete, { CREATE_CLIENTE_VALUE } from "@/app/components/clientes/ClienteAutocomplete";
 import ClienteFormFields from "@/app/components/clientes/ClienteFormFields";
 import VehiculoFormFields, { type VehiculoFormFieldsValue } from "@/app/components/vehiculos/VehiculoFormFields";
 import { TipoCliente, type Cliente, type Vehiculo } from "@/model/types";
@@ -9,13 +10,11 @@ import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { turnoFormStyles as styles } from "@/app/components/turnos/TurnoFormFieldsStyles";
 import type { ClienteFormFieldsValue } from "@/app/components/clientes/ClienteFormFields";
 import {
-  CREATE_CLIENTE_VALUE,
   CREATE_VEHICULO_VALUE,
   buildSuggestedTurnoTitle,
   getTurnoInlineFlags,
 } from "@/app/components/turnos/TurnoFormFields";
 import type { TurnoFormFieldsState, TurnoFormFieldsPatch, TurnoFormFieldsContext } from "@/app/components/turnos/TurnoFormFields";
-import { formatClienteDocumento } from "@/lib/documentos";
 
 type Props = {
   state: TurnoFormFieldsState;
@@ -23,6 +22,7 @@ type Props = {
   onChange: (patch: TurnoFormFieldsPatch) => void;
   selectedCliente: Cliente | undefined;
   selectedVehiculo: Vehiculo | undefined;
+  onClienteSelected: (cliente: Cliente | undefined) => void;
 };
 
 export default function TurnoClienteVehiculoFields({
@@ -31,32 +31,25 @@ export default function TurnoClienteVehiculoFields({
   onChange,
   selectedCliente,
   selectedVehiculo,
+  onClienteSelected,
 }: Props) {
   const { isCreatingCliente, isCreatingVehiculo } = getTurnoInlineFlags(state);
 
-  const vehiculosFiltrados = selectedCliente
-    ? context.vehiculos.filter(
-        (v) => v.cliente_id != null && String(v.cliente_id) === String(selectedCliente.id)
-      )
+  const vehiculosDelCliente = (clienteId: string) =>
+    context.vehiculos.filter(
+      (v) => v.cliente_id != null && String(v.cliente_id) === clienteId
+    );
+
+  // Filtrar por el ID elegido aunque el cliente todavía se esté resolviendo.
+  const selectedClienteId = !state.clienteId || isCreatingCliente ? "" : state.clienteId;
+  const vehiculosFiltrados = selectedClienteId
+    ? vehiculosDelCliente(selectedClienteId)
     : context.vehiculos;
 
   const vehiculoPlaceholder =
     vehiculosFiltrados.length === 0
       ? "No hay vehículos registrados"
       : "Buscar o crear vehículo...";
-
-  const clienteOptions: AutocompleteOption[] = [
-    {
-      value: CREATE_CLIENTE_VALUE,
-      label: "+ Crear cliente",
-      secondaryLabel: "Cargar datos del cliente nuevo",
-    },
-    ...context.clientes.map((c) => ({
-      value: String(c.id),
-      label: c.nombre,
-      secondaryLabel: formatClienteDocumento(c),
-    })),
-  ];
 
   const vehiculoOptions: AutocompleteOption[] = [
     {
@@ -78,31 +71,44 @@ export default function TurnoClienteVehiculoFields({
     }),
   ];
 
-  const sugerirTitulo = (patch: { cliente?: Cliente; vehiculo?: Vehiculo; tipo?: string }) => {
-    const cli = patch.cliente ?? selectedCliente;
-    const veh = patch.vehiculo ?? selectedVehiculo;
+  // Una clave presente con valor undefined descarta la referencia actual.
+  const sugerirTitulo = (patch: {
+    cliente?: Pick<Cliente, "nombre">;
+    vehiculo?: Vehiculo;
+    tipo?: string;
+  }) => {
+    const cli = "cliente" in patch ? patch.cliente : selectedCliente;
+    const veh = "vehiculo" in patch ? patch.vehiculo : selectedVehiculo;
     const tip = patch.tipo ?? state.tipo;
     return buildSuggestedTurnoTitle({ cliente: cli, vehiculo: veh, tipo: tip }) || undefined;
   };
 
-  const handleClienteChange = (v: string) => {
-    const newCliente = context.clientes.find((c) => String(c.id) === v);
-    const vehiculosDelCliente = newCliente
-      ? context.vehiculos.filter(
-          (veh) => veh.cliente_id != null && String(veh.cliente_id) === String(newCliente.id)
-        )
-      : [];
-    const autoVehiculoId =
-      vehiculosDelCliente.length === 1
-        ? String(vehiculosDelCliente[0].id)
-        : state.vehiculoId;
-    const nextVehiculo = autoVehiculoId
-      ? context.vehiculos.find((veh) => String(veh.id) === autoVehiculoId)
-      : selectedVehiculo;
+  const resolveVehiculoIdParaCliente = (clienteId: string) => {
+    if (state.vehiculoId === CREATE_VEHICULO_VALUE) return state.vehiculoId;
+    const propios = vehiculosDelCliente(clienteId);
+    if (propios.length === 1) return String(propios[0].id);
+    if (selectedVehiculo && String(selectedVehiculo.cliente_id) !== clienteId) return "";
+    return state.vehiculoId;
+  };
+
+  const handleClienteChange = (v: string, cliente?: Cliente) => {
+    const isClienteExistente = Boolean(v) && v !== CREATE_CLIENTE_VALUE;
+    const newCliente = isClienteExistente
+      ? cliente ?? context.clientes.find((c) => String(c.id) === v)
+      : undefined;
+    onClienteSelected(newCliente);
+
+    const nextVehiculoId = isClienteExistente
+      ? resolveVehiculoIdParaCliente(v)
+      : state.vehiculoId;
+    const nextVehiculo =
+      v !== CREATE_CLIENTE_VALUE && nextVehiculoId
+        ? context.vehiculos.find((veh) => String(veh.id) === nextVehiculoId)
+        : undefined;
     const nuevoTitulo = sugerirTitulo({ cliente: newCliente, vehiculo: nextVehiculo });
     onChange({
       clienteId: v,
-      vehiculoId: autoVehiculoId,
+      vehiculoId: nextVehiculoId,
       ...(nuevoTitulo ? { titulo: nuevoTitulo } : {}),
     });
   };
@@ -110,10 +116,13 @@ export default function TurnoClienteVehiculoFields({
   const handleVehiculoChange = (v: string) => {
     const newVehiculo = context.vehiculos.find((veh) => String(veh.id) === v);
     let autoClienteId = state.clienteId;
-    let cli = selectedCliente;
+    let cli: Pick<Cliente, "nombre"> | undefined = selectedCliente;
     if (newVehiculo?.cliente_id && !state.clienteId) {
       autoClienteId = String(newVehiculo.cliente_id);
-      cli = context.clientes.find((c) => String(c.id) === autoClienteId);
+      // El dueño puede no estar en el listado inicial; TurnoFormFields lo resuelve por ID.
+      cli =
+        context.clientes.find((c) => String(c.id) === autoClienteId) ??
+        (newVehiculo.nombre_cliente ? { nombre: newVehiculo.nombre_cliente } : undefined);
     }
     const nuevoTitulo = sugerirTitulo({ vehiculo: newVehiculo, cliente: cli });
     onChange({
@@ -130,10 +139,11 @@ export default function TurnoClienteVehiculoFields({
           <label style={styles.label}>
             Cliente
           </label>
-          <Autocomplete
-            options={clienteOptions}
+          <ClienteAutocomplete
             value={state.clienteId}
             onChange={handleClienteChange}
+            clientes={context.clientes}
+            allowCreate
             placeholder="Buscar cliente"
           />
         </div>

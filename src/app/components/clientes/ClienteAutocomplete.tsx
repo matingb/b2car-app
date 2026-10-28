@@ -51,29 +51,35 @@ export default function ClienteAutocomplete({
   const [searchResults, setSearchResults] = useState<Cliente[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Identifica la búsqueda vigente para descartar respuestas tardías.
+  const searchRequestIdRef = useRef(0);
 
   const [searchTerm, setSearchTerm] = useState("");
 
-  const selectedFromList = useMemo(() => {
-    if (!value || value === CREATE_CLIENTE_VALUE) return undefined;
-    return clientes?.find?.((c) => String(c.id) === String(value));
-  }, [clientes, value]);
+  const isClienteValue = Boolean(value) && value !== CREATE_CLIENTE_VALUE;
 
-  const selectedCliente = selectedFromList ?? resolvedSelectedCliente;
+  const selectedFromList = useMemo(() => {
+    if (!isClienteValue) return undefined;
+    return clientes?.find?.((c) => String(c.id) === String(value));
+  }, [clientes, value, isClienteValue]);
+
+  const selectedCliente =
+    selectedFromList ??
+    (isClienteValue &&
+    resolvedSelectedCliente &&
+    String(resolvedSelectedCliente.id) === String(value)
+      ? resolvedSelectedCliente
+      : undefined);
 
   useEffect(() => {
-    if (!value || value === CREATE_CLIENTE_VALUE || selectedFromList) {
-      return;
-    }
-
-    if (resolvedSelectedCliente && String(resolvedSelectedCliente.id) === String(value)) {
+    if (!isClienteValue || selectedCliente) {
       return;
     }
 
     let isMounted = true;
     if (typeof getClienteById === "function") {
       void getClienteById(value).then((cliente) => {
-        if (isMounted && cliente) {
+        if (isMounted && cliente && String(cliente.id) === String(value)) {
           setResolvedSelectedCliente(cliente);
         }
       });
@@ -82,14 +88,20 @@ export default function ClienteAutocomplete({
     return () => {
       isMounted = false;
     };
-  }, [value, selectedFromList, getClienteById, resolvedSelectedCliente]);
+  }, [value, isClienteValue, selectedCliente, getClienteById]);
+
+  const cancelPendingSearch = useCallback(() => {
+    searchRequestIdRef.current += 1;
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
+    }
+  }, []);
 
   const handleSearchChange = useCallback(
     (term: string) => {
       setSearchTerm(term);
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
+      cancelPendingSearch();
 
       const trimmed = term.trim();
       if (!trimmed) {
@@ -98,29 +110,40 @@ export default function ClienteAutocomplete({
         return;
       }
 
+      const requestId = searchRequestIdRef.current;
       setIsSearching(true);
       searchTimeoutRef.current = setTimeout(async () => {
+        searchTimeoutRef.current = null;
         try {
           const results = await searchClientes(trimmed, {
             tipo: tipoCliente,
             limit: 25,
           });
-          setSearchResults(results);
+          if (requestId === searchRequestIdRef.current) {
+            setSearchResults(results);
+          }
         } finally {
-          setIsSearching(false);
+          if (requestId === searchRequestIdRef.current) {
+            setIsSearching(false);
+          }
         }
       }, 250);
     },
-    [searchClientes, tipoCliente]
+    [searchClientes, tipoCliente, cancelPendingSearch]
   );
+
+  // Un cambio de tipo invalida los resultados de búsquedas anteriores.
+  useEffect(() => {
+    cancelPendingSearch();
+    setSearchResults(null);
+    setIsSearching(false);
+  }, [tipoCliente, cancelPendingSearch]);
 
   useEffect(() => {
     return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
+      cancelPendingSearch();
     };
-  }, []);
+  }, [cancelPendingSearch]);
 
   const options = useMemo<AutocompleteOption[]>(() => {
     const list: AutocompleteOption[] = [];
@@ -179,6 +202,7 @@ export default function ClienteAutocomplete({
 
   const handleChange = (nextValue: string) => {
     if (nextValue === CREATE_CLIENTE_VALUE) {
+      setResolvedSelectedCliente(null);
       onCreateClick?.();
       onChange(CREATE_CLIENTE_VALUE);
       return;
@@ -189,7 +213,11 @@ export default function ClienteAutocomplete({
       ...(clientes ?? []),
       ...(selectedCliente ? [selectedCliente] : []),
     ];
-    const match = allKnown.find((c) => String(c.id) === String(nextValue));
+    const match = nextValue
+      ? allKnown.find((c) => String(c.id) === String(nextValue))
+      : undefined;
+    // Conserva el cliente elegido aunque no esté en el listado ni en los resultados siguientes.
+    setResolvedSelectedCliente(match ?? null);
     onChange(nextValue, match);
   };
 
