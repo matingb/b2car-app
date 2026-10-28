@@ -9,6 +9,7 @@ import {
   type FceSistemaCirculacion,
 } from "@/lib/facturacion/types";
 import Dropdown from "@/app/components/ui/Dropdown";
+import Calendar from "@/app/components/ui/Calendar";
 
 interface FacturacionFiscalCardProps {
   cuit: string;
@@ -91,14 +92,13 @@ export default function FacturacionFiscalCard({
             <label style={styles.label} htmlFor="facturacion-inicio-actividades">
               Inicio de actividades <span style={styles.required}>*</span>
             </label>
-            <input
+            <Calendar
               id="facturacion-inicio-actividades"
-              type="date"
-              required
               disabled={disabled}
               value={inicioActividades}
-              onChange={(e) => onChange({ inicioActividades: e.target.value })}
-              style={styles.input}
+              onChange={(fecha) => onChange({ inicioActividades: fecha })}
+              triggerStyle={styles.dateTrigger}
+              dataTestId="facturacion-inicio-actividades"
             />
           </div>
 
@@ -316,5 +316,9 @@ const styles = {
   dropdown: {
     width: "100%",
     height: 42,
+  },
+  dateTrigger: {
+    height: 42,
+    padding: "0 12px",
   },
 } as const;

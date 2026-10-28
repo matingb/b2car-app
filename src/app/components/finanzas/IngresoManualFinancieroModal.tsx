@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
 import Dropdown from "@/app/components/ui/Dropdown";
 import NumberInput from "@/app/components/ui/NumberInput";
+import Calendar from "@/app/components/ui/Calendar";
 import { COLOR } from "@/theme/theme";
 import type { CrearIngresoManualInput, CuentaFinanciera } from "@/model/finanzas";
 import { formatArs } from "@/lib/format";
@@ -142,19 +143,19 @@ export default function IngresoManualFinancieroModal({ open, cuentas, cuentaId, 
             />
           </label>
 
-          <label style={styles.field}>
-            <span style={styles.label}>Fecha</span>
-            <input
-              type="date"
+          <div style={styles.field}>
+            <label style={styles.label} htmlFor="ingreso-manual-fecha">Fecha</label>
+            <Calendar
+              id="ingreso-manual-fecha"
               value={fecha}
-              onChange={(event) => {
+              onChange={(next) => {
                 idempotencyKeyRef.current = generateUuidV4();
-                setFecha(event.target.value);
+                setFecha(next);
               }}
-              style={styles.input}
-              data-testid="ingreso-manual-fecha"
+              triggerStyle={styles.dateTrigger}
+              dataTestId="ingreso-manual-fecha"
             />
-          </label>
+          </div>
         </div>
 
         <label style={styles.field}>
@@ -191,6 +192,11 @@ const styles = {
     color: COLOR.TEXT.PRIMARY,
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
     fontSize: 14,
+  },
+  dateTrigger: {
+    minHeight: 42,
+    padding: "0 12px",
+    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
   },
   textarea: { minHeight: 84, padding: 10, resize: "vertical" as const, fontFamily: "inherit" },
   twoColumns: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 },

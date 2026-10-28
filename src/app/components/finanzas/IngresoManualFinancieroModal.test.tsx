@@ -48,7 +48,11 @@ describe("IngresoManualFinancieroModal", () => {
     expect(screen.queryByRole("option", { name: /Caja inactiva/ })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByTestId("ingreso-manual-importe"), { target: { value: "1250.50" } });
-    fireEvent.change(screen.getByTestId("ingreso-manual-fecha"), { target: { value: "2026-09-24" } });
+    fireEvent.click(screen.getByTestId("ingreso-manual-fecha"));
+    fireEvent.click(screen.getByTestId("ingreso-manual-fecha-select-year"));
+    fireEvent.click(screen.getByTestId("ingreso-manual-fecha-year-2026"));
+    fireEvent.click(screen.getByTestId("ingreso-manual-fecha-month-8"));
+    fireEvent.click(screen.getByTestId("ingreso-manual-fecha-day-2026-09-24"));
     fireEvent.change(screen.getByTestId("ingreso-manual-descripcion"), { target: { value: "Aporte de capital" } });
     fireEvent.click(screen.getByTestId("modal-submit"));
 

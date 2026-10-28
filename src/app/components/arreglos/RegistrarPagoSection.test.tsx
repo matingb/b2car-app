@@ -58,8 +58,7 @@ describe("RegistrarPagoSection", () => {
     const monto0 = screen.getByTestId("pago-monto-0") as HTMLInputElement;
     expect(monto0.value).toBe("50000");
 
-    const fecha0 = screen.getByTestId("pago-fecha-0") as HTMLInputElement;
-    expect(fecha0.value).toBe("2026-08-24");
+    expect(screen.getByTestId("pago-fecha-0")).toHaveTextContent("24/08/2026");
 
     const desc0 = screen.getByTestId("pago-descripcion-0") as HTMLInputElement;
     expect(desc0.value).toBe("Seña inicial");

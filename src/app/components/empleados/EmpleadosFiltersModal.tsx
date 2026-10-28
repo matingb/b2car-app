@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
 import NumberInput from "@/app/components/ui/NumberInput";
+import Calendar from "@/app/components/ui/Calendar";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import type { Taller } from "@/model/types";
@@ -123,21 +124,25 @@ export default function EmpleadosFiltersModal({
 
         <div css={styles.row}>
           <div style={styles.field}>
-            <label style={styles.label}>Nacimiento desde</label>
-            <input
-              type="date"
-              style={styles.input}
+            <label style={styles.label} htmlFor="empleados-filter-nacimiento-desde">Nacimiento desde</label>
+            <Calendar
+              id="empleados-filter-nacimiento-desde"
               value={cumpleanosDesde}
-              onChange={(e) => setCumpleanosDesde(e.target.value)}
+              onChange={setCumpleanosDesde}
+              max={cumpleanosHasta || undefined}
+              clearable
+              dataTestId="empleados-filter-nacimiento-desde"
             />
           </div>
           <div style={styles.field}>
-            <label style={styles.label}>Nacimiento hasta</label>
-            <input
-              type="date"
-              style={styles.input}
+            <label style={styles.label} htmlFor="empleados-filter-nacimiento-hasta">Nacimiento hasta</label>
+            <Calendar
+              id="empleados-filter-nacimiento-hasta"
               value={cumpleanosHasta}
-              onChange={(e) => setCumpleanosHasta(e.target.value)}
+              onChange={setCumpleanosHasta}
+              min={cumpleanosDesde || undefined}
+              clearable
+              dataTestId="empleados-filter-nacimiento-hasta"
             />
           </div>
         </div>

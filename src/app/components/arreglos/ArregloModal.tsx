@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import Modal from "@/app/components/ui/Modal";
+import Calendar from "@/app/components/ui/Calendar";
 import { Arreglo, Vehiculo } from "@/model/types";
 import { useVehiculos } from "@/app/providers/VehiculosProvider";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
@@ -490,12 +491,11 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
                 <Can permission={Permission.ArreglosCobrosRegister}>
                   <label style={styles.finanzasField}>
                     Fecha de cobro
-                    <input
-                      type="date"
+                    <Calendar
                       value={fechaCobro}
-                      onChange={(event) => setFechaCobro(event.target.value)}
-                      style={styles.finanzasInput}
-                      data-testid="arreglo-fecha-cobro"
+                      onChange={setFechaCobro}
+                      triggerStyle={styles.finanzasInput}
+                      dataTestId="arreglo-fecha-cobro"
                     />
                   </label>
                 </Can>
@@ -569,11 +569,9 @@ const styles = {
   },
   finanzasInput: {
     height: 42,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 10,
     padding: "0 12px",
-    color: COLOR.TEXT.PRIMARY,
-    background: COLOR.BACKGROUND.PRIMARY,
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
   } as const,
   inlineForm: {
     display: "flex",

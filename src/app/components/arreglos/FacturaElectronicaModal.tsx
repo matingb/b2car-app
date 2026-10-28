@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CircleAlert, ReceiptText, Settings2 } from "lucide-react";
 import Modal from "@/app/components/ui/Modal";
 import ModalMessage from "@/app/components/ui/ModalMessage";
 import Button from "@/app/components/ui/Button";
+import Calendar from "@/app/components/ui/Calendar";
 import Dropdown from "@/app/components/ui/Dropdown";
 import IconInput from "@/app/components/ui/IconInput";
 import Toggle from "@/app/components/ui/Toggle";
@@ -525,23 +526,18 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
     onClose();
   };
 
-  const setFecha = (campo: keyof FacturaFechaInput) => (event: ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setFechas((previous) => ({ ...previous, [campo]: value }));
-  };
   const fechaProps = (campo: keyof FacturaFechaInput) => {
     const key = `fechas.${campo}`;
     return {
       id: FACTURA_CAMPO_INPUT_ID[key],
-      type: "date",
+      dataTestId: FACTURA_CAMPO_INPUT_ID[key],
       value: fechas[campo] ?? "",
-      onChange: setFecha(campo),
+      onChange: (value: string) => setFechas((previous) => ({ ...previous, [campo]: value })),
       invalid: invalidCampos.has(key),
-      "aria-invalid": invalidCampos.has(key) || undefined,
-      "aria-describedby": describedBy(key),
+      ariaDescribedBy: describedBy(key),
       disabled: revisando,
-      wrapperStyle: styles.inputWrapper,
-      icon: null,
+      clearable: true,
+      triggerStyle: styles.dateTrigger,
     };
   };
 
@@ -659,7 +655,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
               </div>
               <div style={styles.field}>
                 <label htmlFor={FACTURA_CAMPO_INPUT_ID["fechas.fechaComprobante"]} style={styles.fieldLabel}>Fecha del comprobante</label>
-                <IconInput {...fechaProps("fechaComprobante")} data-testid="factura-fecha-comprobante" />
+                <Calendar {...fechaProps("fechaComprobante")} />
               </div>
             </div>
             {concepto !== 1 || fce ? (
@@ -668,17 +664,17 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
                   <>
                     <div style={styles.field}>
                       <label htmlFor={FACTURA_CAMPO_INPUT_ID["fechas.fechaServicioDesde"]} style={styles.fieldLabel}>Servicio desde</label>
-                      <IconInput {...fechaProps("fechaServicioDesde")} />
+                      <Calendar {...fechaProps("fechaServicioDesde")} />
                     </div>
                     <div style={styles.field}>
                       <label htmlFor={FACTURA_CAMPO_INPUT_ID["fechas.fechaServicioHasta"]} style={styles.fieldLabel}>Servicio hasta</label>
-                      <IconInput {...fechaProps("fechaServicioHasta")} />
+                      <Calendar {...fechaProps("fechaServicioHasta")} />
                     </div>
                   </>
                 ) : null}
                 <div style={styles.field}>
                   <label htmlFor={FACTURA_CAMPO_INPUT_ID["fechas.fechaVencimientoPago"]} style={styles.fieldLabel}>Vencimiento de pago</label>
-                  <IconInput {...fechaProps("fechaVencimientoPago")} />
+                  <Calendar {...fechaProps("fechaVencimientoPago")} />
                 </div>
               </div>
             ) : null}
@@ -909,6 +905,7 @@ const styles = {
   muted: { color: COLOR.TEXT.SECONDARY, fontSize: 13, lineHeight: 1.4 },
   dropdown: { width: "100%", height: 42 },
   inputWrapper: { width: "100%" },
+  dateTrigger: { height: 42, padding: "0 12px" },
   fceBox: {
     display: "flex",
     flexDirection: "column" as const,

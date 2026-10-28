@@ -8,13 +8,13 @@ describe("Calendar UI Component", () => {
   it("renderiza el trigger por defecto y muestra la fecha seleccionada", () => {
     render(<Calendar value="2026-09-15" onChange={vi.fn()} />);
 
-    expect(screen.getByText("2026-09-15")).toBeInTheDocument();
+    expect(screen.getByText("15/09/2026")).toBeInTheDocument();
   });
 
   it("abre el calendario al hacer clic en el trigger y muestra el mes y año", async () => {
     render(<Calendar value="2026-09-15" onChange={vi.fn()} />);
 
-    const trigger = screen.getByRole("button", { name: /2026-09-15/i });
+    const trigger = screen.getByRole("button", { name: "15/09/2026" });
     await userEvent.click(trigger);
 
     expect(screen.getByRole("dialog", { name: "Selector de fecha" })).toBeInTheDocument();
@@ -25,7 +25,7 @@ describe("Calendar UI Component", () => {
     const onChange = vi.fn();
     render(<Calendar value="2026-09-15" onChange={onChange} />);
 
-    await userEvent.click(screen.getByRole("button", { name: /2026-09-15/i }));
+    await userEvent.click(screen.getByRole("button", { name: "15/09/2026" }));
 
     const dayButton = screen.getByRole("button", { name: "20 de Septiembre" });
     await userEvent.click(dayButton);
@@ -38,7 +38,7 @@ describe("Calendar UI Component", () => {
   it("permite navegar al mes anterior y siguiente", async () => {
     render(<Calendar value="2026-09-15" onChange={vi.fn()} />);
 
-    await userEvent.click(screen.getByRole("button", { name: /2026-09-15/i }));
+    await userEvent.click(screen.getByRole("button", { name: "15/09/2026" }));
     expect(screen.getByText("Septiembre 2026")).toBeInTheDocument();
 
     const prevButton = screen.getByRole("button", { name: "Mes anterior" });
@@ -74,7 +74,7 @@ describe("Calendar UI Component", () => {
     const onChange = vi.fn();
     render(<Calendar value="2026-01-01" onChange={onChange} />);
 
-    await userEvent.click(screen.getByRole("button", { name: /2026-01-01/i }));
+    await userEvent.click(screen.getByRole("button", { name: "01/01/2026" }));
 
     const todayButton = screen.getByRole("button", { name: "Hoy" });
     await userEvent.click(todayButton);
@@ -93,7 +93,7 @@ describe("Calendar UI Component", () => {
   it("no abre el calendario cuando está deshabilitado", async () => {
     render(<Calendar value="2026-09-15" onChange={vi.fn()} disabled />);
 
-    const trigger = screen.getByRole("button", { name: /2026-09-15/i });
+    const trigger = screen.getByRole("button", { name: "15/09/2026" });
     expect(trigger).toBeDisabled();
     await userEvent.click(trigger);
 
@@ -104,7 +104,7 @@ describe("Calendar UI Component", () => {
     render(<Calendar value="2026-09-15" onChange={vi.fn()} />);
 
     // Abrir popover
-    await userEvent.click(screen.getByRole("button", { name: /2026-09-15/i }));
+    await userEvent.click(screen.getByRole("button", { name: "15/09/2026" }));
     expect(screen.getByText("Septiembre 2026")).toBeInTheDocument();
 
     // Clic en el selector de mes
@@ -127,7 +127,7 @@ describe("Calendar UI Component", () => {
     render(<Calendar value="2026-09-15" onChange={onChange} />);
 
     // Abrir popover
-    await userEvent.click(screen.getByRole("button", { name: /2026-09-15/i }));
+    await userEvent.click(screen.getByRole("button", { name: "15/09/2026" }));
 
     // Clic en el selector de año
     const yearSelectBtn = screen.getByRole("button", { name: "Seleccionar año" });
@@ -170,7 +170,7 @@ describe("Calendar UI Component", () => {
   it("permite volver a la vista de días usando el botón 'Volver a días'", async () => {
     render(<Calendar value="2026-09-15" onChange={vi.fn()} />);
 
-    await userEvent.click(screen.getByRole("button", { name: /2026-09-15/i }));
+    await userEvent.click(screen.getByRole("button", { name: "15/09/2026" }));
 
     // Ir a la vista de meses
     await userEvent.click(screen.getByRole("button", { name: "Seleccionar mes" }));
@@ -182,5 +182,110 @@ describe("Calendar UI Component", () => {
     // Comprobar que regresó a la vista de días
     expect(screen.getByText("Septiembre 2026")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Volver a días" })).not.toBeInTheDocument();
+  });
+
+  it("deshabilita los días fuera del rango min/max", async () => {
+    const onChange = vi.fn();
+    render(<Calendar value="2026-09-15" onChange={onChange} min="2026-09-10" max="2026-09-20" />);
+
+    await userEvent.click(screen.getByRole("button", { name: "15/09/2026" }));
+
+    expect(screen.getByRole("button", { name: "9 de Septiembre" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "21 de Septiembre" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "9 de Septiembre" }));
+    expect(onChange).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "10 de Septiembre" }));
+    expect(onChange).toHaveBeenCalledWith("2026-09-10");
+  });
+
+  it("permite limpiar la fecha cuando es clearable", async () => {
+    const onChange = vi.fn();
+    render(<Calendar value="2026-09-15" onChange={onChange} clearable dataTestId="fecha" />);
+
+    await userEvent.click(screen.getByTestId("fecha-clear"));
+
+    expect(onChange).toHaveBeenCalledWith("");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("no muestra el botón de limpiar sin valor ni cuando no es clearable", () => {
+    const { rerender } = render(<Calendar value="" onChange={vi.fn()} clearable dataTestId="fecha" />);
+    expect(screen.queryByTestId("fecha-clear")).not.toBeInTheDocument();
+
+    rerender(<Calendar value="2026-09-15" onChange={vi.fn()} dataTestId="fecha" />);
+    expect(screen.queryByTestId("fecha-clear")).not.toBeInTheDocument();
+  });
+
+  it("asocia el trigger por defecto a su label mediante id", () => {
+    render(
+      <>
+        <label htmlFor="fecha-cobro">Fecha de cobro</label>
+        <Calendar id="fecha-cobro" value="2026-09-15" onChange={vi.fn()} />
+      </>
+    );
+
+    expect(screen.getByLabelText("Fecha de cobro")).toHaveTextContent("15/09/2026");
+  });
+
+  describe("modo rango", () => {
+    it("muestra ambos extremos en el trigger y resalta el rango", async () => {
+      render(
+        <Calendar range={{ desde: "2026-09-10", hasta: "2026-09-14" }} onRangeChange={vi.fn()} />
+      );
+
+      const trigger = screen.getByRole("button", { name: "10/09/2026 – 14/09/2026" });
+      await userEvent.click(trigger);
+
+      expect(screen.getByRole("button", { name: "10 de Septiembre" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: "14 de Septiembre" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: "12 de Septiembre" })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("elige inicio y fin en el mismo popover", async () => {
+      const onRangeChange = vi.fn();
+      render(
+        <Calendar range={{ desde: "2026-09-01", hasta: "" }} onRangeChange={onRangeChange} />
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: /01\/09\/2026/ }));
+      expect(screen.getByText("Elegí la fecha inicial")).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "5 de Septiembre" }));
+      expect(onRangeChange).not.toHaveBeenCalled();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(screen.getByText("Elegí la fecha final")).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "20 de Septiembre" }));
+      expect(onRangeChange).toHaveBeenCalledWith({ desde: "2026-09-05", hasta: "2026-09-20" });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("ordena los extremos si el fin es anterior al inicio", async () => {
+      const onRangeChange = vi.fn();
+      render(<Calendar range={{ desde: "2026-09-15", hasta: "" }} onRangeChange={onRangeChange} />);
+
+      await userEvent.click(screen.getByRole("button", { name: /15\/09\/2026/ }));
+      await userEvent.click(screen.getByRole("button", { name: "20 de Septiembre" }));
+      await userEvent.click(screen.getByRole("button", { name: "8 de Septiembre" }));
+
+      expect(onRangeChange).toHaveBeenCalledWith({ desde: "2026-09-08", hasta: "2026-09-20" });
+    });
+
+    it("limpia ambos extremos", async () => {
+      const onRangeChange = vi.fn();
+      render(
+        <Calendar
+          range={{ desde: "2026-09-10", hasta: "2026-09-14" }}
+          onRangeChange={onRangeChange}
+          clearable
+          dataTestId="rango"
+        />
+      );
+
+      await userEvent.click(screen.getByTestId("rango-clear"));
+
+      expect(onRangeChange).toHaveBeenCalledWith({ desde: "", hasta: "" });
+    });
   });
 });

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { toISODateAppTimeZone } from "@/lib/fechas";
+import { formatCalendarDateLabel, toISODateAppTimeZone } from "@/lib/fechas";
 import type { FacturaRevision } from "@/lib/facturacion/types";
 import FacturaElectronicaModal from "./FacturaElectronicaModal";
 
@@ -159,7 +159,7 @@ describe("FacturaElectronicaModal", () => {
     expect(screen.getByTestId("factura-receptor-modo-cliente")).toBeChecked();
     expect(calls(`GET ${ENDPOINT}`)[0].url).toBe(`${ENDPOINT}?receptor=diferido`);
     expect(calls("GET /api/facturacion/receptor")[0].url).toBe("/api/facturacion/receptor?origenTipo=ARREGLO&origenId=arreglo-1");
-    expect(within(screen.getByTestId("factura-fechas-periodo")).getAllByDisplayValue(today)).toHaveLength(3);
+    expect(within(screen.getByTestId("factura-fechas-periodo")).getAllByText(formatCalendarDateLabel(today))).toHaveLength(3);
     // Al facturarle al cliente del arreglo se usan siempre sus datos.
     expect(screen.getByTestId("factura-numero-documento")).toBeDisabled();
     expect(screen.getByTestId("factura-receptor-nombre")).toBeDisabled();
@@ -269,7 +269,7 @@ describe("FacturaElectronicaModal", () => {
     expect(screen.getByTestId("modal-submit")).toHaveTextContent("Cargando datos del cliente…");
     // El resto del formulario ya se puede usar.
     expect(screen.getByTestId("factura-condicion-venta")).toBeEnabled();
-    fireEvent.change(screen.getByTestId("factura-fecha-comprobante"), { target: { value: today } });
+    expect(screen.getByTestId("factura-fecha-comprobante")).toBeEnabled();
     fireEvent.click(screen.getByLabelText("Simplificar el detalle de la factura"));
     expect(screen.getByTestId("factura-detalle-descripcion")).toBeEnabled();
 
@@ -321,7 +321,7 @@ describe("FacturaElectronicaModal", () => {
     expect(screen.queryByTestId("factura-issues")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("factura-receptor-modo-otro"));
-    fireEvent.change(screen.getByTestId("factura-fecha-comprobante"), { target: { value: "" } });
+    fireEvent.click(screen.getByTestId("factura-fecha-comprobante-clear"));
     fireEvent.click(screen.getByTestId("modal-submit"));
 
     const summary = await screen.findByTestId("factura-issues");

@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
 import Dropdown from "@/app/components/ui/Dropdown";
 import NumberInput from "@/app/components/ui/NumberInput";
+import Calendar from "@/app/components/ui/Calendar";
 import { COLOR } from "@/theme/theme";
 import type { CuentaFinanciera } from "@/model/finanzas";
 import { toISODateLocal } from "@/lib/fechas";
@@ -162,16 +163,16 @@ export default function TransferenciaFinancieraModal({
             />
           </div>
 
-          <label style={styles.field}>
-            <span style={styles.label}>Fecha</span>
-            <input
-              type="date"
+          <div style={styles.field}>
+            <label style={styles.label} htmlFor="transferencia-fecha">Fecha</label>
+            <Calendar
+              id="transferencia-fecha"
               value={fecha}
-              onChange={(event) => setFecha(event.target.value)}
-              style={styles.input}
-              data-testid="transferencia-fecha"
+              onChange={setFecha}
+              triggerStyle={styles.dateTrigger}
+              dataTestId="transferencia-fecha"
             />
-          </label>
+          </div>
         </div>
 
         <label style={styles.field}>
@@ -219,6 +220,11 @@ const styles = {
     color: COLOR.TEXT.PRIMARY,
     background: COLOR.INPUT.PRIMARY.BACKGROUND,
     fontSize: 14,
+  },
+  dateTrigger: {
+    minHeight: 42,
+    padding: "0 12px",
+    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
   },
   textarea: {
     minHeight: 84,

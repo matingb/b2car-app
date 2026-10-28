@@ -5,6 +5,7 @@ import { css } from "@emotion/react";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import Tooltip from "@/app/components/ui/Tooltip";
 import Autocomplete from "@/app/components/ui/Autocomplete";
+import Calendar from "@/app/components/ui/Calendar";
 import CuentaFinancieraFormFields from "@/app/components/finanzas/CuentaFinancieraFormFields";
 import CuentaFinancieraAutocomplete, {
   CREATE_CUENTA_VALUE,
@@ -53,13 +54,13 @@ export default function OperacionHeaderFields() {
         ) : null}
 
         <div style={styles.headerLeft}>
-          <label style={styles.label}>Fecha</label>
-          <input
-            type="date"
+          <label style={styles.label} htmlFor="operaciones-create-fecha">Fecha</label>
+          <Calendar
+            id="operaciones-create-fecha"
             value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-            data-testid="operaciones-create-fecha"
-            style={styles.dateInput}
+            onChange={setFecha}
+            dataTestId="operaciones-create-fecha"
+            triggerStyle={styles.dateInput}
           />
         </div>
 
@@ -159,16 +160,6 @@ const styles = {
   },
   dateInput: {
     height: 44,
-    width: "100%",
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 8,
-    padding: "10px 12px",
-    fontSize: 14,
-    color: COLOR.TEXT.PRIMARY,
-    backgroundColor: COLOR.INPUT.PRIMARY.BACKGROUND,
-    outline: "none",
-    boxSizing: "border-box" as const,
-    fontFamily: "inherit",
   } as const,
   tipoRow: css({
     display: "flex",

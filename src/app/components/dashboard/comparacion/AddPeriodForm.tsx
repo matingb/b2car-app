@@ -4,7 +4,9 @@ import React, { useMemo, useState } from "react";
 import { css } from "@emotion/react";
 import { Plus } from "lucide-react";
 import Button from "@/app/components/ui/Button";
+import Calendar from "@/app/components/ui/Calendar";
 import Dropdown from "@/app/components/ui/Dropdown";
+import type { DateRange } from "@/app/components/ui/Calendar";
 import type { AddPeriodResult } from "@/app/hooks/dashboard/useDashboardControls";
 import { RELATIVE_PERIOD_LABELS, type ComparisonPeriodDef } from "@/lib/dashboard/comparison";
 import { buildPeriodOptions, monthOfPeriod } from "@/lib/dashboard/periods";
@@ -23,6 +25,8 @@ const KIND_OPTIONS: Array<{ value: Kind; label: string }> = [
 /** Meses que se ofrecen para comparar (3 años hacia atrás). */
 const MONTH_OPTIONS_COUNT = 36;
 
+const EMPTY_RANGE: DateRange = { desde: "", hasta: "" };
+
 type Props = {
     onAdd: (def: ComparisonPeriodDef) => AddPeriodResult;
 };
@@ -31,8 +35,7 @@ export default function AddPeriodForm({ onAdd }: Props) {
     const [open, setOpen] = useState(false);
     const [kind, setKind] = useState<Kind>("mes-anterior");
     const [month, setMonth] = useState("");
-    const [desde, setDesde] = useState("");
-    const [hasta, setHasta] = useState("");
+    const [rango, setRango] = useState<DateRange>(EMPTY_RANGE);
     const [error, setError] = useState<string | null>(null);
 
     const monthOptions = useMemo(
@@ -48,8 +51,7 @@ export default function AddPeriodForm({ onAdd }: Props) {
         setOpen(false);
         setKind("mes-anterior");
         setMonth("");
-        setDesde("");
-        setHasta("");
+        setRango(EMPTY_RANGE);
         setError(null);
     };
 
@@ -60,8 +62,8 @@ export default function AddPeriodForm({ onAdd }: Props) {
             return { kind: "mes", year, month: m };
         }
         if (kind === "rango") {
-            if (!desde || !hasta) return "Completá las dos fechas";
-            return { kind: "rango", desde, hasta };
+            if (!rango.desde || !rango.hasta) return "Elegí el rango de fechas";
+            return { kind: "rango", desde: rango.desde, hasta: rango.hasta };
         }
         return { kind };
     };
@@ -121,36 +123,22 @@ export default function AddPeriodForm({ onAdd }: Props) {
             )}
 
             {kind === "rango" && (
-                <>
-                    <div style={styles.field}>
-                        <label style={styles.label} htmlFor="comparar-desde">Desde</label>
-                        <input
-                            id="comparar-desde"
-                            type="date"
-                            style={styles.input}
-                            value={desde}
-                            max={hasta || undefined}
-                            onChange={(e) => {
-                                setDesde(e.target.value);
+                <div style={styles.field}>
+                    <label style={styles.label} htmlFor="comparar-rango">Rango de fechas</label>
+                    <div style={styles.dateControl}>
+                        <Calendar
+                            id="comparar-rango"
+                            range={rango}
+                            onRangeChange={(next) => {
+                                setRango(next);
                                 setError(null);
                             }}
+                            placeholder="Elegí desde y hasta"
+                            triggerStyle={styles.dateTrigger}
+                            dataTestId="comparar-rango"
                         />
                     </div>
-                    <div style={styles.field}>
-                        <label style={styles.label} htmlFor="comparar-hasta">Hasta</label>
-                        <input
-                            id="comparar-hasta"
-                            type="date"
-                            style={styles.input}
-                            value={hasta}
-                            min={desde || undefined}
-                            onChange={(e) => {
-                                setHasta(e.target.value);
-                                setError(null);
-                            }}
-                        />
-                    </div>
-                </>
+                </div>
             )}
 
             <div style={styles.actions}>
@@ -213,15 +201,13 @@ const styles = {
         height: "35px",
         width: "210px",
     },
-    input: {
+    dateControl: {
+        width: 230,
+    },
+    dateTrigger: {
         height: 35,
         padding: "6px 10px",
-        borderRadius: 8,
-        border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-        background: COLOR.INPUT.PRIMARY.BACKGROUND,
         fontSize: 13,
-        outline: "none",
-        boxSizing: "border-box" as const,
     },
     actions: {
         display: "flex",

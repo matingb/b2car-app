@@ -2,7 +2,8 @@
 
 import React, { useMemo } from "react";
 import { css } from "@emotion/react";
-import { Calendar, Plus, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, Trash2 } from "lucide-react";
+import Calendar from "@/app/components/ui/Calendar";
 import CuentaFinancieraAutocomplete, {
   CREATE_CUENTA_VALUE,
 } from "@/app/components/finanzas/CuentaFinancieraAutocomplete";
@@ -13,6 +14,7 @@ import CuentaFinancieraFormFields, {
 } from "@/app/components/finanzas/CuentaFinancieraFormFields";
 import { COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
+import { formatCalendarDateLabel } from "@/lib/fechas";
 import NumberInput from "@/app/components/ui/NumberInput";
 
 export { CREATE_CUENTA_VALUE };
@@ -96,17 +98,23 @@ export default function RegistrarPagoSection({
                   />
                 </div>
 
-                <div css={styles.dateWrapper}>
-                  <Calendar size={14} color={COLOR.TEXT.SECONDARY} />
-                  <input
-                    type="date"
-                    value={pago.fecha}
-                    onChange={(e) => onUpdatePago(pago.id, "fecha", e.target.value)}
-                    css={styles.dateInput}
+                <Calendar
+                  value={pago.fecha}
+                  onChange={(fecha) => onUpdatePago(pago.id, "fecha", fecha)}
+                  dataTestId={`pago-fecha-${index}`}
+                >
+                  <button
+                    type="button"
+                    css={styles.dateWrapper}
                     data-testid={`pago-fecha-${index}`}
-                    required
-                  />
-                </div>
+                    aria-label="Elegir fecha del pago"
+                  >
+                    <CalendarIcon size={14} color={COLOR.TEXT.SECONDARY} />
+                    <span css={styles.dateInput}>
+                      {formatCalendarDateLabel(pago.fecha, "Seleccionar fecha...")}
+                    </span>
+                  </button>
+                </Calendar>
 
                 <button
                   type="button"
@@ -271,28 +279,27 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 6,
+    width: "100%",
     height: 38,
     padding: "0 10px",
     backgroundColor: "#ffffff",
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     borderRadius: 8,
     boxSizing: "border-box",
+    cursor: "pointer",
+    fontFamily: "inherit",
     transition: "border-color 0.15s ease",
-    "&:focus-within": {
+    "&:focus-visible": {
+      outline: "none",
       borderColor: "#0080a2",
     },
   }),
   dateInput: css({
-    width: "100%",
-    height: "100%",
-    border: "none",
-    background: "transparent",
+    flex: 1,
+    textAlign: "left",
     fontSize: 13,
     fontWeight: 500,
     color: COLOR.TEXT.PRIMARY,
-    outline: "none",
-    cursor: "pointer",
-    padding: 0,
   }),
   btnRemove: css({
     display: "flex",

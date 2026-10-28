@@ -2,19 +2,43 @@
 
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, ChevronDown, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Calendar as CalendarIcon, X } from "lucide-react";
 import { COLOR } from "@/theme/theme";
+import { formatCalendarDateLabel } from "@/lib/fechas";
 
 export type CalendarView = "days" | "months" | "years";
 
-export interface CalendarProps {
-  value: string;
-  onChange: (value: string) => void;
+export interface DateRange {
+  desde: string;
+  hasta: string;
+}
+
+/**
+ * Modo simple (`value`/`onChange`) o modo rango (`range`/`onRangeChange`): en modo rango el
+ * primer clic marca el inicio y el segundo el fin, en el mismo popover.
+ */
+type CalendarValueProps =
+  | { value: string; onChange: (value: string) => void; range?: never; onRangeChange?: never }
+  | { range: DateRange; onRangeChange: (range: DateRange) => void; value?: never; onChange?: never };
+
+export type CalendarProps = CalendarValueProps & {
   children?: React.ReactNode;
   placeholder?: string;
   disabled?: boolean;
   dataTestId?: string;
-}
+  /** Fecha mínima seleccionable (YYYY-MM-DD, inclusive). */
+  min?: string;
+  /** Fecha máxima seleccionable (YYYY-MM-DD, inclusive). */
+  max?: string;
+  /** Muestra un botón para vaciar la fecha cuando hay un valor. */
+  clearable?: boolean;
+  // Las siguientes props sólo aplican al trigger por defecto.
+  id?: string;
+  ariaLabel?: string;
+  ariaDescribedBy?: string;
+  invalid?: boolean;
+  triggerStyle?: React.CSSProperties;
+};
 
 const MESES = [
   "Enero",
@@ -61,26 +85,56 @@ function formatIso(year: number, month: number, day: number): string {
   return `${y}-${m}-${d}`;
 }
 
+function toTodayIso(): string {
+  const now = new Date();
+  return formatIso(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
 export default function Calendar({
   value,
   onChange,
+  range,
+  onRangeChange,
   children,
   placeholder = "Seleccionar fecha...",
   disabled = false,
   dataTestId,
+  min,
+  max,
+  clearable = false,
+  id,
+  ariaLabel,
+  ariaDescribedBy,
+  invalid = false,
+  triggerStyle,
 }: CalendarProps) {
+  const isOutOfRange = (iso: string) => Boolean((min && iso < min) || (max && iso > max));
+
+  const isRangeMode = range !== undefined;
+  const rangeStart = range?.desde ?? "";
+  const rangeEnd = range?.hasta ?? "";
+  // Fecha que define el mes visible al abrir
+  const anchor = (isRangeMode ? rangeStart || rangeEnd : value) ?? "";
+  const hasValue = Boolean(isRangeMode ? rangeStart || rangeEnd : value);
+  const triggerLabel = isRangeMode
+    ? `${formatCalendarDateLabel(rangeStart, "…")} – ${formatCalendarDateLabel(rangeEnd, "…")}`
+    : formatCalendarDateLabel(value, value);
+
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<React.CSSProperties | null>(null);
+  // Modo rango: inicio elegido a la espera del fin, y día bajo el cursor para previsualizar
+  const [pendingStart, setPendingStart] = useState<string | null>(null);
+  const [hoverIso, setHoverIso] = useState<string | null>(null);
 
   // Inicializar el mes y año visibles a partir de la fecha seleccionada o de hoy
   const initialParts = useMemo(() => {
-    const parsed = parseIsoParts(value);
+    const parsed = parseIsoParts(anchor);
     if (parsed) return parsed;
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() };
-  }, [value]);
+  }, [anchor]);
 
   const [viewYear, setViewYear] = useState(initialParts.year);
   const [viewMonth, setViewMonth] = useState(initialParts.month);
@@ -89,18 +143,20 @@ export default function Calendar({
 
   // Cuando cambia el valor externo, sincronizar el mes visible
   useEffect(() => {
-    const parsed = parseIsoParts(value);
+    const parsed = parseIsoParts(anchor);
     if (parsed) {
       setViewYear(parsed.year);
       setViewMonth(parsed.month);
       setYearPageStart(Math.floor(parsed.year / 12) * 12);
     }
-  }, [value]);
+  }, [anchor]);
 
   // Cerrar al hacer clic afuera y reiniciar modo de vista
   useEffect(() => {
     if (!isOpen) {
       setViewMode("days");
+      setPendingStart(null);
+      setHoverIso(null);
       return;
     }
 
@@ -204,18 +260,41 @@ export default function Calendar({
     e.stopPropagation();
     const now = new Date();
     const todayIso = formatIso(now.getFullYear(), now.getMonth(), now.getDate());
+    if (isOutOfRange(todayIso)) return;
     setViewYear(now.getFullYear());
     setViewMonth(now.getMonth());
-    setViewMode("days");
-    onChange(todayIso);
-    setIsOpen(false);
+    handleSelectDay(todayIso);
   };
 
   const handleSelectDay = (dayIso: string) => {
+    if (isOutOfRange(dayIso)) return;
     setViewMode("days");
-    onChange(dayIso);
+    if (!isRangeMode) {
+      onChange?.(dayIso);
+      setIsOpen(false);
+      return;
+    }
+    if (!pendingStart) {
+      setPendingStart(dayIso);
+      return;
+    }
+    const [desde, hasta] = pendingStart <= dayIso ? [pendingStart, dayIso] : [dayIso, pendingStart];
+    onRangeChange?.({ desde, hasta });
     setIsOpen(false);
   };
+
+  const handleClear = () => {
+    setIsOpen(false);
+    if (isRangeMode) onRangeChange?.({ desde: "", hasta: "" });
+    else onChange?.("");
+  };
+
+  // Extremos resaltados: el rango en curso (con previsualización) o el confirmado
+  const [highlightStart, highlightEnd] = !isRangeMode
+    ? [value ?? "", value ?? ""]
+    : pendingStart
+      ? [pendingStart, hoverIso ?? pendingStart].sort()
+      : [rangeStart, rangeEnd];
 
   // Cálculo de los días del mes y días adyacentes
   const calendarDays = useMemo(() => {
@@ -238,6 +317,7 @@ export default function Calendar({
       isCurrentMonth: boolean;
       isToday: boolean;
       isSelected: boolean;
+      isInRange: boolean;
     }> = [];
 
     // Días del mes anterior para completar la primera semana
@@ -249,7 +329,8 @@ export default function Calendar({
         dayNum: d,
         isCurrentMonth: false,
         isToday: iso === todayIso,
-        isSelected: iso === value,
+        isSelected: iso === highlightStart || iso === highlightEnd,
+        isInRange: iso > highlightStart && iso < highlightEnd,
       });
     }
 
@@ -261,7 +342,8 @@ export default function Calendar({
         dayNum: d,
         isCurrentMonth: true,
         isToday: iso === todayIso,
-        isSelected: iso === value,
+        isSelected: iso === highlightStart || iso === highlightEnd,
+        isInRange: iso > highlightStart && iso < highlightEnd,
       });
     }
 
@@ -274,12 +356,13 @@ export default function Calendar({
         dayNum: d,
         isCurrentMonth: false,
         isToday: iso === todayIso,
-        isSelected: iso === value,
+        isSelected: iso === highlightStart || iso === highlightEnd,
+        isInRange: iso > highlightStart && iso < highlightEnd,
       });
     }
 
     return result;
-  }, [viewYear, viewMonth, value]);
+  }, [viewYear, viewMonth, highlightStart, highlightEnd]);
 
   const calendarContent = (
     <div
@@ -490,16 +573,21 @@ export default function Calendar({
 
           <div style={styles.grid}>
             {calendarDays.map((cd) => {
+              const isDisabled = isOutOfRange(cd.iso);
               return (
                 <button
                   key={cd.iso}
                   type="button"
                   onClick={() => handleSelectDay(cd.iso)}
+                  onMouseEnter={pendingStart ? () => setHoverIso(cd.iso) : undefined}
+                  disabled={isDisabled}
                   style={{
                     ...styles.dayCell,
                     ...(!cd.isCurrentMonth ? styles.dayCellOutside : {}),
                     ...(cd.isToday && !cd.isSelected ? styles.dayCellToday : {}),
+                    ...(cd.isInRange ? styles.dayCellInRange : {}),
                     ...(cd.isSelected ? styles.dayCellSelected : {}),
+                    ...(isDisabled ? styles.dayCellDisabled : {}),
                   }}
                   data-testid={
                     dataTestId ? `${dataTestId}-day-${cd.iso}` : `calendar-day-${cd.iso}`
@@ -597,9 +685,14 @@ export default function Calendar({
       <div
         style={{
           ...styles.footer,
-          justifyContent: viewMode === "days" ? "flex-end" : "space-between",
+          justifyContent: viewMode === "days" && !isRangeMode ? "flex-end" : "space-between",
         }}
       >
+        {viewMode === "days" && isRangeMode && (
+          <span style={styles.rangeHint} role="status">
+            {pendingStart ? "Elegí la fecha final" : "Elegí la fecha inicial"}
+          </span>
+        )}
         {viewMode !== "days" && (
           <button
             type="button"
@@ -615,7 +708,11 @@ export default function Calendar({
         <button
           type="button"
           onClick={handleSelectToday}
-          style={styles.todayButton}
+          disabled={isOutOfRange(toTodayIso())}
+          style={{
+            ...styles.todayButton,
+            ...(isOutOfRange(toTodayIso()) ? styles.dayCellDisabled : {}),
+          }}
           data-testid={dataTestId ? `${dataTestId}-today-btn` : "calendar-today-btn"}
         >
           Hoy
@@ -639,26 +736,50 @@ export default function Calendar({
     >
       {children ?? (
         <button
+          id={id}
           type="button"
           disabled={disabled}
           onClick={() => !disabled && setIsOpen((prev) => !prev)}
           style={{
             ...styles.defaultTrigger,
+            ...(invalid ? { borderColor: COLOR.SEMANTIC.DANGER } : {}),
+            ...triggerStyle,
             ...(disabled ? { opacity: 0.6, cursor: "not-allowed" } : {}),
           }}
+          aria-label={ariaLabel}
+          aria-describedby={ariaDescribedBy}
+          aria-haspopup="dialog"
+          aria-expanded={isOpen}
           data-testid={dataTestId}
         >
           <span
             style={{
               ...styles.triggerText,
-              color: value ? COLOR.TEXT.PRIMARY : COLOR.TEXT.SECONDARY,
+              color: hasValue ? COLOR.TEXT.PRIMARY : COLOR.TEXT.SECONDARY,
             }}
           >
-            {value || placeholder}
+            {hasValue ? triggerLabel : placeholder}
           </span>
+          {clearable && hasValue && !disabled ? (
+            <span style={styles.clearSlot} aria-hidden="true" />
+          ) : null}
           <CalendarIcon size={16} color={COLOR.TEXT.SECONDARY} style={{ flexShrink: 0 }} />
         </button>
       )}
+      {clearable && hasValue && !disabled ? (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            handleClear();
+          }}
+          style={styles.clearButton}
+          aria-label="Limpiar fecha"
+          data-testid={dataTestId ? `${dataTestId}-clear` : "calendar-clear"}
+        >
+          <X size={14} color={COLOR.TEXT.SECONDARY} />
+        </button>
+      ) : null}
       {isOpen && typeof document !== "undefined"
         ? createPortal(calendarContent, document.body)
         : null}
@@ -820,6 +941,38 @@ const styles = {
     backgroundColor: COLOR.ACCENT.PRIMARY,
     color: "#ffffff",
     fontWeight: 600,
+  },
+  dayCellInRange: {
+    backgroundColor: COLOR.BACKGROUND.INFO_TINT,
+    borderRadius: 0,
+  },
+  rangeHint: {
+    fontSize: 12,
+    color: COLOR.TEXT.SECONDARY,
+  },
+  dayCellDisabled: {
+    opacity: 0.3,
+    cursor: "not-allowed",
+  },
+  clearSlot: {
+    width: 22,
+    flexShrink: 0,
+  },
+  clearButton: {
+    position: "absolute" as const,
+    top: "50%",
+    right: 36,
+    transform: "translateY(-50%)",
+    width: 22,
+    height: 22,
+    padding: 0,
+    border: "none",
+    borderRadius: 4,
+    backgroundColor: "transparent",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
   footer: {
     display: "flex",

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, AlertTriangle, CheckCircle2, Save } from "lucide-react";
 import Button from "@/app/components/ui/Button";
+import Calendar from "@/app/components/ui/Calendar";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { remitosClient } from "@/clients/remitosClient";
@@ -158,8 +159,8 @@ export default function RemitosConfiguracionCard() {
                   onChange={(event) => patch({ rCai: event.target.value })} style={remitoFormStyles.input} placeholder="14 dígitos" />
               </Field>
               <Field id="remitos-r-vencimiento" label="Vencimiento del CAI">
-                <input id="remitos-r-vencimiento" type="date" disabled={disabled} value={form.rCaiVencimiento}
-                  onChange={(event) => patch({ rCaiVencimiento: event.target.value })} style={remitoFormStyles.input} />
+                <Calendar id="remitos-r-vencimiento" dataTestId="remitos-r-vencimiento" clearable disabled={disabled} value={form.rCaiVencimiento}
+                  onChange={(fecha) => patch({ rCaiVencimiento: fecha })} triggerStyle={dateTriggerStyle} />
               </Field>
               <Field id="remitos-r-punto" label="Punto de emisión">
                 <input id="remitos-r-punto" type="number" min={1} max={99999} disabled={disabled} value={form.rPuntoEmision}
@@ -178,8 +179,8 @@ export default function RemitosConfiguracionCard() {
                   onChange={(event) => patch({ rProximoNumero: event.target.value })} style={remitoFormStyles.input} />
               </Field>
               <Field id="remitos-r-inicio" label="Inicio de actividades del establecimiento">
-                <input id="remitos-r-inicio" type="date" disabled={disabled} value={form.rInicioActividades}
-                  onChange={(event) => patch({ rInicioActividades: event.target.value })} style={remitoFormStyles.input} />
+                <Calendar id="remitos-r-inicio" dataTestId="remitos-r-inicio" clearable disabled={disabled} value={form.rInicioActividades}
+                  onChange={(fecha) => patch({ rInicioActividades: fecha })} triggerStyle={dateTriggerStyle} />
               </Field>
             </div>
           </div>
@@ -220,6 +221,8 @@ export default function RemitosConfiguracionCard() {
     </section>
   );
 }
+
+const dateTriggerStyle = { height: 42, padding: "0 12px" };
 
 function Field({ id, label, required = false, children }: { id: string; label: string; required?: boolean; children: React.ReactNode }) {
   return (

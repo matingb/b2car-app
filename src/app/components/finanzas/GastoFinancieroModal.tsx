@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
+import Calendar from "@/app/components/ui/Calendar";
 import CuentaFinancieraAutocomplete, { CREATE_CUENTA_VALUE } from "./CuentaFinancieraAutocomplete";
 import CuentaFinancieraFormFields, {
   EMPTY_CUENTA_FINANCIERA_DRAFT,
@@ -187,13 +188,12 @@ export default function GastoFinancieroModal({
         />
         <div style={styles.field}>
           <label style={styles.label} htmlFor="gasto-fecha">Fecha</label>
-          <input
+          <Calendar
             id="gasto-fecha"
-            type="date"
             value={fecha}
-            onChange={(event) => setFecha(event.target.value)}
-            data-testid="gasto-fecha"
-            style={styles.dateInput}
+            onChange={setFecha}
+            dataTestId="gasto-fecha"
+            triggerStyle={styles.dateInput}
           />
         </div>
       </div>
@@ -205,17 +205,5 @@ const styles = {
   form: { display: "flex", flexDirection: "column" as const, gap: 12, paddingTop: 8 },
   field: { display: "flex", flexDirection: "column" as const, gap: 6 },
   label: { display: "block", fontSize: 13, color: COLOR.TEXT.SECONDARY, marginBottom: 6 },
-  dateInput: {
-    height: 44,
-    width: "100%",
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 8,
-    padding: "10px 12px",
-    fontSize: 14,
-    color: COLOR.TEXT.PRIMARY,
-    backgroundColor: COLOR.INPUT.PRIMARY.BACKGROUND,
-    outline: "none",
-    boxSizing: "border-box" as const,
-    fontFamily: "inherit",
-  } as const,
+  dateInput: { height: 44 },
 } as const;
