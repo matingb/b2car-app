@@ -21,6 +21,12 @@ vi.mock("./ClienteArreglosTab", () => ({
   ),
 }));
 
+vi.mock("./ClienteVentasTab", () => ({
+  default: ({ clienteId, clienteNombre }: { clienteId: string; clienteNombre: string }) => (
+    <div data-testid="cliente-ventas-tab">Ventas de {clienteNombre || clienteId}</div>
+  ),
+}));
+
 vi.mock("./ClienteCuentaCorrienteTab", () => ({
   default: ({ clienteId }: { clienteId: string }) => (
     <div data-testid="cliente-cuenta-corriente-tab">Cuenta Corriente de {clienteId}</div>
@@ -71,6 +77,22 @@ describe("ClienteTabsSection", () => {
 
     expect(screen.getByTestId("cliente-arreglos-tab")).toBeInTheDocument();
     expect(screen.getByText("Arreglos de cli-1")).toBeInTheDocument();
+    expect(screen.queryByTestId("vehiculos-asociados-card")).not.toBeInTheDocument();
+  });
+
+  it("cambia a la pestaña de ventas al hacer click", () => {
+    render(
+      <ClienteTabsSection
+        clienteId="cli-1"
+        clienteNombre="Juan Perez"
+        vehiculos={mockVehiculos}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Ventas/i }));
+
+    expect(screen.getByTestId("cliente-ventas-tab")).toBeInTheDocument();
+    expect(screen.getByText("Ventas de Juan Perez")).toBeInTheDocument();
     expect(screen.queryByTestId("vehiculos-asociados-card")).not.toBeInTheDocument();
   });
 
@@ -151,6 +173,16 @@ describe("ClienteTabsContent", () => {
       />
     );
     expect(screen.getByTestId("cliente-arreglos-tab")).toBeInTheDocument();
+
+    rerender(
+      <ClienteTabsContent
+        activeTab="ventas"
+        clienteId="cli-1"
+        clienteNombre="Juan Perez"
+        vehiculos={mockVehiculos}
+      />
+    );
+    expect(screen.getByTestId("cliente-ventas-tab")).toBeInTheDocument();
 
     rerender(
       <ClienteTabsContent

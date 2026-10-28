@@ -20,14 +20,12 @@ export type ProveedorProductosTabProps = {
 	proveedorId: string;
 	proveedorNombre: string;
 	onComprarProducto?: (productoId: string, productoNombre: string) => void;
-	onCountChange?: (count: number) => void;
 };
 
 export default function ProveedorProductosTab({
 	proveedorId,
 	proveedorNombre,
 	onComprarProducto,
-	onCountChange,
 }: ProveedorProductosTabProps) {
 	const modal = useModalMessage();
 	const toast = useToast();
@@ -48,13 +46,12 @@ export default function ProveedorProductosTab({
 			if (res.error) throw new Error(res.error);
 			const list = res.data ?? [];
 			setProductos(list);
-			onCountChange?.(list.length);
 		} catch (err: unknown) {
 			setError(err instanceof Error ? err.message : "Error cargando catálogo de productos");
 		} finally {
 			setLoading(false);
 		}
-	}, [proveedorId, onCountChange]);
+	}, [proveedorId]);
 
 	useEffect(() => {
 		void loadProductos();

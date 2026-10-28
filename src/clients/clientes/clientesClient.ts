@@ -1,4 +1,5 @@
 import { Cliente, ClienteMovimientoCuenta, ClienteResumenFinanciero } from "@/model/types";
+import type { ClienteOperacionesResumen } from "@/model/dtos";
 
 export type GetClientesInput = {
   search?: string;
@@ -27,6 +28,11 @@ export type GetClienteResumenFinancieroClientResponse = {
 
 export type GetClienteCuentaCorrienteClientResponse = {
   data: ClienteMovimientoCuenta[] | null;
+  error?: string | null;
+};
+
+export type GetClienteOperacionesClientResponse = {
+  data: ClienteOperacionesResumen | null;
   error?: string | null;
 };
 
@@ -110,6 +116,22 @@ export const clientesClient = {
       return { data: body.data ?? [], error: null };
     } catch (err: unknown) {
       return { data: null, error: err instanceof Error ? err.message : "Error cargando cuenta corriente" };
+    }
+  },
+
+  /**
+   * Obtiene las operaciones de venta del cliente con sus líneas de stock
+   */
+  async getOperaciones(clienteId: string): Promise<GetClienteOperacionesClientResponse> {
+    try {
+      const res = await fetch(`/api/clientes/${encodeURIComponent(clienteId)}/operaciones`);
+      const body = await res.json();
+      if (!res.ok) {
+        return { data: null, error: body?.error || `Error ${res.status}` };
+      }
+      return { data: body.data ?? null, error: null };
+    } catch (err: unknown) {
+      return { data: null, error: err instanceof Error ? err.message : "Error cargando ventas del cliente" };
     }
   },
 };

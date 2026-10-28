@@ -82,16 +82,4 @@ const styles = {
       color: COLOR.ACCENT.PRIMARY,
     },
   }),
-  countBadge: css({
-    fontSize: 12,
-    fontWeight: 600,
-    background: COLOR.BACKGROUND.SUBTLE,
-    color: COLOR.TEXT.SECONDARY,
-    padding: "2px 8px",
-    borderRadius: 9999,
-  }),
-  countBadgeActive: css({
-    background: "rgba(99, 102, 241, 0.12)",
-    color: COLOR.ACCENT.PRIMARY,
-  }),
 };

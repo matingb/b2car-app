@@ -2,25 +2,21 @@
 
 import React from "react";
 import { css } from "@emotion/react";
-import { Car, CreditCard, Wrench } from "lucide-react";
+import { Car, CreditCard, Receipt, Wrench } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
 
-export type ClienteTabKey = "vehiculos" | "arreglos" | "cuenta_corriente";
+export type ClienteTabKey = "vehiculos" | "arreglos" | "ventas" | "cuenta_corriente";
 
 type Props = {
   activeTab: ClienteTabKey;
   onChangeTab: (tab: ClienteTabKey) => void;
-  vehiculosCount?: number;
-  arreglosCount?: number;
 };
 
 export default function ClienteTabsNav({
   activeTab,
   onChangeTab,
-  vehiculosCount,
-  arreglosCount,
 }: Props) {
   return (
     <nav css={styles.navContainer} aria-label="Secciones del cliente">
@@ -32,11 +28,6 @@ export default function ClienteTabsNav({
       >
         <Car size={17} />
         <span>Vehículos</span>
-        {vehiculosCount != null && vehiculosCount > 0 ? (
-          <span css={[styles.countBadge, activeTab === "vehiculos" && styles.countBadgeActive]}>
-            {vehiculosCount}
-          </span>
-        ) : null}
       </button>
 
       <button
@@ -47,12 +38,19 @@ export default function ClienteTabsNav({
       >
         <Wrench size={17} />
         <span>Arreglos</span>
-        {arreglosCount != null && arreglosCount > 0 ? (
-          <span css={[styles.countBadge, activeTab === "arreglos" && styles.countBadgeActive]}>
-            {arreglosCount}
-          </span>
-        ) : null}
       </button>
+
+      <Can permission={Permission.OperacionesView}>
+        <button
+          type="button"
+          onClick={() => onChangeTab("ventas")}
+          css={[styles.tabButton, activeTab === "ventas" && styles.tabButtonActive]}
+          data-testid="cliente-tab-ventas"
+        >
+          <Receipt size={17} />
+          <span>Ventas</span>
+        </button>
+      </Can>
 
       <Can permission={Permission.ClientesFinanzasView}>
         <button
@@ -105,20 +103,5 @@ const styles = {
     "&:hover": {
       color: COLOR.ACCENT.PRIMARY,
     },
-  }),
-  countBadge: css({
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 12,
-    fontWeight: 700,
-    padding: "2px 8px",
-    borderRadius: 9999,
-    backgroundColor: COLOR.BACKGROUND.SUBTLE,
-    color: COLOR.TEXT.SECONDARY,
-  }),
-  countBadgeActive: css({
-    backgroundColor: "rgba(15, 118, 110, 0.12)",
-    color: COLOR.ACCENT.PRIMARY,
   }),
 };

@@ -150,9 +150,11 @@ export default function EmpresaDetails() {
 
       <ClienteTabsSection
         clienteId={clienteId}
+        clienteNombre={empresa?.nombre ?? "-"}
         vehiculos={vehiculos}
         onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
         onArregloPagoUpdated={() => void loadFinanzas()}
+        onVentaUpdated={() => void loadFinanzas()}
       />
 
       <ClienteFormModal

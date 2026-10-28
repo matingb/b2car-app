@@ -204,6 +204,29 @@ export type ProveedorCuentaCorrienteResumen = {
     operaciones: ProveedorOperacionItemDTO[];
 };
 
+export type ClienteOperacionItemDTO = {
+    id: string;
+    tipo: string;
+    fecha: string;
+    created_at: string;
+    monto_total: number;
+    total_pagado: number;
+    saldo_pendiente: number;
+    estado_pago: string;
+    estado_stock: string;
+    observaciones: string | null;
+    taller_id: string | null;
+    taller_nombre: string | null;
+    lineas?: OperacionLineaDTO[];
+};
+
+export type ClienteOperacionesResumen = {
+    totalVendido: number;
+    totalCobrado: number;
+    saldoPendiente: number;
+    operaciones: ClienteOperacionItemDTO[];
+};
+
 export type OperacionLineaDTO = {
     id: string;
     operacion_id: string;

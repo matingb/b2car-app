@@ -43,7 +43,6 @@ export default function ProveedorDetailPage() {
   const [compraProductoId, setCompraProductoId] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<ProveedorTabKey>("productos");
-  const [productosCount, setProductosCount] = useState<number | undefined>(undefined);
 
   const [cuentaCorrienteResumen, setCuentaCorrienteResumen] =
     useState<ProveedorCuentaCorrienteResumen | null>(null);
@@ -180,7 +179,6 @@ export default function ProveedorDetailPage() {
       <ProveedorTabsNav
         activeTab={activeTab}
         onChangeTab={setActiveTab}
-        productosCount={productosCount}
       />
 
       {activeTab === "productos" && (
@@ -191,7 +189,6 @@ export default function ProveedorDetailPage() {
             setCompraProductoId(productoId);
             setCompraModalOpen(true);
           }}
-          onCountChange={setProductosCount}
         />
       )}
 

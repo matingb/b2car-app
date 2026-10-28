@@ -24,7 +24,6 @@ export type ProveedorOperacionesTabProps = {
   loading?: boolean;
   error?: string | null;
   onReload?: () => void;
-  onCountChange?: (count: number) => void;
   onNuevaCompra?: () => void;
   onOperacionUpdated?: () => void;
 };
@@ -69,7 +68,6 @@ export default function ProveedorOperacionesTab({
   loading: controlledLoading,
   error: controlledError,
   onReload,
-  onCountChange,
   onNuevaCompra,
   onOperacionUpdated,
 }: ProveedorOperacionesTabProps) {
@@ -94,13 +92,12 @@ export default function ProveedorOperacionesTab({
       const res = await proveedoresClient.getOperaciones(proveedorId);
       if (res.error) throw new Error(res.error);
       setInternalData(res.data);
-      onCountChange?.(res.data?.operaciones.length ?? 0);
     } catch (err: unknown) {
       setInternalError(err instanceof Error ? err.message : "Error cargando operaciones del proveedor");
     } finally {
       setInternalLoading(false);
     }
-  }, [isControlled, onReload, proveedorId, onCountChange]);
+  }, [isControlled, onReload, proveedorId]);
 
   useEffect(() => {
     if (!isControlled) {
@@ -111,12 +108,6 @@ export default function ProveedorOperacionesTab({
   const data = isControlled ? controlledResumen : internalData;
   const loading = isControlled ? (controlledLoading ?? false) : internalLoading;
   const error = isControlled ? (controlledError ?? null) : internalError;
-
-  useEffect(() => {
-    if (isControlled && data) {
-      onCountChange?.(data.operaciones.length);
-    }
-  }, [isControlled, data, onCountChange]);
 
   const rawOperaciones = useMemo(() => data?.operaciones ?? [], [data]);
 

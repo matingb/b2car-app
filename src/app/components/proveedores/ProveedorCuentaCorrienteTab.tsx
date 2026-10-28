@@ -18,7 +18,6 @@ export type ProveedorCuentaCorrienteTabProps = {
 	loading?: boolean;
 	error?: string | null;
 	onReload?: () => void;
-	onCountChange?: (count: number) => void;
 	onNuevaCompra?: () => void;
 };
 
@@ -28,7 +27,6 @@ export default function ProveedorCuentaCorrienteTab({
 	loading: controlledLoading,
 	error: controlledError,
 	onReload,
-	onCountChange,
 	onNuevaCompra,
 }: ProveedorCuentaCorrienteTabProps) {
 	const isControlled = controlledResumen !== undefined;
@@ -48,13 +46,12 @@ export default function ProveedorCuentaCorrienteTab({
 			const res = await proveedoresClient.getOperaciones(proveedorId);
 			if (res.error) throw new Error(res.error);
 			setInternalData(res.data);
-			onCountChange?.(res.data?.operaciones.length ?? 0);
 		} catch (err: unknown) {
 			setInternalError(err instanceof Error ? err.message : "Error cargando cuenta corriente");
 		} finally {
 			setInternalLoading(false);
 		}
-	}, [isControlled, onReload, proveedorId, onCountChange]);
+	}, [isControlled, onReload, proveedorId]);
 
 	useEffect(() => {
 		if (!isControlled) {
@@ -65,12 +62,6 @@ export default function ProveedorCuentaCorrienteTab({
 	const data = isControlled ? controlledResumen : internalData;
 	const loading = isControlled ? (controlledLoading ?? false) : internalLoading;
 	const error = isControlled ? (controlledError ?? null) : internalError;
-
-	useEffect(() => {
-		if (isControlled && data) {
-			onCountChange?.(data.operaciones.length);
-		}
-	}, [isControlled, data, onCountChange]);
 
 	if (loading && !data) {
 		return <div style={styles.loadingContainer}>Cargando operaciones y cuenta corriente...</div>;

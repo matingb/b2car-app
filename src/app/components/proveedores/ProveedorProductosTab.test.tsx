@@ -73,14 +73,12 @@ describe("ProveedorProductosTab", () => {
     });
 
     const onComprar = vi.fn();
-    const onCountChange = vi.fn();
 
     render(
       <ProveedorProductosTab
         proveedorId="prov-1"
         proveedorNombre="B2CAR"
         onComprarProducto={onComprar}
-        onCountChange={onCountChange}
       />
     );
 
@@ -109,8 +107,6 @@ describe("ProveedorProductosTab", () => {
 
     fireEvent.click(pedirButtons[0]);
     expect(onComprar).toHaveBeenCalledWith("prod-1", "Filtro de Aceite Blindado PH6017A");
-
-    expect(onCountChange).toHaveBeenCalledWith(2);
   });
 
   it("filtra productos al escribir en la barra de búsqueda unificada", async () => {

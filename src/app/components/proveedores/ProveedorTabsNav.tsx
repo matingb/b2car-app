@@ -12,13 +12,11 @@ export type ProveedorTabKey = "productos" | "operaciones" | "cuenta_corriente" |
 type Props = {
   activeTab: ProveedorTabKey;
   onChangeTab: (tab: ProveedorTabKey) => void;
-  productosCount?: number;
 };
 
 export default function ProveedorTabsNav({
   activeTab,
   onChangeTab,
-  productosCount,
 }: Props) {
   return (
     <nav css={styles.navContainer} aria-label="Secciones del proveedor">
@@ -30,11 +28,6 @@ export default function ProveedorTabsNav({
       >
         <Package size={17} />
         <span>Productos</span>
-        {productosCount != null && productosCount > 0 ? (
-          <span css={[styles.countBadge, activeTab === "productos" && styles.countBadgeActive]}>
-            {productosCount}
-          </span>
-        ) : null}
       </button>
 
       <Can permission={Permission.OperacionesView}>
@@ -100,20 +93,5 @@ const styles = {
     "&:hover": {
       color: COLOR.ACCENT.PRIMARY,
     },
-  }),
-  countBadge: css({
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 12,
-    fontWeight: 700,
-    padding: "2px 8px",
-    borderRadius: 9999,
-    backgroundColor: COLOR.BACKGROUND.SUBTLE,
-    color: COLOR.TEXT.SECONDARY,
-  }),
-  countBadgeActive: css({
-    backgroundColor: "rgba(15, 118, 110, 0.12)",
-    color: COLOR.ACCENT.PRIMARY,
   }),
 };
