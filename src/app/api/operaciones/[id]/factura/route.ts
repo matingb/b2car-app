@@ -1,12 +1,11 @@
 import {
   FacturacionValidationError,
-  FceDataRequiredError,
   getVentaFacturaPreflight,
   issueVentaElectronica,
   parseFacturaIssueInput,
 } from "@/lib/facturacion/facturacionService";
 import { getFacturacionAmbiente } from "@/lib/facturacion/environment";
-import { FceMipymeRequiredError } from "@/lib/facturacion/fceMipyme";
+import { facturaValidationErrorResponse } from "@/lib/facturacion/facturaHttp";
 import {
   facturacionErrorResponse,
   requireTenantBillingActor,
@@ -23,19 +22,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       fechaComprobante: searchParams.get("fechaComprobante"),
       tipoDocumento: searchParams.get("tipoDocumento") ? Number(searchParams.get("tipoDocumento")) : null,
       numeroDocumento: searchParams.get("numeroDocumento"),
-    });
+    }, { receptorDiferido: searchParams.get("receptor") === "diferido" });
     return Response.json({
       data: { ...result, canEmit: Boolean(result.preflight.puedeEmitir) },
       error: null,
     });
   } catch (error) {
-    if (error instanceof FacturacionValidationError) {
-      return Response.json({
-        error: error.message,
-        code: error instanceof FceDataRequiredError || error instanceof FceMipymeRequiredError ? error.code : null,
-        ...(error instanceof FceDataRequiredError ? { fce: error.requiredData } : {}),
-      }, { status: 422 });
-    }
+    if (error instanceof FacturacionValidationError) return facturaValidationErrorResponse(error);
     return facturacionErrorResponse(error);
   }
 }
@@ -47,13 +40,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const result = await issueVentaElectronica(actor, id, parseFacturaIssueInput(await request.json().catch(() => null)));
     return Response.json({ data: result.invoice, error: result.message ?? null }, { status: result.httpStatus });
   } catch (error) {
-    if (error instanceof FacturacionValidationError) {
-      return Response.json({
-        error: error.message,
-        code: error instanceof FceDataRequiredError || error instanceof FceMipymeRequiredError ? error.code : null,
-        ...(error instanceof FceDataRequiredError ? { fce: error.requiredData } : {}),
-      }, { status: 422 });
-    }
+    if (error instanceof FacturacionValidationError) return facturaValidationErrorResponse(error);
     return facturacionErrorResponse(error);
   }
 }

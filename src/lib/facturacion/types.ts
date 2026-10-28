@@ -23,6 +23,92 @@ export type PerfilFiscalCliente = {
   tipoDocumento: DocumentoFiscalTipo | null;
   numeroDocumento: string | null;
   condicionIvaReceptorId: CondicionIvaReceptorId | null;
+  /** Nombre y domicilio revisados al emitir: el PDF los conserva en lugar de consultar el padrón. */
+  identidadRevisada?: true;
+};
+
+/** A quién se emite: el cliente del arreglo/venta o un receptor fiscal distinto. */
+export type FacturaReceptorModo = "CLIENTE" | "OTRO";
+
+/** Identidad registrada del cliente del origen; sólo contexto, no se modifica al facturar. */
+export type FacturaClienteAsociado = {
+  clienteId: string;
+  nombre: string;
+  documento: string | null;
+};
+
+/** Perfil fiscal sugerido del cliente del origen; se consulta aparte porque depende de ARCA. */
+export type FacturaReceptorPrecarga = {
+  receptor: PerfilFiscalCliente;
+  clienteAsociado: FacturaClienteAsociado | null;
+  advertenciaArcaReceptor?: string;
+};
+
+export const RECEPTOR_NOMBRE_MAX = 200;
+export const RECEPTOR_DOMICILIO_MAX = 300;
+export const DETALLE_SIMPLIFICADO_DESCRIPCION_DEFAULT = "Servicio de reparación y mantenimiento automotor";
+export const DETALLE_SIMPLIFICADO_DESCRIPCION_MAX = 200;
+export const NOMBRE_CONSUMIDOR_FINAL = "Consumidor final";
+
+export type FacturaIssueGrupo = "RECEPTOR" | "COMPROBANTE" | "DETALLE" | "CONFIGURACION" | "EMISION";
+
+/** Bloqueo o advertencia agrupable de un formulario de factura; `campo` identifica el input afectado. */
+export type FacturaIssue = {
+  codigo: string;
+  grupo: FacturaIssueGrupo;
+  campo?: string;
+  mensaje: string;
+  severidad: "error" | "advertencia";
+};
+
+export const FACTURA_ISSUE_GRUPO_LABEL: Record<FacturaIssueGrupo, string> = {
+  RECEPTOR: "Receptor",
+  COMPROBANTE: "Comprobante y fechas",
+  DETALLE: "Detalle y origen",
+  CONFIGURACION: "Configuración y FCE",
+  EMISION: "Emisión",
+};
+
+export type FacturaRevisionLinea = Pick<FacturaLinea,
+  "ordinal" | "origen" | "descripcion" | "codigo" | "cantidad" | "importeUnitario" | "subtotal"
+  | "tratamientoIva" | "ivaAlicuota" | "importeNeto" | "importeIva" | "importeTotal"> & {
+  /** Importe que muestra el comprobante para la línea. */
+  importeMostrado: number;
+};
+
+/** Documento efectivo preparado por el servidor antes de emitir; no reserva número ni CAE. */
+export type FacturaRevision = {
+  revisionHash: string;
+  origenTipo: FacturaOrigenTipo;
+  origenId: string;
+  ambiente: FacturacionAmbiente;
+  clienteAsociado: FacturaClienteAsociado | null;
+  receptorModo: FacturaReceptorModo;
+  emisor: {
+    razonSocial: string;
+    nombreFantasia: string | null;
+    cuit: string;
+    domicilio: string;
+    condicionIva: string;
+    ingresosBrutos: string | null;
+    inicioActividades: string;
+    puntoVenta: number;
+  };
+  receptor: PerfilFiscalCliente;
+  documentoTipo: DocumentoFiscalClase;
+  claseComprobante: FacturaClase;
+  tipoComprobante: number;
+  concepto: FacturaConcepto;
+  fce: { sistema: FceSistemaCirculacion | null; cbu: string | null } | null;
+  condicionVenta: string;
+  fechas: FacturaFechaInput;
+  moneda: "PES";
+  detalleSimplificado: boolean;
+  lineas: FacturaRevisionLinea[];
+  cantidadLineasOriginales: number;
+  preciosIncluyenIva: boolean;
+  totales: FacturaTotales;
+  issues: FacturaIssue[];
 };
 
 export type FacturaLinea = {
@@ -186,6 +272,10 @@ export type FacturacionPreflight = {
   emisor?: Pick<FacturacionConfiguracionPublica,
     "razonSocial" | "cuit" | "puntoVenta" | "ambiente" | "condicionIvaEmisor">;
   receptor: PerfilFiscalCliente;
+  /** Identidad registrada del cliente del origen; `receptor` puede venir del padrón. */
+  clienteAsociado?: FacturaClienteAsociado | null;
+  /** `receptor` todavía no es el perfil del cliente: se obtiene aparte con su precarga. */
+  receptorPendiente?: boolean;
   /** Advertencia informativa cuando ARCA no pudo verificar el documento. */
   advertenciaArcaReceptor?: string;
   concepto: FacturaConcepto;

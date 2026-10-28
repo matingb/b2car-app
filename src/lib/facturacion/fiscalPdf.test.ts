@@ -6,8 +6,11 @@ vi.mock("server-only", () => ({}));
 import {
   buildArcaQrPayload,
   buildArcaQrUrl,
+  FISCAL_PDF_DRAFT_MARK,
   fiscalPdfUnitPrice,
+  generateFiscalDraftPdf,
   generateFiscalInvoicePdf,
+  type FiscalPdfDraft,
   type FiscalPdfInvoice,
 } from "./fiscalPdf";
 
@@ -366,5 +369,81 @@ describe("PDF fiscal propio", () => {
       expect(options!.y!).toBeGreaterThan(20);
       expect(options!.x! + options!.font!.widthOfTextAtSize(value, options!.size!)).toBeLessThanOrEqual(558);
     }
+  });
+});
+
+describe("PDF borrador previo a la emisión", () => {
+  function draft(overrides: Partial<FiscalPdfInvoice> = {}): FiscalPdfDraft {
+    const content: Partial<FiscalPdfInvoice> = { ...invoice(overrides) };
+    delete content.id;
+    delete content.numeroComprobante;
+    delete content.cae;
+    delete content.caeVencimiento;
+    return content as FiscalPdfDraft;
+  }
+
+  it("usa la misma paginación, marca cada hoja y deja pendientes número, CAE y QR", async () => {
+    const lineas = Array.from({ length: 35 }, (_, index) => ({
+      codigo: null, descripcion: `Concepto ${index + 1} con una descripción extensa para ocupar el detalle fiscal completo`,
+      cantidad: 1, importeUnitario: 100, subtotal: 100,
+    }));
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    const embedPng = vi.spyOn(PDFDocument.prototype, "embedPng");
+
+    const bytes = await generateFiscalDraftPdf(draft({ lineas, total: 3500 }));
+    const document = await PDFDocument.load(bytes);
+    const authorized = await PDFDocument.load(await generateFiscalInvoicePdf(invoice({ lineas, total: 3500 })));
+
+    expect(document.getPageCount()).toBe(authorized.getPageCount());
+    expect(document.getPageCount()).toBeGreaterThan(1);
+    expect(document.getTitle()).toContain(FISCAL_PDF_DRAFT_MARK);
+    expect(document.getSubject()).toContain("sin validez fiscal");
+    const draftCalls = drawText.mock.calls;
+    const markedPages = draftCalls
+      .map(([value], index) => value === FISCAL_PDF_DRAFT_MARK ? drawText.mock.contexts[index] : null)
+      .filter(Boolean);
+    expect(markedPages).toHaveLength(document.getPageCount());
+    expect(new Set(markedPages).size).toBe(document.getPageCount());
+    expect(draftCalls.some(([value]) => value === "Pendiente")).toBe(true);
+    expect(draftCalls.some(([value]) => value === "CAE N°: Pendiente")).toBe(true);
+    expect(draftCalls.some(([value]) => value === "Borrador sin validez fiscal: no fue autorizado por ARCA")).toBe(true);
+    // Sólo el comprobante autorizado generado para comparar embebe su QR.
+    expect(embedPng).toHaveBeenCalledTimes(1);
+    drawText.mockRestore();
+    embedPng.mockRestore();
+  });
+
+  it("no imprime la leyenda de comprobante autorizado ni genera QR", async () => {
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    const embedPng = vi.spyOn(PDFDocument.prototype, "embedPng");
+
+    await generateFiscalDraftPdf(draft());
+
+    expect(drawText.mock.calls.some(([value]) => value === "Comprobante autorizado por ARCA")).toBe(false);
+    expect(drawText.mock.calls.some(([value]) => String(value).includes("86350822627580"))).toBe(false);
+    expect(embedPng).not.toHaveBeenCalled();
+    drawText.mockRestore();
+    embedPng.mockRestore();
+  });
+
+  it("muestra literalmente los caracteres especiales del receptor y el detalle", async () => {
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+
+    await generateFiscalDraftPdf(draft({
+      receptorSnapshot: { ...invoice().receptorSnapshot, nombre: "Pérez & Hijos <SRL>" },
+      lineas: [{ codigo: null, descripcion: "Reparación <motor> & caja", cantidad: 1, importeUnitario: 32000, subtotal: 32000 }],
+    }));
+
+    expect(drawText.mock.calls.some(([value]) => value === "Pérez & Hijos <SRL>")).toBe(true);
+    expect(drawText.mock.calls.some(([value]) => value === "Reparación <motor> & caja")).toBe(true);
+    drawText.mockRestore();
+  });
+
+  it("genera la vista previa de una FCE aunque falte IIBB, que sólo exige el PDF autorizado", async () => {
+    const fce = { tipoComprobante: 211, fceSistema: "SCA" as const, fceCbu: "1234567890123456789012", emisorSnapshot: { ...invoice().emisorSnapshot, ingresosBrutos: null } };
+
+    await expect(generateFiscalInvoicePdf(invoice(fce))).rejects.toThrow("Ingresos Brutos");
+    const bytes = await generateFiscalDraftPdf(draft(fce));
+    expect(Buffer.from(bytes).subarray(0, 5).toString("ascii")).toBe("%PDF-");
   });
 });

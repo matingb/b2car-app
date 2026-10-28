@@ -13,7 +13,8 @@ import {
 import { toISODateAppTimeZone } from "@/lib/fechas";
 
 export class FacturacionValidationError extends Error {
-  constructor(message: string) {
+  /** `campo` identifica el input del formulario de factura afectado, cuando corresponde. */
+  constructor(message: string, readonly campo?: string) {
     super(message);
     this.name = "FacturacionValidationError";
   }
@@ -55,16 +56,17 @@ export function validateDocument(
 ): { tipoDocumento: DocumentoFiscalTipo; numeroDocumento: string } {
   if (tipoDocumento === 99) return { tipoDocumento: 99, numeroDocumento: "0" };
   if (tipoDocumento !== 80 && tipoDocumento !== 86 && tipoDocumento !== 96) {
-    throw new FacturacionValidationError("El tipo de documento del receptor no es válido");
+    throw new FacturacionValidationError("El tipo de documento del receptor no es válido", "receptor.tipoDocumento");
   }
   const normalized = normalizeDocumentNumber(numeroDocumento);
-  if (!normalized) throw new FacturacionValidationError("El documento del receptor es obligatorio");
+  if (!normalized) throw new FacturacionValidationError("El documento del receptor es obligatorio", "receptor.numeroDocumento");
   const valid = tipoDocumento === 96
     ? normalized.length >= 7 && normalized.length <= 8
     : isValidCuitCuil(normalized);
   if (!valid) {
     throw new FacturacionValidationError(
       tipoDocumento === 96 ? "El DNI debe tener entre 7 y 8 dígitos" : "El CUIT o CUIL no es válido",
+      "receptor.numeroDocumento",
     );
   }
   return { tipoDocumento, numeroDocumento: normalized };
@@ -78,7 +80,7 @@ export function receiverDocumentTypesForCondition(
   condicionIvaReceptorId: PerfilFiscalCliente["condicionIvaReceptorId"],
 ): DocumentoFiscalTipo[] {
   if (!condicionIvaReceptorId) {
-    throw new FacturacionValidationError("La condición IVA del receptor es obligatoria");
+    throw new FacturacionValidationError("La condición IVA del receptor es obligatoria", "receptor.condicionIva");
   }
   return condicionIvaReceptorId === 5 ? [99, 96, 86, 80] : [80];
 }
@@ -92,16 +94,16 @@ export function validateReceiverIdentification(
   const allowedTypes = receiverDocumentTypesForCondition(condition);
 
   if ((claseComprobante === "A" || claseComprobante === "M") && doc.tipoDocumento !== 80) {
-    throw new FacturacionValidationError("Los comprobantes A o M requieren CUIT del receptor");
+    throw new FacturacionValidationError("Los comprobantes A o M requieren CUIT del receptor", "receptor.tipoDocumento");
   }
   if (!allowedTypes.includes(doc.tipoDocumento)) {
     if (condition === 1) {
-      throw new FacturacionValidationError("Un receptor Responsable Inscripto debe identificarse con CUIT");
+      throw new FacturacionValidationError("Un receptor Responsable Inscripto debe identificarse con CUIT", "receptor.tipoDocumento");
     }
-    throw new FacturacionValidationError("Los receptores que no son consumidor final deben identificarse con CUIT");
+    throw new FacturacionValidationError("Los receptores que no son consumidor final deben identificarse con CUIT", "receptor.tipoDocumento");
   }
   if (doc.tipoDocumento === 99 && condition !== 5) {
-    throw new FacturacionValidationError("El documento 99 sólo corresponde a consumidor final");
+    throw new FacturacionValidationError("El documento 99 sólo corresponde a consumidor final", "receptor.tipoDocumento");
   }
   return doc;
 }
@@ -225,14 +227,14 @@ export function validateLineasYTotal(lineas: FacturaLinea[], total: number): num
   return cents;
 }
 
-function parseIsoDate(value: string | null | undefined, label: string): Date {
+function parseIsoDate(value: string | null | undefined, label: string, campo?: string): Date {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new FacturacionValidationError(`${label} es obligatoria y debe tener formato AAAA-MM-DD`);
+    throw new FacturacionValidationError(`${label} es obligatoria y debe tener formato AAAA-MM-DD`, campo);
   }
   const [year, month, day] = value.split("-").map(Number);
   const parsed = new Date(Date.UTC(year, month - 1, day));
   if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) {
-    throw new FacturacionValidationError(`${label} no es una fecha válida`);
+    throw new FacturacionValidationError(`${label} no es una fecha válida`, campo);
   }
   return parsed;
 }
@@ -246,24 +248,24 @@ export function validateFechas(
   today = new Date(),
   fceMipyme = false,
 ): Required<FacturaFechaInput> {
-  const comprobante = parseIsoDate(fechas.fechaComprobante, "La fecha de comprobante");
+  const comprobante = parseIsoDate(fechas.fechaComprobante, "La fecha de comprobante", "fechas.fechaComprobante");
   const hoy = parseIsoDate(toIsoDate(today), "La fecha de hoy");
   const maxDays = concepto === 1 ? 5 : 10;
   if (Math.abs(distance(comprobante, hoy)) > maxDays) {
-    throw new FacturacionValidationError(`La fecha debe estar dentro de los ${maxDays} días de hoy`);
+    throw new FacturacionValidationError(`La fecha debe estar dentro de los ${maxDays} días de hoy`, "fechas.fechaComprobante");
   }
   if (concepto === 1 && (comprobante.getUTCFullYear() !== hoy.getUTCFullYear()
       || comprobante.getUTCMonth() !== hoy.getUTCMonth())) {
-    throw new FacturacionValidationError("Los comprobantes de productos deben pertenecer al mes actual");
+    throw new FacturacionValidationError("Los comprobantes de productos deben pertenecer al mes actual", "fechas.fechaComprobante");
   }
   if (concepto === 1 && !fceMipyme) return { fechaComprobante: fechas.fechaComprobante, fechaServicioDesde: "", fechaServicioHasta: "", fechaVencimientoPago: "" };
-  const vencimiento = parseIsoDate(fechas.fechaVencimientoPago, "La fecha de vencimiento de pago");
+  const vencimiento = parseIsoDate(fechas.fechaVencimientoPago, "La fecha de vencimiento de pago", "fechas.fechaVencimientoPago");
   const limiteVencimiento = fceMipyme && comprobante < hoy ? hoy : comprobante;
-  if (vencimiento < limiteVencimiento) throw new FacturacionValidationError("El vencimiento FCE no puede ser anterior a la fecha de emisión ni a la fecha actual");
+  if (vencimiento < limiteVencimiento) throw new FacturacionValidationError("El vencimiento FCE no puede ser anterior a la fecha de emisión ni a la fecha actual", "fechas.fechaVencimientoPago");
   if (concepto === 1) return { fechaComprobante: fechas.fechaComprobante, fechaServicioDesde: "", fechaServicioHasta: "", fechaVencimientoPago: fechas.fechaVencimientoPago! };
-  const desde = parseIsoDate(fechas.fechaServicioDesde, "La fecha de servicio desde");
-  const hasta = parseIsoDate(fechas.fechaServicioHasta, "La fecha de servicio hasta");
-  if (desde > hasta) throw new FacturacionValidationError("La fecha desde no puede ser posterior a la fecha hasta");
+  const desde = parseIsoDate(fechas.fechaServicioDesde, "La fecha de servicio desde", "fechas.fechaServicioDesde");
+  const hasta = parseIsoDate(fechas.fechaServicioHasta, "La fecha de servicio hasta", "fechas.fechaServicioHasta");
+  if (desde > hasta) throw new FacturacionValidationError("La fecha desde no puede ser posterior a la fecha hasta", "fechas.fechaServicioHasta");
   return { fechaComprobante: fechas.fechaComprobante, fechaServicioDesde: fechas.fechaServicioDesde!, fechaServicioHasta: fechas.fechaServicioHasta!, fechaVencimientoPago: fechas.fechaVencimientoPago! };
 }
 

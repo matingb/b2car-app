@@ -23,26 +23,47 @@ import {
 import { createArcaGateway, sanitizeFiscalPayload, type ArcaGateway } from "./afipGateway";
 import { deleteCredentialPair, downloadCredentialPair, uploadCredentialPair } from "./credentialStorage";
 import { getFacturacionAmbiente } from "./environment";
-import { fceMipymeRequired } from "./fceMipyme";
+import { FceMipymeQueryError, fceMipymeRequired } from "./fceMipyme";
 import { assertIdempotencyReplay } from "./idempotency";
 import { createArregloServiceInvoiceLine } from "./arregloInvoiceLine";
-import { generateFiscalInvoicePdf, type FiscalPdfInvoice } from "./fiscalPdf";
+import {
+  generateFiscalDraftPdf,
+  generateFiscalInvoicePdf,
+  type FiscalPdfInvoice,
+  type FiscalPdfLine,
+} from "./fiscalPdf";
 import { importeLineaMostrado } from "./lineaImporte";
 import { hasFiscalIibb, isFceInvoice } from "./fiscalPresentation";
+import {
+  descripcionSimplificadaIssues,
+  documentoCorrespondeAlCliente,
+  documentoNoCorrespondeMensaje,
+  receptorIdentidadIssues,
+} from "./facturaReceptor";
 import { lookupArcaPadronPerson } from "@/lib/arcaPadron/arcaPadronGateway";
 import { lookupArcaInscriptionVatCondition } from "@/lib/arcaInscripcion/arcaInscripcionGateway";
 import {
   ALICUOTAS_IVA_ARCA,
   CONDICIONES_INGRESOS_BRUTOS,
   CONDICIONES_IVA_RECEPTOR,
+  DETALLE_SIMPLIFICADO_DESCRIPCION_DEFAULT,
+  NOMBRE_CONSUMIDOR_FINAL,
   type CondicionIngresosBrutos,
   type CondicionIvaEmisor,
   type CondicionIvaReceptorId,
   type DocumentoFiscalClase,
   type DocumentoFiscalTipo,
+  type FacturaClase,
+  type FacturaClienteAsociado,
   type FacturaElectronicaDetalle,
   type FacturaElectronicaResumen,
   type DevolucionesDisponiblesResult,
+  type FacturaIssue,
+  type FacturaIssueGrupo,
+  type FacturaReceptorModo,
+  type FacturaReceptorPrecarga,
+  type FacturaRevision,
+  type FacturaRevisionLinea,
   type FacturaStockOrigen,
   type FacturaConcepto,
   type FacturaFechaInput,
@@ -92,11 +113,21 @@ type CanonicalSource = {
   origenTipo: FacturaOrigenTipo;
   fecha: string | null;
   total: number;
+  /** Cliente comercial del origen; el receptor fiscal puede ser otro. */
+  clienteId: string | null;
   receptor: PerfilFiscalCliente;
+  clienteAsociado?: FacturaClienteAsociado | null;
   advertenciaArcaReceptor?: string;
   lineas: FacturaLinea[];
   stockOrigins: FacturaStockOrigen[];
 };
+
+/**
+ * Cómo se resuelve el receptor al cargar el origen: PERFIL (emisión histórica),
+ * PRECARGA (formulario: un DNI ambiguo es un aviso), ANONIMO (documento 99) o
+ * NINGUNO (el receptor revisado llega completo desde el formulario).
+ */
+type ReceptorResolution = "PERFIL" | "PRECARGA" | "ANONIMO" | "NINGUNO";
 
 function canonicalStockOrigins(origins: FacturaStockOrigen[]): FacturaStockOrigen[] {
   return origins.map((origin) => ({
@@ -118,25 +149,41 @@ function stockOriginsHash(origins: FacturaStockOrigen[]): string {
 
 type ResolvedClientProfile = {
   profile: PerfilFiscalCliente;
+  clienteAsociado: FacturaClienteAsociado | null;
   advertenciaArcaReceptor?: string;
 };
 
 const ARCA_RECEIVER_LOOKUP_UNAVAILABLE_MESSAGE =
   "No se pudo obtener información desde ARCA para este documento. Verificá la condición IVA antes de emitir.";
+const AMBIGUOUS_CLIENT_DNI_MESSAGE =
+  "El DNI del cliente tiene más de un CUIL asociado en ARCA. Guardá el CUIL correcto en su ficha antes de emitir.";
 
-export type FacturaIssueInput = {
-  idempotencyKey: string;
+/** Datos del comprobante elegidos en el formulario; también describen una revisión previa. */
+export type FacturaDraftInput = {
   ambiente: FacturacionAmbiente;
   condicionVenta: string;
   detalleSimplificado: boolean;
+  /** Ausente en pedidos históricos: conserva la descripción fija del detalle simplificado. */
+  descripcionDetalleSimplificado?: string;
   receptor: {
+    /** Ausente en pedidos históricos: el receptor se resuelve desde el cliente del origen. */
+    modo?: FacturaReceptorModo;
+    nombre?: string;
+    /** `undefined` conserva el domicilio resuelto; `null` lo informa vacío. */
+    domicilio?: string | null;
     tipoDocumento: DocumentoFiscalTipo | null;
     numeroDocumento: string | null;
     condicionIvaReceptorId: CondicionIvaReceptorId | null;
   };
   fechas: FacturaFechaInput;
   fceSistema: "SCA" | "ADC" | null;
+};
+
+export type FacturaIssueInput = FacturaDraftInput & {
+  idempotencyKey: string;
   fcePreflightConfirmada: boolean;
+  /** Huella de la revisión confirmada; si el contenido actual difiere no se emite. */
+  revisionHash?: string;
 };
 
 export class FceDataRequiredError extends FacturacionValidationError {
@@ -145,6 +192,40 @@ export class FceDataRequiredError extends FacturacionValidationError {
     super("ARCA determinó que corresponde una FCE; completá los datos fiscales requeridos y reintentá la misma emisión.");
     this.name = "FceDataRequiredError";
   }
+}
+
+/** Validaciones independientes de una revisión, devueltas juntas y agrupadas. */
+export class FacturaIssuesError extends FacturacionValidationError {
+  constructor(readonly issues: FacturaIssue[]) {
+    super(issues.find((issue) => issue.severidad === "error")?.mensaje ?? "Revisá los datos de la factura");
+    this.name = "FacturaIssuesError";
+  }
+}
+
+/** El contenido actual ya no es el revisado: se pide una revisión nueva en lugar de emitir otra cosa. */
+export class FacturaRevisionDesactualizadaError extends FacturacionValidationError {
+  readonly code = "REVISION_DESACTUALIZADA";
+  constructor() {
+    super("Los datos de la factura cambiaron desde la revisión. Revisá el comprobante actualizado antes de emitir.");
+    this.name = "FacturaRevisionDesactualizadaError";
+  }
+}
+
+const ISSUE_GROUP_BY_FIELD: Array<[string, FacturaIssueGrupo]> = [
+  ["receptor.", "RECEPTOR"], ["fechas.", "COMPROBANTE"], ["condicionVenta", "COMPROBANTE"], ["detalle.", "DETALLE"],
+];
+
+/** Representa como mensajes agrupables los errores de validación de una emisión. */
+export function issuesFromValidationError(error: FacturacionValidationError): FacturaIssue[] {
+  if (error instanceof FacturaIssuesError) return error.issues;
+  const code = "code" in error && typeof error.code === "string" ? error.code : "VALIDACION";
+  const grupo = error.campo
+    ? ISSUE_GROUP_BY_FIELD.find(([prefix]) => error.campo!.startsWith(prefix))?.[1] ?? "EMISION"
+    : code.startsWith("FCE_") ? "CONFIGURACION" : "EMISION";
+  return [{
+    codigo: code, grupo, mensaje: error.message, severidad: "error",
+    ...(error.campo ? { campo: error.campo } : {}),
+  }];
 }
 
 export function assertFcePreflightConfirmed(
@@ -517,18 +598,34 @@ async function getRegisteredClient(tenantId: string, clienteId: string): Promise
   };
 }
 
-async function getClientProfile(tenantId: string, clienteId: string | null): Promise<ResolvedClientProfile> {
-  if (!clienteId) {
-    return {
-      profile: {
-        clienteId: null, nombre: "Consumidor final", domicilio: null,
-        tipoDocumento: 99, numeroDocumento: "0", condicionIvaReceptorId: 5,
-      },
-    };
-  }
+/** Identidad registrada del cliente del origen, sólo desde la ficha (sin consultar ARCA). */
+async function registeredClienteAsociado(tenantId: string, clienteId: string | null): Promise<FacturaClienteAsociado | null> {
+  if (!clienteId) return null;
+  const registered = await getRegisteredClient(tenantId, clienteId);
+  return registered ? { clienteId, nombre: registered.nombre, documento: registered.documento || null } : null;
+}
+
+function anonymousReceiver(): PerfilFiscalCliente {
+  return {
+    clienteId: null, nombre: NOMBRE_CONSUMIDOR_FINAL, domicilio: null,
+    tipoDocumento: 99, numeroDocumento: "0", condicionIvaReceptorId: 5,
+  };
+}
+
+/**
+ * Perfil fiscal sugerido para el cliente del origen. `tolerateAmbiguous` (precarga)
+ * convierte un DNI con varios CUIL en un aviso para que el formulario siga disponible.
+ */
+async function getClientProfile(
+  tenantId: string,
+  clienteId: string | null,
+  tolerateAmbiguous = false,
+): Promise<ResolvedClientProfile> {
+  if (!clienteId) return { profile: anonymousReceiver(), clienteAsociado: null };
   const client = await getRegisteredClient(tenantId, clienteId);
   if (!client) throw new FacturacionValidationError("Cliente no encontrado");
   const { company, nombre, domicilio, documento: storedDocument } = client;
+  const clienteAsociado: FacturaClienteAsociado = { clienteId, nombre, documento: storedDocument || null };
 
   if (!storedDocument) {
     return {
@@ -540,6 +637,7 @@ async function getClientProfile(tenantId: string, clienteId: string | null): Pro
         numeroDocumento: "0",
         condicionIvaReceptorId: 5,
       },
+      clienteAsociado,
     };
   }
 
@@ -547,9 +645,15 @@ async function getClientProfile(tenantId: string, clienteId: string | null): Pro
   try {
     const lookup = await lookupArcaPadronPerson(documentType, storedDocument);
     if (lookup.status === "MULTIPLE") {
-      throw new FacturacionValidationError(
-        "El DNI del cliente tiene más de un CUIL asociado en ARCA. Guardá el CUIL correcto en su ficha antes de emitir.",
-      );
+      if (!tolerateAmbiguous) throw new FacturacionValidationError(AMBIGUOUS_CLIENT_DNI_MESSAGE);
+      return {
+        profile: {
+          clienteId, nombre, domicilio, tipoDocumento: documentType,
+          numeroDocumento: storedDocument, condicionIvaReceptorId: null,
+        },
+        clienteAsociado,
+        advertenciaArcaReceptor: "El DNI del cliente tiene más de un CUIL asociado en ARCA. Ingresá el CUIL correcto o facturá a otro receptor.",
+      };
     }
     const cuit = normalizeDocumentNumber(lookup.person.cuit);
     const vat = await lookupArcaInscriptionVatCondition(cuit);
@@ -565,6 +669,7 @@ async function getClientProfile(tenantId: string, clienteId: string | null): Pro
         numeroDocumento: cuit,
         condicionIvaReceptorId,
       },
+      clienteAsociado,
     };
   } catch (cause) {
     if (cause instanceof FacturacionValidationError) throw cause;
@@ -579,9 +684,27 @@ async function getClientProfile(tenantId: string, clienteId: string | null): Pro
         // No se infiere la condición IVA sin confirmación de ARCA.
         condicionIvaReceptorId: null,
       },
+      clienteAsociado,
       advertenciaArcaReceptor: ARCA_RECEIVER_LOOKUP_UNAVAILABLE_MESSAGE,
     };
   }
+}
+
+async function resolveSourceReceiver(
+  tenantId: string,
+  clienteId: string | null,
+  resolution: ReceptorResolution,
+): Promise<Pick<CanonicalSource, "receptor" | "clienteAsociado" | "advertenciaArcaReceptor">> {
+  if (resolution === "NINGUNO") {
+    // El receptor revisado se valida aparte; el origen no consulta padrón ni ficha.
+    return { receptor: { ...anonymousReceiver(), clienteId } };
+  }
+  const resolved = await getClientProfile(tenantId, resolution === "ANONIMO" ? null : clienteId, resolution === "PRECARGA");
+  return {
+    receptor: resolved.profile,
+    clienteAsociado: resolved.clienteAsociado,
+    advertenciaArcaReceptor: resolved.advertenciaArcaReceptor,
+  };
 }
 
 function appendLine(lineas: FacturaLinea[], input: Omit<FacturaLinea, "ordinal" | "subtotal">) {
@@ -605,6 +728,7 @@ function appendLine(lineas: FacturaLinea[], input: Omit<FacturaLinea, "ordinal" 
 function createSimplifiedArregloLine(
   source: CanonicalSource,
   fiscal: { lineas: FacturaLinea[]; totales: FacturaTotales },
+  descripcion = DETALLE_SIMPLIFICADO_DESCRIPCION_DEFAULT,
 ): FacturaLinea {
   const firstLine = fiscal.lineas[0];
   if (!firstLine) throw new FacturacionValidationError("El arreglo no tiene líneas facturables");
@@ -619,7 +743,7 @@ function createSimplifiedArregloLine(
     // Conserva un origen válido para el historial fiscal, sin asociarlo a una
     // línea particular del arreglo.
     origen: firstLine.origen,
-    descripcion: "Servicio de reparación y mantenimiento automotor",
+    descripcion,
     cantidad: 1,
     importeUnitario: fiscal.totales.total,
     subtotal: fiscal.totales.total,
@@ -712,7 +836,7 @@ async function resolveStockLines(
   }
   return { lineas, stockOrigins: canonicalStockOrigins(stockOrigins) };
 }
-async function getCanonicalArreglo(tenantId: string, arregloId: string, unidentifiedReceiver = false): Promise<CanonicalSource> {
+async function getCanonicalArreglo(tenantId: string, arregloId: string, receptor: ReceptorResolution = "PERFIL"): Promise<CanonicalSource> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("arreglos").select("id, vehiculo_id, fecha, precio_final, precios_incluyen_iva, tasa_iva, estado")
@@ -767,14 +891,14 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string, unidenti
     repuestos.lineas.forEach((line) => lineas.push({ ...line, ordinal: lineas.length + 1 }));
     stockOrigins.push(...repuestos.stockOrigins);
   }
-  const clientProfile = await getClientProfile(tenantId, unidentifiedReceiver ? null : clienteId);
+  const resolvedReceiver = await resolveSourceReceiver(tenantId, clienteId, receptor);
   return {
     id: text(repair.id), origenTipo: "ARREGLO", fecha: nullable(repair.fecha),
     total: number(repair.precio_final),
     preciosIncluyenIva: repair.precios_incluyen_iva !== false,
     tasaIvaComercial: repair.tasa_iva == null ? null : number(repair.tasa_iva),
-    receptor: clientProfile.profile,
-    advertenciaArcaReceptor: clientProfile.advertenciaArcaReceptor,
+    clienteId,
+    ...resolvedReceiver,
     lineas: lineas.map((line) => ({ ...line, snapshot: {
       ...line.snapshot, preciosIncluyenIva: repair.precios_incluyen_iva !== false,
       tasaIvaComercial: repair.tasa_iva == null ? null : number(repair.tasa_iva),
@@ -783,7 +907,7 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string, unidenti
   };
 }
 
-async function getCanonicalVenta(tenantId: string, operationId: string, unidentifiedReceiver = false): Promise<CanonicalSource> {
+async function getCanonicalVenta(tenantId: string, operationId: string, receptor: ReceptorResolution = "PERFIL"): Promise<CanonicalSource> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("operaciones").select("id, tipo, fecha, cliente_id")
@@ -793,19 +917,20 @@ async function getCanonicalVenta(tenantId: string, operationId: string, unidenti
   if (text(operation.tipo) !== "VENTA") throw new FacturacionValidationError("Sólo una venta puede facturarse desde Operaciones");
   const resolved = await resolveStockLines(tenantId, [operationId], "VENTA");
   const total = resolved.lineas.reduce((sum, line) => sum + line.subtotal, 0);
-  const clientProfile = await getClientProfile(tenantId, unidentifiedReceiver ? null : nullable(operation.cliente_id));
+  const clienteId = nullable(operation.cliente_id);
+  const resolvedReceiver = await resolveSourceReceiver(tenantId, clienteId, receptor);
   return {
     id: text(operation.id), origenTipo: "VENTA", fecha: nullable(operation.fecha), total,
-    receptor: clientProfile.profile,
-    advertenciaArcaReceptor: clientProfile.advertenciaArcaReceptor,
+    clienteId,
+    ...resolvedReceiver,
     lineas: resolved.lineas, stockOrigins: resolved.stockOrigins,
   };
 }
 
-async function getCanonicalSource(tenantId: string, tipo: FacturaOrigenTipo, id: string, unidentifiedReceiver = false) {
+async function getCanonicalSource(tenantId: string, tipo: FacturaOrigenTipo, id: string, receptor: ReceptorResolution = "PERFIL") {
   return tipo === "ARREGLO"
-    ? getCanonicalArreglo(tenantId, id, unidentifiedReceiver)
-    : getCanonicalVenta(tenantId, id, unidentifiedReceiver);
+    ? getCanonicalArreglo(tenantId, id, receptor)
+    : getCanonicalVenta(tenantId, id, receptor);
 }
 
 function sourceDate(value: string | null) {
@@ -864,18 +989,32 @@ async function latestSourceInvoice(
   return data?.[0] ? record(data[0]) : null;
 }
 
+type PreflightEffective = { fechaComprobante?: string | null; tipoDocumento?: number | null; numeroDocumento?: string | null };
+
+export type PreflightOptions = {
+  /** El perfil fiscal del cliente se pide aparte (`getReceptorPrecarga`) para no esperar a ARCA. */
+  receptorDiferido?: boolean;
+};
+
 export async function getDocumentoPreflight(
   actor: TenantActor,
   origenTipo: FacturaOrigenTipo,
   origenId: string,
   ambiente: FacturacionAmbiente = getFacturacionAmbiente(),
-  effective?: { fechaComprobante?: string | null; tipoDocumento?: number | null; numeroDocumento?: string | null },
+  effective?: PreflightEffective,
+  options: PreflightOptions = {},
 ): Promise<{ factura: FacturaElectronicaResumen | null; preflight: FacturacionPreflight }> {
+  // Sin perfil del cliente no se consulta el padrón ni la constancia: alcanza con la
+  // ficha cuando el receptor llega aparte o cuando sólo se refresca la obligación FCE.
+  const sinPerfil = options.receptorDiferido === true || effective?.tipoDocumento != null;
   const [config, source, existing] = await Promise.all([
     getStoredConfig(actor.tenantId, ambiente),
-    getCanonicalSource(actor.tenantId, origenTipo, origenId),
+    getCanonicalSource(actor.tenantId, origenTipo, origenId, sinPerfil ? "NINGUNO" : "PRECARGA"),
     latestSourceInvoice(actor.tenantId, origenTipo, origenId, ambiente),
   ]);
+  const clienteAsociado = sinPerfil
+    ? await registeredClienteAsociado(actor.tenantId, source.clienteId)
+    : source.clienteAsociado ?? null;
   let concepto: 1 | 2 | 3 = 1;
   let lineas = source.lineas;
   let totales = { netoGravado: 0, noGravado: 0, exento: 0, iva: 0, tributos: 0, otrosImpuestosNacionales: 0, total: source.total };
@@ -895,7 +1034,7 @@ export async function getDocumentoPreflight(
   const factura = existing ? mapSummary(existing) : null;
   const receiverDocument = effective?.tipoDocumento != null
     ? effective.tipoDocumento === 80 ? normalizeDocumentNumber(text(effective.numeroDocumento)) : ""
-    : normalizeDocumentNumber(source.receptor.numeroDocumento ?? "");
+    : sinPerfil ? "" : normalizeDocumentNumber(source.receptor.numeroDocumento ?? "");
   const fechaConsulta = effective?.fechaComprobante && isIsoDate(effective.fechaComprobante)
     ? effective.fechaComprobante : defaultFechas(source, concepto).fechaComprobante;
   let fceObligatoria = false;
@@ -920,6 +1059,8 @@ export async function getDocumentoPreflight(
         ambiente: config.ambiente, condicionIvaEmisor: config.condicionIvaEmisor,
       } : undefined,
       receptor: source.receptor,
+      clienteAsociado,
+      ...(options.receptorDiferido ? { receptorPendiente: true } : {}),
       advertenciaArcaReceptor: source.advertenciaArcaReceptor,
       concepto, documentoTipo: "FACTURA",
       claseComprobante: voucher.clase, tipoComprobante: voucher.tipo,
@@ -950,28 +1091,61 @@ export async function getDocumentoResumen(
   return existing ? mapSummary(existing) : null;
 }
 
-export function getFacturaPreflight(actor: TenantActor, id: string, ambiente?: FacturacionAmbiente, effective?: { fechaComprobante?: string | null; tipoDocumento?: number | null; numeroDocumento?: string | null }) {
-  return getDocumentoPreflight(actor, "ARREGLO", id, ambiente, effective);
+export function getFacturaPreflight(actor: TenantActor, id: string, ambiente?: FacturacionAmbiente, effective?: PreflightEffective, options?: PreflightOptions) {
+  return getDocumentoPreflight(actor, "ARREGLO", id, ambiente, effective, options);
 }
 
-export function getVentaFacturaPreflight(actor: TenantActor, id: string, ambiente?: FacturacionAmbiente, effective?: { fechaComprobante?: string | null; tipoDocumento?: number | null; numeroDocumento?: string | null }) {
-  return getDocumentoPreflight(actor, "VENTA", id, ambiente, effective);
+export function getVentaFacturaPreflight(actor: TenantActor, id: string, ambiente?: FacturacionAmbiente, effective?: PreflightEffective, options?: PreflightOptions) {
+  return getDocumentoPreflight(actor, "VENTA", id, ambiente, effective, options);
 }
 
-export function parseFacturaIssueInput(value: unknown): FacturaIssueInput {
+/**
+ * Perfil fiscal sugerido para el cliente del origen (ficha, padrón y constancia de
+ * ARCA). Es la parte lenta de la precarga, por eso el formulario la pide aparte.
+ */
+export async function getReceptorPrecarga(
+  actor: TenantActor,
+  origenTipo: FacturaOrigenTipo,
+  origenId: string,
+): Promise<FacturaReceptorPrecarga> {
+  const source = await getCanonicalSource(actor.tenantId, origenTipo, origenId, "PRECARGA");
+  return {
+    receptor: source.receptor,
+    clienteAsociado: source.clienteAsociado ?? null,
+    ...(source.advertenciaArcaReceptor ? { advertenciaArcaReceptor: source.advertenciaArcaReceptor } : {}),
+  };
+}
+
+function optionalText(value: unknown, label: string): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") throw new FacturacionValidationError(`${label} no es válido`);
+  return value.trim();
+}
+
+/** Parsea los datos del comprobante; las reglas de negocio se validan al preparar el documento. */
+export function parseFacturaDraftInput(value: unknown): FacturaDraftInput {
   const row = record(value);
   const receiver = record(row.receptor);
   const dates = record(row.fechas);
   const condicionVenta = text(row.condicionVenta) || "CONTADO";
   if (condicionVenta.length > 80) {
-    throw new FacturacionValidationError("La condición de venta no puede superar los 80 caracteres");
+    throw new FacturacionValidationError("La condición de venta no puede superar los 80 caracteres", "condicionVenta");
   }
+  if (receiver.modo !== undefined && receiver.modo !== "CLIENTE" && receiver.modo !== "OTRO") {
+    throw new FacturacionValidationError("El receptor elegido no es válido");
+  }
+  const nombre = optionalText(receiver.nombre, "El nombre del receptor");
+  const domicilio = receiver.domicilio === null ? null : optionalText(receiver.domicilio, "El domicilio del receptor");
+  const descripcionDetalleSimplificado = optionalText(row.descripcionDetalleSimplificado, "La descripción del detalle simplificado");
   return {
-    idempotencyKey: assertUuid(row.idempotencyKey, "La clave de idempotencia"),
     ambiente: getFacturacionAmbiente(),
     condicionVenta,
     detalleSimplificado: row.detalleSimplificado === true,
+    ...(descripcionDetalleSimplificado !== undefined ? { descripcionDetalleSimplificado } : {}),
     receptor: {
+      ...(receiver.modo !== undefined ? { modo: receiver.modo as FacturaReceptorModo } : {}),
+      ...(nombre !== undefined ? { nombre } : {}),
+      ...(domicilio !== undefined ? { domicilio: domicilio || null } : {}),
       tipoDocumento: parseDocumento(receiver.tipoDocumento),
       numeroDocumento: nullable(receiver.numeroDocumento),
       condicionIvaReceptorId: parseCondicion(receiver.condicionIvaReceptorId),
@@ -983,8 +1157,47 @@ export function parseFacturaIssueInput(value: unknown): FacturaIssueInput {
       fechaVencimientoPago: nullable(dates.fechaVencimientoPago),
     },
     fceSistema: text(row.fceSistema) === "SCA" || text(row.fceSistema) === "ADC" ? text(row.fceSistema) as "SCA" | "ADC" : null,
-    fcePreflightConfirmada: row.fcePreflightConfirmada === true,
   };
+}
+
+function parseRevisionHash(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "string" || !/^[a-f0-9]{64}$/.test(value)) {
+    throw new FacturacionValidationError("La revisión de la factura no es válida");
+  }
+  return value;
+}
+
+export function parseFacturaIssueInput(value: unknown): FacturaIssueInput {
+  const row = record(value);
+  const revisionHash = parseRevisionHash(row.revisionHash);
+  return {
+    idempotencyKey: assertUuid(row.idempotencyKey, "La clave de idempotencia"),
+    ...parseFacturaDraftInput(value),
+    fcePreflightConfirmada: row.fcePreflightConfirmada === true,
+    ...(revisionHash ? { revisionHash } : {}),
+  };
+}
+
+export type FacturaPreviewRequest = {
+  origenTipo: FacturaOrigenTipo;
+  origenId: string;
+  draft: FacturaDraftInput;
+  revisionHash?: string;
+};
+
+export function parseFacturaPreviewRequest(value: unknown): FacturaPreviewRequest {
+  const row = record(value);
+  const origenTipo = text(row.origenTipo);
+  if (origenTipo !== "ARREGLO" && origenTipo !== "VENTA") {
+    throw new FacturacionValidationError("El origen de la factura no es válido");
+  }
+  const origenId = text(row.origenId);
+  if (!origenId || origenId.length > 64) throw new FacturacionValidationError("El origen de la factura no es válido");
+  const draft = parseFacturaDraftInput(value);
+  if (!draft.receptor.modo) throw new FacturacionValidationError("Elegí a quién se emite la factura");
+  const revisionHash = parseRevisionHash(row.revisionHash);
+  return { origenTipo, origenId, draft, ...(revisionHash ? { revisionHash } : {}) };
 }
 
 function parseCondicionIngresosBrutos(value: unknown): CondicionIngresosBrutos | null {
@@ -1017,6 +1230,7 @@ function receiverSnapshot(receiver: PerfilFiscalCliente) {
     clienteId: receiver.clienteId, nombre: receiver.nombre, domicilio: receiver.domicilio,
     tipoDocumento: document.tipoDocumento, numeroDocumento: document.numeroDocumento,
     condicionIvaReceptorId: receiver.condicionIvaReceptorId,
+    ...(receiver.identidadRevisada ? { identidadRevisada: true as const } : {}),
   };
 }
 
@@ -1099,6 +1313,9 @@ type EmitDocumentInput = {
   stockOrigins: FacturaStockOrigen[];
   intentHash: string;
   devoluciones?: Array<{ operacionLineaId: string; cantidad: number }>;
+  /** Obligación FCE ya resuelta al preparar el documento; evita otra consulta a ARCA. */
+  fceMipyme?: boolean;
+  gateway?: ArcaGateway;
 };
 
 async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResult> {
@@ -1108,9 +1325,9 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
   const fiscal = input.fiscal ?? fiscalizeLineas(input.lines, input.config.condicionIvaEmisor);
   const ordinaryVoucher = determineVoucher(input.config.condicionIvaEmisor, input.receiver.condicionIvaReceptorId, input.documentType);
   const receiverDocument = validateReceiverIdentification(input.receiver, ordinaryVoucher.clase);
-  const gateway = await createGateway(input.config);
-  let isFce = false;
-  if (input.documentType === "FACTURA" && receiverDocument.tipoDocumento === 80) {
+  const gateway = input.gateway ?? await createGateway(input.config);
+  let isFce = input.fceMipyme ?? false;
+  if (input.fceMipyme === undefined && input.documentType === "FACTURA" && receiverDocument.tipoDocumento === 80) {
     const requirement = await gateway.getFceMipymeRequirement(receiverDocument.numeroDocumento, input.dates.fechaComprobante);
     isFce = fceMipymeRequired(requirement, fiscal.totales.total);
   }
@@ -1296,13 +1513,420 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
 
 export function normalizedFacturaIntent(origenTipo: FacturaOrigenTipo, origenId: string, input: FacturaIssueInput) {
   const normalizeDate = (value: unknown) => text(value) || null;
+  const receiver = input.receptor;
+  // Los pedidos históricos no informan identidad revisada ni texto simplificado:
+  // esos campos se agregan sólo cuando existen para no alterar su huella. La
+  // huella de revisión es frescura, no intención, y no forma parte del hash.
   return { origenTipo, origenId, ambiente: parseAmbiente(input.ambiente), documentoTipo: "FACTURA",
     fechas: { fechaComprobante: normalizeDate(input.fechas?.fechaComprobante), fechaServicioDesde: normalizeDate(input.fechas?.fechaServicioDesde), fechaServicioHasta: normalizeDate(input.fechas?.fechaServicioHasta), fechaVencimientoPago: normalizeDate(input.fechas?.fechaVencimientoPago) },
-    receptor: { tipoDocumento: input.receptor?.tipoDocumento ?? null,
-      numeroDocumento: normalizeDocumentNumber(text(input.receptor?.numeroDocumento)),
-      condicionIvaReceptorId: input.receptor?.condicionIvaReceptorId ?? null },
+    receptor: { tipoDocumento: receiver?.tipoDocumento ?? null,
+      numeroDocumento: normalizeDocumentNumber(text(receiver?.numeroDocumento)),
+      condicionIvaReceptorId: receiver?.condicionIvaReceptorId ?? null,
+      ...(receiver?.modo !== undefined
+        ? { modo: receiver.modo, nombre: text(receiver.nombre), domicilio: text(receiver.domicilio) || null }
+        : {}) },
     condicionVenta: text(input.condicionVenta), detalleSimplificado: input.detalleSimplificado === true,
-    fceSistema: input.fceSistema ?? null, fcePreflightConfirmada: input.fcePreflightConfirmada === true };
+    fceSistema: input.fceSistema ?? null, fcePreflightConfirmada: input.fcePreflightConfirmada === true,
+    ...(input.detalleSimplificado === true && input.descripcionDetalleSimplificado !== undefined
+      ? { descripcionDetalleSimplificado: text(input.descripcionDetalleSimplificado) }
+      : {}) };
+}
+
+type IssueMeta = { codigo: string; grupo: FacturaIssueGrupo; campo?: string };
+
+/**
+ * Al emitir conserva el error original (mismo mensaje y orden de siempre); al
+ * revisar acumula los bloqueos independientes para devolverlos agrupados.
+ */
+class FacturaIssueCollector {
+  readonly issues: FacturaIssue[] = [];
+
+  constructor(private readonly mode: "REVISION" | "EMISION") {}
+
+  fail(error: FacturacionValidationError, meta: IssueMeta) {
+    if (this.mode === "EMISION") throw error;
+    const campo = error.campo ?? meta.campo;
+    this.issues.push({
+      codigo: meta.codigo, grupo: meta.grupo, mensaje: error.message, severidad: "error",
+      ...(campo ? { campo } : {}),
+    });
+  }
+
+  failWith(issue: FacturaIssue) {
+    this.fail(new FacturacionValidationError(issue.mensaje, issue.campo), issue);
+  }
+
+  check<T>(run: () => T, meta: IssueMeta): T | undefined {
+    try {
+      return run();
+    } catch (error) {
+      if (!(error instanceof FacturacionValidationError)) throw error;
+      this.fail(error, meta);
+      return undefined;
+    }
+  }
+
+  warn(issue: Omit<FacturaIssue, "severidad">) {
+    this.issues.push({ ...issue, severidad: "advertencia" });
+  }
+
+  hasErrors(grupo?: FacturaIssueGrupo) {
+    return this.issues.some((issue) => issue.severidad === "error" && (!grupo || issue.grupo === grupo));
+  }
+}
+
+type FacturaBase = {
+  source: CanonicalSource;
+  config: StoredConfig;
+  concepto?: FacturaConcepto;
+  fiscal?: ReturnType<typeof fiscalizeLineas>;
+  fechasValidas: boolean;
+  receiver: PerfilFiscalCliente;
+  clienteAsociado: FacturaClienteAsociado | null;
+};
+
+type FacturaResuelta = {
+  isFce: boolean;
+  gateway?: ArcaGateway;
+  voucher?: { clase: FacturaClase; tipo: number };
+  persistedLines?: FacturaLinea[];
+  fechas: FacturaFechaInput;
+  revisionHash?: string;
+};
+
+/** Receptor revisado en el formulario; el vínculo con el cliente lo decide el servidor. */
+function reviewedReceiver(input: FacturaDraftInput["receptor"], clienteId: string | null): PerfilFiscalCliente {
+  if (input.tipoDocumento === 99) {
+    // Consumidor final sin identificar: no hereda nombre, domicilio ni vínculo con el cliente.
+    return { ...anonymousReceiver(), condicionIvaReceptorId: input.condicionIvaReceptorId, identidadRevisada: true };
+  }
+  return {
+    clienteId: input.modo === "CLIENTE" ? clienteId : null,
+    nombre: input.nombre ?? "",
+    domicilio: input.domicilio ?? null,
+    tipoDocumento: input.tipoDocumento,
+    numeroDocumento: input.numeroDocumento,
+    condicionIvaReceptorId: input.condicionIvaReceptorId,
+    identidadRevisada: true,
+  };
+}
+
+/** Fechas tal como se guardan e imprimen en el comprobante. */
+function effectiveFechas(concepto: FacturaConcepto, fechas: FacturaFechaInput, isFce: boolean): FacturaFechaInput {
+  return {
+    fechaComprobante: text(fechas.fechaComprobante),
+    fechaServicioDesde: concepto === 1 ? null : nullable(fechas.fechaServicioDesde),
+    fechaServicioHasta: concepto === 1 ? null : nullable(fechas.fechaServicioHasta),
+    fechaVencimientoPago: concepto === 1 && !isFce ? null : nullable(fechas.fechaVencimientoPago),
+  };
+}
+
+/**
+ * Origen, totales y receptor del comprobante, sin consultar ARCA ni escribir. La
+ * revisión y la emisión usan esta misma preparación.
+ */
+async function prepareFacturaBase(
+  actor: TenantActor,
+  origenTipo: FacturaOrigenTipo,
+  origenId: string,
+  input: FacturaDraftInput,
+  collector: FacturaIssueCollector,
+): Promise<FacturaBase | null> {
+  const config = await getStoredConfig(actor.tenantId, input.ambiente);
+  if (!config?.configurada) {
+    collector.fail(
+      new FacturacionValidationError("La facturación electrónica no está configurada"),
+      { codigo: "FACTURACION_SIN_CONFIGURAR", grupo: "CONFIGURACION" },
+    );
+    return null;
+  }
+  if (input.detalleSimplificado && origenTipo !== "ARREGLO") {
+    collector.fail(
+      new FacturacionValidationError("El detalle simplificado sólo está disponible para arreglos"),
+      { codigo: "DETALLE_SIMPLIFICADO_NO_DISPONIBLE", grupo: "DETALLE" },
+    );
+  }
+  if (input.detalleSimplificado && input.descripcionDetalleSimplificado !== undefined) {
+    descripcionSimplificadaIssues(input.descripcionDetalleSimplificado).forEach((issue) => collector.failWith(issue));
+  }
+  const revisado = input.receptor.modo !== undefined;
+  const anonymous = input.receptor.tipoDocumento === 99;
+  if (revisado && !anonymous) {
+    receptorIdentidadIssues({ nombre: input.receptor.nombre ?? "", domicilio: input.receptor.domicilio ?? null })
+      .forEach((issue) => collector.failWith(issue));
+  }
+
+  let source: CanonicalSource;
+  try {
+    // La elección explícita de documento 99 no hereda datos del cliente asociado;
+    // un receptor revisado tampoco se completa con la ficha ni el padrón.
+    source = await getCanonicalSource(
+      actor.tenantId, origenTipo, origenId,
+      revisado ? "NINGUNO" : anonymous ? "ANONIMO" : "PERFIL",
+    );
+  } catch (error) {
+    if (!(error instanceof FacturacionValidationError)) throw error;
+    collector.fail(error, { codigo: "ORIGEN_NO_DISPONIBLE", grupo: "DETALLE" });
+    return null;
+  }
+  const concepto = collector.check(() => deriveFacturaConcepto(source.lineas), { codigo: "ORIGEN_SIN_LINEAS", grupo: "DETALLE" });
+  const fechasValidas = concepto !== undefined
+    && collector.check(() => validateFechas(concepto, input.fechas), { codigo: "FECHAS_INVALIDAS", grupo: "COMPROBANTE" }) !== undefined;
+  const fiscal = collector.check(() => {
+    const result = fiscalizeLineas(source.lineas, config.condicionIvaEmisor, source.preciosIncluyenIva, source.tasaIvaComercial ?? 0.21);
+    validateLineasYTotal(result.lineas.map((line) => ({ ...line, subtotal: line.importeTotal! })), source.total);
+    return result;
+  }, { codigo: "DETALLE_INCONSISTENTE", grupo: "DETALLE" });
+
+  const clienteAsociado = revisado
+    ? await registeredClienteAsociado(actor.tenantId, source.clienteId)
+    : source.clienteAsociado ?? null;
+  const receiver: PerfilFiscalCliente = revisado ? reviewedReceiver(input.receptor, source.clienteId) : {
+    // La ficha precarga el formulario; la identificación fiscal elegida para
+    // este comprobante prevalece y se valida sin modificar al cliente asociado.
+    ...source.receptor,
+    tipoDocumento: input.receptor.tipoDocumento,
+    numeroDocumento: input.receptor.numeroDocumento,
+    condicionIvaReceptorId: input.receptor.condicionIvaReceptorId,
+    ...(input.receptor.nombre !== undefined ? { nombre: input.receptor.nombre } : {}),
+    ...(input.receptor.domicilio !== undefined ? { domicilio: input.receptor.domicilio } : {}),
+  };
+  const document = collector.check(
+    () => validateDocument(receiver.tipoDocumento, receiver.numeroDocumento),
+    { codigo: "RECEPTOR_DOCUMENTO_INVALIDO", grupo: "RECEPTOR", campo: "receptor.numeroDocumento" },
+  );
+  if (document && input.receptor.modo === "CLIENTE" && document.tipoDocumento !== 99 && clienteAsociado?.documento
+    && !documentoCorrespondeAlCliente(document.numeroDocumento, clienteAsociado.documento)) {
+    collector.fail(
+      new FacturacionValidationError(documentoNoCorrespondeMensaje(origenTipo), "receptor.numeroDocumento"),
+      { codigo: "DOCUMENTO_NO_CORRESPONDE_AL_CLIENTE", grupo: "RECEPTOR" },
+    );
+  }
+  if (document?.tipoDocumento === 99 && fiscal && isIsoDate(input.fechas.fechaComprobante)
+    && fiscal.totales.total >= await identificationThreshold(input.fechas.fechaComprobante)) {
+    collector.fail(
+      new FacturacionValidationError("Por el monto del comprobante debe identificar al consumidor final", "receptor.tipoDocumento"),
+      { codigo: "CONSUMIDOR_FINAL_REQUIERE_IDENTIFICACION", grupo: "RECEPTOR" },
+    );
+  }
+  if (!receiver.condicionIvaReceptorId) {
+    collector.fail(
+      new FacturacionValidationError("La condición IVA es obligatoria", "receptor.condicionIva"),
+      { codigo: "RECEPTOR_CONDICION_IVA_REQUERIDA", grupo: "RECEPTOR" },
+    );
+  } else if (document) {
+    const ordinary = determineVoucher(config.condicionIvaEmisor, receiver.condicionIvaReceptorId);
+    collector.check(
+      () => validateReceiverIdentification(receiver, ordinary.clase),
+      { codigo: "RECEPTOR_IDENTIFICACION_INVALIDA", grupo: "RECEPTOR" },
+    );
+  }
+  return { source, config, concepto, fiscal, fechasValidas, receiver, clienteAsociado };
+}
+
+/**
+ * Obligación FCE, tipo efectivo, líneas de presentación y huella. Sólo consulta
+ * ARCA (lectura) cuando el receptor, las fechas y los importes son válidos.
+ */
+async function resolveFacturaDocument(
+  base: FacturaBase,
+  input: FacturaDraftInput,
+  collector: FacturaIssueCollector,
+  mode: "REVISION" | "EMISION",
+  origen: { origenTipo: FacturaOrigenTipo; origenId: string },
+): Promise<FacturaResuelta> {
+  const { config, source, fiscal, concepto, receiver } = base;
+  let isFce = false;
+  let gateway: ArcaGateway | undefined;
+  if (receiver.tipoDocumento === 80 && fiscal && base.fechasValidas && !collector.hasErrors("RECEPTOR")) {
+    try {
+      gateway = await createGateway(config);
+      const requirement = await gateway.getFceMipymeRequirement(
+        normalizeDocumentNumber(receiver.numeroDocumento), input.fechas.fechaComprobante,
+      );
+      isFce = fceMipymeRequired(requirement, fiscal.totales.total);
+    } catch (error) {
+      if (mode === "EMISION") throw error;
+      if (error instanceof FacturacionValidationError) {
+        collector.fail(error, { codigo: "CONFIGURACION_INVALIDA", grupo: "CONFIGURACION" });
+      } else {
+        if (!(error instanceof FceMipymeQueryError)) logger.error("No se pudo consultar la obligación FCE al revisar la factura", error);
+        collector.failWith({
+          codigo: "FCE_INDETERMINADA", grupo: "CONFIGURACION", severidad: "error",
+          mensaje: error instanceof FceMipymeQueryError
+            ? error.message
+            : "No se pudo consultar la obligación de Factura de Crédito Electrónica MiPyME. Reintentá la revisión.",
+        });
+      }
+    }
+  }
+  if (mode === "REVISION" && isFce) {
+    if (!config.fceCbu || !config.fceSistema) {
+      collector.failWith({
+        codigo: "FCE_SIN_CONFIGURAR", grupo: "CONFIGURACION", severidad: "error",
+        mensaje: "ARCA determinó que corresponde una FCE. Configurá el CBU fiscal y elegí el sistema SCA/ADC en Configuración antes de emitir.",
+      });
+    }
+    if (!hasFiscalIibb(ingresosBrutosEmisor(config))) {
+      collector.warn({
+        codigo: "FCE_SIN_IIBB", grupo: "CONFIGURACION",
+        mensaje: "Completá Ingresos Brutos en Configuración > Facturación: el PDF de la FCE lo requiere.",
+      });
+    }
+    if (concepto !== undefined && base.fechasValidas) {
+      collector.check(
+        () => validateFechas(concepto, input.fechas, new Date(), true),
+        { codigo: "FECHAS_INVALIDAS", grupo: "COMPROBANTE" },
+      );
+    }
+  }
+  const voucher = receiver.condicionIvaReceptorId
+    ? determineVoucher(config.condicionIvaEmisor, receiver.condicionIvaReceptorId, "FACTURA", isFce)
+    : undefined;
+  const persistedLines = input.detalleSimplificado && fiscal && origen.origenTipo === "ARREGLO"
+    ? [createSimplifiedArregloLine(source, fiscal, input.descripcionDetalleSimplificado || undefined)]
+    : undefined;
+  const fechas = concepto !== undefined ? effectiveFechas(concepto, input.fechas, isFce) : input.fechas;
+  const revisionHash = !collector.hasErrors() && voucher && fiscal && concepto !== undefined
+    ? createHash("sha256").update(JSON.stringify({
+      origenTipo: origen.origenTipo, origenId: origen.origenId, ambiente: config.ambiente,
+      emisor: emitterSnapshot(config), puntoVenta: config.puntoVenta,
+      receptor: receiverSnapshot(receiver), fechas, condicionVenta: input.condicionVenta,
+      concepto, documentoTipo: "FACTURA", tipoComprobante: voucher.tipo, claseComprobante: voucher.clase,
+      lineasFiscales: fiscal.lineas, lineasPresentacion: persistedLines ?? null, totales: fiscal.totales,
+      preciosIncluyenIva: source.preciosIncluyenIva ?? true, tasaIvaComercial: source.tasaIvaComercial ?? null,
+      stockOrigenes: stockOriginsHash(source.stockOrigins),
+      fce: isFce ? { cbu: config.fceCbu, sistema: config.fceSistema } : null,
+    })).digest("hex")
+    : undefined;
+  return { isFce, gateway, voucher, persistedLines, fechas, revisionHash };
+}
+
+function revisionLine(line: FacturaLinea): FacturaRevisionLinea {
+  return {
+    ordinal: line.ordinal, origen: line.origen, descripcion: line.descripcion, codigo: line.codigo ?? null,
+    cantidad: line.cantidad, importeUnitario: line.importeUnitario, subtotal: line.subtotal,
+    tratamientoIva: line.tratamientoIva, ivaAlicuota: line.ivaAlicuota, importeNeto: line.importeNeto,
+    importeIva: line.importeIva, importeTotal: line.importeTotal, importeMostrado: importeLineaMostrado(line),
+  };
+}
+
+type FacturaRevisionPreparada = {
+  revision: FacturaRevision | null;
+  issues: FacturaIssue[];
+  base?: FacturaBase;
+  resolved?: FacturaResuelta;
+};
+
+/**
+ * Prepara el documento efectivo sin efectos de emisión: no adquiere lease, no
+ * consulta ni reserva correlativo, no llama a la RPC de preparación ni escribe.
+ */
+async function prepareFacturaRevision(
+  actor: TenantActor,
+  origenTipo: FacturaOrigenTipo,
+  origenId: string,
+  input: FacturaDraftInput,
+): Promise<FacturaRevisionPreparada> {
+  const collector = new FacturaIssueCollector("REVISION");
+  const [base, existing] = await Promise.all([
+    prepareFacturaBase(actor, origenTipo, origenId, input, collector),
+    latestSourceInvoice(actor.tenantId, origenTipo, origenId, input.ambiente),
+  ]);
+  const estado = existing ? text(existing.estado) : null;
+  if (estado === "AUTORIZADA") {
+    collector.failWith({ codigo: "FACTURA_YA_AUTORIZADA", grupo: "EMISION", mensaje: "El origen ya posee una factura autorizada", severidad: "error" });
+  } else if (estado === "ENVIANDO" || estado === "INCIERTA") {
+    collector.failWith({ codigo: "EMISION_PENDIENTE", grupo: "EMISION", mensaje: "Existe una emisión pendiente de reconciliación", severidad: "error" });
+  }
+  if (!base) return { revision: null, issues: collector.issues };
+  const resolved = await resolveFacturaDocument(base, input, collector, "REVISION", { origenTipo, origenId });
+  const { config, fiscal, concepto, receiver } = base;
+  if (collector.hasErrors() || !resolved.revisionHash || !resolved.voucher || !fiscal || concepto === undefined) {
+    return { revision: null, issues: collector.issues };
+  }
+  const emisor = emitterSnapshot(config);
+  const revision: FacturaRevision = {
+    revisionHash: resolved.revisionHash,
+    origenTipo, origenId, ambiente: config.ambiente,
+    clienteAsociado: base.clienteAsociado,
+    receptorModo: input.receptor.modo ?? "CLIENTE",
+    emisor: {
+      razonSocial: emisor.razonSocial, nombreFantasia: emisor.nombreFantasia, cuit: emisor.cuit,
+      domicilio: emisor.domicilio, condicionIva: emisor.condicionIva, ingresosBrutos: emisor.ingresosBrutos,
+      inicioActividades: emisor.inicioActividades, puntoVenta: config.puntoVenta,
+    },
+    receptor: receiverSnapshot(receiver),
+    documentoTipo: "FACTURA",
+    claseComprobante: resolved.voucher.clase,
+    tipoComprobante: resolved.voucher.tipo,
+    concepto,
+    fce: resolved.isFce ? { sistema: config.fceSistema, cbu: config.fceCbu } : null,
+    condicionVenta: input.condicionVenta,
+    fechas: resolved.fechas,
+    moneda: "PES",
+    detalleSimplificado: Boolean(resolved.persistedLines),
+    lineas: (resolved.persistedLines ?? fiscal.lineas).map(revisionLine),
+    cantidadLineasOriginales: fiscal.lineas.length,
+    preciosIncluyenIva: base.source.preciosIncluyenIva ?? true,
+    totales: fiscal.totales,
+    issues: collector.issues,
+  };
+  return { revision, issues: collector.issues, base, resolved };
+}
+
+export async function previewSourceFactura(
+  actor: TenantActor,
+  origenTipo: FacturaOrigenTipo,
+  origenId: string,
+  input: FacturaDraftInput,
+): Promise<{ revision: FacturaRevision | null; issues: FacturaIssue[] }> {
+  const { revision, issues } = await prepareFacturaRevision(actor, origenTipo, origenId, input);
+  return { revision, issues };
+}
+
+function fiscalPdfLine(line: FacturaLinea): FiscalPdfLine {
+  return {
+    codigo: line.codigo ?? null, descripcion: line.descripcion, cantidad: line.cantidad,
+    importeUnitario: line.importeUnitario, subtotal: line.subtotal,
+    importeTotal: importeLineaMostrado(line),
+    tratamientoIva: line.tratamientoIva, ivaAlicuota: line.ivaAlicuota,
+  };
+}
+
+/** PDF borrador del mismo contenido revisado; nunca se guarda ni se asocia a una factura. */
+export async function buildFacturaDraftPdf(
+  actor: TenantActor,
+  request: FacturaPreviewRequest,
+): Promise<{ bytes: Uint8Array; filename: string }> {
+  if (!request.revisionHash) throw new FacturacionValidationError("Revisá la factura antes de generar la vista previa");
+  const prepared = await prepareFacturaRevision(actor, request.origenTipo, request.origenId, request.draft);
+  if (!prepared.revision || !prepared.base || !prepared.resolved?.voucher || !prepared.base.fiscal || prepared.base.concepto === undefined) {
+    throw new FacturaIssuesError(prepared.issues);
+  }
+  if (prepared.revision.revisionHash !== request.revisionHash) throw new FacturaRevisionDesactualizadaError();
+  const { config, fiscal, concepto, receiver } = prepared.base;
+  const { voucher, isFce, persistedLines, fechas } = prepared.resolved;
+  const bytes = await generateFiscalDraftPdf({
+    emisorSnapshot: emitterSnapshot(config),
+    receptorSnapshot: receiverSnapshot(receiver),
+    concepto,
+    fechaComprobante: fechas.fechaComprobante,
+    fechaServicioDesde: fechas.fechaServicioDesde ?? null,
+    fechaServicioHasta: fechas.fechaServicioHasta ?? null,
+    fechaVencimientoPago: fechas.fechaVencimientoPago ?? null,
+    total: fiscal.totales.total,
+    puntoVenta: config.puntoVenta,
+    tipoComprobante: voucher.tipo,
+    claseComprobante: voucher.clase,
+    documentoTipo: "FACTURA",
+    fceSistema: isFce ? config.fceSistema : null,
+    fceCbu: isFce ? config.fceCbu : null,
+    condicionVenta: request.draft.condicionVenta,
+    totales: fiscal.totales,
+    lineas: (persistedLines ?? fiscal.lineas).map(fiscalPdfLine),
+  });
+  return { bytes, filename: `borrador-factura-${voucher.clase.toLowerCase()}.pdf` };
 }
 
 async function issueSourceFactura(
@@ -1347,24 +1971,11 @@ async function issueSourceFactura(
       throw new FacturacionValidationError("Use una clave nueva para preparar un reintento de la factura rechazada");
     }
   }
-  const config = await getStoredConfig(actor.tenantId, input.ambiente);
-  if (!config?.configurada) throw new FacturacionValidationError("La facturación electrónica no está configurada");
-  if (input.detalleSimplificado && origenTipo !== "ARREGLO") {
-    throw new FacturacionValidationError("El detalle simplificado sólo está disponible para arreglos");
-  }
-  // La elección explícita de documento 99 no hereda datos del cliente asociado.
-  const source = await getCanonicalSource(actor.tenantId, origenTipo, origenId, input.receptor.tipoDocumento === 99);
-  const concepto = deriveFacturaConcepto(source.lineas);
-  validateFechas(concepto, input.fechas);
-  const fiscal = fiscalizeLineas(source.lineas, config.condicionIvaEmisor, source.preciosIncluyenIva, source.tasaIvaComercial ?? 0.21);
-  validateLineasYTotal(fiscal.lineas.map((line) => ({ ...line, subtotal: line.importeTotal! })), source.total);
-  // La ficha precarga el formulario; la identificación fiscal elegida para
-  // este comprobante prevalece y se valida sin modificar al cliente asociado.
-  const receiver = { ...source.receptor, ...input.receptor };
-  const document = validateDocument(receiver.tipoDocumento, receiver.numeroDocumento);
-  if (document.tipoDocumento === 99 && fiscal.totales.total >= await identificationThreshold(input.fechas.fechaComprobante)) {
-    throw new FacturacionValidationError("Por el monto del comprobante debe identificar al consumidor final");
-  }
+  // Misma preparación que la revisión; al emitir, cada validación conserva su error original.
+  const collector = new FacturaIssueCollector("EMISION");
+  const base = await prepareFacturaBase(actor, origenTipo, origenId, input, collector);
+  if (!base?.fiscal || base.concepto === undefined) throw new FacturacionValidationError("No se pudo preparar la factura");
+  const { source, config } = base;
   const intentHash = requestedHash;
   const supabase = await createClient();
   const { data: priorIntent, error: intentLookupError } = await supabase.from("facturacion_idempotencia_intenciones")
@@ -1400,14 +2011,21 @@ async function issueSourceFactura(
       message: summary.estado === "AUTORIZADA" ? undefined : "La emisión debe reconciliarse antes de reintentar",
     };
   }
+  const resolved = await resolveFacturaDocument(base, input, collector, "EMISION", { origenTipo, origenId });
+  // Con una revisión confirmada, cualquier cambio observado antes de numerar
+  // obliga a revisar de nuevo en lugar de emitir otro contenido.
+  if (input.revisionHash && resolved.revisionHash !== input.revisionHash) {
+    throw new FacturaRevisionDesactualizadaError();
+  }
   return emitDocument({
     actor, source, config, documentType: "FACTURA", idempotencyKey: input.idempotencyKey,
-    receiver, dates: input.fechas, condition: input.condicionVenta,
-    lines: source.lineas, fiscal, fceSistema: config.fceSistema, stockOrigins: source.stockOrigins,
+    receiver: base.receiver, dates: input.fechas, condition: input.condicionVenta,
+    lines: source.lineas, fiscal: base.fiscal, fceSistema: config.fceSistema, stockOrigins: source.stockOrigins,
     fcePreflightConfirmada: input.fcePreflightConfirmada,
-    persistedLines: input.detalleSimplificado ? [createSimplifiedArregloLine(source, fiscal)] : undefined,
-    concepto,
+    persistedLines: resolved.persistedLines,
+    concepto: base.concepto,
     retry: existing, intentHash,
+    fceMipyme: resolved.isFce, gateway: resolved.gateway,
   });
 }
 
@@ -1660,6 +2278,7 @@ export async function issueNotaFiscal(
     id: text(original.origen_tipo) === "VENTA" ? text(original.operacion_id) : text(original.arreglo_id),
     origenTipo: text(original.origen_tipo) === "VENTA" ? "VENTA" : "ARREGLO",
     fecha: text(original.fecha_comprobante), total: input.importe,
+    clienteId: nullable(record(original.receptor_snapshot).clienteId),
     receptor: profileFromSnapshot(record(original.receptor_snapshot)),
     lineas: noteConceptLines(originalLines, input.conceptos, input.devoluciones),
     stockOrigins,
@@ -1833,6 +2452,7 @@ function profileFromSnapshot(value: DbRecord): PerfilFiscalCliente {
     clienteId: nullable(value.clienteId), nombre: text(value.nombre) || "Consumidor final",
     domicilio: nullable(value.domicilio), tipoDocumento: parseDocumento(value.tipoDocumento),
     numeroDocumento: nullable(value.numeroDocumento), condicionIvaReceptorId: parseCondicion(value.condicionIvaReceptorId),
+    ...(value.identidadRevisada === true ? { identidadRevisada: true as const } : {}),
   };
 }
 
@@ -2008,26 +2628,19 @@ export function isVerifiedFiscalPdfCache(input: {
   return createHash("sha256").update(input.bytes).digest("hex") === input.storedSha256;
 }
 
-function isRegisteredClientDocument(invoiceDocument: string, clientDocument: string): boolean {
-  if (!invoiceDocument || !clientDocument) return false;
-  if (invoiceDocument === clientDocument) return true;
-  // La ficha puede guardar el DNI y la factura el CUIL que ARCA asoció a ese DNI.
-  return invoiceDocument.length === 11
-    && (clientDocument.length === 7 || clientDocument.length === 8)
-    && invoiceDocument.slice(2, 10) === clientDocument.padStart(8, "0");
-}
-
 /**
  * Si el comprobante se emitió a un CUIT/CUIL distinto al del cliente registrado,
  * el snapshot conserva nombre y domicilio de la ficha; se reemplazan por los del padrón.
+ * Un receptor revisado antes de emitir ya guarda la identidad que se imprime.
  */
 export async function resolvePdfReceiverSnapshot(tenantId: string, receiver: DbRecord): Promise<DbRecord> {
+  if (receiver.identidadRevisada === true) return receiver;
   const tipoDocumento = parseDocumento(receiver.tipoDocumento);
   if (tipoDocumento !== 80 && tipoDocumento !== 86) return receiver;
   const documento = normalizeDocumentNumber(text(receiver.numeroDocumento));
   const clienteId = nullable(receiver.clienteId);
   const client = clienteId ? await getRegisteredClient(tenantId, clienteId) : null;
-  if (client && isRegisteredClientDocument(documento, client.documento)) return receiver;
+  if (client && documentoCorrespondeAlCliente(documento, client.documento)) return receiver;
 
   try {
     const lookup = await lookupArcaPadronPerson(tipoDocumento, documento);
@@ -2092,12 +2705,7 @@ export async function buildFacturaPdf(tenantId: string, facturaId: string): Prom
     claseComprobante: detail.claseComprobante, documentoTipo: detail.documentoTipo, fceSistema: detail.fceSistema, fceCbu: detail.fceCbu,
     condicionVenta: detail.condicionVenta, totales: detail.totales,
     numeroComprobante: detail.numeroComprobante!, cae: detail.cae!, caeVencimiento: detail.caeVencimiento!,
-    lineas: detail.lineas.map((line) => ({
-      codigo: line.codigo ?? null, descripcion: line.descripcion, cantidad: line.cantidad,
-      importeUnitario: line.importeUnitario, subtotal: line.subtotal,
-      importeTotal: importeLineaMostrado(line),
-      tratamientoIva: line.tratamientoIva, ivaAlicuota: line.ivaAlicuota,
-    })),
+    lineas: detail.lineas.map(fiscalPdfLine),
     comprobanteAsociado: detail.documentoTipo !== "FACTURA" && detail.documentoAsociado?.numeroComprobante
       ? {
         tipoComprobante: detail.documentoAsociado.tipoComprobante,

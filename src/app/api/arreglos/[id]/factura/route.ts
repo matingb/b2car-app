@@ -1,12 +1,11 @@
 import {
   FacturacionValidationError,
-  FceDataRequiredError,
   getFacturaPreflight,
   issueFacturaElectronica,
   parseFacturaIssueInput,
 } from "@/lib/facturacion/facturacionService";
 import { getFacturacionAmbiente } from "@/lib/facturacion/environment";
-import { FceMipymeRequiredError } from "@/lib/facturacion/fceMipyme";
+import { facturaValidationErrorResponse } from "@/lib/facturacion/facturaHttp";
 import {
   facturacionErrorResponse,
   requireTenantBillingActor,
@@ -27,7 +26,7 @@ export async function GET(
       fechaComprobante: searchParams.get("fechaComprobante"),
       tipoDocumento: searchParams.get("tipoDocumento") ? Number(searchParams.get("tipoDocumento")) : null,
       numeroDocumento: searchParams.get("numeroDocumento"),
-    });
+    }, { receptorDiferido: searchParams.get("receptor") === "diferido" });
     return Response.json({
       data: {
         ...result,
@@ -36,13 +35,7 @@ export async function GET(
       error: null,
     });
   } catch (error) {
-    if (error instanceof FacturacionValidationError) {
-      return Response.json({
-        error: error.message,
-        code: error instanceof FceDataRequiredError || error instanceof FceMipymeRequiredError ? error.code : null,
-        ...(error instanceof FceDataRequiredError ? { fce: error.requiredData } : {}),
-      }, { status: 422 });
-    }
+    if (error instanceof FacturacionValidationError) return facturaValidationErrorResponse(error);
     return facturacionErrorResponse(error);
   }
 }
@@ -60,13 +53,7 @@ export async function POST(
     return Response.json({ data: result.invoice, error: result.message ?? null }, { status: result.httpStatus });
   } catch (error) {
     logger.error("Error al emitir la factura:", error);
-    if (error instanceof FacturacionValidationError) {
-      return Response.json({
-        error: error.message,
-        code: error instanceof FceDataRequiredError || error instanceof FceMipymeRequiredError ? error.code : null,
-        ...(error instanceof FceDataRequiredError ? { fce: error.requiredData } : {}),
-      }, { status: 422 });
-    }
+    if (error instanceof FacturacionValidationError) return facturaValidationErrorResponse(error);
     return facturacionErrorResponse(error);
   }
 }
