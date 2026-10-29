@@ -16,6 +16,8 @@ type Props = {
   actualizando?: boolean;
 };
 
+const MIN_VIEWER_HEIGHT = 240;
+
 /** Muestra el borrador con el mismo visor que el comprobante no fiscal. */
 export default function FacturaRevisionView({ revision, html, toolbar, actualizando = false }: Props) {
   const advertencias = revision.issues.filter((issue) => issue.severidad === "advertencia");
@@ -47,7 +49,7 @@ export default function FacturaRevisionView({ revision, html, toolbar, actualiza
 }
 
 const styles = {
-  container: { display: "flex", flexDirection: "column" as const, gap: 12, minWidth: 0 },
+  container: { display: "flex", flexDirection: "column" as const, gap: 12, minWidth: 0, flex: "1 1 auto" },
   draftBanner: {
     padding: "8px 12px",
     border: `1px solid ${COLOR.SEMANTIC.ALERT}`,
@@ -59,8 +61,9 @@ const styles = {
     fontWeight: 700,
     letterSpacing: "0.04em",
   },
-  viewerWrapper: { position: "relative" as const, display: "flex", flexDirection: "column" as const },
-  viewer: { height: "min(65dvh, 720px)", flex: "none", transition: "opacity 0.15s ease" },
+  // El visor llena el alto que dejan los demás bloques; con poco alto disponible no baja de MIN_VIEWER_HEIGHT.
+  viewerWrapper: { position: "relative" as const, flex: "1 1 0px", minHeight: MIN_VIEWER_HEIGHT },
+  viewer: { position: "absolute" as const, inset: 0, height: "auto", transition: "opacity 0.15s ease" },
   viewerUpdating: { opacity: 0.55 },
   updating: {
     position: "absolute" as const,

@@ -542,6 +542,9 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
     ? "Facturación electrónica sin configurar"
     : paso === "REVISION" ? "Revisar factura antes de emitir" : "Facturación electrónica";
 
+  // En la revisión el modal tiene alto fijo y el visor ocupa lo que sobra: el único scroll es el del documento.
+  const mostrandoRevision = !loading && Boolean(preflight) && !needsConfiguration && paso === "REVISION" && Boolean(revision);
+
   return (
     <>
     <Modal
@@ -550,7 +553,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       onClose={onClose}
       submitting={emitiendo}
       wrapInForm={false}
-      modalStyle={styles.modal}
+      modalStyle={mostrandoRevision ? { ...styles.modal, ...styles.modalRevision } : styles.modal}
     >
       {loading ? (
         <>
@@ -706,7 +709,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       ) : null}
 
       {!loading && preflight && !needsConfiguration && paso === "REVISION" && revision ? (
-        <div style={styles.content}>
+        <div style={{ ...styles.content, flex: 1 }}>
           <span style={styles.step}>Paso 2 de 2 · Revisá la vista previa antes de emitir</span>
           <FacturaRevisionView
             revision={revision.data}
@@ -823,7 +826,8 @@ const styles = {
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     padding: "18px 18px 0",
   },
-  content: { display: "flex", flexDirection: "column" as const, gap: 18 },
+  modalRevision: { display: "flex", flexDirection: "column" as const, height: "90dvh" },
+  content: { display: "flex", flexDirection: "column" as const, gap: 9 },
   step: { color: COLOR.TEXT.TERTIARY, fontSize: 12, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.04em" },
   configurationContent: {
     display: "flex",
