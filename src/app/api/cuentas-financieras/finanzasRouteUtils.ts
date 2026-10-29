@@ -314,6 +314,7 @@ export function validateCreateGasto(body: unknown): Validated<CrearGastoFinancie
   const fecha = own(body, "fecha") ? stringValue(body, "fecha") : undefined;
   const arregloId = own(body, "arregloId") ? nullableUuidValue(body, "arregloId") : undefined;
   const operacionId = own(body, "operacionId") ? nullableUuidValue(body, "operacionId") : undefined;
+  const tallerId = own(body, "tallerId") ? nullableUuidValue(body, "tallerId") : undefined;
   const idempotencyKey = own(body, "idempotencyKey") ? stringValue(body, "idempotencyKey") : undefined;
 
   const cuentaError = validId(cuentaId, "cuentaId");
@@ -337,8 +338,11 @@ export function validateCreateGasto(body: unknown): Validated<CrearGastoFinancie
   if (arregloIdError) return { error: arregloIdError };
   const operacionIdError = optionalIdError(operacionId, "operacionId");
   if (operacionIdError) return { error: operacionIdError };
+  const tallerIdError = optionalIdError(tallerId, "tallerId");
+  if (tallerIdError) return { error: tallerIdError };
   if (own(body, "arregloId") && arregloId === undefined) return { error: "arregloId debe ser un UUID válido o null" };
   if (own(body, "operacionId") && operacionId === undefined) return { error: "operacionId debe ser un UUID válido o null" };
+  if (own(body, "tallerId") && tallerId === undefined) return { error: "tallerId debe ser un UUID válido o null" };
   if (own(body, "idempotencyKey") && idempotencyKey === undefined) return { error: "idempotencyKey debe ser texto" };
   if (idempotencyKey && !UUID_RE.test(idempotencyKey)) return { error: "idempotencyKey debe ser un UUID válido" };
 
@@ -352,6 +356,7 @@ export function validateCreateGasto(body: unknown): Validated<CrearGastoFinancie
       ...(fecha === undefined ? {} : { fecha: toISODateTimeWithCurrentTime(fecha) }),
       ...(arregloId === undefined ? {} : { arregloId }),
       ...(operacionId === undefined ? {} : { operacionId }),
+      ...(tallerId === undefined ? {} : { tallerId }),
       ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
     },
   };
@@ -399,6 +404,11 @@ export function validateUpdateGasto(body: unknown): Validated<ActualizarGastoFin
       return { error: `observaciones supera el máximo de ${MAX_DESCRIPTION_LENGTH} caracteres` };
     }
     patch.observaciones = observaciones;
+  }
+  if (own(body, "tallerId")) {
+    const tallerId = nullableUuidValue(body, "tallerId");
+    if (tallerId === undefined) return { error: "tallerId debe ser un UUID válido o null" };
+    patch.tallerId = tallerId;
   }
   if (Object.keys(patch).length === 0) return { error: "No hay campos para actualizar" };
   if (own(body, "idempotencyKey")) {
@@ -549,6 +559,7 @@ export function mapGasto(row: unknown): GastoFinanciero | null {
   const fecha = asTimestamp(pick(source, "fecha"));
   const descripcion = asNullableText(pick(source, "descripcion"));
   const observaciones = asNullableText(pick(source, "observaciones"));
+  const tallerId = asNullableText(pick(source, "taller_id", "tallerId"));
   const createdAt = asTimestamp(pick(source, "created_at", "createdAt"));
   if (!id || !cuentaId || !categoria || importe === null || !fecha || !createdAt) return null;
   return {
@@ -560,6 +571,7 @@ export function mapGasto(row: unknown): GastoFinanciero | null {
     fecha,
     descripcion,
     observaciones,
+    tallerId,
     reversaMovimientoId: null, // deprecated en nueva arquitectura
     createdAt,
   };

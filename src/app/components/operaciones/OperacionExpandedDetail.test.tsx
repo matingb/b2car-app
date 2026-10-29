@@ -201,4 +201,39 @@ describe("OperacionExpandedDetail", () => {
     expect(screen.getByText("Bujía Bosch")).toBeInTheDocument();
     expect(screen.getByText(/0 de 5 unidades entregadas/i)).toBeInTheDocument();
   });
+
+  it("NO muestra leyenda de cumplimiento parcial si la operacion esta en estado ENTREGADO", () => {
+    const operacion: Operacion = {
+      id: "op-compra-entregada",
+      tipo: "COMPRA",
+      taller_id: "taller-1",
+      fecha: "2026-10-07T12:00:00Z",
+      created_at: "2026-10-07T12:00:00Z",
+      estado_stock: "ENTREGADO",
+      lineas: [
+        {
+          id: "linea-1",
+          operacion_id: "op-compra-entregada",
+          stock_id: "stock-1",
+          cantidad: 20,
+          cantidad_cumplida: 0,
+          monto_unitario: 3200,
+          delta_cantidad: 20,
+          created_at: "2026-10-07T12:00:00Z",
+          nombre: "Bujía Iridium",
+        },
+      ],
+    };
+
+    render(
+      <OperacionExpandedDetail
+        operacion={operacion}
+        stocksById={{}}
+        isMovimientoFinanciero={false}
+      />
+    );
+
+    expect(screen.getByText("Bujía Iridium")).toBeInTheDocument();
+    expect(screen.queryByText(/unidades recibidas/i)).not.toBeInTheDocument();
+  });
 });

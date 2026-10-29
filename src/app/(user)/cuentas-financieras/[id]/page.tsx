@@ -36,12 +36,14 @@ import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
 import { getCuentaTipoLabel } from "@/model/finanzas";
 import { finanzasClient } from "@/clients/finanzasClient";
+import { useTenant } from "@/app/providers/TenantProvider";
 
 export default function CuentaFinancieraDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { confirm } = useModalMessage();
   const { success, error: errorToast } = useToast();
+  const { talleres } = useTenant();
   const cuentaId = params.id;
 
   const {
@@ -380,6 +382,7 @@ export default function CuentaFinancieraDetailPage() {
         open={isGastoOpen}
         cuentas={cuentas}
         cuentaId={cuenta.id}
+        talleres={talleres}
         onClose={() => setIsGastoOpen(false)}
         onCreate={handleGasto}
         onCreateCuenta={createCuenta}

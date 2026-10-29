@@ -783,6 +783,7 @@ export function OperacionFormProvider({
     if (!isValidDate(fecha)) return false;
 
     if (tipo === "GASTO") {
+      if (talleres.length > 0 && !tallerId) return false;
       const importeNum = Number(montoGasto);
       if (isEditingGasto) {
         if (requiresCuenta && !cuentaFinancieraId) return false;
@@ -848,6 +849,7 @@ export function OperacionFormProvider({
     categoriaGasto,
     isLoadingCuentas,
     isSubmittingGasto,
+    talleres,
     tallerId,
     lineas,
     importeTotal,

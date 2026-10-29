@@ -29,6 +29,15 @@ vi.mock("@/app/providers/ToastProvider", () => ({
   useToast: () => ({ success: toastSuccess, error: toastError }),
 }));
 
+let mockTalleres = [{ id: "taller-1", nombre: "Taller Centro" }];
+
+vi.mock("@/app/providers/TenantProvider", () => ({
+  useTenant: () => ({
+    talleres: mockTalleres,
+    tallerSeleccionadoId: "taller-1",
+  }),
+}));
+
 vi.mock("@/clients/finanzasClient", () => ({
   finanzasClient: {
     obtenerCuenta: (...args: unknown[]) => obtenerCuenta(...args),
@@ -68,6 +77,7 @@ describe("CuentaFinancieraDetailPage", () => {
     crearCuenta.mockReset();
     toastSuccess.mockReset();
     toastError.mockReset();
+    mockTalleres = [{ id: "taller-1", nombre: "Taller Centro" }];
     obtenerCuenta.mockResolvedValue({ data: cuenta, error: null });
     listarMovimientos.mockResolvedValue({ data: [], error: null });
     listarCuentas.mockResolvedValue({ data: [cuenta], error: null });
@@ -241,6 +251,38 @@ describe("CuentaFinancieraDetailPage", () => {
     await waitFor(() => {
       expect(obtenerCuenta).toHaveBeenCalledTimes(2);
       expect(listarMovimientos).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("si hay multiples talleres, muestra el selector de taller en el modal de gasto y envía el taller seleccionado", async () => {
+    mockTalleres = [
+      { id: "taller-1", nombre: "Taller Centro" },
+      { id: "taller-2", nombre: "Taller Norte" },
+    ];
+    crearGasto.mockResolvedValue({
+      data: { id: "gasto-4", cuentaId: cuenta.id, categoria: "ALQUILER", importe: 120 },
+      error: null,
+    });
+    render(
+      <CuentasFinancierasProvider>
+        <CuentaFinancieraDetailPage />
+      </CuentasFinancierasProvider>
+    );
+
+    fireEvent.click(await screen.findByTestId("cuenta-financiera-nuevo-gasto"));
+    expect(await screen.findByTestId("gasto-taller")).toBeInTheDocument();
+    expect(screen.getByTestId("gasto-taller")).toHaveValue("Taller Centro");
+
+    fireEvent.click(screen.getByTestId("gasto-taller"));
+    fireEvent.click(await screen.findByText("Taller Norte"));
+    fireEvent.change(screen.getByTestId("gasto-importe"), { target: { value: "120" } });
+    fireEvent.click(screen.getByTestId("modal-submit"));
+
+    await waitFor(() => expect(crearGasto).toHaveBeenCalledTimes(1));
+    expect(crearGasto.mock.calls[0][0]).toMatchObject({
+      cuentaId: cuenta.id,
+      tallerId: "taller-2",
+      importe: 120,
     });
   });
 });

@@ -85,4 +85,20 @@ describe("TallerSelector", () => {
     expect(customOnChange).toHaveBeenCalledWith("t2");
     expect(mockSetTallerSeleccionadoId).not.toHaveBeenCalled();
   });
+
+  it("permite pasar la lista de talleres de forma explícita", () => {
+    const customTalleres = [
+      { id: "custom-1", nombre: "Taller Personalizado 1" },
+      { id: "custom-2", nombre: "Taller Personalizado 2" },
+    ];
+    render(<TallerSelector talleres={customTalleres} value="custom-1" />);
+    expect(screen.getByDisplayValue("Taller Personalizado 1")).toBeInTheDocument();
+  });
+
+  it("renderiza correctamente con layout vertical", () => {
+    const { container } = render(<TallerSelector layout="vertical" value="t1" />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root).toHaveStyle({ flexDirection: "column" });
+  });
 });
+
