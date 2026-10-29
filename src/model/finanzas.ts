@@ -50,7 +50,12 @@ export type SubtipoMovimientoCuenta =
  * @deprecated Usar SubtipoMovimientoCuenta.
  * Mantenido temporalmente para compatibilidad con código existente.
  */
-export type TipoMovimientoFinanciero = SubtipoMovimientoCuenta | "COBRO_ARREGLO" | "COMPRA_STOCK" | "VENTA_STOCK" | "MOVIMIENTO";
+export type TipoMovimientoFinanciero =
+  | SubtipoMovimientoCuenta
+  | "COBRO_ARREGLO"
+  | "COMPRA"
+  | "VENTA"
+  | "MOVIMIENTO";
 
 export const CATEGORIAS_GASTO_FINANCIERO = [
   "ALQUILER",

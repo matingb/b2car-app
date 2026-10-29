@@ -31,6 +31,8 @@ export type EntityProfileCardProps = {
   avatarInitials?: string;
   fallbackInitials?: string;
   icon?: React.ReactNode;
+  badgeText?: string;
+  badge?: React.ReactNode;
   address?: string | null;
   emptyAddressText?: string;
 
@@ -67,6 +69,10 @@ export type EntityProfileCardProps = {
   showEmptyDocumento?: boolean;
   extraContactItems?: React.ReactNode;
 
+  // Container props
+  onClick?: () => void;
+  style?: React.CSSProperties;
+
   // Children sections (e.g. Representantes)
   children?: React.ReactNode;
 };
@@ -84,6 +90,8 @@ export default function EntityProfileCard({
   avatarInitials,
   fallbackInitials = "??",
   icon,
+  badgeText,
+  badge,
   address,
   emptyAddressText = "Sin dirección registrada",
 
@@ -117,6 +125,9 @@ export default function EntityProfileCard({
   showEmptyDocumento = false,
   extraContactItems,
 
+  onClick,
+  style,
+
   children,
 }: EntityProfileCardProps) {
   const initials = avatarInitials || getEntityInitials(title, fallbackInitials);
@@ -128,7 +139,7 @@ export default function EntityProfileCard({
     ? "..."
     : (formattedBalance ?? saldoInfo.formattedMonto);
 
-  const badge = tieneDeuda ? (
+  const financialBadge = tieneDeuda ? (
     <span css={styles.deudaBadge}>{deudaBadgeText}</span>
   ) : tieneSaldoAFavor ? (
     <span css={styles.saldoFavorBadge}>{saldoFavorBadgeText}</span>
@@ -151,7 +162,7 @@ export default function EntityProfileCard({
         >
           {displayAmount}
         </span>
-        {badge}
+        {financialBadge}
       </div>
     </div>
   ) : null;
@@ -166,12 +177,13 @@ export default function EntityProfileCard({
   const whatsappButton = whatsappPhone ? (
     <button
       type="button"
-      onClick={() =>
+      onClick={(e) => {
+        e.stopPropagation();
         openWhatsapp(
           whatsappPhone,
           whatsappMessage ?? `Hola ${title}, me comunico desde el taller.`
-        )
-      }
+        );
+      }}
       css={styles.whatsappActionButton}
       title="Contactar por WhatsApp"
     >
@@ -183,7 +195,10 @@ export default function EntityProfileCard({
   const editButton = onEdit ? (
     <button
       type="button"
-      onClick={onEdit}
+      onClick={(e) => {
+        e.stopPropagation();
+        onEdit();
+      }}
       css={styles.textActionButton}
       data-testid={editTestId}
     >
@@ -202,7 +217,10 @@ export default function EntityProfileCard({
   const deleteButton = onDelete ? (
     <button
       type="button"
-      onClick={onDelete}
+      onClick={(e) => {
+        e.stopPropagation();
+        onDelete();
+      }}
       css={styles.deleteActionButton}
       data-testid={deleteTestId}
     >
@@ -222,7 +240,7 @@ export default function EntityProfileCard({
     telefonoFormatted ?? (telefono ? formatTelephoneNumber(undefined, telefono) : null);
 
   return (
-    <Card css={styles.cardContainer}>
+    <Card css={styles.cardContainer} onClick={onClick} style={style}>
       {/* FILA SUPERIOR: Identidad y Finanzas */}
       <div css={styles.headerRow}>
         <div css={styles.identitySection}>
@@ -232,6 +250,8 @@ export default function EntityProfileCard({
             <div css={styles.nameRow}>
               {icon}
               <h1 css={styles.entityTitle}>{title}</h1>
+              {badgeText && <span css={styles.entityBadge}>{badgeText}</span>}
+              {badge}
             </div>
 
             <div css={styles.addressRow}>
@@ -264,6 +284,7 @@ export default function EntityProfileCard({
               {email ? (
                 <a
                   href={`mailto:${email}`}
+                  onClick={(e) => e.stopPropagation()}
                   css={styles.contactLink}
                   title="Enviar correo"
                 >
@@ -281,6 +302,7 @@ export default function EntityProfileCard({
               {telefono ? (
                 <a
                   href={`tel:${telefono}`}
+                  onClick={(e) => e.stopPropagation()}
                   css={styles.contactLink}
                   title="Llamar"
                 >
@@ -369,6 +391,16 @@ const styles = {
     fontWeight: 700,
     color: COLOR.TEXT.PRIMARY,
     lineHeight: 1.2,
+  }),
+  entityBadge: css({
+    fontSize: 12,
+    fontWeight: 500,
+    color: COLOR.TEXT.SECONDARY,
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 4,
+    padding: "2px 8px",
+    display: "inline-block",
   }),
   addressRow: css({
     display: "flex",

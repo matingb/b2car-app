@@ -98,4 +98,38 @@ describe("EntityProfileCard", () => {
 
     spy.mockRestore();
   });
+
+  it("renders badgeText and badge next to the entity title", () => {
+    render(
+      <EntityProfileCard
+        title="Lucia Gomez"
+        badgeText="Particular"
+      />
+    );
+
+    expect(screen.getByText("Particular")).toBeInTheDocument();
+  });
+
+  it("calls onClick when card is clicked, but isolates inner action buttons", () => {
+    const onCardClick = vi.fn();
+    const onEdit = vi.fn();
+
+    render(
+      <EntityProfileCard
+        title="Lucia Gomez"
+        onClick={onCardClick}
+        onEdit={onEdit}
+        editTestId="btn-edit"
+      />
+    );
+
+    const editBtn = screen.getByTestId("btn-edit");
+    fireEvent.click(editBtn);
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onCardClick).not.toHaveBeenCalled();
+
+    const title = screen.getByText("Lucia Gomez");
+    fireEvent.click(title);
+    expect(onCardClick).toHaveBeenCalledTimes(1);
+  });
 });

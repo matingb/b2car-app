@@ -28,8 +28,8 @@ const LABELS: Record<string, string> = {
   GASTO: "Gasto",
   INGRESO: "Ingreso manual",
   COBRO_ARREGLO: "Cobro de arreglo",
-  COMPRA_STOCK: "Compra de stock",
-  VENTA_STOCK: "Venta de stock",
+  COMPRA: "Compra de stock",
+  VENTA: "Venta de productos",
   REVERSO: "Reverso",
 };
 
@@ -37,8 +37,8 @@ const ICONS: Record<string, React.ReactNode> = {
   APERTURA_CUENTA: <CircleDollarSign size={17} />,
   GASTO: <ReceiptText size={17} />,
   COBRO_ARREGLO: <CircleDollarSign size={17} />,
-  COMPRA_STOCK: <ShoppingCart size={17} />,
-  VENTA_STOCK: <TrendingUp size={17} />,
+  COMPRA: <ShoppingCart size={17} />,
+  VENTA: <TrendingUp size={17} />,
   REVERSO: <RotateCcw size={17} />,
 };
 

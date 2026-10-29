@@ -139,4 +139,21 @@ describe("MovimientoFinancieroItem", () => {
     expect(customOnClick).toHaveBeenCalledTimes(1);
     expect(mockPush).not.toHaveBeenCalled();
   });
+
+  it("renderiza correctamente el tipo VENTA con la etiqueta 'Venta de productos'", () => {
+    const ventaMovement: MovimientoFinanciero = {
+      ...sampleMovement,
+      id: "mov-4",
+      tipo: "VENTA",
+      importe: 12000,
+      descripcion: "Venta de 2 repuestos",
+    };
+
+    render(<MovimientoFinancieroItem movimiento={ventaMovement} isLast={false} />);
+
+    expect(screen.getByText("Venta de 2 repuestos")).toBeInTheDocument();
+    expect(screen.getByText("Venta de productos")).toBeInTheDocument();
+    expect(screen.getByText(/\+ \$12\.000/)).toBeInTheDocument();
+  });
 });
+

@@ -421,4 +421,22 @@ describe("VehiculoDetailsPage integration", () => {
     expect(localStorage.getItem("tipo_cliente")).toBe(TipoCliente.EMPRESA);
     expect(pushMock).toHaveBeenCalledWith(`${ROUTES.clientes}/cli-1`);
   });
+
+  it("muestra la card de información del propietario y abre el modal de reasignar", async () => {
+    setupDefaultData();
+    const user = userEvent.setup();
+
+    render(<TestShell />);
+
+    expect(await screen.findByText("Cliente Test")).toBeInTheDocument();
+    expect(screen.getByText("CT")).toBeInTheDocument();
+    expect(screen.getByText("Empresa")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "WhatsApp" })).toBeInTheDocument();
+
+    const reassignButton = screen.getByTestId("propietario-reassign");
+    expect(reassignButton).toHaveTextContent("Reasignar");
+
+    await user.click(reassignButton);
+    expect(await screen.findByText("Reasignar propietario")).toBeInTheDocument();
+  });
 });

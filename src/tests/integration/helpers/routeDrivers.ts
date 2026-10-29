@@ -12,6 +12,7 @@ import { GET as getProveedorOperacionesRoute } from "@/app/api/proveedores/[id]/
 import { POST as postProveedorRoute, type CreateProveedorRequest } from "@/app/api/proveedores/route";
 import { GET as getClienteCuentaCorrienteRoute } from "@/app/api/clientes/[id]/cuenta-corriente/route";
 import { GET as getClienteResumenFinancieroRoute } from "@/app/api/clientes/[id]/resumen-financiero/route";
+import { GET as getCuentaMovimientosRoute } from "@/app/api/cuentas-financieras/[id]/movimientos/route";
 
 export interface CobrarArregloPayload {
   cuenta_financiera_id: string;
@@ -258,4 +259,27 @@ export async function getClienteResumenFinancieroViaRoute(
     params: Promise.resolve({ id: clienteId }),
   });
 }
+
+/**
+ * Driver: Invoca la API route GET /api/cuentas-financieras/[id]/movimientos encapsulando el request.
+ */
+export async function getCuentaMovimientosViaRoute(
+  cuentaId: string,
+  filters?: { desde?: string; hasta?: string; limit?: number; offset?: number }
+): Promise<Response> {
+  const query = new URLSearchParams();
+  if (filters?.desde) query.set("desde", filters.desde);
+  if (filters?.hasta) query.set("hasta", filters.hasta);
+  if (filters?.limit !== undefined) query.set("limit", String(filters.limit));
+  if (filters?.offset !== undefined) query.set("offset", String(filters.offset));
+  const qStr = query.toString() ? `?${query.toString()}` : "";
+  const req = new NextRequest(`http://localhost:3000/api/cuentas-financieras/${cuentaId}/movimientos${qStr}`, {
+    method: "GET",
+  });
+
+  return getCuentaMovimientosRoute(req, {
+    params: Promise.resolve({ id: cuentaId }),
+  });
+}
+
 

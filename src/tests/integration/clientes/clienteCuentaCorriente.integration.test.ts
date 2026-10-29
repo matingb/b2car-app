@@ -14,6 +14,7 @@ import {
   crearOperacionViaRoute as crearOperacion,
   getClienteCuentaCorrienteViaRoute,
   getClienteResumenFinancieroViaRoute,
+  getCuentaMovimientosViaRoute,
 } from "../helpers/routeDrivers";
 import { operacionesService } from "@/app/api/operaciones/operacionesService";
 
@@ -158,8 +159,19 @@ describe("Integration: Cuenta Corriente del Cliente", () => {
     expect(operacion.estado_pago).toBe("PARCIAL");
     expect(operacion.estado_stock).toBe("PARCIAL");
 
-    // 1. Afectación en cuenta financiera del taller
+    // 1. Afectación en cuenta financiera del taller: saldo y movimientos
     await expectSaldoCuenta(cuentaTaller.id, saldoInicial + pagoVenta);
+
+    const movsRes = await getCuentaMovimientosViaRoute(cuentaTaller.id);
+    expect(movsRes.status).toBe(200);
+    const { data: movimientos } = await movsRes.json();
+    const movVenta = movimientos.find(
+      (m: { operacionId: string | null; importe: number }) =>
+        m.operacionId === operacion.id && Number(m.importe) === pagoVenta
+    );
+    expect(movVenta).toBeDefined();
+    expect(movVenta.descripcion).toBe("Anticipo venta");
+    expect(movVenta.tipo).toBe("VENTA");
 
     // 2. Modificación parcial del stock
     await expectStockDetallado(stockId, {
