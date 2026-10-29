@@ -385,7 +385,10 @@ describe("Integration: dashboard", () => {
   });
 
   it("cuenta una sola vez Sin categoría con detalles y formulario personalizado del mismo arreglo", async () => {
-    const arreglo = await dadoUnArreglo({ fecha: "2042-03-15T12:00:00-03:00" });
+    const arreglo = await dadoUnArreglo({
+      fecha: "2042-03-15T12:00:00-03:00",
+      tasa_iva: 0.21,
+    });
     await agregarDetalleFacturacionDashboard(arreglo.id, {
       cantidad: 1,
       horasFacturadas: 1,
@@ -398,11 +401,6 @@ describe("Integration: dashboard", () => {
     });
 
     const admin = createAdminTestClient();
-    const { error: arregloError } = await admin
-      .from("arreglos")
-      .update({ tasa_iva: 21 })
-      .eq("id", arreglo.id);
-    if (arregloError) throw new Error(`No se pudo habilitar el IVA para el formulario personalizado: ${arregloError.message}`);
     const { error: customError } = await admin.from("detalle_form_custom").insert({
       tenant_id: SEED.tenantId,
       arreglo_id: arreglo.id,

@@ -48,6 +48,8 @@ export interface DadoUnArregloOptions {
   total_cobrado?: number;
   esta_pago?: boolean;
   es_facturable?: boolean;
+  precios_incluyen_iva?: boolean;
+  tasa_iva?: number | null;
 }
 
 export interface DadoUnArregloCobradoOptions {
@@ -139,6 +141,8 @@ export async function dadoUnArreglo(overrides: DadoUnArregloOptions = {}): Promi
     esta_pago: overrides.esta_pago ?? false,
     es_facturable: overrides.es_facturable ?? true,
     extra_data: "{}",
+    ...(overrides.precios_incluyen_iva !== undefined ? { precios_incluyen_iva: overrides.precios_incluyen_iva } : {}),
+    ...(overrides.tasa_iva !== undefined ? { tasa_iva: overrides.tasa_iva } : {}),
   };
 
   const { data, error } = await supabaseArregloRepository.create(testClient, payload);

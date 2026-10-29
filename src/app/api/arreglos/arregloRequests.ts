@@ -84,6 +84,7 @@ export type CreateArregloInsertPayload = {
   cliente_id?: string | null;
   es_facturable?: boolean;
   precios_incluyen_iva?: boolean;
+  tasa_iva?: number | null;
 };
 
 export type UpdateArregloRequest = {
