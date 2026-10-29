@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { mapCuenta, rpcErrorMessage, rpcStatus, validateCreateIngresoManual, validateUpdateCuenta, validateUuid } from "./finanzasRouteUtils";
+import {
+  mapCuenta,
+  mapGasto,
+  rpcErrorMessage,
+  rpcStatus,
+  validateCreateGasto,
+  validateCreateIngresoManual,
+  validateUpdateCuenta,
+  validateUpdateGasto,
+  validateUuid,
+} from "./finanzasRouteUtils";
 
 describe("validateUuid", () => {
   it("acepta UUIDs canónicos legacy para consultar registros existentes", () => {
@@ -117,5 +127,62 @@ describe("validateCreateIngresoManual", () => {
 
   it.each([undefined, "   ", "x".repeat(2_001)])("requiere un concepto válido", (descripcion) => {
     expect(validateCreateIngresoManual({ ...validInput, descripcion }).error).toContain("descripcion");
+  });
+});
+
+describe("validateCreateGasto", () => {
+  const validGasto = {
+    cuentaId: "11111111-1111-4111-8111-111111111111",
+    categoria: "ALQUILER",
+    importe: 500,
+    tallerId: "22222222-2222-4222-8222-222222222222",
+  };
+
+  it("valida correctamente con tallerId válido", () => {
+    const result = validateCreateGasto(validGasto);
+    expect(result.error).toBeUndefined();
+    expect(result.value?.tallerId).toBe("22222222-2222-4222-8222-222222222222");
+  });
+
+  it("permite registrar gasto sin tallerId", () => {
+    const result = validateCreateGasto({ ...validGasto, tallerId: null });
+    expect(result.error).toBeUndefined();
+    expect(result.value?.tallerId).toBeNull();
+  });
+
+  it("rechaza tallerId con formato inválido", () => {
+    const result = validateCreateGasto({ ...validGasto, tallerId: "no-es-uuid" });
+    expect(result.error).toBe("tallerId debe ser un UUID válido o null");
+  });
+});
+
+describe("validateUpdateGasto", () => {
+  it("valida actualización con tallerId válido", () => {
+    const result = validateUpdateGasto({ tallerId: "22222222-2222-4222-8222-222222222222" });
+    expect(result.error).toBeUndefined();
+    expect(result.value?.tallerId).toBe("22222222-2222-4222-8222-222222222222");
+  });
+
+  it("rechaza actualización con tallerId inválido", () => {
+    const result = validateUpdateGasto({ tallerId: "invalido" });
+    expect(result.error).toBe("tallerId debe ser un UUID válido o null");
+  });
+});
+
+describe("mapGasto", () => {
+  it("mapea taller_id correctamente", () => {
+    const raw = {
+      id: "33333333-3333-4333-8333-333333333333",
+      cuenta_id: "11111111-1111-4111-8111-111111111111",
+      categoria: "ALQUILER",
+      importe: -500,
+      fecha: "2026-10-28T00:00:00Z",
+      taller_id: "22222222-2222-4222-8222-222222222222",
+      created_at: "2026-10-28T00:00:00Z",
+    };
+    const gasto = mapGasto(raw);
+    expect(gasto).not.toBeNull();
+    expect(gasto?.tallerId).toBe("22222222-2222-4222-8222-222222222222");
+    expect(gasto?.importe).toBe(500);
   });
 });

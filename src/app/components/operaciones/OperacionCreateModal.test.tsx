@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { runPendingPromises } from "@/tests/testUtils";
 import OperacionCreateModal from "./OperacionCreateModal";
@@ -305,6 +305,47 @@ describe("OperacionCreateModal", () => {
     await runPendingPromises();
 
     expect(screen.getByTestId("operaciones-create-taller")).toBeInTheDocument();
+  });
+
+  it("si hay multiples talleres, muestra el dropdown de talleres en GASTO y permite cambiarlo", async () => {
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[
+          { id: "T1", nombre: "Taller Centro" },
+          { id: "T2", nombre: "Taller Norte" },
+        ]}
+        onClose={vi.fn()}
+      />
+    );
+
+    await runPendingPromises();
+
+    // Cambiar a GASTO
+    await userEvent.click(screen.getByTestId("operaciones-create-tipo-GASTO"));
+    await runPendingPromises();
+
+    expect(screen.getByTestId("operaciones-create-taller")).toBeInTheDocument();
+    expect(screen.getByTestId("operaciones-create-taller")).toHaveValue("T1");
+
+    // Cambiar de taller a T2
+    fireEvent.change(screen.getByTestId("operaciones-create-taller"), { target: { value: "T2" } });
+
+    await userEvent.type(screen.getByTestId("pago-cuenta-0"), "C1");
+    await userEvent.type(screen.getByTestId("gasto-importe"), "5000");
+
+    await userEvent.click(screen.getByTestId("modal-submit"));
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(mockCrearOperacion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tipo: "GASTO",
+          taller_id: "T2",
+          monto: 5000,
+        })
+      );
+    });
   });
 
   it("preselecciona el primer taller y la cuenta favorita", async () => {

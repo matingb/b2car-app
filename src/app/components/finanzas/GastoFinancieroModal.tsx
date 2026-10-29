@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
 import Calendar from "@/app/components/ui/Calendar";
+import TallerSelector from "@/app/components/ui/TallerSelector";
 import CuentaFinancieraAutocomplete, { CREATE_CUENTA_VALUE } from "./CuentaFinancieraAutocomplete";
 import CuentaFinancieraFormFields, {
   EMPTY_CUENTA_FINANCIERA_DRAFT,
@@ -24,6 +25,7 @@ type Props = {
   open: boolean;
   cuentas: CuentaFinanciera[];
   cuentaId: string;
+  talleres?: Array<{ id: string; nombre: string }>;
   onClose: () => void;
   onCreate: (input: CrearGastoFinancieroInput) => Promise<void>;
   onCreateCuenta: (input: CrearCuentaFinancieraInput) => Promise<CuentaFinanciera>;
@@ -40,12 +42,14 @@ export default function GastoFinancieroModal({
   open,
   cuentas,
   cuentaId,
+  talleres = [],
   onClose,
   onCreate,
   onCreateCuenta,
 }: Props) {
   const activeAccounts = useMemo(() => cuentas.filter((cuenta) => cuenta.activo), [cuentas]);
-  const [selectedCuentaId, setSelectedCuentaId] = useState("");
+  const [selectedCuentaId, setSelectedCuentaId] = useState(cuentaId);
+  const [selectedTallerId, setSelectedTallerId] = useState(() => talleres[0]?.id ?? "");
   const [cuentaDraft, setCuentaDraft] = useState<CuentaFinancieraDraft>(() => ({ ...EMPTY_CUENTA_FINANCIERA_DRAFT }));
   const [categoriaGasto, setCategoriaGasto] = useState("ALQUILER");
   const [montoGasto, setMontoGasto] = useState("");
@@ -60,6 +64,7 @@ export default function GastoFinancieroModal({
   useEffect(() => {
     if (!open) return;
     setSelectedCuentaId(cuentaId);
+    setSelectedTallerId(talleres[0]?.id ?? "");
     setCuentaDraft({ ...EMPTY_CUENTA_FINANCIERA_DRAFT });
     setCategoriaGasto("ALQUILER");
     setMontoGasto("");
@@ -70,14 +75,17 @@ export default function GastoFinancieroModal({
     setSubmitError(null);
     idempotencyKeyRef.current = generateUuidV4();
     attemptedGastoRef.current = null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cuentaId, open]);
 
   const isCreatingCuenta = selectedCuentaId === CREATE_CUENTA_VALUE;
   const hasValidCuenta = isCreatingCuenta
     ? validateCuentaFinancieraForm(cuentaDraft)
     : activeAccounts.some((cuenta) => cuenta.id === selectedCuentaId);
+  const hasValidTaller = talleres.length <= 1 || Boolean(selectedTallerId);
   const canSubmit = Boolean(
     hasValidCuenta
+      && hasValidTaller
       && CATEGORY_VALUES.has(categoriaGasto as (typeof CATEGORIAS_GASTO)[number]["value"])
       && Number.isFinite(Number(montoGasto))
       && Number(montoGasto) > 0
@@ -102,6 +110,7 @@ export default function GastoFinancieroModal({
 
       const signature = JSON.stringify({
         cuentaId: targetCuentaId,
+        tallerId: selectedTallerId || null,
         categoria: categoriaGasto,
         importe: Number(montoGasto),
         fecha,
@@ -119,6 +128,7 @@ export default function GastoFinancieroModal({
         idempotencyKeyRef.current = generateUuidV4();
         payload = {
           cuentaId: targetCuentaId,
+          tallerId: selectedTallerId || null,
           categoria: categoriaGasto,
           importe: Number(montoGasto),
           fecha: fechaCompleta,
@@ -176,6 +186,15 @@ export default function GastoFinancieroModal({
             dataTestIdPrefix="gasto-cuenta"
           />
         ) : null}
+        <TallerSelector
+          layout="vertical"
+          talleres={talleres}
+          value={selectedTallerId}
+          onChange={setSelectedTallerId}
+          dataTestId="gasto-taller"
+          style={styles.field}
+          autocompleteStyle={{ height: 44, fontSize: 14 }}
+        />
         <div style={styles.field}>
           <label style={styles.label} htmlFor="gasto-fecha">Fecha</label>
           <Calendar

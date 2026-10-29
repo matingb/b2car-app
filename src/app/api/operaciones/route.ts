@@ -211,6 +211,9 @@ export async function POST(req: Request) {
 	if (body.proveedor_id && !isValidUuid(body.proveedor_id)) {
 		return Response.json({ data: null, error: "proveedor_id inválida" } satisfies CreateOperacionResponse, { status: 400 });
 	}
+	if (body.taller_id && !isValidUuid(body.taller_id)) {
+		return Response.json({ data: null, error: "taller_id inválida" } satisfies CreateOperacionResponse, { status: 400 });
+	}
 	if (!body.idempotency_key || !isValidUuid(body.idempotency_key)) {
 		return Response.json({ data: null, error: "idempotency_key inválida" } satisfies CreateOperacionResponse, { status: 400 });
 	}

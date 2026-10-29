@@ -59,6 +59,7 @@ export default function OperacionExpandedDetail({
         const total = (linea.cantidad || 0) * (linea.monto_unitario || 0);
 
         const tieneEntregaParcial =
+          operacion.estado_stock !== "ENTREGADO" &&
           linea.cantidad_cumplida !== undefined &&
           linea.cantidad_cumplida !== null &&
           linea.cantidad_cumplida < linea.cantidad;

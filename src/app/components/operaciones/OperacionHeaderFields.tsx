@@ -4,6 +4,7 @@ import React from "react";
 import { css } from "@emotion/react";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import Autocomplete from "@/app/components/ui/Autocomplete";
+import TallerSelector from "@/app/components/ui/TallerSelector";
 import Calendar from "@/app/components/ui/Calendar";
 import CuentaFinancieraFormFields from "@/app/components/finanzas/CuentaFinancieraFormFields";
 import CuentaFinancieraAutocomplete, {
@@ -47,19 +48,17 @@ export default function OperacionHeaderFields() {
   return (
     <>
       <div css={styles.headerRow} data-testid="operaciones-datos-principales">
-        {tipo !== "GASTO" && hasManyTalleres && !isContextualStock ? (
-          <div style={styles.headerCol}>
-            <label style={styles.label}>Taller</label>
-            <Autocomplete
-              value={tallerId || ""}
-              onChange={setTallerId}
-              options={talleres.map((t) => ({ value: t.id, label: t.nombre }))}
-              placeholder="Seleccionar taller"
-              dataTestId="operaciones-create-taller"
-              style={{ height: 38, fontSize: 14 }}
-              hideClearButton
-            />
-          </div>
+        {!isContextualStock ? (
+          <TallerSelector
+            layout="vertical"
+            talleres={talleres}
+            value={tallerId || ""}
+            onChange={setTallerId}
+            dataTestId="operaciones-create-taller"
+            placeholder="Seleccionar taller"
+            style={styles.headerCol}
+            autocompleteStyle={{ height: 38, fontSize: 14 }}
+          />
         ) : null}
 
         <div style={styles.headerCol}>

@@ -83,6 +83,7 @@ describe("/api/gastos", () => {
       p_idempotency_key: null,
       p_arreglo_id: null,
       p_observaciones: null,
+      p_taller_id: null,
     });
     expect(body.data).toMatchObject({ id: EXPENSE_ID, descripcion: null });
     expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything());
@@ -122,6 +123,7 @@ describe("/api/gastos", () => {
       p_idempotency_key: null,
       p_arreglo_id: null,
       p_observaciones: null,
+      p_taller_id: null,
     });
     expect(body.data).toMatchObject({
       id: EXPENSE_ID,

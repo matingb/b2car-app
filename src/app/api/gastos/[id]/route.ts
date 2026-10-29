@@ -87,6 +87,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     p_idempotency_key: input.idempotencyKey ?? null,
     // La RPC conserva la observación con NULL y la borra con texto vacío.
     p_observaciones: input.observaciones === undefined ? null : input.observaciones ?? "",
+    p_taller_id: input.tallerId !== undefined ? input.tallerId : (current.tallerId ?? null),
   });
   if (updateError) {
     const status = rpcStatus(updateError);
@@ -106,6 +107,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     importe: input.importe ?? current.importe,
     descripcion: input.descripcion ?? current.descripcion,
     observaciones: input.observaciones !== undefined ? input.observaciones || null : current.observaciones,
+    tallerId: input.tallerId !== undefined ? input.tallerId : current.tallerId,
     fecha: input.fecha ?? current.fecha,
   };
   return Response.json({ data: resultGasto, error: null } satisfies ActualizarGastoFinancieroResponse, { status: 200 });
