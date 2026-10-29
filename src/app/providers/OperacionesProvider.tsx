@@ -13,6 +13,7 @@ import {
 import type { Operacion, OperacionesFilters, TipoOperacion } from "@/model/types";
 import { useDebouncedAbortableAsync } from "@/app/hooks/useDebouncedAbortableAsync";
 import { buildPeriodOptions, type PeriodOption } from "@/lib/dashboard/periods";
+import { logger } from "@/lib/logger";
 
 export type OperacionesPeriod = PeriodOption;
 
@@ -35,6 +36,8 @@ type OperacionesContextType = {
 	remove: (id: string | number) => Promise<void>;
 	confirmarStock: (id: string, payload?: string | ConfirmarStockPayload) => Promise<boolean>;
 	registrarPago: (id: string, payload: Parameters<typeof operacionesClient.registrarPago>[1]) => Promise<boolean>;
+	anularPago: (id: string | number, pagoId: string) => Promise<Operacion | null>;
+	revertirStock: (id: string | number, movimientoId: string) => Promise<Operacion | null>;
 };
 
 const OperacionesContext = createContext<OperacionesContextType | null>(null);
@@ -151,13 +154,13 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 	}, []);
 
 	const fetchById = useCallback(async (id: string | number) => {
-		setLoading(true);
 		try {
 			const response = await operacionesClient.getById(id);
 			if (response?.error) throw new Error(response.error);
 			return response?.data ?? null;
-		} finally {
-			setLoading(false);
+		} catch (err) {
+			logger.error("Error cargando detalle de operación:", err);
+			return null;
 		}
 	}, []);
 
@@ -225,6 +228,30 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 		}
 	}, [refresh]);
 
+	const anularPago = useCallback(async (id: string | number, pagoId: string) => {
+		setLoading(true);
+		try {
+			const response = await operacionesClient.anularPago(id, pagoId);
+			if (response.error) throw new Error(response.error);
+			try { await refresh(); } catch { /* ignore */ }
+			return response.data;
+		} finally {
+			setLoading(false);
+		}
+	}, [refresh]);
+
+	const revertirStock = useCallback(async (id: string | number, movimientoId: string) => {
+		setLoading(true);
+		try {
+			const response = await operacionesClient.revertirStock(String(id), movimientoId);
+			if (response.error) throw new Error(response.error);
+			try { await refresh(); } catch { /* ignore */ }
+			return response.data;
+		} finally {
+			setLoading(false);
+		}
+	}, [refresh]);
+
 	const value = useMemo(
 		() => ({
 			operaciones,
@@ -244,6 +271,8 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 			remove,
 			confirmarStock,
 			registrarPago,
+			anularPago,
+			revertirStock,
 		}),
 		[
 			operaciones,
@@ -263,6 +292,8 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 			remove,
 			confirmarStock,
 			registrarPago,
+			anularPago,
+			revertirStock,
 		]
 	);
 

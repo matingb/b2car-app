@@ -7,6 +7,7 @@ export type ApiErrorCode =
   | "CONFLICT"
   | "IN_USE"
   | "STOCK_INSUFICIENTE"
+  | "REVERSION_STOCK_BLOQUEADA"
   | "INMUTABLE"
   | "TIMEOUT"
   | "INTERNAL";
@@ -29,6 +30,7 @@ export const API_ERROR_MESSAGES = {
   INVALID_REFERENCE: "Uno de los datos hace referencia a un registro que no existe.",
   INVALID_FORMAT: "Algunos datos no tienen un formato válido.",
   STOCK_INSUFICIENTE: "Stock insuficiente.",
+  REVERSION_STOCK_BLOQUEADA: "No se puede revertir la operación porque el stock ya fue utilizado.",
   TIMEOUT: "La operación tardó demasiado. Intentá nuevamente.",
   INTERNAL: "Ocurrió un error inesperado.",
 } as const;

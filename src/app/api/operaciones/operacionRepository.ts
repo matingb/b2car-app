@@ -19,6 +19,11 @@ export type OperacionCompraJoin = {
 	proveedores?: { nombre: string } | { nombre: string }[] | null;
 };
 
+export type OperacionGastoJoin = {
+	categoria_gasto: string;
+	descripcion?: string | null;
+};
+
 export type OperacionMovimientoStockJoin = {
 	id: string;
 	fecha: string;
@@ -26,25 +31,30 @@ export type OperacionMovimientoStockJoin = {
 	saldo_anterior: number;
 	saldo_posterior: number;
 	motivo?: string | null;
+	tipo_movimiento?: string | null;
 	created_at: string;
 	created_by?: string | null;
 	producto_id: string;
 	stock_id: string;
+	reversion_de_id?: string | null;
 	producto?: { nombre?: string; codigo?: string } | { nombre?: string; codigo?: string }[] | null;
 };
 
 export type OperacionDetalleRawRow = Omit<OperacionDTO, "movimientos_stock"> & {
 	operaciones_lineas?: OperacionLineaDTO[] | null;
-	operaciones_pagos?: unknown[] | null;
+	operaciones_pagos?: Array<{ id: string; monto?: number; operacion_pago_id?: string | null; fecha?: string }> | null;
 	operaciones_venta?: OperacionVentaJoin | OperacionVentaJoin[] | null;
 	operaciones_compra?: OperacionCompraJoin | OperacionCompraJoin[] | null;
+	operaciones_gasto?: OperacionGastoJoin | OperacionGastoJoin[] | null;
 	movimientos_stock?: OperacionMovimientoStockJoin[] | null;
 };
 
 export type OperacionRow = OperacionDTO & {
 	operaciones_lineas?: OperacionLineaDTO[] | null;
-	operaciones_pagos?: unknown[] | null;
+	operaciones_pagos?: Array<{ id: string; monto?: number; operacion_pago_id?: string | null; fecha?: string }> | null;
 	movimientos_stock?: OperacionMovimientoStockDTO[] | null;
+	categoria_gasto?: string | null;
+	descripcion?: string | null;
 };
 
 export type FacturaOperacionRow = {
@@ -71,19 +81,22 @@ export type OperacionStatsParams = {
 
 export type RpcCrearOperacionParams = {
 	p_tipo: string;
-	p_taller_id: string;
-	p_lineas: unknown[];
-	p_arreglo_id: string | null;
-	p_fecha: string | null;
-	p_cuenta_id: string | null;
-	p_idempotency_key: string | null;
-	p_observaciones: string | null;
-	p_estado_pago: string | null;
-	p_monto_inicial: number | null;
-	p_mover_stock: boolean;
-	p_proveedor_id: string | null;
-	p_cliente_id: string | null;
-	p_pagos: unknown[] | null;
+	p_taller_id?: string | null;
+	p_lineas?: unknown[];
+	p_arreglo_id?: string | null;
+	p_fecha?: string | null;
+	p_cuenta_id?: string | null;
+	p_idempotency_key?: string | null;
+	p_observaciones?: string | null;
+	p_estado_pago?: string | null;
+	p_monto_inicial?: number | null;
+	p_mover_stock?: boolean;
+	p_proveedor_id?: string | null;
+	p_cliente_id?: string | null;
+	p_pagos?: unknown[] | null;
+	p_categoria_gasto?: string | null;
+	p_monto?: number | null;
+	p_descripcion?: string | null;
 };
 
 export type RpcActualizarOperacionParams = {
@@ -161,6 +174,22 @@ export interface OperacionRepository {
 		}
 	): Promise<{ data: unknown; error: PostgrestError | null }>;
 
+	anularPago(
+		supabase: SupabaseClient,
+		params: {
+			p_operacion_id: string;
+			p_pago_id: string;
+		}
+	): Promise<{ data: unknown; error: PostgrestError | null }>;
+
+	revertirStock(
+		supabase: SupabaseClient,
+		params: {
+			p_operacion_id: string;
+			p_movimiento_id: string;
+		}
+	): Promise<{ data: unknown; error: PostgrestError | null }>;
+
 	update(
 		supabase: SupabaseClient,
 		params: RpcActualizarOperacionParams
@@ -204,7 +233,7 @@ export const operacionRepository: OperacionRepository = {
 		const { data, error } = await supabase
 			.from("operaciones")
 			.select(
-				"*, operaciones_lineas(*), operaciones_pagos:operaciones_pagos!operaciones_pagos_operacion_id_fkey(*), operaciones_venta(cliente_id, clientes(tipo_cliente, particulares(nombre, apellido), empresas(nombre))), operaciones_compra(proveedor_id, proveedores(nombre)), movimientos_stock:movimientos_stock!movimientos_stock_operacion_id_fkey(id, fecha, cantidad, saldo_anterior, saldo_posterior, motivo, created_at, created_by, producto_id, stock_id, producto:productos(nombre, codigo))"
+				"*, operaciones_lineas(*), operaciones_pagos:operaciones_pagos!operaciones_pagos_operacion_id_fkey(*), operaciones_venta(cliente_id, clientes(tipo_cliente, particulares(nombre, apellido), empresas(nombre))), operaciones_compra(proveedor_id, proveedores(nombre)), operaciones_gasto(categoria_gasto, descripcion), movimientos_stock:movimientos_stock!movimientos_stock_operacion_id_fkey(id, fecha, cantidad, saldo_anterior, saldo_posterior, motivo, tipo_movimiento, created_at, created_by, producto_id, stock_id, reversion_de_id, producto:productos(nombre, codigo))"
 			)
 			.eq("id", id)
 			.single();
@@ -216,11 +245,19 @@ export const operacionRepository: OperacionRepository = {
 		const raw = data as unknown as OperacionDetalleRawRow;
 		const venta = firstOrOnly(raw.operaciones_venta);
 		const compra = firstOrOnly(raw.operaciones_compra);
+		const gasto = firstOrOnly(raw.operaciones_gasto);
 
 		const movimientosStockRaw = Array.isArray(raw.movimientos_stock) ? raw.movimientos_stock : [];
+		const revertedIds = new Set(
+			movimientosStockRaw
+				.map((m) => m.reversion_de_id)
+				.filter((rid): rid is string => Boolean(rid))
+		);
+
 		const movimientosStock: OperacionMovimientoStockDTO[] = movimientosStockRaw
 			.map((ms) => {
 				const prod = firstOrOnly(ms.producto);
+				const isReverted = revertedIds.has(String(ms.id));
 				return {
 					id: String(ms.id),
 					fecha: String(ms.fecha),
@@ -228,12 +265,15 @@ export const operacionRepository: OperacionRepository = {
 					saldo_anterior: Number(ms.saldo_anterior) || 0,
 					saldo_posterior: Number(ms.saldo_posterior) || 0,
 					motivo: ms.motivo ? String(ms.motivo) : null,
+					...(ms.tipo_movimiento ? { tipo_movimiento: String(ms.tipo_movimiento) } : {}),
 					created_at: String(ms.created_at),
 					created_by: ms.created_by ? String(ms.created_by) : null,
 					producto_id: String(ms.producto_id),
 					stock_id: String(ms.stock_id),
 					producto_nombre: prod?.nombre,
 					producto_codigo: prod?.codigo,
+					reversion_de_id: ms.reversion_de_id ? String(ms.reversion_de_id) : null,
+					revertido: isReverted,
 				};
 			})
 			.sort((a, b) => {
@@ -248,6 +288,8 @@ export const operacionRepository: OperacionRepository = {
 			cliente_nombre: resolveClienteNombre(venta?.clientes),
 			proveedor_id: compra?.proveedor_id ? String(compra.proveedor_id) : null,
 			proveedor_nombre: firstOrOnly(compra?.proveedores)?.nombre,
+			categoria_gasto: gasto?.categoria_gasto ?? null,
+			descripcion: gasto?.descripcion ?? null,
 			movimientos_stock: movimientosStock,
 		};
 
@@ -265,7 +307,30 @@ export const operacionRepository: OperacionRepository = {
 	},
 
 	async create(supabase: SupabaseClient, params: RpcCrearOperacionParams) {
-		const { data, error } = await supabase.rpc("rpc_crear_operacion_con_stock", params);
+		if (params.p_tipo === "GASTO") {
+			const { data, error } = await supabase.rpc("rpc_crear_operacion_gasto", {
+				p_categoria_gasto: params.p_categoria_gasto ?? "General",
+				p_monto: params.p_monto ?? 0,
+				p_descripcion: params.p_descripcion ?? null,
+				p_fecha: params.p_fecha,
+				p_observaciones: params.p_observaciones,
+				p_taller_id: params.p_taller_id,
+				p_proveedor_id: params.p_proveedor_id,
+				p_estado_pago: params.p_estado_pago,
+				p_cuenta_id: params.p_cuenta_id,
+				p_monto_inicial: params.p_monto_inicial,
+				p_pagos: params.p_pagos,
+				p_idempotency_key: params.p_idempotency_key,
+			});
+			return { data, error };
+		}
+		const {
+			p_categoria_gasto: _cat,
+			p_monto: _monto,
+			p_descripcion: _desc,
+			...stockParams
+		} = params;
+		const { data, error } = await supabase.rpc("rpc_crear_operacion_con_stock", stockParams);
 		return { data, error };
 	},
 
@@ -289,6 +354,22 @@ export const operacionRepository: OperacionRepository = {
 		}
 	) {
 		const { data, error } = await supabase.rpc("rpc_registrar_pago_operacion", params);
+		return { data, error };
+	},
+
+	async anularPago(
+		supabase: SupabaseClient,
+		params: { p_operacion_id: string; p_pago_id: string }
+	) {
+		const { data, error } = await supabase.rpc("rpc_finanzas_anular_pago_operacion", params);
+		return { data, error };
+	},
+
+	async revertirStock(
+		supabase: SupabaseClient,
+		params: { p_operacion_id: string; p_movimiento_id: string }
+	) {
+		const { data, error } = await supabase.rpc("rpc_revertir_movimiento_stock_operacion", params);
 		return { data, error };
 	},
 

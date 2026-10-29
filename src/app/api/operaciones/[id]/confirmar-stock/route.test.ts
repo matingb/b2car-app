@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NextRequest } from "next/server";
+import { ServiceError } from "@/app/api/serviceError";
 
 vi.mock("@/supabase/server", () => ({
 	createClient: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
 vi.mock("@/app/api/operaciones/operacionesService", () => ({
 	operacionesService: {
 		confirmarStock: vi.fn(),
+		revertirStock: vi.fn(),
 		getById: vi.fn(),
 	},
 }));
@@ -26,7 +28,7 @@ vi.mock("@/app/api/operaciones/operacionesService", () => ({
 import { createClient } from "@/supabase/server";
 import { operacionesService, type OperacionRow } from "@/app/api/operaciones/operacionesService";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
-import { POST } from "./route";
+import { POST, DELETE } from "./route";
 
 describe("POST /api/operaciones/[id]/confirmar-stock", () => {
 	beforeEach(() => {
@@ -101,5 +103,88 @@ describe("POST /api/operaciones/[id]/confirmar-stock", () => {
 			"2026-10-21T15:00:00Z",
 			lineas
 		);
+	});
+});
+
+describe("DELETE /api/operaciones/[id]/confirmar-stock", () => {
+	const opId = "11111111-1111-4111-8111-111111111111";
+	const movId = "22222222-2222-4222-8222-222222222222";
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		vi.mocked(createClient).mockResolvedValue({} as unknown as SupabaseClient);
+	});
+
+	it("valida que el id sea un UUID válido", async () => {
+		const req = new Request("http://localhost/api/operaciones/invalido/confirmar-stock", {
+			method: "DELETE",
+		}) as unknown as NextRequest;
+
+		const response = await DELETE(req, { params: Promise.resolve({ id: "invalido" }) });
+		expect(response.status).toBe(400);
+		expect(await response.json()).toEqual({ data: null, error: "ID de operación inválido" });
+	});
+
+	it("valida que se pase un movimientoId válido", async () => {
+		const req = new Request(`http://localhost/api/operaciones/${opId}/confirmar-stock?movimiento_id=invalido`, {
+			method: "DELETE",
+		}) as unknown as NextRequest;
+
+		const response = await DELETE(req, { params: Promise.resolve({ id: opId }) });
+		expect(response.status).toBe(400);
+		expect(await response.json()).toEqual({ data: null, error: "ID de movimiento inválido" });
+	});
+
+	it("revierte el movimiento de stock exitosamente y notifica a statsService", async () => {
+		vi.mocked(operacionesService.revertirStock).mockResolvedValue({
+			data: { id: opId, tenant_id: "tenant-1" } as unknown as OperacionRow,
+			error: null,
+		});
+		vi.mocked(operacionesService.getById).mockResolvedValue({
+			data: { id: opId, tenant_id: "tenant-1" } as unknown as OperacionRow,
+			error: null,
+		});
+
+		const req = new Request(
+			`http://localhost/api/operaciones/${opId}/confirmar-stock?movimiento_id=${movId}`,
+			{ method: "DELETE" }
+		) as unknown as NextRequest;
+
+		const response = await DELETE(req, { params: Promise.resolve({ id: opId }) });
+		expect(response.status).toBe(200);
+		expect(operacionesService.revertirStock).toHaveBeenCalledWith(expect.anything(), opId, movId);
+		expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "tenant-1");
+	});
+
+	it("devuelve 404 si la operación o movimiento no existe", async () => {
+		vi.mocked(operacionesService.revertirStock).mockResolvedValue({
+			data: null,
+			error: ServiceError.NotFound,
+		});
+
+		const req = new Request(
+			`http://localhost/api/operaciones/${opId}/confirmar-stock?movimiento_id=${movId}`,
+			{ method: "DELETE" }
+		) as unknown as NextRequest;
+
+		const response = await DELETE(req, { params: Promise.resolve({ id: opId }) });
+		expect(response.status).toBe(404);
+		expect(await response.json()).toEqual({ data: null, error: "Operación o movimiento no encontrado" });
+	});
+
+	it("devuelve 409 si hay stock físico insuficiente para revertir", async () => {
+		vi.mocked(operacionesService.revertirStock).mockResolvedValue({
+			data: null,
+			error: ServiceError.StockInsuficiente,
+		});
+
+		const req = new Request(
+			`http://localhost/api/operaciones/${opId}/confirmar-stock?movimiento_id=${movId}`,
+			{ method: "DELETE" }
+		) as unknown as NextRequest;
+
+		const response = await DELETE(req, { params: Promise.resolve({ id: opId }) });
+		expect(response.status).toBe(409);
+		expect(await response.json()).toEqual({ data: null, error: "Stock físico insuficiente para revertir" });
 	});
 });

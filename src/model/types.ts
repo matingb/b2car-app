@@ -236,6 +236,9 @@ export interface OperacionMovimientoStock {
   stock_id: UUID;
   producto_nombre?: string;
   producto_codigo?: string;
+  tipo_movimiento?: TipoMovimientoStock | string;
+  reversion_de_id?: UUID | null;
+  revertido?: boolean;
 }
 
 export interface OperacionLinea {

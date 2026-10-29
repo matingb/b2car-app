@@ -117,16 +117,17 @@ describe("OperacionStockBadge", () => {
     expect(screen.queryByTestId("mock-stock-confirm-modal")).not.toBeInTheDocument();
   });
 
-  it("no es interactivo ni abre modal cuando el stock ya está ENTREGADO", async () => {
+  it("es interactivo y abre el modal cuando el stock ya está ENTREGADO", async () => {
     render(<OperacionStockBadge operacion={operacionVentaEntregada} />);
 
     const badge = screen.getByTestId("operacion-estado-stock-badge");
-    expect(badge).not.toHaveAttribute("role", "button");
+    expect(badge).toHaveAttribute("role", "button");
 
     await userEvent.click(badge);
     await runPendingPromises();
 
-    expect(screen.queryByTestId("mock-stock-confirm-modal")).not.toBeInTheDocument();
+    expect(screen.getByTestId("mock-stock-confirm-modal")).toBeInTheDocument();
+    expect(screen.getByText("Modal Stock para op-venta-2")).toBeInTheDocument();
   });
 
   it("detiene la propagación del evento click para evitar colapsar/expandir el card contenedor", async () => {

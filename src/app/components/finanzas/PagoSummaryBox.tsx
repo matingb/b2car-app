@@ -9,7 +9,7 @@ export interface PagoSummaryBoxProps {
   total: number;
   totalPagado: number;
   saldoPendiente: number;
-  tipo?: "VENTA" | "COMPRA" | "ARREGLO";
+  tipo?: "VENTA" | "COMPRA" | "GASTO" | "ARREGLO";
   isReady?: boolean;
 }
 
@@ -81,7 +81,7 @@ export default function PagoSummaryBox({
   const animatedSaldo = useAnimatedCounter(saldoPendiente, isReady);
 
   const totalLabel = tipo === "ARREGLO" ? "Total Arreglo" : "Total Acordado";
-  const pagadoLabel = tipo === "COMPRA" ? "Pagado" : "Cobrado";
+  const pagadoLabel = tipo === "COMPRA" || tipo === "GASTO" ? "Pagado" : "Cobrado";
 
   return (
     <div css={styles.summaryBox}>

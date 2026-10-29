@@ -25,6 +25,8 @@ describe("operacionRepository", () => {
 		expect(eq).toHaveBeenCalledWith("id", "op-1");
 		expect(res.data).toEqual({
 			...mockRow,
+			categoria_gasto: null,
+			descripcion: null,
 			cliente_id: null,
 			cliente_nombre: undefined,
 			proveedor_id: null,
@@ -32,6 +34,66 @@ describe("operacionRepository", () => {
 			movimientos_stock: [],
 		});
 		expect(res.error).toBeNull();
+	});
+
+	it("getById mapea correctamente operaciones_gasto con categoria y descripcion", async () => {
+		const rawRow = {
+			id: "op-gasto",
+			tenant_id: "tenant-1",
+			tipo: "GASTO",
+			operaciones_gasto: {
+				categoria_gasto: "SERVICIOS",
+				descripcion: "Luz y gas",
+			},
+		};
+
+		const single = vi.fn().mockResolvedValue({ data: rawRow, error: null });
+		const eq = vi.fn().mockReturnValue({ single });
+		const select = vi.fn().mockReturnValue({ eq });
+		const from = vi.fn().mockReturnValue({ select });
+		const supabase = { from } as unknown as SupabaseClient;
+
+		const res = await operacionRepository.getById(supabase, "op-gasto");
+
+		expect(res.data).toEqual(
+			expect.objectContaining({
+				id: "op-gasto",
+				categoria_gasto: "SERVICIOS",
+				descripcion: "Luz y gas",
+			})
+		);
+		expect(res.data?.proveedor_id).toBeNull();
+		expect(res.data?.proveedor_nombre).toBeUndefined();
+		expect(res.error).toBeNull();
+	});
+
+	it("create invoca rpc_crear_operacion_gasto cuando el tipo es GASTO", async () => {
+		const rpc = vi.fn().mockResolvedValue({ data: "op-gasto-123", error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		const res = await operacionRepository.create(supabase, {
+			p_tipo: "GASTO",
+			p_categoria_gasto: "SERVICIOS",
+			p_monto: 15000,
+			p_descripcion: "Internet",
+			p_estado_pago: "PENDIENTE",
+		});
+
+		expect(rpc).toHaveBeenCalledWith("rpc_crear_operacion_gasto", {
+			p_categoria_gasto: "SERVICIOS",
+			p_monto: 15000,
+			p_descripcion: "Internet",
+			p_fecha: undefined,
+			p_observaciones: undefined,
+			p_taller_id: undefined,
+			p_proveedor_id: undefined,
+			p_estado_pago: "PENDIENTE",
+			p_cuenta_id: undefined,
+			p_monto_inicial: undefined,
+			p_pagos: undefined,
+			p_idempotency_key: undefined,
+		});
+		expect(res.data).toBe("op-gasto-123");
 	});
 
 	it("getById mapea correctamente operaciones_venta con particular", async () => {
@@ -155,8 +217,26 @@ describe("operacionRepository", () => {
 			stock_id: "stock-1",
 			producto_nombre: "Filtro Aceite",
 			producto_codigo: "FA-01",
+			reversion_de_id: null,
+			revertido: false,
 		});
 		expect(res.data?.movimientos_stock?.[1]?.id).toBe("mov-1");
 		expect(res.error).toBeNull();
+	});
+
+	it("revertirStock invoca rpc_revertir_movimiento_stock_operacion", async () => {
+		const rpc = vi.fn().mockResolvedValue({ data: { ok: true }, error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		const res = await operacionRepository.revertirStock(supabase, {
+			p_operacion_id: "op-1",
+			p_movimiento_id: "mov-1",
+		});
+
+		expect(rpc).toHaveBeenCalledWith("rpc_revertir_movimiento_stock_operacion", {
+			p_operacion_id: "op-1",
+			p_movimiento_id: "mov-1",
+		});
+		expect(res.data).toEqual({ ok: true });
 	});
 });

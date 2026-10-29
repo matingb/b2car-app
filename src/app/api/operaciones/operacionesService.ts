@@ -1,5 +1,4 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-import type { OperacionDTO, OperacionLineaDTO } from "@/model/dtos";
 import { logger } from "@/lib/logger";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
 import {
@@ -14,6 +13,8 @@ import {
 	type OperacionVentaJoin,
 	type OperacionCompraJoin,
 	type ClienteJoin,
+	type OperacionRow,
+	type RpcCrearOperacionParams,
 	operacionRepository,
 } from "./operacionRepository";
 
@@ -23,6 +24,8 @@ export type {
 	OperacionVentaJoin,
 	OperacionCompraJoin,
 	ClienteJoin,
+	OperacionRow,
+	RpcCrearOperacionParams,
 };
 
 export type OperacionesFilters = {
@@ -66,7 +69,7 @@ export type CreateOperacionPagoInput = {
 
 export type CreateOperacionInput = {
 	tipo: string;
-	taller_id: string;
+	taller_id?: string | null;
 	fecha?: string;
 	created_at?: string;
 	lineas?: CreateOperacionLineaInput[];
@@ -80,6 +83,9 @@ export type CreateOperacionInput = {
 	mover_stock?: boolean | null;
 	proveedor_id?: string | null;
 	cliente_id?: string | null;
+	monto?: number | null;
+	categoria_gasto?: string | null;
+	descripcion?: string | null;
 };
 
 export type UpdateOperacionLineaInput = {
@@ -99,8 +105,6 @@ export type UpdateOperacionInput = {
 	idempotency_key?: string | null;
 	observaciones?: string | null;
 };
-
-export type OperacionRow = OperacionDTO & { operaciones_lineas?: OperacionLineaDTO[] | null };
 
 /**
  * Proyección de la RPC que mezcla stock y gastos sin forzar estos últimos a
@@ -226,9 +230,9 @@ export function createOperacionesService(
 				  }))
 				: [];
 
-			const { data: operacionId, error: rpcError } = await repository.create(supabase, {
+			const payload: RpcCrearOperacionParams = {
 				p_tipo: input.tipo,
-				p_taller_id: input.taller_id,
+				p_taller_id: input.taller_id ?? null,
 				p_lineas: lineasPayload,
 				p_arreglo_id: input.arreglo_id ?? null,
 				p_fecha: input.fecha ? toISODateTimeWithCurrentTime(input.fecha) : null,
@@ -238,10 +242,19 @@ export function createOperacionesService(
 				p_estado_pago: input.estado_pago ?? null,
 				p_monto_inicial: input.monto_inicial ?? null,
 				p_mover_stock: input.mover_stock ?? true,
-				p_proveedor_id: input.proveedor_id ?? null,
+				p_proveedor_id: input.tipo === "GASTO" ? null : (input.proveedor_id ?? null),
 				p_cliente_id: input.cliente_id ?? null,
 				p_pagos: input.pagos && input.pagos.length > 0 ? input.pagos : null,
-			});
+			};
+
+			if (input.tipo === "GASTO") {
+				payload.p_categoria_gasto = input.categoria_gasto ?? null;
+				payload.p_monto = input.monto !== undefined && input.monto !== null ? Number(input.monto) : null;
+				payload.p_descripcion = input.descripcion ?? null;
+				payload.p_proveedor_id = null;
+			}
+
+			const { data: operacionId, error: rpcError } = await repository.create(supabase, payload);
 
 			if (rpcError || !operacionId) {
 				logger.error("[operacionesService.create] Error en rpc_crear_operacion_con_stock:", rpcError);
@@ -335,6 +348,38 @@ export function createOperacionesService(
 			}
 
 			return { data, error: null };
+		},
+
+		async anularPago(
+			supabase: SupabaseClient,
+			operacionId: string,
+			pagoId: string
+		): Promise<{ data: OperacionRow | null; error: ServiceError | null }> {
+			const { error } = await repository.anularPago(supabase, {
+				p_operacion_id: operacionId,
+				p_pago_id: pagoId,
+			});
+			if (error) {
+				logger.error("[operacionesService.anularPago] Error:", error);
+				return { data: null, error: toServiceError(error) };
+			}
+			return this.getById(supabase, operacionId);
+		},
+
+		async revertirStock(
+			supabase: SupabaseClient,
+			operacionId: string,
+			movimientoId: string
+		): Promise<{ data: OperacionRow | null; error: ServiceError | null }> {
+			const { error } = await repository.revertirStock(supabase, {
+				p_operacion_id: operacionId,
+				p_movimiento_id: movimientoId,
+			});
+			if (error) {
+				logger.error("[operacionesService.revertirStock] Error:", error);
+				return { data: null, error: toServiceError(error) };
+			}
+			return this.getById(supabase, operacionId);
 		},
 
 		async update(

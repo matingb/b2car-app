@@ -83,5 +83,9 @@ export function buildOperacionCreatedMessage(
   tipoConfigById: Map<TipoOperacion, TipoOperacionConfig>
 ): string {
   const tipoLabel = tipoConfigById.get(tipo)?.label.toLowerCase() ?? "operación";
-  return `La ${tipoLabel} se registró correctamente para ${tallerNombre}.`;
+  const article = tipo === "GASTO" ? "El" : "La";
+  if (!tallerNombre || tallerNombre === "la operación") {
+    return `${article} ${tipoLabel} se registró correctamente.`;
+  }
+  return `${article} ${tipoLabel} se registró correctamente para ${tallerNombre}.`;
 }

@@ -19,7 +19,7 @@ export type CreateOperacionPagoInput = {
 
 export type CreateOperacionInput = {
 	tipo: TipoOperacion;
-	taller_id: string;
+	taller_id?: string | null;
 	fecha?: string;
 	created_at?: string;
 	lineas?: CreateOperacionLineaInput[];
@@ -33,6 +33,9 @@ export type CreateOperacionInput = {
 	mover_stock?: boolean | null;
 	proveedor_id?: string | null;
 	cliente_id?: string | null;
+	monto?: number | null;
+	categoria_gasto?: string | null;
+	descripcion?: string | null;
 };
 
 export type UpdateOperacionInput = Partial<Omit<CreateOperacionInput, "arreglo_id">>;
@@ -283,6 +286,28 @@ export const operacionesClient = {
 		}
 	},
 
+	async revertirStock(
+		id: string,
+		movimientoId: string
+	): Promise<{ data: Operacion | null; error: string | null }> {
+		try {
+			const res = await fetch(
+				`/api/operaciones/${id}/confirmar-stock?movimiento_id=${encodeURIComponent(movimientoId)}`,
+				{
+					method: "DELETE",
+				}
+			);
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok || body?.error) {
+				return { data: null, error: body?.error || `Error ${res.status}` };
+			}
+			return { data: body.data ? mapOperacionFromApi(body.data) : null, error: null };
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : "No se pudo revertir el movimiento de stock";
+			return { data: null, error: message };
+		}
+	},
+
 	async registrarPago(
 		id: string,
 		payload: {
@@ -335,4 +360,24 @@ export const operacionesClient = {
 			return { data: null, error: message };
 		}
 	},
+
+	async anularPago(
+		id: string | number,
+		pagoId: string
+	): Promise<{ data: Operacion | null; error: string | null }> {
+		try {
+			const res = await fetch(`/api/operaciones/${id}/pagos?pago_id=${pagoId}`, {
+				method: "DELETE",
+			});
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok || body?.error) {
+				return { data: null, error: body?.error || `Error ${res.status}` };
+			}
+			return { data: mapOperacionFromApi(body.data), error: null };
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : "No se pudo anular el pago";
+			return { data: null, error: message };
+		}
+	},
 };
+

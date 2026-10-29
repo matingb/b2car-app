@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { css } from "@emotion/react";
-import { AlertCircle, ChevronDown, Plus } from "lucide-react";
+import { AlertCircle, Plus } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import Button from "@/app/components/ui/Button";
+import ObservacionesCollapsible from "@/app/components/ui/ObservacionesCollapsible";
 import PagoCondicionSection from "@/app/components/finanzas/PagoCondicionSection";
 import OperacionLineaEditor, { OPERACION_LINE_GRID_TEMPLATE } from "./OperacionLineaEditor";
 import { useOperacionForm } from "./OperacionFormContext";
@@ -43,7 +43,6 @@ export default function OperacionStockForm() {
     importeTotal,
   } = useOperacionForm();
 
-  const [showObservaciones, setShowObservaciones] = useState(false);
 
   const isEnabled = Boolean(tipo && isTipoEnabled(tipo));
   const isAllowedTipo = tipo === "VENTA" || tipo === "COMPRA";
@@ -52,67 +51,69 @@ export default function OperacionStockForm() {
   const contraparteNombre = tipo === "VENTA" ? selectedCliente?.nombre : selectedProveedor?.nombre;
 
   return (
-    <div style={{ marginTop: 12 }}>
-      <div style={styles.sectionHeaderRow}>
-        <div style={styles.linesTitle}>Detalle de Productos</div>
-      </div>
-
-      {isProveedorProductosEmpty && (
-        <div style={styles.emptySupplierNotice} data-testid="operacion-empty-proveedor-prods">
-          <AlertCircle size={16} color={COLOR.SEMANTIC.WARNING} style={{ flexShrink: 0 }} />
-          <span>
-            {selectedProveedor?.nombre
-              ? `No hay productos de ${selectedProveedor.nombre} registrados en el inventario de este taller.`
-              : "El proveedor seleccionado no tiene productos asociados en el inventario de este taller."}
-          </span>
+    <div css={styles.container}>
+      <div>
+        <div style={styles.sectionHeaderRow}>
+          <div style={styles.linesTitle}>Detalle de Productos</div>
         </div>
-      )}
 
-      <div css={styles.tableCard}>
-        <div css={styles.columnsHeader} aria-hidden="true">
-          <div>PRODUCTO</div>
-          <div style={{ textAlign: "center" }}>CANT.</div>
-          <div style={{ textAlign: "center" }}>
-            {tipo === "VENTA" ? "ENTREGAR" : "RECIBIR"}
+        {isProveedorProductosEmpty && (
+          <div style={styles.emptySupplierNotice} data-testid="operacion-empty-proveedor-prods">
+            <AlertCircle size={16} color={COLOR.SEMANTIC.WARNING} style={{ flexShrink: 0 }} />
+            <span>
+              {selectedProveedor?.nombre
+                ? `No hay productos de ${selectedProveedor.nombre} registrados en el inventario de este taller.`
+                : "El proveedor seleccionado no tiene productos asociados en el inventario de este taller."}
+            </span>
           </div>
-          <div style={{ textAlign: "right" }}>UNITARIO</div>
-          <div style={{ textAlign: "right" }}>TOTAL</div>
-          <div />
+        )}
+
+        <div css={styles.tableCard}>
+          <div css={styles.columnsHeader} aria-hidden="true">
+            <div>PRODUCTO</div>
+            <div style={{ textAlign: "center" }}>CANT.</div>
+            <div style={{ textAlign: "center" }}>
+              {tipo === "VENTA" ? "ENTREGAR" : "RECIBIR"}
+            </div>
+            <div style={{ textAlign: "right" }}>UNITARIO</div>
+            <div style={{ textAlign: "right" }}>TOTAL</div>
+            <div />
+          </div>
+
+          <div css={styles.linesList}>
+            {lineas.map((l, idx) => {
+              const disabled = !isEnabled;
+              return (
+                <OperacionLineaEditor
+                  key={l.id || idx}
+                  index={idx}
+                  linea={l}
+                  disabled={disabled}
+                  stockSelectionDisabled={isContextualStock}
+                  loadingStocks={isInventarioLoading || isProveedorProductosLoading}
+                  stockOptions={stockOptions}
+                  getDefaultUnitarioForStockId={getDefaultUnitarioForStockId}
+                  onChange={(next) => setLineaAt(idx, next)}
+                  onRemove={() => removeLinea(idx)}
+                  canRemove={!isContextualStock && lineas.length > 1}
+                />
+              );
+            })}
+          </div>
         </div>
 
-        <div css={styles.linesList}>
-          {lineas.map((l, idx) => {
-            const disabled = !isEnabled;
-            return (
-              <OperacionLineaEditor
-                key={l.id || idx}
-                index={idx}
-                linea={l}
-                disabled={disabled}
-                stockSelectionDisabled={isContextualStock}
-                loadingStocks={isInventarioLoading || isProveedorProductosLoading}
-                stockOptions={stockOptions}
-                getDefaultUnitarioForStockId={getDefaultUnitarioForStockId}
-                onChange={(next) => setLineaAt(idx, next)}
-                onRemove={() => removeLinea(idx)}
-                canRemove={!isContextualStock && lineas.length > 1}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={styles.addRowContainer}>
-        {!isContextualStock ? (
-          <Button
-            onClick={addLinea}
-            disabled={!isEnabled}
-            dataTestId="operaciones-add-line"
-            text="Agregar Producto"
-            icon={<Plus size={16} />}
-            outline
-          />
-        ) : null}
+        {!isContextualStock && (
+          <div style={styles.addRowContainer}>
+            <Button
+              onClick={addLinea}
+              disabled={!isEnabled}
+              dataTestId="operaciones-add-line"
+              text="Agregar Producto"
+              icon={<Plus size={16} />}
+              outline
+            />
+          </div>
+        )}
       </div>
 
       {isAllowedTipo && (
@@ -136,42 +137,22 @@ export default function OperacionStockForm() {
       )}
 
       {isAllowedTipo && (
-        <div style={styles.observacionesWrap}>
-          <button
-            type="button"
-            onClick={() => setShowObservaciones((prev) => !prev)}
-            css={styles.observacionesToggle}
-            data-testid="operaciones-observaciones-toggle"
-          >
-            <span>Observaciones adicionales</span>
-            <ChevronDown
-              size={15}
-              style={{
-                transform: showObservaciones || Boolean(observaciones) ? "rotate(180deg)" : undefined,
-                transition: "transform 0.15s ease",
-              }}
-            />
-          </button>
-
-          {(showObservaciones || Boolean(observaciones) || process.env.NODE_ENV === "test") && (
-            <div style={{ marginTop: 8 }}>
-              <textarea
-                value={observaciones}
-                onChange={(e) => setObservaciones(e.target.value)}
-                placeholder="Observaciones adicionales sobre la operación..."
-                rows={2}
-                data-testid="operaciones-stock-observaciones"
-                style={styles.textarea}
-              />
-            </div>
-          )}
-        </div>
+        <ObservacionesCollapsible
+          value={observaciones}
+          onChange={setObservaciones}
+          dataTestId="operaciones-stock-observaciones"
+        />
       )}
     </div>
   );
 }
 
 const styles = {
+  container: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  }),
   sectionHeaderRow: {
     display: "flex",
     alignItems: "baseline",
@@ -232,39 +213,5 @@ const styles = {
   }),
   addRowContainer: {
     marginTop: 10,
-    marginBottom: 14,
-  } as const,
-  observacionesWrap: {
-    marginTop: 14,
-  } as const,
-  observacionesToggle: css({
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    background: "none",
-    border: "none",
-    padding: "6px 0",
-    color: COLOR.TEXT.SECONDARY,
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: "pointer",
-    transition: "color 0.15s ease",
-    "&:hover": {
-      color: COLOR.TEXT.PRIMARY,
-    },
-  }),
-  textarea: {
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 8,
-    padding: "10px 12px",
-    fontSize: 14,
-    color: COLOR.TEXT.PRIMARY,
-    backgroundColor: COLOR.INPUT.PRIMARY.BACKGROUND,
-    outline: "none",
-    boxSizing: "border-box" as const,
-    fontFamily: "inherit",
-    resize: "vertical" as const,
-    lineHeight: "1.5",
-    width: "100%",
   } as const,
 } as const;

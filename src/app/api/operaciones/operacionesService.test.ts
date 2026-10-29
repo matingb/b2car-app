@@ -112,6 +112,28 @@ describe("operacionesService.create", () => {
 			p_proveedor_id: null,
 		}));
 	});
+
+	it("reenvía parámetros de GASTO a rpc_crear_operacion_gasto", async () => {
+		const operacionId = "11111111-1111-4111-8111-111111111111";
+		const rpc = vi.fn().mockResolvedValue({ data: operacionId, error: null });
+		vi.spyOn(operacionesService, "getById").mockResolvedValue({ data: null, error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		await operacionesService.create(supabase, {
+			tipo: "GASTO",
+			categoria_gasto: "SERVICIOS",
+			monto: 35000,
+			descripcion: "Luz y agua",
+			estado_pago: "PENDIENTE",
+		});
+
+		expect(rpc).toHaveBeenCalledWith("rpc_crear_operacion_gasto", expect.objectContaining({
+			p_categoria_gasto: "SERVICIOS",
+			p_monto: 35000,
+			p_descripcion: "Luz y agua",
+			p_estado_pago: "PENDIENTE",
+		}));
+	});
 });
 
 describe("operacionesService.getById", () => {
@@ -381,3 +403,98 @@ describe("operacionesService.deleteById", () => {
 		expect(result.error).toBe("Unknown");
 	});
 });
+
+describe("operacionesService.anularPago", () => {
+	it("llama a la RPC rpc_finanzas_anular_pago_operacion y devuelve la operación actualizada", async () => {
+		const rpc = vi.fn().mockResolvedValue({
+			data: { ok: true },
+			error: null,
+		});
+		const single = vi.fn().mockResolvedValue({
+			data: { id: "op-1", monto_total: 1000, total_pagado: 0, estado_pago: "PENDIENTE" },
+			error: null,
+		});
+		const eq = vi.fn().mockReturnValue({ single });
+		const select = vi.fn().mockReturnValue({ eq });
+		const from = vi.fn().mockReturnValue({ select });
+		const supabase = { rpc, from } as unknown as SupabaseClient;
+
+		const result = await operacionesService.anularPago(
+			supabase,
+			"op-1",
+			"pago-1"
+		);
+
+		expect(rpc).toHaveBeenCalledWith("rpc_finanzas_anular_pago_operacion", {
+			p_operacion_id: "op-1",
+			p_pago_id: "pago-1",
+		});
+		expect(result.data?.id).toBe("op-1");
+		expect(result.error).toBeNull();
+	});
+
+	it("retorna error estandarizado cuando falla la RPC", async () => {
+		const rpc = vi.fn().mockResolvedValue({
+			data: null,
+			error: { code: "P0002", message: "Pago no encontrado" },
+		});
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		const result = await operacionesService.anularPago(
+			supabase,
+			"op-1",
+			"pago-1"
+		);
+
+		expect(result.error).toBe(ServiceError.NotFound);
+		expect(result.data).toBeNull();
+	});
+});
+
+describe("operacionesService.revertirStock", () => {
+	it("llama a la RPC rpc_revertir_movimiento_stock_operacion y devuelve la operación actualizada", async () => {
+		const rpc = vi.fn().mockResolvedValue({
+			data: { ok: true },
+			error: null,
+		});
+		const single = vi.fn().mockResolvedValue({
+			data: { id: "op-1", estado_stock: "PARCIAL" },
+			error: null,
+		});
+		const eq = vi.fn().mockReturnValue({ single });
+		const select = vi.fn().mockReturnValue({ eq });
+		const from = vi.fn().mockReturnValue({ select });
+		const supabase = { rpc, from } as unknown as SupabaseClient;
+
+		const result = await operacionesService.revertirStock(
+			supabase,
+			"op-1",
+			"mov-1"
+		);
+
+		expect(rpc).toHaveBeenCalledWith("rpc_revertir_movimiento_stock_operacion", {
+			p_operacion_id: "op-1",
+			p_movimiento_id: "mov-1",
+		});
+		expect(result.data?.id).toBe("op-1");
+		expect(result.error).toBeNull();
+	});
+
+	it("retorna error estandarizado cuando falla la RPC con stock insuficiente", async () => {
+		const rpc = vi.fn().mockResolvedValue({
+			data: null,
+			error: { code: "P0001", message: "Stock insuficiente" },
+		});
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		const result = await operacionesService.revertirStock(
+			supabase,
+			"op-1",
+			"mov-1"
+		);
+
+		expect(result.error).toBe(ServiceError.StockInsuficiente);
+		expect(result.data).toBeNull();
+	});
+});
+

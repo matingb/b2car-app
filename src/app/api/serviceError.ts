@@ -13,6 +13,7 @@ export enum ServiceError {
   NoClienteAsignado = "NoClienteAsignado",
   Unknown = "Unknown",
   StockInsuficiente = "Stock Insuficiente",
+  ReversionStockBloqueada = "ReversionStockBloqueada",
   ArregloFacturado = "ArregloFacturado",
   MovimientoFinancieroInmutable = "MovimientoFinancieroInmutable",
   HorasFacturadasInmutables = "HorasFacturadasInmutables",
@@ -37,8 +38,22 @@ export function toServiceError(err: PostgrestError): ServiceError {
   if (code == "23503") return ServiceError.EnUso;
   if (code == "55000") return ServiceError.MovimientoFinancieroInmutable;
   if (code == "55001") return ServiceError.ArregloFacturado;
-  if (code == "P0001" && err.message?.includes("STOCK_INSUFICIENTE")) return ServiceError.StockInsuficiente;
+  if (code == "55002") return ServiceError.StockInsuficiente;
+  if (code == "55005") return ServiceError.ReversionStockBloqueada;
+  if (code == "P0001") {
+    if (err.message?.includes("revertir") || err.message?.includes("consumidas o vendidas")) {
+      return ServiceError.ReversionStockBloqueada;
+    }
+    if (
+      err.message?.includes("STOCK_INSUFICIENTE") ||
+      err.message?.toLowerCase().includes("stock insuficiente") ||
+      (err.message?.toLowerCase().includes("stock") && err.message?.toLowerCase().includes("insuficiente"))
+    ) {
+      return ServiceError.StockInsuficiente;
+    }
+  }
   if (code == "P1791") return ServiceError.HorasFacturadasInmutables;
+  if (code == "22023") return ServiceError.Validation;
   return ServiceError.Unknown;
 }
 

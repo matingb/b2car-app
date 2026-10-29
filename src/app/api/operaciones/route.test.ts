@@ -420,6 +420,63 @@ describe("POST /api/operaciones", () => {
 			expect(response.status).toBe(400);
 			expect(await response.json()).toEqual({ data: null, error: "proveedor_id inválida" });
 		});
+
+		it("permite registrar un gasto diferido sin cuenta financiera (estado_pago PENDIENTE)", async () => {
+			vi.mocked(operacionesService.create).mockResolvedValue({
+				data: { id: "op-gasto-1", tenant_id: "tenant-1" },
+				error: null,
+			} as unknown as Awaited<ReturnType<typeof operacionesService.create>>);
+
+			const response = await POST(new Request("http://localhost/api/operaciones", {
+				method: "POST",
+				body: JSON.stringify({
+					tipo: "GASTO",
+					idempotency_key: "33333333-3333-4333-8333-333333333333",
+					categoria_gasto: "SERVICIOS",
+					monto: 25000,
+					descripcion: "Servicio de internet y telefonía",
+					estado_pago: "PENDIENTE",
+				}),
+			}));
+
+			expect(response.status).toBe(201);
+			expect(operacionesService.create).toHaveBeenCalledWith(
+				expect.anything(),
+				expect.objectContaining({
+					tipo: "GASTO",
+					categoria_gasto: "SERVICIOS",
+					monto: 25000,
+					descripcion: "Servicio de internet y telefonía",
+					estado_pago: "PENDIENTE",
+				})
+			);
+			expect(vi.mocked(operacionesService.create).mock.calls[0][1].cuenta_financiera_id).toBeUndefined();
+		});
+
+		it("rechaza un gasto si el monto es <= 0 o falta la categoria", async () => {
+			const resSinCategoria = await POST(new Request("http://localhost/api/operaciones", {
+				method: "POST",
+				body: JSON.stringify({
+					tipo: "GASTO",
+					idempotency_key: "33333333-3333-4333-8333-333333333333",
+					monto: 1000,
+				}),
+			}));
+			expect(resSinCategoria.status).toBe(400);
+			expect(await resSinCategoria.json()).toEqual({ data: null, error: "Falta categoria_gasto" });
+
+			const resMontoInvalido = await POST(new Request("http://localhost/api/operaciones", {
+				method: "POST",
+				body: JSON.stringify({
+					tipo: "GASTO",
+					idempotency_key: "33333333-3333-4333-8333-333333333333",
+					categoria_gasto: "OTROS",
+					monto: 0,
+				}),
+			}));
+			expect(resMontoInvalido.status).toBe(400);
+			expect(await resMontoInvalido.json()).toEqual({ data: null, error: "El monto del gasto debe ser mayor a 0" });
+		});
 	});
 });
 

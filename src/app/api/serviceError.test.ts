@@ -24,8 +24,11 @@ describe("toServiceError", () => {
     ["PGRST116", ServiceError.NotFound],
     ["P0002", ServiceError.NotFound],
     ["23505", ServiceError.Conflict],
+    ["22023", ServiceError.Validation],
     ["55000", ServiceError.MovimientoFinancieroInmutable],
     ["55001", ServiceError.ArregloFacturado],
+    ["55002", ServiceError.StockInsuficiente],
+    ["55005", ServiceError.ReversionStockBloqueada],
     ["XX000", ServiceError.Unknown],
   ])("keeps the existing mapping of %s", (code, expected) => {
     expect(toServiceError(databaseError(code))).toBe(expected);
@@ -34,13 +37,13 @@ describe("toServiceError", () => {
 
 describe("serviceFailure", () => {
   it("preserves the same original error with its message, details, hint and stack", () => {
-    const cause = databaseError("22023", "Cuenta financiera requerida");
+    const cause = databaseError("99999", "Error no mapeado");
     const result: ServiceResult<never> = { data: null, ...serviceFailure(cause) };
     expect(result.error).toBe(ServiceError.Unknown);
     expect(result.cause).toBe(cause);
     expect(result.cause?.details).toBe("original details");
     expect(result.cause?.hint).toBe("original hint");
-    expect(result.cause?.stack).toContain("Cuenta financiera requerida");
+    expect(result.cause?.stack).toContain("Error no mapeado");
   });
 
   it("keeps a recognized enum alongside its cause", () => {

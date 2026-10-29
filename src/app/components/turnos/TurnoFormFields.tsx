@@ -9,6 +9,7 @@ import { turnoFormStyles as styles } from "@/app/components/turnos/TurnoFormFiel
 import { useTurnoHorarios } from "@/app/components/turnos/hooks/useTurnoHorarios";
 import TurnoClienteVehiculoFields from "@/app/components/turnos/fields/TurnoClienteVehiculoFields";
 import TurnoDateTimePicker from "@/app/components/turnos/fields/TurnoDateTimePicker";
+import ObservacionesCollapsible from "@/app/components/ui/ObservacionesCollapsible";
 import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
 import { useClientes } from "@/app/providers/ClientesProvider";
 import { CREATE_CLIENTE_VALUE } from "@/app/components/clientes/ClienteAutocomplete";
@@ -245,16 +246,14 @@ export default function TurnoFormFields(props: Props) {
         />
       </div>
 
-      <div>
-        <label style={styles.label}>Observaciones</label>
-        <textarea
-          style={styles.textarea}
-          value={state.observaciones}
-          onChange={(e) => onChange({ observaciones: e.target.value })}
-          placeholder="Notas internas, detalles, etc."
-          rows={3}
-        />
-      </div>
+      <ObservacionesCollapsible
+        value={state.observaciones}
+        onChange={(val) => onChange({ observaciones: val })}
+        placeholder="Notas internas, detalles, etc."
+        rows={3}
+        dataTestId="turno-observaciones"
+        style={{ marginTop: 0 }}
+      />
     </div>
   );
 }

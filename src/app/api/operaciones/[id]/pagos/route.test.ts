@@ -163,3 +163,81 @@ describe("POST /api/operaciones/[id]/pagos", () => {
 		expect(await response.json()).toEqual({ data: null, error: "Operación no encontrada" });
 	});
 });
+
+describe("DELETE /api/operaciones/[id]/pagos", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		vi.mocked(createClient).mockResolvedValue({} as unknown as SupabaseClient);
+	});
+
+	it("valida que el id sea un UUID válido", async () => {
+		const req = new Request("http://localhost/api/operaciones/invalido/pagos?pago_id=22222222-2222-4222-8222-222222222222", {
+			method: "DELETE",
+		}) as unknown as NextRequest;
+
+		const { DELETE } = await import("./route");
+		const response = await DELETE(req, { params: Promise.resolve({ id: "invalido" }) });
+		expect(response.status).toBe(400);
+		expect(await response.json()).toEqual({ data: null, error: "ID de operación inválido" });
+	});
+
+	it("valida que pago_id sea requerido y sea UUID", async () => {
+		const opId = "11111111-1111-4111-8111-111111111111";
+		const req = new Request(`http://localhost/api/operaciones/${opId}/pagos?pago_id=invalido`, {
+			method: "DELETE",
+		}) as unknown as NextRequest;
+
+		const { DELETE } = await import("./route");
+		const response = await DELETE(req, { params: Promise.resolve({ id: opId }) });
+		expect(response.status).toBe(400);
+		expect(await response.json()).toEqual({ data: null, error: "ID de pago inválido" });
+	});
+
+	it("anula un pago exitosamente", async () => {
+		const opId = "11111111-1111-4111-8111-111111111111";
+		const pagoId = "22222222-2222-4222-8222-222222222222";
+		operacionesService.anularPago = vi.fn().mockResolvedValue({
+			data: { id: opId, total_pagado: 0, esta_pago: false } as OperacionRow,
+			error: null,
+		});
+		vi.mocked(operacionesService.getById).mockResolvedValue({
+			data: { id: opId, tenant_id: "tenant-1" } as OperacionRow,
+			error: null,
+		});
+
+		const req = new Request(`http://localhost/api/operaciones/${opId}/pagos?pago_id=${pagoId}`, {
+			method: "DELETE",
+		}) as unknown as NextRequest;
+
+		const { DELETE } = await import("./route");
+		const response = await DELETE(req, { params: Promise.resolve({ id: opId }) });
+		expect(response.status).toBe(200);
+		const json = await response.json();
+		expect(json.data.id).toBe(opId);
+		expect(operacionesService.anularPago).toHaveBeenCalledWith(
+			expect.anything(),
+			opId,
+			pagoId
+		);
+		expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "tenant-1");
+	});
+
+	it("devuelve 404 si la operación o pago no existe", async () => {
+		const opId = "11111111-1111-4111-8111-111111111111";
+		const pagoId = "22222222-2222-4222-8222-222222222222";
+		operacionesService.anularPago = vi.fn().mockResolvedValue({
+			data: null,
+			error: ServiceError.NotFound,
+		});
+
+		const req = new Request(`http://localhost/api/operaciones/${opId}/pagos?pago_id=${pagoId}`, {
+			method: "DELETE",
+		}) as unknown as NextRequest;
+
+		const { DELETE } = await import("./route");
+		const response = await DELETE(req, { params: Promise.resolve({ id: opId }) });
+		expect(response.status).toBe(404);
+		expect(await response.json()).toEqual({ data: null, error: "Operación o pago no encontrado" });
+	});
+});
+

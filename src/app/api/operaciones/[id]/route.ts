@@ -77,6 +77,9 @@ function mapMovimientoStock(row: OperacionMovimientoStockDTO): OperacionMovimien
 		stock_id: row.stock_id,
 		producto_nombre: row.producto_nombre ?? undefined,
 		producto_codigo: row.producto_codigo ?? undefined,
+		tipo_movimiento: row.tipo_movimiento as OperacionMovimientoStock["tipo_movimiento"],
+		reversion_de_id: row.reversion_de_id ?? undefined,
+		revertido: Boolean(row.revertido),
 	};
 }
 
@@ -229,6 +232,10 @@ export async function DELETE(
 				case ServiceError.StockInsuficiente:
 					status = 409;
 					message = "Stock insuficiente";
+					break;
+				case ServiceError.ReversionStockBloqueada:
+					status = 409;
+					message = "No se puede anular la operación: el stock ingresado ya fue consumido o vendido";
 					break;
 				case ServiceError.MovimientoFinancieroInmutable:
 					status = 409;

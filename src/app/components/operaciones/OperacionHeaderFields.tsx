@@ -38,6 +38,7 @@ export default function OperacionHeaderFields() {
     clientes,
     isClientesLoading,
     pagosDraft,
+    isEditingGasto,
   } = useOperacionForm();
 
   const isCreatingCuenta = cuentaFinancieraId === CREATE_CUENTA_VALUE;
@@ -89,7 +90,7 @@ export default function OperacionHeaderFields() {
           </div>
         )}
 
-        {(tipo === "COMPRA" || tipo === "GASTO") && (
+        {tipo === "COMPRA" && (
           <div style={styles.headerCol}>
             <label style={styles.label}>Proveedor</label>
             <Autocomplete
@@ -107,7 +108,7 @@ export default function OperacionHeaderFields() {
           </div>
         )}
 
-        {tipo === "GASTO" && (
+        {tipo === "GASTO" && isEditingGasto ? (
           <div style={styles.headerCol}>
             <label style={styles.label}>
               Cuenta financiera {requiresCuenta ? <span aria-hidden="true" style={styles.required}>*</span> : null}
@@ -121,9 +122,7 @@ export default function OperacionHeaderFields() {
               style={{ height: 38, fontSize: 14 }}
             />
           </div>
-        )}
-
-        {tipo !== "GASTO" && (
+        ) : (
           <input
             type="hidden"
             data-testid="operaciones-create-cuenta-financiera"
@@ -133,7 +132,7 @@ export default function OperacionHeaderFields() {
         )}
       </div>
 
-      {tipo === "GASTO" && isCreatingCuenta && (
+      {tipo === "GASTO" && isEditingGasto && isCreatingCuenta && (
         <CuentaFinancieraFormFields
           values={cuentaDraft}
           onChange={(patch) => setCuentaDraft({ ...cuentaDraft, ...patch })}

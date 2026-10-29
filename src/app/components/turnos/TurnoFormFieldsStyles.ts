@@ -3,7 +3,7 @@ import { BREAKPOINTS, COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 
 export const turnoFormStyles = {
   // --- Layout ---
-  container: { display: "grid", gap: 12 },
+  container: { display: "grid", gap: 10 },
   row: css({
     display: "flex",
     gap: 16,

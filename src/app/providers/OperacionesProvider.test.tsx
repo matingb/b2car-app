@@ -14,6 +14,8 @@ vi.mock("@/clients/operacionesClient", () => ({
 		create: vi.fn(),
 		update: vi.fn(),
 		delete: vi.fn(),
+		anularPago: vi.fn(),
+		revertirStock: vi.fn(),
 	},
 }));
 
@@ -88,4 +90,59 @@ describe("OperacionesProvider", () => {
 			expect.anything(),
 		);
 	});
+
+	it("expone anularPago y reenvía la llamada a operacionesClient", async () => {
+		const { operacionesClient } = await import("@/clients/operacionesClient");
+		vi.mocked(operacionesClient.anularPago).mockResolvedValue({
+			data: makeOperacion(1),
+			error: null,
+		});
+
+		let anularFn: ((id: string, pagoId: string) => Promise<Operacion | null>) | undefined;
+		function AnularProbe() {
+			const { anularPago } = useOperaciones();
+			anularFn = anularPago;
+			return null;
+		}
+
+		render(
+			<OperacionesProvider>
+				<AnularProbe />
+			</OperacionesProvider>
+		);
+
+		await waitFor(() => expect(anularFn).toBeDefined());
+		const result = await anularFn!("op-1", "pago-1");
+
+		expect(operacionesClient.anularPago).toHaveBeenCalledWith("op-1", "pago-1");
+		expect(result?.id).toBe("op-1");
+	});
+
+	it("expone revertirStock y reenvía la llamada a operacionesClient", async () => {
+		const { operacionesClient } = await import("@/clients/operacionesClient");
+		vi.mocked(operacionesClient.revertirStock).mockResolvedValue({
+			data: makeOperacion(1),
+			error: null,
+		});
+
+		let revertirFn: ((id: string, movId: string) => Promise<Operacion | null>) | undefined;
+		function RevertirProbe() {
+			const { revertirStock } = useOperaciones();
+			revertirFn = revertirStock;
+			return null;
+		}
+
+		render(
+			<OperacionesProvider>
+				<RevertirProbe />
+			</OperacionesProvider>
+		);
+
+		await waitFor(() => expect(revertirFn).toBeDefined());
+		const result = await revertirFn!("op-1", "mov-1");
+
+		expect(operacionesClient.revertirStock).toHaveBeenCalledWith("op-1", "mov-1");
+		expect(result?.id).toBe("op-1");
+	});
 });
+

@@ -133,6 +133,7 @@ describe("OperacionCreateModal", () => {
     mockGetProveedorProductos.mockResolvedValue({ data: [], error: null });
     mockGetProveedores.mockResolvedValue({ data: [], error: null });
     mockGetClientes.mockResolvedValue({ data: [], error: null });
+    mockCrearOperacion.mockResolvedValue({ id: "O-1" });
     mockCrearGasto.mockResolvedValue({
       data: { id: "G1", cuentaId: "C1", categoria: "ALQUILER", importe: 5000 },
       error: null,
@@ -208,9 +209,10 @@ describe("OperacionCreateModal", () => {
     expect(screen.getByTestId("gasto-categoria")).toBeInTheDocument();
     expect(screen.getByTestId("gasto-importe")).toBeInTheDocument();
     expect(screen.getByTestId("gasto-descripcion")).toBeInTheDocument();
+    expect(screen.queryByTestId("operaciones-create-proveedor")).not.toBeInTheDocument();
 
     // Completar datos
-    await userEvent.type(screen.getByTestId("operaciones-create-cuenta-financiera"), "C1");
+    await userEvent.type(screen.getByTestId("pago-cuenta-0"), "C1");
     await userEvent.type(screen.getByTestId("gasto-importe"), "15000");
 
     // Guardar
@@ -218,18 +220,17 @@ describe("OperacionCreateModal", () => {
     await runPendingPromises();
 
     await waitFor(() => {
-      expect(mockCrearGasto).toHaveBeenCalledWith(
+      expect(mockCrearOperacion).toHaveBeenCalledWith(
         expect.objectContaining({
-          cuentaId: "C1",
-          categoria: "ALQUILER",
-          importe: 15000,
+          tipo: "GASTO",
+          categoria_gasto: "ALQUILER",
+          monto: 15000,
           descripcion: null,
-          idempotencyKey: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+          idempotency_key: expect.stringMatching(/^[0-9a-f-]{36}$/i),
         })
       );
     });
 
-    expect(mockRefreshOperaciones).toHaveBeenCalledTimes(1);
     expect(mockRefreshCuentas).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -624,7 +625,11 @@ describe("OperacionCreateModal", () => {
     await userEvent.click(screen.getByTestId("operaciones-create-tipo-GASTO"));
     await runPendingPromises();
 
-    await userEvent.type(screen.getByTestId("operaciones-create-cuenta-financiera"), "C1");
+    const observacionesToggle = screen.getByTestId("operaciones-observaciones-toggle");
+    expect(observacionesToggle).toHaveTextContent("Observaciones adicionales");
+    await userEvent.click(observacionesToggle);
+
+    await userEvent.type(screen.getByTestId("pago-cuenta-0"), "C1");
     await userEvent.type(screen.getByTestId("gasto-importe"), "10000");
     await userEvent.type(screen.getByTestId("gasto-observaciones"), "Se abonó con recargo por mora");
 
@@ -632,11 +637,60 @@ describe("OperacionCreateModal", () => {
     await runPendingPromises();
 
     await waitFor(() => {
-      expect(mockCrearGasto).toHaveBeenCalledWith(
+      expect(mockCrearOperacion).toHaveBeenCalledWith(
         expect.objectContaining({
-          cuentaId: "C1",
-          importe: 10000,
+          tipo: "GASTO",
+          monto: 10000,
           observaciones: "Se abonó con recargo por mora",
+        })
+      );
+    });
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("permite registrar un gasto diferido sin pago inmediato (estado_pago PENDIENTE)", async () => {
+    const onClose = vi.fn();
+    mockCrearOperacion.mockResolvedValueOnce({
+      id: "OP-GASTO-DIFERIDO",
+      tipo: "GASTO",
+    });
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        onClose={onClose}
+      />
+    );
+
+    await runPendingPromises();
+
+    await userEvent.click(screen.getByTestId("operaciones-create-tipo-GASTO"));
+    await runPendingPromises();
+
+    await userEvent.type(screen.getByTestId("gasto-importe"), "15000");
+
+    // Eliminar la cuenta de pago para diferir el gasto
+    const removeBtn = screen.getByTestId("pago-remove-0");
+    await userEvent.click(removeBtn);
+    await runPendingPromises();
+
+    expect(screen.getByTestId("pago-empty-notice")).toBeInTheDocument();
+
+    const submitBtn = screen.getByTestId("modal-submit");
+    expect(submitBtn).not.toBeDisabled();
+
+    await userEvent.click(submitBtn);
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(mockCrearOperacion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tipo: "GASTO",
+          monto: 15000,
+          cuenta_financiera_id: null,
+          estado_pago: "PENDIENTE",
+          pagos: undefined,
         })
       );
     });

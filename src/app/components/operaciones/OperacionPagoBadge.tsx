@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import type { Operacion, EstadoPagoOperacion, TipoOperacion } from "@/model/types";
 import PagoBadge, { calcularEstadoPago } from "@/app/components/ui/PagoBadge";
 import OperacionPagoModal from "@/app/components/operaciones/OperacionPagoModal";
@@ -9,6 +9,7 @@ export { calcularEstadoPago };
 
 export interface OperacionPagoBadgeProps {
   operacion?: Operacion | null;
+  operacionId?: string | number;
   estado?: EstadoPagoOperacion | string | null;
   estaPago?: boolean | null;
   totalPagado?: number | null;
@@ -24,6 +25,7 @@ export interface OperacionPagoBadgeProps {
 
 export default function OperacionPagoBadge({
   operacion,
+  operacionId: propOperacionId,
   estado,
   estaPago,
   totalPagado,
@@ -39,14 +41,11 @@ export default function OperacionPagoBadge({
   const [modalOpen, setModalOpen] = useState(false);
 
   const effectiveTipo = operacion?.tipo ?? tipo;
-  const isComercial = effectiveTipo === "VENTA" || effectiveTipo === "COMPRA";
-
-  if (!isComercial) {
-    return null;
-  }
+  const isComercial = effectiveTipo === "VENTA" || effectiveTipo === "COMPRA" || effectiveTipo === "GASTO";
 
   const effectiveMontoTotal =
     operacion?.monto_total ??
+    operacion?.monto ??
     montoTotal ??
     (operacion?.lineas ?? []).reduce(
       (acc, l) => acc + (l.cantidad || 0) * (l.monto_unitario || 0),
@@ -54,13 +53,9 @@ export default function OperacionPagoBadge({
     );
 
   const isSinCargo =
-    effectiveTipo === "COMPRA" &&
+    (effectiveTipo === "COMPRA" || effectiveTipo === "GASTO") &&
     effectiveMontoTotal === 0 &&
     !(operacion?.total_pagado || totalPagado);
-
-  if (isSinCargo) {
-    return null;
-  }
 
   const effectiveTotalPagado =
     operacion?.total_pagado ??
@@ -86,8 +81,22 @@ export default function OperacionPagoBadge({
       estaPago: effectiveEstaPago,
     });
 
-  const canPay = effectiveEstado !== "PAGADO" && effectiveSaldoPendiente > 0;
-  const isInteractive = Boolean(onClick || (operacion && canPay));
+  const modalOperacion = useMemo(() => {
+    if (!operacion) return null;
+    return {
+      ...operacion,
+      monto_total: effectiveMontoTotal,
+      total_pagado: effectiveTotalPagado,
+      saldo_pendiente: effectiveSaldoPendiente,
+    };
+  }, [operacion, effectiveMontoTotal, effectiveTotalPagado, effectiveSaldoPendiente]);
+
+  if (!isComercial || isSinCargo) {
+    return null;
+  }
+
+  const effectiveOperacionId = propOperacionId ?? operacion?.id;
+  const isInteractive = Boolean(onClick || effectiveOperacionId);
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -97,37 +106,28 @@ export default function OperacionPagoBadge({
       return;
     }
 
-    if (!operacion || !canPay) return;
+    if (!effectiveOperacionId) return;
     setModalOpen(true);
   };
 
   return (
     <>
-      <span
-        onClick={(e) => e.stopPropagation()}
-        style={{ display: "inline-flex" }}
-      >
-        <PagoBadge
-          estado={effectiveEstado}
-          estaPago={effectiveEstaPago}
-          totalCobrado={effectiveTotalPagado}
-          saldoPendiente={effectiveSaldoPendiente}
-          precioFinal={effectiveMontoTotal}
-          size={size}
-          hideTextOnMobile={hideTextOnMobile}
-          onClick={isInteractive ? handleToggle : undefined}
-          dataTestId={dataTestId}
-        />
-      </span>
-      {operacion && modalOpen ? (
+      <PagoBadge
+        estado={effectiveEstado}
+        estaPago={effectiveEstaPago}
+        totalCobrado={effectiveTotalPagado}
+        saldoPendiente={effectiveSaldoPendiente}
+        precioFinal={effectiveMontoTotal}
+        size={size}
+        hideTextOnMobile={hideTextOnMobile}
+        onClick={isInteractive ? handleToggle : undefined}
+        dataTestId={dataTestId}
+      />
+      {effectiveOperacionId && modalOpen ? (
         <OperacionPagoModal
           open={modalOpen}
-          operacion={{
-            ...operacion,
-            monto_total: effectiveMontoTotal,
-            total_pagado: effectiveTotalPagado,
-            saldo_pendiente: effectiveSaldoPendiente,
-          }}
+          operacionId={effectiveOperacionId}
+          operacion={modalOperacion}
           onClose={() => setModalOpen(false)}
           onSuccess={() => {
             setModalOpen(false);
@@ -138,3 +138,4 @@ export default function OperacionPagoBadge({
     </>
   );
 }
+

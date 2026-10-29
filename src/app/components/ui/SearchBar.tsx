@@ -51,7 +51,7 @@ export default function SearchBar({
 const styles = {
   container: {
     width: "100%",
-    height: "100%",
+    height: 40,
     position: "relative" as const,
     display: "flex",
     justifyContent: "flex-start",
@@ -60,6 +60,8 @@ const styles = {
   icon: {
     position: "absolute" as const,
     left: "0.75rem",
+    top: "50%",
+    transform: "translateY(-50%)",
     pointerEvents: "none" as const,
     flexShrink: 0,
   },

@@ -15,6 +15,7 @@ import {
   getClienteCuentaCorrienteViaRoute,
   getClienteResumenFinancieroViaRoute,
 } from "../helpers/routeDrivers";
+import { operacionesService } from "@/app/api/operaciones/operacionesService";
 
 describe("Integration: Cuenta Corriente del Cliente", () => {
   it("construye el libro mayor con cargos (débitos) y cobros (créditos) respetando saldo acumulado", async () => {
@@ -240,5 +241,76 @@ describe("Integration: Cuenta Corriente del Cliente", () => {
     expect(resumen.total_historico_cobrado).toBe(30000);
     expect(resumen.cantidad_arreglos_pendientes_pago).toBe(1);
   });
+
+  it("al anular un cobro de venta, revierte el saldo de la cuenta financiera y restablece la deuda en la cuenta corriente del cliente", async () => {
+    const saldoInicial = 50000;
+    const cobroVenta = 30000;
+    const { cliente } = await dadoUnClienteParticularConVehiculo();
+    const cuentaTaller = await dadoUnaCuentaFinanciera({
+      nombre: "Banco Taller Anulacion Cobro",
+      tipo: "CUENTA_BANCARIA",
+      saldoInicial,
+    });
+    const { stockId } = await dadoQueExisteUnProductoConStock({
+      stock: { cantidad: 10, taller_id: SEED.tallerId },
+      producto: { precio_unitario: 10000 },
+    });
+
+    const res = await crearOperacion({
+      tipo: "VENTA",
+      taller_id: SEED.tallerId,
+      cliente_id: cliente.id,
+      observaciones: "Venta con cobro para anular",
+      lineas: [
+        {
+          stock_id: stockId,
+          cantidad: 5,
+          cantidad_cumplida: 5,
+          monto_unitario: 10000,
+          delta_cantidad: -5,
+        },
+      ],
+      pagos: [
+        {
+          cuenta_id: cuentaTaller.id,
+          monto: cobroVenta,
+          descripcion: "Anticipo venta",
+        },
+      ],
+    });
+
+    const { data: operacion } = await res.json();
+    await expectSaldoCuenta(cuentaTaller.id, saldoInicial + cobroVenta);
+
+    const { data: opConDetalle } = await operacionesService.getById(testClient, operacion.id);
+    const pagoId = opConDetalle?.operaciones_pagos?.[0]?.id;
+    expect(pagoId).toBeDefined();
+
+    const { data: opActualizada } = await operacionesService.anularPago(
+      testClient,
+      operacion.id,
+      pagoId!
+    );
+
+    expect(opActualizada?.monto_total).toBe(50000);
+    expect(opActualizada?.total_pagado).toBe(0);
+    expect(opActualizada?.esta_pago).toBe(false);
+    expect(opActualizada?.estado_pago).toBe("PENDIENTE");
+
+    await expectSaldoCuenta(cuentaTaller.id, saldoInicial);
+
+    const resCc = await getClienteCuentaCorrienteViaRoute(cliente.id);
+    const { data: movimientos } = await resCc.json();
+    const movCobro = movimientos.find(
+      (m: { tipo_movimiento: string; operacion_id: string }) =>
+        m.tipo_movimiento === "COBRO" && m.operacion_id === operacion.id
+    );
+    expect(movCobro).toBeUndefined();
+
+    const totalDebito = movimientos.reduce((acc: number, m: { debito: number }) => acc + Number(m.debito), 0);
+    const totalCredito = movimientos.reduce((acc: number, m: { credito: number }) => acc + Number(m.credito), 0);
+    expect(totalDebito - totalCredito).toBe(50000);
+  });
 });
+
 

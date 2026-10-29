@@ -14,6 +14,7 @@ import { importeComercial } from "@/lib/ivaComercial";
 import { IVA_RATE } from "@/lib/ivaRate";
 import Toggle from "@/app/components/ui/Toggle";
 import Tooltip from "@/app/components/ui/Tooltip";
+import ObservacionesCollapsible from "@/app/components/ui/ObservacionesCollapsible";
 import ServicioLineasEditableSection, {
   type ServicioLinea,
 } from "@/app/components/arreglos/lineas/servicios/ServicioLineasEditableSection";
@@ -415,14 +416,14 @@ export default function ArregloFormFields({
       ) : null}
 
       <div css={styles.row}>
-        <div style={styles.field}>
-          <label style={styles.label}>Observaciones</label>
-          <textarea
-            style={styles.input}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <ObservacionesCollapsible
             value={values.observaciones}
-            onChange={(e) => onValuesChange({ observaciones: e.target.value })}
+            onChange={(val) => onValuesChange({ observaciones: val })}
             placeholder="Observaciones"
             rows={3}
+            dataTestId="arreglo-observaciones"
+            style={{ marginTop: 0 }}
           />
         </div>
       </div>

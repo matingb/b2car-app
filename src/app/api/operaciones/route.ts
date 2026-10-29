@@ -160,14 +160,22 @@ export async function POST(req: Request) {
 	if (!body) return Response.json({ data: null, error: "JSON inválido" } satisfies CreateOperacionResponse, { status: 400 });
 
 	if (!body.tipo) return Response.json({ data: null, error: "Falta tipo" } satisfies CreateOperacionResponse, { status: 400 });
-	if (!body.taller_id) {
+	if (body.tipo !== "GASTO" && !body.taller_id) {
 		return Response.json({ data: null, error: "Falta taller_id" } satisfies CreateOperacionResponse, { status: 400 });
 	}
-	const importeTotal = (body.lineas ?? []).reduce(
-		(sum, l) => sum + (Number(l.cantidad) || 0) * (Number(l.monto_unitario) || 0),
-		0
-	);
-	const esOperacionComercial = body.tipo === "COMPRA" || body.tipo === "VENTA";
+	const importeTotal = body.tipo === "GASTO"
+		? (Number(body.monto) || 0)
+		: (body.lineas ?? []).reduce(
+			(sum, l) => sum + (Number(l.cantidad) || 0) * (Number(l.monto_unitario) || 0),
+			0
+		);
+	if (body.tipo === "GASTO" && (!body.categoria_gasto || !body.categoria_gasto.trim())) {
+		return Response.json({ data: null, error: "Falta categoria_gasto" } satisfies CreateOperacionResponse, { status: 400 });
+	}
+	if (body.tipo === "GASTO" && importeTotal <= 0) {
+		return Response.json({ data: null, error: "El monto del gasto debe ser mayor a 0" } satisfies CreateOperacionResponse, { status: 400 });
+	}
+	const esOperacionComercial = body.tipo === "COMPRA" || body.tipo === "VENTA" || body.tipo === "GASTO";
 	const estadoPago = body.estado_pago ?? "PAGADO";
 	const tienePagos = Array.isArray(body.pagos) && body.pagos.length > 0;
 	const requiereCuentaFinanciera = esOperacionComercial && importeTotal > 0 && estadoPago !== "PENDIENTE" && !tienePagos;

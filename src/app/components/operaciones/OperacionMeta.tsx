@@ -89,7 +89,7 @@ export default function OperacionMeta({
         />
       ) : null}
 
-      {isComercial && tipo === "COMPRA" && proveedorNombre ? (
+      {tipo === "COMPRA" && proveedorNombre ? (
         <IconLabel
           icon={<Truck size={isMobile ? 14 : 16} color={COLOR.ICON.MUTED} />}
           label={proveedorNombre}
@@ -97,7 +97,7 @@ export default function OperacionMeta({
         />
       ) : null}
 
-      {isComercial && !isSinCargo && (
+      {(isComercial || tipo === "GASTO") && !isSinCargo && (
         <OperacionPagoBadge
           operacion={operacion}
           estado={estadoPago}

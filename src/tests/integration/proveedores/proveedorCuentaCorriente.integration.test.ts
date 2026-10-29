@@ -270,5 +270,66 @@ describe("Integration: Proveedores - Compras, Pagos y Deuda en Cuenta Corriente"
     expect(operacionCc.estado_pago).toBe("PARCIAL");
     expect(operacionCc.estado_stock).toBe("PARCIAL");
   });
+
+  it("al anular un pago a proveedor, revierte el saldo de la cuenta financiera y restablece la deuda en la cuenta corriente del proveedor", async () => {
+    const proveedor = await dadoUnProveedor();
+    const saldoInicial = 100000;
+    const pagoCompra = 15000;
+    const cuentaFinanciera = await dadoUnaCuentaFinanciera({
+      saldoInicial,
+      nombre: "Banco Galicia Anulaciones Proveedor",
+    });
+    const { stockId } = await dadoQueExisteUnProductoConStock({
+      stock: { cantidad: 4, taller_id: SEED.tallerId },
+    });
+
+    const resCompra = await crearOperacionViaRoute({
+      tipo: "COMPRA",
+      taller_id: SEED.tallerId,
+      proveedor_id: proveedor.id,
+      lineas: [
+        {
+          stock_id: stockId,
+          cantidad: 4,
+          monto_unitario: 10000,
+          delta_cantidad: 4,
+        },
+      ],
+      pagos: [
+        {
+          cuenta_id: cuentaFinanciera.id,
+          monto: pagoCompra,
+          descripcion: "Anticipo compra proveedor",
+        },
+      ],
+    });
+    expect(resCompra.status).toBe(201);
+    const { data: compra } = await resCompra.json();
+    await expectSaldoCuenta(cuentaFinanciera.id, saldoInicial - pagoCompra);
+
+    const { data: opConDetalle } = await operacionesService.getById(testClient, compra.id);
+    const pagoId = opConDetalle?.operaciones_pagos?.[0]?.id;
+    expect(pagoId).toBeDefined();
+
+    const { data: opActualizada } = await operacionesService.anularPago(
+      testClient,
+      compra.id,
+      pagoId!
+    );
+    expect(opActualizada?.monto_total).toBe(40000);
+    expect(opActualizada?.total_pagado).toBe(0);
+    expect(opActualizada?.esta_pago).toBe(false);
+    expect(opActualizada?.estado_pago).toBe("PENDIENTE");
+
+    await expectSaldoCuenta(cuentaFinanciera.id, saldoInicial);
+
+    const resCcRoute = await getProveedorOperacionesViaRoute(proveedor.id);
+    expect(resCcRoute.status).toBe(200);
+    const { data: resumenCc } = await resCcRoute.json();
+    expect(resumenCc.saldoAdeudado).toBe(40000);
+    expect(resumenCc.totalPagado).toBe(0);
+    expect(resumenCc.totalComprado).toBe(40000);
+    expect(resumenCc.operaciones[0].estado_pago).toBe("PENDIENTE");
+  });
 });
 

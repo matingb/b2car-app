@@ -4,6 +4,7 @@ import React from "react";
 import { css } from "@emotion/react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Autocomplete from "@/app/components/ui/Autocomplete";
+import ObservacionesCollapsible from "@/app/components/ui/ObservacionesCollapsible";
 import { CATEGORIAS_GASTO } from "@/model/finanzas";
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
   setDescripcionGasto: (descripcion: string) => void;
   observacionesGasto?: string;
   setObservacionesGasto?: (observaciones: string) => void;
+  pagoSection?: React.ReactNode;
 };
 
 export default function GastoFormFields({
@@ -26,6 +28,7 @@ export default function GastoFormFields({
   setDescripcionGasto,
   observacionesGasto,
   setObservacionesGasto,
+  pagoSection,
 }: Props) {
   return (
     <div css={styles.container}>
@@ -70,18 +73,18 @@ export default function GastoFormFields({
         />
       </div>
 
-      {setObservacionesGasto !== undefined && (
-        <div style={styles.field}>
-          <label style={styles.label}>Observaciones</label>
-          <textarea
-            value={observacionesGasto ?? ""}
-            onChange={(event) => setObservacionesGasto(event.target.value)}
-            placeholder="Observaciones adicionales sobre la operación..."
-            rows={2}
-            data-testid="gasto-observaciones"
-            style={styles.textarea}
-          />
+      {pagoSection && (
+        <div>
+          {pagoSection}
         </div>
+      )}
+
+      {setObservacionesGasto !== undefined && (
+        <ObservacionesCollapsible
+          value={observacionesGasto ?? ""}
+          onChange={setObservacionesGasto}
+          dataTestId="gasto-observaciones"
+        />
       )}
     </div>
   );
@@ -91,8 +94,7 @@ const styles = {
   container: css({
     display: "flex",
     flexDirection: "column",
-    gap: 14,
-    marginTop: 16,
+    gap: 10,
   }),
   row: css({
     display: "grid",

@@ -90,17 +90,27 @@ export default function PagoCondicionSection({
                 <div css={styles.emptyNoticeContent}>
                   <div css={styles.emptyNoticeHeader}>
                     <strong css={styles.emptyNoticeTitle}>
-                      Operación a Cuenta Corriente
+                      {tipo === "GASTO" ? "Gasto diferido" : "Operación a Cuenta Corriente"}
                     </strong>
                     <span css={styles.emptyNoticeBadge}>
                       {isVenta ? "Sin cobro inmediato" : "Sin pago inmediato"}
                     </span>
                   </div>
                   <p css={styles.emptyNoticeText}>
-                    El importe de <strong>$ {formattedImporte}</strong> se imputará
-                    como saldo pendiente en la cuenta corriente de{" "}
-                    <strong>{contraparte}</strong>. No se registrará ningún
-                    movimiento financiero en esta fecha.
+                    {tipo === "GASTO" ? (
+                      <>
+                        El importe de <strong>$ {formattedImporte}</strong> quedará
+                        registrado como saldo pendiente de pago. No se registrará ningún
+                        movimiento financiero en esta fecha.
+                      </>
+                    ) : (
+                      <>
+                        El importe de <strong>$ {formattedImporte}</strong> se imputará
+                        como saldo pendiente en la cuenta corriente de{" "}
+                        <strong>{contraparte}</strong>. No se registrará ningún
+                        movimiento financiero en esta fecha.
+                      </>
+                    )}
                   </p>
                 </div>
               </div>

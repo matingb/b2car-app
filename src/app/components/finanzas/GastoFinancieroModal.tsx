@@ -176,16 +176,6 @@ export default function GastoFinancieroModal({
             dataTestIdPrefix="gasto-cuenta"
           />
         ) : null}
-        <GastoFormFields
-          categoriaGasto={categoriaGasto}
-          setCategoriaGasto={setCategoriaGasto}
-          montoGasto={montoGasto}
-          setMontoGasto={setMontoGasto}
-          descripcionGasto={descripcionGasto}
-          setDescripcionGasto={setDescripcionGasto}
-          observacionesGasto={observacionesGasto}
-          setObservacionesGasto={setObservacionesGasto}
-        />
         <div style={styles.field}>
           <label style={styles.label} htmlFor="gasto-fecha">Fecha</label>
           <Calendar
@@ -196,13 +186,23 @@ export default function GastoFinancieroModal({
             style={styles.dateInput}
           />
         </div>
+        <GastoFormFields
+          categoriaGasto={categoriaGasto}
+          setCategoriaGasto={setCategoriaGasto}
+          montoGasto={montoGasto}
+          setMontoGasto={setMontoGasto}
+          descripcionGasto={descripcionGasto}
+          setDescripcionGasto={setDescripcionGasto}
+          observacionesGasto={observacionesGasto}
+          setObservacionesGasto={setObservacionesGasto}
+        />
       </div>
     </Modal>
   );
 }
 
 const styles = {
-  form: { display: "flex", flexDirection: "column" as const, gap: 12, paddingTop: 8 },
+  form: { display: "flex", flexDirection: "column" as const, gap: 10, paddingTop: 8 },
   field: { display: "flex", flexDirection: "column" as const, gap: 6 },
   label: { display: "block", fontSize: 13, color: COLOR.TEXT.SECONDARY, marginBottom: 6 },
   dateInput: { height: 44 },

@@ -112,11 +112,18 @@ export function mapDbError(error: unknown, opts: DbErrorOptions = {}): MappedApi
       return { status: 409, code: "INMUTABLE", message: message?.trim() ? message : IMMUTABLE_MOVEMENT_MESSAGE };
     case "55001":
       return { status: 409, code: "INMUTABLE", message: message?.trim() ? message : INVOICED_REPAIR_MESSAGE };
+    case "55002":
+      return { status: 409, code: "STOCK_INSUFICIENTE", message: message?.trim() ? message : API_ERROR_MESSAGES.STOCK_INSUFICIENTE };
+    case "55005":
+      return { status: 409, code: "REVERSION_STOCK_BLOQUEADA", message: message?.trim() ? message : API_ERROR_MESSAGES.REVERSION_STOCK_BLOQUEADA };
     case "57014":
       return { status: 503, code: "TIMEOUT", message: API_ERROR_MESSAGES.TIMEOUT };
     case "P0001":
-      if (message?.includes("STOCK_INSUFICIENTE")) {
-        return { status: 409, code: "STOCK_INSUFICIENTE", message: API_ERROR_MESSAGES.STOCK_INSUFICIENTE };
+      if (message?.includes("revertir") || message?.includes("consumidas o vendidas")) {
+        return { status: 409, code: "REVERSION_STOCK_BLOQUEADA", message: message?.trim() ? message : API_ERROR_MESSAGES.REVERSION_STOCK_BLOQUEADA };
+      }
+      if (message?.includes("STOCK_INSUFICIENTE") || message?.toLowerCase().includes("stock insuficiente")) {
+        return { status: 409, code: "STOCK_INSUFICIENTE", message: message?.trim() ? message : API_ERROR_MESSAGES.STOCK_INSUFICIENTE };
       }
       if (message?.includes("JWT sin tenant_id")) {
         return { status: 401, code: "UNAUTHORIZED", message: API_ERROR_MESSAGES.UNAUTHORIZED };
@@ -140,6 +147,8 @@ function mapServiceError(error: unknown, opts: ApiErrorOptions): MappedApiError 
       return { status: 409, code: "CONFLICT", message: API_ERROR_MESSAGES.CONFLICT };
     case ServiceError.StockInsuficiente:
       return { status: 409, code: "STOCK_INSUFICIENTE", message: API_ERROR_MESSAGES.STOCK_INSUFICIENTE };
+    case ServiceError.ReversionStockBloqueada:
+      return { status: 409, code: "REVERSION_STOCK_BLOQUEADA", message: API_ERROR_MESSAGES.REVERSION_STOCK_BLOQUEADA };
     case ServiceError.ArregloFacturado:
       return { status: 409, code: "INMUTABLE", message: INVOICED_REPAIR_MESSAGE };
     case ServiceError.MovimientoFinancieroInmutable:

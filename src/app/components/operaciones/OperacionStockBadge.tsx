@@ -7,6 +7,7 @@ import type { Operacion, EstadoStockOperacion, TipoOperacion } from "@/model/typ
 import OperacionStockConfirmModal from "./OperacionStockConfirmModal";
 
 export interface OperacionStockBadgeProps {
+  operacionId?: string | number;
   operacion?: Operacion | null;
   estadoStock?: EstadoStockOperacion | string | null;
   tipo?: TipoOperacion | string | null;
@@ -17,6 +18,7 @@ export interface OperacionStockBadgeProps {
 }
 
 export default function OperacionStockBadge({
+  operacionId: propOperacionId,
   operacion,
   estadoStock,
   tipo,
@@ -51,9 +53,9 @@ export default function OperacionStockBadge({
         ? "Reservada"
         : "En camino";
 
-  // Es interactivo si hay saldo pendiente por confirmar o si se proveyó un onClick explícito
-  const canConfirm = Boolean(operacion && (effectiveEstado === "PENDIENTE" || effectiveEstado === "PARCIAL"));
-  const isInteractive = Boolean(onClick || canConfirm);
+  // Es interactivo si hay una operación vinculada o se proveyó un onClick explícito
+  const hasOperacion = Boolean(operacion || propOperacionId);
+  const isInteractive = Boolean(onClick || hasOperacion);
 
   const badgeSize = size === "sm" ? 14 : 16;
   const fontSize = size === "sm" ? 12 : 13;
@@ -80,14 +82,18 @@ export default function OperacionStockBadge({
       onClick(e);
       return;
     }
-    if (!operacion || !canConfirm) return;
+    if (!hasOperacion) return;
     setModalOpen(true);
   };
 
   const tooltipText = isInteractive
-    ? isVenta
-      ? "Confirmar entrega de stock"
-      : "Confirmar recepción de stock"
+    ? isEntregado
+      ? isVenta
+        ? "Ver o revertir entrega de stock"
+        : "Ver o revertir recepción de stock"
+      : isVenta
+        ? "Confirmar entrega de stock"
+        : "Confirmar recepción de stock"
     : undefined;
 
   const style: React.CSSProperties = {
@@ -141,10 +147,11 @@ export default function OperacionStockBadge({
         <span>{label}</span>
       </span>
 
-      {operacion && modalOpen ? (
+      {(operacion || propOperacionId) && modalOpen ? (
         <OperacionStockConfirmModal
           open={modalOpen}
-          operacion={operacion}
+          operacionId={propOperacionId ?? operacion?.id}
+          operacion={operacion ?? null}
           onClose={() => setModalOpen(false)}
           onSuccess={() => {
             setModalOpen(false);

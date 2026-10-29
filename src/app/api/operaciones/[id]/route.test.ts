@@ -145,6 +145,34 @@ describe("/api/operaciones/[id]", () => {
 		expect(body.error).toBe("Stock insuficiente");
 	});
 
+	it("DELETE devuelve 409 y mensaje explicativo cuando la reversión está bloqueada por consumo previo", async () => {
+		vi.mocked(operacionesService.getById).mockResolvedValue({
+			data: {
+				id: "op-1",
+				tenant_id: "TEN-1",
+				tipo: "COMPRA",
+				taller_id: "t1",
+				fecha: new Date().toISOString(),
+				created_at: new Date().toISOString(),
+			},
+			error: null,
+		});
+		vi.mocked(operacionesService.deleteById).mockResolvedValue({
+			error: ServiceError.ReversionStockBloqueada,
+		});
+
+		const req = new NextRequest("http://localhost/api/operaciones/op-1", {
+			method: "DELETE",
+			headers: { "x-idempotency-key": "00000000-0000-4000-8000-000000000001" },
+		});
+
+		const res = await DELETE(req, { params: Promise.resolve({ id: "op-1" }) });
+		const body = await res.json();
+
+		expect(res.status).toBe(409);
+		expect(body.error).toBe("No se puede anular la operación: el stock ingresado ya fue consumido o vendido");
+	});
+
 	it("GET devuelve operacion con saldo_pendiente calculado cuando falta en el row", async () => {
 		vi.mocked(operacionesService.getById).mockResolvedValue({
 			data: {

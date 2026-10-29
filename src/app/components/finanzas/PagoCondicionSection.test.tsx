@@ -146,4 +146,29 @@ describe("PagoCondicionSection", () => {
     await user.click(btnAdd);
     expect(handleAdd).toHaveBeenCalledTimes(1);
   });
+
+  it("muestra 'Gasto diferido' sin mencionar cuenta corriente o proveedor para tipo GASTO diferido", () => {
+    render(
+      <PagoCondicionSection
+        tipo="GASTO"
+        totalOperacion={15000}
+        cuentaFavorita={mockCuentaFavorita}
+        pagos={[]}
+        onAddPago={vi.fn()}
+        onRemovePago={vi.fn()}
+        onUpdatePago={vi.fn()}
+        showAdvanced={false}
+        onToggleAdvanced={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("pago-empty-notice")).toBeInTheDocument();
+    expect(screen.getByText("Gasto diferido")).toBeInTheDocument();
+    expect(screen.getByText("Sin pago inmediato")).toBeInTheDocument();
+    expect(
+      screen.getByText(/quedará registrado como saldo pendiente de pago/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/cuenta corriente/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/proveedor/i)).not.toBeInTheDocument();
+  });
 });

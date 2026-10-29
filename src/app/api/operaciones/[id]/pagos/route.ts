@@ -103,3 +103,41 @@ export async function POST(
 
 	return Response.json({ data, error: null }, { status: 201 });
 }
+
+export async function DELETE(
+	req: NextRequest,
+	{ params }: { params: Promise<{ id: string }> }
+) {
+	const authError = await requirePermission(Permission.OperacionesEdit);
+	if (authError) return authError;
+
+	const { id } = await params;
+	if (!isValidUuid(id)) {
+		return Response.json({ data: null, error: "ID de operación inválido" }, { status: 400 });
+	}
+
+	const searchParams = req.nextUrl?.searchParams ?? new URL(req.url).searchParams;
+	const pagoId = searchParams.get("pago_id")?.trim();
+	if (!pagoId || !isValidUuid(pagoId)) {
+		return Response.json({ data: null, error: "ID de pago inválido" }, { status: 400 });
+	}
+
+	const supabase = await createClient();
+	const { data, error } = await operacionesService.anularPago(supabase, id, pagoId);
+
+	if (error) {
+		logger.error("DELETE /api/operaciones/[id]/pagos - error:", error);
+		if (error === ServiceError.NotFound) {
+			return Response.json({ data: null, error: "Operación o pago no encontrado" }, { status: 404 });
+		}
+		return Response.json({ data: null, error: error.toString() }, { status: 500 });
+	}
+
+	const { data: opData } = await operacionesService.getById(supabase, id);
+	if (opData?.tenant_id) {
+		await statsService.onDataChanged(supabase, opData.tenant_id);
+	}
+
+	return Response.json({ data, error: null }, { status: 200 });
+}
+

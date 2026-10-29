@@ -92,7 +92,7 @@ describe("OperacionPagoBadge", () => {
     expect(screen.getByTestId("mock-operacion-pago-modal")).toBeInTheDocument();
   });
 
-  it("renderiza 'Pagado' cuando la operacion esta completamente paga y click no despliega la card", () => {
+  it("renderiza 'Pagado' cuando la operacion esta completamente paga y al hacer click abre el modal sin propagar a la card", () => {
     const pagadaVenta: Operacion = {
       ...baseVenta,
       estado_pago: "PAGADO",
@@ -114,17 +114,57 @@ describe("OperacionPagoBadge", () => {
     fireEvent.click(badge);
 
     expect(onCardClick).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("mock-operacion-pago-modal")).not.toBeInTheDocument();
+    expect(screen.getByTestId("mock-operacion-pago-modal")).toBeInTheDocument();
   });
 
-  it("no renderiza badge para operaciones no comerciales (como GASTO)", () => {
+  it("no renderiza badge para operaciones no comerciales (como MOVIMIENTO_CUENTA)", () => {
+    const mov: Operacion = {
+      ...baseVenta,
+      tipo: "MOVIMIENTO_CUENTA",
+    };
+
+    const { container } = render(<OperacionPagoBadge operacion={mov} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("renderiza 'Pago pendiente' para una operacion de GASTO y abre el modal al hacer click", () => {
     const gasto: Operacion = {
       ...baseVenta,
       tipo: "GASTO",
+      monto_total: 15000,
+      saldo_pendiente: 15000,
+      total_pagado: 0,
+      estado_pago: "PENDIENTE",
     };
 
-    const { container } = render(<OperacionPagoBadge operacion={gasto} />);
-    expect(container).toBeEmptyDOMElement();
+    const onCardClick = vi.fn();
+    render(
+      <div onClick={onCardClick}>
+        <OperacionPagoBadge operacion={gasto} />
+      </div>
+    );
+
+    expect(screen.getByText("Pago pendiente")).toBeInTheDocument();
+    const badge = screen.getByRole("button", { name: /Pago pendiente/i });
+    fireEvent.click(badge);
+
+    expect(onCardClick).not.toHaveBeenCalled();
+    expect(screen.getByTestId("mock-operacion-pago-modal")).toBeInTheDocument();
+  });
+
+  it("renderiza 'Pagado' para una operacion de GASTO saldada", () => {
+    const gastoPagado: Operacion = {
+      ...baseVenta,
+      tipo: "GASTO",
+      monto_total: 15000,
+      saldo_pendiente: 0,
+      total_pagado: 15000,
+      estado_pago: "PAGADO",
+      esta_pago: true,
+    };
+
+    render(<OperacionPagoBadge operacion={gastoPagado} />);
+    expect(screen.getByText("Pagado")).toBeInTheDocument();
   });
 
   it("no renderiza badge para compras sin cargo (monto total 0)", () => {

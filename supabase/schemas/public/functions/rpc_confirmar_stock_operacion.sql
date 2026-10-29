@@ -53,7 +53,7 @@ BEGIN
       'operacion_id', p_operacion_id,
       'estado_stock', 'ENTREGADO',
       'unidades_confirmadas', 0,
-      'mensaje', 'El stock de esta operación ya se encontraba completamente entregado'
+      'mensaje', 'El stock de esta operación ya se encontraba entregado'
     );
   END IF;
 

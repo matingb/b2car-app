@@ -73,4 +73,18 @@ describe("OperacionMeta", () => {
 
     expect(screen.getAllByText("Distribuidora Warnes").length).toBeGreaterThan(0);
   });
+
+  it("no renderiza el nombre del proveedor para operaciones de gasto aunque se provea", () => {
+    render(
+      <OperacionMeta
+        metaBadge={metaBadge}
+        accountOrWorkshop={accountOrWorkshop}
+        totalMonto={40000}
+        tipo="GASTO"
+        proveedorNombre="Distribuidora Warnes"
+      />
+    );
+
+    expect(screen.queryByText("Distribuidora Warnes")).not.toBeInTheDocument();
+  });
 });

@@ -97,6 +97,7 @@ type OperacionFormContextValue = {
   stockDeliveryStatus: string;
 
   // Pagos y Cuentas
+  isLoadingCuentas: boolean;
   cuentaFavorita: { id: string; nombre: string } | null;
   pagosDraft: PagoDraftItem[];
   setPagosDraft: React.Dispatch<React.SetStateAction<PagoDraftItem[]>>;
@@ -155,6 +156,7 @@ export function OperacionFormProvider({
   onSuccess,
   children,
 }: OperacionModalProps & { children: React.ReactNode }) {
+  const isEditingGasto = Boolean(gasto);
   const { create, loading: isOperacionesLoading, refresh: refreshOperaciones } = useOperaciones();
   const { success, error } = useToast();
   const {
@@ -220,7 +222,7 @@ export function OperacionFormProvider({
   }, [initialClienteId]);
 
   useEffect(() => {
-    if (tipo === "COMPRA" || tipo === "GASTO") {
+    if (tipo === "COMPRA") {
       setIsProveedoresLoading(true);
       Promise.resolve(proveedoresClient?.getAll?.())
         .then((res) => {
@@ -620,7 +622,6 @@ export function OperacionFormProvider({
 
   // Si no fue modificado manualmente, mantener pagosDraft[0].monto sincronizado con importeTotal
   useEffect(() => {
-    if (tipo === "GASTO") return;
     if (isPagoModificado) return;
 
     const activeAccount = cuentaFavorita?.id ?? initialCuentaId ?? cuentaFinancieraId ?? "";
@@ -783,15 +784,32 @@ export function OperacionFormProvider({
 
     if (tipo === "GASTO") {
       const importeNum = Number(montoGasto);
-      if (requiresCuenta && !cuentaFinancieraId) return false;
-      if (cuentaFinancieraId && isCreatingCuenta && !validateCuentaFinancieraForm(cuentaDraft)) return false;
-      return (
-        Boolean(categoriaGasto) &&
-        Number.isFinite(importeNum) &&
-        importeNum > 0 &&
-        !isLoadingCuentas &&
-        !isSubmittingGasto
-      );
+      if (isEditingGasto) {
+        if (requiresCuenta && !cuentaFinancieraId) return false;
+        if (cuentaFinancieraId && isCreatingCuenta && !validateCuentaFinancieraForm(cuentaDraft)) return false;
+        return (
+          Boolean(categoriaGasto) &&
+          Number.isFinite(importeNum) &&
+          importeNum > 0 &&
+          !isLoadingCuentas &&
+          !isSubmittingGasto
+        );
+      }
+
+      if (!categoriaGasto || !Number.isFinite(importeNum) || importeNum <= 0) return false;
+      if (isSubmittingGasto) return false;
+
+      if (importeTotal > 0 && pagosDraft.length > 0) {
+        const allPagosValid = pagosDraft.every((p) => {
+          if (p.cuentaId === CREATE_CUENTA_VALUE) {
+            return validateCuentaFinancieraForm(p.cuentaDraft);
+          }
+          return Boolean(p.cuentaId);
+        });
+        if (!allPagosValid) return false;
+      }
+
+      return true;
     }
 
     if (!tallerId) return false;
@@ -834,6 +852,7 @@ export function OperacionFormProvider({
     lineas,
     importeTotal,
     pagosDraft,
+    isEditingGasto,
   ]);
 
   const isSubmitting = isOperacionesLoading || isSubmittingGasto;
@@ -855,7 +874,7 @@ export function OperacionFormProvider({
       targetCuentaId = created.id;
     }
 
-    if (tipo === "GASTO") {
+    if (tipo === "GASTO" && isEditingGasto) {
       setIsSubmittingGasto(true);
       try {
         const payload = {
@@ -867,19 +886,17 @@ export function OperacionFormProvider({
           observaciones: observaciones.trim() || null,
           idempotencyKey: generateUuidV4(),
         };
-        const response = gasto
-          ? await finanzasClient.actualizarGasto(gasto.id, payload)
-          : await finanzasClient.crearGasto(payload);
+        const response = await finanzasClient.actualizarGasto(gasto!.id, payload);
         if (response.error || !response.data) {
-          throw new Error(response.error || (gasto ? "No se pudo actualizar el gasto" : "No se pudo registrar el gasto"));
+          throw new Error(response.error || "No se pudo actualizar el gasto");
         }
         await refreshOperaciones();
         await refreshCuentas();
-        success(gasto ? "Gasto actualizado" : "Gasto registrado", "El movimiento financiero se guardó correctamente.");
+        success("Gasto actualizado", "El movimiento financiero se guardó correctamente.");
         onClose();
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : (gasto ? "No se pudo actualizar el gasto" : "No se pudo registrar el gasto");
-        error(gasto ? "Error actualizando gasto" : "Error registrando gasto", msg);
+        const msg = err instanceof Error ? err.message : "No se pudo actualizar el gasto";
+        error("Error actualizando gasto", msg);
       } finally {
         setIsSubmittingGasto(false);
       }
@@ -926,7 +943,7 @@ export function OperacionFormProvider({
 
       const payload = {
         tipo,
-        taller_id: tallerId,
+        taller_id: tallerId || null,
         fecha: fechaTimestamp,
         cuenta_financiera_id: primaryCuentaId,
         observaciones: observaciones.trim() || null,
@@ -937,7 +954,10 @@ export function OperacionFormProvider({
         proveedor_id: tipo === "COMPRA" && proveedorId ? proveedorId : null,
         cliente_id: tipo === "VENTA" && clienteId ? clienteId : null,
         pagos: pagosPayload.length > 0 ? pagosPayload : undefined,
-        lineas: lineas.map((l) => {
+        monto: tipo === "GASTO" ? Number(montoGasto) : undefined,
+        categoria_gasto: tipo === "GASTO" ? categoriaGasto : undefined,
+        descripcion: tipo === "GASTO" ? (descripcionGasto.trim() || null) : undefined,
+        lineas: tipo === "GASTO" ? [] : lineas.map((l) => {
           const cantidad = Number(l.cantidad) || 0;
           const cantidadCumplida = l.cantidadEntregar !== undefined ? Number(l.cantidadEntregar) : cantidad;
           const unitario = Number(l.unitario) || 0;
@@ -959,7 +979,9 @@ export function OperacionFormProvider({
         } catch (refreshError) {
           logger.error("No se pudieron refrescar los datos luego de crear la operación", refreshError);
         }
-        const tallerNombre = talleres.find((t) => t.id === tallerId)?.nombre ?? "el taller seleccionado";
+        const tallerNombre = tallerId
+          ? (talleres.find((t) => t.id === tallerId)?.nombre ?? "el taller seleccionado")
+          : "la operación";
         success(
           "Operación creada",
           buildOperacionCreatedMessage(tipo, tallerNombre, tipoConfigById)
@@ -1021,6 +1043,7 @@ export function OperacionFormProvider({
     getDefaultUnitarioForStockId,
     stockDeliveryPercentage,
     stockDeliveryStatus,
+    isLoadingCuentas,
     cuentaFavorita: cuentaFavorita ?? null,
     pagosDraft,
     setPagosDraft,
