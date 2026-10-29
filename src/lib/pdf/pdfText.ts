@@ -14,11 +14,14 @@ export function formatDate(value: string | null | undefined): string {
   return iso || "-";
 }
 
-export function drawRight(page: PDFPage, value: string, right: number, y: number, font: PDFFont, size: number) {
+/** Cualquier superficie que sepa dibujar texto: una hoja de pdf-lib o su equivalente HTML. */
+type TextSurface = Pick<PDFPage, "drawText">;
+
+export function drawRight(page: TextSurface, value: string, right: number, y: number, font: PDFFont, size: number) {
   page.drawText(value, { x: right - font.widthOfTextAtSize(value, size), y, font, size });
 }
 
-export function drawCentered(page: PDFPage, value: string, center: number, y: number, font: PDFFont, size: number) {
+export function drawCentered(page: TextSurface, value: string, center: number, y: number, font: PDFFont, size: number) {
   page.drawText(value, { x: center - font.widthOfTextAtSize(value, size) / 2, y, font, size });
 }
 

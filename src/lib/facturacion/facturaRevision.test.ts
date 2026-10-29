@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { PDFDocument } from "pdf-lib";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/supabase/server", () => ({ createClient: vi.fn() }));
@@ -16,7 +15,6 @@ import { toISODateAppTimeZone } from "@/lib/fechas";
 import { createArcaGateway } from "./afipGateway";
 import { FceMipymeQueryError } from "./fceMipyme";
 import {
-  buildFacturaDraftPdf,
   FacturaRevisionDesactualizadaError,
   getFacturaPreflight,
   getReceptorPrecarga,
@@ -300,29 +298,6 @@ describe("emisión de una revisión confirmada", () => {
     expect(rpc).not.toHaveBeenCalled();
     expect(gateway.getLastVoucher).not.toHaveBeenCalled();
     expect(gateway.createVoucher).not.toHaveBeenCalled();
-  });
-});
-
-describe("PDF borrador de la revisión", () => {
-  it("genera el borrador del contenido revisado sin guardar archivos ni filas", async () => {
-    const { writes, rpc } = mockBillingDatabase();
-    const reviewed = draft();
-    const { revision } = await previewSourceFactura(actor, "ARREGLO", "source", reviewed);
-
-    const pdf = await buildFacturaDraftPdf(actor, { origenTipo: "ARREGLO", origenId: "source", draft: reviewed, revisionHash: revision!.revisionHash });
-
-    expect(Buffer.from(pdf.bytes).subarray(0, 5).toString("ascii")).toBe("%PDF-");
-    expect((await PDFDocument.load(pdf.bytes)).getTitle()).toContain("BORRADOR");
-    expect(pdf.filename).toBe("borrador-factura-c.pdf");
-    expect(writes).toEqual([]);
-    expect(rpc).not.toHaveBeenCalled();
-  });
-
-  it("no entrega el PDF de otra revisión", async () => {
-    mockBillingDatabase();
-
-    await expect(buildFacturaDraftPdf(actor, { origenTipo: "ARREGLO", origenId: "source", draft: draft(), revisionHash: "0".repeat(64) }))
-      .rejects.toBeInstanceOf(FacturaRevisionDesactualizadaError);
   });
 });
 

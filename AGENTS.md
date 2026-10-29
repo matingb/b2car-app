@@ -2,7 +2,7 @@
 
 This repository uses a modular, directory-level instructions architecture. General and cross-cutting rules live in this root file, while specialized guidelines live directly in the corresponding subdirectories and rule files:
 
-- **Parallel Work & Worktrees**: [.agents/rules/worktrees.md](file:///Users/matias/Documents/proyectos/B2Car/b2car-app/.agents/rules/worktrees.md) (Worktree lifecycle, branch isolation, and parallel safety).
+- **Parallel Work & Worktrees**: [.agents/rules/worktrees.md](file:///Users/matias/Documents/proyectos/B2Car/b2car-app/.agents/rules/worktrees.md) (Optional isolation guidance; use worktrees when parallel work or task isolation calls for them, not by default).
 - **Backend API & Data Architecture**: [src/app/api/AGENTS.md](file:///Users/matias/Documents/proyectos/B2Car/b2car-app/src/app/api/AGENTS.md) (Routes, Services, Repositories, Error Handling, Testing).
 - **Database, Migrations & Grants**: [supabase/AGENTS.md](file:///Users/matias/Documents/proyectos/B2Car/b2car-app/supabase/AGENTS.md) (Declarative schemas, Migrations, Supabase Data API grants, RLS).
 - **UI Components & Theme**: [src/app/components/AGENTS.md](file:///Users/matias/Documents/proyectos/B2Car/b2car-app/src/app/components/AGENTS.md) (Reusable UI components, Design tokens, CSS variables, ClienteAutocomplete).

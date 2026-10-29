@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatCalendarDateLabel, toISODateAppTimeZone } from "@/lib/fechas";
@@ -6,6 +6,8 @@ import type { FacturaRevision } from "@/lib/facturacion/types";
 import FacturaElectronicaModal from "./FacturaElectronicaModal";
 
 const fetchMock = vi.fn();
+const previewHtml = "<!doctype html><p>borrador original</p>";
+const simplifiedPreviewHtml = "<!doctype html><p>borrador simplificado</p>";
 const today = toISODateAppTimeZone(new Date());
 const CUIT_A = "30712345671";
 const CUIT_B = "20123456786";
@@ -66,8 +68,8 @@ function revision(overrides: Partial<FacturaRevision> = {}): FacturaRevision {
     condicionVenta: "CONTADO",
     fechas: { fechaComprobante: today, fechaServicioDesde: today, fechaServicioHasta: today, fechaVencimientoPago: today },
     moneda: "PES",
-    detalleSimplificado: true,
-    lineas: [{ ordinal: 1, origen: "SERVICIO", descripcion: "Service completo", codigo: null, cantidad: 1, importeUnitario: 100, subtotal: 100, importeMostrado: 100 }],
+    detalleSimplificado: false,
+    lineas: [{ ordinal: 1, origen: "SERVICIO", descripcion: "Servicio", codigo: null, cantidad: 1, importeUnitario: 100, subtotal: 100, importeMostrado: 100 }],
     cantidadLineasOriginales: 1,
     preciosIncluyenIva: true,
     totales: preflight.totales,
@@ -111,8 +113,19 @@ beforeEach(() => {
       const condicion = cuit === CUIT_A ? { id: 1, label: "Responsable inscripto" } : { id: 5, label: "Consumidor final" };
       return json({ data: { status: "FOUND", condition: { cuit, condicionIvaReceptorId: condicion.id, condicionIvaLabel: condicion.label } } });
     },
-    "POST /api/facturacion/previsualizacion": () => json({ data: revision(), error: null, issues: [] }),
-    "POST /api/facturacion/previsualizacion/pdf": () => new Response(new Blob(["%PDF-borrador"], { type: "application/pdf" }), { status: 200 }),
+    // Como el servidor: con el detalle simplificado, una sola línea con el texto pedido.
+    "POST /api/facturacion/previsualizacion": ({ body }) => json({
+      data: body?.detalleSimplificado
+        ? revision({
+          revisionHash: "c".repeat(64),
+          detalleSimplificado: true,
+          lineas: [{ ordinal: 1, origen: "SERVICIO", descripcion: String(body.descripcionDetalleSimplificado), codigo: null, cantidad: 1, importeUnitario: 100, subtotal: 100, importeMostrado: 100 }],
+        })
+        : revision(),
+      html: body?.detalleSimplificado ? simplifiedPreviewHtml : previewHtml,
+      error: null,
+      issues: [],
+    }),
     [`POST ${ENDPOINT}`]: () => json({ data: authorized, error: null }),
   };
   fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -123,9 +136,12 @@ beforeEach(() => {
     return handler({ url, method, body: init?.body ? JSON.parse(String(init.body)) : null });
   });
   vi.stubGlobal("fetch", fetchMock);
-  URL.createObjectURL = vi.fn(() => "blob:borrador");
-  URL.revokeObjectURL = vi.fn();
 });
+
+/** HTML del borrador: el mismo layout del comprobante autorizado, mostrado en el visor del comprobante no fiscal. */
+function previewHtmlShown(): string | null {
+  return screen.queryByTitle("Vista previa del comprobante (borrador sin validez fiscal)")?.getAttribute("srcdoc") ?? null;
+}
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -148,7 +164,7 @@ async function renderLoaded(props: Parameters<typeof Harness>[0] = {}) {
 }
 
 describe("FacturaElectronicaModal", () => {
-  it.each(["Ahora no", "Descargar PDF"])("revisa, permite volver sin perder datos y emite una sola vez al confirmar (%s)", async (accion) => {
+  it.each(["Ahora no", "Descargar PDF"])("revisa con vista previa dinámica, permite volver sin perder datos y emite una sola vez (%s)", async (accion) => {
     const onAuthorized = vi.fn();
     const onClose = vi.fn();
     const downloadClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
@@ -168,9 +184,9 @@ describe("FacturaElectronicaModal", () => {
     expect(screen.getByTestId("factura-condicion-iva")).toBeDisabled();
     expect(screen.queryByTestId("factura-facturar-otro-cuit")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cerrar" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("Simplificar el detalle de la factura"));
-    expect(screen.getByTestId("factura-detalle-descripcion")).toHaveValue("Servicio de reparación y mantenimiento automotor");
-    fireEvent.change(screen.getByTestId("factura-detalle-descripcion"), { target: { value: "Service completo" } });
+    // El detalle, los totales y el detalle simplificado se ven y eligen en la vista previa.
+    expect(screen.queryByText("Detalle e importes")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("factura-detalle-simplificado")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("modal-submit"));
 
@@ -178,22 +194,43 @@ describe("FacturaElectronicaModal", () => {
     expect(screen.getByText(/Paso 2 de 2/)).toBeInTheDocument();
     expect(calls(`POST ${ENDPOINT}`)).toHaveLength(0);
     expect(calls("POST /api/facturacion/previsualizacion")[0].body).toMatchObject({
-      origenTipo: "ARREGLO", origenId: "arreglo-1", detalleSimplificado: true, descripcionDetalleSimplificado: "Service completo",
+      origenTipo: "ARREGLO", origenId: "arreglo-1", detalleSimplificado: false,
       receptor: { modo: "CLIENTE", nombre: "Cliente prueba", domicilio: "Calle 1", tipoDocumento: 86, numeroDocumento: CUIT_B, condicionIvaReceptorId: 5 },
     });
-    // La confirmación muestra sólo el PDF borrador, sin el resumen lateral.
-    expect(screen.queryByTestId("factura-revision-resumen")).not.toBeInTheDocument();
-    await waitFor(() => expect(screen.getByTestId("pdf-document-viewer-open")).toHaveAttribute("href", "blob:borrador"));
-    expect(screen.getByTitle("Vista previa del comprobante (borrador sin validez fiscal)")).toHaveAttribute("data", "blob:borrador");
-    expect(calls("POST /api/facturacion/previsualizacion/pdf")[0].body).toMatchObject({ revisionHash: "a".repeat(64) });
+    expect(screen.getByTestId("printable-document-viewer")).toBeInTheDocument();
+    expect(screen.getByText("BORRADOR — SIN VALIDEZ FISCAL — NO EMITIDO")).toBeInTheDocument();
+    expect(previewHtmlShown()).toBe(previewHtml);
+
+    // Simplificar el detalle vuelve a revisar y redibuja el borrador con la revisión actualizada.
+    fireEvent.click(screen.getByTestId("factura-detalle-simplificado"));
+    expect(screen.getByTestId("factura-detalle-descripcion")).toHaveValue("Servicio de reparación y mantenimiento automotor");
+    expect(screen.getByTestId("factura-confirmar-emitir")).toBeDisabled();
+    await waitFor(() => expect(previewHtmlShown()).toBe(simplifiedPreviewHtml));
+    fireEvent.change(screen.getByTestId("factura-detalle-descripcion"), { target: { value: "Service completo" } });
+    expect(screen.getByTestId("factura-confirmar-emitir")).toHaveTextContent("Actualizando vista previa…");
+    await waitFor(() => expect(calls("POST /api/facturacion/previsualizacion")).toHaveLength(3));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+    expect(calls("POST /api/facturacion/previsualizacion").at(-1)?.body).toMatchObject({
+      detalleSimplificado: true, descripcionDetalleSimplificado: "Service completo",
+    });
+
+    // Un texto vacío no se revisa ni se puede emitir.
+    const previews = calls("POST /api/facturacion/previsualizacion").length;
+    fireEvent.change(screen.getByTestId("factura-detalle-descripcion"), { target: { value: " " } });
+    expect(screen.getByText("Ingresá la descripción que aparecerá en la factura.")).toBeInTheDocument();
+    expect(screen.getByTestId("factura-confirmar-emitir")).toHaveTextContent("Completá la descripción");
+    expect(screen.getByTestId("factura-confirmar-emitir")).toBeDisabled();
+    fireEvent.change(screen.getByTestId("factura-detalle-descripcion"), { target: { value: "Service completo" } });
+    expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled();
+    expect(calls("POST /api/facturacion/previsualizacion")).toHaveLength(previews);
 
     fireEvent.click(screen.getByTestId("factura-volver-editar"));
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:borrador");
-    expect(screen.getByTestId("factura-detalle-descripcion")).toHaveValue("Service completo");
     expect(screen.getByTestId("factura-receptor-nombre")).toHaveValue("Cliente prueba");
 
     fireEvent.click(screen.getByTestId("modal-submit"));
     await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+    expect(screen.getByTestId("factura-detalle-simplificado")).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByTestId("factura-detalle-descripcion")).toHaveValue("Service completo");
     fireEvent.click(screen.getByTestId("factura-confirmar-emitir"));
     fireEvent.click(screen.getByTestId("factura-confirmar-emitir"));
 
@@ -201,7 +238,7 @@ describe("FacturaElectronicaModal", () => {
     expect(onAuthorized).toHaveBeenCalledTimes(1);
     expect(calls(`POST ${ENDPOINT}`)).toHaveLength(1);
     expect(calls(`POST ${ENDPOINT}`)[0].body).toMatchObject({
-      revisionHash: "a".repeat(64), detalleSimplificado: true, descripcionDetalleSimplificado: "Service completo",
+      revisionHash: "c".repeat(64), detalleSimplificado: true, descripcionDetalleSimplificado: "Service completo",
       fcePreflightConfirmada: false, receptor: { modo: "CLIENTE", nombre: "Cliente prueba" },
     });
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
@@ -218,6 +255,72 @@ describe("FacturaElectronicaModal", () => {
     } else {
       expect(downloadClick).not.toHaveBeenCalled();
     }
+  });
+
+  it("descarta una respuesta tardía si se vuelve al detalle original mientras se actualiza", async () => {
+    await renderLoaded();
+    fireEvent.click(screen.getByTestId("modal-submit"));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+    expect(previewHtmlShown()).toBe(previewHtml);
+
+    let resolvePreview!: (response: Response) => void;
+    handlers["POST /api/facturacion/previsualizacion"] = () => new Promise<Response>((resolve) => { resolvePreview = resolve; });
+    fireEvent.click(screen.getByTestId("factura-detalle-simplificado"));
+    await waitFor(() => expect(calls("POST /api/facturacion/previsualizacion")).toHaveLength(2));
+
+    fireEvent.click(screen.getByTestId("factura-detalle-simplificado"));
+    expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled();
+    expect(screen.queryByTestId("factura-detalle-descripcion")).not.toBeInTheDocument();
+    await act(async () => {
+      resolvePreview(json({ data: revision({
+        detalleSimplificado: true,
+        lineas: [{ ...revision().lineas[0], descripcion: "Respuesta obsoleta" }],
+      }), error: null, issues: [] }));
+    });
+
+    expect(previewHtmlShown()).toBe(previewHtml);
+    expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled();
+    expect(calls("POST /api/facturacion/previsualizacion")).toHaveLength(2);
+    expect(calls(`POST ${ENDPOINT}`)).toHaveLength(0);
+  });
+
+  it("permite reintentar una actualización fallida sin emitir ni abandonar la vista previa", async () => {
+    await renderLoaded();
+    fireEvent.click(screen.getByTestId("modal-submit"));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+
+    const successfulPreview = handlers["POST /api/facturacion/previsualizacion"];
+    handlers["POST /api/facturacion/previsualizacion"] = () => json({ error: "La revisión no está disponible" }, 503);
+    fireEvent.click(screen.getByTestId("factura-detalle-simplificado"));
+    await waitFor(() => expect(screen.getByTestId("modal-error")).toHaveTextContent("La revisión no está disponible"));
+
+    expect(screen.getByText(/Paso 2 de 2/)).toBeInTheDocument();
+    expect(screen.getByTestId("printable-document-viewer")).toBeInTheDocument();
+    expect(screen.queryAllByText("Actualizando vista previa…")).toHaveLength(0);
+    expect(screen.getByTestId("factura-confirmar-emitir")).toBeDisabled();
+    expect(calls(`POST ${ENDPOINT}`)).toHaveLength(0);
+
+    handlers["POST /api/facturacion/previsualizacion"] = successfulPreview;
+    fireEvent.click(screen.getByRole("button", { name: "Reintentar vista previa" }));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+    expect(screen.getByTestId("printable-document-viewer")).toBeInTheDocument();
+    expect(screen.queryByTestId("modal-error")).not.toBeInTheDocument();
+    expect(calls(`POST ${ENDPOINT}`)).toHaveLength(0);
+  });
+
+  it("cancela la actualización pendiente al cerrar el modal", async () => {
+    const onClose = vi.fn();
+    await renderLoaded({ onClose });
+    fireEvent.click(screen.getByTestId("modal-submit"));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+
+    fireEvent.click(screen.getByTestId("factura-detalle-simplificado"));
+    fireEvent.click(screen.getByTestId("modal-cancel"));
+    await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 450)); });
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(calls("POST /api/facturacion/previsualizacion")).toHaveLength(1);
+    expect(calls(`POST ${ENDPOINT}`)).toHaveLength(0);
   });
 
   it("factura a otro CUIT con los datos de ARCA y descarta la identidad anterior al cambiar el CUIT", async () => {
@@ -270,8 +373,6 @@ describe("FacturaElectronicaModal", () => {
     // El resto del formulario ya se puede usar.
     expect(screen.getByTestId("factura-condicion-venta")).toBeEnabled();
     expect(screen.getByTestId("factura-fecha-comprobante")).toBeEnabled();
-    fireEvent.click(screen.getByLabelText("Simplificar el detalle de la factura"));
-    expect(screen.getByTestId("factura-detalle-descripcion")).toBeEnabled();
 
     // Elegir otro receptor no espera al cliente y no se pisa cuando sus datos llegan.
     fireEvent.click(screen.getByTestId("factura-receptor-modo-otro"));
@@ -363,13 +464,13 @@ describe("FacturaElectronicaModal", () => {
     await renderLoaded({ onAuthorized });
     fireEvent.click(screen.getByTestId("modal-submit"));
     await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
-    handlers["POST /api/facturacion/previsualizacion"] = () => json({ data: revision({ revisionHash: "b".repeat(64), tipoComprobante: 211, fce: { sistema: "ADC", cbu: "1234567890123456789012" } }), error: null, issues: [] });
+    handlers["POST /api/facturacion/previsualizacion"] = () => json({ data: revision({ revisionHash: "b".repeat(64), tipoComprobante: 211, fce: { sistema: "ADC", cbu: "1234567890123456789012" } }), html: "<!doctype html><p>borrador FCE</p>", error: null, issues: [] });
 
     fireEvent.click(screen.getByTestId("factura-confirmar-emitir"));
 
     await waitFor(() => expect(screen.getByText(/Los datos cambiaron desde la revisión anterior/)).toBeInTheDocument());
-    // El borrador se regenera para la revisión nueva (ahora FCE).
-    await waitFor(() => expect(calls("POST /api/facturacion/previsualizacion/pdf").at(-1)?.body).toMatchObject({ revisionHash: "b".repeat(64) }));
+    // La revisión nueva vuelve a dibujar el borrador.
+    await waitFor(() => expect(previewHtmlShown()).toBe("<!doctype html><p>borrador FCE</p>"));
     expect(onAuthorized).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
 

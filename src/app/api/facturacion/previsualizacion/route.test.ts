@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { preview, draftPdf, actor } = vi.hoisted(() => ({ preview: vi.fn(), draftPdf: vi.fn(), actor: vi.fn() }));
+const { preview, buildHtml, actor } = vi.hoisted(() => ({ preview: vi.fn(), buildHtml: vi.fn(), actor: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/facturacion/facturacionService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/facturacion/facturacionService")>();
-  return { ...actual, previewSourceFactura: preview, buildFacturaDraftPdf: draftPdf };
+  return { ...actual, previewSourceFactura: preview, buildFacturaPreviewHtml: buildHtml };
 });
 vi.mock("@/lib/facturacion/serverAuth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/facturacion/serverAuth")>();
@@ -15,8 +15,6 @@ vi.mock("@/lib/facturacion/environment", () => ({ getFacturacionAmbiente: () => 
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn() } }));
 
 import { POST } from "./route";
-import { POST as POST_PDF } from "./pdf/route";
-import { FacturaRevisionDesactualizadaError } from "@/lib/facturacion/facturacionService";
 import { FacturacionHttpError } from "@/lib/facturacion/serverAuth";
 
 const body = {
@@ -29,6 +27,7 @@ const request = (value: unknown) => new Request("http://localhost/api/facturacio
 beforeEach(() => {
   vi.clearAllMocks();
   actor.mockResolvedValue({ tenantId: "tenant", userId: "user" });
+  buildHtml.mockResolvedValue("<!doctype html><svg></svg>");
 });
 
 describe("POST /api/facturacion/previsualizacion", () => {
@@ -39,7 +38,13 @@ describe("POST /api/facturacion/previsualizacion", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
-    await expect(response.json()).resolves.toEqual({ data: { revisionHash: "a".repeat(64) }, error: null, issues: [] });
+    await expect(response.json()).resolves.toEqual({
+      data: { revisionHash: "a".repeat(64) },
+      html: "<!doctype html><svg></svg>",
+      error: null,
+      issues: [],
+    });
+    expect(buildHtml).toHaveBeenCalledWith({ revisionHash: "a".repeat(64) });
     expect(preview).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: "tenant" }), "ARREGLO", "arreglo-1",
       expect.objectContaining({ receptor: expect.objectContaining({ modo: "OTRO", nombre: "Otra Empresa SA", domicilio: null }) }),
@@ -57,6 +62,7 @@ describe("POST /api/facturacion/previsualizacion", () => {
 
     expect(response.status).toBe(422);
     await expect(response.json()).resolves.toEqual({ data: null, error: "Ingresá el nombre", issues });
+    expect(buildHtml).not.toHaveBeenCalled();
   });
 
   it("rechaza un pedido sin receptor elegido sin preparar la factura", async () => {
@@ -74,29 +80,5 @@ describe("POST /api/facturacion/previsualizacion", () => {
 
     expect(response.status).toBe(403);
     expect(preview).not.toHaveBeenCalled();
-  });
-});
-
-describe("POST /api/facturacion/previsualizacion/pdf", () => {
-  it("entrega el borrador inline, sin caché ni archivo persistido", async () => {
-    draftPdf.mockResolvedValue({ bytes: new TextEncoder().encode("%PDF-borrador"), filename: "borrador-factura-a.pdf" });
-
-    const response = await POST_PDF(request({ ...body, revisionHash: "b".repeat(64) }));
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toBe("application/pdf");
-    expect(response.headers.get("Content-Disposition")).toBe('inline; filename="borrador-factura-a.pdf"');
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(new TextDecoder().decode(await response.arrayBuffer())).toBe("%PDF-borrador");
-    expect(draftPdf).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ revisionHash: "b".repeat(64) }));
-  });
-
-  it("responde conflicto tipado si cambió el contenido revisado", async () => {
-    draftPdf.mockRejectedValue(new FacturaRevisionDesactualizadaError());
-
-    const response = await POST_PDF(request({ ...body, revisionHash: "b".repeat(64) }));
-
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toMatchObject({ code: "REVISION_DESACTUALIZADA" });
   });
 });

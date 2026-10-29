@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CircleAlert, ReceiptText, Settings2 } from "lucide-react";
+import { CircleAlert, FileText, ReceiptText, Settings2 } from "lucide-react";
 import Modal from "@/app/components/ui/Modal";
 import ModalMessage from "@/app/components/ui/ModalMessage";
 import Button from "@/app/components/ui/Button";
@@ -12,14 +12,13 @@ import IconInput from "@/app/components/ui/IconInput";
 import Toggle from "@/app/components/ui/Toggle";
 import FacturaReceptorFields from "@/app/components/facturacion/FacturaReceptorFields";
 import FacturaIssuesSummary, { facturaIssueId, uniqueFacturaIssues } from "@/app/components/facturacion/FacturaIssuesSummary";
-import FacturaRevisionView, { type FacturaRevisionPdf } from "@/app/components/facturacion/FacturaRevisionView";
+import FacturaRevisionView from "@/app/components/facturacion/FacturaRevisionView";
 import { clienteReceptorState, type ReceptorState } from "@/app/components/facturacion/facturaReceptorDraft";
 import { FACTURA_CAMPO_INPUT_ID, validateFacturaForm } from "@/app/components/facturacion/facturaFormValidation";
 import { isArcaInscriptionLookupReady, normalizeArcaCuit } from "@/app/hooks/useArcaInscriptionLookup";
 import { COLOR } from "@/theme/theme";
-import { formatArs } from "@/lib/format";
-import { importeLineaMostrado } from "@/lib/facturacion/lineaImporte";
 import { determineVoucher } from "@/lib/facturacion/arcaPayload";
+import { descripcionSimplificadaIssues } from "@/lib/facturacion/facturaReceptor";
 import { ROUTES } from "@/routing/routes";
 import {
   DETALLE_SIMPLIFICADO_DESCRIPCION_DEFAULT,
@@ -61,8 +60,9 @@ type FacturaDraftBody = {
 type Paso = "EDICION" | "REVISION";
 
 const PREVIEW_ENDPOINT = "/api/facturacion/previsualizacion";
-const PREVIEW_PDF_ENDPOINT = "/api/facturacion/previsualizacion/pdf";
 const RECEPTOR_ENDPOINT = "/api/facturacion/receptor";
+/** Espera tras un cambio en la vista previa antes de volver a revisar (evita una consulta por tecla). */
+const PREVIEW_REFRESH_DELAY_MS = 400;
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const EMPTY_RECEPTOR = clienteReceptorState({
   clienteId: null, nombre: "", domicilio: null, tipoDocumento: 99, numeroDocumento: "0", condicionIvaReceptorId: 5,
@@ -99,8 +99,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const [fceRefresh, setFceRefresh] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [paso, setPaso] = useState<Paso>("EDICION");
   const [revisando, setRevisando] = useState(false);
-  const [revision, setRevision] = useState<{ data: FacturaRevision; request: FacturaDraftBody } | null>(null);
-  const [pdf, setPdf] = useState<FacturaRevisionPdf>({ status: "loading", url: null });
+  const [revision, setRevision] = useState<{ data: FacturaRevision; request: FacturaDraftBody; html: string } | null>(null);
   const [emitiendo, setEmitiendo] = useState(false);
   const [intentoRevision, setIntentoRevision] = useState(false);
   const [serverIssues, setServerIssues] = useState<FacturaIssue[]>([]);
@@ -108,26 +107,16 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const [focusSummaryTick, setFocusSummaryTick] = useState(0);
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const reviewSeq = useRef(0);
-  const pdfSeq = useRef(0);
   const receptorSeq = useRef(0);
-  const pdfUrlRef = useRef<string | null>(null);
   const authorizedRef = useRef<string | null>(null);
   const emitiendoRef = useRef(false);
   const summaryRef = useRef<HTMLDivElement>(null);
-  const requestRevisionRef = useRef<(request: FacturaDraftBody, aviso?: string | null) => Promise<void>>(async () => {});
 
   const origenTipo = operacionId ? "VENTA" as const : "ARREGLO" as const;
   const origenId = operacionId ?? arregloId ?? "";
   const endpoint = operacionId ? `/api/operaciones/${operacionId}/factura` : `/api/arreglos/${arregloId}/factura`;
   const esArreglo = Boolean(arregloId && !operacionId);
   const entidadCerrada = operacionId ? "la venta quedará cerrada" : "el arreglo quedará cerrado";
-
-  const releasePdfUrl = useCallback(() => {
-    if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
-    pdfUrlRef.current = null;
-  }, []);
-
-  useEffect(() => releasePdfUrl, [releasePdfUrl]);
 
   /** Datos fiscales del cliente: consultan ARCA y llegan aparte para no demorar el resto del formulario. */
   const loadReceptor = useCallback(async () => {
@@ -156,9 +145,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
     if (!open) {
       // Una respuesta tardía de una revisión cerrada no debe volver a mostrarse.
       reviewSeq.current += 1;
-      pdfSeq.current += 1;
       receptorSeq.current += 1;
-      releasePdfUrl();
       return;
     }
     let cancelled = false;
@@ -174,7 +161,6 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
     setPaso("EDICION");
     setRevision(null);
     setRevisando(false);
-    setPdf({ status: "loading", url: null });
     setServerIssues([]);
     setIntentoRevision(false);
     setIdempotencyKey(crypto.randomUUID());
@@ -202,8 +188,10 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       });
     return () => {
       cancelled = true;
+      reviewSeq.current += 1;
+      receptorSeq.current += 1;
     };
-  }, [endpoint, loadReceptor, open, releasePdfUrl]);
+  }, [endpoint, loadReceptor, open]);
 
   const hasPreflight = Boolean(preflight);
   const clientePendiente = receptor.draft.modo === "CLIENTE" && receptorCarga.status !== "ready";
@@ -320,9 +308,10 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
     concepto,
     fechas,
     fce,
-    detalleSimplificado: esArreglo && detalleSimplificado,
-    descripcionDetalleSimplificado: descripcionSimplificada,
-  }) : []), [concepto, descripcionSimplificada, detalleSimplificado, esArreglo, fce, fechas, origenTipo, preflight, receptor.draft]);
+    // El detalle simplificado se elige y valida junto a la vista previa (paso 2).
+    detalleSimplificado: false,
+    descripcionDetalleSimplificado: "",
+  }) : []), [concepto, fce, fechas, origenTipo, preflight, receptor.draft]);
 
   // No se marca nada en rojo hasta el primer intento de revisar.
   const visibleIssues = useMemo(
@@ -347,42 +336,18 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
     if (id) document.getElementById(id)?.focus();
   }, []);
 
-  const loadPdf = useCallback(async (data: FacturaRevision, request: FacturaDraftBody, onOutdated: () => void) => {
-    const seq = ++pdfSeq.current;
-    releasePdfUrl();
-    setPdf({ status: "loading", url: null });
-    try {
-      const response = await fetch(PREVIEW_PDF_ENDPOINT, {
-        method: "POST",
-        headers: JSON_HEADERS,
-        cache: "no-store",
-        body: JSON.stringify({ origenTipo, origenId, ...request, revisionHash: data.revisionHash }),
-      });
-      if (seq !== pdfSeq.current) return;
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        if (seq !== pdfSeq.current) return;
-        if (body.code === "REVISION_DESACTUALIZADA") {
-          onOutdated();
-          return;
-        }
-        setPdf({ status: "error", url: null, error: body.error || "No se pudo generar la vista previa." });
-        return;
-      }
-      const blob = await response.blob();
-      if (seq !== pdfSeq.current) return;
-      const url = URL.createObjectURL(blob);
-      pdfUrlRef.current = url;
-      setPdf({ status: "ready", url });
-    } catch {
-      if (seq === pdfSeq.current) setPdf({ status: "error", url: null, error: "No se pudo generar la vista previa." });
-    }
-  }, [origenId, origenTipo, releasePdfUrl]);
-
-  /** Pide la revisión del servidor; con éxito pasa al paso 2 y genera el PDF borrador. */
-  const requestRevision = useCallback(async (request: FacturaDraftBody, aviso: string | null = null) => {
+  /**
+   * Pide la revisión del servidor y, con éxito, muestra el paso 2. Al actualizar
+   * la vista previa (`mantenerRevision`) un error no vuelve al paso 1: la revisión
+   * anterior queda desactualizada y no se puede emitir hasta revisarla de nuevo.
+   */
+  const requestRevision = useCallback(async (
+    request: FacturaDraftBody,
+    { aviso = null, mantenerRevision = false }: { aviso?: string | null; mantenerRevision?: boolean } = {},
+  ) => {
     const seq = ++reviewSeq.current;
     setRevisando(true);
+    setError(null);
     try {
       const response = await fetch(PREVIEW_ENDPOINT, {
         method: "POST",
@@ -392,30 +357,60 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       });
       const body = await response.json().catch(() => ({}));
       if (seq !== reviewSeq.current) return;
-      if (!response.ok || !body.data) {
-        pdfSeq.current += 1;
-        releasePdfUrl();
+      if (!response.ok || !body.data || typeof body.html !== "string") {
+        const issues: FacturaIssue[] = body.issues?.length
+          ? body.issues
+          : [generalIssue("REVISION_NO_DISPONIBLE", body.error || "No se pudo revisar la factura.")];
+        if (mantenerRevision) {
+          setError(issues.filter((issue) => issue.severidad === "error").map((issue) => issue.mensaje).join(" ")
+            || "No se pudo actualizar la vista previa.");
+          return;
+        }
         setRevision(null);
         setPaso("EDICION");
-        setServerIssues(body.issues?.length ? body.issues : [generalIssue("REVISION_NO_DISPONIBLE", body.error || "No se pudo revisar la factura.")]);
+        setServerIssues(issues);
         setFocusSummaryTick((tick) => tick + 1);
         return;
       }
-      const data = body.data as FacturaRevision;
-      setRevision({ data, request });
+      setRevision({ data: body.data as FacturaRevision, request, html: body.html });
       setPaso("REVISION");
       setError(aviso);
-      void loadPdf(data, request, () => { void requestRevisionRef.current(request, OUTDATED_MESSAGE); });
     } catch {
       if (seq !== reviewSeq.current) return;
+      if (mantenerRevision) {
+        setError("No se pudo actualizar la vista previa. Reintentá en unos segundos.");
+        return;
+      }
       setServerIssues([generalIssue("REVISION_NO_DISPONIBLE", "No se pudo revisar la factura. Reintentá en unos segundos.")]);
       setFocusSummaryTick((tick) => tick + 1);
     } finally {
       if (seq === reviewSeq.current) setRevisando(false);
     }
-  }, [loadPdf, origenId, origenTipo, releasePdfUrl]);
+  }, [origenId, origenTipo]);
 
-  useEffect(() => { requestRevisionRef.current = requestRevision; }, [requestRevision]);
+  // La vista previa sólo es confirmable si describe exactamente lo elegido ahora.
+  const revisionKey = useMemo(() => (revision ? JSON.stringify(revision.request) : null), [revision]);
+  const revisionVigente = revisionKey !== null && revisionKey === draftKey;
+  const descripcionIssue = esArreglo && detalleSimplificado
+    ? descripcionSimplificadaIssues(descripcionSimplificada)[0] ?? null
+    : null;
+  const actualizandoRevision = revisando || (!revisionVigente && !descripcionIssue && !error);
+
+  // Una respuesta del detalle anterior no debe reemplazar lo elegido durante el debounce.
+  const invalidatePendingRevision = () => {
+    reviewSeq.current += 1;
+    setRevisando(false);
+    setError(null);
+  };
+
+  // Cambiar el detalle simplificado o su texto vuelve a revisar y redibuja la vista previa.
+  useEffect(() => {
+    if (!open || paso !== "REVISION" || !revision || revisionVigente || descripcionIssue || emitiendoRef.current) return;
+    const timer = window.setTimeout(() => {
+      void requestRevision(draftBody, { mantenerRevision: true });
+    }, PREVIEW_REFRESH_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [descripcionIssue, draftBody, open, paso, requestRevision, revision, revisionVigente]);
 
   const startReview = () => {
     if (!preflight || revisando || emitiendo || (clientePendiente && !needsConfiguration)) return;
@@ -430,14 +425,18 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       setFocusSummaryTick((tick) => tick + 1);
       return;
     }
-    void requestRevision(draftBody);
+    let request = draftBody;
+    if (request.detalleSimplificado && !descripcionSimplificada.trim()) {
+      // Un texto vacío dejado al volver a editar no tiene sentido: se usa el texto por defecto.
+      setDescripcionSimplificada(DETALLE_SIMPLIFICADO_DESCRIPCION_DEFAULT);
+      request = { ...request, descripcionDetalleSimplificado: DETALLE_SIMPLIFICADO_DESCRIPCION_DEFAULT };
+    }
+    void requestRevision(request);
   };
 
-  /** Descarta la revisión y su PDF; el formulario conserva lo cargado. */
+  /** Descarta la revisión; el formulario conserva lo cargado. */
   const discardRevision = () => {
     reviewSeq.current += 1;
-    pdfSeq.current += 1;
-    releasePdfUrl();
     setRevision(null);
     setRevisando(false);
     setError(null);
@@ -449,7 +448,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   };
 
   const confirmar = async () => {
-    if (!revision || emitiendoRef.current || revisando || pdf.status === "loading") return;
+    if (!revision || !revisionVigente || descripcionIssue || emitiendoRef.current || revisando) return;
     emitiendoRef.current = true;
     setEmitiendo(true);
     setError(null);
@@ -475,7 +474,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         return;
       }
       if (body.code === "REVISION_DESACTUALIZADA" || body.code === "FCE_DATA_REQUIRED") {
-        await requestRevision(revision.request, OUTDATED_MESSAGE);
+        await requestRevision(revision.request, { aviso: OUTDATED_MESSAGE });
         return;
       }
       if (issued?.estado === "RECHAZADA") {
@@ -511,8 +510,6 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
     return `${String(factura.puntoVenta).padStart(5, "0")}-${String(factura.numeroComprobante).padStart(8, "0")}`;
   }, [factura?.numeroComprobante, factura?.puntoVenta]);
 
-  const ivaTotal = preflight?.totales?.iva ?? 0;
-  const preciosSinIva = preflight?.preciosIncluyenIva === false && ivaTotal > 0;
   const emisionPendiente = factura?.estado === "ENVIANDO" || factura?.estado === "INCIERTA";
 
   const downloadPdf = () => {
@@ -689,71 +686,6 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
             ) : null}
           </section>
 
-          <section style={styles.section}>
-            <div style={styles.sectionTitle}>Detalle e importes</div>
-            {esArreglo ? (
-              <>
-                <span style={styles.summaryDetail}>
-                  Precios del arreglo: {preflight.preciosIncluyenIva === false ? "sin IVA incluido" : "con IVA incluido"}. Se modifica desde Editar arreglo.
-                </span>
-                <div style={styles.simplifiedDetail}>
-                  <Toggle
-                    checked={detalleSimplificado}
-                    onChange={setDetalleSimplificado}
-                    label="Simplificar el detalle de la factura"
-                    disabled={revisando}
-                  />
-                  <span>Simplificar el detalle de la factura</span>
-                </div>
-                {detalleSimplificado ? (
-                  <div style={styles.field}>
-                    <label htmlFor={FACTURA_CAMPO_INPUT_ID["detalle.descripcion"]} style={styles.fieldLabel}>
-                      Descripción que aparecerá en la factura
-                    </label>
-                    <IconInput
-                      id={FACTURA_CAMPO_INPUT_ID["detalle.descripcion"]}
-                      icon={null}
-                      value={descripcionSimplificada}
-                      maxLength={DETALLE_SIMPLIFICADO_DESCRIPCION_MAX}
-                      disabled={revisando}
-                      wrapperStyle={styles.inputWrapper}
-                      data-testid="factura-detalle-descripcion"
-                      invalid={invalidCampos.has("detalle.descripcion")}
-                      aria-invalid={invalidCampos.has("detalle.descripcion") || undefined}
-                      aria-describedby={describedBy("detalle.descripcion") ?? "factura-detalle-descripcion-ayuda"}
-                      onChange={(event) => setDescripcionSimplificada(event.target.value)}
-                    />
-                    <span id="factura-detalle-descripcion-ayuda" style={styles.hint}>
-                      {descripcionSimplificada.length}/{DETALLE_SIMPLIFICADO_DESCRIPCION_MAX} · Los importes, el IVA y el stock se calculan con el detalle original.
-                    </span>
-                  </div>
-                ) : null}
-              </>
-            ) : null}
-            <div style={styles.detail} aria-label="Detalle a facturar">
-              <div style={styles.lines}>
-                {detalleSimplificado && esArreglo ? (
-                  <div style={styles.line}>
-                    <span style={styles.lineText}>{descripcionSimplificada.trim() || DETALLE_SIMPLIFICADO_DESCRIPCION_DEFAULT} × 1</span>
-                    <strong>{formatArs(preciosSinIva ? preflight.total - ivaTotal : preflight.total, { minDecimals: 2 })}</strong>
-                  </div>
-                ) : preflight.lineas.map((linea) => (
-                  <div style={styles.line} key={`${linea.origen}-${linea.ordinal}`}>
-                    <span style={styles.lineText}>{linea.descripcion}{linea.codigo ? ` (${linea.codigo})` : ""} × {linea.cantidad}</span>
-                    <strong>{formatArs(importeLineaMostrado(linea), { minDecimals: 2 })}</strong>
-                  </div>
-                ))}
-              </div>
-              {preciosSinIva ? (
-                <>
-                  <div style={styles.subtotal}><span>Subtotal</span><span>{formatArs(preflight.total - ivaTotal, { minDecimals: 2 })}</span></div>
-                  <div style={styles.subtotal}><span>IVA</span><span>{formatArs(ivaTotal, { minDecimals: 2 })}</span></div>
-                </>
-              ) : null}
-              <div style={styles.total}><span>Total a facturar</span><strong style={styles.totalAmount}>{formatArs(preflight.total, { minDecimals: 2 })}</strong></div>
-            </div>
-          </section>
-
           <FacturaIssuesSummary ref={summaryRef} issues={visibleIssues} onSelectCampo={focusCampo} />
 
           <div style={styles.footer}>
@@ -778,8 +710,50 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
           <span style={styles.step}>Paso 2 de 2 · Revisá la vista previa antes de emitir</span>
           <FacturaRevisionView
             revision={revision.data}
-            pdf={pdf}
-            onRetryPdf={() => { void loadPdf(revision.data, revision.request, () => { void requestRevisionRef.current(revision.request, OUTDATED_MESSAGE); }); }}
+            html={revision.html}
+            actualizando={actualizandoRevision}
+            toolbar={esArreglo ? (
+              <div style={styles.toolbar} data-testid="factura-revision-opciones">
+                <label style={styles.toggleItem}>
+                  <span style={styles.toggleIconPill}>
+                    <FileText size={15} color={detalleSimplificado ? COLOR.ACCENT.PRIMARY : COLOR.TEXT.SECONDARY} />
+                  </span>
+                  <span style={styles.toggleLabel}>Simplificar el detalle de la factura</span>
+                  <Toggle
+                    checked={detalleSimplificado}
+                    onChange={(checked) => { invalidatePendingRevision(); setDetalleSimplificado(checked); }}
+                    label="Simplificar el detalle de la factura"
+                    disabled={emitiendo}
+                    data-testid="factura-detalle-simplificado"
+                  />
+                </label>
+                {detalleSimplificado ? (
+                  <div style={styles.toolbarField}>
+                    <label htmlFor={FACTURA_CAMPO_INPUT_ID["detalle.descripcion"]} style={styles.fieldLabel}>
+                      Descripción que aparecerá en la factura
+                    </label>
+                    <IconInput
+                      id={FACTURA_CAMPO_INPUT_ID["detalle.descripcion"]}
+                      icon={null}
+                      value={descripcionSimplificada}
+                      maxLength={DETALLE_SIMPLIFICADO_DESCRIPCION_MAX}
+                      disabled={emitiendo}
+                      wrapperStyle={styles.inputWrapper}
+                      data-testid="factura-detalle-descripcion"
+                      invalid={Boolean(descripcionIssue)}
+                      aria-invalid={descripcionIssue ? true : undefined}
+                      aria-describedby="factura-detalle-descripcion-ayuda"
+                      onChange={(event) => { invalidatePendingRevision(); setDescripcionSimplificada(event.target.value); }}
+                    />
+                    <span id="factura-detalle-descripcion-ayuda" style={descripcionIssue ? styles.fieldError : styles.hint}>
+                      {descripcionIssue
+                        ? descripcionIssue.mensaje
+                        : `${descripcionSimplificada.length}/${DETALLE_SIMPLIFICADO_DESCRIPCION_MAX} · Los importes, el IVA y el stock se calculan con el detalle original.`}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           />
           <div style={styles.immutability}>
             <CircleAlert size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
@@ -789,6 +763,15 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
             <div style={styles.errorBox} role="alert" data-testid="modal-error">
               <strong>{emisionPendiente ? "Emisión pendiente de reconciliación" : "Revisá antes de emitir"}</strong>
               <span>{error}</span>
+              {!revisionVigente && !revisando && !descripcionIssue ? (
+                <button
+                  type="button"
+                  style={styles.retryButton}
+                  onClick={() => { void requestRevision(draftBody, { mantenerRevision: true }); }}
+                >
+                  Reintentar vista previa
+                </button>
+              ) : null}
             </div>
           ) : null}
           <div style={styles.footer}>
@@ -796,10 +779,14 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
             <Button type="button" text="Cancelar" outline hideTextOnMobile={false} onClick={onClose} disabled={emitiendo} dataTestId="modal-cancel" />
             <Button
               type="button"
-              text={emitiendo ? "Emitiendo…" : revisando ? "Actualizando revisión…" : pdf.status === "loading" ? "Generando vista previa…" : "Confirmar y emitir"}
+              text={emitiendo
+                ? "Emitiendo…"
+                : descripcionIssue
+                  ? "Completá la descripción"
+                  : actualizandoRevision ? "Actualizando vista previa…" : !revisionVigente ? "Actualizá la vista previa" : "Confirmar y emitir"}
               hideTextOnMobile={false}
               onClick={() => { void confirmar(); }}
-              disabled={emitiendo || revisando || pdf.status === "loading" || emisionPendiente}
+              disabled={emitiendo || revisando || !revisionVigente || Boolean(descripcionIssue) || emisionPendiente}
               dataTestId="factura-confirmar-emitir"
             />
           </div>
@@ -900,7 +887,40 @@ const styles = {
   field: { display: "flex", flexDirection: "column" as const, gap: 6, minWidth: 0 },
   fieldLabel: { color: COLOR.TEXT.SECONDARY, fontSize: 13, fontWeight: 500 },
   hint: { color: COLOR.TEXT.TERTIARY, fontSize: 12, lineHeight: 1.4 },
-  simplifiedDetail: { display: "flex", alignItems: "center", gap: 8, color: COLOR.TEXT.SECONDARY, fontSize: 13 },
+  fieldError: { color: COLOR.SEMANTIC.DANGER, fontSize: 12, lineHeight: 1.4 },
+  // Mismo estilo que las opciones del comprobante no fiscal.
+  toolbar: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 10,
+    padding: "10px 14px",
+    background: COLOR.BACKGROUND.SUBTLE,
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+  },
+  toggleItem: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" as const, alignSelf: "flex-start" },
+  toggleIconPill: {
+    width: 26,
+    height: 26,
+    borderRadius: "50%",
+    background: COLOR.BACKGROUND.PRIMARY,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    display: "grid",
+    placeItems: "center",
+  },
+  toggleLabel: { fontSize: 13, fontWeight: 600, color: COLOR.TEXT.PRIMARY },
+  toolbarField: { display: "flex", flexDirection: "column" as const, gap: 6, minWidth: 0 },
+  retryButton: {
+    alignSelf: "flex-start",
+    border: 0,
+    padding: 0,
+    background: "transparent",
+    color: COLOR.ACCENT.PRIMARY,
+    cursor: "pointer",
+    font: "inherit",
+    fontWeight: 600,
+    textDecoration: "underline",
+  },
   label: { display: "block", fontSize: 11, color: COLOR.TEXT.TERTIARY, textTransform: "uppercase" as const, letterSpacing: "0.04em" },
   muted: { color: COLOR.TEXT.SECONDARY, fontSize: 13, lineHeight: 1.4 },
   dropdown: { width: "100%", height: 42 },
@@ -917,13 +937,6 @@ const styles = {
     color: COLOR.TEXT.PRIMARY,
     fontSize: 13,
   },
-  detail: { border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 8, padding: 14, background: COLOR.BACKGROUND.SUBTLE },
-  lines: { display: "flex", flexDirection: "column" as const, gap: 8 },
-  line: { display: "flex", justifyContent: "space-between", gap: 12, color: COLOR.TEXT.SECONDARY, fontSize: 13 },
-  lineText: { minWidth: 0, overflowWrap: "anywhere" as const },
-  subtotal: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, color: COLOR.TEXT.SECONDARY, fontSize: 13 },
-  total: { display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`, marginTop: 12, paddingTop: 12, color: COLOR.TEXT.PRIMARY, fontSize: 14 },
-  totalAmount: { color: COLOR.ACCENT.PRIMARY, fontSize: 18 },
   immutability: { display: "flex", alignItems: "flex-start", gap: 8, background: COLOR.BACKGROUND.ALERT_TINT, border: `1px solid ${COLOR.SEMANTIC.ALERT}`, color: COLOR.SEMANTIC.WARNING, borderRadius: 8, padding: 12, fontSize: 13, lineHeight: 1.4 },
   errorBox: {
     display: "flex",

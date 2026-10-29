@@ -1,6 +1,7 @@
-import { datadogRum } from "@datadog/browser-rum";
 import type { TelemetryProvider, TelemetryIdentity, TelemetryUser, TelemetryContext, TelemetryLogLevel } from "./types";
 import { compact } from "./identity";
+
+type DatadogRum = typeof import("@datadog/browser-rum").datadogRum;
 
 interface DatadogSpanLike {
   setTag: (key: string, value: unknown) => void;
@@ -14,7 +15,39 @@ export interface DatadogTracerLike {
 }
 
 let serverTracerInstance: DatadogTracerLike | null = null;
+let clientRumInstance: DatadogRum | null = null;
+let clientRumPromise: Promise<DatadogRum> | null = null;
 let clientInitialized = false;
+let clientInitialization: Promise<void> | null = null;
+
+function loadDatadogRum(): Promise<DatadogRum> {
+  if (clientRumInstance) return Promise.resolve(clientRumInstance);
+
+  if (!clientRumPromise) {
+    clientRumPromise = import("@datadog/browser-rum")
+      .then(({ datadogRum }) => {
+        clientRumInstance = datadogRum;
+        return datadogRum;
+      })
+      .catch((error: unknown) => {
+        clientRumPromise = null;
+        throw error;
+      });
+  }
+
+  return clientRumPromise;
+}
+
+function withDatadogRum(callback: (rum: DatadogRum) => void): void {
+  if (typeof window === "undefined") return;
+
+  if (clientRumInstance) {
+    callback(clientRumInstance);
+    return;
+  }
+
+  void loadDatadogRum().then(callback).catch(() => {});
+}
 
 /**
  * Permite registrar o inyectar la instancia de dd-trace (para Node.js o mocks de tests).
@@ -30,41 +63,49 @@ export function getDatadogServerTracer(): DatadogTracerLike | null {
 /**
  * Inicializa Datadog RUM en el navegador (Frontend).
  */
-export async function initDatadogClient(): Promise<void> {
-  if (typeof window === "undefined" || clientInitialized) return;
-  if (datadogRum.getInitConfiguration?.()) {
-    clientInitialized = true;
-    return;
-  }
+export function initDatadogClient(): Promise<void> {
+  if (typeof window === "undefined" || clientInitialized) return Promise.resolve();
+  if (clientInitialization) return clientInitialization;
 
-  try {
-    const { reactPlugin } = await import("@datadog/browser-rum-react");
+  clientInitialization = (async () => {
+    try {
+      const datadogRum = await loadDatadogRum();
+      if (datadogRum.getInitConfiguration?.()) {
+        clientInitialized = true;
+        return;
+      }
 
-    datadogRum.init({
-      applicationId: "710f917a-0f76-4db2-bf1b-6d330eefea25",
-      clientToken: "pub239a3b2d8685687e70b1d432f2826018",
-      site: "datadoghq.com",
-      service: process.env.NEXT_PUBLIC_TELEMETRY_FRONTEND_SERVICE_NAME!,
-      env: process.env.NEXT_PUBLIC_DATADOG_ENV || "production",
-      version: process.env.NEXT_PUBLIC_APP_VERSION,
-      sessionSampleRate: 100,
-      sessionReplaySampleRate: 100,
-      traceSampleRate: 100,
-      trackResources: true,
-      trackUserInteractions: true,
-      trackLongTasks: true,
-      allowedTracingUrls: [
-        {
-          match: (url: string) => url.startsWith(`${window.location.origin}/api`),
-          propagatorTypes: ["datadog", "tracecontext"],
-        },
-      ],
-      plugins: [reactPlugin({ router: false })],
-    });
-    clientInitialized = true;
-  } catch (error) {
-    console.error("[Datadog] Error al inicializar RUM:", error);
-  }
+      const { reactPlugin } = await import("@datadog/browser-rum-react");
+
+      datadogRum.init({
+        applicationId: "710f917a-0f76-4db2-bf1b-6d330eefea25",
+        clientToken: "pub239a3b2d8685687e70b1d432f2826018",
+        site: "datadoghq.com",
+        service: process.env.NEXT_PUBLIC_TELEMETRY_FRONTEND_SERVICE_NAME!,
+        env: process.env.NEXT_PUBLIC_DATADOG_ENV || "production",
+        version: process.env.NEXT_PUBLIC_APP_VERSION,
+        sessionSampleRate: 100,
+        sessionReplaySampleRate: 100,
+        traceSampleRate: 100,
+        trackResources: true,
+        trackUserInteractions: true,
+        trackLongTasks: true,
+        allowedTracingUrls: [
+          {
+            match: (url: string) => url.startsWith(`${window.location.origin}/api`),
+            propagatorTypes: ["datadog", "tracecontext"],
+          },
+        ],
+        plugins: [reactPlugin({ router: false })],
+      });
+      clientInitialized = true;
+    } catch (error) {
+      clientInitialization = null;
+      console.error("[Datadog] Error al inicializar RUM:", error);
+    }
+  })();
+
+  return clientInitialization;
 }
 
 /**
@@ -109,14 +150,17 @@ export const datadogProvider: TelemetryProvider = {
 
   identify({ user, account }: TelemetryIdentity): void {
     if (typeof window !== "undefined") {
-      try {
-        datadogRum.setUser(compact(user));
-        if (account) {
-          datadogRum.setAccount?.(compact(account));
-        } else {
-          datadogRum.clearAccount?.();
+      withDatadogRum((datadogRum) => {
+        try {
+          datadogRum.setUser(compact(user));
+          if (account) {
+            datadogRum.setAccount?.(compact(account));
+          } else {
+            datadogRum.clearAccount?.();
+          }
+        } catch {
         }
-      } catch {}
+      });
       return;
     }
 
@@ -142,16 +186,18 @@ export const datadogProvider: TelemetryProvider = {
     const plan = user.plan_sub || undefined;
 
     if (typeof window !== "undefined") {
-      try {
-        const ddUser: Record<string, unknown> = { id: user.id };
-        if (user.name) ddUser.name = user.name;
-        if (user.email) ddUser.email = user.email;
-        if (plan) ddUser.plan_sub = plan;
-        datadogRum.setUser(compact(ddUser));
-        if (tenantId) {
-          datadogRum.setAccount?.(compact({ id: tenantId, name: tenantName, plan }));
-        }
-      } catch {}
+      withDatadogRum((datadogRum) => {
+        try {
+          const ddUser: Record<string, unknown> = { id: user.id };
+          if (user.name) ddUser.name = user.name;
+          if (user.email) ddUser.email = user.email;
+          if (plan) ddUser.plan_sub = plan;
+          datadogRum.setUser(compact(ddUser));
+          if (tenantId) {
+            datadogRum.setAccount?.(compact({ id: tenantId, name: tenantName, plan }));
+          }
+        } catch {}
+      });
       return;
     }
 
@@ -176,29 +222,36 @@ export const datadogProvider: TelemetryProvider = {
 
   clearUser(): void {
     if (typeof window !== "undefined") {
-      try {
-        datadogRum.clearUser();
-        datadogRum.clearAccount?.();
-      } catch {}
+      withDatadogRum((datadogRum) => {
+        try {
+          datadogRum.clearUser();
+          datadogRum.clearAccount?.();
+        } catch {
+        }
+      });
     }
   },
 
   trackAction(name: string, context?: TelemetryContext): void {
     if (typeof window !== "undefined") {
-      try {
-        datadogRum.addAction(name, context);
-      } catch {
-      }
+      withDatadogRum((datadogRum) => {
+        try {
+          datadogRum.addAction(name, context);
+        } catch {
+        }
+      });
     }
   },
 
   recordException(error: Error, context?: TelemetryContext): void {
     // Browser
     if (typeof window !== "undefined") {
-      try {
-        datadogRum.addError(error, context);
-      } catch {
-      }
+      withDatadogRum((datadogRum) => {
+        try {
+          datadogRum.addError(error, context);
+        } catch {
+        }
+      });
     }
 
     // Server
@@ -222,9 +275,12 @@ export const datadogProvider: TelemetryProvider = {
 
   log(level: TelemetryLogLevel, message: string, context?: TelemetryContext): void {
     if (typeof window !== "undefined") {
-      try {
-        datadogRum.addAction?.(message || `log_${level}`, { severity: level, ...context });
-      } catch {}
+      withDatadogRum((datadogRum) => {
+        try {
+          datadogRum.addAction?.(message || `log_${level}`, { severity: level, ...context });
+        } catch {
+        }
+      });
       return;
     }
 

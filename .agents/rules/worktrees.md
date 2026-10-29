@@ -1,19 +1,9 @@
-# Parallel Work: Git Worktrees
+# Parallel Work & Git Worktrees
 
-Several agent threads may work on this repository at the same time. Never implement or fix an issue directly in the main checkout (`b2car-app`, usually on `dev`): file changes, test runs, and git commands there affect every other thread.
+Use the current checkout and branch by default. A dedicated worktree and branch are optional isolation tools; use them when parallel contributors need separate files, the user requests isolation, or a task has a concrete conflict or cleanup risk that benefits from a separate checkout.
 
-Before modifying files for an issue (IMPLEMENT or FIX, or any multi-file code change):
+Before editing, inspect the current branch and `git status`, then preserve existing local changes. Do not switch branches, stash, reset, clean, or restore paths when that could capture or discard another contributor's work.
 
-1. Create a dedicated worktree and branch from `dev`, or reuse the issue's worktree if it already exists:
+When isolation is useful, create a worktree from the requested base branch or reuse the worktree for that task. Install dependencies and provide required local configuration before validating there. Stage only files changed for the task.
 
-   ```sh
-   git worktree add ../worktrees/b2car-app/<ISSUE_ID> -b agent/<ISSUE_ID>-<short-slug> dev
-   ```
-
-2. Edit, test, lint, and typecheck only inside that worktree.
-3. Git-ignored files are not present in a new worktree: copy `.env` from the main checkout and run `npm install` before validating.
-4. Plans and work artifacts stay in the main checkout's `.codex-work/<ISSUE_ID>/` (git-ignored and shared between threads). Read and write them there using the main checkout's absolute path.
-
-PLAN may run in the main checkout because it only writes to `.codex-work/`. REVIEW must read the code and diff from the issue's worktree.
-
-Outside your own worktree, do not run `git add .`, `git commit -a`, `git stash`, `git checkout -- <path>`, `git reset`, `git clean`, or switch branches: these capture or discard another thread's work. Inside your worktree, stage only the files you changed.
+Plans and review artifacts may stay in `.codex-work/<ISSUE_ID>/` when the task uses an issue ID. PLAN can use the current checkout when it only writes planning artifacts; REVIEW should inspect the source branch or worktree named by the user.

@@ -1,24 +1,23 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { CircleAlert } from "lucide-react";
-import PdfDocumentViewer from "@/app/components/ui/PdfDocumentViewer";
+import PrintableDocumentViewer from "@/app/components/ui/PrintableDocumentViewer";
 import { COLOR } from "@/theme/theme";
 import type { FacturaRevision } from "@/lib/facturacion/types";
 
-export type FacturaRevisionPdf = {
-  status: "loading" | "ready" | "error";
-  url: string | null;
-  error?: string | null;
-};
-
 type Props = {
   revision: FacturaRevision;
-  pdf: FacturaRevisionPdf;
-  onRetryPdf: () => void;
+  /** HTML del borrador: el mismo layout del PDF fiscal, generado en el servidor sin armar el PDF. */
+  html: string;
+  /** Opciones que cambian el comprobante (por ejemplo, el detalle simplificado). */
+  toolbar?: ReactNode;
+  /** La revisión se está recalculando con las opciones elegidas. */
+  actualizando?: boolean;
 };
 
-/** Vista previa del PDF borrador del documento a emitir, con los avisos no bloqueantes de la revisión. */
-export default function FacturaRevisionView({ revision, pdf, onRetryPdf }: Props) {
+/** Muestra el borrador con el mismo visor que el comprobante no fiscal. */
+export default function FacturaRevisionView({ revision, html, toolbar, actualizando = false }: Props) {
   const advertencias = revision.issues.filter((issue) => issue.severidad === "advertencia");
 
   return (
@@ -29,23 +28,53 @@ export default function FacturaRevisionView({ revision, pdf, onRetryPdf }: Props
           <span>{advertencias.map((issue) => issue.mensaje).join(" ")}</span>
         </div>
       ) : null}
-      <PdfDocumentViewer
-        url={pdf.url}
-        status={pdf.status}
-        errorMessage={pdf.error}
-        onRetry={onRetryPdf}
-        retryLabel="Reintentar vista previa"
-        openLabel="Abrir borrador"
-        title="Vista previa del comprobante (borrador sin validez fiscal)"
-        style={styles.viewer}
-      />
+      {toolbar}
+      <div style={styles.draftBanner} role="note">
+        BORRADOR — SIN VALIDEZ FISCAL — NO EMITIDO
+      </div>
+      <div style={styles.viewerWrapper} aria-busy={actualizando}>
+        <PrintableDocumentViewer
+          htmlContent={html}
+          title="Vista previa del comprobante (borrador sin validez fiscal)"
+          style={{ ...styles.viewer, ...(actualizando ? styles.viewerUpdating : {}) }}
+        />
+        {actualizando ? (
+          <div style={styles.updating} role="status">Actualizando vista previa…</div>
+        ) : null}
+      </div>
     </div>
   );
 }
 
 const styles = {
   container: { display: "flex", flexDirection: "column" as const, gap: 12, minWidth: 0 },
-  viewer: { minHeight: "min(70dvh, 760px)" },
+  draftBanner: {
+    padding: "8px 12px",
+    border: `1px solid ${COLOR.SEMANTIC.ALERT}`,
+    borderRadius: 8,
+    background: COLOR.BACKGROUND.ALERT_TINT,
+    color: COLOR.SEMANTIC.WARNING,
+    textAlign: "center" as const,
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: "0.04em",
+  },
+  viewerWrapper: { position: "relative" as const, display: "flex", flexDirection: "column" as const },
+  viewer: { height: "min(65dvh, 720px)", flex: "none", transition: "opacity 0.15s ease" },
+  viewerUpdating: { opacity: 0.55 },
+  updating: {
+    position: "absolute" as const,
+    top: 12,
+    left: "50%",
+    transform: "translateX(-50%)",
+    padding: "6px 12px",
+    borderRadius: 16,
+    background: COLOR.BACKGROUND.PRIMARY,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
+    fontWeight: 600,
+  },
   warning: {
     display: "flex",
     alignItems: "flex-start",

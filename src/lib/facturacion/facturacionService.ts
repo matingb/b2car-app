@@ -27,7 +27,7 @@ import { FceMipymeQueryError, fceMipymeRequired } from "./fceMipyme";
 import { assertIdempotencyReplay } from "./idempotency";
 import { createArregloServiceInvoiceLine } from "./arregloInvoiceLine";
 import {
-  generateFiscalDraftPdf,
+  generateFiscalInvoiceHtml,
   generateFiscalInvoicePdf,
   type FiscalPdfInvoice,
   type FiscalPdfLine,
@@ -194,14 +194,6 @@ export class FceDataRequiredError extends FacturacionValidationError {
   }
 }
 
-/** Validaciones independientes de una revisión, devueltas juntas y agrupadas. */
-export class FacturaIssuesError extends FacturacionValidationError {
-  constructor(readonly issues: FacturaIssue[]) {
-    super(issues.find((issue) => issue.severidad === "error")?.mensaje ?? "Revisá los datos de la factura");
-    this.name = "FacturaIssuesError";
-  }
-}
-
 /** El contenido actual ya no es el revisado: se pide una revisión nueva en lugar de emitir otra cosa. */
 export class FacturaRevisionDesactualizadaError extends FacturacionValidationError {
   readonly code = "REVISION_DESACTUALIZADA";
@@ -217,7 +209,6 @@ const ISSUE_GROUP_BY_FIELD: Array<[string, FacturaIssueGrupo]> = [
 
 /** Representa como mensajes agrupables los errores de validación de una emisión. */
 export function issuesFromValidationError(error: FacturacionValidationError): FacturaIssue[] {
-  if (error instanceof FacturaIssuesError) return error.issues;
   const code = "code" in error && typeof error.code === "string" ? error.code : "VALIDACION";
   const grupo = error.campo
     ? ISSUE_GROUP_BY_FIELD.find(([prefix]) => error.campo!.startsWith(prefix))?.[1] ?? "EMISION"
@@ -1185,7 +1176,6 @@ export type FacturaPreviewRequest = {
   origenTipo: FacturaOrigenTipo;
   origenId: string;
   draft: FacturaDraftInput;
-  revisionHash?: string;
 };
 
 export function parseFacturaPreviewRequest(value: unknown): FacturaPreviewRequest {
@@ -1198,8 +1188,7 @@ export function parseFacturaPreviewRequest(value: unknown): FacturaPreviewReques
   if (!origenId || origenId.length > 64) throw new FacturacionValidationError("El origen de la factura no es válido");
   const draft = parseFacturaDraftInput(value);
   if (!draft.receptor.modo) throw new FacturacionValidationError("Elegí a quién se emite la factura");
-  const revisionHash = parseRevisionHash(row.revisionHash);
-  return { origenTipo, origenId, draft, ...(revisionHash ? { revisionHash } : {}) };
+  return { origenTipo, origenId, draft };
 }
 
 function parseCondicionIngresosBrutos(value: unknown): CondicionIngresosBrutos | null {
@@ -1813,23 +1802,16 @@ function revisionLine(line: FacturaLinea): FacturaRevisionLinea {
   };
 }
 
-type FacturaRevisionPreparada = {
-  revision: FacturaRevision | null;
-  issues: FacturaIssue[];
-  base?: FacturaBase;
-  resolved?: FacturaResuelta;
-};
-
 /**
  * Prepara el documento efectivo sin efectos de emisión: no adquiere lease, no
  * consulta ni reserva correlativo, no llama a la RPC de preparación ni escribe.
  */
-async function prepareFacturaRevision(
+export async function previewSourceFactura(
   actor: TenantActor,
   origenTipo: FacturaOrigenTipo,
   origenId: string,
   input: FacturaDraftInput,
-): Promise<FacturaRevisionPreparada> {
+): Promise<{ revision: FacturaRevision | null; issues: FacturaIssue[] }> {
   const collector = new FacturaIssueCollector("REVISION");
   const [base, existing] = await Promise.all([
     prepareFacturaBase(actor, origenTipo, origenId, input, collector),
@@ -1874,17 +1856,45 @@ async function prepareFacturaRevision(
     totales: fiscal.totales,
     issues: collector.issues,
   };
-  return { revision, issues: collector.issues, base, resolved };
+  return { revision, issues: collector.issues };
 }
 
-export async function previewSourceFactura(
-  actor: TenantActor,
-  origenTipo: FacturaOrigenTipo,
-  origenId: string,
-  input: FacturaDraftInput,
-): Promise<{ revision: FacturaRevision | null; issues: FacturaIssue[] }> {
-  const { revision, issues } = await prepareFacturaRevision(actor, origenTipo, origenId, input);
-  return { revision, issues };
+/** HTML del borrador con el mismo layout fiscal y reglas de paginación del PDF autorizado, sin generar el PDF. */
+export async function buildFacturaPreviewHtml(revision: FacturaRevision): Promise<string> {
+  const fiscal: FiscalPdfInvoice = {
+    id: revision.origenId,
+    emisorSnapshot: revision.emisor,
+    receptorSnapshot: revision.receptor,
+    concepto: revision.concepto,
+    fechaComprobante: revision.fechas.fechaComprobante,
+    fechaServicioDesde: revision.fechas.fechaServicioDesde ?? null,
+    fechaServicioHasta: revision.fechas.fechaServicioHasta ?? null,
+    fechaVencimientoPago: revision.fechas.fechaVencimientoPago ?? null,
+    total: revision.totales.total,
+    puntoVenta: revision.emisor.puntoVenta,
+    tipoComprobante: revision.tipoComprobante,
+    fceSistema: revision.fce?.sistema ?? null,
+    fceCbu: revision.fce?.cbu ?? null,
+    claseComprobante: revision.claseComprobante,
+    documentoTipo: revision.documentoTipo,
+    condicionVenta: revision.condicionVenta,
+    totales: revision.totales,
+    numeroComprobante: null,
+    cae: null,
+    caeVencimiento: null,
+    draft: true,
+    lineas: revision.lineas.map((line) => ({
+      codigo: line.codigo ?? null,
+      descripcion: line.descripcion,
+      cantidad: line.cantidad,
+      importeUnitario: line.importeUnitario,
+      subtotal: line.subtotal,
+      importeTotal: line.importeMostrado,
+      tratamientoIva: line.tratamientoIva,
+      ivaAlicuota: line.ivaAlicuota,
+    })),
+  };
+  return generateFiscalInvoiceHtml(fiscal);
 }
 
 function fiscalPdfLine(line: FacturaLinea): FiscalPdfLine {
@@ -1894,41 +1904,6 @@ function fiscalPdfLine(line: FacturaLinea): FiscalPdfLine {
     importeTotal: importeLineaMostrado(line),
     tratamientoIva: line.tratamientoIva, ivaAlicuota: line.ivaAlicuota,
   };
-}
-
-/** PDF borrador del mismo contenido revisado; nunca se guarda ni se asocia a una factura. */
-export async function buildFacturaDraftPdf(
-  actor: TenantActor,
-  request: FacturaPreviewRequest,
-): Promise<{ bytes: Uint8Array; filename: string }> {
-  if (!request.revisionHash) throw new FacturacionValidationError("Revisá la factura antes de generar la vista previa");
-  const prepared = await prepareFacturaRevision(actor, request.origenTipo, request.origenId, request.draft);
-  if (!prepared.revision || !prepared.base || !prepared.resolved?.voucher || !prepared.base.fiscal || prepared.base.concepto === undefined) {
-    throw new FacturaIssuesError(prepared.issues);
-  }
-  if (prepared.revision.revisionHash !== request.revisionHash) throw new FacturaRevisionDesactualizadaError();
-  const { config, fiscal, concepto, receiver } = prepared.base;
-  const { voucher, isFce, persistedLines, fechas } = prepared.resolved;
-  const bytes = await generateFiscalDraftPdf({
-    emisorSnapshot: emitterSnapshot(config),
-    receptorSnapshot: receiverSnapshot(receiver),
-    concepto,
-    fechaComprobante: fechas.fechaComprobante,
-    fechaServicioDesde: fechas.fechaServicioDesde ?? null,
-    fechaServicioHasta: fechas.fechaServicioHasta ?? null,
-    fechaVencimientoPago: fechas.fechaVencimientoPago ?? null,
-    total: fiscal.totales.total,
-    puntoVenta: config.puntoVenta,
-    tipoComprobante: voucher.tipo,
-    claseComprobante: voucher.clase,
-    documentoTipo: "FACTURA",
-    fceSistema: isFce ? config.fceSistema : null,
-    fceCbu: isFce ? config.fceCbu : null,
-    condicionVenta: request.draft.condicionVenta,
-    totales: fiscal.totales,
-    lineas: (persistedLines ?? fiscal.lineas).map(fiscalPdfLine),
-  });
-  return { bytes, filename: `borrador-factura-${voucher.clase.toLowerCase()}.pdf` };
 }
 
 async function issueSourceFactura(
