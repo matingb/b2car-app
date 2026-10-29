@@ -16,34 +16,16 @@ describe("OperacionMeta", () => {
     labelMobile: "Caja",
   };
 
-  it("renderiza el importe formateado cuando isSinCargo es false o no provisto", () => {
+  it("renderiza la etiqueta de metadatos y cuenta correctamente", () => {
     render(
       <OperacionMeta
         metaBadge={metaBadge}
         accountOrWorkshop={accountOrWorkshop}
-        totalMonto={15000}
-        isSinCargo={false}
       />
     );
 
-    expect(screen.queryByTestId("chip-adquisicion-sin-cargo")).not.toBeInTheDocument();
-    expect(screen.getAllByText("$15.000").length).toBeGreaterThan(0);
-  });
-
-  it("renderiza el chip 'Adquisición sin cargo' cuando isSinCargo es true", () => {
-    render(
-      <OperacionMeta
-        metaBadge={metaBadge}
-        accountOrWorkshop={accountOrWorkshop}
-        totalMonto={0}
-        isSinCargo={true}
-      />
-    );
-
-    const chips = screen.getAllByTestId("chip-adquisicion-sin-cargo");
-    expect(chips.length).toBeGreaterThan(0);
-    expect(chips[0]).toHaveTextContent("Adquisición sin cargo");
-    expect(screen.queryByText("$ 0,00")).not.toBeInTheDocument();
+    expect(screen.getAllByText("2 productos").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Caja Chica").length).toBeGreaterThan(0);
   });
 
   it("renderiza el nombre del cliente para operaciones de venta", () => {
@@ -51,7 +33,6 @@ describe("OperacionMeta", () => {
       <OperacionMeta
         metaBadge={metaBadge}
         accountOrWorkshop={accountOrWorkshop}
-        totalMonto={25000}
         tipo="VENTA"
         clienteNombre="Juan Pérez"
       />
@@ -65,7 +46,6 @@ describe("OperacionMeta", () => {
       <OperacionMeta
         metaBadge={metaBadge}
         accountOrWorkshop={accountOrWorkshop}
-        totalMonto={40000}
         tipo="COMPRA"
         proveedorNombre="Distribuidora Warnes"
       />
@@ -79,7 +59,6 @@ describe("OperacionMeta", () => {
       <OperacionMeta
         metaBadge={metaBadge}
         accountOrWorkshop={accountOrWorkshop}
-        totalMonto={40000}
         tipo="GASTO"
         proveedorNombre="Distribuidora Warnes"
       />

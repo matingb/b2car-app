@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Operacion } from "@/model/types";
 import LineDetalleOperacion from "./LineDetalleOperacion";
+import { renderWithProviders as render } from "@/tests/testUtils";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
@@ -91,4 +92,15 @@ describe("LineDetalleOperacion - documentos asociados", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.queryByText("Documentos asociados")).toBeNull();
   });
+
+  it("aplica ellipsis y nowrap al titulo de la operacion", () => {
+    const { container } = renderLinea({ expanded: false, showDocumentos: false });
+    const h4 = container.querySelector("h4");
+    expect(h4).toHaveStyle({
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    });
+  });
 });
+

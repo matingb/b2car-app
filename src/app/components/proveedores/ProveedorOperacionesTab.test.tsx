@@ -5,6 +5,18 @@ import { renderWithProviders as render } from "@/tests/testUtils";
 import ProveedorOperacionesTab from "./ProveedorOperacionesTab";
 import { proveedoresClient } from "@/clients/proveedores/proveedoresClient";
 
+const pushMock = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: pushMock,
+    back: vi.fn(),
+    forward: vi.fn(),
+    refresh: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+}));
+
 vi.mock("@/clients/proveedores/proveedoresClient", () => ({
   proveedoresClient: {
     getOperaciones: vi.fn(),
@@ -129,11 +141,15 @@ describe("ProveedorOperacionesTab", () => {
     expect(screen.getByText("Compra · Filtro de aire (x3)")).toBeInTheDocument();
     expect(screen.getAllByText("Repuestos Warnes").length).toBeGreaterThan(0);
 
-    // Al hacer click en la card 1, se expande mostrando observaciones y enlace al detalle
-    fireEvent.click(screen.getByTestId("proveedor-operacion-card-op-compra-1"));
+    // Al hacer click en el botón de expandir de la card 1, se expande mostrando el detalle de la operación
+    fireEvent.click(screen.getByTestId("operacion-toggle-btn-op-compra-1"));
 
     expect(screen.getByText("Entrega urgente de repuestos")).toBeInTheDocument();
-    expect(screen.getByTestId("operacion-detail-link-op-compra-1")).toBeInTheDocument();
+    expect(screen.getAllByText("Productos").length).toBeGreaterThan(0);
+
+    // Al hacer click en la card, navega al detalle
+    fireEvent.click(screen.getByTestId("operacion-card-op-compra-1"));
+    expect(pushMock).toHaveBeenCalledWith("/operaciones/op-compra-1");
   });
 
   it("abre el modal de pago al hacer click en el badge de pago", async () => {

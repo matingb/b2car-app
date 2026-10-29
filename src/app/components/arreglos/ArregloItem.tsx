@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Card from "@/app/components/ui/Card";
+import CardRightInfo from "@/app/components/ui/CardRightInfo";
 import ArregloBadges from "@/app/components/arreglos/ArregloBadges";
 import Avatar from "@/app/components/ui/Avatar";
 import { Arreglo } from "@/model/types";
@@ -10,9 +11,7 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import {
   FileText,
   CarFront,
-  Building2,
   User,
-  Calendar,
   Users,
   Wrench,
 } from "lucide-react";
@@ -21,8 +20,6 @@ import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { formatArregloTitulo } from "@/lib/arreglos";
-import { useTenant } from "@/app/providers/TenantProvider";
-import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
 import { getEmpleadoColor } from "@/app/providers/EmpleadosProvider";
 import { useCategoriasArreglo } from "@/app/providers/CategoriasArregloProvider";
@@ -58,8 +55,6 @@ export default function ArregloItem({
   empleados: empleadosProp,
   onPagoUpdated,
 }: Props) {
-  const { talleres } = useTenant();
-
   const { categorias } = useCategoriasArreglo();
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
@@ -90,11 +85,15 @@ export default function ArregloItem({
         }}
         style={styles.card}
       >
-        <div css={styles.cardBody}>
+        <div css={styles.cardBody} style={styles.cardBodyStyle}>
           {/* Sección Izquierda: Información Principal */}
-          <div css={styles.mainInfoSection}>
-            <div css={styles.topRow}>
-              <h4 css={styles.mainTitle}>
+          <div css={styles.mainInfoSection} style={styles.mainInfoSectionStyle}>
+            <div css={styles.topRow} style={styles.topRowStyle}>
+              <h4
+                css={styles.mainTitle}
+                style={styles.mainTitleStyle}
+                title={formatArregloTitulo(arreglo)}
+              >
                 {formatArregloTitulo(arreglo)}
               </h4>
             </div>
@@ -195,32 +194,23 @@ export default function ArregloItem({
           </div>
 
           {/* Sección Derecha: Fecha, Precio y Taller */}
-          <div css={styles.rightInfoSection}>
-            <Can permission={Permission.ArreglosPreciosView}>
-              <div css={styles.priceValue}>
-                {formatArs(arreglo.precio_final, {
-                  maxDecimals: 0,
-                  minDecimals: 0,
-                })}
-              </div>
-            </Can>
-
-            <div css={styles.dateContainer}>
-              <Calendar size={15} color={COLOR.ICON.MUTED} />
-              <span>{formatDateLabel(arreglo.fecha)}</span>
-            </div>
-
-            {talleres.length > 1 && arreglo.taller ? (
-              <div
-                data-testid="arreglo-item-taller-label"
-                css={styles.tallerContainer}
-                title={arreglo.taller.ubicacion ?? undefined}
-              >
-                <Building2 size={14} color={COLOR.ICON.MUTED} />
-                <span>{arreglo.taller.nombre?.trim() || "Sin taller"}</span>
-              </div>
-            ) : null}
-          </div>
+          <CardRightInfo
+            price={formatArs(arreglo.precio_final, {
+              maxDecimals: 0,
+              minDecimals: 0,
+            })}
+            pricePermission={Permission.ArreglosPreciosView}
+            date={formatDateLabel(arreglo.fecha)}
+            taller={
+              arreglo.taller
+                ? {
+                    nombre: arreglo.taller.nombre,
+                    ubicacion: arreglo.taller.ubicacion,
+                  }
+                : null
+            }
+            hideTallerOnMobile={true}
+          />
         </div>
 
         {/* Footer del card con estado a la izquierda y badges de facturación/pago a la derecha */}
@@ -255,16 +245,40 @@ const styles = {
     borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
   },
+  cardBodyStyle: {
+    minWidth: 0,
+    width: "100%",
+  },
+  mainInfoSectionStyle: {
+    minWidth: 0,
+    overflow: "hidden",
+  },
+  topRowStyle: {
+    minWidth: 0,
+    width: "100%",
+    overflow: "hidden",
+  },
+  mainTitleStyle: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap" as const,
+    minWidth: 0,
+    width: "100%",
+    maxWidth: "100%",
+  },
   cardBody: css({
     display: "flex",
     flexDirection: "column",
     width: "100%",
+    minWidth: 0,
     [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
       flexDirection: "row",
     },
   }),
   mainInfoSection: css({
     flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
     padding: "17px 20px 15px",
     display: "flex",
     flexDirection: "column",
@@ -281,12 +295,9 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 6,
-    [`@media (min-width: ${BREAKPOINTS.xl}px)`]: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-    },
+    minWidth: 0,
+    width: "100%",
+    overflow: "hidden",
   }),
   mainTitle: css({
     fontSize: 16,
@@ -295,10 +306,13 @@ const styles = {
     margin: 0,
     lineHeight: 1.3,
     paddingRight: 8,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    minWidth: 0,
+    width: "100%",
+    maxWidth: "100%",
     [`@media (max-width: ${BREAKPOINTS.md - 1}px)`]: {
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
       fontSize: 14,
     },
   }),
@@ -378,64 +392,6 @@ const styles = {
     border: "2px solid #ffffff",
     boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
     display: "flex",
-  }),
-  rightInfoSection: css({
-    padding: "13px 20px",
-    backgroundColor: COLOR.BACKGROUND.PRIMARY,
-    display: "flex",
-    flexWrap: "wrap",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      width: 190,
-      minWidth: 190,
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "16px 20px",
-      textAlign: "center",
-      borderTopRightRadius: 8,
-      borderBottomLeftRadius: 0,
-      borderBottomRightRadius: 0,
-    },
-  }),
-  dateContainer: css({
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    fontSize: 12,
-    fontWeight: 500,
-    color: COLOR.TEXT.SECONDARY,
-    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      fontSize: 13,
-    },
-  }),
-  priceValue: css({
-    fontSize: 20,
-    fontWeight: 700,
-    color: COLOR.ACCENT.PRIMARY,
-    letterSpacing: "-0.5px",
-    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      fontSize: 24,
-    },
-  }),
-  tallerContainer: css({
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    fontSize: 12,
-    marginTop: 4,
-    fontWeight: 500,
-    color: COLOR.TEXT.TERTIARY,
-    display: "none",
-    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      display: "flex",
-    },
   }),
   observacionesContainer: {
     display: "flex",

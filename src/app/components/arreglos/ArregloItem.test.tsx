@@ -126,7 +126,7 @@ describe("ArregloItem", () => {
       />
     );
 
-    expect(screen.getByTestId("arreglo-item-taller-label")).toBeInTheDocument();
+    expect(screen.getByTestId("card-right-info-taller")).toBeInTheDocument();
     expect(screen.getByText("Taller 2")).toBeInTheDocument();
   });
 
@@ -141,7 +141,7 @@ describe("ArregloItem", () => {
       />
     );
 
-    expect(screen.queryByTestId("arreglo-item-taller-label")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("card-right-info-taller")).not.toBeInTheDocument();
     expect(screen.queryByText("Taller 1")).not.toBeInTheDocument();
   });
 
@@ -385,6 +385,25 @@ describe("ArregloItem", () => {
     );
 
     expect(screen.getByText("Revisión general")).toBeInTheDocument();
+  });
+
+  it("aplica ellipsis y nowrap al titulo para truncamiento de textos largos", () => {
+    talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
+
+    const { container } = render(
+      <ArregloItem
+        arreglo={createArreglo({
+          descripcion: "Un texto muy largo que debería truncarse",
+        })}
+      />
+    );
+
+    const h4 = container.querySelector("h4");
+    expect(h4).toHaveStyle({
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    });
   });
 });
 

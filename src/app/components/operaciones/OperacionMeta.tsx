@@ -2,14 +2,10 @@
 
 import React from "react";
 import { css } from "@emotion/react";
-import Color from "color";
-import { Coins, Truck, User, type LucideIcon } from "lucide-react";
+import { Truck, User, type LucideIcon } from "lucide-react";
 import IconLabel from "@/app/components/ui/IconLabel";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
-import { formatArs } from "@/lib/format";
-import OperacionPagoBadge from "./OperacionPagoBadge";
-import OperacionStockBadge from "./OperacionStockBadge";
-import type { EstadoPagoOperacion, EstadoStockOperacion, Operacion, TipoOperacion } from "@/model/types";
+import type { TipoOperacion } from "@/model/types";
 
 type MetaItemConfig = {
   icon: LucideIcon;
@@ -20,33 +16,17 @@ type MetaItemConfig = {
 type Props = {
   metaBadge: MetaItemConfig;
   accountOrWorkshop: MetaItemConfig | null;
-  totalMonto: number;
-  isSinCargo?: boolean;
-  estadoPago?: EstadoPagoOperacion;
-  estadoStock?: EstadoStockOperacion;
-  saldoPendiente?: number;
   tipo?: TipoOperacion;
   clienteNombre?: string;
   proveedorNombre?: string;
-  operacion?: Operacion;
-  onPagoUpdated?: () => void;
-  onStockUpdated?: () => void;
 };
 
 export default function OperacionMeta({
   metaBadge,
   accountOrWorkshop,
-  totalMonto,
-  isSinCargo,
-  estadoPago,
-  estadoStock,
-  saldoPendiente,
   tipo,
   clienteNombre,
   proveedorNombre,
-  operacion,
-  onPagoUpdated,
-  onStockUpdated,
 }: Props) {
   const BadgeIcon = metaBadge.icon;
   const OriginIcon = accountOrWorkshop?.icon;
@@ -62,17 +42,7 @@ export default function OperacionMeta({
         label={isMobile ? metaBadge.labelMobile : metaBadge.labelDesktop}
         style={styles.metaItem}
       />
-      {isSinCargo ? (
-        <span css={styles.sinCargoChip} data-testid="chip-adquisicion-sin-cargo">
-          Adquisición sin cargo
-        </span>
-      ) : (
-        <IconLabel
-          icon={<Coins size={18} color={COLOR.ICON.MUTED} />}
-          label={formatArs(totalMonto)}
-          style={styles.metaAmount}
-        />
-      )}
+
       {accountOrWorkshop && OriginIcon ? (
         <IconLabel
           icon={<OriginIcon size={isMobile ? 14 : 16} color={COLOR.ICON.MUTED} />}
@@ -96,30 +66,6 @@ export default function OperacionMeta({
           style={styles.metaTaller}
         />
       ) : null}
-
-      {(isComercial || tipo === "GASTO") && !isSinCargo && (
-        <OperacionPagoBadge
-          operacion={operacion}
-          estado={estadoPago}
-          saldoPendiente={saldoPendiente}
-          montoTotal={totalMonto}
-          tipo={tipo}
-          size="sm"
-          hideTextOnMobile={isMobile}
-          onPagoUpdated={onPagoUpdated}
-          dataTestId="operacion-pago-badge"
-        />
-      )}
-
-      {isComercial && (
-        <OperacionStockBadge
-          operacion={operacion}
-          estadoStock={estadoStock}
-          tipo={tipo}
-          onStockUpdated={onStockUpdated}
-          dataTestId="operacion-estado-stock-badge"
-        />
-      )}
     </div>
   );
 
@@ -141,58 +87,13 @@ const styles = {
   }),
   metaItem: {
     color: COLOR.TEXT.SECONDARY,
-    fontSize: 17,
-    fontWeight: 600,
-  } as const,
-  metaAmount: {
-    color: COLOR.TEXT.SECONDARY,
-    fontSize: 17,
-    fontWeight: 600,
+    fontSize: 14,
+    fontWeight: 500,
   } as const,
   metaTaller: {
     color: COLOR.TEXT.SECONDARY,
     fontSize: 14,
   } as const,
-  sinCargoChip: css({
-    display: "inline-flex",
-    alignItems: "center",
-    padding: "2px 8px",
-    borderRadius: 6,
-    fontSize: 13,
-    fontWeight: 700,
-    color: COLOR.SEMANTIC.INFO,
-    backgroundColor: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
-    border: `1px solid ${Color(COLOR.SEMANTIC.INFO).alpha(0.25).toString()}`,
-  }),
-  statusChip: css({
-    display: "inline-flex",
-    alignItems: "center",
-    padding: "3px 8px",
-    borderRadius: 6,
-    fontSize: 12,
-    fontWeight: 700,
-    letterSpacing: "0.02em",
-  }),
-  chipSuccess: css({
-    color: COLOR.SEMANTIC.SUCCESS,
-    backgroundColor: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
-    border: `1px solid ${Color(COLOR.SEMANTIC.SUCCESS).alpha(0.25).toString()}`,
-  }),
-  chipWarning: css({
-    color: COLOR.SEMANTIC.WARNING,
-    backgroundColor: Color(COLOR.SEMANTIC.WARNING).alpha(0.12).toString(),
-    border: `1px solid ${Color(COLOR.SEMANTIC.WARNING).alpha(0.25).toString()}`,
-  }),
-  chipDanger: css({
-    color: COLOR.SEMANTIC.DANGER,
-    backgroundColor: Color(COLOR.SEMANTIC.DANGER).alpha(0.12).toString(),
-    border: `1px solid ${Color(COLOR.SEMANTIC.DANGER).alpha(0.25).toString()}`,
-  }),
-  chipInfo: css({
-    color: COLOR.SEMANTIC.INFO,
-    backgroundColor: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
-    border: `1px solid ${Color(COLOR.SEMANTIC.INFO).alpha(0.25).toString()}`,
-  }),
   desktopOnly: css({
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       display: "none",
