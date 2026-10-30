@@ -149,7 +149,7 @@ export default function ArregloItem({
                         >
                           <Avatar
                             nombre={name}
-                            size={24}
+                            size={20}
                             bgColor={colorScheme.avatarBg}
                             textColor={colorScheme.avatarText}
                           />
@@ -279,7 +279,7 @@ const styles = {
     flex: 1,
     minWidth: 0,
     overflow: "hidden",
-    padding: "17px 20px 15px",
+    padding: "10px 16px",
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
@@ -288,23 +288,22 @@ const styles = {
     [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
       borderBottom: "none",
       borderRight: `1px solid ${COLOR.BORDER.SUBTLE}`,
-      padding: "16px 20px",
     },
   }),
   topRow: css({
     display: "flex",
     flexDirection: "column",
-    gap: 6,
+    gap: 4,
     minWidth: 0,
     width: "100%",
     overflow: "hidden",
   }),
   mainTitle: css({
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 700,
     color: COLOR.TEXT.PRIMARY,
     margin: 0,
-    lineHeight: 1.3,
+    lineHeight: 1.25,
     paddingRight: 8,
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -319,7 +318,7 @@ const styles = {
   badgesGroup: {
     display: "flex",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     flexShrink: 0,
     flexWrap: "wrap" as const,
   },
@@ -327,9 +326,9 @@ const styles = {
     display: "flex",
     flexWrap: "wrap" as const,
     alignItems: "center",
-    rowGap: 8,
-    columnGap: 20,
-    fontSize: 13,
+    rowGap: 4,
+    columnGap: 16,
+    fontSize: 12,
     color: COLOR.TEXT.SECONDARY,
   },
   desktopMetaRow: css({
@@ -338,9 +337,9 @@ const styles = {
       display: "flex",
       flexWrap: "wrap",
       alignItems: "center",
-      rowGap: 8,
-      columnGap: 20,
-      fontSize: 13,
+      rowGap: 4,
+      columnGap: 16,
+      fontSize: 12,
       color: COLOR.TEXT.SECONDARY,
     },
   }),
@@ -348,8 +347,8 @@ const styles = {
     display: "flex",
     flexWrap: "wrap",
     alignItems: "center",
-    columnGap: 18,
-    rowGap: 6,
+    columnGap: 14,
+    rowGap: 4,
     color: COLOR.TEXT.SECONDARY,
     [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
       display: "none",
@@ -361,7 +360,7 @@ const styles = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
     color: COLOR.TEXT.PRIMARY,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 500,
   }),
   desktopOnlyContent: css({
@@ -374,8 +373,8 @@ const styles = {
     display: "flex",
     alignItems: "center",
     flexWrap: "wrap" as const,
-    gap: 6,
-    fontSize: 13,
+    gap: 5,
+    fontSize: 12,
   },
   metaTextBold: {
     fontWeight: 600,

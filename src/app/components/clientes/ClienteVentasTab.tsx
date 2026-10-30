@@ -14,7 +14,7 @@ import { clientesClient } from "@/clients/clientes/clientesClient";
 import type { ClienteOperacionesResumen, ClienteOperacionItemDTO } from "@/model/dtos";
 import type { Operacion, TipoOperacion } from "@/model/types";
 import type { StockItem } from "@/model/stock";
-import LineDetalleOperacion from "@/app/components/operaciones/LineDetalleOperacion";
+import LineaDetalleOperacion from "@/app/components/operaciones/LineaDetalleOperacion";
 import { tipoConfig } from "@/app/components/operaciones/useOperacionDetalle";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 import { OperacionesProvider } from "@/app/providers/OperacionesProvider";
@@ -236,7 +236,7 @@ export default function ClienteVentasTab({
           </div>
         )}
 
-        {/* Listado de LineDetalleOperacion */}
+        {/* Listado de LineaDetalleOperacion */}
         {operacionesFiltradas.length === 0 ? (
           <Card style={styles.emptyCard}>
             <Receipt size={44} color={COLOR.ICON.MUTED} style={{ marginBottom: 12 }} />
@@ -273,12 +273,11 @@ export default function ClienteVentasTab({
                   key={operacion.id}
                   data-testid={`cliente-venta-card-${operacion.id}`}
                 >
-                  <LineDetalleOperacion
+                  <LineaDetalleOperacion
                     operacion={operacion}
                     tipoLabel={config.label}
                     tipoIcon={config.icon}
                     tipoColor={config.color}
-                    tipoBg={config.bg}
                     tallerLabel={rawOperaciones.find((o) => o.id === operacion.id)?.taller_nombre ?? "—"}
                     stocksById={stocksById}
                     expanded={isExpanded}
@@ -369,7 +368,7 @@ const styles = {
   cardsList: {
     display: "flex",
     flexDirection: "column" as const,
-    gap: 12,
+    gap: 8,
   },
   emptyCard: {
     display: "flex",

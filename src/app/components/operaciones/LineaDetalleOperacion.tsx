@@ -13,7 +13,6 @@ import {
   Building2,
   ChevronDown,
   ChevronUp,
-  FileText,
 } from "lucide-react";
 import {
   getOperacionTitle,
@@ -34,7 +33,6 @@ type Props = {
   tipoLabel: string;
   tipoIcon: React.ReactNode;
   tipoColor: string;
-  tipoBg: string;
   tallerLabel: string;
   stocksById: Record<string, StockItem>;
   expanded: boolean;
@@ -50,12 +48,11 @@ type Props = {
   onStockSuccess?: () => void;
 };
 
-export default function LineDetalleOperacion({
+export default function LineaDetalleOperacion({
   operacion,
   tipoLabel,
   tipoIcon,
   tipoColor,
-  tipoBg,
   tallerLabel,
   stocksById,
   expanded,
@@ -139,23 +136,7 @@ export default function LineDetalleOperacion({
       <div css={styles.cardBody} style={styles.cardBodyStyle}>
         <div css={styles.mainInfoSection} style={styles.mainInfoSectionStyle}>
           <div css={styles.topRow} style={styles.topRowStyle}>
-            <div
-              css={[
-                styles.iconWrap,
-                { background: tipoBg, color: tipoColor },
-              ]}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                background: tipoBg,
-                color: tipoColor,
-              }}
-            >
+            <div css={styles.iconWrap(tipoColor)}>
               {tipoIcon}
             </div>
             <h4
@@ -178,19 +159,6 @@ export default function LineDetalleOperacion({
               proveedorNombre={operacion.proveedor_nombre}
             />
           </div>
-
-          {operacion.observaciones && operacion.observaciones.trim() ? (
-            <div style={styles.observacionesContainer}>
-              <FileText
-                size={15}
-                color={COLOR.ICON.MUTED}
-                style={{ flexShrink: 0, marginTop: 2 }}
-              />
-              <span style={styles.observacionesText}>
-                &quot;{operacion.observaciones.trim()}&quot;
-              </span>
-            </div>
-          ) : null}
         </div>
 
         <CardRightInfo
@@ -240,7 +208,7 @@ export default function LineDetalleOperacion({
             css={styles.toggleButton}
             data-testid={`operacion-toggle-btn-${operacion.id}`}
           >
-            {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             <span>{toggleLabel}</span>
           </button>
 
@@ -307,7 +275,7 @@ const styles = {
     width: "100%",
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     overflow: "hidden",
   },
   mainTitleStyle: {
@@ -331,87 +299,77 @@ const styles = {
     flex: 1,
     minWidth: 0,
     overflow: "hidden",
-    padding: "16px 20px",
+    padding: "10px 14px",
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
-    gap: 8,
+    gap: 6,
     borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
     [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
       borderBottom: "none",
       borderRight: `1px solid ${COLOR.BORDER.SUBTLE}`,
-      padding: "16px 20px",
+      padding: "10px 16px",
     },
   }),
   topRow: css({
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     minWidth: 0,
     width: "100%",
     overflow: "hidden",
   }),
-  iconWrap: css({
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  }),
+  iconWrap: (color: string) =>
+    css({
+      height: 28,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+      color,
+    }),
   mainTitle: css({
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 700,
     color: COLOR.TEXT.PRIMARY,
     margin: 0,
-    lineHeight: 1.3,
+    lineHeight: 1.25,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
     minWidth: 0,
     flex: 1,
     [`@media (max-width: ${BREAKPOINTS.md - 1}px)`]: {
-      fontSize: 15,
+      fontSize: 14,
     },
   }),
   metaRow: css({
     display: "flex",
     alignItems: "center",
-    gap: 14,
+    gap: 10,
     flexWrap: "wrap",
     color: COLOR.TEXT.SECONDARY,
-    fontSize: 13,
+    fontSize: 12,
   }),
-  observacionesContainer: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 8,
-    marginTop: 2,
-  },
-  observacionesText: {
-    fontSize: 13,
-    fontStyle: "italic",
-    fontWeight: 500,
-    color: COLOR.TEXT.SECONDARY,
-    lineHeight: 1.4,
-  },
   footerRow: css({
-    padding: "10px 16px",
+    padding: "2px 14px",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 8,
     flexWrap: "wrap",
     backgroundColor: "#ffffff",
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
     borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      display: "none",
+    },
   }),
   footerLeft: css({
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     flexWrap: "wrap",
   }),
   footerRight: css({
@@ -423,12 +381,12 @@ const styles = {
   toggleButton: css({
     display: "inline-flex",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
     background: "transparent",
     border: "none",
-    padding: "4px 8px",
+    padding: "3px 0px",
     color: COLOR.TEXT.SECONDARY,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 500,
     cursor: "pointer",
     borderRadius: 6,

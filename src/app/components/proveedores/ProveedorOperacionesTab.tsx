@@ -13,7 +13,7 @@ import { proveedoresClient } from "@/clients/proveedores/proveedoresClient";
 import type { ProveedorCuentaCorrienteResumen, ProveedorOperacionItemDTO } from "@/model/dtos";
 import type { Operacion, TipoOperacion } from "@/model/types";
 import type { StockItem } from "@/model/stock";
-import LineDetalleOperacion from "@/app/components/operaciones/LineDetalleOperacion";
+import LineaDetalleOperacion from "@/app/components/operaciones/LineaDetalleOperacion";
 import { tipoConfig } from "@/app/components/operaciones/useOperacionDetalle";
 import { OperacionesProvider } from "@/app/providers/OperacionesProvider";
 
@@ -255,7 +255,7 @@ export default function ProveedorOperacionesTab({
           </div>
         )}
 
-        {/* Listado de LineDetalleOperacion (misma card que en la pantalla de operaciones) */}
+        {/* Listado de LineaDetalleOperacion (misma card que en la pantalla de operaciones) */}
         {operacionesFiltradas.length === 0 ? (
           <Card style={styles.emptyCard}>
             <ShoppingCart size={44} color={COLOR.ICON.MUTED} style={{ marginBottom: 12 }} />
@@ -293,12 +293,11 @@ export default function ProveedorOperacionesTab({
                   key={operacion.id}
                   data-testid={`proveedor-operacion-card-${operacion.id}`}
                 >
-                  <LineDetalleOperacion
+                  <LineaDetalleOperacion
                     operacion={operacion}
                     tipoLabel={config.label}
                     tipoIcon={config.icon}
                     tipoColor={config.color}
-                    tipoBg={config.bg}
                     tallerLabel={rawOperaciones.find((o) => o.id === operacion.id)?.taller_nombre ?? "—"}
                     stocksById={stocksById}
                     expanded={isExpanded}
@@ -379,7 +378,7 @@ const styles = {
   cardsList: {
     display: "flex",
     flexDirection: "column" as const,
-    gap: 12,
+    gap: 8,
   },
   emptyCard: {
     display: "flex",

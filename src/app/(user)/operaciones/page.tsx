@@ -32,9 +32,8 @@ import {
 import { TipoOperacion, TIPOS_OPERACIONES } from "@/model/types";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { Permission } from "@/lib/permissions";
-import Color from "color";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
-import LineDetalleOperacion from "@/app/components/operaciones/LineDetalleOperacion";
+import LineaDetalleOperacion from "@/app/components/operaciones/LineaDetalleOperacion";
 import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
 import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
 import Button from "@/app/components/ui/Button";
@@ -47,67 +46,57 @@ import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 
 const tipoConfig: Record<
     TipoOperacion,
-    { label: string; icon: React.ReactNode; color: string; bg: string }
+    { label: string; icon: React.ReactNode; color: string }
 > = {
     COMPRA: {
         label: "Compra",
         icon: <Truck size={18} />,
         color: COLOR.SEMANTIC.DANGER,
-        bg: Color(COLOR.SEMANTIC.DANGER).alpha(0.12).toString(),
     },
     VENTA: {
         label: "Venta",
         icon: <Receipt size={18} />,
         color: COLOR.SEMANTIC.SUCCESS,
-        bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
     },
     GASTO: {
         label: "Gasto",
         icon: <WalletCards size={18} />,
         color: COLOR.SEMANTIC.DANGER,
-        bg: Color(COLOR.SEMANTIC.DANGER).alpha(0.12).toString(),
     },
     ASIGNACION_ARREGLO: {
         label: "Asignación",
         icon: <Wrench size={18} />,
         color: COLOR.SEMANTIC.INFO,
-        bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
     },
     COBRO_ARREGLO: {
         label: "Cobro de arreglo",
         icon: <CircleDollarSign size={18} />,
         color: COLOR.SEMANTIC.SUCCESS,
-        bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
     },
     AJUSTE: {
         label: "Ajuste",
         icon: <SlidersHorizontal size={18} />,
         color: COLOR.SEMANTIC.WARNING,
-        bg: Color(COLOR.SEMANTIC.WARNING).alpha(0.12).toString(),
     },
     INGRESO: {
         label: "Ingreso manual",
         icon: <CircleDollarSign size={18} />,
         color: COLOR.SEMANTIC.SUCCESS,
-        bg: Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
     },
     APERTURA_CUENTA: {
         label: "Apertura de cuenta",
         icon: <WalletCards size={18} />,
         color: COLOR.SEMANTIC.INFO,
-        bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
     },
     TRANSFERENCIA: {
         label: "Transferencia",
         icon: <ArrowLeftRight size={18} />,
         color: COLOR.SEMANTIC.DISABLED,
-        bg: Color(COLOR.SEMANTIC.DISABLED).alpha(0.12).toString(),
     },
     MOVIMIENTO_CUENTA: {
         label: "Movimiento",
         icon: <WalletCards size={18} />,
         color: COLOR.SEMANTIC.INFO,
-        bg: Color(COLOR.SEMANTIC.INFO).alpha(0.12).toString(),
     },
 };
 
@@ -445,13 +434,12 @@ export default function OperacionesPage() {
                         const config = tipoConfig[tipo] ?? tipoConfig.AJUSTE;
 
                         return (
-                            <LineDetalleOperacion
+                            <LineaDetalleOperacion
                                 key={operacion.id}
                                 operacion={operacion}
                                 tipoLabel={config.label}
                                 tipoIcon={config.icon}
                                 tipoColor={config.color}
-                                tipoBg={config.bg}
                                 tallerLabel={talleres.find(t => t.id === operacion.taller_id)?.nombre ?? shortId(operacion.taller_id)}
                                 stocksById={stocksById}
                                 expanded={expandedOperacionId === operacion.id}
@@ -717,7 +705,7 @@ const styles = {
     list: {
         display: "flex",
         flexDirection: "column" as const,
-        gap: 12,
+        gap: 8,
     },
     empty: {
         display: "flex",

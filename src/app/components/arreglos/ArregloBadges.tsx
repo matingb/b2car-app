@@ -147,11 +147,11 @@ export default function ArregloBadges({
 
 const styles = {
   footerRow: css({
-    padding: "10px 16px",
+    padding: "4px 14px",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 8,
     flexWrap: "wrap",
     backgroundColor: "#ffffff",
     borderBottomLeftRadius: 8,

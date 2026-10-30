@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Operacion } from "@/model/types";
-import LineDetalleOperacion from "./LineDetalleOperacion";
+import LineaDetalleOperacion from "./LineaDetalleOperacion";
 import { renderWithProviders as render } from "@/tests/testUtils";
 
 const push = vi.fn();
@@ -26,12 +26,11 @@ const remito = {
 
 function renderLinea(props: { expanded: boolean; showDocumentos: boolean; onToggle?: () => void }) {
   return render(
-    <LineDetalleOperacion
+    <LineaDetalleOperacion
       operacion={operacion}
       tipoLabel="Venta"
       tipoIcon={null}
       tipoColor="green"
-      tipoBg="white"
       tallerLabel="Taller"
       stocksById={{}}
       onToggle={props.onToggle ?? vi.fn()}
@@ -47,7 +46,7 @@ afterEach(() => {
   push.mockReset();
 });
 
-describe("LineDetalleOperacion - documentos asociados", () => {
+describe("LineaDetalleOperacion - documentos asociados", () => {
   it("no consulta documentos mientras la línea está colapsada", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderLinea({ expanded: false, showDocumentos: true });
@@ -73,7 +72,7 @@ describe("LineDetalleOperacion - documentos asociados", () => {
   });
 
   it("al expandir muestra el título mientras carga y lo oculta si la venta no tiene documentos", async () => {
-    let resolver: (value: Response) => void = () => {};
+    let resolver: (value: Response) => void = () => { };
     fetchMock.mockReturnValueOnce(new Promise<Response>((resolve) => { resolver = resolve; }));
     vi.stubGlobal("fetch", fetchMock);
 

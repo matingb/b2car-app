@@ -45,7 +45,7 @@ const styles = {
   listContainer: {
     display: "flex",
     flexDirection: "column" as const,
-    gap: 12,
+    gap: 8,
   },
 } as const;
 

@@ -41,9 +41,9 @@ export default function CardRightInfo({
   const tallerNombre = tallerObj?.nombre?.trim();
   const shouldRenderTaller = Boolean(
     hasMultipleTalleres &&
-      tallerNombre &&
-      tallerNombre !== "—" &&
-      tallerNombre !== "-"
+    tallerNombre &&
+    tallerNombre !== "—" &&
+    tallerNombre !== "-"
   );
 
   const priceElement =
@@ -60,7 +60,7 @@ export default function CardRightInfo({
       )}
 
       <div css={styles.dateContainer}>
-        <Calendar size={15} color={COLOR.ICON.MUTED} />
+        <Calendar size={13} color={COLOR.ICON.MUTED} />
         <span>{date}</span>
       </div>
 
@@ -73,7 +73,7 @@ export default function CardRightInfo({
           title={tallerObj?.ubicacion ?? undefined}
           data-testid="card-right-info-taller"
         >
-          <Building2 size={14} color={COLOR.ICON.MUTED} />
+          <Building2 size={12} color={COLOR.ICON.MUTED} />
           <span>{tallerNombre}</span>
         </div>
       ) : null}
@@ -83,56 +83,56 @@ export default function CardRightInfo({
 
 const styles = {
   rightInfoSection: css({
-    padding: "13px 20px",
+    padding: "8px 14px",
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     display: "flex",
     flexWrap: "wrap",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 8,
+    gap: 6,
     [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      width: 190,
-      minWidth: 190,
+      width: 170,
+      minWidth: 170,
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      padding: "16px 20px",
+      padding: "10px 14px",
       textAlign: "center",
       borderTopRightRadius: 8,
     },
   }),
   priceValue: (priceColor: string) =>
     css({
-      fontSize: 20,
+      fontSize: 18,
       fontWeight: 700,
       color: priceColor,
-      letterSpacing: "-0.5px",
+      letterSpacing: "-0.4px",
+      lineHeight: 1.15,
       [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-        fontSize: 24,
+        fontSize: 20,
       },
     }),
   dateContainer: css({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 5,
     fontSize: 12,
     fontWeight: 500,
     color: COLOR.TEXT.SECONDARY,
-    [`@media (min-width: ${BREAKPOINTS.md}px)`]: {
-      fontSize: 13,
-    },
+    lineHeight: 1.2,
   }),
   tallerContainer: css({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: 11,
+    marginTop: 2,
     fontWeight: 500,
     color: COLOR.TEXT.TERTIARY,
+    lineHeight: 1.2,
   }),
   tallerHiddenMobile: css({
     display: "none",

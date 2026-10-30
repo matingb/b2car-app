@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getOperacionTitle } from "./LineDetalleOperacion";
+import { getOperacionTitle } from "./LineaDetalleOperacion";
 import { useOperacionDetalle } from "./useOperacionDetalle";
 import type { Operacion } from "@/model/types";
 import type { StockItem } from "@/model/stock";

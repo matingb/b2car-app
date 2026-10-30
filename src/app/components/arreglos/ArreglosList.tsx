@@ -26,7 +26,7 @@ export default function ArreglosList({
           Este vehículo no tiene arreglos registrados.
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {arreglos.map((arreglo) => (
             <ArregloItem
               key={arreglo.id}
