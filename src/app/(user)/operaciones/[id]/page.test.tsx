@@ -9,6 +9,8 @@ const mockPush = vi.fn();
 const mockReplace = vi.fn();
 const mockGetById = vi.fn();
 const mockRemove = vi.fn();
+const mockRevertirStock = vi.fn();
+const mockAnularPago = vi.fn();
 const mockConfirm = vi.fn();
 const mockToastSuccess = vi.fn();
 const mockToastError = vi.fn();
@@ -31,6 +33,8 @@ vi.mock("@/app/providers/OperacionesProvider", () => ({
   useOperaciones: () => ({
     remove: mockRemove,
     refresh: vi.fn(),
+    revertirStock: mockRevertirStock,
+    anularPago: mockAnularPago,
   }),
 }));
 
@@ -239,7 +243,90 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
     expect(screen.getByTestId("operacion-stock-history-table")).toBeInTheDocument();
     expect(screen.getByText("-7 un.")).toBeInTheDocument();
     expect(screen.getByText("Entrega inicial al cliente")).toBeInTheDocument();
-    expect(screen.getByText("13 un.")).toBeInTheDocument();
+    expect(screen.queryByText("Stock Taller")).not.toBeInTheDocument();
+    expect(screen.getByTestId("btn-revertir-stock-mov-entrega-1")).toBeInTheDocument();
+  });
+
+  it("permite revertir un movimiento de entrega desde la tabla del historial", async () => {
+    const ventaConEntregas: Operacion = {
+      ...operacionVenta,
+      movimientos_stock: [
+        {
+          id: "mov-stock-1",
+          fecha: "2026-10-21T14:00:00Z",
+          cantidad: -7,
+          saldo_anterior: 20,
+          saldo_posterior: 13,
+          motivo: "Entrega inicial al cliente",
+          created_at: "2026-10-21T14:00:00Z",
+          producto_id: "prod-1",
+          stock_id: "stock-1",
+          producto_nombre: "Bujía Bosch",
+          producto_codigo: "BB-01",
+        },
+      ],
+    };
+
+    mockGetById.mockResolvedValue({ data: ventaConEntregas, error: null });
+    mockConfirm.mockResolvedValue(true);
+    mockRevertirStock.mockResolvedValue({
+      ...ventaConEntregas,
+      estado_stock: "PENDIENTE",
+      movimientos_stock: [
+        {
+          ...ventaConEntregas.movimientos_stock![0],
+          revertido: true,
+        },
+      ],
+    });
+
+    render(<OperacionDetailPage />);
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("btn-revertir-stock-mov-stock-1")).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("btn-revertir-stock-mov-stock-1"));
+    });
+
+    expect(mockConfirm).toHaveBeenCalled();
+    expect(mockRevertirStock).toHaveBeenCalledWith(ventaConEntregas.id, "mov-stock-1");
+    expect(mockToastSuccess).toHaveBeenCalledWith("Entrega revertida", expect.stringContaining("7 u."));
+  });
+
+  it("muestra el badge Revertido y no el botón si el movimiento ya fue revertido", async () => {
+    const ventaConRevertido: Operacion = {
+      ...operacionVenta,
+      movimientos_stock: [
+        {
+          id: "mov-stock-1",
+          fecha: "2026-10-21T14:00:00Z",
+          cantidad: -7,
+          saldo_anterior: 20,
+          saldo_posterior: 13,
+          motivo: "Entrega inicial al cliente",
+          created_at: "2026-10-21T14:00:00Z",
+          producto_id: "prod-1",
+          stock_id: "stock-1",
+          producto_nombre: "Bujía Bosch",
+          producto_codigo: "BB-01",
+          revertido: true,
+        },
+      ],
+    };
+
+    mockGetById.mockResolvedValue({ data: ventaConRevertido, error: null });
+
+    render(<OperacionDetailPage />);
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(screen.getByText("Revertido")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("btn-revertir-stock-mov-stock-1")).not.toBeInTheDocument();
   });
 
   it("renderiza el historial de recepciones de una compra cuando tiene movimientos_stock", async () => {
@@ -297,7 +384,7 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
 
     expect(screen.getByText("+15 un.")).toBeInTheDocument();
     expect(screen.getByText("Recepción de proveedor")).toBeInTheDocument();
-    expect(screen.getByText("20 un.")).toBeInTheDocument();
+    expect(screen.queryByText("Stock Taller")).not.toBeInTheDocument();
   });
 
   it("muestra estado vacío informativo cuando una venta no tiene entregas registradas", async () => {
@@ -392,5 +479,28 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
       fireEvent.click(toggleBtn);
     });
     expect(toggleBtn).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("permite anular un pago desde el historial de pagos del detalle", async () => {
+    mockGetById.mockResolvedValue({ data: operacionVenta, error: null });
+    mockConfirm.mockResolvedValue(true);
+    mockAnularPago.mockResolvedValue({ ...operacionVenta, pagos: [], total_pagado: 0 });
+
+    render(<OperacionDetailPage />);
+    await runPendingPromises();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("btn-anular-pago-pago-1")).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("btn-anular-pago-pago-1"));
+    });
+
+    expect(mockConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Anular cobro", acceptLabel: "Anular cobro" })
+    );
+    expect(mockAnularPago).toHaveBeenCalledWith(operacionVenta.id, "pago-1");
+    expect(mockToastSuccess).toHaveBeenCalledWith("Cobro anulado", expect.any(String));
   });
 });

@@ -6,6 +6,7 @@ import { ChevronDown, Package, RotateCcw } from "lucide-react";
 import type { OperacionMovimientoStock } from "@/model/types";
 import { COLOR } from "@/theme/theme";
 import { formatDateLabel } from "@/lib/fechas";
+import { isMovimientoReversion, isMovimientoRevertido } from "./useRevertirMovimientoStock";
 
 export interface OperacionStockHistorialProps {
   movimientos?: OperacionMovimientoStock[];
@@ -25,14 +26,7 @@ export default function OperacionStockHistorial({
 
   // Filtramos los movimientos originales de entrega o recepción (no reversiones)
   const movimientosOriginales = useMemo(() => {
-    return (movimientos ?? []).filter((m) => {
-      const isReversion =
-        m.tipo_movimiento === "REVERSION" ||
-        Boolean(m.reversion_de_id) ||
-        (m.motivo?.toLowerCase().includes("reversión") ?? false) ||
-        (m.motivo?.toLowerCase().includes("reversion") ?? false);
-      return !isReversion;
-    });
+    return (movimientos ?? []).filter((m) => !isMovimientoReversion(m));
   }, [movimientos]);
 
   const totalUnidades = useMemo(() => {
@@ -73,7 +67,7 @@ export default function OperacionStockHistorial({
         <div css={styles.movimientosList} data-testid="operacion-stock-historial-list">
           {movimientosOriginales.map((mov) => {
             const unidades = Math.abs(mov.cantidad);
-            const isRevertido = Boolean(mov.revertido);
+            const isRevertido = isMovimientoRevertido(mov, movimientos);
             const isRevertiendo = revertiendoMovimientoId === mov.id;
 
             return (

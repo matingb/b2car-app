@@ -20,6 +20,7 @@ import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvide
 import { useOperaciones } from "@/app/providers/OperacionesProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
+import { useAnularPagoOperacion } from "@/app/components/operaciones/useAnularPagoOperacion";
 import type { Operacion } from "@/model/types";
 import { formatArs } from "@/lib/format";
 import { isValidDate, toISODateAppTimeZone, toISODateTimeWithLocalCurrentTime } from "@/lib/fechas";
@@ -44,7 +45,7 @@ export default function OperacionPagoModal({
   onSuccess,
   onPaid,
 }: OperacionPagoModalProps) {
-  const { registrarPago, anularPago, fetchById } = useOperaciones();
+  const { registrarPago, fetchById } = useOperaciones();
   const { loading: loadingCuentas, cuentaFavorita, createCuenta } = useCuentasFinancieras();
   const { success, error } = useToast();
   const { confirm } = useModalMessage();
@@ -57,7 +58,6 @@ export default function OperacionPagoModal({
 
   const [loadingData, setLoadingData] = useState(false);
   const [operacion, setOperacion] = useState<Operacion | null>(propOperacion ?? null);
-  const [anulandoPagoId, setAnulandoPagoId] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const inFlightRef = useRef(false);
@@ -292,35 +292,17 @@ export default function OperacionPagoModal({
     }
   };
 
-  const handleAnularPago = async (pagoId: string, importe: number) => {
-    const confirmed = await confirm({
-      title: isVenta ? "Anular cobro" : "Anular pago",
-      message: `¿Estás seguro de que querés anular este ${isVenta ? "cobro" : "pago"} de ${formatArs(importe)}? Se generará el reverso contable correspondiente.`,
-      acceptLabel: isVenta ? "Anular cobro" : "Anular pago",
-      cancelLabel: "Cancelar",
-    });
-    if (!confirmed || !operacionId) return;
-
-    setAnulandoPagoId(pagoId);
-    try {
-      const updated = await anularPago(operacionId, pagoId);
-      if (updated) {
-        success(
-          isVenta ? "Cobro anulado" : "Pago anulado",
-          `El ${isVenta ? "cobro" : "pago"} fue anulado y el saldo fue actualizado.`
-        );
-        setOperacion(updated);
-        initDraftForOp(updated);
-        onPaid?.(updated);
-        onSuccess?.(updated);
-        await loadOperacionDetails();
-      }
-    } catch (err: unknown) {
-      error("Error", err instanceof Error ? err.message : `No se pudo anular el ${isVenta ? "cobro" : "pago"}`);
-    } finally {
-      setAnulandoPagoId(null);
-    }
-  };
+  const { anulandoPagoId, handleAnularPago } = useAnularPagoOperacion({
+    operacionId,
+    isVenta,
+    onSuccess: async (updated) => {
+      setOperacion(updated);
+      initDraftForOp(updated);
+      onPaid?.(updated);
+      onSuccess?.(updated);
+      await loadOperacionDetails();
+    },
+  });
 
   return (
     <Modal

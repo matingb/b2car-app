@@ -31,7 +31,9 @@ import {
   FileBox,
   Pencil,
   ReceiptText,
+  RotateCcw,
   Trash,
+  Trash2,
 } from "lucide-react";
 
 import OperacionPagoBadge from "@/app/components/operaciones/OperacionPagoBadge";
@@ -39,6 +41,12 @@ import OperacionStockBadge from "@/app/components/operaciones/OperacionStockBadg
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
 import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
+import {
+  canRevertirMovimiento,
+  isMovimientoRevertido,
+  useRevertirMovimientoStock,
+} from "@/app/components/operaciones/useRevertirMovimientoStock";
+import { useAnularPagoOperacion } from "@/app/components/operaciones/useAnularPagoOperacion";
 
 function shortId(value?: string | null) {
   if (!value) return "-";
@@ -61,6 +69,23 @@ export default function OperacionDetailPage() {
   const [operacion, setOperacion] = useState<Operacion | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const { revertiendoMovId, handleRevertirMovimiento: handleRevertirStock } =
+    useRevertirMovimientoStock({
+      operacion,
+      onSuccess: (updated) => {
+        setOperacion(updated);
+      },
+    });
+
+  const { anulandoPagoId, handleAnularPago } = useAnularPagoOperacion({
+    operacionId: operacion?.id,
+    isVenta: operacion?.tipo === "VENTA",
+    onSuccess: async (updated) => {
+      setOperacion(updated);
+      await refresh();
+    },
+  });
 
   const [stocksById, setStocksById] = useState<Record<string, StockItem>>({});
   const [isEditGastoOpen, setIsEditGastoOpen] = useState(false);
@@ -598,7 +623,7 @@ export default function OperacionDetailPage() {
                       <th style={styles.th}>Producto</th>
                       <th style={{ ...styles.th, textAlign: "center" }}>Cantidad</th>
                       <th style={styles.th}>Detalle / Motivo</th>
-                      <th style={{ ...styles.th, textAlign: "center" }}>Stock Taller</th>
+                      <th style={{ ...styles.th, textAlign: "right" }}>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -608,6 +633,9 @@ export default function OperacionDetailPage() {
                         mov.producto_nombre || stock?.nombre || `Ítem #${mov.producto_id.slice(0, 6)}`;
                       const prodCodigo = mov.producto_codigo || stock?.codigo;
                       const unidades = Math.abs(mov.cantidad);
+                      const isRevertido = isMovimientoRevertido(mov, operacion.movimientos_stock);
+                      const canRevert = canRevertirMovimiento(mov, operacion.movimientos_stock);
+                      const isRevertiendo = revertiendoMovId === mov.id;
 
                       return (
                         <tr key={mov.id} style={styles.tr}>
@@ -630,10 +658,17 @@ export default function OperacionDetailPage() {
                                 borderRadius: 12,
                                 fontSize: 12,
                                 fontWeight: 600,
-                                backgroundColor: isVenta
+                                backgroundColor: isRevertido
+                                  ? COLOR.BACKGROUND.SUBTLE
+                                  : isVenta
                                   ? Color(COLOR.STATUS.info.solidBg).alpha(0.12).toString()
                                   : Color(COLOR.SEMANTIC.SUCCESS).alpha(0.12).toString(),
-                                color: isVenta ? COLOR.STATUS.info.solidBg : COLOR.SEMANTIC.SUCCESS,
+                                color: isRevertido
+                                  ? COLOR.TEXT.TERTIARY
+                                  : isVenta
+                                  ? COLOR.STATUS.info.solidBg
+                                  : COLOR.SEMANTIC.SUCCESS,
+                                textDecoration: isRevertido ? "line-through" : "none",
                               }}
                             >
                               {isVenta ? `-${unidades} un.` : `+${unidades} un.`}
@@ -644,10 +679,22 @@ export default function OperacionDetailPage() {
                               {mov.motivo || (isVenta ? "Entrega de mercadería" : "Ingreso al taller")}
                             </div>
                           </td>
-                          <td style={{ ...styles.td, textAlign: "center" }}>
-                            <span style={{ fontSize: 13, color: COLOR.TEXT.SECONDARY, fontWeight: 500 }}>
-                              {mov.saldo_posterior} un.
-                            </span>
+                          <td style={{ ...styles.td, textAlign: "right" }}>
+                            {canRevert ? (
+                              <button
+                                type="button"
+                                css={styles.btnRevertir}
+                                title={isVenta ? "Revertir esta entrega" : "Revertir esta recepción"}
+                                disabled={isRevertiendo}
+                                onClick={() => handleRevertirStock(mov.id, unidades, prodNombre)}
+                                data-testid={`btn-revertir-stock-${mov.id}`}
+                                aria-label={isVenta ? "Revertir entrega" : "Revertir recepción"}
+                              >
+                                <RotateCcw size={15} />
+                              </button>
+                            ) : isRevertido ? (
+                              <span css={styles.revertidoBadge}>Revertido</span>
+                            ) : null}
                           </td>
                         </tr>
                       );
@@ -715,6 +762,7 @@ export default function OperacionDetailPage() {
                     <th style={styles.th}>Fecha</th>
                     <th style={styles.th}>Detalle / Referencia</th>
                     <th style={{ ...styles.th, textAlign: "right" }}>Importe</th>
+                    <th style={{ ...styles.th, textAlign: "right" }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -731,6 +779,19 @@ export default function OperacionDetailPage() {
                       </td>
                       <td style={{ ...styles.td, textAlign: "right", fontWeight: 600, color: COLOR.SEMANTIC.SUCCESS }}>
                         {formatArs(pago.monto)}
+                      </td>
+                      <td style={{ ...styles.td, textAlign: "right" }}>
+                        <button
+                          type="button"
+                          css={styles.btnAnularPago}
+                          title={isVenta ? "Anular este cobro" : "Anular este pago"}
+                          disabled={anulandoPagoId === pago.id}
+                          onClick={() => handleAnularPago(pago.id, pago.monto)}
+                          data-testid={`btn-anular-pago-${pago.id}`}
+                          aria-label={isVenta ? "Anular cobro" : "Anular pago"}
+                        >
+                          <Trash2 size={15} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -1004,5 +1065,57 @@ const styles = {
   collapseInner: css({
     minHeight: 0,
     overflowX: "auto",
+  }),
+  btnRevertir: css({
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 32,
+    height: 32,
+    border: "none",
+    borderRadius: 6,
+    background: "transparent",
+    color: COLOR.TEXT.TERTIARY,
+    cursor: "pointer",
+    transition: "all 0.15s",
+    "&:hover": {
+      color: COLOR.SEMANTIC.WARNING,
+      background: COLOR.STATUS.WARNING.BG_SUBTLE,
+    },
+    "&:disabled": {
+      cursor: "not-allowed",
+      opacity: 0.4,
+    },
+  }),
+  btnAnularPago: css({
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 32,
+    height: 32,
+    border: "none",
+    borderRadius: 6,
+    background: "transparent",
+    color: COLOR.TEXT.TERTIARY,
+    cursor: "pointer",
+    transition: "all 0.15s",
+    "&:hover": {
+      color: COLOR.SEMANTIC.DANGER,
+      background: COLOR.STATUS.DANGER.BG_SUBTLE,
+    },
+    "&:disabled": {
+      cursor: "not-allowed",
+      opacity: 0.4,
+    },
+  }),
+  revertidoBadge: css({
+    display: "inline-block",
+    fontSize: 11,
+    fontWeight: 600,
+    padding: "2px 6px",
+    borderRadius: 6,
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
+    color: COLOR.TEXT.SECONDARY,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
   }),
 };

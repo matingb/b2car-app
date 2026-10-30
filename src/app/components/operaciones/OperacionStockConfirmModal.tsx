@@ -12,6 +12,7 @@ import { toISODateLocal, toISODateTimeWithLocalCurrentTime, formatCalendarDateLa
 import Calendar from "@/app/components/ui/Calendar";
 import NumberInput from "@/app/components/ui/NumberInput";
 import OperacionStockHistorial from "./OperacionStockHistorial";
+import { useRevertirMovimientoStock } from "./useRevertirMovimientoStock";
 import { logger } from "@/lib/logger";
 import {
   AlertCircle,
@@ -44,9 +45,8 @@ export default function OperacionStockConfirmModal({
   onClose,
   onSuccess,
 }: OperacionStockConfirmModalProps) {
-  const { confirmarStock, revertirStock, fetchById } = useOperaciones();
+  const { confirmarStock, fetchById } = useOperaciones();
   const { success, error } = useToast();
-  const { confirm } = useModalMessage();
 
   const [detailedOp, setDetailedOp] = useState<Operacion | null>(null);
   const [, setLoadingData] = useState(false);
@@ -85,7 +85,14 @@ export default function OperacionStockConfirmModal({
   const [cantidades, setCantidades] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [revertiendoMovId, setRevertiendoMovId] = useState<string | null>(null);
+
+  const { revertiendoMovId, handleRevertirMovimiento } = useRevertirMovimientoStock({
+    operacion: activeOp,
+    onSuccess: (updated) => {
+      setDetailedOp(updated);
+      onSuccess?.();
+    },
+  });
 
   const isVenta = activeOp?.tipo === "VENTA";
   const activeOpId = activeOp?.id;
@@ -217,59 +224,6 @@ export default function OperacionStockConfirmModal({
       error("Error", msg);
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleRevertirMovimiento = async (
-    movimientoId: string,
-    cantidad: number,
-    prodNombre?: string
-  ) => {
-    if (!activeOp) return;
-
-    const targetMov = (activeOp.movimientos_stock ?? []).find((m) => m.id === movimientoId);
-    if (
-      targetMov?.tipo_movimiento === "REVERSION" ||
-      targetMov?.reversion_de_id ||
-      (targetMov?.motivo?.toLowerCase().includes("revers") ?? false)
-    ) {
-      error("Operación no permitida", "No se puede revertir un movimiento que ya es una reversión.");
-      return;
-    }
-
-    if (targetMov?.revertido) {
-      error("Operación no permitida", "Este movimiento ya fue revertido previamente.");
-      return;
-    }
-
-    const actionWord = isVenta ? "la entrega" : "la recepción";
-    const confirmed = await confirm({
-      title: `¿Revertir ${actionWord}?`,
-      message: `Esta acción revertirá ${actionWord} de ${cantidad} u. de "${
-        prodNombre || "producto"
-      }" y devolverá el stock a su estado anterior. ¿Deseas continuar?`,
-      acceptLabel: "Revertir",
-      cancelLabel: "Cancelar",
-    });
-
-    if (!confirmed) return;
-
-    setRevertiendoMovId(movimientoId);
-    try {
-      const updated = await revertirStock(activeOp.id, movimientoId);
-      if (updated) {
-        setDetailedOp(updated);
-        success(
-          isVenta ? "Entrega revertida" : "Recepción revertida",
-          `Se revirtió ${actionWord} de ${cantidad} u.`
-        );
-        onSuccess?.();
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Error al revertir stock";
-      error("Error al revertir", msg);
-    } finally {
-      setRevertiendoMovId(null);
     }
   };
 
