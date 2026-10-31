@@ -4,9 +4,12 @@ import { DELETE as deleteArregloRoute } from "@/app/api/arreglos/[id]/route";
 import { POST as postRepuestosRoute, type UpsertRepuestoRequest } from "@/app/api/arreglos/[id]/repuestos/route";
 import { DELETE as deleteRepuestoLineaRoute } from "@/app/api/arreglos/[id]/repuestos/[lineaId]/route";
 import { POST as postEmpleadoRoute } from "@/app/api/empleados/route";
+import { DELETE as deleteEmpleadoRoute } from "@/app/api/empleados/[id]/route";
+import { DELETE as deleteDetalleArregloRoute } from "@/app/api/arreglos/[id]/detalles/[detalleId]/route";
+import { DELETE as deleteOperacionRoute } from "@/app/api/operaciones/[id]/route";
 import type { CreateEmpleadoRequest } from "@/app/api/empleados/contracts";
 import { POST as postOperacionesRoute, type CreateOperacionRequest } from "@/app/api/operaciones/route";
-import { POST as postOperacionPagoRoute } from "@/app/api/operaciones/[id]/pagos/route";
+import { POST as postOperacionPagoRoute, DELETE as deleteOperacionPagoRoute } from "@/app/api/operaciones/[id]/pagos/route";
 import { POST as postOperacionConfirmarStockRoute } from "@/app/api/operaciones/[id]/confirmar-stock/route";
 import { GET as getProveedorOperacionesRoute } from "@/app/api/proveedores/[id]/operaciones/route";
 import { POST as postProveedorRoute, type CreateProveedorRequest } from "@/app/api/proveedores/route";
@@ -138,6 +141,39 @@ export async function crearEmpleadoViaRoute(
 }
 
 /**
+ * Driver: Invoca la API route DELETE /api/empleados/[id] encapsulando el request.
+ */
+export async function eliminarEmpleadoViaRoute(empleadoId: string): Promise<Response> {
+  const req = new NextRequest(`http://localhost:3000/api/empleados/${empleadoId}`, { method: "DELETE" });
+  return deleteEmpleadoRoute(req, { params: Promise.resolve({ id: empleadoId }) });
+}
+
+/**
+ * Driver: Invoca la API route DELETE /api/arreglos/[id]/detalles/[detalleId] encapsulando el request.
+ */
+export async function eliminarDetalleArregloViaRoute(
+  arregloId: string,
+  detalleId: string
+): Promise<Response> {
+  const req = new NextRequest(
+    `http://localhost:3000/api/arreglos/${arregloId}/detalles/${detalleId}`,
+    { method: "DELETE" }
+  );
+  return deleteDetalleArregloRoute(req, { params: Promise.resolve({ id: arregloId, detalleId }) });
+}
+
+/**
+ * Driver: Invoca la API route DELETE /api/operaciones/[id] (venta, compra, gasto, ingreso) encapsulando el request.
+ */
+export async function borrarOperacionViaRoute(operacionId: string): Promise<Response> {
+  const req = new NextRequest(`http://localhost:3000/api/operaciones/${operacionId}`, {
+    method: "DELETE",
+    headers: { "X-Idempotency-Key": crypto.randomUUID() },
+  });
+  return deleteOperacionRoute(req, { params: Promise.resolve({ id: operacionId }) });
+}
+
+/**
  * Driver: Invoca la API route POST /api/operaciones encapsulando el request.
  */
 export async function crearOperacionViaRoute(
@@ -172,6 +208,23 @@ export async function registrarPagoOperacionViaRoute(
   });
 
   return postOperacionPagoRoute(req, {
+    params: Promise.resolve({ id: operacionId }),
+  });
+}
+
+/**
+ * Driver: Invoca la API route DELETE /api/operaciones/[id]/pagos?pago_id=... encapsulando el request.
+ */
+export async function anularPagoOperacionViaRoute(
+  operacionId: string,
+  pagoId: string
+): Promise<Response> {
+  const req = new NextRequest(
+    `http://localhost:3000/api/operaciones/${operacionId}/pagos?pago_id=${pagoId}`,
+    { method: "DELETE" }
+  );
+
+  return deleteOperacionPagoRoute(req, {
     params: Promise.resolve({ id: operacionId }),
   });
 }

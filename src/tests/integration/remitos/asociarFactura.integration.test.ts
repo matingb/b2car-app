@@ -68,7 +68,7 @@ describe("Integration: asociación posterior de remitos a facturas (B2C-202)", (
       { remito_linea_id: lineas[0].id as string, factura_linea_id: segunda.lineas[0].id },
     ]);
 
-    expectErrorDeNegocio(error, "El remito ya está asociado a una factura");
+    expectErrorDeNegocio(error, /El remito ya est[aá] asociado a una factura/);
     expect(error?.code).toBe("55000");
     expect((await leerRemito(remitoId)).factura_id).toBe(primera.facturaId);
   });

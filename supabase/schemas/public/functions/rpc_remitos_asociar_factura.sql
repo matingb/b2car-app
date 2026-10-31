@@ -32,7 +32,7 @@ BEGIN
   FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Remito no encontrado'; END IF;
   IF v_remito.factura_id IS NOT NULL THEN
-    RAISE EXCEPTION 'El remito ya está asociado a una factura' USING ERRCODE = '55000';
+    RAISE EXCEPTION 'El remito ya esta asociado a una factura' USING ERRCODE = '55000';
   END IF;
 
   PERFORM pg_advisory_xact_lock(hashtextextended('remitos_factura_' || p_factura_id::text, 0));
