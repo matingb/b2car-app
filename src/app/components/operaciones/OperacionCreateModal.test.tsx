@@ -1195,6 +1195,106 @@ describe("OperacionCreateModal", () => {
     const restoredMontoInput = screen.getByTestId("pago-monto-0");
     expect(restoredMontoInput).toHaveValue(10000);
   });
+
+  it("no permite confirmar si el input de entregar es mayor que el input de cantidad", async () => {
+    mockInventarioApi.inventario = [{
+      id: "S-1",
+      nombre: "Batería 12V",
+      codigo: "BAT-12",
+      precioUnitario: 10000,
+      costoUnitario: 6000,
+      stockActual: 20,
+    }];
+    const onClose = vi.fn();
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        initialTipo="VENTA"
+        initialCuentaId="C1"
+        onClose={onClose}
+      />
+    );
+
+    await runPendingPromises();
+
+    // Seleccionar producto
+    const stockInput = screen.getByTestId("operaciones-line-0-stock");
+    await userEvent.type(stockInput, "S-1");
+    await runPendingPromises();
+
+    const submitBtn = screen.getByTestId("modal-submit");
+    expect(submitBtn).not.toBeDisabled();
+
+    // Establecer cantidad en 2
+    const cantidadInput = screen.getByTestId("operaciones-line-0-cantidad");
+    await userEvent.clear(cantidadInput);
+    await userEvent.type(cantidadInput, "2");
+    await runPendingPromises();
+
+    expect(submitBtn).not.toBeDisabled();
+
+    // Ingresar 5 en entregar (mayor a cantidad 2)
+    const entregarInput = screen.getByTestId("operaciones-line-0-cantidad-entregar");
+    await userEvent.clear(entregarInput);
+    await userEvent.type(entregarInput, "5");
+    await runPendingPromises();
+
+    // Debe mostrar el error y deshabilitar el botón confirmar
+    expect(screen.getByTestId("operacion-stock-entregar-error")).toBeInTheDocument();
+    expect(entregarInput).toHaveAttribute("aria-invalid", "true");
+    expect(submitBtn).toBeDisabled();
+
+    // Al corregir el input para que no supere la cantidad (por ejemplo, 1)
+    await userEvent.clear(entregarInput);
+    await userEvent.type(entregarInput, "1");
+    await runPendingPromises();
+
+    expect(screen.queryByTestId("operacion-stock-entregar-error")).not.toBeInTheDocument();
+    expect(entregarInput).toHaveAttribute("aria-invalid", "false");
+    expect(submitBtn).not.toBeDisabled();
+  });
+
+  it("no permite confirmar si el input de recibir es mayor que el input de cantidad en una compra", async () => {
+    mockInventarioApi.inventario = [{
+      id: "S-1",
+      nombre: "Batería 12V",
+      codigo: "BAT-12",
+      precioUnitario: 10000,
+      costoUnitario: 6000,
+      stockActual: 20,
+    }];
+    const onClose = vi.fn();
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        initialTipo="COMPRA"
+        initialCuentaId="C1"
+        onClose={onClose}
+      />
+    );
+
+    await runPendingPromises();
+
+    const stockInput = screen.getByTestId("operaciones-line-0-stock");
+    await userEvent.type(stockInput, "S-1");
+    await runPendingPromises();
+
+    const submitBtn = screen.getByTestId("modal-submit");
+    expect(submitBtn).not.toBeDisabled();
+
+    // Ingresar 4 en recibir cuando cantidad es 1
+    const recibirInput = screen.getByTestId("operaciones-line-0-cantidad-entregar");
+    await userEvent.clear(recibirInput);
+    await userEvent.type(recibirInput, "4");
+    await runPendingPromises();
+
+    expect(screen.getByTestId("operacion-stock-entregar-error")).toHaveTextContent("La cantidad a recibir no puede superar la cantidad pactada");
+    expect(submitBtn).toBeDisabled();
+  });
 });
 
 

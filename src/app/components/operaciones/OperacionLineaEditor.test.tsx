@@ -107,5 +107,55 @@ describe("OperacionLineaEditor", () => {
 
     expect(screen.getByTestId("operaciones-line-0-unitario")).toHaveValue(33.33);
   });
+
+  it("Permite ingresar una cantidad a entregar mayor a la cantidad pactada sin clampearla y marca el campo como inválido", () => {
+    render(
+      <Wrapper
+        initial={{
+          id: "l1",
+          stockId: "p1",
+          cantidad: 3,
+          cantidadEntregar: 3,
+          unitario: 10,
+          total: 30,
+        }}
+      />
+    );
+
+    const entregarInput = screen.getByTestId("operaciones-line-0-cantidad-entregar");
+    expect(entregarInput).toHaveAttribute("aria-invalid", "false");
+
+    act(() => {
+      fireEvent.change(entregarInput, {
+        target: { value: "5" },
+      });
+    });
+
+    expect(entregarInput).toHaveValue(5);
+    expect(entregarInput).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("Sincroniza cantidadEntregar al cambiar cantidad si estaban iguales", () => {
+    render(
+      <Wrapper
+        initial={{
+          id: "l1",
+          stockId: "p1",
+          cantidad: 2,
+          cantidadEntregar: 2,
+          unitario: 10,
+          total: 20,
+        }}
+      />
+    );
+
+    act(() => {
+      fireEvent.change(screen.getByTestId("operaciones-line-0-cantidad"), {
+        target: { value: "4" },
+      });
+    });
+
+    expect(screen.getByTestId("operaciones-line-0-cantidad-entregar")).toHaveValue(4);
+  });
 });
 

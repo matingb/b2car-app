@@ -170,9 +170,9 @@ export default function OperacionStockConfirmModal({
     return true;
   }, [totalAConfirmar, lineasConPendiente]);
 
-  const handleSetCantidad = (key: string, value: number, max: number) => {
-    const clamped = Math.max(0, Math.min(max, isNaN(value) ? 0 : Math.floor(value)));
-    setCantidades((prev) => ({ ...prev, [key]: clamped }));
+  const handleSetCantidad = (key: string, value: number) => {
+    const parsed = isNaN(value) ? 0 : Math.floor(value);
+    setCantidades((prev) => ({ ...prev, [key]: Math.max(0, parsed) }));
   };
 
   const handleSelectAll = () => {
@@ -485,18 +485,31 @@ export default function OperacionStockConfirmModal({
                                     allowDecimals={false}
                                     value={item.aConfirmar}
                                     onValueChange={(val) =>
-                                      handleSetCantidad(item.key, val, item.pendiente)
+                                      handleSetCantidad(item.key, val)
                                     }
                                     style={{
                                       ...styles.numberInput,
                                       color: COLOR.TEXT.PRIMARY,
+                                      ...(item.aConfirmar > item.pendiente
+                                        ? {
+                                            border: `1px solid ${COLOR.STATUS.DANGER.BORDER}`,
+                                            background: COLOR.STATUS.DANGER.BG_SUBTLE,
+                                            color: COLOR.STATUS.DANGER.TEXT,
+                                          }
+                                        : {}),
                                     }}
                                     data-testid={`stock-confirm-input-${item.key}`}
                                     aria-label={`Cantidad a ${actionVerb} de ${item.linea.nombre || item.key}`}
+                                    aria-invalid={item.aConfirmar > item.pendiente}
+                                    title={
+                                      item.aConfirmar > item.pendiente
+                                        ? `No podés ${actionVerb} más de ${item.pendiente} unidad(es)`
+                                        : undefined
+                                    }
                                   />
                                   <button
                                     type="button"
-                                    onClick={() => handleSetCantidad(item.key, item.pendiente, item.pendiente)}
+                                    onClick={() => handleSetCantidad(item.key, item.pendiente)}
                                     style={styles.btnTodo}
                                     title="Confirmar todo el saldo restante"
                                     data-testid={`stock-confirm-btn-todo-${item.key}`}

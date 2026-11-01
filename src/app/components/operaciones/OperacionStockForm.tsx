@@ -50,6 +50,12 @@ export default function OperacionStockForm() {
   const selectedCliente = clientes.find((c) => c.id === clienteId);
   const contraparteNombre = tipo === "VENTA" ? selectedCliente?.nombre : selectedProveedor?.nombre;
 
+  const hasEntregarExcedido = lineas.some((l) => {
+    const cant = Number(l.cantidad) || 0;
+    const ent = l.cantidadEntregar !== undefined ? Number(l.cantidadEntregar) : cant;
+    return ent > cant;
+  });
+
   return (
     <div css={styles.container}>
       <div>
@@ -67,7 +73,6 @@ export default function OperacionStockForm() {
             </span>
           </div>
         )}
-
         <div css={styles.tableCard}>
           <div css={styles.columnsHeader} aria-hidden="true">
             <div>PRODUCTO</div>
@@ -101,6 +106,15 @@ export default function OperacionStockForm() {
             })}
           </div>
         </div>
+
+        {hasEntregarExcedido && (
+          <div style={styles.errorNotice} data-testid="operacion-stock-entregar-error">
+            <AlertCircle size={16} color={COLOR.STATUS.DANGER.TEXT} style={{ flexShrink: 0 }} />
+            <span>
+              La cantidad a {tipo === "VENTA" ? "entregar" : "recibir"} no puede superar la cantidad pactada.
+            </span>
+          </div>
+        )}
 
         {!isContextualStock && (
           <div style={styles.addRowContainer}>
@@ -179,6 +193,17 @@ const styles = {
     fontSize: 13,
     color: COLOR.TEXT.SECONDARY,
     marginBottom: 12,
+  } as const,
+  errorNotice: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "10px 14px",
+    backgroundColor: COLOR.STATUS.DANGER.BG_SUBTLE,
+    borderRadius: 8,
+    fontSize: 13,
+    color: COLOR.STATUS.DANGER.TEXT,
+    marginTop: 12,
   } as const,
   tableCard: css({
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,

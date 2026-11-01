@@ -359,4 +359,37 @@ describe("OperacionStockConfirmModal", () => {
     expect(screen.queryByTestId("btn-revertir-stock-mov-original-revertido")).not.toBeInTheDocument();
     expect(mockRevertirStock).not.toHaveBeenCalled();
   });
+
+  it("deshabilita el botón confirmar si la cantidad ingresada a recibir supera el saldo pendiente", async () => {
+    render(
+      <OperacionStockConfirmModal
+        open={true}
+        operacion={operacionCompra}
+        onClose={vi.fn()}
+      />
+    );
+
+    await runPendingPromises();
+
+    // La linea-2 tiene pendiente 2 (cantidad 4 - cumplidas 2)
+    const inputLinea2 = screen.getByTestId("stock-confirm-input-linea-2");
+    expect(inputLinea2).toHaveValue(2);
+    expect(screen.getByTestId("modal-submit")).not.toBeDisabled();
+
+    // Cambiamos a 5 (mayor que el pendiente de 2)
+    await userEvent.clear(inputLinea2);
+    await userEvent.type(inputLinea2, "5");
+    await runPendingPromises();
+
+    expect(inputLinea2).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByTestId("modal-submit")).toBeDisabled();
+
+    // Corregimos a 1 (menor o igual a 2)
+    await userEvent.clear(inputLinea2);
+    await userEvent.type(inputLinea2, "1");
+    await runPendingPromises();
+
+    expect(inputLinea2).toHaveAttribute("aria-invalid", "false");
+    expect(screen.getByTestId("modal-submit")).not.toBeDisabled();
+  });
 });

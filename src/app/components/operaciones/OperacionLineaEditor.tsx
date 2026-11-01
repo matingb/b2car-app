@@ -74,13 +74,12 @@ export default function OperacionLineaEditor({
   const onCantidadChange = (cantidad: number) => {
     const prevCantidad = Number(linea.cantidad) || 0;
     const prevEntregar = linea.cantidadEntregar !== undefined ? linea.cantidadEntregar : prevCantidad;
-    const cantidadEntregar = prevEntregar === prevCantidad ? cantidad : Math.min(prevEntregar, cantidad);
+    const cantidadEntregar = prevEntregar === prevCantidad ? cantidad : prevEntregar;
     onChange(recomputeFromUnit({ ...linea, cantidad, cantidadEntregar }));
   };
 
   const onCantidadEntregarChange = (val: number) => {
-    const cantidad = Number(linea.cantidad) || 0;
-    const cantidadEntregar = Math.max(0, Math.min(cantidad, Math.round(val)));
+    const cantidadEntregar = Math.max(0, Math.round(val));
     onChange({ ...linea, cantidadEntregar });
   };
 
@@ -91,6 +90,10 @@ export default function OperacionLineaEditor({
   const onTotalChange = (total: number) => {
     onChange(recomputeFromTotal({ ...linea, total }));
   };
+
+  const cantidad = Number(linea.cantidad) || 0;
+  const cantidadEntregar = linea.cantidadEntregar !== undefined ? Number(linea.cantidadEntregar) : cantidad;
+  const isInvalidEntregar = cantidadEntregar > cantidad;
 
   return (
     <div css={styles.lineRow} data-testid={`operaciones-line-${index}`}>
@@ -127,9 +130,25 @@ export default function OperacionLineaEditor({
           disabled={disabled}
           value={linea.cantidadEntregar !== undefined ? linea.cantidadEntregar : linea.cantidad}
           onValueChange={onCantidadEntregarChange}
-          style={{ ...styles.controlInput, ...styles.qtyInput }}
+          style={{
+            ...styles.controlInput,
+            ...styles.qtyInput,
+            ...(isInvalidEntregar
+              ? {
+                  border: `1px solid ${COLOR.STATUS.DANGER.BORDER}`,
+                  background: COLOR.STATUS.DANGER.BG_SUBTLE,
+                  color: COLOR.STATUS.DANGER.TEXT,
+                }
+              : {}),
+          }}
           data-testid={`operaciones-line-${index}-cantidad-entregar`}
           aria-label="Cantidad a entregar o recibir"
+          aria-invalid={isInvalidEntregar}
+          title={
+            isInvalidEntregar
+              ? "La cantidad no puede superar la cantidad pactada"
+              : undefined
+          }
         />
       </div>
 
@@ -183,7 +202,7 @@ const styles = {
     height: 44,
     borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    backgroundColor: COLOR.INPUT.PRIMARY.BACKGROUND,
+    background: COLOR.INPUT.PRIMARY.BACKGROUND,
     color: COLOR.TEXT.PRIMARY,
     outline: "none",
     fontSize: 14,
