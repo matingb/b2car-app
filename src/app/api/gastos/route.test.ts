@@ -81,7 +81,6 @@ describe("/api/gastos", () => {
       p_fecha: null,
       p_descripcion: null,
       p_idempotency_key: null,
-      p_arreglo_id: null,
       p_observaciones: null,
       p_taller_id: null,
     });
@@ -121,7 +120,6 @@ describe("/api/gastos", () => {
       p_fecha: "2026-07-31T03:12:41.599Z",
       p_descripcion: "Alquiler del taller",
       p_idempotency_key: null,
-      p_arreglo_id: null,
       p_observaciones: null,
       p_taller_id: null,
     });

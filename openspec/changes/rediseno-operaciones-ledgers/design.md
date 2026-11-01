@@ -44,6 +44,8 @@ La motivación está en `proposal.md` (sección Why). El comportamiento esperado
 - `20261029110500`: llena `operaciones_pagos` con los pagos históricos;
 - `20261029223000`: mueve los pagos posteriores a `operaciones_pagos`.
 
+**Acuerdo de convergencia de pagos:** Con fecha 2026-11-01 se acuerda con matias que los pagos convergen en OMC y que `operaciones_pagos` se elimina, revirtiendo la dirección de `20261029223000`.
+
 Las migraciones de este change corren **después** de todas ellas, sobre datos de producción. El backfill tiene que partir del estado que dejan, aunque en local se use `db reset`.
 
 **Reglas del repo** (`supabase/AGENTS.md`):

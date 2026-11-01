@@ -295,7 +295,7 @@ describe("Integration: Cuenta Corriente del Cliente", () => {
     await expectSaldoCuenta(cuentaTaller.id, saldoInicial + cobroVenta);
 
     const { data: opConDetalle } = await operacionesService.getById(testClient, operacion.id);
-    const pagoId = opConDetalle?.operaciones_pagos?.[0]?.id;
+    const pagoId = opConDetalle?.pagos?.[0]?.id ?? opConDetalle?.operaciones_pagos?.[0]?.id;
     expect(pagoId).toBeDefined();
 
     const { data: opActualizada } = await operacionesService.anularPago(

@@ -16,6 +16,7 @@ import { POST as postProveedorRoute, type CreateProveedorRequest } from "@/app/a
 import { GET as getClienteCuentaCorrienteRoute } from "@/app/api/clientes/[id]/cuenta-corriente/route";
 import { GET as getClienteResumenFinancieroRoute } from "@/app/api/clientes/[id]/resumen-financiero/route";
 import { GET as getCuentaMovimientosRoute } from "@/app/api/cuentas-financieras/[id]/movimientos/route";
+import { GET as getDashboardStatsRoute } from "@/app/api/dashboard/stats/route";
 
 export interface CobrarArregloPayload {
   cuenta_financiera_id: string;
@@ -334,5 +335,23 @@ export async function getCuentaMovimientosViaRoute(
     params: Promise.resolve({ id: cuentaId }),
   });
 }
+
+/**
+ * Driver: Invoca la API route GET /api/dashboard/stats encapsulando el request.
+ */
+export async function getDashboardStatsViaRoute(
+  filters?: { from?: string; to?: string }
+): Promise<Response> {
+  const query = new URLSearchParams();
+  if (filters?.from) query.set("from", filters.from);
+  if (filters?.to) query.set("to", filters.to);
+  const qStr = query.toString() ? `?${query.toString()}` : "";
+  const req = new NextRequest(`http://localhost:3000/api/dashboard/stats${qStr}`, {
+    method: "GET",
+  });
+
+  return getDashboardStatsRoute(req);
+}
+
 
 

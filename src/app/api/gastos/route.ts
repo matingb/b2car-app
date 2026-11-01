@@ -75,7 +75,6 @@ export async function POST(req: Request) {
     p_descripcion: input.descripcion,
     p_fecha: input.fecha ?? null,
     p_idempotency_key: input.idempotencyKey ?? null,
-    p_arreglo_id: input.arregloId ?? null,
     p_observaciones: input.observaciones ?? null,
     p_taller_id: input.tallerId ?? null,
   });

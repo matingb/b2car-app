@@ -272,8 +272,9 @@ export const TIPOS_OPERACIONES: TipoOperacion[] = [
   "GASTO",
   "ASIGNACION_ARREGLO",
   "COBRO_ARREGLO",
-  //"AJUSTE",
-  //"TRANSFERENCIA",
+  "INGRESO",
+  "TRANSFERENCIA",
+  "APERTURA_CUENTA",
 ];
 
 export interface Operacion {

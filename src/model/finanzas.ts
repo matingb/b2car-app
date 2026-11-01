@@ -230,7 +230,6 @@ export type CrearGastoFinancieroInput = {
   descripcion?: string | null;
   observaciones?: string | null;
   fecha?: string;
-  arregloId?: string | null;
   operacionId?: string | null;
   tallerId?: string | null;
   idempotencyKey?: string;

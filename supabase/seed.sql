@@ -16,6 +16,11 @@ TRUNCATE TABLE
   operaciones_lineas,
   movimientos_financieros,
   operaciones_movimiento_cuenta,
+  operaciones_gasto,
+  operaciones_ingreso,
+  operaciones_transferencia,
+  operaciones_apertura_cuenta,
+  operaciones_ajuste,
   cuentas_financieras,
   operaciones_venta,
   operaciones_compra,
@@ -430,14 +435,26 @@ INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha) VALUES
   ('90000000-0000-0000-0000-000000000204','11111111-1111-1111-1111-111111111111','VENTA','50000000-0000-0000-0000-000000000002',date_trunc('month',now()-interval '4 months')+interval '18 days'),
   ('90000000-0000-0000-0000-000000000205','11111111-1111-1111-1111-111111111111','VENTA','50000000-0000-0000-0000-000000000003',date_trunc('month',now()-interval '5 months')+interval '15 days');
 
--- APERTURA_CUENTA operaciones - Saldo inicial para cuentas bancarias
-INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha) VALUES
-  ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','MOVIMIENTO_CUENTA',NULL,now() - interval '19 months'),
-  ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','MOVIMIENTO_CUENTA',NULL,now() - interval '19 months');
+INSERT INTO public.operaciones_venta (operacion_id, tenant_id, cliente_id) VALUES
+  ('90000000-0000-0000-0000-000000000200','11111111-1111-1111-1111-111111111111','10000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000201','11111111-1111-1111-1111-111111111111','10000000-0000-0000-0000-000000000002'),
+  ('90000000-0000-0000-0000-000000000202','11111111-1111-1111-1111-111111111111','10000000-0000-0000-0000-000000000003'),
+  ('90000000-0000-0000-0000-000000000203','11111111-1111-1111-1111-111111111111','10000000-0000-0000-0000-000000000004'),
+  ('90000000-0000-0000-0000-000000000204','11111111-1111-1111-1111-111111111111','10000000-0000-0000-0000-000000000005'),
+  ('90000000-0000-0000-0000-000000000205','11111111-1111-1111-1111-111111111111','10000000-0000-0000-0000-000000000006');
 
-INSERT INTO public.operaciones_movimiento_cuenta (operacion_id, tenant_id, subtipo, cuenta_id, importe, created_by, created_at) VALUES
-  ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','APERTURA_CUENTA','c0000000-0000-4000-8000-000000000001',2500000,'7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '19 months'),
-  ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','APERTURA_CUENTA','c0000000-0000-4000-8000-000000000002',1800000,'7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '19 months');
+-- APERTURA_CUENTA operaciones - Saldo inicial para cuentas bancarias
+INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha, monto_total, total_pagado, esta_pago, estado_pago) VALUES
+  ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','APERTURA_CUENTA',NULL,now() - interval '19 months', 2500000, 2500000, true, 'PAGADO'),
+  ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','APERTURA_CUENTA',NULL,now() - interval '19 months', 1800000, 1800000, true, 'PAGADO');
+
+INSERT INTO public.operaciones_apertura_cuenta (operacion_id, tenant_id, cuenta_id) VALUES
+  ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','c0000000-0000-4000-8000-000000000001'),
+  ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','c0000000-0000-4000-8000-000000000002');
+
+INSERT INTO public.operaciones_movimiento_cuenta (operacion_id, tenant_id, cuenta_id, importe, fecha, created_by, created_at) VALUES
+  ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','c0000000-0000-4000-8000-000000000001',2500000,now() - interval '19 months','7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '19 months'),
+  ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','c0000000-0000-4000-8000-000000000002',1800000,now() - interval '19 months','7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '19 months');
 
 -- Operaciones Compra vinculadas al proveedor
 INSERT INTO public.operaciones_compra (operacion_id, tenant_id, proveedor_id) VALUES
@@ -527,34 +544,34 @@ INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, can
 -- ===========================================================================
 
 -- Mes actual
-INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, arreglo_id) VALUES
-  ('90000000-0000-0000-0000-000000000001','80000000-0000-0000-0000-000000000001'),
-  ('90000000-0000-0000-0000-000000000002','80000000-0000-0000-0000-000000000002'),
-  ('90000000-0000-0000-0000-000000000003','80000000-0000-0000-0000-000000000003'),
-  ('90000000-0000-0000-0000-000000000004','80000000-0000-0000-0000-000000000004'),
-  ('90000000-0000-0000-0000-000000000005','80000000-0000-0000-0000-000000000005');
+INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, tenant_id, arreglo_id) VALUES
+  ('90000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000001'),
+  ('90000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000002'),
+  ('90000000-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000003'),
+  ('90000000-0000-0000-0000-000000000004','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000004'),
+  ('90000000-0000-0000-0000-000000000005','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000005');
 
 -- Mes -1 (Abril)
-INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, arreglo_id) VALUES
-  ('90000000-0000-0000-0000-000000000011','80000000-0000-0000-0000-000000000011'),
-  ('90000000-0000-0000-0000-000000000012','80000000-0000-0000-0000-000000000012'),
-  ('90000000-0000-0000-0000-000000000013','80000000-0000-0000-0000-000000000015'),
-  ('90000000-0000-0000-0000-000000000014','80000000-0000-0000-0000-000000000017');
+INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, tenant_id, arreglo_id) VALUES
+  ('90000000-0000-0000-0000-000000000011','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000011'),
+  ('90000000-0000-0000-0000-000000000012','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000012'),
+  ('90000000-0000-0000-0000-000000000013','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000015'),
+  ('90000000-0000-0000-0000-000000000014','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000017');
 
 -- Mes -2 (Marzo)
-INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, arreglo_id) VALUES
-  ('90000000-0000-0000-0000-000000000015','80000000-0000-0000-0000-000000000019'),
-  ('90000000-0000-0000-0000-000000000016','80000000-0000-0000-0000-000000000020'),
-  ('90000000-0000-0000-0000-000000000017','80000000-0000-0000-0000-000000000023');
+INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, tenant_id, arreglo_id) VALUES
+  ('90000000-0000-0000-0000-000000000015','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000019'),
+  ('90000000-0000-0000-0000-000000000016','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000020'),
+  ('90000000-0000-0000-0000-000000000017','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000023');
 
 -- Meses -3 a -5
-INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, arreglo_id) VALUES
-  ('90000000-0000-0000-0000-000000000018','80000000-0000-0000-0000-000000000026'),
-  ('90000000-0000-0000-0000-000000000019','80000000-0000-0000-0000-000000000028'),
-  ('90000000-0000-0000-0000-000000000020','80000000-0000-0000-0000-000000000032'),
-  ('90000000-0000-0000-0000-000000000021','80000000-0000-0000-0000-000000000033'),
-  ('90000000-0000-0000-0000-000000000022','80000000-0000-0000-0000-000000000037'),
-  ('90000000-0000-0000-0000-000000000023','80000000-0000-0000-0000-000000000038');
+INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, tenant_id, arreglo_id) VALUES
+  ('90000000-0000-0000-0000-000000000018','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000026'),
+  ('90000000-0000-0000-0000-000000000019','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000028'),
+  ('90000000-0000-0000-0000-000000000020','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000032'),
+  ('90000000-0000-0000-0000-000000000021','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000033'),
+  ('90000000-0000-0000-0000-000000000022','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000037'),
+  ('90000000-0000-0000-0000-000000000023','11111111-1111-1111-1111-111111111111','80000000-0000-0000-0000-000000000038');
 
 -- Pagos de arreglos: la migración de pagos parciales recalcula esta_pago desde
 -- total_cobrado. El seed deja un caso parcial, dos pendientes y el resto cobrado.
@@ -571,32 +588,17 @@ WHERE tenant_id = '11111111-1111-1111-1111-111111111111';
 
 -- Cada cobro tiene una operación, su movimiento de cuenta y el vínculo al
 -- arreglo. Los IDs se derivan del arreglo y son UUID v4 válidos y estables.
-INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha)
+INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha, monto_total, total_pagado, esta_pago, estado_pago)
 SELECT
   ('f0000000-0000-4000-8000-' || right(a.id::text, 12))::uuid,
   a.tenant_id,
-  'MOVIMIENTO_CUENTA',
+  'COBRO_ARREGLO',
   NULL,
-  a.fecha + interval '1 day'
-FROM public.arreglos AS a
-WHERE a.tenant_id = '11111111-1111-1111-1111-111111111111'
-  AND a.total_cobrado > 0;
-
-INSERT INTO public.operaciones_movimiento_cuenta (
-  operacion_id, tenant_id, subtipo, cuenta_id, importe, descripcion, created_by, created_at
-)
-SELECT
-  ('f0000000-0000-4000-8000-' || right(a.id::text, 12))::uuid,
-  a.tenant_id,
-  'INGRESO',
-  CASE WHEN right(a.id::text, 1)::integer % 2 = 0
-    THEN 'c0000000-0000-4000-8000-000000000001'::uuid
-    ELSE 'c0000000-0000-4000-8000-000000000002'::uuid
-  END,
+  a.fecha + interval '1 day',
   a.total_cobrado,
-  'Cobro de arreglo: ' || a.descripcion,
-  '7ff568f8-4d46-463b-969c-9e68157fa769'::uuid,
-  a.fecha + interval '1 day'
+  a.total_cobrado,
+  true,
+  'PAGADO'
 FROM public.arreglos AS a
 WHERE a.tenant_id = '11111111-1111-1111-1111-111111111111'
   AND a.total_cobrado > 0;
@@ -606,6 +608,25 @@ SELECT
   ('f0000000-0000-4000-8000-' || right(a.id::text, 12))::uuid,
   a.id,
   a.tenant_id
+FROM public.arreglos AS a
+WHERE a.tenant_id = '11111111-1111-1111-1111-111111111111'
+  AND a.total_cobrado > 0;
+
+INSERT INTO public.operaciones_movimiento_cuenta (
+  operacion_id, tenant_id, cuenta_id, importe, fecha, descripcion, created_by, created_at
+)
+SELECT
+  ('f0000000-0000-4000-8000-' || right(a.id::text, 12))::uuid,
+  a.tenant_id,
+  CASE WHEN right(a.id::text, 1)::integer % 2 = 0
+    THEN 'c0000000-0000-4000-8000-000000000001'::uuid
+    ELSE 'c0000000-0000-4000-8000-000000000002'::uuid
+  END,
+  a.total_cobrado,
+  a.fecha + interval '1 day',
+  'Cobro de arreglo: ' || a.descripcion,
+  '7ff568f8-4d46-463b-969c-9e68157fa769'::uuid,
+  a.fecha + interval '1 day'
 FROM public.arreglos AS a
 WHERE a.tenant_id = '11111111-1111-1111-1111-111111111111'
   AND a.total_cobrado > 0;
@@ -799,8 +820,8 @@ SELECT
 FROM _seed_arreglos
 WHERE cantidad_repuesto > 0;
 
-INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, arreglo_id)
-SELECT ('9a000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, id
+INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, tenant_id, arreglo_id)
+SELECT ('9a000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, '11111111-1111-1111-1111-111111111111'::uuid, id
 FROM _seed_arreglos
 WHERE cantidad_repuesto > 0;
 
@@ -814,28 +835,28 @@ END
 FROM _seed_arreglos AS s
 WHERE a.id = s.id;
 
-INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha)
-SELECT ('fa000000-0000-4000-8000-' || lpad(s.n::text, 12, '0'))::uuid, a.tenant_id, 'MOVIMIENTO_CUENTA', NULL, a.fecha + interval '1 day'
-FROM public.arreglos AS a
-JOIN _seed_arreglos AS s ON s.id = a.id
-WHERE a.total_cobrado > 0;
-
-INSERT INTO public.operaciones_movimiento_cuenta (operacion_id, tenant_id, subtipo, cuenta_id, importe, descripcion, created_by, created_at)
-SELECT
-  ('fa000000-0000-4000-8000-' || lpad(s.n::text, 12, '0'))::uuid,
-  a.tenant_id,
-  'INGRESO',
-  CASE WHEN s.n % 2 = 0 THEN 'c0000000-0000-4000-8000-000000000001' ELSE 'c0000000-0000-4000-8000-000000000002' END::uuid,
-  a.total_cobrado,
-  'Cobro de arreglo: ' || a.descripcion,
-  '7ff568f8-4d46-463b-969c-9e68157fa769'::uuid,
-  a.fecha + interval '1 day'
+INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha, monto_total, total_pagado, esta_pago, estado_pago)
+SELECT ('fa000000-0000-4000-8000-' || lpad(s.n::text, 12, '0'))::uuid, a.tenant_id, 'COBRO_ARREGLO', NULL, a.fecha + interval '1 day', a.total_cobrado, a.total_cobrado, true, 'PAGADO'
 FROM public.arreglos AS a
 JOIN _seed_arreglos AS s ON s.id = a.id
 WHERE a.total_cobrado > 0;
 
 INSERT INTO public.operaciones_cobro_arreglo (operacion_id, arreglo_id, tenant_id)
 SELECT ('fa000000-0000-4000-8000-' || lpad(s.n::text, 12, '0'))::uuid, a.id, a.tenant_id
+FROM public.arreglos AS a
+JOIN _seed_arreglos AS s ON s.id = a.id
+WHERE a.total_cobrado > 0;
+
+INSERT INTO public.operaciones_movimiento_cuenta (operacion_id, tenant_id, cuenta_id, importe, fecha, descripcion, created_by, created_at)
+SELECT
+  ('fa000000-0000-4000-8000-' || lpad(s.n::text, 12, '0'))::uuid,
+  a.tenant_id,
+  CASE WHEN s.n % 2 = 0 THEN 'c0000000-0000-4000-8000-000000000001' ELSE 'c0000000-0000-4000-8000-000000000002' END::uuid,
+  a.total_cobrado,
+  a.fecha + interval '1 day',
+  'Cobro de arreglo: ' || a.descripcion,
+  '7ff568f8-4d46-463b-969c-9e68157fa769'::uuid,
+  a.fecha + interval '1 day'
 FROM public.arreglos AS a
 JOIN _seed_arreglos AS s ON s.id = a.id
 WHERE a.total_cobrado > 0;
@@ -884,6 +905,22 @@ SELECT
   '11111111-1111-1111-1111-111111111111', tipo::public.tipo_operacion, taller_id, fecha
 FROM _seed_stock_ops;
 
+INSERT INTO public.operaciones_compra (operacion_id, tenant_id, proveedor_id)
+SELECT
+  ('9c000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+  '11111111-1111-1111-1111-111111111111'::uuid,
+  'd2000000-0000-0000-0000-000000000001'::uuid
+FROM _seed_stock_ops
+WHERE tipo = 'COMPRA';
+
+INSERT INTO public.operaciones_venta (operacion_id, tenant_id, cliente_id)
+SELECT
+  ('9e000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+  '11111111-1111-1111-1111-111111111111'::uuid,
+  ('10000000-0000-0000-0000-' || lpad((1 + (n % 10))::text, 12, '0'))::uuid
+FROM _seed_stock_ops
+WHERE tipo = 'VENTA';
+
 INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, monto_unitario, delta_cantidad)
 SELECT
   ((CASE WHEN tipo = 'COMPRA' THEN '9d' ELSE '9f' END) || '000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
@@ -914,18 +951,25 @@ JOIN (VALUES
 ) AS g(orden, dia, categoria, descripcion, importe, cada_meses)
   ON (me.offset_mes % g.cada_meses + g.cada_meses) % g.cada_meses = 0;
 
-INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha)
-SELECT ('ea000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, '11111111-1111-1111-1111-111111111111', 'MOVIMIENTO_CUENTA', NULL, fecha
+INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha, monto_total, total_pagado, esta_pago, estado_pago)
+SELECT ('ea000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, '11111111-1111-1111-1111-111111111111', 'GASTO', NULL, fecha, importe, importe, true, 'PAGADO'
 FROM _seed_gastos;
 
-INSERT INTO public.operaciones_movimiento_cuenta (operacion_id, tenant_id, subtipo, cuenta_id, importe, categoria_gasto, descripcion, created_by, created_at)
+INSERT INTO public.operaciones_gasto (operacion_id, tenant_id, categoria_gasto, descripcion)
 SELECT
   ('ea000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
   '11111111-1111-1111-1111-111111111111',
-  'GASTO',
+  categoria,
+  descripcion
+FROM _seed_gastos;
+
+INSERT INTO public.operaciones_movimiento_cuenta (operacion_id, tenant_id, cuenta_id, importe, fecha, descripcion, created_by, created_at)
+SELECT
+  ('ea000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+  '11111111-1111-1111-1111-111111111111',
   CASE WHEN n % 2 = 0 THEN 'c0000000-0000-4000-8000-000000000001' ELSE 'c0000000-0000-4000-8000-000000000002' END::uuid,
   -importe,
-  categoria,
+  fecha,
   descripcion,
   '7ff568f8-4d46-463b-969c-9e68157fa769'::uuid,
   fecha
@@ -995,7 +1039,7 @@ BEGIN
   LEFT JOIN public.operaciones_cobro_arreglo AS oca ON oca.arreglo_id = a.id
   LEFT JOIN public.operaciones_movimiento_cuenta AS omc ON omc.operacion_id = oca.operacion_id
   GROUP BY a.id, a.total_cobrado
-  HAVING COALESCE(SUM(omc.importe) FILTER (WHERE omc.subtipo = 'INGRESO'), 0) <> a.total_cobrado;
+  HAVING COALESCE(SUM(omc.importe), 0) <> a.total_cobrado;
   IF v_payment_mismatches > 0 THEN
     RAISE EXCEPTION 'Seed inconsistente: % arreglo(s) no coincide(n) con sus cobros', v_payment_mismatches;
   END IF;

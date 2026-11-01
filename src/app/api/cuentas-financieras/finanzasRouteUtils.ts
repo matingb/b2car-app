@@ -312,7 +312,6 @@ export function validateCreateGasto(body: unknown): Validated<CrearGastoFinancie
   const descripcion = own(body, "descripcion") ? nullableStringValue(body, "descripcion") : undefined;
   const observaciones = own(body, "observaciones") ? nullableStringValue(body, "observaciones") : undefined;
   const fecha = own(body, "fecha") ? stringValue(body, "fecha") : undefined;
-  const arregloId = own(body, "arregloId") ? nullableUuidValue(body, "arregloId") : undefined;
   const operacionId = own(body, "operacionId") ? nullableUuidValue(body, "operacionId") : undefined;
   const tallerId = own(body, "tallerId") ? nullableUuidValue(body, "tallerId") : undefined;
   const idempotencyKey = own(body, "idempotencyKey") ? stringValue(body, "idempotencyKey") : undefined;
@@ -334,13 +333,10 @@ export function validateCreateGasto(body: unknown): Validated<CrearGastoFinancie
   if (own(body, "fecha") && fecha === undefined) return { error: "fecha debe ser texto" };
   const fechaError = validOptionalTimestamp(fecha);
   if (fechaError) return { error: fechaError };
-  const arregloIdError = optionalIdError(arregloId, "arregloId");
-  if (arregloIdError) return { error: arregloIdError };
   const operacionIdError = optionalIdError(operacionId, "operacionId");
   if (operacionIdError) return { error: operacionIdError };
   const tallerIdError = optionalIdError(tallerId, "tallerId");
   if (tallerIdError) return { error: tallerIdError };
-  if (own(body, "arregloId") && arregloId === undefined) return { error: "arregloId debe ser un UUID válido o null" };
   if (own(body, "operacionId") && operacionId === undefined) return { error: "operacionId debe ser un UUID válido o null" };
   if (own(body, "tallerId") && tallerId === undefined) return { error: "tallerId debe ser un UUID válido o null" };
   if (own(body, "idempotencyKey") && idempotencyKey === undefined) return { error: "idempotencyKey debe ser texto" };
@@ -354,7 +350,6 @@ export function validateCreateGasto(body: unknown): Validated<CrearGastoFinancie
       descripcion: descripcion ?? null,
       observaciones: observaciones ?? null,
       ...(fecha === undefined ? {} : { fecha: toISODateTimeWithCurrentTime(fecha) }),
-      ...(arregloId === undefined ? {} : { arregloId }),
       ...(operacionId === undefined ? {} : { operacionId }),
       ...(tallerId === undefined ? {} : { tallerId }),
       ...(idempotencyKey === undefined ? {} : { idempotencyKey }),

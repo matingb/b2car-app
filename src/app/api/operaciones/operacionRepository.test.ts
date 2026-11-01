@@ -32,6 +32,7 @@ describe("operacionRepository", () => {
 			proveedor_id: null,
 			proveedor_nombre: undefined,
 			movimientos_stock: [],
+			pagos: [],
 		});
 		expect(res.error).toBeNull();
 	});

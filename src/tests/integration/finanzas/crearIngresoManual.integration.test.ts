@@ -33,22 +33,29 @@ describe("Integration (Route): ingreso manual de cuenta financiera", () => {
       .eq("id", operacionId)
       .single();
     expect(operacionError).toBeNull();
-    expect(operacion).toEqual({ tipo: "MOVIMIENTO_CUENTA", taller_id: null });
+    expect(operacion).toEqual({ tipo: "INGRESO", taller_id: null });
+
+    const { data: operacionIngreso, error: operacionIngresoError } = await testClient
+      .from("operaciones_ingreso")
+      .select("cuenta_id, concepto")
+      .eq("operacion_id", operacionId)
+      .single();
+    expect(operacionIngresoError).toBeNull();
+    expect(operacionIngreso).toEqual({
+      cuenta_id: cuenta.id,
+      concepto: "Aporte de capital",
+    });
 
     const { data: movimientoCuenta, error: movimientoCuentaError } = await testClient
       .from("operaciones_movimiento_cuenta")
-      .select("subtipo, cuenta_id, importe, descripcion, cuenta_origen_id, cuenta_destino_id, categoria_gasto")
+      .select("cuenta_id, importe, descripcion")
       .eq("operacion_id", operacionId)
       .single();
     expect(movimientoCuentaError).toBeNull();
     expect(movimientoCuenta).toMatchObject({
-      subtipo: "INGRESO",
       cuenta_id: cuenta.id,
       importe: 250.5,
       descripcion: "Aporte de capital",
-      cuenta_origen_id: null,
-      cuenta_destino_id: null,
-      categoria_gasto: null,
     });
 
     const { data: asiento, error: asientoError } = await testClient

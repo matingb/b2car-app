@@ -1,5 +1,5 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-import type { OperacionDTO, OperacionLineaDTO, OperacionMovimientoStockDTO } from "@/model/dtos";
+import type { OperacionDTO, OperacionLineaDTO, OperacionMovimientoStockDTO, OperacionPagoDTO } from "@/model/dtos";
 
 export type ClienteJoin = {
 	tipo_cliente?: string;
@@ -42,6 +42,17 @@ export type OperacionMovimientoStockJoin = {
 
 export type OperacionDetalleRawRow = Omit<OperacionDTO, "movimientos_stock"> & {
 	operaciones_lineas?: OperacionLineaDTO[] | null;
+	pagos?: Array<{
+		id: string;
+		tenant_id?: string;
+		operacion_id: string;
+		cuenta_id: string;
+		importe: number;
+		fecha: string;
+		descripcion?: string | null;
+		created_at: string;
+		cuentas_financieras?: { nombre?: string } | { nombre?: string }[] | null;
+	}> | null;
 	operaciones_pagos?: Array<{ id: string; monto?: number; operacion_pago_id?: string | null; fecha?: string }> | null;
 	operaciones_venta?: OperacionVentaJoin | OperacionVentaJoin[] | null;
 	operaciones_compra?: OperacionCompraJoin | OperacionCompraJoin[] | null;
@@ -51,6 +62,7 @@ export type OperacionDetalleRawRow = Omit<OperacionDTO, "movimientos_stock"> & {
 
 export type OperacionRow = OperacionDTO & {
 	operaciones_lineas?: OperacionLineaDTO[] | null;
+	pagos?: OperacionPagoDTO[] | null;
 	operaciones_pagos?: Array<{ id: string; monto?: number; operacion_pago_id?: string | null; fecha?: string }> | null;
 	movimientos_stock?: OperacionMovimientoStockDTO[] | null;
 	categoria_gasto?: string | null;
@@ -233,7 +245,7 @@ export const operacionRepository: OperacionRepository = {
 		const { data, error } = await supabase
 			.from("operaciones")
 			.select(
-				"*, operaciones_lineas(*), operaciones_pagos:operaciones_pagos!operaciones_pagos_operacion_id_fkey(*), operaciones_venta(cliente_id, clientes(tipo_cliente, particulares(nombre, apellido), empresas(nombre))), operaciones_compra(proveedor_id, proveedores(nombre)), operaciones_gasto(categoria_gasto, descripcion), movimientos_stock:movimientos_stock!movimientos_stock_operacion_id_fkey(id, fecha, cantidad, saldo_anterior, saldo_posterior, motivo, tipo_movimiento, created_at, created_by, producto_id, stock_id, reversion_de_id, producto:productos(nombre, codigo))"
+				"*, operaciones_lineas(*), pagos:operaciones_movimiento_cuenta!operaciones_movimiento_cuenta_operacion_id_fkey(id, tenant_id, operacion_id, cuenta_id, importe, fecha, descripcion, created_at, cuentas_financieras:cuentas_financieras(nombre)), operaciones_venta(cliente_id, clientes(tipo_cliente, particulares(nombre, apellido), empresas(nombre))), operaciones_compra(proveedor_id, proveedores(nombre)), operaciones_gasto(categoria_gasto, descripcion), movimientos_stock:movimientos_stock!movimientos_stock_operacion_id_fkey(id, fecha, cantidad, saldo_anterior, saldo_posterior, motivo, tipo_movimiento, created_at, created_by, producto_id, stock_id, reversion_de_id, producto:productos(nombre, codigo))"
 			)
 			.eq("id", id)
 			.single();
@@ -246,6 +258,22 @@ export const operacionRepository: OperacionRepository = {
 		const venta = firstOrOnly(raw.operaciones_venta);
 		const compra = firstOrOnly(raw.operaciones_compra);
 		const gasto = firstOrOnly(raw.operaciones_gasto);
+
+		const rawPagos = Array.isArray(raw.pagos) ? raw.pagos : [];
+		const pagosMapped: OperacionPagoDTO[] = rawPagos.map((p) => {
+			const cf = firstOrOnly(p.cuentas_financieras);
+			return {
+				id: String(p.id),
+				tenant_id: raw.tenant_id,
+				operacion_id: String(raw.id),
+				cuenta_financiera_id: String(p.cuenta_id ?? ""),
+				monto: Math.abs(Number(p.importe) || 0),
+				fecha: String(p.fecha || raw.fecha),
+				descripcion: p.descripcion ?? null,
+				created_at: String(p.created_at || raw.created_at),
+				cuenta_financiera_nombre: cf?.nombre,
+			};
+		});
 
 		const movimientosStockRaw = Array.isArray(raw.movimientos_stock) ? raw.movimientos_stock : [];
 		const revertedIds = new Set(
@@ -284,6 +312,13 @@ export const operacionRepository: OperacionRepository = {
 
 		const mapped: OperacionRow = {
 			...raw,
+			pagos: pagosMapped,
+			operaciones_pagos: pagosMapped.map((p) => ({
+				id: p.id,
+				monto: p.monto,
+				operacion_pago_id: p.id,
+				fecha: p.fecha,
+			})),
 			cliente_id: venta?.cliente_id ? String(venta.cliente_id) : null,
 			cliente_nombre: resolveClienteNombre(venta?.clientes),
 			proveedor_id: compra?.proveedor_id ? String(compra.proveedor_id) : null,

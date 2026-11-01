@@ -82,10 +82,10 @@ describe("Integration: Finanzas - Múltiples Cuentas Financieras", () => {
 
     // Obtener el pago de cuentaB
     const { data: pagos } = await testClient
-      .from("operaciones_pagos")
-      .select("id, cuenta_financiera_id, monto")
+      .from("operaciones_movimiento_cuenta")
+      .select("id, cuenta_id, importe")
       .eq("operacion_id", op.id);
-    const pagoB = pagos?.find((p) => p.cuenta_financiera_id === cuentaB.id);
+    const pagoB = pagos?.find((p) => p.cuenta_id === cuentaB.id);
     expect(pagoB).toBeDefined();
 
     // Anular el pago de Cuenta B

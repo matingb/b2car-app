@@ -143,4 +143,39 @@ describe("Integration: dashboard - períodos", () => {
       arregloService.dashboardPeriodo(testClient, "2020-03-10T03:00:00.000Z", "2020-03-01T03:00:00.000Z")
     ).rejects.toThrow("Rango de fechas inválido");
   });
+
+  it("distribuye los gastos a lo largo del mes diferenciando repuestos, sueldos y gastos varios", async () => {
+    const cuentaId = await dadoUnaCuentaConSaldo();
+    await dadoUnSueldo(50000, "2020-03-01");
+    await dadaUnaCompra(cuentaId, "2020-03-10T14:00:00-03:00", 15000);
+    await dadoUnGasto(cuentaId, "2020-03-20T11:00:00-03:00", 8000);
+
+    const stats = await cuandoSeConsultaElDashboard();
+
+    expect(gastosDelDia(stats, "2020-03-01")).toEqual({
+      fecha: "2020-03-01",
+      repuestos: 0,
+      sueldos: 50000,
+      eventuales: 0,
+    });
+    expect(gastosDelDia(stats, "2020-03-10")).toEqual({
+      fecha: "2020-03-10",
+      repuestos: 15000,
+      sueldos: 0,
+      eventuales: 0,
+    });
+    expect(gastosDelDia(stats, "2020-03-20")).toEqual({
+      fecha: "2020-03-20",
+      repuestos: 0,
+      sueldos: 0,
+      eventuales: 8000,
+    });
+    expect(gastosDelDia(stats, "2020-03-15")).toEqual({
+      fecha: "2020-03-15",
+      repuestos: 0,
+      sueldos: 0,
+      eventuales: 0,
+    });
+    expect(stats.totals?.gastos).toBe(73000);
+  });
 });

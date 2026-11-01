@@ -308,7 +308,7 @@ describe("Integration: Proveedores - Compras, Pagos y Deuda en Cuenta Corriente"
     await expectSaldoCuenta(cuentaFinanciera.id, saldoInicial - pagoCompra);
 
     const { data: opConDetalle } = await operacionesService.getById(testClient, compra.id);
-    const pagoId = opConDetalle?.operaciones_pagos?.[0]?.id;
+    const pagoId = opConDetalle?.pagos?.[0]?.id ?? opConDetalle?.operaciones_pagos?.[0]?.id;
     expect(pagoId).toBeDefined();
 
     const { data: opActualizada } = await operacionesService.anularPago(

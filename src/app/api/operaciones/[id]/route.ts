@@ -27,6 +27,7 @@ export type UpdateOperacionResponse = {
 
 type OperacionRow = OperacionDTO & {
 	operaciones_lineas?: OperacionLineaDTO[] | null;
+	pagos?: OperacionPagoDTO[] | null;
 	operaciones_pagos?: OperacionPagoDTO[] | null;
 	movimientos_stock?: OperacionMovimientoStockDTO[] | null;
 };
@@ -85,7 +86,7 @@ function mapMovimientoStock(row: OperacionMovimientoStockDTO): OperacionMovimien
 
 function mapOperacion(row: OperacionRow): Operacion {
 	const lineas = Array.isArray(row.operaciones_lineas) ? row.operaciones_lineas : [];
-	const pagos = Array.isArray(row.operaciones_pagos) ? row.operaciones_pagos : [];
+	const pagos = Array.isArray(row.pagos) && row.pagos.length > 0 ? row.pagos : (Array.isArray(row.operaciones_pagos) ? row.operaciones_pagos : []);
 	const lineasMapped = lineas.map(mapLinea);
 	const lineasTotal = lineasMapped.reduce(
 		(acc, l) => acc + (l.cantidad || 0) * (l.monto_unitario || 0),
