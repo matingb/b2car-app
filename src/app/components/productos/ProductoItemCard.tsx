@@ -1,52 +1,125 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import Card from "@/app/components/ui/Card";
+import Badge from "@/app/components/ui/Badge";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import type { Producto } from "@/app/providers/ProductosProvider";
+import { formatArs } from "@/lib/format";
+import { getProductoStockBreakdown } from "@/lib/stock";
+import { Package, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { css } from "@emotion/react";
-import { getProductoStockSummary } from "@/app/hooks/productos/useProductosFilters";
-import StockStatusIcon from "@/app/components/stock/StockStatusIcon";
 
 type Props = {
   producto: Producto;
   tallerId?: string;
+  showStockTitles?: boolean;
   onClick: () => void;
 };
 
-function CategoryTag({ text }: { text: string }) {
-  return (
-    <span style={styles.categoryTag}>
-      {text}
-    </span>
+export default function ProductoItemCard({
+  producto,
+  tallerId = "",
+  showStockTitles,
+  onClick,
+}: Props) {
+  const stockCounts = useMemo(
+    () => getProductoStockBreakdown(producto, tallerId),
+    [producto, tallerId]
   );
-}
 
-export default function ProductoItemCard({ producto, tallerId = "", onClick }: Props) {
-  const summary = getProductoStockSummary(producto, tallerId);
   const categorias = producto.categorias ?? [];
+  const categoriaText = categorias.join(", ");
 
   return (
-    <Card onClick={onClick} data-testid={`producto-item-${producto.id}`}>
-      <div style={styles.container}>
-        <div style={styles.leftGroup}>
-          <StockStatusIcon status={summary.worstStatus} />
-
-          <div style={styles.details}>
-            <div style={styles.title}>{producto.nombre}</div>
-            <div style={styles.subtitle}>
-              {producto.codigo} · Stock total: {summary.stockTotal}
-            </div>
+    <Card
+      onClick={onClick}
+      style={styles.card}
+      data-testid={`producto-item-${producto.id}`}
+    >
+      <div style={styles.topSection}>
+        <div style={styles.mainInfo}>
+          <div style={styles.title} title={producto.nombre}>
+            {producto.nombre}
+          </div>
+          <div style={styles.subtitle}>
+            <span style={styles.codigo}>{producto.codigo}</span>
+            {categoriaText ? (
+              <span css={styles.categoriaWrapper}>
+                <span style={styles.dot}> · </span>
+                <span style={styles.categoria} title={categoriaText}>
+                  {categoriaText}
+                </span>
+              </span>
+            ) : null}
           </div>
         </div>
 
-        <div css={styles.right}>
-          <div style={styles.cats}>
-            {categorias.slice(0, 2).map((c) => (
-              <CategoryTag key={c} text={c} />
-            ))}
-            {categorias.length > 2 && <CategoryTag text={`+${categorias.length - 2}`} />}
+        <div style={styles.priceSection}>
+          <div style={styles.precio}>
+            {formatArs(producto.precioUnitario, { maxDecimals: 0, minDecimals: 0 })}
           </div>
+          <div style={styles.costo}>
+            Costo {formatArs(producto.costoUnitario, { maxDecimals: 0, minDecimals: 0 })}
+          </div>
+        </div>
+      </div>
+
+      <div style={styles.divider} />
+
+      <div style={styles.bottomSection}>
+        <div style={styles.pillsContainer}>
+          <Badge
+            variant="outline"
+            color="neutral"
+            icon={<Package size={14} color={COLOR.TEXT.SECONDARY} />}
+            title="Físico"
+            value={stockCounts.fisico}
+            valueStyle={styles.pillValueFisico}
+            hideTitleOn="tablet"
+            showTitle={showStockTitles}
+            style={styles.pill}
+            dataTestId="stock-pill-fisico"
+          />
+
+          <Badge
+            variant="outline"
+            color="neutral"
+            icon={<CheckCircle2 size={14} color={COLOR.STATUS.SUCCESS.TEXT} />}
+            title="Disponible"
+            value={stockCounts.disponible}
+            valueStyle={styles.pillValueDisponible}
+            hideTitleOn="tablet"
+            showTitle={showStockTitles}
+            style={styles.pill}
+            dataTestId="stock-pill-disponible"
+          />
+
+          <Badge
+            variant="outline"
+            color="neutral"
+            icon={<Clock size={14} color={COLOR.STATUS.INFO.TEXT} />}
+            title="Reservado"
+            value={stockCounts.reservado}
+            valueStyle={styles.pillValueReservado}
+            hideTitleOn="tablet"
+            showTitle={showStockTitles}
+            style={styles.pill}
+            dataTestId="stock-pill-reservado"
+          />
+
+          <Badge
+            variant="outline"
+            color="neutral"
+            icon={<AlertCircle size={14} color={COLOR.STATUS.DANGER.TEXT} />}
+            title="Pendiente"
+            value={stockCounts.pendiente}
+            valueStyle={styles.pillValuePendiente}
+            hideTitleOn="tablet"
+            showTitle={showStockTitles}
+            style={styles.pill}
+            dataTestId="stock-pill-pendiente"
+          />
         </div>
       </div>
     </Card>
@@ -54,29 +127,30 @@ export default function ProductoItemCard({ producto, tallerId = "", onClick }: P
 }
 
 const styles = {
-  container: {
+  card: {
+    padding: 0,
+    overflow: "hidden",
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+  },
+  topSection: {
     display: "flex",
     flexDirection: "row" as const,
+    alignItems: "stretch",
     justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
   },
-  leftGroup: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    minWidth: 0,
-    cursor: "pointer",
-  },
-  details: {
+  mainInfo: {
+    padding: "12px 16px",
     display: "flex",
     flexDirection: "column" as const,
+    justifyContent: "center",
     minWidth: 0,
+    flex: 1,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 600,
-    marginBottom: 2,
+    fontSize: 16,
+    fontWeight: 700,
+    color: COLOR.TEXT.PRIMARY,
+    marginBottom: 3,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap" as const,
@@ -84,41 +158,92 @@ const styles = {
   subtitle: {
     fontSize: 13,
     color: COLOR.TEXT.SECONDARY,
-  },
-  metaText: {
-    fontSize: 12,
-    fontWeight: 600,
-    color: COLOR.TEXT.SECONDARY,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
     whiteSpace: "nowrap" as const,
   },
-  metaDot: {
-    color: COLOR.TEXT.SECONDARY,
-    fontSize: 12,
-  },
-  cats: {
-    display: "flex",
-    flexWrap: "wrap" as const,
-    gap: 8,
-    minWidth: 0,
-  },
-  categoryTag: {
-    padding: "4px 10px",
-    borderRadius: 999,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.BACKGROUND.SUBTLE,
-    fontSize: 12,
+  codigo: {
+    fontWeight: 700,
     color: COLOR.TEXT.PRIMARY,
-    whiteSpace: "nowrap" as const,
   },
-  right: css({
+  dot: {
+    color: COLOR.TEXT.SECONDARY,
+    margin: "0 2px",
+  },
+  categoria: {
+    color: COLOR.TEXT.SECONDARY,
+    fontWeight: 400,
+  },
+  categoriaWrapper: css({
+    display: "inline",
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      display: "none",
+    },
+  }),
+  priceSection: {
+    padding: "12px 18px",
+    borderLeft: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
     display: "flex",
     flexDirection: "column" as const,
     alignItems: "flex-end",
     justifyContent: "center",
-    gap: 6,
-    minWidth: 0,
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
-      display: "none",
-    },
-  }),
+    flexShrink: 0,
+    minWidth: 110,
+  },
+  precio: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: COLOR.ACCENT.PRIMARY,
+    lineHeight: 1.2,
+  },
+  costo: {
+    fontSize: 12,
+    color: COLOR.TEXT.SECONDARY,
+    marginTop: 2,
+    lineHeight: 1.2,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLOR.BORDER.SUBTLE,
+    width: "100%",
+  },
+  bottomSection: {
+    padding: "6px 12px",
+    display: "flex",
+    flexDirection: "row" as const,
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap" as const,
+  },
+  pillsContainer: {
+    display: "flex",
+    flexWrap: "wrap" as const,
+    alignItems: "center",
+    gap: 8,
+  },
+  pill: {
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    color: COLOR.TEXT.SECONDARY,
+    padding: "3px 10px",
+    fontSize: 12,
+    fontWeight: 400,
+  },
+  pillValueFisico: {
+    fontWeight: 700,
+    color: COLOR.TEXT.PRIMARY,
+  },
+  pillValueDisponible: {
+    fontWeight: 700,
+    color: COLOR.STATUS.SUCCESS.TEXT,
+  },
+  pillValueReservado: {
+    fontWeight: 700,
+    color: COLOR.STATUS.INFO.TEXT,
+  },
+  pillValuePendiente: {
+    fontWeight: 700,
+    color: COLOR.STATUS.DANGER.TEXT,
+  },
 } as const;

@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { COLOR } from "@/theme/theme";
+import { css } from "@emotion/react";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 
 export type BadgeVariant = "subtle" | "outline" | "solid";
 export type BadgeColor = "success" | "warning" | "danger" | "info" | "neutral" | "primary";
@@ -9,15 +10,20 @@ export type BadgeSize = "sm" | "md";
 
 export interface BadgeProps {
   children?: React.ReactNode;
+  title?: string;
+  value?: React.ReactNode;
+  showTitle?: boolean;
+  hideTitleOn?: "mobile" | "tablet";
   icon?: React.ReactNode;
   variant?: BadgeVariant;
   color?: BadgeColor;
   size?: BadgeSize;
   onClick?: (e: React.MouseEvent) => void;
-  title?: string;
   dataTestId?: string;
   style?: React.CSSProperties;
   className?: string;
+  titleStyle?: React.CSSProperties;
+  valueStyle?: React.CSSProperties;
 }
 
 const COLOR_PALETTES = {
@@ -31,15 +37,20 @@ const COLOR_PALETTES = {
 
 export default function Badge({
   children,
+  title,
+  value,
+  showTitle = true,
+  hideTitleOn,
   icon,
   variant = "subtle",
   color = "neutral",
   size = "md",
   onClick,
-  title,
   dataTestId = "badge",
   style,
   className,
+  titleStyle,
+  valueStyle,
 }: BadgeProps) {
   const palette = COLOR_PALETTES[color] || COLOR_PALETTES.neutral;
   const isInteractive = Boolean(onClick);
@@ -82,6 +93,34 @@ export default function Badge({
     ...style,
   };
 
+  const isCompound = value !== undefined;
+  const cleanTitle = title ? title.trim().replace(/:$/, "") : null;
+
+  
+  const tooltip =
+    isCompound && cleanTitle && (typeof value === "string" || typeof value === "number")
+      ? `${cleanTitle}: ${value}`
+      : title ?? undefined;
+
+  const titleResponsiveCss =
+    hideTitleOn === "tablet"
+      ? css({
+          display: "inline",
+          [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+            display: "none",
+          },
+        })
+      : hideTitleOn === "mobile"
+        ? css({
+            display: "inline",
+            [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+              display: "none",
+            },
+          })
+        : undefined;
+
+  const visualTitle = isCompound && cleanTitle ? `${cleanTitle}: ` : null;
+
   const content = (
     <>
       {icon && (
@@ -96,7 +135,22 @@ export default function Badge({
           {icon}
         </span>
       )}
-      {children}
+      {visualTitle && showTitle && (
+        <span
+          css={titleResponsiveCss}
+          style={{
+            fontWeight: 400,
+            ...titleStyle,
+          }}
+        >
+          {visualTitle}
+        </span>
+      )}
+      {isCompound ? (
+        <span style={{ fontWeight: 700, ...valueStyle }}>{value}</span>
+      ) : (
+        children
+      )}
     </>
   );
 
@@ -105,7 +159,7 @@ export default function Badge({
       <button
         type="button"
         onClick={onClick}
-        title={title}
+        title={tooltip}
         data-testid={dataTestId}
         data-isolate-hover="true"
         className={className}
@@ -120,7 +174,7 @@ export default function Badge({
 
   return (
     <span
-      title={title}
+      title={tooltip}
       data-testid={dataTestId}
       className={className}
       style={badgeStyle}

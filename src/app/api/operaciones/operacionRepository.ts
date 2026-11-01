@@ -333,7 +333,7 @@ export const operacionRepository: OperacionRepository = {
 	async create(supabase: SupabaseClient, params: RpcCrearOperacionParams) {
 		if (params.p_tipo === "GASTO") {
 			const { data, error } = await supabase.rpc("rpc_crear_operacion_gasto", {
-				p_categoria_gasto: params.p_categoria_gasto ?? "General",
+				p_categoria_gasto: params.p_categoria_gasto ?? "OTROS",
 				p_monto: params.p_monto ?? 0,
 				p_descripcion: params.p_descripcion ?? null,
 				p_fecha: params.p_fecha,
