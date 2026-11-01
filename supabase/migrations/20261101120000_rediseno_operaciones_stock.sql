@@ -16,7 +16,9 @@ CREATE TRIGGER trigger_recalcular_precio_operaciones_lineas
 ALTER TABLE public.operaciones_lineas
   ADD COLUMN IF NOT EXISTS sentido smallint;
 
--- Backfill sentido para datos existentes antes de NOT NULL
+-- Backfill sentido para datos existentes antes de NOT NULL (deshabilitando triggers de usuario para no chocar con bloqueos fiscales de arreglos/ventas facturadas)
+ALTER TABLE public.operaciones_lineas DISABLE TRIGGER USER;
+
 UPDATE public.operaciones_lineas l
 SET sentido = CASE
   WHEN l.delta_cantidad <> 0 THEN sign(l.delta_cantidad)::smallint
@@ -28,6 +30,8 @@ FROM public.operaciones o
 WHERE o.id = l.operacion_id AND l.sentido IS NULL;
 
 UPDATE public.operaciones_lineas SET sentido = 1 WHERE sentido IS NULL;
+
+ALTER TABLE public.operaciones_lineas ENABLE TRIGGER USER;
 
 ALTER TABLE public.operaciones_lineas
   ALTER COLUMN sentido SET NOT NULL;

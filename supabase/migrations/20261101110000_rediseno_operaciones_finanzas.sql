@@ -80,14 +80,30 @@ GRANT ALL ON TABLE public.operaciones_ajuste TO postgres, service_role;
 ALTER TABLE public.operaciones_venta ALTER COLUMN cliente_id DROP NOT NULL;
 ALTER TABLE public.operaciones_compra ALTER COLUMN proveedor_id DROP NOT NULL;
 
+INSERT INTO public.operaciones_venta (operacion_id, tenant_id, cliente_id, created_at)
+SELECT o.id, o.tenant_id, NULL, o.created_at
+FROM public.operaciones o
+WHERE o.tipo = 'VENTA'::public.tipo_operacion
+  AND NOT EXISTS (SELECT 1 FROM public.operaciones_venta ov WHERE ov.operacion_id = o.id);
+
+INSERT INTO public.operaciones_compra (operacion_id, tenant_id, proveedor_id, created_at)
+SELECT o.id, o.tenant_id, NULL, o.created_at
+FROM public.operaciones o
+WHERE o.tipo = 'COMPRA'::public.tipo_operacion
+  AND NOT EXISTS (SELECT 1 FROM public.operaciones_compra oc WHERE oc.operacion_id = o.id);
+
 ALTER TABLE public.operaciones_asignacion_arreglo ADD COLUMN IF NOT EXISTS tenant_id uuid REFERENCES public.tenants(id) ON DELETE RESTRICT;
 ALTER TABLE public.operaciones_asignacion_arreglo ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+
+ALTER TABLE public.operaciones_asignacion_arreglo DISABLE TRIGGER USER;
 
 UPDATE public.operaciones_asignacion_arreglo oaa
 SET tenant_id = o.tenant_id,
     created_at = COALESCE(oaa.created_at, o.created_at)
 FROM public.operaciones o
 WHERE o.id = oaa.operacion_id AND oaa.tenant_id IS NULL;
+
+ALTER TABLE public.operaciones_asignacion_arreglo ENABLE TRIGGER USER;
 
 ALTER TABLE public.operaciones_asignacion_arreglo ALTER COLUMN tenant_id SET DEFAULT public.current_tenant_id();
 ALTER TABLE public.operaciones_asignacion_arreglo ALTER COLUMN tenant_id SET NOT NULL;
@@ -147,6 +163,9 @@ CREATE INDEX IF NOT EXISTS idx_mf_omc_id ON public.movimientos_financieros(omc_i
 ALTER TABLE public.operaciones_movimiento_cuenta ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
 ALTER TABLE public.operaciones_movimiento_cuenta ADD COLUMN IF NOT EXISTS fecha timestamptz;
 
+-- Apagar triggers antes de actualizar fecha para que el viejo _omc_after_update no duplique asientos en el ledger
+ALTER TABLE public.operaciones_movimiento_cuenta DISABLE TRIGGER USER;
+
 UPDATE public.operaciones_movimiento_cuenta omc
 SET fecha = COALESCE(o.fecha, omc.created_at, now())
 FROM public.operaciones o
@@ -155,6 +174,8 @@ WHERE o.id = omc.operacion_id AND omc.fecha IS NULL;
 UPDATE public.operaciones_movimiento_cuenta
 SET fecha = COALESCE(created_at, now())
 WHERE fecha IS NULL;
+
+ALTER TABLE public.operaciones_movimiento_cuenta ENABLE TRIGGER USER;
 
 ALTER TABLE public.operaciones_movimiento_cuenta ALTER COLUMN fecha SET NOT NULL;
 
@@ -166,6 +187,22 @@ CREATE INDEX IF NOT EXISTS idx_omc_operacion_id ON public.operaciones_movimiento
 ALTER TABLE public.operaciones_movimiento_cuenta DROP CONSTRAINT IF EXISTS operaciones_movimiento_cuenta_operacion_id_fkey;
 ALTER TABLE public.operaciones_movimiento_cuenta ADD CONSTRAINT operaciones_movimiento_cuenta_operacion_id_fkey
   FOREIGN KEY (operacion_id) REFERENCES public.operaciones(id) ON DELETE CASCADE;
+
+-- Retirar constraints heredados de OMC antes del backfill (para permitir partir transferencias e insertar pagos sin subtipo)
+ALTER TABLE public.operaciones_movimiento_cuenta DROP CONSTRAINT IF EXISTS omc_categoria_gasto_check;
+ALTER TABLE public.operaciones_movimiento_cuenta DROP CONSTRAINT IF EXISTS omc_cuenta_xor;
+ALTER TABLE public.operaciones_movimiento_cuenta DROP CONSTRAINT IF EXISTS omc_ingreso_descripcion_check;
+ALTER TABLE public.operaciones_movimiento_cuenta DROP CONSTRAINT IF EXISTS omc_subtipo_check;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'operaciones_movimiento_cuenta' AND column_name = 'subtipo'
+  ) THEN
+    ALTER TABLE public.operaciones_movimiento_cuenta ALTER COLUMN subtipo DROP NOT NULL;
+  END IF;
+END $$;
 
 -- -----------------------------------------------------------------------------
 -- 4. Backfill de Finanzas
