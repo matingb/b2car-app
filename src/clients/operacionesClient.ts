@@ -97,10 +97,15 @@ export type ConfirmarStockPayload = {
 function mapOperacionFromApi(value: unknown): Operacion | null {
 	if (!value || typeof value !== "object") return null;
 	const o = value as Record<string, unknown>;
+	const rawLineas = Array.isArray(o.lineas)
+		? o.lineas
+		: Array.isArray(o.operaciones_lineas)
+			? o.operaciones_lineas
+			: [];
 	return {
 		...(o as unknown as Operacion),
 		tipo: (o.tipo as TipoOperacion) ?? "AJUSTE",
-		lineas: Array.isArray(o.lineas) ? (o.lineas as Operacion["lineas"]) : [],
+		lineas: rawLineas as Operacion["lineas"],
 		movimientos_stock: Array.isArray(o.movimientos_stock)
 			? (o.movimientos_stock as Operacion["movimientos_stock"])
 			: undefined,

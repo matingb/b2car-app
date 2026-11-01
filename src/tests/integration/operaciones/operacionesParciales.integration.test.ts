@@ -33,10 +33,90 @@ describe("Integration: Operaciones - Stock Parcial y Diferido", () => {
       });
 
       expect(operacion?.estado_stock).toBe("PARCIAL");
+      expect(operacion?.movimientos_stock?.[0]?.oms_id).toBeTruthy();
 
       await expectStockDetallado(stockId, {
         cantidad: 14,
         cantidad_reservada: 4,
+        cantidad_pendiente: 0,
+      });
+    });
+
+    it("al crear una VENTA sin entrega inicial (cantidad_cumplida = 0), el estado_stock queda PENDIENTE y reserva todo el stock", async () => {
+      const { cliente } = await dadoUnClienteParticularConVehiculo();
+      const { stockId } = await dadoQueExisteUnProductoConStock({
+        stock: { cantidad: 20, taller_id: SEED.tallerId },
+      });
+
+      const { data: operacion, error } = await operacionesService.create(testClient, {
+        tipo: "VENTA",
+        taller_id: SEED.tallerId,
+        cliente_id: cliente.id,
+        estado_pago: "PENDIENTE",
+        lineas: [
+          {
+            stock_id: stockId,
+            cantidad: 8,
+            cantidad_cumplida: 0,
+            monto_unitario: 1500,
+            delta_cantidad: -8,
+          },
+        ],
+      });
+
+      expect(error).toBeNull();
+      expect(operacion?.estado_stock).toBe("PENDIENTE");
+
+      await expectStockDetallado(stockId, {
+        cantidad: 20,
+        cantidad_reservada: 8,
+        cantidad_pendiente: 0,
+      });
+    });
+
+    it("al crear una VENTA multilínea con la primera línea entregada y la segunda sin entregar, el estado_stock queda PARCIAL", async () => {
+      const { cliente } = await dadoUnClienteParticularConVehiculo();
+      const { stockId: stockId1 } = await dadoQueExisteUnProductoConStock({
+        stock: { cantidad: 10, taller_id: SEED.tallerId },
+      });
+      const { stockId: stockId2 } = await dadoQueExisteUnProductoConStock({
+        stock: { cantidad: 10, taller_id: SEED.tallerId },
+      });
+
+      const { data: operacion, error } = await operacionesService.create(testClient, {
+        tipo: "VENTA",
+        taller_id: SEED.tallerId,
+        cliente_id: cliente.id,
+        estado_pago: "PENDIENTE",
+        lineas: [
+          {
+            stock_id: stockId1,
+            cantidad: 1,
+            cantidad_cumplida: 1,
+            monto_unitario: 50000,
+            delta_cantidad: -1,
+          },
+          {
+            stock_id: stockId2,
+            cantidad: 5,
+            cantidad_cumplida: 0,
+            monto_unitario: 9800,
+            delta_cantidad: -5,
+          },
+        ],
+      });
+
+      expect(error).toBeNull();
+      expect(operacion?.estado_stock).toBe("PARCIAL");
+
+      await expectStockDetallado(stockId1, {
+        cantidad: 9,
+        cantidad_reservada: 0,
+        cantidad_pendiente: 0,
+      });
+      await expectStockDetallado(stockId2, {
+        cantidad: 10,
+        cantidad_reservada: 5,
         cantidad_pendiente: 0,
       });
     });
@@ -151,6 +231,38 @@ describe("Integration: Operaciones - Stock Parcial y Diferido", () => {
       await expectStockDetallado(stockId, {
         cantidad: 9,
         cantidad_pendiente: 6,
+        cantidad_reservada: 0,
+      });
+    });
+
+    it("al crear una COMPRA sin recepción inicial (cantidad_cumplida = 0), el estado_stock queda PENDIENTE y suma a cantidad_pendiente", async () => {
+      const proveedor = await dadoUnProveedor();
+      const { stockId } = await dadoQueExisteUnProductoConStock({
+        stock: { cantidad: 5, taller_id: SEED.tallerId },
+      });
+
+      const { data: operacion, error } = await operacionesService.create(testClient, {
+        tipo: "COMPRA",
+        taller_id: SEED.tallerId,
+        proveedor_id: proveedor.id,
+        estado_pago: "PENDIENTE",
+        lineas: [
+          {
+            stock_id: stockId,
+            cantidad: 10,
+            cantidad_cumplida: 0,
+            monto_unitario: 1000,
+            delta_cantidad: 10,
+          },
+        ],
+      });
+
+      expect(error).toBeNull();
+      expect(operacion?.estado_stock).toBe("PENDIENTE");
+
+      await expectStockDetallado(stockId, {
+        cantidad: 5,
+        cantidad_pendiente: 10,
         cantidad_reservada: 0,
       });
     });

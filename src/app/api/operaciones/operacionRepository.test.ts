@@ -190,6 +190,7 @@ describe("operacionRepository", () => {
 					created_at: "2026-10-22T15:00:00Z",
 					producto_id: "prod-1",
 					stock_id: "stock-1",
+					oms_id: "oms-2",
 					producto: { nombre: "Filtro Aceite", codigo: "FA-01" },
 				},
 			],
@@ -218,6 +219,7 @@ describe("operacionRepository", () => {
 			stock_id: "stock-1",
 			producto_nombre: "Filtro Aceite",
 			producto_codigo: "FA-01",
+			oms_id: "oms-2",
 			reversion_de_id: null,
 			revertido: false,
 		});

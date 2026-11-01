@@ -562,7 +562,7 @@ BEGIN
     IF TG_OP = 'UPDATE' AND OLD.stock_id IS DISTINCT FROM NEW.stock_id THEN
       PERFORM public._sync_stock_derivados(OLD.stock_id);
     END IF;
-    IF TG_OP = 'UPDATE' AND (NEW.cantidad IS DISTINCT FROM OLD.cantidad OR NEW.cantidad_cancelada IS DISTINCT FROM OLD.cantidad_cancelada) THEN
+    IF TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND (NEW.cantidad IS DISTINCT FROM OLD.cantidad OR NEW.cantidad_cancelada IS DISTINCT FROM OLD.cantidad_cancelada)) THEN
       PERFORM public._sync_operacion_estado_stock(NEW.operacion_id);
     END IF;
     RETURN NEW;
@@ -1620,10 +1620,15 @@ BEGIN
 
   ALTER TABLE public.movimientos_stock ENABLE TRIGGER movimientos_stock_bloquear_mutacion;
 
-  -- 4.4 Recalcular derivados de todos los stocks
+  -- 4.4 Recalcular derivados de todos los stocks y estado_stock de operaciones
   FOR v_rec IN SELECT id FROM public.stocks
   LOOP
     PERFORM public._sync_stock_derivados(v_rec.id);
+  END LOOP;
+
+  FOR v_rec IN SELECT id FROM public.operaciones WHERE tipo IN ('COMPRA', 'VENTA')
+  LOOP
+    PERFORM public._sync_operacion_estado_stock(v_rec.id);
   END LOOP;
 END;
 $$;

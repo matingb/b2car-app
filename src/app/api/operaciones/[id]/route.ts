@@ -79,6 +79,7 @@ function mapMovimientoStock(row: OperacionMovimientoStockDTO): OperacionMovimien
 		producto_nombre: row.producto_nombre ?? undefined,
 		producto_codigo: row.producto_codigo ?? undefined,
 		tipo_movimiento: row.tipo_movimiento as OperacionMovimientoStock["tipo_movimiento"],
+		oms_id: row.oms_id ?? undefined,
 		reversion_de_id: row.reversion_de_id ?? undefined,
 		revertido: Boolean(row.revertido),
 	};

@@ -36,6 +36,7 @@ export type OperacionMovimientoStockJoin = {
 	created_by?: string | null;
 	producto_id: string;
 	stock_id: string;
+	oms_id?: string | null;
 	reversion_de_id?: string | null;
 	producto?: { nombre?: string; codigo?: string } | { nombre?: string; codigo?: string }[] | null;
 };
@@ -243,7 +244,7 @@ export const operacionRepository: OperacionRepository = {
 		const { data: movsStockData } = await supabase
 			.from("movimientos_stock")
 			.select(
-				"id, fecha, cantidad, saldo_anterior, saldo_posterior, motivo, tipo_movimiento, created_at, created_by, producto_id, stock_id, reversion_de_id, producto:productos(nombre, codigo)"
+				"id, fecha, cantidad, saldo_anterior, saldo_posterior, motivo, tipo_movimiento, created_at, created_by, producto_id, stock_id, oms_id, reversion_de_id, producto:productos(nombre, codigo)"
 			)
 			.eq("operacion_id", id);
 
@@ -297,6 +298,7 @@ export const operacionRepository: OperacionRepository = {
 					stock_id: String(ms.stock_id),
 					producto_nombre: prod?.nombre,
 					producto_codigo: prod?.codigo,
+					oms_id: ms.oms_id ? String(ms.oms_id) : null,
 					reversion_de_id: ms.reversion_de_id ? String(ms.reversion_de_id) : null,
 					revertido: isReverted,
 				};
