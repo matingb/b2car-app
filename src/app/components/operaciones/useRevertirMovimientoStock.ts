@@ -37,6 +37,7 @@ export function canRevertirMovimiento(
   mov: OperacionMovimientoStock,
   todosMovimientos?: OperacionMovimientoStock[]
 ): boolean {
+  if (!mov.oms_id) return false;
   return !isMovimientoReversion(mov) && !isMovimientoRevertido(mov, todosMovimientos);
 }
 

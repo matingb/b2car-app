@@ -67,7 +67,11 @@ export async function dadoQueExisteUnProductoConStock(
 
   if (stockError || !stockCreado) {
     throw new Error(
-      `dadoQueExisteUnProductoConStock: error al crear stock: ${stockError?.message ?? "sin respuesta"}`
+      `dadoQueExisteUnProductoConStock: error al crear stock: ${
+        stockError && typeof stockError === "object" && "message" in stockError
+          ? String((stockError as { message?: unknown }).message)
+          : String(stockError ?? "sin respuesta")
+      }`
     );
   }
 

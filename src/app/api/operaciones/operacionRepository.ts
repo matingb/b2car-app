@@ -73,10 +73,6 @@ export type FacturaOperacionRow = {
 	operacion_id: string;
 };
 
-export type MovimientoFinancieroCuentaRow = {
-	cuenta_financiera_id: string | null;
-};
-
 export type ListOperacionesParams = {
 	from: string | null;
 	to: string | null;
@@ -113,13 +109,8 @@ export type RpcCrearOperacionParams = {
 
 export type RpcActualizarOperacionParams = {
 	p_operacion_id: string;
-	p_tipo: string;
-	p_taller_id: string | null;
-	p_lineas: unknown[];
-	p_fecha: string | null;
-	p_cuenta_id: string | null;
-	p_idempotency_key: string | null;
-	p_observaciones: string | null;
+	p_fecha?: string | null;
+	p_observaciones?: string | null;
 };
 
 function firstOrOnly<T>(value: T | T[] | null | undefined): T | undefined {
@@ -158,11 +149,6 @@ export interface OperacionRepository {
 		supabase: SupabaseClient,
 		id: string
 	): Promise<{ data: OperacionRow | null; error: PostgrestError | null }>;
-
-	findCuentaFinancieraByOperacionId(
-		supabase: SupabaseClient,
-		operacionId: string
-	): Promise<{ data: MovimientoFinancieroCuentaRow | null; error: PostgrestError | null }>;
 
 	create(
 		supabase: SupabaseClient,
@@ -245,7 +231,7 @@ export const operacionRepository: OperacionRepository = {
 		const { data, error } = await supabase
 			.from("operaciones")
 			.select(
-				"*, operaciones_lineas(*), pagos:operaciones_movimiento_cuenta!operaciones_movimiento_cuenta_operacion_id_fkey(id, tenant_id, operacion_id, cuenta_id, importe, fecha, descripcion, created_at, cuentas_financieras:cuentas_financieras(nombre)), operaciones_venta(cliente_id, clientes(tipo_cliente, particulares(nombre, apellido), empresas(nombre))), operaciones_compra(proveedor_id, proveedores(nombre)), operaciones_gasto(categoria_gasto, descripcion), movimientos_stock:movimientos_stock!movimientos_stock_operacion_id_fkey(id, fecha, cantidad, saldo_anterior, saldo_posterior, motivo, tipo_movimiento, created_at, created_by, producto_id, stock_id, reversion_de_id, producto:productos(nombre, codigo))"
+				"*, operaciones_lineas(*), pagos:operaciones_movimiento_cuenta!operaciones_movimiento_cuenta_operacion_id_fkey(id, tenant_id, operacion_id, cuenta_id, importe, fecha, descripcion, created_at, cuentas_financieras:cuentas_financieras(nombre)), operaciones_venta(cliente_id, clientes(tipo_cliente, particulares(nombre, apellido), empresas(nombre))), operaciones_compra(proveedor_id, proveedores(nombre)), operaciones_gasto(categoria_gasto, descripcion)"
 			)
 			.eq("id", id)
 			.single();
@@ -253,6 +239,13 @@ export const operacionRepository: OperacionRepository = {
 		if (error || !data) {
 			return { data: null, error };
 		}
+
+		const { data: movsStockData } = await supabase
+			.from("movimientos_stock")
+			.select(
+				"id, fecha, cantidad, saldo_anterior, saldo_posterior, motivo, tipo_movimiento, created_at, created_by, producto_id, stock_id, reversion_de_id, producto:productos(nombre, codigo)"
+			)
+			.eq("operacion_id", id);
 
 		const raw = data as unknown as OperacionDetalleRawRow;
 		const venta = firstOrOnly(raw.operaciones_venta);
@@ -275,7 +268,11 @@ export const operacionRepository: OperacionRepository = {
 			};
 		});
 
-		const movimientosStockRaw = Array.isArray(raw.movimientos_stock) ? raw.movimientos_stock : [];
+		const movimientosStockRaw = (Array.isArray(movsStockData)
+			? movsStockData
+			: Array.isArray(raw.movimientos_stock)
+				? raw.movimientos_stock
+				: []) as OperacionMovimientoStockJoin[];
 		const revertedIds = new Set(
 			movimientosStockRaw
 				.map((m) => m.reversion_de_id)
@@ -331,16 +328,6 @@ export const operacionRepository: OperacionRepository = {
 		return { data: mapped, error: null };
 	},
 
-	async findCuentaFinancieraByOperacionId(supabase: SupabaseClient, operacionId: string) {
-		const { data, error } = await supabase
-			.from("movimientos_financieros")
-			.select("cuenta_financiera_id")
-			.eq("operacion_id", operacionId)
-			.maybeSingle();
-
-		return { data: (data as MovimientoFinancieroCuentaRow | null) ?? null, error };
-	},
-
 	async create(supabase: SupabaseClient, params: RpcCrearOperacionParams) {
 		if (params.p_tipo === "GASTO") {
 			const { data, error } = await supabase.rpc("rpc_crear_operacion_gasto", {
@@ -359,12 +346,10 @@ export const operacionRepository: OperacionRepository = {
 			});
 			return { data, error };
 		}
-		const {
-			p_categoria_gasto: _cat,
-			p_monto: _monto,
-			p_descripcion: _desc,
-			...stockParams
-		} = params;
+		const stockParams = { ...params };
+		delete stockParams.p_categoria_gasto;
+		delete stockParams.p_monto;
+		delete stockParams.p_descripcion;
 		const { data, error } = await supabase.rpc("rpc_crear_operacion_con_stock", stockParams);
 		return { data, error };
 	},
@@ -409,7 +394,11 @@ export const operacionRepository: OperacionRepository = {
 	},
 
 	async update(supabase: SupabaseClient, params: RpcActualizarOperacionParams) {
-		const { data, error } = await supabase.rpc("rpc_actualizar_operacion_con_stock", params);
+		const { data, error } = await supabase.rpc("rpc_actualizar_operacion", {
+			p_operacion_id: params.p_operacion_id,
+			p_fecha: params.p_fecha ?? null,
+			p_observaciones: params.p_observaciones ?? null,
+		});
 		return { data, error };
 	},
 

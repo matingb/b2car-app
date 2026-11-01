@@ -266,6 +266,7 @@ export type OperacionMovimientoStockDTO = {
     producto_nombre?: string;
     producto_codigo?: string;
     tipo_movimiento?: string;
+    oms_id?: string | null;
     reversion_de_id?: string | null;
     revertido?: boolean;
 };

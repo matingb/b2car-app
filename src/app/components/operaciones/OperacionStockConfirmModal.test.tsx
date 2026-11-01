@@ -104,6 +104,7 @@ describe("OperacionStockConfirmModal", () => {
     movimientos_stock: [
       {
         id: "mov-stock-1",
+        oms_id: "oms-1",
         fecha: "2026-10-21T12:00:00Z",
         cantidad: -2,
         saldo_anterior: 10,

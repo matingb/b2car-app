@@ -217,6 +217,7 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
       movimientos_stock: [
         {
           id: "mov-entrega-1",
+          oms_id: "oms-1",
           fecha: "2026-10-21T14:30:00Z",
           cantidad: -7,
           saldo_anterior: 20,
@@ -253,6 +254,7 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
       movimientos_stock: [
         {
           id: "mov-stock-1",
+          oms_id: "oms-1",
           fecha: "2026-10-21T14:00:00Z",
           cantidad: -7,
           saldo_anterior: 20,
@@ -302,6 +304,7 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
       movimientos_stock: [
         {
           id: "mov-stock-1",
+          oms_id: "oms-1",
           fecha: "2026-10-21T14:00:00Z",
           cantidad: -7,
           saldo_anterior: 20,

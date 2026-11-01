@@ -225,11 +225,8 @@ describe("validateOperacionesDateFilters", () => {
 describe("operacionesService.update", () => {
 	afterEach(() => vi.restoreAllMocks());
 
-	it("conserva la cuenta del evento vigente en una actualización parcial de venta", async () => {
+	it("invoca rpc_actualizar_operacion con p_fecha y p_observaciones", async () => {
 		const operacionId = "11111111-1111-4111-8111-111111111111";
-		const cuentaId = "22222222-2222-4222-8222-222222222222";
-		const eventoId = "33333333-3333-4333-8333-333333333333";
-		const idempotencyKey = "44444444-4444-4444-8444-444444444444";
 		const current = {
 			id: operacionId,
 			tenant_id: "55555555-5555-4555-8555-555555555555",
@@ -237,30 +234,24 @@ describe("operacionesService.update", () => {
 			taller_id: "66666666-6666-4666-8666-666666666666",
 			fecha: "2026-07-31T00:00:00.000Z",
 			created_at: "2026-07-31T00:00:00.000Z",
-			movimiento_financiero_id: eventoId,
 			operaciones_lineas: [],
 		};
 		const getById = vi.spyOn(operacionesService, "getById")
-			.mockResolvedValueOnce({ data: current, error: null })
 			.mockResolvedValueOnce({ data: current, error: null });
-		const maybeSingle = vi.fn().mockResolvedValue({ data: { cuenta_financiera_id: cuentaId }, error: null });
-		const eq = vi.fn().mockReturnValue({ maybeSingle });
-		const select = vi.fn().mockReturnValue({ eq });
-		const from = vi.fn().mockReturnValue({ select });
 		const rpc = vi.fn().mockResolvedValue({ data: operacionId, error: null });
-		const supabase = { from, rpc } as unknown as SupabaseClient;
+		const supabase = { rpc } as unknown as SupabaseClient;
 
-		const result = await operacionesService.update(supabase, operacionId, { idempotency_key: idempotencyKey });
+		const result = await operacionesService.update(supabase, operacionId, {
+			fecha: "2026-08-01",
+			observaciones: "Actualizado",
+		});
 
-		expect(from).toHaveBeenCalledWith("movimientos_financieros");
-		expect(rpc).toHaveBeenCalledWith("rpc_actualizar_operacion_con_stock", expect.objectContaining({
+		expect(rpc).toHaveBeenCalledWith("rpc_actualizar_operacion", expect.objectContaining({
 			p_operacion_id: operacionId,
-			p_tipo: "VENTA",
-			p_cuenta_id: cuentaId,
-			p_idempotency_key: idempotencyKey,
+			p_observaciones: "Actualizado",
 		}));
 		expect(result.error).toBeNull();
-		expect(getById).toHaveBeenCalledTimes(2);
+		expect(getById).toHaveBeenCalledTimes(1);
 	});
 
 	it.each([
@@ -280,14 +271,13 @@ describe("operacionesService.update", () => {
 			operaciones_lineas: [],
 		};
 		vi.spyOn(operacionesService, "getById")
-			.mockResolvedValueOnce({ data: current, error: null })
 			.mockResolvedValueOnce({ data: current, error: null });
 		const rpc = vi.fn().mockResolvedValue({ data: operacionId, error: null });
 		const supabase = { rpc } as unknown as SupabaseClient;
 
-		await operacionesService.update(supabase, operacionId, { cuenta_financiera_id: null, ...input });
+		await operacionesService.update(supabase, operacionId, input);
 
-		expect(rpc).toHaveBeenCalledWith("rpc_actualizar_operacion_con_stock", expect.objectContaining({
+		expect(rpc).toHaveBeenCalledWith("rpc_actualizar_operacion", expect.objectContaining({
 			p_operacion_id: operacionId,
 			p_observaciones: expected,
 		}));

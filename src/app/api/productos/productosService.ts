@@ -1,6 +1,5 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
-import type { StockRow } from "../stocks/stocksService";
 import {
   type ProductoRow,
   type ProductoWithStocksRow,

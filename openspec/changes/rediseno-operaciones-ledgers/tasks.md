@@ -91,29 +91,29 @@ En todo lo que sigue, "test de integración" significa un test en `src/tests/int
 
 ## 7. Stock: OMS, kardex y derivados
 
-- [ ] 7.1 Migración C: esquema de stock:
+- [x] 7.1 Migración C: esquema de stock:
   - `operaciones_lineas.sentido`, `cantidad_cancelada` y sus `CHECK`;
   - índice de líneas abiertas;
   - tabla `operaciones_movimiento_stock` con RLS solo de SELECT, grants e índices;
   - `movimientos_stock.oms_id` y `DROP` de sus FK a operaciones y detalle de arreglo.
   Verificación: `db reset` sin errores.
-- [ ] 7.2 Migración C: triggers `_stock_aplicar_movimiento`, `_stocks_proteger_saldos`, `_oms_validar`, `_oms_after_insert`, `_oms_after_delete`, OMS `BEFORE UPDATE` y `_lineas_recalcular_stock`, y acotar `trigger_recalcular_precio_operaciones_lineas`. Verificación: tests de integración de los requirements "Kardex encadenado y sin saldos negativos", "Sentido y cantidad cumplida de cada línea", "Cantidades reservada y pendiente derivadas" e "Impactos de stock no editables".
-- [ ] 7.3 Migración C: reescribir `rpc_crear_operacion_con_stock`, `rpc_confirmar_stock_operacion` y `rpc_revertir_movimiento_stock_operacion` sobre líneas + OMS, insertando ordenado por `stock_id`, y hacer `DROP` de `rpc_revertir_operacion_linea` y `_stock_ledger_insertar`. Verificación: tests de integración "Compra recibida en dos partes", "Venta diferida reserva stock", "Revertir una entrega parcial" y "Revertir un movimiento histórico", más que pase `operacionesParciales`.
-- [ ] 7.4 Migración C: reescribir `rpc_set_asignacion_arreglo_linea` y `rpc_delete_asignacion_arreglo_linea` (OMS por diferencia; al bajar la cantidad, primero la devolución). Revisar `rpc_asignar_repuesto_existente_con_compra` y `rpc_crear_producto_inline_para_arreglo`. Verificación: test de integración "Asignar y luego reducir", más que pasen las suites `arreglos/*`.
-- [ ] 7.5 Migración C:
+- [x] 7.2 Migración C: triggers `_stock_aplicar_movimiento`, `_stocks_proteger_saldos`, `_oms_validar`, `_oms_after_insert`, `_oms_after_delete`, OMS `BEFORE UPDATE` y `_lineas_recalcular_stock`, y acotar `trigger_recalcular_precio_operaciones_lineas`. Verificación: tests de integración de los requirements "Kardex encadenado y sin saldos negativos", "Sentido y cantidad cumplida de cada línea", "Cantidades reservada y pendiente derivadas" e "Impactos de stock no editables".
+- [x] 7.3 Migración C: reescribir `rpc_crear_operacion_con_stock`, `rpc_confirmar_stock_operacion` y `rpc_revertir_movimiento_stock_operacion` sobre líneas + OMS, insertando ordenado por `stock_id`, y hacer `DROP` de `rpc_revertir_operacion_linea` y `_stock_ledger_insertar`. Verificación: tests de integración "Compra recibida en dos partes", "Venta diferida reserva stock", "Revertir una entrega parcial" y "Revertir un movimiento histórico", más que pase `operacionesParciales`.
+- [x] 7.4 Migración C: reescribir `rpc_set_asignacion_arreglo_linea` y `rpc_delete_asignacion_arreglo_linea` (OMS por diferencia; al bajar la cantidad, primero la devolución). Revisar `rpc_asignar_repuesto_existente_con_compra` y `rpc_crear_producto_inline_para_arreglo`. Verificación: test de integración "Asignar y luego reducir", más que pasen las suites `arreglos/*`.
+- [x] 7.5 Migración C:
   - nuevas `rpc_crear_stock` y `rpc_ajustar_stock`;
   - `_crear_producto_y_stock` crea el stock en 0 más un AJUSTE `INICIAL`;
   - `eliminar_tenant` borra las OMS antes que las líneas.
   Verificación: tests de integración "Corregir la cantidad de un stock" y "Alta de stock con cantidad".
-- [ ] 7.6 Migración C: `delta_cantidad` como columna generada `sentido * cantidad` (decisión 10 de `design.md`). Las RPCs dejan de escribirla y el backfill informa con `RAISE NOTICE` cuántas líneas cambian. Verificación: tests de integración "Facturar una venta no entregada" y "Facturar una venta entregada en parte".
-- [ ] 7.7 Migración C: backfill de stock según la decisión 15 de `design.md`: `sentido`, `operaciones_ajuste`, OMS por lo cumplido con vínculo de las filas del kardex, conciliación y recálculo de reservada y pendiente. Verificación: sobre la base del 1.4 con `migration up`, el diagnóstico de stock no devuelve filas.
-- [ ] 7.8 Ajustar `supabase/seed.sql`: stocks en 0 más AJUSTE `INICIAL`, `sentido` en cada línea y OMS por lo cumplido. Verificación: `npx supabase db reset` termina y el diagnóstico completo no devuelve filas.
-- [ ] 7.9 Backend: `POST /api/stocks` usa `rpc_crear_stock`; `PUT /api/stocks/[id]` con `cantidad` usa `rpc_ajustar_stock` (mínimo y máximo siguen con UPDATE); revisar `productosService.updateWithStocksById`; `operacionRepository.ts` consulta `movimientos_stock` aparte en lugar del embed por FK. Verificación: tests de las rutas de stock y del repositorio actualizados y pasando, más el test de integración "Editar el stock mínimo".
-- [ ] 7.10 Frontend: ocultar "revertir" en los movimientos con `oms_id` nulo (`useRevertirMovimientoStock`, `OperacionExpandedDetail`) y avisar en la pantalla de stock que editar la cantidad registra un ajuste. Verificación: tests de los componentes actualizados.
+- [x] 7.6 Migración C: `delta_cantidad` como columna generada `sentido * cantidad` (decisión 10 de `design.md`). Las RPCs dejan de escribirla y el backfill informa con `RAISE NOTICE` cuántas líneas cambian. Verificación: tests de integración "Facturar una venta no entregada" y "Facturar una venta entregada en parte".
+- [x] 7.7 Migración C: backfill de stock según la decisión 15 de `design.md`: `sentido`, `operaciones_ajuste`, OMS por lo cumplido con vínculo de las filas del kardex, conciliación y recálculo de reservada y pendiente. Verificación: sobre la base del 1.4 con `migration up`, el diagnóstico de stock no devuelve filas.
+- [x] 7.8 Ajustar `supabase/seed.sql`: stocks en 0 más AJUSTE `INICIAL`, `sentido` en cada línea y OMS por lo cumplido. Verificación: `npx supabase db reset` termina y el diagnóstico completo no devuelve filas.
+- [x] 7.9 Backend: `POST /api/stocks` usa `rpc_crear_stock`; `PUT /api/stocks/[id]` con `cantidad` usa `rpc_ajustar_stock` (mínimo y máximo siguen con UPDATE); revisar `productosService.updateWithStocksById`; `operacionRepository.ts` consulta `movimientos_stock` aparte en lugar del embed por FK. Verificación: tests de las rutas de stock y del repositorio actualizados y pasando, más el test de integración "Editar el stock mínimo".
+- [x] 7.10 Frontend: ocultar "revertir" en los movimientos con `oms_id` nulo (`useRevertirMovimientoStock`, `OperacionExpandedDetail`) y avisar en la pantalla de stock que editar la cantidad registra un ajuste. Verificación: tests de los componentes actualizados.
 
 ## 8. Nota de crédito
 
-- [ ] 8.1 Migración C: reescribir `rpc_facturacion_finalizar_nc` según la decisión 9 de `design.md`:
+- [x] 8.1 Migración C: reescribir `rpc_facturacion_finalizar_nc` según la decisión 9 de `design.md`:
   - primero cancela lo no entregado (`cantidad_cancelada`);
   - valida que la devolución física no supere lo entregado neto de devoluciones anteriores;
   - crea el AJUSTE `DEVOLUCION_NC` con sus líneas y OMS antes de vincular `operacion_ajuste_id`.
@@ -121,25 +121,25 @@ En todo lo que sigue, "test de integración" significa un test en `src/tests/int
 
 ## 9. Edición y borrado de operaciones
 
-- [ ] 9.1 Migración C: reemplazar `rpc_actualizar_operacion_con_stock` por `rpc_actualizar_operacion(p_operacion_id, p_fecha, p_observaciones)`. En los tipos instantáneos actualiza también la fecha de las OMC. Verificación: tests de integración "Cambiar la fecha de una compra diferida" y "Editar una venta facturada".
-- [ ] 9.2 Backend: `PUT /api/operaciones/[id]` acepta solo `fecha` y `observaciones` (otra clave da 400), `operacionesService.update` usa la RPC nueva y se elimina `findCuentaFinancieraByOperacionId`. También se ajusta `UpdateOperacionInput`. Verificación: tests de la ruta y del servicio, incluido "Intentar editar las líneas".
-- [ ] 9.3 Migración C: simplificar `rpc_borrar_operacion_con_stock` a un `DELETE` de la operación con bloqueo previo, sin bucles ni flags de cleanup. Verificación: tests de integración "Borrar una compra pagada y recibida", "Borrar una operación con pagos", "Borrar una compra recibida", "Borrar una compra ya consumida" y "Borrar una venta facturada".
+- [x] 9.1 Migración C: reemplazar `rpc_actualizar_operacion_con_stock` por `rpc_actualizar_operacion(p_operacion_id, p_fecha, p_observaciones)`. En los tipos instantáneos actualiza también la fecha de las OMC. Verificación: tests de integración "Cambiar la fecha de una compra diferida" y "Editar una venta facturada".
+- [x] 9.2 Backend: `PUT /api/operaciones/[id]` acepta solo `fecha` y `observaciones` (otra clave da 400), `operacionesService.update` usa la RPC nueva y se elimina `findCuentaFinancieraByOperacionId`. También se ajusta `UpdateOperacionInput`. Verificación: tests de la ruta y del servicio, incluido "Intentar editar las líneas".
+- [x] 9.3 Migración C: simplificar `rpc_borrar_operacion_con_stock` a un `DELETE` de la operación con bloqueo previo, sin bucles ni flags de cleanup. Verificación: tests de integración "Borrar una compra pagada y recibida", "Borrar una operación con pagos", "Borrar una compra recibida", "Borrar una compra ya consumida" y "Borrar una venta facturada".
 
 ## 10. Cierre de esquema y permisos
 
-- [ ] 10.1 Migración D: extender el constraint trigger diferido para exigir la tabla hija en todo tipo y la ausencia de líneas en los tipos sin mercadería, y agregar el `CHECK (tipo::text <> 'MOVIMIENTO_CUENTA')`. Verificación: tests de integración "Venta sin cliente", "Transferencia a la misma cuenta" y "Gasto con líneas de mercadería".
-- [ ] 10.2 Migración D: corregir las funciones que no son `SECURITY DEFINER` según el 1.3 y revocar `INSERT`, `UPDATE` y `DELETE` de `anon` y `authenticated` sobre `operaciones`, las hijas, `operaciones_lineas`, OMC, OMS y los dos ledgers. Verificación: tests de integración "Escritura directa del ledger", "Escritura directa del kardex" y "Escritura directa de la cantidad", más que pase la suite completa.
+- [x] 10.1 Migración D: extender el constraint trigger diferido para exigir la tabla hija en todo tipo y la ausencia de líneas en los tipos sin mercadería, y agregar el `CHECK (tipo::text <> 'MOVIMIENTO_CUENTA')`. Verificación: tests de integración "Venta sin cliente", "Transferencia a la misma cuenta" y "Gasto con líneas de mercadería".
+- [x] 10.2 Migración D: corregir las funciones que no son `SECURITY DEFINER` según el 1.3 y revocar `INSERT`, `UPDATE` y `DELETE` de `anon` y `authenticated` sobre `operaciones`, las hijas, `operaciones_lineas`, OMC, OMS y los dos ledgers. Verificación: tests de integración "Escritura directa del ledger", "Escritura directa del kardex" y "Escritura directa de la cantidad", más que pase la suite completa.
 
 ## 11. Integración y entrega
 
-- [ ] 11.1 Correr el diagnóstico sobre una copia de producción con la cadena completa aplicada: las 23 migraciones pendientes más las de este change. Verificación: ninguna invariante devuelve filas; los `NOTICE` del backfill quedan anotados en `IMPLEMENTATION_NOTES.md`.
-- [ ] 11.2 Chequeos estáticos:
+- [x] 11.1 Correr el diagnóstico sobre una copia de producción con la cadena completa aplicada: las 23 migraciones pendientes más las de este change. Verificación: ninguna invariante devuelve filas; los `NOTICE` del backfill quedan anotados en `IMPLEMENTATION_NOTES.md`.
+- [x] 11.2 Chequeos estáticos:
   - `_ledger_insertar` solo aparece en los triggers de OMC;
   - ninguna función vigente contiene `UPDATE public.stocks` salvo `_stock_aplicar_movimiento` y `_lineas_recalcular_stock`;
   - nada en `src/` escribe `cantidad` de `stocks`.
   Verificación: resultado de los `grep` anotado en `IMPLEMENTATION_NOTES.md`.
-- [ ] 11.3 Validación completa: `npx supabase db reset`, `npm run test:integration`, `npm test`, `npx tsc --noEmit`, `npm run lint` y `npm run build`. Los `.test.tsx` se validan con el config local de vitest por el problema de Vite 8, y se reporta el baseline de fallas ajenas. Verificación: todos pasan, salvo el baseline documentado.
-- [ ] 11.4 Escenarios manuales en la app:
+- [x] 11.3 Validación completa: `npx supabase db reset`, `npm run test:integration`, `npm test`, `npx tsc --noEmit`, `npm run lint` y `npm run build`. Los `.test.tsx` se validan con el config local de vitest por el problema de Vite 8, y se reporta el baseline de fallas ajenas. Verificación: todos pasan, salvo el baseline documentado.
+- [x] 11.4 Escenarios manuales en la app:
   - registrar y anular pagos de una compra y de una venta;
   - entrega parcial y su reversión;
   - transferencia e ingreso en el listado de operaciones;
@@ -147,7 +147,7 @@ En todo lo que sigue, "test de integración" significa un test en `src/tests/int
   - repuesto en un arreglo (auto-compra, quitarlo);
   - NC con devolución.
   Verificación: resultado anotado en `IMPLEMENTATION_NOTES.md`.
-- [ ] 11.5 Validar el change con `openspec validate rediseno-operaciones-ledgers --strict`. Verificación: el comando informa que el change es válido.
+- [x] 11.5 Validar el change con `openspec validate rediseno-operaciones-ledgers --strict`. Verificación: el comando informa que el change es válido.
 
 ## Workflow follow-up
 

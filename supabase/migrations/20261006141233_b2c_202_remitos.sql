@@ -199,7 +199,7 @@ BEGIN
     IF TG_TABLE_NAME = 'remitos' THEN
       RAISE EXCEPTION 'Los remitos emitidos no se pueden eliminar' USING ERRCODE = '55000';
     END IF;
-    RAISE EXCEPTION 'Los ítems de un remito emitido no se pueden eliminar' USING ERRCODE = '55000';
+    RAISE EXCEPTION 'Los items de un remito emitido no se pueden eliminar' USING ERRCODE = '55000';
   END IF;
 
   IF TG_TABLE_NAME = 'remitos' THEN
@@ -216,11 +216,11 @@ BEGIN
   END IF;
 
   IF (to_jsonb(NEW) - 'factura_linea_id') IS DISTINCT FROM (to_jsonb(OLD) - 'factura_linea_id') THEN
-    RAISE EXCEPTION 'Los ítems de un remito emitido son inmutables' USING ERRCODE = '55000';
+    RAISE EXCEPTION 'Los items de un remito emitido son inmutables' USING ERRCODE = '55000';
   END IF;
   IF NEW.factura_linea_id IS DISTINCT FROM OLD.factura_linea_id THEN
     IF OLD.factura_linea_id IS NOT NULL OR NEW.factura_linea_id IS NULL THEN
-      RAISE EXCEPTION 'El ítem del remito ya está asociado a una línea de factura' USING ERRCODE = '55000';
+      RAISE EXCEPTION 'El item del remito ya está asociado a una línea de factura' USING ERRCODE = '55000';
     END IF;
     SELECT r.factura_id INTO v_factura_remito FROM public.remitos r WHERE r.id = NEW.remito_id;
     SELECT fl.factura_id INTO v_factura_linea FROM public.facturas_electronicas_lineas fl WHERE fl.id = NEW.factura_linea_id;

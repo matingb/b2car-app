@@ -43,6 +43,7 @@ describe("useRevertirMovimientoStock & helpers", () => {
     created_at: "2026-10-21T14:00:00Z",
     producto_id: "prod-1",
     stock_id: "stock-1",
+    oms_id: "oms-1",
     producto_nombre: "Filtro de Aceite",
   };
 
@@ -103,6 +104,7 @@ describe("useRevertirMovimientoStock & helpers", () => {
       expect(canRevertirMovimiento(movReversion)).toBe(false);
       expect(canRevertirMovimiento({ ...movNormal, revertido: true })).toBe(false);
       expect(canRevertirMovimiento(movNormal, [movNormal, movReversion])).toBe(false);
+      expect(canRevertirMovimiento({ ...movNormal, oms_id: null })).toBe(false);
     });
   });
 

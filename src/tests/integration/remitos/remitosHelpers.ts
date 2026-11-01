@@ -208,20 +208,16 @@ export async function dadaUnaFacturaAutorizadaConLineas(
 
 /** Fixture: operación del tenant de prueba (por defecto, una venta sin líneas). */
 export async function dadaUnaOperacion(tipo: "VENTA" | "COMPRA" = "VENTA"): Promise<string> {
-  const { data, error } = await adminClient
-    .from("operaciones")
-    .insert({ tenant_id: SEED.tenantId, taller_id: SEED.tallerId, tipo })
-    .select("id")
-    .single();
+  const { data, error } = await testClient.rpc("rpc_crear_operacion_con_stock", {
+    p_tipo: tipo,
+    p_taller_id: SEED.tallerId,
+    p_cliente_id: tipo === "VENTA" ? SEED.clienteId : null,
+    p_proveedor_id: tipo === "COMPRA" ? SEED.proveedorId : null,
+    p_lineas: [],
+    p_mover_stock: false,
+  });
   if (error || !data) throw new Error(`dadaUnaOperacion falló: ${error?.message ?? "sin respuesta"}`);
-  if (tipo === "VENTA") {
-    await adminClient.from("operaciones_venta").insert({
-      tenant_id: SEED.tenantId,
-      operacion_id: data.id,
-      cliente_id: SEED.clienteId,
-    });
-  }
-  return data.id;
+  return data as string;
 }
 
 /** Fixture: segundo tenant con su propia configuración fiscal, para pruebas de aislamiento. */

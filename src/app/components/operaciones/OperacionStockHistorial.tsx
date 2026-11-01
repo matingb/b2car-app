@@ -103,7 +103,7 @@ export default function OperacionStockHistorial({
                   </div>
                 </div>
 
-                {onRevertirMovimiento && !isRevertido ? (
+                {onRevertirMovimiento && !isRevertido && Boolean(mov.oms_id) ? (
                   <button
                     type="button"
                     css={styles.btnRevertir}

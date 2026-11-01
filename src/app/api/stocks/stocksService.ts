@@ -90,65 +90,46 @@ export const stocksService = {
   async create(
     supabase: SupabaseClient,
     input: Omit<StockRow, "id" | "tenant_id" | "created_at" | "updated_at">
-  ): Promise<{ data: StockItemRow | null; error: PostgrestError | null }> {
-    const { data, error } = await supabase
-      .from("stocks")
-      .insert([input])
-      .select("*,productos(*)")
-      .single();
-    return { data: (data ?? null) as StockItemRow | null, error };
+  ): Promise<{ data: StockItemRow | null; error: PostgrestError | ServiceError | null }> {
+    const { data: stockId, error } = await supabase.rpc("rpc_crear_stock", {
+      p_taller_id: input.taller_id,
+      p_producto_id: input.producto_id,
+      p_cantidad_inicial: input.cantidad ?? 0,
+      p_stock_minimo: input.stock_minimo ?? 0,
+      p_stock_maximo: input.stock_maximo ?? 0,
+    });
+    if (error || !stockId) return { data: null, error };
+    return this.getById(supabase, stockId as string);
   },
 
-  async upsert(
-    supabase: SupabaseClient,
-    input: Omit<StockRow, "id" | "tenant_id" | "created_at" | "updated_at">
-  ): Promise<{ data: StockItemRow | null; created: boolean; error: PostgrestError | null }> {
-    const { data: existing, error: findError } = await supabase
-      .from("stocks")
-      .select("*")
-      .eq("taller_id", input.taller_id)
-      .eq("producto_id", input.producto_id)
-      .maybeSingle();
-
-    if (findError) return { data: null, created: false, error: findError };
-
-    if (existing) {
-      const { data, error } = await supabase
-        .from("stocks")
-        .update({
-          cantidad: input.cantidad,
-          stock_minimo: input.stock_minimo,
-          stock_maximo: input.stock_maximo,
-        })
-        .eq("id", existing.id)
-        .select("*,productos(*)")
-        .single();
-      return { data: (data ?? null) as StockItemRow | null, created: false, error };
-    }
-
-    const { data, error } = await supabase
-      .from("stocks")
-      .insert([input])
-      .select("*,productos(*)")
-      .single();
-    return { data: (data ?? null) as StockItemRow | null, created: true, error };
-  },
 
   async updateById(
     supabase: SupabaseClient,
     id: string,
     patch: Partial<Pick<StockRow, "cantidad" | "stock_minimo" | "stock_maximo">>
   ): Promise<{ data: StockItemRow | null; error: ServiceError | PostgrestError | null }> {
-    const { data, error } = await supabase
-      .from("stocks")
-      .update(patch)
-      .eq("id", id)
-      .select("*,productos(*)")
-      .maybeSingle();
+    if (patch.cantidad !== undefined) {
+      const { error: adjustError } = await supabase.rpc("rpc_ajustar_stock", {
+        p_stock_id: id,
+        p_cantidad_nueva: patch.cantidad,
+        p_motivo: "Ajuste manual",
+      });
+      if (adjustError) return { data: null, error: toServiceError(adjustError) };
+    }
 
-    if (error) return { data: null, error };
-    if (!data) return { data: null, error: ServiceError.NotFound };
-    return { data: data as StockItemRow, error: null };
+    const limitsPatch: Partial<Pick<StockRow, "stock_minimo" | "stock_maximo">> = {};
+    if (patch.stock_minimo !== undefined) limitsPatch.stock_minimo = patch.stock_minimo;
+    if (patch.stock_maximo !== undefined) limitsPatch.stock_maximo = patch.stock_maximo;
+
+    if (Object.keys(limitsPatch).length > 0) {
+      const { error: updateError } = await supabase
+        .from("stocks")
+        .update(limitsPatch)
+        .eq("id", id);
+      if (updateError) return { data: null, error: updateError };
+    }
+
+    return this.getById(supabase, id);
   },
 
   async deleteById(

@@ -88,21 +88,8 @@ export type CreateOperacionInput = {
 	descripcion?: string | null;
 };
 
-export type UpdateOperacionLineaInput = {
-	stock_id: string;
-	cantidad?: number;
-	monto_unitario?: number;
-	delta_cantidad?: number;
-};
-
 export type UpdateOperacionInput = {
-	tipo?: string;
-	taller_id?: string;
 	fecha?: string;
-	created_at?: string;
-	lineas?: UpdateOperacionLineaInput[];
-	cuenta_financiera_id?: string | null;
-	idempotency_key?: string | null;
 	observaciones?: string | null;
 };
 
@@ -387,63 +374,24 @@ export function createOperacionesService(
 			id: string,
 			input: UpdateOperacionInput
 		): Promise<{ data: OperacionRow | null; error: ServiceError | null }> {
-			const current = await this.getById(supabase, id);
-			if (current.error || !current.data) return { data: null, error: current.error ?? ServiceError.NotFound };
-
-			const currentLineas = Array.isArray(current.data.operaciones_lineas)
-				? current.data.operaciones_lineas
-				: [];
-			const lineas = Array.isArray(input.lineas)
-				? input.lineas
-				: currentLineas;
-			const lineasPayload = lineas.map((linea) => ({
-				stock_id: linea.stock_id,
-				cantidad: linea.cantidad ?? 0,
-				monto_unitario: linea.monto_unitario ?? 0,
-				delta_cantidad: linea.delta_cantidad ?? 0,
-			}));
-			const tipo = input.tipo ?? current.data.tipo;
-			const tallerId = input.taller_id ?? current.data.taller_id;
-			const rawFecha = input.fecha ?? current.data.fecha;
-			const fecha = rawFecha ? toISODateTimeWithCurrentTime(rawFecha) : rawFecha;
-			const esOperacionFinanciera = tipo === "COMPRA" || tipo === "VENTA";
-			const cuentaFueInformada = Object.prototype.hasOwnProperty.call(input, "cuenta_financiera_id");
-			let cuentaFinancieraId = input.cuenta_financiera_id ?? null;
-
-			// Una actualización parcial conserva la cuenta del asiento vigente. Si el
-			// cliente manda null explícitamente, la RPC la rechaza para COMPRA/VENTA.
-			if (esOperacionFinanciera && !cuentaFueInformada) {
-				const { data: movimiento, error: movimientoError } = await repository.findCuentaFinancieraByOperacionId(
-					supabase,
-					id
-				);
-				if (movimientoError) {
-					logger.error("[operacionesService.update] Error obteniendo cuenta financiera:", movimientoError);
-					return { data: null, error: toServiceError(movimientoError) };
-				}
-				cuentaFinancieraId = movimiento?.cuenta_financiera_id ?? null;
-			}
+			const rawFecha = input.fecha;
+			const fecha = rawFecha ? toISODateTimeWithCurrentTime(rawFecha) : null;
+			const observaciones = input.observaciones === undefined ? null : input.observaciones ?? "";
 
 			const { data: updatedId, error: rpcError } = await repository.update(supabase, {
 				p_operacion_id: id,
-				p_tipo: tipo,
-				p_taller_id: tallerId,
-				p_lineas: lineasPayload,
 				p_fecha: fecha,
-				p_cuenta_id: cuentaFinancieraId,
-				p_idempotency_key: input.idempotency_key ?? null,
-				// La RPC conserva la observación con NULL y la borra con texto vacío.
-				p_observaciones: input.observaciones === undefined ? null : input.observaciones ?? "",
+				p_observaciones: observaciones,
 			});
 			if (rpcError || !updatedId) {
-				logger.error("[operacionesService.update] Error en rpc_actualizar_operacion_con_stock:", rpcError);
+				logger.error("[operacionesService.update] Error en rpc_actualizar_operacion:", rpcError);
 				return {
 					data: null,
 					error: toServiceError(rpcError ?? ({ code: "Unknown", message: "No se pudo actualizar la operación" } as PostgrestError)),
 				};
 			}
 
-			return this.getById(supabase, String(updatedId));
+			return this.getById(supabase, id);
 		},
 
 		async deleteById(

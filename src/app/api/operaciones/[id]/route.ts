@@ -162,29 +162,29 @@ export async function PUT(
 	const supabase = await createClient();
 	const { id } = await params;
 
-	const payload: UpdateOperacionRequest | null = await req.json().catch(() => null);
-	if (!payload)
+	const payload: Record<string, unknown> | null = await req.json().catch(() => null);
+	if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
 		return Response.json({ data: null, error: "JSON inválido" } satisfies UpdateOperacionResponse, { status: 400 });
-	if (Object.prototype.hasOwnProperty.call(payload, "arreglo_id")) {
-		return Response.json(
-			{ data: null, error: "arreglo_id no se puede modificar en una operación existente" } satisfies UpdateOperacionResponse,
-			{ status: 400 }
-		);
 	}
-	if (payload.cuenta_financiera_id && !isValidUuid(payload.cuenta_financiera_id)) {
+
+	const allowedKeys = new Set(["fecha", "observaciones"]);
+	const extraKeys = Object.keys(payload).filter((k) => !allowedKeys.has(k));
+	if (extraKeys.length > 0) {
 		return Response.json(
-			{ data: null, error: "cuenta_financiera_id inválida" } satisfies UpdateOperacionResponse,
-			{ status: 400 }
-		);
-	}
-	if (!payload.idempotency_key || !isValidUuid(payload.idempotency_key)) {
-		return Response.json(
-			{ data: null, error: "idempotency_key inválida" } satisfies UpdateOperacionResponse,
+			{ data: null, error: `Claves no permitidas: ${extraKeys.join(", ")}` } satisfies UpdateOperacionResponse,
 			{ status: 400 }
 		);
 	}
 
-	const { data: updated, error } = await operacionesService.update(supabase, id, payload);
+	const updateInput: UpdateOperacionInput = {
+		fecha: typeof payload.fecha === "string" ? payload.fecha : undefined,
+		observaciones:
+			payload.observaciones === null || typeof payload.observaciones === "string"
+				? payload.observaciones
+				: undefined,
+	};
+
+	const { data: updated, error } = await operacionesService.update(supabase, id, updateInput);
 	if (error || !updated) {
 		logger.error("PUT /api/operaciones/[id] - error:", error);
 		const status = error === ServiceError.NotFound ? 404 : 500;

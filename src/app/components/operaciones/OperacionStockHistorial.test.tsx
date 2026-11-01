@@ -8,6 +8,7 @@ describe("OperacionStockHistorial", () => {
   const movimientosMock: OperacionMovimientoStock[] = [
     {
       id: "mov-1",
+      oms_id: "oms-1",
       fecha: "2026-10-27T10:00:00.000Z",
       cantidad: -6,
       saldo_anterior: 20,

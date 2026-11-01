@@ -182,7 +182,7 @@ function StockRow({
           <TallerIdentity taller={taller} configured={configured} status={configured ? status : undefined} />
           <div css={styles.editor}>
             {configured ? renderProgress(levels, stock) : null}
-            {renderFields(draft, setDraft)}
+            {renderFields(draft, setDraft, configured)}
           </div>
           <div css={styles.actions}>
             <Button
@@ -235,7 +235,11 @@ function StockRow({
   );
 }
 
-function renderFields(draft: Draft, setDraft: React.Dispatch<React.SetStateAction<Draft>>) {
+function renderFields(
+  draft: Draft,
+  setDraft: React.Dispatch<React.SetStateAction<Draft>>,
+  isExistingStock?: boolean
+) {
   return (
     <div css={styles.fieldsGrid}>
       <div>
@@ -247,6 +251,11 @@ function renderFields(draft: Draft, setDraft: React.Dispatch<React.SetStateActio
           onValueChange={(next) => setDraft((prev) => ({ ...prev, stockActual: Math.round(next) }))}
           style={styles.input}
         />
+        {isExistingStock ? (
+          <span css={styles.ajusteHelpText}>
+            Editar la cantidad registra un ajuste
+          </span>
+        ) : null}
       </div>
       <div>
         <label css={styles.label}>Mínimo</label>
@@ -546,6 +555,13 @@ const styles = {
     color: COLOR.ICON.DANGER,
     fontSize: 13,
     fontWeight: 600,
+  }),
+  ajusteHelpText: css({
+    display: "block",
+    fontSize: 11,
+    color: COLOR.TEXT.SECONDARY,
+    marginTop: 4,
+    lineHeight: 1.2,
   }),
   empty: css({
     color: COLOR.TEXT.SECONDARY,

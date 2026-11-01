@@ -56,15 +56,16 @@ describe("/api/operaciones/[id]", () => {
 		expect(vi.mocked(operacionesService.update)).not.toHaveBeenCalled();
 	});
 
-	it("PUT actualiza una operación sin tocar el arreglo", async () => {
+	it("PUT actualiza fecha y observaciones y devuelve 200", async () => {
 		vi.mocked(operacionesService.update).mockResolvedValue({
 			data: {
 				id: "op-1",
 				tenant_id: "TEN-1",
 				tipo: "VENTA",
 				taller_id: "t1",
-				fecha: new Date().toISOString(),
+				fecha: "2026-08-01T00:00:00.000Z",
 				created_at: new Date().toISOString(),
+				observaciones: "Nueva nota",
 				operaciones_lineas: [],
 			},
 			error: null,
@@ -74,8 +75,8 @@ describe("/api/operaciones/[id]", () => {
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
-				tipo: "VENTA",
-				idempotency_key: "00000000-0000-4000-8000-000000000001",
+				fecha: "2026-08-01",
+				observaciones: "Nueva nota",
 			}),
 		});
 
@@ -83,10 +84,25 @@ describe("/api/operaciones/[id]", () => {
 
 		expect(res.status).toBe(200);
 		expect(vi.mocked(operacionesService.update)).toHaveBeenCalledWith(expect.anything(), "op-1", {
-			tipo: "VENTA",
-			idempotency_key: "00000000-0000-4000-8000-000000000001",
+			fecha: "2026-08-01",
+			observaciones: "Nueva nota",
 		});
 		expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "TEN-1");
+	});
+
+	it("PUT rechaza intentar editar las líneas con 400", async () => {
+		const req = new NextRequest("http://localhost/api/operaciones/op-1", {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ lineas: [{ stock_id: "s1", cantidad: 5 }] }),
+		});
+
+		const res = await PUT(req, { params: Promise.resolve({ id: "op-1" }) });
+		const body = await res.json();
+
+		expect(res.status).toBe(400);
+		expect(body.error).toContain("lineas");
+		expect(vi.mocked(operacionesService.update)).not.toHaveBeenCalled();
 	});
 
 	it("DELETE devuelve 409 y mensaje claro cuando falla por movimientos financieros inmutables", async () => {

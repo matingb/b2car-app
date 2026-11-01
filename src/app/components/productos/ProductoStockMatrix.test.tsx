@@ -37,4 +37,33 @@ describe("ProductoStockMatrix", () => {
     expect(screen.getByRole("button", { name: "Registrar operación en Taller Centro" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Editar stock de Taller Centro" })).toBeInTheDocument();
   });
+
+  it("muestra advertencia de ajuste al editar la cantidad de un stock configurado", () => {
+    const stock = {
+      id: "S-1",
+      productoId: "P-1",
+      tallerId: "T-1",
+      stockActual: 5,
+      stockMinimo: 1,
+      stockMaximo: 10,
+      ultimaActualizacion: "27/08/2026",
+      historialMovimientos: [],
+    };
+    const talleres = [{ id: "T-1", nombre: "Taller Centro", ubicacion: "Centro" }];
+
+    render(
+      <ProductoStockMatrix
+        productoId="P-1"
+        talleres={talleres}
+        stocks={[stock]}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onRegisterOperation={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar stock de Taller Centro" }));
+
+    expect(screen.getByText("Editar la cantidad registra un ajuste")).toBeInTheDocument();
+  });
 });
