@@ -81,15 +81,6 @@ export default function ProductoFormFields({
             data-testid="producto-form-codigo"
           />
         </div>
-        <div style={styles.field}>
-          <label style={styles.label}>Proveedor</label>
-          <input
-            style={styles.input}
-            value={values.proveedor}
-            onChange={(e) => onChange({ proveedor: e.target.value })}
-            placeholder="Ej: Lubricantes del Sur"
-          />
-        </div>
       </div>
 
       <div css={styles.rowPrices}>
