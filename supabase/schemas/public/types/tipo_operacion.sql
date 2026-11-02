@@ -1,9 +1,0 @@
-CREATE TYPE "public"."tipo_operacion" AS ENUM (
-  'COMPRA',
-  'VENTA',
-  'ASIGNACION_ARREGLO',
-  'AJUSTE',
-  'TRANSFERENCIA',
-  'MOVIMIENTO_CUENTA',
-  'GASTO'
-);
