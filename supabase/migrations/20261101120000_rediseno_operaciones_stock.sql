@@ -238,7 +238,7 @@ BEGIN
   NEW.saldo_posterior := v_saldo_post;
 
   IF v_saldo_post < 0 THEN
-    IF NEW.reversion_de_id IS NOT NULL THEN
+    IF NEW.reversion_de_id IS NOT NULL OR NEW.tipo_movimiento = 'REVERSION' THEN
       RAISE EXCEPTION 'STOCK_INSUFICIENTE: Stock insuficiente para revertir la operación' USING ERRCODE = '55005';
     ELSE
       RAISE EXCEPTION 'STOCK_INSUFICIENTE' USING ERRCODE = '55002';
@@ -478,7 +478,13 @@ SET search_path TO 'public'
 AS $function$
 DECLARE
   v_orig record;
+  v_stock record;
 BEGIN
+  IF current_setting('app.stock_tenant_cleanup', true) = 'on'
+     OR current_setting('app.stock_cleanup', true) = 'on' THEN
+    RETURN OLD;
+  END IF;
+
   SELECT *
   INTO v_orig
   FROM public.movimientos_stock m
@@ -523,6 +529,48 @@ BEGIN
       OLD.created_by,
       v_orig.id
     );
+  ELSIF NOT EXISTS (
+    SELECT 1 FROM public.movimientos_stock m WHERE m.oms_id = OLD.id
+  ) THEN
+    -- OMS migrado previo al Kardex: su impacto ya está reflejado en stocks.cantidad
+    SELECT s.taller_id, s.producto_id
+    INTO v_stock
+    FROM public.stocks s
+    WHERE s.id = OLD.stock_id;
+
+    IF FOUND THEN
+      INSERT INTO public.movimientos_stock (
+        tenant_id,
+        taller_id,
+        producto_id,
+        stock_id,
+        operacion_id,
+        oms_id,
+        tipo_movimiento,
+        cantidad,
+        saldo_anterior,
+        saldo_posterior,
+        fecha,
+        motivo,
+        created_by,
+        reversion_de_id
+      ) VALUES (
+        OLD.tenant_id,
+        v_stock.taller_id,
+        v_stock.producto_id,
+        OLD.stock_id,
+        OLD.operacion_id,
+        OLD.id,
+        'REVERSION',
+        -OLD.cantidad,
+        0,
+        0,
+        now(),
+        COALESCE(OLD.motivo, 'Reversión de impacto de stock'),
+        OLD.created_by,
+        NULL
+      );
+    END IF;
   END IF;
 
   IF EXISTS (SELECT 1 FROM public.operaciones_lineas WHERE id = OLD.operacion_linea_id) THEN
@@ -561,6 +609,10 @@ SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
 BEGIN
+  IF current_setting('app.stock_tenant_cleanup', true) = 'on' THEN
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+  END IF;
+
   IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
     PERFORM public._sync_stock_derivados(NEW.stock_id);
     IF TG_OP = 'UPDATE' AND OLD.stock_id IS DISTINCT FROM NEW.stock_id THEN
@@ -1476,7 +1528,7 @@ $function$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_ajustar_stock(uuid, integer, text, uuid) TO authenticated, service_role, postgres;
 
--- 3.10 eliminar_tenant: borra OMS antes que las líneas
+-- 3.10 eliminar_tenant: borra OMS y ledgers antes que líneas/operaciones con flags de cleanup
 CREATE OR REPLACE FUNCTION public.eliminar_tenant(p_tenant_id uuid)
 RETURNS void
 LANGUAGE plpgsql
@@ -1493,29 +1545,25 @@ BEGIN
     RAISE EXCEPTION 'No existe el tenant %', p_tenant_id USING ERRCODE = 'P0002';
   END IF;
 
+  PERFORM set_config('app.finanzas_tenant_cleanup', 'on', true);
+  PERFORM set_config('app.stock_tenant_cleanup', 'on', true);
+  PERFORM set_config('app.stock_cleanup', 'on', true);
+
   DELETE FROM public.empleado_salarios WHERE tenant_id = p_tenant_id;
   DELETE FROM public.detalle_form_custom WHERE tenant_id = p_tenant_id;
   DELETE FROM public.detalle_arreglo WHERE tenant_id = p_tenant_id;
 
-  -- Borrar OMS antes que las líneas
+  -- Borrar OMS, OMC y ledgers inmutables antes que líneas, operaciones, stocks y cuentas
   DELETE FROM public.operaciones_movimiento_stock WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.movimientos_stock WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.operaciones_movimiento_cuenta WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.movimientos_financieros WHERE tenant_id = p_tenant_id;
 
   DELETE FROM public.operaciones_lineas AS ol
   USING public.operaciones AS o
   WHERE ol.operacion_id = o.id AND o.tenant_id = p_tenant_id;
 
-  DELETE FROM public.operaciones_asignacion_arreglo AS oaa
-  USING public.operaciones AS o
-  WHERE oaa.operacion_id = o.id AND o.tenant_id = p_tenant_id;
-
-  DELETE FROM public.turnos WHERE tenant_id = p_tenant_id;
-  DELETE FROM public.formularios WHERE tenant_id = p_tenant_id;
-  DELETE FROM public.arreglos WHERE tenant_id = p_tenant_id;
-  DELETE FROM public.empleados WHERE tenant_id = p_tenant_id;
-  DELETE FROM public.vehiculos WHERE tenant_id = p_tenant_id;
-  DELETE FROM public.clientes WHERE tenant_id = p_tenant_id;
-
-  DELETE FROM public.operaciones_movimiento_cuenta WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.operaciones_asignacion_arreglo WHERE tenant_id = p_tenant_id;
   DELETE FROM public.operaciones_gasto WHERE tenant_id = p_tenant_id;
   DELETE FROM public.operaciones_ingreso WHERE tenant_id = p_tenant_id;
   DELETE FROM public.operaciones_transferencia WHERE tenant_id = p_tenant_id;
@@ -1526,10 +1574,37 @@ BEGIN
   DELETE FROM public.operaciones_cobro_arreglo WHERE tenant_id = p_tenant_id;
   DELETE FROM public.operaciones WHERE tenant_id = p_tenant_id;
 
+  DELETE FROM public.turnos WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.stocks WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.arreglos WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.empleados WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.vehiculos WHERE tenant_id = p_tenant_id;
+
+  DELETE FROM public.representantes AS r
+  USING public.empresas AS e, public.clientes AS c
+  WHERE r.empresa_id = e.id
+    AND e.id = c.id
+    AND c.tenant_id = p_tenant_id;
+
+  DELETE FROM public.empresas AS e
+  USING public.clientes AS c
+  WHERE e.id = c.id
+    AND c.tenant_id = p_tenant_id;
+
+  DELETE FROM public.particulares AS p
+  USING public.clientes AS c
+  WHERE p.id = c.id
+    AND c.tenant_id = p_tenant_id;
+
+  DELETE FROM public.clientes WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.productos_proveedores WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.proveedores WHERE tenant_id = p_tenant_id;
   DELETE FROM public.cuentas_financieras WHERE tenant_id = p_tenant_id;
   DELETE FROM public.categorias_arreglo WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.formularios WHERE tenant_id = p_tenant_id;
   DELETE FROM public.talleres WHERE tenant_id = p_tenant_id;
-  DELETE FROM public.user_roles WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.productos WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.tenant_members WHERE tenant_id = p_tenant_id;
   DELETE FROM public.tenants WHERE id = p_tenant_id;
 END;
 $$;

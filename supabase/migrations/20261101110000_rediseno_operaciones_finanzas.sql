@@ -595,6 +595,10 @@ AS $$
 DECLARE
   v_asiento_vigente record;
 BEGIN
+  IF current_setting('app.finanzas_tenant_cleanup', true) = 'on' THEN
+    RETURN NULL;
+  END IF;
+
   -- Busca el asiento vigente de OLD.id (que no haya sido revertido)
   SELECT mf.id, mf.importe, mf.cuenta_financiera_id
   INTO v_asiento_vigente
@@ -705,6 +709,10 @@ DECLARE
   v_tipo public.tipo_operacion;
   v_actual numeric;
 BEGIN
+  IF current_setting('app.finanzas_tenant_cleanup', true) = 'on' THEN
+    RETURN NULL;
+  END IF;
+
   v_op_id := COALESCE(NEW.operacion_id, OLD.operacion_id);
 
   SELECT tipo, total_pagado INTO v_tipo, v_actual
@@ -2529,13 +2537,13 @@ AS $function$
     ) AS lat ON true
   ),
   gastos_eventuales AS (
-    SELECT date_trunc('day', o.fecha AT TIME ZONE 'America/Argentina/Buenos_Aires') AS dia,
+    SELECT date_trunc('day', omc.fecha AT TIME ZONE 'America/Argentina/Buenos_Aires') AS dia,
            COALESCE(SUM(abs(omc.importe)), 0)::numeric AS eventual
     FROM public.operaciones_movimiento_cuenta AS omc
     JOIN public.operaciones AS o ON o.id = omc.operacion_id
     WHERE o.tipo = 'GASTO'::public.tipo_operacion
       AND omc.tenant_id = (SELECT public.current_tenant_id())
-      AND o.fecha >= p_from AND o.fecha < p_to
+      AND omc.fecha >= p_from AND omc.fecha < p_to
       AND (p_taller_id IS NULL OR o.taller_id = p_taller_id OR o.taller_id IS NULL)
     GROUP BY 1
   )
@@ -2584,19 +2592,37 @@ AS $function$
     m.created_at,
     m.operacion_id,
     COALESCE(o.tipo::text, 'MOVIMIENTO') AS tipo,
-    COALESCE(
-      omc.descripcion,
-      og.descripcion,
-      oi.concepto,
-      CASE
-        WHEN o.tipo = 'VENTA'::public.tipo_operacion THEN 'Cobro de venta'
-        WHEN o.tipo = 'COMPRA'::public.tipo_operacion THEN 'Pago de compra'
-        WHEN o.tipo = 'COBRO_ARREGLO'::public.tipo_operacion THEN 'Cobro de arreglo'
-        WHEN o.tipo = 'TRANSFERENCIA'::public.tipo_operacion THEN 'Transferencia entre cuentas'
-        WHEN o.tipo = 'APERTURA_CUENTA'::public.tipo_operacion THEN 'Apertura de cuenta'
-        ELSE o.observaciones
-      END
-    ) AS descripcion,
+    CASE
+      WHEN m.reversion_de_id IS NOT NULL THEN
+        'Anulación — ' || COALESCE(
+          omc.descripcion,
+          og.descripcion,
+          oi.concepto,
+          CASE
+            WHEN o.tipo = 'VENTA'::public.tipo_operacion THEN 'Cobro de venta'
+            WHEN o.tipo = 'COMPRA'::public.tipo_operacion THEN 'Pago de compra'
+            WHEN o.tipo = 'COBRO_ARREGLO'::public.tipo_operacion THEN 'Cobro de arreglo'
+            WHEN o.tipo = 'TRANSFERENCIA'::public.tipo_operacion THEN 'Transferencia entre cuentas'
+            WHEN o.tipo = 'APERTURA_CUENTA'::public.tipo_operacion THEN 'Apertura de cuenta'
+            ELSE o.observaciones
+          END,
+          'movimiento'
+        )
+      ELSE
+        COALESCE(
+          omc.descripcion,
+          og.descripcion,
+          oi.concepto,
+          CASE
+            WHEN o.tipo = 'VENTA'::public.tipo_operacion THEN 'Cobro de venta'
+            WHEN o.tipo = 'COMPRA'::public.tipo_operacion THEN 'Pago de compra'
+            WHEN o.tipo = 'COBRO_ARREGLO'::public.tipo_operacion THEN 'Cobro de arreglo'
+            WHEN o.tipo = 'TRANSFERENCIA'::public.tipo_operacion THEN 'Transferencia entre cuentas'
+            WHEN o.tipo = 'APERTURA_CUENTA'::public.tipo_operacion THEN 'Apertura de cuenta'
+            ELSE o.observaciones
+          END
+        )
+    END AS descripcion,
     og.categoria_gasto,
     COALESCE(oca.arreglo_id, oaa.arreglo_id) AS arreglo_id
   FROM public.movimientos_financieros AS m
