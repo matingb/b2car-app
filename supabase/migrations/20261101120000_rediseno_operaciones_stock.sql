@@ -667,7 +667,6 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_operacion_con_stock (
 )
   RETURNS uuid
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -805,8 +804,14 @@ BEGIN
         );
       END IF;
     END LOOP;
-  ELSIF p_cuenta_id IS NOT NULL AND (p_monto_inicial IS NOT NULL OR v_monto_total > 0) THEN
-    v_total_pagos := COALESCE(p_monto_inicial, v_monto_total);
+  ELSIF p_cuenta_id IS NOT NULL
+        AND COALESCE(upper(p_estado_pago), '') <> 'PENDIENTE'
+        AND (p_monto_inicial IS NOT NULL OR v_monto_total > 0) THEN
+    IF upper(p_estado_pago) = 'PARCIAL' THEN
+      v_total_pagos := COALESCE(p_monto_inicial, 0);
+    ELSE
+      v_total_pagos := COALESCE(p_monto_inicial, v_monto_total);
+    END IF;
     IF v_total_pagos > 0 THEN
       INSERT INTO public.operaciones_movimiento_cuenta (
         tenant_id, operacion_id, cuenta_id, importe, fecha, descripcion, idempotency_key
@@ -834,7 +839,6 @@ CREATE OR REPLACE FUNCTION public.rpc_confirmar_stock_operacion (
 )
   RETURNS jsonb
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -966,7 +970,6 @@ CREATE OR REPLACE FUNCTION public.rpc_revertir_movimiento_stock_operacion (
 )
   RETURNS jsonb
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1054,7 +1057,6 @@ CREATE OR REPLACE FUNCTION public.rpc_set_asignacion_arreglo_linea (
 )
   RETURNS uuid
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1179,7 +1181,6 @@ CREATE OR REPLACE FUNCTION public.rpc_delete_asignacion_arreglo_linea (
 )
   RETURNS uuid
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1230,7 +1231,6 @@ CREATE OR REPLACE FUNCTION public.rpc_asignar_repuesto_existente_con_compra(
 )
 RETURNS uuid
 LANGUAGE plpgsql
-SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
@@ -1326,7 +1326,6 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_producto_inline_para_arreglo(
 )
 RETURNS uuid
 LANGUAGE plpgsql
-SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
@@ -1403,7 +1402,6 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_stock (
 )
   RETURNS uuid
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1466,7 +1464,6 @@ CREATE OR REPLACE FUNCTION public.rpc_ajustar_stock (
 )
   RETURNS jsonb
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1902,7 +1899,6 @@ CREATE OR REPLACE FUNCTION public.rpc_actualizar_operacion (
 )
   RETURNS jsonb
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1958,7 +1954,6 @@ CREATE OR REPLACE FUNCTION public.rpc_borrar_operacion_con_stock (
 )
   RETURNS boolean
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE

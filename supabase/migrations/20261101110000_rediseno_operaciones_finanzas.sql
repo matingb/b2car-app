@@ -534,6 +534,12 @@ BEGIN
     RAISE EXCEPTION 'Tenant de OMC (%) no coincide con la operación (%)', NEW.tenant_id, v_op.tenant_id USING ERRCODE = '22023';
   END IF;
 
+  PERFORM public._finanzas_exigir_cuenta(
+    NEW.cuenta_id,
+    NEW.tenant_id,
+    (TG_OP = 'INSERT' OR NEW.cuenta_id IS DISTINCT FROM OLD.cuenta_id)
+  );
+
   NEW.fecha := COALESCE(NEW.fecha, v_op.fecha, now());
 
   -- Rechazar OMC sobre ASIGNACION_ARREGLO y AJUSTE
@@ -564,6 +570,8 @@ DROP TRIGGER IF EXISTS omc_validar ON public.operaciones_movimiento_cuenta;
 CREATE TRIGGER omc_validar
   BEFORE INSERT OR UPDATE ON public.operaciones_movimiento_cuenta
   FOR EACH ROW EXECUTE FUNCTION public._omc_validar();
+
+GRANT EXECUTE ON FUNCTION public._finanzas_exigir_cuenta(uuid, uuid, boolean) TO authenticated, service_role, postgres;
 
 -- 6.3. Triggers _omc_after_insert/update/delete
 CREATE OR REPLACE FUNCTION public._omc_after_insert()
@@ -1009,7 +1017,6 @@ CREATE OR REPLACE FUNCTION public.rpc_registrar_pago_operacion (
 )
   RETURNS jsonb
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1144,7 +1151,6 @@ CREATE OR REPLACE FUNCTION public.rpc_finanzas_anular_pago_operacion (
 )
   RETURNS jsonb
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1226,7 +1232,6 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_operacion_gasto (
 )
   RETURNS uuid
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1375,7 +1380,6 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_operacion_con_stock (
 )
   RETURNS uuid
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1623,7 +1627,6 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_movimiento_cuenta (
 )
   RETURNS uuid
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1766,7 +1769,6 @@ CREATE OR REPLACE FUNCTION public.rpc_actualizar_movimiento_cuenta (
 )
   RETURNS uuid
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1907,7 +1909,6 @@ CREATE OR REPLACE FUNCTION public.rpc_eliminar_movimiento_cuenta (
 )
   RETURNS boolean
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1991,7 +1992,7 @@ CREATE OR REPLACE FUNCTION public.rpc_finanzas_cobrar_arreglo(
   p_idempotency_key uuid        DEFAULT NULL,
   p_pagos           jsonb       DEFAULT NULL
 )
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+RETURNS jsonb LANGUAGE plpgsql SET search_path = '' AS $$
 DECLARE
   v_tenant_id            uuid    := public.current_tenant_id();
   v_arreglo              record;
@@ -2128,7 +2129,6 @@ CREATE OR REPLACE FUNCTION public.rpc_finanzas_anular_cobro_arreglo(
 )
 RETURNS jsonb
 LANGUAGE plpgsql
-SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
@@ -2796,7 +2796,6 @@ CREATE OR REPLACE FUNCTION public.rpc_borrar_operacion_con_stock (
 )
   RETURNS boolean
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -2946,7 +2945,6 @@ CREATE OR REPLACE FUNCTION public.rpc_borrar_operacion_completa (
 )
   RETURNS jsonb
   LANGUAGE plpgsql
-  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
