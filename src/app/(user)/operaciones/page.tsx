@@ -88,6 +88,11 @@ const tipoConfig: Record<
         icon: <WalletCards size={18} />,
         color: COLOR.SEMANTIC.INFO,
     },
+    AJUSTE_FINANCIERO: {
+        label: "Ajuste financiero",
+        icon: <SlidersHorizontal size={18} />,
+        color: COLOR.SEMANTIC.INFO,
+    },
     TRANSFERENCIA: {
         label: "Transferencia",
         icon: <ArrowLeftRight size={18} />,
@@ -106,7 +111,7 @@ function shortId(value?: string | null) {
 }
 
 function getTotals(operacion: Operacion) {
-    if (["GASTO", "COBRO_ARREGLO", "INGRESO", "APERTURA_CUENTA", "TRANSFERENCIA", "MOVIMIENTO_CUENTA"].includes(operacion.tipo)) {
+    if (["GASTO", "COBRO_ARREGLO", "INGRESO", "APERTURA_CUENTA", "AJUSTE_FINANCIERO", "TRANSFERENCIA", "MOVIMIENTO_CUENTA"].includes(operacion.tipo)) {
         return { totalLineas: 0, totalMonto: Number(operacion.monto) || 0 };
     }
     const totalLineas = operacion.lineas?.length ?? 0;

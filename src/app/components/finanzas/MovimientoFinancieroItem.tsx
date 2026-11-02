@@ -25,6 +25,7 @@ type Props = {
 
 const LABELS: Record<string, string> = {
   APERTURA_CUENTA: "Saldo inicial",
+  AJUSTE_FINANCIERO: "Ajuste financiero",
   GASTO: "Gasto",
   INGRESO: "Ingreso manual",
   COBRO_ARREGLO: "Cobro de arreglo",

@@ -56,6 +56,12 @@ Las migraciones de este change corren **después** de todas ellas, sobre datos d
 
 ## Goals / Non-Goals
 
+**Decisiones de revisión de producción (2026-11-01).** Se conserva el diseño de RPCs de escritura `SECURITY DEFINER`, con referencias calificadas, validaciones de tenant/permisos y sin escritura directa de `authenticated` sobre documentos, OMC, OMS ni ledgers. Cliente y proveedor son opcionales en ventas y compras nuevas e históricas; la fila hija sigue siendo obligatoria. Producción llega a `20261017100000` y todavía no tiene kardex: las migraciones intermedias crean sus aperturas y completan las cantidades cumplidas históricas.
+
+La migración B regulariza exclusivamente compras/ventas históricas que el backfill anterior considera totalmente pagadas, sin OMC ni asiento financiero: una OMC por el monto pactado con el signo del documento, en la favorita activa del tenant o su primera activa por `created_at, id`. En esa misma cuenta se crea un documento `AJUSTE_FINANCIERO` con una OMC por el opuesto de la suma firmada de los pagos regularizados del tenant; si el neto es cero no se crea ajuste. Ambas partes usan la fecha del corte y una transacción, no se agregan marcas persistentes y se verifica el saldo antes/después. El ajuste es un documento sin mercadería, con su hija 1:1 y cuenta; admite ambos signos y es neutro en estadísticas comerciales y cuentas corrientes. La anulación posterior de un pago histórico tiene el comportamiento financiero normal; el ajuste agregado pertenece al corte y no se recalcula automáticamente.
+
+El backfill financiero reconstruye relaciones de reversión antes de habilitar los triggers, preservando importes y saldos; el asiento vigente excluye contraasientos y originales ya revertidos. Las NC obtienen las cantidades acreditadas desde sus líneas fiscales y la correspondencia con la factura original, no desde las devoluciones físicas.
+
 **Goals:**
 - Que los ledgers (`movimientos_financieros`, `movimientos_stock`) y los derivados los escriban **solo triggers**. Las RPCs escriben documentos, tablas hijas, OMC y OMS.
 - Revocar la escritura directa de `authenticated` sobre los ledgers, OMC, OMS, líneas, operaciones y tablas hijas.
@@ -74,8 +80,8 @@ Las migraciones de este change corren **después** de todas ellas, sobre datos d
 
 | tipo | tabla hija | columnas propias |
 |---|---|---|
-| VENTA | `operaciones_venta` | `cliente_id` (existe) |
-| COMPRA | `operaciones_compra` | `proveedor_id` (existe) |
+| VENTA | `operaciones_venta` | `cliente_id` nullable (existe) |
+| COMPRA | `operaciones_compra` | `proveedor_id` nullable (existe) |
 | GASTO | `operaciones_gasto` | `categoria_gasto`, `descripcion` (existe). Se le agrega el `CHECK` de categorías que hoy está en OMC |
 | ASIGNACION_ARREGLO | `operaciones_asignacion_arreglo` | `arreglo_id` (existe; se le agregan `tenant_id` y `created_at`) |
 | COBRO_ARREGLO | `operaciones_cobro_arreglo` | `arreglo_id` (existe) |
@@ -83,6 +89,7 @@ Las migraciones de este change corren **después** de todas ellas, sobre datos d
 | INGRESO | **`operaciones_ingreso`** (nueva) | `cuenta_id` y `concepto` |
 | TRANSFERENCIA | **`operaciones_transferencia`** (nueva) | `cuenta_origen_id` y `cuenta_destino_id`, con `CHECK` de que sean distintas |
 | APERTURA_CUENTA | **`operaciones_apertura_cuenta`** (nueva) | `cuenta_id` |
+| AJUSTE_FINANCIERO | **`operaciones_ajuste_financiero`** (nueva) | `cuenta_id`, `descripcion` opcional |
 
 Todas comparten forma: PK `operacion_id` con FK `ON DELETE CASCADE` a `operaciones`, `tenant_id`, `created_at`, RLS con SELECT por `current_tenant_id()` y grants explícitos. La escritura pasa solo por RPCs `SECURITY DEFINER`.
 
@@ -91,7 +98,7 @@ Todas comparten forma: PK `operacion_id` con FK `ON DELETE CASCADE` a `operacion
 - *Alternativa descartada:* confiar en las RPCs. No alcanza mientras queden grants directos, y la verificación diferida es barata.
 
 **Enum `tipo_operacion`.**
-- Se agregan `INGRESO`, `APERTURA_CUENTA` y `COBRO_ARREGLO` en una **migración propia y previa**. Postgres no permite usar un valor de enum en la misma transacción en la que se agrega.
+- Se agregan `INGRESO`, `APERTURA_CUENTA`, `COBRO_ARREGLO` y `AJUSTE_FINANCIERO` en una **migración propia y previa**. Postgres no permite usar un valor de enum en la misma transacción en la que se agrega.
 - `MOVIMIENTO_CUENTA` queda en el enum, porque Postgres no permite quitar valores. Un `CHECK (tipo::text <> 'MOVIMIENTO_CUENTA')`, agregado después del backfill, impide usarlo.
 - La constraint `operaciones_taller_requerido` pasa a exigir taller si y solo si el tipo mueve mercadería: COMPRA, VENTA, ASIGNACION_ARREGLO y AJUSTE.
 
@@ -422,3 +429,9 @@ Corre dentro de las migraciones. Durante el bloque se deshabilitan los triggers 
 
 - **Etiqueta del estado de stock de una venta con unidades canceladas por NC.** Por defecto queda `ENTREGADO`, que significa "sin pendientes". Si después se quiere distinguirla, sería un valor nuevo de `estado_stock_operacion`, sin impacto en las specs.
 - **Pedir el motivo al editar la cantidad de un stock en la UI.** Por defecto el motivo es opcional y se guarda un texto genérico.
+
+### Autorización y procedencia de notas de crédito
+
+Las RPCs públicas validan el permiso de la acción. La compra automática de repuestos reutiliza `_crear_operacion_con_stock`, un helper privado sin EXECUTE para authenticated, después de validar arreglo, taller y permiso `arreglos:repuestos:comprar`. Así el rol operativo conserva esa acción sin recibir `operaciones:edit` ni acceso directo a documentos.
+
+La cantidad fiscal de una NC no representa necesariamente unidades de mercadería. Las unidades completas acreditadas se calculan proporcionalmente al importe original con IVA, usando su ordinal y source_id, también en snapshots simplificados. Primero se descuentan las unidades que se devuelven físicamente y se cancela el resto hasta el pendiente de la línea. Un concepto propio no cancela unidades. La reserva previa a autorizar y la disponibilidad mostrada usan cantidad_cumplida menos devoluciones/reservas anteriores; la finalización vuelve a comprobar el límite y es idempotente.

@@ -59,6 +59,11 @@ export const tipoConfig: Record<
     icon: <WalletCards size={18} />,
     color: COLOR.SEMANTIC.INFO,
   },
+  AJUSTE_FINANCIERO: {
+    label: "Ajuste financiero",
+    icon: <SlidersHorizontal size={18} />,
+    color: COLOR.SEMANTIC.INFO,
+  },
   TRANSFERENCIA: {
     label: "Transferencia",
     icon: <ArrowLeftRight size={18} />,
@@ -78,6 +83,7 @@ export function getTotals(operacion: Operacion) {
       "COBRO_ARREGLO",
       "INGRESO",
       "APERTURA_CUENTA",
+      "AJUSTE_FINANCIERO",
       "TRANSFERENCIA",
       "MOVIMIENTO_CUENTA",
     ].includes(operacion.tipo)
@@ -163,6 +169,7 @@ export function useOperacionDetalle({
     "COBRO_ARREGLO",
     "INGRESO",
     "APERTURA_CUENTA",
+    "AJUSTE_FINANCIERO",
     "TRANSFERENCIA",
     "MOVIMIENTO_CUENTA",
   ].includes(operacion.tipo);

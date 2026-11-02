@@ -2375,6 +2375,10 @@ export async function getDevolucionesDisponibles(tenantId: string, facturaId: st
   }
   if (!normalizedOrigins.length) return { origenTipo, procedenciaVerificada: true, advertencia: null, items: [] };
   const lineIds = normalizedOrigins.map((origin) => origin.operacion_linea_id);
+  const { data: fulfilledLines, error: fulfilledError } = await supabase.from("operaciones_lineas")
+    .select("id,cantidad_cumplida").in("id", lineIds);
+  if (fulfilledError) throw new Error("No se pudieron consultar las unidades entregadas");
+  const fulfilledByLine = new Map((fulfilledLines ?? []).map((line) => [String(line.id), number(line.cantidad_cumplida)]));
   const { data: reservations, error: reservationError } = await supabase.from("facturacion_nc_devoluciones")
     .select("nota_credito_id,operacion_linea_id,cantidad").in("operacion_linea_id", lineIds);
   if (reservationError) throw new Error("No se pudo consultar la disponibilidad actual de devoluciones");
@@ -2405,7 +2409,7 @@ export async function getDevolucionesDisponibles(tenantId: string, facturaId: st
       vendido: origin.cantidad_original,
       devuelto,
       reservado,
-      restante: Math.max(0, origin.cantidad_original - devuelto - reservado),
+      restante: Math.max(0, Math.min(origin.cantidad_original, fulfilledByLine.get(origin.operacion_linea_id) ?? 0) - devuelto - reservado),
     };
   });
   return { origenTipo, procedenciaVerificada: true, advertencia: null, items };

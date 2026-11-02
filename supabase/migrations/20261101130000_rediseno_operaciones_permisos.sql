@@ -27,14 +27,9 @@ DROP TRIGGER IF EXISTS trg_apertura_validar_instantanea ON public.operaciones_ap
 DROP TRIGGER IF EXISTS trg_cobro_arreglo_validar_instantanea ON public.operaciones_cobro_arreglo;
 DROP FUNCTION IF EXISTS public._operacion_validar_instantanea();
 
-CREATE OR REPLACE FUNCTION public._operacion_validar_documento()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
+CREATE OR REPLACE FUNCTION public._operacion_validar_documento_id(v_op_id uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
-  v_op_id uuid;
   v_op record;
   v_omc_count integer;
   v_omc_sum numeric;
@@ -43,31 +38,30 @@ DECLARE
   v_hija_apertura record;
   v_omc_rec record;
 BEGIN
-  IF TG_TABLE_NAME = 'operaciones' THEN
-    IF TG_OP = 'DELETE' THEN
-      v_op_id := OLD.id;
-    ELSE
-      v_op_id := NEW.id;
-    END IF;
-  ELSE
-    IF TG_OP = 'DELETE' THEN
-      v_op_id := OLD.operacion_id;
-    ELSE
-      v_op_id := NEW.operacion_id;
-    END IF;
-  END IF;
-
-  IF v_op_id IS NULL THEN
-    RETURN NULL;
-  END IF;
-
   SELECT id, tenant_id, taller_id, tipo, monto_total INTO v_op
   FROM public.operaciones
   WHERE id = v_op_id;
 
   -- Si la operación fue eliminada en cascada en la misma transacción, finalizar
   IF NOT FOUND THEN
-    RETURN NULL;
+    RETURN;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM (
+      SELECT 'COMPRA' AS tipo FROM public.operaciones_compra WHERE operacion_id = v_op_id
+      UNION ALL SELECT 'VENTA' FROM public.operaciones_venta WHERE operacion_id = v_op_id
+      UNION ALL SELECT 'GASTO' FROM public.operaciones_gasto WHERE operacion_id = v_op_id
+      UNION ALL SELECT 'ASIGNACION_ARREGLO' FROM public.operaciones_asignacion_arreglo WHERE operacion_id = v_op_id
+      UNION ALL SELECT 'COBRO_ARREGLO' FROM public.operaciones_cobro_arreglo WHERE operacion_id = v_op_id
+      UNION ALL SELECT 'AJUSTE' FROM public.operaciones_ajuste WHERE operacion_id = v_op_id
+      UNION ALL SELECT 'INGRESO' FROM public.operaciones_ingreso WHERE operacion_id = v_op_id
+      UNION ALL SELECT 'TRANSFERENCIA' FROM public.operaciones_transferencia WHERE operacion_id = v_op_id
+      UNION ALL SELECT 'APERTURA_CUENTA' FROM public.operaciones_apertura_cuenta WHERE operacion_id = v_op_id
+      UNION ALL SELECT 'AJUSTE_FINANCIERO' FROM public.operaciones_ajuste_financiero WHERE operacion_id = v_op_id
+    ) h HAVING count(*) = 1 AND bool_and(h.tipo = v_op.tipo::text)
+  ) THEN
+    RAISE EXCEPTION 'Operación % requiere exactamente una hija de tipo %', v_op_id, v_op.tipo USING ERRCODE = '22023';
   END IF;
 
   -- 0. Coherencia de tenant en taller y líneas de mercadería
@@ -82,7 +76,9 @@ BEGIN
     FROM public.operaciones_lineas ol
     LEFT JOIN public.stocks s ON s.id = ol.stock_id
     WHERE ol.operacion_id = v_op_id
-      AND (s.id IS NULL OR s.tenant_id IS DISTINCT FROM v_op.tenant_id OR (v_op.taller_id IS NOT NULL AND s.taller_id IS DISTINCT FROM v_op.taller_id))
+      AND (s.id IS NULL OR s.tenant_id IS DISTINCT FROM v_op.tenant_id OR (v_op.taller_id IS NOT NULL AND s.taller_id IS DISTINCT FROM v_op.taller_id)
+        OR (ol.categoria_arreglo_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.categorias_arreglo ca WHERE ca.id = ol.categoria_arreglo_id AND ca.tenant_id = v_op.tenant_id))
+        OR (ol.empleado_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.empleados e WHERE e.id = ol.empleado_id AND e.tenant_id = v_op.tenant_id)))
   ) THEN
     RAISE EXCEPTION 'Línea de mercadería con stock ajeno al tenant o taller de la operación %', v_op_id USING ERRCODE = '22023';
   END IF;
@@ -92,7 +88,7 @@ BEGIN
                    'INGRESO'::public.tipo_operacion,
                    'TRANSFERENCIA'::public.tipo_operacion,
                    'APERTURA_CUENTA'::public.tipo_operacion,
-                   'COBRO_ARREGLO'::public.tipo_operacion) THEN
+                   'COBRO_ARREGLO'::public.tipo_operacion, 'AJUSTE_FINANCIERO'::public.tipo_operacion) THEN
     IF EXISTS (SELECT 1 FROM public.operaciones_lineas WHERE operacion_id = v_op_id) THEN
       RAISE EXCEPTION 'Operación % de tipo % no puede tener líneas de mercadería', v_op_id, v_op.tipo USING ERRCODE = '22023';
     END IF;
@@ -180,6 +176,19 @@ BEGIN
       RAISE EXCEPTION 'OMC de APERTURA_CUENTA no coincide con la cuenta o el monto de la operación' USING ERRCODE = '22023';
     END IF;
 
+  ELSIF v_op.tipo = 'AJUSTE_FINANCIERO'::public.tipo_operacion THEN
+    SELECT * INTO v_hija_apertura FROM public.operaciones_ajuste_financiero
+    WHERE operacion_id = v_op_id AND tenant_id = v_op.tenant_id;
+    IF NOT FOUND OR NOT EXISTS (SELECT 1 FROM public.cuentas_financieras c
+      WHERE c.id = v_hija_apertura.cuenta_id AND c.tenant_id = v_op.tenant_id) THEN
+      RAISE EXCEPTION 'Ajuste financiero sin cuenta válida del tenant' USING ERRCODE = '22023';
+    END IF;
+    SELECT count(*) INTO v_omc_count FROM public.operaciones_movimiento_cuenta WHERE operacion_id = v_op_id;
+    IF v_omc_count <> 1 OR NOT EXISTS (SELECT 1 FROM public.operaciones_movimiento_cuenta
+      WHERE operacion_id = v_op_id AND cuenta_id = v_hija_apertura.cuenta_id AND ABS(importe) = v_op.monto_total) THEN
+      RAISE EXCEPTION 'Ajuste financiero requiere exactamente una OMC por su monto y cuenta' USING ERRCODE = '22023';
+    END IF;
+
   ELSIF v_op.tipo = 'TRANSFERENCIA'::public.tipo_operacion THEN
     SELECT * INTO v_hija_trans FROM public.operaciones_transferencia WHERE operacion_id = v_op_id AND tenant_id = v_op.tenant_id;
     IF NOT FOUND THEN
@@ -215,9 +224,31 @@ BEGIN
     END IF;
   END IF;
 
-  RETURN NULL;
+  RETURN;
 END;
 $$;
+CREATE OR REPLACE FUNCTION public._operacion_validar_documento()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'operaciones' THEN
+    IF TG_OP = 'DELETE' THEN PERFORM public._operacion_validar_documento_id(OLD.id);
+    ELSE PERFORM public._operacion_validar_documento_id(NEW.id); END IF;
+  ELSE
+    IF TG_OP = 'DELETE' THEN PERFORM public._operacion_validar_documento_id(OLD.operacion_id);
+    ELSE PERFORM public._operacion_validar_documento_id(NEW.operacion_id); END IF;
+    IF TG_OP = 'UPDATE' AND OLD.operacion_id IS DISTINCT FROM NEW.operacion_id THEN
+      PERFORM public._operacion_validar_documento_id(OLD.operacion_id);
+    END IF;
+  END IF;
+  RETURN NULL;
+END $$;
+DO $$ DECLARE r record; BEGIN
+  FOR r IN SELECT id FROM public.operaciones LOOP PERFORM public._operacion_validar_documento_id(r.id); END LOOP;
+END $$;
+CREATE CONSTRAINT TRIGGER trg_ajuste_financiero_validar_documento
+AFTER INSERT OR UPDATE OR DELETE ON public.operaciones_ajuste_financiero
+DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public._operacion_validar_documento();
+
 
 -- Triggers diferidos en operaciones, líneas, OMC y todas las tablas hijas
 DROP TRIGGER IF EXISTS trg_operacion_validar_documento ON public.operaciones;
@@ -293,14 +324,14 @@ CREATE CONSTRAINT TRIGGER trg_cobro_arreglo_validar_documento
   FOR EACH ROW EXECUTE FUNCTION public._operacion_validar_documento();
 
 -- -----------------------------------------------------------------------------
--- 3. Limpieza de funciones obsoletas y aseguramiento de SECURITY INVOKER
+-- 3. Limpieza de funciones obsoletas y aseguramiento de SECURITY DEFINER
 -- -----------------------------------------------------------------------------
 
-ALTER FUNCTION public.rpc_borrar_operaciones_con_stock_lista(uuid[]) SECURITY INVOKER SET search_path = 'public';
-ALTER FUNCTION public._crear_producto_y_stock(uuid, text, text, numeric, numeric) SECURITY INVOKER SET search_path = 'public';
-ALTER FUNCTION public._crear_repuestos_nuevos_para_arreglo(uuid, uuid, jsonb, uuid) SECURITY INVOKER SET search_path = 'public';
-ALTER FUNCTION public._asignar_repuestos_existentes_a_arreglo(uuid, uuid, jsonb) SECURITY INVOKER SET search_path = 'public';
-ALTER FUNCTION public._asignar_repuestos_existentes_a_arreglo(uuid, uuid, jsonb, uuid, uuid) SECURITY INVOKER SET search_path = 'public';
+ALTER FUNCTION public.rpc_borrar_operaciones_con_stock_lista(uuid[]) SECURITY DEFINER SET search_path = 'public';
+ALTER FUNCTION public._crear_producto_y_stock(uuid, text, text, numeric, numeric) SECURITY DEFINER SET search_path = 'public';
+ALTER FUNCTION public._crear_repuestos_nuevos_para_arreglo(uuid, uuid, jsonb, uuid) SECURITY DEFINER SET search_path = 'public';
+ALTER FUNCTION public._asignar_repuestos_existentes_a_arreglo(uuid, uuid, jsonb) SECURITY DEFINER SET search_path = 'public';
+ALTER FUNCTION public._asignar_repuestos_existentes_a_arreglo(uuid, uuid, jsonb, uuid, uuid) SECURITY DEFINER SET search_path = 'public';
 
 DROP FUNCTION IF EXISTS public.rpc_revertir_operacion_linea(uuid);
 DROP FUNCTION IF EXISTS public.rpc_revertir_operacion_linea(uuid, uuid);
@@ -332,12 +363,13 @@ REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON TABLE
   public.operaciones_ingreso,
   public.operaciones_transferencia,
   public.operaciones_apertura_cuenta,
+  public.operaciones_ajuste_financiero,
   public.operaciones_lineas,
   public.operaciones_movimiento_cuenta,
   public.operaciones_movimiento_stock
 FROM "anon";
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+REVOKE ALL ON TABLE
   public.operaciones,
   public.operaciones_compra,
   public.operaciones_venta,
@@ -348,6 +380,23 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
   public.operaciones_ingreso,
   public.operaciones_transferencia,
   public.operaciones_apertura_cuenta,
+  public.operaciones_ajuste_financiero,
+  public.operaciones_lineas,
+  public.operaciones_movimiento_cuenta,
+  public.operaciones_movimiento_stock
+FROM PUBLIC, "anon", "authenticated";
+GRANT SELECT ON TABLE
+  public.operaciones,
+  public.operaciones_compra,
+  public.operaciones_venta,
+  public.operaciones_gasto,
+  public.operaciones_asignacion_arreglo,
+  public.operaciones_cobro_arreglo,
+  public.operaciones_ajuste,
+  public.operaciones_ingreso,
+  public.operaciones_transferencia,
+  public.operaciones_apertura_cuenta,
+  public.operaciones_ajuste_financiero,
   public.operaciones_lineas,
   public.operaciones_movimiento_cuenta,
   public.operaciones_movimiento_stock
@@ -364,6 +413,7 @@ GRANT ALL ON TABLE
   public.operaciones_ingreso,
   public.operaciones_transferencia,
   public.operaciones_apertura_cuenta,
+  public.operaciones_ajuste_financiero,
   public.operaciones_lineas,
   public.operaciones_movimiento_cuenta,
   public.operaciones_movimiento_stock,
@@ -530,3 +580,30 @@ CREATE POLICY tenant_access ON public.operaciones_movimiento_stock
   USING (tenant_id = public.current_tenant_id())
   WITH CHECK (tenant_id = public.current_tenant_id());
 
+
+DO $$ DECLARE f record; BEGIN
+  FOR f IN
+    SELECT p.oid::regprocedure AS firma, p.proname FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND (p.proname IN (
+      '_ledger_insertar', '_finanzas_exigir_cuenta', '_crear_apertura_cuenta',
+      '_sync_stock_derivados', '_sync_operacion_estado_stock', '_operacion_validar_documento_id',
+      '_crear_producto_y_stock', '_crear_repuestos_nuevos_para_arreglo', '_asignar_repuestos_existentes_a_arreglo')
+      OR p.proname IN ('rpc_registrar_pago_operacion', 'rpc_finanzas_anular_pago_operacion',
+        'rpc_crear_operacion_gasto', 'rpc_crear_operacion_con_stock', 'rpc_crear_movimiento_cuenta',
+        'rpc_actualizar_movimiento_cuenta', 'rpc_eliminar_movimiento_cuenta', 'rpc_finanzas_cobrar_arreglo',
+        'rpc_finanzas_anular_cobro_arreglo', 'rpc_borrar_operacion_con_stock', 'rpc_borrar_operacion_completa',
+        'rpc_borrar_operaciones_con_stock_lista', 'rpc_finanzas_crear_cuenta', 'rpc_confirmar_stock_operacion',
+        'rpc_revertir_movimiento_stock_operacion', 'rpc_set_asignacion_arreglo_linea',
+        'rpc_delete_asignacion_arreglo_linea', 'rpc_asignar_repuesto_existente_con_compra',
+        'rpc_crear_producto_inline_para_arreglo', 'rpc_crear_stock', 'rpc_ajustar_stock', 'rpc_actualizar_operacion'))
+  LOOP
+    IF f.proname LIKE 'rpc_%' THEN
+      -- Retirar únicamente EXECUTE anónimo/heredado, conservar roles explícitos.
+      EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', f.firma);
+    ELSE
+      EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', f.firma);
+      EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO postgres, service_role', f.firma);
+    END IF;
+  END LOOP;
+END $$;

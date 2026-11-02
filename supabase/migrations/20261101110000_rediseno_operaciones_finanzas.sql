@@ -73,6 +73,21 @@ CREATE POLICY operaciones_ajuste_tenant_select ON public.operaciones_ajuste
 GRANT SELECT ON TABLE public.operaciones_ajuste TO authenticated;
 GRANT ALL ON TABLE public.operaciones_ajuste TO postgres, service_role;
 
+CREATE TABLE IF NOT EXISTS public.operaciones_ajuste_financiero (
+  operacion_id uuid PRIMARY KEY REFERENCES public.operaciones(id) ON DELETE CASCADE,
+  tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE RESTRICT,
+  cuenta_id uuid NOT NULL REFERENCES public.cuentas_financieras(id) ON DELETE RESTRICT,
+  descripcion text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.operaciones_ajuste_financiero ENABLE ROW LEVEL SECURITY;
+CREATE POLICY operaciones_ajuste_financiero_tenant_select
+  ON public.operaciones_ajuste_financiero FOR SELECT TO authenticated
+  USING (tenant_id = public.current_tenant_id());
+REVOKE ALL ON public.operaciones_ajuste_financiero FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.operaciones_ajuste_financiero TO authenticated;
+GRANT ALL ON public.operaciones_ajuste_financiero TO postgres, service_role;
+
 -- -----------------------------------------------------------------------------
 -- 2. Ajustes en Hijas Existentes y Operaciones
 -- -----------------------------------------------------------------------------
@@ -348,13 +363,25 @@ BEGIN
 END $$;
 
 -- 4.3. Migrar operaciones_pagos a OMC
+-- Estado esperado anterior a los derivados. No se incorporan marcas persistentes.
+CREATE TEMP TABLE _rediseno_pagos_esperados ON COMMIT DROP AS
+SELECT id AS operacion_id, total_pagado
+FROM public.operaciones WHERE tipo IN ('COMPRA', 'VENTA', 'GASTO');
+
 DO $$
 DECLARE
   v_unmapped_asientos bigint;
-  v_diff_count bigint;
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'operaciones_pagos') THEN
-    -- Insertar en OMC cada pago que no tenga ya una OMC idéntica en ese documento
+    -- Emparejar uno a uno: dos pagos iguales siguen siendo dos pagos.
+    WITH pagos AS (
+      SELECT op.*, CASE WHEN o.tipo = 'VENTA' THEN op.monto ELSE -op.monto END AS importe,
+        row_number() OVER (PARTITION BY op.operacion_id, op.cuenta_financiera_id, op.monto, op.fecha ORDER BY op.created_at, op.id) AS rn
+      FROM public.operaciones_pagos op JOIN public.operaciones o ON o.id = op.operacion_id
+    ), existentes AS (
+      SELECT omc.*, row_number() OVER (PARTITION BY operacion_id, cuenta_id, importe, fecha ORDER BY created_at, id) AS rn
+      FROM public.operaciones_movimiento_cuenta omc
+    )
     INSERT INTO public.operaciones_movimiento_cuenta (
       id, operacion_id, tenant_id, cuenta_id, importe, fecha, descripcion, idempotency_key, created_by, created_at
     )
@@ -363,39 +390,39 @@ BEGIN
       op.operacion_id,
       op.tenant_id,
       op.cuenta_financiera_id,
-      CASE WHEN o.tipo = 'VENTA'::public.tipo_operacion THEN op.monto ELSE -op.monto END,
+      op.importe,
       op.fecha,
       op.descripcion,
       op.idempotency_key,
       op.created_by,
       op.created_at
-    FROM public.operaciones_pagos op
-    JOIN public.operaciones o ON o.id = op.operacion_id
+    FROM pagos op
     WHERE NOT EXISTS (
-      SELECT 1 FROM public.operaciones_movimiento_cuenta omc
+      SELECT 1 FROM existentes omc
       WHERE omc.operacion_id = op.operacion_id
         AND omc.cuenta_id = op.cuenta_financiera_id
-        AND ABS(omc.importe) = op.monto
+        AND omc.importe = op.importe AND omc.fecha = op.fecha AND omc.rn = op.rn
     );
 
     -- Emparejar asientos de movimientos_financieros sin omc_id usando row_number()
     WITH unmapped_mf AS (
-      SELECT id, operacion_id, cuenta_financiera_id, ABS(importe) AS monto,
-             ROW_NUMBER() OVER (PARTITION BY operacion_id, cuenta_financiera_id, ABS(importe) ORDER BY fecha, id) AS rn
+      SELECT id, operacion_id, cuenta_financiera_id, importe, fecha,
+             ROW_NUMBER() OVER (PARTITION BY operacion_id, cuenta_financiera_id, importe, fecha ORDER BY created_at, id) AS rn
       FROM public.movimientos_financieros
       WHERE omc_id IS NULL AND operacion_id IS NOT NULL
     ),
     omc_unmapped AS (
-      SELECT id, operacion_id, cuenta_id, ABS(importe) AS monto,
-             ROW_NUMBER() OVER (PARTITION BY operacion_id, cuenta_id, ABS(importe) ORDER BY fecha, id) AS rn
-      FROM public.operaciones_movimiento_cuenta
+      SELECT c.id, c.operacion_id, c.cuenta_id, c.importe, c.fecha,
+             ROW_NUMBER() OVER (PARTITION BY c.operacion_id, c.cuenta_id, c.importe, c.fecha ORDER BY c.created_at, c.id) AS rn
+      FROM public.operaciones_movimiento_cuenta c
+      WHERE NOT EXISTS (SELECT 1 FROM public.movimientos_financieros m WHERE m.omc_id = c.id)
     )
     UPDATE public.movimientos_financieros mf
     SET omc_id = ou.id
     FROM unmapped_mf um
     JOIN omc_unmapped ou ON ou.operacion_id = um.operacion_id
                         AND ou.cuenta_id = um.cuenta_financiera_id
-                        AND ou.monto = um.monto
+                        AND ou.importe = um.importe AND ou.fecha = um.fecha
                         AND ou.rn = um.rn
     WHERE mf.id = um.id;
 
@@ -408,35 +435,41 @@ BEGIN
       RAISE NOTICE 'Asientos financieros históricos sin omc_id (pagos anulados o asientos directos): %', v_unmapped_asientos;
     END IF;
 
-    -- Recalcular y validar total_pagado
-    WITH recalculo AS (
-      SELECT o.id, o.total_pagado AS viejo_total, COALESCE(SUM(ABS(omc.importe)), 0) AS nuevo_total
-      FROM public.operaciones o
-      LEFT JOIN public.operaciones_movimiento_cuenta omc ON omc.operacion_id = o.id
-      WHERE o.tipo IN ('COMPRA'::public.tipo_operacion, 'VENTA'::public.tipo_operacion, 'GASTO'::public.tipo_operacion)
-      GROUP BY o.id, o.total_pagado
-    )
-    SELECT count(*) INTO v_diff_count
-    FROM recalculo
-    WHERE viejo_total IS DISTINCT FROM nuevo_total;
-
-    IF v_diff_count > 0 THEN
-      RAISE EXCEPTION 'El recálculo de total_pagado difiere en % operaciones. Abortando migración.', v_diff_count
-        USING ERRCODE = '22023';
-    END IF;
-
-    -- Actualizar total_pagado por seguridad
-    UPDATE public.operaciones o
-    SET total_pagado = COALESCE(sub.tot, 0)
-    FROM (
-      SELECT operacion_id, SUM(ABS(importe)) AS tot
-      FROM public.operaciones_movimiento_cuenta
-      GROUP BY operacion_id
-    ) sub
-    WHERE sub.operacion_id = o.id
-      AND o.tipo IN ('COMPRA'::public.tipo_operacion, 'VENTA'::public.tipo_operacion, 'GASTO'::public.tipo_operacion);
-
+    -- La validación se ejecuta después de instalar los triggers y regularizar
+    -- los documentos considerados pagados que nunca tuvieron asiento.
   END IF;
+END $$;
+
+CREATE TEMP TABLE _rediseno_documentos_a_saldar ON COMMIT DROP AS
+SELECT o.id, o.tenant_id, o.tipo, o.monto_total
+FROM public.operaciones o
+WHERE o.tipo IN ('COMPRA', 'VENTA') AND o.monto_total > 0
+  AND o.total_pagado = o.monto_total
+  AND NOT EXISTS (SELECT 1 FROM public.operaciones_movimiento_cuenta c WHERE c.operacion_id = o.id)
+  AND NOT EXISTS (SELECT 1 FROM public.movimientos_financieros m WHERE m.operacion_id = o.id);
+
+-- Reconstruir las reversas de OMC históricas editadas sin alterar sus importes.
+-- El reemplazo y la reversa de cada edición comparten timestamp: un contraasiento
+-- solo puede apuntar a un original de una transacción anterior.
+DO $$
+DECLARE r record; v_original uuid;
+BEGIN
+  FOR r IN
+    SELECT m.* FROM public.movimientos_financieros m
+    WHERE m.omc_id IS NOT NULL AND m.reversion_de_id IS NULL
+    ORDER BY m.created_at, m.id
+  LOOP
+    SELECT m.id INTO v_original
+    FROM public.movimientos_financieros m
+    WHERE m.omc_id = r.omc_id AND m.cuenta_financiera_id = r.cuenta_financiera_id
+      AND m.importe = -r.importe AND m.created_at < r.created_at
+      AND m.reversion_de_id IS NULL
+      AND NOT EXISTS (SELECT 1 FROM public.movimientos_financieros rev WHERE rev.reversion_de_id = m.id)
+    ORDER BY m.created_at DESC, m.id DESC LIMIT 1;
+    IF v_original IS NOT NULL THEN
+      UPDATE public.movimientos_financieros SET reversion_de_id = v_original WHERE id = r.id;
+    END IF;
+  END LOOP;
 END $$;
 
 -- Rehabilitar triggers de usuario
@@ -556,7 +589,7 @@ BEGIN
     IF NEW.importe >= 0 THEN
       RAISE EXCEPTION 'El importe de OMC para % debe ser negativo', v_op.tipo USING ERRCODE = '22023';
     END IF;
-  ELSIF v_op.tipo IN ('APERTURA_CUENTA'::public.tipo_operacion, 'TRANSFERENCIA'::public.tipo_operacion) THEN
+  ELSIF v_op.tipo IN ('APERTURA_CUENTA'::public.tipo_operacion, 'TRANSFERENCIA'::public.tipo_operacion, 'AJUSTE_FINANCIERO'::public.tipo_operacion) THEN
     IF NEW.importe = 0 THEN
       RAISE EXCEPTION 'El importe de OMC no puede ser cero' USING ERRCODE = '22023';
     END IF;
@@ -612,11 +645,12 @@ BEGIN
   INTO v_asiento_vigente
   FROM public.movimientos_financieros mf
   WHERE mf.omc_id = OLD.id
+    AND mf.reversion_de_id IS NULL
     AND NOT EXISTS (
       SELECT 1 FROM public.movimientos_financieros rev
       WHERE rev.reversion_de_id = mf.id
     )
-  ORDER BY mf.created_at DESC
+  ORDER BY mf.created_at DESC, mf.id DESC
   LIMIT 1;
 
   IF FOUND THEN
@@ -654,11 +688,12 @@ BEGIN
     INTO v_asiento_vigente
     FROM public.movimientos_financieros mf
     WHERE mf.omc_id = OLD.id
+      AND mf.reversion_de_id IS NULL
       AND NOT EXISTS (
         SELECT 1 FROM public.movimientos_financieros rev
         WHERE rev.reversion_de_id = mf.id
       )
-    ORDER BY mf.created_at DESC
+    ORDER BY mf.created_at DESC, mf.id DESC
     LIMIT 1;
 
     IF FOUND THEN
@@ -727,7 +762,7 @@ BEGIN
   FROM public.operaciones
   WHERE id = v_op_id;
 
-  IF FOUND AND v_tipo IN ('COMPRA'::public.tipo_operacion, 'VENTA'::public.tipo_operacion, 'GASTO'::public.tipo_operacion) THEN
+  IF FOUND AND v_tipo IN ('COMPRA'::public.tipo_operacion, 'VENTA'::public.tipo_operacion, 'GASTO'::public.tipo_operacion, 'AJUSTE_FINANCIERO'::public.tipo_operacion) THEN
     SELECT COALESCE(ABS(SUM(importe)), 0) INTO v_tot
     FROM public.operaciones_movimiento_cuenta
     WHERE operacion_id = v_op_id;
@@ -744,7 +779,7 @@ BEGIN
     FROM public.operaciones
     WHERE id = OLD.operacion_id;
 
-    IF FOUND AND v_tipo IN ('COMPRA'::public.tipo_operacion, 'VENTA'::public.tipo_operacion, 'GASTO'::public.tipo_operacion) THEN
+    IF FOUND AND v_tipo IN ('COMPRA'::public.tipo_operacion, 'VENTA'::public.tipo_operacion, 'GASTO'::public.tipo_operacion, 'AJUSTE_FINANCIERO'::public.tipo_operacion) THEN
       SELECT COALESCE(ABS(SUM(importe)), 0) INTO v_tot
       FROM public.operaciones_movimiento_cuenta
       WHERE operacion_id = OLD.operacion_id;
@@ -800,6 +835,8 @@ BEGIN
         END IF;
       ELSIF TG_TABLE_NAME = 'operaciones_lineas' THEN
         IF NEW.stock_id IS DISTINCT FROM OLD.stock_id
+           OR NEW.operacion_id IS DISTINCT FROM OLD.operacion_id
+           OR NEW.sentido IS DISTINCT FROM OLD.sentido
            OR NEW.cantidad IS DISTINCT FROM OLD.cantidad
            OR NEW.monto_unitario IS DISTINCT FROM OLD.monto_unitario
            OR NEW.iva_alicuota_id IS DISTINCT FROM OLD.iva_alicuota_id THEN
@@ -1003,6 +1040,82 @@ CREATE CONSTRAINT TRIGGER trg_cobro_arreglo_validar_instantanea
   FOR EACH ROW EXECUTE FUNCTION public._operacion_validar_instantanea();
 
 -- -----------------------------------------------------------------------------
+-- Regularización de documentos históricos sin asientos: pagos de signo normal
+-- y un ajuste compensatorio por tenant, todos en la misma cuenta y fecha.
+DO $$
+DECLARE t record; d record; c public.cuentas_financieras%ROWTYPE;
+  v_neto numeric; v_ajuste uuid; v_fecha timestamptz := now();
+BEGIN
+  FOR t IN SELECT DISTINCT tenant_id FROM _rediseno_documentos_a_saldar ORDER BY tenant_id LOOP
+    SELECT * INTO c FROM public.cuentas_financieras
+    WHERE tenant_id = t.tenant_id AND activo
+    ORDER BY favorita DESC, created_at, id LIMIT 1 FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Tenant % requiere una cuenta financiera activa para saldar sus documentos', t.tenant_id;
+    END IF;
+    v_neto := 0;
+    FOR d IN SELECT * FROM _rediseno_documentos_a_saldar WHERE tenant_id = t.tenant_id ORDER BY id LOOP
+      INSERT INTO public.operaciones_movimiento_cuenta(operacion_id, tenant_id, cuenta_id, importe, fecha)
+      VALUES (d.id, t.tenant_id, c.id, CASE WHEN d.tipo = 'VENTA' THEN d.monto_total ELSE -d.monto_total END, v_fecha);
+      v_neto := v_neto + CASE WHEN d.tipo = 'VENTA' THEN d.monto_total ELSE -d.monto_total END;
+    END LOOP;
+    IF v_neto <> 0 THEN
+      INSERT INTO public.operaciones(tenant_id, tipo, monto_total, fecha)
+      VALUES (t.tenant_id, 'AJUSTE_FINANCIERO', ABS(v_neto), v_fecha) RETURNING id INTO v_ajuste;
+      INSERT INTO public.operaciones_ajuste_financiero(operacion_id, tenant_id, cuenta_id, descripcion)
+      VALUES (v_ajuste, t.tenant_id, c.id, 'Ajuste de saldo');
+      INSERT INTO public.operaciones_movimiento_cuenta(operacion_id, tenant_id, cuenta_id, importe, fecha)
+      VALUES (v_ajuste, t.tenant_id, c.id, -v_neto, v_fecha);
+    END IF;
+    IF (SELECT saldo FROM public.cuentas_financieras WHERE id = c.id) IS DISTINCT FROM c.saldo THEN
+      RAISE EXCEPTION 'La regularización modificó el saldo de la cuenta %', c.id;
+    END IF;
+  END LOOP;
+  IF EXISTS (
+    SELECT 1 FROM _rediseno_pagos_esperados e
+    LEFT JOIN public.operaciones_movimiento_cuenta m ON m.operacion_id = e.operacion_id
+    GROUP BY e.operacion_id, e.total_pagado
+    HAVING e.total_pagado IS DISTINCT FROM COALESCE(ABS(SUM(m.importe)), 0)
+  ) THEN
+    RAISE EXCEPTION 'Backfill financiero inconsistente: total_pagado difiere de las OMC';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.operaciones_movimiento_cuenta impacto
+    WHERE (SELECT count(*) FROM public.movimientos_financieros m
+      WHERE m.omc_id = impacto.id AND m.reversion_de_id IS NULL
+        AND NOT EXISTS (SELECT 1 FROM public.movimientos_financieros rev WHERE rev.reversion_de_id = m.id)) <> 1
+      OR NOT EXISTS (SELECT 1 FROM public.movimientos_financieros m
+        WHERE m.omc_id = impacto.id AND m.importe = impacto.importe AND m.cuenta_financiera_id = impacto.cuenta_id
+          AND m.reversion_de_id IS NULL
+          AND NOT EXISTS (SELECT 1 FROM public.movimientos_financieros rev WHERE rev.reversion_de_id = m.id))
+  ) THEN
+    RAISE EXCEPTION 'Backfill financiero inconsistente: OMC sin exactamente un asiento original activo por su cuenta y monto';
+  END IF;
+END $$;
+
+-- Únicamente se descartan encabezados vacíos sin procedencia recuperable.
+DELETE FROM public.operaciones o
+WHERE o.tipo = 'ASIGNACION_ARREGLO' AND o.monto_total = 0
+  AND NOT EXISTS (SELECT 1 FROM public.operaciones_asignacion_arreglo a WHERE a.operacion_id = o.id)
+  AND NOT EXISTS (SELECT 1 FROM public.operaciones_lineas l WHERE l.operacion_id = o.id)
+  AND NOT EXISTS (SELECT 1 FROM public.operaciones_movimiento_cuenta m WHERE m.operacion_id = o.id)
+  AND NOT EXISTS (SELECT 1 FROM public.movimientos_financieros m WHERE m.operacion_id = o.id)
+  AND NOT EXISTS (SELECT 1 FROM public.movimientos_stock m WHERE m.operacion_id = o.id)
+  AND NOT EXISTS (SELECT 1 FROM public.facturas_electronicas f WHERE f.operacion_id = o.id)
+  AND NOT EXISTS (SELECT 1 FROM public.remitos r WHERE r.operacion_id = o.id)
+  AND NOT EXISTS (SELECT 1 FROM public.arreglos a WHERE a.movimiento_financiero_id = o.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM public.operaciones_compra WHERE operacion_id = o.id
+    UNION ALL SELECT 1 FROM public.operaciones_venta WHERE operacion_id = o.id
+    UNION ALL SELECT 1 FROM public.operaciones_gasto WHERE operacion_id = o.id
+    UNION ALL SELECT 1 FROM public.operaciones_cobro_arreglo WHERE operacion_id = o.id
+    UNION ALL SELECT 1 FROM public.operaciones_ajuste WHERE operacion_id = o.id
+    UNION ALL SELECT 1 FROM public.operaciones_ajuste_financiero WHERE operacion_id = o.id
+    UNION ALL SELECT 1 FROM public.operaciones_ingreso WHERE operacion_id = o.id
+    UNION ALL SELECT 1 FROM public.operaciones_transferencia WHERE operacion_id = o.id
+    UNION ALL SELECT 1 FROM public.operaciones_apertura_cuenta WHERE operacion_id = o.id
+  );
+
 -- 9. Reescritura de RPCs de Finanzas y Pagos
 -- -----------------------------------------------------------------------------
 
@@ -1017,6 +1130,7 @@ CREATE OR REPLACE FUNCTION public.rpc_registrar_pago_operacion (
 )
   RETURNS jsonb
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1027,6 +1141,10 @@ DECLARE
   v_pago_id            uuid;
   v_importe_signado    numeric;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('operaciones:edit') THEN
+    RAISE EXCEPTION 'permiso operaciones:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN
     RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000';
   END IF;
@@ -1052,7 +1170,7 @@ BEGIN
 
     IF v_pago_existente IS NOT NULL THEN
       SELECT monto_total, total_pagado, esta_pago, estado_pago
-      INTO v_op FROM public.operaciones WHERE id = p_operacion_id;
+      INTO v_op FROM public.operaciones WHERE id = p_operacion_id AND tenant_id = v_tenant_id;
 
       RETURN jsonb_build_object(
         'ok', true,
@@ -1151,6 +1269,7 @@ CREATE OR REPLACE FUNCTION public.rpc_finanzas_anular_pago_operacion (
 )
   RETURNS jsonb
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1158,6 +1277,10 @@ DECLARE
   v_op               record;
   v_omc              record;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('operaciones:edit') THEN
+    RAISE EXCEPTION 'permiso operaciones:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN
     RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000';
   END IF;
@@ -1232,6 +1355,7 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_operacion_gasto (
 )
   RETURNS uuid
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1246,6 +1370,10 @@ DECLARE
   v_pago_fecha        timestamp with time zone;
   v_pago_desc         text;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('operaciones:edit') THEN
+    RAISE EXCEPTION 'permiso operaciones:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN
     RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000';
   END IF;
@@ -1380,6 +1508,7 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_operacion_con_stock (
 )
   RETURNS uuid
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1406,6 +1535,10 @@ DECLARE
   v_saldo_ant          integer;
   v_saldo_post         integer;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('operaciones:edit') THEN
+    RAISE EXCEPTION 'permiso operaciones:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000'; END IF;
   IF p_tipo IS NULL THEN RAISE EXCEPTION 'tipo es requerido' USING ERRCODE = '22023'; END IF;
 
@@ -1627,6 +1760,7 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_movimiento_cuenta (
 )
   RETURNS uuid
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1769,6 +1903,7 @@ CREATE OR REPLACE FUNCTION public.rpc_actualizar_movimiento_cuenta (
 )
   RETURNS uuid
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1820,17 +1955,19 @@ BEGIN
   WHERE id = p_operacion_id;
 
   IF v_op.tipo = 'GASTO'::public.tipo_operacion THEN
-    SELECT count(*), min(id) INTO v_omc_count, v_omc_primaria.id
+    SELECT count(*) INTO v_omc_count
     FROM public.operaciones_movimiento_cuenta
     WHERE operacion_id = p_operacion_id;
 
     -- Si tiene pagos parciales o más de un pago, no se permite cambiar monto ni cuenta
-    IF v_omc_count > 1 THEN
+    SELECT * INTO v_omc_primaria FROM public.operaciones_movimiento_cuenta
+    WHERE operacion_id = p_operacion_id ORDER BY created_at, id LIMIT 1;
+    IF v_omc_count > 1 OR (v_omc_count = 1 AND ABS(v_omc_primaria.importe) <> v_op.monto_total) THEN
       IF p_importe IS NOT NULL AND p_importe <> v_op.monto_total THEN
-        RAISE EXCEPTION 'No se puede cambiar el monto de un gasto con múltiples pagos' USING ERRCODE = '22023';
+        RAISE EXCEPTION 'No se puede cambiar el monto de un gasto con pagos parciales o múltiples' USING ERRCODE = '22023';
       END IF;
       IF p_cuenta_id IS NOT NULL THEN
-        RAISE EXCEPTION 'No se puede cambiar la cuenta de un gasto con múltiples pagos' USING ERRCODE = '22023';
+        RAISE EXCEPTION 'No se puede cambiar la cuenta de un gasto con pagos parciales o múltiples' USING ERRCODE = '22023';
       END IF;
     ELSE
       IF p_cuenta_id IS NOT NULL THEN
@@ -1909,6 +2046,7 @@ CREATE OR REPLACE FUNCTION public.rpc_eliminar_movimiento_cuenta (
 )
   RETURNS boolean
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1992,7 +2130,8 @@ CREATE OR REPLACE FUNCTION public.rpc_finanzas_cobrar_arreglo(
   p_idempotency_key uuid        DEFAULT NULL,
   p_pagos           jsonb       DEFAULT NULL
 )
-RETURNS jsonb LANGUAGE plpgsql SET search_path = '' AS $$
+RETURNS jsonb LANGUAGE plpgsql
+  SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
   v_tenant_id            uuid    := public.current_tenant_id();
   v_arreglo              record;
@@ -2003,6 +2142,10 @@ DECLARE
   v_pago_desc            text;
   v_operaciones_ids      uuid[]  := ARRAY[]::uuid[];
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('arreglos:cobros:register') THEN
+    RAISE EXCEPTION 'permiso arreglos:cobros:register requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000'; END IF;
 
   IF p_idempotency_key IS NOT NULL THEN
@@ -2129,6 +2272,7 @@ CREATE OR REPLACE FUNCTION public.rpc_finanzas_anular_cobro_arreglo(
 )
 RETURNS jsonb
 LANGUAGE plpgsql
+  SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
@@ -2137,6 +2281,10 @@ DECLARE
   v_importe_anulado numeric;
   v_nuevo_total numeric;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('arreglos:cobros:register') THEN
+    RAISE EXCEPTION 'permiso arreglos:cobros:register requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN
     RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000';
   END IF;
@@ -2279,13 +2427,14 @@ AS $function$
           COALESCE(oi.concepto, 'Ingreso a ' || COALESCE(c_ing.nombre, ''))
         WHEN o.tipo = 'APERTURA_CUENTA'::public.tipo_operacion THEN
           'Apertura de cuenta ' || COALESCE(c_aper.nombre, '')
+        WHEN o.tipo = 'AJUSTE_FINANCIERO'::public.tipo_operacion THEN oaf.descripcion
         WHEN o.tipo = 'COBRO_ARREGLO'::public.tipo_operacion THEN
           'Cobro arreglo ' || COALESCE(v_cob.patente, '')
         ELSE COALESCE(og.descripcion, o.observaciones)
       END AS descripcion,
       og.categoria_gasto,
-      COALESCE(oi.cuenta_id, oap.cuenta_id, ot.cuenta_origen_id) AS cuenta_financiera_id,
-      COALESCE(c_ing.nombre, c_aper.nombre, c_orig.nombre) AS cuenta_financiera_nombre,
+      COALESCE(oi.cuenta_id, oap.cuenta_id, ot.cuenta_origen_id, oaf.cuenta_id) AS cuenta_financiera_id,
+      COALESCE(c_ing.nombre, c_aper.nombre, c_orig.nombre, c_ajuste.nombre) AS cuenta_financiera_nombre,
       o.monto_total AS monto,
       o.monto_total,
       o.total_pagado,
@@ -2312,6 +2461,8 @@ AS $function$
     LEFT JOIN public.cuentas_financieras c_dest ON c_dest.id = ot.cuenta_destino_id
     LEFT JOIN public.operaciones_apertura_cuenta oap ON oap.operacion_id = o.id
     LEFT JOIN public.cuentas_financieras c_aper ON c_aper.id = oap.cuenta_id
+    LEFT JOIN public.operaciones_ajuste_financiero oaf ON oaf.operacion_id = o.id
+    LEFT JOIN public.cuentas_financieras c_ajuste ON c_ajuste.id = oaf.cuenta_id
     LEFT JOIN public.operaciones_ajuste oaj ON oaj.operacion_id = o.id
     LEFT JOIN public.operaciones_cobro_arreglo oca ON oca.operacion_id = o.id
     LEFT JOIN public.arreglos a_cob ON a_cob.id = oca.arreglo_id
@@ -2796,6 +2947,7 @@ CREATE OR REPLACE FUNCTION public.rpc_borrar_operacion_con_stock (
 )
   RETURNS boolean
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -2809,6 +2961,10 @@ DECLARE
   v_saldo_post      int;
   v_producto_id     uuid;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('operaciones:edit') THEN
+    RAISE EXCEPTION 'permiso operaciones:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN
     RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000';
   END IF;
@@ -2945,6 +3101,7 @@ CREATE OR REPLACE FUNCTION public.rpc_borrar_operacion_completa (
 )
   RETURNS jsonb
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -2954,6 +3111,10 @@ DECLARE
   v_eliminada boolean;
   v_resultado jsonb;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('operaciones:edit') THEN
+    RAISE EXCEPTION 'permiso operaciones:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN
     RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000';
   END IF;
@@ -3114,6 +3275,10 @@ DECLARE
   v_nombre    text := btrim(coalesce(p_nombre, ''));
   v_tipo      text := upper(btrim(coalesce(p_tipo, '')));
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('finanzas:edit') THEN
+    RAISE EXCEPTION 'permiso finanzas:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000'; END IF;
   IF v_nombre = '' THEN RAISE EXCEPTION 'nombre no puede estar vacío' USING ERRCODE = '22023'; END IF;
   IF v_tipo NOT IN ('EFECTIVO','CUENTA_BANCARIA','BILLETERA_DIGITAL','TARJETA_CREDITO') THEN

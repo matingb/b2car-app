@@ -472,7 +472,7 @@ describe("devolución de stock por nota de crédito", () => {
         { operacion_linea_id: line1, operacion_origen_id: "venta-1", stock_id: "stock-1", taller_id: "taller-1", producto_id: "producto-1", origen_linea: "VENTA", cantidad_original: 5, nombre_snapshot: "Producto A", codigo_snapshot: "A" },
         { operacion_linea_id: line2, operacion_origen_id: "venta-1", stock_id: "stock-2", taller_id: "taller-1", producto_id: "producto-2", origen_linea: "VENTA", cantidad_original: 3, nombre_snapshot: "Producto B", codigo_snapshot: "B" },
       ],
-      operaciones_lineas: [{ id: line1, stock_id: "stock-1" }, { id: line2, stock_id: "stock-2" }],
+      operaciones_lineas: [{ id: line1, stock_id: "stock-1", cantidad_cumplida: 4 }, { id: line2, stock_id: "stock-2", cantidad_cumplida: 3 }],
       stocks: [{ id: "stock-1", producto_id: "producto-1" }, { id: "stock-2", producto_id: "producto-2" }],
       productos: [
         { id: "producto-1", nombre: "Producto A", codigo: "A" },
@@ -511,7 +511,7 @@ describe("devolución de stock por nota de crédito", () => {
 
     await expect(getDevolucionesDisponibles("tenant-1", "factura-1")).resolves.toEqual({
       origenTipo: "VENTA", procedenciaVerificada: true, advertencia: null, items: [
-        { operacionLineaId: line1, nombre: "Producto A", codigo: "A", origenLinea: "VENTA", tallerId: "taller-1", cantidadOriginal: 5, vendido: 5, devuelto: 1, reservado: 2, restante: 2 },
+        { operacionLineaId: line1, nombre: "Producto A", codigo: "A", origenLinea: "VENTA", tallerId: "taller-1", cantidadOriginal: 5, vendido: 5, devuelto: 1, reservado: 2, restante: 1 },
         { operacionLineaId: line2, nombre: "Producto B", codigo: "B", origenLinea: "VENTA", tallerId: "taller-1", cantidadOriginal: 3, vendido: 3, devuelto: 0, reservado: 0, restante: 3 },
       ],
     });
@@ -529,7 +529,7 @@ describe("devolución de stock por nota de crédito", () => {
       for (const method of ["select", "eq", "order", "in"]) chain[method] = vi.fn().mockReturnValue(chain);
       chain.maybeSingle = vi.fn().mockResolvedValue({ data: repairInvoice, error: null });
       chain.then = (onFulfilled: (value: unknown) => unknown, onRejected?: (error: unknown) => unknown) =>
-        Promise.resolve({ data: table === "facturacion_factura_stock_origenes" ? [origin] : [], error: null }).then(onFulfilled, onRejected);
+        Promise.resolve({ data: table === "facturacion_factura_stock_origenes" ? [origin] : table === "operaciones_lineas" ? [{ id: line1, cantidad_cumplida: 4 }] : [], error: null }).then(onFulfilled, onRejected);
       return chain;
     });
     vi.mocked(createClient).mockResolvedValue({ from } as never);

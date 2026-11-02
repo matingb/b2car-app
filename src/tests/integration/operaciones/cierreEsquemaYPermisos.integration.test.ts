@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createAdminTestClient, createTestClient, SEED } from "@/tests/integration";
 
 describe("Cierre de esquema y permisos (Etapa 10)", () => {
-  it("Venta sin cliente: se rechaza la creación de una venta sin registro en operaciones_venta", async () => {
+  it("rechaza una venta sin la fila obligatoria de operaciones_venta", async () => {
     const admin = createAdminTestClient();
     const { error } = await admin.from("operaciones").insert({
       tenant_id: SEED.tenantId,
@@ -12,7 +12,7 @@ describe("Cierre de esquema y permisos (Etapa 10)", () => {
     });
 
     expect(error).not.toBeNull();
-    expect(error?.message).toMatch(/operaciones_venta/i);
+    expect(error?.message).toMatch(/hija|operaciones_venta/i);
   });
 
   it("Transferencia a la misma cuenta: se rechaza transferencia donde cuenta_origen es igual a cuenta_destino", async () => {

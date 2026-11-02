@@ -7,7 +7,7 @@ Define la operación como documento del negocio: qué tipos existen, qué datos 
 ## ADDED Requirements
 
 ### Requirement: Tipos de operación
-El sistema SHALL clasificar cada operación en exactamente uno de estos tipos: `COMPRA`, `VENTA`, `GASTO`, `ASIGNACION_ARREGLO`, `AJUSTE`, `INGRESO`, `TRANSFERENCIA`, `APERTURA_CUENTA` o `COBRO_ARREGLO`. El sistema MUST NOT crear operaciones nuevas de tipo `MOVIMIENTO_CUENTA`.
+El sistema SHALL clasificar cada operación en exactamente uno de estos tipos: `COMPRA`, `VENTA`, `GASTO`, `ASIGNACION_ARREGLO`, `AJUSTE`, `AJUSTE_FINANCIERO`, `INGRESO`, `TRANSFERENCIA`, `APERTURA_CUENTA` o `COBRO_ARREGLO`. El sistema MUST NOT crear operaciones nuevas de tipo `MOVIMIENTO_CUENTA`.
 
 #### Scenario: Una transferencia entre cuentas es una operación TRANSFERENCIA
 - **WHEN** un usuario registra una transferencia entre dos cuentas financieras
@@ -29,25 +29,34 @@ Toda operación MUST tener exactamente un registro con los datos propios de su t
 #### Scenario: Datos propios obligatorios de cada tipo
 - **WHEN** se crea una operación
 - **THEN** según su tipo lleva:
-  - `VENTA`: el cliente;
-  - `COMPRA`: el proveedor;
+  - `VENTA`: el cliente opcional;
+  - `COMPRA`: el proveedor opcional;
   - `GASTO`: la categoría de gasto y una descripción opcional;
   - `ASIGNACION_ARREGLO` y `COBRO_ARREGLO`: el arreglo;
   - `AJUSTE`: el motivo;
   - `INGRESO`: la cuenta y el concepto;
   - `TRANSFERENCIA`: la cuenta de origen y la de destino;
   - `APERTURA_CUENTA`: la cuenta.
+  - `AJUSTE_FINANCIERO`: la cuenta y una descripción opcional; no tiene mercadería.
 
 #### Scenario: Venta sin cliente
 - **WHEN** se intenta crear una venta sin cliente
-- **THEN** el sistema rechaza la creación con un error de validación
+- **THEN** el sistema crea la venta con su fila en operaciones_venta y cliente_id NULL
+
+#### Scenario: Compra sin proveedor
+- **WHEN** se crea una compra sin proveedor
+- **THEN** el sistema crea la compra con su fila en operaciones_compra y proveedor_id NULL
+
+#### Scenario: Asociación informada de otro tenant
+- **WHEN** una compra o venta indica un proveedor o cliente de otro tenant
+- **THEN** el sistema rechaza la operación completa
 
 #### Scenario: Transferencia a la misma cuenta
 - **WHEN** se intenta crear una transferencia cuya cuenta de origen es igual a la de destino
 - **THEN** el sistema rechaza la creación con un error de validación
 
 ### Requirement: Lo pactado por la operación
-Toda operación SHALL registrar su monto total pactado. Las operaciones `COMPRA`, `VENTA`, `ASIGNACION_ARREGLO` y `AJUSTE` SHALL registrar además sus líneas de mercadería (stock, cantidad y precio unitario). Las operaciones `GASTO`, `INGRESO`, `TRANSFERENCIA`, `APERTURA_CUENTA` y `COBRO_ARREGLO` MUST NOT tener líneas de mercadería.
+Toda operación SHALL registrar su monto total pactado. Las operaciones `COMPRA`, `VENTA`, `ASIGNACION_ARREGLO` y `AJUSTE` SHALL registrar además sus líneas de mercadería (stock, cantidad y precio unitario). Las operaciones `GASTO`, `INGRESO`, `TRANSFERENCIA`, `APERTURA_CUENTA`, `AJUSTE_FINANCIERO` y `COBRO_ARREGLO` MUST NOT tener líneas de mercadería.
 
 #### Scenario: Transferencia con monto pactado
 - **WHEN** se registra una transferencia de 100 de la cuenta A a la cuenta B
@@ -58,7 +67,7 @@ Toda operación SHALL registrar su monto total pactado. Las operaciones `COMPRA`
 - **THEN** el sistema rechaza la creación con un error de validación
 
 ### Requirement: Taller de la operación
-Las operaciones que mueven mercadería (`COMPRA`, `VENTA`, `ASIGNACION_ARREGLO` y `AJUSTE`) MUST indicar un taller. Para `GASTO`, `INGRESO`, `TRANSFERENCIA`, `APERTURA_CUENTA` y `COBRO_ARREGLO` el taller SHALL ser opcional.
+Las operaciones que mueven mercadería (`COMPRA`, `VENTA`, `ASIGNACION_ARREGLO` y `AJUSTE`) MUST indicar un taller. Para `GASTO`, `INGRESO`, `TRANSFERENCIA`, `APERTURA_CUENTA`, `AJUSTE_FINANCIERO` y `COBRO_ARREGLO` el taller SHALL ser opcional.
 
 #### Scenario: Gasto eventual sin taller
 - **WHEN** un usuario registra un gasto eventual sin indicar taller

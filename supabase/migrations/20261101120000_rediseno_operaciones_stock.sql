@@ -132,6 +132,9 @@ DECLARE
 BEGIN
   IF p_stock_id IS NULL THEN RETURN; END IF;
 
+  -- Serializar antes de leer las reservas de otras transacciones.
+  SELECT s.cantidad INTO v_cant_actual FROM public.stocks s WHERE s.id = p_stock_id FOR UPDATE;
+
   -- Reservada: ventas abiertas
   SELECT COALESCE(SUM(l.cantidad - l.cantidad_cumplida - l.cantidad_cancelada), 0)
   INTO v_reservada
@@ -150,7 +153,6 @@ BEGIN
     AND o.tipo = 'COMPRA'
     AND (l.cantidad - l.cantidad_cumplida - l.cantidad_cancelada) > 0;
 
-  SELECT s.cantidad INTO v_cant_actual FROM public.stocks s WHERE s.id = p_stock_id;
 
   IF (v_cant_actual - v_reservada) < 0 THEN
     RAISE EXCEPTION 'STOCK_INSUFICIENTE' USING ERRCODE = '55002';
@@ -316,7 +318,7 @@ BEGIN
   SELECT l.id, l.operacion_id, l.stock_id, l.sentido, l.cantidad, l.cantidad_cumplida, l.cantidad_cancelada
   INTO v_linea
   FROM public.operaciones_lineas l
-  WHERE l.id = NEW.operacion_linea_id;
+  WHERE l.id = NEW.operacion_linea_id FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Línea de operación no encontrada: %', NEW.operacion_linea_id USING ERRCODE = '22023';
@@ -326,7 +328,7 @@ BEGIN
     RAISE EXCEPTION 'Línea de operación no coincide con operacion_id o stock_id' USING ERRCODE = '22023';
   END IF;
 
-  SELECT o.id, o.tenant_id, o.fecha, o.tipo
+  SELECT o.id, o.tenant_id, o.fecha, o.tipo, o.taller_id
   INTO v_op
   FROM public.operaciones o
   WHERE o.id = NEW.operacion_id;
@@ -337,6 +339,11 @@ BEGIN
 
   IF v_op.tenant_id <> NEW.tenant_id THEN
     RAISE EXCEPTION 'tenant_id no coincide con el de la operación' USING ERRCODE = '22023';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM public.stocks s WHERE s.id = NEW.stock_id
+    AND s.tenant_id = v_op.tenant_id AND (v_op.taller_id IS NULL OR s.taller_id = v_op.taller_id)) THEN
+    RAISE EXCEPTION 'Stock ajeno al tenant o taller de la operación' USING ERRCODE = '22023';
   END IF;
 
   NEW.fecha := COALESCE(NEW.fecha, v_op.fecha, now());
@@ -362,6 +369,7 @@ CREATE TRIGGER trg_oms_validar
 CREATE OR REPLACE FUNCTION public._oms_bloquear_update()
 RETURNS trigger
 LANGUAGE plpgsql
+SET search_path = ''
 AS $function$
 BEGIN
   RAISE EXCEPTION 'Los impactos de stock son inmutables' USING ERRCODE = '55000';
@@ -649,7 +657,7 @@ CREATE TRIGGER trigger_recalcular_precio_operaciones_lineas
 -- 3.1 rpc_crear_operacion_con_stock
 DROP FUNCTION IF EXISTS public.rpc_crear_operacion_con_stock(text, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid);
 DROP FUNCTION IF EXISTS public.rpc_crear_operacion_con_stock(text, uuid, jsonb, uuid, timestamp with time zone, uuid, uuid);
-CREATE OR REPLACE FUNCTION public.rpc_crear_operacion_con_stock (
+CREATE OR REPLACE FUNCTION public._crear_operacion_con_stock (
   p_tipo              public.tipo_operacion,
   p_taller_id         uuid,
   p_lineas            jsonb,
@@ -667,6 +675,7 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_operacion_con_stock (
 )
   RETURNS uuid
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -828,6 +837,53 @@ BEGIN
   RETURN v_operacion_id;
 END;
 $function$;
+REVOKE ALL ON FUNCTION public._crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamptz, uuid, text, text, numeric, boolean, uuid, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public._crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamptz, uuid, text, text, numeric, boolean, uuid, uuid) TO postgres, service_role;
+
+CREATE OR REPLACE FUNCTION public.rpc_crear_operacion_con_stock (
+  p_tipo              public.tipo_operacion,
+  p_taller_id         uuid,
+  p_lineas            jsonb,
+  p_arreglo_id        uuid                     DEFAULT NULL::uuid,
+  p_cuenta_id         uuid                     DEFAULT NULL::uuid,
+  p_pagos             jsonb                    DEFAULT NULL::jsonb,
+  p_fecha             timestamp with time zone DEFAULT now(),
+  p_idempotency_key   uuid                     DEFAULT NULL::uuid,
+  p_observaciones     text                     DEFAULT NULL::text,
+  p_estado_pago       text                     DEFAULT NULL::text,
+  p_monto_inicial     numeric                  DEFAULT NULL::numeric,
+  p_mover_stock       boolean                  DEFAULT true,
+  p_proveedor_id      uuid                     DEFAULT NULL::uuid,
+  p_cliente_id        uuid                     DEFAULT NULL::uuid
+)
+  RETURNS uuid
+  LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path TO ''
+AS $function$
+BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('operaciones:edit') THEN
+    RAISE EXCEPTION 'permiso operaciones:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN public._crear_operacion_con_stock(
+    p_tipo := p_tipo,
+    p_taller_id := p_taller_id,
+    p_lineas := p_lineas,
+    p_arreglo_id := p_arreglo_id,
+    p_cuenta_id := p_cuenta_id,
+    p_pagos := p_pagos,
+    p_fecha := p_fecha,
+    p_idempotency_key := p_idempotency_key,
+    p_observaciones := p_observaciones,
+    p_estado_pago := p_estado_pago,
+    p_monto_inicial := p_monto_inicial,
+    p_mover_stock := p_mover_stock,
+    p_proveedor_id := p_proveedor_id,
+    p_cliente_id := p_cliente_id
+  );
+END;
+$function$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamptz, uuid, text, text, numeric, boolean, uuid, uuid) TO authenticated, service_role, postgres;
 
@@ -839,6 +895,7 @@ CREATE OR REPLACE FUNCTION public.rpc_confirmar_stock_operacion (
 )
   RETURNS jsonb
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -854,6 +911,10 @@ DECLARE
   v_confirmadas      int := 0;
   v_fecha            timestamp with time zone := COALESCE(p_fecha, now());
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('operaciones:edit') THEN
+    RAISE EXCEPTION 'permiso operaciones:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN
     RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000';
   END IF;
@@ -970,6 +1031,7 @@ CREATE OR REPLACE FUNCTION public.rpc_revertir_movimiento_stock_operacion (
 )
   RETURNS jsonb
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -977,6 +1039,10 @@ DECLARE
   v_op        record;
   v_mov       record;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('operaciones:edit') THEN
+    RAISE EXCEPTION 'permiso operaciones:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN
     RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000';
   END IF;
@@ -1043,7 +1109,7 @@ GRANT EXECUTE ON FUNCTION public.rpc_revertir_movimiento_stock_operacion(uuid, u
 -- 3.4 y 3.5 DROP de rpc_revertir_operacion_linea y _stock_ledger_insertar
 DROP FUNCTION IF EXISTS public.rpc_revertir_operacion_linea(uuid, uuid);
 DROP FUNCTION IF EXISTS public.rpc_revertir_operacion_linea(uuid);
-DROP FUNCTION IF EXISTS public._stock_ledger_insertar(uuid, uuid, uuid, uuid, uuid, text, integer, integer, integer, timestamp with time zone, text);
+DROP FUNCTION IF EXISTS public._stock_ledger_insertar(uuid, uuid, uuid, uuid, uuid, text, integer, integer, integer, timestamp with time zone, text, uuid, uuid, uuid);
 
 -- 3.6 rpc_set_asignacion_arreglo_linea
 CREATE OR REPLACE FUNCTION public.rpc_set_asignacion_arreglo_linea (
@@ -1057,6 +1123,7 @@ CREATE OR REPLACE FUNCTION public.rpc_set_asignacion_arreglo_linea (
 )
   RETURNS uuid
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1068,6 +1135,10 @@ DECLARE
   v_stock_taller_id uuid;
   v_diff integer;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('arreglos:edit') THEN
+    RAISE EXCEPTION 'permiso arreglos:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000'; END IF;
   IF p_arreglo_id IS NULL THEN RAISE EXCEPTION 'arreglo_id requerido' USING ERRCODE = '22023'; END IF;
   IF p_taller_id IS NULL THEN RAISE EXCEPTION 'taller_id requerido' USING ERRCODE = '22023'; END IF;
@@ -1181,12 +1252,17 @@ CREATE OR REPLACE FUNCTION public.rpc_delete_asignacion_arreglo_linea (
 )
   RETURNS uuid
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
   v_tenant_id uuid := public.current_tenant_id();
   v_operacion_id uuid;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('arreglos:edit') THEN
+    RAISE EXCEPTION 'permiso arreglos:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000'; END IF;
   IF p_operacion_linea_id IS NULL THEN RAISE EXCEPTION 'operacion_linea_id requerido' USING ERRCODE = '22023'; END IF;
 
@@ -1231,6 +1307,7 @@ CREATE OR REPLACE FUNCTION public.rpc_asignar_repuesto_existente_con_compra(
 )
 RETURNS uuid
 LANGUAGE plpgsql
+  SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
@@ -1241,6 +1318,10 @@ DECLARE
   v_delta_diff integer;
   v_faltante integer;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('arreglos:edit') THEN
+    RAISE EXCEPTION 'permiso arreglos:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000'; END IF;
   IF p_arreglo_id IS NULL THEN RAISE EXCEPTION 'arreglo_id requerido' USING ERRCODE = '22023'; END IF;
   IF p_taller_id IS NULL THEN RAISE EXCEPTION 'taller_id requerido' USING ERRCODE = '22023'; END IF;
@@ -1277,11 +1358,14 @@ BEGIN
   IF v_delta_diff > 0 THEN
     v_faltante := v_delta_diff - v_stock_cantidad;
     IF v_faltante > 0 THEN
+      IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('arreglos:repuestos:comprar') THEN
+        RAISE EXCEPTION 'permiso arreglos:repuestos:comprar requerido' USING ERRCODE = '42501';
+      END IF;
       IF p_precio_compra IS NULL OR p_precio_compra < 0 THEN
         RAISE EXCEPTION 'PRECIO_COMPRA_REQUERIDO faltante=%', v_faltante USING ERRCODE = 'P0001';
       END IF;
 
-      PERFORM public.rpc_crear_operacion_con_stock(
+      PERFORM public._crear_operacion_con_stock(
         p_tipo := 'COMPRA'::public.tipo_operacion,
         p_taller_id := p_taller_id,
         p_lineas := jsonb_build_array(jsonb_build_object(
@@ -1326,6 +1410,7 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_producto_inline_para_arreglo(
 )
 RETURNS uuid
 LANGUAGE plpgsql
+  SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
@@ -1335,6 +1420,10 @@ DECLARE
   v_codigo text := trim(coalesce(p_codigo, ''));
   v_nombre text := trim(coalesce(p_nombre, ''));
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('arreglos:repuestos:comprar') THEN
+    RAISE EXCEPTION 'permiso arreglos:repuestos:comprar requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000'; END IF;
   IF p_arreglo_id IS NULL THEN RAISE EXCEPTION 'arreglo_id requerido' USING ERRCODE = '22023'; END IF;
   IF p_taller_id IS NULL THEN RAISE EXCEPTION 'taller_id requerido' USING ERRCODE = '22023'; END IF;
@@ -1363,7 +1452,7 @@ BEGIN
     p_precio_venta := p_precio_venta
   );
 
-  PERFORM public.rpc_crear_operacion_con_stock(
+  PERFORM public._crear_operacion_con_stock(
     p_tipo := 'COMPRA'::public.tipo_operacion,
     p_taller_id := p_taller_id,
     p_lineas := jsonb_build_array(jsonb_build_object(
@@ -1402,6 +1491,7 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_stock (
 )
   RETURNS uuid
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1410,9 +1500,17 @@ DECLARE
   v_op_id       uuid;
   v_linea_id    uuid;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('productos:edit') THEN
+    RAISE EXCEPTION 'permiso productos:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000'; END IF;
   IF p_taller_id IS NULL THEN RAISE EXCEPTION 'taller_id requerido' USING ERRCODE = '22023'; END IF;
   IF p_producto_id IS NULL THEN RAISE EXCEPTION 'producto_id requerido' USING ERRCODE = '22023'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.talleres WHERE id = p_taller_id AND tenant_id = v_tenant_id)
+     OR NOT EXISTS (SELECT 1 FROM public.productos WHERE id = p_producto_id AND tenant_id = v_tenant_id) THEN
+    RAISE EXCEPTION 'Producto o taller ajeno al tenant' USING ERRCODE = '22023';
+  END IF;
   IF p_cantidad_inicial < 0 THEN RAISE EXCEPTION 'cantidad_inicial no puede ser negativa' USING ERRCODE = '22023'; END IF;
 
   SELECT id INTO v_stock_id
@@ -1464,6 +1562,7 @@ CREATE OR REPLACE FUNCTION public.rpc_ajustar_stock (
 )
   RETURNS jsonb
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
@@ -1474,6 +1573,10 @@ DECLARE
   v_op_id     uuid;
   v_linea_id  uuid;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('productos:edit') THEN
+    RAISE EXCEPTION 'permiso productos:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000'; END IF;
   IF p_stock_id IS NULL THEN RAISE EXCEPTION 'stock_id requerido' USING ERRCODE = '22023'; END IF;
   IF p_cantidad_nueva < 0 THEN RAISE EXCEPTION 'cantidad_nueva no puede ser negativa' USING ERRCODE = '22023'; END IF;
@@ -1719,6 +1822,31 @@ ALTER TABLE public.operaciones ENABLE TRIGGER USER;
 -- 5. Nota de Crédito (Task 8.1 & Decisión 9)
 -- -----------------------------------------------------------------------------
 
+-- Los ordinales fiscales conservan la procedencia aun en facturas simplificadas.
+-- La cantidad fiscal de la NC puede ser 1 o las unidades devueltas: se obtiene
+-- lo acreditado desde su importe respecto de la línea original (con IVA).
+CREATE OR REPLACE FUNCTION public._nc_unidades_acreditadas(p_nota_id uuid)
+RETURNS TABLE(operacion_linea_id uuid, cantidad integer)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  WITH originales AS (
+    SELECT COALESCE((j.linea->>'ordinal')::integer, l.ordinal) AS ordinal,
+      CASE WHEN j.linea IS NULL THEN l.source_id ELSE (j.linea->>'sourceId')::uuid END AS source_id,
+      COALESCE((j.linea->>'cantidad')::numeric, l.cantidad) AS cantidad,
+      COALESCE((j.linea->>'importeTotal')::numeric, (j.linea->>'subtotal')::numeric, l.importe_total) AS importe
+    FROM public.facturas_electronicas n
+    JOIN public.facturas_electronicas_lineas l ON l.factura_id = n.documento_asociado_id
+    LEFT JOIN LATERAL jsonb_array_elements(l.snapshot->'lineasOriginales') j(linea) ON true
+    WHERE n.id = p_nota_id
+  )
+  SELECT o.source_id, SUM(FLOOR(ROUND(nl.importe_total * 100) * o.cantidad / NULLIF(ROUND(o.importe * 100), 0)))::integer
+  FROM public.facturas_electronicas_lineas nl
+  JOIN originales o ON o.ordinal = (nl.snapshot->>'ordinalOriginal')::integer
+  WHERE nl.factura_id = p_nota_id AND o.source_id IS NOT NULL
+  GROUP BY o.source_id;
+$$;
+REVOKE ALL ON FUNCTION public._nc_unidades_acreditadas(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public._nc_unidades_acreditadas(uuid) TO postgres, service_role;
+
 CREATE OR REPLACE FUNCTION public.rpc_facturacion_finalizar_nc(
   p_tenant_id uuid,
   p_nota_id uuid,
@@ -1787,10 +1915,9 @@ BEGIN
 
   -- 1. Tratar cada línea acreditada: cancelar pendientes y validar devoluciones físicas
   FOR v_linea_id IN
-    SELECT DISTINCT d.operacion_linea_id
-    FROM public.facturacion_nc_devoluciones d
-    WHERE d.nota_credito_id = p_nota_id
-    ORDER BY d.operacion_linea_id
+    SELECT a.operacion_linea_id FROM public._nc_unidades_acreditadas(p_nota_id) a
+    UNION SELECT d.operacion_linea_id FROM public.facturacion_nc_devoluciones d WHERE d.nota_credito_id = p_nota_id
+    ORDER BY operacion_linea_id
   LOOP
     SELECT sfo.operacion_origen_id, sfo.stock_id, sfo.taller_id, sfo.producto_id,
            ol.cantidad, ol.cantidad_cumplida, ol.cantidad_cancelada
@@ -1807,7 +1934,9 @@ BEGIN
 
     -- Cancelar unidades acreditadas no entregadas
     v_cancelar := LEAST(
-      (SELECT COALESCE(SUM(d.cantidad), 0) FROM public.facturacion_nc_devoluciones d WHERE d.nota_credito_id = p_nota_id AND d.operacion_linea_id = v_linea_id),
+      GREATEST(0,
+        COALESCE((SELECT a.cantidad FROM public._nc_unidades_acreditadas(p_nota_id) a WHERE a.operacion_linea_id = v_linea_id), 0)
+        - (SELECT COALESCE(SUM(d.cantidad), 0) FROM public.facturacion_nc_devoluciones d WHERE d.nota_credito_id = p_nota_id AND d.operacion_linea_id = v_linea_id)),
       GREATEST(0, v_source.cantidad - v_source.cantidad_cumplida - v_source.cantidad_cancelada)
     );
 
@@ -1899,12 +2028,17 @@ CREATE OR REPLACE FUNCTION public.rpc_actualizar_operacion (
 )
   RETURNS jsonb
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
   v_tenant_id uuid := public.current_tenant_id();
   v_op        record;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('operaciones:edit') THEN
+    RAISE EXCEPTION 'permiso operaciones:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN
     RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000';
   END IF;
@@ -1954,12 +2088,17 @@ CREATE OR REPLACE FUNCTION public.rpc_borrar_operacion_con_stock (
 )
   RETURNS boolean
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
 AS $function$
 DECLARE
   v_tenant_id uuid := public.current_tenant_id();
   v_op        record;
 BEGIN
+  IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('operaciones:edit') THEN
+    RAISE EXCEPTION 'permiso operaciones:edit requerido' USING ERRCODE = '42501';
+  END IF;
+
   IF v_tenant_id IS NULL THEN
     RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000';
   END IF;
@@ -1990,3 +2129,229 @@ END;
 $function$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_borrar_operacion_con_stock(uuid, uuid) TO authenticated, service_role, postgres;
+
+-- Permitir únicamente derivados de stock/pagos en arreglos facturados.
+CREATE OR REPLACE FUNCTION public.facturacion_bloquear_mutacion_arreglo()
+  RETURNS TRIGGER
+  LANGUAGE plpgsql
+  SET search_path TO 'public'
+  AS $function$
+DECLARE
+  v_rec jsonb;
+  v_arreglo_id uuid;
+  v_protegido boolean;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    v_rec := to_jsonb(OLD);
+  ELSE
+    v_rec := to_jsonb(NEW);
+  END IF;
+  IF TG_TABLE_NAME = 'arreglos' THEN
+    v_arreglo_id := (v_rec ->> 'id')::uuid;
+    SELECT EXISTS (SELECT 1 FROM public.facturas_electronicas f
+      WHERE f.arreglo_id = v_arreglo_id AND f.estado IN ('AUTORIZADA', 'ENVIANDO', 'INCIERTA'))
+      INTO v_protegido;
+    IF NOT v_protegido THEN
+      IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
+    END IF;
+    IF TG_OP = 'DELETE'
+       OR OLD.vehiculo_id IS DISTINCT FROM NEW.vehiculo_id
+       OR OLD.taller_id IS DISTINCT FROM NEW.taller_id
+       OR OLD.fecha IS DISTINCT FROM NEW.fecha
+       OR OLD.precios_incluyen_iva IS DISTINCT FROM NEW.precios_incluyen_iva
+       OR OLD.tasa_iva IS DISTINCT FROM NEW.tasa_iva
+       OR OLD.precio_final IS DISTINCT FROM NEW.precio_final
+       OR OLD.precio_sin_iva IS DISTINCT FROM NEW.precio_sin_iva
+       OR OLD.estado IS DISTINCT FROM NEW.estado THEN
+      RAISE EXCEPTION 'El arreglo ya posee una factura electronica autorizada y sus datos fiscales no se pueden modificar'
+        USING ERRCODE = '55001';
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF TG_TABLE_NAME = 'vehiculos' THEN
+    IF TG_OP = 'UPDATE' AND OLD.cliente_id IS NOT DISTINCT FROM NEW.cliente_id THEN
+      RETURN NEW;
+    END IF;
+    IF EXISTS (
+      SELECT 1 FROM public.arreglos a
+      WHERE a.vehiculo_id = (v_rec ->> 'id')::uuid
+        AND public.facturacion_arreglo_autorizado(a.id)
+    ) THEN
+      RAISE EXCEPTION 'No se puede cambiar el cliente de un vehiculo con arreglos facturados'
+        USING ERRCODE = '55001';
+    END IF;
+    IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
+  END IF;
+  IF TG_TABLE_NAME = 'operaciones_lineas' THEN
+    SELECT oa.arreglo_id INTO v_arreglo_id
+    FROM public.operaciones_asignacion_arreglo oa
+    WHERE oa.operacion_id = (v_rec ->> 'operacion_id')::uuid
+    LIMIT 1;
+  ELSIF TG_TABLE_NAME = 'operaciones' THEN
+    SELECT oa.arreglo_id INTO v_arreglo_id
+    FROM public.operaciones_asignacion_arreglo oa
+    WHERE oa.operacion_id = (v_rec ->> 'id')::uuid
+    LIMIT 1;
+  ELSE
+    v_arreglo_id := (v_rec ->> 'arreglo_id')::uuid;
+  END IF;
+  -- Same source row lock as mode changes, collection and fiscal preparation.
+  IF v_arreglo_id IS NOT NULL THEN
+    PERFORM 1 FROM public.arreglos WHERE id = v_arreglo_id FOR UPDATE;
+  END IF;
+  IF v_arreglo_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public.facturas_electronicas f
+    WHERE f.arreglo_id = v_arreglo_id AND f.estado IN ('AUTORIZADA', 'ENVIANDO', 'INCIERTA')
+  ) THEN
+    IF TG_OP = 'UPDATE' AND (
+      (TG_TABLE_NAME = 'operaciones_lineas' AND
+        (to_jsonb(OLD) - ARRAY['cantidad_cumplida','cantidad_cancelada']) =
+        (to_jsonb(NEW) - ARRAY['cantidad_cumplida','cantidad_cancelada']))
+      OR (TG_TABLE_NAME = 'operaciones' AND
+        (to_jsonb(OLD) - ARRAY['total_pagado','estado_pago','esta_pago','estado_stock']) =
+        (to_jsonb(NEW) - ARRAY['total_pagado','estado_pago','esta_pago','estado_stock']))
+    ) THEN RETURN NEW; END IF;
+    RAISE EXCEPTION 'No se pueden modificar lineas de un arreglo con factura electronica autorizada'
+      USING ERRCODE = '55001';
+  END IF;
+  IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
+END;
+$function$;
+
+
+
+-- Reservar solo unidades entregadas antes de solicitar autorización fiscal.
+CREATE OR REPLACE FUNCTION public.rpc_facturacion_reservar_devoluciones(p_nota_id uuid, p_devoluciones jsonb)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $function$
+DECLARE
+  v_tenant uuid := public.current_tenant_id();
+  v_nota public.facturas_electronicas%ROWTYPE;
+  v_original public.facturas_electronicas%ROWTYPE;
+  v_item jsonb;
+  v_linea_id uuid;
+  v_raw_id text;
+  v_raw_cantidad text;
+  v_cantidad_bigint bigint;
+  v_cantidad integer;
+  v_cantidad_original integer;
+  v_stock uuid;
+  v_taller uuid;
+  v_origen_linea text;
+  v_operacion_origen uuid;
+  v_tipo_operacion text;
+  v_used bigint;
+  v_duplicate integer;
+BEGIN
+  IF v_tenant IS NULL THEN RAISE EXCEPTION 'Sesion sin tenant activo'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.tenant_members tm
+    WHERE tm.cliente_id = auth.uid() AND tm.tenant_id = v_tenant AND tm.rol = 'admin'
+  ) THEN RAISE EXCEPTION 'Solo un administrador del tenant puede reservar devoluciones'; END IF;
+  IF jsonb_typeof(COALESCE(p_devoluciones, '[]'::jsonb)) <> 'array' THEN
+    RAISE EXCEPTION 'Devoluciones inválidas';
+  END IF;
+
+  SELECT * INTO v_nota
+  FROM public.facturas_electronicas
+  WHERE id = p_nota_id AND tenant_id = v_tenant
+  FOR UPDATE;
+  IF NOT FOUND OR v_nota.documento_tipo <> 'NOTA_CREDITO' OR v_nota.estado <> 'ENVIANDO' THEN
+    RAISE EXCEPTION 'Nota de crédito inválida para reservar devoluciones';
+  END IF;
+
+  SELECT * INTO v_original
+  FROM public.facturas_electronicas
+  WHERE id = v_nota.documento_asociado_id AND tenant_id = v_tenant
+  FOR UPDATE;
+  IF NOT FOUND OR v_original.documento_tipo <> 'FACTURA' OR v_original.estado <> 'AUTORIZADA'
+     OR v_original.origen_tipo NOT IN ('VENTA','ARREGLO')
+     OR v_nota.origen_tipo IS DISTINCT FROM v_original.origen_tipo THEN
+    RAISE EXCEPTION 'La factura original no es una factura autorizada de venta o arreglo';
+  END IF;
+
+  SELECT count(*) INTO v_duplicate
+  FROM (
+    SELECT value->>'operacionLineaId'
+    FROM jsonb_array_elements(COALESCE(p_devoluciones, '[]'::jsonb))
+    GROUP BY 1 HAVING count(*) > 1
+  ) duplicated;
+  IF v_duplicate > 0 THEN RAISE EXCEPTION 'No se puede repetir una línea de stock'; END IF;
+
+  -- Validate all IDs/quantities before acquiring source locks.
+  FOR v_item IN SELECT value FROM jsonb_array_elements(COALESCE(p_devoluciones, '[]'::jsonb)) LOOP
+    v_raw_id := COALESCE(v_item->>'operacionLineaId', '');
+    IF v_raw_id !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+      RAISE EXCEPTION 'El identificador de línea de stock es inválido';
+    END IF;
+    v_raw_cantidad := v_item->>'cantidad';
+    IF v_raw_cantidad IS NULL OR v_raw_cantidad !~ '^[0-9]+$' THEN
+      RAISE EXCEPTION 'La cantidad debe ser un entero no negativo';
+    END IF;
+    v_cantidad_bigint := v_raw_cantidad::bigint;
+    IF v_cantidad_bigint > 2147483647 THEN RAISE EXCEPTION 'La cantidad supera el máximo permitido'; END IF;
+  END LOOP;
+
+  -- Lock physical source lines in a deterministic order across concurrent notes/invoices.
+  FOR v_linea_id IN
+    SELECT DISTINCT (entry.value->>'operacionLineaId')::uuid
+    FROM jsonb_array_elements(COALESCE(p_devoluciones, '[]'::jsonb)) AS entry(value)
+    ORDER BY 1
+  LOOP
+    PERFORM 1
+    FROM public.operaciones_lineas ol
+    JOIN public.facturacion_factura_stock_origenes sfo
+      ON sfo.operacion_linea_id = ol.id AND sfo.factura_id = v_original.id AND sfo.tenant_id = v_tenant
+    JOIN public.stocks s ON s.id = sfo.stock_id AND s.tenant_id = v_tenant
+    WHERE ol.id = v_linea_id
+    FOR UPDATE OF ol, s;
+    IF NOT FOUND THEN RAISE EXCEPTION 'La línea no pertenece a la procedencia física de la factura original'; END IF;
+  END LOOP;
+
+  -- On a rejected retry, replace only the unapplied reservation set atomically.
+  DELETE FROM public.facturacion_nc_devoluciones
+  WHERE nota_credito_id = p_nota_id AND operacion_ajuste_id IS NULL;
+
+  FOR v_item IN SELECT value FROM jsonb_array_elements(COALESCE(p_devoluciones, '[]'::jsonb)) LOOP
+    v_linea_id := (v_item->>'operacionLineaId')::uuid;
+    v_cantidad := (v_item->>'cantidad')::integer;
+    SELECT LEAST(sfo.cantidad_original, ol.cantidad_cumplida), sfo.stock_id, sfo.taller_id, sfo.origen_linea, sfo.operacion_origen_id, o.tipo::text
+      INTO v_cantidad_original, v_stock, v_taller, v_origen_linea, v_operacion_origen, v_tipo_operacion
+    FROM public.facturacion_factura_stock_origenes sfo
+    JOIN public.operaciones_lineas ol
+      ON ol.id = sfo.operacion_linea_id AND ol.operacion_id = sfo.operacion_origen_id AND ol.stock_id = sfo.stock_id
+    JOIN public.operaciones o
+      ON o.id = sfo.operacion_origen_id AND o.tenant_id = v_tenant
+    JOIN public.stocks s
+      ON s.id = sfo.stock_id AND s.tenant_id = v_tenant AND s.taller_id = sfo.taller_id
+      AND s.taller_id = o.taller_id AND s.producto_id = sfo.producto_id
+    WHERE sfo.factura_id = v_original.id AND sfo.tenant_id = v_tenant AND sfo.operacion_linea_id = v_linea_id
+      AND ((v_original.origen_tipo = 'VENTA' AND sfo.origen_linea = 'VENTA'
+            AND sfo.operacion_origen_id = v_original.operacion_id AND o.tipo = 'VENTA')
+        OR (v_original.origen_tipo = 'ARREGLO' AND sfo.origen_linea = 'REPUESTO'
+            AND o.tipo = 'ASIGNACION_ARREGLO'
+            AND EXISTS (SELECT 1 FROM public.operaciones_asignacion_arreglo oa
+              WHERE oa.operacion_id = sfo.operacion_origen_id AND oa.arreglo_id = v_original.arreglo_id)));
+    IF NOT FOUND THEN RAISE EXCEPTION 'La línea no pertenece a la venta o asignación original'; END IF;
+
+    -- Zero explicitly means fiscal-only for this line, but membership is still validated.
+    IF v_cantidad = 0 THEN CONTINUE; END IF;
+    IF v_original.stock_origenes_hash IS NULL THEN
+      RAISE EXCEPTION 'La factura histórica no tiene procedencia física verificable para devolver stock';
+    END IF;
+    SELECT COALESCE(sum(d.cantidad), 0)::bigint INTO v_used
+    FROM public.facturacion_nc_devoluciones d
+    JOIN public.facturas_electronicas n ON n.id = d.nota_credito_id AND n.tenant_id = v_tenant
+    WHERE d.operacion_linea_id = v_linea_id
+      AND n.estado IN ('ENVIANDO','INCIERTA','AUTORIZADA')
+      AND n.id <> p_nota_id;
+    IF v_cantidad > v_cantidad_original - v_used THEN
+      RAISE EXCEPTION 'La cantidad a devolver supera el saldo físico disponible';
+    END IF;
+    INSERT INTO public.facturacion_nc_devoluciones(
+      tenant_id, nota_credito_id, factura_original_id, operacion_linea_id, stock_id, cantidad
+    ) VALUES (v_tenant, p_nota_id, v_original.id, v_linea_id, v_stock, v_cantidad);
+  END LOOP;
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.rpc_facturacion_reservar_devoluciones(uuid,jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.rpc_facturacion_reservar_devoluciones(uuid,jsonb) TO authenticated, service_role;

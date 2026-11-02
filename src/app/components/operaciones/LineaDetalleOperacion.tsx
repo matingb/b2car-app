@@ -115,7 +115,7 @@ export default function LineaDetalleOperacion({
       const arregloId = (operacion as unknown as { arreglo_id?: string }).arreglo_id;
       return arregloId ? `${ROUTES.arreglos}/${arregloId}` : null;
     }
-    if (operacion.tipo === "TRANSFERENCIA" || operacion.tipo === "INGRESO" || operacion.tipo === "APERTURA_CUENTA") {
+    if (["TRANSFERENCIA", "INGRESO", "APERTURA_CUENTA", "AJUSTE_FINANCIERO"].includes(operacion.tipo)) {
       return operacion.cuenta_financiera_id ? `${ROUTES.cuentasFinancieras}/${operacion.cuenta_financiera_id}` : null;
     }
     return `${ROUTES.operaciones}/${operacion.id}`;

@@ -149,6 +149,15 @@ En todo lo que sigue, "test de integración" significa un test en `src/tests/int
   Verificación: resultado anotado en `IMPLEMENTATION_NOTES.md`.
 - [x] 11.5 Validar el change con `openspec validate rediseno-operaciones-ledgers --strict`. Verificación: el comando informa que el change es válido.
 
+## 12. Correcciones de la revisión con producción
+
+- [x] 12.1 Incorporar las decisiones acordadas: cliente/proveedor opcionales, RPCs de escritura SECURITY DEFINER y regularización histórica con una OMC por documento más un AJUSTE_FINANCIERO neto por tenant, sin marca de migración persistente.
+- [x] 12.2 Corregir el backfill y las reversas financieras, el emparejamiento de pagos repetidos y la edición de gastos con un pago parcial. Verificación: regresiones con asientos históricos editados y correcciones/anulaciones sucesivas.
+- [x] 12.3 Implementar la regularización de documentos históricos pagados sin asiento, seleccionando cuenta favorita activa o primera activa por created_at/id, y comprobar que el saldo de cada cuenta se conserva.
+- [x] 12.4 Restaurar SECURITY DEFINER y los grants de solo lectura para documentos/OMC/OMS, corregir el DROP de la firma de 14 argumentos del helper de kardex y sanear/validar las asociaciones históricas. Verificación: RPCs autorizadas funcionan, escritura directa y referencias entre tenants se rechazan.
+- [x] 12.5 Corregir las cancelaciones y devoluciones de NC, y bloquear stock antes de recalcular reservas concurrentes. El caso de kardex histórico con entregas parciales no bloquea la producción actual, que aún no tiene kardex. Verificación: NC con y sin devolución y reservas simultáneas.
+- [x] 12.6 Actualizar tipos, presentación y pruebas del ajuste financiero; ejecutar regresiones SQL/integración, comprobaciones estáticas y ensayo de toda la cadena desde el esquema de producción. Registrar resultados y límites de la verificación.
+
 ## Workflow follow-up
 
 - Regenerar `supabase/schemas/` con el flujo del equipo después de aplicar las migraciones.

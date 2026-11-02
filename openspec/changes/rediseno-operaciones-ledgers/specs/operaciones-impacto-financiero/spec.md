@@ -6,6 +6,33 @@ Define cómo una operación mueve plata. Cada pago, cobro o movimiento de cuenta
 
 ## ADDED Requirements
 
+### Requirement: Regularización histórica con saldo financiero neutro
+Las compras y ventas históricas consideradas totalmente pagadas por el backfill previo y que carecen de pagos y asientos SHALL recibir una OMC por el total pactado, con el signo de su tipo. Se SHALL usar la cuenta favorita activa de su tenant o la primera activa por created_at e id. La regularización MUST ser atómica, evitar duplicados y conservar el saldo de cada cuenta, sin marcas persistentes de migración.
+
+#### Scenario: Compras y ventas históricas del mismo tenant
+- **GIVEN** una compra histórica de 1000 y una venta histórica de 300, totalmente pagadas y sin asientos
+- **WHEN** se ejecuta la regularización
+- **THEN** se crean una OMC de -1000 en la compra, una de +300 en la venta y un AJUSTE_FINANCIERO con OMC de +700 en la misma cuenta
+- **AND** los documentos quedan pagados y el saldo de la cuenta se conserva
+
+#### Scenario: Tenant sin cuenta favorita
+- **GIVEN** un tenant con cuentas activas y ninguna favorita
+- **WHEN** se regularizan sus documentos históricos
+- **THEN** todos usan la primera cuenta activa por created_at e id
+
+### Requirement: Ajuste compensatorio del corte
+El sistema SHALL registrar en la cuenta utilizada para regularizar un AJUSTE_FINANCIERO por tenant con el importe opuesto al neto regularizado, salvo que sea cero. El ajuste MUST tener una hija con su cuenta, exactamente una OMC por su monto absoluto y ninguna línea de stock. AJUSTE_FINANCIERO MUST ser neutro en estadísticas comerciales y cuentas corrientes.
+
+#### Scenario: Neto regularizado igual a cero
+- **GIVEN** una compra y una venta históricas sin asiento, ambas por 1000
+- **WHEN** se regularizan sus pagos
+- **THEN** se crean ambas OMC y no se crea un ajuste compensatorio
+
+#### Scenario: Anulación posterior al corte
+- **GIVEN** un documento regularizado y el ajuste financiero agregado de su tenant
+- **WHEN** se anula el pago del documento
+- **THEN** se registra su reversa normal y el ajuste agregado del corte se conserva
+
 ### Requirement: Impactos financieros como única vía al ledger
 Todo asiento del ledger financiero MUST originarse en un impacto financiero de una operación. Un impacto tiene una cuenta, un importe con signo distinto de cero y una fecha propia, y genera exactamente un asiento con esos mismos datos. El asiento referencia al impacto y a la operación. Ningún otro camino, incluido el acceso directo desde la app, SHALL escribir el ledger.
 
@@ -43,7 +70,7 @@ El sistema SHALL validar el signo de cada impacto según el tipo de operación y
 - **THEN** su importe debe ser:
   - positivo en `VENTA`, `INGRESO` y `COBRO_ARREGLO`;
   - negativo en `COMPRA` y `GASTO`;
-  - distinto de cero, de cualquier signo, en `APERTURA_CUENTA`.
+  - distinto de cero, de cualquier signo, en `APERTURA_CUENTA` y `AJUSTE_FINANCIERO`.
 
 #### Scenario: Cobro de venta con importe negativo
 - **WHEN** se intenta registrar sobre una venta un impacto con importe negativo
