@@ -130,7 +130,7 @@ const styles = {
   card: {
     padding: 0,
     overflow: "hidden",
-    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
   },
   topSection: {
     display: "flex",
@@ -183,7 +183,7 @@ const styles = {
   priceSection: {
     padding: "12px 18px",
     borderLeft: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    backgroundColor: COLOR.BACKGROUND.SUBTLE,
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
     display: "flex",
     flexDirection: "column" as const,
     alignItems: "flex-end",
@@ -215,6 +215,7 @@ const styles = {
     alignItems: "center",
     gap: 8,
     flexWrap: "wrap" as const,
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
   },
   pillsContainer: {
     display: "flex",
