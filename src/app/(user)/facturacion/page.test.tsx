@@ -116,4 +116,26 @@ describe("DocumentacionPage", () => {
     renderPage();
     expect(await screen.findByRole("alert")).toHaveTextContent("El listado muestra hasta 1000 documentos.");
   });
+
+  it("abre reporte con filtros propios y mantiene descargas generales", async () => {
+    navigation.search = "tipo=NOTA_CREDITO";
+    responder([]); renderPage();
+    await screen.findByText("No hay documentos para estos filtros");
+    const csv = screen.getByRole("link", { name: /CSV/ });
+    expect(csv.getAttribute("href")).toContain("documentoTipo=NOTA_CREDITO");
+    expect(csv.getAttribute("href")).not.toContain("reporte=fiscal");
+    fireEvent.click(screen.getByRole("button", { name: "Reporte fiscal" }));
+    expect(await screen.findByRole("heading", { name: "Reporte fiscal de ventas" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Documento del reporte")).toHaveValue("");
+    expect(screen.getByLabelText("Origen del reporte")).toHaveValue("");
+    expect(screen.getByLabelText("CUIT emisor (opcional)")).toHaveValue("");
+  });
+
+  it("oculta reporte en remitos y sin permiso de consulta fiscal", async () => {
+    responder([]); renderPage([]);
+    await screen.findByText("No hay documentos para estos filtros");
+    expect(screen.queryByRole("button", { name: "Reporte fiscal" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remitos" }));
+    expect(screen.queryByRole("button", { name: "Reporte fiscal" })).not.toBeInTheDocument();
+  });
 });

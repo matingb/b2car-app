@@ -1,6 +1,9 @@
 import ExcelJS from "exceljs";
 import { exportFacturasRows } from "@/lib/facturacion/facturacionService";
 import { facturacionErrorResponse, requireTenantBillingActor } from "@/lib/facturacion/serverAuth";
+import { createClient } from "@/supabase/server";
+import { FiscalQueryError, parseFiscalFilters } from "@/lib/facturacion/reporteFiscal";
+import { facturasReporteService } from "./facturasReporteService";
 
 export const runtime = "nodejs";
 
@@ -13,6 +16,17 @@ export async function GET(request: Request) {
   try {
     const actor = await requireTenantBillingActor();
     const params = new URL(request.url).searchParams;
+    if (params.has("reporte")) {
+      const filters = parseFiscalFilters(params);
+      const corte = new Date().toISOString();
+      const result = await facturasReporteService.generate(await createClient(), actor.tenantId, filters, corte);
+      if (result.error || !result.data) return Response.json({ error: "No se pudo generar el reporte fiscal completo" }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
+      return new Response(result.data.body, { headers: {
+        "Content-Type": result.data.mime,
+        "Content-Disposition": `attachment; filename="${result.data.filename}"`,
+        "Cache-Control": "private, no-store",
+      } });
+    }
     const format = params.get("format") === "xlsx" ? "xlsx" : "csv";
     const rows = await exportFacturasRows(actor.tenantId, {
       estado: params.get("estado"), ambiente: params.get("ambiente"),
@@ -54,6 +68,9 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    return facturacionErrorResponse(error);
+    if (error instanceof FiscalQueryError) return Response.json({ error: error.message }, { status: 422, headers: { "Cache-Control": "private, no-store" } });
+    const response = facturacionErrorResponse(error);
+    if (new URL(request.url).searchParams.has("reporte")) response.headers.set("Cache-Control", "private, no-store");
+    return response;
   }
 }

@@ -6,9 +6,9 @@ Ver [proposal.md](proposal.md) para motivación y [la spec](specs/reportes-fisca
 
 ### Estado de las definiciones
 
-- Confirmado por el usuario: destino contador/control fiscal, uso del Excel aportado como referencia y provincia incluida con investigación pendiente tanto de utilidad como de obtención/persistencia.
+- Confirmado por el usuario: destino contador/control fiscal y uso del Excel aportado como referencia. Corrección del 02/11/2026: si no hay provincia guardada, la columna no debe salir. El contrato inicial la omite; la obtención/persistencia queda como investigación futura.
 - Ajuste de alcance confirmado: esta versión desglosa únicamente IVA al 21%; las columnas para otras alícuotas se reservan para una ampliación futura.
-- Base propuesta para revisión a partir de la discusión: autorizados de producción, fecha fiscal, NC negativas, identidad histórica, resumen conciliado y exportación de impuestos efectivamente registrados.
+- Base del reporte: comprobantes autorizados, fecha fiscal, NC negativas, identidad histórica, resumen conciliado y exportación de impuestos efectivamente registrados. Corrección confirmada por el usuario el 03/11/2026: el ambiente depende de `ARCA_AMBIENTE`, en lugar de limitarse siempre a producción.
 - Decisiones técnicas de esta propuesta: modalidad adicional compatible, formulario propio, filtros fiscales explícitos, columnas extendidas, corte de autorización y representación de datos incompletos. No se presentan como un formato exigido por ARCA ni como una validación del contador.
 - Pendientes expresos: P1/P2/P3 en la decisión 8. Su resultado puede originar una ampliación posterior; el núcleo descrito no depende de presuponerlo.
 
@@ -51,7 +51,7 @@ Se usa la referencia para organización y conceptos. Sus diferencias no se convi
 
 Agregar `reporte=fiscal` al endpoint existente. Sin ese parámetro continúa el contrato general actual. Un valor de `reporte` desconocido se rechaza; la rama fiscal exige `format=csv|xlsx`, `desde` y `hasta`, acepta `documentoTipo`, `origenTipo` y `cuitEmisor`, y rechaza filtros operativos incompatibles en lugar de ampliar el alcance silenciosamente.
 
-En Documentos, agregar la acción «Reporte fiscal» con formulario propio y selector de formato. Sugerir el mes actual en calendario GMT-3, permitir editar ambos extremos y mostrar «Autorizados · Producción» como alcance fijo. Por defecto incluye todos los documentos y ambos orígenes; no hereda búsqueda, clase, estado, ambiente, factura asociada ni página del listado. El período fiscal siempre se revisa antes de descargar. La exportación general mantiene sus enlaces actuales.
+En Documentos, agregar la acción «Reporte fiscal» con formulario propio y selector de formato. Sugerir el mes actual en calendario GMT-3, permitir editar ambos extremos y mostrar «Comprobantes autorizados», aclarando que se incluyen únicamente los del ambiente configurado para facturación. No ofrecer un selector de ambiente. Por defecto incluye todos los documentos y ambos orígenes; no hereda búsqueda, clase, estado, ambiente, factura asociada ni página del listado. El período fiscal siempre se revisa antes de descargar. La exportación general mantiene sus enlaces actuales.
 
 Es una decisión de diseño propuesta para preservar compatibilidad, no un requisito de copiar exactamente la pantalla del Excel. Alternativas: convertir todos los enlaces actuales rompería la exportación de estados de diagnóstico; crear otro endpoint duplicaría el transporte existente.
 
@@ -66,13 +66,15 @@ Alternativa descartada: reutilizar directamente `exportFacturasRows`, porque tra
 ### 3. Fuente y selección del conjunto
 
 ```text
-sesion + filtros fiscales + instante de corte
-  --> cabeceras AUTORIZADA / PRODUCCION / ARREGLO o VENTA
+sesion + filtros fiscales + ambiente de ARCA_AMBIENTE + instante de corte
+  --> cabeceras AUTORIZADA / ambiente configurado / ARREGLO o VENTA
   --> lotes de lineas y cabeceras asociadas del mismo tenant
   --> expansion de originales fiscales + agregacion por factura
   --> filas normalizadas + resumen de esas filas
   --> CSV o XLSX
 ```
+
+El servicio resuelve una sola vez el ambiente del servidor con `getFacturacionAmbiente()`: `ARCA_AMBIENTE=PRODUCCION` selecciona `PRODUCCION`; `HOMOLOGACION`, ausencia y cualquier otro valor seleccionan `HOMOLOGACION`. Ese alcance interno se pasa al repositorio y al reporte para que la consulta y el resumen del XLSX coincidan. Nunca se toma de parámetros del cliente ni de filtros del listado; `ambiente` sigue siendo un parámetro incompatible en la modalidad fiscal. Cada generación incluye un solo ambiente.
 
 Leer solo columnas necesarias; incluir `id`, snapshots, referencias, fechas, clase/tipo, moneda, todos los importes y `autorizada_at`. No hacer joins a pagos, movimientos financieros, stock o líneas operativas, ni multiplicar filas por relaciones de uno a muchos.
 
@@ -112,7 +114,6 @@ Los dos serializadores comparten un registro ordenado de columnas, estable aun s
 | `impuestosNacionales` | Otros impuestos nacionales informados | `otros_impuestos_nacionales`; informativo, no adicional al total. |
 | `total` | Importe total | `total` de cabecera. |
 | `moneda` | Moneda | PES en el contrato actual. |
-| `provincia` | Provincia del receptor | Columna prevista; «No informada» sin dato verificable. Ver pendiente P1. |
 | `origen` | Origen | ARREGLO o VENTA. |
 | `origenId` | Referencia origen | ID de arreglo o venta; no identifica al receptor fiscal. |
 | `asociado` | Comprobante asociado | Tipo y número de la factura relacionada; sin agregarla al período. |
@@ -134,7 +135,7 @@ Para C, llevar el importe interno de neto a `sinIvaC` y conservar exento/no grav
 
 Contrastar en centavos: base 21% contra neto de cabecera e IVA 21% contra IVA total cuando el desglose es completo dentro del alcance; exentos/no gravados contra sus cabeceras; y `netoGravado + sinIvaC + exento + noGravado + ivaTotal + otrosTributos` contra total. Los impuestos nacionales informativos no se suman otra vez. En una inconsistencia se mantienen los valores de cada fuente y una observación cuantificada.
 
-Cuando faltan datos para verificar el 21%, dejar desconocidos sus casilleros, conservar cabecera y marcar INCOMPLETO. La inexistencia de movimientos al 21% solo implica cero si es verificable. La falta de provincia se informa aparte y no vuelve incompleto un IVA correctamente reconstruido. Si falta una referencia o identificación, conservar la fila y advertirlo; no suprimir comprobantes.
+Cuando faltan datos para verificar el 21%, dejar desconocidos sus casilleros, conservar cabecera y marcar INCOMPLETO. La inexistencia de movimientos al 21% solo implica cero si es verificable. La provincia se omite del contrato inicial y su ausencia no afecta el desglose ni genera observaciones o conteos. Si falta una referencia o identificación, conservar la fila y advertirlo; no suprimir comprobantes.
 
 Si aparece una línea gravada con otra alícuota, conservar neto, IVA total y total de cabecera y marcar INCOMPLETO con observación «Alícuota fuera del alcance del desglose». Mantener únicamente los importes al 21% que puedan verificarse, sin atribuirles conceptos de otra tasa; si se conoce que no hay movimientos al 21%, sus casilleros valen cero. `baseTotal` queda indeterminado porque esta versión no representa el desglose completo. Identificar la tasa excepcional en la observación no implica implementar su cálculo, agregar columnas o excluir la factura. El resumen informa el desglose parcial y conserva los totales de todas las cabeceras.
 
@@ -148,7 +149,7 @@ El [manual WSFEv1 v4.7](https://www.arca.gob.ar/ws/documentacion/manuales/manual
 
 ### 7. Presentación y serialización
 
-- XLSX: hoja `Resumen` y hoja `Comprobantes`. La primera identifica el período, alcance, corte, PES y emisores por CUIT/razón social histórica; lista subtotales por CUIT y clase y cantidad total, de facturas, NC y ND, incompletos y sin provincia. Sus montos se obtienen exclusivamente de las mismas filas. Un subtotal de una columna con valores desconocidos se etiqueta como parcial y cuenta los faltantes; no se presenta un cero como total completo.
+- XLSX: hoja `Resumen` y hoja `Comprobantes`. La primera identifica el período, alcance con el ambiente efectivo (Producción u Homologación), corte, PES y emisores por CUIT/razón social histórica; lista subtotales por CUIT y clase y cantidad total, de facturas, NC y ND e incompletos. Sus montos se obtienen exclusivamente de las mismas filas. Un subtotal de una columna con valores desconocidos se etiqueta como parcial y cuenta los faltantes; no se presenta un cero como total completo.
 - `Comprobantes`: encabezado fijo, autofiltro, importes numéricos con dos decimales, identificadores textuales y fechas calendario con presentación DD/MM/AAAA. Las fórmulas no son necesarias: los valores finales son sumas de centavos auditables.
 - CSV: un único encabezado de detalle, orden compartido con XLSX, UTF-8 BOM, separador coma, decimales con punto y sin símbolo monetario/miles, fechas ISO y CRLF. Escapar coma, comillas, CR y LF; neutralizar texto no confiable que una planilla interprete como fórmula sin convertir los importes de NC a texto.
 - Cero filas: columnas estables, resumen cero, detalle vacío. La razón social de un emisor sin movimientos no se inventa desde una factura; se identifica tenant/período y se aclara que no hubo emisores con comprobantes en ese conjunto.
@@ -158,26 +159,52 @@ Alternativa: poner el resumen antes del encabezado del CSV haría irregular su t
 
 ### 8. Provincia: investigación acordada y alcance condicionado
 
-La columna permanece en el contrato inicial y se acepta «No informada». La carga en cliente/factura y la consulta progresiva durante reportes son hipótesis que pidió investigar el usuario. El núcleo es de lectura; resolver P1/P2 no es condición para desarrollar sus importes, pero sí para implementar cualquier consulta o persistencia geográfica.
+Decisión del usuario del 02/11/2026: «La provincia si no la tenemos en ningun lado, hace que no salga la columna en el reporte». Los snapshots y el adaptador actuales no exponen provincia; por ello el contrato inicial tiene 29 columnas estables, sin provincia, observaciones ni conteos geográficos. La carga en cliente/factura y la consulta progresiva quedan como investigación futura. Resolver la fuente, semántica y procedencia requiere una ampliación revisada antes de incorporar la columna.
 
 | Pendiente | Qué hay que investigar y registrar | Límite vigente |
 | --- | --- | --- |
-| P1: utilidad y significado | Consultar al contador si necesita provincia, para qué control y si representa domicilio fiscal del receptor o jurisdicción de la operación. Documentar inclusión definitiva o cambio justificado. | La columna está prevista; no inferir que una provincia del padrón determina jurisdicción impositiva. |
+| P1: utilidad y significado | Resuelto para esta entrega: omitir provincia por ausencia de fuente guardada, por indicación explícita del usuario. El tipo de provincia y su utilidad contable siguen sin validar para una eventual ampliación. | No incluir columna vacía ni asumir jurisdicción impositiva desde padrón. |
 | P2: obtención y persistencia | Evaluar provincia actual del cliente, dato conservado al emitir y enriquecimiento posterior; A13, credenciales disponibles, CUIT/CUIL/DNI, múltiples domicilios, caché, deduplicación, límites, actualización, errores y procedencia temporal. | No implementar consultas ni escrituras geográficas hasta definir la política y actualizar este diseño y sus tareas. |
 | P3: percepciones necesarias | Confirmar si el contador necesita categorías además del agregado y qué fuentes contienen sus importes. | No crear detalle ni cálculo de impuestos que el producto no registra. |
 
-El [manual A13 v1.2](https://arca.gob.ar/ws/ws-padron-a13/manual-ws-sr-padron-a13-v1.2.pdf) documenta `idProvincia` y `descripcionProvincia` en el domicilio. Se debe verificar respuesta real y permisos con un contexto autorizado durante P2; no se presupone acceso actual ni cobertura para todos los documentos.
+La URL del manual A13 v1.2 citada en la propuesta devuelve 404 al verificarla el 02/11/2026. Como evidencia técnica local, el DTO generado del WSDL de `@arcasdk/core@2.0.2` (`lib/application/dto/register/persona-service-a13.types.d.ts`, `Idomicilio`) contiene `idProvincia`, `descripcionProvincia`, `tipoDomicilio` y `estadoDomicilio`. Esto acredita capacidad de transporte del SDK, no disponibilidad de datos reales ni permisos actuales. El gateway del producto solo expone dirección. Una ampliación deberá verificar documentación oficial vigente, respuestas y permisos con contexto autorizado; no se realizaron consultas de contribuyentes.
 
 Condiciones que debe satisfacer cualquier propuesta posterior de P2:
 
 - Consultar al receptor del comprobante; actualizar la ficha de un cliente solo si su identidad coincide, sin modificar al cliente asociado cuando la factura tenga otro receptor.
 - Conservar provincia y procedencia disponibles al emitir; diferenciar el dato consultado hoy para un comprobante histórico. Registrar fuente y fecha; decidir persistencia auxiliar sin alterar snapshots autorizados ni su contenido/hash fiscal.
-- Sin documento identificable, ambigüedad o caída de ARCA: «No informada»; la falla no bloquea el archivo ni dispara consultas a otro receptor.
+- Sin documento identificable, ambigüedad o caída de ARCA: dato desconocido, sin consultas a otro receptor. Una ampliación deberá acordar cómo presentar ese faltante si habilita la columna.
 - Reutilizar resultados por identidad dentro del reporte y definir vigencia de caché y límites de consulta antes de habilitar la carga progresiva. Un cambio de resultados geográficos posterior no altera importes ni identidad fiscal.
+
+### Resultado de investigación P2 y destino de P1/P2/P3 (02/11/2026)
+
+P1 está resuelto para el núcleo: se omite provincia. P2 queda identificado como **P2-GEO, investigación futura sin implementación autorizada**. P3 queda identificado como **P3-TRIBUTOS, catálogo y fuentes pendientes de contador**. La consulta agrupada al usuario recibió respuesta solo sobre provincia; no hay evidencia de tipos de percepciones ni de importes por categoría. Se conserva únicamente `importe_tributos`; no se atribuyen categorías a ese agregado. Estas dependencias no bloquean el núcleo definido y no equivalen a dar por implementadas las ampliaciones.
+
+Evaluación revisable de P2-GEO (propuesta, no política aprobada):
+
+| Aspecto | Evaluación / condición para ampliación |
+| --- | --- |
+| Identidad | Usar tipo y número del receptor snapshot. CUIT/CUIL identificables pueden consultar A13; DNI puede producir cero, una o varias identidades. El gateway ya devuelve `MULTIPLE`; nunca elegir un candidato por cercanía al cliente de la operación. 99/0 y documentos ausentes no se consultan. |
+| Domicilios | El SDK admite varios domicilios. El gateway actual elige FISCAL o el primero para dirección; no trasladar ese fallback automáticamente a provincia ni jurisdicción. Definir selección y tratamiento de ambigüedad/estado del domicilio antes de habilitarla. |
+| Tiempo y procedencia | Provincia actual de cliente, provincia guardada al emitir y enriquecimiento consultado hoy son tres fuentes distintas. Persistir fuente, instante de consulta, identidad normalizada y vínculo al comprobante; no presentar un enriquecimiento de hoy como dato de emisión. |
+| Credenciales | El gateway usa configuración institucional A13 separada de certificados de tenants. No se inspeccionaron secretos ni se comprobaron relaciones/permisos reales; su disponibilidad sigue pendiente. |
+| Caché y deduplicación | Usar una clave por identidad exacta, no por cliente/arreglo. Deduplicar dentro de la generación. Definir TTL positivo/negativo, separación de tenant y política de actualización antes de persistir caché; no dar acceso cruzado a datos auxiliares. |
+| Límites y fallos | Sin límites oficiales verificados no hay autorización para fan-out progresivo. Propuesta a revisar: concurrencia acotada, plazo total por reporte, timeout por consulta y reintentos limitados con backoff; sin documento, ambigüedad o error, continuar el núcleo sin geografía. No convertir fallos transitorios en ausencia definitiva. |
+
+Opciones de persistencia evaluadas (ninguna implementada):
+
+| Opción | Ventaja / límite | Permisos y migraciones |
+| --- | --- | --- |
+| Solo memoria por generación | Sin escrituras y deduplicación local; no conserva procedencia para consultas posteriores | Sin migración; requerir autorización de consulta A13 antes de habilitarla. |
+| Tabla auxiliar por tenant + comprobante + identidad | Conserva valor/fuente/fecha como enriquecimiento posterior sin tocar `receptor_snapshot` ni `contenido_hash`; permite invalidar caché | Nueva tabla con RLS, grants mínimos SELECT y escritura mediante operación autorizada por separado; migración y auditoría futuras. Descargar por GET no debe escribirla implícitamente. |
+| Captura al emitir nuevos documentos | Dato histórico disponible desde la emisión, distinto del enriquecimiento posterior | Revisar formulario, contrato de emisión y hash antes de autorizar; ningún backfill sobre autorizados. Requiere spec y pruebas propias. |
+| Ficha actual del cliente | Útil como sugerencia futura, sin autoridad histórica para comprobantes existentes | Solo actualizar con coincidencia exacta de identidad y permiso de edición de cliente; una factura a receptor alternativo no habilita cambiar el cliente asociado. Revisar modelo/migración por separado. |
+
+La tabla auxiliar es una candidata para trazabilidad, no una decisión aprobada. No se modifican snapshots, hashes, fichas, permisos ni esquemas en este cambio. Para retomar P2-GEO o P3-TRIBUTOS se requiere un cambio que revise spec, diseño y tareas, además de resolver semántica, fuente y política.
 
 ## Risks / Trade-offs
 
-- [Provincia pendiente] -> Columna prevista con ausencia explícita y tareas P1/P2; el plan no da por implementada ni aprobada la estrategia de padrón.
+- [Provincia sin fuente] -> Columna omitida por decisión del usuario; P2 queda como investigación futura, sin estrategia de padrón implementada ni aprobada.
 - [Históricos incompletos o defaults antiguos] -> Conservar cabecera, diferenciar desconocido de cero y advertir discrepancias; no backfill fiscal por inferencia.
 - [Límite de filas de Supabase o muchas líneas] -> Cursor estable tanto en cabeceras como en líneas y caso de prueba superior a 1000 comprobantes, con falla explícita antes de entregar un parcial.
 - [Tratamientos distintos en detalle simplificado] -> Expandir originales fiscales, distinguir IVA al 21% de exentos/no gravados y evitar duplicar la presentación.

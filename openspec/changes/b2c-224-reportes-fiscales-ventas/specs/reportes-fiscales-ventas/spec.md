@@ -7,10 +7,10 @@ Permitir que el contador revise y trabaje los comprobantes fiscales de ventas de
 ## ADDED Requirements
 
 ### Requirement: Universo de comprobantes fiscales
-El reporte SHALL incluir facturas, NC y ND autorizadas de producción, originadas en arreglos o ventas del tenant, incluidas las FCE existentes. MUST excluir remitos, presupuestos, ventas sin comprobante, compras, gastos y comprobantes de homologación o sin autorización fiscal.
+El reporte SHALL incluir facturas, NC y ND autorizadas del ambiente configurado, originadas en arreglos o ventas del tenant, incluidas las FCE existentes. MUST excluir remitos, presupuestos, ventas sin comprobante, compras, gastos, comprobantes sin autorización y comprobantes del otro ambiente.
 
 #### Scenario: Estados y orígenes incluidos
-- **GIVEN** facturas autorizadas de un arreglo y una venta, una NC, una ND, una FCE, un borrador y un comprobante de homologación
+- **GIVEN** `ARCA_AMBIENTE=PRODUCCION`, facturas autorizadas de un arreglo y una venta, una NC, una ND, una FCE, un borrador y un comprobante de homologación
 - **WHEN** se genera el reporte del período
 - **THEN** aparecen los cinco documentos autorizados de producción que correspondan al período
 - **AND** el borrador y la homologación quedan excluidos
@@ -19,6 +19,25 @@ El reporte SHALL incluir facturas, NC y ND autorizadas de producción, originada
 - **GIVEN** una factura autorizada impaga y una FCE autorizada con estado manual cancelada
 - **WHEN** ambas pertenecen al período seleccionado
 - **THEN** ambas se incluyen por su autorización fiscal, sin depender del pago ni del estado manual de seguimiento
+
+### Requirement: Ambiente según configuración del servidor
+El reporte SHALL resolver el ambiente con `getFacturacionAmbiente()` desde `ARCA_AMBIENTE`: `PRODUCCION` únicamente con ese valor explícito y `HOMOLOGACION` en los demás casos. MUST NOT mezclar ambientes ni aceptar su elección por el cliente. El resumen XLSX SHALL identificar el ambiente efectivo.
+
+#### Scenario: Reporte en homologación
+- **GIVEN** `ARCA_AMBIENTE=HOMOLOGACION`, dos facturas autorizadas de homologación y una factura autorizada de producción dentro del período
+- **WHEN** se genera el reporte
+- **THEN** aparecen las dos facturas de homologación y queda excluida la de producción
+- **AND** el resumen del XLSX identifica Homologación como ambiente efectivo
+
+#### Scenario: Variable ausente o no válida
+- **GIVEN** que `ARCA_AMBIENTE` no está definida o tiene un valor distinto de `PRODUCCION`
+- **WHEN** se genera el reporte
+- **THEN** se selecciona únicamente homologación, según la resolución de ambiente existente
+
+#### Scenario: El cliente intenta cambiar el ambiente
+- **GIVEN** cualquier ambiente configurado en el servidor
+- **WHEN** una solicitud fiscal incluye el parámetro `ambiente`
+- **THEN** se rechaza como filtro incompatible, sin reemplazar el ambiente configurado
 
 ### Requirement: Acceso por tenant y permiso
 El sistema SHALL exigir sesión, membresía activa y el permiso efectivo de consulta de facturas. MUST derivar el tenant de la sesión y mantener ese aislamiento para comprobantes, líneas y referencias asociadas.
@@ -33,7 +52,7 @@ El sistema SHALL exigir sesión, membresía activa y el permiso efectivo de cons
 - **THEN** el sistema rechaza la solicitud y no entrega un archivo fiscal
 
 ### Requirement: Período y filtros explícitos
-El reporte SHALL requerir fechas desde y hasta inclusivas por fecha del comprobante. SHALL ofrecer filtros opcionales por documento, origen y CUIT emisor, con todos seleccionados por defecto. MUST mostrar el alcance e ignorar filtros de búsqueda, estado y paginación del listado general.
+El reporte SHALL requerir fechas desde y hasta inclusivas por fecha del comprobante. SHALL ofrecer filtros opcionales por documento, origen y CUIT emisor, con todos seleccionados por defecto. MUST mostrar que incluye comprobantes autorizados del ambiente configurado para facturación, sin selector de ambiente, e ignorar filtros de búsqueda, estado, ambiente y paginación del listado general.
 
 #### Scenario: Fechas fiscales frente a fechas operativas
 - **GIVEN** un comprobante con fecha fiscal 31/10 autorizado el 01/11 y un arreglo de septiembre
@@ -165,7 +184,7 @@ El reporte SHALL conservar comprobantes e importes fiscales disponibles e identi
 - **THEN** conserva ambas fuentes y registra la diferencia, sin ajustar una alícuota para ocultarla
 
 ### Requirement: Resumen conciliado
-El XLSX SHALL resumir período, moneda, instante de generación, emisor, cantidad y totales de las filas exportadas. MUST calcular importes en centavos, aplicar los mismos signos y separar subtotales por CUIT emisor y clase. SHALL informar cantidades de filas con datos incompletos y sin provincia.
+El XLSX SHALL resumir período, moneda, instante de generación, emisor, cantidad y totales de las filas exportadas. MUST calcular importes en centavos, aplicar los mismos signos y separar subtotales por CUIT emisor y clase. SHALL informar cantidades de filas con datos fiscales incompletos.
 
 #### Scenario: Sumas reproducibles
 - **WHEN** el contador suma una columna monetaria del detalle
@@ -212,14 +231,14 @@ La modalidad fiscal SHALL ser explícita y mantener disponible la exportación g
 - **WHEN** una lectura falla
 - **THEN** el usuario recibe un error y no un archivo incompleto con totales aparentando cubrir el período
 
-### Requirement: Columna prevista de provincia con definición pendiente
-El detalle SHALL reservar «Provincia del receptor» y mostrar «No informada» cuando no exista un dato verificable. La validación de su utilidad, significado y obtención progresiva SHALL permanecer como investigación pendiente. Su ausencia MUST NOT impedir la descarga del núcleo del reporte.
+### Requirement: Omitir provincia sin fuente guardada
+El reporte inicial SHALL omitir la columna «Provincia del receptor» en CSV y XLSX porque no existe una fuente guardada verificable. MUST NOT agregar observaciones ni conteos de provincia faltante. Una futura incorporación SHALL requerir resolver su fuente, significado y procedencia temporal antes de ampliar el contrato.
 
-#### Scenario: Comprobante sin provincia
-- **GIVEN** un comprobante sin provincia conservada
+#### Scenario: Fuentes actuales sin provincia
+- **GIVEN** que los snapshots actuales no conservan provincia
 - **WHEN** se exporta con el contrato inicial
-- **THEN** la columna muestra «No informada» y la fila se cuenta entre los datos geográficos faltantes
-- **AND** no se deduce la provincia desde texto libre ni desde otro receptor
+- **THEN** CSV y XLSX omiten esa columna incluso en un período vacío
+- **AND** no se deduce provincia desde texto libre ni desde otro receptor ni se consulta al padrón durante la descarga
 
 #### Scenario: Captura o enriquecimiento aún no definidos
 - **WHEN** se prepara la implementación de carga en cliente/factura o consultas al padrón durante la generación

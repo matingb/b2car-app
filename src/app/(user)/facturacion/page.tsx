@@ -10,6 +10,7 @@ import Card from "@/app/components/ui/Card";
 import FilterChip from "@/app/components/ui/FilterChip";
 import FacturaListItem from "@/app/components/facturacion/FacturaListItem";
 import FacturasFiltersModal, { type FacturasFilters } from "@/app/components/facturacion/FacturasFiltersModal";
+import ReporteFiscalModal from "@/app/components/facturacion/ReporteFiscalModal";
 import FacturasToolbar, { type FacturaDocumentoTipoFilter, type FacturaFilterChip } from "@/app/components/facturacion/FacturasToolbar";
 import RemitoListItem from "@/app/components/remitos/RemitoListItem";
 import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
@@ -69,6 +70,7 @@ function DocumentacionContent() {
   const [facturaAsociada, setFacturaAsociada] = useState<FacturaAsociadaFiltro>("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [createRemitoOpen, setCreateRemitoOpen] = useState(false);
+  const [reporteFiscalOpen, setReporteFiscalOpen] = useState(false);
   const [result, setResult] = useState<DocumentosPaginados>({ items: [], page: 1, pageSize: 25, total: 0 });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -205,6 +207,7 @@ function DocumentacionContent() {
             <>
               <a href={exportUrl("csv")} style={styles.exportLink} title="Exporta los comprobantes fiscales con los filtros aplicados"><Download size={16} /> CSV</a>
               <a href={exportUrl("xlsx")} style={styles.exportLink} title="Exporta los comprobantes fiscales con los filtros aplicados"><FileSpreadsheet size={16} /> Excel</a>
+              {hasPermission(Permission.FacturasView) ? <Button text="Reporte fiscal" icon={<FileSpreadsheet size={16} />} onClick={() => setReporteFiscalOpen(true)} hideTextOnMobile={false} outline /> : null}
             </>
           )}
           {hasPermission(Permission.FacturasEdit) ? (
@@ -259,6 +262,7 @@ function DocumentacionContent() {
         onClose={() => setCreateRemitoOpen(false)}
         onEmitted={(remitoId) => router.push(`${ROUTES.remitos}/${remitoId}`)}
       />
+      {reporteFiscalOpen ? <ReporteFiscalModal onClose={() => setReporteFiscalOpen(false)} /> : null}
     </div>
   );
 }

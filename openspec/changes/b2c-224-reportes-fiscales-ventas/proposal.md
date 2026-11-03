@@ -6,11 +6,11 @@
 
 ## What Changes
 
-- Agregar un reporte fiscal de facturas, notas de crédito y notas de débito autorizadas de producción del tenant, originadas en arreglos o ventas, incluyendo las FCE que el sistema ya puede emitir.
+- Agregar un reporte fiscal de facturas, notas de crédito y notas de débito autorizadas del tenant en el ambiente definido por `ARCA_AMBIENTE`, originadas en arreglos o ventas, incluyendo las FCE que el sistema ya puede emitir. Usar producción solo con `PRODUCCION` explícito y homologación en los demás casos, siguiendo la resolución de ambiente existente y sin mezclar ambientes.
 - Usar una fila por comprobante, fecha fiscal para el período, receptor y emisor históricos, importes de NC negativos y referencias al origen y al comprobante asociado.
 - Exportar neto gravado, importes de clase C sin IVA discriminado, exentos, no gravados, base e IVA al 21%, IVA total, otros tributos y total. Las columnas de otras alícuotas quedan para una ampliación futura; si aparecen en históricos, conservar sus totales y señalar el desglose fuera de alcance. Mantener separados los impuestos nacionales informativos para evitar duplicaciones.
 - Generar XLSX con resumen conciliado y detalle filtrable; CSV con el mismo contrato de filas y columnas de detalle. Informar datos fiscales históricos incompletos sin inventar desgloses.
-- Incorporar la columna prevista «Provincia del receptor». **Pendiente acordado:** validar su utilidad y significado con el contador e investigar la captura en cliente/factura y el enriquecimiento progresivo mediante padrón ARCA al generar reportes. La consulta progresiva y su persistencia todavía no son decisiones de implementación.
+- Omitir la columna «Provincia del receptor» en el contrato inicial porque no existe una fuente provincial guardada verificable, según indicación del usuario del 02/11/2026. La captura, enriquecimiento y eventual incorporación quedan como investigación futura, sin consultas ni persistencia en esta entrega.
 - Conservar la exportación general existente mediante una modalidad fiscal explícita, con período y alcance visibles; mantener autorización por tenant y permiso `facturas:view`.
 
 ## Capabilities
