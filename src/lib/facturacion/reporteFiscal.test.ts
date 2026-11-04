@@ -4,10 +4,13 @@ import { FISCAL_COLUMNS, FISCAL_MONEY_KEYS, parseFiscalFilters } from "./reporte
 const params = (extra = "") => new URLSearchParams(`reporte=fiscal&format=csv&desde=2026-10-01&hasta=2026-10-31${extra}`);
 
 describe("contrato fiscal", () => {
-  it("tiene 29 columnas únicas, sin provincia y solo base/IVA al 21%", () => {
-    expect(FISCAL_COLUMNS).toHaveLength(29);
-    expect(new Set(FISCAL_COLUMNS.map(c => c.key)).size).toBe(29);
+  it("tiene 24 columnas únicas, sin provincia ni columnas de trazabilidad, y solo base/IVA al 21%", () => {
+    expect(FISCAL_COLUMNS).toHaveLength(24);
+    expect(new Set(FISCAL_COLUMNS.map(c => c.key)).size).toBe(24);
     expect(FISCAL_COLUMNS.some(c => c.header.includes("Provincia"))).toBe(false);
+    for (const key of ["moneda", "origenId", "asociado", "facturaId", "estadoDesglose"]) {
+      expect(FISCAL_COLUMNS.some(c => c.key === key)).toBe(false);
+    }
     expect(FISCAL_COLUMNS.filter(c => c.header.includes("%"))).toEqual([
       expect.objectContaining({ key: "base21" }), expect.objectContaining({ key: "iva21" }),
     ]);

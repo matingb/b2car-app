@@ -1,5 +1,4 @@
 import { buildMultiSheetWorkbook, writeWorkbookBuffer } from "@/lib/excel/excelExportBuilder";
-import { formatDateTimeLabel } from "@/lib/fechas";
 import { FISCAL_COLUMNS, FISCAL_MONEY_KEYS, type FiscalReport, type FiscalSubtotal } from "./reporteFiscal";
 
 /** Exact decimal text, including safe integers near the limit (no toFixed rounding). */
@@ -49,18 +48,11 @@ export function buildFiscalWorkbook(report: FiscalReport) {
   const summary = report.summary;
   const rows: Record<string, unknown>[] = [
     { concepto: "Período inclusivo", detalle: `${report.filters.desde} a ${report.filters.hasta}` },
-    { concepto: "Tenant", detalle: report.tenantId },
-    { concepto: "Alcance", detalle: `Autorizados · ${report.filters.ambiente === "PRODUCCION" ? "Producción" : "Homologación"} · Facturas / NC / ND (incluye FCE)` },
     { concepto: "Filtros", detalle: `Documento: ${report.filters.documentoTipo ?? "Todos"}; Origen: ${report.filters.origenTipo ?? "Todos"}; CUIT: ${report.filters.cuitEmisor ?? "Todos"}` },
-    { concepto: "Moneda", detalle: "PES" },
-    { concepto: "Generación / corte", detalle: `${formatDateTimeLabel(report.corte)} (GMT-3); ${report.corte}` },
-    ...summary.emisores.map(e => ({ concepto: "Emisor histórico", cuit: e.cuit, detalle: e.razonSocial || "Razón social no informada" })),
-    ...(summary.emisores.length ? [] : [{ concepto: "Emisores", detalle: "Sin emisores con comprobantes en este conjunto" }]),
     { concepto: "Facturas", cantidad: summary.facturas }, { concepto: "Notas de crédito", cantidad: summary.nc }, { concepto: "Notas de débito", cantidad: summary.nd },
     { concepto: "Desgloses incompletos", cantidad: summary.incompletos },
     subtotalRow("Total del detalle", summary),
     ...summary.subtotals.map(s => subtotalRow("Subtotal CUIT / clase", s)),
-    { concepto: "Criterio de sumas", detalle: "Centavos del detalle. Importes desconocidos vacíos. Subtotales parciales identificados; impuestos nacionales informativos ya contenidos en el total." },
   ];
   const workbook = buildMultiSheetWorkbook<Record<string, unknown>>({ sheets: [
     {

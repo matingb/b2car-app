@@ -89,11 +89,13 @@ describe("archivos fiscales", () => {
     expect(sheet.getRow(1).height).toBe(42);
     expect(sheet.getCell(1, col("impuestosNacionales")).alignment.wrapText).toBe(true);
     expect(sheet.views[0]).toMatchObject({ state: "frozen", ySplit: 1 });
-    expect(sheet.autoFilter).toBe("A1:AC1");
+    expect(sheet.autoFilter).toBe("A1:X1");
     expect(sheet.getCell(7, col("base21")).value).toBeNull();
     const summary = workbook.getWorksheet("Resumen")!;
     expect(summary.getColumn(1).values).toContain("Notas de crédito");
     expect(summary.getColumn(17).values?.join(" ")).toMatch(/Parcial|parcial/);
+    const summaryConcepts = summary.getColumn(1).values.map(String).join("|").toLowerCase();
+    expect(summaryConcepts).not.toMatch(/tenant|alcance|moneda|generaci.n|corte|emisor|criterio de sumas/);
     expect(fiscalFilename(report.filters)).toBe("reporte-fiscal-ventas-2026-10-01_2026-10-31.xlsx");
   });
   it("CSV y XLSX expresan el mismo detalle, incluidas excepciones y desconocidos", async () => {
@@ -120,17 +122,18 @@ describe("archivos fiscales", () => {
       }
     }
   });
-  it("período vacío conserva las mismas 29 columnas sin provincia y resumen cero", async () => {
+  it("período vacío conserva las mismas 24 columnas sin provincia ni trazabilidad y resumen cero", async () => {
     const report = buildFiscalReport({ headers: [], lines: [], associated: [] }, "tenant-a", fiscalTestFilters, fiscalTestCorte);
     const csv = await readCsv(serializeFiscalCsv(report));
     const workbook = await readXlsx(await serializeFiscalXlsx(report));
     const sheet = workbook.getWorksheet("Comprobantes")!;
     expect(csv.rowCount).toBe(1); expect(sheet.rowCount).toBe(1);
-    expect(sheet.columnCount).toBe(29); expect(sheet.getRow(1).values).toEqual(csv.getRow(1).values);
+    expect(sheet.columnCount).toBe(24); expect(sheet.getRow(1).values).toEqual(csv.getRow(1).values);
     expect(serializeFiscalCsv(report)).not.toMatch(/Provincia/);
     const summary = buildFiscalWorkbook(report).getWorksheet("Resumen")!;
     expect(summary.getColumn(1).values).not.toContain("Sin provincia");
-    expect(summary.getColumn(2).values).toContain("Sin emisores con comprobantes en este conjunto");
+    const summaryConcepts = summary.getColumn(1).values.map(String).join("|").toLowerCase();
+    expect(summaryConcepts).not.toMatch(/tenant|alcance|moneda|generaci.n|corte|emisor|criterio de sumas/);
     const total = Array.from({ length: summary.rowCount }, (_, i) => summary.getRow(i + 1)).find(r => r.getCell(1).value === "Total del detalle")!;
     expect(total.getCell(5).value).toBe(0);
     for (let i = 0; i < FISCAL_MONEY_KEYS.length; i++) expect(total.getCell(6 + i).value).toBe(0);

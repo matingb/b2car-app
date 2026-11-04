@@ -81,12 +81,7 @@ export const FISCAL_COLUMNS: readonly FiscalColumn[] = [
   { key: "otrosTributos", header: "Importe otros tributos", kind: "money" },
   { key: "impuestosNacionales", header: "Otros impuestos nacionales informados", kind: "money" },
   { key: "total", header: "Importe total", kind: "money" },
-  { key: "moneda", header: "Moneda", kind: "text" },
   { key: "origen", header: "Origen", kind: "text" },
-  { key: "origenId", header: "Referencia origen", kind: "text" },
-  { key: "asociado", header: "Comprobante asociado", kind: "text" },
-  { key: "facturaId", header: "ID comprobante", kind: "text" },
-  { key: "estadoDesglose", header: "Estado desglose", kind: "text" },
   { key: "observaciones", header: "Observaciones", kind: "text" },
 ];
 
