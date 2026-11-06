@@ -25,6 +25,15 @@ export type ProductoWithStocks = {
   stocks?: ProductoStockItem[] | null;
 };
 
+export function isValidStockLevels(levels: StockLevels): boolean {
+  return (
+    levels.stockActual >= 0 &&
+    levels.stockMinimo >= 0 &&
+    levels.stockMaximo >= 0 &&
+    (levels.stockMinimo <= levels.stockMaximo || levels.stockMaximo === 0)
+  );
+}
+
 export function getStockStatus(levels: StockLevels): StockStatus {
   if (levels.stockActual === 0) return "critico";
   if (levels.stockActual < levels.stockMinimo) return "bajo";
@@ -50,6 +59,32 @@ export function getStockStatusLabel(status: StockStatus): string {
   }
 }
 
+export function getStockBreakdown(
+  stock?: ProductoStockItem | null,
+  stockActualOverride?: number
+): ProductoStockBreakdown {
+  if (!stock && stockActualOverride === undefined) {
+    return { fisico: 0, disponible: 0, reservado: 0, pendiente: 0 };
+  }
+  const actual =
+    stockActualOverride !== undefined
+      ? stockActualOverride
+      : Number(stock?.stockActual) || 0;
+  const reservado = Number(stock?.stockReservado) || 0;
+  const disponible =
+    stock?.stockDisponible !== undefined && stock?.stockDisponible !== null
+      ? Number(stock.stockDisponible) || 0
+      : Math.max(0, actual - reservado);
+  const pendiente = Number(stock?.stockPendiente) || 0;
+
+  return {
+    fisico: actual,
+    disponible,
+    reservado,
+    pendiente,
+  };
+}
+
 export function getProductoStockBreakdown(
   producto?: ProductoWithStocks | null,
   tallerId: string = ""
@@ -61,19 +96,12 @@ export function getProductoStockBreakdown(
 
   return relevantStocks.reduce(
     (acc, s) => {
-      const actual = Number(s.stockActual) || 0;
-      const reservado = Number(s.stockReservado) || 0;
-      const disponible =
-        s.stockDisponible !== undefined && s.stockDisponible !== null
-          ? Number(s.stockDisponible) || 0
-          : Math.max(0, actual - reservado);
-      const pendiente = Number(s.stockPendiente) || 0;
-
+      const breakdown = getStockBreakdown(s);
       return {
-        fisico: acc.fisico + actual,
-        disponible: acc.disponible + disponible,
-        reservado: acc.reservado + reservado,
-        pendiente: acc.pendiente + pendiente,
+        fisico: acc.fisico + breakdown.fisico,
+        disponible: acc.disponible + breakdown.disponible,
+        reservado: acc.reservado + breakdown.reservado,
+        pendiente: acc.pendiente + breakdown.pendiente,
       };
     },
     { fisico: 0, disponible: 0, reservado: 0, pendiente: 0 }

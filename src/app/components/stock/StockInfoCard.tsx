@@ -33,7 +33,7 @@ export default function StockInfoCard({ item, isEditing, draft, onChange }: Prop
   return (
     <div>
       <h3 style={styles.title}>Información general</h3>
-      <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
+      <Card style={{ backgroundColor: COLOR.BACKGROUND.SECONDARY }}>
         <div style={styles.grid}>
           <div>
             <div style={styles.label}>Código</div>

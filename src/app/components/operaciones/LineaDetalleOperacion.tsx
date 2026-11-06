@@ -382,7 +382,7 @@ const styles = {
     display: "inline-flex",
     alignItems: "center",
     gap: 5,
-    background: "transparent",
+    backgroundColor: "transparent",
     border: "none",
     padding: "3px 0px",
     color: COLOR.TEXT.SECONDARY,

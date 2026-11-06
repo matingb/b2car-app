@@ -11,6 +11,7 @@ import { formatDateLabel } from "@/lib/fechas";
 import { proveedoresClient } from "@/clients/proveedores/proveedoresClient";
 import type { ProveedorCuentaCorrienteResumen } from "@/model/dtos";
 import Link from "next/link";
+import Table from "@/app/components/ui/Table";
 
 export type ProveedorCuentaCorrienteTabProps = {
 	proveedorId: string;
@@ -104,72 +105,69 @@ export default function ProveedorCuentaCorrienteTab({
 					)}
 				</Card>
 			) : (
-				<div css={styles.tableCard}>
-					<table style={styles.table}>
-						<thead>
-							<tr style={styles.theadRow}>
-								<th style={styles.th}>Fecha</th>
-								<th style={styles.th}>Operación</th>
-								<th style={styles.th}>Taller</th>
-								<th style={{ ...styles.th, textAlign: "right" }}>Total</th>
-								<th style={{ ...styles.th, textAlign: "right" }}>Pagado</th>
-								<th style={{ ...styles.th, textAlign: "right" }}>Saldo</th>
-							</tr>
-						</thead>
-						<tbody>
-							{operaciones.map((op) => (
-								<tr key={op.id} style={styles.tr}>
-									<td style={styles.td}>
-										<div style={{ fontWeight: 500, color: COLOR.TEXT.PRIMARY }}>
-											{formatDateLabel(op.fecha || op.created_at)}
-										</div>
-										<div style={{ fontSize: 11, color: COLOR.TEXT.SECONDARY }}>
-											{new Date(op.fecha || op.created_at).toLocaleTimeString([], {
-												hour: "2-digit",
-												minute: "2-digit",
-											})}
-										</div>
-									</td>
+				<Table>
+					<Table.Header>
+						<Table.Head>Fecha</Table.Head>
+						<Table.Head>Operación</Table.Head>
+						<Table.Head>Taller</Table.Head>
+						<Table.Head align="right">Total</Table.Head>
+						<Table.Head align="right">Pagado</Table.Head>
+						<Table.Head align="right">Saldo</Table.Head>
+					</Table.Header>
+					<Table.Body>
+						{operaciones.map((op) => (
+							<Table.Row key={op.id}>
+								<Table.Cell>
+									<div style={{ fontWeight: 500, color: COLOR.TEXT.PRIMARY }}>
+										{formatDateLabel(op.fecha || op.created_at)}
+									</div>
+									<div style={{ fontSize: 11, color: COLOR.TEXT.SECONDARY }}>
+										{new Date(op.fecha || op.created_at).toLocaleTimeString([], {
+											hour: "2-digit",
+											minute: "2-digit",
+										})}
+									</div>
+								</Table.Cell>
 
-									<td style={styles.td}>
-										<Link
-											href={`/operaciones/${op.id}`}
-											style={styles.operacionLink}
-										>
-											{op.tipo} #{op.id.slice(0, 8).toUpperCase()}
-										</Link>
-										{op.observaciones && (
-											<div style={{ fontSize: 11, color: COLOR.TEXT.SECONDARY, marginTop: 2 }}>
-												{op.observaciones}
-											</div>
-										)}
-									</td>
-
-									<td style={styles.td}>{op.taller_nombre || "—"}</td>
-
-									<td style={{ ...styles.td, textAlign: "right", fontWeight: 600 }}>
-										{formatArs(op.monto_total)}
-									</td>
-
-									<td style={{ ...styles.td, textAlign: "right", color: COLOR.SEMANTIC.SUCCESS }}>
-										{formatArs(op.total_pagado)}
-									</td>
-
-									<td
-										style={{
-											...styles.td,
-											textAlign: "right",
-											fontWeight: 700,
-											color: op.saldo_pendiente > 0 ? COLOR.SEMANTIC.WARNING : COLOR.TEXT.PRIMARY,
-										}}
+								<Table.Cell nowrap={false}>
+									<Link
+										href={`/operaciones/${op.id}`}
+										style={styles.operacionLink}
 									>
-										{formatArs(op.saldo_pendiente)}
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
+										{op.tipo} #{op.id.slice(0, 8).toUpperCase()}
+									</Link>
+									{op.observaciones && (
+										<div style={{ fontSize: 11, color: COLOR.TEXT.SECONDARY, marginTop: 2 }}>
+											{op.observaciones}
+										</div>
+									)}
+								</Table.Cell>
+
+								<Table.Cell>{op.taller_nombre || "—"}</Table.Cell>
+
+								<Table.Cell align="right" weight={600}>
+									{formatArs(op.monto_total)}
+								</Table.Cell>
+
+								<Table.Cell align="right" color={COLOR.STATUS.SUCCESS.TEXT}>
+									{formatArs(op.total_pagado)}
+								</Table.Cell>
+
+								<Table.Cell
+									align="right"
+									weight={700}
+									color={
+										op.saldo_pendiente > 0
+											? COLOR.STATUS.WARNING.TEXT
+											: COLOR.TEXT.PRIMARY
+									}
+								>
+									{formatArs(op.saldo_pendiente)}
+								</Table.Cell>
+							</Table.Row>
+						))}
+					</Table.Body>
+				</Table>
 			)}
 		</div>
 	);
@@ -225,37 +223,6 @@ const styles = {
 		fontSize: 12,
 		color: COLOR.TEXT.SECONDARY,
 		marginTop: 4,
-	},
-	tableCard: css({
-		backgroundColor: COLOR.BACKGROUND.SECONDARY,
-		border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-		borderRadius: 12,
-		overflowX: "auto",
-	}),
-	table: {
-		width: "100%",
-		borderCollapse: "collapse" as const,
-		fontSize: 13,
-	},
-	theadRow: {
-		borderBottom: `2px solid ${COLOR.BORDER.SUBTLE}`,
-		backgroundColor: COLOR.BACKGROUND.SUBTLE,
-		textAlign: "left" as const,
-	},
-	th: {
-		padding: "12px 16px",
-		fontSize: 12,
-		fontWeight: 700,
-		textTransform: "uppercase" as const,
-		letterSpacing: "0.04em",
-		color: COLOR.TEXT.SECONDARY,
-	},
-	tr: {
-		borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
-	},
-	td: {
-		padding: "12px 16px",
-		verticalAlign: "middle" as const,
 	},
 	operacionLink: {
 		fontWeight: 600,

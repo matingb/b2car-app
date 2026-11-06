@@ -35,7 +35,7 @@ export default function IconButton({
       onClick={onClick}
       disabled={isDisabled}
       style={{
-        background: "transparent",
+        backgroundColor: "transparent",
         border: "none",
         cursor: !isDisabled ? "pointer" : "default",
         padding: 8,

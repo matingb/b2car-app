@@ -88,7 +88,7 @@ describe("ProductosPage", () => {
 
     expect(screen.getByRole("heading", { name: "Productos" })).toBeInTheDocument();
     expect(screen.getByText("Catálogo de Productos")).toBeInTheDocument();
-    expect(screen.getByText("Filtro de Aceite")).toBeInTheDocument();
+    expect(screen.getAllByText("Filtro de Aceite").length).toBeGreaterThan(0);
     expect(screen.queryByTestId("proveedores-tab-content")).not.toBeInTheDocument();
   });
 
@@ -106,5 +106,20 @@ describe("ProductosPage", () => {
 
     fireEvent.click(screen.getByTestId("tab-proveedores"));
     expect(mockPush).toHaveBeenCalledWith("/productos?tab=proveedores");
+  });
+
+  it("permite alternar entre vista de Lista (tabla) y Tarjetas", () => {
+    render(<ProductosPage />);
+
+    expect(screen.getByTestId("view-toggle-table")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("view-toggle-cards")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByTestId("productos-table-container")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("view-toggle-cards"));
+    
+    expect(screen.getByTestId("view-toggle-cards")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("view-toggle-table")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByTestId("productos-table-container")).not.toBeInTheDocument();
+    expect(screen.getByTestId("producto-item-prod-1")).toBeInTheDocument();
   });
 });

@@ -10,6 +10,7 @@ import ProductoFormFields, {
     validateProductoForm,
 } from "@/app/components/productos/ProductoFormFields";
 import { useProductos } from "@/app/providers/ProductosProvider";
+import { isValidStockLevels } from "@/lib/stock";
 
 export const CREATE_PRODUCTO_VALUE = "__create_producto__";
 
@@ -40,13 +41,7 @@ type Props = {
 export function validateStockForm(
     values: StockFormFieldsValues
 ): boolean {
-    return Boolean(
-        values.productId.trim().length > 0 &&
-        values.stockActual >= 0 &&
-        values.stockMinimo >= 0 &&
-        values.stockMaximo >= 0 &&
-        (values.stockMinimo <= values.stockMaximo || values.stockMaximo === 0)
-    );
+    return values.productId.trim().length > 0 && isValidStockLevels(values);
 }
 
 export default function StockFormFields({

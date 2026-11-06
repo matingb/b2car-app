@@ -61,7 +61,7 @@ const styles = {
     border: `2px solid ${COLOR.BORDER.SUBTLE}`,
     padding: "12px 16px",
     borderRadius: 8,
-    background: COLOR.BACKGROUND.SUBTLE,
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
     boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
   },
 };

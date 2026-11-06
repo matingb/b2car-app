@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getStockStatus, getProductoStockBreakdown } from "./stock";
+import { getStockStatus, getProductoStockBreakdown, getStockBreakdown } from "./stock";
 
 describe("getStockStatus", () => {
   it("does not report excess when no maximum is configured", () => {
@@ -119,6 +119,64 @@ describe("getProductoStockBreakdown", () => {
     expect(getProductoStockBreakdown(producto)).toEqual({
       fisico: 10,
       disponible: 7,
+      reservado: 3,
+      pendiente: 0,
+    });
+  });
+});
+
+describe("getStockBreakdown", () => {
+  it("returns zeros when stock is missing and no override is passed", () => {
+    expect(getStockBreakdown(null)).toEqual({
+      fisico: 0,
+      disponible: 0,
+      reservado: 0,
+      pendiente: 0,
+    });
+  });
+
+  it("calculates breakdown with explicit stockDisponible", () => {
+    expect(
+      getStockBreakdown({
+        stockActual: 20,
+        stockDisponible: 15,
+        stockReservado: 5,
+        stockPendiente: 2,
+      })
+    ).toEqual({
+      fisico: 20,
+      disponible: 15,
+      reservado: 5,
+      pendiente: 2,
+    });
+  });
+
+  it("calculates fallback disponible as max(0, actual - reservado)", () => {
+    expect(
+      getStockBreakdown({
+        stockActual: 10,
+        stockReservado: 4,
+      })
+    ).toEqual({
+      fisico: 10,
+      disponible: 6,
+      reservado: 4,
+      pendiente: 0,
+    });
+  });
+
+  it("respects stockActualOverride when provided", () => {
+    expect(
+      getStockBreakdown(
+        {
+          stockActual: 10,
+          stockReservado: 3,
+        },
+        25
+      )
+    ).toEqual({
+      fisico: 25,
+      disponible: 22,
       reservado: 3,
       pendiente: 0,
     });

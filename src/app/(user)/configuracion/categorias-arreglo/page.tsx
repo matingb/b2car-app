@@ -167,7 +167,7 @@ export function CategoriasArregloContent() {
                   <ListSpinner />
                 </div>
               ) : categorias.length === 0 ? (
-                <Card style={{ background: COLOR.BACKGROUND.SUBTLE, marginTop: 12 }}>
+                <Card style={{ backgroundColor: COLOR.BACKGROUND.SUBTLE, marginTop: 12 }}>
                   <div style={styles.emptyState}>
                     <Tags size={36} color={COLOR.ICON.MUTED} />
                     <p style={styles.emptyTitle}>No hay categorías de arreglos registradas</p>

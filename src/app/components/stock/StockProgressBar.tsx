@@ -3,6 +3,7 @@
 import React from "react";
 import { COLOR } from "@/theme/theme";
 import { getStockPercentage, getStockStatus, type StockLevels } from "@/lib/stock";
+import { css } from "@emotion/react";
 
 type Props = {
   levels: StockLevels;
@@ -10,7 +11,11 @@ type Props = {
   showMinLine?: boolean;
 };
 
-export default function StockProgressBar({ levels, height = 8, showMinLine = true }: Props) {
+export default function StockProgressBar({
+  levels,
+  height = 8,
+  showMinLine = true,
+}: Props) {
   const percentage = getStockPercentage(levels);
   const status = getStockStatus(levels);
 
@@ -29,42 +34,55 @@ export default function StockProgressBar({ levels, height = 8, showMinLine = tru
       : 0;
 
   return (
-    <div style={{ position: "relative", width: "100%" }}>
-      <div
-        style={{
-          height,
-          borderRadius: 999,
-          background: COLOR.BACKGROUND.PRIMARY,
-          overflow: "hidden",
-          border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-        }}
-      >
+    <div css={styles.container}>
+      <div css={styles.track} style={{ height }}>
         <div
+          css={styles.fill}
           style={{
-            height: "100%",
             width: `${percentage}%`,
             background: fill,
-            borderRadius: 999,
-            transition: "width 150ms ease",
           }}
         />
       </div>
 
-      {showMinLine && levels.stockMaximo > 0 && (
+      {showMinLine && levels.stockMaximo > 0 && levels.stockMinimo > 0 && (
         <div
           title="Mínimo"
+          css={styles.minLine}
           style={{
-            position: "absolute",
-            top: 0,
             left: `${minPct}%`,
             height,
-            width: 2,
-            background: COLOR.ICON.DANGER,
-            transform: "translateX(-1px)",
           }}
         />
       )}
     </div>
   );
 }
+
+const styles = {
+  container: css({
+    position: "relative",
+    width: "100%",
+  }),
+  track: css({
+    borderRadius: 999,
+    background: COLOR.BACKGROUND.PRIMARY,
+    overflow: "hidden",
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+  }),
+  fill: css({
+    height: "100%",
+    borderRadius: 999,
+    transition: "width 150ms ease",
+  }),
+  minLine: css({
+    position: "absolute",
+    top: 0,
+    width: 2,
+    background: COLOR.STATUS.DANGER.SOLID_BG,
+    transform: "translateX(-1px)",
+    borderRadius: 1,
+    zIndex: 1,
+  }),
+};
 

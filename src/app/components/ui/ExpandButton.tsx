@@ -60,7 +60,7 @@ export default function ExpandButton({
 const styles = {
   expandButton: css({
     display: "flex",
-    background: "transparent",
+    backgroundColor: "transparent",
     border: "none",
     cursor: "pointer",
     padding: 6,

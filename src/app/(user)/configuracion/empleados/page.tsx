@@ -66,7 +66,7 @@ function EmpleadosPageContent() {
         </div>
 
         {!isLoading && state.empleadosFiltrados.length === 0 ? (
-          <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
+          <Card style={{ backgroundColor: COLOR.BACKGROUND.SECONDARY }}>
             <div style={styles.empty}>
               <div style={styles.emptyTitle}>No se encontraron empleados</div>
               <div style={styles.emptySub}>Probá ajustando búsqueda o filtros.</div>

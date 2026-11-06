@@ -2,12 +2,13 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { css } from "@emotion/react";
-import { ArrowDownLeft, ArrowUpRight, LayoutList, Table, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, LayoutList, Table as TableIcon, Wallet } from "lucide-react";
 import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
 import { COLOR, BREAKPOINTS } from "@/theme/theme";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
 import Card from "@/app/components/ui/Card";
+import Table from "@/app/components/ui/Table";
 import type { ClienteMovimientoCuenta } from "@/model/types";
 import { clientesClient } from "@/clients/clientes/clientesClient";
 
@@ -68,7 +69,7 @@ export default function ClienteCuentaCorrienteTab({ clienteId }: Props) {
             ]}
             aria-pressed={desktopView === "table"}
           >
-            <Table size={15} />
+            <TableIcon size={15} />
             <span>Tabla</span>
           </button>
           <button
@@ -88,64 +89,60 @@ export default function ClienteCuentaCorrienteTab({ clienteId }: Props) {
 
       {/* Vista Desktop: Tabla de extracto completa (cuando está en modo tabla) */}
       {desktopView === "table" && (
-        <div css={styles.desktopContainer}>
-          <table css={styles.table}>
-            <thead>
-              <tr>
-                <th css={styles.th}>Fecha</th>
-                <th css={styles.th}>Concepto / Detalle</th>
-                <th css={styles.th}>Medio / Cuenta</th>
-                <th css={[styles.th, styles.thRight]}>Debe (+)</th>
-                <th css={[styles.th, styles.thRight]}>Haber (-)</th>
-                <th css={[styles.th, styles.thRight]}>Saldo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {movimientos.map((m) => {
-                const isCargo = m.tipo_movimiento === "CARGO_ARREGLO";
-                return (
-                  <tr key={m.id + (m.tipo_movimiento || "")} css={styles.tr}>
-                    <td css={styles.tdFecha}>
-                      {m.fecha ? formatDateLabel(m.fecha) : "-"}
-                    </td>
-                    <td css={styles.td}>
-                      <div css={styles.conceptoCell}>
-                        {isCargo ? (
-                          <ArrowUpRight size={16} color={COLOR.SEMANTIC.DANGER} />
-                        ) : (
-                          <ArrowDownLeft size={16} color={COLOR.SEMANTIC.SUCCESS} />
-                        )}
-                        <span>{m.concepto}</span>
-                      </div>
-                    </td>
-                    <td css={styles.tdSec}>
-                      {m.cuenta_nombre ? (
-                        <span css={styles.cuentaTag}>{m.cuenta_nombre}</span>
+        <Table css={styles.desktopContainer}>
+          <Table.Header>
+            <Table.Head>Fecha</Table.Head>
+            <Table.Head>Concepto / Detalle</Table.Head>
+            <Table.Head>Medio / Cuenta</Table.Head>
+            <Table.Head align="right">Debe (+)</Table.Head>
+            <Table.Head align="right">Haber (-)</Table.Head>
+            <Table.Head align="right">Saldo</Table.Head>
+          </Table.Header>
+          <Table.Body>
+            {movimientos.map((m) => {
+              const isCargo = m.tipo_movimiento === "CARGO_ARREGLO";
+              return (
+                <Table.Row key={m.id + (m.tipo_movimiento || "")}>
+                  <Table.Cell css={styles.tdFecha}>
+                    {m.fecha ? formatDateLabel(m.fecha) : "-"}
+                  </Table.Cell>
+                  <Table.Cell nowrap={false}>
+                    <div css={styles.conceptoCell}>
+                      {isCargo ? (
+                        <ArrowUpRight size={16} color={COLOR.STATUS.DANGER.TEXT} />
                       ) : (
-                        "-"
+                        <ArrowDownLeft size={16} color={COLOR.STATUS.SUCCESS.TEXT} />
                       )}
-                    </td>
-                    <td css={[styles.td, styles.tdRight, styles.debitoText]}>
-                      {m.debito > 0
-                        ? formatArs(m.debito, { maxDecimals: 0, minDecimals: 0 })
-                        : "-"}
-                    </td>
-                    <td css={[styles.td, styles.tdRight, styles.creditoText]}>
-                      {m.credito > 0
-                        ? formatArs(m.credito, { maxDecimals: 0, minDecimals: 0 })
-                        : "-"}
-                    </td>
-                    <td css={[styles.td, styles.tdRight, styles.saldoText]}>
-                      {m.saldo_acumulado != null
-                        ? formatArs(m.saldo_acumulado, { maxDecimals: 0, minDecimals: 0 })
-                        : "-"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      <span>{m.concepto}</span>
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell css={styles.tdSec}>
+                    {m.cuenta_nombre ? (
+                      <span css={styles.cuentaTag}>{m.cuenta_nombre}</span>
+                    ) : (
+                      "-"
+                    )}
+                  </Table.Cell>
+                  <Table.Cell align="right" css={styles.debitoText}>
+                    {m.debito > 0
+                      ? formatArs(m.debito, { maxDecimals: 0, minDecimals: 0 })
+                      : "-"}
+                  </Table.Cell>
+                  <Table.Cell align="right" css={styles.creditoText}>
+                    {m.credito > 0
+                      ? formatArs(m.credito, { maxDecimals: 0, minDecimals: 0 })
+                      : "-"}
+                  </Table.Cell>
+                  <Table.Cell align="right" css={styles.saldoText}>
+                    {m.saldo_acumulado != null
+                      ? formatArs(m.saldo_acumulado, { maxDecimals: 0, minDecimals: 0 })
+                      : "-"}
+                  </Table.Cell>
+                </Table.Row>
+              );
+            })}
+          </Table.Body>
+        </Table>
       )}
 
       {/* Vista Cards: Se muestra en <= lg, o en > lg si se seleccionó 'cards' */}
@@ -246,60 +243,17 @@ const styles = {
     boxShadow: "0 1px 2px rgba(0, 0, 0, 0.06)",
   }),
   desktopContainer: css({
-    backgroundColor: COLOR.BACKGROUND.SECONDARY,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 12,
-    overflowX: "auto",
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
       display: "none",
     },
   }),
-  table: css({
-    width: "100%",
-    borderCollapse: "collapse",
-    fontSize: 14,
-    textAlign: "left",
-  }),
-  th: css({
-    padding: "12px 16px",
-    fontSize: 12,
-    fontWeight: 700,
-    textTransform: "uppercase",
-    letterSpacing: "0.04em",
-    color: COLOR.TEXT.SECONDARY,
-    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    backgroundColor: COLOR.BACKGROUND.SUBTLE,
-  }),
-  thRight: css({
-    textAlign: "right",
-  }),
-  tr: css({
-    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    "&:last-child": {
-      borderBottom: "none",
-    },
-    "&:hover": {
-      backgroundColor: COLOR.BACKGROUND.SUBTLE,
-    },
-  }),
-  td: css({
-    padding: "14px 16px",
-    color: COLOR.TEXT.PRIMARY,
-  }),
   tdFecha: css({
-    padding: "14px 16px",
     fontSize: 13,
     color: COLOR.TEXT.SECONDARY,
-    whiteSpace: "nowrap",
   }),
   tdSec: css({
-    padding: "14px 16px",
     fontSize: 13,
     color: COLOR.TEXT.SECONDARY,
-  }),
-  tdRight: css({
-    textAlign: "right",
-    whiteSpace: "nowrap",
   }),
   conceptoCell: css({
     display: "flex",

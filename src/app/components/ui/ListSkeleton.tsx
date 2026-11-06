@@ -3,7 +3,7 @@
 import React from "react";
 import { Skeleton, Theme } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
-import { BREAKPOINTS } from "@/theme/theme";
+import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 
 type Props = {
@@ -47,7 +47,7 @@ const styles = {
     border: "1px solid rgba(0,0,0,0.08)",
     borderRadius: 12,
     padding: 12,
-    background: "#fff",
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
   },
   row: {
     display: "flex",

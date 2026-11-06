@@ -426,7 +426,7 @@ export default function OperacionesPage() {
             {loadingInitial ? (
                 <ListSkeleton rows={6} />
             ) : operacionesFiltradas.length === 0 ? (
-                <Card style={{ background: COLOR.BACKGROUND.SECONDARY }}>
+                <Card style={{ backgroundColor: COLOR.BACKGROUND.SECONDARY }}>
                     <div style={styles.empty}>
                         <div style={styles.emptyTitle}>No se encontraron operaciones</div>
                         <div style={styles.emptySub}>Probá ajustando la búsqueda o los filtros.</div>
@@ -630,7 +630,7 @@ const styles = {
         padding: "0 12px",
         borderRadius: 10,
         border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-        background: COLOR.BACKGROUND.SUBTLE,
+        backgroundColor: COLOR.BACKGROUND.SUBTLE,
         color: COLOR.TEXT.PRIMARY,
         cursor: "pointer",
         whiteSpace: "nowrap",
@@ -665,7 +665,7 @@ const styles = {
         padding: "8px 14px",
         borderRadius: "24px",
         border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-        background: COLOR.BACKGROUND.SUBTLE,
+        backgroundColor: COLOR.BACKGROUND.SUBTLE,
         color: COLOR.TEXT.PRIMARY,
         cursor: "pointer",
         fontWeight: 500,
@@ -678,7 +678,7 @@ const styles = {
         },
     }),
     chipSelected: css({
-        background: COLOR.BUTTON.PRIMARY.BACKGROUND,
+        backgroundColor: COLOR.BUTTON.PRIMARY.BACKGROUND,
         borderColor: COLOR.ACCENT.PRIMARY,
         color: COLOR.BUTTON.PRIMARY.TEXT,
         boxShadow: "none",
