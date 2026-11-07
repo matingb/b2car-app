@@ -1,45 +1,12 @@
 import { logger } from "@/lib/logger";
-import type { ProductoDTO, StockDTO, StockItemDTO } from "@/model/dtos";
+import type { StockItemDTO } from "@/model/dtos";
 import type { GetStocksResponse, UpsertStockRequest, UpsertStockResponse } from "./contracts";
 import { createClient } from "@/supabase/server";
-import { stocksService, type StockItemRow, type StockRow } from "./stocksService";
-import { productosService, type ProductoRow } from "../productos/productosService";
+import { stocksService, type StockItemRow } from "./stocksService";
+import { productosService } from "../productos/productosService";
 import { tenantService } from "../tenant/tallerService";
 import { ServiceError } from "@/app/api/serviceError";
-
-function mapStockRow(row: StockRow): StockDTO {
-  return {
-    id: row.id,
-    tallerId: row.taller_id,
-    productoId: row.producto_id,
-    cantidad: Number(row.cantidad) || 0,
-    stock_minimo: Number(row.stock_minimo) || 0,
-    stock_maximo: Number(row.stock_maximo) || 0,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
-
-type ProductoJoinRow = ProductoRow & { provedor?: string | null };
-
-function mapProducto(row: ProductoJoinRow | null): ProductoDTO | null {
-  if (!row) return null;
-  return {
-    id: row.id,
-    codigo: row.codigo,
-    nombre: row.nombre,
-    marca: row.marca ?? null,
-    modelo: row.modelo ?? null,
-    descripcion: row.descripcion ?? null,
-    precio_unitario: Number(row.precio_unitario) || 0,
-    costo_unitario: Number(row.costo_unitario) || 0,
-    proveedor: row.proveedor ?? row.provedor ?? null,
-    categorias: Array.isArray(row.categorias) ? row.categorias : [],
-    show_in_stock: row.show_in_stock,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
+import { mapStockItemRow } from "./stocksMapper";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -59,10 +26,7 @@ export async function GET(req: Request) {
     return Response.json({ data: [], error: "Error listando stocks" } satisfies GetStocksResponse, { status: 500 });
   }
 
-  const items: StockItemDTO[] = rows.map((s: StockItemRow) => ({
-    ...mapStockRow(s),
-    producto: mapProducto(s.productos ?? null),
-  }));
+  const items: StockItemDTO[] = rows.map((s: StockItemRow) => mapStockItemRow(s));
 
   return Response.json({ data: items, error: null } satisfies GetStocksResponse, { status: 200 });
 }
@@ -124,10 +88,7 @@ export async function POST(req: Request) {
       logger.error("Error creating stock:", error);
       return Response.json({ data: null, error: "Error guardando stock" } satisfies UpsertStockResponse, { status: 500 });
     }
-    const item: StockItemDTO = {
-      ...mapStockRow(created),
-      producto: mapProducto(created.productos ?? null),
-    };
+    const item: StockItemDTO = mapStockItemRow(created);
     return Response.json({ data: item, error: null } satisfies UpsertStockResponse, { status: 201 });
   } catch (error: unknown) {
     logger.error("POST /api/stocks error:", error);

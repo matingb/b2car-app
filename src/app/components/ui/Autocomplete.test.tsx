@@ -87,5 +87,24 @@ describe("Autocomplete", () => {
       screen.getByTestId("autocomplete-clear-button")
     ).toBeInTheDocument();
   });
+
+  it("filtra por label y searchText", async () => {
+    render(
+      <Autocomplete
+        options={[
+          { value: "1", label: "Filtro", searchText: "FA-001 aceite" },
+          { value: "2", label: "Batería", searchText: "BAT-12V" },
+        ]}
+        value=""
+        onChange={() => {}}
+      />
+    );
+
+    await userEvent.click(screen.getByRole("textbox"));
+    await userEvent.type(screen.getByRole("textbox"), "FA-001");
+
+    expect(screen.getByText("Filtro")).toBeInTheDocument();
+    expect(screen.queryByText("Batería")).not.toBeInTheDocument();
+  });
 });
 

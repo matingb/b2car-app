@@ -67,6 +67,7 @@ export default function TurnoClienteVehiculoFields({
         value: String(v.id),
         label: label.length > 3 ? label : v.patente,
         secondaryLabel: secondaryParts.join(" · ") || undefined,
+        searchText: secondaryParts.join(" "),
       };
     }),
   ];

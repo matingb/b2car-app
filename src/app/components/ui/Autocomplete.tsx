@@ -8,7 +8,8 @@ import { ChevronDown, X } from "lucide-react";
 export interface AutocompleteOption {
   value: string;
   label: string;
-  secondaryLabel?: string;
+  secondaryLabel?: ReactNode;
+  searchText?: string;
   icon?: ReactNode;
 }
 
@@ -60,12 +61,12 @@ export default function Autocomplete({
   // Filtrar opciones basadas en el término de búsqueda
   const filteredOptions = onSearchChange
     ? options
-    : options.filter(
-        (option) =>
-          option.value.startsWith("__create_") ||
-          option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          option.secondaryLabel?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    : options.filter((option) => {
+        if (!searchTerm.trim()) return true;
+        const term = searchTerm.toLowerCase().trim();
+        const searchable = `${option.label} ${option.searchText ?? ""}`.toLowerCase();
+        return searchable.includes(term);
+      });
 
   // Encontrar la opción seleccionada
   const selectedOption = options.find((opt) => opt.value === value);
@@ -320,7 +321,9 @@ export default function Autocomplete({
                           </span>
                         </span>
                         {option.secondaryLabel && (
-                          <span style={styles.optionSecondary}>{option.secondaryLabel}</span>
+                          <span style={styles.optionSecondary}>
+                            {option.secondaryLabel}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -433,6 +436,10 @@ const styles = {
   optionSecondary: {
     fontSize: 12,
     color: COLOR.TEXT.SECONDARY,
+    display: "inline-flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 4,
   },
   spinnerContainer: {
     padding: "12px",

@@ -72,7 +72,7 @@ export default function ProductoItemCard({
           <Badge
             variant="outline"
             color="neutral"
-            icon={<Package size={14} color={COLOR.TEXT.SECONDARY} />}
+            icon={<Package size={14} color={COLOR.STOCK.FISICO} />}
             title="Físico"
             value={stockCounts.fisico}
             valueStyle={styles.pillValueFisico}
@@ -85,7 +85,7 @@ export default function ProductoItemCard({
           <Badge
             variant="outline"
             color="neutral"
-            icon={<CheckCircle2 size={14} color={COLOR.STATUS.SUCCESS.TEXT} />}
+            icon={<CheckCircle2 size={14} color={COLOR.STOCK.DISPONIBLE} />}
             title="Disponible"
             value={stockCounts.disponible}
             valueStyle={styles.pillValueDisponible}
@@ -98,7 +98,7 @@ export default function ProductoItemCard({
           <Badge
             variant="outline"
             color="neutral"
-            icon={<Clock size={14} color={COLOR.STATUS.INFO.TEXT} />}
+            icon={<Clock size={14} color={COLOR.STOCK.RESERVADO} />}
             title="Reservado"
             value={stockCounts.reservado}
             valueStyle={styles.pillValueReservado}
@@ -111,7 +111,7 @@ export default function ProductoItemCard({
           <Badge
             variant="outline"
             color="neutral"
-            icon={<AlertCircle size={14} color={COLOR.STATUS.DANGER.TEXT} />}
+            icon={<AlertCircle size={14} color={COLOR.STOCK.PENDIENTE} />}
             title="Pendiente"
             value={stockCounts.pendiente}
             valueStyle={styles.pillValuePendiente}
@@ -233,18 +233,18 @@ const styles = {
   },
   pillValueFisico: {
     fontWeight: 700,
-    color: COLOR.TEXT.PRIMARY,
+    color: COLOR.STOCK.FISICO,
   },
   pillValueDisponible: {
     fontWeight: 700,
-    color: COLOR.STATUS.SUCCESS.TEXT,
+    color: COLOR.STOCK.DISPONIBLE,
   },
   pillValueReservado: {
     fontWeight: 700,
-    color: COLOR.STATUS.INFO.TEXT,
+    color: COLOR.STOCK.RESERVADO,
   },
   pillValuePendiente: {
     fontWeight: 700,
-    color: COLOR.STATUS.DANGER.TEXT,
+    color: COLOR.STOCK.PENDIENTE,
   },
 } as const;

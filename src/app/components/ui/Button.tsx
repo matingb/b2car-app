@@ -35,10 +35,9 @@ export default function Button({
   return (
     <button
       style={{
-        //...styles.button,
         ...(hover && !isDisabled && hoverStyles),
         ...(isDisabled && disabledStyles),
-        ...style
+        ...style,
       }}
       {...rest}
       onMouseEnter={() => !isDisabled && setHover(true)}
@@ -75,15 +74,15 @@ const styles = {
     },
   }),
   buttonHover: {
-    background: `${COLOR.ACCENT.HOVER}`,
+    backgroundColor: `${COLOR.ACCENT.HOVER}`,
   },
   buttonOutline: css({
-    background: `${COLOR.BACKGROUND.SUBTLE}`,
+    backgroundColor: `${COLOR.BACKGROUND.SUBTLE}`,
     color: COLOR.TEXT.PRIMARY,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
   }),
   buttonOutlineHover: {
-    background: `${COLOR.BACKGROUND.PRIMARY}`,
+    backgroundColor: `${COLOR.BACKGROUND.PRIMARY}`,
     color: COLOR.TEXT.PRIMARY,
     border: `1px solid ${COLOR.BORDER.DEFAULT}`,
   },

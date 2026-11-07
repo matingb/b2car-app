@@ -24,7 +24,7 @@ export default function IconInput({
         gap: 8,
         border: `1px solid ${invalid ? COLOR.ICON.DANGER : COLOR.BORDER.SUBTLE}`,
         borderRadius: 8,
-        background: COLOR.INPUT.PRIMARY.BACKGROUND,
+        backgroundColor: COLOR.INPUT.PRIMARY.BACKGROUND,
         padding: "0 12px",
         height: 42,
         minWidth: 0,

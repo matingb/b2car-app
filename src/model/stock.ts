@@ -15,6 +15,9 @@ export type StockItem = {
   codigo: string;
   categorias: string[];
   stockActual: number;
+  stockDisponible?: number;
+  stockReservado?: number;
+  stockPendiente?: number;
   stockMinimo: number;
   stockMaximo: number;
   costoUnitario: number;

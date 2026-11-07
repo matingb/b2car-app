@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
 import Can from "@/app/components/auth/Can";
 import Autocomplete, { AutocompleteOption } from "@/app/components/ui/Autocomplete";
+import StockBreakdownBadge, { createStockOption } from "@/app/components/stock/StockBreakdownBadge";
+import { getStockBreakdown } from "@/lib/stock";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { useArreglos } from "@/app/providers/ArreglosProvider";
 import { useInventario } from "@/app/providers/InventarioProvider";
@@ -56,11 +58,16 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
   const stockActual = selectedStockItem ? safeNumber(selectedStockItem.stockActual) : null;
 
   const productoOptions: AutocompleteOption[] = useMemo(() => {
-    return (inventario ?? []).map((s) => ({
-      value: s.id,
-      label: s.nombre,
-      secondaryLabel: `${s.codigo || ""}${s.codigo ? " · " : ""}Stock: ${safeNumber(s.stockActual)}`,
-    }));
+    return (inventario ?? []).map((s) => {
+      const b = getStockBreakdown(s);
+      const cod = s.codigo ? `${s.codigo} · ` : "";
+      return createStockOption({
+        value: s.id,
+        label: s.nombre,
+        codePrefix: cod,
+        breakdown: b,
+      });
+    });
   }, [inventario]);
 
   const submitting = loading;
@@ -250,8 +257,8 @@ export default function ArregloItemModal({ open, onClose, onSubmitSuccess, arreg
                 disabled={isLoading || !tallerId}
               />
               {selectedStockItem ? (
-                <div style={{ marginTop: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13 }}>
-                  Stock actual: <b>{safeNumber(selectedStockItem.stockActual)}</b>
+                <div style={{ marginTop: 6, color: COLOR.TEXT.SECONDARY, fontSize: 13, display: "flex", alignItems: "center" }}>
+                  <StockBreakdownBadge stock={selectedStockItem} fontSize={13} />
                 </div>
               ) : null}
             </div>

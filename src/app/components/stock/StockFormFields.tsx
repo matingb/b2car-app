@@ -65,6 +65,7 @@ export default function StockFormFields({
                 value: p.id,
                 label: p.nombre,
                 secondaryLabel: p.codigo,
+                searchText: p.codigo,
             })),
         ];
     }, [productos]);

@@ -15,6 +15,7 @@ import { clientesClient } from "@/clients/clientes/clientesClient";
 import { productosClient } from "@/clients/productosClient";
 import type { GastoFinanciero } from "@/model/finanzas";
 import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
+import StockBreakdownBadge, { buildStockAutocompleteOptions } from "@/app/components/stock/StockBreakdownBadge";
 import {
   type CuentaFinancieraDraft,
   EMPTY_CUENTA_FINANCIERA_DRAFT,
@@ -36,7 +37,13 @@ import {
 
 export const CREATE_CUENTA_VALUE = "__create_cuenta__";
 
-type StockItemWithActual = ProductoLite & { stockActual: number; productoId: string };
+type StockItemWithActual = ProductoLite & {
+  stockActual: number;
+  stockDisponible?: number;
+  stockReservado?: number;
+  stockPendiente?: number;
+  productoId: string;
+};
 
 type OperacionFormContextValue = {
   open: boolean;
@@ -374,6 +381,9 @@ export function OperacionFormProvider({
         precio_unitario: Number(s.precioUnitario) || 0,
         costo_unitario: Number(s.costoUnitario) || 0,
         stockActual: Number(s.stockActual) || 0,
+        stockDisponible: s.stockDisponible,
+        stockReservado: s.stockReservado,
+        stockPendiente: s.stockPendiente,
       })),
     [inventario]
   );
@@ -498,21 +508,18 @@ export function OperacionFormProvider({
         filtered = stockItems.filter((s) => proveedorProductoIds.has(s.productoId));
       }
 
-      return filtered.map((s) => {
-        const catInfo = proveedorCatalogoMap.get(s.productoId);
-        const provCod = catInfo?.codigoProveedor ? `${catInfo.codigoProveedor} · ` : "";
-        const stockActual = Number(s.stockActual) || 0;
-        const cod =
-          s.codigo && s.codigo !== catInfo?.codigoProveedor
-            ? `${s.codigo} · `
-            : !catInfo?.codigoProveedor && s.codigo
-            ? `${s.codigo} · `
-            : "";
-        return {
-          value: s.id,
-          label: s.nombre,
-          secondaryLabel: `${provCod}${cod}Stock actual: ${stockActual}`,
-        };
+      return buildStockAutocompleteOptions(filtered, {
+        getCodePrefix: (s) => {
+          const catInfo = proveedorCatalogoMap.get(s.productoId);
+          const provCod = catInfo?.codigoProveedor ? `${catInfo.codigoProveedor} · ` : "";
+          const cod =
+            s.codigo && s.codigo !== catInfo?.codigoProveedor
+              ? `${s.codigo} · `
+              : !catInfo?.codigoProveedor && s.codigo
+              ? `${s.codigo} · `
+              : "";
+          return `${provCod}${cod}`;
+        },
       });
     },
     [stockItems, tipo, proveedorId, proveedorProductoIds, proveedorCatalogoMap],

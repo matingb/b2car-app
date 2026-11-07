@@ -70,7 +70,7 @@ const styles = {
   overlay: {
     position: "fixed" as const,
     inset: 0,
-    background: "rgba(0,0,0,0.3)",
+    backgroundColor: "rgba(0,0,0,0.3)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

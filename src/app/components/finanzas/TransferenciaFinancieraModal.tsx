@@ -218,7 +218,7 @@ const styles = {
     border: `1px solid ${COLOR.BORDER.DEFAULT}`,
     borderRadius: 8,
     color: COLOR.TEXT.PRIMARY,
-    background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    backgroundColor: COLOR.INPUT.PRIMARY.BACKGROUND,
     fontSize: 14,
   },
   dateTrigger: {

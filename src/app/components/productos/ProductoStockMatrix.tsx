@@ -38,10 +38,10 @@ type Props = {
 };
 
 const STOCK_METRICS = [
-  { key: "fisico", label: "FÍSICO", shortLabel: "FÍSICO", color: COLOR.TEXT.PRIMARY },
-  { key: "disponible", label: "DISPONIBLE", shortLabel: "DISP.", color: COLOR.STATUS.SUCCESS.TEXT },
-  { key: "reservado", label: "RESERVADO", shortLabel: "RES.", color: COLOR.STATUS.WARNING.TEXT },
-  { key: "pendiente", label: "PENDIENTE", shortLabel: "PEND.", color: COLOR.STATUS.DANGER.TEXT },
+  { key: "fisico", label: "FÍSICO", shortLabel: "FÍSICO", color: COLOR.STOCK.FISICO },
+  { key: "disponible", label: "DISPONIBLE", shortLabel: "DISP.", color: COLOR.STOCK.DISPONIBLE },
+  { key: "reservado", label: "RESERVADO", shortLabel: "RES.", color: COLOR.STOCK.RESERVADO },
+  { key: "pendiente", label: "PENDIENTE", shortLabel: "PEND.", color: COLOR.STOCK.PENDIENTE },
 ] as const;
 
 function createStockDraft(stock?: StockRegistro): StockLevels {

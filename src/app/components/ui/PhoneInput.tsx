@@ -62,7 +62,7 @@ const styles = {
     padding: "10px 12px",
     borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    backgroundColor: COLOR.INPUT.PRIMARY.BACKGROUND,
     color: COLOR.TEXT.PRIMARY,
   },
 } as const;

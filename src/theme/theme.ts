@@ -153,6 +153,15 @@ const BORDER_WEAK = GRAY_500;
 
 const ICON_MUTED = GRAY_600;
 
+export const STOCK_COLORS = {
+    FISICO: TEXT_PRIMARY,
+    DISPONIBLE: STATUS_SUCCESS_TEXT,
+    RESERVADO: STATUS_WARNING_TEXT,
+    PENDIENTE: STATUS_DANGER_TEXT,
+} as const;
+
+export type StockMetricColorKey = keyof typeof STOCK_COLORS;
+
 function clamp01(value: number) {
     if (value < 0) return 0;
     if (value > 1) return 1;
@@ -310,6 +319,7 @@ export const COLOR = {
         neutral: STATUS_NEUTRAL,
         primary: STATUS_PRIMARY,
     },
+    STOCK: STOCK_COLORS,
 } as const;
 
 export const BREAKPOINTS = {

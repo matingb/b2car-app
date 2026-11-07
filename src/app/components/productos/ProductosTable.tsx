@@ -177,19 +177,19 @@ const styles = {
   }),
   stockFisico: css({
     fontWeight: 700,
-    color: COLOR.TEXT.PRIMARY,
+    color: COLOR.STOCK.FISICO,
   }),
   stockDisponible: css({
     fontWeight: 700,
-    color: COLOR.STATUS.SUCCESS.TEXT,
+    color: COLOR.STOCK.DISPONIBLE,
   }),
   stockReservado: css({
     fontWeight: 600,
-    color: COLOR.STATUS.INFO.TEXT,
+    color: COLOR.STOCK.RESERVADO,
   }),
   stockPendiente: css({
     fontWeight: 600,
-    color: COLOR.STATUS.DANGER.TEXT,
+    color: COLOR.STOCK.PENDIENTE,
   }),
 } as const;
 

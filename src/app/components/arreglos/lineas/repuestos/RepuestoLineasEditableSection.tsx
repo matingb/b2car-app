@@ -6,6 +6,7 @@ import { formatArs } from "@/lib/format";
 import { safeInt, safeNumber } from "@/lib/numbers";
 import { COLOR } from "@/theme/theme";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
+import StockBreakdownBadge, { buildStockAutocompleteOptions } from "@/app/components/stock/StockBreakdownBadge";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import LineasSectionShell from "@/app/components/arreglos/lineas/shared/LineasSectionShell";
 import { styles } from "@/app/components/arreglos/lineas/shared/lineaStyles";
@@ -134,19 +135,16 @@ export default function RepuestoLineasEditableSection({
   );
 
   const stockOptions: AutocompleteOption[] = useMemo(() => {
-    return [
-      {
-        value: NEW_PRODUCT_VALUE,
-        label: "Nuevo producto",
-        secondaryLabel: "Crear producto, stock, compra y asignacion",
-        icon: <Plus size={14} />,
-      },
-      ...(inventario ?? []).map((s) => ({
-        value: s.id,
-        label: s.nombre,
-        secondaryLabel: `${s.codigo || ""}${s.codigo ? " · " : ""}Stock: ${Number(s.stockActual) || 0}`,
-      })),
-    ];
+    return buildStockAutocompleteOptions(inventario, {
+      prependOptions: [
+        {
+          value: NEW_PRODUCT_VALUE,
+          label: "Nuevo producto",
+          secondaryLabel: "Crear producto, stock, compra y asignacion",
+          icon: <Plus size={14} />,
+        },
+      ],
+    });
   }, [inventario]);
 
   const conflictMessageFor = (codigo: string, currentItemId?: string) =>

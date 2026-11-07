@@ -1,44 +1,9 @@
 import type { NextRequest } from "next/server";
-import type { StockDTO } from "@/model/dtos";
 import type { GetStockByIdResponse, UpdateStockRequest, UpdateStockResponse } from "../contracts";
 import { createClient } from "@/supabase/server";
 import { stocksService, type StockItemRow, type StockRow } from "../stocksService";
-import type { ProductoRow } from "../../productos/productosService";
 import { ServiceError } from "@/app/api/serviceError";
-
-function mapStockRow(row: StockRow): StockDTO {
-  return {
-    id: row.id,
-    tallerId: row.taller_id,
-    productoId: row.producto_id,
-    cantidad: Number(row.cantidad) || 0,
-    stock_minimo: Number(row.stock_minimo) || 0,
-    stock_maximo: Number(row.stock_maximo) || 0,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
-
-type ProductoJoinRow = ProductoRow & { provedor?: string | null };
-
-function mapProducto(row: ProductoJoinRow | null) {
-  if (!row) return null;
-  return {
-    id: row.id,
-    codigo: row.codigo,
-    nombre: row.nombre,
-    marca: row.marca ?? null,
-    modelo: row.modelo ?? null,
-    descripcion: row.descripcion ?? null,
-    precio_unitario: Number(row.precio_unitario) || 0,
-    costo_unitario: Number(row.costo_unitario) || 0,
-    proveedor: row.proveedor ?? row.provedor ?? null,
-    categorias: Array.isArray(row.categorias) ? row.categorias : [],
-    show_in_stock: row.show_in_stock,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
+import { mapStockItemRow } from "../stocksMapper";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -56,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   return Response.json(
-    { data: { ...mapStockRow(data as StockItemRow), producto: mapProducto((data as StockItemRow).productos) }, error: null } satisfies GetStockByIdResponse,
+    { data: mapStockItemRow(data as StockItemRow), error: null } satisfies GetStockByIdResponse,
     { status: 200 }
   );
 }
@@ -81,10 +46,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error === ServiceError.NotFound || !updated) {
     return Response.json({ data: null, error: "Stock no encontrado" } satisfies UpdateStockResponse, { status: 404 });
   }
-  const item = {
-    ...mapStockRow(updated),
-    producto: mapProducto((updated as StockItemRow).productos ?? null),
-  };
+  const item = mapStockItemRow(updated as StockItemRow);
   return Response.json({ data: item, error: null } satisfies UpdateStockResponse, { status: 200 });
 }
 
