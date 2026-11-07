@@ -132,6 +132,7 @@ describe("productosExportService (orquestador)", () => {
       ["Código", "Nombre", "Cantidad"],
       ["F1", "Filtro de Aire", 3],
     ]);
-  });
+    // exceljs tarda en cargar en frío con la suite completa corriendo en paralelo (CI con pocos núcleos)
+  }, 20_000);
 });
 
