@@ -33,7 +33,6 @@ export default function MovimientosFinancierosList({
           </h2>
           <p style={styles.subtitle}>Ingresos, egresos y transferencias de esta cuenta.</p>
         </div>
-        {!loading ? <span style={styles.count}>{movimientos.length} movimientos</span> : null}
       </div>
 
       <Card style={styles.card}>
