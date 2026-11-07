@@ -277,12 +277,7 @@ export const TIPOS_OPERACIONES: TipoOperacion[] = [
   "COMPRA",
   "VENTA",
   "GASTO",
-  "ASIGNACION_ARREGLO",
-  "COBRO_ARREGLO",
   "INGRESO",
-  "TRANSFERENCIA",
-  "APERTURA_CUENTA",
-  "AJUSTE_FINANCIERO",
 ];
 
 export interface Operacion {

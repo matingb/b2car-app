@@ -50,7 +50,7 @@ export const tipoConfig: Record<
     color: COLOR.SEMANTIC.WARNING,
   },
   INGRESO: {
-    label: "Ingreso manual",
+    label: "Ingreso",
     icon: <CircleDollarSign size={18} />,
     color: COLOR.SEMANTIC.SUCCESS,
   },
@@ -192,8 +192,8 @@ export function useOperacionDetalle({
     : isMovimientoFinanciero
     ? {
         icon: WalletCards,
-        labelDesktop: operacion.tipo === "INGRESO" ? "Ingreso manual" : "Movimiento financiero",
-        labelMobile: operacion.tipo === "INGRESO" ? "Ingreso manual" : "Movimiento",
+        labelDesktop: operacion.tipo === "INGRESO" ? "Ingreso" : "Movimiento financiero",
+        labelMobile: operacion.tipo === "INGRESO" ? "Ingreso" : "Movimiento",
       }
     : {
         icon: Package,

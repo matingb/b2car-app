@@ -79,7 +79,7 @@ const tipoConfig: Record<
         color: COLOR.SEMANTIC.WARNING,
     },
     INGRESO: {
-        label: "Ingreso manual",
+        label: "Ingreso",
         icon: <CircleDollarSign size={18} />,
         color: COLOR.SEMANTIC.SUCCESS,
     },
@@ -242,6 +242,7 @@ export default function OperacionesPage() {
         const q = search.trim().toLowerCase();
         return (operaciones ?? [])
             .filter((o) => {
+                if (!TIPOS_OPERACIONES.includes(o.tipo as TipoOperacion)) return false;
                 if (!q) return true;
                 const { totalLineas, totalMonto } = getTotals(o);
                 const lineasInfo = (o.lineas ?? []).flatMap((l) => [
@@ -281,8 +282,8 @@ export default function OperacionesPage() {
             if (operacion.tipo === "INGRESO") {
                 const importe = formatArs(Math.abs(Number(operacion.monto) || 0));
                 const accepted = await confirm({
-                    title: "Eliminar ingreso manual",
-                    message: `Al eliminar este ingreso manual se registrará una reversión contable por ${importe} y el saldo de la cuenta disminuirá por ese importe.`,
+                    title: "Eliminar ingreso",
+                    message: `Al eliminar este ingreso se registrará una reversión contable por ${importe} y el saldo de la cuenta disminuirá por ese importe.`,
                     acceptLabel: "Eliminar ingreso",
                     cancelLabel: "Cancelar",
                 });

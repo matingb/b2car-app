@@ -10,7 +10,7 @@ import {
 	type ConfirmarStockPayload,
 	OPERACIONES_PAGE_SIZE,
 } from "@/clients/operacionesClient";
-import type { Operacion, OperacionesFilters, TipoOperacion } from "@/model/types";
+import { TIPOS_OPERACIONES, type Operacion, type OperacionesFilters, type TipoOperacion } from "@/model/types";
 import { useDebouncedAbortableAsync } from "@/app/hooks/useDebouncedAbortableAsync";
 import { buildPeriodOptions, type PeriodOption } from "@/lib/dashboard/periods";
 import { logger } from "@/lib/logger";
@@ -70,7 +70,7 @@ export function OperacionesProvider({ children }: { children: React.ReactNode })
 	const activeFilters = useMemo<OperacionesFilters>(() => ({
 		from: period.from,
 		to: period.to,
-		...(selectedTiposState.length > 0 ? { tipo: selectedTiposState } : {}),
+		tipo: selectedTiposState.length > 0 ? selectedTiposState : TIPOS_OPERACIONES,
 	}), [period.from, period.to, selectedTiposState]);
 
 	useEffect(() => {

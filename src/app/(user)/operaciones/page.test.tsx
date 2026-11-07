@@ -152,7 +152,7 @@ describe("OperacionesPage", () => {
     );
   });
 
-  it("ofrece un filtro específico para los cobros de arreglos", async () => {
+  it("ofrece solo filtros para Compra, Venta, Gasto e Ingreso", async () => {
     render(
       <OperacionesProvider>
         <ToastProvider>
@@ -162,7 +162,13 @@ describe("OperacionesPage", () => {
     );
     await runPendingPromises();
 
-    expect(screen.getByTestId("operaciones-chip-COBRO_ARREGLO")).toHaveTextContent("Cobro de arreglo");
+    expect(screen.getByTestId("operaciones-chip-COMPRA")).toHaveTextContent("Compra");
+    expect(screen.getByTestId("operaciones-chip-VENTA")).toHaveTextContent("Venta");
+    expect(screen.getByTestId("operaciones-chip-GASTO")).toHaveTextContent("Gasto");
+    expect(screen.getByTestId("operaciones-chip-INGRESO")).toHaveTextContent("Ingreso");
+    expect(screen.queryByTestId("operaciones-chip-COBRO_ARREGLO")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("operaciones-chip-ASIGNACION_ARREGLO")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("operaciones-chip-TRANSFERENCIA")).not.toBeInTheDocument();
   });
 
   it("agrupa las estadísticas en ingresos, egresos y resultado", async () => {
@@ -328,15 +334,15 @@ describe("OperacionesPage", () => {
     expect(screen.queryByText("Cuenta financiera")).not.toBeInTheDocument();
   });
 
-  it("muestra el detalle del auto en el título de la operación de cobro de arreglo", async () => {
+  it("muestra el detalle de la operación de ingreso", async () => {
     getAllMock.mockResolvedValue({
       data: [{
-        id: "op-cobro-1",
-        tipo: "COBRO_ARREGLO",
+        id: "op-ingreso-1",
+        tipo: "INGRESO",
         taller_id: "taller-1",
         fecha: "2026-08-26T17:49:00.000Z",
         created_at: "2026-08-26T17:49:00.000Z",
-        descripcion: "Cobro de arreglo - BCD444",
+        descripcion: "Ingreso en efectivo",
         cuenta_financiera_nombre: "Banco Santander",
         monto: 260000,
         lineas: [],
@@ -354,7 +360,7 @@ describe("OperacionesPage", () => {
     );
     await runPendingPromises();
 
-    const titles = screen.getAllByText("Cobro de arreglo - BCD444");
+    const titles = screen.getAllByText("Ingreso en efectivo");
     expect(titles.length).toBeGreaterThanOrEqual(1);
     expect(titles[0]).toBeInTheDocument();
   });
