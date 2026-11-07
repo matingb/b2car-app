@@ -105,7 +105,7 @@ describe("getProductoStockBreakdown", () => {
     });
   });
 
-  it("calculates fallback disponible as max(0, actual - reservado) when stockDisponible is missing", () => {
+  it("calculates fallback disponible as (actual - reservado) when stockDisponible is missing, allowing negative deficit", () => {
     const producto = {
       stocks: [
         {
@@ -120,6 +120,23 @@ describe("getProductoStockBreakdown", () => {
       fisico: 10,
       disponible: 7,
       reservado: 3,
+      pendiente: 0,
+    });
+
+    const productoDeficit = {
+      stocks: [
+        {
+          tallerId: "t1",
+          stockActual: 2,
+          stockReservado: 5,
+        },
+      ],
+    };
+
+    expect(getProductoStockBreakdown(productoDeficit)).toEqual({
+      fisico: 2,
+      disponible: -3,
+      reservado: 5,
       pendiente: 0,
     });
   });

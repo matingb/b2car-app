@@ -10,7 +10,7 @@ import OperacionPagoHistorial from "@/app/components/operaciones/OperacionPagoHi
 import {
   type PagoDraftItem,
   CREATE_CUENTA_VALUE,
-} from "@/app/components/arreglos/RegistrarPagoSection";
+} from "@/app/components/finanzas/useCondicionPago";
 import {
   type CuentaFinancieraDraft,
   EMPTY_CUENTA_FINANCIERA_DRAFT,

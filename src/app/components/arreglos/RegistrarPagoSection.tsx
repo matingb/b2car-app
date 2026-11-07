@@ -16,16 +16,9 @@ import { COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
 import NumberInput from "@/app/components/ui/NumberInput";
 
-export { CREATE_CUENTA_VALUE };
+import { type PagoDraftItem } from "@/app/components/finanzas/useCondicionPago";
 
-export interface PagoDraftItem {
-  id: string;
-  cuentaId: string;
-  monto: string;
-  fecha: string;
-  descripcion: string;
-  cuentaDraft?: CuentaFinancieraDraft;
-}
+export { CREATE_CUENTA_VALUE };
 
 export interface RegistrarPagoSectionProps {
   pagos: PagoDraftItem[];

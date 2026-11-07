@@ -99,7 +99,7 @@ vi.mock("@/app/components/ui/Autocomplete", () => ({
       disabled={disabled}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      data-options={JSON.stringify(options ?? [])}
+      data-options={JSON.stringify((options ?? []).map((o: any) => ({ value: o.value, label: o.label, secondaryLabel: typeof o.secondaryLabel === "string" ? o.secondaryLabel : o.searchText })))}
     />
   ),
 }));
@@ -1294,6 +1294,71 @@ describe("OperacionCreateModal", () => {
 
     expect(screen.getByTestId("operacion-stock-entregar-error")).toHaveTextContent("La cantidad a recibir no puede superar la cantidad pactada");
     expect(submitBtn).toBeDisabled();
+  });
+
+  it("permite vender sin stock físico inicializando entregar en 0 y bloquea si se intenta entregar sin stock", async () => {
+    mockInventarioApi.inventario = [{
+      id: "S-CERO",
+      nombre: "Filtro Especial",
+      codigo: "FE-00",
+      precioUnitario: 5000,
+      costoUnitario: 3000,
+      stockActual: 0,
+    }];
+    const onClose = vi.fn();
+
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        initialTipo="VENTA"
+        initialCuentaId="C1"
+        onClose={onClose}
+      />
+    );
+
+    await runPendingPromises();
+
+    const stockInput = screen.getByTestId("operaciones-line-0-stock");
+    await userEvent.type(stockInput, "S-CERO");
+    await runPendingPromises();
+
+    const cantidadInput = screen.getByTestId("operaciones-line-0-cantidad");
+    const entregarInput = screen.getByTestId("operaciones-line-0-cantidad-entregar");
+    const submitBtn = screen.getByTestId("modal-submit");
+
+    // Al seleccionar producto con stock 0, entregar se inicializa en 0
+    expect(entregarInput).toHaveValue(0);
+    expect(submitBtn).not.toBeDisabled();
+
+    // Cambiar cantidad a 3: entregar sigue en 0 y se permite confirmar
+    await userEvent.clear(cantidadInput);
+    await userEvent.type(cantidadInput, "3");
+    await runPendingPromises();
+
+    expect(entregarInput).toHaveValue(0);
+    expect(submitBtn).not.toBeDisabled();
+    expect(screen.queryByTestId("operacion-stock-fisico-error")).not.toBeInTheDocument();
+
+    // Si el usuario ingresa 1 a entregar sin stock físico, debe mostrar el error exacto y deshabilitar
+    await userEvent.clear(entregarInput);
+    await userEvent.type(entregarInput, "1");
+    await runPendingPromises();
+
+    expect(screen.getByTestId("operacion-stock-fisico-error")).toHaveTextContent(
+      "No hay stock físico suficiente en taller (0 u.) para entregar en este momento."
+    );
+    expect(submitBtn).toBeDisabled();
+    expect(entregarInput).toHaveAttribute("aria-invalid", "true");
+
+    // Al regresar a 0, se habilita nuevamente
+    await userEvent.clear(entregarInput);
+    await userEvent.type(entregarInput, "0");
+    await runPendingPromises();
+
+    expect(screen.queryByTestId("operacion-stock-fisico-error")).not.toBeInTheDocument();
+    expect(submitBtn).not.toBeDisabled();
+    expect(entregarInput).toHaveAttribute("aria-invalid", "false");
   });
 });
 

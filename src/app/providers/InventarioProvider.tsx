@@ -107,7 +107,7 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
       stockDisponible:
         dto.cantidad_disponible !== undefined && dto.cantidad_disponible !== null
           ? Number(dto.cantidad_disponible)
-          : Math.max(0, (Number(dto.cantidad) || 0) - (Number(dto.cantidad_reservada) || 0)),
+          : (Number(dto.cantidad) || 0) - (Number(dto.cantidad_reservada) || 0),
       stockMinimo: Number(dto.stock_minimo) || 0,
       stockMaximo: Number(dto.stock_maximo) || 0,
       costoUnitario: Number(p.costo_unitario) || 0,

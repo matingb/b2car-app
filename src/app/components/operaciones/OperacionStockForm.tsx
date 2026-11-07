@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { css } from "@emotion/react";
 import { AlertCircle, Plus } from "lucide-react";
 import { COLOR } from "@/theme/theme";
@@ -18,6 +19,9 @@ export default function OperacionStockForm() {
     removeLinea,
     setLineaAt,
     stockOptions,
+    stockById,
+    getDefaultUnitarioForStockId,
+    getStockActualForStockId,
     isInventarioLoading,
     isProveedorProductosLoading,
     isProveedorProductosEmpty,
@@ -25,7 +29,6 @@ export default function OperacionStockForm() {
     proveedores,
     clienteId,
     clientes,
-    getDefaultUnitarioForStockId,
     isContextualStock,
     observaciones,
     setObservaciones,
@@ -55,6 +58,26 @@ export default function OperacionStockForm() {
     const ent = l.cantidadEntregar !== undefined ? Number(l.cantidadEntregar) : cant;
     return ent > cant;
   });
+
+  const lineasSinStockFisico = useMemo(() => {
+    if (tipo !== "VENTA") return [];
+    return lineas
+      .map((l) => {
+        if (!l.stockId) return null;
+        const item = stockById.get(l.stockId);
+        const stockActual = item ? Number(item.stockActual) || 0 : 0;
+        const cant = Number(l.cantidad) || 0;
+        const ent = l.cantidadEntregar !== undefined ? Number(l.cantidadEntregar) : cant;
+        if (ent > stockActual) {
+          return { stockActual, ent, cant };
+        }
+        return null;
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+  }, [tipo, lineas, stockById]);
+
+  const hasEntregarSinStockFisico = lineasSinStockFisico.length > 0;
+  const stockActualExcedido = lineasSinStockFisico[0]?.stockActual ?? 0;
 
   return (
     <div css={styles.container}>
@@ -98,6 +121,8 @@ export default function OperacionStockForm() {
                   loadingStocks={isInventarioLoading || isProveedorProductosLoading}
                   stockOptions={stockOptions}
                   getDefaultUnitarioForStockId={getDefaultUnitarioForStockId}
+                  getStockActualForStockId={getStockActualForStockId}
+                  isVenta={tipo === "VENTA"}
                   onChange={(next) => setLineaAt(idx, next)}
                   onRemove={() => removeLinea(idx)}
                   canRemove={!isContextualStock && lineas.length > 1}
@@ -112,6 +137,15 @@ export default function OperacionStockForm() {
             <AlertCircle size={16} color={COLOR.STATUS.DANGER.TEXT} style={{ flexShrink: 0 }} />
             <span>
               La cantidad a {tipo === "VENTA" ? "entregar" : "recibir"} no puede superar la cantidad pactada.
+            </span>
+          </div>
+        )}
+
+        {hasEntregarSinStockFisico && !hasEntregarExcedido && (
+          <div style={styles.errorNotice} data-testid="operacion-stock-fisico-error">
+            <AlertCircle size={16} color={COLOR.STATUS.DANGER.TEXT} style={{ flexShrink: 0 }} />
+            <span>
+              No hay stock físico suficiente en taller ({stockActualExcedido} u.) para entregar en este momento.
             </span>
           </div>
         )}

@@ -56,6 +56,25 @@ describe("stocksMapper", () => {
     expect(dto.cantidad_disponible).toBe(5);
   });
 
+  it("calcula cantidad_disponible negativa cuando la reserva supera el físico y no viene explícita", () => {
+    const row: StockRow = {
+      id: "STK-3",
+      tenant_id: "TEN-1",
+      taller_id: "TAL-1",
+      producto_id: "PROD-3",
+      cantidad: 2,
+      cantidad_reservada: 5,
+      cantidad_pendiente: 0,
+      stock_minimo: 0,
+      stock_maximo: 0,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-02T00:00:00Z",
+    };
+
+    const dto = mapStockRow(row);
+    expect(dto.cantidad_disponible).toBe(-3); // 2 - 5
+  });
+
   it("mapea ProductoRow a ProductoDTO", () => {
     const prodRow: ProductoRow = {
       id: "PROD-1",

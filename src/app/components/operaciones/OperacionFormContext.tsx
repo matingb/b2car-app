@@ -21,7 +21,7 @@ import {
   EMPTY_CUENTA_FINANCIERA_DRAFT,
   validateCuentaFinancieraForm,
 } from "@/app/components/finanzas/CuentaFinancieraFormFields";
-import { type PagoDraftItem } from "@/app/components/arreglos/RegistrarPagoSection";
+import { useCondicionPago, type PagoDraftItem } from "@/app/components/finanzas/useCondicionPago";
 import type { OperacionLineaDraft } from "./OperacionLineaEditor";
 import {
   type OperacionModalProps,
@@ -100,6 +100,7 @@ type OperacionFormContextValue = {
   stockById: Map<string, StockItemWithActual>;
   isInventarioLoading: boolean;
   getDefaultUnitarioForStockId: (stockId: string) => number | null;
+  getStockActualForStockId: (stockId: string) => number | undefined;
   stockDeliveryPercentage: number;
   stockDeliveryStatus: string;
 
@@ -192,18 +193,6 @@ export function OperacionFormProvider({
   const [montoInicial, setMontoInicial] = useState<string>("");
   const [moverStock, setMoverStock] = useState<boolean>(true);
 
-  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
-  const [isPagoModificado, setIsPagoModificado] = useState<boolean>(false);
-  const [pagosDraft, setPagosDraft] = useState<PagoDraftItem[]>(() => [
-    {
-      id: generateUuidV4(),
-      cuentaId: initialCuentaId ?? cuentaFavorita?.id ?? "",
-      monto: "",
-      fecha: gasto?.fecha ? toLocalDateInputFormat(gasto.fecha) : toISODateLocal(new Date()),
-      descripcion: "",
-    },
-  ]);
-
   const [proveedorId, setProveedorId] = useState<string>(
     initialProveedorId ?? ""
   );
@@ -282,12 +271,10 @@ export function OperacionFormProvider({
   useEffect(() => {
     if (!open) {
       didInitRef.current = false;
-      setIsPagoModificado(false);
       return;
     }
     if (didInitRef.current) return;
     didInitRef.current = true;
-    setIsPagoModificado(false);
 
     const initialAcc = initialCuentaId ?? cuentaFavorita?.id ?? "";
 
@@ -301,16 +288,6 @@ export function OperacionFormProvider({
       setMontoGasto(String(gasto.importe || ""));
       setDescripcionGasto(gasto.descripcion || "");
       setObservaciones(gasto.observaciones || "");
-      setPagosDraft([
-        {
-          id: generateUuidV4(),
-          cuentaId: gasto.cuentaId || initialAcc,
-          monto: String(gasto.importe || ""),
-          fecha: gasto.fecha ? toLocalDateInputFormat(gasto.fecha) : toISODateLocal(new Date()),
-          descripcion: "",
-        },
-      ]);
-      setShowAdvanced(false);
       return;
     }
 
@@ -325,19 +302,8 @@ export function OperacionFormProvider({
     setObservaciones("");
     setMontoInicial("");
     setMoverStock(true);
-    setShowAdvanced(false);
     setProveedorId(initialProveedorId ?? "");
     setClienteId(initialClienteId ?? "");
-    setPagosDraft([
-      {
-        id: generateUuidV4(),
-        cuentaId: initialAcc,
-        monto: "",
-        fecha: toISODateLocal(new Date()),
-        descripcion: "",
-      },
-    ]);
-    setShowAdvanced(false);
   }, [open, talleres, initialTipo, initialCuentaId, gasto, contextualStock, cuentaFavorita, initialProveedorId, initialClienteId]);
 
   useEffect(() => {
@@ -363,12 +329,6 @@ export function OperacionFormProvider({
     }
 
     setCuentaFinancieraId(cuentaFavorita.id);
-    setPagosDraft((prev) => {
-      if (prev.length > 0 && !prev[0].cuentaId) {
-        return prev.map((p, i) => (i === 0 ? { ...p, cuentaId: cuentaFavorita.id } : p));
-      }
-      return prev;
-    });
   }, [open, gasto, initialCuentaId, cuentaFinancieraId, cuentaFavorita]);
 
   const stockItems = useMemo<StockItemWithActual[]>(
@@ -469,7 +429,16 @@ export function OperacionFormProvider({
         const match = stockItems.find((s) => s.productoId === initialProductoId);
         if (match) {
           const unitario = getDefaultUnitario(match, tipo || "COMPRA");
-          return [{ ...prev[0], stockId: match.id, unitario, total: round2(unitario * (Number(prev[0].cantidad) || 0)) }];
+          const stockFisico = Number(match.stockActual) || 0;
+          const cantidad = Number(prev[0].cantidad) || 1;
+          const cantidadEntregar = tipo === "VENTA" ? Math.min(cantidad, Math.max(0, stockFisico)) : cantidad;
+          return [{
+            ...prev[0],
+            stockId: match.id,
+            unitario,
+            cantidadEntregar,
+            total: round2(unitario * cantidad),
+          }];
         }
       }
       return prev;
@@ -496,7 +465,15 @@ export function OperacionFormProvider({
           }
         }
         const total = round2((Number(linea.cantidad) || 0) * unitario);
-        return { ...linea, unitario, total };
+        let cantidadEntregar = linea.cantidadEntregar;
+        if (tipo === "VENTA") {
+          const stockFisico = Number(item.stockActual) || 0;
+          const cant = Number(linea.cantidad) || 0;
+          if (cantidadEntregar === undefined || cantidadEntregar === cant) {
+            cantidadEntregar = Math.min(cant, Math.max(0, stockFisico));
+          }
+        }
+        return { ...linea, unitario, total, cantidadEntregar };
       }),
     );
   }, [tipo, stockItems, open, isTipoEnabled, proveedorCatalogoMap]);
@@ -553,6 +530,14 @@ export function OperacionFormProvider({
     [tipo, isTipoEnabled, stockById, proveedorCatalogoMap],
   );
 
+  const getStockActualForStockId = useCallback(
+    (stockId: string): number | undefined => {
+      const item = stockById.get(stockId);
+      return item ? Number(item.stockActual) || 0 : undefined;
+    },
+    [stockById]
+  );
+
   const setLineaAt = useCallback((idx: number, nextLinea: OperacionLineaDraft) => {
     setLineas((prev) => prev.map((l, i) => (
       i === idx
@@ -581,95 +566,6 @@ export function OperacionFormProvider({
     );
   }, [tipo, montoGasto, lineas]);
 
-  const noPagar = pagosDraft.length === 0;
-
-  const setEstadoPago = useCallback((nuevo: EstadoPagoOperacion) => {
-    if (nuevo === "PENDIENTE") {
-      setIsPagoModificado(true);
-      setPagosDraft([]);
-    } else {
-      setIsPagoModificado(false);
-      setPagosDraft((prev) => {
-        if (prev.length > 0) return prev;
-        const activeAcc = cuentaFavorita?.id ?? initialCuentaId ?? cuentaFinancieraId ?? "";
-        return [
-          {
-            id: generateUuidV4(),
-            cuentaId: activeAcc,
-            monto: String(importeTotal || 0),
-            fecha: toISODateLocal(new Date()),
-            descripcion: "",
-          },
-        ];
-      });
-    }
-  }, [cuentaFavorita?.id, initialCuentaId, cuentaFinancieraId, importeTotal]);
-
-  const setNoPagar = useCallback((val: boolean) => {
-    if (val) {
-      setIsPagoModificado(true);
-      setPagosDraft([]);
-    } else {
-      setIsPagoModificado(false);
-      setPagosDraft((prev) => {
-        if (prev.length > 0) return prev;
-        const activeAcc = cuentaFavorita?.id ?? initialCuentaId ?? cuentaFinancieraId ?? "";
-        return [
-          {
-            id: generateUuidV4(),
-            cuentaId: activeAcc,
-            monto: String(importeTotal || 0),
-            fecha: toISODateLocal(new Date()),
-            descripcion: "",
-          },
-        ];
-      });
-    }
-  }, [cuentaFavorita?.id, initialCuentaId, cuentaFinancieraId, importeTotal]);
-
-  // Si no fue modificado manualmente, mantener pagosDraft[0].monto sincronizado con importeTotal
-  useEffect(() => {
-    if (isPagoModificado) return;
-
-    const activeAccount = cuentaFavorita?.id ?? initialCuentaId ?? cuentaFinancieraId ?? "";
-    const targetMontoStr = String(importeTotal || 0);
-
-    setPagosDraft((prev) => {
-      if (prev.length !== 1) {
-        return prev;
-      }
-
-      const currentMontoNum = Number(prev[0].monto) || 0;
-      const targetMontoNum = importeTotal;
-      const targetCuentaId = prev[0].cuentaId || activeAccount;
-
-      if (
-        currentMontoNum === targetMontoNum &&
-        (prev[0].monto === targetMontoStr || (targetMontoNum === 0 && prev[0].monto === "")) &&
-        prev[0].cuentaId === targetCuentaId
-      ) {
-        return prev;
-      }
-
-      return [
-        {
-          id: prev[0].id,
-          cuentaId: targetCuentaId,
-          monto: targetMontoStr,
-          fecha: prev[0].fecha || toISODateLocal(new Date()),
-          descripcion: prev[0].descripcion || "",
-        },
-      ];
-    });
-  }, [
-    isPagoModificado,
-    importeTotal,
-    cuentaFavorita?.id,
-    initialCuentaId,
-    cuentaFinancieraId,
-    tipo,
-  ]);
-
   // Porcentaje y estado de entrega de stock
   const stockDeliveryPercentage = useMemo(() => {
     const totalCantidad = lineas.reduce((acc, l) => acc + (Number(l.cantidad) || 0), 0);
@@ -689,98 +585,36 @@ export function OperacionFormProvider({
     return `${stockDeliveryPercentage}% ${verb}`;
   }, [stockDeliveryPercentage, tipo]);
 
-  // Handlers para pagos múltiples
-  const handleAddPagoRow = useCallback(() => {
-    const nextCuentaId = cuentaFavorita?.id ?? cuentasActivas?.[0]?.id ?? "";
-    const totalActual = pagosDraft.reduce((acc, p) => acc + (Number(p.monto) || 0), 0);
-    const restante = Math.max(0, importeTotal - totalActual);
-    setPagosDraft((prev) => {
-      if (prev.length === 0) {
-        setIsPagoModificado(false);
-      } else {
-        setIsPagoModificado(true);
-      }
-      return [
-        ...prev,
-        {
-          id: generateUuidV4(),
-          cuentaId: nextCuentaId,
-          monto: restante > 0 ? String(restante) : (importeTotal > 0 ? String(importeTotal) : ""),
-          fecha: toISODateLocal(new Date()),
-          descripcion: "",
-        },
-      ];
-    });
-  }, [cuentasActivas, cuentaFavorita, pagosDraft, importeTotal]);
-
-  const handleRemovePagoRow = useCallback((id: string) => {
-    setIsPagoModificado(true);
-    setPagosDraft((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
-  const handleRestoreFavorita = useCallback(() => {
-    if (!cuentaFavorita) return;
-    setIsPagoModificado(false);
-    setPagosDraft([
-      {
-        id: generateUuidV4(),
-        cuentaId: cuentaFavorita.id,
-        monto: String(importeTotal || 0),
-        fecha: toISODateLocal(new Date()),
-        descripcion: "",
-      },
-    ]);
-  }, [cuentaFavorita, importeTotal]);
-
-  const handleUpdatePagoRow = useCallback((id: string, field: keyof PagoDraftItem, val: string) => {
-    if (field === "monto") {
-      setIsPagoModificado(true);
-    }
-    setPagosDraft((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, [field]: val } : p))
-    );
-  }, []);
-
-  const handleUpdatePagoCuentaDraft = useCallback((id: string, patch: Partial<CuentaFinancieraDraft>) => {
-    setPagosDraft((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? { ...p, cuentaDraft: { ...(p.cuentaDraft || EMPTY_CUENTA_FINANCIERA_DRAFT), ...patch } }
-          : p
-      )
-    );
-  }, []);
-
-  const handleToggleAdvanced = useCallback(() => {
-    setShowAdvanced((prev) => {
-      const next = !prev;
-      if (!next && cuentaFavorita) {
-        setIsPagoModificado(false);
-        setPagosDraft([
-          {
-            id: generateUuidV4(),
-            cuentaId: cuentaFavorita.id,
-            monto: String(importeTotal || 0),
-            fecha: toISODateLocal(new Date()),
-            descripcion: "",
-          },
-        ]);
-      }
-      return next;
-    });
-  }, [cuentaFavorita, importeTotal]);
-
-  const totalPagado = useMemo(() => {
-    return pagosDraft.reduce((acc, p) => acc + (Number(p.monto) || 0), 0);
-  }, [pagosDraft]);
-
-  const computedEstadoPago: EstadoPagoOperacion = useMemo(() => {
-    if (importeTotal <= 0) return "PAGADO";
-    if (pagosDraft.length === 0) return "PENDIENTE";
-    if (totalPagado >= importeTotal) return "PAGADO";
-    if (totalPagado > 0) return "PARCIAL";
-    return "PENDIENTE";
-  }, [importeTotal, pagosDraft.length, totalPagado]);
+  const {
+    pagosDraft,
+    setPagosDraft,
+    showAdvanced,
+    setShowAdvanced,
+    isPagoModificado,
+    setIsPagoModificado,
+    totalPagado,
+    computedEstadoPago,
+    noPagar,
+    canSubmitPagos,
+    handleAddPagoRow,
+    handleRemovePagoRow,
+    handleRestoreFavorita,
+    handleUpdatePagoRow,
+    handleUpdatePagoCuentaDraft,
+    handleToggleAdvanced,
+    setNoPagar,
+    setEstadoPago,
+    resolvePagosPayload,
+  } = useCondicionPago({
+    open,
+    targetAmount: importeTotal,
+    cuentaFavorita,
+    cuentasActivas,
+    initialCuentaId: gasto?.cuentaId ?? initialCuentaId ?? undefined,
+    initialFecha: gasto?.fecha ? toLocalDateInputFormat(gasto.fecha) : undefined,
+    initialMonto: gasto ? String(gasto.importe || "") : undefined,
+    minRows: 0,
+  });
 
   const requiresCuenta = tipo === "GASTO" || (importeTotal > 0 && computedEstadoPago !== "PENDIENTE");
 
@@ -807,15 +641,7 @@ export function OperacionFormProvider({
       if (!categoriaGasto || !Number.isFinite(importeNum) || importeNum <= 0) return false;
       if (isSubmittingGasto) return false;
 
-      if (importeTotal > 0 && pagosDraft.length > 0) {
-        const allPagosValid = pagosDraft.every((p) => {
-          if (p.cuentaId === CREATE_CUENTA_VALUE) {
-            return validateCuentaFinancieraForm(p.cuentaDraft);
-          }
-          return Boolean(p.cuentaId);
-        });
-        if (!allPagosValid) return false;
-      }
+      if (importeTotal > 0 && !canSubmitPagos) return false;
 
       return true;
     }
@@ -823,24 +649,21 @@ export function OperacionFormProvider({
     if (!tallerId) return false;
     if (lineas.length === 0) return false;
 
-    const allLinesValid = lineas.every(
-      (l) =>
-        Boolean(l.stockId) &&
-        Number(l.cantidad) > 0 &&
-        Number.isFinite(l.unitario) &&
-        (l.cantidadEntregar === undefined || (Number(l.cantidadEntregar) >= 0 && Number(l.cantidadEntregar) <= Number(l.cantidad)))
-    );
+    const allLinesValid = lineas.every((l) => {
+      const cant = Number(l.cantidad);
+      const ent = l.cantidadEntregar !== undefined ? Number(l.cantidadEntregar) : cant;
+      if (!l.stockId || cant <= 0 || !Number.isFinite(l.unitario)) return false;
+      if (ent < 0 || ent > cant) return false;
+      if (tipo === "VENTA") {
+        const item = stockById.get(l.stockId);
+        const stockActual = item ? Number(item.stockActual) || 0 : 0;
+        if (ent > stockActual) return false;
+      }
+      return true;
+    });
     if (!allLinesValid) return false;
 
-    if (importeTotal > 0 && pagosDraft.length > 0) {
-      const allPagosValid = pagosDraft.every((p) => {
-        if (p.cuentaId === CREATE_CUENTA_VALUE) {
-          return validateCuentaFinancieraForm(p.cuentaDraft);
-        }
-        return Boolean(p.cuentaId);
-      });
-      if (!allPagosValid) return false;
-    }
+    if (importeTotal > 0 && !canSubmitPagos) return false;
 
     return true;
   }, [
@@ -860,8 +683,9 @@ export function OperacionFormProvider({
     tallerId,
     lineas,
     importeTotal,
-    pagosDraft,
+    canSubmitPagos,
     isEditingGasto,
+    stockById,
   ]);
 
   const isSubmitting = isOperacionesLoading || isSubmittingGasto;
@@ -913,38 +737,7 @@ export function OperacionFormProvider({
     }
 
     try {
-      const pagosPayload: {
-        cuenta_id: string;
-        cuenta_financiera_id: string;
-        monto: number;
-        fecha: string;
-        descripcion: string | null;
-      }[] = [];
-
-      if (importeTotal > 0 && pagosDraft.length > 0) {
-        for (const p of pagosDraft) {
-          const montoNum = Number(p.monto) || 0;
-          if (montoNum <= 0) continue;
-          let accId = p.cuentaId;
-          if (accId === CREATE_CUENTA_VALUE && p.cuentaDraft) {
-            const created = await createCuenta({
-              nombre: p.cuentaDraft.nombre.trim(),
-              tipo: p.cuentaDraft.tipo,
-              saldoInicial: 0,
-            });
-            accId = created.id;
-          }
-          if (accId) {
-            pagosPayload.push({
-              cuenta_id: accId,
-              cuenta_financiera_id: accId,
-              monto: montoNum,
-              fecha: toISODateTimeWithLocalCurrentTime(p.fecha || fecha) || fechaTimestamp,
-              descripcion: p.descripcion.trim() || null,
-            });
-          }
-        }
-      }
+      const pagosPayload = await resolvePagosPayload(createCuenta, fecha);
 
       const primaryCuentaId = pagosPayload.length > 0
         ? pagosPayload[0].cuenta_financiera_id
@@ -1050,6 +843,7 @@ export function OperacionFormProvider({
     stockById,
     isInventarioLoading,
     getDefaultUnitarioForStockId,
+    getStockActualForStockId,
     stockDeliveryPercentage,
     stockDeliveryStatus,
     isLoadingCuentas,

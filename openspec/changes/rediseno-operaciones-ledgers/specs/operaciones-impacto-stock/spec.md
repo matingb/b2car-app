@@ -55,17 +55,17 @@ Las compras y las ventas SHALL poder crearse sin mover stock, o moviendo solo un
 - **THEN** el stock sube 6 más y la compra queda `ENTREGADO`
 
 ### Requirement: Cantidades reservada y pendiente derivadas
-La cantidad reservada de un stock SHALL ser la suma de lo que falta entregar en las ventas abiertas de ese stock. La cantidad pendiente SHALL ser la suma de lo que falta recibir en sus compras abiertas. Una venta MUST rechazarse con `STOCK_INSUFICIENTE` (código `55002`) si deja la cantidad disponible (cantidad menos reservada) por debajo de cero.
+La cantidad reservada de un stock SHALL ser la suma de lo que falta entregar en las ventas abiertas de ese stock. La cantidad pendiente SHALL ser la suma de lo que falta recibir en sus compras abiertas. Las ventas pueden generarse sin restricción de stock disponible; si la cantidad reservada supera el stock físico, la cantidad disponible (cantidad menos reservada) resulta negativa, reflejando el déficit comercial o preventa.
 
 #### Scenario: Venta diferida reserva stock
 - **GIVEN** un stock con cantidad 10 y nada reservado
 - **WHEN** se crea una venta de 4 unidades sin entregar
 - **THEN** la cantidad reservada es 4 y la disponible es 6
 
-#### Scenario: Venta diferida sin disponible
+#### Scenario: Venta diferida con disponible deficitario
 - **GIVEN** un stock con cantidad 10 y 8 reservadas
-- **WHEN** se intenta crear una venta de 3 unidades sin entregar
-- **THEN** el sistema la rechaza con el error `STOCK_INSUFICIENTE`
+- **WHEN** se crea una venta de 3 unidades sin entregar
+- **THEN** la operación se crea exitosamente, la cantidad reservada pasa a ser 11 y la disponible es -1
 
 ### Requirement: Reversión de una entrega o recepción
 Revertir una entrega o recepción SHALL eliminar su impacto de stock y registrar en el kardex una fila de reversión que referencia la fila original. La cantidad cumplida, el estado de stock y las cantidades reservada y pendiente se recalculan. El sistema MUST rechazar revertir una reversión, revertir dos veces el mismo movimiento o revertir un movimiento sin impacto de origen (histórico o de conciliación). En este último caso la app no ofrece la acción.

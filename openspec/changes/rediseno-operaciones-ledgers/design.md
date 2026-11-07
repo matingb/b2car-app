@@ -251,8 +251,7 @@ OMS **no lleva `tipo_movimiento`**. El kardex lo deriva:
   - Si la línea o la operación ya no existen, no las recalculan.
 - **OMS `BEFORE UPDATE`:** `RAISE` (D8).
 - **`_lineas_recalcular_stock`** (`AFTER INSERT OR DELETE OR UPDATE OF cantidad, stock_id, cantidad_cancelada` en `operaciones_lineas`):
-  - recalcula **desde cero** `cantidad_reservada` y `cantidad_pendiente` del stock afectado, y del anterior si cambió, con la fórmula `cantidad - cantidad_cumplida - cantidad_cancelada` sobre las líneas abiertas de VENTA o COMPRA;
-  - en VENTA, rechaza con `55002` si la cantidad disponible queda negativa.
+  - recalcula **desde cero** `cantidad_reservada` y `cantidad_pendiente` del stock afectado, y del anterior si cambió, con la fórmula `cantidad - cantidad_cumplida - cantidad_cancelada` sobre las líneas abiertas de VENTA o COMPRA. No bloquea ventas cuando el disponible es menor a 0.
 
 `estado_stock` se calcula solo en COMPRA y VENTA, comparando `Σ (cumplida + cancelada)` contra `Σ cantidad`. Para el resto de los tipos se mantiene el valor actual.
 

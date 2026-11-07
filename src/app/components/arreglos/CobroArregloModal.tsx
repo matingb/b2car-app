@@ -6,7 +6,7 @@ import { CheckCircle2 } from "lucide-react";
 import {
   type PagoDraftItem,
   CREATE_CUENTA_VALUE,
-} from "@/app/components/arreglos/RegistrarPagoSection";
+} from "@/app/components/finanzas/useCondicionPago";
 import PagoCondicionSection from "@/app/components/finanzas/PagoCondicionSection";
 import CobroArregloHistorial from "@/app/components/arreglos/CobroArregloHistorial";
 import {

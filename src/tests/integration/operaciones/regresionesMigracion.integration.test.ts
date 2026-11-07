@@ -84,7 +84,7 @@ describe("Regresiones del rediseño de operaciones", () => {
     expect(data).toEqual({ monto_total: 100, total_pagado: 40 });
   });
 
-  it("serializa dos reservas simultáneas que juntas superarían el disponible", async () => {
+  it("permite múltiples ventas diferidas aun cuando superan el stock disponible", async () => {
     const client = createTestClient();
     const { data: inicial } = await client.from("stocks").select("cantidad,cantidad_reservada,cantidad_disponible").eq("id", SEED.stockAceite.id).single();
     expect(inicial?.cantidad_disponible).toBeGreaterThan(1);
@@ -94,9 +94,8 @@ describe("Regresiones del rediseño de operaciones", () => {
       p_lineas: [{ stock_id: SEED.stockAceite.id, cantidad, monto_unitario: 100 }],
     });
     const results = await Promise.all([crear(), crear()]);
-    expect(results.filter((r) => !r.error)).toHaveLength(1);
-    expect(results.find((r) => r.error)?.error?.code).toBe("55002");
+    expect(results.filter((r) => !r.error)).toHaveLength(2);
     const { data: final } = await client.from("stocks").select("cantidad,cantidad_reservada").eq("id", SEED.stockAceite.id).single();
-    expect(final).toEqual({ cantidad: inicial!.cantidad, cantidad_reservada: inicial!.cantidad_reservada + cantidad });
+    expect(final).toEqual({ cantidad: inicial!.cantidad, cantidad_reservada: inicial!.cantidad_reservada + cantidad * 2 });
   });
 });

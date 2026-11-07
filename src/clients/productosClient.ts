@@ -195,7 +195,10 @@ export function mapStockDtoToInventario(s: StockDTO): StockRegistro {
     tallerId: s.tallerId,
     stockActual: Number(s.cantidad) || 0,
     stockReservado: Number(s.cantidad_reservada) || 0,
-    stockDisponible: s.cantidad_disponible !== undefined ? Number(s.cantidad_disponible) : (Number(s.cantidad) || 0),
+    stockDisponible:
+      s.cantidad_disponible !== undefined
+        ? Number(s.cantidad_disponible)
+        : (Number(s.cantidad) || 0) - (Number(s.cantidad_reservada) || 0),
     stockPendiente: Number(s.cantidad_pendiente) || 0,
     stockMinimo: Number(s.stock_minimo) || 0,
     stockMaximo: Number(s.stock_maximo) || 0,

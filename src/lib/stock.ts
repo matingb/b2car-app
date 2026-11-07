@@ -74,7 +74,7 @@ export function getStockBreakdown(
   const disponible =
     stock?.stockDisponible !== undefined && stock?.stockDisponible !== null
       ? Number(stock.stockDisponible) || 0
-      : Math.max(0, actual - reservado);
+      : actual - reservado;
   const pendiente = Number(stock?.stockPendiente) || 0;
 
   return {

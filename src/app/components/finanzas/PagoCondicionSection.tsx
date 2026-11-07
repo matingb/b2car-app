@@ -3,9 +3,8 @@
 import React from "react";
 import { css } from "@emotion/react";
 import { ChevronDown, FileText, Plus, RotateCcw, WalletCards } from "lucide-react";
-import RegistrarPagoSection, {
-  type PagoDraftItem,
-} from "@/app/components/arreglos/RegistrarPagoSection";
+import RegistrarPagoSection from "@/app/components/arreglos/RegistrarPagoSection";
+import type { PagoDraftItem } from "@/app/components/finanzas/useCondicionPago";
 import type { CuentaFinancieraDraft } from "@/app/components/finanzas/CuentaFinancieraFormFields";
 import { COLOR } from "@/theme/theme";
 import { formatArs, formatNumberAr } from "@/lib/format";

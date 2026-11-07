@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import RegistrarPagoSection, { type PagoDraftItem } from "@/app/components/arreglos/RegistrarPagoSection";
+import RegistrarPagoSection from "@/app/components/arreglos/RegistrarPagoSection";
+import type { PagoDraftItem } from "@/app/components/finanzas/useCondicionPago";
 
 describe("RegistrarPagoSection", () => {
   const mockOptions = [

@@ -27,6 +27,8 @@ type Props = {
   loadingStocks: boolean;
   stockOptions: AutocompleteOption[];
   getDefaultUnitarioForStockId?: (stockId: string) => number | null;
+  getStockActualForStockId?: (stockId: string) => number | undefined;
+  isVenta?: boolean;
   onChange: (next: OperacionLineaDraft) => void;
   onRemove?: () => void;
   canRemove?: boolean;
@@ -44,6 +46,8 @@ export default function OperacionLineaEditor({
   loadingStocks,
   stockOptions,
   getDefaultUnitarioForStockId,
+  getStockActualForStockId,
+  isVenta = false,
   onChange,
   onRemove,
   canRemove = false,
@@ -62,7 +66,13 @@ export default function OperacionLineaEditor({
   };
 
   const onStockChange = (stockId: string) => {
-    const base: OperacionLineaDraft = { ...linea, stockId };
+    const cantidad = Number(linea.cantidad) || 0;
+    const stockFisico = getStockActualForStockId?.(stockId);
+    let cantidadEntregar = linea.cantidadEntregar;
+    if (isVenta && stockFisico !== undefined) {
+      cantidadEntregar = Math.min(cantidad, Math.max(0, stockFisico));
+    }
+    const base: OperacionLineaDraft = { ...linea, stockId, cantidadEntregar };
     const unitDefault = getDefaultUnitarioForStockId?.(stockId);
     if (typeof unitDefault === "number" && Number.isFinite(unitDefault)) {
       onChange(recomputeFromUnit({ ...base, unitario: unitDefault }));
@@ -73,8 +83,18 @@ export default function OperacionLineaEditor({
 
   const onCantidadChange = (cantidad: number) => {
     const prevCantidad = Number(linea.cantidad) || 0;
+    const stockFisico = linea.stockId ? getStockActualForStockId?.(linea.stockId) : undefined;
     const prevEntregar = linea.cantidadEntregar !== undefined ? linea.cantidadEntregar : prevCantidad;
-    const cantidadEntregar = prevEntregar === prevCantidad ? cantidad : prevEntregar;
+    let cantidadEntregar = prevEntregar;
+
+    if (prevEntregar === prevCantidad) {
+      cantidadEntregar = isVenta && stockFisico !== undefined
+        ? Math.min(cantidad, Math.max(0, stockFisico))
+        : cantidad;
+    } else if (isVenta && stockFisico !== undefined && prevCantidad > 0 && prevEntregar === Math.min(prevCantidad, Math.max(0, stockFisico))) {
+      cantidadEntregar = Math.min(cantidad, Math.max(0, stockFisico));
+    }
+
     onChange(recomputeFromUnit({ ...linea, cantidad, cantidadEntregar }));
   };
 
@@ -93,7 +113,10 @@ export default function OperacionLineaEditor({
 
   const cantidad = Number(linea.cantidad) || 0;
   const cantidadEntregar = linea.cantidadEntregar !== undefined ? Number(linea.cantidadEntregar) : cantidad;
-  const isInvalidEntregar = cantidadEntregar > cantidad;
+  const stockFisico = linea.stockId ? getStockActualForStockId?.(linea.stockId) : undefined;
+  const isExceededPactada = cantidadEntregar > cantidad;
+  const isExceededStock = isVenta && stockFisico !== undefined && cantidadEntregar > stockFisico;
+  const isInvalidEntregar = isExceededPactada || isExceededStock;
 
   return (
     <div css={styles.lineRow} data-testid={`operaciones-line-${index}`}>
@@ -145,8 +168,10 @@ export default function OperacionLineaEditor({
           aria-label="Cantidad a entregar o recibir"
           aria-invalid={isInvalidEntregar}
           title={
-            isInvalidEntregar
+            isExceededPactada
               ? "La cantidad no puede superar la cantidad pactada"
+              : isExceededStock
+              ? `No hay stock físico suficiente en taller (${stockFisico} u.) para entregar en este momento.`
               : undefined
           }
         />
