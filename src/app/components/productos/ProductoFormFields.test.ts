@@ -7,7 +7,6 @@ import {
 const productoValido: ProductoFormFieldsValues = {
   nombre: "Aceite Motor 10W40",
   codigo: "ACE-10W40",
-  proveedor: "",
   precioCompra: 100,
   precioVenta: 150,
   categorias: [],

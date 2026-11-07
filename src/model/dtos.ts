@@ -73,7 +73,6 @@ export type ProductoDTO = {
     descripcion: string | null;
     precio_unitario: number;
     costo_unitario: number;
-    proveedor: string | null;
     categorias: string[];
     show_in_stock: boolean;
     talleresConStock?: number;

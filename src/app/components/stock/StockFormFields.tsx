@@ -17,7 +17,6 @@ export const CREATE_PRODUCTO_VALUE = "__create_producto__";
 const EMPTY_PRODUCT_DRAFT: ProductoFormFieldsValues = {
     nombre: "",
     codigo: "",
-    proveedor: "",
     precioCompra: 0,
     precioVenta: 0,
     categorias: [],

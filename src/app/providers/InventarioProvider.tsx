@@ -33,7 +33,6 @@ export type Producto = {
   categorias: string[];
   precioUnitario: number;
   costoUnitario: number;
-  proveedor: string;
   talleresConStock: number;
   showInStock: boolean;
 };
@@ -112,7 +111,6 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
       stockMaximo: Number(dto.stock_maximo) || 0,
       costoUnitario: Number(p.costo_unitario) || 0,
       precioUnitario: Number(p.precio_unitario) || 0,
-      proveedor: p.proveedor ?? "",
       showInStock: dto.producto?.show_in_stock ?? true,
       ultimaActualizacion: isoToShortEsDate(dto.updated_at),
       historialMovimientos: [],

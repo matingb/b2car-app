@@ -21,8 +21,7 @@ function matchesSearch(producto: Producto, query: string) {
 
   return (
     producto.nombre.toLowerCase().includes(normalizedQuery) ||
-    producto.codigo.toLowerCase().includes(normalizedQuery) ||
-    producto.proveedor.toLowerCase().includes(normalizedQuery)
+    producto.codigo.toLowerCase().includes(normalizedQuery)
   );
 }
 

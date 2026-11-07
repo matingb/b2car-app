@@ -143,7 +143,7 @@ describe("/api/productos", () => {
       data: createInventarioProductoRow({ id: "PROD-1", codigo: "C1", nombre: "Producto 1" }),
       error: null,
     });
-    const { res, body } = await postProducto({ proveedor: "Prov", categorias: ["A"] });
+    const { res, body } = await postProducto({ categorias: ["A"] });
 
     expect(res.status).toBe(201);
     expect(body.data?.id).toBeTruthy();

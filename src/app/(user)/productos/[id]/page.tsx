@@ -183,7 +183,6 @@ export default function ProductoDetailsPage() {
     const updated = await updateProducto(draft.id, {
       nombre: draft.nombre,
       codigo: draft.codigo,
-      proveedor: draft.proveedor,
       costoUnitario: draft.costoUnitario,
       precioUnitario: draft.precioUnitario,
       categorias: draft.categorias,
@@ -444,18 +443,6 @@ export default function ProductoDetailsPage() {
                 <CategoryList categories={producto.categorias} />
               )}
             </div>
-
-            <InfoField icon={<Building2 size={16} />} label="Proveedor">
-              {isEditing ? (
-                <input
-                  style={styles.infoInput}
-                  value={draft.proveedor}
-                  onChange={(e) => setDraft((current) => (current ? { ...current, proveedor: e.target.value } : current))}
-                />
-              ) : (
-                producto.proveedor || "-"
-              )}
-            </InfoField>
             <div style={styles.updatedAt}><span>Última actualización:</span> <strong>{ultimaActualizacion ?? "Sin movimientos"}</strong></div>
           </section>
         </div>

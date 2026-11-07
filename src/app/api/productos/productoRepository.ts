@@ -11,7 +11,6 @@ export type ProductoRow = {
   descripcion: string | null;
   precio_unitario: number;
   costo_unitario: number;
-  proveedor: string | null;
   categorias: string[] | null;
   show_in_stock: boolean;
   created_at: string;
@@ -55,24 +54,7 @@ export const supabaseProductoRepository: ProductoRepository = {
 
       if (ppError) return { data: [], error: ppError };
 
-      const ids = new Set<string>((ppRows ?? []).map((r: { producto_id: string }) => r.producto_id));
-
-      const { data: prov } = await supabase
-        .from("proveedores")
-        .select("nombre")
-        .eq("id", filters.proveedorId)
-        .maybeSingle();
-
-      if (prov?.nombre) {
-        const { data: legacyProds } = await supabase
-          .from("productos")
-          .select("id")
-          .eq("proveedor", prov.nombre);
-
-        (legacyProds ?? []).forEach((p: { id: string }) => ids.add(p.id));
-      }
-
-      productIds = Array.from(ids);
+      productIds = (ppRows ?? []).map((r: { producto_id: string }) => r.producto_id);
       if (productIds.length === 0) {
         return { data: [], error: null };
       }

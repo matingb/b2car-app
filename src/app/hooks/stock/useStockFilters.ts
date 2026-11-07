@@ -29,8 +29,7 @@ function matchesSearch(item: StockItem, query: string) {
   if (!q) return true;
   return (
     item.nombre.toLowerCase().includes(q) ||
-    item.codigo.toLowerCase().includes(q) ||
-    item.proveedor.toLowerCase().includes(q)
+    item.codigo.toLowerCase().includes(q)
   );
 }
 

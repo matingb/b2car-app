@@ -19,7 +19,6 @@ function mapProductoBase(row: ProductoRow): Omit<ProductoDTO, "talleresConStock"
     descripcion: row.descripcion ?? null,
     precio_unitario: Number(row.precio_unitario) || 0,
     costo_unitario: Number(row.costo_unitario) || 0,
-    proveedor: row.proveedor ?? null,
     categorias: Array.isArray(row.categorias) ? row.categorias : [],
     show_in_stock: row.show_in_stock,
     created_at: row.created_at,
@@ -79,7 +78,6 @@ export async function POST(req: Request) {
     descripcion: body.descripcion?.trim() ?? null,
     precio_unitario: body.precio_unitario,
     costo_unitario: body.costo_unitario,
-    proveedor: body.proveedor?.trim() ?? null,
     categorias: Array.isArray(body.categorias) ? body.categorias : [],
     show_in_stock: body.show_in_stock ?? true,
   };

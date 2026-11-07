@@ -22,7 +22,6 @@ export type StockItem = {
   stockMaximo: number;
   costoUnitario: number;
   precioUnitario: number;
-  proveedor: string;
   showInStock: boolean;
   ultimaActualizacion: string;
   historialMovimientos: StockMovement[];

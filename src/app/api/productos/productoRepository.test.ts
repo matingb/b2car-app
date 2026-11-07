@@ -88,7 +88,6 @@ describe("supabaseProductoRepository", () => {
       descripcion: null,
       precio_unitario: 50,
       costo_unitario: 30,
-      proveedor: null,
       categorias: ["Frenos"],
       show_in_stock: true,
     };

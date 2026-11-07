@@ -9,7 +9,6 @@ import NumberInput from "@/app/components/ui/NumberInput";
 export type ProductoFormFieldsValues = {
   nombre: string;
   codigo: string;
-  proveedor: string;
   precioCompra: number;
   precioVenta: number;
   categorias: string[];

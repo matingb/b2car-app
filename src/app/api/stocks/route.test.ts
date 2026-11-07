@@ -136,7 +136,6 @@ describe("/api/stocks", () => {
       data: createInventarioProductoRow({
         id: "PROD-001",
         nombre: "Neumático 205/55 R16",
-        proveedor: null,
         categorias: [],
       }),
       error: null,

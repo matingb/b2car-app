@@ -34,7 +34,6 @@ export async function dadoQueExisteUnProductoConStock(
     marca: null,
     modelo: null,
     descripcion: null,
-    proveedor: null,
     categorias: [],
     show_in_stock: true,
     ...producto,

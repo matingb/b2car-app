@@ -41,7 +41,6 @@ export type Producto = {
   talleresConStock: number;
   precioUnitario: number;
   costoUnitario: number;
-  proveedor: string;
   showInStock: boolean;
   stocks: StockRegistro[];
 };
@@ -140,7 +139,6 @@ export function ProductosProvider({ children }: { children: React.ReactNode }) {
         nombre: input.nombre.trim(),
         precio_unitario: input.precioUnitario ?? 0,
         costo_unitario: input.costoUnitario ?? 0,
-        proveedor: input.proveedor ?? "",
         categorias: input.categorias ?? [],
       });
       if (!res.data) return { producto: null, error: res.error ?? "No se pudo crear el producto" };
@@ -157,7 +155,6 @@ export function ProductosProvider({ children }: { children: React.ReactNode }) {
       const res = await productosClient.update(productoId, {
         codigo: input.codigo,
         nombre: input.nombre,
-        proveedor: input.proveedor ?? null,
         categorias: input.categorias,
         precio_unitario: input.precioUnitario,
         costo_unitario: input.costoUnitario,

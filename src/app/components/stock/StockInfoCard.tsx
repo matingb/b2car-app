@@ -49,19 +49,6 @@ export default function StockInfoCard({ item, isEditing, draft, onChange }: Prop
           </div>
 
           <div>
-            <div style={styles.label}>Proveedor</div>
-            {isEditing ? (
-              <input
-                style={styles.input}
-                value={draft.proveedor}
-                onChange={(e) => onChange({ proveedor: e.target.value })}
-              />
-            ) : (
-              <div style={styles.value}>{item.proveedor || "-"}</div>
-            )}
-          </div>
-
-          <div>
             <div style={styles.label}>Última actualización</div>
             <div style={styles.value}>{item.ultimaActualizacion}</div>
           </div>

@@ -26,7 +26,6 @@ export default function ProductoCreateModal({
   const [values, setValues] = useState<ProductoFormFieldsValues>({
     nombre: "",
     codigo: "",
-    proveedor: "",
     precioCompra: 0,
     precioVenta: 0,
     categorias: [],
@@ -38,7 +37,6 @@ export default function ProductoCreateModal({
     setValues({
       nombre: "",
       codigo: "",
-      proveedor: "",
       precioCompra: 0,
       precioVenta: 0,
       categorias: [],
@@ -54,7 +52,6 @@ export default function ProductoCreateModal({
     const { producto: created, error: createError } = await createProducto({
       nombre: values.nombre.trim(),
       codigo: values.codigo.trim(),
-      proveedor: values.proveedor.trim(),
       categorias: values.categorias,
       precioUnitario: values.precioVenta,
       costoUnitario: values.precioCompra,

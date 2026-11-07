@@ -12,7 +12,6 @@ const sampleProducto: Producto = {
   talleresConStock: 2,
   precioUnitario: 6500,
   costoUnitario: 4000,
-  proveedor: "Distribuidora",
   showInStock: true,
   stocks: [
     {

@@ -35,7 +35,6 @@ export default function StockCreateModal({
     productDraft: {
       nombre: "",
       codigo: "",
-      proveedor: "",
       precioCompra: 0,
       precioVenta: 0,
       categorias: [],
@@ -52,7 +51,6 @@ export default function StockCreateModal({
       productDraft: {
         nombre: "",
         codigo: "",
-        proveedor: "",
         precioCompra: 0,
         precioVenta: 0,
         categorias: [],
@@ -93,7 +91,6 @@ export default function StockCreateModal({
         const { producto, error } = await createProducto({
           nombre: valuesStock.productDraft.nombre.trim(),
           codigo: valuesStock.productDraft.codigo.trim(),
-          proveedor: valuesStock.productDraft.proveedor.trim(),
           categorias: valuesStock.productDraft.categorias,
           precioUnitario: valuesStock.productDraft.precioVenta,
           costoUnitario: valuesStock.productDraft.precioCompra,

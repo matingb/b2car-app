@@ -8,13 +8,11 @@ import FilterChip from "@/app/components/ui/FilterChip";
 
 export type ProductoInfoDraft = {
   codigo: string;
-  proveedor: string;
   categorias: string[];
 };
 
 type Props = {
   codigo: string;
-  proveedor: string;
   categorias: string[];
   categoriasDisponibles: readonly string[];
   ultimaActualizacion?: string;
@@ -42,7 +40,6 @@ function CategoryTag({ text }: { text: string }) {
 
 export default function ProductoInfoCard({
   codigo,
-  proveedor,
   categorias,
   categoriasDisponibles,
   ultimaActualizacion,
@@ -76,19 +73,6 @@ export default function ProductoInfoCard({
               />
             ) : (
               <div style={styles.value}>{codigo}</div>
-            )}
-          </div>
-
-          <div>
-            <div style={styles.label}>Proveedor</div>
-            {isEditing ? (
-              <input
-                style={styles.input}
-                value={draft.proveedor}
-                onChange={(e) => onChange({ proveedor: e.target.value })}
-              />
-            ) : (
-              <div style={styles.value}>{proveedor || "-"}</div>
             )}
           </div>
 

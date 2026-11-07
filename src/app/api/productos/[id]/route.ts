@@ -20,7 +20,6 @@ function mapProducto(row: ProductoRow): Omit<ProductoDetailDTO, "stocks"> {
     descripcion: row.descripcion ?? null,
     precio_unitario: Number(row.precio_unitario) || 0,
     costo_unitario: Number(row.costo_unitario) || 0,
-    proveedor: row.proveedor ?? null,
     categorias: Array.isArray(row.categorias) ? row.categorias : [],
     show_in_stock: row.show_in_stock,
     created_at: row.created_at,
@@ -79,7 +78,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.descripcion !== undefined) patch.descripcion = body.descripcion ?? null;
   if (body.precio_unitario !== undefined) patch.precio_unitario = body.precio_unitario;
   if (body.costo_unitario !== undefined) patch.costo_unitario = body.costo_unitario;
-  if (body.proveedor !== undefined) patch.proveedor = body.proveedor ?? null;
   if (body.categorias !== undefined) patch.categorias = Array.isArray(body.categorias) ? body.categorias.filter(Boolean) : [];
   if (body.show_in_stock !== undefined) patch.show_in_stock = body.show_in_stock;
 

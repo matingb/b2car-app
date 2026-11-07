@@ -53,7 +53,7 @@ BEGIN
       'categoria_arreglo_id', l.categoria_arreglo_id, 'empleado_id', l.empleado_id,
       'producto', jsonb_build_object('id', p.id, 'codigo', p.codigo, 'nombre', p.nombre,
         'precio_unitario', p.precio_unitario, 'costo_unitario', p.costo_unitario,
-        'proveedor', p.proveedor, 'categorias', coalesce(p.categorias, ARRAY[]::text[]))
+        'categorias', coalesce(p.categorias, ARRAY[]::text[]))
     ) ORDER BY l.created_at) FROM public.operaciones_lineas l
       JOIN public.stocks s ON s.id = l.stock_id JOIN public.productos p ON p.id = s.producto_id
       WHERE l.operacion_id = o.id), '[]'::jsonb)

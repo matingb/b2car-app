@@ -8,7 +8,6 @@ CREATE TABLE public.productos (
   descripcion     text,
   precio_unitario numeric                  DEFAULT 0 NOT NULL,
   costo_unitario  numeric                  DEFAULT 0 NOT NULL,
-  proveedor       text,
   categorias      text[]                   DEFAULT '{}'::text[] NOT NULL,
   created_at      timestamp with time zone DEFAULT now() NOT NULL,
   updated_at      timestamp with time zone DEFAULT now() NOT NULL,

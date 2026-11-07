@@ -13,7 +13,6 @@ export type CreateProductoRequest = {
   descripcion?: string;
   precio_unitario: number;
   costo_unitario: number;
-  proveedor?: string;
   categorias?: string[];
   show_in_stock?: boolean;
 };
@@ -36,7 +35,6 @@ export type UpdateProductoRequest = Partial<{
   descripcion: string | null;
   precio_unitario: number;
   costo_unitario: number;
-  proveedor: string | null;
   categorias: string[];
   show_in_stock: boolean;
 }>;
