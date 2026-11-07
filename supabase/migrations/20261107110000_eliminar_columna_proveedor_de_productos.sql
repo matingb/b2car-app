@@ -1,10 +1,75 @@
 -- ============================================================================
--- Migración: Eliminar columna proveedor de public.productos
--- Los productos ahora gestionan su vinculación con proveedores de forma desacoplada
--- (relación N:M) a través de la tabla public.productos_proveedores.
+-- Migración: Eliminar columna proveedor de public.productos con backfill a public.proveedores
+-- y public.productos_proveedores.
+--
+-- 1. Si existiesen productos con texto en proveedor, se crea primero el registro en
+--    public.proveedores (si no existe ya para ese tenant).
+-- 2. Se asocia el producto al proveedor en public.productos_proveedores con su costo de referencia.
+-- 3. Se actualiza rpc_get_arreglo_detalle para no depender de p.proveedor.
+-- 4. Se elimina la columna proveedor de public.productos.
 -- ============================================================================
 
--- 1. Actualizar función rpc_get_arreglo_detalle para no referenciar p.proveedor
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'productos' AND column_name = 'proveedor'
+  ) THEN
+    -- 1. Crear proveedores inexistentes a partir del texto del producto
+    INSERT INTO public.proveedores (tenant_id, nombre)
+    SELECT DISTINCT ON (p.tenant_id, lower(btrim(p.proveedor)))
+      p.tenant_id,
+      btrim(p.proveedor) AS nombre
+    FROM public.productos p
+    WHERE p.proveedor IS NOT NULL
+      AND btrim(p.proveedor) <> ''
+      AND NOT EXISTS (
+        SELECT 1
+        FROM public.proveedores pr
+        WHERE pr.tenant_id = p.tenant_id
+          AND lower(btrim(pr.nombre)) = lower(btrim(p.proveedor))
+      )
+    ORDER BY p.tenant_id, lower(btrim(p.proveedor)), p.created_at ASC;
+
+    -- 2. Vincular productos con su respectivo proveedor en productos_proveedores
+    WITH proveedores_unicos AS (
+      SELECT DISTINCT ON (tenant_id, lower(btrim(nombre)))
+        id,
+        tenant_id,
+        lower(btrim(nombre)) AS nombre_norm
+      FROM public.proveedores
+      ORDER BY tenant_id, lower(btrim(nombre)), created_at ASC
+    )
+    INSERT INTO public.productos_proveedores (
+      tenant_id,
+      producto_id,
+      proveedor_id,
+      costo_referencia,
+      es_predeterminado
+    )
+    SELECT
+      p.tenant_id,
+      p.id AS producto_id,
+      pu.id AS proveedor_id,
+      GREATEST(0::numeric, COALESCE(p.costo_unitario, 0::numeric)) AS costo_referencia,
+      NOT EXISTS (
+        SELECT 1
+        FROM public.productos_proveedores pp
+        WHERE pp.tenant_id = p.tenant_id
+          AND pp.producto_id = p.id
+          AND pp.es_predeterminado = true
+      ) AS es_predeterminado
+    FROM public.productos p
+    JOIN proveedores_unicos pu
+      ON pu.tenant_id = p.tenant_id
+      AND pu.nombre_norm = lower(btrim(p.proveedor))
+    WHERE p.proveedor IS NOT NULL
+      AND btrim(p.proveedor) <> ''
+    ON CONFLICT (tenant_id, producto_id, proveedor_id) DO NOTHING;
+  END IF;
+END $$;
+
+-- 3. Actualizar función rpc_get_arreglo_detalle para no referenciar p.proveedor
 CREATE OR REPLACE FUNCTION public.rpc_get_arreglo_detalle (
   p_arreglo_id uuid
 )
@@ -87,6 +152,6 @@ BEGIN
 END;
 $function$;
 
--- 2. Eliminar la columna proveedor de public.productos
+-- 4. Eliminar la columna proveedor de public.productos
 ALTER TABLE public.productos
   DROP COLUMN IF EXISTS proveedor;
