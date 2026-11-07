@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { logger } from "@/lib/logger";
-import type { ProductoDetailDTO, StockDTO } from "@/model/dtos";
+import type { ProductoDetailDTO } from "@/model/dtos";
 import type { GetProductoByIdResponse, UpdateProductoRequest, UpdateProductoResponse } from "../contracts";
 import { createClient } from "@/supabase/server";
 import { requirePermission } from "@/lib/requirePermission";

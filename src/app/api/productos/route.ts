@@ -1,5 +1,5 @@
 import { logger } from "@/lib/logger";
-import type { ProductoDTO, StockDTO } from "@/model/dtos";
+import type { ProductoDTO } from "@/model/dtos";
 import type { CreateProductoRequest, CreateProductoResponse, GetProductosResponse } from "./contracts";
 import { createClient } from "@/supabase/server";
 import { requirePermission } from "@/lib/requirePermission";

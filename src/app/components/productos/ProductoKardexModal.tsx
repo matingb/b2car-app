@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
 import { COLOR, BREAKPOINTS } from "@/theme/theme";
 import Color from "color";
@@ -65,16 +65,6 @@ export default function ProductoKardexModal({
 			isMounted = false;
 		};
 	}, [open, productoId, selectedTallerId]);
-
-	const { totalEntradas, totalSalidas } = useMemo(() => {
-		let entradas = 0;
-		let salidas = 0;
-		for (const m of movimientos) {
-			if (m.cantidad > 0) entradas += m.cantidad;
-			else salidas += Math.abs(m.cantidad);
-		}
-		return { totalEntradas: entradas, totalSalidas: salidas };
-	}, [movimientos]);
 
 	const renderBadge = (tipo: string) => {
 		switch (tipo) {
