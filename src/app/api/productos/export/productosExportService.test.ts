@@ -39,7 +39,8 @@ function createMockRepo(params: {
 
 async function loadWorkbook(buffer: ArrayBuffer): Promise<ExcelJS.Workbook> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
+  // Buffer.from evita que exceljs rechace el ArrayBuffer por el realm de jsdom
+  await workbook.xlsx.load(Buffer.from(buffer));
   return workbook;
 }
 

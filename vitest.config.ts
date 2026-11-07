@@ -3,8 +3,8 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
-  esbuild: {
-    jsxInject: 'import React from "react"',
+  oxc: {
+    jsx: { runtime: "automatic" },
   },
   test: {
     environment: "jsdom",
