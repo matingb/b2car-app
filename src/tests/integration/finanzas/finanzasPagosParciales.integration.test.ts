@@ -263,13 +263,11 @@ describe("Integration: Finanzas - Cobros parciales en Arreglos", () => {
     const cobro1Id = detalle1?.cobros?.[0]?.operacion_id ?? "";
 
     // Cobro 2: $30.000 (completa los $50.000)
-    const detalle2 = await cuandoSeCobraUnArreglo(arreglo.id, {
+    await cuandoSeCobraUnArreglo(arreglo.id, {
       cuenta_financiera_id: cuenta.id,
       monto: 30000,
       descripcion: "Saldo arreglo",
     });
-    const cobro2Item = detalle2?.cobros?.find((c) => c.operacion_id !== cobro1Id);
-    const cobro2Id = cobro2Item?.operacion_id ?? "";
 
     // Arreglo totalmente cobrado
     const { data: arregloCompleto } = await supabaseArregloRepository.getByIdWithVehiculo(testClient, arreglo.id);

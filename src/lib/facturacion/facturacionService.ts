@@ -80,6 +80,7 @@ import {
 } from "./types";
 import type { TenantActor } from "./serverAuth";
 import { logger } from "../logger";
+import { redesSocialesDe, tieneRedesSociales, type RedesSociales } from "../redesSociales";
 import { getIvaRate } from "../ivaRate";
 import { expandirLineasOriginales, importeFacturadoCents } from "./notaCreditoConceptos";
 
@@ -126,6 +127,8 @@ type CanonicalSource = {
   patente?: string | null;
   /** Observaciones cargadas en el origen: sólo precargan el texto opcional de la factura. */
   observaciones?: string | null;
+  /** Redes sociales configuradas en el taller del origen (vacío si no tiene taller o redes). */
+  redesSociales?: RedesSociales;
 };
 
 /**
@@ -178,6 +181,8 @@ export type FacturaDraftInput = {
   incluirPatente?: boolean;
   /** Imprime el detalle sin precio por línea: los importes quedan sólo en los totales. */
   ocultarPreciosLineas?: boolean;
+  /** Imprime las redes sociales del taller, resueltas por el servidor. */
+  incluirRedesSociales?: boolean;
   receptor: {
     /** Ausente en pedidos históricos: el receptor se resuelve desde el cliente del origen. */
     modo?: FacturaReceptorModo;
@@ -844,7 +849,7 @@ async function resolveStockLines(
 async function getCanonicalArreglo(tenantId: string, arregloId: string, receptor: ReceptorResolution = "PERFIL"): Promise<CanonicalSource> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("arreglos").select("id, vehiculo_id, fecha, precio_final, precios_incluyen_iva, tasa_iva, estado, observaciones")
+    .from("arreglos").select("id, vehiculo_id, taller_id, fecha, precio_final, precios_incluyen_iva, tasa_iva, estado, observaciones")
     .eq("id", arregloId).eq("tenant_id", tenantId).maybeSingle();
   if (error || !data) throw new FacturacionValidationError("Arreglo no encontrado");
   const repair = record(data);
@@ -896,7 +901,10 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string, receptor
     repuestos.lineas.forEach((line) => lineas.push({ ...line, ordinal: lineas.length + 1 }));
     stockOrigins.push(...repuestos.stockOrigins);
   }
-  const resolvedReceiver = await resolveSourceReceiver(tenantId, clienteId, receptor);
+  const [resolvedReceiver, redesSociales] = await Promise.all([
+    resolveSourceReceiver(tenantId, clienteId, receptor),
+    getRedesSocialesTaller(tenantId, nullable(repair.taller_id)),
+  ]);
   return {
     id: text(repair.id), origenTipo: "ARREGLO", fecha: nullable(repair.fecha),
     total: number(repair.precio_final),
@@ -905,6 +913,7 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string, receptor
     clienteId,
     patente: nullable(record(vehicle).patente)?.toUpperCase() ?? null,
     observaciones: nullable(repair.observaciones),
+    redesSociales,
     ...resolvedReceiver,
     lineas: lineas.map((line) => ({ ...line, snapshot: {
       ...line.snapshot, preciosIncluyenIva: repair.precios_incluyen_iva !== false,
@@ -917,7 +926,7 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string, receptor
 async function getCanonicalVenta(tenantId: string, operationId: string, receptor: ReceptorResolution = "PERFIL"): Promise<CanonicalSource> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("operaciones").select("id, tipo, fecha, observaciones, operaciones_venta(cliente_id)")
+    .from("operaciones").select("id, tipo, taller_id, fecha, observaciones, operaciones_venta(cliente_id)")
     .eq("id", operationId).eq("tenant_id", tenantId).maybeSingle();
   if (error || !data) throw new FacturacionValidationError("Venta no encontrada");
   const operation = record(data);
@@ -927,15 +936,30 @@ async function getCanonicalVenta(tenantId: string, operationId: string, receptor
   const rawVenta = operation.operaciones_venta;
   const venta = Array.isArray(rawVenta) ? rawVenta[0] : (rawVenta as Record<string, unknown> | null | undefined);
   const clienteId = nullable(venta?.cliente_id) ?? nullable(operation.cliente_id);
-  const resolvedReceiver = await resolveSourceReceiver(tenantId, clienteId, receptor);
+  const [resolvedReceiver, redesSociales] = await Promise.all([
+    resolveSourceReceiver(tenantId, clienteId, receptor),
+    getRedesSocialesTaller(tenantId, nullable(operation.taller_id)),
+  ]);
   return {
     id: text(operation.id), origenTipo: "VENTA", fecha: nullable(operation.fecha), total,
     clienteId,
     patente: null,
     observaciones: nullable(operation.observaciones),
+    redesSociales,
     ...resolvedReceiver,
     lineas: resolved.lineas, stockOrigins: resolved.stockOrigins,
   };
+}
+
+/** Redes sociales del taller; un origen sin taller (o un taller sin redes) no aporta ninguna. */
+async function getRedesSocialesTaller(tenantId: string, tallerId: string | null): Promise<RedesSociales> {
+  if (!tallerId) return {};
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("talleres").select("whatsapp, instagram, facebook")
+    .eq("id", tallerId).eq("tenant_id", tenantId).maybeSingle();
+  if (error) throw new Error("No se pudieron cargar las redes sociales del taller");
+  return redesSocialesDe(data);
 }
 
 async function getCanonicalSource(tenantId: string, tipo: FacturaOrigenTipo, id: string, receptor: ReceptorResolution = "PERFIL") {
@@ -1079,6 +1103,7 @@ export async function getDocumentoPreflight(
       fechasDefault: defaultFechas(source, concepto),
       patente: source.patente ?? null,
       observacionesOrigen: source.observaciones ?? null,
+      redesSociales: tieneRedesSociales(source.redesSociales) ? source.redesSociales : null,
       fcePosible: fceObligatoria,
       fceObligatoria,
       fceSistemaConfigurado: config?.fceSistema ?? null,
@@ -1159,6 +1184,7 @@ export function parseFacturaDraftInput(value: unknown): FacturaDraftInput {
     ...(row.incluirObservaciones === true ? { incluirObservaciones: true, observaciones: observaciones ?? "" } : {}),
     ...(row.incluirPatente === true ? { incluirPatente: true } : {}),
     ...(row.ocultarPreciosLineas === true ? { ocultarPreciosLineas: true } : {}),
+    ...(row.incluirRedesSociales === true ? { incluirRedesSociales: true } : {}),
     receptor: {
       ...(receiver.modo !== undefined ? { modo: receiver.modo as FacturaReceptorModo } : {}),
       ...(nombre !== undefined ? { nombre } : {}),
@@ -1551,7 +1577,8 @@ export function normalizedFacturaIntent(origenTipo: FacturaOrigenTipo, origenId:
     // Opciones de presentación: sólo cuando se eligen, para no alterar huellas históricas.
     ...(input.incluirObservaciones === true ? { observaciones: text(input.observaciones) } : {}),
     ...(input.incluirPatente === true ? { incluirPatente: true } : {}),
-    ...(input.ocultarPreciosLineas === true ? { ocultarPreciosLineas: true } : {}) };
+    ...(input.ocultarPreciosLineas === true ? { ocultarPreciosLineas: true } : {}),
+    ...(input.incluirRedesSociales === true ? { incluirRedesSociales: true } : {}) };
 }
 
 type IssueMeta = { codigo: string; grupo: FacturaIssueGrupo; campo?: string };
@@ -1707,6 +1734,12 @@ async function prepareFacturaBase(
       { codigo: "PATENTE_NO_DISPONIBLE", grupo: "DETALLE" },
     );
   }
+  if (input.incluirRedesSociales && !tieneRedesSociales(source.redesSociales)) {
+    collector.fail(
+      new FacturacionValidationError("El taller no tiene redes sociales configuradas para agregar a la factura"),
+      { codigo: "REDES_SOCIALES_NO_CONFIGURADAS", grupo: "DETALLE" },
+    );
+  }
   const concepto = collector.check(() => deriveFacturaConcepto(source.lineas), { codigo: "ORIGEN_SIN_LINEAS", grupo: "DETALLE" });
   const fechasValidas = concepto !== undefined
     && collector.check(() => validateFechas(concepto, input.fechas), { codigo: "FECHAS_INVALIDAS", grupo: "COMPROBANTE" }) !== undefined;
@@ -1850,10 +1883,12 @@ function facturaPresentacion(
 ): FacturaPresentacion {
   const observaciones = input.incluirObservaciones ? text(input.observaciones) : "";
   const patente = input.incluirPatente && origenTipo === "ARREGLO" ? text(source.patente) : "";
+  const redesSociales = input.incluirRedesSociales && tieneRedesSociales(source.redesSociales) ? source.redesSociales : undefined;
   return {
     ...(observaciones ? { observaciones } : {}),
     ...(patente ? { patente } : {}),
     ...(input.ocultarPreciosLineas === true ? { ocultarPreciosLineas: true as const } : {}),
+    ...(redesSociales ? { redesSociales } : {}),
   };
 }
 
@@ -1861,10 +1896,12 @@ function parsePresentacion(value: unknown): FacturaPresentacion {
   const row = record(value);
   const observaciones = text(row.observaciones);
   const patente = text(row.patente);
+  const redesSociales = redesSocialesDe(row.redesSociales);
   return {
     ...(observaciones ? { observaciones } : {}),
     ...(patente ? { patente } : {}),
     ...(row.ocultarPreciosLineas === true ? { ocultarPreciosLineas: true as const } : {}),
+    ...(tieneRedesSociales(redesSociales) ? { redesSociales } : {}),
   };
 }
 

@@ -5,7 +5,6 @@ import Modal from "@/app/components/ui/Modal";
 import Button from "@/app/components/ui/Button";
 import { useOperaciones } from "@/app/providers/OperacionesProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import type { Operacion, OperacionLinea } from "@/model/types";
 import { COLOR } from "@/theme/theme";
 import { toISODateLocal, toISODateTimeWithLocalCurrentTime, formatCalendarDateLabel } from "@/lib/fechas";

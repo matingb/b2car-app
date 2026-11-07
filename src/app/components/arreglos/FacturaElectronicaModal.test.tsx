@@ -201,7 +201,6 @@ describe("FacturaElectronicaModal", () => {
       receptor: { modo: "CLIENTE", nombre: "Cliente prueba", domicilio: "Calle 1", tipoDocumento: 86, numeroDocumento: CUIT_B, condicionIvaReceptorId: 5 },
     });
     expect(screen.getByTestId("printable-document-viewer")).toBeInTheDocument();
-    expect(screen.getByText("BORRADOR — SIN VALIDEZ FISCAL — NO EMITIDO")).toBeInTheDocument();
     expect(previewHtmlShown()).toBe(previewHtml);
 
     // Simplificar el detalle vuelve a revisar y redibuja el borrador con la revisión actualizada.
@@ -209,7 +208,10 @@ describe("FacturaElectronicaModal", () => {
     expect(screen.getByTestId("factura-detalle-descripcion")).toHaveValue("Servicio de reparación y mantenimiento automotor");
     expect(screen.getByTestId("factura-confirmar-emitir")).toBeDisabled();
     await waitFor(() => expect(previewHtmlShown()).toBe(simplifiedPreviewHtml));
-    fireEvent.change(screen.getByTestId("factura-detalle-descripcion"), { target: { value: "Service completo" } });
+    // Se edita en un textarea, pero la descripción va en una sola línea: los saltos se convierten en espacios.
+    expect(screen.getByTestId("factura-detalle-descripcion").tagName).toBe("TEXTAREA");
+    fireEvent.change(screen.getByTestId("factura-detalle-descripcion"), { target: { value: "Service\n completo" } });
+    expect(screen.getByTestId("factura-detalle-descripcion")).toHaveValue("Service completo");
     expect(screen.getByTestId("factura-confirmar-emitir")).toHaveTextContent("Actualizando vista previa…");
     await waitFor(() => expect(calls("POST /api/facturacion/previsualizacion")).toHaveLength(3));
     await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
@@ -314,10 +316,12 @@ describe("FacturaElectronicaModal", () => {
     expect(calls(`POST ${ENDPOINT}`)[0].body).toMatchObject({ ocultarPreciosLineas: true });
   });
 
-  it("pliega y despliega el panel de opciones para dejar más lugar a la vista previa", async () => {
+  it("muestra las opciones en una columna junto al visor y la pliega a un riel para darle más ancho", async () => {
     await renderLoaded();
     fireEvent.click(screen.getByTestId("modal-submit"));
     await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+    const layout = screen.getByTestId("factura-revision-layout");
+    expect(layout).toHaveStyle({ gridTemplateColumns: "360px minmax(0, 1fr)" });
     const plegar = screen.getByTestId("factura-revision-opciones-plegar");
     expect(plegar).toHaveAttribute("aria-expanded", "true");
     fireEvent.click(screen.getByTestId("factura-incluir-observaciones"));
@@ -326,21 +330,51 @@ describe("FacturaElectronicaModal", () => {
     fireEvent.click(plegar);
     expect(plegar).toHaveAttribute("aria-expanded", "false");
     expect(plegar).toHaveAccessibleName("Expandir opciones del comprobante");
-    // El contenido sigue montado para animar el alto, pero queda oculto y fuera del foco.
-    expect(screen.getByTestId("factura-revision-opciones-contenido")).toHaveStyle({ gridTemplateRows: "0fr", visibility: "hidden" });
-    expect(screen.getByTestId("factura-incluir-observaciones")).not.toBeVisible();
-    expect(screen.getByText(/1 activa/)).toBeInTheDocument();
+    expect(layout).toHaveStyle({ gridTemplateColumns: "52px minmax(0, 1fr)" });
+    expect(screen.queryByTestId("factura-incluir-observaciones")).not.toBeInTheDocument();
+    // El riel indica qué opciones están activas.
+    expect(screen.getByTestId("factura-opcion-riel-observaciones")).toHaveAccessibleName("Agregar observaciones · Activada");
+    expect(screen.getByTestId("factura-opcion-riel-patente")).toHaveAccessibleName("Agregar patente · Desactivada");
     // Plegar no cambia lo elegido ni vuelve a revisar.
     const previews = calls("POST /api/facturacion/previsualizacion").length;
     expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled();
 
-    fireEvent.click(plegar);
+    // Cualquier ícono del riel vuelve a abrir la columna.
+    fireEvent.click(screen.getByTestId("factura-opcion-riel-observaciones"));
     expect(plegar).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByTestId("factura-revision-opciones-contenido")).toHaveStyle({ gridTemplateRows: "1fr", visibility: "visible" });
-    expect(screen.getByTestId("factura-incluir-observaciones")).toBeVisible();
+    expect(layout).toHaveStyle({ gridTemplateColumns: "360px minmax(0, 1fr)" });
     expect(screen.getByTestId("factura-incluir-observaciones")).toHaveAttribute("aria-checked", "true");
     expect(screen.getByTestId("factura-observaciones")).toHaveValue("Cambio de aceite a los 10.000 km");
     expect(calls("POST /api/facturacion/previsualizacion")).toHaveLength(previews);
+  });
+
+  it("en pantallas angostas apila las opciones sobre el visor y las pliega hacia arriba", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    await renderLoaded();
+    fireEvent.click(screen.getByTestId("modal-submit"));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+    // Apilado, opciones y visor ocupan su alto natural (scrollea el modal) en vez de achicarse y desbordar
+    // encima del aviso y del pie; el visor tiene un alto propio porque el documento va posicionado adentro.
+    expect(screen.getByTestId("factura-revision-layout")).toHaveStyle({ gridTemplateColumns: "minmax(0, 1fr)", gridTemplateRows: "auto auto", flex: "0 0 auto" });
+    expect(screen.getByTestId("factura-revision-visor")).toHaveStyle({ height: "min(70dvh, 560px)" });
+    fireEvent.click(screen.getByTestId("factura-incluir-observaciones"));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+
+    const plegar = screen.getByTestId("factura-revision-opciones-plegar");
+    fireEvent.click(plegar);
+    // El contenido sigue montado para animar el alto, pero queda oculto y fuera del foco.
+    expect(screen.getByTestId("factura-revision-opciones-contenido")).toHaveStyle({ gridTemplateRows: "0fr", visibility: "hidden" });
+    expect(screen.getByTestId("factura-incluir-observaciones")).not.toBeVisible();
+    expect(screen.getByText(/1 activa/)).toBeInTheDocument();
+
+    fireEvent.click(plegar);
+    expect(screen.getByTestId("factura-revision-opciones-contenido")).toHaveStyle({ gridTemplateRows: "1fr", visibility: "visible" });
+    expect(screen.getByTestId("factura-incluir-observaciones")).toBeVisible();
   });
 
   it("no permite agregar la patente si el vehículo no la tiene", async () => {
@@ -353,6 +387,45 @@ describe("FacturaElectronicaModal", () => {
     await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
     expect(screen.getByTestId("factura-incluir-patente")).toBeDisabled();
     expect(screen.getByText(/El vehículo no tiene patente/)).toBeInTheDocument();
+  });
+
+  it("muestra por defecto las redes sociales del taller y permite quitarlas", async () => {
+    handlers[`GET ${ENDPOINT}`] = () => json({
+      data: {
+        factura: null,
+        preflight: {
+          ...preflight,
+          redesSociales: { whatsapp: "+54 9 11 5555-5555", instagram: "tallerb2car" },
+          receptor: { ...preflight.receptor, tipoDocumento: 99 },
+          receptorPendiente: true,
+        },
+      },
+      error: null,
+    });
+    await renderLoaded();
+    fireEvent.click(screen.getByTestId("modal-submit"));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+    expect(screen.getByTestId("factura-incluir-redes-sociales")).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByTestId("factura-redes-sociales-detalle")).toHaveTextContent("+54 9 11 5555-5555 · @tallerb2car");
+    expect(calls("POST /api/facturacion/previsualizacion")[0].body).toMatchObject({ incluirRedesSociales: true });
+
+    fireEvent.click(screen.getByTestId("factura-incluir-redes-sociales"));
+    await waitFor(() => expect(calls("POST /api/facturacion/previsualizacion").at(-1)?.body).not.toHaveProperty("incluirRedesSociales"));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+    fireEvent.click(screen.getByTestId("factura-confirmar-emitir"));
+    await waitFor(() => expect(calls(`POST ${ENDPOINT}`)).toHaveLength(1));
+    expect(calls(`POST ${ENDPOINT}`)[0].body).not.toHaveProperty("incluirRedesSociales");
+  });
+
+  it("deshabilita las redes sociales si el taller no tiene ninguna configurada", async () => {
+    await renderLoaded();
+    fireEvent.click(screen.getByTestId("modal-submit"));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+    const toggle = screen.getByTestId("factura-incluir-redes-sociales");
+    expect(toggle).toBeDisabled();
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByTestId("factura-redes-sociales-detalle")).toHaveTextContent("El taller no tiene redes configuradas");
+    expect(calls("POST /api/facturacion/previsualizacion")[0].body).not.toHaveProperty("incluirRedesSociales");
   });
 
   it("descarta una respuesta tardía si se vuelve al detalle original mientras se actualiza", async () => {

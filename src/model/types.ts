@@ -205,6 +205,11 @@ export interface Taller {
   nombre: string;
   ubicacion: string;
   valor_hora?: number;
+  /** Redes sociales que pueden imprimirse en el encabezado de la factura (ver `@/lib/redesSociales`). */
+  whatsapp?: string | null;
+  /** Usuario de Instagram sin la `@` inicial. */
+  instagram?: string | null;
+  facebook?: string | null;
 }
 
 export type EstadoPagoOperacion = "PAGADO" | "PARCIAL" | "PENDIENTE";

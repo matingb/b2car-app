@@ -5,7 +5,7 @@ export interface GetTalleresResponse {
   error: string | null;
 }
 
-export type UpdateTallerPatch = Partial<Pick<Taller, "nombre" | "ubicacion" | "valor_hora">>;
+export type UpdateTallerPatch = Partial<Pick<Taller, "nombre" | "ubicacion" | "valor_hora" | "whatsapp" | "instagram" | "facebook">>;
 
 export interface UpdateTallerResponse {
   data: Taller | null;

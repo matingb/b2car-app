@@ -2,11 +2,13 @@ import { GetTalleresResponse, UpdateTallerPatch, UpdateTallerResponse } from "@/
 import { Taller } from "@/model/types";
 import { SupabaseClient } from "@supabase/supabase-js";
 
+const TALLER_COLUMNS = "id, nombre, ubicacion, valor_hora, whatsapp, instagram, facebook";
+
 export const tallerService = {
   async getTalleres(supabase: SupabaseClient): Promise<GetTalleresResponse> {
     const { data, error } = await supabase
       .from("talleres")
-      .select("id, nombre, ubicacion, valor_hora");
+      .select(TALLER_COLUMNS);
     if (error) {
       return { data: null, error: error.message };
     }
@@ -22,7 +24,7 @@ export const tallerService = {
       .from("talleres")
       .update(patch)
       .eq("id", tallerId)
-      .select("id, nombre, ubicacion, valor_hora")
+      .select(TALLER_COLUMNS)
       .single();
 
     if (error) {

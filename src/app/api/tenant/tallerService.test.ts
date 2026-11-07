@@ -66,7 +66,7 @@ describe("tenantService", () => {
       expect(supabase.from).toHaveBeenCalledWith("talleres");
       expect(updateMock).toHaveBeenCalledWith(patch);
       expect(eqMock).toHaveBeenCalledWith("id", "tal-1");
-      expect(selectMock).toHaveBeenCalledWith("id, nombre, ubicacion, valor_hora");
+      expect(selectMock).toHaveBeenCalledWith("id, nombre, ubicacion, valor_hora, whatsapp, instagram, facebook");
       expect(result.error).toBeNull();
       expect(result.data).toEqual(updatedTaller);
     });

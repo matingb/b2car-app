@@ -129,6 +129,39 @@ describe("PUT /api/tenant/taller/[id]", () => {
     );
   });
 
+  it("normaliza las redes sociales: vacío borra la red y la @ de Instagram no se guarda", async () => {
+    vi.mocked(createClient).mockResolvedValue(
+      {} as unknown as Awaited<ReturnType<typeof createClient>>
+    );
+    vi.mocked(tenantService.updateTaller).mockResolvedValue({ data: null, error: null });
+
+    const req = {
+      json: vi.fn().mockResolvedValue({ whatsapp: "  +54 9 11  5555-5555 ", instagram: "@tallerb2car", facebook: "" }),
+    } as unknown as NextRequest;
+
+    const res = await PUT(req, { params: Promise.resolve({ id: "tal-1" }) });
+    expect(res.status).toBe(200);
+    expect(tenantService.updateTaller).toHaveBeenCalledWith(expect.anything(), "tal-1", {
+      whatsapp: "+54 9 11 5555-5555",
+      instagram: "tallerb2car",
+      facebook: null,
+    });
+  });
+
+  it.each([
+    [{ whatsapp: "llamame" }, /WhatsApp/],
+    [{ whatsapp: "123" }, /WhatsApp/],
+    [{ instagram: "taller b2car" }, /Instagram/],
+    [{ facebook: "x".repeat(81) }, /Facebook/],
+    [{ instagram: 42 }, /Instagram/],
+  ])("retorna 400 si una red social es inválida (%o)", async (body, message) => {
+    const req = { json: vi.fn().mockResolvedValue(body) } as unknown as NextRequest;
+    const res = await PUT(req, { params: Promise.resolve({ id: "tal-1" }) });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(message);
+    expect(tenantService.updateTaller).not.toHaveBeenCalled();
+  });
+
   it("retorna 500 si tenantService falla", async () => {
     vi.mocked(createClient).mockResolvedValue(
       {} as unknown as Awaited<ReturnType<typeof createClient>>

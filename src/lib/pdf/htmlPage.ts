@@ -1,11 +1,11 @@
-import { ColorTypes, type Color, type PDFPage } from "pdf-lib";
+import { ColorTypes, LineCapStyle, type Color, type PDFPage } from "pdf-lib";
 
 /**
  * Hoja que registra lo que se dibuja y lo devuelve como SVG, en puntos y con el mismo
  * sistema de coordenadas que pdf-lib (origen abajo a la izquierda). Comparte firma con
  * `PDFPage`, así el mismo código de layout puede componer un PDF o su vista HTML.
  */
-export type HtmlPage = Pick<PDFPage, "drawText" | "drawRectangle" | "drawLine"> & {
+export type HtmlPage = Pick<PDFPage, "drawText" | "drawRectangle" | "drawLine" | "drawSvgPath"> & {
   /** Imagen ya resuelta (por ejemplo un `data:` URI), con la esquina inferior izquierda en x, y. */
   drawImage(href: string, box: { x: number; y: number; width: number; height: number }): void;
   toSvg(label: string): string;
@@ -65,6 +65,20 @@ export function createHtmlPage(width: number, height: number): HtmlPage {
     },
     drawLine({ start, end, thickness = 1, color }) {
       shapes.push(`<line x1="${num(start.x)}" y1="${flip(start.y)}" x2="${num(end.x)}" y2="${flip(end.y)}" stroke="${cssColor(color)}" stroke-width="${num(thickness)}"/>`);
+    },
+    drawSvgPath(path, options = {}) {
+      const { x = 0, y = 0, scale = 1, color, borderColor, borderWidth = 0, borderLineCap } = options;
+      // Mismas reglas que pdf-lib: sin color ni borde se traza en negro; con color se rellena y
+      // sólo se traza si hay grosor; sin grosor explícito el trazo mide 1 (en unidades del path).
+      const unstyled = !("color" in options) && !("borderColor" in options);
+      const fill = color ? cssColor(color) : "none";
+      const stroked = color ? Boolean(borderWidth) : Boolean(borderColor) || unstyled;
+      const cap = borderLineCap === LineCapStyle.Round ? "round" : borderLineCap === LineCapStyle.Projecting ? "square" : null;
+      const stroke = stroked
+        ? ` stroke="${cssColor(borderColor)}" stroke-width="${num(borderWidth || 1)}"${cap ? ` stroke-linecap="${cap}"` : ""}`
+        : "";
+      // El path SVG mide y hacia abajo desde (x, y), igual que en pdf-lib.
+      shapes.push(`<path d="${escapeHtml(path)}" transform="translate(${num(x)} ${flip(y)}) scale(${num(scale)})" fill="${fill}"${stroke}/>`);
     },
     drawImage(href, box) {
       shapes.push(`<image href="${escapeHtml(href)}" x="${num(box.x)}" y="${flip(box.y + box.height)}" width="${num(box.width)}" height="${num(box.height)}"/>`);

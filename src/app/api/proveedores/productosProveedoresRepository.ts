@@ -1,5 +1,5 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-import { ServiceError, serviceFailure, toServiceError } from "@/app/api/serviceError";
+import { ServiceError, toServiceError } from "@/app/api/serviceError";
 import type { ProductoProveedorDTO } from "@/model/dtos";
 
 export type AsociarProductoProveedorPayload = {

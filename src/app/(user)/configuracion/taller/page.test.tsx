@@ -139,9 +139,60 @@ describe("TalleresPage", () => {
         nombre: "Taller Principal",
         ubicacion: "Av. Belgrano 100",
         valor_hora: 18500,
+        whatsapp: null,
+        instagram: null,
+        facebook: null,
       });
       expect(mockToastSuccess).toHaveBeenCalledWith("Taller guardado", "Los datos se actualizaron correctamente.");
     });
+  });
+
+  it("carga y guarda las redes sociales del taller", async () => {
+    mockTalleres = [
+      {
+        id: "tal-1",
+        nombre: "Taller Principal",
+        ubicacion: "Av. Belgrano 100",
+        valor_hora: 14000,
+        whatsapp: "+54 9 11 5555-5555",
+        instagram: null,
+        facebook: "Taller Principal",
+      },
+    ];
+    mockUpdateTaller.mockResolvedValue({ data: null, error: null });
+
+    render(<TalleresPage />);
+
+    expect(screen.getByLabelText("WhatsApp")).toHaveValue("+54 9 11 5555-5555");
+    expect(screen.getByLabelText("Instagram")).toHaveValue("");
+    fireEvent.change(screen.getByLabelText("Instagram"), { target: { value: "@tallerprincipal" } });
+    fireEvent.change(screen.getByLabelText("Facebook"), { target: { value: "  " } });
+    fireEvent.click(screen.getByRole("button", { name: /Guardar cambios/i }));
+
+    await waitFor(() => {
+      expect(mockUpdateTaller).toHaveBeenCalledWith("tal-1", {
+        nombre: "Taller Principal",
+        ubicacion: "Av. Belgrano 100",
+        valor_hora: 14000,
+        whatsapp: "+54 9 11 5555-5555",
+        instagram: "tallerprincipal",
+        facebook: null,
+      });
+    });
+  });
+
+  it("valida el número de WhatsApp antes de guardar", async () => {
+    mockTalleres = [{ id: "tal-1", nombre: "Taller Principal", ubicacion: "", valor_hora: 14000 }];
+
+    render(<TalleresPage />);
+
+    fireEvent.change(screen.getByLabelText("WhatsApp"), { target: { value: "llamame al 1234" } });
+    fireEvent.click(screen.getByRole("button", { name: /Guardar cambios/i }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("Error de validación", expect.stringMatching(/WhatsApp/));
+    });
+    expect(mockUpdateTaller).not.toHaveBeenCalled();
   });
 
   it("permite seleccionar entre múltiples talleres con TallerSelector y editar el taller seleccionado", async () => {
@@ -180,6 +231,9 @@ describe("TalleresPage", () => {
         nombre: "Taller 2",
         ubicacion: "Calle 2",
         valor_hora: 25000,
+        whatsapp: null,
+        instagram: null,
+        facebook: null,
       });
     });
   });

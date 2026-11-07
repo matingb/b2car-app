@@ -43,7 +43,6 @@ export default function OperacionHeaderFields() {
   } = useOperacionForm();
 
   const isCreatingCuenta = cuentaFinancieraId === CREATE_CUENTA_VALUE;
-  const hasManyTalleres = talleres.length > 1;
 
   return (
     <>

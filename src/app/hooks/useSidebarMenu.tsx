@@ -15,7 +15,6 @@ import {
   WalletCards,
   Settings,
   ReceiptText,
-  Truck,
 } from "lucide-react";
 import { logOut } from "@/app/login/actions";
 import { useRouter } from "next/navigation";

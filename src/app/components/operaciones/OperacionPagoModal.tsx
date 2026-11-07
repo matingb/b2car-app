@@ -19,7 +19,6 @@ import {
 import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
 import { useOperaciones } from "@/app/providers/OperacionesProvider";
 import { useToast } from "@/app/providers/ToastProvider";
-import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { useAnularPagoOperacion } from "@/app/components/operaciones/useAnularPagoOperacion";
 import type { Operacion } from "@/model/types";
 import { formatArs } from "@/lib/format";
@@ -48,7 +47,6 @@ export default function OperacionPagoModal({
   const { registrarPago, fetchById } = useOperaciones();
   const { loading: loadingCuentas, cuentaFavorita, createCuenta } = useCuentasFinancieras();
   const { success, error } = useToast();
-  const { confirm } = useModalMessage();
   const cuentaFavoritaId = cuentaFavorita?.id ?? null;
   const hasCuentaFavorita = cuentaFavoritaId !== null;
 

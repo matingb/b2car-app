@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
 import { tallerService } from "../../tallerService";
 import type { UpdateTallerPatch, UpdateTallerResponse } from "@/clients/tenantClient";
+import { REDES_SOCIALES, normalizeRedSocial } from "@/lib/redesSociales";
 
 export async function PUT(
   req: NextRequest,
@@ -62,6 +63,19 @@ export async function PUT(
       );
     }
     patch.valor_hora = num;
+  }
+
+  // Redes sociales: un valor vacío las borra (null); Instagram se guarda sin la @ inicial.
+  for (const red of REDES_SOCIALES) {
+    if (body[red] === undefined) continue;
+    const normalized = normalizeRedSocial(red, body[red]);
+    if (normalized.error !== undefined) {
+      return Response.json(
+        { data: null, error: normalized.error } satisfies UpdateTallerResponse,
+        { status: 400 }
+      );
+    }
+    patch[red] = normalized.value;
   }
 
   const supabase = await createClient();

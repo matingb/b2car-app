@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Building2, CheckCircle2, Info, Loader2 } from "lucide-react";
+import { Building2, CheckCircle2, Facebook, Info, Instagram, Loader2, MessageCircle, Share2 } from "lucide-react";
 import Button from "@/app/components/ui/Button";
 import ListSpinner from "@/app/components/ui/ListSpinner";
 import TallerSelector from "@/app/components/ui/TallerSelector";
@@ -9,11 +9,47 @@ import { useTenant } from "@/app/providers/TenantProvider";
 import { useToast } from "@/app/providers/ToastProvider";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import type { Taller } from "@/model/types";
+import { RED_SOCIAL_MAX, REDES_SOCIALES, normalizeRedSocial, type RedSocial } from "@/lib/redesSociales";
 
 type TallerDraft = {
   nombre: string;
   ubicacion: string;
   valorHora: string;
+  whatsapp: string;
+  instagram: string;
+  facebook: string;
+};
+
+function draftFromTaller(taller: Taller): TallerDraft {
+  return {
+    nombre: taller.nombre ?? "",
+    ubicacion: taller.ubicacion ?? "",
+    valorHora: taller.valor_hora != null ? String(taller.valor_hora) : "0",
+    whatsapp: taller.whatsapp ?? "",
+    instagram: taller.instagram ?? "",
+    facebook: taller.facebook ?? "",
+  };
+}
+
+const EMPTY_DRAFT: TallerDraft = { nombre: "", ubicacion: "", valorHora: "0", whatsapp: "", instagram: "", facebook: "" };
+
+const REDES_CAMPOS: Record<RedSocial, { label: string; placeholder: string; icon: React.ReactNode; prefix?: string }> = {
+  whatsapp: {
+    label: "WhatsApp",
+    placeholder: "Ej: +54 9 11 5555-5555",
+    icon: <MessageCircle size={16} color={COLOR.TEXT.SECONDARY} aria-hidden="true" />,
+  },
+  instagram: {
+    label: "Instagram",
+    placeholder: "usuario",
+    icon: <Instagram size={16} color={COLOR.TEXT.SECONDARY} aria-hidden="true" />,
+    prefix: "@",
+  },
+  facebook: {
+    label: "Facebook",
+    placeholder: "Ej: Taller Central",
+    icon: <Facebook size={16} color={COLOR.TEXT.SECONDARY} aria-hidden="true" />,
+  },
 };
 
 export default function TalleresPage() {
@@ -46,11 +82,7 @@ export default function TalleresPage() {
         const next: Record<string, TallerDraft> = { ...prev };
         talleres.forEach((t) => {
           if (!next[t.id]) {
-            next[t.id] = {
-              nombre: t.nombre ?? "",
-              ubicacion: t.ubicacion ?? "",
-              valorHora: t.valor_hora != null ? String(t.valor_hora) : "0",
-            };
+            next[t.id] = draftFromTaller(t);
           }
         });
         return next;
@@ -62,18 +94,14 @@ export default function TalleresPage() {
     setDrafts((prev) => ({
       ...prev,
       [id]: {
-        ...(prev[id] ?? { nombre: "", ubicacion: "", valorHora: "0" }),
+        ...(prev[id] ?? EMPTY_DRAFT),
         [field]: value,
       },
     }));
   };
 
   const handleSave = async (taller: Taller) => {
-    const draft = drafts[taller.id] ?? {
-      nombre: taller.nombre,
-      ubicacion: taller.ubicacion,
-      valorHora: String(taller.valor_hora ?? 0),
-    };
+    const draft = drafts[taller.id] ?? draftFromTaller(taller);
 
     const trimmedNombre = draft.nombre.trim();
     if (!trimmedNombre) {
@@ -90,12 +118,24 @@ export default function TalleresPage() {
       return;
     }
 
+    // Mismas reglas que la API: un valor vacío borra la red y la @ de Instagram no se guarda.
+    const redes: Partial<Record<RedSocial, string | null>> = {};
+    for (const red of REDES_SOCIALES) {
+      const normalized = normalizeRedSocial(red, draft[red]);
+      if (normalized.error !== undefined) {
+        toast.error("Error de validación", normalized.error);
+        return;
+      }
+      redes[red] = normalized.value;
+    }
+
     setSavingId(taller.id);
     try {
       const { error } = await updateTaller(taller.id, {
         nombre: trimmedNombre,
         ubicacion: draft.ubicacion.trim(),
         valor_hora: valorHoraNum,
+        ...redes,
       });
 
       if (error) {
@@ -134,11 +174,7 @@ export default function TalleresPage() {
           <div style={styles.gridContainer}>
             {(() => {
               const taller = currentTaller;
-              const draft = drafts[taller.id] ?? {
-                nombre: taller.nombre ?? "",
-                ubicacion: taller.ubicacion ?? "",
-                valorHora: String(taller.valor_hora ?? 0),
-              };
+              const draft = drafts[taller.id] ?? draftFromTaller(taller);
               const isSaving = savingId === taller.id;
 
               return (
@@ -229,6 +265,44 @@ export default function TalleresPage() {
                           />
                         </div>
                       </div>
+
+                      <fieldset style={styles.fieldset}>
+                        <legend style={styles.legend}>
+                          <Share2 size={16} color={COLOR.ACCENT.PRIMARY} aria-hidden="true" />
+                          Redes sociales
+                        </legend>
+                        <p style={styles.fieldsetHint}>
+                          Opcionales. Al emitir una factura de este taller podés mostrarlas en el encabezado, debajo de la condición IVA.
+                        </p>
+                        <div style={styles.formGrid}>
+                          {REDES_SOCIALES.map((red) => {
+                            const campo = REDES_CAMPOS[red];
+                            return (
+                              <div key={red} style={styles.field}>
+                                <label htmlFor={`${red}-${taller.id}`} style={styles.label}>
+                                  {campo.label}
+                                </label>
+                                <div style={styles.inputWithIcon}>
+                                  <span style={styles.inputIcon}>{campo.icon}</span>
+                                  {campo.prefix ? <span style={styles.inputPrefix} aria-hidden="true">{campo.prefix}</span> : null}
+                                  <input
+                                    id={`${red}-${taller.id}`}
+                                    type={red === "whatsapp" ? "tel" : "text"}
+                                    autoComplete="off"
+                                    disabled={isSaving}
+                                    value={draft[red]}
+                                    maxLength={RED_SOCIAL_MAX[red] + (campo.prefix?.length ?? 0)}
+                                    onChange={(e) => handleFieldChange(taller.id, red, e.target.value)}
+                                    placeholder={campo.placeholder}
+                                    style={{ ...styles.input, paddingLeft: campo.prefix ? 50 : 38 }}
+                                    data-testid={`taller-${red}`}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </fieldset>
 
                       <div style={styles.actionRow}>
                         <Button
@@ -375,6 +449,52 @@ const styles = {
     fontSize: 14,
     outline: "none",
     boxSizing: "border-box" as const,
+  },
+  fieldset: {
+    margin: 0,
+    padding: "16px 0 0",
+    border: 0,
+    borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 12,
+    minWidth: 0,
+  },
+  legend: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    padding: 0,
+    float: "left" as const,
+    width: "100%",
+    fontSize: 14,
+    fontWeight: 600,
+    color: COLOR.TEXT.PRIMARY,
+  },
+  fieldsetHint: {
+    clear: "both" as const,
+    fontSize: 13,
+    color: COLOR.TEXT.SECONDARY,
+    margin: 0,
+    lineHeight: 1.5,
+  },
+  inputWithIcon: {
+    position: "relative" as const,
+    display: "flex",
+    alignItems: "center",
+  },
+  inputIcon: {
+    position: "absolute" as const,
+    left: 12,
+    display: "flex",
+    pointerEvents: "none" as const,
+  },
+  inputPrefix: {
+    position: "absolute" as const,
+    left: 36,
+    fontSize: 14,
+    color: COLOR.TEXT.SECONDARY,
+    pointerEvents: "none" as const,
   },
   actionRow: {
     display: "flex",

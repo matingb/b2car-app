@@ -355,6 +355,47 @@ describe("opciones de presentación de la factura", () => {
     expect(await codes("ARREGLO", draft({}, { incluirObservaciones: true, observaciones: "x".repeat(501) }))).toContain("OBSERVACIONES_EXTENSAS");
   });
 
+  it("imprime las redes sociales del taller del origen y las persiste al emitir", async () => {
+    const { tables, invoices } = mockBillingDatabase();
+    tables.arreglos[0].taller_id = "workshop";
+    tables.talleres = [{ id: "workshop", whatsapp: "+54 9 11 5555-5555", instagram: "tallerb2car", facebook: "" }];
+    const plain = await previewSourceFactura(actor, "ARREGLO", "source", draft());
+    const conRedes = draft({}, { incluirRedesSociales: true });
+    const { revision, issues } = await previewSourceFactura(actor, "ARREGLO", "source", conRedes);
+
+    expect(issues.filter((issue) => issue.severidad === "error")).toEqual([]);
+    // Sólo las redes con valor; se resuelven en el servidor, no las manda el cliente.
+    expect(revision!.presentacion).toEqual({ redesSociales: { whatsapp: "+54 9 11 5555-5555", instagram: "tallerb2car" } });
+    expect(revision!.totales).toEqual(plain.revision!.totales);
+    expect(revision!.revisionHash).not.toBe(plain.revision!.revisionHash);
+
+    await issueFacturaElectronica(actor, "source", issueInput(conRedes, revision!.revisionHash));
+    expect(invoices[0].presentacion_snapshot).toEqual({ redesSociales: { whatsapp: "+54 9 11 5555-5555", instagram: "tallerb2car" } });
+  });
+
+  it("usa el taller de la venta y rechaza las redes si el taller no tiene ninguna", async () => {
+    const { tables } = mockBillingDatabase();
+    const codes = async (input: FacturaDraftInput) =>
+      (await previewSourceFactura(actor, "VENTA", "source", input)).issues.filter((issue) => issue.severidad === "error").map((issue) => issue.codigo);
+
+    expect(await codes(draft({}, { incluirRedesSociales: true }))).toContain("REDES_SOCIALES_NO_CONFIGURADAS");
+    tables.operaciones[0].taller_id = "workshop";
+    tables.talleres = [{ id: "workshop", facebook: "Taller B2Car" }];
+    const { revision } = await previewSourceFactura(actor, "VENTA", "source", draft({}, { incluirRedesSociales: true }));
+    expect(revision!.presentacion).toEqual({ redesSociales: { facebook: "Taller B2Car" } });
+  });
+
+  it("informa en el preflight las redes configuradas en el taller", async () => {
+    const { tables } = mockBillingDatabase();
+    const sinRedes = await getFacturaPreflight(actor, "source", "HOMOLOGACION", undefined, { receptorDiferido: true });
+    expect(sinRedes.preflight.redesSociales).toBeNull();
+
+    tables.arreglos[0].taller_id = "workshop";
+    tables.talleres = [{ id: "workshop", instagram: "tallerb2car" }];
+    const { preflight } = await getFacturaPreflight(actor, "source", "HOMOLOGACION", undefined, { receptorDiferido: true });
+    expect(preflight.redesSociales).toEqual({ instagram: "tallerb2car" });
+  });
+
   it("precarga la patente y las observaciones del arreglo", async () => {
     const { tables } = mockBillingDatabase();
     tables.vehiculos[0].patente = "AB123CD";
@@ -402,6 +443,8 @@ describe("contrato del formulario de factura", () => {
     expect(hash({ ...reviewed, incluirPatente: true })).not.toBe(hash(reviewed));
     expect(hash({ ...reviewed, ocultarPreciosLineas: true })).not.toBe(hash(reviewed));
     expect(hash({ ...reviewed, ocultarPreciosLineas: false })).toBe(hash(reviewed));
+    expect(hash({ ...reviewed, incluirRedesSociales: true })).not.toBe(hash(reviewed));
+    expect(hash({ ...reviewed, incluirRedesSociales: false })).toBe(hash(reviewed));
   });
 
   it("distingue domicilio omitido de domicilio vacío y valida los campos nuevos", () => {

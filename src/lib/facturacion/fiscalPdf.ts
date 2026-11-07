@@ -4,6 +4,8 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf
 import QRCode from "qrcode";
 import { buildHtmlDocument, createHtmlPage, type HtmlPage } from "@/lib/pdf/htmlPage";
 import { drawCentered, drawRight, formatDate, sanitizeForFont, text, wrapText } from "@/lib/pdf/pdfText";
+import { drawRedSocialIcon } from "@/lib/pdf/redSocialIcons";
+import { REDES_SOCIALES, redSocialTexto } from "@/lib/redesSociales";
 import { formatArs, formatNumberAr } from "../format";
 import { FacturacionValidationError } from "./arcaPayload";
 import { precioUnitarioMostrado } from "./lineaImporte";
@@ -127,7 +129,7 @@ type Fonts = {
 };
 
 /** Lo que el layout necesita para dibujar una hoja; un `PDFPage` y una hoja HTML lo cumplen. */
-type Surface = Pick<PDFPage, "drawText" | "drawRectangle" | "drawLine">;
+type Surface = Pick<PDFPage, "drawText" | "drawRectangle" | "drawLine" | "drawSvgPath">;
 
 /**
  * Hoja de destino del comprobante: el PDF real o su vista HTML. Ambas reciben las mismas
@@ -327,6 +329,46 @@ function getFirstHeaderLayout(invoice: FiscalPdfInvoice, fonts: Fonts): FirstHea
   };
 }
 
+const RED_SOCIAL_FONT_SIZE = 9.5;
+/** El ícono mide lo mismo que la fuente (1 em), como un ícono dentro del texto. */
+const RED_SOCIAL_ICON_SIZE = RED_SOCIAL_FONT_SIZE;
+const RED_SOCIAL_ICON_GAP = 4;
+/** Altura de las mayúsculas y los números de Helvetica, en em: el ícono se centra sobre ella. */
+const HELVETICA_CAP_HEIGHT = 0.718;
+// Mismo interlineado que los demás datos del emisor (razón social, domicilio, condición IVA).
+const RED_SOCIAL_LINE_HEIGHT = 17;
+/** Borde derecho de la columna del emisor, antes de la línea que la separa del comprobante. */
+const EMITTER_COLUMN_RIGHT = 286;
+
+/**
+ * Redes del taller, una debajo de otra: ícono y valor de cada una. Un valor que no entra en
+ * la columna del emisor se recorta con "...".
+ */
+function drawRedesSociales(page: Surface, invoice: FiscalPdfInvoice, fonts: Fonts, x: number, y: number) {
+  const redes = invoice.presentacion?.redesSociales;
+  if (!redes) return;
+  const textX = x + RED_SOCIAL_ICON_SIZE + RED_SOCIAL_ICON_GAP;
+  const textMax = EMITTER_COLUMN_RIGHT - textX;
+  // Desplazamiento del ícono respecto de la línea base para que su centro coincida con el de las mayúsculas.
+  const iconOffset = (HELVETICA_CAP_HEIGHT * RED_SOCIAL_FONT_SIZE - RED_SOCIAL_ICON_SIZE) / 2;
+  let lineY = y;
+  for (const red of REDES_SOCIALES) {
+    const raw = redes[red];
+    if (!raw) continue;
+    const value = fitText(sanitizeForFont(redSocialTexto(red, raw), fonts.regular), fonts.regular, RED_SOCIAL_FONT_SIZE, textMax);
+    drawRedSocialIcon(page, red, { x, y: lineY + iconOffset, size: RED_SOCIAL_ICON_SIZE });
+    page.drawText(value, { x: textX, y: lineY, font: fonts.regular, size: RED_SOCIAL_FONT_SIZE });
+    lineY -= RED_SOCIAL_LINE_HEIGHT;
+  }
+}
+
+function fitText(value: string, font: PDFFont, size: number, maxWidth: number): string {
+  if (font.widthOfTextAtSize(value, size) <= maxWidth) return value;
+  let fitted = value;
+  while (fitted && font.widthOfTextAtSize(`${fitted}...`, size) > maxWidth) fitted = fitted.slice(0, -1);
+  return `${fitted.trimEnd()}...`;
+}
+
 function drawFirstHeader(
   page: Surface,
   invoice: FiscalPdfInvoice,
@@ -353,9 +395,11 @@ function drawFirstHeader(
     page, fonts, "Domicilio Comercial:", emitterCommercialAddress(emitter), 54, emitterInfoY, 139, 147,
   );
   emitterInfoY -= Math.max(17, domicilioLines.length * 10 + 7);
-  drawLabeledWrappedValue(
+  const condicionIvaLines = drawLabeledWrappedValue(
     page, fonts, "Condición IVA:", emitterFiscalIvaLabel(emitter), 54, emitterInfoY, 119, 167,
   );
+  emitterInfoY -= Math.max(17, condicionIvaLines.length * 10 + 7);
+  drawRedesSociales(page, invoice, fonts, 54, emitterInfoY);
 
   page.drawRectangle({ x: 276, y: 744, width: 44, height: 54, color: WHITE, borderWidth: 0.8 });
   drawCentered(page, invoice.claseComprobante ?? "C", 298, 766, fonts.bold, 22);
@@ -678,6 +722,7 @@ function pdfSurface(pdf: PDFDocument, page: PDFPage): FiscalSurface {
     drawText: (value, options) => page.drawText(value, options),
     drawRectangle: (options) => page.drawRectangle(options),
     drawLine: (options) => page.drawLine(options),
+    drawSvgPath: (path, options) => page.drawSvgPath(path, options),
     async drawQr(url, { x, y, size }) {
       const qrBytes = await QRCode.toBuffer(url, { type: "png", errorCorrectionLevel: "M", margin: 0, width: 300 });
       const qr = await pdf.embedPng(Uint8Array.from(qrBytes));
@@ -691,6 +736,7 @@ function htmlSurface(page: HtmlPage): FiscalSurface {
     drawText: page.drawText,
     drawRectangle: page.drawRectangle,
     drawLine: page.drawLine,
+    drawSvgPath: page.drawSvgPath,
     async drawQr(url, { x, y, size }) {
       const svg = await QRCode.toString(url, { type: "svg", errorCorrectionLevel: "M", margin: 0 });
       page.drawImage(`data:image/svg+xml;base64,${Buffer.from(svg, "utf8").toString("base64")}`, { x, y, width: size, height: size });

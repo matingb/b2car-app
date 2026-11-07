@@ -12,7 +12,6 @@ import ProductoItemCard from "@/app/components/productos/ProductoItemCard";
 import ProductosTable from "@/app/components/productos/ProductosTable";
 import { LayoutList, LoaderCircle, Table } from "lucide-react";
 import { useProductos } from "@/app/providers/ProductosProvider";
-import { useProveedores } from "@/app/providers/ProveedoresProvider";
 import { css } from "@emotion/react";
 import StockStats from "@/app/components/stock/StockStats";
 import TallerSelector from "@/app/components/ui/TallerSelector";
@@ -27,7 +26,6 @@ function ProductosPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { productos, categoriasDisponibles, isLoading } = useProductos();
-  const { proveedores } = useProveedores();
 
   const tabParam = searchParams.get("tab") === "proveedores" ? "proveedores" : "productos";
   const [activeTab, setActiveTab] = useState<ProductosTabKey>(tabParam);

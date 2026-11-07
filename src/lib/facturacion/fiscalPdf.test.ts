@@ -392,6 +392,7 @@ describe("vista HTML del comprobante", () => {
     ["receptor con nombre y domicilio largos", { ...draft, receptorSnapshot: { nombre: "Razón Social Muy Larga ".repeat(6), domicilio: "Avenida Siempre Viva 742, Piso 3 ".repeat(4), tipoDocumento: 99, numeroDocumento: "0", condicionIvaReceptorId: 5 } }],
     ["comprobante autorizado con QR", {}],
     ["sin precios por línea", { ...draft, presentacion: { ocultarPreciosLineas: true }, lineas: lineas(3) }],
+    ["con redes sociales del taller", { ...draft, presentacion: { redesSociales: { whatsapp: "+54 9 11 5555-5555", instagram: "tallerb2car", facebook: "Taller B2Car" } } }],
     ["con patente y observaciones", { ...draft, presentacion: { patente: "AB123CD", observaciones: "Garantía de 3 meses.\nRetirar antes del viernes." } }],
   ];
 
@@ -401,6 +402,7 @@ describe("vista HTML del comprobante", () => {
     const drawRectangle = vi.spyOn(PDFPage.prototype, "drawRectangle");
     const drawLine = vi.spyOn(PDFPage.prototype, "drawLine");
     const drawImage = vi.spyOn(PDFPage.prototype, "drawImage");
+    const drawSvgPath = vi.spyOn(PDFPage.prototype, "drawSvgPath");
 
     const pdf = await PDFDocument.load(await generateFiscalInvoicePdf(input));
     const drawn = {
@@ -408,6 +410,7 @@ describe("vista HTML del comprobante", () => {
       rectangles: drawRectangle.mock.calls.length,
       lines: drawLine.mock.calls.length,
       images: drawImage.mock.calls.length,
+      paths: drawSvgPath.mock.calls.length,
     };
     const html = await generateFiscalInvoiceHtml(input);
 
@@ -415,6 +418,7 @@ describe("vista HTML del comprobante", () => {
     expect(count(html, "rect")).toBe(drawn.rectangles);
     expect(count(html, "line")).toBe(drawn.lines);
     expect(count(html, "image")).toBe(drawn.images);
+    expect(count(html, "path")).toBe(drawn.paths);
     expect(count(html, "svg")).toBe(pdf.getPageCount());
   });
 
@@ -467,6 +471,47 @@ describe("vista HTML del comprobante", () => {
     const observaciones = texts.indexOf("Observaciones: Garantía de 3 meses.");
     expect(observaciones).toBeGreaterThan(texts.indexOf("Mantenimiento de ópticas y luces"));
     expect(texts[observaciones + 1]).toBe("Retirar antes del viernes.");
+  });
+
+  it("muestra las redes del taller una debajo de otra, bajo la condición IVA del emisor", async () => {
+    const sinRedes = await generateFiscalInvoiceHtml(invoice(draft));
+    expect(count(sinRedes, "path")).toBe(0);
+
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    const drawSvgPath = vi.spyOn(PDFPage.prototype, "drawSvgPath");
+    const input = invoice({ ...draft, presentacion: { redesSociales: { whatsapp: "+54 9 11 5555-5555", instagram: "tallerb2car", facebook: "Taller B2Car" } } });
+    await generateFiscalInvoicePdf(input);
+    const options = (value: string) => drawText.mock.calls.find(([text]) => text === value)![1]!;
+
+    const condicionIva = options("Condición IVA:");
+    const whatsapp = options("+54 9 11 5555-5555");
+    const instagram = options("@tallerb2car");
+    const facebook = options("Taller B2Car");
+    // Una red por línea, en orden, alineadas a la izquierda y con letra más grande que los datos del emisor.
+    expect(whatsapp.y!).toBeLessThan(condicionIva.y!);
+    expect(instagram.y!).toBeLessThan(whatsapp.y!);
+    expect(facebook.y!).toBeLessThan(instagram.y!);
+    expect(whatsapp.y! - instagram.y!).toBe(instagram.y! - facebook.y!);
+    expect(new Set([whatsapp.x, instagram.x, facebook.x]).size).toBe(1);
+    expect(whatsapp.size).toBeGreaterThan(condicionIva.size!);
+    // Sigue dentro del recuadro del encabezado.
+    expect(facebook.y!).toBeGreaterThan(588);
+    // Un ícono por red (el de WhatsApp tiene dos trazos), a la izquierda de su valor.
+    expect(drawSvgPath).toHaveBeenCalledTimes(4);
+    expect(drawSvgPath.mock.calls[0][1]!.x!).toBeLessThan(whatsapp.x!);
+
+    const html = await generateFiscalInvoiceHtml(input);
+    expect(count(html, "path")).toBe(4);
+    expect(htmlTexts(html)).toContain("@tallerb2car");
+  });
+
+  it("recorta con puntos suspensivos un valor que no entra en la columna del emisor", async () => {
+    const drawText = vi.spyOn(PDFPage.prototype, "drawText");
+    const facebook = "Taller Mecánico Integral de Reparación y Mantenimiento Automotor del Oeste";
+    await generateFiscalInvoicePdf(invoice({ ...draft, presentacion: { redesSociales: { facebook } } }));
+    const [value, options] = drawText.mock.calls.find(([text]) => text.startsWith("Taller Mecánico"))!;
+    expect(value).toMatch(/\.\.\.$/);
+    expect(options!.x! + options!.font!.widthOfTextAtSize(value, options!.size!)).toBeLessThanOrEqual(286);
   });
 
   it("sin precios por línea lista los conceptos y deja los importes sólo en los totales", async () => {

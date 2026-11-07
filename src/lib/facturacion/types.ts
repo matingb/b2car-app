@@ -1,3 +1,5 @@
+import type { RedesSociales } from "@/lib/redesSociales";
+
 export type DocumentoFiscalTipo = 80 | 86 | 96 | 99;
 
 export type CondicionIvaReceptorId =
@@ -60,6 +62,8 @@ export type FacturaPresentacion = {
   patente?: string;
   /** El detalle lista los conceptos sin precio unitario ni subtotal; los importes quedan en los totales. */
   ocultarPreciosLineas?: true;
+  /** Redes del taller al momento de emitir; se imprimen debajo de la condición IVA del emisor. */
+  redesSociales?: RedesSociales;
 };
 
 export type FacturaIssueGrupo = "RECEPTOR" | "COMPROBANTE" | "DETALLE" | "CONFIGURACION" | "EMISION";
@@ -306,6 +310,8 @@ export type FacturacionPreflight = {
   patente?: string | null;
   /** Observaciones cargadas en el origen; precargan el texto opcional de la factura. */
   observacionesOrigen?: string | null;
+  /** Redes sociales configuradas en el taller del origen; `null` si no hay ninguna. */
+  redesSociales?: RedesSociales | null;
   fcePosible: boolean;
   fceObligatoria: boolean;
   fceSistemaConfigurado: FceSistemaCirculacion | null;
