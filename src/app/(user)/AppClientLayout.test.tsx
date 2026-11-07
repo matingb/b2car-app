@@ -2,8 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppClientLayout from "./AppClientLayout";
 import { Permission } from "@/lib/permissions";
-import { setDatadogClientRum } from "@/lib/telemetry/datadog";
-import { datadogRum } from "@datadog/browser-rum";
+import { telemetry } from "@/lib/telemetry";
 
 const mockReplace = vi.fn();
 let mockPathname = "/arreglos";
@@ -31,21 +30,14 @@ vi.mock("@/app/login/actions", () => ({
   logOut: vi.fn(),
 }));
 
-vi.mock("@datadog/browser-rum", () => ({
-  datadogRum: {
-    setUser: vi.fn(),
-    setAccount: vi.fn(),
-  },
-}));
-
 describe("AppClientLayout visual route guard", () => {
   beforeEach(() => {
     mockReplace.mockClear();
     vi.clearAllMocks();
-    setDatadogClientRum(datadogRum);
   });
 
-  it("asocia el tenant_id, tenant_name y plan a Datadog RUM", () => {
+  it("asocia el tenant_id, tenant_name y plan a telemetría", () => {
+    const setUserSpy = vi.spyOn(telemetry, "setUser");
     render(
       <AppClientLayout
         initialPermissions={[Permission.ArreglosView]}
@@ -57,14 +49,15 @@ describe("AppClientLayout visual route guard", () => {
       </AppClientLayout>
     );
 
-    expect(datadogRum.setUser).toHaveBeenCalledWith({
+    expect(setUserSpy).toHaveBeenCalledWith({
       id: "t-123",
       name: "Taller Demo",
       plan_sub: "BASE",
     });
   });
 
-  it("asocia identity con user y account a Datadog RUM si se pasa identity", () => {
+  it("asocia identity con user y account a telemetría si se pasa identity", () => {
+    const identifySpy = vi.spyOn(telemetry, "identify");
     render(
       <AppClientLayout
         initialPermissions={[Permission.ArreglosView]}
@@ -77,14 +70,9 @@ describe("AppClientLayout visual route guard", () => {
       </AppClientLayout>
     );
 
-    expect(datadogRum.setUser).toHaveBeenCalledWith({
-      id: "u-456",
-      email: "test@user.com",
-    });
-    expect(datadogRum.setAccount).toHaveBeenCalledWith({
-      id: "t-123",
-      name: "Taller Demo",
-      plan: "PRO",
+    expect(identifySpy).toHaveBeenCalledWith({
+      user: { id: "u-456", email: "test@user.com" },
+      account: { id: "t-123", name: "Taller Demo", plan: "PRO" },
     });
   });
 

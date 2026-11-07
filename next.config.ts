@@ -5,7 +5,6 @@ const nextConfig: NextConfig = {
   compiler: { emotion: true },
   serverExternalPackages: [
     "@afipsdk/afip.js",
-    "dd-trace",
     "@opentelemetry/api",
     "@opentelemetry/api-logs",
     "@opentelemetry/sdk-node",

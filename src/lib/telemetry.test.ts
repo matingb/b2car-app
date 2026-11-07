@@ -1,21 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { telemetry } from "./telemetry";
+import { telemetry, getActiveIdentityAttributes } from "./telemetry";
 import { logger } from "./logger";
 import { trace, SpanStatusCode } from "@opentelemetry/api";
-import { datadogRum } from "@datadog/browser-rum";
-
-vi.mock("@datadog/browser-rum", () => ({
-  datadogRum: {
-    init: vi.fn(),
-    getInitConfiguration: vi.fn(),
-    setUser: vi.fn(),
-    setAccount: vi.fn(),
-    clearUser: vi.fn(),
-    clearAccount: vi.fn(),
-    addAction: vi.fn(),
-    addError: vi.fn(),
-  },
-}));
 
 vi.mock("@opentelemetry/api", async () => {
   const actual = await vi.importActual<typeof import("@opentelemetry/api")>("@opentelemetry/api");
@@ -35,11 +21,10 @@ describe("telemetry unified wrapper", () => {
   });
 
   describe("wrapper provider management", () => {
-    it("incluye por defecto los providers de datadog y honeycomb", () => {
+    it("incluye por defecto únicamente el provider de honeycomb", () => {
       const providers = telemetry.getProviders();
       const names = providers.map((p) => p.name);
-      expect(names).toContain("datadog");
-      expect(names).toContain("honeycomb");
+      expect(names).toEqual(["honeycomb"]);
     });
 
     it("permite registrar un provider personalizado y despachar llamadas a él", () => {
@@ -99,14 +84,6 @@ describe("telemetry unified wrapper", () => {
         tenant_name: "Taller Matias",
       });
 
-      // Datadog RUM
-      expect(datadogRum.setUser).toHaveBeenCalledWith({
-        id: "usr-123",
-        name: "Matias",
-        email: "matias@example.com",
-        plan_sub: "PRO",
-      });
-
       // Honeycomb / OTel Span
       expect(mockSpan.setAttribute).toHaveBeenCalledWith("user.id", "usr-123");
       expect(mockSpan.setAttribute).toHaveBeenCalledWith("user.email", "matias@example.com");
@@ -116,9 +93,14 @@ describe("telemetry unified wrapper", () => {
     });
 
     it("dado un usuario anónimo o sin identificador, no asocia datos de taller ni usuario", () => {
+      const mockSpan = {
+        setAttribute: vi.fn(),
+      };
+      vi.mocked(trace.getActiveSpan).mockReturnValue(mockSpan as unknown as ReturnType<typeof trace.getActiveSpan>);
+
       // @ts-expect-error testing invalid payload
       telemetry.setUser(null);
-      expect(datadogRum.setUser).not.toHaveBeenCalled();
+      expect(mockSpan.setAttribute).not.toHaveBeenCalled();
     });
   });
 
@@ -132,17 +114,6 @@ describe("telemetry unified wrapper", () => {
       telemetry.identify({
         user: { id: "u-1", role: "admin", email: "admin@test.com" },
         account: { id: "t-1", name: "Taller Alfa", plan: "PRO" },
-      });
-
-      expect(datadogRum.setUser).toHaveBeenCalledWith({
-        id: "u-1",
-        role: "admin",
-        email: "admin@test.com",
-      });
-      expect(datadogRum.setAccount).toHaveBeenCalledWith({
-        id: "t-1",
-        name: "Taller Alfa",
-        plan: "PRO",
       });
 
       expect(mockSpan.setAttribute).toHaveBeenCalledWith("user.id", "u-1");
@@ -189,9 +160,14 @@ describe("telemetry unified wrapper", () => {
 
   describe("clearUser", () => {
     it("dado un operador, al cerrar sesión, se desvincula al usuario y al taller", () => {
+      telemetry.identify({
+        user: { id: "u-1" },
+        account: { id: "t-1", name: "Taller Alfa" },
+      });
+      expect(getActiveIdentityAttributes()).not.toBeNull();
+
       telemetry.clearUser();
-      expect(datadogRum.clearUser).toHaveBeenCalled();
-      expect(datadogRum.clearAccount).toHaveBeenCalled();
+      expect(getActiveIdentityAttributes()).toBeNull();
     });
   });
 
@@ -204,7 +180,6 @@ describe("telemetry unified wrapper", () => {
 
       telemetry.trackAction("crear_factura", { facturaId: "f-1", total: 1500 });
 
-      expect(datadogRum.addAction).toHaveBeenCalledWith("crear_factura", { facturaId: "f-1", total: 1500 });
       expect(mockSpan.addEvent).toHaveBeenCalledWith("crear_factura", { facturaId: "f-1", total: 1500 });
     });
   });
@@ -221,7 +196,6 @@ describe("telemetry unified wrapper", () => {
       const error = new Error("Fallo en cálculo");
       telemetry.recordException(error, { modulo: "finanzas" });
 
-      expect(datadogRum.addError).toHaveBeenCalledWith(error, { modulo: "finanzas" });
       expect(mockSpan.recordException).toHaveBeenCalledWith(error);
       expect(mockSpan.setStatus).toHaveBeenCalledWith({
         code: SpanStatusCode.ERROR,
@@ -232,7 +206,7 @@ describe("telemetry unified wrapper", () => {
   });
 
   describe("log", () => {
-    it("dado un log estructurado, lo propaga como evento a Honeycomb y acción a Datadog", () => {
+    it("dado un log estructurado, lo propaga como evento a Honeycomb", () => {
       const mockSpan = {
         addEvent: vi.fn(),
         setAttributes: vi.fn(),
@@ -241,10 +215,6 @@ describe("telemetry unified wrapper", () => {
 
       telemetry.log("warn", "Consumo alto de recursos", { memoriaMb: 512 });
 
-      expect(datadogRum.addAction).toHaveBeenCalledWith("Consumo alto de recursos", {
-        severity: "warn",
-        memoriaMb: 512,
-      });
       expect(mockSpan.setAttributes).toHaveBeenCalledWith({
         severity: "warn",
         memoriaMb: 512,
@@ -270,7 +240,6 @@ describe("telemetry unified wrapper", () => {
       const err = new Error("DB Connection Timeout");
       logger.error("Operación fallida", { retryCount: 3 }, err);
 
-      expect(datadogRum.addError).toHaveBeenCalled();
       expect(mockSpan.recordException).toHaveBeenCalledWith(err);
       expect(mockSpan.setStatus).toHaveBeenCalledWith({
         code: SpanStatusCode.ERROR,

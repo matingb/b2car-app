@@ -1,10 +1,8 @@
-import { datadogProvider } from "./telemetry/datadog";
 import { honeycombProvider } from "./telemetry/honeycomb";
 import type { TelemetryProvider, TelemetryIdentity, TelemetryUser, TelemetryContext, TelemetryLogLevel } from "./telemetry/types";
 
 export * from "./telemetry/types";
 export * from "./telemetry/sanitizer";
-export { datadogProvider } from "./telemetry/datadog";
 export {
   honeycombProvider,
   logs,
@@ -23,7 +21,7 @@ export * from "./telemetry/identity";
 export const getTelemetryAttributes = buildTelemetryAttributes;
 
 
-const providers: TelemetryProvider[] = [datadogProvider, honeycombProvider];
+const providers: TelemetryProvider[] = [honeycombProvider];
 
 export const telemetry = {
   getProviders(): readonly TelemetryProvider[] {

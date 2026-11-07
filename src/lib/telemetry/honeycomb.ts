@@ -206,7 +206,7 @@ export async function initHoneycombServer(): Promise<void> {
     const logsEndpoint = "https://api.honeycomb.io/v1/logs";
     const serviceName = process.env.TELEMETRY_BACKEND_SERVICE_NAME || "b2car-backend";
     const appVersion = process.env.NEXT_PUBLIC_APP_VERSION;
-    const environment = process.env.NEXT_PUBLIC_DATADOG_ENV || process.env.NODE_ENV || "production";
+    const environment = process.env.NODE_ENV || "production";
 
     const headers = apiKey
       ? {
