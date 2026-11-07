@@ -91,13 +91,21 @@ export default function StockEditPanel({
     <>
       <div css={styles.fieldsGrid}>
         <div>
-          <label css={styles.label}>Actual</label>
+          <label css={styles.label}>Físico</label>
           <NumberInput
             minValue={0}
             allowDecimals={false}
             value={draft.stockActual}
             onValueChange={(next) =>
-              setDraft((prev) => ({ ...prev, stockActual: Math.round(next) }))
+              setDraft((prev) => {
+                const stockActual = Math.round(next);
+                const reservado = Number(prev.stockReservado) || 0;
+                return {
+                  ...prev,
+                  stockActual,
+                  stockDisponible: stockActual - reservado,
+                };
+              })
             }
             style={styles.input}
           />

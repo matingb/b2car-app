@@ -51,7 +51,7 @@ export default function OperacionStockBadge({
         : "Recepción parcial"
       : isVenta
         ? "Reservada"
-        : "En camino";
+        : "Pendiente";
 
   // Es interactivo si hay una operación vinculada o se proveyó un onClick explícito
   const hasOperacion = Boolean(operacion || propOperacionId);
@@ -66,14 +66,17 @@ export default function OperacionStockBadge({
   let icon: React.ReactNode;
 
   if (isEntregado) {
-    activeColor = COLOR.STATUS.SUCCESS.TEXT;
-    icon = <CheckCircle2 size={badgeSize} color={COLOR.STATUS.SUCCESS.TEXT} />;
+    activeColor = COLOR.STOCK.DISPONIBLE.TEXT;
+    icon = <CheckCircle2 size={badgeSize} color={COLOR.STOCK.DISPONIBLE.TEXT} />;
   } else if (isParcial) {
-    activeColor = COLOR.STATUS.WARNING.TEXT;
-    icon = <AlertCircle size={badgeSize} color={COLOR.STATUS.WARNING.TEXT} />;
+    activeColor = COLOR.STOCK.PARCIAL.TEXT;
+    icon = <AlertCircle size={badgeSize} color={COLOR.STOCK.PARCIAL.TEXT} />;
+  } else if (isVenta) {
+    activeColor = COLOR.STOCK.RESERVADO.TEXT;
+    icon = <AlertCircle size={badgeSize} color={COLOR.STOCK.RESERVADO.TEXT} />;
   } else {
-    activeColor = COLOR.STATUS.INFO.TEXT;
-    icon = <Clock size={badgeSize} color={COLOR.STATUS.INFO.TEXT} />;
+    activeColor = COLOR.STOCK.PENDIENTE.TEXT;
+    icon = <Clock size={badgeSize} color={COLOR.STOCK.PENDIENTE.TEXT} />;
   }
 
   const handleClick = (e: React.MouseEvent) => {

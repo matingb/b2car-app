@@ -98,10 +98,10 @@ export function buildStockAutocompleteOptions<
 }
 
 const STOCK_METRICS = [
-  { key: "fisico", label: "Físico", color: COLOR.STOCK.FISICO, testId: "stock-breakdown-fisico" },
-  { key: "disponible", label: "Disponible", color: COLOR.STOCK.DISPONIBLE, testId: "stock-breakdown-disponible" },
-  { key: "reservado", label: "Reservado", color: COLOR.STOCK.RESERVADO, testId: "stock-breakdown-reservado" },
-  { key: "pendiente", label: "Pendiente", color: COLOR.STOCK.PENDIENTE, testId: "stock-breakdown-pendiente" },
+  { key: "fisico", label: "Físico", color: COLOR.STOCK.FISICO.TEXT, testId: "stock-breakdown-fisico" },
+  { key: "disponible", label: "Disponible", color: COLOR.STOCK.DISPONIBLE.TEXT, testId: "stock-breakdown-disponible" },
+  { key: "reservado", label: "Reservado", color: COLOR.STOCK.RESERVADO.TEXT, testId: "stock-breakdown-reservado" },
+  { key: "pendiente", label: "Pendiente", color: COLOR.STOCK.PENDIENTE.TEXT, testId: "stock-breakdown-pendiente" },
 ] as const;
 
 export default function StockBreakdownBadge({

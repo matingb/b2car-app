@@ -165,7 +165,7 @@ export default function Tooltip({
   useEffect(() => {
     if (!isPinned) return;
 
-    const handleDocClick = (event: MouseEvent) => {
+    const handleDocClick = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node;
       if (
         triggerRef.current?.contains(target) ||
@@ -177,7 +177,11 @@ export default function Tooltip({
     };
 
     document.addEventListener("mousedown", handleDocClick);
-    return () => document.removeEventListener("mousedown", handleDocClick);
+    document.addEventListener("touchstart", handleDocClick);
+    return () => {
+      document.removeEventListener("mousedown", handleDocClick);
+      document.removeEventListener("touchstart", handleDocClick);
+    };
   }, [isPinned]);
 
   // Cierre con Escape

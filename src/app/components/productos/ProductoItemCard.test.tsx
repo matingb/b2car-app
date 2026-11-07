@@ -116,6 +116,14 @@ describe("ProductoItemCard", () => {
     expect(screen.getByTestId("stock-pill-pendiente")).toHaveTextContent("Pendiente: 0");
   });
 
+  it("muestra el icono particular de estado de stock en la tarjeta", () => {
+    render(<ProductoItemCard producto={sampleProducto} onClick={vi.fn()} />);
+
+    const icon = screen.getByTestId(`stock-status-icon-${sampleProducto.id}`);
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveAttribute("title", "Stock normal");
+  });
+
   it("dispara onClick al hacer clic en la tarjeta", () => {
     const handleClick = vi.fn();
     render(<ProductoItemCard producto={sampleProducto} onClick={handleClick} />);

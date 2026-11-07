@@ -42,9 +42,22 @@ const stockStatusPresentation: Record<StockStatus, StatusIconPresentation> = {
 type Props = {
   status?: StockStatus | null;
   size?: number;
+  boxSize?: number;
+  borderRadius?: number | string;
+  style?: React.CSSProperties;
+  className?: string;
+  "data-testid"?: string;
 };
 
-export default function StockStatusIcon({ status, size = 20 }: Props) {
+export default function StockStatusIcon({
+  status,
+  size = 20,
+  boxSize = 38,
+  borderRadius = 9,
+  style,
+  className,
+  "data-testid": dataTestId,
+}: Props) {
   const presentation = status
     ? stockStatusPresentation[status]
     : {
@@ -60,15 +73,18 @@ export default function StockStatusIcon({ status, size = 20 }: Props) {
       role="img"
       aria-label={label}
       title={label}
+      className={className}
+      data-testid={dataTestId}
       style={{
-        width: 38,
-        height: 38,
+        width: boxSize,
+        height: boxSize,
         flex: "0 0 auto",
         display: "grid",
         placeItems: "center",
-        borderRadius: 9,
+        borderRadius,
         color: presentation.color,
         background: presentation.background,
+        ...style,
       }}
     >
       <StatusIcon size={size} aria-hidden />

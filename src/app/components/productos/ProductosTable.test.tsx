@@ -74,6 +74,23 @@ describe("ProductosTable", () => {
     expect(screen.getByTestId("row-pendiente-prod-1")).toHaveTextContent("10");
   });
 
+  it("muestra el icono particular de estado de stock para cada producto", () => {
+    render(
+      <ProductosTable
+        productos={sampleProductos}
+        onProductoClick={vi.fn()}
+      />
+    );
+
+    // prod-1 tiene stock normal (stockActual > stockMinimo y <= stockMaximo)
+    const iconProd1 = screen.getByTestId("stock-status-icon-prod-1");
+    expect(iconProd1).toHaveAttribute("title", "Stock normal");
+
+    // prod-2 no tiene stocks configurados
+    const iconProd2 = screen.getByTestId("stock-status-icon-prod-2");
+    expect(iconProd2).toHaveAttribute("title", "Sin stock configurado");
+  });
+
   it("llama a onProductoClick al hacer clic en una fila", () => {
     const handleClick = vi.fn();
     render(

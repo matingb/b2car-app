@@ -51,4 +51,59 @@ describe("useStockStats", () => {
 
     expect(result.current).toEqual({ criticos: 0, bajos: 0, altos: 1, normales: 1, total: 2 });
   });
+
+  it("calcula los estados a partir de disponible - reservado + pendiente", () => {
+    const items = [
+      // Físico 10, pero disponible 1, reservado 1, pendiente 0 => cuenta 0 => critico
+      stockItem({
+        id: "item-critico",
+        stockActual: 10,
+        stockDisponible: 1,
+        stockReservado: 1,
+        stockPendiente: 0,
+        stockMinimo: 2,
+        stockMaximo: 20,
+      }),
+      // Físico 10, disponible 3, reservado 2, pendiente 0 => cuenta 1 < stockMinimo 2 => bajo
+      stockItem({
+        id: "item-bajo",
+        stockActual: 10,
+        stockDisponible: 3,
+        stockReservado: 2,
+        stockPendiente: 0,
+        stockMinimo: 2,
+        stockMaximo: 20,
+      }),
+      // Físico 10, disponible 8, reservado 1, pendiente 0 => cuenta 7 => normal
+      stockItem({
+        id: "item-normal",
+        stockActual: 10,
+        stockDisponible: 8,
+        stockReservado: 1,
+        stockPendiente: 0,
+        stockMinimo: 2,
+        stockMaximo: 20,
+      }),
+      // Físico 10, disponible 15, reservado 1, pendiente 10 => cuenta 24 > stockMaximo 20 => alto
+      stockItem({
+        id: "item-alto",
+        stockActual: 10,
+        stockDisponible: 15,
+        stockReservado: 1,
+        stockPendiente: 10,
+        stockMinimo: 2,
+        stockMaximo: 20,
+      }),
+    ];
+
+    const { result } = renderHook(() => useStockStats(items));
+
+    expect(result.current).toEqual({
+      criticos: 1,
+      bajos: 1,
+      altos: 1,
+      normales: 1,
+      total: 4,
+    });
+  });
 });

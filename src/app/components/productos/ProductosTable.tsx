@@ -6,7 +6,8 @@ import { COLOR } from "@/theme/theme";
 import type { Producto } from "@/app/providers/ProductosProvider";
 import { formatArs } from "@/lib/format";
 import { getProductoStockBreakdown } from "@/lib/stock";
-import { Package } from "lucide-react";
+import { getProductoStockSummary } from "@/app/hooks/productos/useProductosFilters";
+import StockStatusIcon from "@/app/components/stock/StockStatusIcon";
 import Table from "@/app/components/ui/Table";
 
 export type ProductosTableProps = {
@@ -35,6 +36,7 @@ export default function ProductosTable({
       <Table.Body>
         {productos.map((producto) => {
           const stock = getProductoStockBreakdown(producto, tallerId);
+          const stockSummary = getProductoStockSummary(producto, tallerId);
           const categorias = producto.categorias ?? [];
           const categoriaText = categorias.join(", ");
 
@@ -46,9 +48,13 @@ export default function ProductosTable({
             >
               <Table.Cell>
                 <div css={styles.productCell}>
-                  <div css={styles.productIconWrapper}>
-                    <Package size={16} color={COLOR.ACCENT.PRIMARY} />
-                  </div>
+                  <StockStatusIcon
+                    status={stockSummary.worstStatus}
+                    size={16}
+                    boxSize={32}
+                    borderRadius={8}
+                    data-testid={`stock-status-icon-${producto.id}`}
+                  />
                   <div css={styles.productInfo}>
                     <span css={styles.productName} title={producto.nombre}>
                       {producto.nombre}
@@ -120,16 +126,6 @@ const styles = {
     alignItems: "center",
     gap: 12,
   }),
-  productIconWrapper: css({
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: "rgba(0, 128, 162, 0.08)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  }),
   productInfo: css({
     display: "flex",
     flexDirection: "column",
@@ -177,19 +173,19 @@ const styles = {
   }),
   stockFisico: css({
     fontWeight: 700,
-    color: COLOR.STOCK.FISICO,
+    color: COLOR.STOCK.FISICO.TEXT,
   }),
   stockDisponible: css({
     fontWeight: 700,
-    color: COLOR.STOCK.DISPONIBLE,
+    color: COLOR.STOCK.DISPONIBLE.TEXT,
   }),
   stockReservado: css({
     fontWeight: 600,
-    color: COLOR.STOCK.RESERVADO,
+    color: COLOR.STOCK.RESERVADO.TEXT,
   }),
   stockPendiente: css({
     fontWeight: 600,
-    color: COLOR.STOCK.PENDIENTE,
+    color: COLOR.STOCK.PENDIENTE.TEXT,
   }),
 } as const;
 

@@ -80,7 +80,7 @@ describe("OperacionStockBadge", () => {
     const { rerender } = render(
       <OperacionStockBadge operacion={operacionCompraPendiente} />
     );
-    expect(screen.getByText("En camino")).toBeInTheDocument();
+    expect(screen.getByText("Pendiente")).toBeInTheDocument();
 
     rerender(<OperacionStockBadge operacion={operacionVentaParcial} />);
     expect(screen.getByText("Entrega parcial")).toBeInTheDocument();

@@ -30,16 +30,16 @@ describe("StockBreakdownBadge", () => {
     const pendiente = screen.getByTestId("stock-breakdown-pendiente");
 
     expect(fisico).toHaveTextContent("10");
-    expect(fisico).toHaveStyle({ color: COLOR.TEXT.PRIMARY });
+    expect(fisico).toHaveStyle({ color: COLOR.STOCK.FISICO.TEXT });
 
     expect(disponible).toHaveTextContent("7");
-    expect(disponible).toHaveStyle({ color: COLOR.STATUS.SUCCESS.TEXT });
+    expect(disponible).toHaveStyle({ color: COLOR.STOCK.DISPONIBLE.TEXT });
 
     expect(reservado).toHaveTextContent("3");
-    expect(reservado).toHaveStyle({ color: COLOR.STATUS.WARNING.TEXT });
+    expect(reservado).toHaveStyle({ color: COLOR.STOCK.RESERVADO.TEXT });
 
     expect(pendiente).toHaveTextContent("5");
-    expect(pendiente).toHaveStyle({ color: COLOR.STATUS.DANGER.TEXT });
+    expect(pendiente).toHaveStyle({ color: COLOR.STOCK.PENDIENTE.TEXT });
     expect(fisico).not.toHaveAttribute("title");
     expect(disponible).not.toHaveAttribute("title");
     expect(reservado).not.toHaveAttribute("title");

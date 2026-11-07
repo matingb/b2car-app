@@ -36,7 +36,7 @@ export function getEstadoStockLabel({
       return isVenta ? "Entrega parcial" : "Recepción parcial";
     case "PENDIENTE":
       if (compact) return "Pendiente";
-      return isVenta ? "Reservada" : "En camino";
+      return isVenta ? "Reservada" : "Pendiente";
     case "NO_APLICA":
     default:
       return "N/A";
@@ -44,7 +44,8 @@ export function getEstadoStockLabel({
 }
 
 export function getEstadoStockColor(
-  estado?: EstadoStockOperacion | string | null
+  estado?: EstadoStockOperacion | string | null,
+  tipo?: TipoOperacion | "COMPRA" | "VENTA"
 ): BadgeColor {
   switch (estado) {
     case "ENTREGADO":
@@ -52,7 +53,7 @@ export function getEstadoStockColor(
     case "PARCIAL":
       return "warning";
     case "PENDIENTE":
-      return "info";
+      return tipo === "VENTA" ? "warning" : "info";
     case "NO_APLICA":
     default:
       return "neutral";
@@ -72,7 +73,7 @@ export default function EstadoStockBadge({
   title,
 }: EstadoStockBadgeProps) {
   const label = getEstadoStockLabel({ estado, tipo, compact });
-  const color = getEstadoStockColor(estado);
+  const color = getEstadoStockColor(estado, tipo);
 
   return (
     <Badge

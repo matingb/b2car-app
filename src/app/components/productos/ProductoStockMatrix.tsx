@@ -38,10 +38,10 @@ type Props = {
 };
 
 const STOCK_METRICS = [
-  { key: "fisico", label: "FÍSICO", shortLabel: "FÍSICO", color: COLOR.STOCK.FISICO },
-  { key: "disponible", label: "DISPONIBLE", shortLabel: "DISP.", color: COLOR.STOCK.DISPONIBLE },
-  { key: "reservado", label: "RESERVADO", shortLabel: "RES.", color: COLOR.STOCK.RESERVADO },
-  { key: "pendiente", label: "PENDIENTE", shortLabel: "PEND.", color: COLOR.STOCK.PENDIENTE },
+  { key: "fisico", label: "FÍSICO", shortLabel: "FÍSICO", color: COLOR.STOCK.FISICO.TEXT },
+  { key: "disponible", label: "DISPONIBLE", shortLabel: "DISP.", color: COLOR.STOCK.DISPONIBLE.TEXT },
+  { key: "reservado", label: "RESERVADO", shortLabel: "RES.", color: COLOR.STOCK.RESERVADO.TEXT },
+  { key: "pendiente", label: "PENDIENTE", shortLabel: "PEND.", color: COLOR.STOCK.PENDIENTE.TEXT },
 ] as const;
 
 function createStockDraft(stock?: StockRegistro): StockLevels {
@@ -49,6 +49,9 @@ function createStockDraft(stock?: StockRegistro): StockLevels {
     stockActual: stock?.stockActual ?? 0,
     stockMinimo: stock?.stockMinimo ?? 0,
     stockMaximo: stock?.stockMaximo ?? 0,
+    stockDisponible: stock?.stockDisponible,
+    stockReservado: stock?.stockReservado,
+    stockPendiente: stock?.stockPendiente,
   };
 }
 

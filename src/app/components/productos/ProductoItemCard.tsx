@@ -7,6 +7,8 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import type { Producto } from "@/app/providers/ProductosProvider";
 import { formatArs } from "@/lib/format";
 import { getProductoStockBreakdown } from "@/lib/stock";
+import { getProductoStockSummary } from "@/app/hooks/productos/useProductosFilters";
+import StockStatusIcon from "@/app/components/stock/StockStatusIcon";
 import { Package, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { css } from "@emotion/react";
 
@@ -27,6 +29,10 @@ export default function ProductoItemCard({
     () => getProductoStockBreakdown(producto, tallerId),
     [producto, tallerId]
   );
+  const stockSummary = useMemo(
+    () => getProductoStockSummary(producto, tallerId),
+    [producto, tallerId]
+  );
 
   const categorias = producto.categorias ?? [];
   const categoriaText = categorias.join(", ");
@@ -39,19 +45,28 @@ export default function ProductoItemCard({
     >
       <div style={styles.topSection}>
         <div style={styles.mainInfo}>
-          <div style={styles.title} title={producto.nombre}>
-            {producto.nombre}
-          </div>
-          <div style={styles.subtitle}>
-            <span style={styles.codigo}>{producto.codigo}</span>
-            {categoriaText ? (
-              <span css={styles.categoriaWrapper}>
-                <span style={styles.dot}> · </span>
-                <span style={styles.categoria} title={categoriaText}>
-                  {categoriaText}
+          <StockStatusIcon
+            status={stockSummary.worstStatus}
+            size={18}
+            boxSize={36}
+            borderRadius={8}
+            data-testid={`stock-status-icon-${producto.id}`}
+          />
+          <div style={styles.textContainer}>
+            <div style={styles.title} title={producto.nombre}>
+              {producto.nombre}
+            </div>
+            <div style={styles.subtitle}>
+              <span style={styles.codigo}>{producto.codigo}</span>
+              {categoriaText ? (
+                <span css={styles.categoriaWrapper}>
+                  <span style={styles.dot}> · </span>
+                  <span style={styles.categoria} title={categoriaText}>
+                    {categoriaText}
+                  </span>
                 </span>
-              </span>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -72,7 +87,7 @@ export default function ProductoItemCard({
           <Badge
             variant="outline"
             color="neutral"
-            icon={<Package size={14} color={COLOR.STOCK.FISICO} />}
+            icon={<Package size={14} color={COLOR.STOCK.FISICO.TEXT} />}
             title="Físico"
             value={stockCounts.fisico}
             valueStyle={styles.pillValueFisico}
@@ -85,7 +100,7 @@ export default function ProductoItemCard({
           <Badge
             variant="outline"
             color="neutral"
-            icon={<CheckCircle2 size={14} color={COLOR.STOCK.DISPONIBLE} />}
+            icon={<CheckCircle2 size={14} color={COLOR.STOCK.DISPONIBLE.TEXT} />}
             title="Disponible"
             value={stockCounts.disponible}
             valueStyle={styles.pillValueDisponible}
@@ -98,7 +113,7 @@ export default function ProductoItemCard({
           <Badge
             variant="outline"
             color="neutral"
-            icon={<Clock size={14} color={COLOR.STOCK.RESERVADO} />}
+            icon={<AlertCircle size={14} color={COLOR.STOCK.RESERVADO.TEXT} />}
             title="Reservado"
             value={stockCounts.reservado}
             valueStyle={styles.pillValueReservado}
@@ -111,7 +126,7 @@ export default function ProductoItemCard({
           <Badge
             variant="outline"
             color="neutral"
-            icon={<AlertCircle size={14} color={COLOR.STOCK.PENDIENTE} />}
+            icon={<Clock size={14} color={COLOR.STOCK.PENDIENTE.TEXT} />}
             title="Pendiente"
             value={stockCounts.pendiente}
             valueStyle={styles.pillValuePendiente}
@@ -140,6 +155,14 @@ const styles = {
   },
   mainInfo: {
     padding: "12px 16px",
+    display: "flex",
+    flexDirection: "row" as const,
+    alignItems: "center",
+    gap: 12,
+    minWidth: 0,
+    flex: 1,
+  },
+  textContainer: {
     display: "flex",
     flexDirection: "column" as const,
     justifyContent: "center",
@@ -233,18 +256,18 @@ const styles = {
   },
   pillValueFisico: {
     fontWeight: 700,
-    color: COLOR.STOCK.FISICO,
+    color: COLOR.STOCK.FISICO.TEXT,
   },
   pillValueDisponible: {
     fontWeight: 700,
-    color: COLOR.STOCK.DISPONIBLE,
+    color: COLOR.STOCK.DISPONIBLE.TEXT,
   },
   pillValueReservado: {
     fontWeight: 700,
-    color: COLOR.STOCK.RESERVADO,
+    color: COLOR.STOCK.RESERVADO.TEXT,
   },
   pillValuePendiente: {
     fontWeight: 700,
-    color: COLOR.STOCK.PENDIENTE,
+    color: COLOR.STOCK.PENDIENTE.TEXT,
   },
 } as const;

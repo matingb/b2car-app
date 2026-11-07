@@ -124,4 +124,23 @@ describe("getProductoStockSummary", () => {
 
     expect(getProductoStockSummary(producto).worstStatus).toBe("normal");
   });
+
+  it("calcula el peor estado a partir de disponible - reservado + pendiente", () => {
+    const producto = createProducto({
+      stocks: [
+        // Físico 10, pero disponible 1, reservado 1, pendiente 0 => cuenta 0 => critico
+        stock({
+          id: "critico-por-reserva",
+          stockActual: 10,
+          stockDisponible: 1,
+          stockReservado: 1,
+          stockPendiente: 0,
+          stockMinimo: 2,
+          stockMaximo: 20,
+        }),
+      ],
+    });
+
+    expect(getProductoStockSummary(producto).worstStatus).toBe("critico");
+  });
 });

@@ -24,7 +24,7 @@ describe("getEstadoStockLabel", () => {
     ).toBe("Recepción parcial");
     expect(
       getEstadoStockLabel({ estado: "PENDIENTE", tipo: "COMPRA", compact: false })
-    ).toBe("En camino");
+    ).toBe("Pendiente");
   });
 
   it("retorna etiquetas para ventas", () => {
@@ -45,6 +45,7 @@ describe("getEstadoStockColor", () => {
     expect(getEstadoStockColor("ENTREGADO")).toBe("success");
     expect(getEstadoStockColor("PARCIAL")).toBe("warning");
     expect(getEstadoStockColor("PENDIENTE")).toBe("info");
+    expect(getEstadoStockColor("PENDIENTE", "VENTA")).toBe("warning");
     expect(getEstadoStockColor("NO_APLICA")).toBe("neutral");
     expect(getEstadoStockColor(undefined)).toBe("neutral");
   });
