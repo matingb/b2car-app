@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CircleAlert, FileText, ReceiptText, Settings2 } from "lucide-react";
+import { Car, ChevronDown, CircleAlert, FileText, MessageSquareText, ReceiptText, Settings2, Tags } from "lucide-react";
 import Modal from "@/app/components/ui/Modal";
 import ModalMessage from "@/app/components/ui/ModalMessage";
 import Button from "@/app/components/ui/Button";
@@ -18,11 +18,12 @@ import { FACTURA_CAMPO_INPUT_ID, validateFacturaForm } from "@/app/components/fa
 import { isArcaInscriptionLookupReady, normalizeArcaCuit } from "@/app/hooks/useArcaInscriptionLookup";
 import { COLOR } from "@/theme/theme";
 import { determineVoucher } from "@/lib/facturacion/arcaPayload";
-import { descripcionSimplificadaIssues } from "@/lib/facturacion/facturaReceptor";
+import { descripcionSimplificadaIssues, observacionesFacturaIssues } from "@/lib/facturacion/facturaReceptor";
 import { ROUTES } from "@/routing/routes";
 import {
   DETALLE_SIMPLIFICADO_DESCRIPCION_DEFAULT,
   DETALLE_SIMPLIFICADO_DESCRIPCION_MAX,
+  OBSERVACIONES_FACTURA_MAX,
   type CondicionIvaReceptorId,
   type FacturaElectronicaResumen,
   type FacturaFechaInput,
@@ -45,6 +46,11 @@ type FacturaDraftBody = {
   condicionVenta: string;
   detalleSimplificado: boolean;
   descripcionDetalleSimplificado?: string;
+  /** Opciones que sólo se imprimen; se omiten cuando están apagadas. */
+  incluirObservaciones?: true;
+  observaciones?: string;
+  incluirPatente?: true;
+  ocultarPreciosLineas?: true;
   receptor: {
     modo: "CLIENTE" | "OTRO";
     nombre: string;
@@ -92,6 +98,12 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const [fechas, setFechas] = useState<FacturaFechaInput>({ fechaComprobante: "" });
   const [detalleSimplificado, setDetalleSimplificado] = useState(false);
   const [descripcionSimplificada, setDescripcionSimplificada] = useState(DETALLE_SIMPLIFICADO_DESCRIPCION_DEFAULT);
+  const [incluirObservaciones, setIncluirObservaciones] = useState(false);
+  const [observaciones, setObservaciones] = useState("");
+  const [incluirPatente, setIncluirPatente] = useState(false);
+  const [mostrarPreciosLineas, setMostrarPreciosLineas] = useState(true);
+  // Plegar las opciones deja más alto al visor; la elección se conserva al volver a revisar.
+  const [opcionesAbiertas, setOpcionesAbiertas] = useState(true);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [receptorCarga, setReceptorCarga] = useState<{ status: "loading" | "ready" | "error"; error?: string }>({ status: "loading" });
@@ -178,6 +190,11 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
         setFceSistema(data.preflight.fceSistemaConfigurado ?? "");
         setDetalleSimplificado(false);
         setDescripcionSimplificada(DETALLE_SIMPLIFICADO_DESCRIPCION_DEFAULT);
+        setIncluirObservaciones(false);
+        // Las observaciones del origen sólo precargan el texto: se imprimen si se eligen.
+        setObservaciones(data.preflight.observacionesOrigen ?? "");
+        setIncluirPatente(false);
+        setMostrarPreciosLineas(true);
         setFechas(data.preflight.fechasDefault);
       })
       .catch((cause) => {
@@ -250,6 +267,9 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       condicionVenta,
       detalleSimplificado: simplificado,
       ...(simplificado ? { descripcionDetalleSimplificado: descripcionSimplificada } : {}),
+      ...(incluirObservaciones ? { incluirObservaciones: true as const, observaciones } : {}),
+      ...(esArreglo && incluirPatente ? { incluirPatente: true as const } : {}),
+      ...(!mostrarPreciosLineas ? { ocultarPreciosLineas: true as const } : {}),
       receptor: {
         modo: receptor.draft.modo,
         nombre: receptor.draft.nombre,
@@ -266,7 +286,10 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       },
       fceSistema: fceSistema || null,
     };
-  }, [condicionReceptor, condicionVenta, descripcionSimplificada, detalleSimplificado, esArreglo, fceSistema, fechas, receptor.draft]);
+  }, [
+    condicionReceptor, condicionVenta, descripcionSimplificada, detalleSimplificado, esArreglo, fceSistema, fechas,
+    incluirObservaciones, incluirPatente, mostrarPreciosLineas, observaciones, receptor.draft,
+  ]);
   const draftKey = JSON.stringify(draftBody);
 
   // Los mensajes del servidor describen el formulario que se revisó; al editarlo dejan de aplicar.
@@ -394,7 +417,15 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   const descripcionIssue = esArreglo && detalleSimplificado
     ? descripcionSimplificadaIssues(descripcionSimplificada)[0] ?? null
     : null;
-  const actualizandoRevision = revisando || (!revisionVigente && !descripcionIssue && !error);
+  const observacionesIssue = incluirObservaciones
+    ? observacionesFacturaIssues(observaciones)[0] ?? null
+    : null;
+  // Un texto de las opciones de la vista previa inválido frena la actualización y la emisión.
+  const opcionesIssue = descripcionIssue ?? observacionesIssue;
+  const opcionesActivas = [
+    esArreglo && detalleSimplificado, !mostrarPreciosLineas, incluirObservaciones, esArreglo && incluirPatente,
+  ].filter(Boolean).length;
+  const actualizandoRevision = revisando || (!revisionVigente && !opcionesIssue && !error);
 
   // Una respuesta del detalle anterior no debe reemplazar lo elegido durante el debounce.
   const invalidatePendingRevision = () => {
@@ -403,14 +434,14 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
     setError(null);
   };
 
-  // Cambiar el detalle simplificado o su texto vuelve a revisar y redibuja la vista previa.
+  // Cambiar una opción de la vista previa o su texto vuelve a revisar y redibuja la vista previa.
   useEffect(() => {
-    if (!open || paso !== "REVISION" || !revision || revisionVigente || descripcionIssue || emitiendoRef.current) return;
+    if (!open || paso !== "REVISION" || !revision || revisionVigente || opcionesIssue || emitiendoRef.current) return;
     const timer = window.setTimeout(() => {
       void requestRevision(draftBody, { mantenerRevision: true });
     }, PREVIEW_REFRESH_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [descripcionIssue, draftBody, open, paso, requestRevision, revision, revisionVigente]);
+  }, [opcionesIssue, draftBody, open, paso, requestRevision, revision, revisionVigente]);
 
   const startReview = () => {
     if (!preflight || revisando || emitiendo || (clientePendiente && !needsConfiguration)) return;
@@ -431,6 +462,13 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
       setDescripcionSimplificada(DETALLE_SIMPLIFICADO_DESCRIPCION_DEFAULT);
       request = { ...request, descripcionDetalleSimplificado: DETALLE_SIMPLIFICADO_DESCRIPCION_DEFAULT };
     }
+    if (request.incluirObservaciones && !observaciones.trim()) {
+      // Observaciones vacías dejadas al volver a editar: la opción se apaga en lugar de bloquear la revisión.
+      setIncluirObservaciones(false);
+      request = { ...request };
+      delete request.incluirObservaciones;
+      delete request.observaciones;
+    }
     void requestRevision(request);
   };
 
@@ -448,7 +486,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
   };
 
   const confirmar = async () => {
-    if (!revision || !revisionVigente || descripcionIssue || emitiendoRef.current || revisando) return;
+    if (!revision || !revisionVigente || opcionesIssue || emitiendoRef.current || revisando) return;
     emitiendoRef.current = true;
     setEmitiendo(true);
     setError(null);
@@ -715,48 +753,163 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
             revision={revision.data}
             html={revision.html}
             actualizando={actualizandoRevision}
-            toolbar={esArreglo ? (
+            toolbar={(
               <div style={styles.toolbar} data-testid="factura-revision-opciones">
-                <label style={styles.toggleItem}>
-                  <span style={styles.toggleIconPill}>
-                    <FileText size={15} color={detalleSimplificado ? COLOR.ACCENT.PRIMARY : COLOR.TEXT.SECONDARY} />
+                <div style={styles.toolbarHeader}>
+                  <span style={styles.toolbarTitle}>
+                    Opciones del comprobante
+                    {!opcionesAbiertas && opcionesIssue ? (
+                      <span style={styles.toolbarSummaryError}> · {opcionesIssue.mensaje}</span>
+                    ) : !opcionesAbiertas && opcionesActivas ? (
+                      <span style={styles.toggleDetail}> · {opcionesActivas} {opcionesActivas === 1 ? "activa" : "activas"}</span>
+                    ) : null}
                   </span>
-                  <span style={styles.toggleLabel}>Simplificar el detalle de la factura</span>
-                  <Toggle
-                    checked={detalleSimplificado}
-                    onChange={(checked) => { invalidatePendingRevision(); setDetalleSimplificado(checked); }}
-                    label="Simplificar el detalle de la factura"
-                    disabled={emitiendo}
-                    data-testid="factura-detalle-simplificado"
-                  />
-                </label>
-                {detalleSimplificado ? (
-                  <div style={styles.toolbarField}>
-                    <label htmlFor={FACTURA_CAMPO_INPUT_ID["detalle.descripcion"]} style={styles.fieldLabel}>
-                      Descripción que aparecerá en la factura
-                    </label>
-                    <IconInput
-                      id={FACTURA_CAMPO_INPUT_ID["detalle.descripcion"]}
-                      icon={null}
-                      value={descripcionSimplificada}
-                      maxLength={DETALLE_SIMPLIFICADO_DESCRIPCION_MAX}
-                      disabled={emitiendo}
-                      wrapperStyle={styles.inputWrapper}
-                      data-testid="factura-detalle-descripcion"
-                      invalid={Boolean(descripcionIssue)}
-                      aria-invalid={descripcionIssue ? true : undefined}
-                      aria-describedby="factura-detalle-descripcion-ayuda"
-                      onChange={(event) => { invalidatePendingRevision(); setDescripcionSimplificada(event.target.value); }}
+                  <button
+                    type="button"
+                    style={styles.collapseButton}
+                    onClick={() => setOpcionesAbiertas((abiertas) => !abiertas)}
+                    aria-expanded={opcionesAbiertas}
+                    aria-controls="factura-revision-opciones-contenido"
+                    aria-label={opcionesAbiertas ? "Contraer opciones del comprobante" : "Expandir opciones del comprobante"}
+                    title={opcionesAbiertas ? "Contraer opciones" : "Expandir opciones"}
+                    data-testid="factura-revision-opciones-plegar"
+                  >
+                    <ChevronDown
+                      size={16}
+                      aria-hidden="true"
+                      style={{ transform: opcionesAbiertas ? "rotate(180deg)" : undefined, transition: "transform 0.15s ease" }}
                     />
-                    <span id="factura-detalle-descripcion-ayuda" style={descripcionIssue ? styles.fieldError : styles.hint}>
-                      {descripcionIssue
-                        ? descripcionIssue.mensaje
-                        : `${descripcionSimplificada.length}/${DETALLE_SIMPLIFICADO_DESCRIPCION_MAX} · Los importes, el IVA y el stock se calculan con el detalle original.`}
-                    </span>
+                  </button>
+                </div>
+                <div
+                  id="factura-revision-opciones-contenido"
+                  style={{
+                    ...styles.toolbarCollapse,
+                    gridTemplateRows: opcionesAbiertas ? "1fr" : "0fr",
+                    visibility: opcionesAbiertas ? "visible" : "hidden",
+                  }}
+                  data-testid="factura-revision-opciones-contenido"
+                >
+                  <div style={styles.toolbarCollapseInner}>
+                    <div style={styles.toolbarContent}>
+                      <div style={styles.toggleRow}>
+                        {esArreglo ? (
+                          <label style={styles.toggleItem}>
+                            <span style={styles.toggleIconPill}>
+                              <FileText size={15} color={detalleSimplificado ? COLOR.ACCENT.PRIMARY : COLOR.TEXT.SECONDARY} />
+                            </span>
+                            <span style={styles.toggleLabel}>Simplificar el detalle de la factura</span>
+                            <Toggle
+                              checked={detalleSimplificado}
+                              onChange={(checked) => { invalidatePendingRevision(); setDetalleSimplificado(checked); }}
+                              label="Simplificar el detalle de la factura"
+                              disabled={emitiendo}
+                              data-testid="factura-detalle-simplificado"
+                            />
+                          </label>
+                        ) : null}
+                        <label style={styles.toggleItem}>
+                          <span style={styles.toggleIconPill}>
+                            <Tags size={15} color={mostrarPreciosLineas ? COLOR.ACCENT.PRIMARY : COLOR.TEXT.SECONDARY} />
+                          </span>
+                          <span style={styles.toggleLabel}>
+                            Mostrar precios por línea
+                            {!mostrarPreciosLineas ? <span style={styles.toggleDetail}> · Sólo totales</span> : null}
+                          </span>
+                          <Toggle
+                            checked={mostrarPreciosLineas}
+                            onChange={(checked) => { invalidatePendingRevision(); setMostrarPreciosLineas(checked); }}
+                            label="Mostrar precios por línea"
+                            disabled={emitiendo}
+                            data-testid="factura-mostrar-precios-lineas"
+                          />
+                        </label>
+                        <label style={styles.toggleItem}>
+                          <span style={styles.toggleIconPill}>
+                            <MessageSquareText size={15} color={incluirObservaciones ? COLOR.ACCENT.PRIMARY : COLOR.TEXT.SECONDARY} />
+                          </span>
+                          <span style={styles.toggleLabel}>Agregar observaciones</span>
+                          <Toggle
+                            checked={incluirObservaciones}
+                            onChange={(checked) => { invalidatePendingRevision(); setIncluirObservaciones(checked); }}
+                            label="Agregar observaciones"
+                            disabled={emitiendo}
+                            data-testid="factura-incluir-observaciones"
+                          />
+                        </label>
+                        {esArreglo ? (
+                          <label style={{ ...styles.toggleItem, ...(preflight.patente ? {} : styles.toggleItemDisabled) }}>
+                            <span style={styles.toggleIconPill}>
+                              <Car size={15} color={incluirPatente ? COLOR.ACCENT.PRIMARY : COLOR.TEXT.SECONDARY} />
+                            </span>
+                            <span style={styles.toggleLabel}>
+                              Agregar patente
+                              <span style={styles.toggleDetail}>{preflight.patente ? ` · ${preflight.patente}` : " · El vehículo no tiene patente"}</span>
+                            </span>
+                            <Toggle
+                              checked={incluirPatente}
+                              onChange={(checked) => { invalidatePendingRevision(); setIncluirPatente(checked); }}
+                              label="Agregar patente"
+                              disabled={emitiendo || !preflight.patente}
+                              data-testid="factura-incluir-patente"
+                            />
+                          </label>
+                        ) : null}
+                      </div>
+                      {esArreglo && detalleSimplificado ? (
+                        <div style={styles.toolbarField}>
+                          <label htmlFor={FACTURA_CAMPO_INPUT_ID["detalle.descripcion"]} style={styles.fieldLabel}>
+                            Descripción que aparecerá en la factura
+                          </label>
+                          <IconInput
+                            id={FACTURA_CAMPO_INPUT_ID["detalle.descripcion"]}
+                            icon={null}
+                            value={descripcionSimplificada}
+                            maxLength={DETALLE_SIMPLIFICADO_DESCRIPCION_MAX}
+                            disabled={emitiendo}
+                            wrapperStyle={styles.inputWrapper}
+                            data-testid="factura-detalle-descripcion"
+                            invalid={Boolean(descripcionIssue)}
+                            aria-invalid={descripcionIssue ? true : undefined}
+                            aria-describedby="factura-detalle-descripcion-ayuda"
+                            onChange={(event) => { invalidatePendingRevision(); setDescripcionSimplificada(event.target.value); }}
+                          />
+                          <span id="factura-detalle-descripcion-ayuda" style={descripcionIssue ? styles.fieldError : styles.hint}>
+                            {descripcionIssue
+                              ? descripcionIssue.mensaje
+                              : `${descripcionSimplificada.length}/${DETALLE_SIMPLIFICADO_DESCRIPCION_MAX} · Los importes, el IVA y el stock se calculan con el detalle original.`}
+                          </span>
+                        </div>
+                      ) : null}
+                      {incluirObservaciones ? (
+                        <div style={styles.toolbarField}>
+                          <label htmlFor={FACTURA_CAMPO_INPUT_ID["presentacion.observaciones"]} style={styles.fieldLabel}>
+                            Observaciones que aparecerán en la factura
+                          </label>
+                          <textarea
+                            id={FACTURA_CAMPO_INPUT_ID["presentacion.observaciones"]}
+                            value={observaciones}
+                            maxLength={OBSERVACIONES_FACTURA_MAX}
+                            rows={2}
+                            disabled={emitiendo}
+                            style={{ ...styles.textarea, ...(observacionesIssue ? styles.textareaInvalid : {}) }}
+                            data-testid="factura-observaciones"
+                            aria-invalid={observacionesIssue ? true : undefined}
+                            aria-describedby="factura-observaciones-ayuda"
+                            onChange={(event) => { invalidatePendingRevision(); setObservaciones(event.target.value); }}
+                          />
+                          <span id="factura-observaciones-ayuda" style={observacionesIssue ? styles.fieldError : styles.hint}>
+                            {observacionesIssue
+                              ? observacionesIssue.mensaje
+                              : `${observaciones.length}/${OBSERVACIONES_FACTURA_MAX} · Se imprimen debajo del detalle; no modifican importes.`}
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-                ) : null}
+                </div>
               </div>
-            ) : null}
+            )}
           />
           <div style={styles.immutability}>
             <CircleAlert size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
@@ -766,7 +919,7 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
             <div style={styles.errorBox} role="alert" data-testid="modal-error">
               <strong>{emisionPendiente ? "Emisión pendiente de reconciliación" : "Revisá antes de emitir"}</strong>
               <span>{error}</span>
-              {!revisionVigente && !revisando && !descripcionIssue ? (
+              {!revisionVigente && !revisando && !opcionesIssue ? (
                 <button
                   type="button"
                   style={styles.retryButton}
@@ -786,10 +939,12 @@ export default function FacturaElectronicaModal({ open, arregloId, operacionId, 
                 ? "Emitiendo…"
                 : descripcionIssue
                   ? "Completá la descripción"
-                  : actualizandoRevision ? "Actualizando vista previa…" : !revisionVigente ? "Actualizá la vista previa" : "Confirmar y emitir"}
+                  : observacionesIssue
+                    ? "Revisá las observaciones"
+                    : actualizandoRevision ? "Actualizando vista previa…" : !revisionVigente ? "Actualizá la vista previa" : "Confirmar y emitir"}
               hideTextOnMobile={false}
               onClick={() => { void confirmar(); }}
-              disabled={emitiendo || revisando || !revisionVigente || Boolean(descripcionIssue) || emisionPendiente}
+              disabled={emitiendo || revisando || !revisionVigente || Boolean(opcionesIssue) || emisionPendiente}
               dataTestId="factura-confirmar-emitir"
             />
           </div>
@@ -896,13 +1051,55 @@ const styles = {
   toolbar: {
     display: "flex",
     flexDirection: "column" as const,
-    gap: 10,
     padding: "10px 14px",
     background: COLOR.BACKGROUND.SUBTLE,
     borderRadius: 8,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
   },
+  toolbarHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minWidth: 0 },
+  toolbarTitle: { fontSize: 13, fontWeight: 600, color: COLOR.TEXT.PRIMARY, minWidth: 0 },
+  toolbarSummaryError: { fontWeight: 500, color: COLOR.SEMANTIC.DANGER },
+  // Plegado animado: la fila de la grilla va de 0fr a 1fr, así no hace falta medir el alto del contenido.
+  // `visibility` cambia al final al plegar (y al inicio al desplegar), y saca los controles ocultos del foco.
+  toolbarCollapse: {
+    display: "grid",
+    transition: "grid-template-rows 0.2s ease, visibility 0.2s",
+  },
+  // El margen negativo deja lugar al anillo de foco de los controles que tocan el borde.
+  toolbarCollapseInner: { overflow: "hidden", minHeight: 0, margin: "0 -4px" },
+  toolbarContent: { display: "flex", flexDirection: "column" as const, gap: 10, padding: "10px 4px 0" },
+  collapseButton: {
+    display: "grid",
+    placeItems: "center",
+    flexShrink: 0,
+    width: 28,
+    height: 28,
+    padding: 0,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 6,
+    background: COLOR.BACKGROUND.PRIMARY,
+    color: COLOR.TEXT.SECONDARY,
+    cursor: "pointer",
+  },
+  toggleRow: { display: "flex", flexWrap: "wrap" as const, alignItems: "center", columnGap: 20, rowGap: 8 },
   toggleItem: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" as const, alignSelf: "flex-start" },
+  toggleItemDisabled: { cursor: "not-allowed" },
+  toggleDetail: { fontWeight: 500, color: COLOR.TEXT.SECONDARY },
+  textarea: {
+    width: "100%",
+    minHeight: 56,
+    padding: "10px 12px",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.INPUT.PRIMARY.BACKGROUND,
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 14,
+    outline: "none",
+    resize: "vertical" as const,
+    boxSizing: "border-box" as const,
+    fontFamily: "inherit",
+  },
+  textareaInvalid: { borderColor: COLOR.SEMANTIC.DANGER },
   toggleIconPill: {
     width: 26,
     height: 26,

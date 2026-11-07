@@ -48,7 +48,19 @@ export const RECEPTOR_NOMBRE_MAX = 200;
 export const RECEPTOR_DOMICILIO_MAX = 300;
 export const DETALLE_SIMPLIFICADO_DESCRIPCION_DEFAULT = "Servicio de reparación y mantenimiento automotor";
 export const DETALLE_SIMPLIFICADO_DESCRIPCION_MAX = 200;
+export const OBSERVACIONES_FACTURA_MAX = 500;
 export const NOMBRE_CONSUMIDOR_FINAL = "Consumidor final";
+
+/**
+ * Datos opcionales que sólo se imprimen en el comprobante: no alteran importes,
+ * IVA ni el pedido a ARCA. Ausentes, el comprobante se ve como siempre.
+ */
+export type FacturaPresentacion = {
+  observaciones?: string;
+  patente?: string;
+  /** El detalle lista los conceptos sin precio unitario ni subtotal; los importes quedan en los totales. */
+  ocultarPreciosLineas?: true;
+};
 
 export type FacturaIssueGrupo = "RECEPTOR" | "COMPROBANTE" | "DETALLE" | "CONFIGURACION" | "EMISION";
 
@@ -104,6 +116,7 @@ export type FacturaRevision = {
   fechas: FacturaFechaInput;
   moneda: "PES";
   detalleSimplificado: boolean;
+  presentacion: FacturaPresentacion;
   lineas: FacturaRevisionLinea[];
   cantidadLineasOriginales: number;
   preciosIncluyenIva: boolean;
@@ -180,6 +193,8 @@ export type FacturaElectronicaDetalle = FacturaElectronicaResumen & {
   moneda: "PES";
   totales: FacturaTotales;
   lineas: FacturaLinea[];
+  /** Ausente o vacío en documentos emitidos antes de las opciones de presentación. */
+  presentacion?: FacturaPresentacion;
   documentoAsociado: FacturaElectronicaResumen | null;
   documentosAjuste: FacturaElectronicaResumen[];
   intentos: Array<{
@@ -287,6 +302,10 @@ export type FacturacionPreflight = {
   total: number;
   precioFinal: number;
   fechasDefault: FacturaFechaInput;
+  /** Patente del vehículo del arreglo; `null` en ventas o si no se pudo resolver. */
+  patente?: string | null;
+  /** Observaciones cargadas en el origen; precargan el texto opcional de la factura. */
+  observacionesOrigen?: string | null;
   fcePosible: boolean;
   fceObligatoria: boolean;
   fceSistemaConfigurado: FceSistemaCirculacion | null;

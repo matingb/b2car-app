@@ -1,6 +1,7 @@
 import { normalizeDocumentNumber } from "./arcaPayload";
 import {
   DETALLE_SIMPLIFICADO_DESCRIPCION_MAX,
+  OBSERVACIONES_FACTURA_MAX,
   RECEPTOR_DOMICILIO_MAX,
   RECEPTOR_NOMBRE_MAX,
   type FacturaIssue,
@@ -66,6 +67,24 @@ export function descripcionSimplificadaIssues(descripcion: string): FacturaIssue
     return [{
       codigo: "DETALLE_DESCRIPCION_EXTENSA", grupo: "DETALLE", campo: "detalle.descripcion",
       mensaje: `La descripción no puede superar los ${DETALLE_SIMPLIFICADO_DESCRIPCION_MAX} caracteres.`, severidad: "error",
+    }];
+  }
+  return [];
+}
+
+/** Observaciones opcionales que se imprimen en la factura; sólo se validan si se eligió agregarlas. */
+export function observacionesFacturaIssues(observaciones: string): FacturaIssue[] {
+  const value = observaciones.trim();
+  if (!value) {
+    return [{
+      codigo: "OBSERVACIONES_REQUERIDAS", grupo: "DETALLE", campo: "presentacion.observaciones",
+      mensaje: "Ingresá las observaciones que aparecerán en la factura.", severidad: "error",
+    }];
+  }
+  if (value.length > OBSERVACIONES_FACTURA_MAX) {
+    return [{
+      codigo: "OBSERVACIONES_EXTENSAS", grupo: "DETALLE", campo: "presentacion.observaciones",
+      mensaje: `Las observaciones no pueden superar los ${OBSERVACIONES_FACTURA_MAX} caracteres.`, severidad: "error",
     }];
   }
   return [];

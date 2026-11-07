@@ -391,6 +391,8 @@ describe("vista HTML del comprobante", () => {
     ["pie en una hoja propia", { ...draft, concepto: 1, lineas: lineas(15).map((line) => ({ ...line, descripcion: "Servicio" })) }],
     ["receptor con nombre y domicilio largos", { ...draft, receptorSnapshot: { nombre: "Razón Social Muy Larga ".repeat(6), domicilio: "Avenida Siempre Viva 742, Piso 3 ".repeat(4), tipoDocumento: 99, numeroDocumento: "0", condicionIvaReceptorId: 5 } }],
     ["comprobante autorizado con QR", {}],
+    ["sin precios por línea", { ...draft, presentacion: { ocultarPreciosLineas: true }, lineas: lineas(3) }],
+    ["con patente y observaciones", { ...draft, presentacion: { patente: "AB123CD", observaciones: "Garantía de 3 meses.\nRetirar antes del viernes." } }],
   ];
 
   it.each(casos)("dibuja lo mismo que el PDF, hoja por hoja: %s", async (_name, overrides) => {
@@ -448,6 +450,47 @@ describe("vista HTML del comprobante", () => {
     expect(html).not.toContain("<img");
     expect(html).not.toContain("<script");
     expect(htmlTexts(html).some((value) => value.includes(`<img src=x onerror="alert(1)">`))).toBe(true);
+  });
+
+  it("imprime la patente en el receptor y las observaciones debajo del detalle", async () => {
+    const sinOpciones = htmlTexts(await generateFiscalInvoiceHtml(invoice(draft)));
+    expect(sinOpciones).not.toContain("Patente:");
+    expect(sinOpciones.some((value) => value.startsWith("Observaciones:"))).toBe(false);
+
+    const texts = htmlTexts(await generateFiscalInvoiceHtml(invoice({
+      ...draft,
+      presentacion: { patente: "AB123CD", observaciones: "Garantía de 3 meses.\nRetirar antes del viernes." },
+    })));
+    expect(texts).toContain("Patente:");
+    expect(texts).toContain("AB123CD");
+    // Las observaciones van después de las líneas y conservan los saltos de línea.
+    const observaciones = texts.indexOf("Observaciones: Garantía de 3 meses.");
+    expect(observaciones).toBeGreaterThan(texts.indexOf("Mantenimiento de ópticas y luces"));
+    expect(texts[observaciones + 1]).toBe("Retirar antes del viernes.");
+  });
+
+  it("sin precios por línea lista los conceptos y deja los importes sólo en los totales", async () => {
+    const conPrecios = htmlTexts(await generateFiscalInvoiceHtml(invoice(draft)));
+    expect(conPrecios).toContain("PRECIO UNIT.");
+    expect(conPrecios).toContain("SUBTOTAL");
+    const total = conPrecios[conPrecios.indexOf("Importe Total:") + 1];
+    // Con precios: unitario y subtotal de la línea, más subtotal e importe total del pie.
+    expect(conPrecios.filter((value) => value === total)).toHaveLength(4);
+
+    const texts = htmlTexts(await generateFiscalInvoiceHtml(invoice({ ...draft, presentacion: { ocultarPreciosLineas: true } })));
+    expect(texts).not.toContain("PRECIO UNIT.");
+    expect(texts).not.toContain("SUBTOTAL");
+    expect(texts).toContain("CANTIDAD");
+    expect(texts).toContain("Mantenimiento de ópticas y luces");
+    // El importe aparece únicamente en los totales del pie (subtotal e importe total).
+    expect(texts.filter((value) => value === total)).toHaveLength(2);
+    expect(texts).toContain("Importe Total:");
+  });
+
+  it("reemplaza en las observaciones los caracteres que la fuente del PDF no codifica", async () => {
+    const input = invoice({ ...draft, presentacion: { observaciones: "Listo 🚗 para retirar" } });
+    await expect(generateFiscalInvoicePdf(input)).resolves.toBeInstanceOf(Uint8Array);
+    expect(htmlTexts(await generateFiscalInvoiceHtml(input))).toContain("Observaciones: Listo ? para retirar");
   });
 
   it("no genera ni serializa un PDF", async () => {

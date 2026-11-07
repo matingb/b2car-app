@@ -3,7 +3,7 @@ import "server-only";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import QRCode from "qrcode";
 import { buildHtmlDocument, createHtmlPage, type HtmlPage } from "@/lib/pdf/htmlPage";
-import { drawCentered, drawRight, formatDate, text, wrapText } from "@/lib/pdf/pdfText";
+import { drawCentered, drawRight, formatDate, sanitizeForFont, text, wrapText } from "@/lib/pdf/pdfText";
 import { formatArs, formatNumberAr } from "../format";
 import { FacturacionValidationError } from "./arcaPayload";
 import { precioUnitarioMostrado } from "./lineaImporte";
@@ -16,6 +16,7 @@ import {
   TIPOS_DOCUMENTO_FISCAL,
   type DocumentoFiscalClase,
   type FacturaClase,
+  type FacturaPresentacion,
   type FacturaTotales,
   type TratamientoIva,
 } from "./types";
@@ -39,6 +40,8 @@ const FCE_LEGEND_FONT_SIZE = 7;
 const FCE_LEGEND_LINE_HEIGHT = 9;
 const FCE_LEGEND_BOTTOM_GAP = 10;
 const ASSOCIATED_LABEL = "Comprobante asociado:";
+const PATENTE_LABEL = "Patente:";
+const OBSERVACIONES_LABEL = "Observaciones:";
 const TRANSPARENCY_TITLE = "Régimen de Transparencia Fiscal al Consumidor (Ley 27.743)";
 
 type FiscalRecord = Record<string, unknown>;
@@ -83,6 +86,8 @@ export type FiscalPdfInvoice = {
   remitosAsociados?: { clase: "R" | "X"; puntoEmision: number; numero: number }[];
   /** Factura a la que refiere una nota de crédito o débito (CbtesAsoc). */
   comprobanteAsociado?: { tipoComprobante: number; clase: FacturaClase; puntoVenta: number; numero: number; fecha: string } | null;
+  /** Datos opcionales elegidos al emitir (observaciones, patente); sólo se imprimen. */
+  presentacion?: FacturaPresentacion | null;
 };
 
 export type ArcaQrPayload = {
@@ -266,6 +271,8 @@ type FirstHeaderLayout = {
   receiverIvaExtraHeight: number;
   associatedLines: string[];
   associatedValueX: number;
+  patenteLines: string[];
+  patenteValueX: number;
 };
 
 function associatedReference(invoice: FiscalPdfInvoice): string | null {
@@ -301,15 +308,22 @@ function getFirstHeaderLayout(invoice: FiscalPdfInvoice, fonts: Fonts): FirstHea
   const associatedValueX = 50 + fonts.bold.widthOfTextAtSize(ASSOCIATED_LABEL, 8) + 8;
   const associatedLines = reference ? wrapText(reference, fonts.regular, 8, rightEdge - associatedValueX) : [];
   const associatedExtraHeight = associatedLines.length ? 8 + associatedLines.length * 10 : 0;
+  const patente = sanitizeForFont(text(invoice.presentacion?.patente), fonts.regular);
+  const patenteValueX = 50 + fonts.bold.widthOfTextAtSize(PATENTE_LABEL, 8) + 8;
+  const patenteLines = patente ? wrapText(patente, fonts.regular, 8, rightEdge - patenteValueX) : [];
+  const patenteExtraHeight = patenteLines.length ? 8 + patenteLines.length * 10 : 0;
   return {
     receiverNameLines,
     receiverNameExtraHeight,
     receiverAddressLines,
-    receiverExtraHeight: receiverNameExtraHeight + receiverAddressExtraHeight + receiverIvaExtraHeight + associatedExtraHeight,
+    receiverExtraHeight: receiverNameExtraHeight + receiverAddressExtraHeight + receiverIvaExtraHeight
+      + associatedExtraHeight + patenteExtraHeight,
     receiverIvaLines,
     receiverIvaExtraHeight,
     associatedLines,
     associatedValueX,
+    patenteLines,
+    patenteValueX,
   };
 }
 
@@ -414,11 +428,18 @@ function drawFirstHeader(
       size: 8,
     });
   });
+  let extraY = receiverDetailsY - layout.receiverAddressLines.length * 10 - 8;
   if (layout.associatedLines.length) {
-    const associatedY = receiverDetailsY - layout.receiverAddressLines.length * 10 - 8;
-    page.drawText(ASSOCIATED_LABEL, { x: 50, y: associatedY, font: fonts.bold, size: 8 });
+    page.drawText(ASSOCIATED_LABEL, { x: 50, y: extraY, font: fonts.bold, size: 8 });
     layout.associatedLines.forEach((line, index) => {
-      page.drawText(line, { x: layout.associatedValueX, y: associatedY - index * 10, font: fonts.regular, size: 8 });
+      page.drawText(line, { x: layout.associatedValueX, y: extraY - index * 10, font: fonts.regular, size: 8 });
+    });
+    extraY -= layout.associatedLines.length * 10 + 8;
+  }
+  if (layout.patenteLines.length) {
+    page.drawText(PATENTE_LABEL, { x: 50, y: extraY, font: fonts.bold, size: 8 });
+    layout.patenteLines.forEach((line, index) => {
+      page.drawText(line, { x: layout.patenteValueX, y: extraY - index * 10, font: fonts.regular, size: 8 });
     });
   }
 }
@@ -437,27 +458,33 @@ function drawContinuationHeader(page: Surface, invoice: FiscalPdfInvoice, fonts:
   page.drawLine({ start: { x: MARGIN, y: 775 }, end: { x: PAGE_WIDTH - MARGIN, y: 775 }, thickness: 0.8 });
 }
 
-function drawTableHeader(page: Surface, y: number, fonts: Fonts) {
+/** Sin precios por línea el detalle sólo lista los conceptos; los importes quedan en los totales del pie. */
+function showLinePrices(invoice: FiscalPdfInvoice): boolean {
+  return invoice.presentacion?.ocultarPreciosLineas !== true;
+}
+
+function drawTableHeader(page: Surface, y: number, fonts: Fonts, showPrices: boolean) {
   page.drawRectangle({ x: MARGIN, y: y - 21, width: CONTENT_WIDTH, height: 21, color: rgb(0.18, 0.18, 0.18) });
-  const headers = [
+  const headers: [string, number][] = [
     ["CÓDIGO", 46],
     ["PRODUCTO / SERVICIO", 109],
     ["CANTIDAD", 357],
-    ["PRECIO UNIT.", 421],
-    ["SUBTOTAL", 505],
-  ] as const;
+    ...(showPrices ? [["PRECIO UNIT.", 421], ["SUBTOTAL", 505]] as [string, number][] : []),
+  ];
   for (const [label, x] of headers) page.drawText(label, { x, y: y - 14, font: fonts.bold, size: 7.5, color: rgb(1, 1, 1) });
 }
 
-function drawRows(page: Surface, rows: PrintableRow[], startY: number, fonts: Fonts): number {
+function drawRows(page: Surface, rows: PrintableRow[], startY: number, fonts: Fonts, showPrices: boolean): number {
   let y = startY - 21;
   for (const row of rows) {
     const textY = y - ROW_TEXT_OFFSET;
     if (!row.continuation) {
       page.drawText(row.codigo || "-", { x: 46, y: textY, font: fonts.regular, size: 8 });
       drawCentered(page, formatNumber(row.cantidad), 383, textY, fonts.regular, 8);
-      drawRight(page, formatArs(row.importeUnitario, { minDecimals: 2, maxDecimals: row.unitarioMaxDecimales ?? 2 }), 482, textY, fonts.regular, 8);
-      drawRight(page, formatAmount(row.subtotal), 550, textY, fonts.regular, 8);
+      if (showPrices) {
+        drawRight(page, formatArs(row.importeUnitario, { minDecimals: 2, maxDecimals: row.unitarioMaxDecimales ?? 2 }), 482, textY, fonts.regular, 8);
+        drawRight(page, formatAmount(row.subtotal), 550, textY, fonts.regular, 8);
+      }
     }
     row.descriptionLines.forEach((line, index) => {
       page.drawText(line || " ", { x: row.fullWidth ? 46 : 109, y: textY - index * 10, font: fonts.regular, size: 8 });
@@ -507,6 +534,23 @@ function ivaTotalLabel(invoice: FiscalPdfInvoice): string {
   return `Importe IVA ${label}:`;
 }
 
+/** Filas de ancho completo con texto libre, partidas como cualquier fila larga para paginar. */
+function fullWidthRows(lines: string[]): PrintableRow[] {
+  const rows: PrintableRow[] = [];
+  for (let offset = 0; offset < lines.length; offset += 28) {
+    const descriptionLines = lines.slice(offset, offset + 28);
+    rows.push({ codigo: null, descripcion: "", cantidad: 0, importeUnitario: 0, subtotal: 0, continuation: true, fullWidth: true, descriptionLines, height: rowHeight(descriptionLines.length) });
+  }
+  return rows;
+}
+
+/** Observaciones elegidas al emitir: texto libre, saneado para la fuente estándar del PDF. */
+function observacionesRows(invoice: FiscalPdfInvoice, font: PDFFont): PrintableRow[] {
+  const observaciones = sanitizeForFont(text(invoice.presentacion?.observaciones), font);
+  if (!observaciones) return [];
+  return fullWidthRows(wrapText(`${OBSERVACIONES_LABEL} ${observaciones}`, font, 8, CONTENT_WIDTH - 16));
+}
+
 function remitoRows(invoice: FiscalPdfInvoice, font: PDFFont): PrintableRow[] {
   if (!invoice.remitosAsociados?.length) return [];
   const references = [...new Set(invoice.remitosAsociados.map(({ clase, puntoEmision, numero }) => {
@@ -515,13 +559,7 @@ function remitoRows(invoice: FiscalPdfInvoice, font: PDFFont): PrintableRow[] {
     }
     return `${clase} ${String(puntoEmision).padStart(5, "0")}-${String(numero).padStart(8, "0")}`;
   }))];
-  const lines = wrapText(`Remitos asociados: ${references.join("; ")}`, font, 8, CONTENT_WIDTH - 16);
-  const rows: PrintableRow[] = [];
-  for (let offset = 0; offset < lines.length; offset += 28) {
-    const descriptionLines = lines.slice(offset, offset + 28);
-    rows.push({ codigo: null, descripcion: "", cantidad: 0, importeUnitario: 0, subtotal: 0, continuation: true, fullWidth: true, descriptionLines, height: rowHeight(descriptionLines.length) });
-  }
-  return rows;
+  return fullWidthRows(wrapText(`Remitos asociados: ${references.join("; ")}`, font, 8, CONTENT_WIDTH - 16));
 }
 
 /**
@@ -668,7 +706,11 @@ async function composeFiscalInvoice(invoice: FiscalPdfInvoice, fonts: Fonts, ope
   const headerLayout = getFirstHeaderLayout(invoice, fonts);
   const firstTableY = firstTableStart(invoice, headerLayout.receiverExtraHeight);
   const footerLayout = getFooterLayout(invoice, fonts);
-  const rows = [...printableRows(invoice.lineas, fonts.regular), ...remitoRows(invoice, fonts.regular)];
+  const rows = [
+    ...printableRows(invoice.lineas, fonts.regular),
+    ...observacionesRows(invoice, fonts.regular),
+    ...remitoRows(invoice, fonts.regular),
+  ];
   const pages = paginate(rows, firstTableY, footerLayout.top);
 
   for (let index = 0; index < pages.length; index += 1) {
@@ -682,8 +724,8 @@ async function composeFiscalInvoice(invoice: FiscalPdfInvoice, fonts: Fonts, ope
     const tableStart = printablePage.continuation ? CONTINUATION_TABLE_TOP : firstTableY;
     // Una hoja que sólo continúa el pie no repite el encabezado de la tabla.
     if (printablePage.rows.length || !printablePage.continuation) {
-      drawTableHeader(page, tableStart, fonts);
-      drawRows(page, printablePage.rows, tableStart, fonts);
+      drawTableHeader(page, tableStart, fonts, showLinePrices(invoice));
+      drawRows(page, printablePage.rows, tableStart, fonts, showLinePrices(invoice));
     }
     if (printablePage.footer === "bottom") await drawFooter(page, invoice, fonts, footerLayout);
     if (printablePage.footer === "top") await drawFooter(page, invoice, fonts, footerLayout, FOOTER_TOP_ON_OWN_PAGE - footerLayout.top);

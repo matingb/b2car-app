@@ -301,6 +301,70 @@ describe("emisión de una revisión confirmada", () => {
   });
 });
 
+describe("opciones de presentación de la factura", () => {
+  it("agrega la patente del vehículo y las observaciones sin cambiar importes y las persiste al emitir", async () => {
+    const { tables, invoices } = mockBillingDatabase();
+    tables.vehiculos[0].patente = "ab123cd";
+    const plain = await previewSourceFactura(actor, "ARREGLO", "source", draft());
+    const withOptions = draft({}, { incluirPatente: true, incluirObservaciones: true, observaciones: "  Garantía de 3 meses  " });
+    const { revision, issues } = await previewSourceFactura(actor, "ARREGLO", "source", withOptions);
+
+    expect(issues.filter((issue) => issue.severidad === "error")).toEqual([]);
+    expect(plain.revision!.presentacion).toEqual({});
+    expect(revision!.presentacion).toEqual({ patente: "AB123CD", observaciones: "Garantía de 3 meses" });
+    expect(revision!.totales).toEqual(plain.revision!.totales);
+    expect(revision!.lineas).toEqual(plain.revision!.lineas);
+    // La huella de revisión cubre lo que se imprime.
+    expect(revision!.revisionHash).not.toBe(plain.revision!.revisionHash);
+
+    await issueFacturaElectronica(actor, "source", issueInput(withOptions, revision!.revisionHash));
+    expect(invoices[0].presentacion_snapshot).toEqual({ patente: "AB123CD", observaciones: "Garantía de 3 meses" });
+  });
+
+  it("oculta los precios por línea sin cambiar líneas ni totales y lo persiste al emitir", async () => {
+    const { invoices } = mockBillingDatabase();
+    const plain = await previewSourceFactura(actor, "ARREGLO", "source", draft());
+    const sinPrecios = draft({}, { ocultarPreciosLineas: true });
+    const { revision } = await previewSourceFactura(actor, "ARREGLO", "source", sinPrecios);
+
+    expect(revision!.presentacion).toEqual({ ocultarPreciosLineas: true });
+    expect(revision!.lineas).toEqual(plain.revision!.lineas);
+    expect(revision!.totales).toEqual(plain.revision!.totales);
+    expect(revision!.revisionHash).not.toBe(plain.revision!.revisionHash);
+
+    await issueFacturaElectronica(actor, "source", issueInput(sinPrecios, revision!.revisionHash));
+    expect(invoices[0].presentacion_snapshot).toEqual({ ocultarPreciosLineas: true });
+  });
+
+  it("persiste un snapshot vacío cuando no se eligen opciones", async () => {
+    const { invoices } = mockBillingDatabase();
+    const { revision } = await previewSourceFactura(actor, "ARREGLO", "source", draft());
+    await issueFacturaElectronica(actor, "source", issueInput(draft(), revision!.revisionHash));
+    expect(invoices[0].presentacion_snapshot).toEqual({});
+  });
+
+  it("informa las opciones que no se pueden aplicar", async () => {
+    const { tables } = mockBillingDatabase();
+    const codes = async (tipo: "ARREGLO" | "VENTA", input: FacturaDraftInput) =>
+      (await previewSourceFactura(actor, tipo, "source", input)).issues.filter((issue) => issue.severidad === "error").map((issue) => issue.codigo);
+
+    expect(await codes("ARREGLO", draft({}, { incluirPatente: true }))).toContain("PATENTE_NO_DISPONIBLE");
+    tables.vehiculos[0].patente = "AB123CD";
+    expect(await codes("VENTA", draft({}, { incluirPatente: true }))).toContain("PATENTE_NO_DISPONIBLE");
+    expect(await codes("ARREGLO", draft({}, { incluirObservaciones: true, observaciones: " " }))).toContain("OBSERVACIONES_REQUERIDAS");
+    expect(await codes("ARREGLO", draft({}, { incluirObservaciones: true, observaciones: "x".repeat(501) }))).toContain("OBSERVACIONES_EXTENSAS");
+  });
+
+  it("precarga la patente y las observaciones del arreglo", async () => {
+    const { tables } = mockBillingDatabase();
+    tables.vehiculos[0].patente = "AB123CD";
+    tables.arreglos[0].observaciones = "Revisar frenos en el próximo service";
+    const { preflight } = await getFacturaPreflight(actor, "source", "HOMOLOGACION", undefined, { receptorDiferido: true });
+    expect(preflight.patente).toBe("AB123CD");
+    expect(preflight.observacionesOrigen).toBe("Revisar frenos en el próximo service");
+  });
+});
+
 describe("contrato del formulario de factura", () => {
   const legacy = {
     idempotencyKey: "123e4567-e89b-42d3-a456-426614174000", condicionVenta: "CONTADO", detalleSimplificado: false,
@@ -330,6 +394,14 @@ describe("contrato del formulario de factura", () => {
       .not.toBe(hash({ ...reviewed, detalleSimplificado: true }));
     // Con el detalle simplificado apagado, un texto oculto no forma parte de la intención.
     expect(hash({ ...reviewed, descripcionDetalleSimplificado: "Texto" })).toBe(hash(reviewed));
+    // Las opciones de presentación sólo cambian la intención cuando se eligen.
+    expect(hash({ ...reviewed, observaciones: "Texto" })).toBe(hash(reviewed));
+    expect(hash({ ...reviewed, incluirObservaciones: true, observaciones: "Texto" })).not.toBe(hash(reviewed));
+    expect(hash({ ...reviewed, incluirObservaciones: true, observaciones: "Otro" }))
+      .not.toBe(hash({ ...reviewed, incluirObservaciones: true, observaciones: "Texto" }));
+    expect(hash({ ...reviewed, incluirPatente: true })).not.toBe(hash(reviewed));
+    expect(hash({ ...reviewed, ocultarPreciosLineas: true })).not.toBe(hash(reviewed));
+    expect(hash({ ...reviewed, ocultarPreciosLineas: false })).toBe(hash(reviewed));
   });
 
   it("distingue domicilio omitido de domicilio vacío y valida los campos nuevos", () => {

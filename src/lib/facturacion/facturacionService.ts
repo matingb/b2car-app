@@ -38,6 +38,7 @@ import {
   descripcionSimplificadaIssues,
   documentoCorrespondeAlCliente,
   documentoNoCorrespondeMensaje,
+  observacionesFacturaIssues,
   receptorIdentidadIssues,
 } from "./facturaReceptor";
 import { lookupArcaPadronPerson } from "@/lib/arcaPadron/arcaPadronGateway";
@@ -69,6 +70,7 @@ import {
   type FacturaFechaInput,
   type FacturaLinea,
   type FacturaOrigenTipo,
+  type FacturaPresentacion,
   type FacturacionAmbiente,
   type FacturacionConfiguracionPublica,
   type FacturacionPreflight,
@@ -120,6 +122,10 @@ type CanonicalSource = {
   advertenciaArcaReceptor?: string;
   lineas: FacturaLinea[];
   stockOrigins: FacturaStockOrigen[];
+  /** Patente del vehículo del arreglo; las ventas no tienen vehículo. */
+  patente?: string | null;
+  /** Observaciones cargadas en el origen: sólo precargan el texto opcional de la factura. */
+  observaciones?: string | null;
 };
 
 /**
@@ -165,6 +171,13 @@ export type FacturaDraftInput = {
   detalleSimplificado: boolean;
   /** Ausente en pedidos históricos: conserva la descripción fija del detalle simplificado. */
   descripcionDetalleSimplificado?: string;
+  /** Imprime en la factura las observaciones indicadas; ausente en pedidos históricos. */
+  incluirObservaciones?: boolean;
+  observaciones?: string;
+  /** Imprime la patente del vehículo del arreglo, resuelta por el servidor. */
+  incluirPatente?: boolean;
+  /** Imprime el detalle sin precio por línea: los importes quedan sólo en los totales. */
+  ocultarPreciosLineas?: boolean;
   receptor: {
     /** Ausente en pedidos históricos: el receptor se resuelve desde el cliente del origen. */
     modo?: FacturaReceptorModo;
@@ -205,6 +218,7 @@ export class FacturaRevisionDesactualizadaError extends FacturacionValidationErr
 
 const ISSUE_GROUP_BY_FIELD: Array<[string, FacturaIssueGrupo]> = [
   ["receptor.", "RECEPTOR"], ["fechas.", "COMPROBANTE"], ["condicionVenta", "COMPROBANTE"], ["detalle.", "DETALLE"],
+  ["presentacion.", "DETALLE"],
 ];
 
 /** Representa como mensajes agrupables los errores de validación de una emisión. */
@@ -830,14 +844,14 @@ async function resolveStockLines(
 async function getCanonicalArreglo(tenantId: string, arregloId: string, receptor: ReceptorResolution = "PERFIL"): Promise<CanonicalSource> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("arreglos").select("id, vehiculo_id, fecha, precio_final, precios_incluyen_iva, tasa_iva, estado")
+    .from("arreglos").select("id, vehiculo_id, fecha, precio_final, precios_incluyen_iva, tasa_iva, estado, observaciones")
     .eq("id", arregloId).eq("tenant_id", tenantId).maybeSingle();
   if (error || !data) throw new FacturacionValidationError("Arreglo no encontrado");
   const repair = record(data);
   if (repair.estado === "PRESUPUESTO") {
     throw new FacturacionValidationError("No se puede facturar un presupuesto");
   }
-  const { data: vehicle } = await supabase.from("vehiculos").select("cliente_id").eq("id", text(repair.vehiculo_id)).maybeSingle();
+  const { data: vehicle } = await supabase.from("vehiculos").select("cliente_id, patente").eq("id", text(repair.vehiculo_id)).maybeSingle();
   const clienteId = nullable(record(vehicle).cliente_id);
   if (!clienteId) throw new FacturacionValidationError("El vehículo no tiene un cliente asociado");
   const [{ data: services, error: serviceError }, { data: forms, error: formError }, assignments] = await Promise.all([
@@ -889,6 +903,8 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string, receptor
     preciosIncluyenIva: repair.precios_incluyen_iva !== false,
     tasaIvaComercial: repair.tasa_iva == null ? null : number(repair.tasa_iva),
     clienteId,
+    patente: nullable(record(vehicle).patente)?.toUpperCase() ?? null,
+    observaciones: nullable(repair.observaciones),
     ...resolvedReceiver,
     lineas: lineas.map((line) => ({ ...line, snapshot: {
       ...line.snapshot, preciosIncluyenIva: repair.precios_incluyen_iva !== false,
@@ -901,7 +917,7 @@ async function getCanonicalArreglo(tenantId: string, arregloId: string, receptor
 async function getCanonicalVenta(tenantId: string, operationId: string, receptor: ReceptorResolution = "PERFIL"): Promise<CanonicalSource> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("operaciones").select("id, tipo, fecha, operaciones_venta(cliente_id)")
+    .from("operaciones").select("id, tipo, fecha, observaciones, operaciones_venta(cliente_id)")
     .eq("id", operationId).eq("tenant_id", tenantId).maybeSingle();
   if (error || !data) throw new FacturacionValidationError("Venta no encontrada");
   const operation = record(data);
@@ -915,6 +931,8 @@ async function getCanonicalVenta(tenantId: string, operationId: string, receptor
   return {
     id: text(operation.id), origenTipo: "VENTA", fecha: nullable(operation.fecha), total,
     clienteId,
+    patente: null,
+    observaciones: nullable(operation.observaciones),
     ...resolvedReceiver,
     lineas: resolved.lineas, stockOrigins: resolved.stockOrigins,
   };
@@ -1059,6 +1077,8 @@ export async function getDocumentoPreflight(
       claseComprobante: voucher.clase, tipoComprobante: voucher.tipo,
       lineas, totales, total: totales.total, precioFinal: source.total,
       fechasDefault: defaultFechas(source, concepto),
+      patente: source.patente ?? null,
+      observacionesOrigen: source.observaciones ?? null,
       fcePosible: fceObligatoria,
       fceObligatoria,
       fceSistemaConfigurado: config?.fceSistema ?? null,
@@ -1130,11 +1150,15 @@ export function parseFacturaDraftInput(value: unknown): FacturaDraftInput {
   const nombre = optionalText(receiver.nombre, "El nombre del receptor");
   const domicilio = receiver.domicilio === null ? null : optionalText(receiver.domicilio, "El domicilio del receptor");
   const descripcionDetalleSimplificado = optionalText(row.descripcionDetalleSimplificado, "La descripción del detalle simplificado");
+  const observaciones = optionalText(row.observaciones, "Las observaciones");
   return {
     ambiente: getFacturacionAmbiente(),
     condicionVenta,
     detalleSimplificado: row.detalleSimplificado === true,
     ...(descripcionDetalleSimplificado !== undefined ? { descripcionDetalleSimplificado } : {}),
+    ...(row.incluirObservaciones === true ? { incluirObservaciones: true, observaciones: observaciones ?? "" } : {}),
+    ...(row.incluirPatente === true ? { incluirPatente: true } : {}),
+    ...(row.ocultarPreciosLineas === true ? { ocultarPreciosLineas: true } : {}),
     receptor: {
       ...(receiver.modo !== undefined ? { modo: receiver.modo as FacturaReceptorModo } : {}),
       ...(nombre !== undefined ? { nombre } : {}),
@@ -1307,6 +1331,8 @@ type EmitDocumentInput = {
   /** Obligación FCE ya resuelta al preparar el documento; evita otra consulta a ARCA. */
   fceMipyme?: boolean;
   gateway?: ArcaGateway;
+  /** Sólo se imprime: queda fuera del contenido fiscal y de su huella. */
+  presentacion?: FacturaPresentacion;
 };
 
 async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResult> {
@@ -1398,6 +1424,7 @@ async function emitDocument(input: EmitDocumentInput): Promise<FacturaIssueResul
       stock_origenes: input.documentType === "FACTURA" ? canonicalOrigins : [],
       stock_origenes_hash: input.documentType === "FACTURA" ? origenesHash : null,
       intencion_hash: input.intentHash,
+      presentacion_snapshot: input.presentacion ?? {},
       created_by: input.actor.userId,
     };
     const dbLines = (input.persistedLines ?? fiscal.lineas).map((line) => ({
@@ -1520,7 +1547,11 @@ export function normalizedFacturaIntent(origenTipo: FacturaOrigenTipo, origenId:
     fceSistema: input.fceSistema ?? null, fcePreflightConfirmada: input.fcePreflightConfirmada === true,
     ...(input.detalleSimplificado === true && input.descripcionDetalleSimplificado !== undefined
       ? { descripcionDetalleSimplificado: text(input.descripcionDetalleSimplificado) }
-      : {}) };
+      : {}),
+    // Opciones de presentación: sólo cuando se eligen, para no alterar huellas históricas.
+    ...(input.incluirObservaciones === true ? { observaciones: text(input.observaciones) } : {}),
+    ...(input.incluirPatente === true ? { incluirPatente: true } : {}),
+    ...(input.ocultarPreciosLineas === true ? { ocultarPreciosLineas: true } : {}) };
 }
 
 type IssueMeta = { codigo: string; grupo: FacturaIssueGrupo; campo?: string };
@@ -1582,6 +1613,7 @@ type FacturaResuelta = {
   voucher?: { clase: FacturaClase; tipo: number };
   persistedLines?: FacturaLinea[];
   fechas: FacturaFechaInput;
+  presentacion: FacturaPresentacion;
   revisionHash?: string;
 };
 
@@ -1640,6 +1672,15 @@ async function prepareFacturaBase(
   if (input.detalleSimplificado && input.descripcionDetalleSimplificado !== undefined) {
     descripcionSimplificadaIssues(input.descripcionDetalleSimplificado).forEach((issue) => collector.failWith(issue));
   }
+  if (input.incluirObservaciones) {
+    observacionesFacturaIssues(input.observaciones ?? "").forEach((issue) => collector.failWith(issue));
+  }
+  if (input.incluirPatente && origenTipo !== "ARREGLO") {
+    collector.fail(
+      new FacturacionValidationError("La patente sólo puede agregarse a la factura de un arreglo"),
+      { codigo: "PATENTE_NO_DISPONIBLE", grupo: "DETALLE" },
+    );
+  }
   const revisado = input.receptor.modo !== undefined;
   const anonymous = input.receptor.tipoDocumento === 99;
   if (revisado && !anonymous) {
@@ -1659,6 +1700,12 @@ async function prepareFacturaBase(
     if (!(error instanceof FacturacionValidationError)) throw error;
     collector.fail(error, { codigo: "ORIGEN_NO_DISPONIBLE", grupo: "DETALLE" });
     return null;
+  }
+  if (input.incluirPatente && origenTipo === "ARREGLO" && !source.patente) {
+    collector.fail(
+      new FacturacionValidationError("El vehículo del arreglo no tiene patente para agregar a la factura"),
+      { codigo: "PATENTE_NO_DISPONIBLE", grupo: "DETALLE" },
+    );
   }
   const concepto = collector.check(() => deriveFacturaConcepto(source.lineas), { codigo: "ORIGEN_SIN_LINEAS", grupo: "DETALLE" });
   const fechasValidas = concepto !== undefined
@@ -1778,6 +1825,7 @@ async function resolveFacturaDocument(
     ? [createSimplifiedArregloLine(source, fiscal, input.descripcionDetalleSimplificado || undefined)]
     : undefined;
   const fechas = concepto !== undefined ? effectiveFechas(concepto, input.fechas, isFce) : input.fechas;
+  const presentacion = facturaPresentacion(source, input, origen.origenTipo);
   const revisionHash = !collector.hasErrors() && voucher && fiscal && concepto !== undefined
     ? createHash("sha256").update(JSON.stringify({
       origenTipo: origen.origenTipo, origenId: origen.origenId, ambiente: config.ambiente,
@@ -1788,9 +1836,36 @@ async function resolveFacturaDocument(
       preciosIncluyenIva: source.preciosIncluyenIva ?? true, tasaIvaComercial: source.tasaIvaComercial ?? null,
       stockOrigenes: stockOriginsHash(source.stockOrigins),
       fce: isFce ? { cbu: config.fceCbu, sistema: config.fceSistema } : null,
+      presentacion,
     })).digest("hex")
     : undefined;
-  return { isFce, gateway, voucher, persistedLines, fechas, revisionHash };
+  return { isFce, gateway, voucher, persistedLines, fechas, presentacion, revisionHash };
+}
+
+/** Datos opcionales que se imprimen en la factura; no forman parte del contenido fiscal. */
+function facturaPresentacion(
+  source: CanonicalSource,
+  input: FacturaDraftInput,
+  origenTipo: FacturaOrigenTipo,
+): FacturaPresentacion {
+  const observaciones = input.incluirObservaciones ? text(input.observaciones) : "";
+  const patente = input.incluirPatente && origenTipo === "ARREGLO" ? text(source.patente) : "";
+  return {
+    ...(observaciones ? { observaciones } : {}),
+    ...(patente ? { patente } : {}),
+    ...(input.ocultarPreciosLineas === true ? { ocultarPreciosLineas: true as const } : {}),
+  };
+}
+
+function parsePresentacion(value: unknown): FacturaPresentacion {
+  const row = record(value);
+  const observaciones = text(row.observaciones);
+  const patente = text(row.patente);
+  return {
+    ...(observaciones ? { observaciones } : {}),
+    ...(patente ? { patente } : {}),
+    ...(row.ocultarPreciosLineas === true ? { ocultarPreciosLineas: true as const } : {}),
+  };
 }
 
 function revisionLine(line: FacturaLinea): FacturaRevisionLinea {
@@ -1850,6 +1925,7 @@ export async function previewSourceFactura(
     fechas: resolved.fechas,
     moneda: "PES",
     detalleSimplificado: Boolean(resolved.persistedLines),
+    presentacion: resolved.presentacion,
     lineas: (resolved.persistedLines ?? fiscal.lineas).map(revisionLine),
     cantidadLineasOriginales: fiscal.lineas.length,
     preciosIncluyenIva: base.source.preciosIncluyenIva ?? true,
@@ -1883,6 +1959,7 @@ export async function buildFacturaPreviewHtml(revision: FacturaRevision): Promis
     cae: null,
     caeVencimiento: null,
     draft: true,
+    presentacion: revision.presentacion,
     lineas: revision.lineas.map((line) => ({
       codigo: line.codigo ?? null,
       descripcion: line.descripcion,
@@ -2000,6 +2077,7 @@ async function issueSourceFactura(
     lines: source.lineas, fiscal: base.fiscal, fceSistema: config.fceSistema, stockOrigins: source.stockOrigins,
     fcePreflightConfirmada: input.fcePreflightConfirmada,
     persistedLines: resolved.persistedLines,
+    presentacion: resolved.presentacion,
     concepto: base.concepto,
     retry: existing, intentHash,
     fceMipyme: resolved.isFce, gateway: resolved.gateway,
@@ -2557,6 +2635,7 @@ export async function getFacturaDetalle(tenantId: string, facturaId: string): Pr
       total: number(invoice.total),
     },
     lineas: (lines.data ?? []).map(mapLine),
+    presentacion: parsePresentacion(invoice.presentacion_snapshot),
     documentoAsociado: associated.data ? mapSummary(associated.data) : null,
     documentosAjuste: (adjustments.data ?? []).map(mapSummary),
     intentos: (attempts.data ?? []).map((value) => {
@@ -2687,6 +2766,7 @@ export async function buildFacturaPdf(tenantId: string, facturaId: string): Prom
     condicionVenta: detail.condicionVenta, totales: detail.totales,
     numeroComprobante: detail.numeroComprobante!, cae: detail.cae!, caeVencimiento: detail.caeVencimiento!,
     lineas: detail.lineas.map(fiscalPdfLine),
+    presentacion: detail.presentacion ?? null,
     comprobanteAsociado: detail.documentoTipo !== "FACTURA" && detail.documentoAsociado?.numeroComprobante
       ? {
         tipoComprobante: detail.documentoAsociado.tipoComprobante,

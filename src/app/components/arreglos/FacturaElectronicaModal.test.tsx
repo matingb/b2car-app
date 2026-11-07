@@ -42,6 +42,8 @@ const preflight = {
   total: 100,
   precioFinal: 100,
   fechasDefault: { fechaComprobante: today, fechaServicioDesde: today, fechaServicioHasta: today, fechaVencimientoPago: today },
+  patente: "AB123CD",
+  observacionesOrigen: "Cambio de aceite a los 10.000 km",
   fcePosible: false,
   fceObligatoria: false,
   fceSistemaConfigurado: "ADC",
@@ -69,6 +71,7 @@ function revision(overrides: Partial<FacturaRevision> = {}): FacturaRevision {
     fechas: { fechaComprobante: today, fechaServicioDesde: today, fechaServicioHasta: today, fechaVencimientoPago: today },
     moneda: "PES",
     detalleSimplificado: false,
+    presentacion: {},
     lineas: [{ ordinal: 1, origen: "SERVICIO", descripcion: "Servicio", codigo: null, cantidad: 1, importeUnitario: 100, subtotal: 100, importeMostrado: 100 }],
     cantidadLineasOriginales: 1,
     preciosIncluyenIva: true,
@@ -255,6 +258,101 @@ describe("FacturaElectronicaModal", () => {
     } else {
       expect(downloadClick).not.toHaveBeenCalled();
     }
+  });
+
+  it("agrega observaciones y patente desde la vista previa y las envía al emitir", async () => {
+    await renderLoaded();
+    fireEvent.click(screen.getByTestId("modal-submit"));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+    // Apagadas por defecto: el pedido no las informa.
+    expect(calls("POST /api/facturacion/previsualizacion")[0].body).not.toHaveProperty("incluirObservaciones");
+    expect(calls("POST /api/facturacion/previsualizacion")[0].body).not.toHaveProperty("incluirPatente");
+    expect(screen.queryByTestId("factura-observaciones")).not.toBeInTheDocument();
+    expect(screen.getByText(/AB123CD/)).toBeInTheDocument();
+
+    // Las observaciones del arreglo precargan el texto, que se puede editar.
+    fireEvent.click(screen.getByTestId("factura-incluir-observaciones"));
+    expect(screen.getByTestId("factura-observaciones")).toHaveValue("Cambio de aceite a los 10.000 km");
+    fireEvent.change(screen.getByTestId("factura-observaciones"), { target: { value: "Garantía de 3 meses" } });
+    fireEvent.click(screen.getByTestId("factura-incluir-patente"));
+    await waitFor(() => expect(calls("POST /api/facturacion/previsualizacion").at(-1)?.body).toMatchObject({
+      incluirObservaciones: true, observaciones: "Garantía de 3 meses", incluirPatente: true,
+    }));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+
+    // Observaciones vacías bloquean la emisión sin volver a revisar.
+    const previews = calls("POST /api/facturacion/previsualizacion").length;
+    fireEvent.change(screen.getByTestId("factura-observaciones"), { target: { value: "  " } });
+    expect(screen.getByText("Ingresá las observaciones que aparecerán en la factura.")).toBeInTheDocument();
+    expect(screen.getByTestId("factura-confirmar-emitir")).toHaveTextContent("Revisá las observaciones");
+    expect(screen.getByTestId("factura-confirmar-emitir")).toBeDisabled();
+    fireEvent.change(screen.getByTestId("factura-observaciones"), { target: { value: "Garantía de 3 meses" } });
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+    expect(calls("POST /api/facturacion/previsualizacion")).toHaveLength(previews);
+
+    fireEvent.click(screen.getByTestId("factura-confirmar-emitir"));
+    await waitFor(() => expect(calls(`POST ${ENDPOINT}`)).toHaveLength(1));
+    expect(calls(`POST ${ENDPOINT}`)[0].body).toMatchObject({
+      incluirObservaciones: true, observaciones: "Garantía de 3 meses", incluirPatente: true,
+    });
+  });
+
+  it("permite imprimir sólo los totales, sin precio en cada línea", async () => {
+    await renderLoaded();
+    fireEvent.click(screen.getByTestId("modal-submit"));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+    expect(screen.getByTestId("factura-mostrar-precios-lineas")).toHaveAttribute("aria-checked", "true");
+    expect(calls("POST /api/facturacion/previsualizacion")[0].body).not.toHaveProperty("ocultarPreciosLineas");
+
+    fireEvent.click(screen.getByTestId("factura-mostrar-precios-lineas"));
+    expect(screen.getByText(/Sólo totales/)).toBeInTheDocument();
+    await waitFor(() => expect(calls("POST /api/facturacion/previsualizacion").at(-1)?.body).toMatchObject({ ocultarPreciosLineas: true }));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+
+    fireEvent.click(screen.getByTestId("factura-confirmar-emitir"));
+    await waitFor(() => expect(calls(`POST ${ENDPOINT}`)).toHaveLength(1));
+    expect(calls(`POST ${ENDPOINT}`)[0].body).toMatchObject({ ocultarPreciosLineas: true });
+  });
+
+  it("pliega y despliega el panel de opciones para dejar más lugar a la vista previa", async () => {
+    await renderLoaded();
+    fireEvent.click(screen.getByTestId("modal-submit"));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+    const plegar = screen.getByTestId("factura-revision-opciones-plegar");
+    expect(plegar).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByTestId("factura-incluir-observaciones"));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+
+    fireEvent.click(plegar);
+    expect(plegar).toHaveAttribute("aria-expanded", "false");
+    expect(plegar).toHaveAccessibleName("Expandir opciones del comprobante");
+    // El contenido sigue montado para animar el alto, pero queda oculto y fuera del foco.
+    expect(screen.getByTestId("factura-revision-opciones-contenido")).toHaveStyle({ gridTemplateRows: "0fr", visibility: "hidden" });
+    expect(screen.getByTestId("factura-incluir-observaciones")).not.toBeVisible();
+    expect(screen.getByText(/1 activa/)).toBeInTheDocument();
+    // Plegar no cambia lo elegido ni vuelve a revisar.
+    const previews = calls("POST /api/facturacion/previsualizacion").length;
+    expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled();
+
+    fireEvent.click(plegar);
+    expect(plegar).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("factura-revision-opciones-contenido")).toHaveStyle({ gridTemplateRows: "1fr", visibility: "visible" });
+    expect(screen.getByTestId("factura-incluir-observaciones")).toBeVisible();
+    expect(screen.getByTestId("factura-incluir-observaciones")).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByTestId("factura-observaciones")).toHaveValue("Cambio de aceite a los 10.000 km");
+    expect(calls("POST /api/facturacion/previsualizacion")).toHaveLength(previews);
+  });
+
+  it("no permite agregar la patente si el vehículo no la tiene", async () => {
+    handlers[`GET ${ENDPOINT}`] = () => json({
+      data: { factura: null, preflight: { ...preflight, patente: null, receptor: { ...preflight.receptor, tipoDocumento: 99 }, receptorPendiente: true } },
+      error: null,
+    });
+    await renderLoaded();
+    fireEvent.click(screen.getByTestId("modal-submit"));
+    await waitFor(() => expect(screen.getByTestId("factura-confirmar-emitir")).toBeEnabled());
+    expect(screen.getByTestId("factura-incluir-patente")).toBeDisabled();
+    expect(screen.getByText(/El vehículo no tiene patente/)).toBeInTheDocument();
   });
 
   it("descarta una respuesta tardía si se vuelve al detalle original mientras se actualiza", async () => {

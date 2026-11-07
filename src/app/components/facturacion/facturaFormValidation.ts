@@ -37,6 +37,7 @@ export const FACTURA_CAMPO_INPUT_ID: Record<string, string> = {
   "fechas.fechaServicioHasta": "factura-fecha-servicio-hasta",
   "fechas.fechaVencimientoPago": "factura-fecha-vencimiento-pago",
   "detalle.descripcion": "factura-detalle-descripcion",
+  "presentacion.observaciones": "factura-observaciones",
 };
 
 export type FacturaFormValidationInput = {

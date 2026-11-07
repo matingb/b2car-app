@@ -1,0 +1,295 @@
+-- =============================================================================
+-- Facturación: datos opcionales de presentación del comprobante
+-- =============================================================================
+-- Observaciones y patente elegidas al emitir. Sólo se imprimen en el PDF: no
+-- forman parte del pedido a ARCA, de los importes ni de contenido_hash. Al
+-- autorizarse el documento quedan cubiertas por facturacion_bloquear_snapshot_autorizado.
+
+ALTER TABLE public.facturas_electronicas
+  ADD COLUMN IF NOT EXISTS presentacion_snapshot jsonb DEFAULT '{}'::jsonb NOT NULL;
+
+ALTER TABLE public.facturas_electronicas
+  DROP CONSTRAINT IF EXISTS facturas_electronicas_presentacion_snapshot_objeto;
+ALTER TABLE public.facturas_electronicas
+  ADD CONSTRAINT facturas_electronicas_presentacion_snapshot_objeto
+  CHECK (jsonb_typeof(presentacion_snapshot) = 'object');
+
+CREATE OR REPLACE FUNCTION public.rpc_facturacion_preparar_documento (
+  p_encabezado jsonb,
+  p_lineas     jsonb,
+  p_factura_id uuid  DEFAULT NULL::uuid
+)
+  RETURNS uuid
+  LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path TO 'public'
+  AS $function$
+DECLARE
+  v_id uuid := COALESCE(p_factura_id, gen_random_uuid());
+  v_estado text;
+  v_tenant_id uuid;
+  v_current_tenant uuid := public.current_tenant_id();
+  v_arreglo public.arreglos;
+  v_stock_origenes jsonb := '[]'::jsonb;
+  v_stock_origenes_hash text;
+BEGIN
+  IF v_current_tenant IS NULL THEN
+    RAISE EXCEPTION 'Sesion sin tenant activo';
+  END IF;
+  IF jsonb_typeof(p_encabezado) <> 'object' OR jsonb_typeof(p_lineas) <> 'array'
+     OR jsonb_array_length(p_lineas) = 0 THEN
+    RAISE EXCEPTION 'Documento fiscal invalido';
+  END IF;
+  IF jsonb_typeof(COALESCE(p_encabezado->'presentacion_snapshot', '{}'::jsonb)) <> 'object' THEN
+    RAISE EXCEPTION 'Los datos de presentacion del documento son invalidos';
+  END IF;
+  -- Aislamiento estricto de tenant en el encabezado
+  IF (p_encabezado->>'tenant_id')::uuid IS DISTINCT FROM v_current_tenant THEN
+    RAISE EXCEPTION 'Tenant no autorizado para este documento';
+  END IF;
+  -- Validar que entidades asociadas pertenezcan al mismo tenant
+  IF NULLIF(p_encabezado->>'arreglo_id', '') IS NOT NULL THEN
+    -- Always lock source before document, matching collections and mode updates.
+    SELECT * INTO v_arreglo FROM public.arreglos
+    WHERE id = (p_encabezado->>'arreglo_id')::uuid AND tenant_id = v_current_tenant
+    FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'El arreglo no pertenece al tenant activo';
+    END IF;
+    -- New pricing snapshots must be echoed by the server after canonical loading.
+    -- Reject a candidate prepared before a concurrent toggle (including equal totals).
+    IF p_encabezado->>'documento_tipo' = 'FACTURA' AND
+       (v_arreglo.tasa_iva IS NOT NULL OR p_encabezado ? 'precios_incluyen_iva') THEN
+      IF (p_encabezado->>'precios_incluyen_iva')::boolean IS DISTINCT FROM v_arreglo.precios_incluyen_iva
+         OR (p_encabezado->>'tasa_iva')::numeric IS DISTINCT FROM v_arreglo.tasa_iva
+         OR (p_encabezado->>'total')::numeric IS DISTINCT FROM v_arreglo.precio_final THEN
+        RAISE EXCEPTION 'El precio/modo IVA del arreglo cambio; volver a preparar factura'
+          USING ERRCODE = '40001';
+      END IF;
+    END IF;
+  END IF;
+  IF NULLIF(p_encabezado->>'operacion_id', '') IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM public.operaciones
+      WHERE id = (p_encabezado->>'operacion_id')::uuid AND tenant_id = v_current_tenant
+    ) THEN
+      RAISE EXCEPTION 'La operacion no pertenece al tenant activo';
+    END IF;
+  END IF;
+  IF NULLIF(p_encabezado->>'documento_asociado_id', '') IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM public.facturas_electronicas
+      WHERE id = (p_encabezado->>'documento_asociado_id')::uuid AND tenant_id = v_current_tenant
+    ) THEN
+      RAISE EXCEPTION 'El documento asociado no pertenece al tenant activo';
+    END IF;
+  END IF;
+  IF p_encabezado->>'documento_tipo' = 'FACTURA' THEN
+    IF p_encabezado->>'origen_tipo' = 'VENTA' THEN
+      IF NULLIF(p_encabezado->>'operacion_id','') IS NULL OR NULLIF(p_encabezado->>'arreglo_id','') IS NOT NULL THEN
+        RAISE EXCEPTION 'Origen de venta inválido';
+      END IF;
+      IF EXISTS (
+        SELECT 1 FROM public.operaciones o
+        JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
+        WHERE o.id = (p_encabezado->>'operacion_id')::uuid AND o.tenant_id = v_current_tenant
+          AND o.tipo = 'VENTA' AND ol.delta_cantidad < 0 AND ol.cantidad <> abs(ol.delta_cantidad)
+      ) THEN RAISE EXCEPTION 'La salida de stock de la venta no coincide con la cantidad de la línea'; END IF;
+      PERFORM 1
+      FROM public.operaciones o
+      JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
+      JOIN public.stocks s ON s.id = ol.stock_id AND s.tenant_id = v_current_tenant AND s.taller_id = o.taller_id
+      WHERE o.id = (p_encabezado->>'operacion_id')::uuid
+        AND o.tenant_id = v_current_tenant AND o.tipo = 'VENTA' AND ol.delta_cantidad < 0
+      ORDER BY ol.id FOR UPDATE OF o, ol, s;
+      SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'operacion_linea_id', ol.id,
+        'operacion_origen_id', o.id,
+        'stock_id', s.id,
+        'taller_id', s.taller_id,
+        'producto_id', s.producto_id,
+        'origen_linea', 'VENTA',
+        'cantidad_original', abs(ol.delta_cantidad),
+        'nombre_snapshot', p.nombre,
+        'codigo_snapshot', p.codigo
+      ) ORDER BY ol.id), '[]'::jsonb)
+      INTO v_stock_origenes
+      FROM public.operaciones o
+      JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
+      JOIN public.stocks s ON s.id = ol.stock_id AND s.tenant_id = v_current_tenant AND s.taller_id = o.taller_id
+      JOIN public.productos p ON p.id = s.producto_id AND p.tenant_id = v_current_tenant
+      WHERE o.id = (p_encabezado->>'operacion_id')::uuid
+        AND o.tenant_id = v_current_tenant AND o.tipo = 'VENTA' AND ol.delta_cantidad < 0;
+    ELSIF p_encabezado->>'origen_tipo' = 'ARREGLO' THEN
+      IF NULLIF(p_encabezado->>'arreglo_id','') IS NULL OR NULLIF(p_encabezado->>'operacion_id','') IS NOT NULL THEN
+        RAISE EXCEPTION 'Origen de arreglo inválido';
+      END IF;
+      IF EXISTS (
+        SELECT 1 FROM public.operaciones_asignacion_arreglo oa
+        JOIN public.operaciones o ON o.id = oa.operacion_id AND o.tenant_id = v_current_tenant AND o.tipo = 'ASIGNACION_ARREGLO'
+        JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
+        WHERE oa.arreglo_id = (p_encabezado->>'arreglo_id')::uuid AND ol.delta_cantidad < 0
+          AND ol.cantidad <> abs(ol.delta_cantidad)
+      ) THEN RAISE EXCEPTION 'La salida de stock del arreglo no coincide con la cantidad de la línea'; END IF;
+      PERFORM 1
+      FROM public.operaciones_asignacion_arreglo oa
+      JOIN public.operaciones o ON o.id = oa.operacion_id AND o.tenant_id = v_current_tenant AND o.tipo = 'ASIGNACION_ARREGLO'
+      JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
+      JOIN public.stocks s ON s.id = ol.stock_id AND s.tenant_id = v_current_tenant AND s.taller_id = o.taller_id
+      WHERE oa.arreglo_id = (p_encabezado->>'arreglo_id')::uuid AND ol.delta_cantidad < 0
+      ORDER BY ol.id FOR UPDATE OF o, ol, s;
+      SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'operacion_linea_id', ol.id,
+        'operacion_origen_id', o.id,
+        'stock_id', s.id,
+        'taller_id', s.taller_id,
+        'producto_id', s.producto_id,
+        'origen_linea', 'REPUESTO',
+        'cantidad_original', abs(ol.delta_cantidad),
+        'nombre_snapshot', p.nombre,
+        'codigo_snapshot', p.codigo
+      ) ORDER BY ol.id), '[]'::jsonb)
+      INTO v_stock_origenes
+      FROM public.operaciones_asignacion_arreglo oa
+      JOIN public.operaciones o ON o.id = oa.operacion_id AND o.tenant_id = v_current_tenant AND o.tipo = 'ASIGNACION_ARREGLO'
+      JOIN public.operaciones_lineas ol ON ol.operacion_id = o.id
+      JOIN public.stocks s ON s.id = ol.stock_id AND s.tenant_id = v_current_tenant AND s.taller_id = o.taller_id
+      JOIN public.productos p ON p.id = s.producto_id AND p.tenant_id = v_current_tenant
+      WHERE oa.arreglo_id = (p_encabezado->>'arreglo_id')::uuid AND ol.delta_cantidad < 0;
+    ELSE
+      RAISE EXCEPTION 'Origen físico de factura no soportado';
+    END IF;
+    IF jsonb_typeof(p_encabezado->'stock_origenes') <> 'array'
+       OR p_encabezado->'stock_origenes' IS DISTINCT FROM v_stock_origenes THEN
+      RAISE EXCEPTION 'La procedencia física enviada no coincide con el origen registrado';
+    END IF;
+    v_stock_origenes_hash := p_encabezado->>'stock_origenes_hash';
+    IF v_stock_origenes_hash IS NULL OR v_stock_origenes_hash !~ '^[0-9a-f]{64}$' THEN
+      RAISE EXCEPTION 'La huella de procedencia física es inválida';
+    END IF;
+  ELSE
+    IF jsonb_typeof(COALESCE(p_encabezado->'stock_origenes', '[]'::jsonb)) <> 'array'
+       OR COALESCE(p_encabezado->'stock_origenes', '[]'::jsonb) <> '[]'::jsonb THEN
+      RAISE EXCEPTION 'Un ajuste fiscal no puede introducir procedencia de stock';
+    END IF;
+  END IF;
+  IF p_factura_id IS NOT NULL THEN
+    SELECT estado, tenant_id INTO v_estado, v_tenant_id FROM public.facturas_electronicas
+    WHERE id = p_factura_id FOR UPDATE;
+    IF v_tenant_id IS DISTINCT FROM v_current_tenant THEN
+      RAISE EXCEPTION 'El documento no pertenece al tenant activo';
+    END IF;
+    IF v_estado IS DISTINCT FROM 'RECHAZADA' THEN
+      RAISE EXCEPTION 'Solo puede reintentarse un documento rechazado';
+    END IF;
+    DELETE FROM public.facturacion_factura_stock_origenes WHERE factura_id = v_id;
+    DELETE FROM public.facturas_electronicas_lineas WHERE factura_id = v_id;
+    UPDATE public.facturas_electronicas SET
+      arreglo_id = NULLIF(p_encabezado->>'arreglo_id','')::uuid,
+      operacion_id = NULLIF(p_encabezado->>'operacion_id','')::uuid,
+      origen_tipo = p_encabezado->>'origen_tipo',
+      documento_tipo = p_encabezado->>'documento_tipo',
+      documento_asociado_id = NULLIF(p_encabezado->>'documento_asociado_id','')::uuid,
+      estado = 'ENVIANDO', ambiente = p_encabezado->>'ambiente',
+      emisor_snapshot = p_encabezado->'emisor_snapshot',
+      receptor_snapshot = p_encabezado->'receptor_snapshot',
+      concepto = (p_encabezado->>'concepto')::smallint,
+      fecha_comprobante = (p_encabezado->>'fecha_comprobante')::date,
+      fecha_servicio_desde = NULLIF(p_encabezado->>'fecha_servicio_desde','')::date,
+      fecha_servicio_hasta = NULLIF(p_encabezado->>'fecha_servicio_hasta','')::date,
+      fecha_vencimiento_pago = NULLIF(p_encabezado->>'fecha_vencimiento_pago','')::date,
+      fce_sistema = p_encabezado->>'fce_sistema',
+      fce_cbu = p_encabezado->>'fce_cbu',
+      fce_estado_manual = p_encabezado->>'fce_estado_manual',
+      total = (p_encabezado->>'total')::numeric,
+      punto_venta = (p_encabezado->>'punto_venta')::integer,
+      tipo_comprobante = (p_encabezado->>'tipo_comprobante')::smallint,
+      clase_comprobante = p_encabezado->>'clase_comprobante',
+      numero_comprobante = (p_encabezado->>'numero_comprobante')::integer,
+      condicion_venta = p_encabezado->>'condicion_venta',
+      importe_neto_gravado = (p_encabezado->>'importe_neto_gravado')::numeric,
+      importe_no_gravado = (p_encabezado->>'importe_no_gravado')::numeric,
+      importe_exento = (p_encabezado->>'importe_exento')::numeric,
+      importe_iva = (p_encabezado->>'importe_iva')::numeric,
+      importe_tributos = (p_encabezado->>'importe_tributos')::numeric,
+      otros_impuestos_nacionales = (p_encabezado->>'otros_impuestos_nacionales')::numeric,
+      contenido_hash = p_encabezado->>'contenido_hash',
+      stock_origenes_hash = v_stock_origenes_hash,
+      intencion_hash = p_encabezado->>'intencion_hash',
+      presentacion_snapshot = COALESCE(p_encabezado->'presentacion_snapshot', '{}'::jsonb),
+      cae = NULL, cae_vencimiento = NULL, autorizada_at = NULL,
+      error_codigo = NULL, error_mensaje = NULL
+    WHERE id = v_id;
+  ELSE
+    INSERT INTO public.facturas_electronicas (
+      id, tenant_id, arreglo_id, operacion_id, origen_tipo, documento_tipo,
+      documento_asociado_id, idempotency_key, estado, ambiente,
+      emisor_snapshot, receptor_snapshot, concepto, fecha_comprobante,
+      fecha_servicio_desde, fecha_servicio_hasta, fecha_vencimiento_pago,
+      moneda, total, punto_venta, tipo_comprobante, clase_comprobante,
+      numero_comprobante, condicion_venta, importe_neto_gravado,
+      importe_no_gravado, importe_exento, importe_iva, importe_tributos,
+      otros_impuestos_nacionales, contenido_hash, stock_origenes_hash, intencion_hash, created_by, fce_sistema, fce_cbu, fce_estado_manual,
+      presentacion_snapshot
+    ) VALUES (
+      v_id, v_current_tenant,
+      NULLIF(p_encabezado->>'arreglo_id','')::uuid,
+      NULLIF(p_encabezado->>'operacion_id','')::uuid,
+      p_encabezado->>'origen_tipo', p_encabezado->>'documento_tipo',
+      NULLIF(p_encabezado->>'documento_asociado_id','')::uuid,
+      (p_encabezado->>'idempotency_key')::uuid, 'ENVIANDO',
+      p_encabezado->>'ambiente', p_encabezado->'emisor_snapshot',
+      p_encabezado->'receptor_snapshot', (p_encabezado->>'concepto')::smallint,
+      (p_encabezado->>'fecha_comprobante')::date,
+      NULLIF(p_encabezado->>'fecha_servicio_desde','')::date,
+      NULLIF(p_encabezado->>'fecha_servicio_hasta','')::date,
+      NULLIF(p_encabezado->>'fecha_vencimiento_pago','')::date,
+      'PES', (p_encabezado->>'total')::numeric,
+      (p_encabezado->>'punto_venta')::integer,
+      (p_encabezado->>'tipo_comprobante')::smallint,
+      p_encabezado->>'clase_comprobante',
+      (p_encabezado->>'numero_comprobante')::integer,
+      p_encabezado->>'condicion_venta',
+      (p_encabezado->>'importe_neto_gravado')::numeric,
+      (p_encabezado->>'importe_no_gravado')::numeric,
+      (p_encabezado->>'importe_exento')::numeric,
+      (p_encabezado->>'importe_iva')::numeric,
+      (p_encabezado->>'importe_tributos')::numeric,
+      (p_encabezado->>'otros_impuestos_nacionales')::numeric,
+      p_encabezado->>'contenido_hash', v_stock_origenes_hash, p_encabezado->>'intencion_hash', NULLIF(p_encabezado->>'created_by','')::uuid,
+      p_encabezado->>'fce_sistema', p_encabezado->>'fce_cbu', p_encabezado->>'fce_estado_manual',
+      COALESCE(p_encabezado->'presentacion_snapshot', '{}'::jsonb)
+    );
+  END IF;
+  INSERT INTO public.facturacion_factura_stock_origenes (
+    tenant_id, factura_id, operacion_linea_id, operacion_origen_id, stock_id, taller_id, producto_id,
+    origen_linea, cantidad_original, nombre_snapshot, codigo_snapshot
+  )
+  SELECT v_current_tenant, v_id, x.operacion_linea_id, x.operacion_origen_id, x.stock_id, x.taller_id, x.producto_id,
+    x.origen_linea, x.cantidad_original, x.nombre_snapshot, x.codigo_snapshot
+  FROM jsonb_to_recordset(v_stock_origenes) AS x(
+    operacion_linea_id uuid, operacion_origen_id uuid, stock_id uuid, taller_id uuid, producto_id uuid,
+    origen_linea text, cantidad_original integer, nombre_snapshot text, codigo_snapshot text
+  );
+  INSERT INTO public.facturas_electronicas_lineas (
+    factura_id, ordinal, origen, source_id, descripcion, codigo, cantidad,
+    importe_unitario, subtotal, tratamiento_iva, iva_alicuota_id,
+    iva_alicuota, importe_neto, importe_iva, importe_total, snapshot
+  )
+  SELECT v_id, x.ordinal, x.origen, x.source_id, x.descripcion, x.codigo,
+    x.cantidad, x.importe_unitario, x.subtotal, x.tratamiento_iva,
+    x.iva_alicuota_id, x.iva_alicuota, x.importe_neto, x.importe_iva,
+    x.importe_total, COALESCE(x.snapshot, '{}'::jsonb)
+  FROM jsonb_to_recordset(p_lineas) AS x(
+    ordinal smallint, origen text, source_id uuid, descripcion text, codigo text,
+    cantidad numeric, importe_unitario numeric, subtotal numeric,
+    tratamiento_iva text, iva_alicuota_id smallint, iva_alicuota numeric,
+    importe_neto numeric, importe_iva numeric, importe_total numeric, snapshot jsonb
+  );
+  RETURN v_id;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.rpc_facturacion_preparar_documento(jsonb, jsonb, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.rpc_facturacion_preparar_documento(jsonb, jsonb, uuid) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rpc_facturacion_preparar_documento(jsonb, jsonb, uuid) TO service_role;
