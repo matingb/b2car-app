@@ -2,6 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppClientLayout from "./AppClientLayout";
 import { Permission } from "@/lib/permissions";
+import { setDatadogClientRum } from "@/lib/telemetry/datadog";
+import { datadogRum } from "@datadog/browser-rum";
 
 const mockReplace = vi.fn();
 let mockPathname = "/arreglos";
@@ -40,10 +42,10 @@ describe("AppClientLayout visual route guard", () => {
   beforeEach(() => {
     mockReplace.mockClear();
     vi.clearAllMocks();
+    setDatadogClientRum(datadogRum);
   });
 
-  it("asocia el tenant_id, tenant_name y plan a Datadog RUM", async () => {
-    const { datadogRum } = await import("@datadog/browser-rum");
+  it("asocia el tenant_id, tenant_name y plan a Datadog RUM", () => {
     render(
       <AppClientLayout
         initialPermissions={[Permission.ArreglosView]}
@@ -62,8 +64,7 @@ describe("AppClientLayout visual route guard", () => {
     });
   });
 
-  it("asocia identity con user y account a Datadog RUM si se pasa identity", async () => {
-    const { datadogRum } = await import("@datadog/browser-rum");
+  it("asocia identity con user y account a Datadog RUM si se pasa identity", () => {
     render(
       <AppClientLayout
         initialPermissions={[Permission.ArreglosView]}

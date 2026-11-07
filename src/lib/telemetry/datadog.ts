@@ -50,6 +50,18 @@ function withDatadogRum(callback: (rum: DatadogRum) => void): void {
 }
 
 /**
+ * Permite registrar o inyectar la instancia de datadogRum (para Browser o mocks de tests).
+ */
+export function setDatadogClientRum(rum: DatadogRum | null): void {
+  clientRumInstance = rum;
+  clientRumPromise = rum ? Promise.resolve(rum) : null;
+}
+
+export function getDatadogClientRum(): DatadogRum | null {
+  return clientRumInstance;
+}
+
+/**
  * Permite registrar o inyectar la instancia de dd-trace (para Node.js o mocks de tests).
  */
 export function setDatadogServerTracer(tracer: unknown): void {

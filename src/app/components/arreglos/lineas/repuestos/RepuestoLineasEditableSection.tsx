@@ -6,7 +6,7 @@ import { formatArs } from "@/lib/format";
 import { safeInt, safeNumber } from "@/lib/numbers";
 import { COLOR } from "@/theme/theme";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
-import StockBreakdownBadge, { buildStockAutocompleteOptions } from "@/app/components/stock/StockBreakdownBadge";
+import { buildStockAutocompleteOptions } from "@/app/components/stock/StockBreakdownBadge";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import LineasSectionShell from "@/app/components/arreglos/lineas/shared/LineasSectionShell";
 import { styles } from "@/app/components/arreglos/lineas/shared/lineaStyles";

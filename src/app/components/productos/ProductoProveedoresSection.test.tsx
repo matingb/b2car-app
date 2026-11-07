@@ -68,9 +68,6 @@ describe("ProductoProveedoresSection", () => {
         screen.getByText("Este producto aún no está vinculado a ningún proveedor.")
       ).toBeInTheDocument();
     });
-
-    expect(screen.getByText("0 proveedores")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Vincular a un proveedor" })).toBeInTheDocument();
   });
 
   it("renderiza la tabla con los proveedores vinculados", async () => {

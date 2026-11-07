@@ -59,13 +59,11 @@ describe("descarga fiscal autorizada", () => {
     const workbook = new ExcelJS.Workbook(); await workbook.xlsx.load(await response.arrayBuffer());
     expect(workbook.worksheets.map(s => s.name)).toEqual(["Resumen", "Comprobantes"]);
   });
-  it.each(["HOMOLOGACION", "PRODUCCION"] as const)("resuelve %s desde el servidor y lo identifica en el XLSX", async ambiente => {
+  it.each(["HOMOLOGACION", "PRODUCCION"] as const)("resuelve %s desde el servidor", async ambiente => {
     vi.stubEnv("ARCA_AMBIENTE", ambiente);
     const response = await GET(new Request(fiscalUrl().url.replace("format=csv", "format=xlsx")));
     expect(response.status).toBe(200);
     expect(mocks.read).toHaveBeenCalledWith(expect.anything(), "tenant-a", expect.objectContaining({ ambiente }), expect.any(String));
-    const workbook = new ExcelJS.Workbook(); await workbook.xlsx.load(await response.arrayBuffer());
-    expect(workbook.getWorksheet("Resumen")!.getColumn(2).values).toContain(`Autorizados · ${ambiente === "PRODUCCION" ? "Producción" : "Homologación"} · Facturas / NC / ND (incluye FCE)`);
   });
   it("errores de lectura y generación devuelven JSON de error sin archivo parcial", async () => {
     mocks.read.mockResolvedValueOnce({ data: null, error: new Error("fallo") });

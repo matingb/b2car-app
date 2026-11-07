@@ -104,8 +104,14 @@ export default function ProductoDetailsPage() {
     };
   }, [getProductoById, params.id]);
 
-  const stockTotal = useMemo(() => {
-    return stockDelProducto.reduce((acc, s) => acc + (Number(s.stockActual) || 0), 0);
+  const stockDisponibleTotal = useMemo(() => {
+    return stockDelProducto.reduce((acc, s) => {
+      const disp =
+        s.stockDisponible !== undefined && s.stockDisponible !== null
+          ? Number(s.stockDisponible)
+          : (Number(s.stockActual) || 0) - (Number(s.stockReservado) || 0);
+      return acc + (Number.isNaN(disp) ? 0 : disp);
+    }, 0);
   }, [stockDelProducto]);
 
   const ultimaActualizacion = useMemo(() => {
@@ -396,7 +402,7 @@ export default function ProductoDetailsPage() {
                   formatArs(producto.costoUnitario, { maxDecimals: 0, minDecimals: 0 })
                 )}
               </Metric>
-              <Metric label="Stock disponible">{stockTotal} uds.</Metric>
+              <Metric label="Stock disponible">{stockDisponibleTotal} uds.</Metric>
             </div>
           </section>
 
@@ -455,15 +461,6 @@ export default function ProductoDetailsPage() {
         </div>
       </Card>
 
-      <div style={{ marginTop: 16 }}>
-        <ProductoProveedoresSection
-          productoId={producto.id}
-          productoNombre={producto.nombre}
-          productoCodigo={producto.codigo}
-          costoUnitario={producto.costoUnitario}
-        />
-      </div>
-
       <div style={styles.stockSection}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
           <div>
@@ -487,6 +484,15 @@ export default function ProductoDetailsPage() {
           onRegisterOperation={(stock, taller) => {
             setContextualStock({ stockId: stock.id, tallerId: taller.id });
           }}
+        />
+      </div>
+
+      <div style={styles.proveedoresSection}>
+        <ProductoProveedoresSection
+          productoId={producto.id}
+          productoNombre={producto.nombre}
+          productoCodigo={producto.codigo}
+          costoUnitario={producto.costoUnitario}
         />
       </div>
 
@@ -847,6 +853,9 @@ const styles = {
   },
   stockSection: {
     marginTop: 20,
+  },
+  proveedoresSection: {
+    marginTop: 24,
   },
   sectionTitle: { fontSize: 18, fontWeight: 600, margin: "0 0 8px" },
   sectionDescription: { margin: "-3px 0 12px", color: COLOR.TEXT.SECONDARY, fontSize: 14 },

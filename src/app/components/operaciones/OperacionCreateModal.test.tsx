@@ -86,7 +86,7 @@ vi.mock("@/app/components/ui/Autocomplete", () => ({
     disabled,
     placeholder,
   }: {
-    options?: { value: string; label: string }[];
+    options?: { value: string; label: string; secondaryLabel?: unknown; searchText?: string }[];
     value: string;
     onChange: (v: string) => void;
     dataTestId?: string;
@@ -99,7 +99,7 @@ vi.mock("@/app/components/ui/Autocomplete", () => ({
       disabled={disabled}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      data-options={JSON.stringify((options ?? []).map((o: any) => ({ value: o.value, label: o.label, secondaryLabel: typeof o.secondaryLabel === "string" ? o.secondaryLabel : o.searchText })))}
+      data-options={JSON.stringify((options ?? []).map((o) => ({ value: o.value, label: o.label, secondaryLabel: typeof o.secondaryLabel === "string" ? o.secondaryLabel : o.searchText })))}
     />
   ),
 }));

@@ -94,7 +94,7 @@ describe("archivos fiscales", () => {
     const summary = workbook.getWorksheet("Resumen")!;
     expect(summary.getColumn(1).values).toContain("Notas de crédito");
     expect(summary.getColumn(17).values?.join(" ")).toMatch(/Parcial|parcial/);
-    const summaryConcepts = summary.getColumn(1).values.map(String).join("|").toLowerCase();
+    const summaryConcepts = (summary.getColumn(1).values ?? []).map(String).join("|").toLowerCase();
     expect(summaryConcepts).not.toMatch(/tenant|alcance|moneda|generaci.n|corte|emisor|criterio de sumas/);
     expect(fiscalFilename(report.filters)).toBe("reporte-fiscal-ventas-2026-10-01_2026-10-31.xlsx");
   });
@@ -132,7 +132,7 @@ describe("archivos fiscales", () => {
     expect(serializeFiscalCsv(report)).not.toMatch(/Provincia/);
     const summary = buildFiscalWorkbook(report).getWorksheet("Resumen")!;
     expect(summary.getColumn(1).values).not.toContain("Sin provincia");
-    const summaryConcepts = summary.getColumn(1).values.map(String).join("|").toLowerCase();
+    const summaryConcepts = (summary.getColumn(1).values ?? []).map(String).join("|").toLowerCase();
     expect(summaryConcepts).not.toMatch(/tenant|alcance|moneda|generaci.n|corte|emisor|criterio de sumas/);
     const total = Array.from({ length: summary.rowCount }, (_, i) => summary.getRow(i + 1)).find(r => r.getCell(1).value === "Total del detalle")!;
     expect(total.getCell(5).value).toBe(0);

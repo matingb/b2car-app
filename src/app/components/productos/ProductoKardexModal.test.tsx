@@ -74,8 +74,6 @@ describe("ProductoKardexModal", () => {
     expect(screen.getAllByText("-3").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/10\s*u\./)).toBeInTheDocument();
     expect(screen.getByText(/7\s*u\./)).toBeInTheDocument();
-    expect(screen.getByText("Total ingresos:")).toBeInTheDocument();
-    expect(screen.getByText("Total egresos:")).toBeInTheDocument();
   });
 
   it("muestra estado vacío si el producto no registra movimientos", async () => {

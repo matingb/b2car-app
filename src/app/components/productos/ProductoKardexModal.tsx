@@ -154,15 +154,6 @@ export default function ProductoKardexModal({
 							</div>
 						)}
 					</div>
-
-					<div style={{ display: "flex", gap: 16, fontSize: 13 }}>
-						<div style={{ color: COLOR.TEXT.SECONDARY }}>
-							Total ingresos: <strong style={{ color: COLOR.SEMANTIC.SUCCESS }}>+{totalEntradas}</strong>
-						</div>
-						<div style={{ color: COLOR.TEXT.SECONDARY }}>
-							Total egresos: <strong style={{ color: COLOR.SEMANTIC.DANGER }}>-{totalSalidas}</strong>
-						</div>
-					</div>
 				</div>
 
 				{/* Contenido / Tabla */}

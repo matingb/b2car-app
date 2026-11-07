@@ -15,7 +15,7 @@ import { clientesClient } from "@/clients/clientes/clientesClient";
 import { productosClient } from "@/clients/productosClient";
 import type { GastoFinanciero } from "@/model/finanzas";
 import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
-import StockBreakdownBadge, { buildStockAutocompleteOptions } from "@/app/components/stock/StockBreakdownBadge";
+import { buildStockAutocompleteOptions } from "@/app/components/stock/StockBreakdownBadge";
 import {
   type CuentaFinancieraDraft,
   EMPTY_CUENTA_FINANCIERA_DRAFT,

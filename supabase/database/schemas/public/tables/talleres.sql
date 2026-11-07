@@ -5,8 +5,15 @@ CREATE TABLE public.talleres (
   ubicacion  text                     NOT NULL,
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
-  valor_hora numeric(12,2)            DEFAULT 0 NOT NULL
+  valor_hora numeric(12,2)            DEFAULT 0 NOT NULL,
+  whatsapp   text,
+  instagram  text,
+  facebook   text
 );
+
+COMMENT ON COLUMN public.talleres.whatsapp IS 'Número de WhatsApp del taller, tal como se imprime en la factura.';
+COMMENT ON COLUMN public.talleres.instagram IS 'Usuario de Instagram del taller, sin la @ inicial.';
+COMMENT ON COLUMN public.talleres.facebook IS 'Nombre de la página de Facebook del taller.';
 
 CREATE INDEX talleres_tenant_id_idx ON public.talleres (tenant_id);
 
@@ -28,6 +35,18 @@ ALTER TABLE public.talleres
 
 ALTER TABLE public.talleres
   ADD CONSTRAINT talleres_valor_hora_check CHECK (valor_hora >= 0::numeric);
+
+ALTER TABLE public.talleres
+  ADD CONSTRAINT talleres_whatsapp_valido
+  CHECK (whatsapp IS NULL OR (whatsapp <> '' AND char_length(whatsapp) <= 30));
+
+ALTER TABLE public.talleres
+  ADD CONSTRAINT talleres_instagram_valido
+  CHECK (instagram IS NULL OR instagram ~ '^[A-Za-z0-9._]{1,30}$');
+
+ALTER TABLE public.talleres
+  ADD CONSTRAINT talleres_facebook_valido
+  CHECK (facebook IS NULL OR (facebook <> '' AND char_length(facebook) <= 80));
 
 ALTER TABLE public.talleres
   ADD CONSTRAINT talleres_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);

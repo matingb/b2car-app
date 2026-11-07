@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
 import { productosService, type ProductoRow } from "../productosService";
 import type { StockRow } from "../../stocks/stocksService";
+import { mapStockRow } from "../../stocks/stocksMapper";
 import { ServiceError } from "@/app/api/serviceError";
 
 function mapProducto(row: ProductoRow): Omit<ProductoDetailDTO, "stocks"> {
@@ -27,19 +28,6 @@ function mapProducto(row: ProductoRow): Omit<ProductoDetailDTO, "stocks"> {
   };
 }
 
-function mapStock(row: StockRow): StockDTO {
-  return {
-    id: row.id,
-    tallerId: row.taller_id,
-    productoId: row.producto_id,
-    cantidad: Number(row.cantidad) || 0,
-    stock_minimo: Number(row.stock_minimo) || 0,
-    stock_maximo: Number(row.stock_maximo) || 0,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
-
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authError = await requirePermission(Permission.ProductosView);
   if (authError) return authError;
@@ -55,7 +43,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   return Response.json(
-    { data: { ...mapProducto(productoRes.data), stocks: (productoRes.data.stocks ?? []).map((s) => mapStock(s as StockRow)) }, error: null } satisfies GetProductoByIdResponse,
+    { data: { ...mapProducto(productoRes.data), stocks: (productoRes.data.stocks ?? []).map((s) => mapStockRow(s as StockRow)) }, error: null } satisfies GetProductoByIdResponse,
     { status: 200 }
   );
 }
@@ -102,7 +90,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     return Response.json(
-      { data: { ...mapProducto(updated), stocks: (updated.stocks ?? []).map((s) => mapStock(s as StockRow)) }, error: null } satisfies UpdateProductoResponse,
+      { data: { ...mapProducto(updated), stocks: (updated.stocks ?? []).map((s) => mapStockRow(s as StockRow)) }, error: null } satisfies UpdateProductoResponse,
       { status: 200 }
     );
   } catch (error: unknown) {

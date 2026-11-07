@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
+import IconButton from "@/app/components/ui/IconButton";
+import Table from "@/app/components/ui/Table";
 import Modal from "@/app/components/ui/Modal";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import NumberInput from "@/app/components/ui/NumberInput";
 import Toggle from "@/app/components/ui/Toggle";
-import { Building2, Edit2, LoaderCircle, Plus, Star, Trash2 } from "lucide-react";
+import { LoaderCircle, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import { productosClient } from "@/clients/productosClient";
 import { proveedoresClient } from "@/clients/proveedores/proveedoresClient";
@@ -98,21 +99,24 @@ export default function ProductoProveedoresSection({
   };
 
   return (
-    <Card style={styles.cardContainer}>
+    <div>
       <div style={styles.header}>
-        <div style={styles.titleGroup}>
-          <Building2 size={18} color={COLOR.ACCENT.PRIMARY} />
-          <h3 style={styles.title}>Proveedores asociados</h3>
-          <span style={styles.countBadge}>
-            {items.length} {items.length === 1 ? "proveedor" : "proveedores"}
-          </span>
+        <div>
+          <div style={styles.titleGroup}>
+            <h3 style={styles.sectionTitle}>Proveedores asociados</h3>
+            <span style={styles.countBadge}>
+              {items.length} {items.length === 1 ? "proveedor" : "proveedores"}
+            </span>
+          </div>
+          <p style={styles.sectionDescription}>
+            Configuración y costos de compra según cada proveedor.
+          </p>
         </div>
         <Button
-          icon={<Plus size={15} />}
+          icon={<Plus size={16} />}
           text="Asociar proveedor"
           onClick={handleOpenAdd}
           outline
-          style={styles.addButton}
           dataTestId="btn-asociar-proveedor"
         />
       </div>
@@ -126,86 +130,77 @@ export default function ProductoProveedoresSection({
           <p style={styles.emptyText}>
             Este producto aún no está vinculado a ningún proveedor.
           </p>
-          <Button
-            icon={<Plus size={15} />}
-            text="Vincular a un proveedor"
-            onClick={handleOpenAdd}
-            outline
-          />
         </div>
       ) : (
-        <div style={styles.tableWrapper}>
-          <table style={styles.table}>
-            <thead>
-              <tr style={styles.tableHeaderRow}>
-                <th style={styles.th}>Proveedor</th>
-                <th style={styles.th}>Cód. Proveedor</th>
-                <th style={{ ...styles.th, textAlign: "right" }}>Costo Ref.</th>
-                <th style={styles.th}>Predeterminado</th>
-                <th style={{ ...styles.th, textAlign: "right" }}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.proveedor_id} style={styles.tableRow}>
-                  <td style={styles.td}>
-                    <Link
-                      href={ROUTES.proveedorDetalle(item.proveedor_id)}
-                      style={styles.proveedorLink}
-                      title="Ver ficha del proveedor"
-                    >
-                      {item.proveedor_nombre}
-                    </Link>
-                  </td>
-                  <td style={styles.td}>
-                    {item.codigo_proveedor ? (
-                      <span style={styles.codeBadge}>{item.codigo_proveedor}</span>
-                    ) : (
-                      <span style={styles.mutedText}>-</span>
-                    )}
-                  </td>
-                  <td style={{ ...styles.td, textAlign: "right" }}>
-                    <span style={styles.costoText}>
-                      {formatArs(item.costo_referencia, { maxDecimals: 0, minDecimals: 0 })}
+        <Table>
+          <Table.Header>
+            <Table.Head>PROVEEDOR</Table.Head>
+            <Table.Head>CÓD. PROVEEDOR</Table.Head>
+            <Table.Head align="right">COSTO REF.</Table.Head>
+            <Table.Head align="center">PREDETERMINADO</Table.Head>
+            <Table.Head align="right" style={styles.thAcciones}>
+              ACCIONES
+            </Table.Head>
+          </Table.Header>
+          <Table.Body>
+            {items.map((item) => (
+              <Table.Row key={item.proveedor_id}>
+                <Table.Cell>
+                  <Link
+                    href={ROUTES.proveedorDetalle(item.proveedor_id)}
+                    style={styles.proveedorLink}
+                    title="Ver ficha del proveedor"
+                  >
+                    {item.proveedor_nombre}
+                  </Link>
+                </Table.Cell>
+                <Table.Cell>
+                  {item.codigo_proveedor ? (
+                    <span style={styles.codeBadge}>{item.codigo_proveedor}</span>
+                  ) : (
+                    <span style={styles.mutedText}>-</span>
+                  )}
+                </Table.Cell>
+                <Table.Cell align="right">
+                  <span style={styles.costoText}>
+                    {formatArs(item.costo_referencia, { maxDecimals: 0, minDecimals: 0 })}
+                  </span>
+                </Table.Cell>
+                <Table.Cell align="center">
+                  {item.es_predeterminado ? (
+                    <span style={styles.starBadge}>
+                      <Star size={12} fill={COLOR.STATUS.WARNING.SOLID_BG} color={COLOR.STATUS.WARNING.SOLID_BG} />
+                      <span>Sí</span>
                     </span>
-                  </td>
-                  <td style={styles.td}>
-                    {item.es_predeterminado ? (
-                      <span style={styles.starBadge}>
-                        <Star size={12} fill={COLOR.STATUS.WARNING.SOLID_BG} color={COLOR.STATUS.WARNING.SOLID_BG} />
-                        <span>Sí</span>
-                      </span>
-                    ) : (
-                      <span style={styles.mutedText}>No</span>
-                    )}
-                  </td>
-                  <td style={{ ...styles.td, textAlign: "right" }}>
-                    <div style={styles.actionButtons}>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(item)}
-                        style={styles.iconButton}
-                        title="Editar costos / códigos"
-                        aria-label={`Editar ${item.proveedor_nombre}`}
-                      >
-                        <Edit2 size={15} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(item)}
-                        style={{ ...styles.iconButton, color: COLOR.ICON.DANGER }}
-                        title="Desvincular proveedor"
-                        aria-label={`Desvincular ${item.proveedor_nombre}`}
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  ) : (
+                    <span style={styles.mutedText}>No</span>
+                  )}
+                </Table.Cell>
+                <Table.Cell align="right">
+                  <div style={styles.actionButtons}>
+                    <IconButton
+                      icon={<Pencil />}
+                      size={15}
+                      onClick={() => handleOpenEdit(item)}
+                      title="Editar costos / códigos"
+                      ariaLabel={`Editar ${item.proveedor_nombre}`}
+                      aria-label={`Editar ${item.proveedor_nombre}`}
+                    />
+                    <IconButton
+                      icon={<Trash2 />}
+                      size={15}
+                      onClick={() => handleDelete(item)}
+                      title="Desvincular proveedor"
+                      ariaLabel={`Desvincular ${item.proveedor_nombre}`}
+                      aria-label={`Desvincular ${item.proveedor_nombre}`}
+                      hoverColor={COLOR.ICON.DANGER}
+                    />
+                  </div>
+                </Table.Cell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table>
       )}
 
       {modalOpen ? (
@@ -229,7 +224,7 @@ export default function ProductoProveedoresSection({
           }}
         />
       ) : null}
-    </Card>
+    </div>
   );
 }
 
@@ -394,30 +389,30 @@ function ProductoAsociarProveedorModal({
 }
 
 const styles = {
-  cardContainer: {
-    padding: "20px 24px",
-    background: COLOR.BACKGROUND.PRIMARY,
-    borderRadius: 16,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-  },
   header: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
     flexWrap: "wrap" as const,
-    gap: 12,
+    gap: 10,
   },
   titleGroup: {
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
+    marginBottom: 8,
   },
-  title: {
-    fontSize: 16,
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: 600,
     color: COLOR.TEXT.PRIMARY,
     margin: 0,
+  },
+  sectionDescription: {
+    margin: "-3px 0 0",
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 14,
   },
   countBadge: {
     fontSize: 12,
@@ -427,22 +422,21 @@ const styles = {
     padding: "2px 8px",
     borderRadius: 9999,
   },
-  addButton: {
-    fontSize: 13,
-    padding: "6px 14px",
-  },
   loadingWrapper: {
     display: "flex",
     justifyContent: "center",
-    padding: "24px 0",
+    padding: "32px 0",
+    background: COLOR.BACKGROUND.SECONDARY,
+    borderRadius: 12,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
   },
   emptyContainer: {
     display: "flex",
     flexDirection: "column" as const,
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    padding: "24px 16px",
+    gap: 12,
+    padding: "32px 20px",
     background: COLOR.BACKGROUND.SECONDARY,
     borderRadius: 12,
     border: `1px dashed ${COLOR.BORDER.SUBTLE}`,
@@ -452,42 +446,10 @@ const styles = {
     color: COLOR.TEXT.SECONDARY,
     margin: 0,
   },
-  tableWrapper: {
-    overflowX: "auto" as const,
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse" as const,
-    fontSize: 14,
-  },
-  tableHeaderRow: {
-    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
-  },
-  th: {
-    textAlign: "left" as const,
-    padding: "8px 12px 10px 12px",
-    fontSize: 12,
-    fontWeight: 600,
-    color: COLOR.TEXT.SECONDARY,
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.5px",
-  },
-  tableRow: {
-    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
-  },
-  td: {
-    padding: "12px",
-    verticalAlign: "middle" as const,
-    color: COLOR.TEXT.PRIMARY,
-  },
   proveedorLink: {
     fontWeight: 600,
     color: COLOR.TEXT.PRIMARY,
     textDecoration: "none",
-    transition: "color 150ms ease",
-    "&:hover": {
-      color: COLOR.ACCENT.PRIMARY,
-    },
   },
   codeBadge: {
     fontFamily: "monospace",
@@ -519,23 +481,11 @@ const styles = {
   actionButtons: {
     display: "inline-flex",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
   },
-  iconButton: {
-    background: "transparent",
-    border: "none",
-    cursor: "pointer",
-    padding: 6,
-    borderRadius: 6,
-    color: COLOR.TEXT.SECONDARY,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "background 150ms ease, color 150ms ease",
-    "&:hover": {
-      background: COLOR.BACKGROUND.SUBTLE,
-      color: COLOR.TEXT.PRIMARY,
-    },
+  thAcciones: {
+    width: 90,
+    paddingRight: 16,
   },
 };
 

@@ -176,7 +176,7 @@ describe("useCondicionPago", () => {
       nombre: "Nueva Cuenta Efectivo",
     });
 
-    let payload: any;
+    let payload: Awaited<ReturnType<typeof result.current.resolvePagosPayload>> = [];
     await act(async () => {
       payload = await result.current.resolvePagosPayload(mockCreateCuenta, "2026-11-07");
     });

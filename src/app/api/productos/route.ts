@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
 import { productosService, type ProductoRow, type ProductoWithStocksRow } from "./productosService";
 import type { StockRow } from "../stocks/stocksService";
+import { mapStockRow } from "../stocks/stocksMapper";
 import { ServiceError } from "../serviceError";
 
 function mapProductoBase(row: ProductoRow): Omit<ProductoDTO, "talleresConStock"> {
@@ -26,28 +27,12 @@ function mapProductoBase(row: ProductoRow): Omit<ProductoDTO, "talleresConStock"
   };
 }
 
-function mapStock(row: StockRow): StockDTO {
-  return {
-    id: row.id,
-    tallerId: row.taller_id,
-    productoId: row.producto_id,
-    cantidad: Number(row.cantidad) || 0,
-    cantidad_reservada: Number(row.cantidad_reservada) || 0,
-    cantidad_pendiente: Number(row.cantidad_pendiente) || 0,
-    cantidad_disponible: Number(row.cantidad_disponible) || 0,
-    stock_minimo: Number(row.stock_minimo) || 0,
-    stock_maximo: Number(row.stock_maximo) || 0,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
-
 function mapProducto(row: ProductoWithStocksRow): ProductoDTO {
   const stocks = Array.isArray(row.stocks) ? row.stocks : [];
   return {
     ...mapProductoBase(row),
     talleresConStock: stocks.length,
-    stocks: stocks.map((s) => mapStock(s as StockRow)),
+    stocks: stocks.map((s) => mapStockRow(s as StockRow)),
   };
 }
 
