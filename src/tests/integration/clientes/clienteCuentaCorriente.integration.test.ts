@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
+import { NextRequest } from "next/server";
 import { testClient, SEED } from "@/tests/integration";
 import { clienteFinanzasService } from "@/app/api/clientes/clienteFinanzasService";
+import { empresaService } from "@/app/api/clientes/empresas/empresaService";
+import { POST as postClienteCuentaCorrienteRoute } from "@/app/api/clientes/[id]/cuenta-corriente/route";
 import {
   dadoUnClienteParticularConVehiculo,
   dadoUnArreglo,
@@ -322,6 +325,103 @@ describe("Integration: Cuenta Corriente del Cliente", () => {
     const totalDebito = movimientos.reduce((acc: number, m: { debito: number }) => acc + Number(m.debito), 0);
     const totalCredito = movimientos.reduce((acc: number, m: { credito: number }) => acc + Number(m.credito), 0);
     expect(totalDebito - totalCredito).toBe(50000);
+  });
+
+  it("muestra el nombre del cliente en los movimientos de la cuenta financiera para pagos y cobros directos", async () => {
+    // Particular
+    const { cliente: particular } = await dadoUnClienteParticularConVehiculo({
+      nombre: "Carlos",
+      apellido: "Gómez",
+    });
+
+    const cuenta = await dadoUnaCuentaFinanciera({
+      saldoInicial: 100000,
+      nombre: "Banco Galicia Clientes",
+    });
+
+    // 1. Pago a particular sin descripción adicional -> "Pago a Carlos Gómez"
+    const reqPago = new NextRequest(
+      `http://localhost:3000/api/clientes/${particular.id}/cuenta-corriente`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sentido: "PAGO",
+          cuenta_id: cuenta.id,
+          monto: 15000,
+          idempotency_key: crypto.randomUUID(),
+        }),
+      }
+    );
+    const resPago = await postClienteCuentaCorrienteRoute(reqPago, {
+      params: Promise.resolve({ id: particular.id }),
+    });
+    expect(resPago.status).toBe(201);
+
+    // 2. Cobro a particular con descripción adicional -> "Cobro de Carlos Gómez — Transferencia Banco Galicia"
+    const reqCobro = new NextRequest(
+      `http://localhost:3000/api/clientes/${particular.id}/cuenta-corriente`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sentido: "COBRO",
+          cuenta_id: cuenta.id,
+          monto: 30000,
+          descripcion: "Transferencia Banco Galicia",
+          idempotency_key: crypto.randomUUID(),
+        }),
+      }
+    );
+    const resCobro = await postClienteCuentaCorrienteRoute(reqCobro, {
+      params: Promise.resolve({ id: particular.id }),
+    });
+    expect(resCobro.status).toBe(201);
+
+    // 3. Empresa
+    const stampNum = String(Date.now()).slice(-8);
+    const { data: empresa, error: empErr } = await empresaService.createClienteEmpresa(testClient, {
+      nombre: "Transportes Austral SA",
+      cuit: `30${stampNum}9`,
+    });
+    if (empErr) {
+      throw new Error(`Fallo crear empresa: ${empErr.message}`);
+    }
+    expect(empresa).toBeDefined();
+
+    const reqCobroEmpresa = new NextRequest(
+      `http://localhost:3000/api/clientes/${empresa!.id}/cuenta-corriente`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sentido: "COBRO",
+          cuenta_id: cuenta.id,
+          monto: 50000,
+          idempotency_key: crypto.randomUUID(),
+        }),
+      }
+    );
+    const resCobroEmpresa = await postClienteCuentaCorrienteRoute(reqCobroEmpresa, {
+      params: Promise.resolve({ id: empresa!.id }),
+    });
+    expect(resCobroEmpresa.status).toBe(201);
+
+    await expectSaldoCuenta(cuenta.id, 100000 - 15000 + 30000 + 50000);
+
+    const resMovs = await getCuentaMovimientosViaRoute(cuenta.id);
+    expect(resMovs.status).toBe(200);
+    const { data: movimientos } = (await resMovs.json()) as {
+      data: Array<{ tipo: string; descripcion: string; importe: number }>;
+    };
+
+    const movPago = movimientos.find((m) => m.tipo === "PAGO_CLIENTE" && m.importe === -15000);
+    const movCobro = movimientos.find((m) => m.tipo === "COBRO_CLIENTE" && m.importe === 30000);
+    const movCobroEmpresa = movimientos.find((m) => m.tipo === "COBRO_CLIENTE" && m.importe === 50000);
+
+    expect(movPago?.descripcion).toBe("Pago a Carlos Gómez");
+    expect(movCobro?.descripcion).toBe("Cobro de Carlos Gómez — Transferencia Banco Galicia");
+    expect(movCobroEmpresa?.descripcion).toBe("Cobro de Transportes Austral SA");
   });
 });
 

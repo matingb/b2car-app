@@ -30,7 +30,7 @@ const segment = (id: string = validId) => ({ params: Promise.resolve({ id }) });
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockApiSession({ permissions: [Permission.OperacionesEdit] });
+  mockApiSession({ permissions: [Permission.ProveedoresFinanzasEdit] });
   vi.spyOn(logger, "warn").mockImplementation(() => {});
   vi.spyOn(logger, "error").mockImplementation(() => {});
 });
@@ -150,8 +150,23 @@ describe("POST /api/proveedores/[id]/pagos", () => {
     );
   });
 
-  it("permite registrar un COBRO (reintegro) con permiso FinanzasEdit", async () => {
-    mockApiSession({ permissions: [Permission.FinanzasEdit] });
+  it("retorna 403 cuando el usuario no tiene permiso ProveedoresFinanzasEdit", async () => {
+    mockApiSession({ permissions: [Permission.ProveedoresView] });
+
+    const req = new NextRequest(`http://localhost/api/proveedores/${validId}/pagos`, {
+      method: "POST",
+      body: JSON.stringify({
+        cuenta_id: validCuentaId,
+        monto: 1000,
+      }),
+    });
+    const res = await POST(req, segment(validId));
+    expect(res.status).toBe(403);
+    expect(proveedorService.createPagoDirecto).not.toHaveBeenCalled();
+  });
+
+  it("permite registrar un COBRO (reintegro) con permiso ProveedoresFinanzasEdit", async () => {
+    mockApiSession({ permissions: [Permission.ProveedoresFinanzasEdit] });
     vi.mocked(proveedorService.createPagoDirecto).mockResolvedValue({
       data: "op-cobro-prov-1",
       error: null,

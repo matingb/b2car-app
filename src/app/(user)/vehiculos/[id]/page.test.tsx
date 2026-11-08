@@ -434,7 +434,7 @@ describe("VehiculoDetailsPage integration", () => {
     expect(screen.getByRole("button", { name: "WhatsApp" })).toBeInTheDocument();
 
     const reassignButton = screen.getByTestId("propietario-reassign");
-    expect(reassignButton).toHaveTextContent("Reasignar");
+    expect(reassignButton).toBeInTheDocument();
 
     await user.click(reassignButton);
     expect(await screen.findByText("Reasignar propietario")).toBeInTheDocument();

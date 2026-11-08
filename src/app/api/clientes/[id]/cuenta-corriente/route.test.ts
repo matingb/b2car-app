@@ -3,6 +3,8 @@ import { NextRequest } from "next/server";
 import { GET, POST } from "./route";
 import { createClient } from "@/supabase/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { requirePermission } from "@/lib/requirePermission";
+import { Permission } from "@/lib/permissions";
 
 vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
@@ -10,7 +12,6 @@ vi.mock("@/supabase/server", () => ({
 
 vi.mock("@/lib/requirePermission", () => ({
   requirePermission: vi.fn().mockResolvedValue(null),
-  requireAnyPermission: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
@@ -188,5 +189,29 @@ describe("GET & POST /api/clientes/[id]/cuenta-corriente", () => {
       params: Promise.resolve({ id: "not-a-uuid" }),
     });
     expect(res2.status).toBe(400);
+  });
+
+  it("POST retorna 403 cuando no se tiene permiso ClientesFinanzasEdit", async () => {
+    const validCliId = "e4a2a11b-7159-4d64-88aa-38e56d787090";
+    const validCtaId = "11111111-2222-4333-8444-555555555555";
+
+    vi.mocked(requirePermission).mockResolvedValueOnce(
+      Response.json({ error: "FORBIDDEN_INSUFFICIENT_PERMISSIONS" }, { status: 403 })
+    );
+
+    const req = new NextRequest(
+      `http://localhost/api/clientes/${validCliId}/cuenta-corriente`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          sentido: "COBRO",
+          cuenta_id: validCtaId,
+          monto: 1000,
+        }),
+      }
+    );
+    const res = await POST(req, { params: Promise.resolve({ id: validCliId }) });
+    expect(res.status).toBe(403);
+    expect(requirePermission).toHaveBeenCalledWith(Permission.ClientesFinanzasEdit);
   });
 });

@@ -5,7 +5,7 @@ import type {
   SentidoMovimientoCuentaCorriente,
 } from "@/model/types";
 import { clienteFinanzasService } from "../../clienteFinanzasService";
-import { requireAnyPermission, requirePermission } from "@/lib/requirePermission";
+import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
 import { ServiceError } from "@/app/api/serviceError";
 import { isValidUuid } from "@/lib/uuid";
@@ -55,15 +55,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const viewAuthError = await requirePermission(Permission.ClientesFinanzasView);
-  if (viewAuthError) return viewAuthError;
-
-  const writeAuthError = await requireAnyPermission([
-    Permission.OperacionesEdit,
-    Permission.FinanzasEdit,
-    Permission.ArreglosCobrosRegister,
-  ]);
-  if (writeAuthError) return writeAuthError;
+  const authError = await requirePermission(Permission.ClientesFinanzasEdit);
+  if (authError) return authError;
 
   const { id } = await params;
   if (!isValidUuid(id)) {

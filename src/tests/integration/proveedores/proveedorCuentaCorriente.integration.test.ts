@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { describe, it, expect } from "vitest";
 import { testClient, SEED } from "@/tests/integration";
 import {
@@ -12,7 +13,9 @@ import {
   crearOperacionViaRoute,
   registrarPagoOperacionViaRoute,
   getProveedorOperacionesViaRoute,
+  getCuentaMovimientosViaRoute,
 } from "../helpers/routeDrivers";
+import { POST as postPagoProveedorRoute } from "@/app/api/proveedores/[id]/pagos/route";
 import { operacionesService } from "@/app/api/operaciones/operacionesService";
 import { proveedorService } from "@/app/api/proveedores/proveedorService";
 
@@ -330,6 +333,88 @@ describe("Integration: Proveedores - Compras, Pagos y Deuda en Cuenta Corriente"
     expect(resumenCc.totalPagado).toBe(0);
     expect(resumenCc.totalComprado).toBe(40000);
     expect(resumenCc.operaciones[0].estado_pago).toBe("PENDIENTE");
+  });
+
+  it("muestra el nombre del proveedor en los movimientos de la cuenta financiera para pagos y cobros directos", async () => {
+    const proveedor = await dadoUnProveedor({ nombre: "Repuestos Warnes SRL" });
+    const cuenta = await dadoUnaCuentaFinanciera({
+      saldoInicial: 200000,
+      nombre: "Banco Galicia Proveedores",
+    });
+
+    const reqPago = new NextRequest(
+      `http://localhost:3000/api/proveedores/${proveedor.id}/pagos`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sentido: "PAGO",
+          cuentaId: cuenta.id,
+          monto: 45000,
+          idempotencyKey: crypto.randomUUID(),
+        }),
+      }
+    );
+    const resPago = await postPagoProveedorRoute(reqPago, {
+      params: Promise.resolve({ id: proveedor.id }),
+    });
+    expect(resPago.status).toBe(201);
+
+    const reqCobro = new NextRequest(
+      `http://localhost:3000/api/proveedores/${proveedor.id}/pagos`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sentido: "COBRO",
+          cuentaId: cuenta.id,
+          monto: 10000,
+          descripcion: "Nota de crédito envases",
+          idempotencyKey: crypto.randomUUID(),
+        }),
+      }
+    );
+    const resCobro = await postPagoProveedorRoute(reqCobro, {
+      params: Promise.resolve({ id: proveedor.id }),
+    });
+    expect(resCobro.status).toBe(201);
+
+    await expectSaldoCuenta(cuenta.id, 200000 - 45000 + 10000);
+
+    const resMovs = await getCuentaMovimientosViaRoute(cuenta.id);
+    expect(resMovs.status).toBe(200);
+    const { data: movimientos } = (await resMovs.json()) as {
+      data: Array<{ tipo: string; descripcion: string; importe: number }>;
+    };
+
+    const movPago = movimientos.find((m) => m.tipo === "PAGO_PROVEEDOR");
+    const movCobro = movimientos.find((m) => m.tipo === "COBRO_PROVEEDOR");
+
+    expect(movPago?.descripcion).toBe("Pago a Repuestos Warnes SRL");
+    expect(movCobro?.descripcion).toBe("Cobro de Repuestos Warnes SRL — Nota de crédito envases");
+  });
+
+  it("seed: Distribuidora Norte tiene solo los 3 movimientos de ejemplo con valores mayores a 0 y figura por nombre en Banco Galicia", async () => {
+    const resCc = await getProveedorOperacionesViaRoute(SEED.proveedorId);
+    expect(resCc.status).toBe(200);
+    const { data: resumen } = await resCc.json();
+
+    expect(resumen.movimientos).toHaveLength(3);
+    for (const mov of resumen.movimientos) {
+      expect(mov.debito + mov.credito).toBeGreaterThan(0);
+    }
+    expect(resumen.totalComprado).toBe(231000);
+    expect(resumen.totalPagado).toBe(150000);
+    expect(resumen.saldoAdeudado).toBe(81000);
+
+    const resMovs = await getCuentaMovimientosViaRoute(SEED.cuentaId);
+    expect(resMovs.status).toBe(200);
+    const { data: movsCuenta } = (await resMovs.json()) as {
+      data: Array<{ tipo: string; descripcion: string; importe: number }>;
+    };
+    const pagoSeed = movsCuenta.find((m) => m.tipo === "PAGO_PROVEEDOR");
+    expect(pagoSeed?.descripcion).toBe("Pago a Distribuidora Norte");
+    expect(pagoSeed?.importe).toBe(-150000);
   });
 });
 

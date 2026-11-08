@@ -33,7 +33,7 @@ export default function ProveedorProfileCard({
 }: ProveedorProfileCardProps) {
   const registrarMovimientoActions =
     onRegistrarPago || onRegistrarCobro ? (
-      <Can anyPermissions={[Permission.OperacionesEdit, Permission.FinanzasEdit]}>
+      <Can permission={Permission.ProveedoresFinanzasEdit}>
         {onRegistrarPago && (
           <IconButton
             icon={<ArrowUpRight size={18} />}

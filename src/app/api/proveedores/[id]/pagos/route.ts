@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { createClient } from "@/supabase/server";
-import { requireAnyPermission } from "@/lib/requirePermission";
+import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
 import { proveedorService } from "@/app/api/proveedores/proveedorService";
 import { ServiceError } from "@/app/api/serviceError";
@@ -18,10 +18,7 @@ export async function POST(
 	req: NextRequest,
 	{ params }: { params: Promise<{ id: string }> }
 ) {
-	const authError = await requireAnyPermission([
-		Permission.OperacionesEdit,
-		Permission.FinanzasEdit,
-	]);
+	const authError = await requirePermission(Permission.ProveedoresFinanzasEdit);
 	if (authError) return authError;
 
 	const { id } = await params;

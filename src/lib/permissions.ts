@@ -36,8 +36,10 @@ export const Permission = {
   ClientesView: "clientes:view",
   ClientesEdit: "clientes:edit",
   ClientesFinanzasView: "clientes:finanzas:view",
+  ClientesFinanzasEdit: "clientes:finanzas:edit",
   ProveedoresView: "proveedores:view",
   ProveedoresEdit: "proveedores:edit",
+  ProveedoresFinanzasEdit: "proveedores:finanzas:edit",
 
   // 4. Vehículos y Turnos
   VehiculosView: "vehiculos:view",

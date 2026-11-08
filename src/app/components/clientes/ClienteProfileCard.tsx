@@ -68,14 +68,7 @@ export default function ClienteProfileCard({
   const formattedPhone = formatTelephoneNumber(codigo_pais ?? undefined, telefono ?? "");
 
   const registrarMovimientoAction = clienteId ? (
-    <Can
-      permission={Permission.ClientesFinanzasView}
-      anyPermissions={[
-        Permission.OperacionesEdit,
-        Permission.FinanzasEdit,
-        Permission.ArreglosCobrosRegister,
-      ]}
-    >
+    <Can permission={Permission.ClientesFinanzasEdit}>
       <IconButton
         icon={<ArrowDownLeft size={18} />}
         size={18}
