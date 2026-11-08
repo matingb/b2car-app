@@ -41,7 +41,9 @@ export default function EmpresaDetails() {
     setLoadingFinanzas(true);
     try {
       const res = await clientesClient.getResumenFinanciero(clienteId);
-      if (res.data) setResumenFinanciero(res.data);
+      if (res.data) {
+        setResumenFinanciero(res.data);
+      }
     } catch (e) {
       logger.error("Error cargando resumen financiero", e);
     } finally {
@@ -133,6 +135,7 @@ export default function EmpresaDetails() {
     <div>
       {/* TARJETA PRINCIPAL DEL CLIENTE FIEL AL MOCKUP */}
       <ClienteProfileCard
+        clienteId={clienteId}
         tipo={TipoCliente.EMPRESA}
         nombre={empresa?.nombre ?? "-"}
         direccion={empresa?.direccion}
@@ -143,6 +146,7 @@ export default function EmpresaDetails() {
         resumenFinanciero={resumenFinanciero}
         loadingFinanzas={loadingFinanzas}
         onEditCliente={() => setOpenEditEmpresa(true)}
+        onFinanzasUpdated={() => void loadFinanzas()}
         representantes={representantes}
         onAddRepresentante={() => setOpenRepresentante(true)}
         onDeleteRepresentante={handleDeleteRepresentante}
@@ -151,6 +155,7 @@ export default function EmpresaDetails() {
       <ClienteTabsSection
         clienteId={clienteId}
         clienteNombre={empresa?.nombre ?? "-"}
+        saldoCuenta={resumenFinanciero?.saldo_cuenta}
         vehiculos={vehiculos}
         onAddVehiculo={clienteId ? () => setOpenVehiculo(true) : undefined}
         onArregloPagoUpdated={() => void loadFinanzas()}

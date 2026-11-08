@@ -11,6 +11,7 @@ import ProveedorTabsNav, { type ProveedorTabKey } from "@/app/components/proveed
 import ProveedorProductosTab from "@/app/components/proveedores/ProveedorProductosTab";
 import ProveedorOperacionesTab from "@/app/components/proveedores/ProveedorOperacionesTab";
 import ProveedorCuentaCorrienteTab from "@/app/components/proveedores/ProveedorCuentaCorrienteTab";
+import MovimientoCuentaCorrienteModal from "@/app/components/finanzas/MovimientoCuentaCorrienteModal";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 import { OperacionesProvider } from "@/app/providers/OperacionesProvider";
 import { InventarioProvider } from "@/app/providers/InventarioProvider";
@@ -22,7 +23,7 @@ import { proveedoresClient } from "@/clients/proveedores/proveedoresClient";
 import { ROUTES } from "@/routing/routes";
 import { COLOR } from "@/theme/theme";
 import { Permission } from "@/lib/permissions";
-import type { Proveedor } from "@/model/types";
+import type { Proveedor, SentidoMovimientoCuentaCorriente } from "@/model/types";
 import type { ProveedorCuentaCorrienteResumen } from "@/model/dtos";
 
 export default function ProveedorDetailPage() {
@@ -41,6 +42,8 @@ export default function ProveedorDetailPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [compraModalOpen, setCompraModalOpen] = useState(false);
   const [compraProductoId, setCompraProductoId] = useState<string | null>(null);
+  const [movimientoModalSentido, setMovimientoModalSentido] =
+    useState<SentidoMovimientoCuentaCorriente | null>(null);
 
   const [activeTab, setActiveTab] = useState<ProveedorTabKey>("productos");
 
@@ -174,6 +177,8 @@ export default function ProveedorDetailPage() {
         loadingFinanzas={loadingFinanzas}
         onEditProveedor={() => setEditModalOpen(true)}
         onDeleteProveedor={handleDelete}
+        onRegistrarPago={() => setMovimientoModalSentido("PAGO")}
+        onRegistrarCobro={() => setMovimientoModalSentido("COBRO")}
       />
 
       <ProveedorTabsNav
@@ -210,15 +215,10 @@ export default function ProveedorDetailPage() {
 
       {activeTab === "cuenta_corriente" && (
         <ProveedorCuentaCorrienteTab
-          proveedorId={proveedor.id}
           resumen={cuentaCorrienteResumen}
           loading={loadingFinanzas}
           error={errorFinanzas}
           onReload={() => void loadFinanzas()}
-          onNuevaCompra={() => {
-            setCompraProductoId(null);
-            setCompraModalOpen(true);
-          }}
         />
       )}
 
@@ -228,6 +228,22 @@ export default function ProveedorDetailPage() {
         onSubmit={handleEditSubmit}
         initialValues={proveedor}
       />
+
+      {movimientoModalSentido && (
+        <MovimientoCuentaCorrienteModal
+          open
+          entidad="PROVEEDOR"
+          contraparteId={proveedor.id}
+          contraparteNombre={proveedor.nombre}
+          saldoActual={cuentaCorrienteResumen?.saldoAdeudado ?? 0}
+          initialSentido={movimientoModalSentido}
+          onClose={() => setMovimientoModalSentido(null)}
+          onSuccess={() => {
+            setMovimientoModalSentido(null);
+            void loadFinanzas();
+          }}
+        />
+      )}
 
       {compraModalOpen ? (
         <OperacionesProvider>

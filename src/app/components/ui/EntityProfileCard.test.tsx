@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent, act } from "@testing-library/react";
 import { renderWithProviders as render, TenantTestProvider, mockHasPermission } from "@/tests/testUtils";
 import EntityProfileCard, { getEntityInitials } from "./EntityProfileCard";
 import { Permission, UserRole } from "@/lib/permissions";
@@ -131,5 +131,27 @@ describe("EntityProfileCard", () => {
     const title = screen.getByText("Lucia Gomez");
     fireEvent.click(title);
     expect(onCardClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("muestra el Tooltip en hover sobre los botones de acción", () => {
+    vi.useFakeTimers();
+    render(
+      <EntityProfileCard
+        title="Lucia Gomez"
+        onEdit={vi.fn()}
+        editTestId="btn-edit"
+        editLabel="Editar Perfil"
+      />
+    );
+
+    const editBtn = screen.getByTestId("btn-edit");
+    fireEvent.mouseEnter(editBtn);
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Editar Perfil");
+    vi.useRealTimers();
   });
 });

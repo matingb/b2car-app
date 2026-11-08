@@ -274,29 +274,155 @@ describe("supabaseProveedorRepository", () => {
   });
 
   describe("getSaldos", () => {
-    it("calcula saldos pendientes agrupados por proveedor", async () => {
-      const mockCompras = [
+    it("consulta rpc_proveedores_saldos y mapea saldos por proveedor (incluyendo saldos a favor negativos)", async () => {
+      const mockRpcRows = [
         {
           proveedor_id: "prov-1",
-          operaciones: { id: "op-1", monto_total: 100000, total_pagado: 40000 },
-        },
-        {
-          proveedor_id: "prov-1",
-          operaciones: { id: "op-2", monto_total: 50000, total_pagado: 50000 },
+          total_comprado: 150000,
+          total_pagado: 90000,
+          saldo: 60000,
         },
         {
           proveedor_id: "prov-2",
-          operaciones: { id: "op-3", monto_total: 80000, total_pagado: 80000 },
+          total_comprado: 80000,
+          total_pagado: 100000,
+          saldo: -20000,
         },
       ];
 
-      const supabase = makeSupabase({ data: mockCompras, error: null });
+      const mockRpc = vi.fn().mockResolvedValue({ data: mockRpcRows, error: null });
+      const supabase = { rpc: mockRpc } as unknown as SupabaseClient;
       const res = await supabaseProveedorRepository.getSaldos(supabase, ["prov-1", "prov-2"]);
 
-      expect(supabase.from).toHaveBeenCalledWith("operaciones_compra");
-      expect(supabase.__chain.in).toHaveBeenCalledWith("proveedor_id", ["prov-1", "prov-2"]);
+      expect(mockRpc).toHaveBeenCalledWith("rpc_proveedores_saldos", {
+        p_proveedor_ids: ["prov-1", "prov-2"],
+      });
       expect(res.data.get("prov-1")?.saldoPendiente).toBe(60000);
-      expect(res.data.get("prov-2")?.saldoPendiente).toBe(0);
+      expect(res.data.get("prov-2")?.saldoPendiente).toBe(-20000);
+      expect(res.error).toBeNull();
+    });
+  });
+
+  describe("getExtractoCuentaCorriente", () => {
+    it("invoca rpc_proveedor_cuenta_corriente con filtros de fecha", async () => {
+      const mockRows = [
+        {
+          id: "mov-1",
+          fecha: "2026-11-01T10:00:00Z",
+          created_at: "2026-11-01T10:00:00Z",
+          tipo_movimiento: "CARGO_COMPRA",
+          concepto: "Orden de compra #OP-1",
+          comprobante: null,
+          debito: 50000,
+          credito: 0,
+          operacion_id: "op-1",
+          cuenta_nombre: "Taller Central",
+        },
+      ];
+      const mockRpc = vi.fn().mockResolvedValue({ data: mockRows, error: null });
+      const supabase = { rpc: mockRpc } as unknown as SupabaseClient;
+
+      const res = await supabaseProveedorRepository.getExtractoCuentaCorriente!(
+        supabase,
+        "prov-1",
+        { from: "2026-11-01", to: "2026-11-30" }
+      );
+
+      expect(mockRpc).toHaveBeenCalledWith("rpc_proveedor_cuenta_corriente", {
+        p_proveedor_id: "prov-1",
+        p_from: "2026-11-01",
+        p_to: "2026-11-30",
+      });
+      expect(res.data).toEqual(mockRows);
+      expect(res.error).toBeNull();
+    });
+  });
+
+  describe("createPagoDirecto", () => {
+    it("llama a rpc_crear_pago_proveedor con los parámetros correctos", async () => {
+      const mockRpc = vi.fn().mockResolvedValue({ data: "op-pago-123", error: null });
+      const supabase = {
+        rpc: mockRpc,
+      } as unknown as SupabaseClient;
+
+      const payload = {
+        proveedor_id: "prov-1",
+        cuenta_id: "cta-1",
+        monto: 50000,
+        fecha: "2026-11-08T12:00:00Z",
+        descripcion: "Pago a cuenta",
+        idempotency_key: "idem-1",
+        observaciones: "Transferencia bancaria",
+        taller_id: "tal-1",
+      };
+
+      const res = await supabaseProveedorRepository.createPagoDirecto(supabase, payload);
+
+      expect(mockRpc).toHaveBeenCalledWith("rpc_crear_pago_proveedor", {
+        p_proveedor_id: "prov-1",
+        p_cuenta_id: "cta-1",
+        p_monto: 50000,
+        p_fecha: "2026-11-08T12:00:00Z",
+        p_descripcion: "Pago a cuenta",
+        p_idempotency_key: "idem-1",
+        p_observaciones: "Transferencia bancaria",
+        p_taller_id: "tal-1",
+        p_pagos: null,
+      });
+      expect(res.data).toBe("op-pago-123");
+      expect(res.error).toBeNull();
+    });
+
+    it("llama a rpc_crear_pago_proveedor con array de pagos cuando se proveen múltiples cuentas", async () => {
+      const mockRpc = vi.fn().mockResolvedValue({
+        data: "op-pago-multi",
+        error: null,
+      });
+      const supabase = { rpc: mockRpc } as unknown as SupabaseClient;
+
+      const payload = {
+        proveedor_id: "prov-1",
+        pagos: [
+          { cuenta_id: "cta-1", monto: 30000, descripcion: "Banco" },
+          { cuenta_id: "cta-2", monto: 20000, descripcion: "Caja" },
+        ],
+      };
+
+      const res = await supabaseProveedorRepository.createPagoDirecto(supabase, payload);
+
+      expect(mockRpc).toHaveBeenCalledWith("rpc_crear_pago_proveedor", expect.objectContaining({
+        p_proveedor_id: "prov-1",
+        p_pagos: payload.pagos,
+      }));
+      expect(res.data).toBe("op-pago-multi");
+      expect(res.error).toBeNull();
+    });
+
+    it("llama a rpc_crear_cobro_proveedor cuando sentido es COBRO", async () => {
+      const mockRpc = vi.fn().mockResolvedValue({
+        data: "op-cobro-prov-1",
+        error: null,
+      });
+      const supabase = { rpc: mockRpc } as unknown as SupabaseClient;
+
+      const res = await supabaseProveedorRepository.createPagoDirecto(supabase, {
+        proveedor_id: "prov-1",
+        sentido: "COBRO",
+        cuenta_id: "cta-1",
+        monto: 15000,
+        descripcion: "Reintegro por devolución",
+      });
+
+      expect(mockRpc).toHaveBeenCalledWith(
+        "rpc_crear_cobro_proveedor",
+        expect.objectContaining({
+          p_proveedor_id: "prov-1",
+          p_cuenta_id: "cta-1",
+          p_monto: 15000,
+          p_descripcion: "Reintegro por devolución",
+        })
+      );
+      expect(res.data).toBe("op-cobro-prov-1");
       expect(res.error).toBeNull();
     });
   });

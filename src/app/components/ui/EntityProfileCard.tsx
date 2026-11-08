@@ -5,7 +5,6 @@ import { css } from "@emotion/react";
 import {
   Mail,
   MapPin,
-  MessageCircle,
   Pencil,
   Phone,
   Trash2,
@@ -16,6 +15,8 @@ import { formatTelephoneNumber } from "@/lib/telefono";
 import { openWhatsapp } from "@/lib/whatsapp";
 import Card from "@/app/components/ui/Card";
 import Can from "@/app/components/auth/Can";
+import IconButton from "@/app/components/ui/IconButton";
+import WhatsAppIcon from "@/app/components/ui/WhatsAppIcon";
 import type { PermissionValue } from "@/lib/permissions";
 
 export type EntityContactItem = {
@@ -175,8 +176,9 @@ export default function EntityProfileCard({
     );
 
   const whatsappButton = whatsappPhone ? (
-    <button
-      type="button"
+    <IconButton
+      icon={<WhatsAppIcon size={18} />}
+      size={18}
       onClick={(e) => {
         e.stopPropagation();
         openWhatsapp(
@@ -184,27 +186,25 @@ export default function EntityProfileCard({
           whatsappMessage ?? `Hola ${title}, me comunico desde el taller.`
         );
       }}
-      css={styles.whatsappActionButton}
-      title="Contactar por WhatsApp"
-    >
-      <MessageCircle size={14} color={COLOR.SEMANTIC.SUCCESS} />
-      <span>WhatsApp</span>
-    </button>
+      tooltip="Contactar por WhatsApp"
+      ariaLabel="WhatsApp"
+      hoverColor={COLOR.SEMANTIC.SUCCESS}
+    />
   ) : null;
 
   const editButton = onEdit ? (
-    <button
-      type="button"
+    <IconButton
+      icon={<Pencil size={18} />}
+      size={18}
       onClick={(e) => {
         e.stopPropagation();
         onEdit();
       }}
-      css={styles.textActionButton}
+      tooltip={editLabel}
+      ariaLabel={editLabel}
+      hoverColor={COLOR.ACCENT.PRIMARY}
       data-testid={editTestId}
-    >
-      <Pencil size={14} />
-      <span>{editLabel}</span>
-    </button>
+    />
   ) : null;
 
   const editAction =
@@ -215,18 +215,18 @@ export default function EntityProfileCard({
     );
 
   const deleteButton = onDelete ? (
-    <button
-      type="button"
+    <IconButton
+      icon={<Trash2 size={18} />}
+      size={18}
       onClick={(e) => {
         e.stopPropagation();
         onDelete();
       }}
-      css={styles.deleteActionButton}
+      tooltip={deleteLabel}
+      ariaLabel={deleteLabel}
+      hoverColor={COLOR.SEMANTIC.DANGER}
       data-testid={deleteTestId}
-    >
-      <Trash2 size={14} />
-      <span>{deleteLabel}</span>
-    </button>
+    />
   ) : null;
 
   const deleteAction =
@@ -248,7 +248,7 @@ export default function EntityProfileCard({
 
           <div css={styles.titlesSection}>
             <div css={styles.nameRow}>
-              {icon}
+              {icon && <span css={styles.nameIconWrapper}>{icon}</span>}
               <h1 css={styles.entityTitle}>{title}</h1>
               {badgeText && <span css={styles.entityBadge}>{badgeText}</span>}
               {badge}
@@ -268,13 +268,6 @@ export default function EntityProfileCard({
       <div css={styles.detailsSection}>
         <div css={styles.detailsHeader}>
           <span css={styles.detailsTitle}>{detailsTitle}</span>
-
-          <div css={styles.actionsGroup}>
-            {whatsappButton}
-            {editAction}
-            {deleteAction}
-            {extraActions}
-          </div>
         </div>
 
         <div css={styles.contactList}>
@@ -325,6 +318,13 @@ export default function EntityProfileCard({
 
           {extraContactItems}
         </div>
+
+        <div css={styles.actionsGroup}>
+          {whatsappButton}
+          {editAction}
+          {deleteAction}
+          {extraActions}
+        </div>
       </div>
 
       {children}
@@ -341,6 +341,9 @@ const styles = {
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     boxShadow: "0 1px 3px rgba(0, 0, 0, 0.04)",
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      padding: "20px 20px",
+    },
     [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
       padding: "16px 16px",
     },
@@ -359,6 +362,10 @@ const styles = {
     alignItems: "center",
     gap: 16,
     minWidth: 260,
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      minWidth: 0,
+      gap: 0,
+    },
   }),
   avatarSquircle: css({
     width: 56,
@@ -373,6 +380,16 @@ const styles = {
     fontWeight: 700,
     letterSpacing: "0.04em",
     flexShrink: 0,
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      display: "none",
+    },
+  }),
+  nameIconWrapper: css({
+    display: "inline-flex",
+    alignItems: "center",
+    [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
+      display: "none",
+    },
   }),
   titlesSection: css({
     display: "flex",
@@ -476,16 +493,28 @@ const styles = {
   }),
   detailsSection: css({
     marginTop: 18,
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
+    display: "grid",
+    gridTemplateAreas: `
+      "title actions"
+      "contacts contacts"
+    `,
+    gridTemplateColumns: "1fr auto",
+    alignItems: "center",
+    rowGap: 12,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      gridTemplateAreas: `
+        "title"
+        "contacts"
+        "actions"
+      `,
+      gridTemplateColumns: "1fr",
+      rowGap: 12,
+    },
   }),
   detailsHeader: css({
+    gridArea: "title",
     display: "flex",
-    justifyContent: "space-between",
     alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
   }),
   detailsTitle: css({
     fontSize: 11,
@@ -495,68 +524,32 @@ const styles = {
     textTransform: "uppercase",
   }),
   actionsGroup: css({
+    gridArea: "actions",
     display: "flex",
     alignItems: "center",
-    gap: 12,
-  }),
-  textActionButton: css({
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 5,
-    background: "transparent",
-    border: "none",
-    color: COLOR.ACCENT.PRIMARY,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-    padding: "4px 8px",
-    borderRadius: 6,
-    transition: "background 150ms ease",
-    "&:hover": {
-      backgroundColor: "rgba(15, 118, 110, 0.08)",
-    },
-  }),
-  whatsappActionButton: css({
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 5,
-    background: "transparent",
-    border: "none",
-    color: COLOR.SEMANTIC.SUCCESS,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-    padding: "4px 8px",
-    borderRadius: 6,
-    transition: "background 150ms ease",
-    "&:hover": {
-      backgroundColor: COLOR.STATUS.SUCCESS.BG_SUBTLE,
-    },
-  }),
-  deleteActionButton: css({
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 5,
-    background: "transparent",
-    border: "none",
-    color: COLOR.SEMANTIC.DANGER,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-    padding: "4px 8px",
-    borderRadius: 6,
-    transition: "background 150ms ease",
-    "&:hover": {
-      backgroundColor: COLOR.STATUS.DANGER.BG_SUBTLE,
+    gap: 4,
+    justifySelf: "end",
+    marginRight: -8,
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
+      justifySelf: "start",
+      marginLeft: -8,
+      marginRight: 0,
+      marginTop: 4,
     },
   }),
   contactList: css({
+    gridArea: "contacts",
     display: "flex",
     alignItems: "center",
     flexWrap: "wrap",
     gap: "12px 32px",
     fontSize: 13,
     color: COLOR.TEXT.PRIMARY,
+    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+      flexDirection: "column",
+      alignItems: "flex-start",
+      gap: 12,
+    },
   }),
   contactItem: css({
     display: "flex",

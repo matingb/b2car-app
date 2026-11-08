@@ -1,11 +1,13 @@
 "use client";
 
 import React from "react";
-import { Building2 } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Building2 } from "lucide-react";
 import { COLOR } from "@/theme/theme";
 import type { Proveedor } from "@/model/types";
 import type { ProveedorCuentaCorrienteResumen } from "@/model/dtos";
 import EntityProfileCard from "@/app/components/ui/EntityProfileCard";
+import Can from "@/app/components/auth/Can";
+import IconButton from "@/app/components/ui/IconButton";
 import { Permission } from "@/lib/permissions";
 
 export type ProveedorProfileCardProps = {
@@ -14,6 +16,8 @@ export type ProveedorProfileCardProps = {
   loadingFinanzas?: boolean;
   onEditProveedor: () => void;
   onDeleteProveedor?: () => void;
+  onRegistrarPago?: () => void;
+  onRegistrarCobro?: () => void;
   rubro?: string | null;
   condicionPago?: string | null;
 };
@@ -24,7 +28,43 @@ export default function ProveedorProfileCard({
   loadingFinanzas = false,
   onEditProveedor,
   onDeleteProveedor,
+  onRegistrarPago,
+  onRegistrarCobro,
 }: ProveedorProfileCardProps) {
+  const registrarMovimientoActions =
+    onRegistrarPago || onRegistrarCobro ? (
+      <Can anyPermissions={[Permission.OperacionesEdit, Permission.FinanzasEdit]}>
+        {onRegistrarPago && (
+          <IconButton
+            icon={<ArrowUpRight size={18} />}
+            size={18}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRegistrarPago();
+            }}
+            hoverColor={COLOR.ACCENT.PRIMARY}
+            data-testid="proveedor-detail-registrar-pago"
+            tooltip="Registrar Pago"
+            ariaLabel="Registrar Pago"
+          />
+        )}
+        {onRegistrarCobro && (
+          <IconButton
+            icon={<ArrowDownLeft size={18} />}
+            size={18}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRegistrarCobro();
+            }}
+            hoverColor={COLOR.SEMANTIC.SUCCESS}
+            data-testid="proveedor-detail-registrar-cobro"
+            tooltip="Registrar Cobro"
+            ariaLabel="Registrar Cobro"
+          />
+        )}
+      </Can>
+    ) : null;
+
   return (
     <EntityProfileCard
       title={proveedor.nombre}
@@ -46,7 +86,10 @@ export default function ProveedorProfileCard({
       onDelete={onDeleteProveedor}
       deleteTestId="proveedor-detail-delete"
       deletePermission={Permission.ProveedoresEdit}
+      extraActions={registrarMovimientoActions}
       detailsTitle="DATOS DE CONTACTO Y FISCALES"
     />
   );
 }
+
+

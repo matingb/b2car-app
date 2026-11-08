@@ -1,253 +1,59 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
-import { css } from "@emotion/react";
-import { COLOR, BREAKPOINTS } from "@/theme/theme";
+import React from "react";
+import { COLOR } from "@/theme/theme";
 import Card from "@/app/components/ui/Card";
 import Button from "@/app/components/ui/Button";
-import { ShoppingCart } from "lucide-react";
-import { formatArs } from "@/lib/format";
-import { formatDateLabel } from "@/lib/fechas";
-import { proveedoresClient } from "@/clients/proveedores/proveedoresClient";
+import ListSkeleton from "@/app/components/ui/ListSkeleton";
+import CuentaCorrienteExtracto from "@/app/components/finanzas/CuentaCorrienteExtracto";
 import type { ProveedorCuentaCorrienteResumen } from "@/model/dtos";
-import Link from "next/link";
-import Table from "@/app/components/ui/Table";
 
 export type ProveedorCuentaCorrienteTabProps = {
-	proveedorId: string;
-	resumen?: ProveedorCuentaCorrienteResumen | null;
-	loading?: boolean;
-	error?: string | null;
-	onReload?: () => void;
-	onNuevaCompra?: () => void;
+  resumen?: ProveedorCuentaCorrienteResumen | null;
+  loading?: boolean;
+  error?: string | null;
+  onReload?: () => void;
+  onNuevaCompra?: () => void;
+  onRegistrarPago?: () => void;
+  onRegistrarCobro?: () => void;
 };
 
 export default function ProveedorCuentaCorrienteTab({
-	proveedorId,
-	resumen: controlledResumen,
-	loading: controlledLoading,
-	error: controlledError,
-	onReload,
-	onNuevaCompra,
+  resumen,
+  loading = false,
+  error = null,
+  onReload,
 }: ProveedorCuentaCorrienteTabProps) {
-	const isControlled = controlledResumen !== undefined;
+  const movimientos = resumen?.movimientos ?? [];
 
-	const [internalData, setInternalData] = useState<ProveedorCuentaCorrienteResumen | null>(null);
-	const [internalLoading, setInternalLoading] = useState<boolean>(true);
-	const [internalError, setInternalError] = useState<string | null>(null);
+  if (loading && !resumen) {
+    return <ListSkeleton rows={5} />;
+  }
 
-	const loadData = useCallback(async () => {
-		if (isControlled) {
-			onReload?.();
-			return;
-		}
-		setInternalLoading(true);
-		setInternalError(null);
-		try {
-			const res = await proveedoresClient.getOperaciones(proveedorId);
-			if (res.error) throw new Error(res.error);
-			setInternalData(res.data);
-		} catch (err: unknown) {
-			setInternalError(err instanceof Error ? err.message : "Error cargando cuenta corriente");
-		} finally {
-			setInternalLoading(false);
-		}
-	}, [isControlled, onReload, proveedorId]);
+  if (error && !resumen) {
+    return (
+      <Card style={styles.errorCard}>
+        <div style={{ color: COLOR.SEMANTIC.DANGER, fontWeight: 600 }}>{error}</div>
+        {onReload && (
+          <div style={{ marginTop: 12 }}>
+            <Button text="Reintentar" onClick={onReload} outline />
+          </div>
+        )}
+      </Card>
+    );
+  }
 
-	useEffect(() => {
-		if (!isControlled) {
-			void loadData();
-		}
-	}, [isControlled, loadData]);
-
-	const data = isControlled ? controlledResumen : internalData;
-	const loading = isControlled ? (controlledLoading ?? false) : internalLoading;
-	const error = isControlled ? (controlledError ?? null) : internalError;
-
-	if (loading && !data) {
-		return <div style={styles.loadingContainer}>Cargando operaciones y cuenta corriente...</div>;
-	}
-
-	if (error && !data) {
-		return (
-			<Card style={styles.errorCard}>
-				<div style={{ color: COLOR.SEMANTIC.DANGER, fontWeight: 600 }}>{error}</div>
-				<div style={{ marginTop: 12 }}>
-					<Button text="Reintentar" onClick={isControlled && onReload ? onReload : loadData} outline />
-				</div>
-			</Card>
-		);
-	}
-
-	const resumen = data ?? { totalComprado: 0, totalPagado: 0, saldoAdeudado: 0, operaciones: [] };
-	const operaciones = resumen.operaciones;
-
-
-	return (
-		<div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-			{/* Listado de Operaciones */}
-			{operaciones.length === 0 ? (
-				<Card style={styles.emptyCard}>
-					<ShoppingCart size={44} color={COLOR.ICON.MUTED} style={{ marginBottom: 12 }} />
-					<div style={styles.emptyTitle}>Sin operaciones comerciales</div>
-					<div style={styles.emptySubtitle}>
-						Aún no se han emitido órdenes de compra o gastos vinculados a este proveedor. Al registrar
-						compras, podrás hacer seguimiento de las entregas y el estado de la cuenta corriente aquí.
-					</div>
-					{onNuevaCompra && (
-						<div style={{ marginTop: 16 }}>
-							<Button
-								icon={<ShoppingCart size={16} />}
-								text="Comprar"
-								onClick={onNuevaCompra}
-							/>
-						</div>
-					)}
-				</Card>
-			) : (
-				<Table>
-					<Table.Header>
-						<Table.Head>Fecha</Table.Head>
-						<Table.Head>Operación</Table.Head>
-						<Table.Head>Taller</Table.Head>
-						<Table.Head align="right">Total</Table.Head>
-						<Table.Head align="right">Pagado</Table.Head>
-						<Table.Head align="right">Saldo</Table.Head>
-					</Table.Header>
-					<Table.Body>
-						{operaciones.map((op) => (
-							<Table.Row key={op.id}>
-								<Table.Cell>
-									<div style={{ fontWeight: 500, color: COLOR.TEXT.PRIMARY }}>
-										{formatDateLabel(op.fecha || op.created_at)}
-									</div>
-									<div style={{ fontSize: 11, color: COLOR.TEXT.SECONDARY }}>
-										{new Date(op.fecha || op.created_at).toLocaleTimeString([], {
-											hour: "2-digit",
-											minute: "2-digit",
-										})}
-									</div>
-								</Table.Cell>
-
-								<Table.Cell nowrap={false}>
-									<Link
-										href={`/operaciones/${op.id}`}
-										style={styles.operacionLink}
-									>
-										{op.tipo} #{op.id.slice(0, 8).toUpperCase()}
-									</Link>
-									{op.observaciones && (
-										<div style={{ fontSize: 11, color: COLOR.TEXT.SECONDARY, marginTop: 2 }}>
-											{op.observaciones}
-										</div>
-									)}
-								</Table.Cell>
-
-								<Table.Cell>{op.taller_nombre || "—"}</Table.Cell>
-
-								<Table.Cell align="right" weight={600}>
-									{formatArs(op.monto_total)}
-								</Table.Cell>
-
-								<Table.Cell align="right" color={COLOR.STATUS.SUCCESS.TEXT}>
-									{formatArs(op.total_pagado)}
-								</Table.Cell>
-
-								<Table.Cell
-									align="right"
-									weight={700}
-									color={
-										op.saldo_pendiente > 0
-											? COLOR.STATUS.WARNING.TEXT
-											: COLOR.TEXT.PRIMARY
-									}
-								>
-									{formatArs(op.saldo_pendiente)}
-								</Table.Cell>
-							</Table.Row>
-						))}
-					</Table.Body>
-				</Table>
-			)}
-		</div>
-	);
+  return (
+    <CuentaCorrienteExtracto
+      movimientos={movimientos}
+      emptySubtitle="Las órdenes de compra y los pagos o reintegros registrados aparecerán en este extracto contable."
+    />
+  );
 }
 
 const styles = {
-	loadingContainer: {
-		padding: "36px 0",
-		textAlign: "center" as const,
-		color: COLOR.TEXT.SECONDARY,
-		fontSize: 14,
-	},
-	errorCard: {
-		padding: 24,
-		textAlign: "center" as const,
-	},
-	statsGrid: css({
-		display: "grid",
-		gridTemplateColumns: "repeat(3, 1fr)",
-		gap: 16,
-		[`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-			gridTemplateColumns: "1fr",
-		},
-	}),
-	statCard: {
-		padding: 18,
-		borderRadius: 12,
-		background: COLOR.BACKGROUND.SECONDARY,
-		border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-		display: "flex",
-		flexDirection: "column" as const,
-		gap: 4,
-	},
-	statHeader: {
-		display: "flex",
-		justifyContent: "space-between",
-		alignItems: "center",
-		marginBottom: 4,
-	},
-	statLabel: {
-		fontSize: 12,
-		fontWeight: 600,
-		color: COLOR.TEXT.SECONDARY,
-		textTransform: "uppercase" as const,
-		letterSpacing: "0.04em",
-	},
-	statNumber: {
-		fontSize: 22,
-		fontWeight: 700,
-		color: COLOR.TEXT.PRIMARY,
-	},
-	statFootnote: {
-		fontSize: 12,
-		color: COLOR.TEXT.SECONDARY,
-		marginTop: 4,
-	},
-	operacionLink: {
-		fontWeight: 600,
-		fontSize: 13,
-		color: COLOR.ACCENT.PRIMARY,
-		textDecoration: "none",
-	},
-	emptyCard: {
-		display: "flex",
-		flexDirection: "column" as const,
-		alignItems: "center",
-		justifyContent: "center",
-		padding: "48px 24px",
-		textAlign: "center" as const,
-	},
-	emptyTitle: {
-		fontSize: 16,
-		fontWeight: 600,
-		color: COLOR.TEXT.PRIMARY,
-		marginBottom: 6,
-	},
-	emptySubtitle: {
-		fontSize: 13,
-		color: COLOR.TEXT.SECONDARY,
-		maxWidth: 480,
-		lineHeight: 1.5,
-	},
+  errorCard: {
+    padding: 24,
+    textAlign: "center" as const,
+  },
 };

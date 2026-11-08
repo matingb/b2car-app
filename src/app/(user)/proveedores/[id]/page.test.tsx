@@ -97,6 +97,30 @@ vi.mock("@/app/components/proveedores/ProveedorCuentaCorrienteTab", () => ({
   default: () => <div data-testid="mock-cuentacorriente-tab">Pestaña Cuenta Corriente</div>,
 }));
 
+vi.mock("@/app/components/finanzas/MovimientoCuentaCorrienteModal", () => ({
+  default: ({
+    open,
+    initialSentido,
+    onSuccess,
+    onClose,
+  }: {
+    open: boolean;
+    initialSentido?: string;
+    onSuccess?: () => void;
+    onClose?: () => void;
+  }) =>
+    open ? (
+      <div data-testid="mock-pago-directo-modal" data-sentido={initialSentido}>
+        <button data-testid="mock-confirm-pago-directo" onClick={onSuccess}>
+          Confirmar Pago
+        </button>
+        <button data-testid="mock-cancel-pago-directo" onClick={onClose}>
+          Cancelar
+        </button>
+      </div>
+    ) : null,
+}));
+
 const mockProveedor = {
   id: "prov-123",
   nombre: "B2CAR",
@@ -240,6 +264,40 @@ describe("ProveedorDetailPage", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("mock-operacion-create-modal")).not.toBeInTheDocument();
       expect(screen.getByTestId("mock-operaciones-tab")).toHaveAttribute("data-operaciones-count", "2");
+    });
+  });
+
+  it("abre el modal de pago directo desde el perfil y recarga finanzas al confirmar", async () => {
+    vi.mocked(proveedoresClient.getById).mockResolvedValue({
+      data: mockProveedor,
+      error: null,
+    });
+    vi.mocked(proveedoresClient.getOperaciones).mockResolvedValue({
+      data: mockCuentaCorriente,
+      error: null,
+    });
+
+    render(<ProveedorDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("B2CAR")).toBeInTheDocument();
+    });
+
+    const registrarCobroBtn = screen.getByTestId("proveedor-detail-registrar-cobro");
+    fireEvent.click(registrarCobroBtn);
+    expect(screen.getByTestId("mock-pago-directo-modal")).toHaveAttribute("data-sentido", "COBRO");
+    fireEvent.click(screen.getByTestId("mock-cancel-pago-directo"));
+
+    const registrarPagoBtn = screen.getByTestId("proveedor-detail-registrar-pago");
+    fireEvent.click(registrarPagoBtn);
+
+    expect(screen.getByTestId("mock-pago-directo-modal")).toHaveAttribute("data-sentido", "PAGO");
+
+    const confirmBtn = screen.getByTestId("mock-confirm-pago-directo");
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(proveedoresClient.getOperaciones).toHaveBeenCalledTimes(2);
     });
   });
 });

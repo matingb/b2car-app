@@ -199,4 +199,58 @@ describe("clienteFinanzasService", () => {
       );
     });
   });
+
+  describe("createMovimientoDirecto", () => {
+    const validCliId = "11111111-1111-4111-8111-111111111111";
+    const validCtaId = "22222222-2222-4222-8222-222222222222";
+
+    it("valida UUID de cliente y monto > 0", async () => {
+      const service = createClienteFinanzasService(
+        makeRepo({
+          createMovimientoDirecto: vi.fn().mockResolvedValue({ data: "op-1", error: null }),
+        })
+      );
+
+      const res1 = await service.createMovimientoDirecto(mockDb, "invalido", {
+        cuentaId: validCtaId,
+        monto: 1000,
+      });
+      expect(res1.error).toBeTruthy();
+
+      const res2 = await service.createMovimientoDirecto(mockDb, validCliId, {
+        cuentaId: validCtaId,
+        monto: 0,
+      });
+      expect(res2.error).toBeTruthy();
+    });
+
+    it("delega COBRO y PAGO limpiando strings al repositorio", async () => {
+      const mockCreate = vi.fn().mockResolvedValue({ data: "op-pago-cli-99", error: null });
+      const service = createClienteFinanzasService(
+        makeRepo({ createMovimientoDirecto: mockCreate })
+      );
+
+      const res = await service.createMovimientoDirecto(mockDb, validCliId, {
+        sentido: "PAGO",
+        cuentaId: validCtaId,
+        monto: 25000,
+        descripcion: "  Devolución saldo a favor  ",
+        observaciones: "  Nota interna  ",
+      });
+
+      expect(res.error).toBeNull();
+      expect(res.data).toBe("op-pago-cli-99");
+      expect(mockCreate).toHaveBeenCalledWith(
+        mockDb,
+        expect.objectContaining({
+          cliente_id: validCliId,
+          sentido: "PAGO",
+          cuenta_id: validCtaId,
+          monto: 25000,
+          descripcion: "Devolución saldo a favor",
+          observaciones: "Nota interna",
+        })
+      );
+    });
+  });
 });

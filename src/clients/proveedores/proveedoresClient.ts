@@ -1,4 +1,7 @@
-import type { Proveedor } from "@/model/types";
+import type {
+  Proveedor,
+  SentidoMovimientoCuentaCorriente,
+} from "@/model/types";
 import type { ProductoProveedorDTO, ProveedorCuentaCorrienteResumen } from "@/model/dtos";
 import { API_ROUTES } from "@/routing/routes";
 
@@ -254,6 +257,74 @@ export const proveedoresClient = {
       return {
         data: null,
         error: err instanceof Error ? err.message : "Error de red al obtener operaciones del proveedor",
+      };
+    }
+  },
+
+  async registrarPagoDirecto(
+    proveedorId: string,
+    payload: {
+      sentido?: SentidoMovimientoCuentaCorriente;
+      cuentaId?: string;
+      monto?: number;
+      fecha?: string;
+      descripcion?: string;
+      idempotencyKey?: string;
+      observaciones?: string;
+      tallerId?: string;
+      pagos?: Array<{
+        cuentaId: string;
+        monto: number;
+        fecha?: string;
+        descripcion?: string;
+        idempotencyKey?: string;
+      }>;
+    }
+  ): Promise<ProveedoresClientResponse<{ id: string; ok: boolean }>> {
+    try {
+      const bodyPayload = payload.pagos && payload.pagos.length > 0
+        ? {
+            ...(payload.sentido ? { sentido: payload.sentido } : {}),
+            pagos: payload.pagos.map((p) => ({
+              cuenta_id: p.cuentaId,
+              monto: p.monto,
+              fecha: p.fecha,
+              descripcion: p.descripcion,
+              idempotency_key: p.idempotencyKey,
+            })),
+            fecha: payload.fecha,
+            descripcion: payload.descripcion,
+            idempotency_key: payload.idempotencyKey,
+            observaciones: payload.observaciones,
+            taller_id: payload.tallerId,
+          }
+        : {
+            ...(payload.sentido ? { sentido: payload.sentido } : {}),
+            cuenta_id: payload.cuentaId,
+            monto: payload.monto,
+            fecha: payload.fecha,
+            descripcion: payload.descripcion,
+            idempotency_key: payload.idempotencyKey,
+            observaciones: payload.observaciones,
+            taller_id: payload.tallerId,
+          };
+
+      const res = await fetch(`${API_ROUTES.proveedores}/${proveedorId}/pagos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bodyPayload),
+      });
+      const body = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        return { data: null, error: body?.error || `Error ${res.status}` };
+      }
+
+      return { data: body?.data ?? null, error: null };
+    } catch (err: unknown) {
+      return {
+        data: null,
+        error: err instanceof Error ? err.message : "Error de red al registrar el movimiento del proveedor",
       };
     }
   },

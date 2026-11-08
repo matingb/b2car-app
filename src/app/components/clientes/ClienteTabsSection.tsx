@@ -14,6 +14,7 @@ export type ClienteTabsContentProps = {
   activeTab: ClienteTabKey;
   clienteId: string;
   clienteNombre?: string;
+  saldoCuenta?: number;
   vehiculos: Vehiculo[];
   onAddVehiculo?: () => void;
   /** Se invoca al cobrar o anular un cobro desde el tab de arreglos. */
@@ -25,6 +26,7 @@ export function ClienteTabsContent({
   activeTab,
   clienteId,
   clienteNombre,
+  saldoCuenta,
   vehiculos,
   onAddVehiculo,
   onArregloPagoUpdated,
@@ -60,6 +62,9 @@ export function ClienteTabsContent({
         <Can permission={Permission.ClientesFinanzasView}>
           <ClienteCuentaCorrienteTab
             clienteId={clienteId}
+            clienteNombre={clienteNombre}
+            saldoCuenta={saldoCuenta}
+            onMovimientoUpdated={onVentaUpdated ?? onArregloPagoUpdated}
           />
         </Can>
       )}
@@ -70,6 +75,7 @@ export function ClienteTabsContent({
 export type ClienteTabsSectionProps = {
   clienteId: string;
   clienteNombre?: string;
+  saldoCuenta?: number;
   vehiculos: Vehiculo[];
   onAddVehiculo?: () => void;
   activeTab?: ClienteTabKey;
@@ -82,6 +88,7 @@ export type ClienteTabsSectionProps = {
 export default function ClienteTabsSection({
   clienteId,
   clienteNombre,
+  saldoCuenta,
   vehiculos,
   onAddVehiculo,
   activeTab: controlledActiveTab,
@@ -106,6 +113,7 @@ export default function ClienteTabsSection({
         activeTab={activeTab}
         clienteId={clienteId}
         clienteNombre={clienteNombre}
+        saldoCuenta={saldoCuenta}
         vehiculos={vehiculos}
         onAddVehiculo={onAddVehiculo}
         onArregloPagoUpdated={onArregloPagoUpdated}
@@ -114,4 +122,3 @@ export default function ClienteTabsSection({
     </>
   );
 }
-

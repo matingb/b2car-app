@@ -1,14 +1,20 @@
 "use client";
 
 import React, {
-  useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift,
+  arrow,
+} from "@floating-ui/react-dom";
 import { COLOR } from "@/theme/theme";
 
 export type TooltipPlacement = "top" | "bottom" | "left" | "right";
@@ -56,17 +62,20 @@ export default function Tooltip({
   const [isPinned, setIsPinned] = useState(false);
   const isVisible = !disabled && Boolean(content) && (isHovered || isPinned);
 
-  const [position, setPosition] = useState<{
-    top: number;
-    left: number;
-    actualPlacement: TooltipPlacement;
-    arrowLeft?: number;
-    arrowTop?: number;
-  } | null>(null);
-
-  const triggerRef = useRef<HTMLSpanElement>(null);
-  const tooltipRef = useRef<HTMLDivElement>(null);
+  const arrowRef = useRef<HTMLSpanElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const { refs, floatingStyles, middlewareData, placement: actualPlacement } =
+    useFloating({
+      placement,
+      whileElementsMounted: autoUpdate,
+      middleware: [
+        offset(8),
+        flip(),
+        shift({ padding: 12 }),
+        arrow({ element: arrowRef }),
+      ],
+    });
 
   const clearTimer = () => {
     if (timerRef.current) {
@@ -75,102 +84,19 @@ export default function Tooltip({
     }
   };
 
-  const updatePosition = useCallback(() => {
-    const triggerEl = triggerRef.current;
-    if (!triggerEl) return;
-
-    const rect = triggerEl.getBoundingClientRect();
-    const windowWidth =
-      typeof window !== "undefined" && window.innerWidth ? window.innerWidth : 1024;
-    const windowHeight =
-      typeof window !== "undefined" && window.innerHeight ? window.innerHeight : 768;
-
-    const numericMaxWidth = typeof maxWidth === "number" ? maxWidth : 280;
-    const tooltipWidth = Math.min(numericMaxWidth, windowWidth - 24);
-
-    let actualPlacement = placement;
-
-    // Auto-flip vertical si no hay espacio
-    if (placement === "top" && rect.top < 60 && windowHeight - rect.bottom > rect.top) {
-      actualPlacement = "bottom";
-    } else if (
-      placement === "bottom" &&
-      windowHeight - rect.bottom < 60 &&
-      rect.top > windowHeight - rect.bottom
-    ) {
-      actualPlacement = "top";
-    }
-
-    let top = 0;
-    let left = 0;
-    let arrowLeft: number | undefined;
-    let arrowTop: number | undefined;
-
-    if (actualPlacement === "top") {
-      top = rect.top - 8;
-      left = rect.left + rect.width / 2 - tooltipWidth / 2;
-      arrowLeft = rect.left + rect.width / 2;
-    } else if (actualPlacement === "bottom") {
-      top = rect.bottom + 8;
-      left = rect.left + rect.width / 2 - tooltipWidth / 2;
-      arrowLeft = rect.left + rect.width / 2;
-    } else if (actualPlacement === "left") {
-      left = rect.left - 8;
-      top = rect.top + rect.height / 2;
-      arrowTop = rect.top + rect.height / 2;
-    } else if (actualPlacement === "right") {
-      left = rect.right + 8;
-      top = rect.top + rect.height / 2;
-      arrowTop = rect.top + rect.height / 2;
-    }
-
-    // Clamp horizontal
-    if (left < 12) left = 12;
-    if (left + tooltipWidth > windowWidth - 12) {
-      left = Math.max(12, windowWidth - tooltipWidth - 12);
-    }
-
-    if (arrowLeft !== undefined) {
-      arrowLeft = Math.max(left + 12, Math.min(left + tooltipWidth - 12, arrowLeft));
-    }
-
-    setPosition({ top, left, actualPlacement, arrowLeft, arrowTop });
-  }, [maxWidth, placement]);
-
-  const useIsomorphicLayoutEffect =
-    typeof window !== "undefined" ? useLayoutEffect : useEffect;
-
-  useIsomorphicLayoutEffect(() => {
-    if (!isVisible) {
-      setPosition(null);
-      return;
-    }
-
-    updatePosition();
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
-    return () => {
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
-    };
-  }, [isVisible, updatePosition]);
-
   useEffect(() => {
-    return () => {
-      clearTimer();
-    };
+    return () => clearTimer();
   }, []);
 
-  // Cierre de pinned tooltip al hacer clic afuera
   useEffect(() => {
     if (!isPinned) return;
 
     const handleDocClick = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node;
-      if (
-        triggerRef.current?.contains(target) ||
-        tooltipRef.current?.contains(target)
-      ) {
+      const triggerEl = refs.reference.current as HTMLElement | null;
+      const floatingEl = refs.floating.current as HTMLElement | null;
+
+      if (triggerEl?.contains(target) || floatingEl?.contains(target)) {
         return;
       }
       setIsPinned(false);
@@ -182,7 +108,7 @@ export default function Tooltip({
       document.removeEventListener("mousedown", handleDocClick);
       document.removeEventListener("touchstart", handleDocClick);
     };
-  }, [isPinned]);
+  }, [isPinned, refs.reference, refs.floating]);
 
   // Cierre con Escape
   useEffect(() => {
@@ -229,21 +155,21 @@ export default function Tooltip({
     setIsPinned((prev) => !prev);
   };
 
-  const transformMap: Record<TooltipPlacement, string> = {
-    top: "translateY(-100%)",
-    bottom: "none",
-    left: "translate(-100%, -50%)",
-    right: "translateY(-50%)",
-  };
-
-  const actualTransform = position
-    ? transformMap[position.actualPlacement]
-    : "none";
+  const arrowData = middlewareData.arrow;
+  const side = actualPlacement.split("-")[0];
+  const staticSide =
+    side === "top"
+      ? "bottom"
+      : side === "bottom"
+      ? "top"
+      : side === "left"
+      ? "right"
+      : "left";
 
   return (
     <>
       <span
-        ref={triggerRef}
+        ref={refs.setReference}
         className={wrapperClassName}
         style={{
           ...styles.trigger,
@@ -266,7 +192,7 @@ export default function Tooltip({
       {isVisible && typeof document !== "undefined"
         ? createPortal(
             <div
-              ref={tooltipRef}
+              ref={refs.setFloating}
               id={tooltipId}
               role={role}
               data-testid={dataTestId ?? "ui-tooltip"}
@@ -287,35 +213,33 @@ export default function Tooltip({
               }}
               style={{
                 ...styles.tooltip,
-                top: position?.top ?? 0,
-                left: position?.left ?? 0,
-                transform: actualTransform,
+                ...floatingStyles,
                 maxWidth,
-                opacity: position ? 1 : 0,
                 ...style,
               }}
             >
               {content}
-              {showArrow && position?.actualPlacement === "top" && (
+              {showArrow && (side === "top" || side === "bottom") && (
                 <span
+                  ref={arrowRef}
                   aria-hidden="true"
                   style={{
-                    ...styles.arrowTopOuter,
-                    left: (position.arrowLeft ?? 0) - position.left,
+                    position: "absolute",
+                    left: arrowData?.x != null ? `${arrowData.x}px` : "50%",
+                    top: arrowData?.y != null ? `${arrowData.y}px` : undefined,
+                    [staticSide]: "-5px",
+                    ...(side === "top"
+                      ? styles.arrowTopOuter
+                      : styles.arrowBottomOuter),
                   }}
                 >
-                  <span style={styles.arrowTopInner} />
-                </span>
-              )}
-              {showArrow && position?.actualPlacement === "bottom" && (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    ...styles.arrowBottomOuter,
-                    left: (position.arrowLeft ?? 0) - position.left,
-                  }}
-                >
-                  <span style={styles.arrowBottomInner} />
+                  <span
+                    style={
+                      side === "top"
+                        ? styles.arrowTopInner
+                        : styles.arrowBottomInner
+                    }
+                  />
                 </span>
               )}
             </div>,
@@ -333,7 +257,6 @@ const styles = {
     maxWidth: "100%",
   },
   tooltip: {
-    position: "fixed",
     width: "max-content",
     backgroundColor: COLOR.BACKGROUND.PRIMARY,
     color: COLOR.TEXT.PRIMARY,
@@ -352,8 +275,6 @@ const styles = {
     transition: "opacity 0.15s ease",
   },
   arrowTopOuter: {
-    position: "absolute",
-    top: "100%",
     transform: "translateX(-50%)",
     width: 0,
     height: 0,
@@ -372,8 +293,6 @@ const styles = {
     borderTop: `5px solid ${COLOR.BACKGROUND.PRIMARY}`,
   },
   arrowBottomOuter: {
-    position: "absolute",
-    bottom: "100%",
     transform: "translateX(-50%)",
     width: 0,
     height: 0,
@@ -392,4 +311,3 @@ const styles = {
     borderBottom: `5px solid ${COLOR.BACKGROUND.PRIMARY}`,
   },
 } as const;
-

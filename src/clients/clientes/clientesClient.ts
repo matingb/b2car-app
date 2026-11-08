@@ -1,4 +1,9 @@
-import { Cliente, ClienteMovimientoCuenta, ClienteResumenFinanciero } from "@/model/types";
+import {
+  Cliente,
+  ClienteMovimientoCuenta,
+  ClienteResumenFinanciero,
+  SentidoMovimientoCuentaCorriente,
+} from "@/model/types";
 import type { ClienteOperacionesResumen } from "@/model/dtos";
 
 export type GetClientesInput = {
@@ -132,6 +137,84 @@ export const clientesClient = {
       return { data: body.data ?? null, error: null };
     } catch (err: unknown) {
       return { data: null, error: err instanceof Error ? err.message : "Error cargando ventas del cliente" };
+    }
+  },
+
+  /**
+   * Registra un movimiento directo en la cuenta corriente del cliente (COBRO o PAGO/reintegro)
+   */
+  async registrarMovimientoDirecto(
+    clienteId: string,
+    payload: {
+      sentido?: SentidoMovimientoCuentaCorriente;
+      cuentaId?: string;
+      monto?: number;
+      fecha?: string;
+      descripcion?: string;
+      idempotencyKey?: string;
+      observaciones?: string;
+      tallerId?: string;
+      pagos?: Array<{
+        cuentaId: string;
+        monto: number;
+        fecha?: string;
+        descripcion?: string;
+        idempotencyKey?: string;
+      }>;
+    }
+  ): Promise<{ data: { id: string; ok: boolean } | null; error?: string | null }> {
+    try {
+      const bodyPayload =
+        payload.pagos && payload.pagos.length > 0
+          ? {
+              ...(payload.sentido ? { sentido: payload.sentido } : {}),
+              pagos: payload.pagos.map((p) => ({
+                cuenta_id: p.cuentaId,
+                monto: p.monto,
+                fecha: p.fecha,
+                descripcion: p.descripcion,
+                idempotency_key: p.idempotencyKey,
+              })),
+              fecha: payload.fecha,
+              descripcion: payload.descripcion,
+              idempotency_key: payload.idempotencyKey,
+              observaciones: payload.observaciones,
+              taller_id: payload.tallerId,
+            }
+          : {
+              ...(payload.sentido ? { sentido: payload.sentido } : {}),
+              cuenta_id: payload.cuentaId,
+              monto: payload.monto,
+              fecha: payload.fecha,
+              descripcion: payload.descripcion,
+              idempotency_key: payload.idempotencyKey,
+              observaciones: payload.observaciones,
+              taller_id: payload.tallerId,
+            };
+
+      const res = await fetch(
+        `/api/clientes/${encodeURIComponent(clienteId)}/cuenta-corriente`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(bodyPayload),
+        }
+      );
+      const body = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        return { data: null, error: body?.error || `Error ${res.status}` };
+      }
+
+      return { data: body?.data ?? null, error: null };
+    } catch (err: unknown) {
+      return {
+        data: null,
+        error:
+          err instanceof Error
+            ? err.message
+            : "Error de red al registrar movimiento del cliente",
+      };
     }
   },
 };

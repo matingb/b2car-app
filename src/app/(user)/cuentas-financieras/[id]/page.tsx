@@ -327,7 +327,7 @@ export default function CuentaFinancieraDetailPage() {
             text="Nuevo gasto"
             onClick={() => setIsGastoOpen(true)}
             hideTextOnMobile={false}
-            style={{ ...styles.primaryLink, border: "none", minWidth: 0 }}
+            css={styles.transferButton}
             dataTestId="cuenta-financiera-nuevo-gasto"
           />
         ) : (
@@ -461,7 +461,7 @@ const styles = {
     padding: "8px 12px",
     borderRadius: 8,
     color: COLOR.TEXT.CONTRAST,
-    background: COLOR.ACCENT.PRIMARY,
+    backgroundColor: COLOR.ACCENT.PRIMARY,
     textDecoration: "none",
     fontSize: 16,
     fontWeight: 400,

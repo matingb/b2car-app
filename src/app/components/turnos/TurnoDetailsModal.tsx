@@ -216,7 +216,7 @@ export default function TurnoDetailsModal({
               text="Eliminar"
               hideTextOnMobile={false}
               onClick={() => onCancel?.(turno)}
-              style={{ minWidth: 0, background: COLOR.ICON.DANGER, borderColor: COLOR.ICON.DANGER }}
+              style={{ minWidth: 0, backgroundColor: COLOR.ICON.DANGER, borderColor: COLOR.ICON.DANGER }}
             />
           </div>
         </Card>

@@ -31,6 +31,10 @@ const LABELS: Record<string, string> = {
   COBRO_ARREGLO: "Cobro de arreglo",
   COMPRA: "Compra de stock",
   VENTA: "Venta de productos",
+  PAGO_PROVEEDOR: "Pago a proveedor",
+  COBRO_PROVEEDOR: "Cobro de proveedor",
+  COBRO_CLIENTE: "Cobro de cliente",
+  PAGO_CLIENTE: "Pago a cliente",
   REVERSO: "Reverso",
 };
 
@@ -40,6 +44,10 @@ const ICONS: Record<string, React.ReactNode> = {
   COBRO_ARREGLO: <CircleDollarSign size={17} />,
   COMPRA: <ShoppingCart size={17} />,
   VENTA: <TrendingUp size={17} />,
+  PAGO_PROVEEDOR: <ArrowUpRight size={17} />,
+  COBRO_PROVEEDOR: <ArrowDownLeft size={17} />,
+  COBRO_CLIENTE: <ArrowDownLeft size={17} />,
+  PAGO_CLIENTE: <ArrowUpRight size={17} />,
   REVERSO: <RotateCcw size={17} />,
 };
 
@@ -57,6 +65,13 @@ function getMovementPresentation(tipo: string, importe: number) {
   };
 }
 
+const NON_OPERACION_PAGE_TIPOS = new Set([
+  "PAGO_PROVEEDOR",
+  "COBRO_PROVEEDOR",
+  "COBRO_CLIENTE",
+  "PAGO_CLIENTE",
+]);
+
 export default function MovimientoFinancieroItem({
   movimiento,
   isLast = false,
@@ -73,7 +88,10 @@ export default function MovimientoFinancieroItem({
     ? COLOR.BACKGROUND.SUCCESS_TINT
     : COLOR.BACKGROUND.DANGER_TINT;
   const categoria = movimiento.categoria?.replaceAll("_", " ").toLowerCase();
-  const clickable = Boolean(onClick || movimiento.arregloId || movimiento.operacionId);
+  const canNavigateOperacion = Boolean(
+    movimiento.operacionId && !NON_OPERACION_PAGE_TIPOS.has(movimiento.tipo)
+  );
+  const clickable = Boolean(onClick || movimiento.arregloId || canNavigateOperacion);
 
   const handleClick = () => {
     if (onClick) {
@@ -84,7 +102,7 @@ export default function MovimientoFinancieroItem({
       router.push(`/arreglos/${movimiento.arregloId}`);
       return;
     }
-    if (movimiento.operacionId) {
+    if (canNavigateOperacion && movimiento.operacionId) {
       router.push(`/operaciones?operacion_id=${movimiento.operacionId}`);
     }
   };

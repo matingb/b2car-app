@@ -1,4 +1,4 @@
-import { EstadoArreglo, TipoCliente, TipoOperacion } from "./types";
+import { EstadoArreglo, ProveedorMovimientoCuenta, TipoCliente, TipoOperacion } from "./types";
 
 export interface VehiculoDto {
     id: string;
@@ -201,6 +201,7 @@ export type ProveedorCuentaCorrienteResumen = {
     totalPagado: number;
     saldoAdeudado: number;
     operaciones: ProveedorOperacionItemDTO[];
+    movimientos?: ProveedorMovimientoCuenta[];
 };
 
 export type ClienteOperacionItemDTO = {

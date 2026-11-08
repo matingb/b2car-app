@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 
@@ -25,23 +25,10 @@ export default function Button({
   ariaLabel,
   ...rest
 }: ButtonProps) {
-
-  const [hover, setHover] = useState(false);
-
-  const isDisabled = rest.disabled;
-  const hoverStyles = outline ? styles.buttonOutlineHover : styles.buttonHover;
-  const disabledStyles = outline ? styles.buttonOutlineDisabled : styles.buttonDisabled;
-
   return (
     <button
-      style={{
-        ...(hover && !isDisabled && hoverStyles),
-        ...(isDisabled && disabledStyles),
-        ...style,
-      }}
+      style={style}
       {...rest}
-      onMouseEnter={() => !isDisabled && setHover(true)}
-      onMouseLeave={() => setHover(false)}
       onClick={onClick}
       css={[styles.button, outline && styles.buttonOutline]}
       data-testid={dataTestId}
@@ -55,7 +42,7 @@ export default function Button({
 
 const styles = {
   button: css({
-    background: COLOR.ACCENT.PRIMARY,
+    backgroundColor: COLOR.ACCENT.PRIMARY,
     color: COLOR.TEXT.CONTRAST,
     fontSize: "16px",
     borderRadius: 8,
@@ -67,36 +54,36 @@ const styles = {
     cursor: "pointer",
     width: "fit-content",
     minWidth: 160,
-    transition: "background 0.2s",
+    transition: "background-color 0.2s, opacity 0.2s",
     border: "none",
+    "&:hover:not(:disabled)": {
+      backgroundColor: COLOR.ACCENT.HOVER,
+    },
+    "&:disabled": {
+      opacity: 0.6,
+      cursor: "default",
+    },
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       minWidth: 0,
     },
   }),
-  buttonHover: {
-    backgroundColor: `${COLOR.ACCENT.HOVER}`,
-  },
   buttonOutline: css({
     backgroundColor: `${COLOR.BACKGROUND.SUBTLE}`,
     color: COLOR.TEXT.PRIMARY,
     border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    "&:hover:not(:disabled)": {
+      backgroundColor: `${COLOR.BACKGROUND.PRIMARY}`,
+      color: COLOR.TEXT.PRIMARY,
+      border: `1px solid ${COLOR.BORDER.DEFAULT}`,
+    },
+    "&:disabled": {
+      opacity: 0.6,
+      cursor: "default",
+    },
   }),
-  buttonOutlineHover: {
-    backgroundColor: `${COLOR.BACKGROUND.PRIMARY}`,
-    color: COLOR.TEXT.PRIMARY,
-    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-    cursor: "default",
-  },
-  buttonOutlineDisabled: {
-    opacity: 0.6,
-    cursor: "default",
-  },
   hideTextOnMobile: css({
     [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       display: 'none',
     },
-  })
-} as const;
+  }),
+};

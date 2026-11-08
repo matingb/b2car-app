@@ -161,17 +161,44 @@ export interface ClienteResumenFinanciero {
   cantidad_arreglos_pendientes_factura: number;
 }
 
+export type SentidoMovimientoCuentaCorriente = "PAGO" | "COBRO";
+
 export interface ClienteMovimientoCuenta {
   id: string;
   fecha: string;
   created_at: string;
-  tipo_movimiento: "CARGO_ARREGLO" | "COBRO" | string;
+  tipo_movimiento:
+    | "CARGO_ARREGLO"
+    | "CARGO_VENTA"
+    | "COBRO"
+    | "COBRO_DIRECTO"
+    | "PAGO_DIRECTO"
+    | string;
   concepto: string;
   comprobante?: string | null;
   debito: number;
   credito: number;
   saldo_acumulado?: number;
   arreglo_id?: string | null;
+  operacion_id?: string | null;
+  cuenta_nombre?: string | null;
+}
+
+export interface ProveedorMovimientoCuenta {
+  id: string;
+  fecha: string;
+  created_at: string;
+  tipo_movimiento:
+    | "CARGO_COMPRA"
+    | "PAGO"
+    | "PAGO_DIRECTO"
+    | "COBRO_DIRECTO"
+    | string;
+  concepto: string;
+  comprobante?: string | null;
+  debito: number;
+  credito: number;
+  saldo_acumulado?: number;
   operacion_id?: string | null;
   cuenta_nombre?: string | null;
 }

@@ -2,6 +2,7 @@
 
 import React, { ReactNode } from "react";
 import { COLOR } from "@/theme/theme";
+import Tooltip, { type TooltipPlacement } from "@/app/components/ui/Tooltip";
 
 type Props = Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
@@ -11,6 +12,8 @@ type Props = Omit<
   size?: number;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   title?: string;
+  tooltip?: React.ReactNode;
+  tooltipPlacement?: TooltipPlacement;
   ariaLabel?: string;
   hoverColor?: string;
 };
@@ -20,7 +23,10 @@ export default function IconButton({
   size = 18,
   onClick,
   title,
+  tooltip,
+  tooltipPlacement = "top",
   ariaLabel,
+  "aria-label": ariaLabelAttr,
   hoverColor,
   style,
   disabled,
@@ -28,8 +34,10 @@ export default function IconButton({
 }: Props) {
   const hasInteraction = !!onClick;
   const isDisabled = !!disabled || !hasInteraction;
+  const tooltipText = typeof tooltip === "string" ? tooltip : undefined;
+  const computedAriaLabel = ariaLabel ?? ariaLabelAttr ?? tooltipText ?? title;
 
-  return (
+  const button = (
     <button
       type="button"
       onClick={onClick}
@@ -62,7 +70,7 @@ export default function IconButton({
             }
           : undefined
       }
-      aria-label={ariaLabel ?? rest["aria-label"]}
+      aria-label={computedAriaLabel}
       title={title}
       {...rest}
     >
@@ -79,4 +87,14 @@ export default function IconButton({
         : icon}
     </button>
   );
+
+  if (tooltip) {
+    return (
+      <Tooltip content={tooltip} placement={tooltipPlacement}>
+        {button}
+      </Tooltip>
+    );
+  }
+
+  return button;
 }

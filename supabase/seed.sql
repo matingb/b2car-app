@@ -92,9 +92,9 @@ VALUES (
 
 -- Usuarios (auth.users) para cumplir FK de tenant_members
 INSERT INTO "auth"."users" ("instance_id","id","aud","role","email","encrypted_password","email_confirmed_at","invited_at","confirmation_token","confirmation_sent_at","recovery_token","recovery_sent_at","email_change_token_new","email_change","email_change_sent_at","last_sign_in_at","raw_app_meta_data","raw_user_meta_data","is_super_admin","created_at","updated_at","phone","phone_confirmed_at","phone_change","phone_change_token","phone_change_sent_at","email_change_token_current","email_change_confirm_status","banned_until","reauthentication_token","reauthentication_sent_at","is_sso_user","deleted_at","is_anonymous") VALUES
-  ('00000000-0000-0000-0000-000000000000','7ff568f8-4d46-463b-969c-9e68157fa769','authenticated','authenticated','local@user.ar','$2a$10$bK5BZ1QuOXlYfYXBkzT8p.LNOFLOM4r2nlM6Rs06dWq091Vzuakt6','2026-01-30 04:58:59.318335+00',null,'',null,'',null,'','',null,null,'{"provider":"email","providers":["email"]}','{"email_verified":true}',null,'2026-01-30 04:58:59.311336+00','2026-01-30 04:58:59.31893+00',null,null,'','',null,'','0',null,'',null,'false',null,'false'),
-  ('00000000-0000-0000-0000-000000000000','4cdb1c76-3673-4731-b955-cd405f6903ab','authenticated','authenticated','nachoromero84@hotmail.com','$2a$10$SPtcDqHKCexPaYPKShCGg.yrrGamZqNgUjGsOliHI/kmJxxaAYc8C','2026-01-30 05:06:13.496442+00',null,'',null,'',null,'','',null,null,'{"provider":"email","providers":["email"]}','{"email_verified":true}',null,'2026-01-30 05:06:13.491833+00','2026-01-30 05:06:13.497031+00',null,null,'','',null,'','0',null,'',null,'false',null,'false'),
-  ('00000000-0000-0000-0000-000000000000','8dfa870f-6d1c-4261-851c-64a192c66ca6','authenticated','authenticated','garzangb@gmail.com','$2a$10$y2fhrgzDT67G0B52ab/u1ucZfZvstGKtDQG8ggDPLU4ssaUWZTXPu','2026-01-30 05:07:52.277168+00',null,'',null,'',null,'','',null,null,'{"provider":"email","providers":["email"]}','{"email_verified":true}',null,'2026-01-30 05:07:52.272941+00','2026-01-30 05:07:52.277686+00',null,null,'','',null,'','0',null,'',null,'false',null,'false');
+  ('00000000-0000-0000-0000-000000000000','7ff568f8-4d46-463b-969c-9e68157fa769','authenticated','authenticated','local@user.ar','$2a$10$..VF9qNP9/wiVkWKNunlTOYOay9YFbnBLd4WaC5fMVHAGSXXh8YL2','2026-01-30 04:58:59.318335+00',null,'',null,'',null,'','',null,null,'{"provider":"email","providers":["email"]}','{"email_verified":true}',null,'2026-01-30 04:58:59.311336+00','2026-01-30 04:58:59.31893+00',null,null,'','',null,'','0',null,'',null,'false',null,'false'),
+  ('00000000-0000-0000-0000-000000000000','4cdb1c76-3673-4731-b955-cd405f6903ab','authenticated','authenticated','nachoromero84@hotmail.com','$2a$10$..VF9qNP9/wiVkWKNunlTOYOay9YFbnBLd4WaC5fMVHAGSXXh8YL2','2026-01-30 05:06:13.496442+00',null,'',null,'',null,'','',null,null,'{"provider":"email","providers":["email"]}','{"email_verified":true}',null,'2026-01-30 05:06:13.491833+00','2026-01-30 05:06:13.497031+00',null,null,'','',null,'','0',null,'',null,'false',null,'false'),
+  ('00000000-0000-0000-0000-000000000000','8dfa870f-6d1c-4261-851c-64a192c66ca6','authenticated','authenticated','garzangb@gmail.com','$2a$10$..VF9qNP9/wiVkWKNunlTOYOay9YFbnBLd4WaC5fMVHAGSXXh8YL2','2026-01-30 05:07:52.277168+00',null,'',null,'',null,'','',null,null,'{"provider":"email","providers":["email"]}','{"email_verified":true}',null,'2026-01-30 05:07:52.272941+00','2026-01-30 05:07:52.277686+00',null,null,'','',null,'','0',null,'',null,'false',null,'false');
 
 -- Tenant members
 INSERT INTO "public"."tenant_members" ("cliente_id","tenant_id","rol") VALUES
@@ -209,17 +209,17 @@ INSERT INTO public.proveedores (id, tenant_id, nombre, cuit, telefono, email, di
   ('d2000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Distribuidora Norte','30-71234567-8','11-4567-8900','ventas@distribuidoranorte.com','Av. Warnes 1540, CABA',now() - interval '180 days',now() - interval '1 day');
 
 -- Productos (10)
-INSERT INTO public.productos (id, tenant_id, codigo, nombre, marca, modelo, descripcion, precio_unitario, costo_unitario, proveedor, categorias, created_at, updated_at) VALUES
-  ('60000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','ACE-5W30', 'Aceite 5W30',     'Shell',   'Helix', 'Aceite sintético 1L',    6500, 4200,'Distribuidora Norte',ARRAY['Aceites y Lubricantes'],now() - interval '160 days',now() - interval '1 day'),
-  ('60000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','FIL-AIR',  'Filtro de aire',  'Bosch',   'FA-123','Filtro estándar',         4200, 2500,'Distribuidora Norte',ARRAY['Filtros'],     now() - interval '155 days',now() - interval '2 days'),
-  ('60000000-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','BAT-55',   'Batería 55Ah',    'ACME',    'B55',   'Batería sellada',        68000,52000,'Baterias SA',        ARRAY['Eléctrico'],now() - interval '150 days',now() - interval '3 days'),
-  ('60000000-0000-0000-0000-000000000004','11111111-1111-1111-1111-111111111111','ACE-10W40','Aceite 10W40',    'Total',   'Quartz','Semisintético 1L',        5200, 3500,'Distribuidora Norte',ARRAY['Aceites y Lubricantes'],now() - interval '145 days',now() - interval '4 days'),
-  ('60000000-0000-0000-0000-000000000005','11111111-1111-1111-1111-111111111111','BUJ-IR',   'Bujía Iridium',   'NGK',     'IR-9',  'Bujía alto rendimiento',  5200, 3200,'NGK SA',             ARRAY['Motor'],  now() - interval '140 days',now() - interval '5 days'),
-  ('60000000-0000-0000-0000-000000000006','11111111-1111-1111-1111-111111111111','FRE-PAD',  'Pastillas freno', 'Brembo',  'P200',  'Juego delantero',         9800, 6400,'Brembo AR',          ARRAY['Frenos'],     now() - interval '135 days',now() - interval '6 days'),
-  ('60000000-0000-0000-0000-000000000007','11111111-1111-1111-1111-111111111111','LIM-PA',   'Limpiaparabrisas','Valeo',   'V-24',  'Par 24"',                 3200, 1800,'Valeo SA',           ARRAY['Accesorios'], now() - interval '130 days',now() - interval '7 days'),
-  ('60000000-0000-0000-0000-000000000008','11111111-1111-1111-1111-111111111111','CAB-NEG',  'Cable negativo',  'ACME',    'CB-01', 'Cable batería',           2100, 1200,'ACME',               ARRAY['Eléctrico'],now() - interval '125 days',now() - interval '8 days'),
-  ('60000000-0000-0000-0000-000000000009','11111111-1111-1111-1111-111111111111','REF-COOL', 'Refrigerante',    'Prestone','RX',    'Refrigerante 1L',         4300, 2600,'Prestone SA',        ARRAY['Motor'],    now() - interval '120 days',now() - interval '9 days'),
-  ('60000000-0000-0000-0000-000000000010','11111111-1111-1111-1111-111111111111','ACE-0W20', 'Aceite 0W20',     'Mobil',   '1',     'Aceite sintético 1L',     7000, 4800,'Mobil SA',           ARRAY['Aceites y Lubricantes'],now() - interval '115 days',now() - interval '10 days');
+INSERT INTO public.productos (id, tenant_id, codigo, nombre, marca, modelo, descripcion, precio_unitario, costo_unitario, categorias, created_at, updated_at) VALUES
+  ('60000000-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','ACE-5W30', 'Aceite 5W30',     'Shell',   'Helix', 'Aceite sintético 1L',    6500, 4200,ARRAY['Aceites y Lubricantes'],now() - interval '160 days',now() - interval '1 day'),
+  ('60000000-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','FIL-AIR',  'Filtro de aire',  'Bosch',   'FA-123','Filtro estándar',         4200, 2500,ARRAY['Filtros'],     now() - interval '155 days',now() - interval '2 days'),
+  ('60000000-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','BAT-55',   'Batería 55Ah',    'ACME',    'B55',   'Batería sellada',        68000,52000,ARRAY['Eléctrico'],now() - interval '150 days',now() - interval '3 days'),
+  ('60000000-0000-0000-0000-000000000004','11111111-1111-1111-1111-111111111111','ACE-10W40','Aceite 10W40',    'Total',   'Quartz','Semisintético 1L',        5200, 3500,ARRAY['Aceites y Lubricantes'],now() - interval '145 days',now() - interval '4 days'),
+  ('60000000-0000-0000-0000-000000000005','11111111-1111-1111-1111-111111111111','BUJ-IR',   'Bujía Iridium',   'NGK',     'IR-9',  'Bujía alto rendimiento',  5200, 3200,ARRAY['Motor'],  now() - interval '140 days',now() - interval '5 days'),
+  ('60000000-0000-0000-0000-000000000006','11111111-1111-1111-1111-111111111111','FRE-PAD',  'Pastillas freno', 'Brembo',  'P200',  'Juego delantero',         9800, 6400,ARRAY['Frenos'],     now() - interval '135 days',now() - interval '6 days'),
+  ('60000000-0000-0000-0000-000000000007','11111111-1111-1111-1111-111111111111','LIM-PA',   'Limpiaparabrisas','Valeo',   'V-24',  'Par 24"',                 3200, 1800,ARRAY['Accesorios'], now() - interval '130 days',now() - interval '7 days'),
+  ('60000000-0000-0000-0000-000000000008','11111111-1111-1111-1111-111111111111','CAB-NEG',  'Cable negativo',  'ACME',    'CB-01', 'Cable batería',           2100, 1200,ARRAY['Eléctrico'],now() - interval '125 days',now() - interval '8 days'),
+  ('60000000-0000-0000-0000-000000000009','11111111-1111-1111-1111-111111111111','REF-COOL', 'Refrigerante',    'Prestone','RX',    'Refrigerante 1L',         4300, 2600,ARRAY['Motor'],    now() - interval '120 days',now() - interval '9 days'),
+  ('60000000-0000-0000-0000-000000000010','11111111-1111-1111-1111-111111111111','ACE-0W20', 'Aceite 0W20',     'Mobil',   '1',     'Aceite sintético 1L',     7000, 4800,ARRAY['Aceites y Lubricantes'],now() - interval '115 days',now() - interval '10 days');
 
 -- Catálogo Productos - Proveedores
 INSERT INTO public.productos_proveedores (id, tenant_id, producto_id, proveedor_id, codigo_proveedor, costo_referencia, es_predeterminado, created_at, updated_at) VALUES
@@ -257,16 +257,16 @@ DECLARE
 BEGIN
   FOR r IN
     SELECT * FROM (VALUES
-      (1,  '70000000-0000-0000-0000-000000000001'::uuid, '50000000-0000-0000-0000-000000000001'::uuid, 200),
-      (2,  '70000000-0000-0000-0000-000000000002'::uuid, '50000000-0000-0000-0000-000000000001'::uuid, 150),
-      (3,  '70000000-0000-0000-0000-000000000003'::uuid, '50000000-0000-0000-0000-000000000001'::uuid, 80),
-      (4,  '70000000-0000-0000-0000-000000000004'::uuid, '50000000-0000-0000-0000-000000000002'::uuid, 180),
-      (5,  '70000000-0000-0000-0000-000000000005'::uuid, '50000000-0000-0000-0000-000000000002'::uuid, 120),
-      (6,  '70000000-0000-0000-0000-000000000006'::uuid, '50000000-0000-0000-0000-000000000002'::uuid, 100),
-      (7,  '70000000-0000-0000-0000-000000000007'::uuid, '50000000-0000-0000-0000-000000000002'::uuid, 200),
-      (8,  '70000000-0000-0000-0000-000000000008'::uuid, '50000000-0000-0000-0000-000000000003'::uuid, 160),
-      (9,  '70000000-0000-0000-0000-000000000009'::uuid, '50000000-0000-0000-0000-000000000003'::uuid, 140),
-      (10, '70000000-0000-0000-0000-000000000010'::uuid, '50000000-0000-0000-0000-000000000003'::uuid, 120),
+      (1,  '70000000-0000-0000-0000-000000000001'::uuid, '50000000-0000-0000-0000-000000000001'::uuid, 400),
+      (2,  '70000000-0000-0000-0000-000000000002'::uuid, '50000000-0000-0000-0000-000000000001'::uuid, 300),
+      (3,  '70000000-0000-0000-0000-000000000003'::uuid, '50000000-0000-0000-0000-000000000001'::uuid, 200),
+      (4,  '70000000-0000-0000-0000-000000000004'::uuid, '50000000-0000-0000-0000-000000000002'::uuid, 350),
+      (5,  '70000000-0000-0000-0000-000000000005'::uuid, '50000000-0000-0000-0000-000000000002'::uuid, 300),
+      (6,  '70000000-0000-0000-0000-000000000006'::uuid, '50000000-0000-0000-0000-000000000002'::uuid, 250),
+      (7,  '70000000-0000-0000-0000-000000000007'::uuid, '50000000-0000-0000-0000-000000000002'::uuid, 300),
+      (8,  '70000000-0000-0000-0000-000000000008'::uuid, '50000000-0000-0000-0000-000000000003'::uuid, 250),
+      (9,  '70000000-0000-0000-0000-000000000009'::uuid, '50000000-0000-0000-0000-000000000003'::uuid, 250),
+      (10, '70000000-0000-0000-0000-000000000010'::uuid, '50000000-0000-0000-0000-000000000003'::uuid, 250),
       (11, '70000000-0000-0000-0000-000000000011'::uuid, '50000000-0000-0000-0000-000000000001'::uuid, 120),
       (12, '70000000-0000-0000-0000-000000000012'::uuid, '50000000-0000-0000-0000-000000000001'::uuid, 90),
       (13, '70000000-0000-0000-0000-000000000013'::uuid, '50000000-0000-0000-0000-000000000002'::uuid, 100),
@@ -475,26 +475,10 @@ INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha) VALUES
   ('90000000-0000-0000-0000-000000000022','11111111-1111-1111-1111-111111111111','ASIGNACION_ARREGLO','50000000-0000-0000-0000-000000000001',date_trunc('month',now()-interval '5 months')+interval '5 days'),
   ('90000000-0000-0000-0000-000000000023','11111111-1111-1111-1111-111111111111','ASIGNACION_ARREGLO','50000000-0000-0000-0000-000000000002',date_trunc('month',now()-interval '5 months')+interval '12 days');
 
--- COMPRA operaciones - 2 por mes, 6 meses
-INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha) VALUES
-  -- Mes actual (Mayo)
-  ('90000000-0000-0000-0000-000000000100','11111111-1111-1111-1111-111111111111','COMPRA','50000000-0000-0000-0000-000000000001',date_trunc('month',now())+interval '1 days'),
-  ('90000000-0000-0000-0000-000000000101','11111111-1111-1111-1111-111111111111','COMPRA','50000000-0000-0000-0000-000000000002',date_trunc('month',now())+interval '9 days'),
-  -- Mes -1 (Abril)
-  ('90000000-0000-0000-0000-000000000102','11111111-1111-1111-1111-111111111111','COMPRA','50000000-0000-0000-0000-000000000001',date_trunc('month',now()-interval '1 month')+interval '2 days'),
-  ('90000000-0000-0000-0000-000000000103','11111111-1111-1111-1111-111111111111','COMPRA','50000000-0000-0000-0000-000000000003',date_trunc('month',now()-interval '1 month')+interval '20 days'),
-  -- Mes -2 (Marzo)
-  ('90000000-0000-0000-0000-000000000104','11111111-1111-1111-1111-111111111111','COMPRA','50000000-0000-0000-0000-000000000002',date_trunc('month',now()-interval '2 months')+interval '3 days'),
-  ('90000000-0000-0000-0000-000000000105','11111111-1111-1111-1111-111111111111','COMPRA','50000000-0000-0000-0000-000000000001',date_trunc('month',now()-interval '2 months')+interval '19 days'),
-  -- Mes -3 (Febrero)
-  ('90000000-0000-0000-0000-000000000106','11111111-1111-1111-1111-111111111111','COMPRA','50000000-0000-0000-0000-000000000001',date_trunc('month',now()-interval '3 months')+interval '8 days'),
-  ('90000000-0000-0000-0000-000000000107','11111111-1111-1111-1111-111111111111','COMPRA','50000000-0000-0000-0000-000000000002',date_trunc('month',now()-interval '3 months')+interval '22 days'),
-  -- Mes -4 (Enero)
-  ('90000000-0000-0000-0000-000000000108','11111111-1111-1111-1111-111111111111','COMPRA','50000000-0000-0000-0000-000000000001',date_trunc('month',now()-interval '4 months')+interval '10 days'),
-  ('90000000-0000-0000-0000-000000000109','11111111-1111-1111-1111-111111111111','COMPRA','50000000-0000-0000-0000-000000000003',date_trunc('month',now()-interval '4 months')+interval '24 days'),
-  -- Mes -5 (Diciembre)
-  ('90000000-0000-0000-0000-000000000110','11111111-1111-1111-1111-111111111111','COMPRA','50000000-0000-0000-0000-000000000001',date_trunc('month',now()-interval '5 months')+interval '7 days'),
-  ('90000000-0000-0000-0000-000000000111','11111111-1111-1111-1111-111111111111','COMPRA','50000000-0000-0000-0000-000000000002',date_trunc('month',now()-interval '5 months')+interval '20 days');
+-- COMPRA operaciones de ejemplo para Distribuidora Norte (2 compras con valor real)
+INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha, monto_total, total_pagado, esta_pago, estado_pago, observaciones) VALUES
+  ('90000000-0000-0000-0000-000000000102','11111111-1111-1111-1111-111111111111','COMPRA','50000000-0000-0000-0000-000000000001',date_trunc('month',now()-interval '1 month')+interval '5 days',105000,0,false,'PENDIENTE','Reposición mensual de aceite 5W30'),
+  ('90000000-0000-0000-0000-000000000100','11111111-1111-1111-1111-111111111111','COMPRA','50000000-0000-0000-0000-000000000001',date_trunc('month',now())+interval '2 days',126000,0,false,'PENDIENTE','Pedido de filtros y lubricantes');
 
 -- VENTA operaciones - 1 por mes, 6 meses
 INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha) VALUES
@@ -526,20 +510,53 @@ INSERT INTO public.operaciones_movimiento_cuenta (operacion_id, tenant_id, cuent
   ('90000000-0000-0000-0000-000000000301','11111111-1111-1111-1111-111111111111','c0000000-0000-4000-8000-000000000001',2500000,now() - interval '19 months','7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '19 months'),
   ('90000000-0000-0000-0000-000000000302','11111111-1111-1111-1111-111111111111','c0000000-0000-4000-8000-000000000002',1800000,now() - interval '19 months','7ff568f8-4d46-463b-969c-9e68157fa769',now() - interval '19 months');
 
--- Operaciones Compra vinculadas al proveedor
+-- Operaciones Compra vinculadas al proveedor Distribuidora Norte + 1 pago directo de ejemplo
 INSERT INTO public.operaciones_compra (operacion_id, tenant_id, proveedor_id) VALUES
-  ('90000000-0000-0000-0000-000000000100','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
-  ('90000000-0000-0000-0000-000000000101','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
   ('90000000-0000-0000-0000-000000000102','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
-  ('90000000-0000-0000-0000-000000000103','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
-  ('90000000-0000-0000-0000-000000000104','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
-  ('90000000-0000-0000-0000-000000000105','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
-  ('90000000-0000-0000-0000-000000000106','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
-  ('90000000-0000-0000-0000-000000000107','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
-  ('90000000-0000-0000-0000-000000000108','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
-  ('90000000-0000-0000-0000-000000000109','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
-  ('90000000-0000-0000-0000-000000000110','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001'),
-  ('90000000-0000-0000-0000-000000000111','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001');
+  ('90000000-0000-0000-0000-000000000100','11111111-1111-1111-1111-111111111111','d2000000-0000-0000-0000-000000000001');
+
+DO $$
+DECLARE
+  v_fecha_pago timestamptz := date_trunc('month', now()) + interval '6 days' + interval '11 hours';
+BEGIN
+  INSERT INTO public.operaciones (
+    id, tenant_id, tipo, taller_id, fecha, observaciones,
+    monto_total, total_pagado, esta_pago, estado_pago, estado_stock
+  ) VALUES (
+    '90000000-0000-0000-0000-000000000101',
+    '11111111-1111-1111-1111-111111111111',
+    'PAGO_PROVEEDOR',
+    NULL,
+    v_fecha_pago,
+    'Entrega parcial a cuenta corriente',
+    150000,
+    150000,
+    true,
+    'PAGADO',
+    'NO_APLICA'
+  );
+
+  INSERT INTO public.operaciones_pago_proveedor (operacion_id, tenant_id, proveedor_id, cuenta_id)
+  VALUES (
+    '90000000-0000-0000-0000-000000000101',
+    '11111111-1111-1111-1111-111111111111',
+    'd2000000-0000-0000-0000-000000000001',
+    'c0000000-0000-4000-8000-000000000001'
+  );
+
+  INSERT INTO public.operaciones_movimiento_cuenta (
+    operacion_id, tenant_id, cuenta_id, importe, fecha, descripcion, created_by, created_at
+  ) VALUES (
+    '90000000-0000-0000-0000-000000000101',
+    '11111111-1111-1111-1111-111111111111',
+    'c0000000-0000-4000-8000-000000000001',
+    -150000,
+    v_fecha_pago,
+    'Pago a Distribuidora Norte',
+    '7ff568f8-4d46-463b-969c-9e68157fa769',
+    v_fecha_pago
+  );
+END $$;
 
 -- ===========================================================================
 -- OPERACIONES_LINEAS
@@ -579,26 +596,10 @@ INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, mon
   ('91000000-0000-0000-0000-000000000022','90000000-0000-0000-0000-000000000022','70000000-0000-0000-0000-000000000002', 2, 4200, -1, 'b1000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000002'),
   ('91000000-0000-0000-0000-000000000023','90000000-0000-0000-0000-000000000023','70000000-0000-0000-0000-000000000004', 1, 9800, -1, 'b1000000-0000-0000-0000-000000000002', 'e1000000-0000-0000-0000-000000000003');
 
--- COMPRA lineas (reposición de stock, 6 meses)
+-- COMPRA lineas (correspondientes a las 2 compras de ejemplo de Distribuidora Norte)
 INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, monto_unitario, sentido) VALUES
-  -- Mayo
-  ('91000000-0000-0000-0000-000000000100','90000000-0000-0000-0000-000000000100','70000000-0000-0000-0000-000000000001',30,4200, 1),
-  ('91000000-0000-0000-0000-000000000101','90000000-0000-0000-0000-000000000101','70000000-0000-0000-0000-000000000005',20,3200, 1),
-  -- Abril
   ('91000000-0000-0000-0000-000000000102','90000000-0000-0000-0000-000000000102','70000000-0000-0000-0000-000000000001',25,4200, 1),
-  ('91000000-0000-0000-0000-000000000103','90000000-0000-0000-0000-000000000103','70000000-0000-0000-0000-000000000009',15,2600, 1),
-  -- Marzo
-  ('91000000-0000-0000-0000-000000000104','90000000-0000-0000-0000-000000000104','70000000-0000-0000-0000-000000000004',20,3500, 1),
-  ('91000000-0000-0000-0000-000000000105','90000000-0000-0000-0000-000000000105','70000000-0000-0000-0000-000000000002',30,2500, 1),
-  -- Febrero
-  ('91000000-0000-0000-0000-000000000106','90000000-0000-0000-0000-000000000106','70000000-0000-0000-0000-000000000001',20,4200, 1),
-  ('91000000-0000-0000-0000-000000000107','90000000-0000-0000-0000-000000000107','70000000-0000-0000-0000-000000000005',15,3200, 1),
-  -- Enero
-  ('91000000-0000-0000-0000-000000000108','90000000-0000-0000-0000-000000000108','70000000-0000-0000-0000-000000000001',15,4200, 1),
-  ('91000000-0000-0000-0000-000000000109','90000000-0000-0000-0000-000000000109','70000000-0000-0000-0000-000000000009',10,2600, 1),
-  -- Diciembre
-  ('91000000-0000-0000-0000-000000000110','90000000-0000-0000-0000-000000000110','70000000-0000-0000-0000-000000000001',10,4200, 1),
-  ('91000000-0000-0000-0000-000000000111','90000000-0000-0000-0000-000000000111','70000000-0000-0000-0000-000000000004',10,3500, 1);
+  ('91000000-0000-0000-0000-000000000100','90000000-0000-0000-0000-000000000100','70000000-0000-0000-0000-000000000001',30,4200, 1);
 
 -- VENTA lineas (venta directa de repuestos, 6 meses)
 INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, monto_unitario, sentido) VALUES
@@ -931,16 +932,9 @@ FROM public.arreglos AS a
 JOIN _seed_arreglos AS s ON s.id = a.id
 WHERE a.total_cobrado > 0;
 
--- Compras de reposición (2 o 3 por mes) y ventas de mostrador (1 a 3 por mes)
--- en los meses generados. Las cantidades no se descuentan del stock.
+-- Ventas de mostrador (1 a 3 por mes) en los meses generados.
 CREATE TEMP TABLE _seed_stock_ops ON COMMIT DROP AS
-WITH compras AS (
-  SELECT me.offset_mes, me.inicio, k, 'COMPRA'::text AS tipo
-  FROM _seed_meses AS me
-  CROSS JOIN LATERAL generate_series(1, 2 + (me.offset_mes % 2 + 2) % 2) AS k
-  WHERE me.offset_mes NOT BETWEEN -5 AND 0
-),
-ventas AS (
+WITH ventas AS (
   SELECT me.offset_mes, me.inicio, k, 'VENTA'::text AS tipo
   FROM _seed_meses AS me
   CROSS JOIN LATERAL generate_series(1, 1 + (me.offset_mes % 3 + 3) % 3) AS k
@@ -948,22 +942,16 @@ ventas AS (
 ),
 todas AS (
   SELECT *, row_number() OVER (ORDER BY tipo, offset_mes, k) AS n
-  FROM (SELECT * FROM compras UNION ALL SELECT * FROM ventas) AS u
+  FROM ventas
 )
 SELECT
   t.n,
   t.tipo,
-  t.inicio
-    + (CASE WHEN t.tipo = 'COMPRA' THEN 2 + (t.k - 1) * 9 ELSE 6 + (t.k - 1) * 8 END) * interval '1 day'
-    + interval '15 hours' AS fecha,
+  t.inicio + (6 + (t.k - 1) * 8) * interval '1 day' + interval '15 hours' AS fecha,
   st.id AS stock_id,
   st.taller_id,
-  CASE
-    WHEN t.tipo = 'VENTA' THEN 1 + (t.n % 4)::int
-    WHEN pr.costo_unitario > 20000 THEN 2 + (t.n % 3)::int
-    ELSE 10 + ((t.n * 7) % 21)::int
-  END AS cantidad,
-  CASE WHEN t.tipo = 'COMPRA' THEN pr.costo_unitario ELSE pr.precio_unitario END AS monto_unitario
+  (1 + (t.n % 4))::int AS cantidad,
+  pr.precio_unitario AS monto_unitario
 FROM todas AS t
 JOIN public.stocks AS st ON st.id = ('70000000-0000-0000-0000-' || lpad(
   (ARRAY[1,4,10,2,6,9,5,1,4,3,7,8])[(((t.n * 5 + t.offset_mes) % 12 + 12) % 12 + 1)::int]::text, 12, '0'))::uuid
@@ -971,32 +959,22 @@ JOIN public.productos AS pr ON pr.id = st.producto_id;
 
 INSERT INTO public.operaciones (id, tenant_id, tipo, taller_id, fecha)
 SELECT
-  ((CASE WHEN tipo = 'COMPRA' THEN '9c' ELSE '9e' END) || '000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+  ('9e000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
   '11111111-1111-1111-1111-111111111111', tipo::public.tipo_operacion, taller_id, fecha
 FROM _seed_stock_ops;
-
-INSERT INTO public.operaciones_compra (operacion_id, tenant_id, proveedor_id)
-SELECT
-  ('9c000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-  '11111111-1111-1111-1111-111111111111'::uuid,
-  'd2000000-0000-0000-0000-000000000001'::uuid
-FROM _seed_stock_ops
-WHERE tipo = 'COMPRA';
 
 INSERT INTO public.operaciones_venta (operacion_id, tenant_id, cliente_id)
 SELECT
   ('9e000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
   '11111111-1111-1111-1111-111111111111'::uuid,
   ('10000000-0000-0000-0000-' || lpad((1 + (n % 10))::text, 12, '0'))::uuid
-FROM _seed_stock_ops
-WHERE tipo = 'VENTA';
+FROM _seed_stock_ops;
 
 INSERT INTO public.operaciones_lineas (id, operacion_id, stock_id, cantidad, monto_unitario, sentido)
 SELECT
-  ((CASE WHEN tipo = 'COMPRA' THEN '9d' ELSE '9f' END) || '000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-  ((CASE WHEN tipo = 'COMPRA' THEN '9c' ELSE '9e' END) || '000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
-  stock_id, cantidad, monto_unitario,
-  CASE WHEN tipo = 'COMPRA' THEN 1 ELSE -1 END
+  ('9f000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+  ('9e000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+  stock_id, cantidad, monto_unitario, -1
 FROM _seed_stock_ops;
 
 -- Gastos eventuales en todo el rango (también en los meses -5 a 0): alquiler y

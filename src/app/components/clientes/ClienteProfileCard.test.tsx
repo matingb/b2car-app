@@ -6,6 +6,30 @@ import ClienteProfileCard from "./ClienteProfileCard";
 import { TipoCliente } from "@/model/types";
 import { UserRole } from "@/lib/permissions";
 
+vi.mock("@/app/components/finanzas/MovimientoCuentaCorrienteModal", () => ({
+  default: ({
+    open,
+    initialSentido,
+    onSuccess,
+    onClose,
+  }: {
+    open: boolean;
+    initialSentido?: string;
+    onSuccess?: () => void;
+    onClose?: () => void;
+  }) =>
+    open ? (
+      <div data-testid="mock-movimiento-cc-modal" data-sentido={initialSentido}>
+        <button data-testid="mock-confirm-movimiento-cc" onClick={onSuccess}>
+          Confirmar
+        </button>
+        <button data-testid="mock-close-movimiento-cc" onClick={onClose}>
+          Cerrar
+        </button>
+      </div>
+    ) : null,
+}));
+
 describe("ClienteProfileCard", () => {
   const defaultProps = {
     tipo: TipoCliente.EMPRESA,
@@ -171,5 +195,35 @@ describe("ClienteProfileCard", () => {
     );
 
     openWhatsappSpy.mockRestore();
+  });
+
+  it("renderiza botones de Registrar Cobro y Registrar Pago, abre el modal con el sentido elegido y llama a onFinanzasUpdated", () => {
+    const onFinanzasUpdated = vi.fn();
+
+    render(
+      <ClienteProfileCard
+        {...defaultProps}
+        clienteId="cli-10"
+        onFinanzasUpdated={onFinanzasUpdated}
+      />
+    );
+
+    const cobroBtn = screen.getByTestId("cliente-detail-registrar-movimiento");
+    const pagoBtn = screen.getByTestId("cliente-detail-registrar-pago");
+    expect(cobroBtn).toBeInTheDocument();
+    expect(pagoBtn).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Registrar Cobro" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Registrar Pago" })).toBeInTheDocument();
+
+    fireEvent.click(pagoBtn);
+    expect(screen.getByTestId("mock-movimiento-cc-modal")).toHaveAttribute("data-sentido", "PAGO");
+    fireEvent.click(screen.getByTestId("mock-close-movimiento-cc"));
+
+    fireEvent.click(cobroBtn);
+    expect(screen.getByTestId("mock-movimiento-cc-modal")).toHaveAttribute("data-sentido", "COBRO");
+
+    fireEvent.click(screen.getByTestId("mock-confirm-movimiento-cc"));
+    expect(onFinanzasUpdated).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("mock-movimiento-cc-modal")).not.toBeInTheDocument();
   });
 });

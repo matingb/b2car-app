@@ -106,4 +106,32 @@ describe("ProveedorProfileCard", () => {
 
     openWhatsappSpy.mockRestore();
   });
+
+  it("renderiza botones de Registrar Pago y Registrar Cobro y ejecuta sus callbacks", () => {
+    const onRegistrarPago = vi.fn();
+    const onRegistrarCobro = vi.fn();
+
+    render(
+      <ProveedorProfileCard
+        proveedor={mockProveedor}
+        resumenCuentaCorriente={mockResumenConDeuda}
+        onEditProveedor={vi.fn()}
+        onRegistrarPago={onRegistrarPago}
+        onRegistrarCobro={onRegistrarCobro}
+      />
+    );
+
+    const pagoBtn = screen.getByTestId("proveedor-detail-registrar-pago");
+    const cobroBtn = screen.getByTestId("proveedor-detail-registrar-cobro");
+    expect(pagoBtn).toBeInTheDocument();
+    expect(cobroBtn).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Registrar Pago" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Registrar Cobro" })).toBeInTheDocument();
+
+    fireEvent.click(pagoBtn);
+    expect(onRegistrarPago).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(cobroBtn);
+    expect(onRegistrarCobro).toHaveBeenCalledTimes(1);
+  });
 });
