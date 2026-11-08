@@ -8,14 +8,21 @@ export interface TallerExportEntity {
 export interface RawStockExportEntity {
   taller_id: string;
   cantidad: number;
+  cantidad_reservada?: number | null;
+  cantidad_disponible?: number | null;
+  cantidad_pendiente?: number | null;
   productos:
     | {
         codigo: string;
         nombre: string;
+        costo_unitario?: number | null;
+        precio_unitario?: number | null;
       }
     | {
         codigo: string;
         nombre: string;
+        costo_unitario?: number | null;
+        precio_unitario?: number | null;
       }[]
     | null;
 }
@@ -48,9 +55,14 @@ export const productosExportRepository: ProductosExportRepository = {
       .select(`
         taller_id,
         cantidad,
+        cantidad_reservada,
+        cantidad_disponible,
+        cantidad_pendiente,
         productos!inner (
           codigo,
-          nombre
+          nombre,
+          costo_unitario,
+          precio_unitario
         )
       `);
 

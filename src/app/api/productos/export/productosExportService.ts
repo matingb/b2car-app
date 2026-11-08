@@ -13,7 +13,13 @@ import {
 export interface ProductoStockExportItem {
   codigo: string;
   nombre: string;
-  cantidad: number;
+  fisico: number;
+  disponible: number;
+  reservado: number;
+  pendiente: number;
+  precioCompra: number;
+  precioVenta: number;
+  cantidad?: number;
 }
 
 export interface TallerStockExportGroup {
@@ -59,10 +65,27 @@ export const productosExportService = {
         for (const s of tallerStocks) {
           const prod = Array.isArray(s.productos) ? s.productos[0] : s.productos;
           if (!prod) continue;
+
+          const fisico = Number(s.cantidad) || 0;
+          const reservado = Number(s.cantidad_reservada) || 0;
+          const disponible =
+            s.cantidad_disponible != null && Number.isFinite(Number(s.cantidad_disponible))
+              ? Number(s.cantidad_disponible)
+              : fisico - reservado;
+          const pendiente = Number(s.cantidad_pendiente) || 0;
+          const precioCompra = Number(prod.costo_unitario) || 0;
+          const precioVenta = Number(prod.precio_unitario) || 0;
+
           items.push({
             codigo: prod.codigo ?? "",
             nombre: prod.nombre ?? "",
-            cantidad: Number(s.cantidad) || 0,
+            fisico,
+            disponible,
+            reservado,
+            pendiente,
+            precioCompra,
+            precioVenta,
+            cantidad: fisico,
           });
         }
 
@@ -73,7 +96,12 @@ export const productosExportService = {
           columns: [
             { header: "Código", key: "codigo", width: 22 },
             { header: "Nombre", key: "nombre", width: 38 },
-            { header: "Cantidad", key: "cantidad", width: 14, numFmt: "#,##0" },
+            { header: "Físico", key: "fisico", width: 14, numFmt: "#,##0" },
+            { header: "Disponible", key: "disponible", width: 14, numFmt: "#,##0" },
+            { header: "Reservado", key: "reservado", width: 14, numFmt: "#,##0" },
+            { header: "Pendiente", key: "pendiente", width: 14, numFmt: "#,##0" },
+            { header: "Precio Compra", key: "precioCompra", width: 16, numFmt: "$#,##0.00" },
+            { header: "Precio Venta", key: "precioVenta", width: 16, numFmt: "$#,##0.00" },
           ],
           rows: items,
           freezeHeader: true,

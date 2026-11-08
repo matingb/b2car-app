@@ -12,12 +12,34 @@ const mockStock = (
   taller_id: string,
   codigo: string,
   nombre: string,
-  cantidad: number
-): RawStockExportEntity => ({
-  taller_id,
-  cantidad,
-  productos: { codigo, nombre },
-});
+  stock:
+    | {
+        cantidad?: number;
+        cantidad_reservada?: number;
+        cantidad_disponible?: number;
+        cantidad_pendiente?: number;
+      }
+    | number = 0,
+  precios: {
+    costo_unitario?: number;
+    precio_unitario?: number;
+  } = {}
+): RawStockExportEntity => {
+  const stockObj = typeof stock === "number" ? { cantidad: stock } : stock;
+  return {
+    taller_id,
+    cantidad: stockObj.cantidad ?? 0,
+    cantidad_reservada: stockObj.cantidad_reservada ?? 0,
+    cantidad_disponible: stockObj.cantidad_disponible,
+    cantidad_pendiente: stockObj.cantidad_pendiente ?? 0,
+    productos: {
+      codigo,
+      nombre,
+      costo_unitario: precios.costo_unitario ?? 0,
+      precio_unitario: precios.precio_unitario ?? 0,
+    },
+  };
+};
 
 function createMockRepo(params: {
   talleres?: TallerExportEntity[];
@@ -39,8 +61,7 @@ function createMockRepo(params: {
 
 async function loadWorkbook(buffer: ArrayBuffer): Promise<ExcelJS.Workbook> {
   const workbook = new ExcelJS.Workbook();
-  // Buffer.from evita que exceljs rechace el ArrayBuffer por el realm de jsdom
-  await workbook.xlsx.load(Buffer.from(buffer));
+  await workbook.xlsx.load(Buffer.from(buffer) as any);
   return workbook;
 }
 
@@ -51,7 +72,7 @@ function assertSheetRows(
 ) {
   const sheet = workbook.getWorksheet(sheetName);
   expect(sheet).toBeDefined();
-  expect(sheet!.actualColumnCount).toBe(3);
+  expect(sheet!.actualColumnCount).toBe(8);
 
   const rows: (string | number)[][] = [];
   sheet!.eachRow((row) => {
@@ -59,6 +80,11 @@ function assertSheetRows(
       row.getCell(1).value as string,
       row.getCell(2).value as string,
       row.getCell(3).value as number,
+      row.getCell(4).value as number,
+      row.getCell(5).value as number,
+      row.getCell(6).value as number,
+      row.getCell(7).value as number,
+      row.getCell(8).value as number,
     ]);
   });
   expect(rows).toEqual(expectedRows);
@@ -96,7 +122,7 @@ describe("productosExportService (orquestador)", () => {
     expect(error).toBe("Error al obtener datos de stock");
   });
 
-    it("Dado varios talleres, arma un excel con una hoja por talles con el stock de cada uno", async () => {
+  it("Dado varios talleres, arma un excel con una hoja por taller con todos los estados de stock y precios", async () => {
     // Given
     const mockRepo = createMockRepo({
       talleres: [
@@ -104,9 +130,27 @@ describe("productosExportService (orquestador)", () => {
         { id: "t2", nombre: "Taller Sur" },
       ],
       stocks: [
-        mockStock("t1", "B2", "Batería 12V", 5),
-        mockStock("t1", "A1", "Aceite Sintético", 10),
-        mockStock("t2", "F1", "Filtro de Aire", 3),
+        mockStock(
+          "t1",
+          "B2",
+          "Batería 12V",
+          { cantidad: 5, cantidad_reservada: 1, cantidad_disponible: 4, cantidad_pendiente: 2 },
+          { costo_unitario: 4500, precio_unitario: 7000 }
+        ),
+        mockStock(
+          "t1",
+          "A1",
+          "Aceite Sintético",
+          { cantidad: 10, cantidad_reservada: 3, cantidad_pendiente: 0 }, // cantidad_disponible fallback
+          { costo_unitario: 1200, precio_unitario: 2000 }
+        ),
+        mockStock(
+          "t2",
+          "F1",
+          "Filtro de Aire",
+          { cantidad: 3, cantidad_reservada: 0, cantidad_disponible: 3, cantidad_pendiente: 1 },
+          { costo_unitario: 800, precio_unitario: 1500 }
+        ),
       ],
     });
 
@@ -123,14 +167,76 @@ describe("productosExportService (orquestador)", () => {
     expect(workbook.worksheets).toHaveLength(2);
 
     assertSheetRows(workbook, "Taller Norte", [
-      ["Código", "Nombre", "Cantidad"],
-      ["A1", "Aceite Sintético", 10],
-      ["B2", "Batería 12V", 5],
+      [
+        "Código",
+        "Nombre",
+        "Físico",
+        "Disponible",
+        "Reservado",
+        "Pendiente",
+        "Precio Compra",
+        "Precio Venta",
+      ],
+      ["A1", "Aceite Sintético", 10, 7, 3, 0, 1200, 2000],
+      ["B2", "Batería 12V", 5, 4, 1, 2, 4500, 7000],
     ]);
 
     assertSheetRows(workbook, "Taller Sur", [
-      ["Código", "Nombre", "Cantidad"],
-      ["F1", "Filtro de Aire", 3],
+      [
+        "Código",
+        "Nombre",
+        "Físico",
+        "Disponible",
+        "Reservado",
+        "Pendiente",
+        "Precio Compra",
+        "Precio Venta",
+      ],
+      ["F1", "Filtro de Aire", 3, 3, 0, 1, 800, 1500],
+    ]);
+  });
+
+  it("asigna 0 como default ante valores de precio o stock faltantes/nulos y hoja General si no hay talleres", async () => {
+    const mockRepo = createMockRepo({
+      talleres: [],
+      stocks: [
+        {
+          taller_id: "",
+          cantidad: 0,
+          cantidad_reservada: null,
+          cantidad_disponible: null,
+          cantidad_pendiente: null,
+          productos: {
+            codigo: "N1",
+            nombre: "Producto Sin Precios",
+            costo_unitario: null,
+            precio_unitario: null,
+          },
+        },
+      ],
+    });
+
+    const { data } = await productosExportService.exportInventarioExcel(
+      dummySupabase,
+      mockRepo
+    );
+
+    expect(data).toBeDefined();
+    const workbook = await loadWorkbook(data!.buffer);
+    expect(workbook.worksheets).toHaveLength(1);
+
+    assertSheetRows(workbook, "General", [
+      [
+        "Código",
+        "Nombre",
+        "Físico",
+        "Disponible",
+        "Reservado",
+        "Pendiente",
+        "Precio Compra",
+        "Precio Venta",
+      ],
+      ["N1", "Producto Sin Precios", 0, 0, 0, 0, 0, 0],
     ]);
     // exceljs tarda en cargar en frío con la suite completa corriendo en paralelo (CI con pocos núcleos)
   }, 20_000);
