@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ScreenHeader from "@/app/components/ui/ScreenHeader";
-import PeriodSelector from "@/app/components/dashboard/PeriodSelector";
 import SearchBar from "@/app/components/ui/SearchBar";
 import ScrollPage from "@/app/components/ui/ScrollPage";
 import ListSkeleton from "@/app/components/ui/ListSkeleton";
@@ -29,14 +28,17 @@ import {
     WalletCards,
     Wrench,
 } from "lucide-react";
-import { TipoOperacion, TIPOS_OPERACIONES } from "@/model/types";
+import { TipoOperacion, TIPOS_OPERACIONES, type EstadoPagoOperacion, type EstadoStockOperacion } from "@/model/types";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { Permission } from "@/lib/permissions";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 import LineaDetalleOperacion from "@/app/components/operaciones/LineaDetalleOperacion";
+import OperacionesFilterBar from "@/app/components/operaciones/OperacionesFilterBar";
 import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
 import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
 import Button from "@/app/components/ui/Button";
+import { calcularEstadoPago } from "@/app/components/ui/PagoBadge";
+import { buildPeriodOptions } from "@/lib/dashboard/periods";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { finanzasClient } from "@/clients/finanzasClient";
@@ -173,6 +175,10 @@ export default function OperacionesPage() {
     const { success, error } = useToast();
     const { confirm } = useModalMessage();
     const [search, setSearch] = useState("");
+    const [fechaDesde, setFechaDesde] = useState("");
+    const [fechaHasta, setFechaHasta] = useState("");
+    const [estadoPagoFilter, setEstadoPagoFilter] = useState<EstadoPagoOperacion | "">("");
+    const [estadoEntregaFilter, setEstadoEntregaFilter] = useState<EstadoStockOperacion | "">("");
     const [createOpen, setCreateOpen] = useState(false);
     const [initialTipo, setInitialTipo] = useState<TipoOperacion>("VENTA");
     const [cuentaGastoPreseleccionadaId, setCuentaGastoPreseleccionadaId] = useState<string | null>(null);
@@ -232,6 +238,35 @@ export default function OperacionesPage() {
         };
     }, [operaciones, getStockById]);
 
+    const currentMonthPeriod = useMemo(() => buildPeriodOptions(1, new Date(), "local")[0], []);
+    const isCustomPeriod = useMemo(() => {
+        return Boolean(
+            (period.from && period.from !== currentMonthPeriod.from) ||
+            (period.to && period.to !== currentMonthPeriod.to) ||
+            fechaDesde ||
+            fechaHasta
+        );
+    }, [period.from, period.to, currentMonthPeriod.from, currentMonthPeriod.to, fechaDesde, fechaHasta]);
+
+    const activeFiltersCount = useMemo(() => {
+        let count = 0;
+        if (selectedTipos.length > 0) count++;
+        if (estadoPagoFilter) count++;
+        if (estadoEntregaFilter) count++;
+        if (isCustomPeriod) count++;
+        return count;
+    }, [selectedTipos.length, estadoPagoFilter, estadoEntregaFilter, isCustomPeriod]);
+
+    const handleClearAllFilters = useCallback(() => {
+        setSelectedTipos([]);
+        setEstadoPagoFilter("");
+        setEstadoEntregaFilter("");
+        setFechaDesde("");
+        setFechaHasta("");
+        setPeriod(currentMonthPeriod);
+        setSearch("");
+    }, [setSelectedTipos, setPeriod, currentMonthPeriod]);
+
     const toggleTipo = (tipo: TipoOperacion) => {
         setSelectedTipos((prev) =>
             prev.includes(tipo) ? prev.filter((t) => t !== tipo) : [...prev, tipo]
@@ -243,6 +278,25 @@ export default function OperacionesPage() {
         return (operaciones ?? [])
             .filter((o) => {
                 if (!TIPOS_OPERACIONES.includes(o.tipo as TipoOperacion)) return false;
+
+                if (estadoPagoFilter) {
+                    const estadoCalculado: string = o.estado_pago ?? calcularEstadoPago({
+                        totalCobrado: o.total_pagado,
+                        precioFinal: o.monto_total ?? o.monto,
+                        estaPago: o.esta_pago,
+                    });
+                    if (estadoPagoFilter === "PAGADO") {
+                        if (estadoCalculado !== "PAGADO" && estadoCalculado !== "SOBREPAGO") return false;
+                    } else if (estadoCalculado !== estadoPagoFilter) {
+                        return false;
+                    }
+                }
+
+                if (estadoEntregaFilter) {
+                    const estadoStock = o.estado_stock ?? "PENDIENTE";
+                    if (estadoStock !== estadoEntregaFilter) return false;
+                }
+
                 if (!q) return true;
                 const { totalLineas, totalMonto } = getTotals(o);
                 const lineasInfo = (o.lineas ?? []).flatMap((l) => [
@@ -266,7 +320,7 @@ export default function OperacionesPage() {
                     .filter(Boolean)
                     .some((v) => String(v).toLowerCase().includes(q));
             });
-    }, [operaciones, search, talleres, stocksById]);
+    }, [operaciones, search, estadoPagoFilter, estadoEntregaFilter, talleres, stocksById]);
 
     const handleDelete = useCallback(async (operacion: Operacion) => {
         try {
@@ -331,7 +385,6 @@ export default function OperacionesPage() {
                     title="Operaciones"
                     subtitle="Gestioná los movimientos del stock: compras, ventas, ingresos y egresos."
                 />
-                <PeriodSelector value={period} onChange={setPeriod} />
             </div>
             <div css={styles.cardDatosContainer}>
                 <Card style={styles.resumenGrupoCard} aria-label="Resumen de ingresos">
@@ -376,6 +429,7 @@ export default function OperacionesPage() {
                         value={search}
                         onChange={setSearch}
                         placeholder="Buscar operaciones..."
+                        inputTestId="operaciones-search"
                         style={styles.searchBar}
                     />
                     <Button
@@ -390,24 +444,29 @@ export default function OperacionesPage() {
                         css={styles.createButton}
                     />
                 </div>
-                <div css={styles.chipsContainer} aria-label="Filtrar por tipo de operación">
-                    {TIPOS_OPERACIONES.map((tipo) => {
-                        const config = tipoConfig[tipo];
-                        const isSelected = selectedTipos.includes(tipo);
-                        return (
-                            <button
-                                key={tipo}
-                                type="button"
-                                data-testid={`operaciones-chip-${tipo}`}
-                                onClick={() => toggleTipo(tipo)}
-                                css={[styles.chipBase, isSelected && styles.chipSelected, styles.chipResponsive]}
-                            >
-                                <span style={styles.chipIcon}>{config.icon}</span>
-                                {config.label}
-                            </button>
-                        );
-                    })}
-                </div>
+
+                <OperacionesFilterBar
+                    selectedTipos={selectedTipos}
+                    onToggleTipo={toggleTipo}
+                    period={period}
+                    onPeriodChange={setPeriod}
+                    fechaDesde={fechaDesde}
+                    fechaHasta={fechaHasta}
+                    onFechaDesdeChange={setFechaDesde}
+                    onFechaHastaChange={setFechaHasta}
+                    estadoPago={estadoPagoFilter}
+                    onEstadoPagoChange={setEstadoPagoFilter}
+                    estadoEntrega={estadoEntregaFilter}
+                    onEstadoEntregaChange={setEstadoEntregaFilter}
+                    onClearAll={handleClearAllFilters}
+                    hasActiveFilters={activeFiltersCount > 0}
+                    isCustomPeriod={isCustomPeriod}
+                    onResetPeriod={() => {
+                        setFechaDesde("");
+                        setFechaHasta("");
+                        setPeriod(currentMonthPeriod);
+                    }}
+                />
             </div>
 
             <div style={styles.resultsHeader}>
@@ -653,47 +712,6 @@ const styles = {
             width: "auto",
         },
     }),
-    chipsContainer: css({
-        display: "flex",
-        gap: "10px",
-        alignItems: "center",
-        flexWrap: "wrap",
-    }),
-    chipBase: css({
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "8px 14px",
-        borderRadius: "24px",
-        border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-        backgroundColor: COLOR.BACKGROUND.SUBTLE,
-        color: COLOR.TEXT.PRIMARY,
-        cursor: "pointer",
-        fontWeight: 500,
-        transition:
-            "transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, background-color 150ms ease, color 150ms ease",
-        "&:hover": {
-            borderColor: COLOR.ACCENT.PRIMARY,
-            transform: "translateY(-2px)",
-            boxShadow: "0 4px 12px rgba(0, 128, 162, 0.15)",
-        },
-    }),
-    chipSelected: css({
-        backgroundColor: COLOR.BUTTON.PRIMARY.BACKGROUND,
-        borderColor: COLOR.ACCENT.PRIMARY,
-        color: COLOR.BUTTON.PRIMARY.TEXT,
-        boxShadow: "none",
-    }),
-    chipResponsive: css({
-        [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
-            fontSize: "14px",
-            padding: "6px 12px",
-        },
-    }),
-    chipIcon: {
-        display: "flex",
-        alignItems: "center",
-    },
     resultsHeader: {
         display: "flex",
         justifyContent: "space-between",

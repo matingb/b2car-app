@@ -1,3 +1,4 @@
+import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { runPendingPromises } from "@/tests/testUtils";
@@ -368,6 +369,77 @@ describe("OperacionesPage", () => {
   it("formatea los fotogramas animados de las cards sin decimales", () => {
     expect(formatOperacionCardAmount(875.625)).toBe("$876");
     expect(formatOperacionCardAmount(1234567.25)).toBe("$1.234.567");
+  });
+
+  it("renderiza la barra de filtros y permite filtrar por estado de pago y entrega", async () => {
+    getAllMock.mockResolvedValue({
+      data: [
+        {
+          id: "op-1",
+          tipo: "VENTA",
+          taller_id: "taller-1",
+          fecha: "2026-08-26T17:49:00.000Z",
+          created_at: "2026-08-26T17:49:00.000Z",
+          descripcion: "Venta Pagada y Entregada",
+          monto_total: 100000,
+          total_pagado: 100000,
+          estado_pago: "PAGADO",
+          estado_stock: "ENTREGADO",
+          lineas: [],
+        },
+        {
+          id: "op-2",
+          tipo: "VENTA",
+          taller_id: "taller-1",
+          fecha: "2026-08-26T17:49:00.000Z",
+          created_at: "2026-08-26T17:49:00.000Z",
+          descripcion: "Venta Pendiente",
+          monto_total: 50000,
+          total_pagado: 0,
+          estado_pago: "PENDIENTE",
+          estado_stock: "PENDIENTE",
+          lineas: [],
+        },
+      ],
+      pagination: { page: 1, pageSize: 50, total: 2 },
+      error: null,
+    });
+
+    render(
+      <OperacionesProvider>
+        <ToastProvider>
+          <OperacionesPage />
+        </ToastProvider>
+      </OperacionesProvider>
+    );
+    await runPendingPromises();
+
+    expect(screen.getByTestId("operaciones-filter-bar")).toBeInTheDocument();
+    expect(screen.getByText("Venta Pagada y Entregada")).toBeInTheDocument();
+    expect(screen.getByText("Venta Pendiente")).toBeInTheDocument();
+
+    // Filtrar por pago PAGADO
+    fireEvent.click(screen.getByTestId("operaciones-filter-pago-trigger"));
+    fireEvent.click(screen.getByTestId("operaciones-filter-pago-PAGADO"));
+    await runPendingPromises();
+
+    expect(screen.getByText("Venta Pagada y Entregada")).toBeInTheDocument();
+    expect(screen.queryByText("Venta Pendiente")).not.toBeInTheDocument();
+
+    // Filtrar por entrega ENTREGADO
+    fireEvent.click(screen.getByTestId("operaciones-filter-entrega-trigger"));
+    fireEvent.click(screen.getByTestId("operaciones-filter-entrega-ENTREGADO"));
+    await runPendingPromises();
+
+    expect(screen.getByText("Venta Pagada y Entregada")).toBeInTheDocument();
+    expect(screen.queryByText("Venta Pendiente")).not.toBeInTheDocument();
+
+    // Limpiar todos los filtros
+    fireEvent.click(screen.getByTestId("operaciones-clear-all-filters"));
+    await runPendingPromises();
+
+    expect(screen.getByText("Venta Pagada y Entregada")).toBeInTheDocument();
+    expect(screen.getByText("Venta Pendiente")).toBeInTheDocument();
   });
 });
 

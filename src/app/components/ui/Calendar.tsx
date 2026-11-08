@@ -813,10 +813,15 @@ const styles = {
     boxSizing: "border-box" as const,
     userSelect: "none" as const,
     textAlign: "left" as const,
+    overflow: "hidden" as const,
   },
   triggerText: {
     fontSize: 14,
     flex: 1,
+    minWidth: 0,
+    whiteSpace: "nowrap" as const,
+    overflow: "hidden" as const,
+    textOverflow: "ellipsis" as const,
   },
   calendarCard: {
     position: "relative" as const,
