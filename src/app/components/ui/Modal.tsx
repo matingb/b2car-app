@@ -199,11 +199,14 @@ const styles = {
     zIndex: 50,
     overflowY: "auto" as const,
     overscrollBehavior: "contain" as const,
+    padding: "16px",
   },
   modal: {
     width: "min(640px, 92vw)",
     maxHeight: "90dvh",
+    overflowY: "auto" as const,
     WebkitOverflowScrolling: "touch" as const,
+    boxSizing: "border-box" as const,
   },
   headerRow: {
     display: "flex",

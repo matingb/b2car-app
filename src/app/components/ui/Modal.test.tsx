@@ -142,4 +142,17 @@ describe("Modal", () => {
 
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it("aplica maxHeight y overflowY auto al contenedor de la tarjeta para evitar desbordes", () => {
+    render(
+      <Modal open title="Modal con scroll" onClose={() => {}}>
+        <div>Contenido largo</div>
+      </Modal>
+    );
+
+    const titleEl = screen.getByTestId("modal-title");
+    const cardEl = titleEl.closest("div")?.parentElement;
+    expect(cardEl).toBeInTheDocument();
+    expect(cardEl).toHaveStyle({ maxHeight: "90dvh", overflowY: "auto" });
+  });
 });
