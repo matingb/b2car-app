@@ -61,7 +61,9 @@ function createMockRepo(params: {
 
 async function loadWorkbook(buffer: ArrayBuffer): Promise<ExcelJS.Workbook> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(Buffer.from(buffer) as any);
+  await workbook.xlsx.load(
+    Buffer.from(buffer) as unknown as Parameters<ExcelJS.Workbook["xlsx"]["load"]>[0]
+  );
   return workbook;
 }
 

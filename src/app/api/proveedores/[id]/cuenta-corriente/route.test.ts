@@ -3,7 +3,6 @@ import { NextRequest } from "next/server";
 import { mockApiSession } from "@/tests/apiRoute";
 import { logger } from "@/lib/logger";
 import { proveedorService } from "@/app/api/proveedores/proveedorService";
-import { ServiceError } from "@/app/api/serviceError";
 import { GET, POST } from "./route";
 import { Permission } from "@/lib/permissions";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
