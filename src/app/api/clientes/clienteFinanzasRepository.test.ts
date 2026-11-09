@@ -56,47 +56,46 @@ describe("clienteFinanzasRepository", () => {
     });
   });
 
-  it("createMovimientoDirecto invoca rpc_crear_cobro_cliente por defecto (sentido COBRO)", async () => {
+  it("createMovimientoDirecto invoca rpc_crear_movimiento_cliente con importe positivo para cobro", async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: "op-cobro-cli-1", error: null });
     const db = { rpc: mockRpc } as unknown as SupabaseClient;
 
     const res = await clienteFinanzasRepository.createMovimientoDirecto!(db, {
       cliente_id: "cli-1",
       cuenta_id: "cta-1",
-      monto: 40000,
+      importe: 40000,
       descripcion: "Cobro parcial",
     });
 
     expect(mockRpc).toHaveBeenCalledWith(
-      "rpc_crear_cobro_cliente",
+      "rpc_crear_movimiento_cliente",
       expect.objectContaining({
         p_cliente_id: "cli-1",
         p_cuenta_id: "cta-1",
-        p_monto: 40000,
+        p_importe: 40000,
         p_descripcion: "Cobro parcial",
       })
     );
     expect(res.data).toBe("op-cobro-cli-1");
   });
 
-  it("createMovimientoDirecto invoca rpc_crear_pago_cliente cuando sentido es PAGO", async () => {
+  it("createMovimientoDirecto invoca rpc_crear_movimiento_cliente con importe negativo para devolución/pago", async () => {
     const mockRpc = vi.fn().mockResolvedValue({ data: "op-pago-cli-1", error: null });
     const db = { rpc: mockRpc } as unknown as SupabaseClient;
 
     const res = await clienteFinanzasRepository.createMovimientoDirecto!(db, {
       cliente_id: "cli-1",
-      sentido: "PAGO",
       cuenta_id: "cta-1",
-      monto: 15000,
+      importe: -15000,
       descripcion: "Devolución de seña",
     });
 
     expect(mockRpc).toHaveBeenCalledWith(
-      "rpc_crear_pago_cliente",
+      "rpc_crear_movimiento_cliente",
       expect.objectContaining({
         p_cliente_id: "cli-1",
         p_cuenta_id: "cta-1",
-        p_monto: 15000,
+        p_importe: -15000,
         p_descripcion: "Devolución de seña",
       })
     );

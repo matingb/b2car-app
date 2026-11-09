@@ -105,6 +105,16 @@ const tipoConfig: Record<
         icon: <WalletCards size={18} />,
         color: COLOR.SEMANTIC.INFO,
     },
+    MOVIMIENTO_PROVEEDOR: {
+        label: "Mov. Proveedor",
+        icon: <WalletCards size={18} />,
+        color: COLOR.SEMANTIC.INFO,
+    },
+    MOVIMIENTO_CLIENTE: {
+        label: "Mov. Cliente",
+        icon: <WalletCards size={18} />,
+        color: COLOR.SEMANTIC.INFO,
+    },
 };
 
 function shortId(value?: string | null) {

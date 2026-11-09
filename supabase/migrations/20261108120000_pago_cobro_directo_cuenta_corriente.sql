@@ -1,15 +1,15 @@
 -- ============================================================================
 -- MIGRATION: 20261108120000_pago_cobro_directo_cuenta_corriente.sql
 -- Movimientos directos bidireccionales de Cuenta Corriente para Proveedores y Clientes,
--- siempre vinculados a una cuenta financiera (PAGO_PROVEEDOR, COBRO_PROVEEDOR,
--- COBRO_CLIENTE, PAGO_CLIENTE), extracto unificado para Proveedores y paridad de saldos.
+-- siempre vinculados a una cuenta financiera (MOVIMIENTO_PROVEEDOR, MOVIMIENTO_CLIENTE),
+-- extracto unificado para Proveedores y paridad de saldos.
 -- ============================================================================
 
 -- -----------------------------------------------------------------------------
 -- 1. Tablas hijas 1:1 para movimientos directos de Cuenta Corriente
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS public.operaciones_pago_proveedor (
+CREATE TABLE IF NOT EXISTS public.operaciones_movimiento_proveedor (
   operacion_id uuid PRIMARY KEY REFERENCES public.operaciones(id) ON DELETE CASCADE,
   tenant_id    uuid NOT NULL REFERENCES public.tenants(id) ON DELETE RESTRICT,
   proveedor_id uuid NOT NULL REFERENCES public.proveedores(id) ON DELETE RESTRICT,
@@ -17,23 +17,7 @@ CREATE TABLE IF NOT EXISTS public.operaciones_pago_proveedor (
   created_at   timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS public.operaciones_cobro_proveedor (
-  operacion_id uuid PRIMARY KEY REFERENCES public.operaciones(id) ON DELETE CASCADE,
-  tenant_id    uuid NOT NULL REFERENCES public.tenants(id) ON DELETE RESTRICT,
-  proveedor_id uuid NOT NULL REFERENCES public.proveedores(id) ON DELETE RESTRICT,
-  cuenta_id    uuid NOT NULL REFERENCES public.cuentas_financieras(id) ON DELETE RESTRICT,
-  created_at   timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS public.operaciones_cobro_cliente (
-  operacion_id uuid PRIMARY KEY REFERENCES public.operaciones(id) ON DELETE CASCADE,
-  tenant_id    uuid NOT NULL REFERENCES public.tenants(id) ON DELETE RESTRICT,
-  cliente_id   uuid NOT NULL REFERENCES public.clientes(id) ON DELETE RESTRICT,
-  cuenta_id    uuid NOT NULL REFERENCES public.cuentas_financieras(id) ON DELETE RESTRICT,
-  created_at   timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS public.operaciones_pago_cliente (
+CREATE TABLE IF NOT EXISTS public.operaciones_movimiento_cliente (
   operacion_id uuid PRIMARY KEY REFERENCES public.operaciones(id) ON DELETE CASCADE,
   tenant_id    uuid NOT NULL REFERENCES public.tenants(id) ON DELETE RESTRICT,
   cliente_id   uuid NOT NULL REFERENCES public.clientes(id) ON DELETE RESTRICT,
@@ -42,132 +26,73 @@ CREATE TABLE IF NOT EXISTS public.operaciones_pago_cliente (
 );
 
 -- Índices compuestos por tenant + entidad e índices sobre FK cuenta_id (ON DELETE RESTRICT)
-DROP INDEX IF EXISTS public.idx_op_pago_prov_tenant;
-CREATE INDEX IF NOT EXISTS idx_op_pago_prov_proveedor ON public.operaciones_pago_proveedor (tenant_id, proveedor_id);
-CREATE INDEX IF NOT EXISTS idx_op_pago_prov_cuenta    ON public.operaciones_pago_proveedor (cuenta_id);
+CREATE INDEX IF NOT EXISTS idx_op_mov_prov_proveedor ON public.operaciones_movimiento_proveedor (tenant_id, proveedor_id);
+CREATE INDEX IF NOT EXISTS idx_op_mov_prov_cuenta    ON public.operaciones_movimiento_proveedor (cuenta_id);
 
-CREATE INDEX IF NOT EXISTS idx_op_cobro_prov_proveedor ON public.operaciones_cobro_proveedor (tenant_id, proveedor_id);
-CREATE INDEX IF NOT EXISTS idx_op_cobro_prov_cuenta    ON public.operaciones_cobro_proveedor (cuenta_id);
-
-DROP INDEX IF EXISTS public.idx_op_cobro_cli_tenant;
-CREATE INDEX IF NOT EXISTS idx_op_cobro_cli_cliente ON public.operaciones_cobro_cliente (tenant_id, cliente_id);
-CREATE INDEX IF NOT EXISTS idx_op_cobro_cli_cuenta  ON public.operaciones_cobro_cliente (cuenta_id);
-
-CREATE INDEX IF NOT EXISTS idx_op_pago_cli_cliente ON public.operaciones_pago_cliente (tenant_id, cliente_id);
-CREATE INDEX IF NOT EXISTS idx_op_pago_cli_cuenta  ON public.operaciones_pago_cliente (cuenta_id);
+CREATE INDEX IF NOT EXISTS idx_op_mov_cli_cliente ON public.operaciones_movimiento_cliente (tenant_id, cliente_id);
+CREATE INDEX IF NOT EXISTS idx_op_mov_cli_cuenta  ON public.operaciones_movimiento_cliente (cuenta_id);
 
 -- -----------------------------------------------------------------------------
 -- 2. RLS y Privilegios de mínimo acceso (alineado con 20261101130000)
 -- -----------------------------------------------------------------------------
 
-ALTER TABLE public.operaciones_pago_proveedor  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.operaciones_cobro_proveedor ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.operaciones_cobro_cliente   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.operaciones_pago_cliente    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.operaciones_movimiento_proveedor ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.operaciones_movimiento_cliente   ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS operaciones_pago_proveedor_tenant_access ON public.operaciones_pago_proveedor;
-DROP POLICY IF EXISTS tenant_access ON public.operaciones_pago_proveedor;
-CREATE POLICY tenant_access ON public.operaciones_pago_proveedor
+DROP POLICY IF EXISTS tenant_access ON public.operaciones_movimiento_proveedor;
+CREATE POLICY tenant_access ON public.operaciones_movimiento_proveedor
   AS PERMISSIVE FOR ALL TO authenticated
   USING (tenant_id = (SELECT public.current_tenant_id()))
   WITH CHECK (
     tenant_id = (SELECT public.current_tenant_id())
     AND EXISTS (
       SELECT 1 FROM public.proveedores p
-      WHERE p.id = operaciones_pago_proveedor.proveedor_id
+      WHERE p.id = operaciones_movimiento_proveedor.proveedor_id
         AND p.tenant_id = (SELECT public.current_tenant_id())
     )
     AND EXISTS (
       SELECT 1 FROM public.cuentas_financieras cf
-      WHERE cf.id = operaciones_pago_proveedor.cuenta_id
+      WHERE cf.id = operaciones_movimiento_proveedor.cuenta_id
         AND cf.tenant_id = (SELECT public.current_tenant_id())
     )
   );
 
-DROP POLICY IF EXISTS tenant_access ON public.operaciones_cobro_proveedor;
-CREATE POLICY tenant_access ON public.operaciones_cobro_proveedor
-  AS PERMISSIVE FOR ALL TO authenticated
-  USING (tenant_id = (SELECT public.current_tenant_id()))
-  WITH CHECK (
-    tenant_id = (SELECT public.current_tenant_id())
-    AND EXISTS (
-      SELECT 1 FROM public.proveedores p
-      WHERE p.id = operaciones_cobro_proveedor.proveedor_id
-        AND p.tenant_id = (SELECT public.current_tenant_id())
-    )
-    AND EXISTS (
-      SELECT 1 FROM public.cuentas_financieras cf
-      WHERE cf.id = operaciones_cobro_proveedor.cuenta_id
-        AND cf.tenant_id = (SELECT public.current_tenant_id())
-    )
-  );
-
-DROP POLICY IF EXISTS operaciones_cobro_cliente_tenant_access ON public.operaciones_cobro_cliente;
-DROP POLICY IF EXISTS tenant_access ON public.operaciones_cobro_cliente;
-CREATE POLICY tenant_access ON public.operaciones_cobro_cliente
+DROP POLICY IF EXISTS tenant_access ON public.operaciones_movimiento_cliente;
+CREATE POLICY tenant_access ON public.operaciones_movimiento_cliente
   AS PERMISSIVE FOR ALL TO authenticated
   USING (tenant_id = (SELECT public.current_tenant_id()))
   WITH CHECK (
     tenant_id = (SELECT public.current_tenant_id())
     AND EXISTS (
       SELECT 1 FROM public.clientes c
-      WHERE c.id = operaciones_cobro_cliente.cliente_id
+      WHERE c.id = operaciones_movimiento_cliente.cliente_id
         AND c.tenant_id = (SELECT public.current_tenant_id())
     )
     AND EXISTS (
       SELECT 1 FROM public.cuentas_financieras cf
-      WHERE cf.id = operaciones_cobro_cliente.cuenta_id
-        AND cf.tenant_id = (SELECT public.current_tenant_id())
-    )
-  );
-
-DROP POLICY IF EXISTS tenant_access ON public.operaciones_pago_cliente;
-CREATE POLICY tenant_access ON public.operaciones_pago_cliente
-  AS PERMISSIVE FOR ALL TO authenticated
-  USING (tenant_id = (SELECT public.current_tenant_id()))
-  WITH CHECK (
-    tenant_id = (SELECT public.current_tenant_id())
-    AND EXISTS (
-      SELECT 1 FROM public.clientes c
-      WHERE c.id = operaciones_pago_cliente.cliente_id
-        AND c.tenant_id = (SELECT public.current_tenant_id())
-    )
-    AND EXISTS (
-      SELECT 1 FROM public.cuentas_financieras cf
-      WHERE cf.id = operaciones_pago_cliente.cuenta_id
+      WHERE cf.id = operaciones_movimiento_cliente.cuenta_id
         AND cf.tenant_id = (SELECT public.current_tenant_id())
     )
   );
 
 REVOKE ALL ON TABLE
-  public.operaciones_pago_proveedor,
-  public.operaciones_cobro_proveedor,
-  public.operaciones_cobro_cliente,
-  public.operaciones_pago_cliente
+  public.operaciones_movimiento_proveedor,
+  public.operaciones_movimiento_cliente
 FROM PUBLIC, "anon", "authenticated";
 
 GRANT SELECT ON TABLE
-  public.operaciones_pago_proveedor,
-  public.operaciones_cobro_proveedor,
-  public.operaciones_cobro_cliente,
-  public.operaciones_pago_cliente
+  public.operaciones_movimiento_proveedor,
+  public.operaciones_movimiento_cliente
 TO "authenticated";
 
 GRANT ALL ON TABLE
-  public.operaciones_pago_proveedor,
-  public.operaciones_cobro_proveedor,
-  public.operaciones_cobro_cliente,
-  public.operaciones_pago_cliente
+  public.operaciones_movimiento_proveedor,
+  public.operaciones_movimiento_cliente
 TO "service_role", "postgres";
 
 -- -----------------------------------------------------------------------------
 -- 3. Validación de OMC y Triggers Diferidos de Documento (_operacion_validar_documento_id)
 -- -----------------------------------------------------------------------------
-
--- Limpiar posibles artefactos obsoletos
-DROP TRIGGER IF EXISTS trg_pago_prov_validar_instantanea ON public.operaciones_pago_proveedor;
-DROP TRIGGER IF EXISTS trg_cobro_cli_validar_instantanea ON public.operaciones_cobro_cliente;
-DROP FUNCTION IF EXISTS public._operacion_validar_instantanea();
 
 CREATE OR REPLACE FUNCTION public._omc_validar()
 RETURNS trigger
@@ -206,18 +131,14 @@ BEGIN
   IF v_op.tipo IN (
     'VENTA'::public.tipo_operacion,
     'INGRESO'::public.tipo_operacion,
-    'COBRO_ARREGLO'::public.tipo_operacion,
-    'COBRO_CLIENTE'::public.tipo_operacion,
-    'COBRO_PROVEEDOR'::public.tipo_operacion
+    'COBRO_ARREGLO'::public.tipo_operacion
   ) THEN
     IF NEW.importe <= 0 THEN
       RAISE EXCEPTION 'El importe de OMC para % debe ser positivo', v_op.tipo USING ERRCODE = '22023';
     END IF;
   ELSIF v_op.tipo IN (
     'COMPRA'::public.tipo_operacion,
-    'GASTO'::public.tipo_operacion,
-    'PAGO_PROVEEDOR'::public.tipo_operacion,
-    'PAGO_CLIENTE'::public.tipo_operacion
+    'GASTO'::public.tipo_operacion
   ) THEN
     IF NEW.importe >= 0 THEN
       RAISE EXCEPTION 'El importe de OMC para % debe ser negativo', v_op.tipo USING ERRCODE = '22023';
@@ -225,7 +146,9 @@ BEGIN
   ELSIF v_op.tipo IN (
     'APERTURA_CUENTA'::public.tipo_operacion,
     'TRANSFERENCIA'::public.tipo_operacion,
-    'AJUSTE_FINANCIERO'::public.tipo_operacion
+    'AJUSTE_FINANCIERO'::public.tipo_operacion,
+    'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion,
+    'MOVIMIENTO_CLIENTE'::public.tipo_operacion
   ) THEN
     IF NEW.importe = 0 THEN
       RAISE EXCEPTION 'El importe de OMC no puede ser cero' USING ERRCODE = '22023';
@@ -252,10 +175,8 @@ DECLARE
   v_hija_ingreso   record;
   v_hija_trans     record;
   v_hija_apertura  record;
-  v_hija_pago_prov record;
-  v_hija_cobro_prov record;
-  v_hija_cobro_cli record;
-  v_hija_pago_cli  record;
+  v_hija_mov_prov  record;
+  v_hija_mov_cli   record;
   v_omc_rec        record;
 BEGIN
   SELECT id, tenant_id, taller_id, tipo, monto_total INTO v_op
@@ -278,10 +199,8 @@ BEGIN
       UNION ALL SELECT 'TRANSFERENCIA' FROM public.operaciones_transferencia WHERE operacion_id = v_op_id
       UNION ALL SELECT 'APERTURA_CUENTA' FROM public.operaciones_apertura_cuenta WHERE operacion_id = v_op_id
       UNION ALL SELECT 'AJUSTE_FINANCIERO' FROM public.operaciones_ajuste_financiero WHERE operacion_id = v_op_id
-      UNION ALL SELECT 'PAGO_PROVEEDOR' FROM public.operaciones_pago_proveedor WHERE operacion_id = v_op_id
-      UNION ALL SELECT 'COBRO_PROVEEDOR' FROM public.operaciones_cobro_proveedor WHERE operacion_id = v_op_id
-      UNION ALL SELECT 'COBRO_CLIENTE' FROM public.operaciones_cobro_cliente WHERE operacion_id = v_op_id
-      UNION ALL SELECT 'PAGO_CLIENTE' FROM public.operaciones_pago_cliente WHERE operacion_id = v_op_id
+      UNION ALL SELECT 'MOVIMIENTO_PROVEEDOR' FROM public.operaciones_movimiento_proveedor WHERE operacion_id = v_op_id
+      UNION ALL SELECT 'MOVIMIENTO_CLIENTE' FROM public.operaciones_movimiento_cliente WHERE operacion_id = v_op_id
     ) h HAVING count(*) = 1 AND bool_and(h.tipo = v_op.tipo::text)
   ) THEN
     RAISE EXCEPTION 'Operación % requiere exactamente una hija de tipo %', v_op_id, v_op.tipo USING ERRCODE = '22023';
@@ -314,10 +233,8 @@ BEGIN
     'APERTURA_CUENTA'::public.tipo_operacion,
     'COBRO_ARREGLO'::public.tipo_operacion,
     'AJUSTE_FINANCIERO'::public.tipo_operacion,
-    'PAGO_PROVEEDOR'::public.tipo_operacion,
-    'COBRO_PROVEEDOR'::public.tipo_operacion,
-    'COBRO_CLIENTE'::public.tipo_operacion,
-    'PAGO_CLIENTE'::public.tipo_operacion
+    'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion,
+    'MOVIMIENTO_CLIENTE'::public.tipo_operacion
   ) THEN
     IF EXISTS (SELECT 1 FROM public.operaciones_lineas WHERE operacion_id = v_op_id) THEN
       RAISE EXCEPTION 'Operación % de tipo % no puede tener líneas de mercadería', v_op_id, v_op.tipo USING ERRCODE = '22023';
@@ -453,76 +370,40 @@ BEGIN
       RAISE EXCEPTION 'Operación COBRO_ARREGLO % debe tener exactamente 1 OMC por el monto total', v_op_id USING ERRCODE = '22023';
     END IF;
 
-  ELSIF v_op.tipo = 'PAGO_PROVEEDOR'::public.tipo_operacion THEN
-    SELECT * INTO v_hija_pago_prov
-    FROM public.operaciones_pago_proveedor
+  ELSIF v_op.tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion THEN
+    SELECT * INTO v_hija_mov_prov
+    FROM public.operaciones_movimiento_proveedor
     WHERE operacion_id = v_op_id AND tenant_id = v_op.tenant_id;
     IF NOT FOUND
-       OR NOT EXISTS (SELECT 1 FROM public.proveedores p WHERE p.id = v_hija_pago_prov.proveedor_id AND p.tenant_id = v_op.tenant_id)
-       OR NOT EXISTS (SELECT 1 FROM public.cuentas_financieras cf WHERE cf.id = v_hija_pago_prov.cuenta_id AND cf.tenant_id = v_op.tenant_id) THEN
-      RAISE EXCEPTION 'Operación PAGO_PROVEEDOR % debe tener proveedor y cuenta válidos del mismo tenant', v_op_id USING ERRCODE = '22023';
+       OR NOT EXISTS (SELECT 1 FROM public.proveedores p WHERE p.id = v_hija_mov_prov.proveedor_id AND p.tenant_id = v_op.tenant_id)
+       OR NOT EXISTS (SELECT 1 FROM public.cuentas_financieras cf WHERE cf.id = v_hija_mov_prov.cuenta_id AND cf.tenant_id = v_op.tenant_id) THEN
+      RAISE EXCEPTION 'Operación MOVIMIENTO_PROVEEDOR % debe tener proveedor y cuenta válidos del mismo tenant', v_op_id USING ERRCODE = '22023';
     END IF;
     SELECT count(*) INTO v_omc_count FROM public.operaciones_movimiento_cuenta WHERE operacion_id = v_op_id;
     IF v_omc_count <> 1 THEN
-      RAISE EXCEPTION 'Operación PAGO_PROVEEDOR % debe tener exactamente 1 OMC (tiene %)', v_op_id, v_omc_count USING ERRCODE = '22023';
+      RAISE EXCEPTION 'Operación MOVIMIENTO_PROVEEDOR % debe tener exactamente 1 OMC (tiene %)', v_op_id, v_omc_count USING ERRCODE = '22023';
     END IF;
     SELECT * INTO v_omc_rec FROM public.operaciones_movimiento_cuenta WHERE operacion_id = v_op_id LIMIT 1;
-    IF v_omc_rec.cuenta_id IS DISTINCT FROM v_hija_pago_prov.cuenta_id OR v_omc_rec.importe IS DISTINCT FROM -v_op.monto_total THEN
-      RAISE EXCEPTION 'OMC de PAGO_PROVEEDOR no coincide con la cuenta o el monto negativo de la operación' USING ERRCODE = '22023';
+    IF v_omc_rec.cuenta_id IS DISTINCT FROM v_hija_mov_prov.cuenta_id OR ABS(v_omc_rec.importe) IS DISTINCT FROM v_op.monto_total THEN
+      RAISE EXCEPTION 'OMC de MOVIMIENTO_PROVEEDOR no coincide con la cuenta o el monto de la operación' USING ERRCODE = '22023';
     END IF;
 
-  ELSIF v_op.tipo = 'COBRO_PROVEEDOR'::public.tipo_operacion THEN
-    SELECT * INTO v_hija_cobro_prov
-    FROM public.operaciones_cobro_proveedor
+  ELSIF v_op.tipo = 'MOVIMIENTO_CLIENTE'::public.tipo_operacion THEN
+    SELECT * INTO v_hija_mov_cli
+    FROM public.operaciones_movimiento_cliente
     WHERE operacion_id = v_op_id AND tenant_id = v_op.tenant_id;
     IF NOT FOUND
-       OR NOT EXISTS (SELECT 1 FROM public.proveedores p WHERE p.id = v_hija_cobro_prov.proveedor_id AND p.tenant_id = v_op.tenant_id)
-       OR NOT EXISTS (SELECT 1 FROM public.cuentas_financieras cf WHERE cf.id = v_hija_cobro_prov.cuenta_id AND cf.tenant_id = v_op.tenant_id) THEN
-      RAISE EXCEPTION 'Operación COBRO_PROVEEDOR % debe tener proveedor y cuenta válidos del mismo tenant', v_op_id USING ERRCODE = '22023';
+       OR NOT EXISTS (SELECT 1 FROM public.clientes c WHERE c.id = v_hija_mov_cli.cliente_id AND c.tenant_id = v_op.tenant_id)
+       OR NOT EXISTS (SELECT 1 FROM public.cuentas_financieras cf WHERE cf.id = v_hija_mov_cli.cuenta_id AND cf.tenant_id = v_op.tenant_id) THEN
+      RAISE EXCEPTION 'Operación MOVIMIENTO_CLIENTE % debe tener cliente y cuenta válidos del mismo tenant', v_op_id USING ERRCODE = '22023';
     END IF;
     SELECT count(*) INTO v_omc_count FROM public.operaciones_movimiento_cuenta WHERE operacion_id = v_op_id;
     IF v_omc_count <> 1 THEN
-      RAISE EXCEPTION 'Operación COBRO_PROVEEDOR % debe tener exactamente 1 OMC (tiene %)', v_op_id, v_omc_count USING ERRCODE = '22023';
+      RAISE EXCEPTION 'Operación MOVIMIENTO_CLIENTE % debe tener exactamente 1 OMC (tiene %)', v_op_id, v_omc_count USING ERRCODE = '22023';
     END IF;
     SELECT * INTO v_omc_rec FROM public.operaciones_movimiento_cuenta WHERE operacion_id = v_op_id LIMIT 1;
-    IF v_omc_rec.cuenta_id IS DISTINCT FROM v_hija_cobro_prov.cuenta_id OR v_omc_rec.importe IS DISTINCT FROM v_op.monto_total THEN
-      RAISE EXCEPTION 'OMC de COBRO_PROVEEDOR no coincide con la cuenta o el monto positivo de la operación' USING ERRCODE = '22023';
-    END IF;
-
-  ELSIF v_op.tipo = 'COBRO_CLIENTE'::public.tipo_operacion THEN
-    SELECT * INTO v_hija_cobro_cli
-    FROM public.operaciones_cobro_cliente
-    WHERE operacion_id = v_op_id AND tenant_id = v_op.tenant_id;
-    IF NOT FOUND
-       OR NOT EXISTS (SELECT 1 FROM public.clientes c WHERE c.id = v_hija_cobro_cli.cliente_id AND c.tenant_id = v_op.tenant_id)
-       OR NOT EXISTS (SELECT 1 FROM public.cuentas_financieras cf WHERE cf.id = v_hija_cobro_cli.cuenta_id AND cf.tenant_id = v_op.tenant_id) THEN
-      RAISE EXCEPTION 'Operación COBRO_CLIENTE % debe tener cliente y cuenta válidos del mismo tenant', v_op_id USING ERRCODE = '22023';
-    END IF;
-    SELECT count(*) INTO v_omc_count FROM public.operaciones_movimiento_cuenta WHERE operacion_id = v_op_id;
-    IF v_omc_count <> 1 THEN
-      RAISE EXCEPTION 'Operación COBRO_CLIENTE % debe tener exactamente 1 OMC (tiene %)', v_op_id, v_omc_count USING ERRCODE = '22023';
-    END IF;
-    SELECT * INTO v_omc_rec FROM public.operaciones_movimiento_cuenta WHERE operacion_id = v_op_id LIMIT 1;
-    IF v_omc_rec.cuenta_id IS DISTINCT FROM v_hija_cobro_cli.cuenta_id OR v_omc_rec.importe IS DISTINCT FROM v_op.monto_total THEN
-      RAISE EXCEPTION 'OMC de COBRO_CLIENTE no coincide con la cuenta o el monto positivo de la operación' USING ERRCODE = '22023';
-    END IF;
-
-  ELSIF v_op.tipo = 'PAGO_CLIENTE'::public.tipo_operacion THEN
-    SELECT * INTO v_hija_pago_cli
-    FROM public.operaciones_pago_cliente
-    WHERE operacion_id = v_op_id AND tenant_id = v_op.tenant_id;
-    IF NOT FOUND
-       OR NOT EXISTS (SELECT 1 FROM public.clientes c WHERE c.id = v_hija_pago_cli.cliente_id AND c.tenant_id = v_op.tenant_id)
-       OR NOT EXISTS (SELECT 1 FROM public.cuentas_financieras cf WHERE cf.id = v_hija_pago_cli.cuenta_id AND cf.tenant_id = v_op.tenant_id) THEN
-      RAISE EXCEPTION 'Operación PAGO_CLIENTE % debe tener cliente y cuenta válidos del mismo tenant', v_op_id USING ERRCODE = '22023';
-    END IF;
-    SELECT count(*) INTO v_omc_count FROM public.operaciones_movimiento_cuenta WHERE operacion_id = v_op_id;
-    IF v_omc_count <> 1 THEN
-      RAISE EXCEPTION 'Operación PAGO_CLIENTE % debe tener exactamente 1 OMC (tiene %)', v_op_id, v_omc_count USING ERRCODE = '22023';
-    END IF;
-    SELECT * INTO v_omc_rec FROM public.operaciones_movimiento_cuenta WHERE operacion_id = v_op_id LIMIT 1;
-    IF v_omc_rec.cuenta_id IS DISTINCT FROM v_hija_pago_cli.cuenta_id OR v_omc_rec.importe IS DISTINCT FROM -v_op.monto_total THEN
-      RAISE EXCEPTION 'OMC de PAGO_CLIENTE no coincide con la cuenta o el monto negativo de la operación' USING ERRCODE = '22023';
+    IF v_omc_rec.cuenta_id IS DISTINCT FROM v_hija_mov_cli.cuenta_id OR ABS(v_omc_rec.importe) IS DISTINCT FROM v_op.monto_total THEN
+      RAISE EXCEPTION 'OMC de MOVIMIENTO_CLIENTE no coincide con la cuenta o el monto de la operación' USING ERRCODE = '22023';
     END IF;
   END IF;
 
@@ -533,27 +414,15 @@ $$;
 REVOKE ALL ON FUNCTION public._operacion_validar_documento_id(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public._operacion_validar_documento_id(uuid) TO postgres, service_role;
 
-DROP TRIGGER IF EXISTS trg_pago_proveedor_validar_documento ON public.operaciones_pago_proveedor;
-CREATE CONSTRAINT TRIGGER trg_pago_proveedor_validar_documento
-  AFTER INSERT OR UPDATE OR DELETE ON public.operaciones_pago_proveedor
+DROP TRIGGER IF EXISTS trg_movimiento_proveedor_validar_documento ON public.operaciones_movimiento_proveedor;
+CREATE CONSTRAINT TRIGGER trg_movimiento_proveedor_validar_documento
+  AFTER INSERT OR UPDATE OR DELETE ON public.operaciones_movimiento_proveedor
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW EXECUTE FUNCTION public._operacion_validar_documento();
 
-DROP TRIGGER IF EXISTS trg_cobro_proveedor_validar_documento ON public.operaciones_cobro_proveedor;
-CREATE CONSTRAINT TRIGGER trg_cobro_proveedor_validar_documento
-  AFTER INSERT OR UPDATE OR DELETE ON public.operaciones_cobro_proveedor
-  DEFERRABLE INITIALLY DEFERRED
-  FOR EACH ROW EXECUTE FUNCTION public._operacion_validar_documento();
-
-DROP TRIGGER IF EXISTS trg_cobro_cliente_validar_documento ON public.operaciones_cobro_cliente;
-CREATE CONSTRAINT TRIGGER trg_cobro_cliente_validar_documento
-  AFTER INSERT OR UPDATE OR DELETE ON public.operaciones_cobro_cliente
-  DEFERRABLE INITIALLY DEFERRED
-  FOR EACH ROW EXECUTE FUNCTION public._operacion_validar_documento();
-
-DROP TRIGGER IF EXISTS trg_pago_cliente_validar_documento ON public.operaciones_pago_cliente;
-CREATE CONSTRAINT TRIGGER trg_pago_cliente_validar_documento
-  AFTER INSERT OR UPDATE OR DELETE ON public.operaciones_pago_cliente
+DROP TRIGGER IF EXISTS trg_movimiento_cliente_validar_documento ON public.operaciones_movimiento_cliente;
+CREATE CONSTRAINT TRIGGER trg_movimiento_cliente_validar_documento
+  AFTER INSERT OR UPDATE OR DELETE ON public.operaciones_movimiento_cliente
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW EXECUTE FUNCTION public._operacion_validar_documento();
 
@@ -561,15 +430,12 @@ CREATE CONSTRAINT TRIGGER trg_pago_cliente_validar_documento
 -- 4. RPCs de Creación Atómica (Proveedores y Clientes, simple o múltiples cuentas)
 -- -----------------------------------------------------------------------------
 
-DROP FUNCTION IF EXISTS public.rpc_crear_pago_proveedor(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid);
-DROP FUNCTION IF EXISTS public.rpc_crear_cobro_cliente(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid);
-
 CREATE OR REPLACE FUNCTION public._insertar_movimiento_cc_tercero(
   p_tenant_id           uuid,
   p_tipo                public.tipo_operacion,
   p_tercero_id          uuid,
   p_cuenta_id           uuid,
-  p_monto               numeric,
+  p_importe             numeric,
   p_fecha               timestamptz,
   p_descripcion         text,
   p_default_descripcion text,
@@ -586,15 +452,15 @@ AS $$
 DECLARE
   v_op_id     uuid;
   v_existente uuid;
-  v_importe   numeric;
+  v_monto     numeric;
 BEGIN
   IF p_cuenta_id IS NULL THEN
     RAISE EXCEPTION 'cuenta_id es requerido' USING ERRCODE = '22023';
   END IF;
   PERFORM public._finanzas_exigir_cuenta(p_cuenta_id, p_tenant_id, true);
 
-  IF p_monto IS NULL OR p_monto <= 0 THEN
-    RAISE EXCEPTION 'El monto debe ser mayor a 0' USING ERRCODE = '22023';
+  IF p_importe IS NULL OR p_importe = 0 THEN
+    RAISE EXCEPTION 'El importe no puede ser cero' USING ERRCODE = '22023';
   END IF;
 
   IF p_idempotency_key IS NOT NULL THEN
@@ -607,10 +473,7 @@ BEGIN
     END IF;
   END IF;
 
-  v_importe := CASE
-    WHEN p_tipo IN ('PAGO_PROVEEDOR'::public.tipo_operacion, 'PAGO_CLIENTE'::public.tipo_operacion) THEN -p_monto
-    ELSE p_monto
-  END;
+  v_monto := ABS(p_importe);
 
   INSERT INTO public.operaciones (
     tenant_id, tipo, taller_id, fecha, observaciones,
@@ -622,25 +485,19 @@ BEGIN
     p_taller_id,
     COALESCE(p_fecha, now()),
     NULLIF(btrim(p_observaciones), ''),
-    p_monto,
-    p_monto,
+    v_monto,
+    v_monto,
     true,
     'PAGADO'::public.estado_pago_operacion,
     'NO_APLICA'::public.estado_stock_operacion
   )
   RETURNING id INTO v_op_id;
 
-  IF p_tipo = 'PAGO_PROVEEDOR'::public.tipo_operacion THEN
-    INSERT INTO public.operaciones_pago_proveedor (operacion_id, tenant_id, proveedor_id, cuenta_id)
+  IF p_tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion THEN
+    INSERT INTO public.operaciones_movimiento_proveedor (operacion_id, tenant_id, proveedor_id, cuenta_id)
     VALUES (v_op_id, p_tenant_id, p_tercero_id, p_cuenta_id);
-  ELSIF p_tipo = 'COBRO_PROVEEDOR'::public.tipo_operacion THEN
-    INSERT INTO public.operaciones_cobro_proveedor (operacion_id, tenant_id, proveedor_id, cuenta_id)
-    VALUES (v_op_id, p_tenant_id, p_tercero_id, p_cuenta_id);
-  ELSIF p_tipo = 'COBRO_CLIENTE'::public.tipo_operacion THEN
-    INSERT INTO public.operaciones_cobro_cliente (operacion_id, tenant_id, cliente_id, cuenta_id)
-    VALUES (v_op_id, p_tenant_id, p_tercero_id, p_cuenta_id);
-  ELSIF p_tipo = 'PAGO_CLIENTE'::public.tipo_operacion THEN
-    INSERT INTO public.operaciones_pago_cliente (operacion_id, tenant_id, cliente_id, cuenta_id)
+  ELSIF p_tipo = 'MOVIMIENTO_CLIENTE'::public.tipo_operacion THEN
+    INSERT INTO public.operaciones_movimiento_cliente (operacion_id, tenant_id, cliente_id, cuenta_id)
     VALUES (v_op_id, p_tenant_id, p_tercero_id, p_cuenta_id);
   ELSE
     RAISE EXCEPTION 'Tipo inválido para movimiento directo: %', p_tipo USING ERRCODE = '22023';
@@ -653,7 +510,7 @@ BEGIN
     v_op_id,
     p_tenant_id,
     p_cuenta_id,
-    v_importe,
+    p_importe,
     COALESCE(p_fecha, now()),
     COALESCE(NULLIF(btrim(p_descripcion), ''), p_default_descripcion),
     p_idempotency_key,
@@ -669,11 +526,16 @@ REVOKE ALL ON FUNCTION public._insertar_movimiento_cc_tercero(uuid, public.tipo_
 GRANT EXECUTE ON FUNCTION public._insertar_movimiento_cc_tercero(uuid, public.tipo_operacion, uuid, uuid, numeric, timestamptz, text, text, uuid, text, uuid, uuid)
   TO postgres, service_role;
 
--- 4.1 rpc_crear_pago_proveedor (egreso de cuenta financiera -> baja deuda con proveedor)
-CREATE OR REPLACE FUNCTION public.rpc_crear_pago_proveedor(
+DROP FUNCTION IF EXISTS public.rpc_crear_movimiento_proveedor(uuid, uuid, numeric, text, timestamp with time zone, text, uuid, text, uuid, jsonb);
+DROP FUNCTION IF EXISTS public.rpc_crear_movimiento_cliente(uuid, uuid, numeric, text, timestamp with time zone, text, uuid, text, uuid, jsonb);
+DROP FUNCTION IF EXISTS public.rpc_crear_movimiento_proveedor(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid, jsonb);
+DROP FUNCTION IF EXISTS public.rpc_crear_movimiento_cliente(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid, jsonb);
+
+-- 4.1 rpc_crear_movimiento_proveedor (importe < 0: egreso/pago | importe > 0: ingreso/reintegro)
+CREATE OR REPLACE FUNCTION public.rpc_crear_movimiento_proveedor(
   p_proveedor_id    uuid,
   p_cuenta_id       uuid                     DEFAULT NULL::uuid,
-  p_monto           numeric                  DEFAULT NULL::numeric,
+  p_importe         numeric                  DEFAULT NULL::numeric,
   p_fecha           timestamp with time zone DEFAULT now(),
   p_descripcion     text                     DEFAULT NULL::text,
   p_idempotency_key uuid                     DEFAULT NULL::uuid,
@@ -693,6 +555,8 @@ DECLARE
   v_op_id            uuid;
   v_first_id         uuid;
   v_item             jsonb;
+  v_item_importe     numeric;
+  v_default_desc     text;
 BEGIN
   IF v_tenant_id IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000'; END IF;
 
@@ -721,15 +585,18 @@ BEGIN
   IF p_pagos IS NOT NULL AND jsonb_typeof(p_pagos) = 'array' AND jsonb_array_length(p_pagos) > 0 THEN
     FOR v_item IN SELECT * FROM jsonb_array_elements(p_pagos)
     LOOP
+      v_item_importe := COALESCE((v_item ->> 'importe')::numeric, (v_item ->> 'monto')::numeric);
+      v_default_desc := CASE WHEN v_item_importe < 0 THEN 'Pago a ' || v_proveedor_nombre ELSE 'Cobro de ' || v_proveedor_nombre END;
+
       v_op_id := public._insertar_movimiento_cc_tercero(
         v_tenant_id,
-        'PAGO_PROVEEDOR'::public.tipo_operacion,
+        'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion,
         p_proveedor_id,
         (v_item ->> 'cuenta_id')::uuid,
-        (v_item ->> 'monto')::numeric,
+        v_item_importe,
         COALESCE((v_item ->> 'fecha')::timestamptz, p_fecha, now()),
         COALESCE(NULLIF(btrim(v_item ->> 'descripcion'), ''), p_descripcion),
-        'Pago a ' || v_proveedor_nombre,
+        v_default_desc,
         (v_item ->> 'idempotency_key')::uuid,
         p_observaciones,
         p_taller_id,
@@ -740,15 +607,17 @@ BEGIN
     RETURN v_first_id;
   END IF;
 
+  v_default_desc := CASE WHEN p_importe < 0 THEN 'Pago a ' || v_proveedor_nombre ELSE 'Cobro de ' || v_proveedor_nombre END;
+
   RETURN public._insertar_movimiento_cc_tercero(
     v_tenant_id,
-    'PAGO_PROVEEDOR'::public.tipo_operacion,
+    'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion,
     p_proveedor_id,
     p_cuenta_id,
-    p_monto,
+    p_importe,
     p_fecha,
     p_descripcion,
-    'Pago a ' || v_proveedor_nombre,
+    v_default_desc,
     p_idempotency_key,
     p_observaciones,
     p_taller_id,
@@ -757,105 +626,14 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.rpc_crear_pago_proveedor(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid, jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.rpc_crear_pago_proveedor(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid, jsonb) TO authenticated, service_role, postgres;
+REVOKE ALL ON FUNCTION public.rpc_crear_movimiento_proveedor(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid, jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.rpc_crear_movimiento_proveedor(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid, jsonb) TO authenticated, service_role, postgres;
 
--- 4.2 rpc_crear_cobro_proveedor (ingreso a cuenta financiera <- reintegro/cobro de proveedor)
-CREATE OR REPLACE FUNCTION public.rpc_crear_cobro_proveedor(
-  p_proveedor_id    uuid,
-  p_cuenta_id       uuid                     DEFAULT NULL::uuid,
-  p_monto           numeric                  DEFAULT NULL::numeric,
-  p_fecha           timestamp with time zone DEFAULT now(),
-  p_descripcion     text                     DEFAULT NULL::text,
-  p_idempotency_key uuid                     DEFAULT NULL::uuid,
-  p_observaciones   text                     DEFAULT NULL::text,
-  p_taller_id       uuid                     DEFAULT NULL::uuid,
-  p_pagos           jsonb                    DEFAULT NULL::jsonb
-)
-RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $function$
-DECLARE
-  v_tenant_id        uuid := public.current_tenant_id();
-  v_uid              uuid := auth.uid();
-  v_proveedor_nombre text;
-  v_op_id            uuid;
-  v_first_id         uuid;
-  v_item             jsonb;
-BEGIN
-  IF v_tenant_id IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000'; END IF;
-
-  IF v_uid IS NOT NULL AND NOT (
-    public._b2c179_tiene_permiso('operaciones:edit') OR public._b2c179_tiene_permiso('finanzas:edit')
-  ) THEN
-    RAISE EXCEPTION 'permiso requerido' USING ERRCODE = '42501';
-  END IF;
-
-  IF p_proveedor_id IS NULL THEN
-    RAISE EXCEPTION 'proveedor_id es requerido' USING ERRCODE = '22023';
-  END IF;
-  SELECT p.nombre INTO v_proveedor_nombre
-  FROM public.proveedores AS p
-  WHERE p.id = p_proveedor_id AND p.tenant_id = v_tenant_id;
-  IF v_proveedor_nombre IS NULL THEN
-    RAISE EXCEPTION 'Proveedor no encontrado' USING ERRCODE = 'P0002';
-  END IF;
-
-  IF p_taller_id IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM public.talleres WHERE id = p_taller_id AND tenant_id = v_tenant_id
-  ) THEN
-    RAISE EXCEPTION 'Taller no encontrado' USING ERRCODE = 'P0002';
-  END IF;
-
-  IF p_pagos IS NOT NULL AND jsonb_typeof(p_pagos) = 'array' AND jsonb_array_length(p_pagos) > 0 THEN
-    FOR v_item IN SELECT * FROM jsonb_array_elements(p_pagos)
-    LOOP
-      v_op_id := public._insertar_movimiento_cc_tercero(
-        v_tenant_id,
-        'COBRO_PROVEEDOR'::public.tipo_operacion,
-        p_proveedor_id,
-        (v_item ->> 'cuenta_id')::uuid,
-        (v_item ->> 'monto')::numeric,
-        COALESCE((v_item ->> 'fecha')::timestamptz, p_fecha, now()),
-        COALESCE(NULLIF(btrim(v_item ->> 'descripcion'), ''), p_descripcion),
-        'Cobro de ' || v_proveedor_nombre,
-        (v_item ->> 'idempotency_key')::uuid,
-        p_observaciones,
-        p_taller_id,
-        v_uid
-      );
-      IF v_first_id IS NULL THEN v_first_id := v_op_id; END IF;
-    END LOOP;
-    RETURN v_first_id;
-  END IF;
-
-  RETURN public._insertar_movimiento_cc_tercero(
-    v_tenant_id,
-    'COBRO_PROVEEDOR'::public.tipo_operacion,
-    p_proveedor_id,
-    p_cuenta_id,
-    p_monto,
-    p_fecha,
-    p_descripcion,
-    'Cobro de ' || v_proveedor_nombre,
-    p_idempotency_key,
-    p_observaciones,
-    p_taller_id,
-    v_uid
-  );
-END;
-$function$;
-
-REVOKE ALL ON FUNCTION public.rpc_crear_cobro_proveedor(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid, jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.rpc_crear_cobro_proveedor(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid, jsonb) TO authenticated, service_role, postgres;
-
--- 4.3 rpc_crear_cobro_cliente (ingreso a cuenta financiera <- cobro de cliente)
-CREATE OR REPLACE FUNCTION public.rpc_crear_cobro_cliente(
+-- 4.2 rpc_crear_movimiento_cliente (importe > 0: ingreso/cobro | importe < 0: egreso/devolución)
+CREATE OR REPLACE FUNCTION public.rpc_crear_movimiento_cliente(
   p_cliente_id      uuid,
   p_cuenta_id       uuid                     DEFAULT NULL::uuid,
-  p_monto           numeric                  DEFAULT NULL::numeric,
+  p_importe         numeric                  DEFAULT NULL::numeric,
   p_fecha           timestamp with time zone DEFAULT now(),
   p_descripcion     text                     DEFAULT NULL::text,
   p_idempotency_key uuid                     DEFAULT NULL::uuid,
@@ -875,6 +653,8 @@ DECLARE
   v_op_id            uuid;
   v_first_id         uuid;
   v_item             jsonb;
+  v_item_importe     numeric;
+  v_default_desc     text;
 BEGIN
   IF v_tenant_id IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000'; END IF;
 
@@ -914,15 +694,18 @@ BEGIN
   IF p_pagos IS NOT NULL AND jsonb_typeof(p_pagos) = 'array' AND jsonb_array_length(p_pagos) > 0 THEN
     FOR v_item IN SELECT * FROM jsonb_array_elements(p_pagos)
     LOOP
+      v_item_importe := COALESCE((v_item ->> 'importe')::numeric, (v_item ->> 'monto')::numeric);
+      v_default_desc := CASE WHEN v_item_importe > 0 THEN 'Cobro de ' || v_cliente_nombre ELSE 'Pago a ' || v_cliente_nombre END;
+
       v_op_id := public._insertar_movimiento_cc_tercero(
         v_tenant_id,
-        'COBRO_CLIENTE'::public.tipo_operacion,
+        'MOVIMIENTO_CLIENTE'::public.tipo_operacion,
         p_cliente_id,
         (v_item ->> 'cuenta_id')::uuid,
-        (v_item ->> 'monto')::numeric,
+        v_item_importe,
         COALESCE((v_item ->> 'fecha')::timestamptz, p_fecha, now()),
         COALESCE(NULLIF(btrim(v_item ->> 'descripcion'), ''), p_descripcion),
-        'Cobro de ' || v_cliente_nombre,
+        v_default_desc,
         (v_item ->> 'idempotency_key')::uuid,
         p_observaciones,
         p_taller_id,
@@ -933,15 +716,17 @@ BEGIN
     RETURN v_first_id;
   END IF;
 
+  v_default_desc := CASE WHEN p_importe > 0 THEN 'Cobro de ' || v_cliente_nombre ELSE 'Pago a ' || v_cliente_nombre END;
+
   RETURN public._insertar_movimiento_cc_tercero(
     v_tenant_id,
-    'COBRO_CLIENTE'::public.tipo_operacion,
+    'MOVIMIENTO_CLIENTE'::public.tipo_operacion,
     p_cliente_id,
     p_cuenta_id,
-    p_monto,
+    p_importe,
     p_fecha,
     p_descripcion,
-    'Cobro de ' || v_cliente_nombre,
+    v_default_desc,
     p_idempotency_key,
     p_observaciones,
     p_taller_id,
@@ -950,110 +735,8 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.rpc_crear_cobro_cliente(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid, jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.rpc_crear_cobro_cliente(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid, jsonb) TO authenticated, service_role, postgres;
-
--- 4.4 rpc_crear_pago_cliente (egreso de cuenta financiera -> pago/reintegro a cliente)
-CREATE OR REPLACE FUNCTION public.rpc_crear_pago_cliente(
-  p_cliente_id      uuid,
-  p_cuenta_id       uuid                     DEFAULT NULL::uuid,
-  p_monto           numeric                  DEFAULT NULL::numeric,
-  p_fecha           timestamp with time zone DEFAULT now(),
-  p_descripcion     text                     DEFAULT NULL::text,
-  p_idempotency_key uuid                     DEFAULT NULL::uuid,
-  p_observaciones   text                     DEFAULT NULL::text,
-  p_taller_id       uuid                     DEFAULT NULL::uuid,
-  p_pagos           jsonb                    DEFAULT NULL::jsonb
-)
-RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $function$
-DECLARE
-  v_tenant_id        uuid := public.current_tenant_id();
-  v_uid              uuid := auth.uid();
-  v_cliente_nombre   text;
-  v_op_id            uuid;
-  v_first_id         uuid;
-  v_item             jsonb;
-BEGIN
-  IF v_tenant_id IS NULL THEN RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000'; END IF;
-
-  IF v_uid IS NOT NULL AND NOT (
-    public._b2c179_tiene_permiso('operaciones:edit')
-    OR public._b2c179_tiene_permiso('finanzas:edit')
-    OR public._b2c179_tiene_permiso('arreglos:cobros:register')
-  ) THEN
-    RAISE EXCEPTION 'permiso requerido' USING ERRCODE = '42501';
-  END IF;
-
-  IF p_cliente_id IS NULL THEN
-    RAISE EXCEPTION 'cliente_id es requerido' USING ERRCODE = '22023';
-  END IF;
-
-  SELECT
-    CASE
-      WHEN c.tipo_cliente = 'empresa' THEN emp.nombre
-      WHEN c.tipo_cliente = 'particular' THEN TRIM(concat(part.nombre, ' ', COALESCE(part.apellido, '')))
-      ELSE NULL
-    END INTO v_cliente_nombre
-  FROM public.clientes AS c
-  LEFT JOIN public.empresas AS emp ON emp.id = c.id
-  LEFT JOIN public.particulares AS part ON part.id = c.id
-  WHERE c.id = p_cliente_id AND c.tenant_id = v_tenant_id;
-
-  IF v_cliente_nombre IS NULL THEN
-    RAISE EXCEPTION 'Cliente no encontrado' USING ERRCODE = 'P0002';
-  END IF;
-
-  IF p_taller_id IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM public.talleres WHERE id = p_taller_id AND tenant_id = v_tenant_id
-  ) THEN
-    RAISE EXCEPTION 'Taller no encontrado' USING ERRCODE = 'P0002';
-  END IF;
-
-  IF p_pagos IS NOT NULL AND jsonb_typeof(p_pagos) = 'array' AND jsonb_array_length(p_pagos) > 0 THEN
-    FOR v_item IN SELECT * FROM jsonb_array_elements(p_pagos)
-    LOOP
-      v_op_id := public._insertar_movimiento_cc_tercero(
-        v_tenant_id,
-        'PAGO_CLIENTE'::public.tipo_operacion,
-        p_cliente_id,
-        (v_item ->> 'cuenta_id')::uuid,
-        (v_item ->> 'monto')::numeric,
-        COALESCE((v_item ->> 'fecha')::timestamptz, p_fecha, now()),
-        COALESCE(NULLIF(btrim(v_item ->> 'descripcion'), ''), p_descripcion),
-        'Pago a ' || v_cliente_nombre,
-        (v_item ->> 'idempotency_key')::uuid,
-        p_observaciones,
-        p_taller_id,
-        v_uid
-      );
-      IF v_first_id IS NULL THEN v_first_id := v_op_id; END IF;
-    END LOOP;
-    RETURN v_first_id;
-  END IF;
-
-  RETURN public._insertar_movimiento_cc_tercero(
-    v_tenant_id,
-    'PAGO_CLIENTE'::public.tipo_operacion,
-    p_cliente_id,
-    p_cuenta_id,
-    p_monto,
-    p_fecha,
-    p_descripcion,
-    'Pago a ' || v_cliente_nombre,
-    p_idempotency_key,
-    p_observaciones,
-    p_taller_id,
-    v_uid
-  );
-END;
-$function$;
-
-REVOKE ALL ON FUNCTION public.rpc_crear_pago_cliente(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid, jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.rpc_crear_pago_cliente(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid, jsonb) TO authenticated, service_role, postgres;
+REVOKE ALL ON FUNCTION public.rpc_crear_movimiento_cliente(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid, jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.rpc_crear_movimiento_cliente(uuid, uuid, numeric, timestamp with time zone, text, uuid, text, uuid, jsonb) TO authenticated, service_role, postgres;
 
 -- -----------------------------------------------------------------------------
 -- 5. Saldos y Extracto Unificado de Proveedores en SQL (sin límite PostgREST)
@@ -1086,37 +769,28 @@ AS $function$
       AND (p_proveedor_ids IS NULL OR oc.proveedor_id = ANY(p_proveedor_ids))
     GROUP BY oc.proveedor_id
   ),
-  pagos_directos AS (
+  movimientos_directos AS (
     SELECT
-      opp.proveedor_id,
-      COALESCE(SUM(COALESCE(o.monto_total, 0)), 0) AS monto
-    FROM public.operaciones_pago_proveedor opp
-    JOIN public.operaciones o ON o.id = opp.operacion_id
-    WHERE opp.tenant_id = (SELECT public.current_tenant_id())
-      AND o.tipo = 'PAGO_PROVEEDOR'::public.tipo_operacion
-      AND (p_proveedor_ids IS NULL OR opp.proveedor_id = ANY(p_proveedor_ids))
-    GROUP BY opp.proveedor_id
-  ),
-  cobros_directos AS (
-    SELECT
-      ocp.proveedor_id,
-      COALESCE(SUM(COALESCE(o.monto_total, 0)), 0) AS monto
-    FROM public.operaciones_cobro_proveedor ocp
-    JOIN public.operaciones o ON o.id = ocp.operacion_id
-    WHERE ocp.tenant_id = (SELECT public.current_tenant_id())
-      AND o.tipo = 'COBRO_PROVEEDOR'::public.tipo_operacion
-      AND (p_proveedor_ids IS NULL OR ocp.proveedor_id = ANY(p_proveedor_ids))
-    GROUP BY ocp.proveedor_id
+      omp.proveedor_id,
+      -- En OMC, egreso es importe < 0 (-omc.importe es positivo = total pagado a proveedor)
+      -- Ingreso es importe > 0 (-omc.importe es negativo = reduce total pagado / reintegro)
+      COALESCE(SUM(-omc.importe), 0) AS total_pagado_directo
+    FROM public.operaciones_movimiento_proveedor omp
+    JOIN public.operaciones o ON o.id = omp.operacion_id
+    JOIN public.operaciones_movimiento_cuenta omc ON omc.operacion_id = o.id
+    WHERE omp.tenant_id = (SELECT public.current_tenant_id())
+      AND o.tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion
+      AND (p_proveedor_ids IS NULL OR omp.proveedor_id = ANY(p_proveedor_ids))
+    GROUP BY omp.proveedor_id
   )
   SELECT
     p.id AS proveedor_id,
     COALESCE(c.total_comprado, 0)::numeric AS total_comprado,
-    (COALESCE(c.pagado_compras, 0) + COALESCE(pd.monto, 0) - COALESCE(cd.monto, 0))::numeric AS total_pagado,
-    (COALESCE(c.total_comprado, 0) - COALESCE(c.pagado_compras, 0) - COALESCE(pd.monto, 0) + COALESCE(cd.monto, 0))::numeric AS saldo
+    (COALESCE(c.pagado_compras, 0) + COALESCE(md.total_pagado_directo, 0))::numeric AS total_pagado,
+    (COALESCE(c.total_comprado, 0) - COALESCE(c.pagado_compras, 0) - COALESCE(md.total_pagado_directo, 0))::numeric AS saldo
   FROM public.proveedores p
   LEFT JOIN compras c ON c.proveedor_id = p.id
-  LEFT JOIN pagos_directos pd ON pd.proveedor_id = p.id
-  LEFT JOIN cobros_directos cd ON cd.proveedor_id = p.id
+  LEFT JOIN movimientos_directos md ON md.proveedor_id = p.id
   WHERE p.tenant_id = (SELECT public.current_tenant_id())
     AND (p_proveedor_ids IS NULL OR p.id = ANY(p_proveedor_ids));
 $function$;
@@ -1188,47 +862,29 @@ AS $function$
 
     UNION ALL
 
-    -- CRÉDITOS: Pagos directos a cuenta corriente del proveedor (egreso de caja)
+    -- CRÉDITOS / CARGOS: Movimientos directos de cuenta corriente de proveedor (PAGOS y COBROS)
     SELECT
       omc.id                                                      AS id,
       omc.fecha                                                   AS fecha,
       omc.created_at                                              AS created_at,
-      'PAGO_DIRECTO'::text                                        AS tipo_movimiento,
-      COALESCE(NULLIF(btrim(omc.descripcion), ''), NULLIF(btrim(o.observaciones), ''), 'Pago a cuenta corriente') AS concepto,
+      CASE WHEN omc.importe < 0 THEN 'PAGO_DIRECTO'::text ELSE 'COBRO_DIRECTO'::text END AS tipo_movimiento,
+      COALESCE(
+        NULLIF(btrim(omc.descripcion), ''),
+        NULLIF(btrim(o.observaciones), ''),
+        CASE WHEN omc.importe < 0 THEN 'Pago a cuenta corriente' ELSE 'Cobro / reintegro de proveedor' END
+      ) AS concepto,
       NULL::text                                                  AS comprobante,
-      0::numeric                                                  AS debito,
-      ABS(COALESCE(omc.importe, 0))::numeric                      AS credito,
+      CASE WHEN omc.importe > 0 THEN ABS(omc.importe)::numeric ELSE 0::numeric END AS debito,
+      CASE WHEN omc.importe < 0 THEN ABS(omc.importe)::numeric ELSE 0::numeric END AS credito,
       NULL::uuid                                                  AS operacion_id,
       cf.nombre                                                   AS cuenta_nombre
     FROM public.operaciones_movimiento_cuenta omc
-    JOIN public.operaciones_pago_proveedor opp ON opp.operacion_id = omc.operacion_id
+    JOIN public.operaciones_movimiento_proveedor omp ON omp.operacion_id = omc.operacion_id
     JOIN public.operaciones o ON o.id = omc.operacion_id
     LEFT JOIN public.cuentas_financieras cf ON cf.id = omc.cuenta_id
-    WHERE opp.tenant_id = (SELECT public.current_tenant_id())
-      AND opp.proveedor_id = p_proveedor_id
-      AND o.tipo = 'PAGO_PROVEEDOR'::public.tipo_operacion
-
-    UNION ALL
-
-    -- CARGOS: Cobros / reintegros recibidos del proveedor (ingreso a caja)
-    SELECT
-      omc.id                                                      AS id,
-      omc.fecha                                                   AS fecha,
-      omc.created_at                                              AS created_at,
-      'COBRO_DIRECTO'::text                                       AS tipo_movimiento,
-      COALESCE(NULLIF(btrim(omc.descripcion), ''), NULLIF(btrim(o.observaciones), ''), 'Cobro / reintegro de proveedor') AS concepto,
-      NULL::text                                                  AS comprobante,
-      ABS(COALESCE(omc.importe, 0))::numeric                      AS debito,
-      0::numeric                                                  AS credito,
-      NULL::uuid                                                  AS operacion_id,
-      cf.nombre                                                   AS cuenta_nombre
-    FROM public.operaciones_movimiento_cuenta omc
-    JOIN public.operaciones_cobro_proveedor ocp ON ocp.operacion_id = omc.operacion_id
-    JOIN public.operaciones o ON o.id = omc.operacion_id
-    LEFT JOIN public.cuentas_financieras cf ON cf.id = omc.cuenta_id
-    WHERE ocp.tenant_id = (SELECT public.current_tenant_id())
-      AND ocp.proveedor_id = p_proveedor_id
-      AND o.tipo = 'COBRO_PROVEEDOR'::public.tipo_operacion
+    WHERE omp.tenant_id = (SELECT public.current_tenant_id())
+      AND omp.proveedor_id = p_proveedor_id
+      AND o.tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion
   )
   SELECT
     m.id,
@@ -1298,13 +954,11 @@ AS $function$
   LEFT JOIN public.operaciones_cobro_arreglo AS oca ON oca.operacion_id = o.id
   LEFT JOIN public.operaciones_asignacion_arreglo AS oaa ON oaa.operacion_id = o.id
   LEFT JOIN public.operaciones_compra AS oc ON oc.operacion_id = o.id
-  LEFT JOIN public.operaciones_pago_proveedor AS opp ON opp.operacion_id = o.id
-  LEFT JOIN public.operaciones_cobro_proveedor AS ocp ON ocp.operacion_id = o.id
-  LEFT JOIN public.proveedores AS prov ON prov.id = COALESCE(oc.proveedor_id, opp.proveedor_id, ocp.proveedor_id)
-  LEFT JOIN public.operaciones_cobro_cliente AS occ ON occ.operacion_id = o.id
-  LEFT JOIN public.operaciones_pago_cliente AS opc ON opc.operacion_id = o.id
+  LEFT JOIN public.operaciones_movimiento_proveedor AS omp ON omp.operacion_id = o.id
+  LEFT JOIN public.proveedores AS prov ON prov.id = COALESCE(oc.proveedor_id, omp.proveedor_id)
+  LEFT JOIN public.operaciones_movimiento_cliente AS omc_cli ON omc_cli.operacion_id = o.id
   LEFT JOIN public.operaciones_venta AS ov ON ov.operacion_id = o.id
-  LEFT JOIN public.clientes AS cli ON cli.id = COALESCE(occ.cliente_id, opc.cliente_id, ov.cliente_id)
+  LEFT JOIN public.clientes AS cli ON cli.id = COALESCE(omc_cli.cliente_id, ov.cliente_id)
   LEFT JOIN public.empresas AS cli_emp ON cli_emp.id = cli.id
   LEFT JOIN public.particulares AS cli_part ON cli_part.id = cli.id
   CROSS JOIN LATERAL (
@@ -1322,8 +976,8 @@ AS $function$
           CASE
             WHEN NULLIF(btrim(omc.descripcion), '') IS NULL THEN
               CASE
-                WHEN o.tipo = 'PAGO_PROVEEDOR'::public.tipo_operacion THEN 'Pago a ' || prov.nombre
-                WHEN o.tipo = 'COBRO_PROVEEDOR'::public.tipo_operacion THEN 'Cobro de ' || prov.nombre
+                WHEN o.tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion AND omc.importe < 0 THEN 'Pago a ' || prov.nombre
+                WHEN o.tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion AND omc.importe > 0 THEN 'Cobro de ' || prov.nombre
                 WHEN o.tipo = 'COMPRA'::public.tipo_operacion THEN 'Pago de compra — ' || prov.nombre
                 ELSE prov.nombre
               END
@@ -1333,18 +987,18 @@ AS $function$
               'Cobro de ' || prov.nombre
             WHEN POSITION(lower(prov.nombre) IN lower(btrim(omc.descripcion))) > 0 THEN
               btrim(omc.descripcion)
-            WHEN o.tipo = 'PAGO_PROVEEDOR'::public.tipo_operacion THEN
+            WHEN o.tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion AND omc.importe < 0 THEN
               'Pago a ' || prov.nombre || ' — ' || btrim(omc.descripcion)
-            WHEN o.tipo = 'COBRO_PROVEEDOR'::public.tipo_operacion THEN
+            WHEN o.tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion AND omc.importe > 0 THEN
               'Cobro de ' || prov.nombre || ' — ' || btrim(omc.descripcion)
             ELSE
               prov.nombre || ' — ' || btrim(omc.descripcion)
           END
-        WHEN c_nom.cliente_nombre IS NOT NULL AND o.tipo IN ('COBRO_CLIENTE'::public.tipo_operacion, 'PAGO_CLIENTE'::public.tipo_operacion) THEN
+        WHEN c_nom.cliente_nombre IS NOT NULL AND o.tipo = 'MOVIMIENTO_CLIENTE'::public.tipo_operacion THEN
           CASE
             WHEN NULLIF(btrim(omc.descripcion), '') IS NULL THEN
               CASE
-                WHEN o.tipo = 'COBRO_CLIENTE'::public.tipo_operacion THEN 'Cobro de ' || c_nom.cliente_nombre
+                WHEN omc.importe > 0 THEN 'Cobro de ' || c_nom.cliente_nombre
                 ELSE 'Pago a ' || c_nom.cliente_nombre
               END
             WHEN btrim(omc.descripcion) IN ('Cobro a cuenta de cliente', 'Cobro de cliente') THEN
@@ -1353,7 +1007,7 @@ AS $function$
               'Pago a ' || c_nom.cliente_nombre
             WHEN POSITION(lower(c_nom.cliente_nombre) IN lower(btrim(omc.descripcion))) > 0 THEN
               btrim(omc.descripcion)
-            WHEN o.tipo = 'COBRO_CLIENTE'::public.tipo_operacion THEN
+            WHEN omc.importe > 0 THEN
               'Cobro de ' || c_nom.cliente_nombre || ' — ' || btrim(omc.descripcion)
             ELSE
               'Pago a ' || c_nom.cliente_nombre || ' — ' || btrim(omc.descripcion)
@@ -1367,8 +1021,10 @@ AS $function$
               WHEN o.tipo = 'VENTA'::public.tipo_operacion THEN 'Cobro de venta'
               WHEN o.tipo = 'COMPRA'::public.tipo_operacion THEN 'Pago de compra'
               WHEN o.tipo = 'COBRO_ARREGLO'::public.tipo_operacion THEN 'Cobro de arreglo'
-              WHEN o.tipo = 'COBRO_CLIENTE'::public.tipo_operacion THEN 'Cobro de cliente'
-              WHEN o.tipo = 'PAGO_CLIENTE'::public.tipo_operacion THEN 'Pago a cliente'
+              WHEN o.tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion THEN
+                CASE WHEN omc.importe < 0 THEN 'Pago a proveedor' ELSE 'Cobro de proveedor' END
+              WHEN o.tipo = 'MOVIMIENTO_CLIENTE'::public.tipo_operacion THEN
+                CASE WHEN omc.importe > 0 THEN 'Cobro de cliente' ELSE 'Pago a cliente' END
               WHEN o.tipo = 'TRANSFERENCIA'::public.tipo_operacion THEN 'Transferencia entre cuentas'
               WHEN o.tipo = 'APERTURA_CUENTA'::public.tipo_operacion THEN 'Apertura de cuenta'
               ELSE NULLIF(btrim(o.observaciones), '')
@@ -1427,36 +1083,27 @@ AS $function$
       AND (p_cliente_ids IS NULL OR ov.cliente_id = ANY(p_cliente_ids))
     GROUP BY ov.cliente_id
   ),
-  cobros_directos_saldo AS (
+  movimientos_directos_saldo AS (
     SELECT
-      occ.cliente_id,
-      -COALESCE(SUM(COALESCE(o.monto_total, 0)), 0) AS saldo
-    FROM public.operaciones_cobro_cliente occ
-    JOIN public.operaciones o ON o.id = occ.operacion_id
-    WHERE occ.tenant_id = (SELECT public.current_tenant_id())
-      AND o.tipo = 'COBRO_CLIENTE'::public.tipo_operacion
-      AND (p_cliente_ids IS NULL OR occ.cliente_id = ANY(p_cliente_ids))
-    GROUP BY occ.cliente_id
-  ),
-  pagos_directos_saldo AS (
-    SELECT
-      opc.cliente_id,
-      COALESCE(SUM(COALESCE(o.monto_total, 0)), 0) AS saldo
-    FROM public.operaciones_pago_cliente opc
-    JOIN public.operaciones o ON o.id = opc.operacion_id
-    WHERE opc.tenant_id = (SELECT public.current_tenant_id())
-      AND o.tipo = 'PAGO_CLIENTE'::public.tipo_operacion
-      AND (p_cliente_ids IS NULL OR opc.cliente_id = ANY(p_cliente_ids))
-    GROUP BY opc.cliente_id
+      omc_cli.cliente_id,
+      -- En cuenta del cliente: saldo positivo = el cliente nos debe dinero.
+      -- omc.importe > 0 (entra plata a caja): el cliente pagó -> reduce su deuda (-omc.importe).
+      -- omc.importe < 0 (sale plata de caja): le devolvimos plata -> aumenta su saldo deudor (+ABS(omc.importe) = -omc.importe).
+      -COALESCE(SUM(omc.importe), 0) AS saldo
+    FROM public.operaciones_movimiento_cliente omc_cli
+    JOIN public.operaciones o ON o.id = omc_cli.operacion_id
+    JOIN public.operaciones_movimiento_cuenta omc ON omc.operacion_id = o.id
+    WHERE omc_cli.tenant_id = (SELECT public.current_tenant_id())
+      AND o.tipo = 'MOVIMIENTO_CLIENTE'::public.tipo_operacion
+      AND (p_cliente_ids IS NULL OR omc_cli.cliente_id = ANY(p_cliente_ids))
+    GROUP BY omc_cli.cliente_id
   ),
   saldos_unificados AS (
     SELECT cliente_id, saldo FROM arreglos_saldo
     UNION ALL
     SELECT cliente_id, saldo FROM ventas_saldo
     UNION ALL
-    SELECT cliente_id, saldo FROM cobros_directos_saldo
-    UNION ALL
-    SELECT cliente_id, saldo FROM pagos_directos_saldo
+    SELECT cliente_id, saldo FROM movimientos_directos_saldo
   )
   SELECT
     c.id AS cliente_id,
@@ -1553,22 +1200,19 @@ BEGIN
     AND ov.cliente_id = p_cliente_id
     AND o.tipo = 'VENTA'::public.tipo_operacion;
 
-  -- 4. Cobros y pagos directos en cuenta corriente
-  SELECT COALESCE(SUM(COALESCE(o.monto_total, 0)), 0)
-  INTO v_cobros_directos
-  FROM public.operaciones_cobro_cliente occ
-  JOIN public.operaciones o ON o.id = occ.operacion_id
-  WHERE occ.tenant_id = v_tenant_id
-    AND occ.cliente_id = p_cliente_id
-    AND o.tipo = 'COBRO_CLIENTE'::public.tipo_operacion;
-
-  SELECT COALESCE(SUM(COALESCE(o.monto_total, 0)), 0)
-  INTO v_pagos_directos
-  FROM public.operaciones_pago_cliente opc
-  JOIN public.operaciones o ON o.id = opc.operacion_id
-  WHERE opc.tenant_id = v_tenant_id
-    AND opc.cliente_id = p_cliente_id
-    AND o.tipo = 'PAGO_CLIENTE'::public.tipo_operacion;
+  -- 4. Movimientos directos en cuenta corriente
+  SELECT
+    COALESCE(SUM(CASE WHEN omc.importe > 0 THEN omc.importe ELSE 0 END), 0),
+    COALESCE(SUM(CASE WHEN omc.importe < 0 THEN -omc.importe ELSE 0 END), 0)
+  INTO
+    v_cobros_directos,
+    v_pagos_directos
+  FROM public.operaciones_movimiento_cliente omc_cli
+  JOIN public.operaciones o ON o.id = omc_cli.operacion_id
+  JOIN public.operaciones_movimiento_cuenta omc ON omc.operacion_id = o.id
+  WHERE omc_cli.tenant_id = v_tenant_id
+    AND omc_cli.cliente_id = p_cliente_id
+    AND o.tipo = 'MOVIMIENTO_CLIENTE'::public.tipo_operacion;
 
   v_total_historico_trabajos := v_total_historico_trabajos + v_total_ventas;
   v_total_historico_cobrado  := v_total_historico_cobrado + v_cobrado_ventas + v_cobros_directos - v_pagos_directos;
@@ -1710,49 +1354,30 @@ AS $function$
 
     UNION ALL
 
-    -- CRÉDITOS: Cobros directos a cuenta corriente del cliente (ingreso a caja)
+    -- CRÉDITOS / CARGOS: Movimientos directos a cuenta corriente de cliente (COBROS y PAGOS)
     SELECT
       omc.id                                                      AS id,
       omc.fecha                                                   AS fecha,
       omc.created_at                                              AS created_at,
-      'COBRO_DIRECTO'::text                                       AS tipo_movimiento,
-      COALESCE(NULLIF(btrim(omc.descripcion), ''), NULLIF(btrim(o.observaciones), ''), 'Cobro a cuenta corriente') AS concepto,
+      CASE WHEN omc.importe > 0 THEN 'COBRO_DIRECTO'::text ELSE 'PAGO_DIRECTO'::text END AS tipo_movimiento,
+      COALESCE(
+        NULLIF(btrim(omc.descripcion), ''),
+        NULLIF(btrim(o.observaciones), ''),
+        CASE WHEN omc.importe > 0 THEN 'Cobro a cuenta corriente' ELSE 'Pago / devolución a cliente' END
+      ) AS concepto,
       NULL::text                                                  AS comprobante,
-      0::numeric                                                  AS debito,
-      ABS(COALESCE(omc.importe, 0))::numeric                      AS credito,
+      CASE WHEN omc.importe < 0 THEN ABS(omc.importe)::numeric ELSE 0::numeric END AS debito,
+      CASE WHEN omc.importe > 0 THEN ABS(omc.importe)::numeric ELSE 0::numeric END AS credito,
       NULL::uuid                                                  AS arreglo_id,
       NULL::uuid                                                  AS operacion_id,
       cf.nombre                                                   AS cuenta_nombre
     FROM public.operaciones_movimiento_cuenta omc
-    JOIN public.operaciones_cobro_cliente occ ON occ.operacion_id = omc.operacion_id
+    JOIN public.operaciones_movimiento_cliente omc_cli ON omc_cli.operacion_id = omc.operacion_id
     JOIN public.operaciones o ON o.id = omc.operacion_id
     LEFT JOIN public.cuentas_financieras cf ON cf.id = omc.cuenta_id
-    WHERE occ.tenant_id = (SELECT public.current_tenant_id())
-      AND occ.cliente_id = p_cliente_id
-      AND o.tipo = 'COBRO_CLIENTE'::public.tipo_operacion
-
-    UNION ALL
-
-    -- CARGOS: Pagos / devoluciones directos al cliente (egreso de caja)
-    SELECT
-      omc.id                                                      AS id,
-      omc.fecha                                                   AS fecha,
-      omc.created_at                                              AS created_at,
-      'PAGO_DIRECTO'::text                                        AS tipo_movimiento,
-      COALESCE(NULLIF(btrim(omc.descripcion), ''), NULLIF(btrim(o.observaciones), ''), 'Pago / devolución a cliente') AS concepto,
-      NULL::text                                                  AS comprobante,
-      ABS(COALESCE(omc.importe, 0))::numeric                      AS debito,
-      0::numeric                                                  AS credito,
-      NULL::uuid                                                  AS arreglo_id,
-      NULL::uuid                                                  AS operacion_id,
-      cf.nombre                                                   AS cuenta_nombre
-    FROM public.operaciones_movimiento_cuenta omc
-    JOIN public.operaciones_pago_cliente opc ON opc.operacion_id = omc.operacion_id
-    JOIN public.operaciones o ON o.id = omc.operacion_id
-    LEFT JOIN public.cuentas_financieras cf ON cf.id = omc.cuenta_id
-    WHERE opc.tenant_id = (SELECT public.current_tenant_id())
-      AND opc.cliente_id = p_cliente_id
-      AND o.tipo = 'PAGO_CLIENTE'::public.tipo_operacion
+    WHERE omc_cli.tenant_id = (SELECT public.current_tenant_id())
+      AND omc_cli.cliente_id = p_cliente_id
+      AND o.tipo = 'MOVIMIENTO_CLIENTE'::public.tipo_operacion
   )
   SELECT
     m.id,
@@ -1776,7 +1401,7 @@ REVOKE ALL ON FUNCTION public.rpc_cliente_cuenta_corriente(uuid, timestamp with 
 GRANT EXECUTE ON FUNCTION public.rpc_cliente_cuenta_corriente(uuid, timestamp with time zone, timestamp with time zone) TO authenticated, service_role, postgres;
 
 -- -----------------------------------------------------------------------------
--- 7. Limpieza de Tenant (eliminar_tenant incluye las 4 subtablas nuevas)
+-- 7. Limpieza de Tenant (eliminar_tenant)
 -- -----------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.eliminar_tenant(p_tenant_id uuid)
@@ -1822,10 +1447,8 @@ BEGIN
   DELETE FROM public.operaciones_venta WHERE tenant_id = p_tenant_id;
   DELETE FROM public.operaciones_compra WHERE tenant_id = p_tenant_id;
   DELETE FROM public.operaciones_cobro_arreglo WHERE tenant_id = p_tenant_id;
-  DELETE FROM public.operaciones_pago_proveedor WHERE tenant_id = p_tenant_id;
-  DELETE FROM public.operaciones_cobro_proveedor WHERE tenant_id = p_tenant_id;
-  DELETE FROM public.operaciones_cobro_cliente WHERE tenant_id = p_tenant_id;
-  DELETE FROM public.operaciones_pago_cliente WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.operaciones_movimiento_proveedor WHERE tenant_id = p_tenant_id;
+  DELETE FROM public.operaciones_movimiento_cliente WHERE tenant_id = p_tenant_id;
   DELETE FROM public.operaciones WHERE tenant_id = p_tenant_id;
 
   DELETE FROM public.turnos WHERE tenant_id = p_tenant_id;

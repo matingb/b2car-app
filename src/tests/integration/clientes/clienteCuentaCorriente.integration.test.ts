@@ -346,9 +346,8 @@ describe("Integration: Cuenta Corriente del Cliente", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sentido: "PAGO",
           cuenta_id: cuenta.id,
-          monto: 15000,
+          importe: -15000,
           idempotency_key: crypto.randomUUID(),
         }),
       }
@@ -365,9 +364,8 @@ describe("Integration: Cuenta Corriente del Cliente", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sentido: "COBRO",
           cuenta_id: cuenta.id,
-          monto: 30000,
+          importe: 30000,
           descripcion: "Transferencia Banco Galicia",
           idempotency_key: crypto.randomUUID(),
         }),
@@ -395,9 +393,8 @@ describe("Integration: Cuenta Corriente del Cliente", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sentido: "COBRO",
           cuenta_id: cuenta.id,
-          monto: 50000,
+          importe: 50000,
           idempotency_key: crypto.randomUUID(),
         }),
       }
@@ -415,9 +412,9 @@ describe("Integration: Cuenta Corriente del Cliente", () => {
       data: Array<{ tipo: string; descripcion: string; importe: number }>;
     };
 
-    const movPago = movimientos.find((m) => m.tipo === "PAGO_CLIENTE" && m.importe === -15000);
-    const movCobro = movimientos.find((m) => m.tipo === "COBRO_CLIENTE" && m.importe === 30000);
-    const movCobroEmpresa = movimientos.find((m) => m.tipo === "COBRO_CLIENTE" && m.importe === 50000);
+    const movPago = movimientos.find((m) => m.tipo === "MOVIMIENTO_CLIENTE" && m.importe === -15000);
+    const movCobro = movimientos.find((m) => m.tipo === "MOVIMIENTO_CLIENTE" && m.importe === 30000);
+    const movCobroEmpresa = movimientos.find((m) => m.tipo === "MOVIMIENTO_CLIENTE" && m.importe === 50000);
 
     expect(movPago?.descripcion).toBe("Pago a Carlos Gómez");
     expect(movCobro?.descripcion).toBe("Cobro de Carlos Gómez — Transferencia Banco Galicia");

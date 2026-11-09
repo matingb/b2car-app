@@ -1,7 +1,6 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { ServiceError, serviceFailure, toServiceError } from "@/app/api/serviceError";
 import type { OperacionLineaDTO, ProveedorCuentaCorrienteResumen, ProveedorOperacionItemDTO } from "@/model/dtos";
-import type { SentidoMovimientoCuentaCorriente } from "@/model/types";
 
 export type ProveedorRow = {
   id: string;
@@ -43,11 +42,10 @@ export type UpdateProveedorPayload = {
   direccion?: string | null;
 };
 
-export type CreatePagoDirectoProveedorPayload = {
+export type CreateMovimientoProveedorPayload = {
   proveedor_id: string;
-  sentido?: SentidoMovimientoCuentaCorriente;
   cuenta_id?: string | null;
-  monto?: number | null;
+  importe?: number | null;
   fecha?: string;
   descripcion?: string | null;
   idempotency_key?: string | null;
@@ -55,7 +53,7 @@ export type CreatePagoDirectoProveedorPayload = {
   taller_id?: string | null;
   pagos?: Array<{
     cuenta_id: string;
-    monto: number;
+    importe: number;
     fecha?: string;
     descripcion?: string;
     idempotency_key?: string;
@@ -130,9 +128,9 @@ export interface ProveedorRepository {
     proveedorIds?: string[]
   ): Promise<{ data: Map<string, ProveedorSaldoInfo>; error: ServiceError | PostgrestError | null }>;
 
-  createPagoDirecto(
+  createMovimiento(
     supabase: SupabaseClient,
-    payload: CreatePagoDirectoProveedorPayload
+    payload: CreateMovimientoProveedorPayload
   ): Promise<{ data: string | null; error: ServiceError | PostgrestError | null }>;
 }
 
@@ -352,19 +350,14 @@ export const supabaseProveedorRepository: ProveedorRepository = {
     return { data: map, error: null };
   },
 
-  async createPagoDirecto(
+  async createMovimiento(
     supabase: SupabaseClient,
-    payload: CreatePagoDirectoProveedorPayload
+    payload: CreateMovimientoProveedorPayload
   ) {
-    const rpcName =
-      payload.sentido === "COBRO"
-        ? "rpc_crear_cobro_proveedor"
-        : "rpc_crear_pago_proveedor";
-
-    const { data, error } = await supabase.rpc(rpcName, {
+    const { data, error } = await supabase.rpc("rpc_crear_movimiento_proveedor", {
       p_proveedor_id: payload.proveedor_id,
       p_cuenta_id: payload.cuenta_id ?? null,
-      p_monto: payload.monto ?? null,
+      p_importe: payload.importe ?? null,
       p_fecha: payload.fecha ?? new Date().toISOString(),
       p_descripcion: payload.descripcion ?? null,
       p_idempotency_key: payload.idempotency_key ?? null,

@@ -1,7 +1,7 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { ServiceError } from "@/app/api/serviceError";
 import { isValidUuid } from "@/lib/uuid";
-import type { ProveedorMovimientoCuenta, SentidoMovimientoCuentaCorriente } from "@/model/types";
+import type { ProveedorMovimientoCuenta } from "@/model/types";
 import {
   type CreateProveedorPayload,
   type ListProveedoresFilters,
@@ -30,10 +30,9 @@ export type UpdateProveedorInput = {
   direccion?: string | null;
 };
 
-export type CreatePagoDirectoProveedorInput = {
-  sentido?: SentidoMovimientoCuentaCorriente;
+export type CreateMovimientoProveedorInput = {
   cuentaId?: string;
-  monto?: number;
+  importe?: number;
   fecha?: string;
   descripcion?: string | null;
   idempotencyKey?: string | null;
@@ -41,7 +40,7 @@ export type CreatePagoDirectoProveedorInput = {
   tallerId?: string | null;
   pagos?: Array<{
     cuentaId: string;
-    monto: number;
+    importe: number;
     fecha?: string;
     descripcion?: string;
     idempotencyKey?: string;
@@ -195,38 +194,33 @@ export function createProveedorService(repository: ProveedorRepository) {
       };
     },
 
-    async createPagoDirecto(
+    async createMovimiento(
       supabase: SupabaseClient,
       proveedorId: string,
-      input: CreatePagoDirectoProveedorInput
+      input: CreateMovimientoProveedorInput
     ): Promise<{ data: string | null; error: ServiceError | PostgrestError | null }> {
       if (!proveedorId || !isValidUuid(proveedorId)) {
         return { data: null, error: ServiceError.Validation };
       }
-      if (input.sentido !== undefined && input.sentido !== "PAGO" && input.sentido !== "COBRO") {
-        return { data: null, error: ServiceError.Validation };
-      }
 
-      const sentidoProps = input.sentido ? { sentido: input.sentido } : {};
       const hasPagosArray = Array.isArray(input.pagos) && input.pagos.length > 0;
 
       if (hasPagosArray) {
-        let total = 0;
+        let totalImporte = 0;
         for (const p of input.pagos!) {
           if (!p.cuentaId || !isValidUuid(p.cuentaId)) {
             return { data: null, error: ServiceError.Validation };
           }
-          if (typeof p.monto !== "number" || p.monto <= 0) {
+          if (!p.importe) {
             return { data: null, error: ServiceError.Validation };
           }
-          total += p.monto;
+          totalImporte += p.importe;
         }
 
-        return repository.createPagoDirecto(supabase, {
+        return repository.createMovimiento(supabase, {
           proveedor_id: proveedorId,
-          ...sentidoProps,
           cuenta_id: input.pagos![0].cuentaId,
-          monto: total,
+          importe: totalImporte,
           fecha: input.fecha,
           descripcion: input.descripcion ? input.descripcion.trim() : null,
           idempotency_key: input.idempotencyKey ?? null,
@@ -234,7 +228,7 @@ export function createProveedorService(repository: ProveedorRepository) {
           taller_id: input.tallerId ?? null,
           pagos: input.pagos!.map((p) => ({
             cuenta_id: p.cuentaId,
-            monto: p.monto,
+            importe: p.importe,
             fecha: p.fecha,
             descripcion: p.descripcion ? p.descripcion.trim() : undefined,
             idempotency_key: p.idempotencyKey,
@@ -245,15 +239,14 @@ export function createProveedorService(repository: ProveedorRepository) {
       if (!input.cuentaId || !isValidUuid(input.cuentaId)) {
         return { data: null, error: ServiceError.Validation };
       }
-      if (!input.monto || typeof input.monto !== "number" || input.monto <= 0) {
+      if (!input.importe) {
         return { data: null, error: ServiceError.Validation };
       }
 
-      return repository.createPagoDirecto(supabase, {
+      return repository.createMovimiento(supabase, {
         proveedor_id: proveedorId,
-        ...sentidoProps,
         cuenta_id: input.cuentaId,
-        monto: input.monto,
+        importe: input.importe,
         fecha: input.fecha,
         descripcion: input.descripcion ? input.descripcion.trim() : null,
         idempotency_key: input.idempotencyKey ?? null,

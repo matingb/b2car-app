@@ -2,7 +2,6 @@ import {
   Cliente,
   ClienteMovimientoCuenta,
   ClienteResumenFinanciero,
-  SentidoMovimientoCuentaCorriente,
 } from "@/model/types";
 import type { ClienteOperacionesResumen } from "@/model/dtos";
 
@@ -146,9 +145,8 @@ export const clientesClient = {
   async registrarMovimientoDirecto(
     clienteId: string,
     payload: {
-      sentido?: SentidoMovimientoCuentaCorriente;
       cuentaId?: string;
-      monto?: number;
+      importe?: number;
       fecha?: string;
       descripcion?: string;
       idempotencyKey?: string;
@@ -156,7 +154,7 @@ export const clientesClient = {
       tallerId?: string;
       pagos?: Array<{
         cuentaId: string;
-        monto: number;
+        importe: number;
         fecha?: string;
         descripcion?: string;
         idempotencyKey?: string;
@@ -167,10 +165,9 @@ export const clientesClient = {
       const bodyPayload =
         payload.pagos && payload.pagos.length > 0
           ? {
-              ...(payload.sentido ? { sentido: payload.sentido } : {}),
               pagos: payload.pagos.map((p) => ({
                 cuenta_id: p.cuentaId,
-                monto: p.monto,
+                importe: p.importe,
                 fecha: p.fecha,
                 descripcion: p.descripcion,
                 idempotency_key: p.idempotencyKey,
@@ -182,9 +179,8 @@ export const clientesClient = {
               taller_id: payload.tallerId,
             }
           : {
-              ...(payload.sentido ? { sentido: payload.sentido } : {}),
               cuenta_id: payload.cuentaId,
-              monto: payload.monto,
+              importe: payload.importe,
               fecha: payload.fecha,
               descripcion: payload.descripcion,
               idempotency_key: payload.idempotencyKey,

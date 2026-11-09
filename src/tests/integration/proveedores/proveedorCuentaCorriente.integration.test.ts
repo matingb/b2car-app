@@ -15,7 +15,7 @@ import {
   getProveedorOperacionesViaRoute,
   getCuentaMovimientosViaRoute,
 } from "../helpers/routeDrivers";
-import { POST as postPagoProveedorRoute } from "@/app/api/proveedores/[id]/pagos/route";
+import { POST as postProveedorCuentaCorrienteRoute } from "@/app/api/proveedores/[id]/cuenta-corriente/route";
 import { operacionesService } from "@/app/api/operaciones/operacionesService";
 import { proveedorService } from "@/app/api/proveedores/proveedorService";
 
@@ -343,38 +343,36 @@ describe("Integration: Proveedores - Compras, Pagos y Deuda en Cuenta Corriente"
     });
 
     const reqPago = new NextRequest(
-      `http://localhost:3000/api/proveedores/${proveedor.id}/pagos`,
+      `http://localhost:3000/api/proveedores/${proveedor.id}/cuenta-corriente`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sentido: "PAGO",
           cuentaId: cuenta.id,
-          monto: 45000,
+          importe: -45000,
           idempotencyKey: crypto.randomUUID(),
         }),
       }
     );
-    const resPago = await postPagoProveedorRoute(reqPago, {
+    const resPago = await postProveedorCuentaCorrienteRoute(reqPago, {
       params: Promise.resolve({ id: proveedor.id }),
     });
     expect(resPago.status).toBe(201);
 
     const reqCobro = new NextRequest(
-      `http://localhost:3000/api/proveedores/${proveedor.id}/pagos`,
+      `http://localhost:3000/api/proveedores/${proveedor.id}/cuenta-corriente`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sentido: "COBRO",
           cuentaId: cuenta.id,
-          monto: 10000,
+          importe: 10000,
           descripcion: "Nota de crédito envases",
           idempotencyKey: crypto.randomUUID(),
         }),
       }
     );
-    const resCobro = await postPagoProveedorRoute(reqCobro, {
+    const resCobro = await postProveedorCuentaCorrienteRoute(reqCobro, {
       params: Promise.resolve({ id: proveedor.id }),
     });
     expect(resCobro.status).toBe(201);
@@ -387,8 +385,8 @@ describe("Integration: Proveedores - Compras, Pagos y Deuda en Cuenta Corriente"
       data: Array<{ tipo: string; descripcion: string; importe: number }>;
     };
 
-    const movPago = movimientos.find((m) => m.tipo === "PAGO_PROVEEDOR");
-    const movCobro = movimientos.find((m) => m.tipo === "COBRO_PROVEEDOR");
+    const movPago = movimientos.find((m) => m.tipo === "MOVIMIENTO_PROVEEDOR" && m.importe === -45000);
+    const movCobro = movimientos.find((m) => m.tipo === "MOVIMIENTO_PROVEEDOR" && m.importe === 10000);
 
     expect(movPago?.descripcion).toBe("Pago a Repuestos Warnes SRL");
     expect(movCobro?.descripcion).toBe("Cobro de Repuestos Warnes SRL — Nota de crédito envases");
@@ -412,7 +410,7 @@ describe("Integration: Proveedores - Compras, Pagos y Deuda en Cuenta Corriente"
     const { data: movsCuenta } = (await resMovs.json()) as {
       data: Array<{ tipo: string; descripcion: string; importe: number }>;
     };
-    const pagoSeed = movsCuenta.find((m) => m.tipo === "PAGO_PROVEEDOR");
+    const pagoSeed = movsCuenta.find((m) => m.tipo === "MOVIMIENTO_PROVEEDOR");
     expect(pagoSeed?.descripcion).toBe("Pago a Distribuidora Norte");
     expect(pagoSeed?.importe).toBe(-150000);
   });

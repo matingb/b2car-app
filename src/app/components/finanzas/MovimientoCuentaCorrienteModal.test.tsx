@@ -20,7 +20,7 @@ vi.mock("@/app/providers/ToastProvider", () => ({
 
 vi.mock("@/clients/proveedores/proveedoresClient", () => ({
   proveedoresClient: {
-    registrarPagoDirecto: vi.fn(),
+    registrarMovimientoDirecto: vi.fn(),
   },
 }));
 
@@ -86,7 +86,7 @@ describe("MovimientoCuentaCorrienteModal", () => {
   });
 
   it("permite registrar un pago directo a proveedor en 1 click con la cuenta favorita", async () => {
-    vi.mocked(proveedoresClient.registrarPagoDirecto).mockResolvedValue({
+    vi.mocked(proveedoresClient.registrarMovimientoDirecto).mockResolvedValue({
       data: { id: "pago-1", ok: true },
       error: null,
     });
@@ -114,20 +114,19 @@ describe("MovimientoCuentaCorrienteModal", () => {
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(proveedoresClient.registrarPagoDirecto).toHaveBeenCalledTimes(1);
+      expect(proveedoresClient.registrarMovimientoDirecto).toHaveBeenCalledTimes(1);
     });
 
-    const [calledProvId, payload] = vi.mocked(proveedoresClient.registrarPagoDirecto).mock.calls[0];
+    const [calledProvId, payload] = vi.mocked(proveedoresClient.registrarMovimientoDirecto).mock.calls[0];
     expect(calledProvId).toBe("prov-10");
-    expect(payload.sentido).toBe("PAGO");
-    expect(payload.monto).toBe(75000);
+    expect(payload.importe).toBe(-75000);
     expect(payload.cuentaId).toBe("cta-banco-1");
     expect(mockRefreshCuentas).toHaveBeenCalledTimes(1);
     expect(onSuccess).toHaveBeenCalledTimes(1);
   });
 
   it("permite alternar a Cobro / Reintegro en proveedor y dividir o ingresar monto", async () => {
-    vi.mocked(proveedoresClient.registrarPagoDirecto).mockResolvedValue({
+    vi.mocked(proveedoresClient.registrarMovimientoDirecto).mockResolvedValue({
       data: { id: "cobro-prov-1", ok: true },
       error: null,
     });
@@ -146,7 +145,7 @@ describe("MovimientoCuentaCorrienteModal", () => {
       />
     );
 
-    const cobroToggle = screen.getByTestId("movimiento-cc-sentido-cobro");
+    const cobroToggle = screen.getByTestId("movimiento-cc-modo-cobro");
     await userEvent.click(cobroToggle);
 
     expect(
@@ -159,17 +158,16 @@ describe("MovimientoCuentaCorrienteModal", () => {
     fireEvent.click(screen.getByTestId("modal-submit"));
 
     await waitFor(() => {
-      expect(proveedoresClient.registrarPagoDirecto).toHaveBeenCalledTimes(1);
+      expect(proveedoresClient.registrarMovimientoDirecto).toHaveBeenCalledTimes(1);
     });
 
-    const [, payload] = vi.mocked(proveedoresClient.registrarPagoDirecto).mock.calls[0];
-    expect(payload.sentido).toBe("COBRO");
-    expect(payload.monto).toBe(15000);
+    const [, payload] = vi.mocked(proveedoresClient.registrarMovimientoDirecto).mock.calls[0];
+    expect(payload.importe).toBe(15000);
     expect(onSuccess).toHaveBeenCalledTimes(1);
   });
 
   it("permite dividir en múltiples cuentas financieras", async () => {
-    vi.mocked(proveedoresClient.registrarPagoDirecto).mockResolvedValue({
+    vi.mocked(proveedoresClient.registrarMovimientoDirecto).mockResolvedValue({
       data: { id: "pago-mult-1", ok: true },
       error: null,
     });
@@ -200,13 +198,13 @@ describe("MovimientoCuentaCorrienteModal", () => {
     fireEvent.click(screen.getByTestId("modal-submit"));
 
     await waitFor(() => {
-      expect(proveedoresClient.registrarPagoDirecto).toHaveBeenCalledTimes(1);
+      expect(proveedoresClient.registrarMovimientoDirecto).toHaveBeenCalledTimes(1);
     });
 
-    const [, payload] = vi.mocked(proveedoresClient.registrarPagoDirecto).mock.calls[0];
+    const [, payload] = vi.mocked(proveedoresClient.registrarMovimientoDirecto).mock.calls[0];
     expect(payload.pagos).toHaveLength(2);
-    expect(payload.pagos?.[0]).toEqual(expect.objectContaining({ cuentaId: "cta-banco-1", monto: 50000 }));
-    expect(payload.pagos?.[1]).toEqual(expect.objectContaining({ cuentaId: "cta-caja-2", monto: 25000 }));
+    expect(payload.pagos?.[0]).toEqual(expect.objectContaining({ cuentaId: "cta-banco-1", importe: -50000 }));
+    expect(payload.pagos?.[1]).toEqual(expect.objectContaining({ cuentaId: "cta-caja-2", importe: -25000 }));
     expect(onSuccess).toHaveBeenCalledTimes(1);
   });
 
@@ -230,7 +228,7 @@ describe("MovimientoCuentaCorrienteModal", () => {
       />
     );
 
-    await userEvent.click(screen.getByTestId("movimiento-cc-sentido-pago"));
+    await userEvent.click(screen.getByTestId("movimiento-cc-modo-pago"));
     expect(screen.getByText("Registrar pago / devolución a cliente")).toBeInTheDocument();
 
     await userEvent.type(screen.getByTestId("pago-monto-0"), "35000");
@@ -242,8 +240,7 @@ describe("MovimientoCuentaCorrienteModal", () => {
 
     const [calledCliId, payload] = vi.mocked(clientesClient.registrarMovimientoDirecto).mock.calls[0];
     expect(calledCliId).toBe("cli-10");
-    expect(payload.sentido).toBe("PAGO");
-    expect(payload.monto).toBe(35000);
+    expect(payload.importe).toBe(-35000);
     expect(payload.cuentaId).toBe("cta-banco-1");
     expect(onSuccess).toHaveBeenCalledTimes(1);
   });

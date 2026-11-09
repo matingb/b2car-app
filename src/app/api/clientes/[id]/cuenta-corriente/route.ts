@@ -1,9 +1,6 @@
 import { createClient } from "@/supabase/server";
 import { NextRequest } from "next/server";
-import type {
-  ClienteMovimientoCuenta,
-  SentidoMovimientoCuentaCorriente,
-} from "@/model/types";
+import type { ClienteMovimientoCuenta } from "@/model/types";
 import { clienteFinanzasService } from "../../clienteFinanzasService";
 import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
@@ -80,37 +77,18 @@ export async function POST(
     );
   }
 
-  const rawSentido = body.sentido ?? body.tipo;
-  let sentido: SentidoMovimientoCuentaCorriente = "COBRO";
-  if (rawSentido !== undefined && rawSentido !== null && rawSentido !== "") {
-    const upper = String(rawSentido).toUpperCase();
-    if (upper === "COBRO" || upper === "COBRO_CLIENTE") {
-      sentido = "COBRO";
-    } else if (upper === "PAGO" || upper === "PAGO_CLIENTE") {
-      sentido = "PAGO";
-    } else {
-      return Response.json(
-        {
-          data: null,
-          error: "Tipo de movimiento inválido",
-        } satisfies CreateMovimientoCuentaCorrienteClienteResponse,
-        { status: 400 }
-      );
-    }
-  }
-
   const rawPagos = Array.isArray(body.pagos) ? body.pagos : null;
   let parsedPagos:
     | Array<{
         cuentaId: string;
-        monto: number;
+        importe: number;
         fecha?: string;
         descripcion?: string;
         idempotencyKey?: string;
       }>
     | undefined = undefined;
   let cuentaId: string | undefined = undefined;
-  let monto: number | undefined = undefined;
+  let importe: number | undefined = undefined;
 
   if (rawPagos && rawPagos.length > 0) {
     parsedPagos = [];
@@ -125,12 +103,12 @@ export async function POST(
           { status: 400 }
         );
       }
-      const m = Number(p.monto);
-      if (!Number.isFinite(m) || m <= 0) {
+      const imp = Number(p.importe);
+      if (!Number.isFinite(imp) || imp === 0) {
         return Response.json(
           {
             data: null,
-            error: "El monto de cada movimiento debe ser mayor a 0",
+            error: "El importe de cada movimiento no puede ser cero",
           } satisfies CreateMovimientoCuentaCorrienteClienteResponse,
           { status: 400 }
         );
@@ -147,7 +125,7 @@ export async function POST(
       }
       parsedPagos.push({
         cuentaId: cId,
-        monto: m,
+        importe: imp,
         fecha: p.fecha,
         descripcion: p.descripcion,
         idempotencyKey: idem,
@@ -165,12 +143,12 @@ export async function POST(
       );
     }
 
-    monto = Number(body.monto);
-    if (!Number.isFinite(monto) || monto <= 0) {
+    importe = Number(body.importe);
+    if (!Number.isFinite(importe) || importe === 0) {
       return Response.json(
         {
           data: null,
-          error: "El monto debe ser mayor a 0",
+          error: "El importe no puede ser cero",
         } satisfies CreateMovimientoCuentaCorrienteClienteResponse,
         { status: 400 }
       );
@@ -194,9 +172,8 @@ export async function POST(
     supabase,
     id,
     {
-      sentido,
       cuentaId,
-      monto,
+      importe,
       fecha: body.fecha,
       descripcion: body.descripcion,
       idempotencyKey,

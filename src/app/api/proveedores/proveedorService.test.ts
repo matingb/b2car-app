@@ -16,7 +16,7 @@ function makeMockRepository(overrides: Partial<ProveedorRepository> = {}): Prove
     getCuentaCorriente: vi.fn().mockResolvedValue({ data: null, error: null }),
     getExtractoCuentaCorriente: vi.fn().mockResolvedValue({ data: [], error: null }),
     getSaldos: vi.fn().mockResolvedValue({ data: new Map(), error: null }),
-    createPagoDirecto: vi.fn().mockResolvedValue({ data: "op-1", error: null }),
+    createMovimiento: vi.fn().mockResolvedValue({ data: "op-1", error: null }),
     ...overrides,
   };
 }
@@ -156,7 +156,7 @@ describe("proveedorService", () => {
     expect(res.data?.saldoAdeudado).toBe(50);
   });
 
-  describe("createPagoDirecto", () => {
+  describe("createMovimiento", () => {
     const validProvId = "11111111-1111-4111-8111-111111111111";
     const validCuentaId = "22222222-2222-4222-8222-222222222222";
 
@@ -164,39 +164,39 @@ describe("proveedorService", () => {
       const mockRepo = makeMockRepository();
       const service = createProveedorService(mockRepo);
 
-      const res1 = await service.createPagoDirecto(mockSupabase, "invalido", {
+      const res1 = await service.createMovimiento(mockSupabase, "invalido", {
         cuentaId: validCuentaId,
-        monto: 1000,
+        importe: -1000,
       });
       expect(res1.error).toBe(ServiceError.Validation);
 
-      const res2 = await service.createPagoDirecto(mockSupabase, validProvId, {
+      const res2 = await service.createMovimiento(mockSupabase, validProvId, {
         cuentaId: "invalido",
-        monto: 1000,
+        importe: -1000,
       });
       expect(res2.error).toBe(ServiceError.Validation);
     });
 
-    it("retorna error de validación si el monto no es válido", async () => {
+    it("retorna error de validación si el importe es cero", async () => {
       const mockRepo = makeMockRepository();
       const service = createProveedorService(mockRepo);
 
-      const res = await service.createPagoDirecto(mockSupabase, validProvId, {
+      const res = await service.createMovimiento(mockSupabase, validProvId, {
         cuentaId: validCuentaId,
-        monto: 0,
+        importe: 0,
       });
       expect(res.error).toBe(ServiceError.Validation);
     });
 
     it("delega la creación al repositorio con los datos limpios", async () => {
       const mockRepo = makeMockRepository({
-        createPagoDirecto: vi.fn().mockResolvedValue({ data: "op-123", error: null }),
+        createMovimiento: vi.fn().mockResolvedValue({ data: "op-123", error: null }),
       });
       const service = createProveedorService(mockRepo);
 
-      const res = await service.createPagoDirecto(mockSupabase, validProvId, {
+      const res = await service.createMovimiento(mockSupabase, validProvId, {
         cuentaId: validCuentaId,
-        monto: 15000,
+        importe: -15000,
         fecha: "2026-11-08T12:00:00Z",
         descripcion: "  Pago directo  ",
         observaciones: "  Comprobante 999  ",
@@ -205,10 +205,10 @@ describe("proveedorService", () => {
 
       expect(res.data).toBe("op-123");
       expect(res.error).toBeNull();
-      expect(mockRepo.createPagoDirecto).toHaveBeenCalledWith(mockSupabase, {
+      expect(mockRepo.createMovimiento).toHaveBeenCalledWith(mockSupabase, {
         proveedor_id: validProvId,
         cuenta_id: validCuentaId,
-        monto: 15000,
+        importe: -15000,
         fecha: "2026-11-08T12:00:00Z",
         descripcion: "Pago directo",
         observaciones: "Comprobante 999",
@@ -219,56 +219,54 @@ describe("proveedorService", () => {
 
     it("valida y delega la creación cuando se proveen múltiples pagos", async () => {
       const mockRepo = makeMockRepository({
-        createPagoDirecto: vi.fn().mockResolvedValue({ data: "op-mult-123", error: null }),
+        createMovimiento: vi.fn().mockResolvedValue({ data: "op-mult-123", error: null }),
       });
       const service = createProveedorService(mockRepo);
       const cuenta2 = "33333333-3333-4333-8333-333333333333";
 
-      const res = await service.createPagoDirecto(mockSupabase, validProvId, {
+      const res = await service.createMovimiento(mockSupabase, validProvId, {
         pagos: [
-          { cuentaId: validCuentaId, monto: 10000, descripcion: " Banco " },
-          { cuentaId: cuenta2, monto: 5000, descripcion: " Caja " },
+          { cuentaId: validCuentaId, importe: -10000, descripcion: " Banco " },
+          { cuentaId: cuenta2, importe: -5000, descripcion: " Caja " },
         ],
       });
 
       expect(res.data).toBe("op-mult-123");
       expect(res.error).toBeNull();
-      expect(mockRepo.createPagoDirecto).toHaveBeenCalledWith(
+      expect(mockRepo.createMovimiento).toHaveBeenCalledWith(
         mockSupabase,
         expect.objectContaining({
           proveedor_id: validProvId,
           cuenta_id: validCuentaId,
-          monto: 15000,
+          importe: -15000,
           pagos: [
-            expect.objectContaining({ cuenta_id: validCuentaId, monto: 10000, descripcion: "Banco" }),
-            expect.objectContaining({ cuenta_id: cuenta2, monto: 5000, descripcion: "Caja" }),
+            expect.objectContaining({ cuenta_id: validCuentaId, importe: -10000, descripcion: "Banco" }),
+            expect.objectContaining({ cuenta_id: cuenta2, importe: -5000, descripcion: "Caja" }),
           ],
         })
       );
     });
 
-    it("propaga sentido COBRO al repositorio cuando se registra un reintegro de proveedor", async () => {
+    it("registra un reintegro de proveedor con importe positivo", async () => {
       const mockRepo = makeMockRepository({
-        createPagoDirecto: vi.fn().mockResolvedValue({ data: "op-cobro-1", error: null }),
+        createMovimiento: vi.fn().mockResolvedValue({ data: "op-cobro-1", error: null }),
       });
       const service = createProveedorService(mockRepo);
 
-      const res = await service.createPagoDirecto(mockSupabase, validProvId, {
-        sentido: "COBRO",
+      const res = await service.createMovimiento(mockSupabase, validProvId, {
         cuentaId: validCuentaId,
-        monto: 12000,
+        importe: 12000,
         descripcion: " Reintegro NC ",
       });
 
       expect(res.data).toBe("op-cobro-1");
       expect(res.error).toBeNull();
-      expect(mockRepo.createPagoDirecto).toHaveBeenCalledWith(
+      expect(mockRepo.createMovimiento).toHaveBeenCalledWith(
         mockSupabase,
         expect.objectContaining({
           proveedor_id: validProvId,
-          sentido: "COBRO",
           cuenta_id: validCuentaId,
-          monto: 12000,
+          importe: 12000,
           descripcion: "Reintegro NC",
         })
       );

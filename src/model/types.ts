@@ -161,8 +161,6 @@ export interface ClienteResumenFinanciero {
   cantidad_arreglos_pendientes_factura: number;
 }
 
-export type SentidoMovimientoCuentaCorriente = "PAGO" | "COBRO";
-
 export interface ClienteMovimientoCuenta {
   id: string;
   fecha: string;
@@ -298,7 +296,9 @@ export type TipoOperacion =
   | "APERTURA_CUENTA"
   | "AJUSTE_FINANCIERO"
   | "TRANSFERENCIA"
-  | "MOVIMIENTO_CUENTA";
+  | "MOVIMIENTO_CUENTA"
+  | "MOVIMIENTO_PROVEEDOR"
+  | "MOVIMIENTO_CLIENTE";
 
 export const TIPOS_OPERACIONES: TipoOperacion[] = [
   "COMPRA",

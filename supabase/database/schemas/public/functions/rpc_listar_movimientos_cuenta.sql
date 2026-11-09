@@ -45,13 +45,11 @@ AS $function$
   LEFT JOIN public.operaciones_cobro_arreglo AS oca ON oca.operacion_id = o.id
   LEFT JOIN public.operaciones_asignacion_arreglo AS oaa ON oaa.operacion_id = o.id
   LEFT JOIN public.operaciones_compra AS oc ON oc.operacion_id = o.id
-  LEFT JOIN public.operaciones_pago_proveedor AS opp ON opp.operacion_id = o.id
-  LEFT JOIN public.operaciones_cobro_proveedor AS ocp ON ocp.operacion_id = o.id
-  LEFT JOIN public.proveedores AS prov ON prov.id = COALESCE(oc.proveedor_id, opp.proveedor_id, ocp.proveedor_id)
-  LEFT JOIN public.operaciones_cobro_cliente AS occ ON occ.operacion_id = o.id
-  LEFT JOIN public.operaciones_pago_cliente AS opc ON opc.operacion_id = o.id
+  LEFT JOIN public.operaciones_movimiento_proveedor AS omp ON omp.operacion_id = o.id
+  LEFT JOIN public.proveedores AS prov ON prov.id = COALESCE(oc.proveedor_id, omp.proveedor_id)
+  LEFT JOIN public.operaciones_movimiento_cliente AS omc_cli ON omc_cli.operacion_id = o.id
   LEFT JOIN public.operaciones_venta AS ov ON ov.operacion_id = o.id
-  LEFT JOIN public.clientes AS cli ON cli.id = COALESCE(occ.cliente_id, opc.cliente_id, ov.cliente_id)
+  LEFT JOIN public.clientes AS cli ON cli.id = COALESCE(omc_cli.cliente_id, ov.cliente_id)
   LEFT JOIN public.empresas AS cli_emp ON cli_emp.id = cli.id
   LEFT JOIN public.particulares AS cli_part ON cli_part.id = cli.id
   CROSS JOIN LATERAL (
@@ -69,8 +67,8 @@ AS $function$
           CASE
             WHEN NULLIF(btrim(omc.descripcion), '') IS NULL THEN
               CASE
-                WHEN o.tipo = 'PAGO_PROVEEDOR'::public.tipo_operacion THEN 'Pago a ' || prov.nombre
-                WHEN o.tipo = 'COBRO_PROVEEDOR'::public.tipo_operacion THEN 'Cobro de ' || prov.nombre
+                WHEN o.tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion AND omc.importe < 0 THEN 'Pago a ' || prov.nombre
+                WHEN o.tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion AND omc.importe > 0 THEN 'Cobro de ' || prov.nombre
                 WHEN o.tipo = 'COMPRA'::public.tipo_operacion THEN 'Pago de compra — ' || prov.nombre
                 ELSE prov.nombre
               END
@@ -80,18 +78,18 @@ AS $function$
               'Cobro de ' || prov.nombre
             WHEN POSITION(lower(prov.nombre) IN lower(btrim(omc.descripcion))) > 0 THEN
               btrim(omc.descripcion)
-            WHEN o.tipo = 'PAGO_PROVEEDOR'::public.tipo_operacion THEN
+            WHEN o.tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion AND omc.importe < 0 THEN
               'Pago a ' || prov.nombre || ' — ' || btrim(omc.descripcion)
-            WHEN o.tipo = 'COBRO_PROVEEDOR'::public.tipo_operacion THEN
+            WHEN o.tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion AND omc.importe > 0 THEN
               'Cobro de ' || prov.nombre || ' — ' || btrim(omc.descripcion)
             ELSE
               prov.nombre || ' — ' || btrim(omc.descripcion)
           END
-        WHEN c_nom.cliente_nombre IS NOT NULL AND o.tipo IN ('COBRO_CLIENTE'::public.tipo_operacion, 'PAGO_CLIENTE'::public.tipo_operacion) THEN
+        WHEN c_nom.cliente_nombre IS NOT NULL AND o.tipo = 'MOVIMIENTO_CLIENTE'::public.tipo_operacion THEN
           CASE
             WHEN NULLIF(btrim(omc.descripcion), '') IS NULL THEN
               CASE
-                WHEN o.tipo = 'COBRO_CLIENTE'::public.tipo_operacion THEN 'Cobro de ' || c_nom.cliente_nombre
+                WHEN omc.importe > 0 THEN 'Cobro de ' || c_nom.cliente_nombre
                 ELSE 'Pago a ' || c_nom.cliente_nombre
               END
             WHEN btrim(omc.descripcion) IN ('Cobro a cuenta de cliente', 'Cobro de cliente') THEN
@@ -100,7 +98,7 @@ AS $function$
               'Pago a ' || c_nom.cliente_nombre
             WHEN POSITION(lower(c_nom.cliente_nombre) IN lower(btrim(omc.descripcion))) > 0 THEN
               btrim(omc.descripcion)
-            WHEN o.tipo = 'COBRO_CLIENTE'::public.tipo_operacion THEN
+            WHEN omc.importe > 0 THEN
               'Cobro de ' || c_nom.cliente_nombre || ' — ' || btrim(omc.descripcion)
             ELSE
               'Pago a ' || c_nom.cliente_nombre || ' — ' || btrim(omc.descripcion)
@@ -114,8 +112,10 @@ AS $function$
               WHEN o.tipo = 'VENTA'::public.tipo_operacion THEN 'Cobro de venta'
               WHEN o.tipo = 'COMPRA'::public.tipo_operacion THEN 'Pago de compra'
               WHEN o.tipo = 'COBRO_ARREGLO'::public.tipo_operacion THEN 'Cobro de arreglo'
-              WHEN o.tipo = 'COBRO_CLIENTE'::public.tipo_operacion THEN 'Cobro de cliente'
-              WHEN o.tipo = 'PAGO_CLIENTE'::public.tipo_operacion THEN 'Pago a cliente'
+              WHEN o.tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion THEN
+                CASE WHEN omc.importe < 0 THEN 'Pago a proveedor' ELSE 'Cobro de proveedor' END
+              WHEN o.tipo = 'MOVIMIENTO_CLIENTE'::public.tipo_operacion THEN
+                CASE WHEN omc.importe > 0 THEN 'Cobro de cliente' ELSE 'Pago a cliente' END
               WHEN o.tipo = 'TRANSFERENCIA'::public.tipo_operacion THEN 'Transferencia entre cuentas'
               WHEN o.tipo = 'APERTURA_CUENTA'::public.tipo_operacion THEN 'Apertura de cuenta'
               ELSE NULLIF(btrim(o.observaciones), '')

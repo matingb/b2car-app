@@ -23,7 +23,7 @@ import { proveedoresClient } from "@/clients/proveedores/proveedoresClient";
 import { ROUTES } from "@/routing/routes";
 import { COLOR } from "@/theme/theme";
 import { Permission } from "@/lib/permissions";
-import type { Proveedor, SentidoMovimientoCuentaCorriente } from "@/model/types";
+import type { Proveedor } from "@/model/types";
 import type { ProveedorCuentaCorrienteResumen } from "@/model/dtos";
 
 export default function ProveedorDetailPage() {
@@ -42,8 +42,8 @@ export default function ProveedorDetailPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [compraModalOpen, setCompraModalOpen] = useState(false);
   const [compraProductoId, setCompraProductoId] = useState<string | null>(null);
-  const [movimientoModalSentido, setMovimientoModalSentido] =
-    useState<SentidoMovimientoCuentaCorriente | null>(null);
+  const [movimientoModalModo, setMovimientoModalModo] =
+    useState<"PAGO" | "COBRO" | null>(null);
 
   const [activeTab, setActiveTab] = useState<ProveedorTabKey>("productos");
 
@@ -177,8 +177,8 @@ export default function ProveedorDetailPage() {
         loadingFinanzas={loadingFinanzas}
         onEditProveedor={() => setEditModalOpen(true)}
         onDeleteProveedor={handleDelete}
-        onRegistrarPago={() => setMovimientoModalSentido("PAGO")}
-        onRegistrarCobro={() => setMovimientoModalSentido("COBRO")}
+        onRegistrarPago={() => setMovimientoModalModo("PAGO")}
+        onRegistrarCobro={() => setMovimientoModalModo("COBRO")}
       />
 
       <ProveedorTabsNav
@@ -229,17 +229,17 @@ export default function ProveedorDetailPage() {
         initialValues={proveedor}
       />
 
-      {movimientoModalSentido && (
+      {movimientoModalModo && (
         <MovimientoCuentaCorrienteModal
           open
           entidad="PROVEEDOR"
           contraparteId={proveedor.id}
           contraparteNombre={proveedor.nombre}
           saldoActual={cuentaCorrienteResumen?.saldoAdeudado ?? 0}
-          initialSentido={movimientoModalSentido}
-          onClose={() => setMovimientoModalSentido(null)}
+          initialModo={movimientoModalModo}
+          onClose={() => setMovimientoModalModo(null)}
           onSuccess={() => {
-            setMovimientoModalSentido(null);
+            setMovimientoModalModo(null);
             void loadFinanzas();
           }}
         />

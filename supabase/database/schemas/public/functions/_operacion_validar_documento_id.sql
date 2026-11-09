@@ -13,6 +13,8 @@ DECLARE
   v_hija_ingreso record;
   v_hija_trans record;
   v_hija_apertura record;
+  v_hija_mov_prov record;
+  v_hija_mov_cli record;
   v_omc_rec record;
 BEGIN
   SELECT id, tenant_id, taller_id, tipo, monto_total INTO v_op
@@ -36,6 +38,8 @@ BEGIN
       UNION ALL SELECT 'TRANSFERENCIA' FROM public.operaciones_transferencia WHERE operacion_id = v_op_id
       UNION ALL SELECT 'APERTURA_CUENTA' FROM public.operaciones_apertura_cuenta WHERE operacion_id = v_op_id
       UNION ALL SELECT 'AJUSTE_FINANCIERO' FROM public.operaciones_ajuste_financiero WHERE operacion_id = v_op_id
+      UNION ALL SELECT 'MOVIMIENTO_PROVEEDOR' FROM public.operaciones_movimiento_proveedor WHERE operacion_id = v_op_id
+      UNION ALL SELECT 'MOVIMIENTO_CLIENTE' FROM public.operaciones_movimiento_cliente WHERE operacion_id = v_op_id
     ) h HAVING count(*) = 1 AND bool_and(h.tipo = v_op.tipo::text)
   ) THEN
     RAISE EXCEPTION 'Operación % requiere exactamente una hija de tipo %', v_op_id, v_op.tipo USING ERRCODE = '22023';
@@ -65,7 +69,10 @@ BEGIN
                    'INGRESO'::public.tipo_operacion,
                    'TRANSFERENCIA'::public.tipo_operacion,
                    'APERTURA_CUENTA'::public.tipo_operacion,
-                   'COBRO_ARREGLO'::public.tipo_operacion, 'AJUSTE_FINANCIERO'::public.tipo_operacion) THEN
+                   'COBRO_ARREGLO'::public.tipo_operacion,
+                   'AJUSTE_FINANCIERO'::public.tipo_operacion,
+                   'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion,
+                   'MOVIMIENTO_CLIENTE'::public.tipo_operacion) THEN
     IF EXISTS (SELECT 1 FROM public.operaciones_lineas WHERE operacion_id = v_op_id) THEN
       RAISE EXCEPTION 'Operación % de tipo % no puede tener líneas de mercadería', v_op_id, v_op.tipo USING ERRCODE = '22023';
     END IF;
@@ -198,6 +205,42 @@ BEGIN
     FROM public.operaciones_movimiento_cuenta WHERE operacion_id = v_op_id;
     IF v_omc_count <> 1 OR v_omc_sum <> v_op.monto_total THEN
       RAISE EXCEPTION 'Operación COBRO_ARREGLO % debe tener exactamente 1 OMC por el monto total', v_op_id USING ERRCODE = '22023';
+    END IF;
+
+  ELSIF v_op.tipo = 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion THEN
+    SELECT * INTO v_hija_mov_prov
+    FROM public.operaciones_movimiento_proveedor
+    WHERE operacion_id = v_op_id AND tenant_id = v_op.tenant_id;
+    IF NOT FOUND
+       OR NOT EXISTS (SELECT 1 FROM public.proveedores p WHERE p.id = v_hija_mov_prov.proveedor_id AND p.tenant_id = v_op.tenant_id)
+       OR NOT EXISTS (SELECT 1 FROM public.cuentas_financieras cf WHERE cf.id = v_hija_mov_prov.cuenta_id AND cf.tenant_id = v_op.tenant_id) THEN
+      RAISE EXCEPTION 'Operación MOVIMIENTO_PROVEEDOR % debe tener proveedor y cuenta válidos del mismo tenant', v_op_id USING ERRCODE = '22023';
+    END IF;
+    SELECT count(*) INTO v_omc_count FROM public.operaciones_movimiento_cuenta WHERE operacion_id = v_op_id;
+    IF v_omc_count <> 1 THEN
+      RAISE EXCEPTION 'Operación MOVIMIENTO_PROVEEDOR % debe tener exactamente 1 OMC (tiene %)', v_op_id, v_omc_count USING ERRCODE = '22023';
+    END IF;
+    SELECT * INTO v_omc_rec FROM public.operaciones_movimiento_cuenta WHERE operacion_id = v_op_id LIMIT 1;
+    IF v_omc_rec.cuenta_id IS DISTINCT FROM v_hija_mov_prov.cuenta_id OR ABS(v_omc_rec.importe) IS DISTINCT FROM v_op.monto_total THEN
+      RAISE EXCEPTION 'OMC de MOVIMIENTO_PROVEEDOR no coincide con la cuenta o el monto de la operación' USING ERRCODE = '22023';
+    END IF;
+
+  ELSIF v_op.tipo = 'MOVIMIENTO_CLIENTE'::public.tipo_operacion THEN
+    SELECT * INTO v_hija_mov_cli
+    FROM public.operaciones_movimiento_cliente
+    WHERE operacion_id = v_op_id AND tenant_id = v_op.tenant_id;
+    IF NOT FOUND
+       OR NOT EXISTS (SELECT 1 FROM public.clientes c WHERE c.id = v_hija_mov_cli.cliente_id AND c.tenant_id = v_op.tenant_id)
+       OR NOT EXISTS (SELECT 1 FROM public.cuentas_financieras cf WHERE cf.id = v_hija_mov_cli.cuenta_id AND cf.tenant_id = v_op.tenant_id) THEN
+      RAISE EXCEPTION 'Operación MOVIMIENTO_CLIENTE % debe tener cliente y cuenta válidos del mismo tenant', v_op_id USING ERRCODE = '22023';
+    END IF;
+    SELECT count(*) INTO v_omc_count FROM public.operaciones_movimiento_cuenta WHERE operacion_id = v_op_id;
+    IF v_omc_count <> 1 THEN
+      RAISE EXCEPTION 'Operación MOVIMIENTO_CLIENTE % debe tener exactamente 1 OMC (tiene %)', v_op_id, v_omc_count USING ERRCODE = '22023';
+    END IF;
+    SELECT * INTO v_omc_rec FROM public.operaciones_movimiento_cuenta WHERE operacion_id = v_op_id LIMIT 1;
+    IF v_omc_rec.cuenta_id IS DISTINCT FROM v_hija_mov_cli.cuenta_id OR ABS(v_omc_rec.importe) IS DISTINCT FROM v_op.monto_total THEN
+      RAISE EXCEPTION 'OMC de MOVIMIENTO_CLIENTE no coincide con la cuenta o el monto de la operación' USING ERRCODE = '22023';
     END IF;
   END IF;
 

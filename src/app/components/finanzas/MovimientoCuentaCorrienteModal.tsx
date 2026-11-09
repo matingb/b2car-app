@@ -17,7 +17,6 @@ import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvide
 import { useToast } from "@/app/providers/ToastProvider";
 import { proveedoresClient } from "@/clients/proveedores/proveedoresClient";
 import { clientesClient } from "@/clients/clientes/clientesClient";
-import type { SentidoMovimientoCuentaCorriente } from "@/model/types";
 import { COLOR } from "@/theme/theme";
 import { formatArs } from "@/lib/format";
 import {
@@ -26,8 +25,9 @@ import {
   toISODateTimeWithLocalCurrentTime,
 } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
-
 export type EntidadCuentaCorriente = "PROVEEDOR" | "CLIENTE";
+
+export type ModoMovimientoCuentaCorriente = "PAGO" | "COBRO";
 
 export type MovimientoCuentaCorrienteModalProps = {
   open: boolean;
@@ -35,7 +35,7 @@ export type MovimientoCuentaCorrienteModalProps = {
   contraparteId: string;
   contraparteNombre: string;
   saldoActual: number;
-  initialSentido?: SentidoMovimientoCuentaCorriente;
+  initialModo?: ModoMovimientoCuentaCorriente;
   onClose: () => void;
   onSuccess: () => void;
 };
@@ -51,16 +51,16 @@ function isValidMonto(value: number): boolean {
   );
 }
 
-function getDefaultSentido(entidad: EntidadCuentaCorriente): SentidoMovimientoCuentaCorriente {
+function getDefaultModo(entidad: EntidadCuentaCorriente): ModoMovimientoCuentaCorriente {
   return entidad === "PROVEEDOR" ? "PAGO" : "COBRO";
 }
 
-function getDefaultMontoForSentido(
+function getDefaultMontoForModo(
   entidad: EntidadCuentaCorriente,
-  sentido: SentidoMovimientoCuentaCorriente,
+  modo: ModoMovimientoCuentaCorriente,
   saldoActual: number
 ): string {
-  const isReductorDeuda = sentido === getDefaultSentido(entidad);
+  const isReductorDeuda = modo === getDefaultModo(entidad);
   if (isReductorDeuda) {
     return saldoActual > 0 ? String(saldoActual) : "";
   }
@@ -73,7 +73,7 @@ export default function MovimientoCuentaCorrienteModal({
   contraparteId,
   contraparteNombre,
   saldoActual,
-  initialSentido,
+  initialModo,
   onClose,
   onSuccess,
 }: MovimientoCuentaCorrienteModalProps) {
@@ -81,8 +81,8 @@ export default function MovimientoCuentaCorrienteModal({
   const { loading: loadingCuentas, cuentaFavorita, createCuenta } = cuentasCtx;
   const toast = useToast();
 
-  const resolvedInitialSentido = initialSentido ?? getDefaultSentido(entidad);
-  const [sentido, setSentido] = useState<SentidoMovimientoCuentaCorriente>(resolvedInitialSentido);
+  const resolvedInitialModo = initialModo ?? getDefaultModo(entidad);
+  const [modo, setModo] = useState<ModoMovimientoCuentaCorriente>(resolvedInitialModo);
   const [pagosDraft, setPagosDraft] = useState<PagoDraftItem[]>([
     {
       id: generateUuidV4(),
@@ -101,10 +101,10 @@ export default function MovimientoCuentaCorrienteModal({
   const prevOpenRef = useRef(false);
 
   const initDraft = useCallback(
-    (targetSentido: SentidoMovimientoCuentaCorriente) => {
+    (targetModo: ModoMovimientoCuentaCorriente) => {
       const favoriteId = cuentaFavorita?.id ?? "";
       const hasFav = Boolean(favoriteId);
-      const defaultMonto = getDefaultMontoForSentido(entidad, targetSentido, saldoActual);
+      const defaultMonto = getDefaultMontoForModo(entidad, targetModo, saldoActual);
       setShowAdvanced(!hasFav || !defaultMonto);
       setPagosDraft([
         {
@@ -127,21 +127,21 @@ export default function MovimientoCuentaCorrienteModal({
     if (prevOpenRef.current) return;
     prevOpenRef.current = true;
 
-    setSentido(resolvedInitialSentido);
-    initDraft(resolvedInitialSentido);
+    setModo(resolvedInitialModo);
+    initDraft(resolvedInitialModo);
     setObservaciones("");
     setSubmitting(false);
     setErrorMsg(null);
     idempotencyKeyRef.current = generateUuidV4();
-  }, [initDraft, open, resolvedInitialSentido]);
+  }, [initDraft, open, resolvedInitialModo]);
 
-  const handleSentidoChange = (nextSentido: SentidoMovimientoCuentaCorriente) => {
-    if (nextSentido === sentido) return;
-    const prevDefault = getDefaultMontoForSentido(entidad, sentido, saldoActual);
-    const nextDefault = getDefaultMontoForSentido(entidad, nextSentido, saldoActual);
+  const handleModoChange = (nextModo: ModoMovimientoCuentaCorriente) => {
+    if (nextModo === modo) return;
+    const prevDefault = getDefaultMontoForModo(entidad, modo, saldoActual);
+    const nextDefault = getDefaultMontoForModo(entidad, nextModo, saldoActual);
     const hasFav = Boolean(cuentaFavorita?.id);
 
-    setSentido(nextSentido);
+    setModo(nextModo);
     setErrorMsg(null);
     idempotencyKeyRef.current = generateUuidV4();
 
@@ -181,7 +181,7 @@ export default function MovimientoCuentaCorrienteModal({
   }, [pagosDraft, submitting, totalSumDraft]);
 
   const isProveedor = entidad === "PROVEEDOR";
-  const isReductorDeuda = sentido === getDefaultSentido(entidad);
+  const isReductorDeuda = modo === getDefaultModo(entidad);
   const objetivoSaldo = isReductorDeuda
     ? saldoActual > 0
       ? saldoActual
@@ -236,7 +236,7 @@ export default function MovimientoCuentaCorrienteModal({
 
   const handleRestoreFavorita = () => {
     if (!cuentaFavorita?.id) return;
-    const defaultMonto = getDefaultMontoForSentido(entidad, sentido, saldoActual);
+    const defaultMonto = getDefaultMontoForModo(entidad, modo, saldoActual);
     const currentMonto = totalSumDraft > 0 ? String(totalSumDraft) : defaultMonto;
     setPagosDraft([
       {
@@ -305,27 +305,34 @@ export default function MovimientoCuentaCorrienteModal({
         })
       );
 
+      const isEgreso = modo === "PAGO";
+      const toSignedImporte = (val: number) => (isEgreso ? -Math.abs(val) : Math.abs(val));
+
       const payload =
         resolvedPagos.length === 1
           ? {
-              sentido,
               cuentaId: resolvedPagos[0].cuentaId,
-              monto: resolvedPagos[0].monto,
+              importe: toSignedImporte(resolvedPagos[0].monto),
               fecha: resolvedPagos[0].fecha,
               descripcion: resolvedPagos[0].descripcion,
               observaciones: observaciones.trim() || undefined,
               idempotencyKey: idempotencyKeyRef.current,
             }
           : {
-              sentido,
-              pagos: resolvedPagos,
-              monto: totalSumDraft,
+              pagos: resolvedPagos.map((p) => ({
+                cuentaId: p.cuentaId,
+                importe: toSignedImporte(p.monto),
+                fecha: p.fecha,
+                descripcion: p.descripcion,
+                idempotencyKey: p.idempotencyKey,
+              })),
+              importe: toSignedImporte(totalSumDraft),
               observaciones: observaciones.trim() || undefined,
               idempotencyKey: idempotencyKeyRef.current,
             };
 
       const res = isProveedor
-        ? await proveedoresClient.registrarPagoDirecto(contraparteId, payload)
+        ? await proveedoresClient.registrarMovimientoDirecto(contraparteId, payload)
         : await clientesClient.registrarMovimientoDirecto(contraparteId, payload);
 
       if (res.error || !res.data) {
@@ -336,7 +343,7 @@ export default function MovimientoCuentaCorrienteModal({
         void cuentasCtx.refresh();
       }
 
-      const isCobro = sentido === "COBRO";
+      const isCobro = modo === "COBRO";
       toast.success(
         isCobro ? "Cobro registrado" : "Pago registrado",
         isProveedor
@@ -358,18 +365,18 @@ export default function MovimientoCuentaCorrienteModal({
   };
 
   const modalTitle = isProveedor
-    ? sentido === "COBRO"
+    ? modo === "COBRO"
       ? "Registrar cobro / reintegro en cuenta corriente"
       : "Registrar pago a cuenta corriente"
-    : sentido === "PAGO"
+    : modo === "PAGO"
     ? "Registrar pago / devolución a cliente"
     : "Registrar cobro en cuenta corriente";
 
   const pillLabel = isProveedor
-    ? sentido === "COBRO"
+    ? modo === "COBRO"
       ? `Recuperar saldo a favor (${formatArs(objetivoSaldo)})`
       : `Pagar total adeudado (${formatArs(objetivoSaldo)})`
-    : sentido === "PAGO"
+    : modo === "PAGO"
     ? `Devolver saldo a favor (${formatArs(objetivoSaldo)})`
     : `Cobrar total adeudado (${formatArs(objetivoSaldo)})`;
 
@@ -377,13 +384,13 @@ export default function MovimientoCuentaCorrienteModal({
     <button
       key="PAGO"
       type="button"
-      onClick={() => handleSentidoChange("PAGO")}
+      onClick={() => handleModoChange("PAGO")}
       style={{
         ...styles.segmentedBtn,
-        ...(sentido === "PAGO" ? styles.segmentedBtnActivePago : {}),
+        ...(modo === "PAGO" ? styles.segmentedBtnActivePago : {}),
       }}
-      aria-pressed={sentido === "PAGO"}
-      data-testid="movimiento-cc-sentido-pago"
+      aria-pressed={modo === "PAGO"}
+      data-testid="movimiento-cc-modo-pago"
     >
       <ArrowUpRight size={15} />
       <span>{isProveedor ? "Pagar a proveedor" : "Pagar / Devolver"}</span>
@@ -394,13 +401,13 @@ export default function MovimientoCuentaCorrienteModal({
     <button
       key="COBRO"
       type="button"
-      onClick={() => handleSentidoChange("COBRO")}
+      onClick={() => handleModoChange("COBRO")}
       style={{
         ...styles.segmentedBtn,
-        ...(sentido === "COBRO" ? styles.segmentedBtnActiveCobro : {}),
+        ...(modo === "COBRO" ? styles.segmentedBtnActiveCobro : {}),
       }}
-      aria-pressed={sentido === "COBRO"}
-      data-testid="movimiento-cc-sentido-cobro"
+      aria-pressed={modo === "COBRO"}
+      data-testid="movimiento-cc-modo-cobro"
     >
       <ArrowDownLeft size={15} />
       <span>{isProveedor ? "Cobro / Reintegro" : "Cobrar a cliente"}</span>
@@ -416,7 +423,7 @@ export default function MovimientoCuentaCorrienteModal({
         e.preventDefault();
         void handleSubmit();
       }}
-      submitText={sentido === "COBRO" ? "Confirmar cobro" : "Confirmar pago"}
+      submitText={modo === "COBRO" ? "Confirmar cobro" : "Confirmar pago"}
       submittingText="Registrando..."
       submitting={submitting}
       disabledSubmit={!canSubmit}
@@ -476,7 +483,7 @@ export default function MovimientoCuentaCorrienteModal({
         {errorMsg && <div style={styles.errorBox}>{errorMsg}</div>}
 
         <PagoCondicionSection
-          tipo={sentido === "COBRO" ? "VENTA" : "COMPRA"}
+          tipo={modo === "COBRO" ? "VENTA" : "COMPRA"}
           totalOperacion={totalSumDraft}
           cuentaFavorita={cuentaFavorita}
           contraparteNombre={contraparteNombre}
@@ -513,7 +520,7 @@ export default function MovimientoCuentaCorrienteModal({
               <span style={{ fontWeight: 600 }}>{formatArs(saldoActual)}</span>
             </div>
             <div style={styles.impactRow}>
-              <span>{sentido === "COBRO" ? "Total a cobrar / ingresar:" : "Total a abonar / egresar:"}</span>
+              <span>{modo === "COBRO" ? "Total a cobrar / ingresar:" : "Total a abonar / egresar:"}</span>
               <span
                 style={{
                   fontWeight: 600,

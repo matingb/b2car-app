@@ -41,7 +41,7 @@ BEGIN
     IF NEW.importe >= 0 THEN
       RAISE EXCEPTION 'El importe de OMC para % debe ser negativo', v_op.tipo USING ERRCODE = '22023';
     END IF;
-  ELSIF v_op.tipo IN ('APERTURA_CUENTA'::public.tipo_operacion, 'TRANSFERENCIA'::public.tipo_operacion, 'AJUSTE_FINANCIERO'::public.tipo_operacion) THEN
+  ELSIF v_op.tipo IN ('APERTURA_CUENTA'::public.tipo_operacion, 'TRANSFERENCIA'::public.tipo_operacion, 'AJUSTE_FINANCIERO'::public.tipo_operacion, 'MOVIMIENTO_PROVEEDOR'::public.tipo_operacion, 'MOVIMIENTO_CLIENTE'::public.tipo_operacion) THEN
     IF NEW.importe = 0 THEN
       RAISE EXCEPTION 'El importe de OMC no puede ser cero' USING ERRCODE = '22023';
     END IF;

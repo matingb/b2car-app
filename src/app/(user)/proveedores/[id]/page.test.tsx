@@ -100,17 +100,17 @@ vi.mock("@/app/components/proveedores/ProveedorCuentaCorrienteTab", () => ({
 vi.mock("@/app/components/finanzas/MovimientoCuentaCorrienteModal", () => ({
   default: ({
     open,
-    initialSentido,
+    initialModo,
     onSuccess,
     onClose,
   }: {
     open: boolean;
-    initialSentido?: string;
+    initialModo?: string;
     onSuccess?: () => void;
     onClose?: () => void;
   }) =>
     open ? (
-      <div data-testid="mock-pago-directo-modal" data-sentido={initialSentido}>
+      <div data-testid="mock-pago-directo-modal" data-modo={initialModo}>
         <button data-testid="mock-confirm-pago-directo" onClick={onSuccess}>
           Confirmar Pago
         </button>
@@ -285,13 +285,13 @@ describe("ProveedorDetailPage", () => {
 
     const registrarCobroBtn = screen.getByTestId("proveedor-detail-registrar-cobro");
     fireEvent.click(registrarCobroBtn);
-    expect(screen.getByTestId("mock-pago-directo-modal")).toHaveAttribute("data-sentido", "COBRO");
+    expect(screen.getByTestId("mock-pago-directo-modal")).toHaveAttribute("data-modo", "COBRO");
     fireEvent.click(screen.getByTestId("mock-cancel-pago-directo"));
 
     const registrarPagoBtn = screen.getByTestId("proveedor-detail-registrar-pago");
     fireEvent.click(registrarPagoBtn);
 
-    expect(screen.getByTestId("mock-pago-directo-modal")).toHaveAttribute("data-sentido", "PAGO");
+    expect(screen.getByTestId("mock-pago-directo-modal")).toHaveAttribute("data-modo", "PAGO");
 
     const confirmBtn = screen.getByTestId("mock-confirm-pago-directo");
     fireEvent.click(confirmBtn);

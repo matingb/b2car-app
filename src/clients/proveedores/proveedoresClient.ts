@@ -1,6 +1,5 @@
 import type {
   Proveedor,
-  SentidoMovimientoCuentaCorriente,
 } from "@/model/types";
 import type { ProductoProveedorDTO, ProveedorCuentaCorrienteResumen } from "@/model/dtos";
 import { API_ROUTES } from "@/routing/routes";
@@ -261,12 +260,11 @@ export const proveedoresClient = {
     }
   },
 
-  async registrarPagoDirecto(
+  async registrarMovimientoDirecto(
     proveedorId: string,
     payload: {
-      sentido?: SentidoMovimientoCuentaCorriente;
       cuentaId?: string;
-      monto?: number;
+      importe?: number;
       fecha?: string;
       descripcion?: string;
       idempotencyKey?: string;
@@ -274,7 +272,7 @@ export const proveedoresClient = {
       tallerId?: string;
       pagos?: Array<{
         cuentaId: string;
-        monto: number;
+        importe: number;
         fecha?: string;
         descripcion?: string;
         idempotencyKey?: string;
@@ -284,10 +282,9 @@ export const proveedoresClient = {
     try {
       const bodyPayload = payload.pagos && payload.pagos.length > 0
         ? {
-            ...(payload.sentido ? { sentido: payload.sentido } : {}),
             pagos: payload.pagos.map((p) => ({
               cuenta_id: p.cuentaId,
-              monto: p.monto,
+              importe: p.importe,
               fecha: p.fecha,
               descripcion: p.descripcion,
               idempotency_key: p.idempotencyKey,
@@ -299,9 +296,8 @@ export const proveedoresClient = {
             taller_id: payload.tallerId,
           }
         : {
-            ...(payload.sentido ? { sentido: payload.sentido } : {}),
             cuenta_id: payload.cuentaId,
-            monto: payload.monto,
+            importe: payload.importe,
             fecha: payload.fecha,
             descripcion: payload.descripcion,
             idempotency_key: payload.idempotencyKey,
@@ -309,7 +305,7 @@ export const proveedoresClient = {
             taller_id: payload.tallerId,
           };
 
-      const res = await fetch(`${API_ROUTES.proveedores}/${proveedorId}/pagos`, {
+      const res = await fetch(`${API_ROUTES.proveedores}/${proveedorId}/cuenta-corriente`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyPayload),

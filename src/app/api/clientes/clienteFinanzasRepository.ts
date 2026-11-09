@@ -1,6 +1,5 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { type ServiceError, toServiceError } from "@/app/api/serviceError";
-import type { SentidoMovimientoCuentaCorriente } from "@/model/types";
 
 export interface CuentaCorrienteFilters {
   from?: string | null;
@@ -9,9 +8,8 @@ export interface CuentaCorrienteFilters {
 
 export type CreateMovimientoDirectoClientePayload = {
   cliente_id: string;
-  sentido?: SentidoMovimientoCuentaCorriente;
   cuenta_id?: string | null;
-  monto?: number | null;
+  importe?: number | null;
   fecha?: string;
   descripcion?: string | null;
   idempotency_key?: string | null;
@@ -19,7 +17,7 @@ export type CreateMovimientoDirectoClientePayload = {
   taller_id?: string | null;
   pagos?: Array<{
     cuenta_id: string;
-    monto: number;
+    importe: number;
     fecha?: string;
     descripcion?: string;
     idempotency_key?: string;
@@ -93,15 +91,10 @@ export const clienteFinanzasRepository: ClienteFinanzasRepository = {
   },
 
   async createMovimientoDirecto(db, payload) {
-    const rpcName =
-      payload.sentido === "PAGO"
-        ? "rpc_crear_pago_cliente"
-        : "rpc_crear_cobro_cliente";
-
-    const { data, error } = await db.rpc(rpcName, {
+    const { data, error } = await db.rpc("rpc_crear_movimiento_cliente", {
       p_cliente_id: payload.cliente_id,
       p_cuenta_id: payload.cuenta_id ?? null,
-      p_monto: payload.monto ?? null,
+      p_importe: payload.importe ?? null,
       p_fecha: payload.fecha ?? new Date().toISOString(),
       p_descripcion: payload.descripcion ?? null,
       p_idempotency_key: payload.idempotency_key ?? null,

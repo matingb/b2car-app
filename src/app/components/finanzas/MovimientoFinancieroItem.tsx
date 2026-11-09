@@ -31,10 +31,6 @@ const LABELS: Record<string, string> = {
   COBRO_ARREGLO: "Cobro de arreglo",
   COMPRA: "Compra de stock",
   VENTA: "Venta de productos",
-  PAGO_PROVEEDOR: "Pago a proveedor",
-  COBRO_PROVEEDOR: "Cobro de proveedor",
-  COBRO_CLIENTE: "Cobro de cliente",
-  PAGO_CLIENTE: "Pago a cliente",
   REVERSO: "Reverso",
 };
 
@@ -44,10 +40,6 @@ const ICONS: Record<string, React.ReactNode> = {
   COBRO_ARREGLO: <CircleDollarSign size={17} />,
   COMPRA: <ShoppingCart size={17} />,
   VENTA: <TrendingUp size={17} />,
-  PAGO_PROVEEDOR: <ArrowUpRight size={17} />,
-  COBRO_PROVEEDOR: <ArrowDownLeft size={17} />,
-  COBRO_CLIENTE: <ArrowDownLeft size={17} />,
-  PAGO_CLIENTE: <ArrowUpRight size={17} />,
   REVERSO: <RotateCcw size={17} />,
 };
 
@@ -56,6 +48,16 @@ function getMovementPresentation(tipo: string, importe: number) {
     return importe < 0
       ? { label: "Transferencia enviada", icon: <ArrowUpRight size={17} /> }
       : { label: "Transferencia recibida", icon: <ArrowDownLeft size={17} /> };
+  }
+  if (tipo === "MOVIMIENTO_PROVEEDOR") {
+    return importe < 0
+      ? { label: "Pago a proveedor", icon: <ArrowUpRight size={17} /> }
+      : { label: "Cobro de proveedor", icon: <ArrowDownLeft size={17} /> };
+  }
+  if (tipo === "MOVIMIENTO_CLIENTE") {
+    return importe > 0
+      ? { label: "Cobro de cliente", icon: <ArrowDownLeft size={17} /> }
+      : { label: "Pago a cliente", icon: <ArrowUpRight size={17} /> };
   }
   const label = LABELS[tipo];
   if (label) return { label, icon: ICONS[tipo] ?? <CircleDollarSign size={17} /> };
@@ -66,10 +68,8 @@ function getMovementPresentation(tipo: string, importe: number) {
 }
 
 const NON_OPERACION_PAGE_TIPOS = new Set([
-  "PAGO_PROVEEDOR",
-  "COBRO_PROVEEDOR",
-  "COBRO_CLIENTE",
-  "PAGO_CLIENTE",
+  "MOVIMIENTO_PROVEEDOR",
+  "MOVIMIENTO_CLIENTE",
 ]);
 
 export default function MovimientoFinancieroItem({

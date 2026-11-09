@@ -9,17 +9,17 @@ import { UserRole } from "@/lib/permissions";
 vi.mock("@/app/components/finanzas/MovimientoCuentaCorrienteModal", () => ({
   default: ({
     open,
-    initialSentido,
+    initialModo,
     onSuccess,
     onClose,
   }: {
     open: boolean;
-    initialSentido?: string;
+    initialModo?: string;
     onSuccess?: () => void;
     onClose?: () => void;
   }) =>
     open ? (
-      <div data-testid="mock-movimiento-cc-modal" data-sentido={initialSentido}>
+      <div data-testid="mock-movimiento-cc-modal" data-modo={initialModo}>
         <button data-testid="mock-confirm-movimiento-cc" onClick={onSuccess}>
           Confirmar
         </button>
@@ -197,7 +197,7 @@ describe("ClienteProfileCard", () => {
     openWhatsappSpy.mockRestore();
   });
 
-  it("renderiza botones de Registrar Cobro y Registrar Pago, abre el modal con el sentido elegido y llama a onFinanzasUpdated", () => {
+  it("renderiza botones de Registrar Cobro y Registrar Pago, abre el modal con el modo elegido y llama a onFinanzasUpdated", () => {
     const onFinanzasUpdated = vi.fn();
 
     render(
@@ -216,11 +216,11 @@ describe("ClienteProfileCard", () => {
     expect(screen.getByRole("button", { name: "Registrar Pago" })).toBeInTheDocument();
 
     fireEvent.click(pagoBtn);
-    expect(screen.getByTestId("mock-movimiento-cc-modal")).toHaveAttribute("data-sentido", "PAGO");
+    expect(screen.getByTestId("mock-movimiento-cc-modal")).toHaveAttribute("data-modo", "PAGO");
     fireEvent.click(screen.getByTestId("mock-close-movimiento-cc"));
 
     fireEvent.click(cobroBtn);
-    expect(screen.getByTestId("mock-movimiento-cc-modal")).toHaveAttribute("data-sentido", "COBRO");
+    expect(screen.getByTestId("mock-movimiento-cc-modal")).toHaveAttribute("data-modo", "COBRO");
 
     fireEvent.click(screen.getByTestId("mock-confirm-movimiento-cc"));
     expect(onFinanzasUpdated).toHaveBeenCalledTimes(1);

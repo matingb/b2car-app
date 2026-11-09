@@ -2,7 +2,6 @@ import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import type {
   ClienteResumenFinanciero,
   ClienteMovimientoCuenta,
-  SentidoMovimientoCuentaCorriente,
 } from "@/model/types";
 import { ServiceError } from "@/app/api/serviceError";
 import { isValidUuid } from "@/lib/uuid";
@@ -16,9 +15,8 @@ import {
 export type { CuentaCorrienteFilters };
 
 export type CreateMovimientoDirectoClienteInput = {
-  sentido?: SentidoMovimientoCuentaCorriente;
   cuentaId?: string;
-  monto?: number;
+  importe?: number;
   fecha?: string;
   descripcion?: string | null;
   idempotencyKey?: string | null;
@@ -26,7 +24,7 @@ export type CreateMovimientoDirectoClienteInput = {
   tallerId?: string | null;
   pagos?: Array<{
     cuentaId: string;
-    monto: number;
+    importe: number;
     fecha?: string;
     descripcion?: string;
     idempotencyKey?: string;
@@ -158,33 +156,28 @@ export function createClienteFinanzasService(
       if (!clienteId || !isValidUuid(clienteId)) {
         return { data: null, error: ServiceError.Validation };
       }
-      if (input.sentido !== undefined && input.sentido !== "COBRO" && input.sentido !== "PAGO") {
-        return { data: null, error: ServiceError.Validation };
-      }
       if (typeof repository.createMovimientoDirecto !== "function") {
         return { data: null, error: ServiceError.Unknown };
       }
 
-      const sentido: SentidoMovimientoCuentaCorriente = input.sentido ?? "COBRO";
       const hasPagosArray = Array.isArray(input.pagos) && input.pagos.length > 0;
 
       if (hasPagosArray) {
-        let total = 0;
+        let totalImporte = 0;
         for (const p of input.pagos!) {
           if (!p.cuentaId || !isValidUuid(p.cuentaId)) {
             return { data: null, error: ServiceError.Validation };
           }
-          if (typeof p.monto !== "number" || p.monto <= 0) {
+          if (!p.importe) {
             return { data: null, error: ServiceError.Validation };
           }
-          total += p.monto;
+          totalImporte += p.importe;
         }
 
         return repository.createMovimientoDirecto(db, {
           cliente_id: clienteId,
-          sentido,
           cuenta_id: input.pagos![0].cuentaId,
-          monto: total,
+          importe: totalImporte,
           fecha: input.fecha,
           descripcion: input.descripcion ? input.descripcion.trim() : null,
           idempotency_key: input.idempotencyKey ?? null,
@@ -192,7 +185,7 @@ export function createClienteFinanzasService(
           taller_id: input.tallerId ?? null,
           pagos: input.pagos!.map((p) => ({
             cuenta_id: p.cuentaId,
-            monto: p.monto,
+            importe: p.importe,
             fecha: p.fecha,
             descripcion: p.descripcion ? p.descripcion.trim() : undefined,
             idempotency_key: p.idempotencyKey,
@@ -203,15 +196,14 @@ export function createClienteFinanzasService(
       if (!input.cuentaId || !isValidUuid(input.cuentaId)) {
         return { data: null, error: ServiceError.Validation };
       }
-      if (!input.monto || typeof input.monto !== "number" || input.monto <= 0) {
+      if (!input.importe) {
         return { data: null, error: ServiceError.Validation };
       }
 
       return repository.createMovimientoDirecto(db, {
         cliente_id: clienteId,
-        sentido,
         cuenta_id: input.cuentaId,
-        monto: input.monto,
+        importe: input.importe,
         fecha: input.fecha,
         descripcion: input.descripcion ? input.descripcion.trim() : null,
         idempotency_key: input.idempotencyKey ?? null,

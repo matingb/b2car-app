@@ -15,7 +15,6 @@ import { formatTelephoneNumber } from "@/lib/telefono";
 import type {
   ClienteResumenFinanciero,
   Representante,
-  SentidoMovimientoCuentaCorriente,
   TipoCliente,
 } from "@/model/types";
 import EntityProfileCard from "@/app/components/ui/EntityProfileCard";
@@ -62,8 +61,8 @@ export default function ClienteProfileCard({
   onAddRepresentante,
   onDeleteRepresentante,
 }: Props) {
-  const [movimientoModalSentido, setMovimientoModalSentido] =
-    useState<SentidoMovimientoCuentaCorriente | null>(null);
+  const [movimientoModalModo, setMovimientoModalModo] =
+    useState<"COBRO" | "PAGO" | null>(null);
   const isEmpresa = tipo === "empresa";
   const formattedPhone = formatTelephoneNumber(codigo_pais ?? undefined, telefono ?? "");
 
@@ -74,7 +73,7 @@ export default function ClienteProfileCard({
         size={18}
         onClick={(e) => {
           e.stopPropagation();
-          setMovimientoModalSentido("COBRO");
+          setMovimientoModalModo("COBRO");
         }}
         hoverColor={COLOR.SEMANTIC.SUCCESS}
         data-testid="cliente-detail-registrar-movimiento"
@@ -86,7 +85,7 @@ export default function ClienteProfileCard({
         size={18}
         onClick={(e) => {
           e.stopPropagation();
-          setMovimientoModalSentido("PAGO");
+          setMovimientoModalModo("PAGO");
         }}
         hoverColor={COLOR.ACCENT.PRIMARY}
         data-testid="cliente-detail-registrar-pago"
@@ -179,17 +178,17 @@ export default function ClienteProfileCard({
         )}
       </EntityProfileCard>
 
-      {movimientoModalSentido && clienteId && (
+      {movimientoModalModo && clienteId && (
         <MovimientoCuentaCorrienteModal
           open
           entidad="CLIENTE"
           contraparteId={clienteId}
           contraparteNombre={nombre}
           saldoActual={resumenFinanciero?.saldo_cuenta ?? 0}
-          initialSentido={movimientoModalSentido}
-          onClose={() => setMovimientoModalSentido(null)}
+          initialModo={movimientoModalModo}
+          onClose={() => setMovimientoModalModo(null)}
           onSuccess={() => {
-            setMovimientoModalSentido(null);
+            setMovimientoModalModo(null);
             onFinanzasUpdated?.();
           }}
         />

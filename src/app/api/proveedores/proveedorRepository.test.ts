@@ -338,8 +338,8 @@ describe("supabaseProveedorRepository", () => {
     });
   });
 
-  describe("createPagoDirecto", () => {
-    it("llama a rpc_crear_pago_proveedor con los parámetros correctos", async () => {
+  describe("createMovimiento", () => {
+    it("llama a rpc_crear_movimiento_proveedor con los parámetros correctos", async () => {
       const mockRpc = vi.fn().mockResolvedValue({ data: "op-pago-123", error: null });
       const supabase = {
         rpc: mockRpc,
@@ -348,7 +348,7 @@ describe("supabaseProveedorRepository", () => {
       const payload = {
         proveedor_id: "prov-1",
         cuenta_id: "cta-1",
-        monto: 50000,
+        importe: -50000,
         fecha: "2026-11-08T12:00:00Z",
         descripcion: "Pago a cuenta",
         idempotency_key: "idem-1",
@@ -356,12 +356,12 @@ describe("supabaseProveedorRepository", () => {
         taller_id: "tal-1",
       };
 
-      const res = await supabaseProveedorRepository.createPagoDirecto(supabase, payload);
+      const res = await supabaseProveedorRepository.createMovimiento(supabase, payload);
 
-      expect(mockRpc).toHaveBeenCalledWith("rpc_crear_pago_proveedor", {
+      expect(mockRpc).toHaveBeenCalledWith("rpc_crear_movimiento_proveedor", {
         p_proveedor_id: "prov-1",
         p_cuenta_id: "cta-1",
-        p_monto: 50000,
+        p_importe: -50000,
         p_fecha: "2026-11-08T12:00:00Z",
         p_descripcion: "Pago a cuenta",
         p_idempotency_key: "idem-1",
@@ -373,7 +373,7 @@ describe("supabaseProveedorRepository", () => {
       expect(res.error).toBeNull();
     });
 
-    it("llama a rpc_crear_pago_proveedor con array de pagos cuando se proveen múltiples cuentas", async () => {
+    it("llama a rpc_crear_movimiento_proveedor con array de pagos cuando se proveen múltiples cuentas", async () => {
       const mockRpc = vi.fn().mockResolvedValue({
         data: "op-pago-multi",
         error: null,
@@ -383,14 +383,14 @@ describe("supabaseProveedorRepository", () => {
       const payload = {
         proveedor_id: "prov-1",
         pagos: [
-          { cuenta_id: "cta-1", monto: 30000, descripcion: "Banco" },
-          { cuenta_id: "cta-2", monto: 20000, descripcion: "Caja" },
+          { cuenta_id: "cta-1", importe: -30000, descripcion: "Banco" },
+          { cuenta_id: "cta-2", importe: -20000, descripcion: "Caja" },
         ],
       };
 
-      const res = await supabaseProveedorRepository.createPagoDirecto(supabase, payload);
+      const res = await supabaseProveedorRepository.createMovimiento(supabase, payload);
 
-      expect(mockRpc).toHaveBeenCalledWith("rpc_crear_pago_proveedor", expect.objectContaining({
+      expect(mockRpc).toHaveBeenCalledWith("rpc_crear_movimiento_proveedor", expect.objectContaining({
         p_proveedor_id: "prov-1",
         p_pagos: payload.pagos,
       }));
@@ -398,27 +398,26 @@ describe("supabaseProveedorRepository", () => {
       expect(res.error).toBeNull();
     });
 
-    it("llama a rpc_crear_cobro_proveedor cuando sentido es COBRO", async () => {
+    it("llama a rpc_crear_movimiento_proveedor con importe positivo para cobro/reintegro", async () => {
       const mockRpc = vi.fn().mockResolvedValue({
         data: "op-cobro-prov-1",
         error: null,
       });
       const supabase = { rpc: mockRpc } as unknown as SupabaseClient;
 
-      const res = await supabaseProveedorRepository.createPagoDirecto(supabase, {
+      const res = await supabaseProveedorRepository.createMovimiento(supabase, {
         proveedor_id: "prov-1",
-        sentido: "COBRO",
         cuenta_id: "cta-1",
-        monto: 15000,
+        importe: 15000,
         descripcion: "Reintegro por devolución",
       });
 
       expect(mockRpc).toHaveBeenCalledWith(
-        "rpc_crear_cobro_proveedor",
+        "rpc_crear_movimiento_proveedor",
         expect.objectContaining({
           p_proveedor_id: "prov-1",
           p_cuenta_id: "cta-1",
-          p_monto: 15000,
+          p_importe: 15000,
           p_descripcion: "Reintegro por devolución",
         })
       );

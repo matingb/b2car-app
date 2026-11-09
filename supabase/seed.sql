@@ -525,7 +525,7 @@ BEGIN
   ) VALUES (
     '90000000-0000-0000-0000-000000000101',
     '11111111-1111-1111-1111-111111111111',
-    'PAGO_PROVEEDOR',
+    'MOVIMIENTO_PROVEEDOR',
     NULL,
     v_fecha_pago,
     'Entrega parcial a cuenta corriente',
@@ -536,7 +536,7 @@ BEGIN
     'NO_APLICA'
   );
 
-  INSERT INTO public.operaciones_pago_proveedor (operacion_id, tenant_id, proveedor_id, cuenta_id)
+  INSERT INTO public.operaciones_movimiento_proveedor (operacion_id, tenant_id, proveedor_id, cuenta_id)
   VALUES (
     '90000000-0000-0000-0000-000000000101',
     '11111111-1111-1111-1111-111111111111',

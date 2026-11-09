@@ -87,9 +87,8 @@ describe("GET & POST /api/clientes/[id]/cuenta-corriente", () => {
       {
         method: "POST",
         body: JSON.stringify({
-          sentido: "COBRO",
           cuenta_id: validCtaId,
-          monto: 60000,
+          importe: 60000,
           descripcion: "Cobro a cuenta",
         }),
       }
@@ -101,17 +100,17 @@ describe("GET & POST /api/clientes/[id]/cuenta-corriente", () => {
     expect(res.status).toBe(201);
     expect(body.data).toEqual({ id: "op-cobro-cli-1", ok: true });
     expect(mockRpc).toHaveBeenCalledWith(
-      "rpc_crear_cobro_cliente",
+      "rpc_crear_movimiento_cliente",
       expect.objectContaining({
         p_cliente_id: validCliId,
         p_cuenta_id: validCtaId,
-        p_monto: 60000,
+        p_importe: 60000,
       })
     );
     expect(statsService.onDataChanged).toHaveBeenCalled();
   });
 
-  it("POST registra un PAGO / devolución a cliente invocando rpc_crear_pago_cliente", async () => {
+  it("POST registra un PAGO / devolución a cliente invocando rpc_crear_movimiento_cliente con importe negativo", async () => {
     const validCliId = "e4a2a11b-7159-4d64-88aa-38e56d787090";
     const validCtaId = "11111111-2222-4333-8444-555555555555";
     const mockRpc = vi.fn().mockResolvedValue({
@@ -128,9 +127,8 @@ describe("GET & POST /api/clientes/[id]/cuenta-corriente", () => {
       {
         method: "POST",
         body: JSON.stringify({
-          sentido: "PAGO",
           cuenta_id: validCtaId,
-          monto: 15000,
+          importe: -15000,
           descripcion: "Devolución de saldo a favor",
         }),
       }
@@ -142,16 +140,16 @@ describe("GET & POST /api/clientes/[id]/cuenta-corriente", () => {
     expect(res.status).toBe(201);
     expect(body.data).toEqual({ id: "op-pago-cli-1", ok: true });
     expect(mockRpc).toHaveBeenCalledWith(
-      "rpc_crear_pago_cliente",
+      "rpc_crear_movimiento_cliente",
       expect.objectContaining({
         p_cliente_id: validCliId,
         p_cuenta_id: validCtaId,
-        p_monto: 15000,
+        p_importe: -15000,
       })
     );
   });
 
-  it("POST retorna 400 cuando el sentido o el clienteId son inválidos", async () => {
+  it("POST retorna 400 cuando el importe es cero o el clienteId es inválido", async () => {
     const validCliId = "e4a2a11b-7159-4d64-88aa-38e56d787090";
     const validCtaId = "11111111-2222-4333-8444-555555555555";
 
@@ -159,18 +157,17 @@ describe("GET & POST /api/clientes/[id]/cuenta-corriente", () => {
       rpc: vi.fn(),
     } as unknown as Awaited<ReturnType<typeof createClient>>);
 
-    const reqInvalidSentido = new NextRequest(
+    const reqInvalidImporte = new NextRequest(
       `http://localhost/api/clientes/${validCliId}/cuenta-corriente`,
       {
         method: "POST",
         body: JSON.stringify({
-          sentido: "INVALIDO",
           cuenta_id: validCtaId,
-          monto: 1000,
+          importe: 0,
         }),
       }
     );
-    const res1 = await POST(reqInvalidSentido, {
+    const res1 = await POST(reqInvalidImporte, {
       params: Promise.resolve({ id: validCliId }),
     });
     expect(res1.status).toBe(400);
@@ -204,9 +201,8 @@ describe("GET & POST /api/clientes/[id]/cuenta-corriente", () => {
       {
         method: "POST",
         body: JSON.stringify({
-          sentido: "COBRO",
           cuenta_id: validCtaId,
-          monto: 1000,
+          importe: 1000,
         }),
       }
     );
