@@ -1,7 +1,7 @@
 import type { Arreglo } from "@/model/types";
 
 export const ARREGLO_DESCRIPCION_FALLBACK = "Arreglo registrado sin detalle específico";
-export const MAX_DETALLE_ARREGLO_DESCRIPCION_LENGTH = 256;
+export const MAX_DETALLE_ARREGLO_DESCRIPCION_LENGTH = 512;
 
 const ARREGLO_PAGO_FIELDS = [
   "esta_pago",
