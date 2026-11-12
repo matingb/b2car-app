@@ -13,7 +13,7 @@ import {
     buildTerminadoRequiredFieldsErrorMessage,
     findMissingRequiredCustomFormFields,
 } from "@/lib/arreglosCustomFormRequired";
-import { buildArregloDescripcion } from "@/lib/arreglos";
+import { buildArregloDescripcion, MAX_DETALLE_ARREGLO_DESCRIPCION_LENGTH } from "@/lib/arreglos";
 import { isValidUuid } from "@/lib/uuid";
 import {
     isValidDate,
@@ -201,6 +201,12 @@ export async function POST(req: Request) {
 
     for (const d of normalizedDetalles) {
         if (!d.descripcion) return Response.json({ error: "Falta descripción en servicios" }, { status: 400 });
+        if (d.descripcion.length > MAX_DETALLE_ARREGLO_DESCRIPCION_LENGTH) {
+            return Response.json(
+                { error: `La descripción no puede superar los ${MAX_DETALLE_ARREGLO_DESCRIPCION_LENGTH} caracteres` },
+                { status: 400 }
+            );
+        }
         if (!Number.isSafeInteger(d.cantidad) || d.cantidad <= 0 || d.cantidad > 2_147_483_647) {
             return Response.json({ error: "Cantidad inválida en servicios" }, { status: 400 });
         }

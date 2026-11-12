@@ -387,7 +387,7 @@ describe("ArregloItem", () => {
     expect(screen.getByText("Revisión general")).toBeInTheDocument();
   });
 
-  it("aplica ellipsis y nowrap al titulo para truncamiento de textos largos", () => {
+  it("limita el titulo a dos lineas y aplica ellipsis en textos largos", () => {
     talleresMock = [{ id: "t1", nombre: "Taller 1", ubicacion: "A" }];
 
     const { container } = render(
@@ -402,8 +402,11 @@ describe("ArregloItem", () => {
     expect(h4).toHaveStyle({
       overflow: "hidden",
       textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
+      whiteSpace: "normal",
+      display: "-webkit-box",
+      WebkitLineClamp: 2,
     });
+    expect(h4).not.toHaveAttribute("title");
   });
 });
 

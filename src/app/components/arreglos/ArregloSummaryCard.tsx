@@ -168,7 +168,15 @@ export default function ArregloSummaryCard({
         {/* Top Header */}
         <div css={styles.header}>
           <div style={styles.headerLeft}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                minWidth: 0,
+                width: "100%",
+              }}
+            >
               <h2 css={styles.summaryTitle}>
                 {formatArregloTitulo(arreglo)}
               </h2>
@@ -449,6 +457,8 @@ const styles = {
     flexWrap: "wrap" as const,
     alignItems: "center",
     gap: 12,
+    flex: "1 1 0",
+    minWidth: 0,
   },
   summaryTitle: css({
     fontSize: 20,
@@ -456,6 +466,16 @@ const styles = {
     color: COLOR.TEXT.PRIMARY,
     margin: 0,
     lineHeight: 1.3,
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    display: "-webkit-box",
+    WebkitBoxOrient: "vertical",
+    WebkitLineClamp: 2,
+    overflow: "hidden",
+    overflowWrap: "anywhere",
+    textOverflow: "ellipsis",
+    whiteSpace: "normal",
   }),
   vehiculoCard: {
     display: "flex",
@@ -522,6 +542,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 4,
+    flexShrink: 0,
   },
   bodyContent: {
     padding: 24,

@@ -8,6 +8,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { hasUserPermission } from "@/lib/permissions.server";
 import { Permission } from "@/lib/permissions";
 import { hasAtMostDecimalPlaces } from "@/lib/numbers";
+import { MAX_DETALLE_ARREGLO_DESCRIPCION_LENGTH } from "@/lib/arreglos";
 
 export type UpdateDetalleArregloRequest = Partial<{
   descripcion: string;
@@ -61,6 +62,12 @@ export async function PUT(
     const descripcion = String(body.descripcion ?? "").trim();
     if (!descripcion) {
       return Response.json({ data: null, error: "Descripción inválida" } satisfies UpdateDetalleArregloResponse, { status: 400 });
+    }
+    if (descripcion.length > MAX_DETALLE_ARREGLO_DESCRIPCION_LENGTH) {
+      return Response.json(
+        { data: null, error: `La descripción no puede superar los ${MAX_DETALLE_ARREGLO_DESCRIPCION_LENGTH} caracteres` } satisfies UpdateDetalleArregloResponse,
+        { status: 400 }
+      );
     }
     patch.descripcion = descripcion;
   }

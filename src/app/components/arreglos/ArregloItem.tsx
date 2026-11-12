@@ -91,8 +91,6 @@ export default function ArregloItem({
             <div css={styles.topRow} style={styles.topRowStyle}>
               <h4
                 css={styles.mainTitle}
-                style={styles.mainTitleStyle}
-                title={formatArregloTitulo(arreglo)}
               >
                 {formatArregloTitulo(arreglo)}
               </h4>
@@ -258,14 +256,6 @@ const styles = {
     width: "100%",
     overflow: "hidden",
   },
-  mainTitleStyle: {
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap" as const,
-    minWidth: 0,
-    width: "100%",
-    maxWidth: "100%",
-  },
   cardBody: css({
     display: "flex",
     flexDirection: "column",
@@ -305,12 +295,16 @@ const styles = {
     margin: 0,
     lineHeight: 1.25,
     paddingRight: 8,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-    minWidth: 0,
     width: "100%",
     maxWidth: "100%",
+    minWidth: 0,
+    display: "-webkit-box",
+    WebkitBoxOrient: "vertical",
+    WebkitLineClamp: 2,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    overflowWrap: "anywhere",
+    whiteSpace: "normal",
     [`@media (max-width: ${BREAKPOINTS.md - 1}px)`]: {
       fontSize: 14,
     },

@@ -8,6 +8,7 @@ import { isValidUuid } from "@/lib/uuid";
 import { hasUserPermission } from "@/lib/permissions.server";
 import { Permission } from "@/lib/permissions";
 import { hasAtMostDecimalPlaces } from "@/lib/numbers";
+import { MAX_DETALLE_ARREGLO_DESCRIPCION_LENGTH } from "@/lib/arreglos";
 
 export type CreateDetalleArregloRequest = {
   descripcion: string;
@@ -68,6 +69,12 @@ export async function POST(
   }
   if (!descripcion) {
     return Response.json({ data: null, error: "Falta descripción" } satisfies CreateDetalleArregloResponse, { status: 400 });
+  }
+  if (descripcion.length > MAX_DETALLE_ARREGLO_DESCRIPCION_LENGTH) {
+    return Response.json(
+      { data: null, error: `La descripción no puede superar los ${MAX_DETALLE_ARREGLO_DESCRIPCION_LENGTH} caracteres` } satisfies CreateDetalleArregloResponse,
+      { status: 400 }
+    );
   }
   if (!Number.isSafeInteger(cantidad) || cantidad <= 0 || cantidad > 2_147_483_647) {
     return Response.json({ data: null, error: "Cantidad inválida" } satisfies CreateDetalleArregloResponse, { status: 400 });

@@ -6,6 +6,7 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
 import NumberInput from "@/app/components/ui/NumberInput";
+import { MAX_DETALLE_ARREGLO_DESCRIPCION_LENGTH } from "@/lib/arreglos";
 import type { ServicioEditableCardDraft } from "./ServicioEditableCard";
 
 type Props = {
@@ -38,6 +39,7 @@ export default function ServicioEditableFields({
           id="job-description-input"
           aria-label="Descripción"
           value={draft.descripcion}
+          maxLength={MAX_DETALLE_ARREGLO_DESCRIPCION_LENGTH}
           onChange={(e) => onDraftChange({ descripcion: e.target.value })}
           placeholder="Ej: Cambio de aceite y filtros"
           css={styles.descriptionInput}

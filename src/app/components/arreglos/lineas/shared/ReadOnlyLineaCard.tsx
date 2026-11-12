@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { css } from "@emotion/react";
 import { Clock, Package, Pencil, Trash2, Wrench } from "lucide-react";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Card from "../../../ui/Card";
+import Tooltip from "@/app/components/ui/Tooltip";
 import { itemIconCircleStyle, styles } from "./lineaStyles";
 import { formatMoney, renderQtyXUnit } from "./lineaUtils";
 import Can from "@/app/components/auth/Can";
@@ -62,6 +63,66 @@ export default function ReadOnlyLineaCard({
     : renderQtyXUnit(cantidad, unitario);
 
   const kindLabel = kind === "servicios" ? "servicio" : "repuesto";
+  const titleText = typeof title === "string" ? title : null;
+  const titleRef = useRef<HTMLDivElement>(null);
+  const [isTitleTruncated, setIsTitleTruncated] = useState(false);
+
+  useEffect(() => {
+    const titleElement = titleRef.current;
+    if (!titleElement || allowTitleWrap || !titleText) {
+      setIsTitleTruncated(false);
+      return;
+    }
+
+    const updateTruncation = () => {
+      const visibleRect = titleElement.getBoundingClientRect();
+      if (visibleRect.width === 0 || visibleRect.height === 0) return;
+
+      const measuringElement = titleElement.cloneNode(true) as HTMLDivElement;
+      Object.assign(measuringElement.style, {
+        position: "fixed",
+        top: "0",
+        left: "-100000px",
+        width: `${visibleRect.width}px`,
+        height: "auto",
+        maxHeight: "none",
+        display: "block",
+        WebkitBoxOrient: "initial",
+        WebkitLineClamp: "unset",
+        overflow: "visible",
+        textOverflow: "clip",
+        visibility: "hidden",
+        pointerEvents: "none",
+      });
+      document.body.appendChild(measuringElement);
+      const naturalHeight = measuringElement.getBoundingClientRect().height;
+      measuringElement.remove();
+
+      const isTruncated = naturalHeight > visibleRect.height + 1;
+      setIsTitleTruncated((current) => current === isTruncated ? current : isTruncated);
+    };
+
+    let isActive = true;
+    updateTruncation();
+    void document.fonts?.ready.then(() => {
+      if (isActive) updateTruncation();
+    });
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateTruncation);
+      return () => {
+        isActive = false;
+        window.removeEventListener("resize", updateTruncation);
+      };
+    }
+
+    const observer = new ResizeObserver(updateTruncation);
+    observer.observe(titleElement);
+    return () => {
+      isActive = false;
+      observer.disconnect();
+    };
+  }, [allowTitleWrap, titleText]);
 
   return (
     <Card css={readStyles.card}>
@@ -75,7 +136,19 @@ export default function ReadOnlyLineaCard({
         </div>
 
         <div css={readStyles.main}>
-          <div css={readStyles.title(allowTitleWrap)}>{title}</div>
+          {titleText ? (
+            <Tooltip
+              content={isTitleTruncated ? titleText : undefined}
+              placement="top"
+              maxWidth={360}
+              disabled={!isTitleTruncated}
+              wrapperStyle={{ display: "block", width: "100%", minWidth: 0 }}
+            >
+              <div ref={titleRef} css={readStyles.title(allowTitleWrap)}>{title}</div>
+            </Tooltip>
+          ) : (
+            <div ref={titleRef} css={readStyles.title(allowTitleWrap)}>{title}</div>
+          )}
           <div css={readStyles.subtitleRow}>
             {subtitle}
             <span css={readStyles.qtyXUnit}>
@@ -177,7 +250,14 @@ const readStyles = {
   }),
   title: (allowWrap: boolean) => css({
     ...styles.itemTitle,
-    ...(allowWrap && { height: "auto", whiteSpace: "normal", overflow: "visible", textOverflow: "clip" }),
+    ...(allowWrap && {
+      display: "block",
+      WebkitBoxOrient: "initial",
+      WebkitLineClamp: "unset",
+      whiteSpace: "normal",
+      overflow: "visible",
+      textOverflow: "clip",
+    }),
   }),
   subtitleRow: css({
     display: "flex",
