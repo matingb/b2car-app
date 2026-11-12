@@ -4,7 +4,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
   plugins: [tsconfigPaths()],
   oxc: {
-    jsx: { runtime: "automatic" },
+    jsx: { runtime: "automatic", importSource: "@emotion/react" },
   },
   test: {
     environment: "jsdom",

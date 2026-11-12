@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import TurnoFormFields, {
   CREATE_CLIENTE_VALUE,
@@ -84,6 +84,7 @@ describe("TurnoFormFields - Componente UI", () => {
     expect(screen.getByRole("checkbox", { name: "Todo el día" })).not.toBeChecked();
   });
 
+  // JSDOM keeps both responsive variants mounted and treats the mobile one as hidden.
   it("renderiza el formato mobile con fecha corta, toggle switch y fila de horarios Desde/Hasta", () => {
     render(<TurnoFormFields model={model} onChange={vi.fn()} />);
 
@@ -93,7 +94,9 @@ describe("TurnoFormFields - Componente UI", () => {
     expect(screen.getByTestId("turno-hora-desde-mobile")).toHaveTextContent("9:00 am");
     expect(screen.getByText("Hasta:")).toBeInTheDocument();
     expect(screen.getByTestId("turno-hora-hasta-mobile")).toHaveTextContent("10:00 am");
-    expect(screen.getByRole("switch", { name: "Todo el día" })).toHaveAttribute("aria-checked", "false");
+    expect(
+      screen.getByRole("switch", { name: "Todo el día", hidden: true })
+    ).toHaveAttribute("aria-checked", "false");
   });
 
   it("cuando Todo el día está activo en mobile no muestra los dropdowns ni etiquetas de hora pero mantiene la fecha", () => {
@@ -112,7 +115,9 @@ describe("TurnoFormFields - Componente UI", () => {
     expect(screen.queryByText("Hasta:")).not.toBeInTheDocument();
     expect(screen.queryByTestId("turno-hora-desde-mobile")).not.toBeInTheDocument();
     expect(screen.queryByTestId("turno-hora-hasta-mobile")).not.toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "Todo el día" })).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByRole("switch", { name: "Todo el día", hidden: true })
+    ).toHaveAttribute("aria-checked", "true");
   });
 
   it("al marcar Todo el día en desktop emite hora 06:00 y duración 960", async () => {
@@ -128,12 +133,12 @@ describe("TurnoFormFields - Componente UI", () => {
     });
   });
 
-  it("al alternar el switch de Todo el día en mobile emite hora 06:00 y duración 960", async () => {
+  it("al alternar el switch de Todo el día en mobile emite hora 06:00 y duración 960", () => {
     const onChange = vi.fn();
     render(<TurnoFormFields model={model} onChange={onChange} />);
 
-    const toggle = screen.getByRole("switch", { name: "Todo el día" });
-    await userEvent.click(toggle);
+    const toggle = screen.getByRole("switch", { name: "Todo el día", hidden: true });
+    fireEvent.click(toggle);
 
     expect(onChange).toHaveBeenCalledWith({
       hora: "06:00",
