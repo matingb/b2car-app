@@ -5,7 +5,16 @@ import { facturasReporteRepository, type FiscalHeader, type FiscalLine } from ".
 
 type Query = { table: string; select: string; eq: Record<string, unknown>; lists: Record<string, unknown[]>; gt: Record<string, string>; gte: Record<string, string>; lte: Record<string, string>; or: string[]; order: string[]; limit: number };
 type TestHeader = FiscalHeader & { estado?: string; ambiente?: string };
-function database(headers: TestHeader[], lines: FiscalLine[] = [], options: { cap?: number; fail?: (q: Query, n: number) => boolean; duplicate?: boolean } = {}) {
+function database(
+  headers: TestHeader[],
+  lines: FiscalLine[] = [],
+  options: {
+    cap?: number;
+    fail?: (q: Query, n: number) => boolean;
+    duplicate?: boolean;
+    extraTables?: Record<string, Record<string, unknown>[]>;
+  } = {},
+) {
   const queries: Query[] = [];
   const client = { from(table: string) {
     const q: Query = { table, select: "", eq: {}, lists: {}, gt: {}, gte: {}, lte: {}, or: [], order: [], limit: 0 };
@@ -23,9 +32,11 @@ function database(headers: TestHeader[], lines: FiscalLine[] = [], options: { ca
         queries.push(q);
         if (options.fail?.(q, queries.length)) return Promise.resolve(resolve({ data: null, error: { code: "XX000", message: "fallo sintético" } }));
         const isLines = table.endsWith("_lineas");
-        let data: Record<string, unknown>[] = (isLines ? lines : headers) as unknown as Record<string, unknown>[];
+        const isExtra = Boolean(options.extraTables?.[table]);
+        let data: Record<string, unknown>[] = (isExtra ? options.extraTables![table]! : isLines ? lines : headers) as unknown as Record<string, unknown>[];
         data = data.filter(row => Object.entries(q.eq).every(([key, value]) => {
           if (key === "facturas_electronicas.tenant_id") return headers.some(h => h.id === row.factura_id && h.tenant_id === value);
+          if (key === "operaciones.tenant_id") return row.tenant_id === value;
           if (key === "emisor_snapshot->>cuit") return (row.emisor_snapshot as { cuit: string }).cuit === value;
           return (row[key] ?? (key === "estado" ? "AUTORIZADA" : key === "ambiente" ? "PRODUCCION" : undefined)) === value;
         }));
@@ -42,7 +53,7 @@ function database(headers: TestHeader[], lines: FiscalLine[] = [], options: { ca
         data = [...data].sort((a, b) => {
           for (const key of q.order) { const comparison = String(a[key]).localeCompare(String(b[key])); if (comparison) return comparison; }
           return 0;
-        }).slice(0, Math.min(q.limit, options.cap ?? 1000));
+        }).slice(0, Math.min(q.limit || 1000, options.cap ?? 1000));
         return Promise.resolve(resolve({ data, error: null }));
       },
     };
@@ -118,5 +129,30 @@ describe("repositorio fiscal", () => {
   it("detecta IDs duplicados y aborta", async () => {
     const db = database([fiscalTestHeader()], [], { duplicate: true });
     expect((await facturasReporteRepository.read(db.client, "tenant-a", fiscalTestFilters, fiscalTestCorte)).data).toBeNull();
+  });
+  it("carga categorías de productos y categorías de arreglo en batches aislados por tenant", async () => {
+    const db = database(
+      [fiscalTestHeader()],
+      [
+        fiscalTestLine({ id: fiscalTestId(101), origen: "VENTA", snapshot: { producto: { id: "prod-1" } } }),
+        fiscalTestLine({ id: fiscalTestId(102), origen: "SERVICIO", source_id: "det-1", snapshot: {} }),
+        fiscalTestLine({ id: fiscalTestId(103), origen: "AJUSTE", snapshot: { lineaOriginal: { producto: { id: "prod-2" } } } }),
+      ],
+      {
+        extraTables: {
+          productos: [
+            { id: "prod-1", tenant_id: "tenant-a", categorias: ["Lubricantes"] },
+            { id: "prod-2", tenant_id: "tenant-b", categorias: ["Otra"] },
+          ],
+          detalle_arreglo: [{ id: "det-1", tenant_id: "tenant-a", categoria_arreglo_id: "cat-1" }],
+          categorias_arreglo: [{ id: "cat-1", tenant_id: "tenant-a", nombre: "Service" }],
+        },
+      },
+    );
+    const result = await facturasReporteRepository.read(db.client, "tenant-a", fiscalTestFilters, fiscalTestCorte);
+    expect(result.error).toBeNull();
+    expect(result.data?.productCategories?.get("prod-1")).toEqual(["Lubricantes"]);
+    expect(result.data?.productCategories?.has("prod-2")).toBe(false);
+    expect(result.data?.arregloCategories?.get("det-1")).toBe("Service");
   });
 });

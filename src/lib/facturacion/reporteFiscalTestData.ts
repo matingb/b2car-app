@@ -17,6 +17,8 @@ export function fiscalTestHeader(overrides: Partial<FiscalHeader> = {}): FiscalH
   };
 }
 export function fiscalTestLine(overrides: Partial<FiscalLine> = {}): FiscalLine {
-  return { id: fiscalTestId(10000), factura_id: fiscalTestId(1), tratamiento_iva: "GRAVADO", iva_alicuota_id: 5, iva_alicuota: 21,
+  return { id: fiscalTestId(10000), factura_id: fiscalTestId(1), ordinal: 1, origen: "REPUESTO", source_id: null,
+    descripcion: "Repuesto de prueba", codigo: "REP-01", cantidad: 1, importe_unitario: 121, subtotal: 121,
+    tratamiento_iva: "GRAVADO", iva_alicuota_id: 5, iva_alicuota: 21,
     importe_neto: 100, importe_iva: 21, importe_total: 121, snapshot: {}, ...overrides };
 }

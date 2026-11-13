@@ -1,8 +1,7 @@
 import type { FiscalHeader, FiscalLine, FiscalSource } from "@/app/api/facturas/export/facturasReporteRepository";
 import { parseCalendarDate } from "@/lib/fechas";
-import { expandirLineasOriginales } from "./notaCreditoConceptos";
 import { CONDICIONES_IVA_RECEPTOR, TIPOS_DOCUMENTO_FISCAL, comprobanteLabel } from "./types";
-import { FISCAL_MONEY_KEYS, type FiscalAmounts, type FiscalScope, type FiscalReport, type FiscalRow, type FiscalSubtotal } from "./reporteFiscal";
+import { FISCAL_MONEY_KEYS, type FiscalAmounts, type FiscalLineRow, type FiscalScope, type FiscalReport, type FiscalRow, type FiscalSubtotal } from "./reporteFiscal";
 
 export function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -24,46 +23,95 @@ export function addFiscalCents(a: number, b: number) {
   return result;
 }
 
-type Concept = {
-  ordinal: number; descripcion: string; cantidad: number; subtotal: number;
-  tratamientoIva: string; ivaAlicuotaId: number | null; ivaAlicuota: unknown;
-  importeNeto: unknown; importeIva: unknown; totalFiscal: unknown;
-  snapshot?: Record<string, unknown>;
+type NormalizedFiscalLine = {
+  ordinal: number;
+  sourceId: string | null;
+  descripcion: string;
+  codigo: string;
+  cantidad: unknown;
+  importeUnitario: unknown;
+  tratamientoIva: string;
+  ivaAlicuotaId: number | null;
+  ivaAlicuota: unknown;
+  importeNeto: unknown;
+  importeIva: unknown;
+  importeTotal: unknown;
+  snapshot: Record<string, unknown>;
 };
-function concept(value: unknown): Concept | null {
-  const obj = record(value);
-  if (!["GRAVADO", "EXENTO", "NO_GRAVADO"].includes(text(obj.tratamientoIva))) return null;
-  if ([obj.importeNeto, obj.importeIva, obj.importeTotal].some(v => fiscalCents(v) === null)) return null;
-  if (obj.tratamientoIva === "GRAVADO" && (typeof obj.ivaAlicuotaId !== "number" || fiscalCents(obj.ivaAlicuota) === null)) return null;
-  return {
-    ordinal: 1, descripcion: "", cantidad: 1, subtotal: 0,
-    tratamientoIva: text(obj.tratamientoIva), ivaAlicuotaId: typeof obj.ivaAlicuotaId === "number" ? obj.ivaAlicuotaId : null,
-    ivaAlicuota: obj.ivaAlicuota, importeNeto: obj.importeNeto, importeIva: obj.importeIva, totalFiscal: obj.importeTotal,
-  };
-}
 
-function concepts(lines: FiscalLine[], observations: string[]): Concept[] | null {
-  if (!lines.length) { observations.push("Sin líneas fiscales verificables"); return null; }
-  const result: Concept[] = [];
-  for (const line of lines) {
-    const snapshot = record(line.snapshot);
-    if ("lineasOriginales" in snapshot || snapshot.detalleSimplificado === true) {
-      const originals = snapshot.lineasOriginales;
+function expandFiscalLines(lines: FiscalLine[]): { items: NormalizedFiscalLine[]; error?: string } {
+  const sorted = [...lines].sort((a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0));
+  const items: NormalizedFiscalLine[] = [];
+  for (const line of sorted) {
+    const snap = record(line.snapshot);
+    if ("lineasOriginales" in snap || snap.detalleSimplificado === true) {
+      const originals = snap.lineasOriginales;
       if (!Array.isArray(originals) || originals.length === 0) {
-        observations.push("Originales simplificados ausentes o inválidos"); return null;
+        return { items: [], error: "Originales simplificados ausentes o inválidos" };
       }
-      const parsed = originals.map(concept);
-      if (parsed.some(c => !c)) { observations.push("Originales simplificados con datos fiscales inválidos"); return null; }
-      // Expand only after validation; the presentation container never enters the sum.
-      result.push(...expandirLineasOriginales<Concept>([{ ...parsed[0]!, snapshot: { lineasOriginales: parsed } }]));
+      for (const orig of originals) {
+        const o = record(orig);
+        const trat = text(o.tratamientoIva ?? o.tratamiento_iva);
+        const ivaId = typeof o.ivaAlicuotaId === "number" ? o.ivaAlicuotaId : typeof o.iva_alicuota_id === "number" ? o.iva_alicuota_id : null;
+        const ivaAli = o.ivaAlicuota ?? o.iva_alicuota;
+        if (!["GRAVADO", "EXENTO", "NO_GRAVADO"].includes(trat)
+          || [o.importeNeto ?? o.importe_neto, o.importeIva ?? o.importe_iva, o.importeTotal ?? o.importe_total].some(v => fiscalCents(v) === null)
+          || (trat === "GRAVADO" && (typeof ivaId !== "number" || fiscalCents(ivaAli) === null))) {
+          return { items: [], error: "Originales simplificados con datos fiscales inválidos" };
+        }
+        items.push({
+          ordinal: typeof o.ordinal === "number" ? o.ordinal : 1,
+          sourceId: text(o.sourceId ?? o.source_id) || null,
+          descripcion: text(o.descripcion),
+          codigo: text(o.codigo),
+          cantidad: o.cantidad,
+          importeUnitario: o.importeUnitario ?? o.importe_unitario,
+          tratamientoIva: trat,
+          ivaAlicuotaId: ivaId,
+          ivaAlicuota: ivaAli,
+          importeNeto: o.importeNeto ?? o.importe_neto,
+          importeIva: o.importeIva ?? o.importe_iva,
+          importeTotal: o.importeTotal ?? o.importe_total,
+          snapshot: record(o.snapshot),
+        });
+      }
     } else {
-      const parsed = concept({ tratamientoIva: line.tratamiento_iva, ivaAlicuotaId: line.iva_alicuota_id,
-        ivaAlicuota: line.iva_alicuota, importeNeto: line.importe_neto, importeIva: line.importe_iva, importeTotal: line.importe_total });
-      if (!parsed) { observations.push("Línea con datos fiscales faltantes o inválidos"); return null; }
-      result.push(parsed);
+      items.push({
+        ordinal: line.ordinal ?? 1,
+        sourceId: line.source_id ?? null,
+        descripcion: text(line.descripcion),
+        codigo: text(line.codigo),
+        cantidad: line.cantidad,
+        importeUnitario: line.importe_unitario,
+        tratamientoIva: text(line.tratamiento_iva),
+        ivaAlicuotaId: typeof line.iva_alicuota_id === "number" ? line.iva_alicuota_id : null,
+        ivaAlicuota: line.iva_alicuota,
+        importeNeto: line.importe_neto,
+        importeIva: line.importe_iva,
+        importeTotal: line.importe_total,
+        snapshot: snap,
+      });
     }
   }
-  return result;
+  return { items };
+}
+
+function concepts(lines: FiscalLine[], observations: string[]): NormalizedFiscalLine[] | null {
+  if (!lines.length) { observations.push("Sin líneas fiscales verificables"); return null; }
+  const { items, error } = expandFiscalLines(lines);
+  if (error) { observations.push(error); return null; }
+  for (const line of items) {
+    if (!["GRAVADO", "EXENTO", "NO_GRAVADO"].includes(line.tratamientoIva)) {
+      observations.push("Línea con datos fiscales faltantes o inválidos"); return null;
+    }
+    if ([line.importeNeto, line.importeIva, line.importeTotal].some(v => fiscalCents(v) === null)) {
+      observations.push("Línea con datos fiscales faltantes o inválidos"); return null;
+    }
+    if (line.tratamientoIva === "GRAVADO" && (typeof line.ivaAlicuotaId !== "number" || fiscalCents(line.ivaAlicuota) === null)) {
+      observations.push("Línea con datos fiscales faltantes o inválidos"); return null;
+    }
+  }
+  return items;
 }
 
 function numberLabel(h: FiscalHeader) {
@@ -108,7 +156,7 @@ function fiscalRow(header: FiscalHeader, lines: FiscalLine[], associated: Map<st
       for (const line of detail) {
         const neto = fiscalCents(line.importeNeto)!;
         const iva = fiscalCents(line.importeIva)!;
-        const total = fiscalCents(line.totalFiscal)!;
+        const total = fiscalCents(line.importeTotal)!;
         compare(addFiscalCents(neto, iva), total, "total de línea");
         if (line.tratamientoIva === "GRAVADO") {
           if (line.ivaAlicuotaId === 5 && fiscalCents(line.ivaAlicuota) === 2100) {
@@ -196,11 +244,107 @@ function subtotal(rows: FiscalRow[], cuit = "Todos", clase = "Todas"): FiscalSub
   return { cuit, clase, cantidad: rows.length, amounts, missing, parciales: rows.filter(incompleteFiscalData).length };
 }
 
+function fiscalQuantity(value: unknown): number | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.round(parsed * 10000) / 10000;
+}
+
+function fiscalPercent(value: unknown): number | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  if (value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function resolveLineCategory(
+  sourceId: string | null,
+  snap: Record<string, unknown>,
+  productCategories?: Map<string, string[]>,
+  arregloCategories?: Map<string, string>,
+): string {
+  const lineaOriginal = record(snap.lineaOriginal);
+  const productId = text(record(snap.producto).id) || text(record(lineaOriginal.producto).id);
+  if (productId) {
+    const cats = productCategories?.get(productId);
+    if (cats && cats.length > 0) return cats.join(", ");
+  }
+  const candidates = [sourceId, text(snap.config_id), text(lineaOriginal.id), text(lineaOriginal.config_id)];
+  for (const key of candidates) {
+    if (key) {
+      const cat = arregloCategories?.get(key);
+      if (cat) return cat;
+    }
+  }
+  return "";
+}
+
+function buildFiscalLineRows(
+  entries: { header: FiscalHeader; row: FiscalRow; lines: FiscalLine[] }[],
+  productCategories?: Map<string, string[]>,
+  arregloCategories?: Map<string, string>,
+): FiscalLineRow[] {
+  const rows: FiscalLineRow[] = [];
+  for (const { header, row, lines } of entries) {
+    const sign = header.documento_tipo === "NOTA_CREDITO" ? -1 : 1;
+    const isC = header.clase_comprobante === "C";
+    const origen = header.origen_tipo === "ARREGLO" ? "Arreglo"
+      : header.origen_tipo === "VENTA" ? "Venta directa" : text(header.origen_tipo);
+
+    const { items } = expandFiscalLines(lines);
+    for (const item of items) {
+      const cantidad = fiscalQuantity(item.cantidad);
+      const netoCents = fiscalCents(item.importeNeto);
+      const ivaCents = fiscalCents(item.importeIva);
+      const totalCents = fiscalCents(item.importeTotal);
+      const precioUnitario = totalCents !== null && cantidad !== null && cantidad > 0
+        ? Math.round(totalCents / cantidad)
+        : fiscalCents(item.importeUnitario);
+
+      const tratamientoIva = isC ? "Sin IVA (C)"
+        : item.tratamientoIva === "GRAVADO" ? "Gravado"
+        : item.tratamientoIva === "EXENTO" ? "Exento"
+        : item.tratamientoIva === "NO_GRAVADO" ? "No gravado" : "";
+
+      const alicuotaIva = isC || item.tratamientoIva !== "GRAVADO" ? null : fiscalPercent(item.ivaAlicuota);
+      const signed = (cents: number | null) => cents === null ? null : cents === 0 ? 0 : sign * cents;
+
+      rows.push({
+        fecha: row.fecha,
+        numero: row.numero,
+        tipo: row.tipo,
+        cuitEmisor: row.cuitEmisor,
+        cliente: row.receptor,
+        documentoCliente: row.documentoNumero,
+        origen,
+        categoria: resolveLineCategory(item.sourceId, item.snapshot, productCategories, arregloCategories),
+        codigo: item.codigo,
+        producto: item.descripcion,
+        cantidad,
+        precioUnitario,
+        tratamientoIva,
+        netoBase: signed(netoCents),
+        alicuotaIva,
+        importeIva: isC ? 0 : signed(ivaCents),
+        importeTotal: signed(totalCents),
+      });
+    }
+  }
+  return rows;
+}
+
 export function buildFiscalReport(source: FiscalSource, tenantId: string, filters: FiscalScope, corte: string): FiscalReport {
   const lines = new Map<string, FiscalLine[]>();
   for (const line of source.lines) { const group = lines.get(line.factura_id) ?? []; group.push(line); lines.set(line.factura_id, group); }
   const associated = new Map(source.associated.map(h => [h.id, h]));
-  const rows = source.headers.map(h => fiscalRow(h, lines.get(h.id) ?? [], associated));
+  const entries = source.headers.map(h => ({
+    header: h,
+    lines: lines.get(h.id) ?? [],
+    row: fiscalRow(h, lines.get(h.id) ?? [], associated),
+  }));
+  const rows = entries.map(e => e.row);
+  const lineRows = buildFiscalLineRows(entries, source.productCategories, source.arregloCategories);
   const groups = new Map<string, FiscalRow[]>();
   const emisores = new Map<string, { cuit: string; razonSocial: string }>();
   for (const row of rows) {
@@ -209,7 +353,7 @@ export function buildFiscalReport(source: FiscalSource, tenantId: string, filter
     emisores.set(JSON.stringify([row.cuitEmisor, row.razonSocialEmisor]), { cuit: row.cuitEmisor, razonSocial: row.razonSocialEmisor });
   }
   return {
-    tenantId, filters, corte, rows,
+    tenantId, filters, corte, rows, lineRows,
     summary: { ...subtotal(rows), facturas: rows.filter(r => r.documento === "FACTURA").length,
       nc: rows.filter(r => r.documento === "NOTA_CREDITO").length, nd: rows.filter(r => r.documento === "NOTA_DEBITO").length,
       incompletos: rows.filter(incompleteFiscalData).length,

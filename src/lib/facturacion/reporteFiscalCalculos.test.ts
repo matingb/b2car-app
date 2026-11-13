@@ -137,5 +137,179 @@ describe("cálculos del reporte fiscal", () => {
     const report = testReport([], []);
     expect(report.summary).toMatchObject({ cantidad: 0, facturas: 0, nc: 0, nd: 0, incompletos: 0, emisores: [], subtotals: [] });
     for (const key of FISCAL_MONEY_KEYS) expect(report.summary.amounts[key]).toBe(0);
+    expect(report.lineRows).toEqual([]);
+  });
+  it("proyecta lineRows con categorías reales, simplificados expandidos, clase C, exentos y NC", () => {
+    const source: FiscalSource = {
+      headers: [
+        fiscalTestHeader({ id: fiscalTestId(1), origen_tipo: "VENTA", arreglo_id: null, operacion_id: "op-1" }),
+        fiscalTestHeader({
+          id: fiscalTestId(2),
+          clase_comprobante: "B",
+          tipo_comprobante: 6,
+          importe_neto_gravado: 150,
+          importe_iva: 31.5,
+          importe_exento: 50,
+          total: 231.5,
+        }),
+        fiscalTestHeader({ id: fiscalTestId(3), clase_comprobante: "C", tipo_comprobante: 11, importe_iva: 0, total: 100 }),
+        fiscalTestHeader({ id: fiscalTestId(4), documento_tipo: "NOTA_CREDITO", tipo_comprobante: 3, documento_asociado_id: fiscalTestId(1), total: 121 }),
+      ],
+      lines: [
+        fiscalTestLine({
+          id: fiscalTestId(101),
+          factura_id: fiscalTestId(1),
+          ordinal: 1,
+          origen: "VENTA",
+          codigo: "ACE-1",
+          descripcion: "Aceite 5W30",
+          cantidad: 2,
+          importe_unitario: 60.5,
+          importe_neto: 100,
+          importe_iva: 21,
+          importe_total: 121,
+          snapshot: { producto: { id: "prod-1" } },
+        }),
+        fiscalTestLine({
+          id: fiscalTestId(102),
+          factura_id: fiscalTestId(2),
+          ordinal: 1,
+          snapshot: {
+            detalleSimplificado: true,
+            lineasOriginales: [
+              {
+                ordinal: 1,
+                origen: "SERVICIO",
+                sourceId: "det-1",
+                descripcion: "Mano de obra",
+                cantidad: 1.5,
+                importeUnitario: 121,
+                tratamientoIva: "GRAVADO",
+                ivaAlicuotaId: 5,
+                ivaAlicuota: 21,
+                importeNeto: 150,
+                importeIva: 31.5,
+                importeTotal: 181.5,
+              },
+              {
+                ordinal: 2,
+                origen: "REPUESTO",
+                sourceId: "ol-1",
+                codigo: "EX-1",
+                descripcion: "Ítem exento sin categoría",
+                cantidad: 1,
+                importeUnitario: 50,
+                tratamientoIva: "EXENTO",
+                ivaAlicuota: 0,
+                importeNeto: 50,
+                importeIva: 0,
+                importeTotal: 50,
+                snapshot: { producto: { id: "prod-sin-cat" } },
+              },
+            ],
+          },
+        }),
+        fiscalTestLine({
+          id: fiscalTestId(103),
+          factura_id: fiscalTestId(3),
+          ordinal: 1,
+          origen: "SERVICIO",
+          source_id: "det-2",
+          descripcion: "Alineación",
+          cantidad: 1,
+          importe_unitario: 100,
+          tratamiento_iva: "GRAVADO",
+          iva_alicuota_id: null,
+          iva_alicuota: 0,
+          importe_neto: 100,
+          importe_iva: 0,
+          importe_total: 100,
+        }),
+        fiscalTestLine({
+          id: fiscalTestId(104),
+          factura_id: fiscalTestId(4),
+          ordinal: 1,
+          origen: "AJUSTE",
+          codigo: "ACE-1",
+          descripcion: "Aceite 5W30",
+          cantidad: 1,
+          importe_unitario: 121,
+          importe_neto: 100,
+          importe_iva: 21,
+          importe_total: 121,
+          snapshot: { lineaOriginal: { producto: { id: "prod-1" } } },
+        }),
+        fiscalTestLine({
+          id: fiscalTestId(105),
+          factura_id: fiscalTestId(4),
+          ordinal: 2,
+          origen: "AJUSTE",
+          codigo: null,
+          descripcion: "Bonificación",
+          cantidad: 1,
+          importe_unitario: 10,
+          importe_neto: 8.26,
+          importe_iva: 1.74,
+          importe_total: 10,
+          snapshot: { conceptoPropio: true },
+        }),
+      ],
+      associated: [fiscalTestHeader({ id: fiscalTestId(1) })],
+      productCategories: new Map([["prod-1", ["Lubricantes", "Filtros"]]]),
+      arregloCategories: new Map([["det-1", "Service"], ["det-2", "Frenos"]]),
+    };
+
+    const report = buildFiscalReport(source, "tenant-a", fiscalTestFilters, fiscalTestCorte);
+    expect(report.lineRows).toHaveLength(6);
+    expect(report.lineRows[0]).toMatchObject({
+      origen: "Venta directa",
+      categoria: "Lubricantes, Filtros",
+      codigo: "ACE-1",
+      cantidad: 2,
+      precioUnitario: 6050,
+      tratamientoIva: "Gravado",
+      alicuotaIva: 21,
+      importeTotal: 12100,
+    });
+    expect(report.lineRows[1]).toMatchObject({
+      origen: "Arreglo",
+      categoria: "Service",
+      cantidad: 1.5,
+      precioUnitario: 12100,
+      tratamientoIva: "Gravado",
+      importeTotal: 18150,
+    });
+    expect(report.lineRows[2]).toMatchObject({
+      origen: "Arreglo",
+      categoria: "",
+      tratamientoIva: "Exento",
+      alicuotaIva: null,
+      importeIva: 0,
+      importeTotal: 5000,
+    });
+    expect(report.lineRows[3]).toMatchObject({
+      categoria: "Frenos",
+      tratamientoIva: "Sin IVA (C)",
+      alicuotaIva: null,
+      importeIva: 0,
+      netoBase: 10000,
+      importeTotal: 10000,
+    });
+    expect(report.lineRows[4]).toMatchObject({
+      categoria: "Lubricantes, Filtros",
+      codigo: "ACE-1",
+      cantidad: 1,
+      precioUnitario: 12100,
+      netoBase: -10000,
+      importeIva: -2100,
+      importeTotal: -12100,
+    });
+    expect(report.lineRows[5]).toMatchObject({
+      categoria: "",
+      producto: "Bonificación",
+      netoBase: -826,
+      importeIva: -174,
+      importeTotal: -1000,
+    });
   });
 });

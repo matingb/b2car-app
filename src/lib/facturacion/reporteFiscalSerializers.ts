@@ -1,5 +1,5 @@
 import { buildMultiSheetWorkbook, writeWorkbookBuffer } from "@/lib/excel/excelExportBuilder";
-import { FISCAL_COLUMNS, FISCAL_MONEY_KEYS, type FiscalReport, type FiscalSubtotal } from "./reporteFiscal";
+import { FISCAL_COLUMNS, FISCAL_LINE_COLUMNS, FISCAL_MONEY_KEYS, type FiscalReport, type FiscalSubtotal } from "./reporteFiscal";
 
 /** Exact decimal text, including safe integers near the limit (no toFixed rounding). */
 export function fiscalDecimal(cents: number): string {
@@ -53,6 +53,10 @@ export function buildFiscalWorkbook(report: FiscalReport) {
     { concepto: "Desgloses incompletos", cantidad: summary.incompletos },
     subtotalRow("Total del detalle", summary),
     ...summary.subtotals.map(s => subtotalRow("Subtotal CUIT / clase", s)),
+    {
+      concepto: "Nota sobre Detalle de líneas",
+      detalle: "La suma de Importe total de Detalle de líneas puede diferir del total de Comprobantes cuando existan otros tributos de cabecera, comprobantes sin líneas guardadas o diferencias de redondeo en comprobantes incompletos.",
+    },
   ];
   const workbook = buildMultiSheetWorkbook<Record<string, unknown>>({ sheets: [
     {
@@ -77,6 +81,25 @@ export function buildFiscalWorkbook(report: FiscalReport) {
           return String(value ?? "");
         },
       })), rows: report.rows,
+    },
+    {
+      name: "Detalle de líneas", columns: FISCAL_LINE_COLUMNS.map(column => ({
+        key: column.key,
+        header: column.header,
+        width: column.key === "producto" ? 38 : column.key === "cliente" || column.key === "categoria" ? 28 : column.kind === "money" ? 18 : 20,
+        numFmt: column.kind === "money" ? "#,##0.00"
+          : column.kind === "date" ? "dd/mm/yyyy"
+          : column.kind === "number" ? "#,##0.####"
+          : column.kind === "percent" ? "0.##"
+          : "@",
+        value: row => {
+          const value = row[column.key];
+          if (column.kind === "money") return excelMoney(value as number | null);
+          if (column.kind === "date") return value ? new Date(`${value}T00:00:00.000Z`) : null;
+          if (column.kind === "number" || column.kind === "percent") return (value as number | null) ?? null;
+          return String(value ?? "");
+        },
+      })), rows: report.lineRows,
     },
   ] });
   for (const sheet of workbook.worksheets) {

@@ -85,6 +85,52 @@ export const FISCAL_COLUMNS: readonly FiscalColumn[] = [
   { key: "observaciones", header: "Observaciones", kind: "text" },
 ];
 
+export type FiscalLineRow = {
+  fecha: string;
+  numero: string;
+  tipo: string;
+  cuitEmisor: string;
+  cliente: string;
+  documentoCliente: string;
+  origen: string;
+  categoria: string;
+  codigo: string;
+  producto: string;
+  cantidad: number | null;
+  precioUnitario: number | null;
+  tratamientoIva: string;
+  netoBase: number | null;
+  alicuotaIva: number | null;
+  importeIva: number | null;
+  importeTotal: number | null;
+};
+
+export type FiscalLineColumn = {
+  key: keyof FiscalLineRow;
+  header: string;
+  kind: "text" | "date" | "money" | "number" | "percent";
+};
+
+export const FISCAL_LINE_COLUMNS: readonly FiscalLineColumn[] = [
+  { key: "fecha", header: "Fecha", kind: "date" },
+  { key: "numero", header: "Comprobante", kind: "text" },
+  { key: "tipo", header: "Tipo documento", kind: "text" },
+  { key: "cuitEmisor", header: "CUIT emisor", kind: "text" },
+  { key: "cliente", header: "Cliente", kind: "text" },
+  { key: "documentoCliente", header: "Documento cliente", kind: "text" },
+  { key: "origen", header: "Origen", kind: "text" },
+  { key: "categoria", header: "Categoría", kind: "text" },
+  { key: "codigo", header: "Código", kind: "text" },
+  { key: "producto", header: "Producto / Concepto", kind: "text" },
+  { key: "cantidad", header: "Cantidad", kind: "number" },
+  { key: "precioUnitario", header: "Precio unitario", kind: "money" },
+  { key: "tratamientoIva", header: "Tratamiento IVA", kind: "text" },
+  { key: "netoBase", header: "Neto / Base", kind: "money" },
+  { key: "alicuotaIva", header: "Alícuota IVA %", kind: "percent" },
+  { key: "importeIva", header: "Importe IVA", kind: "money" },
+  { key: "importeTotal", header: "Importe total", kind: "money" },
+];
+
 export type FiscalSubtotal = {
   cuit: string; clase: string; cantidad: number;
   amounts: FiscalAmounts; missing: Record<FiscalMoneyKey, number>;
@@ -92,6 +138,7 @@ export type FiscalSubtotal = {
 };
 export type FiscalReport = {
   tenantId: string; filters: FiscalScope; corte: string; rows: FiscalRow[];
+  lineRows: FiscalLineRow[];
   summary: FiscalSubtotal & {
     facturas: number; nc: number; nd: number; incompletos: number;
     emisores: { cuit: string; razonSocial: string }[]; subtotals: FiscalSubtotal[];
