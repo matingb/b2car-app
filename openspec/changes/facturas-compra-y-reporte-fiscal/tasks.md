@@ -1,57 +1,65 @@
 # Tasks
 
-Primera versión para revisión. Las tareas de implementación son una propuesta condicionada a las decisiones indicadas; no autorizan a elegir una alternativa pendiente por omisión. Completar los artefactos de planificación no marca estas tareas como implementadas.
+Plan revisado el 12/11/2026 con las definiciones del usuario. Las tareas siguen pendientes de implementación. No reabrir los acuerdos de design.md; resolver únicamente los aspectos que permanecen en D8 y verificar cada bloque con sus propios tests y documentación.
 
-**Dependencias:** la sección 1 cierra los pendientes aplicables del núcleo y actualiza sus contratos antes de las secciones 2 a 6. Persistencia precede a API; API y adjuntos preceden a sus integraciones UI; el reporte usa los contratos revisados. P-RET permanece diferido, con la idea de registrar retenciones al pagar una operación con factura asociada; no hay tareas de implementación de retenciones en este núcleo.
+**Dependencias:** cerrar el pendiente aplicable de la sección 1 antes del bloque que depende de él. Persistencia precede a API e imputaciones; los documentos de retención y su efecto financiero deben quedar coherentes antes de habilitarlos en UI. El reporte usa el contrato aprobado. No hay tareas de adjuntos ni borradores. GASTO conserva su alcance previo y requiere cerrar las particularidades de integración en P-ALC.
 
-## 1. Cerrar definiciones del núcleo antes de implementar
+## 1. Cerrar los detalles que siguen abiertos
 
-- [ ] 1.1 Resolver P-REL con casos de una compra/una factura, varios comprobantes y factura que agrupa operaciones; decidir carga independiente y tratamiento de diferencias. Verificar el cierre mediante ejemplos aprobados y una cardinalidad explícita en diseño y escenarios.
-- [ ] 1.2 Resolver P-ID para gastos sin proveedor, compras con proveedor opcional, receptor fiscal y alcance por taller. Verificar una matriz de campos obligatorios/precargas y ejemplos de factura vinculada a gasto sin proveedor comercial.
-- [ ] 1.3 Resolver P-CAT con muestras anonimizadas: tipos de documento, datos de autorización, IVA total o por alícuota y conceptos adicionales. Verificar un catálogo de carga explícito que no convierta retenciones pendientes ni crédito fiscal en campos implementados.
-- [ ] 1.4 Resolver P-CICLO: estados, duplicados, corrección/anulación y efecto del borrado de una operación con comprobante. Verificar escenarios aprobados de duplicado, corrección y borrado; si cambia el contrato de operaciones, incorporar su delta y coordinar la dependencia con ledgers.
-- [ ] 1.5 Resolver P-ARCH y P-UX sobre respaldo obligatorio/opcional, formatos, tamaño, cantidad, reemplazo, puntos de entrada, permisos y secuencia de guardado. Verificar una matriz de acceso y secuencias de éxito/fallo para operación, comprobante y archivo.
-- [ ] 1.6 Resolver P-REP con una muestra de reporte: columnas, fecha de emisión propuesta, estados, NC/ND, moneda y consistencia ante cambios concurrentes. Verificar el ejemplo conciliado y un mecanismo de extracción que cubra altas, cambios y bajas sin archivos parciales.
-- [ ] 1.7 Actualizar propuesta, specs, diseño y esta lista con las decisiones de 1.1 a 1.6, conservando P-RET como pendiente o definiéndolo en una revisión expresamente acordada. Verificar coherencia entre ejemplos, entidades, escenarios y tareas y ejecutar `openspec.cmd validate facturas-compra-y-reporte-fiscal --strict`.
+- [ ] 1.1 Resolver P-REL y P-ALC: relación de un documento con varias compras o sin operación, conciliación de sumas y particularidades de gastos, incluida la aplicación o no de retenciones a GASTO. Verificar con ejemplos aprobados, conservando varios documentos por compra y la carga de facturas en gastos del alcance previo.
+- [ ] 1.2 Resolver P-ID: campos fiscales configurables/obligatorios, receptor, compras y gastos sin proveedor y alcance por taller. Verificar una matriz de datos y precargas, sin reabrir la edición local e independencia histórica confirmadas.
+- [ ] 1.3 Resolver P-CAT: alícuotas admitidas, identificación/autorización informada, categorías/jurisdicciones y validaciones entre componentes y total. Verificar muestras A/B/C y conceptos fuera de las sugerencias, manteniendo IVA por alícuota y carga abierta.
+- [ ] 1.4 Resolver P-CICLO: duplicados, historial/estrategia de eliminación y efecto del borrado de la compra sobre documentos e imputaciones. Verificar escenarios aprobados de duplicación y borrado, manteniendo guardado directo, edición y eliminación sin borradores.
+- [ ] 1.5 Resolver el detalle de P-RET: carga independiente o junto al pago, factura previa, vínculos/distribución, parcialidades, límites, sobrecancelaciones, anulación de pagos y representación de pago efectivo frente a total cancelado. Verificar ejemplos de saldo y una matriz de transiciones; pago 115000 más retención 6000 ya está confirmado como cancelación de una compra de 121000.
+- [ ] 1.6 Resolver P-UX: permisos concretos y asignación inicial equivalente a ventas, secuencia de guardado/reintento y acceso en compras automáticas desde arreglos. Verificar matriz por rol/plan y secuencias de éxito/fallo para compra, documento e imputación, sin adjuntos.
+- [ ] 1.7 Resolver P-REP con una muestra basada en columnas de ventas: identificación del proveedor, IVA por alícuota, conceptos abiertos, presentación de retenciones, formatos, fechas y moneda. Verificar conciliación de la muestra y elegir extracción consistente frente a altas, cambios y bajas.
+- [ ] 1.8 Actualizar los artefactos con los cierres de 1.1 a 1.7 y coordinar la ampliación del estado/saldo de compras con el contrato vigente de ledgers, sin reescribir su historia. Verificar coherencia de ejemplos, pendientes y dependencias con validación estricta de OpenSpec.
 
-## 2. Persistencia y acceso del modelo revisado
+## 2. Persistencia, datos fiscales y acceso
 
-- [ ] 2.1 Crear las migraciones del modelo elegido para cabecera, vínculos, importes y trazabilidad, sin editar el esquema declarativo manualmente. Verificar en una DB local desechable autorizada las relaciones permitidas, integridad monetaria y los ejemplos de P-REL/P-ID/P-CAT.
-- [ ] 2.2 Incorporar grants mínimos, RLS, validación de pertenencia de relaciones e índices para vínculos y selección del reporte. Verificar pruebas SQL/integración de aislamiento entre tenants, acceso sin permiso y acceso autorizado, incluyendo hijos y relaciones.
-- [ ] 2.3 Implementar la política acordada de unicidad y ciclo de corrección/borrado. Verificar sus casos de concurrencia y vínculo a operaciones sin pérdida o alteración implícita de evidencia; documentar restricciones y política elegidas en `docs/comprobantes-recibidos.md`.
+- [ ] 2.1 Crear migraciones aditivas de datos fiscales de proveedores y documentos separados de facturas_electronicas, con tipos FACTURA/RETENCION y detalle según el tipo. Verificar en DB local desechable autorizada A/B/C, IVA por alícuota, conceptos abiertos y ausencia de campos obligatorios de factura en retenciones; no editar el esquema declarativo manualmente.
+- [ ] 2.2 Implementar la relación elegida que admita varios documentos por compra y la política de identidad/duplicados/ciclo. Verificar dos facturas de 60500 para una compra de 121000 y los casos de P-REL/P-CICLO; documentar el modelo en docs/comprobantes-recibidos.md.
+- [ ] 2.3 Incorporar RLS, grants mínimos, validaciones de pertenencia e índices para cabeceras, detalles, vínculos e imputaciones. Verificar aislamiento entre tenants y acceso por permisos con pruebas SQL/integración.
+- [ ] 2.4 Crear la persistencia de imputaciones de retención conforme a P-RET, con trazabilidad y garantías de integridad/concurrencia. Verificar alta, modificación, eliminación y reintento sin doble cancelación; documentar las invariantes financieras.
 
-## 3. API de comprobantes y asociación operativa
+## 3. API de proveedores y documentos
 
-- [ ] 3.1 Implementar repositorio y servicio de carga/consulta con contratos tipados, snapshots y conservación de importes informados. Verificar tests de repositorio/servicio para IVA total sin alícuotas, cero frente a ausencia, cambios de ficha y datos inválidos; documentar campos admitidos.
-- [ ] 3.2 Implementar rutas de alta, consulta y acciones de ciclo acordadas, con validación y permisos de P-UX. Verificar tests de rutas para sesión, errores de validación, duplicado, tenant y permisos; documentar respuestas y códigos de error.
-- [ ] 3.3 Integrar asociación y consulta desde compras y gastos sin reejecutar su creación. Verificar con pruebas de integración que una compra por 121000 con pago 60000 y stock recibido conserva esos valores al asociar su factura, y cubrir discrepancia de montos y gasto sin proveedor.
-- [ ] 3.4 Implementar la secuencia de guardado y reintento acordada en P-UX. Verificar fallo después de crear la operación y reintento sin duplicar operación, vínculo, pago ni stock; documentar el resultado recuperable para el consumidor.
+- [ ] 3.1 Ampliar el contrato de configuración fiscal del proveedor y su edición con las capas existentes. Verificar tests de validación, campos opcionales/requeridos y permisos, y documentar los campos que precarga el formulario.
+- [ ] 3.2 Implementar repositorio y servicio de documentos con copias históricas editables, A/B/C, IVA por alícuota y conceptos abiertos. Verificar que modificar la precarga no cambia al proveedor y cambiar su ficha no reescribe documentos; cubrir importes y conceptos no sugeridos.
+- [ ] 3.3 Implementar rutas de alta, consulta, edición y eliminación, con guardado directo y permisos. Verificar sesión, validaciones, duplicados, acceso de solo consulta y tenant; documentar contratos y errores sin ciclo de borradores ni adjuntos.
+- [ ] 3.4 Integrar la asociación inicial/posterior sin recrear operaciones y con recuperación de fallos según P-UX. Verificar una compra de 121000 con pago 60000 y stock recibido, un gasto sin proveedor y un reintento después de fallar el documento sin duplicar operación, pagos ni inventario.
 
-## 4. Respaldos documentales
+## 4. Retenciones y cancelación de deuda
 
-- [ ] 4.1 Implementar almacenamiento privado y metadatos de adjuntos según P-ARCH, con permisos de carga/lectura/reemplazo acordados. Verificar archivos admitidos y rechazados y pruebas de acceso directo a un archivo de otro tenant; documentar límites y comportamiento.
-- [ ] 4.2 Implementar la coordinación entre archivo y comprobante y la recuperación de fallos parciales. Verificar fallos de subida y de persistencia sin éxito aparente ni duplicación al reintentar; cubrir reemplazo y conservación según el ciclo elegido.
+- [ ] 4.1 Implementar el registro manual de RETENCION y su imputación conforme al flujo aprobado, reutilizando la cabecera documental y detalle propio. Verificar que no requiere completar una factura A/B/C ni se genera automáticamente desde IVA o conceptos libres; documentar su vínculo con compra/pago/factura.
+- [ ] 4.2 Ampliar saldo y estado de pago de compras para contemplar pagos efectivos más retenciones vigentes imputadas, sin alterar el monto pactado ni el total de factura. Verificar compra 121000, pago 115000 y retención 6000 con saldo 0 y estado saldado, sin otro movimiento de caja, cuenta o stock.
+- [ ] 4.3 Implementar corrección y eliminación atómicas de retención e imputación. Verificar que corregir 6000 a 5000 deja saldo 1000 y eliminar la retención original deja saldo 6000, conservando pago 115000; cubrir fallos intermedios y reintentos.
+- [ ] 4.4 Adaptar cuenta corriente del proveedor, resúmenes, consultas y validación de pagos posteriores a la regla de cancelación. Verificar compra 121000 con pago 100000 y retención 6000 con saldo utilizable de 15000 en todos los consumidores, diferenciando efectivo de cancelado según el contrato acordado.
+- [ ] 4.5 Aplicar políticas aprobadas de límites, parcialidades, concurrencia y anulación de pagos/retenciones. Verificar solicitudes repetidas y competidoras sin duplicar documentos o cancelaciones ni producir una salida de caja ficticia; documentar cómo se recuperan errores.
 
-## 5. Carga y consulta en UI
+## 5. Gestión en Documentos y compras
 
-- [ ] 5.1 Implementar el formulario manual y acceso desde compras y gastos usando los componentes y formatos existentes. Verificar pruebas de interacción de identidad fiscal, importes informados, adjuntos y errores, incluyendo operación sin factura y comprobante sin desglose de alícuotas.
-- [ ] 5.2 Incorporar consulta/asociación posterior desde el detalle y revisar los puntos de entrada de gastos manuales y compras automáticas desde arreglos conforme a P-UX. Verificar que los flujos incluidos llegan al mismo comprobante sin volver a pagar ni mover stock y que los flujos excluidos quedan explícitamente documentados.
-- [ ] 5.3 Aplicar la matriz de permisos de carga/consulta/corrección y mostrar fallos recuperables del guardado. Verificar pruebas de usuario de solo consulta, usuario autorizado y error de asociación; actualizar `docs/comprobantes-recibidos.md` con el flujo aprobado.
+- [ ] 5.1 Ampliar la ficha de proveedor y el formulario manual de documentos con precarga editable, A/B/C, IVA por alícuota y conceptos agregables. Verificar interacciones con proveedor presente/ausente y descripción libre, y guardado directo sin adjuntos ni borradores.
+- [ ] 5.2 Permitir factura opcional durante la creación de compra, alta posterior y edición/eliminación desde el detalle; adaptar los puntos de alta de gastos. Verificar varios documentos independientes, gasto sin proveedor y recuperación de fallos; cubrir compras automáticas según P-UX y documentar el flujo.
+- [ ] 5.3 Integrar documentos de compra y retenciones en listado, filtros, detalle y documentos asociados existentes. Verificar distinción entre emitidos/recibidos y tipos, sin exponer tablas ni exigir ambiente/certificados de emisión para recibidos; mantener facturas emitidas y remitos.
+- [ ] 5.4 Aplicar permisos de consulta/gestión con asignación inicial equivalente a ventas y mostrar saldo/estado correctos tras gestionar retenciones. Verificar usuarios con/sin permiso y correcciones que reabren saldo, y actualizar docs/comprobantes-recibidos.md.
 
-## 6. Reporte fiscal de compras
+## 6. Reporte de compras
 
-- [ ] 6.1 Implementar la selección del universo revisado por tenant, período y estados con lectura consistente y paginación completa. Verificar pruebas para fechas distintas de compra/carga/pago, 1205 comprobantes, modificaciones concurrentes y fallo intermedio sin archivo parcial; documentar criterio temporal y de selección.
-- [ ] 6.2 Implementar filas y resumen desde datos del comprobante, agregando componentes antes de unir relaciones. Verificar una fila con varios pagos/adjuntos, suma neto 300000 + IVA 63000 = total 363000 en el ejemplo acordado, desconocidos parciales y ausencia de retenciones ficticias; cubrir NC/ND o monedas distintas solo si se aprobaron.
-- [ ] 6.3 Implementar CSV/XLSX compartiendo filas y utilidades compatibles. Verificar archivos sintéticos de ambos formatos con los mismos valores, identificadores como texto, protección de fórmulas, detalle filtrable, resumen conciliado y período vacío; documentar el contrato final de columnas.
-- [ ] 6.4 Incorporar endpoint y entrada UI de exportación según P-UX/P-REP. Verificar autorización, caché privada, filtros inválidos y flujo de descarga, además de regresiones del reporte de ventas que confirmen su contrato de 24 columnas y exclusión de recibidos.
+- [ ] 6.1 Implementar selección por tenant, período/criterio acordado y documentos vigentes, con lectura consistente y paginación completa. Verificar 1205 facturas, fechas distintas de compra/carga/pago y correcciones/eliminaciones concurrentes sin archivos parciales; documentar el criterio final.
+- [ ] 6.2 Implementar filas por factura y totales desde los documentos, adaptando las columnas de ventas para proveedor, IVA por alícuota y conceptos abiertos. Verificar dos facturas de la misma compra, múltiples pagos/componentes y el ejemplo neto 300000 + IVA 63000 = total 363000, sin multiplicación por relaciones.
+- [ ] 6.3 Implementar la representación de retenciones aprobada en P-REP/P-RET y los formatos confirmados, reutilizando utilidades compatibles. Verificar compra saldada con retención que conserva total facturado 121000, retenciones contadas una sola vez, identificación de conceptos libres, moneda y valores desconocidos; si se confirman CSV/XLSX, conciliar ambos.
+- [ ] 6.4 Incorporar endpoint y entrada UI de exportación con el permiso acordado. Verificar autorización, caché privada, filtros inválidos, período vacío, identificadores como texto y protección de fórmulas; documentar columnas y comprobar la regresión del reporte de ventas de 24 columnas.
 
-## 7. Verificación transversal del alcance revisado
+## 7. Verificación transversal
 
-- [ ] 7.1 Ejecutar el flujo completo en entorno local autorizado con datos ficticios: compra y gasto, carga de factura/respaldo, pago parcial existente, consulta y descarga. Verificar conciliación del archivo con la fuente y que saldos y stock no cambien por la asociación; registrar evidencias y limitaciones reales.
-- [ ] 7.2 Ejecutar los tests afectados, typecheck, lint focalizado, `git diff --check` y validación estricta de OpenSpec tras los cambios. Verificar resultados y revisar que cada escenario del alcance aprobado tenga evidencia, dejando explícito que P-RET continúa diferido.
+- [ ] 7.1 Ejecutar el flujo completo local autorizado con datos ficticios: configurar proveedor, crear compra con/sin factura y gasto con factura, agregar otra factura, registrar pago/retención y editar/eliminar documentos. Verificar saldo en compra y cuenta corriente, conservación de caja/stock y conciliación del reporte, según los contratos de integración acordados.
+- [ ] 7.2 Ejecutar tests afectados, typecheck, lint focalizado, git diff --check y validación estricta de OpenSpec tras implementar. Verificar evidencia por escenario y documentar límites, sin marcar como implementados los pendientes que sigan abiertos.
 
 ## Workflow follow-up
 
-- Revisar esta primera versión antes de solicitar implementación con `openspec-apply-change`.
-- Retomar P-RET cuando se defina la gestión de retenciones: la idea de cargarlas al pagar una operación con factura asociada sigue siendo una hipótesis. Resolver constancias, pagos parciales, anulación, saldo y período del reporte antes de agregar tareas de implementación.
-- Archivar únicamente el alcance implementado y verificado, conservando trazable el pendiente de retenciones si sigue diferido.
+- Cerrar las definiciones aplicables antes de implementar con openspec-apply-change.
+- Las retenciones y su cancelación de deuda ya forman parte del alcance; no tratarlas como un bloque íntegramente diferido.
+- La carga de retención independiente del pago sigue sin confirmar; no implementarla por aceptación implícita.
+- No implementar adjuntos, borradores, NC/ND de compra ni comprobantes especiales dentro de este cambio.
+- Archivar únicamente el alcance implementado y verificado.

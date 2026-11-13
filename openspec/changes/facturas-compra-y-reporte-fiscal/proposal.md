@@ -2,36 +2,37 @@
 
 ## Why
 
-Los clientes necesitan cargar comprobantes de sus proveedores vinculados a compras o gastos y obtener un reporte fiscal de compras comparable en utilidad al de ventas. Hoy B2Car registra esas operaciones, pero su facturación electrónica y su reporte fiscal están orientados a comprobantes emitidos desde arreglos y ventas.
+Los clientes necesitan registrar documentos de sus proveedores asociados a compras y gastos y obtener un reporte fiscal comparable al de ventas. También necesitan que las retenciones de compras registradas como documentos separados cancelen deuda junto con los pagos.
 
-Esta es una **primera versión para revisión**, basada en la exploración con el usuario. Distingue el objetivo acordado de las decisiones técnicas propuestas y de los pendientes que deben resolverse antes de implementar cada bloque.
+Revisión del 12/11/2026 con las definiciones confirmadas por el usuario. Los detalles que siguen abiertos se identifican en `design.md`; registrar estos acuerdos no implica haber implementado las tareas.
 
 ## What Changes
 
-- Permitir registrar manualmente los datos de una factura de compra y vincularla a una operación `COMPRA` o `GASTO`, contemplando su respaldo documental. La cardinalidad, obligatoriedad del archivo y ubicación definitiva de la carga siguen pendientes.
-- Conservar la identificación fiscal del comprobante, las partes y los importes informados: netos, IVA, otros conceptos efectivamente cargados y total. El alcance no incluye determinar crédito fiscal computable, deducibilidad ni calcular qué impuestos corresponde aplicar.
-- Incorporar un reporte fiscal de compras por período, con detalle y sumas reproducibles de los importes registrados. Se propone CSV/XLSX para control del contador; columnas, criterio temporal y tipos adicionales de comprobante requieren revisión.
-- Proponer una entidad de comprobantes recibidos separada de `facturas_electronicas`, compartiendo utilidades compatibles de exportación y representación monetaria. Es una recomendación técnica de esta versión, no una decisión de negocio confirmada.
-- Conservar independientes el comprobante, la operación, sus pagos y su stock: asociar una factura a una operación existente no vuelve a registrar la compra ni genera impactos financieros o de inventario.
-- **Retenciones: pendiente de definición.** La primera idea del usuario es permitir registrar retenciones al pagar una operación que tenga una factura asociada. Es una hipótesis; este borrador no define ni habilita su persistencia, imputación, efecto en saldos o incorporación efectiva al reporte. El objetivo de totalizar retenciones cargadas queda sujeto a esa definición.
-- Mantener como candidatos por validar las retenciones de Ganancias, IVA e IIBB y las percepciones de IVA e IIBB. El IVA facturado y una retención de IVA son conceptos distintos; la mención del cliente a Ganancias no confirma un catálogo completo ni un régimen aplicable.
+- Admitir varios documentos por operación de compra. La carga de facturas será opcional al crear la compra y también posterior; los documentos podrán editarse y eliminarse, sin borradores.
+- Configurar datos fiscales en proveedores, precargarlos cuando la compra tenga proveedor y permitir modificarlos en cada documento, conservando su identidad histórica.
+- Comenzar con facturas normales A, B y C, IVA por alícuota y conceptos adicionales de carga manual abierta. Ofrecer sugerencias de percepciones y tributos comunes, como IIBB Buenos Aires/CABA, Ganancias e impuestos internos, sin cerrar el catálogo ni calcular su aplicabilidad.
+- Registrar retenciones que no figuren en la factura como otro tipo de documento del mismo circuito. **Pago y retención cancelan juntos la deuda:** compra 121000, pago 115000 y retención 6000 dejan saldo cero. La retención no representa otra salida de caja.
+- Mantener independiente la carga de facturas: no crea otra compra, deuda, pago ni movimiento de stock. El efecto cancelatorio corresponde al documento de retención y debe ajustarse al editarlo o eliminarlo.
+- Usar persistencia separada de `facturas_electronicas`, integrada de forma transparente en **Documentos**, con campos comunes y detalle según el tipo. No incluir carga de archivos, fotos ni adjuntos.
+- Incorporar un reporte de compras con una primera versión de columnas similares a ventas, adaptadas a proveedor, IVA por alícuota y conceptos registrados. Se mantienen CSV/XLSX como propuesta; el contrato exacto, las fechas y la presentación de retenciones requieren cierre.
+- Asociar permisos al circuito, con acceso inicial equivalente al de facturación de ventas. Conservar `GASTO` en el alcance acordado del borrador anterior; sus particularidades de proveedor, puntos de entrada y eventual aplicación de retenciones siguen en P-ALC.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `comprobantes-recibidos`: registro de comprobantes de proveedores, identificación histórica, importes, vinculación con compras/gastos y respaldo documental, con independencia de sus impactos operativos.
+- `comprobantes-recibidos`: gestión de documentos de compras y gastos, datos fiscales de proveedor, facturas A/B/C, IVA por alícuota, conceptos abiertos y retenciones de compras con cancelación de deuda, integrada en Documentos.
 - `reportes-fiscales-compras`: selección, detalle y totalización de comprobantes recibidos para control fiscal, preservando procedencia, integridad y separación por concepto.
 
 ### Modified Capabilities
 
-Ninguna. No hay capacidades publicadas en `openspec/specs/`. Se toma como contexto el contrato de `b2c-224-reportes-fiscales-ventas` y `rediseno-operaciones-ledgers`, sin modificar sus artefactos ni ampliar silenciosamente sus universos.
+Ninguna publicada: el inventario `openspec/specs/` está vacío. Este cambio conserva el contrato de ventas y amplía para compras la cancelación de deuda descrita en `rediseno-operaciones-ledgers`: el saldo y el estado deberán considerar pagos más retenciones vigentes. Esa ampliación se especifica en `comprobantes-recibidos` y debe coordinarse antes de implementar, sin reescribir los artefactos históricos del otro cambio.
 
 ## Impact
 
-- **DB:** futuras migraciones para comprobantes recibidos, relaciones, detalle fiscal y adjuntos según las decisiones de `design.md`; RLS, grants y restricciones de pertenencia al tenant. El esquema declarativo observado está en `supabase/database/schemas/` y no se editará manualmente.
-- **API:** nuevo módulo por capas; integración de lectura/carga con operaciones y gastos. El gasto actual carece de proveedor en su tabla específica y el servicio lo descarta al crearlo: hay que acordar cómo identificar al emisor sin asumir que esa relación ya existe.
-- **UI y clientes:** entrada de carga desde compras y gastos, consulta del comprobante y acceso al reporte; revisar ambos flujos de gasto y las compras automáticas desde arreglos.
-- **Exportación:** aprovechar constructores y utilidades de CSV/XLSX, conservando el contrato del reporte de ventas. Sus columnas de receptor, alcance al 21% y filtro por ambiente de emisión no se trasladan automáticamente a compras.
-- **Pendientes:** `design.md` identifica decisiones sobre retenciones, cardinalidad, identidad, catálogo, ciclo de corrección/borrado, adjuntos, reporte y permisos. `tasks.md` comienza por resolver las que afectan al bloque que se vaya a implementar.
-- **Fuera del núcleo propuesto:** emisión o autorización ante ARCA, OCR/importaciones automáticas, archivos de presentación ante ARCA y cálculo tributario. La gestión de retenciones permanece diferida y requiere revisar los artefactos antes de incorporarse.
+- **Datos:** tablas propias de documentos y detalle; ampliación fiscal de proveedores, vínculos e imputación de retenciones, con RLS y grants mínimos. Futuras migraciones sin editar manualmente `supabase/database/schemas/`.
+- **API/UI:** carga, consulta, edición y eliminación; integración con creación/detalle de compra, gastos y listado unificado de Documentos. Revisar compras automáticas desde arreglos y ambos puntos de alta de gastos.
+- **Finanzas:** saldo, estado de pago, cuenta corriente del proveedor y validación de pagos posteriores deben reconocer las retenciones una sola vez, sin alterar saldos de cuentas ni stock.
+- **Exportación:** reutilización selectiva de utilidades y columnas de ventas; su desglose limitado al 21%, receptor y ambiente de emisión no se copian sin adaptación.
+- **Pendientes:** relación inversa entre documentos y compras, campos obligatorios, conciliación, duplicados/borrado de compra, detalle de imputación de retenciones, particularidades de gastos y contrato final del reporte. La carga de retenciones independiente de un pago fue recomendada, pero todavía no fue confirmada.
+- **Fuera del alcance inicial:** adjuntos/fotos, borradores, NC/ND de compras y comprobantes especiales, emisión o verificación ante ARCA, OCR/importación, formatos de presentación y cálculo tributario o de crédito fiscal.

@@ -2,179 +2,184 @@
 
 ## Context
 
-Ver [proposal.md](proposal.md) para la motivación y las specs de [comprobantes recibidos](specs/comprobantes-recibidos/spec.md) y [reporte de compras](specs/reportes-fiscales-compras/spec.md) para el contrato propuesto.
+Ver [proposal.md](proposal.md) para el alcance y las specs de [comprobantes recibidos](specs/comprobantes-recibidos/spec.md) y [reporte de compras](specs/reportes-fiscales-compras/spec.md) para los comportamientos.
 
-Esta versión captura lo conversado; **no es un diseño cerrado para implementar sin revisar sus pendientes**. Por pedido del usuario, las decisiones materiales abiertas se conservan identificadas y enlazadas con tareas de definición. La existencia de todos los artefactos no equivale a haber resuelto esas decisiones.
+Revisión del 12/11/2026: registra las ocho definiciones del usuario, la elección de persistencia separada y la confirmación de que pago más retención cancelan la deuda. La propuesta posterior de cargar retenciones independientemente del pago todavía no tiene respuesta; no se convierte en acuerdo.
 
 ### Evidencia del checkout
 
-Relevamiento estático del 10/11/2026. Se inspeccionaron código, pruebas próximas, configuración y esquema declarativo local; no se contrastó el esquema desplegado ni se operó sobre datos fiscales reales.
+El relevamiento inicial del 10/11/2026 fue estático, sin consultar el esquema desplegado ni datos fiscales reales. La revisión de código del 12/11 agrega estos puntos relevantes:
 
-| Fuente | Observación relevante |
+| Fuente | Restricción o integración |
 | --- | --- |
-| `supabase/database/schemas/public/tables/facturas_electronicas.sql` | Orígenes restringidos a `ARREGLO` y `VENTA`; estados de emisión; moneda PES; numeración única por emisor y ambiente; una factura por operación/ambiente; snapshots y protección de autorizados. `origen_externo` no habilita un origen de compra. |
-| `supabase/database/schemas/public/tables/facturas_electronicas_lineas.sql` | Detalle fiscal unido a líneas de emisión y orígenes comerciales de ventas/arreglos. |
-| `supabase/database/schemas/public/tables/operaciones_compra.sql` | Proveedor opcional; no datos del comprobante recibido. |
-| `supabase/database/schemas/public/tables/operaciones_gasto.sql` | Categoría y descripción; sin proveedor. |
-| `src/app/api/operaciones/operacionesService.ts` | El alta de gasto fuerza `p_proveedor_id` a `null`; no basta con agregar un selector de proveedor en la UI. |
-| `src/app/api/gastos/route.ts` | Existe otro punto de alta de gastos por movimientos manuales; comparte el universo de operaciones GASTO. |
-| `src/app/api/operaciones/[id]/documentos/route.ts`, `src/lib/documentos/documentosService.ts` | Los documentos asociados actuales se consultan como documentos de una venta o arreglo, con ambiente de emisión. |
-| `src/lib/facturacion/reporteFiscal.ts`, `reporteFiscalCalculos.ts` | Contrato de ventas de 24 columnas, desglose limitado al 21%, importes en centavos y tratamiento de desconocidos. |
-| `src/app/api/facturas/export/facturasReporteRepository.ts`, `facturasReporteService.ts` y sus tests | Lectura por tenant, autorizadas y ambiente; extracción paginada, servicio inyectable y rechazo de generación parcial. |
-| `src/lib/excel/excelExportBuilder.ts`, `package.json` | Ya hay utilidades de exportación y ExcelJS. |
-| `openspec/changes/rediseno-operaciones-ledgers/specs/operaciones/spec.md` | Se conserva el borrado físico de operaciones para corregir ítems. Hay que resolver expresamente su interacción con los comprobantes recibidos. |
+| supabase/database/schemas/public/tables/facturas_electronicas.sql | Modelo de emisión orientado a VENTA/ARREGLO, con estados, ambiente y autorización; no reutilizarlo para recepción. |
+| src/app/api/proveedores/proveedorRepository.ts y ProveedorModal.tsx | Proveedor ya tiene nombre, CUIT y dirección; el conjunto fiscal configurable debe ampliarse y concretarse. |
+| src/lib/documentos/types.ts y documentosService.ts | Documentos ya combina facturas emitidas y remitos de fuentes distintas; sus tipos y filtros deben admitir compras y retenciones. |
+| src/app/api/operaciones/[id]/documentos/route.ts | La asociación actual trata el origen como VENTA y usa el ambiente de emisión. |
+| src/app/api/operaciones/operacionesService.ts y src/app/api/gastos/route.ts | El alta de gasto descarta el proveedor y existe otro punto de creación manual; ambos requieren integración explícita. |
+| src/lib/permissions.ts y src/lib/facturacion/serverAuth.ts | Existen permisos de ver/editar facturación y control efectivo por rol/plan. |
+| src/lib/facturacion/reporteFiscal.ts | Reporte de ventas de 24 columnas, con base e IVA específicos al 21%; requiere adaptación para compras. |
+| src/app/api/proveedores/proveedorRepository.ts | Saldo y cuenta corriente consumen total pagado de operaciones; no basta actualizar solo la pantalla de compra. |
+| Cambio rediseno-operaciones-ledgers, spec operaciones-impacto-financiero | Total pagado y estado se derivan de impactos de cuenta. La retención amplía la cancelación de deuda sin ser otro impacto de caja. |
+| Cambio rediseno-operaciones-ledgers, spec operaciones | Se permite borrar físicamente operaciones; su interacción con documentos sigue pendiente. |
 
-El inventario principal de specs está vacío. Los cambios de ventas y ledgers se usan como contexto de compatibilidad, sin editar sus artefactos en esta propuesta. Las rutas de esquema de algunos documentos anteriores apuntan a `supabase/schemas/`; el checkout revisado las contiene bajo `supabase/database/schemas/`.
+No hay capacidades publicadas en openspec/specs/. Los artefactos de ventas y ledgers se conservan como contexto histórico; este cambio especifica su ampliación para compras sin reescribirlos.
 
-### Estado de los acuerdos
+### Acuerdos confirmados
 
-- **Confirmado:** cargar facturas de proveedores en el contexto de compras/gastos y obtener un reporte que muestre y totalice importes informados. Determinar crédito fiscal, deducibilidad y tributos aplicables queda fuera del análisis.
-- **Confirmado como pendiente:** gestión de retenciones. Primera idea del usuario: cargarlas al registrar un pago de una operación que tenga factura asociada. No se acordó su modelo ni su efecto en saldos o reporte.
-- **Propuesto para revisión:** entidad separada de comprobantes recibidos, carga manual, snapshots de identidad, respaldo documental privado y reporte CSV/XLSX por fecha de emisión.
-- **Sin confirmar:** cardinalidad, facturas independientes, catálogo completo, estados, correcciones, adjuntos obligatorios, moneda, NC/ND, columnas y permisos concretos.
+| Tema | Definición |
+| --- | --- |
+| Asociación | Una compra admite varios documentos; factura opcional durante la creación o posteriormente. |
+| Alcance previo | Se conserva la carga de facturas en compras y gastos; las nuevas definiciones detallan especialmente COMPRA. |
+| Proveedor | Datos fiscales configurables, precarga desde el proveedor asociado y modificación en cada documento. |
+| Facturas | Facturas normales A/B/C; IVA por alícuota. NC/ND y otros comprobantes especiales quedan fuera de esta versión. |
+| Conceptos adicionales | Carga manual abierta con sugerencias comunes de IIBB Buenos Aires/CABA, Ganancias e impuestos internos. |
+| Ciclo | Formulario que se guarda directamente, sin borradores; documentos editables y eliminables. |
+| Archivos | Sin subida de archivos, fotos ni adjuntos. P-ARCH queda resuelto y fuera del alcance. |
+| Presentación y acceso | Gestión transparente como Documentos, con permisos y acceso inicial equivalente a facturación de ventas. |
+| Reporte | Primera versión con columnas similares al reporte de ventas; adaptación concreta pendiente. |
+| Retenciones | Otro tipo de documento del mismo circuito; pago más retención cancelan deuda. |
+| Persistencia | Tablas separadas de facturación electrónica, con estructura común y detalle por tipo. |
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Separar persistencia del comprobante, vínculo operativo y representación del reporte.
-- Reutilizar utilidades compatibles, conservando independientes los contratos de emisión y recepción.
-- Mantener consistencia monetaria, procedencia e integridad por tenant sin duplicar impactos.
-- Hacer visibles las decisiones pendientes para que una implementación posterior no las resuelva por omisión.
+- Separar datos fiscales, asociación operativa y cancelación de deuda, integrándolos en una misma experiencia de Documentos.
+- Conservar identidad e importes históricos editables sin depender de la ficha actual del proveedor.
+- Incorporar retenciones sin duplicar pagos ni movimientos de cuentas o inventario.
+- Mantener visibles las decisiones restantes antes de implementar el bloque dependiente.
 
 **Non-Goals:**
 
-- Incorporar campos o reglas de crédito fiscal computable.
-- Implementar retenciones, modificar cancelaciones o reservar un esquema de retenciones como si estuviera decidido.
-- Autorizar/verificar automáticamente comprobantes ante ARCA, ejecutar OCR o importar comprobantes en esta primera propuesta.
-- Reconstruir datos fiscales históricos desde precios, stock o pagos.
+- Determinar crédito fiscal, deducibilidad, regímenes aplicables o montos de impuestos/retenciones.
+- Emitir, autorizar o verificar documentos ante ARCA.
+- Implementar adjuntos, fotos, borradores, OCR/importaciones o NC/ND de compras.
+- Cambiar el contrato de emisión o reporte de ventas ni reconstruir datos fiscales históricos.
 
 ## Decisions
 
-### D1. Entidad de comprobantes recibidos separada, como recomendación técnica
+### D1. Persistencia propia y experiencia común de Documentos
 
-Proponer tablas propias en `public`, sin requerir otra base. Reutilizar `facturas_electronicas` exigiría cambiar estados, restricciones de origen, permisos, unicidad, protección de snapshots y consumidores orientados a emisión. El ahorro inicial de columnas compartidas no compensa ese acoplamiento.
+La separación de facturas_electronicas queda confirmada. Se propone una cabecera de documentos de compra, de nombre técnico candidato comprobantes_recibidos, con tipo FACTURA o RETENCION, identidad, fecha, moneda, procedencia y trazabilidad. El usuario gestiona documentos sin elegir ni conocer su tabla de origen.
 
-Agregar todos los datos a `operaciones_compra`/`operaciones_gasto` también se desaconseja: repetiría estructura fiscal y haría difícil representar una factura que cubra más de una operación o varios comprobantes de una compra.
+Compartir estructura no implica exigir todos los campos a ambos tipos: clase A/B/C, punto de venta, número y detalle de IVA corresponden a la factura; la retención conserva su identificación y conceptos aplicables. El detalle puede separarse en entidades hijas según el contrato final.
 
-Modelo lógico candidato, sujeto a P-REL/P-CAT/P-ARCH:
+~~~text
+COMPRA --> documentos --> FACTURA A/B/C --> IVA por alicuota y conceptos
+                    |
+                    +--> RETENCION --> imputacion a deuda
+                    |
+                    +--> listado y detalle de Documentos --> reporte
+~~~
 
-```text
-COMPRA / GASTO --> vinculo --> comprobante recibido --> reporte de compras
-                                      |
-                      +---------------+---------------+
-                      v               v               v
-                 desglose IVA   otros conceptos    adjuntos
+Una compra tiene cero o más documentos. No elegir todavía entre FK directa y tabla de vínculos: sigue abierto si un documento puede cubrir varias compras o existir sin operación. No exigir que cada factura individual iguale el total de la compra.
 
-pago de operacion --> retenciones: HIPOTESIS P-RET, SIN MODELO CERRADO
-```
+Alternativas descartadas: ampliar la tabla de emisión con reglas de recepción o duplicar datos fiscales en cada tabla de operación. Ambas acoplan ciclos distintos o dificultan varios documentos.
 
-| Entidad candidata | Contenido y límite |
+### D2. Datos fiscales configurables y copia editable por documento
+
+Ampliar la ficha del proveedor con los datos fiscales necesarios; nombre, CUIT y dirección existentes son el punto de partida. P-ID cierra los campos adicionales, obligatoriedad y receptor fiscal.
+
+La selección del proveedor precarga el formulario. El usuario puede cambiar esos datos antes de guardar y al editar el documento. Guardar la factura no modifica automáticamente al proveedor; editar la ficha no reescribe documentos anteriores. La copia histórica es editable explícitamente, no un bloqueo fiscal ni una consulta dinámica a la ficha.
+
+Una compra sin proveedor no genera una identidad fiscal ficticia. Definir su carga manual y campos requeridos en P-ID. GASTO se conserva en el alcance previo; su identificación de emisor sin proveedor comercial y sus puntos de entrada requieren adaptación en P-ALC.
+
+### D3. IVA por alícuota y conceptos de carga abierta
+
+Modelar el detalle de IVA por alícuota, con base e importe informados, sin limitarlo al 21%. El formulario usa las alícuotas finalmente admitidas y no inventa un desglose desde el total. P-CAT concreta esa lista y el tratamiento de campos incompletos o no aplicables por clase; no reabre la elección de IVA por alícuota.
+
+Los usuarios pueden agregar conceptos con descripción e importe manuales. El desplegable propone opciones comunes como IIBB Buenos Aires, IIBB CABA, Ganancias e impuestos internos y permite ingresar otras. Se recomienda categoría y jurisdicción cuando corresponda para conciliar el reporte; el vocabulario final se cierra en P-CAT. Las sugerencias no confirman la aplicabilidad de un impuesto ni convierten un concepto libre en retención cancelatoria.
+
+Persistir decimales y operar sumas en centavos. Conservar netos, exentos, no gravados, IVA, otros conceptos y total; distinguir cero de no informado. Las validaciones entre componentes, total y suma de facturas asociadas se cierran en P-CAT/P-REL. No alterar el monto de la operación para hacerlo coincidir con la factura.
+
+### D4. Retenciones como documento con cancelación de deuda
+
+El registro manual de retenciones queda dentro del alcance, como tipo distinto de FACTURA en el mismo circuito. Ya no está íntegramente diferido ni es solo informativo. La factura no requiere una retención ni la genera automáticamente.
+
+Regla confirmada: cancelación de deuda = pagos vigentes + retenciones vigentes imputadas; saldo pendiente = monto pactado menos esa cancelación. Ejemplo: compra 121000, pago 115000 y retención imputada 6000 dejan saldo 0 y la compra saldada. La factura conserva total 121000; la retención no modifica su IVA ni sus componentes.
+
+La retención cancela deuda sin mover caja o banco ni stock. No representarla como otro egreso con una cuenta ficticia. Se recomienda persistir una imputación trazable al documento y a la compra, separada de los pagos efectivos; P-RET cierra su relación exacta con pagos/facturas y la cardinalidad de esa imputación.
+
+La creación, edición y eliminación del documento deben mantener coherentes su imputación, saldo y estado de pago. Al eliminar la retención de 6000 del ejemplo, queda pendiente 6000; al corregirla a 5000, queda pendiente 1000. Esos cambios no revierten el pago de 115000. Reintentos o varias relaciones no pueden cancelar dos veces el mismo importe.
+
+El contrato actual de ledgers deriva total_pagado y estado_pago solo de movimientos de cuenta. Hay que ampliar el cálculo de saldo y estado para compras y adaptar cuenta corriente, validación de pagos posteriores, resúmenes y consumidores. P-RET define la representación de pago efectivo frente a total cancelado en campos/API/UI; no se cambia silenciosamente el significado de total_pagado.
+
+Sigue pendiente si una retención se carga únicamente junto al pago o también desde Documentos de forma independiente. Tampoco se confirmaron la obligatoriedad de una factura previa, asignaciones parciales, límites de imputación, sobrecancelaciones ni el vínculo al anular un pago. Resolverlo antes de implementar este bloque.
+
+### D5. Documentos, permisos e integración de operaciones
+
+Extender listado, filtros, detalle y documentos asociados de la compra para distinguir emitidos/recibidos y tipos FACTURA/RETENCION/REMITO según corresponda. Los recibidos no heredan estados ARCA ni el filtro HOMOLOGACION/PRODUCCION de emisión.
+
+Revisar creación/detalle de compras, compras automáticas desde arreglos y los dos puntos de alta de gastos. La carga inicial es opcional y la asociación posterior no recrea la operación. Si falla el guardado del documento después de crear la compra, conservar la compra y permitir reintentar sin repetir pagos ni stock. La frontera transaccional final se define en P-UX.
+
+Agregar permisos asociados a consulta y gestión de estos documentos, con asignación inicial por rol/plan equivalente a la facturación de ventas. Se propone separar ver/exportar de crear/editar/eliminar, siguiendo la estructura actual; los identificadores y matriz exacta se cierran en P-UX. Registrar documentos de proveedor no exige certificados de emisión.
+
+Aplicar servicios/repositories y derivar tenant de sesión; validar pertenencia de operación, proveedor, documentos e imputaciones. Futuras migraciones con RLS, grants mínimos e índices. No agregar Storage ni endpoints de adjuntos.
+
+### D6. Guardado directo, edición y eliminación
+
+No hay ciclo de borradores: validar el formulario y guardar el documento en el momento. La falta de validación ante ARCA no impide validaciones locales de campos, importes o acceso.
+
+Editar o eliminar una factura solo cambia su registro fiscal y su participación en consultas/reportes, sin modificar la compra, pagos o stock. Editar o eliminar una retención también actualiza su cancelación de deuda, de forma atómica.
+
+P-CICLO cierra deduplicación, trazabilidad interna, estrategia de eliminación y el borrado de la operación. No equiparar eliminar un documento de compra con anular una factura electrónica autorizada. No elegir una cascada de borrado antes de resolver la conservación de documentos y sus imputaciones.
+
+### D7. Reporte de compras basado en ventas, con contrato propio
+
+Tomar las columnas de ventas como referencia inicial y reutilizar constructores CSV/XLSX y utilidades monetarias compatibles. El proveedor/emisor es central en compras; agregar su identificación y adaptar el receptor cuando sea necesario.
+
+| Grupo | Base para la primera versión, sujeta a P-REP |
 | --- | --- |
-| `comprobantes_recibidos` | Tenant, identidad fiscal, tipo/clase/numeración, fechas, partes históricas, importes, moneda, datos de autorización informados y trazabilidad de carga. |
-| Relación con operación | `operacion_id` o tabla de vínculos según P-REL. No crear ambos mecanismos sin resolver la cardinalidad. |
-| Detalle de IVA | Solo si se acuerda capturar alícuotas; el IVA total no exige inventar líneas de productos. |
-| Detalle de otros conceptos | Categoría e importe efectivamente informados; jurisdicción cuando corresponda. Catálogo sujeto a P-CAT; no contiene retenciones diferidas. |
-| Adjuntos | Referencia privada al archivo, comprobante, tenant, nombre y metadatos de carga. Política final en P-ARCH. |
+| Identificación | Fecha, tipo/clase, punto de venta/número, proveedor/emisor y datos fiscales pertinentes. |
+| Importes facturados | Netos, exentos/no gravados, bases e IVA por alícuota, IVA total, otros conceptos y total. |
+| Conceptos abiertos | Preservar descripción, importe y jurisdicción informados, con detalle/agrupación que no pierda datos. |
+| Retenciones | Presentación y totales separados del total facturado, sin duplicar sus importes por vínculos a pagos/facturas. |
+| Trazabilidad | Documento y operación de origen, con datos históricos y observaciones. |
 
-Los nombres son candidatos, no DDL aprobado. No se agrega una tabla de retenciones en esta versión.
+No copiar solamente base/IVA 21%, columnas de emisión o filtros de ambiente. Tampoco cerrar como aprobadas las 24 columnas exactas del reporte de ventas. CSV/XLSX se conservan como propuesta de formatos; falta ratificar el contrato final con una muestra.
 
-### D2. Identidad fiscal conservada en el comprobante
+Una fila por factura, aunque una compra tenga varias facturas, pagos o conceptos. La forma de presentar documentos de retención, su fecha de selección y sus totales sigue en P-REP/P-RET. El total facturado no disminuye por las retenciones que cancelan deuda; el reporte fiscal y el saldo operativo representan conceptos distintos.
 
-Conservar un snapshot de emisor y receptor, además de referencias comerciales que se acuerden. La ficha del proveedor sirve como precarga; su edición posterior no reescribe comprobantes. Guardar tipo, punto de venta y número de forma que la presentación preserve ceros iniciales.
+El criterio temporal sigue pendiente: fecha de emisión se mantiene como propuesta para facturas, no como decisión ya aceptada. Resolver la fecha de retenciones y la edición/eliminación de documentos durante una exportación. Se requiere lectura consistente o detección de cambios, paginación completa y fallo sin archivo parcial.
 
-Para gastos, P-ID debe elegir entre identificar al emisor solo en el comprobante o ampliar la asociación comercial con proveedores. No modificar silenciosamente `operaciones_gasto` ni asumir que el proveedor opcional de compras aporta todos los datos fiscales necesarios. También hay que distinguir al receptor fiscal del taller operativo y contemplar cambios de CUIT del tenant.
+### D8. Pendientes restantes, con alcance de los acuerdos
 
-Alternativa desaconsejada: construir la identidad en cada exportación desde la ficha actual. Haría variar reportes anteriores al editar un proveedor.
+Las tareas dependientes comienzan después de resolver el pendiente aplicable. Esta revisión no convierte propuestas del asistente sin respuesta en decisiones.
 
-### D3. Importes declarados y conciliación explícita
-
-Usar valores decimales persistidos y sumas en centavos, aprovechando utilidades existentes. Conservar IVA total sin exigir que sea deducible ni que todo sea 21%. La carga por alícuota es una decisión de P-CAT, no una excusa para inferirla desde el total.
-
-El total facturado es un importe informado; sus componentes no se suman otra vez al exportarlo. P-CAT/P-REL deben acordar las validaciones y cómo tratar diferencias entre desglose, total y monto operativo. Diferenciar cero conocido, ausencia e inconsistencia; no rellenar tributos a partir de la condición fiscal.
-
-Ejemplo del núcleo: compra 121000, factura neto 100000 + IVA 21000, pago 60000. El reporte muestra total 121000 e IVA 21000; asociar el comprobante no cambia el pago ni el stock.
-
-### D4. API y acceso propios del circuito de recepción
-
-Se propone un módulo `src/app/api/comprobantes-recibidos/` con rutas de carga, consulta y exportación, servicios inyectables y repositorios. Los nombres y contratos definitivos se revisan con P-UX. La consulta asociada a operaciones debe distinguir documentos emitidos y recibidos en vez de tratar toda operación como `VENTA`.
-
-Derivar tenant de la sesión; validar que toda relación pertenezca al mismo tenant. Mantener RLS, grants mínimos e índices sobre relaciones y filtros de reporte en las futuras migraciones. No copiar indiscriminadamente permisos de emisión ni exigir certificados/configuración de emisor a quien registra una factura de proveedor. La matriz efectiva por rol/plan y el alcance por taller se cierran en P-UX/P-ID.
-
-Los adjuntos se sirven con autorización del comprobante desde almacenamiento privado. P-ARCH define límites, formatos, reemplazo y compensación ante fallos; una URL conocida no habilita acceso a otro tenant.
-
-### D5. Flujo manual sin reejecutar la operación
-
-Proponer acceso durante la carga y desde el detalle de una operación existente. Deben revisarse `OperacionCreateModal`, `OperacionGastoForm`, `OperacionExpandedDetail`, el alta manual de gastos y las compras generadas desde arreglos. No es necesario que todos compartan el mismo formulario, pero sí la misma regla de asociación.
-
-P-UX define si operación y comprobante se confirman juntos o si la factura se asocia después. En el segundo caso, un fallo debe conservar la operación ya creada y permitir reintentar la asociación sin volver a comprar, pagar ni recibir stock. Un archivo cargado y una cabecera persistida requieren coordinación para evitar huérfanos o un éxito aparente.
-
-Los costos del inventario y sus precios no se recalculan al cargar IVA; cambiar ese comportamiento sería otro alcance.
-
-### D6. Reporte propio con reutilización selectiva
-
-Crear selección y normalización propias para comprobantes recibidos. Reutilizar el constructor de Excel, protección de textos y utilidades de centavos donde sean compatibles. `FiscalRow`, sus columnas de receptor, sus reglas de clase C y el desglose al 21% pertenecen a ventas y requieren evaluación, no copia directa.
-
-La versión inicial propone período por fecha de emisión y columnas de fecha, identificación, proveedor/emisor, receptor fiscal, netos, IVA informado, otros conceptos identificados y total. P-REP debe aprobar el contrato; no se afirma que estas sean las columnas exigidas por ARCA ni un formato validado por el contador. El respaldo no sustituye los datos estructurados.
-
-Una factura aporta una fila independientemente de sus relaciones. Agregar componentes por comprobante antes de componer el reporte evita multiplicar importes por joins a pagos, adjuntos o vínculos. CSV y XLSX comparten las mismas filas normalizadas; el resumen se obtiene de ellas.
-
-La consulta no hereda `ARCA_AMBIENTE` ni exige `AUTORIZADA`: esos filtros pertenecen a emisión. P-CICLO/P-REP definen estados locales incluidos y un mecanismo de lectura consistente ante correcciones. Se requiere una instantánea de lectura coherente o detección explícita de cambios que impidan completar el archivo. Un corte por `created_at` y paginación, por sí solos, no garantizan consistencia si los comprobantes son editables. La solución elegida debe cubrir altas, modificaciones y bajas durante la generación, con todas las páginas incluidas y fallo sin archivo parcial.
-
-Mantener el reporte de ventas separado. Sin gestión de retenciones definida, no agregar columnas en cero o subtotales ficticios que indiquen cobertura de ese universo.
-
-### D7. Registro de decisiones pendientes solicitado por el usuario
-
-Estas son decisiones materiales abiertas en un borrador deliberadamente inicial. Las tareas que dependen de ellas comienzan después de resolverlas y reflejar el resultado en los artefactos. No se usan valores por defecto para convertirlas en acuerdos.
-
-| ID | Tema y decisión pendiente | Primera idea o alternativa a evaluar | Qué condiciona |
-| --- | --- | --- | --- |
-| **P-RET** | Cómo registrar y gestionar retenciones de compras. Definir impuestos, fecha, constancia, relación pago/factura, pagos parciales, distribución, anulaciones y efecto en saldo/reporte. | **Idea del usuario:** al pagar una operación con factura asociada, permitir cargar las retenciones practicadas. Es una hipótesis, sin aprobación del modelo. | Ampliación diferida; no implementar campos, cancelaciones ni exportación de retenciones en el núcleo. |
-| **P-REL** | Una o varias facturas por operación; una factura para varias operaciones; carga independiente; discrepancias entre montos. | Evaluar una relación simple para el caso habitual y vínculos con importes solo si hay casos reales que los requieran. | Relaciones, claves, API y validación de asociaciones. |
-| **P-ID** | Emisor en gastos y compras sin proveedor; receptor fiscal; obligatoriedad y precarga de CUIT; alcance por taller. | Snapshot fiscal en el comprobante con referencia comercial opcional; decidir si agregar proveedor a gastos aporta valor. | Campos obligatorios, precargas y restricciones de acceso/vínculo. |
-| **P-CAT** | Tipos y clases admitidos, CAE/CAI/otros respaldos, IVA total o alícuotas, percepciones y otros tributos. | Empezar por facturas y montos efectivamente informados. Los conceptos investigados son candidatos; validar muestras antes de cerrar catálogo. | Contratos de carga, detalle y validaciones; no incluye crédito fiscal. |
-| **P-CICLO** | Borrador/registro/corrección/anulación; duplicados; conservación del comprobante al borrar una operación; historial. | Identidad de deduplicación candidata: tenant + receptor + emisor + código + punto de venta + número. Evaluar desvinculación conservando el comprobante o restricción del borrado. | Unicidad, estados, permisos, lectura consistente y compatibilidad con operaciones. |
-| **P-ARCH** | Archivo obligatorio u opcional, cantidad, formatos, tamaño, reemplazos y fallos parciales. | PDF e imagen como candidatos; almacenamiento privado. La carga estructurada es la fuente del reporte. | Políticas de Storage, formulario y coordinación de guardado. |
-| **P-REP** | Columnas, criterio temporal, estados incluidos, NC/ND, moneda/cotización, destinatario y consistencia de generación. | CSV/XLSX para contador y fecha de emisión como propuesta. Si se incluyen NC/ND, definir sus propios signos/referencias; si se incluyen monedas múltiples, separar o convertir con criterio trazable. | Aceptación del reporte, lectura, normalización y serialización. |
-| **P-UX** | Puntos de entrada, momento de guardado y permisos para cargar/ver/corregir/exportar. | Carga opcional desde compra/gasto y asociación posterior desde detalle; revisar gastos manuales y compras automáticas. | API pública, UI, autorización y tratamiento de fallos. |
-
-P-RET puede mantenerse diferido mientras se revisa el núcleo. Para P-REL/P-ID/P-CAT/P-CICLO/P-ARCH/P-REP/P-UX hay que cerrar las decisiones aplicables antes de implementar su bloque. Los casos todavía no contemplados se resuelven ajustando el alcance, no suponiendo aprobación.
-
-### D8. Resultado de la búsqueda conceptual de impuestos
-
-El cliente mencionó IVA y retención de Ganancias. El relevamiento identificó candidatos adicionales, sin confirmar que correspondan al cliente ni habilitar cálculo:
-
-| Concepto | Diferencia que debe conservar el modelo | Fuente oficial |
+| ID | Ya confirmado | Pendiente |
 | --- | --- | --- |
-| IVA facturado | Importe de la factura, distinto de una retención de IVA. | [RG 2408, art. 8](https://biblioteca.afip.gob.ar/search/query/norma.aspx?p=t%3ARAG%7Cn%3A2408%7Co%3A3%7Ca%3A2008) |
-| Retención de Ganancias | Normalmente se documenta al pagar; la primera idea de P-RET se refiere a este momento. | [RG 830, art. 10](https://www.argentina.gob.ar/normativa/nacional/resoluci%C3%B3n-830-2000-62872/actualizacion) |
-| Retención de IVA | Según el régimen, se practica al pagar y se documenta con constancia; no equivale al IVA discriminado. | [ARCA, régimen general de facturación](https://www.afip.gob.ar/facturacion/regimen-general/) |
-| Percepción de IVA | Puede adicionarse en la factura al precio neto y al IVA. | [RG 2408, art. 8](https://biblioteca.afip.gob.ar/search/query/norma.aspx?p=t%3ARAG%7Cn%3A2408%7Co%3A3%7Ca%3A2008) |
-| Percepción/retención de IIBB | Distinguir importes adicionados y detraídos, y conservar jurisdicción. | [ARBA, diferencias entre percepción y retención](https://www.arba.gov.ar/Informacion/Agentes/Recaudacion/diferencias.asp?lugar=P) |
+| **P-REL** | Varios documentos por compra. | Un documento para varias compras o sin operación; conciliación de importes y sumas de facturas. |
+| **P-ID** | Ficha fiscal configurable, precarga y edición local. | Campos obligatorios, receptor fiscal, compras sin proveedor, alcance por taller y cambios de CUIT. |
+| **P-CAT** | A/B/C, IVA por alícuota, conceptos abiertos y sugerencias. | Alícuotas admitidas, identificación/autorización requerida, datos incompletos, categorías/jurisdicciones y validaciones. |
+| **P-CICLO** | Sin borradores; edición y eliminación de documentos. | Duplicados, historial/estrategia de borrado y qué ocurre al borrar la compra. |
+| **P-RET** | Documento RETENCION; pago más retención cancelan deuda sin otra salida de caja. | Carga independiente del pago, factura previa, vínculos/distribución, parcialidades, límites, anulaciones y representación de pago efectivo/total cancelado. |
+| **P-REP** | Reporte inicial similar a ventas. | Columnas/muestra exactas, formatos, fechas por tipo, presentación de retenciones, moneda/cotización y extracción consistente. |
+| **P-UX** | Carga opcional inicial/posterior, CRUD y permisos con acceso inicial equivalente a ventas; gestión en Documentos. | Matriz/identificadores concretos, frontera de guardado/reintento y acceso desde compras automáticas. |
+| **P-ALC** | Se conserva COMPRA/GASTO del alcance anterior; las nuevas definiciones detallan COMPRA. | Adaptación de emisor/proveedor y puntos de entrada de GASTO; confirmar si las retenciones de esta revisión se aplican también a gastos. |
 
-También existen percepciones de Ganancias en determinadas importaciones ([RG 2281](https://www.argentina.gob.ar/normativa/nacional/norma-130808/actualizacion)); importaciones no forman parte del núcleo propuesto. La lista no es un catálogo exhaustivo ni una matriz de aplicabilidad tributaria. No se fijan porcentajes, mínimos ni reglas de crédito fiscal.
+P-ARCH queda cerrado: adjuntos y fotos excluidos. NC/ND de compras y comprobantes especiales no se mantienen como opciones pendientes dentro de esta versión.
 
 ## Risks / Trade-offs
 
-- **[Borrador tratado como contrato cerrado]** → Mantener IDs de pendientes y tareas de definición previas; revisar requisitos y escenarios afectados después de cada decisión.
-- **[Duplicar deuda, pago o stock]** → Asociar la factura mediante su circuito propio; probar invariancia de operación e impactos.
-- **[Retenciones confundidas con componentes facturados]** → Mantener P-RET diferido y no dar por acordado un campo en la factura ni una suma que altere su total.
-- **[Borrado operativo destruye evidencia fiscal o cambia el contrato vigente]** → Resolver P-CICLO antes de elegir FK/cascada o restricción; coordinar un cambio de requisitos de operaciones si fuera necesario.
-- **[Gasto sin proveedor o compras automáticas fuera del flujo]** → Revisar todos los puntos de entrada; no depender solo del formulario de compras manuales.
-- **[Identidad o totales variables al editar fichas]** → Snapshot del comprobante, separación entre ausencia/cero y fuentes históricas.
-- **[Adjuntos expuestos o huérfanos]** → Autorización por tenant y comprobante, validación de archivos y flujo de compensación acordado en P-ARCH/P-UX.
-- **[Exportación incompleta o mezclada entre versiones]** → Lectura consistente de cabeceras/detalle, paginación completa y cancelación de generación ante fallo.
-- **[Copiar supuestos de ventas]** → Pruebas de regresión del contrato actual; selección y filas propias para recibidos.
+- **[Retención registrada como otro egreso]** → Separar pago efectivo y cancelación; comprobar invariancia de cuentas, ledger de caja y stock.
+- **[Saldo correcto solo en una pantalla]** → Revisar estado, cuenta corriente de proveedor, resúmenes y validación de pagos posteriores con una única regla.
+- **[Documento editado pero imputación anterior vigente]** → Escritura atómica, concurrencia e idempotencia de alta/corrección/eliminación.
+- **[Copia literal del reporte de ventas]** → Contrato propio con identificación de proveedor, varias alícuotas y conceptos abiertos.
+- **[Conceptos libres imposibles de conciliar]** → Conservar etiquetas y montos originales; cerrar categorías y presentación sin restringir el ingreso abierto.
+- **[Borrado de compra destruye documentos o deja cancelaciones huérfanas]** → Resolver P-CICLO/P-RET antes de elegir cascadas o restricciones.
+- **[Pendientes tratados como aprobados]** → D8 y tareas de definición previas; no inferir aceptación de recomendaciones sin respuesta.
 
 ## Migration Plan
 
-1. Revisar esta versión con el usuario/cliente y resolver los pendientes del núcleo que condicionan cada bloque. Conservar P-RET diferido o definirlo en una revisión explícita; no introducirlo por efecto de implementar el resto.
-2. Ajustar specs, diseño y tareas con las decisiones. Si una política cambia el borrado u otro comportamiento de operaciones, añadir el contrato afectado y coordinarlo con el cambio de ledgers, sin reescribir su historia silenciosamente.
-3. Crear migraciones incrementales para las entidades finalmente acordadas, índices, validaciones, RLS, grants y Storage. No migrar facturas emitidas como compras ni inventar datos para operaciones históricas. No editar el esquema declarativo a mano.
-4. Validar migraciones y aislamiento en una DB local desechable autorizada, con fixtures ficticios. Verificar que pagos, stock, gastos y exportación de ventas conservan sus contratos.
-5. Implementar API/UI/exportación del alcance revisado y validar un flujo completo con comprobantes sintéticos. La prueba de la estructura OpenSpec no sustituye estas verificaciones.
-6. Desplegar por cambios aditivos compatibles después de las dependencias efectivamente aplicadas. Ante rollback, retirar acceso al nuevo circuito conservando comprobantes y respaldos ya cargados; cualquier retirada de datos requiere una estrategia específica, no un `DROP` automático.
+1. Cerrar los pendientes aplicables de D8 y actualizar contratos/escenarios antes de cada bloque.
+2. Coordinar la ampliación financiera con el contrato vigente de ledgers y sus consumidores, conservando pagos y asientos históricos.
+3. Crear migraciones aditivas para datos fiscales del proveedor, documentos, detalles, relaciones e imputaciones con RLS/grants; no editar el esquema declarativo manualmente ni inventar documentos históricos.
+4. Verificar persistencia, aislamiento y cancelación en DB local desechable autorizada con datos sintéticos; no ejecutar cambios sobre datos fiscales reales.
+5. Implementar API, Documentos e integración de compras; validar reintentos y correcciones sin duplicar efectos.
+6. Implementar el reporte con la muestra aprobada y probar compatibilidad con ventas, pagos, cuentas y stock.
+7. Desplegar por dependencias y conservar documentos e imputaciones ante rollback. Deshabilitar el circuito exige resolver las cancelaciones vigentes; no borrar tablas o retirar sus efectos silenciosamente.
 
 ## Open Questions
 
-Detalles diferibles que no cambian la arquitectura ni el núcleo del contrato: nombre visible de la sección, orden visual de campos ya acordados y orden de columnas una vez cerrado su conjunto en P-REP. Las decisiones materiales abiertas están en D7 y deben resolverse antes del bloque dependiente.
+Detalles diferibles: nombres visibles, orden de campos y orden final de columnas una vez aprobado su conjunto. Las decisiones que condicionan implementación están en D8.
