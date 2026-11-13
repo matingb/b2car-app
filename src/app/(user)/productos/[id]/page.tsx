@@ -172,10 +172,15 @@ export default function ProductoDetailsPage() {
       cancelLabel: "Cancelar",
     });
     if (!ok) return;
-    await removeProducto(producto.id);
-    success("Producto eliminado", `${producto.codigo} se elimino correctamente.`);
-    router.push("/productos");
-  }, [confirm, producto, removeProducto, router, success]);
+    try {
+      await removeProducto(producto.id);
+      success("Producto eliminado", `${producto.codigo} se elimino correctamente.`);
+      router.push("/productos");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "No se pudo eliminar el producto";
+      error("No se pudo eliminar el producto", message);
+    }
+  }, [confirm, error, producto, removeProducto, router, success]);
 
   const handleSave = useCallback(async () => {
     if (!draft) return;

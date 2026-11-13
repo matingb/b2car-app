@@ -392,4 +392,71 @@ describe("OperacionStockConfirmModal", () => {
     expect(inputLinea2).toHaveAttribute("aria-invalid", "false");
     expect(screen.getByTestId("modal-submit")).not.toBeDisabled();
   });
+
+  it("muestra el nombre y código del item provistos en la línea de la operación", async () => {
+    const operacionConNombre: Operacion = {
+      ...operacionCompra,
+      id: "op-con-nombre",
+      lineas: [
+        {
+          id: "linea-con-nombre",
+          operacion_id: "op-con-nombre",
+          stock_id: "stock-99",
+          cantidad: 5,
+          cantidad_cumplida: 2,
+          monto_unitario: 1000,
+          delta_cantidad: 2,
+          created_at: "2026-10-21T12:00:00Z",
+          nombre: "Amortiguador Delantero Monroe",
+          codigo: "AMD-099",
+        },
+      ],
+    };
+
+    render(
+      <OperacionStockConfirmModal
+        open={true}
+        operacion={operacionConNombre}
+        onClose={vi.fn()}
+      />
+    );
+
+    await runPendingPromises();
+
+    expect(screen.getByText("Amortiguador Delantero Monroe")).toBeInTheDocument();
+    expect(screen.getByText("#AMD-099")).toBeInTheDocument();
+    expect(screen.queryByText(/Ítem #linea/)).not.toBeInTheDocument();
+  });
+
+  it("muestra fallback de nombre y código si la línea no contiene nombre o código", async () => {
+    const operacionSinNombre: Operacion = {
+      ...operacionCompra,
+      id: "op-sin-nombre",
+      lineas: [
+        {
+          id: "linea-123456",
+          operacion_id: "op-sin-nombre",
+          stock_id: "stock-123456",
+          cantidad: 3,
+          cantidad_cumplida: 1,
+          monto_unitario: 3000,
+          delta_cantidad: 1,
+          created_at: "2026-10-21T12:00:00Z",
+        },
+      ],
+    };
+
+    render(
+      <OperacionStockConfirmModal
+        open={true}
+        operacion={operacionSinNombre}
+        onClose={vi.fn()}
+      />
+    );
+
+    await runPendingPromises();
+
+    expect(screen.getByText("Ítem #linea-")).toBeInTheDocument();
+    expect(screen.getByText("#stock1")).toBeInTheDocument();
+  });
 });

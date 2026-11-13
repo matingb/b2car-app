@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseProductoRepository } from "./productoRepository";
+import { ServiceError } from "@/app/api/serviceError";
 
 describe("supabaseProductoRepository", () => {
   it("list consulta productos y stocks y los mapea correctamente", async () => {
@@ -116,5 +117,53 @@ describe("supabaseProductoRepository", () => {
     expect(res.data?.nombre).toBe("Nombre Actualizado");
     expect(update).toHaveBeenCalledWith({ nombre: "Nombre Actualizado" });
     expect(eq).toHaveBeenCalledWith("id", "p1");
+  });
+
+  describe("deleteById", () => {
+    it("elimina stocks y producto correctamente", async () => {
+      const from = vi.fn((table: string) => ({
+        delete: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue(
+            table === "productos" ? { error: null, count: 1 } : { error: null }
+          ),
+        })),
+      }));
+      const supabase = { from } as unknown as SupabaseClient;
+
+      const res = await supabaseProductoRepository.deleteById(supabase, "p1");
+      expect(res.error).toBeNull();
+      expect(from).toHaveBeenCalledWith("stocks");
+      expect(from).toHaveBeenCalledWith("productos");
+    });
+
+    it("retorna error si falla el borrado de stocks", async () => {
+      const from = vi.fn((table: string) => ({
+        delete: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue(
+            table === "stocks"
+              ? { error: { code: "23503", message: "fk violation" } }
+              : { error: null, count: 1 }
+          ),
+        })),
+      }));
+      const supabase = { from } as unknown as SupabaseClient;
+
+      const res = await supabaseProductoRepository.deleteById(supabase, "p1");
+      expect(res.error).toBe(ServiceError.EnUso);
+    });
+
+    it("retorna NotFound si count es 0", async () => {
+      const from = vi.fn((table: string) => ({
+        delete: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue(
+            table === "stocks" ? { error: null } : { error: null, count: 0 }
+          ),
+        })),
+      }));
+      const supabase = { from } as unknown as SupabaseClient;
+
+      const res = await supabaseProductoRepository.deleteById(supabase, "p1");
+      expect(res.error).toBe(ServiceError.NotFound);
+    });
   });
 });

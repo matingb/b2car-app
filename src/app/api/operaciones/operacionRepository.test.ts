@@ -21,7 +21,9 @@ describe("operacionRepository", () => {
 		const res = await operacionRepository.getById(supabase, "op-1");
 
 		expect(from).toHaveBeenCalledWith("operaciones");
-		expect(select).toHaveBeenCalledWith(expect.stringContaining("operaciones_lineas(*)"));
+		expect(select).toHaveBeenCalledWith(
+			expect.stringContaining("operaciones_lineas(*, stocks(producto_id, productos(nombre, codigo)))")
+		);
 		expect(eq).toHaveBeenCalledWith("id", "op-1");
 		expect(res.data).toEqual({
 			...mockRow,
@@ -224,6 +226,55 @@ describe("operacionRepository", () => {
 			revertido: false,
 		});
 		expect(res.data?.movimientos_stock?.[1]?.id).toBe("mov-1");
+		expect(res.error).toBeNull();
+	});
+
+	it("getById mapea correctamente operaciones_lineas enriquecidas con nombre y codigo de stocks.productos", async () => {
+		const rawRow = {
+			id: "op-compra-lineas",
+			tenant_id: "tenant-1",
+			tipo: "COMPRA",
+			operaciones_lineas: [
+				{
+					id: "linea-1",
+					operacion_id: "op-compra-lineas",
+					stock_id: "stock-1",
+					cantidad: 10,
+					cantidad_cumplida: 4,
+					monto_unitario: 1500,
+					delta_cantidad: 4,
+					created_at: "2026-10-20T10:00:00Z",
+					stocks: {
+						producto_id: "prod-1",
+						productos: {
+							nombre: "Pastilla de Freno Bosch",
+							codigo: "PFB-100",
+						},
+					},
+				},
+			],
+		};
+
+		const single = vi.fn().mockResolvedValue({ data: rawRow, error: null });
+		const eq = vi.fn().mockReturnValue({ single });
+		const select = vi.fn().mockReturnValue({ eq });
+		const from = vi.fn().mockReturnValue({ select });
+		const supabase = { from } as unknown as SupabaseClient;
+
+		const res = await operacionRepository.getById(supabase, "op-compra-lineas");
+
+		expect(res.data?.operaciones_lineas?.[0]).toEqual({
+			id: "linea-1",
+			operacion_id: "op-compra-lineas",
+			stock_id: "stock-1",
+			cantidad: 10,
+			cantidad_cumplida: 4,
+			monto_unitario: 1500,
+			delta_cantidad: 4,
+			created_at: "2026-10-20T10:00:00Z",
+			nombre: "Pastilla de Freno Bosch",
+			codigo: "PFB-100",
+		});
 		expect(res.error).toBeNull();
 	});
 

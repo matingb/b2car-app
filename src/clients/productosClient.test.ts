@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { mapStockDtoToInventario } from "./productosClient";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { mapStockDtoToInventario, productosClient } from "./productosClient";
 import type { StockDTO } from "@/model/dtos";
 
 describe("productosClient mapStockDtoToInventario", () => {
@@ -46,6 +46,45 @@ describe("productosClient mapStockDtoToInventario", () => {
     expect(registro.stockActual).toBe(8);
     expect(registro.stockReservado).toBe(3);
     expect(registro.stockDisponible).toBe(5);
+  });
+
+  describe("delete", () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("retorna error null si el endpoint responde 200", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: async () => ({ error: null }),
+        })
+      );
+
+      const res = await productosClient.delete("prod-1");
+      expect(res.error).toBeNull();
+      expect(fetch).toHaveBeenCalledWith("/api/productos/prod-1", { method: "DELETE" });
+    });
+
+    it("retorna el mensaje de error si el endpoint responde con error 409", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 409,
+          json: async () => ({ error: "No se puede eliminar el producto porque tiene movimientos de stock asociados" }),
+        })
+      );
+
+      const res = await productosClient.delete("prod-1");
+      expect(res.error).toBe("No se puede eliminar el producto porque tiene movimientos de stock asociados");
+    });
   });
 });
 

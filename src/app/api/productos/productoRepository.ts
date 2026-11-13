@@ -1,5 +1,6 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import type { StockRow } from "../stocks/stocksService";
+import { ServiceError, toServiceError } from "@/app/api/serviceError";
 
 export type ProductoRow = {
   id: string;
@@ -39,7 +40,7 @@ export interface ProductoRepository {
   getStocksByProductoId(supabase: SupabaseClient, productoId: string): Promise<{ data: StockRow[]; error: PostgrestError | null }>;
   create(supabase: SupabaseClient, payload: CreateProductoInput): Promise<{ data: ProductoRow | null; error: PostgrestError | null }>;
   updateById(supabase: SupabaseClient, id: string, patch: Partial<ProductoRow>): Promise<{ data: ProductoRow | null; error: PostgrestError | null }>;
-  deleteById(supabase: SupabaseClient, id: string): Promise<{ error: PostgrestError | null }>;
+  deleteById(supabase: SupabaseClient, id: string): Promise<{ error: ServiceError | PostgrestError | null }>;
 }
 
 export const supabaseProductoRepository: ProductoRepository = {
@@ -121,8 +122,17 @@ export const supabaseProductoRepository: ProductoRepository = {
   },
 
   async deleteById(supabase: SupabaseClient, id: string) {
-    await supabase.from("stocks").delete().eq("producto_id", id);
-    const { error } = await supabase.from("productos").delete().eq("id", id);
-    return { error };
+    const { error: stockError } = await supabase.from("stocks").delete().eq("producto_id", id);
+    if (stockError) {
+      return { error: toServiceError(stockError) ?? stockError };
+    }
+    const { error, count } = await supabase
+      .from("productos")
+      .delete({ count: "exact" })
+      .eq("id", id);
+
+    if (error) return { error: toServiceError(error) ?? error };
+    if (count === 0) return { error: ServiceError.NotFound };
+    return { error: null };
   },
 };

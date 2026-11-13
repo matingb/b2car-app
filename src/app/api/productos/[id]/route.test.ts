@@ -164,5 +164,30 @@ describe("/api/productos/[id]", () => {
     const res = await DELETE(req, { params: Promise.resolve({ id: "PROD-1" }) });
     expect(res.status).toBe(200);
   });
+
+  it("DELETE devuelve 404 si el producto no existe", async () => {
+    vi.mocked(productosService.deleteById).mockResolvedValue({ error: ServiceError.NotFound });
+    const req = new NextRequest("http://localhost/api/productos/p1", { method: "DELETE" });
+    const res = await DELETE(req, { params: Promise.resolve({ id: "PROD-1" }) });
+    expect(res.status).toBe(404);
+  });
+
+  it("DELETE devuelve 409 si el producto está en uso o tiene movimientos de stock", async () => {
+    vi.mocked(productosService.deleteById).mockResolvedValue({ error: ServiceError.EnUso });
+    const req = new NextRequest("http://localhost/api/productos/p1", { method: "DELETE" });
+    const res = await DELETE(req, { params: Promise.resolve({ id: "PROD-1" }) });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain("movimientos de stock u operaciones asociadas");
+  });
+
+  it("DELETE devuelve 409 si el kardex es inmutable", async () => {
+    vi.mocked(productosService.deleteById).mockResolvedValue({ error: ServiceError.MovimientoFinancieroInmutable });
+    const req = new NextRequest("http://localhost/api/productos/p1", { method: "DELETE" });
+    const res = await DELETE(req, { params: Promise.resolve({ id: "PROD-1" }) });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain("movimientos de stock u operaciones asociadas");
+  });
 });
 

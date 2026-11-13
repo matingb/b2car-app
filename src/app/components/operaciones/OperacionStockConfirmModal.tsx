@@ -29,8 +29,13 @@ export interface OperacionStockConfirmModalProps {
   onSuccess?: () => void;
 }
 
+function getLineaNombre(linea: OperacionLinea, fallbackKey: string): string {
+  if (linea.nombre && linea.nombre.trim()) return linea.nombre;
+  return `Ítem #${fallbackKey.slice(0, 6)}`;
+}
+
 function getLineaCodigo(linea: OperacionLinea, fallbackKey: string): string {
-  if (linea.codigo) {
+  if (linea.codigo && linea.codigo.trim()) {
     return linea.codigo.startsWith("#") ? linea.codigo : `#${linea.codigo}`;
   }
   const raw = (linea.stock_id || linea.id || fallbackKey).replace(/[^a-zA-Z0-9]/g, "");
@@ -119,6 +124,7 @@ export default function OperacionStockConfirmModal({
       const cumplidas = linea.cantidad_cumplida ?? 0;
       const pendiente = Math.max(0, total - cumplidas);
       const aConfirmar = cantidades[key] ?? 0;
+      const nombre = getLineaNombre(linea, key);
       const codigo = getLineaCodigo(linea, key);
       return {
         linea,
@@ -127,6 +133,7 @@ export default function OperacionStockConfirmModal({
         cumplidas,
         pendiente,
         aConfirmar,
+        nombre,
         codigo,
       };
     });
@@ -137,7 +144,7 @@ export default function OperacionStockConfirmModal({
     if (!q) return lineasConPendiente;
 
     return lineasConPendiente.filter((item) => {
-      const nombre = (item.linea.nombre || "").toLowerCase();
+      const nombre = (item.nombre || "").toLowerCase();
       const codigo = item.codigo.toLowerCase();
       return nombre.includes(q) || codigo.includes(q);
     });
@@ -292,7 +299,7 @@ export default function OperacionStockConfirmModal({
                         <td style={styles.td}>
                           <div style={styles.itemInfo}>
                             <strong style={styles.itemNombre}>
-                              {item.linea.nombre || `Ítem #${item.key.slice(0, 6)}`}
+                              {item.nombre}
                             </strong>
                             <span style={styles.itemCodigo}>{item.codigo}</span>
                           </div>
@@ -433,7 +440,7 @@ export default function OperacionStockConfirmModal({
                             <td style={styles.td}>
                               <div style={styles.itemInfo}>
                                 <strong style={styles.itemNombre}>
-                                  {item.linea.nombre || `Ítem #${item.key.slice(0, 6)}`}
+                                  {item.nombre}
                                 </strong>
                                 <span style={styles.itemCodigo}>{item.codigo}</span>
                               </div>
@@ -498,7 +505,7 @@ export default function OperacionStockConfirmModal({
                                         : {}),
                                     }}
                                     data-testid={`stock-confirm-input-${item.key}`}
-                                    aria-label={`Cantidad a ${actionVerb} de ${item.linea.nombre || item.key}`}
+                                    aria-label={`Cantidad a ${actionVerb} de ${item.nombre || item.key}`}
                                     aria-invalid={item.aConfirmar > item.pendiente}
                                     title={
                                       item.aConfirmar > item.pendiente

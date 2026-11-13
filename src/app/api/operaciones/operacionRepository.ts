@@ -41,8 +41,27 @@ export type OperacionMovimientoStockJoin = {
 	producto?: { nombre?: string; codigo?: string } | { nombre?: string; codigo?: string }[] | null;
 };
 
+export type OperacionLineaJoin = OperacionLineaDTO & {
+	stocks?:
+	| {
+		producto_id?: string;
+		productos?:
+		| { nombre?: string; codigo?: string }
+		| { nombre?: string; codigo?: string }[]
+		| null;
+	}
+	| {
+		producto_id?: string;
+		productos?:
+		| { nombre?: string; codigo?: string }
+		| { nombre?: string; codigo?: string }[]
+		| null;
+	}[]
+	| null;
+};
+
 export type OperacionDetalleRawRow = Omit<OperacionDTO, "movimientos_stock"> & {
-	operaciones_lineas?: OperacionLineaDTO[] | null;
+	operaciones_lineas?: OperacionLineaJoin[] | null;
 	pagos?: Array<{
 		id: string;
 		tenant_id?: string;
@@ -232,7 +251,7 @@ export const operacionRepository: OperacionRepository = {
 		const { data, error } = await supabase
 			.from("operaciones")
 			.select(
-				"*, operaciones_lineas(*), pagos:operaciones_movimiento_cuenta!operaciones_movimiento_cuenta_operacion_id_fkey(id, tenant_id, operacion_id, cuenta_id, importe, fecha, descripcion, created_at, cuentas_financieras:cuentas_financieras(nombre)), operaciones_venta(cliente_id, clientes(tipo_cliente, particulares(nombre, apellido), empresas(nombre))), operaciones_compra(proveedor_id, proveedores(nombre)), operaciones_gasto(categoria_gasto, descripcion)"
+				"*, operaciones_lineas(*, stocks(producto_id, productos(nombre, codigo))), pagos:operaciones_movimiento_cuenta!operaciones_movimiento_cuenta_operacion_id_fkey(id, tenant_id, operacion_id, cuenta_id, importe, fecha, descripcion, created_at, cuentas_financieras:cuentas_financieras(nombre)), operaciones_venta(cliente_id, clientes(tipo_cliente, particulares(nombre, apellido), empresas(nombre))), operaciones_compra(proveedor_id, proveedores(nombre)), operaciones_gasto(categoria_gasto, descripcion)"
 			)
 			.eq("id", id)
 			.single();
@@ -309,8 +328,30 @@ export const operacionRepository: OperacionRepository = {
 				return timeB - timeA;
 			});
 
+		const rawLineas = Array.isArray(raw.operaciones_lineas) ? raw.operaciones_lineas : [];
+		const lineasMapped: OperacionLineaDTO[] = rawLineas.map((l) => {
+			const stockObj = firstOrOnly(l.stocks);
+			const prodObj = firstOrOnly(stockObj?.productos);
+			return {
+				id: String(l.id),
+				operacion_id: String(l.operacion_id ?? raw.id),
+				stock_id: String(l.stock_id),
+				cantidad: Number(l.cantidad) || 0,
+				cantidad_cumplida:
+					l.cantidad_cumplida !== undefined && l.cantidad_cumplida !== null
+						? Number(l.cantidad_cumplida)
+						: undefined,
+				monto_unitario: Number(l.monto_unitario) || 0,
+				delta_cantidad: Number(l.delta_cantidad) || 0,
+				created_at: String(l.created_at ?? ""),
+				nombre: prodObj?.nombre ? String(prodObj.nombre) : (l.nombre ? String(l.nombre) : undefined),
+				codigo: prodObj?.codigo ? String(prodObj.codigo) : (l.codigo ? String(l.codigo) : undefined),
+			};
+		});
+
 		const mapped: OperacionRow = {
 			...raw,
+			operaciones_lineas: lineasMapped,
 			pagos: pagosMapped,
 			operaciones_pagos: pagosMapped.map((p) => ({
 				id: p.id,

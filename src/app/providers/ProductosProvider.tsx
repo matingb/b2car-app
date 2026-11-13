@@ -219,7 +219,10 @@ export function ProductosProvider({ children }: { children: React.ReactNode }) {
   const removeProducto = useCallback(async (productoId: string) => {
     setIsLoading(true);
     try {
-      await productosClient.delete(productoId);
+      const res = await productosClient.delete(productoId);
+      if (res.error) {
+        throw new Error(res.error);
+      }
       await loadProductos();
     } finally {
       setIsLoading(false);

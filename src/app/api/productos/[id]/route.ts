@@ -109,6 +109,15 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     const { error } = await productosService.deleteById(supabase, id);
     if (error === ServiceError.NotFound) return Response.json({ error: "Producto no encontrado" }, { status: 404 });
+    if (error === ServiceError.EnUso || error === ServiceError.MovimientoFinancieroInmutable) {
+      return Response.json(
+        {
+          error:
+            "No se puede eliminar el producto porque tiene movimientos de stock u operaciones asociadas. Puedes ocultarlo desactivando 'Mostrar en stock'.",
+        },
+        { status: 409 }
+      );
+    }
     if (error) return Response.json({ error: "Error eliminando producto" }, { status: 500 });
     return Response.json({ error: null }, { status: 200 });
   } catch (error: unknown) {
