@@ -54,8 +54,8 @@ export function buildFiscalWorkbook(report: FiscalReport) {
     subtotalRow("Total del detalle", summary),
     ...summary.subtotals.map(s => subtotalRow("Subtotal CUIT / clase", s)),
     {
-      concepto: "Nota sobre Detalle de líneas",
-      detalle: "La suma de Importe total de Detalle de líneas puede diferir del total de Comprobantes cuando existan otros tributos de cabecera, comprobantes sin líneas guardadas o diferencias de redondeo en comprobantes incompletos.",
+      concepto: "Nota sobre Detalle de conceptos",
+      detalle: "La suma de Importe total de Detalle de conceptos puede diferir del total de Comprobantes cuando existan otros tributos de cabecera, comprobantes sin líneas guardadas o diferencias de redondeo en comprobantes incompletos.",
     },
   ];
   const workbook = buildMultiSheetWorkbook<Record<string, unknown>>({ sheets: [
@@ -83,7 +83,7 @@ export function buildFiscalWorkbook(report: FiscalReport) {
       })), rows: report.rows,
     },
     {
-      name: "Detalle de líneas", columns: FISCAL_LINE_COLUMNS.map(column => ({
+      name: "Detalle de conceptos", columns: FISCAL_LINE_COLUMNS.map(column => ({
         key: column.key,
         header: column.header,
         width: column.key === "producto" ? 38 : column.key === "cliente" || column.key === "categoria" ? 28 : column.kind === "money" ? 18 : 20,

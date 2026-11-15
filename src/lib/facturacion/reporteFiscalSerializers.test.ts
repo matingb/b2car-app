@@ -75,7 +75,7 @@ describe("archivos fiscales", () => {
     const report = buildFiscalReport(sample(), "tenant-a", { ...fiscalTestFilters, format: "xlsx" }, fiscalTestCorte);
     report.rows[0].receptor = "=1+1";
     const workbook = await readXlsx(await serializeFiscalXlsx(report));
-    expect(workbook.worksheets.map(s => s.name)).toEqual(["Resumen", "Comprobantes", "Detalle de líneas"]);
+    expect(workbook.worksheets.map(s => s.name)).toEqual(["Resumen", "Comprobantes", "Detalle de conceptos"]);
     const sheet = workbook.getWorksheet("Comprobantes")!;
     const col = (key: string) => FISCAL_COLUMNS.findIndex(c => c.key === key) + 1;
     expect(sheet.getCell(2, col("total")).value).toBe(121);
@@ -96,8 +96,8 @@ describe("archivos fiscales", () => {
     expect(summary.getColumn(17).values?.join(" ")).toMatch(/Parcial|parcial/);
     const summaryConcepts = (summary.getColumn(1).values ?? []).map(String).join("|").toLowerCase();
     expect(summaryConcepts).not.toMatch(/tenant|alcance|moneda|generaci.n|corte|emisor|criterio de sumas/);
-    expect(summary.getColumn(1).values).toContain("Nota sobre Detalle de líneas");
-    const linesSheet = workbook.getWorksheet("Detalle de líneas")!;
+    expect(summary.getColumn(1).values).toContain("Nota sobre Detalle de conceptos");
+    const linesSheet = workbook.getWorksheet("Detalle de conceptos")!;
     const lineCol = (key: string) => FISCAL_LINE_COLUMNS.findIndex(c => c.key === key) + 1;
     expect(linesSheet.views[0]).toMatchObject({ state: "frozen", ySplit: 1 });
     expect(linesSheet.autoFilter).toBe("A1:Q1");
@@ -300,7 +300,7 @@ describe("archivos fiscales", () => {
 
     expect(summary.getCell("A1").value).toBe("Concepto");
     expect(summary.getColumn(1).values).toContain("Total del detalle");
-    expect(summary.getColumn(1).values).toContain("Nota sobre Detalle de líneas");
+    expect(summary.getColumn(1).values).toContain("Nota sobre Detalle de conceptos");
     expect(summary.getColumn(1).values).toContain("Facturas");
     expect(summary.getColumn(1).values).toContain("Notas de crédito");
 
@@ -365,10 +365,10 @@ describe("archivos fiscales", () => {
     expect(sheet.getCell(6, col("total")).value).toBe(-181.5);
   });
 
-  it("página 3 (Detalle de líneas): desglosa cada tipo distinto de línea con su categoría, tratamiento IVA, cantidad y signos", async () => {
+  it("página 3 (Detalle de conceptos): desglosa cada tipo distinto de línea con su categoría, tratamiento IVA, cantidad y signos", async () => {
     const report = buildFiscalReport(comprehensiveLinesSample(), "tenant-a", { ...fiscalTestFilters, format: "xlsx" }, fiscalTestCorte);
     const workbook = await readXlsx(await serializeFiscalXlsx(report));
-    const linesSheet = workbook.getWorksheet("Detalle de líneas")!;
+    const linesSheet = workbook.getWorksheet("Detalle de conceptos")!;
     const col = (key: string) => FISCAL_LINE_COLUMNS.findIndex(c => c.key === key) + 1;
 
     expect(linesSheet.rowCount).toBe(14); // 1 header + 13 líneas

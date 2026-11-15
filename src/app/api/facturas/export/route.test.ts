@@ -57,7 +57,7 @@ describe("descarga fiscal autorizada", () => {
     const response = await GET(new Request(fiscalUrl().url.replace("format=csv", "format=xlsx")));
     expect(response.status).toBe(200); expect(response.headers.get("Content-Type")).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     const workbook = new ExcelJS.Workbook(); await workbook.xlsx.load(await response.arrayBuffer());
-    expect(workbook.worksheets.map(s => s.name)).toEqual(["Resumen", "Comprobantes", "Detalle de líneas"]);
+    expect(workbook.worksheets.map(s => s.name)).toEqual(["Resumen", "Comprobantes", "Detalle de conceptos"]);
   });
   it.each(["HOMOLOGACION", "PRODUCCION"] as const)("resuelve %s desde el servidor", async ambiente => {
     vi.stubEnv("ARCA_AMBIENTE", ambiente);
