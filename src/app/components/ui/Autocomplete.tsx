@@ -8,6 +8,7 @@ import { ChevronDown, X } from "lucide-react";
 export interface AutocompleteOption {
   value: string;
   label: string;
+  labelNode?: ReactNode;
   secondaryLabel?: ReactNode;
   searchText?: string;
   icon?: ReactNode;
@@ -317,7 +318,7 @@ export default function Autocomplete({
                             <span style={styles.optionIcon}>{option.icon}</span>
                           ) : null}
                           <span style={{ ...styles.optionLabel, ...(optionLabelStyle ?? {}) }}>
-                            {option.label}
+                            {option.labelNode ?? option.label}
                           </span>
                         </span>
                         {option.secondaryLabel && (

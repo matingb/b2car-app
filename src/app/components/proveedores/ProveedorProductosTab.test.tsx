@@ -137,4 +137,58 @@ describe("ProveedorProductosTab", () => {
     expect(screen.getByText("Filtro de Aceite Blindado PH6017A")).toBeInTheDocument();
     expect(screen.queryByText("Kit Correa de Distribución")).not.toBeInTheDocument();
   });
+
+  it("permite cambiar a la vista de tarjetas con el toggle y ejecutar acciones", async () => {
+    vi.mocked(proveedoresClient.getProductos).mockResolvedValue({
+      data: mockProductos,
+      error: null,
+    });
+
+    const onComprar = vi.fn();
+
+    render(
+      <ProveedorProductosTab
+        proveedorId="prov-1"
+        proveedorNombre="B2CAR"
+        onComprarProducto={onComprar}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Filtro de Aceite Blindado PH6017A")).toBeInTheDocument();
+    });
+
+    // Por defecto está en tabla
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.queryByTestId("proveedor-producto-card-prod-1")).not.toBeInTheDocument();
+
+    // Cambiar a vista de tarjetas
+    const cardsToggle = screen.getByTestId("view-toggle-cards");
+    fireEvent.click(cardsToggle);
+
+    // Ahora la tabla desaparece y aparecen las cards
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    const cardProd1 = screen.getByTestId("proveedor-producto-card-prod-1");
+    expect(cardProd1).toBeInTheDocument();
+
+    // Verificamos elementos dentro de la tarjeta
+    expect(cardProd1).toHaveTextContent("Filtro de Aceite Blindado PH6017A");
+    expect(cardProd1).toHaveTextContent("FLT-6017");
+    expect(cardProd1).toHaveTextContent("Stock: 22 un");
+    expect(cardProd1).toHaveTextContent("Costo ref.");
+    expect(cardProd1).toHaveTextContent("$2.200");
+    expect(cardProd1).toHaveTextContent("Venta: $3.800");
+    expect(cardProd1).not.toHaveTextContent("Predeterminado");
+
+    // Click en botón Pedir de la tarjeta
+    const cardPedirBtn = screen.getByTestId("card-comprar-producto-prod-1");
+    fireEvent.click(cardPedirBtn);
+    expect(onComprar).toHaveBeenCalledWith("prod-1", "Filtro de Aceite Blindado PH6017A");
+
+    // Cambiar de nuevo a tabla
+    const tableToggle = screen.getByTestId("view-toggle-table");
+    fireEvent.click(tableToggle);
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.queryByTestId("proveedor-producto-card-prod-1")).not.toBeInTheDocument();
+  });
 });

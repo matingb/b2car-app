@@ -10,7 +10,8 @@ import Card from "@/app/components/ui/Card";
 import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import ProductoItemCard from "@/app/components/productos/ProductoItemCard";
 import ProductosTable from "@/app/components/productos/ProductosTable";
-import { LayoutList, LoaderCircle, Table } from "lucide-react";
+import ViewModeToggle, { type ViewMode } from "@/app/components/ui/ViewModeToggle";
+import { LoaderCircle } from "lucide-react";
 import { useProductos } from "@/app/providers/ProductosProvider";
 import { css } from "@emotion/react";
 import StockStats from "@/app/components/stock/StockStats";
@@ -44,7 +45,7 @@ function ProductosPageContent() {
   const [selectedTallerId, setSelectedTallerId] = useState("");
   const state = useProductosFilters(productos, selectedTallerId);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [desktopView, setDesktopView] = useState<"table" | "cards">("table");
+  const [desktopView, setDesktopView] = useState<ViewMode>("table");
 
   return (
     <div>
@@ -112,34 +113,7 @@ function ProductosPageContent() {
 
               {/* Selector de vista (solo visible en pantallas desktop > lg) */}
               <div css={styles.toggleContainer}>
-                <div css={styles.toggleGroup} role="group" aria-label="Modo de visualización">
-                  <button
-                    type="button"
-                    onClick={() => setDesktopView("table")}
-                    css={[
-                      styles.toggleButton,
-                      desktopView === "table" && styles.toggleButtonActive,
-                    ]}
-                    aria-pressed={desktopView === "table"}
-                    data-testid="view-toggle-table"
-                  >
-                    <Table size={15} />
-                    <span>Tabla</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDesktopView("cards")}
-                    css={[
-                      styles.toggleButton,
-                      desktopView === "cards" && styles.toggleButtonActive,
-                    ]}
-                    aria-pressed={desktopView === "cards"}
-                    data-testid="view-toggle-cards"
-                  >
-                    <LayoutList size={15} />
-                    <span>Tarjetas</span>
-                  </button>
-                </div>
+                <ViewModeToggle value={desktopView} onChange={setDesktopView} />
               </div>
             </div>
 
@@ -217,38 +191,6 @@ const styles = {
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
       display: "none",
     },
-  }),
-  toggleGroup: css({
-    display: "inline-flex",
-    alignItems: "center",
-    backgroundColor: COLOR.BACKGROUND.SUBTLE,
-    padding: 3,
-    borderRadius: 8,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    gap: 2,
-  }),
-  toggleButton: css({
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    padding: "5px 12px",
-    borderRadius: 6,
-    border: "none",
-    background: "transparent",
-    color: COLOR.TEXT.SECONDARY,
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: "pointer",
-    transition: "all 0.15s ease",
-    "&:hover": {
-      color: COLOR.TEXT.PRIMARY,
-    },
-  }),
-  toggleButtonActive: css({
-    backgroundColor: COLOR.BACKGROUND.SECONDARY,
-    color: COLOR.TEXT.PRIMARY,
-    fontWeight: 600,
-    boxShadow: "0 1px 2px rgba(0, 0, 0, 0.06)",
   }),
   desktopContainer: css({
     marginTop: 12,

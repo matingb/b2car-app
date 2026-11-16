@@ -24,6 +24,25 @@ vi.mock("@/app/providers/ToastProvider", () => ({
   useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }),
 }));
 
+vi.mock("@/app/providers/ClientesProvider", () => ({
+  useClientes: () => ({
+    clientes: [{ id: "c1", nombre: "Cliente Test", tipo_cliente: "particular" }],
+    loading: false,
+    searchClientes: vi.fn().mockResolvedValue([]),
+    getClienteById: vi.fn().mockResolvedValue(null),
+  }),
+}));
+
+vi.mock("@/app/providers/VehiculosProvider", () => ({
+  useVehiculos: () => ({
+    vehiculos: [{ id: "veh-1", patente: "ABC123", marca: "Ford", modelo: "Fiesta", cliente_id: "c1" }],
+    loading: false,
+    searchVehiculos: vi.fn().mockResolvedValue([]),
+    getVehiculoById: vi.fn().mockResolvedValue(null),
+    fetchAll: vi.fn(),
+  }),
+}));
+
 const baseValues: ArregloFormFieldsValues = {
   estado: "SIN_INICIAR",
   fecha: "2026-05-16",
@@ -210,5 +229,50 @@ describe("ArregloFormFields selector de estado", () => {
     fireEvent.click(screen.getByTestId("arreglo-estado-badge"));
 
     expect(screen.queryByTestId("arreglo-estado-option-PRESUPUESTO")).not.toBeInTheDocument();
+  });
+
+  describe("buscador de vehículo", () => {
+    it("muestra el buscador de vehículo cuando vehiculoId no está definido", () => {
+      render(
+        <TenantTestProvider hasPermission={mockHasPermission(UserRole.Admin)}>
+          <ArregloFormFields
+            isEdit={false}
+            showFacturable={true}
+            submitting={false}
+            tallerId="taller-1"
+            values={{ ...baseValues, selectedVehiculoId: "" }}
+            onValuesChange={vi.fn()}
+          />
+        </TenantTestProvider>
+      );
+
+      expect(screen.getByTestId("arreglo-vehiculo-autocomplete")).toBeInTheDocument();
+    });
+
+    it("permite seleccionar vehículo desde el autocompletado", () => {
+      const onValuesChange = vi.fn();
+      render(
+        <TenantTestProvider hasPermission={mockHasPermission(UserRole.Admin)}>
+          <ArregloFormFields
+            isEdit={false}
+            showFacturable={true}
+            submitting={false}
+            tallerId="taller-1"
+            values={{ ...baseValues, selectedVehiculoId: "" }}
+            onValuesChange={onValuesChange}
+          />
+        </TenantTestProvider>
+      );
+
+      const vehiculoInput = screen.getByTestId("arreglo-vehiculo-autocomplete");
+      fireEvent.click(vehiculoInput);
+      fireEvent.click(screen.getByText(/ABC 123 - Ford Fiesta/));
+
+      expect(onValuesChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          selectedVehiculoId: "veh-1",
+        })
+      );
+    });
   });
 });

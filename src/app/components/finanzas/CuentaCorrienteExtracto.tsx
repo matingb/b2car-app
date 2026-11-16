@@ -3,12 +3,13 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { css } from "@emotion/react";
-import { ArrowDownLeft, ArrowUpRight, LayoutList, Table as TableIcon, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Wallet } from "lucide-react";
 import { formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
 import { COLOR, BREAKPOINTS } from "@/theme/theme";
 import Card from "@/app/components/ui/Card";
 import Table from "@/app/components/ui/Table";
+import ViewModeToggle, { type ViewMode } from "@/app/components/ui/ViewModeToggle";
 
 export type MovimientoCuentaCorrienteItem = {
   id: string;
@@ -43,7 +44,7 @@ export default function CuentaCorrienteExtracto({
   emptyActions,
   headerActions,
 }: CuentaCorrienteExtractoProps) {
-  const [desktopView, setDesktopView] = useState<"table" | "cards">("table");
+  const [desktopView, setDesktopView] = useState<ViewMode>("table");
 
   if (movimientos.length === 0) {
     return (
@@ -63,32 +64,7 @@ export default function CuentaCorrienteExtracto({
         <div css={styles.topRightActions}>
           {headerActions}
           <div css={styles.toggleContainer}>
-            <div css={styles.toggleGroup} role="group" aria-label="Modo de visualización">
-              <button
-                type="button"
-                onClick={() => setDesktopView("table")}
-                css={[
-                  styles.toggleButton,
-                  desktopView === "table" && styles.toggleButtonActive,
-                ]}
-                aria-pressed={desktopView === "table"}
-              >
-                <TableIcon size={15} />
-                <span>Tabla</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDesktopView("cards")}
-                css={[
-                  styles.toggleButton,
-                  desktopView === "cards" && styles.toggleButtonActive,
-                ]}
-                aria-pressed={desktopView === "cards"}
-              >
-                <LayoutList size={15} />
-                <span>Tarjetas</span>
-              </button>
-            </div>
+            <ViewModeToggle value={desktopView} onChange={setDesktopView} />
           </div>
         </div>
       </div>
@@ -246,38 +222,6 @@ const styles = {
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {
       display: "none",
     },
-  }),
-  toggleGroup: css({
-    display: "inline-flex",
-    alignItems: "center",
-    backgroundColor: COLOR.BACKGROUND.SUBTLE,
-    padding: 3,
-    borderRadius: 8,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    gap: 2,
-  }),
-  toggleButton: css({
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    padding: "5px 12px",
-    borderRadius: 6,
-    border: "none",
-    background: "transparent",
-    color: COLOR.TEXT.SECONDARY,
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: "pointer",
-    transition: "all 0.15s ease",
-    "&:hover": {
-      color: COLOR.TEXT.PRIMARY,
-    },
-  }),
-  toggleButtonActive: css({
-    backgroundColor: COLOR.BACKGROUND.SECONDARY,
-    color: COLOR.TEXT.PRIMARY,
-    fontWeight: 600,
-    boxShadow: "0 1px 2px rgba(0, 0, 0, 0.06)",
   }),
   desktopContainer: css({
     [`@media (max-width: ${BREAKPOINTS.lg}px)`]: {

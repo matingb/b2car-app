@@ -14,8 +14,19 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/app/providers/VehiculosProvider", () => ({
   useVehiculos: () => ({
-    vehiculos: [{ id: "veh-1", patente: "ABC123", marca: "Ford", modelo: "Fiesta" }],
+    vehiculos: [{ id: "veh-1", patente: "ABC123", marca: "Ford", modelo: "Fiesta", cliente_id: "c1" }],
     fetchAll: vi.fn(),
+    searchVehiculos: vi.fn().mockResolvedValue([]),
+    getVehiculoById: vi.fn().mockResolvedValue(null),
+  }),
+}));
+
+vi.mock("@/app/providers/ClientesProvider", () => ({
+  useClientes: () => ({
+    clientes: [{ id: "c1", nombre: "Cliente Test", tipo_cliente: "particular" }],
+    loading: false,
+    searchClientes: vi.fn().mockResolvedValue([]),
+    getClienteById: vi.fn().mockResolvedValue(null),
   }),
 }));
 
@@ -168,5 +179,16 @@ describe("ArregloModal - toggle de IVA", () => {
     await waitFor(() => {
       expect(onClose).toHaveBeenCalledWith(true);
     });
+  });
+
+  it("renderiza el buscador de vehículo al abrir el modal para crear arreglo sin vehiculoId", () => {
+    render(
+      <ArregloModal
+        open={true}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("arreglo-vehiculo-autocomplete")).toBeInTheDocument();
   });
 });

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Autocomplete, {
   type AutocompleteOption,
 } from "@/app/components/ui/Autocomplete";
+import VehiculoAutocomplete from "@/app/components/vehiculos/VehiculoAutocomplete";
 import Calendar from "@/app/components/ui/Calendar";
 import { BREAKPOINTS, COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
@@ -48,7 +49,6 @@ export type ArregloForm = {
 };
 
 export type ArregloFormFieldsValues = {
-
   estado: EstadoArreglo;
   fecha: string;
   km: string;
@@ -73,7 +73,7 @@ export type ArregloFormFieldsInternal = {
 
 type Props = {
   vehiculoId?: number | string;
-  vehiculoOptions: AutocompleteOption[];
+  vehiculoOptions?: AutocompleteOption[];
   isEdit: boolean;
   showFacturable: boolean;
   showPreciosSinIva?: boolean;
@@ -272,16 +272,16 @@ export default function ArregloFormFields({
         {!vehiculoId && (
           <div style={styles.field}>
             <label style={styles.label}>
-              Vehiculo{" "}
+              Vehículo{" "}
               <span aria-hidden="true" style={styles.required}>
                 *
               </span>
             </label>
-            <Autocomplete
-              options={vehiculoOptions}
+            <VehiculoAutocomplete
               value={values.selectedVehiculoId}
               onChange={(next) => onValuesChange({ selectedVehiculoId: next })}
-              placeholder="Buscar vehiculo..."
+              placeholder="Buscar vehículo por patente, modelo, cliente..."
+              dataTestId="arreglo-vehiculo-autocomplete"
             />
           </div>
         )}
@@ -507,10 +507,10 @@ const styles = {
     gap: 16,
     marginTop: 10,
     width: "auto",
-    [`@media (max-width: ${BREAKPOINTS.sm}px)`]: {
+    [`@media (max-width: ${BREAKPOINTS.md}px)`]: {
       width: "100%",
       flexDirection: "column",
-      gap: 8,
+      gap: 12,
     },
   }),
   kmRow: css({
@@ -539,12 +539,18 @@ const styles = {
       flex: "1 1 100%",
     },
   }),
-  field: { flex: 1 },
+  field: { flex: 1, minWidth: 0 },
   label: {
     display: "block",
     fontSize: 13,
     marginBottom: 6,
     color: COLOR.TEXT.SECONDARY,
+  },
+  optionalTag: {
+    fontSize: 11,
+    color: COLOR.TEXT.TERTIARY,
+    marginLeft: 6,
+    fontWeight: 400,
   },
   required: {
     color: REQUIRED_ICON_COLOR,

@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { POST } from "./route";
+import { GET, POST } from "./route";
 import { createClient } from "@/supabase/server";
 import { vehiculoService } from "./vehiculoService";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
-import { createCreateVehiculoRequest } from "@/tests/factories";
+import { createCreateVehiculoRequest, createVehiculo } from "@/tests/factories";
+import { NextRequest } from "next/server";
 
 vi.mock("@/supabase/server", () => ({
   createClient: vi.fn(),
@@ -12,6 +13,7 @@ vi.mock("@/supabase/server", () => ({
 vi.mock("./vehiculoService", () => ({
   vehiculoService: {
     create: vi.fn(),
+    list: vi.fn(),
   },
 }));
 
@@ -20,6 +22,60 @@ vi.mock("@/app/api/dashboard/stats/dashboardStatsService", () => ({
     onDataChanged: vi.fn(),
   },
 }));
+
+describe("GET /api/vehiculos", () => {
+  const mockSupabase = {} as Awaited<ReturnType<typeof createClient>>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(createClient).mockResolvedValue(mockSupabase);
+  });
+
+  it("obtiene vehículos paginados con filtros de búsqueda y cliente", async () => {
+    const vehiculosMock = [createVehiculo({ id: "v1", patente: "AB123CD" })];
+    vi.mocked(vehiculoService.list).mockResolvedValue({
+      data: vehiculosMock,
+      hasMore: true,
+      error: null,
+    });
+
+    const req = new NextRequest("http://localhost/api/vehiculos?search=Ford&cliente_id=c1&limit=25&page=2");
+    const response = await GET(req);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(vehiculoService.list).toHaveBeenCalledWith(mockSupabase, {
+      search: "Ford",
+      cliente_id: "c1",
+      limit: 25,
+      page: 2,
+    });
+    expect(body).toEqual({
+      data: vehiculosMock,
+      page: { hasMore: true },
+      error: null,
+    });
+  });
+
+  it("devuelve 500 si el servicio retorna error", async () => {
+    vi.mocked(vehiculoService.list).mockResolvedValue({
+      data: [],
+      hasMore: false,
+      error: new Error("DB error"),
+    });
+
+    const req = new NextRequest("http://localhost/api/vehiculos");
+    const response = await GET(req);
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({
+      data: [],
+      page: { hasMore: false },
+      error: "DB error",
+    });
+  });
+});
 
 describe("POST /api/vehiculos", () => {
   const mockSupabase = {} as Awaited<ReturnType<typeof createClient>>;

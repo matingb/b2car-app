@@ -4,19 +4,59 @@ import { CreateVehiculoRequest } from "@/clients/vehiculoClient";
 import type { Cliente } from "@/model/types";
 import type { SupabaseError } from "@/model/types";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
-import type { ClienteListRow} from "@/app/api/clientes/clienteService";
+import type { ClienteListRow } from "@/app/api/clientes/clienteService";
+import {
+  normalizePaginationLimit,
+  normalizePage,
+  sliceWithHasMore,
+} from "@/lib/pagination";
 
 export type VehiculoServiceError = ServiceError;
 export type VehiculoClienteServiceError = ServiceError;
 
+export type VehiculoListFilters = {
+  search?: string;
+  cliente_id?: string;
+  limit?: number;
+  page?: number;
+};
+
 export const vehiculoService = {
-  async list(supabase: SupabaseClient): Promise<{ data: Vehiculo[]; error: Error | null }> {
-    const { data, error } = await supabase.from("vista_vehiculos_con_clientes").select("*");
-    if (error) return { data: [], error: new Error(error.message) };
+  async list(
+    supabase: SupabaseClient,
+    filters?: VehiculoListFilters
+  ): Promise<{ data: Vehiculo[]; hasMore?: boolean; error: Error | null }> {
+    let query = supabase.from("vista_vehiculos_con_clientes").select("*");
 
-    const vehiculos: Vehiculo[] = (data ?? []) as Vehiculo[];
+    if (filters?.cliente_id) {
+      query = query.eq("cliente_id", filters.cliente_id);
+    }
 
-    return { data: vehiculos, error: null };
+    if (filters?.search) {
+      const s = filters.search.trim();
+      if (s) {
+        query = query.or(
+          `patente.ilike.%${s}%,marca.ilike.%${s}%,modelo.ilike.%${s}%,nombre_cliente.ilike.%${s}%,nro_interno.ilike.%${s}%,numero_chasis.ilike.%${s}%`
+        );
+      }
+    }
+
+    query = query.order("patente", { ascending: true });
+
+    if (filters?.limit) {
+      const page = normalizePage(filters.page);
+      const limit = normalizePaginationLimit(filters.limit);
+      const from = (page - 1) * limit;
+      const { data, error } = await query.range(from, from + limit);
+      if (error) return { data: [], hasMore: false, error: new Error(error.message) };
+      const { items, hasMore } = sliceWithHasMore(data ?? [], limit);
+      return { data: items as Vehiculo[], hasMore, error: null };
+    }
+
+    const { data, error } = await query;
+    if (error) return { data: [], hasMore: false, error: new Error(error.message) };
+
+    return { data: (data ?? []) as Vehiculo[], hasMore: false, error: null };
   },
 
   async create(

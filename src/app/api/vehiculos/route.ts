@@ -1,7 +1,9 @@
-import { createClient } from "@/supabase/server"
-import { logger } from "@/lib/logger"
-import { vehiculoService } from "./vehiculoService"
+import { NextRequest } from "next/server";
+import { createClient } from "@/supabase/server";
+import { logger } from "@/lib/logger";
+import { vehiculoService, type VehiculoListFilters } from "./vehiculoService";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { normalizePaginationLimit, normalizePage } from "@/lib/pagination";
 
 export type CreateVehiculoRequest = {
   cliente_id: string;
@@ -20,17 +22,33 @@ export type CreateVehiculoResponse = {
   error?: string | null;
 };
 
-export async function GET() {
-  const supabase = await createClient()
-  const { data, error } = await vehiculoService.list(supabase)
+export async function GET(req: NextRequest) {
+  const supabase = await createClient();
+  const searchParams = req.nextUrl.searchParams;
 
-  logger.debug("GET /api/vehiculos - data:", data, "error:", error)
+  const filters: VehiculoListFilters = {
+    search: searchParams.get("search")?.trim() || undefined,
+    cliente_id: searchParams.get("cliente_id")?.trim() || undefined,
+    limit: searchParams.get("limit") ? normalizePaginationLimit(searchParams.get("limit")) : undefined,
+    page: searchParams.get("page") ? normalizePage(searchParams.get("page")) : undefined,
+  };
+
+  const { data, hasMore, error } = await vehiculoService.list(supabase, filters);
+
+  logger.debug("GET /api/vehiculos - data:", data, "error:", error);
 
   if (error) {
-    return Response.json({ data: [], error: error.message }, { status: 500 })
+    return Response.json(
+      { data: [], page: { hasMore: false }, error: error.message },
+      { status: 500 }
+    );
   }
 
-  return Response.json({ data, error: null })
+  return Response.json({
+    data: data ?? [],
+    page: { hasMore: Boolean(hasMore) },
+    error: null,
+  });
 }
 
 export async function POST(req: Request) {

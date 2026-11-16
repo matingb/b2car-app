@@ -72,6 +72,7 @@ describe('vehiculoClient', () => {
                 ok: true,
                 json: async () => ({
                     data: vehiculos,
+                    page: { hasMore: false },
                     error: null,
                 }),
             });
@@ -81,6 +82,33 @@ describe('vehiculoClient', () => {
             expect(mockApi).toHaveBeenCalledWith('/api/vehiculos');
             expect(result).toEqual({
                 data: vehiculos,
+                page: { hasMore: false },
+                error: null,
+            });
+        });
+
+        it('debería incluir search, cliente_id, limit y page en los query params', async () => {
+            const vehiculos = [createVehiculo({ id: "1" })];
+            mockApi.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    data: vehiculos,
+                    page: { hasMore: true },
+                    error: null,
+                }),
+            });
+
+            const result = await vehiculoClient.getAll({
+                search: "Ford",
+                cliente_id: "cli-1",
+                limit: 25,
+                page: 2,
+            });
+
+            expect(mockApi).toHaveBeenCalledWith('/api/vehiculos?search=Ford&cliente_id=cli-1&limit=25&page=2');
+            expect(result).toEqual({
+                data: vehiculos,
+                page: { hasMore: true },
                 error: null,
             });
         });
@@ -97,6 +125,7 @@ describe('vehiculoClient', () => {
 
             expect(result).toEqual({
                 data: [],
+                page: { hasMore: false },
                 error: null,
             });
         });
@@ -109,6 +138,7 @@ describe('vehiculoClient', () => {
 
             expect(result).toEqual({
                 data: null,
+                page: { hasMore: false },
                 error: mensajeError,
             });
         });

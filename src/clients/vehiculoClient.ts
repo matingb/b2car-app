@@ -7,8 +7,18 @@ export type GetVehiculoByIdResponse = {
   error?: string | null;
 };
 
+export type GetVehiculosInput = {
+  search?: string;
+  cliente_id?: string;
+  limit?: number;
+  page?: number;
+};
+
 export type GetVehiculosResponse = {
   data: Vehiculo[] | null;
+  page: {
+    hasMore: boolean;
+  };
   error?: string | null;
 };
 
@@ -65,26 +75,37 @@ export const vehiculoClient = {
     }
   },
 
-  async getAll(): Promise<GetVehiculosResponse> {
+  async getAll(params?: GetVehiculosInput): Promise<GetVehiculosResponse> {
     try {
-      const res = await fetch("/api/vehiculos");
+      const searchParams = new URLSearchParams();
+      if (params?.search) searchParams.set("search", params.search);
+      if (params?.cliente_id) searchParams.set("cliente_id", params.cliente_id);
+      if (params?.limit) searchParams.set("limit", String(params.limit));
+      if (params?.page) searchParams.set("page", String(params.page));
+      const query = searchParams.toString();
+      const url = query ? `/api/vehiculos?${query}` : "/api/vehiculos";
+
+      const res = await fetch(url);
       const body: GetVehiculosResponse = await res.json();
 
       if (!res.ok) {
         return {
           data: null,
+          page: body?.page ?? { hasMore: false },
           error: body?.error || `Error ${res.status}`,
         };
       }
 
       return {
         data: body.data || [],
+        page: body.page ?? { hasMore: false },
         error: body.error || null,
       };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Error cargando vehiculos";
       return {
         data: null,
+        page: { hasMore: false },
         error: message,
       };
     }
