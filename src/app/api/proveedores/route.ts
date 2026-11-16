@@ -4,6 +4,7 @@ import { proveedorService, type CreateProveedorInput, type ProveedorRow } from "
 import { Permission } from "@/lib/permissions";
 import { ServiceError } from "../serviceError";
 import type { Proveedor } from "@/model/types";
+import { isCondicionIvaProveedor } from "@/lib/comprobantesRecibidos/types";
 
 export type GetProveedoresResponse = {
   data: Proveedor[];
@@ -16,6 +17,7 @@ export type CreateProveedorRequest = {
   telefono?: string | null;
   email?: string | null;
   direccion?: string | null;
+  condicion_iva?: string | null;
 };
 
 export type CreateProveedorResponse = {
@@ -31,6 +33,7 @@ function mapProveedor(row: ProveedorRow): Proveedor {
     telefono: row.telefono,
     email: row.email,
     direccion: row.direccion,
+    condicion_iva: row.condicion_iva ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
     saldo_pendiente: row.saldo_pendiente ?? 0,
@@ -46,6 +49,12 @@ function validateCreateProveedor(raw: unknown): Validated<CreateProveedorInput> 
   if (!nombre) {
     return { error: "El nombre es obligatorio" };
   }
+  const rawCondicionIva = obj.condicion_iva;
+  const sinCondicionIva = rawCondicionIva === undefined || rawCondicionIva === null || rawCondicionIva === "";
+  if (!sinCondicionIva && !isCondicionIvaProveedor(rawCondicionIva)) {
+    return { error: "La posición de IVA no es válida" };
+  }
+  const condicionIva: string | null = isCondicionIvaProveedor(rawCondicionIva) ? rawCondicionIva : null;
 
   return {
     value: {
@@ -54,6 +63,7 @@ function validateCreateProveedor(raw: unknown): Validated<CreateProveedorInput> 
       telefono: obj.telefono !== undefined && obj.telefono !== null ? String(obj.telefono).trim() : null,
       email: obj.email !== undefined && obj.email !== null ? String(obj.email).trim() : null,
       direccion: obj.direccion !== undefined && obj.direccion !== null ? String(obj.direccion).trim() : null,
+      condicion_iva: condicionIva,
     },
   };
 }

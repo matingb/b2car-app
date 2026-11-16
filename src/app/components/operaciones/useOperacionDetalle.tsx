@@ -102,6 +102,10 @@ export function getTotals(operacion: Operacion) {
   }
 
   const totalLineas = operacion.lineas?.length ?? 0;
+  // En las compras, monto_total (servidor) incluye los cargos (percepciones), que no son líneas.
+  if (operacion.tipo === "COMPRA" && typeof operacion.monto_total === "number" && Number.isFinite(operacion.monto_total)) {
+    return { totalLineas, totalMonto: operacion.monto_total };
+  }
   const totalMonto = (operacion.lineas ?? []).reduce(
     (acc, linea) => acc + (linea.cantidad || 0) * (linea.monto_unitario || 0),
     0

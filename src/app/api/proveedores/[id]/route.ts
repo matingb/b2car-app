@@ -4,6 +4,7 @@ import { proveedorService, type ProveedorRow, type UpdateProveedorInput } from "
 import { Permission } from "@/lib/permissions";
 import { ServiceError } from "../../serviceError";
 import type { Proveedor } from "@/model/types";
+import { isCondicionIvaProveedor } from "@/lib/comprobantesRecibidos/types";
 
 export type GetProveedorResponse = {
   data: Proveedor | null;
@@ -16,6 +17,7 @@ export type UpdateProveedorRequest = Partial<{
   telefono: string | null;
   email: string | null;
   direccion: string | null;
+  condicion_iva: string | null;
 }>;
 
 export type UpdateProveedorResponse = {
@@ -35,6 +37,7 @@ function mapProveedor(row: ProveedorRow): Proveedor {
     telefono: row.telefono,
     email: row.email,
     direccion: row.direccion,
+    condicion_iva: row.condicion_iva ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -63,6 +66,12 @@ function validateUpdateProveedor(raw: unknown): Validated<UpdateProveedorInput> 
   }
   if (obj.direccion !== undefined) {
     patch.direccion = obj.direccion === null ? null : String(obj.direccion).trim();
+  }
+  if (obj.condicion_iva !== undefined) {
+    if (obj.condicion_iva !== null && obj.condicion_iva !== "" && !isCondicionIvaProveedor(obj.condicion_iva)) {
+      return { error: "La posición de IVA no es válida" };
+    }
+    patch.condicion_iva = isCondicionIvaProveedor(obj.condicion_iva) ? obj.condicion_iva : null;
   }
 
   return { value: patch };

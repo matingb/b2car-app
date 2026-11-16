@@ -13,7 +13,7 @@ export type FacturaFilterChip = {
   text: string;
 };
 
-export type FacturaDocumentoTipoFilter = "" | "FACTURA" | "NOTA_CREDITO" | "NOTA_DEBITO" | "REMITO";
+export type FacturaDocumentoTipoFilter = "" | "FACTURA" | "NOTA_CREDITO" | "NOTA_DEBITO" | "REMITO" | "RECIBIDO";
 
 type Props = {
   search: string;
@@ -21,6 +21,8 @@ type Props = {
   onOpenFilters: () => void;
   documentoTipo: FacturaDocumentoTipoFilter;
   onDocumentoTipoChange: (value: FacturaDocumentoTipoFilter) => void;
+  /** Muestra el filtro de facturas y retenciones recibidas (requiere permiso de consulta). */
+  incluirRecibidos?: boolean;
   chips: FacturaFilterChip[];
   onRemoveChip: (key: string) => void;
   onClearFilters: () => void;
@@ -34,11 +36,19 @@ export default function FacturasToolbar({
   onOpenFilters,
   documentoTipo,
   onDocumentoTipoChange,
+  incluirRecibidos = false,
   chips,
   onRemoveChip,
   onClearFilters,
   children,
 }: Props) {
+  const tipoChips: ReadonlyArray<readonly [Exclude<FacturaDocumentoTipoFilter, "">, string]> = [
+    ["FACTURA", "Facturas"],
+    ["NOTA_CREDITO", "Notas de crédito"],
+    ["NOTA_DEBITO", "Notas de débito"],
+    ["REMITO", "Remitos"],
+    ...(incluirRecibidos ? [["RECIBIDO", "Recibidos"] as const] : []),
+  ];
   return (
     <div style={styles.container}>
       <div style={styles.row}>
@@ -61,12 +71,7 @@ export default function FacturasToolbar({
       </div>
 
       <div css={styles.documentTypeChips} aria-label="Filtrar por tipo de documento">
-        {([
-          ["FACTURA", "Facturas"],
-          ["NOTA_CREDITO", "Notas de crédito"],
-          ["NOTA_DEBITO", "Notas de débito"],
-          ["REMITO", "Remitos"],
-        ] as const).map(([value, label]) => (
+        {tipoChips.map(([value, label]) => (
           <FilterChip
             key={value}
             text={label}

@@ -78,6 +78,7 @@ export default function ProveedoresTabContent() {
     telefono?: string | null;
     email?: string | null;
     direccion?: string | null;
+    condicion_iva?: string | null;
   }) => {
     if (editingProveedor) {
       await updateProveedor(editingProveedor.id, values);

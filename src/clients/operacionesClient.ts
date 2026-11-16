@@ -26,6 +26,8 @@ export type CreateOperacionInput = {
 	arreglo_id?: string | null;
 	cuenta_financiera_id?: string | null;
 	pagos?: CreateOperacionPagoInput[] | null;
+	/** Solo COMPRA: percepciones de la factura que suman al total de la operación. */
+	cargos?: Array<{ tipo?: "PERCEPCION"; percepcion_codigo: string; descripcion: string; importe: number }> | null;
 	idempotency_key?: string | null;
 	observaciones?: string | null;
 	estado_pago?: EstadoPagoOperacion | null;

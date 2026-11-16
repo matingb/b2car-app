@@ -6,6 +6,9 @@ import { Skeleton, Theme } from "@radix-ui/themes";
 import Card from "@/app/components/ui/Card";
 import { FACTURA_ESTADO_LABEL, comprobanteLabel } from "@/lib/facturacion/types";
 import type { DocumentoListado } from "@/lib/documentos/types";
+import { comprobanteRecibidoTitulo } from "@/lib/comprobantesRecibidos/types";
+import { comprobanteRecibidoHref } from "@/app/components/comprobantesRecibidos/ComprobanteRecibidoListItem";
+import { ComprobanteRecibidoIcono } from "@/app/components/comprobantesRecibidos/comprobanteRecibidoIcono";
 import { formatCalendarDateLabel } from "@/lib/fechas";
 import { ROUTES } from "@/routing/routes";
 import { COLOR } from "@/theme/theme";
@@ -25,6 +28,17 @@ type Presentacion = {
 };
 
 function presentacion(documento: DocumentoListado): Presentacion {
+  if (documento.tipo === "RECIBIDO") {
+    const { comprobante } = documento;
+    return {
+      href: comprobanteRecibidoHref(comprobante.id),
+      icon: <ComprobanteRecibidoIcono size={16} />,
+      // El número va en su propia columna, como en facturas y remitos: el título no lo repite.
+      titulo: comprobanteRecibidoTitulo({ ...comprobante, numero: null }),
+      numero: comprobante.numero || "Sin número",
+      estado: "Recibido",
+    };
+  }
   if (documento.tipo === "REMITO") {
     const { remito } = documento;
     return {

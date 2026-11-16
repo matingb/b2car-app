@@ -67,6 +67,14 @@ export type CreateOperacionPagoInput = {
 	descripcion?: string | null;
 };
 
+/** Percepción de la factura de compra que suma al total de la operación (solo COMPRA). */
+export type CreateOperacionCargoInput = {
+	tipo?: "PERCEPCION";
+	percepcion_codigo: string;
+	descripcion: string;
+	importe: number;
+};
+
 export type CreateOperacionInput = {
 	tipo: string;
 	taller_id?: string | null;
@@ -76,6 +84,7 @@ export type CreateOperacionInput = {
 	arreglo_id?: string | null;
 	cuenta_financiera_id?: string | null;
 	pagos?: CreateOperacionPagoInput[] | null;
+	cargos?: CreateOperacionCargoInput[] | null;
 	idempotency_key?: string | null;
 	observaciones?: string | null;
 	estado_pago?: string | null;
@@ -233,6 +242,16 @@ export function createOperacionesService(
 				p_cliente_id: input.cliente_id ?? null,
 				p_pagos: input.pagos && input.pagos.length > 0 ? input.pagos : null,
 			};
+
+			// Las percepciones suman al total de la compra (monto_total = productos + cargos).
+			if (input.tipo === "COMPRA" && Array.isArray(input.cargos) && input.cargos.length > 0) {
+				payload.p_cargos = input.cargos.map((c) => ({
+					tipo: c.tipo ?? "PERCEPCION",
+					percepcion_codigo: c.percepcion_codigo,
+					descripcion: c.descripcion.trim(),
+					importe: c.importe,
+				}));
+			}
 
 			if (input.tipo === "GASTO") {
 				payload.p_categoria_gasto = input.categoria_gasto ?? null;

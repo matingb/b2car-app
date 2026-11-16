@@ -2,7 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
+import Autocomplete from "@/app/components/ui/Autocomplete";
 import type { Proveedor } from "@/model/types";
+import { CONDICIONES_IVA_PROVEEDOR } from "@/lib/comprobantesRecibidos/types";
 import { COLOR } from "@/theme/theme";
 
 type Props = {
@@ -14,6 +16,7 @@ type Props = {
     telefono?: string | null;
     email?: string | null;
     direccion?: string | null;
+    condicion_iva?: string | null;
   }) => Promise<void>;
   initialValues?: Proveedor | null;
 };
@@ -31,6 +34,7 @@ export default function ProveedorModal({
   const [telefono, setTelefono] = useState("");
   const [email, setEmail] = useState("");
   const [direccion, setDireccion] = useState("");
+  const [condicionIva, setCondicionIva] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -42,12 +46,14 @@ export default function ProveedorModal({
         setTelefono(initialValues.telefono || "");
         setEmail(initialValues.email || "");
         setDireccion(initialValues.direccion || "");
+        setCondicionIva(initialValues.condicion_iva || "");
       } else {
         setNombre("");
         setCuit("");
         setTelefono("");
         setEmail("");
         setDireccion("");
+        setCondicionIva("");
       }
       setValidationError(null);
     }
@@ -72,6 +78,7 @@ export default function ProveedorModal({
         telefono: telefono.trim() || null,
         email: email.trim() || null,
         direccion: direccion.trim() || null,
+        condicion_iva: condicionIva || null,
       });
       onClose();
     } catch (err: unknown) {
@@ -129,6 +136,24 @@ export default function ProveedorModal({
             style={styles.input}
             data-testid="proveedor-input-cuit"
           />
+        </div>
+
+        <div style={styles.fieldGroup}>
+          <label style={styles.label}>
+            Posición de IVA <span style={styles.optional}>(Opcional)</span>
+          </label>
+          <Autocomplete
+            aria-label="Posición de IVA"
+            value={condicionIva}
+            onChange={setCondicionIva}
+            placeholder="Sin informar"
+            options={CONDICIONES_IVA_PROVEEDOR.map((condicion) => ({ value: condicion.value, label: condicion.label }))}
+            inputStyle={styles.selectInput}
+            dataTestId="proveedor-input-condicion-iva"
+          />
+          <span style={styles.hint}>
+            Se precarga al registrar facturas de este proveedor. Cambiarla no modifica facturas ya cargadas.
+          </span>
         </div>
 
         <div style={styles.row}>
@@ -207,6 +232,21 @@ const styles = {
     fontSize: 12,
     fontWeight: 400,
     color: COLOR.TEXT.SECONDARY,
+  },
+  hint: {
+    fontSize: 12,
+    color: COLOR.TEXT.SECONDARY,
+  },
+  /** Selector (Autocomplete) con el mismo alto y borde que los inputs del formulario. */
+  selectInput: {
+    height: 42,
+    padding: "0 40px 0 12px",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 14,
+    boxSizing: "border-box" as const,
   },
   input: {
     height: 42,

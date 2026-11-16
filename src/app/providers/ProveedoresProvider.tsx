@@ -15,6 +15,7 @@ export type ProveedoresContextValue = {
     telefono?: string | null;
     email?: string | null;
     direccion?: string | null;
+    condicion_iva?: string | null;
   }) => Promise<Proveedor>;
   updateProveedor: (
     id: string,
@@ -24,6 +25,7 @@ export type ProveedoresContextValue = {
       telefono?: string | null;
       email?: string | null;
       direccion?: string | null;
+      condicion_iva?: string | null;
     }>
   ) => Promise<Proveedor>;
   deleteProveedor: (id: string) => Promise<void>;
@@ -72,6 +74,7 @@ export function ProveedoresProvider({ children }: { children: React.ReactNode })
       telefono?: string | null;
       email?: string | null;
       direccion?: string | null;
+      condicion_iva?: string | null;
     }) => {
       const res = await proveedoresClient.create(data);
       if (res.error || !res.data) {
@@ -92,6 +95,7 @@ export function ProveedoresProvider({ children }: { children: React.ReactNode })
         telefono?: string | null;
         email?: string | null;
         direccion?: string | null;
+        condicion_iva?: string | null;
       }>
     ) => {
       const res = await proveedoresClient.update(id, data);

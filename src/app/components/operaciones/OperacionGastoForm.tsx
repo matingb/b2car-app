@@ -3,6 +3,7 @@
 import GastoFormFields from "@/app/components/finanzas/GastoFormFields";
 import PagoCondicionSection from "@/app/components/finanzas/PagoCondicionSection";
 import { useOperacionForm } from "./OperacionFormContext";
+import OperacionFacturaPercepciones from "./OperacionFacturaPercepciones";
 
 export default function OperacionGastoForm() {
   const {
@@ -28,7 +29,11 @@ export default function OperacionGastoForm() {
     handleToggleAdvanced,
     isLoadingCuentas,
     isEditingGasto,
+    factura,
+    puedeCargarComprobante,
   } = useOperacionForm();
+
+  const conFactura = puedeCargarComprobante && factura.activa;
 
   return (
     <GastoFormFields
@@ -42,6 +47,12 @@ export default function OperacionGastoForm() {
       setObservacionesGasto={setObservaciones}
       pagoSection={
         !isEditingGasto ? (
+          <>
+          {conFactura ? (
+            <div style={{ marginBottom: 10 }}>
+              <OperacionFacturaPercepciones />
+            </div>
+          ) : null}
           <PagoCondicionSection
             tipo="GASTO"
             totalOperacion={importeTotal}
@@ -58,6 +69,7 @@ export default function OperacionGastoForm() {
             onToggleAdvanced={handleToggleAdvanced}
             loadingCuentas={isLoadingCuentas}
           />
+          </>
         ) : null
       }
     />

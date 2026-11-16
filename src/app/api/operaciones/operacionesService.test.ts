@@ -113,6 +113,40 @@ describe("operacionesService.create", () => {
 		}));
 	});
 
+	it("reenvía las percepciones de una COMPRA como p_cargos", async () => {
+		const operacionId = "11111111-1111-4111-8111-111111111111";
+		const rpc = vi.fn().mockResolvedValue({ data: operacionId, error: null });
+		vi.spyOn(operacionesService, "getById").mockResolvedValue({ data: null, error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		await operacionesService.create(supabase, {
+			tipo: "COMPRA",
+			taller_id: "22222222-2222-4222-8222-222222222222",
+			lineas: [],
+			cargos: [{ percepcion_codigo: "IVA", descripcion: " IVA ", importe: 150 }],
+		});
+
+		expect(rpc).toHaveBeenCalledWith("rpc_crear_operacion_con_stock", expect.objectContaining({
+			p_cargos: [{ tipo: "PERCEPCION", percepcion_codigo: "IVA", descripcion: "IVA", importe: 150 }],
+		}));
+	});
+
+	it("no envía p_cargos fuera de las compras", async () => {
+		const operacionId = "11111111-1111-4111-8111-111111111111";
+		const rpc = vi.fn().mockResolvedValue({ data: operacionId, error: null });
+		vi.spyOn(operacionesService, "getById").mockResolvedValue({ data: null, error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		await operacionesService.create(supabase, {
+			tipo: "VENTA",
+			taller_id: "22222222-2222-4222-8222-222222222222",
+			lineas: [],
+			cargos: [{ percepcion_codigo: "IVA", descripcion: "IVA", importe: 150 }],
+		});
+
+		expect(rpc.mock.calls[0][1]).not.toHaveProperty("p_cargos");
+	});
+
 	it("reenvía parámetros de GASTO a rpc_crear_operacion_gasto", async () => {
 		const operacionId = "11111111-1111-4111-8111-111111111111";
 		const rpc = vi.fn().mockResolvedValue({ data: operacionId, error: null });

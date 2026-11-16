@@ -191,6 +191,8 @@ export default function CuentaFinancieraDetailPage() {
         `${reloadErrors.join(" ")} Recargá la pantalla para ver el saldo y el historial actualizados.`,
       );
     }
+    // El id del gasto es el de su operación: permite cargar a continuación su factura o retención.
+    return { id: response.data.id };
   };
 
   const handleDelete = async () => {

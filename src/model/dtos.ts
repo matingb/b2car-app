@@ -240,6 +240,16 @@ export type OperacionLineaDTO = {
     codigo?: string;
 };
 
+/** Importe de la operación que no es mercadería (hoy: percepción de la factura de compra). */
+export type OperacionCargoDTO = {
+    id: string;
+    orden: number;
+    tipo: string;
+    percepcion_codigo?: string | null;
+    descripcion: string;
+    importe: number;
+};
+
 export type OperacionPagoDTO = {
     id: string;
     tenant_id?: string;

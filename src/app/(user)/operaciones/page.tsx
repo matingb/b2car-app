@@ -33,6 +33,7 @@ import { useTenant } from "@/app/providers/TenantProvider";
 import { Permission } from "@/lib/permissions";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
 import LineaDetalleOperacion from "@/app/components/operaciones/LineaDetalleOperacion";
+import { getTotals } from "@/app/components/operaciones/useOperacionDetalle";
 import OperacionesFilterBar from "@/app/components/operaciones/OperacionesFilterBar";
 import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
 import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
@@ -120,18 +121,6 @@ const tipoConfig: Record<
 function shortId(value?: string | null) {
     if (!value) return "-";
     return value.slice(0, 8).toUpperCase();
-}
-
-function getTotals(operacion: Operacion) {
-    if (["GASTO", "COBRO_ARREGLO", "INGRESO", "APERTURA_CUENTA", "AJUSTE_FINANCIERO", "TRANSFERENCIA", "MOVIMIENTO_CUENTA"].includes(operacion.tipo)) {
-        return { totalLineas: 0, totalMonto: Number(operacion.monto) || 0 };
-    }
-    const totalLineas = operacion.lineas?.length ?? 0;
-    const totalMonto = (operacion.lineas ?? []).reduce(
-        (acc, linea) => acc + (linea.cantidad || 0) * (linea.monto_unitario || 0),
-        0
-    );
-    return { totalLineas, totalMonto };
 }
 
 export function formatOperacionCardAmount(value: number) {

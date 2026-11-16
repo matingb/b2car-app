@@ -1,0 +1,741 @@
+"use client";
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Info, Plus, Trash2 } from "lucide-react";
+import Modal from "@/app/components/ui/Modal";
+import Dropdown from "@/app/components/ui/Dropdown";
+import Autocomplete from "@/app/components/ui/Autocomplete";
+import { useToast } from "@/app/providers/ToastProvider";
+import { comprobantesRecibidosClient } from "@/clients/comprobantesRecibidosClient";
+import { parseComprobanteRecibidoInput } from "@/lib/comprobantesRecibidos/input";
+import {
+  COMPROBANTE_RECIBIDO_TIPO_LABEL,
+  CONDICIONES_IVA_PROVEEDOR,
+  FACTURA_RECIBIDA_CLASES,
+  MAX_LINEAS_COMPROBANTE,
+  PERCEPCIONES_SUGERIDAS,
+  condicionIvaLabel,
+  resolverPercepcion,
+  totalesLineas,
+  type ComprobanteRecibido,
+  type ComprobanteRecibidoInput,
+  type ComprobanteRecibidoLineaTipo,
+  type ComprobanteRecibidoPrecarga,
+  type ComprobanteRecibidoTipo,
+  type CondicionIvaProveedor,
+  type FacturaRecibidaClase,
+} from "@/lib/comprobantesRecibidos/types";
+import { formatArs } from "@/lib/format";
+import { toISODateAppTimeZone } from "@/lib/fechas";
+import { generateUuidV4 } from "@/lib/uuid";
+import { COLOR } from "@/theme/theme";
+
+type LineaDraft = {
+  key: string;
+  tipo: ComprobanteRecibidoLineaTipo;
+  /** Concepto: descripción libre. Percepción: código sugerido o texto libre del selector abierto. */
+  descripcion: string;
+  importe: string;
+};
+
+type FormState = {
+  tipoDocumento: ComprobanteRecibidoTipo;
+  clase: FacturaRecibidaClase | "";
+  numero: string;
+  fecha: string;
+  emisorRazonSocial: string;
+  emisorCuit: string;
+  emisorCondicionIva: CondicionIvaProveedor | "";
+  emisorDomicilio: string;
+  receptorRazonSocial: string;
+  receptorCuit: string;
+  receptorCondicionIva: CondicionIvaProveedor | "";
+  /** Sin campo en el formulario: se conservan los valores de documentos cargados antes. */
+  codigoAutorizacion: string;
+  vencimientoAutorizacion: string;
+  fechaVencimiento: string;
+  observaciones: string;
+  lineas: LineaDraft[];
+};
+
+export type ComprobanteRecibidoModalProps = {
+  open: boolean;
+  onClose: () => void;
+  onSaved?: (comprobante: ComprobanteRecibido) => void;
+  operacionId: string;
+  precarga: ComprobanteRecibidoPrecarga;
+  /** Documento existente: edición (o consulta si `readOnly`). Sin documento: alta. */
+  comprobante?: ComprobanteRecibido | null;
+  initialTipo?: ComprobanteRecibidoTipo;
+  /** Alta precargada con un documento ya cargado que no se pudo guardar (reintento). */
+  initialInput?: ComprobanteRecibidoInput;
+  /** Clave de idempotencia a reutilizar en el alta (reintento de un intento anterior). */
+  idempotencyKey?: string;
+  initialError?: string;
+  readOnly?: boolean;
+};
+
+function nuevaLinea(tipo: ComprobanteRecibidoLineaTipo = "CONCEPTO"): LineaDraft {
+  return { key: generateUuidV4(), tipo, descripcion: "", importe: "" };
+}
+
+function estadoInicial(
+  precarga: ComprobanteRecibidoPrecarga,
+  comprobante: ComprobanteRecibidoInput | null | undefined,
+  initialTipo: ComprobanteRecibidoTipo,
+): FormState {
+  if (comprobante) {
+    return {
+      tipoDocumento: comprobante.tipoDocumento,
+      clase: comprobante.clase ?? "",
+      numero: comprobante.numero ?? "",
+      fecha: comprobante.fecha,
+      emisorRazonSocial: comprobante.emisor.razonSocial ?? "",
+      emisorCuit: comprobante.emisor.cuit ?? "",
+      emisorCondicionIva: comprobante.emisor.condicionIva ?? "",
+      emisorDomicilio: comprobante.emisor.domicilio ?? "",
+      receptorRazonSocial: comprobante.receptor.razonSocial ?? "",
+      receptorCuit: comprobante.receptor.cuit ?? "",
+      receptorCondicionIva: comprobante.receptor.condicionIva ?? "",
+      codigoAutorizacion: comprobante.codigoAutorizacion ?? "",
+      vencimientoAutorizacion: comprobante.vencimientoAutorizacion ?? "",
+      fechaVencimiento: comprobante.fechaVencimiento ?? "",
+      observaciones: comprobante.observaciones ?? "",
+      lineas: comprobante.lineas.map((linea) => ({
+        key: linea.id ?? generateUuidV4(),
+        tipo: linea.tipo,
+        descripcion: linea.tipo === "PERCEPCION" && linea.percepcionCodigo && linea.percepcionCodigo !== "OTRA"
+          ? linea.percepcionCodigo
+          : linea.descripcion,
+        importe: String(linea.importe),
+      })),
+    };
+  }
+  // Precarga: copia editable de la ficha del proveedor y de los datos fiscales del tenant.
+  return {
+    tipoDocumento: initialTipo,
+    clase: "",
+    numero: "",
+    fecha: toISODateAppTimeZone(),
+    emisorRazonSocial: precarga.emisor.razonSocial ?? "",
+    emisorCuit: precarga.emisor.cuit ?? "",
+    emisorCondicionIva: precarga.emisor.condicionIva ?? "",
+    emisorDomicilio: precarga.emisor.domicilio ?? "",
+    receptorRazonSocial: precarga.receptor.razonSocial ?? "",
+    receptorCuit: precarga.receptor.cuit ?? "",
+    receptorCondicionIva: precarga.receptor.condicionIva ?? "",
+    codigoAutorizacion: "",
+    vencimientoAutorizacion: "",
+    fechaVencimiento: "",
+    observaciones: "",
+    lineas: [nuevaLinea()],
+  };
+}
+
+function importeLinea(value: string): number {
+  const parsed = Number(value.replace(",", "."));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function toInput(form: FormState, proveedorId: string | null): unknown {
+  return {
+    tipoDocumento: form.tipoDocumento,
+    clase: form.tipoDocumento === "FACTURA" ? form.clase || null : null,
+    numero: form.numero,
+    fecha: form.fecha,
+    proveedorId,
+    emisor: {
+      razonSocial: form.emisorRazonSocial,
+      cuit: form.emisorCuit,
+      condicionIva: form.emisorCondicionIva || null,
+      domicilio: form.emisorDomicilio,
+    },
+    receptor: {
+      razonSocial: form.receptorRazonSocial,
+      cuit: form.receptorCuit,
+      condicionIva: form.receptorCondicionIva || null,
+    },
+    codigoAutorizacion: form.codigoAutorizacion,
+    vencimientoAutorizacion: form.vencimientoAutorizacion,
+    fechaVencimiento: form.tipoDocumento === "FACTURA" ? form.fechaVencimiento : "",
+    observaciones: form.observaciones,
+    lineas: form.lineas.map((linea) => {
+      const importeTexto = linea.importe.trim().replace(",", ".");
+      const importe = importeTexto ? Number(importeTexto) : Number.NaN;
+      if (linea.tipo === "PERCEPCION") {
+        const percepcion = resolverPercepcion(linea.descripcion);
+        return {
+          tipo: "PERCEPCION",
+          descripcion: percepcion?.descripcion ?? "",
+          percepcionCodigo: percepcion?.codigo ?? "OTRA",
+          importe,
+        };
+      }
+      return { tipo: "CONCEPTO", descripcion: linea.descripcion, percepcionCodigo: null, importe };
+    }),
+  };
+}
+
+export default function ComprobanteRecibidoModal({
+  open,
+  onClose,
+  onSaved,
+  operacionId,
+  precarga,
+  comprobante,
+  initialTipo = "FACTURA",
+  initialInput,
+  idempotencyKey,
+  initialError,
+  readOnly = false,
+}: ComprobanteRecibidoModalProps) {
+  const { success } = useToast();
+  const isEditing = Boolean(comprobante);
+  const [form, setForm] = useState<FormState>(() => estadoInicial(precarga, comprobante ?? initialInput, initialTipo));
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(initialError ?? null);
+  // La misma clave en todos los reintentos del alta: el documento se registra una sola vez.
+  const idempotencyKeyRef = useRef(idempotencyKey ?? generateUuidV4());
+
+  useEffect(() => {
+    if (!open) return;
+    setForm(estadoInicial(precarga, comprobante ?? initialInput, initialTipo));
+    setError(initialError ?? null);
+    setSubmitting(false);
+    idempotencyKeyRef.current = idempotencyKey ?? generateUuidV4();
+    // Solo se reinicia al abrir o al cambiar el documento.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, comprobante?.id]);
+
+  const esFactura = form.tipoDocumento === "FACTURA";
+
+  const totales = useMemo(
+    () => totalesLineas(form.lineas.map((linea) => ({ tipo: linea.tipo, importe: importeLinea(linea.importe) }))),
+    [form.lineas],
+  );
+
+  const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    if (error) setError(null);
+  };
+
+  const updateLinea = (key: string, patch: Partial<LineaDraft>) => {
+    setForm((current) => ({
+      ...current,
+      lineas: current.lineas.map((linea) => (linea.key === key ? { ...linea, ...patch } : linea)),
+    }));
+    if (error) setError(null);
+  };
+
+  const addLinea = (tipo: ComprobanteRecibidoLineaTipo) => {
+    setForm((current) => (
+      current.lineas.length >= MAX_LINEAS_COMPROBANTE ? current : { ...current, lineas: [...current.lineas, nuevaLinea(tipo)] }
+    ));
+  };
+
+  const removeLinea = (key: string) => {
+    setForm((current) => ({ ...current, lineas: current.lineas.filter((linea) => linea.key !== key) }));
+  };
+
+  const cambiarTipoDocumento = (tipo: ComprobanteRecibidoTipo) => {
+    setForm((current) => ({
+      ...current,
+      tipoDocumento: tipo,
+      // Las retenciones solo registran conceptos (descripción e importe).
+      lineas: tipo === "RETENCION"
+        ? current.lineas.map((linea) => (linea.tipo === "PERCEPCION" ? { ...linea, tipo: "CONCEPTO", descripcion: "" } : linea))
+        : current.lineas,
+    }));
+    setError(null);
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (readOnly || submitting) return;
+    const parsed = parseComprobanteRecibidoInput(toInput(form, comprobante?.proveedorId ?? precarga.proveedorId));
+    if (parsed.error || !parsed.value) {
+      setError(parsed.error ?? "Revisá los datos del documento");
+      return;
+    }
+    const input: ComprobanteRecibidoInput = parsed.value;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const saved = comprobante
+        ? await comprobantesRecibidosClient.update(comprobante.id, input)
+        : await comprobantesRecibidosClient.create(operacionId, input, idempotencyKeyRef.current);
+      success(
+        isEditing ? "Documento actualizado" : "Documento guardado",
+        "Los pagos, saldos y stock de la operación no cambiaron.",
+      );
+      onSaved?.(saved);
+      onClose();
+    } catch (cause) {
+      // El fallo nunca se presenta como guardado: el formulario queda abierto para reintentar.
+      setError(cause instanceof Error ? cause.message : "No se pudo guardar el documento");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const title = readOnly
+    ? `${COMPROBANTE_RECIBIDO_TIPO_LABEL[form.tipoDocumento]} recibida`
+    : isEditing
+      ? `Editar ${COMPROBANTE_RECIBIDO_TIPO_LABEL[form.tipoDocumento].toLowerCase()}`
+      : `Nueva ${COMPROBANTE_RECIBIDO_TIPO_LABEL[form.tipoDocumento].toLowerCase()} recibida`;
+
+  const condicionOptions = CONDICIONES_IVA_PROVEEDOR.map((condicion) => ({ value: condicion.value, label: condicion.label }));
+  const percepcionOptions = PERCEPCIONES_SUGERIDAS.map((sugerida) => ({ value: sugerida.codigo, label: sugerida.label }));
+
+  return (
+    <Modal
+      open={open}
+      title={title}
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      submitText={isEditing ? "Guardar cambios" : "Guardar documento"}
+      submitting={submitting}
+      disabledSubmit={submitting}
+      hideFooter={readOnly}
+      showCloseButton
+      modalStyle={{ width: "min(860px, 96vw)", maxHeight: "92vh", overflowY: "auto" }}
+    >
+      <div style={styles.form} data-testid="comprobante-recibido-form">
+        {error ? <div role="alert" style={styles.errorBanner} data-testid="comprobante-recibido-error">{error}</div> : null}
+
+        {!isEditing && !readOnly ? (
+          <div style={styles.segmented} role="group" aria-label="Tipo de documento">
+            {(["FACTURA", "RETENCION"] as const).map((tipo) => (
+              <button
+                key={tipo}
+                type="button"
+                onClick={() => cambiarTipoDocumento(tipo)}
+                style={form.tipoDocumento === tipo ? { ...styles.segment, ...styles.segmentActive } : styles.segment}
+                aria-pressed={form.tipoDocumento === tipo}
+                data-testid={`comprobante-recibido-tipo-${tipo}`}
+              >
+                {COMPROBANTE_RECIBIDO_TIPO_LABEL[tipo]}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <section style={styles.section} aria-label="Datos del documento">
+          <h4 style={styles.sectionTitle}>Documento</h4>
+          <div style={styles.row}>
+            {esFactura ? (
+              <Field label="Clase" required>
+                <div style={styles.segmented} role="group" aria-label="Clase de factura">
+                  {FACTURA_RECIBIDA_CLASES.map((clase) => (
+                    <button
+                      key={clase}
+                      type="button"
+                      disabled={readOnly}
+                      onClick={() => update("clase", clase)}
+                      style={form.clase === clase ? { ...styles.segment, ...styles.segmentActive } : styles.segment}
+                      aria-pressed={form.clase === clase}
+                      data-testid={`comprobante-recibido-clase-${clase}`}
+                    >
+                      {clase}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            ) : null}
+            <Field label={esFactura ? "Número de factura" : "Número o identificación"} required={esFactura}>
+              <input
+                style={styles.input}
+                value={form.numero}
+                disabled={readOnly}
+                maxLength={50}
+                onChange={(event) => update("numero", event.target.value)}
+                placeholder={esFactura ? "Ej: 0001-00001234" : "Opcional"}
+                data-testid="comprobante-recibido-numero"
+              />
+            </Field>
+            <Field label="Fecha" required>
+              <input
+                type="date"
+                style={styles.input}
+                value={form.fecha}
+                disabled={readOnly}
+                onChange={(event) => update("fecha", event.target.value)}
+                data-testid="comprobante-recibido-fecha"
+              />
+            </Field>
+            {esFactura ? (
+              <Field label="Fecha de vencimiento">
+                <input
+                  type="date"
+                  style={styles.input}
+                  value={form.fechaVencimiento}
+                  min={form.fecha || undefined}
+                  disabled={readOnly}
+                  onChange={(event) => update("fechaVencimiento", event.target.value)}
+                  data-testid="comprobante-recibido-fecha-vencimiento"
+                />
+              </Field>
+            ) : null}
+          </div>
+        </section>
+
+        <section style={styles.section} aria-label="Emisor">
+          <h4 style={styles.sectionTitle}>Emisor (proveedor)</h4>
+          <p style={styles.hint}>
+            Datos precargados de la ficha del proveedor. Podés corregirlos para este documento: la ficha no cambia.
+          </p>
+          <div style={styles.row}>
+            <Field label="Razón social" required grow>
+              <input
+                style={styles.input}
+                value={form.emisorRazonSocial}
+                disabled={readOnly}
+                maxLength={200}
+                onChange={(event) => update("emisorRazonSocial", event.target.value)}
+                data-testid="comprobante-recibido-emisor-razon-social"
+              />
+            </Field>
+            <Field label="CUIT emisor" required={esFactura}>
+              <input
+                style={styles.input}
+                value={form.emisorCuit}
+                disabled={readOnly}
+                maxLength={20}
+                inputMode="numeric"
+                onChange={(event) => update("emisorCuit", event.target.value)}
+                placeholder="30-71234567-8"
+                data-testid="comprobante-recibido-emisor-cuit"
+              />
+            </Field>
+          </div>
+          <div style={styles.row}>
+            <Field label="Posición de IVA del proveedor" required={esFactura}>
+              {readOnly ? (
+                <input style={styles.input} disabled value={condicionIvaLabel(form.emisorCondicionIva || null)} />
+              ) : (
+                <Autocomplete
+                  aria-label="Posición de IVA del proveedor"
+                  value={form.emisorCondicionIva}
+                  onChange={(value) => update("emisorCondicionIva", value as CondicionIvaProveedor | "")}
+                  options={condicionOptions}
+                  placeholder="Seleccionar posición"
+                  inputStyle={styles.selectInput}
+                  dataTestId="comprobante-recibido-emisor-condicion-iva"
+                />
+              )}
+            </Field>
+            <Field label="Domicilio" grow>
+              <input
+                style={styles.input}
+                value={form.emisorDomicilio}
+                disabled={readOnly}
+                maxLength={300}
+                onChange={(event) => update("emisorDomicilio", event.target.value)}
+              />
+            </Field>
+          </div>
+        </section>
+
+        <section style={styles.section} aria-label="Líneas">
+          <h4 style={styles.sectionTitle}>{esFactura ? "Conceptos y percepciones" : "Detalle de la retención"}</h4>
+          <p style={styles.hint}>
+            Descripciones e importes manuales. No se calculan alícuotas ni porcentajes.
+          </p>
+          <div style={styles.lineas}>
+            {form.lineas.map((linea, index) => (
+              <div key={linea.key} style={styles.lineaRow} data-testid={`comprobante-recibido-linea-${index}`}>
+                {esFactura ? (
+                  <div style={styles.lineaTipo}>
+                    {readOnly ? (
+                      <span style={styles.lineaTipoLabel}>{linea.tipo === "PERCEPCION" ? "Percepción" : "Concepto"}</span>
+                    ) : (
+                      <Dropdown
+                        ariaLabel={`Tipo de la línea ${index + 1}`}
+                        value={linea.tipo}
+                        onChange={(value) => updateLinea(linea.key, { tipo: value as ComprobanteRecibidoLineaTipo, descripcion: "" })}
+                        options={[
+                          { value: "CONCEPTO", label: "Concepto" },
+                          { value: "PERCEPCION", label: "Percepción" },
+                        ]}
+                      />
+                    )}
+                  </div>
+                ) : null}
+                <div style={styles.lineaDescripcion}>
+                  {linea.tipo === "PERCEPCION" ? (
+                    <Autocomplete
+                      options={percepcionOptions}
+                      value={linea.descripcion}
+                      onChange={(value) => updateLinea(linea.key, { descripcion: value })}
+                      allowCustomValue
+                      disabled={readOnly}
+                      placeholder="Elegí o escribí una percepción"
+                      aria-label={`Percepción de la línea ${index + 1}`}
+                      maxLength={200}
+                      dataTestId={`comprobante-recibido-linea-${index}-percepcion`}
+                    />
+                  ) : (
+                    <input
+                      style={styles.input}
+                      value={linea.descripcion}
+                      disabled={readOnly}
+                      maxLength={200}
+                      placeholder={esFactura ? "Descripción del concepto" : "Ej: Retención Ganancias"}
+                      aria-label={`Descripción de la línea ${index + 1}`}
+                      onChange={(event) => updateLinea(linea.key, { descripcion: event.target.value })}
+                      data-testid={`comprobante-recibido-linea-${index}-descripcion`}
+                    />
+                  )}
+                </div>
+                <div style={styles.lineaImporte}>
+                  <input
+                    style={{ ...styles.input, textAlign: "right" }}
+                    value={linea.importe}
+                    disabled={readOnly}
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    aria-label={`Importe de la línea ${index + 1}`}
+                    onChange={(event) => updateLinea(linea.key, { importe: event.target.value.replace(/[^0-9.,]/g, "") })}
+                    data-testid={`comprobante-recibido-linea-${index}-importe`}
+                  />
+                </div>
+                {!readOnly ? (
+                  <button
+                    type="button"
+                    style={styles.iconButton}
+                    onClick={() => removeLinea(linea.key)}
+                    disabled={form.lineas.length <= 1}
+                    aria-label={`Quitar línea ${index + 1}`}
+                    title="Quitar línea"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          {!readOnly ? (
+            <div style={styles.lineActions}>
+              <button type="button" style={styles.linkButton} onClick={() => addLinea("CONCEPTO")} data-testid="comprobante-recibido-agregar-concepto">
+                <Plus size={14} /> Agregar concepto
+              </button>
+              {esFactura ? (
+                <button type="button" style={styles.linkButton} onClick={() => addLinea("PERCEPCION")} data-testid="comprobante-recibido-agregar-percepcion">
+                  <Plus size={14} /> Agregar percepción
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div style={styles.totales} data-testid="comprobante-recibido-totales">
+            {esFactura ? (
+              <>
+                <span>Conceptos: <strong>{formatArs(totales.totalConceptos)}</strong></span>
+                <span>Percepciones: <strong>{formatArs(totales.totalPercepciones)}</strong></span>
+              </>
+            ) : null}
+            <span>Total del documento: <strong>{formatArs(totales.total)}</strong></span>
+          </div>
+        </section>
+
+        {!esFactura ? (
+          <div style={styles.infoBox} role="note">
+            <Info size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+            <span style={styles.infoText}>
+              La retención es un registro informativo: no requiere ni modifica pagos, saldo pendiente, estado de pago, cuentas ni stock.
+            </span>
+          </div>
+        ) : null}
+
+        <details style={styles.details}>
+          <summary style={styles.summary}>Receptor y observaciones</summary>
+          <div style={styles.detailsBody}>
+            <p style={styles.hint}>Receptor: tu empresa. Se precarga desde la configuración de facturación.</p>
+            <div style={styles.row}>
+              <Field label="Razón social del receptor" grow>
+                <input
+                  style={styles.input}
+                  value={form.receptorRazonSocial}
+                  disabled={readOnly}
+                  maxLength={200}
+                  onChange={(event) => update("receptorRazonSocial", event.target.value)}
+                />
+              </Field>
+              <Field label="CUIT receptor">
+                <input
+                  style={styles.input}
+                  value={form.receptorCuit}
+                  disabled={readOnly}
+                  maxLength={20}
+                  inputMode="numeric"
+                  onChange={(event) => update("receptorCuit", event.target.value)}
+                />
+              </Field>
+              <Field label="Posición de IVA del receptor">
+                {readOnly ? (
+                  <input style={styles.input} disabled value={condicionIvaLabel(form.receptorCondicionIva || null)} />
+                ) : (
+                  <Autocomplete
+                    aria-label="Posición de IVA del receptor"
+                    value={form.receptorCondicionIva}
+                    onChange={(value) => update("receptorCondicionIva", value as CondicionIvaProveedor | "")}
+                    options={condicionOptions}
+                    placeholder="Seleccionar posición"
+                    inputStyle={styles.selectInput}
+                  />
+                )}
+              </Field>
+            </div>
+            <Field label="Observaciones" grow>
+              <textarea
+                style={{ ...styles.input, height: 72, padding: "8px 12px", resize: "vertical" }}
+                value={form.observaciones}
+                disabled={readOnly}
+                maxLength={1000}
+                onChange={(event) => update("observaciones", event.target.value)}
+              />
+            </Field>
+          </div>
+        </details>
+      </div>
+    </Modal>
+  );
+}
+
+function Field({
+  label,
+  required = false,
+  grow = false,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  grow?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <label style={{ ...styles.field, ...(grow ? { flex: 2 } : {}) }}>
+      <span style={styles.label}>
+        {label}
+        {required ? <span style={styles.required}> *</span> : null}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+const styles = {
+  form: { display: "flex", flexDirection: "column" as const, gap: 16, padding: "8px 0" },
+  section: { display: "flex", flexDirection: "column" as const, gap: 10 },
+  sectionTitle: { margin: 0, fontSize: 14, fontWeight: 700, color: COLOR.TEXT.PRIMARY },
+  hint: { margin: 0, fontSize: 12, color: COLOR.TEXT.SECONDARY },
+  row: { display: "flex", gap: 12, flexWrap: "wrap" as const },
+  field: { display: "flex", flexDirection: "column" as const, gap: 6, flex: 1, minWidth: 180 },
+  label: { fontSize: 13, fontWeight: 600, color: COLOR.TEXT.PRIMARY },
+  required: { color: COLOR.SEMANTIC.DANGER },
+  /** Selectores (Autocomplete) con el mismo alto y borde que los inputs del formulario. */
+  selectInput: {
+    height: 42,
+    padding: "0 40px 0 12px",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
+    // backgroundColor (no `background`): Autocomplete ya define backgroundColor y React no mezcla ambos.
+    backgroundColor: COLOR.BACKGROUND.PRIMARY,
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 14,
+    boxSizing: "border-box" as const,
+  },
+  input: {
+    height: 42,
+    padding: "0 12px",
+    borderRadius: 8,
+    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
+    background: COLOR.BACKGROUND.PRIMARY,
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 14,
+    outline: "none",
+    width: "100%",
+    boxSizing: "border-box" as const,
+  },
+  segmented: {
+    display: "inline-flex",
+    gap: 4,
+    padding: 4,
+    borderRadius: 10,
+    background: COLOR.BACKGROUND.SUBTLE,
+    alignSelf: "flex-start" as const,
+  },
+  segment: {
+    border: "none",
+    borderRadius: 8,
+    padding: "7px 16px",
+    background: "transparent",
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  segmentActive: { background: COLOR.ACCENT.PRIMARY, color: COLOR.TEXT.CONTRAST },
+  lineas: { display: "flex", flexDirection: "column" as const, gap: 8 },
+  lineaRow: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" as const },
+  lineaTipo: { width: 150, flex: "0 0 auto" },
+  lineaTipoLabel: { fontSize: 13, fontWeight: 600, color: COLOR.TEXT.SECONDARY },
+  lineaDescripcion: { flex: "1 1 240px", minWidth: 200 },
+  lineaImporte: { width: 150, flex: "0 0 auto" },
+  iconButton: {
+    width: 36,
+    height: 36,
+    border: "none",
+    borderRadius: 6,
+    background: "transparent",
+    color: COLOR.TEXT.TERTIARY,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lineActions: { display: "flex", gap: 16, flexWrap: "wrap" as const },
+  linkButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    border: "none",
+    background: "transparent",
+    color: COLOR.ACCENT.PRIMARY,
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
+    padding: 0,
+  },
+  totales: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 16,
+    flexWrap: "wrap" as const,
+    fontSize: 13,
+    color: COLOR.TEXT.SECONDARY,
+  },
+  infoBox: {
+    display: "flex",
+    gap: 8,
+    padding: "10px 12px",
+    borderRadius: 8,
+    background: COLOR.STATUS.INFO.BG_SUBTLE,
+    border: `1px solid ${COLOR.STATUS.INFO.BORDER}`,
+    color: COLOR.STATUS.INFO.TEXT,
+    fontSize: 13,
+  },
+  infoText: { display: "flex", flexDirection: "column" as const, gap: 2 },
+  details: { border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 8, padding: "8px 12px" },
+  summary: { cursor: "pointer", fontSize: 13, fontWeight: 600, color: COLOR.TEXT.PRIMARY },
+  detailsBody: { display: "flex", flexDirection: "column" as const, gap: 10, marginTop: 10 },
+  errorBanner: {
+    padding: "10px 14px",
+    borderRadius: 8,
+    background: COLOR.STATUS.DANGER.BG_SUBTLE,
+    border: `1px solid ${COLOR.STATUS.DANGER.BORDER}`,
+    color: COLOR.STATUS.DANGER.TEXT,
+    fontSize: 13,
+    fontWeight: 500,
+  },
+} as const;

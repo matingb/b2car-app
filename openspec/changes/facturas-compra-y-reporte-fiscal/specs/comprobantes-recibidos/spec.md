@@ -2,207 +2,188 @@
 
 ## Purpose
 
-Permitir gestionar documentos de compras y gastos con identidad fiscal histórica, facturas A/B/C e importes manuales, e imputar retenciones de compras que cancelan deuda junto con los pagos sin duplicar movimientos de caja o inventario.
-
-Se conserva COMPRA/GASTO del alcance anterior. Las particularidades de integración de gastos y los detalles restantes se mantienen en design.md, sección D8.
+Permitir gestionar facturas y retenciones documentales de compras y gastos, con identidad fiscal histórica editable, líneas manuales de conceptos/percepciones y asociaciones íntegras, sin modificar pagos, saldos o inventario.
 
 ## ADDED Requirements
 
-### Requirement: Registro opcional de varios documentos por compra
-El sistema SHALL admitir cero o más documentos asociados a una compra del tenant. SHALL permitir cargar una factura opcionalmente durante la creación y agregar documentos posteriormente desde el detalle. MUST conservar válida una compra sin documentos y MUST NOT exigir que cada factura individual represente el monto completo de la compra.
+### Requirement: Varios documentos y una sola operación por documento
+El sistema SHALL admitir cero o más documentos por operación COMPRA/GASTO del tenant. Cada documento MUST pertenecer a exactamente una operación existente del mismo tenant. MUST permitir factura opcional durante la creación de la operación y carga posterior, y MUST rechazar documentos sin operación o asociados a varias.
 
-#### Scenario: Compra sin factura
-- **WHEN** un usuario registra una compra sin cargar una factura
-- **THEN** la compra queda registrada y puede recibir documentos posteriormente
-- **AND** no se genera una factura ficticia
+#### Scenario: Compra sin documentos
+- **WHEN** un usuario registra una compra sin cargar documentos
+- **THEN** la operación queda válida y puede recibir documentos posteriormente
+- **AND** no se crea una factura ficticia
 
 #### Scenario: Varias facturas de una compra
-- **GIVEN** una compra por 121000 con una factura asociada por 60500
-- **WHEN** el usuario agrega otra factura por 60500
-- **THEN** la compra conserva ambos documentos consultables de forma independiente
-- **AND** no se exige que cada factura sea por 121000 ni se crea otra compra
+- **GIVEN** una compra de 121000 con una factura por 60500
+- **WHEN** se agrega una segunda factura por 60500
+- **THEN** ambas quedan relacionadas con la misma compra y se consultan por separado
+- **AND** no se crea otra operación
 
-### Requirement: Facturas vinculadas a gastos
-El sistema SHALL conservar la carga de facturas asociadas a gastos del tenant. MUST permitir identificar fiscalmente al emisor en el documento aunque el gasto no tenga proveedor comercial asociado. La integración SHALL contemplar los puntos de alta de gastos existentes conforme a la adaptación acordada.
+#### Scenario: Documento sin operación o con varias
+- **WHEN** se intenta guardar un documento sin operación o relacionarlo con más de una
+- **THEN** se rechaza la solicitud sin guardar una asociación inválida
 
-#### Scenario: Gasto sin proveedor comercial
-- **GIVEN** un gasto del tenant sin proveedor previamente asociado
-- **WHEN** un usuario autorizado registra su factura con la identificación fiscal del emisor
-- **THEN** el comprobante queda vinculado y consultable desde el gasto
-- **AND** la falta de proveedor comercial no se interpreta como ausencia de emisor fiscal
+### Requirement: Compras y gastos comparten el circuito documental
+El sistema SHALL permitir facturas y documentos de retención en compras y gastos, con las mismas reglas de gestión e independencia financiera. MUST permitir identificar al emisor en el documento aunque la operación no tenga un proveedor comercial asociado.
+
+#### Scenario: Retención de gasto sin proveedor comercial
+- **GIVEN** un gasto sin proveedor comercial asociado
+- **WHEN** un usuario autorizado registra un documento de retención con los datos requeridos
+- **THEN** puede consultarlo desde el gasto
+- **AND** el gasto conserva sus pagos y saldo previos
 
 ### Requirement: Gestión integrada en Documentos
-El sistema SHALL presentar las facturas de compras/gastos y retenciones como documentos, accesibles desde su operación y el circuito de Documentos. MUST distinguir tipo y procedencia sin exponer decisiones de persistencia ni exigir emisión, certificados o autorización ante ARCA.
+El sistema SHALL presentar facturas de compra/gasto y retenciones en Documentos y desde la operación asociada, distinguiendo tipo y procedencia. MUST NOT exigir emisión, certificados o autorización ante ARCA ni presentar la carga manual como autorización fiscal.
 
-#### Scenario: Consultar documentos de una compra
-- **GIVEN** una compra con una factura A y un documento de retención
-- **WHEN** un usuario autorizado consulta sus documentos
-- **THEN** identifica y abre cada documento por su tipo y procedencia
-- **AND** no necesita configurar una integración de emisión para consultarlos
-
-#### Scenario: Coexistencia con documentos emitidos
-- **WHEN** se consulta el listado de Documentos con emitidos y documentos de compra
-- **THEN** se distingue su procedencia y se permite acceder al detalle correspondiente
-- **AND** los documentos de compra no aparecen como autorizados por ARCA por haber sido cargados manualmente
+#### Scenario: Consultar factura y retención
+- **GIVEN** una operación con factura y documento de retención
+- **WHEN** el usuario consulta sus documentos
+- **THEN** identifica y abre cada uno por su tipo y procedencia
+- **AND** no necesita configurar certificados de emisión
 
 ### Requirement: Datos fiscales configurables y precarga editable
-El sistema SHALL permitir configurar datos fiscales del proveedor y precargarlos en el formulario cuando la compra tenga proveedor asociado. MUST permitir modificarlos en cada documento antes de guardar y al editarlo. Guardar cambios locales MUST NOT actualizar automáticamente la ficha del proveedor.
+El sistema SHALL permitir configurar datos fiscales del proveedor, incluida su posición de IVA, y precargarlos cuando la operación tenga proveedor. MUST permitir modificarlos en el formulario y al editar el documento. Guardar cambios locales MUST NOT actualizar automáticamente la ficha del proveedor.
 
-#### Scenario: Modificar la precarga
-- **GIVEN** una compra con proveedor y sus datos fiscales configurados
-- **WHEN** el usuario carga una factura y corrige la razón social precargada
-- **THEN** la factura conserva el dato corregido
-- **AND** la ficha del proveedor conserva su valor anterior
+#### Scenario: Corregir la precarga
+- **GIVEN** un proveedor con datos fiscales configurados y asociado a la operación
+- **WHEN** el usuario corrige los datos precargados al guardar una factura
+- **THEN** la factura conserva la corrección
+- **AND** la ficha del proveedor mantiene sus datos anteriores
 
-### Requirement: Identidad histórica editable del documento
-El sistema SHALL conservar la identidad fiscal del emisor y receptor registrada en cada documento, con identificación y fecha según su tipo. Las facturas SHALL conservar tipo/clase, punto de venta y número. Cambiar fichas comerciales MUST NOT reescribir documentos anteriores; sus datos solo cambian mediante edición explícita del documento.
+### Requirement: Identidad histórica y campos obligatorios de factura
+La factura SHALL conservar número, clase A/B/C, fecha e identidad fiscal de emisor y receptor, con CUIT emisor y posición de IVA del proveedor registrados. Número de factura y posición de IVA del proveedor MUST ser obligatorios. MUST distinguir la posición de IVA del emisor de la del receptor y conservar la copia histórica ante cambios de ficha.
 
-#### Scenario: Cambio de ficha del proveedor
-- **GIVEN** una factura guardada con razón social y CUIT del proveedor
-- **WHEN** se modifica la ficha fiscal del proveedor
-- **THEN** la factura conserva sus datos registrados
-- **AND** las nuevas cargas pueden precargar los datos actualizados
+#### Scenario: Número o posición de IVA faltante
+- **WHEN** se intenta guardar una factura sin número o sin posición de IVA del proveedor
+- **THEN** se informa el campo faltante y no se guarda la factura
 
-#### Scenario: Editar explícitamente la identidad
-- **WHEN** un usuario autorizado corrige los datos fiscales de una factura guardada
-- **THEN** la consulta y posteriores reportes reflejan la corrección del documento
-- **AND** los otros documentos del proveedor no cambian
+#### Scenario: Cambio de ficha y corrección explícita
+- **GIVEN** una factura registrada con los datos fiscales del proveedor
+- **WHEN** se modifica la ficha del proveedor
+- **THEN** la factura mantiene su copia histórica
+- **WHEN** se edita explícitamente la factura
+- **THEN** sus consultas y reportes posteriores reflejan los nuevos datos guardados
 
 ### Requirement: Facturas normales A B y C
-El registro inicial de facturas de compra SHALL admitir las clases normales A, B y C. MUST NOT ofrecer NC/ND de compra ni comprobantes especiales como parte de esta versión. Los datos de autorización informados MUST conservarse como carga manual, sin afirmar que fueron verificados ante ARCA.
+El registro inicial de facturas SHALL admitir las clases normales A, B y C. MUST NOT ofrecer NC/ND de compra ni comprobantes especiales en esta versión. Los datos de autorización informados SHALL conservarse como carga manual sin afirmar verificación ante ARCA.
 
-#### Scenario: Registrar factura de cada clase admitida
-- **WHEN** se registra una factura A, B o C con los campos requeridos para esa clase
-- **THEN** el documento conserva la clase seleccionada y su identificación
-- **AND** el guardado no requiere una autorización de B2Car ante ARCA
+#### Scenario: Guardar una factura admitida
+- **WHEN** se registra una factura A, B o C con los datos requeridos
+- **THEN** conserva su clase e identificación sin exigir autorización de B2Car ante ARCA
 
-### Requirement: IVA informado por alícuota
-El sistema SHALL permitir registrar y conservar base e importe de IVA por cada alícuota admitida, junto con sus totales informados. MUST NOT limitar todo el IVA al 21% ni inferir un desglose desde el total. El tratamiento de datos no aplicables o incompletos SHALL seguir las validaciones acordadas por clase.
+### Requirement: Dos tipos de líneas libres y manuales
+El sistema SHALL permitir líneas de tipo CONCEPTO o PERCEPCION con descripción/etiqueta e importe manuales. MUST permitir agregar y editar varias líneas de cada tipo. MUST NOT calcular sus montos desde porcentajes, determinar impuestos aplicables ni inferir clasificación fiscal a partir del texto o posición de IVA del proveedor.
 
-#### Scenario: Factura con varias alícuotas
-- **WHEN** el usuario carga dos renglones de IVA con alícuotas, bases e importes diferentes
-- **THEN** el documento conserva ambos renglones y sus importes
-- **AND** la consulta no agrupa todo el IVA como si correspondiera al 21%
+#### Scenario: Dos conceptos y una percepción
+- **WHEN** el usuario carga dos conceptos de descripción propia y una percepción con importes manuales
+- **THEN** el documento conserva las tres líneas con sus tipos, textos y montos
+- **AND** no se reemplaza un monto por el resultado de aplicar un porcentaje
 
-### Requirement: Percepciones y otros conceptos de carga abierta
-El sistema SHALL permitir agregar conceptos adicionales con descripción e importe manuales, con sugerencias comunes y posibilidad de ingresar otros conceptos. Las sugerencias SHALL contemplar IIBB Buenos Aires, IIBB CABA, Ganancias e impuestos internos. MUST NOT imponer un catálogo cerrado ni determinar qué concepto corresponde aplicar.
+### Requirement: Selector abierto de percepciones
+El ingreso de PERCEPCION SHALL ofrecer selección rápida de Ganancias, IVA, IIBB Buenos Aires e IIBB CABA y permitir escribir otras percepciones. MUST conservar el importe manual y la identidad seleccionada o ingresada sin imponer un catálogo cerrado.
 
-#### Scenario: Concepto sugerido
-- **WHEN** el usuario agrega IIBB Buenos Aires con un importe informado
-- **THEN** el documento conserva el concepto y el monto cargado
+#### Scenario: Percepción sugerida
+- **WHEN** el usuario elige IIBB Buenos Aires y carga un monto
+- **THEN** se conserva esa percepción con el importe informado
 
-#### Scenario: Concepto fuera de las sugerencias
-- **WHEN** el usuario agrega un concepto con descripción propia e importe manual
-- **THEN** puede guardarlo sin que la descripción deba pertenecer a las sugerencias
-- **AND** no se transforma automáticamente en una retención que cancele deuda
+#### Scenario: Percepción personalizada
+- **WHEN** el usuario ingresa una percepción fuera de las sugerencias con descripción e importe
+- **THEN** puede guardar la línea sin crear previamente una opción del catálogo
+- **AND** su identificación queda disponible para el reporte
 
-### Requirement: Importes informados sin determinación tributaria
-El sistema SHALL conservar netos, exentos, no gravados, IVA, conceptos adicionales y total informados, con precisión de centavos. MUST distinguir un importe no informado de cero. MUST NOT determinar crédito fiscal, deducibilidad, regímenes aplicables o retenciones a practicar ni alterar importes para hacer coincidir factura y operación.
+### Requirement: Diferencias de importes permitidas e informadas
+El sistema SHALL permitir guardar documentos aunque sus importes difieran del monto operativo y mostrar un label informativo de la diferencia. MUST NOT bloquear por esa diferencia ni ajustar automáticamente documentos u operación. SHALL distinguir importes de una factura y suma de facturas asociadas, sin sumar retenciones a ese total facturado.
 
-#### Scenario: Factura con neto e IVA
-- **WHEN** se carga una factura con neto 100000, IVA 21000 y total 121000
-- **THEN** se conservan esos importes
-- **AND** no se determina cuánto IVA puede computar el contribuyente
+#### Scenario: Diferencia al guardar
+- **GIVEN** una operación por 120000
+- **WHEN** se guarda su única factura por 121000
+- **THEN** se guarda la factura y aparece información de la diferencia de 1000
+- **AND** la operación conserva 120000 y la factura 121000
 
-#### Scenario: Diferencia con la compra
-- **GIVEN** una compra por 120000 con una única factura informada por 121000
-- **WHEN** se intenta guardar la asociación
-- **THEN** la diferencia se informa conforme a la política de conciliación acordada
-- **AND** no se modifica automáticamente la factura ni la compra
+### Requirement: Facturas sin duplicados por emisor y número
+El sistema MUST rechazar una factura cuyo CUIT emisor y número de factura ya estén registrados en otra factura vigente del mismo tenant, incluso en otra operación. SHALL mostrar error de duplicado y aplicar la misma validación en edición, con garantía frente a altas concurrentes.
 
-### Requirement: Facturas independientes de pagos y stock
-Crear, asociar, editar o eliminar una factura de compra MUST NOT crear otra operación, alterar su monto pactado, registrar o revertir pagos ni generar movimientos de stock. El efecto cancelatorio de una retención SHALL pertenecer a su documento e imputación, no a la mera presencia de una factura.
+#### Scenario: Duplicado en otra compra
+- **GIVEN** una factura vigente con un CUIT emisor y número determinados
+- **WHEN** se intenta crear otra con el mismo CUIT y número para otra operación del tenant
+- **THEN** se rechaza la creación y se muestra un error de factura duplicada
 
-#### Scenario: Asociar factura a compra parcialmente pagada
-- **GIVEN** una compra por 121000, un pago de 60000 y stock ya recibido
-- **WHEN** se asocia una factura por 121000
-- **THEN** la compra conserva su pago de 60000 y su stock
-- **AND** la asociación no genera otra deuda ni otro pago
+#### Scenario: Duplicado por edición
+- **WHEN** se edita una factura para repetir CUIT emisor y número de otra factura vigente del tenant
+- **THEN** se rechaza la modificación sin sobrescribir ninguna de las dos
 
-#### Scenario: Eliminar una factura
-- **GIVEN** una compra con factura, pagos y movimientos de stock
-- **WHEN** el usuario elimina la factura
-- **THEN** la factura deja de participar en la consulta y reporte vigentes
-- **AND** la compra, sus pagos y su stock no se eliminan ni se revierten
+### Requirement: Operaciones documentadas protegidas contra eliminación
+El sistema MUST impedir eliminar una operación mientras tenga cualquier documento asociado y explicar que primero deben eliminarse sus documentos. La restricción SHALL aplicarse en todos los puntos de borrado y ante concurrencia, sin producir borrados parciales ni revertir pagos o stock en la solicitud rechazada.
 
-### Requirement: Guardado directo y documentos editables
-El sistema SHALL guardar el formulario validado en el momento, sin estados de borrador. MUST permitir a usuarios autorizados editar y eliminar documentos guardados. La ausencia de verificación ante ARCA MUST NOT impedir esas acciones ni omitir las validaciones locales acordadas.
+#### Scenario: Borrar compra con retención
+- **GIVEN** una compra con un documento de retención asociado
+- **WHEN** se intenta eliminar la compra
+- **THEN** se rechaza el borrado por documentos asociados
+- **AND** la operación, documento, pagos y stock permanecen intactos
 
-#### Scenario: Guardar y corregir una factura
-- **WHEN** un usuario completa y guarda el formulario y después corrige un importe
-- **THEN** el documento se consulta con la corrección guardada
-- **AND** no requiere una transición de borrador a emisión o autorización
+#### Scenario: Borrar operación después de eliminar documentos
+- **GIVEN** una operación con documentos y sin otras restricciones que impidan su borrado
+- **WHEN** se eliminan sus documentos y se solicita borrar la operación
+- **THEN** la solicitud puede continuar por el circuito de borrado operativo vigente
 
-#### Scenario: Formulario inválido
-- **WHEN** se intenta guardar un formulario que incumple las validaciones acordadas
-- **THEN** se informa el error sin presentar el guardado como exitoso
-- **AND** no se crea un borrador persistido como resultado alternativo
+### Requirement: Guardado directo y documentos editables y eliminables
+El sistema SHALL guardar el formulario validado sin borradores y permitir a usuarios autorizados editar y eliminar documentos. Eliminar un documento MUST NOT eliminar su operación ni modificar sus efectos financieros o de inventario. MUST mantener las validaciones de identidad, pertenencia y duplicados al editar.
 
-### Requirement: Retenciones como tipo de documento separado
-El sistema SHALL permitir registrar retenciones que no figuren en la factura como un documento de tipo RETENCION dentro del mismo circuito de documentos de compra. MUST conservar su identificación, fecha, conceptos e importes aplicables al tipo sin exigir que se complete como una factura A/B/C. MUST NOT generarlas automáticamente desde IVA o conceptos libres.
+#### Scenario: Guardar corregir y eliminar
+- **WHEN** el usuario guarda un documento, corrige un importe y después lo elimina
+- **THEN** cada acción se refleja en la consulta y el reporte vigentes
+- **AND** no requiere emisión ni transición desde un borrador
 
-#### Scenario: Factura y retención de una compra
-- **WHEN** un usuario registra una factura y un documento de retención conforme al flujo acordado
-- **THEN** ambos documentos se identifican y consultan por separado
-- **AND** el documento de retención conserva sus propios conceptos e importe
+### Requirement: Retenciones como documentos informativos
+El sistema SHALL permitir registrar RETENCION como documento separado, relacionado con su operación y con líneas, descripciones e importes manuales para consulta y reporte. MUST NOT exigir registrar un pago ni generar retenciones desde IVA, otros conceptos o movimientos financieros.
 
-### Requirement: Pago y retención cancelan juntos la deuda
-El saldo y estado de pago de una compra SHALL considerar los pagos vigentes más las retenciones vigentes imputadas. MUST reflejar esa cancelación en consultas de compra y cuenta corriente del proveedor. La retención MUST NOT generar otra salida de caja/banco, otra deuda o cambios de stock ni disminuir el total fiscal de la factura.
+#### Scenario: Carga documental independiente del pago
+- **GIVEN** una operación existente
+- **WHEN** el usuario agrega un documento de retención con líneas e importes
+- **THEN** queda asociado a esa única operación y disponible para el reporte
+- **AND** no se crea ni se requiere un pago como parte de la carga
 
-#### Scenario: Compra saldada con pago y retención
-- **GIVEN** una compra y factura por 121000 con un pago efectivo de 115000
-- **WHEN** se registra e imputa una retención de 6000
-- **THEN** la compra queda saldada, con saldo pendiente 0
-- **AND** la cancelación se compone de pago 115000 y retención 6000
-- **AND** la cuenta corriente refleja el saldo 0, la factura conserva total 121000 y las cuentas solo reflejan el pago efectivo
+### Requirement: Invariancia financiera y de inventario de todos los documentos
+Crear, asociar, editar o eliminar facturas o retenciones SHALL conservar pagos, saldos pendientes, estados de pago, cuenta corriente, saldos de cuentas y stock de la operación. MUST NOT crear imputaciones a deuda ni nuevos movimientos financieros o de inventario. Esta regla SHALL aplicarse igual a compras y gastos.
 
-#### Scenario: Pago posterior considera retenciones vigentes
-- **GIVEN** una compra por 121000 con pago de 100000 y retención imputada de 6000
-- **WHEN** se consulta lo pendiente para registrar otro pago
-- **THEN** el saldo pendiente utilizado por el circuito de pagos es 15000
-- **AND** la retención no vuelve a contarse como un pago adicional
+#### Scenario: Retención no cancela saldo en B2Car
+- **GIVEN** una compra por 121000 con pago efectivo de 115000 y saldo pendiente de 6000
+- **WHEN** se carga una retención documental de 6000
+- **THEN** el saldo sigue siendo 6000 y el estado de pago no cambia
+- **AND** la retención queda registrada para el reporte sin modificar el pago ni las cuentas
 
-### Requirement: Corrección y eliminación de retenciones coherentes
-Editar o eliminar un documento de retención SHALL ajustar su cancelación asociada y recalcular saldo y estado de la compra de manera atómica. MUST conservar los pagos efectivos y los saldos de cuentas que no fueron modificados. Un fallo MUST NOT dejar un documento con una imputación que corresponda a otra versión.
+#### Scenario: Editar o eliminar retención
+- **GIVEN** la compra anterior con saldo de 6000 y retención documental de 6000
+- **WHEN** se corrige la retención a 5000 o se la elimina
+- **THEN** el saldo permanece en 6000 y no cambian pagos, estado de pago o stock
+- **AND** solo cambian los datos documentales consultados y exportados
 
-#### Scenario: Reducir una retención
-- **GIVEN** una compra por 121000 saldada con pago 115000 y retención 6000
-- **WHEN** se corrige la retención a 5000
-- **THEN** el saldo pendiente de la compra es 1000
-- **AND** el pago de 115000 y el saldo de su cuenta no cambian
+### Requirement: Reintentos sin duplicación operativa o documental
+El sistema SHALL permitir reintentar cargas/asociaciones sin duplicar el documento de la misma solicitud, recrear la operación ni repetir pagos o stock. Un fallo MUST NOT presentarse como guardado exitoso ni dejar una asociación inválida.
 
-#### Scenario: Eliminar una retención
-- **GIVEN** una compra por 121000 saldada con pago 115000 y retención 6000
-- **WHEN** se elimina el documento de retención
-- **THEN** la cancelación por retención deja de estar vigente y el saldo pendiente es 6000
-- **AND** no se revierte el pago ni se registra otro movimiento de caja
-
-### Requirement: Reintentos sin duplicar documentos ni cancelaciones
-El guardado y la imputación de retenciones SHALL ser consistentes ante reintentos y cambios concurrentes. Una misma retención MUST NOT cancelar dos veces el mismo importe por repetición de solicitud o multiplicación de relaciones. Reintentar una asociación posterior MUST NOT recrear la compra, sus pagos o su stock.
-
-#### Scenario: Reintento de la misma retención
-- **GIVEN** una compra por 121000 con pago de 115000
-- **WHEN** se repite la misma solicitud de registro e imputación de retención por 6000
-- **THEN** hay un único documento e imputación efectiva por 6000 para esa solicitud
-- **AND** la compra queda con saldo 0, sin doble cancelación
+#### Scenario: Fallo posterior a crear la compra
+- **GIVEN** una compra creada cuyo documento falló al guardarse
+- **WHEN** se reintenta la misma carga del documento
+- **THEN** la compra no se crea de nuevo y el documento se registra una sola vez
+- **AND** los pagos e inventario no se repiten
 
 ### Requirement: Permisos y pertenencia al tenant
-El circuito SHALL tener permisos asociados de consulta y gestión, con acceso inicial equivalente a facturación de ventas. MUST exigir sesión, derivar tenant de ella y validar la pertenencia de documentos, proveedores, operaciones e imputaciones. MUST impedir acciones sin permiso y vínculos entre tenants.
+El circuito SHALL tener permisos de consulta/gestión con acceso inicial equivalente a facturación de ventas. MUST exigir sesión, derivar tenant de ella y validar pertenencia de operación, proveedor y documento. MUST impedir acciones sin permiso y asociaciones entre tenants.
 
-#### Scenario: Acceso de solo consulta
-- **GIVEN** un usuario con permiso de consulta y sin permiso de gestión
-- **WHEN** consulta un documento e intenta modificarlo o eliminarlo
-- **THEN** puede consultarlo y las acciones de gestión se rechazan
+#### Scenario: Consulta sin gestión
+- **GIVEN** un usuario con consulta y sin permiso de gestión
+- **WHEN** consulta un documento e intenta editarlo o eliminarlo
+- **THEN** la consulta está permitida y las acciones de gestión se rechazan
 
-#### Scenario: Asociación entre tenants
-- **WHEN** un usuario del tenant A intenta vincular o imputar un documento a una compra del tenant B
-- **THEN** se rechaza la solicitud sin alterar documentos ni saldos
-- **AND** no se divulgan datos del tenant B
+#### Scenario: Operación de otro tenant
+- **WHEN** un usuario intenta asociar un documento a una operación de otro tenant
+- **THEN** se rechaza la solicitud sin crear el documento ni divulgar información ajena
 
-### Requirement: Sin adjuntos en el circuito inicial
-El circuito inicial de documentos de compra MUST NOT ofrecer carga de archivos, fotografías o adjuntos ni exigirlos para guardar documentos. SHALL utilizar los datos estructurados cargados manualmente como fuente de consulta y reporte.
+### Requirement: Sin subida de archivos
+El circuito inicial MUST NOT ofrecer subida de archivos, fotos o adjuntos ni exigirlos para guardar documentos. SHALL usar los registros y líneas estructurados cargados manualmente como fuente de consulta y reporte.
 
-#### Scenario: Guardar sin archivo
-- **WHEN** el usuario completa los datos requeridos de una factura o retención
-- **THEN** puede guardar el documento sin adjuntar un archivo
-- **AND** el formulario no ofrece subir fotos o respaldos
+#### Scenario: Asociar retención sin archivo
+- **WHEN** el usuario registra un documento de retención con los datos requeridos
+- **THEN** lo vincula a la operación sin adjuntar PDF o fotografía
+- **AND** el formulario no ofrece carga de archivos

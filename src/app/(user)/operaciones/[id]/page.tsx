@@ -29,6 +29,7 @@ import {
   ArrowLeft,
   ChevronDown,
   FileBox,
+  FilePlus,
   Pencil,
   ReceiptText,
   RotateCcw,
@@ -47,6 +48,9 @@ import {
   useRevertirMovimientoStock,
 } from "@/app/components/operaciones/useRevertirMovimientoStock";
 import { useAnularPagoOperacion } from "@/app/components/operaciones/useAnularPagoOperacion";
+import OperacionDocumentosAsociados from "@/app/components/comprobantesRecibidos/OperacionDocumentosAsociados";
+import ComprobanteRecibidoOperacionModal from "@/app/components/comprobantesRecibidos/ComprobanteRecibidoOperacionModal";
+import { percepcionLabel, sumarImportes, type PercepcionCodigo } from "@/lib/comprobantesRecibidos/types";
 
 function shortId(value?: string | null) {
   if (!value) return "-";
@@ -60,6 +64,8 @@ export default function OperacionDetailPage() {
   const { talleres, hasPermission } = tenant;
   const canUseBilling = hasPermission(Permission.FacturasView);
   const canEmitRemitos = hasPermission(Permission.FacturasEdit);
+  const canViewRecibidos = hasPermission(Permission.ComprobantesRecibidosView);
+  const canEditRecibidos = hasPermission(Permission.ComprobantesRecibidosEdit);
 
   const { remove, refresh } = useOperaciones();
   const { getStockById } = useInventario();
@@ -90,6 +96,9 @@ export default function OperacionDetailPage() {
   const [stocksById, setStocksById] = useState<Record<string, StockItem>>({});
   const [isEditGastoOpen, setIsEditGastoOpen] = useState(false);
   const [isFacturaOpen, setIsFacturaOpen] = useState(false);
+  const [isAdjuntarFacturaOpen, setIsAdjuntarFacturaOpen] = useState(false);
+  // Fuerza la recarga de la sección de facturas recibidas al adjuntar una desde la cabecera.
+  const [recibidosVersion, setRecibidosVersion] = useState(0);
   const [isRemitoOpen, setIsRemitoOpen] = useState(false);
   const [isStockHistoryOpen, setIsStockHistoryOpen] = useState(false);
   const [isPagosHistoryOpen, setIsPagosHistoryOpen] = useState(false);
@@ -185,7 +194,10 @@ export default function OperacionDetailPage() {
     );
   }, [operacion?.lineas]);
 
-  const totalMonto = operacion?.monto_total ?? (isGasto ? Number(operacion?.monto) || 0 : totalCalculado);
+  const cargos = useMemo(() => operacion?.cargos ?? [], [operacion?.cargos]);
+  const totalCargos = useMemo(() => sumarImportes(cargos.map((cargo) => cargo.importe)), [cargos]);
+
+  const totalMonto = operacion?.monto_total ?? (isGasto ? Number(operacion?.monto) || 0 : totalCalculado + totalCargos);
   const totalPagado = operacion?.total_pagado ?? (operacion?.esta_pago ? totalMonto : 0);
   const saldoPendiente = operacion?.saldo_pendiente ?? Math.max(0, totalMonto - totalPagado);
   const isSinCargo =
@@ -349,6 +361,18 @@ export default function OperacionDetailPage() {
               title="Generar remito"
               ariaLabel="Generar remito"
               hoverColor={COLOR.ACCENT.PRIMARY}
+            />
+          )}
+
+          {(isCompra || isGasto) && canEditRecibidos && (
+            <IconButton
+              icon={<FilePlus />}
+              size={18}
+              onClick={() => setIsAdjuntarFacturaOpen(true)}
+              title="Adjuntar factura"
+              ariaLabel="Adjuntar factura"
+              hoverColor={COLOR.ACCENT.PRIMARY}
+              data-testid="operacion-adjuntar-factura"
             />
           )}
 
@@ -572,6 +596,49 @@ export default function OperacionDetailPage() {
             </table>
           </div>
         </Card>
+      )}
+
+      {/* Percepciones de la compra: cargos que suman al total acordado (no son mercadería) */}
+      {isCompra && cargos.length > 0 && (
+        <Card style={{ padding: 0, overflow: "hidden" }} data-testid="operacion-cargos">
+          <div style={styles.tableTitleRow}>
+            <h3 style={{ margin: 0, fontSize: 16, color: COLOR.TEXT.PRIMARY }}>
+              Percepciones ({cargos.length})
+            </h3>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={styles.table}>
+              <thead>
+                <tr style={styles.thRow}>
+                  <th style={styles.th}>Percepción</th>
+                  <th style={{ ...styles.th, textAlign: "right" }}>Importe</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cargos.map((cargo) => (
+                  <tr key={cargo.id} style={styles.tr}>
+                    <td style={{ ...styles.td, fontWeight: 600, color: COLOR.TEXT.PRIMARY }}>
+                      {percepcionLabel(cargo.percepcion_codigo as PercepcionCodigo | null, cargo.descripcion)}
+                    </td>
+                    <td style={{ ...styles.td, textAlign: "right", fontWeight: 600 }}>
+                      {formatArs(cargo.importe)}
+                    </td>
+                  </tr>
+                ))}
+                <tr style={styles.tr}>
+                  <td style={{ ...styles.td, color: COLOR.TEXT.SECONDARY }}>Total percepciones</td>
+                  <td style={{ ...styles.td, textAlign: "right", fontWeight: 700 }}>{formatArs(totalCargos)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* Facturas y retenciones recibidas del proveedor (abren su pantalla de detalle) */}
+      {(isCompra || isGasto) && canViewRecibidos && (
+        <OperacionDocumentosAsociados operacionId={operacion.id} refreshKey={recibidosVersion} />
       )}
 
       {/* Historial de Entregas / Recepciones de Stock */}
@@ -803,6 +870,16 @@ export default function OperacionDetailPage() {
       )}
 
 
+
+      {isAdjuntarFacturaOpen && (
+        <ComprobanteRecibidoOperacionModal
+          open={isAdjuntarFacturaOpen}
+          operacionId={operacion.id}
+          initialTipo="FACTURA"
+          onClose={() => setIsAdjuntarFacturaOpen(false)}
+          onSaved={() => setRecibidosVersion((value) => value + 1)}
+        />
+      )}
 
       {isFacturaOpen && (
         <FacturaElectronicaModal

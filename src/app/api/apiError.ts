@@ -42,6 +42,8 @@ const NOT_FOUND_MESSAGE = "No se encontró el registro solicitado.";
 const IMMUTABLE_MOVEMENT_MESSAGE = "Los movimientos financieros registrados no se pueden modificar ni eliminar";
 const INVOICED_REPAIR_MESSAGE = "El arreglo ya posee una factura electrónica autorizada y sus datos fiscales no se pueden modificar";
 const IMMUTABLE_HOURS_MESSAGE = "Las horas facturadas ya definidas no pueden volver a desconocidas";
+export const OPERACION_CON_DOCUMENTOS_MESSAGE =
+  "La operación tiene facturas o retenciones asociadas. Eliminá primero esos documentos para poder borrarla.";
 
 export class ApiError extends Error {
   constructor(
@@ -116,6 +118,8 @@ export function mapDbError(error: unknown, opts: DbErrorOptions = {}): MappedApi
       return { status: 409, code: "STOCK_INSUFICIENTE", message: message?.trim() ? message : API_ERROR_MESSAGES.STOCK_INSUFICIENTE };
     case "55005":
       return { status: 409, code: "REVERSION_STOCK_BLOQUEADA", message: message?.trim() ? message : API_ERROR_MESSAGES.REVERSION_STOCK_BLOQUEADA };
+    case "P1801":
+      return { status: 409, code: "IN_USE", message: message?.trim() ? message : OPERACION_CON_DOCUMENTOS_MESSAGE };
     case "57014":
       return { status: 503, code: "TIMEOUT", message: API_ERROR_MESSAGES.TIMEOUT };
     case "P0001":
@@ -157,6 +161,8 @@ function mapServiceError(error: unknown, opts: ApiErrorOptions): MappedApiError 
       return { status: 400, code: "VALIDATION", message: IMMUTABLE_HOURS_MESSAGE };
     case ServiceError.EnUso:
       return { status: 409, code: "IN_USE", message: API_ERROR_MESSAGES.IN_USE };
+    case ServiceError.OperacionConDocumentos:
+      return { status: 409, code: "IN_USE", message: OPERACION_CON_DOCUMENTOS_MESSAGE };
     case ServiceError.Unknown:
       return { status: 500, code: "INTERNAL", message: opts.fallback };
     default:

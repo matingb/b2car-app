@@ -16,6 +16,8 @@ export const Permission = {
   FinanzasEdit: "finanzas:edit",
   FacturasView: "facturas:view",
   FacturasEdit: "facturas:edit",
+  ComprobantesRecibidosView: "comprobantes_recibidos:view",
+  ComprobantesRecibidosEdit: "comprobantes_recibidos:edit",
   EmpleadosView: "empleados:view",
   EmpleadosEdit: "empleados:edit",
   ProductosView: "productos:view",
@@ -100,6 +102,10 @@ export const PATH_PERMISSIONS: readonly RoutePermissionRule[] = [
 
   // Talleres
   { path: ["/talleres", "/api/tenant/taller"], permission: Permission.TallerView },
+
+  // Facturas y retenciones recibidas de compras y gastos
+  // Debe ir antes de "/facturacion": la primera regla que coincide define el permiso.
+  { path: ["/api/comprobantes-recibidos", "/facturacion/recibidos"], permission: Permission.ComprobantesRecibidosView },
 
   // Facturación, remitos y endpoints fiscales
   {

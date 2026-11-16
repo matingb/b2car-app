@@ -66,6 +66,7 @@ export const proveedoresClient = {
     telefono?: string | null;
     email?: string | null;
     direccion?: string | null;
+    condicion_iva?: string | null;
   }): Promise<ProveedoresClientResponse<Proveedor>> {
     try {
       const res = await fetch(API_ROUTES.proveedores, {
@@ -96,6 +97,7 @@ export const proveedoresClient = {
       telefono?: string | null;
       email?: string | null;
       direccion?: string | null;
+      condicion_iva?: string | null;
     }>
   ): Promise<ProveedoresClientResponse<Proveedor>> {
     try {

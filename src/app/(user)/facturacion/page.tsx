@@ -14,6 +14,7 @@ import ReporteFiscalModal from "@/app/components/facturacion/ReporteFiscalModal"
 import FacturasToolbar, { type FacturaDocumentoTipoFilter, type FacturaFilterChip } from "@/app/components/facturacion/FacturasToolbar";
 import RemitoListItem from "@/app/components/remitos/RemitoListItem";
 import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
+import ComprobanteRecibidoListItem from "@/app/components/comprobantesRecibidos/ComprobanteRecibidoListItem";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { documentosClient } from "@/clients/documentosClient";
 import type { DocumentosPaginados } from "@/lib/documentos/types";
@@ -30,7 +31,7 @@ const initialFilters: FacturasFilters = {
   estado: "", ambiente: "", documentoTipo: "", desde: "", hasta: "",
 };
 
-const TIPOS: readonly FacturaDocumentoTipoFilter[] = ["", "FACTURA", "NOTA_CREDITO", "NOTA_DEBITO", "REMITO"];
+const TIPOS: readonly FacturaDocumentoTipoFilter[] = ["", "FACTURA", "NOTA_CREDITO", "NOTA_DEBITO", "REMITO", "RECIBIDO"];
 
 type ClaseFiltro = "" | "R" | "X";
 type FacturaAsociadaFiltro = "" | "con" | "sin";
@@ -47,7 +48,7 @@ function formatDate(value: string) {
   return formatCalendarDateLabel(value, "-");
 }
 
-/** Documentos: listado unificado de facturas, notas de crédito/débito y remitos. */
+/** Documentos: listado unificado de facturas, notas de crédito/débito, remitos y documentos recibidos. */
 export default function DocumentacionPage() {
   return (
     <Suspense>
@@ -78,6 +79,9 @@ function DocumentacionContent() {
 
   const tipo = parseTipo(applied.documentoTipo);
   const soloRemitos = tipo === "REMITO";
+  // Facturas y retenciones de proveedores: carga manual, sin estado ARCA ni ambiente de emisión.
+  const soloRecibidos = tipo === "RECIBIDO";
+  const puedeVerRecibidos = hasPermission(Permission.ComprobantesRecibidosView);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -87,8 +91,8 @@ function DocumentacionContent() {
         page,
         pageSize: 25,
         tipo,
-        estado: soloRemitos ? "" : applied.estado,
-        ambiente: applied.ambiente,
+        estado: soloRemitos || soloRecibidos ? "" : applied.estado,
+        ambiente: soloRecibidos ? "" : applied.ambiente,
         desde: applied.desde,
         hasta: applied.hasta,
         search: deferredSearch,
@@ -101,7 +105,7 @@ function DocumentacionContent() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, [applied, clase, deferredSearch, facturaAsociada, page, soloRemitos, tipo]);
+  }, [applied, clase, deferredSearch, facturaAsociada, page, soloRecibidos, soloRemitos, tipo]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -123,8 +127,13 @@ function DocumentacionContent() {
 
   const cambiarTipo = (next: FacturaDocumentoTipoFilter) => {
     setPage(1);
-    // El estado es solo fiscal; clase y factura asociada son solo de remitos.
-    setApplied((current) => ({ ...current, documentoTipo: next, estado: next === "REMITO" ? "" : current.estado }));
+    // Estado y ambiente son de emisión; clase y factura asociada son solo de remitos.
+    setApplied((current) => ({
+      ...current,
+      documentoTipo: next,
+      estado: next === "REMITO" || next === "RECIBIDO" ? "" : current.estado,
+      ambiente: next === "RECIBIDO" ? "" : current.ambiente,
+    }));
     if (next !== "REMITO") {
       setClase("");
       setFacturaAsociada("");
@@ -158,7 +167,7 @@ function DocumentacionContent() {
     <div>
       <ScreenHeader
         title="Documentos"
-        subtitle="Facturas, notas de crédito y débito y remitos: consultá su estado y el detalle que quedó registrado."
+        subtitle="Facturas, notas de crédito y débito, remitos y documentos recibidos de proveedores: consultá su estado y el detalle que quedó registrado."
       />
 
       <FacturasToolbar
@@ -167,6 +176,7 @@ function DocumentacionContent() {
         onOpenFilters={() => setFiltersOpen(true)}
         documentoTipo={tipo}
         onDocumentoTipoChange={cambiarTipo}
+        incluirRecibidos={puedeVerRecibidos}
         chips={filterChips}
         onRemoveChip={removeFilterChip}
         onClearFilters={() => {
@@ -203,11 +213,11 @@ function DocumentacionContent() {
           <span style={styles.count}>{result.total} documento{result.total === 1 ? "" : "s"}</span>
         </div>
         <div style={styles.actions}>
-          {soloRemitos ? null : (
+          {soloRemitos || soloRecibidos ? null : (
             <>
               <a href={exportUrl("csv")} style={styles.exportLink} title="Exporta los comprobantes fiscales con los filtros aplicados"><Download size={16} /> CSV</a>
               <a href={exportUrl("xlsx")} style={styles.exportLink} title="Exporta los comprobantes fiscales con los filtros aplicados"><FileSpreadsheet size={16} /> Excel</a>
-              {hasPermission(Permission.FacturasView) ? <Button text="Reporte fiscal" icon={<FileSpreadsheet size={16} />} onClick={() => setReporteFiscalOpen(true)} hideTextOnMobile={false} outline /> : null}
+              {hasPermission(Permission.FacturasView) ? <Button text="Reporte fiscal" icon={<FileSpreadsheet size={16} />} onClick={() => setReporteFiscalOpen(true)} style={styles.reporteButton} hideTextOnMobile={false} outline /> : null}
             </>
           )}
           {hasPermission(Permission.FacturasEdit) ? (
@@ -229,16 +239,25 @@ function DocumentacionContent() {
         <Card style={styles.empty}>
           <ReceiptText size={34} color={COLOR.TEXT.TERTIARY} />
           <strong>No hay documentos para estos filtros</strong>
-          <span>Cuando se emita una factura, una nota o un remito aparecerá acá con todo su historial.</span>
+          <span>
+            {soloRecibidos
+              ? "Las facturas y retenciones de proveedores se cargan desde el detalle de cada compra o gasto."
+              : "Cuando se emita una factura, una nota o un remito aparecerá acá con todo su historial."}
+          </span>
         </Card>
       ) : null}
       {!loading && result.items.length ? (
         <div style={styles.list}>
-          {result.items.map((item) => (
-            item.tipo === "FISCAL"
-              ? <FacturaListItem key={`fiscal-${item.id}`} invoice={item.factura} />
-              : <RemitoListItem key={`remito-${item.id}`} remito={item.remito} />
-          ))}
+          {result.items.map((item) => {
+            switch (item.tipo) {
+              case "FISCAL":
+                return <FacturaListItem key={`fiscal-${item.id}`} invoice={item.factura} />;
+              case "REMITO":
+                return <RemitoListItem key={`remito-${item.id}`} remito={item.remito} />;
+              case "RECIBIDO":
+                return <ComprobanteRecibidoListItem key={`recibido-${item.id}`} comprobante={item.comprobante} />;
+            }
+          })}
         </div>
       ) : null}
 
@@ -253,7 +272,8 @@ function DocumentacionContent() {
       <FacturasFiltersModal
         open={filtersOpen}
         initial={applied}
-        hideEstado={soloRemitos}
+        hideEstado={soloRemitos || soloRecibidos}
+        hideAmbiente={soloRecibidos}
         onClose={() => setFiltersOpen(false)}
         onApply={applyFilters}
       />
@@ -271,8 +291,9 @@ const styles = {
   toolbar: { display: "flex", justifyContent: "space-between", alignItems: "end", gap: 12, margin: "24px 0 12px", flexWrap: "wrap" as const },
   count: { color: COLOR.TEXT.SECONDARY, fontSize: 13 },
   actions: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" as const },
-  exportLink: { display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", color: COLOR.TEXT.PRIMARY, border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 8, padding: "8px 11px", fontSize: 13, fontWeight: 600 },
+  exportLink: { display: "inline-flex", alignItems: "center", boxSizing: "border-box" as const, height: 36, gap: 6, textDecoration: "none", color: COLOR.TEXT.PRIMARY, border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 8, padding: "0 11px", fontSize: 13, fontWeight: 600 },
   newButton: { height: 36, fontSize: 14 },
+  reporteButton: { height: 36, fontSize: 14 },
   subChips: css({ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }),
   list: { display: "flex", flexDirection: "column" as const, gap: 9 },
   pagination: { display: "flex", justifyContent: "center", alignItems: "center", gap: 14, marginTop: 20, color: COLOR.TEXT.SECONDARY, fontSize: 13 },

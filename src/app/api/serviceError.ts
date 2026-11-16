@@ -18,6 +18,8 @@ export enum ServiceError {
   MovimientoFinancieroInmutable = "MovimientoFinancieroInmutable",
   HorasFacturadasInmutables = "HorasFacturadasInmutables",
   EnUso = "EnUso",
+  /** La operación tiene facturas o retenciones recibidas asociadas y no puede eliminarse. */
+  OperacionConDocumentos = "OperacionConDocumentos",
   Validation = "Validation",
 }
 export type ServiceResult<T> = {
@@ -53,6 +55,7 @@ export function toServiceError(err: PostgrestError): ServiceError {
     }
   }
   if (code == "P1791") return ServiceError.HorasFacturadasInmutables;
+  if (code == "P1801") return ServiceError.OperacionConDocumentos;
   if (code == "22023") return ServiceError.Validation;
   return ServiceError.Unknown;
 }

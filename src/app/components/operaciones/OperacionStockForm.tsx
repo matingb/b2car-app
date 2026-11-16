@@ -9,6 +9,7 @@ import ObservacionesCollapsible from "@/app/components/ui/ObservacionesCollapsib
 import PagoCondicionSection from "@/app/components/finanzas/PagoCondicionSection";
 import OperacionLineaEditor, { OPERACION_LINE_GRID_TEMPLATE } from "./OperacionLineaEditor";
 import { useOperacionForm } from "./OperacionFormContext";
+import OperacionFacturaPercepciones from "./OperacionFacturaPercepciones";
 
 export default function OperacionStockForm() {
   const {
@@ -44,6 +45,8 @@ export default function OperacionStockForm() {
     handleUpdatePagoCuentaDraft,
     handleToggleAdvanced,
     importeTotal,
+    factura,
+    puedeCargarComprobante,
   } = useOperacionForm();
 
 
@@ -153,6 +156,7 @@ export default function OperacionStockForm() {
         {!isContextualStock && (
           <div style={styles.addRowContainer}>
             <Button
+              type="button"
               onClick={addLinea}
               disabled={!isEnabled}
               dataTestId="operaciones-add-line"
@@ -163,6 +167,8 @@ export default function OperacionStockForm() {
           </div>
         )}
       </div>
+
+      {tipo === "COMPRA" && puedeCargarComprobante && factura.activa && <OperacionFacturaPercepciones />}
 
       {isAllowedTipo && (
         <PagoCondicionSection

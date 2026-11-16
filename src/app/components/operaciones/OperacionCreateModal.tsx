@@ -1,14 +1,19 @@
 "use client";
 
-import React from "react";
+import React, { useContext, useState } from "react";
 import { css } from "@emotion/react";
 import Modal from "@/app/components/ui/Modal";
 import Tooltip from "@/app/components/ui/Tooltip";
+import Toggle from "@/app/components/ui/Toggle";
+import ComprobanteRecibidoOperacionModal from "@/app/components/comprobantesRecibidos/ComprobanteRecibidoOperacionModal";
+import { TenantContext } from "@/app/providers/TenantProvider";
 import { formatArs } from "@/lib/format";
+import { Permission } from "@/lib/permissions";
 import { COLOR } from "@/theme/theme";
 import { type OperacionModalProps, TIPOS_UI } from "./operacionModalTypes";
-import { OperacionFormProvider, useOperacionForm } from "./OperacionFormContext";
+import { type ComprobantePendiente, OperacionFormProvider, useOperacionForm } from "./OperacionFormContext";
 import OperacionHeaderFields from "./OperacionHeaderFields";
+import OperacionFacturaFields from "./OperacionFacturaFields";
 import OperacionGastoForm from "./OperacionGastoForm";
 import OperacionStockForm from "./OperacionStockForm";
 
@@ -23,9 +28,12 @@ function OperacionCreateModalContent({ onClose }: { onClose: () => void }) {
     isSubmitting,
     submitForm,
     importeTotal,
+    puedeCargarComprobante,
+    factura,
   } = useOperacionForm();
 
   const title = isEditingGasto ? "Editar gasto" : "Nueva operación";
+  const conFactura = puedeCargarComprobante && factura.activa;
 
   return (
     <Modal
@@ -39,6 +47,7 @@ function OperacionCreateModalContent({ onClose }: { onClose: () => void }) {
     >
       <div style={{ padding: "4px 0 16px", minHeight: "385px" }}>
         <div css={styles.topBar}>
+          <div css={styles.topLeft}>
           <div css={styles.segmentedGroup}>
             {(isContextualStock
               ? TIPOS_UI.filter((t) => t.tipo === "VENTA" || t.tipo === "COMPRA")
@@ -70,6 +79,20 @@ function OperacionCreateModalContent({ onClose }: { onClose: () => void }) {
             })}
           </div>
 
+          {puedeCargarComprobante ? (
+            <label css={styles.facturaSwitch} data-testid="operacion-cargar-con-factura">
+              <Toggle
+                checked={factura.activa}
+                onChange={factura.setActiva}
+                disabled={isSubmitting}
+                label="Cargar con factura"
+                data-testid="operacion-cargar-con-factura-switch"
+              />
+              <span css={styles.facturaSwitchLabel}>Cargar con factura</span>
+            </label>
+          ) : null}
+          </div>
+
           <div css={styles.topTotalWrap}>
             <span css={styles.topTotalLabel}>TOTAL OPERACIÓN</span>
             <span css={styles.topTotalValue}>
@@ -79,6 +102,8 @@ function OperacionCreateModalContent({ onClose }: { onClose: () => void }) {
         </div>
 
         <OperacionHeaderFields />
+
+        {conFactura ? <OperacionFacturaFields /> : null}
 
         {tipo === "GASTO" ? <OperacionGastoForm /> : <OperacionStockForm />}
 
@@ -113,10 +138,36 @@ function OperacionCreateModalContent({ onClose }: { onClose: () => void }) {
 }
 
 export default function OperacionCreateModal(props: OperacionModalProps) {
+  // Sin TenantProvider (por ejemplo, en pruebas aisladas) no se ofrece la carga del documento.
+  const tenant = useContext(TenantContext);
+  const canCargarComprobante = tenant?.hasPermission(Permission.ComprobantesRecibidosEdit) ?? false;
+  // Compra o gasto ya creado cuya factura no se pudo guardar. La operación se conserva y el
+  // documento se reintenta con lo cargado (misma clave), o se agrega luego desde su detalle.
+  const [pendiente, setPendiente] = useState<ComprobantePendiente | null>(null);
+
   return (
-    <OperacionFormProvider {...props}>
-      <OperacionCreateModalContent onClose={props.onClose} />
-    </OperacionFormProvider>
+    <>
+      <OperacionFormProvider
+        {...props}
+        open={props.open && !pendiente}
+        onComprobantePendiente={canCargarComprobante ? setPendiente : undefined}
+      >
+        <OperacionCreateModalContent onClose={props.onClose} />
+      </OperacionFormProvider>
+      {pendiente ? (
+        <ComprobanteRecibidoOperacionModal
+          open
+          operacionId={pendiente.operacionId}
+          initialInput={pendiente.input}
+          idempotencyKey={pendiente.idempotencyKey}
+          initialError={pendiente.error}
+          onClose={() => {
+            setPendiente(null);
+            props.onClose();
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -128,6 +179,24 @@ const styles = {
     gap: 16,
     marginBottom: 20,
     flexWrap: "wrap",
+  }),
+  topLeft: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 16,
+    flexWrap: "wrap",
+  }),
+  facturaSwitch: css({
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    cursor: "pointer",
+    userSelect: "none",
+  }),
+  facturaSwitchLabel: css({
+    fontSize: 14,
+    fontWeight: 600,
+    color: COLOR.TEXT.SECONDARY,
   }),
   segmentedGroup: css({
     display: "inline-flex",
@@ -190,11 +259,6 @@ const styles = {
     paddingTop: 16,
     borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
     flexWrap: "wrap",
-  }),
-  footerLeft: css({
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
   }),
   stockStatus: css({
     display: "inline-flex",

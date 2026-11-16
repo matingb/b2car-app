@@ -127,6 +127,7 @@ export default function ProveedorDetailPage() {
     telefono?: string | null;
     email?: string | null;
     direccion?: string | null;
+    condicion_iva?: string | null;
   }) => {
     if (!proveedor) return;
     const updated = await updateProveedor(proveedor.id, values);

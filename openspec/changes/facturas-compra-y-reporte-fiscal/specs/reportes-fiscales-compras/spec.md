@@ -2,187 +2,171 @@
 
 ## Purpose
 
-Permitir obtener el detalle y las sumas de documentos de compras y gastos para control del contador, con una primera versión de columnas similar al reporte de ventas, adaptada a proveedores, IVA por alícuota y conceptos informados.
+Permitir exportar facturas y retenciones documentales de compras y gastos con las columnas base del reporte de ventas, columnas dinámicas de percepciones y sumas reproducibles, sin alterar el circuito financiero.
 
-Las columnas y formatos definitivos, las fechas por tipo y la presentación de retenciones siguen pendientes en P-REP/P-RET. Que una retención cancele deuda no define por sí solo su inclusión fiscal en un período del reporte.
+La fuente explícita de importes fiscales desde líneas libres sigue en P-MAP. Fechas, formatos, moneda e identificación/presentación específica de retenciones se concretan en P-REP; la inclusión y totalización de retenciones ya están confirmadas.
 
 ## ADDED Requirements
 
-### Requirement: Universo de facturas de compras
-El reporte SHALL seleccionar facturas A/B/C de compras y gastos registradas del tenant conforme al período y alcance aprobados. MUST mantenerlas separadas de comprobantes emitidos por B2Car y de operaciones sin factura. La selección MUST NOT depender de que la operación esté completamente pagada, cancelada con retenciones o recibida.
+### Requirement: Universo documental separado del circuito financiero
+El reporte SHALL seleccionar documentos vigentes de compras/gastos del tenant conforme al período aprobado e incluir facturas A/B/C y retenciones documentadas. MUST mantener separado este universo de documentos emitidos por B2Car y de operaciones sin documento. La selección MUST NOT depender del estado de pago o recepción de stock.
 
 #### Scenario: Compra parcialmente pagada
-- **GIVEN** una factura de compra por 121000 y un pago de 60000
-- **WHEN** el documento pertenece al período y alcance seleccionados
-- **THEN** el reporte muestra el total facturado de 121000
+- **GIVEN** una factura por 121000 y un pago efectivo de 60000
+- **WHEN** la factura corresponde al período y alcance seleccionados
+- **THEN** el reporte muestra su total documentado de 121000
 - **AND** no lo reemplaza por el importe pagado
 
-#### Scenario: Compra sin factura y factura emitida
-- **GIVEN** una compra sin factura y una factura de venta emitida por B2Car
-- **WHEN** se genera el reporte de compras
-- **THEN** ninguno de esos dos elementos se convierte en una fila de compra facturada
-
-#### Scenario: Factura de gasto
-- **GIVEN** una factura de gasto registrada y comprendida en el período seleccionado
+#### Scenario: Documentos de gasto
+- **GIVEN** un gasto con factura y retención documental registradas dentro del período
 - **WHEN** se genera el reporte
-- **THEN** se incluye con la identidad fiscal e importes informados en el documento
-- **AND** no se reconstruye el emisor desde un proveedor comercial inexistente
+- **THEN** se incluyen los documentos y sus importes informados
+- **AND** no se exige un proveedor comercial si el emisor está identificado en el documento
 
-### Requirement: Columnas basadas en ventas y adaptadas a compras
-La primera versión SHALL tomar el reporte fiscal de ventas como referencia de columnas, adaptando la identificación del proveedor/emisor y los datos del documento. MUST representar netos, exentos/no gravados, IVA por alícuota, conceptos adicionales y total informados conforme al contrato final de columnas, sin copiar restricciones de emisión ajenas a compras.
+### Requirement: Mismas columnas base que ventas
+La primera versión SHALL conservar los mismos encabezados y orden de las columnas base del reporte fiscal de ventas existente, agregando después las columnas dinámicas de percepciones. MUST respetar el significado de emisor y receptor y representar datos manuales ausentes como no informados, sin inventar autorización, bases o IVA.
 
-#### Scenario: Identificación del proveedor
-- **GIVEN** una factura de compra con identidad fiscal del proveedor y del receptor registradas
-- **WHEN** se genera una fila con el contrato aprobado
-- **THEN** se identifica al proveedor/emisor del documento
-- **AND** los datos de receptor no se usan como sustituto del proveedor
+#### Scenario: Contrato base de columnas
+- **WHEN** se genera el reporte inicial de compras
+- **THEN** sus primeras columnas coinciden en encabezados y orden con las 24 columnas base actuales de ventas
+- **AND** las columnas de percepciones se agregan después sin reemplazar columnas base
 
-#### Scenario: Sin ambiente ni autorización de emisión
-- **GIVEN** una factura de proveedor cargada manualmente y válida según las reglas locales
-- **WHEN** se selecciona para el reporte
-- **THEN** no se le exige un ambiente de emisión ni un estado AUTORIZADA de B2Car
+#### Scenario: Datos de autorización ausentes
+- **GIVEN** una factura manual sin CAE informado
+- **WHEN** se exporta
+- **THEN** se conserva la columna correspondiente sin fabricar un CAE
+- **AND** no se exige ambiente de emisión o estado AUTORIZADA de B2Car
 
-### Requirement: Período explícito según el criterio acordado
-El reporte SHALL exigir un período desde/hasta válido y aplicar el criterio temporal aprobado para cada tipo incluido, indicando ese criterio al usuario. MUST NOT sustituir silenciosamente la fecha elegida por la de compra, pago o carga. Las fechas calendario MUST conservar su día sin desplazamientos de zona horaria.
+### Requirement: Una columna por percepción distinta de la selección
+El reporte SHALL agregar una columna por cada percepción distinta presente en las facturas seleccionadas, incluidas las de nombre libre. MUST obtener el conjunto de columnas de todas las facturas seleccionadas y MUST NOT limitarlo a sugerencias, a la primera página o a percepciones de documentos fuera del filtro.
 
-#### Scenario: Selección por emisión si se confirma ese criterio
-- **GIVEN** un contrato aprobado por fecha de emisión y una factura emitida el 31 de octubre, de una compra de septiembre y cargada el 2 de noviembre
-- **WHEN** se exporta del 1 al 31 de octubre
-- **THEN** la factura se incluye por su fecha de emisión
-- **AND** el día no se desplaza por conversiones de zona horaria
+#### Scenario: Percepciones sugeridas y personalizadas
+- **GIVEN** facturas seleccionadas con percepciones de IVA, IIBB Buenos Aires y otra de nombre personalizado
+- **WHEN** se exporta
+- **THEN** se agregan columnas identificables para las tres percepciones
+- **AND** la percepción personalizada no se descarta por no estar entre las sugerencias
+
+#### Scenario: Percepción solo en la última página
+- **GIVEN** 1205 facturas seleccionadas y una percepción presente únicamente en la última
+- **WHEN** se genera el reporte
+- **THEN** esa percepción tiene su columna y su importe aparece en el detalle y totalización
+
+#### Scenario: Percepción fuera del filtro
+- **GIVEN** una percepción presente únicamente en una factura excluida por período
+- **WHEN** se exporta la selección
+- **THEN** esa factura no aporta una columna dinámica al archivo
+
+### Requirement: Importes manuales y sumas por percepción
+Cada fila SHALL mostrar la suma de importes manuales de las líneas de una misma percepción en esa factura y el resumen SHALL sumar cada columna dinámica. MUST NOT calcular porcentajes, inferir montos desde la condición fiscal o reemplazar valores informados por cálculos tributarios.
+
+#### Scenario: Percepción repetida dentro de una factura
+- **GIVEN** una factura con dos líneas de la misma percepción por 1000 y 500
+- **WHEN** se exporta
+- **THEN** la celda de esa percepción muestra 1500 y el resumen cuenta ese importe una sola vez
+- **AND** el documento mantiene sus dos líneas originales
+
+### Requirement: Una fila por factura y documentos rastreables
+El detalle de facturas SHALL contener una fila por factura seleccionada aunque la operación tenga varios documentos, pagos o líneas. MUST mantener identificadores que permitan rastrear cada fila o detalle de retención al documento y a su única operación. Las relaciones MUST NOT multiplicar importes.
+
+#### Scenario: Dos facturas de la misma operación
+- **GIVEN** una compra con dos facturas seleccionadas de 60500
+- **WHEN** se genera el reporte
+- **THEN** hay dos filas de factura con total conjunto de 121000
+- **AND** no se agrega otra fila por el monto de la operación
+
+### Requirement: Retenciones documentales visibles y totalizadas
+El reporte SHALL incluir el detalle y total de retenciones desde documentos RETENCION y sus importes registrados. MUST distinguir estos totales del total facturado y de las percepciones de factura, conservar trazabilidad y contar cada documento una sola vez. MUST NOT obtener retenciones desde pagos ni atribuirles cancelación financiera.
+
+#### Scenario: Total de retenciones informadas
+- **GIVEN** dos documentos de retención seleccionados por 6000 y 4000
+- **WHEN** se genera el reporte
+- **THEN** se consultan sus descripciones e importes y el total documental de retenciones es 10000
+- **AND** no se suman como otra facturación ni se modifican pagos o saldos
+
+### Requirement: Totales de factura independientes de operación y retención
+El reporte SHALL conservar importes de factura aunque difieran del monto de la operación y sumar las columnas base y percepciones sin duplicar componentes ya incluidos en el total. MUST NOT corregir importes por diferencias operativas ni reducir el total facturado por documentos de retención.
+
+#### Scenario: Factura con diferencia permitida
+- **GIVEN** una operación por 120000 con factura guardada por 121000
+- **WHEN** se exporta
+- **THEN** la factura muestra el importe registrado de 121000
+- **AND** no se reemplaza por 120000 para coincidir con la operación
+
+#### Scenario: Factura y retención no cambian el saldo
+- **GIVEN** factura de 121000, pago efectivo 115000, saldo pendiente 6000 y retención documental 6000
+- **WHEN** se genera el reporte
+- **THEN** el total facturado permanece 121000 y la retención documental se identifica por 6000
+- **AND** el saldo operativo sigue siendo 6000 y el reporte no lo altera
+
+### Requirement: Datos fiscales desde una fuente manual explícita
+El reporte SHALL obtener identidad e importes fiscales desde datos guardados del documento y el mapeo explícito aprobado. MUST NOT clasificar líneas libres por palabras, calcular alícuotas desde totales o reconstruir bases, IVA e impuestos desde precios, stock, pagos o fichas actuales. MUST distinguir valores desconocidos de ceros e indicar sumas parciales.
+
+#### Scenario: Línea libre sin clasificación fiscal explícita
+- **GIVEN** una línea con una descripción que menciona IVA y un importe manual
+- **WHEN** no existe un dato fiscal o mapeo explícito aprobado para esa línea
+- **THEN** el reporte no le atribuye automáticamente una base o alícuota
+- **AND** conserva el dato original sin fabricar importes para completar columnas
+
+### Requirement: Correcciones y eliminaciones reflejadas
+El reporte SHALL usar la identidad e importes vigentes del documento y excluir documentos eliminados del universo vigente. Cambios en la ficha del proveedor MUST NOT reescribir el reporte de un documento sin edición explícita de este.
+
+#### Scenario: Corregir una retención
+- **GIVEN** un documento de retención cargado por 6000
+- **WHEN** se corrige a 5000 y luego se vuelve a exportar
+- **THEN** se refleja 5000 en el detalle y total documental
+- **AND** los pagos y el saldo de la operación no cambian
+
+#### Scenario: Eliminar una factura con percepción exclusiva
+- **GIVEN** una factura cuya percepción no aparece en ninguna otra factura seleccionada
+- **WHEN** se elimina la factura y se genera un reporte nuevo
+- **THEN** no se incluye la factura ni se conserva una columna dinámica aportada solo por ella
+
+### Requirement: Período y moneda explícitos
+El reporte SHALL exigir un período desde/hasta válido y aplicar el criterio temporal aprobado por tipo de documento, indicado al usuario. MUST preservar el día calendario y MUST NOT sustituir fechas silenciosamente. Si se habilitan varias monedas, MUST separarlas o usar conversión explícita y trazable.
 
 #### Scenario: Rango inválido
-- **WHEN** faltan fechas, alguna es inválida o desde es posterior a hasta
+- **WHEN** faltan fechas, son inválidas o desde es posterior a hasta
 - **THEN** se informa el error sin descargar un archivo con otro período supuesto
 
-### Requirement: Una fila por factura
-El detalle SHALL contener exactamente una fila por factura seleccionada, aunque la compra tenga varias facturas, pagos, retenciones o componentes fiscales. MUST conservar identificación rastreable al documento y MUST NOT multiplicar filas o importes por sus relaciones.
+#### Scenario: Fechas distintas
+- **GIVEN** compra, documento, carga y pago en días distintos
+- **WHEN** se genera el reporte con el criterio temporal aprobado
+- **THEN** se usa la fecha elegida para ese tipo y se informa el criterio
+- **AND** no se desplaza su día por conversión de zona horaria
 
-#### Scenario: Varias facturas de la misma compra
-- **GIVEN** una compra con dos facturas seleccionadas por 60500 cada una
-- **WHEN** se genera el reporte
-- **THEN** aparecen dos filas, una por factura, con total facturado conjunto de 121000
-- **AND** no aparece una tercera fila por el monto de la compra
+### Requirement: Formatos con el mismo conjunto y columnas
+Los formatos habilitados SHALL compartir documentos, valores y columnas dinámicas de una misma selección. Si se habilitan CSV y XLSX, MUST conciliar detalle y resumen y conservar identificadores como texto e importes utilizables. Textos y encabezados personalizados MUST NOT ejecutar fórmulas en la planilla.
 
-#### Scenario: Factura con múltiples relaciones
-- **GIVEN** una factura con varios componentes, dos pagos y un documento de retención asociado al circuito de la compra
-- **WHEN** se exporta
-- **THEN** aparece una sola fila de esa factura con sus importes fiscales
-- **AND** las relaciones no multiplican sus sumas
+#### Scenario: Dos formatos de la misma selección
+- **GIVEN** CSV y XLSX habilitados para el mismo conjunto
+- **WHEN** se descargan ambos
+- **THEN** contienen las mismas columnas de percepciones y sus importes concilian
+- **AND** sus encabezados base coinciden con el contrato de ventas
 
-### Requirement: Identidad e importes desde el documento
-El reporte SHALL usar la identidad histórica y los importes vigentes registrados en cada documento. MUST reflejar las correcciones explícitas guardadas y excluir documentos eliminados del universo vigente. MUST NOT reconstruir datos desde precios, stock, pagos o fichas actuales del proveedor.
+#### Scenario: Nombre de percepción con apariencia de fórmula
+- **GIVEN** una percepción personalizada cuyo nombre comienza con un carácter interpretable como fórmula
+- **WHEN** se serializa el encabezado y el detalle
+- **THEN** el texto no ejecuta una fórmula
 
-#### Scenario: Cambio de proveedor y edición explícita
-- **GIVEN** una factura guardada y un cambio posterior en la ficha del proveedor
-- **WHEN** se exporta sin haber editado el documento
-- **THEN** la fila conserva la identidad registrada en la factura
-- **WHEN** se corrige explícitamente la factura y se vuelve a exportar
-- **THEN** la nueva exportación refleja la corrección guardada
-
-#### Scenario: Factura eliminada
-- **WHEN** se genera el reporte después de eliminar una factura
-- **THEN** el documento eliminado no forma parte del detalle ni sus sumas vigentes
-
-### Requirement: Desglose de IVA por alícuota
-El reporte SHALL conservar las bases e importes de las alícuotas cargadas y el IVA total conforme al contrato aprobado. MUST NOT limitar el detalle al 21%, reasignar importes a una alícuota supuesta o fabricar bases dividiendo totales. La presentación elegida MUST permitir conciliar el desglose registrado.
-
-#### Scenario: Más de una alícuota
-- **GIVEN** una factura con dos alícuotas de IVA y sus respectivas bases e importes
-- **WHEN** se exporta
-- **THEN** el reporte permite reconocer ambos desgloses conforme al formato aprobado
-- **AND** el total de IVA concilia con los importes registrados sin atribuir todo al 21%
-
-### Requirement: Conceptos abiertos conservados en la exportación
-El reporte SHALL conservar descripción e importe de los conceptos adicionales cargados, incluidos los que no pertenezcan a las sugerencias, y su jurisdicción si fue informada. MUST NOT descartar conceptos libres ni reclasificarlos automáticamente como una percepción o retención determinada.
-
-#### Scenario: Concepto personalizado
-- **GIVEN** una factura con un concepto adicional de descripción propia e importe manual
-- **WHEN** se genera el reporte con el contrato aprobado
-- **THEN** el concepto y su importe quedan representados sin perder su identificación
-- **AND** no se les asigna un impuesto o efecto cancelatorio supuesto
-
-### Requirement: Totales fiscales separados de la cancelación de deuda
-El reporte SHALL sumar por separado netos, IVA, conceptos adicionales y total facturado, con precisión de centavos. MUST NOT determinar crédito fiscal ni deducibilidad, adicionar otra vez componentes incluidos en el total o reducir el total facturado por pagos o retenciones que cancelen deuda.
-
-#### Scenario: Suma de dos facturas
-- **GIVEN** una factura con neto 100000, IVA 21000 y total 121000, y otra con neto 200000, IVA 42000 y total 242000
-- **WHEN** se genera el resumen
-- **THEN** muestra neto 300000, IVA 63000 y total facturado 363000
-- **AND** no adiciona nuevamente el IVA al total
-
-#### Scenario: Compra saldada con retención
-- **GIVEN** una factura por 121000, un pago de 115000 y una retención imputada de 6000
-- **WHEN** se exporta la factura
-- **THEN** su total facturado permanece en 121000 aunque el saldo operativo sea 0
-- **AND** la retención no aumenta el total facturado a 127000 ni lo reduce a 115000
-
-#### Scenario: Monedas diferentes si se habilitan
-- **GIVEN** documentos de monedas diferentes dentro de un alcance aprobado
-- **WHEN** se generan los totales
-- **THEN** se separan por moneda o se usa una conversión explícita y trazable
-- **AND** no se suman nominalmente monedas distintas como un total homogéneo
-
-### Requirement: Retenciones con fuente y alcance explícitos
-Si el contrato del reporte incluye retenciones, SHALL obtenerlas de sus documentos y contemplar el criterio temporal y de imputación aprobado. MUST distinguirlas del IVA y conceptos de factura, contarlas una sola vez y separarlas del total facturado. MUST NOT inferirlas desde pagos ni presentar ceros o sumas como cobertura completa de un universo no definido.
-
-#### Scenario: Retención incluida sin duplicación
-- **GIVEN** un contrato aprobado que incluye una retención documentada de 6000 y su criterio temporal
-- **WHEN** la retención pertenece al período seleccionado
-- **THEN** se representa con fuente rastreable y un único importe de 6000
-- **AND** sus vínculos con pagos o facturas no multiplican ese importe
-
-#### Scenario: Cobertura no acordada
-- **WHEN** no está definido o no se incluye el universo de retenciones del reporte
-- **THEN** el archivo no presenta una suma de retenciones como completa
-- **AND** no usa una columna en cero para afirmar que no existieron retenciones
-
-### Requirement: Desconocidos diferenciados de cero
-El reporte SHALL distinguir valores no informados de ceros conocidos y señalar las sumas parciales. MUST NOT completar conceptos o desgloses desconocidos con importes supuestos, aun cuando otros componentes o el total sean conocidos.
-
-#### Scenario: Columna con datos faltantes
-- **GIVEN** valores conocidos y al menos un importe no informado dentro de una columna
-- **WHEN** se calcula su resumen
-- **THEN** se conserva la suma de los valores conocidos y se identifica como parcial
-- **AND** el importe desconocido no se transforma en cero
-
-### Requirement: Formatos conciliados y seguros
-Los formatos habilitados por el contrato final SHALL representar el mismo conjunto e importes. Si se habilitan CSV y XLSX, SHALL compartir detalle normalizado; el XLSX tendrá detalle filtrable y resumen conciliado y el CSV encabezados estables. MUST preservar identificadores como texto e importes utilizables, evitando ejecución de fórmulas desde textos.
-
-#### Scenario: CSV y XLSX si se confirman ambos formatos
-- **GIVEN** CSV y XLSX habilitados para el mismo conjunto seleccionado
-- **WHEN** se descargan ambos formatos
-- **THEN** contienen los mismos documentos e importes
-- **AND** las sumas del detalle coinciden con el resumen del XLSX
-
-#### Scenario: Período sin facturas
-- **WHEN** el período no tiene documentos incluidos
-- **THEN** el formato aprobado conserva su estructura y señala cantidad cero
-
-#### Scenario: Texto con apariencia de fórmula
-- **GIVEN** un nombre de proveedor que comienza con un carácter interpretable como fórmula
-- **WHEN** se exporta a una planilla
-- **THEN** se conserva como texto sin ejecutar una fórmula
+#### Scenario: Selección vacía
+- **WHEN** no hay documentos incluidos
+- **THEN** se conservan las columnas base, se indica cantidad cero y no se inventan columnas de percepciones
 
 ### Requirement: Generación completa y consistente
-El reporte SHALL entregar el conjunto completo seleccionado con detalle y resumen consistentes ante altas, correcciones y eliminaciones concurrentes. MUST NOT presentar un archivo parcial como completo si falla una lectura o no puede garantizarse consistencia. La exportación MUST NOT modificar documentos, impuestos, imputaciones ni saldos.
+El reporte SHALL incluir todas las páginas y entregar detalle, columnas dinámicas y sumas consistentes ante altas, ediciones y eliminaciones concurrentes. MUST NOT presentar un archivo parcial o con columnas incompletas como definitivo si falla la lectura o no puede asegurarse consistencia. La exportación MUST NOT modificar documentos, operaciones o finanzas.
 
-#### Scenario: Varias páginas
-- **GIVEN** 1205 facturas incluidas en el período
-- **WHEN** se genera el reporte
-- **THEN** se incluyen las 1205 sin detenerse en el límite de una página
-
-#### Scenario: Fallo o cambio concurrente incompatible
-- **WHEN** falla una lectura intermedia o una edición/eliminación impide asegurar consistencia
-- **THEN** se informa un error sin entregar un archivo con sumas incompletas o versiones mezcladas presentado como definitivo
+#### Scenario: Error al descubrir percepciones
+- **WHEN** falla una página al obtener documentos o el conjunto de percepciones
+- **THEN** se informa un error sin entregar un archivo con columnas o sumas parciales presentado como completo
 
 ### Requirement: Acceso autorizado y compatibilidad con ventas
-El reporte SHALL exigir sesión, pertenencia al tenant y permiso efectivo de consulta/exportación del circuito de documentos de compra. MUST impedir acceso cruzado por filtros o caché. MUST conservar el universo y contrato de exportación de ventas existente.
+El reporte SHALL exigir sesión, pertenencia al tenant y permiso efectivo de consulta/exportación. MUST impedir acceso cruzado por filtros o caché. La incorporación de documentos recibidos y percepciones dinámicas MUST conservar el contrato y universo del reporte de ventas.
 
-#### Scenario: Solicitud de otro tenant
+#### Scenario: Acceso cruzado
 - **WHEN** un usuario del tenant A intenta seleccionar documentos del tenant B
-- **THEN** se rechaza la selección ajena o se limita al alcance autorizado sin divulgar datos del tenant B
+- **THEN** no obtiene datos ni nombres de percepciones del tenant B
 
-#### Scenario: Exportación de ventas existente
-- **WHEN** se descarga el reporte fiscal de ventas después de incorporar compras
-- **THEN** conserva su contrato y no incorpora documentos de compra ni retenciones recibidas
+#### Scenario: Reporte de ventas intacto
+- **WHEN** se usa la exportación de ventas después de incorporar el reporte de compras
+- **THEN** conserva sus columnas y universo existentes
+- **AND** no recibe documentos de compra ni sus columnas dinámicas de percepciones

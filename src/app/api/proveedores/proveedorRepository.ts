@@ -10,6 +10,8 @@ export type ProveedorRow = {
   telefono: string | null;
   email: string | null;
   direccion: string | null;
+  /** Posición de IVA del proveedor (ficha fiscal); se copia, editable, en comprobantes recibidos. */
+  condicion_iva?: string | null;
   created_at: string;
   updated_at: string;
   saldo_pendiente?: number;
@@ -32,6 +34,7 @@ export type CreateProveedorPayload = {
   telefono: string | null;
   email: string | null;
   direccion: string | null;
+  condicion_iva: string | null;
 };
 
 export type UpdateProveedorPayload = {
@@ -40,6 +43,7 @@ export type UpdateProveedorPayload = {
   telefono?: string | null;
   email?: string | null;
   direccion?: string | null;
+  condicion_iva?: string | null;
 };
 
 export type CreateMovimientoProveedorPayload = {

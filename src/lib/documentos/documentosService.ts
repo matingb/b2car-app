@@ -11,6 +11,8 @@ import type { FacturacionAmbiente } from "@/lib/facturacion/types";
 import { parseCalendarDate } from "@/lib/fechas";
 import { isValidUuid } from "@/lib/uuid";
 import { REMITO_RESUMEN_COLUMNS, mapResumen, remitoSearchConditions } from "@/lib/remitos/remitosService";
+import { mapComprobanteRecibidoResumen } from "@/app/api/comprobantes-recibidos/comprobanteRecibidoService";
+import type { ComprobanteRecibidoRow } from "@/app/api/comprobantes-recibidos/comprobanteRecibidoRepository";
 import {
   DOCUMENTOS_MAX_RESULTADOS,
   type DocumentoListado,
@@ -20,12 +22,31 @@ import {
 } from "./types";
 
 /*
- * Listado unificado de Documentación: comprobantes fiscales y remitos ordenados por fecha.
- * Es de solo lectura y combina ambas tablas sin cambios en la base: para la página N se leen
- * los primeros N * tamaño de cada fuente con el mismo orden, se intercalan y se recorta la página.
+ * Listado unificado de Documentación: comprobantes fiscales emitidos, remitos y documentos
+ * recibidos (facturas de compra/gasto y retenciones) ordenados por fecha. Es de solo lectura:
+ * para la página N se leen los primeros N * tamaño de cada fuente con el mismo orden, se
+ * intercalan y se recorta la página.
  */
 
-const TIPOS = new Set(["", "FACTURA", "NOTA_CREDITO", "NOTA_DEBITO", "REMITO"]);
+const TIPOS = new Set(["", "FACTURA", "NOTA_CREDITO", "NOTA_DEBITO", "REMITO", "RECIBIDO"]);
+
+/** Columnas del resumen de documentos recibidos: el total suma los importes manuales de sus líneas. */
+const RECIBIDO_RESUMEN_COLUMNS =
+  "id, operacion_id, tipo_documento, clase, numero, fecha, emisor_razon_social, emisor_cuit, created_at, operaciones(tipo), comprobantes_recibidos_lineas(importe)";
+
+function recibidoSearchConditions(search: string): string[] {
+  return [
+    `emisor_razon_social.ilike.%${search}%`,
+    `numero.ilike.%${search}%`,
+    `emisor_cuit.ilike.%${search}%`,
+  ];
+}
+
+export type ListDocumentosOpciones = {
+  /** El usuario puede consultar documentos recibidos (permiso propio de comprobantes recibidos). */
+  incluirRecibidos?: boolean;
+};
+
 const ESTADOS = new Set(["BORRADOR", "LISTA", "ENVIANDO", "AUTORIZADA", "RECHAZADA", "INCIERTA"]);
 
 type Entrada = { fecha: string; createdAt: number; item: DocumentoListado };
@@ -70,6 +91,7 @@ export async function listDocumentos(
   supabase: SupabaseClient,
   tenantId: string,
   filtros: DocumentosFiltros = {},
+  opciones: ListDocumentosOpciones = {},
 ): Promise<DocumentosPaginados> {
   const { tipo, search } = validar(filtros);
   const page = Math.max(1, Math.trunc(number(filtros.page, 1)));
@@ -83,9 +105,13 @@ export async function listDocumentos(
     );
   }
 
-  // Los filtros propios de cada fuente excluyen a la otra: el estado es fiscal; clase y factura son de remitos.
-  const incluirFiscales = tipo !== "REMITO" && !filtros.clase && !filtros.factura;
+  // Los filtros propios de cada fuente excluyen a las otras: estado y ambiente son de emisión;
+  // clase y factura son de remitos. Los documentos recibidos no tienen estado ARCA ni ambiente.
+  const incluirFiscales = tipo !== "REMITO" && tipo !== "RECIBIDO" && !filtros.clase && !filtros.factura;
   const incluirRemitos = (tipo === "" || tipo === "REMITO") && !filtros.estado;
+  const incluirRecibidos = Boolean(opciones.incluirRecibidos)
+    && (tipo === "" || tipo === "RECIBIDO")
+    && !filtros.estado && !filtros.ambiente && !filtros.clase && !filtros.factura;
 
   const fiscales = async () => {
     if (!incluirFiscales) return { rows: [] as unknown[], count: 0 };
@@ -128,20 +154,37 @@ export async function listDocumentos(
     return { rows: (data ?? []) as unknown[], count: count ?? 0 };
   };
 
-  const [fiscal, remito] = await Promise.all([fiscales(), remitos()]);
-  const entradas = ordenarEntradas(fiscal.rows, remito.rows);
+  const recibidos = async () => {
+    if (!incluirRecibidos) return { rows: [] as unknown[], count: 0 };
+    let query = supabase
+      .from("comprobantes_recibidos")
+      .select(RECIBIDO_RESUMEN_COLUMNS, { count: "exact" })
+      .eq("tenant_id", tenantId)
+      .order("fecha", { ascending: false })
+      .order("created_at", { ascending: false })
+      .range(0, necesarios - 1);
+    if (filtros.desde) query = query.gte("fecha", filtros.desde);
+    if (filtros.hasta) query = query.lte("fecha", filtros.hasta);
+    if (search) query = query.or(recibidoSearchConditions(search).join(","));
+    const { data, error, count } = await query;
+    if (error) throw error;
+    return { rows: (data ?? []) as unknown[], count: count ?? 0 };
+  };
+
+  const [fiscal, remito, recibido] = await Promise.all([fiscales(), remitos(), recibidos()]);
+  const entradas = ordenarEntradas(fiscal.rows, remito.rows, recibido.rows);
 
   const desde = (page - 1) * pageSize;
   return {
     items: entradas.slice(desde, desde + pageSize).map((entrada) => entrada.item),
     page,
     pageSize,
-    total: fiscal.count + remito.count,
+    total: fiscal.count + remito.count + recibido.count,
   };
 }
 
-/** Intercala comprobantes fiscales y remitos del más reciente al más antiguo. */
-function ordenarEntradas(fiscalRows: unknown[], remitoRows: unknown[]): Entrada[] {
+/** Intercala comprobantes fiscales, remitos y documentos recibidos del más reciente al más antiguo. */
+function ordenarEntradas(fiscalRows: unknown[], remitoRows: unknown[], recibidoRows: unknown[] = []): Entrada[] {
   const entradas: Entrada[] = [
     ...fiscalRows.map((row): Entrada => {
       const factura = mapSummary(row);
@@ -157,6 +200,14 @@ function ordenarEntradas(fiscalRows: unknown[], remitoRows: unknown[]): Entrada[
         fecha: resumen.fechaEmision,
         createdAt: timestamp((row as Record<string, unknown>).created_at),
         item: { tipo: "REMITO", id: resumen.id, fecha: resumen.fechaEmision, remito: resumen },
+      };
+    }),
+    ...recibidoRows.map((row): Entrada => {
+      const comprobante = mapComprobanteRecibidoResumen(row as ComprobanteRecibidoRow);
+      return {
+        fecha: comprobante.fecha,
+        createdAt: timestamp(comprobante.createdAt),
+        item: { tipo: "RECIBIDO", id: comprobante.id, fecha: comprobante.fecha, comprobante },
       };
     }),
   ];

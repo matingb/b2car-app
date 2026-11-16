@@ -23,9 +23,11 @@ type Props = {
   onApply: (filters: FacturasFilters) => void;
   /** Oculta el estado fiscal cuando el listado muestra solo remitos. */
   hideEstado?: boolean;
+  /** Los documentos recibidos no tienen ambiente de emisión. */
+  hideAmbiente?: boolean;
 };
 
-export default function FacturasFiltersModal({ open, initial, onClose, onApply, hideEstado = false }: Props) {
+export default function FacturasFiltersModal({ open, initial, onClose, onApply, hideEstado = false, hideAmbiente = false }: Props) {
   const [filters, setFilters] = useState<FacturasFilters>(initial);
 
   useEffect(() => {
@@ -61,13 +63,15 @@ export default function FacturasFiltersModal({ open, initial, onClose, onApply, 
               </select>
             </Field>
           )}
-          <Field label="Ambiente">
-            <select data-testid="facturas-filter-ambiente" style={styles.input} value={filters.ambiente} onChange={(event) => update("ambiente", event.target.value)}>
-              <option value="">Todos los ambientes</option>
-              <option value="HOMOLOGACION">Homologación</option>
-              <option value="PRODUCCION">Producción</option>
-            </select>
-          </Field>
+          {hideAmbiente ? null : (
+            <Field label="Ambiente">
+              <select data-testid="facturas-filter-ambiente" style={styles.input} value={filters.ambiente} onChange={(event) => update("ambiente", event.target.value)}>
+                <option value="">Todos los ambientes</option>
+                <option value="HOMOLOGACION">Homologación</option>
+                <option value="PRODUCCION">Producción</option>
+              </select>
+            </Field>
+          )}
         </div>
         <div css={styles.row}>
           <Field label="Fecha desde">

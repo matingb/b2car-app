@@ -20,6 +20,7 @@ export type CreateProveedorInput = {
   telefono?: string | null;
   email?: string | null;
   direccion?: string | null;
+  condicion_iva?: string | null;
 };
 
 export type UpdateProveedorInput = {
@@ -28,6 +29,7 @@ export type UpdateProveedorInput = {
   telefono?: string | null;
   email?: string | null;
   direccion?: string | null;
+  condicion_iva?: string | null;
 };
 
 export type CreateMovimientoProveedorInput = {
@@ -99,6 +101,7 @@ export function createProveedorService(repository: ProveedorRepository) {
         telefono: cleanString(payload.telefono),
         email: cleanString(payload.email),
         direccion: cleanString(payload.direccion),
+        condicion_iva: cleanString(payload.condicion_iva),
       };
 
       return repository.create(supabase, dbPayload);
@@ -125,6 +128,9 @@ export function createProveedorService(repository: ProveedorRepository) {
       }
       if (patch.direccion !== undefined) {
         payload.direccion = cleanString(patch.direccion);
+      }
+      if (patch.condicion_iva !== undefined) {
+        payload.condicion_iva = cleanString(patch.condicion_iva);
       }
 
       return repository.updateById(supabase, id, payload);

@@ -23,6 +23,8 @@ export const ROUTES = {
 	configuracionRemitos: "/configuracion/remitos",
 	configuracionCategoriasArreglo: "/configuracion/categorias-arreglo",
 	facturacion: "/facturacion",
+	/** Detalle de una factura o retención recibida (compra o gasto). */
+	comprobanteRecibidoDetalle: (id: string | number) => `/facturacion/recibidos/${id}`,
 	remitos: "/remitos",
 	remitosNuevo: "/remitos/nuevo",
 } as const;

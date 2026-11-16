@@ -23,7 +23,7 @@ export const GET = createApiHandler(
       search: params.get("search"),
       clase: params.get("clase"),
       factura: params.get("factura"),
-    });
+    }, { incluirRecibidos: ctx.can(Permission.ComprobantesRecibidosView) });
     return Response.json({ data, error: null });
   },
 );

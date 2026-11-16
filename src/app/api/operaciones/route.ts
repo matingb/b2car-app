@@ -12,10 +12,12 @@ import {
 	operacionesService,
 	validateOperacionesDateFilters,
 	OPERACIONES_PAGE_SIZE,
+	type CreateOperacionCargoInput,
 	type CreateOperacionInput,
 	type OperacionesFilters,
 	type OperacionListRow,
 } from "@/app/api/operaciones/operacionesService";
+import { MAX_LINEAS_COMPROBANTE, PERCEPCIONES_SUGERIDAS } from "@/lib/comprobantesRecibidos/types";
 
 export type CreateOperacionRequest = CreateOperacionInput;
 
@@ -58,6 +60,29 @@ function mapLineaFromUnknown(row: unknown): OperacionLinea | null {
 		nombre: source.nombre ? String(source.nombre) : undefined,
 		codigo: source.codigo ? String(source.codigo) : undefined,
 	};
+}
+
+const CODIGOS_PERCEPCION = new Set<string>([...PERCEPCIONES_SUGERIDAS.map((p) => p.codigo), "OTRA"]);
+
+/** Valida las percepciones que suman al total de una compra. Devuelve el mensaje de error o null. */
+function validarCargos(cargos: unknown[]): string | null {
+	if (cargos.length > MAX_LINEAS_COMPROBANTE) return `La compra admite hasta ${MAX_LINEAS_COMPROBANTE} percepciones`;
+	for (const [index, raw] of cargos.entries()) {
+		const n = index + 1;
+		const cargo = raw as Partial<CreateOperacionCargoInput> | null;
+		if (!cargo || typeof cargo !== "object") return `Percepción ${n}: formato inválido`;
+		if (cargo.tipo !== undefined && cargo.tipo !== "PERCEPCION") return `Percepción ${n}: tipo no admitido`;
+		if (typeof cargo.percepcion_codigo !== "string" || !CODIGOS_PERCEPCION.has(cargo.percepcion_codigo)) {
+			return `Percepción ${n}: la percepción no es válida`;
+		}
+		const descripcion = typeof cargo.descripcion === "string" ? cargo.descripcion.trim() : "";
+		if (!descripcion || descripcion.length > 200) return `Percepción ${n}: la descripción es obligatoria (hasta 200 caracteres)`;
+		const importe = cargo.importe;
+		if (typeof importe !== "number" || !Number.isFinite(importe) || importe <= 0 || Math.round(importe * 100) / 100 !== importe) {
+			return `Percepción ${n}: el importe debe ser mayor a 0 y tener hasta 2 decimales`;
+		}
+	}
+	return null;
 }
 
 function mapOperacion(row: OperacionRow | OperacionListRow): Operacion {
@@ -163,12 +188,21 @@ export async function POST(req: Request) {
 	if (body.tipo !== "GASTO" && !body.taller_id) {
 		return Response.json({ data: null, error: "Falta taller_id" } satisfies CreateOperacionResponse, { status: 400 });
 	}
+	const cargos = Array.isArray(body.cargos) ? body.cargos : [];
+	if (cargos.length > 0) {
+		if (body.tipo !== "COMPRA") {
+			return Response.json({ data: null, error: "Solo las compras admiten percepciones" } satisfies CreateOperacionResponse, { status: 400 });
+		}
+		const cargosError = validarCargos(cargos);
+		if (cargosError) return Response.json({ data: null, error: cargosError } satisfies CreateOperacionResponse, { status: 400 });
+	}
+	// Las percepciones de una compra forman parte del total: los pagos se validan contra productos + percepciones.
 	const importeTotal = body.tipo === "GASTO"
 		? (Number(body.monto) || 0)
 		: (body.lineas ?? []).reduce(
 			(sum, l) => sum + (Number(l.cantidad) || 0) * (Number(l.monto_unitario) || 0),
 			0
-		);
+		) + cargos.reduce((sum, c) => sum + (Number(c.importe) || 0), 0);
 	if (body.tipo === "GASTO" && (!body.categoria_gasto || !body.categoria_gasto.trim())) {
 		return Response.json({ data: null, error: "Falta categoria_gasto" } satisfies CreateOperacionResponse, { status: 400 });
 	}

@@ -1,6 +1,6 @@
 import { logger } from "@/lib/logger";
 import type { Operacion, OperacionLinea, OperacionMovimientoStock, OperacionPago } from "@/model/types";
-import type { OperacionDTO, OperacionLineaDTO, OperacionMovimientoStockDTO, OperacionPagoDTO } from "@/model/dtos";
+import type { OperacionCargoDTO, OperacionDTO, OperacionLineaDTO, OperacionMovimientoStockDTO, OperacionPagoDTO } from "@/model/dtos";
 import { createClient } from "@/supabase/server";
 import type { NextRequest } from "next/server";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
@@ -9,6 +9,7 @@ import {
 	type UpdateOperacionInput,
 } from "@/app/api/operaciones/operacionesService";
 import { ServiceError } from "@/app/api/serviceError";
+import { OPERACION_CON_DOCUMENTOS_MESSAGE } from "@/app/api/apiError";
 import { isValidUuid } from "@/lib/uuid";
 import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
@@ -30,6 +31,7 @@ type OperacionRow = OperacionDTO & {
 	pagos?: OperacionPagoDTO[] | null;
 	operaciones_pagos?: OperacionPagoDTO[] | null;
 	movimientos_stock?: OperacionMovimientoStockDTO[] | null;
+	cargos?: OperacionCargoDTO[] | null;
 };
 
 function mapLinea(row: OperacionLineaDTO): OperacionLinea {
@@ -129,6 +131,16 @@ function mapOperacion(row: OperacionRow): Operacion {
 		pagos: pagos.map(mapPago),
 		movimientos_stock: Array.isArray(row.movimientos_stock)
 			? row.movimientos_stock.map(mapMovimientoStock)
+			: undefined,
+		cargos: Array.isArray(row.cargos)
+			? row.cargos.map((c) => ({
+					id: c.id,
+					orden: c.orden,
+					tipo: "PERCEPCION" as const,
+					percepcion_codigo: c.percepcion_codigo ?? null,
+					descripcion: c.descripcion,
+					importe: Number(c.importe) || 0,
+				}))
 			: undefined,
 	};
 }
@@ -245,7 +257,11 @@ export async function DELETE(
 					break;
 				case ServiceError.EnUso:
 					status = 409;
-					message = "La operación tiene documentos asociados (por ejemplo, remitos) y no se puede eliminar";
+					message = "La operación tiene documentos asociados (por ejemplo, remitos, facturas o retenciones) y no se puede eliminar";
+					break;
+				case ServiceError.OperacionConDocumentos:
+					status = 409;
+					message = OPERACION_CON_DOCUMENTOS_MESSAGE;
 					break;
 				default:
 					break;

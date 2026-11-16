@@ -10,6 +10,7 @@ import type {
 } from "@/model/finanzas";
 import {
   mapGasto,
+  rpcErrorMessage,
   rpcStatus,
   validateUpdateGasto,
   validateUuid,
@@ -128,10 +129,13 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
   });
   if (error || data === false) {
     const status = data === false ? 404 : rpcStatus(error);
-    return Response.json(
-      { error: status === 404 ? "Gasto no encontrado" : "Error eliminando gasto" } satisfies EliminarFinanzasResponse,
-      { status }
-    );
+    // 409: el gasto tiene facturas o retenciones asociadas (o está en uso); el mensaje explica cómo seguir.
+    const message = status === 404
+      ? "Gasto no encontrado"
+      : status === 409
+        ? rpcErrorMessage(error, "Error eliminando gasto")
+        : "Error eliminando gasto";
+    return Response.json({ error: message } satisfies EliminarFinanzasResponse, { status });
   }
   await statsService.onDataChanged(supabase);
   return Response.json({ error: null } satisfies EliminarFinanzasResponse, { status: 200 });

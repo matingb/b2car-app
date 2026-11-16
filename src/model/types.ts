@@ -51,6 +51,7 @@ export interface Proveedor {
   telefono?: string | null;
   email?: string | null;
   direccion?: string | null;
+  condicion_iva?: string | null;
   created_at?: string;
   updated_at?: string;
   saldo_pendiente?: number;
@@ -335,6 +336,17 @@ export interface Operacion {
   cliente_id?: UUID | null;
   cliente_nombre?: string;
   movimientos_stock?: OperacionMovimientoStock[];
+  /** Cargos que suman a monto_total sin ser mercadería (percepciones de compras). */
+  cargos?: OperacionCargo[];
+}
+
+export interface OperacionCargo {
+  id: UUID;
+  orden: number;
+  tipo: "PERCEPCION";
+  percepcion_codigo: string | null;
+  descripcion: string;
+  importe: number;
 }
 
 export interface OperacionVenta {

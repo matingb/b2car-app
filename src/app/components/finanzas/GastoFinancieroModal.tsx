@@ -1,7 +1,11 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import Modal from "@/app/components/ui/Modal";
+import Checkbox from "@/app/components/ui/Checkbox";
+import ComprobanteRecibidoOperacionModal from "@/app/components/comprobantesRecibidos/ComprobanteRecibidoOperacionModal";
+import { TenantContext } from "@/app/providers/TenantProvider";
+import { Permission } from "@/lib/permissions";
 import Calendar from "@/app/components/ui/Calendar";
 import TallerSelector from "@/app/components/ui/TallerSelector";
 import CuentaFinancieraAutocomplete, { CREATE_CUENTA_VALUE } from "./CuentaFinancieraAutocomplete";
@@ -27,7 +31,8 @@ type Props = {
   cuentaId: string;
   talleres?: Array<{ id: string; nombre: string }>;
   onClose: () => void;
-  onCreate: (input: CrearGastoFinancieroInput) => Promise<void>;
+  /** Devuelve el gasto creado (su id es el de la operación) para poder cargar su factura o retención. */
+  onCreate: (input: CrearGastoFinancieroInput) => Promise<{ id: string } | null | undefined>;
   onCreateCuenta: (input: CrearCuentaFinancieraInput) => Promise<CuentaFinanciera>;
 };
 
@@ -60,6 +65,11 @@ export default function GastoFinancieroModal({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const idempotencyKeyRef = useRef(generateUuidV4());
   const attemptedGastoRef = useRef<GastoAttempt | null>(null);
+  const tenant = useContext(TenantContext);
+  const canCargarComprobante = tenant?.hasPermission(Permission.ComprobantesRecibidosEdit) ?? false;
+  const [cargarComprobante, setCargarComprobante] = useState(false);
+  // Gasto ya registrado que espera su factura o retención. El gasto no se vuelve a crear.
+  const [gastoPendienteId, setGastoPendienteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -73,6 +83,8 @@ export default function GastoFinancieroModal({
     setObservacionesGasto("");
     setSubmitting(false);
     setSubmitError(null);
+    setCargarComprobante(false);
+    setGastoPendienteId(null);
     idempotencyKeyRef.current = generateUuidV4();
     attemptedGastoRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,14 +151,31 @@ export default function GastoFinancieroModal({
         attemptedGastoRef.current = { signature, payload };
       }
 
-      await onCreate(payload);
-      onClose();
+      const created = await onCreate(payload);
+      if (cargarComprobante && canCargarComprobante && created?.id) {
+        setGastoPendienteId(created.id);
+      } else {
+        onClose();
+      }
     } catch (error: unknown) {
       setSubmitError(error instanceof Error ? error.message : "No se pudo registrar el gasto.");
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (gastoPendienteId) {
+    return (
+      <ComprobanteRecibidoOperacionModal
+        open={open}
+        operacionId={gastoPendienteId}
+        onClose={() => {
+          setGastoPendienteId(null);
+          onClose();
+        }}
+      />
+    );
+  }
 
   return (
     <Modal
@@ -215,6 +244,15 @@ export default function GastoFinancieroModal({
           observacionesGasto={observacionesGasto}
           setObservacionesGasto={setObservacionesGasto}
         />
+        {canCargarComprobante ? (
+          <Checkbox
+            id="gasto-cargar-comprobante"
+            checked={cargarComprobante}
+            onChange={setCargarComprobante}
+            disabled={submitting}
+            label="Cargar factura o retención del gasto al registrar"
+          />
+        ) : null}
       </div>
     </Modal>
   );

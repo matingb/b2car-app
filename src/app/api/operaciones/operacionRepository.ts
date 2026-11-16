@@ -1,5 +1,5 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-import type { OperacionDTO, OperacionLineaDTO, OperacionMovimientoStockDTO, OperacionPagoDTO } from "@/model/dtos";
+import type { OperacionCargoDTO, OperacionDTO, OperacionLineaDTO, OperacionMovimientoStockDTO, OperacionPagoDTO } from "@/model/dtos";
 
 export type ClienteJoin = {
 	tipo_cliente?: string;
@@ -77,6 +77,14 @@ export type OperacionDetalleRawRow = Omit<OperacionDTO, "movimientos_stock"> & {
 	operaciones_venta?: OperacionVentaJoin | OperacionVentaJoin[] | null;
 	operaciones_compra?: OperacionCompraJoin | OperacionCompraJoin[] | null;
 	operaciones_gasto?: OperacionGastoJoin | OperacionGastoJoin[] | null;
+	operaciones_cargos?: Array<{
+		id: string;
+		orden: number;
+		tipo: string;
+		percepcion_codigo?: string | null;
+		descripcion: string;
+		importe: number | string;
+	}> | null;
 	movimientos_stock?: OperacionMovimientoStockJoin[] | null;
 };
 
@@ -87,6 +95,7 @@ export type OperacionRow = OperacionDTO & {
 	movimientos_stock?: OperacionMovimientoStockDTO[] | null;
 	categoria_gasto?: string | null;
 	descripcion?: string | null;
+	cargos?: OperacionCargoDTO[] | null;
 };
 
 export type FacturaOperacionRow = {
@@ -122,6 +131,8 @@ export type RpcCrearOperacionParams = {
 	p_proveedor_id?: string | null;
 	p_cliente_id?: string | null;
 	p_pagos?: unknown[] | null;
+	/** Solo COMPRA: percepciones que suman a monto_total (operaciones_cargos). */
+	p_cargos?: unknown[] | null;
 	p_categoria_gasto?: string | null;
 	p_monto?: number | null;
 	p_descripcion?: string | null;
@@ -251,7 +262,7 @@ export const operacionRepository: OperacionRepository = {
 		const { data, error } = await supabase
 			.from("operaciones")
 			.select(
-				"*, operaciones_lineas(*, stocks(producto_id, productos(nombre, codigo))), pagos:operaciones_movimiento_cuenta!operaciones_movimiento_cuenta_operacion_id_fkey(id, tenant_id, operacion_id, cuenta_id, importe, fecha, descripcion, created_at, cuentas_financieras:cuentas_financieras(nombre)), operaciones_venta(cliente_id, clientes(tipo_cliente, particulares(nombre, apellido), empresas(nombre))), operaciones_compra(proveedor_id, proveedores(nombre)), operaciones_gasto(categoria_gasto, descripcion)"
+				"*, operaciones_lineas(*, stocks(producto_id, productos(nombre, codigo))), pagos:operaciones_movimiento_cuenta!operaciones_movimiento_cuenta_operacion_id_fkey(id, tenant_id, operacion_id, cuenta_id, importe, fecha, descripcion, created_at, cuentas_financieras:cuentas_financieras(nombre)), operaciones_venta(cliente_id, clientes(tipo_cliente, particulares(nombre, apellido), empresas(nombre))), operaciones_compra(proveedor_id, proveedores(nombre)), operaciones_gasto(categoria_gasto, descripcion), operaciones_cargos(id, orden, tipo, percepcion_codigo, descripcion, importe)"
 			)
 			.eq("id", id)
 			.single();
@@ -366,6 +377,16 @@ export const operacionRepository: OperacionRepository = {
 			categoria_gasto: gasto?.categoria_gasto ?? null,
 			descripcion: gasto?.descripcion ?? null,
 			movimientos_stock: movimientosStock,
+			cargos: (Array.isArray(raw.operaciones_cargos) ? raw.operaciones_cargos : [])
+				.map((c) => ({
+					id: String(c.id),
+					orden: Number(c.orden) || 0,
+					tipo: String(c.tipo),
+					percepcion_codigo: c.percepcion_codigo ?? null,
+					descripcion: String(c.descripcion ?? ""),
+					importe: Number(c.importe) || 0,
+				}))
+				.sort((a, b) => a.orden - b.orden),
 		};
 
 		return { data: mapped, error: null };
