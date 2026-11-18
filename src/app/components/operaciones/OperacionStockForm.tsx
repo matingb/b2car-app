@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { css } from "@emotion/react";
 import { AlertCircle, Plus } from "lucide-react";
 import { COLOR } from "@/theme/theme";
@@ -47,9 +47,37 @@ export default function OperacionStockForm() {
     importeTotal,
     factura,
     puedeCargarComprobante,
+    open,
   } = useOperacionForm();
 
   const [activeLineaId, setActiveLineaId] = useState<string | null>(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const suppressSingleLineaAutoExpandRef = useRef(false);
+  const firstLineaId = lineas[0]?.id ?? "0";
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia?.("(max-width: 720px)");
+    if (!mediaQuery) return;
+
+    const updateViewport = () => setIsMobileViewport(mediaQuery.matches);
+    updateViewport();
+    mediaQuery.addEventListener?.("change", updateViewport);
+    return () => mediaQuery.removeEventListener?.("change", updateViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileViewport) {
+      setActiveLineaId(null);
+      return;
+    }
+    if (open && lineas.length === 1) {
+      if (suppressSingleLineaAutoExpandRef.current) {
+        suppressSingleLineaAutoExpandRef.current = false;
+        return;
+      }
+      setActiveLineaId(firstLineaId);
+    }
+  }, [open, isMobileViewport, lineas.length, firstLineaId]);
 
   const isEnabled = Boolean(tipo && isTipoEnabled(tipo));
   const isAllowedTipo = tipo === "VENTA" || tipo === "COMPRA";
@@ -121,9 +149,17 @@ export default function OperacionStockForm() {
                   key={l.id || idx}
                   index={idx}
                   linea={l}
+                  productCode={stockById.get(l.stockId)?.codigo}
                   mobileExpanded={activeLineaId === lineKey}
-                  onMobileActivate={() => setActiveLineaId(lineKey)}
-                  onMobileToggle={() => setActiveLineaId((current) => (current === lineKey ? null : lineKey))}
+                  canMobileExpand={activeLineaId === null || activeLineaId === lineKey}
+                  canMobileDelete={!isContextualStock}
+                  onMobileActivate={() => {
+                    if (isMobileViewport) setActiveLineaId((current) => current ?? lineKey);
+                  }}
+                  onMobileToggle={() => setActiveLineaId((current) => current ?? lineKey)}
+                  onMobileConfirm={() => {
+                    if (l.stockId) setActiveLineaId((current) => (current === lineKey ? null : current));
+                  }}
                   disabled={disabled}
                   stockSelectionDisabled={isContextualStock}
                   loadingStocks={isInventarioLoading || isProveedorProductosLoading}
@@ -133,6 +169,9 @@ export default function OperacionStockForm() {
                   isVenta={tipo === "VENTA"}
                   onChange={(next) => setLineaAt(idx, next)}
                   onRemove={() => {
+                    if (isMobileViewport && lineas.length === 2 && activeLineaId === lineKey) {
+                      suppressSingleLineaAutoExpandRef.current = true;
+                    }
                     removeLinea(idx);
                     setActiveLineaId((current) => (current === lineKey ? null : current));
                   }}
@@ -167,9 +206,9 @@ export default function OperacionStockForm() {
               type="button"
               onClick={() => {
                 const nuevaLineaId = addLinea();
-                setActiveLineaId(nuevaLineaId);
+                if (isMobileViewport) setActiveLineaId(nuevaLineaId);
               }}
-              disabled={!isEnabled}
+              disabled={!isEnabled || (isMobileViewport && activeLineaId !== null)}
               dataTestId="operaciones-add-line"
               text="Agregar Producto"
               icon={<Plus size={16} />}

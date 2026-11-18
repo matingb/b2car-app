@@ -24,6 +24,7 @@ describe("operacionRepository", () => {
 		expect(select).toHaveBeenCalledWith(
 			expect.stringContaining("operaciones_lineas(*, stocks(producto_id, productos(nombre, codigo)))")
 		);
+		expect(select).toHaveBeenCalledWith(expect.stringContaining(", operaciones_cargos(id, orden"));
 		expect(eq).toHaveBeenCalledWith("id", "op-1");
 		expect(res.data).toEqual({
 			...mockRow,
@@ -35,6 +36,7 @@ describe("operacionRepository", () => {
 			proveedor_nombre: undefined,
 			movimientos_stock: [],
 			pagos: [],
+			cargos: [],
 		});
 		expect(res.error).toBeNull();
 	});

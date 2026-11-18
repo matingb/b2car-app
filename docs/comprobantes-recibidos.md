@@ -15,9 +15,8 @@ del tenant. Una operación admite cero o más documentos. Tipos:
 estado de pago, cuenta corriente, cuentas financieras ni stock. No hay tablas de imputación. Ninguna ruta o RPC
 de este circuito toca `operaciones`, pagos, movimientos financieros ni movimientos de stock (solo los lee).
 
-La única excepción es el alta de una compra **guardada con factura**: sus percepciones se registran también como
-cargos de la operación (`operaciones_cargos`) y suman a su total. Esto lo hace el alta de la operación, no el
-documento: editar o eliminar la factura después no cambia la deuda. Ver “Percepciones en el total de la compra”.
+Los cargos operativos se gestionan al dar de alta una compra con factura o al editar sus cargos. Adjuntar, editar o
+eliminar el comprobante conserva el total y el saldo de la operación. Ver “Percepciones en el total de la compra”.
 
 Fuera de alcance: emisión/verificación ARCA, adjuntos/archivos/fotos, Storage, OCR/importación, borradores,
 cálculo de alícuotas, crédito fiscal o regímenes.
@@ -117,9 +116,8 @@ si la respuesta se pierde, el reintento devuelve el documento ya creado.
 **Alta de gasto desde la cuenta financiera:** sigue con la casilla “Cargar factura o retención…”, que abre el
 formulario sobre el gasto ya persistido.
 
-**Detalle de la operación:** el botón “Adjuntar factura” de la cabecera agrega una factura o una retención a una
-compra o un gasto existente. Sus documentos se listan en “Documentos asociados” (como en los arreglos); la sección
-se oculta si no hay ninguno.
+**Detalle de la operación.** El botón “Adjuntar factura o retención” registra un documento sin alterar cargos, total
+ni saldo. Los documentos aparecen en “Documentos asociados”.
 
 **Detalle del documento:** `/facturacion/recibidos/{id}` (permiso `comprobantes_recibidos:view`). Se abre desde el
 listado de Documentos y desde “Documentos asociados”, con la misma estructura que el detalle de una factura emitida:
@@ -131,7 +129,8 @@ detalle de la compra.
 
 ## Percepciones en el total de la compra
 
-Migración: `supabase/migrations/20261116120000_operaciones_cargos.sql`.
+La migración `20261116120000_operaciones_cargos.sql` crea `operaciones_cargos` con una FK directa a
+`operaciones.id` y borrado en cascada. El alta y la edición de cargos comparten la validación y el guardado.
 
 En una COMPRA creada con el switch “Cargar con factura” activo, cada percepción de la factura se guarda dos veces,
 en la misma alta:
@@ -154,15 +153,15 @@ no son mercadería: no mueven stock, no tienen alícuota de IVA y no cambian el 
   posteriores (`rpc_registrar_pago_operacion`) se limitan al saldo y las anulaciones lo recalculan igual.
 - La cuenta corriente y el saldo del proveedor usan `monto_total`: la deuda incluye las percepciones.
 
-**Alcance:**
+**Edición de una compra.** “Editar cargos” permite ingresar cargos o copiar las percepciones de una factura
+asociada. La copia reemplaza la lista del formulario. Al guardar, `PUT /api/operaciones/{id}` invoca la variante
+de `rpc_actualizar_operacion` con `p_cargos`. Omitir la lista conserva los cargos y enviar `[]` los quita.
 
-- Solo compras. En los gastos las percepciones quedan solo en la factura: la edición de un gasto
-  (`rpc_actualizar_movimiento_cuenta`) reescribe `monto_total` con el importe informado y desincronizaría los cargos.
-- Solo en el alta. Una factura agregada después desde el detalle de la operación no modifica el total.
-- Los cargos se escriben solo por el RPC (el cliente tiene `SELECT` con RLS por tenant y `operaciones:view`) y se
-  borran en cascada con la operación.
-- Si la factura falla después de crear la compra, la operación ya incluye los cargos. Reintentar la factura no los
-  duplica.
+El guardado conserva pagos y stock. El total se ajusta por la diferencia entre cargos nuevos y anteriores y el
+estado de pago se recalcula con el trigger existente. Un total menor a lo pagado se rechaza. La edición requiere
+`operaciones:edit` y copiar una factura requiere `comprobantes_recibidos:view`. Las percepciones de gastos
+quedan en la factura. Si falla el guardado documental luego del alta, reintentar el comprobante conserva los cargos
+confirmados en la compra.
 
 El detalle de la operación muestra las percepciones en una tabla debajo de los productos.
 

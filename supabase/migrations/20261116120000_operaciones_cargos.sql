@@ -1,20 +1,14 @@
 -- ============================================================================
 -- Cargos de operación (percepciones de la factura de compra)
 --
--- Importes que suman al total de una operación sin ser mercadería. Por ahora solo
--- percepciones, cargadas en el alta de una COMPRA junto con su factura recibida.
+-- Importes que suman al total de una operación sin ser mercadería. La escritura
+-- habilita percepciones al dar de alta o editar una compra.
 --
 -- Reglas:
---   * operaciones.monto_total = Σ líneas de mercadería + Σ cargos. Se calcula al crear la
---     operación; desde ahí el pago inicial, estado_pago (trigger), el saldo pendiente y los
---     pagos posteriores (limitados al saldo) incluyen los cargos sin cambios adicionales.
---   * Los cargos pertenecen a la operación, no a la factura: editar o eliminar la factura
---     recibida no modifica la deuda (los documentos siguen sin mover dinero).
---   * Solo operaciones COMPRA: la FK apunta a operaciones_compra. Los gastos no admiten
---     cargos: su edición reescribe monto_total con el importe informado
---     (rpc_actualizar_movimiento_cuenta).
---   * Escritura solo dentro del alta (RPC SECURITY DEFINER, que usa el tenant de la propia
---     operación); el cliente solo lee.
+--   * operaciones.monto_total = Σ líneas de mercadería + Σ cargos. Los cargos
+--     se incluyen en los pagos al crear la operación y en el saldo al editarla.
+--   * La gestión documental conserva los cargos y el saldo de la operación.
+--   * Las RPC de alta y edición de compras escriben los cargos. El cliente solo lee.
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
@@ -33,10 +27,8 @@ CREATE TABLE public.operaciones_cargos (
   created_at        timestamp with time zone DEFAULT now() NOT NULL,
   created_by        uuid                     DEFAULT auth.uid(),
   CONSTRAINT operaciones_cargos_pkey PRIMARY KEY (id),
-  -- operaciones_compra solo tiene filas de COMPRA: la FK impone "solo compras" y borra los
-  -- cargos en cascada junto con la operación.
   CONSTRAINT operaciones_cargos_operacion_id_fkey
-    FOREIGN KEY (operacion_id) REFERENCES public.operaciones_compra(operacion_id) ON DELETE CASCADE,
+    FOREIGN KEY (operacion_id) REFERENCES public.operaciones(id) ON DELETE CASCADE,
   CONSTRAINT operaciones_cargos_tenant_id_fkey
     FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE RESTRICT,
   CONSTRAINT operaciones_cargos_orden_key UNIQUE (operacion_id, orden),
@@ -50,7 +42,7 @@ CREATE TABLE public.operaciones_cargos (
 );
 
 COMMENT ON TABLE public.operaciones_cargos IS
-  'Importes de una operación que no son mercadería (hoy: percepciones de la factura de compra). Suman a operaciones.monto_total.';
+  'Cargos que integran el monto total de una operación. El alta y la edición admiten percepciones de compra.';
 
 -- Los cargos de una operación se leen (y se borran en cascada) por el índice del
 -- UNIQUE (operacion_id, orden).
@@ -75,7 +67,79 @@ GRANT SELECT ON public.operaciones_cargos TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.operaciones_cargos TO service_role;
 
 -- ----------------------------------------------------------------------------
--- 3. Alta de operaciones con stock: nuevo parámetro p_cargos (al final, con default)
+-- 3. Validación y guardado de cargos compartidos por el alta y la edición
+-- ----------------------------------------------------------------------------
+
+CREATE FUNCTION public._validar_y_sumar_cargos_operacion(p_cargos jsonb)
+RETURNS numeric
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path TO ''
+AS $function$
+DECLARE
+  v_cargo jsonb;
+  v_orden bigint;
+  v_importe numeric;
+  v_total numeric := 0;
+BEGIN
+  IF jsonb_typeof(p_cargos) IS DISTINCT FROM 'array' THEN
+    RAISE EXCEPTION 'Los cargos deben ser una lista' USING ERRCODE = '22023';
+  END IF;
+  IF jsonb_array_length(p_cargos) > 100 THEN
+    RAISE EXCEPTION 'La operación admite hasta 100 cargos' USING ERRCODE = '22023';
+  END IF;
+
+  FOR v_cargo, v_orden IN SELECT value, ordinality FROM jsonb_array_elements(p_cargos) WITH ORDINALITY LOOP
+    IF jsonb_typeof(v_cargo) <> 'object' OR COALESCE(v_cargo ->> 'tipo', 'PERCEPCION') <> 'PERCEPCION' THEN
+      RAISE EXCEPTION 'Cargo %: tipo no admitido', v_orden USING ERRCODE = '22023';
+    END IF;
+    IF COALESCE(v_cargo ->> 'percepcion_codigo', '') NOT IN ('GANANCIAS', 'IVA', 'IIBB_BUENOS_AIRES', 'IIBB_CABA', 'OTRA') THEN
+      RAISE EXCEPTION 'Cargo %: la percepción no es válida', v_orden USING ERRCODE = '22023';
+    END IF;
+    IF jsonb_typeof(v_cargo -> 'descripcion') IS DISTINCT FROM 'string'
+      OR char_length(btrim(v_cargo ->> 'descripcion')) NOT BETWEEN 1 AND 200 THEN
+      RAISE EXCEPTION 'Cargo %: la descripción es obligatoria (hasta 200 caracteres)', v_orden USING ERRCODE = '22023';
+    END IF;
+    IF jsonb_typeof(v_cargo -> 'importe') IS DISTINCT FROM 'number' THEN
+      RAISE EXCEPTION 'Cargo %: el importe debe ser numérico', v_orden USING ERRCODE = '22023';
+    END IF;
+    v_importe := (v_cargo ->> 'importe')::numeric;
+    IF v_importe <= 0 OR v_importe <> round(v_importe, 2) THEN
+      RAISE EXCEPTION 'Cargo %: el importe debe ser mayor a 0 y tener hasta 2 decimales', v_orden USING ERRCODE = '22023';
+    END IF;
+    v_total := v_total + v_importe;
+  END LOOP;
+
+  RETURN v_total;
+END;
+$function$;
+
+CREATE FUNCTION public._guardar_cargos_operacion(p_tenant_id uuid, p_operacion_id uuid, p_cargos jsonb)
+RETURNS void
+LANGUAGE sql
+SET search_path TO ''
+AS $function$
+  INSERT INTO public.operaciones_cargos AS cargo (
+    tenant_id, operacion_id, orden, tipo, percepcion_codigo, descripcion, importe
+  )
+  SELECT p_tenant_id, p_operacion_id, orden::integer, 'PERCEPCION',
+    elem ->> 'percepcion_codigo', btrim(elem ->> 'descripcion'), (elem ->> 'importe')::numeric
+  FROM jsonb_array_elements(p_cargos) WITH ORDINALITY AS entrada(elem, orden)
+  ON CONFLICT (operacion_id, orden) DO UPDATE
+    SET percepcion_codigo = EXCLUDED.percepcion_codigo, descripcion = EXCLUDED.descripcion, importe = EXCLUDED.importe
+    WHERE (cargo.percepcion_codigo, cargo.descripcion, cargo.importe)
+      IS DISTINCT FROM (EXCLUDED.percepcion_codigo, EXCLUDED.descripcion, EXCLUDED.importe);
+
+  DELETE FROM public.operaciones_cargos
+  WHERE operacion_id = p_operacion_id AND tenant_id = p_tenant_id
+    AND orden > jsonb_array_length(p_cargos);
+$function$;
+
+REVOKE ALL ON FUNCTION public._validar_y_sumar_cargos_operacion(jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public._guardar_cargos_operacion(uuid, uuid, jsonb) FROM PUBLIC, anon, authenticated;
+
+-- ----------------------------------------------------------------------------
+-- 4. Alta de operaciones con stock: nuevo parámetro p_cargos (al final, con default)
 --
 -- Se reemplazan las firmas para no dejar sobrecargas ambiguas con argumentos nombrados.
 -- Los llamadores existentes (posicionales o nombrados) no cambian.
@@ -129,13 +193,7 @@ DECLARE
   v_iva_alicuota       smallint;
   v_cantidad_cumpl     integer;
   v_fecha              timestamp with time zone := COALESCE(p_fecha, now());
-  v_cargo              jsonb;
-  v_cargo_orden        integer := 0;
-  v_cargo_tipo         text;
-  v_cargo_codigo       text;
-  v_cargo_descripcion  text;
-  v_cargo_importe      numeric;
-  v_total_cargos       numeric(14,2) := 0;
+  v_total_cargos       numeric := 0;
 BEGIN
   IF v_tenant_id IS NULL THEN
     RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000';
@@ -155,41 +213,11 @@ BEGIN
   END IF;
 
   -- Cargos: se validan antes de crear nada para no dejar operaciones a medias.
-  IF p_cargos IS NOT NULL AND jsonb_typeof(p_cargos) <> 'array' THEN
-    RAISE EXCEPTION 'Los cargos deben ser una lista' USING ERRCODE = '22023';
-  END IF;
-  IF p_cargos IS NOT NULL AND jsonb_array_length(p_cargos) > 0 THEN
-    IF p_tipo <> 'COMPRA' THEN
+  IF p_cargos IS NOT NULL THEN
+    v_total_cargos := public._validar_y_sumar_cargos_operacion(p_cargos);
+    IF v_total_cargos > 0 AND p_tipo <> 'COMPRA' THEN
       RAISE EXCEPTION 'Solo las compras admiten cargos' USING ERRCODE = '22023';
     END IF;
-    IF jsonb_array_length(p_cargos) > 100 THEN
-      RAISE EXCEPTION 'La operación admite hasta 100 cargos' USING ERRCODE = '22023';
-    END IF;
-    FOR v_cargo IN SELECT elem FROM jsonb_array_elements(p_cargos) AS elem
-    LOOP
-      v_cargo_orden := v_cargo_orden + 1;
-      v_cargo_tipo := COALESCE(v_cargo ->> 'tipo', 'PERCEPCION');
-      v_cargo_codigo := v_cargo ->> 'percepcion_codigo';
-      v_cargo_descripcion := btrim(COALESCE(v_cargo ->> 'descripcion', ''));
-      BEGIN
-        v_cargo_importe := (v_cargo ->> 'importe')::numeric;
-      EXCEPTION WHEN others THEN
-        v_cargo_importe := NULL;
-      END;
-      IF v_cargo_tipo <> 'PERCEPCION' THEN
-        RAISE EXCEPTION 'Cargo %: tipo no admitido', v_cargo_orden USING ERRCODE = '22023';
-      END IF;
-      IF v_cargo_codigo IS NULL OR v_cargo_codigo <> ALL (ARRAY['GANANCIAS', 'IVA', 'IIBB_BUENOS_AIRES', 'IIBB_CABA', 'OTRA']) THEN
-        RAISE EXCEPTION 'Cargo %: la percepción no es válida', v_cargo_orden USING ERRCODE = '22023';
-      END IF;
-      IF char_length(v_cargo_descripcion) NOT BETWEEN 1 AND 200 THEN
-        RAISE EXCEPTION 'Cargo %: la descripción es obligatoria (hasta 200 caracteres)', v_cargo_orden USING ERRCODE = '22023';
-      END IF;
-      IF v_cargo_importe IS NULL OR v_cargo_importe <= 0 OR round(v_cargo_importe, 2) <> v_cargo_importe THEN
-        RAISE EXCEPTION 'Cargo %: el importe debe ser mayor a 0 y tener hasta 2 decimales', v_cargo_orden USING ERRCODE = '22023';
-      END IF;
-      v_total_cargos := v_total_cargos + v_cargo_importe;
-    END LOOP;
   END IF;
 
   v_sentido := CASE WHEN p_tipo = 'COMPRA' THEN 1::smallint ELSE -1::smallint END;
@@ -221,18 +249,7 @@ BEGIN
   END IF;
 
   IF v_total_cargos > 0 THEN
-    INSERT INTO public.operaciones_cargos (
-      tenant_id, operacion_id, orden, tipo, percepcion_codigo, descripcion, importe
-    )
-    SELECT
-      v_tenant_id,
-      v_operacion_id,
-      c.orden::integer,
-      COALESCE(c.elem ->> 'tipo', 'PERCEPCION'),
-      c.elem ->> 'percepcion_codigo',
-      btrim(c.elem ->> 'descripcion'),
-      (c.elem ->> 'importe')::numeric
-    FROM jsonb_array_elements(p_cargos) WITH ORDINALITY AS c(elem, orden);
+    PERFORM public._guardar_cargos_operacion(v_tenant_id, v_operacion_id, p_cargos);
   END IF;
 
   -- Insertar líneas ordenadas por stock_id (Lock ordering)
@@ -384,3 +401,67 @@ $function$;
 
 REVOKE ALL ON FUNCTION public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamptz, uuid, text, text, numeric, boolean, uuid, uuid, jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamptz, uuid, text, text, numeric, boolean, uuid, uuid, jsonb) TO authenticated, service_role;
+
+-- ----------------------------------------------------------------------------
+-- 5. Edición de cargos de compra
+-- ----------------------------------------------------------------------------
+
+-- La firma sin p_cargos conserva el contrato de quienes solo editan fecha u observaciones.
+CREATE FUNCTION public.rpc_actualizar_operacion(
+  p_operacion_id uuid,
+  p_fecha timestamptz,
+  p_observaciones text,
+  p_cargos jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+DECLARE
+  v_resultado jsonb;
+  v_op record;
+  v_total_cargos numeric;
+  v_cargos_anteriores numeric;
+  v_total numeric;
+BEGIN
+  -- Reutiliza la autorización y el bloqueo de la fila que también usa el registro de pagos.
+  v_resultado := public.rpc_actualizar_operacion(p_operacion_id, p_fecha, p_observaciones);
+
+  SELECT tenant_id, tipo, monto_total, total_pagado INTO STRICT v_op
+  FROM public.operaciones
+  WHERE id = p_operacion_id AND tenant_id = public.current_tenant_id();
+
+  IF v_op.tipo <> 'COMPRA' THEN
+    RAISE EXCEPTION 'Solo las compras admiten cargos' USING ERRCODE = '22023';
+  END IF;
+
+  v_total_cargos := public._validar_y_sumar_cargos_operacion(p_cargos);
+
+  SELECT COALESCE(sum(importe), 0) INTO v_cargos_anteriores
+  FROM public.operaciones_cargos
+  WHERE operacion_id = p_operacion_id AND tenant_id = v_op.tenant_id;
+
+  v_total := v_op.monto_total - v_cargos_anteriores + v_total_cargos;
+  IF v_total < v_op.total_pagado THEN
+    RAISE EXCEPTION 'El total de la compra no puede quedar por debajo del importe ya pagado'
+      USING ERRCODE = '22023';
+  END IF;
+  IF v_total >= 1000000000000 THEN
+    RAISE EXCEPTION 'El total supera el importe máximo de la compra' USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM public._guardar_cargos_operacion(v_op.tenant_id, p_operacion_id, p_cargos);
+
+  UPDATE public.operaciones
+  SET monto_total = v_total
+  WHERE id = p_operacion_id AND tenant_id = v_op.tenant_id AND monto_total IS DISTINCT FROM v_total;
+
+  RETURN v_resultado;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.rpc_actualizar_operacion(uuid, timestamptz, text, jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rpc_actualizar_operacion(uuid, timestamptz, text, jsonb) TO authenticated, service_role;
+
+NOTIFY pgrst, 'reload schema';

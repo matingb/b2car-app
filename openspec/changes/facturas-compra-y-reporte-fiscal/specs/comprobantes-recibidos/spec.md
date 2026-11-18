@@ -144,8 +144,14 @@ El sistema SHALL permitir registrar RETENCION como documento separado, relaciona
 - **THEN** queda asociado a esa única operación y disponible para el reporte
 - **AND** no se crea ni se requiere un pago como parte de la carga
 
-### Requirement: Invariancia financiera y de inventario de todos los documentos
-Crear, asociar, editar o eliminar facturas o retenciones SHALL conservar pagos, saldos pendientes, estados de pago, cuenta corriente, saldos de cuentas y stock de la operación. MUST NOT crear imputaciones a deuda ni nuevos movimientos financieros o de inventario. Esta regla SHALL aplicarse igual a compras y gastos.
+### Requirement: Invariancia financiera y de inventario de la gestión documental
+Al registrar, adjuntar, editar o eliminar únicamente una factura o retención, el sistema SHALL conservar cargos, monto operativo, pagos, saldos pendientes, estados de pago, cuenta corriente, saldos de cuentas y stock. MUST NOT crear imputaciones a deuda ni movimientos financieros o de inventario. Esta regla SHALL aplicarse igual a compras y gastos.
+
+#### Scenario: Adjuntar factura con percepciones a una compra existente
+- **GIVEN** una compra por 100000 con un pago de 40000 y sin cargos
+- **WHEN** el usuario adjunta una factura con percepciones por 5000 desde el circuito documental
+- **THEN** registra la factura con sus percepciones y la compra conserva total 100000, pagos 40000 y saldo 60000
+- **AND** los cargos de la compra quedan intactos al adjuntar, editar o eliminar el documento
 
 #### Scenario: Retención no cancela saldo en B2Car
 - **GIVEN** una compra por 121000 con pago efectivo de 115000 y saldo pendiente de 6000
@@ -158,6 +164,29 @@ Crear, asociar, editar o eliminar facturas o retenciones SHALL conservar pagos, 
 - **WHEN** se corrige la retención a 5000 o se la elimina
 - **THEN** el saldo permanece en 6000 y no cambian pagos, estado de pago o stock
 - **AND** solo cambian los datos documentales consultados y exportados
+
+### Requirement: Cargos asociados a la operación base
+Cada cargo SHALL pertenecer a una operación base y eliminarse con ella. El sistema SHALL habilitar el alta y edición de percepciones como cargos de compras con permiso de edición de operaciones. Al dar de alta una compra con factura, SHALL incluir las percepciones cargadas en su total.
+
+#### Scenario: Crear compra con factura y percepciones
+- **GIVEN** una compra por 100000 en mercadería y una factura con percepciones por 5000 en el formulario de alta
+- **WHEN** se confirma la creación con un pago inicial de 40000
+- **THEN** los cargos forman parte del total operativo de 105000 y el saldo es 65000
+- **AND** el documento conserva sus percepciones para el reporte fiscal
+
+### Requirement: Edición explícita de cargos de compra
+Al editar una compra, el sistema SHALL permitir agregar, corregir o quitar cargos y tomar las percepciones de una factura asociada. Al confirmar, SHALL actualizar el total y el estado de pago en la misma transacción y preservar pagos y stock. MUST rechazar un total inferior a lo ya pagado.
+
+#### Scenario: Incorporar las percepciones mediante una edición explícita
+- **GIVEN** una compra por 100000 con un pago de 40000 y una factura adjunta con percepciones por 5000
+- **WHEN** el usuario toma esas percepciones como cargos y guarda la edición de la compra
+- **THEN** la compra queda con total 105000, pagos 40000 y saldo 65000
+- **AND** volver a guardar la misma lista no acumula cargos ni altera la factura
+
+#### Scenario: Quitar un cargo de una compra pagada
+- **GIVEN** una compra de 105000 pagada en su totalidad con un cargo de 5000
+- **WHEN** el usuario intenta quitar el cargo
+- **THEN** se rechaza la edición y la compra conserva sus cargos, monto y pagos
 
 ### Requirement: Reintentos sin duplicación operativa o documental
 El sistema SHALL permitir reintentar cargas/asociaciones sin duplicar el documento de la misma solicitud, recrear la operación ni repetir pagos o stock. Un fallo MUST NOT presentarse como guardado exitoso ni dejar una asociación inválida.

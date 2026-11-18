@@ -4,7 +4,7 @@
 
 Ver [proposal.md](proposal.md) y las specs de [comprobantes recibidos](specs/comprobantes-recibidos/spec.md) y [reporte de compras](specs/reportes-fiscales-compras/spec.md).
 
-Revisión con las respuestas del 13/11/2026. La regla anterior que sumaba retenciones a la cancelación de deuda queda reemplazada: facturas y retenciones son documentos informativos, sin modificación del módulo financiero. También se sustituye el formulario centrado en alícuotas por dos tipos de líneas de descripción e importe manuales: conceptos y percepciones.
+Las facturas y retenciones tienen líneas manuales de conceptos y percepciones y se gestionan en el circuito documental. Al alta o edición de una compra, sus percepciones también se pueden registrar como cargos operativos. Adjuntar una factura a una operación existente conserva su saldo.
 
 ### Evidencia relevante del checkout
 
@@ -27,6 +27,7 @@ El relevamiento es estático y no consulta datos fiscales reales ni el esquema d
 | --- | --- |
 | Relación | Una operación admite varios documentos; cada documento exige exactamente una operación del mismo tenant. |
 | Retenciones | Documento relacionado con líneas/descripciones/montos, visible y totalizado en reporte; sin vínculo financiero ni efecto en pagos o saldos. |
+| Cargos | Pertenecen a la operación base. El alta y la edición de cargos se habilitan en compras. El circuito documental conserva cargos y saldos. |
 | Gastos | Mismo tratamiento documental e informativo de retenciones que compras. |
 | Diferencias | Guardado permitido con label informativo; no ajustar factura ni operación. |
 | Borrado | Operaciones con documentos no se eliminan. Los documentos sí pueden eliminarse; luego vuelve a aplicar el circuito de borrado operativo existente. |
@@ -131,6 +132,16 @@ Permisos propios de consulta/gestión, con acceso inicial equivalente a facturac
 Derivar tenant de sesión; validar pertenencia de operación y documento. RLS, grants mínimos e índices en futuras migraciones, sin editar manualmente el esquema declarativo. No incorporar Storage.
 
 Revisar alta y detalle de compras, compras automáticas desde arreglos y ambos puntos de entrada de gastos. El documento requiere una operación ya persistida; la secuencia de creación conjunta puede ser transaccional o preservar la operación y permitir reintentar el documento, sin repetir pagos ni stock y sin éxito aparente.
+
+### D9. Cargos de operación y percepciones documentales
+
+`operaciones_cargos.operacion_id` referencia `operaciones.id` con borrado en cascada. La consulta de detalle lee los cargos directamente desde la operación. El alta y la edición de cargos validan `COMPRA` y el permiso `operaciones:edit`; el modelo admite habilitar otros tipos por sus propios circuitos.
+
+Al crear una compra con factura, las percepciones ingresadas se guardan como cargos en la transacción operativa y se copian al documento en el paso documental. Si el guardado documental falla, se reintenta sobre la compra persistida. Los cargos confirmados forman parte de esa compra.
+
+Al editar los cargos de la compra, el usuario puede cargarlos manualmente o tomar las percepciones de una factura asociada. La lista se aplica al guardar la edición. La transacción ajusta el total por la diferencia entre los cargos anteriores y los nuevos, conserva los pagos registrados y rechaza un total inferior a lo ya pagado. Puede cambiar el saldo pendiente y el estado de pago. Omitir los cargos conserva la lista actual; enviar una lista vacía los quita.
+
+Adjuntar, editar o eliminar una factura en su circuito documental conserva los cargos, el total y el saldo. Las retenciones documentales y las percepciones de gastos se registran para consulta y reporte. El reporte fiscal lee las percepciones de la factura, incluso cuando también existen cargos por esos importes en la compra.
 
 ## Definiciones restantes
 

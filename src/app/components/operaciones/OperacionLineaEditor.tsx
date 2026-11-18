@@ -23,6 +23,7 @@ export const OPERACION_LINE_GRID_TEMPLATE =
 type Props = {
   index: number;
   linea: OperacionLineaDraft;
+  productCode?: string | null;
   disabled: boolean;
   stockSelectionDisabled?: boolean;
   loadingStocks: boolean;
@@ -33,6 +34,9 @@ type Props = {
   onChange: (next: OperacionLineaDraft) => void;
   onRemove?: () => void;
   canRemove?: boolean;
+  canMobileExpand?: boolean;
+  canMobileDelete?: boolean;
+  onMobileConfirm?: () => void;
   mobileExpanded?: boolean;
   onMobileActivate?: () => void;
   onMobileToggle?: () => void;
@@ -45,6 +49,7 @@ function round2(n: number) {
 export default function OperacionLineaEditor({
   index,
   linea,
+  productCode,
   disabled,
   stockSelectionDisabled = false,
   loadingStocks,
@@ -55,6 +60,9 @@ export default function OperacionLineaEditor({
   onChange,
   onRemove,
   canRemove = false,
+  canMobileExpand = true,
+  canMobileDelete = true,
+  onMobileConfirm,
   mobileExpanded = false,
   onMobileActivate,
   onMobileToggle,
@@ -124,6 +132,7 @@ export default function OperacionLineaEditor({
   const isExceededPactada = cantidadEntregar > cantidad;
   const isExceededStock = isVenta && stockFisico !== undefined && cantidadEntregar > stockFisico;
   const isInvalidEntregar = isExceededPactada || isExceededStock;
+  const isMissingProductCollapsed = !linea.stockId && !mobileExpanded;
   const productLabel = stockOptions.find((option) => option.value === linea.stockId)?.label
     ?? (linea.stockId ? "Producto seleccionado" : "Elegí un producto");
 
@@ -135,27 +144,51 @@ export default function OperacionLineaEditor({
       <div css={[styles.mobileHeader, !canRemove && styles.mobileHeaderWithoutRemove]} data-mobile-header="">
         <button
           type="button"
-          css={styles.mobileSummaryButton}
+          css={[
+            styles.mobileSummaryButton,
+            mobileExpanded && styles.mobileSummaryButtonExpanded,
+            !canMobileExpand && styles.mobileSummaryButtonBlocked,
+          ]}
           onClick={onMobileToggle}
+          disabled={disabled || mobileExpanded || !canMobileExpand}
           aria-expanded={mobileExpanded}
-          aria-label={`${mobileExpanded ? "Editando" : "Editar"} ${productLabel}`}
+          aria-label={
+            isMissingProductCollapsed
+              ? "Falta elegir producto. Expandir fila"
+              : mobileExpanded
+                ? `${productLabel}. Confirmá para cerrar la fila`
+                : `Editar ${productLabel}`
+          }
           data-testid={`operaciones-line-${index}-summary`}
         >
           <span css={styles.mobileSummaryTop}>
-            <strong css={styles.mobileSummaryProduct}>{productLabel}</strong>
-            <span css={styles.mobileSummaryTrailing}>
+            {isMissingProductCollapsed ? (
+              <span css={styles.mobileMissingProductLabel} data-testid={`operaciones-line-${index}-missing-product`}>
+                Falta elegir producto
+              </span>
+            ) : (
+              <span css={styles.mobileSummaryProduct}>
+                <strong css={styles.mobileSummaryProductName}>{productLabel}</strong>
+                {productCode ? <span css={styles.mobileSummaryCode}>Código: {productCode}</span> : null}
+              </span>
+            )}
+            {!isMissingProductCollapsed ? (
               <strong css={styles.mobileSummaryTotal}>{formatArs(linea.total)}</strong>
-              <ChevronDown
-                size={16}
-                css={[styles.mobileChevron, mobileExpanded && styles.mobileChevronExpanded]}
-                aria-hidden="true"
-              />
+            ) : null}
+          </span>
+          {!isMissingProductCollapsed ? (
+            <span css={styles.mobileSummaryBottom}>
+              <span css={styles.mobileSummaryDetails}>
+                Cantidad: {cantidad} · {isVenta ? "Entregar" : "Recibir"}: {cantidadEntregar}
+              </span>
+              <span css={styles.mobileSummaryUnitario}>Unitario: {formatArs(linea.unitario)}</span>
             </span>
-          </span>
-          <span css={styles.mobileSummaryDetails}>
-            Cantidad: {cantidad} · {isVenta ? "Entregar" : "Recibir"}: {cantidadEntregar}
-          </span>
-          <span css={styles.mobileSummaryHint}>Unitario: {formatArs(linea.unitario)}</span>
+          ) : null}
+          <ChevronDown
+            size={16}
+            css={[styles.mobileChevron, mobileExpanded && styles.mobileChevronExpanded]}
+            aria-hidden="true"
+          />
         </button>
       </div>
       <div data-mobile-field="" data-mobile-field-full="" onFocusCapture={onMobileActivate}>
@@ -258,6 +291,28 @@ export default function OperacionLineaEditor({
           />
         </div>
       ) : null}
+      {mobileExpanded ? (
+        <div css={styles.mobileActions} data-testid={`operaciones-line-${index}-actions`}>
+          <button
+            type="button"
+            css={[styles.mobileActionButton, styles.mobileDeleteButton]}
+            onClick={onRemove}
+            disabled={!canMobileDelete || disabled}
+            data-testid={`operaciones-line-${index}-delete`}
+          >
+            Eliminar
+          </button>
+          <button
+            type="button"
+            css={[styles.mobileActionButton, styles.mobileConfirmButton]}
+            onClick={onMobileConfirm}
+            disabled={!linea.stockId || disabled}
+            data-testid={`operaciones-line-${index}-confirm`}
+          >
+            Confirmar
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -356,7 +411,7 @@ const styles = {
       gap: 8,
       width: "100%",
       minHeight: 44,
-      paddingRight: 52,
+      paddingRight: 0,
       boxSizing: "border-box",
     },
   }),
@@ -370,61 +425,109 @@ const styles = {
     ["@media (max-width: 720px)"]: {
       display: "flex",
     },
-    alignItems: "flex-start",
+    alignItems: "stretch",
     flex: 1,
     flexDirection: "column",
     gap: 4,
     minWidth: 0,
-    padding: 0,
+    width: "100%",
+    position: "relative",
+    boxSizing: "border-box",
+    padding: "0 24px 0 0",
     border: 0,
     background: "transparent",
     color: COLOR.TEXT.PRIMARY,
     textAlign: "left",
     cursor: "pointer",
   }),
+  mobileSummaryButtonExpanded: css({
+    cursor: "default",
+    "&:disabled": {
+      opacity: 1,
+    },
+  }),
+  mobileSummaryButtonBlocked: css({
+    cursor: "not-allowed",
+    opacity: 0.55,
+  }),
   mobileSummaryTop: css({
     display: "flex",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
     width: "100%",
   }),
-  mobileSummaryTrailing: css({
-    display: "inline-flex",
+  mobileSummaryBottom: css({
+    display: "flex",
     alignItems: "center",
-    gap: 8,
-    marginLeft: "auto",
-    flexShrink: 0,
+    justifyContent: "space-between",
+    gap: 10,
+    width: "100%",
   }),
   mobileSummaryProduct: css({
+    display: "flex",
+    alignItems: "baseline",
+    gap: 6,
+    flex: 1,
     minWidth: 0,
-    overflowWrap: "anywhere",
+    overflow: "hidden",
+    whiteSpace: "nowrap",
+  }),
+  mobileSummaryProductName: css({
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
     fontSize: 14,
     fontWeight: 600,
+  }),
+  mobileSummaryCode: css({
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    color: COLOR.TEXT.TERTIARY,
+    fontSize: 11,
+  }),
+  mobileMissingProductLabel: css({
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 13,
+    fontStyle: "italic",
   }),
   mobileSummaryTotal: css({
     flexShrink: 0,
     fontSize: 14,
     fontWeight: 700,
   }),
+  mobileSummaryUnitario: css({
+    flexShrink: 0,
+    color: COLOR.TEXT.TERTIARY,
+    fontSize: 11,
+    lineHeight: 1.3,
+    textAlign: "right",
+  }),
   mobileSummaryDetails: css({
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
     color: COLOR.TEXT.SECONDARY,
     fontSize: 12,
     lineHeight: 1.45,
   }),
-  mobileSummaryHint: css({
-    color: COLOR.TEXT.TERTIARY,
-    fontSize: 11,
-  }),
   mobileChevron: css({
+    position: "absolute",
+    top: "50%",
+    right: 0,
     flexShrink: 0,
     color: COLOR.TEXT.SECONDARY,
+    transform: "translateY(-50%)",
     ["@media (prefers-reduced-motion: no-preference)"]: {
       transition: "transform 180ms ease",
     },
   }),
   mobileChevronExpanded: css({
-    transform: "rotate(180deg)",
+    transform: "translateY(-50%) rotate(180deg)",
   }),
   mobileFieldLabel: css({
     display: "none",
@@ -432,11 +535,51 @@ const styles = {
   removeCell: css({
     display: "contents",
     ["@media (max-width: 720px)"]: {
+      display: "none",
+    },
+  }),
+  mobileActions: css({
+    display: "none",
+    ["@media (max-width: 720px)"]: {
       display: "flex",
+      gridColumn: "1 / -1",
       justifyContent: "flex-end",
-      position: "absolute",
-      top: 12,
-      right: 0,
+      gap: 8,
+      width: "100%",
+      boxSizing: "border-box",
+      marginTop: 4,
+    },
+  }),
+  mobileActionButton: css({
+    minWidth: 100,
+    minHeight: 42,
+    padding: "10px 14px",
+    borderRadius: 8,
+    font: "inherit",
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: "pointer",
+    "&:disabled": {
+      opacity: 0.5,
+      cursor: "not-allowed",
+    },
+  }),
+  mobileConfirmButton: css({
+    border: "none",
+    background: COLOR.ACCENT.PRIMARY,
+    color: COLOR.TEXT.CONTRAST,
+    "&:hover:not(:disabled)": {
+      background: COLOR.ACCENT.HOVER,
+    },
+  }),
+  mobileDeleteButton: css({
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SUBTLE,
+    color: COLOR.TEXT.PRIMARY,
+    "&:hover:not(:disabled)": {
+      border: `1px solid ${COLOR.BORDER.DEFAULT}`,
+      background: COLOR.BACKGROUND.PRIMARY,
+      color: COLOR.TEXT.PRIMARY,
     },
   }),
   trashBtn: {

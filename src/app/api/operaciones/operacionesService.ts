@@ -1,6 +1,7 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
-import { ServiceError, toServiceError } from "@/app/api/serviceError";
+import { ServiceError, serviceFailure, toServiceError, type ServiceResult } from "@/app/api/serviceError";
+import type { OperacionCargoInput } from "@/lib/operaciones/cargos";
 import {
 	toISODateTimeWithCurrentTime,
 	validateDateRangeFilters,
@@ -67,14 +68,6 @@ export type CreateOperacionPagoInput = {
 	descripcion?: string | null;
 };
 
-/** Percepción de la factura de compra que suma al total de la operación (solo COMPRA). */
-export type CreateOperacionCargoInput = {
-	tipo?: "PERCEPCION";
-	percepcion_codigo: string;
-	descripcion: string;
-	importe: number;
-};
-
 export type CreateOperacionInput = {
 	tipo: string;
 	taller_id?: string | null;
@@ -84,7 +77,7 @@ export type CreateOperacionInput = {
 	arreglo_id?: string | null;
 	cuenta_financiera_id?: string | null;
 	pagos?: CreateOperacionPagoInput[] | null;
-	cargos?: CreateOperacionCargoInput[] | null;
+	cargos?: OperacionCargoInput[] | null;
 	idempotency_key?: string | null;
 	observaciones?: string | null;
 	estado_pago?: string | null;
@@ -100,6 +93,7 @@ export type CreateOperacionInput = {
 export type UpdateOperacionInput = {
 	fecha?: string;
 	observaciones?: string | null;
+	cargos?: OperacionCargoInput[];
 };
 
 /**
@@ -392,7 +386,7 @@ export function createOperacionesService(
 			supabase: SupabaseClient,
 			id: string,
 			input: UpdateOperacionInput
-		): Promise<{ data: OperacionRow | null; error: ServiceError | null }> {
+		): Promise<ServiceResult<OperacionRow>> {
 			const rawFecha = input.fecha;
 			const fecha = rawFecha ? toISODateTimeWithCurrentTime(rawFecha) : null;
 			const observaciones = input.observaciones === undefined ? null : input.observaciones ?? "";
@@ -401,13 +395,11 @@ export function createOperacionesService(
 				p_operacion_id: id,
 				p_fecha: fecha,
 				p_observaciones: observaciones,
+				...(input.cargos === undefined ? {} : { p_cargos: input.cargos }),
 			});
 			if (rpcError || !updatedId) {
 				logger.error("[operacionesService.update] Error en rpc_actualizar_operacion:", rpcError);
-				return {
-					data: null,
-					error: toServiceError(rpcError ?? ({ code: "Unknown", message: "No se pudo actualizar la operación" } as PostgrestError)),
-				};
+				return rpcError ? { data: null, ...serviceFailure(rpcError) } : { data: null, error: ServiceError.Unknown };
 			}
 
 			return this.getById(supabase, id);

@@ -1,6 +1,6 @@
 # Tasks
 
-Plan revisado con las respuestas del 13/11/2026. Todas las tareas siguen pendientes de implementación. Las retenciones son documentales y no modifican el circuito financiero; se eliminan las tareas anteriores de imputación a deuda, cancelación y recálculo de pagos/saldos.
+La gestión documental conserva los cargos y el saldo. La edición de cargos de compras ajusta el saldo respetando los pagos registrados. Las retenciones se registran para consulta y reporte.
 
 **Dependencias:** resolver P-MAP antes de implementar la fuente de importes fiscales y los detalles aplicables de P-REP antes de su bloque de carga/exportación. Las reglas de relación, borrado, duplicados, diferencias, líneas manuales y columnas dinámicas ya están definidas. Persistencia y acceso preceden a API/UI; todos los bloques deben respetar la invariancia financiera y de stock.
 
@@ -45,10 +45,16 @@ Plan revisado con las respuestas del 13/11/2026. Todas las tareas siguen pendien
 - [ ] 6.1 Ejecutar el flujo completo con datos sintéticos: proveedor, compra/gasto, varias facturas y retenciones, diferencia permitida, duplicado rechazado, edición/eliminación y borrado operativo bloqueado. Verificar compra 121000 con pago 115000 que conserva saldo 6000 al cargar/editar/eliminar retención 6000 y conciliar el reporte, cuentas y stock.
 - [ ] 6.2 Ejecutar tests afectados, typecheck, lint focalizado, git diff --check y validación estricta de OpenSpec tras implementar. Registrar evidencia por escenario, incluidos todos los puntos de borrado y percepciones de última página, sin marcar como resueltos los pendientes de negocio abiertos.
 
+## 7. Cargos de operación
+
+- [x] 7.1 Vincular los cargos con una FK a la operación base, conservar el borrado en cascada y verificar la consulta directa desde el detalle de operaciones.
+- [x] 7.2 Editar cargos de una compra desde el detalle. Permitir copiar las percepciones de una factura asociada y ajustar el total y el saldo al confirmar, conservando pagos, stock y factura. Verificar reemplazo y validación del importe ya pagado.
+- [x] 7.3 Validar alta con cargos y carga posterior de una factura con percepciones, además de permisos de edición y concurrencia con pagos. Verificar que adjuntar o editar solo la factura conserva el saldo.
+
 ## Workflow follow-up
 
-- Cerrar P-MAP y los detalles aplicables de P-REP antes de implementar con openspec-apply-change.
-- No implementar imputación de retenciones a deuda, recálculo de pagos/saldos ni integración financiera.
+- Cerrar P-MAP y los detalles aplicables de P-REP antes de implementar el reporte fiscal de compras.
+- Mantener las retenciones como documentos informativos y el recálculo del saldo limitado al guardado operativo de cargos.
 - Conservar sin borradores ni archivos/fotos; “adjuntar documento” significa asociar el registro estructurado.
 - No agregar NC/ND de compra ni comprobantes especiales dentro de esta versión.
 - Archivar solo el alcance implementado y verificado.

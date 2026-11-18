@@ -1,4 +1,5 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
+import type { OperacionCargoInput } from "@/lib/operaciones/cargos";
 import type { OperacionCargoDTO, OperacionDTO, OperacionLineaDTO, OperacionMovimientoStockDTO, OperacionPagoDTO } from "@/model/dtos";
 
 export type ClienteJoin = {
@@ -142,6 +143,7 @@ export type RpcActualizarOperacionParams = {
 	p_operacion_id: string;
 	p_fecha?: string | null;
 	p_observaciones?: string | null;
+	p_cargos?: OperacionCargoInput[];
 };
 
 function firstOrOnly<T>(value: T | T[] | null | undefined): T | undefined {
@@ -459,7 +461,7 @@ export const operacionRepository: OperacionRepository = {
 
 	async update(supabase: SupabaseClient, params: RpcActualizarOperacionParams) {
 		const { data, error } = await supabase.rpc("rpc_actualizar_operacion", {
-			p_operacion_id: params.p_operacion_id,
+			...params,
 			p_fecha: params.p_fecha ?? null,
 			p_observaciones: params.p_observaciones ?? null,
 		});

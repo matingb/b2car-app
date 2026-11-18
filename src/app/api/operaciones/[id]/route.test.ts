@@ -105,6 +105,26 @@ describe("/api/operaciones/[id]", () => {
 		expect(vi.mocked(operacionesService.update)).not.toHaveBeenCalled();
 	});
 
+	it("PUT devuelve el motivo cuando quitar cargos dejaría un total inferior al importe pagado", async () => {
+		const message = "El total de la compra no puede quedar por debajo del importe ya pagado";
+		vi.mocked(operacionesService.update).mockResolvedValue({
+			data: null,
+			error: ServiceError.Validation,
+			cause: { message, code: "22023", details: "", hint: "", name: "PostgrestError" },
+		});
+		const req = new NextRequest("http://localhost/api/operaciones/op-1", {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ cargos: [] }),
+		});
+
+		const res = await PUT(req, { params: Promise.resolve({ id: "op-1" }) });
+
+		expect(res.status).toBe(400);
+		expect(await res.json()).toEqual({ data: null, error: message });
+		expect(operacionesService.update).toHaveBeenCalledWith(expect.anything(), "op-1", { cargos: [] });
+	});
+
 	it("DELETE devuelve 409 y mensaje claro cuando falla por movimientos financieros inmutables", async () => {
 		vi.mocked(operacionesService.getById).mockResolvedValue({
 			data: {

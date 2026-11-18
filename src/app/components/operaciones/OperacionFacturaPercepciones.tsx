@@ -14,7 +14,7 @@ import {
 import { formatArs } from "@/lib/format";
 import { COLOR } from "@/theme/theme";
 import { useOperacionForm } from "./OperacionFormContext";
-import { importePercepcion } from "./useFacturaCompraDraft";
+import { importePercepcion, type PercepcionDraft } from "./useFacturaCompraDraft";
 
 const PERCEPCION_GRID_TEMPLATE = "minmax(220px, 1fr) 160px 44px";
 
@@ -27,26 +27,58 @@ const PERCEPCION_OPTIONS = PERCEPCIONES_SUGERIDAS.map((sugerida) => ({ value: su
 export default function OperacionFacturaPercepciones() {
   const { factura, conceptosFactura, isSubmitting } = useOperacionForm();
   const { draft, addPercepcion, updatePercepcion, removePercepcion } = factura;
+  return (
+    <OperacionPercepcionesEditor
+      contexto="factura"
+      percepciones={draft.percepciones}
+      montoBase={sumarImportes(conceptosFactura.map((concepto) => concepto.importe))}
+      limite={MAX_LINEAS_COMPROBANTE - conceptosFactura.length}
+      disabled={isSubmitting}
+      addPercepcion={addPercepcion}
+      updatePercepcion={updatePercepcion}
+      removePercepcion={removePercepcion}
+    />
+  );
+}
+
+type PercepcionesEditorProps = {
+  contexto: "factura" | "compra";
+  percepciones: PercepcionDraft[];
+  montoBase: number;
+  limite?: number;
+  disabled: boolean;
+  addPercepcion: () => string;
+  updatePercepcion: (key: string, patch: Partial<Omit<PercepcionDraft, "key">>) => void;
+  removePercepcion: (key: string) => void;
+};
+
+export function OperacionPercepcionesEditor({
+  contexto,
+  percepciones,
+  montoBase,
+  limite = MAX_LINEAS_COMPROBANTE,
+  disabled,
+  addPercepcion,
+  updatePercepcion,
+  removePercepcion,
+}: PercepcionesEditorProps) {
   const [activePercepcionKey, setActivePercepcionKey] = useState<string | null>(null);
 
-  const totalConceptos = useMemo(
-    () => sumarImportes(conceptosFactura.map((concepto) => concepto.importe)),
-    [conceptosFactura],
-  );
+  const esFactura = contexto === "factura";
+  const testId = `operacion-${contexto}`;
   const totalPercepciones = useMemo(
-    () => sumarImportes(draft.percepciones.map((linea) => importePercepcion(linea.importe))),
-    [draft.percepciones],
+    () => sumarImportes(percepciones.map((linea) => importePercepcion(linea.importe))),
+    [percepciones],
   );
-  const totalFactura = sumarImportes([totalConceptos, totalPercepciones]);
-  const limiteAlcanzado = conceptosFactura.length + draft.percepciones.length >= MAX_LINEAS_COMPROBANTE;
+  const total = sumarImportes([montoBase, totalPercepciones]);
 
   return (
-    <div data-testid="operacion-factura-percepciones">
+    <div data-testid={`${testId}-percepciones`}>
       <div style={styles.sectionHeaderRow}>
-        <div style={styles.title}>Percepciones de la factura</div>
+        <div style={styles.title}>{esFactura ? "Percepciones de la factura" : "Cargos de la compra"}</div>
       </div>
 
-      <div css={styles.tableCard}>
+      <div css={[styles.tableCard, percepciones.length === 0 && styles.emptyTableCard]}>
         <div css={styles.columnsHeader} aria-hidden="true">
           <div>PERCEPCIÓN</div>
           <div style={{ textAlign: "right" }}>IMPORTE</div>
@@ -54,10 +86,10 @@ export default function OperacionFacturaPercepciones() {
         </div>
 
         <div css={styles.linesList}>
-          {draft.percepciones.length === 0 ? (
-            <p style={styles.empty}>Sin percepciones. Agregalas si la factura las incluye.</p>
+          {percepciones.length === 0 ? (
+            <p style={styles.empty}>{esFactura ? "Sin percepciones. Agregalas si la factura las incluye." : "La compra no tiene cargos."}</p>
           ) : (
-            draft.percepciones.map((linea, index) => {
+            percepciones.map((linea, index) => {
               const isExpanded = activePercepcionKey === linea.key;
               const importe = importePercepcion(linea.importe);
               const percepcionValue = linea.percepcion.trim();
@@ -73,7 +105,7 @@ export default function OperacionFacturaPercepciones() {
                 <div
                   key={linea.key}
                   css={[styles.lineRow, isExpanded && styles.lineRowExpanded]}
-                  data-testid={`operacion-factura-percepcion-${index}`}
+                  data-testid={`${testId}-percepcion-${index}`}
                 >
                   <div css={styles.mobileHeader} data-mobile-header="">
                     <button
@@ -84,20 +116,20 @@ export default function OperacionFacturaPercepciones() {
                       }
                       aria-expanded={isExpanded}
                       aria-label={`${isExpanded ? "Editando" : "Editar"} ${label}`}
-                      data-testid={`operacion-factura-percepcion-${index}-summary`}
+                      data-testid={`${testId}-percepcion-${index}-summary`}
                     >
                       <span css={styles.mobileSummaryTop}>
                         <strong css={styles.mobileSummaryLabel}>{label}</strong>
-                        <span css={styles.mobileSummaryTrailing}>
-                          <strong css={styles.mobileSummaryAmount}>{formatArs(importe)}</strong>
-                          <ChevronDown
-                            size={16}
-                            css={[styles.mobileChevron, isExpanded && styles.mobileChevronExpanded]}
-                            aria-hidden="true"
-                          />
-                        </span>
+                        <strong css={styles.mobileSummaryAmount}>{formatArs(importe)}</strong>
                       </span>
-                      <span css={styles.mobileSummaryHint}>Importe: {formatArs(importe)}</span>
+                      <span css={styles.mobileSummaryBottom}>
+                        <span css={styles.mobileSummaryHint}>Importe: {formatArs(importe)}</span>
+                      </span>
+                      <ChevronDown
+                        size={16}
+                        css={[styles.mobileChevron, isExpanded && styles.mobileChevronExpanded]}
+                        aria-hidden="true"
+                      />
                     </button>
                   </div>
 
@@ -108,11 +140,11 @@ export default function OperacionFacturaPercepciones() {
                       value={linea.percepcion}
                       onChange={(value) => updatePercepcion(linea.key, { percepcion: value })}
                       allowCustomValue
-                      disabled={isSubmitting}
+                      disabled={disabled}
                       placeholder="Elegí o escribí una percepción"
                       aria-label={`Percepción ${index + 1}`}
                       maxLength={200}
-                      dataTestId={`operacion-factura-percepcion-${index}-tipo`}
+                      dataTestId={`${testId}-percepcion-${index}-tipo`}
                       style={{ minWidth: 0 }}
                       inputStyle={{ height: 44 }}
                     />
@@ -122,14 +154,14 @@ export default function OperacionFacturaPercepciones() {
                     <input
                       style={styles.moneyInput}
                       value={linea.importe}
-                      disabled={isSubmitting}
+                      disabled={disabled}
                       inputMode="decimal"
                       placeholder="0,00"
                       aria-label={`Importe de la percepción ${index + 1}`}
                       onChange={(event) =>
                         updatePercepcion(linea.key, { importe: event.target.value.replace(/[^0-9.,]/g, "") })
                       }
-                      data-testid={`operacion-factura-percepcion-${index}-importe`}
+                      data-testid={`${testId}-percepcion-${index}-importe`}
                     />
                   </div>
                   <div css={styles.removeCell}>
@@ -137,9 +169,10 @@ export default function OperacionFacturaPercepciones() {
                       icon={<Trash2 />}
                       size={16}
                       onClick={handleRemove}
+                      disabled={disabled}
                       title="Quitar percepción"
                       ariaLabel={`Quitar percepción ${index + 1}`}
-                      data-testid={`operacion-factura-percepcion-${index}-remove`}
+                      data-testid={`${testId}-percepcion-${index}-remove`}
                       style={styles.trashBtn}
                     />
                   </div>
@@ -156,16 +189,16 @@ export default function OperacionFacturaPercepciones() {
           onClick={() => {
             setActivePercepcionKey(addPercepcion());
           }}
-          disabled={isSubmitting || limiteAlcanzado}
-          dataTestId="operacion-factura-agregar-percepcion"
+          disabled={disabled || percepciones.length >= limite}
+          dataTestId={`${testId}-agregar-percepcion`}
           text="Agregar percepción"
           icon={<Plus size={16} />}
           outline
         />
-        <div css={styles.totales} data-testid="operacion-factura-totales">
-          <span>Conceptos: <strong>{formatArs(totalConceptos)}</strong></span>
+        <div css={styles.totales} data-testid={`${testId}-totales`}>
+          <span>{esFactura ? "Conceptos" : "Mercadería"}: <strong>{formatArs(montoBase)}</strong></span>
           <span>Percepciones: <strong>{formatArs(totalPercepciones)}</strong></span>
-          <span>Total factura: <strong style={styles.totalStrong}>{formatArs(totalFactura)}</strong></span>
+          <span>{esFactura ? "Total factura" : "Total compra"}: <strong style={styles.totalStrong}>{formatArs(total)}</strong></span>
         </div>
       </div>
 
@@ -192,6 +225,11 @@ const styles = {
     borderRadius: 12,
     backgroundColor: COLOR.BACKGROUND.SECONDARY,
     overflow: "hidden",
+  }),
+  emptyTableCard: css({
+    "@media (max-width: 720px)": {
+      display: "none",
+    },
   }),
   columnsHeader: css({
     display: "grid",
@@ -292,12 +330,14 @@ const styles = {
     "@media (max-width: 720px)": {
       display: "flex",
     },
-    alignItems: "flex-start",
+    alignItems: "stretch",
     flex: 1,
     flexDirection: "column",
     gap: 4,
     minWidth: 0,
-    padding: 0,
+    position: "relative",
+    boxSizing: "border-box",
+    padding: "0 20px 0 0",
     border: 0,
     background: "transparent",
     color: COLOR.TEXT.PRIMARY,
@@ -306,20 +346,23 @@ const styles = {
   }),
   mobileSummaryTop: css({
     display: "flex",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
     width: "100%",
   }),
-  mobileSummaryTrailing: css({
-    display: "inline-flex",
+  mobileSummaryBottom: css({
+    display: "flex",
     alignItems: "center",
-    gap: 8,
-    flexShrink: 0,
+    justifyContent: "flex-end",
+    width: "100%",
   }),
   mobileSummaryLabel: css({
+    flex: 1,
     minWidth: 0,
-    overflowWrap: "anywhere",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
     fontSize: 14,
     fontWeight: 600,
   }),
@@ -331,16 +374,21 @@ const styles = {
   mobileSummaryHint: css({
     color: COLOR.TEXT.TERTIARY,
     fontSize: 11,
+    textAlign: "right",
   }),
   mobileChevron: css({
+    position: "absolute",
+    top: "50%",
+    right: 0,
     flexShrink: 0,
     color: COLOR.TEXT.SECONDARY,
+    transform: "translateY(-50%)",
     "@media (prefers-reduced-motion: no-preference)": {
       transition: "transform 180ms ease",
     },
   }),
   mobileChevronExpanded: css({
-    transform: "rotate(180deg)",
+    transform: "translateY(-50%) rotate(180deg)",
   }),
   fieldCell: css({
     minWidth: 0,

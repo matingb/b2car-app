@@ -13,6 +13,7 @@ import { OPERACION_CON_DOCUMENTOS_MESSAGE } from "@/app/api/apiError";
 import { isValidUuid } from "@/lib/uuid";
 import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
+import { validarCargos } from "@/lib/operaciones/cargos";
 
 export type UpdateOperacionRequest = UpdateOperacionInput;
 
@@ -180,7 +181,7 @@ export async function PUT(
 		return Response.json({ data: null, error: "JSON inválido" } satisfies UpdateOperacionResponse, { status: 400 });
 	}
 
-	const allowedKeys = new Set(["fecha", "observaciones"]);
+	const allowedKeys = new Set(["fecha", "observaciones", "cargos"]);
 	const extraKeys = Object.keys(payload).filter((k) => !allowedKeys.has(k));
 	if (extraKeys.length > 0) {
 		return Response.json(
@@ -197,7 +198,21 @@ export async function PUT(
 				: undefined,
 	};
 
-	const { data: updated, error } = await operacionesService.update(supabase, id, updateInput);
+	if (payload.cargos !== undefined) {
+		const cargoError = Array.isArray(payload.cargos) ? validarCargos(payload.cargos) : "Los cargos deben ser una lista";
+		if (cargoError) {
+			return Response.json({ data: null, error: cargoError } satisfies UpdateOperacionResponse, { status: 400 });
+		}
+		updateInput.cargos = payload.cargos as UpdateOperacionInput["cargos"];
+	}
+
+	const { data: updated, error, cause } = await operacionesService.update(supabase, id, updateInput);
+	if (error === ServiceError.Validation) {
+		return Response.json(
+			{ data: null, error: cause?.message ?? "Revisá los datos de la operación" } satisfies UpdateOperacionResponse,
+			{ status: 400 },
+		);
+	}
 	if (error || !updated) {
 		logger.error("PUT /api/operaciones/[id] - error:", error);
 		const status = error === ServiceError.NotFound ? 404 : 500;

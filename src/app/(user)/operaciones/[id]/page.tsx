@@ -40,6 +40,7 @@ import {
 import OperacionPagoBadge from "@/app/components/operaciones/OperacionPagoBadge";
 import OperacionStockBadge from "@/app/components/operaciones/OperacionStockBadge";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
+import OperacionCargosModal from "@/app/components/operaciones/OperacionCargosModal";
 import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
 import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
 import {
@@ -66,6 +67,7 @@ export default function OperacionDetailPage() {
   const canEmitRemitos = hasPermission(Permission.FacturasEdit);
   const canViewRecibidos = hasPermission(Permission.ComprobantesRecibidosView);
   const canEditRecibidos = hasPermission(Permission.ComprobantesRecibidosEdit);
+  const canEditOperacion = hasPermission(Permission.OperacionesEdit);
 
   const { remove, refresh } = useOperaciones();
   const { getStockById } = useInventario();
@@ -95,6 +97,7 @@ export default function OperacionDetailPage() {
 
   const [stocksById, setStocksById] = useState<Record<string, StockItem>>({});
   const [isEditGastoOpen, setIsEditGastoOpen] = useState(false);
+  const [isEditCargosOpen, setIsEditCargosOpen] = useState(false);
   const [isFacturaOpen, setIsFacturaOpen] = useState(false);
   const [isAdjuntarFacturaOpen, setIsAdjuntarFacturaOpen] = useState(false);
   // Fuerza la recarga de la sección de facturas recibidas al adjuntar una desde la cabecera.
@@ -369,8 +372,8 @@ export default function OperacionDetailPage() {
               icon={<FilePlus />}
               size={18}
               onClick={() => setIsAdjuntarFacturaOpen(true)}
-              title="Adjuntar factura"
-              ariaLabel="Adjuntar factura"
+              title="Adjuntar factura o retención"
+              ariaLabel="Adjuntar factura o retención"
               hoverColor={COLOR.ACCENT.PRIMARY}
               data-testid="operacion-adjuntar-factura"
             />
@@ -599,15 +602,24 @@ export default function OperacionDetailPage() {
       )}
 
       {/* Percepciones de la compra: cargos que suman al total acordado (no son mercadería) */}
-      {isCompra && cargos.length > 0 && (
+      {isCompra && (cargos.length > 0 || canEditOperacion) && (
         <Card style={{ padding: 0, overflow: "hidden" }} data-testid="operacion-cargos">
           <div style={styles.tableTitleRow}>
             <h3 style={{ margin: 0, fontSize: 16, color: COLOR.TEXT.PRIMARY }}>
-              Percepciones ({cargos.length})
+              Cargos de la compra ({cargos.length})
             </h3>
+            {canEditOperacion && (
+              <Button
+                text="Editar cargos"
+                icon={<Pencil size={16} />}
+                onClick={() => setIsEditCargosOpen(true)}
+                hideTextOnMobile={false}
+                outline
+              />
+            )}
           </div>
 
-          <div style={{ overflowX: "auto" }}>
+          {cargos.length > 0 && <div style={{ overflowX: "auto" }}>
             <table style={styles.table}>
               <thead>
                 <tr style={styles.thRow}>
@@ -632,7 +644,7 @@ export default function OperacionDetailPage() {
                 </tr>
               </tbody>
             </table>
-          </div>
+          </div>}
         </Card>
       )}
 
@@ -870,6 +882,19 @@ export default function OperacionDetailPage() {
       )}
 
 
+
+      {isEditCargosOpen && isCompra && canEditOperacion && (
+        <OperacionCargosModal
+          operacion={operacion}
+          montoBase={sumarImportes([totalMonto, -totalCargos])}
+          canViewRecibidos={canViewRecibidos}
+          onClose={() => setIsEditCargosOpen(false)}
+          onSaved={(updated) => {
+            setOperacion(updated);
+            success("Cargos actualizados");
+          }}
+        />
+      )}
 
       {isAdjuntarFacturaOpen && (
         <ComprobanteRecibidoOperacionModal

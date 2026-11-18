@@ -13,6 +13,7 @@ Revisión con las definiciones del 13/11/2026. Esta versión sustituye el efecto
 - Registrar facturas normales A/B/C con dos tipos de líneas: CONCEPTO y PERCEPCION. Descripción/selección e importes son manuales y libres; no calcular porcentajes ni determinar impuestos.
 - Ofrecer un selector de percepciones abierto, con accesos rápidos a Ganancias, IVA, IIBB Buenos Aires e IIBB CABA, y posibilidad de ingresar otras.
 - Registrar retenciones como otro tipo de documento relacionado, con líneas, descripciones e importes para consulta y totalización en el reporte. Crear, editar o eliminar estos documentos no modifica pagos, saldos, estados de pago, cuentas ni stock, tanto en compras como en gastos.
+- Vincular los cargos a la operación base. Al crear una compra con factura, sus percepciones integran el total como cargos de la compra. Al editar la compra se pueden actualizar sus cargos. Adjuntar, editar o eliminar una factura por su circuito documental conserva los cargos, el importe y el saldo de la operación.
 - Permitir guardar documentos cuyos importes difieran de la operación, mostrando un label informativo y sin modificar ninguno de los montos.
 - Impedir eliminar una operación mientras tenga documentos asociados; permitir eliminar primero los documentos. Rechazar facturas duplicadas del mismo CUIT emisor y número de factura dentro del tenant, aunque se intenten asociar a otra operación.
 - Mantener tablas propias, separadas de facturación electrónica, e integrar su gestión de forma transparente en Documentos, con permisos de acceso inicialmente equivalentes a facturación de ventas.
@@ -28,12 +29,12 @@ Revisión con las definiciones del 13/11/2026. Esta versión sustituye el efecto
 
 ### Modified Capabilities
 
-Ninguna publicada: el inventario openspec/specs/ está vacío. El bloqueo de borrado de operaciones documentadas amplía el comportamiento de operaciones descrito en rediseno-operaciones-ledgers y se especifica en comprobantes-recibidos. No se modifica el contrato financiero ni se reescriben los artefactos del otro cambio.
+Ninguna publicada. El bloqueo de borrado de operaciones documentadas y los cargos de compra amplían el comportamiento operativo descrito en rediseno-operaciones-ledgers y se especifican en comprobantes-recibidos.
 
 ## Impact
 
 - **Datos:** tablas propias de documentos y líneas, relación obligatoria a una operación, datos fiscales de proveedores y unicidad de facturas; futuras migraciones con RLS/grants, sin editar manualmente el esquema declarativo.
 - **API/UI:** CRUD y asociación inicial/posterior, selector abierto de percepciones, label de diferencias, error de duplicado y bloqueo de eliminación de operaciones documentadas, incluidos todos sus puntos de entrada.
-- **Finanzas:** los documentos son informativos y no cambian pagos, saldos, cuenta corriente, estado de pago ni stock. Se retiran del plan las imputaciones y cancelaciones financieras de retenciones.
+- **Finanzas:** crear o editar cargos de una compra afecta su total y su saldo, respetando los pagos registrados. La gestión documental conserva esos valores. Las retenciones se registran para consulta y reporte.
 - **Exportación:** conservar el reporte de ventas y su contrato; usar sus columnas base para compras más la unión de percepciones de las facturas seleccionadas. Retenciones documentales visibles y totalizadas por separado.
 - **Detalles restantes:** fuente manual de los importes fiscales de las columnas base a partir de líneas libres, fechas/formatos/moneda, identificación específica de retenciones y presentación de su detalle en la exportación. Ver design.md; estas cuestiones no reabren los acuerdos anteriores.

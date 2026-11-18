@@ -1,5 +1,6 @@
 import type { EstadoPagoOperacion, Operacion, OperacionesFilters, TipoOperacion } from "@/model/types";
 import { generateUuidV4 } from "@/lib/uuid";
+import type { OperacionCargoInput } from "@/lib/operaciones/cargos";
 
 export type CreateOperacionLineaInput = {
 	stock_id: string;
@@ -27,7 +28,7 @@ export type CreateOperacionInput = {
 	cuenta_financiera_id?: string | null;
 	pagos?: CreateOperacionPagoInput[] | null;
 	/** Solo COMPRA: percepciones de la factura que suman al total de la operación. */
-	cargos?: Array<{ tipo?: "PERCEPCION"; percepcion_codigo: string; descripcion: string; importe: number }> | null;
+	cargos?: OperacionCargoInput[] | null;
 	idempotency_key?: string | null;
 	observaciones?: string | null;
 	estado_pago?: EstadoPagoOperacion | null;
@@ -40,7 +41,11 @@ export type CreateOperacionInput = {
 	descripcion?: string | null;
 };
 
-export type UpdateOperacionInput = Partial<Omit<CreateOperacionInput, "arreglo_id">>;
+export type UpdateOperacionInput = {
+	fecha?: string;
+	observaciones?: string | null;
+	cargos?: OperacionCargoInput[];
+};
 
 export type GetOperacionesResponse = {
 	data: Operacion[] | null;
@@ -199,14 +204,10 @@ export const operacionesClient = {
 
 	async update(id: string | number, input: UpdateOperacionInput): Promise<UpdateOperacionResponse> {
 		try {
-			const payload: UpdateOperacionInput = {
-				...input,
-				idempotency_key: input.idempotency_key ?? generateUuidV4(),
-			};
 			const res = await fetch(`/api/operaciones/${id}`, {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload),
+				body: JSON.stringify(input),
 			});
 			const body = await res.json().catch(() => ({}));
 			if (!res.ok || body?.error) {
