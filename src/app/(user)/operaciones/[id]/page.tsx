@@ -40,7 +40,6 @@ import {
 import OperacionPagoBadge from "@/app/components/operaciones/OperacionPagoBadge";
 import OperacionStockBadge from "@/app/components/operaciones/OperacionStockBadge";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
-import OperacionCargosModal from "@/app/components/operaciones/OperacionCargosModal";
 import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
 import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
 import {
@@ -97,7 +96,6 @@ export default function OperacionDetailPage() {
 
   const [stocksById, setStocksById] = useState<Record<string, StockItem>>({});
   const [isEditGastoOpen, setIsEditGastoOpen] = useState(false);
-  const [isEditCargosOpen, setIsEditCargosOpen] = useState(false);
   const [isFacturaOpen, setIsFacturaOpen] = useState(false);
   const [isAdjuntarFacturaOpen, setIsAdjuntarFacturaOpen] = useState(false);
   // Fuerza la recarga de la sección de facturas recibidas al adjuntar una desde la cabecera.
@@ -608,15 +606,6 @@ export default function OperacionDetailPage() {
             <h3 style={{ margin: 0, fontSize: 16, color: COLOR.TEXT.PRIMARY }}>
               Cargos de la compra ({cargos.length})
             </h3>
-            {canEditOperacion && (
-              <Button
-                text="Editar cargos"
-                icon={<Pencil size={16} />}
-                onClick={() => setIsEditCargosOpen(true)}
-                hideTextOnMobile={false}
-                outline
-              />
-            )}
           </div>
 
           {cargos.length > 0 && <div style={{ overflowX: "auto" }}>
@@ -882,19 +871,6 @@ export default function OperacionDetailPage() {
       )}
 
 
-
-      {isEditCargosOpen && isCompra && canEditOperacion && (
-        <OperacionCargosModal
-          operacion={operacion}
-          montoBase={sumarImportes([totalMonto, -totalCargos])}
-          canViewRecibidos={canViewRecibidos}
-          onClose={() => setIsEditCargosOpen(false)}
-          onSaved={(updated) => {
-            setOperacion(updated);
-            success("Cargos actualizados");
-          }}
-        />
-      )}
 
       {isAdjuntarFacturaOpen && (
         <ComprobanteRecibidoOperacionModal

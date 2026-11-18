@@ -73,12 +73,49 @@ El registro inicial de facturas SHALL admitir las clases normales A, B y C. MUST
 - **THEN** conserva su clase e identificación sin exigir autorización de B2Car ante ARCA
 
 ### Requirement: Dos tipos de líneas libres y manuales
-El sistema SHALL permitir líneas de tipo CONCEPTO o PERCEPCION con descripción/etiqueta e importe manuales. MUST permitir agregar y editar varias líneas de cada tipo. MUST NOT calcular sus montos desde porcentajes, determinar impuestos aplicables ni inferir clasificación fiscal a partir del texto o posición de IVA del proveedor.
+El sistema SHALL permitir líneas de tipo CONCEPTO o PERCEPCION con descripción/etiqueta e importe manuales y permitir agregar y editar varias líneas de cada tipo. Los importes de percepción MUST conservarse tal como se cargaron. El sistema MUST NOT determinar impuestos aplicables ni inferir clasificación fiscal a partir del texto o de la posición de IVA del proveedor.
 
 #### Scenario: Dos conceptos y una percepción
 - **WHEN** el usuario carga dos conceptos de descripción propia y una percepción con importes manuales
 - **THEN** el documento conserva las tres líneas con sus tipos, textos y montos
 - **AND** no se reemplaza un monto por el resultado de aplicar un porcentaje
+
+### Requirement: Alícuota por concepto de factura A
+Cada factura A SHALL admitir una alícuota por concepto gravado en `comprobantes_recibidos_lineas.iva_alicuota_id`, con los códigos de ARCA de `operaciones_lineas`. El formulario SHALL sugerir 21% para conceptos nuevos sin precarga, permitir seleccionar una tasa en conjunto y editar cada línea. Al crear la compra con factura SHALL precargar la tasa operativa disponible como valor editable.
+
+#### Scenario: Factura A nueva sin precarga
+- **WHEN** se agregan conceptos a una factura A sin alícuotas precargadas
+- **THEN** el formulario sugiere 21%
+- **AND** permite aplicar una tasa al conjunto y corregir cada concepto
+
+#### Scenario: Factura durante el alta de la compra
+- **GIVEN** una línea de la compra tiene alícuota 10,5%
+- **WHEN** se registra la factura A durante el alta
+- **THEN** el formulario precarga 10,5% para el concepto asociado y permite corregirlo antes de guardar
+
+#### Scenario: Otra factura en una compra con documentos
+- **GIVEN** una compra con tasa operativa 21% y una primera factura A al 21%
+- **WHEN** el usuario adjunta otra factura A y confirma conceptos al 10,5% y al 21%
+- **THEN** la segunda factura conserva ambas alícuotas por concepto
+- **AND** la alícuota de la operación y la primera factura conservan sus valores
+
+### Requirement: Base e IVA discriminado confirmados por alícuota
+Para facturas A, el sistema SHALL guardar la base gravada y el IVA discriminado confirmados por documento y alícuota. MAY sugerir IVA a partir de una base identificada como neta y de la tasa elegida. MUST conservar los importes confirmados y contar el IVA una sola vez en el total facturado.
+
+#### Scenario: Confirmación del importe del proveedor
+- **GIVEN** el resumen de una factura A sugiere un IVA de 2100,00 y el comprobante discrimina 2099,99
+- **WHEN** el usuario confirma el desglose con el importe del comprobante
+- **THEN** la factura conserva 2099,99 y el total registrado incluye ese IVA una sola vez
+
+#### Scenario: Factura histórica sin desglose
+- **GIVEN** una factura anterior sin alícuotas ni importes fiscales confirmados
+- **WHEN** se consulta o se corrige su descripción
+- **THEN** los datos fiscales ausentes permanecen vacíos hasta su confirmación explícita
+
+#### Scenario: Facturas B y C por su importe final
+- **WHEN** se carga una factura B o C con su importe final
+- **THEN** se conserva el importe informado y no se extrae IVA del precio
+- **AND** una percepción de IVA se registra por separado por su importe informado
 
 ### Requirement: Selector abierto de percepciones
 El ingreso de PERCEPCION SHALL ofrecer selección rápida de Ganancias, IVA, IIBB Buenos Aires e IIBB CABA y permitir escribir otras percepciones. MUST conservar el importe manual y la identidad seleccionada o ingresada sin imponer un catálogo cerrado.

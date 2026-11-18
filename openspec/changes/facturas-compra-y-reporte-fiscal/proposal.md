@@ -10,7 +10,7 @@ Revisión con las definiciones del 13/11/2026. Esta versión sustituye el efecto
 
 - Admitir varios documentos por operación COMPRA/GASTO; cada documento pertenece obligatoriamente a una sola operación. Carga opcional al crear la operación y también posterior, con edición y eliminación, sin borradores.
 - Configurar datos fiscales del proveedor, precargarlos y permitir modificarlos en cada documento conservando su copia histórica. Exigir número de factura y posición de IVA del proveedor; conservar CUIT emisor para identificar y controlar duplicados.
-- Registrar facturas normales A/B/C con dos tipos de líneas: CONCEPTO y PERCEPCION. Descripción/selección e importes son manuales y libres; no calcular porcentajes ni determinar impuestos.
+- Registrar facturas normales A/B/C con dos tipos de líneas, CONCEPTO y PERCEPCION. En facturas A, permitir elegir la alícuota por concepto y confirmar la base y el IVA facturado por alícuota. Las percepciones conservan su carga manual.
 - Ofrecer un selector de percepciones abierto, con accesos rápidos a Ganancias, IVA, IIBB Buenos Aires e IIBB CABA, y posibilidad de ingresar otras.
 - Registrar retenciones como otro tipo de documento relacionado, con líneas, descripciones e importes para consulta y totalización en el reporte. Crear, editar o eliminar estos documentos no modifica pagos, saldos, estados de pago, cuentas ni stock, tanto en compras como en gastos.
 - Vincular los cargos a la operación base. Al crear una compra con factura, sus percepciones integran el total como cargos de la compra. Al editar la compra se pueden actualizar sus cargos. Adjuntar, editar o eliminar una factura por su circuito documental conserva los cargos, el importe y el saldo de la operación.
@@ -33,8 +33,8 @@ Ninguna publicada. El bloqueo de borrado de operaciones documentadas y los cargo
 
 ## Impact
 
-- **Datos:** tablas propias de documentos y líneas, relación obligatoria a una operación, datos fiscales de proveedores y unicidad de facturas; futuras migraciones con RLS/grants, sin editar manualmente el esquema declarativo.
+- **Datos.** Tablas propias de documentos y líneas, relación obligatoria a una operación, datos fiscales de proveedores y unicidad de facturas. Incorporar `iva_alicuota_id` por concepto y conservar la base y el IVA confirmados por alícuota en cada factura A. Usar migraciones con RLS y grants.
 - **API/UI:** CRUD y asociación inicial/posterior, selector abierto de percepciones, label de diferencias, error de duplicado y bloqueo de eliminación de operaciones documentadas, incluidos todos sus puntos de entrada.
 - **Finanzas:** crear o editar cargos de una compra afecta su total y su saldo, respetando los pagos registrados. La gestión documental conserva esos valores. Las retenciones se registran para consulta y reporte.
 - **Exportación:** conservar el reporte de ventas y su contrato; usar sus columnas base para compras más la unión de percepciones de las facturas seleccionadas. Retenciones documentales visibles y totalizadas por separado.
-- **Detalles restantes:** fuente manual de los importes fiscales de las columnas base a partir de líneas libres, fechas/formatos/moneda, identificación específica de retenciones y presentación de su detalle en la exportación. Ver design.md; estas cuestiones no reabren los acuerdos anteriores.
+- **Detalles restantes.** Fechas, formatos, moneda, identificación específica de retenciones y presentación de su detalle en la exportación. Ver [diseño](design.md#definiciones-restantes).

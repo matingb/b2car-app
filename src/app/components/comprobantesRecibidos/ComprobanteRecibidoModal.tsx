@@ -1,8 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { css } from "@emotion/react";
 import { Info, Plus, Trash2 } from "lucide-react";
+import Calendar from "@/app/components/ui/Calendar";
+import Button from "@/app/components/ui/Button";
 import Modal from "@/app/components/ui/Modal";
+import IconButton from "@/app/components/ui/IconButton";
 import Dropdown from "@/app/components/ui/Dropdown";
 import Autocomplete from "@/app/components/ui/Autocomplete";
 import { useToast } from "@/app/providers/ToastProvider";
@@ -28,7 +32,7 @@ import {
 import { formatArs } from "@/lib/format";
 import { toISODateAppTimeZone } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
-import { COLOR } from "@/theme/theme";
+import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 
 type LineaDraft = {
   key: string;
@@ -298,7 +302,7 @@ export default function ComprobanteRecibidoModal({
       disabledSubmit={submitting}
       hideFooter={readOnly}
       showCloseButton
-      modalStyle={{ width: "min(860px, 96vw)", maxHeight: "92vh", overflowY: "auto" }}
+      modalStyle={{ width: "min(1040px, 96vw)", maxHeight: "90vh", overflowY: "auto" }}
     >
       <div style={styles.form} data-testid="comprobante-recibido-form">
         {error ? <div role="alert" style={styles.errorBanner} data-testid="comprobante-recibido-error">{error}</div> : null}
@@ -342,8 +346,9 @@ export default function ComprobanteRecibidoModal({
                 </div>
               </Field>
             ) : null}
-            <Field label={esFactura ? "Número de factura" : "Número o identificación"} required={esFactura}>
+            <Field label={esFactura ? "Número de factura" : "Número o identificación"} required={esFactura} htmlFor="comprobante-recibido-numero">
               <input
+                id="comprobante-recibido-numero"
                 style={styles.input}
                 value={form.numero}
                 disabled={readOnly}
@@ -354,25 +359,27 @@ export default function ComprobanteRecibidoModal({
               />
             </Field>
             <Field label="Fecha" required>
-              <input
-                type="date"
-                style={styles.input}
+              <Calendar
                 value={form.fecha}
+                onChange={(value) => update("fecha", value)}
                 disabled={readOnly}
-                onChange={(event) => update("fecha", event.target.value)}
-                data-testid="comprobante-recibido-fecha"
+                dataTestId="comprobante-recibido-fecha"
+                ariaLabel="Fecha del documento"
+                style={{ height: 38, fontSize: 14 }}
               />
             </Field>
             {esFactura ? (
               <Field label="Fecha de vencimiento">
-                <input
-                  type="date"
-                  style={styles.input}
+                <Calendar
                   value={form.fechaVencimiento}
-                  min={form.fecha || undefined}
+                  onChange={(value) => update("fechaVencimiento", value)}
                   disabled={readOnly}
-                  onChange={(event) => update("fechaVencimiento", event.target.value)}
-                  data-testid="comprobante-recibido-fecha-vencimiento"
+                  clearable
+                  min={form.fecha || undefined}
+                  placeholder="Sin vencimiento"
+                  dataTestId="comprobante-recibido-fecha-vencimiento"
+                  ariaLabel="Fecha de vencimiento del documento"
+                  style={{ height: 38, fontSize: 14 }}
                 />
               </Field>
             ) : null}
@@ -385,8 +392,9 @@ export default function ComprobanteRecibidoModal({
             Datos precargados de la ficha del proveedor. Podés corregirlos para este documento: la ficha no cambia.
           </p>
           <div style={styles.row}>
-            <Field label="Razón social" required grow>
+            <Field label="Razón social" required grow htmlFor="comprobante-recibido-emisor-razon-social">
               <input
+                id="comprobante-recibido-emisor-razon-social"
                 style={styles.input}
                 value={form.emisorRazonSocial}
                 disabled={readOnly}
@@ -395,8 +403,9 @@ export default function ComprobanteRecibidoModal({
                 data-testid="comprobante-recibido-emisor-razon-social"
               />
             </Field>
-            <Field label="CUIT emisor" required={esFactura}>
+            <Field label="CUIT emisor" required={esFactura} htmlFor="comprobante-recibido-emisor-cuit">
               <input
+                id="comprobante-recibido-emisor-cuit"
                 style={styles.input}
                 value={form.emisorCuit}
                 disabled={readOnly}
@@ -419,13 +428,14 @@ export default function ComprobanteRecibidoModal({
                   onChange={(value) => update("emisorCondicionIva", value as CondicionIvaProveedor | "")}
                   options={condicionOptions}
                   placeholder="Seleccionar posición"
-                  inputStyle={styles.selectInput}
+                  style={{ height: 38, fontSize: 14 }}
                   dataTestId="comprobante-recibido-emisor-condicion-iva"
                 />
               )}
             </Field>
-            <Field label="Domicilio" grow>
+            <Field label="Domicilio" grow htmlFor="comprobante-recibido-emisor-domicilio">
               <input
+                id="comprobante-recibido-emisor-domicilio"
                 style={styles.input}
                 value={form.emisorDomicilio}
                 disabled={readOnly}
@@ -441,88 +451,117 @@ export default function ComprobanteRecibidoModal({
           <p style={styles.hint}>
             Descripciones e importes manuales. No se calculan alícuotas ni porcentajes.
           </p>
-          <div style={styles.lineas}>
-            {form.lineas.map((linea, index) => (
-              <div key={linea.key} style={styles.lineaRow} data-testid={`comprobante-recibido-linea-${index}`}>
-                {esFactura ? (
-                  <div style={styles.lineaTipo}>
-                    {readOnly ? (
-                      <span style={styles.lineaTipoLabel}>{linea.tipo === "PERCEPCION" ? "Percepción" : "Concepto"}</span>
+          <div style={styles.lineasCard}>
+              <div css={[styles.lineasHeader, !esFactura && styles.lineasHeaderSinTipo]} aria-hidden="true">
+              {esFactura ? <div style={styles.lineaTipo}>TIPO</div> : null}
+              <div style={styles.lineaDescripcion}>DETALLE</div>
+              <div style={{ ...styles.lineaImporte, textAlign: "right" }}>IMPORTE</div>
+              <div style={styles.lineaActionsHeader} />
+            </div>
+            <div style={styles.lineas}>
+              {form.lineas.map((linea, index) => (
+                <div
+                  key={linea.key}
+                  css={[styles.lineaRow, !esFactura && styles.lineaRowSinTipo]}
+                  data-testid={`comprobante-recibido-linea-${index}`}
+                >
+                  {esFactura ? (
+                    <div style={styles.lineaTipo}>
+                      {readOnly ? (
+                        <span style={styles.lineaTipoLabel}>{linea.tipo === "PERCEPCION" ? "Percepción" : "Concepto"}</span>
+                      ) : (
+                        <Dropdown
+                          ariaLabel={`Tipo de la línea ${index + 1}`}
+                          value={linea.tipo}
+                          onChange={(value) => updateLinea(linea.key, { tipo: value as ComprobanteRecibidoLineaTipo, descripcion: "" })}
+                          style={{ height: 38, fontSize: 14 }}
+                          options={[
+                            { value: "CONCEPTO", label: "Concepto" },
+                            { value: "PERCEPCION", label: "Percepción" },
+                          ]}
+                        />
+                      )}
+                    </div>
+                  ) : null}
+                  <div style={styles.lineaDescripcion}>
+                    {linea.tipo === "PERCEPCION" ? (
+                      <Autocomplete
+                        options={percepcionOptions}
+                        value={linea.descripcion}
+                        onChange={(value) => updateLinea(linea.key, { descripcion: value })}
+                        allowCustomValue
+                        disabled={readOnly}
+                        placeholder="Elegí o escribí una percepción"
+                        aria-label={`Percepción de la línea ${index + 1}`}
+                        maxLength={200}
+                        dataTestId={`comprobante-recibido-linea-${index}-percepcion`}
+                        style={{ height: 38, fontSize: 14 }}
+                      />
                     ) : (
-                      <Dropdown
-                        ariaLabel={`Tipo de la línea ${index + 1}`}
-                        value={linea.tipo}
-                        onChange={(value) => updateLinea(linea.key, { tipo: value as ComprobanteRecibidoLineaTipo, descripcion: "" })}
-                        options={[
-                          { value: "CONCEPTO", label: "Concepto" },
-                          { value: "PERCEPCION", label: "Percepción" },
-                        ]}
+                      <input
+                        style={styles.input}
+                        value={linea.descripcion}
+                        disabled={readOnly}
+                        maxLength={200}
+                        placeholder={esFactura ? "Descripción del concepto" : "Ej: Retención Ganancias"}
+                        aria-label={`Descripción de la línea ${index + 1}`}
+                        onChange={(event) => updateLinea(linea.key, { descripcion: event.target.value })}
+                        data-testid={`comprobante-recibido-linea-${index}-descripcion`}
                       />
                     )}
                   </div>
-                ) : null}
-                <div style={styles.lineaDescripcion}>
-                  {linea.tipo === "PERCEPCION" ? (
-                    <Autocomplete
-                      options={percepcionOptions}
-                      value={linea.descripcion}
-                      onChange={(value) => updateLinea(linea.key, { descripcion: value })}
-                      allowCustomValue
-                      disabled={readOnly}
-                      placeholder="Elegí o escribí una percepción"
-                      aria-label={`Percepción de la línea ${index + 1}`}
-                      maxLength={200}
-                      dataTestId={`comprobante-recibido-linea-${index}-percepcion`}
-                    />
-                  ) : (
+                  <div style={styles.lineaImporte}>
                     <input
-                      style={styles.input}
-                      value={linea.descripcion}
+                      style={{ ...styles.input, textAlign: "right" }}
+                      value={linea.importe}
                       disabled={readOnly}
-                      maxLength={200}
-                      placeholder={esFactura ? "Descripción del concepto" : "Ej: Retención Ganancias"}
-                      aria-label={`Descripción de la línea ${index + 1}`}
-                      onChange={(event) => updateLinea(linea.key, { descripcion: event.target.value })}
-                      data-testid={`comprobante-recibido-linea-${index}-descripcion`}
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      aria-label={`Importe de la línea ${index + 1}`}
+                      onChange={(event) => updateLinea(linea.key, { importe: event.target.value.replace(/[^0-9.,]/g, "") })}
+                      data-testid={`comprobante-recibido-linea-${index}-importe`}
                     />
-                  )}
+                  </div>
+                  {!readOnly ? (
+                    <IconButton
+                      type="button"
+                      icon={<Trash2 />}
+                      size={16}
+                      onClick={() => removeLinea(linea.key)}
+                      disabled={form.lineas.length <= 1}
+                      ariaLabel={`Quitar línea ${index + 1}`}
+                      title="Quitar línea"
+                      data-testid={`comprobante-recibido-linea-${index}-quitar`}
+                      style={styles.removeButton}
+                    />
+                  ) : <div style={styles.lineaActionsHeader} />}
                 </div>
-                <div style={styles.lineaImporte}>
-                  <input
-                    style={{ ...styles.input, textAlign: "right" }}
-                    value={linea.importe}
-                    disabled={readOnly}
-                    inputMode="decimal"
-                    placeholder="0,00"
-                    aria-label={`Importe de la línea ${index + 1}`}
-                    onChange={(event) => updateLinea(linea.key, { importe: event.target.value.replace(/[^0-9.,]/g, "") })}
-                    data-testid={`comprobante-recibido-linea-${index}-importe`}
-                  />
-                </div>
-                {!readOnly ? (
-                  <button
-                    type="button"
-                    style={styles.iconButton}
-                    onClick={() => removeLinea(linea.key)}
-                    disabled={form.lineas.length <= 1}
-                    aria-label={`Quitar línea ${index + 1}`}
-                    title="Quitar línea"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                ) : null}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
           {!readOnly ? (
             <div style={styles.lineActions}>
-              <button type="button" style={styles.linkButton} onClick={() => addLinea("CONCEPTO")} data-testid="comprobante-recibido-agregar-concepto">
-                <Plus size={14} /> Agregar concepto
-              </button>
+              <Button
+                type="button"
+                onClick={() => addLinea("CONCEPTO")}
+                dataTestId="comprobante-recibido-agregar-concepto"
+                text="Agregar concepto"
+                icon={<Plus size={16} />}
+                outline
+                hideTextOnMobile={false}
+                style={{ minWidth: 0, fontSize: 14, padding: "8px 12px" }}
+              />
               {esFactura ? (
-                <button type="button" style={styles.linkButton} onClick={() => addLinea("PERCEPCION")} data-testid="comprobante-recibido-agregar-percepcion">
-                  <Plus size={14} /> Agregar percepción
-                </button>
+                <Button
+                  type="button"
+                  onClick={() => addLinea("PERCEPCION")}
+                  dataTestId="comprobante-recibido-agregar-percepcion"
+                  text="Agregar percepción"
+                  icon={<Plus size={16} />}
+                  outline
+                  hideTextOnMobile={false}
+                  style={{ minWidth: 0, fontSize: 14, padding: "8px 12px" }}
+                />
               ) : null}
             </div>
           ) : null}
@@ -552,8 +591,9 @@ export default function ComprobanteRecibidoModal({
           <div style={styles.detailsBody}>
             <p style={styles.hint}>Receptor: tu empresa. Se precarga desde la configuración de facturación.</p>
             <div style={styles.row}>
-              <Field label="Razón social del receptor" grow>
+              <Field label="Razón social del receptor" grow htmlFor="comprobante-recibido-receptor-razon-social">
                 <input
+                  id="comprobante-recibido-receptor-razon-social"
                   style={styles.input}
                   value={form.receptorRazonSocial}
                   disabled={readOnly}
@@ -561,8 +601,9 @@ export default function ComprobanteRecibidoModal({
                   onChange={(event) => update("receptorRazonSocial", event.target.value)}
                 />
               </Field>
-              <Field label="CUIT receptor">
+              <Field label="CUIT receptor" htmlFor="comprobante-recibido-receptor-cuit">
                 <input
+                  id="comprobante-recibido-receptor-cuit"
                   style={styles.input}
                   value={form.receptorCuit}
                   disabled={readOnly}
@@ -581,13 +622,14 @@ export default function ComprobanteRecibidoModal({
                     onChange={(value) => update("receptorCondicionIva", value as CondicionIvaProveedor | "")}
                     options={condicionOptions}
                     placeholder="Seleccionar posición"
-                    inputStyle={styles.selectInput}
+                    style={{ height: 38, fontSize: 14 }}
                   />
                 )}
               </Field>
             </div>
-            <Field label="Observaciones" grow>
+            <Field label="Observaciones" grow htmlFor="comprobante-recibido-observaciones">
               <textarea
+                id="comprobante-recibido-observaciones"
                 style={{ ...styles.input, height: 72, padding: "8px 12px", resize: "vertical" }}
                 value={form.observaciones}
                 disabled={readOnly}
@@ -606,51 +648,62 @@ function Field({
   label,
   required = false,
   grow = false,
+  htmlFor,
   children,
 }: {
   label: string;
   required?: boolean;
   grow?: boolean;
+  htmlFor?: string;
   children: React.ReactNode;
 }) {
   return (
-    <label style={{ ...styles.field, ...(grow ? { flex: 2 } : {}) }}>
-      <span style={styles.label}>
-        {label}
-        {required ? <span style={styles.required}> *</span> : null}
-      </span>
+    <div style={{ ...styles.field, ...(grow ? { flex: 2 } : {}) }}>
+      {htmlFor ? (
+        <label style={styles.label} htmlFor={htmlFor}>
+          {label}
+          {required ? <span style={styles.required}> *</span> : null}
+        </label>
+      ) : (
+        <span style={styles.label}>
+          {label}
+          {required ? <span style={styles.required}> *</span> : null}
+        </span>
+      )}
       {children}
-    </label>
+    </div>
   );
 }
 
 const styles = {
-  form: { display: "flex", flexDirection: "column" as const, gap: 16, padding: "8px 0" },
-  section: { display: "flex", flexDirection: "column" as const, gap: 10 },
+  form: { display: "flex", flexDirection: "column" as const, gap: 12, padding: "4px 0 8px" },
+  section: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 12,
+    padding: 14,
+    borderRadius: 12,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+  },
   sectionTitle: { margin: 0, fontSize: 14, fontWeight: 700, color: COLOR.TEXT.PRIMARY },
   hint: { margin: 0, fontSize: 12, color: COLOR.TEXT.SECONDARY },
-  row: { display: "flex", gap: 12, flexWrap: "wrap" as const },
-  field: { display: "flex", flexDirection: "column" as const, gap: 6, flex: 1, minWidth: 180 },
-  label: { fontSize: 13, fontWeight: 600, color: COLOR.TEXT.PRIMARY },
-  required: { color: COLOR.SEMANTIC.DANGER },
-  /** Selectores (Autocomplete) con el mismo alto y borde que los inputs del formulario. */
-  selectInput: {
-    height: 42,
-    padding: "0 40px 0 12px",
-    borderRadius: 8,
-    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
-    // backgroundColor (no `background`): Autocomplete ya define backgroundColor y React no mezcla ambos.
-    backgroundColor: COLOR.BACKGROUND.PRIMARY,
-    color: COLOR.TEXT.PRIMARY,
-    fontSize: 14,
-    boxSizing: "border-box" as const,
+  row: { display: "flex", gap: 12, alignItems: "flex-end" as const, flexWrap: "wrap" as const },
+  field: { display: "flex", flexDirection: "column" as const, gap: 6, flex: 1, minWidth: 160 },
+  label: {
+    display: "block",
+    fontSize: 13,
+    fontWeight: 600,
+    color: COLOR.TEXT.SECONDARY,
+    marginBottom: 0,
   },
+  required: { color: REQUIRED_ICON_COLOR, fontWeight: 700, marginLeft: 2 },
   input: {
-    height: 42,
-    padding: "0 12px",
+    height: 38,
+    padding: "8px 10px",
     borderRadius: 8,
-    border: `1px solid ${COLOR.BORDER.DEFAULT}`,
-    background: COLOR.BACKGROUND.PRIMARY,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    backgroundColor: COLOR.INPUT.PRIMARY.BACKGROUND,
     color: COLOR.TEXT.PRIMARY,
     fontSize: 14,
     outline: "none",
@@ -659,6 +712,9 @@ const styles = {
   },
   segmented: {
     display: "inline-flex",
+    alignItems: "center",
+    height: 38,
+    boxSizing: "border-box" as const,
     gap: 4,
     padding: 4,
     borderRadius: 10,
@@ -666,47 +722,77 @@ const styles = {
     alignSelf: "flex-start" as const,
   },
   segment: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    height: "100%",
     border: "none",
     borderRadius: 8,
-    padding: "7px 16px",
+    padding: "0 16px",
     background: "transparent",
     color: COLOR.TEXT.SECONDARY,
     fontSize: 14,
     fontWeight: 600,
     cursor: "pointer",
   },
-  segmentActive: { background: COLOR.ACCENT.PRIMARY, color: COLOR.TEXT.CONTRAST },
-  lineas: { display: "flex", flexDirection: "column" as const, gap: 8 },
-  lineaRow: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" as const },
+  segmentActive: {
+    background: COLOR.ACCENT.PRIMARY,
+    color: COLOR.TEXT.CONTRAST,
+    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+  },
+  lineasCard: {
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 12,
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+    overflow: "hidden" as const,
+  },
+  lineasHeader: css({
+    display: "grid",
+    gridTemplateColumns: "150px minmax(0, 1fr) 140px 36px",
+    gap: 8,
+    alignItems: "center",
+    padding: "10px 12px",
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.05em",
+    "@media (max-width: 720px)": { display: "none" },
+  }),
+  lineasHeaderSinTipo: css({
+    gridTemplateColumns: "minmax(0, 1fr) 140px 36px",
+  }),
+  lineas: { display: "flex", flexDirection: "column" as const },
+  lineaRow: css({
+    display: "grid",
+    gridTemplateColumns: "150px minmax(0, 1fr) 140px 36px",
+    gap: 8,
+    alignItems: "center",
+    padding: "10px 12px",
+    borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    "@media (max-width: 720px)": {
+      display: "flex",
+      flexWrap: "wrap",
+    },
+  }),
+  lineaRowSinTipo: css({
+    gridTemplateColumns: "minmax(0, 1fr) 140px 36px",
+  }),
   lineaTipo: { width: 150, flex: "0 0 auto" },
   lineaTipoLabel: { fontSize: 13, fontWeight: 600, color: COLOR.TEXT.SECONDARY },
-  lineaDescripcion: { flex: "1 1 240px", minWidth: 200 },
-  lineaImporte: { width: 150, flex: "0 0 auto" },
-  iconButton: {
+  lineaDescripcion: { flex: "1 1 240px", minWidth: 180 },
+  lineaImporte: { width: 140, flex: "0 0 auto" },
+  lineaActionsHeader: { width: 36, flex: "0 0 auto" },
+  removeButton: {
     width: 36,
     height: 36,
-    border: "none",
-    borderRadius: 6,
-    background: "transparent",
-    color: COLOR.TEXT.TERTIARY,
-    cursor: "pointer",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  lineActions: { display: "flex", gap: 16, flexWrap: "wrap" as const },
-  linkButton: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 4,
-    border: "none",
-    background: "transparent",
-    color: COLOR.ACCENT.PRIMARY,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
     padding: 0,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 8,
+    backgroundColor: COLOR.BACKGROUND.SUBTLE,
   },
+  lineActions: { display: "flex", gap: 8, flexWrap: "wrap" as const },
   totales: {
     display: "flex",
     justifyContent: "flex-end",
@@ -714,6 +800,7 @@ const styles = {
     flexWrap: "wrap" as const,
     fontSize: 13,
     color: COLOR.TEXT.SECONDARY,
+    paddingTop: 4,
   },
   infoBox: {
     display: "flex",
@@ -726,8 +813,13 @@ const styles = {
     fontSize: 13,
   },
   infoText: { display: "flex", flexDirection: "column" as const, gap: 2 },
-  details: { border: `1px solid ${COLOR.BORDER.SUBTLE}`, borderRadius: 8, padding: "8px 12px" },
-  summary: { cursor: "pointer", fontSize: 13, fontWeight: 600, color: COLOR.TEXT.PRIMARY },
+  details: {
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 12,
+    padding: 14,
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+  },
+  summary: { cursor: "pointer", fontSize: 14, fontWeight: 700, color: COLOR.TEXT.PRIMARY },
   detailsBody: { display: "flex", flexDirection: "column" as const, gap: 10, marginTop: 10 },
   errorBanner: {
     padding: "10px 14px",

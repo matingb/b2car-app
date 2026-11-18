@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { css } from "@emotion/react";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import Autocomplete from "@/app/components/ui/Autocomplete";
@@ -63,6 +63,21 @@ export function OperacionPercepcionesEditor({
   removePercepcion,
 }: PercepcionesEditorProps) {
   const [activePercepcionKey, setActivePercepcionKey] = useState<string | null>(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia?.("(max-width: 720px)");
+    if (!mediaQuery) return;
+
+    const updateViewport = () => setIsMobileViewport(mediaQuery.matches);
+    updateViewport();
+    mediaQuery.addEventListener?.("change", updateViewport);
+    return () => mediaQuery.removeEventListener?.("change", updateViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileViewport) setActivePercepcionKey(null);
+  }, [isMobileViewport]);
 
   const esFactura = contexto === "factura";
   const testId = `operacion-${contexto}`;
@@ -91,6 +106,7 @@ export function OperacionPercepcionesEditor({
           ) : (
             percepciones.map((linea, index) => {
               const isExpanded = activePercepcionKey === linea.key;
+              const canExpand = activePercepcionKey === null || activePercepcionKey === linea.key;
               const importe = importePercepcion(linea.importe);
               const percepcionValue = linea.percepcion.trim();
               const label =
@@ -110,12 +126,19 @@ export function OperacionPercepcionesEditor({
                   <div css={styles.mobileHeader} data-mobile-header="">
                     <button
                       type="button"
-                      css={styles.mobileSummaryButton}
-                      onClick={() =>
-                        setActivePercepcionKey((current) => (current === linea.key ? null : linea.key))
-                      }
+                      css={[
+                        styles.mobileSummaryButton,
+                        isExpanded && styles.mobileSummaryButtonExpanded,
+                        !canExpand && styles.mobileSummaryButtonBlocked,
+                      ]}
+                      onClick={() => setActivePercepcionKey((current) => current ?? linea.key)}
+                      disabled={disabled || isExpanded || !canExpand}
                       aria-expanded={isExpanded}
-                      aria-label={`${isExpanded ? "Editando" : "Editar"} ${label}`}
+                      aria-label={
+                        isExpanded
+                          ? `${label}. Confirmá para cerrar la fila`
+                          : `Editar ${label}`
+                      }
                       data-testid={`${testId}-percepcion-${index}-summary`}
                     >
                       <span css={styles.mobileSummaryTop}>
@@ -133,7 +156,13 @@ export function OperacionPercepcionesEditor({
                     </button>
                   </div>
 
-                  <div css={styles.fieldCell} data-mobile-field="" onFocusCapture={() => setActivePercepcionKey(linea.key)}>
+                  <div
+                    css={styles.fieldCell}
+                    data-mobile-field=""
+                    onFocusCapture={() => {
+                      if (isMobileViewport) setActivePercepcionKey((current) => current ?? linea.key);
+                    }}
+                  >
                     <span css={styles.mobileFieldLabel}>Percepción</span>
                     <Autocomplete
                       options={PERCEPCION_OPTIONS}
@@ -149,7 +178,13 @@ export function OperacionPercepcionesEditor({
                       inputStyle={{ height: 44 }}
                     />
                   </div>
-                  <div css={styles.fieldCell} data-mobile-field="" onFocusCapture={() => setActivePercepcionKey(linea.key)}>
+                  <div
+                    css={styles.fieldCell}
+                    data-mobile-field=""
+                    onFocusCapture={() => {
+                      if (isMobileViewport) setActivePercepcionKey((current) => current ?? linea.key);
+                    }}
+                  >
                     <span css={styles.mobileFieldLabel}>Importe</span>
                     <input
                       style={styles.moneyInput}
@@ -176,6 +211,30 @@ export function OperacionPercepcionesEditor({
                       style={styles.trashBtn}
                     />
                   </div>
+                  {isExpanded ? (
+                    <div css={styles.mobileActions} data-testid={`${testId}-percepcion-${index}-actions`}>
+                      <button
+                        type="button"
+                        css={[styles.mobileActionButton, styles.mobileDeleteButton]}
+                        onClick={handleRemove}
+                        disabled={disabled}
+                        data-testid={`${testId}-percepcion-${index}-delete`}
+                      >
+                        Eliminar
+                      </button>
+                      <button
+                        type="button"
+                        css={[styles.mobileActionButton, styles.mobileConfirmButton]}
+                        onClick={() => {
+                          if (percepcionValue) setActivePercepcionKey(null);
+                        }}
+                        disabled={disabled || !percepcionValue}
+                        data-testid={`${testId}-percepcion-${index}-confirm`}
+                      >
+                        Confirmar
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               );
             })
@@ -187,9 +246,10 @@ export function OperacionPercepcionesEditor({
         <Button
           type="button"
           onClick={() => {
-            setActivePercepcionKey(addPercepcion());
+            const nuevaPercepcionKey = addPercepcion();
+            if (isMobileViewport) setActivePercepcionKey(nuevaPercepcionKey);
           }}
-          disabled={disabled || percepciones.length >= limite}
+          disabled={disabled || percepciones.length >= limite || (isMobileViewport && activePercepcionKey !== null)}
           dataTestId={`${testId}-agregar-percepcion`}
           text="Agregar percepción"
           icon={<Plus size={16} />}
@@ -321,7 +381,7 @@ const styles = {
       gap: 8,
       width: "100%",
       minHeight: 44,
-      paddingRight: 52,
+      paddingRight: 0,
       boxSizing: "border-box",
     },
   }),
@@ -336,6 +396,7 @@ const styles = {
     gap: 4,
     minWidth: 0,
     position: "relative",
+    width: "100%",
     boxSizing: "border-box",
     padding: "0 20px 0 0",
     border: 0,
@@ -343,6 +404,16 @@ const styles = {
     color: COLOR.TEXT.PRIMARY,
     textAlign: "left",
     cursor: "pointer",
+  }),
+  mobileSummaryButtonExpanded: css({
+    cursor: "default",
+    "&:disabled": {
+      opacity: 1,
+    },
+  }),
+  mobileSummaryButtonBlocked: css({
+    cursor: "not-allowed",
+    opacity: 0.55,
   }),
   mobileSummaryTop: css({
     display: "flex",
@@ -404,11 +475,50 @@ const styles = {
   removeCell: css({
     display: "contents",
     "@media (max-width: 720px)": {
+      display: "none",
+    },
+  }),
+  mobileActions: css({
+    display: "none",
+    "@media (max-width: 720px)": {
       display: "flex",
       justifyContent: "flex-end",
-      position: "absolute",
-      top: 12,
-      right: 0,
+      gap: 8,
+      width: "100%",
+      boxSizing: "border-box",
+      marginTop: 4,
+    },
+  }),
+  mobileActionButton: css({
+    minWidth: 100,
+    minHeight: 42,
+    padding: "10px 14px",
+    borderRadius: 8,
+    font: "inherit",
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: "pointer",
+    "&:disabled": {
+      opacity: 0.5,
+      cursor: "not-allowed",
+    },
+  }),
+  mobileConfirmButton: css({
+    border: "none",
+    background: COLOR.ACCENT.PRIMARY,
+    color: COLOR.TEXT.CONTRAST,
+    "&:hover:not(:disabled)": {
+      background: COLOR.ACCENT.HOVER,
+    },
+  }),
+  mobileDeleteButton: css({
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    background: COLOR.BACKGROUND.SUBTLE,
+    color: COLOR.TEXT.PRIMARY,
+    "&:hover:not(:disabled)": {
+      border: `1px solid ${COLOR.BORDER.DEFAULT}`,
+      background: COLOR.BACKGROUND.PRIMARY,
+      color: COLOR.TEXT.PRIMARY,
     },
   }),
   empty: {

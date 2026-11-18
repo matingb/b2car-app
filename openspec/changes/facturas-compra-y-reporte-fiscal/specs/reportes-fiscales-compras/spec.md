@@ -4,7 +4,7 @@
 
 Permitir exportar facturas y retenciones documentales de compras y gastos con las columnas base del reporte de ventas, columnas dinámicas de percepciones y sumas reproducibles, sin alterar el circuito financiero.
 
-La fuente explícita de importes fiscales desde líneas libres sigue en P-MAP. Fechas, formatos, moneda e identificación/presentación específica de retenciones se concretan en P-REP; la inclusión y totalización de retenciones ya están confirmadas.
+La fuente de bases gravadas e IVA es el desglose confirmado de cada factura recibida. Fechas, formatos, moneda e identificación y presentación específica de retenciones se concretan en P-REP. La inclusión y totalización de retenciones forman parte del reporte.
 
 ## ADDED Requirements
 
@@ -98,12 +98,39 @@ El reporte SHALL conservar importes de factura aunque difieran del monto de la o
 - **THEN** el total facturado permanece 121000 y la retención documental se identifica por 6000
 - **AND** el saldo operativo sigue siendo 6000 y el reporte no lo altera
 
-### Requirement: Datos fiscales desde una fuente manual explícita
-El reporte SHALL obtener identidad e importes fiscales desde datos guardados del documento y el mapeo explícito aprobado. MUST NOT clasificar líneas libres por palabras, calcular alícuotas desde totales o reconstruir bases, IVA e impuestos desde precios, stock, pagos o fichas actuales. MUST distinguir valores desconocidos de ceros e indicar sumas parciales.
+### Requirement: Bases e IVA desde el desglose confirmado de cada factura
+El reporte SHALL usar el desglose confirmado de cada factura. Las columnas de base e IVA al 21% SHALL tomar solo esa tasa. Neto gravado, base imponible total e IVA total SHALL incluir todas las tasas confirmadas que correspondan. Percepciones y retenciones conservan sus columnas o totales propios.
+
+#### Scenario: Factura A con dos alícuotas confirmadas
+- **GIVEN** una factura con base 10000 e IVA 2100 al 21%, y base 20000 e IVA 2100 al 10,5%
+- **WHEN** se exporta
+- **THEN** las columnas del 21% muestran base 10000 e IVA 2100
+- **AND** la base imponible total es 30000 y el IVA total es 4200
+- **AND** el reporte conserva los encabezados base
+
+#### Scenario: Factura A sin operaciones al 21%
+- **GIVEN** un desglose completo confirmado al 10,5%
+- **WHEN** se exporta
+- **THEN** las columnas del 21% muestran cero y la base e IVA del 10,5% se incluyen en los totales
+
+### Requirement: Datos fiscales ausentes o sin desglose
+El reporte MUST dejar vacíos los datos desconocidos, distinguir ceros informados e indicar sumas parciales. MUST NOT reconstruir el desglose a partir del texto, del total, de la operación, de pagos o de fichas actuales. En facturas B y C MUST NOT extraer IVA del importe final.
+
+#### Scenario: Factura B con IVA contenido y factura C
+- **GIVEN** una factura B que muestra IVA contenido y una factura C con su importe final
+- **WHEN** se exportan
+- **THEN** cada fila conserva el importe final informado
+- **AND** el IVA contenido de la B y el importe final de la C no aportan base ni IVA discriminado
+
+#### Scenario: Factura histórica de una operación con tasa por defecto
+- **GIVEN** una factura con importe final sin desglose y una operación asociada con alícuota 21%
+- **WHEN** se exporta
+- **THEN** se conserva el importe final y los datos fiscales sin fuente quedan vacíos
+- **AND** el resumen identifica como parciales las sumas fiscales afectadas por ese faltante
 
 #### Scenario: Línea libre sin clasificación fiscal explícita
 - **GIVEN** una línea con una descripción que menciona IVA y un importe manual
-- **WHEN** no existe un dato fiscal o mapeo explícito aprobado para esa línea
+- **WHEN** no existe un dato fiscal confirmado para esa línea
 - **THEN** el reporte no le atribuye automáticamente una base o alícuota
 - **AND** conserva el dato original sin fabricar importes para completar columnas
 

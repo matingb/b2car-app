@@ -17,6 +17,7 @@ Las facturas y retenciones tienen líneas manuales de conceptos y percepciones y
 | src/app/api/operaciones/operacionesService.ts y src/app/api/gastos/route.ts | Hay dos puntos de alta de gastos y el gasto no tiene proveedor comercial asociado en el flujo actual. |
 | src/lib/permissions.ts | Hay permisos de ver/editar facturación y asignación efectiva por rol/plan. |
 | src/lib/facturacion/reporteFiscal.ts | El reporte de ventas tiene 24 columnas base; conservarlas como referencia exacta y agregar columnas de percepciones en compras. |
+| `operaciones_lineas.iva_alicuota_id` y `ALICUOTAS_IVA_ARCA` | La operación ya admite códigos de ARCA. El id `5` (21%) es el valor por defecto y puede estar presente sin que se haya confirmado una tasa facturada. |
 | Cambio rediseno-operaciones-ledgers, spec operaciones | Permite borrar operaciones; este cambio agrega bloqueo cuando existen documentos asociados. |
 
 El relevamiento es estático y no consulta datos fiscales reales ni el esquema desplegado. No hay capacidades publicadas en openspec/specs/.
@@ -32,7 +33,7 @@ El relevamiento es estático y no consulta datos fiscales reales ni el esquema d
 | Diferencias | Guardado permitido con label informativo; no ajustar factura ni operación. |
 | Borrado | Operaciones con documentos no se eliminan. Los documentos sí pueden eliminarse; luego vuelve a aplicar el circuito de borrado operativo existente. |
 | Duplicados | Error ante factura con CUIT emisor y número de factura repetidos dentro del tenant. |
-| Líneas | Solo CONCEPTO y PERCEPCION, descripción/selección e importe manuales, sin cálculo de porcentajes. |
+| Líneas | CONCEPTO y PERCEPCION con descripción/selección e importe manuales. Para conceptos de facturas A, alícuota editable por línea y desglose confirmado por tasa en el documento. |
 | Requeridos | Número de factura y posición de IVA del proveedor; CUIT emisor conservado para identidad y unicidad. |
 | Reporte | Mismas columnas base que ventas y columnas extra por cada percepción distinta en las facturas seleccionadas; incluir total de retenciones documentadas. |
 | Percepciones | Selector libre con sugerencias Ganancias, IVA, IIBB Buenos Aires e IIBB CABA. |
@@ -51,7 +52,7 @@ El relevamiento es estático y no consulta datos fiscales reales ni el esquema d
 **Non-Goals:**
 
 - Imputar retenciones a pagos, cancelar deuda, modificar estados de pago o crear movimientos de cuentas.
-- Calcular porcentajes de IVA/percepciones/retenciones, crédito fiscal, deducibilidad o aplicabilidad de regímenes.
+- Determinar impuestos aplicables, porcentajes de percepciones/retenciones, crédito fiscal, deducibilidad o aplicabilidad de regímenes.
 - Emitir o verificar ante ARCA, gestionar borradores, adjuntos/fotos, OCR/importaciones o NC/ND de compras.
 - Modificar el contrato del reporte de ventas.
 
@@ -75,13 +76,17 @@ Guardar el documento no actualiza automáticamente la ficha del proveedor. Cambi
 
 Compras/gastos sin proveedor comercial permiten identificar al emisor en el formulario. La ausencia de un proveedor_id no reemplaza ni elimina los datos fiscales obligatorios. No confundir posición de IVA del proveedor/emisor con la del receptor.
 
-### D3. Dos tipos de líneas manuales
+### D3. Conceptos, percepciones y desglose de IVA en facturas A
 
-Cada línea guarda tipo CONCEPTO o PERCEPCION, descripción/etiqueta e importe informado. No agregar como tercer tipo obligatorio una línea de IVA ni un flujo que calcule importes desde una alícuota. Un concepto puede describir IVA u otro concepto, pero su texto no habilita clasificación fiscal automática.
+Cada línea guarda tipo CONCEPTO o PERCEPCION, descripción/etiqueta e importe informado. Agregar `iva_alicuota_id` nullable a `comprobantes_recibidos_lineas`, con los mismos códigos que usa la operación. El campo se aplica a conceptos gravados de facturas A. Una factura puede mezclar alícuotas y cada factura de una operación conserva su propio detalle.
 
-El selector de percepciones permite elegir Ganancias, IVA, IIBB Buenos Aires e IIBB CABA o escribir otro nombre. Las sugerencias aceleran la carga, sin imponer porcentajes ni un catálogo cerrado. Los conceptos y percepciones conservan sus montos manuales.
+En una factura A nueva, sugerir 21% y permitir aplicar una tasa a todos los conceptos y editarla por línea. Al crear la compra con factura, precargar las alícuotas disponibles de sus líneas y sugerir 21% donde falten. Al adjuntar otra factura o editar una existente, la tasa confirmada para ese documento prevalece sobre cualquier precarga. Conservar sin valor las alícuotas ausentes de documentos históricos hasta que se confirmen en una edición.
 
-Sumar importes registrados para mostrar totales no equivale a calcular porcentajes. Persistir precisión decimal y usar sumas en centavos. Falta cerrar P-MAP: cómo obtener los importes de las columnas fiscales base del reporte cuando las líneas son libres. No inferir neto/base/IVA por palabras, posición de IVA del proveedor ni una división matemática del total.
+Guardar, por factura A y alícuota, la base neta gravada y el IVA discriminado confirmados contra el comprobante. El resumen es editable y permite sugerir IVA a partir de una base identificada como neta y de la tasa elegida. La confirmación conserva los importes del proveedor, incluidos sus redondeos. El desglose fiscal describe importes ya comprendidos en el monto facturado y no suma el IVA una segunda vez al total del documento.
+
+Las facturas B y C conservan sus importes finales sin extraer IVA. Si una B muestra IVA contenido, su eventual registro es informativo y queda fuera de las columnas de IVA discriminado de compras. Las percepciones, incluida la percepción de IVA, siguen registrándose por separado a importe manual. El selector ofrece Ganancias, IVA, IIBB Buenos Aires, IIBB CABA y nombres libres. Las retenciones conservan su carga manual.
+
+Persistir importes con precisión decimal y sumar en centavos. Mantener el desglose desconocido como dato ausente, incluso cuando la operación asociada tenga una tasa por defecto. Los cambios en los conceptos y el desglose documental no modifican líneas de operación, stock, pagos ni saldo.
 
 ### D4. Retenciones exclusivamente documentales
 
@@ -121,7 +126,7 @@ Las opciones sugeridas deben conservar una identidad estable. Para opciones libr
 
 Una fila por factura, aunque existan varias en una operación. Los documentos de retención tienen detalle y suma documental identificables, separados del total facturado, sin inferirlos de pagos. Su disposición exacta en el archivo queda en P-REP; incluirlos y totalizarlos ya está confirmado.
 
-P-MAP debe cerrar la fuente de las columnas fiscales base: importes resumen manuales o asignación explícita de líneas a columnas, sin cálculo de porcentajes ni clasificación por texto. CSV/XLSX se mantienen como propuesta y deben compartir conjunto y columnas cuando se habiliten ambos. Período vacío conserva columnas base, sin percepciones inventadas.
+Obtener las bases y el IVA de compras del desglose confirmado en cada factura A. Las columnas de base e IVA 21% toman solo esa tasa. El neto gravado, la base imponible total y el IVA total incluyen las tasas confirmadas que correspondan, con sumas parciales identificadas cuando falten datos. Mantener las 24 columnas base y su orden. Los datos fiscales sin fuente estructurada se exportan vacíos. CSV/XLSX se mantienen como propuesta y deben compartir conjunto y columnas cuando se habiliten ambos. Período vacío conserva columnas base, sin percepciones inventadas.
 
 El criterio temporal y moneda siguen en P-REP; fecha de documento y pesos son propuestas, no acuerdos nuevos. Exportación con lectura consistente o detección de cambios, paginación completa y fallo sin archivo parcial. El reporte de ventas conserva sus 24 columnas y no recibe esta ampliación dinámica.
 
@@ -145,11 +150,10 @@ Adjuntar, editar o eliminar una factura en su circuito documental conserva los c
 
 ## Definiciones restantes
 
-Las decisiones de relación, efecto de retenciones, borrado, duplicados, líneas y columnas dinámicas ya están cerradas. No conservarlas como tareas de definición.
+La fuente de las bases gravadas y del IVA (P-MAP) queda definida en D3 y D7. La selección de período, moneda y formatos sigue pendiente.
 
 | ID | Decisión todavía abierta |
 | --- | --- |
-| **P-MAP** | Fuente explícita de netos, bases, IVA y demás importes de las columnas base cuando las líneas son libres: resumen manual aparte o clasificación fiscal explícita de cada línea. Consulta enviada al usuario; no elegir por omisión. |
 | **P-REP** | Fecha de selección por documento, formatos definitivos, moneda/cotización, identificación específica de RETENCION y disposición de su detalle/resumen en el archivo. El reporte debe incluir y sumar retenciones. |
 
 La implementación puede resolver normalización de etiquetas, identificadores de permisos, transacciones e historial interno dentro de las reglas anteriores. Esos detalles no requieren reabrir acuerdos de producto.
@@ -157,7 +161,7 @@ La implementación puede resolver normalización de etiquetas, identificadores d
 ## Risks / Trade-offs
 
 - **[Reintroducir el efecto financiero descartado]** → Invariancia de pagos, saldo, estado de pago, cuenta corriente, cuentas y stock al gestionar facturas/retenciones.
-- **[Columnas fiscales inferidas de texto libre]** → Resolver P-MAP y conservar procedencia manual explícita; no deducir alícuotas o impuestos.
+- **[Alícuota por defecto confundida con IVA facturado]** → Usar el 21% como precarga editable y exportar el desglose confirmado del documento.
 - **[Columnas dinámicas incompletas]** → Unión de percepciones de todo el conjunto y pruebas con una percepción solo en la última página.
 - **[Duplicados concurrentes]** → Restricción de unicidad y validación de edición además del alta.
 - **[Borrado por un endpoint alternativo]** → Restricción central y validación de todos los puntos de borrado de operaciones.
@@ -165,8 +169,8 @@ La implementación puede resolver normalización de etiquetas, identificadores d
 
 ## Migration Plan
 
-1. Cerrar P-MAP y los detalles de P-REP que condicionan cada bloque y actualizar su contrato.
-2. Crear migraciones aditivas para proveedor, cabecera, dos tipos de línea, FK obligatoria/restrictiva, unicidad, permisos y RLS/grants. No crear imputaciones financieras ni documentos históricos ficticios.
+1. Cerrar los detalles de P-REP que condicionan cada bloque y actualizar su contrato.
+2. Crear las migraciones aditivas de proveedor, cabecera y líneas, incluida la alícuota nullable por concepto y el desglose confirmado de factura. Preservar FK obligatoria/restrictiva, unicidad, permisos y RLS/grants. Mantener los comprobantes sin desglose con los campos fiscales ausentes.
 3. Validar integridad y acceso en una DB local desechable autorizada con datos sintéticos, incluidos duplicados y borrado concurrente.
 4. Implementar API/UI y puntos de entrada de compras/gastos, con reintentos sin duplicar operaciones o sus efectos.
 5. Implementar reporte con las columnas base y la unión de percepciones y las retenciones documentales; verificar todas las páginas y formatos aprobados.
