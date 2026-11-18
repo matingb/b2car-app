@@ -198,7 +198,9 @@ export function useFacturaCompraDraft({
   }, []);
 
   const addPercepcion = useCallback(() => {
-    setDraft((current) => ({ ...current, percepciones: [...current.percepciones, nuevaPercepcion()] }));
+    const percepcion = nuevaPercepcion();
+    setDraft((current) => ({ ...current, percepciones: [...current.percepciones, percepcion] }));
+    return percepcion.key;
   }, []);
 
   const updatePercepcion = useCallback((key: string, patch: Partial<Omit<PercepcionDraft, "key">>) => {

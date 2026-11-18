@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { css } from "@emotion/react";
 import { AlertCircle, Plus } from "lucide-react";
 import { COLOR } from "@/theme/theme";
@@ -49,6 +49,7 @@ export default function OperacionStockForm() {
     puedeCargarComprobante,
   } = useOperacionForm();
 
+  const [activeLineaId, setActiveLineaId] = useState<string | null>(null);
 
   const isEnabled = Boolean(tipo && isTipoEnabled(tipo));
   const isAllowedTipo = tipo === "VENTA" || tipo === "COMPRA";
@@ -114,11 +115,15 @@ export default function OperacionStockForm() {
           <div css={styles.linesList}>
             {lineas.map((l, idx) => {
               const disabled = !isEnabled;
+              const lineKey = l.id ?? String(idx);
               return (
                 <OperacionLineaEditor
                   key={l.id || idx}
                   index={idx}
                   linea={l}
+                  mobileExpanded={activeLineaId === lineKey}
+                  onMobileActivate={() => setActiveLineaId(lineKey)}
+                  onMobileToggle={() => setActiveLineaId((current) => (current === lineKey ? null : lineKey))}
                   disabled={disabled}
                   stockSelectionDisabled={isContextualStock}
                   loadingStocks={isInventarioLoading || isProveedorProductosLoading}
@@ -127,7 +132,10 @@ export default function OperacionStockForm() {
                   getStockActualForStockId={getStockActualForStockId}
                   isVenta={tipo === "VENTA"}
                   onChange={(next) => setLineaAt(idx, next)}
-                  onRemove={() => removeLinea(idx)}
+                  onRemove={() => {
+                    removeLinea(idx);
+                    setActiveLineaId((current) => (current === lineKey ? null : current));
+                  }}
                   canRemove={!isContextualStock && lineas.length > 1}
                 />
               );
@@ -154,10 +162,13 @@ export default function OperacionStockForm() {
         )}
 
         {!isContextualStock && (
-          <div style={styles.addRowContainer}>
+          <div css={styles.addRowContainer}>
             <Button
               type="button"
-              onClick={addLinea}
+              onClick={() => {
+                const nuevaLineaId = addLinea();
+                setActiveLineaId(nuevaLineaId);
+              }}
               disabled={!isEnabled}
               dataTestId="operaciones-add-line"
               text="Agregar Producto"
@@ -275,8 +286,32 @@ const styles = {
     gap: 8,
     padding: "10px 12px",
     width: "100%",
+    ["@media (max-width: 720px)"]: {
+      gap: 0,
+      padding: "0 12px",
+    },
   }),
-  addRowContainer: {
+  addRowContainer: css({
     marginTop: 10,
-  } as const,
+    "@media (max-width: 720px)": {
+      display: "flex",
+      justifyContent: "center",
+      "& > button": {
+        width: "100%",
+        minWidth: 0,
+        height: 44,
+        boxSizing: "border-box",
+        padding: "12px 14px",
+        border: `2px dashed ${COLOR.BORDER.SUBTLE}`,
+        borderRadius: 12,
+        background: "transparent",
+        color: COLOR.TEXT.SECONDARY,
+        "&:hover:not(:disabled)": {
+          border: `2px dashed ${COLOR.BORDER.SUBTLE}`,
+          background: "transparent",
+          color: COLOR.TEXT.SECONDARY,
+        },
+      },
+    },
+  }),
 } as const;

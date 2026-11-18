@@ -43,7 +43,7 @@ function OperacionCreateModalContent({ onClose }: { onClose: () => void }) {
       onSubmit={submitForm}
       showCloseButton
       hideFooter
-      modalStyle={{ width: "min(880px, 96vw)", maxHeight: "90vh", overflowY: "auto" }}
+      modalStyle={{ width: "min(1280px, 96vw)", maxHeight: "90vh", overflowY: "auto" }}
     >
       <div style={{ padding: "4px 0 16px", minHeight: "385px" }}>
         <div css={styles.topBar}>
@@ -237,6 +237,9 @@ const styles = {
     flexDirection: "column",
     alignItems: "flex-end",
     gap: 2,
+    ["@media (max-width: 720px)"]: {
+      display: "none",
+    },
   }),
   topTotalLabel: css({
     fontSize: 11,

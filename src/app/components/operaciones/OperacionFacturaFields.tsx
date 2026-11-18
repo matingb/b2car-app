@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { css } from "@emotion/react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ChevronDown } from "lucide-react";
 import Calendar from "@/app/components/ui/Calendar";
 import Autocomplete from "@/app/components/ui/Autocomplete";
 import {
@@ -23,20 +23,46 @@ export default function OperacionFacturaFields() {
   const { factura, fecha, isSubmitting } = useOperacionForm();
   const { draft, update, error } = factura;
   const disabled = isSubmitting;
+  const [isMobileExpanded, setIsMobileExpanded] = useState(true);
+
+  useEffect(() => {
+    if (error) setIsMobileExpanded(true);
+  }, [error]);
 
   return (
     <section css={styles.section} aria-label="Datos de la factura" data-testid="operacion-factura">
-      <div style={styles.title}>Datos de la factura</div>
+      <div css={styles.titleRow}>
+        <div css={styles.desktopTitle} style={styles.title}>Datos de la factura</div>
+        <button
+          type="button"
+          css={styles.mobileTitleButton}
+          onClick={() => setIsMobileExpanded((current) => (error ? true : !current))}
+          aria-expanded={isMobileExpanded}
+          aria-controls="operacion-factura-fields"
+          data-testid="operacion-factura-toggle"
+        >
+          <span style={styles.title}>Datos de la factura</span>
+          <ChevronDown
+            size={18}
+            css={[styles.mobileChevron, isMobileExpanded && styles.mobileChevronExpanded]}
+            aria-hidden="true"
+          />
+        </button>
+      </div>
 
-      {error ? (
-        <div style={styles.errorNotice} role="alert" data-testid="operacion-factura-error">
-          <AlertCircle size={16} color={COLOR.STATUS.DANGER.TEXT} style={{ flexShrink: 0 }} />
-          <span>{error}</span>
-        </div>
-      ) : null}
+      <div
+        id="operacion-factura-fields"
+        css={[styles.accordionContent, isMobileExpanded && styles.accordionContentExpanded]}
+      >
+        {error ? (
+          <div style={{ ...styles.errorNotice, gridColumn: "1 / -1" }} role="alert" data-testid="operacion-factura-error">
+            <AlertCircle size={16} color={COLOR.STATUS.DANGER.TEXT} style={{ flexShrink: 0 }} />
+            <span>{error}</span>
+          </div>
+        ) : null}
 
-      <div css={styles.row}>
-        <div style={styles.colFixed}>
+        <div css={styles.row}>
+        <div css={styles.colFixed} style={{ gridArea: "clase" }}>
           <span style={styles.label}>
             Clase <Required />
           </span>
@@ -60,7 +86,7 @@ export default function OperacionFacturaFields() {
           </div>
         </div>
 
-        <div style={styles.col}>
+        <div css={styles.col} style={{ gridArea: "numero" }}>
           <label style={styles.label} htmlFor="operacion-factura-numero">
             Número de factura <Required />
           </label>
@@ -76,7 +102,7 @@ export default function OperacionFacturaFields() {
           />
         </div>
 
-        <div style={styles.col}>
+        <div css={styles.col} style={{ gridArea: "fecha" }}>
           <label style={styles.label}>
             Fecha de la factura <Required />
           </label>
@@ -89,10 +115,10 @@ export default function OperacionFacturaFields() {
             style={{ height: 38 }}
           />
         </div>
-      </div>
+        </div>
 
-      <div css={styles.row}>
-        <div style={{ ...styles.col, flex: "2 1 0" }}>
+        <div css={styles.row}>
+        <div css={[styles.col, styles.colWide]} style={{ gridArea: "razon" }}>
           <label style={styles.label} htmlFor="operacion-factura-emisor-razon-social">
             Razón social del emisor <Required />
           </label>
@@ -107,7 +133,7 @@ export default function OperacionFacturaFields() {
           />
         </div>
 
-        <div style={styles.col}>
+        <div css={styles.col} style={{ gridArea: "cuit" }}>
           <label style={styles.label} htmlFor="operacion-factura-emisor-cuit">
             CUIT emisor <Required />
           </label>
@@ -124,7 +150,7 @@ export default function OperacionFacturaFields() {
           />
         </div>
 
-        <div style={styles.col}>
+        <div css={styles.col} style={{ gridArea: "iva" }}>
           <span style={styles.label}>
             Posición de IVA <Required />
           </span>
@@ -139,10 +165,10 @@ export default function OperacionFacturaFields() {
             style={{ height: 38, fontSize: 14 }}
           />
         </div>
-      </div>
+        </div>
 
-      <div css={styles.row}>
-        <div style={{ ...styles.col, flex: "2 1 0" }}>
+        <div css={styles.row}>
+        <div css={[styles.col, styles.colWide]} style={{ gridArea: "domicilio" }}>
           <label style={styles.label} htmlFor="operacion-factura-emisor-domicilio">
             Domicilio del emisor
           </label>
@@ -157,7 +183,7 @@ export default function OperacionFacturaFields() {
           />
         </div>
 
-        <div style={styles.col}>
+        <div css={styles.col} style={{ gridArea: "vencimiento" }}>
           <label style={styles.label}>Fecha de vencimiento</label>
           <Calendar
             value={draft.fechaVencimiento}
@@ -170,6 +196,7 @@ export default function OperacionFacturaFields() {
             ariaLabel="Fecha de vencimiento de la factura"
             style={{ height: 38 }}
           />
+        </div>
         </div>
       </div>
     </section>
@@ -196,23 +223,96 @@ const styles = {
     fontSize: 14,
     color: COLOR.TEXT.PRIMARY,
   } as const,
+  titleRow: css({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+  }),
+  desktopTitle: css({
+    "@media (max-width: 720px)": {
+      display: "none",
+    },
+  }),
+  mobileTitleButton: css({
+    display: "none",
+    "@media (max-width: 720px)": {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+      width: "100%",
+      padding: 0,
+      border: 0,
+      background: "transparent",
+      color: COLOR.TEXT.PRIMARY,
+      font: "inherit",
+      textAlign: "left",
+      cursor: "pointer",
+    },
+  }),
+  mobileChevron: css({
+    flexShrink: 0,
+    color: COLOR.TEXT.SECONDARY,
+    "@media (prefers-reduced-motion: no-preference)": {
+      transition: "transform 180ms ease",
+    },
+  }),
+  mobileChevronExpanded: css({
+    transform: "rotate(180deg)",
+  }),
+  accordionContent: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    "@media (max-width: 720px)": {
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+      gridTemplateAreas: '"clase numero" "fecha vencimiento" "razon razon" "cuit cuit" "iva iva" "domicilio domicilio"',
+      gap: 12,
+      maxHeight: 0,
+      opacity: 0,
+      overflow: "hidden",
+      visibility: "hidden",
+    },
+    "@media (max-width: 720px) and (prefers-reduced-motion: no-preference)": {
+      transition: "max-height 260ms ease, opacity 180ms ease, visibility 0s linear 260ms",
+    },
+  }),
+  accordionContentExpanded: css({
+    "@media (max-width: 720px)": {
+      maxHeight: 1400,
+      opacity: 1,
+      visibility: "visible",
+    },
+    "@media (max-width: 720px) and (prefers-reduced-motion: no-preference)": {
+      transition: "max-height 260ms ease, opacity 180ms ease, visibility 0s linear 0s",
+    },
+  }),
   row: css({
     display: "flex",
     gap: 12,
     alignItems: "flex-end",
     flexWrap: "wrap",
-    "@media (max-width: 680px)": {
-      flexDirection: "column",
-      alignItems: "stretch",
+    "@media (max-width: 720px)": {
+      display: "contents",
     },
   }),
-  col: {
+  col: css({
     flex: "1 1 0",
     minWidth: 160,
-  } as const,
-  colFixed: {
+    "@media (max-width: 720px)": {
+      minWidth: 0,
+    },
+  }),
+  colWide: css({
+    flex: "2 1 0",
+  }),
+  colFixed: css({
     flex: "0 0 auto",
-  } as const,
+    "@media (max-width: 720px)": {
+      minWidth: 0,
+    },
+  }),
   label: {
     display: "block",
     fontSize: 13,
@@ -246,6 +346,9 @@ const styles = {
     padding: 4,
     borderRadius: 10,
     gap: 4,
+    "@media (max-width: 720px)": {
+      width: "100%",
+    },
   }),
   segmentedBtn: css({
     display: "inline-flex",
@@ -262,6 +365,12 @@ const styles = {
     fontWeight: 600,
     cursor: "pointer",
     transition: "all 0.15s ease-in-out",
+    "@media (max-width: 720px)": {
+      flex: 1,
+      minWidth: 0,
+      padding: "0 6px",
+      fontSize: 12,
+    },
     "&:hover:not(:disabled)": {
       color: COLOR.TEXT.PRIMARY,
     },

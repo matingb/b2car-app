@@ -116,7 +116,7 @@ type OperacionFormContextValue = {
 
   // Stock
   lineas: OperacionLineaDraft[];
-  addLinea: () => void;
+  addLinea: () => string | null;
   removeLinea: (index: number) => void;
   setLineaAt: (index: number, linea: OperacionLineaDraft) => void;
   stockOptions: AutocompleteOption[];
@@ -585,8 +585,10 @@ export function OperacionFormProvider({
   }, [contextualStock]);
 
   const addLinea = useCallback(() => {
-    if (contextualStock) return;
-    setLineas((prev) => [...prev, createEmptyLinea()]);
+    if (contextualStock) return null;
+    const linea = createEmptyLinea();
+    setLineas((prev) => [...prev, linea]);
+    return linea.id ?? null;
   }, [contextualStock]);
 
   const removeLinea = useCallback((idx: number) => {

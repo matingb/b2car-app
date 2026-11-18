@@ -2,11 +2,12 @@
 
 import React from "react";
 import { css } from "@emotion/react";
-import { Trash2 } from "lucide-react";
+import { ChevronDown, Trash2 } from "lucide-react";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import IconButton from "@/app/components/ui/IconButton";
 import { COLOR } from "@/theme/theme";
 import NumberInput from "@/app/components/ui/NumberInput";
+import { formatArs } from "@/lib/format";
 export type OperacionLineaDraft = {
   id?: string;
   stockId: string;
@@ -32,6 +33,9 @@ type Props = {
   onChange: (next: OperacionLineaDraft) => void;
   onRemove?: () => void;
   canRemove?: boolean;
+  mobileExpanded?: boolean;
+  onMobileActivate?: () => void;
+  onMobileToggle?: () => void;
 };
 
 function round2(n: number) {
@@ -51,6 +55,9 @@ export default function OperacionLineaEditor({
   onChange,
   onRemove,
   canRemove = false,
+  mobileExpanded = false,
+  onMobileActivate,
+  onMobileToggle,
 }: Props) {
   const recomputeFromUnit = (next: OperacionLineaDraft) => {
     const cantidad = Number(next.cantidad) || 0;
@@ -117,10 +124,42 @@ export default function OperacionLineaEditor({
   const isExceededPactada = cantidadEntregar > cantidad;
   const isExceededStock = isVenta && stockFisico !== undefined && cantidadEntregar > stockFisico;
   const isInvalidEntregar = isExceededPactada || isExceededStock;
+  const productLabel = stockOptions.find((option) => option.value === linea.stockId)?.label
+    ?? (linea.stockId ? "Producto seleccionado" : "Elegí un producto");
 
   return (
-    <div css={styles.lineRow} data-testid={`operaciones-line-${index}`}>
-      <div>
+    <div
+      css={[styles.lineRow, mobileExpanded && styles.lineRowExpanded]}
+      data-testid={`operaciones-line-${index}`}
+    >
+      <div css={[styles.mobileHeader, !canRemove && styles.mobileHeaderWithoutRemove]} data-mobile-header="">
+        <button
+          type="button"
+          css={styles.mobileSummaryButton}
+          onClick={onMobileToggle}
+          aria-expanded={mobileExpanded}
+          aria-label={`${mobileExpanded ? "Editando" : "Editar"} ${productLabel}`}
+          data-testid={`operaciones-line-${index}-summary`}
+        >
+          <span css={styles.mobileSummaryTop}>
+            <strong css={styles.mobileSummaryProduct}>{productLabel}</strong>
+            <span css={styles.mobileSummaryTrailing}>
+              <strong css={styles.mobileSummaryTotal}>{formatArs(linea.total)}</strong>
+              <ChevronDown
+                size={16}
+                css={[styles.mobileChevron, mobileExpanded && styles.mobileChevronExpanded]}
+                aria-hidden="true"
+              />
+            </span>
+          </span>
+          <span css={styles.mobileSummaryDetails}>
+            Cantidad: {cantidad} · {isVenta ? "Entregar" : "Recibir"}: {cantidadEntregar}
+          </span>
+          <span css={styles.mobileSummaryHint}>Unitario: {formatArs(linea.unitario)}</span>
+        </button>
+      </div>
+      <div data-mobile-field="" data-mobile-field-full="" onFocusCapture={onMobileActivate}>
+        <span css={styles.mobileFieldLabel}>Producto</span>
         <Autocomplete
           options={stockOptions}
           value={linea.stockId}
@@ -133,7 +172,8 @@ export default function OperacionLineaEditor({
         />
       </div>
 
-      <div>
+      <div data-mobile-field="" onFocusCapture={onMobileActivate}>
+        <span css={styles.mobileFieldLabel}>Cantidad</span>
         <NumberInput
           minValue={0}
           allowDecimals={false}
@@ -146,7 +186,8 @@ export default function OperacionLineaEditor({
         />
       </div>
 
-      <div>
+      <div data-mobile-field="" onFocusCapture={onMobileActivate}>
+        <span css={styles.mobileFieldLabel}>{isVenta ? "Cantidad a entregar" : "Cantidad a recibir"}</span>
         <NumberInput
           minValue={0}
           allowDecimals={false}
@@ -177,7 +218,8 @@ export default function OperacionLineaEditor({
         />
       </div>
 
-      <div>
+      <div data-mobile-field="" onFocusCapture={onMobileActivate}>
+        <span css={styles.mobileFieldLabel}>Precio unitario</span>
         <NumberInput
           minValue={0}
           allowDecimals
@@ -190,7 +232,8 @@ export default function OperacionLineaEditor({
         />
       </div>
 
-      <div>
+      <div data-mobile-field="" onFocusCapture={onMobileActivate}>
+        <span css={styles.mobileFieldLabel}>Total</span>
         <NumberInput
           minValue={0}
           allowDecimals
@@ -202,20 +245,19 @@ export default function OperacionLineaEditor({
           aria-label="Total"
         />
       </div>
-
       {canRemove ? (
-        <IconButton
-          icon={<Trash2 />}
-          size={16}
-          onClick={onRemove}
-          title="Eliminar línea"
-          data-testid={`operaciones-line-${index}-remove`}
-          style={styles.trashBtn}
-          ariaLabel="Eliminar línea"
-        />
-      ) : (
-        <div />
-      )}
+        <div css={styles.removeCell}>
+          <IconButton
+            icon={<Trash2 />}
+            size={16}
+            onClick={onRemove}
+            title="Eliminar línea"
+            data-testid={`operaciones-line-${index}-remove`}
+            style={styles.trashBtn}
+            ariaLabel="Eliminar línea"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -249,7 +291,152 @@ const styles = {
     gap: 10,
     alignItems: "center",
     [`@media (max-width: 720px)`]: {
-      gridTemplateColumns: "1fr 1fr",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "stretch",
+      gap: 0,
+      padding: "12px 0",
+      position: "relative",
+      borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+      "&:last-child": {
+        borderBottom: "none",
+      },
+      "& > [data-mobile-field]": {
+        display: "flex",
+        flexDirection: "column",
+        gap: 5,
+        maxHeight: 0,
+        opacity: 0,
+        overflow: "hidden",
+        visibility: "hidden",
+      },
+    },
+    ["@media (max-width: 720px) and (prefers-reduced-motion: no-preference)"]: {
+      "& > [data-mobile-field]": {
+        transition: "max-height 240ms ease, opacity 180ms ease, visibility 0s linear 240ms",
+      },
+    },
+  }),
+  lineRowExpanded: css({
+    ["@media (max-width: 720px)"]: {
+      display: "grid",
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+      columnGap: 12,
+      rowGap: 12,
+      "& > [data-mobile-header]": {
+        gridColumn: "1 / -1",
+      },
+      "& > [data-mobile-field-full]": {
+        gridColumn: "1 / -1",
+      },
+      "& > [data-mobile-field]": {
+        maxHeight: 90,
+        opacity: 1,
+        visibility: "visible",
+      },
+      "& > [data-mobile-field] > span:first-child": {
+        display: "block",
+        color: COLOR.TEXT.SECONDARY,
+        fontSize: 12,
+        fontWeight: 600,
+      },
+    },
+    ["@media (max-width: 720px) and (prefers-reduced-motion: no-preference)"]: {
+      "& > [data-mobile-field]": {
+        transition: "max-height 240ms ease, opacity 180ms ease, visibility 0s linear 0s",
+      },
+    },
+  }),
+  mobileHeader: css({
+    display: "none",
+    ["@media (max-width: 720px)"]: {
+      display: "flex",
+      order: -1,
+      alignItems: "center",
+      gap: 8,
+      width: "100%",
+      minHeight: 44,
+      paddingRight: 52,
+      boxSizing: "border-box",
+    },
+  }),
+  mobileHeaderWithoutRemove: css({
+    ["@media (max-width: 720px)"]: {
+      paddingRight: 0,
+    },
+  }),
+  mobileSummaryButton: css({
+    display: "none",
+    ["@media (max-width: 720px)"]: {
+      display: "flex",
+    },
+    alignItems: "flex-start",
+    flex: 1,
+    flexDirection: "column",
+    gap: 4,
+    minWidth: 0,
+    padding: 0,
+    border: 0,
+    background: "transparent",
+    color: COLOR.TEXT.PRIMARY,
+    textAlign: "left",
+    cursor: "pointer",
+  }),
+  mobileSummaryTop: css({
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+    width: "100%",
+  }),
+  mobileSummaryTrailing: css({
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    marginLeft: "auto",
+    flexShrink: 0,
+  }),
+  mobileSummaryProduct: css({
+    minWidth: 0,
+    overflowWrap: "anywhere",
+    fontSize: 14,
+    fontWeight: 600,
+  }),
+  mobileSummaryTotal: css({
+    flexShrink: 0,
+    fontSize: 14,
+    fontWeight: 700,
+  }),
+  mobileSummaryDetails: css({
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
+    lineHeight: 1.45,
+  }),
+  mobileSummaryHint: css({
+    color: COLOR.TEXT.TERTIARY,
+    fontSize: 11,
+  }),
+  mobileChevron: css({
+    flexShrink: 0,
+    color: COLOR.TEXT.SECONDARY,
+    ["@media (prefers-reduced-motion: no-preference)"]: {
+      transition: "transform 180ms ease",
+    },
+  }),
+  mobileChevronExpanded: css({
+    transform: "rotate(180deg)",
+  }),
+  mobileFieldLabel: css({
+    display: "none",
+  }),
+  removeCell: css({
+    display: "contents",
+    ["@media (max-width: 720px)"]: {
+      display: "flex",
+      justifyContent: "flex-end",
+      position: "absolute",
+      top: 12,
+      right: 0,
     },
   }),
   trashBtn: {
