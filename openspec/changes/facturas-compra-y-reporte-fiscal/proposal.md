@@ -37,4 +37,4 @@ Ninguna publicada. El bloqueo de borrado de operaciones documentadas y los cargo
 - **API/UI:** CRUD y asociación inicial/posterior, selector abierto de percepciones, label de diferencias, error de duplicado y bloqueo de eliminación de operaciones documentadas, incluidos todos sus puntos de entrada.
 - **Finanzas:** crear o editar cargos de una compra afecta su total y su saldo, respetando los pagos registrados. La gestión documental conserva esos valores. Las retenciones se registran para consulta y reporte.
 - **Exportación:** conservar el reporte de ventas y su contrato; usar sus columnas base para compras más la unión de percepciones de las facturas seleccionadas. Retenciones documentales visibles y totalizadas por separado.
-- **Detalles restantes.** Fechas, formatos, moneda, identificación específica de retenciones y presentación de su detalle en la exportación. Ver [diseño](design.md#definiciones-restantes).
+- **Exportación confirmada.** Selección por fecha del documento, CSV y XLSX, pesos argentinos sin conversión, número de retención libre y opcional y detalle y total separados de las facturas. Ver [diseño](design.md#definiciones-restantes).

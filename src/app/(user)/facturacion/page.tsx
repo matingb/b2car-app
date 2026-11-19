@@ -82,6 +82,8 @@ function DocumentacionContent() {
   // Facturas y retenciones de proveedores: carga manual, sin estado ARCA ni ambiente de emisión.
   const soloRecibidos = tipo === "RECIBIDO";
   const puedeVerRecibidos = hasPermission(Permission.ComprobantesRecibidosView);
+  const puedeVerReporteVentas = hasPermission(Permission.FacturasView);
+  const puedeVerReporteCompras = puedeVerRecibidos;
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -217,9 +219,9 @@ function DocumentacionContent() {
             <>
               <a href={exportUrl("csv")} style={styles.exportLink} title="Exporta los comprobantes fiscales con los filtros aplicados"><Download size={16} /> CSV</a>
               <a href={exportUrl("xlsx")} style={styles.exportLink} title="Exporta los comprobantes fiscales con los filtros aplicados"><FileSpreadsheet size={16} /> Excel</a>
-              {hasPermission(Permission.FacturasView) ? <Button text="Reporte fiscal" icon={<FileSpreadsheet size={16} />} onClick={() => setReporteFiscalOpen(true)} style={styles.reporteButton} hideTextOnMobile={false} outline /> : null}
             </>
           )}
+          {puedeVerReporteVentas || puedeVerReporteCompras ? <Button text="Reporte fiscal" icon={<FileSpreadsheet size={16} />} onClick={() => setReporteFiscalOpen(true)} style={styles.reporteButton} hideTextOnMobile={false} outline /> : null}
           {hasPermission(Permission.FacturasEdit) ? (
             <Button
               text="Nuevo remito"
@@ -282,7 +284,13 @@ function DocumentacionContent() {
         onClose={() => setCreateRemitoOpen(false)}
         onEmitted={(remitoId) => router.push(`${ROUTES.remitos}/${remitoId}`)}
       />
-      {reporteFiscalOpen ? <ReporteFiscalModal onClose={() => setReporteFiscalOpen(false)} /> : null}
+      {reporteFiscalOpen ? (
+        <ReporteFiscalModal
+          onClose={() => setReporteFiscalOpen(false)}
+          canViewVentas={puedeVerReporteVentas}
+          canViewCompras={puedeVerReporteCompras}
+        />
+      ) : null}
     </div>
   );
 }

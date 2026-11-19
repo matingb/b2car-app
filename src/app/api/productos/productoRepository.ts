@@ -12,6 +12,7 @@ export type ProductoRow = {
   descripcion: string | null;
   precio_unitario: number;
   costo_unitario: number;
+  iva_alicuota_id?: number | null;
   categorias: string[] | null;
   show_in_stock: boolean;
   created_at: string;

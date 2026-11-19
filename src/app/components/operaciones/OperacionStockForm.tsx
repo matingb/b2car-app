@@ -7,7 +7,10 @@ import { COLOR } from "@/theme/theme";
 import Button from "@/app/components/ui/Button";
 import ObservacionesCollapsible from "@/app/components/ui/ObservacionesCollapsible";
 import PagoCondicionSection from "@/app/components/finanzas/PagoCondicionSection";
-import OperacionLineaEditor, { OPERACION_LINE_GRID_TEMPLATE } from "./OperacionLineaEditor";
+import OperacionLineaEditor, {
+  OPERACION_LINE_GRID_TEMPLATE,
+  OPERACION_LINE_GRID_TEMPLATE_WITH_IVA,
+} from "./OperacionLineaEditor";
 import { useOperacionForm } from "./OperacionFormContext";
 import OperacionFacturaPercepciones from "./OperacionFacturaPercepciones";
 
@@ -81,6 +84,11 @@ export default function OperacionStockForm() {
 
   const isEnabled = Boolean(tipo && isTipoEnabled(tipo));
   const isAllowedTipo = tipo === "VENTA" || tipo === "COMPRA";
+  const showIvaAlicuota = tipo === "COMPRA"
+    && puedeCargarComprobante
+    && factura.activa
+    && (factura.draft.clase === "A" || factura.draft.clase === "B");
+  const lineGridTemplate = showIvaAlicuota ? OPERACION_LINE_GRID_TEMPLATE_WITH_IVA : OPERACION_LINE_GRID_TEMPLATE;
   const selectedProveedor = proveedores.find((p) => p.id === proveedorId);
   const selectedCliente = clientes.find((c) => c.id === clienteId);
   const contraparteNombre = tipo === "VENTA" ? selectedCliente?.nombre : selectedProveedor?.nombre;
@@ -129,13 +137,14 @@ export default function OperacionStockForm() {
           </div>
         )}
         <div css={styles.tableCard}>
-          <div css={styles.columnsHeader} aria-hidden="true">
+          <div css={styles.columnsHeader} style={{ gridTemplateColumns: lineGridTemplate }} aria-hidden="true">
             <div>PRODUCTO</div>
             <div style={{ textAlign: "center" }}>CANT.</div>
             <div style={{ textAlign: "center" }}>
               {tipo === "VENTA" ? "ENTREGAR" : "RECIBIR"}
             </div>
             <div style={{ textAlign: "right" }}>UNITARIO</div>
+            {showIvaAlicuota ? <div style={{ textAlign: "center" }}>ALÍCUOTA IVA</div> : null}
             <div style={{ textAlign: "right" }}>TOTAL</div>
             <div />
           </div>
@@ -165,8 +174,10 @@ export default function OperacionStockForm() {
                   loadingStocks={isInventarioLoading || isProveedorProductosLoading}
                   stockOptions={stockOptions}
                   getDefaultUnitarioForStockId={getDefaultUnitarioForStockId}
+                  getDefaultIvaAlicuotaIdForStockId={(stockId) => stockById.get(stockId)?.ivaAlicuotaId ?? null}
                   getStockActualForStockId={getStockActualForStockId}
                   isVenta={tipo === "VENTA"}
+                  showIvaAlicuota={showIvaAlicuota}
                   onChange={(next) => setLineaAt(idx, next)}
                   onRemove={() => {
                     if (isMobileViewport && lineas.length === 2 && activeLineaId === lineKey) {

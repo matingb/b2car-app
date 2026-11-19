@@ -1,10 +1,12 @@
 import { parseCalendarDate } from "@/lib/fechas";
 import { isValidUuid } from "@/lib/uuid";
+import { ALICUOTAS_IVA_ARCA } from "@/lib/facturacion/types";
 import {
   FACTURA_RECIBIDA_CLASES,
   MAX_LINEAS_COMPROBANTE,
   isCondicionIvaProveedor,
   normalizarCuit,
+  toCents,
   type ComprobanteRecibidoInput,
   type ComprobanteRecibidoLinea,
   type FacturaRecibidaClase,
@@ -41,7 +43,7 @@ function importe(value: unknown): number | null {
   return parsed;
 }
 
-function parseLineas(raw: unknown, tipoDocumento: ComprobanteRecibidoInput["tipoDocumento"]): { value?: ComprobanteRecibidoLinea[]; error?: string } {
+function parseLineas(raw: unknown, tipoDocumento: ComprobanteRecibidoInput["tipoDocumento"], clase: FacturaRecibidaClase | null): { value?: ComprobanteRecibidoLinea[]; error?: string } {
   if (!Array.isArray(raw) || raw.length === 0) return { error: "Cargá al menos una línea con descripción e importe" };
   if (raw.length > MAX_LINEAS_COMPROBANTE) return { error: `El documento admite hasta ${MAX_LINEAS_COMPROBANTE} líneas` };
   const lineas: ComprobanteRecibidoLinea[] = [];
@@ -65,7 +67,14 @@ function parseLineas(raw: unknown, tipoDocumento: ComprobanteRecibidoInput["tipo
       if (!CODIGOS_PERCEPCION.includes(codigo as PercepcionCodigo)) return { error: `Línea ${n}: la percepción no es válida` };
       percepcionCodigo = codigo as PercepcionCodigo;
     }
-    lineas.push({ tipo, descripcion: descripcion.value, percepcionCodigo, importe: monto });
+    const ivaAlicuotaId = source.ivaAlicuotaId ?? null;
+    if (ivaAlicuotaId !== null && (tipoDocumento !== "FACTURA" || (clase !== "A" && clase !== "B") || tipo !== "CONCEPTO" || !ALICUOTAS_IVA_ARCA.some((rate) => rate.id === ivaAlicuotaId))) {
+      return { error: `Línea ${n}: la alícuota no es válida` };
+    }
+    if (tipoDocumento === "FACTURA" && clase === "B" && tipo === "CONCEPTO" && ivaAlicuotaId === null) {
+      return { error: `Línea ${n}: elegí la alícuota de IVA para una factura B` };
+    }
+    lineas.push({ tipo, descripcion: descripcion.value, percepcionCodigo, importe: monto, ivaAlicuotaId: ivaAlicuotaId as number | null });
   }
   return { value: lineas };
 }
@@ -145,8 +154,33 @@ export function parseComprobanteRecibidoInput(raw: unknown): ComprobanteInputRes
     if (!fields.emisorCuit.value) return { error: "El CUIT del emisor es obligatorio" };
   }
 
-  const lineas = parseLineas(body.lineas, tipoDocumento);
+  const lineas = parseLineas(body.lineas, tipoDocumento, clase);
   if (lineas.error || !lineas.value) return { error: lineas.error ?? "Las líneas no son válidas" };
+
+  let desgloseIva: ComprobanteRecibidoInput["desgloseIva"] = null;
+  if (body.desgloseIva != null) {
+    if (tipoDocumento !== "FACTURA" || (clase !== "A" && clase !== "B") || !Array.isArray(body.desgloseIva)) return { error: "El desglose de IVA solo corresponde a facturas A o B" };
+    const seen = new Set<number>();
+    desgloseIva = [];
+    for (const item of body.desgloseIva) {
+      const row = record(item);
+      const id = row?.ivaAlicuotaId;
+      const base = row?.base;
+      const iva = row?.iva;
+      if (typeof id !== "number" || !ALICUOTAS_IVA_ARCA.some((rate) => rate.id === id) || seen.has(id)
+        || typeof base !== "number" || !Number.isFinite(base) || base < 0 || base > MAX_IMPORTE || Math.round(base * 100) / 100 !== base
+        || typeof iva !== "number" || !Number.isFinite(iva) || iva < 0 || iva > MAX_IMPORTE || Math.round(iva * 100) / 100 !== iva) {
+        return { error: "Completá la base y el IVA de cada alícuota o quitá la fila; revisá que los importes sean válidos" };
+      }
+      seen.add(id);
+      desgloseIva.push({ ivaAlicuotaId: id, base, iva });
+    }
+    if (desgloseIva.length === 0) desgloseIva = null;
+    if (desgloseIva && desgloseIva.reduce((sum, item) => sum + BigInt(toCents(item.base)) + BigInt(toCents(item.iva)), BigInt(0))
+      > lineas.value.filter((linea) => linea.tipo === "CONCEPTO").reduce((sum, linea) => sum + BigInt(toCents(linea.importe)), BigInt(0))) {
+      return { error: "La base y el IVA del desglose no pueden superar el total de conceptos" };
+    }
+  }
 
   return {
     value: {
@@ -171,6 +205,7 @@ export function parseComprobanteRecibidoInput(raw: unknown): ComprobanteInputRes
       fechaVencimiento: fechaVencimientoRaw || null,
       observaciones: fields.observaciones.value,
       lineas: lineas.value,
+      desgloseIva,
     },
   };
 }

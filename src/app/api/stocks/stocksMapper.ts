@@ -34,6 +34,7 @@ export function mapProducto(row: ProductoJoinRow | null): ProductoDTO | null {
     descripcion: row.descripcion ?? null,
     precio_unitario: Number(row.precio_unitario) || 0,
     costo_unitario: Number(row.costo_unitario) || 0,
+    iva_alicuota_id: row.iva_alicuota_id ?? null,
     categorias: Array.isArray(row.categorias) ? row.categorias : [],
     show_in_stock: row.show_in_stock,
     created_at: row.created_at,

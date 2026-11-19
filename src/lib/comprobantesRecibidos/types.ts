@@ -2,8 +2,9 @@
  * Comprobantes recibidos: facturas A/B/C y retenciones documentales de compras y gastos.
  *
  * Son registros informativos asociados a exactamente una operación COMPRA/GASTO. Crear, editar o
- * eliminar uno no modifica pagos, saldos, estado de pago, cuentas ni stock. Los importes de las
- * líneas son manuales: este módulo solo suma importes registrados, nunca calcula alícuotas.
+ * eliminar uno no modifica pagos, saldos, estado de pago, cuentas ni stock. En facturas A los precios
+ * de conceptos son netos y se suma IVA por alícuota; en facturas B el precio incluye IVA y la tasa por
+ * concepto permite extraerlo para el reporte. En C se conserva el importe final sin discriminar IVA.
  */
 
 export type ComprobanteRecibidoTipo = "FACTURA" | "RETENCION";
@@ -50,7 +51,10 @@ export type ComprobanteRecibidoLinea = {
   /** Solo en percepciones: código sugerido u OTRA para percepciones libres. */
   percepcionCodigo: PercepcionCodigo | null;
   importe: number;
+  ivaAlicuotaId?: number | null;
 };
+
+export type DesgloseIvaRecibido = { ivaAlicuotaId: number; base: number; iva: number };
 
 export type ComprobanteRecibidoIdentidad = {
   razonSocial: string | null;
@@ -79,6 +83,7 @@ export type ComprobanteRecibido = {
   fechaVencimiento: string | null;
   observaciones: string | null;
   lineas: ComprobanteRecibidoLinea[];
+  desgloseIva?: DesgloseIvaRecibido[] | null;
   totalConceptos: number;
   totalPercepciones: number;
   total: number;
@@ -115,6 +120,7 @@ export type ComprobanteRecibidoInput = {
   fechaVencimiento: string | null;
   observaciones: string | null;
   lineas: ComprobanteRecibidoLinea[];
+  desgloseIva?: DesgloseIvaRecibido[] | null;
 };
 
 /** Comparación informativa con el monto operativo. Nunca bloquea ni ajusta importes. */

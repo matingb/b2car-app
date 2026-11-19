@@ -111,6 +111,7 @@ export function InventarioProvider({ children }: { children: React.ReactNode }) 
       stockMaximo: Number(dto.stock_maximo) || 0,
       costoUnitario: Number(p.costo_unitario) || 0,
       precioUnitario: Number(p.precio_unitario) || 0,
+      ivaAlicuotaId: p.iva_alicuota_id ?? null,
       showInStock: dto.producto?.show_in_stock ?? true,
       ultimaActualizacion: isoToShortEsDate(dto.updated_at),
       historialMovimientos: [],

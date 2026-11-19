@@ -378,6 +378,7 @@ export function OperacionFormProvider({
         codigo: s.codigo,
         precio_unitario: Number(s.precioUnitario) || 0,
         costo_unitario: Number(s.costoUnitario) || 0,
+        ivaAlicuotaId: s.ivaAlicuotaId ?? null,
         stockActual: Number(s.stockActual) || 0,
         stockDisponible: s.stockDisponible,
         stockReservado: s.stockReservado,
@@ -759,20 +760,22 @@ export function OperacionFormProvider({
       if (importe <= 0) return [];
       const categoria = CATEGORIAS_GASTO.find((c) => c.value === categoriaGasto)?.label ?? "Gasto";
       const descripcion = descripcionGasto.trim() || categoria;
-      return [{ descripcion: descripcion.slice(0, MAX_DESCRIPCION_CONCEPTO), importe }];
+      return [{ key: "gasto", descripcion: descripcion.slice(0, MAX_DESCRIPCION_CONCEPTO), importe, ivaAlicuotaId: factura.draft.ivaAlicuotaGasto ?? 5 }];
     }
     return lineas
-      .map((l) => {
+      .map((l, index) => {
         const cantidad = Number(l.cantidad) || 0;
         const nombre = stockById.get(l.stockId)?.nombre?.trim() ?? "";
         const descripcion = cantidad !== 1 ? `${nombre} (x${cantidad})` : nombre;
         return {
+          key: `${l.id ?? index}-${l.stockId}`,
+          ivaAlicuotaId: l.ivaAlicuotaId ?? stockById.get(l.stockId)?.ivaAlicuotaId ?? null,
           descripcion: nombre ? descripcion.slice(0, MAX_DESCRIPCION_CONCEPTO) : "",
           importe: round2(cantidad * (Number(l.unitario) || 0)),
         };
       })
       .filter((c) => c.descripcion && c.importe > 0);
-  }, [tipo, montoGasto, categoriaGasto, descripcionGasto, lineas, stockById]);
+  }, [tipo, montoGasto, categoriaGasto, descripcionGasto, lineas, stockById, factura.draft.ivaAlicuotaGasto]);
 
   /**
    * Guarda la factura de la operación recién creada. El receptor (datos fiscales del tenant) se
@@ -813,6 +816,7 @@ export function OperacionFormProvider({
         fechaOperacion: fecha,
         conceptos: conceptosFactura,
         proveedorId: tipo === "COMPRA" && proveedorId ? proveedorId : null,
+        tipoOperacion: tipo,
       });
       if (parsed.error || !parsed.value) {
         const msg = parsed.error ?? "Revisá los datos de la factura";
@@ -909,6 +913,7 @@ export function OperacionFormProvider({
             cantidad_cumplida: cantidadCumplida,
             monto_unitario: unitario,
             delta_cantidad: delta,
+            iva_alicuota_id: l.ivaAlicuotaId ?? stockById.get(l.stockId)?.ivaAlicuotaId ?? 5,
           };
         }),
       };

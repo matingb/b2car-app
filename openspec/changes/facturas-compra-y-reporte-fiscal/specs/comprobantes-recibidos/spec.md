@@ -81,7 +81,7 @@ El sistema SHALL permitir líneas de tipo CONCEPTO o PERCEPCION con descripción
 - **AND** no se reemplaza un monto por el resultado de aplicar un porcentaje
 
 ### Requirement: Alícuota por concepto de factura A
-Cada factura A SHALL admitir una alícuota por concepto gravado en `comprobantes_recibidos_lineas.iva_alicuota_id`, con los códigos de ARCA de `operaciones_lineas`. El formulario SHALL sugerir 21% para conceptos nuevos sin precarga, permitir seleccionar una tasa en conjunto y editar cada línea. Al crear la compra con factura SHALL precargar la tasa operativa disponible como valor editable.
+Cada factura A SHALL admitir una alícuota por concepto gravado en `comprobantes_recibidos_lineas.iva_alicuota_id`, con los códigos de ARCA de `operaciones_lineas`. En el alta de compra, al adjuntar y al editar, el formulario SHALL permitir aplicar una tasa a todos los conceptos y corregirla por línea. Para conceptos nuevos sin precarga SHALL sugerir 21%. En «Cargar con factura» SHALL precargar las tasas operativas disponibles como valores editables.
 
 #### Scenario: Factura A nueva sin precarga
 - **WHEN** se agregan conceptos a una factura A sin alícuotas precargadas
@@ -89,9 +89,11 @@ Cada factura A SHALL admitir una alícuota por concepto gravado en `comprobantes
 - **AND** permite aplicar una tasa al conjunto y corregir cada concepto
 
 #### Scenario: Factura durante el alta de la compra
-- **GIVEN** una línea de la compra tiene alícuota 10,5%
-- **WHEN** se registra la factura A durante el alta
-- **THEN** el formulario precarga 10,5% para el concepto asociado y permite corregirlo antes de guardar
+- **GIVEN** una línea de la compra tiene alícuota 10,5% y otra carece de tasa disponible
+- **WHEN** el usuario activa «Cargar con factura» y elige factura A durante el alta
+- **THEN** el formulario precarga 10,5% en el primer concepto y sugiere 21% en el segundo
+- **AND** permite aplicar una tasa al conjunto, corregir una línea y confirmar el desglose antes de guardar
+- **AND** la factura guardada conserva las tasas y los importes confirmados al volver a consultarla
 
 #### Scenario: Otra factura en una compra con documentos
 - **GIVEN** una compra con tasa operativa 21% y una primera factura A al 21%
@@ -107,15 +109,42 @@ Para facturas A, el sistema SHALL guardar la base gravada y el IVA discriminado 
 - **WHEN** el usuario confirma el desglose con el importe del comprobante
 - **THEN** la factura conserva 2099,99 y el total registrado incluye ese IVA una sola vez
 
+#### Scenario: Facturas B y C por su importe final
+- **WHEN** se carga una factura B o C con su importe final
+- **THEN** se conserva el importe informado y no se extrae IVA del precio
+- **AND** una percepción de IVA se registra por separado por su importe informado
+
+### Requirement: Importes ausentes y ceros informados en el desglose de IVA
+El formulario SHALL mantener vacíos los importes aún sin informar. Cada alícuota del desglose confirmado MUST tener base e IVA informados, incluido el cero explícito. Una factura A sin filas de desglose, incluso después de quitar la última, SHALL guardar ese dato como ausente.
+
 #### Scenario: Factura histórica sin desglose
 - **GIVEN** una factura anterior sin alícuotas ni importes fiscales confirmados
 - **WHEN** se consulta o se corrige su descripción
 - **THEN** los datos fiscales ausentes permanecen vacíos hasta su confirmación explícita
 
-#### Scenario: Facturas B y C por su importe final
-- **WHEN** se carga una factura B o C con su importe final
-- **THEN** se conserva el importe informado y no se extrae IVA del precio
-- **AND** una percepción de IVA se registra por separado por su importe informado
+#### Scenario: Fila de desglose incompleta o quitada
+- **GIVEN** el usuario agrega una alícuota o borra la base o el IVA de una fila existente
+- **WHEN** intenta guardar la factura con esa fila incompleta
+- **THEN** el formulario pide completar los campos faltantes o quitar la fila
+- **AND** si quita la última fila y guarda, la factura se vuelve a consultar con el desglose ausente
+
+#### Scenario: Cero informado en el IVA
+- **WHEN** el usuario informa la base y carga explícitamente 0 como IVA para una alícuota de 0%
+- **THEN** al volver a consultar la factura se conserva el cero informado
+
+### Requirement: Conciliación del desglose confirmado con el total de conceptos
+Al crear o editar una factura A, el sistema MUST rechazar un desglose cuya suma de bases e IVA confirmados exceda el total de conceptos de la factura, con las percepciones contabilizadas por separado. La comparación SHALL hacerse en centavos. Se admite un desglose parcial por debajo de ese total y se conserva el total documentado de la factura.
+
+#### Scenario: Desglose superior al importe de la factura
+- **GIVEN** una factura A con conceptos por 12100,00 y sin percepciones
+- **WHEN** se intenta guardar un desglose de 10000,00 de base y 2100,00 de IVA al 21%, más 20000,00 de base y 2100,00 de IVA al 10,5%
+- **THEN** el sistema rechaza el guardado e informa que los 34200,00 de base e IVA confirmados superan el importe de los conceptos
+
+#### Scenario: Desglose parcial con una percepción
+- **GIVEN** una factura A con conceptos por 15000,00 y una percepción de IVA de 300,00
+- **WHEN** el usuario confirma una base de 10000,00 y un IVA de 2099,99 para una parte de los conceptos
+- **THEN** se guarda el desglose parcial con los valores ingresados
+- **AND** el total facturado queda en 15300,00 con la percepción registrada por separado
 
 ### Requirement: Selector abierto de percepciones
 El ingreso de PERCEPCION SHALL ofrecer selección rápida de Ganancias, IVA, IIBB Buenos Aires e IIBB CABA y permitir escribir otras percepciones. MUST conservar el importe manual y la identidad seleccionada o ingresada sin imponer un catálogo cerrado.

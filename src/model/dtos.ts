@@ -73,6 +73,7 @@ export type ProductoDTO = {
     descripcion: string | null;
     precio_unitario: number;
     costo_unitario: number;
+    iva_alicuota_id?: number | null;
     categorias: string[];
     show_in_stock: boolean;
     talleresConStock?: number;
@@ -235,6 +236,7 @@ export type OperacionLineaDTO = {
     cantidad_cumplida?: number;
     monto_unitario: number;
     delta_cantidad: number;
+    iva_alicuota_id?: number | null;
     created_at: string;
     nombre?: string;
     codigo?: string;

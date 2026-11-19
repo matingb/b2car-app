@@ -80,13 +80,22 @@ Compras/gastos sin proveedor comercial permiten identificar al emisor en el form
 
 Cada línea guarda tipo CONCEPTO o PERCEPCION, descripción/etiqueta e importe informado. Agregar `iva_alicuota_id` nullable a `comprobantes_recibidos_lineas`, con los mismos códigos que usa la operación. El campo se aplica a conceptos gravados de facturas A. Una factura puede mezclar alícuotas y cada factura de una operación conserva su propio detalle.
 
-En una factura A nueva, sugerir 21% y permitir aplicar una tasa a todos los conceptos y editarla por línea. Al crear la compra con factura, precargar las alícuotas disponibles de sus líneas y sugerir 21% donde falten. Al adjuntar otra factura o editar una existente, la tasa confirmada para ese documento prevalece sobre cualquier precarga. Conservar sin valor las alícuotas ausentes de documentos históricos hasta que se confirmen en una edición.
+En una factura A nueva, sugerir 21%. Tanto en el alta con «Cargar con factura» como al adjuntar o editar, permitir aplicar una tasa a todos los conceptos y editarla por línea. Al crear la compra con factura, precargar las alícuotas disponibles de sus líneas, sugerir 21% donde falten y enviar las tasas y el desglose confirmados en el guardado documental. Al adjuntar otra factura o editar una existente, la tasa confirmada para ese documento prevalece sobre cualquier precarga. Conservar sin valor las alícuotas ausentes de documentos históricos hasta que se confirmen en una edición.
 
 Guardar, por factura A y alícuota, la base neta gravada y el IVA discriminado confirmados contra el comprobante. El resumen es editable y permite sugerir IVA a partir de una base identificada como neta y de la tasa elegida. La confirmación conserva los importes del proveedor, incluidos sus redondeos. El desglose fiscal describe importes ya comprendidos en el monto facturado y no suma el IVA una segunda vez al total del documento.
 
 Las facturas B y C conservan sus importes finales sin extraer IVA. Si una B muestra IVA contenido, su eventual registro es informativo y queda fuera de las columnas de IVA discriminado de compras. Las percepciones, incluida la percepción de IVA, siguen registrándose por separado a importe manual. El selector ofrece Ganancias, IVA, IIBB Buenos Aires, IIBB CABA y nombres libres. Las retenciones conservan su carga manual.
 
-Persistir importes con precisión decimal y sumar en centavos. Mantener el desglose desconocido como dato ausente, incluso cuando la operación asociada tenga una tasa por defecto. Los cambios en los conceptos y el desglose documental no modifican líneas de operación, stock, pagos ni saldo.
+Mantener los importes sin cargar como campos vacíos durante la edición. Requerir base e IVA para guardar cada fila confirmada y admitir un cero ingresado explícitamente. Sin filas confirmadas, incluido el caso de quitar la última, guardar el desglose como `null`. Una tasa operativa precargada deja los importes del desglose pendientes de confirmación.
+
+Persistir importes con precisión decimal y sumar en centavos. Validar al guardar que la suma de bases e IVA confirmados sea menor o igual al total de conceptos de la factura. Un desglose parcial puede quedar por debajo de ese total. El total facturado sigue siendo la suma de conceptos y percepciones manuales. Los cambios en los conceptos y el desglose documental no modifican líneas de operación, stock, pagos ni saldo.
+
+#### Ejemplos de conciliación para implementación
+
+- Factura A: base confirmada 10000,00 e IVA 2100,00 al 21%; base 20000,00 e IVA 2100,00 al 10,5%; percepción de IVA manual 500,00. El total facturado es 34700,00. El reporte muestra base e IVA al 21% de 10000,00 y 2100,00, base gravada total 30000,00, IVA total 4200,00 y percepción de IVA 500,00 en su columna separada. El desglose ya está incluido en el total y no se suma otra vez.
+- Documento histórico por 12100,00 sin desglose confirmado: conservar su total y dejar base e IVA desconocidos, aun si la operación tiene 21% por defecto. Las sumas fiscales que lo incluyan se identifican como parciales; desconocido no equivale a cero.
+- Factura A con base 10000,00, IVA confirmado 2100,00 y percepción de IVA 300,00: el IVA discriminado es 2100,00, la percepción es 300,00 y el total es 12400,00. No sumar la percepción al IVA discriminado ni recalcular el importe manual.
+- Factura A con conceptos por 12100,00 y desglose por 34200,00 entre bases e IVA: rechazar el guardado e informar la diferencia dentro del documento.
 
 ### D4. Retenciones exclusivamente documentales
 
@@ -96,11 +105,11 @@ Crear, editar o eliminar una retención no altera pagos efectivos, saldo pendien
 
 Ejemplo de invariancia: compra 121000, pago efectivo 115000 y saldo previo 6000. Cargar una retención documental de 6000 conserva el saldo 6000; editarla a 5000 o eliminarla tampoco modifica ese saldo. En el reporte se ve el importe documental vigente de la retención.
 
-Se retiran las tareas de cancelación, parcialidades, sobrecancelaciones y anulación de pagos ligados a retenciones. La identificación y presentación fiscal del documento se concretan en P-REP sin volver a introducir un efecto financiero.
+Se retiran las tareas de cancelación, parcialidades, sobrecancelaciones y anulación de pagos ligados a retenciones. Su identificación y presentación siguen P-REP sin introducir un efecto financiero.
 
 ### D5. Diferencias de importes y validaciones
 
-Permitir guardar y editar documentos aunque el total difiera del monto operativo. Mostrar un label informativo con la diferencia, sin convertirla en error ni ajustar automáticamente los importes.
+Permitir guardar y editar documentos aunque el total difiera del monto operativo. Mostrar un label informativo con la diferencia, sin convertirla en error ni ajustar automáticamente los importes. La validación del desglose de D3 usa los conceptos de la propia factura.
 
 Una operación puede tener varias facturas; comparar e informar también la suma de sus facturas vigentes frente al monto de operación, distinguiendo factura individual de conjunto. No sumar documentos RETENCION al total de facturas para producir esa comparación.
 
@@ -110,7 +119,7 @@ Rechazar campos requeridos faltantes y duplicados. Sin borradores significa guar
 
 Para facturas, la identidad de deduplicación es tenant + CUIT emisor + número de factura, incluso si se intenta cargar en otra operación. No añadir clase o proveedor_id a la clave para permitir el mismo CUIT/número repetido. Validar alta y edición y respaldar la regla con una restricción de unicidad que cubra concurrencia.
 
-Normalizar presentación de CUIT y número sin perder su representación visible. El número es el identificador completo de factura informado; concretar normalización sin confundir numeraciones de puntos de venta diferentes. La identificación específica de RETENCION no se inventa reutilizando obligatoriamente un número de factura; queda en P-REP.
+Normalizar presentación de CUIT y número sin perder su representación visible. El número es el identificador completo de factura informado; concretar normalización sin confundir numeraciones de puntos de venta diferentes. La retención admite un número propio libre y opcional.
 
 Bloquear eliminación de cualquier operación que conserve documentos vigentes, tanto FACTURA como RETENCION. Aplicarlo en el circuito central y todos sus endpoints, no solo deshabilitando un botón. Garantizar consistencia entre altas de documentos y borrado concurrente mediante FK restrictiva y transacción/bloqueos según el esquema elegido.
 
@@ -124,11 +133,11 @@ Construir el universo de percepciones sobre todas las facturas incluidas, despu�
 
 Las opciones sugeridas deben conservar una identidad estable. Para opciones libres, elegir una normalización técnica predecible de espacios/capitalización; no fusionar categorías o jurisdicciones diferentes por semejanza. No restringir las columnas a las sugerencias ni usar percepciones de facturas fuera de la selección.
 
-Una fila por factura, aunque existan varias en una operación. Los documentos de retención tienen detalle y suma documental identificables, separados del total facturado, sin inferirlos de pagos. Su disposición exacta en el archivo queda en P-REP; incluirlos y totalizarlos ya está confirmado.
+Una fila por factura, aunque existan varias en una operación. Los documentos de retención tienen detalle y suma documental identificables, separados del detalle y total facturado, sin inferirlos de pagos.
 
-Obtener las bases y el IVA de compras del desglose confirmado en cada factura A. Las columnas de base e IVA 21% toman solo esa tasa. El neto gravado, la base imponible total y el IVA total incluyen las tasas confirmadas que correspondan, con sumas parciales identificadas cuando falten datos. Mantener las 24 columnas base y su orden. Los datos fiscales sin fuente estructurada se exportan vacíos. CSV/XLSX se mantienen como propuesta y deben compartir conjunto y columnas cuando se habiliten ambos. Período vacío conserva columnas base, sin percepciones inventadas.
+Obtener las bases y el IVA de compras del desglose confirmado en cada factura A. Las columnas de base e IVA 21% toman solo esa tasa. El neto gravado, la base imponible total y el IVA total incluyen las tasas confirmadas que correspondan, con sumas parciales identificadas cuando falten datos. Mantener las 24 columnas base y su orden. Los datos fiscales sin fuente estructurada se exportan vacíos. CSV y XLSX comparten conjunto y columnas. Período vacío conserva columnas base, sin percepciones inventadas.
 
-El criterio temporal y moneda siguen en P-REP; fecha de documento y pesos son propuestas, no acuerdos nuevos. Exportación con lectura consistente o detección de cambios, paginación completa y fallo sin archivo parcial. El reporte de ventas conserva sus 24 columnas y no recibe esta ampliación dinámica.
+El período selecciona la fecha del documento tanto para facturas como para retenciones. La moneda es peso argentino, sin conversión. Se habilitan CSV y XLSX. Las retenciones usan número propio libre y opcional, y se presentan con detalle y total separados de las facturas. Exportación con lectura consistente o detección de cambios, paginación completa y fallo sin archivo parcial. El reporte de ventas conserva sus 24 columnas y no recibe esta ampliación dinámica.
 
 ### D8. Permisos, guardado e integración
 
@@ -137,6 +146,10 @@ Permisos propios de consulta/gestión, con acceso inicial equivalente a facturac
 Derivar tenant de sesión; validar pertenencia de operación y documento. RLS, grants mínimos e índices en futuras migraciones, sin editar manualmente el esquema declarativo. No incorporar Storage.
 
 Revisar alta y detalle de compras, compras automáticas desde arreglos y ambos puntos de entrada de gastos. El documento requiere una operación ya persistida; la secuencia de creación conjunta puede ser transaccional o preservar la operación y permitir reintentar el documento, sin repetir pagos ni stock y sin éxito aparente.
+
+La implementación existente normaliza el CUIT a dígitos y el número en segmentos alfanuméricos en mayúsculas, quitando ceros iniciales a cada segmento numérico. Así, `30-71234567-8 / 0001-00001234` y `30712345678 / 1-1234` comparten clave; `12-1234` y `1-21234` no. Las percepciones sugeridas usan códigos estables y las libres agrupan por texto con espacios colapsados y mayúsculas: « Tasa   Municipal » y «tasa municipal» comparten columna, pero no se fusionan jurisdicciones distintas.
+
+Los permisos `comprobantes_recibidos:view` y `comprobantes_recibidos:edit` copian inicialmente las asignaciones de facturación de ventas para roles y planes. Operación y documento se guardan por separado: si falla el documento se conserva la operación y se reintenta con la misma clave; si se perdió la respuesta de un alta exitosa, la clave devuelve el mismo documento. La edición reemplaza cabecera y líneas en una transacción. El historial interno conserva fechas y usuarios de creación y actualización del documento vigente; la eliminación es física y no promete auditoría histórica.
 
 ### D9. Cargos de operación y percepciones documentales
 
@@ -150,11 +163,9 @@ Adjuntar, editar o eliminar una factura en su circuito documental conserva los c
 
 ## Definiciones restantes
 
-La fuente de las bases gravadas y del IVA (P-MAP) queda definida en D3 y D7. La selección de período, moneda y formatos sigue pendiente.
+La fuente de bases e IVA está definida en D3 y D7. P-REP fue confirmado: fecha del documento para ambos tipos, CSV y XLSX, pesos argentinos sin conversión, número de retención libre y opcional, y detalle y total de retenciones separados de las facturas.
 
-| ID | Decisión todavía abierta |
-| --- | --- |
-| **P-REP** | Fecha de selección por documento, formatos definitivos, moneda/cotización, identificación específica de RETENCION y disposición de su detalle/resumen en el archivo. El reporte debe incluir y sumar retenciones. |
+Muestra de contrato: las primeras 24 columnas son las de `FISCAL_COLUMNS` de ventas, en su orden vigente. Para una factura de 34900,00 con percepción IVA de 500,00 y percepción libre «Municipal» de 200,00 (ambas incluidas en ese total), se agregan ambas columnas dinámicas con sus importes. Las retenciones de 6000,00 y 4000,00 figuran en su sección separada con total 10000,00; no alteran el total facturado. CSV y XLSX representan la misma selección y valores.
 
 La implementación puede resolver normalización de etiquetas, identificadores de permisos, transacciones e historial interno dentro de las reglas anteriores. Esos detalles no requieren reabrir acuerdos de producto.
 
@@ -169,7 +180,7 @@ La implementación puede resolver normalización de etiquetas, identificadores d
 
 ## Migration Plan
 
-1. Cerrar los detalles de P-REP que condicionan cada bloque y actualizar su contrato.
+1. Aplicar los detalles confirmados de P-REP al contrato y a la implementación.
 2. Crear las migraciones aditivas de proveedor, cabecera y líneas, incluida la alícuota nullable por concepto y el desglose confirmado de factura. Preservar FK obligatoria/restrictiva, unicidad, permisos y RLS/grants. Mantener los comprobantes sin desglose con los campos fiscales ausentes.
 3. Validar integridad y acceso en una DB local desechable autorizada con datos sintéticos, incluidos duplicados y borrado concurrente.
 4. Implementar API/UI y puntos de entrada de compras/gastos, con reintentos sin duplicar operaciones o sus efectos.
@@ -178,4 +189,4 @@ La implementación puede resolver normalización de etiquetas, identificadores d
 
 ## Open Questions
 
-Detalles diferibles: orden visual de campos, textos de labels y orden determinista de columnas dinámicas. Las decisiones que requieren respuesta de negocio están en Definiciones restantes.
+Detalles diferibles: orden visual de campos, textos de labels y orden determinista de columnas dinámicas.

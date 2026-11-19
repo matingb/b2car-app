@@ -126,6 +126,7 @@ describe("stocksMapper", () => {
         descripcion: null,
         precio_unitario: 1500,
         costo_unitario: 1000,
+        iva_alicuota_id: 4,
         categorias: [],
         show_in_stock: true,
         created_at: "2026-01-01T00:00:00Z",
@@ -138,5 +139,6 @@ describe("stocksMapper", () => {
     expect(itemDto.cantidad).toBe(5);
     expect(itemDto.cantidad_disponible).toBe(4);
     expect(itemDto.producto?.nombre).toBe("Aceite 10W40");
+    expect(itemDto.producto?.iva_alicuota_id).toBe(4);
   });
 });

@@ -58,6 +58,7 @@ export type CreateOperacionLineaInput = {
 	cantidad_cumplida?: number;
 	monto_unitario?: number;
 	delta_cantidad?: number;
+	iva_alicuota_id?: number | null;
 };
 
 export type CreateOperacionPagoInput = {
@@ -217,6 +218,7 @@ export function createOperacionesService(
 						cantidad_cumplida: l.cantidad_cumplida !== undefined ? l.cantidad_cumplida : undefined,
 						monto_unitario: l.monto_unitario ?? 0,
 						delta_cantidad: l.delta_cantidad ?? 0,
+						iva_alicuota_id: l.iva_alicuota_id ?? 5,
 				  }))
 				: [];
 

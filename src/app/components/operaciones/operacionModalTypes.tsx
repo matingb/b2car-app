@@ -16,6 +16,7 @@ export type ProductoLite = {
   codigo: string;
   precio_unitario: number;
   costo_unitario: number;
+  ivaAlicuotaId?: number | null;
 };
 
 export type OperacionModalProps = {

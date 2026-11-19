@@ -8,6 +8,7 @@ import { ServiceError } from "@/app/api/serviceError";
 import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
 import { normalizePage } from "@/lib/pagination";
+import { ALICUOTAS_IVA_ARCA } from "@/lib/facturacion/types";
 import {
 	operacionesService,
 	validateOperacionesDateFilters,
@@ -35,6 +36,8 @@ export type CreateOperacionResponse = {
 	error?: string | null;
 };
 
+const IVA_ALICUOTA_IDS = new Set<number>(ALICUOTAS_IVA_ARCA.map((rate) => rate.id));
+
 type OperacionRow = OperacionDTO & { operaciones_lineas?: unknown[] | null };
 
 function mapLineaFromUnknown(row: unknown): OperacionLinea | null {
@@ -55,6 +58,9 @@ function mapLineaFromUnknown(row: unknown): OperacionLinea | null {
 				: undefined,
 		monto_unitario: Number(source.monto_unitario) || 0,
 		delta_cantidad: Number(source.delta_cantidad) || 0,
+		iva_alicuota_id: source.iva_alicuota_id !== undefined && source.iva_alicuota_id !== null
+			? Number(source.iva_alicuota_id)
+			: undefined,
 		created_at: String(source.created_at ?? ""),
 		nombre: source.nombre ? String(source.nombre) : undefined,
 		codigo: source.codigo ? String(source.codigo) : undefined,
@@ -161,6 +167,11 @@ export async function POST(req: Request) {
 	if (!body) return Response.json({ data: null, error: "JSON inválido" } satisfies CreateOperacionResponse, { status: 400 });
 
 	if (!body.tipo) return Response.json({ data: null, error: "Falta tipo" } satisfies CreateOperacionResponse, { status: 400 });
+	const lineasConAlicuotaInvalida = Array.isArray(body.lineas)
+		&& body.lineas.some((linea) => linea.iva_alicuota_id != null && !IVA_ALICUOTA_IDS.has(linea.iva_alicuota_id));
+	if (lineasConAlicuotaInvalida) {
+		return Response.json({ data: null, error: "La alícuota de IVA de una línea no es válida" } satisfies CreateOperacionResponse, { status: 400 });
+	}
 	if (body.tipo !== "GASTO" && !body.taller_id) {
 		return Response.json({ data: null, error: "Falta taller_id" } satisfies CreateOperacionResponse, { status: 400 });
 	}

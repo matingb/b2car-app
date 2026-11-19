@@ -356,6 +356,9 @@ export const operacionRepository: OperacionRepository = {
 						: undefined,
 				monto_unitario: Number(l.monto_unitario) || 0,
 				delta_cantidad: Number(l.delta_cantidad) || 0,
+				iva_alicuota_id: l.iva_alicuota_id !== undefined && l.iva_alicuota_id !== null
+					? Number(l.iva_alicuota_id)
+					: undefined,
 				created_at: String(l.created_at ?? ""),
 				nombre: prodObj?.nombre ? String(prodObj.nombre) : (l.nombre ? String(l.nombre) : undefined),
 				codigo: prodObj?.codigo ? String(prodObj.codigo) : (l.codigo ? String(l.codigo) : undefined),

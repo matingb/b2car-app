@@ -1,7 +1,7 @@
 # Comprobantes recibidos (facturas de compra/gasto y retenciones)
 
 Cambio OpenSpec: `facturas-compra-y-reporte-fiscal`, capability `comprobantes-recibidos`.
-El reporte fiscal de compras (`reportes-fiscales-compras`) **no** está implementado: depende de P-MAP y P-REP.
+El reporte fiscal de compras (reportes-fiscales-compras) está implementado. La fuente del desglose y sus criterios están definidos en OpenSpec.
 
 ## Qué es
 
@@ -32,8 +32,8 @@ Migración: `supabase/migrations/20261116110000_comprobantes_recibidos.sql`.
 | `comprobantes_recibidos_lineas` | Líneas `CONCEPTO` / `PERCEPCION` con descripción e importe manual (`> 0`, 2 decimales). |
 
 Requeridos de `FACTURA`: clase, número, CUIT emisor (11 dígitos) y posición de IVA del proveedor.
-`RETENCION`: fecha, razón social del emisor y al menos una línea; número/identificación opcional
-(su identificación específica sigue abierta en P-REP). Todos requieren fecha y al menos una línea.
+`RETENCION`: fecha, razón social del emisor y al menos una línea; número propio libre y opcional.
+Todos requieren fecha y al menos una línea.
 
 ### Copia histórica y precarga
 
@@ -95,6 +95,12 @@ Errores: 400 `VALIDATION` (mensaje de la validación), 404, 403, 409 `CONFLICT` 
 Se permite guardar documentos cuyo total (suma de líneas) difiera del monto de la operación. La diferencia no se
 muestra ni se ajusta automáticamente. Las retenciones no se suman al total facturado. El resumen de la API
 (`resumen.diferenciaFacturas`) la sigue calculando por si se necesita más adelante.
+
+En facturas A/B, la suma de bases e IVA discriminados no puede superar el total de las líneas de concepto;
+las percepciones quedan separadas. Se admite un desglose parcial en la carga manual. En el alta conjunta,
+las alícuotas disponibles del producto se sugieren en facturas A/B, con 21% cuando faltan, y pueden
+corregirse por concepto o en conjunto. El precio de A se interpreta neto y el de B bruto; el desglose
+calculado queda guardado junto con la tasa por concepto en el documento.
 
 ## Alta junto con la operación y reintentos
 
@@ -177,10 +183,27 @@ completa se revierte, sin borrados parciales ni reversas de pagos o stock. La AP
 Procedimiento: eliminar los documentos desde su pantalla de detalle y luego borrar la operación, que vuelve
 a regirse por su circuito vigente. `eliminar_tenant` borra los documentos antes que las operaciones.
 
+## Reporte fiscal de compras y gastos
+
+Desde **Documentos → Reporte fiscal**, el selector permite elegir facturas de ventas o documentos recibidos de
+compras y gastos. El reporte de compras filtra por período (fecha del documento), tipo de operación y CUIT del
+emisor/proveedor; admite CSV y XLSX, en pesos argentinos sin conversión. Su acceso requiere
+`comprobantes_recibidos:view`.
+
+La hoja **Facturas** empieza con las columnas `Fecha`, `Razón Social`, `Número`, `CUIT`, `Tipo Fac`, `Neto`, `IVA`, `No Gravado`, `Percep. IVA`, `Percep. IIBB`, `Total` y `Concepto Gto`. La razón social y el CUIT son los del emisor; el concepto se forma con las descripciones de las líneas de la factura. El reporte conserva además las percepciones de IIBB separadas por jurisdicción, otras percepciones presentes, el estado del desglose, observaciones e identificadores. El campo agregado de IIBB suma Buenos Aires y CABA; las percepciones repetidas se suman en su celda y en el resumen. CUIT, número e identificadores se exportan como texto.
+
+En facturas A de compras, cada concepto se toma como precio neto: al elegir la alícuota IVA del producto se calcula y suma el impuesto. En facturas B el precio ya incluye IVA, pero también se elige una alícuota por concepto para extraer la base y el impuesto incluido. Ambos casos se agrupan por tasa debajo de las percepciones y el desglose queda guardado en la factura para alimentar `Neto`, `IVA` y el total del reporte. En facturas C se conserva el importe final sin discriminar IVA. Las facturas A/B históricas con alícuota guardada en sus conceptos pueden recalcular el desglose; si falta la tasa, `Neto` e `IVA` quedan vacíos. `No Gravado` queda vacío cuando no hay un dato estructurado que lo informe. Los desgloses parciales se identifican en Observaciones y el resumen. Los códigos de autorización se copian solo cuando fueron informados manualmente.
+
+Los documentos **RETENCIÓN** se presentan en su hoja/sección propia, con una fila por concepto y su importe manual,
+el número libre si existe y los identificadores de documento y operación. El resumen cuenta cada documento una vez
+y totaliza sus líneas aparte del total facturado y de las percepciones. Nada se infiere desde pagos ni se modifica
+en la operación.
+
+La exportación lee todas las páginas y compara las versiones de los documentos antes de serializar. Si detecta un
+cambio durante la lectura, no entrega un archivo parcial. El endpoint aplica permiso por tenant y usa caché privada
+sin almacenamiento.
+
 ## Pendiente
 
-- Reporte fiscal de compras: bloqueado por P-MAP (fuente de netos/IVA/bases de las 24 columnas base a partir de
-  líneas libres) y P-REP (fecha de selección, formatos, moneda/cotización, identificación de retenciones y su
-  disposición en el archivo). No se infieren importes fiscales del texto de las líneas.
-- Moneda: los importes se guardan sin moneda ni cotización (P-REP).
 - Verificación en DB local desechable y pruebas automatizadas de los escenarios de la spec.
+- Moneda: los importes se guardan sin moneda ni cotización; el reporte acordado utiliza pesos argentinos.

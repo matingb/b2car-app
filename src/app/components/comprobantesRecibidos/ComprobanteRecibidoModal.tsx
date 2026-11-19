@@ -5,6 +5,7 @@ import { css } from "@emotion/react";
 import { Info, Plus, Trash2 } from "lucide-react";
 import Calendar from "@/app/components/ui/Calendar";
 import Button from "@/app/components/ui/Button";
+import IconInput from "@/app/components/ui/IconInput";
 import Modal from "@/app/components/ui/Modal";
 import IconButton from "@/app/components/ui/IconButton";
 import Dropdown from "@/app/components/ui/Dropdown";
@@ -30,8 +31,10 @@ import {
   type FacturaRecibidaClase,
 } from "@/lib/comprobantesRecibidos/types";
 import { formatArs } from "@/lib/format";
+import { ALICUOTAS_IVA_ARCA } from "@/lib/facturacion/types";
 import { toISODateAppTimeZone } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
+import { calcularFacturaBDesdeImportesConIva, sugerirIvaDesdeBase } from "@/lib/comprobantesRecibidos/iva";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 
 type LineaDraft = {
@@ -40,6 +43,7 @@ type LineaDraft = {
   /** Concepto: descripción libre. Percepción: código sugerido o texto libre del selector abierto. */
   descripcion: string;
   importe: string;
+  ivaAlicuotaId?: number | null;
 };
 
 type FormState = {
@@ -60,6 +64,7 @@ type FormState = {
   fechaVencimiento: string;
   observaciones: string;
   lineas: LineaDraft[];
+  desgloseIva: Array<{ ivaAlicuotaId: number; base: string; iva: string; ivaManual?: boolean }> | null;
 };
 
 export type ComprobanteRecibidoModalProps = {
@@ -80,7 +85,7 @@ export type ComprobanteRecibidoModalProps = {
 };
 
 function nuevaLinea(tipo: ComprobanteRecibidoLineaTipo = "CONCEPTO"): LineaDraft {
-  return { key: generateUuidV4(), tipo, descripcion: "", importe: "" };
+  return { key: generateUuidV4(), tipo, descripcion: "", importe: "", ivaAlicuotaId: tipo === "CONCEPTO" ? 5 : null };
 }
 
 function estadoInicial(
@@ -112,7 +117,9 @@ function estadoInicial(
           ? linea.percepcionCodigo
           : linea.descripcion,
         importe: String(linea.importe),
+        ivaAlicuotaId: linea.ivaAlicuotaId ?? null,
       })),
+      desgloseIva: comprobante.desgloseIva?.map((item) => ({ ...item, base: String(item.base), iva: String(item.iva), ivaManual: true })) ?? null,
     };
   }
   // Precarga: copia editable de la ficha del proveedor y de los datos fiscales del tenant.
@@ -133,6 +140,7 @@ function estadoInicial(
     fechaVencimiento: "",
     observaciones: "",
     lineas: [nuevaLinea()],
+    desgloseIva: null,
   };
 }
 
@@ -142,6 +150,16 @@ function importeLinea(value: string): number {
 }
 
 function toInput(form: FormState, proveedorId: string | null): unknown {
+  const conceptosB = form.lineas.filter((linea) => linea.tipo === "CONCEPTO");
+  const desgloseIvaB = form.tipoDocumento === "FACTURA" && form.clase === "B"
+    && conceptosB.length > 0
+    && conceptosB.every((linea) => linea.ivaAlicuotaId != null)
+    ? calcularFacturaBDesdeImportesConIva(conceptosB.map((linea) => ({
+        key: linea.key,
+        importe: importeLinea(linea.importe),
+        ivaAlicuotaId: linea.ivaAlicuotaId!,
+      }))).desgloseIva
+    : null;
   return {
     tipoDocumento: form.tipoDocumento,
     clase: form.tipoDocumento === "FACTURA" ? form.clase || null : null,
@@ -163,6 +181,9 @@ function toInput(form: FormState, proveedorId: string | null): unknown {
     vencimientoAutorizacion: form.vencimientoAutorizacion,
     fechaVencimiento: form.tipoDocumento === "FACTURA" ? form.fechaVencimiento : "",
     observaciones: form.observaciones,
+    desgloseIva: form.tipoDocumento === "FACTURA" && form.clase === "A" && form.desgloseIva?.length
+      ? form.desgloseIva.map(({ ivaAlicuotaId, base, iva }) => ({ ivaAlicuotaId, base: base.trim() === "" ? null : Number(base), iva: iva.trim() === "" ? null : Number(iva) }))
+      : form.tipoDocumento === "FACTURA" && form.clase === "B" ? desgloseIvaB : null,
     lineas: form.lineas.map((linea) => {
       const importeTexto = linea.importe.trim().replace(",", ".");
       const importe = importeTexto ? Number(importeTexto) : Number.NaN;
@@ -175,7 +196,7 @@ function toInput(form: FormState, proveedorId: string | null): unknown {
           importe,
         };
       }
-      return { tipo: "CONCEPTO", descripcion: linea.descripcion, percepcionCodigo: null, importe };
+      return { tipo: "CONCEPTO", descripcion: linea.descripcion, percepcionCodigo: null, importe, ivaAlicuotaId: form.tipoDocumento === "FACTURA" && (form.clase === "A" || form.clase === "B") ? linea.ivaAlicuotaId ?? null : null };
     }),
   };
 }
@@ -449,8 +470,23 @@ export default function ComprobanteRecibidoModal({
         <section style={styles.section} aria-label="Líneas">
           <h4 style={styles.sectionTitle}>{esFactura ? "Conceptos y percepciones" : "Detalle de la retención"}</h4>
           <p style={styles.hint}>
-            Descripciones e importes manuales. No se calculan alícuotas ni porcentajes.
+            {form.clase === "A"
+              ? "En esta carga manual, ingresá el importe del concepto y confirmá el desglose de IVA en la sección siguiente."
+              : form.clase === "B"
+                ? "En factura B, los importes ya incluyen IVA; elegí la alícuota de cada concepto para discriminarlo en el reporte."
+                : "Descripciones e importes manuales. En factura C se conserva el importe final sin discriminar IVA."}
           </p>
+          {esFactura && (form.clase === "A" || form.clase === "B") && !readOnly ? (
+            <label style={styles.hint}>Aplicar alícuota a todos los conceptos
+              <select aria-label="Aplicar alícuota a todos los conceptos" style={styles.input} value="" onChange={(event) => {
+                const ivaAlicuotaId = Number(event.target.value);
+                if (ivaAlicuotaId) setForm((current) => ({ ...current, lineas: current.lineas.map((linea) => linea.tipo === "CONCEPTO" ? { ...linea, ivaAlicuotaId } : linea) }));
+              }}>
+                <option value="">Seleccionar</option>
+                {ALICUOTAS_IVA_ARCA.map((rate) => <option key={rate.id} value={rate.id}>{rate.label}</option>)}
+              </select>
+            </label>
+          ) : null}
           <div style={styles.lineasCard}>
               <div css={[styles.lineasHeader, !esFactura && styles.lineasHeaderSinTipo]} aria-hidden="true">
               {esFactura ? <div style={styles.lineaTipo}>TIPO</div> : null}
@@ -509,6 +545,21 @@ export default function ComprobanteRecibidoModal({
                         data-testid={`comprobante-recibido-linea-${index}-descripcion`}
                       />
                     )}
+                    {esFactura && (form.clase === "A" || form.clase === "B") && linea.tipo === "CONCEPTO" ? (
+                      <label style={styles.hint}>
+                        Alícuota IVA{form.clase === "B" ? " (obligatoria)" : ""}
+                        <select
+                          aria-label={`Alícuota de la línea ${index + 1}`}
+                          style={styles.input}
+                          disabled={readOnly}
+                          value={linea.ivaAlicuotaId ?? ""}
+                          onChange={(event) => updateLinea(linea.key, { ivaAlicuotaId: event.target.value ? Number(event.target.value) : null })}
+                        >
+                          <option value="">Sin confirmar</option>
+                          {ALICUOTAS_IVA_ARCA.map((rate) => <option key={rate.id} value={rate.id}>{rate.label}</option>)}
+                        </select>
+                      </label>
+                    ) : null}
                   </div>
                   <div style={styles.lineaImporte}>
                     <input
@@ -563,6 +614,52 @@ export default function ComprobanteRecibidoModal({
                   style={{ minWidth: 0, fontSize: 14, padding: "8px 12px" }}
                 />
               ) : null}
+            </div>
+          ) : null}
+
+          {esFactura && form.clase === "A" ? (
+            <div style={styles.section}>
+              <h4 style={styles.sectionTitle}>Desglose de IVA confirmado</h4>
+              <p style={styles.hint}>Ingresá la base neta. Sugerimos el IVA según la alícuota; podés corregirlo por redondeos. Estos importes no se agregan al total.</p>
+              {(form.desgloseIva ?? []).map((item, index) => (
+                <div key={item.ivaAlicuotaId} style={styles.row}>
+                  <span>{ALICUOTAS_IVA_ARCA.find((rate) => rate.id === item.ivaAlicuotaId)?.label}</span>
+                  <Field label="Base neta">
+                    <IconInput
+                      aria-label={`Base neta ${item.ivaAlicuotaId}`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      disabled={readOnly}
+                      value={item.base}
+                      wrapperStyle={{ height: 38, padding: "0 10px" }}
+                      style={{ fontSize: 14 }}
+                      onChange={(event) => update("desgloseIva", (form.desgloseIva ?? []).map((row, i) => i === index
+                        ? { ...row, base: event.target.value, iva: row.ivaManual ? row.iva : sugerirIvaDesdeBase(event.target.value, row.ivaAlicuotaId) }
+                        : row))}
+                    />
+                  </Field>
+                  <Field label="IVA facturado">
+                    <IconInput
+                      aria-label={`IVA facturado ${item.ivaAlicuotaId}`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      disabled={readOnly}
+                      value={item.iva}
+                      wrapperStyle={{ height: 38, padding: "0 10px" }}
+                      style={{ fontSize: 14 }}
+                      onChange={(event) => update("desgloseIva", (form.desgloseIva ?? []).map((row, i) => i === index
+                        ? { ...row, iva: event.target.value, ivaManual: true }
+                        : row))}
+                    />
+                  </Field>
+                  {!readOnly ? <button type="button" onClick={() => update("desgloseIva", (form.desgloseIva ?? []).filter((_, i) => i !== index))}>Quitar</button> : null}
+                </div>
+              ))}
+              {!readOnly ? ALICUOTAS_IVA_ARCA.filter((rate) => !(form.desgloseIva ?? []).some((item) => item.ivaAlicuotaId === rate.id)).map((rate) => (
+                <button key={rate.id} type="button" onClick={() => update("desgloseIva", [...(form.desgloseIva ?? []), { ivaAlicuotaId: rate.id, base: "", iva: "", ivaManual: false }])}>Agregar {rate.label}</button>
+              )) : null}
             </div>
           ) : null}
 

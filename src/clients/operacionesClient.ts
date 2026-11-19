@@ -8,6 +8,7 @@ export type CreateOperacionLineaInput = {
 	cantidad_cumplida?: number;
 	monto_unitario: number;
 	delta_cantidad: number;
+	iva_alicuota_id?: number | null;
 };
 
 export type CreateOperacionPagoInput = {

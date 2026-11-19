@@ -4,10 +4,13 @@ import React from "react";
 import { css } from "@emotion/react";
 import { ChevronDown, Trash2 } from "lucide-react";
 import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
+import Dropdown from "@/app/components/ui/Dropdown";
 import IconButton from "@/app/components/ui/IconButton";
 import { COLOR } from "@/theme/theme";
 import NumberInput from "@/app/components/ui/NumberInput";
 import { formatArs } from "@/lib/format";
+import { ALICUOTAS_IVA_ARCA } from "@/lib/facturacion/types";
+
 export type OperacionLineaDraft = {
   id?: string;
   stockId: string;
@@ -15,10 +18,18 @@ export type OperacionLineaDraft = {
   cantidadEntregar?: number;
   unitario: number;
   total: number;
+  ivaAlicuotaId?: number | null;
 };
 
 export const OPERACION_LINE_GRID_TEMPLATE =
   "minmax(240px, 1fr) 70px 76px 115px 115px 40px";
+export const OPERACION_LINE_GRID_TEMPLATE_WITH_IVA =
+  "minmax(220px, 1fr) 70px 76px 110px 95px 115px 40px";
+
+const IVA_ALICUOTA_OPTIONS = ALICUOTAS_IVA_ARCA.map((rate) => ({
+  value: String(rate.id),
+  label: rate.label,
+}));
 
 type Props = {
   index: number;
@@ -29,8 +40,10 @@ type Props = {
   loadingStocks: boolean;
   stockOptions: AutocompleteOption[];
   getDefaultUnitarioForStockId?: (stockId: string) => number | null;
+  getDefaultIvaAlicuotaIdForStockId?: (stockId: string) => number | null;
   getStockActualForStockId?: (stockId: string) => number | undefined;
   isVenta?: boolean;
+  showIvaAlicuota?: boolean;
   onChange: (next: OperacionLineaDraft) => void;
   onRemove?: () => void;
   canRemove?: boolean;
@@ -55,8 +68,10 @@ export default function OperacionLineaEditor({
   loadingStocks,
   stockOptions,
   getDefaultUnitarioForStockId,
+  getDefaultIvaAlicuotaIdForStockId,
   getStockActualForStockId,
   isVenta = false,
+  showIvaAlicuota = false,
   onChange,
   onRemove,
   canRemove = false,
@@ -87,7 +102,12 @@ export default function OperacionLineaEditor({
     if (isVenta && stockFisico !== undefined) {
       cantidadEntregar = Math.min(cantidad, Math.max(0, stockFisico));
     }
-    const base: OperacionLineaDraft = { ...linea, stockId, cantidadEntregar };
+    const base: OperacionLineaDraft = {
+      ...linea,
+      stockId,
+      cantidadEntregar,
+      ivaAlicuotaId: stockId ? getDefaultIvaAlicuotaIdForStockId?.(stockId) ?? 5 : null,
+    };
     const unitDefault = getDefaultUnitarioForStockId?.(stockId);
     if (typeof unitDefault === "number" && Number.isFinite(unitDefault)) {
       onChange(recomputeFromUnit({ ...base, unitario: unitDefault }));
@@ -138,7 +158,7 @@ export default function OperacionLineaEditor({
 
   return (
     <div
-      css={[styles.lineRow, mobileExpanded && styles.lineRowExpanded]}
+      css={[styles.lineRow, showIvaAlicuota && styles.lineRowWithIva, mobileExpanded && styles.lineRowExpanded]}
       data-testid={`operaciones-line-${index}`}
     >
       <div css={[styles.mobileHeader, !canRemove && styles.mobileHeaderWithoutRemove]} data-mobile-header="">
@@ -265,6 +285,21 @@ export default function OperacionLineaEditor({
         />
       </div>
 
+      {showIvaAlicuota ? (
+        <div data-mobile-field="" onFocusCapture={onMobileActivate}>
+          <span css={styles.mobileFieldLabel}>Alícuota IVA</span>
+          <Dropdown
+            value={String(linea.ivaAlicuotaId ?? getDefaultIvaAlicuotaIdForStockId?.(linea.stockId) ?? 5)}
+            onChange={(value) => onChange({ ...linea, ivaAlicuotaId: Number(value) })}
+            disabled={disabled}
+            ariaLabel={`Alícuota IVA de la línea ${index + 1}`}
+            dataTestId={`operaciones-line-${index}-iva-alicuota`}
+            options={IVA_ALICUOTA_OPTIONS}
+            style={styles.ivaDropdown}
+          />
+        </div>
+      ) : null}
+
       <div data-mobile-field="" onFocusCapture={onMobileActivate}>
         <span css={styles.mobileFieldLabel}>Total</span>
         <NumberInput
@@ -340,6 +375,12 @@ const styles = {
   autocompleteCompact: {
     minWidth: 0,
   } as const,
+  ivaDropdown: {
+    width: "100%",
+    height: 44,
+    fontSize: 14,
+    color: COLOR.TEXT.PRIMARY,
+  } as const,
   lineRow: css({
     display: "grid",
     gridTemplateColumns: OPERACION_LINE_GRID_TEMPLATE,
@@ -371,6 +412,9 @@ const styles = {
         transition: "max-height 240ms ease, opacity 180ms ease, visibility 0s linear 240ms",
       },
     },
+  }),
+  lineRowWithIva: css({
+    gridTemplateColumns: OPERACION_LINE_GRID_TEMPLATE_WITH_IVA,
   }),
   lineRowExpanded: css({
     ["@media (max-width: 720px)"]: {

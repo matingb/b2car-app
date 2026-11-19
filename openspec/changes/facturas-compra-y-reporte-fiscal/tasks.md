@@ -6,10 +6,10 @@ La gestión documental conserva los cargos y el saldo. La edición de cargos de 
 
 ## 1. Completar el contrato y las decisiones técnicas
 
-- [ ] 1.1 Preparar ejemplos de implementación del desglose definido en D3 y D7. Conciliar una factura A con dos alícuotas, un documento histórico sin desglose y una percepción de IVA.
-- [ ] 1.2 Cerrar P-REP: fecha por tipo, formatos, moneda/cotización, identificación propia de retenciones y disposición de su detalle/resumen. Verificar una muestra con las mismas 24 columnas base de ventas, percepciones sugeridas/libres y total de retenciones; no reabrir su inclusión ni las columnas dinámicas.
-- [ ] 1.3 Concretar técnicamente normalización de CUIT/número y etiquetas de percepciones, permisos equivalentes inicialmente a ventas, frontera de guardado/reintento e historial interno. Verificar ejemplos de duplicados, agrupación de columnas y secuencias de fallo, documentando decisiones dentro de las reglas acordadas.
-- [ ] 1.4 Actualizar los artefactos con los cierres anteriores y coordinar el bloqueo de borrado con el contrato operativo vigente. Verificar coherencia y validación estricta de OpenSpec, sin cambios financieros ni reescritura del cambio histórico de ledgers.
+- [x] 1.1 Preparar ejemplos de implementación del desglose definido en D3 y D7. Conciliar una factura A con dos alícuotas, un documento histórico sin desglose y una percepción de IVA.
+- [x] 1.2 Cerrar P-REP: fecha por tipo, formatos, moneda/cotización, identificación propia de retenciones y disposición de su detalle/resumen. Verificar una muestra con las mismas 24 columnas base de ventas, percepciones sugeridas/libres y total de retenciones; no reabrir su inclusión ni las columnas dinámicas.
+- [x] 1.3 Concretar técnicamente normalización de CUIT/número y etiquetas de percepciones, permisos equivalentes inicialmente a ventas, frontera de guardado/reintento e historial interno. Verificar ejemplos de duplicados, agrupación de columnas y secuencias de fallo, documentando decisiones dentro de las reglas acordadas.
+- [x] 1.4 Actualizar los artefactos con los cierres anteriores y coordinar el bloqueo de borrado con el contrato operativo vigente. Verificar coherencia y validación estricta de OpenSpec, sin cambios financieros ni reescritura del cambio histórico de ledgers.
 
 ## 2. Persistencia e integridad
 
@@ -25,6 +25,7 @@ La gestión documental conserva los cargos y el saldo. La edición de cargos de 
 - [ ] 3.2 Implementar repositorio, servicio y rutas de creación, consulta, edición y eliminación documental con líneas libres, importes manuales y desglose fiscal confirmado. Verificar persistencia y lectura de alícuotas por concepto, confirmación por factura, A/B/C, campos requeridos, selector abierto, duplicados, sesión, tenant y permisos. Documentar errores.
 - [ ] 3.3 Integrar carga inicial/posterior en compras y gastos y recuperación de fallos sin recrear operaciones. Verificar factura con diferencia guardada y datos para label informativo, gasto sin proveedor y reintentos sin duplicar pagos/stock; documentar la secuencia.
 - [ ] 3.4 Extender documentos asociados y listado unificado y aplicar el bloqueo en todos los endpoints de borrado operativo. Verificar procedencia/tipos y error por documentos asociados, sin exigir ambiente/certificados ARCA para registros manuales; mantener los contratos de facturas emitidas y remitos.
+- [x] 3.5 Validar la conciliación del desglose confirmado antes de persistir altas y ediciones. En centavos, rechazar bases más IVA superiores al total de conceptos de la factura, con percepciones separadas. Verificar el rechazo de 34200,00 de desglose para 12100,00 de conceptos, la aceptación de desgloses parciales y la conservación del redondeo y las percepciones informados. Mantener permitida la diferencia respecto del monto operativo.
 
 ## 4. Formulario y gestión en Documentos
 
@@ -32,7 +33,8 @@ La gestión documental conserva los cargos y el saldo. La edición de cargos de 
 - [ ] 4.2 Permitir factura opcional al crear operación, carga posterior y edición/eliminación desde detalle y Documentos; adaptar compras automáticas y los dos puntos de gastos. Verificar asociación a exactamente una operación y registro de retención sin pasar por pagos, sin borradores ni subida de archivos.
 - [ ] 4.3 Mostrar label informativo por diferencias y error de factura duplicada, y explicar bloqueo de borrado de operación. Verificar guardado permitido de factura 121000 en compra 120000 y eliminación de documentos antes del borrado operativo; documentar el flujo.
 - [ ] 4.4 Aplicar permisos de consulta/gestión y presentar documentos recibidos en el listado existente. Verificar usuarios con/sin permisos y edición/eliminación de retenciones con invariancia de pagos/saldos/stock; actualizar docs/comprobantes-recibidos.md.
-- [ ] 4.5 Implementar selección de alícuota por concepto y confirmación del desglose de factura A al crear una compra, adjuntar una factura o editarla. Verificar 21% inicial editable, aplicación en conjunto, precarga desde la operación durante el alta, dos facturas con tasas distintas en una compra, factura con tasas mixtas, redondeo confirmado, datos fiscales históricos ausentes y carga de B/C por total.
+- [ ] 4.5 Completar el flujo «Cargar con factura» en el alta de compras con alícuotas editables por concepto y desglose de factura A, desde el formulario hasta `buildFacturaCompraInput` y la consulta del documento guardado. Verificar la precarga operativa de 10,5%, la sugerencia de 21% donde falte la tasa y la persistencia de las correcciones. Permitir aplicar una tasa al conjunto y editar cada concepto tanto en el alta como al adjuntar o editar. Verificar dos facturas con tasas distintas en una compra, tasas mixtas en un documento, redondeo confirmado y carga de B/C por total.
+- [x] 4.6 Distinguir importes faltantes de ceros explícitos en el formulario y el guardado del desglose. Al agregar una fila o borrar un importe, dejar el campo vacío y pedir que se complete o se quite la fila. Al quitar la última fila, guardar y volver a consultar el desglose como `null`. Verificar el cero ingresado explícitamente y que editar solo la descripción de una factura histórica preserve los datos fiscales ausentes.
 
 ## 5. Reporte con percepciones dinámicas
 

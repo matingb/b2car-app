@@ -108,6 +108,8 @@ CREATE TABLE public.comprobantes_recibidos (
   codigo_autorizacion      text,
   vencimiento_autorizacion date,
   observaciones            text,
+  -- NULL significa desglose desconocido o sin filas confirmadas.
+  desglose_iva             jsonb,
   idempotency_key          uuid                     NOT NULL,
   created_at               timestamp with time zone DEFAULT now() NOT NULL,
   updated_at               timestamp with time zone DEFAULT now() NOT NULL,
@@ -209,6 +211,7 @@ CREATE TABLE public.comprobantes_recibidos_lineas (
   descripcion       text                     NOT NULL,
   -- Percepciones sugeridas con identidad estable; OTRA para percepciones libres.
   percepcion_codigo text,
+  iva_alicuota_id   integer,
   -- Identidad de agrupación: código sugerido, u OTRA:<descripción con espacios colapsados en mayúsculas>.
   percepcion_clave  text                     GENERATED ALWAYS AS (
     CASE
@@ -230,6 +233,8 @@ CREATE TABLE public.comprobantes_recibidos_lineas (
   CONSTRAINT comprobantes_recibidos_lineas_orden_key UNIQUE (comprobante_id, orden),
   CONSTRAINT comprobantes_recibidos_lineas_tipo_check
     CHECK (tipo = ANY (ARRAY['CONCEPTO'::text, 'PERCEPCION'::text])),
+  CONSTRAINT comprobantes_recibidos_lineas_iva_check
+    CHECK (iva_alicuota_id IS NULL OR (tipo = 'CONCEPTO' AND iva_alicuota_id IN (3, 4, 5, 6, 8, 9))),
   CONSTRAINT comprobantes_recibidos_lineas_percepcion_check
     CHECK (
       (tipo = 'CONCEPTO' AND percepcion_codigo IS NULL)
@@ -403,6 +408,15 @@ DECLARE
   v_linea_descripcion      text;
   v_linea_codigo           text;
   v_linea_importe          numeric;
+  v_linea_iva              integer;
+  v_desglose               jsonb := p_datos -> 'desglose_iva';
+  v_iva                    jsonb;
+  v_iva_ids                integer[] := ARRAY[]::integer[];
+  v_iva_id                 integer;
+  v_base                   numeric;
+  v_impuesto               numeric;
+  v_desglose_total         numeric := 0;
+  v_conceptos_total        numeric := 0;
   v_condiciones            text[] := ARRAY['RESPONSABLE_INSCRIPTO', 'MONOTRIBUTISTA', 'IVA_EXENTO', 'IVA_NO_ALCANZADO'];
 BEGIN
   IF auth.role() = 'authenticated' AND NOT public._b2c179_tiene_permiso('comprobantes_recibidos:edit') THEN
@@ -516,8 +530,33 @@ BEGIN
       RAISE EXCEPTION 'El CUIT del emisor es obligatorio' USING ERRCODE = '22023';
     END IF;
   ELSE
-    -- Las retenciones no tienen clase A/B/C. Su identificación específica sigue pendiente (P-REP).
+    -- Las retenciones no tienen clase A/B/C y admiten número propio opcional.
     v_clase := NULL;
+  END IF;
+
+  IF v_desglose = 'null'::jsonb THEN v_desglose := NULL; END IF;
+  IF v_desglose IS NOT NULL THEN
+    IF v_tipo_documento <> 'FACTURA' OR v_clase NOT IN ('A', 'B') OR jsonb_typeof(v_desglose) <> 'array' THEN
+      RAISE EXCEPTION 'El desglose de IVA solo corresponde a facturas A o B' USING ERRCODE = '22023';
+    END IF;
+    FOR v_iva IN SELECT value FROM jsonb_array_elements(v_desglose) LOOP
+      BEGIN
+        v_iva_id := (v_iva ->> 'iva_alicuota_id')::integer;
+        v_base := (v_iva ->> 'base')::numeric;
+        v_impuesto := (v_iva ->> 'iva')::numeric;
+      EXCEPTION WHEN others THEN
+        RAISE EXCEPTION 'Desglose de IVA inválido' USING ERRCODE = '22023';
+      END;
+      IF v_iva_id IS NULL OR v_iva_id NOT IN (3, 4, 5, 6, 8, 9) OR v_iva_id = ANY(v_iva_ids)
+         OR v_base IS NULL OR v_impuesto IS NULL OR v_base < 0 OR v_impuesto < 0
+         OR v_base >= 1000000000000 OR v_impuesto >= 1000000000000
+         OR v_base <> round(v_base, 2) OR v_impuesto <> round(v_impuesto, 2) THEN
+        RAISE EXCEPTION 'Desglose de IVA inválido' USING ERRCODE = '22023';
+      END IF;
+      v_iva_ids := array_append(v_iva_ids, v_iva_id);
+      v_desglose_total := v_desglose_total + v_base + v_impuesto;
+    END LOOP;
+    IF jsonb_array_length(v_desglose) = 0 THEN v_desglose := NULL; END IF;
   END IF;
 
   -- Idempotencia del alta: el mismo pedido reintentado devuelve el documento ya creado.
@@ -604,12 +643,12 @@ BEGIN
       tenant_id, operacion_id, tipo_documento, clase, numero, fecha, proveedor_id,
       emisor_razon_social, emisor_cuit, emisor_condicion_iva, emisor_domicilio,
       receptor_razon_social, receptor_cuit, receptor_condicion_iva,
-      codigo_autorizacion, vencimiento_autorizacion, fecha_vencimiento, observaciones, idempotency_key
+      codigo_autorizacion, vencimiento_autorizacion, fecha_vencimiento, observaciones, idempotency_key, desglose_iva
     ) VALUES (
       v_tenant_id, p_operacion_id, v_tipo_documento, v_clase, v_numero, v_fecha, v_proveedor_id,
       v_emisor_razon_social, v_emisor_cuit, v_emisor_condicion_iva, v_emisor_domicilio,
       v_receptor_razon_social, v_receptor_cuit, v_receptor_condicion_iva,
-      v_codigo_autorizacion, v_vencimiento, v_fecha_vencimiento, v_observaciones, p_idempotency_key
+      v_codigo_autorizacion, v_vencimiento, v_fecha_vencimiento, v_observaciones, p_idempotency_key, v_desglose
     )
     RETURNING id INTO v_id;
   ELSE
@@ -629,6 +668,7 @@ BEGIN
         vencimiento_autorizacion = v_vencimiento,
         fecha_vencimiento        = v_fecha_vencimiento,
         observaciones            = v_observaciones,
+        desglose_iva             = v_desglose,
         updated_by               = auth.uid()
     WHERE id = p_comprobante_id
       AND tenant_id = v_tenant_id;
@@ -649,6 +689,15 @@ BEGIN
     v_linea_descripcion := NULLIF(btrim(COALESCE(v_linea ->> 'descripcion', '')), '');
     v_linea_codigo      := NULLIF(upper(btrim(COALESCE(v_linea ->> 'percepcion_codigo', ''))), '');
     BEGIN
+      v_linea_iva := NULLIF(v_linea ->> 'iva_alicuota_id', '')::integer;
+    EXCEPTION WHEN others THEN
+      RAISE EXCEPTION 'Línea %: alícuota inválida', v_orden USING ERRCODE = '22023';
+    END;
+    IF v_linea_iva IS NOT NULL AND (v_tipo_documento <> 'FACTURA' OR v_clase NOT IN ('A', 'B')
+      OR v_linea_tipo <> 'CONCEPTO' OR v_linea_iva NOT IN (3, 4, 5, 6, 8, 9)) THEN
+      RAISE EXCEPTION 'Línea %: alícuota inválida', v_orden USING ERRCODE = '22023';
+    END IF;
+    BEGIN
       v_linea_importe := (v_linea ->> 'importe')::numeric;
     EXCEPTION WHEN others THEN
       v_linea_importe := NULL;
@@ -656,6 +705,9 @@ BEGIN
 
     IF v_linea_tipo NOT IN ('CONCEPTO', 'PERCEPCION') THEN
       RAISE EXCEPTION 'Línea %: el tipo debe ser CONCEPTO o PERCEPCION', v_orden USING ERRCODE = '22023';
+    END IF;
+    IF v_tipo_documento = 'FACTURA' AND v_clase = 'B' AND v_linea_tipo = 'CONCEPTO' AND v_linea_iva IS NULL THEN
+      RAISE EXCEPTION 'Línea %: elegí la alícuota de IVA para una factura B', v_orden USING ERRCODE = '22023';
     END IF;
     IF v_tipo_documento = 'RETENCION' AND v_linea_tipo <> 'CONCEPTO' THEN
       RAISE EXCEPTION 'Línea %: las retenciones solo admiten líneas de concepto', v_orden USING ERRCODE = '22023';
@@ -680,14 +732,19 @@ BEGIN
       END IF;
     ELSE
       v_linea_codigo := NULL;
+      v_conceptos_total := v_conceptos_total + v_linea_importe;
     END IF;
 
     INSERT INTO public.comprobantes_recibidos_lineas (
-      tenant_id, comprobante_id, orden, tipo, descripcion, percepcion_codigo, importe
+      tenant_id, comprobante_id, orden, tipo, descripcion, percepcion_codigo, importe, iva_alicuota_id
     ) VALUES (
-      v_tenant_id, v_id, v_orden, v_linea_tipo, v_linea_descripcion, v_linea_codigo, v_linea_importe
+      v_tenant_id, v_id, v_orden, v_linea_tipo, v_linea_descripcion, v_linea_codigo, v_linea_importe, v_linea_iva
     );
   END LOOP;
+
+  IF v_desglose_total > v_conceptos_total THEN
+    RAISE EXCEPTION 'La base y el IVA del desglose no pueden superar el total de conceptos' USING ERRCODE = '22023';
+  END IF;
 
   RETURN v_id;
 END;

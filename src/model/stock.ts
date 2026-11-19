@@ -22,6 +22,7 @@ export type StockItem = {
   stockMaximo: number;
   costoUnitario: number;
   precioUnitario: number;
+  ivaAlicuotaId?: number | null;
   showInStock: boolean;
   ultimaActualizacion: string;
   historialMovimientos: StockMovement[];

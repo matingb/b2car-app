@@ -47,6 +47,9 @@ function mapLinea(row: OperacionLineaDTO): OperacionLinea {
 				: undefined,
 		monto_unitario: Number(row.monto_unitario) || 0,
 		delta_cantidad: Number(row.delta_cantidad) || 0,
+		iva_alicuota_id: row.iva_alicuota_id !== undefined && row.iva_alicuota_id !== null
+			? Number(row.iva_alicuota_id)
+			: undefined,
 		created_at: row.created_at,
 		nombre: row.nombre ? String(row.nombre) : undefined,
 		codigo: row.codigo ? String(row.codigo) : undefined,

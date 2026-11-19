@@ -115,6 +115,7 @@ describe("supabaseProveedorRepository", () => {
         telefono: "123456",
         email: "test@test.com",
         direccion: "Calle 1",
+        condicion_iva: null,
       };
       const createdRow = { id: "new-id", ...payload };
       const supabase = makeSupabase({ data: createdRow, error: null });
@@ -133,6 +134,7 @@ describe("supabaseProveedorRepository", () => {
         telefono: null,
         email: null,
         direccion: null,
+        condicion_iva: null,
       };
       const supabase = makeSupabase({ data: null, error: mockPgError("23505") });
 

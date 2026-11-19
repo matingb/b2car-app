@@ -6,12 +6,15 @@ import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import Autocomplete from "@/app/components/ui/Autocomplete";
 import Button from "@/app/components/ui/Button";
 import IconButton from "@/app/components/ui/IconButton";
+import Dropdown from "@/app/components/ui/Dropdown";
 import {
   MAX_LINEAS_COMPROBANTE,
   PERCEPCIONES_SUGERIDAS,
   sumarImportes,
 } from "@/lib/comprobantesRecibidos/types";
 import { formatArs } from "@/lib/format";
+import { ALICUOTAS_IVA_ARCA } from "@/lib/facturacion/types";
+import { calcularFacturaADesdeBases, calcularFacturaBDesdeImportesConIva } from "@/lib/comprobantesRecibidos/iva";
 import { COLOR } from "@/theme/theme";
 import { useOperacionForm } from "./OperacionFormContext";
 import { importePercepcion, type PercepcionDraft } from "./useFacturaCompraDraft";
@@ -22,22 +25,77 @@ const PERCEPCION_OPTIONS = PERCEPCIONES_SUGERIDAS.map((sugerida) => ({ value: su
 
 /**
  * Percepciones de la factura recibida (selector abierto: sugeridas o texto libre). Los conceptos
- * de la factura salen del detalle de la operación; acá solo se suman los importes informados.
+ * de la factura salen del detalle de la operación; resume IVA por alícuota en facturas A/B.
  */
 export default function OperacionFacturaPercepciones() {
-  const { factura, conceptosFactura, isSubmitting } = useOperacionForm();
+  const { factura, conceptosFactura, isSubmitting, tipo } = useOperacionForm();
   const { draft, addPercepcion, updatePercepcion, removePercepcion } = factura;
+  const calculoIva = useMemo(() => {
+    if ((tipo !== "COMPRA" && tipo !== "GASTO") || (draft.clase !== "A" && draft.clase !== "B")) return null;
+    const conceptos = conceptosFactura.map((concepto) => ({
+      key: concepto.key,
+      importe: concepto.importe,
+      ivaAlicuotaId: concepto.ivaAlicuotaId ?? 5,
+    }));
+    return draft.clase === "A"
+      ? calcularFacturaADesdeBases(conceptos)
+      : calcularFacturaBDesdeImportesConIva(conceptos);
+  }, [tipo, draft.clase, conceptosFactura]);
+  const montoConceptosFactura = calculoIva
+    ? sumarImportes(calculoIva.conceptos.map((concepto) => concepto.total))
+    : sumarImportes(conceptosFactura.map((concepto) => concepto.importe));
+  const ivaTotal = calculoIva ? sumarImportes(calculoIva.desgloseIva.map((item) => item.iva)) : 0;
+  let montoBaseLabel = "Conceptos";
+  if (calculoIva) montoBaseLabel = draft.clase === "A" ? "Conceptos + IVA" : "Conceptos (IVA incluido)";
+
   return (
-    <OperacionPercepcionesEditor
-      contexto="factura"
-      percepciones={draft.percepciones}
-      montoBase={sumarImportes(conceptosFactura.map((concepto) => concepto.importe))}
-      limite={MAX_LINEAS_COMPROBANTE - conceptosFactura.length}
-      disabled={isSubmitting}
-      addPercepcion={addPercepcion}
-      updatePercepcion={updatePercepcion}
-      removePercepcion={removePercepcion}
-    />
+    <>
+      <OperacionPercepcionesEditor
+        contexto="factura"
+        percepciones={draft.percepciones}
+        montoBase={montoConceptosFactura}
+        montoBaseLabel={montoBaseLabel}
+        limite={MAX_LINEAS_COMPROBANTE - conceptosFactura.length}
+        disabled={isSubmitting}
+        addPercepcion={addPercepcion}
+        updatePercepcion={updatePercepcion}
+        removePercepcion={removePercepcion}
+      />
+      {calculoIva && calculoIva.desgloseIva.length > 0 ? (
+        <section css={styles.ivaSummary} aria-label="IVA calculado por alícuota" data-testid="operacion-iva-desglose">
+          <div>
+            <h3 css={styles.ivaTitle}>IVA {draft.clase === "A" ? "adicional" : "incluido"} por alícuota</h3>
+            <p css={styles.ivaHint}>{draft.clase === "A"
+              ? "Los precios ingresados son netos. El IVA se suma según la alícuota elegida en cada concepto."
+              : "Los precios ya incluyen IVA. Se discrimina según la alícuota elegida en cada concepto."}</p>
+          </div>
+          {tipo === "GASTO" ? (
+            <div css={styles.ivaGastoRate}>
+              <label htmlFor="operacion-gasto-iva-alicuota">Alícuota del concepto</label>
+              <Dropdown
+                id="operacion-gasto-iva-alicuota"
+                ariaLabel="Alícuota IVA del gasto"
+                value={String(draft.ivaAlicuotaGasto ?? 5)}
+                onChange={(value) => factura.update({ ivaAlicuotaGasto: Number(value) })}
+                disabled={isSubmitting}
+                options={ALICUOTAS_IVA_ARCA.map((rate) => ({ value: String(rate.id), label: rate.label }))}
+                dataTestId="operacion-gasto-iva-alicuota"
+              />
+            </div>
+          ) : null}
+          <div css={styles.ivaLines}>
+            {calculoIva.desgloseIva.map((item) => (
+              <div key={item.ivaAlicuotaId} css={styles.ivaLine} data-testid={`operacion-iva-alicuota-${item.ivaAlicuotaId}`}>
+                <strong>{ALICUOTAS_IVA_ARCA.find((rate) => rate.id === item.ivaAlicuotaId)?.label}</strong>
+                <span>Base neta: {formatArs(item.base)}</span>
+                <span>IVA: <strong>{formatArs(item.iva)}</strong></span>
+              </div>
+            ))}
+          </div>
+          <div css={styles.ivaTotal} data-testid="operacion-iva-total">IVA {draft.clase === "A" ? "a sumar" : "incluido"}: <strong>{formatArs(ivaTotal)}</strong></div>
+        </section>
+      ) : null}
+    </>
   );
 }
 
@@ -45,6 +103,7 @@ type PercepcionesEditorProps = {
   contexto: "factura" | "compra";
   percepciones: PercepcionDraft[];
   montoBase: number;
+  montoBaseLabel?: string;
   limite?: number;
   disabled: boolean;
   addPercepcion: () => string;
@@ -56,6 +115,7 @@ export function OperacionPercepcionesEditor({
   contexto,
   percepciones,
   montoBase,
+  montoBaseLabel,
   limite = MAX_LINEAS_COMPROBANTE,
   disabled,
   addPercepcion,
@@ -256,7 +316,7 @@ export function OperacionPercepcionesEditor({
           outline
         />
         <div css={styles.totales} data-testid={`${testId}-totales`}>
-          <span>{esFactura ? "Conceptos" : "Mercadería"}: <strong>{formatArs(montoBase)}</strong></span>
+          <span>{montoBaseLabel ?? (esFactura ? "Conceptos" : "Mercadería")}: <strong>{formatArs(montoBase)}</strong></span>
           <span>Percepciones: <strong>{formatArs(totalPercepciones)}</strong></span>
           <span>{esFactura ? "Total factura" : "Total compra"}: <strong style={styles.totalStrong}>{formatArs(total)}</strong></span>
         </div>
@@ -267,6 +327,59 @@ export function OperacionPercepcionesEditor({
 }
 
 const styles = {
+  ivaSummary: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    marginTop: 12,
+    padding: 14,
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 12,
+    backgroundColor: COLOR.BACKGROUND.SECONDARY,
+  }),
+  ivaGastoRate: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 5,
+    maxWidth: 320,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
+    fontWeight: 600,
+  }),
+  ivaTitle: css({
+    margin: 0,
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 14,
+    fontWeight: 700,
+  }),
+  ivaHint: css({
+    margin: "4px 0 0",
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
+  }),
+  ivaLines: css({
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: 8,
+  }),
+  ivaLine: css({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
+    padding: "9px 10px",
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 8,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 12,
+    "& > strong": { color: COLOR.TEXT.PRIMARY, fontSize: 13 },
+  }),
+  ivaTotal: {
+    color: COLOR.TEXT.PRIMARY,
+    fontSize: 13,
+    textAlign: "right" as const,
+  },
   sectionHeaderRow: {
     display: "flex",
     alignItems: "baseline",

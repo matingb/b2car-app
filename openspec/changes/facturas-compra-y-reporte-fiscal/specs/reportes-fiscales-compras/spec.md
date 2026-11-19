@@ -4,7 +4,7 @@
 
 Permitir exportar facturas y retenciones documentales de compras y gastos con las columnas base del reporte de ventas, columnas dinámicas de percepciones y sumas reproducibles, sin alterar el circuito financiero.
 
-La fuente de bases gravadas e IVA es el desglose confirmado de cada factura recibida. Fechas, formatos, moneda e identificación y presentación específica de retenciones se concretan en P-REP. La inclusión y totalización de retenciones forman parte del reporte.
+La fuente de bases gravadas e IVA es el desglose confirmado de cada factura recibida. El período usa la fecha del documento, tanto para facturas como para retenciones. Se exporta en CSV y XLSX, en pesos argentinos sin conversión. Las retenciones tienen número propio libre y opcional, con detalle y total separados de las facturas.
 
 ## ADDED Requirements
 
@@ -149,7 +149,7 @@ El reporte SHALL usar la identidad e importes vigentes del documento y excluir d
 - **THEN** no se incluye la factura ni se conserva una columna dinámica aportada solo por ella
 
 ### Requirement: Período y moneda explícitos
-El reporte SHALL exigir un período desde/hasta válido y aplicar el criterio temporal aprobado por tipo de documento, indicado al usuario. MUST preservar el día calendario y MUST NOT sustituir fechas silenciosamente. Si se habilitan varias monedas, MUST separarlas o usar conversión explícita y trazable.
+El reporte SHALL exigir un período desde/hasta válido y seleccionar facturas y retenciones por la fecha del documento, indicándolo al usuario. MUST preservar el día calendario y MUST NOT sustituir fechas silenciosamente. La moneda es peso argentino sin conversión.
 
 #### Scenario: Rango inválido
 - **WHEN** faltan fechas, son inválidas o desde es posterior a hasta
@@ -162,7 +162,7 @@ El reporte SHALL exigir un período desde/hasta válido y aplicar el criterio te
 - **AND** no se desplaza su día por conversión de zona horaria
 
 ### Requirement: Formatos con el mismo conjunto y columnas
-Los formatos habilitados SHALL compartir documentos, valores y columnas dinámicas de una misma selección. Si se habilitan CSV y XLSX, MUST conciliar detalle y resumen y conservar identificadores como texto e importes utilizables. Textos y encabezados personalizados MUST NOT ejecutar fórmulas en la planilla.
+Los formatos CSV y XLSX SHALL compartir documentos, valores y columnas dinámicas de una misma selección. MUST conciliar detalle y resumen y conservar identificadores como texto e importes utilizables. Textos y encabezados personalizados MUST NOT ejecutar fórmulas en la planilla.
 
 #### Scenario: Dos formatos de la misma selección
 - **GIVEN** CSV y XLSX habilitados para el mismo conjunto

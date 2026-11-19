@@ -26,10 +26,11 @@ export const COMPROBANTE_RECIBIDO_COLUMNS = [
   "vencimiento_autorizacion",
   "fecha_vencimiento",
   "observaciones",
+  "desglose_iva",
   "created_at",
   "updated_at",
   "operaciones(tipo)",
-  "comprobantes_recibidos_lineas(id, orden, tipo, descripcion, percepcion_codigo, importe)",
+  "comprobantes_recibidos_lineas(id, orden, tipo, descripcion, percepcion_codigo, importe, iva_alicuota_id)",
 ].join(", ");
 
 export type ComprobanteRecibidoLineaRow = {
@@ -39,6 +40,7 @@ export type ComprobanteRecibidoLineaRow = {
   descripcion: string;
   percepcion_codigo: string | null;
   importe: number | string;
+  iva_alicuota_id: number | null;
 };
 
 export type ComprobanteRecibidoRow = {
@@ -61,6 +63,7 @@ export type ComprobanteRecibidoRow = {
   vencimiento_autorizacion: string | null;
   fecha_vencimiento: string | null;
   observaciones: string | null;
+  desglose_iva: Array<{ iva_alicuota_id: number; base: number; iva: number }> | null;
   created_at: string;
   updated_at: string;
   operaciones?: { tipo: string | null } | null;

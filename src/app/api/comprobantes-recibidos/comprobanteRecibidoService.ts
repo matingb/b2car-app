@@ -72,6 +72,7 @@ function mapLineas(row: ComprobanteRecibidoRow): ComprobanteRecibidoLinea[] {
       descripcion: linea.descripcion,
       percepcionCodigo: linea.tipo === "PERCEPCION" ? ((linea.percepcion_codigo ?? "OTRA") as PercepcionCodigo) : null,
       importe: asNumber(linea.importe),
+      ivaAlicuotaId: linea.iva_alicuota_id ?? null,
     }));
 }
 
@@ -103,6 +104,7 @@ export function mapComprobanteRecibido(row: ComprobanteRecibidoRow): Comprobante
     fechaVencimiento: row.fecha_vencimiento ?? null,
     observaciones: row.observaciones,
     lineas,
+    desgloseIva: row.desglose_iva?.map((item) => ({ ivaAlicuotaId: item.iva_alicuota_id, base: asNumber(item.base), iva: asNumber(item.iva) })) ?? null,
     ...totales,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -153,12 +155,14 @@ function toRpcParams(
       vencimiento_autorizacion: input.vencimientoAutorizacion,
       fecha_vencimiento: input.fechaVencimiento,
       observaciones: input.observaciones,
+      desglose_iva: input.desgloseIva?.map((item) => ({ iva_alicuota_id: item.ivaAlicuotaId, base: item.base, iva: item.iva })) ?? null,
     },
     p_lineas: input.lineas.map((linea) => ({
       tipo: linea.tipo,
       descripcion: linea.descripcion,
       percepcion_codigo: linea.tipo === "PERCEPCION" ? linea.percepcionCodigo ?? "OTRA" : null,
       importe: linea.importe,
+      iva_alicuota_id: linea.ivaAlicuotaId ?? null,
     })),
   };
 }

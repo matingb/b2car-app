@@ -11,6 +11,7 @@ import {
   type FacturaRecibidaClase,
 } from "@/lib/comprobantesRecibidos/types";
 import { generateUuidV4 } from "@/lib/uuid";
+import { calcularFacturaADesdeBases, calcularFacturaBDesdeImportesConIva } from "@/lib/comprobantesRecibidos/iva";
 import type { Proveedor, TipoOperacion } from "@/model/types";
 
 /*
@@ -29,6 +30,7 @@ export type PercepcionDraft = {
 
 export type FacturaCompraDraft = {
   clase: FacturaRecibidaClase | "";
+  ivaAlicuotaGasto?: number;
   numero: string;
   /** Vacío: se usa la fecha de la operación. */
   fecha: string;
@@ -41,7 +43,7 @@ export type FacturaCompraDraft = {
   percepciones: PercepcionDraft[];
 };
 
-export type ConceptoFactura = { descripcion: string; importe: number };
+export type ConceptoFactura = { key: string; descripcion: string; importe: number; ivaAlicuotaId?: number | null };
 
 const EMPTY_RECEPTOR: ComprobanteRecibidoIdentidad = { razonSocial: null, cuit: null, condicionIva: null };
 
@@ -67,6 +69,7 @@ function guardarPreferencia(value: boolean) {
 function emptyDraft(): FacturaCompraDraft {
   return {
     clase: "",
+    ivaAlicuotaGasto: 5,
     numero: "",
     fecha: "",
     emisorRazonSocial: "",
@@ -93,12 +96,14 @@ export function buildFacturaCompraInput({
   fechaOperacion,
   conceptos,
   proveedorId,
+  tipoOperacion,
   receptor = EMPTY_RECEPTOR,
 }: {
   draft: FacturaCompraDraft;
   fechaOperacion: string;
   conceptos: ConceptoFactura[];
   proveedorId: string | null;
+  tipoOperacion: TipoOperacion;
   receptor?: ComprobanteRecibidoIdentidad;
 }): ComprobanteInputResult {
   if (conceptos.length === 0) {
@@ -122,6 +127,25 @@ export function buildFacturaCompraInput({
     return { error: `La factura admite hasta ${MAX_LINEAS_COMPROBANTE} líneas entre conceptos y percepciones` };
   }
 
+  const facturaA = (tipoOperacion === "COMPRA" || tipoOperacion === "GASTO") && draft.clase === "A";
+  const facturaB = (tipoOperacion === "COMPRA" || tipoOperacion === "GASTO") && draft.clase === "B";
+  let calculoIva: ReturnType<typeof calcularFacturaADesdeBases> | null = null;
+  if (facturaA || facturaB) {
+    try {
+      const conceptosConAlicuota = conceptos.map((concepto) => ({
+        key: concepto.key,
+        importe: concepto.importe,
+        ivaAlicuotaId: concepto.ivaAlicuotaId ?? 5,
+      }));
+      calculoIva = facturaA
+        ? calcularFacturaADesdeBases(conceptosConAlicuota)
+        : calcularFacturaBDesdeImportesConIva(conceptosConAlicuota);
+    } catch {
+      return { error: "No se pudo calcular el IVA de los conceptos de la factura" };
+    }
+  }
+  const conceptosCalculados = new Map(calculoIva?.conceptos.map((concepto) => [concepto.key, concepto]) ?? []);
+
   return parseComprobanteRecibidoInput({
     tipoDocumento: "FACTURA",
     clase: draft.clase || null,
@@ -139,12 +163,14 @@ export function buildFacturaCompraInput({
     vencimientoAutorizacion: null,
     fechaVencimiento: draft.fechaVencimiento,
     observaciones: null,
+    desgloseIva: calculoIva?.desgloseIva ?? null,
     lineas: [
       ...conceptos.map((concepto) => ({
         tipo: "CONCEPTO",
         descripcion: concepto.descripcion,
         percepcionCodigo: null,
-        importe: concepto.importe,
+        importe: conceptosCalculados.get(concepto.key)?.total ?? concepto.importe,
+        ivaAlicuotaId: facturaA || facturaB ? concepto.ivaAlicuotaId ?? 5 : null,
       })),
       ...percepciones,
     ],
