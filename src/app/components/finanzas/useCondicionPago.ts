@@ -118,6 +118,19 @@ export function useCondicionPago({
     () => propDefaultFecha || initialFecha || toISODateLocal(new Date()),
     [propDefaultFecha, initialFecha]
   );
+  const resolvedTimestampsRef = useRef(new Map<string, string>());
+  useEffect(() => {
+    if (!open) resolvedTimestampsRef.current.clear();
+  }, [open]);
+
+  const timestampForPagoFecha = useCallback((dateInput: string) => {
+    if (dateInput.includes("T")) return toISODateTimeWithLocalCurrentTime(dateInput);
+    const cached = resolvedTimestampsRef.current.get(dateInput);
+    if (cached) return cached;
+    const resolved = toISODateTimeWithLocalCurrentTime(dateInput);
+    if (resolved) resolvedTimestampsRef.current.set(dateInput, resolved);
+    return resolved;
+  }, []);
 
   const initialAcc = initialCuentaId ?? cuentaFavorita?.id ?? "";
 
@@ -411,8 +424,8 @@ export function useCondicionPago({
           if (accId) {
             const fechaVal = p.fecha || baseFecha || defaultFecha;
             const finalTimestamp =
-              toISODateTimeWithLocalCurrentTime(fechaVal) ||
-              toISODateTimeWithLocalCurrentTime(baseFecha || defaultFecha) ||
+              timestampForPagoFecha(fechaVal) ||
+              timestampForPagoFecha(baseFecha || defaultFecha) ||
               fechaVal;
 
             result.push({
@@ -428,7 +441,7 @@ export function useCondicionPago({
 
       return result;
     },
-    [targetAmount, pagosDraft, defaultFecha]
+    [targetAmount, pagosDraft, defaultFecha, timestampForPagoFecha]
   );
 
   const pagoSectionProps = useMemo(

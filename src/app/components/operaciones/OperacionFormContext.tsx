@@ -16,6 +16,7 @@ import { productosClient } from "@/clients/productosClient";
 import { CATEGORIAS_GASTO, type GastoFinanciero } from "@/model/finanzas";
 import { comprobantesRecibidosClient } from "@/clients/comprobantesRecibidosClient";
 import { sumarImportes, type ComprobanteRecibidoInput } from "@/lib/comprobantesRecibidos/types";
+import { calcularIvaTotalDesdeBases } from "@/lib/comprobantesRecibidos/iva";
 import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import { buildStockAutocompleteOptions } from "@/app/components/stock/StockBreakdownBadge";
 import {
@@ -203,6 +204,10 @@ export function OperacionFormProvider({
 }) {
   const isEditingGasto = Boolean(gasto);
   const [isSubmittingFactura, setIsSubmittingFactura] = useState(false);
+  const operationIdempotencyKeyRef = useRef(generateUuidV4());
+  const operationRequestFingerprintRef = useRef<string | null>(null);
+  const operationFechaTimestampRef = useRef(new Map<string, string>());
+  const inlineCuentaCreadaRef = useRef(new Map<string, { id: string; nombre: string }>());
   const { create, loading: isOperacionesLoading, refresh: refreshOperaciones } = useOperaciones();
   const { success, error } = useToast();
   const {
@@ -227,6 +232,33 @@ export function OperacionFormProvider({
   const [descripcionGasto, setDescripcionGasto] = useState<string>(gasto?.descripcion ?? "");
   const [observaciones, setObservaciones] = useState<string>(gasto?.observaciones ?? "");
   const [isSubmittingGasto, setIsSubmittingGasto] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    operationIdempotencyKeyRef.current = generateUuidV4();
+    operationRequestFingerprintRef.current = null;
+    operationFechaTimestampRef.current.clear();
+    inlineCuentaCreadaRef.current.clear();
+  }, [open]);
+
+  const timestampForOperationFecha = useCallback((dateInput: string) => {
+    if (dateInput.includes("T")) return toISODateTimeWithLocalCurrentTime(dateInput);
+    const cached = operationFechaTimestampRef.current.get(dateInput);
+    if (cached) return cached;
+    const resolved = toISODateTimeWithLocalCurrentTime(dateInput);
+    if (resolved) operationFechaTimestampRef.current.set(dateInput, resolved);
+    return resolved;
+  }, []);
+
+  const createCuentaOnce = useCallback(async (draft: Parameters<typeof createCuenta>[0]) => {
+    const key = JSON.stringify([draft.nombre.trim(), draft.tipo, draft.saldoInicial]);
+    const cached = inlineCuentaCreadaRef.current.get(key);
+    if (cached) return cached;
+    const created = await createCuenta(draft);
+    const result = { id: created.id, nombre: created.nombre };
+    inlineCuentaCreadaRef.current.set(key, result);
+    return result;
+  }, [createCuenta]);
 
   const [montoInicial, setMontoInicial] = useState<string>("");
   const [moverStock, setMoverStock] = useState<boolean>(true);
@@ -611,8 +643,8 @@ export function OperacionFormProvider({
   const factura = useFacturaCompraDraft({ open, tipo, proveedor: proveedorSeleccionado });
   const facturaActiva = factura.activa && puedeCargarComprobante;
 
-  // En una compra guardada con factura, las percepciones son cargos de la operación: suman al
-  // total, a los pagos sugeridos y al saldo. En los gastos quedan solo en la factura.
+  // En una compra guardada con factura, IVA A calculado y percepciones suman al total, los pagos
+  // sugeridos y el saldo. En los gastos, IVA y percepciones quedan solo en la factura.
   const sumaPercepciones = tipo === "COMPRA" && facturaActiva;
   const totalPercepciones = useMemo(
     () => (sumaPercepciones
@@ -621,14 +653,27 @@ export function OperacionFormProvider({
     [sumaPercepciones, factura.draft.percepciones],
   );
 
+  const totalIvaCompra = useMemo(() => {
+    if (tipo !== "COMPRA" || !facturaActiva || factura.draft.clase !== "A") return 0;
+    try {
+      return calcularIvaTotalDesdeBases(lineas.map((linea, index) => ({
+        key: String(index),
+        importe: (Number(linea.cantidad) || 0) * (Number(linea.unitario) || 0),
+        ivaAlicuotaId: linea.ivaAlicuotaId ?? stockById.get(linea.stockId)?.ivaAlicuotaId ?? 5,
+      })));
+    } catch {
+      return 0;
+    }
+  }, [tipo, facturaActiva, factura.draft.clase, lineas, stockById]);
+
   const importeTotal = useMemo(() => {
     if (tipo === "GASTO") return Number(montoGasto) || 0;
     const totalLineas = lineas.reduce(
       (sum, l) => sum + (Number(l.cantidad) || 0) * (Number(l.unitario) || 0),
       0
     );
-    return sumarImportes([totalLineas, totalPercepciones]);
-  }, [tipo, montoGasto, lineas, totalPercepciones]);
+    return sumarImportes([totalLineas, totalIvaCompra, totalPercepciones]);
+  }, [tipo, montoGasto, lineas, totalIvaCompra, totalPercepciones]);
 
   // Porcentaje y estado de entrega de stock
   const stockDeliveryPercentage = useMemo(() => {
@@ -804,7 +849,7 @@ export function OperacionFormProvider({
   const submitForm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit || !tipo) return;
-    const fechaTimestamp = toISODateTimeWithLocalCurrentTime(fecha);
+    const fechaTimestamp = timestampForOperationFecha(fecha);
     if (!fechaTimestamp) return;
 
     // La factura se valida antes de crear la operación para no dejar una compra sin su documento
@@ -829,7 +874,7 @@ export function OperacionFormProvider({
 
     let targetCuentaId: string | null = cuentaFinancieraId || null;
     if (cuentaFinancieraId && isCreatingCuenta) {
-      const created = await createCuenta({
+      const created = await createCuentaOnce({
         nombre: cuentaDraft.nombre.trim(),
         tipo: cuentaDraft.tipo,
         saldoInicial: 0,
@@ -868,19 +913,18 @@ export function OperacionFormProvider({
     }
 
     try {
-      const pagosPayload = await resolvePagosPayload(createCuenta, fecha);
+      const pagosPayload = await resolvePagosPayload(createCuentaOnce, fecha);
 
       const primaryCuentaId = pagosPayload.length > 0
         ? pagosPayload[0].cuenta_financiera_id
         : (computedEstadoPago === "PENDIENTE" ? null : (targetCuentaId || null));
 
-      const payload = {
+      const payloadBase = {
         tipo,
         taller_id: tallerId || null,
         fecha: fechaTimestamp,
         cuenta_financiera_id: primaryCuentaId,
         observaciones: observaciones.trim() || null,
-        idempotency_key: generateUuidV4(),
         estado_pago: computedEstadoPago,
         monto_inicial: computedEstadoPago === "PARCIAL" ? totalPagado : null,
         mover_stock: moverStock,
@@ -900,6 +944,9 @@ export function OperacionFormProvider({
               }))
           : undefined,
         monto: tipo === "GASTO" ? Number(montoGasto) : undefined,
+        precios_incluyen_iva: tipo === "COMPRA"
+          ? !(facturaActiva && factura.draft.clase === "A")
+          : undefined,
         categoria_gasto: tipo === "GASTO" ? categoriaGasto : undefined,
         descripcion: tipo === "GASTO" ? (descripcionGasto.trim() || null) : undefined,
         lineas: tipo === "GASTO" ? [] : lineas.map((l) => {
@@ -917,6 +964,15 @@ export function OperacionFormProvider({
           };
         }),
       };
+
+      // Reintentos idénticos conservan la misma clave aunque se pierda la respuesta del servidor.
+      // Si cambia el contenido del intento, se emite una clave nueva para no devolver una operación vieja.
+      const requestFingerprint = JSON.stringify(payloadBase);
+      if (operationRequestFingerprintRef.current !== requestFingerprint) {
+        operationRequestFingerprintRef.current = requestFingerprint;
+        operationIdempotencyKeyRef.current = generateUuidV4();
+      }
+      const payload = { ...payloadBase, idempotency_key: operationIdempotencyKeyRef.current };
 
       const created = await create(payload);
       if (created) {

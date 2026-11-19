@@ -40,6 +40,7 @@ import {
 import OperacionPagoBadge from "@/app/components/operaciones/OperacionPagoBadge";
 import OperacionStockBadge from "@/app/components/operaciones/OperacionStockBadge";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
+import OperacionCargosModal from "@/app/components/operaciones/OperacionCargosModal";
 import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
 import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
 import {
@@ -96,6 +97,7 @@ export default function OperacionDetailPage() {
 
   const [stocksById, setStocksById] = useState<Record<string, StockItem>>({});
   const [isEditGastoOpen, setIsEditGastoOpen] = useState(false);
+  const [isCargosOpen, setIsCargosOpen] = useState(false);
   const [isFacturaOpen, setIsFacturaOpen] = useState(false);
   const [isAdjuntarFacturaOpen, setIsAdjuntarFacturaOpen] = useState(false);
   // Fuerza la recarga de la sección de facturas recibidas al adjuntar una desde la cabecera.
@@ -606,6 +608,16 @@ export default function OperacionDetailPage() {
             <h3 style={{ margin: 0, fontSize: 16, color: COLOR.TEXT.PRIMARY }}>
               Cargos de la compra ({cargos.length})
             </h3>
+            {canEditOperacion ? (
+              <Button
+                text={cargos.length > 0 ? "Editar cargos" : "Agregar cargos"}
+                icon={<Pencil size={16} />}
+                outline
+                hideTextOnMobile={false}
+                onClick={() => setIsCargosOpen(true)}
+                dataTestId="operacion-cargos-editar"
+              />
+            ) : null}
           </div>
 
           {cargos.length > 0 && <div style={{ overflowX: "auto" }}>
@@ -879,6 +891,19 @@ export default function OperacionDetailPage() {
           initialTipo="FACTURA"
           onClose={() => setIsAdjuntarFacturaOpen(false)}
           onSaved={() => setRecibidosVersion((value) => value + 1)}
+        />
+      )}
+
+      {isCargosOpen && operacion.tipo === "COMPRA" && (
+        <OperacionCargosModal
+          operacion={operacion}
+          montoBase={totalMonto - totalCargos}
+          canViewRecibidos={canViewRecibidos}
+          onClose={() => setIsCargosOpen(false)}
+          onSaved={(updated) => {
+            setOperacion(updated);
+            void refresh();
+          }}
         />
       )}
 

@@ -21,10 +21,24 @@ beforeEach(() => {
 });
 
 describe("GET /api/documentos", () => {
-  it("requiere facturas:view", async () => {
+  it("requiere facturas:view o comprobantes_recibidos:view", async () => {
     mockApiSession({ permissions: [Permission.ArreglosView] });
     expect((await GET(req(), segment())).status).toBe(403);
     expect(listDocumentos).not.toHaveBeenCalled();
+  });
+
+  it("permite consultar solo los documentos recibidos cuando falta facturas:view", async () => {
+    const { supabase } = mockApiSession({ permissions: [Permission.ComprobantesRecibidosView] });
+    const data = { items: [], page: 1, pageSize: 25, total: 0 };
+    vi.mocked(listDocumentos).mockResolvedValueOnce(data);
+
+    const response = await GET(req(), segment());
+
+    expect(response.status).toBe(200);
+    expect(listDocumentos).toHaveBeenCalledWith(supabase, TENANT, {
+      page: 1, pageSize: 25, tipo: null, estado: null, ambiente: null, desde: null, hasta: null,
+      search: null, clase: null, factura: null,
+    }, { incluirEmitidos: false, incluirRecibidos: true });
   });
 
   it("lista con los filtros de la query", async () => {
@@ -39,7 +53,7 @@ describe("GET /api/documentos", () => {
     expect(listDocumentos).toHaveBeenCalledWith(supabase, TENANT, {
       page: 2, pageSize: 25, tipo: "REMITO", estado: null, ambiente: "PRODUCCION", desde: "2026-10-01", hasta: null,
       search: "juan", clase: "R", factura: "con",
-    });
+    }, { incluirEmitidos: true, incluirRecibidos: false });
   });
 
   it("devuelve los errores de validación del listado", async () => {

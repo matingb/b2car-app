@@ -135,9 +135,54 @@ describe("GET /api/operaciones", () => {
 });
 
 describe("POST /api/operaciones", () => {
+	const compraBody = (overrides: Record<string, unknown>) => ({
+		tipo: "COMPRA",
+		taller_id: "11111111-1111-4111-8111-111111111111",
+		idempotency_key: "33333333-3333-4333-8333-333333333333",
+		lineas: [{
+			stock_id: "44444444-4444-4444-8444-444444444444",
+			cantidad: 1,
+			monto_unitario: 100,
+			delta_cantidad: 1,
+		}],
+		...overrides,
+	});
+
+	const postCompra = (overrides: Record<string, unknown>) => POST(new Request("http://localhost/api/operaciones", {
+		method: "POST",
+		body: JSON.stringify(compraBody(overrides)),
+	}));
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		vi.mocked(createClient).mockResolvedValue({} as unknown as SupabaseClient);
+	});
+
+	it.each([
+		["pago inicial exacto", { cuenta_financiera_id: "22222222-2222-4222-8222-222222222222", pagos: [{ cuenta_id: "22222222-2222-4222-8222-222222222222", monto: 100 }] }],
+		["pago inicial parcial", { estado_pago: "PARCIAL", cuenta_financiera_id: "22222222-2222-4222-8222-222222222222", pagos: [{ cuenta_id: "22222222-2222-4222-8222-222222222222", monto: 50 }] }],
+		["monto inicial exacto", { cuenta_financiera_id: "22222222-2222-4222-8222-222222222222", monto_inicial: 100 }],
+		["monto inicial parcial", { estado_pago: "PARCIAL", cuenta_financiera_id: "22222222-2222-4222-8222-222222222222", monto_inicial: 50 }],
+	])("acepta %s sin superar el total", async (_label, body) => {
+		vi.mocked(operacionesService.create).mockResolvedValue({
+			data: { id: "op-payment", tenant_id: "tenant-1", tipo: "COMPRA" },
+			error: null,
+		} as unknown as Awaited<ReturnType<typeof operacionesService.create>>);
+
+		const response = await postCompra(body);
+
+		expect(response.status).toBe(201);
+		expect(operacionesService.create).toHaveBeenCalledOnce();
+	});
+
+	it.each([
+		["pagos[]", { cuenta_financiera_id: "22222222-2222-4222-8222-222222222222", pagos: [{ cuenta_id: "22222222-2222-4222-8222-222222222222", monto: 100.01 }] }],
+		["monto_inicial", { cuenta_financiera_id: "22222222-2222-4222-8222-222222222222", monto_inicial: 100.01 }],
+	])("rechaza un exceso de un centavo en %s", async (_label, body) => {
+		const response = await postCompra(body);
+
+		expect(response.status).toBe(400);
+		expect(operacionesService.create).not.toHaveBeenCalled();
 	});
 
 	it("devuelve conflicto y conserva el mensaje cuando la RPC rechaza una venta por stock insuficiente", async () => {

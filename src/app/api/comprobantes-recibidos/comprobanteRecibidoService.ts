@@ -105,6 +105,7 @@ export function mapComprobanteRecibido(row: ComprobanteRecibidoRow): Comprobante
     observaciones: row.observaciones,
     lineas,
     desgloseIva: row.desglose_iva?.map((item) => ({ ivaAlicuotaId: item.iva_alicuota_id, base: asNumber(item.base), iva: asNumber(item.iva) })) ?? null,
+    ivaContenido: row.iva_contenido == null ? null : asNumber(row.iva_contenido),
     ...totales,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -156,6 +157,7 @@ function toRpcParams(
       fecha_vencimiento: input.fechaVencimiento,
       observaciones: input.observaciones,
       desglose_iva: input.desgloseIva?.map((item) => ({ iva_alicuota_id: item.ivaAlicuotaId, base: item.base, iva: item.iva })) ?? null,
+      iva_contenido: input.ivaContenido ?? null,
     },
     p_lineas: input.lineas.map((linea) => ({
       tipo: linea.tipo,

@@ -79,6 +79,8 @@ export type CreateOperacionInput = {
 	cuenta_financiera_id?: string | null;
 	pagos?: CreateOperacionPagoInput[] | null;
 	cargos?: OperacionCargoInput[] | null;
+	/** Solo COMPRA: false when creation includes a Factura A with net prices. */
+	precios_incluyen_iva?: boolean;
 	idempotency_key?: string | null;
 	observaciones?: string | null;
 	estado_pago?: string | null;
@@ -237,9 +239,10 @@ export function createOperacionesService(
 				p_proveedor_id: input.tipo === "GASTO" ? null : (input.proveedor_id ?? null),
 				p_cliente_id: input.cliente_id ?? null,
 				p_pagos: input.pagos && input.pagos.length > 0 ? input.pagos : null,
+				p_precios_incluyen_iva: input.tipo === "COMPRA" ? input.precios_incluyen_iva ?? true : true,
 			};
 
-			// Las percepciones suman al total de la compra (monto_total = productos + cargos).
+			// Las percepciones suman al total; la RPC también suma el IVA si los precios de COMPRA son netos.
 			if (input.tipo === "COMPRA" && Array.isArray(input.cargos) && input.cargos.length > 0) {
 				payload.p_cargos = input.cargos.map((c) => ({
 					tipo: c.tipo ?? "PERCEPCION",

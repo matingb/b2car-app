@@ -14,7 +14,7 @@ import {
 } from "@/lib/comprobantesRecibidos/types";
 import { formatArs } from "@/lib/format";
 import { ALICUOTAS_IVA_ARCA } from "@/lib/facturacion/types";
-import { calcularFacturaADesdeBases, calcularFacturaBDesdeImportesConIva } from "@/lib/comprobantesRecibidos/iva";
+import { calcularFacturaADesdeBases } from "@/lib/comprobantesRecibidos/iva";
 import { COLOR } from "@/theme/theme";
 import { useOperacionForm } from "./OperacionFormContext";
 import { importePercepcion, type PercepcionDraft } from "./useFacturaCompraDraft";
@@ -25,28 +25,32 @@ const PERCEPCION_OPTIONS = PERCEPCIONES_SUGERIDAS.map((sugerida) => ({ value: su
 
 /**
  * Percepciones de la factura recibida (selector abierto: sugeridas o texto libre). Los conceptos
- * de la factura salen del detalle de la operación; resume IVA por alícuota en facturas A/B.
+ * de la factura salen del detalle de la operación; el IVA de A se deriva de sus tasas y se resume por alícuota.
  */
 export default function OperacionFacturaPercepciones() {
   const { factura, conceptosFactura, isSubmitting, tipo } = useOperacionForm();
   const { draft, addPercepcion, updatePercepcion, removePercepcion } = factura;
   const calculoIva = useMemo(() => {
-    if ((tipo !== "COMPRA" && tipo !== "GASTO") || (draft.clase !== "A" && draft.clase !== "B")) return null;
+    if ((tipo !== "COMPRA" && tipo !== "GASTO") || draft.clase !== "A") return null;
     const conceptos = conceptosFactura.map((concepto) => ({
       key: concepto.key,
       importe: concepto.importe,
       ivaAlicuotaId: concepto.ivaAlicuotaId ?? 5,
     }));
-    return draft.clase === "A"
-      ? calcularFacturaADesdeBases(conceptos)
-      : calcularFacturaBDesdeImportesConIva(conceptos);
+    return calcularFacturaADesdeBases(conceptos);
   }, [tipo, draft.clase, conceptosFactura]);
-  const montoConceptosFactura = calculoIva
+  const montoConceptosCalculado = calculoIva
     ? sumarImportes(calculoIva.conceptos.map((concepto) => concepto.total))
     : sumarImportes(conceptosFactura.map((concepto) => concepto.importe));
-  const ivaTotal = calculoIva ? sumarImportes(calculoIva.desgloseIva.map((item) => item.iva)) : 0;
-  let montoBaseLabel = "Conceptos";
-  if (calculoIva) montoBaseLabel = draft.clase === "A" ? "Conceptos + IVA" : "Conceptos (IVA incluido)";
+  const montoConceptosFactura = draft.clase === "B"
+    ? sumarImportes(conceptosFactura.map((concepto) => concepto.importe))
+    : montoConceptosCalculado;
+  const totalConceptos = sumarImportes(conceptosFactura.map((concepto) => concepto.importe));
+  const totalIva = calculoIva
+    ? sumarImportes(calculoIva.desgloseIva.map((item) => item.iva))
+    : null;
+  const totalPercepciones = sumarImportes(draft.percepciones.map((item) => importePercepcion(item.importe)));
+  const totalFactura = sumarImportes([montoConceptosFactura, totalPercepciones]);
 
   return (
     <>
@@ -54,7 +58,7 @@ export default function OperacionFacturaPercepciones() {
         contexto="factura"
         percepciones={draft.percepciones}
         montoBase={montoConceptosFactura}
-        montoBaseLabel={montoBaseLabel}
+        showTotals={false}
         limite={MAX_LINEAS_COMPROBANTE - conceptosFactura.length}
         disabled={isSubmitting}
         addPercepcion={addPercepcion}
@@ -62,13 +66,7 @@ export default function OperacionFacturaPercepciones() {
         removePercepcion={removePercepcion}
       />
       {calculoIva && calculoIva.desgloseIva.length > 0 ? (
-        <section css={styles.ivaSummary} aria-label="IVA calculado por alícuota" data-testid="operacion-iva-desglose">
-          <div>
-            <h3 css={styles.ivaTitle}>IVA {draft.clase === "A" ? "adicional" : "incluido"} por alícuota</h3>
-            <p css={styles.ivaHint}>{draft.clase === "A"
-              ? "Los precios ingresados son netos. El IVA se suma según la alícuota elegida en cada concepto."
-              : "Los precios ya incluyen IVA. Se discrimina según la alícuota elegida en cada concepto."}</p>
-          </div>
+        <div css={styles.ivaRateList} role="group" aria-label="Totales de IVA por alícuota" data-testid="operacion-iva-desglose">
           {tipo === "GASTO" ? (
             <div css={styles.ivaGastoRate}>
               <label htmlFor="operacion-gasto-iva-alicuota">Alícuota del concepto</label>
@@ -83,18 +81,42 @@ export default function OperacionFacturaPercepciones() {
               />
             </div>
           ) : null}
-          <div css={styles.ivaLines}>
+          <div css={styles.ivaRateTotals}>
             {calculoIva.desgloseIva.map((item) => (
-              <div key={item.ivaAlicuotaId} css={styles.ivaLine} data-testid={`operacion-iva-alicuota-${item.ivaAlicuotaId}`}>
-                <strong>{ALICUOTAS_IVA_ARCA.find((rate) => rate.id === item.ivaAlicuotaId)?.label}</strong>
-                <span>Base neta: {formatArs(item.base)}</span>
-                <span>IVA: <strong>{formatArs(item.iva)}</strong></span>
+              <div
+                key={item.ivaAlicuotaId}
+                css={styles.ivaRateTotal}
+                data-testid={`operacion-iva-alicuota-${item.ivaAlicuotaId}`}
+              >
+                <span>Total IVA {ALICUOTAS_IVA_ARCA.find((rate) => rate.id === item.ivaAlicuotaId)?.label}</span>
+                <strong>{formatArs(item.iva)}</strong>
               </div>
             ))}
           </div>
-          <div css={styles.ivaTotal} data-testid="operacion-iva-total">IVA {draft.clase === "A" ? "a sumar" : "incluido"}: <strong>{formatArs(ivaTotal)}</strong></div>
+        </div>
+      ) : draft.clase === "B" ? (
+        <section css={styles.ivaSummary} aria-label="IVA contenido de factura B" data-testid="operacion-iva-contenido">
+          <h3 css={styles.ivaTitle}>IVA contenido informado (opcional)</h3>
+          <p css={styles.ivaHint}>La factura B conserva sus importes finales. Este dato es informativo y no se usa como IVA discriminado.</p>
+          <input
+            css={styles.ivaInput}
+            type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            aria-label="IVA contenido informado"
+            value={draft.ivaContenido}
+            disabled={isSubmitting}
+            onChange={(event) => factura.update({ ivaContenido: event.target.value })}
+          />
         </section>
       ) : null}
+      <div css={styles.facturaTotals} data-testid="operacion-factura-totales">
+        <span>Conceptos: <strong>{formatArs(totalConceptos)}</strong></span>
+        <span>IVA: <strong>{totalIva == null ? "No discriminado" : formatArs(totalIva)}</strong></span>
+        <span>Percepciones: <strong>{formatArs(totalPercepciones)}</strong></span>
+        <span css={styles.facturaTotal}>Total de factura: <strong>{formatArs(totalFactura)}</strong></span>
+      </div>
     </>
   );
 }
@@ -105,6 +127,7 @@ type PercepcionesEditorProps = {
   montoBase: number;
   montoBaseLabel?: string;
   limite?: number;
+  showTotals?: boolean;
   disabled: boolean;
   addPercepcion: () => string;
   updatePercepcion: (key: string, patch: Partial<Omit<PercepcionDraft, "key">>) => void;
@@ -117,6 +140,7 @@ export function OperacionPercepcionesEditor({
   montoBase,
   montoBaseLabel,
   limite = MAX_LINEAS_COMPROBANTE,
+  showTotals = true,
   disabled,
   addPercepcion,
   updatePercepcion,
@@ -315,11 +339,13 @@ export function OperacionPercepcionesEditor({
           icon={<Plus size={16} />}
           outline
         />
-        <div css={styles.totales} data-testid={`${testId}-totales`}>
-          <span>{montoBaseLabel ?? (esFactura ? "Conceptos" : "Mercadería")}: <strong>{formatArs(montoBase)}</strong></span>
-          <span>Percepciones: <strong>{formatArs(totalPercepciones)}</strong></span>
-          <span>{esFactura ? "Total factura" : "Total compra"}: <strong style={styles.totalStrong}>{formatArs(total)}</strong></span>
-        </div>
+        {showTotals ? (
+          <div css={styles.totales} data-testid={`${testId}-totales`}>
+            <span>{montoBaseLabel ?? (esFactura ? "Conceptos" : "Mercadería")}: <strong>{formatArs(montoBase)}</strong></span>
+            <span>Percepciones: <strong>{formatArs(totalPercepciones)}</strong></span>
+            <span>{esFactura ? "Total factura" : "Total compra"}: <strong style={styles.totalStrong}>{formatArs(total)}</strong></span>
+          </div>
+        ) : null}
       </div>
 
     </div>
@@ -357,29 +383,59 @@ const styles = {
     color: COLOR.TEXT.SECONDARY,
     fontSize: 12,
   }),
-  ivaLines: css({
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: 8,
-  }),
-  ivaLine: css({
+  ivaRateList: css({
     display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
+    flexDirection: "column",
+    alignItems: "stretch",
     gap: 8,
-    padding: "9px 10px",
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 8,
-    color: COLOR.TEXT.SECONDARY,
-    fontSize: 12,
-    "& > strong": { color: COLOR.TEXT.PRIMARY, fontSize: 13 },
+    width: "100%",
+    marginTop: 12,
   }),
-  ivaTotal: {
-    color: COLOR.TEXT.PRIMARY,
+  ivaRateTotals: css({
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    width: "100%",
+    maxWidth: 420,
+  }),
+  ivaRateTotal: css({
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 16,
+    color: COLOR.TEXT.SECONDARY,
     fontSize: 13,
-    textAlign: "right" as const,
-  },
+    "& > strong": { color: COLOR.TEXT.PRIMARY, fontWeight: 700 },
+  }),
+  facturaTotals: css({
+    display: "flex",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+    gap: "8px 20px",
+    marginTop: 12,
+    paddingTop: 10,
+    borderTop: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    color: COLOR.TEXT.SECONDARY,
+    fontSize: 13,
+    "& strong": { color: COLOR.TEXT.PRIMARY },
+    "@media (max-width: 720px)": {
+      justifyContent: "space-between",
+    },
+  }),
+  facturaTotal: css({
+    color: COLOR.TEXT.PRIMARY,
+    fontWeight: 700,
+  }),
+  ivaInput: css({
+    width: "100%",
+    minHeight: 36,
+    padding: "6px 9px",
+    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    borderRadius: 7,
+    color: COLOR.TEXT.PRIMARY,
+    background: COLOR.BACKGROUND.PRIMARY,
+    fontSize: 13,
+  }),
   sectionHeaderRow: {
     display: "flex",
     alignItems: "baseline",

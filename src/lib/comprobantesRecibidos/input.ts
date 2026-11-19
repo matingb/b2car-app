@@ -68,11 +68,8 @@ function parseLineas(raw: unknown, tipoDocumento: ComprobanteRecibidoInput["tipo
       percepcionCodigo = codigo as PercepcionCodigo;
     }
     const ivaAlicuotaId = source.ivaAlicuotaId ?? null;
-    if (ivaAlicuotaId !== null && (tipoDocumento !== "FACTURA" || (clase !== "A" && clase !== "B") || tipo !== "CONCEPTO" || !ALICUOTAS_IVA_ARCA.some((rate) => rate.id === ivaAlicuotaId))) {
+    if (ivaAlicuotaId !== null && (tipoDocumento !== "FACTURA" || clase !== "A" || tipo !== "CONCEPTO" || !ALICUOTAS_IVA_ARCA.some((rate) => rate.id === ivaAlicuotaId))) {
       return { error: `Línea ${n}: la alícuota no es válida` };
-    }
-    if (tipoDocumento === "FACTURA" && clase === "B" && tipo === "CONCEPTO" && ivaAlicuotaId === null) {
-      return { error: `Línea ${n}: elegí la alícuota de IVA para una factura B` };
     }
     lineas.push({ tipo, descripcion: descripcion.value, percepcionCodigo, importe: monto, ivaAlicuotaId: ivaAlicuotaId as number | null });
   }
@@ -159,7 +156,7 @@ export function parseComprobanteRecibidoInput(raw: unknown): ComprobanteInputRes
 
   let desgloseIva: ComprobanteRecibidoInput["desgloseIva"] = null;
   if (body.desgloseIva != null) {
-    if (tipoDocumento !== "FACTURA" || (clase !== "A" && clase !== "B") || !Array.isArray(body.desgloseIva)) return { error: "El desglose de IVA solo corresponde a facturas A o B" };
+    if (tipoDocumento !== "FACTURA" || clase !== "A" || !Array.isArray(body.desgloseIva)) return { error: "El desglose de IVA discriminado solo corresponde a facturas A" };
     const seen = new Set<number>();
     desgloseIva = [];
     for (const item of body.desgloseIva) {
@@ -180,6 +177,24 @@ export function parseComprobanteRecibidoInput(raw: unknown): ComprobanteInputRes
       > lineas.value.filter((linea) => linea.tipo === "CONCEPTO").reduce((sum, linea) => sum + BigInt(toCents(linea.importe)), BigInt(0))) {
       return { error: "La base y el IVA del desglose no pueden superar el total de conceptos" };
     }
+  }
+
+  let ivaContenido: number | null = null;
+  if (body.ivaContenido !== undefined && body.ivaContenido !== null && body.ivaContenido !== "") {
+    const value = body.ivaContenido;
+    if (tipoDocumento !== "FACTURA" || clase !== "B") {
+      return { error: "El IVA contenido informado solo corresponde a facturas B" };
+    }
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > MAX_IMPORTE || Math.round(value * 100) / 100 !== value) {
+      return { error: "El IVA contenido debe ser un importe válido de hasta 2 decimales" };
+    }
+    const totalConceptos = lineas.value
+      .filter((linea) => linea.tipo === "CONCEPTO")
+      .reduce((sum, linea) => sum + BigInt(toCents(linea.importe)), BigInt(0));
+    if (BigInt(toCents(value)) > totalConceptos) {
+      return { error: "El IVA contenido no puede superar el total de conceptos" };
+    }
+    ivaContenido = value;
   }
 
   return {
@@ -206,6 +221,7 @@ export function parseComprobanteRecibidoInput(raw: unknown): ComprobanteInputRes
       observaciones: fields.observaciones.value,
       lineas: lineas.value,
       desgloseIva,
+      ivaContenido,
     },
   };
 }

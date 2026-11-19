@@ -3,8 +3,8 @@
  *
  * Son registros informativos asociados a exactamente una operación COMPRA/GASTO. Crear, editar o
  * eliminar uno no modifica pagos, saldos, estado de pago, cuentas ni stock. En facturas A los precios
- * de conceptos son netos y se suma IVA por alícuota; en facturas B el precio incluye IVA y la tasa por
- * concepto permite extraerlo para el reporte. En C se conserva el importe final sin discriminar IVA.
+ * de conceptos son netos y se suma IVA por alícuota; en facturas B y C se conserva el importe final.
+ * El IVA contenido informado en una factura B se guarda separado y nunca se usa como IVA discriminado.
  */
 
 export type ComprobanteRecibidoTipo = "FACTURA" | "RETENCION";
@@ -84,6 +84,8 @@ export type ComprobanteRecibido = {
   observaciones: string | null;
   lineas: ComprobanteRecibidoLinea[];
   desgloseIva?: DesgloseIvaRecibido[] | null;
+  /** IVA contenido informado manualmente en una factura B; no es un desglose fiscal discriminado. */
+  ivaContenido?: number | null;
   totalConceptos: number;
   totalPercepciones: number;
   total: number;
@@ -121,6 +123,8 @@ export type ComprobanteRecibidoInput = {
   observaciones: string | null;
   lineas: ComprobanteRecibidoLinea[];
   desgloseIva?: DesgloseIvaRecibido[] | null;
+  /** Importe informativo, solo para factura B. No se infiere desde conceptos ni tasas. */
+  ivaContenido?: number | null;
 };
 
 /** Comparación informativa con el monto operativo. Nunca bloquea ni ajusta importes. */

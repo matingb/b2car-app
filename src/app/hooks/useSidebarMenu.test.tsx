@@ -1,13 +1,14 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SidebarMenuKey, useSidebarMenu } from "./useSidebarMenu";
-import { UserRole, type UserRoleValue, type PermissionValue } from "@/lib/permissions";
+import { Permission, UserRole, type UserRoleValue, type PermissionValue } from "@/lib/permissions";
 import { SubscriptionPlan } from "@/lib/subscription";
 import { mockHasPermission } from "@/tests/testUtils";
 
 const state = vi.hoisted(() => ({
   pro: true,
   role: "admin" as UserRoleValue,
+  permissions: null as PermissionValue[] | null,
 }));
 const push = vi.fn();
 
@@ -23,6 +24,7 @@ vi.mock("@/app/providers/TenantProvider", () => ({
   useTenant: () => ({
     tenantName: "B2Car",
     hasPermission: (p: PermissionValue) => {
+      if (state.permissions) return state.permissions.includes(p);
       return mockHasPermission(state.role, state.pro ? SubscriptionPlan.Pro : SubscriptionPlan.Base)(p);
     },
     userRole: state.role,
@@ -34,6 +36,7 @@ afterEach(() => {
   push.mockClear();
   state.pro = true;
   state.role = UserRole.Admin;
+  state.permissions = null;
 });
 
 describe("useSidebarMenu", () => {
@@ -72,9 +75,27 @@ describe("useSidebarMenu", () => {
     expect(result.current.items.map((item) => item.label)).not.toEqual(expect.arrayContaining(["Facturas", "Remitos"]));
   });
 
+  it.each([
+    ["recibidos", [Permission.ComprobantesRecibidosView]],
+    ["emitidos", [Permission.FacturasView]],
+  ])("muestra Documentos con permiso de %s", (_source, permissions) => {
+    state.permissions = permissions;
+    const { result } = renderHook(() => useSidebarMenu());
+
+    expect(result.current.items.map((item) => item.key)).toContain(SidebarMenuKey.Documentacion);
+  });
+
+  it("oculta Documentos cuando no tiene permiso para ninguna fuente", () => {
+    state.permissions = [Permission.ArreglosView, Permission.TallerView];
+    const { result } = renderHook(() => useSidebarMenu());
+
+    expect(result.current.items.map((item) => item.key)).not.toContain(SidebarMenuKey.Documentacion);
+  });
+
   it("muestra Configuración y oculta Documentos y Talleres para admin BASE", () => {
     state.role = UserRole.Admin;
     state.pro = false;
+    state.permissions = [Permission.ArreglosView, Permission.TallerView];
     const { result } = renderHook(() => useSidebarMenu());
 
     expect(result.current.items).not.toEqual(expect.arrayContaining([

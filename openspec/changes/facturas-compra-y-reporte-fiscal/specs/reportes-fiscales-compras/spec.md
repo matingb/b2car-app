@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Permitir exportar facturas y retenciones documentales de compras y gastos con las columnas base del reporte de ventas, columnas dinámicas de percepciones y sumas reproducibles, sin alterar el circuito financiero.
+Permitir exportar facturas y retenciones documentales de compras y gastos con 12 columnas fijas de facturas, columnas adicionales para las demás percepciones presentes, IVA totalizado entre alícuotas confirmadas y sumas reproducibles, sin alterar el circuito financiero.
 
 La fuente de bases gravadas e IVA es el desglose confirmado de cada factura recibida. El período usa la fecha del documento, tanto para facturas como para retenciones. Se exporta en CSV y XLSX, en pesos argentinos sin conversión. Las retenciones tienen número propio libre y opcional, con detalle y total separados de las facturas.
 
@@ -23,50 +23,71 @@ El reporte SHALL seleccionar documentos vigentes de compras/gastos del tenant co
 - **THEN** se incluyen los documentos y sus importes informados
 - **AND** no se exige un proveedor comercial si el emisor está identificado en el documento
 
-### Requirement: Mismas columnas base que ventas
-La primera versión SHALL conservar los mismos encabezados y orden de las columnas base del reporte fiscal de ventas existente, agregando después las columnas dinámicas de percepciones. MUST respetar el significado de emisor y receptor y representar datos manuales ausentes como no informados, sin inventar autorización, bases o IVA.
+### Requirement: Columnas fijas y columnas de percepciones
+La hoja «Facturas» SHALL comenzar con estas 12 columnas y en este orden: «Fecha», «Razón Social», «Número», «CUIT», «Tipo Fac», «Neto», «IVA», «No Gravado», «Percep. IVA», «Percep. IIBB», «Total» y «Concepto Gto». CSV y XLSX MUST compartir esos encabezados y orden. Los datos ausentes MUST permanecer sin informar.
 
-#### Scenario: Contrato base de columnas
+#### Scenario: Encabezados y orden de facturas
 - **WHEN** se genera el reporte inicial de compras
-- **THEN** sus primeras columnas coinciden en encabezados y orden con las 24 columnas base actuales de ventas
-- **AND** las columnas de percepciones se agregan después sin reemplazar columnas base
+- **THEN** la hoja «Facturas» comienza con las 12 columnas fijas en el orden acordado
+- **AND** no agrega columnas de identificadores ni metadatos
+
+#### Scenario: Columnas de otras percepciones presentes
+- **GIVEN** las facturas seleccionadas contienen percepciones de Ganancias y «Municipal»
+- **WHEN** se genera el reporte
+- **THEN** después de las 12 columnas fijas aparecen columnas para «Percepción: Ganancias» y «Percepción: Municipal»
+- **AND** cada columna solo aparece si esa percepción está presente en la selección
 
 #### Scenario: Datos de autorización ausentes
 - **GIVEN** una factura manual sin CAE informado
 - **WHEN** se exporta
-- **THEN** se conserva la columna correspondiente sin fabricar un CAE
+- **THEN** se mantienen las columnas fijas acordadas y no se fabrica un CAE
 - **AND** no se exige ambiente de emisión o estado AUTORIZADA de B2Car
 
-### Requirement: Una columna por percepción distinta de la selección
-El reporte SHALL agregar una columna por cada percepción distinta presente en las facturas seleccionadas, incluidas las de nombre libre. MUST obtener el conjunto de columnas de todas las facturas seleccionadas y MUST NOT limitarlo a sugerencias, a la primera página o a percepciones de documentos fuera del filtro.
+### Requirement: Columnas adicionales para percepciones
+Después de las 12 columnas fijas, el reporte SHALL agregar una columna por cada percepción distinta no representada allí que esté presente en las facturas seleccionadas. MUST NOT agregar columnas adicionales para IVA, IIBB Buenos Aires o IIBB CABA.
 
-#### Scenario: Percepciones sugeridas y personalizadas
-- **GIVEN** facturas seleccionadas con percepciones de IVA, IIBB Buenos Aires y otra de nombre personalizado
-- **WHEN** se exporta
-- **THEN** se agregan columnas identificables para las tres percepciones
-- **AND** la percepción personalizada no se descarta por no estar entre las sugerencias
-
-#### Scenario: Percepción solo en la última página
-- **GIVEN** 1205 facturas seleccionadas y una percepción presente únicamente en la última
+#### Scenario: Percepciones cubiertas por columnas fijas
+- **GIVEN** las facturas seleccionadas contienen percepciones de IVA e IIBB Buenos Aires y CABA
 - **WHEN** se genera el reporte
-- **THEN** esa percepción tiene su columna y su importe aparece en el detalle y totalización
+- **THEN** sus importes aparecen en «Percep. IVA» y «Percep. IIBB»
+- **AND** no se duplican en columnas adicionales
+
+#### Scenario: Percepción exclusiva de la última página
+- **GIVEN** 1205 facturas seleccionadas y una percepción adicional presente solo en la última
+- **WHEN** se genera el reporte
+- **THEN** aparece su columna y conserva el importe de esa factura
 
 #### Scenario: Percepción fuera del filtro
-- **GIVEN** una percepción presente únicamente en una factura excluida por período
-- **WHEN** se exporta la selección
-- **THEN** esa factura no aporta una columna dinámica al archivo
+- **GIVEN** una percepción presente solo en una factura excluida por período
+- **WHEN** se genera el reporte filtrado
+- **THEN** esa percepción no agrega una columna
+
+### Requirement: Percepciones en columnas y total de factura
+La columna «Percep. IVA» SHALL sumar los importes manuales de percepción de IVA de cada factura. «Percep. IIBB» SHALL sumar IIBB Buenos Aires y CABA. Cada otra percepción distinta presente SHALL tener una columna propia; sus importes, igual que IVA e IIBB, permanecen incluidos en «Total» junto con los conceptos.
+
+#### Scenario: IVA e IIBB agrupados
+- **GIVEN** una factura con percepciones de IVA, IIBB Buenos Aires e IIBB CABA
+- **WHEN** se exporta
+- **THEN** «Percep. IVA» muestra su importe y «Percep. IIBB» suma los dos importes de IIBB
+- **AND** ambas percepciones también permanecen incluidas en «Total»
+
+#### Scenario: Columnas adicionales solo para percepciones presentes
+- **GIVEN** una factura seleccionada con una percepción de Ganancias o de nombre libre
+- **WHEN** se genera el reporte
+- **THEN** se agrega una columna para cada percepción distinta presente
+- **AND** el importe permanece incluido en «Total» y no se crea una columna para percepciones ausentes
 
 ### Requirement: Importes manuales y sumas por percepción
-Cada fila SHALL mostrar la suma de importes manuales de las líneas de una misma percepción en esa factura y el resumen SHALL sumar cada columna dinámica. MUST NOT calcular porcentajes, inferir montos desde la condición fiscal o reemplazar valores informados por cálculos tributarios.
+Las columnas fijas y adicionales de percepciones SHALL sumar los importes manuales correspondientes por factura. El resumen SHALL totalizar cada percepción sin duplicar importes ya incluidos en «Total». MUST NOT calcular porcentajes, inferir montos desde la condición fiscal o reemplazar valores informados por cálculos tributarios.
 
 #### Scenario: Percepción repetida dentro de una factura
 - **GIVEN** una factura con dos líneas de la misma percepción por 1000 y 500
 - **WHEN** se exporta
-- **THEN** la celda de esa percepción muestra 1500 y el resumen cuenta ese importe una sola vez
+- **THEN** la celda correspondiente muestra 1500 y el resumen cuenta ese importe una sola vez
 - **AND** el documento mantiene sus dos líneas originales
 
-### Requirement: Una fila por factura y documentos rastreables
-El detalle de facturas SHALL contener una fila por factura seleccionada aunque la operación tenga varios documentos, pagos o líneas. MUST mantener identificadores que permitan rastrear cada fila o detalle de retención al documento y a su única operación. Las relaciones MUST NOT multiplicar importes.
+### Requirement: Una fila por factura
+El detalle SHALL contener una fila por factura seleccionada aunque la operación tenga varios documentos, pagos o líneas. MUST NOT agregar filas por conceptos, percepciones o relaciones ni multiplicar importes.
 
 #### Scenario: Dos facturas de la misma operación
 - **GIVEN** una compra con dos facturas seleccionadas de 60500
@@ -99,28 +120,29 @@ El reporte SHALL conservar importes de factura aunque difieran del monto de la o
 - **AND** el saldo operativo sigue siendo 6000 y el reporte no lo altera
 
 ### Requirement: Bases e IVA desde el desglose confirmado de cada factura
-El reporte SHALL usar el desglose confirmado de cada factura. Las columnas de base e IVA al 21% SHALL tomar solo esa tasa. Neto gravado, base imponible total e IVA total SHALL incluir todas las tasas confirmadas que correspondan. Percepciones y retenciones conservan sus columnas o totales propios.
+El reporte SHALL usar el desglose confirmado de cada factura A. «Neto» SHALL sumar las bases confirmadas y «IVA» SHALL sumar el IVA confirmado de todas las alícuotas. La pestaña «Resumen» SHALL llamar «IVA» a ese total y MUST NOT presentarlo como «IVA 21%». Los datos ausentes SHALL quedar vacíos y las sumas afectadas SHALL identificarse como parciales. Percepciones y retenciones mantienen sus totales propios.
 
 #### Scenario: Factura A con dos alícuotas confirmadas
 - **GIVEN** una factura con base 10000 e IVA 2100 al 21%, y base 20000 e IVA 2100 al 10,5%
 - **WHEN** se exporta
-- **THEN** las columnas del 21% muestran base 10000 e IVA 2100
-- **AND** la base imponible total es 30000 y el IVA total es 4200
-- **AND** el reporte conserva los encabezados base
+- **THEN** «Neto» muestra 30000 y «IVA» muestra 4200
+- **AND** «IVA» incluye el total de todas las alícuotas confirmadas, sin una columna separada por tasa
 
-#### Scenario: Factura A sin operaciones al 21%
+#### Scenario: Etiqueta IVA del resumen
 - **GIVEN** un desglose completo confirmado al 10,5%
-- **WHEN** se exporta
-- **THEN** las columnas del 21% muestran cero y la base e IVA del 10,5% se incluyen en los totales
+- **WHEN** se genera la hoja «Resumen»
+- **THEN** la suma se etiqueta «IVA» y totaliza todas las alícuotas confirmadas
+- **AND** no se presenta una suma con la etiqueta «IVA 21%»
 
 ### Requirement: Datos fiscales ausentes o sin desglose
-El reporte MUST dejar vacíos los datos desconocidos, distinguir ceros informados e indicar sumas parciales. MUST NOT reconstruir el desglose a partir del texto, del total, de la operación, de pagos o de fichas actuales. En facturas B y C MUST NOT extraer IVA del importe final.
+El reporte MUST dejar vacíos los datos desconocidos, distinguir ceros informados e indicar sumas parciales. MUST NOT reconstruir el desglose a partir del texto, del total, de la operación, de pagos o de fichas actuales. Debe conservar el total documentado original aunque falte el desglose. En facturas B y C MUST NOT extraer IVA del importe final. El IVA contenido informado manualmente en una B se muestra como dato informativo y no aporta base ni IVA discriminado.
 
 #### Scenario: Factura B con IVA contenido y factura C
 - **GIVEN** una factura B que muestra IVA contenido y una factura C con su importe final
 - **WHEN** se exportan
 - **THEN** cada fila conserva el importe final informado
 - **AND** el IVA contenido de la B y el importe final de la C no aportan base ni IVA discriminado
+- **AND** el IVA contenido informado de la B se identifica en observaciones sin modificar su total documentado
 
 #### Scenario: Factura histórica de una operación con tasa por defecto
 - **GIVEN** una factura con importe final sin desglose y una operación asociada con alícuota 21%
@@ -146,7 +168,8 @@ El reporte SHALL usar la identidad e importes vigentes del documento y excluir d
 #### Scenario: Eliminar una factura con percepción exclusiva
 - **GIVEN** una factura cuya percepción no aparece en ninguna otra factura seleccionada
 - **WHEN** se elimina la factura y se genera un reporte nuevo
-- **THEN** no se incluye la factura ni se conserva una columna dinámica aportada solo por ella
+- **THEN** no se incluye la factura ni se conservan sus importes en las sumas del reporte
+- **AND** una columna adicional aportada solo por esa percepción deja de aparecer
 
 ### Requirement: Período y moneda explícitos
 El reporte SHALL exigir un período desde/hasta válido y seleccionar facturas y retenciones por la fecha del documento, indicándolo al usuario. MUST preservar el día calendario y MUST NOT sustituir fechas silenciosamente. La moneda es peso argentino sin conversión.
@@ -162,13 +185,13 @@ El reporte SHALL exigir un período desde/hasta válido y seleccionar facturas y
 - **AND** no se desplaza su día por conversión de zona horaria
 
 ### Requirement: Formatos con el mismo conjunto y columnas
-Los formatos CSV y XLSX SHALL compartir documentos, valores y columnas dinámicas de una misma selección. MUST conciliar detalle y resumen y conservar identificadores como texto e importes utilizables. Textos y encabezados personalizados MUST NOT ejecutar fórmulas en la planilla.
+Los formatos CSV y XLSX SHALL compartir documentos, valores, las 12 columnas fijas y las columnas adicionales de percepciones presentes en una misma selección. MUST conciliar detalle y resumen y conservar importes utilizables. Textos MUST NOT ejecutar fórmulas en la planilla.
 
 #### Scenario: Dos formatos de la misma selección
 - **GIVEN** CSV y XLSX habilitados para el mismo conjunto
 - **WHEN** se descargan ambos
-- **THEN** contienen las mismas columnas de percepciones y sus importes concilian
-- **AND** sus encabezados base coinciden con el contrato de ventas
+- **THEN** contienen las mismas 12 columnas fijas y las mismas columnas adicionales de percepciones
+- **AND** sus importes concilian, incluido el IVA total de todas las alícuotas confirmadas
 
 #### Scenario: Nombre de percepción con apariencia de fórmula
 - **GIVEN** una percepción personalizada cuyo nombre comienza con un carácter interpretable como fórmula
@@ -177,17 +200,17 @@ Los formatos CSV y XLSX SHALL compartir documentos, valores y columnas dinámica
 
 #### Scenario: Selección vacía
 - **WHEN** no hay documentos incluidos
-- **THEN** se conservan las columnas base, se indica cantidad cero y no se inventan columnas de percepciones
+- **THEN** se conservan las 12 columnas fijas acordadas, se indica cantidad cero y no se agregan columnas de percepciones
 
 ### Requirement: Generación completa y consistente
-El reporte SHALL incluir todas las páginas y entregar detalle, columnas dinámicas y sumas consistentes ante altas, ediciones y eliminaciones concurrentes. MUST NOT presentar un archivo parcial o con columnas incompletas como definitivo si falla la lectura o no puede asegurarse consistencia. La exportación MUST NOT modificar documentos, operaciones o finanzas.
+El reporte SHALL incluir todas las páginas y entregar el detalle con sus 12 columnas fijas, todas las columnas adicionales de percepciones presentes y sumas consistentes ante altas, ediciones y eliminaciones concurrentes. MUST NOT presentar un archivo parcial como definitivo si falla la lectura o no puede asegurarse consistencia. La exportación MUST NOT modificar documentos, operaciones o finanzas.
 
-#### Scenario: Error al descubrir percepciones
-- **WHEN** falla una página al obtener documentos o el conjunto de percepciones
-- **THEN** se informa un error sin entregar un archivo con columnas o sumas parciales presentado como completo
+#### Scenario: Error al leer documentos
+- **WHEN** falla una página al obtener documentos
+- **THEN** se informa un error sin entregar un archivo parcial presentado como completo
 
 ### Requirement: Acceso autorizado y compatibilidad con ventas
-El reporte SHALL exigir sesión, pertenencia al tenant y permiso efectivo de consulta/exportación. MUST impedir acceso cruzado por filtros o caché. La incorporación de documentos recibidos y percepciones dinámicas MUST conservar el contrato y universo del reporte de ventas.
+El reporte SHALL exigir sesión, pertenencia al tenant y permiso efectivo de consulta/exportación. MUST impedir acceso cruzado por filtros o caché. La incorporación de documentos recibidos MUST conservar el contrato y universo del reporte de ventas.
 
 #### Scenario: Acceso cruzado
 - **WHEN** un usuario del tenant A intenta seleccionar documentos del tenant B
@@ -196,4 +219,4 @@ El reporte SHALL exigir sesión, pertenencia al tenant y permiso efectivo de con
 #### Scenario: Reporte de ventas intacto
 - **WHEN** se usa la exportación de ventas después de incorporar el reporte de compras
 - **THEN** conserva sus columnas y universo existentes
-- **AND** no recibe documentos de compra ni sus columnas dinámicas de percepciones
+- **AND** no recibe documentos de compra ni sus columnas de detalle

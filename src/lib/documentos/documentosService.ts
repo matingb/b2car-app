@@ -43,6 +43,8 @@ function recibidoSearchConditions(search: string): string[] {
 }
 
 export type ListDocumentosOpciones = {
+  /** El usuario puede consultar comprobantes emitidos y remitos. */
+  incluirEmitidos?: boolean;
   /** El usuario puede consultar documentos recibidos (permiso propio de comprobantes recibidos). */
   incluirRecibidos?: boolean;
 };
@@ -107,8 +109,9 @@ export async function listDocumentos(
 
   // Los filtros propios de cada fuente excluyen a las otras: estado y ambiente son de emisión;
   // clase y factura son de remitos. Los documentos recibidos no tienen estado ARCA ni ambiente.
-  const incluirFiscales = tipo !== "REMITO" && tipo !== "RECIBIDO" && !filtros.clase && !filtros.factura;
-  const incluirRemitos = (tipo === "" || tipo === "REMITO") && !filtros.estado;
+  const incluirEmitidos = opciones.incluirEmitidos !== false;
+  const incluirFiscales = incluirEmitidos && tipo !== "REMITO" && tipo !== "RECIBIDO" && !filtros.clase && !filtros.factura;
+  const incluirRemitos = incluirEmitidos && (tipo === "" || tipo === "REMITO") && !filtros.estado;
   const incluirRecibidos = Boolean(opciones.incluirRecibidos)
     && (tipo === "" || tipo === "RECIBIDO")
     && !filtros.estado && !filtros.ambiente && !filtros.clase && !filtros.factura;

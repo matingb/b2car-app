@@ -22,19 +22,43 @@ describe("desglose fiscal de comprobantes recibidos", () => {
     expect(result.value?.lineas[0].ivaAlicuotaId).toBeNull();
   });
 
-  it("rechaza tasas repetidas y exige una alícuota por concepto en factura B", () => {
+  it("rechaza tasas repetidas y limita el desglose discriminado a facturas A", () => {
     expect(parseComprobanteRecibidoInput({ ...factura, desgloseIva: [factura.desgloseIva[0], factura.desgloseIva[0]] }).error).toBeTruthy();
     const facturaB = parseComprobanteRecibidoInput({
       ...factura,
       clase: "B",
-      lineas: [
-        { ...factura.lineas[0], importe: 12100, ivaAlicuotaId: 5 },
-        { ...factura.lineas[0], descripcion: "Producto 2", importe: 22100, ivaAlicuotaId: 4 },
-      ],
+      desgloseIva: null,
+      lineas: [{ ...factura.lineas[0], importe: 12100, ivaAlicuotaId: null }],
     });
     expect(facturaB.error).toBeUndefined();
-    expect(facturaB.value?.lineas[0].ivaAlicuotaId).toBe(5);
-    expect(parseComprobanteRecibidoInput({ ...factura, clase: "B", lineas: [{ ...factura.lineas[0], ivaAlicuotaId: null }] }).error).toContain("elegí la alícuota");
+    expect(facturaB.value?.lineas[0].ivaAlicuotaId).toBeNull();
+    expect(parseComprobanteRecibidoInput({
+      ...factura,
+      clase: "B",
+      lineas: [{ ...factura.lineas[0], ivaAlicuotaId: null }],
+      desgloseIva: factura.desgloseIva,
+    }).error).toContain("solo corresponde a facturas A");
+  });
+
+  it("guarda IVA contenido de factura B separado y sin inferirlo", () => {
+    const result = parseComprobanteRecibidoInput({
+      ...factura,
+      clase: "B",
+      desgloseIva: null,
+      ivaContenido: 21,
+      lineas: [{ ...factura.lineas[0], importe: 121, ivaAlicuotaId: null }],
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.value?.ivaContenido).toBe(21);
+    expect(result.value?.desgloseIva).toBeNull();
+    expect(parseComprobanteRecibidoInput({ ...factura, ivaContenido: 21 }).error).toContain("solo corresponde a facturas B");
+    expect(parseComprobanteRecibidoInput({
+      ...factura,
+      clase: "B",
+      desgloseIva: null,
+      ivaContenido: 122,
+      lineas: [{ ...factura.lineas[0], importe: 121, ivaAlicuotaId: null }],
+    }).error).toContain("no puede superar el total de conceptos");
   });
 
   it("rechaza un desglose mayor a los conceptos aunque haya percepciones", () => {

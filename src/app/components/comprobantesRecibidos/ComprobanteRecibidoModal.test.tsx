@@ -37,6 +37,28 @@ it("mantiene valores ausentes, exige completar filas y conserva ceros explícito
   await waitFor(() => expect(update).toHaveBeenCalledWith("doc", expect.objectContaining({ desgloseIva: [{ ivaAlicuotaId: 3, base: 100, iva: 0 }] })));
 });
 
+it("al quitar la última fila conserva la tasa de la línea sin recrear el desglose", async () => {
+  const emisor = { razonSocial: "Proveedor", cuit: "30712345678", condicionIva: "RESPONSABLE_INSCRIPTO", domicilio: null } as const;
+  const receptor = { razonSocial: null, cuit: null, condicionIva: null };
+  const comprobante = {
+    id: "doc", operacionId: "op", operacionTipo: "COMPRA", tipoDocumento: "FACTURA", clase: "A", numero: "1-1", fecha: "2026-01-01", proveedorId: null,
+    emisor, receptor, codigoAutorizacion: null, vencimientoAutorizacion: null, fechaVencimiento: null, observaciones: null,
+    lineas: [{ tipo: "CONCEPTO", descripcion: "Anterior", percepcionCodigo: null, importe: 12100, ivaAlicuotaId: 5 }],
+    desgloseIva: [{ ivaAlicuotaId: 5, base: 10000, iva: 2100 }], total: 12100, totalConceptos: 12100, totalPercepciones: 0, createdAt: "", updatedAt: "",
+  } satisfies ComprobanteRecibido;
+  const precarga: ComprobanteRecibidoPrecarga = { proveedorId: null, emisor, receptor };
+  update.mockResolvedValue(comprobante);
+  render(<ComprobanteRecibidoModal open operacionId="op" precarga={precarga} comprobante={comprobante} onClose={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Quitar" }));
+  fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+  await waitFor(() => expect(update).toHaveBeenCalledWith("doc", expect.objectContaining({
+    desgloseIva: null,
+    lineas: [expect.objectContaining({ ivaAlicuotaId: 5 })],
+  })));
+});
+
 it("sugiere IVA desde la base neta al corregir una factura A existente", async () => {
   const emisor = { razonSocial: "Proveedor", cuit: "30712345678", condicionIva: "RESPONSABLE_INSCRIPTO", domicilio: null } as const;
   const receptor = { razonSocial: null, cuit: null, condicionIva: null };

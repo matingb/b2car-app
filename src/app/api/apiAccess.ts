@@ -20,3 +20,16 @@ export async function assertPermission(
   }
   throw new ApiError(403, API_ERROR_MESSAGES.FORBIDDEN, "FORBIDDEN");
 }
+
+/** Grants access when at least one permission in the group is effective for the actor. */
+export async function assertAnyPermission(
+  ctx: ApiContext,
+  allowed: readonly PermissionValue[],
+): Promise<void> {
+  if (allowed.some((permission) => ctx.can(permission))) return;
+  const planPermissions = await fetchPlanPermissions(ctx.supabase, ctx.actor.plan);
+  if (!allowed.some((permission) => planPermissions.includes(permission))) {
+    throw new ApiError(403, API_ERROR_MESSAGES.FEATURE_NOT_AVAILABLE_FOR_PLAN, "FEATURE_NOT_AVAILABLE_FOR_PLAN");
+  }
+  throw new ApiError(403, API_ERROR_MESSAGES.FORBIDDEN, "FORBIDDEN");
+}

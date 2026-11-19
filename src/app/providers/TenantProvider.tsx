@@ -6,7 +6,7 @@ import {
   type UpdateTallerResponse,
 } from "@/clients/tenantClient";
 import {
-  permissionForPath,
+  canAccessPathWithPermissions,
   type PermissionValue,
 } from "@/lib/permissions";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -68,10 +68,7 @@ export function TenantProvider({
   );
 
   const canAccessPath = useCallback(
-    (pathname: string): boolean => {
-      const required = permissionForPath(pathname);
-      return !required || hasPermission(required);
-    },
+    (pathname: string): boolean => canAccessPathWithPermissions(pathname, hasPermission),
     [hasPermission],
   );
 

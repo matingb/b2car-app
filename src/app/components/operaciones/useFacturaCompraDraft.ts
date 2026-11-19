@@ -11,7 +11,7 @@ import {
   type FacturaRecibidaClase,
 } from "@/lib/comprobantesRecibidos/types";
 import { generateUuidV4 } from "@/lib/uuid";
-import { calcularFacturaADesdeBases, calcularFacturaBDesdeImportesConIva } from "@/lib/comprobantesRecibidos/iva";
+import { calcularFacturaADesdeBases } from "@/lib/comprobantesRecibidos/iva";
 import type { Proveedor, TipoOperacion } from "@/model/types";
 
 /*
@@ -31,6 +31,8 @@ export type PercepcionDraft = {
 export type FacturaCompraDraft = {
   clase: FacturaRecibidaClase | "";
   ivaAlicuotaGasto?: number;
+  /** IVA contenido informado manualmente en facturas B, sin inferirlo desde precios. */
+  ivaContenido: string;
   numero: string;
   /** Vacío: se usa la fecha de la operación. */
   fecha: string;
@@ -70,6 +72,7 @@ function emptyDraft(): FacturaCompraDraft {
   return {
     clase: "",
     ivaAlicuotaGasto: 5,
+    ivaContenido: "",
     numero: "",
     fecha: "",
     emisorRazonSocial: "",
@@ -130,21 +133,22 @@ export function buildFacturaCompraInput({
   const facturaA = (tipoOperacion === "COMPRA" || tipoOperacion === "GASTO") && draft.clase === "A";
   const facturaB = (tipoOperacion === "COMPRA" || tipoOperacion === "GASTO") && draft.clase === "B";
   let calculoIva: ReturnType<typeof calcularFacturaADesdeBases> | null = null;
-  if (facturaA || facturaB) {
+  if (facturaA) {
     try {
       const conceptosConAlicuota = conceptos.map((concepto) => ({
         key: concepto.key,
         importe: concepto.importe,
         ivaAlicuotaId: concepto.ivaAlicuotaId ?? 5,
       }));
-      calculoIva = facturaA
-        ? calcularFacturaADesdeBases(conceptosConAlicuota)
-        : calcularFacturaBDesdeImportesConIva(conceptosConAlicuota);
+      calculoIva = calcularFacturaADesdeBases(conceptosConAlicuota);
     } catch {
       return { error: "No se pudo calcular el IVA de los conceptos de la factura" };
     }
   }
-  const conceptosCalculados = new Map(calculoIva?.conceptos.map((concepto) => [concepto.key, concepto]) ?? []);
+  const conceptosCalculados = new Map(calculoIva?.conceptos.map((concepto) => [concepto.key, concepto.total]) ?? []);
+  const desgloseIva = facturaA && calculoIva
+    ? calculoIva.desgloseIva.map(({ ivaAlicuotaId, base, iva }) => ({ ivaAlicuotaId, base, iva }))
+    : null;
 
   return parseComprobanteRecibidoInput({
     tipoDocumento: "FACTURA",
@@ -163,14 +167,17 @@ export function buildFacturaCompraInput({
     vencimientoAutorizacion: null,
     fechaVencimiento: draft.fechaVencimiento,
     observaciones: null,
-    desgloseIva: calculoIva?.desgloseIva ?? null,
+    desgloseIva,
+    ivaContenido: facturaB && draft.ivaContenido.trim() !== ""
+      ? Number(draft.ivaContenido.trim().replace(",", "."))
+      : null,
     lineas: [
       ...conceptos.map((concepto) => ({
         tipo: "CONCEPTO",
         descripcion: concepto.descripcion,
         percepcionCodigo: null,
-        importe: conceptosCalculados.get(concepto.key)?.total ?? concepto.importe,
-        ivaAlicuotaId: facturaA || facturaB ? concepto.ivaAlicuotaId ?? 5 : null,
+        importe: conceptosCalculados.get(concepto.key) ?? concepto.importe,
+        ivaAlicuotaId: facturaA ? concepto.ivaAlicuotaId ?? 5 : null,
       })),
       ...percepciones,
     ],

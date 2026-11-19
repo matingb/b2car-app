@@ -84,6 +84,8 @@ export type ComprasFiscalDocumento = {
   vencimientoAutorizacion: string | null;
   observaciones: string | null;
   desgloseIva: ComprasFiscalDesgloseIva[] | null;
+  /** IVA contenido informado en una factura B; se muestra como nota, nunca como IVA discriminado. */
+  ivaContenido?: number | string | null;
   lineas: ComprasFiscalLinea[];
   updatedAt: string;
 };

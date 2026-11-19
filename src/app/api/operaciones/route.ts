@@ -9,6 +9,8 @@ import { requirePermission } from "@/lib/requirePermission";
 import { Permission } from "@/lib/permissions";
 import { normalizePage } from "@/lib/pagination";
 import { ALICUOTAS_IVA_ARCA } from "@/lib/facturacion/types";
+import { calcularIvaTotalDesdeBases } from "@/lib/comprobantesRecibidos/iva";
+import { sumarImportes } from "@/lib/comprobantesRecibidos/types";
 import {
 	operacionesService,
 	validateOperacionesDateFilters,
@@ -167,6 +169,12 @@ export async function POST(req: Request) {
 	if (!body) return Response.json({ data: null, error: "JSON inválido" } satisfies CreateOperacionResponse, { status: 400 });
 
 	if (!body.tipo) return Response.json({ data: null, error: "Falta tipo" } satisfies CreateOperacionResponse, { status: 400 });
+	if (body.precios_incluyen_iva !== undefined && typeof body.precios_incluyen_iva !== "boolean") {
+		return Response.json({ data: null, error: "La modalidad de precios con IVA no es válida" } satisfies CreateOperacionResponse, { status: 400 });
+	}
+	if (body.precios_incluyen_iva === false && body.tipo !== "COMPRA") {
+		return Response.json({ data: null, error: "Solo las compras admiten precios netos con IVA a sumar" } satisfies CreateOperacionResponse, { status: 400 });
+	}
 	const lineasConAlicuotaInvalida = Array.isArray(body.lineas)
 		&& body.lineas.some((linea) => linea.iva_alicuota_id != null && !IVA_ALICUOTA_IDS.has(linea.iva_alicuota_id));
 	if (lineasConAlicuotaInvalida) {
@@ -183,13 +191,26 @@ export async function POST(req: Request) {
 		const cargosError = validarCargos(cargos);
 		if (cargosError) return Response.json({ data: null, error: cargosError } satisfies CreateOperacionResponse, { status: 400 });
 	}
-	// Las percepciones de una compra forman parte del total: los pagos se validan contra productos + percepciones.
+	// IVA calculado de factura A y percepciones forman parte del total usado para validar pagos.
+	let ivaCompra = 0;
+	if (body.tipo === "COMPRA" && body.precios_incluyen_iva === false) {
+		try {
+			ivaCompra = calcularIvaTotalDesdeBases((body.lineas ?? []).map((linea, index) => ({
+				key: String(index),
+				importe: (Number(linea.cantidad) || 0) * (Number(linea.monto_unitario) || 0),
+				ivaAlicuotaId: linea.iva_alicuota_id ?? 5,
+			})));
+		} catch {
+			return Response.json({ data: null, error: "No se pudo calcular el IVA de la compra" } satisfies CreateOperacionResponse, { status: 400 });
+		}
+	}
+	const importeLineas = (body.lineas ?? []).reduce(
+		(sum, l) => sum + (Number(l.cantidad) || 0) * (Number(l.monto_unitario) || 0),
+		0
+	);
 	const importeTotal = body.tipo === "GASTO"
 		? (Number(body.monto) || 0)
-		: (body.lineas ?? []).reduce(
-			(sum, l) => sum + (Number(l.cantidad) || 0) * (Number(l.monto_unitario) || 0),
-			0
-		) + cargos.reduce((sum, c) => sum + (Number(c.importe) || 0), 0);
+		: sumarImportes([importeLineas, ivaCompra, ...cargos.map((cargo) => Number(cargo.importe) || 0)]);
 	if (body.tipo === "GASTO" && (!body.categoria_gasto || !body.categoria_gasto.trim())) {
 		return Response.json({ data: null, error: "Falta categoria_gasto" } satisfies CreateOperacionResponse, { status: 400 });
 	}
@@ -212,6 +233,18 @@ export async function POST(req: Request) {
 			if (typeof p.monto !== "number" || p.monto <= 0) {
 				return Response.json({ data: null, error: "monto inválido en pagos" } satisfies CreateOperacionResponse, { status: 400 });
 			}
+		}
+		const totalPagosIniciales = sumarImportes(body.pagos!.map((p) => p.monto));
+		if (totalPagosIniciales > importeTotal) {
+			return Response.json({ data: null, error: "Los pagos iniciales no pueden superar el total de la operación" } satisfies CreateOperacionResponse, { status: 400 });
+		}
+	}
+	if (body.monto_inicial !== undefined && body.monto_inicial !== null) {
+		if (typeof body.monto_inicial !== "number" || !Number.isFinite(body.monto_inicial) || body.monto_inicial < 0) {
+			return Response.json({ data: null, error: "El monto inicial no es válido" } satisfies CreateOperacionResponse, { status: 400 });
+		}
+		if (body.monto_inicial > importeTotal) {
+			return Response.json({ data: null, error: "El monto inicial no puede superar el total de la operación" } satisfies CreateOperacionResponse, { status: 400 });
 		}
 	}
 	if (esOperacionComercial && estadoPago === "PARCIAL" && !tienePagos) {

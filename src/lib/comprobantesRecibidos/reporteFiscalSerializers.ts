@@ -47,23 +47,11 @@ function invoiceColumns(report: ComprasFiscalReport): FacturaExportColumn[] {
     { key: "conceptoGasto", header: "Concepto Gto", kind: "text", width: 42, value: (row) => row.conceptoGasto },
   ];
 
+  const fixedPerceptionKeys = new Set(["IVA", "IIBB_BUENOS_AIRES", "IIBB_CABA"]);
   for (const column of report.columnasPercepciones) {
-    if (column.key === "IIBB_BUENOS_AIRES" || column.key === "IIBB_CABA") {
-      columns.push({
-        key: `percepcion_${column.key}`,
-        header: column.key === "IIBB_BUENOS_AIRES" ? "Percep. IIBB Buenos Aires" : "Percep. IIBB CABA",
-        kind: "money",
-        width: 24,
-        value: (row) => row.percepciones[column.key] ?? 0,
-      });
-    }
-  }
-
-  const summarizedPerceptions = new Set(["IVA", "IIBB_BUENOS_AIRES", "IIBB_CABA"]);
-  for (const [index, column] of report.columnasPercepciones.entries()) {
-    if (summarizedPerceptions.has(column.key)) continue;
+    if (fixedPerceptionKeys.has(column.key)) continue;
     columns.push({
-      key: `percepcion_extra_${index + 1}`,
+      key: `percepcion_${column.key}`,
       header: column.header,
       kind: "money",
       width: 24,
@@ -71,13 +59,6 @@ function invoiceColumns(report: ComprasFiscalReport): FacturaExportColumn[] {
     });
   }
 
-  columns.push(
-    { key: "origen", header: "Operación", kind: "text", width: 16, value: (row) => row.origen },
-    { key: "estadoDesglose", header: "Estado IVA", kind: "text", width: 18, value: (row) => row.estadoDesglose },
-    { key: "observaciones", header: "Observaciones", kind: "text", width: 60, value: (row) => row.observaciones },
-    { key: "documentoId", header: "ID documento", kind: "text", width: 38, value: (row) => row.documentoId },
-    { key: "operacionId", header: "ID operación", kind: "text", width: 38, value: (row) => row.operacionId },
-  );
   return columns;
 }
 
@@ -99,6 +80,7 @@ function invoiceExcelColumns(report: ComprasFiscalReport): ExcelColumnDef<Record
 type SummaryRow = { concepto: string; importe: number | null; cantidad: number | null; detalle: string };
 
 function fiscalAmountLabel(key: FiscalMoneyKey) {
+  if (key === "ivaTotal") return "IVA";
   return FISCAL_COLUMNS.find((column) => column.key === key)?.header ?? key;
 }
 
@@ -115,10 +97,10 @@ function summaryRows(report: ComprasFiscalReport): SummaryRow[] {
     { concepto: "Cantidad de facturas con desglose incompleto", importe: null, cantidad: report.summary.desgloseIncompleto, detalle: "Los importes fiscales ausentes no se infieren" },
   ];
   for (const key of FISCAL_MONEY_KEYS) {
-    if (key === "total") continue;
+    if (key === "total" || key === "iva21") continue;
     const missing = report.summary.missingFiscalAmounts[key];
     rows.push({
-      concepto: `Suma fiscal confirmada: ${fiscalAmountLabel(key)}`,
+      concepto: key === "ivaTotal" ? "IVA" : `Suma fiscal confirmada: ${fiscalAmountLabel(key)}`,
       importe: report.summary.fiscalAmounts[key],
       cantidad: null,
       detalle: missing

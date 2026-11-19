@@ -81,8 +81,9 @@ function DocumentacionContent() {
   const soloRemitos = tipo === "REMITO";
   // Facturas y retenciones de proveedores: carga manual, sin estado ARCA ni ambiente de emisión.
   const soloRecibidos = tipo === "RECIBIDO";
+  const puedeVerEmitidos = hasPermission(Permission.FacturasView);
   const puedeVerRecibidos = hasPermission(Permission.ComprobantesRecibidosView);
-  const puedeVerReporteVentas = hasPermission(Permission.FacturasView);
+  const puedeVerReporteVentas = puedeVerEmitidos;
   const puedeVerReporteCompras = puedeVerRecibidos;
 
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -215,7 +216,7 @@ function DocumentacionContent() {
           <span style={styles.count}>{result.total} documento{result.total === 1 ? "" : "s"}</span>
         </div>
         <div style={styles.actions}>
-          {soloRemitos || soloRecibidos ? null : (
+          {!puedeVerEmitidos || soloRemitos || soloRecibidos ? null : (
             <>
               <a href={exportUrl("csv")} style={styles.exportLink} title="Exporta los comprobantes fiscales con los filtros aplicados"><Download size={16} /> CSV</a>
               <a href={exportUrl("xlsx")} style={styles.exportLink} title="Exporta los comprobantes fiscales con los filtros aplicados"><FileSpreadsheet size={16} /> Excel</a>

@@ -36,6 +36,11 @@ function importeDesdeCentavos(value: bigint) {
   return Number(value) / 100;
 }
 
+/** Suma el IVA calculado sobre bases netas, redondeado por alícuota como en una factura A. */
+export function calcularIvaTotalDesdeBases(conceptos: FacturaConceptoIva[]): number {
+  return calcularFacturaADesdeBases(conceptos).desgloseIva.reduce((total, item) => total + item.iva, 0);
+}
+
 /** Calcula IVA adicional desde precios netos y agrupa el resultado por alícuota. */
 export function calcularFacturaADesdeBases(conceptos: FacturaConceptoIva[]): {
   conceptos: FacturaConceptoIvaCalculado[];

@@ -59,6 +59,7 @@ export function useSidebarMenu() {
   const canViewConfiguration = hasPermission(Permission.TallerView);
   const canViewEmployees = hasPermission(Permission.EmpleadosView);
   const canViewInvoices = hasPermission(Permission.FacturasView);
+  const canViewDocuments = canViewInvoices || hasPermission(Permission.ComprobantesRecibidosView);
 
   const items: SidebarMenuItem[] = useMemo(() => {
     const handleLogout = async () => {
@@ -131,7 +132,7 @@ export function useSidebarMenu() {
         icon: <WalletCards size={18} />,
         onClick: () => router.push(ROUTES.cuentasFinancieras),
       }] : []),
-      ...(canViewInvoices ? [{
+      ...(canViewDocuments ? [{
         // Facturas, notas y remitos comparten un único listado.
         key: SidebarMenuKey.Documentacion,
         href: ROUTES.facturacion,
@@ -146,7 +147,7 @@ export function useSidebarMenu() {
         href: canViewConfiguration ? ROUTES.configuracion : ROUTES.configuracionEmpleados,
         label: "Configuración",
         icon: <Settings size={18} />,
-        dividerBefore: !canViewInvoices,
+        dividerBefore: !canViewDocuments,
         onClick: () => router.push(
           canViewConfiguration ? ROUTES.configuracion : ROUTES.configuracionEmpleados,
         ),
@@ -161,7 +162,7 @@ export function useSidebarMenu() {
         isLoading: isLoggingOut,
       },
     ];
-  }, [canViewConfiguration, canViewEmployees, canViewInvoices, hasPermission, isLoggingOut, router]);
+  }, [canViewConfiguration, canViewDocuments, canViewEmployees, hasPermission, isLoggingOut, router]);
 
   return { tenantName, items, isLoggingOut } as const;
 }

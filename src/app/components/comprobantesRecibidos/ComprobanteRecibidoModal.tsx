@@ -34,7 +34,7 @@ import { formatArs } from "@/lib/format";
 import { ALICUOTAS_IVA_ARCA } from "@/lib/facturacion/types";
 import { toISODateAppTimeZone } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
-import { calcularFacturaBDesdeImportesConIva, sugerirIvaDesdeBase } from "@/lib/comprobantesRecibidos/iva";
+import { sugerirIvaDesdeBase } from "@/lib/comprobantesRecibidos/iva";
 import { COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 
 type LineaDraft = {
@@ -65,6 +65,7 @@ type FormState = {
   observaciones: string;
   lineas: LineaDraft[];
   desgloseIva: Array<{ ivaAlicuotaId: number; base: string; iva: string; ivaManual?: boolean }> | null;
+  ivaContenido: string;
 };
 
 export type ComprobanteRecibidoModalProps = {
@@ -120,6 +121,7 @@ function estadoInicial(
         ivaAlicuotaId: linea.ivaAlicuotaId ?? null,
       })),
       desgloseIva: comprobante.desgloseIva?.map((item) => ({ ...item, base: String(item.base), iva: String(item.iva), ivaManual: true })) ?? null,
+      ivaContenido: comprobante.ivaContenido == null ? "" : String(comprobante.ivaContenido),
     };
   }
   // Precarga: copia editable de la ficha del proveedor y de los datos fiscales del tenant.
@@ -141,6 +143,7 @@ function estadoInicial(
     observaciones: "",
     lineas: [nuevaLinea()],
     desgloseIva: null,
+    ivaContenido: "",
   };
 }
 
@@ -150,16 +153,6 @@ function importeLinea(value: string): number {
 }
 
 function toInput(form: FormState, proveedorId: string | null): unknown {
-  const conceptosB = form.lineas.filter((linea) => linea.tipo === "CONCEPTO");
-  const desgloseIvaB = form.tipoDocumento === "FACTURA" && form.clase === "B"
-    && conceptosB.length > 0
-    && conceptosB.every((linea) => linea.ivaAlicuotaId != null)
-    ? calcularFacturaBDesdeImportesConIva(conceptosB.map((linea) => ({
-        key: linea.key,
-        importe: importeLinea(linea.importe),
-        ivaAlicuotaId: linea.ivaAlicuotaId!,
-      }))).desgloseIva
-    : null;
   return {
     tipoDocumento: form.tipoDocumento,
     clase: form.tipoDocumento === "FACTURA" ? form.clase || null : null,
@@ -181,9 +174,12 @@ function toInput(form: FormState, proveedorId: string | null): unknown {
     vencimientoAutorizacion: form.vencimientoAutorizacion,
     fechaVencimiento: form.tipoDocumento === "FACTURA" ? form.fechaVencimiento : "",
     observaciones: form.observaciones,
+    ivaContenido: form.tipoDocumento === "FACTURA" && form.clase === "B" && form.ivaContenido.trim() !== ""
+      ? Number(form.ivaContenido.trim().replace(",", "."))
+      : null,
     desgloseIva: form.tipoDocumento === "FACTURA" && form.clase === "A" && form.desgloseIva?.length
       ? form.desgloseIva.map(({ ivaAlicuotaId, base, iva }) => ({ ivaAlicuotaId, base: base.trim() === "" ? null : Number(base), iva: iva.trim() === "" ? null : Number(iva) }))
-      : form.tipoDocumento === "FACTURA" && form.clase === "B" ? desgloseIvaB : null,
+      : null,
     lineas: form.lineas.map((linea) => {
       const importeTexto = linea.importe.trim().replace(",", ".");
       const importe = importeTexto ? Number(importeTexto) : Number.NaN;
@@ -196,7 +192,7 @@ function toInput(form: FormState, proveedorId: string | null): unknown {
           importe,
         };
       }
-      return { tipo: "CONCEPTO", descripcion: linea.descripcion, percepcionCodigo: null, importe, ivaAlicuotaId: form.tipoDocumento === "FACTURA" && (form.clase === "A" || form.clase === "B") ? linea.ivaAlicuotaId ?? null : null };
+      return { tipo: "CONCEPTO", descripcion: linea.descripcion, percepcionCodigo: null, importe, ivaAlicuotaId: form.tipoDocumento === "FACTURA" && form.clase === "A" ? linea.ivaAlicuotaId ?? null : null };
     }),
   };
 }
@@ -473,10 +469,10 @@ export default function ComprobanteRecibidoModal({
             {form.clase === "A"
               ? "En esta carga manual, ingresá el importe del concepto y confirmá el desglose de IVA en la sección siguiente."
               : form.clase === "B"
-                ? "En factura B, los importes ya incluyen IVA; elegí la alícuota de cada concepto para discriminarlo en el reporte."
+                ? "En factura B, ingresá los importes finales. El IVA contenido es opcional e informativo; no se discrimina ni se calcula desde las líneas."
                 : "Descripciones e importes manuales. En factura C se conserva el importe final sin discriminar IVA."}
           </p>
-          {esFactura && (form.clase === "A" || form.clase === "B") && !readOnly ? (
+          {esFactura && form.clase === "A" && !readOnly ? (
             <label style={styles.hint}>Aplicar alícuota a todos los conceptos
               <select aria-label="Aplicar alícuota a todos los conceptos" style={styles.input} value="" onChange={(event) => {
                 const ivaAlicuotaId = Number(event.target.value);
@@ -545,9 +541,9 @@ export default function ComprobanteRecibidoModal({
                         data-testid={`comprobante-recibido-linea-${index}-descripcion`}
                       />
                     )}
-                    {esFactura && (form.clase === "A" || form.clase === "B") && linea.tipo === "CONCEPTO" ? (
+                    {esFactura && form.clase === "A" && linea.tipo === "CONCEPTO" ? (
                       <label style={styles.hint}>
-                        Alícuota IVA{form.clase === "B" ? " (obligatoria)" : ""}
+                        Alícuota IVA
                         <select
                           aria-label={`Alícuota de la línea ${index + 1}`}
                           style={styles.input}
@@ -614,6 +610,26 @@ export default function ComprobanteRecibidoModal({
                   style={{ minWidth: 0, fontSize: 14, padding: "8px 12px" }}
                 />
               ) : null}
+            </div>
+          ) : null}
+
+          {esFactura && form.clase === "B" ? (
+            <div style={{ ...styles.row, marginTop: 12 }}>
+              <Field label="IVA contenido informado (opcional)" grow htmlFor="comprobante-recibido-iva-contenido">
+                <IconInput
+                  id="comprobante-recibido-iva-contenido"
+                  aria-label="IVA contenido informado"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  disabled={readOnly}
+                  value={form.ivaContenido}
+                  wrapperStyle={{ height: 38, padding: "0 10px" }}
+                  style={{ fontSize: 14 }}
+                  onChange={(event) => update("ivaContenido", event.target.value)}
+                  data-testid="comprobante-recibido-iva-contenido"
+                />
+              </Field>
             </div>
           ) : null}
 

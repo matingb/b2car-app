@@ -27,6 +27,7 @@ export const COMPROBANTE_RECIBIDO_COLUMNS = [
   "fecha_vencimiento",
   "observaciones",
   "desglose_iva",
+  "iva_contenido",
   "created_at",
   "updated_at",
   "operaciones(tipo)",
@@ -64,6 +65,7 @@ export type ComprobanteRecibidoRow = {
   fecha_vencimiento: string | null;
   observaciones: string | null;
   desglose_iva: Array<{ iva_alicuota_id: number; base: number; iva: number }> | null;
+  iva_contenido: number | string | null;
   created_at: string;
   updated_at: string;
   operaciones?: { tipo: string | null } | null;
@@ -91,7 +93,7 @@ export type ReceptorFiscalRow = {
   condicion_iva_emisor: string | null;
 };
 
-/** Parámetros de rpc_comprobante_recibido_guardar (claves snake_case dentro de p_datos/p_lineas). */
+/** Parámetros de rpc_comprobante_recibido_guardar_con_iva (claves snake_case dentro de p_datos/p_lineas). */
 export type GuardarComprobanteParams = {
   p_comprobante_id: string | null;
   p_operacion_id: string;
@@ -165,7 +167,7 @@ export const supabaseComprobanteRecibidoRepository: ComprobanteRecibidoRepositor
   },
 
   async guardar(supabase, params) {
-    const { data, error } = await supabase.rpc("rpc_comprobante_recibido_guardar", params);
+    const { data, error } = await supabase.rpc("rpc_comprobante_recibido_guardar_con_iva", params);
     return { data: typeof data === "string" ? data : null, error };
   },
 

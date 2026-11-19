@@ -8,7 +8,7 @@ export const GET = createApiHandler(
   {
     route: "GET /api/documentos",
     fallback: "No se pudieron cargar los documentos",
-    permission: Permission.FacturasView,
+    anyPermission: [Permission.FacturasView, Permission.ComprobantesRecibidosView],
   },
   async (ctx) => {
     const params = ctx.req.nextUrl.searchParams;
@@ -23,7 +23,10 @@ export const GET = createApiHandler(
       search: params.get("search"),
       clase: params.get("clase"),
       factura: params.get("factura"),
-    }, { incluirRecibidos: ctx.can(Permission.ComprobantesRecibidosView) });
+    }, {
+      incluirEmitidos: ctx.can(Permission.FacturasView),
+      incluirRecibidos: ctx.can(Permission.ComprobantesRecibidosView),
+    });
     return Response.json({ data, error: null });
   },
 );

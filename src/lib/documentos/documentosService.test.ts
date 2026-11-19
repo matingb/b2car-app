@@ -99,6 +99,26 @@ describe("listDocumentos", () => {
     ]));
   });
 
+  it("limita la consulta a recibidos cuando el usuario no tiene acceso a emitidos", async () => {
+    const mock = supabaseQueryMock({ comprobantes_recibidos: [{ data: [], error: null, count: 0 }] });
+
+    await listDocumentos(mock.supabase, TENANT, {}, { incluirEmitidos: false, incluirRecibidos: true });
+
+    expect(mock.from).toHaveBeenCalledWith("comprobantes_recibidos");
+    expect(mock.from).not.toHaveBeenCalledWith("facturas_electronicas");
+    expect(mock.from).not.toHaveBeenCalledWith("remitos");
+  });
+
+  it("limita la consulta a emitidos y remitos cuando el usuario no tiene acceso a recibidos", async () => {
+    const mock = supabaseQueryMock({ facturas_electronicas: [{ data: [], error: null, count: 0 }], remitos: [{ data: [], error: null, count: 0 }] });
+
+    await listDocumentos(mock.supabase, TENANT, {}, { incluirEmitidos: true, incluirRecibidos: false });
+
+    expect(mock.from).toHaveBeenCalledWith("facturas_electronicas");
+    expect(mock.from).toHaveBeenCalledWith("remitos");
+    expect(mock.from).not.toHaveBeenCalledWith("comprobantes_recibidos");
+  });
+
   it("filtra comprobantes fiscales por tipo y estado sin consultar remitos", async () => {
     const mock = supabaseQueryMock({ facturas_electronicas: [{ data: [], error: null, count: 0 }] });
 

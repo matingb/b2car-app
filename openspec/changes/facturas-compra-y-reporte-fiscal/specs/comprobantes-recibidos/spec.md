@@ -92,8 +92,9 @@ Cada factura A SHALL admitir una alícuota por concepto gravado en `comprobantes
 - **GIVEN** una línea de la compra tiene alícuota 10,5% y otra carece de tasa disponible
 - **WHEN** el usuario activa «Cargar con factura» y elige factura A durante el alta
 - **THEN** el formulario precarga 10,5% en el primer concepto y sugiere 21% en el segundo
-- **AND** permite aplicar una tasa al conjunto, corregir una línea y confirmar el desglose antes de guardar
-- **AND** la factura guardada conserva las tasas y los importes confirmados al volver a consultarla
+- **AND** el resumen lista el IVA total por cada alícuota presente, sin campos editables ni botón de confirmación
+- **AND** debajo muestra los totales de conceptos, IVA, percepciones y factura
+- **AND** el documento guarda automáticamente la base y el IVA calculados desde esos conceptos y tasas
 
 #### Scenario: Otra factura en una compra con documentos
 - **GIVEN** una compra con tasa operativa 21% y una primera factura A al 21%
@@ -101,21 +102,25 @@ Cada factura A SHALL admitir una alícuota por concepto gravado en `comprobantes
 - **THEN** la segunda factura conserva ambas alícuotas por concepto
 - **AND** la alícuota de la operación y la primera factura conservan sus valores
 
-### Requirement: Base e IVA discriminado confirmados por alícuota
-Para facturas A, el sistema SHALL guardar la base gravada y el IVA discriminado confirmados por documento y alícuota. MAY sugerir IVA a partir de una base identificada como neta y de la tasa elegida. MUST conservar los importes confirmados y contar el IVA una sola vez en el total facturado.
+### Requirement: Base e IVA discriminado por alícuota
+Para una factura A creada junto con una compra, el sistema SHALL guardar la base gravada y el IVA discriminado calculados desde los conceptos y sus alícuotas. El resumen del alta SHALL mostrar únicamente etiquetas con las tasas presentes; no solicitará una segunda confirmación de importes. En la edición posterior del documento, el usuario SHALL poder corregir el desglose según el comprobante. El IVA se cuenta una sola vez en el total facturado.
 
-#### Scenario: Confirmación del importe del proveedor
-- **GIVEN** el resumen de una factura A sugiere un IVA de 2100,00 y el comprobante discrimina 2099,99
-- **WHEN** el usuario confirma el desglose con el importe del comprobante
-- **THEN** la factura conserva 2099,99 y el total registrado incluye ese IVA una sola vez
+#### Scenario: Desglose automático desde las tasas de los conceptos
+- **GIVEN** una factura A con un concepto de base 100,00 al 21% y otro de base 200,00 al 10,5%
+- **AND** la factura no tiene percepciones
+- **WHEN** se crea la compra con esa factura
+- **THEN** la factura conserva ambas bases, alícuotas y los IVA calculados de 21,00 y 21,00
+- **AND** el resumen lista «Total IVA 21%: 21,00» y «Total IVA 10,5%: 21,00» sin campos editables ni botón de confirmación
+- **AND** debajo muestra conceptos 300,00, IVA 42,00, percepciones 0,00 y total de factura 342,00
 
 #### Scenario: Facturas B y C por su importe final
 - **WHEN** se carga una factura B o C con su importe final
 - **THEN** se conserva el importe informado y no se extrae IVA del precio
 - **AND** una percepción de IVA se registra por separado por su importe informado
+- **AND** en una factura B se puede informar IVA contenido en un campo independiente, sin tratarlo como IVA discriminado ni sumarlo otra vez al total
 
 ### Requirement: Importes ausentes y ceros informados en el desglose de IVA
-El formulario SHALL mantener vacíos los importes aún sin informar. Cada alícuota del desglose confirmado MUST tener base e IVA informados, incluido el cero explícito. Una factura A sin filas de desglose, incluso después de quitar la última, SHALL guardar ese dato como ausente.
+Al editar posteriormente una factura, el formulario SHALL mantener vacíos los importes aún sin informar. Cada alícuota agregada al desglose MUST tener base e IVA informados, incluido el cero explícito. Una factura A sin filas de desglose, incluso después de quitar la última, SHALL guardar ese dato como ausente. El alta conjunta deriva el desglose automáticamente desde las tasas y bases de sus conceptos.
 
 #### Scenario: Factura histórica sin desglose
 - **GIVEN** una factura anterior sin alícuotas ni importes fiscales confirmados
@@ -158,14 +163,37 @@ El ingreso de PERCEPCION SHALL ofrecer selección rápida de Ganancias, IVA, IIB
 - **THEN** puede guardar la línea sin crear previamente una opción del catálogo
 - **AND** su identificación queda disponible para el reporte
 
-### Requirement: Diferencias de importes permitidas e informadas
-El sistema SHALL permitir guardar documentos aunque sus importes difieran del monto operativo y mostrar un label informativo de la diferencia. MUST NOT bloquear por esa diferencia ni ajustar automáticamente documentos u operación. SHALL distinguir importes de una factura y suma de facturas asociadas, sin sumar retenciones a ese total facturado.
+### Requirement: Total operativo de compra A al crear con factura
+Al crear una COMPRA junto con una factura A, el sistema MUST incluir en `operaciones.monto_total` el IVA calculado desde las bases netas por alícuota, además de las bases y percepciones. MUST conservar los precios netos y las alícuotas en las líneas operativas. Los pagos y el saldo SHALL usar ese total.
 
-#### Scenario: Diferencia al guardar
-- **GIVEN** una operación por 120000
-- **WHEN** se guarda su única factura por 121000
-- **THEN** se guarda la factura y aparece información de la diferencia de 1000
-- **AND** la operación conserva 120000 y la factura 121000
+#### Scenario: Compra con factura A suma IVA y percepciones al crear
+- **GIVEN** una compra con un concepto de base neta 1000,00 al 21% y una percepción de 30,00
+- **WHEN** se crea la compra con su factura A en el mismo formulario
+- **THEN** `operaciones.monto_total` queda en 1240,00 (base + IVA + percepción)
+- **AND** la línea operativa conserva la base neta y la alícuota 21%
+- **AND** el alta de pagos y el saldo pendiente usan 1240,00
+
+### Requirement: Tope de pagos iniciales sobre el total definitivo
+Al crear una operación, el sistema MUST validar en la API y dentro de la transacción que la suma de `pagos[]` y `monto_inicial` no supere el total operativo definitivo, incluidos el IVA y los cargos aplicables. MUST permitir un pago parcial y un pago exacto al total.
+
+#### Scenario: Pagos iniciales dentro del límite
+- **GIVEN** una compra cuyo total definitivo es 1240,00
+- **WHEN** se registra un pago parcial de 600,00 o un pago exacto de 1240,00
+- **THEN** la operación se crea y el saldo se calcula con el total definitivo
+
+#### Scenario: Pago inicial excedido por un centavo
+- **GIVEN** una compra cuyo total definitivo es 1240,00
+- **WHEN** `pagos[]` o `monto_inicial` suma 1240,01
+- **THEN** la solicitud se rechaza sin crear la operación, movimientos de cuenta ni movimientos de stock
+
+### Requirement: Diferencias de importes permitidas e informadas
+El sistema SHALL permitir guardar documentos aunque sus importes difieran del monto operativo y mostrar un label informativo de la diferencia. La suma de IVA indicada arriba solo cubre el IVA calculado en el alta conjunta y MUST NOT forzar igualdad por otros ajustes del comprobante. Adjuntar, editar o eliminar documentos posteriormente MUST NOT recalcular la operación. SHALL distinguir importes de una factura y suma de facturas asociadas, sin sumar retenciones a ese total facturado.
+
+#### Scenario: Diferencia restante o documento posterior
+- **GIVEN** una compra cuyo total operativo se calculó al crearla con una factura A
+- **WHEN** la factura se adjunta o edita posteriormente y su total difiere por otro ajuste confirmado
+- **THEN** se guarda el documento y aparece información de la diferencia
+- **AND** la operación conserva su total, pagos y saldo
 
 ### Requirement: Facturas sin duplicados por emisor y número
 El sistema MUST rechazar una factura cuyo CUIT emisor y número de factura ya estén registrados en otra factura vigente del mismo tenant, incluso en otra operación. SHALL mostrar error de duplicado y aplicar la misma validación en edición, con garantía frente a altas concurrentes.
@@ -255,13 +283,20 @@ Al editar una compra, el sistema SHALL permitir agregar, corregir o quitar cargo
 - **THEN** se rechaza la edición y la compra conserva sus cargos, monto y pagos
 
 ### Requirement: Reintentos sin duplicación operativa o documental
-El sistema SHALL permitir reintentar cargas/asociaciones sin duplicar el documento de la misma solicitud, recrear la operación ni repetir pagos o stock. Un fallo MUST NOT presentarse como guardado exitoso ni dejar una asociación inválida.
+El sistema SHALL permitir reintentar cargas/asociaciones sin duplicar el documento de la misma solicitud, recrear la operación ni repetir pagos o stock. La clave de idempotencia de operación MUST resolverse dentro de la transacción y también cuando no hay pago inicial. Un fallo MUST NOT presentarse como guardado exitoso ni dejar una asociación inválida.
 
 #### Scenario: Fallo posterior a crear la compra
 - **GIVEN** una compra creada cuyo documento falló al guardarse
 - **WHEN** se reintenta la misma carga del documento
 - **THEN** la compra no se crea de nuevo y el documento se registra una sola vez
 - **AND** los pagos e inventario no se repiten
+
+#### Scenario: Se pierde la respuesta después del commit de la compra
+- **GIVEN** la transacción creó una compra sin pago inicial, pero el navegador no recibió el identificador por pérdida de la respuesta
+- **WHEN** reenvía el mismo contenido con la misma clave de idempotencia
+- **THEN** recibe el identificador de la compra existente y no se crea otra operación
+- **AND** una compra con pago inicial conserva un solo conjunto de pagos y movimientos de stock
+- **AND** el documento se asocia una sola vez a la operación recuperada
 
 ### Requirement: Permisos y pertenencia al tenant
 El circuito SHALL tener permisos de consulta/gestión con acceso inicial equivalente a facturación de ventas. MUST exigir sesión, derivar tenant de ella y validar pertenencia de operación, proveedor y documento. MUST impedir acciones sin permiso y asociaciones entre tenants.
@@ -274,6 +309,26 @@ El circuito SHALL tener permisos de consulta/gestión con acceso inicial equival
 #### Scenario: Operación de otro tenant
 - **WHEN** un usuario intenta asociar un documento a una operación de otro tenant
 - **THEN** se rechaza la solicitud sin crear el documento ni divulgar información ajena
+
+### Requirement: Listado Documentos por permiso de cada fuente
+La página y el endpoint del listado unificado de Documentos SHALL permitir acceso con `facturas:view` o `comprobantes_recibidos:view`. El servidor MUST limitar cada consulta a las fuentes autorizadas: facturas emitidas y remitos para el primer permiso, documentos recibidos para el segundo. La gestión de cada fuente conserva su permiso específico.
+
+#### Scenario: Rol con permiso solo de recibidos
+- **GIVEN** un usuario con `comprobantes_recibidos:view` y sin `facturas:view`
+- **WHEN** abre Documentos
+- **THEN** puede listar los documentos recibidos
+- **AND** no se consultan ni muestran facturas emitidas o remitos
+
+#### Scenario: Rol con permiso solo de ventas
+- **GIVEN** un usuario con `facturas:view` y sin `comprobantes_recibidos:view`
+- **WHEN** abre Documentos
+- **THEN** puede listar facturas emitidas y remitos
+- **AND** no se consultan ni muestran documentos recibidos
+
+#### Scenario: Rol sin permiso para las fuentes
+- **GIVEN** un usuario sin ninguno de esos permisos
+- **WHEN** abre Documentos o consulta su endpoint
+- **THEN** el acceso se rechaza
 
 ### Requirement: Sin subida de archivos
 El circuito inicial MUST NOT ofrecer subida de archivos, fotos o adjuntos ni exigirlos para guardar documentos. SHALL usar los registros y líneas estructurados cargados manualmente como fuente de consulta y reporte.

@@ -134,6 +134,8 @@ export type RpcCrearOperacionParams = {
 	p_pagos?: unknown[] | null;
 	/** Solo COMPRA: percepciones que suman a monto_total (operaciones_cargos). */
 	p_cargos?: unknown[] | null;
+	/** Solo COMPRA: false when purchase prices are net bases and IVA is added to the total. */
+	p_precios_incluyen_iva?: boolean;
 	p_categoria_gasto?: string | null;
 	p_monto?: number | null;
 	p_descripcion?: string | null;

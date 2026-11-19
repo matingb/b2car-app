@@ -1,6 +1,5 @@
 import { CONDICIONES_IVA_PROVEEDOR, PERCEPCIONES_SUGERIDAS, type PercepcionCodigo } from "./types";
 import { ALICUOTAS_IVA_ARCA } from "@/lib/facturacion/types";
-import { calcularFacturaADesdeBases, calcularFacturaBDesdeImportesConIva } from "./iva";
 import { FISCAL_MONEY_KEYS, type FiscalAmounts, type FiscalMoneyKey } from "@/lib/facturacion/reporteFiscal";
 import type {
   ComprasFiscalDocumento,
@@ -79,25 +78,9 @@ function buildInvoiceRow(document: ComprasFiscalDocumento, columns: ComprasFisca
   const percepcionIva = percepciones.IVA ?? 0;
   const percepcionIibb = add(percepciones.IIBB_BUENOS_AIRES ?? 0, percepciones.IIBB_CABA ?? 0);
 
-  const breakdownGuardado = document.desgloseIva ?? [];
-  const desgloseDerivado = breakdownGuardado.length === 0
-    && (document.clase === "A" || document.clase === "B")
-    ? (() => {
-        const conceptos = document.lineas
-          .filter((line) => line.tipo === "CONCEPTO" && line.ivaAlicuotaId !== null && line.ivaAlicuotaId !== undefined)
-          .map((line, index) => ({
-            key: line.id || String(index),
-            importe: cents(line.importe) / 100,
-            ivaAlicuotaId: line.ivaAlicuotaId!,
-          }));
-        return document.clase === "A"
-          ? calcularFacturaADesdeBases(conceptos).desgloseIva
-          : calcularFacturaBDesdeImportesConIva(conceptos).desgloseIva;
-      })()
-    : [];
-  const ivaDerivadoDeLineasNetas = breakdownGuardado.length === 0 && document.clase === "A" && desgloseDerivado.length > 0;
-  const breakdown = breakdownGuardado.length > 0 ? breakdownGuardado : desgloseDerivado;
-  if (breakdown.length > 0 && document.clase !== "A" && document.clase !== "B") throw new Error("Solo las facturas A o B pueden tener un desglose de IVA discriminado");
+  // Solo el desglose confirmado de una factura A alimenta las columnas fiscales. Las tasas
+  // operativas y los importes finales de B/C nunca completan datos que el documento no confirmó.
+  const breakdown = document.clase === "A" ? document.desgloseIva ?? [] : [];
   const basesByRate = new Map<number, number>();
   const ivaByRate = new Map<number, number>();
   let totalBases = 0;
@@ -113,10 +96,10 @@ function buildInvoiceRow(document: ComprasFiscalDocumento, columns: ComprasFisca
   }
   const desgloseConfirmado = breakdown.length > 0;
   const importeConfirmado = add(totalBases, totalIva);
-  if (desgloseConfirmado && !ivaDerivadoDeLineasNetas && importeConfirmado > totalConceptos) {
+  if (desgloseConfirmado && importeConfirmado > totalConceptos) {
     throw new Error("El desglose de IVA supera el importe de conceptos de la factura");
   }
-  const desgloseCompleto = desgloseConfirmado && (ivaDerivadoDeLineasNetas ? totalBases === totalConceptos : importeConfirmado === totalConceptos);
+  const desgloseCompleto = desgloseConfirmado && importeConfirmado === totalConceptos;
 
   const amounts: FiscalAmounts = {
     netoGravado: desgloseConfirmado ? totalBases : null,
@@ -133,13 +116,16 @@ function buildInvoiceRow(document: ComprasFiscalDocumento, columns: ComprasFisca
     ivaTotal: desgloseConfirmado ? totalIva : null,
     otrosTributos: null,
     impuestosNacionales: null,
-    total: ivaDerivadoDeLineasNetas ? add(total, totalIva) : total,
+    total,
   };
   const observaciones = [document.observaciones?.trim()]
     .filter((value): value is string => Boolean(value))
     .concat(desgloseConfirmado
       ? desgloseCompleto ? [] : ["Desglose de IVA confirmado parcial"]
       : [document.clase === "A" ? "Sin desglose de IVA confirmado" : `Factura ${document.clase}: solo se informó el importe final`]);
+  if (document.clase === "B" && document.ivaContenido != null) {
+    observaciones.push(`IVA contenido informado (no discriminado): ${(cents(document.ivaContenido) / 100).toFixed(2)}`);
+  }
   if (!document.emisor.razonSocial || !document.emisor.cuit) {
     observaciones.push("Datos del emisor incompletos o no informados");
   }

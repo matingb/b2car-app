@@ -1,8 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useCondicionPago, CREATE_CUENTA_VALUE } from "./useCondicionPago";
 
 describe("useCondicionPago", () => {
+  afterEach(() => vi.useRealTimers());
+
   it("inicializa con cuenta favorita y sincroniza monto con targetAmount", () => {
     const cuentaFavorita = { id: "C-FAV", nombre: "Banco Galicia" };
     const { result, rerender } = renderHook(
@@ -191,6 +193,28 @@ describe("useCondicionPago", () => {
     expect(payload[0].cuenta_id).toBe("C-NUEVA-123");
     expect(payload[0].cuenta_financiera_id).toBe("C-NUEVA-123");
     expect(payload[0].monto).toBe(12000);
+  });
+
+  it("mantiene estable la fecha y hora de un pago al reintentar el mismo borrador", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-07T12:00:00.000Z"));
+    const { result } = renderHook(() => useCondicionPago({
+      targetAmount: 100,
+      initialCuentaId: "C-1",
+      defaultFecha: "2026-11-07",
+    }));
+
+    let first: Awaited<ReturnType<typeof result.current.resolvePagosPayload>> = [];
+    await act(async () => {
+      first = await result.current.resolvePagosPayload(undefined, "2026-11-07");
+    });
+    vi.setSystemTime(new Date("2026-11-07T12:05:00.000Z"));
+    let retry: Awaited<ReturnType<typeof result.current.resolvePagosPayload>> = [];
+    await act(async () => {
+      retry = await result.current.resolvePagosPayload(undefined, "2026-11-07");
+    });
+
+    expect(retry[0].fecha).toBe(first[0].fecha);
   });
 });
 

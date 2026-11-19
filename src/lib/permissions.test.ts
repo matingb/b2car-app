@@ -5,6 +5,7 @@ import {
   getLandingPathForPermissions,
   normalizeUserRole,
   permissionForPath,
+  canAccessPathWithPermissions,
   PATH_PERMISSIONS,
 } from "./permissions";
 
@@ -101,6 +102,18 @@ describe("permissions", () => {
           expect(typeof rule.path).toBe("string");
         }
       }
+    });
+  });
+
+  describe("canAccessPathWithPermissions", () => {
+    it("allows Documentos with either sales or received-document access", () => {
+      expect(canAccessPathWithPermissions("/facturacion", (permission) => permission === Permission.ComprobantesRecibidosView)).toBe(true);
+      expect(canAccessPathWithPermissions("/api/documentos", (permission) => permission === Permission.FacturasView)).toBe(true);
+    });
+
+    it("keeps sales-only detail pages behind the sales permission", () => {
+      expect(canAccessPathWithPermissions("/facturacion/123", (permission) => permission === Permission.ComprobantesRecibidosView)).toBe(false);
+      expect(canAccessPathWithPermissions("/api/documentos", () => false)).toBe(false);
     });
   });
 

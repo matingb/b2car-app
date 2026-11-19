@@ -6,7 +6,7 @@ import {
   type PermissionValue,
   UserRole,
   type UserRoleValue,
-  permissionForPath,
+  canAccessPathWithPermissions,
 } from "@/lib/permissions";
 import { SubscriptionPlan, type SubscriptionPlanValue } from "@/lib/subscription";
 
@@ -66,8 +66,7 @@ export function TenantTestProvider({
   canAccessPath: customCanAccessPath,
 }: TenantTestProviderProps) {
   const defaultCanAccessPath = (pathname: string) => {
-    const required = permissionForPath(pathname);
-    return !required || hasPermission(required);
+    return canAccessPathWithPermissions(pathname, hasPermission);
   };
 
   const value: TenantContextValue = {

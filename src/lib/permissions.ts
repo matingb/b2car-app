@@ -65,6 +65,8 @@ export type PathMatchStrategy = "prefix" | "exact" | "includes" | "endsWith";
 export interface RoutePermissionRule {
   path: string | readonly string[];
   permission: PermissionValue;
+  /** Access is also granted when any one of these permissions is effective. */
+  anyPermission?: readonly PermissionValue[];
   match?: PathMatchStrategy;
 }
 
@@ -106,6 +108,7 @@ export const PATH_PERMISSIONS: readonly RoutePermissionRule[] = [
   // Facturas y retenciones recibidas de compras y gastos
   // Debe ir antes de "/facturacion": la primera regla que coincide define el permiso.
   { path: ["/api/comprobantes-recibidos", "/facturacion/recibidos"], permission: Permission.ComprobantesRecibidosView },
+  { path: ["/facturacion", "/api/documentos"], permission: Permission.FacturasView, anyPermission: [Permission.ComprobantesRecibidosView], match: "exact" },
 
   // Facturación, remitos y endpoints fiscales
   {
@@ -150,6 +153,16 @@ function matchesRule(pathname: string, rule: RoutePermissionRule): boolean {
 export function permissionForPath(pathname: string): PermissionValue | null {
   const matchedRule = PATH_PERMISSIONS.find((rule) => matchesRule(pathname, rule));
   return matchedRule ? matchedRule.permission : null;
+}
+
+export function canAccessPathWithPermissions(
+  pathname: string,
+  hasPermission: (permission: PermissionValue) => boolean,
+): boolean {
+  const matchedRule = PATH_PERMISSIONS.find((rule) => matchesRule(pathname, rule));
+  if (!matchedRule) return true;
+  return hasPermission(matchedRule.permission)
+    || Boolean(matchedRule.anyPermission?.some((permission) => hasPermission(permission)));
 }
 
 export function getLandingPathForPermissions(permissions: readonly PermissionValue[]): string {

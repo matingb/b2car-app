@@ -14,6 +14,7 @@ const mockAnularPago = vi.fn();
 const mockConfirm = vi.fn();
 const mockToastSuccess = vi.fn();
 const mockToastError = vi.fn();
+const { mockCargosModal } = vi.hoisted(() => ({ mockCargosModal: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "op-test-1" }),
@@ -68,6 +69,13 @@ vi.mock("@/app/providers/ModalMessageProvider", () => ({
   useModalMessage: () => ({
     confirm: mockConfirm,
   }),
+}));
+
+vi.mock("@/app/components/operaciones/OperacionCargosModal", () => ({
+  default: (props: unknown) => {
+    mockCargosModal(props);
+    return null;
+  },
 }));
 
 describe("OperacionDetailPage (/operaciones/[id])", () => {
@@ -159,6 +167,26 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
     expect(screen.getByRole("button", { name: "Facturar electrónicamente" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generar remito" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Eliminar venta" })).toBeInTheDocument();
+  });
+
+  it("permite agregar cargos sin cargos previos y usa el total operativo como base", async () => {
+    const compra: Operacion = {
+      ...operacionVenta,
+      id: "22222222-2222-4222-8222-222222222222",
+      tipo: "COMPRA",
+      monto_total: 1240,
+      total_pagado: 0,
+      saldo_pendiente: 1240,
+      pagos: [],
+      cargos: [],
+    };
+    mockGetById.mockResolvedValue({ data: compra, error: null });
+
+    render(<OperacionDetailPage />);
+    await runPendingPromises();
+    fireEvent.click(await screen.findByTestId("operacion-cargos-editar"));
+
+    expect(mockCargosModal).toHaveBeenCalledWith(expect.objectContaining({ operacion: compra, montoBase: 1240 }));
   });
 
   it("redirige automáticamente a /arreglos/[id] cuando la operación es COBRO_ARREGLO", async () => {

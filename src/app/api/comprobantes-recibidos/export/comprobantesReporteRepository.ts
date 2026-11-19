@@ -33,6 +33,7 @@ type DatabaseDocumento = {
   vencimiento_autorizacion: string | null;
   observaciones: string | null;
   desglose_iva: Array<{ iva_alicuota_id: number; base: number | string; iva: number | string }> | null;
+  iva_contenido: number | string | null;
   updated_at: string;
   operaciones?: { tipo: string | null; tenant_id: string } | { tipo: string | null; tenant_id: string }[] | null;
   comprobantes_recibidos_lineas?: DatabaseLinea[] | null;
@@ -55,7 +56,7 @@ const DOCUMENT_COLUMNS = [
   "id", "tenant_id", "operacion_id", "tipo_documento", "clase", "numero", "fecha",
   "emisor_razon_social", "emisor_cuit", "emisor_condicion_iva",
   "receptor_razon_social", "receptor_cuit", "receptor_condicion_iva",
-  "codigo_autorizacion", "vencimiento_autorizacion", "observaciones", "desglose_iva", "updated_at",
+  "codigo_autorizacion", "vencimiento_autorizacion", "observaciones", "desglose_iva", "iva_contenido", "updated_at",
   "operaciones!inner(tipo,tenant_id)",
   "comprobantes_recibidos_lineas(id,orden,tipo,descripcion,percepcion_codigo,importe,iva_alicuota_id)",
 ].join(",");
@@ -197,6 +198,7 @@ function mapDocument(row: DatabaseDocumento, tenantId: string): ComprasFiscalDoc
     vencimientoAutorizacion: row.vencimiento_autorizacion,
     observaciones: row.observaciones,
     desgloseIva,
+    ivaContenido: row.iva_contenido,
     lineas,
     updatedAt: row.updated_at,
   };

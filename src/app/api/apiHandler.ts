@@ -6,7 +6,7 @@ import { createScopedLogger, type ScopedLogger } from "@/lib/logger";
 import type { PermissionValue } from "@/lib/permissions";
 import { generateUuidV4 } from "@/lib/uuid";
 import { buildApiContext, type ApiContext } from "./apiContext";
-import { assertPermission } from "./apiAccess";
+import { assertAnyPermission, assertPermission } from "./apiAccess";
 import { apiErrorResponse, type DbErrorOptions, type MappedApiError } from "./apiError";
 import { telemetry } from "@/lib/telemetry";
 
@@ -14,6 +14,7 @@ export type ApiHandlerOptions = {
   route: string;
   fallback?: string;
   permission?: PermissionValue | readonly PermissionValue[];
+  anyPermission?: readonly PermissionValue[];
   errorBody?: Record<string, unknown>;
   mapError?: (error: unknown) => MappedApiError | null;
 };
@@ -61,6 +62,7 @@ export function createApiHandler(
       };
       telemetry.identify(identity);
       if (options.permission) await assertPermission(context, options.permission);
+      if (options.anyPermission) await assertAnyPermission(context, options.anyPermission);
       const params = await segment.params;
       const ctx = { ...context, req, params, requestId, log, fail };
       response = await telemetry.withIdentity(identity, () => controller(ctx));

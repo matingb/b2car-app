@@ -30,6 +30,8 @@ export type CreateOperacionInput = {
 	pagos?: CreateOperacionPagoInput[] | null;
 	/** Solo COMPRA: percepciones de la factura que suman al total de la operación. */
 	cargos?: OperacionCargoInput[] | null;
+	/** Solo COMPRA: false cuando la compra se crea con Factura A y precios netos. */
+	precios_incluyen_iva?: boolean;
 	idempotency_key?: string | null;
 	observaciones?: string | null;
 	estado_pago?: EstadoPagoOperacion | null;
