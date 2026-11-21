@@ -157,5 +157,57 @@ describe("OperacionLineaEditor", () => {
 
     expect(screen.getByTestId("operaciones-line-0-cantidad-entregar")).toHaveValue(4);
   });
+
+  it("En formato móvil colapsado, muestra el botón de resumen y activa toggle", () => {
+    const onMobileToggle = vi.fn();
+    render(
+      <OperacionLineaEditor
+        index={0}
+        linea={{ id: "l1", stockId: "p1", cantidad: 1, unitario: 100, total: 100 }}
+        disabled={false}
+        loadingStocks={false}
+        stockOptions={[{ value: "p1", label: "Filtro de Aceite" }]}
+        onChange={vi.fn()}
+        mobileExpanded={false}
+        onMobileToggle={onMobileToggle}
+      />
+    );
+
+    const summaryBtn = screen.getByTestId("operaciones-line-0-summary");
+    expect(summaryBtn).toBeInTheDocument();
+    fireEvent.click(summaryBtn);
+    expect(onMobileToggle).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("operaciones-line-0-expanded-header")).not.toBeInTheDocument();
+  });
+
+  it("En formato móvil extendido, muestra el tacho de basura para eliminar y el botón Confirmar para cerrar", () => {
+    const onRemove = vi.fn();
+    const onMobileConfirm = vi.fn();
+    render(
+      <OperacionLineaEditor
+        index={0}
+        linea={{ id: "l1", stockId: "p1", cantidad: 1, unitario: 100, total: 100 }}
+        disabled={false}
+        loadingStocks={false}
+        stockOptions={[{ value: "p1", label: "Filtro de Aceite" }]}
+        onChange={vi.fn()}
+        mobileExpanded={true}
+        canMobileDelete={true}
+        onRemove={onRemove}
+        onMobileConfirm={onMobileConfirm}
+      />
+    );
+
+    expect(screen.getByTestId("operaciones-line-0-expanded-header")).toBeInTheDocument();
+    const deleteBtn = screen.getByTestId("operaciones-line-0-delete");
+    expect(deleteBtn).toHaveAttribute("title", "Eliminar producto");
+
+    fireEvent.click(deleteBtn);
+    expect(onRemove).toHaveBeenCalledTimes(1);
+
+    const confirmBtn = screen.getByTestId("operaciones-line-0-confirm");
+    fireEvent.click(confirmBtn);
+    expect(onMobileConfirm).toHaveBeenCalledTimes(1);
+  });
 });
 

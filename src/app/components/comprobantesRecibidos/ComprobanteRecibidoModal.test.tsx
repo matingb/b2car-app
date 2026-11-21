@@ -79,3 +79,54 @@ it("sugiere IVA desde la base neta al corregir una factura A existente", async (
     desgloseIva: [{ ivaAlicuotaId: 5, base: 200, iva: 20.99 }],
   })));
 });
+
+it("permite guardar una factura B con IVA contenido opcional y sin desglose discriminado", async () => {
+  const emisor = { razonSocial: "Proveedor B", cuit: "30712345678", condicionIva: "RESPONSABLE_INSCRIPTO", domicilio: null } as const;
+  const receptor = { razonSocial: null, cuit: null, condicionIva: null };
+  const comprobante = {
+    id: "doc-b",
+    operacionId: "op-b",
+    operacionTipo: "COMPRA",
+    tipoDocumento: "FACTURA",
+    clase: "B",
+    numero: "1-2",
+    fecha: "2026-01-01",
+    proveedorId: null,
+    emisor,
+    receptor,
+    codigoAutorizacion: null,
+    vencimientoAutorizacion: null,
+    fechaVencimiento: null,
+    observaciones: null,
+    lineas: [{ tipo: "CONCEPTO", descripcion: "Insumos", percepcionCodigo: null, importe: 1210, ivaAlicuotaId: null }],
+    desgloseIva: null,
+    ivaContenido: null,
+    total: 1210,
+    totalConceptos: 1210,
+    totalPercepciones: 0,
+    createdAt: "",
+    updatedAt: "",
+  } satisfies ComprobanteRecibido;
+  const precarga: ComprobanteRecibidoPrecarga = { proveedorId: null, emisor, receptor };
+  update.mockResolvedValue(comprobante);
+
+  render(<ComprobanteRecibidoModal open operacionId="op-b" precarga={precarga} comprobante={comprobante} onClose={vi.fn()} />);
+
+  // No debe mostrar la sección de desglose de IVA ni el selector masivo de alícuotas
+  expect(screen.queryByText("Desglose de IVA confirmado")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Aplicar alícuota a todos los conceptos")).not.toBeInTheDocument();
+
+  // Permite ingresar IVA contenido opcional
+  const ivaContenidoInput = screen.getByTestId("comprobante-recibido-iva-contenido");
+  expect(ivaContenidoInput).toBeInTheDocument();
+  fireEvent.change(ivaContenidoInput, { target: { value: "210" } });
+
+  fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+  await waitFor(() => expect(update).toHaveBeenCalledWith("doc-b", expect.objectContaining({
+    clase: "B",
+    desgloseIva: null,
+    ivaContenido: 210,
+    lineas: [expect.objectContaining({ descripcion: "Insumos", importe: 1210, ivaAlicuotaId: null })],
+  })));
+});

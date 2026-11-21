@@ -143,8 +143,8 @@ export default function OperacionStockForm() {
             <div style={{ textAlign: "center" }}>
               {tipo === "VENTA" ? "ENTREGAR" : "RECIBIR"}
             </div>
-            <div style={{ textAlign: "right" }}>UNITARIO</div>
             {showIvaAlicuota ? <div style={{ textAlign: "center" }}>ALÍCUOTA IVA</div> : null}
+            <div style={{ textAlign: "right" }}>UNITARIO</div>
             <div style={{ textAlign: "right" }}>TOTAL</div>
             <div />
           </div>
@@ -165,7 +165,7 @@ export default function OperacionStockForm() {
                   onMobileActivate={() => {
                     if (isMobileViewport) setActiveLineaId((current) => current ?? lineKey);
                   }}
-                  onMobileToggle={() => setActiveLineaId((current) => current ?? lineKey)}
+                  onMobileToggle={() => setActiveLineaId((current) => (current === lineKey ? null : lineKey))}
                   onMobileConfirm={() => {
                     if (l.stockId) setActiveLineaId((current) => (current === lineKey ? null : current));
                   }}

@@ -24,7 +24,7 @@ export type OperacionLineaDraft = {
 export const OPERACION_LINE_GRID_TEMPLATE =
   "minmax(240px, 1fr) 70px 76px 115px 115px 40px";
 export const OPERACION_LINE_GRID_TEMPLATE_WITH_IVA =
-  "minmax(220px, 1fr) 70px 76px 110px 95px 115px 40px";
+  "minmax(220px, 1fr) 70px 76px 95px 110px 115px 40px";
 
 const IVA_ALICUOTA_OPTIONS = ALICUOTAS_IVA_ARCA.map((rate) => ({
   value: String(rate.id),
@@ -162,54 +162,78 @@ export default function OperacionLineaEditor({
       data-testid={`operaciones-line-${index}`}
     >
       <div css={[styles.mobileHeader, !canRemove && styles.mobileHeaderWithoutRemove]} data-mobile-header="">
-        <button
-          type="button"
-          css={[
-            styles.mobileSummaryButton,
-            mobileExpanded && styles.mobileSummaryButtonExpanded,
-            !canMobileExpand && styles.mobileSummaryButtonBlocked,
-          ]}
-          onClick={onMobileToggle}
-          disabled={disabled || mobileExpanded || !canMobileExpand}
-          aria-expanded={mobileExpanded}
-          aria-label={
-            isMissingProductCollapsed
-              ? "Falta elegir producto. Expandir fila"
-              : mobileExpanded
-                ? `${productLabel}. Confirmá para cerrar la fila`
+        {!mobileExpanded ? (
+          <button
+            type="button"
+            css={[
+              styles.mobileSummaryButton,
+              !canMobileExpand && styles.mobileSummaryButtonBlocked,
+            ]}
+            onClick={onMobileToggle}
+            disabled={disabled || !canMobileExpand}
+            aria-expanded={false}
+            aria-label={
+              isMissingProductCollapsed
+                ? "Falta elegir producto. Expandir fila"
                 : `Editar ${productLabel}`
-          }
-          data-testid={`operaciones-line-${index}-summary`}
-        >
-          <span css={styles.mobileSummaryTop}>
-            {isMissingProductCollapsed ? (
-              <span css={styles.mobileMissingProductLabel} data-testid={`operaciones-line-${index}-missing-product`}>
-                Falta elegir producto
+            }
+            data-testid={`operaciones-line-${index}-summary`}
+          >
+            <span css={styles.mobileSummaryTop}>
+              {isMissingProductCollapsed ? (
+                <span css={styles.mobileMissingProductLabel} data-testid={`operaciones-line-${index}-missing-product`}>
+                  Falta elegir producto
+                </span>
+              ) : (
+                <span css={styles.mobileSummaryProduct}>
+                  <strong css={styles.mobileSummaryProductName}>{productLabel}</strong>
+                  {productCode ? <span css={styles.mobileSummaryCode}>Código: {productCode}</span> : null}
+                </span>
+              )}
+              {!isMissingProductCollapsed ? (
+                <strong css={styles.mobileSummaryTotal}>{formatArs(linea.total)}</strong>
+              ) : null}
+            </span>
+            {!isMissingProductCollapsed ? (
+              <span css={styles.mobileSummaryBottom}>
+                <span css={styles.mobileSummaryDetails}>
+                  Cantidad: {cantidad} · {isVenta ? "Entregar" : "Recibir"}: {cantidadEntregar}
+                </span>
+                <span css={styles.mobileSummaryUnitario}>Unitario: {formatArs(linea.unitario)}</span>
               </span>
-            ) : (
+            ) : null}
+            <ChevronDown
+              size={16}
+              css={styles.mobileChevron}
+              aria-hidden="true"
+            />
+          </button>
+        ) : (
+          <div css={styles.mobileExpandedHeader} data-testid={`operaciones-line-${index}-expanded-header`}>
+            <div css={styles.mobileExpandedHeaderLeft}>
               <span css={styles.mobileSummaryProduct}>
                 <strong css={styles.mobileSummaryProductName}>{productLabel}</strong>
                 {productCode ? <span css={styles.mobileSummaryCode}>Código: {productCode}</span> : null}
               </span>
-            )}
-            {!isMissingProductCollapsed ? (
-              <strong css={styles.mobileSummaryTotal}>{formatArs(linea.total)}</strong>
-            ) : null}
-          </span>
-          {!isMissingProductCollapsed ? (
-            <span css={styles.mobileSummaryBottom}>
-              <span css={styles.mobileSummaryDetails}>
-                Cantidad: {cantidad} · {isVenta ? "Entregar" : "Recibir"}: {cantidadEntregar}
-              </span>
-              <span css={styles.mobileSummaryUnitario}>Unitario: {formatArs(linea.unitario)}</span>
-            </span>
-          ) : null}
-          <ChevronDown
-            size={16}
-            css={[styles.mobileChevron, mobileExpanded && styles.mobileChevronExpanded]}
-            aria-hidden="true"
-          />
-        </button>
+            </div>
+            <div css={styles.mobileExpandedHeaderRight}>
+              {!isMissingProductCollapsed && (
+                <strong css={styles.mobileSummaryTotal}>{formatArs(linea.total)}</strong>
+              )}
+              <button
+                type="button"
+                css={styles.mobileDeleteTrashButton}
+                onClick={onRemove}
+                disabled={!canMobileDelete || disabled}
+                title="Eliminar producto"
+                aria-label="Eliminar producto"
+                data-testid={`operaciones-line-${index}-delete`}
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       <div data-mobile-field="" data-mobile-field-full="" onFocusCapture={onMobileActivate}>
         <span css={styles.mobileFieldLabel}>Producto</span>
@@ -225,7 +249,11 @@ export default function OperacionLineaEditor({
         />
       </div>
 
-      <div data-mobile-field="" onFocusCapture={onMobileActivate}>
+      <div
+        data-mobile-field=""
+        {...(showIvaAlicuota ? { "data-mobile-field-third": "" } : {})}
+        onFocusCapture={onMobileActivate}
+      >
         <span css={styles.mobileFieldLabel}>Cantidad</span>
         <NumberInput
           minValue={0}
@@ -239,7 +267,11 @@ export default function OperacionLineaEditor({
         />
       </div>
 
-      <div data-mobile-field="" onFocusCapture={onMobileActivate}>
+      <div
+        data-mobile-field=""
+        {...(showIvaAlicuota ? { "data-mobile-field-third": "" } : {})}
+        onFocusCapture={onMobileActivate}
+      >
         <span css={styles.mobileFieldLabel}>{isVenta ? "Cantidad a entregar" : "Cantidad a recibir"}</span>
         <NumberInput
           minValue={0}
@@ -271,6 +303,21 @@ export default function OperacionLineaEditor({
         />
       </div>
 
+      {showIvaAlicuota ? (
+        <div data-mobile-field="" data-mobile-field-third="" onFocusCapture={onMobileActivate}>
+          <span css={styles.mobileFieldLabel}>Alícuota IVA</span>
+          <Dropdown
+            value={String(linea.ivaAlicuotaId ?? getDefaultIvaAlicuotaIdForStockId?.(linea.stockId) ?? 5)}
+            onChange={(value) => onChange({ ...linea, ivaAlicuotaId: Number(value) })}
+            disabled={disabled}
+            ariaLabel={`Alícuota IVA de la línea ${index + 1}`}
+            dataTestId={`operaciones-line-${index}-iva-alicuota`}
+            options={IVA_ALICUOTA_OPTIONS}
+            style={styles.ivaDropdown}
+          />
+        </div>
+      ) : null}
+
       <div data-mobile-field="" onFocusCapture={onMobileActivate}>
         <span css={styles.mobileFieldLabel}>Precio unitario</span>
         <NumberInput
@@ -284,21 +331,6 @@ export default function OperacionLineaEditor({
           aria-label="Unitario"
         />
       </div>
-
-      {showIvaAlicuota ? (
-        <div data-mobile-field="" onFocusCapture={onMobileActivate}>
-          <span css={styles.mobileFieldLabel}>Alícuota IVA</span>
-          <Dropdown
-            value={String(linea.ivaAlicuotaId ?? getDefaultIvaAlicuotaIdForStockId?.(linea.stockId) ?? 5)}
-            onChange={(value) => onChange({ ...linea, ivaAlicuotaId: Number(value) })}
-            disabled={disabled}
-            ariaLabel={`Alícuota IVA de la línea ${index + 1}`}
-            dataTestId={`operaciones-line-${index}-iva-alicuota`}
-            options={IVA_ALICUOTA_OPTIONS}
-            style={styles.ivaDropdown}
-          />
-        </div>
-      ) : null}
 
       <div data-mobile-field="" onFocusCapture={onMobileActivate}>
         <span css={styles.mobileFieldLabel}>Total</span>
@@ -328,15 +360,6 @@ export default function OperacionLineaEditor({
       ) : null}
       {mobileExpanded ? (
         <div css={styles.mobileActions} data-testid={`operaciones-line-${index}-actions`}>
-          <button
-            type="button"
-            css={[styles.mobileActionButton, styles.mobileDeleteButton]}
-            onClick={onRemove}
-            disabled={!canMobileDelete || disabled}
-            data-testid={`operaciones-line-${index}-delete`}
-          >
-            Eliminar
-          </button>
           <button
             type="button"
             css={[styles.mobileActionButton, styles.mobileConfirmButton]}
@@ -419,25 +442,32 @@ const styles = {
   lineRowExpanded: css({
     ["@media (max-width: 720px)"]: {
       display: "grid",
-      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-      columnGap: 12,
+      gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
+      columnGap: 10,
       rowGap: 12,
       "& > [data-mobile-header]": {
         gridColumn: "1 / -1",
       },
-      "& > [data-mobile-field-full]": {
-        gridColumn: "1 / -1",
-      },
       "& > [data-mobile-field]": {
+        gridColumn: "span 3",
         maxHeight: 90,
         opacity: 1,
         visibility: "visible",
+      },
+      "& > [data-mobile-field-third]": {
+        gridColumn: "span 2",
+      },
+      "& > [data-mobile-field-full], & > [data-mobile-field][data-mobile-field-full]": {
+        gridColumn: "1 / -1",
       },
       "& > [data-mobile-field] > span:first-child": {
         display: "block",
         color: COLOR.TEXT.SECONDARY,
         fontSize: 12,
         fontWeight: 600,
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
       },
     },
     ["@media (max-width: 720px) and (prefers-reduced-motion: no-preference)"]: {
@@ -484,10 +514,55 @@ const styles = {
     textAlign: "left",
     cursor: "pointer",
   }),
-  mobileSummaryButtonExpanded: css({
-    cursor: "default",
+  mobileExpandedHeader: css({
+    display: "none",
+    ["@media (max-width: 720px)"]: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      width: "100%",
+      boxSizing: "border-box",
+    },
+  }),
+  mobileExpandedHeaderLeft: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    minWidth: 0,
+    flex: 1,
+  }),
+  mobileExpandedHeaderRight: css({
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    flexShrink: 0,
+  }),
+  mobileDeleteTrashButton: css({
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 32,
+    height: 32,
+    padding: 0,
+    borderRadius: 8,
+    border: "none",
+    background: "transparent",
+    color: COLOR.TEXT.SECONDARY,
+    cursor: "pointer",
+    transition: "background 0.15s ease, color 0.15s ease, transform 0.1s ease",
+    "&:hover:not(:disabled)": {
+      color: COLOR.STATUS.DANGER.TEXT,
+      background: COLOR.STATUS.DANGER.BG_SUBTLE,
+    },
+    "&:active:not(:disabled)": {
+      color: COLOR.STATUS.DANGER.TEXT,
+      background: COLOR.STATUS.DANGER.BG_SUBTLE,
+      transform: "scale(0.95)",
+    },
     "&:disabled": {
-      opacity: 1,
+      opacity: 0.35,
+      cursor: "not-allowed",
     },
   }),
   mobileSummaryButtonBlocked: css({
