@@ -31,12 +31,17 @@ vi.mock("@/app/providers/ToastProvider", () => ({
 
 let mockTalleres = [{ id: "taller-1", nombre: "Taller Centro" }];
 
-vi.mock("@/app/providers/TenantProvider", () => ({
-  useTenant: () => ({
-    talleres: mockTalleres,
-    tallerSeleccionadoId: "taller-1",
-  }),
-}));
+vi.mock("@/app/providers/TenantProvider", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/app/providers/TenantProvider")>();
+  return {
+    ...actual,
+    useTenant: () => ({
+      talleres: mockTalleres,
+      tallerSeleccionadoId: "taller-1",
+      hasPermission: () => true,
+    }),
+  };
+});
 
 vi.mock("@/clients/finanzasClient", () => ({
   finanzasClient: {

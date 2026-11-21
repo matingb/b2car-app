@@ -137,6 +137,7 @@ describe("POST /api/proveedores", () => {
       telefono: null,
       email: null,
       direccion: null,
+      condicion_iva: null,
     });
   });
 

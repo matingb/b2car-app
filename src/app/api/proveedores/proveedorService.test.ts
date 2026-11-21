@@ -90,6 +90,7 @@ describe("proveedorService", () => {
       telefono: "   ",
       email: "",
       direccion: undefined,
+      condicion_iva: "   ",
     });
 
     expect(mockRepo.create).toHaveBeenCalledWith(mockSupabase, {
@@ -98,6 +99,7 @@ describe("proveedorService", () => {
       telefono: null,
       email: null,
       direccion: null,
+      condicion_iva: null,
     });
     expect(res.data).toEqual(mockCreated);
   });
