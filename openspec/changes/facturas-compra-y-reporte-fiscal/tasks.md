@@ -43,8 +43,8 @@ La gestión documental conserva los cargos y el saldo. La edición de cargos de 
 - [ ] 5.1 Implementar selección por tenant/período y lectura consistente de todos los documentos y percepciones. Verificar filtros, cambios concurrentes y sumas completas sin archivos parciales; documentar fecha/moneda acordadas.
 - [ ] 5.2 Implementar 11 columnas fijas de facturas en CSV y XLSX. Verificar encabezados y orden, emisor, desglose parcial, Neto e IVA con varias alícuotas, valores ausentes y una fila por factura aunque una operación tenga varias.
 - [ ] 5.3 Mapear la percepción de IVA a su columna fija. Agregar una columna por cada otra percepción distinta presente, con una por jurisdicción de IIBB. Verificar que cada importe contribuya una vez a Total.
-- [ ] 5.4 Incorporar detalle y total de documentos RETENCION separados de los totales facturados según P-REP. Verificar retenciones 6000 + 4000 = 10000, corrección/eliminación reflejadas y ausencia de cambios financieros, sin inferir retenciones desde pagos.
-- [ ] 5.5 Implementar formatos y descarga con permisos, filtros y caché privada. Verificar que las 11 columnas fijas y las adicionales coincidan en CSV/XLSX, el rótulo «IVA» del resumen con todas las alícuotas, textos con apariencia de fórmula y la regresión del reporte de ventas. Documentar el contrato de exportación.
+- [ ] 5.4 Incorporar el detalle de documentos RETENCION en sección propia, separado de los totales facturados y sin sumar retenciones en Resumen. Verificar corrección/eliminación reflejadas y ausencia de cambios financieros, sin inferir retenciones desde pagos.
+- [ ] 5.5 Implementar formatos y descarga con permisos, filtros y caché privada. Verificar que las 11 columnas fijas y las adicionales coincidan en CSV/XLSX, los tres datos informativos, las cinco filas fijas del Resumen y una fila por cada percepción presente, textos con apariencia de fórmula y la regresión del reporte de ventas. Documentar el contrato de exportación.
 
 ## 6. Verificación transversal
 

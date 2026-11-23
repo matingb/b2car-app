@@ -1,5 +1,4 @@
 import { buildMultiSheetWorkbook, writeWorkbookBuffer, type ExcelColumnDef } from "@/lib/excel/excelExportBuilder";
-import { FISCAL_COLUMNS, FISCAL_MONEY_KEYS, type FiscalMoneyKey } from "@/lib/facturacion/reporteFiscal";
 import { fiscalDecimal, protectFiscalText } from "@/lib/facturacion/reporteFiscalSerializers";
 import type { ComprasFiscalFilaFactura, ComprasFiscalReport } from "./reporteFiscal";
 
@@ -77,11 +76,6 @@ function invoiceExcelColumns(report: ComprasFiscalReport): ExcelColumnDef<Record
 
 type SummaryRow = { concepto: string; importe: number | null; cantidad: number | null; detalle: string };
 
-function fiscalAmountLabel(key: FiscalMoneyKey) {
-  if (key === "ivaTotal") return "IVA";
-  return FISCAL_COLUMNS.find((column) => column.key === key)?.header ?? key;
-}
-
 function summaryRows(report: ComprasFiscalReport): SummaryRow[] {
   const operation = report.filters.tipoOperacion === "COMPRA"
     ? "Compras"
@@ -90,34 +84,15 @@ function summaryRows(report: ComprasFiscalReport): SummaryRow[] {
     { concepto: "Período inclusivo", importe: null, cantidad: null, detalle: `${report.filters.desde} a ${report.filters.hasta}` },
     { concepto: "Operaciones incluidas", importe: null, cantidad: null, detalle: operation },
     { concepto: "Moneda", importe: null, cantidad: null, detalle: "Pesos argentinos (ARS), sin conversión" },
-    { concepto: "Cantidad de facturas", importe: null, cantidad: report.summary.facturas, detalle: "Una fila por factura recibida" },
-    { concepto: "Total documentado de facturas", importe: report.summary.totalFacturado, cantidad: null, detalle: "Incluye conceptos y percepciones registradas" },
-    { concepto: "Cantidad de facturas con desglose incompleto", importe: null, cantidad: report.summary.desgloseIncompleto, detalle: "Los importes fiscales ausentes no se infieren" },
+    { concepto: "Cantidad de facturas", importe: null, cantidad: report.summary.facturas, detalle: "" },
+    { concepto: "Total de facturas", importe: report.summary.totalFacturado, cantidad: null, detalle: "" },
+    { concepto: "Total neto", importe: report.summary.fiscalAmounts.netoGravado, cantidad: null, detalle: "" },
+    { concepto: "Total no gravado", importe: report.summary.fiscalAmounts.noGravado, cantidad: null, detalle: "" },
+    { concepto: "Total IVA", importe: report.summary.fiscalAmounts.ivaTotal, cantidad: null, detalle: "" },
   ];
-  for (const key of FISCAL_MONEY_KEYS) {
-    if (key === "total" || key === "iva21") continue;
-    const missing = report.summary.missingFiscalAmounts[key];
-    const importe = report.summary.fiscalAmounts[key];
-    const missingDetail = `Falta el dato en ${missing} ${missing === 1 ? "comprobante" : "comprobantes"}`;
-    rows.push({
-      concepto: key === "ivaTotal" ? "IVA" : `Suma fiscal confirmada: ${fiscalAmountLabel(key)}`,
-      importe,
-      cantidad: null,
-      detalle: missing
-        ? (importe === null ? missingDetail : `Suma parcial. ${missingDetail}`)
-        : report.summary.desgloseIncompleto
-          ? `Suma confirmada parcial; desglose incompleto en ${report.summary.desgloseIncompleto} factura(s)`
-          : "Suma del detalle seleccionado",
-    });
-  }
   for (const column of report.columnasPercepciones) {
-    rows.push({ concepto: column.header, importe: report.summary.percepciones[column.key] ?? 0, cantidad: null, detalle: "Suma de importes manuales; ya incluidos en el total de facturas" });
+    rows.push({ concepto: column.header, importe: report.summary.percepciones[column.key] ?? 0, cantidad: null, detalle: "" });
   }
-  rows.push(
-    { concepto: "Total de percepciones", importe: report.summary.totalPercepciones, cantidad: null, detalle: "Separado del IVA discriminado; ya incluido en las facturas" },
-    { concepto: "Cantidad de documentos de retención", importe: null, cantidad: report.summary.retenciones, detalle: "Cada documento se cuenta una sola vez" },
-    { concepto: "Total documental de retenciones", importe: report.summary.totalRetenciones, cantidad: null, detalle: "No modifica el total facturado ni los pagos" },
-  );
   return rows;
 }
 

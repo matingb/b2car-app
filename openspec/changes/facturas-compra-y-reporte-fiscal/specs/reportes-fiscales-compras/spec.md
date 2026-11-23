@@ -119,7 +119,10 @@ El reporte SHALL conservar importes de factura aunque difieran del monto de la o
 - **AND** el saldo operativo sigue siendo 6000 y el reporte no lo altera
 
 ### Requirement: Bases e IVA desde el desglose confirmado de cada factura
-El reporte SHALL usar el desglose confirmado de cada factura A. «Neto» SHALL sumar las bases confirmadas y «IVA» SHALL sumar el IVA confirmado de todas las alícuotas. La pestaña «Resumen» SHALL llamar «IVA» a ese total y MUST NOT presentarlo como «IVA 21%». Los datos ausentes SHALL quedar vacíos y las sumas afectadas SHALL identificarse como parciales. Percepciones y retenciones mantienen sus totales propios.
+El reporte SHALL usar el desglose confirmado de cada factura A. «Neto» SHALL sumar las bases confirmadas y «IVA» SHALL sumar el IVA confirmado de todas las alícuotas. La pestaña «Resumen» SHALL llamar «Total IVA» a ese total y MUST NOT presentarlo como «IVA 21%».
+
+### Requirement: Resumen limitado a los totales solicitados
+La hoja «Resumen» SHALL tener las columnas «Concepto», «Importe», «Cantidad» y «Detalle». Primero SHALL mostrar «Período inclusivo», «Operaciones incluidas» y «Moneda», con cada valor en «Detalle». Luego SHALL mostrar, en este orden, cantidad de facturas, total de facturas, total neto, total no gravado y total IVA, seguidos por una fila con el total para cada percepción distinta presente en las facturas del período. No SHALL agregar otros importes, conteos, metadatos ni explicaciones. La sección de resumen del CSV SHALL presentar las mismas filas y columnas.
 
 #### Scenario: Factura A con dos alícuotas confirmadas
 - **GIVEN** una factura con base 10000 e IVA 2100 al 21%, y base 20000 e IVA 2100 al 10,5%
@@ -127,14 +130,17 @@ El reporte SHALL usar el desglose confirmado de cada factura A. «Neto» SHALL s
 - **THEN** «Neto» muestra 30000 y «IVA» muestra 4200
 - **AND** «IVA» incluye el total de todas las alícuotas confirmadas, sin una columna separada por tasa
 
-#### Scenario: Etiqueta IVA del resumen
-- **GIVEN** un desglose completo confirmado al 10,5%
-- **WHEN** se genera la hoja «Resumen»
-- **THEN** la suma se etiqueta «IVA» y totaliza todas las alícuotas confirmadas
-- **AND** no se presenta una suma con la etiqueta «IVA 21%»
+#### Scenario: Totales únicos del resumen
+- **GIVEN** facturas del período con neto, no gravado, IVA confirmado y dos tipos de percepción
+- **WHEN** se genera el reporte
+- **THEN** el resumen comienza con «Período inclusivo», «Operaciones incluidas» y «Moneda», con sus valores en «Detalle»
+- **AND** después presenta, en orden, «Cantidad de facturas», «Total de facturas», «Total neto», «Total no gravado» y «Total IVA»
+- **AND** agrega una fila por cada percepción distinta presente en las facturas del período
+- **AND** no agrega otros importes, conteos ni filas informativas
+- **AND** el total IVA suma todas las alícuotas confirmadas y no se presenta como «IVA 21%»
 
 ### Requirement: Datos fiscales ausentes o sin desglose
-El reporte MUST dejar vacíos los datos desconocidos, distinguir ceros informados e indicar sumas parciales. MUST NOT reconstruir el desglose a partir del texto, del total, de la operación, de pagos o de fichas actuales. Debe conservar el total documentado original aunque falte el desglose. En facturas B y C MUST NOT extraer IVA del importe final. El IVA contenido informado manualmente en una B se muestra como dato informativo y no aporta base ni IVA discriminado.
+El reporte MUST dejar vacíos los datos desconocidos y distinguir ceros informados. En el resumen, cada importe fiscal SHALL sumar los valores disponibles y quedar vacío si todos los comprobantes carecen del dato. El resumen MUST NOT incluir conteos de faltantes ni anotaciones de sumas parciales. El reporte MUST NOT reconstruir el desglose a partir del texto, del total, de la operación, de pagos o de fichas actuales. Debe conservar el total documentado original aunque falte el desglose. En facturas B y C MUST NOT extraer IVA del importe final. El IVA contenido informado manualmente en una B se muestra como dato informativo y no aporta base ni IVA discriminado.
 
 #### Scenario: Factura B con IVA contenido y factura C
 - **GIVEN** una factura B que muestra IVA contenido y una factura C con su importe final
@@ -152,8 +158,8 @@ El reporte MUST dejar vacíos los datos desconocidos, distinguir ceros informado
 - **GIVEN** una selección en la que algunas facturas informan un importe fiscal y otras lo tienen ausente
 - **WHEN** se exporta el resumen
 - **THEN** el importe muestra la suma parcial de los valores informados, incluidos los ceros
-- **AND** el detalle indica en cuántos comprobantes falta ese dato
-- **AND** si el dato está ausente en todas las facturas, se informa la cantidad y el importe queda vacío
+- **AND** no se agregan al resumen filas ni anotaciones sobre los comprobantes que carecen del dato
+- **AND** si el dato está ausente en todas las facturas, el importe queda vacío
 
 #### Scenario: Línea libre sin clasificación fiscal explícita
 - **GIVEN** una línea con una descripción que menciona IVA y un importe manual

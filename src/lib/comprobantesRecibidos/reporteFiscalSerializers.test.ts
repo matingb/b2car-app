@@ -102,6 +102,16 @@ it("ubica las percepciones adicionales antes de Concepto de gasto en CSV y XLSX"
   expect(extraHeaders.map((name) => worksheet!.getCell(2, xlsxHeaders.indexOf(name) + 1).value))
     .toEqual([100, 700, 300, 200]);
   expect(worksheet!.getCell(2, xlsxHeaders.length).value).toBe("Repuestos");
+
+  const summaryTotals = new Map<string, ExcelJS.CellValue>();
+  workbook.getWorksheet("Resumen")?.eachRow((row) => {
+    summaryTotals.set(row.getCell(1).text, row.getCell(2).value);
+  });
+  expect(summaryTotals.get("Percepción: IVA")).toBe(500);
+  expect(summaryTotals.get("Percepción: IIBB Buenos Aires")).toBe(700);
+  expect(summaryTotals.get("Percepción: IIBB CABA")).toBe(300);
+  expect(summaryTotals.get("Percepción: Ganancias")).toBe(100);
+  expect(summaryTotals.get("Percepción: IIBB Córdoba")).toBe(200);
 });
 
 it("mantiene el total y deja los importes fiscales ausentes cuando una factura A perdió su desglose", () => {
@@ -136,7 +146,7 @@ it("conserva la factura B por su total final sin inferir base ni IVA discriminad
   expect(report.summary.desgloseIncompleto).toBe(1);
 });
 
-it("exporta sumas parciales y cuenta los comprobantes sin cada dato fiscal", async () => {
+it("limita el resumen a los totales fiscales acordados", async () => {
   const concepto = { ...invoice.lineas[0], ivaAlicuotaId: 4 };
   const completa: ComprasFiscalDocumento = {
     ...invoice,
@@ -152,25 +162,50 @@ it("exporta sumas parciales y cuenta los comprobantes sin cada dato fiscal", asy
     lineas: [{ ...concepto, importe: 121 }],
   };
   const report = buildComprasFiscalReport([completa, parcial, sinDesglose], { ...filters, format: "csv" });
-  const ivaDetail = "Suma parcial. Falta el dato en 1 comprobante";
-  const base21Detail = "Suma parcial. Falta el dato en 2 comprobantes";
-  const noGravadoDetail = "Falta el dato en 3 comprobantes";
-
   const csv = serializeComprasFiscalCsv(report);
-  expect(csv).toContain(`\r\nIVA,21.00,,${ivaDetail}\r\n`);
-  expect(csv).toContain(`\r\nSuma fiscal confirmada: Importe base 21%,0.00,,${base21Detail}\r\n`);
-  expect(csv).toContain(`\r\nSuma fiscal confirmada: Importe neto no gravado,,,${noGravadoDetail}\r\n`);
+  expect(csv).toContain("\r\nPeríodo inclusivo,,,2026-11-01 a 2026-11-30\r\n");
+  expect(csv).toContain("\r\nOperaciones incluidas,,,Compras\r\n");
+  expect(csv).toContain("\r\nMoneda,,,\"Pesos argentinos (ARS), sin conversión\"\r\n");
+  expect(csv).toContain("\r\nCantidad de facturas,,3,\r\n");
+  expect(csv).toContain("\r\nTotal de facturas,431.50,,\r\n");
+  expect(csv).toContain("\r\nTotal neto,200.00,,\r\n");
+  expect(csv).toContain("\r\nTotal no gravado,,,\r\n");
+  expect(csv).toContain("\r\nTotal IVA,21.00,,\r\n");
+  expect(csv).not.toContain("Suma fiscal confirmada");
+  expect(csv).not.toContain("Cantidad de facturas con desglose incompleto");
 
   const workbook = new ExcelJS.Workbook();
   const bytes = await serializeComprasFiscalXlsx(report);
   await workbook.xlsx.load(Buffer.from(bytes) as unknown as Parameters<typeof workbook.xlsx.load>[0]);
-  const summary = new Map<string, [ExcelJS.CellValue, string]>();
+  const summary: { concepto: string; importe: ExcelJS.CellValue; cantidad: ExcelJS.CellValue; detalle: string }[] = [];
   workbook.getWorksheet("Resumen")?.eachRow((row) => {
-    summary.set(row.getCell(1).text, [row.getCell(2).value, row.getCell(4).text]);
+    summary.push({
+      concepto: row.getCell(1).text,
+      importe: row.getCell(2).value,
+      cantidad: row.getCell(3).value,
+      detalle: row.getCell(4).text,
+    });
   });
-  expect(summary.get("IVA")).toEqual([21, ivaDetail]);
-  expect(summary.get("Suma fiscal confirmada: Importe base 21%")).toEqual([0, base21Detail]);
-  expect(summary.get("Suma fiscal confirmada: Importe neto no gravado")).toEqual([null, noGravadoDetail]);
+  expect(summary.map((row) => row.concepto)).toEqual([
+    "Período inclusivo",
+    "Operaciones incluidas",
+    "Moneda",
+    "Cantidad de facturas",
+    "Total de facturas",
+    "Total neto",
+    "Total no gravado",
+    "Total IVA",
+  ]);
+  expect(summary).toMatchObject([
+    { concepto: "Período inclusivo", detalle: "2026-11-01 a 2026-11-30" },
+    { concepto: "Operaciones incluidas", detalle: "Compras" },
+    { concepto: "Moneda", detalle: "Pesos argentinos (ARS), sin conversión" },
+    { concepto: "Cantidad de facturas", cantidad: 3 },
+    { concepto: "Total de facturas", importe: 431.5 },
+    { concepto: "Total neto", importe: 200 },
+    { concepto: "Total no gravado", importe: null },
+    { concepto: "Total IVA", importe: 21 },
+  ]);
 });
 
 describe("encabezados del reporte de compras", () => {
@@ -219,7 +254,7 @@ describe("encabezados del reporte de compras", () => {
     const summary = workbook.getWorksheet("Resumen");
     expect(summary).toBeDefined();
     const ivaRow = Array.from({ length: summary!.rowCount }, (_, index) => index + 1)
-      .find((row) => summary!.getCell(row, 1).value === "IVA");
+      .find((row) => summary!.getCell(row, 1).value === "Total IVA");
     expect(ivaRow).toBeDefined();
     expect(summary!.getCell(ivaRow!, 2).value).toBe(42);
     const labels = Array.from({ length: summary!.rowCount }, (_, index) => summary!.getCell(index + 1, 1).value)
