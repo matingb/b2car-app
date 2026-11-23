@@ -28,16 +28,28 @@ describe("desglose fiscal de comprobantes recibidos", () => {
       ...factura,
       clase: "B",
       desgloseIva: null,
-      lineas: [{ ...factura.lineas[0], importe: 12100, ivaAlicuotaId: null }],
+      lineas: [{ ...factura.lineas[0], importe: 12100, ivaAlicuotaId: 4 }],
     });
     expect(facturaB.error).toBeUndefined();
-    expect(facturaB.value?.lineas[0].ivaAlicuotaId).toBeNull();
+    expect(facturaB.value?.lineas[0].ivaAlicuotaId).toBe(4);
+    expect(facturaB.value?.lineas[0].importe).toBe(12100);
     expect(parseComprobanteRecibidoInput({
       ...factura,
       clase: "B",
-      lineas: [{ ...factura.lineas[0], ivaAlicuotaId: null }],
       desgloseIva: factura.desgloseIva,
     }).error).toContain("solo corresponde a facturas A");
+  });
+
+  it("exige la alícuota del concepto de B y la rechaza en conceptos de C", () => {
+    const base = { ...factura, desgloseIva: null };
+    const linea = factura.lineas[0];
+    expect(parseComprobanteRecibidoInput({
+      ...base, clase: "B", lineas: [{ ...linea, ivaAlicuotaId: null }],
+    }).error).toContain("elegí la alícuota");
+    expect(parseComprobanteRecibidoInput({ ...base, clase: "C" }).error).toContain("la alícuota no es válida");
+    expect(parseComprobanteRecibidoInput({
+      ...base, clase: "B", lineas: [{ ...linea, tipo: "PERCEPCION" }],
+    }).error).toContain("la alícuota no es válida");
   });
 
   it("guarda IVA contenido de factura B separado y sin inferirlo", () => {
@@ -46,7 +58,7 @@ describe("desglose fiscal de comprobantes recibidos", () => {
       clase: "B",
       desgloseIva: null,
       ivaContenido: 21,
-      lineas: [{ ...factura.lineas[0], importe: 121, ivaAlicuotaId: null }],
+      lineas: [{ ...factura.lineas[0], importe: 121, ivaAlicuotaId: 5 }],
     });
     expect(result.error).toBeUndefined();
     expect(result.value?.ivaContenido).toBe(21);
@@ -57,7 +69,7 @@ describe("desglose fiscal de comprobantes recibidos", () => {
       clase: "B",
       desgloseIva: null,
       ivaContenido: 122,
-      lineas: [{ ...factura.lineas[0], importe: 121, ivaAlicuotaId: null }],
+      lineas: [{ ...factura.lineas[0], importe: 121, ivaAlicuotaId: 5 }],
     }).error).toContain("no puede superar el total de conceptos");
   });
 

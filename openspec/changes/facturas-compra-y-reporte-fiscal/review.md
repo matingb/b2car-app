@@ -1,5 +1,13 @@
 # Revisión de comprobantes recibidos
 
+## Seguimiento del 22 de noviembre de 2026
+
+Quitar el panel de IVA contenido de la factura B del alta de compra y del modal de documentos. Al adjuntar un documento, usar secciones separadas de conceptos y percepciones, con el selector de percepciones del alta de compra. Los conceptos de A tienen alícuota de IVA discriminado y los de B tienen alícuota de IVA incluido. Para B y C se cargan importes finales. C se carga sin selector. Las percepciones llevan importe manual en las tres clases.
+
+La compra con factura B quedaba guardada y la factura fallaba en el segundo paso. El formulario omitía la alícuota que requería PostgreSQL y la función de compatibilidad solo aceptaba tasas de A. El reintento debe guardar el documento sobre la compra ya creada.
+
+Los importes de IVA contenido guardados anteriormente se conservan como dato histórico. La alícuota de una B tampoco se usa para calcular IVA discriminado en el reporte.
+
 **19 de noviembre de 2026 · Cambios solicitados**
 
 Revisé la rama `comprobantes-recibidos` en `a52893ca` contra `origin/dev` local (`e1d46478`), incluidos los cambios sin commit y la migración local de IVA para el alta de compras A. Tomé como contrato vigente los deltas de [comprobantes recibidos](specs/comprobantes-recibidos/spec.md) y [reporte fiscal de compras](specs/reportes-fiscales-compras/spec.md), junto con el [diseño](design.md) y las [tareas](tasks.md). Las búsquedas en Linear por «comprobantes recibidos» y «facturas de compra» no devolvieron issues, y no encontré un `PLAN.md` dedicado en el checkout.

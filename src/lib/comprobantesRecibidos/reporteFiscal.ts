@@ -101,7 +101,6 @@ export type ComprasFiscalFilaFactura = FiscalRow & {
   operacionId: string;
   conceptoGasto: string;
   percepcionIva: number;
-  percepcionIibb: number;
   percepciones: Record<string, number>;
 };
 

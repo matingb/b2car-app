@@ -39,12 +39,9 @@ export default function OperacionFacturaPercepciones() {
     }));
     return calcularFacturaADesdeBases(conceptos);
   }, [tipo, draft.clase, conceptosFactura]);
-  const montoConceptosCalculado = calculoIva
+  const montoConceptosFactura = calculoIva
     ? sumarImportes(calculoIva.conceptos.map((concepto) => concepto.total))
     : sumarImportes(conceptosFactura.map((concepto) => concepto.importe));
-  const montoConceptosFactura = draft.clase === "B"
-    ? sumarImportes(conceptosFactura.map((concepto) => concepto.importe))
-    : montoConceptosCalculado;
   const totalConceptos = sumarImportes(conceptosFactura.map((concepto) => concepto.importe));
   const totalIva = calculoIva
     ? sumarImportes(calculoIva.desgloseIva.map((item) => item.iva))
@@ -65,22 +62,22 @@ export default function OperacionFacturaPercepciones() {
         updatePercepcion={updatePercepcion}
         removePercepcion={removePercepcion}
       />
+      {tipo === "GASTO" && (draft.clase === "A" || draft.clase === "B") ? (
+        <div css={styles.ivaGastoRate}>
+          <label htmlFor="operacion-gasto-iva-alicuota">Alícuota del concepto</label>
+          <Dropdown
+            id="operacion-gasto-iva-alicuota"
+            ariaLabel="Alícuota IVA del gasto"
+            value={String(draft.ivaAlicuotaGasto ?? 5)}
+            onChange={(value) => factura.update({ ivaAlicuotaGasto: Number(value) })}
+            disabled={isSubmitting}
+            options={ALICUOTAS_IVA_ARCA.map((rate) => ({ value: String(rate.id), label: rate.label }))}
+            dataTestId="operacion-gasto-iva-alicuota"
+          />
+        </div>
+      ) : null}
       {calculoIva && calculoIva.desgloseIva.length > 0 ? (
         <div css={styles.ivaRateList} role="group" aria-label="Totales de IVA por alícuota" data-testid="operacion-iva-desglose">
-          {tipo === "GASTO" ? (
-            <div css={styles.ivaGastoRate}>
-              <label htmlFor="operacion-gasto-iva-alicuota">Alícuota del concepto</label>
-              <Dropdown
-                id="operacion-gasto-iva-alicuota"
-                ariaLabel="Alícuota IVA del gasto"
-                value={String(draft.ivaAlicuotaGasto ?? 5)}
-                onChange={(value) => factura.update({ ivaAlicuotaGasto: Number(value) })}
-                disabled={isSubmitting}
-                options={ALICUOTAS_IVA_ARCA.map((rate) => ({ value: String(rate.id), label: rate.label }))}
-                dataTestId="operacion-gasto-iva-alicuota"
-              />
-            </div>
-          ) : null}
           <div css={styles.ivaRateTotals}>
             {calculoIva.desgloseIva.map((item) => (
               <div
@@ -94,22 +91,6 @@ export default function OperacionFacturaPercepciones() {
             ))}
           </div>
         </div>
-      ) : draft.clase === "B" ? (
-        <section css={styles.ivaSummary} aria-label="IVA contenido de factura B" data-testid="operacion-iva-contenido">
-          <h3 css={styles.ivaTitle}>IVA contenido informado (opcional)</h3>
-          <p css={styles.ivaHint}>La factura B conserva sus importes finales. Este dato es informativo y no se usa como IVA discriminado.</p>
-          <input
-            css={styles.ivaInput}
-            type="number"
-            min="0"
-            step="0.01"
-            inputMode="decimal"
-            aria-label="IVA contenido informado"
-            value={draft.ivaContenido}
-            disabled={isSubmitting}
-            onChange={(event) => factura.update({ ivaContenido: event.target.value })}
-          />
-        </section>
       ) : null}
       <div css={styles.facturaTotals} data-testid="operacion-factura-totales">
         <span>Conceptos: <strong>{formatArs(totalConceptos)}</strong></span>
@@ -128,6 +109,7 @@ type PercepcionesEditorProps = {
   montoBaseLabel?: string;
   limite?: number;
   showTotals?: boolean;
+  readOnly?: boolean;
   disabled: boolean;
   addPercepcion: () => string;
   updatePercepcion: (key: string, patch: Partial<Omit<PercepcionDraft, "key">>) => void;
@@ -141,6 +123,7 @@ export function OperacionPercepcionesEditor({
   montoBaseLabel,
   limite = MAX_LINEAS_COMPROBANTE,
   showTotals = true,
+  readOnly = false,
   disabled,
   addPercepcion,
   updatePercepcion,
@@ -219,7 +202,7 @@ export function OperacionPercepcionesEditor({
                       disabled={disabled || isExpanded || !canExpand}
                       aria-expanded={isExpanded}
                       aria-label={
-                        isExpanded
+                        readOnly ? label : isExpanded
                           ? `${label}. Confirmá para cerrar la fila`
                           : `Editar ${label}`
                       }
@@ -232,11 +215,11 @@ export function OperacionPercepcionesEditor({
                       <span css={styles.mobileSummaryBottom}>
                         <span css={styles.mobileSummaryHint}>Importe: {formatArs(importe)}</span>
                       </span>
-                      <ChevronDown
+                      {!readOnly ? <ChevronDown
                         size={16}
                         css={[styles.mobileChevron, isExpanded && styles.mobileChevronExpanded]}
                         aria-hidden="true"
-                      />
+                      /> : null}
                     </button>
                   </div>
 
@@ -283,18 +266,20 @@ export function OperacionPercepcionesEditor({
                       data-testid={`${testId}-percepcion-${index}-importe`}
                     />
                   </div>
-                  <div css={styles.removeCell}>
-                    <IconButton
-                      icon={<Trash2 />}
-                      size={16}
-                      onClick={handleRemove}
-                      disabled={disabled}
-                      title="Quitar percepción"
-                      ariaLabel={`Quitar percepción ${index + 1}`}
-                      data-testid={`${testId}-percepcion-${index}-remove`}
-                      style={styles.trashBtn}
-                    />
-                  </div>
+                  {!readOnly ? (
+                    <div css={styles.removeCell}>
+                      <IconButton
+                        icon={<Trash2 />}
+                        size={16}
+                        onClick={handleRemove}
+                        disabled={disabled}
+                        title="Quitar percepción"
+                        ariaLabel={`Quitar percepción ${index + 1}`}
+                        data-testid={`${testId}-percepcion-${index}-remove`}
+                        style={styles.trashBtn}
+                      />
+                    </div>
+                  ) : null}
                   {isExpanded ? (
                     <div css={styles.mobileActions} data-testid={`${testId}-percepcion-${index}-actions`}>
                       <button
@@ -326,8 +311,8 @@ export function OperacionPercepcionesEditor({
         </div>
       </div>
 
-      <div css={styles.footerRow}>
-        <Button
+      {!readOnly || showTotals ? <div css={styles.footerRow}>
+        {!readOnly ? <Button
           type="button"
           onClick={() => {
             const nuevaPercepcionKey = addPercepcion();
@@ -338,7 +323,7 @@ export function OperacionPercepcionesEditor({
           text="Agregar percepción"
           icon={<Plus size={16} />}
           outline
-        />
+        /> : null}
         {showTotals ? (
           <div css={styles.totales} data-testid={`${testId}-totales`}>
             <span>{montoBaseLabel ?? (esFactura ? "Conceptos" : "Mercadería")}: <strong>{formatArs(montoBase)}</strong></span>
@@ -346,42 +331,22 @@ export function OperacionPercepcionesEditor({
             <span>{esFactura ? "Total factura" : "Total compra"}: <strong style={styles.totalStrong}>{formatArs(total)}</strong></span>
           </div>
         ) : null}
-      </div>
+      </div> : null}
 
     </div>
   );
 }
 
 const styles = {
-  ivaSummary: css({
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-    marginTop: 12,
-    padding: 14,
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 12,
-    backgroundColor: COLOR.BACKGROUND.SECONDARY,
-  }),
   ivaGastoRate: css({
     display: "flex",
     flexDirection: "column",
     gap: 5,
     maxWidth: 320,
+    marginTop: 12,
     color: COLOR.TEXT.SECONDARY,
     fontSize: 12,
     fontWeight: 600,
-  }),
-  ivaTitle: css({
-    margin: 0,
-    color: COLOR.TEXT.PRIMARY,
-    fontSize: 14,
-    fontWeight: 700,
-  }),
-  ivaHint: css({
-    margin: "4px 0 0",
-    color: COLOR.TEXT.SECONDARY,
-    fontSize: 12,
   }),
   ivaRateList: css({
     display: "flex",
@@ -425,16 +390,6 @@ const styles = {
   facturaTotal: css({
     color: COLOR.TEXT.PRIMARY,
     fontWeight: 700,
-  }),
-  ivaInput: css({
-    width: "100%",
-    minHeight: 36,
-    padding: "6px 9px",
-    border: `1px solid ${COLOR.BORDER.SUBTLE}`,
-    borderRadius: 7,
-    color: COLOR.TEXT.PRIMARY,
-    background: COLOR.BACKGROUND.PRIMARY,
-    fontSize: 13,
   }),
   sectionHeaderRow: {
     display: "flex",

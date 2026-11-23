@@ -16,7 +16,7 @@ Las facturas y retenciones tienen líneas manuales de conceptos y percepciones y
 | src/app/api/operaciones/[id]/documentos/route.ts | La asociación actual trata el origen como VENTA y usa ambiente de emisión. |
 | src/app/api/operaciones/operacionesService.ts y src/app/api/gastos/route.ts | Hay dos puntos de alta de gastos y el gasto no tiene proveedor comercial asociado en el flujo actual. |
 | src/lib/permissions.ts | Hay permisos de ver/editar facturación y asignación efectiva por rol/plan. |
-| src/lib/comprobantesRecibidos/reporteFiscalSerializers.ts | El reporte de compras exporta 12 columnas fijas; el cambio conserva intacto el contrato de ventas. |
+| src/lib/comprobantesRecibidos/reporteFiscalSerializers.ts | El reporte de compras exporta 11 columnas fijas y las percepciones adicionales presentes. |
 | `operaciones_lineas.iva_alicuota_id` y `ALICUOTAS_IVA_ARCA` | La operación ya admite códigos de ARCA. El id `5` (21%) es el valor por defecto y puede estar presente sin que se haya confirmado una tasa facturada. |
 | Cambio rediseno-operaciones-ledgers, spec operaciones | Permite borrar operaciones; este cambio agrega bloqueo cuando existen documentos asociados. |
 
@@ -35,7 +35,7 @@ El relevamiento es estático y no consulta datos fiscales reales ni el esquema d
 | Duplicados | Error ante factura con CUIT emisor y número de factura repetidos dentro del tenant. |
 | Líneas | CONCEPTO y PERCEPCION con descripción/selección e importe manuales. Para conceptos de facturas A, alícuota editable por línea y desglose confirmado por tasa en el documento. |
 | Requeridos | Número de factura y posición de IVA del proveedor; CUIT emisor conservado para identidad y unicidad. |
-| Reporte | 12 columnas fijas de facturas, con IVA totalizado entre alícuotas confirmadas y columnas adicionales para las percepciones distintas presentes; retenciones separadas. |
+| Reporte | 11 columnas fijas de facturas, con IVA totalizado entre alícuotas confirmadas y columnas adicionales para las percepciones distintas presentes. Retenciones separadas. |
 | Percepciones | Selector libre con sugerencias Ganancias, IVA, IIBB Buenos Aires e IIBB CABA. |
 | Acuerdos conservados | A/B/C, ficha fiscal configurable, precarga editable, CRUD sin borradores, gestión en Documentos y permisos equivalentes inicialmente a ventas. |
 | Archivos | Se conserva la exclusión de archivos/fotos. “Adjuntar documento” se interpreta como vincular el registro estructurado a la operación, no como habilitación de subida de archivos. |
@@ -127,13 +127,13 @@ Permitir editar/eliminar documentos. Eliminar un documento no elimina la operaci
 
 ### D7. Reporte de compras con columnas fijas
 
-La hoja de facturas comienza con 12 columnas fijas, en este orden: Fecha, Razón Social, Número, CUIT, Tipo Fac, Neto, IVA, No Gravado, Percep. IVA, Percep. IIBB, Total y Concepto Gto. Después agrega una columna por cada percepción distinta presente que no esté representada en esas columnas fijas. No agrega columnas para IVA, IIBB Buenos Aires ni IIBB CABA, que ya están cubiertas por «Percep. IVA» y «Percep. IIBB». CSV y XLSX comparten el mismo conjunto y orden. El reporte de ventas conserva intacto su propio contrato.
+La hoja de facturas comienza con Fecha, Razón Social, Número, CUIT, Tipo Fac, Total, Neto, IVA, No Gravado y Percep. IVA, en ese orden. Luego agrega una columna por cada percepción distinta presente, con una por jurisdicción de IIBB. «Concepto de gasto» queda al final, después de todas las percepciones. CSV y XLSX comparten el mismo conjunto y orden.
 
 Una fila por factura, aunque existan varias en una operación. «Neto» suma las bases confirmadas del desglose de cada factura A. «IVA» suma el IVA confirmado de todas sus alícuotas; no se muestra una columna separada por tasa. La pestaña «Resumen» etiqueta ese importe «IVA» y no lo rotula como «IVA 21%». Si falta el desglose, los importes fiscales permanecen vacíos y las sumas afectadas se identifican como parciales. En facturas B/C no se infiere IVA desde el total ni se suma el IVA contenido informativo de B como IVA discriminado.
 
-«Percep. IVA» suma las líneas manuales de percepción de IVA. «Percep. IIBB» suma IIBB Buenos Aires y CABA. Cada otra percepción, como Ganancias o una etiqueta libre de tipo «Otra», tiene su propia columna cuando aparece en la selección. Todas las percepciones permanecen incluidas en «Total», que conserva el total documental original de conceptos y percepciones.
+«Percep. IVA» suma las líneas manuales de percepción de IVA. Las demás percepciones, como IIBB Buenos Aires, IIBB CABA, Ganancias o una etiqueta libre de tipo «Otra», tienen su propia columna cuando aparecen en la selección. Todas las percepciones permanecen incluidas en «Total», que conserva el total documental original de conceptos y percepciones.
 
-Los datos fiscales sin fuente estructurada se exportan vacíos. El período vacío conserva los 12 encabezados acordados. El período selecciona la fecha del documento tanto para facturas como para retenciones. La moneda es peso argentino, sin conversión. Se habilitan CSV y XLSX. Las retenciones conservan número propio libre y opcional, y se presentan con detalle y total separados de las facturas. Exportación con lectura consistente o detección de cambios, paginación completa y fallo sin archivo parcial.
+Los datos fiscales sin fuente estructurada se exportan vacíos. El Resumen muestra la suma de los importes disponibles de cada campo y cuántos comprobantes tienen ese dato ausente. El período vacío conserva los 11 encabezados fijos. El período selecciona la fecha del documento tanto para facturas como para retenciones. La moneda es peso argentino, sin conversión. Se habilitan CSV y XLSX. Las retenciones conservan número propio libre y opcional, y se presentan con detalle y total separados de las facturas. Exportación con lectura consistente o detección de cambios, paginación completa y fallo sin archivo parcial.
 
 ### D8. Permisos, guardado e integración
 
@@ -165,7 +165,7 @@ Adjuntar, editar o eliminar una factura en su circuito documental conserva los c
 
 La fuente de bases e IVA está definida en D3 y D7. P-REP fue confirmado: fecha del documento para ambos tipos, CSV y XLSX, pesos argentinos sin conversión, número de retención libre y opcional, y detalle y total de retenciones separados de las facturas.
 
-Muestra de contrato: para una factura A con bases de 10000,00 al 21% y 20000,00 al 10,5%, «Neto» es 30000,00 e «IVA» es 4200,00. Las percepciones manuales de IVA e IIBB se muestran en sus dos columnas fijas; Ganancias o etiquetas libres agregan columnas solo si aparecen en las facturas seleccionadas. Todas permanecen incluidas en «Total». Las retenciones de 6000,00 y 4000,00 figuran en su sección separada con total 10000,00; no alteran el total facturado. CSV y XLSX representan la misma selección y valores.
+Para una factura A con bases de 10000,00 al 21% y 20000,00 al 10,5%, «Neto» es 30000,00 e «IVA» es 4200,00. La percepción de IVA va en su columna fija. Las jurisdicciones de IIBB, Ganancias y las etiquetas libres agregan columnas cuando aparecen en las facturas seleccionadas. Todas permanecen incluidas en «Total». Las retenciones de 6000,00 y 4000,00 figuran en su sección separada con total 10000,00. CSV y XLSX representan la misma selección y valores.
 
 La implementación puede resolver normalización de etiquetas, identificadores de permisos, transacciones e historial interno dentro de las reglas anteriores. Esos detalles no requieren reabrir acuerdos de producto.
 
@@ -185,7 +185,7 @@ La implementación puede resolver normalización de etiquetas, identificadores d
 2. Crear las migraciones aditivas de proveedor, cabecera y líneas, incluida la alícuota nullable por concepto y el desglose confirmado de factura. Añadir una migración de compatibilidad para instalaciones que ya registraron las versiones históricas antes de incorporar esos campos o helpers. Preservar FK obligatoria/restrictiva, unicidad, permisos y RLS/grants. Mantener los comprobantes sin desglose con los campos fiscales ausentes.
 3. Validar integridad y acceso en una DB local desechable autorizada con datos sintéticos, incluidos duplicados y borrado concurrente.
 4. Implementar API/UI y puntos de entrada de compras/gastos, con reintentos sin duplicar operaciones o sus efectos.
-5. Implementar el reporte con las 12 columnas fijas de facturas, columnas adicionales para percepciones presentes, el IVA confirmado de todas las alícuotas y las retenciones documentales en su hoja separada.
+5. Implementar el reporte con las 11 columnas fijas de facturas, columnas adicionales para percepciones presentes, el IVA confirmado de todas las alícuotas y las retenciones documentales en su hoja separada.
 6. Desplegar por dependencias. Ante rollback, conservar documentos y respaldar la regla de operaciones documentadas; no borrar datos o liberar restricciones silenciosamente.
 
 ## Open Questions

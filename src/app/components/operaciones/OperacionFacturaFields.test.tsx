@@ -7,7 +7,7 @@ import type { FacturaCompraDraft } from "./useFacturaCompraDraft";
 vi.mock("./OperacionFormContext", () => ({ useOperacionForm: () => useMockForm() }));
 
 function useMockForm() {
-  const [draft, setDraft] = useState<FacturaCompraDraft>({ clase: "A", ivaContenido: "", numero: "1-1", fecha: "", emisorRazonSocial: "Proveedor", emisorCuit: "30712345678", emisorCondicionIva: "RESPONSABLE_INSCRIPTO", emisorDomicilio: "", fechaVencimiento: "", percepciones: [] });
+  const [draft, setDraft] = useState<FacturaCompraDraft>({ clase: "A", numero: "1-1", fecha: "", emisorRazonSocial: "Proveedor", emisorCuit: "30712345678", emisorCondicionIva: "RESPONSABLE_INSCRIPTO", emisorDomicilio: "", fechaVencimiento: "", percepciones: [] });
   return { factura: { draft, update: (patch: Partial<FacturaCompraDraft>) => setDraft((current) => ({ ...current, ...patch })), error: null }, fecha: "2026-01-01", tipo: "COMPRA", isSubmitting: false };
 }
 

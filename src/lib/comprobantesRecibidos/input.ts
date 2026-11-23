@@ -68,7 +68,11 @@ function parseLineas(raw: unknown, tipoDocumento: ComprobanteRecibidoInput["tipo
       percepcionCodigo = codigo as PercepcionCodigo;
     }
     const ivaAlicuotaId = source.ivaAlicuotaId ?? null;
-    if (ivaAlicuotaId !== null && (tipoDocumento !== "FACTURA" || clase !== "A" || tipo !== "CONCEPTO" || !ALICUOTAS_IVA_ARCA.some((rate) => rate.id === ivaAlicuotaId))) {
+    const conceptoFactura = tipoDocumento === "FACTURA" && tipo === "CONCEPTO";
+    if (conceptoFactura && clase === "B" && ivaAlicuotaId === null) {
+      return { error: `Línea ${n}: elegí la alícuota de IVA para la factura B` };
+    }
+    if (ivaAlicuotaId !== null && (!conceptoFactura || (clase !== "A" && clase !== "B") || !ALICUOTAS_IVA_ARCA.some((rate) => rate.id === ivaAlicuotaId))) {
       return { error: `Línea ${n}: la alícuota no es válida` };
     }
     lineas.push({ tipo, descripcion: descripcion.value, percepcionCodigo, importe: monto, ivaAlicuotaId: ivaAlicuotaId as number | null });

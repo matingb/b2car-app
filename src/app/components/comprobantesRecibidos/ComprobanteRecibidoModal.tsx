@@ -10,6 +10,7 @@ import Modal from "@/app/components/ui/Modal";
 import IconButton from "@/app/components/ui/IconButton";
 import Dropdown from "@/app/components/ui/Dropdown";
 import Autocomplete from "@/app/components/ui/Autocomplete";
+import { OperacionPercepcionesEditor } from "@/app/components/operaciones/OperacionFacturaPercepciones";
 import { useToast } from "@/app/providers/ToastProvider";
 import { comprobantesRecibidosClient } from "@/clients/comprobantesRecibidosClient";
 import { parseComprobanteRecibidoInput } from "@/lib/comprobantesRecibidos/input";
@@ -18,7 +19,6 @@ import {
   CONDICIONES_IVA_PROVEEDOR,
   FACTURA_RECIBIDA_CLASES,
   MAX_LINEAS_COMPROBANTE,
-  PERCEPCIONES_SUGERIDAS,
   condicionIvaLabel,
   resolverPercepcion,
   totalesLineas,
@@ -65,7 +65,7 @@ type FormState = {
   observaciones: string;
   lineas: LineaDraft[];
   desgloseIva: Array<{ ivaAlicuotaId: number; base: string; iva: string; ivaManual?: boolean }> | null;
-  ivaContenido: string;
+  ivaContenidoHistorico: number | null;
 };
 
 export type ComprobanteRecibidoModalProps = {
@@ -121,7 +121,7 @@ function estadoInicial(
         ivaAlicuotaId: linea.ivaAlicuotaId ?? null,
       })),
       desgloseIva: comprobante.desgloseIva?.map((item) => ({ ...item, base: String(item.base), iva: String(item.iva), ivaManual: true })) ?? null,
-      ivaContenido: comprobante.ivaContenido == null ? "" : String(comprobante.ivaContenido),
+      ivaContenidoHistorico: comprobante.ivaContenido ?? null,
     };
   }
   // Precarga: copia editable de la ficha del proveedor y de los datos fiscales del tenant.
@@ -143,7 +143,7 @@ function estadoInicial(
     observaciones: "",
     lineas: [nuevaLinea()],
     desgloseIva: null,
-    ivaContenido: "",
+    ivaContenidoHistorico: null,
   };
 }
 
@@ -153,6 +153,12 @@ function importeLinea(value: string): number {
 }
 
 function toInput(form: FormState, proveedorId: string | null): unknown {
+  const esFactura = form.tipoDocumento === "FACTURA";
+  const usaAlicuota = esFactura && (form.clase === "A" || form.clase === "B");
+  const lineas = [
+    ...form.lineas.filter((linea) => linea.tipo === "CONCEPTO"),
+    ...form.lineas.filter((linea) => linea.tipo === "PERCEPCION"),
+  ];
   return {
     tipoDocumento: form.tipoDocumento,
     clase: form.tipoDocumento === "FACTURA" ? form.clase || null : null,
@@ -174,13 +180,11 @@ function toInput(form: FormState, proveedorId: string | null): unknown {
     vencimientoAutorizacion: form.vencimientoAutorizacion,
     fechaVencimiento: form.tipoDocumento === "FACTURA" ? form.fechaVencimiento : "",
     observaciones: form.observaciones,
-    ivaContenido: form.tipoDocumento === "FACTURA" && form.clase === "B" && form.ivaContenido.trim() !== ""
-      ? Number(form.ivaContenido.trim().replace(",", "."))
-      : null,
+    ivaContenido: esFactura && form.clase === "B" ? form.ivaContenidoHistorico : null,
     desgloseIva: form.tipoDocumento === "FACTURA" && form.clase === "A" && form.desgloseIva?.length
       ? form.desgloseIva.map(({ ivaAlicuotaId, base, iva }) => ({ ivaAlicuotaId, base: base.trim() === "" ? null : Number(base), iva: iva.trim() === "" ? null : Number(iva) }))
       : null,
-    lineas: form.lineas.map((linea) => {
+    lineas: lineas.map((linea) => {
       const importeTexto = linea.importe.trim().replace(",", ".");
       const importe = importeTexto ? Number(importeTexto) : Number.NaN;
       if (linea.tipo === "PERCEPCION") {
@@ -192,7 +196,7 @@ function toInput(form: FormState, proveedorId: string | null): unknown {
           importe,
         };
       }
-      return { tipo: "CONCEPTO", descripcion: linea.descripcion, percepcionCodigo: null, importe, ivaAlicuotaId: form.tipoDocumento === "FACTURA" && form.clase === "A" ? linea.ivaAlicuotaId ?? null : null };
+      return { tipo: "CONCEPTO", descripcion: linea.descripcion, percepcionCodigo: null, importe, ivaAlicuotaId: usaAlicuota ? linea.ivaAlicuotaId ?? null : null };
     }),
   };
 }
@@ -229,6 +233,11 @@ export default function ComprobanteRecibidoModal({
   }, [open, comprobante?.id]);
 
   const esFactura = form.tipoDocumento === "FACTURA";
+  const usaAlicuota = esFactura && (form.clase === "A" || form.clase === "B");
+  const conceptos = form.lineas.filter((linea) => linea.tipo === "CONCEPTO");
+  const percepciones = form.lineas
+    .filter((linea) => linea.tipo === "PERCEPCION")
+    .map(({ key, descripcion, importe }) => ({ key, percepcion: descripcion, importe }));
 
   const totales = useMemo(
     () => totalesLineas(form.lineas.map((linea) => ({ tipo: linea.tipo, importe: importeLinea(linea.importe) }))),
@@ -249,13 +258,18 @@ export default function ComprobanteRecibidoModal({
   };
 
   const addLinea = (tipo: ComprobanteRecibidoLineaTipo) => {
+    const linea = nuevaLinea(tipo);
     setForm((current) => (
-      current.lineas.length >= MAX_LINEAS_COMPROBANTE ? current : { ...current, lineas: [...current.lineas, nuevaLinea(tipo)] }
+      current.lineas.length >= MAX_LINEAS_COMPROBANTE ? current : { ...current, lineas: [...current.lineas, linea] }
     ));
+    return linea.key;
   };
 
   const removeLinea = (key: string) => {
-    setForm((current) => ({ ...current, lineas: current.lineas.filter((linea) => linea.key !== key) }));
+    setForm((current) => current.lineas.length <= 1
+      ? current
+      : { ...current, lineas: current.lineas.filter((linea) => linea.key !== key) });
+    if (error) setError(null);
   };
 
   const cambiarTipoDocumento = (tipo: ComprobanteRecibidoTipo) => {
@@ -306,7 +320,7 @@ export default function ComprobanteRecibidoModal({
       : `Nueva ${COMPROBANTE_RECIBIDO_TIPO_LABEL[form.tipoDocumento].toLowerCase()} recibida`;
 
   const condicionOptions = CONDICIONES_IVA_PROVEEDOR.map((condicion) => ({ value: condicion.value, label: condicion.label }));
-  const percepcionOptions = PERCEPCIONES_SUGERIDAS.map((sugerida) => ({ value: sugerida.codigo, label: sugerida.label }));
+  const alicuotaOptions = ALICUOTAS_IVA_ARCA.map((rate) => ({ value: String(rate.id), label: rate.label }));
 
   return (
     <Modal
@@ -464,124 +478,85 @@ export default function ComprobanteRecibidoModal({
         </section>
 
         <section style={styles.section} aria-label="Líneas">
-          <h4 style={styles.sectionTitle}>{esFactura ? "Conceptos y percepciones" : "Detalle de la retención"}</h4>
-          <p style={styles.hint}>
-            {form.clase === "A"
-              ? "En esta carga manual, ingresá el importe del concepto y confirmá el desglose de IVA en la sección siguiente."
-              : form.clase === "B"
-                ? "En factura B, ingresá los importes finales. El IVA contenido es opcional e informativo; no se discrimina ni se calcula desde las líneas."
-                : "Descripciones e importes manuales. En factura C se conserva el importe final sin discriminar IVA."}
-          </p>
-          {esFactura && form.clase === "A" && !readOnly ? (
+          <h4 style={styles.sectionTitle}>{esFactura ? "Conceptos" : "Detalle de la retención"}</h4>
+          {esFactura && form.clase ? (
+            <p style={styles.hint}>
+              {form.clase === "A"
+                ? "Ingresá el importe final de cada concepto y completá el desglose de IVA."
+                : "Ingresá el importe final de cada concepto."}
+            </p>
+          ) : null}
+          {usaAlicuota && !readOnly && conceptos.length > 0 ? (
             <label style={styles.hint}>Aplicar alícuota a todos los conceptos
-              <select aria-label="Aplicar alícuota a todos los conceptos" style={styles.input} value="" onChange={(event) => {
+              <select style={styles.input} value="" disabled={submitting} onChange={(event) => {
                 const ivaAlicuotaId = Number(event.target.value);
-                if (ivaAlicuotaId) setForm((current) => ({ ...current, lineas: current.lineas.map((linea) => linea.tipo === "CONCEPTO" ? { ...linea, ivaAlicuotaId } : linea) }));
+                if (ivaAlicuotaId) {
+                  update("lineas", form.lineas.map((linea) => linea.tipo === "CONCEPTO" ? { ...linea, ivaAlicuotaId } : linea));
+                }
               }}>
                 <option value="">Seleccionar</option>
-                {ALICUOTAS_IVA_ARCA.map((rate) => <option key={rate.id} value={rate.id}>{rate.label}</option>)}
+                {alicuotaOptions.map((rate) => <option key={rate.value} value={rate.value}>{rate.label}</option>)}
               </select>
             </label>
           ) : null}
           <div style={styles.lineasCard}>
-              <div css={[styles.lineasHeader, !esFactura && styles.lineasHeaderSinTipo]} aria-hidden="true">
-              {esFactura ? <div style={styles.lineaTipo}>TIPO</div> : null}
-              <div style={styles.lineaDescripcion}>DETALLE</div>
-              <div style={{ ...styles.lineaImporte, textAlign: "right" }}>IMPORTE</div>
-              <div style={styles.lineaActionsHeader} />
+            <div css={[styles.lineasHeader, usaAlicuota && styles.lineaConAlicuota]} aria-hidden="true">
+              <div>DETALLE</div>
+              {usaAlicuota ? <div>{form.clase === "B" ? "ALÍCUOTA IVA INCLUIDO" : "ALÍCUOTA IVA"}</div> : null}
+              <div style={{ textAlign: "right" }}>IMPORTE</div>
+              <div />
             </div>
-            <div style={styles.lineas}>
-              {form.lineas.map((linea, index) => (
+            <div>
+              {conceptos.map((linea, index) => (
                 <div
                   key={linea.key}
-                  css={[styles.lineaRow, !esFactura && styles.lineaRowSinTipo]}
+                  css={[styles.lineaRow, usaAlicuota && styles.lineaConAlicuota]}
                   data-testid={`comprobante-recibido-linea-${index}`}
                 >
-                  {esFactura ? (
-                    <div style={styles.lineaTipo}>
-                      {readOnly ? (
-                        <span style={styles.lineaTipoLabel}>{linea.tipo === "PERCEPCION" ? "Percepción" : "Concepto"}</span>
-                      ) : (
-                        <Dropdown
-                          ariaLabel={`Tipo de la línea ${index + 1}`}
-                          value={linea.tipo}
-                          onChange={(value) => updateLinea(linea.key, { tipo: value as ComprobanteRecibidoLineaTipo, descripcion: "" })}
-                          style={{ height: 38, fontSize: 14 }}
-                          options={[
-                            { value: "CONCEPTO", label: "Concepto" },
-                            { value: "PERCEPCION", label: "Percepción" },
-                          ]}
-                        />
-                      )}
-                    </div>
-                  ) : null}
-                  <div style={styles.lineaDescripcion}>
-                    {linea.tipo === "PERCEPCION" ? (
-                      <Autocomplete
-                        options={percepcionOptions}
-                        value={linea.descripcion}
-                        onChange={(value) => updateLinea(linea.key, { descripcion: value })}
-                        allowCustomValue
-                        disabled={readOnly}
-                        placeholder="Elegí o escribí una percepción"
-                        aria-label={`Percepción de la línea ${index + 1}`}
-                        maxLength={200}
-                        dataTestId={`comprobante-recibido-linea-${index}-percepcion`}
-                        style={{ height: 38, fontSize: 14 }}
-                      />
-                    ) : (
-                      <input
-                        style={styles.input}
-                        value={linea.descripcion}
-                        disabled={readOnly}
-                        maxLength={200}
-                        placeholder={esFactura ? "Descripción del concepto" : "Ej: Retención Ganancias"}
-                        aria-label={`Descripción de la línea ${index + 1}`}
-                        onChange={(event) => updateLinea(linea.key, { descripcion: event.target.value })}
-                        data-testid={`comprobante-recibido-linea-${index}-descripcion`}
-                      />
-                    )}
-                    {esFactura && form.clase === "A" && linea.tipo === "CONCEPTO" ? (
-                      <label style={styles.hint}>
-                        Alícuota IVA
-                        <select
-                          aria-label={`Alícuota de la línea ${index + 1}`}
-                          style={styles.input}
-                          disabled={readOnly}
-                          value={linea.ivaAlicuotaId ?? ""}
-                          onChange={(event) => updateLinea(linea.key, { ivaAlicuotaId: event.target.value ? Number(event.target.value) : null })}
-                        >
-                          <option value="">Sin confirmar</option>
-                          {ALICUOTAS_IVA_ARCA.map((rate) => <option key={rate.id} value={rate.id}>{rate.label}</option>)}
-                        </select>
-                      </label>
-                    ) : null}
-                  </div>
-                  <div style={styles.lineaImporte}>
-                    <input
-                      style={{ ...styles.input, textAlign: "right" }}
-                      value={linea.importe}
-                      disabled={readOnly}
-                      inputMode="decimal"
-                      placeholder="0,00"
-                      aria-label={`Importe de la línea ${index + 1}`}
-                      onChange={(event) => updateLinea(linea.key, { importe: event.target.value.replace(/[^0-9.,]/g, "") })}
-                      data-testid={`comprobante-recibido-linea-${index}-importe`}
+                  <input
+                    style={styles.input}
+                    value={linea.descripcion}
+                    disabled={readOnly || submitting}
+                    maxLength={200}
+                    placeholder={esFactura ? "Descripción del concepto" : "Ej: Retención Ganancias"}
+                    aria-label={`Descripción de la línea ${index + 1}`}
+                    onChange={(event) => updateLinea(linea.key, { descripcion: event.target.value })}
+                    data-testid={`comprobante-recibido-linea-${index}-descripcion`}
+                  />
+                  {usaAlicuota ? (
+                    <Dropdown
+                      ariaLabel={`Alícuota de la línea ${index + 1}`}
+                      placeholder={form.clase === "B" ? "Elegí alícuota" : "Sin confirmar"}
+                      style={{ height: 38, fontSize: 14, width: "100%", minWidth: 0 }}
+                      disabled={readOnly || submitting}
+                      value={linea.ivaAlicuotaId == null ? "" : String(linea.ivaAlicuotaId)}
+                      options={form.clase === "A" ? [{ value: "", label: "Sin confirmar" }, ...alicuotaOptions] : alicuotaOptions}
+                      onChange={(value) => updateLinea(linea.key, { ivaAlicuotaId: value ? Number(value) : null })}
                     />
-                  </div>
+                  ) : null}
+                  <input
+                    style={{ ...styles.input, textAlign: "right" }}
+                    value={linea.importe}
+                    disabled={readOnly || submitting}
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    aria-label={`Importe de la línea ${index + 1}`}
+                    onChange={(event) => updateLinea(linea.key, { importe: event.target.value.replace(/[^0-9.,]/g, "") })}
+                    data-testid={`comprobante-recibido-linea-${index}-importe`}
+                  />
                   {!readOnly ? (
                     <IconButton
                       type="button"
                       icon={<Trash2 />}
                       size={16}
                       onClick={() => removeLinea(linea.key)}
-                      disabled={form.lineas.length <= 1}
+                      disabled={submitting || form.lineas.length <= 1}
                       ariaLabel={`Quitar línea ${index + 1}`}
                       title="Quitar línea"
                       data-testid={`comprobante-recibido-linea-${index}-quitar`}
                       style={styles.removeButton}
                     />
-                  ) : <div style={styles.lineaActionsHeader} />}
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -591,6 +566,7 @@ export default function ComprobanteRecibidoModal({
               <Button
                 type="button"
                 onClick={() => addLinea("CONCEPTO")}
+                disabled={submitting || form.lineas.length >= MAX_LINEAS_COMPROBANTE}
                 dataTestId="comprobante-recibido-agregar-concepto"
                 text="Agregar concepto"
                 icon={<Plus size={16} />}
@@ -598,39 +574,25 @@ export default function ComprobanteRecibidoModal({
                 hideTextOnMobile={false}
                 style={{ minWidth: 0, fontSize: 14, padding: "8px 12px" }}
               />
-              {esFactura ? (
-                <Button
-                  type="button"
-                  onClick={() => addLinea("PERCEPCION")}
-                  dataTestId="comprobante-recibido-agregar-percepcion"
-                  text="Agregar percepción"
-                  icon={<Plus size={16} />}
-                  outline
-                  hideTextOnMobile={false}
-                  style={{ minWidth: 0, fontSize: 14, padding: "8px 12px" }}
-                />
-              ) : null}
             </div>
           ) : null}
 
-          {esFactura && form.clase === "B" ? (
-            <div style={{ ...styles.row, marginTop: 12 }}>
-              <Field label="IVA contenido informado (opcional)" grow htmlFor="comprobante-recibido-iva-contenido">
-                <IconInput
-                  id="comprobante-recibido-iva-contenido"
-                  aria-label="IVA contenido informado"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  disabled={readOnly}
-                  value={form.ivaContenido}
-                  wrapperStyle={{ height: 38, padding: "0 10px" }}
-                  style={{ fontSize: 14 }}
-                  onChange={(event) => update("ivaContenido", event.target.value)}
-                  data-testid="comprobante-recibido-iva-contenido"
-                />
-              </Field>
-            </div>
+          {esFactura ? (
+            <OperacionPercepcionesEditor
+              contexto="factura"
+              percepciones={percepciones}
+              montoBase={totales.totalConceptos}
+              showTotals={false}
+              limite={MAX_LINEAS_COMPROBANTE - conceptos.length}
+              disabled={readOnly || submitting}
+              readOnly={readOnly}
+              addPercepcion={() => addLinea("PERCEPCION")}
+              updatePercepcion={(key, { percepcion, importe }) => updateLinea(key, {
+                ...(percepcion !== undefined ? { descripcion: percepcion } : {}),
+                ...(importe !== undefined ? { importe } : {}),
+              })}
+              removePercepcion={removeLinea}
+            />
           ) : null}
 
           {esFactura && form.clase === "A" ? (
@@ -861,7 +823,7 @@ const styles = {
   },
   lineasHeader: css({
     display: "grid",
-    gridTemplateColumns: "150px minmax(0, 1fr) 140px 36px",
+    gridTemplateColumns: "minmax(0, 1fr) 140px 36px",
     gap: 8,
     alignItems: "center",
     padding: "10px 12px",
@@ -873,30 +835,25 @@ const styles = {
     letterSpacing: "0.05em",
     "@media (max-width: 720px)": { display: "none" },
   }),
-  lineasHeaderSinTipo: css({
-    gridTemplateColumns: "minmax(0, 1fr) 140px 36px",
-  }),
-  lineas: { display: "flex", flexDirection: "column" as const },
   lineaRow: css({
     display: "grid",
-    gridTemplateColumns: "150px minmax(0, 1fr) 140px 36px",
+    gridTemplateColumns: "minmax(0, 1fr) 140px 36px",
     gap: 8,
     alignItems: "center",
     padding: "10px 12px",
     borderBottom: `1px solid ${COLOR.BORDER.SUBTLE}`,
+    "&:last-child": { borderBottom: 0 },
     "@media (max-width: 720px)": {
-      display: "flex",
-      flexWrap: "wrap",
+      gridTemplateColumns: "minmax(0, 1fr) 36px",
+      "& > input:first-of-type": { gridColumn: "1 / -1" },
     },
   }),
-  lineaRowSinTipo: css({
-    gridTemplateColumns: "minmax(0, 1fr) 140px 36px",
+  lineaConAlicuota: css({
+    gridTemplateColumns: "minmax(0, 1fr) 160px 140px 36px",
+    "@media (max-width: 720px)": {
+      gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr) 36px",
+    },
   }),
-  lineaTipo: { width: 150, flex: "0 0 auto" },
-  lineaTipoLabel: { fontSize: 13, fontWeight: 600, color: COLOR.TEXT.SECONDARY },
-  lineaDescripcion: { flex: "1 1 240px", minWidth: 180 },
-  lineaImporte: { width: 140, flex: "0 0 auto" },
-  lineaActionsHeader: { width: 36, flex: "0 0 auto" },
   removeButton: {
     width: 36,
     height: 36,

@@ -31,8 +31,6 @@ export type PercepcionDraft = {
 export type FacturaCompraDraft = {
   clase: FacturaRecibidaClase | "";
   ivaAlicuotaGasto?: number;
-  /** IVA contenido informado manualmente en facturas B, sin inferirlo desde precios. */
-  ivaContenido: string;
   numero: string;
   /** Vacío: se usa la fecha de la operación. */
   fecha: string;
@@ -72,7 +70,6 @@ function emptyDraft(): FacturaCompraDraft {
   return {
     clase: "",
     ivaAlicuotaGasto: 5,
-    ivaContenido: "",
     numero: "",
     fecha: "",
     emisorRazonSocial: "",
@@ -168,16 +165,13 @@ export function buildFacturaCompraInput({
     fechaVencimiento: draft.fechaVencimiento,
     observaciones: null,
     desgloseIva,
-    ivaContenido: facturaB && draft.ivaContenido.trim() !== ""
-      ? Number(draft.ivaContenido.trim().replace(",", "."))
-      : null,
     lineas: [
       ...conceptos.map((concepto) => ({
         tipo: "CONCEPTO",
         descripcion: concepto.descripcion,
         percepcionCodigo: null,
         importe: conceptosCalculados.get(concepto.key) ?? concepto.importe,
-        ivaAlicuotaId: facturaA ? concepto.ivaAlicuotaId ?? 5 : null,
+        ivaAlicuotaId: facturaA || facturaB ? concepto.ivaAlicuotaId ?? 5 : null,
       })),
       ...percepciones,
     ],

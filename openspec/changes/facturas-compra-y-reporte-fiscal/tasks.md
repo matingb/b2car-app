@@ -7,7 +7,7 @@ La gestión documental conserva los cargos y el saldo. La edición de cargos de 
 ## 1. Completar el contrato y las decisiones técnicas
 
 - [x] 1.1 Preparar ejemplos de implementación del desglose definido en D3 y D7. Conciliar una factura A con dos alícuotas, un documento histórico sin desglose y una percepción de IVA.
-- [x] 1.2 Cerrar P-REP: fecha por tipo, formatos, moneda/cotización, identificación propia de retenciones y disposición de su detalle/resumen. Definir para facturas 12 columnas fijas y una columna IVA con todas las alícuotas confirmadas; IVA/IIBB tienen columnas propias y las demás percepciones agregan columnas solo si aparecen.
+- [x] 1.2 Cerrar P-REP: fecha por tipo, formatos, moneda/cotización, identificación propia de retenciones y disposición de su detalle/resumen. Definir 11 columnas fijas, una de ellas para percepción de IVA y otra con el IVA de todas las alícuotas confirmadas. Las demás percepciones agregan columnas cuando aparecen, con una por jurisdicción de IIBB.
 - [x] 1.3 Concretar técnicamente normalización de CUIT/número y etiquetas de percepciones, permisos equivalentes inicialmente a ventas, frontera de guardado/reintento e historial interno. Verificar ejemplos de duplicados, agrupación de columnas y secuencias de fallo, documentando decisiones dentro de las reglas acordadas.
 - [x] 1.4 Actualizar los artefactos con los cierres anteriores y coordinar el bloqueo de borrado con el contrato operativo vigente. Verificar coherencia y validación estricta de OpenSpec, sin cambios financieros ni reescritura del cambio histórico de ledgers.
 
@@ -41,10 +41,10 @@ La gestión documental conserva los cargos y el saldo. La edición de cargos de 
 ## 5. Reporte con percepciones dinámicas
 
 - [ ] 5.1 Implementar selección por tenant/período y lectura consistente de todos los documentos y percepciones. Verificar filtros, cambios concurrentes y sumas completas sin archivos parciales; documentar fecha/moneda acordadas.
-- [ ] 5.2 Implementar exactamente 12 columnas fijas de facturas en CSV y XLSX. Verificar encabezados y orden, emisor, desglose parcial, Neto e IVA con varias alícuotas, valores ausentes y una fila por factura aunque una operación tenga varias.
-- [ ] 5.3 Mapear percepción IVA e IIBB a sus columnas fijas, sumando BA/CABA para IIBB. Agregar una columna por cada otra percepción distinta presente y conservar todos sus importes en Total; verificar que las percepciones no se dupliquen.
+- [ ] 5.2 Implementar 11 columnas fijas de facturas en CSV y XLSX. Verificar encabezados y orden, emisor, desglose parcial, Neto e IVA con varias alícuotas, valores ausentes y una fila por factura aunque una operación tenga varias.
+- [ ] 5.3 Mapear la percepción de IVA a su columna fija. Agregar una columna por cada otra percepción distinta presente, con una por jurisdicción de IIBB. Verificar que cada importe contribuya una vez a Total.
 - [ ] 5.4 Incorporar detalle y total de documentos RETENCION separados de los totales facturados según P-REP. Verificar retenciones 6000 + 4000 = 10000, corrección/eliminación reflejadas y ausencia de cambios financieros, sin inferir retenciones desde pagos.
-- [ ] 5.5 Implementar formatos y descarga con permisos, filtros y caché privada. Verificar las 12 columnas fijas y columnas adicionales coincidentes en CSV/XLSX, el rótulo «IVA» del resumen con todas las alícuotas, textos con apariencia de fórmula y regresión del reporte de ventas con sus columnas/universo intactos; documentar el contrato de exportación.
+- [ ] 5.5 Implementar formatos y descarga con permisos, filtros y caché privada. Verificar que las 11 columnas fijas y las adicionales coincidan en CSV/XLSX, el rótulo «IVA» del resumen con todas las alícuotas, textos con apariencia de fórmula y la regresión del reporte de ventas. Documentar el contrato de exportación.
 
 ## 6. Verificación transversal
 

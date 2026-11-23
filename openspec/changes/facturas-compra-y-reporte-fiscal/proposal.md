@@ -17,7 +17,7 @@ Revisión con las definiciones del 13/11/2026. Esta versión sustituye el efecto
 - Al crear una compra y una factura A en el mismo formulario, sumar al total operativo el IVA calculado por alícuota sobre las bases de sus líneas y las percepciones ingresadas. Conservar los precios netos en las líneas de la compra y el identificador de tasa por línea. Mantener informativas las diferencias restantes; adjuntar o editar documentos posteriormente no recalcula la operación.
 - Impedir eliminar una operación mientras tenga documentos asociados; permitir eliminar primero los documentos. Rechazar facturas duplicadas del mismo CUIT emisor y número de factura dentro del tenant, aunque se intenten asociar a otra operación.
 - Mantener tablas propias, separadas de facturación electrónica, e integrar su gestión de forma transparente en Documentos. El listado admite el permiso de ventas o el de documentos recibidos y limita las fuentes que consulta a los permisos efectivos.
-- Exportar las facturas con 12 columnas fijas: fecha, razón social, número, CUIT, tipo, neto, IVA, no gravado, percepción de IVA, percepción de IIBB, total y concepto de gasto. La columna IVA suma todas las alícuotas confirmadas; las percepciones de IVA e IIBB usan sus columnas propias. Cada otra percepción agrega su columna solo si aparece y también integra el total. Mostrar retenciones por separado y sin efectos financieros.
+- Exportar las facturas con fecha, razón social, número, CUIT, tipo, total, neto, IVA, no gravado y percepción de IVA. Cada otra percepción agrega su columna cuando aparece y también integra el total. Las percepciones de IIBB se muestran por jurisdicción. Concepto de gasto cierra el detalle, después de todas las percepciones. La columna IVA suma todas las alícuotas confirmadas. Mostrar retenciones por separado y sin efectos financieros.
 - Mantener fuera del alcance archivos, fotos, adjuntos, NC/ND de compras, emisión/verificación ante ARCA, OCR/importación y determinación de crédito fiscal o regímenes tributarios.
 
 ## Capabilities
@@ -25,7 +25,7 @@ Revisión con las definiciones del 13/11/2026. Esta versión sustituye el efecto
 ### New Capabilities
 
 - `comprobantes-recibidos`: registro y gestión de documentos de compras/gastos, identidad del proveedor, líneas libres de conceptos/percepciones, retenciones informativas, validación de duplicados y protección del borrado de operaciones.
-- `reportes-fiscales-compras`: detalle de facturas con 12 columnas fijas, columnas adicionales solo para otras percepciones presentes, IVA totalizado entre alícuotas confirmadas y retenciones separadas.
+- `reportes-fiscales-compras`: detalle de facturas con 11 columnas fijas, columnas adicionales solo para otras percepciones presentes, IVA totalizado entre alícuotas confirmadas y retenciones separadas.
 
 ### Modified Capabilities
 
@@ -38,5 +38,5 @@ El bloqueo de borrado de operaciones documentadas y los cargos de compra amplía
 - **Datos.** Tablas propias de documentos y líneas, relación obligatoria a una operación, datos fiscales de proveedores y unicidad de facturas. Incorporar `iva_alicuota_id` por concepto y conservar la base y el IVA confirmados por alícuota en cada factura A. Usar migraciones con RLS y grants.
 - **API/UI:** CRUD y asociación inicial/posterior, selector abierto de percepciones, label de diferencias, error de duplicado y bloqueo de eliminación de operaciones documentadas, incluidos todos sus puntos de entrada.
 - **Finanzas:** crear una compra con factura A suma el IVA calculado a su total operativo antes de aplicar pagos y saldo; crear o editar cargos también afecta su total y saldo, respetando pagos registrados. La gestión documental posterior conserva esos valores. Las retenciones se registran para consulta y reporte.
-- **Exportación:** conservar el reporte de ventas y su contrato; compras usa 12 columnas fijas y agrega columnas para otras percepciones presentes. IVA se totaliza entre las alícuotas confirmadas y las retenciones se presentan por separado.
-- **Exportación confirmada.** Selección por fecha del documento, CSV y XLSX, pesos argentinos sin conversión, 12 columnas fijas más columnas para otras percepciones presentes, IVA totalizado entre tasas confirmadas y número de retención libre y opcional con detalle y total separados. Ver [diseño](design.md#definiciones-restantes).
+- **Exportación.** Compras usa 11 columnas fijas y agrega columnas para otras percepciones presentes. IVA se totaliza entre las alícuotas confirmadas y las retenciones se presentan por separado.
+- **Exportación confirmada.** Selección por fecha del documento, CSV y XLSX, pesos argentinos sin conversión, 11 columnas fijas más columnas para otras percepciones presentes, IVA totalizado entre tasas confirmadas y número de retención libre y opcional con detalle y total separados. Ver [diseño](design.md#definiciones-restantes).

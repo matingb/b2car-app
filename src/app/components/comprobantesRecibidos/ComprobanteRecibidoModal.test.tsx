@@ -1,11 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import type { ComprobanteRecibido, ComprobanteRecibidoPrecarga } from "@/lib/comprobantesRecibidos/types";
 import ComprobanteRecibidoModal from "./ComprobanteRecibidoModal";
 
-const { update } = vi.hoisted(() => ({ update: vi.fn() }));
+const { create, update } = vi.hoisted(() => ({ create: vi.fn(), update: vi.fn() }));
 vi.mock("@/app/providers/ToastProvider", () => ({ useToast: () => ({ success: vi.fn() }) }));
-vi.mock("@/clients/comprobantesRecibidosClient", () => ({ comprobantesRecibidosClient: { update } }));
+vi.mock("@/clients/comprobantesRecibidosClient", () => ({ comprobantesRecibidosClient: { create, update } }));
 
 it("mantiene valores ausentes, exige completar filas y conserva ceros explícitos", async () => {
   const emisor = { razonSocial: "Proveedor", cuit: "30712345678", condicionIva: "RESPONSABLE_INSCRIPTO", domicilio: null } as const;
@@ -15,8 +15,10 @@ it("mantiene valores ausentes, exige completar filas y conserva ceros explícito
   update.mockResolvedValue(comprobante);
   render(<ComprobanteRecibidoModal open operacionId="op" precarga={precarga} comprobante={comprobante} onClose={vi.fn()} />);
   fireEvent.change(screen.getByLabelText("Aplicar alícuota a todos los conceptos"), { target: { value: "6" } });
-  expect(screen.getByLabelText("Alícuota de la línea 1")).toHaveValue("6");
-  fireEvent.change(screen.getByLabelText("Alícuota de la línea 1"), { target: { value: "" } });
+  const alicuota = screen.getByRole("button", { name: "Alícuota de la línea 1" });
+  expect(alicuota).toHaveTextContent("27%");
+  fireEvent.click(alicuota);
+  fireEvent.click(screen.getByRole("option", { name: "Sin confirmar" }));
   fireEvent.change(screen.getByLabelText("Descripción de la línea 1"), { target: { value: "Corregida" } });
   fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
   await waitFor(() => expect(update).toHaveBeenCalledWith("doc", expect.objectContaining({ desgloseIva: null, lineas: [expect.objectContaining({ descripcion: "Corregida", ivaAlicuotaId: null })] })));
@@ -80,7 +82,7 @@ it("sugiere IVA desde la base neta al corregir una factura A existente", async (
   })));
 });
 
-it("permite guardar una factura B con IVA contenido opcional y sin desglose discriminado", async () => {
+it("reintenta la factura B sobre la misma compra con la tasa elegida y el importe final", async () => {
   const emisor = { razonSocial: "Proveedor B", cuit: "30712345678", condicionIva: "RESPONSABLE_INSCRIPTO", domicilio: null } as const;
   const receptor = { razonSocial: null, cuit: null, condicionIva: null };
   const comprobante = {
@@ -108,25 +110,42 @@ it("permite guardar una factura B con IVA contenido opcional y sin desglose disc
     updatedAt: "",
   } satisfies ComprobanteRecibido;
   const precarga: ComprobanteRecibidoPrecarga = { proveedorId: null, emisor, receptor };
-  update.mockResolvedValue(comprobante);
+  create.mockClear();
+  create.mockResolvedValue(comprobante);
+  render(
+    <ComprobanteRecibidoModal
+      open
+      operacionId="op-b"
+      precarga={precarga}
+      initialInput={comprobante}
+      initialError="Línea 1: elegí la alícuota de IVA para una factura B"
+      idempotencyKey="intento-anterior"
+      onClose={vi.fn()}
+    />,
+  );
 
-  render(<ComprobanteRecibidoModal open operacionId="op-b" precarga={precarga} comprobante={comprobante} onClose={vi.fn()} />);
-
-  // No debe mostrar la sección de desglose de IVA ni el selector masivo de alícuotas
   expect(screen.queryByText("Desglose de IVA confirmado")).not.toBeInTheDocument();
-  expect(screen.queryByLabelText("Aplicar alícuota a todos los conceptos")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("IVA contenido informado")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Guardar documento" }));
+  expect(create).not.toHaveBeenCalled();
+  expect(screen.getByRole("alert")).toHaveTextContent("elegí la alícuota");
 
-  // Permite ingresar IVA contenido opcional
-  const ivaContenidoInput = screen.getByTestId("comprobante-recibido-iva-contenido");
-  expect(ivaContenidoInput).toBeInTheDocument();
-  fireEvent.change(ivaContenidoInput, { target: { value: "210" } });
+  fireEvent.click(screen.getByRole("button", { name: "Alícuota de la línea 1" }));
+  fireEvent.click(within(screen.getByRole("listbox")).getByRole("option", { name: "10,5%" }));
+  fireEvent.click(screen.getByTestId("operacion-factura-agregar-percepcion"));
+  const percepcion = screen.getByLabelText("Percepción 1");
+  fireEvent.change(percepcion, { target: { value: "Ganancias" } });
+  fireEvent.click(screen.getByText("Ganancias"));
+  fireEvent.change(screen.getByLabelText("Importe de la percepción 1"), { target: { value: "15,50" } });
+  fireEvent.click(screen.getByRole("button", { name: "Guardar documento" }));
 
-  fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
-
-  await waitFor(() => expect(update).toHaveBeenCalledWith("doc-b", expect.objectContaining({
+  await waitFor(() => expect(create).toHaveBeenCalledWith("op-b", expect.objectContaining({
     clase: "B",
     desgloseIva: null,
-    ivaContenido: 210,
-    lineas: [expect.objectContaining({ descripcion: "Insumos", importe: 1210, ivaAlicuotaId: null })],
-  })));
+    ivaContenido: null,
+    lineas: [
+      expect.objectContaining({ descripcion: "Insumos", importe: 1210, ivaAlicuotaId: 4 }),
+      expect.objectContaining({ tipo: "PERCEPCION", percepcionCodigo: "GANANCIAS", importe: 15.5, ivaAlicuotaId: null }),
+    ],
+  }), "intento-anterior"));
 });

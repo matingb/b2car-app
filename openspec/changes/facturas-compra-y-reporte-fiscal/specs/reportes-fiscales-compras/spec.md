@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Permitir exportar facturas y retenciones documentales de compras y gastos con 12 columnas fijas de facturas, columnas adicionales para las demás percepciones presentes, IVA totalizado entre alícuotas confirmadas y sumas reproducibles, sin alterar el circuito financiero.
+Permitir exportar facturas y retenciones documentales de compras y gastos con 11 columnas fijas de facturas, columnas adicionales para las demás percepciones presentes, IVA totalizado entre alícuotas confirmadas y sumas reproducibles, sin alterar el circuito financiero.
 
 La fuente de bases gravadas e IVA es el desglose confirmado de cada factura recibida. El período usa la fecha del documento, tanto para facturas como para retenciones. Se exporta en CSV y XLSX, en pesos argentinos sin conversión. Las retenciones tienen número propio libre y opcional, con detalle y total separados de las facturas.
 
@@ -24,17 +24,17 @@ El reporte SHALL seleccionar documentos vigentes de compras/gastos del tenant co
 - **AND** no se exige un proveedor comercial si el emisor está identificado en el documento
 
 ### Requirement: Columnas fijas y columnas de percepciones
-La hoja «Facturas» SHALL comenzar con estas 12 columnas y en este orden: «Fecha», «Razón Social», «Número», «CUIT», «Tipo Fac», «Neto», «IVA», «No Gravado», «Percep. IVA», «Percep. IIBB», «Total» y «Concepto Gto». CSV y XLSX MUST compartir esos encabezados y orden. Los datos ausentes MUST permanecer sin informar.
+La hoja «Facturas» SHALL comenzar, en este orden, con «Fecha», «Razón Social», «Número», «CUIT», «Tipo Fac», «Total», «Neto», «IVA», «No Gravado» y «Percep. IVA». «Concepto de gasto» SHALL ser siempre la última columna. CSV y XLSX MUST compartir esos encabezados y orden. Los datos ausentes MUST permanecer sin informar.
 
 #### Scenario: Encabezados y orden de facturas
 - **WHEN** se genera el reporte inicial de compras
-- **THEN** la hoja «Facturas» comienza con las 12 columnas fijas en el orden acordado
+- **THEN** la hoja «Facturas» contiene las 11 columnas fijas en el orden acordado
 - **AND** no agrega columnas de identificadores ni metadatos
 
 #### Scenario: Columnas de otras percepciones presentes
 - **GIVEN** las facturas seleccionadas contienen percepciones de Ganancias y «Municipal»
 - **WHEN** se genera el reporte
-- **THEN** después de las 12 columnas fijas aparecen columnas para «Percepción: Ganancias» y «Percepción: Municipal»
+- **THEN** «Percepción: Ganancias» y «Percepción: Municipal» aparecen entre «Percep. IVA» y «Concepto de gasto»
 - **AND** cada columna solo aparece si esa percepción está presente en la selección
 
 #### Scenario: Datos de autorización ausentes
@@ -44,13 +44,12 @@ La hoja «Facturas» SHALL comenzar con estas 12 columnas y en este orden: «Fec
 - **AND** no se exige ambiente de emisión o estado AUTORIZADA de B2Car
 
 ### Requirement: Columnas adicionales para percepciones
-Después de las 12 columnas fijas, el reporte SHALL agregar una columna por cada percepción distinta no representada allí que esté presente en las facturas seleccionadas. MUST NOT agregar columnas adicionales para IVA, IIBB Buenos Aires o IIBB CABA.
+Entre «Percep. IVA» y «Concepto de gasto», el reporte SHALL agregar una columna por cada percepción distinta presente en las facturas seleccionadas. La percepción de IVA SHALL aparecer solo en su columna fija. Cada jurisdicción de IIBB presente SHALL tener su propia columna adicional.
 
-#### Scenario: Percepciones cubiertas por columnas fijas
+#### Scenario: Percepción de IVA en su columna fija
 - **GIVEN** las facturas seleccionadas contienen percepciones de IVA e IIBB Buenos Aires y CABA
 - **WHEN** se genera el reporte
-- **THEN** sus importes aparecen en «Percep. IVA» y «Percep. IIBB»
-- **AND** no se duplican en columnas adicionales
+- **THEN** el importe de IVA aparece una sola vez, en «Percep. IVA»
 
 #### Scenario: Percepción exclusiva de la última página
 - **GIVEN** 1205 facturas seleccionadas y una percepción adicional presente solo en la última
@@ -63,13 +62,13 @@ Después de las 12 columnas fijas, el reporte SHALL agregar una columna por cada
 - **THEN** esa percepción no agrega una columna
 
 ### Requirement: Percepciones en columnas y total de factura
-La columna «Percep. IVA» SHALL sumar los importes manuales de percepción de IVA de cada factura. «Percep. IIBB» SHALL sumar IIBB Buenos Aires y CABA. Cada otra percepción distinta presente SHALL tener una columna propia; sus importes, igual que IVA e IIBB, permanecen incluidos en «Total» junto con los conceptos.
+La columna «Percep. IVA» SHALL sumar los importes manuales de percepción de IVA de cada factura. Cada otra percepción distinta presente SHALL tener una columna propia, incluidas las jurisdicciones de IIBB. Todos estos importes permanecen incluidos en «Total» junto con los conceptos.
 
-#### Scenario: IVA e IIBB agrupados
+#### Scenario: IIBB separado por jurisdicción
 - **GIVEN** una factura con percepciones de IVA, IIBB Buenos Aires e IIBB CABA
 - **WHEN** se exporta
-- **THEN** «Percep. IVA» muestra su importe y «Percep. IIBB» suma los dos importes de IIBB
-- **AND** ambas percepciones también permanecen incluidas en «Total»
+- **THEN** «Percepción: IIBB Buenos Aires» y «Percepción: IIBB CABA» muestran sus respectivos importes
+- **AND** las tres percepciones permanecen incluidas en «Total»
 
 #### Scenario: Columnas adicionales solo para percepciones presentes
 - **GIVEN** una factura seleccionada con una percepción de Ganancias o de nombre libre
@@ -148,7 +147,13 @@ El reporte MUST dejar vacíos los datos desconocidos, distinguir ceros informado
 - **GIVEN** una factura con importe final sin desglose y una operación asociada con alícuota 21%
 - **WHEN** se exporta
 - **THEN** se conserva el importe final y los datos fiscales sin fuente quedan vacíos
-- **AND** el resumen identifica como parciales las sumas fiscales afectadas por ese faltante
+
+#### Scenario: Importe informado en parte de los comprobantes
+- **GIVEN** una selección en la que algunas facturas informan un importe fiscal y otras lo tienen ausente
+- **WHEN** se exporta el resumen
+- **THEN** el importe muestra la suma parcial de los valores informados, incluidos los ceros
+- **AND** el detalle indica en cuántos comprobantes falta ese dato
+- **AND** si el dato está ausente en todas las facturas, se informa la cantidad y el importe queda vacío
 
 #### Scenario: Línea libre sin clasificación fiscal explícita
 - **GIVEN** una línea con una descripción que menciona IVA y un importe manual
@@ -185,12 +190,12 @@ El reporte SHALL exigir un período desde/hasta válido y seleccionar facturas y
 - **AND** no se desplaza su día por conversión de zona horaria
 
 ### Requirement: Formatos con el mismo conjunto y columnas
-Los formatos CSV y XLSX SHALL compartir documentos, valores, las 12 columnas fijas y las columnas adicionales de percepciones presentes en una misma selección. MUST conciliar detalle y resumen y conservar importes utilizables. Textos MUST NOT ejecutar fórmulas en la planilla.
+Los formatos CSV y XLSX SHALL compartir documentos, valores, las 11 columnas fijas y las columnas adicionales de percepciones presentes en una misma selección. MUST conciliar detalle y resumen y conservar importes utilizables. Textos MUST NOT ejecutar fórmulas en la planilla.
 
 #### Scenario: Dos formatos de la misma selección
 - **GIVEN** CSV y XLSX habilitados para el mismo conjunto
 - **WHEN** se descargan ambos
-- **THEN** contienen las mismas 12 columnas fijas y las mismas columnas adicionales de percepciones
+- **THEN** contienen las mismas 11 columnas fijas y las mismas columnas adicionales de percepciones
 - **AND** sus importes concilian, incluido el IVA total de todas las alícuotas confirmadas
 
 #### Scenario: Nombre de percepción con apariencia de fórmula
@@ -200,10 +205,10 @@ Los formatos CSV y XLSX SHALL compartir documentos, valores, las 12 columnas fij
 
 #### Scenario: Selección vacía
 - **WHEN** no hay documentos incluidos
-- **THEN** se conservan las 12 columnas fijas acordadas, se indica cantidad cero y no se agregan columnas de percepciones
+- **THEN** se conservan las 11 columnas fijas acordadas, se indica cantidad cero y no se agregan columnas de percepciones
 
 ### Requirement: Generación completa y consistente
-El reporte SHALL incluir todas las páginas y entregar el detalle con sus 12 columnas fijas, todas las columnas adicionales de percepciones presentes y sumas consistentes ante altas, ediciones y eliminaciones concurrentes. MUST NOT presentar un archivo parcial como definitivo si falla la lectura o no puede asegurarse consistencia. La exportación MUST NOT modificar documentos, operaciones o finanzas.
+El reporte SHALL incluir todas las páginas y entregar el detalle con sus 11 columnas fijas, todas las columnas adicionales de percepciones presentes y sumas consistentes ante altas, ediciones y eliminaciones concurrentes. MUST NOT presentar un archivo parcial como definitivo si falla la lectura o no puede asegurarse consistencia. La exportación MUST NOT modificar documentos, operaciones o finanzas.
 
 #### Scenario: Error al leer documentos
 - **WHEN** falla una página al obtener documentos

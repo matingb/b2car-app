@@ -7,7 +7,7 @@ const { form } = vi.hoisted(() => ({
   form: {
     tipo: "COMPRA",
     factura: {
-      draft: { clase: "A", percepciones: [], ivaContenido: "" },
+      draft: { clase: "A", percepciones: [] },
       update: vi.fn(),
       addPercepcion: vi.fn(),
       updatePercepcion: vi.fn(),
@@ -40,13 +40,12 @@ it("muestra solo las alícuotas que aparecen en los conceptos de factura A", () 
   expect(totals).toHaveTextContent(`Total de factura: ${formatArs(402.5)}`);
 });
 
-it("guarda el IVA contenido informado de factura B separado de las columnas discriminadas", () => {
+it("muestra los importes finales de factura B sin panel de IVA contenido", () => {
   form.factura.draft.clase = "B";
   render(<OperacionFacturaPercepciones />);
 
   expect(screen.queryByTestId("operacion-iva-desglose")).not.toBeInTheDocument();
-  expect(screen.getByTestId("operacion-iva-contenido")).toHaveTextContent("no se usa como IVA discriminado");
-  expect(screen.getByLabelText("IVA contenido informado")).toBeInTheDocument();
+  expect(screen.queryByLabelText("IVA contenido informado")).not.toBeInTheDocument();
   expect(screen.getByTestId("operacion-factura-totales")).toHaveTextContent(formatArs(350));
   expect(screen.getByTestId("operacion-factura-totales")).toHaveTextContent("IVA: No discriminado");
   form.factura.draft.clase = "A";

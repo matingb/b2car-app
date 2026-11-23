@@ -171,7 +171,7 @@ REVOKE ALL ON FUNCTION public.rpc_actualizar_operacion(uuid, timestamptz, text, 
 GRANT EXECUTE ON FUNCTION public.rpc_actualizar_operacion(uuid, timestamptz, text, jsonb) TO authenticated, service_role;
 
 -- Conserva el RPC histórico que valida datos generales y agrega en la misma
--- transacción el desglose A y la tasa por concepto que algunas instalaciones
+-- transacción el desglose A y la tasa por concepto de factura A o B que algunas instalaciones
 -- todavía no guardan con la versión registrada de 20261116110000.
 CREATE OR REPLACE FUNCTION public.rpc_comprobante_recibido_guardar_con_iva(
   p_comprobante_id uuid,
@@ -187,12 +187,16 @@ SET search_path TO ''
 AS $function$
 DECLARE
   v_id uuid;
+  v_tenant_id uuid := public.current_tenant_id();
+  v_reintento boolean := false;
   v_desglose jsonb := p_datos -> 'desglose_iva';
   v_iva_contenido numeric;
   v_iva jsonb;
   v_linea jsonb;
-  v_clase text := upper(COALESCE(p_datos ->> 'clase', ''));
-  v_tipo_documento text := upper(COALESCE(p_datos ->> 'tipo_documento', ''));
+  v_linea_tipo text;
+  v_linea_iva text;
+  v_clase text := upper(btrim(COALESCE(p_datos ->> 'clase', '')));
+  v_tipo_documento text := upper(btrim(COALESCE(p_datos ->> 'tipo_documento', '')));
   v_iva_id integer;
   v_base numeric;
   v_impuesto numeric;
@@ -200,14 +204,27 @@ DECLARE
   v_desglose_total numeric := 0;
   v_iva_ids integer[] := ARRAY[]::integer[];
 BEGIN
+  IF p_comprobante_id IS NULL AND p_idempotency_key IS NOT NULL AND v_tenant_id IS NOT NULL THEN
+    -- Usa el mismo bloqueo del RPC base para distinguir un alta de un reintento concurrente.
+    PERFORM pg_advisory_xact_lock(
+      hashtext(v_tenant_id::text || ':comprobante-recibido:' || p_idempotency_key::text)
+    );
+    SELECT EXISTS (
+      SELECT 1
+      FROM public.comprobantes_recibidos
+      WHERE tenant_id = v_tenant_id AND idempotency_key = p_idempotency_key
+    ) INTO v_reintento;
+  END IF;
+
   v_id := public.rpc_comprobante_recibido_guardar(
     p_comprobante_id, p_operacion_id, p_datos, p_lineas, p_idempotency_key
   );
+  IF v_reintento THEN RETURN v_id; END IF;
 
   SELECT COALESCE(sum((elem ->> 'importe')::numeric), 0)
   INTO v_conceptos_total
   FROM jsonb_array_elements(p_lineas) AS elem
-  WHERE upper(COALESCE(elem ->> 'tipo', '')) = 'CONCEPTO';
+  WHERE upper(btrim(COALESCE(elem ->> 'tipo', ''))) = 'CONCEPTO';
 
   IF v_desglose = 'null'::jsonb THEN v_desglose := NULL; END IF;
   IF v_desglose IS NOT NULL THEN
@@ -221,7 +238,7 @@ BEGIN
         OR jsonb_typeof(v_iva -> 'iva_alicuota_id') IS DISTINCT FROM 'number'
         OR jsonb_typeof(v_iva -> 'base') IS DISTINCT FROM 'number'
         OR jsonb_typeof(v_iva -> 'iva') IS DISTINCT FROM 'number' THEN
-        RAISE EXCEPTION 'El desglose de IVA tiene un formato invÃ¡lido' USING ERRCODE = '22023';
+        RAISE EXCEPTION 'El desglose de IVA tiene un formato inválido' USING ERRCODE = '22023';
       END IF;
       v_iva_id := (v_iva ->> 'iva_alicuota_id')::integer;
       v_base := (v_iva ->> 'base')::numeric;
@@ -229,7 +246,7 @@ BEGIN
       IF v_iva_id NOT IN (3, 4, 5, 6, 8, 9) OR v_iva_id = ANY(v_iva_ids)
         OR v_base < 0 OR v_impuesto < 0
         OR v_base <> round(v_base, 2) OR v_impuesto <> round(v_impuesto, 2) THEN
-        RAISE EXCEPTION 'El desglose de IVA contiene tasas o importes invÃ¡lidos' USING ERRCODE = '22023';
+        RAISE EXCEPTION 'El desglose de IVA contiene tasas o importes inválidos' USING ERRCODE = '22023';
       END IF;
       v_iva_ids := array_append(v_iva_ids, v_iva_id);
       v_desglose_total := v_desglose_total + v_base + v_impuesto;
@@ -247,7 +264,7 @@ BEGIN
     v_iva_contenido := (p_datos ->> 'iva_contenido')::numeric;
     IF v_iva_contenido < 0 OR v_iva_contenido <> round(v_iva_contenido, 2)
       OR v_iva_contenido > v_conceptos_total THEN
-      RAISE EXCEPTION 'El IVA contenido informado no es vÃ¡lido' USING ERRCODE = '22023';
+      RAISE EXCEPTION 'El IVA contenido informado no es válido' USING ERRCODE = '22023';
     END IF;
   END IF;
   IF v_desglose IS NOT NULL AND NULLIF(p_datos ->> 'iva_contenido', '') IS NOT NULL THEN
@@ -255,25 +272,29 @@ BEGIN
   END IF;
 
   FOR v_linea IN SELECT value FROM jsonb_array_elements(p_lineas) LOOP
-    IF NULLIF(v_linea ->> 'iva_alicuota_id', '') IS NOT NULL THEN
-      IF v_tipo_documento <> 'FACTURA' OR v_clase <> 'A'
-        OR upper(COALESCE(v_linea ->> 'tipo', '')) <> 'CONCEPTO'
-        OR (v_linea ->> 'iva_alicuota_id')::integer NOT IN (3, 4, 5, 6, 8, 9) THEN
-        RAISE EXCEPTION 'La alÃ­cuota solo puede asignarse a conceptos de una factura A' USING ERRCODE = '22023';
-      END IF;
+    v_linea_tipo := upper(btrim(COALESCE(v_linea ->> 'tipo', '')));
+    v_linea_iva := NULLIF(v_linea ->> 'iva_alicuota_id', '');
+    IF v_linea_iva IS NOT NULL AND (
+      v_tipo_documento <> 'FACTURA' OR v_clase NOT IN ('A', 'B')
+      OR v_linea_tipo <> 'CONCEPTO' OR v_linea_iva::integer NOT IN (3, 4, 5, 6, 8, 9)
+    ) THEN
+      RAISE EXCEPTION 'La alícuota debe ser válida y corresponder a un concepto de factura A o B' USING ERRCODE = '22023';
+    END IF;
+    IF v_tipo_documento = 'FACTURA' AND v_clase = 'B' AND v_linea_tipo = 'CONCEPTO' AND v_linea_iva IS NULL THEN
+      RAISE EXCEPTION 'Elegí la alícuota de IVA para cada concepto de la factura B' USING ERRCODE = '22023';
     END IF;
   END LOOP;
 
   UPDATE public.comprobantes_recibidos
   SET desglose_iva = v_desglose,
       iva_contenido = v_iva_contenido
-  WHERE id = v_id AND tenant_id = public.current_tenant_id();
+  WHERE id = v_id AND tenant_id = v_tenant_id;
 
   UPDATE public.comprobantes_recibidos_lineas AS linea
   SET iva_alicuota_id = NULLIF(entrada.elem ->> 'iva_alicuota_id', '')::integer
   FROM jsonb_array_elements(p_lineas) WITH ORDINALITY AS entrada(elem, orden)
   WHERE linea.comprobante_id = v_id
-    AND linea.tenant_id = public.current_tenant_id()
+    AND linea.tenant_id = v_tenant_id
     AND linea.orden = entrada.orden::integer;
 
   RETURN v_id;

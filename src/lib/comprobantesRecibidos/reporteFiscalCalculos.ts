@@ -76,7 +76,6 @@ function buildInvoiceRow(document: ComprasFiscalDocumento, columns: ComprasFisca
     .filter(Boolean)
     .join("; ");
   const percepcionIva = percepciones.IVA ?? 0;
-  const percepcionIibb = add(percepciones.IIBB_BUENOS_AIRES ?? 0, percepciones.IIBB_CABA ?? 0);
 
   // Solo el desglose confirmado de una factura A alimenta las columnas fiscales. Las tasas
   // operativas y los importes finales de B/C nunca completan datos que el documento no confirmó.
@@ -159,7 +158,6 @@ function buildInvoiceRow(document: ComprasFiscalDocumento, columns: ComprasFisca
     operacionId: document.operacionId,
     conceptoGasto,
     percepcionIva,
-    percepcionIibb,
     percepciones: Object.fromEntries(columns.map((column) => [column.key, percepciones[column.key] ?? 0])),
   };
 }
@@ -172,7 +170,7 @@ function sumField(rows: ComprasFiscalFilaFactura[], key: FiscalMoneyKey) {
     if (amount === null) missing += 1;
     else total = add(total, amount);
   }
-  return { total: missing > 0 ? null : total, missing };
+  return { total: missing > 0 && missing === rows.length ? null : total, missing };
 }
 
 export function buildComprasFiscalReport(

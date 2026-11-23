@@ -38,18 +38,15 @@ function invoiceColumns(report: ComprasFiscalReport): FacturaExportColumn[] {
     { key: "numero", header: "Número", kind: "text", width: 20, value: (row) => row.numero },
     { key: "cuitEmisor", header: "CUIT", kind: "text", width: 16, value: (row) => row.cuitEmisor },
     { key: "tipo", header: "Tipo Fac", kind: "text", width: 14, value: (row) => row.tipo },
+    { key: "total", header: "Total", kind: "money", width: 18, value: (row) => row.total },
     { key: "netoGravado", header: "Neto", kind: "money", width: 18, value: (row) => row.netoGravado },
     { key: "ivaTotal", header: "IVA", kind: "money", width: 16, value: (row) => row.ivaTotal },
     { key: "noGravado", header: "No Gravado", kind: "money", width: 18, value: (row) => row.noGravado },
     { key: "percepcionIva", header: "Percep. IVA", kind: "money", width: 18, value: (row) => row.percepcionIva },
-    { key: "percepcionIibb", header: "Percep. IIBB", kind: "money", width: 18, value: (row) => row.percepcionIibb },
-    { key: "total", header: "Total", kind: "money", width: 18, value: (row) => row.total },
-    { key: "conceptoGasto", header: "Concepto Gto", kind: "text", width: 42, value: (row) => row.conceptoGasto },
   ];
 
-  const fixedPerceptionKeys = new Set(["IVA", "IIBB_BUENOS_AIRES", "IIBB_CABA"]);
   for (const column of report.columnasPercepciones) {
-    if (fixedPerceptionKeys.has(column.key)) continue;
+    if (column.key === "IVA") continue;
     columns.push({
       key: `percepcion_${column.key}`,
       header: column.header,
@@ -59,6 +56,7 @@ function invoiceColumns(report: ComprasFiscalReport): FacturaExportColumn[] {
     });
   }
 
+  columns.push({ key: "conceptoGasto", header: "Concepto de gasto", kind: "text", width: 42, value: (row) => row.conceptoGasto });
   return columns;
 }
 
@@ -99,12 +97,14 @@ function summaryRows(report: ComprasFiscalReport): SummaryRow[] {
   for (const key of FISCAL_MONEY_KEYS) {
     if (key === "total" || key === "iva21") continue;
     const missing = report.summary.missingFiscalAmounts[key];
+    const importe = report.summary.fiscalAmounts[key];
+    const missingDetail = `Falta el dato en ${missing} ${missing === 1 ? "comprobante" : "comprobantes"}`;
     rows.push({
       concepto: key === "ivaTotal" ? "IVA" : `Suma fiscal confirmada: ${fiscalAmountLabel(key)}`,
-      importe: report.summary.fiscalAmounts[key],
+      importe,
       cantidad: null,
       detalle: missing
-        ? `Sin total completo: dato ausente en ${missing} factura(s)`
+        ? (importe === null ? missingDetail : `Suma parcial. ${missingDetail}`)
         : report.summary.desgloseIncompleto
           ? `Suma confirmada parcial; desglose incompleto en ${report.summary.desgloseIncompleto} factura(s)`
           : "Suma del detalle seleccionado",
