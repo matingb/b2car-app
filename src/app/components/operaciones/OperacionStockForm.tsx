@@ -84,6 +84,17 @@ export default function OperacionStockForm() {
 
   const isEnabled = Boolean(tipo && isTipoEnabled(tipo));
   const isAllowedTipo = tipo === "VENTA" || tipo === "COMPRA";
+  const stockOptionsByLinea = useMemo(() => {
+    if (tipo !== "COMPRA") return lineas.map(() => stockOptions);
+
+    const stockIdsSeleccionados = new Set(
+      lineas.map((linea) => linea.stockId).filter(Boolean),
+    );
+
+    return lineas.map((linea) => stockOptions.filter(
+      (option) => option.value === linea.stockId || !stockIdsSeleccionados.has(option.value),
+    ));
+  }, [lineas, stockOptions, tipo]);
   const showIvaAlicuota = tipo === "COMPRA"
     && puedeCargarComprobante
     && factura.activa
@@ -172,7 +183,7 @@ export default function OperacionStockForm() {
                   disabled={disabled}
                   stockSelectionDisabled={isContextualStock}
                   loadingStocks={isInventarioLoading || isProveedorProductosLoading}
-                  stockOptions={stockOptions}
+                  stockOptions={stockOptionsByLinea[idx] ?? stockOptions}
                   getDefaultUnitarioForStockId={getDefaultUnitarioForStockId}
                   getDefaultIvaAlicuotaIdForStockId={(stockId) => stockById.get(stockId)?.ivaAlicuotaId ?? null}
                   getStockActualForStockId={getStockActualForStockId}

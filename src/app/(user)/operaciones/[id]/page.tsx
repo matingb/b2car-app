@@ -40,7 +40,6 @@ import {
 import OperacionPagoBadge from "@/app/components/operaciones/OperacionPagoBadge";
 import OperacionStockBadge from "@/app/components/operaciones/OperacionStockBadge";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
-import OperacionCargosModal from "@/app/components/operaciones/OperacionCargosModal";
 import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
 import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
 import {
@@ -67,7 +66,6 @@ export default function OperacionDetailPage() {
   const canEmitRemitos = hasPermission(Permission.FacturasEdit);
   const canViewRecibidos = hasPermission(Permission.ComprobantesRecibidosView);
   const canEditRecibidos = hasPermission(Permission.ComprobantesRecibidosEdit);
-  const canEditOperacion = hasPermission(Permission.OperacionesEdit);
 
   const { remove, refresh } = useOperaciones();
   const { getStockById } = useInventario();
@@ -97,7 +95,6 @@ export default function OperacionDetailPage() {
 
   const [stocksById, setStocksById] = useState<Record<string, StockItem>>({});
   const [isEditGastoOpen, setIsEditGastoOpen] = useState(false);
-  const [isCargosOpen, setIsCargosOpen] = useState(false);
   const [isFacturaOpen, setIsFacturaOpen] = useState(false);
   const [isAdjuntarFacturaOpen, setIsAdjuntarFacturaOpen] = useState(false);
   // Fuerza la recarga de la sección de facturas recibidas al adjuntar una desde la cabecera.
@@ -308,39 +305,6 @@ export default function OperacionDetailPage() {
             subtitle={subtitleParts.join(" · ")}
             hasBackButton={true}
           />
-
-          {isComercial && (
-            <div css={styles.badgesRow}>
-              {isSinCargo ? (
-                <span
-                  css={styles.sinCargoChip}
-                  data-testid="chip-adquisicion-sin-cargo"
-                >
-                  Adquisición sin cargo
-                </span>
-              ) : (
-                <OperacionPagoBadge
-                  operacion={operacion}
-                  saldoPendiente={saldoPendiente}
-                  montoTotal={totalMonto}
-                  totalPagado={totalPagado}
-                  onPagoUpdated={() => {
-                    void loadOperacion();
-                    void refresh();
-                  }}
-                  size="md"
-                />
-              )}
-              <OperacionStockBadge
-                operacion={operacion}
-                size="md"
-                onStockUpdated={() => {
-                  void loadOperacion();
-                  void refresh();
-                }}
-              />
-            </div>
-          )}
         </div>
 
         {/* Acciones principales */}
@@ -527,14 +491,8 @@ export default function OperacionDetailPage() {
       {/* Tabla de Productos / Líneas de Stock */}
       {isComercial && (operacion.lineas ?? []).length > 0 && (
         <Card style={{ padding: 0, overflow: "hidden" }}>
-          <div style={styles.tableTitleRow}>
-            <h3 style={{ margin: 0, fontSize: 16, color: COLOR.TEXT.PRIMARY }}>
-              Productos / Repuestos ({operacion.lineas.length})
-            </h3>
-          </div>
-
           <div style={{ overflowX: "auto" }}>
-            <table style={styles.table}>
+            <table style={styles.table} aria-label="Productos y repuestos">
               <thead>
                 <tr style={styles.thRow}>
                   <th style={styles.th}>Producto</th>
@@ -602,25 +560,15 @@ export default function OperacionDetailPage() {
       )}
 
       {/* Percepciones de la compra: cargos que suman al total acordado (no son mercadería) */}
-      {isCompra && (cargos.length > 0 || canEditOperacion) && (
+      {isCompra && cargos.length > 0 && (
         <Card style={{ padding: 0, overflow: "hidden" }} data-testid="operacion-cargos">
           <div style={styles.tableTitleRow}>
             <h3 style={{ margin: 0, fontSize: 16, color: COLOR.TEXT.PRIMARY }}>
               Cargos de la compra ({cargos.length})
             </h3>
-            {canEditOperacion ? (
-              <Button
-                text={cargos.length > 0 ? "Editar cargos" : "Agregar cargos"}
-                icon={<Pencil size={16} />}
-                outline
-                hideTextOnMobile={false}
-                onClick={() => setIsCargosOpen(true)}
-                dataTestId="operacion-cargos-editar"
-              />
-            ) : null}
           </div>
 
-          {cargos.length > 0 && <div style={{ overflowX: "auto" }}>
+          <div style={{ overflowX: "auto" }}>
             <table style={styles.table}>
               <thead>
                 <tr style={styles.thRow}>
@@ -645,7 +593,7 @@ export default function OperacionDetailPage() {
                 </tr>
               </tbody>
             </table>
-          </div>}
+          </div>
         </Card>
       )}
 
@@ -894,19 +842,6 @@ export default function OperacionDetailPage() {
         />
       )}
 
-      {isCargosOpen && operacion.tipo === "COMPRA" && (
-        <OperacionCargosModal
-          operacion={operacion}
-          montoBase={totalMonto - totalCargos}
-          canViewRecibidos={canViewRecibidos}
-          onClose={() => setIsCargosOpen(false)}
-          onSaved={(updated) => {
-            setOperacion(updated);
-            void refresh();
-          }}
-        />
-      )}
-
       {isFacturaOpen && (
         <FacturaElectronicaModal
           open={isFacturaOpen}
@@ -968,15 +903,8 @@ const styles = {
   headerMain: css({
     display: "flex",
     flexDirection: "column",
-    gap: 8,
     flex: 1,
     minWidth: 260,
-  }),
-  badgesRow: css({
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
   }),
   headerActions: css({
     display: "flex",

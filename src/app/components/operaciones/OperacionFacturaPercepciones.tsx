@@ -14,7 +14,7 @@ import {
 } from "@/lib/comprobantesRecibidos/types";
 import { formatArs } from "@/lib/format";
 import { ALICUOTAS_IVA_ARCA } from "@/lib/facturacion/types";
-import { calcularFacturaADesdeBases } from "@/lib/comprobantesRecibidos/iva";
+import { calcularFacturaADesdeBases, type FacturaDesgloseIvaAlicuota } from "@/lib/comprobantesRecibidos/iva";
 import { COLOR } from "@/theme/theme";
 import { useOperacionForm } from "./OperacionFormContext";
 import { importePercepcion, type PercepcionDraft } from "./useFacturaCompraDraft";
@@ -76,22 +76,7 @@ export default function OperacionFacturaPercepciones() {
           />
         </div>
       ) : null}
-      {calculoIva && calculoIva.desgloseIva.length > 0 ? (
-        <div css={styles.ivaRateList} role="group" aria-label="Totales de IVA por alícuota" data-testid="operacion-iva-desglose">
-          <div css={styles.ivaRateTotals}>
-            {calculoIva.desgloseIva.map((item) => (
-              <div
-                key={item.ivaAlicuotaId}
-                css={styles.ivaRateTotal}
-                data-testid={`operacion-iva-alicuota-${item.ivaAlicuotaId}`}
-              >
-                <span>Total IVA {ALICUOTAS_IVA_ARCA.find((rate) => rate.id === item.ivaAlicuotaId)?.label}</span>
-                <strong>{formatArs(item.iva)}</strong>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      {calculoIva ? <FacturaIvaPorAlicuota desglose={calculoIva.desgloseIva} /> : null}
       <div css={styles.facturaTotals} data-testid="operacion-factura-totales">
         <span>Conceptos: <strong>{formatArs(totalConceptos)}</strong></span>
         <span>IVA: <strong>{totalIva == null ? "No discriminado" : formatArs(totalIva)}</strong></span>
@@ -99,6 +84,23 @@ export default function OperacionFacturaPercepciones() {
         <span css={styles.facturaTotal}>Total de factura: <strong>{formatArs(totalFactura)}</strong></span>
       </div>
     </>
+  );
+}
+
+export function FacturaIvaPorAlicuota({ desglose }: { desglose: readonly FacturaDesgloseIvaAlicuota[] }) {
+  if (desglose.length === 0) return null;
+
+  return (
+    <div css={styles.ivaRateList} role="group" aria-label="Totales de IVA por alícuota" data-testid="operacion-iva-desglose">
+      <div css={styles.ivaRateTotals}>
+        {desglose.map((item) => (
+          <div key={item.ivaAlicuotaId} css={styles.ivaRateTotal} data-testid={`operacion-iva-alicuota-${item.ivaAlicuotaId}`}>
+            <span>Total IVA {ALICUOTAS_IVA_ARCA.find((rate) => rate.id === item.ivaAlicuotaId)?.label}</span>
+            <strong>{formatArs(item.iva)}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

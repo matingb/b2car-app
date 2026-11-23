@@ -15,7 +15,13 @@ import { clientesClient } from "@/clients/clientes/clientesClient";
 import { productosClient } from "@/clients/productosClient";
 import { CATEGORIAS_GASTO, type GastoFinanciero } from "@/model/finanzas";
 import { comprobantesRecibidosClient } from "@/clients/comprobantesRecibidosClient";
-import { sumarImportes, type ComprobanteRecibidoInput } from "@/lib/comprobantesRecibidos/types";
+import {
+  esFacturaCompraConVencimiento,
+  sumarImportes,
+  type ComprobanteRecibido,
+  type ComprobanteRecibidoInput,
+  type FacturaCompraConVencimiento,
+} from "@/lib/comprobantesRecibidos/types";
 import { calcularIvaTotalDesdeBases } from "@/lib/comprobantesRecibidos/iva";
 import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import { buildStockAutocompleteOptions } from "@/app/components/stock/StockBreakdownBadge";
@@ -48,18 +54,17 @@ import {
 export const CREATE_CUENTA_VALUE = "__create_cuenta__";
 
 /**
- * Compra o gasto ya creado cuya factura no se pudo guardar en el mismo paso. Se reabre el
+ * Compra ya creada cuya factura no se pudo guardar en el mismo paso. Se reabre el
  * formulario del documento con lo cargado y la misma clave de idempotencia para reintentar
  * sin recrear la operación ni repetir pagos o stock.
  */
 export type ComprobantePendiente = {
   operacionId: string;
-  input?: ComprobanteRecibidoInput;
-  idempotencyKey?: string;
-  error?: string;
+  input: ComprobanteRecibidoInput;
+  conceptos: ConceptoFactura[];
+  idempotencyKey: string;
+  error: string;
 };
-
-const MAX_DESCRIPCION_CONCEPTO = 200;
 
 type StockItemWithActual = ProductoLite & {
   stockActual: number;
@@ -193,11 +198,13 @@ export function OperacionFormProvider({
   contextualStock,
   onSuccess,
   onComprobantePendiente,
+  onFacturaConVencimiento,
   children,
 }: OperacionModalProps & {
   children: React.ReactNode;
+  onFacturaConVencimiento?: (factura: FacturaCompraConVencimiento) => void;
   /**
-   * Habilita la factura en línea. Recibe la compra o el gasto ya creado cuando su factura no se
+   * Habilita la factura en línea. Recibe la compra ya creada cuando su factura no se
    * pudo guardar: la operación está persistida y el documento puede reintentarse sin recrearla.
    */
   onComprobantePendiente?: (pendiente: ComprobantePendiente) => void;
@@ -634,7 +641,7 @@ export function OperacionFormProvider({
   const puedeCargarComprobante = Boolean(onComprobantePendiente)
     && !isEditingGasto
     && !contextualStock
-    && (tipo === "COMPRA" || tipo === "GASTO");
+    && tipo === "COMPRA";
 
   const proveedorSeleccionado = useMemo(
     () => proveedores.find((p) => p.id === proveedorId) ?? null,
@@ -805,18 +812,20 @@ export function OperacionFormProvider({
       if (importe <= 0) return [];
       const categoria = CATEGORIAS_GASTO.find((c) => c.value === categoriaGasto)?.label ?? "Gasto";
       const descripcion = descripcionGasto.trim() || categoria;
-      return [{ key: "gasto", descripcion: descripcion.slice(0, MAX_DESCRIPCION_CONCEPTO), importe, ivaAlicuotaId: factura.draft.ivaAlicuotaGasto ?? 5 }];
+      return [{ key: "gasto", descripcion, importe, ivaAlicuotaId: factura.draft.ivaAlicuotaGasto ?? 5 }];
     }
     return lineas
       .map((l, index) => {
         const cantidad = Number(l.cantidad) || 0;
-        const nombre = stockById.get(l.stockId)?.nombre?.trim() ?? "";
-        const descripcion = cantidad !== 1 ? `${nombre} (x${cantidad})` : nombre;
+        const unitario = Number(l.unitario) || 0;
+        const descripcion = stockById.get(l.stockId)?.nombre?.trim() ?? "";
         return {
           key: `${l.id ?? index}-${l.stockId}`,
           ivaAlicuotaId: l.ivaAlicuotaId ?? stockById.get(l.stockId)?.ivaAlicuotaId ?? null,
-          descripcion: nombre ? descripcion.slice(0, MAX_DESCRIPCION_CONCEPTO) : "",
-          importe: round2(cantidad * (Number(l.unitario) || 0)),
+          descripcion,
+          cantidad,
+          unitario,
+          importe: round2(cantidad * unitario),
         };
       })
       .filter((c) => c.descripcion && c.importe > 0);
@@ -830,7 +839,7 @@ export function OperacionFormProvider({
     operacionId: string,
     input: ComprobanteRecibidoInput,
     idempotencyKey: string,
-  ): Promise<{ input: ComprobanteRecibidoInput; error?: string }> => {
+  ): Promise<{ input: ComprobanteRecibidoInput; comprobante?: ComprobanteRecibido; error?: string }> => {
     let documento = input;
     try {
       const datos = await comprobantesRecibidosClient.listByOperacion(operacionId);
@@ -839,8 +848,8 @@ export function OperacionFormProvider({
       logger.warn("No se pudo precargar el receptor de la factura recibida", cause);
     }
     try {
-      await comprobantesRecibidosClient.create(operacionId, documento, idempotencyKey);
-      return { input: documento };
+      const comprobante = await comprobantesRecibidosClient.create(operacionId, documento, idempotencyKey);
+      return { input: documento, comprobante };
     } catch (cause) {
       return { input: documento, error: cause instanceof Error ? cause.message : "No se pudo guardar la factura" };
     }
@@ -995,6 +1004,7 @@ export function OperacionFormProvider({
             onComprobantePendiente({
               operacionId: created.id,
               input: resultado.input,
+              conceptos: conceptosFactura,
               idempotencyKey,
               error: resultado.error,
             });
@@ -1004,6 +1014,10 @@ export function OperacionFormProvider({
             tipo === "GASTO" ? "Gasto y factura registrados" : "Compra y factura registradas",
             buildOperacionCreatedMessage(tipo, tallerNombre, tipoConfigById)
           );
+          if (onFacturaConVencimiento && resultado.comprobante && esFacturaCompraConVencimiento(resultado.comprobante)) {
+            onFacturaConVencimiento(resultado.comprobante);
+            return;
+          }
           onClose();
           return;
         }

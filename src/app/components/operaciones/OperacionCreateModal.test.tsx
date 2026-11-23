@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders as render, runPendingPromises } from "@/tests/testUtils";
+import { comprobantesRecibidosClient } from "@/clients/comprobantesRecibidosClient";
 import OperacionCreateModal from "./OperacionCreateModal";
+
+vi.mock("@/clients/comprobantesRecibidosClient", () => ({
+  comprobantesRecibidosClient: { create: vi.fn(), listByOperacion: vi.fn(), crearTurnoVencimiento: vi.fn() },
+}));
 
 const mockInventario: unknown[] = [];
 const mockInventarioApi = {
@@ -127,6 +132,7 @@ vi.mock("@/app/providers/ToastProvider", () => ({
 describe("OperacionCreateModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.removeItem("b2car.operaciones.cargarConFactura");
     mockInventarioApi.inventario = [];
     mockCuentasApi.cuentaFavorita = null;
     mockGetProductos.mockResolvedValue({ data: [], error: null });
@@ -477,6 +483,63 @@ describe("OperacionCreateModal", () => {
         })],
       }));
     });
+  });
+
+  it("ofrece agendar el vencimiento después de crear la compra y permite omitirlo", async () => {
+    mockInventarioApi.inventario = [{
+      id: "S-CONTEXTO", nombre: "Filtro de Aceite", costoUnitario: 2000, stockActual: 10,
+    }];
+    const receptor = { razonSocial: null, cuit: null, condicionIva: null };
+    vi.mocked(comprobantesRecibidosClient.listByOperacion).mockResolvedValue({
+      operacion: { id: "O-1", tipo: "COMPRA", montoTotal: 2420, proveedorId: null },
+      precarga: { proveedorId: null, emisor: { ...receptor, domicilio: null }, receptor },
+      comprobantes: [],
+      resumen: {
+        montoOperacion: 2420, cantidadFacturas: 0, totalFacturas: 0, diferenciaFacturas: -2420,
+        cantidadRetenciones: 0, totalRetenciones: 0,
+      },
+    });
+    vi.mocked(comprobantesRecibidosClient.create).mockImplementation(async (operacionId, input) => ({
+      ...input,
+      id: "factura-compra",
+      operacionId,
+      operacionTipo: "COMPRA",
+      total: 2420,
+      totalConceptos: 2420,
+      totalPercepciones: 0,
+      createdAt: "",
+      updatedAt: "",
+    }));
+    const onClose = vi.fn();
+    render(<OperacionCreateModal
+      open
+      talleres={[{ id: "T-2", nombre: "Taller Norte" }]}
+      initialCuentaId="C1"
+      onClose={onClose}
+    />);
+
+    await userEvent.click(screen.getByTestId("operaciones-create-tipo-COMPRA"));
+    fireEvent.change(screen.getByTestId("operaciones-line-0-stock"), { target: { value: "S-CONTEXTO" } });
+    await userEvent.click(screen.getByRole("switch", { name: "Cargar con factura" }));
+    fireEvent.click(screen.getByTestId("operacion-factura-clase-A"));
+    fireEvent.change(screen.getByTestId("operacion-factura-numero"), { target: { value: "0001-00000001" } });
+    fireEvent.change(screen.getByTestId("operacion-factura-emisor-razon-social"), { target: { value: "Proveedor" } });
+    fireEvent.change(screen.getByTestId("operacion-factura-emisor-cuit"), { target: { value: "30712345678" } });
+    fireEvent.change(screen.getByTestId("operacion-factura-emisor-condicion-iva"), { target: { value: "RESPONSABLE_INSCRIPTO" } });
+    fireEvent.click(screen.getByTestId("operacion-factura-fecha-vencimiento"));
+    fireEvent.click(screen.getByTestId("operacion-factura-fecha-vencimiento-today-btn"));
+    await userEvent.click(screen.getByTestId("modal-submit"));
+
+    const dialog = await screen.findByRole("dialog", { name: "Vencimiento de factura" });
+    expect(dialog).toHaveTextContent("0001-00000001");
+    expect(mockCrearOperacion).toHaveBeenCalledOnce();
+    expect(comprobantesRecibidosClient.create).toHaveBeenCalledWith(
+      "O-1", expect.objectContaining({ fechaVencimiento: expect.any(String) }), expect.any(String),
+    );
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(comprobantesRecibidosClient.crearTurnoVencimiento).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("mantiene abierto el modal contextual cuando el backend informa stock insuficiente", async () => {

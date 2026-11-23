@@ -1,7 +1,10 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
 import { ServiceError, toServiceError } from "@/app/api/serviceError";
+import { INTERVALO_MINUTOS } from "@/lib/turnosHorarios";
 import {
+  comprobanteRecibidoTitulo,
+  esFacturaCompraConVencimiento,
   isCondicionIvaProveedor,
   resumirComprobantes,
   sumarImportes,
@@ -28,7 +31,8 @@ import {
 /*
  * Reglas de negocio de comprobantes recibidos.
  *
- * Invariancia documental: este servicio solo lee operaciones y escribe documentos/lineas por RPC.
+ * Las operaciones se consultan y los documentos y líneas se guardan por RPC.
+ * El recordatorio del calendario se guarda por separado, tras una confirmación explícita.
  * No registra, anula ni recalcula pagos, saldos, estado de pago, cuentas ni stock. Las diferencias
  * entre documentos y monto operativo se informan y nunca se ajustan.
  */
@@ -249,6 +253,41 @@ export function createComprobanteRecibidoService(
       if (error) return failure(error);
       if (!data) return { data: null, error: ServiceError.NotFound, message: DOCUMENTO_NO_ENCONTRADO };
       return { data: mapComprobanteRecibido(data), error: null };
+    },
+
+    async crearTurnoVencimiento(
+      supabase: SupabaseClient,
+      tenantId: string,
+      id: string,
+    ): Promise<ComprobanteServiceResult<true>> {
+      const { data, error } = await repository.getById(supabase, tenantId, id);
+      if (error) return failure(error);
+      if (!data) return { data: null, error: ServiceError.NotFound, message: DOCUMENTO_NO_ENCONTRADO };
+
+      const factura = mapComprobanteRecibido(data);
+      if (!esFacturaCompraConVencimiento(factura)) {
+        return { data: null, error: ServiceError.Validation, message: "El comprobante debe ser una factura de compra con vencimiento de pago." };
+      }
+      const tallerId = data.operaciones?.taller_id;
+      if (!tallerId) {
+        return { data: null, error: ServiceError.Validation, message: "La compra debe tener un taller para agregar el vencimiento al calendario." };
+      }
+
+      const documento = comprobanteRecibidoTitulo(factura);
+      const guardado = await repository.guardarTurnoVencimiento(supabase, tenantId, id, {
+        titulo: `Vencimiento · ${documento}`,
+        tipo: "Vencimiento de factura",
+        descripcion: `Pago de ${documento} · ${factura.emisor.razonSocial}`,
+        fecha: factura.fechaVencimiento,
+        hora: "09:00",
+        duracion: INTERVALO_MINUTOS,
+        estado: "confirmado",
+        taller_id: tallerId,
+        cliente_id: null,
+        vehiculo_id: null,
+      });
+      if (guardado.error) return failure(guardado.error);
+      return { data: true, error: null };
     },
 
     /** Alta asociada a una operación existente. Un reintento con la misma clave devuelve el mismo documento. */

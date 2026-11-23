@@ -166,6 +166,15 @@ CREATE TABLE public.comprobantes_recibidos (
     CHECK (fecha_vencimiento IS NULL OR fecha_vencimiento >= fecha)
 );
 
+-- Un recordatorio de vencimiento por factura recibida en el calendario del taller.
+ALTER TABLE public.turnos
+  ADD COLUMN comprobante_recibido_id uuid,
+  ADD CONSTRAINT turnos_comprobante_recibido_unique
+    UNIQUE (comprobante_recibido_id, tenant_id),
+  ADD CONSTRAINT turnos_comprobante_recibido_fkey
+    FOREIGN KEY (comprobante_recibido_id, tenant_id)
+    REFERENCES public.comprobantes_recibidos (id, tenant_id) ON DELETE CASCADE;
+
 COMMENT ON TABLE public.comprobantes_recibidos IS
   'Facturas A/B/C y retenciones recibidas, asociadas a una operación COMPRA/GASTO. Informativas: no afectan pagos, saldos, cuentas ni stock.';
 COMMENT ON COLUMN public.comprobantes_recibidos.codigo_autorizacion IS

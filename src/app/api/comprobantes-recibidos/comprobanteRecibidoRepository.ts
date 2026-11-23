@@ -1,4 +1,5 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
+import type { CreateTurnoInput } from "@/app/api/turnos/turnosService";
 
 /*
  * Acceso a datos de comprobantes recibidos. La lectura respeta RLS (tenant + permiso de consulta);
@@ -30,7 +31,7 @@ export const COMPROBANTE_RECIBIDO_COLUMNS = [
   "iva_contenido",
   "created_at",
   "updated_at",
-  "operaciones(tipo)",
+  "operaciones(tipo, taller_id)",
   "comprobantes_recibidos_lineas(id, orden, tipo, descripcion, percepcion_codigo, importe, iva_alicuota_id)",
 ].join(", ");
 
@@ -68,7 +69,7 @@ export type ComprobanteRecibidoRow = {
   iva_contenido: number | string | null;
   created_at: string;
   updated_at: string;
-  operaciones?: { tipo: string | null } | null;
+  operaciones?: { tipo: string | null; taller_id: string | null } | null;
   comprobantes_recibidos_lineas?: ComprobanteRecibidoLineaRow[] | null;
 };
 
@@ -112,6 +113,9 @@ export interface ComprobanteRecibidoRepository {
   getReceptorFiscal(supabase: SupabaseClient, tenantId: string, ambiente: string): Promise<Result<ReceptorFiscalRow>>;
   guardar(supabase: SupabaseClient, params: GuardarComprobanteParams): Promise<Result<string>>;
   eliminar(supabase: SupabaseClient, id: string): Promise<Result<boolean>>;
+  guardarTurnoVencimiento(
+    supabase: SupabaseClient, tenantId: string, comprobanteId: string, turno: CreateTurnoInput,
+  ): Promise<{ error: PostgrestError | null }>;
 }
 
 export const supabaseComprobanteRecibidoRepository: ComprobanteRecibidoRepository = {
@@ -144,6 +148,14 @@ export const supabaseComprobanteRecibidoRepository: ComprobanteRecibidoRepositor
       .eq("id", id)
       .maybeSingle();
     return { data: (data as unknown as ComprobanteRecibidoRow | null) ?? null, error };
+  },
+
+  async guardarTurnoVencimiento(supabase, tenantId, comprobanteId, turno) {
+    const { error } = await supabase.from("turnos").upsert(
+      { ...turno, tenant_id: tenantId, comprobante_recibido_id: comprobanteId },
+      { onConflict: "comprobante_recibido_id,tenant_id", ignoreDuplicates: true },
+    );
+    return { error };
   },
 
   async getProveedorFiscal(supabase, tenantId, proveedorId) {

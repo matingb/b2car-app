@@ -6,7 +6,9 @@ import Modal from "@/app/components/ui/Modal";
 import Tooltip from "@/app/components/ui/Tooltip";
 import Toggle from "@/app/components/ui/Toggle";
 import ComprobanteRecibidoOperacionModal from "@/app/components/comprobantesRecibidos/ComprobanteRecibidoOperacionModal";
+import VencimientoFacturaCompraModal from "@/app/components/comprobantesRecibidos/VencimientoFacturaCompraModal";
 import { TenantContext } from "@/app/providers/TenantProvider";
+import type { FacturaCompraConVencimiento } from "@/lib/comprobantesRecibidos/types";
 import { formatArs } from "@/lib/format";
 import { Permission } from "@/lib/permissions";
 import { COLOR } from "@/theme/theme";
@@ -141,16 +143,18 @@ export default function OperacionCreateModal(props: OperacionModalProps) {
   // Sin TenantProvider (por ejemplo, en pruebas aisladas) no se ofrece la carga del documento.
   const tenant = useContext(TenantContext);
   const canCargarComprobante = tenant?.hasPermission(Permission.ComprobantesRecibidosEdit) ?? false;
-  // Compra o gasto ya creado cuya factura no se pudo guardar. La operación se conserva y el
+  // Compra ya creada cuya factura no se pudo guardar. La operación se conserva y el
   // documento se reintenta con lo cargado (misma clave), o se agrega luego desde su detalle.
   const [pendiente, setPendiente] = useState<ComprobantePendiente | null>(null);
+  const [facturaConVencimiento, setFacturaConVencimiento] = useState<FacturaCompraConVencimiento | null>(null);
 
   return (
     <>
       <OperacionFormProvider
         {...props}
-        open={props.open && !pendiente}
+        open={props.open && !pendiente && !facturaConVencimiento}
         onComprobantePendiente={canCargarComprobante ? setPendiente : undefined}
+        onFacturaConVencimiento={setFacturaConVencimiento}
       >
         <OperacionCreateModalContent onClose={props.onClose} />
       </OperacionFormProvider>
@@ -159,10 +163,20 @@ export default function OperacionCreateModal(props: OperacionModalProps) {
           open
           operacionId={pendiente.operacionId}
           initialInput={pendiente.input}
+          initialConceptos={pendiente.conceptos}
           idempotencyKey={pendiente.idempotencyKey}
           initialError={pendiente.error}
           onClose={() => {
             setPendiente(null);
+            props.onClose();
+          }}
+        />
+      ) : null}
+      {props.open && facturaConVencimiento ? (
+        <VencimientoFacturaCompraModal
+          factura={facturaConVencimiento}
+          onClose={() => {
+            setFacturaConVencimiento(null);
             props.onClose();
           }}
         />

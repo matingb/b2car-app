@@ -43,7 +43,20 @@ export type FacturaCompraDraft = {
   percepciones: PercepcionDraft[];
 };
 
-export type ConceptoFactura = { key: string; descripcion: string; importe: number; ivaAlicuotaId?: number | null };
+export type ConceptoFactura = {
+  key: string;
+  descripcion: string;
+  importe: number;
+  ivaAlicuotaId?: number | null;
+  cantidad?: number;
+  unitario?: number;
+};
+
+export function descripcionConceptoFactura(descripcion: string, cantidad = 1): string {
+  const detalle = descripcion.trim();
+  const sufijo = cantidad === 1 ? "" : ` (x${cantidad})`;
+  return detalle ? `${detalle.slice(0, 200 - sufijo.length)}${sufijo}` : "";
+}
 
 const EMPTY_RECEPTOR: ComprobanteRecibidoIdentidad = { razonSocial: null, cuit: null, condicionIva: null };
 
@@ -168,7 +181,7 @@ export function buildFacturaCompraInput({
     lineas: [
       ...conceptos.map((concepto) => ({
         tipo: "CONCEPTO",
-        descripcion: concepto.descripcion,
+        descripcion: descripcionConceptoFactura(concepto.descripcion, concepto.cantidad),
         percepcionCodigo: null,
         importe: conceptosCalculados.get(concepto.key) ?? concepto.importe,
         ivaAlicuotaId: facturaA || facturaB ? concepto.ivaAlicuotaId ?? 5 : null,

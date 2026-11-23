@@ -11,7 +11,7 @@ import type {
   ComprobantesOperacion,
 } from "@/lib/comprobantesRecibidos/types";
 import { COLOR } from "@/theme/theme";
-import ComprobanteRecibidoModal from "./ComprobanteRecibidoModal";
+import ComprobanteRecibidoModal, { type ComprobanteRecibidoModalProps } from "./ComprobanteRecibidoModal";
 
 type Props = {
   open: boolean;
@@ -21,6 +21,7 @@ type Props = {
   onSaved?: (comprobante: ComprobanteRecibido) => void;
   /** Documento ya cargado (p. ej., en el alta de la operación) que no se pudo guardar. */
   initialInput?: ComprobanteRecibidoInput;
+  initialConceptos?: ComprobanteRecibidoModalProps["initialConceptos"];
   /** Clave del intento anterior: reintentar no duplica el documento si ya se había guardado. */
   idempotencyKey?: string;
   initialError?: string;
@@ -38,15 +39,17 @@ export default function ComprobanteRecibidoOperacionModal({
   onClose,
   onSaved,
   initialInput,
+  initialConceptos,
   idempotencyKey,
   initialError,
 }: Props) {
   const [datos, setDatos] = useState<ComprobantesOperacion | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [intento, setIntento] = useState(0);
+  const requierePrecarga = !initialInput;
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !requierePrecarga) return;
     let cancelled = false;
     setError(null);
     comprobantesRecibidosClient
@@ -56,11 +59,12 @@ export default function ComprobanteRecibidoOperacionModal({
         if (!cancelled) setError(cause instanceof Error ? cause.message : "No se pudieron cargar los datos de la operación");
       });
     return () => { cancelled = true; };
-  }, [open, operacionId, intento]);
+  }, [open, operacionId, intento, requierePrecarga]);
 
   if (!open) return null;
 
-  if (!datos) {
+  const precarga = initialInput ?? datos?.precarga;
+  if (!precarga) {
     return (
       <Modal open={open} title="Cargar documento recibido" onClose={onClose} hideFooter showCloseButton wrapInForm={false}>
         <div style={styles.body}>
@@ -87,9 +91,10 @@ export default function ComprobanteRecibidoOperacionModal({
       onClose={onClose}
       onSaved={onSaved}
       operacionId={operacionId}
-      precarga={datos.precarga}
+      precarga={precarga}
       initialTipo={initialInput?.tipoDocumento ?? initialTipo}
       initialInput={initialInput}
+      initialConceptos={initialConceptos}
       idempotencyKey={idempotencyKey}
       initialError={initialError}
     />

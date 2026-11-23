@@ -14,7 +14,6 @@ const mockAnularPago = vi.fn();
 const mockConfirm = vi.fn();
 const mockToastSuccess = vi.fn();
 const mockToastError = vi.fn();
-const { mockCargosModal } = vi.hoisted(() => ({ mockCargosModal: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "op-test-1" }),
@@ -69,13 +68,6 @@ vi.mock("@/app/providers/ModalMessageProvider", () => ({
   useModalMessage: () => ({
     confirm: mockConfirm,
   }),
-}));
-
-vi.mock("@/app/components/operaciones/OperacionCargosModal", () => ({
-  default: (props: unknown) => {
-    mockCargosModal(props);
-    return null;
-  },
 }));
 
 describe("OperacionDetailPage (/operaciones/[id])", () => {
@@ -145,7 +137,8 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
     expect(screen.getByText("$6.000")).toBeInTheDocument();
 
     // Tabla de productos y cumplimiento parcial
-    expect(screen.getByText("Bujía Bosch")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Productos \/ Repuestos/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Productos y repuestos" })).toContainElement(screen.getByText("Bujía Bosch"));
     expect(screen.getByText("BB-01")).toBeInTheDocument();
     expect(screen.getByText("7")).toBeInTheDocument(); // Cumplidas
     expect(screen.getByText("3")).toBeInTheDocument(); // Pendientes (10 - 7)
@@ -157,9 +150,6 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
     // Observaciones
     expect(screen.getByText("Entregar embalado")).toBeInTheDocument();
 
-    // Badges interactivos (formato unificado como en detalle de arreglo)
-    expect(screen.getAllByTestId("operacion-pago-badge").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByTestId("operacion-estado-stock-badge").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByTestId("operacion-detail-pago-btn")).not.toBeInTheDocument();
     expect(screen.queryByTestId("operacion-detail-stock-btn")).not.toBeInTheDocument();
 
@@ -169,7 +159,19 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
     expect(screen.getByRole("button", { name: "Eliminar venta" })).toBeInTheDocument();
   });
 
-  it("permite agregar cargos sin cargos previos y usa el total operativo como base", async () => {
+  it.each(["COMPRA", "VENTA"] as const)("muestra los chips de %s solo en sus paneles de estado", async (tipo) => {
+    mockGetById.mockResolvedValue({ data: { ...operacionVenta, tipo }, error: null });
+
+    render(<OperacionDetailPage />);
+    await runPendingPromises();
+
+    const financiero = await screen.findByText("Estado Financiero");
+    const mercaderia = screen.getByText("Estado de Mercadería / Stock");
+    expect(financiero.parentElement).toContainElement(screen.getByTestId("operacion-pago-badge"));
+    expect(mercaderia.parentElement).toContainElement(screen.getByTestId("operacion-estado-stock-badge"));
+  });
+
+  it("oculta el panel y el botón de cargos en una compra sin percepciones", async () => {
     const compra: Operacion = {
       ...operacionVenta,
       id: "22222222-2222-4222-8222-222222222222",
@@ -184,9 +186,24 @@ describe("OperacionDetailPage (/operaciones/[id])", () => {
 
     render(<OperacionDetailPage />);
     await runPendingPromises();
-    fireEvent.click(await screen.findByTestId("operacion-cargos-editar"));
+    expect(await screen.findByText(/Compra #22222222/)).toBeInTheDocument();
+    expect(screen.queryByTestId("operacion-cargos")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Agregar cargos" })).not.toBeInTheDocument();
+  });
 
-    expect(mockCargosModal).toHaveBeenCalledWith(expect.objectContaining({ operacion: compra, montoBase: 1240 }));
+  it("muestra el panel con las percepciones registradas", async () => {
+    const compra: Operacion = {
+      ...operacionVenta,
+      tipo: "COMPRA",
+      cargos: [{ id: "cargo-1", orden: 1, tipo: "PERCEPCION", percepcion_codigo: "OTRA", descripcion: "Percepción municipal", importe: 240 }],
+    };
+    mockGetById.mockResolvedValue({ data: compra, error: null });
+
+    render(<OperacionDetailPage />);
+    await runPendingPromises();
+
+    expect(await screen.findByTestId("operacion-cargos")).toContainElement(screen.getByText("Percepción municipal"));
+    expect(screen.queryByRole("button", { name: /(?:Editar|Agregar) cargos/ })).not.toBeInTheDocument();
   });
 
   it("redirige automáticamente a /arreglos/[id] cuando la operación es COBRO_ARREGLO", async () => {

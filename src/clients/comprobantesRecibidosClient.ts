@@ -58,6 +58,14 @@ export const comprobantesRecibidosClient = {
     );
   },
 
+  async crearTurnoVencimiento(id: string): Promise<void> {
+    await request(
+      `/api/comprobantes-recibidos/${encodeURIComponent(id)}/vencimiento`,
+      { method: "POST" },
+      "No se pudo agregar el vencimiento al calendario",
+    );
+  },
+
   async remove(id: string): Promise<void> {
     await request(
       `/api/comprobantes-recibidos/${encodeURIComponent(id)}`,

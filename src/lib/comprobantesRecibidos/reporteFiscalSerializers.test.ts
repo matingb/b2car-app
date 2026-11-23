@@ -143,7 +143,30 @@ it("conserva la factura B por su total final sin inferir base ni IVA discriminad
   expect(fields.Total).toBe("121.00");
   expect(fields.Neto).toBe("");
   expect(fields.IVA).toBe("");
+  expect(fields["No Gravado"]).toBe("");
   expect(report.summary.desgloseIncompleto).toBe(1);
+});
+
+it.each(["A", "B"] as const)("exporta la alícuota cero de una factura %s sin desglose", (clase) => {
+  const factura: ComprasFiscalDocumento = {
+    ...invoice,
+    clase,
+    desgloseIva: null,
+    lineas: [
+      { ...invoice.lineas[0], importe: 121, ivaAlicuotaId: 5 },
+      { ...invoice.lineas[0], id: "concepto-cero-1", orden: 2, importe: 25.1, ivaAlicuotaId: 3 },
+      { ...invoice.lineas[0], id: "concepto-cero-2", orden: 3, importe: 34.2, ivaAlicuotaId: 3 },
+    ],
+  };
+  const report = buildComprasFiscalReport([factura], { ...filters, format: "csv" });
+  const csv = serializeComprasFiscalCsv(report);
+  const { fields } = csvFields(csv);
+
+  expect(fields.Total).toBe("180.30");
+  expect(fields.Neto).toBe("");
+  expect(fields.IVA).toBe("");
+  expect(fields["No Gravado"]).toBe("59.30");
+  expect(csv).toContain("\r\nTotal no gravado,59.30,,\r\n");
 });
 
 it("limita el resumen a los totales fiscales acordados", async () => {
@@ -178,7 +201,11 @@ it("limita el resumen a los totales fiscales acordados", async () => {
   const bytes = await serializeComprasFiscalXlsx(report);
   await workbook.xlsx.load(Buffer.from(bytes) as unknown as Parameters<typeof workbook.xlsx.load>[0]);
   const summary: { concepto: string; importe: ExcelJS.CellValue; cantidad: ExcelJS.CellValue; detalle: string }[] = [];
-  workbook.getWorksheet("Resumen")?.eachRow((row) => {
+  const summarySheet = workbook.getWorksheet("Resumen")!;
+  expect([1, 2, 3, 4].map((column) => summarySheet.getCell(1, column).text))
+    .toEqual(["Concepto", "Importe", "Cantidad", "Detalle"]);
+  summarySheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
     summary.push({
       concepto: row.getCell(1).text,
       importe: row.getCell(2).value,
@@ -226,16 +253,18 @@ describe("encabezados del reporte de compras", () => {
     expect(Array.from({ length: invoiceHeaders.length }, (_, index) => worksheet!.getCell(1, index + 1).value)).toEqual(invoiceHeaders);
   });
 
-  it("suma todas las alícuotas en IVA y usa ese total en Resumen", async () => {
+  it("suma el IVA confirmado y separa la base al 0% en Facturas y Resumen", async () => {
     const mixedInvoice: ComprasFiscalDocumento = {
       ...invoice,
       desgloseIva: [
         { ivaAlicuotaId: 5, base: 100, iva: 21 },
         { ivaAlicuotaId: 4, base: 200, iva: 21 },
+        { ivaAlicuotaId: 3, base: 50, iva: 0 },
       ],
       lineas: [
         { id: "concepto-mixto", orden: 1, tipo: "CONCEPTO", descripcion: "Tasas mixtas", percepcionCodigo: null, importe: 342, ivaAlicuotaId: 5 },
-        { id: "percepcion-iva-mixta", orden: 2, tipo: "PERCEPCION", descripcion: "IVA", percepcionCodigo: "IVA", importe: 5 },
+        { id: "concepto-cero", orden: 2, tipo: "CONCEPTO", descripcion: "IVA al 0%", percepcionCodigo: null, importe: 50, ivaAlicuotaId: 3 },
+        { id: "percepcion-iva-mixta", orden: 3, tipo: "PERCEPCION", descripcion: "IVA", percepcionCodigo: "IVA", importe: 5 },
       ],
     };
     const report = buildComprasFiscalReport([mixedInvoice], { ...filters, format: "xlsx" });
@@ -248,17 +277,17 @@ describe("encabezados del reporte de compras", () => {
     expect(headers).toEqual(invoiceHeaders);
     expect(worksheet!.getCell(2, headers.indexOf("Neto") + 1).value).toBe(300);
     expect(worksheet!.getCell(2, headers.indexOf("IVA") + 1).value).toBe(42);
+    expect(worksheet!.getCell(2, headers.indexOf("No Gravado") + 1).value).toBe(50);
     expect(worksheet!.getCell(2, headers.indexOf("Percep. IVA") + 1).value).toBe(5);
-    expect(worksheet!.getCell(2, headers.indexOf("Total") + 1).value).toBe(347);
+    expect(worksheet!.getCell(2, headers.indexOf("Total") + 1).value).toBe(397);
 
     const summary = workbook.getWorksheet("Resumen");
     expect(summary).toBeDefined();
-    const ivaRow = Array.from({ length: summary!.rowCount }, (_, index) => index + 1)
-      .find((row) => summary!.getCell(row, 1).value === "Total IVA");
-    expect(ivaRow).toBeDefined();
-    expect(summary!.getCell(ivaRow!, 2).value).toBe(42);
-    const labels = Array.from({ length: summary!.rowCount }, (_, index) => summary!.getCell(index + 1, 1).value)
-      .join(" ");
-    expect(labels).not.toContain("IVA 21%");
+    const summaryTotals = new Map<string, ExcelJS.CellValue>();
+    summary?.eachRow((row) => summaryTotals.set(row.getCell(1).text, row.getCell(2).value));
+    expect(summaryTotals.get("Total neto")).toBe(300);
+    expect(summaryTotals.get("Total no gravado")).toBe(50);
+    expect(summaryTotals.get("Total IVA")).toBe(42);
+    expect(summaryTotals.has("IVA 21%")).toBe(false);
   });
 });

@@ -10,6 +10,7 @@ import type {
 } from "./reporteFiscal";
 
 const PERCEPCION_LABELS = new Map<string, string>(PERCEPCIONES_SUGERIDAS.map((item) => [item.codigo, item.label]));
+const IVA_CERO_ALICUOTA_ID = 3;
 
 function cents(value: unknown): number {
   if (typeof value !== "string" && typeof value !== "number") throw new Error("Importe recibido inválido");
@@ -60,12 +61,18 @@ function buildInvoiceRow(document: ComprasFiscalDocumento, columns: ComprasFisca
 
   let total = 0;
   let totalConceptos = 0;
+  let noGravadoPorConceptos: number | null = null;
+  const admiteIvaPorConcepto = document.clase === "A" || document.clase === "B";
   const percepciones: Record<string, number> = {};
   for (const line of document.lineas) {
     const amount = cents(line.importe);
     total = add(total, amount);
-    if (line.tipo === "CONCEPTO") totalConceptos = add(totalConceptos, amount);
-    else {
+    if (line.tipo === "CONCEPTO") {
+      totalConceptos = add(totalConceptos, amount);
+      if (admiteIvaPorConcepto && line.ivaAlicuotaId === IVA_CERO_ALICUOTA_ID) {
+        noGravadoPorConceptos = add(noGravadoPorConceptos ?? 0, amount);
+      }
+    } else {
       const key = normalizedPercepcionKey(line.percepcionCodigo, line.descripcion);
       percepciones[key] = add(percepciones[key] ?? 0, amount);
     }
@@ -77,8 +84,7 @@ function buildInvoiceRow(document: ComprasFiscalDocumento, columns: ComprasFisca
     .join("; ");
   const percepcionIva = percepciones.IVA ?? 0;
 
-  // Solo el desglose confirmado de una factura A alimenta las columnas fiscales. Las tasas
-  // operativas y los importes finales de B/C nunca completan datos que el documento no confirmó.
+  // El neto y el IVA discriminado salen del desglose confirmado de la factura A.
   const breakdown = document.clase === "A" ? document.desgloseIva ?? [] : [];
   const basesByRate = new Map<number, number>();
   const ivaByRate = new Map<number, number>();
@@ -99,19 +105,22 @@ function buildInvoiceRow(document: ComprasFiscalDocumento, columns: ComprasFisca
     throw new Error("El desglose de IVA supera el importe de conceptos de la factura");
   }
   const desgloseCompleto = desgloseConfirmado && importeConfirmado === totalConceptos;
+  // En este reporte, la base al 0% se muestra en «No Gravado». En A prevalece el desglose confirmado.
+  const baseIvaCero = basesByRate.get(IVA_CERO_ALICUOTA_ID);
+  const netoGravado = desgloseConfirmado ? totalBases - (baseIvaCero ?? 0) : null;
 
   const amounts: FiscalAmounts = {
-    netoGravado: desgloseConfirmado ? totalBases : null,
+    netoGravado,
     sinIvaC: null,
     exento: null,
-    noGravado: null,
+    noGravado: baseIvaCero ?? noGravadoPorConceptos,
     base21: desgloseConfirmado
       ? basesByRate.get(5) ?? (desgloseCompleto ? 0 : null)
       : null,
     iva21: desgloseConfirmado
       ? ivaByRate.get(5) ?? (desgloseCompleto ? 0 : null)
       : null,
-    baseTotal: desgloseConfirmado ? totalBases : null,
+    baseTotal: netoGravado,
     ivaTotal: desgloseConfirmado ? totalIva : null,
     otrosTributos: null,
     impuestosNacionales: null,

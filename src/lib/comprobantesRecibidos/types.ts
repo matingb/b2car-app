@@ -248,3 +248,17 @@ export function comprobanteRecibidoTitulo(
   }
   return comprobante.numero ? `Retención ${comprobante.numero}` : "Retención";
 }
+
+export type FacturaCompraConVencimiento = ComprobanteRecibido & {
+  operacionTipo: "COMPRA";
+  tipoDocumento: "FACTURA";
+  fechaVencimiento: string;
+};
+
+export function esFacturaCompraConVencimiento(
+  comprobante: ComprobanteRecibido,
+): comprobante is FacturaCompraConVencimiento {
+  return comprobante.operacionTipo === "COMPRA"
+    && comprobante.tipoDocumento === "FACTURA"
+    && Boolean(comprobante.fechaVencimiento);
+}
