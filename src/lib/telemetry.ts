@@ -12,7 +12,6 @@ export {
   setActiveIdentity,
   clearActiveIdentity,
   ALLOWED_BAGGAGE_KEYS,
-  extractClaimsFromCookieHeader,
   enrichSpan,
 } from "./telemetry/honeycomb";
 

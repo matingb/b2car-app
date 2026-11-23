@@ -4,6 +4,7 @@ import { createClient } from "@/supabase/server";
 import { fetchEffectivePermissions, fetchPlanPermissions } from "@/lib/permissions.server";
 import { Permission } from "@/lib/permissions";
 import { logger } from "@/lib/logger";
+import { telemetry } from "@/lib/telemetry";
 import { mockApiSession } from "@/tests/apiRoute";
 import { ApiError } from "./apiError";
 import { createApiHandler, type ApiHandlerContext } from "./apiHandler";
@@ -170,5 +171,34 @@ describe("createApiHandler", () => {
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({ data: null, code: "CONFLICT", error: "Nombre duplicado" });
     expect(logger.warn).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ cuentaId: "account", requestId: expect.any(String) }));
+  });
+
+  it("identifies both user (including email) and tenant (including tenant.name) in telemetry", async () => {
+    const identifySpy = vi.spyOn(telemetry, "identify");
+    mockApiSession({
+      claims: {
+        sub: "11111111-1111-4111-8111-111111111111",
+        email: "operador@arturo.com",
+        user_role: "admin",
+        tenant_id: "22222222-2222-4222-8222-222222222222",
+        tenant_name: "Neumáticos Arturo",
+        plan_sub: "PRO",
+      },
+    });
+    const handler = createApiHandler(options, async () => Response.json({ ok: true }));
+    const response = await handler(request(), segment());
+    expect(response.status).toBe(200);
+    expect(identifySpy).toHaveBeenCalledWith({
+      user: {
+        id: "11111111-1111-4111-8111-111111111111",
+        role: "admin",
+        email: "operador@arturo.com",
+      },
+      account: {
+        id: "22222222-2222-4222-8222-222222222222",
+        name: "Neumáticos Arturo",
+        plan: "PRO",
+      },
+    });
   });
 });

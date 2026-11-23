@@ -4,6 +4,7 @@ import { createClient } from "@/supabase/server";
 import { logger } from "@/lib/logger";
 import { Permission, type PermissionValue } from "@/lib/permissions";
 import { fetchEffectivePermissions } from "@/lib/permissions.server";
+import { identityFromClaims, telemetry } from "@/lib/telemetry";
 import { FacturacionValidationError } from "./arcaPayload";
 import { FceMipymeQueryError } from "./fceMipyme";
 
@@ -49,6 +50,11 @@ export async function requireTenantActor(): Promise<TenantActor> {
   }
   if (!tenantId) {
     throw new FacturacionHttpError("La sesión no tiene un tenant activo", 403);
+  }
+
+  const identity = identityFromClaims(claims);
+  if (identity) {
+    telemetry.identify(identity);
   }
 
   const { data: membership, error: membershipError } = await supabase

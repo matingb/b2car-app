@@ -57,8 +57,8 @@ export function createApiHandler(
     try {
       context = await buildApiContext();
       const identity = {
-        user: { id: context.actor.userId, role: context.actor.role },
-        account: { id: context.actor.tenantId, plan: context.actor.plan },
+        user: { id: context.actor.userId, role: context.actor.role, email: context.actor.email },
+        account: { id: context.actor.tenantId, name: context.actor.tenantName, plan: context.actor.plan },
       };
       telemetry.identify(identity);
       if (options.permission) await assertPermission(context, options.permission);

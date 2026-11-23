@@ -7,6 +7,7 @@ import { normalizeUserRole, type UserRoleValue, type PermissionValue } from "@/l
 import { normalizeSubscriptionPlan, type SubscriptionPlanValue } from "@/lib/subscription";
 import { fetchEffectivePermissions } from "@/lib/permissions.server";
 import { isValidUuid } from "@/lib/uuid";
+import { identityFromClaims, telemetry } from "@/lib/telemetry";
 import { ApiError } from "./apiError";
 
 export type ApiActor = {
@@ -14,6 +15,8 @@ export type ApiActor = {
   tenantId: string;
   role: UserRoleValue;
   plan: SubscriptionPlanValue;
+  tenantName: string;
+  email: string;
 };
 
 export type ApiContext = {
@@ -31,16 +34,23 @@ export async function buildApiContext(): Promise<ApiContext> {
   const plan = normalizeSubscriptionPlan(claims?.plan_sub);
   const userId = claims?.sub;
   const tenantId = claims?.tenant_id;
+  const tenantName = claims?.tenant_name?.trim() ?? "";
+  const email = claims?.email?.trim() ?? "";
 
-  if (error || !role || !plan || !isValidUuid(userId) || !isValidUuid(tenantId)) {
+  if (error || !role || !plan || !isValidUuid(userId) || !isValidUuid(tenantId) || !tenantName || !email) {
     throw new ApiError(401, API_ERROR_MESSAGES.UNAUTHORIZED, "UNAUTHORIZED");
+  }
+
+  const identity = identityFromClaims(claims as Record<string, unknown>);
+  if (identity) {
+    telemetry.identify(identity);
   }
 
   const permissions = await fetchEffectivePermissions(supabase, role, plan);
   const permissionSet = new Set(permissions);
   return {
     supabase,
-    actor: { userId, tenantId, role, plan },
+    actor: { userId, tenantId, role, plan, tenantName, email },
     permissions,
     can: (permission) => permissionSet.has(permission),
   };

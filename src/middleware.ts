@@ -3,7 +3,6 @@ import { updateSession } from './supabase/middleware'
 import { logger } from '@/lib/logger';
 
 export async function middleware(request: NextRequest) {
-  
   if (process.env.LOG_EVERY_REQUEST === 'true'){
     logger.info('Request: ', {
       method: request.method,

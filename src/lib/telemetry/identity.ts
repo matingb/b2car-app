@@ -1,6 +1,17 @@
 import { normalizeSubscriptionPlan } from "@/lib/subscription";
 import type { TelemetryIdentity, TelemetryAttributes } from "./types";
 
+function toNonEmptyString(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : undefined;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  return undefined;
+}
+
 export function compact<T extends object>(obj: T): T {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined && v !== null && v !== "")
@@ -8,36 +19,43 @@ export function compact<T extends object>(obj: T): T {
 }
 
 export function buildTelemetryAttributes(identity: TelemetryIdentity): TelemetryAttributes {
-  const attrs: TelemetryAttributes = {
-    "user.id": identity.user.id,
-  };
-  if (identity.user.email) attrs["user.email"] = String(identity.user.email);
-  if (identity.user.role) attrs["user.role"] = String(identity.user.role);
-  if (identity.user.name) attrs["user.name"] = String(identity.user.name);
+  const userId = toNonEmptyString(identity.user.id);
+  const attrs: TelemetryAttributes = {};
+  if (userId) attrs["user.id"] = userId;
+
+  const email = toNonEmptyString(identity.user.email);
+  const role = toNonEmptyString(identity.user.role);
+  if (email) attrs["user.email"] = email;
+  if (role) attrs["user.role"] = role;
 
   if (identity.account) {
-    attrs["tenant.id"] = String(identity.account.id);
-    if (identity.account.name) attrs["tenant.name"] = String(identity.account.name);
-    if (identity.account.plan) attrs["tenant.plan"] = String(identity.account.plan);
+    const tenantId = toNonEmptyString(identity.account.id);
+    const tenantName = toNonEmptyString(identity.account.name);
+    const tenantPlan = toNonEmptyString(identity.account.plan);
+    if (tenantId) attrs["tenant.id"] = tenantId;
+    if (tenantName) attrs["tenant.name"] = tenantName;
+    if (tenantPlan) attrs["tenant.plan"] = tenantPlan;
   }
   return attrs;
 }
 
 export function identityFromClaims(claims?: Record<string, unknown> | null): TelemetryIdentity | null {
-  if (!claims?.sub) return null;
+  const userId = toNonEmptyString(claims?.sub);
+  if (!userId) return null;
+
   const user = compact({
-    id: String(claims.sub),
-    role: claims.user_role ? String(claims.user_role) : undefined,
-    email: claims.email ? String(claims.email) : undefined,
+    id: userId,
+    role: toNonEmptyString(claims?.user_role),
+    email: toNonEmptyString(claims?.email),
   });
-  const account = claims.tenant_id
+  const tenantId = toNonEmptyString(claims?.tenant_id);
+  const account = tenantId
     ? compact({
-      id: String(claims.tenant_id),
-      name: claims.tenant_name ? String(claims.tenant_name) : undefined,
-      plan: normalizeSubscriptionPlan(claims.plan_sub) || undefined,
+      id: tenantId,
+      name: toNonEmptyString(claims?.tenant_name),
+      plan: normalizeSubscriptionPlan(claims?.plan_sub) || undefined,
     })
     : undefined;
 
   return { user, account };
 }
-

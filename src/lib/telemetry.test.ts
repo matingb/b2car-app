@@ -151,6 +151,36 @@ describe("telemetry unified wrapper", () => {
       });
     });
 
+    it("dadas credenciales con user_metadata.full_name o name, omite user.name y user.full_name por el momento", async () => {
+      const { identityFromClaims, getTelemetryAttributes } = await import("./telemetry");
+      const identity = identityFromClaims({
+        sub: "user-uuid",
+        email: "op@taller.com",
+        user_role: "admin",
+        user_name: "op",
+        name: "Operador",
+        user_metadata: {
+          full_name: "Operador Completo",
+          name: "Operador Meta",
+        },
+        tenant_id: "tenant-uuid",
+      });
+
+      expect(identity).toEqual({
+        user: {
+          id: "user-uuid",
+          role: "admin",
+          email: "op@taller.com",
+        },
+        account: {
+          id: "tenant-uuid",
+        },
+      });
+      const attrs = getTelemetryAttributes(identity!);
+      expect(attrs["user.name"]).toBeUndefined();
+      expect(attrs["user.full_name"]).toBeUndefined();
+    });
+
     it("dadas credenciales sin usuario, no genera contexto de identidad", async () => {
       const { identityFromClaims } = await import("./telemetry");
       expect(identityFromClaims(null)).toBeNull();
@@ -206,7 +236,11 @@ describe("telemetry unified wrapper", () => {
   });
 
   describe("log", () => {
-    it("dado un log estructurado, lo propaga como evento a Honeycomb", () => {
+    it("dado un log estructurado, lo propaga como evento de span y LogRecord sin mutar los atributos del span padre", async () => {
+      const { logs } = await import("./telemetry");
+      const emitMock = vi.fn();
+      const getLoggerSpy = vi.spyOn(logs, "getLogger").mockReturnValue({ emit: emitMock } as never);
+
       const mockSpan = {
         addEvent: vi.fn(),
         setAttributes: vi.fn(),
@@ -215,14 +249,22 @@ describe("telemetry unified wrapper", () => {
 
       telemetry.log("warn", "Consumo alto de recursos", { memoriaMb: 512 });
 
-      expect(mockSpan.setAttributes).toHaveBeenCalledWith({
-        severity: "warn",
-        memoriaMb: 512,
-      });
+      expect(mockSpan.setAttributes).not.toHaveBeenCalled();
       expect(mockSpan.addEvent).toHaveBeenCalledWith("Consumo alto de recursos", {
         severity: "warn",
         memoriaMb: 512,
       });
+      expect(getLoggerSpy).toHaveBeenCalledWith("b2car-app");
+      expect(emitMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          severityText: "WARN",
+          body: "Consumo alto de recursos",
+          attributes: {
+            severity: "warn",
+            memoriaMb: 512,
+          },
+        }),
+      );
     });
   });
 
@@ -366,7 +408,7 @@ describe("telemetry unified wrapper", () => {
     });
 
     it("extractClaimsFromCookieHeader decodifica correctamente tokens de sesión de cookies de Supabase", async () => {
-      const { extractClaimsFromCookieHeader } = await import("./telemetry");
+      const { extractClaimsFromCookieHeader } = await import("./telemetry/honeycomb");
 
       const testPayload = {
         sub: "usr-cookie-1",
@@ -385,7 +427,7 @@ describe("telemetry unified wrapper", () => {
     });
 
     it("extractClaimsFromCookieHeader decodifica tokens fragmentados en múltiples cookies", async () => {
-      const { extractClaimsFromCookieHeader } = await import("./telemetry");
+      const { extractClaimsFromCookieHeader } = await import("./telemetry/honeycomb");
 
       const testPayload = { sub: "usr-chunked", email: "chunk@test.com" };
       const dummyJwt = "header." + Buffer.from(JSON.stringify(testPayload)).toString("base64url") + ".sig";
@@ -407,7 +449,7 @@ describe("telemetry unified wrapper", () => {
       expect(mockSpan.setAttribute).toHaveBeenCalledWith("tenant.id", "t-enrich");
     });
 
-    it("HoneycombNativeSpanProcessor enriquece en onEnd los spans que iniciaron antes de conocer la identidad", async () => {
+    it("HoneycombNativeSpanProcessor enriquece en onEnding via setAttribute los spans que iniciaron antes de conocer la identidad y no muta ReadableSpan en onEnd", async () => {
       const { HoneycombNativeSpanProcessor, setActiveIdentity, clearActiveIdentity } = await import("./telemetry");
 
       clearActiveIdentity();
@@ -415,7 +457,9 @@ describe("telemetry unified wrapper", () => {
 
       const earlySpan = {
         attributes: {} as Record<string, unknown>,
-        setAttribute: vi.fn(),
+        setAttribute: vi.fn((k: string, v: unknown) => {
+          earlySpan.attributes[k] = v;
+        }),
       };
 
       setActiveIdentity({
@@ -423,10 +467,270 @@ describe("telemetry unified wrapper", () => {
         "user.id": "usr-late",
       });
 
-      processor.onEnd(earlySpan as unknown as Parameters<typeof processor.onEnd>[0]);
+      processor.onEnding?.(earlySpan as unknown as Parameters<NonNullable<typeof processor.onEnding>>[0]);
 
-      expect(earlySpan.attributes["tenant.id"]).toBe("tenant-late");
-      expect(earlySpan.attributes["user.id"]).toBe("usr-late");
+      expect(earlySpan.setAttribute).toHaveBeenCalledWith("tenant.id", "tenant-late");
+      expect(earlySpan.setAttribute).toHaveBeenCalledWith("user.id", "usr-late");
+
+      const finishedSpan = {
+        attributes: {} as Record<string, unknown>,
+      };
+      const asSpanProcessor: import("@opentelemetry/sdk-trace-base").SpanProcessor = processor;
+      asSpanProcessor.onEnd(finishedSpan as unknown as import("@opentelemetry/sdk-trace-base").ReadableSpan);
+      expect(finishedSpan.attributes).toEqual({});
+
+      clearActiveIdentity();
+    });
+
+    it("propaga user.* y tenant.* (incluyendo tenant.name) al span raíz del trace aunque identify se llame en un span hijo", async () => {
+      const { HoneycombNativeSpanProcessor, clearActiveIdentity } = await import("./telemetry");
+      const { context } = await import("@opentelemetry/api");
+
+      clearActiveIdentity();
+      const processor = new HoneycombNativeSpanProcessor();
+      const traceId = "4bf92f3577b34da6a3ce929d0e0e4736";
+
+      const rootSpan = {
+        spanContext: () => ({ traceId, spanId: "00f067aa0ba902b7" }),
+        attributes: {} as Record<string, unknown>,
+        setAttribute: vi.fn((k: string, v: unknown) => {
+          rootSpan.attributes[k] = v;
+        }),
+      };
+
+      // El span raíz inicia antes de que el handler autentique al usuario
+      processor.onStart(rootSpan as unknown as Parameters<typeof processor.onStart>[0], context.active());
+      expect(rootSpan.attributes["tenant.id"]).toBeUndefined();
+
+      // Un span hijo (por ejemplo, handler de API o createClient) identifica al usuario y tenant
+      const childSpan = {
+        spanContext: () => ({ traceId, spanId: "11f067aa0ba902b8" }),
+        attributes: {} as Record<string, unknown>,
+        setAttribute: vi.fn((k: string, v: unknown) => {
+          childSpan.attributes[k] = v;
+        }),
+      };
+      vi.mocked(trace.getActiveSpan).mockReturnValue(childSpan as unknown as ReturnType<typeof trace.getActiveSpan>);
+
+      telemetry.identify({
+        user: { id: "u-root-test", email: "user@taller.com", role: "admin" },
+        account: { id: "t-root-test", name: "Neumáticos Arturo", plan: "PRO" },
+      });
+
+      // Un span nieto (por ejemplo, fetch/undici) que inicia dentro del mismo trace recibe todo en onStart
+      const grandchildSpan = {
+        spanContext: () => ({ traceId, spanId: "22f067aa0ba902b9" }),
+        attributes: {} as Record<string, unknown>,
+        setAttribute: vi.fn((k: string, v: unknown) => {
+          grandchildSpan.attributes[k] = v;
+        }),
+      };
+      processor.onStart(grandchildSpan as unknown as Parameters<typeof processor.onStart>[0], context.active());
+      expect(grandchildSpan.attributes).toMatchObject({
+        "user.id": "u-root-test",
+        "user.email": "user@taller.com",
+        "user.role": "admin",
+        "tenant.id": "t-root-test",
+        "tenant.name": "Neumáticos Arturo",
+        "tenant.plan": "PRO",
+      });
+
+      // Al finalizar el span raíz, onEnding completa todos los atributos vía setAttribute
+      processor.onEnding?.(rootSpan as unknown as Parameters<NonNullable<typeof processor.onEnding>>[0]);
+      expect(rootSpan.attributes).toMatchObject({
+        "user.id": "u-root-test",
+        "user.email": "user@taller.com",
+        "user.role": "admin",
+        "tenant.id": "t-root-test",
+        "tenant.name": "Neumáticos Arturo",
+        "tenant.plan": "PRO",
+      });
+
+      clearActiveIdentity();
+    });
+
+    it("no expone PII (user.email) en W3C Baggage aunque conserva la identidad completa en Context", async () => {
+      const { ALLOWED_BAGGAGE_KEYS, clearActiveIdentity } = await import("./telemetry");
+      const { context, propagation } = await import("@opentelemetry/api");
+      const { StackContextManager } = await import("@opentelemetry/sdk-trace-web");
+
+      const ctxManager = new StackContextManager();
+      ctxManager.enable();
+      context.setGlobalContextManager(ctxManager);
+
+      try {
+        clearActiveIdentity();
+        expect(ALLOWED_BAGGAGE_KEYS.has("user.email")).toBe(false);
+        expect(ALLOWED_BAGGAGE_KEYS.has("user.name")).toBe(false);
+        expect(ALLOWED_BAGGAGE_KEYS.has("user.full_name")).toBe(false);
+
+        await telemetry.withIdentity(
+          {
+            user: { id: "u-pii", email: "privado@taller.com", role: "admin" },
+            account: { id: "t-pii", name: "Taller Seguro", plan: "PRO" },
+          },
+          () => {
+            const activeBaggage = propagation.getActiveBaggage();
+            expect(activeBaggage?.getEntry("user.id")?.value).toBe("u-pii");
+            expect(activeBaggage?.getEntry("tenant.id")?.value).toBe("t-pii");
+            expect(activeBaggage?.getEntry("user.email")).toBeUndefined();
+            expect(activeBaggage?.getEntry("user.name")).toBeUndefined();
+            expect(activeBaggage?.getEntry("user.full_name")).toBeUndefined();
+
+            const resolved = getActiveIdentityAttributes();
+            expect(resolved).toMatchObject({
+              "user.id": "u-pii",
+              "user.email": "privado@taller.com",
+              "tenant.id": "t-pii",
+            });
+            expect(resolved?.["user.name"]).toBeUndefined();
+            expect(resolved?.["user.full_name"]).toBeUndefined();
+          },
+        );
+      } finally {
+        clearActiveIdentity();
+        context.disable();
+      }
+    });
+
+    it("aísla identidades por traceId en servidor y clearUser solo limpia la traza activa", async () => {
+      const { clearActiveIdentity } = await import("./telemetry");
+      vi.stubGlobal("window", undefined);
+
+      try {
+        const traceUserA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        const traceUserB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+        vi.mocked(trace.getActiveSpan).mockReturnValue({
+          spanContext: () => ({ traceId: traceUserA, spanId: "1111111111111111" }),
+          setAttribute: vi.fn(),
+        } as unknown as ReturnType<typeof trace.getActiveSpan>);
+        telemetry.identify({
+          user: { id: "user-a", email: "a@test.com" },
+          account: { id: "tenant-a" },
+        });
+
+        vi.mocked(trace.getActiveSpan).mockReturnValue({
+          spanContext: () => ({ traceId: traceUserB, spanId: "2222222222222222" }),
+          setAttribute: vi.fn(),
+        } as unknown as ReturnType<typeof trace.getActiveSpan>);
+        telemetry.identify({
+          user: { id: "user-b", email: "b@test.com" },
+          account: { id: "tenant-b" },
+        });
+
+        // Sin traza activa en servidor, no se filtra identidad de otro usuario
+        vi.mocked(trace.getActiveSpan).mockReturnValue(undefined);
+        expect(getActiveIdentityAttributes()).toBeNull();
+
+        // Logout del Usuario A solo elimina traceUserA, manteniendo traceUserB intacto
+        vi.mocked(trace.getActiveSpan).mockReturnValue({
+          spanContext: () => ({ traceId: traceUserA, spanId: "1111111111111111" }),
+        } as unknown as ReturnType<typeof trace.getActiveSpan>);
+        telemetry.clearUser();
+
+        expect(getActiveIdentityAttributes(undefined, traceUserA)).toBeNull();
+        expect(getActiveIdentityAttributes(undefined, traceUserB)).toMatchObject({
+          "user.id": "user-b",
+          "tenant.id": "tenant-b",
+        });
+      } finally {
+        vi.unstubAllGlobals();
+        clearActiveIdentity();
+      }
+    });
+
+    it("extractClaimsFromCookieHeader ordena numéricamente cookies fragmentadas en 10 o más partes", async () => {
+      const { extractClaimsFromCookieHeader } = await import("./telemetry/honeycomb");
+
+      const testPayload = { sub: "usr-many-chunks", email: "chunks@test.com" };
+      const dummyJwt = "header." + Buffer.from(JSON.stringify(testPayload)).toString("base64url") + ".sig";
+      const fullBase64 = "base64-" + Buffer.from(JSON.stringify({ access_token: dummyJwt })).toString("base64url");
+      const chunkSize = Math.ceil(fullBase64.length / 11);
+      const chunks: string[] = [];
+      for (let i = 0; i * chunkSize < fullBase64.length; i++) {
+        chunks.push(`sb-ref-auth-token.${i}=${fullBase64.slice(i * chunkSize, (i + 1) * chunkSize)}`);
+      }
+      // Desordenar poniendo el chunk 10 antes del 2
+      const cookieHeader = chunks.reverse().join("; ");
+
+      const extracted = extractClaimsFromCookieHeader(cookieHeader);
+      expect(extracted).toEqual(testPayload);
+    });
+
+    it("telemetry.trace marca error y registra excepción incluso cuando se lanza un valor que no es Error", async () => {
+      const mockSpan = {
+        recordException: vi.fn(),
+        setStatus: vi.fn(),
+        end: vi.fn(),
+      };
+      vi.mocked(trace.getTracer).mockReturnValue({
+        startActiveSpan: (_name: string, fn: (span: typeof mockSpan) => unknown) => fn(mockSpan),
+      } as never);
+
+      await expect(
+        telemetry.trace("operacion-fallida", () => {
+          throw "boom";
+        }),
+      ).rejects.toBe("boom");
+
+      expect(mockSpan.recordException).toHaveBeenCalledWith(expect.any(Error));
+      expect(mockSpan.setStatus).toHaveBeenCalledWith({
+        code: SpanStatusCode.ERROR,
+        message: "boom",
+      });
+      expect(mockSpan.end).toHaveBeenCalled();
+    });
+
+    it("SupabaseCookieIdentityPropagator extrae user.* y tenant.* de la cookie de sesión antes de iniciar el span raíz", async () => {
+      const { SupabaseCookieIdentityPropagator } = await import("./telemetry/honeycomb");
+      const {
+        HoneycombNativeSpanProcessor,
+        clearActiveIdentity,
+      } = await import("./telemetry");
+      const { context, defaultTextMapGetter } = await import("@opentelemetry/api");
+
+      clearActiveIdentity();
+      const propagator = new SupabaseCookieIdentityPropagator();
+      const processor = new HoneycombNativeSpanProcessor();
+
+      const payload = {
+        sub: "usr-prop-1",
+        email: "prop@taller.com",
+        user_role: "operativo",
+        tenant_id: "ten-prop-1",
+        tenant_name: "Evolución Automotriz",
+        plan_sub: "PRO",
+      };
+      const jwt = "header." + Buffer.from(JSON.stringify(payload)).toString("base64url") + ".sig";
+      const cookie =
+        "sb-ref-auth-token=base64-" +
+        Buffer.from(JSON.stringify({ access_token: jwt })).toString("base64url");
+
+      const extractedCtx = propagator.extract(
+        context.active(),
+        { cookie },
+        defaultTextMapGetter,
+      );
+
+      const rootSpan = {
+        spanContext: () => ({ traceId: "99f92f3577b34da6a3ce929d0e0e4799", spanId: "00f067aa0ba90299" }),
+        attributes: {} as Record<string, unknown>,
+        setAttribute: vi.fn((k: string, v: unknown) => {
+          rootSpan.attributes[k] = v;
+        }),
+      };
+
+      processor.onStart(rootSpan as unknown as Parameters<typeof processor.onStart>[0], extractedCtx);
+
+      expect(rootSpan.attributes).toMatchObject({
+        "user.id": "usr-prop-1",
+        "user.email": "prop@taller.com",
+        "user.role": "operativo",
+        "tenant.id": "ten-prop-1",
+        "tenant.name": "Evolución Automotriz",
+        "tenant.plan": "PRO",
+      });
 
       clearActiveIdentity();
     });

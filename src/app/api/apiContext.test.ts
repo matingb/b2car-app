@@ -15,7 +15,14 @@ describe("buildApiContext", () => {
     const { supabase, getClaims } = mockApiSession({ role: "operativo", plan: "BASE", permissions: [Permission.ArreglosView] });
     const ctx = await buildApiContext();
     expect(ctx.supabase).toBe(supabase);
-    expect(ctx.actor).toEqual({ userId: "11111111-1111-4111-8111-111111111111", tenantId: "22222222-2222-4222-8222-222222222222", role: "operativo", plan: "BASE" });
+    expect(ctx.actor).toEqual({
+      userId: "11111111-1111-4111-8111-111111111111",
+      tenantId: "22222222-2222-4222-8222-222222222222",
+      role: "operativo",
+      plan: "BASE",
+      tenantName: "Taller Test",
+      email: "user@test.local",
+    });
     expect(ctx.can(Permission.ArreglosView)).toBe(true);
     expect(ctx.can(Permission.FinanzasEdit)).toBe(false);
     expect(ctx.can(Permission.ArreglosView)).toBe(true);
@@ -27,6 +34,7 @@ describe("buildApiContext", () => {
   it.each([
     null, {}, { sub: "" }, { sub: 2 }, { sub: "invalid" }, { tenant_id: " " }, { tenant_id: null }, { tenant_id: "invalid" },
     { user_role: "" }, { user_role: 123 }, { user_role: undefined }, { plan_sub: "FREE" }, { plan_sub: undefined },
+    { tenant_name: "" }, { tenant_name: " " }, { tenant_name: null }, { email: "" }, { email: " " }, { email: null },
   ])("rejects missing or invalid claims before fetching permissions: %j", async (overrides) => {
     const valid = mockApiSession().claims;
     mockApiSession({ claims: overrides === null || Object.keys(overrides).length === 0 ? overrides : { ...valid, ...overrides } });

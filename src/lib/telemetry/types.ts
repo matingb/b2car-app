@@ -3,7 +3,6 @@ export interface TelemetryIdentity {
     id: string;
     role?: string;
     email?: string;
-    name?: string;
     [key: string]: unknown;
   };
   account?: {
