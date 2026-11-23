@@ -48,6 +48,7 @@ describe("Honeycomb SDK initialization", () => {
         apiKey: "hcaik_frontend_test",
         serviceName: "b2car-web-test",
         serviceVersion: "1.13.2",
+        disableDefaultMetricExporter: true,
         instrumentations: [[{ name: "auto-web" }]],
         spanProcessors: [expect.any(HoneycombNativeSpanProcessor)],
       }),

@@ -2,6 +2,7 @@ import "server-only";
 
 import { API_ERROR_MESSAGES, type ApiErrorCode } from "@/lib/apiErrorCodes";
 import { logger } from "@/lib/logger";
+import { telemetry } from "@/lib/telemetry";
 import { generateUuidV4 } from "@/lib/uuid";
 import { ServiceError } from "./serviceError";
 
@@ -59,6 +60,7 @@ export class ApiError extends Error {
 function dbErrorFields(error: unknown): DbError {
   if (typeof error !== "object" || error === null) return {};
   const record = error as Record<string, unknown>;
+  if (typeof record.errno === "number" || typeof record.syscall === "string") return {};
   const read = (field: keyof DbError) => typeof record[field] === "string" ? record[field] as string : undefined;
   return {
     code: read("code"),
@@ -197,6 +199,12 @@ export function apiErrorResponse(error: unknown, opts: ApiErrorOptions): Respons
   } else {
     logger.warn(logMessage, payload);
   }
+
+  const dbStatusCode = dbError.code?.trim();
+  telemetry.setAttributes({
+    "error.type": code,
+    ...(dbStatusCode ? { "db.response.status_code": dbStatusCode } : {}),
+  });
 
   const body: Record<string, unknown> = { ...opts.body, error: message, code };
   if (errorId) body.errorId = errorId;

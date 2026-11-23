@@ -30,17 +30,18 @@ describe("telemetry unified wrapper", () => {
     it("permite registrar un provider personalizado y despachar llamadas a él", () => {
       const customProvider = {
         name: "custom-test-provider",
-        setUser: vi.fn(),
-        trackAction: vi.fn(),
+        identify: vi.fn(),
+        setAttributes: vi.fn(),
         recordException: vi.fn(),
       };
       telemetry.registerProvider(customProvider);
 
-      telemetry.setUser({ id: "usr-custom" });
-      expect(customProvider.setUser).toHaveBeenCalledWith({ id: "usr-custom" });
+      const identity = { user: { id: "usr-custom" } };
+      telemetry.identify(identity);
+      expect(customProvider.identify).toHaveBeenCalledWith(identity, { "user.id": "usr-custom" });
 
-      telemetry.trackAction("custom_action");
-      expect(customProvider.trackAction).toHaveBeenCalledWith("custom_action", undefined);
+      telemetry.setAttributes({ "api.route": "GET /api/test" });
+      expect(customProvider.setAttributes).toHaveBeenCalledWith({ "api.route": "GET /api/test" });
 
       const testErr = new Error("custom error");
       telemetry.recordException(testErr);
@@ -64,43 +65,6 @@ describe("telemetry unified wrapper", () => {
       expect(customProvider.initServer).toHaveBeenCalled();
 
       telemetry.removeProvider("custom-init-provider");
-    });
-  });
-
-  describe("setUser", () => {
-    it("dado un operador, al iniciar sesión, se asocian todas las trazas y métricas al taller y a su plan comercial", () => {
-      const mockSpan = {
-        setAttribute: vi.fn(),
-        setAttributes: vi.fn(),
-      };
-      vi.mocked(trace.getActiveSpan).mockReturnValue(mockSpan as unknown as ReturnType<typeof trace.getActiveSpan>);
-
-      telemetry.setUser({
-        id: "usr-123",
-        name: "Matias",
-        email: "matias@example.com",
-        plan_sub: "PRO",
-        tenant_id: "tenant-456",
-        tenant_name: "Taller Matias",
-      });
-
-      // Honeycomb / OTel Span
-      expect(mockSpan.setAttribute).toHaveBeenCalledWith("user.id", "usr-123");
-      expect(mockSpan.setAttribute).toHaveBeenCalledWith("user.email", "matias@example.com");
-      expect(mockSpan.setAttribute).toHaveBeenCalledWith("tenant.id", "tenant-456");
-      expect(mockSpan.setAttribute).toHaveBeenCalledWith("tenant.name", "Taller Matias");
-      expect(mockSpan.setAttribute).toHaveBeenCalledWith("tenant.plan", "PRO");
-    });
-
-    it("dado un usuario anónimo o sin identificador, no asocia datos de taller ni usuario", () => {
-      const mockSpan = {
-        setAttribute: vi.fn(),
-      };
-      vi.mocked(trace.getActiveSpan).mockReturnValue(mockSpan as unknown as ReturnType<typeof trace.getActiveSpan>);
-
-      // @ts-expect-error testing invalid payload
-      telemetry.setUser(null);
-      expect(mockSpan.setAttribute).not.toHaveBeenCalled();
     });
   });
 
@@ -201,19 +165,6 @@ describe("telemetry unified wrapper", () => {
     });
   });
 
-  describe("trackAction", () => {
-    it("dada una acción comercial como emitir una factura, registra el evento con su contexto en la traza activa", () => {
-      const mockSpan = {
-        addEvent: vi.fn(),
-      };
-      vi.mocked(trace.getActiveSpan).mockReturnValue(mockSpan as unknown as ReturnType<typeof trace.getActiveSpan>);
-
-      telemetry.trackAction("crear_factura", { facturaId: "f-1", total: 1500 });
-
-      expect(mockSpan.addEvent).toHaveBeenCalledWith("crear_factura", { facturaId: "f-1", total: 1500 });
-    });
-  });
-
   describe("recordException", () => {
     it("dada una falla en una operación del taller, reporta el incidente marcando la traza con error y su contexto", () => {
       const mockSpan = {
@@ -233,10 +184,113 @@ describe("telemetry unified wrapper", () => {
       });
       expect(mockSpan.setAttribute).toHaveBeenCalledWith("error.context.modulo", "finanzas");
     });
+
+    it("asigna error.type y db.response.status_code según OpenTelemetry sin duplicar campos de log en error.context", () => {
+      const mockSpan = {
+        recordException: vi.fn(),
+        setStatus: vi.fn(),
+        setAttribute: vi.fn(),
+      };
+      vi.mocked(trace.getActiveSpan).mockReturnValue(mockSpan as unknown as ReturnType<typeof trace.getActiveSpan>);
+
+      telemetry.recordException(new Error("ARCA timeout"), { code: "TIMEOUT", route: "POST /api/facturas" });
+      expect(mockSpan.setAttribute).toHaveBeenCalledWith("error.type", "TIMEOUT");
+      expect(mockSpan.setAttribute).toHaveBeenCalledWith("error.context.route", "POST /api/facturas");
+      expect(mockSpan.setAttribute).not.toHaveBeenCalledWith("error.context.code", expect.anything());
+
+      vi.mocked(mockSpan.setAttribute).mockClear();
+      telemetry.recordException(new Error("DB syntax"), {
+        code: "INTERNAL",
+        dbCode: "22007",
+        dbMessage: "invalid input syntax",
+        details: "detail",
+        hint: "hint",
+        errorId: "err-1",
+      });
+      expect(mockSpan.setAttribute).toHaveBeenCalledWith("error.type", "INTERNAL");
+      expect(mockSpan.setAttribute).toHaveBeenCalledWith("db.response.status_code", "22007");
+      expect(mockSpan.setAttribute).not.toHaveBeenCalledWith("error.context.dbMessage", expect.anything());
+      expect(mockSpan.setAttribute).not.toHaveBeenCalledWith("error.context.errorId", expect.anything());
+    });
+  });
+
+  describe("setAttributes", () => {
+    it("asigna atributos al span activo y los promueve en servidor únicamente al span raíz SpanKind.SERVER", async () => {
+      const { HoneycombNativeSpanProcessor, clearActiveIdentity } = await import("./telemetry");
+      const { SpanKind } = await import("@opentelemetry/api");
+      vi.stubGlobal("window", undefined);
+
+      try {
+        const traceId = "cccccccccccccccccccccccccccccccc";
+        const processor = new HoneycombNativeSpanProcessor();
+
+        const serverSpan = {
+          kind: SpanKind.SERVER,
+          spanContext: () => ({ traceId, spanId: "1111111111111111" }),
+          attributes: { "api.route": "/api/arreglos/abc-123" } as Record<string, unknown>,
+          setAttribute: vi.fn((k: string, v: unknown) => {
+            serverSpan.attributes[k] = v;
+          }),
+        };
+
+        const childHandlerSpan = {
+          kind: SpanKind.INTERNAL,
+          spanContext: () => ({ traceId, spanId: "2222222222222222" }),
+          attributes: {} as Record<string, unknown>,
+          setAttribute: vi.fn((k: string, v: unknown) => {
+            childHandlerSpan.attributes[k] = v;
+          }),
+        };
+
+        const clientFetchSpan = {
+          kind: SpanKind.CLIENT,
+          spanContext: () => ({ traceId, spanId: "3333333333333333" }),
+          attributes: {} as Record<string, unknown>,
+          setAttribute: vi.fn((k: string, v: unknown) => {
+            clientFetchSpan.attributes[k] = v;
+          }),
+        };
+
+        vi.mocked(trace.getActiveSpan).mockReturnValue(childHandlerSpan as unknown as ReturnType<typeof trace.getActiveSpan>);
+        telemetry.setAttributes({
+          "api.route": "PUT /api/arreglos/[id]",
+          "http.route": "/api/arreglos/[id]",
+          "error.type": "CONFLICT",
+          "db.response.status_code": "23505",
+        });
+
+        expect(childHandlerSpan.attributes).toMatchObject({
+          "api.route": "PUT /api/arreglos/[id]",
+          "http.route": "/api/arreglos/[id]",
+          "error.type": "CONFLICT",
+          "db.response.status_code": "23505",
+        });
+
+        // El span hijo CLIENT saliente no recibe api.route/error.type del servidor
+        processor.onEnding?.(clientFetchSpan as unknown as Parameters<NonNullable<typeof processor.onEnding>>[0]);
+        expect(clientFetchSpan.attributes["error.type"]).toBeUndefined();
+
+        // El span raíz SERVER sí recibe la ruta parametrizada y error.type/db.response.status_code
+        processor.onEnding?.(serverSpan as unknown as Parameters<NonNullable<typeof processor.onEnding>>[0]);
+        expect(serverSpan.attributes).toMatchObject({
+          "api.route": "PUT /api/arreglos/[id]",
+          "http.route": "/api/arreglos/[id]",
+          "error.type": "CONFLICT",
+          "db.response.status_code": "23505",
+        });
+
+        // Al terminar el span SERVER limpia la entrada del mapa
+        const asSpanProcessor: import("@opentelemetry/sdk-trace-base").SpanProcessor = processor;
+        asSpanProcessor.onEnd(serverSpan as unknown as import("@opentelemetry/sdk-trace-base").ReadableSpan);
+      } finally {
+        vi.unstubAllGlobals();
+        clearActiveIdentity();
+      }
+    });
   });
 
   describe("log", () => {
-    it("dado un log estructurado, lo propaga como evento de span y LogRecord sin mutar los atributos del span padre", async () => {
+    it("emite únicamente OTLP LogRecord sin agregar span.addEvent ni mutar atributos del span", async () => {
       const { logs } = await import("./telemetry");
       const emitMock = vi.fn();
       const getLoggerSpy = vi.spyOn(logs, "getLogger").mockReturnValue({ emit: emitMock } as never);
@@ -250,10 +304,7 @@ describe("telemetry unified wrapper", () => {
       telemetry.log("warn", "Consumo alto de recursos", { memoriaMb: 512 });
 
       expect(mockSpan.setAttributes).not.toHaveBeenCalled();
-      expect(mockSpan.addEvent).toHaveBeenCalledWith("Consumo alto de recursos", {
-        severity: "warn",
-        memoriaMb: 512,
-      });
+      expect(mockSpan.addEvent).not.toHaveBeenCalled();
       expect(getLoggerSpy).toHaveBeenCalledWith("b2car-app");
       expect(emitMock).toHaveBeenCalledWith(
         expect.objectContaining({

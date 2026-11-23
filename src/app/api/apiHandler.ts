@@ -2,7 +2,7 @@ import "server-only";
 
 import type { NextRequest } from "next/server";
 import { API_ERROR_MESSAGES } from "@/lib/apiErrorCodes";
-import { createScopedLogger, type ScopedLogger } from "@/lib/logger";
+import { createScopedLogger, shouldLog, type ScopedLogger } from "@/lib/logger";
 import type { PermissionValue } from "@/lib/permissions";
 import { generateUuidV4 } from "@/lib/uuid";
 import { buildApiContext, type ApiContext } from "./apiContext";
@@ -27,6 +27,10 @@ export type ApiHandlerContext = ApiContext & {
   fail(error: unknown, opts?: DbErrorOptions & { extra?: Record<string, unknown> }): Response;
 };
 
+function extractHttpRoute(route: string): string {
+  return route.replace(/^(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/i, "");
+}
+
 export function createApiHandler(
   options: ApiHandlerOptions,
   controller: (ctx: ApiHandlerContext) => Promise<Response>,
@@ -39,6 +43,11 @@ export function createApiHandler(
     const log = createScopedLogger(scope);
     let context: ApiContext | undefined;
     let response: Response | undefined;
+
+    telemetry.setAttributes({
+      "api.route": options.route,
+      "http.route": extractHttpRoute(options.route),
+    });
 
     const fail: ApiHandlerContext["fail"] = (error, opts = {}) => apiErrorResponse(error, {
       ...opts,
@@ -67,13 +76,19 @@ export function createApiHandler(
       const ctx = { ...context, req, params, requestId, log, fail };
       response = await telemetry.withIdentity(identity, () => controller(ctx));
     } catch (error) {
-      telemetry.recordException(error, { route: options.route, requestId });
       response = fail(error);
+      if (response.status >= 500 && !shouldLog("error")) {
+        telemetry.recordException(error, { route: options.route });
+      }
     } finally {
+      const status = response?.status ?? 500;
+      telemetry.setAttributes({
+        "http.response.status_code": status,
+      });
       log.debug("Request completado", {
         method: req.method,
         route: options.route,
-        status: response?.status ?? 500,
+        status,
         durationMs: performance.now() - startedAt,
         requestId,
       });

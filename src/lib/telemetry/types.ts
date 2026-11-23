@@ -13,16 +13,6 @@ export interface TelemetryIdentity {
   };
 }
 
-export interface TelemetryUser {
-  id: string;
-  name?: string | null;
-  email?: string | null;
-  plan_sub?: string | null;
-  tenant_id?: string | null;
-  tenant_name?: string | null;
-  [key: string]: unknown;
-}
-
 export type TelemetryAttributes = Record<string, string | number | boolean>;
 
 export interface TelemetryContext {
@@ -36,7 +26,6 @@ export interface TelemetryProvider {
   initClient?: () => unknown | Promise<unknown>;
   initServer?: () => unknown | Promise<unknown>;
   identify?: (identity: TelemetryIdentity, attributes?: TelemetryAttributes) => void;
-  setUser?: (user: TelemetryUser) => void;
 
   /**
    * Limpia la identidad del usuario actual.
@@ -44,9 +33,9 @@ export interface TelemetryProvider {
   clearUser?: () => void;
 
   /**
-   * Registra una acción de usuario o evento de negocio.
+   * Adjunta atributos estructurados al span activo (y al span raíz del trace en servidor).
    */
-  trackAction?: (name: string, context?: TelemetryContext) => void;
+  setAttributes?: (attributes: TelemetryContext) => void;
 
   /**
    * Registra una excepción o error capturado.

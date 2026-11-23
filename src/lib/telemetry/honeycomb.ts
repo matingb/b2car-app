@@ -3,6 +3,7 @@ import {
   context,
   createContextKey,
   propagation,
+  SpanKind,
   SpanStatusCode,
   type Span,
   type Context,
@@ -10,11 +11,10 @@ import {
   type TextMapGetter,
 } from "@opentelemetry/api";
 import { logs, SeverityNumber } from "@opentelemetry/api-logs";
-import type { Span as SdkSpan, SpanProcessor } from "@opentelemetry/sdk-trace-base";
+import type { Span as SdkSpan, SpanProcessor, ReadableSpan } from "@opentelemetry/sdk-trace-base";
 import type {
   TelemetryProvider,
   TelemetryIdentity,
-  TelemetryUser,
   TelemetryContext,
   TelemetryAttributes,
   TelemetryLogLevel,
@@ -68,6 +68,24 @@ function mergeIdentityAttributes(
 
 const MAX_TRACE_IDENTITIES = 2000;
 const traceIdentityMap = new Map<string, TelemetryAttributes>();
+const traceRootAttributesMap = new Map<string, TelemetryAttributes>();
+
+function setTraceRootAttributes(
+  traceId: string | undefined,
+  attrs: TelemetryAttributes,
+): void {
+  if (!isValidTraceId(traceId) || Object.keys(attrs).length === 0) {
+    return;
+  }
+  const existing = traceRootAttributesMap.get(traceId);
+  const merged = existing ? { ...existing, ...attrs } : { ...attrs };
+  traceRootAttributesMap.delete(traceId);
+  traceRootAttributesMap.set(traceId, merged);
+  if (traceRootAttributesMap.size > MAX_TRACE_IDENTITIES) {
+    const oldestKey = traceRootAttributesMap.keys().next().value;
+    if (oldestKey) traceRootAttributesMap.delete(oldestKey);
+  }
+}
 
 function isValidTraceId(traceId?: string): traceId is string {
   return Boolean(traceId && traceId !== "00000000000000000000000000000000");
@@ -327,6 +345,13 @@ export class HoneycombNativeSpanProcessor implements SpanProcessor {
   onEnding(span: SdkSpan): void {
     try {
       const traceId = getSpanTraceId(span);
+      if (traceId && span.kind === SpanKind.SERVER) {
+        const rootAttrs = traceRootAttributesMap.get(traceId);
+        if (rootAttrs) {
+          enrichSpan(span, rootAttrs);
+        }
+      }
+
       const activeAttrs = getActiveIdentityAttributes(context.active(), traceId);
       if (!activeAttrs) return;
 
@@ -344,7 +369,16 @@ export class HoneycombNativeSpanProcessor implements SpanProcessor {
     } catch {}
   }
 
-  onEnd(): void {}
+  onEnd(span: ReadableSpan): void {
+    try {
+      if (span.kind === SpanKind.SERVER) {
+        const traceId = getSpanTraceId(span);
+        if (traceId) {
+          traceRootAttributesMap.delete(traceId);
+        }
+      }
+    } catch {}
+  }
 
   forceFlush(): Promise<void> {
     return Promise.resolve();
@@ -389,6 +423,7 @@ export async function initHoneycombClient(): Promise<void> {
       ...(process.env.NEXT_PUBLIC_APP_VERSION
         ? { serviceVersion: process.env.NEXT_PUBLIC_APP_VERSION }
         : {}),
+      disableDefaultMetricExporter: true,
       instrumentations: [
         getWebAutoInstrumentations({
           "@opentelemetry/instrumentation-fetch": {
@@ -650,6 +685,19 @@ function toOtelAttributes(
   return formatted;
 }
 
+const LOG_ONLY_CONTEXT_KEYS = new Set([
+  "code",
+  "dbCode",
+  "dbMessage",
+  "details",
+  "hint",
+  "errorId",
+  "requestId",
+  "status",
+  "userId",
+  "tenantId",
+]);
+
 let cachedLoggerProvider: ReturnType<typeof logs.getLoggerProvider> | null = null;
 let cachedLogger: ReturnType<typeof logs.getLogger> | null = null;
 
@@ -676,19 +724,22 @@ export const honeycombProvider: TelemetryProvider = {
     enrichSpan(activeSpan, resolved);
   },
 
-  setUser(user: TelemetryUser): void {
-    const tenantId = user.tenant_id || user.id;
-    const tenantName = user.tenant_name || user.name || undefined;
-    const plan = user.plan_sub || undefined;
-
-    this.identify?.({
-      user: { id: user.id, email: user.email || undefined },
-      account: tenantId ? { id: tenantId, name: tenantName, plan } : undefined,
-    });
-  },
-
   clearUser(): void {
     clearActiveIdentity();
+  },
+
+  setAttributes(attributes: TelemetryContext): void {
+    try {
+      const formatted = toOtelAttributes(attributes);
+      if (Object.keys(formatted).length === 0) return;
+
+      const span = trace.getActiveSpan() as Span | undefined;
+      enrichSpan(span, formatted);
+
+      if (!isBrowserEnvironment()) {
+        setTraceRootAttributes(getSpanTraceId(span), formatted);
+      }
+    } catch {}
   },
 
   async withIdentity<T>(identity: TelemetryIdentity, fn: () => Promise<T> | T): Promise<T> {
@@ -710,19 +761,6 @@ export const honeycombProvider: TelemetryProvider = {
     return runInContext();
   },
 
-  trackAction(name: string, contextData?: TelemetryContext): void {
-    try {
-      const span = trace.getActiveSpan();
-      if (span) {
-        const activeIdentityAttrs = getActiveIdentityAttributes(context.active(), getSpanTraceId(span));
-        span.addEvent(name, {
-          ...toOtelAttributes(contextData),
-          ...toOtelAttributes(activeIdentityAttrs ?? undefined),
-        });
-      }
-    } catch {}
-  },
-
   recordException(error: Error, contextData?: TelemetryContext): void {
     try {
       const span = trace.getActiveSpan();
@@ -731,8 +769,16 @@ export const honeycombProvider: TelemetryProvider = {
         span.recordException(error);
         span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
         if (contextData) {
+          const appCode = typeof contextData.code === "string" ? contextData.code.trim() : "";
+          const dbCode = typeof contextData.dbCode === "string" ? contextData.dbCode.trim() : "";
+          if (appCode) {
+            span.setAttribute("error.type", appCode);
+          }
+          if (dbCode) {
+            span.setAttribute("db.response.status_code", dbCode);
+          }
           for (const [k, v] of Object.entries(contextData)) {
-            if (v !== undefined && v !== null) {
+            if (v !== undefined && v !== null && !LOG_ONLY_CONTEXT_KEYS.has(k)) {
               span.setAttribute(
                 `error.context.${k}`,
                 typeof v === "object" ? JSON.stringify(v) : String(v),
@@ -756,10 +802,6 @@ export const honeycombProvider: TelemetryProvider = {
         }),
         ...toOtelAttributes(activeIdentityAttrs ?? undefined),
       };
-
-      if (span) {
-        span.addEvent(eventName, attributes);
-      }
 
       const severityMap: Record<TelemetryLogLevel, { number: SeverityNumber; text: string }> = {
         debug: { number: SeverityNumber.DEBUG, text: "DEBUG" },

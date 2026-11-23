@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { API_ERROR_MESSAGES, type ApiErrorBody, type ApiErrorCode } from "@/lib/apiErrorCodes";
 import { logger } from "@/lib/logger";
+import { telemetry } from "@/lib/telemetry";
 import { generateUuidV4 } from "@/lib/uuid";
 import { ApiError, apiErrorResponse, mapDbError, type DbError } from "./apiError";
 import { ServiceError } from "./serviceError";
@@ -229,5 +230,34 @@ describe("apiErrorResponse", () => {
   it("hides even an explicit ApiError message on 5xx", async () => {
     const response = apiErrorResponse(new ApiError(500, technicalMessage, "INTERNAL"), options);
     expect(await response.json()).toEqual({ error: options.fallback, code: "INTERNAL", errorId: "1234abcd" });
+  });
+
+  it("adjunta error.type y db.response.status_code según OpenTelemetry sin enviar error.id", () => {
+    const setAttributesSpy = vi.spyOn(telemetry, "setAttributes").mockImplementation(() => {});
+
+    apiErrorResponse(Object.assign(new Error(technicalMessage), { code: "22007" }), options);
+    expect(setAttributesSpy).toHaveBeenLastCalledWith({
+      "error.type": "VALIDATION",
+      "db.response.status_code": "22007",
+    });
+
+    apiErrorResponse({ code: "PGRST116" }, options);
+    expect(setAttributesSpy).toHaveBeenLastCalledWith({
+      "error.type": "NOT_FOUND",
+      "db.response.status_code": "PGRST116",
+    });
+
+    apiErrorResponse(
+      Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED", errno: -61, syscall: "connect" }),
+      options,
+    );
+    expect(setAttributesSpy).toHaveBeenLastCalledWith({
+      "error.type": "INTERNAL",
+    });
+
+    apiErrorResponse(new Error(technicalMessage), { ...options, errorId: "err-500" });
+    expect(setAttributesSpy).toHaveBeenLastCalledWith({
+      "error.type": "INTERNAL",
+    });
   });
 });

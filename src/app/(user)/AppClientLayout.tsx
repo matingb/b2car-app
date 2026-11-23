@@ -19,31 +19,21 @@ import { telemetry, type TelemetryIdentity } from "@/lib/telemetry";
 export type AppClientLayoutProps = {
   children: React.ReactNode;
   initialPermissions?: PermissionValue[];
-  tenantId?: string;
   tenantName?: string;
-  plan?: string;
   identity?: TelemetryIdentity | null;
 };
 
 export default function AppClientLayout({
   children,
   initialPermissions,
-  tenantId,
   tenantName,
-  plan,
   identity,
 }: AppClientLayoutProps) {
   useEffect(() => {
     if (identity) {
       telemetry.identify(identity);
-    } else if (tenantId) {
-      telemetry.setUser({
-        id: tenantId,
-        name: tenantName,
-        plan_sub: plan,
-      });
     }
-  }, [identity, tenantId, tenantName, plan]);
+  }, [identity]);
 
   return (
     <TenantProvider

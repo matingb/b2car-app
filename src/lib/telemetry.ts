@@ -1,5 +1,5 @@
 import { honeycombProvider } from "./telemetry/honeycomb";
-import type { TelemetryProvider, TelemetryIdentity, TelemetryUser, TelemetryContext, TelemetryLogLevel } from "./telemetry/types";
+import type { TelemetryProvider, TelemetryIdentity, TelemetryContext, TelemetryLogLevel } from "./telemetry/types";
 
 export * from "./telemetry/types";
 export * from "./telemetry/sanitizer";
@@ -67,22 +67,15 @@ export const telemetry = {
     }
   },
 
-  setUser(user: TelemetryUser): void {
-    if (!user || !user.id) return;
-    for (const provider of providers) {
-      provider.setUser?.(user);
-    }
-  },
-
   clearUser(): void {
     for (const provider of providers) {
       provider.clearUser?.();
     }
   },
 
-  trackAction(name: string, context?: TelemetryContext): void {
+  setAttributes(attributes: TelemetryContext): void {
     for (const provider of providers) {
-      provider.trackAction?.(name, context);
+      provider.setAttributes?.(attributes);
     }
   },
 

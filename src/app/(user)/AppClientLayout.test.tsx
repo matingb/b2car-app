@@ -36,24 +36,18 @@ describe("AppClientLayout visual route guard", () => {
     vi.clearAllMocks();
   });
 
-  it("asocia el tenant_id, tenant_name y plan a telemetría", () => {
-    const setUserSpy = vi.spyOn(telemetry, "setUser");
+  it("no llama a telemetry.identify cuando no se pasa identity", () => {
+    const identifySpy = vi.spyOn(telemetry, "identify");
     render(
       <AppClientLayout
         initialPermissions={[Permission.ArreglosView]}
-        tenantId="t-123"
         tenantName="Taller Demo"
-        plan="BASE"
       >
         <div>contenido</div>
       </AppClientLayout>
     );
 
-    expect(setUserSpy).toHaveBeenCalledWith({
-      id: "t-123",
-      name: "Taller Demo",
-      plan_sub: "BASE",
-    });
+    expect(identifySpy).not.toHaveBeenCalled();
   });
 
   it("asocia identity con user y account a telemetría si se pasa identity", () => {

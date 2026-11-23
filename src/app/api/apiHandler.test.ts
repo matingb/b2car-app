@@ -201,4 +201,46 @@ describe("createApiHandler", () => {
       },
     });
   });
+
+  it("registra api.route, http.route y http.response.status_code en telemetría sin app.request_id", async () => {
+    const setAttributesSpy = vi.spyOn(telemetry, "setAttributes").mockImplementation(() => {});
+    const handler = createApiHandler(
+      { ...options, route: "PUT /api/arreglos/[id]" },
+      async () => Response.json({ ok: true }, { status: 201 }),
+    );
+
+    const response = await handler(request(), { params: Promise.resolve({ id: "arr-1" }) });
+    expect(response.status).toBe(201);
+    expect(setAttributesSpy).toHaveBeenCalledWith({
+      "api.route": "PUT /api/arreglos/[id]",
+      "http.route": "/api/arreglos/[id]",
+    });
+    expect(setAttributesSpy).toHaveBeenCalledWith({
+      "http.response.status_code": 201,
+    });
+  });
+
+  it("registra error.type en 4xx lanzados sin marcar recordException, y error.type en 5xx sin error.id", async () => {
+    const setAttributesSpy = vi.spyOn(telemetry, "setAttributes").mockImplementation(() => {});
+    const recordExceptionSpy = vi.spyOn(telemetry, "recordException").mockImplementation(() => {});
+
+    const handler4xx = createApiHandler(options, async () => {
+      throw new ApiError(400, "Dato inválido", "VALIDATION");
+    });
+    const res4xx = await handler4xx(request(), segment());
+    expect(res4xx.status).toBe(400);
+    expect(setAttributesSpy).toHaveBeenCalledWith({
+      "error.type": "VALIDATION",
+    });
+    expect(recordExceptionSpy).not.toHaveBeenCalled();
+
+    const handler5xx = createApiHandler(options, async () => {
+      throw new Error("Fallo inesperado");
+    });
+    const res5xx = await handler5xx(request(), segment());
+    expect(res5xx.status).toBe(500);
+    expect(setAttributesSpy).toHaveBeenCalledWith({
+      "error.type": "INTERNAL",
+    });
+  });
 });

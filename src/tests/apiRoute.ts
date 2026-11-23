@@ -17,7 +17,9 @@ export function mockApiSession(options: {
 } = {}) {
   const claims = options.claims === undefined ? {
     sub: "11111111-1111-4111-8111-111111111111",
+    email: "user@test.local",
     tenant_id: "22222222-2222-4222-8222-222222222222",
+    tenant_name: "Taller Test",
     user_role: options.role ?? UserRole.Admin,
     plan_sub: options.plan ?? SubscriptionPlan.Pro,
   } : options.claims;
