@@ -32,6 +32,7 @@ import { TipoOperacion, TIPOS_OPERACIONES, type EstadoPagoOperacion, type Estado
 import { useTenant } from "@/app/providers/TenantProvider";
 import { Permission } from "@/lib/permissions";
 import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
+import OperacionEditGastoModal from "@/app/components/operaciones/OperacionEditGastoModal";
 import LineaDetalleOperacion from "@/app/components/operaciones/LineaDetalleOperacion";
 import { getTotals } from "@/app/components/operaciones/useOperacionDetalle";
 import OperacionesFilterBar from "@/app/components/operaciones/OperacionesFilterBar";
@@ -43,7 +44,6 @@ import { buildPeriodOptions } from "@/lib/dashboard/periods";
 import { useToast } from "@/app/providers/ToastProvider";
 import { useModalMessage } from "@/app/providers/ModalMessageProvider";
 import { finanzasClient } from "@/clients/finanzasClient";
-import type { GastoFinanciero } from "@/model/finanzas";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 
 
@@ -181,7 +181,7 @@ export default function OperacionesPage() {
     const [createOpen, setCreateOpen] = useState(false);
     const [initialTipo, setInitialTipo] = useState<TipoOperacion>("VENTA");
     const [cuentaGastoPreseleccionadaId, setCuentaGastoPreseleccionadaId] = useState<string | null>(null);
-    const [gastoEdit, setGastoEdit] = useState<GastoFinanciero | null>(null);
+    const [gastoEditId, setGastoEditId] = useState<string | null>(null);
     const [expandedOperacionId, setExpandedOperacionId] = useState<string | null>(null);
     const [facturaOperacionId, setFacturaOperacionId] = useState<string | null>(null);
     const [remitoOperacionId, setRemitoOperacionId] = useState<string | null>(null);
@@ -359,22 +359,7 @@ export default function OperacionesPage() {
     }, [confirm, error, refresh, remove, success]);
 
     const handleEditGasto = useCallback((operacion: Operacion) => {
-        const gastoId = operacion.gasto_id ?? operacion.id;
-        setGastoEdit({
-            id: gastoId,
-            cuentaId: operacion.cuenta_financiera_id ?? "",
-            categoria: operacion.categoria_gasto ?? "OTROS",
-            importe: Number(operacion.monto) || 0,
-            fecha: operacion.fecha,
-            descripcion: operacion.descripcion ?? "",
-            observaciones: operacion.observaciones ?? null,
-            arregloId: null,
-            operacionId: null,
-            createdAt: operacion.created_at,
-            updatedAt: operacion.created_at,
-        });
-        setInitialTipo("GASTO");
-        setCreateOpen(true);
+        setGastoEditId(operacion.id);
     }, []);
 
     return (
@@ -437,7 +422,6 @@ export default function OperacionesPage() {
                         onClick={() => {
                             setInitialTipo("VENTA");
                             setCuentaGastoPreseleccionadaId(null);
-                            setGastoEdit(null);
                             setCreateOpen(true);
                         }}
                         css={styles.createButton}
@@ -536,13 +520,19 @@ export default function OperacionesPage() {
                     talleres={talleres}
                     initialTipo={initialTipo}
                     initialCuentaId={cuentaGastoPreseleccionadaId}
-                    gasto={gastoEdit}
                     onClose={() => {
                         setCreateOpen(false);
                         setInitialTipo("VENTA");
                         setCuentaGastoPreseleccionadaId(null);
-                        setGastoEdit(null);
                     }}
+                />
+            ) : null}
+            {gastoEditId ? (
+                <OperacionEditGastoModal
+                    key={gastoEditId}
+                    gastoId={gastoEditId}
+                    talleres={talleres}
+                    onClose={() => setGastoEditId(null)}
                 />
             ) : null}
             {canUseBilling && facturaOperacionId ? (

@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders as render, runPendingPromises } from "@/tests/testUtils";
 import { comprobantesRecibidosClient } from "@/clients/comprobantesRecibidosClient";
 import OperacionCreateModal from "./OperacionCreateModal";
+import OperacionEditGastoModal from "./OperacionEditGastoModal";
 
 vi.mock("@/clients/comprobantesRecibidosClient", () => ({
   comprobantesRecibidosClient: { create: vi.fn(), listByOperacion: vi.fn(), crearTurnoVencimiento: vi.fn() },
@@ -23,6 +24,7 @@ const mockInventarioApi = {
 
 const mockCrearGasto = vi.fn();
 const mockActualizarGasto = vi.fn();
+const mockObtenerGasto = vi.fn();
 const mockCrearOperacion = vi.fn();
 const mockRefreshOperaciones = vi.fn();
 const mockRefreshCuentas = vi.fn();
@@ -74,6 +76,7 @@ vi.mock("@/clients/finanzasClient", () => ({
   finanzasClient: {
     crearGasto: (...args: unknown[]) => mockCrearGasto(...args),
     actualizarGasto: (...args: unknown[]) => mockActualizarGasto(...args),
+    obtenerGasto: (...args: unknown[]) => mockObtenerGasto(...args),
   },
 }));
 
@@ -241,29 +244,33 @@ describe("OperacionCreateModal", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("permite editar un gasto existente cuando se pasa la prop gasto", async () => {
+  it("carga la cuenta del gasto por ID y guarda el nuevo monto", async () => {
     const onClose = vi.fn();
+    mockObtenerGasto.mockResolvedValue({
+      data: {
+        id: "G1",
+        cuentaId: "C2",
+        cuentaNombre: "Caja archivada",
+        cantidadPagos: 1,
+        puedeCambiarImporte: true,
+        categoria: "ALQUILER",
+        importe: 5000,
+        fecha: "2026-08-01T01:00:00Z",
+        descripcion: "Alquiler mensual",
+        tallerId: "T2",
+        createdAt: "2026-08-01T01:00:00Z",
+      },
+      error: null,
+    });
     mockActualizarGasto.mockResolvedValue({
-      data: { id: "G1", cuentaId: "C1", categoria: "SERVICIOS", importe: 8000 },
+      data: { id: "G1", cuentaId: "C2", categoria: "ALQUILER", importe: 8000 },
       error: null,
     });
 
     render(
-      <OperacionCreateModal
-        open
-        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
-        gasto={{
-          id: "G1",
-          cuentaId: "C1",
-          categoria: "ALQUILER",
-          importe: 5000,
-          fecha: "2026-08-01",
-          descripcion: "Alquiler mensual",
-          arregloId: null,
-          operacionId: null,
-          createdAt: "2026-08-01T00:00:00Z",
-          updatedAt: "2026-08-01T00:00:00Z",
-        }}
+      <OperacionEditGastoModal
+        gastoId="G1"
+        talleres={[{ id: "T1", nombre: "Taller Centro" }, { id: "T2", nombre: "Taller Norte" }]}
         onClose={onClose}
       />
     );
@@ -271,6 +278,10 @@ describe("OperacionCreateModal", () => {
     await runPendingPromises();
 
     expect(screen.getByText("Editar gasto")).toBeInTheDocument();
+    expect(mockObtenerGasto).toHaveBeenCalledWith("G1");
+    expect(screen.getByTestId("operaciones-create-cuenta-financiera")).toHaveValue("C2");
+    expect(screen.getByTestId("operaciones-create-cuenta-financiera")).toHaveAttribute("data-options", expect.stringContaining("Caja archivada"));
+    expect(screen.getByTestId("operaciones-create-taller")).toHaveValue("T2");
     expect(screen.getByTestId("gasto-importe")).toHaveValue(5000);
     expect(screen.getByTestId("gasto-descripcion")).toHaveValue("Alquiler mensual");
 
@@ -283,17 +294,41 @@ describe("OperacionCreateModal", () => {
     await waitFor(() => {
       expect(mockActualizarGasto).toHaveBeenCalledWith(
         "G1",
-        expect.objectContaining({
-          cuentaId: "C1",
+        {
+          categoria: "ALQUILER",
           importe: 8000,
-          descripcion: "Alquiler mensual",
-        })
+          idempotencyKey: expect.any(String),
+        },
       );
     });
 
     expect(mockRefreshOperaciones).toHaveBeenCalledTimes(1);
     expect(mockRefreshCuentas).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("permite guardar un gasto pendiente sin seleccionar una cuenta", async () => {
+    mockActualizarGasto.mockResolvedValue({ data: { id: "G2" }, error: null });
+    render(
+      <OperacionCreateModal
+        open
+        talleres={[{ id: "T1", nombre: "Taller Centro" }]}
+        gasto={{ id: "G2", cuentaId: "", cantidadPagos: 0, categoria: "ALQUILER", importe: 5000,
+          fecha: "2026-08-01", createdAt: "2026-08-01", descripcion: null }}
+        onClose={vi.fn()}
+      />
+    );
+    await runPendingPromises();
+
+    expect(screen.getByPlaceholderText("Sin pagos registrados")).toBeDisabled();
+    await userEvent.type(screen.getByTestId("gasto-descripcion"), "Alquiler pendiente");
+    await userEvent.click(screen.getByTestId("modal-submit"));
+
+    expect(mockActualizarGasto).toHaveBeenCalledWith("G2", {
+      categoria: "ALQUILER",
+      descripcion: "Alquiler pendiente",
+      idempotencyKey: expect.any(String),
+    });
   });
 
   it("si hay multiples talleres, muestra el dropdown de talleres", async () => {

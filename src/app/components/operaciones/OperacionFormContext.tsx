@@ -6,14 +6,14 @@ import { useToast } from "@/app/providers/ToastProvider";
 import { useCuentasFinancieras } from "@/app/providers/CuentasFinancierasProvider";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import { finanzasClient } from "@/clients/finanzasClient";
-import { isValidDate, toISODateLocal, toISODateTimeWithLocalCurrentTime, toLocalDateInputFormat } from "@/lib/fechas";
+import { isValidDate, toDateInputFormat, toISODateLocal, toISODateTimeWithLocalCurrentTime } from "@/lib/fechas";
 import { generateUuidV4 } from "@/lib/uuid";
 import { logger } from "@/lib/logger";
 import type { EstadoPagoOperacion, Proveedor, Cliente, TipoOperacion } from "@/model/types";
 import { proveedoresClient } from "@/clients/proveedores/proveedoresClient";
 import { clientesClient } from "@/clients/clientes/clientesClient";
 import { productosClient } from "@/clients/productosClient";
-import { CATEGORIAS_GASTO, type GastoFinanciero } from "@/model/finanzas";
+import { CATEGORIAS_GASTO, type ActualizarGastoFinancieroInput, type GastoFinanciero } from "@/model/finanzas";
 import { comprobantesRecibidosClient } from "@/clients/comprobantesRecibidosClient";
 import {
   esFacturaCompraConVencimiento,
@@ -231,7 +231,7 @@ export function OperacionFormProvider({
     gasto?.cuentaId ?? initialCuentaId ?? cuentaFavorita?.id ?? ""
   );
   const [cuentaDraft, setCuentaDraft] = useState<CuentaFinancieraDraft>(() => ({ ...EMPTY_CUENTA_FINANCIERA_DRAFT }));
-  const [fecha, setFecha] = useState<string>(() => (gasto?.fecha ? toLocalDateInputFormat(gasto.fecha) : toISODateLocal(new Date())));
+  const [fecha, setFecha] = useState<string>(() => (gasto?.fecha ? toDateInputFormat(gasto.fecha) : toISODateLocal(new Date())));
   const [lineas, setLineas] = useState<OperacionLineaDraft[]>([createEmptyLinea(contextualStock?.stockId)]);
 
   const [categoriaGasto, setCategoriaGasto] = useState<string>(gasto?.categoria ?? "ALQUILER");
@@ -357,9 +357,9 @@ export function OperacionFormProvider({
 
     if (gasto) {
       setTipoState("GASTO");
-      setFecha(gasto.fecha ? toLocalDateInputFormat(gasto.fecha) : toISODateLocal(new Date()));
+      setFecha(toDateInputFormat(gasto.fecha));
       setLineas([createEmptyLinea()]);
-      setTallerIdState(talleres[0]?.id ?? "");
+      setTallerIdState(gasto.tallerId ?? "");
       setCuentaFinancieraId(gasto.cuentaId || "");
       setCategoriaGasto(gasto.categoria || "ALQUILER");
       setMontoGasto(String(gasto.importe || ""));
@@ -384,7 +384,7 @@ export function OperacionFormProvider({
   }, [open, talleres, initialTipo, initialCuentaId, gasto, contextualStock, cuentaFavorita, initialProveedorId, initialClienteId]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || gasto) return;
     if (contextualStock) {
       setTallerIdState(contextualStock.tallerId);
       return;
@@ -392,7 +392,7 @@ export function OperacionFormProvider({
     if (tallerId) return;
     const firstTallerId = talleres[0]?.id;
     if (firstTallerId) setTallerIdState(firstTallerId);
-  }, [open, talleres, tallerId, contextualStock]);
+  }, [open, gasto, talleres, tallerId, contextualStock]);
 
   useEffect(() => {
     if (
@@ -727,7 +727,7 @@ export function OperacionFormProvider({
     cuentaFavorita,
     cuentasActivas,
     initialCuentaId: gasto?.cuentaId ?? initialCuentaId ?? undefined,
-    initialFecha: gasto?.fecha ? toLocalDateInputFormat(gasto.fecha) : undefined,
+    initialFecha: gasto?.fecha ? toDateInputFormat(gasto.fecha) : undefined,
     initialMonto: gasto ? String(gasto.importe || "") : undefined,
     minRows: 0,
   });
@@ -740,11 +740,9 @@ export function OperacionFormProvider({
     if (!isValidDate(fecha)) return false;
 
     if (tipo === "GASTO") {
-      if (talleres.length > 0 && !tallerId) return false;
       const importeNum = Number(montoGasto);
-      if (isEditingGasto) {
-        if (requiresCuenta && !cuentaFinancieraId) return false;
-        if (cuentaFinancieraId && isCreatingCuenta && !validateCuentaFinancieraForm(cuentaDraft)) return false;
+      if (gasto) {
+        if (isCreatingCuenta && !validateCuentaFinancieraForm(cuentaDraft)) return false;
         return (
           Boolean(categoriaGasto) &&
           Number.isFinite(importeNum) &&
@@ -754,6 +752,7 @@ export function OperacionFormProvider({
         );
       }
 
+      if (talleres.length > 0 && !tallerId) return false;
       if (!categoriaGasto || !Number.isFinite(importeNum) || importeNum <= 0) return false;
       if (isSubmittingGasto) return false;
 
@@ -788,8 +787,6 @@ export function OperacionFormProvider({
     isTipoEnabled,
     fecha,
     montoGasto,
-    requiresCuenta,
-    cuentaFinancieraId,
     isCreatingCuenta,
     cuentaDraft,
     categoriaGasto,
@@ -800,7 +797,7 @@ export function OperacionFormProvider({
     lineas,
     importeTotal,
     canSubmitPagos,
-    isEditingGasto,
+    gasto,
     stockById,
   ]);
 
@@ -881,30 +878,33 @@ export function OperacionFormProvider({
       facturaInput = parsed.value;
     }
 
-    let targetCuentaId: string | null = cuentaFinancieraId || null;
-    if (cuentaFinancieraId && isCreatingCuenta) {
+    const resolveCuenta = async () => {
+      if (!isCreatingCuenta) return cuentaFinancieraId || null;
       const created = await createCuentaOnce({
         nombre: cuentaDraft.nombre.trim(),
         tipo: cuentaDraft.tipo,
         saldoInicial: 0,
       });
       success("Cuenta creada", `${created.nombre} se registró correctamente.`);
-      targetCuentaId = created.id;
-    }
+      return created.id;
+    };
 
-    if (tipo === "GASTO" && isEditingGasto) {
+    if (tipo === "GASTO" && gasto) {
       setIsSubmittingGasto(true);
       try {
-        const payload = {
-          cuentaId: targetCuentaId!,
+        const cuentaId = await resolveCuenta();
+        const importe = Number(montoGasto);
+        const payload: ActualizarGastoFinancieroInput = {
           categoria: categoriaGasto,
-          importe: Number(montoGasto),
-          fecha: fechaTimestamp,
-          descripcion: descripcionGasto.trim() || null,
-          observaciones: observaciones.trim() || null,
           idempotencyKey: generateUuidV4(),
         };
-        const response = await finanzasClient.actualizarGasto(gasto!.id, payload);
+        if (cuentaId && cuentaId !== gasto.cuentaId) payload.cuentaId = cuentaId;
+        if (importe !== gasto.importe) payload.importe = importe;
+        if (fecha !== toDateInputFormat(gasto.fecha)) payload.fecha = fecha;
+        if (tallerId && tallerId !== gasto.tallerId) payload.tallerId = tallerId;
+        if (descripcionGasto !== (gasto.descripcion ?? "")) payload.descripcion = descripcionGasto.trim() || null;
+        if (observaciones !== (gasto.observaciones ?? "")) payload.observaciones = observaciones.trim() || null;
+        const response = await finanzasClient.actualizarGasto(gasto.id, payload);
         if (response.error || !response.data) {
           throw new Error(response.error || "No se pudo actualizar el gasto");
         }
@@ -922,6 +922,7 @@ export function OperacionFormProvider({
     }
 
     try {
+      const targetCuentaId = await resolveCuenta();
       const pagosPayload = await resolvePagosPayload(createCuentaOnce, fecha);
 
       const primaryCuentaId = pagosPayload.length > 0

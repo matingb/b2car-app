@@ -5,35 +5,15 @@ import { Permission } from "@/lib/permissions";
 import type {
   ActualizarGastoFinancieroResponse,
   EliminarFinanzasResponse,
-  GastoFinanciero,
   ObtenerGastoFinancieroResponse,
 } from "@/model/finanzas";
-import {
-  mapGasto,
-  rpcErrorMessage,
-  rpcStatus,
-  validateUpdateGasto,
-  validateUuid,
-} from "../../cuentas-financieras/finanzasRouteUtils";
+import { rpcErrorMessage, rpcStatus, validateUpdateGasto, validateUuid } from "../../cuentas-financieras/finanzasRouteUtils";
+import { ApiError, apiErrorResponse } from "@/app/api/apiError";
+import { ServiceError } from "@/app/api/serviceError";
 import { statsService } from "@/app/api/dashboard/stats/dashboardStatsService";
+import { gastoService } from "../gastoService";
 
 type RouteContext = { params: Promise<{ id: string }> };
-
-async function fetchGastoById(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  id: string
-): Promise<{ data: GastoFinanciero | null; error: unknown }> {
-  const { data, error } = await supabase.rpc("rpc_listar_operaciones_con_gastos", {
-    p_tipos: ["GASTO"],
-    p_page: 1,
-    p_page_size: 200,
-  });
-  if (error) return { data: null, error };
-  const rows = Array.isArray(data) ? data : [];
-  const found = rows.find((r: { id: string }) => r.id === id);
-  if (!found) return { data: null, error: null };
-  return { data: mapGasto(found), error: null };
-}
 
 export async function GET(_req: NextRequest, { params }: RouteContext) {
   const authError = await requirePermission(Permission.FinanzasView);
@@ -45,12 +25,15 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
   const idError = validateUuid(id, "gastoId");
   if (idError) return Response.json({ data: null, error: idError } satisfies ObtenerGastoFinancieroResponse, { status: 400 });
 
-  const { data: gasto, error } = await fetchGastoById(supabase, id);
-  if (error || !gasto) {
-    return Response.json(
-      { data: null, error: !gasto ? "Gasto no encontrado" : "Error cargando gasto" } satisfies ObtenerGastoFinancieroResponse,
-      { status: !gasto ? 404 : 500 }
-    );
+  const { data: gasto, error, cause } = await gastoService.getById(supabase, id);
+  if (!gasto) {
+    return apiErrorResponse(cause ?? error, {
+      context: "GET /api/gastos/[id]",
+      fallback: "Error cargando gasto",
+      notFoundMessage: "Gasto no encontrado",
+      body: { data: null },
+      extra: { gastoId: id },
+    });
   }
   return Response.json({ data: gasto, error: null } satisfies ObtenerGastoFinancieroResponse, { status: 200 });
 }
@@ -69,52 +52,26 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     return Response.json({ data: null, error: parsed.error ?? "JSON inválido" } satisfies ActualizarGastoFinancieroResponse, { status: 400 });
   }
 
-  const input = parsed.value;
-  const { data: current, error: currentError } = await fetchGastoById(supabase, id);
-  if (currentError || !current) {
-    return Response.json(
-      { data: null, error: "Gasto no encontrado" } satisfies ActualizarGastoFinancieroResponse,
-      { status: 404 }
-    );
-  }
-
-  const { error: updateError } = await supabase.rpc("rpc_actualizar_movimiento_cuenta", {
-    p_operacion_id: id,
-    p_cuenta_id: input.cuentaId ?? current.cuentaId,
-    p_categoria_gasto: input.categoria ?? current.categoria,
-    p_importe: input.importe ?? current.importe,
-    p_descripcion: input.descripcion ?? current.descripcion,
-    p_fecha: input.fecha ?? current.fecha,
-    p_idempotency_key: input.idempotencyKey ?? null,
-    // La RPC conserva la observación con NULL y la borra con texto vacío.
-    p_observaciones: input.observaciones === undefined ? null : input.observaciones ?? "",
-    p_taller_id: input.tallerId !== undefined ? input.tallerId : (current.tallerId ?? null),
-  });
-  if (updateError) {
-    const status = rpcStatus(updateError);
-    return Response.json(
-      { data: null, error: status === 404 ? "Gasto no encontrado" : "Error actualizando gasto" } satisfies ActualizarGastoFinancieroResponse,
-      { status }
-    );
+  const { data, error, cause } = await gastoService.update(supabase, id, parsed.value);
+  if (!data) {
+    const failure = cause ?? (error === ServiceError.Validation
+      ? new ApiError(400, "Registrá un pago para asignar una cuenta al gasto.", "VALIDATION")
+      : error);
+    return apiErrorResponse(failure, {
+      context: "PUT /api/gastos/[id]",
+      fallback: "Error actualizando gasto",
+      notFoundMessage: "Gasto no encontrado",
+      body: { data: null },
+      extra: { gastoId: id },
+    });
   }
 
   await statsService.onDataChanged(supabase);
 
-  const { data: refreshed } = await fetchGastoById(supabase, id);
-  const resultGasto: GastoFinanciero = refreshed ?? {
-    ...current,
-    cuentaId: input.cuentaId ?? current.cuentaId,
-    categoria: input.categoria ?? current.categoria,
-    importe: input.importe ?? current.importe,
-    descripcion: input.descripcion ?? current.descripcion,
-    observaciones: input.observaciones !== undefined ? input.observaciones || null : current.observaciones,
-    tallerId: input.tallerId !== undefined ? input.tallerId : current.tallerId,
-    fecha: input.fecha ?? current.fecha,
-  };
-  return Response.json({ data: resultGasto, error: null } satisfies ActualizarGastoFinancieroResponse, { status: 200 });
+  return Response.json({ data, error: null } satisfies ActualizarGastoFinancieroResponse, { status: 200 });
 }
 
-export async function DELETE(req: NextRequest, { params }: RouteContext) {
+export async function DELETE(_req: NextRequest, { params }: RouteContext) {
   const authError = await requirePermission(Permission.FinanzasEdit);
   if (authError) return authError;
 
@@ -124,16 +81,14 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
   const idError = validateUuid(id, "gastoId");
   if (idError) return Response.json({ error: idError } satisfies EliminarFinanzasResponse, { status: 400 });
 
-  const { data, error } = await supabase.rpc("rpc_eliminar_movimiento_cuenta", {
-    p_operacion_id: id,
-  });
-  if (error || data === false) {
-    const status = data === false ? 404 : rpcStatus(error);
-    // 409: el gasto tiene facturas o retenciones asociadas (o está en uso); el mensaje explica cómo seguir.
+  const result = await gastoService.deleteById(supabase, id);
+  if (result.error) {
+    const cause = "cause" in result ? result.cause : null;
+    const status = cause ? rpcStatus(cause) : 404;
     const message = status === 404
       ? "Gasto no encontrado"
       : status === 409
-        ? rpcErrorMessage(error, "Error eliminando gasto")
+        ? rpcErrorMessage(cause, "Error eliminando gasto")
         : "Error eliminando gasto";
     return Response.json({ error: message } satisfies EliminarFinanzasResponse, { status });
   }

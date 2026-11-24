@@ -16,7 +16,6 @@ import { operacionesClient } from "@/clients/operacionesClient";
 import { finanzasClient } from "@/clients/finanzasClient";
 import type { Operacion } from "@/model/types";
 import type { StockItem } from "@/model/stock";
-import type { CategoriaGastoFinanciero } from "@/model/finanzas";
 import { formatDateLabel } from "@/lib/fechas";
 import { formatArs } from "@/lib/format";
 import { ROUTES } from "@/routing/routes";
@@ -39,7 +38,7 @@ import {
 
 import OperacionPagoBadge from "@/app/components/operaciones/OperacionPagoBadge";
 import OperacionStockBadge from "@/app/components/operaciones/OperacionStockBadge";
-import OperacionCreateModal from "@/app/components/operaciones/OperacionCreateModal";
+import OperacionEditGastoModal from "@/app/components/operaciones/OperacionEditGastoModal";
 import FacturaElectronicaModal from "@/app/components/arreglos/FacturaElectronicaModal";
 import RemitoCreateModal from "@/app/components/remitos/RemitoCreateModal";
 import {
@@ -864,23 +863,10 @@ export default function OperacionDetailPage() {
       )}
 
       {isEditGastoOpen && (
-        <OperacionCreateModal
-          open={isEditGastoOpen}
+        <OperacionEditGastoModal
+          key={operacion.id}
+          gastoId={operacion.id}
           talleres={talleres}
-          initialTipo="GASTO"
-          gasto={{
-            id: operacion.gasto_id ?? operacion.id,
-            cuentaId: operacion.cuenta_financiera_id ?? "",
-            categoria: (operacion.categoria_gasto as CategoriaGastoFinanciero) ?? "OTROS",
-            importe: Number(operacion.monto) || totalMonto,
-            fecha: operacion.fecha,
-            descripcion: operacion.descripcion ?? "",
-            observaciones: operacion.observaciones ?? null,
-            arregloId: null,
-            operacionId: null,
-            createdAt: operacion.created_at,
-            updatedAt: operacion.created_at,
-          }}
           onClose={() => {
             setIsEditGastoOpen(false);
             void loadOperacion();

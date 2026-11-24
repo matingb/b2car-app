@@ -40,9 +40,16 @@ export default function OperacionHeaderFields() {
     isClientesLoading,
     pagosDraft,
     isEditingGasto,
+    gasto,
   } = useOperacionForm();
 
   const isCreatingCuenta = cuentaFinancieraId === CREATE_CUENTA_VALUE;
+  const canChangeGastoAccount = gasto?.cantidadPagos !== 0 && gasto?.puedeCambiarImporte !== false;
+  const gastoCuentaPlaceholder = gasto?.cantidadPagos === 0
+    ? "Sin pagos registrados"
+    : gasto?.cantidadPagos && !gasto.cuentaId
+      ? "Varias cuentas"
+      : "Seleccionar cuenta";
 
   return (
     <>
@@ -109,14 +116,17 @@ export default function OperacionHeaderFields() {
         {tipo === "GASTO" && isEditingGasto ? (
           <div style={styles.headerCol}>
             <label style={styles.label}>
-              Cuenta financiera {requiresCuenta ? <span aria-hidden="true" style={styles.required}>*</span> : null}
+              Cuenta financiera {requiresCuenta && canChangeGastoAccount ? <span aria-hidden="true" style={styles.required}>*</span> : null}
             </label>
             <CuentaFinancieraAutocomplete
               value={cuentaFinancieraId}
               onChange={setCuentaFinancieraId}
               dataTestId="operaciones-create-cuenta-financiera"
-              hideClearButton={requiresCuenta}
-              placeholder="Seleccionar cuenta"
+              hideClearButton
+              disabled={!canChangeGastoAccount}
+              allowCreate={canChangeGastoAccount}
+              selectedOption={gasto?.cuentaId && gasto.cuentaNombre ? { value: gasto.cuentaId, label: gasto.cuentaNombre } : undefined}
+              placeholder={gastoCuentaPlaceholder}
               style={{ height: 38, fontSize: 14 }}
             />
           </div>

@@ -13,6 +13,7 @@ export interface CuentaFinancieraAutocompleteProps {
   onChange: (value: string) => void;
   options?: AutocompleteOption[];
   cuentas?: CuentaFinanciera[];
+  selectedOption?: AutocompleteOption;
   placeholder?: string;
   disabled?: boolean;
   allowCreate?: boolean;
@@ -37,6 +38,7 @@ export default function CuentaFinancieraAutocomplete({
   onChange,
   options: customOptions,
   cuentas,
+  selectedOption,
   placeholder,
   disabled = false,
   allowCreate = true,
@@ -77,8 +79,11 @@ export default function CuentaFinancieraAutocomplete({
         label: c.nombre,
       });
     }
+    if (selectedOption && !available.some((cuenta) => cuenta.id === selectedOption.value)) {
+      list.push(selectedOption);
+    }
     return list;
-  }, [allowCreate, createLabel, customOptions, cuentas, cuentasActivas]);
+  }, [allowCreate, createLabel, customOptions, cuentas, cuentasActivas, selectedOption]);
 
   const isInitialLoading = loading && cuentasActivas.length === 0 && !customOptions && !cuentas;
   const defaultPlaceholder = isInitialLoading ? "Cargando cuentas..." : "Seleccionar cuenta...";

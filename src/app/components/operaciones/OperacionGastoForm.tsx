@@ -29,6 +29,7 @@ export default function OperacionGastoForm() {
     handleToggleAdvanced,
     isLoadingCuentas,
     isEditingGasto,
+    gasto,
     factura,
     puedeCargarComprobante,
   } = useOperacionForm();
@@ -41,6 +42,7 @@ export default function OperacionGastoForm() {
       setCategoriaGasto={setCategoriaGasto}
       montoGasto={montoGasto}
       setMontoGasto={setMontoGasto}
+      montoReadOnly={gasto?.puedeCambiarImporte === false}
       descripcionGasto={descripcionGasto}
       setDescripcionGasto={setDescripcionGasto}
       observacionesGasto={observaciones}

@@ -12,6 +12,7 @@ type Props = {
   setCategoriaGasto: (categoria: string) => void;
   montoGasto: string;
   setMontoGasto: (monto: string) => void;
+  montoReadOnly?: boolean;
   descripcionGasto: string;
   setDescripcionGasto: (descripcion: string) => void;
   observacionesGasto?: string;
@@ -24,6 +25,7 @@ export default function GastoFormFields({
   setCategoriaGasto,
   montoGasto,
   setMontoGasto,
+  montoReadOnly,
   descripcionGasto,
   setDescripcionGasto,
   observacionesGasto,
@@ -54,6 +56,7 @@ export default function GastoFormFields({
             step="0.01"
             placeholder="0.00"
             value={montoGasto}
+            readOnly={montoReadOnly}
             onChange={(event) => setMontoGasto(event.target.value)}
             data-testid="gasto-importe"
             style={styles.input}

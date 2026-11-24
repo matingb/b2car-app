@@ -159,6 +159,8 @@ export type GastoFinanciero = {
   id: string;
   cuentaId: string;
   cuentaNombre?: string | null;
+  cantidadPagos?: number;
+  puedeCambiarImporte?: boolean;
   categoria: string;
   importe: number;
   fecha: string;
