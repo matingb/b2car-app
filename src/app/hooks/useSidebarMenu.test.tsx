@@ -117,7 +117,7 @@ describe("useSidebarMenu", () => {
     const keys = result.current.items.map((i) => i.key);
 
     // Permitidos
-    expect(keys).toContain(SidebarMenuKey.Turnos);
+    expect(keys).toContain(SidebarMenuKey.Calendario);
     expect(keys).toContain(SidebarMenuKey.Clientes);
     expect(keys).toContain(SidebarMenuKey.Vehiculos);
     expect(keys).toContain(SidebarMenuKey.Arreglos);

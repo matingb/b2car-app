@@ -23,7 +23,7 @@ import { telemetry } from "@/lib/telemetry";
 
 export enum SidebarMenuKey {
   Dashboard = "dashboard",
-  Turnos = "turnos",
+  Calendario = "calendario",
   Clientes = "clientes",
   Proveedores = "proveedores",
   Vehiculos = "vehiculos",
@@ -48,7 +48,6 @@ export type SidebarMenuItem = {
   disabled?: boolean;
   isLoading?: boolean;
   dividerBefore?: boolean;
-  /** Rutas adicionales que marcan el ítem como activo. */
   activePaths?: readonly string[];
 };
 
@@ -83,7 +82,7 @@ export function useSidebarMenu() {
         onClick: () => router.push(ROUTES.dashboard),
       }] : []),
       ...(hasPermission(Permission.TurnosView) ? [{
-        key: SidebarMenuKey.Turnos,
+        key: SidebarMenuKey.Calendario,
         href: ROUTES.turnos,
         label: "Turnos",
         icon: <CalendarDays size={18} />,
