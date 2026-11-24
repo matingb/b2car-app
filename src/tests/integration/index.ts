@@ -10,7 +10,8 @@ export const SEED = {
   tallerId: "50000000-0000-0000-0000-000000000001", // Sede Central
   vehiculoId: "40000000-0000-0000-0000-000000000001", // Toyota Corolla ABC123
   clienteId: "10000000-0000-0000-0000-000000000001",
-  userId: "7ff568f8-4d46-463b-969c-9e68157fa769", // local@user.ar
+  userId: "7ff568f8-4d46-463b-969c-9e68157fa769",
+  userEmail: "local@user.ar",
   cuentaId: "c0000000-0000-4000-8000-000000000001", // Banco Galicia
   categoriaServiceId: "b1000000-0000-0000-0000-000000000001", // Service
   proveedorId: "d2000000-0000-0000-0000-000000000001", // Distribuidora Norte
@@ -66,6 +67,7 @@ export function generateTestJwt(options?: TestClientOptions): string {
   const payload = Buffer.from(
     JSON.stringify({
       sub: options?.userId || SEED.userId,
+      email: SEED.userEmail,
       role: "authenticated",
       aud: "authenticated",
       tenant_id: options?.tenantId || SEED.tenantId,
@@ -104,6 +106,7 @@ export function createTestClient(options?: TestClientOptions): SupabaseClient {
   const now = Math.floor(Date.now() / 1000);
   const claims = {
     sub: options?.userId || SEED.userId,
+    email: SEED.userEmail,
     role: "authenticated",
     aud: "authenticated",
     tenant_id: options?.tenantId || SEED.tenantId,
@@ -121,6 +124,7 @@ export function createTestClient(options?: TestClientOptions): SupabaseClient {
     refresh_token: "refresh-token",
     user: {
       id: claims.sub,
+      email: claims.email,
       app_metadata: {},
       user_metadata: {},
       aud: "authenticated",
@@ -164,6 +168,7 @@ export function createAdminTestClient(): SupabaseClient {
   const now = Math.floor(Date.now() / 1000);
   const claims = {
     sub: SEED.userId,
+    email: SEED.userEmail,
     role: "service_role",
     aud: "authenticated",
     tenant_id: SEED.tenantId,
@@ -181,6 +186,7 @@ export function createAdminTestClient(): SupabaseClient {
     refresh_token: "refresh-token",
     user: {
       id: claims.sub,
+      email: claims.email,
       app_metadata: {},
       user_metadata: {},
       aud: "authenticated",

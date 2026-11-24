@@ -200,6 +200,7 @@ describe("Integration: Finanzas - Cuenta Corriente del Proveedor (Compras)", () 
       nombre: `Proveedor Test ${crypto.randomUUID().slice(0, 6)}`,
       cuit: "30-11223344-9",
     });
+    expect(provRes.status).toBe(201);
     const { data: prov } = await provRes.json();
     const { stockId } = await dadoQueExisteUnProductoConStock({
       stock: { cantidad: 0, taller_id: SEED.tallerId },
@@ -230,6 +231,7 @@ describe("Integration: Finanzas - Cuenta Corriente del Proveedor (Compras)", () 
     const provRes = await crearProveedorViaRoute({
       nombre: `Proveedor Test ${crypto.randomUUID().slice(0, 6)}`,
     });
+    expect(provRes.status).toBe(201);
     const { data: prov } = await provRes.json();
     const cuenta = await dadoUnaCuentaFinanciera({ saldoInicial: 50000 });
     const { stockId } = await dadoQueExisteUnProductoConStock({
@@ -279,6 +281,7 @@ describe("Integration: Finanzas - Cuenta Corriente del Proveedor (Compras)", () 
     const provRes = await crearProveedorViaRoute({
       nombre: `Proveedor Test ${crypto.randomUUID().slice(0, 6)}`,
     });
+    expect(provRes.status).toBe(201);
     const { data: prov } = await provRes.json();
     const { stockId } = await dadoQueExisteUnProductoConStock({
       stock: { cantidad: 0, taller_id: SEED.tallerId },
