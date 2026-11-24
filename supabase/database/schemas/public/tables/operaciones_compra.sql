@@ -1,8 +1,9 @@
 CREATE TABLE public.operaciones_compra (
   operacion_id uuid                     NOT NULL,
   tenant_id    uuid                     DEFAULT ((auth.jwt() ->> 'tenant_id'::text))::uuid NOT NULL,
-  proveedor_id uuid,
-  created_at   timestamp with time zone DEFAULT now() NOT NULL
+  proveedor_id         uuid,
+  precios_incluyen_iva boolean                  DEFAULT true NOT NULL,
+  created_at           timestamp with time zone DEFAULT now() NOT NULL
 );
 
 CREATE INDEX idx_op_compra_tenant ON public.operaciones_compra (tenant_id);
@@ -13,6 +14,11 @@ CREATE CONSTRAINT TRIGGER trg_compra_validar_documento
   AFTER INSERT OR DELETE OR UPDATE ON public.operaciones_compra DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW
   EXECUTE FUNCTION public._operacion_validar_documento();
+
+CREATE TRIGGER trg_operaciones_compra_sync_totales
+  AFTER UPDATE OF precios_incluyen_iva ON public.operaciones_compra
+  FOR EACH ROW
+  EXECUTE FUNCTION public._trg_operaciones_compra_sync_totales();
 
 CREATE POLICY tenant_access ON public.operaciones_compra
   TO authenticated

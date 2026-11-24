@@ -3,6 +3,9 @@ CREATE TABLE public.operaciones_lineas (
   operacion_id         uuid                     NOT NULL,
   cantidad             integer                  DEFAULT 0 NOT NULL,
   monto_unitario       numeric(12,2)            DEFAULT 0 NOT NULL,
+  subtotal             numeric(14,2)            DEFAULT 0.00 NOT NULL,
+  descuento            numeric(14,2)            DEFAULT 0.00 NOT NULL,
+  total                numeric(14,2)            DEFAULT 0.00 NOT NULL,
   created_at           timestamp with time zone DEFAULT now() NOT NULL,
   stock_id             uuid                     NOT NULL,
   categoria_arreglo_id uuid,
@@ -40,6 +43,11 @@ CREATE TRIGGER facturacion_proteger_operaciones_lineas
   FOR EACH ROW
   EXECUTE FUNCTION public.facturacion_bloquear_mutacion_arreglo();
 
+CREATE TRIGGER trg_operaciones_lineas_calcular_totales
+  BEFORE INSERT OR UPDATE OF cantidad, monto_unitario, descuento ON public.operaciones_lineas
+  FOR EACH ROW
+  EXECUTE FUNCTION public._trg_operaciones_lineas_calcular_totales();
+
 CREATE TRIGGER operaciones_lineas_sync_derivados
   AFTER INSERT OR DELETE OR UPDATE OF categoria_arreglo_id, empleado_id ON public.operaciones_lineas
   FOR EACH ROW
@@ -56,9 +64,14 @@ CREATE CONSTRAINT TRIGGER trg_lineas_validar_documento
   EXECUTE FUNCTION public._operacion_validar_documento();
 
 CREATE TRIGGER trigger_recalcular_precio_operaciones_lineas
-  AFTER INSERT OR DELETE OR UPDATE OF cantidad, monto_unitario, stock_id, iva_alicuota_id ON public.operaciones_lineas
+  AFTER INSERT OR DELETE OR UPDATE OF cantidad, monto_unitario, stock_id, iva_alicuota_id, descuento, subtotal, total ON public.operaciones_lineas
   FOR EACH ROW
   EXECUTE FUNCTION public.recalcular_precio_final_arreglo();
+
+CREATE TRIGGER trg_operaciones_lineas_sync_totales
+  AFTER INSERT OR DELETE OR UPDATE OF cantidad, monto_unitario, descuento, subtotal, total, iva_alicuota_id ON public.operaciones_lineas
+  FOR EACH ROW
+  EXECUTE FUNCTION public._trg_operaciones_lineas_recalcular_operacion();
 
 CREATE POLICY tenant_access ON public.operaciones_lineas
   TO authenticated
@@ -74,6 +87,15 @@ CREATE POLICY tenant_access ON public.operaciones_lineas
 
 ALTER TABLE public.operaciones_lineas
   ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.operaciones_lineas
+  ADD CONSTRAINT operaciones_lineas_subtotal_pos CHECK (subtotal >= 0);
+
+ALTER TABLE public.operaciones_lineas
+  ADD CONSTRAINT operaciones_lineas_descuento_valido CHECK (descuento >= 0 AND descuento <= subtotal);
+
+ALTER TABLE public.operaciones_lineas
+  ADD CONSTRAINT operaciones_lineas_total_valido CHECK (total = subtotal - descuento);
 
 ALTER TABLE public.operaciones_lineas
   ADD CONSTRAINT operaciones_lineas_cancelada_nonneg CHECK (cantidad_cancelada >= 0);

@@ -5,6 +5,9 @@ CREATE TABLE public.detalle_arreglo (
   descripcion           text                     NOT NULL,
   cantidad              integer                  DEFAULT 1 NOT NULL,
   precio_hora_facturada numeric(12,2)            NOT NULL,
+  subtotal              numeric(14,2)            DEFAULT 0.00 NOT NULL,
+  descuento             numeric(14,2)            DEFAULT 0.00 NOT NULL,
+  total                 numeric(14,2)            DEFAULT 0.00 NOT NULL,
   created_at            timestamp with time zone DEFAULT now() NOT NULL,
   updated_at            timestamp with time zone DEFAULT now() NOT NULL,
   categoria_arreglo_id  uuid,
@@ -32,6 +35,11 @@ CREATE TRIGGER detalle_arreglo_snapshot_valores
   BEFORE INSERT OR UPDATE ON public.detalle_arreglo
   FOR EACH ROW
   EXECUTE FUNCTION public._snapshot_detalle_arreglo_valores();
+
+CREATE TRIGGER trg_detalle_arreglo_calcular_totales
+  BEFORE INSERT OR UPDATE OF cantidad, horas_facturadas, precio_hora_facturada, descuento ON public.detalle_arreglo
+  FOR EACH ROW
+  EXECUTE FUNCTION public._trg_detalle_arreglo_calcular_totales();
 
 CREATE TRIGGER detalle_arreglo_sync_derivados
   AFTER INSERT OR DELETE OR UPDATE OF categoria_arreglo_id, empleado_id ON public.detalle_arreglo
@@ -65,6 +73,15 @@ ALTER TABLE public.detalle_arreglo
   ADD CONSTRAINT detalle_arreglo_cantidad_pos CHECK (cantidad > 0);
 
 ALTER TABLE public.detalle_arreglo
+  ADD CONSTRAINT detalle_arreglo_subtotal_pos CHECK (subtotal >= 0);
+
+ALTER TABLE public.detalle_arreglo
+  ADD CONSTRAINT detalle_arreglo_descuento_valido CHECK (descuento >= 0 AND descuento <= subtotal);
+
+ALTER TABLE public.detalle_arreglo
+  ADD CONSTRAINT detalle_arreglo_total_valido CHECK (total = subtotal - descuento);
+
+ALTER TABLE public.detalle_arreglo
   ADD CONSTRAINT detalle_arreglo_categoria_arreglo_id_fkey FOREIGN KEY (categoria_arreglo_id) REFERENCES public.categorias_arreglo(id) ON DELETE SET NULL;
 
 ALTER TABLE public.detalle_arreglo
@@ -96,7 +113,7 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, TRIGGER, TRUNCATE, UPDATE ON public.
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, TRIGGER, TRUNCATE, UPDATE ON public.detalle_arreglo TO authenticated;
 
 GRANT SELECT
-  (arreglo_id, cantidad, categoria_arreglo_id, created_at, descripcion, empleado_id, horas_facturadas, horas_trabajadas, id, iva_alicuota_id, precio_hora_facturada, tenant_id,
+  (arreglo_id, cantidad, categoria_arreglo_id, created_at, descripcion, descuento, empleado_id, horas_facturadas, horas_trabajadas, id, iva_alicuota_id, precio_hora_facturada, subtotal, tenant_id, total,
   updated_at) ON public.detalle_arreglo TO authenticated;
 
 GRANT ALL ON public.detalle_arreglo TO service_role;

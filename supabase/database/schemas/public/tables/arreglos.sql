@@ -4,6 +4,8 @@ CREATE TABLE public.arreglos (
   kilometraje_leido        integer,
   fecha                    timestamp with time zone DEFAULT now(),
   observaciones            text,
+  subtotal                 numeric(14,2)            DEFAULT 0.00 NOT NULL,
+  descuento                numeric(14,2)            DEFAULT 0.00 NOT NULL,
   precio_final             numeric(14,2),
   precio_sin_iva           numeric(14,2),
   esta_pago                boolean                  DEFAULT false,
@@ -98,6 +100,12 @@ ALTER TABLE public.arreglos
 
 ALTER TABLE public.arreglos
   ADD CONSTRAINT arreglos_combustible_leido_check CHECK (combustible_leido IS NULL OR combustible_leido >= 0 AND combustible_leido <= 100);
+
+ALTER TABLE public.arreglos
+  ADD CONSTRAINT arreglos_subtotal_pos CHECK (subtotal >= 0);
+
+ALTER TABLE public.arreglos
+  ADD CONSTRAINT arreglos_descuento_valido CHECK (descuento >= 0 AND descuento <= subtotal);
 
 ALTER TABLE public.arreglos
   ADD CONSTRAINT arreglos_iva_snapshot_check CHECK (precios_incluyen_iva OR tasa_iva IS NOT NULL);

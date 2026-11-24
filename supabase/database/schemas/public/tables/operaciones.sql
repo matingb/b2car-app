@@ -6,6 +6,8 @@ CREATE TABLE public.operaciones (
   created_at    timestamp with time zone      DEFAULT now() NOT NULL,
   fecha         timestamp with time zone      DEFAULT now() NOT NULL,
   observaciones text,
+  subtotal      numeric(14,2)                 DEFAULT 0.00 NOT NULL,
+  descuento     numeric(14,2)                 DEFAULT 0.00 NOT NULL,
   monto_total   numeric(14,2)                 DEFAULT 0.00 NOT NULL,
   total_pagado  numeric(14,2)                 DEFAULT 0.00 NOT NULL,
   esta_pago     boolean                       DEFAULT false NOT NULL,
@@ -48,6 +50,11 @@ CREATE TRIGGER trg_operaciones_recalcular_pago
   FOR EACH ROW
   EXECUTE FUNCTION public._recalcular_estado_pago_operacion();
 
+CREATE TRIGGER trg_operaciones_default_totales
+  BEFORE INSERT OR UPDATE OF tipo, monto_total ON public.operaciones
+  FOR EACH ROW
+  EXECUTE FUNCTION public._trg_operaciones_default_totales();
+
 CREATE POLICY tenant_access ON public.operaciones
   TO authenticated
   USING ((tenant_id = public.current_tenant_id()))
@@ -60,6 +67,9 @@ ALTER TABLE public.operaciones
 
 ALTER TABLE public.operaciones
   ADD CONSTRAINT operaciones_pkey PRIMARY KEY (id);
+
+ALTER TABLE public.operaciones
+  ADD CONSTRAINT operaciones_descuento_valido CHECK (descuento >= 0 AND (subtotal < 0 OR descuento <= subtotal));
 
 ALTER TABLE public.operaciones
   ADD CONSTRAINT operaciones_taller_requerido

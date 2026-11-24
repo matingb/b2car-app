@@ -29,6 +29,8 @@ BEGIN
        OR OLD.tasa_iva IS DISTINCT FROM NEW.tasa_iva
        OR OLD.precio_final IS DISTINCT FROM NEW.precio_final
        OR OLD.precio_sin_iva IS DISTINCT FROM NEW.precio_sin_iva
+       OR OLD.subtotal IS DISTINCT FROM NEW.subtotal
+       OR OLD.descuento IS DISTINCT FROM NEW.descuento
        OR OLD.estado IS DISTINCT FROM NEW.estado THEN
       RAISE EXCEPTION 'El arreglo ya posee una factura electronica autorizada y sus datos fiscales no se pueden modificar'
         USING ERRCODE = '55001';
